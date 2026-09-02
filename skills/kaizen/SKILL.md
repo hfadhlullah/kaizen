@@ -1,0 +1,237 @@
+---
+name: kaizen
+description: >
+  Staged AI development workflow: plan, human approval, implementation, then
+  independent bug/security review with a bounded fix loop. Each stage runs as its own
+  subagent with clean context, and all state lives in a portable `.kaizen/` directory so
+  a run can be resumed later, by another session, or by another AI tool (Codex,
+  Antigravity). Use when the user says "kaizen", "/kaizen", asks to plan-then-build-then-review
+  a change, wants approval steps before code is written, or wants to resume or check an
+  existing kaizen run. Also use to install the workflow into a repository.
+---
+
+# Kaizen
+
+A staged workflow for non-trivial development work:
+
+```
+request -> PLAN -> [approval] -> IMPLEMENT -> REVIEW -> [fix loop] -> [approval] -> done
+```
+
+Three separate subagents do the work. They never share a context window, which is
+the point: a reviewer that watched the code being written will rationalize it, a
+reviewer that sees only the diff and the plan will not.
+
+The full stage contract lives in [`spec.md`](spec.md). Read it before running any
+stage. Configuration defaults are in [`config.default.yml`](config.default.yml).
+Porting the workflow to Codex or Antigravity is covered in [`adapters.md`](adapters.md).
+
+## Commands
+
+| Invocation | Action |
+|---|---|
+| `/kaizen <request>` | Start a new run in the configured mode (default: `approve`) |
+| `/kaizen plan <request>` | Start a run and stop after the plan (`plan-only`) |
+| `/kaizen run` | Resume the current run and execute the approved plan |
+| `/kaizen review [target]` | Review-only: audit existing code, no plan, no implementation |
+| `/kaizen status` | List every run grouped waiting-on-you / in flight / done / abandoned, plus the open backlog count |
+| `/kaizen backlog` | Print the open backlog items across all runs, grouped by source run, with rescued items last under `Orphaned` |
+| `/kaizen approve` | Approve whatever the current run is waiting on |
+| `/kaizen reject <reason>` | Reject it; the reason is fed back to the stage that produced it |
+| `/kaizen abort` | Mark the current run abandoned |
+| `/kaizen init` | Install `.kaizen/` with `spec.md`, config, and the gitignore entry into the current repository |
+| `/kaizen install` | Install the workflow itself globally or per-project (see below) |
+
+If the user typed `/kaizen` with no argument and a run is in progress, treat it as
+`/kaizen status`. If no run is in progress, ask what they want to build.
+
+## Before doing anything
+
+1. Locate the state directory: `.kaizen/` in the repository root, else `~/.kaizen/`
+   keyed by working directory. If neither exists and the user is starting work, run
+   `/kaizen init` first: it creates `.kaizen/` with a copy of `spec.md`, a config, and
+   the gitignore entry (see [`adapters.md`](adapters.md)).
+2. Read `.kaizen/config.yml`, falling back to `config.default.yml` in this skill for
+   any key it does not set.
+3. Read `.kaizen/runs/<current>/state.json` if a run is active. Never assume the
+   stage from conversation memory — the run may have been advanced by another tool
+   or another session.
+4. Read `.kaizen/memory.md` if present. It holds cross-run lessons and carries real
+   weight: it is what previous reviewers learned about this codebase.
+
+## Modes
+
+Set by `mode` in config, overridable per invocation.
+
+- **`plan-only`** — produce the plan, write it, stop. No code is touched.
+- **`approve`** (default) — stop at every approval enabled in config and wait for an
+  explicit human decision.
+- **`auto`** — run every stage back to back with no approval, report at the end. The fix
+  loop still respects `max_iterations`.
+- **`review-only`** — skip plan and implementation, run the reviewer against existing
+  code or a diff.
+
+Mode never overrides a refusal: destructive or irreversible actions still get
+confirmed even in `auto`.
+
+## Approvals
+
+Approvals are configured, not hardcoded. Each enabled approval halts the run, writes what it
+is waiting for into `state.json`, and reports to the user. The run only advances on
+an explicit `/kaizen approve` or a clear approval in conversation.
+
+- `approvals.plan` — after the plan, before any code is written. On by default.
+- `approvals.review` — after the review passes, before the work is called done.
+- `approvals.each_file` — confirm each file edit individually. Off by default; slow.
+
+A rejected approval is not a failure. Write the rejection reason into the run directory
+and hand it back to the stage that produced the artifact, which revises and
+re-presents.
+
+**Asking the user anything:** use AskUserQuestion with 2–4 concrete options, taken
+from the options the planner wrote into the plan. Subagents cannot prompt the user,
+so every question reaches them through you. Do not add an "other" option — free text
+is always available. Reserve plain prose questions for things that genuinely have no
+discrete answers.
+
+**Before the builder runs:** show the plan's **Work list** — plain bullets of what
+will actually be done. It is the last thing the user sees before anything is
+produced, so show it even when they have already approved the plan in conversation.
+
+## The fix loop
+
+When the reviewer reports findings, behavior depends on config:
+
+- `auto_fix.enabled: false` — always stop and hand every finding to the user as a
+  decision. Nothing is fixed automatically.
+- `auto_fix.enabled: true` — the builder fixes findings at or above
+  `auto_fix.min_severity` (default `high`), the reviewer re-checks, repeating up to
+  `auto_fix.max_iterations` (default 3). Findings below the threshold, and anything
+  still open when iterations run out, are reported to the user rather than silently
+  dropped.
+
+Every iteration is written to `runs/<id>/05-iterations/` so the loop is auditable.
+
+## Backlog and status
+
+Each run keeps its own backlog at `runs/<id>/06-backlog.md`. You write it, in the main
+thread, at two writes that already happen: `02-approval.md` at the plan approval
+(out-of-scope suggestions not folded into the approved scope, and anything cut at the
+approval) and `stage: "done"` at the final approval (findings still open, findings
+below the fix threshold, and the builder's out-of-scope notes). No subagent writes it.
+The full rules are in [`spec.md`](spec.md).
+
+Items are one line each, `- <status>: <item text>`, with `<status>` one of `open`,
+`done`, or `rejected`. Findings keep the reviewer's line verbatim. `rejected` always
+carries a reason after a `|`. Closing an item edits its status in place; the line
+stays in the run's file as record.
+
+`/kaizen backlog` reads every `runs/*/06-backlog.md` at read time and prints the `open`
+items only, grouped by source run, newest run first. There is no central backlog file
+to keep in sync. `<state.dir>/backlog.md` is an orphanage and nothing more: before
+`state.keep_runs` prunes a run, move that run's still-open items into it. `/kaizen
+backlog` reads that file too and prints its open items last, under an **Orphaned**
+group, so a rescued item stays visible after its run is gone.
+
+**`/kaizen backlog` and `/kaizen status` are read-only.** They print; they never edit
+a `06-backlog.md` or `state.json`, even when reading one turns up an inconsistency
+(a stale `open` item already closed elsewhere, a duplicate, a bad reference). Report
+what looks wrong as part of the output and ask before touching anything — fixing it
+unasked is exactly the scope creep the rest of this spec exists to prevent, applied to
+kaizen's own bookkeeping instead of a user's code.
+
+`/kaizen status` reads each `runs/*/state.json` live and prints every run in four
+groups:
+
+```
+Waiting on you   — awaiting is non-null and stage is not "abandoned"
+In flight        — awaiting is null and stage is neither "done" nor "abandoned"
+Done             — stage is "done"
+Abandoned        — stage is "abandoned" (set by /kaizen abort)
+
+Backlog: <n> open
+```
+
+The count is every open item across all runs plus the orphanage. An abandoned run's
+backlog items are not open work: leave them in place, and do not print or count them.
+
+Each line is the run id, its stage, and what it is awaiting. Grouping is derived from
+`state.json` at read time, never from the directory name — run directories are flat and
+are never renamed or moved, so a path written into another file cannot break.
+
+## Running a stage
+
+Each stage runs as a subagent via the Agent tool, with the agent type named below.
+Pass it the run directory path and let it read its own inputs from there — do not
+paste plans or diffs into the prompt, since the file is the shared source of truth
+across tools.
+
+| Stage | Agent type | Writes |
+|---|---|---|
+| Plan | `kaizen-planner` | `01-plan.md` |
+| Implement | `kaizen-builder` | `03-impl.md` + the actual code changes |
+| Review | `kaizen-reviewer` | `04-review.md` |
+
+After a subagent returns, update `state.json` yourself in the main thread. Subagents
+report; the main thread owns the state machine.
+
+**Scope precisely, don't scope narrow.** Each subagent starts cold — no context from
+you carries over except what the prompt names. List exactly the files this stage's
+task actually touches; don't default to "read everything" for safety. But cutting a
+file the task genuinely needs is worse than the tokens it would have cost: a
+under-scoped subagent produces a wrong plan or misses a real defect, which costs a fix
+iteration — more tokens than the read would have. Precise beats narrow.
+
+Relay what matters from each subagent's report to the user — their output is not
+shown automatically.
+
+## State layout
+
+```
+.kaizen/
+  spec.md                       # the stage contract, copied in by init
+  config.yml
+  memory.md                     # cross-run lessons, appended by the reviewer
+  backlog.md                    # orphanage only: open items rescued before pruning
+  runs/
+    2026-09-02-add-oauth/
+      00-request.md             # the original request, verbatim
+      01-plan.md
+      02-approval.md            # decisions, with reasons and timestamps
+      03-impl.md                # what changed, which files, what was skipped
+      04-review.md              # findings, severity-tagged
+      05-iterations/
+        01-fix.md
+        01-recheck.md
+      06-backlog.md             # what this run deliberately did not do
+      state.json
+```
+
+`state.json` is the resume point:
+
+```json
+{
+  "id": "2026-09-02-add-oauth",
+  "mode": "approve",
+  "stage": "review",
+  "awaiting": "approvals.review",
+  "iteration": 1,
+  "updated": "2026-09-02T14:31:00+07:00"
+}
+```
+
+`init` adds a gitignore entry that ignores run state but keeps the workflow: it
+ignores `.kaizen/*` and un-ignores `.kaizen/spec.md` and `.kaizen/config.yml`, which
+are meant to be committed (see [`adapters.md`](adapters.md)).
+
+## Install
+
+`/kaizen install` asks where the workflow should live, then copies it:
+
+- **Global** — `~/.claude/skills/kaizen/` and `~/.claude/agents/kaizen-*.md`.
+  Available in every project, not shared with the team.
+- **Per-project** — `.claude/skills/kaizen/` and `.claude/agents/kaizen-*.md`,
+  committed so the team gets the same workflow.
+
+Both can coexist; the project copy wins. `install` also offers to write the adapter
+files from [`adapters.md`](adapters.md) so Codex and Antigravity follow the same spec.

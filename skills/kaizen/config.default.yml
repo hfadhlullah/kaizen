@@ -1,0 +1,74 @@
+# Kaizen defaults. Copy to .kaizen/config.yml in a repository and override only the
+# keys you care about; anything absent falls back to this file.
+
+# plan-only | approve | auto | review-only
+mode: approve
+
+approvals:
+  # Stop after the plan, before any code is written.
+  plan: true
+  # Stop after the review, before the work is called done.
+  review: true
+  # Confirm every individual file edit. Maximum control, slowest.
+  each_file: false
+
+auto_fix:
+  # false: every finding stops the run and becomes a user decision.
+  # true:  findings at or above min_severity are fixed and re-reviewed automatically.
+  enabled: true
+  # critical | high | medium | low
+  min_severity: high
+  # Fix/recheck rounds before remaining findings are escalated to the user.
+  max_iterations: 3
+
+track:
+  # The kind of work a run is doing, which decides what "deliverable",
+  # "verification", and "finding" mean for every stage. It is INFERRED from the
+  # request by the planner and stated back in the plan's Framing for the user to
+  # correct at the approval — the user is never asked to categorize their own request.
+  # Set this only to pin a default for a repo that is always one kind of work
+  # (e.g. a docs repo). Leave empty to infer per run.
+  default: ""
+
+review:
+  # Checks that run in every track.
+  checks:
+    - correctness
+    - plan_conformance
+  # Additional checks per track, chosen by what the run actually is. The planner may
+  # name a track not listed here; the reviewer then derives its checks from the
+  # track's "what would make it wrong".
+  track_checks:
+    software: [security, reuse_simplification, test_coverage]
+    writing: [completeness, claim_accuracy, reader_usability]
+    communication: [claim_accuracy, audience_fit, voice_consistency]
+    operations: [prerequisites, rollback, executability]
+    research: [evidence_support, selection_bias, alternatives]
+  # Let the reviewer append durable lessons to .kaizen/memory.md.
+  write_memory: true
+
+backlog:
+  # Capture what a run deliberately did not do: out-of-scope suggestions the user did
+  # not take, findings below the fix threshold, and debts deferred at an approval.
+  # Written by the main thread at the plan approval and again at the final approval.
+  enabled: true
+  # Per run, beside its plan and review — provenance without a central file to sync.
+  file: 06-backlog.md
+  # Items are open | done | rejected. Only open ones are printed by /kaizen backlog;
+  # closed ones stay in their run's file as record.
+  statuses: [open, done, rejected]
+  # Before state.keep_runs prunes a run, its still-open items move here, relative to
+  # state.dir. Done and rejected items are pruned with the run.
+  orphan_file: backlog.md
+
+state:
+  dir: .kaizen
+  # Keep this many completed runs before pruning the oldest. Pruning first rescues
+  # open backlog items into backlog.orphan_file, so it never destroys open work.
+  keep_runs: 20
+
+git:
+  # Never commit, push, or open a PR unless the user explicitly asks.
+  auto_commit: false
+  # Create a branch before the implement stage when on the default branch.
+  branch_before_implement: true
