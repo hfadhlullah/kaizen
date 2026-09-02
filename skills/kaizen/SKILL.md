@@ -32,8 +32,9 @@ Porting the workflow to Codex or Antigravity is covered in [`adapters.md`](adapt
 |---|---|
 | `/kaizen <request>` | Start a new run in the configured mode (default: `approve`) |
 | `/kaizen plan <request>` | Start a run and stop after the plan (`plan-only`) |
+| `/kaizen auto <request>` | Start a run in `auto` mode: every stage back to back, no approval stops |
 | `/kaizen run` | Resume the current run and execute the approved plan |
-| `/kaizen review [target]` | Review-only: audit existing code, no plan, no implementation |
+| `/kaizen review [target]` | Review-only: audit existing code, no plan, no implementation (`review-only`) |
 | `/kaizen status` | List every run grouped waiting-on-you / in flight / done / abandoned, plus the open backlog count |
 | `/kaizen backlog` | Print the open backlog items across all runs, grouped by source run, with rescued items last under `Orphaned` |
 | `/kaizen approve` | Approve whatever the current run is waiting on |
@@ -84,9 +85,12 @@ an explicit `/kaizen approve` or a clear approval in conversation.
 - `approvals.review` — after the review passes, before the work is called done.
 - `approvals.each_file` — confirm each file edit individually. Off by default; slow.
 
-A rejected approval is not a failure. Write the rejection reason into the run directory
-and hand it back to the stage that produced the artifact, which revises and
-re-presents.
+A rejected approval is not a failure, and it is not always the same action. Two shapes:
+**revise** ("do it differently") sends the plan back to the planner, which produces a
+new version and returns to this same approval. **Kill** ("not doing this") means the
+request itself was wrong, not the approach — set `stage: "abandoned"` and stop, no
+revision to make. The reason says which; state the reading taken in `02-approval.md`
+when it is not obvious. See *Plan approval* in [`spec.md`](spec.md) for the full rule.
 
 **Asking the user anything:** use AskUserQuestion with 2–4 concrete options, taken
 from the options the planner wrote into the plan. Subagents cannot prompt the user,

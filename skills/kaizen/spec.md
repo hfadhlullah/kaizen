@@ -203,9 +203,25 @@ was not folded into the approved scope, plus anything cut from scope at this app
 each as `open` — see *Backlog* below for the format. The backlog is a candidate list,
 not a commitment list, so silence at the approval captures the item rather than losing
 it. A rejection appends nothing: there is no approved scope yet to measure against, and
-the approval of the revised plan is what captures the items, once. On rejection, hand
-the file back to the planner for a revision; do not proceed to implementation on a
-rejected plan under any mode.
+the approval of the revised plan is what captures the items, once.
+
+**A rejection is one of two different things, and the reason says which.** "Do it
+differently" is a revise: hand the file back to the planner with the reason, it
+produces a new `01-plan.md`, and the run returns to this same approval. "Not doing
+this" is a kill: the request itself was wrong, not just the approach — mark
+`stage: "abandoned"` in `state.json` and stop; there is nothing to revise toward.
+
+Read the reason to tell which. Revise-shaped: disagreement with an approach, a step,
+a scope boundary, an assumption — anything where a different plan would be accepted.
+Kill-shaped: the goal is no longer wanted, was based on a misunderstanding now
+resolved outside the plan, or a "no" with no implied alternative. When genuinely
+unclear, state which reading was taken in `02-approval.md` rather than guessing
+silently — a wrong revise wastes one planner cycle; a wrong kill discards a plan that
+should have been fixed instead, silently and without a record.
+
+Either way, do not proceed to implementation on a rejected plan under any mode. A
+revised plan returns through this same approval; a killed run's `stage` never advances
+past `"abandoned"`.
 
 ---
 
