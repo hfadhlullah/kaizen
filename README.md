@@ -13,12 +13,15 @@ A quick-reference card ships separately as the `kaizen-help` skill.
 
 ```bash
 git clone <this repo> ~/kaizen
-mkdir -p ~/.claude/skills ~/.claude/agents
+mkdir -p ~/.claude/skills ~/.claude/agents ~/.claude/commands
 ln -s ~/kaizen/skills/kaizen ~/.claude/skills/kaizen
-ln -s ~/kaizen/agents/kaizen-planner.md ~/.claude/agents/kaizen-planner.md
-ln -s ~/kaizen/agents/kaizen-builder.md ~/.claude/agents/kaizen-builder.md
-ln -s ~/kaizen/agents/kaizen-reviewer.md ~/.claude/agents/kaizen-reviewer.md
+ln -s ~/kaizen/skills/kaizen-help ~/.claude/skills/kaizen-help
+for f in ~/kaizen/agents/kaizen-*.md; do ln -s "$f" ~/.claude/agents/"$(basename "$f")"; done
+for f in ~/kaizen/commands/kaizen-*.md; do ln -s "$f" ~/.claude/commands/"$(basename "$f")"; done
 ```
+
+Restart Claude Code after linking — skills load live, slash commands and the
+statusline only pick up on session start.
 
 Symlinks instead of copies: `git pull` in the clone updates the live install.
 
@@ -32,6 +35,9 @@ cd ~/kaizen && git pull
 
 ```
 kaizen/
-  skills/kaizen/     # SKILL.md, spec.md, config.default.yml, adapters.md, README.md
-  agents/            # kaizen-planner.md, kaizen-builder.md, kaizen-reviewer.md
+  skills/kaizen/      # SKILL.md, spec.md, config.default.yml, adapters.md, README.md
+  skills/kaizen-help/ # quick-reference card
+  agents/             # kaizen-planner.md, kaizen-builder.md, kaizen-reviewer.md
+  commands/           # /kaizen-plan, -auto, -run, -review, -status, -backlog,
+                      #   -approve, -reject, -abort, -init, -install
 ```
