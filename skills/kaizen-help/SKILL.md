@@ -9,8 +9,12 @@ description: >
 
 # Kaizen Help
 
-Display this reference card when invoked. One-shot, do NOT change kaizen's
-active mode, write to `state.json`, or persist anything.
+**Print the content of this card into your reply.** The user cannot see this file —
+it loads into your context only, so summarizing it or saying "see above" shows them
+nothing. Output the tables themselves.
+
+One-shot: do NOT change kaizen's active mode, write to `state.json`, or persist
+anything.
 
 ## Commands
 
@@ -18,12 +22,13 @@ active mode, write to `state.json`, or persist anything.
 |---|---|
 | `/kaizen <request>` | Start a new run in the configured mode (default: `approve`) |
 | `/kaizen plan <request>` | Start a run and stop after the plan (`plan-only`) |
+| `/kaizen auto <request>` | Start a run in `auto` mode: every stage back to back, no approval stops |
 | `/kaizen run` | Resume the current run and execute the approved plan |
 | `/kaizen review [target]` | Review-only: audit existing code, no plan, no implementation |
 | `/kaizen status` | List every run grouped waiting-on-you / in flight / done / abandoned, plus open backlog count |
 | `/kaizen backlog` | Print open backlog items across all runs, grouped by source run, rescued items last under `Orphaned` |
 | `/kaizen approve` | Approve whatever the current run is waiting on |
-| `/kaizen reject <reason>` | Reject it; the reason is fed back to the stage that produced it |
+| `/kaizen reject <reason>` | Reject it; the reason decides revise (back to planner) vs kill (abandon) |
 | `/kaizen abort` | Mark the current run abandoned |
 | `/kaizen init` | Install `.kaizen/` with `spec.md`, config, and the gitignore entry into the current repository |
 | `/kaizen install` | Install the workflow itself globally or per-project |
@@ -49,8 +54,10 @@ Mode never overrides a refusal: destructive/irreversible actions still confirm e
 - `approvals.review` — after the review passes, before the work is called done.
 - `approvals.each_file` — confirm each file edit individually. Off by default; slow.
 
-A rejection is written to the run directory and handed back to the stage that
-produced the artifact, which revises and re-presents.
+A rejection is written to the run directory, and is one of two things — the reason
+says which. **Revise** ("do it differently") goes back to the planner, which produces
+a new plan and returns to the same approval. **Kill** ("not doing this") means the
+request itself was wrong: set `stage: "abandoned"` and stop, nothing to revise toward.
 
 ## Fix loop
 
