@@ -1,6 +1,7 @@
 # Adapters — running kaizen outside Claude Code
 
-`spec.md` is the workflow. It does not mention any vendor, and it is the single
+`spec.md` plus its per-stage files (`spec-plan.md`, `spec-build.md`, `spec-review.md`,
+`spec-main.md`) are the workflow. It does not mention any vendor, and it is the single
 source of truth. An adapter is a thin file that points a given tool at it and
 describes how that tool dispatches stages. Adapters never restate the stage rules;
 duplicating them is how the tools drift apart.
@@ -33,17 +34,17 @@ session may be mid-run.
 
 Codex has no separate subagents, so run the stages sequentially in one session,
 but keep them clean: start each stage by reading only that stage's declared inputs
-from `spec.md`, and write its artifact before moving on. When reviewing, judge the
+from its stage file, and write its artifact before moving on. When reviewing, judge the
 diff on its own terms rather than defending the reasoning you used while writing it.
 ```
 
-Copy `spec.md` and `config.yml` into `.kaizen/` so the reference resolves
+Copy `spec*.md` and `config.yml` into `.kaizen/` so the reference resolves
 without this skill installed.
 
 ## Antigravity
 
 Antigravity reads `AGENTS.md` as well; use the same block. If a workspace-level rules
-file is configured instead, point it at `.kaizen/spec.md` with the same three
+file is configured instead, point it at `.kaizen/spec.md` and the stage file being run with the same three
 paragraphs.
 
 Where Antigravity can run parallel agents, map planner, builder, and reviewer onto
@@ -63,13 +64,13 @@ completes. A stale `state.json` is the one way this breaks.
 
 ## Installing the adapter files
 
-`/kaizen init` writes `.kaizen/` with `spec.md`, `config.yml`, and the gitignore
+`/kaizen init` writes `.kaizen/` with the `spec*.md` files, `config.yml`, and the gitignore
 entry. `/kaizen install` additionally offers to append the `AGENTS.md` block above.
-`.kaizen/spec.md` and `.kaizen/config.yml` should be committed even though run state
+`.kaizen/spec*.md` and `.kaizen/config.yml` should be committed even though run state
 is ignored — the workflow is shared, the run data is not:
 
 ```gitignore
 .kaizen/*
-!.kaizen/spec.md
+!.kaizen/spec*.md
 !.kaizen/config.yml
 ```
