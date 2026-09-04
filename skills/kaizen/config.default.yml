@@ -7,8 +7,10 @@ mode: approve
 approvals:
   # Stop after the plan, before any code is written.
   plan: true
-  # Stop after the review, before the work is called done.
-  review: true
+  # Stop after the review, before the work is called done. Off by default: when
+  # auto_fix has already closed the findings at or above its threshold, this second
+  # stop mostly asks the user to approve a report they are about to read anyway.
+  review: false
   # Confirm every individual file edit. Maximum control, slowest.
   each_file: false
 
@@ -18,8 +20,10 @@ auto_fix:
   enabled: true
   # critical | high | medium | low
   min_severity: high
-  # Fix/recheck rounds before remaining findings are escalated to the user.
-  max_iterations: 3
+  # Fix/recheck rounds before remaining findings are escalated to the user. Each round
+  # is a full builder pass plus a full reviewer pass, so this is the most expensive
+  # knob in the file. A third round rarely closes what two could not.
+  max_iterations: 2
 
 track:
   # The kind of work a run is doing, which decides what "deliverable",
@@ -40,12 +44,16 @@ review:
   # track's "what would make it wrong".
   track_checks:
     software: [security, reuse_simplification, test_coverage]
+    # blast_radius and regression are universal — see spec-review.md — not listed here.
     writing: [completeness, claim_accuracy, reader_usability]
     communication: [claim_accuracy, audience_fit, voice_consistency]
     operations: [prerequisites, rollback, executability]
     research: [evidence_support, selection_bias, alternatives]
   # Let the reviewer append durable lessons to .kaizen/memory.md.
   write_memory: true
+  # Every stage of every future run reads memory.md, so cap it. Over this, the reviewer
+  # prunes stale or superseded lessons before appending rather than growing the file.
+  memory_max_lines: 100
 
 backlog:
   # Capture what a run deliberately did not do: out-of-scope suggestions the user did

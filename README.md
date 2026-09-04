@@ -35,7 +35,7 @@ cd ~/kaizen && git pull
 
 ```
 kaizen/
-  skills/kaizen/      # SKILL.md, spec.md, config.default.yml, adapters.md, README.md
+  skills/kaizen/      # SKILL.md, spec*.md, config.default.yml, adapters.md, README.md
   skills/kaizen-help/ # quick-reference card
   agents/             # kaizen-planner.md, kaizen-builder.md, kaizen-reviewer.md
   commands/           # /kaizen-plan, -auto, -run, -review, -status, -backlog,

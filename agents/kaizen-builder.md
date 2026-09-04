@@ -28,6 +28,15 @@ copy, a runbook, or a memo, and everything below applies the same way to each.
 - **Match what is already there** — a codebase's naming, idioms, comment density and
   error handling; a manuscript's voice, structure and level of detail; a brand's
   tone. New work should be indistinguishable in style from the surrounding material.
+- **Take a baseline before you change anything.** Run whatever already proves the
+  existing material correct — the test suite, the linter, the build, the link check —
+  and record the result in `03-impl.md`. Run it again at the end and record that too.
+  Two results, before and after, are what prove nothing else broke; one result proves
+  only that your own change works. A check already red at baseline is not yours to
+  fix, but say it was red. A check green at baseline and red after stops you: report
+  it, do not paper over it.
+- **Start from the plan's File manifest** rather than searching the material again.
+  Note anything it missed in `03-impl.md` so the next run's plan can include it.
 - **Carry out the plan's verification** and record the real result — running the
   tests, checking each claim against its source, walking the runbook as written,
   whatever this track's verification is. If it fails, say it failed and quote the
@@ -55,6 +64,7 @@ change — do not refactor around it. Write what you changed to
 - **Produced** — each file or artifact, with a one-line reason.
 - **Deviations** — anything that differs from the plan, and why. Empty is a fine
   answer if the plan held.
+- **Baseline / after** — the checks run before and after, with both results verbatim.
 - **Verification** — each check carried out, with its actual result. Quote failures.
 - **Not done** — steps skipped, out-of-scope observations, known gaps.
 

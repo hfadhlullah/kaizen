@@ -38,12 +38,14 @@ workflow should live:
 Both can coexist; the project copy wins. Install also offers to write the adapter
 files from [`adapters.md`](adapters.md) so Codex and Antigravity follow the same spec.
 
-Five files make up the workflow: `SKILL.md`, `spec.md`, `config.default.yml`,
+The workflow is `SKILL.md`, the split spec (`spec.md` core plus `spec-plan.md`,
+`spec-build.md`, `spec-review.md`, `spec-main.md` — each reader takes core plus one),
+`config.default.yml`,
 `adapters.md`, and this README, plus the three agent definitions `kaizen-planner.md`,
 `kaizen-builder.md`, and `kaizen-reviewer.md`.
 
 To set a repository up for runs, ask for `kaizen init`. That creates `.kaizen/` with a
-copy of `spec.md`, a config, and the gitignore entry.
+copy of the `spec*.md` files, a config, and the gitignore entry.
 
 ## Your first run
 
@@ -195,11 +197,12 @@ anything absent falls back to the defaults.
 |---|---|---|
 | `mode` | `approve` | You want `plan-only` to think without building, `auto` to run unattended, or `review-only` to audit existing work |
 | `approvals.plan` | `true` | Rarely. This is the stop that makes the workflow worth running |
-| `approvals.review` | `true` | You are fine with the run finishing on the reviewer's word |
+| `approvals.review` | `false` | Set `true` to add a second human stop after the review; with `auto_fix` on it mostly re-approves a report you are already reading |
 | `approvals.each_file` | `false` | You want to confirm every single file edit. Maximum control, slowest |
 | `auto_fix.enabled` | `true` | Set `false` and every finding becomes your decision instead |
 | `auto_fix.min_severity` | `high` | Lower to `medium` or `low` to have more auto-fixed; raise findings you see instead of auto-fixing |
-| `auto_fix.max_iterations` | `3` | Fix/recheck rounds before whatever is left is escalated to you |
+| `auto_fix.max_iterations` | `2` | Fix/recheck rounds before whatever is left is escalated to you |
+| `review.memory_max_lines` | `100` | The cap on `memory.md`, which every stage of every run reads. Raise only if the lessons are genuinely all load-bearing |
 | `git.auto_commit` | `false` | Leave it. Kaizen does not commit or push unless you ask |
 | `track.default` | `""` (inferred) | A repo that is always one kind of work, e.g. a docs repo |
 | `backlog.enabled` | `true` | Set `false` to skip both backlog capture points; the run still executes, just without a `06-backlog.md` |
@@ -215,7 +218,11 @@ even in `auto`.
 
 ```
 .kaizen/
-  spec.md                       # the stage contract, copied in by init
+  spec.md                       # core contract, copied in by init
+  spec-plan.md                  # per-stage contracts; each reader takes core + one
+  spec-build.md
+  spec-review.md
+  spec-main.md
   config.yml
   memory.md                     # cross-run lessons, appended by the reviewer
   backlog.md                    # orphanage only: open items rescued before pruning
@@ -254,14 +261,16 @@ this gitignore stanza:
 
 ```gitignore
 .kaizen/*
-!.kaizen/spec.md
+!.kaizen/spec*.md
 !.kaizen/config.yml
 ```
 
 ## Where to go next
 
-- [`spec.md`](spec.md) — the full, tool-neutral stage contract: exactly what each stage
-  reads, writes, and must not do. If anything here and `spec.md` disagree, `spec.md`
+- [`spec.md`](spec.md) + [`spec-plan.md`](spec-plan.md), [`spec-build.md`](spec-build.md),
+  [`spec-review.md`](spec-review.md), [`spec-main.md`](spec-main.md) — the tool-neutral
+  stage contract, split so each reader loads only core plus its own stage: exactly what
+  that stage reads, writes, and must not do. If anything here and the spec disagree, the spec
   wins.
 - [`config.default.yml`](config.default.yml) — every key with its default and a comment.
 - [`adapters.md`](adapters.md) — running kaizen from Codex or Antigravity, and handing a

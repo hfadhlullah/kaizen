@@ -22,8 +22,12 @@ Three separate subagents do the work. They never share a context window, which i
 the point: a reviewer that watched the code being written will rationalize it, a
 reviewer that sees only the diff and the plan will not.
 
-The full stage contract lives in [`spec.md`](spec.md). Read it before running any
-stage. Configuration defaults are in [`config.default.yml`](config.default.yml).
+The stage contract is split so no reader loads a stage it is not running:
+[`spec.md`](spec.md) is the core (track, intake, resume) and every reader takes it,
+plus exactly one of [`spec-plan.md`](spec-plan.md), [`spec-build.md`](spec-build.md),
+[`spec-review.md`](spec-review.md), or [`spec-main.md`](spec-main.md) — the main
+thread's own file. Read core plus your stage before running it; do not read the
+others. Configuration defaults are in [`config.default.yml`](config.default.yml).
 Porting the workflow to Codex or Antigravity is covered in [`adapters.md`](adapters.md).
 
 ## Commands
@@ -40,7 +44,7 @@ Porting the workflow to Codex or Antigravity is covered in [`adapters.md`](adapt
 | `/kaizen approve` | Approve whatever the current run is waiting on |
 | `/kaizen reject <reason>` | Reject it; the reason is fed back to the stage that produced it |
 | `/kaizen abort` | Mark the current run abandoned |
-| `/kaizen init` | Install `.kaizen/` with `spec.md`, config, and the gitignore entry into the current repository |
+| `/kaizen init` | Install `.kaizen/` with the `spec*.md` files, config, and the gitignore entry into the current repository |
 | `/kaizen install` | Install the workflow itself globally or per-project (see below) |
 
 If the user typed `/kaizen` with no argument and a run is in progress, treat it as
@@ -50,7 +54,7 @@ If the user typed `/kaizen` with no argument and a run is in progress, treat it 
 
 1. Locate the state directory: `.kaizen/` in the repository root, else `~/.kaizen/`
    keyed by working directory. If neither exists and the user is starting work, run
-   `/kaizen init` first: it creates `.kaizen/` with a copy of `spec.md`, a config, and
+   `/kaizen init` first: it creates `.kaizen/` with a copy of the `spec*.md` files, a config, and
    the gitignore entry (see [`adapters.md`](adapters.md)).
 2. Read `.kaizen/config.yml`, falling back to `config.default.yml` in this skill for
    any key it does not set.
@@ -82,7 +86,8 @@ is waiting for into `state.json`, and reports to the user. The run only advances
 an explicit `/kaizen approve` or a clear approval in conversation.
 
 - `approvals.plan` — after the plan, before any code is written. On by default.
-- `approvals.review` — after the review passes, before the work is called done.
+- `approvals.review` — after the review passes, before the work is called done. Off by
+  default: with `auto_fix` on, it mostly asks for approval of a report being read anyway.
 - `approvals.each_file` — confirm each file edit individually. Off by default; slow.
 
 A rejected approval is not a failure, and it is not always the same action. Two shapes:
@@ -90,7 +95,7 @@ A rejected approval is not a failure, and it is not always the same action. Two 
 new version and returns to this same approval. **Kill** ("not doing this") means the
 request itself was wrong, not the approach — set `stage: "abandoned"` and stop, no
 revision to make. The reason says which; state the reading taken in `02-approval.md`
-when it is not obvious. See *Plan approval* in [`spec.md`](spec.md) for the full rule.
+when it is not obvious. See *Plan approval* in [`spec-plan.md`](spec-plan.md) for the full rule.
 
 **Asking the user anything:** use AskUserQuestion with 2–4 concrete options, taken
 from the options the planner wrote into the plan. Subagents cannot prompt the user,
@@ -110,7 +115,7 @@ When the reviewer reports findings, behavior depends on config:
   decision. Nothing is fixed automatically.
 - `auto_fix.enabled: true` — the builder fixes findings at or above
   `auto_fix.min_severity` (default `high`), the reviewer re-checks, repeating up to
-  `auto_fix.max_iterations` (default 3). Findings below the threshold, and anything
+  `auto_fix.max_iterations` (default 2). Findings below the threshold, and anything
   still open when iterations run out, are reported to the user rather than silently
   dropped.
 
@@ -123,7 +128,7 @@ thread, at two writes that already happen: `02-approval.md` at the plan approval
 (out-of-scope suggestions not folded into the approved scope, and anything cut at the
 approval) and `stage: "done"` at the final approval (findings still open, findings
 below the fix threshold, and the builder's out-of-scope notes). No subagent writes it.
-The full rules are in [`spec.md`](spec.md).
+The full rules are in [`spec-main.md`](spec-main.md).
 
 Items are one line each, `- <status>: <item text>`, with `<status>` one of `open`,
 `done`, or `rejected`. Findings keep the reviewer's line verbatim. `rejected` always
@@ -168,7 +173,8 @@ are never renamed or moved, so a path written into another file cannot break.
 Each stage runs as a subagent via the Agent tool, with the agent type named below.
 Pass it the run directory path and let it read its own inputs from there — do not
 paste plans or diffs into the prompt, since the file is the shared source of truth
-across tools.
+across tools. Name its spec files in the prompt: core `spec.md` plus its own stage
+file, never the whole set.
 
 | Stage | Agent type | Writes |
 |---|---|---|
@@ -193,7 +199,11 @@ shown automatically.
 
 ```
 .kaizen/
-  spec.md                       # the stage contract, copied in by init
+  spec.md                       # core contract, copied in by init
+  spec-plan.md                  # per-stage contracts; each reader takes core + one
+  spec-build.md
+  spec-review.md
+  spec-main.md
   config.yml
   memory.md                     # cross-run lessons, appended by the reviewer
   backlog.md                    # orphanage only: open items rescued before pruning
@@ -225,7 +235,7 @@ shown automatically.
 ```
 
 `init` adds a gitignore entry that ignores run state but keeps the workflow: it
-ignores `.kaizen/*` and un-ignores `.kaizen/spec.md` and `.kaizen/config.yml`, which
+ignores `.kaizen/*` and un-ignores `.kaizen/spec*.md` and `.kaizen/config.yml`, which
 are meant to be committed (see [`adapters.md`](adapters.md)).
 
 ## Install
