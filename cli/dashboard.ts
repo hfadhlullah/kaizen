@@ -223,17 +223,39 @@ export async function dashboard(
 
   async function backlogView() {
     const groups = allBacklog(state!);
+    const parsed = groups.map((g) => ({ run: g.run, items: g.items.map(parseItem) }));
+    const sevWidth = Math.max(0, ...parsed.flatMap((g) => g.items.map((i) => i.severity?.length ?? 0)));
+    const whereWidth = Math.max(0, ...parsed.flatMap((g) => g.items.map((i) => i.where?.length ?? 0)));
+
     const rows: string[] = [];
-    const full: (string | null)[] = [];        // null where the row is a heading
-    for (const g of groups) {
-      rows.push(c.bold(g.run)); full.push(null);
-      for (const item of g.items) { rows.push("  " + item); full.push(item); }
+    const full: (Item | null)[] = [];          // null where the row is a heading
+    for (const g of parsed) {
+      rows.push(c.bold(g.run.replace(/^\d{4}-\d{2}-\d{2}-/, ""))); full.push(null);
+      for (const it of g.items) {
+        // Columns only where there is something to put in them: an item written as
+        // prose should not be pushed across the screen by other items' severities.
+        const cols: string[] = [];
+        if (sevWidth) {
+          const sev = (it.severity ?? "").padEnd(sevWidth);
+          cols.push(it.severity === "critical" || it.severity === "high" ? c.amber(sev) : c.dim(sev));
+        }
+        if (whereWidth) cols.push(c.dim((it.where ?? "").padEnd(whereWidth)));
+        rows.push("  " + [...cols, it.text].join("  "));
+        full.push(it);
+      }
     }
     for (;;) {
       const i = await pick("Backlog — open items", rows, "enter read · backspace back");
       if (i === null) return;
       // Rows are cut to the window, so reading one means opening it.
-      if (full[i]) await report([c.bold("Backlog item"), "", ...wrap(full[i]!, 4)]);
+      const it = full[i];
+      if (!it) continue;
+      await report([
+        c.bold(it.where ?? "Backlog item"),
+        it.severity ? c.dim(`  ${it.severity}`) : "",
+        "",
+        ...wrap(it.raw.replace(/`/g, ""), 2),
+      ]);
     }
   }
 
@@ -396,6 +418,29 @@ function readFindings(file: string) {
   return readFileSync(file, "utf8").split("\n")
     .map((l) => l.trim())
     .filter((l) => /^\d+\.\s/.test(l) || /\b(critical|high|medium|low)\b:/.test(l));
+}
+
+// Backlog items are often a reviewer's finding pasted verbatim -- a backticked
+// path, a severity, then the sentence. Split those apart so a list can show the
+// severity and the place as columns and leave the prose to speak for itself.
+type Item = { severity: string | null; where: string | null; text: string; raw: string };
+
+function parseItem(raw: string): Item {
+  const m = /^`?([^`:]+(?::\d+)?)`?\s*[:—-]\s*(critical|high|medium|low)\s*[:—-]\s*(.+)$/i.exec(raw);
+  if (m) {
+    const where = m[1]!.trim().split("/").pop()!;
+    return { severity: m[2]!.toLowerCase(), where, text: tidy(m[3]!), raw };
+  }
+  const sev = /^(critical|high|medium|low)\s*[:—-]\s*(.+)$/i.exec(raw);
+  if (sev) return { severity: sev[1]!.toLowerCase(), where: null, text: tidy(sev[2]!), raw };
+  return { severity: null, where: null, text: tidy(raw), raw };
+}
+
+// One readable sentence: no markdown, and the fix belongs in the full view. The
+// first word is left alone -- capitalising it turns request_for_id into
+// Request_for_id, which is a different identifier.
+function tidy(text: string) {
+  return text.replace(/`/g, "").split(/\s+Fix:\s+/)[0]!.trim();
 }
 
 function readBacklog(file: string) {
