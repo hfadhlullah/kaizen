@@ -1,7 +1,7 @@
 {
   "name": "kaizen-agent",
   "version": "0.4.0",
-  "description": "Staged AI development workflow: plan, human approval, implement, independent review, bounded fix loop.",
+  "description": "Staged workflow for AI agents \u2014 code, writing, research, operations: plan, human approval, build, independent review, bounded fix loop.",
   "type": "module",
   "bin": {
     "kaizen-agent": "./cli/install.ts"
@@ -30,6 +30,8 @@
     "skill",
     "codex",
     "antigravity",
-    "code-review"
+    "code-review",
+    "writing",
+    "research"
   ]
 }

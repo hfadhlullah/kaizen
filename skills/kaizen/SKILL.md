@@ -1,12 +1,14 @@
 ---
 name: kaizen
 description: >
-  Staged AI development workflow: plan, human approval, implementation, then
-  independent bug/security review with a bounded fix loop. Each stage runs as its own
+  Staged workflow for any kind of work: plan, human approval, build, then independent
+  review with a bounded fix loop. Not only for code — a run infers its own track (code,
+  writing, communication, operations, research) and every stage reads "deliverable",
+  "verification", and "finding" in that track's terms. Each stage runs as its own
   subagent with clean context, and all state lives in a portable `.kaizen/` directory so
   a run can be resumed later, by another session, or by another AI tool (Codex,
   Antigravity). Use when the user says "kaizen", "/kaizen", asks to plan-then-build-then-review
-  a change, wants approval steps before code is written, or wants to resume or check an
+  something, wants approval steps before work begins, or wants to resume or check an
   existing kaizen run. Also use to install the workflow into a repository.
 ---
 

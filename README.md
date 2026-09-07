@@ -1,9 +1,16 @@
 # kaizen
 
-Staged AI development workflow for Claude Code: plan → human approval → implement →
-independent review → bounded fix loop. Each stage runs as its own subagent with clean
-context; all run state lives in a portable `.kaizen/` directory so a run can be
-resumed later, by another session, or by another AI tool (Codex, Antigravity).
+Staged workflow for AI agents: plan → human approval → build → independent review →
+bounded fix loop. Each stage runs as its own subagent with clean context; all run
+state lives in a portable `.kaizen/` directory so a run can be resumed later, by
+another session, or by another AI tool (Codex, Antigravity).
+
+**Not only for code.** The stage structure holds for a chapter, a campaign, a
+migration runbook, or a research memo just as well. Each run infers its own *track*
+from the request — what the deliverable is, what done means, what would make it wrong
+— and every stage reads those in the track's own terms. A reviewer hunting race
+conditions in a book manuscript is worse than no reviewer at all, which is what the
+track prevents. See [The track](skills/kaizen/spec.md#the-track).
 
 See [`skills/kaizen/SKILL.md`](skills/kaizen/SKILL.md) for the full behavior and
 [`skills/kaizen/spec.md`](skills/kaizen/spec.md) for the tool-neutral stage contract.

@@ -69,7 +69,7 @@ async function welcome() {
   console.log(`
   ${c.bold("改善")}  ${c.dim("kaizen — continuous improvement")}
 
-  ${c.dim("A staged workflow for AI coding agents:")}
+  ${c.dim("A staged workflow for AI agents — code, writing, research, operations:")}
   ${c.dim("plan  ->  you approve  ->  build  ->  independent review  ->  bounded fix loop")}
 `);
 
@@ -232,7 +232,7 @@ console.log(`
   ${c.bold("Next")}
     1  restart Claude Code ${c.dim("— skills load live, slash commands only at session start")}
     2  ${c.cyan("/kaizen-init")} ${c.dim("in any repo you want to use it on")}
-    3  ${c.cyan("/kaizen-plan <what you want built>")}
+    3  ${c.cyan("/kaizen-plan <what you want done>")}
 
   ${c.dim("/kaizen-help lists every command.")}
 `);
