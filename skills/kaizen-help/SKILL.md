@@ -94,6 +94,7 @@ Each iteration is written to `runs/<id>/05-iterations/`.
 | `state.keep_runs` | `20` | Completed runs kept before pruning oldest (rescues open backlog first) |
 | `git.auto_commit` | `false` | Never commit/push/PR unless the user explicitly asks |
 | `git.branch_before_implement` | `true` | Branch before implement stage when on the default branch |
+| `agent.default` | `auto` | Coding agent to launch from dashboard backlog |
 
 `.kaizen/config.yml` overrides only the keys it sets; everything else falls back to
 this skill's `config.default.yml`.

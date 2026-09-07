@@ -128,3 +128,9 @@ git:
   # Create a branch before the implement stage when on the default branch.
   # Ignored when the project is not a git repository.
   branch_before_implement: true
+
+agent:
+  # Default coding agent to launch from dashboard backlog (auto | claude | codex | agy | opencode | gemini).
+  # auto picks Claude Code if installed, otherwise the first agent found on PATH.
+  default: auto
+

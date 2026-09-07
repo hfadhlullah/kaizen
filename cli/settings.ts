@@ -109,6 +109,7 @@ const SETTINGS: Setting[] = [
   { key: "state.keep_runs", values: ["5", "10", "20", "50"], help: "Completed runs kept before the oldest is pruned" },
   { key: "git.auto_commit", values: ["false", "true"], help: "Commit the work when a run finishes" },
   { key: "git.branch_before_implement", values: ["true", "false"], help: "Branch before building when on the default branch" },
+  { key: "agent.default", values: ["auto", "claude", "codex", "agy", "opencode", "gemini"], help: "Default coding agent to launch from dashboard backlog" },
 ];
 
 const c = {

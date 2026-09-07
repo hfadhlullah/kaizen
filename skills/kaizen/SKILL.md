@@ -94,6 +94,7 @@ whichever the user picks.
 | `review.write_memory` | `true`, `false` | Let the reviewer append lessons to `memory.md` |
 | `git.auto_commit` | `true`, `false` | Commit the work when a run finishes |
 | `git.branch_before_implement` | `true`, `false` | Branch before building when on the default branch |
+| `agent.default` | `auto`, `claude`, `codex`, `agy`, `opencode`, `gemini` | Coding agent to launch from dashboard backlog |
 
 Rules for writing the file:
 

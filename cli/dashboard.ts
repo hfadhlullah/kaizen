@@ -101,16 +101,19 @@ export async function dashboard(
 
   // An action that has something to say says it here, on its own screen, rather
   // than printing to a terminal the dashboard is about to paint over.
-  async function report(lines: string[]) {
+  async function report(lines: string[], footer = "any key to go back"): Promise<string> {
     stdout.write("\x1b[?1049h\x1b[?25l\x1b[H\x1b[2J");
     stdout.write("\n");
     for (const line of lines) stdout.write(`  ${line}\n`);
-    stdout.write(`\n  ${c.dim("any key to go back")}\n`);
+    stdout.write(`\n  ${c.dim(footer)}\n`);
     stdin.setRawMode(true);
     stdin.resume();
+    let key = "";
     await new Promise<void>((resolve) => {
       const once = (chunk: Buffer) => {
-        if (chunk.toString().includes("\x03")) process.exit(130);
+        const s = chunk.toString();
+        if (s.includes("\x03")) process.exit(130);
+        key = s;
         stdin.off("data", once);
         resolve();
       };
@@ -119,6 +122,7 @@ export async function dashboard(
     stdin.setRawMode(false);
     stdin.pause();
     stdout.write("\x1b[?25h\x1b[?1049l");
+    return key;
   }
 
   // ---------------------------------------------------------------- views
@@ -338,17 +342,159 @@ export async function dashboard(
       }
     }
     for (;;) {
-      const { index } = await pick(from ? `Backlog — ${label(from)}` : "Backlog — open items",
-        rows, "enter read · backspace back", (n) => full[n] === null);
+      const { index, key } = await pick(
+        from ? `Backlog — ${label(from)}` : "Backlog — open items",
+        rows,
+        "enter read · r run in agent · backspace back",
+        (n) => full[n] === null,
+        "rR",
+      );
       if (index === null) return;
       // Rows are cut to the window, so reading one means opening it.
       const it = full[index];
       if (!it) continue;
-      await report([
+      if (key === "r" || key === "R") {
+        await startBacklogItem(it, from ?? state!);
+        continue;
+      }
+      const k = await report([
         c.bold(it.where ?? "Backlog item"),
         it.severity ? c.dim(`  ${it.severity}`) : "",
         "",
         ...wrap(it.raw.replace(/`/g, ""), 2),
+      ], "r run in agent · any other key to go back");
+      if (k === "r" || k === "R") {
+        await startBacklogItem(it, from ?? state!);
+      }
+    }
+  }
+
+  const KNOWN_AGENTS = [
+    { name: "Claude Code", dir: ".claude", cmd: "claude" },
+    { name: "Antigravity", dir: ".agents", cmd: "agy" },
+    { name: "Codex", dir: ".codex", cmd: "codex" },
+    { name: "OpenCode", dir: ".opencode", cmd: "opencode" },
+    { name: "Gemini CLI", dir: ".gemini", cmd: "gemini" },
+    { name: "Cursor", dir: ".cursor", cmd: "cursor" },
+  ];
+
+  function detectDefaultAgent(projectDir: string): { name: string; cmd: string } {
+    const cfgFile = existsSync(join(projectDir, ".kaizen", "config.yml"))
+      ? join(projectDir, ".kaizen", "config.yml")
+      : join(home, ".kaizen", "config.yml");
+    if (existsSync(cfgFile)) {
+      const text = readFileSync(cfgFile, "utf8");
+      const m = /^\s*agent:\s*\n\s*default:\s*(\S+)/m.exec(text) || /^\s*agent\.default:\s*(\S+)/m.exec(text);
+      if (m && m[1] && m[1] !== "auto") {
+        const found = KNOWN_AGENTS.find((a) => a.cmd === m[1] || a.name.toLowerCase() === m[1].toLowerCase());
+        if (found && Bun.which(found.cmd)) return found;
+      }
+    }
+
+    for (const a of KNOWN_AGENTS) {
+      if (existsSync(join(projectDir, a.dir)) && Bun.which(a.cmd)) return a;
+    }
+    if (Bun.which("claude")) return { name: "Claude Code", cmd: "claude" };
+    for (const a of KNOWN_AGENTS) {
+      if (Bun.which(a.cmd)) return a;
+    }
+    return { name: "Claude Code", cmd: "claude" };
+  }
+
+  function findTerminal(cwd: string, fullCmd: string[]): { cmd: string[]; detached: boolean } | null {
+    const hasDisplay = Boolean(process.env.WAYLAND_DISPLAY || process.env.DISPLAY);
+    const inTmux = Boolean(process.env.TMUX);
+
+    if (process.env.TERMINAL && Bun.which(process.env.TERMINAL)) {
+      const term = process.env.TERMINAL;
+      if (term.includes("kitty")) return { cmd: [term, "--directory", cwd, ...fullCmd], detached: true };
+      if (term.includes("alacritty")) return { cmd: [term, "--working-directory", cwd, "-e", ...fullCmd], detached: true };
+      if (term.includes("ghostty")) return { cmd: [term, `--working-directory=${cwd}`, "-e", ...fullCmd], detached: true };
+      if (term.includes("foot")) return { cmd: [term, "-D", cwd, ...fullCmd], detached: true };
+      return { cmd: [term, "-e", ...fullCmd], detached: true };
+    }
+
+    if (hasDisplay && Bun.which("xdg-terminal-exec")) {
+      return { cmd: ["xdg-terminal-exec", `--dir=${cwd}`, "--", ...fullCmd], detached: true };
+    }
+
+    if (hasDisplay) {
+      if (Bun.which("kitty")) return { cmd: ["kitty", "--directory", cwd, ...fullCmd], detached: true };
+      if (Bun.which("ghostty")) return { cmd: ["ghostty", `--working-directory=${cwd}`, "-e", ...fullCmd], detached: true };
+      if (Bun.which("alacritty")) return { cmd: ["alacritty", "--working-directory", cwd, "-e", ...fullCmd], detached: true };
+      if (Bun.which("foot")) return { cmd: ["foot", "-D", cwd, ...fullCmd], detached: true };
+      if (Bun.which("wezterm")) return { cmd: ["wezterm", "start", "--cwd", cwd, "--", ...fullCmd], detached: true };
+      if (Bun.which("gnome-terminal")) return { cmd: ["gnome-terminal", `--working-directory=${cwd}`, "--", ...fullCmd], detached: true };
+      if (Bun.which("xfce4-terminal")) return { cmd: ["xfce4-terminal", `--default-working-directory=${cwd}`, "-x", ...fullCmd], detached: true };
+      if (Bun.which("konsole")) return { cmd: ["konsole", "--workdir", cwd, "-e", ...fullCmd], detached: true };
+      if (Bun.which("xterm")) return { cmd: ["xterm", "-e", `cd "${cwd}" && ${fullCmd.join(" ")}`], detached: true };
+    }
+
+    if (inTmux && Bun.which("tmux")) {
+      const cmdStr = fullCmd.map((a) => (a.includes(" ") ? JSON.stringify(a) : a)).join(" ");
+      return { cmd: ["tmux", "new-window", "-c", cwd, cmdStr], detached: false };
+    }
+
+    if (process.platform === "darwin") {
+      const cmdStr = fullCmd.map((a) => (a.includes(" ") ? `\\"${a}\\"` : a)).join(" ");
+      const script = `tell application "Terminal" to do script "cd \\"${cwd}\\" && ${cmdStr}"\ntell application "Terminal" to activate`;
+      return { cmd: ["osascript", "-e", script], detached: true };
+    }
+
+    return null;
+  }
+
+  async function startBacklogItem(it: Item, from: string) {
+    const projectDir = from === join(home, ".kaizen")
+      ? process.cwd()
+      : (from.endsWith(".kaizen") ? dirname(from) : from);
+    const agent = detectDefaultAgent(projectDir);
+    const agentBin = Bun.which(agent.cmd) ?? agent.cmd;
+    const prompt = it.where ? `/kaizen ${it.text} (${it.where})` : `/kaizen ${it.text}`;
+    const fullCmd = [agentBin, prompt];
+
+    const term = findTerminal(projectDir, fullCmd);
+    if (!term) {
+      await report([
+        c.bold("Could not open terminal"),
+        "",
+        c.dim("No supported terminal emulator found (xdg-terminal-exec, kitty, ghostty, alacritty, tmux)."),
+        "",
+        "Run manually:",
+        `  ${c.cyan(`cd "${projectDir}" && ${agent.cmd} "${prompt}"`)}`,
+      ]);
+      return;
+    }
+
+    try {
+      const proc = Bun.spawn(term.cmd, {
+        cwd: projectDir,
+        stdin: "ignore",
+        stdout: "ignore",
+        stderr: "ignore",
+        detached: term.detached,
+      });
+      if (term.detached) proc.unref();
+
+      await report([
+        c.bold("Started in new terminal"),
+        "",
+        `  ${c.cyan("Agent")}     ${agent.name} (${c.bold(agent.cmd)})`,
+        `  ${c.cyan("Project")}   ${tilde(projectDir)}`,
+        `  ${c.cyan("Task")}      ${it.text}`,
+        ...(it.where ? [`  ${c.cyan("File")}      ${it.where}`] : []),
+        ...(it.severity ? [`  ${c.cyan("Severity")}  ${it.severity}`] : []),
+        "",
+        c.dim(`Opened in new window running: ${agent.cmd} "${prompt}"`),
+      ]);
+    } catch (err: any) {
+      await report([
+        c.bold("Failed to spawn terminal"),
+        "",
+        c.dim(err?.message ?? String(err)),
+        "",
+        "Run manually:",
+        `  ${c.cyan(`cd "${projectDir}" && ${agent.cmd} "${prompt}"`)}`,
       ]);
     }
   }
