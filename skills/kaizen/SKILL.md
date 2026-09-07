@@ -46,6 +46,7 @@ Porting the workflow to Codex or Antigravity is covered in [`adapters.md`](adapt
 | `/kaizen approve` | Approve whatever the current run is waiting on |
 | `/kaizen reject <reason>` | Reject it; the reason is fed back to the stage that produced it |
 | `/kaizen abort` | Mark the current run abandoned |
+| `/kaizen config` | Show this project's settings and change them, one picker per setting |
 | `/kaizen init` | Install `.kaizen/` with the `spec*.md` files, config, and the gitignore entry into the current repository |
 | `/kaizen install` | Install the workflow itself globally or per-project (see below) |
 
@@ -65,6 +66,44 @@ If the user typed `/kaizen` with no argument and a run is in progress, treat it 
    or another session.
 4. Read `.kaizen/memory.md` if present. It holds cross-run lessons and carries real
    weight: it is what previous reviewers learned about this codebase.
+
+## Settings
+
+`/kaizen config` reads `.kaizen/config.yml`, falling back to `config.default.yml` for
+anything it does not set, and prints the current value of each setting below with a
+one-line meaning. Then it offers the settings as choices — the tool's structured
+question mechanism, one option per legal value, never free text — and writes back
+whichever the user picks.
+
+| Setting | Values | What it decides |
+|---|---|---|
+| `mode` | `approve`, `auto`, `plan-only`, `review-only` | Where a run stops |
+| `build.executor` | `subagent`, `inline`, `ask` | Who carries out the approved plan |
+| `approvals.plan` | `true`, `false` | Stop and show the plan before anything is built |
+| `approvals.review` | `true`, `false` | Stop after the review, before the run is called done |
+| `approvals.each_file` | `true`, `false` | Confirm every individual edit |
+| `auto_fix.enabled` | `true`, `false` | Fix findings without asking, or hand every one over |
+| `auto_fix.min_severity` | `critical`, `high`, `medium`, `low` | How bad a finding must be to be fixed automatically |
+| `auto_fix.max_iterations` | `1`–`5` | Fix and recheck rounds before what is left is escalated |
+| `review.write_memory` | `true`, `false` | Let the reviewer append lessons to `memory.md` |
+| `git.auto_commit` | `true`, `false` | Commit the work when a run finishes |
+| `git.branch_before_implement` | `true`, `false` | Branch before building when on the default branch |
+
+Rules for writing the file:
+
+- **Change the value in place.** `config.yml` ships with a comment above every key
+  explaining it; rewriting the file from a parsed object throws all of them away.
+  Edit the one line.
+- **Only what the user picked.** A key the user did not touch stays absent if it was
+  absent — an absent key inherits the default, and writing every key out freezes
+  today's defaults into the project forever.
+- If `.kaizen/` does not exist yet, run `init` first, then continue.
+- After writing, print the setting and its new value, and nothing else. No summary of
+  the whole file.
+
+Settings not in the table — the review checks, backlog and state paths, the track
+default — are edited by hand in `config.yml`, which is commented throughout. Say so
+rather than offering a picker with thirty options.
 
 ## Modes
 

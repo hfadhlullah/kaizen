@@ -30,6 +30,7 @@ anything.
 | `/kaizen approve` | Approve whatever the current run is waiting on |
 | `/kaizen reject <reason>` | Reject it; the reason decides revise (back to planner) vs kill (abandon) |
 | `/kaizen abort` | Mark the current run abandoned |
+| `/kaizen config` | Show this project's settings and change them, one picker per setting |
 | `/kaizen init` | Install `.kaizen/` with `spec.md`, config, and the gitignore entry into the current repository |
 | `/kaizen install` | Install the workflow itself globally or per-project |
 
@@ -74,11 +75,12 @@ Each iteration is written to `runs/<id>/05-iterations/`.
 |---|---|---|
 | `mode` | `approve` | Default run mode |
 | `approvals.plan` | `true` | Stop after the plan |
-| `approvals.review` | `true` | Stop after the review |
+| `approvals.review` | `false` | Stop after the review |
 | `approvals.each_file` | `false` | Confirm every file edit |
+| `build.executor` | `subagent` | Who builds: `subagent`, `inline` (main thread), or `ask` at the approval |
 | `auto_fix.enabled` | `true` | Auto-fix findings vs. escalate everything |
 | `auto_fix.min_severity` | `high` | Threshold for auto-fix (`critical\|high\|medium\|low`) |
-| `auto_fix.max_iterations` | `3` | Fix/recheck rounds before escalating remaining findings |
+| `auto_fix.max_iterations` | `2` | Fix/recheck rounds before escalating remaining findings |
 | `track.default` | `""` (empty, inferred per run) | Pin a track for a repo that is always one kind of work |
 | `review.write_memory` | `true` | Let the reviewer append lessons to `.kaizen/memory.md` |
 | `backlog.enabled` | `true` | Capture what a run deliberately did not do |

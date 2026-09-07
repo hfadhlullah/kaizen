@@ -324,6 +324,7 @@ tells you what it concluded, so you correct a sentence instead of filling in a f
 | `/kaizen-run` | Carry on with an approved plan |
 | `/kaizen-backlog` | Everything noticed but not done, across all runs |
 | `/kaizen-abort` | Abandon the current run |
+| `/kaizen-config` | Show this project's settings and change them |
 | `/kaizen-init` | Set up the current project — optional, the first run does it |
 | `/kaizen-help` | The full card |
 
@@ -359,8 +360,10 @@ in one can be finished in another. See [adapters.md](https://github.com/hfadhlul
 | `auto_fix.min_severity` | `high` | Findings this bad or worse get fixed without asking |
 | `approvals.plan` | `true` | Stop and show the plan before anything is built |
 
-Everything else is in [`config.default.yml`](https://github.com/hfadhlullah/kaizen/blob/main/skills/kaizen/config.default.yml), with
-a comment on each key.
+`/kaizen-config` shows what this project is set to and changes it, one picker per
+setting — you never have to remember a key name or a legal value. Everything is also
+in [`config.default.yml`](https://github.com/hfadhlullah/kaizen/blob/main/skills/kaizen/config.default.yml),
+with a comment on each key, if you would rather edit the file.
 
 ## Under the hood
 
