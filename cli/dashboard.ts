@@ -1,6 +1,6 @@
 // What `kaizen` shows once it is installed: the state of this project's runs, and
 // the few things you would have opened a terminal to do.
-import { existsSync, readFileSync, readdirSync, appendFileSync, mkdirSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, appendFileSync, writeFileSync, mkdirSync, statSync, watch } from "node:fs";
 import { join, dirname, basename } from "node:path";
 import { homedir } from "node:os";
 
@@ -14,9 +14,11 @@ const c = {
   cyan: (s: string) => `\x1b[36m${s}\x1b[0m`,
   green: (s: string) => `\x1b[32m${s}\x1b[0m`,
   amber: (s: string) => `\x1b[33m${s}\x1b[0m`,
+  // Red is spent on one thing only: a run that cannot move until the user acts.
+  red: (s: string) => rgb(232, 80, 80, s),
 };
 
-type Run = { id: string; stage: string; awaiting: string | null };
+type Run = { id: string; stage: string; awaiting: string | null; moved: number };
 
 // The mascot, rendered from assets/kaizen.jpg. Braille packs 2x4 dots into one
 // character, which is the only way outline art survives a downsample this far.
@@ -150,6 +152,7 @@ export async function dashboard(
       { key: "projects", label: "All projects", hint: "every project kaizen knows about" },
     ] : []),
     ...(state ? [
+      { key: "board", label: "Board", hint: "ideas and runs, by stage" },
       { key: "runs", label: "Runs", hint: "every run, and what each is waiting on" },
       { key: "backlog", label: "Backlog", hint: "what runs noticed and did not do" },
     ] : []),
@@ -166,6 +169,7 @@ export async function dashboard(
     const chosen = await menu();
     if (chosen === "quit") return;
     if (chosen === "projects") { await projectsView(); continue; }
+    if (chosen === "board") { await boardView(); continue; }
     if (chosen === "runs") { await runsView(); continue; }
     if (chosen === "backlog") { await backlogView(); continue; }
     const lines = await run(chosen);
@@ -440,6 +444,391 @@ export async function dashboard(
       if (k === "r" || k === "R") {
         await startBacklogItem(it, from ?? state!);
       }
+    }
+  }
+
+
+  // ------------------------------------------------------------------ board
+
+  // Ideas and runs on one screen, in stage columns. A run's stage belongs to
+  // kaizen and cannot be edited here -- a board that could drag one backwards
+  // would be lying about what happened. The one exception is abandoning a run,
+  // which is the user's decision either way.
+  async function boardView() {
+    let allProjects = false;
+    let cards: Card[] = [];
+    let col = 0, row = 0;
+    let top = 0;                                   // first visible line, board-wide
+    // What each run was awaiting last time we looked, so a redraw can tell the
+    // difference between "still blocked" and "just became blocked".
+    const wasAwaiting = new Map<string, string | null>();
+    let first = true;
+
+    const states = () => (allProjects
+      ? [...knownProjects().map((d) => join(d, ".kaizen")), join(home, ".kaizen")]
+      : [state!]
+    ).filter((d, i, all) => all.indexOf(d) === i && existsSync(d));
+
+    const refresh = () => {
+      const now = Date.now();
+      const next: Card[] = [];
+      // Every project's requests, not just this state dir's: an idea in the global
+      // inbox becomes a run in whichever project the agent was started in.
+      const requests = [...knownProjects().map((d) => join(d, ".kaizen")), join(home, ".kaizen")]
+        .filter((d, i, all) => all.indexOf(d) === i && existsSync(d))
+        .flatMap(startedRuns);
+      for (const st of states()) {
+        const where = label(st);
+        for (const it of readInbox(st)) {
+          if (it.status !== "open" && it.status !== "started") continue;
+          // Retired once any run's request contains this text -- whoever started it.
+          // Checking `started` items only would leave every idea acted on outside the
+          // board sitting in IDEA forever, and typing `/kaizen ...` in a terminal is
+          // the common way a run begins.
+          if (requests.some((r) => r.includes(normalise(it.text)))) continue;
+          next.push(it.status === "started"
+            ? { kind: "idea", dot: c.dim("◌"), text: it.text, state: st, where, column: 1, awaiting: null, dim: true }
+            : { kind: "idea", dot: c.dim("·"), text: it.text, state: st, where, column: 0, awaiting: null, dim: false });
+        }
+        for (const r of readRuns(st)) {
+          const key = `${st}/${r.id}`;
+          const before = wasAwaiting.get(key);
+          if (!first && before === null && r.awaiting) {
+            notify("kaizen — waiting on you", `${short(r.id)} · ${r.awaiting}`);
+          }
+          wasAwaiting.set(key, r.awaiting);
+          next.push({
+            kind: "run", id: r.id, dot: dotFor(r, now), text: short(r.id), state: st, where, column: columnOf(r.stage),
+            awaiting: r.stage === "abandoned" ? null : r.awaiting,
+            dim: r.stage === "abandoned",
+          });
+        }
+      }
+      cards = next;
+      first = false;
+    };
+
+    const inColumn = (n: number) => cards.filter((k) => k.column === n);
+    const current = () => inColumn(col)[row];
+
+    const draw = () => {
+      const width = stdout.columns ?? 80;
+      // Five columns need room to say anything. Below that the board is worse
+      // than the list it replaces, so it becomes one.
+      if (width < 100) { drawNarrow(); return; }
+      const inner = Math.floor((width - 4) / COLUMNS.length) - 2;
+      const cols = COLUMNS.map((meta, n) => {
+        const lines: string[] = [];
+        const starts: number[] = [];
+        for (const k of inColumn(n)) {
+          starts.push(lines.length);
+          const chosen = n === col && inColumn(n)[row] === k;
+          const body = wrapTo(k.text, inner - 4);
+          for (const [i, line] of body.entries()) {
+            const marker = i === 0 ? (chosen ? c.cyan("›") : " ") : " ";
+            const dot = i === 0 ? k.dot : " ";
+            const painted = k.awaiting ? c.red(line) : k.dim ? c.dim(line) : line;
+            lines.push(`${marker} ${dot} ${painted}`);
+          }
+          if (allProjects && k.where !== "global") lines.push("    " + c.dim(cut(basename(k.where), inner - 4)));
+          lines.push("");
+        }
+        return { meta, lines, starts };
+      });
+
+      stdout.write("\x1b[H\x1b[2J");
+      const scope = allProjects ? "all projects" : label(state!);
+      stdout.write(`\n  ${c.bold("Board")}   ${c.dim(scope)}\n\n`);
+      stdout.write("  " + cols.map(({ meta }, n) =>
+        pad(n === col ? c.cyan(meta.title) : c.dim(meta.title), inner)).join("  ") + "\n");
+      stdout.write("  " + cols.map(() => c.dim("─".repeat(inner))).join("  ") + "\n");
+      const height = Math.max(4, (stdout.rows ?? 24) - 11);
+      const deep = Math.max(0, ...cols.map((x) => x.lines.length));
+      // The selected card drags the viewport with it; a cursor that can leave the
+      // screen is a cursor that deletes cards the user cannot see.
+      const sel = cols[col]!.starts[row] ?? 0;
+      if (sel < top) top = sel;
+      if (sel >= top + height) top = sel - height + 1;
+      top = Math.max(0, Math.min(top, Math.max(0, deep - height)));
+      for (let i = top; i < Math.min(deep, top + height); i++) {
+        stdout.write("  " + cols.map((x) => pad(x.lines[i] ?? "", inner)).join("  ") + "\n");
+      }
+      const above = top > 0, below = top + height < deep;
+      if (above || below) {
+        stdout.write(`  ${c.dim(`${above ? "↑" : " "} ${below ? "↓ more" : ""}`)}\n`);
+      }
+      const k = current();
+      const help = k?.kind === "idea"
+        ? "n new · e edit · x reject · d delete · r run"
+        : "n new idea · x abandon this run";
+      stdout.write(`\n  ${c.dim("←→ column · ↑↓ card · " + help + " · a " + (allProjects ? "this project" : "all projects") + " · q back")}\n`);
+      stdout.write("  " + [
+        `${c.cyan("●")} ${c.dim("running")}`,
+        `${c.dim("◐ stalled")}`,
+        `${c.dim("◌ starting")}`,
+        `${c.amber("●")} ${c.red("waiting on you")}`,
+        `${c.dim("○ done")}`,
+        `${c.dim("· idea")}`,
+      ].join(c.dim("  ")) + "\n");
+    };
+
+    // Under 100 columns the board stacks: same cards, same keys, one list.
+    const drawNarrow = () => {
+      stdout.write("\x1b[H\x1b[2J");
+      stdout.write(`\n  ${c.bold("Board")}   ${c.dim("narrow terminal — stacked")}\n\n`);
+      for (const [n, meta] of COLUMNS.entries()) {
+        const items = inColumn(n);
+        if (!items.length) continue;
+        stdout.write(`  ${n === col ? c.cyan(meta.title) : c.dim(meta.title)}\n`);
+        for (const k of items) {
+          const chosen = n === col && items[row] === k;
+          const text = k.awaiting ? c.red(k.text) : k.dim ? c.dim(k.text) : k.text;
+          stdout.write(`  ${chosen ? c.cyan("›") : " "} ${k.dot} ${cut(text, (stdout.columns ?? 80) - 8)}\n`);
+        }
+        stdout.write("\n");
+      }
+      stdout.write(`  ${c.dim("←→ column · ↑↓ card · n new · r run · q back")}\n`);
+    };
+
+    const clamp = () => {
+      col = Math.min(COLUMNS.length - 1, Math.max(0, col));
+      row = Math.min(Math.max(0, inColumn(col).length - 1), Math.max(0, row));
+    };
+
+    refresh();
+    stdout.write("\x1b[?1049h\x1b[?25l");
+    stdin.setRawMode(true);
+    stdin.resume();
+
+    // Kaizen writes these files from other processes; watching them is what makes
+    // the board move on its own.
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let watchers: ReturnType<typeof watch>[] = [];
+    const onChange = () => {
+      if (timer) clearTimeout(timer);
+      // A state.json being rewritten is briefly unparseable; readRuns already
+      // drops what it cannot parse, and the delay keeps that window off screen.
+      timer = setTimeout(() => { refresh(); clamp(); draw(); arm(); }, 150);
+    };
+
+    // fs.watch is not recursive here, and the file that actually changes is
+    // runs/<id>/state.json -- two levels down. Watching only the state dir and
+    // runs/ sees a new run appear and never sees an existing one move, so every
+    // run directory is watched too, and the set is rebuilt whenever anything
+    // fires in case the change was a run being created.
+    function arm() {
+      for (const w of watchers) { try { w.close(); } catch { /* already gone */ } }
+      watchers = [];
+      for (const st of states()) {
+        const runs = join(st, "runs");
+        const targets = [st, runs];
+        try { for (const id of readdirSync(runs)) targets.push(join(runs, id)); } catch { /* no runs yet */ }
+        for (const target of targets) {
+          try { if (existsSync(target)) watchers.push(watch(target, { persistent: false }, onChange)); }
+          catch { /* unwatchable path */ }
+        }
+      }
+    }
+    arm();
+
+    try {
+      draw();
+      for (;;) {
+        const key = await nextKey();
+        if (key === "quit") break;
+        if (key === "a") { allProjects = !allProjects; refresh(); clamp(); draw(); arm(); continue; }
+        if (key === "left") { col--; row = 0; clamp(); draw(); continue; }
+        if (key === "right") { col++; row = 0; clamp(); draw(); continue; }
+        if (key === "up") { row--; clamp(); draw(); continue; }
+        if (key === "down") { row++; clamp(); draw(); continue; }
+
+        const target = current();
+        if (key === "n") {
+          const text = await promptLine("New idea", "");
+          if (text) {
+            const st = target?.state ?? state!;
+            writeInbox(st, [...readInbox(st), { status: "open", text }]);
+          }
+          refresh(); col = 0; clamp(); draw(); continue;
+        }
+        if (!target) { draw(); continue; }
+        // Runs are otherwise read-only -- their stage belongs to kaizen -- but
+        // abandoning one is the user's decision to make, and /kaizen abort is the
+        // same single transition this writes.
+        if (target.kind === "run") {
+          if (key === "x" && target.id) {
+            const why = await promptLine(`Abandon ${target.text}? Reason`, "");
+            if (why) {
+              const failed = abandonRun(target.state, target.id, why);
+              if (failed) await outside(() => report([c.bold("Could not abandon"), "", c.dim(failed)]));
+            }
+            refresh(); clamp();
+          }
+          draw(); continue;
+        }
+        if (key === "e") {
+          const text = await promptLine("Edit idea", target.text);
+          if (text) replaceIdea(target, { status: "open", text });
+        } else if (key === "x") {
+          const why = await promptLine(`Reject: ${target.text}`, "");
+          // The spec requires a reason on a rejected item; no reason, no rejection.
+          if (why) replaceIdea(target, { status: "rejected", text: `${target.text} | ${why}` });
+        } else if (key === "d") {
+          if (await confirm(`Delete "${cut(target.text, 40)}"?`)) replaceIdea(target, null);
+        } else if (key === "r") {
+          const mode = await pickMode();
+          // "" is the default-mode choice, and must not leave a double space in
+          // the prompt the agent is launched with.
+          if (mode !== null) {
+            const request = `${mode} ${target.text}`.trim();
+            await outside(() => startBacklogItem(parseItem(request), target.state));
+            // Without this the idea stays open forever and the board shows the
+            // same work twice: once as an idea, once as the run it became.
+            replaceIdea(target, { status: "started", text: target.text });
+          }
+        }
+        refresh(); clamp(); draw();
+      }
+    } finally {
+      for (const w of watchers) { try { w.close(); } catch { /* already gone */ } }
+      watchers = [];
+      if (timer) clearTimeout(timer);
+      stdin.setRawMode(false);
+      stdin.pause();
+      stdout.write("\x1b[?25h\x1b[?1049l");
+    }
+
+    // The only run state the board writes, and only this transition: stage becomes
+    // abandoned, awaiting clears. Every other field is preserved, so a run abandoned
+    // here still resumes and reads like one abandoned by /kaizen abort.
+    function abandonRun(st: string, id: string, why: string): string | null {
+      const file = join(st, "runs", id, "state.json");
+      try {
+        const run = JSON.parse(readFileSync(file, "utf8"));
+        if (run.stage === "abandoned") return "That run is already abandoned.";
+        run.stage = "abandoned";
+        run.awaiting = null;
+        run.updated = new Date().toISOString();
+        writeFileSync(file, JSON.stringify(run, null, 2) + "\n");
+        // The reason belongs in the record, not in state.json, whose shape is the
+        // resume contract every kaizen tool reads.
+        appendFileSync(join(st, "runs", id, "02-approval.md"),
+          `\n---\n\n## Abandoned\n\n${new Date().toISOString()} — abandoned from the board.\n\n${why}\n`);
+        return null;
+      } catch (err: any) {
+        return err?.message ?? String(err);
+      }
+    }
+
+    function replaceIdea(card: Card, next: InboxLine | null) {
+      const lines = readInbox(card.state);
+      const at = lines.findIndex((l) => (l.status === "open" || l.status === "started") && l.text === card.text);
+      if (at < 0) return;                            // changed underneath us; the redraw will show why
+      if (next) lines[at] = next; else lines.splice(at, 1);
+      writeInbox(card.state, lines);
+    }
+
+    // startBacklogItem paints its own screens, so the board steps out of the way
+    // and takes the terminal back afterwards.
+    async function outside(fn: () => Promise<void>) {
+      stdin.setRawMode(false);
+      stdout.write("\x1b[?25h\x1b[?1049l");
+      try {
+        await fn();
+      } finally {
+        // Without this the board's own finally restores a terminal that was never
+        // put back into raw mode, and the user is left with no echo.
+        stdout.write("\x1b[?1049h\x1b[?25l");
+        stdin.setRawMode(true);
+        stdin.resume();
+      }
+    }
+
+    // One chunk can carry several keys -- a held arrow, a paste, fast typing --
+    // so it is walked rather than compared whole.
+    function nextKey(): Promise<string> {
+      return new Promise((resolve) => {
+        const onData = (chunk: Buffer) => {
+          const keys = chunk.toString();
+          if (keys.includes("\x03")) process.exit(130);
+          const done = (v: string) => { stdin.off("data", onData); resolve(v); };
+          for (let i = 0; i < keys.length; i++) {
+            const rest = keys.slice(i);
+            if (rest.startsWith("\x1b[D")) return done("left");
+            if (rest.startsWith("\x1b[C")) return done("right");
+            if (rest.startsWith("\x1b[A")) return done("up");
+            if (rest.startsWith("\x1b[B")) return done("down");
+            const ch = keys[i]!;
+            if (ch === "h") return done("left");
+            if (ch === "l") return done("right");
+            if (ch === "k") return done("up");
+            if (ch === "j") return done("down");
+            if (ch === "q" || ch === "\x1b" || ch === "\x7f" || ch === "\b") return done("quit");
+            if ("nexdra".includes(ch)) return done(ch);
+          }
+        };
+        stdin.on("data", onData);
+      });
+    }
+
+    async function promptLine(title: string, initial: string): Promise<string | null> {
+      let buf = initial;
+      const paint = () => {
+        stdout.write("\x1b[H\x1b[2J");
+        stdout.write(`\n  ${c.bold(title)}\n\n  ${buf}${c.cyan("█")}\n\n  ${c.dim("enter save · esc cancel")}\n`);
+      };
+      paint();
+      return new Promise((resolve) => {
+        const onData = (chunk: Buffer) => {
+          const keys = chunk.toString();
+          if (keys.includes("\x03")) process.exit(130);
+          const done = (v: string | null) => { stdin.off("data", onData); resolve(v); };
+          // Character by character: a held backspace or a paste arrives as one
+          // chunk, and comparing the whole chunk to "\x7f" writes the raw bytes
+          // into the file instead of deleting anything.
+          for (let i = 0; i < keys.length; i++) {
+            const ch = keys[i]!;
+            if (ch === "\x1b") return done(null);
+            if (ch === "\r" || ch === "\n") return done(buf.trim() || null);
+            if (ch === "\x7f" || ch === "\b") { buf = buf.slice(0, -1); continue; }
+            // Anything else unprintable is dropped rather than stored: control
+            // bytes in an inbox line survive every later read of that file.
+            if (ch >= " " && ch !== "\x7f") buf += ch;
+          }
+          paint();
+        };
+        stdin.on("data", onData);
+      });
+    }
+
+    async function confirm(question: string): Promise<boolean> {
+      stdout.write("\x1b[H\x1b[2J");
+      stdout.write(`\n  ${c.bold(question)}\n\n  ${c.dim("y delete · any other key keep")}\n`);
+      const key = await nextRaw();
+      return key === "y" || key === "Y";
+    }
+
+    // full or lite, asked at the moment a run starts rather than fixed in config.
+    async function pickMode(): Promise<string | null> {
+      stdout.write("\x1b[H\x1b[2J");
+      stdout.write(`\n  ${c.bold("Start this run how?")}\n\n`);
+      stdout.write(`  ${c.cyan("f")}  full   ${c.dim("every stage its own cold agent — the reviewer starts blind")}\n`);
+      stdout.write(`  ${c.cyan("l")}  lite   ${c.dim("one session runs every stage — cheaper, review has seen the work")}\n`);
+      stdout.write(`  ${c.cyan("d")}  default${c.dim("  whatever config.yml says")}\n\n  ${c.dim("any other key cancels")}\n`);
+      const key = await nextRaw();
+      return key === "f" ? "full" : key === "l" ? "lite" : key === "d" ? "" : null;
+    }
+
+    function nextRaw(): Promise<string> {
+      return new Promise((resolve) => {
+        const onData = (chunk: Buffer) => {
+          const s = chunk.toString();
+          if (s.includes("\x03")) process.exit(130);
+          stdin.off("data", onData);
+          resolve(s);
+        };
+        stdin.on("data", onData);
+      });
     }
   }
 
@@ -728,8 +1117,13 @@ function readRuns(state: string): Run[] {
   if (!existsSync(dir)) return [];
   return readdirSync(dir).flatMap((id) => {
     try {
-      const s = JSON.parse(readFileSync(join(dir, id, "state.json"), "utf8"));
-      return [{ id, stage: s.stage ?? "?", awaiting: s.awaiting ?? null }];
+      const file = join(dir, id, "state.json");
+      const s = JSON.parse(readFileSync(file, "utf8"));
+      // When the run last moved. Kaizen records no liveness signal, so the file's
+      // own mtime is the only evidence that anything is still working on it.
+      let moved = 0;
+      try { moved = statSync(file).mtimeMs; } catch { /* vanished mid-read */ }
+      return [{ id, stage: s.stage ?? "?", awaiting: s.awaiting ?? null, moved }];
     } catch { return []; }
   }).reverse();
 }
@@ -816,6 +1210,131 @@ function allBacklog(state: string) {
   const orphan = readBacklog(join(state, "backlog.md"));
   if (orphan.length) out.push({ run: "Orphaned", items: orphan });
   return out;
+}
+
+
+// ---------------------------------------------------------------- board data
+
+type Card = {
+  kind: "idea" | "run";
+  id?: string;                                     // runs only: the directory name
+  dot: string;
+  text: string;
+  state: string;
+  where: string;
+  column: number;
+  awaiting: string | null;
+  dim: boolean;
+};
+
+const COLUMNS = [
+  { key: "idea", title: "IDEA" },
+  { key: "plan", title: "PLANNING" },
+  { key: "build", title: "BUILDING" },
+  { key: "review", title: "REVIEW" },
+  { key: "done", title: "DONE" },
+];
+
+
+// A run is called running on the evidence that it moved recently; there is no PID
+// to ask. Anything in flight and older than this is stalled, not running -- the
+// difference the board exists to show.
+
+// The verbatim request of every run, normalised, so an idea that has become a run
+// can be retired from the board.
+// ponytail: reads each run's 00-request.md on every refresh; fine at tens of runs,
+// cache by mtime if a project ever has hundreds.
+function startedRuns(state: string): string[] {
+  const dir = join(state, "runs");
+  if (!existsSync(dir)) return [];
+  const out: string[] = [];
+  for (const id of readdirSync(dir)) {
+    try { out.push(normalise(readFileSync(join(dir, id, "00-request.md"), "utf8"))); }
+    catch { /* no request file, or unreadable */ }
+  }
+  return out;
+}
+
+function normalise(text: string) {
+  return text.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+const RUNNING_WITHIN_MS = 30 * 60_000;
+
+function dotFor(r: Run, now: number) {
+  if (r.stage === "abandoned") return DIM + "○" + OFF;
+  if (r.awaiting) return c.amber("●");
+  if (r.stage === "done") return c.dim("○");
+  return now - r.moved < RUNNING_WITHIN_MS ? c.cyan("●") : c.dim("◐");
+}
+
+// A stage this build has never heard of still belongs somewhere visible, and
+// PLANNING is the honest guess: the run has started and has not finished.
+function columnOf(stage: string) {
+  if (stage === "build") return 2;
+  if (stage === "review") return 3;
+  if (stage === "done" || stage === "abandoned") return 4;
+  return 1;
+}
+
+type InboxLine = { status: string; text: string };
+
+// Ideas with no run yet. Deliberately not backlog.md, which the spec defines as
+// an orphanage for items rescued from pruned runs, and not a run stub each.
+function readInbox(state: string): InboxLine[] {
+  const f = join(state, "inbox.md");
+  if (!existsSync(f)) return [];
+  return readFileSync(f, "utf8").split("\n")
+    .map((l) => /^-\s*(open|started|done|rejected):\s*(.+)$/.exec(l.trim()))
+    .filter((m): m is RegExpExecArray => !!m)
+    .map((m) => ({ status: m[1]!, text: m[2]!.trim() }));
+}
+
+// Whole-file rewrite. The board is the only writer today.
+// ponytail: single writer assumed; if a kaizen stage ever appends here too, this
+// needs a lock or an append-only journal.
+function writeInbox(state: string, lines: InboxLine[]) {
+  mkdirSync(state, { recursive: true });
+  const body = [
+    "# Inbox",
+    "",
+    "Ideas with no run yet. One line each, same format as a run's backlog.",
+    "",
+    ...lines.map((l) => `- ${l.status}: ${l.text}`),
+  ];
+  writeFileSync(join(state, "inbox.md"), body.join("\n") + "\n");
+}
+
+// Best effort: a machine without notify-send loses the notification, not the board.
+function notify(title: string, body: string) {
+  try {
+    if (!Bun.which("notify-send")) return;
+    Bun.spawn(["notify-send", title, body], {
+      stdin: "ignore", stdout: "ignore", stderr: "ignore", detached: true,
+    }).unref();
+  } catch { /* notifications are not worth an exception */ }
+}
+
+// wrap() above fills the terminal; a board column has its own width.
+function wrapTo(text: string, room: number) {
+  const out: string[] = [];
+  let line = "";
+  // A run id is a single word to any whitespace split, so without breaking on
+  // hyphens too it can never wrap and is always cut. Kept in the same order the
+  // text arrived, hyphen retained on the line it ends.
+  const words = text.split(/\s+/).flatMap((w) =>
+    w.length <= room ? [w] : w.split(/(?<=-)/));
+  for (const word of words) {
+    if (line && line.length + word.length + (line.endsWith("-") ? 0 : 1) > room) { out.push(line); line = word; }
+    else line = line ? (line.endsWith("-") ? line + word : `${line} ${word}`) : word;
+  }
+  if (line) out.push(line);
+  return out.length ? out.map((l) => cut(l, room)) : [""];
+}
+
+function pad(s: string, room: number) {
+  const body = cut(s, room);
+  return body + " ".repeat(Math.max(0, room - vis(body)));
 }
 
 // Printable width: a row is mostly colour codes by the time it is drawn, and they
