@@ -151,7 +151,6 @@ async function anyKey() {
 
 const repo = await resolveRepo();
 const root = await chooseRoot();
-const base = join(root, ".claude");
 
 // ---------------------------------------------------------------- repo
 
@@ -201,11 +200,29 @@ function dirEntries(sub: string) {
     .map((f) => join(repo, sub, f));
 }
 
-const links = [
-  ...["kaizen", "kaizen-help"].map((n) => [join(repo, "skills", n), "skills"] as const),
-  ...dirEntries("agents").map((f) => [f, "agents"] as const),
-  ...dirEntries("commands").map((f) => [f, "commands"] as const),
+// Where each agent reads skills from. The skill folders follow the open Agent
+// Skills standard, so every one of these can run the workflow; agents/ and
+// commands/ are Claude Code's own formats and go nowhere else.
+const AGENTS = [
+  { name: "Claude Code", dir: ".claude", full: true },
+  { name: "Codex", dir: ".codex", full: false },
+  { name: "Antigravity", dir: ".agents", full: false },
+  { name: "OpenCode", dir: ".opencode", full: false },
+  { name: "Cursor", dir: ".cursor", full: false },
+  { name: "Gemini CLI", dir: ".gemini", full: false },
 ];
+
+// Install into an agent that is actually present. Creating ~/.opencode for someone
+// who does not use OpenCode leaves litter that looks like configuration.
+const targets = AGENTS.filter((a) => a.dir === ".claude" || existsSync(join(root, a.dir)));
+
+const links = targets.flatMap((a) => [
+  ...["kaizen", "kaizen-help"].map((n) => [join(repo, "skills", n), join(a.dir, "skills")] as const),
+  ...(a.full ? [
+    ...dirEntries("agents").map((f) => [f, join(a.dir, "agents")] as const),
+    ...dirEntries("commands").map((f) => [f, join(a.dir, "commands")] as const),
+  ] : []),
+]);
 
 function linkState(src: string, dest: string) {
   try {
@@ -219,7 +236,7 @@ function linkState(src: string, dest: string) {
 
 let blocked = 0, wrote = 0, already = 0;
 for (const [src, sub] of links) {
-  const dir = join(base, sub);
+  const dir = join(root, sub);
   const dest = join(dir, basename(src));
   const state = linkState(src, dest);
   const name = `${sub}/${basename(src)}`;
@@ -247,11 +264,16 @@ if (check) {
   process.exit(blocked ? 1 : 0);
 }
 
+const into = targets.map((a) => a.name).join(", ");
 step(
-  wrote && already ? `linked ${wrote} new, ${already} already in place`
-  : wrote ? `linked ${wrote} skills, agents, and commands into ${tilde(base)}`
-  : `already installed in ${tilde(base)} ${c.dim("(nothing to change)")}`,
+  wrote && already ? `linked ${wrote} new, ${already} already in place — ${into}`
+  : wrote ? `linked ${wrote} files into ${into}`
+  : `already installed for ${into} ${c.dim("(nothing to change)")}`,
 );
+if (targets.length === 1) {
+  console.log(`    ${c.dim("Codex, Antigravity, OpenCode, Cursor and Gemini CLI get it too,")}`);
+  console.log(`    ${c.dim("if their directory exists when you install.")}`);
+}
 
 // ---------------------------------------------------------------- repo setup
 

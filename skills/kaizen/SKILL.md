@@ -216,6 +216,13 @@ are never renamed or moved, so a path written into another file cannot break.
 
 ## Running a stage
 
+**If the tool you are running in has no subagents** — Codex, and anything else that
+runs one session at a time — do not try to fake them. Run the stages sequentially in
+the one session, following [`adapters.md`](adapters.md): start each stage by reading
+only its declared inputs, write its artifact before moving on, and when reviewing,
+judge the work on its own terms rather than defending the reasoning you used writing
+it. Everything else in this file holds unchanged.
+
 Each stage runs as a subagent via the Agent tool, with the agent type named below.
 Pass it the run directory path and let it read its own inputs from there — do not
 paste plans or diffs into the prompt, since the file is the shared source of truth

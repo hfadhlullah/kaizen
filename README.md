@@ -224,6 +224,24 @@ bunx kaizen-agent
 It walks you through where to install, then tells you what to type next. Works with
 `npx` too. Restart your editor afterwards.
 
+**It installs for every agent you already have.** The skill folders follow the open
+Agent Skills standard, so the same workflow runs under any of them:
+
+| Agent | Gets | Stages run |
+|---|---|---|
+| Claude Code | Skills, the three stage agents, the slash commands | Each as its own subagent |
+| Codex | Skills | Sequentially, one session |
+| Antigravity | Skills | Parallel agents where available, else sequentially |
+| OpenCode, Cursor, Gemini CLI | Skills | Sequentially, one session |
+
+Only directories that already exist are touched — installing does not create
+`~/.opencode` for someone who does not use OpenCode. Install again after adding an
+agent and it picks the new one up.
+
+The stage agents and slash commands are Claude Code's own formats and are not copied
+elsewhere; under the others you invoke the skill by name. `.kaizen/` is plain files
+either way, so a run started in one tool can be finished in another.
+
 Installing also puts a `kaizen` command on your PATH, so updating later is:
 
 ```bash
