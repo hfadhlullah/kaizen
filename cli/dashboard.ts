@@ -89,7 +89,6 @@ export async function dashboard(
     ...(state && !existsSync(join(state, "config.yml"))
       ? [{ key: "init", label: "Set up this project", hint: "write .kaizen/ here" }] : []),
     ...(!state ? [{ key: "init", label: "Set up this project", hint: "write .kaizen/ here" }] : []),
-    { key: "find", label: "Find projects", hint: "look under your home directory for ones kaizen has not seen" },
     { key: "upgrade", label: "Upgrade", hint: "pull, relink, clear the installer cache" },
     { key: "quit", label: "Quit", hint: "" },
   ];
@@ -99,7 +98,6 @@ export async function dashboard(
     const chosen = await menu();
     if (chosen === "quit") return;
     if (chosen === "projects") { await projectsView(); continue; }
-    if (chosen === "find") { await findView(); continue; }
     if (chosen === "runs") { await runsView(); continue; }
     if (chosen === "backlog") { await backlogView(); continue; }
     const lines = await run(chosen);
@@ -137,7 +135,8 @@ export async function dashboard(
     rows: string[],
     footer = "enter open · backspace back",
     skip: (i: number) => boolean = () => false,
-  ) {
+    extra?: string,                    // a single key the caller wants to hear about
+  ): Promise<number | "extra" | null> {
     if (!rows.length) { await report([c.bold(title), "", c.dim("nothing here yet")]); return null; }
 
     // Headings are rows too, but they are not items: they are not counted, and
@@ -168,7 +167,7 @@ export async function dashboard(
     stdin.setRawMode(true);
     stdin.resume();
     draw();
-    let chosen: number | null = null;
+    let chosen: number | null = null, hit = false;
     await new Promise<void>((resolve) => {
       const onData = (chunk: Buffer) => {
         const keys = chunk.toString();
@@ -180,6 +179,9 @@ export async function dashboard(
           }
           if (rest.startsWith("\r") || rest.startsWith("\n")) {
             chosen = pickable[cursor]!; stdin.off("data", onData); return resolve();
+          }
+          if (extra && rest.startsWith(extra)) {
+            hit = true; stdin.off("data", onData); return resolve();
           }
           if (rest.startsWith("\x1b[A")) { move(-1); i += 2; }
           else if (rest.startsWith("\x1b[B")) { move(1); i += 2; }
@@ -194,7 +196,7 @@ export async function dashboard(
     stdin.setRawMode(false);
     stdin.pause();
     stdout.write("\x1b[?25h\x1b[?1049l");
-    return chosen;
+    return hit ? "extra" : chosen;
   }
 
   // Every project kaizen knows about, with what each is waiting on. The global
@@ -232,13 +234,15 @@ export async function dashboard(
         open.push(st);
       }
 
-      const i = await pick("All projects", rows);
+      const i = await pick("All projects", rows, "enter open · s find more · backspace back",
+        () => false, "s");
       if (i === null) return;
+      if (i === "extra") { await sync(); continue; }   // the list rebuilds on the next pass
       if (open[i]) await runsView(open[i]!);
     }
   }
 
-  async function findView() {
+  async function sync() {
     const before = knownProjects().length;
     const started = Date.now();
     const found = findProjects(home);
@@ -267,7 +271,7 @@ export async function dashboard(
         return `${mark}  ${r.id.padEnd(width)}  ${c.dim(tail)}`;
       });
       const i = await pick(from ? `Runs — ${tilde(dirname(from))}` : "Runs", rows);
-      if (i === null) return;
+      if (i === null || i === "extra") return;
       await runDetail(runs[i]!, here);
     }
   }
@@ -339,7 +343,7 @@ export async function dashboard(
     for (;;) {
       const i = await pick("Backlog — open items", rows, "enter read · backspace back",
         (n) => full[n] === null);
-      if (i === null) return;
+      if (i === null || i === "extra") return;
       // Rows are cut to the window, so reading one means opening it.
       const it = full[i];
       if (!it) continue;
