@@ -224,6 +224,11 @@ bunx kaizen-agent
 It walks you through where to install, then tells you what to type next. Works with
 `npx` too. Restart your editor afterwards.
 
+Run from inside a project it asks whether to install globally or for that project
+alone; anywhere else — your home directory, a plain folder, a script — it installs
+globally without asking, since a project install outside a project has nothing to
+belong to.
+
 **It installs for every agent you already have.** The skill folders follow the open
 Agent Skills standard, so the same workflow runs under any of them:
 
@@ -403,9 +408,9 @@ with a comment on each key, if you would rather edit the file.
 
 | Flag | Effect |
 |---|---|
-| *(none)* | Ask, defaulting to every project (`~/.claude/`) |
-| `--global` | Every project, no question asked |
-| `--project` | Into `.claude/` in the current directory only |
+| *(none)* | Ask when standing in a project, otherwise install globally |
+| `--global` | Globally, no question asked |
+| `--project` | Into the current directory only |
 | `--check` | Report what is linked, exit non-zero if anything is missing |
 | `--force` | Replace a real file sitting where a link belongs |
 | `--yes` | Take every default, ask nothing |
