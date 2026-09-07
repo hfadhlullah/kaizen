@@ -28,30 +28,7 @@ async function welcome() {
     `\x1b[38;2;${r};${g};${b}m${s}\x1b[0m`;
 
   // Fuji: snow on the peak, deepening blue down the slope.
-  const peak = ["▄█▄", "▄█████▄", "▄█▀▀▀▀▀▀▀█▄"];
-  const slope = [
-    "▄█▀         ▀█▄",
-    "▄█▀             ▀█▄",
-    "▄█▀                 ▀█▄",
-    "▄█▀                     ▀█▄",
-    "▄█▀                         ▀█▄",
-    "▄█▀                             ▀█▄",
-  ];
-  const WIDTH = 45; // the wordmark's width; everything centers on it
-  const mid = (line: string) => " ".repeat(Math.max(0, Math.round((WIDTH - line.length) / 2))) + line;
-
-  console.log();
-  for (const [i, line] of peak.entries()) {
-    const t = i / peak.length;                       // snow, barely tinted
-    console.log("  " + rgb(255 - Math.round(t * 18), 255 - Math.round(t * 10), 255, mid(line)));
-  }
-  for (const [i, line] of slope.entries()) {
-    const t = (i + 1) / slope.length;                // slope into deep water blue
-    console.log("  " + rgb(
-      Math.round(150 - t * 105), Math.round(190 - t * 110), Math.round(245 - t * 80), mid(line)));
-  }
-
-  const word = [
+  const WORD = [
     "██╗  ██╗ █████╗ ██╗███████╗███████╗███╗   ██╗",
     "██║ ██╔╝██╔══██╗██║╚══███╔╝██╔════╝████╗  ██║",
     "█████╔╝ ███████║██║  ███╔╝ █████╗  ██╔██╗ ██║",
@@ -59,11 +36,70 @@ async function welcome() {
     "██║  ██╗██║  ██║██║███████╗███████╗██║ ╚████║",
     "╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚══════╝╚══════╝╚═╝  ╚═══╝",
   ];
+  const W = 63, C = 31, SNOW = 3;
+  const H = [1, 3, 5, 7, 9, 12, 16, 20, 23, 26, 29, 31]; // half-width per row
+
+  // Anything that would wrap is worse than the smaller thing that fits: the
+  // mountain needs the full width, the wordmark needs 47, below that use words.
+  const cols = process.stdout.columns || 80;
+  const wide = cols >= W + 4;
+  if (cols < 49) {
+    console.log(`\n  ${c.bold("kaizen")}`);
+  } else {
+
+  const cell: string[][] = H.map(() => Array(W).fill(" "));
+  const isWord: boolean[][] = H.map(() => Array(W).fill(false));
+
+  if (wide) {
+    for (const [i, h] of H.entries()) {
+      const l = C - h, r = C + h;
+      if (i < SNOW) {                       // solid cap
+        cell[i]![l] = "▄"; cell[i]![r] = "▄";
+        for (let x = l + 1; x < r; x++) cell[i]![x] = "█";
+      } else {                              // slope, drawn as two edges
+        cell[i]![l] = "▄"; cell[i]![l + 1] = "█"; cell[i]![l + 2] = "▀";
+        cell[i]![r - 2] = "▀"; cell[i]![r - 1] = "█"; cell[i]![r] = "▄";
+      }
+    }
+  }
+
+  const top = H.length - WORD.length, left = Math.floor((W - 45) / 2);
+  for (let r = top; r < H.length; r++)      // air around the letters
+    for (let x = left - 2; x < left + 47; x++) if (x >= 0 && x < W) cell[r]![x] = " ";
+  for (const [r, line] of WORD.entries())
+    for (const [x, ch] of [...line].entries())
+      if (ch !== " ") { cell[top + r]![left + x] = ch; isWord[top + r]![left + x] = true; }
+
   console.log();
-  for (const [i, line] of word.entries()) {
-    const t = i / (word.length - 1);
-    console.log("  " + rgb(
-      Math.round(214 - t * 150), Math.round(232 - t * 130), Math.round(255 - t * 45), line));
+  for (const [i, row] of cell.entries()) {
+    if (!wide && i < top) continue;          // no mountain to draw, no blank rows
+    const slope = Math.max(0, i - SNOW) / (H.length - SNOW);
+    const mountain: [number, number, number] = i < SNOW
+      ? [255 - i * 8, 255 - i * 5, 255]
+      : [Math.round(150 - slope * 105), Math.round(190 - slope * 110), Math.round(245 - slope * 80)];
+
+    // With no mountain there is nothing to sit under, so drop its left margin.
+    const off = wide ? 0 : left;
+    const chars = row.slice(off), flags = isWord[i]!.slice(off);
+
+    let out = "  ", run = "", runWord = flags[0]!;
+    const flush = () => {
+      if (!run) return;
+      const t = (i - top) / (WORD.length - 1);
+      const col: [number, number, number] = runWord
+        ? [Math.round(214 - t * 150), Math.round(232 - t * 130), Math.round(255 - t * 45)]
+        : mountain;
+      out += rgb(col[0], col[1], col[2], run);
+      run = "";
+    };
+    for (const [x, ch] of chars.entries()) {
+      if (flags[x] !== runWord) { flush(); runWord = flags[x]!; }
+      run += ch;
+    }
+    flush();
+    console.log(out.replace(/\s+$/, ""));
+  }
+  if (wide) console.log("  " + rgb(38, 66, 130, "▀".repeat(W)));
   }
 
   console.log(`
