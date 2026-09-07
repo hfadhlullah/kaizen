@@ -48,6 +48,21 @@ operational work: missing prerequisites, absent rollback, steps that cannot be
 executed as written. The plan's Verification section says what was promised; the
 reviewer checks that promise was kept.
 
+**Keep the working transcript small.** Everything the reviewer reads stays in its
+context and is re-read on every request that follows, so the re-run suite dumped in
+full at check 4 is paid for again at every check after it. Pipe long output through a
+filter that keeps the decisive lines — the failure count, the failing test names, the
+first error — and read the full output only where a check actually fails, which is the
+only place the detail becomes a finding. The same holds for the work under review: open
+the manifest's paths at the ranges the plan names, and read the diff rather than the
+whole file wherever the finding would cite a changed line. `04-review.md` records the
+findings, not the transcript.
+
+This does not apply to check 3. Blast radius is the check whose whole point is what
+the diff does not contain, so it reads as widely as it needs to — every caller, every
+reader, whole files where that is what it takes. A cheaper blast-radius pass is not a
+cheaper review, it is the check not happening.
+
 Each finding is one line, numbered from 1 within the review:
 `<n>. <where>: <severity>: <problem>. <fix>. [G-nn]` Where is a `path:line` for code,
 and a section, page, or step reference otherwise. Severity is one of `critical`,
