@@ -413,7 +413,11 @@ export async function dashboard(
       // long and grows with every agent installed, and it wrapped here before the
       // wordmark existed -- a wrapped line pushes the whole header down a row.
       for (const [i, line] of art.entries()) {
-        stdout.write("  " + c.cyan(line.padEnd(gutter)) + cut(beside[i] ?? "", cols - gutter - 2) + "\n");
+        const t = i / (art.length - 1);
+        const r = Math.round(235 - t * 135);
+        const g = Math.round(245 - t * 110);
+        const b = Math.round(255 - t * 20);
+        stdout.write("  " + rgb(r, g, b, line.padEnd(gutter)) + cut(beside[i] ?? "", cols - gutter - 2) + "\n");
       }
     } else {
       stdout.write(`  ${c.bold("kaizen")} ${c.dim(version(repo))}   ${c.dim(state ? tilde(dirname(state)) : "no project here")}\n`);
