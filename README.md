@@ -259,6 +259,13 @@ The first run sets the project up on its own — a `.kaizen/` folder holding the
 files. Nothing to initialise by hand. (`/kaizen-init` exists if you want to do it
 ahead of time, and the installer offers it for the project you install from.)
 
+Setup also adds a short section to the project's `CLAUDE.md`, so you can stop typing
+`/kaizen` entirely — ask for something the normal way and work worth a plan goes
+through the stages on its own. It draws the line at work worth a plan: a change
+across more than one file, anything with a migration or a rollback, a document
+someone else will act on. Questions and one-line fixes are answered, not staged.
+Delete that section to go back to `/kaizen` being explicit.
+
 That is the whole thing. Everything below is detail.
 
 ## How a run goes

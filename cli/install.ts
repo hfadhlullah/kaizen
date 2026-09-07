@@ -269,7 +269,7 @@ const kaizenDir = join(process.cwd(), ".kaizen");
 if (inGitRepo && !existsSync(kaizenDir)) {
   const now = interactive
     ? await select(`Set up ${basename(process.cwd())}/ for kaizen now`, [
-        { label: "Yes", hint: "writes .kaizen/ — spec, config, gitignore entry", value: true },
+        { label: "Yes", hint: "writes .kaizen/ and a CLAUDE.md line so it runs by default", value: true },
         { label: "Not now", hint: "the first /kaizen run will do it", value: false },
       ])
     : false;
@@ -293,6 +293,24 @@ function initRepo() {
     appendFileSync(gi, (current && !current.endsWith("\n") ? "\n" : "") + "\n# kaizen run state\n" + rules);
   }
   step("wrote .kaizen/ and the gitignore entry");
+  writePointer();
+}
+
+// Claude Code loads a skill by matching its description, so an ordinary request
+// ("add a discount cap") does not reach kaizen unless the project says it should.
+// One line in the agent instructions is what makes it the default here.
+function writePointer() {
+  const block = `\n## Kaizen workflow\n\nNon-trivial work in this repository follows the staged workflow in\n\`.kaizen/spec.md\`: plan, human approval, build, independent review, bounded fix\nloop. Invoke the \`kaizen\` skill for it — do not carry the stages out inline.\n\nNon-trivial means work worth a plan: a change across more than one file, anything\nwith a migration or a rollback, or a document someone else will act on. Answering a\nquestion, reading code, or a one-line fix is not, and should not start a run.\n\nRun state lives in \`.kaizen/runs/<id>/\`. Read \`state.json\` first and continue from\nthe stage it names; never advance a run whose \`awaiting\` field is non-null without a\nrecorded human decision.\n`;
+
+  for (const name of ["CLAUDE.md", "AGENTS.md"]) {
+    const f = join(process.cwd(), name);
+    const current = existsSync(f) ? readFileSync(f, "utf8") : "";
+    if (current.includes("## Kaizen workflow")) continue;
+    if (!current && name === "AGENTS.md") continue;   // do not create one that was never there
+    const text = current ? (current.endsWith("\n") ? "" : "\n") + block : block.slice(1);
+    appendFileSync(f, text);
+    step(`${existsSync(f) && current ? "added to" : "wrote"} ${name} ${c.dim("— kaizen now runs without being asked for")}`);
+  }
 }
 
 // ---------------------------------------------------------------- done
