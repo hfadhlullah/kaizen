@@ -21,11 +21,78 @@ const c = {
   green: (s: string) => `\x1b[32m${s}\x1b[0m`,
 };
 
-if (!check) {
+if (!check) await welcome();
+
+async function welcome() {
+  const rgb = (r: number, g: number, b: number, s: string) =>
+    `\x1b[38;2;${r};${g};${b}m${s}\x1b[0m`;
+
+  // Fuji: snow on the peak, deepening blue down the slope.
+  const peak = ["▄█▄", "▄█████▄", "▄█▀▀▀▀▀▀▀█▄"];
+  const slope = [
+    "▄█▀         ▀█▄",
+    "▄█▀             ▀█▄",
+    "▄█▀                 ▀█▄",
+    "▄█▀                     ▀█▄",
+    "▄█▀                         ▀█▄",
+    "▄█▀                             ▀█▄",
+  ];
+  const WIDTH = 45; // the wordmark's width; everything centers on it
+  const mid = (line: string) => " ".repeat(Math.max(0, Math.round((WIDTH - line.length) / 2))) + line;
+
+  console.log();
+  for (const [i, line] of peak.entries()) {
+    const t = i / peak.length;                       // snow, barely tinted
+    console.log("  " + rgb(255 - Math.round(t * 18), 255 - Math.round(t * 10), 255, mid(line)));
+  }
+  for (const [i, line] of slope.entries()) {
+    const t = (i + 1) / slope.length;                // slope into deep water blue
+    console.log("  " + rgb(
+      Math.round(150 - t * 105), Math.round(190 - t * 110), Math.round(245 - t * 80), mid(line)));
+  }
+
+  const word = [
+    "██╗  ██╗ █████╗ ██╗███████╗███████╗███╗   ██╗",
+    "██║ ██╔╝██╔══██╗██║╚══███╔╝██╔════╝████╗  ██║",
+    "█████╔╝ ███████║██║  ███╔╝ █████╗  ██╔██╗ ██║",
+    "██╔═██╗ ██╔══██║██║ ███╔╝  ██╔══╝  ██║╚██╗██║",
+    "██║  ██╗██║  ██║██║███████╗███████╗██║ ╚████║",
+    "╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚══════╝╚══════╝╚═╝  ╚═══╝",
+  ];
+  console.log();
+  for (const [i, line] of word.entries()) {
+    const t = i / (word.length - 1);
+    console.log("  " + rgb(
+      Math.round(214 - t * 150), Math.round(232 - t * 130), Math.round(255 - t * 45), line));
+  }
+
   console.log(`
-  ${c.bold("kaizen")} ${c.dim("改善")}
-  ${c.dim("plan  ->  approve  ->  build  ->  review  ->  fix")}
+  ${c.bold("改善")}  ${c.dim("kaizen — continuous improvement")}
+
+  ${c.dim("A staged workflow for AI coding agents:")}
+  ${c.dim("plan  ->  you approve  ->  build  ->  independent review  ->  bounded fix loop")}
 `);
+
+  if (interactive) await anyKey();
+}
+
+// A pause before anything touches the filesystem, and the place to back out.
+async function anyKey() {
+  const { stdin, stdout } = process;
+  stdout.write(`  ${c.dim("press")} ${c.cyan("enter")} ${c.dim("to install, or")} ${c.cyan("ctrl-c")} ${c.dim("to leave")}`);
+  stdin.setRawMode(true);
+  stdin.resume();
+  await new Promise<void>((resolve) => {
+    const onData = (chunk: Buffer) => {
+      if (chunk.toString().includes("\x03")) { stdout.write("\n\n  nothing installed\n"); process.exit(130); }
+      stdin.off("data", onData);
+      resolve();
+    };
+    stdin.on("data", onData);
+  });
+  stdin.setRawMode(false);
+  stdin.pause();
+  stdout.write("\r\x1b[2K");
 }
 
 const repo = await resolveRepo();
