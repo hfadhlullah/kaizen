@@ -112,7 +112,8 @@ produced, so show it even when they have already approved the plan in conversati
 When the reviewer reports findings, behavior depends on config:
 
 - `auto_fix.enabled: false` — always stop and hand every finding to the user as a
-  decision. Nothing is fixed automatically.
+  decision, listed by the reviewer's number so the user can name a subset. Nothing is
+  fixed automatically.
 - `auto_fix.enabled: true` — the builder fixes findings at or above
   `auto_fix.min_severity` (default `high`), the reviewer re-checks, repeating up to
   `auto_fix.max_iterations` (default 2). Findings below the threshold, and anything
@@ -213,7 +214,7 @@ shown automatically.
       01-plan.md
       02-approval.md            # decisions, with reasons and timestamps
       03-impl.md                # what changed, which files, what was skipped
-      04-review.md              # findings, severity-tagged
+      04-review.md              # findings, numbered and severity-tagged
       05-iterations/
         01-fix.md
         01-recheck.md

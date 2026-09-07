@@ -12,7 +12,40 @@ A quick-reference card ships separately as the `kaizen-help` skill.
 ## Install
 
 ```bash
-git clone <this repo> ~/kaizen
+bunx kaizen-ai
+```
+
+That clones the repo to `~/kaizen` (override with `KAIZEN_HOME`) and links the
+skills, agents, and commands into `~/.claude/`. Re-running it pulls and relinks, so
+it doubles as the updater. `npx kaizen-ai` works the same way.
+
+To work on kaizen itself, clone first and install from the checkout — the links then
+point at your working copy:
+
+```bash
+git clone https://github.com/hfadhlullah/kaizen.git ~/kaizen
+cd ~/kaizen && bun run cli/install.ts
+```
+
+Flags, either way:
+
+| Flag | Effect |
+|---|---|
+| *(none)* | Install for every project, into `~/.claude/` |
+| `--project` | Install into `.claude/` in the current directory only |
+| `--check` | Report what is linked and exit non-zero if anything is missing |
+| `--force` | Replace a real file sitting where a link belongs |
+
+It is idempotent — an already-correct link is left alone, so re-running after a
+`git pull` is safe and reports what changed.
+
+Restart Claude Code after linking — skills load live, slash commands and the
+statusline only pick up on session start.
+
+<details>
+<summary>Without bun</summary>
+
+```bash
 mkdir -p ~/.claude/skills ~/.claude/agents ~/.claude/commands
 ln -s ~/kaizen/skills/kaizen ~/.claude/skills/kaizen
 ln -s ~/kaizen/skills/kaizen-help ~/.claude/skills/kaizen-help
@@ -20,16 +53,19 @@ for f in ~/kaizen/agents/kaizen-*.md; do ln -s "$f" ~/.claude/agents/"$(basename
 for f in ~/kaizen/commands/kaizen-*.md; do ln -s "$f" ~/.claude/commands/"$(basename "$f")"; done
 ```
 
-Restart Claude Code after linking — skills load live, slash commands and the
-statusline only pick up on session start.
+</details>
 
 Symlinks instead of copies: `git pull` in the clone updates the live install.
 
 ## Update
 
 ```bash
-cd ~/kaizen && git pull
+bunx kaizen-ai
 ```
+
+Symlinks mean a `git pull` in the clone updates the live install by itself; the
+command above does the pull and relinks anything new in one step. `bun run
+cli/install.ts --check` reports the state of every link without changing anything.
 
 ## Layout
 
@@ -40,4 +76,5 @@ kaizen/
   agents/             # kaizen-planner.md, kaizen-builder.md, kaizen-reviewer.md
   commands/           # /kaizen-plan, -auto, -run, -review, -status, -backlog,
                       #   -approve, -reject, -abort, -init, -install
+  cli/install.ts      # bun installer: links the three directories into .claude/
 ```

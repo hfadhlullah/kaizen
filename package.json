@@ -1,0 +1,35 @@
+{
+  "name": "kaizen-ai",
+  "version": "0.1.0",
+  "description": "Staged AI development workflow: plan, human approval, implement, independent review, bounded fix loop.",
+  "type": "module",
+  "bin": {
+    "kaizen-ai": "./cli/install.ts"
+  },
+  "files": [
+    "cli",
+    "skills",
+    "agents",
+    "commands",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "install-links": "bun run cli/install.ts",
+    "check": "bun run cli/install.ts --check"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hfadhlullah/kaizen.git"
+  },
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "agent",
+    "workflow",
+    "skill",
+    "codex",
+    "antigravity",
+    "code-review"
+  ]
+}

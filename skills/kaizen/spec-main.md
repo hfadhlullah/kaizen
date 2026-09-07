@@ -85,6 +85,12 @@ Report: what was built, verification results, findings fixed, findings still ope
 and anything the builder noted as out of scope. Then stop. Committing, pushing, or
 opening a pull request happens only if the user asks.
 
+**Open findings are offered by number.** List them with the reviewer's numbering
+intact and let the user name which to fix — "fix 2 and 5". A number not named is not
+touched, and goes to the backlog as `open` like any other deferred item. This is the
+same granularity the fix loop already works at; the only change is that the user
+picks the subset instead of accepting or declining the whole review.
+
 Before setting `stage: "done"`, append the same three categories just reported —
 findings still open, findings below the fix threshold, and the builder's out-of-scope
 notes from `03-impl.md` — to `runs/<id>/06-backlog.md`, each as `open`, in the format
