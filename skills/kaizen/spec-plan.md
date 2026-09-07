@@ -66,11 +66,27 @@ The planner reads code but writes none. Its plan must contain:
    item; "every new query path has a covering test" is. A tier fixes the severity
    before the reviewer has an opinion, which is what stops the same class of problem
    being `high` in one run and `medium` in the next.
-7. **Risks** — what could break, what is irreversible, what needs a migration or a
+7. **Design direction, for any work with a visual surface** — a website, a landing
+   page, a UI, a deck, a printed piece. The direction is settled before the builder
+   starts, because it is the one decision that cannot be changed afterwards without
+   redoing the work: copy survives a re-skin, markup does not.
+
+   Look for it in the material first — a `design.md`, a design system, a brand or style
+   guide, an existing stylesheet with established tokens. Where one exists, the plan
+   names it and follows it, and asks nothing; the answer is already in the repository.
+
+   Where none exists, the direction is an *Open question* with 3-4 concrete options,
+   each named for what it signals rather than for its palette, so the user chooses a
+   positioning rather than a color. Bringing one direction and building it is the
+   failure this item exists to prevent: the planner has an opinion here as everywhere
+   else, but a visual direction chosen silently is a decision taken from the user, not
+   a proposal made to them.
+
+8. **Risks** — what could break, what is irreversible, what needs a migration or a
    backup taken first.
-8. **Open questions** — assumptions that survived the interview. If this list is
+9. **Open questions** — assumptions that survived the interview. If this list is
    non-empty, the approval must ask the user about it rather than defaulting.
-9. **Out of scope suggestions** — worthwhile things noticed but not asked for, each
+10. **Out of scope suggestions** — worthwhile things noticed but not asked for, each
    its own proposal. Never folded into a step.
 
 The plan is a proposal, not a decision. It never edits files, runs migrations, or
@@ -80,7 +96,7 @@ installs packages.
 fix loop reads it again per iteration, so a line written once is read five or six
 times. Sections 3 to 6 — the material to reuse, the file manifest, the steps, the
 verification — earn their length: they are what stop every later stage searching the
-material again, and cutting them costs more than it saves. Sections 0, 1, 7 and 9 are
+material again, and cutting them costs more than it saves. Sections 0, 1, 8 and 10 are
 read once by a human at the approval and should be as short as they can be and still
 be correct: a paragraph of framing, a paragraph of goal, the risks that are real, the
 questions that are open. An alternative rejected gets a line saying what and why, not
