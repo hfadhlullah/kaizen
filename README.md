@@ -352,6 +352,8 @@ tells you what it concluded, so you correct a sentence instead of filling in a f
 | `/kaizen <request>` | Start a run |
 | `/kaizen-plan <request>` | Plan only — stop before anything is built |
 | `/kaizen-auto <request>` | No approval stops; report at the end |
+| `/kaizen-lite <request>` | Every stage in this session — cheap, and the reviewer has seen the work |
+| `/kaizen-full <request>` | Every stage its own cold agent — the independent review |
 | `/kaizen-review [target]` | Review something that already exists |
 | `/kaizen-status` | What is waiting on you, in flight, done |
 | `/kaizen-approve` | Approve whatever the run is waiting on |
@@ -391,6 +393,7 @@ in one can be finished in another. See [adapters.md](https://github.com/hfadhlul
 | Setting | Default | Meaning |
 |---|---|---|
 | `mode` | `approve` | `approve` stops for you; `auto` never does; `plan-only` stops after the plan |
+| `runner` | `full` | `full` gives each stage its own agent, so the reviewer never saw the work — several times the cost. `lite` runs every stage here, at about the cost of doing it by hand |
 | `build.executor` | `subagent` | Who does the work: a separate agent, `inline` in the current one, or `ask` each time |
 | `auto_fix.min_severity` | `high` | Findings this bad or worse get fixed without asking |
 | `approvals.plan` | `true` | Stop and show the plan before anything is built |

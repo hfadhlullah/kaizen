@@ -8,6 +8,7 @@ type Setting = { key: string; values: string[]; help: string };
 
 const SETTINGS: Setting[] = [
   { key: "mode", values: ["approve", "auto", "plan-only", "review-only"], help: "Where a run stops" },
+  { key: "runner", values: ["full", "lite"], help: "full: every stage its own cold agent. lite: this session runs them all, cheaper, reviewer has seen the work" },
   { key: "build.executor", values: ["subagent", "inline", "ask"], help: "Who carries out the approved plan" },
   { key: "approvals.plan", values: ["true", "false"], help: "Stop and show the plan before anything is built" },
   { key: "approvals.review", values: ["true", "false"], help: "Stop after the review, before the run is done" },

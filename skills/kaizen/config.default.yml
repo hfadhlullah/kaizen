@@ -14,6 +14,19 @@ approvals:
   # Confirm every individual file edit. Maximum control, slowest.
   each_file: false
 
+# How much machinery a run uses.
+#   full - each stage is its own agent, started cold. The reviewer never sees how the
+#          work was done, which is the only reason its findings are worth reading.
+#          Costs several times what the same change costs in one session.
+#   lite - the session you are talking to runs every stage itself, in order, keeping
+#          each stage to its own declared inputs. Roughly the cost of doing the work
+#          by hand, and you watch it happen. The reviewer has seen the work, so
+#          expect it to miss what it just did.
+# Everything else is the same either way: the plan, the approval, the gate, the
+# findings, the files, and resuming a run in another tool.
+# Override for one run with `/kaizen lite <request>` or `/kaizen full <request>`.
+runner: full
+
 build:
   # Who carries out the approved plan.
   #   subagent - dispatch the builder as its own agent. The main thread keeps its

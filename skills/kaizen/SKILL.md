@@ -39,6 +39,8 @@ Porting the workflow to Codex or Antigravity is covered in [`adapters.md`](adapt
 | `/kaizen <request>` | Start a new run in the configured mode (default: `approve`) |
 | `/kaizen plan <request>` | Start a run and stop after the plan (`plan-only`) |
 | `/kaizen auto <request>` | Start a run in `auto` mode: every stage back to back, no approval stops |
+| `/kaizen lite <request>` | Run every stage in this session — cheap, and the reviewer has seen the work |
+| `/kaizen full <request>` | Dispatch every stage as its own agent — the reviewer starts cold |
 | `/kaizen run` | Resume the current run and execute the approved plan |
 | `/kaizen review [target]` | Review-only: audit existing code, no plan, no implementation (`review-only`) |
 | `/kaizen status` | List every run grouped waiting-on-you / in flight / done / abandoned, plus the open backlog count |
@@ -79,6 +81,7 @@ whichever the user picks.
 | Setting | Values | What it decides |
 |---|---|---|
 | `mode` | `approve`, `auto`, `plan-only`, `review-only` | Where a run stops |
+| `runner` | `full`, `lite` | Whether each stage is its own cold agent, or this session runs them all |
 | `build.executor` | `subagent`, `inline`, `ask` | Who carries out the approved plan |
 | `approvals.plan` | `true`, `false` | Stop and show the plan before anything is built |
 | `approvals.review` | `true`, `false` | Stop after the review, before the run is called done |
@@ -123,8 +126,9 @@ has read in a year. Do not spend it on work where being wrong is cheap and obvio
 A tool that charges the same for a typo and a payroll change gets turned off for both.
 
 **Small changes take the short path.** Where the approved plan touches roughly two
-files or fifty lines, run plan, approval, build and review as usual, then stop: report
-the findings and let the user choose, rather than entering the fix loop. The loop
+files or fifty lines, run the stages in this session (`runner: lite`, below)
+rather than dispatching them, then stop after the review: report the findings and let
+the user choose, rather than entering the fix loop. The loop
 exists because a fix to something intricate can be worse than the defect — it is not
 worth two more stages to confirm a one-line message now reads correctly. A finding at
 `high` or above pulls the run back onto the full path whatever its size, since that
@@ -239,6 +243,37 @@ Each line is the run id, its stage, and what it is awaiting. Grouping is derived
 `state.json` at read time, never from the directory name — run directories are flat and
 are never renamed or moved, so a path written into another file cannot break.
 
+## Who runs the stages
+
+`runner` decides, and it is the difference between a run costing about what the work
+would cost in one session and several times that. Set it for the project with
+`/kaizen config` or `kaizen settings`; override it for one run with `/kaizen lite
+<request>` or `/kaizen full <request>`, which does not change the project's setting.
+
+- **`full`** (default) — each stage is dispatched as its own agent, started cold.
+  The reviewer has never seen how the work was done, so it has nothing to defend.
+  That is the entire reason its findings are worth reading, and it is what catches the
+  bug in a fix rather than the bug in the plan.
+- **`lite`** — this session runs every stage itself, in order, as
+  [`adapters.md`](adapters.md) already describes for tools that have no subagents.
+  Read only the stage's declared inputs, write its artifact before starting the next,
+  and when reviewing, judge the work on its own terms rather than defending the
+  reasoning you used producing it.
+
+Everything else holds in both: the plan, the approval stop, the numbered gate answered
+with evidence, numbered findings, the files, and a run another tool can pick up.
+
+**Be honest about what `lite` costs you.** Instructing an agent to be impartial
+about something it just did is weaker than an agent that cannot be partial, because it
+never saw it. A same-session review reliably finds what is visible in the diff. It is
+much less likely to find the defect that requires disbelieving the reasoning that
+produced it — and a fix that is worse than the finding it closes is exactly that shape.
+
+So: `lite` where being wrong is cheap and obvious, which is also where the short path
+above applies. `full` where being wrong is expensive. When a run is going to
+touch money, a migration, or anything hard to undo, say which runner it used at the
+final report, so nobody reads a same-session review as an independent one.
+
 ## Running a stage
 
 **If the tool you are running in has no subagents** — Codex, and anything else that
@@ -253,6 +288,9 @@ Pass it the run directory path and let it read its own inputs from there — do 
 paste plans or diffs into the prompt, since the file is the shared source of truth
 across tools. Name its spec files in the prompt: core `spec.md` plus its own stage
 file, never the whole set.
+
+Under `runner: lite`, the table below is the same set of stages and artifacts —
+you are simply the agent for each, and there is no dispatch.
 
 | Stage | Agent type | Writes |
 |---|---|---|

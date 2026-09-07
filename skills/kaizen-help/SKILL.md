@@ -23,6 +23,8 @@ anything.
 | `/kaizen <request>` | Start a new run in the configured mode (default: `approve`) |
 | `/kaizen plan <request>` | Start a run and stop after the plan (`plan-only`) |
 | `/kaizen auto <request>` | Start a run in `auto` mode: every stage back to back, no approval stops |
+| `/kaizen lite <request>` | Run the stages in this session — cheap, reviewer has seen the work |
+| `/kaizen full <request>` | Dispatch each stage as its own cold agent |
 | `/kaizen run` | Resume the current run and execute the approved plan |
 | `/kaizen review [target]` | Review-only: audit existing code, no plan, no implementation |
 | `/kaizen status` | List every run grouped waiting-on-you / in flight / done / abandoned, plus open backlog count |
@@ -74,6 +76,7 @@ Each iteration is written to `runs/<id>/05-iterations/`.
 | Key | Default | Meaning |
 |---|---|---|
 | `mode` | `approve` | Default run mode |
+| `runner` | `full` | `full`: each stage a cold subagent. `lite`: this session runs every stage |
 | `approvals.plan` | `true` | Stop after the plan |
 | `approvals.review` | `false` | Stop after the review |
 | `approvals.each_file` | `false` | Confirm every file edit |
