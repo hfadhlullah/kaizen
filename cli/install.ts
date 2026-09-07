@@ -61,9 +61,10 @@ if (interactive && !upgrade && Bun.argv.length === 2) {
         const { settings } = await import("./settings.ts");
         await settings(repoDir, false);
       } else if (action === "upgrade") {
-        await Bun.$`bun run ${join(repoDir, "cli/install.ts")} upgrade`;
+        return await runUpgrade(repoDir);
       } else if (action === "init") {
-        await Bun.$`bun run ${join(repoDir, "cli/install.ts")} --yes`;
+        const out = await Bun.$`bun run ${join(repoDir, "cli/install.ts")} --yes`.text();
+        return clean(out);
       }
     });
     process.exit(0);
@@ -405,6 +406,52 @@ if (blocked) process.exit(1);
 // ---------------------------------------------------------------- helpers
 
 function step(msg: string) { console.log(`  ${c.green("+")} ${msg}`); }
+
+// Runs the upgrade and reports what it actually did, version to version, so the
+// dashboard can show a result rather than the user wondering whether it worked.
+async function runUpgrade(repoDir: string) {
+  const before = versionOf(repoDir);
+  const out = await Bun.$`bun run ${join(repoDir, "cli/install.ts")} upgrade`.text().catch(() => "");
+  const after = versionOf(repoDir);
+  const latest = await npmLatest();
+
+  const lines = [
+    before === after
+      ? `${c.bold("Already up to date")}  ${c.dim(after)}`
+      : `${c.bold("Upgraded")}  ${c.dim(before)} → ${c.green(after)}`,
+    "",
+    // Only the step lines: the captured run's own heading and restart notice
+    // repeat what this panel already says above them.
+    ...clean(out)
+      .filter((l) => l.trim().startsWith("+") || l.trim().startsWith("skip"))
+      .map((l) => c.dim(l.trim())),
+  ];
+  if (latest && latest !== after) {
+    lines.push("", c.dim(`npm publishes ${latest}; this install follows the git clone.`));
+  }
+  lines.push("", c.dim("Restart your agent to pick up new slash commands."));
+  return lines;
+}
+
+function versionOf(dir: string) {
+  try { return JSON.parse(readFileSync(join(dir, "package.json"), "utf8")).version as string; }
+  catch { return "?"; }
+}
+
+async function npmLatest() {
+  try {
+    const r = await fetch("https://registry.npmjs.org/kaizen-agent/latest", {
+      signal: AbortSignal.timeout(4000),
+    });
+    return ((await r.json()) as { version?: string }).version ?? null;
+  } catch { return null; }        // offline is not an upgrade failure
+}
+
+// Captured output still carries its own colour codes, which stop any test on the
+// text from matching and would nest inside this panel's own styling.
+function clean(out: string) {
+  return out.split("\n").map((l) => l.replace(/\x1b\[[0-9;]*m/g, "").replace(/\r$/, "").trimEnd());
+}
 
 // bunx keeps an extracted copy per package under the temp directory and reuses it
 // without re-resolving, so an upgrade that only pulls the clone still leaves the

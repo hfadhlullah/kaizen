@@ -15,7 +15,23 @@ const c = {
 
 type Run = { id: string; stage: string; awaiting: string | null };
 
-export async function dashboard(repo: string, agents: string[], run: (a: string) => Promise<void>) {
+const TANUKI = [
+  "       ▄▄▀▀▀▀▀▄▄",
+  "    ▀▀▀         ▀▀▀",
+  "        ╭╮   ╭╮",
+  "       ╭┴┴───┴┴╮",
+  "       │ ●   ● │",
+  "       │   ᵕ   │",
+  "       ╰───┬───╯",
+  "      ╭────┴────╮",
+  "      ╰──╯   ╰──╯",
+];
+
+export async function dashboard(
+  repo: string,
+  agents: string[],
+  run: (a: string) => Promise<string[] | void>,
+) {
   const { stdin, stdout } = process;
   const state = locate();
 
@@ -32,7 +48,30 @@ export async function dashboard(repo: string, agents: string[], run: (a: string)
   for (;;) {
     const chosen = await menu();
     if (chosen === "quit") return;
-    await run(chosen);
+    const lines = await run(chosen);
+    if (lines?.length) await report(lines);
+  }
+
+  // An action that has something to say says it here, on its own screen, rather
+  // than printing to a terminal the dashboard is about to paint over.
+  async function report(lines: string[]) {
+    stdout.write("\x1b[?1049h\x1b[?25l\x1b[H\x1b[2J");
+    stdout.write("\n");
+    for (const line of lines) stdout.write(`  ${line}\n`);
+    stdout.write(`\n  ${c.dim("any key to go back")}\n`);
+    stdin.setRawMode(true);
+    stdin.resume();
+    await new Promise<void>((resolve) => {
+      const once = (chunk: Buffer) => {
+        if (chunk.toString().includes("\x03")) process.exit(130);
+        stdin.off("data", once);
+        resolve();
+      };
+      stdin.on("data", once);
+    });
+    stdin.setRawMode(false);
+    stdin.pause();
+    stdout.write("\x1b[?25h\x1b[?1049l");
   }
 
   async function menu() {
@@ -44,7 +83,27 @@ export async function dashboard(repo: string, agents: string[], run: (a: string)
     const done = runs.filter((r) => r.stage === "done");
 
     stdout.write("\x1b[H\x1b[2J");
-    stdout.write(`\n  ${c.bold("kaizen")} ${c.dim(version(repo))}   ${c.dim(state ? tilde(dirname(state)) : "no project here")}\n`);
+
+    // The mascot sits beside the header rather than above it; stacked, it pushes
+    // the runs -- the thing you opened this for -- below the fold on a short window.
+    const wide = (stdout.columns ?? 80) >= 64;
+    const beside = [
+      "", "",
+      `${c.bold("kaizen")} ${c.dim(version(repo))}`,
+      c.dim(state ? tilde(dirname(state)) : "no project here"),
+      "",
+      c.dim(agents.join(", ")),
+      "", "", "",
+    ];
+    stdout.write("\n");
+    if (wide) {
+      for (const [i, line] of TANUKI.entries()) {
+        stdout.write("  " + c.cyan(line.padEnd(24)) + (beside[i] ?? "") + "\n");
+      }
+    } else {
+      stdout.write(`  ${c.bold("kaizen")} ${c.dim(version(repo))}   ${c.dim(state ? tilde(dirname(state)) : "no project here")}\n`);
+      stdout.write(`  ${c.dim(agents.join(", "))}\n`);
+    }
 
     if (state) {
       stdout.write(`\n  ${c.bold("Runs")}\n`);
@@ -59,7 +118,7 @@ export async function dashboard(repo: string, agents: string[], run: (a: string)
       stdout.write(`  ${c.dim("the first run creates it.")}\n`);
     }
 
-    stdout.write(`\n  ${c.bold("Installed for")}   ${agents.join(", ")}\n\n`);
+    stdout.write("\n");
     for (const [i, a] of acts.entries()) {
       const on = i === active;
       stdout.write(on
