@@ -318,13 +318,41 @@ export async function dashboard(
     }
 
     if (state) {
-      stdout.write(`\n  ${c.bold("Runs")}\n`);
-      if (!runs.length) stdout.write(`    ${c.dim("none yet")}\n`);
-      for (const r of waiting) stdout.write(`    ${c.amber("●")} ${r.id}  ${c.dim("waiting on you — " + r.awaiting)}\n`);
-      for (const r of flight) stdout.write(`    ${c.cyan("●")} ${r.id}  ${c.dim("in flight — " + r.stage)}\n`);
-      if (done.length) stdout.write(`    ${c.dim(`● ${done.length} done`)}\n`);
-      const open = backlog(state);
-      if (open) stdout.write(`\n  ${c.bold("Backlog")}   ${open} open\n`);
+      const runLines = [
+        ...waiting.map((r) => `${c.amber("●")} ${short(r.id)}  ${c.dim(r.awaiting ?? "")}`),
+        ...flight.map((r) => `${c.cyan("●")} ${short(r.id)}  ${c.dim(r.stage)}`),
+        ...(done.length ? [c.dim(`● ${done.length} done`)] : []),
+      ];
+      if (!runLines.length) runLines.push(c.dim("none yet"));
+
+      const items = allBacklog(state).flatMap((g) => g.items.map(parseItem));
+      const backLines = items.slice(0, 6).map((it) => {
+        const sev = it.severity ? (it.severity === "critical" || it.severity === "high"
+          ? c.amber(it.severity) : c.dim(it.severity)) + " " : "";
+        return sev + (it.where ? c.dim(it.where) + "  " : "") + it.text;
+      });
+      if (!backLines.length) backLines.push(c.dim("nothing open"));
+      else if (items.length > 6) backLines.push(c.dim(`… ${items.length - 6} more`));
+
+      // Side by side while there is room for two readable columns; stacked below
+      // that, since a panel squeezed under forty columns shows nothing useful.
+      const inner = Math.floor((cols - 9) / 2);
+      if (cols >= 96) {
+        // Both panels get the same body height so their bottom edges meet.
+        const tall = Math.max(runLines.length, backLines.length);
+        while (runLines.length < tall) runLines.push("");
+        while (backLines.length < tall) backLines.push("");
+        const left = panel("Runs", runLines, inner);
+        const right = panel(`Backlog — ${items.length} open`, backLines, inner);
+        stdout.write("\n");
+        for (let i = 0; i < Math.max(left.length, right.length); i++) {
+          stdout.write("  " + (left[i] ?? " ".repeat(inner + 2)) + " " + (right[i] ?? "") + "\n");
+        }
+      } else {
+        stdout.write("\n");
+        for (const line of panel("Runs", runLines, cols - 8)) stdout.write("  " + line + "\n");
+        for (const line of panel(`Backlog — ${items.length} open`, backLines, cols - 8)) stdout.write("  " + line + "\n");
+      }
     } else {
       stdout.write(`\n  ${c.dim("This folder has no .kaizen/. Set it up, or just ask your agent for something —")}\n`);
       stdout.write(`  ${c.dim("the first run creates it.")}\n`);
@@ -478,3 +506,34 @@ function allBacklog(state: string) {
   if (orphan.length) out.push({ run: "Orphaned", items: orphan });
   return out;
 }
+
+// Printable width: a row is mostly colour codes by the time it is drawn, and they
+// occupy no columns.
+function vis(s: string) { return s.replace(/\x1b\[[0-9;]*m/g, "").length; }
+
+function cut(s: string, room: number) {
+  if (vis(s) <= room) return s;
+  let out = "", seen = 0, i = 0;
+  while (i < s.length && seen < room - 1) {
+    const esc = /^\x1b\[[0-9;]*m/.exec(s.slice(i));
+    if (esc) { out += esc[0]; i += esc[0].length; continue; }
+    out += s[i]; i++; seen++;
+  }
+  return out + "…\x1b[0m";
+}
+
+const DIM = "\x1b[2m", OFF = "\x1b[0m";
+
+function panel(title: string, lines: string[], inner: number) {
+  const bar = "─".repeat(Math.max(0, inner - vis(title) - 3));
+  const out = [`${DIM}╭─${OFF} ${title} ${DIM}${bar}╮${OFF}`];
+  for (const line of lines) {
+    const body = cut(line, inner - 2);
+    out.push(`${DIM}│${OFF} ${body}${" ".repeat(Math.max(0, inner - 2 - vis(body)))} ${DIM}│${OFF}`);
+  }
+  out.push(`${DIM}╰${"─".repeat(inner)}╯${OFF}`);
+  return out;
+}
+
+// Run ids carry the date they started; the list is already in date order.
+function short(id: string) { return id.replace(/^\d{4}-\d{2}-\d{2}-/, ""); }
