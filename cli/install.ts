@@ -59,7 +59,7 @@ if (interactive && !upgrade && Bun.argv.length === 2) {
     await dashboard(repoDir, here.map((a) => a.name), async (action) => {
       if (action === "settings") {
         const { settings } = await import("./settings.ts");
-        await settings(repoDir);
+        await settings(repoDir, false);
       } else if (action === "upgrade") {
         await Bun.$`bun run ${join(repoDir, "cli/install.ts")} upgrade`;
       } else if (action === "init") {

@@ -31,7 +31,7 @@ const c = {
   inv: (s: string) => `\x1b[7m${s}\x1b[0m`,
 };
 
-export async function settings(repoRoot: string) {
+export async function settings(repoRoot: string, standalone = true) {
   const file = locate();
   if (!existsSync(file)) {
     mkdirSync(dirname(file), { recursive: true });
@@ -57,7 +57,7 @@ export async function settings(repoRoot: string) {
         : `    ${c.dim(name)}${value}\n`);
     }
     stdout.write(`\n  ${c.dim(SETTINGS[active]!.help)}\n`);
-    stdout.write(`\n  ${c.dim("↑↓ move · ←→ change · esc close")}   ${saved}\n`);
+    stdout.write(`\n  ${c.dim("↑↓ move · ←→ change · backspace back")}   ${saved}\n`);
   };
 
   stdout.write("\x1b[?1049h\x1b[?25l");      // alternate screen, hide cursor
@@ -70,7 +70,11 @@ export async function settings(repoRoot: string) {
       const keys = chunk.toString();
       for (let i = 0; i < keys.length; i++) {
         const rest = keys.slice(i);
-        if (rest.startsWith("\x03") || rest.startsWith("q") || rest === "\x1b") {
+        // esc, q, backspace, and left-at-the-edge all mean "back to where I came
+        // from" -- the settings screen is always something you opened from
+        // somewhere else.
+        if (rest.startsWith("\x03") || rest.startsWith("q") || rest === "\x1b"
+            || rest.startsWith("\x7f") || rest.startsWith("\b")) {
           stdin.off("data", onData); return resolve();
         }
         if (rest.startsWith("\x1b[A")) { active = (active - 1 + SETTINGS.length) % SETTINGS.length; i += 2; }
@@ -97,7 +101,9 @@ export async function settings(repoRoot: string) {
   stdin.setRawMode(false);
   stdin.pause();
   stdout.write("\x1b[?25h\x1b[?1049l");      // restore cursor and screen
-  console.log(`  ${c.green("+")} settings saved to ${tilde(file)}\n`);
+  // Returning to the dashboard means returning to its alternate screen, where a
+  // line printed here would never be seen.
+  if (standalone) console.log(`  ${c.green("+")} settings saved to ${tilde(file)}\n`);
 }
 
 // The nearest .kaizen wins, exactly as the workflow resolves it.

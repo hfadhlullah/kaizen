@@ -29,6 +29,13 @@ export async function dashboard(repo: string, agents: string[], run: (a: string)
   ];
 
   let active = 0;
+  for (;;) {
+    const chosen = await menu();
+    if (chosen === "quit") return;
+    await run(chosen);
+  }
+
+  async function menu() {
   const draw = () => {
     const acts = actions();
     const runs = state ? readRuns(state) : [];
@@ -59,7 +66,7 @@ export async function dashboard(repo: string, agents: string[], run: (a: string)
         ? `  ${c.cyan("›")} ${c.bold(a.label.padEnd(20))}${c.dim(a.hint)}\n`
         : `    ${c.dim(a.label)}\n`);
     }
-    stdout.write(`\n  ${c.dim("↑↓ move · enter choose · q quit")}\n`);
+    stdout.write(`\n  ${c.dim("↑↓ move · enter choose · q or backspace quit")}\n`);
   };
 
   stdout.write("\x1b[?1049h\x1b[?25l");
@@ -74,7 +81,8 @@ export async function dashboard(repo: string, agents: string[], run: (a: string)
       const keys = chunk.toString();
       for (let i = 0; i < keys.length; i++) {
         const rest = keys.slice(i);
-        if (rest.startsWith("\x03") || rest.startsWith("q") || rest === "\x1b") {
+        if (rest.startsWith("\x03") || rest.startsWith("q") || rest === "\x1b"
+            || rest.startsWith("\x7f") || rest.startsWith("\b")) {
           stdin.off("data", onData); return resolve();
         }
         if (rest.startsWith("\r") || rest.startsWith("\n")) {
@@ -95,7 +103,8 @@ export async function dashboard(repo: string, agents: string[], run: (a: string)
   stdin.setRawMode(false);
   stdin.pause();
   stdout.write("\x1b[?25h\x1b[?1049l");
-  if (chosen !== "quit") await run(chosen);
+  return chosen;
+  }
 }
 
 function locate() {
