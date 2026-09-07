@@ -17,8 +17,16 @@ async function resolveRepo() {
 
   const dest = process.env.KAIZEN_HOME ?? join(home, "kaizen");
   if (existsSync(join(dest, ".git"))) {
-    console.log(`update ${dest}`);
-    await Bun.$`git -C ${dest} pull --ff-only`.quiet();
+    // A pull can refuse for reasons that have nothing to do with linking — local
+    // edits, a detached head, no network. Linking the checkout that is already
+    // there still works, so say what happened and carry on rather than failing
+    // the install over it.
+    try {
+      await Bun.$`git -C ${dest} pull --ff-only`.quiet();
+      console.log(`update ${dest}`);
+    } catch {
+      console.log(`skip   ${dest} — could not pull, linking what is there`);
+    }
     return dest;
   }
   console.log(`clone  ${REPO_URL} -> ${dest}`);

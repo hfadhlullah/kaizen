@@ -12,12 +12,12 @@ A quick-reference card ships separately as the `kaizen-help` skill.
 ## Install
 
 ```bash
-bunx kaizen-ai
+bunx kaizen-agent
 ```
 
 That clones the repo to `~/kaizen` (override with `KAIZEN_HOME`) and links the
 skills, agents, and commands into `~/.claude/`. Re-running it pulls and relinks, so
-it doubles as the updater. `npx kaizen-ai` works the same way.
+it doubles as the updater. `npx kaizen-agent` works the same way.
 
 To work on kaizen itself, clone first and install from the checkout — the links then
 point at your working copy:
@@ -60,7 +60,7 @@ Symlinks instead of copies: `git pull` in the clone updates the live install.
 ## Update
 
 ```bash
-bunx kaizen-ai
+bunx kaizen-agent
 ```
 
 Symlinks mean a `git pull` in the clone updates the live install by itself; the

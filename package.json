@@ -1,10 +1,10 @@
 {
-  "name": "kaizen-ai",
-  "version": "0.1.0",
+  "name": "kaizen-agent",
+  "version": "0.1.1",
   "description": "Staged AI development workflow: plan, human approval, implement, independent review, bounded fix loop.",
   "type": "module",
   "bin": {
-    "kaizen-ai": "./cli/install.ts"
+    "kaizen-agent": "./cli/install.ts"
   },
   "files": [
     "cli",
