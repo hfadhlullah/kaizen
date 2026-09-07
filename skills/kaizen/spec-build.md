@@ -47,6 +47,15 @@ change works" into "nothing else broke". A check already failing before the chan
 not this run's finding; a check that passed before and fails after is, and it stops
 the stage.
 
+**Keep the working transcript small.** Everything the builder reads stays in its
+context and is re-read on every request that follows, so a full test-suite dump at the
+start of the stage is paid for again at every step after it. Pipe long output through
+a filter that keeps the decisive lines — the failure count, the failing test names, the
+first error — and read the full output only when a check actually fails. The same holds
+for reading material: open the manifest's paths at the ranges the plan names, not whole
+files, and never re-read a file this stage already changed. `03-impl.md` records the
+result, not the transcript.
+
 **Read the plan's File manifest instead of searching.** The planner already located
 every path this run touches. Search the material only for what the manifest does not
 cover, and note in `03-impl.md` what was missing from it.
