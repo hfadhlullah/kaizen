@@ -1,5 +1,5 @@
 <div align="center">
-<img src="https://raw.githubusercontent.com/hfadhlullah/kaizen/main/assets/kaizen-banner.png?v=2" alt="kaizen" width="760">
+<img src="https://raw.githubusercontent.com/hfadhlullah/kaizen/main/assets/banner.png" alt="kaizen" width="760">
 </div>
 
 <p align="center"><i>Your AI agent shows you the plan before it does the work,<br>and a second agent checks what it did.</i></p>

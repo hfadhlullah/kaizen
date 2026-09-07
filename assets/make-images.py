@@ -72,7 +72,7 @@ def banner():
     d.text((tx + 2 + d.textlength("改善", font=cjk) + 16 * SS, sy + 6 * SS),
            "continuous improvement", font=small, fill=DIM)
     im.resize((1280, 420), Image.LANCZOS).quantize(colors=64, dither=Image.Dither.NONE) \
-      .save("kaizen-banner.png", "PNG", optimize=True)
+      .save("banner.png", "PNG", optimize=True)
 
 
 def social():
