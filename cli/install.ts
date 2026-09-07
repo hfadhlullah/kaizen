@@ -10,6 +10,7 @@ const home = homedir();
 const REPO_URL = "https://github.com/hfadhlullah/kaizen.git";
 const args = new Set(Bun.argv.slice(2));
 const upgrade = args.has("upgrade") || args.has("--upgrade");
+const wantSettings = args.has("settings") || args.has("config");
 const check = args.has("--check");
 const force = args.has("--force");
 const verbose = args.has("--verbose");
@@ -21,6 +22,12 @@ const c = {
   cyan: (s: string) => `\x1b[36m${s}\x1b[0m`,
   green: (s: string) => `\x1b[32m${s}\x1b[0m`,
 };
+
+if (wantSettings) {
+  const { settings } = await import("./settings.ts");
+  await settings(await resolveRepoQuietly());
+  process.exit(0);
+}
 
 if (upgrade) await clearBunxCache();
 if (!check && !upgrade) await welcome();
@@ -147,6 +154,13 @@ const root = await chooseRoot();
 const base = join(root, ".claude");
 
 // ---------------------------------------------------------------- repo
+
+// Settings only needs the clone's default config, not a pull.
+async function resolveRepoQuietly() {
+  const here = dirname(import.meta.dir);
+  if (existsSync(join(here, ".git"))) return here;
+  return process.env.KAIZEN_HOME ?? join(home, "kaizen");
+}
 
 async function resolveRepo() {
   const here = dirname(import.meta.dir);

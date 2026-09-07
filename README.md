@@ -360,8 +360,31 @@ in one can be finished in another. See [adapters.md](https://github.com/hfadhlul
 | `auto_fix.min_severity` | `high` | Findings this bad or worse get fixed without asking |
 | `approvals.plan` | `true` | Stop and show the plan before anything is built |
 
-`/kaizen-config` shows what this project is set to and changes it, one picker per
-setting — you never have to remember a key name or a legal value. Everything is also
+```bash
+kaizen settings
+```
+
+opens a full-screen browser over the whole file — arrows to move and change, every
+change written as you make it, esc to close:
+
+```
+  kaizen settings   ~/Projects/app/.kaizen/config.yml
+
+    mode                           approve
+  › build.executor                 inline
+    approvals.plan                 true
+    approvals.review               false
+    auto_fix.min_severity          high
+    auto_fix.max_iterations        2
+    ...
+
+  Who carries out the approved plan
+
+  ↑↓ move · ←→ change · esc close     saved build.executor = inline
+```
+
+It edits each line in place, so the comment above every key survives. `/kaizen-config`
+does the same thing from inside your agent if you would rather not leave it. Everything is also
 in [`config.default.yml`](https://github.com/hfadhlullah/kaizen/blob/main/skills/kaizen/config.default.yml),
 with a comment on each key, if you would rather edit the file.
 
@@ -384,6 +407,7 @@ with a comment on each key, if you would rather edit the file.
 | `--yes` | Take every default, ask nothing |
 | `--verbose` | List every link instead of a one-line summary |
 | `upgrade` | Pull, relink, and clear the installer cache. No prompts. |
+| `settings` | Open the settings browser for the nearest `.kaizen/`. Also `config`. |
 
 A global install also writes `~/.local/bin/kaizen`, a two-line launcher pointing at
 the clone, so `kaizen upgrade` works from anywhere. It tells you if that directory is

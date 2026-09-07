@@ -101,9 +101,13 @@ Rules for writing the file:
 - After writing, print the setting and its new value, and nothing else. No summary of
   the whole file.
 
-Settings not in the table — the review checks, backlog and state paths, the track
-default — are edited by hand in `config.yml`, which is commented throughout. Say so
-rather than offering a picker with thirty options.
+Settings not in the table — the review checks, backlog and state paths — are edited by
+hand in `config.yml`, which is commented throughout. Say so rather than offering a
+picker with thirty options.
+
+`kaizen settings` in a terminal opens the same settings as a full-screen browser, for
+someone who would rather see the whole file at once. Mention it when the user is
+changing several at a time.
 
 ## Modes
 
