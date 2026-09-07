@@ -29,8 +29,12 @@ cd ~/kaizen && bun run cli/install.ts
 
 Flags, either way:
 
-Run interactively with no flags and it asks where to install, as an arrow-key
-choice; piped or scripted runs take the global install without asking.
+Run interactively and it walks you through it: where to install, and whether to set
+up the repository you are standing in. Piped or scripted runs take the global
+install and ask nothing.
+
+If `bunx` gives you an older version, it is serving its cache — clear it with
+`rm -rf /tmp/bunx-*-kaizen-agent*`.
 
 | Flag | Effect |
 |---|---|
@@ -39,6 +43,8 @@ choice; piped or scripted runs take the global install without asking.
 | `--project` | Install into `.claude/` in the current directory only |
 | `--check` | Report what is linked and exit non-zero if anything is missing |
 | `--force` | Replace a real file sitting where a link belongs |
+| `--yes` | Take every default, ask nothing |
+| `--verbose` | List every link instead of a one-line summary |
 
 It is idempotent — an already-correct link is left alone, so re-running after a
 `git pull` is safe and reports what changed.
