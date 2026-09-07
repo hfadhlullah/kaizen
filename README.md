@@ -38,10 +38,15 @@ defend — checks the work and tells you what is wrong. You decide what gets fix
 
 ## See it
 
+Pick whichever looks like your work. The five stages are identical in all of them —
+what changes is what *done* and *wrong* mean, which kaizen works out from your
+request rather than asking you.
+
+<details open>
+<summary><b>A customer email</b> — pricing change announcement</summary>
+
 ```
 you    /kaizen rewrite the onboarding email — the new pricing starts on the 1st
-
-       ...
 
 kaizen Here is the plan.
 
@@ -61,8 +66,6 @@ kaizen Here is the plan.
 
 you    approve
 
-       ...
-
 kaizen Done, and reviewed. Two things found:
 
        1. paragraph 2  high    "Your price will not change" is not true for annual
@@ -72,15 +75,13 @@ kaizen Done, and reviewed. Two things found:
        Fix them?                             [ both ]  [ just 1 ]  [ leave it ]
 ```
 
-The run stopped twice: once for you to approve the plan, once to decide about the
-findings. Everything else it did on its own.
+Nobody told the reviewer to look for an untrue claim or a truncated subject line. It
+read the request, concluded this was a customer email, and reviewed it as one.
 
-Notice what the reviewer looked for — an untrue claim, a subject line that gets cut
-off. Nobody told it to. It read the request, worked out that this was a customer
-email, and reviewed it the way a customer email should be reviewed.
+</details>
 
 <details>
-<summary>The same run, on code</summary>
+<summary><b>Code</b> — a bug in checkout</summary>
 
 ```
 you    /kaizen the discount field lets you enter more than 100%
@@ -99,14 +100,125 @@ kaizen Here is the plan.
 
 you    approve
 
-kaizen Done, and reviewed. One problem found:
+kaizen Done, and reviewed.
+       Verified: ran the suite — 47 passed, 0 failed. Before the change: 44 passed.
+
+       One problem found:
 
        1. cart.py:12  medium  A discount of exactly 100 now returns 0 instead of
                               being rejected. Fix: use > not >=.
 ```
 
-Same five stages, same two stops. What changed is what *done* and *wrong* mean —
-tests passing instead of a claim being true.
+`done` is a passing suite, so the builder has to show the run and its numbers —
+before and after. "It should work" is not accepted in any track.
+
+</details>
+
+<details>
+<summary><b>Marketing</b> — a landing page for a launch</summary>
+
+```
+you    /kaizen landing page copy for the Pro tier launch
+
+kaizen Here is the plan.
+
+       This is launch copy aimed at existing free users, not new visitors.
+       Done means: a free user understands what Pro adds and what it costs, and can
+       act without opening another page.
+       Wrong means: an overclaim, a benefit we do not actually ship, or a price that
+       disagrees with billing.
+
+       What I will do:
+         1. Headline and subhead — lead with the one thing free users ask for most
+         2. Four benefits, each tied to a shipped feature
+         3. Price block, pulled from the billing config so it cannot drift
+         4. One CTA, repeated twice
+
+       Out of scope: the pricing page, the in-app upgrade banner.
+
+       Approve this plan?
+
+you    approve
+
+kaizen Done, and reviewed. Three things found:
+
+       1. benefits 3   high    "Unlimited exports" — the shipped limit is 500/month.
+       2. headline     medium  Names a competitor. Legal reviews those; flagging, not fixing.
+       3. CTA          low     "Get started" appears on the free signup too. Ambiguous.
+```
+
+The reviewer checked each claim against what actually ships. Finding 2 it refused to
+fix on its own and handed to you — deliberately.
+
+</details>
+
+<details>
+<summary><b>Research</b> — a decision memo</summary>
+
+```
+you    /kaizen should we move from per-seat to usage-based pricing? write it up
+
+kaizen Here is the plan.
+
+       This is a decision memo for the founders, not a market report.
+       Done means: a recommendation with the reasoning shown, and the case against it
+       stated fairly enough that someone could disagree on the evidence.
+       Wrong means: a conclusion the evidence does not support, or only looking at
+       the data that agrees with it.
+
+       What I will do:
+         1. Pull the last 12 months of seat counts and usage from the billing export
+         2. Model both against actual accounts — who pays more, who pays less
+         3. Name the three accounts that break the model, and by how much
+         4. Recommend, with the strongest argument against it stated first
+
+       Approve this plan?
+
+you    approve
+
+kaizen Done, and reviewed. Two things found:
+
+       1. section 3  high    The recommendation rests on 4 accounts out of 60. That
+                             is not stated where the conclusion is.
+       2. section 2  medium  Churned accounts were excluded with no reason given —
+                             they are the ones the model treats worst.
+```
+
+Nothing here was checked for tests or tone. `wrong` was defined as an unsupported
+leap and cherry-picked data, so that is what the reviewer went looking for.
+
+</details>
+
+<details>
+<summary><b>Operations</b> — a migration runbook</summary>
+
+```
+you    /kaizen runbook for moving the database to the new region on Saturday
+
+kaizen Here is the plan.
+
+       This is a runbook someone else executes at 2am, not a description of a plan.
+       Done means: a colleague can follow it start to finish without asking a question.
+       Wrong means: a missing prerequisite, no way back, or a step that silently
+       loses data.
+
+       What I will do:
+         1. Prerequisites, with how to verify each one is true before starting
+         2. Steps in order, each with the exact command and what you should see
+         3. A rollback for every step that changes state
+         4. The point of no return, marked
+
+       Approve this plan?
+
+you    approve
+
+kaizen Done, and reviewed. Two things found:
+
+       1. step 7   critical  No rollback after the DNS cutover, and it is not marked
+                             as the point of no return. Fix: mark it, add the TTL wait.
+       2. step 3   high      Says "restore the backup" but never says which backup or
+                             how to confirm it is the right one.
+```
 
 </details>
 
