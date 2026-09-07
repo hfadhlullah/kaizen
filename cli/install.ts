@@ -411,8 +411,9 @@ const inProject = process.cwd() !== home;
 const kaizenDir = join(process.cwd(), ".kaizen");
 const globalKaizen = join(home, ".kaizen");
 const globalConfig = join(globalKaizen, "config.yml");
-const localConfig = join(kaizenDir, "config.yml");
-const hasConfig = existsSync(localConfig) || existsSync(globalConfig);
+const hasConfig = (args.has("onboard") || args.has("--onboard"))
+  ? false
+  : (inProject ? existsSync(localConfig) : existsSync(globalConfig));
 
 let presetChoice: PresetName | null = presetArg;
 if (!hasConfig && !presetChoice && interactive) {
