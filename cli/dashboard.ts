@@ -5,6 +5,9 @@ import { join, dirname, basename } from "node:path";
 import { homedir } from "node:os";
 
 const home = homedir();
+const rgb = (r: number, g: number, b: number, s: string) =>
+  `\x1b[38;2;${r};${g};${b}m${s}\x1b[0m`;
+
 const c = {
   dim: (s: string) => `\x1b[2m${s}\x1b[0m`,
   bold: (s: string) => `\x1b[1m${s}\x1b[0m`,
@@ -38,6 +41,17 @@ const TANUKI = [
 ];
 
 // The same, for windows that cannot spare fifteen rows before the runs begin.
+// The wordmark the installer prints. 45 columns; the header only sets it when the
+// terminal has room beside the mascot, and otherwise says the name in text.
+const WORDMARK = [
+  "██╗  ██╗ █████╗ ██╗███████╗███████╗███╗   ██╗",
+  "██║ ██╔╝██╔══██╗██║╚══███╔╝██╔════╝████╗  ██║",
+  "█████╔╝ ███████║██║  ███╔╝ █████╗  ██╔██╗ ██║",
+  "██╔═██╗ ██╔══██║██║ ███╔╝  ██╔══╝  ██║╚██╗██║",
+  "██║  ██╗██║  ██║██║███████╗███████╗██║ ╚████║",
+  "╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚══════╝╚══════╝╚═╝  ╚═══╝",
+];
+
 const TANUKI_SMALL = [
   "⠀⠀⠀⣰⠖⠾⣟⣛⠋⢉⣩⠽⢛⡽⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
   "⠀⠀⢰⢻⠀⠀⢀⡬⠟⠉⢀⠴⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
@@ -302,15 +316,44 @@ export async function dashboard(
     const art = rows >= 30 ? TANUKI : TANUKI_SMALL;
     const at = art === TANUKI ? 6 : 2;          // where the text sits against it
 
+    // Every width below is measured, not guessed: the mascot's own width plus the
+    // gutter plus the wordmark's 45 columns is exactly what the wide header occupies,
+    // and 2 more is the left margin every line is written with.
+    const gutter = Math.max(...art.map((l) => l.length)) + 4;
+    const setsWordmark = art === TANUKI && cols >= gutter + WORDMARK[0]!.length + 2;
+
     const beside = Array(art.length).fill("");
-    beside[at] = `${c.bold("kaizen")} ${c.dim(version(repo))}`;
-    beside[at + 1] = c.dim(state ? tilde(dirname(state)) : "no project here");
-    beside[at + 3] = c.dim(agents.join(", "));
+    if (setsWordmark) {
+      // Against the mascot's middle, with what kaizen is under it and where you are
+      // under that: the header says what the tool does before it says where it is.
+      const top = Math.max(0, Math.floor((art.length - WORDMARK.length) / 2) - 2);
+      for (const [i, line] of WORDMARK.entries()) {
+        const t = i / (WORDMARK.length - 1);
+        beside[top + i] = rgb(
+          Math.round(222 - t * 120), Math.round(238 - t * 100), Math.round(255 - t * 30), line);
+      }
+      // The description is longer than the wordmark, so it and not the art decides
+      // what fits. Take the longest that does; take none rather than wrap.
+      const room = cols - gutter - 2 - (version(repo).length + 3);
+      const line = ["plan · you approve · build · an independent agent reviews",
+                    "plan · approve · build · independent review",
+                    "plan · approve · build · review"].find((d) => d.length <= room);
+      beside[top + WORDMARK.length + 1] =
+        `${c.dim(version(repo))}${line ? "   " + c.dim(line) : ""}`;
+      beside[top + WORDMARK.length + 3] = c.dim(state ? tilde(dirname(state)) : "no project here");
+      beside[top + WORDMARK.length + 4] = c.dim(agents.join(", "));
+    } else {
+      beside[at] = `${c.bold("kaizen")} ${c.dim(version(repo))}`;
+      beside[at + 1] = c.dim(state ? tilde(dirname(state)) : "no project here");
+      beside[at + 3] = c.dim(agents.join(", "));
+    }
     stdout.write("\n");
     if (wide) {
-      const gutter = Math.max(...art.map((l) => l.length)) + 4;
+      // Cut what sits beside the mascot to the room left over. The agent list is
+      // long and grows with every agent installed, and it wrapped here before the
+      // wordmark existed -- a wrapped line pushes the whole header down a row.
       for (const [i, line] of art.entries()) {
-        stdout.write("  " + c.cyan(line.padEnd(gutter)) + (beside[i] ?? "") + "\n");
+        stdout.write("  " + c.cyan(line.padEnd(gutter)) + cut(beside[i] ?? "", cols - gutter - 2) + "\n");
       }
     } else {
       stdout.write(`  ${c.bold("kaizen")} ${c.dim(version(repo))}   ${c.dim(state ? tilde(dirname(state)) : "no project here")}\n`);
