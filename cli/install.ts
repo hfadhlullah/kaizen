@@ -60,8 +60,21 @@ function linkState(src: string, dest: string) {
 const args = new Set(Bun.argv.slice(2));
 const check = args.has("--check");
 const force = args.has("--force");
-const root = args.has("--project") ? process.cwd() : home;
-const base = join(root, ".claude");
+const base = join(await chooseRoot(), ".claude");
+
+async function chooseRoot() {
+  if (args.has("--project")) return process.cwd();
+  if (args.has("--global") || check) return home;
+
+  // Only ask when there is someone to answer. Piped, scripted, or CI runs take the
+  // global install silently rather than hanging on a prompt nobody sees.
+  if (!process.stdin.isTTY) return home;
+
+  console.log(`\n  1  every project   ${join(home, ".claude")}`);
+  console.log(`  2  this one only   ${join(process.cwd(), ".claude")}\n`);
+  const answer = prompt("Install where? [1]") ?? "";
+  return answer.trim() === "2" ? process.cwd() : home;
+}
 
 let bad = 0;
 for (const [src, sub] of links) {
@@ -91,4 +104,5 @@ if (check) {
   process.exit(bad ? 1 : 0);
 }
 console.log(`\nInstalled into ${base}. Restart Claude Code: skills load live, slash commands only on session start.`);
+console.log(`Then, in a repository you want to use it on: /kaizen-init`);
 if (bad) process.exit(1);

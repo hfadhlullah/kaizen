@@ -29,9 +29,13 @@ cd ~/kaizen && bun run cli/install.ts
 
 Flags, either way:
 
+Run interactively with no flags and it asks where to install; piped or scripted
+runs take the global install without asking.
+
 | Flag | Effect |
 |---|---|
-| *(none)* | Install for every project, into `~/.claude/` |
+| *(none)* | Ask, defaulting to every project (`~/.claude/`) |
+| `--global` | Every project, no question asked |
 | `--project` | Install into `.claude/` in the current directory only |
 | `--check` | Report what is linked and exit non-zero if anything is missing |
 | `--force` | Replace a real file sitting where a link belongs |
