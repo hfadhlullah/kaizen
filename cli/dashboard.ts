@@ -5,9 +5,6 @@ import { join, dirname, basename } from "node:path";
 import { homedir } from "node:os";
 
 const home = homedir();
-const rgb = (r: number, g: number, b: number, s: string) =>
-  `\x1b[38;2;${r};${g};${b}m${s}\x1b[0m`;
-
 const c = {
   dim: (s: string) => `\x1b[2m${s}\x1b[0m`,
   bold: (s: string) => `\x1b[1m${s}\x1b[0m`,
@@ -41,17 +38,6 @@ const TANUKI = [
 ];
 
 // The same, for windows that cannot spare fifteen rows before the runs begin.
-// The wordmark the installer prints, for windows with room to set it beside the
-// mascot. 45 columns; below that the header is the name in text.
-const WORDMARK = [
-  "██╗  ██╗ █████╗ ██╗███████╗███████╗███╗   ██╗",
-  "██║ ██╔╝██╔══██╗██║╚══███╔╝██╔════╝████╗  ██║",
-  "█████╔╝ ███████║██║  ███╔╝ █████╗  ██╔██╗ ██║",
-  "██╔═██╗ ██╔══██║██║ ███╔╝  ██╔══╝  ██║╚██╗██║",
-  "██║  ██╗██║  ██║██║███████╗███████╗██║ ╚████║",
-  "╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚══════╝╚══════╝╚═╝  ╚═══╝",
-];
-
 const TANUKI_SMALL = [
   "⠀⠀⠀⣰⠖⠾⣟⣛⠋⢉⣩⠽⢛⡽⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
   "⠀⠀⢰⢻⠀⠀⢀⡬⠟⠉⢀⠴⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
@@ -316,31 +302,13 @@ export async function dashboard(
     const art = rows >= 30 ? TANUKI : TANUKI_SMALL;
     const at = art === TANUKI ? 6 : 2;          // where the text sits against it
 
-    const gutterFor = (a: string[]) => Math.max(...a.map((l) => l.length)) + 3;
-    const roomForWordmark = cols >= gutterFor(art) + 45 + 4 && art === TANUKI;
-
     const beside = Array(art.length).fill("");
-    if (roomForWordmark) {
-      // Set the wordmark against the mascot's middle, then the run's own facts under
-      // it, so the header says what kaizen is before it says where you are.
-      const top = Math.max(0, Math.floor((art.length - WORDMARK.length) / 2) - 2);
-      for (const [i, line] of WORDMARK.entries()) {
-        const t = i / (WORDMARK.length - 1);
-        beside[top + i] = rgb(
-          Math.round(222 - t * 120), Math.round(238 - t * 100), Math.round(255 - t * 30), line);
-      }
-      beside[top + WORDMARK.length + 1] =
-        `${c.dim(version(repo))}   ${c.dim("plan · you approve · build · an independent agent reviews")}`;
-      beside[top + WORDMARK.length + 3] = c.dim(state ? tilde(dirname(state)) : "no project here");
-      beside[top + WORDMARK.length + 4] = c.dim(agents.join(", "));
-    } else {
-      beside[at] = `${c.bold("kaizen")} ${c.dim(version(repo))}`;
-      beside[at + 1] = c.dim(state ? tilde(dirname(state)) : "no project here");
-      beside[at + 3] = c.dim(agents.join(", "));
-    }
+    beside[at] = `${c.bold("kaizen")} ${c.dim(version(repo))}`;
+    beside[at + 1] = c.dim(state ? tilde(dirname(state)) : "no project here");
+    beside[at + 3] = c.dim(agents.join(", "));
     stdout.write("\n");
     if (wide) {
-      const gutter = gutterFor(art) + 1;
+      const gutter = Math.max(...art.map((l) => l.length)) + 4;
       for (const [i, line] of art.entries()) {
         stdout.write("  " + c.cyan(line.padEnd(gutter)) + (beside[i] ?? "") + "\n");
       }
