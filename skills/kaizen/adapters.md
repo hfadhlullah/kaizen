@@ -64,8 +64,9 @@ completes. A stale `state.json` is the one way this breaks.
 
 ## Installing the adapter files
 
-`/kaizen init` writes `.kaizen/` with the `spec*.md` files, `config.yml`, and the gitignore
-entry. `/kaizen install` additionally offers to append the `AGENTS.md` block above.
+`/kaizen init` writes `.kaizen/` with the `spec*.md` files and `config.yml` into the
+project folder, plus the gitignore entry when that folder is a git repository.
+`/kaizen install` additionally offers to append the `AGENTS.md` block above.
 `.kaizen/spec*.md` and `.kaizen/config.yml` should be committed even though run state
 is ignored — the workflow is shared, the run data is not:
 

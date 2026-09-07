@@ -1,0 +1,6 @@
+node_modules/
+
+# kaizen's run state. Unlike other projects, nothing under .kaizen/ is committed
+# here: its spec*.md and config.yml are copies of skills/kaizen/, which is the
+# source, and committing both is how the two drift apart.
+.kaizen/

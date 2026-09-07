@@ -47,7 +47,7 @@ Porting the workflow to Codex or Antigravity is covered in [`adapters.md`](adapt
 | `/kaizen reject <reason>` | Reject it; the reason is fed back to the stage that produced it |
 | `/kaizen abort` | Mark the current run abandoned |
 | `/kaizen config` | Show this project's settings and change them, one picker per setting |
-| `/kaizen init` | Install `.kaizen/` with the `spec*.md` files, config, and the gitignore entry into the current repository |
+| `/kaizen init` | Set up this project folder: `.kaizen/` with the `spec*.md` files, config, and — in a git repo — the gitignore entry |
 | `/kaizen install` | Install the workflow itself globally or per-project (see below) |
 
 If the user typed `/kaizen` with no argument and a run is in progress, treat it as
@@ -55,10 +55,11 @@ If the user typed `/kaizen` with no argument and a run is in progress, treat it 
 
 ## Before doing anything
 
-1. Locate the state directory: `.kaizen/` in the repository root, else `~/.kaizen/`
-   keyed by working directory. If neither exists and the user is starting work, run
-   `/kaizen init` first: it creates `.kaizen/` with a copy of the `spec*.md` files, a config, and
-   the gitignore entry (see [`adapters.md`](adapters.md)).
+1. Locate the state directory: `.kaizen/` in the project folder's root, else
+   `~/.kaizen/` keyed by working directory. If neither exists and the user is starting
+   work, run `/kaizen init` first: it creates `.kaizen/` with a copy of the `spec*.md`
+   files, a config, and — where the folder is a git repository — the gitignore entry
+   (see [`adapters.md`](adapters.md)).
 2. Read `.kaizen/config.yml`, falling back to `config.default.yml` in this skill for
    any key it does not set.
 3. Read `.kaizen/runs/<current>/state.json` if a run is active. Never assume the
@@ -293,9 +294,11 @@ shown automatically.
 }
 ```
 
-`init` adds a gitignore entry that ignores run state but keeps the workflow: it
-ignores `.kaizen/*` and un-ignores `.kaizen/spec*.md` and `.kaizen/config.yml`, which
-are meant to be committed (see [`adapters.md`](adapters.md)).
+In a git repository, `init` also adds a gitignore entry that ignores run state but
+keeps the workflow: it ignores `.kaizen/*` and un-ignores `.kaizen/spec*.md` and
+`.kaizen/config.yml`, which are meant to be committed (see
+[`adapters.md`](adapters.md)). A project folder that is not a repository gets no
+gitignore.
 
 ## Install
 

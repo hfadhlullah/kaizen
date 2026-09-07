@@ -55,12 +55,27 @@ review:
   # Additional checks per track, chosen by what the run actually is. The planner may
   # name a track not listed here; the reviewer then derives its checks from the
   # track's "what would make it wrong".
+  # Each check below is one question the reviewer asks; the line beside it says which.
   track_checks:
+    # security - no new way in, no secret or user data exposed
+    # reuse_simplification - nothing rebuilt that the codebase already had
+    # test_coverage - the changed behaviour has a check that fails when it breaks
     software: [security, reuse_simplification, test_coverage]
     # blast_radius and regression are universal — see spec-review.md — not listed here.
+    # completeness - every part the piece promises is actually present
+    # claim_accuracy - every checkable claim traced to a source
+    # reader_usability - its intended reader can act on it without asking
     writing: [completeness, claim_accuracy, reader_usability]
+    # audience_fit - written for the people who will actually read it
+    # voice_consistency - reads as the same voice as the surrounding material
     communication: [claim_accuracy, audience_fit, voice_consistency]
+    # prerequisites - everything needed before step one is stated
+    # rollback - a way back exists for every step that changes something
+    # executability - someone else can run it start to finish unaided
     operations: [prerequisites, rollback, executability]
+    # evidence_support - the conclusion follows from evidence shown, not asserted
+    # selection_bias - the evidence was not picked to fit the answer
+    # alternatives - the readings that were rejected are named and why
     research: [evidence_support, selection_bias, alternatives]
   # Let the reviewer append durable lessons to .kaizen/memory.md.
   write_memory: true
@@ -90,6 +105,8 @@ state:
 
 git:
   # Never commit, push, or open a PR unless the user explicitly asks.
+  # Ignored when the project is not a git repository.
   auto_commit: false
   # Create a branch before the implement stage when on the default branch.
+  # Ignored when the project is not a git repository.
   branch_before_implement: true

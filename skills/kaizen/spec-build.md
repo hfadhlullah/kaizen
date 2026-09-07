@@ -35,6 +35,9 @@ Rules:
   abstraction, a new file, a new section — is allowed, and costs one written line
   saying what it serves. The line is the price of the technique, not a request for
   permission. No line means the reviewer records a finding.
+- The `git.*` settings apply only where the work sits in a git repository. In a plain
+  folder there is no branch to make and no commit to skip, and that absence is not a
+  finding.
 
 **Baseline first, in any track with an existing suite of checks.** Before changing
 anything, run whatever already proves the existing material correct — the test suite,

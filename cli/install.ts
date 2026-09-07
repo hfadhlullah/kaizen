@@ -287,10 +287,10 @@ async function chooseRoot() {
   if (args.has("--project")) return process.cwd();
   if (args.has("--global") || !interactive) return home;
   // A project install only means something in a project. Standing in the home
-  // directory it is the global install under another name, and outside a
-  // repository there is nothing for it to belong to.
+  // directory it is the global install under another name; any other folder is
+  // a project worth installing into, git repository or not.
   const cwd = process.cwd();
-  if (cwd === home || !existsSync(join(cwd, ".git"))) return home;
+  if (cwd === home) return home;
 
   const names = (r: string) => found(r).map((a) => a.name).join(", ");
   return select("Install kaizen for", [
@@ -390,22 +390,43 @@ function installLauncher() {
   }
 }
 
-const inGitRepo = existsSync(join(process.cwd(), ".git"));
+const inProject = process.cwd() !== home;
 const kaizenDir = join(process.cwd(), ".kaizen");
 
-if (inGitRepo && !existsSync(kaizenDir)) {
+// A .kaizen/ in a parent already owns this folder's state, and setting up a child
+// would shadow it, hiding the parent's runs and leaving the child out of the root
+// .gitignore. Deliberately not shared with cli/dashboard.ts locate(): that one
+// resolves which state directory to read and so falls back to a global ~/.kaizen,
+// while this one decides whether a folder is already owned and must stop *before*
+// $HOME — a global ~/.kaizen would otherwise suppress the setup offer for every
+// non-repo folder under the home directory. Do not re-sync the two walks.
+function kaizenAbove() {
+  let dir = process.cwd();
+  for (;;) {
+    if (dir === home) return false;
+    if (existsSync(join(dir, ".kaizen"))) return true;
+    if (existsSync(join(dir, ".git"))) return false;
+    const up = dirname(dir);
+    if (up === dir) return false;
+    dir = up;
+  }
+}
+
+if (inProject && !kaizenAbove()) {
   const now = interactive
     ? await select(`Set up ${basename(process.cwd())}/ for kaizen now`, [
-        { label: "Yes", hint: "writes .kaizen/ and a CLAUDE.md line so it runs by default", value: true },
+        // "Not now" leads: the offer now appears in any folder outside home, so the
+        // safe answer is the one under the cursor.
         { label: "Not now", hint: "the first /kaizen run will do it", value: false },
+        { label: "Yes", hint: "writes .kaizen/ and a CLAUDE.md line so it runs by default", value: true },
       ])
     : false;
-  if (now) initRepo();
+  if (now) initProject();
 } else if (existsSync(kaizenDir)) {
   step(`${basename(process.cwd())}/.kaizen already set up`);
 }
 
-function initRepo() {
+function initProject() {
   mkdirSync(kaizenDir, { recursive: true });
   for (const f of readdirSync(join(repo, "skills/kaizen")).filter((f) => f.startsWith("spec"))) {
     copyFileSync(join(repo, "skills/kaizen", f), join(kaizenDir, f));
@@ -413,13 +434,18 @@ function initRepo() {
   copyFileSync(join(repo, "skills/kaizen/config.default.yml"), join(kaizenDir, "config.yml"));
 
   // Run state is local; the workflow itself is shared, so those files stay tracked.
-  const rules = ".kaizen/*\n!.kaizen/spec*.md\n!.kaizen/config.yml\n";
-  const gi = join(process.cwd(), ".gitignore");
-  const current = existsSync(gi) ? readFileSync(gi, "utf8") : "";
-  if (!current.includes(".kaizen/*")) {
-    appendFileSync(gi, (current && !current.endsWith("\n") ? "\n" : "") + "\n# kaizen run state\n" + rules);
+  // Nothing to ignore where there is no git, so a plain folder gets no .gitignore.
+  let ignored = false;
+  if (existsSync(join(process.cwd(), ".git"))) {
+    const rules = ".kaizen/*\n!.kaizen/spec*.md\n!.kaizen/config.yml\n";
+    const gi = join(process.cwd(), ".gitignore");
+    const current = existsSync(gi) ? readFileSync(gi, "utf8") : "";
+    if (!current.includes(".kaizen/*")) {
+      appendFileSync(gi, (current && !current.endsWith("\n") ? "\n" : "") + "\n# kaizen run state\n" + rules);
+      ignored = true;
+    }
   }
-  step("wrote .kaizen/ and the gitignore entry");
+  step(ignored ? "wrote .kaizen/ and the gitignore entry" : "wrote .kaizen/");
   writePointer();
 }
 

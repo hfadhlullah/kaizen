@@ -31,7 +31,7 @@ anything.
 | `/kaizen reject <reason>` | Reject it; the reason decides revise (back to planner) vs kill (abandon) |
 | `/kaizen abort` | Mark the current run abandoned |
 | `/kaizen config` | Show this project's settings and change them, one picker per setting |
-| `/kaizen init` | Install `.kaizen/` with `spec.md`, config, and the gitignore entry into the current repository |
+| `/kaizen init` | Set up this project folder: `.kaizen/` with `spec.md`, config, and — in a git repo — the gitignore entry |
 | `/kaizen install` | Install the workflow itself globally or per-project |
 
 `/kaizen` with no argument: `status` if a run is in progress, else ask what to build.
