@@ -110,17 +110,30 @@ export async function dashboard(
 
   // One scrolling list, used by every view. Returns the chosen index, or null
   // when the user backs out.
-  async function pick(title: string, rows: string[], footer = "enter open · backspace back") {
+  async function pick(
+    title: string,
+    rows: string[],
+    footer = "enter open · backspace back",
+    skip: (i: number) => boolean = () => false,
+  ) {
     if (!rows.length) { await report([c.bold(title), "", c.dim("nothing here yet")]); return null; }
-    let at = 0, top = 0;
+
+    // Headings are rows too, but they are not items: they are not counted, and
+    // moving passes over them rather than landing on them.
+    const pickable = rows.map((_, i) => i).filter((i) => !skip(i));
+    if (!pickable.length) { await report([c.bold(title), "", c.dim("nothing here yet")]); return null; }
+    let cursor = 0;                                  // index into pickable
+    const move = (d: number) => { cursor = Math.min(pickable.length - 1, Math.max(0, cursor + d)); };
+    let top = 0;
     const height = () => Math.max(5, (stdout.rows ?? 24) - 8);
 
     const draw = () => {
       const h = height();
+      const at = pickable[cursor]!;
       if (at < top) top = at;
       if (at >= top + h) top = at - h + 1;
       stdout.write("\x1b[H\x1b[2J");
-      stdout.write(`\n  ${c.bold(title)}   ${c.dim(`${at + 1}/${rows.length}`)}\n\n`);
+      stdout.write(`\n  ${c.bold(title)}   ${c.dim(`${cursor + 1}/${pickable.length}`)}\n\n`);
       for (const [i, row] of rows.slice(top, top + h).entries()) {
         const real = top + i;
         stdout.write(real === at ? `  ${c.cyan("›")} ${fit(row)}\n` : `    ${fit(row)}\n`);
@@ -144,12 +157,12 @@ export async function dashboard(
             stdin.off("data", onData); return resolve();
           }
           if (rest.startsWith("\r") || rest.startsWith("\n")) {
-            chosen = at; stdin.off("data", onData); return resolve();
+            chosen = pickable[cursor]!; stdin.off("data", onData); return resolve();
           }
-          if (rest.startsWith("\x1b[A")) { at = Math.max(0, at - 1); i += 2; }
-          else if (rest.startsWith("\x1b[B")) { at = Math.min(rows.length - 1, at + 1); i += 2; }
-          else if (rest.startsWith("k")) at = Math.max(0, at - 1);
-          else if (rest.startsWith("j")) at = Math.min(rows.length - 1, at + 1);
+          if (rest.startsWith("\x1b[A")) { move(-1); i += 2; }
+          else if (rest.startsWith("\x1b[B")) { move(1); i += 2; }
+          else if (rest.startsWith("k")) move(-1);
+          else if (rest.startsWith("j")) move(1);
           else continue;
           draw();
         }
@@ -245,7 +258,8 @@ export async function dashboard(
       }
     }
     for (;;) {
-      const i = await pick("Backlog — open items", rows, "enter read · backspace back");
+      const i = await pick("Backlog — open items", rows, "enter read · backspace back",
+        (n) => full[n] === null);
       if (i === null) return;
       // Rows are cut to the window, so reading one means opening it.
       const it = full[i];
