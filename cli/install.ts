@@ -36,8 +36,10 @@ async function welcome() {
     "██║  ██╗██║  ██║██║███████╗███████╗██║ ╚████║",
     "╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚══════╝╚══════╝╚═╝  ╚═══╝",
   ];
-  const W = 63, C = 31, SNOW = 3;
-  const H = [1, 3, 5, 7, 9, 12, 16, 20, 23, 26, 29, 31]; // half-width per row
+  const W = 67, C = 33, SNOW = 3;
+  // Half-width per row. Chosen so the slope, where it reappears beside the
+  // letters, is already clear of them -- a half-drawn edge reads as crooked.
+  const H = [1, 3, 5, 7, 9, 12, 17, 22, 27, 29, 31, 33];
 
   // Anything that would wrap is worse than the smaller thing that fits: the
   // mountain needs the full width, the wordmark needs 47, below that use words.
@@ -57,8 +59,14 @@ async function welcome() {
         cell[i]![l] = "▄"; cell[i]![r] = "▄";
         for (let x = l + 1; x < r; x++) cell[i]![x] = "█";
       } else {                              // slope, drawn as two edges
-        cell[i]![l] = "▄"; cell[i]![l + 1] = "█"; cell[i]![l + 2] = "▀";
-        cell[i]![r - 2] = "▀"; cell[i]![r - 1] = "█"; cell[i]![r] = "▄";
+        // Below the wordmark's top row the letters own the middle, so draw an
+        // edge only where all three of its characters clear them.
+        const band = i >= H.length - WORD.length;
+        const gap = Math.floor((W - 45) / 2) - 2;
+        if (!band || l + 2 < gap) {
+          cell[i]![l] = "▄"; cell[i]![l + 1] = "█"; cell[i]![l + 2] = "▀";
+          cell[i]![r - 2] = "▀"; cell[i]![r - 1] = "█"; cell[i]![r] = "▄";
+        }
       }
     }
   }
