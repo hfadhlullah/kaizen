@@ -270,7 +270,7 @@ if (inGitRepo && !existsSync(kaizenDir)) {
   const now = interactive
     ? await select(`Set up ${basename(process.cwd())}/ for kaizen now`, [
         { label: "Yes", hint: "writes .kaizen/ — spec, config, gitignore entry", value: true },
-        { label: "Not now", hint: "run /kaizen-init in the repo later", value: false },
+        { label: "Not now", hint: "the first /kaizen run will do it", value: false },
       ])
     : false;
   if (now) initRepo();
@@ -308,8 +308,7 @@ if (upgrade) {
   console.log(`
   ${c.bold("Next")}
     1  restart Claude Code ${c.dim("— skills load live, slash commands only at session start")}
-    2  ${c.cyan("/kaizen-init")} ${c.dim("in any repo you want to use it on")}
-    3  ${c.cyan("/kaizen-plan <what you want done>")}
+    2  ${c.cyan("/kaizen <what you want done>")} ${c.dim("in any project — it sets itself up on first run")}
 
   ${c.dim("/kaizen-help lists every command.  kaizen upgrade updates all of this.")}
 `);

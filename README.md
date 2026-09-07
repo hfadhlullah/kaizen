@@ -249,12 +249,15 @@ That pulls the latest workflow, relinks anything new, and clears the installer c
 so. `bunx kaizen-agent upgrade` does the same thing if you would rather not have the
 command.
 
-Then, in a project you want to use it on:
+Then, in any project, just ask for something:
 
 ```
-/kaizen-init
 /kaizen <what you want done>
 ```
+
+The first run sets the project up on its own — a `.kaizen/` folder holding the run's
+files. Nothing to initialise by hand. (`/kaizen-init` exists if you want to do it
+ahead of time, and the installer offers it for the project you install from.)
 
 That is the whole thing. Everything below is detail.
 
@@ -306,7 +309,7 @@ tells you what it concluded, so you correct a sentence instead of filling in a f
 | `/kaizen-run` | Carry on with an approved plan |
 | `/kaizen-backlog` | Everything noticed but not done, across all runs |
 | `/kaizen-abort` | Abandon the current run |
-| `/kaizen-init` | Set up the current project |
+| `/kaizen-init` | Set up the current project — optional, the first run does it |
 | `/kaizen-help` | The full card |
 
 ## What it writes
@@ -332,7 +335,7 @@ in one can be finished in another. See [adapters.md](https://github.com/hfadhlul
 
 ## Settings
 
-`.kaizen/config.yml`, created by `/kaizen-init`. The three worth knowing:
+`.kaizen/config.yml`, written when the project is set up. The three worth knowing:
 
 | Setting | Default | Meaning |
 |---|---|---|
