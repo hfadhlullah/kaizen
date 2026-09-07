@@ -267,7 +267,31 @@ async function anyKey() {
 
 const repo = await resolveRepo();
 const root = await chooseRoot();
+const presetChoice = await choosePreset();
 const targets = found(root);
+
+async function choosePreset(): Promise<PresetName> {
+  if (presetArg) return presetArg;
+  if (!interactive) return "medium";
+
+  return select("Choose workflow preset", [
+    {
+      label: "Medium (Recommended)",
+      hint: "balanced — subagents, plan approval, auto-fix high/critical",
+      value: "medium",
+    },
+    {
+      label: "Low",
+      hint: "inline & manual — lite runner, inline builder, manual approvals, no auto-fix",
+      value: "low",
+    },
+    {
+      label: "Ultra",
+      hint: "autonomous — subagents, auto mode, auto-fix all findings (up to 4 rounds)",
+      value: "ultra",
+    },
+  ]);
+}
 
 // ---------------------------------------------------------------- repo
 
@@ -411,40 +435,15 @@ const inProject = process.cwd() !== home;
 const kaizenDir = join(process.cwd(), ".kaizen");
 const globalKaizen = join(home, ".kaizen");
 const globalConfig = join(globalKaizen, "config.yml");
-const hasConfig = (args.has("onboard") || args.has("--onboard"))
-  ? false
-  : (inProject ? existsSync(localConfig) : existsSync(globalConfig));
 
-let presetChoice: PresetName | null = presetArg;
-if (!hasConfig && !presetChoice && interactive) {
-  presetChoice = await select("Choose workflow preset", [
-    {
-      label: "Medium (Recommended)",
-      hint: "balanced — subagents, plan approval, auto-fix high/critical",
-      value: "medium",
-    },
-    {
-      label: "Low",
-      hint: "inline & manual — lite runner, inline builder, manual approvals, no auto-fix",
-      value: "low",
-    },
-    {
-      label: "Ultra",
-      hint: "autonomous — subagents, auto mode, auto-fix all findings (up to 4 rounds)",
-      value: "ultra",
-    },
-  ]);
-}
-
-if ((!existsSync(globalConfig) && presetChoice) || (presetArg && !args.has("--project"))) {
+if (!args.has("--project")) {
   mkdirSync(globalKaizen, { recursive: true });
   const defPath = join(repo, "skills/kaizen/config.default.yml");
   const def = readFileSync(defPath, "utf8");
   const base = existsSync(globalConfig) ? readFileSync(globalConfig, "utf8") : def;
-  const target = presetChoice ?? "medium";
-  const conf = applyPreset(base, target, def);
+  const conf = applyPreset(base, presetChoice, def);
   writeFileSync(globalConfig, conf);
-  step(`configured ${c.bold(target)} preset in ${tilde(globalConfig)}`);
+  step(`configured ${c.bold(presetChoice)} preset in ${tilde(globalConfig)}`);
 }
 
 // A .kaizen/ in a parent already owns this folder's state, and setting up a child
