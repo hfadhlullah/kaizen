@@ -16,16 +16,36 @@ const c = {
 type Run = { id: string; stage: string; awaiting: string | null };
 
 const TANUKI = [
-  "       ▄▄▀▀▀▀▀▄▄",
-  "    ▀▀▀         ▀▀▀",
-  "        ╭╮   ╭╮",
-  "       ╭┴┴───┴┴╮",
-  "       │ ●   ● │",
-  "       │   ᵕ   │",
-  "       ╰───┬───╯",
-  "      ╭────┴────╮",
-  "      ╰──╯   ╰──╯",
+  "        ╱╲",
+  "      ╱   ╲",
+  "    ╱   ╱  ╲",
+  "  ╱___╱_____╲",
+  "   ╲  │",
+  "    ╲ │  ╭╮   ╭╮",
+  "     ╲│ ╭╯╰───╯╰╮",
+  "      ╰─┤ ●   ● │",
+  "        │   ⌄   │   ╭─╮",
+  "        ╰──┬────╯   ╰┬╯",
+  "      ╭────┴────╮    │",
+  "      │  ╭───╮  ├────╯",
+  "      │  ╰───╯  │",
+  "      ╰─┬─────┬─╯╲__",
+  "        ╰─────╯   ◡◡",
 ];
+
+// The same mascot with the hat, arms and flask taken off, for windows that cannot
+// spare fifteen rows before the runs begin.
+const TANUKI_SMALL = [
+  "     ╭╮   ╭╮",
+  "    ╭╯╰───╯╰╮",
+  "    ┤ ●   ● │",
+  "    │   ⌄   │",
+  "    ╰──┬────╯",
+  "  ╭────┴────╮",
+  "  │  ╭───╮  │",
+  "  ╰─┬─────┬─╯",
+];
+
 
 export async function dashboard(
   repo: string,
@@ -86,19 +106,20 @@ export async function dashboard(
 
     // The mascot sits beside the header rather than above it; stacked, it pushes
     // the runs -- the thing you opened this for -- below the fold on a short window.
-    const wide = (stdout.columns ?? 80) >= 64;
-    const beside = [
-      "", "",
-      `${c.bold("kaizen")} ${c.dim(version(repo))}`,
-      c.dim(state ? tilde(dirname(state)) : "no project here"),
-      "",
-      c.dim(agents.join(", ")),
-      "", "", "",
-    ];
+    const cols = stdout.columns ?? 80, rows = stdout.rows ?? 24;
+    const wide = cols >= 64;
+    const art = rows >= 30 ? TANUKI : TANUKI_SMALL;
+    const at = art === TANUKI ? 6 : 2;          // where the text sits against it
+
+    const beside = Array(art.length).fill("");
+    beside[at] = `${c.bold("kaizen")} ${c.dim(version(repo))}`;
+    beside[at + 1] = c.dim(state ? tilde(dirname(state)) : "no project here");
+    beside[at + 3] = c.dim(agents.join(", "));
     stdout.write("\n");
     if (wide) {
-      for (const [i, line] of TANUKI.entries()) {
-        stdout.write("  " + c.cyan(line.padEnd(24)) + (beside[i] ?? "") + "\n");
+      const gutter = Math.max(...art.map((l) => l.length)) + 4;
+      for (const [i, line] of art.entries()) {
+        stdout.write("  " + c.cyan(line.padEnd(gutter)) + (beside[i] ?? "") + "\n");
       }
     } else {
       stdout.write(`  ${c.bold("kaizen")} ${c.dim(version(repo))}   ${c.dim(state ? tilde(dirname(state)) : "no project here")}\n`);
