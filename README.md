@@ -217,12 +217,28 @@ kaizen Done, and reviewed. Two things found:
 
 ## Install
 
+### Prerequisites: Bun
+
+Kaizen's installer and interactive dashboard require [Bun](https://bun.sh). If you don't have Bun installed yet:
+
+```bash
+# macOS, Linux, WSL
+curl -fsSL https://bun.sh/install | bash
+
+# or via Homebrew
+brew install oven-sh/bun/bun
+
+# or via npm
+npm install -g bun
+```
+
+### Install Kaizen
+
 ```bash
 bunx kaizen-agent
 ```
 
-It walks you through where to install, then tells you what to type next. Works with
-`npx` too. Restart your editor afterwards.
+It walks you through where to install, prompts for your workflow preset (`medium`, `low`, or `ultra`), then tells you what to type next. Restart your editor afterwards.
 
 Run from inside a project it asks whether to install globally or for that project
 alone; anywhere else — your home directory, a plain folder, a script — it installs
