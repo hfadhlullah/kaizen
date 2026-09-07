@@ -239,9 +239,14 @@ Agent Skills standard, so the same workflow runs under any of them:
 | Antigravity | Skills | Parallel agents where available, else sequentially |
 | OpenCode, Cursor, Gemini CLI | Skills | Sequentially, one session |
 
-Only directories that already exist are touched — installing does not create
-`~/.opencode` for someone who does not use OpenCode. Install again after adding an
-agent and it picks the new one up.
+An agent counts as present if it has a config directory or a command on your PATH.
+Only what is already there is touched — installing does not create `~/.opencode` for
+someone who does not use OpenCode. Install again after adding an agent and it picks
+the new one up.
+
+**No agent yet?** kaizen does nothing on its own — it is a workflow an agent runs.
+If none is found, the installer says so and offers the list above, opening the
+install page for whichever you pick. Install it, run `kaizen` again, and carry on.
 
 The stage agents and slash commands are Claude Code's own formats and are not copied
 elsewhere; under the others you invoke the skill by name. `.kaizen/` is plain files

@@ -27,18 +27,75 @@ const c = {
 // Skills standard, so every one of these can run the workflow; agents/ and
 // commands/ are Claude Code's own formats and go nowhere else.
 const AGENTS = [
-  { name: "Claude Code", dir: ".claude", full: true },
-  { name: "Codex", dir: ".codex", full: false },
-  { name: "Antigravity", dir: ".agents", full: false },
-  { name: "OpenCode", dir: ".opencode", full: false },
-  { name: "Cursor", dir: ".cursor", full: false },
-  { name: "Gemini CLI", dir: ".gemini", full: false },
+  { name: "Claude Code", dir: ".claude", cmd: "claude", full: true,
+    docs: "https://docs.claude.com/en/docs/claude-code" },
+  { name: "Codex", dir: ".codex", cmd: "codex", full: false,
+    docs: "https://github.com/openai/codex" },
+  { name: "Antigravity", dir: ".agents", cmd: "agy", full: false,
+    docs: "https://antigravity.google" },
+  { name: "OpenCode", dir: ".opencode", cmd: "opencode", full: false,
+    docs: "https://opencode.ai" },
+  { name: "Cursor", dir: ".cursor", cmd: "cursor", full: false,
+    docs: "https://cursor.com" },
+  { name: "Gemini CLI", dir: ".gemini", cmd: "gemini", full: false,
+    docs: "https://github.com/google-gemini/gemini-cli" },
 ];
 
-// Install into an agent that is actually present. Creating ~/.opencode for someone
-// who does not use OpenCode leaves litter that looks like configuration. Claude Code
-// is always a target: it is the one this is installed from.
-const found = (r: string) => AGENTS.filter((a) => a.dir === ".claude" || existsSync(join(r, a.dir)));
+// An agent counts as present if it has a directory or a command. The directory
+// alone misses someone who installed the agent and has not run it yet; the command
+// alone misses one that is not on this shell's PATH.
+const onPath = new Set(
+  AGENTS.filter((a) => Bun.which(a.cmd)).map((a) => a.dir),
+);
+const found = (r: string) =>
+  AGENTS.filter((a) => existsSync(join(r, a.dir)) || onPath.has(a.dir));
+
+// Nothing to install into. kaizen is a workflow an agent runs; on its own it does
+// nothing, so send them to the agent first rather than laying out files no reader
+// will ever load.
+if (!found(home).length && !args.has("--force")) {
+  await noAgent();
+  process.exit(0);
+}
+
+async function noAgent() {
+  console.log(`  ${c.bold("No AI coding agent found on this machine.")}\n`);
+  console.log(`  ${c.dim("kaizen is a workflow that an agent runs — it plans, you approve, it builds,")}`);
+  console.log(`  ${c.dim("and a second agent reviews. So an agent has to be installed first.")}\n`);
+
+  if (!interactive) {
+    for (const a of AGENTS) console.log(`    ${a.name.padEnd(14)} ${a.docs}`);
+    console.log(`\n  ${c.dim("Install one, then run this again.")}`);
+    return;
+  }
+
+  const pick = await select("Which one would you like to install?", [
+    ...AGENTS.map((a) => ({ label: a.name, hint: a.docs, value: a as (typeof AGENTS)[number] | null })),
+    { label: "None of these — just show me the list", hint: "", value: null },
+  ]);
+
+  if (!pick) {
+    for (const a of AGENTS) console.log(`    ${a.name.padEnd(14)} ${a.docs}`);
+    console.log(`\n  ${c.dim("Install one, then run this again.")}`);
+    return;
+  }
+
+  console.log(`  ${c.bold(pick.name)}`);
+  console.log(`  ${c.cyan(pick.docs)}\n`);
+  const opened = await openUrl(pick.docs);
+  console.log(opened
+    ? `  ${c.dim("Opened in your browser. Install it, then run")} ${c.cyan("kaizen")} ${c.dim("again.")}`
+    : `  ${c.dim("Open that page to install it, then run")} ${c.cyan("kaizen")} ${c.dim("again.")}`);
+}
+
+// Best effort: a headless box or a locked-down desktop has no opener, and the URL
+// is printed either way.
+async function openUrl(url: string) {
+  const opener = process.platform === "darwin" ? "open"
+    : process.platform === "win32" ? "start" : "xdg-open";
+  if (!Bun.which(opener)) return false;
+  try { await Bun.$`${opener} ${url}`.quiet(); return true; } catch { return false; }
+}
 
 if (wantSettings) {
   const { settings } = await import("./settings.ts");
@@ -52,7 +109,7 @@ if (wantSettings) {
 if (interactive && !upgrade && Bun.argv.length === 2) {
   const repoDir = await resolveRepoQuietly();
   const here = found(home);
-  const linked = here.every((a) =>
+  const linked = here.length > 0 && here.every((a) =>
     ["kaizen", "kaizen-help"].every((n) => existsSync(join(home, a.dir, "skills", n))));
   if (linked) {
     const { dashboard } = await import("./dashboard.ts");
