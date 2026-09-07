@@ -101,8 +101,14 @@ sentence and either nods or says "no, this is a blog post". They are never asked
 categorize their own request up front.
 
 Write into `00-request.md`: the verbatim request, the deliverable, what done means,
-and what wrong means. Record in `state.json`: `id`, `mode`, `track`,
+and what wrong means. Record in `state.json`: `id`, `mode`, `runner`, `track`,
 `stage: "plan"`, `awaiting: null`.
+
+`runner` is read from config at intake and written down here, because it decides
+whether the stages that follow are separate agents or this one. A run resumed later
+keeps the runner it started with: a review done in the same session as the work is a
+different thing from an independent one, and which happened should not depend on what
+the config said the day someone came back to it.
 
 If the request remains ambiguous enough that a plan would be guesswork, ask now. One
 round of questions here is cheaper than a rejected plan.

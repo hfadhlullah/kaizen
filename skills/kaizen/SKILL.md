@@ -63,7 +63,8 @@ If the user typed `/kaizen` with no argument and a run is in progress, treat it 
    files, a config, and — where the folder is a git repository — the gitignore entry
    (see [`adapters.md`](adapters.md)).
 2. Read `.kaizen/config.yml`, falling back to `config.default.yml` in this skill for
-   any key it does not set.
+   any key it does not set. `runner` decides whether this run dispatches subagents at
+   all; read it before the first stage, not when you reach one.
 3. Read `.kaizen/runs/<current>/state.json` if a run is active. Never assume the
    stage from conversation memory — the run may have been advanced by another tool
    or another session.
@@ -283,14 +284,19 @@ only its declared inputs, write its artifact before moving on, and when reviewin
 judge the work on its own terms rather than defending the reasoning you used writing
 it. Everything else in this file holds unchanged.
 
-Each stage runs as a subagent via the Agent tool, with the agent type named below.
-Pass it the run directory path and let it read its own inputs from there — do not
+**Check `runner` first.**
+
+- `runner: lite` — do not call the Agent tool. You run plan, build and review
+  yourself, in that order, reading only each stage's declared inputs and writing its
+  artifact before starting the next. The stage table below still applies; you are the
+  agent for every row.
+- `runner: full` — dispatch each stage as its own subagent, as follows.
+
+Under `full`, each stage runs as a subagent via the Agent tool, with the agent type
+named below. Pass it the run directory path and let it read its own inputs from there — do not
 paste plans or diffs into the prompt, since the file is the shared source of truth
 across tools. Name its spec files in the prompt: core `spec.md` plus its own stage
 file, never the whole set.
-
-Under `runner: lite`, the table below is the same set of stages and artifacts —
-you are simply the agent for each, and there is no dispatch.
 
 | Stage | Agent type | Writes |
 |---|---|---|
@@ -350,12 +356,15 @@ shown automatically.
       state.json
 ```
 
-`state.json` is the resume point:
+`state.json` is the resume point, and records the runner the run started with, so a
+run picked up later keeps the shape it was reviewed under rather than silently
+changing because a setting moved:
 
 ```json
 {
   "id": "2026-09-02-add-oauth",
   "mode": "approve",
+  "runner": "full",
   "stage": "review",
   "awaiting": "approvals.review",
   "iteration": 1,

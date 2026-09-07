@@ -82,7 +82,9 @@ subagents at all.
 Controlled by `approvals.review`, skipped in `auto`.
 
 Report: what was built, verification results, findings fixed, findings still open,
-and anything the builder noted as out of scope. Then stop. Committing, pushing, or
+and anything the builder noted as out of scope. Where the run used `runner: lite`, say
+so in that report — the reviewer saw the work, and nobody should read a same-session
+review as an independent one because the output looked the same. Then stop. Committing, pushing, or
 opening a pull request happens only if the user asks.
 
 **Open findings are offered by number.** List them with the reviewer's numbering
