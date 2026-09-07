@@ -1,0 +1,11 @@
+{
+  "name": "kaizen-workflow",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": { "kaizen-install": "./install.ts" },
+  "scripts": {
+    "install-links": "bun run install.ts",
+    "check": "bun run install.ts --check"
+  }
+}
