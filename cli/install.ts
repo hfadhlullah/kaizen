@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import {
   symlinkSync, mkdirSync, readdirSync, lstatSync, readlinkSync, unlinkSync,
-  existsSync, copyFileSync, readFileSync, appendFileSync,
+  existsSync, copyFileSync, readFileSync, appendFileSync, rmSync,
 } from "node:fs";
 import { join, dirname, basename } from "node:path";
 import { homedir } from "node:os";
@@ -9,10 +9,11 @@ import { homedir } from "node:os";
 const home = homedir();
 const REPO_URL = "https://github.com/hfadhlullah/kaizen.git";
 const args = new Set(Bun.argv.slice(2));
+const upgrade = args.has("upgrade") || args.has("--upgrade");
 const check = args.has("--check");
 const force = args.has("--force");
 const verbose = args.has("--verbose");
-const interactive = process.stdin.isTTY && !check && !args.has("--yes");
+const interactive = process.stdin.isTTY && !check && !upgrade && !args.has("--yes");
 
 const c = {
   dim: (s: string) => `\x1b[2m${s}\x1b[0m`,
@@ -21,7 +22,8 @@ const c = {
   green: (s: string) => `\x1b[32m${s}\x1b[0m`,
 };
 
-if (!check) await welcome();
+if (upgrade) await clearBunxCache();
+if (!check && !upgrade) await welcome();
 
 async function welcome() {
   const rgb = (r: number, g: number, b: number, s: string) =>
@@ -273,7 +275,15 @@ function initRepo() {
 
 // ---------------------------------------------------------------- done
 
-console.log(`
+if (upgrade) {
+  let version = "";
+  try { version = JSON.parse(readFileSync(join(repo, "package.json"), "utf8")).version; } catch {}
+  console.log(`
+  ${c.bold("Up to date")}${version ? c.dim(`  —  kaizen ${version}`) : ""}
+  ${c.dim("Restart Claude Code to pick up any new slash commands.")}
+`);
+} else {
+  console.log(`
   ${c.bold("Next")}
     1  restart Claude Code ${c.dim("— skills load live, slash commands only at session start")}
     2  ${c.cyan("/kaizen-init")} ${c.dim("in any repo you want to use it on")}
@@ -281,11 +291,29 @@ console.log(`
 
   ${c.dim("/kaizen-help lists every command.")}
 `);
+}
 if (blocked) process.exit(1);
 
 // ---------------------------------------------------------------- helpers
 
 function step(msg: string) { console.log(`  ${c.green("+")} ${msg}`); }
+
+// bunx keeps an extracted copy per package under the temp directory and reuses it
+// without re-resolving, so an upgrade that only pulls the clone still leaves the
+// next `bunx kaizen-agent` running whatever was cached the first time.
+async function clearBunxCache() {
+  const tmp = process.env.TMPDIR ?? "/tmp";
+  let removed = 0;
+  try {
+    for (const name of readdirSync(tmp)) {
+      if (/^bunx-.*kaizen-agent/.test(name)) {
+        rmSync(join(tmp, name), { recursive: true, force: true });
+        removed++;
+      }
+    }
+  } catch { /* an unreadable temp directory is not worth failing an upgrade over */ }
+  step(removed ? `cleared ${removed} cached copy of the installer` : "no installer cache to clear");
+}
 function tilde(p: string) { return p.startsWith(home) ? "~" + p.slice(home.length) : p; }
 
 // Arrow-key picker. Raw mode delivers keys unbuffered; the alternative is a

@@ -18,6 +18,13 @@
 
 <p align="center"><b>改善</b> — <i>your AI agent shows you the plan before it does the work,<br>and a second agent checks what it did.</i></p>
 
+<p align="center">
+  <a href="https://www.npmjs.com/package/kaizen-agent"><img alt="npm" src="https://img.shields.io/npm/v/kaizen-agent?color=2d50a5&label=npm"></a>
+  <a href="https://github.com/hfadhlullah/kaizen/blob/main/LICENSE"><img alt="license" src="https://img.shields.io/npm/l/kaizen-agent?color=2d50a5"></a>
+  <img alt="dependencies" src="https://img.shields.io/badge/dependencies-0-2d50a5">
+  <img alt="works with" src="https://img.shields.io/badge/Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Antigravity-2d50a5">
+</p>
+
 ---
 
 ## The problem
@@ -231,7 +238,14 @@ bunx kaizen-agent
 It walks you through where to install, then tells you what to type next. Works with
 `npx` too. Restart your editor afterwards.
 
-> If `bunx` gives you an old version it is serving a cache — `rm -rf /tmp/bunx-*-kaizen-agent*`.
+To update later:
+
+```bash
+bunx kaizen-agent upgrade
+```
+
+That pulls the latest workflow, relinks anything new, and clears the installer cache
+`bunx` keeps — which is what otherwise leaves you on an old version without saying so.
 
 Then, in a project you want to use it on:
 
@@ -312,7 +326,7 @@ Everything a run knows lives in files next to the work, not in a chat window:
 
 Plain files, so you can read them, commit them, and pick a run back up tomorrow —
 or in another tool. kaizen also runs under Codex and Antigravity, and a run started
-in one can be finished in another. See [adapters.md](skills/kaizen/adapters.md).
+in one can be finished in another. See [adapters.md](https://github.com/hfadhlullah/kaizen/blob/main/skills/kaizen/adapters.md).
 
 ## Settings
 
@@ -324,14 +338,14 @@ in one can be finished in another. See [adapters.md](skills/kaizen/adapters.md).
 | `auto_fix.min_severity` | `high` | Findings this bad or worse get fixed without asking |
 | `approvals.plan` | `true` | Stop and show the plan before anything is built |
 
-Everything else is in [`config.default.yml`](skills/kaizen/config.default.yml), with
+Everything else is in [`config.default.yml`](https://github.com/hfadhlullah/kaizen/blob/main/skills/kaizen/config.default.yml), with
 a comment on each key.
 
 ## Under the hood
 
-- [`SKILL.md`](skills/kaizen/SKILL.md) — how the workflow behaves
-- [`spec.md`](skills/kaizen/spec.md) — the tool-neutral contract every stage follows
-- [`adapters.md`](skills/kaizen/adapters.md) — running it under Codex or Antigravity
+- [`SKILL.md`](https://github.com/hfadhlullah/kaizen/blob/main/skills/kaizen/SKILL.md) — how the workflow behaves
+- [`spec.md`](https://github.com/hfadhlullah/kaizen/blob/main/skills/kaizen/spec.md) — the tool-neutral contract every stage follows
+- [`adapters.md`](https://github.com/hfadhlullah/kaizen/blob/main/skills/kaizen/adapters.md) — running it under Codex or Antigravity
 
 <details>
 <summary>Installer flags, updating, and installing without bun</summary>
@@ -345,9 +359,14 @@ a comment on each key.
 | `--force` | Replace a real file sitting where a link belongs |
 | `--yes` | Take every default, ask nothing |
 | `--verbose` | List every link instead of a one-line summary |
+| `upgrade` | Pull, relink, and clear the installer cache. No prompts. |
 
-Re-running is safe: correct links are left alone. `bunx kaizen-agent` also updates —
-it pulls the clone and links anything new.
+Re-running is safe: correct links are left alone.
+
+`bunx` extracts a package once and reuses it without re-resolving, so a plain
+`bunx kaizen-agent` can keep running an old installer even after a new one is
+published. `upgrade` clears that copy, so the next run resolves fresh. The workflow
+itself — skills, agents, commands — comes from the clone and updates on any run.
 
 To work on kaizen itself, install from your own checkout so the links point at it:
 
