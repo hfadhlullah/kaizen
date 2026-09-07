@@ -49,6 +49,23 @@ The planner reads code but writes none. Its plan must contain:
    and commands for code; which claims get checked against which source for a
    document; who reads it and understands what for communication work; who executes
    it unaided for a runbook. "It should work" is not verification in any track.
+
+   Write this as a **numbered gate** — `G-01`, `G-02`, … — derived from the track's
+   third answer, *what would make it wrong*. The numbering is per run, not a standing
+   catalogue: the sixth kind of work still gets a real gate because its gate is
+   written from its own request rather than looked up. Each item is one checkable
+   question, and each carries a tier, which is where its severity comes from:
+
+   - **block** — the run is wrong if this fails. Reviewer severity `critical` or `high`.
+   - **reason** — the thing is allowed, but the builder must write down why. An
+     unexplained new dependency, abstraction, file, or section fails this tier.
+     Reviewer severity `medium`.
+   - **lock** — consistency with what is already there. Reviewer severity `low`.
+
+   Phrase every item so the answer is yes or no. "Handles errors well" is not a gate
+   item; "every new query path has a covering test" is. A tier fixes the severity
+   before the reviewer has an opinion, which is what stops the same class of problem
+   being `high` in one run and `medium` in the next.
 7. **Risks** — what could break, what is irreversible, what needs a migration or a
    backup taken first.
 8. **Open questions** — assumptions that survived the interview. If this list is

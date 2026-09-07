@@ -21,6 +21,10 @@ campaign copy, the runbook — and nothing else. Rules:
   from the surrounding material.
 - Carry out the plan's verification and record the real result, whatever the track's
   verification is.
+- Every technique the plan's `reason`-tier gate covers — a new dependency, a new
+  abstraction, a new file, a new section — is allowed, and costs one written line
+  saying what it serves. The line is the price of the technique, not a request for
+  permission. No line means the reviewer records a finding.
 
 **Baseline first, in any track with an existing suite of checks.** Before changing
 anything, run whatever already proves the existing material correct — the test suite,
@@ -38,6 +42,30 @@ cover, and note in `03-impl.md` what was missing from it.
 deviations from the plan and why, verification carried out with its actual result,
 and anything deliberately left undone. Report failures honestly; a false claim of
 success poisons the review stage, which trusts this report.
+
+**The gate block closes the stage.** `03-impl.md` ends with one line per gate item
+from the plan's Verification section:
+
+```
+G-01 PASS: ran `php artisan test --filter=Payroll` — 214 passed, 0 failed
+G-02 PASS: cash→transfer switch exercised in the UI; bank rows validated, 422 gone
+G-03 FAIL: payslip PDF still prints the old label
+```
+
+A `PASS` states what was actually done and what came back — the command and its
+output, the page opened and what appeared, the person who read it and what they
+understood. `PASS` on its own is not a result, and neither is a restatement of the
+gate item; both are read as an admission the check did not happen.
+
+**Work that was never executed cannot pass.** In any track where the deliverable can
+be run, opened, or read by someone, doing so is part of building it: the suite run,
+the page opened and clicked, the runbook walked start to finish, the copy read aloud.
+A gate item whose evidence is an argument that the code should work is a `FAIL`.
+
+The stage does not hand off with a `FAIL` standing. Fix it and re-run the gate, or —
+if it cannot be fixed inside the plan's scope — stop and report, exactly as with an
+impossible step. A `FAIL` carried into review wastes the reviewer's pass on something
+already known to be broken.
 
 ## Stage 4 — Fix loop
 
