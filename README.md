@@ -22,23 +22,68 @@
 
 ## The problem
 
-You ask an AI agent for something. It disappears for two minutes, changes eleven
-files, and tells you it's done. Now you have to work out what it actually did, and
-whether any of it is right. If it went the wrong way at minute one, everything after
-that was wasted.
+You ask an AI to do something real — write the launch email, draft the policy,
+build the feature, plan the migration. It goes quiet, then hands back a finished
+thing.
+
+Now the work is yours. What did it actually change? Did it understand what you
+meant? Is any of it wrong in a way you would only notice next week? And if it
+misread you in the first thirty seconds, everything after that was wasted.
 
 kaizen puts two checkpoints in that gap.
 
 **Before** it starts, you see a plan and say yes or no. **After** it finishes, a
 second agent — one that never saw the first agent's reasoning, so it has nothing to
-defend — reviews the work and reports what is wrong. You decide what gets fixed.
+defend — checks the work and tells you what is wrong. You decide what gets fixed.
 
 ## See it
 
 ```
-you    /kaizen the discount field lets you enter more than 100%
+you    /kaizen rewrite the onboarding email — the new pricing starts on the 1st
 
        ...
+
+kaizen Here is the plan.
+
+       This is a customer email, not a policy page.
+       Done means: a customer knows what changes, when, and what to do — in one read.
+       Wrong means: a claim we cannot stand behind, or someone thinks they are being
+       charged more than they are.
+
+       What I will do:
+         1. Rewrite the opening so the date and the amount come first
+         2. Add one line on what happens if they do nothing
+         3. Keep the existing sign-off and legal footer untouched
+
+       Not doing: touching the pricing page itself — say the word if you want that too.
+
+       Approve this plan?                    [ approve ]  [ change something ]
+
+you    approve
+
+       ...
+
+kaizen Done, and reviewed. Two things found:
+
+       1. paragraph 2  high    "Your price will not change" is not true for annual
+                               plans renewing after the 1st. Fix: name both cases.
+       2. subject line low     14 words, cut off on mobile. Fix: lead with the date.
+
+       Fix them?                             [ both ]  [ just 1 ]  [ leave it ]
+```
+
+The run stopped twice: once for you to approve the plan, once to decide about the
+findings. Everything else it did on its own.
+
+Notice what the reviewer looked for — an untrue claim, a subject line that gets cut
+off. Nobody told it to. It read the request, worked out that this was a customer
+email, and reviewed it the way a customer email should be reviewed.
+
+<details>
+<summary>The same run, on code</summary>
+
+```
+you    /kaizen the discount field lets you enter more than 100%
 
 kaizen Here is the plan.
 
@@ -50,22 +95,20 @@ kaizen Here is the plan.
          1. Add a check in apply_discount() — cart.py:9
          2. Cover it with three tests — 0%, 100%, 101%
 
-       Approve this plan?                    [ approve ]  [ change something ]
+       Approve this plan?
 
 you    approve
-
-       ...
 
 kaizen Done, and reviewed. One problem found:
 
        1. cart.py:12  medium  A discount of exactly 100 now returns 0 instead of
                               being rejected. Fix: use > not >=.
-
-       Fix it?                               [ yes ]  [ leave it ]
 ```
 
-The run stopped twice: once for you to approve the plan, once to decide about a
-finding. Everything else it did on its own.
+Same five stages, same two stops. What changed is what *done* and *wrong* mean —
+tests passing instead of a claim being true.
+
+</details>
 
 ## Install
 
@@ -93,21 +136,22 @@ That is the whole thing. Everything below is detail.
 |---|---|---|
 | 1 | **Plan** | Reads your request and the existing material, writes a plan. Changes nothing. |
 | 2 | **You approve** | You see the plan and the work list. Say yes, or say what to change. |
-| 3 | **Build** | Does the work, then proves it — runs the tests, opens the page, walks the steps — and records what actually came back. |
+| 3 | **Build** | Does the work, then proves it — runs the tests, checks the claim against its source, walks the steps — and records what actually came back. |
 | 4 | **Review** | A different agent, which never saw stage 3's reasoning, checks the work and lists what is wrong, numbered and graded. |
 | 5 | **Fix** | Serious findings get fixed and re-checked, up to a limit. Anything left over is handed to you, never quietly dropped. |
 
 Each stage runs as its own agent with a clean slate, and writes a file before the
 next one starts. That is what makes stage 4 worth anything: a reviewer that watched
-itself write the code will defend it.
+itself do the work will defend it.
 
-## Not only for code
+## How it knows what kind of work this is
 
 kaizen is not a software workflow. The same five stages hold for a book chapter, a
-launch email, a migration runbook, or a research memo.
+launch email, a migration runbook, or a research memo — what changes is what
+*deliverable*, *done*, and *wrong* mean.
 
-Each run works out for itself what kind of work it is — its **track** — by answering
-three questions from your request:
+Each run works that out for itself — its **track** — by answering three questions
+from your request:
 
 - **What is the deliverable?** A merged change, a chapter, a landing page, a runbook.
 - **What counts as done?** Tests pass. The chapter reads end to end. A colleague can
@@ -139,13 +183,13 @@ tells you what it concluded, so you correct a sentence instead of filling in a f
 
 ## What it writes
 
-Everything a run knows lives in files in your project, not in a chat window:
+Everything a run knows lives in files next to the work, not in a chat window:
 
 ```
 .kaizen/
   config.yml            # how much it asks you, what it fixes on its own
   memory.md             # what past reviews learned about this project
-  runs/2026-09-07-fix-discount/
+  runs/2026-09-07-onboarding-email/
     00-request.md       # what you asked, word for word
     01-plan.md          # the plan you approved
     02-approval.md      # what you decided, and why
