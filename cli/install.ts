@@ -149,8 +149,26 @@ async function anyKey() {
   stdout.write("\r\x1b[2K");
 }
 
+// Where each agent reads skills from. The skill folders follow the open Agent
+// Skills standard, so every one of these can run the workflow; agents/ and
+// commands/ are Claude Code's own formats and go nowhere else.
+const AGENTS = [
+  { name: "Claude Code", dir: ".claude", full: true },
+  { name: "Codex", dir: ".codex", full: false },
+  { name: "Antigravity", dir: ".agents", full: false },
+  { name: "OpenCode", dir: ".opencode", full: false },
+  { name: "Cursor", dir: ".cursor", full: false },
+  { name: "Gemini CLI", dir: ".gemini", full: false },
+];
+
+// Install into an agent that is actually present. Creating ~/.opencode for someone
+// who does not use OpenCode leaves litter that looks like configuration. Claude Code
+// is always a target: it is the one this is installed from.
+const found = (r: string) => AGENTS.filter((a) => a.dir === ".claude" || existsSync(join(r, a.dir)));
+
 const repo = await resolveRepo();
 const root = await chooseRoot();
+const targets = found(root);
 
 // ---------------------------------------------------------------- repo
 
@@ -186,9 +204,10 @@ async function resolveRepo() {
 async function chooseRoot() {
   if (args.has("--project")) return process.cwd();
   if (args.has("--global") || !interactive) return home;
+  const names = (r: string) => found(r).map((a) => a.name).join(", ");
   return select("Install kaizen for", [
-    { label: "Every project", hint: tilde(join(home, ".claude")), value: home },
-    { label: "This project only", hint: join(".claude"), value: process.cwd() },
+    { label: "Every project", hint: names(home), value: home },
+    { label: "This project only", hint: `${basename(process.cwd())}/ — ${names(process.cwd())}`, value: process.cwd() },
   ]);
 }
 
@@ -199,22 +218,6 @@ function dirEntries(sub: string) {
     .filter((f) => f.startsWith("kaizen-") && f.endsWith(".md"))
     .map((f) => join(repo, sub, f));
 }
-
-// Where each agent reads skills from. The skill folders follow the open Agent
-// Skills standard, so every one of these can run the workflow; agents/ and
-// commands/ are Claude Code's own formats and go nowhere else.
-const AGENTS = [
-  { name: "Claude Code", dir: ".claude", full: true },
-  { name: "Codex", dir: ".codex", full: false },
-  { name: "Antigravity", dir: ".agents", full: false },
-  { name: "OpenCode", dir: ".opencode", full: false },
-  { name: "Cursor", dir: ".cursor", full: false },
-  { name: "Gemini CLI", dir: ".gemini", full: false },
-];
-
-// Install into an agent that is actually present. Creating ~/.opencode for someone
-// who does not use OpenCode leaves litter that looks like configuration.
-const targets = AGENTS.filter((a) => a.dir === ".claude" || existsSync(join(root, a.dir)));
 
 const links = targets.flatMap((a) => [
   ...["kaizen", "kaizen-help"].map((n) => [join(repo, "skills", n), join(a.dir, "skills")] as const),
