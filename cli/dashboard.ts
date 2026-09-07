@@ -41,6 +41,80 @@ const WORDMARK = [
   "█ █  █ █  █  █▄▄  █▄▄  █  █",
 ];
 
+const KNOWN_AGENTS = [
+  { name: "Claude Code", dir: ".claude", cmd: "claude" },
+  { name: "Antigravity", dir: ".agents", cmd: "agy" },
+  { name: "Codex", dir: ".codex", cmd: "codex" },
+  { name: "OpenCode", dir: ".opencode", cmd: "opencode" },
+  { name: "Gemini CLI", dir: ".gemini", cmd: "gemini" },
+  { name: "Cursor", dir: ".cursor", cmd: "cursor" },
+];
+
+function detectDefaultAgent(projectDir: string): { name: string; cmd: string } {
+  const cfgFile = existsSync(join(projectDir, ".kaizen", "config.yml"))
+    ? join(projectDir, ".kaizen", "config.yml")
+    : join(home, ".kaizen", "config.yml");
+  if (existsSync(cfgFile)) {
+    const text = readFileSync(cfgFile, "utf8");
+    const m = /^\s*agent:\s*\n\s*default:\s*(\S+)/m.exec(text) || /^\s*agent\.default:\s*(\S+)/m.exec(text);
+    if (m && m[1] && m[1] !== "auto") {
+      const found = KNOWN_AGENTS.find((a) => a.cmd === m[1] || a.name.toLowerCase() === m[1].toLowerCase());
+      if (found && Bun.which(found.cmd)) return found;
+    }
+  }
+
+  for (const a of KNOWN_AGENTS) {
+    if (existsSync(join(projectDir, a.dir)) && Bun.which(a.cmd)) return a;
+  }
+  if (Bun.which("claude")) return { name: "Claude Code", cmd: "claude" };
+  for (const a of KNOWN_AGENTS) {
+    if (Bun.which(a.cmd)) return a;
+  }
+  return { name: "Claude Code", cmd: "claude" };
+}
+
+function findTerminal(cwd: string, fullCmd: string[]): { cmd: string[]; detached: boolean } | null {
+  const hasDisplay = Boolean(process.env.WAYLAND_DISPLAY || process.env.DISPLAY);
+  const inTmux = Boolean(process.env.TMUX);
+
+  if (process.env.TERMINAL && Bun.which(process.env.TERMINAL)) {
+    const term = process.env.TERMINAL;
+    if (term.includes("kitty")) return { cmd: [term, "--directory", cwd, ...fullCmd], detached: true };
+    if (term.includes("alacritty")) return { cmd: [term, "--working-directory", cwd, "-e", ...fullCmd], detached: true };
+    if (term.includes("ghostty")) return { cmd: [term, `--working-directory=${cwd}`, "-e", ...fullCmd], detached: true };
+    if (term.includes("foot")) return { cmd: [term, "-D", cwd, ...fullCmd], detached: true };
+    return { cmd: [term, "-e", ...fullCmd], detached: true };
+  }
+
+  if (hasDisplay && Bun.which("xdg-terminal-exec")) {
+    return { cmd: ["xdg-terminal-exec", `--dir=${cwd}`, "--", ...fullCmd], detached: true };
+  }
+
+  if (hasDisplay) {
+    if (Bun.which("kitty")) return { cmd: ["kitty", "--directory", cwd, ...fullCmd], detached: true };
+    if (Bun.which("ghostty")) return { cmd: ["ghostty", `--working-directory=${cwd}`, "-e", ...fullCmd], detached: true };
+    if (Bun.which("alacritty")) return { cmd: ["alacritty", "--working-directory", cwd, "-e", ...fullCmd], detached: true };
+    if (Bun.which("foot")) return { cmd: ["foot", "-D", cwd, ...fullCmd], detached: true };
+    if (Bun.which("wezterm")) return { cmd: ["wezterm", "start", "--cwd", cwd, "--", ...fullCmd], detached: true };
+    if (Bun.which("gnome-terminal")) return { cmd: ["gnome-terminal", `--working-directory=${cwd}`, "--", ...fullCmd], detached: true };
+    if (Bun.which("xfce4-terminal")) return { cmd: ["xfce4-terminal", `--default-working-directory=${cwd}`, "-x", ...fullCmd], detached: true };
+    if (Bun.which("konsole")) return { cmd: ["konsole", "--workdir", cwd, "-e", ...fullCmd], detached: true };
+    if (Bun.which("xterm")) return { cmd: ["xterm", "-e", `cd "${cwd}" && ${fullCmd.join(" ")}`], detached: true };
+  }
+
+  if (inTmux && Bun.which("tmux")) {
+    const cmdStr = fullCmd.map((a) => (a.includes(" ") ? JSON.stringify(a) : a)).join(" ");
+    return { cmd: ["tmux", "new-window", "-c", cwd, cmdStr], detached: false };
+  }
+
+  if (process.platform === "darwin") {
+    const cmdStr = fullCmd.map((a) => (a.includes(" ") ? `\\"${a}\\"` : a)).join(" ");
+    const script = `tell application "Terminal" to do script "cd \\"${cwd}\\" && ${cmdStr}"\ntell application "Terminal" to activate`;
+    return { cmd: ["osascript", "-e", script], detached: true };
+  }
+
+  return null;
+}
 
 export async function dashboard(
   repo: string,
@@ -367,81 +441,6 @@ export async function dashboard(
         await startBacklogItem(it, from ?? state!);
       }
     }
-  }
-
-  const KNOWN_AGENTS = [
-    { name: "Claude Code", dir: ".claude", cmd: "claude" },
-    { name: "Antigravity", dir: ".agents", cmd: "agy" },
-    { name: "Codex", dir: ".codex", cmd: "codex" },
-    { name: "OpenCode", dir: ".opencode", cmd: "opencode" },
-    { name: "Gemini CLI", dir: ".gemini", cmd: "gemini" },
-    { name: "Cursor", dir: ".cursor", cmd: "cursor" },
-  ];
-
-  function detectDefaultAgent(projectDir: string): { name: string; cmd: string } {
-    const cfgFile = existsSync(join(projectDir, ".kaizen", "config.yml"))
-      ? join(projectDir, ".kaizen", "config.yml")
-      : join(home, ".kaizen", "config.yml");
-    if (existsSync(cfgFile)) {
-      const text = readFileSync(cfgFile, "utf8");
-      const m = /^\s*agent:\s*\n\s*default:\s*(\S+)/m.exec(text) || /^\s*agent\.default:\s*(\S+)/m.exec(text);
-      if (m && m[1] && m[1] !== "auto") {
-        const found = KNOWN_AGENTS.find((a) => a.cmd === m[1] || a.name.toLowerCase() === m[1].toLowerCase());
-        if (found && Bun.which(found.cmd)) return found;
-      }
-    }
-
-    for (const a of KNOWN_AGENTS) {
-      if (existsSync(join(projectDir, a.dir)) && Bun.which(a.cmd)) return a;
-    }
-    if (Bun.which("claude")) return { name: "Claude Code", cmd: "claude" };
-    for (const a of KNOWN_AGENTS) {
-      if (Bun.which(a.cmd)) return a;
-    }
-    return { name: "Claude Code", cmd: "claude" };
-  }
-
-  function findTerminal(cwd: string, fullCmd: string[]): { cmd: string[]; detached: boolean } | null {
-    const hasDisplay = Boolean(process.env.WAYLAND_DISPLAY || process.env.DISPLAY);
-    const inTmux = Boolean(process.env.TMUX);
-
-    if (process.env.TERMINAL && Bun.which(process.env.TERMINAL)) {
-      const term = process.env.TERMINAL;
-      if (term.includes("kitty")) return { cmd: [term, "--directory", cwd, ...fullCmd], detached: true };
-      if (term.includes("alacritty")) return { cmd: [term, "--working-directory", cwd, "-e", ...fullCmd], detached: true };
-      if (term.includes("ghostty")) return { cmd: [term, `--working-directory=${cwd}`, "-e", ...fullCmd], detached: true };
-      if (term.includes("foot")) return { cmd: [term, "-D", cwd, ...fullCmd], detached: true };
-      return { cmd: [term, "-e", ...fullCmd], detached: true };
-    }
-
-    if (hasDisplay && Bun.which("xdg-terminal-exec")) {
-      return { cmd: ["xdg-terminal-exec", `--dir=${cwd}`, "--", ...fullCmd], detached: true };
-    }
-
-    if (hasDisplay) {
-      if (Bun.which("kitty")) return { cmd: ["kitty", "--directory", cwd, ...fullCmd], detached: true };
-      if (Bun.which("ghostty")) return { cmd: ["ghostty", `--working-directory=${cwd}`, "-e", ...fullCmd], detached: true };
-      if (Bun.which("alacritty")) return { cmd: ["alacritty", "--working-directory", cwd, "-e", ...fullCmd], detached: true };
-      if (Bun.which("foot")) return { cmd: ["foot", "-D", cwd, ...fullCmd], detached: true };
-      if (Bun.which("wezterm")) return { cmd: ["wezterm", "start", "--cwd", cwd, "--", ...fullCmd], detached: true };
-      if (Bun.which("gnome-terminal")) return { cmd: ["gnome-terminal", `--working-directory=${cwd}`, "--", ...fullCmd], detached: true };
-      if (Bun.which("xfce4-terminal")) return { cmd: ["xfce4-terminal", `--default-working-directory=${cwd}`, "-x", ...fullCmd], detached: true };
-      if (Bun.which("konsole")) return { cmd: ["konsole", "--workdir", cwd, "-e", ...fullCmd], detached: true };
-      if (Bun.which("xterm")) return { cmd: ["xterm", "-e", `cd "${cwd}" && ${fullCmd.join(" ")}`], detached: true };
-    }
-
-    if (inTmux && Bun.which("tmux")) {
-      const cmdStr = fullCmd.map((a) => (a.includes(" ") ? JSON.stringify(a) : a)).join(" ");
-      return { cmd: ["tmux", "new-window", "-c", cwd, cmdStr], detached: false };
-    }
-
-    if (process.platform === "darwin") {
-      const cmdStr = fullCmd.map((a) => (a.includes(" ") ? `\\"${a}\\"` : a)).join(" ");
-      const script = `tell application "Terminal" to do script "cd \\"${cwd}\\" && ${cmdStr}"\ntell application "Terminal" to activate`;
-      return { cmd: ["osascript", "-e", script], detached: true };
-    }
-
-    return null;
   }
 
   async function startBacklogItem(it: Item, from: string) {
