@@ -12,11 +12,22 @@ A quick-reference card ships separately as the `kaizen-help` skill.
 ## Install
 
 ```bash
+bunx kaizen-ai
+```
+
+That clones the repo to `~/kaizen` (override with `KAIZEN_HOME`) and links the
+skills, agents, and commands into `~/.claude/`. Re-running it pulls and relinks, so
+it doubles as the updater. `npx kaizen-ai` works the same way.
+
+To work on kaizen itself, clone first and install from the checkout — the links then
+point at your working copy:
+
+```bash
 git clone https://github.com/hfadhlullah/kaizen.git ~/kaizen
 cd ~/kaizen && bun run cli/install.ts
 ```
 
-That links the skills, agents, and commands into `~/.claude/`. Flags:
+Flags, either way:
 
 | Flag | Effect |
 |---|---|
@@ -49,11 +60,12 @@ Symlinks instead of copies: `git pull` in the clone updates the live install.
 ## Update
 
 ```bash
-cd ~/kaizen && git pull && bun run cli/install.ts --check
+bunx kaizen-ai
 ```
 
-Symlinks mean `git pull` alone updates the live install; `--check` only confirms
-nothing was added upstream that is not linked yet.
+Symlinks mean a `git pull` in the clone updates the live install by itself; the
+command above does the pull and relinks anything new in one step. `bun run
+cli/install.ts --check` reports the state of every link without changing anything.
 
 ## Layout
 
