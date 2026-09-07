@@ -29,8 +29,8 @@ cd ~/kaizen && bun run cli/install.ts
 
 Flags, either way:
 
-Run interactively with no flags and it asks where to install; piped or scripted
-runs take the global install without asking.
+Run interactively with no flags and it asks where to install, as an arrow-key
+choice; piped or scripted runs take the global install without asking.
 
 | Flag | Effect |
 |---|---|

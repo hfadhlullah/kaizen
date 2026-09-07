@@ -70,10 +70,66 @@ async function chooseRoot() {
   // global install silently rather than hanging on a prompt nobody sees.
   if (!process.stdin.isTTY) return home;
 
-  console.log(`\n  1  every project   ${join(home, ".claude")}`);
-  console.log(`  2  this one only   ${join(process.cwd(), ".claude")}\n`);
-  const answer = prompt("Install where? [1]") ?? "";
-  return answer.trim() === "2" ? process.cwd() : home;
+  const choice = await select("Install where?", [
+    { label: "Every project", hint: join(home, ".claude"), value: home },
+    { label: "This one only", hint: join(process.cwd(), ".claude"), value: process.cwd() },
+  ]);
+  return choice;
+}
+
+// Arrow-key picker. Raw mode delivers keys unbuffered, one escape sequence at a
+// time; the alternative is a dependency for forty lines of escape codes.
+async function select<T>(question: string, options: { label: string; hint: string; value: T }[]) {
+  const { stdin, stdout } = process;
+  let active = 0;
+
+  const draw = (first: boolean) => {
+    if (!first) stdout.write(`\x1b[${options.length}A`); // back up over the list
+    for (const [i, o] of options.entries()) {
+      const on = i === active;
+      stdout.write(
+        `\x1b[2K  ${on ? "\x1b[36m>\x1b[0m" : " "} ${on ? "\x1b[1m" : "\x1b[2m"}${o.label}\x1b[0m` +
+          `  \x1b[2m${o.hint}\x1b[0m\n`,
+      );
+    }
+  };
+
+  stdout.write(`\n\x1b[1m${question}\x1b[0m  \x1b[2m(arrows, enter)\x1b[0m\n`);
+  stdout.write("\x1b[?25l"); // hide cursor
+  draw(true);
+  stdin.setRawMode(true);
+  stdin.resume();
+
+  try {
+    outer: for await (const chunk of stdin) {
+      // A chunk can hold more than one keypress -- an arrow and the enter behind
+      // it arrive together when input is piped -- so walk it rather than
+      // comparing the whole thing to one key.
+      const keys = chunk.toString();
+      for (let i = 0; i < keys.length; i++) {
+        const rest = keys.slice(i);
+        if (rest.startsWith("\x03")) {                  // ctrl-c
+          stdout.write("\ncancelled\n");
+          process.exit(130);
+        }
+        if (rest.startsWith("\r") || rest.startsWith("\n")) break outer;
+        if (rest.startsWith("\x1b[A") || rest.startsWith("\x1b[B")) {
+          active = rest[2] === "A"
+            ? (active - 1 + options.length) % options.length
+            : (active + 1) % options.length;
+          i += 2;
+        } else if (rest.startsWith("k")) active = (active - 1 + options.length) % options.length;
+        else if (rest.startsWith("j")) active = (active + 1) % options.length;
+        else continue;
+        draw(false);
+      }
+    }
+  } finally {
+    stdin.setRawMode(false);
+    stdin.pause();
+    stdout.write("\x1b[?25h\n"); // show cursor again
+  }
+  return options[active]!.value;
 }
 
 let bad = 0;
