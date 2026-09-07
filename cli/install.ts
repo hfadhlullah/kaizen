@@ -23,10 +23,51 @@ const c = {
   green: (s: string) => `\x1b[32m${s}\x1b[0m`,
 };
 
+// Where each agent reads skills from. The skill folders follow the open Agent
+// Skills standard, so every one of these can run the workflow; agents/ and
+// commands/ are Claude Code's own formats and go nowhere else.
+const AGENTS = [
+  { name: "Claude Code", dir: ".claude", full: true },
+  { name: "Codex", dir: ".codex", full: false },
+  { name: "Antigravity", dir: ".agents", full: false },
+  { name: "OpenCode", dir: ".opencode", full: false },
+  { name: "Cursor", dir: ".cursor", full: false },
+  { name: "Gemini CLI", dir: ".gemini", full: false },
+];
+
+// Install into an agent that is actually present. Creating ~/.opencode for someone
+// who does not use OpenCode leaves litter that looks like configuration. Claude Code
+// is always a target: it is the one this is installed from.
+const found = (r: string) => AGENTS.filter((a) => a.dir === ".claude" || existsSync(join(r, a.dir)));
+
 if (wantSettings) {
   const { settings } = await import("./settings.ts");
   await settings(await resolveRepoQuietly());
   process.exit(0);
+}
+
+// Bare `kaizen` on a machine where it is already installed is not an install --
+// show what the project is doing instead, and offer the things you would have
+// opened a terminal for.
+if (interactive && !upgrade && Bun.argv.length === 2) {
+  const repoDir = await resolveRepoQuietly();
+  const here = found(home);
+  const linked = here.every((a) =>
+    ["kaizen", "kaizen-help"].every((n) => existsSync(join(home, a.dir, "skills", n))));
+  if (linked) {
+    const { dashboard } = await import("./dashboard.ts");
+    await dashboard(repoDir, here.map((a) => a.name), async (action) => {
+      if (action === "settings") {
+        const { settings } = await import("./settings.ts");
+        await settings(repoDir);
+      } else if (action === "upgrade") {
+        await Bun.$`bun run ${join(repoDir, "cli/install.ts")} upgrade`;
+      } else if (action === "init") {
+        await Bun.$`bun run ${join(repoDir, "cli/install.ts")} --yes`;
+      }
+    });
+    process.exit(0);
+  }
 }
 
 if (upgrade) await clearBunxCache();
@@ -148,23 +189,6 @@ async function anyKey() {
   stdin.pause();
   stdout.write("\r\x1b[2K");
 }
-
-// Where each agent reads skills from. The skill folders follow the open Agent
-// Skills standard, so every one of these can run the workflow; agents/ and
-// commands/ are Claude Code's own formats and go nowhere else.
-const AGENTS = [
-  { name: "Claude Code", dir: ".claude", full: true },
-  { name: "Codex", dir: ".codex", full: false },
-  { name: "Antigravity", dir: ".agents", full: false },
-  { name: "OpenCode", dir: ".opencode", full: false },
-  { name: "Cursor", dir: ".cursor", full: false },
-  { name: "Gemini CLI", dir: ".gemini", full: false },
-];
-
-// Install into an agent that is actually present. Creating ~/.opencode for someone
-// who does not use OpenCode leaves litter that looks like configuration. Claude Code
-// is always a target: it is the one this is installed from.
-const found = (r: string) => AGENTS.filter((a) => a.dir === ".claude" || existsSync(join(r, a.dir)));
 
 const repo = await resolveRepo();
 const root = await chooseRoot();

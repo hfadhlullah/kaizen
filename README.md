@@ -247,7 +247,28 @@ The stage agents and slash commands are Claude Code's own formats and are not co
 elsewhere; under the others you invoke the skill by name. `.kaizen/` is plain files
 either way, so a run started in one tool can be finished in another.
 
-Installing also puts a `kaizen` command on your PATH, so updating later is:
+Once installed, `kaizen` on its own opens a dashboard rather than installing again:
+
+```
+  kaizen 0.5.0   ~/Projects/app
+
+  Runs
+    ● 2026-09-07-fix-discount  waiting on you — approvals.plan
+    ● 2026-09-06-cache-headers  in flight — review
+    ● 3 done
+
+  Backlog   4 open
+
+  Installed for   Claude Code, Codex, Antigravity
+
+  › Settings            modes, approvals, who builds
+    Upgrade
+    Quit
+```
+
+It reads the project you are standing in, so it answers "what is this repo waiting on
+me for" without opening an agent. Installing also puts that `kaizen` command on your
+PATH, so updating later is:
 
 ```bash
 kaizen upgrade
