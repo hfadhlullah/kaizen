@@ -226,6 +226,62 @@ kaizen Done, and reviewed. Two things found:
 
 </details>
 
+## The board
+
+`kaizen` opens a dashboard; **Board** is the screen where your work lives. Ideas you have
+not started sit on the left, runs sit under the stage they are actually in, and it redraws
+itself as your agents write to disk — a run that moves while you are looking at it moves on
+screen.
+
+```
+  Board   ~/code/acme-api
+
+  IDEA                     PLANNING              BUILDING           REVIEW          DONE
+  ──────────────────────   ───────────────────   ────────────────   ─────────────   ──────────────
+  › · rate limit the       ◌ nightly digest      ● payroll export   ● oauth login   ○ rename cli
+      public API                                                                      flags
+                           ● landing page                                           ○ csv import
+    · retry failed
+      webhooks
+
+  ↑↓←→ move     n new  e edit  x reject  d delete  r run     a all projects  q back
+  ● running    ◐ stalled    ◌ starting    ● waiting on you    ○ done    · idea
+```
+
+**Throw an idea in with `n`** and it lands in `<state.dir>/inbox.md`, one line each, in the
+same format a run's backlog already uses. `e` edits, `x` rejects with a reason, `d` deletes.
+
+**`r` starts a run from an idea** — it asks `full` or `lite`, then opens your configured
+agent with the request already typed. The idea retires from the board once a run exists
+that was started from its text, whoever started it, so the same work never appears twice.
+That check spans every project you have opened, because an idea thrown into the global
+inbox becomes a run inside whichever project you launched the agent in.
+
+**The dot is what the run is doing.** `●` cyan is running and `◐` is stalled — kaizen
+records no liveness signal anywhere, so "running" means the run's `state.json` has changed
+in the last half hour. A run whose terminal you closed three days ago shows as stalled,
+which is the distinction the board exists to make. `●` amber, with the name in red, is a
+run that cannot move until you decide something; the legend lists only the states actually
+on screen.
+
+**A run's stage is kaizen's, not yours.** You cannot drag a card between columns — a board
+that could do that would be lying about what happened. The one exception is `x` on a run
+card, which abandons it: the same transition `/kaizen abort` makes, with your reason
+recorded in the run's approval file.
+
+`a` switches between this project and every project kaizen knows about. Below a hundred
+columns the board stacks into a list rather than squeezing five columns into sixty.
+
+### Mouse
+
+Off by default. Turn it on in `kaizen settings` under `ui.mouse`, and clicking a row or
+card selects it, clicking it again opens or runs it, and the wheel scrolls — on the board,
+the menu, runs, backlog, projects and settings.
+
+It ships off because the trade is real: while the TUI holds the mouse, your terminal cannot
+select text with it, so copying a run id out of the dashboard stops working until you
+leave. Hold **Shift** and drag to select text anyway.
+
 ## Install
 
 ### Prerequisites: Bun
@@ -433,6 +489,7 @@ in one can be finished in another. See [adapters.md](https://github.com/hfadhlul
 | `build.executor` | `subagent` | Who does the work: a separate agent, `inline` in the current one, or `ask` each time |
 | `auto_fix.min_severity` | `high` | Findings this bad or worse get fixed without asking |
 | `approvals.plan` | `true` | Stop and show the plan before anything is built |
+| `ui.mouse` | `false` | Click to select, click again to act; while on, the terminal cannot select text |
 
 ```bash
 kaizen settings
