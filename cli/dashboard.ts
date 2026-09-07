@@ -15,35 +15,41 @@ const c = {
 
 type Run = { id: string; stage: string; awaiting: string | null };
 
+// The mascot, rendered from assets/kaizen.jpg. Braille packs 2x4 dots into one
+// character, which is the only way outline art survives a downsample this far;
+// sampling brightness onto a character ramp gives grey mush, having no midtones
+// to sample. Regenerate with the snippet in assets/tanuki.txt's history.
 const TANUKI = [
-  "        ╱╲",
-  "      ╱   ╲",
-  "    ╱   ╱  ╲",
-  "  ╱___╱_____╲",
-  "   ╲  │",
-  "    ╲ │  ╭╮   ╭╮",
-  "     ╲│ ╭╯╰───╯╰╮",
-  "      ╰─┤ ●   ● │",
-  "        │   ⌄   │   ╭─╮",
-  "        ╰──┬────╯   ╰┬╯",
-  "      ╭────┴────╮    │",
-  "      │  ╭───╮  ├────╯",
-  "      │  ╰───╯  │",
-  "      ╰─┬─────┬─╯╲__",
-  "        ╰─────╯   ◡◡",
+  "⠀⠀⠀⠀⢀⡶⢶⣖⡒⠒⠛⠛⠛⠛⣛⡿⠟⢛⡟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
+  "⠀⠀⠀⢀⣾⡇⠀⠀⠉⠛⠲⣤⠴⠛⠁⢀⡴⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
+  "⠀⠀⠀⡾⢹⠇⠀⠀⣠⠴⠋⠁⠀⣠⠖⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
+  "⠀⠀⣼⠁⣸⣠⡴⠋⢁⡴⠦⣄⡚⢁⣀⣀⣀⣀⡀⢀⣠⠴⢦⡀⠀⠀⠀⠀⠀⠀⠀⠀",
+  "⠀⣸⢃⡴⠟⠁⠀⣀⢸⡇⠀⠈⠙⠉⠉⠀⠀⠉⠉⠋⠁⠀⢨⡇⠀⠀⠀⠀⠀⠀⠀⠀",
+  "⣰⡿⠋⢰⡏⢹⠋⠁⠈⣧⠀⠀⢀⡀⠀⠀⠀⠀⢀⡀⠀⠀⣸⠃⠀⠀⠀⠀⠀⠀⠀⠀",
+  "⠻⠖⠛⢹⡇⠘⣇⠀⢰⠇⣠⠞⢉⡉⢳⡀⢀⡞⢉⡉⠳⣄⠘⣆⠀⠀⢠⡤⣤⢀⡀⠀",
+  "⠀⠀⠀⠀⣧⠀⠉⣰⣋⡴⠃⠀⠈⠁⡞⣀⣀⢳⠈⠁⠀⠘⢦⣙⣆⠀⣰⠃⠹⡇⣸⣻",
+  "⠀⠀⠀⠀⠘⣆⠀⠈⠻⣄⠀⠀⠀⠀⠳⢬⡥⠞⠀⠀⠀⠀⣠⠝⠁⢀⡇⠀⠀⣷⢳⠃",
+  "⠀⠀⠀⠀⠀⠈⢧⡀⠀⠈⠙⠲⠦⣤⣤⣀⣀⣤⣤⠴⠖⠿⠷⠶⠚⠉⣳⠤⠴⠯⠏⠀",
+  "⠀⠀⠀⠀⠀⠀⠀⠙⠲⣄⠀⠀⠀⣀⡤⠶⠶⢤⣀⠀⠀⠀⠀⣀⣤⠞⣡⠶⠚⠒⢦⡀",
+  "⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⠀⠀⡼⠁⠀⠀⠀⠀⠈⢧⠀⠀⢾⠉⢀⡾⠻⣄⡀⠀⠈⡇",
+  "⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⠀⠐⡇⠀⠀⠀⠀⠀⠀⢸⠆⠀⢸⠚⠉⠀⠀⠀⢯⣀⡼⠃",
+  "⠀⠀⠀⠀⠀⠀⠀⠀⠀⢷⠀⠀⠻⣄⠀⠀⠀⠀⣠⠟⠀⠀⡾⢤⣤⣀⣤⡤⠶⠋⠀⠀",
+  "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⢧⣄⣠⠤⠶⠒⠒⠻⠧⣄⣠⡼⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀",
 ];
 
-// The same mascot with the hat, arms and flask taken off, for windows that cannot
-// spare fifteen rows before the runs begin.
+// The same, for windows that cannot spare fifteen rows before the runs begin.
 const TANUKI_SMALL = [
-  "     ╭╮   ╭╮",
-  "    ╭╯╰───╯╰╮",
-  "    ┤ ●   ● │",
-  "    │   ⌄   │",
-  "    ╰──┬────╯",
-  "  ╭────┴────╮",
-  "  │  ╭───╮  │",
-  "  ╰─┬─────┬─╯",
+  "⠀⠀⠀⣰⠖⠾⣟⣛⠋⢉⣩⠽⢛⡽⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
+  "⠀⠀⢰⢻⠀⠀⢀⡬⠟⠉⢀⠴⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
+  "⠀⢠⠇⣾⡠⠞⢩⠤⢄⡚⣁⣀⣀⣀⢀⣠⠤⡄⠀⠀⠀⠀⠀⠀",
+  "⢠⣏⠔⣫⣀⡤⢸⠀⠀⠉⠁⠀⠀⠈⠉⠀⠀⡇⠀⠀⠀⠀⠀⠀",
+  "⢾⠥⢾⡅⢧⠀⢸⠃⡤⠖⠢⡀⢀⠔⠲⢤⠘⡇⠀⠀⣀⣀⠀⠀",
+  "⠀⠀⠈⣇⠈⢠⣫⠞⠀⠘⢱⢣⡜⡎⠃⠀⠳⣝⡄⢠⠇⢻⢉⣷",
+  "⠀⠀⠀⠘⢆⠀⠑⢦⣀⡀⠈⠓⠚⠁⢀⣀⣤⣊⣠⢾⡀⢠⣿⠃",
+  "⠀⠀⠀⠀⠈⠓⢄⠀⠀⠉⣉⣭⣭⣉⠉⠀⠈⢀⣠⢔⡩⠥⢥⡀",
+  "⠀⠀⠀⠀⠀⠀⢠⡇⠀⡞⠁⠀⠀⠈⢳⠀⢰⣍⣠⠚⠧⡀⠀⡷",
+  "⠀⠀⠀⠀⠀⠀⠸⡇⠀⣇⠀⠀⠀⠀⣸⠀⢠⡏⠀⠀⢀⣳⠞⠁",
+  "⠀⠀⠀⠀⠀⠀⠀⠳⣀⣨⠥⠤⠶⠾⣅⣀⠞⠉⠉⠉⠉⠀⠀⠀",
 ];
 
 
@@ -56,6 +62,10 @@ export async function dashboard(
   const state = locate();
 
   const actions = () => [
+    ...(state ? [
+      { key: "runs", label: "Runs", hint: "every run, and what each is waiting on" },
+      { key: "backlog", label: "Backlog", hint: "what runs noticed and did not do" },
+    ] : []),
     { key: "settings", label: "Settings", hint: "modes, approvals, who builds" },
     ...(state && !existsSync(join(state, "config.yml"))
       ? [{ key: "init", label: "Set up this project", hint: "write .kaizen/ here" }] : []),
@@ -68,6 +78,8 @@ export async function dashboard(
   for (;;) {
     const chosen = await menu();
     if (chosen === "quit") return;
+    if (chosen === "runs") { await runsView(); continue; }
+    if (chosen === "backlog") { await backlogView(); continue; }
     const lines = await run(chosen);
     if (lines?.length) await report(lines);
   }
@@ -92,6 +104,149 @@ export async function dashboard(
     stdin.setRawMode(false);
     stdin.pause();
     stdout.write("\x1b[?25h\x1b[?1049l");
+  }
+
+  // ---------------------------------------------------------------- views
+
+  // One scrolling list, used by every view. Returns the chosen index, or null
+  // when the user backs out.
+  async function pick(title: string, rows: string[], footer = "enter open · backspace back") {
+    if (!rows.length) { await report([c.bold(title), "", c.dim("nothing here yet")]); return null; }
+    let at = 0, top = 0;
+    const height = () => Math.max(5, (stdout.rows ?? 24) - 8);
+
+    const draw = () => {
+      const h = height();
+      if (at < top) top = at;
+      if (at >= top + h) top = at - h + 1;
+      stdout.write("\x1b[H\x1b[2J");
+      stdout.write(`\n  ${c.bold(title)}   ${c.dim(`${at + 1}/${rows.length}`)}\n\n`);
+      for (const [i, row] of rows.slice(top, top + h).entries()) {
+        const real = top + i;
+        stdout.write(real === at ? `  ${c.cyan("›")} ${fit(row)}\n` : `    ${fit(row)}\n`);
+      }
+      if (rows.length > h) stdout.write(`\n  ${c.dim(top + h < rows.length ? "↓ more" : "")}`);
+      stdout.write(`\n\n  ${c.dim("↑↓ move · " + footer)}\n`);
+    };
+
+    stdout.write("\x1b[?1049h\x1b[?25l");
+    stdin.setRawMode(true);
+    stdin.resume();
+    draw();
+    let chosen: number | null = null;
+    await new Promise<void>((resolve) => {
+      const onData = (chunk: Buffer) => {
+        const keys = chunk.toString();
+        for (let i = 0; i < keys.length; i++) {
+          const rest = keys.slice(i);
+          if (rest.startsWith("\x03")) process.exit(130);
+          if (rest.startsWith("q") || rest === "\x1b" || rest.startsWith("\x7f") || rest.startsWith("\b")) {
+            stdin.off("data", onData); return resolve();
+          }
+          if (rest.startsWith("\r") || rest.startsWith("\n")) {
+            chosen = at; stdin.off("data", onData); return resolve();
+          }
+          if (rest.startsWith("\x1b[A")) { at = Math.max(0, at - 1); i += 2; }
+          else if (rest.startsWith("\x1b[B")) { at = Math.min(rows.length - 1, at + 1); i += 2; }
+          else if (rest.startsWith("k")) at = Math.max(0, at - 1);
+          else if (rest.startsWith("j")) at = Math.min(rows.length - 1, at + 1);
+          else continue;
+          draw();
+        }
+      };
+      stdin.on("data", onData);
+    });
+    stdin.setRawMode(false);
+    stdin.pause();
+    stdout.write("\x1b[?25h\x1b[?1049l");
+    return chosen;
+  }
+
+  async function runsView() {
+    for (;;) {
+      const runs = readRuns(state!);
+      const width = Math.max(...runs.map((r) => r.id.length));
+      const rows = runs.map((r) => {
+        const mark = r.stage === "done" ? c.dim("done   ")
+          : r.stage === "abandoned" ? c.dim("dropped")
+          : r.awaiting ? c.amber("waiting") : c.cyan("running");
+        // The mark already says done or dropped; repeating the stage beside it is noise.
+        const tail = r.stage === "done" || r.stage === "abandoned" ? "" : (r.awaiting ?? r.stage);
+        return `${mark}  ${r.id.padEnd(width)}  ${c.dim(tail)}`;
+      });
+      const i = await pick("Runs", rows);
+      if (i === null) return;
+      await runDetail(runs[i]!);
+    }
+  }
+
+  // What a run is, read off its own files rather than summarised from memory.
+  async function runDetail(r: Run) {
+    const dir = join(state!, "runs", r.id);
+    const lines: string[] = [c.bold(r.id), ""];
+    lines.push(`  stage      ${r.stage}`);
+    lines.push(`  waiting    ${r.awaiting ?? c.dim("nothing — it can carry on")}`);
+
+    const request = section(join(dir, "00-request.md"), 6);
+    if (request.length) lines.push("", c.bold("  Request"), ...request.map((l) => "    " + l));
+
+    const findings = readFindings(join(dir, "04-review.md"));
+    if (findings.length) {
+      lines.push("", c.bold(`  Findings (${findings.length})`));
+      for (const f of findings.slice(0, 8)) lines.push("    " + f);
+    }
+
+    const items = readBacklog(join(dir, "06-backlog.md"));
+    if (items.length) {
+      lines.push("", c.bold(`  Backlog (${items.length} open)`));
+      for (const it of items.slice(0, 8)) lines.push("    " + it);
+    }
+
+    lines.push("", c.dim(`  files in ${tilde(dir)}`));
+    await report(lines);
+  }
+
+  // Cut to the window, counting printable characters only -- a row is mostly colour
+  // codes by the time it gets here, and they take no space on screen.
+  function fit(row: string) {
+    const room = (stdout.columns ?? 80) - 8;
+    const plain = row.replace(/\x1b\[[0-9;]*m/g, "");
+    if (plain.length <= room) return row;
+    let out = "", seen = 0, i = 0;
+    while (i < row.length && seen < room - 1) {
+      const esc = /^\x1b\[[0-9;]*m/.exec(row.slice(i));
+      if (esc) { out += esc[0]; i += esc[0].length; continue; }
+      out += row[i]; i++; seen++;
+    }
+    return out + "…\x1b[0m";
+  }
+
+  async function backlogView() {
+    const groups = allBacklog(state!);
+    const rows: string[] = [];
+    const full: (string | null)[] = [];        // null where the row is a heading
+    for (const g of groups) {
+      rows.push(c.bold(g.run)); full.push(null);
+      for (const item of g.items) { rows.push("  " + item); full.push(item); }
+    }
+    for (;;) {
+      const i = await pick("Backlog — open items", rows, "enter read · backspace back");
+      if (i === null) return;
+      // Rows are cut to the window, so reading one means opening it.
+      if (full[i]) await report([c.bold("Backlog item"), "", ...wrap(full[i]!, 4)]);
+    }
+  }
+
+  function wrap(text: string, indent = 0) {
+    const room = (stdout.columns ?? 80) - 6 - indent;
+    const out: string[] = [];
+    let line = "";
+    for (const word of text.split(/\s+/)) {
+      if (line && line.length + word.length + 1 > room) { out.push(" ".repeat(indent) + line); line = word; }
+      else line = line ? `${line} ${word}` : word;
+    }
+    if (line) out.push(" ".repeat(indent) + line);
+    return out;
   }
 
   async function menu() {
@@ -226,3 +381,41 @@ function version(repo: string) {
   try { return JSON.parse(readFileSync(join(repo, "package.json"), "utf8")).version; } catch { return ""; }
 }
 function tilde(p: string) { return p.startsWith(home) ? "~" + p.slice(home.length) : p; }
+
+// The first few real lines of a file's body, blank lines and headings dropped.
+function section(file: string, n: number) {
+  if (!existsSync(file)) return [];
+  return readFileSync(file, "utf8").split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l && !l.startsWith("#"))
+    .slice(0, n);
+}
+
+function readFindings(file: string) {
+  if (!existsSync(file)) return [];
+  return readFileSync(file, "utf8").split("\n")
+    .map((l) => l.trim())
+    .filter((l) => /^\d+\.\s/.test(l) || /\b(critical|high|medium|low)\b:/.test(l));
+}
+
+function readBacklog(file: string) {
+  if (!existsSync(file)) return [];
+  return readFileSync(file, "utf8").split("\n")
+    .map((l) => l.trim())
+    .filter((l) => /^-\s*open:/.test(l))
+    .map((l) => l.replace(/^-\s*open:\s*/, ""));
+}
+
+function allBacklog(state: string) {
+  const out: { run: string; items: string[] }[] = [];
+  const runs = join(state, "runs");
+  if (existsSync(runs)) {
+    for (const id of readdirSync(runs).reverse()) {
+      const items = readBacklog(join(runs, id, "06-backlog.md"));
+      if (items.length) out.push({ run: id, items });
+    }
+  }
+  const orphan = readBacklog(join(state, "backlog.md"));
+  if (orphan.length) out.push({ run: "Orphaned", items: orphan });
+  return out;
+}
