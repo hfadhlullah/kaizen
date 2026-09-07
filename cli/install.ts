@@ -36,10 +36,11 @@ async function welcome() {
     "██║  ██╗██║  ██║██║███████╗███████╗██║ ╚████║",
     "╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚══════╝╚══════╝╚═╝  ╚═══╝",
   ];
-  const W = 67, C = 33, SNOW = 3;
-  // Half-width per row. Chosen so the slope, where it reappears beside the
-  // letters, is already clear of them -- a half-drawn edge reads as crooked.
-  const H = [1, 3, 5, 7, 9, 12, 17, 22, 27, 29, 31, 33];
+  const W = 69, C = 34, SNOW = 3;
+  // One constant slope, three columns per row, all the way down. The rows behind
+  // the wordmark keep the same rate, so the edge that goes in above the letters
+  // comes out below them on the same line -- vary it and the cone reads broken.
+  const H = [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34];
 
   // Anything that would wrap is worse than the smaller thing that fits: the
   // mountain needs the full width, the wordmark needs 47, below that use words.
