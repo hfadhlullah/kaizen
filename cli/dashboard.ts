@@ -1,6 +1,6 @@
 // What `kaizen` shows once it is installed: the state of this project's runs, and
 // the few things you would have opened a terminal to do.
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, appendFileSync, mkdirSync, statSync } from "node:fs";
 import { join, dirname, basename } from "node:path";
 import { homedir } from "node:os";
 
@@ -74,8 +74,13 @@ export async function dashboard(
 ) {
   const { stdin, stdout } = process;
   const state = locate();
+  // Opening a project is what makes it known; nothing else asks the user to register.
+  if (state && dirname(state) !== home) remember(dirname(state));
 
   const actions = () => [
+    ...(knownProjects().length || !state ? [
+      { key: "projects", label: "All projects", hint: "every project kaizen knows about" },
+    ] : []),
     ...(state ? [
       { key: "runs", label: "Runs", hint: "every run, and what each is waiting on" },
       { key: "backlog", label: "Backlog", hint: "what runs noticed and did not do" },
@@ -84,6 +89,7 @@ export async function dashboard(
     ...(state && !existsSync(join(state, "config.yml"))
       ? [{ key: "init", label: "Set up this project", hint: "write .kaizen/ here" }] : []),
     ...(!state ? [{ key: "init", label: "Set up this project", hint: "write .kaizen/ here" }] : []),
+    { key: "find", label: "Find projects", hint: "look under your home directory for ones kaizen has not seen" },
     { key: "upgrade", label: "Upgrade", hint: "pull, relink, clear the installer cache" },
     { key: "quit", label: "Quit", hint: "" },
   ];
@@ -92,6 +98,8 @@ export async function dashboard(
   for (;;) {
     const chosen = await menu();
     if (chosen === "quit") return;
+    if (chosen === "projects") { await projectsView(); continue; }
+    if (chosen === "find") { await findView(); continue; }
     if (chosen === "runs") { await runsView(); continue; }
     if (chosen === "backlog") { await backlogView(); continue; }
     const lines = await run(chosen);
@@ -189,7 +197,64 @@ export async function dashboard(
     return chosen;
   }
 
-  async function runsView() {
+  // Every project kaizen knows about, with what each is waiting on. The global
+  // ~/.kaizen is one of them: it holds runs made outside any project.
+  async function projectsView() {
+    for (;;) {
+      const dirs = [...knownProjects(), join(home, ".kaizen")].filter(
+        (d, i, all) => all.indexOf(d) === i);
+
+      const rows: string[] = [];
+      const open: (string | null)[] = [];
+      const width = Math.max(...dirs.map((d) => tilde(d).length));
+
+      for (const dir of dirs) {
+        const st = dir.endsWith(".kaizen") ? dir : join(dir, ".kaizen");
+        if (!existsSync(st)) {
+          // Listed, not dropped: a project that moved should be visible and fixable,
+          // and the registry is a file the user can edit.
+          rows.push(`${c.dim(tilde(dir).padEnd(width))}  ${c.amber("missing")}`);
+          open.push(null);
+          continue;
+        }
+        const runs = readRuns(st);
+        const waiting = runs.filter((r) => r.awaiting && r.stage !== "abandoned").length;
+        const flight = runs.filter((r) => !r.awaiting && !["done", "abandoned"].includes(r.stage)).length;
+        const done = runs.filter((r) => r.stage === "done").length;
+        const items = allBacklog(st).reduce((n, g) => n + g.items.length, 0);
+        const bits = [
+          waiting ? c.amber(`${waiting} waiting`) : "",
+          flight ? c.cyan(`${flight} running`) : "",
+          done ? c.dim(`${done} done`) : "",
+          items ? c.dim(`${items} open`) : "",
+        ].filter(Boolean);
+        rows.push(`${tilde(dir).padEnd(width)}  ${bits.join(c.dim(" · ")) || c.dim("nothing yet")}`);
+        open.push(st);
+      }
+
+      const i = await pick("All projects", rows);
+      if (i === null) return;
+      if (open[i]) await runsView(open[i]!);
+    }
+  }
+
+  async function findView() {
+    const before = knownProjects().length;
+    const started = Date.now();
+    const found = findProjects(home);
+    for (const dir of found) remember(dir);
+    const added = knownProjects().length - before;
+    await report([
+      c.bold(added ? `Found ${added} project${added === 1 ? "" : "s"}` : "Nothing new"),
+      "",
+      ...found.map((d) => "  " + c.dim(tilde(d))),
+      "",
+      c.dim(`${found.length} found in ${((Date.now() - started) / 1000).toFixed(1)}s under ${tilde(home)}`),
+      c.dim(`the list lives in ${tilde(join(home, ".kaizen", "projects"))} and can be edited`),
+    ]);
+  }
+
+  async function runsView(from?: string) {
     for (;;) {
       const runs = readRuns(state!);
       const width = Math.max(...runs.map((r) => r.id.length));
@@ -201,15 +266,15 @@ export async function dashboard(
         const tail = r.stage === "done" || r.stage === "abandoned" ? "" : (r.awaiting ?? r.stage);
         return `${mark}  ${r.id.padEnd(width)}  ${c.dim(tail)}`;
       });
-      const i = await pick("Runs", rows);
+      const i = await pick(from ? `Runs — ${tilde(dirname(from))}` : "Runs", rows);
       if (i === null) return;
-      await runDetail(runs[i]!);
+      await runDetail(runs[i]!, here);
     }
   }
 
   // What a run is, read off its own files rather than summarised from memory.
-  async function runDetail(r: Run) {
-    const dir = join(state!, "runs", r.id);
+  async function runDetail(r: Run, from?: string) {
+    const dir = join(from ?? state!, "runs", r.id);
     const lines: string[] = [c.bold(r.id), ""];
     lines.push(`  stage      ${r.stage}`);
     lines.push(`  waiting    ${r.awaiting ?? c.dim("nothing — it can carry on")}`);
@@ -447,6 +512,50 @@ export async function dashboard(
   stdout.write("\x1b[?25h\x1b[?1049l");
   return chosen;
   }
+}
+
+// The list of projects kaizen knows about. Appended to as kaizen sets one up or is
+// opened inside one, and seeded by the Find projects action. Plain lines so it can be
+// read and corrected in an editor; blanks and # lines ignored.
+const REGISTRY = join(home, ".kaizen", "projects");
+
+export function knownProjects(): string[] {
+  if (!existsSync(REGISTRY)) return [];
+  return readFileSync(REGISTRY, "utf8").split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l && !l.startsWith("#"));
+}
+
+// Never fails the command that triggered it: a read-only home is not a reason for a
+// dashboard to stop opening.
+export function remember(projectDir: string) {
+  try {
+    if (knownProjects().includes(projectDir)) return;
+    mkdirSync(dirname(REGISTRY), { recursive: true });
+    appendFileSync(REGISTRY, projectDir + "\n");
+  } catch { /* nothing here is worth an error */ }
+}
+
+// Bounded on purpose. Depth is what keeps this from becoming a filesystem walk, and
+// the skips are the directories that make one slow: node_modules, and anything dotted
+// (which includes .git, and every state directory that is not a project of its own).
+function findProjects(root: string, depth = 4): string[] {
+  const found: string[] = [];
+  const walk = (dir: string, left: number) => {
+    let entries: string[];
+    try { entries = readdirSync(dir); } catch { return; }
+    // $HOME holds ~/.kaizen, the global state, which is not a project and must not
+    // stop the walk before it has looked at anything.
+    if (dir !== root && entries.includes(".kaizen")) { found.push(dir); return; }
+    if (left === 0) return;
+    for (const name of entries) {
+      if (name.startsWith(".") || name === "node_modules") continue;
+      try { if (statSync(join(dir, name)).isDirectory()) walk(join(dir, name), left - 1); }
+      catch { /* unreadable or vanished mid-walk */ }
+    }
+  };
+  walk(root, depth);
+  return found;
 }
 
 function locate() {
