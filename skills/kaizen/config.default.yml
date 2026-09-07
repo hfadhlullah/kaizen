@@ -129,6 +129,13 @@ git:
   # Ignored when the project is not a git repository.
   branch_before_implement: true
 
+ui:
+  # Mouse in the TUI: click a row or card to select it, click it again to open or
+  # run it, wheel to scroll. Off by default, and the reason is a real trade: while
+  # the TUI holds the mouse, the terminal cannot select text with it, so copying a
+  # run id out of the dashboard stops working until you leave.
+  mouse: false
+
 agent:
   # Default coding agent to launch from dashboard backlog (auto | claude | codex | agy | opencode | gemini).
   # auto picks Claude Code if installed, otherwise the first agent found on PATH.

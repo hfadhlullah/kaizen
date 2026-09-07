@@ -109,6 +109,7 @@ const SETTINGS: Setting[] = [
   { key: "state.keep_runs", values: ["5", "10", "20", "50"], help: "Completed runs kept before the oldest is pruned" },
   { key: "git.auto_commit", values: ["false", "true"], help: "Commit the work when a run finishes" },
   { key: "git.branch_before_implement", values: ["true", "false"], help: "Branch before building when on the default branch" },
+  { key: "ui.mouse", values: ["false", "true"], help: "Click to select, click again to act. While on, the terminal cannot select text with the mouse" },
   { key: "agent.default", values: ["auto", "claude", "codex", "agy", "opencode", "gemini"], help: "Default coding agent to launch from dashboard backlog" },
 ];
 
@@ -119,6 +120,12 @@ const c = {
   green: (s: string) => `\x1b[32m${s}\x1b[0m`,
   inv: (s: string) => `\x1b[7m${s}\x1b[0m`,
 };
+
+// Registered once at module scope, not per call: opening settings, going back and
+// opening it again would otherwise stack a listener each time, and Node starts
+// printing warnings into the alternate screen at eleven.
+let mouseArmed = false;
+process.on("exit", () => { if (mouseArmed) process.stdout.write("\x1b[?1006l\x1b[?1000l"); });
 
 export async function settings(repoRoot: string, standalone = true) {
   const file = locate();
@@ -155,15 +162,63 @@ export async function settings(repoRoot: string, standalone = true) {
   };
 
   stdout.write("\x1b[?1049h\x1b[?25l");      // alternate screen, hide cursor
+  const mouse = /^\s*ui:\s*\n(?:\s*#.*\n)*\s*mouse:\s*(\S+)/m.exec(readFileSync(file, "utf8"));
+  const mouseOn = mouse?.[1] === "true";
+  if (mouseOn) { stdout.write("\x1b[?1000h\x1b[?1006h"); mouseArmed = true; }
   stdin.setRawMode(true);
   stdin.resume();
   draw();
+
+  function cycle(step: number) {
+    const s = SETTINGS[active]!;
+    const text = readFileSync(file, "utf8");
+    if (s.key === "preset") {
+      const current = detectPreset(text, defaults);
+      const presets: PresetName[] = ["low", "medium", "ultra"];
+      const at = presets.indexOf(current as PresetName);
+      const next = presets[((at < 0 ? 0 : at) + step + presets.length) % presets.length]!;
+      const updated = applyPreset(text, next, defaults);
+      writeFileSync(file, updated);
+      saved = c.green(`applied preset: ${next}`);
+    } else {
+      const now = read(text, s.key) ?? s.values[0]!;
+      const at = s.values.indexOf(now);
+      const next = s.values[((at < 0 ? 0 : at) + step + s.values.length) % s.values.length]!;
+      let updated = write(text, s.key, next, defaults);
+      const detected = detectPreset(updated, defaults);
+      updated = write(updated, "preset", detected, defaults);
+      writeFileSync(file, updated);
+      // Only claim a save that happened. Reporting one that did not is worse
+      // than failing loudly: the setting reads back unchanged and nobody knows why.
+      saved = read(updated, s.key) === next
+        ? c.green(`saved ${s.key} = ${next || '""'} (preset: ${detected})`)
+        : `\x1b[33mcould not write ${s.key}\x1b[0m`;
+    }
+  }
 
   await new Promise<void>((resolve) => {
     const onData = (chunk: Buffer) => {
       const keys = chunk.toString();
       for (let i = 0; i < keys.length; i++) {
         const rest = keys.slice(i);
+        // Rows begin on the fourth line: blank, title, blank, then the settings.
+        const m = /^\x1b\[<(\d+);(\d+);(\d+)([Mm])/.exec(rest);
+        if (m) {
+          i += m[0].length - 1;
+          const button = +m[1]!, y = +m[3]!, press = m[4] === "M";
+          if (button === 64) active = (active - 1 + SETTINGS.length) % SETTINGS.length;
+          else if (button === 65) active = (active + 1) % SETTINGS.length;
+          else if (press && button === 0) {
+            const row = y - 4;
+            if (row < 0 || row >= SETTINGS.length) continue;
+            // Click to select; click the selected row to cycle it, which is what
+            // the right arrow already does.
+            if (row === active) { cycle(1); continue; }
+            active = row;
+          } else continue;
+          draw();
+          continue;
+        }
         // esc, q, backspace, and left-at-the-edge all mean "back to where I came
         // from" -- the settings screen is always something you opened from
         // somewhere else.
@@ -174,31 +229,7 @@ export async function settings(repoRoot: string, standalone = true) {
         if (rest.startsWith("\x1b[A")) { active = (active - 1 + SETTINGS.length) % SETTINGS.length; i += 2; }
         else if (rest.startsWith("\x1b[B")) { active = (active + 1) % SETTINGS.length; i += 2; }
         else if (rest.startsWith("\x1b[C") || rest.startsWith("\x1b[D") || rest.startsWith("\r")) {
-          const step = rest.startsWith("\x1b[D") ? -1 : 1;
-          const s = SETTINGS[active]!;
-          const text = readFileSync(file, "utf8");
-          if (s.key === "preset") {
-            const current = detectPreset(text, defaults);
-            const cycle: PresetName[] = ["low", "medium", "ultra"];
-            const at = cycle.indexOf(current as PresetName);
-            const next = cycle[((at < 0 ? 0 : at) + step + cycle.length) % cycle.length]!;
-            const updated = applyPreset(text, next, defaults);
-            writeFileSync(file, updated);
-            saved = c.green(`applied preset: ${next}`);
-          } else {
-            const now = read(text, s.key) ?? s.values[0]!;
-            const at = s.values.indexOf(now);
-            const next = s.values[((at < 0 ? 0 : at) + step + s.values.length) % s.values.length]!;
-            let updated = write(text, s.key, next, defaults);
-            const detected = detectPreset(updated, defaults);
-            updated = write(updated, "preset", detected, defaults);
-            writeFileSync(file, updated);
-            // Only claim a save that happened. Reporting one that did not is worse
-            // than failing loudly: the setting reads back unchanged and nobody knows why.
-            saved = read(updated, s.key) === next
-              ? c.green(`saved ${s.key} = ${next || '""'} (preset: ${detected})`)
-              : `\x1b[33mcould not write ${s.key}\x1b[0m`;
-          }
+          cycle(rest.startsWith("\x1b[D") ? -1 : 1);
           if (!rest.startsWith("\r")) i += 2;
         } else if (rest.startsWith("k")) active = (active - 1 + SETTINGS.length) % SETTINGS.length;
         else if (rest.startsWith("j")) active = (active + 1) % SETTINGS.length;
@@ -211,6 +242,7 @@ export async function settings(repoRoot: string, standalone = true) {
 
   stdin.setRawMode(false);
   stdin.pause();
+  if (mouseArmed) { stdout.write("\x1b[?1006l\x1b[?1000l"); mouseArmed = false; }
   stdout.write("\x1b[?25h\x1b[?1049l");      // restore cursor and screen
   // Returning to the dashboard means returning to its alternate screen, where a
   // line printed here would never be seen.

@@ -118,6 +118,56 @@ function findTerminal(cwd: string, fullCmd: string[]): { cmd: string[]; detached
   return null;
 }
 
+
+// ---------------------------------------------------------------- mouse
+
+// SGR reporting (1006), not X10: X10 encodes coordinates as single bytes and gives
+// up past column 223, which a five-column board reaches on any wide terminal.
+type MouseEv = { button: number; x: number; y: number; press: boolean };
+
+let mouseWanted = false;                           // what config.yml asked for
+let mouseArmed = false;                            // what the terminal is actually in
+
+function readMouse(rest: string): { ev: MouseEv; len: number } | null {
+  const m = /^\x1b\[<(\d+);(\d+);(\d+)([Mm])/.exec(rest);
+  if (!m) return null;
+  return {
+    ev: { button: +m[1]!, x: +m[2]!, y: +m[3]!, press: m[4] === "M" },
+    len: m[0].length,
+  };
+}
+
+const WHEEL_UP = 64, WHEEL_DOWN = 65;
+const isClick = (e: MouseEv) => e.press && e.button === 0;
+
+function mouseOn() {
+  if (!mouseWanted || mouseArmed) return;
+  process.stdout.write("\x1b[?1000h\x1b[?1006h");
+  mouseArmed = true;
+}
+
+function mouseOff() {
+  if (!mouseArmed) return;
+  process.stdout.write("\x1b[?1006l\x1b[?1000l");
+  mouseArmed = false;
+}
+
+// Ctrl-C calls process.exit, which unwinds no finally block anywhere. A terminal
+// left reporting spits escape junk at every click until `reset`, so this guard has
+// to survive an abrupt exit.
+process.on("exit", () => { if (mouseArmed) process.stdout.write("\x1b[?1006l\x1b[?1000l"); });
+
+// Off unless the config says otherwise: while reporting is on, the terminal cannot
+// select text with the mouse.
+function mouseFromConfig(state: string | null) {
+  for (const f of [state ? join(state, "config.yml") : null, join(home, ".kaizen", "config.yml")]) {
+    if (!f || !existsSync(f)) continue;
+    const m = /^\s*ui:\s*\n(?:\s*#.*\n)*\s*mouse:\s*(\S+)/m.exec(readFileSync(f, "utf8"));
+    if (m) return m[1] === "true";
+  }
+  return false;
+}
+
 export async function dashboard(
   repo: string,
   agents: string[],
@@ -125,6 +175,7 @@ export async function dashboard(
 ) {
   const { stdin, stdout } = process;
   const state = locate();
+  mouseWanted = mouseFromConfig(state);
   // Opening a project is what makes it known; nothing else asks the user to register.
   if (state && dirname(state) !== home) remember(dirname(state));
 
@@ -165,16 +216,21 @@ export async function dashboard(
   ];
 
   let active = 0;
-  for (;;) {
-    const chosen = await menu();
-    if (chosen === "quit") return;
-    if (chosen === "projects") { await projectsView(); continue; }
-    if (chosen === "board") { await boardView(); continue; }
-    if (chosen === "runs") { await runsView(); continue; }
-    if (chosen === "backlog") { await backlogView(); continue; }
-    const lines = await run(chosen);
-    if (lines?.length) await report(lines);
-    survey();                                   // an action may have changed what exists
+  mouseOn();
+  try {
+    for (;;) {
+      const chosen = await menu();
+      if (chosen === "quit") return;
+      if (chosen === "projects") { await projectsView(); continue; }
+      if (chosen === "board") { await boardView(); continue; }
+      if (chosen === "runs") { await runsView(); continue; }
+      if (chosen === "backlog") { await backlogView(); continue; }
+      const lines = await run(chosen);
+      if (lines?.length) await report(lines);
+      survey();                                 // an action may have changed what exists
+    }
+  } finally {
+    mouseOff();
   }
 
   // An action that has something to say says it here, on its own screen, rather
@@ -191,7 +247,11 @@ export async function dashboard(
       const once = (chunk: Buffer) => {
         const s = chunk.toString();
         if (s.includes("\x03")) process.exit(130);
-        key = s;
+        const mouse = readMouse(s);
+        // A click is a keypress on an any-key screen; the release that follows it
+        // must not dismiss the next screen too.
+        if (mouse && !isClick(mouse.ev)) return;
+        key = mouse ? "" : s;
         stdin.off("data", once);
         resolve();
       };
@@ -251,6 +311,26 @@ export async function dashboard(
         for (let i = 0; i < keys.length; i++) {
           const rest = keys.slice(i);
           if (rest.startsWith("\x03")) process.exit(130);
+          // Mouse reports are consumed here whether or not they mean anything, so
+          // an unexpected one is never read as a burst of keystrokes.
+          const mouse = readMouse(rest);
+          if (mouse) {
+            i += mouse.len - 1;
+            const { ev } = mouse;
+            if (ev.button === WHEEL_UP) move(-3);
+            else if (ev.button === WHEEL_DOWN) move(3);
+            else if (isClick(ev)) {
+              // Rows begin on the fourth line: blank, title, blank, then the list.
+              const real = top + (ev.y - 4);
+              const at = pickable.indexOf(real);
+              if (at < 0) continue;               // a heading, or empty space
+              // Click to select; click the selected one to act.
+              if (at === cursor) { chosen = real; stdin.off("data", onData); return resolve(); }
+              cursor = at;
+            } else continue;
+            draw();
+            continue;
+          }
           if (rest.startsWith("q") || rest === "\x1b" || rest.startsWith("\x7f") || rest.startsWith("\b")) {
             stdin.off("data", onData); return resolve();
           }
@@ -459,6 +539,11 @@ export async function dashboard(
     let cards: Card[] = [];
     let col = 0, row = 0;
     let top = 0;                                   // first visible line, board-wide
+    // Where each card actually landed on screen, rebuilt by whichever draw ran.
+    // Recording the frame beats recomputing its geometry: the two layouts place
+    // cards differently, and a stale guess after a resize clicks the wrong card.
+    type Hit = { y: number; x0: number; x1: number; col: number; row: number };
+    let hits: Hit[] = [];
     // What each run was awaiting last time we looked, so a redraw can tell the
     // difference between "still blocked" and "just became blocked".
     const wasAwaiting = new Map<string, string | null>();
@@ -487,10 +572,11 @@ export async function dashboard(
           // the common way a run begins.
           if (requests.some((r) => r.includes(normalise(it.text)))) continue;
           next.push(it.status === "started"
-            ? { kind: "idea", dot: c.dim("◌"), text: it.text, state: st, where, column: 1, awaiting: null, dim: true }
-            : { kind: "idea", dot: c.dim("·"), text: it.text, state: st, where, column: 0, awaiting: null, dim: false });
+            ? { kind: "idea", dot: c.dim("◌"), status: "starting", text: it.text, state: st, where, column: 1, awaiting: null, dim: true }
+            : { kind: "idea", dot: c.dim("·"), status: "idea", text: it.text, state: st, where, column: 0, awaiting: null, dim: false });
         }
         for (const r of readRuns(st)) {
+          const shown = dotFor(r, now);
           const key = `${st}/${r.id}`;
           const before = wasAwaiting.get(key);
           if (!first && before === null && r.awaiting) {
@@ -498,7 +584,7 @@ export async function dashboard(
           }
           wasAwaiting.set(key, r.awaiting);
           next.push({
-            kind: "run", id: r.id, dot: dotFor(r, now), text: short(r.id), state: st, where, column: columnOf(r.stage),
+            kind: "run", id: r.id, dot: shown.dot, status: shown.status, text: short(r.id), state: st, where, column: columnOf(r.stage),
             awaiting: r.stage === "abandoned" ? null : r.awaiting,
             dim: r.stage === "abandoned",
           });
@@ -550,45 +636,81 @@ export async function dashboard(
       if (sel < top) top = sel;
       if (sel >= top + height) top = sel - height + 1;
       top = Math.max(0, Math.min(top, Math.max(0, deep - height)));
+      hits = [];
       for (let i = top; i < Math.min(deep, top + height); i++) {
+        // Cards begin on the sixth line: blank, title, blank, headings, rule.
+        const y = 6 + (i - top);
+        for (const [n, col_] of cols.entries()) {
+          const x0 = 3 + n * (inner + 2);
+          const owns = col_.starts.reduce((found, at, idx) => (at <= i ? idx : found), -1);
+          if (owns < 0) continue;
+          const ends = col_.starts[owns + 1] ?? col_.lines.length;
+          if (i >= ends || !(col_.lines[i] ?? "").trim()) continue;
+          hits.push({ y, x0, x1: x0 + inner - 1, col: n, row: owns });
+        }
         stdout.write("  " + cols.map((x) => pad(x.lines[i] ?? "", inner)).join("  ") + "\n");
       }
       const above = top > 0, below = top + height < deep;
       if (above || below) {
         stdout.write(`  ${c.dim(`${above ? "↑" : " "} ${below ? "↓ more" : ""}`)}\n`);
       }
-      const k = current();
-      const help = k?.kind === "idea"
-        ? "n new · e edit · x reject · d delete · r run"
-        : "n new idea · x abandon this run";
-      stdout.write(`\n  ${c.dim("←→ column · ↑↓ card · " + help + " · a " + (allProjects ? "this project" : "all projects") + " · q back")}\n`);
-      stdout.write("  " + [
-        `${c.cyan("●")} ${c.dim("running")}`,
-        `${c.dim("◐ stalled")}`,
-        `${c.dim("◌ starting")}`,
-        `${c.amber("●")} ${c.red("waiting on you")}`,
-        `${c.dim("○ done")}`,
-        `${c.dim("· idea")}`,
-      ].join(c.dim("  ")) + "\n");
+      stdout.write("\n" + footer(current()) + legend());
+    };
+
+    // Keys grouped by what they are for -- moving, acting, leaving -- separated by
+    // space rather than by middots, which made one long undifferentiated line.
+    const footer = (k?: Card) => {
+      const acts = k?.kind === "idea"
+        ? "n new  e edit  x reject  d delete  r run"
+        : k ? "n new idea  x abandon this run" : "n new idea";
+      const scope = allProjects ? "a this project" : "a all projects";
+      return `  ${c.dim("↑↓←→ move")}     ${c.dim(acts)}     ${c.dim(scope)}  ${c.dim("q back")}\n`;
+    };
+
+    // Only the states actually on the board: a legend for dots nothing is using is
+    // six items of noise under every screen.
+    const legend = () => {
+      const present = new Set(cards.map((k) => k.status));
+      const all: [string, string][] = [
+        ["running", `${c.cyan("●")} ${c.dim("running")}`],
+        ["stalled", c.dim("◐ stalled")],
+        ["starting", c.dim("◌ starting")],
+        ["waiting", `${c.amber("●")} ${c.red("waiting on you")}`],
+        ["done", c.dim("○ done")],
+        ["abandoned", c.dim("○ abandoned")],
+        ["idea", c.dim("· idea")],
+      ];
+      const parts = all.filter(([key]) => present.has(key)).map(([, text]) => text);
+      return parts.length ? "\n  " + parts.join("    ") + "\n" : "\n";
     };
 
     // Under 100 columns the board stacks: same cards, same keys, one list.
     const drawNarrow = () => {
       stdout.write("\x1b[H\x1b[2J");
       stdout.write(`\n  ${c.bold("Board")}   ${c.dim("narrow terminal — stacked")}\n\n`);
+      hits = [];
+      // The header writes three newlines, so the first heading lands on line 4.
+      let y = 4;
       for (const [n, meta] of COLUMNS.entries()) {
         const items = inColumn(n);
         if (!items.length) continue;
         stdout.write(`  ${n === col ? c.cyan(meta.title) : c.dim(meta.title)}\n`);
-        for (const k of items) {
+        y++;
+        for (const [idx, k] of items.entries()) {
           const chosen = n === col && items[row] === k;
           const text = k.awaiting ? c.red(k.text) : k.dim ? c.dim(k.text) : k.text;
           stdout.write(`  ${chosen ? c.cyan("›") : " "} ${k.dot} ${cut(text, (stdout.columns ?? 80) - 8)}\n`);
+          hits.push({ y, x0: 1, x1: stdout.columns ?? 80, col: n, row: idx });
+          y++;
         }
         stdout.write("\n");
+        y++;
       }
-      stdout.write(`  ${c.dim("←→ column · ↑↓ card · n new · r run · q back")}\n`);
+      stdout.write("\n" + footer(current()) + legend());
     };
+
+    const cardAt = (x: number, y: number) =>
+      hits.find((h) => h.y === y && x >= h.x0 && x <= h.x1) ?? null;
 
     const clamp = () => {
       col = Math.min(COLUMNS.length - 1, Math.max(0, col));
@@ -754,6 +876,22 @@ export async function dashboard(
           const done = (v: string) => { stdin.off("data", onData); resolve(v); };
           for (let i = 0; i < keys.length; i++) {
             const rest = keys.slice(i);
+            const mouse = readMouse(rest);
+            if (mouse) {
+              i += mouse.len - 1;
+              const { ev } = mouse;
+              if (ev.button === WHEEL_UP) return done("up");
+              if (ev.button === WHEEL_DOWN) return done("down");
+              if (!isClick(ev)) continue;
+              const target = cardAt(ev.x, ev.y);
+              if (!target) continue;
+              // Click to select; click the selected card to act, which on an idea
+              // means the same thing r does.
+              if (target.col === col && target.row === row) return done("r");
+              col = target.col; row = target.row;
+              draw();
+              continue;
+            }
             if (rest.startsWith("\x1b[D")) return done("left");
             if (rest.startsWith("\x1b[C")) return done("right");
             if (rest.startsWith("\x1b[A")) return done("up");
@@ -787,6 +925,9 @@ export async function dashboard(
           // chunk, and comparing the whole chunk to "\x7f" writes the raw bytes
           // into the file instead of deleting anything.
           for (let i = 0; i < keys.length; i++) {
+            // Skipped whole, or its digits and semicolons land in the text.
+            const mouse = readMouse(keys.slice(i));
+            if (mouse) { i += mouse.len - 1; continue; }
             const ch = keys[i]!;
             if (ch === "\x1b") return done(null);
             if (ch === "\r" || ch === "\n") return done(buf.trim() || null);
@@ -814,18 +955,32 @@ export async function dashboard(
       stdout.write(`\n  ${c.bold("Start this run how?")}\n\n`);
       stdout.write(`  ${c.cyan("f")}  full   ${c.dim("every stage its own cold agent — the reviewer starts blind")}\n`);
       stdout.write(`  ${c.cyan("l")}  lite   ${c.dim("one session runs every stage — cheaper, review has seen the work")}\n`);
-      stdout.write(`  ${c.cyan("d")}  default${c.dim("  whatever config.yml says")}\n\n  ${c.dim("any other key cancels")}\n`);
-      const key = await nextRaw();
+      stdout.write(`  ${c.cyan("d")}  default${c.dim("  whatever config.yml says")}\n\n  ${c.dim("click a line, or any other key to cancel")}\n`);
+      // Options start on the fourth line: blank, title, blank, then f, l, d.
+      const key = await nextRaw((y) => ["f", "l", "d"][y - 4] ?? null);
       return key === "f" ? "full" : key === "l" ? "lite" : key === "d" ? "" : null;
     }
 
-    function nextRaw(): Promise<string> {
+    // A click arrives as two reports, press and release. The press is what opened
+    // this screen, so the release must not be read as its answer -- and a click on
+    // one of the offered lines answers it properly, via `clickable`.
+    function nextRaw(clickable?: (y: number) => string | null): Promise<string> {
       return new Promise((resolve) => {
         const onData = (chunk: Buffer) => {
-          const s = chunk.toString();
-          if (s.includes("\x03")) process.exit(130);
-          stdin.off("data", onData);
-          resolve(s);
+          const keys = chunk.toString();
+          if (keys.includes("\x03")) process.exit(130);
+          const done = (v: string) => { stdin.off("data", onData); resolve(v); };
+          for (let i = 0; i < keys.length; i++) {
+            const mouse = readMouse(keys.slice(i));
+            if (mouse) {
+              i += mouse.len - 1;
+              if (!clickable || !isClick(mouse.ev)) continue;
+              const answer = clickable(mouse.ev.y);
+              if (answer) return done(answer);
+              continue;
+            }
+            return done(keys.slice(i));
+          }
         };
         stdin.on("data", onData);
       });
@@ -900,9 +1055,13 @@ export async function dashboard(
   }
 
   async function menu() {
+  let actsTop = 0;                 // screen line of the first action row
+  let printed = 0;                 // lines this draw has written
+  const w = (text: string) => { printed += (text.match(/\n/g) ?? []).length; stdout.write(text); };
   const draw = () => {
+    printed = 0;
     const acts = actions();
-    stdout.write("\x1b[H\x1b[2J");
+    w("\x1b[H\x1b[2J");
 
     // The mascot sits beside the header rather than above it; stacked, it pushes
     // the runs -- the thing you opened this for -- below the fold on a short window.
@@ -941,7 +1100,7 @@ export async function dashboard(
       beside[at + 1] = c.dim(state ? tilde(dirname(state)) : "no project here");
       beside[at + 3] = c.dim(agents.join(", "));
     }
-    stdout.write("\n");
+    w("\n");
     if (wide) {
       // Cut what sits beside the mascot to the room left over. The agent list is
       // long and grows with every agent installed, and it wrapped here before the
@@ -951,11 +1110,11 @@ export async function dashboard(
         const r = Math.round(235 - t * 135);
         const g = Math.round(245 - t * 110);
         const b = Math.round(255 - t * 20);
-        stdout.write("  " + rgb(r, g, b, line.padEnd(gutter)) + cut(beside[i] ?? "", cols - gutter - 2) + "\n");
+        w("  " + rgb(r, g, b, line.padEnd(gutter)) + cut(beside[i] ?? "", cols - gutter - 2) + "\n");
       }
     } else {
-      stdout.write(`  ${c.bold("kaizen")} ${c.dim(version(repo))}   ${c.dim(state ? tilde(dirname(state)) : "no project here")}\n`);
-      stdout.write(`  ${c.dim(agents.join(", "))}\n`);
+      w(`  ${c.bold("kaizen")} ${c.dim(version(repo))}   ${c.dim(state ? tilde(dirname(state)) : "no project here")}\n`);
+      w(`  ${c.dim(agents.join(", "))}\n`);
     }
 
     if (state) {
@@ -995,28 +1154,31 @@ export async function dashboard(
         while (backLines.length < tall) backLines.push("");
         const left = panel("Runs", runLines, inner);
         const right = panel(`Backlog — ${items.length} open`, backLines, inner);
-        stdout.write("\n");
+        w("\n");
         for (let i = 0; i < Math.max(left.length, right.length); i++) {
-          stdout.write("  " + (left[i] ?? " ".repeat(inner + 2)) + " " + (right[i] ?? "") + "\n");
+          w("  " + (left[i] ?? " ".repeat(inner + 2)) + " " + (right[i] ?? "") + "\n");
         }
       } else {
-        stdout.write("\n");
-        for (const line of panel("Runs", runLines, cols - 8)) stdout.write("  " + line + "\n");
-        for (const line of panel(`Backlog — ${items.length} open`, backLines, cols - 8)) stdout.write("  " + line + "\n");
+        w("\n");
+        for (const line of panel("Runs", runLines, cols - 8)) w("  " + line + "\n");
+        for (const line of panel(`Backlog — ${items.length} open`, backLines, cols - 8)) w("  " + line + "\n");
       }
     } else {
-      stdout.write(`\n  ${c.dim("This folder has no .kaizen/. Set it up, or just ask your agent for something —")}\n`);
-      stdout.write(`  ${c.dim("the first run creates it.")}\n`);
+      w(`\n  ${c.dim("This folder has no .kaizen/. Set it up, or just ask your agent for something —")}\n`);
+      w(`  ${c.dim("the first run creates it.")}\n`);
     }
 
-    stdout.write("\n");
+    w("\n");
+    // Counted, not derived: the panels above change height with the terminal and
+    // with what exists, so nothing else can know where the actions start.
+    actsTop = printed + 1;
     for (const [i, a] of acts.entries()) {
       const on = i === active;
-      stdout.write(on
+      w(on
         ? `  ${c.cyan("›")} ${c.bold(a.label.padEnd(20))}${c.dim(a.hint)}\n`
         : `    ${c.dim(a.label)}\n`);
     }
-    stdout.write(`\n  ${c.dim("↑↓ move · enter choose · q quit")}   ${c.dim("⭐ github.com/hfadhlullah/kaizen")}\n`);
+    w(`\n  ${c.dim("↑↓ move · enter choose · q quit")}   ${c.dim("⭐ github.com/hfadhlullah/kaizen")}\n`);
   };
 
   stdout.write("\x1b[?1049h\x1b[?25l");
@@ -1038,6 +1200,21 @@ export async function dashboard(
         if (rest.startsWith("\r") || rest.startsWith("\n")) {
           chosen = acts[active]!.key;
           stdin.off("data", onData); return resolve();
+        }
+        const mouse = readMouse(rest);
+        if (mouse) {
+          i += mouse.len - 1;
+          const { ev } = mouse;
+          if (ev.button === WHEEL_UP) active = (active - 1 + acts.length) % acts.length;
+          else if (ev.button === WHEEL_DOWN) active = (active + 1) % acts.length;
+          else if (isClick(ev)) {
+            const row = ev.y - actsTop;
+            if (row < 0 || row >= acts.length) continue;
+            if (row === active) { chosen = acts[active]!.key; stdin.off("data", onData); return resolve(); }
+            active = row;
+          } else continue;
+          draw();
+          continue;
         }
         if (rest.startsWith("\x1b[A")) { active = (active - 1 + acts.length) % acts.length; i += 2; }
         else if (rest.startsWith("\x1b[B")) { active = (active + 1) % acts.length; i += 2; }
@@ -1219,6 +1396,7 @@ type Card = {
   kind: "idea" | "run";
   id?: string;                                     // runs only: the directory name
   dot: string;
+  status: string;                                  // what the legend calls this card
   text: string;
   state: string;
   where: string;
@@ -1261,11 +1439,15 @@ function normalise(text: string) {
 
 const RUNNING_WITHIN_MS = 30 * 60_000;
 
-function dotFor(r: Run, now: number) {
-  if (r.stage === "abandoned") return DIM + "○" + OFF;
-  if (r.awaiting) return c.amber("●");
-  if (r.stage === "done") return c.dim("○");
-  return now - r.moved < RUNNING_WITHIN_MS ? c.cyan("●") : c.dim("◐");
+// The status is what the legend lists; the dot is how it is drawn. Deriving one
+// from the other by comparing coloured strings breaks the moment a colour moves.
+function dotFor(r: Run, now: number): { dot: string; status: string } {
+  if (r.stage === "abandoned") return { dot: DIM + "○" + OFF, status: "abandoned" };
+  if (r.awaiting) return { dot: c.amber("●"), status: "waiting" };
+  if (r.stage === "done") return { dot: c.dim("○"), status: "done" };
+  return now - r.moved < RUNNING_WITHIN_MS
+    ? { dot: c.cyan("●"), status: "running" }
+    : { dot: c.dim("◐"), status: "stalled" };
 }
 
 // A stage this build has never heard of still belongs somewhere visible, and
