@@ -1,26 +1,8 @@
 <div align="center">
-<img src="https://raw.githubusercontent.com/hfadhlullah/kaizen/main/assets/kaizen-avatar.png" alt="" width="132">
+<img src="https://raw.githubusercontent.com/hfadhlullah/kaizen/main/assets/kaizen-banner.png" alt="kaizen" width="760">
 </div>
 
-<div align="center">
-<pre>
-                                 ▄█▄                                 
-                              ▄███████▄                              
-                           ▄█████████████▄                           
-                        ▄█▀               ▀█▄                        
-                     ▄█▀                     ▀█▄                     
-                  ▄█▀                           ▀█▄                  
-            ██╗  ██╗ █████╗ ██╗███████╗███████╗███╗   ██╗            
-            ██║ ██╔╝██╔══██╗██║╚══███╔╝██╔════╝████╗  ██║            
-            █████╔╝ ███████║██║  ███╔╝ █████╗  ██╔██╗ ██║            
-      ▄█▀   ██╔═██╗ ██╔══██║██║ ███╔╝  ██╔══╝  ██║╚██╗██║   ▀█▄      
-   ▄█▀      ██║  ██╗██║  ██║██║███████╗███████╗██║ ╚████║      ▀█▄   
-▄█▀         ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚══════╝╚══════╝╚═╝  ╚═══╝         ▀█▄
-▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
-</pre>
-</div>
-
-<p align="center"><b>改善</b> — <i>your AI agent shows you the plan before it does the work,<br>and a second agent checks what it did.</i></p>
+<p align="center"><i>Your AI agent shows you the plan before it does the work,<br>and a second agent checks what it did.</i></p>
 
 <p align="center">
   <a href="https://www.npmjs.com/package/kaizen-agent"><img alt="npm" src="https://img.shields.io/npm/v/kaizen-agent?color=2d50a5&label=npm"></a>
