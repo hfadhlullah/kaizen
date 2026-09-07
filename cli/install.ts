@@ -5,6 +5,7 @@ import {
 } from "node:fs";
 import { join, dirname, basename } from "node:path";
 import { homedir } from "node:os";
+import { applyPreset, detectPreset, PRESETS, type PresetName } from "./settings.ts";
 
 const home = homedir();
 const REPO_URL = "https://github.com/hfadhlullah/kaizen.git";
@@ -15,6 +16,22 @@ const check = args.has("--check");
 const force = args.has("--force");
 const verbose = args.has("--verbose");
 const interactive = process.stdin.isTTY && !check && !upgrade && !args.has("--yes");
+
+function parsePresetArg(): PresetName | null {
+  for (const a of Bun.argv.slice(2)) {
+    if (a.startsWith("--preset=")) {
+      const v = a.split("=")[1]?.toLowerCase();
+      if (v === "low" || v === "medium" || v === "ultra") return v as PresetName;
+    }
+  }
+  const idx = Bun.argv.indexOf("--preset");
+  if (idx !== -1 && Bun.argv[idx + 1]) {
+    const v = Bun.argv[idx + 1]?.toLowerCase();
+    if (v === "low" || v === "medium" || v === "ultra") return v as PresetName;
+  }
+  return null;
+}
+const presetArg = parsePresetArg();
 
 const c = {
   dim: (s: string) => `\x1b[2m${s}\x1b[0m`,
@@ -392,6 +409,42 @@ function installLauncher() {
 
 const inProject = process.cwd() !== home;
 const kaizenDir = join(process.cwd(), ".kaizen");
+const globalKaizen = join(home, ".kaizen");
+const globalConfig = join(globalKaizen, "config.yml");
+const localConfig = join(kaizenDir, "config.yml");
+const hasConfig = existsSync(localConfig) || existsSync(globalConfig);
+
+let presetChoice: PresetName | null = presetArg;
+if (!hasConfig && !presetChoice && interactive) {
+  presetChoice = await select("Choose workflow preset", [
+    {
+      label: "Medium (Recommended)",
+      hint: "balanced — subagents, plan approval, auto-fix high/critical",
+      value: "medium",
+    },
+    {
+      label: "Low",
+      hint: "inline & manual — lite runner, inline builder, manual approvals, no auto-fix",
+      value: "low",
+    },
+    {
+      label: "Ultra",
+      hint: "autonomous — subagents, auto mode, auto-fix all findings (up to 4 rounds)",
+      value: "ultra",
+    },
+  ]);
+}
+
+if ((!existsSync(globalConfig) && presetChoice) || (presetArg && !args.has("--project"))) {
+  mkdirSync(globalKaizen, { recursive: true });
+  const defPath = join(repo, "skills/kaizen/config.default.yml");
+  const def = readFileSync(defPath, "utf8");
+  const base = existsSync(globalConfig) ? readFileSync(globalConfig, "utf8") : def;
+  const target = presetChoice ?? "medium";
+  const conf = applyPreset(base, target, def);
+  writeFileSync(globalConfig, conf);
+  step(`configured ${c.bold(target)} preset in ${tilde(globalConfig)}`);
+}
 
 // A .kaizen/ in a parent already owns this folder's state, and setting up a child
 // would shadow it, hiding the parent's runs and leaving the child out of the root
@@ -413,25 +466,35 @@ function kaizenAbove() {
 }
 
 if (inProject && !kaizenAbove()) {
-  const now = interactive
-    ? await select(`Set up ${basename(process.cwd())}/ for kaizen now`, [
-        // "Not now" leads: the offer now appears in any folder outside home, so the
-        // safe answer is the one under the cursor.
-        { label: "Not now", hint: "the first /kaizen run will do it", value: false },
-        { label: "Yes", hint: "writes .kaizen/ and a CLAUDE.md line so it runs by default", value: true },
-      ])
-    : false;
-  if (now) initProject();
+  const now = root === process.cwd()
+    ? true
+    : interactive
+      ? await select(`Set up ${basename(process.cwd())}/ for kaizen now`, [
+          // "Not now" leads: the offer now appears in any folder outside home, so the
+          // safe answer is the one under the cursor.
+          { label: "Not now", hint: "the first /kaizen run will do it", value: false },
+          { label: "Yes", hint: "writes .kaizen/ and a CLAUDE.md line so it runs by default", value: true },
+        ])
+      : false;
+  if (now) initProject(presetChoice);
 } else if (existsSync(kaizenDir)) {
   step(`${basename(process.cwd())}/.kaizen already set up`);
 }
 
-function initProject() {
+function initProject(preset?: PresetName | null) {
   mkdirSync(kaizenDir, { recursive: true });
   for (const f of readdirSync(join(repo, "skills/kaizen")).filter((f) => f.startsWith("spec"))) {
     copyFileSync(join(repo, "skills/kaizen", f), join(kaizenDir, f));
   }
-  copyFileSync(join(repo, "skills/kaizen/config.default.yml"), join(kaizenDir, "config.yml"));
+  const defPath = join(repo, "skills/kaizen/config.default.yml");
+  const def = readFileSync(defPath, "utf8");
+  let chosen: PresetName = preset ?? "medium";
+  if (!preset && existsSync(globalConfig)) {
+    const detected = detectPreset(readFileSync(globalConfig, "utf8"), def);
+    if (detected !== "custom") chosen = detected;
+  }
+  const configContent = applyPreset(def, chosen, def);
+  writeFileSync(join(kaizenDir, "config.yml"), configContent);
 
   // Run state is local; the workflow itself is shared, so those files stay tracked.
   // Nothing to ignore where there is no git, so a plain folder gets no .gitignore.

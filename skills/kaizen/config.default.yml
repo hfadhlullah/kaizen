@@ -1,6 +1,11 @@
 # Kaizen defaults. Copy to .kaizen/config.yml in a repository and override only the
 # keys you care about; anything absent falls back to this file.
 
+# Quick preset: low | medium | ultra | custom
+# Selecting low, medium, or ultra applies its bundled defaults for runner, executor,
+# approvals, and auto-fix. Modifying individual keys sets this to custom.
+preset: medium
+
 # plan-only | approve | auto | review-only
 mode: approve
 

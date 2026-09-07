@@ -417,17 +417,20 @@ change written as you make it, esc to close:
 ```
   kaizen settings   ~/Projects/app/.kaizen/config.yml
 
+  › preset                         medium
     mode                           approve
-  › build.executor                 inline
+    runner                         full
+    build.executor                 subagent
     approvals.plan                 true
     approvals.review               false
+    auto_fix.enabled               true
     auto_fix.min_severity          high
     auto_fix.max_iterations        2
     ...
 
-  Who carries out the approved plan
+  Quick preset — low: inline & manual, medium: balanced, ultra: autonomous subagents
 
-  ↑↓ move · ←→ change · esc close     saved build.executor = inline
+  ↑↓ move · ←→ change · esc close     saved preset = medium
 ```
 
 It edits each line in place, so the comment above every key survives. `/kaizen-config`
@@ -451,6 +454,7 @@ with a comment on each key, if you would rather edit the file.
 | `--project` | Into the current directory only |
 | `--check` | Report what is linked, exit non-zero if anything is missing |
 | `--force` | Replace a real file sitting where a link belongs |
+| `--preset <name>` | Pre-select workflow preset (`low`, `medium`, or `ultra`) |
 | `--yes` | Take every default, ask nothing |
 | `--verbose` | List every link instead of a one-line summary |
 | `upgrade` | Pull, relink, and clear the installer cache. No prompts. |

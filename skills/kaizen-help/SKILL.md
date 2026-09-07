@@ -75,6 +75,7 @@ Each iteration is written to `runs/<id>/05-iterations/`.
 
 | Key | Default | Meaning |
 |---|---|---|
+| `preset` | `medium` | Quick preset (`low`, `medium`, `ultra`, `custom`) |
 | `mode` | `approve` | Default run mode |
 | `runner` | `full` | `full`: each stage a cold subagent. `lite`: this session runs every stage |
 | `approvals.plan` | `true` | Stop after the plan |

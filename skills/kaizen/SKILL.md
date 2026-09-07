@@ -81,6 +81,7 @@ whichever the user picks.
 
 | Setting | Values | What it decides |
 |---|---|---|
+| `preset` | `low`, `medium`, `ultra` | Quick preset: low (inline/manual), medium (balanced), ultra (autonomous) |
 | `mode` | `approve`, `auto`, `plan-only`, `review-only` | Where a run stops |
 | `runner` | `full`, `lite` | Whether each stage is its own cold agent, or this session runs them all |
 | `build.executor` | `subagent`, `inline`, `ask` | Who carries out the approved plan |

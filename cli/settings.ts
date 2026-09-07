@@ -6,7 +6,94 @@ import { homedir } from "node:os";
 
 type Setting = { key: string; values: string[]; help: string };
 
+export type PresetName = "low" | "medium" | "ultra";
+
+export const PRESETS: Record<PresetName, {
+  label: string;
+  hint: string;
+  settings: Record<string, string>;
+}> = {
+  low: {
+    label: "Low",
+    hint: "inline & manual — lite runner, inline builder, manual approvals, no auto-fix",
+    settings: {
+      mode: "approve",
+      runner: "lite",
+      "build.executor": "inline",
+      "approvals.plan": "true",
+      "approvals.review": "true",
+      "approvals.each_file": "false",
+      "auto_fix.enabled": "false",
+      "auto_fix.min_severity": "high",
+      "auto_fix.max_iterations": "1",
+      "git.auto_commit": "false",
+      "git.branch_before_implement": "false",
+    },
+  },
+  medium: {
+    label: "Medium",
+    hint: "balanced (recommended) — full runner, subagents, plan approval, auto-fix high/critical",
+    settings: {
+      mode: "approve",
+      runner: "full",
+      "build.executor": "subagent",
+      "approvals.plan": "true",
+      "approvals.review": "false",
+      "approvals.each_file": "false",
+      "auto_fix.enabled": "true",
+      "auto_fix.min_severity": "high",
+      "auto_fix.max_iterations": "2",
+      "git.auto_commit": "false",
+      "git.branch_before_implement": "true",
+    },
+  },
+  ultra: {
+    label: "Ultra",
+    hint: "autonomous — full runner, subagents, auto mode, auto-fix all findings (up to 4 rounds)",
+    settings: {
+      mode: "auto",
+      runner: "full",
+      "build.executor": "subagent",
+      "approvals.plan": "false",
+      "approvals.review": "false",
+      "approvals.each_file": "false",
+      "auto_fix.enabled": "true",
+      "auto_fix.min_severity": "low",
+      "auto_fix.max_iterations": "4",
+      "git.auto_commit": "true",
+      "git.branch_before_implement": "true",
+    },
+  },
+};
+
+export function detectPreset(text: string, defaults?: string): PresetName | "custom" {
+  for (const name of ["low", "medium", "ultra"] as const) {
+    const p = PRESETS[name];
+    let match = true;
+    for (const [k, expected] of Object.entries(p.settings)) {
+      const actual = read(text, k) ?? (defaults ? read(defaults, k) : null);
+      if (actual !== expected) {
+        match = false;
+        break;
+      }
+    }
+    if (match) return name;
+  }
+  return "custom";
+}
+
+export function applyPreset(text: string, preset: PresetName, defaults: string): string {
+  let updated = text;
+  const p = PRESETS[preset];
+  for (const [k, v] of Object.entries(p.settings)) {
+    updated = write(updated, k, v, defaults);
+  }
+  updated = write(updated, "preset", preset, defaults);
+  return updated;
+}
+
 const SETTINGS: Setting[] = [
+  { key: "preset", values: ["low", "medium", "ultra", "custom"], help: "Quick preset — low: inline & manual, medium: balanced, ultra: autonomous subagents" },
   { key: "mode", values: ["approve", "auto", "plan-only", "review-only"], help: "Where a run stops" },
   { key: "runner", values: ["full", "lite"], help: "full: every stage its own cold agent. lite: this session runs them all, cheaper, reviewer has seen the work" },
   { key: "build.executor", values: ["subagent", "inline", "ask"], help: "Who carries out the approved plan" },
@@ -42,10 +129,15 @@ export async function settings(repoRoot: string, standalone = true) {
   const { stdin, stdout } = process;
   if (!stdin.isTTY) { console.log(`Settings live in ${file}`); return; }
 
+  const defaults = readFileSync(join(repoRoot, "skills/kaizen/config.default.yml"), "utf8");
   let active = 0, saved = "";
   const draw = () => {
     const text = readFileSync(file, "utf8");
-    const rows = SETTINGS.map((s) => ({ s, value: read(text, s.key) ?? c.dim("(default)") }));
+    const currentPreset = detectPreset(text, defaults);
+    const rows = SETTINGS.map((s) => ({
+      s,
+      value: s.key === "preset" ? currentPreset : (read(text, s.key) ?? c.dim("(default)")),
+    }));
     const width = Math.max(...SETTINGS.map((s) => s.key.length)) + 4;
 
     stdout.write("\x1b[H\x1b[2J");           // home, clear
@@ -84,16 +176,28 @@ export async function settings(repoRoot: string, standalone = true) {
           const step = rest.startsWith("\x1b[D") ? -1 : 1;
           const s = SETTINGS[active]!;
           const text = readFileSync(file, "utf8");
-          const now = read(text, s.key) ?? s.values[0]!;
-          const at = s.values.indexOf(now);
-          const next = s.values[((at < 0 ? 0 : at) + step + s.values.length) % s.values.length]!;
-          const updated = write(text, s.key, next, readFileSync(join(repoRoot, "skills/kaizen/config.default.yml"), "utf8"));
-          writeFileSync(file, updated);
-          // Only claim a save that happened. Reporting one that did not is worse
-          // than failing loudly: the setting reads back unchanged and nobody knows why.
-          saved = read(updated, s.key) === next
-            ? c.green(`saved ${s.key} = ${next || '""'}`)
-            : `\x1b[33mcould not write ${s.key}\x1b[0m`;
+          if (s.key === "preset") {
+            const current = detectPreset(text, defaults);
+            const cycle: PresetName[] = ["low", "medium", "ultra"];
+            const at = cycle.indexOf(current as PresetName);
+            const next = cycle[((at < 0 ? 0 : at) + step + cycle.length) % cycle.length]!;
+            const updated = applyPreset(text, next, defaults);
+            writeFileSync(file, updated);
+            saved = c.green(`applied preset: ${next}`);
+          } else {
+            const now = read(text, s.key) ?? s.values[0]!;
+            const at = s.values.indexOf(now);
+            const next = s.values[((at < 0 ? 0 : at) + step + s.values.length) % s.values.length]!;
+            let updated = write(text, s.key, next, defaults);
+            const detected = detectPreset(updated, defaults);
+            updated = write(updated, "preset", detected, defaults);
+            writeFileSync(file, updated);
+            // Only claim a save that happened. Reporting one that did not is worse
+            // than failing loudly: the setting reads back unchanged and nobody knows why.
+            saved = read(updated, s.key) === next
+              ? c.green(`saved ${s.key} = ${next || '""'} (preset: ${detected})`)
+              : `\x1b[33mcould not write ${s.key}\x1b[0m`;
+          }
           if (!rest.startsWith("\r")) i += 2;
         } else if (rest.startsWith("k")) active = (active - 1 + SETTINGS.length) % SETTINGS.length;
         else if (rest.startsWith("j")) active = (active + 1) % SETTINGS.length;
