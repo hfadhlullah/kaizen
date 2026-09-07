@@ -1,4 +1,8 @@
 <div align="center">
+<img src="https://raw.githubusercontent.com/hfadhlullah/kaizen/main/assets/kaizen-avatar.png" alt="" width="132">
+</div>
+
+<div align="center">
 <pre>
                                  ▄█▄                                 
                               ▄███████▄                              
