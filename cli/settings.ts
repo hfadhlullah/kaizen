@@ -87,8 +87,13 @@ export async function settings(repoRoot: string, standalone = true) {
           const now = read(text, s.key) ?? s.values[0]!;
           const at = s.values.indexOf(now);
           const next = s.values[((at < 0 ? 0 : at) + step + s.values.length) % s.values.length]!;
-          writeFileSync(file, write(text, s.key, next));
-          saved = c.green(`saved ${s.key} = ${next || '""'}`);
+          const updated = write(text, s.key, next, readFileSync(join(repoRoot, "skills/kaizen/config.default.yml"), "utf8"));
+          writeFileSync(file, updated);
+          // Only claim a save that happened. Reporting one that did not is worse
+          // than failing loudly: the setting reads back unchanged and nobody knows why.
+          saved = read(updated, s.key) === next
+            ? c.green(`saved ${s.key} = ${next || '""'}`)
+            : `\x1b[33mcould not write ${s.key}\x1b[0m`;
           if (!rest.startsWith("\r")) i += 2;
         } else if (rest.startsWith("k")) active = (active - 1 + SETTINGS.length) % SETTINGS.length;
         else if (rest.startsWith("j")) active = (active + 1) % SETTINGS.length;
@@ -146,12 +151,54 @@ function read(text: string, key: string) {
   return v.replace(/^["']|["']$/g, "");
 }
 
-function write(text: string, key: string, value: string) {
-  const { lines, index, indent } = lineOf(text, key);
-  if (index < 0) return text;
+function write(text: string, key: string, value: string, defaults: string) {
   const name = key.split(".").pop()!;
   const shown = value === "" ? '""' : value;
-  lines[index] = `${" ".repeat(indent)}${name}: ${shown}`;
+  const { lines, index, indent } = lineOf(text, key);
+
+  if (index >= 0) {
+    lines[index] = `${" ".repeat(indent)}${name}: ${shown}`;
+    return lines.join("\n");
+  }
+
+  // A config written before this key existed does not have a line to change. Take
+  // the key from the defaults, comment and all, rather than silently doing nothing
+  // and reporting a save: an older config is the normal case for anyone who has had
+  // kaizen installed for a while.
+  return insert(text, key, shown, defaults);
+}
+
+function insert(text: string, key: string, shown: string, defaults: string) {
+  const parts = key.split(".");
+  const name = parts[parts.length - 1]!;
+  const indent = (parts.length - 1) * 2;
+  const src = defaults.split("\n");
+  const { index: at } = lineOf(defaults, key);
+
+  // The comment block above the key in the defaults explains it; carry it across.
+  const block: string[] = [];
+  if (at >= 0) {
+    let i = at - 1;
+    while (i >= 0 && /^\s*#/.test(src[i]!)) { block.unshift(src[i]!); i--; }
+  }
+  block.push(`${" ".repeat(indent)}${name}: ${shown}`);
+
+  const lines = text.split("\n");
+  if (parts.length === 1) {
+    while (lines.length && !lines[lines.length - 1]!.trim()) lines.pop();
+    return [...lines, "", ...block, ""].join("\n");
+  }
+
+  // Nested: put it under its parent if the parent is there, else write the parent too.
+  const parent = parts.slice(0, -1).join(".");
+  const { index: pi } = lineOf(text, parent);
+  if (pi < 0) {
+    while (lines.length && !lines[lines.length - 1]!.trim()) lines.pop();
+    return [...lines, "", `${parts[0]}:`, ...block, ""].join("\n");
+  }
+  let end = pi + 1;
+  while (end < lines.length && (/^\s+\S/.test(lines[end]!) || !lines[end]!.trim())) end++;
+  lines.splice(end, 0, ...block);
   return lines.join("\n");
 }
 
