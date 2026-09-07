@@ -182,8 +182,14 @@ file, never the whole set.
 | Stage | Agent type | Writes |
 |---|---|---|
 | Plan | `kaizen-planner` | `01-plan.md` |
-| Implement | `kaizen-builder` | `03-impl.md` + the actual code changes |
+| Implement | `kaizen-builder`, or the main thread when `build.executor` is `inline` | `03-impl.md` + the actual changes |
 | Review | `kaizen-reviewer` | `04-review.md` |
+
+`build.executor` decides who implements: `subagent` (default), `inline` — the main
+thread does it against the same contract in `spec-build.md` — or `ask`, which puts
+the choice at the plan approval. Building inline does not make the review less
+independent: the reviewer is a separate agent in every case, and never sees the
+conversation the work happened in.
 
 After a subagent returns, update `state.json` yourself in the main thread. Subagents
 report; the main thread owns the state machine.

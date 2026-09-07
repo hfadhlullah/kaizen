@@ -10,7 +10,17 @@ builder's contract. The planner and reviewer do not read it.
 **Output:** the deliverable itself, plus `03-impl.md`.
 
 The builder produces whatever the track's deliverable is — code, a chapter, the
-campaign copy, the runbook — and nothing else. Rules:
+campaign copy, the runbook — and nothing else.
+
+This file is the contract whether the builder is a dispatched agent or the main
+thread working inline (see `build.executor`). Working inline changes who is typing,
+not what is owed: the plan is still the scope, a step that turns out wrong still
+stops the stage instead of being improvised around, and `03-impl.md` is still written
+before the reviewer is called. The temptation inline is to skip the file because the
+work is already visible in the conversation — but the reviewer never sees that
+conversation, and reads the file instead.
+
+Rules:
 
 - Work only within the plan's scope. Something out of scope that clearly needs doing
   is written to `03-impl.md` as a note, not produced.

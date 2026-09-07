@@ -90,6 +90,23 @@ Present to the user, in this order:
    be readable on its own, without the plan's reasoning around it.
 3. The open questions, **as a pick list** — see below.
 
+**Who builds it.** Governed by `build.executor`. On `subagent` or `inline` the
+approval says which is about to happen in one line and moves on; on `ask` it is one
+more choice at this approval:
+
+- **subagent** (default) — dispatch the builder as its own agent. The main thread
+  keeps its context, and the work is reported back rather than watched. Right for
+  most runs, and the only sane option for a large one.
+- **inline** — the main thread does the work itself, against this plan. You watch it
+  happen and can interrupt mid-step, and it already holds the conversation the plan
+  came out of. It costs main-thread context, and a long run will exhaust it.
+
+Either way the builder's contract is unchanged: the plan is the scope, `03-impl.md`
+is written the same way, and the gate is answered with the same evidence. **The
+reviewer is always a separate agent, in both.** Its independence is what the review
+is worth, and it is not the user's to trade away — an inline build is judged by an
+agent that never saw it happen, exactly as a dispatched one is.
+
 Do not dump the whole plan into the terminal; point at its path for the detail.
 
 **Ask with options, not open prose.** Every question the plan raises is put to the

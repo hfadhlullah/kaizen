@@ -14,6 +14,19 @@ approvals:
   # Confirm every individual file edit. Maximum control, slowest.
   each_file: false
 
+build:
+  # Who carries out the approved plan.
+  #   subagent - dispatch the builder as its own agent. The main thread keeps its
+  #              context and the work is reported back. The default, and the only
+  #              sane option for a large run.
+  #   inline   - the main thread does the work itself, against the same plan and the
+  #              same contract. You watch it happen and can interrupt mid-step, at
+  #              the cost of main-thread context.
+  #   ask      - offer the choice at the plan approval.
+  # The reviewer is a separate agent in every case; that is not configurable, because
+  # an agent reviewing work it just did will defend it.
+  executor: subagent
+
 auto_fix:
   # false: every finding stops the run and becomes a user decision.
   # true:  findings at or above min_severity are fixed and re-reviewed automatically.

@@ -282,6 +282,14 @@ Each stage runs as its own agent with a clean slate, and writes a file before th
 next one starts. That is what makes stage 4 worth anything: a reviewer that watched
 itself do the work will defend it.
 
+Stage 3 is the one you can move. Set `build.executor` to `inline` and the agent you
+are already talking to does the work — you watch each step and can interrupt — or
+leave it as `subagent` and it is handed off and reported back, which keeps your
+conversation short and is the only workable choice on a big run. Set it to `ask` to
+be offered the choice each time you approve a plan. Stage 4 does not move: the
+reviewer is a separate agent either way, because that is the whole reason its
+findings are worth reading.
+
 ## How it knows what kind of work this is
 
 kaizen is not a software workflow. The same five stages hold for a book chapter, a
@@ -347,6 +355,7 @@ in one can be finished in another. See [adapters.md](https://github.com/hfadhlul
 | Setting | Default | Meaning |
 |---|---|---|
 | `mode` | `approve` | `approve` stops for you; `auto` never does; `plan-only` stops after the plan |
+| `build.executor` | `subagent` | Who does the work: a separate agent, `inline` in the current one, or `ask` each time |
 | `auto_fix.min_severity` | `high` | Findings this bad or worse get fixed without asking |
 | `approvals.plan` | `true` | Stop and show the plan before anything is built |
 
