@@ -693,7 +693,7 @@ function panel(title: string, lines: string[], inner: number) {
     const body = cut(line, inner - 2);
     out.push(`${DIM}│${OFF} ${body}${" ".repeat(Math.max(0, inner - 2 - vis(body)))} ${DIM}│${OFF}`);
   }
-  out.push(`${DIM}╰${"─".repeat(inner)}╯${OFF}`);
+  out.push(`${DIM}╰${"─".repeat(Math.max(0, inner))}╯${OFF}`);
   return out;
 }
 
