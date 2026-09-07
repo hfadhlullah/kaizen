@@ -91,3 +91,14 @@ reports nothing at or above the threshold, or `max_iterations` is reached.
 A finding the loop could not close is escalated to the user with the reviewer's
 description intact — never quietly downgraded to make the run look clean.
 
+**An iteration reads the finding, the work, and the gate.** Not the plan. Fixing a
+named defect needs the reviewer's line, the diff so far, and the gate the result must
+still pass; it does not need the framing, the alternatives rejected, or the out-of-scope
+list, all of which were settled before the finding existed. Read `01-plan.md` only when
+a finding turns on what was approved — a scope question, or a fix that would take the
+work outside it.
+
+Fix what the finding names and stop. A second defect noticed while fixing the first is
+a note in the iteration file, not a second fix: it has not been reviewed, and the
+recheck is scoped to what the iteration claims to have changed.
+

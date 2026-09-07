@@ -76,6 +76,19 @@ The planner reads code but writes none. Its plan must contain:
 The plan is a proposal, not a decision. It never edits files, runs migrations, or
 installs packages.
 
+**Length is a cost the whole run pays.** Every later stage reads this file, and the
+fix loop reads it again per iteration, so a line written once is read five or six
+times. Sections 3 to 6 — the material to reuse, the file manifest, the steps, the
+verification — earn their length: they are what stop every later stage searching the
+material again, and cutting them costs more than it saves. Sections 0, 1, 7 and 9 are
+read once by a human at the approval and should be as short as they can be and still
+be correct: a paragraph of framing, a paragraph of goal, the risks that are real, the
+questions that are open. An alternative rejected gets a line saying what and why, not
+a case against it.
+
+A plan whose framing is longer than its steps is a plan that spent the run's budget
+explaining itself.
+
 ---
 
 ## Plan approval

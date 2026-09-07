@@ -110,6 +110,30 @@ picker with thirty options.
 someone who would rather see the whole file at once. Mention it when the user is
 changing several at a time.
 
+## What is worth a run
+
+A run costs several times what the same change costs in one session, because every
+stage starts cold and the reviewer is deliberately kept ignorant of how the work was
+done. That price buys one thing: an agent with nothing to defend, which is the only
+kind that finds the bug in the fix.
+
+Spend it where being wrong is expensive — money, data loss, a migration, anything a
+customer sees, anything hard to undo, anything touching a part of the system nobody
+has read in a year. Do not spend it on work where being wrong is cheap and obvious.
+A tool that charges the same for a typo and a payroll change gets turned off for both.
+
+**Small changes take the short path.** Where the approved plan touches roughly two
+files or fifty lines, run plan, approval, build and review as usual, then stop: report
+the findings and let the user choose, rather than entering the fix loop. The loop
+exists because a fix to something intricate can be worse than the defect — it is not
+worth two more stages to confirm a one-line message now reads correctly. A finding at
+`high` or above pulls the run back onto the full path whatever its size, since that
+severity is the loop's whole reason for existing.
+
+This is a judgement, not a threshold to enforce: fifty lines that change how money is
+rounded are not a small change. Say which path you took and why, in one line, when the
+run starts.
+
 ## Modes
 
 Set by `mode` in config, overridable per invocation.
@@ -244,6 +268,13 @@ conversation the work happened in.
 
 After a subagent returns, update `state.json` yourself in the main thread. Subagents
 report; the main thread owns the state machine.
+
+**Name files, do not narrate them.** The prompt says which paths to read, which
+decisions bind the stage, and what to report back. It does not summarize those files:
+the subagent is about to read them, and a summary is the same content paid for twice —
+once in your prompt and once when it opens the file. Asking for analysis the stage's
+own contract does not require costs a stage's worth of tokens for an opinion nobody
+will act on.
 
 **Scope precisely, don't scope narrow.** Each subagent starts cold — no context from
 you carries over except what the prompt names. List exactly the files this stage's

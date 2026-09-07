@@ -87,3 +87,20 @@ reports nothing at or above the threshold, or `max_iterations` is reached.
 A finding the loop could not close is escalated to the user with the reviewer's
 description intact — never quietly downgraded to make the run look clean.
 
+**A recheck is not a second review.** Re-answer the findings it was meant to close,
+the gate items the change could plausibly touch, and the regression check. Nothing
+else. State which items were skipped and why, in one line, so the reader can disagree
+with the judgement — a skipped item is a claim that the change could not have reached
+it, and that claim is checkable.
+
+Answering all of them again is not thoroughness, it is the same evidence gathered
+twice. A fix that touched one line of a message string cannot have broken an item
+about which directories the installer writes to, and re-running that item's live
+setup to prove it costs more than the fix did. Where a change genuinely could have
+reached everything — a rename across the run's files, a shared helper — say so and
+re-answer everything.
+
+The exception is the regression check, which runs every iteration whatever the fix
+touched. It is cheap, and it is the one that catches a fix breaking something nobody
+thought to connect it to.
+
