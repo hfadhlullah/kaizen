@@ -5,6 +5,7 @@
 <p align="center"><i>Your AI agent shows you the plan before it does the work,<br>and a second agent checks what it did.</i></p>
 
 <p align="center">
+  <a href="https://github.com/hfadhlullah/kaizen/stargazers"><img alt="stars" src="https://img.shields.io/github/stars/hfadhlullah/kaizen?style=social"></a>
   <a href="https://www.npmjs.com/package/kaizen-agent"><img alt="npm" src="https://img.shields.io/npm/v/kaizen-agent?color=2d50a5&label=npm"></a>
   <a href="https://github.com/hfadhlullah/kaizen/blob/main/LICENSE"><img alt="license" src="https://img.shields.io/npm/l/kaizen-agent?color=2d50a5"></a>
   <img alt="dependencies" src="https://img.shields.io/badge/dependencies-0-2d50a5">

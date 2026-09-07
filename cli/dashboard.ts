@@ -627,7 +627,7 @@ export async function dashboard(
         ? `  ${c.cyan("›")} ${c.bold(a.label.padEnd(20))}${c.dim(a.hint)}\n`
         : `    ${c.dim(a.label)}\n`);
     }
-    stdout.write(`\n  ${c.dim("↑↓ move · enter choose · q or backspace quit")}\n`);
+    stdout.write(`\n  ${c.dim("↑↓ move · enter choose · q quit")}   ${c.dim("⭐ github.com/hfadhlullah/kaizen")}\n`);
   };
 
   stdout.write("\x1b[?1049h\x1b[?25l");
