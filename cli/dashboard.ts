@@ -228,6 +228,10 @@ export async function dashboard(
       const lines = await run(chosen);
       if (lines?.length) await report(lines);
       survey();                                 // an action may have changed what exists
+      // Settings is one of those actions, and ui.mouse is one of its keys: without
+      // this the toggle does nothing until the next launch.
+      mouseWanted = mouseFromConfig(state);
+      if (mouseWanted) mouseOn(); else mouseOff();
     }
   } finally {
     mouseOff();

@@ -171,6 +171,7 @@ export async function settings(repoRoot: string, standalone = true) {
 
   function cycle(step: number) {
     const s = SETTINGS[active]!;
+    const wasMouse = s.key === "ui.mouse";
     const text = readFileSync(file, "utf8");
     if (s.key === "preset") {
       const current = detectPreset(text, defaults);
@@ -193,6 +194,12 @@ export async function settings(repoRoot: string, standalone = true) {
       saved = read(updated, s.key) === next
         ? c.green(`saved ${s.key} = ${next || '""'} (preset: ${detected})`)
         : `\x1b[33mcould not write ${s.key}\x1b[0m`;
+      // Applied here rather than at the next launch: a toggle that needs a restart
+      // reads as a toggle that does not work.
+      if (wasMouse) {
+        if (next === "true" && !mouseArmed) { stdout.write("\x1b[?1000h\x1b[?1006h"); mouseArmed = true; }
+        if (next === "false" && mouseArmed) { stdout.write("\x1b[?1006l\x1b[?1000l"); mouseArmed = false; }
+      }
     }
   }
 
