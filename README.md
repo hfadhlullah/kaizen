@@ -252,28 +252,37 @@ The stage agents and slash commands are Claude Code's own formats and are not co
 elsewhere; under the others you invoke the skill by name. `.kaizen/` is plain files
 either way, so a run started in one tool can be finished in another.
 
-Once installed, `kaizen` on its own opens a dashboard rather than installing again:
+Run `kaizen` anytime to open the terminal dashboard:
 
 ```
-  kaizen 0.5.0   ~/Projects/app
+  ⠀⠀⠀⣰⠖⠾⣟⣛⠋⢉⣩⠽⢛⡽⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+  ⠀⠀⢰⢻⠀⠀⢀⡬⠟⠉⢀⠴⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+  ⠀⢠⠇⣾⡠⠞⢩⠤⢄⡚⣁⣀⣀⣀⢀⣠⠤⡄⠀⠀⠀⠀⠀⠀    █ █  ▄▀█  █  ▀▀█  █▀▀  █▄ █
+  ⢠⣏⠔⣫⣀⡤⢸⠀⠀⠉⠁⠀⠀⠈⠉⠀⠀⡇⠀⠀⠀⠀⠀⠀    █▀▄  █▀█  █   ▄▀  ██▄  █ ▀█
+  ⢾⠥⢾⡅⢧⠀⢸⠃⡤⠖⠢⡀⢀⠔⠲⢤⠘⡇⠀⠀⣀⣀⠀⠀    █ █  █ █  █  █▄▄  █▄▄  █  █
+  ⠀⠀⠈⣇⠈⢠⣫⠞⠀⠘⢱⢣⡜⡎⠃⠀⠳⣝⡄⢠⠇⢻⢉⣷
+  ⠀⠀⠀⠘⢆⠀⠑⢦⣀⡀⠈⠓⠚⠁⢀⣀⣤⣊⣠⢾⡀⢠⣿⠃    0.7.2   plan · approve · build · review
+  ⠀⠀⠀⠀⠈⠓⢄⠀⠀⠉⣉⣭⣭⣉⠉⠀⠈⢀⣠⢔⡩⠥⢥⡀    ~/Projects/app
+  ⠀⠀⠀⠀⠀⠀⢠⡇⠀⡞⠁⠀⠀⠈⢳⠀⢰⣍⣠⠚⠧⡀⠀⡷    Claude Code, Codex, Antigravity, OpenCode, Gemini CLI
+  ⠀⠀⠀⠀⠀⠀⠸⡇⠀⣇⠀⠀⠀⠀⣸⠀⢠⡏⠀⠀⢀⣳⠞⠁
+  ⠀⠀⠀⠀⠀⠀⠀⠳⣀⣨⠥⠤⠶⠾⣅⣀⠞⠉⠉⠉⠉⠀⠀⠀
 
-  Runs
-    ● 2026-09-07-fix-discount  waiting on you — approvals.plan
-    ● 2026-09-06-cache-headers  in flight — review
-    ● 3 done
+  ╭─ Runs ──────────────────────────────────╮ ╭─ Backlog — 4 open ──────────────────────────╮
+  │ ● fix-discount       waiting on you     │ │ cart.py:12    low   use > not >=            │
+  │ ● cache-headers      in review          │ │ headline      med   legal review            │
+  │ ● 3 done                                │ │ … 2 more                                    │
+  ╰─────────────────────────────────────────╯ ╰─────────────────────────────────────────────╯
 
-  Backlog   4 open
-
-  Installed for   Claude Code, Codex, Antigravity
-
-  › Settings            modes, approvals, who builds
+  › All projects        every project kaizen knows about
+    Runs
+    Backlog
+    Settings
     Upgrade
     Quit
 ```
 
-It reads the project you are standing in, so it answers "what is this repo waiting on
-me for" without opening an agent. Installing also puts that `kaizen` command on your
-PATH, so updating later is:
+It monitors your runs and backlog across all your projects without having to open an agent.
+Installing puts the `kaizen` command on your PATH, so updating later is:
 
 ```bash
 kaizen upgrade
