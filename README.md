@@ -13,6 +13,16 @@
 
 ---
 
+```bash
+# 1. Install Bun (prerequisite)
+curl -fsSL https://bun.sh/install | bash
+
+# 2. Install Kaizen
+bunx kaizen-agent
+```
+
+---
+
 ## The problem
 
 You ask an AI to do something real — write the launch email, draft the policy,
