@@ -19,40 +19,8 @@ const c = {
 type Run = { id: string; stage: string; awaiting: string | null };
 
 // The mascot, rendered from assets/kaizen.jpg. Braille packs 2x4 dots into one
-// character, which is the only way outline art survives a downsample this far;
-// sampling brightness onto a character ramp gives grey mush, having no midtones
-// to sample. Regenerate with the snippet in assets/tanuki.txt's history.
+// character, which is the only way outline art survives a downsample this far.
 const TANUKI = [
-  "⠀⠀⠀⠀⢀⡶⢶⣖⡒⠒⠛⠛⠛⠛⣛⡿⠟⢛⡟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
-  "⠀⠀⠀⢀⣾⡇⠀⠀⠉⠛⠲⣤⠴⠛⠁⢀⡴⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
-  "⠀⠀⠀⡾⢹⠇⠀⠀⣠⠴⠋⠁⠀⣠⠖⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
-  "⠀⠀⣼⠁⣸⣠⡴⠋⢁⡴⠦⣄⡚⢁⣀⣀⣀⣀⡀⢀⣠⠴⢦⡀⠀⠀⠀⠀⠀⠀⠀⠀",
-  "⠀⣸⢃⡴⠟⠁⠀⣀⢸⡇⠀⠈⠙⠉⠉⠀⠀⠉⠉⠋⠁⠀⢨⡇⠀⠀⠀⠀⠀⠀⠀⠀",
-  "⣰⡿⠋⢰⡏⢹⠋⠁⠈⣧⠀⠀⢀⡀⠀⠀⠀⠀⢀⡀⠀⠀⣸⠃⠀⠀⠀⠀⠀⠀⠀⠀",
-  "⠻⠖⠛⢹⡇⠘⣇⠀⢰⠇⣠⠞⢉⡉⢳⡀⢀⡞⢉⡉⠳⣄⠘⣆⠀⠀⢠⡤⣤⢀⡀⠀",
-  "⠀⠀⠀⠀⣧⠀⠉⣰⣋⡴⠃⠀⠈⠁⡞⣀⣀⢳⠈⠁⠀⠘⢦⣙⣆⠀⣰⠃⠹⡇⣸⣻",
-  "⠀⠀⠀⠀⠘⣆⠀⠈⠻⣄⠀⠀⠀⠀⠳⢬⡥⠞⠀⠀⠀⠀⣠⠝⠁⢀⡇⠀⠀⣷⢳⠃",
-  "⠀⠀⠀⠀⠀⠈⢧⡀⠀⠈⠙⠲⠦⣤⣤⣀⣀⣤⣤⠴⠖⠿⠷⠶⠚⠉⣳⠤⠴⠯⠏⠀",
-  "⠀⠀⠀⠀⠀⠀⠀⠙⠲⣄⠀⠀⠀⣀⡤⠶⠶⢤⣀⠀⠀⠀⠀⣀⣤⠞⣡⠶⠚⠒⢦⡀",
-  "⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⠀⠀⡼⠁⠀⠀⠀⠀⠈⢧⠀⠀⢾⠉⢀⡾⠻⣄⡀⠀⠈⡇",
-  "⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⠀⠐⡇⠀⠀⠀⠀⠀⠀⢸⠆⠀⢸⠚⠉⠀⠀⠀⢯⣀⡼⠃",
-  "⠀⠀⠀⠀⠀⠀⠀⠀⠀⢷⠀⠀⠻⣄⠀⠀⠀⠀⣠⠟⠀⠀⡾⢤⣤⣀⣤⡤⠶⠋⠀⠀",
-  "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⢧⣄⣠⠤⠶⠒⠒⠻⠧⣄⣠⡼⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀",
-];
-
-// The same, for windows that cannot spare fifteen rows before the runs begin.
-// The wordmark the installer prints. 45 columns; the header only sets it when the
-// terminal has room beside the mascot, and otherwise says the name in text.
-const WORDMARK = [
-  "██╗  ██╗ █████╗ ██╗███████╗███████╗███╗   ██╗",
-  "██║ ██╔╝██╔══██╗██║╚══███╔╝██╔════╝████╗  ██║",
-  "█████╔╝ ███████║██║  ███╔╝ █████╗  ██╔██╗ ██║",
-  "██╔═██╗ ██╔══██║██║ ███╔╝  ██╔══╝  ██║╚██╗██║",
-  "██║  ██╗██║  ██║██║███████╗███████╗██║ ╚████║",
-  "╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚══════╝╚══════╝╚═╝  ╚═══╝",
-];
-
-const TANUKI_SMALL = [
   "⠀⠀⠀⣰⠖⠾⣟⣛⠋⢉⣩⠽⢛⡽⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
   "⠀⠀⢰⢻⠀⠀⢀⡬⠟⠉⢀⠴⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
   "⠀⢠⠇⣾⡠⠞⢩⠤⢄⡚⣁⣀⣀⣀⢀⣠⠤⡄⠀⠀⠀⠀⠀⠀",
@@ -66,6 +34,13 @@ const TANUKI_SMALL = [
   "⠀⠀⠀⠀⠀⠀⠀⠳⣀⣨⠥⠤⠶⠾⣅⣀⠞⠉⠉⠉⠉⠀⠀⠀",
 ];
 
+// Compact block wordmark (28 columns x 3 rows).
+const WORDMARK = [
+  "█ █  ▄▀█  █  ▀▀█  █▀▀  █▄ █",
+  "█▀▄  █▀█  █   ▄▀  ██▄  █ ▀█",
+  "█ █  █ █  █  █▄▄  █▄▄  █  █",
+];
+
 
 export async function dashboard(
   repo: string,
@@ -76,6 +51,25 @@ export async function dashboard(
   const state = locate();
   // Opening a project is what makes it known; nothing else asks the user to register.
   if (state && dirname(state) !== home) remember(dirname(state));
+
+  // Every known project's runs and open items, tagged with where they came from.
+  // draw() runs on every keypress, so this is gathered when the dashboard opens and
+  // after an action returns -- never inside draw().
+  type Seen = { runs: (Run & { where: string })[]; items: { text: string; where: string }[] };
+  let seen: Seen = { runs: [], items: [] };
+
+  const survey = () => {
+    const dirs = [...knownProjects().map((d) => join(d, ".kaizen")), join(home, ".kaizen")]
+      .filter((d, i, all) => all.indexOf(d) === i && existsSync(d));
+    const runs: Seen["runs"] = [], items: Seen["items"] = [];
+    for (const dir of dirs) {
+      const where = label(dir);
+      for (const r of readRuns(dir)) runs.push({ ...r, where });
+      for (const g of allBacklog(dir)) for (const t of g.items) items.push({ text: t, where });
+    }
+    seen = { runs, items };
+  };
+  survey();
 
   const actions = () => [
     ...(knownProjects().length || !state ? [
@@ -102,6 +96,7 @@ export async function dashboard(
     if (chosen === "backlog") { await backlogView(); continue; }
     const lines = await run(chosen);
     if (lines?.length) await report(lines);
+    survey();                                   // an action may have changed what exists
   }
 
   // An action that has something to say says it here, on its own screen, rather
@@ -135,14 +130,14 @@ export async function dashboard(
     rows: string[],
     footer = "enter open · backspace back",
     skip: (i: number) => boolean = () => false,
-    extra?: string,                    // a single key the caller wants to hear about
-  ): Promise<number | "extra" | null> {
-    if (!rows.length) { await report([c.bold(title), "", c.dim("nothing here yet")]); return null; }
+    extra = "",                        // keys the caller wants to hear about
+  ): Promise<{ index: number | null; key?: string }> {
+    if (!rows.length) { await report([c.bold(title), "", c.dim("nothing here yet")]); return { index: null }; }
 
     // Headings are rows too, but they are not items: they are not counted, and
     // moving passes over them rather than landing on them.
     const pickable = rows.map((_, i) => i).filter((i) => !skip(i));
-    if (!pickable.length) { await report([c.bold(title), "", c.dim("nothing here yet")]); return null; }
+    if (!pickable.length) { await report([c.bold(title), "", c.dim("nothing here yet")]); return { index: null }; }
     let cursor = 0;                                  // index into pickable
     const move = (d: number) => { cursor = Math.min(pickable.length - 1, Math.max(0, cursor + d)); };
     let top = 0;
@@ -167,7 +162,7 @@ export async function dashboard(
     stdin.setRawMode(true);
     stdin.resume();
     draw();
-    let chosen: number | null = null, hit = false;
+    let chosen: number | null = null, hit: string | undefined;
     await new Promise<void>((resolve) => {
       const onData = (chunk: Buffer) => {
         const keys = chunk.toString();
@@ -180,9 +175,8 @@ export async function dashboard(
           if (rest.startsWith("\r") || rest.startsWith("\n")) {
             chosen = pickable[cursor]!; stdin.off("data", onData); return resolve();
           }
-          if (extra && rest.startsWith(extra)) {
-            hit = true; stdin.off("data", onData); return resolve();
-          }
+          const k = [...extra].find((x) => rest.startsWith(x));
+          if (k) { hit = k; stdin.off("data", onData); return resolve(); }
           if (rest.startsWith("\x1b[A")) { move(-1); i += 2; }
           else if (rest.startsWith("\x1b[B")) { move(1); i += 2; }
           else if (rest.startsWith("k")) move(-1);
@@ -196,7 +190,7 @@ export async function dashboard(
     stdin.setRawMode(false);
     stdin.pause();
     stdout.write("\x1b[?25h\x1b[?1049l");
-    return hit ? "extra" : chosen;
+    return { index: hit ? pickable[cursor]! : chosen, key: hit };
   }
 
   // Every project kaizen knows about, with what each is waiting on. The global
@@ -234,11 +228,13 @@ export async function dashboard(
         open.push(st);
       }
 
-      const i = await pick("All projects", rows, "enter open · s find more · backspace back",
-        () => false, "s");
-      if (i === null) return;
-      if (i === "extra") { await sync(); continue; }   // the list rebuilds on the next pass
-      if (open[i]) await runsView(open[i]!);
+      const { index, key } = await pick("All projects", rows,
+        "enter runs · b backlog · s find more · backspace back", () => false, "sb");
+      if (index === null) return;
+      if (key === "s") { await sync(); continue; }     // the list rebuilds on the next pass
+      if (!open[index]) continue;                      // a project whose state has gone
+      if (key === "b") await backlogView(open[index]!);
+      else await runsView(open[index]!);
     }
   }
 
@@ -260,7 +256,8 @@ export async function dashboard(
 
   async function runsView(from?: string) {
     for (;;) {
-      const runs = readRuns(state!);
+      const here = from ?? state!;
+      const runs = readRuns(here);
       const width = Math.max(...runs.map((r) => r.id.length));
       const rows = runs.map((r) => {
         const mark = r.stage === "done" ? c.dim("done   ")
@@ -270,9 +267,9 @@ export async function dashboard(
         const tail = r.stage === "done" || r.stage === "abandoned" ? "" : (r.awaiting ?? r.stage);
         return `${mark}  ${r.id.padEnd(width)}  ${c.dim(tail)}`;
       });
-      const i = await pick(from ? `Runs — ${tilde(dirname(from))}` : "Runs", rows);
-      if (i === null || i === "extra") return;
-      await runDetail(runs[i]!, here);
+      const { index } = await pick(from ? `Runs — ${label(from)}` : "Runs", rows);
+      if (index === null) return;
+      await runDetail(runs[index]!, here);
     }
   }
 
@@ -317,8 +314,8 @@ export async function dashboard(
     return out + "…\x1b[0m";
   }
 
-  async function backlogView() {
-    const groups = allBacklog(state!);
+  async function backlogView(from?: string) {
+    const groups = allBacklog(from ?? state!);
     const parsed = groups.map((g) => ({ run: g.run, items: g.items.map(parseItem) }));
     const sevWidth = Math.max(0, ...parsed.flatMap((g) => g.items.map((i) => i.severity?.length ?? 0)));
     const whereWidth = Math.max(0, ...parsed.flatMap((g) => g.items.map((i) => i.where?.length ?? 0)));
@@ -341,11 +338,11 @@ export async function dashboard(
       }
     }
     for (;;) {
-      const i = await pick("Backlog — open items", rows, "enter read · backspace back",
-        (n) => full[n] === null);
-      if (i === null || i === "extra") return;
+      const { index } = await pick(from ? `Backlog — ${label(from)}` : "Backlog — open items",
+        rows, "enter read · backspace back", (n) => full[n] === null);
+      if (index === null) return;
       // Rows are cut to the window, so reading one means opening it.
-      const it = full[i];
+      const it = full[index];
       if (!it) continue;
       await report([
         c.bold(it.where ?? "Backlog item"),
@@ -371,46 +368,40 @@ export async function dashboard(
   async function menu() {
   const draw = () => {
     const acts = actions();
-    const runs = state ? readRuns(state) : [];
-    const waiting = runs.filter((r) => r.awaiting && r.stage !== "abandoned");
-    const flight = runs.filter((r) => !r.awaiting && !["done", "abandoned"].includes(r.stage));
-    const done = runs.filter((r) => r.stage === "done");
-
     stdout.write("\x1b[H\x1b[2J");
 
     // The mascot sits beside the header rather than above it; stacked, it pushes
     // the runs -- the thing you opened this for -- below the fold on a short window.
     const cols = stdout.columns ?? 80, rows = stdout.rows ?? 24;
     const wide = cols >= 64;
-    const art = rows >= 30 ? TANUKI : TANUKI_SMALL;
-    const at = art === TANUKI ? 6 : 2;          // where the text sits against it
+    const art = TANUKI;
+    const at = 2;          // where the text sits against it
 
     // Every width below is measured, not guessed: the mascot's own width plus the
-    // gutter plus the wordmark's 45 columns is exactly what the wide header occupies,
+    // gutter plus the wordmark's columns is exactly what the wide header occupies,
     // and 2 more is the left margin every line is written with.
     const gutter = Math.max(...art.map((l) => l.length)) + 4;
-    const setsWordmark = art === TANUKI && cols >= gutter + WORDMARK[0]!.length + 2;
+    const setsWordmark = cols >= gutter + WORDMARK[0]!.length + 2;
 
     const beside = Array(art.length).fill("");
     if (setsWordmark) {
       // Against the mascot's middle, with what kaizen is under it and where you are
       // under that: the header says what the tool does before it says where it is.
-      const top = Math.max(0, Math.floor((art.length - WORDMARK.length) / 2) - 2);
+      const top = 2;
       for (const [i, line] of WORDMARK.entries()) {
         const t = i / (WORDMARK.length - 1);
         beside[top + i] = rgb(
           Math.round(222 - t * 120), Math.round(238 - t * 100), Math.round(255 - t * 30), line);
       }
-      // The description is longer than the wordmark, so it and not the art decides
-      // what fits. Take the longest that does; take none rather than wrap.
+      // The description is chosen from compact phrasings to fit cleanly beside the mascot.
       const room = cols - gutter - 2 - (version(repo).length + 3);
-      const line = ["plan · you approve · build · an independent agent reviews",
-                    "plan · approve · build · independent review",
-                    "plan · approve · build · review"].find((d) => d.length <= room);
+      const line = ["plan · approve · build · review",
+                    "plan · approve · build",
+                    "plan · build · review"].find((d) => d.length <= room);
       beside[top + WORDMARK.length + 1] =
         `${c.dim(version(repo))}${line ? "   " + c.dim(line) : ""}`;
-      beside[top + WORDMARK.length + 3] = c.dim(state ? tilde(dirname(state)) : "no project here");
-      beside[top + WORDMARK.length + 4] = c.dim(agents.join(", "));
+      beside[top + WORDMARK.length + 2] = c.dim(state ? tilde(dirname(state)) : "no project here");
+      beside[top + WORDMARK.length + 3] = c.dim(agents.join(", "));
     } else {
       beside[at] = `${c.bold("kaizen")} ${c.dim(version(repo))}`;
       beside[at + 1] = c.dim(state ? tilde(dirname(state)) : "no project here");
@@ -430,18 +421,28 @@ export async function dashboard(
     }
 
     if (state) {
+      // Across every project, not only this one. Where more than one is known each
+      // row says which, since "waiting on approvals.plan" means nothing on its own.
+      const many = new Set(seen.runs.map((r) => r.where)).size > 1;
+      const from = (w: string) => (many ? c.dim(w + "  ") : "");
+      const wait = seen.runs.filter((r) => r.awaiting && r.stage !== "abandoned");
+      const fly = seen.runs.filter((r) => !r.awaiting && !["done", "abandoned"].includes(r.stage));
+      const fin = seen.runs.filter((r) => r.stage === "done");
+
       const runLines = [
-        ...waiting.map((r) => `${c.amber("●")} ${short(r.id)}  ${c.dim(r.awaiting ?? "")}`),
-        ...flight.map((r) => `${c.cyan("●")} ${short(r.id)}  ${c.dim(r.stage)}`),
-        ...(done.length ? [c.dim(`● ${done.length} done`)] : []),
+        ...wait.map((r) => `${c.amber("●")} ${from(r.where)}${short(r.id)}  ${c.dim(r.awaiting ?? "")}`),
+        ...fly.map((r) => `${c.cyan("●")} ${from(r.where)}${short(r.id)}  ${c.dim(r.stage)}`),
+        ...(fin.length ? [c.dim(`● ${fin.length} done`)] : []),
       ];
       if (!runLines.length) runLines.push(c.dim("none yet"));
 
-      const items = allBacklog(state).flatMap((g) => g.items.map(parseItem));
+      // parseItem's `where` is the file the finding is in; the project is a separate
+      // thing and both belong on the row.
+      const items = seen.items.map((i) => ({ ...parseItem(i.text), project: i.where }));
       const backLines = items.slice(0, 6).map((it) => {
         const sev = it.severity ? (it.severity === "critical" || it.severity === "high"
           ? c.amber(it.severity) : c.dim(it.severity)) + " " : "";
-        return sev + (it.where ? c.dim(it.where) + "  " : "") + it.text;
+        return from(it.project) + sev + (it.where ? c.dim(it.where) + "  " : "") + it.text;
       });
       if (!backLines.length) backLines.push(c.dim("nothing open"));
       else if (items.length > 6) backLines.push(c.dim(`… ${items.length - 6} more`));
@@ -600,6 +601,11 @@ function backlog(state: string) {
 function version(repo: string) {
   try { return JSON.parse(readFileSync(join(repo, "package.json"), "utf8")).version; } catch { return ""; }
 }
+// The global state directory is not a project and has no parent worth naming.
+function label(stateDir: string) {
+  return stateDir === join(home, ".kaizen") ? "global" : tilde(dirname(stateDir));
+}
+
 function tilde(p: string) { return p.startsWith(home) ? "~" + p.slice(home.length) : p; }
 
 // The first few real lines of a file's body, blank lines and headings dropped.
