@@ -238,14 +238,16 @@ bunx kaizen-agent
 It walks you through where to install, then tells you what to type next. Works with
 `npx` too. Restart your editor afterwards.
 
-To update later:
+Installing also puts a `kaizen` command on your PATH, so updating later is:
 
 ```bash
-bunx kaizen-agent upgrade
+kaizen upgrade
 ```
 
 That pulls the latest workflow, relinks anything new, and clears the installer cache
-`bunx` keeps — which is what otherwise leaves you on an old version without saying so.
+`bunx` keeps — which is what otherwise leaves you on an old version without saying
+so. `bunx kaizen-agent upgrade` does the same thing if you would rather not have the
+command.
 
 Then, in a project you want to use it on:
 
@@ -360,6 +362,10 @@ a comment on each key.
 | `--yes` | Take every default, ask nothing |
 | `--verbose` | List every link instead of a one-line summary |
 | `upgrade` | Pull, relink, and clear the installer cache. No prompts. |
+
+A global install also writes `~/.local/bin/kaizen`, a two-line launcher pointing at
+the clone, so `kaizen upgrade` works from anywhere. It tells you if that directory is
+not on your PATH. Delete the file to remove it; `--project` installs skip it.
 
 Re-running is safe: correct links are left alone.
 

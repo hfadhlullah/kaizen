@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import {
   symlinkSync, mkdirSync, readdirSync, lstatSync, readlinkSync, unlinkSync,
-  existsSync, copyFileSync, readFileSync, appendFileSync, rmSync,
+  existsSync, copyFileSync, readFileSync, appendFileSync, rmSync, writeFileSync,
 } from "node:fs";
 import { join, dirname, basename } from "node:path";
 import { homedir } from "node:os";
@@ -241,6 +241,28 @@ step(
 
 // ---------------------------------------------------------------- repo setup
 
+if (!args.has("--project")) installLauncher();
+
+// bunx runs from a temp copy and leaves nothing behind, so there is no `kaizen` to
+// type afterwards. A launcher pointed at the clone gives one, and keeps working
+// after the clone updates.
+function installLauncher() {
+  const binDir = join(home, ".local", "bin");
+  const bin = join(binDir, "kaizen");
+  const script = `#!/bin/sh\n# kaizen launcher -- installed by kaizen-agent\nexec bun run ${join(repo, "cli/install.ts")} "$@"\n`;
+  try {
+    if (existsSync(bin) && readFileSync(bin, "utf8") === script) return;
+    mkdirSync(binDir, { recursive: true });
+    writeFileSync(bin, script, { mode: 0o755 });
+    const onPath = (process.env.PATH ?? "").split(":").includes(binDir);
+    step(onPath
+      ? `${c.cyan("kaizen upgrade")} is now on your PATH`
+      : `wrote ${tilde(bin)} ${c.dim("— add ~/.local/bin to PATH to use it")}`);
+  } catch {
+    /* a read-only home is not worth failing the install over */
+  }
+}
+
 const inGitRepo = existsSync(join(process.cwd(), ".git"));
 const kaizenDir = join(process.cwd(), ".kaizen");
 
@@ -289,7 +311,7 @@ if (upgrade) {
     2  ${c.cyan("/kaizen-init")} ${c.dim("in any repo you want to use it on")}
     3  ${c.cyan("/kaizen-plan <what you want done>")}
 
-  ${c.dim("/kaizen-help lists every command.")}
+  ${c.dim("/kaizen-help lists every command.  kaizen upgrade updates all of this.")}
 `);
 }
 if (blocked) process.exit(1);
