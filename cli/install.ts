@@ -204,10 +204,16 @@ async function resolveRepo() {
 async function chooseRoot() {
   if (args.has("--project")) return process.cwd();
   if (args.has("--global") || !interactive) return home;
+  // A project install only means something in a project. Standing in the home
+  // directory it is the global install under another name, and outside a
+  // repository there is nothing for it to belong to.
+  const cwd = process.cwd();
+  if (cwd === home || !existsSync(join(cwd, ".git"))) return home;
+
   const names = (r: string) => found(r).map((a) => a.name).join(", ");
   return select("Install kaizen for", [
-    { label: "Every project", hint: names(home), value: home },
-    { label: "This project only", hint: `${basename(process.cwd())}/ — ${names(process.cwd())}`, value: process.cwd() },
+    { label: "Globally", hint: `every project \u2014 ${names(home)}`, value: home },
+    { label: "This project only", hint: `${basename(cwd)}/ \u2014 ${names(cwd)}`, value: cwd },
   ]);
 }
 
