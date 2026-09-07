@@ -1,10 +1,30 @@
 #!/usr/bin/env bun
-import { symlinkSync, mkdirSync, readdirSync, lstatSync, readlinkSync, unlinkSync } from "node:fs";
+import { symlinkSync, mkdirSync, readdirSync, lstatSync, readlinkSync, unlinkSync, existsSync } from "node:fs";
 import { join, dirname, basename } from "node:path";
 import { homedir } from "node:os";
 
-const repo = dirname(import.meta.dir);
 const home = homedir();
+const REPO_URL = "https://github.com/hfadhlullah/kaizen.git";
+
+// Links point back at the clone, so the clone has to be somewhere permanent. Run
+// from a git checkout and that checkout is it; run through `bunx`, and the package
+// lives in a temp cache that gets evicted, so clone to KAIZEN_HOME first.
+const repo = await resolveRepo();
+
+async function resolveRepo() {
+  const here = dirname(import.meta.dir);
+  if (existsSync(join(here, ".git"))) return here;
+
+  const dest = process.env.KAIZEN_HOME ?? join(home, "kaizen");
+  if (existsSync(join(dest, ".git"))) {
+    console.log(`update ${dest}`);
+    await Bun.$`git -C ${dest} pull --ff-only`.quiet();
+    return dest;
+  }
+  console.log(`clone  ${REPO_URL} -> ${dest}`);
+  await Bun.$`git clone --quiet ${REPO_URL} ${dest}`;
+  return dest;
+}
 
 // Each entry: source path in the repo -> directory it is linked into.
 const links = [
