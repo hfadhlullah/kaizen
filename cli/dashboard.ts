@@ -79,6 +79,20 @@ function findTerminal(cwd: string, fullCmd: string[]): { cmd: string[]; detached
   const hasDisplay = Boolean(process.env.WAYLAND_DISPLAY || process.env.DISPLAY);
   const inTmux = Boolean(process.env.TMUX);
 
+  // Windows has no xdg anything, and none of the terminals below exist there.
+  // PowerShell is what a Windows user has open anyway: one -Command string,
+  // where a single quote is doubled rather than escaped. Windows Terminal hosts
+  // it when installed; otherwise `start` gives it a window of its own.
+  if (process.platform === "win32") {
+    const q = (a: string) => `'${a.replace(/'/g, "''")}'`;
+    const shell = Bun.which("pwsh.exe") ? "pwsh.exe" : "powershell.exe";
+    const ps = `Set-Location -LiteralPath ${q(cwd)}; & ${fullCmd.map(q).join(" ")}`;
+    if (Bun.which("wt.exe")) {
+      return { cmd: ["wt.exe", "-d", cwd, shell, "-NoExit", "-Command", ps], detached: true };
+    }
+    return { cmd: ["cmd.exe", "/c", "start", "kaizen", shell, "-NoExit", "-Command", ps], detached: true };
+  }
+
   if (process.env.TERMINAL && Bun.which(process.env.TERMINAL)) {
     const term = process.env.TERMINAL;
     if (term.includes("kitty")) return { cmd: [term, "--directory", cwd, ...fullCmd], detached: true };
@@ -209,15 +223,15 @@ export async function dashboard(
     ...(state ? [
       { key: "board", label: "Board", hint: "ideas and runs, by stage" },
       { key: "runs", label: "Runs", hint: "every run, and what each is waiting on" },
-      { key: "backlog", label: "Backlog", hint: "what runs noticed and did not do" },
+      { key: "backlog", label: "Backlog", hint: "things to do later" },
     ] : []),
-    { key: "settings", label: "Settings", hint: "modes, approvals, who builds" },
+    { key: "settings", label: "Settings", hint: "change how kaizen works" },
     // ~/.kaizen is the global state, not a project: there is nothing to set up
     // there, and it never holds the spec files a project copy does.
     ...(state && state !== join(home, ".kaizen") && !existsSync(join(state, "spec.md"))
-      ? [{ key: "init", label: "Set up this project", hint: "write .kaizen/ here" }] : []),
-    ...(!state ? [{ key: "init", label: "Set up this project", hint: "write .kaizen/ here" }] : []),
-    { key: "upgrade", label: "Upgrade", hint: "pull, relink, clear the installer cache" },
+      ? [{ key: "init", label: "Set up this project", hint: "add kaizen to this folder" }] : []),
+    ...(!state ? [{ key: "init", label: "Set up this project", hint: "add kaizen to this folder" }] : []),
+    { key: "upgrade", label: "Upgrade", hint: "get the latest version" },
     { key: "quit", label: "Quit", hint: "" },
   ];
 
@@ -430,14 +444,18 @@ export async function dashboard(
     for (;;) {
       const here = from ?? state!;
       const runs = readRuns(here);
-      const width = Math.max(...runs.map((r) => r.id.length));
+      const now = Date.now();
+      // The dot the board already uses, a four-letter word for anyone not reading
+      // colour, and the date dropped from the id: every run made the same day
+      // repeated it, which is ten columns saying nothing.
+      const width = Math.max(0, ...runs.map((r) => short(r.id).length));
       const rows = runs.map((r) => {
-        const mark = r.stage === "done" ? c.dim("done   ")
-          : r.stage === "abandoned" ? c.dim("dropped")
-          : r.awaiting ? c.amber("waiting") : c.cyan("running");
+        const { dot, status } = dotFor(r, now);
+        const word = { waiting: "wait", running: "run", stalled: "idle", done: "done", abandoned: "drop" }[status] ?? status;
+        const mark = status === "waiting" ? c.amber(word.padEnd(4)) : c.dim(word.padEnd(4));
         // The mark already says done or dropped; repeating the stage beside it is noise.
         const tail = r.stage === "done" || r.stage === "abandoned" ? "" : (r.awaiting ?? r.stage);
-        return `${mark}  ${r.id.padEnd(width)}  ${c.dim(tail)}`;
+        return `${dot} ${mark}  ${short(r.id).padEnd(width)}  ${c.dim(tail)}`;
       });
       const { index } = await pick(from ? `Runs — ${label(from)}` : "Runs", rows);
       if (index === null) return;
@@ -637,7 +655,10 @@ export async function dashboard(
       stdout.write(`\n  ${c.bold("Board")}   ${c.dim(scope)}\n\n`);
       stdout.write("  " + cols.map(({ meta }, n) =>
         pad(n === col ? c.cyan(meta.title) : c.dim(meta.title), inner)).join("  ") + "\n");
-      stdout.write("  " + cols.map(() => c.dim("─".repeat(inner))).join("  ") + "\n");
+      // Only the column you are in gets a solid rule; the rest fade to a dotted one,
+      // which says where the cursor is without painting a block over the card.
+      stdout.write("  " + cols.map((_, n) =>
+        n === col ? c.cyan("─".repeat(inner)) : c.dim("┈".repeat(inner))).join("  ") + "\n");
       const height = Math.max(4, (stdout.rows ?? 24) - 11);
       const deep = Math.max(0, ...cols.map((x) => x.lines.length));
       // The selected card drags the viewport with it; a cursor that can leave the
@@ -1011,10 +1032,14 @@ export async function dashboard(
       await report([
         c.bold("Could not open terminal"),
         "",
-        c.dim("No supported terminal emulator found (xdg-terminal-exec, kitty, ghostty, alacritty, tmux)."),
+        c.dim(process.platform === "darwin"
+          ? "Terminal.app could not be driven from here."
+          : "No supported terminal emulator found (xdg-terminal-exec, kitty, ghostty, alacritty, tmux)."),
         "",
         "Run manually:",
-        `  ${c.cyan(`cd "${projectDir}" && ${agent.cmd} "${prompt}"`)}`,
+        `  ${c.cyan(process.platform === "win32"
+          ? `Set-Location '${projectDir}'; & ${agent.cmd} '${prompt.replace(/'/g, "''")}'`
+          : `cd "${projectDir}" && ${agent.cmd} "${prompt}"`)}`,
       ]);
       return;
     }
