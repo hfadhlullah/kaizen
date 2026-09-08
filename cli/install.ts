@@ -355,14 +355,17 @@ async function resolveRepo() {
     }
     return dest;
   }
-  if (Bun.which("git")) {
+  // Cloning needs an empty directory, and a copy made on a machine that had no git
+  // is anything but: installing git later must not turn every run into a fatal.
+  // An existing directory is updated in place whichever way it was made.
+  if (Bun.which("git") && !existsSync(dest)) {
     step(`cloning into ${tilde(dest)}`);
     await Bun.$`git clone --quiet ${REPO_URL} ${dest}`;
     return dest;
   }
-  // No git: the bunx download already holds everything a clone would, so copy it
-  // in place. Upgrades then come from re-running bunx rather than a pull.
-  step(`copying into ${tilde(dest)} ${c.dim("(no git)")}`);
+  // The bunx download already holds everything a clone would, so copy it in place.
+  // Upgrades then come from re-running bunx rather than a pull.
+  step(`copying into ${tilde(dest)} ${c.dim(existsSync(dest) ? "(over the copy already there)" : "(no git)")}`);
   cpSync(here, dest, {
     recursive: true, dereference: true,
     filter: (src) => basename(src) !== "node_modules",

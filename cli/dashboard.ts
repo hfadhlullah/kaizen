@@ -437,7 +437,12 @@ export async function dashboard(
   async function sync() {
     const before = knownProjects().length;
     const started = Date.now();
-    const found = findProjects(home);
+    // Only searching under $HOME misses every project on another drive or mount,
+    // which on Windows is most of them. The folder the dashboard was opened in is
+    // searched too, and it is where the projects being worked on actually are.
+    const roots = [home, dirname(state ?? process.cwd()), process.cwd()]
+      .filter((d, i, all) => all.indexOf(d) === i);
+    const found = [...new Set(roots.flatMap((r) => findProjects(r)))];
     for (const dir of found) remember(dir);
     const added = knownProjects().length - before;
     await report([
@@ -445,7 +450,7 @@ export async function dashboard(
       "",
       ...found.map((d) => "  " + c.dim(tilde(d))),
       "",
-      c.dim(`${found.length} found in ${((Date.now() - started) / 1000).toFixed(1)}s under ${tilde(home)}`),
+      c.dim(`${found.length} found in ${((Date.now() - started) / 1000).toFixed(1)}s under ${roots.map(tilde).join(", ")}`),
       c.dim(`the list lives in ${tilde(join(home, ".kaizen", "projects"))} and can be edited`),
     ]);
   }
@@ -1311,7 +1316,9 @@ function findProjects(root: string, depth = 4): string[] {
     try { entries = readdirSync(dir); } catch { return; }
     // $HOME holds ~/.kaizen, the global state, which is not a project and must not
     // stop the walk before it has looked at anything.
-    if (dir !== root && entries.includes(".kaizen")) { found.push(dir); return; }
+    // A project can hold projects of its own -- a monorepo, or a folder of them --
+    // so finding one is not a reason to stop looking underneath it.
+    if (dir !== root && entries.includes(".kaizen")) found.push(dir);
     if (left === 0) return;
     for (const name of entries) {
       if (name.startsWith(".") || name === "node_modules") continue;
