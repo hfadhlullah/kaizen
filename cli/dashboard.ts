@@ -140,8 +140,12 @@ function readMouse(rest: string): { ev: MouseEv; len: number } | null {
 const WHEEL_UP = 64, WHEEL_DOWN = 65;
 const isClick = (e: MouseEv) => e.press && e.button === 0;
 
+// Re-sent even when this module thinks it is already armed: settings runs as an
+// action, tracks arming with its own flag, and turns reporting off in the terminal
+// on the way out. Enabling twice costs nothing; trusting the stale flag costs the
+// mouse for the rest of the session.
 function mouseOn() {
-  if (!mouseWanted || mouseArmed) return;
+  if (!mouseWanted) return;
   process.stdout.write("\x1b[?1000h\x1b[?1006h");
   mouseArmed = true;
 }

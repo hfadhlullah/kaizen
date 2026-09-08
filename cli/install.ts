@@ -6,7 +6,7 @@ import {
 } from "node:fs";
 import { join, dirname, basename } from "node:path";
 import { homedir, tmpdir } from "node:os";
-import { applyPreset, PRESETS, type PresetName } from "./settings.ts";
+import { applyPreset, detectPreset, PRESETS, type PresetName } from "./settings.ts";
 
 const home = homedir();
 const REPO_URL = "https://github.com/hfadhlullah/kaizen.git";
@@ -271,9 +271,11 @@ const root = await chooseRoot();
 const presetChoice = await choosePreset();
 const targets = found(root);
 
-async function choosePreset(): Promise<PresetName> {
+// null means "leave the config alone": an upgrade or a --yes run never asked, and
+// answering "medium" for the user overwrote whatever preset they had chosen.
+async function choosePreset(): Promise<PresetName | null> {
   if (presetArg) return presetArg;
-  if (!interactive) return "medium";
+  if (!interactive) return null;
 
   return select("Choose workflow preset", [
     {
@@ -473,10 +475,16 @@ const globalConfig = join(globalKaizen, "config.yml");
   mkdirSync(globalKaizen, { recursive: true });
   const defPath = join(repo, "skills/kaizen/config.default.yml");
   const def = readFileSync(defPath, "utf8");
-  const base = existsSync(globalConfig) ? readFileSync(globalConfig, "utf8") : def;
-  const conf = applyPreset(base, presetChoice, def);
-  writeFileSync(globalConfig, conf);
-  step(`configured ${c.bold(presetChoice)} preset in ${tilde(globalConfig)}`);
+  const existing = existsSync(globalConfig) ? readFileSync(globalConfig, "utf8") : null;
+  if (presetChoice) {
+    writeFileSync(globalConfig, applyPreset(existing ?? def, presetChoice, def));
+    step(`configured ${c.bold(presetChoice)} preset in ${tilde(globalConfig)}`);
+  } else if (!existing) {
+    writeFileSync(globalConfig, def);
+    step(`wrote ${tilde(globalConfig)}`);
+  } else {
+    step(`kept your settings in ${tilde(globalConfig)} ${c.dim(`(${detectPreset(existing, def)})`)}`);
+  }
 }
 
 // A .kaizen/ in a parent already owns this folder's state, and setting up a child
