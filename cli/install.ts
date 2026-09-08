@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import {
   symlinkSync, mkdirSync, readdirSync, lstatSync, readlinkSync, unlinkSync,
-  existsSync, copyFileSync, readFileSync, appendFileSync, rmSync, writeFileSync,
+  existsSync, copyFileSync, readFileSync, appendFileSync, rmSync, writeFileSync, renameSync,
   statSync, cpSync,
 } from "node:fs";
 import { join, dirname, basename } from "node:path";
@@ -355,6 +355,25 @@ async function resolveRepo() {
     }
     return dest;
   }
+  // A copy made before git was installed can never be pulled, so it keeps upgrading
+  // through npm and its caches. Once git is here, replace it with a real clone --
+  // into a sibling first, so a clone that fails leaves the working copy alone.
+  if (Bun.which("git") && existsSync(join(dest, "cli", "install.ts"))) {
+    const fresh = `${dest}.new`;
+    try {
+      rmSync(fresh, { recursive: true, force: true });
+      await Bun.$`git clone --quiet ${REPO_URL} ${fresh}`;
+      rmSync(dest, { recursive: true, force: true });
+      renameSync(fresh, dest);
+      step(`re-cloned ${tilde(dest)} ${c.dim("(git is available now)")}`);
+      return dest;
+    } catch {
+      rmSync(fresh, { recursive: true, force: true });
+      // Fall through to the copy below: an unreachable network is not a reason to
+      // leave the install untouched.
+    }
+  }
+
   // Cloning needs an empty directory, and a copy made on a machine that had no git
   // is anything but: installing git later must not turn every run into a fatal.
   // An existing directory is updated in place whichever way it was made.
