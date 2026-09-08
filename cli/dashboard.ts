@@ -86,11 +86,21 @@ function findTerminal(cwd: string, fullCmd: string[]): { cmd: string[]; detached
   if (process.platform === "win32") {
     const q = (a: string) => `'${a.replace(/'/g, "''")}'`;
     const shell = Bun.which("pwsh.exe") ? "pwsh.exe" : "powershell.exe";
-    const ps = `Set-Location -LiteralPath ${q(cwd)}; & ${fullCmd.map(q).join(" ")}`;
+    // No Set-Location in the command: both launchers set the directory themselves,
+    // and the semicolon that would separate the two statements is what Windows
+    // Terminal splits its own arguments on. Any semicolon still left in the prompt
+    // is escaped for wt, which reads it before PowerShell ever sees the quoting.
+    const ps = `& ${fullCmd.map(q).join(" ")}`;
     if (Bun.which("wt.exe")) {
-      return { cmd: ["wt.exe", "-d", cwd, shell, "-NoExit", "-Command", ps], detached: true };
+      return {
+        cmd: ["wt.exe", "-d", cwd, shell, "-NoExit", "-Command", ps.replace(/;/g, "\\;")],
+        detached: true,
+      };
     }
-    return { cmd: ["cmd.exe", "/c", "start", "kaizen", shell, "-NoExit", "-Command", ps], detached: true };
+    return {
+      cmd: ["cmd.exe", "/c", "start", "kaizen", "/D", cwd, shell, "-NoExit", "-Command", ps],
+      detached: true,
+    };
   }
 
   if (process.env.TERMINAL && Bun.which(process.env.TERMINAL)) {
@@ -1038,7 +1048,7 @@ export async function dashboard(
         "",
         "Run manually:",
         `  ${c.cyan(process.platform === "win32"
-          ? `Set-Location '${projectDir}'; & ${agent.cmd} '${prompt.replace(/'/g, "''")}'`
+          ? `cd '${projectDir}'; & ${agent.cmd} '${prompt.replace(/'/g, "''")}'`
           : `cd "${projectDir}" && ${agent.cmd} "${prompt}"`)}`,
       ]);
       return;
