@@ -147,6 +147,20 @@ if (interactive && !upgrade && Bun.argv.length === 2) {
 }
 
 if (upgrade) await clearBunxCache();
+
+// An install made without git is a copy, not a clone, so there is nothing to pull:
+// upgrading itself would copy ~/kaizen over ~/kaizen and report "already up to
+// date" forever. The new version comes from npm, and the installer inside it does
+// the copying and relinking, so hand the job over and stop.
+if (upgrade && !existsSync(join(dirname(import.meta.dir), ".git"))) {
+  const latest = await npmLatest();
+  const now = versionOf(dirname(import.meta.dir));
+  if (latest && latest !== now) {
+    step(`fetching kaizen ${latest} from npm`);
+    await Bun.$`${process.execPath} x kaizen-agent@${latest} --yes`.catch(() => {});
+    process.exit(0);
+  }
+}
 if (!check && !upgrade) await welcome();
 
 async function welcome() {
@@ -448,17 +462,27 @@ if (!args.has("--project")) installLauncher();
 // type afterwards. A launcher pointed at the clone gives one, and keeps working
 // after the clone updates.
 function installLauncher() {
-  const binDir = join(home, ".local", "bin");
-  const bin = join(binDir, "kaizen");
-  const script = `#!/bin/sh\n# kaizen launcher -- installed by kaizen-agent\nexec bun run ${join(repo, "cli/install.ts")} "$@"\n`;
+  const entry = join(repo, "cli/install.ts");
+  // Windows cannot run a shell script and has no ~/.local/bin on PATH. Bun's own
+  // bin directory is already there — bun put it there when it installed itself —
+  // so a .cmd beside bun is the launcher that works without touching PATH.
+  const win = process.platform === "win32";
+  const binDir = win
+    ? join(process.env.BUN_INSTALL ?? join(home, ".bun"), "bin")
+    : join(home, ".local", "bin");
+  const bin = join(binDir, win ? "kaizen.cmd" : "kaizen");
+  const script = win
+    ? `@echo off\r\nrem kaizen launcher -- installed by kaizen-agent\r\nbun run "${entry}" %*\r\n`
+    : `#!/bin/sh\n# kaizen launcher -- installed by kaizen-agent\nexec bun run ${entry} "$@"\n`;
   try {
     if (existsSync(bin) && readFileSync(bin, "utf8") === script) return;
     mkdirSync(binDir, { recursive: true });
     writeFileSync(bin, script, { mode: 0o755 });
-    const onPath = (process.env.PATH ?? "").split(":").includes(binDir);
+    const onPath = (process.env.PATH ?? "").split(win ? ";" : ":")
+      .some((p) => p.replace(/[\\/]+$/, "").toLowerCase() === binDir.replace(/[\\/]+$/, "").toLowerCase());
     step(onPath
       ? `${c.cyan("kaizen upgrade")} is now on your PATH`
-      : `wrote ${tilde(bin)} ${c.dim("— add ~/.local/bin to PATH to use it")}`);
+      : `wrote ${tilde(bin)} ${c.dim(`— add ${tilde(binDir)} to PATH to use it`)}`);
   } catch {
     /* a read-only home is not worth failing the install over */
   }
@@ -608,7 +632,9 @@ async function runUpgrade(repoDir: string) {
       .map((l) => c.dim(l.trim())),
   ];
   if (latest && latest !== after) {
-    lines.push("", c.dim(`npm publishes ${latest}; this install follows the git clone.`));
+    lines.push("", c.dim(existsSync(join(repoDir, ".git"))
+      ? `npm publishes ${latest}; this install follows the git clone.`
+      : `npm publishes ${latest} — run: bunx kaizen-agent@${latest}`));
   }
   lines.push("", c.dim("Restart your agent to pick up new slash commands."));
   return lines;
