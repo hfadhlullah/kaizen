@@ -165,7 +165,18 @@ if (upgrade && !existsSync(join(dirname(import.meta.dir), ".git"))) {
   const now = versionOf(dirname(import.meta.dir));
   if (latest && latest !== now) {
     step(`fetching kaizen ${latest} from npm`);
-    await Bun.$`${process.execPath} x kaizen-agent@${latest} --yes`.catch(() => {});
+    // --force so a stale package manifest cannot resolve the version away, and the
+    // failure is printed rather than swallowed: a silent catch here looked exactly
+    // like a successful upgrade that changed nothing.
+    const r = await Bun.$`${process.execPath} x --force kaizen-agent@${latest} --yes`
+      .quiet().nothrow();
+    const out = clean(r.stdout.toString() + r.stderr.toString()).filter((l) => l.trim());
+    for (const l of out) console.log(l.startsWith("  ") ? l : `  ${l}`);
+    if (r.exitCode !== 0) {
+      console.log(`\n  ${c.bold(`could not fetch kaizen ${latest}`)}`);
+      console.log(`  ${c.dim("try:")} ${c.cyan(`bunx kaizen-agent@${latest}`)}\n`);
+      process.exit(1);
+    }
     process.exit(0);
   }
 }
@@ -682,6 +693,28 @@ async function clearBunxCache() {
       }
     }
   } catch { /* an unreadable temp directory is not worth failing an upgrade over */ }
+
+  // bun caches the package manifest too, which is what answers "no version
+  // matching 1.3.7 found (but package exists)" hours after it was published.
+  // Only kaizen's own entries go: another package's cache is not ours to clear.
+  // Where that cache lives depends on the platform and on how bun was installed,
+  // so try the lot; a directory that is not there reads as an empty one.
+  const caches = [
+    process.env.BUN_INSTALL_CACHE_DIR,
+    join(process.env.BUN_INSTALL ?? join(home, ".bun"), "install", "cache"),
+    join(process.env.XDG_CACHE_HOME ?? join(home, ".cache"), "bun"),
+    process.env.LOCALAPPDATA ? join(process.env.LOCALAPPDATA, "bun", "install", "cache") : null,
+  ].filter((d): d is string => Boolean(d));
+  for (const dir of caches) {
+    try {
+      for (const name of readdirSync(dir)) {
+        if (!name.includes("kaizen-agent")) continue;
+        rmSync(join(dir, name), { recursive: true, force: true });
+        removed++;
+      }
+    } catch { /* no cache directory is the same as an empty one */ }
+  }
+
   step(removed ? `cleared ${removed} cached copy of the installer` : "no installer cache to clear");
 }
 function tilde(p: string) { return p.startsWith(home) ? "~" + p.slice(home.length) : p; }
