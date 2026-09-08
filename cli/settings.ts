@@ -256,11 +256,14 @@ export async function settings(repoRoot: string, standalone = true) {
   if (standalone) console.log(`  ${c.green("+")} settings saved to ${tilde(file)}\n`);
 }
 
-// The nearest .kaizen wins, exactly as the workflow resolves it.
+// The nearest .kaizen/config.yml wins, exactly as the workflow resolves it. A
+// project that has not written one of its own is edited globally, so one setting
+// changed in ~/.kaizen/config.yml reaches every project.
 function locate() {
   let dir = process.cwd();
   for (;;) {
-    if (existsSync(join(dir, ".kaizen"))) return join(dir, ".kaizen", "config.yml");
+    const conf = join(dir, ".kaizen", "config.yml");
+    if (existsSync(conf)) return conf;
     if (existsSync(join(dir, ".git"))) break;
     const up = dirname(dir);
     if (up === dir) break;

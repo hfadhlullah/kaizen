@@ -463,7 +463,6 @@ Everything a run knows lives in files next to the work, not in a chat window:
 
 ```
 .kaizen/
-  config.yml            # how much it asks you, what it fixes on its own
   memory.md             # what past reviews learned about this project
   runs/2026-09-07-onboarding-email/
     00-request.md       # what you asked, word for word
@@ -480,7 +479,7 @@ in one can be finished in another. See [adapters.md](https://github.com/hfadhlul
 
 ## Settings
 
-`.kaizen/config.yml`, written when the project is set up. The three worth knowing:
+`~/.kaizen/config.yml` — one file, every project. The three worth knowing:
 
 | Setting | Default | Meaning |
 |---|---|---|
@@ -499,7 +498,7 @@ opens a full-screen browser over the whole file — arrows to move and change, e
 change written as you make it, esc to close:
 
 ```
-  kaizen settings   ~/Projects/app/.kaizen/config.yml
+  kaizen settings   ~/.kaizen/config.yml
 
   › preset                         medium
     mode                           approve
@@ -517,6 +516,8 @@ change written as you make it, esc to close:
   ↑↓ move · ←→ change · esc close     saved preset = medium
 ```
 
+One project can differ: put a `.kaizen/config.yml` in it with just the keys to
+override, and it wins there while everything else follows the global file.
 It edits each line in place, so the comment above every key survives. `/kaizen-config`
 does the same thing from inside your agent if you would rather not leave it. Everything is also
 in [`config.default.yml`](https://github.com/hfadhlullah/kaizen/blob/main/skills/kaizen/config.default.yml),

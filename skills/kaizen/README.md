@@ -189,9 +189,11 @@ software or writing?"
 
 ## Configuration
 
-Defaults live in [`config.default.yml`](config.default.yml). Copy it to
-`.kaizen/config.yml` in a repository and override only the keys you care about;
-anything absent falls back to the defaults.
+Your settings live in `~/.kaizen/config.yml` and apply to every project — `/kaizen
+config` edits that file. To make one project different, copy
+[`config.default.yml`](config.default.yml) to `.kaizen/config.yml` there and override
+only the keys you care about; anything absent falls back to the global file, then to
+the defaults.
 
 | Key | Default | Change it when |
 |---|---|---|

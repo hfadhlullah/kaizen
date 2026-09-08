@@ -60,10 +60,12 @@ If the user typed `/kaizen` with no argument and a run is in progress, treat it 
 1. Locate the state directory: `.kaizen/` in the project folder's root, else
    `~/.kaizen/` keyed by working directory. If neither exists and the user is starting
    work, run `/kaizen init` first: it creates `.kaizen/` with a copy of the `spec*.md`
-   files, a config, and — where the folder is a git repository — the gitignore entry
+   files and — where the folder is a git repository — the gitignore entry
    (see [`adapters.md`](adapters.md)).
-2. Read `.kaizen/config.yml`, falling back to `config.default.yml` in this skill for
-   any key it does not set. `runner` decides whether this run dispatches subagents at
+2. Read the config in this order, each file filling in the keys the one before it
+   does not set: `.kaizen/config.yml`, then `~/.kaizen/config.yml`, then
+   `config.default.yml` in this skill. A project usually has no `config.yml` of its
+   own, so the global one is what settings changes reach. `runner` decides whether this run dispatches subagents at
    all; read it before the first stage, not when you reach one.
 3. Read `.kaizen/runs/<current>/state.json` if a run is active. Never assume the
    stage from conversation memory — the run may have been advanced by another tool
@@ -73,11 +75,12 @@ If the user typed `/kaizen` with no argument and a run is in progress, treat it 
 
 ## Settings
 
-`/kaizen config` reads `.kaizen/config.yml`, falling back to `config.default.yml` for
-anything it does not set, and prints the current value of each setting below with a
+`/kaizen config` reads the same chain — `.kaizen/config.yml`, then `~/.kaizen/config.yml`,
+then `config.default.yml` — and prints the current value of each setting below with a
 one-line meaning. Then it offers the settings as choices — the tool's structured
 question mechanism, one option per legal value, never free text — and writes back
-whichever the user picks.
+whichever the user picks. Write to whichever file in the chain already exists,
+nearest first, so a change lands globally unless this project keeps its own config.
 
 | Setting | Values | What it decides |
 |---|---|---|

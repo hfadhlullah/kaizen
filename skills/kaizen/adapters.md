@@ -24,7 +24,7 @@ Codex reads `AGENTS.md` from the repository root. Append:
 
 Non-trivial work in this repo follows the staged workflow in
 `.kaizen/spec.md`: plan, human approval, implement, independent review, bounded
-fix loop. Read that file before starting, and read `.kaizen/config.yml` for the
+fix loop. Read that file before starting, and read the config chain (`.kaizen/config.yml`, `~/.kaizen/config.yml`, `config.default.yml`) for the
 mode and approval settings.
 
 Run state lives in `.kaizen/runs/<id>/`. Always read `state.json` first and
@@ -38,7 +38,7 @@ from its stage file, and write its artifact before moving on. When reviewing, ju
 diff on its own terms rather than defending the reasoning you used while writing it.
 ```
 
-Copy `spec*.md` and `config.yml` into `.kaizen/` so the reference resolves
+Copy `spec*.md` into `.kaizen/` so the reference resolves
 without this skill installed.
 
 ## Antigravity
@@ -64,7 +64,7 @@ completes. A stale `state.json` is the one way this breaks.
 
 ## Installing the adapter files
 
-`/kaizen init` writes `.kaizen/` with the `spec*.md` files and `config.yml` into the
+`/kaizen init` writes `.kaizen/` with the `spec*.md` files into the
 project folder, plus the gitignore entry when that folder is a git repository.
 `/kaizen install` additionally offers to append the `AGENTS.md` block above.
 `.kaizen/spec*.md` and `.kaizen/config.yml` should be committed even though run state

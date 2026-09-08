@@ -1,5 +1,7 @@
-# Kaizen defaults. Copy to .kaizen/config.yml in a repository and override only the
-# keys you care about; anything absent falls back to this file.
+# Kaizen defaults. Settings live in ~/.kaizen/config.yml and apply to every project.
+# To make one project different, copy this to .kaizen/config.yml there and override
+# only the keys you care about; anything absent falls back to the global file, then
+# to this one.
 
 # Quick preset: low | medium | ultra | custom
 # Selecting low, medium, or ultra applies its bundled defaults for runner, executor,

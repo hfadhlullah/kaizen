@@ -6,7 +6,7 @@ import {
 } from "node:fs";
 import { join, dirname, basename } from "node:path";
 import { homedir, tmpdir } from "node:os";
-import { applyPreset, detectPreset, PRESETS, type PresetName } from "./settings.ts";
+import { applyPreset, PRESETS, type PresetName } from "./settings.ts";
 
 const home = homedir();
 const REPO_URL = "https://github.com/hfadhlullah/kaizen.git";
@@ -467,7 +467,9 @@ const kaizenDir = join(process.cwd(), ".kaizen");
 const globalKaizen = join(home, ".kaizen");
 const globalConfig = join(globalKaizen, "config.yml");
 
-if (!args.has("--project")) {
+// Always global: a project keeps no config of its own, so ~/.kaizen/config.yml is
+// what every project follows.
+{
   mkdirSync(globalKaizen, { recursive: true });
   const defPath = join(repo, "skills/kaizen/config.default.yml");
   const def = readFileSync(defPath, "utf8");
@@ -507,25 +509,19 @@ if (inProject && !kaizenAbove()) {
           { label: "Yes", hint: "writes .kaizen/ and a CLAUDE.md line so it runs by default", value: true },
         ])
       : false;
-  if (now) initProject(presetChoice);
+  if (now) initProject();
 } else if (existsSync(kaizenDir)) {
   step(`${basename(process.cwd())}/.kaizen already set up`);
 }
 
-function initProject(preset?: PresetName | null) {
+function initProject() {
   mkdirSync(kaizenDir, { recursive: true });
   for (const f of readdirSync(join(repo, "skills/kaizen")).filter((f) => f.startsWith("spec"))) {
     copyFileSync(join(repo, "skills/kaizen", f), join(kaizenDir, f));
   }
-  const defPath = join(repo, "skills/kaizen/config.default.yml");
-  const def = readFileSync(defPath, "utf8");
-  let chosen: PresetName = preset ?? "medium";
-  if (!preset && existsSync(globalConfig)) {
-    const detected = detectPreset(readFileSync(globalConfig, "utf8"), def);
-    if (detected !== "custom") chosen = detected;
-  }
-  const configContent = applyPreset(def, chosen, def);
-  writeFileSync(join(kaizenDir, "config.yml"), configContent);
+  // No config.yml here on purpose: a project without one follows
+  // ~/.kaizen/config.yml, so a setting changed once applies everywhere. Write one
+  // only to make this project deliberately different.
 
   // Run state is local; the workflow itself is shared, so those files stay tracked.
   // Nothing to ignore where there is no git, so a plain folder gets no .gitignore.

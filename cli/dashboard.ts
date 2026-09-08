@@ -208,7 +208,7 @@ export async function dashboard(
       { key: "backlog", label: "Backlog", hint: "what runs noticed and did not do" },
     ] : []),
     { key: "settings", label: "Settings", hint: "modes, approvals, who builds" },
-    ...(state && !existsSync(join(state, "config.yml"))
+    ...(state && !existsSync(join(state, "spec.md"))
       ? [{ key: "init", label: "Set up this project", hint: "write .kaizen/ here" }] : []),
     ...(!state ? [{ key: "init", label: "Set up this project", hint: "write .kaizen/ here" }] : []),
     { key: "upgrade", label: "Upgrade", hint: "pull, relink, clear the installer cache" },
