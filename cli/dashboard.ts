@@ -440,8 +440,7 @@ export async function dashboard(
     // Only searching under $HOME misses every project on another drive or mount,
     // which on Windows is most of them. The folder the dashboard was opened in is
     // searched too, and it is where the projects being worked on actually are.
-    const roots = [home, dirname(state ?? process.cwd()), process.cwd()]
-      .filter((d, i, all) => all.indexOf(d) === i);
+    const roots = searchRoots([dirname(state ?? process.cwd()), process.cwd()]);
     const found = [...new Set(roots.flatMap((r) => findProjects(r)))];
     for (const dir of found) remember(dir);
     const added = knownProjects().length - before;
@@ -1289,6 +1288,21 @@ export async function dashboard(
 // read and corrected in an editor; blanks and # lines ignored.
 const REGISTRY = join(home, ".kaizen", "projects");
 
+// Windows spreads work across drives -- the profile on C:, the projects on D: or E: --
+// and a search that only knows $HOME finds none of them. Every letter that answers is
+// a root worth walking; elsewhere there is one filesystem and $HOME is where work
+// lives, so walking / would cost minutes to find nothing.
+export function searchRoots(extra: string[] = []): string[] {
+  const roots = [home, ...extra];
+  if (process.platform === "win32") {
+    for (const letter of "ABCDEFGHIJKLMNOPQRSTUVWXYZ") {
+      const drive = `${letter}:\\`;
+      try { readdirSync(drive); roots.push(drive); } catch { /* no such drive */ }
+    }
+  }
+  return roots.filter((d, i, all) => d && all.indexOf(d) === i);
+}
+
 export function knownProjects(): string[] {
   if (!existsSync(REGISTRY)) return [];
   return readFileSync(REGISTRY, "utf8").split("\n")
@@ -1306,10 +1320,16 @@ export function remember(projectDir: string) {
   } catch { /* nothing here is worth an error */ }
 }
 
+const SKIP = new Set([
+  "windows", "program files", "program files (x86)", "programdata", "$recycle.bin",
+  "system volume information", "appdata", "node_modules", "recovery", "perflogs",
+  "library", "applications", "onedrive", "onedrivetemp",
+]);
+
 // Bounded on purpose. Depth is what keeps this from becoming a filesystem walk, and
 // the skips are the directories that make one slow: node_modules, and anything dotted
 // (which includes .git, and every state directory that is not a project of its own).
-function findProjects(root: string, depth = 4): string[] {
+export function findProjects(root: string, depth = 4): string[] {
   const found: string[] = [];
   const walk = (dir: string, left: number) => {
     let entries: string[];
@@ -1322,6 +1342,9 @@ function findProjects(root: string, depth = 4): string[] {
     if (left === 0) return;
     for (const name of entries) {
       if (name.startsWith(".") || name === "node_modules") continue;
+      // Walking a whole drive means walking Windows itself otherwise: tens of
+      // thousands of directories that have never held a project.
+      if (SKIP.has(name.toLowerCase())) continue;
       try { if (statSync(join(dir, name)).isDirectory()) walk(join(dir, name), left - 1); }
       catch { /* unreadable or vanished mid-walk */ }
     }

@@ -14,6 +14,7 @@ const args = new Set(Bun.argv.slice(2));
 const upgrade = args.has("upgrade") || args.has("--upgrade");
 const wantSettings = args.has("settings") || args.has("config");
 const check = args.has("--check");
+const uninstall = args.has("uninstall") || args.has("--uninstall");
 const force = args.has("--force");
 const verbose = args.has("--verbose");
 const interactive = process.stdin.isTTY && !check && !upgrade && !args.has("--yes");
@@ -67,6 +68,87 @@ const onPath = new Set(
 );
 const found = (r: string) =>
   AGENTS.filter((a) => existsSync(join(r, a.dir)) || onPath.has(a.dir));
+
+if (uninstall) { await removeEverything(); process.exit(0); }
+
+// Everything kaizen put on this machine, in one place, so uninstalling needs no
+// clone to read: the links are known by name, the rest by path. State (~/.kaizen
+// and any project's .kaizen) is left alone unless --purge says otherwise, because
+// it holds runs and decisions this program did not write.
+async function removeEverything() {
+  let purge = args.has("--purge") || args.has("--all");
+  // Deleting someone's runs is not a thing to do on a typo, so ask unless the
+  // answer already arrived as a flag.
+  if (interactive && !purge) {
+    const choice = await select("Uninstall kaizen", [
+      { label: "Keep my runs and settings", hint: "removes the app, keeps ~/.kaizen and each project's .kaizen/", value: "keep" },
+      { label: "Remove everything", hint: "also deletes runs, backlog, memory and settings", value: "all" },
+      { label: "Cancel", hint: "change nothing", value: "cancel" },
+    ]);
+    if (choice === "cancel") { console.log(`\n  ${c.dim("Nothing removed.")}\n`); return; }
+    purge = choice === "all";
+  }
+  const gone: string[] = [];
+  const stuck: string[] = [];
+  const drop = (p: string) => {
+    if (!existsSync(p) && !isLink(p)) return;
+    // Windows refuses to delete a file another process holds open, and a silent
+    // failure here would read as a clean uninstall that removed nothing.
+    try { rmSync(p, { recursive: true, force: true }); gone.push(tilde(p)); }
+    catch { stuck.push(tilde(p)); }
+  };
+
+  // A --project install puts links in the project folder, and on Windows those
+  // projects live on other drives entirely. Every project kaizen knows about is
+  // checked, plus whatever a drive-wide scan turns up.
+  const { knownProjects, searchRoots, findProjects } = await import("./dashboard.ts");
+  step("looking for project installs");
+  const roots = [home, process.cwd(), ...knownProjects(),
+    ...searchRoots([process.cwd()]).flatMap((r) => findProjects(r))]
+    .filter((d, i, all) => all.indexOf(d) === i);
+
+  for (const root of roots) {
+    for (const a of AGENTS) {
+      for (const n of ["kaizen", "kaizen-help"]) drop(join(root, a.dir, "skills", n));
+      for (const sub of ["agents", "commands"]) {
+        const dir = join(root, a.dir, sub);
+        try {
+          for (const f of readdirSync(dir)) {
+            if (f.startsWith("kaizen-") && f.endsWith(".md")) drop(join(dir, f));
+          }
+        } catch { /* no such directory */ }
+      }
+    }
+  }
+
+  drop(process.env.KAIZEN_HOME ?? join(home, "kaizen"));
+  drop(join(process.env.BUN_INSTALL ?? join(home, ".bun"), "bin", "kaizen.cmd"));
+  drop(join(home, ".local", "bin", "kaizen"));
+  await clearBunxCache();
+
+  if (purge) {
+    drop(join(home, ".kaizen"));
+    drop(join(process.cwd(), ".kaizen"));
+  }
+
+  console.log(`\n  ${c.bold("Uninstalled")}`);
+  for (const p of gone) console.log(`  ${c.dim("removed  " + p)}`);
+  if (!gone.length && !stuck.length) console.log(`  ${c.dim("nothing left to remove")}`);
+  if (stuck.length) {
+    console.log(`\n  ${c.bold("could not remove")} ${c.dim("— close any dashboard or agent still using these, then run it again")}`);
+    for (const p of stuck) console.log(`  ${c.dim(p)}`);
+  }
+  console.log(purge
+    ? `\n  ${c.dim("Runs and settings deleted too.")}\n`
+    : `\n  ${c.dim("Runs and settings kept in")} ${c.cyan(tilde(join(home, ".kaizen")))}${c.dim(" — add --purge to delete them.")}\n`);
+  console.log(`  ${c.dim("The CLAUDE.md / AGENTS.md line in each project is left for you to remove.")}\n`);
+}
+
+// A dangling symlink fails existsSync, and a stale link is exactly what wants
+// removing here.
+function isLink(p: string) {
+  try { return lstatSync(p).isSymbolicLink(); } catch { return false; }
+}
 
 // Nothing to install into. kaizen is a workflow an agent runs; on its own it does
 // nothing, so send them to the agent first rather than laying out files no reader

@@ -574,11 +574,20 @@ with a comment on each key, if you would rather edit the file.
 | `--yes` | Take every default, ask nothing |
 | `--verbose` | List every link instead of a one-line summary |
 | `upgrade` | Pull, relink, and clear the installer cache. No prompts. |
+| `uninstall` | Remove the links, the clone, and the launcher. Asks whether to keep your runs and settings. |
+| `uninstall --purge` | The same, and delete `~/.kaizen` and this project's `.kaizen/` too. |
 | `settings` | Open the settings browser for the nearest `.kaizen/`. Also `config`. |
 
-A global install also writes `~/.local/bin/kaizen`, a two-line launcher pointing at
+Uninstalling works the same on Linux, macOS and Windows — `kaizen uninstall`, or
+`bunx kaizen-agent uninstall` when the command itself is already gone. It offers three
+answers — keep your runs and settings, remove everything, or cancel — and takes the
+first without asking when the output is not a terminal. It lists what it removed; the `## Kaizen workflow` line in each project's `CLAUDE.md` is left for
+you to delete, since you may have edited around it.
+
+A global install also writes `~/.local/bin/kaizen` (`kaizen.cmd` in bun's bin
+directory on Windows), a two-line launcher pointing at
 the clone, so `kaizen upgrade` works from anywhere. It tells you if that directory is
-not on your PATH. Delete the file to remove it; `--project` installs skip it.
+not on your PATH. `uninstall` removes it; `--project` installs skip it.
 
 Re-running is safe: correct links are left alone.
 
