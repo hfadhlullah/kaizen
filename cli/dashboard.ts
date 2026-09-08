@@ -212,7 +212,9 @@ export async function dashboard(
       { key: "backlog", label: "Backlog", hint: "what runs noticed and did not do" },
     ] : []),
     { key: "settings", label: "Settings", hint: "modes, approvals, who builds" },
-    ...(state && !existsSync(join(state, "spec.md"))
+    // ~/.kaizen is the global state, not a project: there is nothing to set up
+    // there, and it never holds the spec files a project copy does.
+    ...(state && state !== join(home, ".kaizen") && !existsSync(join(state, "spec.md"))
       ? [{ key: "init", label: "Set up this project", hint: "write .kaizen/ here" }] : []),
     ...(!state ? [{ key: "init", label: "Set up this project", hint: "write .kaizen/ here" }] : []),
     { key: "upgrade", label: "Upgrade", hint: "pull, relink, clear the installer cache" },
