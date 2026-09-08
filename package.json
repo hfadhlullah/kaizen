@@ -1,6 +1,6 @@
 {
   "name": "kaizen-agent",
-  "version": "1.3.8",
+  "version": "1.3.9",
   "description": "Staged workflow for AI agents — code, writing, research, operations: plan, human approval, build, independent review, bounded fix loop.",
   "type": "module",
   "bin": {
