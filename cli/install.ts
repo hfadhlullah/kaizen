@@ -2,9 +2,10 @@
 import {
   symlinkSync, mkdirSync, readdirSync, lstatSync, readlinkSync, unlinkSync,
   existsSync, copyFileSync, readFileSync, appendFileSync, rmSync, writeFileSync,
+  statSync, cpSync,
 } from "node:fs";
 import { join, dirname, basename } from "node:path";
-import { homedir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { applyPreset, detectPreset, PRESETS, type PresetName } from "./settings.ts";
 
 const home = homedir();
@@ -319,8 +320,18 @@ async function resolveRepo() {
     }
     return dest;
   }
-  step(`cloning into ${tilde(dest)}`);
-  await Bun.$`git clone --quiet ${REPO_URL} ${dest}`;
+  if (Bun.which("git")) {
+    step(`cloning into ${tilde(dest)}`);
+    await Bun.$`git clone --quiet ${REPO_URL} ${dest}`;
+    return dest;
+  }
+  // No git: the bunx download already holds everything a clone would, so copy it
+  // in place. Upgrades then come from re-running bunx rather than a pull.
+  step(`copying into ${tilde(dest)} ${c.dim("(no git)")}`);
+  cpSync(here, dest, {
+    recursive: true, dereference: true,
+    filter: (src) => basename(src) !== "node_modules",
+  });
   return dest;
 }
 
@@ -356,10 +367,30 @@ const links = targets.flatMap((a) => [
   ] : []),
 ]);
 
+const isWindows = process.platform === "win32";
+
+// Windows only hands out file symlinks to an admin or a Developer Mode box, so
+// there the link is a directory junction (allowed for everyone) or, for a plain
+// file, a copy that is refreshed whenever the source moves ahead.
+function makeLink(src: string, dest: string) {
+  if (!isWindows) { symlinkSync(src, dest); return; }
+  if (statSync(src).isDirectory()) { symlinkSync(src, dest, "junction"); return; }
+  copyFileSync(src, dest);
+}
+
+function sameFile(a: string, b: string) {
+  try { return readFileSync(a).equals(readFileSync(b)); } catch { return false; }
+}
+
 function linkState(src: string, dest: string) {
   try {
     const st = lstatSync(dest);
-    if (!st.isSymbolicLink()) return "occupied";
+    if (!st.isSymbolicLink()) {
+      // A copied link on Windows is a real file; it is ours as long as it still
+      // matches the source, and stale once the source changes.
+      if (isWindows && st.isFile()) return sameFile(src, dest) ? "linked" : "stale";
+      return "occupied";
+    }
     return readlinkSync(dest) === src ? "linked" : "stale";
   } catch {
     return "missing";
@@ -385,8 +416,8 @@ for (const [src, sub] of links) {
     continue;
   }
   mkdirSync(dir, { recursive: true });
-  if (state !== "missing") unlinkSync(dest);
-  symlinkSync(src, dest);
+  if (state !== "missing") rmSync(dest, { recursive: true, force: true });
+  makeLink(src, dest);
   wrote++;
   if (verbose) console.log(c.dim(`  link  ${name}`));
 }
@@ -603,7 +634,7 @@ function clean(out: string) {
 // without re-resolving, so an upgrade that only pulls the clone still leaves the
 // next `bunx kaizen-agent` running whatever was cached the first time.
 async function clearBunxCache() {
-  const tmp = process.env.TMPDIR ?? "/tmp";
+  const tmp = process.env.TMPDIR ?? tmpdir();
   let removed = 0;
   try {
     for (const name of readdirSync(tmp)) {
