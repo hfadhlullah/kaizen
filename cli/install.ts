@@ -126,23 +126,31 @@ if (wantSettings) {
 // opened a terminal for.
 if (interactive && !upgrade && Bun.argv.length === 2) {
   const repoDir = await resolveRepoQuietly();
-  const here = found(home);
-  const linked = here.length > 0 && here.every((a) =>
-    ["kaizen", "kaizen-help"].every((n) => existsSync(join(home, a.dir, "skills", n))));
-  if (linked) {
-    const { dashboard } = await import("./dashboard.ts");
-    await dashboard(repoDir, here.map((a) => a.name), async (action) => {
-      if (action === "settings") {
-        const { settings } = await import("./settings.ts");
-        await settings(repoDir, false);
-      } else if (action === "upgrade") {
-        return await runUpgrade(repoDir);
-      } else if (action === "init") {
-        const out = await Bun.$`bun run ${join(repoDir, "cli/install.ts")} --yes`.text();
-        return clean(out);
-      }
-    });
-    process.exit(0);
+  // `bunx kaizen-agent@1.4.0` on a machine that already has an older copy is a
+  // request to install that version, not to open the dashboard the old one links
+  // to -- opening it would hand the upgrade back to the very installer being
+  // replaced. Only skip to the dashboard when the two are the same version.
+  const running = dirname(import.meta.dir);
+  const stale = running !== repoDir && versionOf(running) !== versionOf(repoDir);
+  if (!stale) {
+    const here = found(home);
+    const linked = here.length > 0 && here.every((a) =>
+      ["kaizen", "kaizen-help"].every((n) => existsSync(join(home, a.dir, "skills", n))));
+    if (linked) {
+      const { dashboard } = await import("./dashboard.ts");
+      await dashboard(repoDir, here.map((a) => a.name), async (action) => {
+        if (action === "settings") {
+          const { settings } = await import("./settings.ts");
+          await settings(repoDir, false);
+        } else if (action === "upgrade") {
+          return await runUpgrade(repoDir);
+        } else if (action === "init") {
+          const out = await Bun.$`bun run ${join(repoDir, "cli/install.ts")} --yes`.text();
+          return clean(out);
+        }
+      });
+      process.exit(0);
+    }
   }
 }
 
