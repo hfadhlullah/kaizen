@@ -15,8 +15,9 @@
 ---
 
 ```bash
-# 1. Install Bun (prerequisite)
+# 1. Install Bun (prerequisite) — macOS, Linux, WSL
 curl -fsSL https://bun.sh/install | bash
+#    Windows PowerShell: powershell -c "irm bun.sh/install.ps1 | iex"
 
 # 2. Install Kaizen
 bunx kaizen-agent
@@ -284,28 +285,58 @@ leave. Hold **Shift** and drag to select text anyway.
 
 ## Install
 
-### Prerequisites: Bun
+Kaizen's installer and interactive dashboard require [Bun](https://bun.sh) — it is
+the only prerequisite. Pick your platform:
 
-Kaizen's installer and interactive dashboard require [Bun](https://bun.sh). If you don't have Bun installed yet:
+<details open>
+<summary><b>Windows</b></summary>
 
-```bash
-# macOS, Linux, WSL
-curl -fsSL https://bun.sh/install | bash
+In PowerShell:
 
-# or via Homebrew
-brew install oven-sh/bun/bun
+```powershell
+# 1. Install Bun
+powershell -c "irm bun.sh/install.ps1 | iex"
 
-# or via npm
-npm install -g bun
-```
-
-### Install Kaizen
-
-```bash
+# 2. Reopen PowerShell so bun is on your PATH, then:
 bunx kaizen-agent
 ```
 
-It walks you through where to install, prompts for your workflow preset (`medium`, `low`, or `ultra`), then tells you what to type next. Restart your editor afterwards.
+Git is not required. Where it is missing, kaizen copies itself into `%USERPROFILE%\kaizen`
+instead of cloning, and `bunx kaizen-agent` is also how you update. Links are made as
+directory junctions and file copies, so no administrator rights or Developer Mode are
+needed. WSL users can follow the Linux instructions instead.
+
+</details>
+
+<details>
+<summary><b>macOS</b></summary>
+
+```bash
+# 1. Install Bun
+curl -fsSL https://bun.sh/install | bash
+# or: brew install oven-sh/bun/bun
+
+# 2. Install Kaizen
+bunx kaizen-agent
+```
+
+</details>
+
+<details>
+<summary><b>Linux</b></summary>
+
+```bash
+# 1. Install Bun
+curl -fsSL https://bun.sh/install | bash
+# or: npm install -g bun
+
+# 2. Install Kaizen
+bunx kaizen-agent
+```
+
+</details>
+
+The installer walks you through where to install, prompts for your workflow preset (`medium`, `low`, or `ultra`), then tells you what to type next. Restart your editor afterwards.
 
 Run from inside a project it asks whether to install globally or for that project
 alone; anywhere else — your home directory, a plain folder, a script — it installs
