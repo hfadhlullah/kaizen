@@ -423,7 +423,8 @@ kaizen upgrade
 That pulls the latest workflow, relinks anything new, and clears the installer cache
 `bunx` keeps — which is what otherwise leaves you on an old version without saying
 so. `bunx kaizen-agent upgrade` does the same thing if you would rather not have the
-command.
+command. `kaizen --version` prints what is installed; `bunx kaizen-agent --version`
+prints what npm has.
 
 Then, in any project, just ask for something:
 

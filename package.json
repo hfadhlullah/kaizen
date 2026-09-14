@@ -20,7 +20,8 @@
     "install-links": "bun run cli/install.ts",
     "check": "bun run cli/install.ts --check",
     "postpublish": "sh cli/release.sh",
-    "publish:gh": "sh cli/publish-gh.sh"
+    "publish:gh": "sh cli/publish-gh.sh",
+    "release": "bun publish && bun run publish:gh"
   },
   "repository": {
     "type": "git",

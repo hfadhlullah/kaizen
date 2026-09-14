@@ -70,6 +70,11 @@ const onPath = new Set(
 const found = (r: string) =>
   AGENTS.filter((a) => existsSync(join(r, a.dir)) || onPath.has(a.dir));
 
+if (args.has("--version") || args.has("-v") || args.has("version")) {
+  console.log(versionOf(dirname(import.meta.dir)));
+  process.exit(0);
+}
+
 if (uninstall) { await removeEverything(); process.exit(0); }
 
 // Everything kaizen put on this machine, in one place, so uninstalling needs no
