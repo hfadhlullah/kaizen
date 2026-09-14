@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
   readRuns, readInbox, writeInbox, replaceIdea, abandonRun, allBacklog, backlog,
-  statusOf, columnOf, parseItem, startedRuns, boardCards,
+  statusOf, columnOf, parseItem, startedRuns, boardCards, readArchive, setArchived,
 } from "./state.ts";
 
 let state: string;
@@ -103,4 +103,20 @@ test("parseItem: finding line splits into where, severity, text", () => {
 
 test("startedRuns: normalised request bodies", () => {
   expect(startedRuns(state).sort()).toEqual(["# request add oauth login", "# request rename cli flags"]);
+});
+
+test("archive: a run is listed, hidden by flag, never moved", () => {
+  setArchived(state, "2026-09-02-done", true);
+  expect([...readArchive(state)]).toEqual(["2026-09-02-done"]);
+  const card = boardCards([state], Date.now()).find((k) => k.id === "2026-09-02-done")!;
+  expect([card.archived, card.column]).toEqual([true, 4]);
+  setArchived(state, "2026-09-02-done", false);
+  expect(readArchive(state).size).toBe(0);
+  expect(boardCards([state], Date.now()).find((k) => k.id === "2026-09-02-done")!.archived).toBe(false);
+});
+
+test("archive: an idea keeps its line with status archived", () => {
+  writeInbox(state, [{ status: "open", text: "park this" }, { status: "archived", text: "parked zq7" }]);
+  const ideas = boardCards([state], Date.now()).filter((k) => k.kind === "idea");
+  expect(ideas.map((k) => [k.text, k.archived])).toEqual([["park this", false], ["parked zq7", true]]);
 });

@@ -4,7 +4,7 @@ import { existsSync, readFileSync, readdirSync, statSync, watch, type FSWatcher 
 import { join, dirname } from "node:path";
 import {
   home, type Item, boardCards, knownProjects, remember, locate, label, tilde,
-  readInbox, writeInbox, replaceIdea, abandonRun, launchRun, parseItem, short,
+  readInbox, writeInbox, replaceIdea, abandonRun, launchRun, parseItem, short, setArchived,
 } from "./state.ts";
 
 const PAGE = join(dirname(import.meta.dir), "web", "board.html");
@@ -61,7 +61,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
   const fingerprint = () => {
     let sum = 0;
     for (const dir of states(true)) {
-      for (const f of ["inbox.md", "backlog.md"]) { try { sum += statSync(join(dir, f)).mtimeMs; } catch { /* absent */ } }
+      for (const f of ["inbox.md", "backlog.md", "archive.md"]) { try { sum += statSync(join(dir, f)).mtimeMs; } catch { /* absent */ } }
       const runs = join(dir, "runs");
       if (!existsSync(runs)) continue;
       for (const id of readdirSync(runs)) { try { sum += statSync(join(runs, id, "state.json")).mtimeMs; } catch { /* absent */ } }
@@ -164,6 +164,25 @@ export async function web(repoDir: string, opts: Opts = {}) {
           return json(r.ok
             ? { ok: true, agent: r.agent, project: tilde(r.projectDir) }
             : { ok: false, why: r.why, manual: r.manual, agent: r.agent }, r.ok ? 200 : 500);
+        }
+
+        // Archive is a list beside the runs, never a move: a run keeps its directory
+        // and its state, and the board simply stops showing it.
+        if (path === "/archive") {
+          const archived = body.archived !== false;
+          if (typeof body.id === "string") {
+            if (!/^[\w.-]+$/.test(body.id)) return bad("bad run id");
+            setArchived(dir, body.id, archived);
+          } else if (typeof body.text === "string") {
+            const text = body.text.trim();
+            const lines = readInbox(dir);
+            const at = lines.findIndex((l) => l.text === text && (archived ? l.status === "open" : l.status === "archived"));
+            if (at < 0) return bad("no such idea", 404);
+            lines[at] = { status: archived ? "archived" : "open", text };
+            writeInbox(dir, lines);
+          } else return bad("id or text required");
+          changed();
+          return json({ ok: true });
         }
 
         if (path === "/abort") {

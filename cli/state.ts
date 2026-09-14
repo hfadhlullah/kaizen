@@ -307,6 +307,7 @@ export type Card = {
   dim: boolean;
   moved?: number;                                  // runs only: state.json mtime
   title?: string;                                  // runs only: first line of the request
+  archived: boolean;                               // hidden from the board unless asked for
 };
 
 // A run is called running on the evidence that it moved recently; there is no PID
@@ -362,7 +363,7 @@ export function readInbox(state: string): InboxLine[] {
   const f = join(state, "inbox.md");
   if (!existsSync(f)) return [];
   return readFileSync(f, "utf8").split("\n")
-    .map((l) => /^-\s*(open|started|done|rejected):\s*(.+)$/.exec(l.trim()))
+    .map((l) => /^-\s*(open|started|done|rejected|archived):\s*(.+)$/.exec(l.trim()))
     .filter((m): m is RegExpExecArray => !!m)
     .map((m) => ({ status: m[1]!, text: m[2]!.trim() }));
 }
@@ -425,6 +426,30 @@ export function replaceIdea(state: string, text: string, next: InboxLine | null)
   writeInbox(state, lines);
 }
 
+// Archived runs stay exactly where they are on disk -- run directories are never
+// moved or renamed, that is the resume contract -- and are listed here instead.
+// One id per line; the board hides them unless asked for the archive.
+export function readArchive(state: string): Set<string> {
+  const f = join(state, "archive.md");
+  if (!existsSync(f)) return new Set();
+  return new Set(readFileSync(f, "utf8").split("\n")
+    .map((l) => /^-\s*(\S+)/.exec(l.trim())?.[1])
+    .filter((x): x is string => !!x));
+}
+
+export function writeArchive(state: string, ids: Set<string>) {
+  mkdirSync(state, { recursive: true });
+  const body = ["# Archive", "", "Runs cleared from the board. One id per line; delete a line to bring it back.", "",
+    ...[...ids].sort().map((id) => `- ${id}`)];
+  writeFileSync(join(state, "archive.md"), body.join("\n") + "\n");
+}
+
+export function setArchived(state: string, id: string, archived: boolean) {
+  const ids = readArchive(state);
+  if (archived) ids.add(id); else ids.delete(id);
+  writeArchive(state, ids);
+}
+
 // The request's first real line: not a heading, not a label ending in a colon,
 // quote marker dropped. Long enough to recognise the run, short enough for a card.
 export function requestTitle(text: string) {
@@ -458,16 +483,17 @@ export function boardCards(states: string[], now: number): Card[] {
   }
   for (const st of states) {
     const where = label(st);
+    const archive = readArchive(st);
     for (const it of readInbox(st)) {
-      if (it.status !== "open" && it.status !== "started") continue;
+      if (it.status !== "open" && it.status !== "started" && it.status !== "archived") continue;
       // Retired once any run's request contains this text -- whoever started it.
       // Checking `started` items only would leave every idea acted on outside the
       // board sitting in IDEA forever, and typing `/kaizen ...` in a terminal is
       // the common way a run begins.
       if (requests.some((r) => r.includes(normalise(it.text)))) continue;
       next.push(it.status === "started"
-        ? { kind: "idea", status: "starting", text: it.text, state: st, where, column: 1, awaiting: null, dim: true }
-        : { kind: "idea", status: "idea", text: it.text, state: st, where, column: 0, awaiting: null, dim: false });
+        ? { kind: "idea", status: "starting", text: it.text, state: st, where, column: 1, awaiting: null, dim: true, archived: false }
+        : { kind: "idea", status: "idea", text: it.text, state: st, where, column: 0, awaiting: null, dim: false, archived: it.status === "archived" });
     }
     for (const r of readRuns(st)) {
       next.push({
@@ -475,6 +501,7 @@ export function boardCards(states: string[], now: number): Card[] {
         title: requestTitle(body(st, r.id)),
         awaiting: r.stage === "abandoned" ? null : r.awaiting,
         dim: r.stage === "abandoned",
+        archived: archive.has(r.id),
       });
     }
   }

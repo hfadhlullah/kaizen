@@ -502,6 +502,7 @@ export async function dashboard(
       const now = Date.now();
       const next: Drawn[] = [];
       for (const k of boardCards(states(), now)) {
+        if (k.archived) continue;                    // cleared from the board; kaizen web shows the archive
         if (k.kind === "run") {
           const key = `${k.state}/${k.id}`;
           const before = wasAwaiting.get(key);

@@ -293,7 +293,9 @@ in a tab.
 Same columns, same files: an idea added here lands in `inbox.md`, a run
 started here opens your agent in a new terminal exactly as `r` does, and the board
 redraws as your agents write to disk. Mouse first; the TUI's keys still work. Click a card for its plan, review and
-backlog; `⋯` on a card runs, edits, rejects or abandons. Theme lives in its settings;
+backlog; `⋯` on a card runs, edits, rejects, abandons or archives. `Clear` on Done sends
+every finished run to the archive (`.kaizen/archive.md`, a list, nothing moves), and
+`Archive` in the strip shows what is there, with `Restore` on each card. Theme lives in its settings;
 everything else is still `kaizen settings`. `--port N` picks a port, `--no-open` just
 serves, `?all=1` in the URL opens on every project.
 

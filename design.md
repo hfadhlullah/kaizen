@@ -162,6 +162,11 @@ listed behind a `Keyboard shortcuts` link in the footer, never the only way.
 - Card ground is `--bg-2`; column ground is `--bg`. That contrast is the board.
 - A column shows six cards, then one dashed `Show N more` line in `--dim` that unfolds
   it, and `Show less` folds it back. Per column, per page load.
+- Done carries a `Clear` ghost button: every finished run in view goes to the archive.
+  Any card's `⋯` menu has `Archive`; the strip's `Archive N` toggles the archive view,
+  same columns, cards at 70 % opacity, `⋯` offers `Restore`. Archiving never moves a
+  run directory: it is a list in `<state>/archive.md`, ideas take inbox status
+  `archived`, and the TUI hides both.
 - Empty board: tanuki at 120 px, `Nothing here yet.`, a `New idea` button.
 
 ### Card

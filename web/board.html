@@ -56,6 +56,8 @@ ul{list-style:none;margin:0;padding:8px 0 0;display:flex;flex-direction:column;g
 .card{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;cursor:pointer;display:flex;flex-direction:column;gap:6px;position:relative}
 .card:hover{border-color:var(--dim)}
 .card.open{border-color:var(--accent)}
+.card.archived .c-title,.card.archived .c-id{opacity:.7}
+section h2 .clear{margin-left:auto;min-height:22px;padding:0 8px}
 .c-id{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dim);min-height:20px}
 .c-id .st{width:14px;height:14px;display:grid;place-items:center;flex-shrink:0}
 .c-id .st svg{width:14px;height:14px;stroke-width:1.8}
@@ -216,6 +218,7 @@ let S={project:null,projects:[],cards:[],now:Date.now(),all:false};
 let all=new URLSearchParams(location.search).get("all")==="1",openKey=null,mode=null,modeKey=null,filter=null,menuKey=null,tab=0,runDoc=null;
 // A column shows this many cards, then a "more" line; Done is where it matters.
 const FOLD=6;const unfolded=new Set();
+let archive=false;                                   // showing the archive instead of the board
 const wasAwaiting=new Map();let first=true;
 
 const key=c=>c.kind==="idea"?"idea:"+c.state+":"+c.text:"run:"+c.state+":"+c.id;
@@ -229,7 +232,7 @@ async function load(){
 async function post(path,body){const r=await fetch(path,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});const j=await r.json().catch(()=>({}));if(!r.ok){toast(j.error||j.why||"failed");if(j.manual)console.log("run manually:",j.manual)}return j}
 
 function card(c){
- const k=key(c),el=document.createElement("div");el.className="card"+(k===openKey?" open":"")+(k===menuKey?" menu":"");el.tabIndex=0;el.setAttribute("role","button");
+ const k=key(c),el=document.createElement("div");el.className="card"+(k===openKey?" open":"")+(k===menuKey?" menu":"")+(c.archived?" archived":"");el.tabIndex=0;el.setAttribute("role","button");
  const st=ICON[c.status]||"idea",idt=c.kind==="idea"?"idea":c.text;
  const chips=[];
  if(c.status==="waiting")chips.push(`<span class="chip warn"><i></i>${esc(c.awaiting||"needs you")}</span>`);
@@ -240,12 +243,16 @@ function card(c){
   <div class="c-chips">${chips.join("")}</div>`;
  if(k===menuKey){
   const items=[];
-  if(c.kind==="idea"&&c.status==="idea")items.push(["run","Run",ico("play")],["edit","Edit",ico("pen")],["reject","Reject",ico("x")],null,["delete","Delete",ico("trash"),"danger"]);
+  if(archive){items.push(["restore","Restore",ico("play")]);if(c.kind==="run")items.push(["open","Open",ico("play")]);}
+  else if(c.kind==="idea"&&c.status==="idea")items.push(["run","Run",ico("play")],["edit","Edit",ico("pen")],["reject","Reject",ico("x")],null,["delete","Delete",ico("trash"),"danger"]);
   else if(c.kind==="idea")items.push(["delete","Remove",ico("trash"),"danger"]);
   else if(c.status==="waiting"||c.status==="running"||c.status==="stalled")items.push(["open","Open",ico("play")],null,["reject","Abandon",ico("x"),"danger"]);
   else items.push(["open","Open",ico("play")]);
+  if(!archive&&!(c.kind==="idea"&&c.status!=="idea"))items.push(null,["archive","Archive",ico("x")]);
   el.innerHTML+=`<div class="menu-pop">${items.map(i=>i?`<button data-a="${i[0]}" class="${i[3]||""}">${i[2]}${i[1]}</button>`:"<hr>").join("")}</div>`}
- el.querySelectorAll("[data-a]").forEach(bt=>bt.onclick=e=>{e.stopPropagation();const a=bt.dataset.a;menuKey=null;if(a==="menu"){menuKey=k;render();return}if(a==="open"){open(c);return}mode=a;modeKey=k;render()});
+ el.querySelectorAll("[data-a]").forEach(bt=>bt.onclick=async e=>{e.stopPropagation();const a=bt.dataset.a;menuKey=null;if(a==="menu"){menuKey=k;render();return}if(a==="open"){open(c);return}
+  if(a==="archive"||a==="restore"){const r=await post("/archive",c.kind==="idea"?{dir:c.state,text:c.text,archived:a==="archive"}:{dir:c.state,id:c.id,archived:a==="archive"});if(r.ok)toast(a==="archive"?"Archived":"Restored");load();return}
+  mode=a;modeKey=k;render()});
  el.onclick=()=>{if(menuKey){menuKey=null;render();return}open(c)};el.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();open(c)}};
  return el;}
 
@@ -266,21 +273,24 @@ async function startRun(c,kind){
  load()}
 
 function render(){
- const cs=S.cards,b=$("board");b.innerHTML="";
+ const cs=S.cards.filter(c=>c.archived===archive),b=$("board");b.innerHTML="";
+ const nArch=S.cards.filter(c=>c.archived).length;
  const n=s=>cs.filter(c=>c.status===s).length;
  const strip=[];
  if(n("waiting"))strip.push(`<button class="attn ${filter==="waiting"?"on":""}" data-f="waiting">● ${n("waiting")} waiting on you</button>`);
  strip.push(`<button class="${filter==="running"?"on":""}" data-f="running"><span class="d-run"><span class="pulse"></span></span> ${n("running")} running</button>`);
  if(n("stalled"))strip.push(`<button class="${filter==="stalled"?"on":""}" data-f="stalled">◐ ${n("stalled")} stalled</button>`);
- strip.push(`<span class="sp"></span><span>${cs.filter(c=>c.kind==="idea").length} ideas · ${cs.filter(c=>c.kind==="run").length} runs</span>`);
+ strip.push(`<span class="sp"></span><span>${cs.filter(c=>c.kind==="idea").length} ideas · ${cs.filter(c=>c.kind==="run").length} runs</span>`,`<button class="${archive?"on":""}" data-f="__archive">${archive?"Back to board":"Archive "+nArch}</button>`);
  $("strip").innerHTML=strip.join("");
- $("strip").querySelectorAll("button").forEach(c=>c.onclick=()=>{filter=filter===c.dataset.f?null:c.dataset.f;render()});
+ $("strip").querySelectorAll("button").forEach(c=>c.onclick=()=>{if(c.dataset.f==="__archive"){archive=!archive;filter=null;render();return}filter=filter===c.dataset.f?null:c.dataset.f;render()});
  const sel=$("proj");sel.innerHTML=(S.project?`<option value="cur">${esc(S.project)}</option>`:"")+`<option value="all">All projects</option>`;sel.value=all||!S.project?"all":"cur";
- if(!cs.length&&mode!=="new"){b.innerHTML='<div class="empty"><div class="mascot"></div><div>Nothing here yet.</div><button class="btn pri" id="newempty">New idea</button></div>';$("newempty").onclick=()=>{mode="new";render()};}
+ if(!cs.length&&mode!=="new"){b.innerHTML=archive?'<div class="empty"><div class="mascot"></div><div>Nothing archived.</div></div>':'<div class="empty"><div class="mascot"></div><div>Nothing here yet.</div><button class="btn pri" id="newempty">New idea</button></div>';if(!archive)$("newempty").onclick=()=>{mode="new";render()};}
  COLS.forEach((name,ci)=>{
   const s=document.createElement("section");const list=cs.filter(c=>c.column===ci&&(!filter||c.status===filter));
-  s.innerHTML=`<h2>${name}<i>${list.length||""}</i>${ci===0?`<button class="ib sm" title="New idea" aria-label="New idea">${ico("plus")}</button>`:""}</h2>`;
-  if(ci===0)s.querySelector(".ib").onclick=()=>{mode="new";render()};
+  const clearable=ci===4&&!archive&&list.length;
+  s.innerHTML=`<h2>${name}<i>${list.length||""}</i>${ci===0&&!archive?`<button class="ib sm" title="New idea" aria-label="New idea">${ico("plus")}</button>`:""}${clearable?`<button class="btn sm ghost clear" title="Move every finished run here to the archive">Clear</button>`:""}</h2>`;
+  if(ci===0&&!archive)s.querySelector(".ib").onclick=()=>{mode="new";render()};
+  if(clearable)s.querySelector(".clear").onclick=async()=>{for(const c of list)await post("/archive",{dir:c.state,id:c.id});toast("Archived "+list.length);load()};
   const ul=document.createElement("ul");
   if(ci===0&&mode==="new"){const f=document.createElement("li");f.className="inl";f.innerHTML=`<input id="newidea" placeholder="One line, like a commit subject"><div class="row"><button class="btn ghost" id="nc">Cancel</button><button class="btn pri" id="ns">Add to inbox</button></div>`;ul.appendChild(f);
    const inp=f.querySelector("input");const save=async()=>{const text=inp.value.trim();if(!text)return;mode=null;const r=await post("/inbox",{op:"add",text});if(r.ok)toast("Added to inbox.md");load()};
