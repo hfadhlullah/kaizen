@@ -5,6 +5,7 @@ import { join, dirname } from "node:path";
 import {
   home, type Item, boardCards, knownProjects, remember, locate, label, tilde,
   readInbox, writeInbox, replaceIdea, abandonRun, launchRun, parseItem, short, setArchived, writeNotes,
+  appendNote, saveAttachment,
 } from "./state.ts";
 
 const PAGE = join(dirname(import.meta.dir), "web", "board.html");
@@ -129,6 +130,18 @@ export async function web(repoDir: string, opts: Opts = {}) {
         return "error" in r ? bad(r.error) : json(r);
       }
 
+      // Attachments only, never a run's own files: the path must sit under an
+      // attachments/ directory of a known state dir, with no way back up.
+      if (req.method === "GET" && path === "/file") {
+        const dir = url.searchParams.get("dir") ?? state;
+        const p = url.searchParams.get("p") ?? "";
+        if (!dir || !states(true).includes(dir)) return bad("unknown state dir", 404);
+        if (!/^(runs\/[\w.-]+\/)?attachments\/[\w.-]+$/.test(p)) return bad("bad path");
+        const f = join(dir, p);
+        if (!existsSync(f)) return bad("no such file", 404);
+        return new Response(Bun.file(f), { headers: { "cache-control": "private, max-age=3600" } });
+      }
+
       if (req.method === "GET" && path === "/events") {
         let ctrl: ReadableStreamDefaultController;
         const stream = new ReadableStream({
@@ -202,6 +215,27 @@ export async function web(repoDir: string, opts: Opts = {}) {
           } else return bad("id or text required");
           changed();
           return json({ ok: true });
+        }
+
+        // One chat message: text plus files (base64), each file saved and linked
+        // from the message so the note carries its own attachments.
+        if (path === "/note") {
+          const id = typeof body.id === "string" ? body.id : null;
+          if (id !== null && !/^[\w.-]+$/.test(id)) return bad("bad run id");
+          const text = typeof body.text === "string" ? body.text.trim() : "";
+          const files: { name: string; data: string }[] = Array.isArray(body.files) ? body.files : [];
+          let total = 0;
+          for (const f of files) total += (f.data?.length ?? 0);
+          if (total > 20_000_000) return bad("attachments over 15MB");
+          const links = files.map((f) => {
+            const bytes = Buffer.from(String(f.data).replace(/^data:[^,]*,/, ""), "base64");
+            const rel = saveAttachment(dir, id, String(f.name ?? "file"), bytes).replace(/\\/g, "/");
+            return (/\.(png|jpe?g|gif|webp|svg)$/i.test(rel) ? "!" : "") + `[${String(f.name ?? "file")}](${rel.replace(/^runs\/[^/]+\//, "")})`;
+          });
+          const note = [text, ...links].filter(Boolean).join("\n");
+          const failed = appendNote(dir, id !== null ? { id } : { text: String(body.for ?? "").trim() }, note);
+          changed();
+          return failed ? bad(failed, 404) : json({ ok: true });
         }
 
         if (path === "/notes") {

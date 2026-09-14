@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import {
   readRuns, readInbox, writeInbox, replaceIdea, abandonRun, allBacklog, backlog,
   statusOf, columnOf, parseItem, startedRuns, boardCards, readArchive, setArchived,
-  requestOf, readNotes, writeNotes, manualCommand,
+  requestOf, readNotes, writeNotes, manualCommand, parseNotes, formatNote, appendNote, saveAttachment,
 } from "./state.ts";
 
 let state: string;
@@ -157,4 +157,28 @@ test("notes: a run's notes.md is read beside it, written only for a real run", (
   expect(boardCards([state], Date.now()).find((k) => k.id === "2026-09-01-waiting")!.notes).toBe("ref: docs/a.md\n");
   writeNotes(state, "2026-09-01-waiting", "");
   expect(readNotes(state, "2026-09-01-waiting")).toBe("");
+});
+
+test("notes log: stamped entries, continuation lines, unstamped preamble", () => {
+  const src = "hand written\n[2026-09-14 10:00] first\n  more\n[2026-09-14 10:05] ![shot](attachments/a.png)\n";
+  expect(parseNotes(src)).toEqual([
+    { at: "", text: "hand written" },
+    { at: "2026-09-14 10:00", text: "first\nmore" },
+    { at: "2026-09-14 10:05", text: "![shot](attachments/a.png)" },
+  ]);
+  expect(formatNote("a\nb", "2026-09-14 10:00")).toBe("[2026-09-14 10:00] a\n  b");
+});
+
+test("notes log: append to a run and to an idea; attachments saved and made absolute in the prompt", () => {
+  expect(appendNote(state, { id: "2026-09-01-waiting" }, "run note")).toBeNull();
+  expect(parseNotes(readNotes(state, "2026-09-01-waiting")).map((n) => n.text)).toEqual(["run note"]);
+  writeInbox(state, [{ status: "open", text: "chatty zq6" }]);
+  expect(appendNote(state, { text: "chatty zq6" }, "one")).toBeNull();
+  expect(appendNote(state, { text: "chatty zq6" }, "two\nlines")).toBeNull();
+  expect(appendNote(state, { text: "nope zq6" }, "x")).toBe("no such idea");
+  expect(parseNotes(readInbox(state)[0]!.notes!).map((n) => n.text)).toEqual(["one", "two\nlines"]);
+  const rel = saveAttachment(state, null, "../evil name.png", new Uint8Array([1]));
+  expect(rel).toMatch(/^attachments\/\w+-_evil_name\.png$/);
+  expect(requestOf("x", `![s](${rel})`, state)).toBe(`x\n\n![s](${join(state, rel)})`);
+  expect(saveAttachment(state, "2026-09-01-waiting", "b.txt", new Uint8Array([2]))).toMatch(/^runs\/2026-09-01-waiting\/attachments\//);
 });

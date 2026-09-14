@@ -398,8 +398,9 @@ function noteLines(notes?: string) {
 
 // The request the agent is launched with: the text, then the notes as the rest of the
 // request, so they land verbatim in 00-request.md and the planner reads them.
-export function requestOf(text: string, notes?: string) {
-  const n = (notes ?? "").trim();
+export function requestOf(text: string, notes?: string, state?: string) {
+  let n = (notes ?? "").trim();
+  if (state) n = n.replace(/\]\((attachments\/[^)]+)\)/g, (_, p) => `](${join(state, p)})`);
   return n ? `${text}\n\n${n}` : text;
 }
 
@@ -414,6 +415,63 @@ export function writeNotes(state: string, id: string, text: string): string | nu
   if (!existsSync(join(dir, "state.json"))) return "no such run";
   writeFileSync(join(dir, "notes.md"), text.trim() ? text.trim() + "\n" : "");
   return null;
+}
+
+// Notes are a log, one entry per message: `[2026-09-14 15:34] text`, continuation
+// lines indented. Text before the first stamp is one unstamped entry, so notes
+// written by hand still read.
+export type Note = { at: string; text: string };
+
+export function parseNotes(src: string): Note[] {
+  const out: Note[] = [];
+  for (const raw of src.split("\n")) {
+    const m = /^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2})\]\s?(.*)$/.exec(raw);
+    if (m) { out.push({ at: m[1]!, text: m[2]! }); continue; }
+    const last = out[out.length - 1];
+    if (last) last.text += "\n" + raw.replace(/^\s{2}/, "");
+    else if (raw.trim()) out.push({ at: "", text: raw });
+  }
+  return out.map((n) => ({ ...n, text: n.text.trim() })).filter((n) => n.text);
+}
+
+export function stamp(now = new Date()) {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())} ${p(now.getHours())}:${p(now.getMinutes())}`;
+}
+
+export function formatNote(text: string, at = stamp()) {
+  return `[${at}] ${text.trim().replace(/\n/g, "\n  ")}`;
+}
+
+// Append one entry: to runs/<id>/notes.md for a run, or under the idea's inbox
+// bullet. Attachments arrive as markdown links already written into text.
+export function appendNote(state: string, target: { id: string } | { text: string }, text: string): string | null {
+  if (!text.trim()) return "empty note";
+  if ("id" in target) {
+    if (!existsSync(join(state, "runs", target.id, "state.json"))) return "no such run";
+    appendFileSync(join(state, "runs", target.id, "notes.md"), formatNote(text) + "\n");
+    return null;
+  }
+  const lines = readInbox(state);
+  const at = lines.findIndex((l) => l.status === "open" && l.text === target.text);
+  if (at < 0) return "no such idea";
+  const prev = lines[at]!.notes;
+  lines[at] = { ...lines[at]!, notes: (prev ? prev + "\n" : "") + formatNote(text) };
+  writeInbox(state, lines);
+  return null;
+}
+
+// A file beside the notes it belongs to: runs/<id>/attachments/ for a run,
+// <state>/attachments/ for an idea. Returns the path relative to the state dir,
+// which is what the note links and what /file serves.
+// ponytail: no dedupe, no size accounting beyond the request cap in web.ts.
+export function saveAttachment(state: string, id: string | null, name: string, bytes: Uint8Array) {
+  const safe = name.replace(/[^\w.-]+/g, "_").replace(/^\.+/, "") || "file";
+  const rel = id ? join("runs", id, "attachments") : "attachments";
+  mkdirSync(join(state, rel), { recursive: true });
+  const file = `${Date.now().toString(36)}-${safe}`;
+  writeFileSync(join(state, rel, file), bytes);
+  return join(rel, file);
 }
 
 // Best effort: a machine without notify-send loses the notification, not the board.
@@ -565,7 +623,7 @@ export function launchRun(it: Item, from: string): Launch {
   const projectDir = projectOf(from);
   const agent = detectDefaultAgent(projectDir);
   const agentBin = Bun.which(agent.cmd) ?? agent.cmd;
-  const prompt = requestOf(it.where ? `/kaizen ${it.text} (${it.where})` : `/kaizen ${it.text}`, it.notes);
+  const prompt = requestOf(it.where ? `/kaizen ${it.text} (${it.where})` : `/kaizen ${it.text}`, it.notes, from);
   const fullCmd = [agentBin, prompt];
   const manual = manualCommand(projectDir, agent.cmd, prompt);
 

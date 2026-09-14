@@ -8,7 +8,7 @@ import {
   searchRoots, knownProjects, remember, findProjects, locate,
   readRuns, backlog, version, label, tilde, section, readFindings, parseItem, tidy, readBacklog, allBacklog,
   startedRuns, normalise, statusOf, columnOf, readInbox, writeInbox, notify, short,
-  abandonRun, replaceIdea, boardCards, launchRun, readNotes, writeNotes,
+  abandonRun, replaceIdea, boardCards, launchRun, appendNote, parseNotes,
 } from "./state.ts";
 const rgb = (r: number, g: number, b: number, s: string) =>
   `\x1b[38;2;${r};${g};${b}m${s}\x1b[0m`;
@@ -541,7 +541,7 @@ export async function dashboard(
           }
           if (allProjects && k.where !== "global") lines.push("    " + c.dim(cut(basename(k.where), inner - 4)));
           // First note line only; the rest is for the web board's detail panel.
-          if (k.notes) lines.push("    " + c.dim(cut(k.notes.split("\n")[0]!, inner - 4)));
+          if (k.notes) { const n = parseNotes(k.notes); const l = n[n.length - 1]?.text.split("\n")[0]; if (l) lines.push("    " + c.dim(cut(l, inner - 4))); }
           lines.push("");
         }
         return { meta, lines, starts };
@@ -708,7 +708,7 @@ export async function dashboard(
         if (target.kind === "run") {
           if (key === "t" && target.id && target.column < 4) {
             const line = await promptLine("Add a note", "");
-            if (line) writeNotes(target.state, target.id, readNotes(target.state, target.id) + line);
+            if (line) appendNote(target.state, { id: target.id }, line);
             refresh();
           }
           if (key === "x" && target.id) {
@@ -726,7 +726,7 @@ export async function dashboard(
           if (text) replaceIdea(target.state, target.text, { status: "open", text });
         } else if (key === "t" && target.status === "idea") {
           const line = await promptLine("Add a note", "");
-          if (line) replaceIdea(target.state, target.text, { status: "open", text: target.text, notes: [target.notes, line].filter(Boolean).join("\n") });
+          if (line) appendNote(target.state, { text: target.text }, line);
         } else if (key === "x") {
           const why = await promptLine(`Reject: ${target.text}`, "");
           // The spec requires a reason on a rejected item; no reason, no rejection.
