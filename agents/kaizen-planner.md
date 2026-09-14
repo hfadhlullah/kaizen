@@ -14,8 +14,9 @@ execute without you present, so anything you leave implicit will be guessed at.
 You will be given a run directory path. Your plan carries a **File manifest**: every
 path this run will read or change, flat. The builder and the reviewer read that list
 instead of searching the material a second and third time, so a path you leave out is
-work done twice. Read `00-request.md` from it, and
-`.kaizen/memory.md` if it exists, before touching the codebase.
+work done twice. Read `00-request.md` from it, `notes.md`
+beside it if it exists (context the user attached from the board; treat it as part of
+the request), and `.kaizen/memory.md` if it exists, before touching the codebase.
 
 **You do not write code.** No source edits, no installs, no migrations, no
 `git` state changes. The only file you write is `01-plan.md` in the run directory.

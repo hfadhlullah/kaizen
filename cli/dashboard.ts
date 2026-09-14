@@ -8,7 +8,7 @@ import {
   searchRoots, knownProjects, remember, findProjects, locate,
   readRuns, backlog, version, label, tilde, section, readFindings, parseItem, tidy, readBacklog, allBacklog,
   startedRuns, normalise, statusOf, columnOf, readInbox, writeInbox, notify, short,
-  abandonRun, replaceIdea, boardCards, launchRun,
+  abandonRun, replaceIdea, boardCards, launchRun, readNotes, writeNotes,
 } from "./state.ts";
 const rgb = (r: number, g: number, b: number, s: string) =>
   `\x1b[38;2;${r};${g};${b}m${s}\x1b[0m`;
@@ -540,6 +540,8 @@ export async function dashboard(
             lines.push(`${marker} ${dot} ${painted}`);
           }
           if (allProjects && k.where !== "global") lines.push("    " + c.dim(cut(basename(k.where), inner - 4)));
+          // First note line only; the rest is for the web board's detail panel.
+          if (k.notes) lines.push("    " + c.dim(cut(k.notes.split("\n")[0]!, inner - 4)));
           lines.push("");
         }
         return { meta, lines, starts };
@@ -587,8 +589,8 @@ export async function dashboard(
     // space rather than by middots, which made one long undifferentiated line.
     const footer = (k?: Card) => {
       const acts = k?.kind === "idea"
-        ? "n new  e edit  x reject  d delete  r run"
-        : k ? "n new idea  x abandon this run" : "n new idea";
+        ? "n new  e edit  t note  x reject  d delete  r run"
+        : k ? "n new idea  t note  x abandon this run" : "n new idea";
       const scope = allProjects ? "a this project" : "a all projects";
       return `  ${c.dim("↑↓←→ move")}     ${c.dim(acts)}     ${c.dim(scope)}  ${c.dim("q back")}\n`;
     };
@@ -704,6 +706,11 @@ export async function dashboard(
         // abandoning one is the user's decision to make, and /kaizen abort is the
         // same single transition this writes.
         if (target.kind === "run") {
+          if (key === "t" && target.id && target.column < 4) {
+            const line = await promptLine("Add a note", "");
+            if (line) writeNotes(target.state, target.id, readNotes(target.state, target.id) + line);
+            refresh();
+          }
           if (key === "x" && target.id) {
             const why = await promptLine(`Abandon ${target.text}? Reason`, "");
             if (why) {
@@ -717,6 +724,9 @@ export async function dashboard(
         if (key === "e") {
           const text = await promptLine("Edit idea", target.text);
           if (text) replaceIdea(target.state, target.text, { status: "open", text });
+        } else if (key === "t" && target.status === "idea") {
+          const line = await promptLine("Add a note", "");
+          if (line) replaceIdea(target.state, target.text, { status: "open", text: target.text, notes: [target.notes, line].filter(Boolean).join("\n") });
         } else if (key === "x") {
           const why = await promptLine(`Reject: ${target.text}`, "");
           // The spec requires a reason on a rejected item; no reason, no rejection.
@@ -729,7 +739,7 @@ export async function dashboard(
           // the prompt the agent is launched with.
           if (mode !== null) {
             const request = `${mode} ${target.text}`.trim();
-            await outside(() => startBacklogItem(parseItem(request), target.state));
+            await outside(() => startBacklogItem({ ...parseItem(request), notes: target.notes }, target.state));
             // Without this the idea stays open forever and the board shows the
             // same work twice: once as an idea, once as the run it became.
             replaceIdea(target.state, target.text, { status: "started", text: target.text });

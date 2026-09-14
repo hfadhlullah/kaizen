@@ -249,7 +249,7 @@ export function readFindings(file: string) {
 // Backlog items are often a reviewer's finding pasted verbatim -- a backticked
 // path, a severity, then the sentence. Split those apart so a list can show the
 // severity and the place as columns and leave the prose to speak for itself.
-export type Item = { severity: string | null; where: string | null; text: string; raw: string };
+export type Item = { severity: string | null; where: string | null; text: string; raw: string; notes?: string };
 
 export function parseItem(raw: string): Item {
   const m = /^`?([^`:]+(?::\d+)?)`?\s*[:—-]\s*(critical|high|medium|low)\s*[:—-]\s*(.+)$/i.exec(raw);
@@ -309,6 +309,7 @@ export type Card = {
   title?: string;                                  // runs only: first line of the request
   archived: boolean;                               // hidden from the board unless asked for
   tags?: string[];                                 // runs only: runner and agent, when recorded
+  notes?: string;                                  // inbox notes, or runs/<id>/notes.md
 };
 
 // A run is called running on the evidence that it moved recently; there is no PID
@@ -356,17 +357,24 @@ export function columnOf(stage: string) {
   return 1;
 }
 
-export type InboxLine = { status: string; text: string };
+// notes: free text under the bullet -- links, path:line refs, background. Kept as
+// indented continuation lines so a one-line inbox from before notes reads unchanged.
+export type InboxLine = { status: string; text: string; notes?: string };
 
 // Ideas with no run yet. Deliberately not backlog.md, which the spec defines as
 // an orphanage for items rescued from pruned runs, and not a run stub each.
 export function readInbox(state: string): InboxLine[] {
   const f = join(state, "inbox.md");
   if (!existsSync(f)) return [];
-  return readFileSync(f, "utf8").split("\n")
-    .map((l) => /^-\s*(open|started|done|rejected|archived):\s*(.+)$/.exec(l.trim()))
-    .filter((m): m is RegExpExecArray => !!m)
-    .map((m) => ({ status: m[1]!, text: m[2]!.trim() }));
+  const out: InboxLine[] = [];
+  for (const raw of readFileSync(f, "utf8").split("\n")) {
+    const m = /^-\s*(open|started|done|rejected|archived):\s*(.+)$/.exec(raw.trim());
+    if (m) { out.push({ status: m[1]!, text: m[2]!.trim() }); continue; }
+    // An indented line belongs to the bullet above it; anything else is noise.
+    const last = out[out.length - 1];
+    if (last && /^\s{2,}\S/.test(raw)) last.notes = (last.notes ? last.notes + "\n" : "") + raw.trim();
+  }
+  return out;
 }
 
 // Whole-file rewrite. The board is the only writer today.
@@ -379,9 +387,33 @@ export function writeInbox(state: string, lines: InboxLine[]) {
     "",
     "Ideas with no run yet. One line each, same format as a run's backlog.",
     "",
-    ...lines.map((l) => `- ${l.status}: ${l.text}`),
+    ...lines.flatMap((l) => [`- ${l.status}: ${l.text}`, ...noteLines(l.notes)]),
   ];
   writeFileSync(join(state, "inbox.md"), body.join("\n") + "\n");
+}
+
+function noteLines(notes?: string) {
+  return (notes ?? "").split("\n").map((n) => n.trim()).filter(Boolean).map((n) => "  " + n);
+}
+
+// The request the agent is launched with: the text, then the notes as the rest of the
+// request, so they land verbatim in 00-request.md and the planner reads them.
+export function requestOf(text: string, notes?: string) {
+  const n = (notes ?? "").trim();
+  return n ? `${text}\n\n${n}` : text;
+}
+
+// Free text beside a run -- what the user learned after the idea became a run.
+// Its own file, never state.json: that shape is the resume contract.
+export function readNotes(state: string, id: string) {
+  try { return readFileSync(join(state, "runs", id, "notes.md"), "utf8"); } catch { return ""; }
+}
+
+export function writeNotes(state: string, id: string, text: string): string | null {
+  const dir = join(state, "runs", id);
+  if (!existsSync(join(dir, "state.json"))) return "no such run";
+  writeFileSync(join(dir, "notes.md"), text.trim() ? text.trim() + "\n" : "");
+  return null;
 }
 
 // Best effort: a machine without notify-send loses the notification, not the board.
@@ -423,7 +455,7 @@ export function replaceIdea(state: string, text: string, next: InboxLine | null)
   const lines = readInbox(state);
   const at = lines.findIndex((l) => (l.status === "open" || l.status === "started") && l.text === text);
   if (at < 0) return;                            // changed underneath us; the redraw will show why
-  if (next) lines[at] = next; else lines.splice(at, 1);
+  if (next) lines[at] = { notes: lines[at]!.notes, ...next }; else lines.splice(at, 1);
   writeInbox(state, lines);
 }
 
@@ -493,8 +525,8 @@ export function boardCards(states: string[], now: number): Card[] {
       // the common way a run begins.
       if (requests.some((r) => r.includes(normalise(it.text)))) continue;
       next.push(it.status === "started"
-        ? { kind: "idea", status: "starting", text: it.text, state: st, where, column: 1, awaiting: null, dim: true, archived: false }
-        : { kind: "idea", status: "idea", text: it.text, state: st, where, column: 0, awaiting: null, dim: false, archived: it.status === "archived" });
+        ? { kind: "idea", status: "starting", text: it.text, state: st, where, column: 1, awaiting: null, dim: true, archived: false, notes: it.notes }
+        : { kind: "idea", status: "idea", text: it.text, state: st, where, column: 0, awaiting: null, dim: false, archived: it.status === "archived", notes: it.notes });
     }
     for (const r of readRuns(st)) {
       next.push({
@@ -504,6 +536,7 @@ export function boardCards(states: string[], now: number): Card[] {
         dim: r.stage === "abandoned",
         archived: archive.has(r.id),
         tags: [r.runner, r.agent].filter((t): t is string => !!t),
+        notes: readNotes(st, r.id) || undefined,
       });
     }
   }
@@ -532,7 +565,7 @@ export function launchRun(it: Item, from: string): Launch {
   const projectDir = projectOf(from);
   const agent = detectDefaultAgent(projectDir);
   const agentBin = Bun.which(agent.cmd) ?? agent.cmd;
-  const prompt = it.where ? `/kaizen ${it.text} (${it.where})` : `/kaizen ${it.text}`;
+  const prompt = requestOf(it.where ? `/kaizen ${it.text} (${it.where})` : `/kaizen ${it.text}`, it.notes);
   const fullCmd = [agentBin, prompt];
   const manual = manualCommand(projectDir, agent.cmd, prompt);
 

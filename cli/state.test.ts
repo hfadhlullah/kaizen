@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import {
   readRuns, readInbox, writeInbox, replaceIdea, abandonRun, allBacklog, backlog,
   statusOf, columnOf, parseItem, startedRuns, boardCards, readArchive, setArchived,
+  requestOf, readNotes, writeNotes, manualCommand,
 } from "./state.ts";
 
 let state: string;
@@ -116,7 +117,44 @@ test("archive: a run is listed, hidden by flag, never moved", () => {
 });
 
 test("archive: an idea keeps its line with status archived", () => {
-  writeInbox(state, [{ status: "open", text: "park this" }, { status: "archived", text: "parked zq7" }]);
+  writeInbox(state, [{ status: "open", text: "park this", notes: "kept" }, { status: "archived", text: "parked zq7" }]);
   const ideas = boardCards([state], Date.now()).filter((k) => k.kind === "idea");
   expect(ideas.map((k) => [k.text, k.archived])).toEqual([["park this", false], ["parked zq7", true]]);
+});
+
+test("notes: indented lines under a bullet round-trip; a legacy file is untouched", () => {
+  const legacy = "# Inbox\n\nIdeas with no run yet. One line each, same format as a run's backlog.\n\n- open: a\n- rejected: b | why\n";
+  writeFileSync(join(state, "inbox.md"), legacy);
+  writeInbox(state, readInbox(state));
+  expect(readFileSync(join(state, "inbox.md"), "utf8")).toBe(legacy);
+  writeInbox(state, [{ status: "open", text: "with notes", notes: "see https://x.y/z\ncli/state.ts:12 | not a reason" }, { status: "open", text: "plain zq8" }]);
+  const [a, b] = readInbox(state);
+  expect(a).toEqual({ status: "open", text: "with notes", notes: "see https://x.y/z\ncli/state.ts:12 | not a reason" });
+  expect(b).toEqual({ status: "open", text: "plain zq8" });
+});
+
+test("notes: survive reject and started; edit can replace or clear them", () => {
+  replaceIdea(state, "with notes", { status: "started", text: "with notes" });
+  expect(readInbox(state)[0]!.notes).toContain("https://x.y/z");
+  replaceIdea(state, "with notes", { status: "rejected", text: "with notes | no" });
+  expect(readInbox(state)[0]!.notes).toContain("https://x.y/z");
+  replaceIdea(state, "plain zq8", { status: "open", text: "plain zq8", notes: "" });
+  expect(readInbox(state)[1]!.notes).toBeUndefined();
+  expect(boardCards([state], Date.now()).find((k) => k.text === "plain zq8")!.notes).toBeUndefined();
+});
+
+test("notes: the prompt is text, blank line, notes; still one quoted argument", () => {
+  expect(requestOf("/kaizen do x")).toBe("/kaizen do x");
+  expect(requestOf("/kaizen do x", "l1\nl2\n")).toBe("/kaizen do x\n\nl1\nl2");
+  const cmd = manualCommand("/p", "claude", requestOf("/kaizen do x", "l1"));
+  if (process.platform !== "win32") expect(cmd).toBe('cd "/p" && claude "/kaizen do x\n\nl1"');
+});
+
+test("notes: a run's notes.md is read beside it, written only for a real run", () => {
+  expect(writeNotes(state, "2026-09-09-nope", "x")).toBe("no such run");
+  expect(writeNotes(state, "2026-09-01-waiting", "  ref: docs/a.md  ")).toBeNull();
+  expect(readNotes(state, "2026-09-01-waiting")).toBe("ref: docs/a.md\n");
+  expect(boardCards([state], Date.now()).find((k) => k.id === "2026-09-01-waiting")!.notes).toBe("ref: docs/a.md\n");
+  writeNotes(state, "2026-09-01-waiting", "");
+  expect(readNotes(state, "2026-09-01-waiting")).toBe("");
 });

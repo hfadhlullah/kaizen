@@ -4,7 +4,7 @@ import { existsSync, readFileSync, readdirSync, statSync, watch, type FSWatcher 
 import { join, dirname } from "node:path";
 import {
   home, type Item, boardCards, knownProjects, remember, locate, label, tilde,
-  readInbox, writeInbox, replaceIdea, abandonRun, launchRun, parseItem, short, setArchived,
+  readInbox, writeInbox, replaceIdea, abandonRun, launchRun, parseItem, short, setArchived, writeNotes,
 } from "./state.ts";
 
 const PAGE = join(dirname(import.meta.dir), "web", "board.html");
@@ -111,6 +111,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           id, short: short(id), state: read("state.json"),
           request: read("00-request.md"), plan: read("01-plan.md"), approval: read("02-approval.md"),
           impl: read("03-impl.md"), review: read("04-review.md"), backlog: read("06-backlog.md"),
+          notes: read("notes.md"),
         });
       }
 
@@ -149,13 +150,16 @@ export async function web(repoDir: string, opts: Opts = {}) {
 
         if (path === "/inbox") {
           const text = String(body.text ?? "").trim();
+          // Absent means untouched; an empty string clears. replaceIdea keeps the
+          // old notes for any op that does not send them.
+          const notes = typeof body.notes === "string" ? body.notes.trim() : undefined;
           if (body.op === "add") {
             if (!text) return bad("empty idea");
-            writeInbox(dir, [...readInbox(dir), { status: "open", text }]);
+            writeInbox(dir, [...readInbox(dir), { status: "open", text, notes }]);
           } else if (body.op === "edit") {
             const next = String(body.next ?? "").trim();
             if (!text || !next) return bad("empty idea");
-            replaceIdea(dir, text, { status: "open", text: next });
+            replaceIdea(dir, text, notes === undefined ? { status: "open", text: next } : { status: "open", text: next, notes });
           } else if (body.op === "reject") {
             const why = String(body.reason ?? "").trim();
             if (!why) return bad("a rejection needs a reason");
@@ -172,6 +176,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           const kind = body.kind === "full" || body.kind === "lite" ? body.kind : "";
           if (!text) return bad("empty idea");
           const it: Item = parseItem(`${kind} ${text}`.trim());
+          it.notes = readInbox(dir).find((l) => l.status === "open" && l.text === text)?.notes;
           const r = launchRun(it, dir);
           if (r.ok) replaceIdea(dir, text, { status: "started", text });
           changed();
@@ -192,11 +197,19 @@ export async function web(repoDir: string, opts: Opts = {}) {
             const lines = readInbox(dir);
             const at = lines.findIndex((l) => l.text === text && (archived ? l.status === "open" : l.status === "archived"));
             if (at < 0) return bad("no such idea", 404);
-            lines[at] = { status: archived ? "archived" : "open", text };
+            lines[at] = { ...lines[at]!, status: archived ? "archived" : "open" };
             writeInbox(dir, lines);
           } else return bad("id or text required");
           changed();
           return json({ ok: true });
+        }
+
+        if (path === "/notes") {
+          const id = String(body.id ?? "");
+          if (!/^[\w.-]+$/.test(id)) return bad("bad run id");
+          const failed = writeNotes(dir, id, String(body.text ?? ""));
+          changed();
+          return failed ? bad(failed, 404) : json({ ok: true });
         }
 
         if (path === "/abort") {

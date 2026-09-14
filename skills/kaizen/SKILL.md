@@ -359,6 +359,7 @@ shown automatically.
         01-fix.md
         01-recheck.md
       06-backlog.md             # what this run deliberately did not do
+      notes.md                  # context attached from the board; the planner reads it
       state.json
 ```
 

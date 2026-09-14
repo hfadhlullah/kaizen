@@ -6,9 +6,11 @@ planner's and the plan approval's contract. The builder and reviewer do not read
 ---
 ## Stage 1 — Plan
 
-**Agent:** planner. **Input:** `00-request.md` (including the track), `memory.md`, and
-the existing material — the codebase, the manuscript, the current campaign, whatever
-this run builds on. **Output:** `01-plan.md`.
+**Agent:** planner. **Input:** `00-request.md` (including the track), `notes.md` in
+the run directory when present — links, paths, and background the user attached from
+the board, binding like the request itself — `memory.md`, and the existing material —
+the codebase, the manuscript, the current campaign, whatever this run builds on.
+**Output:** `01-plan.md`.
 
 The request is usually one sentence. The planner's first job is to expand it — but by
 proposing, not by interrogating. It restates the problem, brings the nearest good
