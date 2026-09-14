@@ -114,6 +114,20 @@ export async function web(repoDir: string, opts: Opts = {}) {
         });
       }
 
+      if (req.method === "GET" && path === "/settings") {
+        const { listSettings } = await import("./settings.ts");
+        return json(listSettings(repoDir));
+      }
+
+      if (req.method === "POST" && path === "/settings") {
+        if (!local(req)) return bad("cross-origin write refused", 403);
+        let body: any;
+        try { body = await req.json(); } catch { return bad("json body expected"); }
+        const { setSetting } = await import("./settings.ts");
+        const r = setSetting(repoDir, String(body.key ?? ""), String(body.value ?? ""));
+        return "error" in r ? bad(r.error) : json(r);
+      }
+
       if (req.method === "GET" && path === "/events") {
         let ctrl: ReadableStreamDefaultController;
         const stream = new ReadableStream({

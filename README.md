@@ -295,8 +295,8 @@ started here opens your agent in a new terminal exactly as `r` does, and the boa
 redraws as your agents write to disk. Mouse first; the TUI's keys still work. Click a card for its plan, review and
 backlog; `⋯` on a card runs, edits, rejects, abandons or archives. `Clear` on Done sends
 every finished run to the archive (`.kaizen/archive.md`, a list, nothing moves), and
-`Archive` in the strip shows what is there, with `Restore` on each card. Theme lives in its settings;
-everything else is still `kaizen settings`. `--port N` picks a port, `--no-open` just
+`Archive` in the strip shows what is there, with `Restore` on each card. The gear at the top right holds the browser's theme
+and every `kaizen settings` knob, same rows, same `config.yml`. `--port N` picks a port, `--no-open` just
 serves, `?all=1` in the URL opens on every project. `--daemon` starts the server
 detached so it outlives the terminal (pid kept in `~/.kaizen/web.pid`); `--stop` ends it.
 

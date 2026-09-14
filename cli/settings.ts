@@ -113,6 +113,43 @@ const SETTINGS: Setting[] = [
   { key: "agent.default", values: ["auto", "claude", "codex", "agy", "opencode", "gemini"], help: "Default coding agent to launch from dashboard backlog" },
 ];
 
+// The same rows and the same write the TUI uses, for `kaizen web`'s settings panel:
+// one place decides what a setting is called, what it may be, and how it is saved.
+export function listSettings(repoRoot: string) {
+  const file = locate();
+  const defaults = readFileSync(join(repoRoot, "skills/kaizen/config.default.yml"), "utf8");
+  const text = existsSync(file) ? readFileSync(file, "utf8") : "";
+  const preset = detectPreset(text, defaults);
+  return {
+    file: tilde(file),
+    rows: SETTINGS.map((s) => ({
+      ...s,
+      value: s.key === "preset" ? preset : read(text, s.key) ?? read(defaults, s.key) ?? s.values[0]!,
+    })),
+  };
+}
+
+export function setSetting(repoRoot: string, key: string, value: string) {
+  const s = SETTINGS.find((x) => x.key === key);
+  if (!s || !s.values.includes(value)) return { error: "unknown setting or value" };
+  const file = locate();
+  const defaultsPath = join(repoRoot, "skills/kaizen/config.default.yml");
+  if (!existsSync(file)) { mkdirSync(dirname(file), { recursive: true }); copyFileSync(defaultsPath, file); }
+  const defaults = readFileSync(defaultsPath, "utf8");
+  const text = readFileSync(file, "utf8");
+  let updated: string;
+  if (key === "preset") {
+    if (value === "custom") return { error: "custom is what any other change makes" };
+    updated = applyPreset(text, value as PresetName, defaults);
+  } else {
+    updated = write(text, key, value, defaults);
+    updated = write(updated, "preset", detectPreset(updated, defaults), defaults);
+    if (read(updated, key) !== value) return { error: `${key} did not save; edit ${tilde(file)} by hand` };
+  }
+  writeFileSync(file, updated);
+  return { ok: true };
+}
+
 const c = {
   dim: (s: string) => `\x1b[2m${s}\x1b[0m`,
   bold: (s: string) => `\x1b[1m${s}\x1b[0m`,

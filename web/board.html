@@ -140,7 +140,7 @@ aside .foot:empty{display:none}
 .find .loc{color:var(--dim);font-size:12px;margin-left:8px}
 .set{display:grid;grid-template-columns:auto 1fr;gap:10px 20px;align-items:center;font-size:13px}
 .set label{color:var(--dim)}
-.set .opts{display:flex;gap:4px}
+.set .opts{display:flex;flex-wrap:wrap;gap:4px}
 .set .opts button{border:1px solid var(--line);border-radius:var(--r);padding:3px 10px;color:var(--dim)}
 .set .opts button.on{color:var(--ink);border-color:var(--ink)}
 .toast{position:fixed;z-index:12;left:24px;bottom:52px;background:var(--ink);color:var(--bg);border-radius:var(--r);padding:8px 14px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}
@@ -372,14 +372,18 @@ function md(src){
  endList();return out.join("")}
 
 // ---- settings, toast, notifications, keys
-function openSettings(){
- openKey=null;runDoc=null;$("panel").classList.add("open");$("scrim").classList.add("on");$("ptitle").textContent="Settings";$("psub").textContent="theme is this browser's; everything else is kaizen settings in a terminal";$("ptabs").innerHTML="";$("pfoot").innerHTML="";
+async function openSettings(){
+ openKey=null;runDoc=null;$("panel").classList.add("open");$("scrim").classList.add("on");$("ptitle").textContent="Settings";$("ptabs").innerHTML="";$("pfoot").innerHTML="";
  const cur=document.documentElement.dataset.theme||"system";
- $("pbody").innerHTML=`<div class="set"><label>Theme</label><div class="opts" id="th">${["system","light","dark"].map(t=>`<button class="${t===cur?"on":""}" data-t="${t}">${t}</button>`).join("")}</div>
+ const opts=(id,vals,on)=>`<div class="opts" id="${id}">${vals.map(v=>`<button class="${v===on?"on":""}" data-v="${v}" ${v===""?'title="empty"':""}>${v===""?"—":v}</button>`).join("")}</div>`;
+ const cfg=await fetch("/settings").then(r=>r.json()).catch(()=>null);
+ $("psub").textContent=cfg?`theme is this browser's; the rest is ${cfg.file}`:"theme is this browser's";
+ $("pbody").innerHTML=`<div class="set"><label>Theme</label>${opts("th",["system","light","dark"],cur)}
   <label>Notifications</label><div class="opts" id="nt"><button>${typeof Notification==="undefined"?"unsupported":Notification.permission==="granted"?"on":"ask"}</button></div></div>
-  <p style="color:var(--dim);margin-top:20px;max-width:52ch">Agent, runner, approvals and the rest live in <code>config.yml</code>. Run <code>kaizen settings</code> to change them.</p>`;
- $("th").querySelectorAll("button").forEach(b=>b.onclick=()=>{const t=b.dataset.t;if(t==="system")delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme=t;try{t==="system"?localStorage.removeItem("kz-theme"):localStorage.setItem("kz-theme",t)}catch(e){}openSettings()});
- $("nt").querySelector("button").onclick=()=>{askNotify();setTimeout(openSettings,300)}}
+  ${cfg?`<hr style="border:0;border-top:1px solid var(--line);margin:16px 0"><div class="set">${cfg.rows.map(r=>`<label title="${esc(r.help)}">${r.key}</label>${opts("s-"+r.key.replace(/\./g,"-"),r.values,r.value)}`).join("")}</div>`:`<p style="color:var(--dim);margin-top:20px">Settings could not be read. Run <code>kaizen settings</code>.</p>`}`;
+ $("th").querySelectorAll("button").forEach(b=>b.onclick=()=>{const t=b.dataset.v;if(t==="system")delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme=t;try{t==="system"?localStorage.removeItem("kz-theme"):localStorage.setItem("kz-theme",t)}catch(e){}openSettings()});
+ $("nt").querySelector("button").onclick=()=>{askNotify();setTimeout(openSettings,300)};
+ if(cfg)cfg.rows.forEach(r=>$("s-"+r.key.replace(/\./g,"-")).querySelectorAll("button").forEach(b=>b.onclick=async()=>{if(b.classList.contains("on"))return;const j=await post("/settings",{key:r.key,value:b.dataset.v});if(j.ok)toast(`saved ${r.key} = ${b.dataset.v||'""'}`);openSettings()}))}
 let tt;function toast(s){const t=$("toast");t.textContent=s;t.classList.add("on");clearTimeout(tt);tt=setTimeout(()=>t.classList.remove("on"),4000)}
 function askNotify(){try{if(typeof Notification!=="undefined"&&Notification.permission==="default")Notification.requestPermission()}catch(e){}}
 function notifyUser(title,body){try{if(typeof Notification!=="undefined"&&Notification.permission==="granted")new Notification(title,{body})}catch(e){}}
