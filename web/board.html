@@ -251,7 +251,7 @@ function card(c){
   if(!archive&&!(c.kind==="idea"&&c.status!=="idea"))items.push(null,["archive","Archive",ico("x")]);
   el.innerHTML+=`<div class="menu-pop">${items.map(i=>i?`<button data-a="${i[0]}" class="${i[3]||""}">${i[2]}${i[1]}</button>`:"<hr>").join("")}</div>`}
  el.querySelectorAll("[data-a]").forEach(bt=>bt.onclick=async e=>{e.stopPropagation();const a=bt.dataset.a;menuKey=null;if(a==="menu"){menuKey=k;render();return}if(a==="open"){open(c);return}
-  if(a==="archive"||a==="restore"){const r=await post("/archive",c.kind==="idea"?{dir:c.state,text:c.text,archived:a==="archive"}:{dir:c.state,id:c.id,archived:a==="archive"});if(r.ok)toast(a==="archive"?"Archived":"Restored");load();return}
+  if(a==="archive"||a==="restore"){toggleArchive(c,a==="archive");return}
   mode=a;modeKey=k;render()});
  el.onclick=()=>{if(menuKey){menuKey=null;render();return}open(c)};el.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();open(c)}};
  return el;}
@@ -307,8 +307,8 @@ function render(){
 function open(c){
  openKey=key(c);$("panel").classList.add("open");$("scrim").classList.add("on");$("ptitle").textContent=c.text;render();
  if(c.kind==="idea"){runDoc=null;$("psub").textContent="idea · inbox.md · "+c.where;$("ptabs").innerHTML="";$("pbody").innerHTML=`<p>${esc(c.text)}</p><p style="color:var(--dim)">Run turns this into a plan you approve before any work starts.</p>`;
-  const foot=$("pfoot");foot.innerHTML=c.status==="idea"?`<button class="btn pri" data-a="run">Run</button><button class="btn" data-a="edit">Edit</button><button class="btn" data-a="reject">Reject</button><button class="btn ghost danger" data-a="delete">Delete</button>`:`<span style="color:var(--dim);font-size:12px">Starting: a run was launched for this idea.</span>`;
-  foot.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{close();mode=b.dataset.a;modeKey=openKey;render()});return}
+  const foot=$("pfoot");foot.innerHTML=c.archived?`<button class="btn pri" data-a="restore">Restore</button>`:c.status==="idea"?`<button class="btn pri" data-a="run">Run</button><button class="btn" data-a="edit">Edit</button><button class="btn" data-a="reject">Reject</button><button class="btn ghost" data-a="archive">Archive</button><button class="btn ghost danger" data-a="delete">Delete</button>`:`<span style="color:var(--dim);font-size:12px">Starting: a run was launched for this idea.</span>`;
+  foot.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{const a=b.dataset.a;if(a==="archive"||a==="restore"){toggleArchive(c,a==="archive");return}close();mode=a;modeKey=openKey;render()});return}
  openRun(c,false)}
 async function openRun(c,refresh){
  if(!refresh||!runDoc||runDoc.id!==c.id){runDoc=await fetch(`/run/${encodeURIComponent(c.id)}?dir=${encodeURIComponent(c.state)}`).then(r=>r.json())}
@@ -320,10 +320,13 @@ async function openRun(c,refresh){
  const k=tabs[tab][1],doc=runDoc[k];
  $("pbody").innerHTML=doc?md(doc):`<p style="color:var(--dim)">No ${({request:"00-request.md",plan:"01-plan.md",impl:"03-impl.md",review:"04-review.md",backlog:"06-backlog.md"})[k]} yet.</p>`;
  const foot=$("pfoot");
- if(c.status==="waiting")foot.innerHTML=`<span style="color:var(--dim);font-size:12px;flex:1">Waiting on <b>${esc(c.awaiting)}</b>. Answer in the terminal running this run.</span><button class="btn ghost" data-a="ab">Abandon</button>`;
- else if(c.status==="done"||c.status==="abandoned")foot.innerHTML="";
- else foot.innerHTML=`<button class="btn ghost" data-a="ab">Abandon run</button>`;
- foot.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{close();mode="reject";modeKey=key(c);render()})}
+ const arch=c.archived?`<button class="btn pri" data-a="restore">Restore</button>`:`<button class="btn ghost" data-a="archive">Archive</button>`;
+ if(c.archived)foot.innerHTML=arch;
+ else if(c.status==="waiting")foot.innerHTML=`<span style="color:var(--dim);font-size:12px;flex:1">Waiting on <b>${esc(c.awaiting)}</b>. Answer in the terminal running this run.</span>${arch}<button class="btn ghost" data-a="ab">Abandon</button>`;
+ else if(c.status==="done"||c.status==="abandoned")foot.innerHTML=arch;
+ else foot.innerHTML=`${arch}<button class="btn ghost" data-a="ab">Abandon run</button>`;
+ foot.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{const a=b.dataset.a;if(a==="archive"||a==="restore"){toggleArchive(c,a==="archive");return}close();mode="reject";modeKey=key(c);render()})}
+async function toggleArchive(c,archived){const r=await post("/archive",c.kind==="idea"?{dir:c.state,text:c.text,archived}:{dir:c.state,id:c.id,archived});if(r.ok)toast(archived?"Archived":"Restored");close();load()}
 function close(){openKey=null;runDoc=null;$("panel").classList.remove("open");$("scrim").classList.remove("on");render()}
 $("pclose").onclick=close;$("scrim").onclick=close;
 
