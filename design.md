@@ -160,6 +160,8 @@ listed behind a `Keyboard shortcuts` link in the footer, never the only way.
 - Column header: `12px` weight 600, count in `--dim` after it, no underline. The Ideas
   header carries a `+` icon that opens the new-idea form in place.
 - Card ground is `--bg-2`; column ground is `--bg`. That contrast is the board.
+- A column shows six cards, then one dashed `Show N more` line in `--dim` that unfolds
+  it, and `Show less` folds it back. Per column, per page load.
 - Empty board: tanuki at 120 px, `Nothing here yet.`, a `New idea` button.
 
 ### Card
