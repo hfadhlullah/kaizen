@@ -423,7 +423,7 @@ try{const t=localStorage.getItem("kz-theme");if(t)document.documentElement.datas
 $("kbd").onclick=()=>$("help").classList.add("on");$("help").onclick=()=>$("help").classList.remove("on");
 document.addEventListener("click",()=>{if(menuKey||clearMenu){menuKey=null;clearMenu=false;render()}});
 document.onkeydown=e=>{
- if(e.target.matches("input,select"))return;
+ if(e.target.matches("input,select,textarea,[contenteditable]"))return;
  if(e.key==="?"){$("help").classList.toggle("on");return}
  if(e.key==="Escape"){$("help").classList.remove("on");if(mode){mode=null;render()}else close();return}
  if(e.key==="n"){mode="new";render()}
@@ -434,7 +434,8 @@ document.onkeydown=e=>{
  if(e.key==="r"&&oc.kind==="idea"){close();mode="run";modeKey=key(oc);render()}};
 
 // ---- live
-function listen(){const es=new EventSource("/events");es.onmessage=ev=>{if(ev.data==="changed")load()};es.onerror=()=>{es.close();setTimeout(listen,3000)}}
+let dropped=false;
+function listen(){const es=new EventSource("/events");es.onmessage=ev=>{if(ev.data==="changed")load();if(ev.data==="reload"||(ev.data==="hello"&&dropped))location.reload()};es.onerror=()=>{es.close();dropped=true;setTimeout(listen,3000)}}
 load();listen();
 </script>
 </body>

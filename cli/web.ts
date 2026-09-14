@@ -48,6 +48,9 @@ export async function web(repoDir: string, opts: Opts = {}) {
       for (const c of clients) { try { c.enqueue("data: changed\n\n"); } catch { clients.delete(c); } }
     }, 200);
   };
+  // Dev: the page reloads itself when board.html is saved. Server code needs
+  // `bun --watch cli/install.ts web`; the page reconnects and reloads on hello.
+  try { watch(PAGE, () => { for (const c of clients) { try { c.enqueue("data: reload\n\n"); } catch { clients.delete(c); } } }); } catch { /* no dev reload */ }
   const watchers: FSWatcher[] = [];
   const watchAll = () => {
     for (const w of watchers) { try { w.close(); } catch { /* gone */ } }
