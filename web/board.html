@@ -10,7 +10,7 @@
 :root[data-theme=dark]{--bg:#0c162f;--bg-2:#121e3c;--line:#22305a;--ink:#eef2fa;--ink-hi:#deeeff;--dim:#96aacd;--accent:#486ed9;--run:#4fd6e6;--ok:#5fd28a;--warn:#e6b450;--danger:#e85050;color-scheme:dark}
 *{box-sizing:border-box}
 :root{--r:6px;--r-s:4px}
-body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 ui-monospace,"JetBrains Mono","Cascadia Code","SF Mono",Menlo,Consolas,monospace;min-height:100vh;display:flex;flex-direction:column}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 ui-monospace,"JetBrains Mono","Cascadia Code","SF Mono",Menlo,Consolas,monospace;height:100vh;height:100dvh;overflow:hidden;display:flex;flex-direction:column}
 button,input,select{font:inherit;color:inherit;background:none;border:0;padding:0}
 button{cursor:pointer}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -40,7 +40,7 @@ pre.mark span:nth-child(1){color:var(--ink-hi)}pre.mark span:nth-child(2){color:
 .strip button.attn{color:var(--warn)}
 
 /* board */
-main{flex:1;display:grid;grid-template-columns:repeat(5,minmax(200px,1fr));gap:20px;padding:16px 24px;overflow:auto;align-content:start}
+main{flex:1;min-height:0;display:grid;grid-template-columns:repeat(5,minmax(200px,1fr));gap:20px;padding:16px 24px;overflow:auto;align-content:start}
 section h2{margin:0;font-size:12px;color:var(--ink);font-weight:600;display:flex;align-items:center;gap:8px;height:30px}
 section h2 i{font-style:normal;font-weight:400}
 section h2 .ib{margin-left:auto}
