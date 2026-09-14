@@ -162,7 +162,9 @@ listed behind a `Keyboard shortcuts` link in the footer, never the only way.
 - Card ground is `--bg-2`; column ground is `--bg`. That contrast is the board.
 - A column shows six cards, then one dashed `Show N more` line in `--dim` that unfolds
   it, and `Show less` folds it back. Per column, per page load.
-- Done carries a `Clear` ghost button: every finished run in view goes to the archive.
+- Done carries a `Clear ▾` ghost button opening a menu: older than a week, older than
+  3 days, everything (each with its count), or `Pick which…`, which puts a checkbox on
+  every Done card and swaps the button for `Cancel` / `Archive N`.
   Any card's `⋯` menu has `Archive`; the strip's `Archive N` toggles the archive view,
   same columns, cards at 70 % opacity, `⋯` offers `Restore`. Archiving never moves a
   run directory: it is a list in `<state>/archive.md`, ideas take inbox status

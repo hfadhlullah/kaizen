@@ -58,6 +58,15 @@ ul{list-style:none;margin:0;padding:8px 0 0;display:flex;flex-direction:column;g
 .card.open{border-color:var(--accent)}
 .card.archived .c-title,.card.archived .c-id{opacity:.7}
 section h2 .clear{margin-left:auto;min-height:22px;padding:0 8px}
+section h2{position:sticky}
+.clear-pop{top:30px;right:0;min-width:200px}
+.clear-pop button i{font-style:normal;color:var(--dim);margin-left:auto}
+.pickbar{margin-left:auto;display:flex;gap:4px}
+.pickbar .btn.sm{min-height:22px;padding:0 8px}
+.btn[disabled]{opacity:.5;cursor:default}
+.card .pick{position:absolute;right:12px;top:12px;margin:0;accent-color:var(--accent)}
+.card.picked{border-color:var(--accent)}
+.card:has(.pick) .age,.card:has(.pick) .more{display:none}
 .c-id{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dim);min-height:20px}
 .c-id .st{width:14px;height:14px;display:grid;place-items:center;flex-shrink:0}
 .c-id .st svg{width:14px;height:14px;stroke-width:1.8}
@@ -218,7 +227,8 @@ let S={project:null,projects:[],cards:[],now:Date.now(),all:false};
 let all=new URLSearchParams(location.search).get("all")==="1",openKey=null,mode=null,modeKey=null,filter=null,menuKey=null,tab=0,runDoc=null;
 // A column shows this many cards, then a "more" line; Done is where it matters.
 const FOLD=6;const unfolded=new Set();
-let archive=false;                                   // showing the archive instead of the board
+let archive=false;
+let clearMenu=false,picking=false;const picked=new Set();     // Clear on Done: menu, then cherry-pick mode                                   // showing the archive instead of the board
 const wasAwaiting=new Map();let first=true;
 
 const key=c=>c.kind==="idea"?"idea:"+c.state+":"+c.text:"run:"+c.state+":"+c.id;
@@ -238,7 +248,8 @@ function card(c){
  if(c.status==="waiting")chips.push(`<span class="chip warn"><i></i>${esc(c.awaiting||"needs you")}</span>`);
  else if(c.status==="running")chips.push(`<span class="chip run"><i></i>running</span>`);
  if(all)chips.push(`<span class="chip">${esc(c.where)}</span>`);
- el.innerHTML=`<div class="c-id"><span class="st d-${st}"><svg><use href="#s-${st}"/></svg></span><span class="idt">${esc(idt)}</span><span class="age">${c.kind==="run"?age(c.moved||S.now,S.now):""}</span><button class="ib sm more" data-a="menu" title="Actions" aria-label="Actions">${ico("more")}</button></div>
+ const pick=picking&&!archive&&c.column===4;
+ el.innerHTML=(pick?`<input type="checkbox" class="pick" ${picked.has(k)?"checked":""} aria-label="Select">`:"")+`<div class="c-id"><span class="st d-${st}"><svg><use href="#s-${st}"/></svg></span><span class="idt">${esc(idt)}</span><span class="age">${c.kind==="run"?age(c.moved||S.now,S.now):""}</span><button class="ib sm more" data-a="menu" title="Actions" aria-label="Actions">${ico("more")}</button></div>
   <div class="c-title">${esc(c.kind==="idea"?c.text:(c.title||c.id))}</div>
   <div class="c-chips">${chips.join("")}</div>`;
  if(k===menuKey){
@@ -253,6 +264,7 @@ function card(c){
  el.querySelectorAll("[data-a]").forEach(bt=>bt.onclick=async e=>{e.stopPropagation();const a=bt.dataset.a;menuKey=null;if(a==="menu"){menuKey=k;render();return}if(a==="open"){open(c);return}
   if(a==="archive"||a==="restore"){toggleArchive(c,a==="archive");return}
   mode=a;modeKey=k;render()});
+ if(pick){el.classList.toggle("picked",picked.has(k));el.onclick=()=>{picked.has(k)?picked.delete(k):picked.add(k);render()};return el}
  el.onclick=()=>{if(menuKey){menuKey=null;render();return}open(c)};el.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();open(c)}};
  return el;}
 
@@ -288,9 +300,21 @@ function render(){
  COLS.forEach((name,ci)=>{
   const s=document.createElement("section");const list=cs.filter(c=>c.column===ci&&(!filter||c.status===filter));
   const clearable=ci===4&&!archive&&list.length;
-  s.innerHTML=`<h2>${name}<i>${list.length||""}</i>${ci===0&&!archive?`<button class="ib sm" title="New idea" aria-label="New idea">${ico("plus")}</button>`:""}${clearable?`<button class="btn sm ghost clear" title="Move every finished run here to the archive">Clear</button>`:""}</h2>`;
+  const olderThan=days=>list.filter(c=>S.now-(c.moved||S.now)>days*d);
+  let head=`<h2>${name}<i>${list.length||""}</i>${ci===0&&!archive?`<button class="ib sm" title="New idea" aria-label="New idea">${ico("plus")}</button>`:""}`;
+  if(clearable&&picking)head+=`<span class="pickbar"><button class="btn sm ghost" data-p="cancel">Cancel</button><button class="btn sm pri" data-p="go" ${picked.size?"":"disabled"}>Archive ${picked.size||""}</button></span>`;
+  else if(clearable)head+=`<button class="btn sm ghost clear" title="Archive finished runs">Clear ▾</button>`;
+  if(clearable&&clearMenu)head+=`<div class="menu-pop clear-pop"><button data-c="7">Older than a week <i>${olderThan(7).length}</i></button><button data-c="3">Older than 3 days <i>${olderThan(3).length}</i></button><button data-c="0">Everything <i>${list.length}</i></button><hr><button data-c="pick">Pick which…</button></div>`;
+  s.innerHTML=head+`</h2>`;
   if(ci===0&&!archive)s.querySelector(".ib").onclick=()=>{mode="new";render()};
-  if(clearable)s.querySelector(".clear").onclick=async()=>{for(const c of list)await post("/archive",{dir:c.state,id:c.id});toast("Archived "+list.length);load()};
+  if(clearable){
+   const cl=s.querySelector(".clear");if(cl)cl.onclick=e=>{e.stopPropagation();clearMenu=!clearMenu;render()};
+   s.querySelectorAll("[data-c]").forEach(bt=>bt.onclick=async e=>{e.stopPropagation();clearMenu=false;const v=bt.dataset.c;
+    if(v==="pick"){picking=true;picked.clear();render();return}
+    const set=olderThan(+v);if(!set.length){toast("Nothing that old");render();return}
+    for(const c of set)await post("/archive",{dir:c.state,id:c.id});toast("Archived "+set.length);load()});
+   s.querySelectorAll("[data-p]").forEach(bt=>bt.onclick=async e=>{e.stopPropagation();if(bt.dataset.p==="cancel"){picking=false;picked.clear();render();return}
+    const set=list.filter(c=>picked.has(key(c)));picking=false;picked.clear();for(const c of set)await post("/archive",{dir:c.state,id:c.id});toast("Archived "+set.length);load()});}
   const ul=document.createElement("ul");
   if(ci===0&&mode==="new"){const f=document.createElement("li");f.className="inl";f.innerHTML=`<input id="newidea" placeholder="One line, like a commit subject"><div class="row"><button class="btn ghost" id="nc">Cancel</button><button class="btn pri" id="ns">Add to inbox</button></div>`;ul.appendChild(f);
    const inp=f.querySelector("input");const save=async()=>{const text=inp.value.trim();if(!text)return;mode=null;const r=await post("/inbox",{op:"add",text});if(r.ok)toast("Added to inbox.md");load()};
@@ -363,7 +387,7 @@ $("newtop").onclick=()=>{mode="new";render();$("board").scrollTo(0,0)};
 $("settings").onclick=openSettings;
 try{const t=localStorage.getItem("kz-theme");if(t)document.documentElement.dataset.theme=t}catch(e){}
 $("kbd").onclick=()=>$("help").classList.add("on");$("help").onclick=()=>$("help").classList.remove("on");
-document.addEventListener("click",()=>{if(menuKey){menuKey=null;render()}});
+document.addEventListener("click",()=>{if(menuKey||clearMenu){menuKey=null;clearMenu=false;render()}});
 document.onkeydown=e=>{
  if(e.target.matches("input,select"))return;
  if(e.key==="?"){$("help").classList.toggle("on");return}
