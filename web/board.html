@@ -243,7 +243,7 @@ async function load(){
  for(const c of S.cards){if(c.kind!=="run")continue;const k=key(c),before=wasAwaiting.get(k);
   if(!first&&before===null&&c.awaiting)notifyUser("kaizen — waiting on you",c.text+" · "+c.awaiting);wasAwaiting.set(k,c.awaiting)}
  first=false;render();
- if(openKey){const c=S.cards.find(x=>key(x)===openKey);if(c&&runDoc)openRun(c,true);else if(c&&c.kind==="idea"){const ta=$("pbody").querySelector("textarea");if(!(ta&&document.activeElement===ta&&ta.value))chat(c,c.notes,c.archived||c.status!=="idea")}}}
+ if(openKey){const c=S.cards.find(x=>key(x)===openKey);if(c&&runDoc)openRun(c,true);else if(c&&c.kind==="idea"){const ta=$("pbody").querySelector("textarea");if(!(ta&&document.activeElement===ta))chat(c,c.notes,c.archived||c.status!=="idea")}}}
 async function post(path,body){const r=await fetch(path,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});const j=await r.json().catch(()=>({}));if(!r.ok){toast(j.error||j.why||"failed");if(j.manual)console.log("run manually:",j.manual)}return j}
 
 function card(c){
@@ -364,7 +364,7 @@ async function openRun(c,refresh){
  if(!refresh||!runDoc||runDoc.id!==c.id){runDoc=await fetch(`/run/${encodeURIComponent(c.id)}?dir=${encodeURIComponent(c.state)}`).then(r=>r.json())}
  if(openKey!==key(c))return;
  // A refresh while notes are being typed would wipe the textarea.
- const ta=$("pbody").querySelector("textarea");if(refresh&&ta&&document.activeElement===ta&&ta.value)return;
+ const ta=$("pbody").querySelector("textarea");if(refresh&&ta&&document.activeElement===ta)return;
  $("psub").textContent=c.id+" · "+(WORD[c.status]||c.status)+(c.awaiting?" · "+c.awaiting:"");
  const tabs=[["Request","request"],["Notes","notes"],["Plan","plan"],["Impl","impl"],["Review","review"],["Backlog","backlog"]];
  $("ptabs").innerHTML=tabs.map((t,i)=>`<button class="${i===tab?"on":""}" data-i="${i}">${t[0]}</button>`).join("");
