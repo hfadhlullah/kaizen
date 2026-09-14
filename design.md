@@ -293,6 +293,6 @@ the web board show a state the TUI cannot.
 
 - `design.md` (this file)
 - `assets/kaizen.jpg` mascot source, `assets/make-images.py` rebuilds every image
-- `assets/tanuki.svg` traced outline, to add before the web board
+- `assets/tanuki.svg` traced outline, rebuilt by `make-images.py`
 - `web/board.html` the board; tokens from sections 2 and 3 at the top of its `<style>`
 - `cli/web.ts` serves it; `cli/state.ts` is the logic both boards share

@@ -107,6 +107,56 @@ def square():
             .save(name, "PNG", optimize=True)
 
 
+def trace(height=400, tol=1.0):
+    """tanuki.svg: the mask above as vector paths, for the web board's empty state.
+    Every blob and every hole in the thresholded mask is one closed subpath drawn along
+    pixel edges, then thinned with Ramer-Douglas-Peucker; evenodd fill keeps the eye
+    rings open. Pure PIL: no tracer is installed and none is worth a dependency."""
+    m = tanuki(height)
+    w, h = m.size
+    on = {(i % w, i // w) for i, v in enumerate(m.tobytes()) if v >= 128}
+    # Directed edges with the filled pixel on the right: a blob runs clockwise, a hole
+    # counter-clockwise, which is exactly what evenodd needs.
+    edges = {}
+    for x, y in on:
+        if (x, y - 1) not in on: edges[(x, y)] = (x + 1, y)
+        if (x + 1, y) not in on: edges[(x + 1, y)] = (x + 1, y + 1)
+        if (x, y + 1) not in on: edges[(x + 1, y + 1)] = (x, y + 1)
+        if (x - 1, y) not in on: edges[(x, y + 1)] = (x, y)
+    # ponytail: a corner pixel touching diagonally has two outgoing edges at one vertex;
+    # the dict keeps one, so such a ring splits into two rings. Harmless for a fill.
+
+    def rdp(pts):
+        if len(pts) < 3:
+            return pts
+        (ax, ay), (bx, by) = pts[0], pts[-1]
+        dx, dy = bx - ax, by - ay
+        n = (dx * dx + dy * dy) ** 0.5 or 1
+        i, d = max(((i, abs(dx * (ay - y) - dy * (ax - x)) / n) for i, (x, y) in enumerate(pts)),
+                   key=lambda t: t[1])
+        if d <= tol:
+            return [pts[0], pts[-1]]
+        return rdp(pts[:i + 1])[:-1] + rdp(pts[i:])
+
+    d = []
+    while edges:
+        start = next(iter(edges))
+        ring, p = [start], edges.pop(start)
+        while p != start and p in edges:
+            ring.append(p)
+            p = edges.pop(p)
+        if len(ring) < 8:
+            continue                      # speck
+        # A closed ring has no chord to measure against: split it at its far point.
+        k = max(range(len(ring)), key=lambda i: (ring[i][0] - start[0]) ** 2 + (ring[i][1] - start[1]) ** 2)
+        pts = rdp(ring[:k + 1])[:-1] + rdp(ring[k:] + [start])[:-1]
+        d.append("M" + "L".join(f"{x} {y}" for x, y in pts) + "Z")
+    svg = (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}">'
+           f'<path fill="currentColor" fill-rule="evenodd" d="{"".join(d)}"/></svg>\n')
+    open("tanuki.svg", "w").write(svg)
+    return len(d), len(svg)
+
+
 if __name__ == "__main__":
-    banner(); social(); square()
-    print("wrote kaizen-banner.png, kaizen-social.png, kaizen-logo.png, kaizen-avatar.png")
+    banner(); social(); square(); trace()
+    print("wrote kaizen-banner.png, kaizen-social.png, kaizen-logo.png, kaizen-avatar.png, tanuki.svg")
