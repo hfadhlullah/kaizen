@@ -240,15 +240,15 @@ itself as your agents write to disk — a run that moves while you are looking a
 screen.
 
 ```
-  Board   ~/code/acme-api
+  Board   ~/work/acme
 
   IDEA                     PLANNING              BUILDING           REVIEW          DONE
   ──────────────────────   ───────────────────   ────────────────   ─────────────   ──────────────
-  › · rate limit the       ◌ nightly digest      ● payroll export   ● oauth login   ○ rename cli
-      public API                                                                      flags
-                           ● landing page                                           ○ csv import
-    · retry failed
-      webhooks
+  › · FAQ page for the     ● q3 board memo       ◐ billing runbook  ● pricing       ○ chapter three
+      pricing change                                                  email
+                                                 ● oauth login                      ○ pricing
+    · onboarding video                                                                research
+      script, two minutes
 
   ↑↓←→ move     n new  e edit  x reject  d delete  r run     a all projects  q back
   ● running    ◐ stalled    ◌ starting    ● waiting on you    ○ done    · idea
