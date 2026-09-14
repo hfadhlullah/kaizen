@@ -81,7 +81,7 @@ section h2 .clear{margin-left:auto;min-height:22px;padding:0 8px}
 .d-run .pulse,.st.d-run svg{animation:pl 1.6s infinite}
 @keyframes pl{50%{opacity:.35}}
 /* hover menu */
-.menu-pop{position:absolute;right:8px;top:30px;background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r);padding:4px;z-index:2;min-width:140px;display:flex;flex-direction:column}
+.menu-pop{position:absolute;right:8px;top:30px;background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r);padding:4px;z-index:3;min-width:140px;display:flex;flex-direction:column}
 .menu-pop button{text-align:left;padding:6px 10px;font-size:12px;color:var(--ink);border-radius:var(--r-s);display:flex;gap:8px;align-items:center}
 .menu-pop button:hover{background:color-mix(in srgb,var(--dim) 12%,transparent)}
 .menu-pop button.danger{color:var(--danger)}
@@ -105,9 +105,9 @@ section h2 .clear{margin-left:auto;min-height:22px;padding:0 8px}
 .ftr a{color:var(--dim);cursor:pointer;text-decoration:underline}
 
 /* side panel */
-.scrim{position:fixed;inset:0;background:color-mix(in srgb,var(--bg) 55%,transparent);display:none}
+.scrim{position:fixed;inset:0;z-index:10;background:color-mix(in srgb,var(--bg) 55%,transparent);display:none}
 .scrim.on{display:block}
-aside{position:fixed;top:0;right:0;bottom:0;width:480px;max-width:100%;background:var(--bg-2);border-left:1px solid var(--line);display:flex;flex-direction:column;transform:translateX(100%);transition:transform .18s}
+aside{position:fixed;top:0;right:0;bottom:0;z-index:11;width:480px;max-width:100%;background:var(--bg-2);border-left:1px solid var(--line);display:flex;flex-direction:column;transform:translateX(100%);transition:transform .18s}
 aside.open{transform:none}
 aside header{display:flex;align-items:flex-start;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line)}
 aside header .t{flex:1;min-width:0}
@@ -134,9 +134,9 @@ aside .foot:empty{display:none}
 .set .opts{display:flex;gap:4px}
 .set .opts button{border:1px solid var(--line);border-radius:var(--r);padding:3px 10px;color:var(--dim)}
 .set .opts button.on{color:var(--ink);border-color:var(--ink)}
-.toast{position:fixed;left:24px;bottom:52px;background:var(--ink);color:var(--bg);border-radius:var(--r);padding:8px 14px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast{position:fixed;z-index:12;left:24px;bottom:52px;background:var(--ink);color:var(--bg);border-radius:var(--r);padding:8px 14px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.on{opacity:1}
-.help{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:color-mix(in srgb,var(--bg) 70%,transparent)}
+.help{position:fixed;inset:0;z-index:12;display:none;align-items:center;justify-content:center;background:color-mix(in srgb,var(--bg) 70%,transparent)}
 .help.on{display:flex}.help div{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r);padding:20px 24px;line-height:2}
 .help kbd{display:inline-block;width:7ch;color:var(--accent)}
 @media(max-width:900px){main{grid-template-columns:1fr;padding-inline:16px;gap:8px}.hdr,.strip,.ftr{padding-inline:16px}section h2{position:sticky;top:0;background:var(--bg);z-index:1}.more{display:grid}.card:hover .age{display:inline}}
