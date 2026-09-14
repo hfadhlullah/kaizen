@@ -26,9 +26,20 @@ if gh release view "$tag" >/dev/null 2>&1; then
   exit 0
 fi
 
-# --generate-notes lists the commits since the last tag. Good enough to never be
-# empty; rewrite it with what actually changed when the release matters.
-gh release create "$tag" --title "$tag" --generate-notes >/dev/null 2>&1 \
+# --generate-notes only lists pull requests, and this repo merges none, so the
+# notes are built here: the title from the release commit's subject, the body from
+# every commit since the previous tag with its message, oldest first.
+prev="$(git describe --tags --abbrev=0 "$tag^" 2>/dev/null || true)"
+subject="$(git log -1 --format=%s "$tag" | sed -n 's/^Release [0-9.]*: //p')"
+title="$tag${subject:+: $subject}"
+notes="$(mktemp)"
+git log --reverse --format='### %s%n%n%b' ${prev:+"$prev.."}"$tag" \
+  | grep -vE '^(Co-Authored-By|Claude-Session):' \
+  | grep -vE '^### Release [0-9.]+:' \
+  | cat -s > "$notes"
+[ -n "$prev" ] && printf '\n**Full Changelog**: https://github.com/hfadhlullah/kaizen/compare/%s...%s\n' "$prev" "$tag" >> "$notes"
+gh release create "$tag" --title "$title" --notes-file "$notes" >/dev/null 2>&1 \
   && echo "release: published $tag  https://github.com/hfadhlullah/kaizen/releases/tag/$tag" \
   || echo "release: tag pushed, release not created"
+rm -f "$notes"
 exit 0
