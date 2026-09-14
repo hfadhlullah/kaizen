@@ -434,8 +434,8 @@ document.onkeydown=e=>{
  if(e.key==="r"&&oc.kind==="idea"){close();mode="run";modeKey=key(oc);render()}};
 
 // ---- live
-let dropped=false;
-function listen(){const es=new EventSource("/events");es.onmessage=ev=>{if(ev.data==="changed")load();if(ev.data==="reload"||(ev.data==="hello"&&dropped))location.reload()};es.onerror=()=>{es.close();dropped=true;setTimeout(listen,3000)}}
+let boot=null;
+function listen(){const es=new EventSource("/events");es.onmessage=ev=>{if(ev.data==="changed")load();else if(ev.data==="reload")location.reload();else if(ev.data.startsWith("hello ")){const b=ev.data.slice(6);if(boot&&b!==boot)location.reload();boot=b}};es.onerror=()=>{es.close();setTimeout(listen,3000)}}
 load();listen();
 </script>
 </body>

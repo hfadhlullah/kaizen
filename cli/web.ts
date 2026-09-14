@@ -75,6 +75,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
   let last = fingerprint();
   const poll = setInterval(() => { const now = fingerprint(); if (now !== last) { last = now; changed(); } }, 2000);
 
+  const BOOT = Date.now().toString(36);
+  const ping = setInterval(() => { for (const c of clients) { try { c.enqueue(": ping\n\n"); } catch { clients.delete(c); } } }, 8000);
   const server = Bun.serve({
     hostname: "127.0.0.1",
     port: opts.port ?? DEFAULT_PORT,
@@ -148,7 +150,10 @@ export async function web(repoDir: string, opts: Opts = {}) {
       if (req.method === "GET" && path === "/events") {
         let ctrl: ReadableStreamDefaultController;
         const stream = new ReadableStream({
-          start(c) { ctrl = c; clients.add(c); c.enqueue("data: hello\n\n"); },
+          // The boot id lets the page tell a server restart from a dropped
+          // connection; only the former means new code. The ping keeps Bun's
+          // idle timeout from closing the stream every ten seconds.
+          start(c) { ctrl = c; clients.add(c); c.enqueue(`data: hello ${BOOT}\n\n`); },
           cancel() { clients.delete(ctrl); },
         });
         return new Response(stream, {
@@ -270,7 +275,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
   if (opts.open !== false) await openApp(url);
 
   await new Promise<void>((resolve) => {
-    const stop = () => { clearInterval(poll); for (const w of watchers) { try { w.close(); } catch { /* gone */ } } server.stop(true); resolve(); };
+    const stop = () => { clearInterval(poll); clearInterval(ping); for (const w of watchers) { try { w.close(); } catch { /* gone */ } } server.stop(true); resolve(); };
     process.on("SIGINT", stop);
     process.on("SIGTERM", stop);
   });
