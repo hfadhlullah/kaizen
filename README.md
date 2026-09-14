@@ -297,7 +297,8 @@ backlog; `⋯` on a card runs, edits, rejects, abandons or archives. `Clear` on 
 every finished run to the archive (`.kaizen/archive.md`, a list, nothing moves), and
 `Archive` in the strip shows what is there, with `Restore` on each card. Theme lives in its settings;
 everything else is still `kaizen settings`. `--port N` picks a port, `--no-open` just
-serves, `?all=1` in the URL opens on every project.
+serves, `?all=1` in the URL opens on every project. `--daemon` starts the server
+detached so it outlives the terminal (pid kept in `~/.kaizen/web.pid`); `--stop` ends it.
 
 ### Mouse
 

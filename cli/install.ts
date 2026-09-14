@@ -210,9 +210,44 @@ if (wantSettings) {
 }
 
 if (wantWeb) {
-  const { web } = await import("./web.ts");
   const at = Bun.argv.indexOf("--port");
   const port = at !== -1 ? Number(Bun.argv[at + 1]) || undefined : undefined;
+  const url = `http://127.0.0.1:${port ?? 7420}/`;
+  const pidFile = join(home, ".kaizen", "web.pid");
+  const alive = async () => { try { await fetch(url); return true; } catch { return false; } };
+
+  if (args.has("--stop")) {
+    const pid = existsSync(pidFile) ? Number(readFileSync(pidFile, "utf8")) : NaN;
+    if (!pid) { console.log("  no kaizen web daemon recorded"); process.exit(0); }
+    try { process.kill(pid, "SIGTERM"); console.log(`  stopped kaizen web (pid ${pid})`); }
+    catch { console.log(`  pid ${pid} already gone; cleared the stale record`); }
+    rmSync(pidFile, { force: true });
+    process.exit(0);
+  }
+
+  if (args.has("--daemon")) {
+    // The daemon is this same command, detached, with the browser left to us:
+    // ignored stdio is what lets it outlive the terminal.
+    if (await alive()) {
+      console.log(`  kaizen web already running at ${url}`);
+    } else {
+      const argv = Bun.argv.slice(2).filter((a) => a !== "--daemon" && a !== "--no-open");
+      const child = Bun.spawn([process.execPath, Bun.main, ...argv, "--no-open"], {
+        detached: true, stdio: ["ignore", "ignore", "ignore"],
+      });
+      child.unref();
+      mkdirSync(dirname(pidFile), { recursive: true });
+      writeFileSync(pidFile, String(child.pid));
+      for (let i = 0; i < 30 && !(await alive()); i++) await Bun.sleep(100);
+      if (!(await alive())) { console.log(`  kaizen web did not come up on ${url}`); process.exit(1); }
+      console.log(`\n  kaizen web  ${url}  (pid ${child.pid}, detached)`);
+      console.log(`  kaizen web --stop to stop it\n`);
+    }
+    if (!args.has("--no-open")) await openUrl(url);
+    process.exit(0);
+  }
+
+  const { web } = await import("./web.ts");
   await web(await resolveRepoQuietly(), { port, open: !args.has("--no-open") });
   process.exit(0);
 }
