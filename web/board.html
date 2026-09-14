@@ -248,6 +248,7 @@ function card(c){
  if(c.status==="waiting")chips.push(`<span class="chip warn"><i></i>${esc(c.awaiting||"needs you")}</span>`);
  else if(c.status==="running")chips.push(`<span class="chip run"><i></i>running</span>`);
  if(all)chips.push(`<span class="chip">${esc(c.where)}</span>`);
+ chips.push(...(c.tags||[]).map(t=>{const mark=MARKS[t]?`<svg><use href="#c-${t}"/></svg>`:"";return `<span class="chip${t==="full"||t==="lite"?" accent":""}">${mark}${esc(NAMES[t]||t)}</span>`}));
  const pick=picking&&!archive&&c.column===4;
  el.innerHTML=(pick?`<input type="checkbox" class="pick" ${picked.has(k)?"checked":""} aria-label="Select">`:"")+`<div class="c-id"><span class="st d-${st}"><svg><use href="#s-${st}"/></svg></span><span class="idt">${esc(idt)}</span><span class="age">${c.kind==="run"?age(c.moved||S.now,S.now):""}</span><button class="ib sm more" data-a="menu" title="Actions" aria-label="Actions">${ico("more")}</button></div>
   <div class="c-title">${esc(c.kind==="idea"?c.text:(c.title||c.id))}</div>

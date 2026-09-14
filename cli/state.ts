@@ -7,7 +7,7 @@ import { homedir } from "node:os";
 
 export const home = homedir();
 
-export type Run = { id: string; stage: string; awaiting: string | null; moved: number };
+export type Run = { id: string; stage: string; awaiting: string | null; moved: number; runner?: string; agent?: string };
 
 export const KNOWN_AGENTS = [
   { name: "Claude Code", dir: ".claude", cmd: "claude" },
@@ -202,7 +202,7 @@ export function readRuns(state: string): Run[] {
       // own mtime is the only evidence that anything is still working on it.
       let moved = 0;
       try { moved = statSync(file).mtimeMs; } catch { /* vanished mid-read */ }
-      return [{ id, stage: s.stage ?? "?", awaiting: s.awaiting ?? null, moved }];
+      return [{ id, stage: s.stage ?? "?", awaiting: s.awaiting ?? null, moved, runner: s.runner, agent: s.agent }];
     } catch { return []; }
   }).reverse();
 }
@@ -308,6 +308,7 @@ export type Card = {
   moved?: number;                                  // runs only: state.json mtime
   title?: string;                                  // runs only: first line of the request
   archived: boolean;                               // hidden from the board unless asked for
+  tags?: string[];                                 // runs only: runner and agent, when recorded
 };
 
 // A run is called running on the evidence that it moved recently; there is no PID
@@ -502,6 +503,7 @@ export function boardCards(states: string[], now: number): Card[] {
         awaiting: r.stage === "abandoned" ? null : r.awaiting,
         dim: r.stage === "abandoned",
         archived: archive.has(r.id),
+        tags: [r.runner, r.agent].filter((t): t is string => !!t),
       });
     }
   }

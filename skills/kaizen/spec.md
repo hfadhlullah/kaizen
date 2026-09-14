@@ -101,8 +101,13 @@ sentence and either nods or says "no, this is a blog post". They are never asked
 categorize their own request up front.
 
 Write into `00-request.md`: the verbatim request, the deliverable, what done means,
-and what wrong means. Record in `state.json`: `id`, `mode`, `runner`, `track`,
+and what wrong means. Record in `state.json`: `id`, `mode`, `runner`, `agent`, `track`,
 `stage: "plan"`, `awaiting: null`.
+
+`agent` is the tool this run is happening in — `claude`, `codex`, `agy`, `opencode`,
+`gemini`, or `cursor` — written once at intake and never changed, so a board can say
+which agent to look for when a run is waiting. The tool running this stage knows what
+it is; no detection is needed.
 
 `runner` is read from config at intake and written down here, because it decides
 whether the stages that follow are separate agents or this one. A run resumed later

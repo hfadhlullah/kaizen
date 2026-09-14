@@ -362,7 +362,7 @@ shown automatically.
       state.json
 ```
 
-`state.json` is the resume point, and records the runner the run started with, so a
+`state.json` is the resume point, and records the runner and the agent the run started with, so a
 run picked up later keeps the shape it was reviewed under rather than silently
 changing because a setting moved:
 
@@ -371,6 +371,7 @@ changing because a setting moved:
   "id": "2026-09-02-add-oauth",
   "mode": "approve",
   "runner": "full",
+  "agent": "claude",
   "stage": "review",
   "awaiting": "approvals.review",
   "iteration": 1,
