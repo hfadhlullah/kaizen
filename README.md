@@ -288,7 +288,7 @@ serves the same board on `http://127.0.0.1:7420/` — loopback only, no account 
 opens it in a Chromium-family browser as an app window when one is installed, otherwise
 in a tab.
 
-<img src="https://raw.githubusercontent.com/hfadhlullah/kaizen/main/assets/web-board.png" alt="kaizen web board" width="760">
+<img src="https://raw.githubusercontent.com/hfadhlullah/kaizen/main/assets/board-web.png" alt="kaizen web board" width="760">
 
 Same columns, same files: an idea added here lands in `inbox.md`, a run
 started here opens your agent in a new terminal exactly as `r` does, and the board
