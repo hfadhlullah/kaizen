@@ -4,3 +4,4 @@ node_modules/
 # here: its spec*.md and config.yml are copies of skills/kaizen/, which is the
 # source, and committing both is how the two drift apart.
 .kaizen/
+.npmrc

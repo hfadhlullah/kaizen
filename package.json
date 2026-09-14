@@ -19,7 +19,8 @@
   "scripts": {
     "install-links": "bun run cli/install.ts",
     "check": "bun run cli/install.ts --check",
-    "postpublish": "sh cli/release.sh"
+    "postpublish": "sh cli/release.sh",
+    "publish:gh": "sh cli/publish-gh.sh"
   },
   "repository": {
     "type": "git",
