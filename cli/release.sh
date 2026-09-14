@@ -1,11 +1,11 @@
 #!/bin/sh
-# Runs after `npm publish`: tag the published version and open a GitHub release
+# Runs after `bun publish`: tag the published version and open a GitHub release
 # for it, so a version can never exist on npm with nothing to read on GitHub.
 #
 # Never fails the publish. The package is already public by the time this runs;
 # exiting non-zero here would report a failure that did not happen.
 set -u
-v="${npm_package_version:-$(node -p "require('./package.json').version" 2>/dev/null)}"
+v="${npm_package_version:-$(bun -p "require('./package.json').version" 2>/dev/null)}"
 [ -n "$v" ] || { echo "release: no version, skipping"; exit 0; }
 tag="v$v"
 

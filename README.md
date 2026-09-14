@@ -14,14 +14,19 @@
 
 ---
 
-```bash
-# 1. Install Bun (prerequisite) — macOS, Linux, WSL
-curl -fsSL https://bun.sh/install | bash
-#    Windows PowerShell: powershell -c "irm bun.sh/install.ps1 | iex"
+macOS, Linux, WSL — one paste:
 
-# 2. Install Kaizen
-bunx kaizen-agent
+```bash
+curl -fsSL https://bun.sh/install | bash && ~/.bun/bin/bunx kaizen-agent
 ```
+
+Windows PowerShell — one paste:
+
+```powershell
+irm bun.sh/install.ps1 | iex; & "$env:USERPROFILE\.bun\bin\bunx.exe" kaizen-agent
+```
+
+Already have Bun? `bunx kaizen-agent`.
 
 ---
 
@@ -273,6 +278,25 @@ recorded in the run's approval file.
 `a` switches between this project and every project kaizen knows about. Below a hundred
 columns the board stacks into a list rather than squeezing five columns into sixty.
 
+### In a browser
+
+```bash
+kaizen web
+```
+
+serves the same board on `http://127.0.0.1:7420/` — loopback only, no account — and
+opens it in a Chromium-family browser as an app window when one is installed, otherwise
+in a tab.
+
+<img src="https://raw.githubusercontent.com/hfadhlullah/kaizen/main/assets/web-board.png" alt="kaizen web board" width="760">
+
+Same columns, same files: an idea added here lands in `inbox.md`, a run
+started here opens your agent in a new terminal exactly as `r` does, and the board
+redraws as your agents write to disk. Mouse first; the TUI's keys still work. Click a card for its plan, review and
+backlog; `⋯` on a card runs, edits, rejects or abandons. Theme lives in its settings;
+everything else is still `kaizen settings`. `--port N` picks a port, `--no-open` just
+serves, `?all=1` in the URL opens on every project.
+
 ### Mouse
 
 Off by default. Turn it on in `kaizen settings` under `ui.mouse`, and clicking a row or
@@ -294,12 +318,11 @@ the only prerequisite. Pick your platform:
 In PowerShell:
 
 ```powershell
-# 1. Install Bun
-powershell -c "irm bun.sh/install.ps1 | iex"
-
-# 2. Reopen PowerShell so bun is on your PATH, then:
-bunx kaizen-agent
+irm bun.sh/install.ps1 | iex; & "$env:USERPROFILE\.bun\bin\bunx.exe" kaizen-agent
 ```
+
+One line, because the shell that just installed Bun does not have it on `PATH` yet;
+the full path sidesteps that. Next time, plain `bunx kaizen-agent`.
 
 Git is not required. Where it is missing, kaizen copies itself into `%USERPROFILE%\kaizen`
 instead of cloning, and `bunx kaizen-agent` is also how you update. Links are made as
@@ -312,13 +335,10 @@ needed. WSL users can follow the Linux instructions instead.
 <summary><b>macOS</b></summary>
 
 ```bash
-# 1. Install Bun
-curl -fsSL https://bun.sh/install | bash
-# or: brew install oven-sh/bun/bun
-
-# 2. Install Kaizen
-bunx kaizen-agent
+curl -fsSL https://bun.sh/install | bash && ~/.bun/bin/bunx kaizen-agent
 ```
+
+Or `brew install oven-sh/bun/bun`, then `bunx kaizen-agent`.
 
 </details>
 
@@ -326,13 +346,11 @@ bunx kaizen-agent
 <summary><b>Linux</b></summary>
 
 ```bash
-# 1. Install Bun
-curl -fsSL https://bun.sh/install | bash
-# or: npm install -g bun
-
-# 2. Install Kaizen
-bunx kaizen-agent
+curl -fsSL https://bun.sh/install | bash && ~/.bun/bin/bunx kaizen-agent
 ```
+
+The full path is there because the shell that just installed Bun does not have it on
+`PATH` until you open a new one. Next time, plain `bunx kaizen-agent`.
 
 </details>
 

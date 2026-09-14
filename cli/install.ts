@@ -13,6 +13,7 @@ const REPO_URL = "https://github.com/hfadhlullah/kaizen.git";
 const args = new Set(Bun.argv.slice(2));
 const upgrade = args.has("upgrade") || args.has("--upgrade");
 const wantSettings = args.has("settings") || args.has("config");
+const wantWeb = args.has("web");
 const check = args.has("--check");
 const uninstall = args.has("uninstall") || args.has("--uninstall");
 const force = args.has("--force");
@@ -101,7 +102,7 @@ async function removeEverything() {
   // A --project install puts links in the project folder, and on Windows those
   // projects live on other drives entirely. Every project kaizen knows about is
   // checked, plus whatever a drive-wide scan turns up.
-  const { knownProjects, searchRoots, findProjects } = await import("./dashboard.ts");
+  const { knownProjects, searchRoots, findProjects } = await import("./state.ts");
   step("looking for project installs");
   const roots = [home, process.cwd(), ...knownProjects(),
     ...searchRoots([process.cwd()]).flatMap((r) => findProjects(r))]
@@ -200,6 +201,14 @@ async function openUrl(url: string) {
 if (wantSettings) {
   const { settings } = await import("./settings.ts");
   await settings(await resolveRepoQuietly());
+  process.exit(0);
+}
+
+if (wantWeb) {
+  const { web } = await import("./web.ts");
+  const at = Bun.argv.indexOf("--port");
+  const port = at !== -1 ? Number(Bun.argv[at + 1]) || undefined : undefined;
+  await web(await resolveRepoQuietly(), { port, open: !args.has("--no-open") });
   process.exit(0);
 }
 
