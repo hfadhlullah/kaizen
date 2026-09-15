@@ -104,6 +104,12 @@ Write into `00-request.md`: the verbatim request, the deliverable, what done mea
 and what wrong means. Record in `state.json`: `id`, `mode`, `runner`, `agent`, `track`,
 `stage: "plan"`, `awaiting: null`.
 
+`stage` takes exactly one of five words, and boards key their columns on them:
+`plan`, `build`, `review`, `done`, `abandoned`. Set it when the stage starts —
+`build` before the builder touches anything, `review` before the reviewer reads — as
+its own write, not tacked onto a longer command that may not finish. Any other word
+(`implement`, `fix`, `building`) is unknown to every reader and shows as still planning.
+
 `agent` is the tool this run is happening in — `claude`, `codex`, `agy`, `opencode`,
 `gemini`, or `cursor` — written once at intake and never changed, so a board can say
 which agent to look for when a run is waiting. The tool running this stage knows what

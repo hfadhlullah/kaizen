@@ -348,12 +348,16 @@ export function statusOf(r: Run, now: number): Status {
   return now - r.moved < RUNNING_WITHIN_MS ? "running" : "stalled";
 }
 
-// A stage this build has never heard of still belongs somewhere visible, and
-// PLANNING is the honest guess: the run has started and has not finished.
-export function columnOf(stage: string) {
+// A stage this build has never heard of still belongs somewhere visible. What the
+// run is waiting on says where it really is (a run awaiting the review approval is
+// in Review whatever its stage word), and PLANNING is the honest guess otherwise:
+// the run has started and has not finished.
+export function columnOf(stage: string, awaiting: string | null = null) {
   if (stage === "build") return 2;
   if (stage === "review") return 3;
   if (stage === "done" || stage === "abandoned") return 4;
+  if (awaiting === "approvals.review") return 3;
+  if (awaiting === "approvals.each_file") return 2;
   return 1;
 }
 
@@ -588,7 +592,7 @@ export function boardCards(states: string[], now: number): Card[] {
     }
     for (const r of readRuns(st)) {
       next.push({
-        kind: "run", id: r.id, status: statusOf(r, now), text: short(r.id), state: st, where, column: columnOf(r.stage), moved: r.moved,
+        kind: "run", id: r.id, status: statusOf(r, now), text: short(r.id), state: st, where, column: columnOf(r.stage, r.awaiting), moved: r.moved,
         title: requestTitle(body(st, r.id)),
         awaiting: r.stage === "abandoned" ? null : r.awaiting,
         dim: r.stage === "abandoned",
