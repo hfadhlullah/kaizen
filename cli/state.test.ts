@@ -59,6 +59,7 @@ test("statusOf: waiting beats stage, mtime decides running vs stalled", () => {
 test("columnOf: every stage word lands somewhere", () => {
   expect(["plan", "build", "review", "done", "abandoned", "weird"].map((s) => columnOf(s))).toEqual([1, 2, 3, 4, 4, 1]);
   expect(columnOf("implement", "approvals.review")).toBe(3);
+  expect(columnOf("implement", "findings")).toBe(3);
   expect(columnOf("implement", "approvals.each_file")).toBe(2);
   expect(columnOf("plan", "approvals.plan")).toBe(1);
 });

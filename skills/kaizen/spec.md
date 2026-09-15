@@ -110,6 +110,12 @@ and what wrong means. Record in `state.json`: `id`, `mode`, `runner`, `agent`, `
 its own write, not tacked onto a longer command that may not finish. Any other word
 (`implement`, `fix`, `building`) is unknown to every reader and shows as still planning.
 
+`awaiting` is `null` or the config key of the approval being waited on —
+`approvals.plan`, `approvals.review`, `approvals.each_file` — or `findings` when the
+run has stopped for the user to pick which review findings to fix. Boards read it to
+say what a run is waiting for and where it sits; a word outside this list is shown but
+not understood.
+
 `agent` is the tool this run is happening in — `claude`, `codex`, `agy`, `opencode`,
 `gemini`, or `cursor` — written once at intake and never changed, so a board can say
 which agent to look for when a run is waiting. The tool running this stage knows what

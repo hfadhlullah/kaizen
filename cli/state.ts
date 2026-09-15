@@ -356,7 +356,7 @@ export function columnOf(stage: string, awaiting: string | null = null) {
   if (stage === "build") return 2;
   if (stage === "review") return 3;
   if (stage === "done" || stage === "abandoned") return 4;
-  if (awaiting === "approvals.review") return 3;
+  if (awaiting === "approvals.review" || awaiting === "findings") return 3;
   if (awaiting === "approvals.each_file") return 2;
   return 1;
 }
