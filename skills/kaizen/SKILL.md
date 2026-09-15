@@ -61,7 +61,9 @@ If the user typed `/kaizen` with no argument and a run is in progress, treat it 
    `~/.kaizen/` keyed by working directory. If neither exists and the user is starting
    work, run `/kaizen init` first: it creates `.kaizen/` with a copy of the `spec*.md`
    files and — where the folder is a git repository — the gitignore entry
-   (see [`adapters.md`](adapters.md)).
+   (see [`adapters.md`](adapters.md)). Also append the project folder's absolute path
+   to `~/.kaizen/projects` if not already listed: the board only retires an idea when
+   it can see the run, and it only looks in projects it knows.
 2. Read the config in this order, each file filling in the keys the one before it
    does not set: `.kaizen/config.yml`, then `~/.kaizen/config.yml`, then
    `config.default.yml` in this skill. A project usually has no `config.yml` of its

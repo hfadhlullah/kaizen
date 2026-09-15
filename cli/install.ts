@@ -210,6 +210,7 @@ if (wantSettings) {
 }
 
 if (wantWeb) {
+  if (args.has("--shortcut")) { const { shortcut } = await import("./web.ts"); console.log(`\n  kaizen web shortcut  ${await shortcut()}\n`); process.exit(0); }
   const at = Bun.argv.indexOf("--port");
   const port = at !== -1 ? Number(Bun.argv[at + 1]) || undefined : undefined;
   const url = `http://127.0.0.1:${port ?? 7420}/`;

@@ -67,6 +67,8 @@ change — do not refactor around it. Write what you changed to
 - **Baseline / after** — the checks run before and after, with both results verbatim.
 - **Verification** — each check carried out, with its actual result. Quote failures.
 - **Not done** — steps skipped, out-of-scope observations, known gaps.
+- **Preview** — how to see the result: commands to run it locally and the URL for an
+  app; the path to open, or the result itself, for anything else. The board shows it.
 
 ## Report back
 

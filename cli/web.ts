@@ -73,13 +73,26 @@ export async function web(repoDir: string, opts: Opts = {}) {
     return sum;
   };
   let last = fingerprint();
-  const poll = setInterval(() => { const now = fingerprint(); if (now !== last) { last = now; changed(); } }, 2000);
+  let seen = states(true).join("\n");
+  const poll = setInterval(() => {
+    // A project registered since start (a run launched into a fresh dir) gets a watcher too.
+    const now = states(true).join("\n"); if (now !== seen) { seen = now; watchAll(); }
+    const fp = fingerprint(); if (fp !== last) { last = fp; changed(); }
+  }, 2000);
 
   const BOOT = Date.now().toString(36);
   const ping = setInterval(() => { for (const c of clients) { try { c.enqueue(": ping\n\n"); } catch { clients.delete(c); } } }, 8000);
-  const server = Bun.serve({
+  // A launcher clicked while a board is already up should show that board, not die.
+  const port = opts.port ?? DEFAULT_PORT;
+  const server = (() => { try { return serve(); } catch (e) {
+    if ((e as { code?: string }).code !== "EADDRINUSE") throw e;
+    return null;
+  } })();
+  if (!server) { const url = `http://127.0.0.1:${port}/`; console.log(`\n  kaizen web already at ${url}\n`); if (opts.open !== false) await openApp(url); return; }
+
+  function serve() { return Bun.serve({
     hostname: "127.0.0.1",
-    port: opts.port ?? DEFAULT_PORT,
+    port,
     async fetch(req) {
       // Host first: a hostname rebound to 127.0.0.1 by an attacker's DNS still
       // arrives with that hostname in Host, and gets nothing.
@@ -266,7 +279,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
 
       return new Response("not found", { status: 404 });
     },
-  });
+  }); }
 
   const url = `http://127.0.0.1:${server.port}/`;
   console.log(`\n  kaizen web  ${url}`);
@@ -321,3 +334,55 @@ function winChrome(exe: string) {
   for (const r of roots) { const p = join(r, sub[exe] ?? exe); if (existsSync(p)) return p; }
   return null;
 }
+
+// `kaizen web --shortcut`: a launcher the OS can find — Spotlight on macOS, the app
+// menu / super-space on Linux, the Desktop on Windows. Each one runs `kaizen web` with
+// the bun and script that ran this command, so it works for a git checkout and a
+// bunx install alike.
+export async function shortcut() {
+  const bun = process.execPath;
+  const script = Bun.argv[1]!;
+  const icon = join(dirname(import.meta.dir), "assets", "kaizen-logo.png");
+  const hasIcon = existsSync(icon);
+  const { mkdirSync, writeFileSync, chmodSync } = await import("node:fs");
+
+  if (process.platform === "darwin") {
+    const app = join(home, "Applications", "Kaizen.app", "Contents");
+    mkdirSync(join(app, "MacOS"), { recursive: true });
+    writeFileSync(join(app, "MacOS", "kaizen"), `#!/bin/sh\nexec ${q(bun)} ${q(script)} web --daemon\n`);
+    chmodSync(join(app, "MacOS", "kaizen"), 0o755);
+    writeFileSync(join(app, "Info.plist"), `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>CFBundleName</key><string>Kaizen</string>
+  <key>CFBundleIdentifier</key><string>dev.kaizen.web</string>
+  <key>CFBundleExecutable</key><string>kaizen</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>LSUIElement</key><true/>
+</dict></plist>
+`);
+    return `${tilde(join(home, "Applications", "Kaizen.app"))} — Spotlight finds it once indexed`;
+  }
+
+  if (process.platform === "win32") {
+    const lnk = join(home, "Desktop", "Kaizen.lnk");
+    const ps = `$s=(New-Object -ComObject WScript.Shell).CreateShortcut('${lnk}');$s.TargetPath='${bun}';$s.Arguments='"${script}" web --daemon';$s.WorkingDirectory='${home}';${hasIcon ? `$s.IconLocation='${icon}';` : ""}$s.Save()`;
+    await Bun.$`powershell -NoProfile -Command ${ps}`.quiet();
+    return lnk;
+  }
+
+  const dir = join(process.env["XDG_DATA_HOME"] ?? join(home, ".local", "share"), "applications");
+  mkdirSync(dir, { recursive: true });
+  const file = join(dir, "kaizen.desktop");
+  writeFileSync(file, `[Desktop Entry]
+Type=Application
+Name=Kaizen
+Comment=Kaizen board
+Exec=${q(bun)} ${q(script)} web --daemon
+${hasIcon ? `Icon=${icon}\n` : ""}Terminal=false
+Categories=Development;
+`);
+  return tilde(file);
+}
+
+const q = (s: string) => (/[\s"']/.test(s) ? `"${s.replace(/"/g, '\\"')}"` : s);

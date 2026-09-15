@@ -621,6 +621,8 @@ export function manualCommand(projectDir: string, agentCmd: string, prompt: stri
 
 export function launchRun(it: Item, from: string): Launch {
   const projectDir = projectOf(from);
+  // The run will be born here; the board must know the dir or the idea never retires.
+  remember(projectDir);
   const agent = detectDefaultAgent(projectDir);
   const agentBin = Bun.which(agent.cmd) ?? agent.cmd;
   const prompt = requestOf(it.where ? `/kaizen ${it.text} (${it.where})` : `/kaizen ${it.text}`, it.notes, from);

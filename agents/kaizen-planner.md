@@ -140,6 +140,12 @@ absorb.
 Assumptions that do not change the shape of the plan go in *Open questions* and are
 resolved at the approval, alongside everything else. Do not stop the run for them.
 
+**Except when building from nothing.** A new app or product has no material to
+answer platform, users and scale, stack, distribution, access, data, and hosting — and
+a wrong answer there is a rebuild, not a finding. Decide each one in the plan: from
+the request, by proposal with a reason, or as an *Open question* with options where
+the builds differ. Ask them together, once, before any step is written.
+
 ## Method
 
 1. Read the request verbatim. Note what is asked and what is merely implied.

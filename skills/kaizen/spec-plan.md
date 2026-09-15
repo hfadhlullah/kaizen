@@ -25,6 +25,18 @@ different work behind each, nothing available to break the tie — and even then
 its recommendation with the question. Questions the existing material can answer are
 never asked; that is the planner's own work.
 
+**Building from nothing is the exception: settle the foundation first.** When the
+track is a new product or app, there is no material to answer the questions that
+decide everything after them, and "wrong" for this track is a wrong foundation — the
+one thing a review cannot fix, because fixing it is a rebuild. Before the steps are
+written, the plan states a decision for each of: platform (web, mobile, PWA, native,
+CLI), who and how many will use it, stack, how it is distributed and reached, access
+(open, invite, accounts), what data is kept and where, and hosting. Each is either
+read from the request, proposed with its reason, or — where two answers lead to
+materially different builds — put to the user as an *Open question* with options,
+all in one round, before anything is built. Three quick questions and a default for
+the rest is how a run ends up writing the second app instead of the first.
+
 The goals stay the user's. The planner may propose a better solution to what was
 asked, or argue that the request as stated will not achieve what the user wants, but
 it may not widen the goal on its own. Anything beyond the request goes in *Out of

@@ -360,19 +360,21 @@ function chat(c,src,ro){
   const body=c.kind==="run"?{dir:c.state,id:c.id,text,files:enc}:{dir:c.state,for:c.text,text,files:enc};const r=await post("/note",body);if(r.ok){files.length=0;ta.value="";toast("Noted");load()}};
  $("nsend").onclick=send;ta.onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send()}};
  $("pbody").scrollTop=0}
+// The builder's "## Preview" section of 03-impl.md: how to run the app, or the result itself.
+function preview(impl){const m=impl&&impl.match(/^##\s+Preview\s*\n([\s\S]*?)(?=\n##\s|$(?![\s\S]))/m);return m?m[1].trim():null}
 async function openRun(c,refresh){
  if(!refresh||!runDoc||runDoc.id!==c.id){runDoc=await fetch(`/run/${encodeURIComponent(c.id)}?dir=${encodeURIComponent(c.state)}`).then(r=>r.json())}
  if(openKey!==key(c))return;
  // A refresh while notes are being typed would wipe the textarea.
  const ta=$("pbody").querySelector("textarea");if(refresh&&ta&&document.activeElement===ta)return;
  $("psub").textContent=c.id+" · "+(WORD[c.status]||c.status)+(c.awaiting?" · "+c.awaiting:"");
- const tabs=[["Request","request"],["Notes","notes"],["Plan","plan"],["Impl","impl"],["Review","review"],["Backlog","backlog"]];
+ const tabs=[["Request","request"],["Notes","notes"],["Plan","plan"],["Impl","impl"],["Preview","preview"],["Review","review"],["Backlog","backlog"]];
  $("ptabs").innerHTML=tabs.map((t,i)=>`<button class="${i===tab?"on":""}" data-i="${i}">${t[0]}</button>`).join("");
  [...$("ptabs").children].forEach(b=>b.onclick=()=>{tab=+b.dataset.i;openRun(c,true)});
- const k=tabs[tab][1],doc=runDoc[k];
+ const k=tabs[tab][1],doc=k==="preview"?preview(runDoc.impl):runDoc[k];
  if(k==="notes"){const ro=c.archived||c.status==="done"||c.status==="abandoned";
   chat(c,doc,ro);}
- else $("pbody").innerHTML=doc?md(doc):`<p style="color:var(--dim)">No ${({request:"00-request.md",plan:"01-plan.md",impl:"03-impl.md",review:"04-review.md",backlog:"06-backlog.md"})[k]} yet.</p>`;
+ else $("pbody").innerHTML=doc?md(doc):`<p style="color:var(--dim)">No ${({request:"00-request.md",plan:"01-plan.md",impl:"03-impl.md",preview:"'## Preview' in 03-impl.md",review:"04-review.md",backlog:"06-backlog.md"})[k]} yet.</p>`;
  const foot=$("pfoot");
  const arch=c.archived?`<button class="btn pri" data-a="restore">Restore</button>`:`<button class="btn ghost" data-a="archive">Archive</button>`;
  if(c.archived)foot.innerHTML=arch;

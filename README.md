@@ -298,7 +298,8 @@ every finished run to the archive (`.kaizen/archive.md`, a list, nothing moves),
 `Archive` in the strip shows what is there, with `Restore` on each card. The gear at the top right holds the browser's theme
 and every `kaizen settings` knob, same rows, same `config.yml`. `--port N` picks a port, `--no-open` just
 serves, `?all=1` in the URL opens on every project. `--daemon` starts the server
-detached so it outlives the terminal (pid kept in `~/.kaizen/web.pid`); `--stop` ends it.
+detached so it outlives the terminal (pid kept in `~/.kaizen/web.pid`); `--stop` ends it. `kaizen web --shortcut` adds a launcher
+the OS can find — Spotlight on macOS, the app menu on Linux, a Desktop shortcut on Windows.
 
 ### Mouse
 
