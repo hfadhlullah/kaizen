@@ -256,7 +256,7 @@ export function version(repo: string) {
 }
 // The global state directory is not a project and has no parent worth naming.
 export function label(stateDir: string) {
-  return stateDir === join(home, ".kaizen") ? "global" : tilde(dirname(stateDir));
+  return stateDir === join(home, ".kaizen") ? "no project" : tilde(dirname(stateDir));
 }
 
 export function tilde(p: string) { return p.startsWith(home) ? "~" + p.slice(home.length) : p; }

@@ -539,7 +539,7 @@ export async function dashboard(
             const painted = k.awaiting ? c.red(line) : k.dim ? c.dim(line) : line;
             lines.push(`${marker} ${dot} ${painted}`);
           }
-          if (allProjects && k.where !== "global") lines.push("    " + c.dim(cut(basename(k.where), inner - 4)));
+          if (allProjects && k.where !== "no project") lines.push("    " + c.dim(cut(basename(k.where), inner - 4)));
           // First note line only; the rest is for the web board's detail panel.
           if (k.notes) { const n = parseNotes(k.notes); const l = n[n.length - 1]?.text.split("\n")[0]; if (l) lines.push("    " + c.dim(cut(l, inner - 4))); }
           lines.push("");
