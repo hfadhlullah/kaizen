@@ -5,7 +5,7 @@ import { join, dirname } from "node:path";
 import {
   home, type Item, boardCards, knownProjects, remember, locate, label, tilde,
   readInbox, writeInbox, replaceIdea, abandonRun, launchRun, parseItem, short, setArchived, writeNotes,
-  appendNote, saveAttachment,
+  appendNote, saveAttachment, pidOnPort,
 } from "./state.ts";
 
 const PAGE = join(dirname(import.meta.dir), "web", "board.html");
@@ -108,6 +108,13 @@ export async function web(repoDir: string, opts: Opts = {}) {
       const url = `http://127.0.0.1:${port}/`;
       const up = await fetch(url, { signal: AbortSignal.timeout(1500) }).then((r) => r.ok, () => false);
       if (up) { console.log(`\n  kaizen web already at ${url}\n`); if (opts.open !== false) await openApp(url); return; }
+      // A listener that does not answer is a board that hung; it is ours to stop.
+      const pid = await pidOnPort(port);
+      if (pid && pid !== process.pid) {
+        try { process.kill(pid, "SIGTERM"); console.log(`  stopped a hung board on ${port} (pid ${pid})`); } catch { /* not ours to kill */ }
+        await Bun.sleep(300);
+        try { server = serve(port); continue; } catch { /* still held */ }
+      }
       console.log(`  port ${port} refused by the OS and nothing answers there; trying ${port + 1}`);
     }
   }

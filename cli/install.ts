@@ -221,6 +221,7 @@ if (wantWeb) {
     // The pid file only knows a --daemon; a board started from the shortcut or a
     // terminal has none, so also ask the OS what listens on the port.
     const recorded = existsSync(pidFile) ? Number(readFileSync(pidFile, "utf8")) : NaN;
+    const { pidOnPort } = await import("./state.ts");
     const listening = await pidOnPort(port ?? 7420);
     const pids = [...new Set([recorded, listening].filter((p): p is number => Number.isFinite(p) && p > 0))];
     if (!pids.length) { console.log("  nothing running on the kaizen web port"); process.exit(0); }
@@ -796,19 +797,6 @@ if (upgrade) {
 if (blocked) process.exit(1);
 
 // ---------------------------------------------------------------- helpers
-
-// Whoever holds the board's port, by the OS's own accounting.
-async function pidOnPort(port: number): Promise<number | null> {
-  try {
-    if (process.platform === "win32") {
-      const out = await Bun.$`netstat -ano -p tcp`.text();
-      const m = new RegExp(`127\\.0\\.0\\.1:${port}\\s+\\S+\\s+LISTENING\\s+(\\d+)`).exec(out);
-      return m ? Number(m[1]) : null;
-    }
-    const out = await Bun.$`lsof -t -iTCP:${port} -sTCP:LISTEN`.quiet().nothrow().text();
-    return Number(out.trim().split("\n")[0]) || null;
-  } catch { return null; }
-}
 
 function step(msg: string) { console.log(`  ${c.green("+")} ${msg}`); }
 
