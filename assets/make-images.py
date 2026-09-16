@@ -105,6 +105,8 @@ def square():
         flat.resize((size, size), Image.LANCZOS) \
             .quantize(colors=24, dither=Image.Dither.NONE) \
             .save(name, "PNG", optimize=True)
+    # A Windows shortcut can only take an .ico for its icon.
+    flat.resize((256, 256), Image.LANCZOS).save("kaizen.ico", sizes=[(256, 256), (48, 48), (32, 32), (16, 16)])
 
 
 def trace(height=400, tol=1.0):
@@ -159,4 +161,4 @@ def trace(height=400, tol=1.0):
 
 if __name__ == "__main__":
     banner(); social(); square(); trace()
-    print("wrote kaizen-banner.png, kaizen-social.png, kaizen-logo.png, kaizen-avatar.png, tanuki.svg")
+    print("wrote kaizen-banner.png, kaizen-social.png, kaizen-logo.png, kaizen-avatar.png, kaizen.ico, tanuki.svg")

@@ -295,7 +295,14 @@ if (upgrade) await clearBunxCache();
 if (upgrade && !existsSync(join(dirname(import.meta.dir), ".git"))) {
   const latest = await npmLatest();
   const now = versionOf(dirname(import.meta.dir));
-  if (latest && latest !== now) {
+  // A copy can only upgrade through npm. Not knowing what npm has is not "up to
+  // date": falling through would copy this install over itself and say so.
+  if (!latest) {
+    console.log(`\n  ${c.bold("could not reach npm")} ${c.dim(`— this is kaizen ${now}`)}`);
+    console.log(`  ${c.dim("try again, or:")} ${c.cyan("bunx kaizen-agent@latest")}\n`);
+    process.exit(1);
+  }
+  if (latest !== now) {
     step(`fetching kaizen ${latest} from npm`);
     // --force so a stale package manifest cannot resolve the version away, and the
     // failure is printed rather than swallowed: a silent catch here looked exactly

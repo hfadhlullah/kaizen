@@ -13,6 +13,8 @@
     "agents",
     "commands",
     "web",
+    "assets/kaizen-logo.png",
+    "assets/kaizen.ico",
     "README.md",
     "LICENSE"
   ],

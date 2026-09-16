@@ -365,10 +365,15 @@ export async function shortcut() {
   }
 
   if (process.platform === "win32") {
+    // A .lnk icon must be an .ico, and the board runs in its own minimised console
+    // rather than as a daemon: a detached child from a double-clicked shortcut has
+    // no console to report to, so a failure there looks like nothing happened.
+    // Closing that window stops the board.
     const lnk = join(home, "Desktop", "Kaizen.lnk");
-    const ps = `$s=(New-Object -ComObject WScript.Shell).CreateShortcut('${lnk}');$s.TargetPath='${bun}';$s.Arguments='"${script}" web --daemon';$s.WorkingDirectory='${home}';${hasIcon ? `$s.IconLocation='${icon}';` : ""}$s.Save()`;
+    const ico = join(dirname(import.meta.dir), "assets", "kaizen.ico");
+    const ps = `$s=(New-Object -ComObject WScript.Shell).CreateShortcut('${lnk}');$s.TargetPath='${bun}';$s.Arguments='"${script}" web';$s.WorkingDirectory='${home}';$s.WindowStyle=7;${existsSync(ico) ? `$s.IconLocation='${ico}';` : ""}$s.Save()`;
     await Bun.$`powershell -NoProfile -Command ${ps}`.quiet();
-    return lnk;
+    return `${lnk} — double-click opens the board in a minimised window; close that window to stop it`;
   }
 
   const dir = join(process.env["XDG_DATA_HOME"] ?? join(home, ".local", "share"), "applications");
