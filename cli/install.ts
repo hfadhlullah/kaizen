@@ -295,27 +295,26 @@ if (upgrade) await clearBunxCache();
 if (upgrade && !existsSync(join(dirname(import.meta.dir), ".git"))) {
   const latest = await npmLatest();
   const now = versionOf(dirname(import.meta.dir));
-  // A copy can only upgrade through npm. Not knowing what npm has is not "up to
-  // date": falling through would copy this install over itself and say so.
-  if (!latest) {
-    console.log(`\n  ${c.bold("could not reach npm")} ${c.dim(`— this is kaizen ${now}`)}`);
-    console.log(`  ${c.dim("try again, or:")} ${c.cyan("bunx kaizen-agent@latest")}\n`);
-    process.exit(1);
-  }
+  // A copy can only upgrade through npm. When the version lookup fails, bun still
+  // resolves "latest" its own way, so ask for that rather than falling through --
+  // which would copy this install over itself and call it up to date.
   if (latest !== now) {
-    step(`fetching kaizen ${latest} from npm`);
+    const want = latest ?? "latest";
+    step(`fetching kaizen ${want} from npm`);
     // --force so a stale package manifest cannot resolve the version away, and the
     // failure is printed rather than swallowed: a silent catch here looked exactly
     // like a successful upgrade that changed nothing.
-    const r = await Bun.$`${process.execPath} x --force kaizen-agent@${latest} --yes`
+    const r = await Bun.$`${process.execPath} x --force kaizen-agent@${want} --yes`
       .quiet().nothrow();
     const out = clean(r.stdout.toString() + r.stderr.toString()).filter((l) => l.trim());
     for (const l of out) console.log(l.startsWith("  ") ? l : `  ${l}`);
     if (r.exitCode !== 0) {
-      console.log(`\n  ${c.bold(`could not fetch kaizen ${latest}`)}`);
-      console.log(`  ${c.dim("try:")} ${c.cyan(`bunx kaizen-agent@${latest}`)}\n`);
+      console.log(`\n  ${c.bold(`could not fetch kaizen ${want}`)}`);
+      console.log(`  ${c.dim("try:")} ${c.cyan(`bunx kaizen-agent@${want}`)}\n`);
       process.exit(1);
     }
+    const after = versionOf(process.env.KAIZEN_HOME ?? join(home, "kaizen"));
+    if (after === now) console.log(`\n  ${c.bold(`kaizen ${now} is the latest on npm`)}\n`);
     process.exit(0);
   }
 }
@@ -828,7 +827,7 @@ function versionOf(dir: string) {
 async function npmLatest() {
   try {
     const r = await fetch("https://registry.npmjs.org/kaizen-agent/latest", {
-      signal: AbortSignal.timeout(4000),
+      signal: AbortSignal.timeout(10000),
     });
     return ((await r.json()) as { version?: string }).version ?? null;
   } catch { return null; }        // offline is not an upgrade failure
