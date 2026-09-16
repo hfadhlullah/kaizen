@@ -64,8 +64,8 @@ track:
   # request by the planner and stated back in the plan's Framing for the user to
   # correct at the approval — the user is never asked to categorize their own request.
   # Set this only to pin a default for a repo that is always one kind of work
-  # (e.g. a docs repo). Leave empty to infer per run.
-  default: ""
+  # (e.g. a docs repo). auto (or empty) infers per run.
+  default: auto
 
 review:
   # Checks that run in every track.
@@ -138,8 +138,30 @@ ui:
   # run id out of the dashboard stops working until you leave.
   mouse: false
 
+subagents:
+  # Claude Code only: other tools (Codex, Antigravity, opencode, gemini) have no
+  # per-stage model knob and run every stage on whatever the tool itself is set to.
+  # Model each stage subagent runs on, when the runner is full.
+  #   inherit - whatever the main session uses. The default.
+  #   opus | sonnet | haiku - pin it. A cheaper model for the builder is the usual
+  #   reason to touch this; the reviewer on a cheaper model finds less.
+  model: inherit
+  # Reasoning effort for the stage subagents: inherit | low | medium | high.
+  # Set through the agent definition's frontmatter.
+  effort: inherit
+
 agent:
   # Default coding agent to launch from dashboard backlog (auto | claude | codex | agy | opencode | gemini).
   # auto picks Claude Code if installed, otherwise the first agent found on PATH.
   default: auto
+  # Per-tool model and effort for the session the board launches, passed as that
+  # tool's own flags (claude --model/--effort, agy --model/--effort, codex -m and
+  # model_reasoning_effort, gemini -m, opencode -m). Model names are the tool's own:
+  # `agy models`, `opencode models`, Claude's opus|sonnet|haiku. Absent = tool default.
+  # Uncomment the tool you launch:
+  # claude: { model: opus, effort: high }
+  # codex: { model: gpt-5, effort: low }
+  # agy: { model: gemini-3.1-pro-low }
+  # opencode: { model: anthropic/claude-sonnet-4-6 }
+  # gemini: { model: gemini-2.5-pro }
 

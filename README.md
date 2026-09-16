@@ -543,6 +543,9 @@ in one can be finished in another. See [adapters.md](https://github.com/hfadhlul
 | `auto_fix.min_severity` | `high` | Findings this bad or worse get fixed without asking |
 | `approvals.plan` | `true` | Stop and show the plan before anything is built |
 | `ui.mouse` | `false` | Click to select, click again to act; while on, the terminal cannot select text |
+| `subagents.model` | `inherit` | Model the stage subagents run on: `inherit`, `opus`, `sonnet`, `haiku` (Claude Code only) |
+| `agent.<cmd>.model`, `agent.<cmd>.effort` | — | Model/effort the board launches a session with, per tool: `claude`, `codex`, `agy`, `opencode`, `gemini`. Model names are the tool's own (`agy models`) |
+| `subagents.effort` | `inherit` | Reasoning effort for the stage subagents: `inherit`, `low`, `medium`, `high` (Claude Code only) |
 
 ```bash
 kaizen settings

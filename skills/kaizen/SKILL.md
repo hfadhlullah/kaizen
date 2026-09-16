@@ -100,6 +100,8 @@ nearest first, so a change lands globally unless this project keeps its own conf
 | `git.auto_commit` | `true`, `false` | Commit the work when a run finishes |
 | `git.branch_before_implement` | `true`, `false` | Branch before building when on the default branch |
 | `ui.mouse` | `false`, `true` | Click to select, click again to act; while on, the terminal cannot select text |
+| `subagents.model` | `inherit`, `opus`, `sonnet`, `haiku` | Model the stage subagents run on (Claude Code only) |
+| `subagents.effort` | `inherit`, `low`, `medium`, `high` | Reasoning effort for the stage subagents (Claude Code only) |
 | `agent.default` | `auto`, `claude`, `codex`, `agy`, `opencode`, `gemini` | Coding agent to launch from dashboard backlog |
 
 Rules for writing the file:
@@ -114,7 +116,8 @@ Rules for writing the file:
 - After writing, print the setting and its new value, and nothing else. No summary of
   the whole file.
 
-Settings not in the table — the review checks, backlog and state paths — are edited by
+Settings not in the table — the review checks, backlog and state paths, and the per-tool
+`agent.<cmd>.model` / `agent.<cmd>.effort` the board launches a session with — are edited by
 hand in `config.yml`, which is commented throughout. Say so rather than offering a
 picker with thirty options.
 
@@ -317,6 +320,13 @@ thread does it against the same contract in `spec-build.md` — or `ask`, which 
 the choice at the plan approval. Building inline does not make the review less
 independent: the reviewer is a separate agent in every case, and never sees the
 conversation the work happened in.
+
+`subagents.model` and `subagents.effort` apply to every stage dispatched this way.
+Pass `model` on the Agent call when it is not `inherit`. Effort has no call-time
+knob: when it is not `inherit`, make sure the frontmatter of the agent's definition
+(`~/.claude/agents/kaizen-<stage>.md`, or the project's `.claude/agents/` copy)
+carries `effort: <value>` — edit or add that one line, nothing else — before the
+first dispatch of the run. `inherit` means leave the file alone.
 
 After a subagent returns, update `state.json` yourself in the main thread. Subagents
 report; the main thread owns the state machine.

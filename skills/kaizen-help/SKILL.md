@@ -85,7 +85,7 @@ Each iteration is written to `runs/<id>/05-iterations/`.
 | `auto_fix.enabled` | `true` | Auto-fix findings vs. escalate everything |
 | `auto_fix.min_severity` | `high` | Threshold for auto-fix (`critical\|high\|medium\|low`) |
 | `auto_fix.max_iterations` | `2` | Fix/recheck rounds before escalating remaining findings |
-| `track.default` | `""` (empty, inferred per run) | Pin a track for a repo that is always one kind of work |
+| `track.default` | `auto` (inferred per run) | Pin a track for a repo that is always one kind of work |
 | `review.write_memory` | `true` | Let the reviewer append lessons to `.kaizen/memory.md` |
 | `backlog.enabled` | `true` | Capture what a run deliberately did not do |
 | `backlog.file` | `06-backlog.md` | Per-run backlog file |
@@ -94,7 +94,10 @@ Each iteration is written to `runs/<id>/05-iterations/`.
 | `state.keep_runs` | `20` | Completed runs kept before pruning oldest (rescues open backlog first) |
 | `git.auto_commit` | `false` | Never commit/push/PR unless the user explicitly asks |
 | `git.branch_before_implement` | `true` | Branch before implement stage when on the default branch |
+| `subagents.model` | `inherit` | Model the stage subagents run on (opus/sonnet/haiku, Claude Code only) |
+| `subagents.effort` | `inherit` | Reasoning effort for the stage subagents (low/medium/high, Claude Code only) |
 | `agent.default` | `auto` | Coding agent to launch from dashboard backlog |
+| `agent.<cmd>.model`, `.effort` | — | Model/effort flags for the launched session, per tool (`claude`, `codex`, `agy`, `opencode`, `gemini`); model names are the tool's own |
 
 `.kaizen/config.yml` overrides only the keys it sets; everything else falls back to
 this skill's `config.default.yml`.

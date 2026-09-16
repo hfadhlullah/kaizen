@@ -41,6 +41,35 @@ export function detectDefaultAgent(projectDir: string): { name: string; cmd: str
   return { name: "Claude Code", cmd: "claude" };
 }
 
+// Flags that pin the launched session's model and effort, from the config chain:
+//   agent:
+//     codex: { model: gpt-5, effort: low }
+// Each tool spells the flag its own way; a tool not listed here takes none.
+const MODEL_FLAGS: Record<string, (m: string) => string[]> = {
+  claude: (m) => ["--model", m], agy: (m) => ["--model", m], codex: (m) => ["-m", m],
+  gemini: (m) => ["-m", m], opencode: (m) => ["-m", m],
+};
+const EFFORT_FLAGS: Record<string, (e: string) => string[]> = {
+  claude: (e) => ["--effort", e], agy: (e) => ["--effort", e],
+  codex: (e) => ["-c", `model_reasoning_effort=${e}`],
+};
+
+export function agentFlags(projectDir: string, cmd: string, configText?: string): string[] {
+  if (configText === undefined) {
+    const f = [join(projectDir, ".kaizen", "config.yml"), join(home, ".kaizen", "config.yml")].find(existsSync);
+    configText = f ? readFileSync(f, "utf8") : "";
+  }
+  // ponytail: regex over the yaml, like detectDefaultAgent; a parser when a third key needs it
+  const block = new RegExp(`^agent:\\n(?:[ \\t]+.*\\n)*?[ \\t]+${cmd}:[ \\t]*(\\{[^}]*\\}|\\n(?:[ \\t]+[a-z]+:.*\\n?)+)`, "m").exec(configText);
+  if (!block) return [];
+  const get = (k: string) => new RegExp(`\\b${k}:[ \\t]*["']?([^"',}\\s]+)`).exec(block[1])?.[1];
+  const model = get("model"), effort = get("effort");
+  return [
+    ...(model && MODEL_FLAGS[cmd] ? MODEL_FLAGS[cmd](model) : []),
+    ...(effort && EFFORT_FLAGS[cmd] ? EFFORT_FLAGS[cmd](effort) : []),
+  ];
+}
+
 export function findTerminal(cwd: string, fullCmd: string[]): { cmd: string[]; detached: boolean } | null {
   const hasDisplay = Boolean(process.env.WAYLAND_DISPLAY || process.env.DISPLAY);
   const inTmux = Boolean(process.env.TMUX);
@@ -617,10 +646,11 @@ export function projectOf(from: string) {
     : (from.endsWith(".kaizen") ? dirname(from) : from);
 }
 
-export function manualCommand(projectDir: string, agentCmd: string, prompt: string) {
+export function manualCommand(projectDir: string, agentCmd: string, prompt: string, flags: string[] = []) {
+  const bin = [agentCmd, ...flags].join(" ");
   return process.platform === "win32"
-    ? `cd '${projectDir}'; & ${agentCmd} '${prompt.replace(/'/g, "''")}'`
-    : `cd "${projectDir}" && ${agentCmd} "${prompt}"`;
+    ? `cd '${projectDir}'; & ${bin} '${prompt.replace(/'/g, "''")}'`
+    : `cd "${projectDir}" && ${bin} "${prompt}"`;
 }
 
 export function launchRun(it: Item, from: string): Launch {
@@ -630,8 +660,9 @@ export function launchRun(it: Item, from: string): Launch {
   const agent = detectDefaultAgent(projectDir);
   const agentBin = Bun.which(agent.cmd) ?? agent.cmd;
   const prompt = requestOf(it.where ? `/kaizen ${it.text} (${it.where})` : `/kaizen ${it.text}`, it.notes, from);
-  const fullCmd = [agentBin, prompt];
-  const manual = manualCommand(projectDir, agent.cmd, prompt);
+  const flags = agentFlags(projectDir, agent.cmd);
+  const fullCmd = [agentBin, ...flags, prompt];
+  const manual = manualCommand(projectDir, agent.cmd, prompt, flags);
 
   const term = findTerminal(projectDir, fullCmd);
   if (!term) {

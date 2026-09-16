@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import {
   readRuns, readInbox, writeInbox, replaceIdea, abandonRun, allBacklog, backlog,
   statusOf, columnOf, parseItem, startedRuns, boardCards, readArchive, setArchived,
-  requestOf, readNotes, writeNotes, manualCommand, parseNotes, formatNote, appendNote, saveAttachment,
+  requestOf, agentFlags, readNotes, writeNotes, manualCommand, parseNotes, formatNote, appendNote, saveAttachment,
 } from "./state.ts";
 
 let state: string;
@@ -185,4 +185,13 @@ test("notes log: append to a run and to an idea; attachments saved and made abso
   expect(rel).toMatch(/^attachments\/\w+-_evil_name\.png$/);
   expect(requestOf("x", `![s](${rel})`, state)).toBe(`x\n\n![s](${join(state, rel)})`);
   expect(saveAttachment(state, "2026-09-01-waiting", "b.txt", new Uint8Array([2]))).toMatch(/^runs\/2026-09-01-waiting\/attachments\//);
+});
+
+test("agentFlags: per-tool model and effort from the agent block, inline or nested", () => {
+  const cfg = `agent:\n  default: auto\n  codex: { model: gpt-5, effort: low }\n  claude:\n    model: sonnet\n    effort: low\n  gemini:\n    model: "gemini-2.5-pro"\n`;
+  expect(agentFlags("/p", "codex", cfg)).toEqual(["-m", "gpt-5", "-c", "model_reasoning_effort=low"]);
+  expect(agentFlags("/p", "claude", cfg)).toEqual(["--model", "sonnet", "--effort", "low"]);
+  expect(agentFlags("/p", "gemini", cfg)).toEqual(["-m", "gemini-2.5-pro"]);
+  expect(agentFlags("/p", "agy", cfg)).toEqual([]);
+  expect(agentFlags("/p", "codex", "agent:\n  default: codex\n")).toEqual([]);
 });
