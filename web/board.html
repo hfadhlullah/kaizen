@@ -27,6 +27,8 @@ pre.mark span:nth-child(1){color:var(--ink-hi)}pre.mark span:nth-child(2){color:
 .ib.pri{color:var(--accent)}
 .ib.sm{width:26px;height:26px}.ib.sm svg{width:15px;height:15px}
 /* dictation mic: accent while listening (pulsing) or still transcribing; digits while the model downloads */
+/* the field being dictated into: accent border and a glow that swells with the voice level (--lvl, 0..1) */
+.dictating{border-color:var(--accent)!important;box-shadow:0 0 0 calc(2px + 6px*var(--lvl,0)) color-mix(in srgb,var(--accent) 35%,transparent);transition:box-shadow .08s}
 .ib.mic.on{color:var(--accent);animation:pl 1.6s infinite}.ib.mic.busy{color:var(--accent)}.ib.mic i{font-style:normal;font-size:10px;font-variant-numeric:tabular-nums}.row .mic{margin-right:auto;align-self:center}
 .btn{border:1px solid var(--line);border-radius:var(--r);padding:5px 12px;color:var(--ink);background:var(--bg-2);min-height:30px;font-size:13px}
 .btn:hover{border-color:var(--dim)}
@@ -156,7 +158,7 @@ aside .foot:empty{display:none}
 .help.on{display:flex}.help div{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r);padding:20px 24px;line-height:2}
 .help kbd{display:inline-block;width:7ch;color:var(--accent)}
 @media(max-width:900px){main{grid-template-columns:1fr;padding-inline:16px;gap:8px}.hdr,.strip,.ftr{padding-inline:16px}section h2{position:sticky;top:0;background:var(--bg);z-index:1}.more{display:grid}.card:hover .age{display:inline}}
-@media(prefers-reduced-motion:reduce){aside,.toast,.mascot,.d-run .pulse,.ib.mic.on{transition:none;animation:none}}
+@media(prefers-reduced-motion:reduce){aside,.toast,.mascot,.d-run .pulse,.ib.mic.on,.dictating{transition:none;animation:none}}
 </style>
 </head>
 <body>
@@ -279,14 +281,14 @@ function mic(fields){
   const flush=()=>{if(!len||voiced<MIN){buf=[];len=0;voiced=0;quiet=0;return}const a=new Float32Array(len);let o=0;for(const c of buf){a.set(c,o);o+=c.length}buf=[];len=0;voiced=0;quiet=0;pending.set(seq,null);asrWorker.postMessage({type:"run",sid,seq,audio:a},[a.buffer]);seq++;b.classList.add("busy")};
   const drain=()=>{while(pending.has(done)&&pending.get(done)!==null){insert(pending.get(done));pending.delete(done);done++}if(!pending.size){b.classList.remove("busy");if(stopping){idle();sessions.delete(sess)}}};
   tap.port.onmessage=e=>{const c=e.data;buf.push(c);len+=c.length;let s=0;for(let i=0;i<c.length;i++)s+=c[i]*c[i];const rms=Math.sqrt(s/c.length);
-   if(rms>0.01){voiced+=c.length;quiet=0}else quiet+=c.length;
+   if(rms>0.01){voiced+=c.length;quiet=0}else quiet+=c.length;f.style.setProperty("--lvl",Math.min(1,rms*8).toFixed(2));
    if(len>=MAX||(voiced>=MIN&&quiet>=SIL))flush()};
   // Chunk seqs are per session, so a result is matched by session id too.
   const sid=Math.random().toString(36).slice(2);
   const sess={btn:b,field:f,onmsg:m=>{if(m.sid!==sid)return;if(m.type==="text"){pending.set(m.seq,m.text);drain()}else if(m.type==="error"&&m.seq!=null){pending.set(m.seq,"");toast("Dictation failed: "+m.error);drain()}},
-   stop:()=>{if(stopping)return;stopping=true;b.classList.remove("on");try{tap.port.onmessage=null;src.disconnect();tap.disconnect();stream.getTracks().forEach(t=>t.stop());ctx.close()}catch(e){}active=null;flush();drain()}};
+   stop:()=>{if(stopping)return;stopping=true;b.classList.remove("on");f.classList.remove("dictating");f.style.removeProperty("--lvl");try{tap.port.onmessage=null;src.disconnect();tap.disconnect();stream.getTracks().forEach(t=>t.stop());ctx.close()}catch(e){}active=null;flush();drain()}};
   sessions.add(sess);active=sess;starting=false;
-  b.classList.remove("busy");b.classList.add("on");f.focus()};
+  b.classList.remove("busy");b.classList.add("on");f.classList.add("dictating");f.focus()};
  return b}
 const m=60e3,h=3600e3,d=86400e3;
 const age=(t,now)=>{const x=now-t;return x<h?Math.round(x/m)+"m":x<d?Math.round(x/h)+"h":Math.round(x/d)+"d"};
