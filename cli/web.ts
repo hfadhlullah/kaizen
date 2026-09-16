@@ -1,6 +1,6 @@
 // `kaizen web`: the board in a browser. A loopback HTTP server over state.ts and
 // one HTML page; the page never sees the filesystem, only JSON.
-import { existsSync, readFileSync, readdirSync, statSync, watch, type FSWatcher } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync, watch, appendFileSync, type FSWatcher } from "node:fs";
 import { join, dirname } from "node:path";
 import {
   home, type Item, boardCards, knownProjects, remember, locate, label, tilde,
@@ -14,6 +14,17 @@ const DEFAULT_PORT = 7420;
 type Opts = { port?: number; open?: boolean };
 
 export async function web(repoDir: string, opts: Opts = {}) {
+  // A board started from the shortcut has no terminal to show a crash in, so any
+  // crash is written where it can be read afterwards.
+  const log = join(home, ".kaizen", "web.log");
+  for (const ev of ["uncaughtException", "unhandledRejection"] as const) {
+    process.on(ev, (err: unknown) => {
+      const line = `${new Date().toISOString()} ${ev}: ${err instanceof Error ? err.stack ?? err.message : String(err)}\n`;
+      try { appendFileSync(log, line); } catch { /* nowhere to write */ }
+      console.error(line);
+      if (ev === "uncaughtException") process.exit(1);
+    });
+  }
   const state = locate();
   if (state && dirname(state) !== home) remember(dirname(state));
   const project = state ? label(state) : null;
@@ -56,7 +67,9 @@ export async function web(repoDir: string, opts: Opts = {}) {
     for (const w of watchers) { try { w.close(); } catch { /* gone */ } }
     watchers.length = 0;
     for (const dir of states(true)) {
-      try { watchers.push(watch(dir, { recursive: true }, changed)); } catch { /* poll covers it */ }
+      // An unhandled 'error' on a watcher (Windows: a watched dir renamed, EPERM on
+      // a locked file) would end the process; the poll covers what the watch misses.
+      try { watchers.push(watch(dir, { recursive: true }, changed).on("error", () => {})); } catch { /* poll covers it */ }
     }
   };
   watchAll();
