@@ -83,14 +83,24 @@ export async function web(repoDir: string, opts: Opts = {}) {
   const BOOT = Date.now().toString(36);
   const ping = setInterval(() => { for (const c of clients) { try { c.enqueue(": ping\n\n"); } catch { clients.delete(c); } } }, 8000);
   // A launcher clicked while a board is already up should show that board, not die.
-  const port = opts.port ?? DEFAULT_PORT;
-  const server = (() => { try { return serve(); } catch (e) {
-    if ((e as { code?: string }).code !== "EADDRINUSE") throw e;
-    return null;
-  } })();
-  if (!server) { const url = `http://127.0.0.1:${port}/`; console.log(`\n  kaizen web already at ${url}\n`); if (opts.open !== false) await openApp(url); return; }
+  // A bind can fail because a board is already there, or because the OS will not
+  // hand out the port at all (Windows reserves whole ranges for Hyper-V and WSL,
+  // and reports either as "in use"). Only a board that answers is "already
+  // running"; otherwise walk up to the next port that binds.
+  let port = opts.port ?? DEFAULT_PORT;
+  let server: ReturnType<typeof serve> | null = null;
+  for (let tries = 0; tries < 10 && !server; tries++, port++) {
+    try { server = serve(port); } catch (e) {
+      if (!["EADDRINUSE", "EACCES"].includes((e as { code?: string }).code ?? "")) throw e;
+      const url = `http://127.0.0.1:${port}/`;
+      const up = await fetch(url, { signal: AbortSignal.timeout(1500) }).then((r) => r.ok, () => false);
+      if (up) { console.log(`\n  kaizen web already at ${url}\n`); if (opts.open !== false) await openApp(url); return; }
+      console.log(`  port ${port} refused by the OS and nothing answers there; trying ${port + 1}`);
+    }
+  }
+  if (!server) { console.log(`\n  kaizen web could not bind any port from ${opts.port ?? DEFAULT_PORT}\n`); return; }
 
-  function serve() { return Bun.serve({
+  function serve(port: number) { return Bun.serve({
     hostname: "127.0.0.1",
     port,
     async fetch(req) {
