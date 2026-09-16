@@ -165,3 +165,14 @@ agent:
   # opencode: { model: anthropic/claude-sonnet-4-6 }
   # gemini: { model: gemini-2.5-pro }
 
+
+dictation:
+  # Whisper model the web board dictates with. Runs in the browser; downloaded once
+  # from Hugging Face and cached. Bigger is more accurate and better with languages
+  # other than English, at the cost of the first-use download and GPU memory:
+  #   tiny             ~ 60 MB   fast, rough
+  #   base             ~165 MB   quick, English-leaning
+  #   small            ~410 MB   accurate, good across languages (default)
+  #   large-v3-turbo   ~1.5 GB   best, needs a capable GPU
+  # Changing it downloads the new model on the next press of the mic.
+  model: small

@@ -113,6 +113,7 @@ const SETTINGS: Setting[] = [
   { key: "subagents.model", label: "Model for stage agents", group: "Agents", values: ["inherit", "opus", "sonnet", "haiku"], help: "Which Claude model the planner, builder and reviewer run on. inherit: same as your main session. Claude Code only" },
   { key: "subagents.effort", label: "Effort for stage agents", group: "Agents", values: ["inherit", "low", "medium", "high"], help: "How hard the stage agents think. low is faster and cheaper; high finds more. Claude Code only" },
   { key: "agent.default", label: "Tool the board launches", group: "Agents", values: ["auto", "claude", "codex", "agy", "opencode", "gemini"], help: "Coding tool opened when you start a run from the board. auto: Claude Code if installed, else the first one found" },
+  { key: "dictation.model", label: "Dictation model", group: "Board", values: ["tiny", "base", "small", "large-v3-turbo"], help: "Whisper model the web board dictates with, in the browser. tiny ~60 MB rough; base ~165 MB English-leaning; small ~410 MB accurate across languages; large-v3-turbo ~1.5 GB best, needs a capable GPU. Downloaded once on the next mic press" },
 ];
 
 // The same rows and the same write the TUI uses, for `kaizen web`'s settings panel:
