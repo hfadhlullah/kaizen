@@ -301,6 +301,16 @@ serves, the board opens on every project; `?all=0` in the URL narrows it to the 
 detached so it outlives the terminal (pid kept in `~/.kaizen/web.pid`); `--stop` ends it. `kaizen web --shortcut` adds a launcher
 the OS can find — Spotlight on macOS, the app menu on Linux, a Desktop shortcut on Windows.
 
+**Dictate instead of type.** Every text field on the board — a new idea, its notes, an
+edit, a reject reason, a note on a run — has a mic. Press it, talk, press it again; the
+words land at the caret next to whatever you had typed. Recognition is Whisper running
+inside the page, so audio never leaves your machine. The first press downloads the model
+from huggingface.co (about 165 MB on a WebGPU browser, 80 MB on the CPU fallback) and
+caches it in the browser. The transformers.js library itself is fetched from jsDelivr the
+first time you press the mic in a session, so that first press needs the network; the
+model does not download again. Chromium and Edge qualify (Firefox falls back to the
+slower CPU path); a browser without a microphone API or WebAssembly shows no mic.
+
 ### Mouse
 
 Off by default. Turn it on in `kaizen settings` under `ui.mouse`, and clicking a row or
