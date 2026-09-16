@@ -229,7 +229,12 @@ const TFJS="https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.0",ASR_MO
 // Inference lives in a module Worker so a slow chunk never freezes the board.
 const WORKER_SRC=`import{pipeline}from"${TFJS}";let asr=null;
 onmessage=async e=>{const m=e.data;try{
- if(m.type==="load"){asr=await pipeline("automatic-speech-recognition","${ASR_MODEL}",{device:m.webgpu?"webgpu":"wasm",dtype:m.webgpu?{encoder_model:"fp16",decoder_model_merged:"q4"}:"q8",progress_callback:p=>{if(p.status==="progress")postMessage({type:"progress",file:p.file,pct:p.progress||0})}});postMessage({type:"ready"})}
+ if(m.type==="load"){const prog=p=>{if(p.status==="progress")postMessage({type:"progress",file:p.file,pct:p.progress||0})};
+  // WebGPU first, with the encoder in fp16 only where the adapter has shader-f16; any GPU failure falls back to the CPU.
+  const gpu=m.webgpu?{device:"webgpu",dtype:{encoder_model:m.f16?"fp16":"fp32",decoder_model_merged:"q4"}}:null,cpu={device:"wasm",dtype:"q8"};
+  try{if(!gpu)throw 0;asr=await pipeline("automatic-speech-recognition","${ASR_MODEL}",{...gpu,progress_callback:prog})}
+  catch(e){if(gpu)postMessage({type:"fallback",why:String(e&&e.message||e)});asr=await pipeline("automatic-speech-recognition","${ASR_MODEL}",{...cpu,progress_callback:prog})}
+  postMessage({type:"ready"})}
  if(m.type==="run"){const r=await asr(m.audio,{chunk_length_s:30,return_timestamps:false});postMessage({type:"text",sid:m.sid,seq:m.seq,text:(r.text||"").trim()})}
 }catch(err){postMessage({type:"error",sid:m.sid,seq:m.seq,error:String(err&&err.message||err)})}}`;
 // The worklet only forwards 128-frame blocks; chunking and silence detection stay on the main thread.
@@ -238,11 +243,13 @@ const HAS_MIC=!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia&&wi
 // `active` is the one session listening; `sessions` also holds stopped ones still waiting on a chunk.
 let asrWorker=null,asrReady=null,asrProgress=()=>{},active=null,starting=false;const sessions=new Set();
 // One worker for the page; loading is awaited by whoever pressed first, later presses join.
-function loadAsr(){if(asrReady)return asrReady;asrReady=new Promise((res,rej)=>{
+function loadAsr(){if(asrReady)return asrReady;asrReady=new Promise(async(res,rej)=>{
  asrWorker=new Worker(URL.createObjectURL(new Blob([WORKER_SRC],{type:"text/javascript"})),{type:"module"});
- const files={};asrWorker.onmessage=e=>{const m=e.data;if(m.type==="progress"){files[m.file]=m.pct;const v=Object.values(files);asrProgress(Math.round(v.reduce((a,b)=>a+b,0)/v.length))}else if(m.type==="ready")res();else if(m.type==="error"&&m.seq==null)rej(new Error(m.error));for(const s of sessions)s.onmsg(m)};
+ const files={};asrWorker.onmessage=e=>{const m=e.data;if(m.type==="progress"){files[m.file]=m.pct;const v=Object.values(files);asrProgress(Math.round(v.reduce((a,b)=>a+b,0)/v.length))}else if(m.type==="ready")res();else if(m.type==="fallback")toast("GPU could not run the model, using the CPU: "+m.why);else if(m.type==="error"&&m.seq==null)rej(new Error(m.error));for(const s of sessions)s.onmsg(m)};
  asrWorker.onerror=e=>rej(new Error(e.message||"worker failed"));
- const webgpu=!!navigator.gpu;if(!webgpu)toast("No WebGPU: dictation will run on the CPU and be slower");asrWorker.postMessage({type:"load",webgpu})});
+ // Ask the adapter what it can do: no adapter means the CPU path; no shader-f16 means an fp32 encoder.
+ let adapter=null;try{adapter=navigator.gpu&&await navigator.gpu.requestAdapter()}catch(e){}
+ if(!adapter)toast("No WebGPU: dictation will run on the CPU and be slower");asrWorker.postMessage({type:"load",webgpu:!!adapter,f16:!!(adapter&&adapter.features.has("shader-f16"))})});
  asrReady.catch(()=>{asrReady=null;try{asrWorker.terminate()}catch(e){}asrWorker=null});return asrReady}
 // After a re-render only a listener whose field is gone is stopped; closing the panel stops any.
 function stopDictation(all){if(active&&(all||!active.field.isConnected))active.stop()}

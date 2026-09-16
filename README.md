@@ -305,7 +305,7 @@ the OS can find — Spotlight on macOS, the app menu on Linux, a Desktop shortcu
 edit, a reject reason, a note on a run — has a mic. Press it, talk, press it again; the
 words land at the caret next to whatever you had typed. Recognition is Whisper running
 inside the page, so audio never leaves your machine. The first press downloads the model
-from huggingface.co (about 165 MB on a WebGPU browser, 80 MB on the CPU fallback) and
+from huggingface.co (about 165 MB on a WebGPU browser, up to 205 MB on a GPU without fp16, 80 MB on the CPU fallback) and
 caches it in the browser. The transformers.js library itself is fetched from jsDelivr the
 first time you press the mic in a session, so that first press needs the network; the
 model does not download again. Chromium and Edge qualify (Firefox falls back to the
