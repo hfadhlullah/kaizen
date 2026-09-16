@@ -92,8 +92,10 @@ export function findTerminal(cwd: string, fullCmd: string[]): { cmd: string[]; d
         detached: true,
       };
     }
+    // `start` reads a title only when quoted; an unquoted word is the command, so
+    // "kaizen" here ran kaizen's own launcher. The empty title is what Bun quotes.
     return {
-      cmd: ["cmd.exe", "/c", "start", "kaizen", "/D", cwd, shell, "-NoExit", "-Command", ps],
+      cmd: ["cmd.exe", "/c", "start", "", "/D", cwd, shell, "-NoExit", "-Command", ps],
       detached: true,
     };
   }
