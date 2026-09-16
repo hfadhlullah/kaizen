@@ -478,20 +478,22 @@ async function resolveRepoQuietly() {
 
 async function resolveRepo() {
   const here = dirname(import.meta.dir);
-  if (existsSync(join(here, ".git"))) return here;
-
   const dest = process.env.KAIZEN_HOME ?? join(home, "kaizen");
-  if (existsSync(join(dest, ".git"))) {
+  // The launcher runs the clone itself, so an upgrade from inside it must pull
+  // that clone -- returning it untouched was "Up to date" at whatever was there.
+  for (const dir of [here, dest]) {
+    if (!existsSync(join(dir, ".git"))) continue;
+    if (!upgrade && dir === here) return dir;
     // A pull can refuse for reasons that have nothing to do with linking -- local
     // edits, a detached head, no network. Linking the checkout already on disk
     // still works, so say what happened and carry on.
     try {
-      await Bun.$`git -C ${dest} pull --ff-only`.quiet();
-      step(`updated ${tilde(dest)}`);
+      await Bun.$`git -C ${dir} pull --ff-only`.quiet();
+      step(`updated ${tilde(dir)}`);
     } catch {
-      step(`kept ${tilde(dest)} ${c.dim("(could not pull)")}`);
+      step(`kept ${tilde(dir)} ${c.dim("(could not pull)")}`);
     }
-    return dest;
+    return dir;
   }
   // A copy made before git was installed can never be pulled, so it keeps upgrading
   // through npm and its caches. Once git is here, replace it with a real clone --
