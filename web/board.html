@@ -229,7 +229,7 @@ const ICON={idea:"idea",starting:"start",running:"run",stalled:"stall",waiting:"
 const WORD={idea:"idea",starting:"starting",running:"running",stalled:"stalled",waiting:"waiting on you",done:"done",abandoned:"abandoned"};
 
 let S={project:null,projects:[],cards:[],now:Date.now(),all:false};
-let all=new URLSearchParams(location.search).get("all")==="1",openKey=null,mode=null,modeKey=null,filter=null,menuKey=null,tab=0,runDoc=null;
+let all=new URLSearchParams(location.search).get("all")!=="0",openKey=null,mode=null,modeKey=null,filter=null,menuKey=null,tab=0,runDoc=null;
 // A column shows this many cards, then a "more" line; Done is where it matters.
 const FOLD=6;const unfolded=new Set();
 let archive=false;
@@ -302,7 +302,7 @@ function render(){
  strip.push(`<span class="sp"></span><span>${cs.filter(c=>c.kind==="idea").length} ideas · ${cs.filter(c=>c.kind==="run").length} runs</span>`,`<button class="${archive?"on":""}" data-f="__archive">${archive?"Back to board":"Archive "+nArch}</button>`);
  $("strip").innerHTML=strip.join("");
  $("strip").querySelectorAll("button").forEach(c=>c.onclick=()=>{if(c.dataset.f==="__archive"){archive=!archive;filter=null;render();return}filter=filter===c.dataset.f?null:c.dataset.f;render()});
- const sel=$("proj");sel.innerHTML=(S.project?`<option value="cur">${esc(S.project)}</option>`:"")+`<option value="all">All projects</option>`;sel.value=all||!S.project?"all":"cur";
+ const sel=$("proj");sel.innerHTML=`<option value="all">All projects</option>`+(S.project?`<option value="cur">${esc(S.project)}</option>`:"");sel.value=all||!S.project?"all":"cur";
  if(!cs.length&&mode!=="new"){b.innerHTML=archive?'<div class="empty"><div class="mascot"></div><div>Nothing archived.</div></div>':'<div class="empty"><div class="mascot"></div><div>Nothing here yet.</div><button class="btn pri" id="newempty">New idea</button></div>';if(!archive)$("newempty").onclick=()=>{mode="new";render()};}
  COLS.forEach((name,ci)=>{
   const s=document.createElement("section");const list=cs.filter(c=>c.column===ci&&(!filter||c.status===filter));
