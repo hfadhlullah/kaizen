@@ -197,8 +197,11 @@ async function noAgent() {
 // Best effort: a headless box or a locked-down desktop has no opener, and the URL
 // is printed either way.
 async function openUrl(url: string) {
-  const opener = process.platform === "darwin" ? "open"
-    : process.platform === "win32" ? "start" : "xdg-open";
+  // `start` is a cmd builtin, not a program, so it has to go through cmd.
+  if (process.platform === "win32") {
+    try { await Bun.$`cmd /c start "" ${url}`.quiet(); return true; } catch { return false; }
+  }
+  const opener = process.platform === "darwin" ? "open" : "xdg-open";
   if (!Bun.which(opener)) return false;
   try { await Bun.$`${opener} ${url}`.quiet(); return true; } catch { return false; }
 }
@@ -251,7 +254,7 @@ if (wantWeb) {
       console.log(`\n  kaizen web  ${url}  (pid ${child.pid}, detached)`);
       console.log(`  kaizen web --stop to stop it\n`);
     }
-    if (!args.has("--no-open")) await openUrl(url);
+    if (!args.has("--no-open")) await (await import("./web.ts")).openApp(url);
     process.exit(0);
   }
 

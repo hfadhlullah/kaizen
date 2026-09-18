@@ -326,7 +326,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
 
 // A Chromium-family browser in --app mode is a window with no tabs or address bar,
 // which is as close to a desktop app as a web page gets. Anything else gets a tab.
-async function openApp(url: string) {
+export async function openApp(url: string) {
   const chromes = process.platform === "darwin"
     ? ["Google Chrome", "Chromium", "Microsoft Edge", "Brave Browser"]
     : process.platform === "win32"
@@ -347,7 +347,11 @@ async function openApp(url: string) {
       }
     }
   } catch { /* fall through to a plain tab */ }
-  const opener = process.platform === "darwin" ? "open" : process.platform === "win32" ? "start" : "xdg-open";
+  // `start` is a cmd builtin, not a program, so it has to go through cmd.
+  if (process.platform === "win32") {
+    try { await Bun.$`cmd /c start "" ${url}`.quiet(); return true; } catch { return false; }
+  }
+  const opener = process.platform === "darwin" ? "open" : "xdg-open";
   if (!Bun.which(opener)) return false;
   try { await Bun.$`${opener} ${url}`.quiet(); return true; } catch { return false; }
 }
