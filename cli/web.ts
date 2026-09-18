@@ -240,7 +240,9 @@ export async function web(repoDir: string, opts: Opts = {}) {
           const kind = body.kind === "full" || body.kind === "lite" ? body.kind : "";
           if (!text) return bad("empty idea");
           const it: Item = parseItem(`${kind} ${text}`.trim());
-          it.notes = readInbox(dir).find((l) => l.status === "open" && l.text === text)?.notes;
+          // A `started` idea may be run again: the terminal the first launch opened
+          // can come up empty, and nothing else tells the board a run never began.
+          it.notes = readInbox(dir).find((l) => (l.status === "open" || l.status === "started") && l.text === text)?.notes;
           const r = launchRun(it, dir);
           if (r.ok) replaceIdea(dir, text, { status: "started", text });
           changed();

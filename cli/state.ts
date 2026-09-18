@@ -75,27 +75,23 @@ export function findTerminal(cwd: string, fullCmd: string[]): { cmd: string[]; d
   const inTmux = Boolean(process.env.TMUX);
 
   // Windows has no xdg anything, and none of the terminals below exist there.
-  // PowerShell is what a Windows user has open anyway: one -Command string,
-  // where a single quote is doubled rather than escaped. Windows Terminal hosts
-  // it when installed; otherwise `start` gives it a window of its own.
+  // PowerShell is what a Windows user has open anyway. The command reaches it as
+  // -EncodedCommand (base64 of UTF-16LE): a prompt with notes has newlines, which
+  // end a cmd.exe command line, and semicolons, which Windows Terminal splits its
+  // own arguments on -- neither survives as a plain -Command string. Windows
+  // Terminal hosts the shell when installed; otherwise `start` gives it a window.
   if (process.platform === "win32") {
     const q = (a: string) => `'${a.replace(/'/g, "''")}'`;
     const shell = Bun.which("pwsh.exe") ? "pwsh.exe" : "powershell.exe";
-    // No Set-Location in the command: both launchers set the directory themselves,
-    // and the semicolon that would separate the two statements is what Windows
-    // Terminal splits its own arguments on. Any semicolon still left in the prompt
-    // is escaped for wt, which reads it before PowerShell ever sees the quoting.
-    const ps = `& ${fullCmd.map(q).join(" ")}`;
+    const ps = `Set-Location ${q(cwd)}; & ${fullCmd.map(q).join(" ")}`;
+    const enc = Buffer.from(ps, "utf16le").toString("base64");
     if (Bun.which("wt.exe")) {
-      return {
-        cmd: ["wt.exe", "-d", cwd, shell, "-NoExit", "-Command", ps.replace(/;/g, "\\;")],
-        detached: true,
-      };
+      return { cmd: ["wt.exe", "-d", cwd, shell, "-NoExit", "-EncodedCommand", enc], detached: true };
     }
     // `start` reads a title only when quoted; an unquoted word is the command, so
     // "kaizen" here ran kaizen's own launcher. The empty title is what Bun quotes.
     return {
-      cmd: ["cmd.exe", "/c", "start", "", "/D", cwd, shell, "-NoExit", "-Command", ps],
+      cmd: ["cmd.exe", "/c", "start", "", "/D", cwd, shell, "-NoExit", "-EncodedCommand", enc],
       detached: true,
     };
   }
