@@ -324,12 +324,14 @@ const wasAwaiting=new Map();let first=true;
 const key=c=>c.kind==="idea"?"idea:"+c.state+":"+c.text:"run:"+c.state+":"+c.id;
 
 async function load(){
- const r=await fetch("/state"+(all?"?all=1":""));S=await r.json();
+ let r;try{r=await fetch("/state"+(all?"?all=1":""))}catch{toast(GONE);return}S=await r.json();
  for(const c of S.cards){if(c.kind!=="run")continue;const k=key(c),before=wasAwaiting.get(k);
   if(!first&&before===null&&c.awaiting)notifyUser("kaizen — waiting on you",c.text+" · "+c.awaiting);wasAwaiting.set(k,c.awaiting)}
  first=false;render();
  if(openKey){const c=S.cards.find(x=>key(x)===openKey);if(c&&runDoc)openRun(c,true);else if(c&&c.kind==="idea"){const ta=$("pbody").querySelector("textarea");if(!(ta&&document.activeElement===ta))chat(c,c.notes,c.archived||c.status!=="idea")}}}
-async function post(path,body){const r=await fetch(path,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});const j=await r.json().catch(()=>({}));if(!r.ok){toast(j.error||j.why||"failed");if(j.manual)console.log("run manually:",j.manual)}return j}
+// A tab outliving its server would otherwise swallow every click: say so.
+const GONE="The board server is not running — start it with kaizen web (or the shortcut), then reload.";
+async function post(path,body){let r;try{r=await fetch(path,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)})}catch{toast(GONE);return{ok:false}}const j=await r.json().catch(()=>({}));if(!r.ok){toast(j.error||j.why||"failed");if(j.manual)console.log("run manually:",j.manual)}return j}
 
 function card(c){
  const k=key(c),el=document.createElement("div");el.className="card"+(k===openKey?" open":"")+(k===menuKey?" menu":"")+(c.archived?" archived":"");el.tabIndex=0;el.setAttribute("role","button");
