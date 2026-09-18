@@ -299,7 +299,7 @@ every finished run to the archive (`.kaizen/archive.md`, a list, nothing moves),
 and every `kaizen settings` knob, same rows, same `config.yml`. `--port N` picks a port, `--no-open` just
 serves, the board opens on every project; `?all=0` in the URL narrows it to the one it was started in. `--daemon` starts the server
 detached so it outlives the terminal (pid kept in `~/.kaizen/web.pid`); `--stop` ends it. `kaizen web --shortcut` adds a launcher
-the OS can find — Spotlight on macOS, the app menu on Linux, a Desktop shortcut on Windows.
+the OS can find — Spotlight on macOS, the app menu on Linux, a Desktop shortcut on Windows. Each one starts the board in the background (`--daemon`) and opens it; `kaizen web --stop` ends it.
 
 **Dictate instead of type.** Every text field on the board — a new idea, its notes, an
 edit, a reject reason, a note on a run — has a mic. Press it, talk, press it again; the

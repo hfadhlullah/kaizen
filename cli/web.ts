@@ -395,15 +395,20 @@ export async function shortcut() {
   }
 
   if (process.platform === "win32") {
-    // A .lnk icon must be an .ico, and the board runs in its own minimised console
-    // rather than as a daemon: a detached child from a double-clicked shortcut has
-    // no console to report to, so a failure there looks like nothing happened.
-    // Closing that window stops the board.
+    // bun.exe is a console program, so a .lnk aimed straight at it always opens a
+    // console window. The shortcut therefore aims at wscript, whose Run with window
+    // style 0 starts `kaizen web --daemon` with no window at all; the daemon outlives
+    // that launcher and `kaizen web --stop` ends it. A crash has no console to land
+    // in, so web() writes it to ~/.kaizen/web.log instead. A .lnk icon must be an .ico.
     const lnk = join(home, "Desktop", "Kaizen.lnk");
     const ico = join(dirname(import.meta.dir), "assets", "kaizen.ico");
-    const ps = `$s=(New-Object -ComObject WScript.Shell).CreateShortcut('${lnk}');$s.TargetPath='${bun}';$s.Arguments='"${script}" web';$s.WorkingDirectory='${home}';$s.WindowStyle=7;${existsSync(ico) ? `$s.IconLocation='${ico}';` : ""}$s.Save()`;
+    const vbs = join(home, ".kaizen", "kaizen-web.vbs");
+    mkdirSync(dirname(vbs), { recursive: true });
+    const vq = (s: string) => `""${s}""`;                       // a quoted arg inside a VBScript string
+    writeFileSync(vbs, `CreateObject("WScript.Shell").Run "${vq(bun)} ${vq(script)} web --daemon", 0, False\r\n`);
+    const ps = `$s=(New-Object -ComObject WScript.Shell).CreateShortcut('${lnk}');$s.TargetPath='wscript.exe';$s.Arguments='"${vbs}"';$s.WorkingDirectory='${home}';${existsSync(ico) ? `$s.IconLocation='${ico}';` : ""}$s.Save()`;
     await Bun.$`powershell -NoProfile -Command ${ps}`.quiet();
-    return `${lnk} — double-click opens the board in a minimised window; close that window to stop it`;
+    return `${lnk} — double-click starts the board in the background and opens it; kaizen web --stop ends it`;
   }
 
   const dir = join(process.env["XDG_DATA_HOME"] ?? join(home, ".local", "share"), "applications");

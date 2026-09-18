@@ -241,7 +241,7 @@ if (wantWeb) {
     } else {
       const argv = Bun.argv.slice(2).filter((a) => a !== "--daemon" && a !== "--no-open");
       const child = Bun.spawn([process.execPath, Bun.main, ...argv, "--no-open"], {
-        detached: true, stdio: ["ignore", "ignore", "ignore"],
+        detached: true, stdio: ["ignore", "ignore", "ignore"], windowsHide: true,
       });
       child.unref();
       mkdirSync(dirname(pidFile), { recursive: true });
