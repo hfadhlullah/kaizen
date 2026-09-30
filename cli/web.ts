@@ -9,8 +9,12 @@ import {
   reviewFindings, pickFindings, fixPrompt,
 } from "./state.ts";
 import { readSources, addSource, removeSource, moveSource, gatherSource, gatherAll, gatherDirs, due } from "./sources.ts";
+import { listNotes, saveNote, renameNote, deleteNote } from "./notes.ts";
 
 const PAGE = join(dirname(import.meta.dir), "web", "board.html");
+// The notebook: its page, and the CodeMirror bundle `bun run build:web` commits beside it.
+const NOTES_PAGE = join(dirname(import.meta.dir), "web", "notes.html");
+const NOTES_JS = join(dirname(import.meta.dir), "web", "notebook.js");
 const DEFAULT_PORT = 7420;
 
 type Opts = { port?: number; open?: boolean };
@@ -184,6 +188,19 @@ export async function web(repoDir: string, opts: Opts = {}) {
         return new Response(readFileSync(PAGE, "utf8").replace("/*notifier*/", () => notifier.toString()), {
           headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
         });
+      }
+
+      if (req.method === "GET" && (path === "/notebook" || path === "/notebook.js")) {
+        const [f, type] = path === "/notebook" ? [NOTES_PAGE, "text/html; charset=utf-8"] : [NOTES_JS, "application/javascript; charset=utf-8"];
+        if (!existsSync(f)) return new Response(`${path} missing; run bun run build:web`, { status: 500 });
+        return new Response(Bun.file(f), { headers: { "content-type": type, "cache-control": "no-store" } });
+      }
+
+      // Every note of one project, text included: search, tags and backlinks are the page's.
+      if (req.method === "GET" && path === "/vault") {
+        const dir = url.searchParams.get("dir") ?? state ?? join(home, ".kaizen");
+        if (!states(true).includes(dir)) return bad("unknown state dir", 404);
+        return json({ dir, notes: listNotes(dir) });
       }
 
       // The icon on a web notification; this one file and nothing beside it.
@@ -440,6 +457,21 @@ export async function web(repoDir: string, opts: Opts = {}) {
           const failed = writeNotes(dir, id, String(body.text ?? ""));
           changed();
           return failed ? bad(failed, 404) : json({ ok: true });
+        }
+
+        // A save names the mtime it loaded; a different one on disk is a 409 carrying
+        // what is there, so the page can keep the typed text and let the user choose.
+        if (path === "/vault") {
+          if (body.op === "save") {
+            if (typeof body.text !== "string") return bad("text required");
+            const r = saveNote(dir, body.name, body.text, Number(body.base) || 0);
+            changed();
+            return r.ok ? json(r) : r.why === "conflict" ? json(r, 409) : bad(r.why);
+          }
+          const why = body.op === "rename" ? renameNote(dir, body.name, body.to)
+            : body.op === "delete" ? deleteNote(dir, body.name) : "unknown op";
+          changed();
+          return why ? bad(why, why === "no such note" ? 404 : why === "a note with that name exists" ? 409 : 400) : json({ ok: true });
         }
 
         // Only a finished run, or one waiting at the final approval, and never the

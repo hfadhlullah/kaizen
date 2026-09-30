@@ -302,6 +302,16 @@ serves, the board opens on every project, or on the one picked last time in that
 detached so it outlives the terminal (pid kept in `~/.kaizen/web.pid`); `--stop` ends it. `kaizen web --shortcut` adds a launcher
 the OS can find — Spotlight on macOS, the app menu on Linux, a Desktop shortcut on Windows. Each one starts the board in the background (`--daemon`) and opens it; `kaizen web --stop` ends it.
 
+**A notebook beside the board.** The note icon in the board's header opens
+`/notebook`: markdown notes for the project, kept as plain files in `.kaizen/notes/`
+(folders included, so Obsidian can open the same folder). Notes are edited in place —
+the line you are on shows its markdown, the rest reads typeset, and `/` at the start of a line offers checkboxes, dividers, headings and the other blocks. `[[Other note]]` links
+notes and creates the one that does not exist yet, every note lists what links to it,
+`#tags` filter the list, and a `/` in a note's name puts it in a folder. Notes save as
+you type; a note changed elsewhere since you opened it is never overwritten without
+asking, and a deleted one goes to `.kaizen/notes/.trash/`. The editor is CodeMirror,
+bundled into the package, so the notebook works offline.
+
 **Dictate instead of type.** Every text field on the board — a new idea, its notes, an
 edit, a reject reason, a note on a run — has a mic. Press it, talk, press it again; the
 words land at the caret next to whatever you had typed. Recognition is Whisper running

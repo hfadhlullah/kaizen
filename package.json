@@ -1,7 +1,7 @@
 {
   "name": "kaizen-agent",
   "version": "1.8.1",
-  "description": "Staged workflow for AI agents \u2014 code, writing, research, operations: plan, human approval, build, independent review, bounded fix loop.",
+  "description": "Staged workflow for AI agents — code, writing, research, operations: plan, human approval, build, independent review, bounded fix loop.",
   "type": "module",
   "bin": {
     "kaizen-agent": "./cli/install.ts",
@@ -21,6 +21,7 @@
   "scripts": {
     "install-links": "bun run cli/install.ts",
     "check": "bun run cli/install.ts --check",
+    "build:web": "bun run cli/build-web.ts",
     "test": "bun test",
     "prepublishOnly": "bun test",
     "postpublish": "sh cli/release.sh",
@@ -42,5 +43,14 @@
     "code-review",
     "writing",
     "research"
-  ]
+  ],
+  "devDependencies": {
+    "@codemirror/autocomplete": "6.20.3",
+    "@codemirror/commands": "6.11.1",
+    "@codemirror/lang-markdown": "6.5.2",
+    "@codemirror/language": "6.12.4",
+    "@codemirror/state": "6.7.6",
+    "@codemirror/view": "6.43.13",
+    "@lezer/highlight": "1.2.5"
+  }
 }

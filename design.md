@@ -301,6 +301,71 @@ squares (26 px inside cards), `--dim` at rest, `--ink` on a `--dim` 12 % fill on
 always with `title` and `aria-label`. Icons are inline SVG symbols, 1.6 px stroke,
 round caps: plus, gear, link, play, pen, x, trash, more. No icon fonts, no emoji.
 
+### Notebook
+
+A second page, `/notebook`, for writing: markdown notes as files under
+`<state>/notes/`, folders and all. The board reaches it from a note icon left of the
+link icon; the notebook's wordmark and a `Board` ghost button lead back.
+
+```
+┌ header ─────────────────────────────────────────────────────────────┐
+│ KAIZEN  Notebook  [~/code/acme ▾]                 Board  [New note] │
+├ sidebar 260 ─────┬ paper ──────────────────────────────────────────┤
+│ [Search, #tag  ] │            Standup                               │
+│ TAGS             │            Work · Saved                     🗑   │
+│ #work 2 #daily 1 │            ─────────────────────────────────     │
+│ NOTES            │            Yesterday: the board. Today: …        │
+│ › ▢ Work         │                                                  │
+│     Standup  4m  │            LINKED FROM                           │
+│   Welcome   now  │            Welcome                               │
+└──────────────────┴──────────────────────────────────────────────────┘
+```
+
+- Sidebar on `--bg`, the note on `--bg-2` paper: the board's column and card grounds.
+  Section heads (`Tags`, `Notes`, `Linked from`) are the markdown `h3`: `12px`
+  uppercase `--dim`, `0.08em`. Folders are native `<details>` with a chevron and a
+  folder icon; a note row is `13px`, its age right in `12px` `--dim` tabular digits;
+  the open note sits on `--bg-2` with a 2 px `--accent` inset edge and `--shadow-1`.
+- Tags are `--accent` chips (section 6 chip shape) with their count in `--dim`; the
+  active filter adds a 1 px `--accent` ring. Search takes text or `#tag`.
+- The note: one column, `68ch`, `40px` from the top. The name is a borderless field
+  at `26px` weight 600 that takes the section 6 focus ring; a `/` in it moves the note
+  into a folder. Under it one `12px` `--dim` line: folder, save state, a trash icon.
+  Delete and a conflict replace that line with their buttons, never a dialog: `Cancel`
+  / `Delete` (`--danger`), or `Load theirs` / `Keep mine` with the sentence in `--ink`
+  weight 500.
+- Reading scale, for this page only (section 4 stays the panel's): body `16px/1.7`;
+  `h1` 26, `h2` 20, `h3` 16, all weight 600; `h4` 14 uppercase `--dim`. Blockquote a
+  3 px `--line` rule with `--dim` text. Code: inline and fenced in `--mono` on `--bg`,
+  fences framed in `--line` with `--r-s` corners. Links `--accent`, underlined at 45 %;
+  a `[[link]]` to a missing note is `--dim` with a dashed underline. Tasks are native
+  checkboxes in `--accent`; bullets a `--dim` dot.
+- Live preview: markdown is hidden and typeset on every line except the ones the
+  cursor is on, which show their source with the marks in `--dim`. An unfocused editor
+  shows none. The editor's focus is its `--accent` caret; it draws no ring, as a page
+  of text in any editor does not.
+- Opening a note deals a page: the next note slides in over the paper side from
+  `56px` to the right while fading up, `260ms`, `cubic-bezier(.22,.61,.36,1)`, casting
+  `--shadow-2`, while a copy of what was showing stays beneath, eases `24px` left and
+  fades out within the first 60 % of the time. The sidebar sits above both, so nothing crosses it.
+  Transform and opacity only. Every open does it, the first one too.
+- A table the cursor is not in is drawn as one: 1 px `--line` grid, `--r-s` outer
+  corners, `15px` cells padded `7px 14px`, the header row weight 600 on `--bg`, column
+  alignment from the delimiter row. Clicking it shows its markdown to edit.
+- `/` at the start of a line opens the block menu (section 6 card menu shape: `--bg-2`,
+  `--r`, 1 px `--line`, `--shadow-2`, `13px` items with a `--dim` hint, `--hover` on the
+  chosen one): Checkbox, Divider, Heading 1-3, Bullet list, Numbered list, Quote, Code
+  block, Table, Link to note, Tag. Typing filters it; Enter or a click puts the block's
+  markdown in place of the `/word`.
+- Full screen is off by default. A maximise / minimise icon in the note's `--dim`
+  line turns it on or off; `Esc` turns it off. While on, header and sidebar are hidden
+  and the paper side fills the window, from note to note. With no note open the page
+  is never full screen, since picking one needs the sidebar.
+- Under 900 px the sidebar is a drawer from the left behind a list icon, `--shadow-2`,
+  closed by picking a note, a click outside, or `Esc`.
+- Empty notebook: `Nothing here yet`, one `--dim` line saying where notes live and how
+  to link and tag, a `New note` button.
+
 ## 7. Keyboard and motion
 
 Keys mirror the TUI and work as a second option: `n` new idea, `e` edit, `x` reject or
@@ -308,7 +373,7 @@ abandon, `r` run, `a` all projects, `Esc` close, `?` this list. Inert while an i
 focus.
 
 Motion: panel slide `180ms`, toast fade `200ms`, running icon pulse `1.6s`, card move
-between columns `150ms`, hover and switch transitions `120ms`, menu fade-in `120ms`. `prefers-reduced-motion` makes all of it instant. No spinners;
+between columns `150ms`, hover and switch transitions `120ms`, menu fade-in `120ms`, a notebook page dealt `260ms`. `prefers-reduced-motion` makes all of it instant. No spinners;
 liveness is the file mtime and the UI must not pretend to know more.
 
 ## 8. Notifications
@@ -372,3 +437,6 @@ board show a state the TUI cannot.
 - `assets/tanuki.svg` traced outline, rebuilt by `make-images.py`
 - `web/board.html` the board; tokens from sections 2 and 3 at the top of its `<style>`
 - `cli/web.ts` serves it; `cli/state.ts` is the logic both boards share
+- `web/notes.html` the notebook page, its tokens copied line for line from the board's
+  (a test holds them equal); `web/notebook.ts` its script, bundled with CodeMirror into
+  the committed `web/notebook.js` by `bun run build:web`; `cli/notes.ts` its files
