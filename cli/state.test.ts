@@ -8,7 +8,7 @@ import {
   readRuns, readInbox, writeInbox, replaceIdea, abandonRun, allBacklog, backlog,
   statusOf, columnOf, parseItem, startedRuns, boardCards, readArchive, setArchived,
   requestOf, agentFlags, readNotes, writeNotes, manualCommand, parseNotes, formatNote, appendNote, saveAttachment,
-  reviewFindings, pickFindings, fixPrompt, gitStatus, runGit, commitPush, readCommit, findTerminal, pruneRuns, unrechecked, notice, notifier, notifyArgs, LOGO, type Card,
+  reviewFindings, pickFindings, fixPrompt, gitStatus, runGit, cardsGit, commitPush, readCommit, findTerminal, pruneRuns, unrechecked, notice, notifier, notifyArgs, LOGO, type Card,
 } from "./state.ts";
 
 let state: string;
@@ -274,6 +274,8 @@ test("commitPush: commits the run's files only, pushes, and records it; the mess
   writeFileSync(join(st, "runs", "r1", "03-impl.md"), "## Changed\n\n- `.gitignore`: x\n- `a.txt:1`: y\n- c.txt and `c.txt.bak` are not named\n");
   const files = () => (runGit(st, "r1") as any).files as string[];
   expect(files()).toEqual(["?? .gitignore", "?? a.txt"]);
+  // The card's mark: the run with changed files is pending; one with none and no record says nothing.
+  expect(cardsGit(st, ["r1", "nope"])).toEqual({ r1: "pending" });
   // An earlier run that named the same file is not offered it: the later report has it.
   mkdirSync(join(st, "runs", "r0"));
   writeFileSync(join(st, "runs", "r0", "03-impl.md"), "- `a.txt`: z\n");
@@ -303,6 +305,7 @@ test("commitPush: commits the run's files only, pushes, and records it; the mess
   expect(sh(proj, "show", "--name-only", "--format=", "HEAD")).toBe(".gitignore\na.txt");
   expect(Bun.spawnSync(["git", "-C", proj, "status", "--porcelain"]).stdout.toString()).toBe("A  c.txt\n");
   expect(readCommit(st, "r1")).toEqual({ sha: r.sha, pushed: true });
+  expect(cardsGit(st, ["r1", "r0", "nope"])).toEqual({ r1: "pushed", r0: "pushed" });   // r0: no record, but its file is in; c.txt still changed is not its business
 
   // A push that fails leaves a record that says so.
   sh(proj, "remote", "set-url", "origin", join(root, "gone.git"));
@@ -318,6 +321,8 @@ test("commitPush: commits the run's files only, pushes, and records it; the mess
   expect(readCommit(st, "r1")!.pushed).toBe(false);
   expect(sh(proj, "show", "--name-only", "--format=", "HEAD")).toBe("b*.txt");
   expect(runGit(st, "r1")).toMatchObject({ files: [], ahead: 1, others: 2 });
+  expect(cardsGit(st, ["r1"])).toEqual({ r1: "pending" });   // committed, not pushed
+  expect(cardsGit(join(root, ".kaizen"), ["r1"])).toEqual({});   // not a repo
 });
 
 test.skipIf(process.platform === "win32")("findTerminal: a running herdr wins, then tmux, else neither; the prompt stays one literal argument", () => {

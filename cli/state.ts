@@ -918,6 +918,17 @@ function runReport(state: string, id: string) {
 }
 const names = (report: string, path: string) => report.includes("`" + path + "`") || report.includes("`" + path + ":");
 
+type Report = { id: string; text: string; at: number };
+function runReports(state: string): Report[] {
+  let ids: string[] = [];
+  try { ids = readdirSync(join(state, "runs")); } catch {}
+  return ids.map((id) => ({ id, ...runReport(state, id) }));
+}
+const runFiles = (changed: string[], mine: Report, rest: Report[]) => changed.filter((l) => {
+  const p = statusPath(l);
+  return names(mine.text, p) && !rest.some((r) => r.at > mine.at && names(r.text, p));
+});
+
 // The project's status narrowed to one run: a changed file is the run's when its
 // report names the path in backticks and no run that reported later names it too,
 // so a finished run is not offered the work of the ones after it. `others` counts
@@ -929,14 +940,9 @@ const names = (report: string, path: string) => report.includes("`" + path + "`"
 export function runGit(state: string, id: string): GitStatus {
   const dir = dirname(state), s = gitStatus(dir);
   if (!s.repo) return s;
-  const mine = runReport(state, id);
-  let ids: string[] = [];
-  try { ids = readdirSync(join(state, "runs")); } catch {}
-  const rest = ids.filter((o) => o !== id).map((o) => ({ id: o, ...runReport(state, o) }));
-  const files = s.files.filter((l) => {
-    const p = statusPath(l);
-    return names(mine.text, p) && !rest.some((r) => r.at > mine.at && names(r.text, p));
-  });
+  const all = runReports(state), mine = all.find((r) => r.id === id) ?? { id, text: "", at: 0 };
+  const rest = all.filter((o) => o.id !== id);
+  const files = runFiles(s.files, mine, rest);
   const shared = files.flatMap((l) => {
     const p = statusPath(l);
     const since = Number(git(dir, "--literal-pathspecs", "log", "-1", "--format=%ct", "--", p).out) * 1000;
@@ -953,6 +959,24 @@ export function readCommit(state: string, id: string): { sha: string; pushed: bo
     const t = readFileSync(join(state, "runs", id, "07-commit.md"), "utf8");
     return { sha: /^commit: (\S+)/m.exec(t)?.[1] ?? "", pushed: /^pushed: yes/m.test(t) };
   } catch { return null; }
+}
+
+// The card's git mark for each run asked about, by the rules of the panel's button
+// (`gitBtn` in web/board.html): one project status and one read of the reports for
+// the lot. A run with nothing to say either way gets no entry.
+export function cardsGit(state: string, ids: string[]): Record<string, "pending" | "pushed"> {
+  const s = gitStatus(dirname(state)), out: Record<string, "pending" | "pushed"> = {};
+  if (!s.repo) return out;
+  const all = runReports(state);
+  for (const id of ids) {
+    const mine = all.find((r) => r.id === id) ?? { id, text: "", at: 0 }, k = readCommit(state, id);
+    const files = runFiles(s.files, mine, all.filter((o) => o.id !== id)).length;
+    if (files) out[id] = "pending";
+    else if (k?.pushed) out[id] = "pushed";
+    else if (s.ahead > 0) out[id] = "pending";
+    else if (k || mine.text) out[id] = "pushed";
+  }
+  return out;
 }
 
 // A Conventional Commits subject: every commit the board makes says what kind it is.

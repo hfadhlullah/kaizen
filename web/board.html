@@ -106,6 +106,7 @@ section h2 .clear{margin-left:auto;min-height:22px;padding:0 8px}
 .chip svg{width:11px;height:11px;stroke-width:1.7}
 .chip.warn{color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,transparent)}.chip.warn i{background:var(--warn)}
 .chip.accent{color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,transparent)}.chip.accent i{background:var(--accent)}
+.chip.ok{color:color-mix(in srgb,var(--ok) 80%,var(--ink));background:color-mix(in srgb,var(--ok) 14%,transparent)}
 .chip.run{color:var(--run);background:color-mix(in srgb,var(--run) 14%,transparent)}.chip.run i{background:var(--run)}
 .st.d-idea{color:var(--dim)}.st.d-run{color:var(--run)}.st.d-stall{color:var(--dim)}.st.d-wait{color:var(--warn)}.st.d-done{color:var(--ok)}.st.d-aband{color:var(--dim)}
 .d-run{color:var(--run)}.d-wait{color:var(--warn)}.d-done{color:var(--ok)}
@@ -224,6 +225,7 @@ aside .foot:empty{display:none}
 <symbol id="c-cursor" viewBox="0 0 16 16"><path d="M4 3l9 5-4 1-1 4z"/></symbol>
 <symbol id="c-full" viewBox="0 0 16 16"><circle cx="5.5" cy="8" r="3"/><circle cx="11" cy="8" r="3"/></symbol>
 <symbol id="c-lite" viewBox="0 0 16 16"><circle cx="8" cy="8" r="3"/></symbol>
+<symbol id="c-git" viewBox="0 0 16 16"><circle cx="4.5" cy="3.5" r="1.5"/><circle cx="4.5" cy="12.5" r="1.5"/><circle cx="11.5" cy="5.5" r="1.5"/><path d="M4.5 5v6M11.5 7c0 2.5-7 1.5-7 4"/></symbol>
 </defs></svg>
 
 <div class="hdr">
@@ -387,6 +389,8 @@ function card(c){
  if(all)chips.push(`<span class="chip">${esc(c.where)}</span>`);
  chips.push(...(c.tags||[]).map(t=>{const mark=MARKS[t]?`<svg><use href="#c-${t}"/></svg>`:"";return `<span class="chip${t==="full"||t==="lite"?" accent":""}">${mark}${esc(NAMES[t]||t)}</span>`}));
  if(c.notes)chips.push(`<span class="chip">notes</span>`);
+ // Information only: the panel's button is where it is committed and pushed.
+ if(c.git){const t=c.git==="pushed"?"Committed & pushed":"Not committed & pushed yet";chips.push(`<span class="chip ${c.git==="pushed"?"ok":"warn"}" role="img" title="${t}" aria-label="${t}"><svg><use href="#c-git"/></svg></span>`)}
  const pick=picking&&!archive&&c.column===4;
  el.innerHTML=(pick?`<input type="checkbox" class="pick" ${picked.has(k)?"checked":""} aria-label="Select">`:"")+`<div class="c-id"><span class="st d-${st}"><svg><use href="#s-${st}"/></svg></span><span class="idt">${esc(idt)}</span><span class="age">${c.kind==="run"?age(c.moved||S.now,S.now):""}</span><button class="ib sm more" data-a="menu" title="Actions" aria-label="Actions">${ico("more")}</button></div>
   <div class="c-title">${esc(c.kind==="idea"?c.text:(c.title||c.id))}</div>
@@ -563,9 +567,9 @@ function gitBtn(c){const g=runDoc.git,k=runDoc.commit;
  if(k&&k.pushed)return `<button class="btn" disabled title="${esc(k.sha)}">Committed &amp; pushed</button>`+(g.files.length?`<button class="btn" data-a="commit">Commit new changes</button>`:g.ahead>0?`<button class="btn" data-a="push">Push</button>`:"");
  if(g.files.length)return `<button class="btn pri" data-a="commit">Commit &amp; push</button>`;
  if(g.ahead>0)return `<button class="btn pri" data-a="push">Push</button>`;
- // Clean and level with the remote: it was committed and pushed somewhere else. With
- // other files still changed and no record, nothing says this run was ever committed.
- return k||!g.others?`<button class="btn" disabled>Committed &amp; pushed</button>`:""}
+ // None of its files changed and level with the remote: it was committed and pushed
+ // somewhere else. With no record and no report, nothing says it was ever committed.
+ return k||runDoc.impl?`<button class="btn" disabled>Committed &amp; pushed</button>`:""}
 function confirmCommit(c,msg){const g=runDoc.git,foot=$("pfoot");
  foot.innerHTML=`<div class="inl" style="flex:1"><div class="q">Commit ${g.files.length} changed file${g.files.length===1?"":"s"} on ${esc(g.branch||"this branch")} and push to ${esc(g.remote)}?</div><div class="q dim">Only the files this run's report names.${g.others?` ${g.others} other changed file${g.others===1?" is":"s are"} left alone.`:""}</div><pre class="files">${esc(g.files.join("\n"))}</pre>${g.shared&&g.shared.length?`<div class="q">These files also hold other runs' changes, and a file is committed whole:</div><pre class="files">${esc(g.shared.join("\n"))}</pre>`:""}<textarea aria-label="Commit message" placeholder="feat(scope): what changed">${esc(msg||commitMsg(runDoc.impl)||c.title||c.text)}</textarea><div class="q dim" id="clong" hidden>The first line is over 72 characters; logs will cut it short.</div><div class="row"><button class="btn ghost" data-a="c">Cancel</button><button class="btn pri" data-a="s">Commit &amp; push</button></div></div>`;
  const inp=foot.querySelector("textarea"),go=foot.querySelector("[data-a=s]");inp.focus();

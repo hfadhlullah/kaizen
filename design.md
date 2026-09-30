@@ -216,7 +216,9 @@ web board from design.md
   `--r`, 12 to 14 % tinted fill of their colour, no border. A waiting chip says what is
   needed in words (`plan needs your approval`), never the config key. A state chip first when the run is waiting (`--warn`) or running
   (`--run`), then project when viewing all projects, then run kind (`full`/`lite` in
-  `--accent`), then agent (`--dim`). No chips, no line.
+  `--accent`), then agent (`--dim`). No chips, no line. A run whose panel offers commit
+  and push ends the line with a word-less git mark chip (`#c-git`): `--warn` while its work
+  is not committed and pushed, `--ok` once it is. It says which on hover and does nothing.
 
 ### Chip marks
 

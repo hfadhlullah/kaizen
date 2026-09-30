@@ -3,9 +3,9 @@
 import { existsSync, readFileSync, readdirSync, statSync, watch, appendFileSync, mkdirSync, type FSWatcher } from "node:fs";
 import { join, dirname } from "node:path";
 import {
-  home, type Item, boardCards, knownProjects, remember, locate, label, tilde, searchRoots, findProjects,
+  home, type Item, type Card, boardCards, knownProjects, remember, locate, label, tilde, searchRoots, findProjects,
   readInbox, writeInbox, replaceIdea, abandonRun, launchRun, parseItem, short, setArchived, writeNotes,
-  appendNote, saveAttachment, pidOnPort, runGit, readCommit, commitPush, notice, notifier, LOGO,
+  appendNote, saveAttachment, pidOnPort, runGit, cardsGit, readCommit, commitPush, notice, notifier, LOGO,
   reviewFindings, pickFindings, fixPrompt,
 } from "./state.ts";
 import { readSources, addSource, removeSource, moveSource, gatherSource, gatherAll, gatherDirs, due } from "./sources.ts";
@@ -197,11 +197,17 @@ export async function web(repoDir: string, opts: Opts = {}) {
         // Before the project list: it registers folders that turn out to be set up.
         const unset = await fresh();
         const dirs = states(all);
+        const cards = boardCards(dirs, Date.now());
+        // The git mark, for the cards whose panel offers commit and push: one status per project.
+        const marks = new Map<string, Record<string, string>>();
+        const markable = (c: Card) => c.kind === "run" && !c.archived && (c.status === "done" || c.awaiting === "approvals.review") && c.state !== join(home, ".kaizen");
+        for (const d of new Set(cards.filter(markable).map((c) => c.state)))
+          marks.set(d, cardsGit(d, cards.filter((c) => markable(c) && c.state === d).map((c) => c.id!)));
         return json({
           project, all, dir: state,
           projects: states(true).map((d) => ({ dir: d, label: label(d) })),
           fresh: unset.map((d) => ({ dir: join(d, ".kaizen"), label: tilde(d) })),
-          cards: boardCards(dirs, Date.now()).map((c) => ({ ...c, notice: notice(c) })),
+          cards: cards.map((c) => ({ ...c, notice: notice(c), git: markable(c) ? marks.get(c.state)?.[c.id!] : undefined })),
           now: Date.now(),
         });
       }
