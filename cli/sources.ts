@@ -213,7 +213,7 @@ export async function fetchText(url: string, doFetch: Fetch = fetch, lookup: Loo
 
 const HEADER = /^(request|idea|title|task|pbi|summary|name|details?|description|deskripsi|feedback|issue|permintaan|judul)$/i;
 // A row number or a date (`17-Sep-2026`; an all-digit one has no letter): never a
-// request, and never a cell of a header row.
+// request.
 const datum = (c: string) => !/\p{L}/u.test(c) || /^\d{1,2}[-\/ .]\p{L}+[-\/ .]\d{2,4}$/u.test(c);
 const wordy = (c: string) => c.length >= 3 && !datum(c);
 
@@ -233,12 +233,13 @@ export function sift(kind: "sheet" | "doc" | "text", body: string): { items: Ite
   const cells = rows.map((r) => r.split("\t").map((c) => c.trim()));
   const filled = cells.filter((row) => row.some(Boolean));
   // Sheets often open with blank rows or a title: the header is looked for in the
-  // first few rows holding anything. It is a row of labels naming a request or status
-  // column. `1 | Issue | ...` is data: it holds a row number, or the same column says
-  // `Task` further down.
+  // first few rows holding anything. It is a row naming a request or status column;
+  // its other cells may be anything (`#`, a year, a date). `1 | Issue | ...` is data:
+  // the same column says `Task` further down.
   // ponytail: a guess from shape; a header repeated down the sheet is read as data.
   const named = (row: string[], re: RegExp) => row.findIndex((c, i) => re.test(c) && !filled.some((o) => o !== row && re.test(o[i] ?? "")));
-  const head = filled.slice(0, 5).find((row) => row.every((c) => !c || !datum(c)) && (named(row, HEADER) >= 0 || named(row, STATUS) >= 0));
+  // A row that opens with a bare row number is data, whatever words it holds.
+  const head = filled.slice(0, 5).find((row) => !/^\d{1,3}[.)]?$/.test(row.find(Boolean) ?? "") && (named(row, HEADER) >= 0 || named(row, STATUS) >= 0));
   const data = head ? filled.slice(filled.indexOf(head) + 1) : filled;
   const status = head ? named(head, STATUS) : -1;
   const known = head ? named(head, HEADER) : -1;

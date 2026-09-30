@@ -320,7 +320,7 @@ note — do not have to be retyped. The link icon beside the gear opens **Reques
 sources**: paste a link, and kaizen reads it and adds every request it has not seen
 before to Ideas, each with a note saying where it came from. In a sheet, a column headed
 `Request`, `Idea`, `Title`, `Task`, `PBI`, `Summary` or `Name` is the request and the
-other cells become its notes; without such a header the first filled cell is. A row whose `Status` column says `Done`,
+other cells become its notes; without such a header the request is one column for the whole sheet, the one holding the most text. A row whose `Status` column says `Done`,
 `Finish` or `Finished` is left out, and gathered later if its status changes. A doc or
 a plain-text link gives one idea per line.
 

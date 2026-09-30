@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { readInbox, writeInbox, replaceIdea, parseItem } from "./state.ts";
 import {
-  readSources, addSource, removeSource, ingest, checkUrl, resolvesPublic, exportUrl, fetchText, split,
+  readSources, addSource, removeSource, ingest, checkUrl, resolvesPublic, exportUrl, fetchText, split, sift,
   gatherSource, gatherAll, due, SIGN_IN, UNREADABLE, CAP, moveSource, gatherDirs, writeSources,
 } from "./sources.ts";
 
@@ -135,6 +135,21 @@ test("split: a title row above the header is skipped; without a header one colum
   }
   // A status column under a request header kaizen does not know still counts.
   expect(split("sheet", "No\tTicket\tStatus\n1\tLogin button does nothing\tDone\n2\tAdd a dark mode\tOpen\n")).toEqual([{ text: "Add a dark mode", notes: "2 · Open" }]);
+});
+
+// Fix finding 18: a header row with a letterless cell (`#`, a year, a date) is still the header.
+test("split: a header row holding a `#`, a year or a date cell is still the header", async () => {
+  for (const head of ["#\tRequest\tStatus", "No\tRequest\tStatus\t2026", "No\tRequest\tStatus\t2026-09-30", "No\tRequest\tStatus\t17-Sep-2026", "\tRequest\tStatus"]) {
+    const body = `${head}\n1\tFix login page\tOpen\n2\tAdd export\tDone\n`;
+    expect(sift("sheet", body)).toEqual({ items: [{ text: "Fix login page", notes: "1 · Open" }], done: 1 });
+  }
+  // A numbered row is data even when one of its cells is a header word said once.
+  expect(split("sheet", "1\tIssue\tLogin fails on Safari\n2\tBug\tExport drops rows\n3\tBug\tSearch is slow\n").map((i) => i.text))
+    .toEqual(["Login fails on Safari", "Export drops rows", "Search is slow"]);
+  expect(split("sheet", "1\tFix login page\n2\tTask\n3\tAdd export\n").map((i) => i.text)).toEqual(["Fix login page", "Task", "Add export"]);
+  addSource(state, SHEET);
+  expect(await gatherSource(state, SHEET, text("#\tRequest\tStatus\n1\tFix login page\tOpen\n2\tAdd export\tDone\n"), pub)).toMatchObject({ added: 1, note: "1 new, 1 done skipped" });
+  expect(open().map((l) => l.text)).toEqual(["Fix login page"]);
 });
 
 // G-02
