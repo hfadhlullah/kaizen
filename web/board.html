@@ -24,9 +24,18 @@ svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6;stroke
 pre.mark{margin:0;font:700 8px/1 var(--mono)}
 pre.mark span:nth-child(1){color:var(--ink-hi)}pre.mark span:nth-child(2){color:color-mix(in srgb,var(--ink-hi),var(--accent))}pre.mark span:nth-child(3){color:var(--accent)}
 .sel{border:1px solid var(--line);border-radius:var(--r-s);padding:6px 12px;background-color:var(--bg-2);color:var(--ink);font-size:13px}
-select.sel{cursor:pointer;appearance:none;padding-right:30px;max-width:100%;background-image:linear-gradient(45deg,transparent 50%,var(--dim) 50%),linear-gradient(135deg,var(--dim) 50%,transparent 50%);background-position:calc(100% - 16px) 50%,calc(100% - 11px) 50%;background-size:5px 5px;background-repeat:no-repeat}
+select.sel,button.sel{cursor:pointer;appearance:none;padding-right:30px;max-width:100%;background-image:linear-gradient(45deg,transparent 50%,var(--dim) 50%),linear-gradient(135deg,var(--dim) 50%,transparent 50%);background-position:calc(100% - 16px) 50%,calc(100% - 11px) 50%;background-size:5px 5px;background-repeat:no-repeat}
 .sel:hover{border-color:var(--dim)}
-.hdr select.sel{max-width:min(320px,100%);text-overflow:ellipsis}
+.hdr .sel{max-width:min(320px,100%);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
+/* project picker: a select-shaped button over a searchable list */
+.combo{position:relative;max-width:100%;display:flex}
+.combo .menu-pop{left:0;right:auto;top:calc(100% + 4px);width:320px;max-width:calc(100vw - 32px);gap:6px;z-index:9}
+.combo .menu-pop[hidden]{display:none}
+.combo input.sel{width:100%;max-width:none}
+#projs{display:flex;flex-direction:column;max-height:300px;overflow-y:auto}
+#projs button{display:block;flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#projs button.on{background:var(--hover)}
+#projs .grp{padding:8px 10px 4px;font-size:11px;color:var(--dim)}
 .sp{flex:1}
 .ib{width:34px;height:34px;display:grid;place-items:center;color:var(--dim);border-radius:var(--r-s);transition:background .12s,color .12s}
 .ib:hover{color:var(--ink);background:var(--hover)}
@@ -124,6 +133,7 @@ section h2 .clear{margin-left:auto;min-height:22px;padding:0 8px}
 .notes{display:flex;flex-direction:column;gap:8px}
 .chat{display:flex;flex-direction:column;gap:10px;margin:0 0 14px}.msg{border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;background:var(--bg)}.msg time{display:block;font-size:11px;color:var(--dim);margin-bottom:4px}.msg p:last-child{margin-bottom:0}.msg img{max-width:100%;max-height:260px;border-radius:var(--r-s);display:block;margin:4px 0}
 .notes .tools{display:flex;gap:6px;align-items:center}.notes .tools span{flex:1;font-size:11px;color:var(--dim)}.notes .att{font-size:11px;color:var(--dim)}
+.inl pre.files{margin:0;max-height:140px;overflow:auto;font:12px/1.5 var(--mono);color:var(--dim)}
 .inl .q{font-size:14px;font-weight:500}.inl .q.dim{color:var(--dim);font-size:13px;font-weight:400}
 .empty{grid-column:1/-1;display:flex;flex-direction:column;align-items:center;gap:12px;padding-block:60px;color:var(--dim);text-align:center}
 .empty b{font-size:16px;font-weight:600;color:var(--ink)}.empty p{margin:0 0 6px;max-width:44ch}
@@ -217,7 +227,7 @@ aside .foot:empty{display:none}
   <pre class="mark" aria-label="kaizen"><span>█ █  ▄▀█  █  ▀▀█  █▀▀  █▄ █</span>
 <span>█▀▄  █▀█  █   ▄▀  ██▄  █ ▀█</span>
 <span>█ █  █ █  █  █▄▄  █▄▄  █  █</span></pre>
-  <select class="sel" id="proj" aria-label="project"></select>
+  <div class="combo" id="combo"><button class="sel" id="proj" aria-label="project" aria-haspopup="listbox" aria-expanded="false"></button><div class="menu-pop" id="projpop" hidden><input class="sel" id="projq" aria-label="Search projects" placeholder="Search projects…" spellcheck="false" autocomplete="off"><div id="projs" role="listbox"></div></div></div>
   <span class="sp"></span>
   <button class="btn pri" id="newtop">New idea</button>
   <button class="ib" id="settings" title="Settings" aria-label="Settings"><svg><use href="#i-gear"/></svg></button>
@@ -342,6 +352,10 @@ const wasAwaiting=new Map();let first=true;
 // Two ideas may carry the same text; load() numbers the repeats so a key names one card.
 const key=c=>c._k||(c.kind==="idea"?"idea:"+c.state+":"+c.text:"run:"+c.state+":"+c.id);
 
+// The picked project outlives a reload. Saved only where the user changes it, so a
+// second tab refreshing cannot undo it; a view the URL asked for is a one-off.
+const urlAll=new URLSearchParams(location.search).has("all");
+function keep(d){if(urlAll)return;try{d?localStorage.setItem("kz-proj",d):localStorage.removeItem("kz-proj")}catch(e){}}
 async function load(){
  let r;try{r=await fetch("/state"+(all?"?all=1":""))}catch{toast(GONE);return}S=await r.json();
  {const seen=new Map();for(const c of S.cards){const b=key(c),n=seen.get(b)||0;seen.set(b,n+1);c._k=n?b+"#"+n:b}}
@@ -411,7 +425,10 @@ function render(){
  strip.push(`<span class="sp"></span><span>${cs.filter(c=>c.kind==="idea").length} ideas · ${cs.filter(c=>c.kind==="run").length} runs</span>`,`<button class="${archive?"on":""}" data-f="__archive">${archive?"Back to board":"Archive "+nArch}</button>`);
  $("strip").innerHTML=strip.join("");
  $("strip").querySelectorAll("button").forEach(c=>c.onclick=()=>{if(c.dataset.f==="__archive"){archive=!archive;filter=null;render();return}filter=filter===c.dataset.f?null:c.dataset.f;render()});
- const sel=$("proj");sel.innerHTML=`<option value="all">All projects</option>`+S.projects.map(p=>`<option value="${esc(p.dir)}">${esc(p.label)}</option>`).join("")+(S.fresh.length?`<optgroup label="In your projects folder">${S.fresh.map(p=>`<option value="${esc(p.dir)}">${esc(p.label)}</option>`).join("")}</optgroup>`:"")+`<option value="__find">Find projects on this PC…</option>`;sel.value=all||!S.dir?"all":S.dir;
+ // [label, folder, from the projects folder]: the button names the current one, the open list is redrawn.
+ PL=[["All projects","all"],...S.projects.map(p=>[p.label,p.dir]),...S.fresh.map(p=>[p.label,p.dir,1]),["Find projects on this PC…","__find"]];
+ $("proj").textContent=all||!S.dir?"All projects":(PL.find(p=>p[1]===S.dir)||["All projects"])[0];
+ if(!$("projpop").hidden)list();
  if(!cs.length&&mode!=="new"){b.innerHTML=archive?'<div class="empty"><div class="mascot"></div><b>Nothing archived</b></div>':'<div class="empty"><div class="mascot"></div><b>Nothing here yet</b><p>Add an idea and kaizen will plan it, build it, and check the result.</p><button class="btn pri" id="newempty">New idea</button></div>';if(!archive)$("newempty").onclick=()=>{mode="new";render()};}
  COLS.forEach((name,ci)=>{
   const s=document.createElement("section");const list=cs.filter(c=>c.column===ci&&(!filter||c.status===filter));
@@ -489,12 +506,33 @@ async function openRun(c,refresh){
   chat(c,doc,ro);}
  else $("pbody").innerHTML=doc?md(doc):`<p style="color:var(--dim)">No ${({request:"request",plan:"plan",impl:"work report",preview:"preview",review:"review",backlog:"backlog"})[k]} yet.</p>`;
  const foot=$("pfoot");
- const arch=c.archived?`<button class="btn pri" data-a="restore">Restore</button>`:`<button class="btn ghost" data-a="archive">Archive</button>`;
+ // A refresh while the commit is being confirmed would wipe the message.
+ if(refresh&&foot.querySelector(".inl"))return;
+ const arch=gitBtn(c)+(c.archived?`<button class="btn pri" data-a="restore">Restore</button>`:`<button class="btn ghost" data-a="archive">Archive</button>`);
  if(c.archived)foot.innerHTML=arch;
  else if(c.status==="waiting")foot.innerHTML=`<span style="color:var(--dim);font-size:12px;flex:1">Waiting on you: ${esc(need(c.awaiting))}. Answer in the terminal running this run.</span>${arch}<button class="btn ghost" data-a="ab">Abandon</button>`;
  else if(c.status==="done"||c.status==="abandoned")foot.innerHTML=arch;
  else foot.innerHTML=`${arch}<button class="btn ghost" data-a="ab">Abandon run</button>`;
- foot.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{const a=b.dataset.a;if(a==="archive"||a==="restore"){toggleArchive(c,a==="archive");return}close();mode="reject";modeKey=key(c);render()})}
+ foot.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{const a=b.dataset.a;if(a==="archive"||a==="restore"){toggleArchive(c,a==="archive");return}if(a==="push"){commitPush(c,"",b);return}if(a==="commit"){confirmCommit(c);return}close();mode="reject";modeKey=key(c);render()})}
+// Commit and push, for a finished run in a project with a git remote. What the board
+// did is recorded per run, so the settled label outlives later changes to the tree.
+function gitBtn(c){const g=runDoc.git,k=runDoc.commit;
+ if(c.archived||!g||!g.repo||!(c.status==="done"||c.awaiting==="approvals.review"))return"";
+ // A run already pushed keeps saying so; work changed since is offered beside it.
+ if(k&&k.pushed)return `<button class="btn" disabled title="${esc(k.sha)}">Committed &amp; pushed</button>`+(g.files.length?`<button class="btn" data-a="commit">Commit new changes</button>`:g.ahead>0?`<button class="btn" data-a="push">Push</button>`:"");
+ if(g.files.length)return `<button class="btn pri" data-a="commit">Commit &amp; push</button>`;
+ if(g.ahead>0)return `<button class="btn pri" data-a="push">Push</button>`;
+ // Clean and level with the remote: it was committed and pushed somewhere else.
+ return `<button class="btn" disabled>Committed &amp; pushed</button>`}
+function confirmCommit(c){const g=runDoc.git,foot=$("pfoot");
+ foot.innerHTML=`<div class="inl" style="flex:1"><div class="q">Commit ${g.files.length} changed file${g.files.length===1?"":"s"} on ${esc(g.branch||"this branch")} and push to ${esc(g.remote)}?</div><div class="q dim">Everything changed in the project is included.</div><pre class="files">${esc(g.files.join("\n"))}</pre><input aria-label="Commit message" placeholder="Commit message" value="${esc(c.title||c.text)}"><div class="row"><button class="btn ghost" data-a="c">Cancel</button><button class="btn pri" data-a="s">Commit &amp; push</button></div></div>`;
+ const inp=foot.querySelector("input"),go=foot.querySelector("[data-a=s]");inp.focus();
+ foot.querySelector("[data-a=c]").onclick=()=>{foot.innerHTML="";openRun(c,true)};
+ go.onclick=()=>{if(!inp.value.trim()){toast("A commit message is required");return}commitPush(c,inp.value,go)};
+ inp.onkeydown=e=>{if(e.key==="Enter")go.click()}}
+async function commitPush(c,message,b){b.disabled=true;b.textContent="Pushing…";
+ const r=await post("/commit",{dir:c.state,id:c.id,message,files:runDoc.git.files});if(r.ok)toast("Committed & pushed "+r.sha);
+ $("pfoot").innerHTML="";if(openKey===key(c))openRun(c,false)}
 async function toggleArchive(c,archived){const r=await post("/archive",c.kind==="idea"?{dir:c.state,text:c.text,archived}:{dir:c.state,id:c.id,archived});if(r.ok)toast(archived?"Archived":"Restored");close();load()}
 function close(){stopDictation(true);openKey=null;runDoc=null;$("panel").classList.remove("open");$("scrim").classList.remove("on");render()}
 $("pclose").onclick=close;$("scrim").onclick=close;
@@ -543,11 +581,25 @@ async function openSettings(){
 let tt;function toast(s){const t=$("toast");t.textContent=s;t.classList.add("on");clearTimeout(tt);tt=setTimeout(()=>t.classList.remove("on"),4000)}
 function askNotify(){try{if(typeof Notification!=="undefined"&&Notification.permission==="default")Notification.requestPermission()}catch(e){}}
 function notifyUser(title,body){try{if(typeof Notification!=="undefined"&&Notification.permission==="granted")new Notification(title,{body})}catch(e){}}
-$("proj").onchange=async e=>{const v=e.target.value;
+// The project picker: a button shaped like a select that opens a search field over the list.
+let PL=[];
+function list(){const q=$("projq").value.trim().toLowerCase();let g=0;
+ $("projs").innerHTML=PL.map((p,i)=>p[0].toLowerCase().includes(q)?(p[2]&&!g++?`<div class="grp">In your projects folder</div>`:"")+`<button role="option" data-i="${i}" title="${esc(p[0])}">${esc(p[0])}</button>`:"").join("")||`<div class="grp">No match</div>`;
+ const f=$("projs").querySelector("button");if(f)f.classList.add("on")}
+function pop(on){$("projpop").hidden=!on;$("proj").setAttribute("aria-expanded",on);if(on){$("projq").value="";list();$("projq").focus()}}
+$("proj").onclick=()=>pop($("projpop").hidden);
+$("projq").oninput=list;
+$("projq").onkeydown=e=>{const bs=[...$("projs").querySelectorAll("button")],i=bs.findIndex(b=>b.classList.contains("on"));
+ if(e.key==="Escape"){pop(false);$("proj").focus()}
+ else if(e.key==="Enter"){if(bs[i])bs[i].click()}
+ else if((e.key==="ArrowDown"||e.key==="ArrowUp")&&bs[i]){e.preventDefault();const n=bs[(i+(e.key==="ArrowDown"?1:bs.length-1))%bs.length];bs[i].classList.remove("on");n.classList.add("on");n.scrollIntoView({block:"nearest"})}};
+$("projs").onclick=e=>{const b=e.target.closest("button");if(b){pop(false);pick(PL[b.dataset.i][1])}};
+document.addEventListener("click",e=>{if(!e.target.closest("#combo"))pop(false)});
+async function pick(v){
  if(v==="__find"){toast("Searching…");const j=await post("/find",{});if(j.ok)toast(j.added?`Found ${j.added} new project${j.added===1?"":"s"}`:"No new projects found")}
- else if(v==="all")all=true;
- else{const j=await post("/cd",{dir:v});if(j.ok)all=false}
- load()};
+ else if(v==="all"){all=true;keep()}
+ else{const j=await post("/cd",{dir:v});if(j.ok){all=false;keep(v)}}
+ load()}
 $("newtop").onclick=()=>{mode="new";render();$("board").scrollTo(0,0)};
 $("settings").onclick=openSettings;
 try{const t=localStorage.getItem("kz-theme");if(t)document.documentElement.dataset.theme=t}catch(e){}
@@ -558,7 +610,7 @@ document.onkeydown=e=>{
  if(e.key==="?"){$("help").classList.toggle("on");return}
  if(e.key==="Escape"){$("help").classList.remove("on");if(mode){mode=null;render()}else close();return}
  if(e.key==="n"){mode="new";render()}
- if(e.key==="a"){all=!all;load()}
+ if(e.key==="a"){all=!all;keep(all?null:S.dir);load()}
  const oc=openKey&&S.cards.find(c=>key(c)===openKey);if(!oc)return;
  if(e.key==="e"&&oc.kind==="idea"){close();mode="edit";modeKey=key(oc);render()}
  if(e.key==="x"&&!["done","abandoned","starting"].includes(oc.status)){close();mode="reject";modeKey=key(oc);render()}
@@ -567,7 +619,11 @@ document.onkeydown=e=>{
 // ---- live
 let boot=null;
 function listen(){const es=new EventSource("/events");es.onmessage=ev=>{if(ev.data==="changed")load();else if(ev.data==="reload")location.reload();else if(ev.data.startsWith("hello ")){const b=ev.data.slice(6);if(boot&&b!==boot)location.reload();boot=b}};es.onerror=()=>{es.close();setTimeout(listen,3000)}}
-load();listen();
+// Back to the project picked last time, unless the URL says which view it wants. A
+// plain fetch: a project that is gone should fall back to all, not raise a toast.
+(async()=>{let d;try{d=localStorage.getItem("kz-proj")}catch(e){}
+ if(d&&!urlAll)try{if((await fetch("/cd",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({dir:d})})).ok)all=false;else keep()}catch(e){}
+ load();listen()})();
 </script>
 </body>
 </html>

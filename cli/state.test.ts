@@ -1,13 +1,14 @@
 // State module against a throwaway .kaizen/. Nothing here spawns a terminal: the
 // launch path is covered only up to the command it would run.
 import { test, expect, beforeAll, afterAll } from "bun:test";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, utimesSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, utimesSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
   readRuns, readInbox, writeInbox, replaceIdea, abandonRun, allBacklog, backlog,
   statusOf, columnOf, parseItem, startedRuns, boardCards, readArchive, setArchived,
   requestOf, agentFlags, readNotes, writeNotes, manualCommand, parseNotes, formatNote, appendNote, saveAttachment,
+  gitStatus, commitPush, readCommit,
 } from "./state.ts";
 
 let state: string;
@@ -202,4 +203,41 @@ test("boardCards: a short idea is not retired by a request that merely contains 
   writeFileSync(join(dir, "runs", "2026-09-01-a", "00-request.md"), "# Request\n\n> /kaizen lite add retry\n\nDone means the tests pass.\n");
   writeInbox(dir, [{ status: "open", text: "test" }, { status: "open", text: "add retry" }]);
   expect(boardCards([dir], Date.now()).filter((k) => k.kind === "idea").map((k) => k.text)).toEqual(["test"]);
+});
+
+test("commitPush: commits everything, pushes, and records it; the message never meets a shell", () => {
+  const root = mkdtempSync(join(tmpdir(), "kz-git-"));
+  const sh = (cwd: string, ...a: string[]) => Bun.spawnSync(["git", "-C", cwd, ...a]).stdout.toString().trim();
+  expect(gitStatus(root)).toEqual({ repo: false });
+  const bare = join(root, "remote.git"), proj = join(root, "proj"), st = join(proj, ".kaizen");
+  mkdirSync(join(st, "runs", "r1"), { recursive: true });
+  Bun.spawnSync(["git", "init", "-q", "--bare", bare]);
+  Bun.spawnSync(["git", "init", "-q", proj]);
+  for (const kv of [["user.name", "t"], ["user.email", "t@t"], ["commit.gpgsign", "false"], ["core.hooksPath", "/dev/null"]]) sh(proj, "config", ...kv);
+  expect(gitStatus(proj)).toEqual({ repo: false });           // a repo with nowhere to push
+  sh(proj, "remote", "add", "origin", bare);
+  writeFileSync(join(proj, ".gitignore"), ".kaizen/\n");
+  writeFileSync(join(proj, "a.txt"), "a");
+  expect((gitStatus(proj) as any).files.length).toBe(2);
+  const files = () => (gitStatus(proj) as any).files as string[];
+  expect(commitPush(st, "r1", "m", ["?? a.txt"])).toMatchObject({ ok: false });   // not the list that was shown
+  expect(sh(proj, "rev-list", "--all", "--count")).toBe("0");                             // and nothing was committed
+  expect(commitPush(st, "r1", " ", files())).toEqual({ ok: false, why: "A commit message is required." });
+  const msg = '$(touch pwned); "q" `id`';
+  const r = commitPush(st, "r1", msg, files()) as { ok: true; sha: string };
+  expect(r.ok).toBe(true);
+  expect(sh(proj, "log", "-1", "--format=%s")).toBe(msg);
+  expect(existsSync(join(proj, "pwned"))).toBe(false);
+  expect(sh(bare, "rev-parse", "--short", "HEAD")).toBe(r.sha);
+  expect(gitStatus(proj)).toMatchObject({ files: [], ahead: 0 });
+  expect(readCommit(st, "r1")).toEqual({ sha: r.sha, pushed: true });
+
+  // A push that fails leaves a record that says so.
+  sh(proj, "remote", "set-url", "origin", join(root, "gone.git"));
+  writeFileSync(join(proj, "b.txt"), "b");
+  const f = commitPush(st, "r1", "second", files()) as { ok: false; why: string };
+  expect(f.ok).toBe(false);
+  expect(f.why).toContain("not pushed");
+  expect(readCommit(st, "r1")!.pushed).toBe(false);
+  expect(gitStatus(proj)).toMatchObject({ files: [], ahead: 1 });
 });

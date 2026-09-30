@@ -709,3 +709,66 @@ export async function pidOnPort(port: number): Promise<number | null> {
     return Number(out.trim().split("\n")[0]) || null;
   } catch { return null; }
 }
+
+// ---- git, for the board's commit and push. Always argv, never a shell: the commit
+// message is whatever the user typed. A credential prompt has no terminal to appear
+// in, so git is told not to ask and is given a minute at most.
+function git(dir: string, ...args: string[]) {
+  // spawnSync throws when git is not installed; to the board that is just "no repo".
+  let r;
+  try {
+    r = Bun.spawnSync(["git", "-C", dir, ...args], {
+      env: { ...process.env, GIT_TERMINAL_PROMPT: "0" }, stdin: "ignore", timeout: 60_000,
+    });
+  } catch { return { ok: false, out: "", why: "git is not installed" }; }
+  const out = r.stdout.toString().trimEnd(), err = r.stderr.toString().trim();
+  return { ok: r.exitCode === 0, out, why: (err || out).split("\n").pop() || "git did not finish" };
+}
+
+export type GitStatus = { repo: false } | { repo: true; branch: string; remote: string; files: string[]; ahead: number };
+
+// A project the board can commit for: a git work tree with somewhere to push.
+export function gitStatus(projectDir: string): GitStatus {
+  if (!git(projectDir, "rev-parse", "--is-inside-work-tree").ok) return { repo: false };
+  const remote = git(projectDir, "remote").out.split("\n")[0] ?? "";
+  if (!remote) return { repo: false };
+  const st = git(projectDir, "status", "--porcelain").out;
+  // No upstream yet means nothing of this branch is on the remote: any commit is ahead.
+  const up = git(projectDir, "rev-list", "--count", "@{u}..HEAD");
+  const ahead = up.ok ? Number(up.out) : git(projectDir, "rev-parse", "HEAD").ok ? 1 : 0;
+  return { repo: true, branch: git(projectDir, "branch", "--show-current").out, remote, files: st ? st.split("\n") : [], ahead };
+}
+
+// What the board did for a run, kept beside the run and not in state.json, whose
+// mtime is the liveness signal.
+export function readCommit(state: string, id: string): { sha: string; pushed: boolean } | null {
+  try {
+    const t = readFileSync(join(state, "runs", id, "07-commit.md"), "utf8");
+    return { sha: /^commit: (\S+)/m.exec(t)?.[1] ?? "", pushed: /^pushed: yes/m.test(t) };
+  } catch { return null; }
+}
+
+// Commits everything changed in the project when anything is, then pushes. The record
+// is written after the commit and again after the push, so a push that failed reads
+// as committed and not pushed. `shown` is the file list the user confirmed: anything
+// that changed since is refused, not swept in unseen.
+export function commitPush(state: string, id: string, message: string, shown: string[]): { ok: true; sha: string } | { ok: false; why: string } {
+  const dir = dirname(state);
+  const s = gitStatus(dir);
+  if (!s.repo) return { ok: false, why: "This project has no git remote." };
+  if (s.files.join("\n") !== shown.join("\n")) return { ok: false, why: "The changed files are no longer the ones shown. Look at the list again." };
+  if (s.files.length) {
+    if (!message.trim()) return { ok: false, why: "A commit message is required." };
+    for (const args of [["add", "-A"], ["commit", "-m", message.trim()]]) {
+      const r = git(dir, ...args);
+      if (!r.ok) return { ok: false, why: r.why };
+    }
+  }
+  const sha = git(dir, "rev-parse", "--short", "HEAD").out;
+  const record = (pushed: boolean) => writeFileSync(join(state, "runs", id, "07-commit.md"), `commit: ${sha}\npushed: ${pushed ? "yes" : "no"}\n`);
+  record(false);
+  const p = git(dir, "rev-parse", "--abbrev-ref", "@{u}").ok ? git(dir, "push") : git(dir, "push", "-u", s.remote, "HEAD");
+  if (!p.ok) return { ok: false, why: `${sha} is committed but not pushed: ${p.why}` };
+  record(true);
+  return { ok: true, sha };
+}

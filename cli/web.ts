@@ -5,7 +5,7 @@ import { join, dirname } from "node:path";
 import {
   home, type Item, boardCards, knownProjects, remember, locate, label, tilde, searchRoots, findProjects,
   readInbox, writeInbox, replaceIdea, abandonRun, launchRun, parseItem, short, setArchived, writeNotes,
-  appendNote, saveAttachment, pidOnPort,
+  appendNote, saveAttachment, pidOnPort, gitStatus, readCommit, commitPush,
 } from "./state.ts";
 
 const PAGE = join(dirname(import.meta.dir), "web", "board.html");
@@ -44,7 +44,9 @@ export async function web(repoDir: string, opts: Opts = {}) {
           .map((n) => join(d, n)).filter((p) => { try { return statSync(p).isDirectory(); } catch { return false; } });
       } catch { return []; }
     };
-    const isProject = (d: string) => [".kaizen", ".git", "package.json"].some((m) => existsSync(join(d, m)));
+    // .kaizen is not a sign of one: a group folder that was chosen once has it, and
+    // must keep showing what is inside.
+    const isProject = (d: string) => [".git", "package.json"].some((m) => existsSync(join(d, m)));
     // One already set up but never opened joins the known projects instead.
     return dirs(root).flatMap((d) => isProject(d) ? [d] : [d, ...dirs(d)])
       .filter((d) => existsSync(join(d, ".kaizen")) ? (remember(d), false) : true).sort();
@@ -185,6 +187,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
           request: read("00-request.md"), plan: read("01-plan.md"), approval: read("02-approval.md"),
           impl: read("03-impl.md"), review: read("04-review.md"), backlog: read("06-backlog.md"),
           notes: read("notes.md"),
+          // The global state dir sits in $HOME, which is not a project to commit.
+          commit: readCommit(dir, id), git: dir === join(home, ".kaizen") ? { repo: false } : gitStatus(dirname(dir)),
         });
       }
 
@@ -349,6 +353,20 @@ export async function web(repoDir: string, opts: Opts = {}) {
           const failed = writeNotes(dir, id, String(body.text ?? ""));
           changed();
           return failed ? bad(failed, 404) : json({ ok: true });
+        }
+
+        // Only a finished run, or one waiting at the final approval, and never the
+        // global state dir: $HOME may be a repository, and it is not the run's project.
+        if (path === "/commit") {
+          const id = String(body.id ?? "");
+          if (!/^[\w.-]+$/.test(id)) return bad("bad run id");
+          if (dir === join(home, ".kaizen")) return bad("no project to commit", 409);
+          let run: any;
+          try { run = JSON.parse(readFileSync(join(dir, "runs", id, "state.json"), "utf8")); } catch { return bad("no such run", 404); }
+          if (run.stage !== "done" && run.awaiting !== "approvals.review") return bad("this run is not finished", 409);
+          const r = commitPush(dir, id, String(body.message ?? ""), Array.isArray(body.files) ? body.files.map(String) : []);
+          changed();
+          return json(r, r.ok ? 200 : 409);
         }
 
         if (path === "/abort") {

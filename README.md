@@ -295,9 +295,9 @@ started here opens your agent in a new terminal exactly as `r` does, and the boa
 redraws as your agents write to disk. Mouse first; the TUI's keys still work. Click a card for its plan, review and
 backlog; `⋯` on a card runs, edits, rejects, abandons or archives. `Clear` on Done sends
 every finished run to the archive (`.kaizen/archive.md`, a list, nothing moves), and
-`Archive` in the strip shows what is there, with `Restore` on each card. The gear at the top right holds the browser's theme
+`Archive` in the strip shows what is there, with `Restore` on each card. A finished run in a project with a git remote gets `Commit & push` in its panel: it lists the changed files, takes a commit message, commits everything and pushes, and reads `Committed & pushed` afterwards (`Push` alone when the work is already committed). The gear at the top right holds the browser's theme
 and every `kaizen settings` knob, same rows, same `config.yml`. `--port N` picks a port, `--no-open` just
-serves, the board opens on every project; `?all=0` in the URL narrows it to the one it was started in. `--daemon` starts the server
+serves, the board opens on every project, or on the one picked last time in that browser; `?all=0` in the URL narrows it to the one it was started in. `--daemon` starts the server
 detached so it outlives the terminal (pid kept in `~/.kaizen/web.pid`); `--stop` ends it. `kaizen web --shortcut` adds a launcher
 the OS can find — Spotlight on macOS, the app menu on Linux, a Desktop shortcut on Windows. Each one starts the board in the background (`--daemon`) and opens it; `kaizen web --stop` ends it.
 
