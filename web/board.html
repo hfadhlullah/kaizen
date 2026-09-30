@@ -398,7 +398,7 @@ function card(c){
 
 function inlineForm(c){
  const li=document.createElement("li");li.className="inl";const dir=c.state;
- if(mode==="edit"){li.innerHTML=`<input value="${esc(c.text)}"><textarea placeholder="Notes: links, paths, background">${esc(c.notes||"")}</textarea><div class="row"><button class="btn ghost" data-a="c">Cancel</button><button class="btn pri" data-a="s">Save</button></div>`;li.querySelector('[data-a=s]').onclick=async()=>{const next=li.querySelector("input").value.trim(),notes=li.querySelector("textarea").value.trim();mode=null;if(next&&(next!==c.text||notes!==(c.notes||"")))await post("/inbox",{op:"edit",dir,text:c.text,next,notes});load()}}
+ if(mode==="edit"){li.innerHTML=`<input value="${esc(c.text)}"><textarea placeholder="Notes: links, paths, background">${esc(c.notes||"")}</textarea><div class="q dim" id="clong" hidden>The first line is over 72 characters; logs will cut it short.</div><div class="row"><button class="btn ghost" data-a="c">Cancel</button><button class="btn pri" data-a="s">Save</button></div>`;li.querySelector('[data-a=s]').onclick=async()=>{const next=li.querySelector("input").value.trim(),notes=li.querySelector("textarea").value.trim();mode=null;if(next&&(next!==c.text||notes!==(c.notes||"")))await post("/inbox",{op:"edit",dir,text:c.text,next,notes});load()}}
  if(mode==="reject"){const idea=c.kind==="idea";li.innerHTML=`<div class="q">${idea?"Reject this idea?":"Abandon this run?"} The reason is recorded.</div><input placeholder="Reason"><div class="row"><button class="btn ghost" data-a="c">Keep it</button><button class="btn warn" data-a="s">${idea?"Reject":"Abandon"}</button></div>`;li.querySelector('[data-a=s]').onclick=async()=>{const why=li.querySelector("input").value.trim();if(!why){toast("A reason is required");return}mode=null;const r=idea?await post("/inbox",{op:"reject",dir,text:c.text,reason:why}):await post("/abort",{dir,id:c.id,why});if(r.ok)toast(idea?"Rejected":"Abandoned, reason recorded");load()}}
  if(mode==="delete"){li.innerHTML=`<div class="q">Delete "${esc(c.text)}"?</div><div class="q dim">Not recorded anywhere.</div><div class="row"><button class="btn ghost" data-a="c">Keep it</button><button class="btn danger" data-a="s">Delete</button></div>`;li.querySelector('[data-a=s]').onclick=async()=>{mode=null;const r=await post("/inbox",{op:"delete",dir,text:c.text});if(r.ok)toast("Deleted");load()}}
  if(mode==="run"){li.innerHTML=`<div class="q">Start a run for "${esc(c.text)}"</div><div class="q dim">Opens your agent in a new terminal, or a herdr tab or tmux window when one is running, with the request typed in.</div><div class="q dim">Full: planned, built, then checked by a separate reviewer. Lite: one session does it all, faster and cheaper.</div><div class="row"><button class="btn ghost" data-a="c">Cancel</button><button class="btn" data-a="l">Lite</button><button class="btn pri" data-a="s">Full run</button></div>`;li.querySelector('[data-a=s]').onclick=()=>startRun(c,"full");li.querySelector('[data-a=l]').onclick=()=>startRun(c,"lite")}
@@ -491,7 +491,10 @@ function chat(c,src,ro){
  $("nsend").onclick=send;ta.onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send()}};
  $("pbody").scrollTop=0}
 // The builder's "## Preview" section of 03-impl.md: how to run the app, or the result itself.
-function preview(impl){const m=impl&&impl.match(/^##\s+Preview\s*\n([\s\S]*?)(?=\n##\s|$(?![\s\S]))/m);return m?m[1].trim():null}
+// "## Commit" is the message the builder wrote for the work, offered at commit and push.
+function section(impl,name){const m=impl&&impl.match(new RegExp(`^##\\s+${name}\\s*\\n([\\s\\S]*?)(?=\\n##\\s|$(?![\\s\\S]))`,"m"));return m?m[1].trim():null}
+const preview=impl=>section(impl,"Preview");
+const commitMsg=impl=>(section(impl,"Commit")||"").replace(/^```\w*\n|\n```$/g,"").trim();
 async function openRun(c,refresh){
  if(!refresh||!runDoc||runDoc.id!==c.id){runDoc=await fetch(`/run/${encodeURIComponent(c.id)}?dir=${encodeURIComponent(c.state)}`).then(r=>r.json())}
  if(openKey!==key(c))return;
@@ -524,15 +527,19 @@ function gitBtn(c){const g=runDoc.git,k=runDoc.commit;
  if(g.ahead>0)return `<button class="btn pri" data-a="push">Push</button>`;
  // Clean and level with the remote: it was committed and pushed somewhere else.
  return `<button class="btn" disabled>Committed &amp; pushed</button>`}
-function confirmCommit(c){const g=runDoc.git,foot=$("pfoot");
- foot.innerHTML=`<div class="inl" style="flex:1"><div class="q">Commit ${g.files.length} changed file${g.files.length===1?"":"s"} on ${esc(g.branch||"this branch")} and push to ${esc(g.remote)}?</div><div class="q dim">Everything changed in the project is included.</div><pre class="files">${esc(g.files.join("\n"))}</pre><input aria-label="Commit message" placeholder="Commit message" value="${esc(c.title||c.text)}"><div class="row"><button class="btn ghost" data-a="c">Cancel</button><button class="btn pri" data-a="s">Commit &amp; push</button></div></div>`;
- const inp=foot.querySelector("input"),go=foot.querySelector("[data-a=s]");inp.focus();
+function confirmCommit(c,msg){const g=runDoc.git,foot=$("pfoot");
+ foot.innerHTML=`<div class="inl" style="flex:1"><div class="q">Commit ${g.files.length} changed file${g.files.length===1?"":"s"} on ${esc(g.branch||"this branch")} and push to ${esc(g.remote)}?</div><div class="q dim">Everything changed in the project is included.</div><pre class="files">${esc(g.files.join("\n"))}</pre><textarea aria-label="Commit message" placeholder="feat(scope): what changed">${esc(msg||commitMsg(runDoc.impl)||c.title||c.text)}</textarea><div class="q dim" id="clong" hidden>The first line is over 72 characters; logs will cut it short.</div><div class="row"><button class="btn ghost" data-a="c">Cancel</button><button class="btn pri" data-a="s">Commit &amp; push</button></div></div>`;
+ const inp=foot.querySelector("textarea"),go=foot.querySelector("[data-a=s]");inp.focus();
+ // Tall enough to show the whole message, up to half the window.
+ const fit=()=>{inp.style.height="auto";inp.style.height=Math.min(inp.scrollHeight+2,innerHeight/2)+"px";$("clong").hidden=inp.value.split("\n")[0].length<=72};inp.oninput=fit;fit();
  foot.querySelector("[data-a=c]").onclick=()=>{foot.innerHTML="";openRun(c,true)};
  go.onclick=()=>{if(!inp.value.trim()){toast("A commit message is required");return}commitPush(c,inp.value,go)};
- inp.onkeydown=e=>{if(e.key==="Enter")go.click()}}
+ inp.onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();go.click()}}}
 async function commitPush(c,message,b){b.disabled=true;b.textContent="Pushing…";
  const r=await post("/commit",{dir:c.state,id:c.id,message,files:runDoc.git.files});if(r.ok)toast("Committed & pushed "+r.sha);
- $("pfoot").innerHTML="";if(openKey===key(c))openRun(c,false)}
+ $("pfoot").innerHTML="";if(openKey!==key(c))return;await openRun(c,false);
+ // A refused message comes back for another try, beside the current file list.
+ if(!r.ok&&message&&openKey===key(c)&&runDoc.git.files&&runDoc.git.files.length)confirmCommit(c,message)}
 async function toggleArchive(c,archived){const r=await post("/archive",c.kind==="idea"?{dir:c.state,text:c.text,archived}:{dir:c.state,id:c.id,archived});if(r.ok)toast(archived?"Archived":"Restored");close();load()}
 function close(){stopDictation(true);openKey=null;runDoc=null;$("panel").classList.remove("open");$("scrim").classList.remove("on");render()}
 $("pclose").onclick=close;$("scrim").onclick=close;

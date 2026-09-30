@@ -777,6 +777,10 @@ export function readCommit(state: string, id: string): { sha: string; pushed: bo
   } catch { return null; }
 }
 
+// A Conventional Commits subject: every commit the board makes says what kind it is.
+const COMMIT_TYPES = ["feat", "fix", "refactor", "perf", "docs", "test", "build", "ci", "chore", "style", "revert"];
+const COMMIT_TYPE = new RegExp(`^(${COMMIT_TYPES.join("|")})(\\([^)\\n]+\\))?!?: \\S`);
+
 // Commits everything changed in the project when anything is, then pushes. The record
 // is written after the commit and again after the push, so a push that failed reads
 // as committed and not pushed. `shown` is the file list the user confirmed: anything
@@ -788,6 +792,7 @@ export function commitPush(state: string, id: string, message: string, shown: st
   if (s.files.join("\n") !== shown.join("\n")) return { ok: false, why: "The changed files are no longer the ones shown. Look at the list again." };
   if (s.files.length) {
     if (!message.trim()) return { ok: false, why: "A commit message is required." };
+    if (!COMMIT_TYPE.test(message.trim())) return { ok: false, why: `Start the message with a type (${COMMIT_TYPES.join(", ")}), then a colon. For example, fix(web): what changed.` };
     for (const args of [["add", "-A"], ["commit", "-m", message.trim()]]) {
       const r = git(dir, ...args);
       if (!r.ok) return { ok: false, why: r.why };

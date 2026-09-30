@@ -62,6 +62,13 @@ Nothing special is required. Because every stage's input and output are files:
 The only rule is that whichever tool holds the run updates `state.json` when a stage
 completes. A stale `state.json` is the one way this breaks.
 
+A tool working from an older copy of the spec still produces a run the board can read,
+minus whatever that copy predates. The visible case is the `## Commit` section of
+`03-impl.md`: a builder on a copy without it writes no commit message, so the board's
+commit and push falls back to the request's first line, which has no type and is
+refused until one is typed. Refresh a per-project copy (the `cp` lines under *Install*
+in `SKILL.md`) to get the section written.
+
 ## Installing the adapter files
 
 `/kaizen init` writes `.kaizen/` with the `spec*.md` files into the

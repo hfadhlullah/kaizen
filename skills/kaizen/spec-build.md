@@ -71,6 +71,15 @@ where one exists. For anything else — a document, copy, a runbook, a memo — 
 to open, or the result itself when it fits in a screen. The board shows this section on
 the run's card, so a person can try the work without reading the rest of the report.
 
+**A `## Commit` section is the commit message for the work**, where the work sits in a
+git repository. The first line is a Conventional Commits subject,
+`<type>(<scope>): <what changed>`, with the type one of `feat`, `fix`, `refactor`,
+`perf`, `docs`, `test`, `build`, `ci`, `chore`, `style`, `revert`, the scope optional,
+and at most 72 characters. It says what this run produced, not what was asked: the
+request is often a symptom or a wish, and the log should read as what changed. A body
+may follow after a blank line. The board offers this message at commit and push and
+refuses one without a type. A fix iteration that changes what the work is rewrites it.
+
 **The gate block closes the stage.** `03-impl.md` ends with one line per gate item
 from the plan's Verification section:
 

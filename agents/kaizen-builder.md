@@ -69,6 +69,11 @@ change — do not refactor around it. Write what you changed to
 - **Not done** — steps skipped, out-of-scope observations, known gaps.
 - **Preview** — how to see the result: commands to run it locally and the URL for an
   app; the path to open, or the result itself, for anything else. The board shows it.
+- **Commit** — in a git repository, the commit message for the work: a subject
+  `<type>(<scope>): <what changed>` (type one of `feat`, `fix`, `refactor`, `perf`,
+  `docs`, `test`, `build`, `ci`, `chore`, `style`, `revert`; at most 72 characters)
+  saying what this run produced, not what was asked, then an optional body after a
+  blank line. The board offers it at commit and push.
 
 ## Report back
 

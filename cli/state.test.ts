@@ -223,10 +223,16 @@ test("commitPush: commits everything, pushes, and records it; the message never 
   expect(commitPush(st, "r1", "m", ["?? a.txt"])).toMatchObject({ ok: false });   // not the list that was shown
   expect(sh(proj, "rev-list", "--all", "--count")).toBe("0");                             // and nothing was committed
   expect(commitPush(st, "r1", " ", files())).toEqual({ ok: false, why: "A commit message is required." });
-  const msg = '$(touch pwned); "q" `id`';
-  const r = commitPush(st, "r1", msg, files()) as { ok: true; sha: string };
+  // A subject with no type is refused before anything is staged.
+  for (const untyped of ["add the thing", "feature: x", "fix:no space", "note\n\nfix: in the body"])
+    expect((commitPush(st, "r1", untyped, files()) as { why: string }).why).toContain("Start the message with a type");
+  expect(sh(proj, "rev-list", "--all", "--count")).toBe("0");
+  expect(sh(proj, "diff", "--cached", "--name-only")).toBe("");
+  const msg = 'fix(web)!: $(touch pwned); "q" `id`', text = "what changed\nand why";
+  const r = commitPush(st, "r1", `${msg}\n\n${text}`, files()) as { ok: true; sha: string };
   expect(r.ok).toBe(true);
   expect(sh(proj, "log", "-1", "--format=%s")).toBe(msg);
+  expect(sh(proj, "log", "-1", "--format=%b")).toBe(text);
   expect(existsSync(join(proj, "pwned"))).toBe(false);
   expect(sh(bare, "rev-parse", "--short", "HEAD")).toBe(r.sha);
   expect(gitStatus(proj)).toMatchObject({ files: [], ahead: 0 });
@@ -235,7 +241,7 @@ test("commitPush: commits everything, pushes, and records it; the message never 
   // A push that fails leaves a record that says so.
   sh(proj, "remote", "set-url", "origin", join(root, "gone.git"));
   writeFileSync(join(proj, "b.txt"), "b");
-  const f = commitPush(st, "r1", "second", files()) as { ok: false; why: string };
+  const f = commitPush(st, "r1", "chore: second", files()) as { ok: false; why: string };
   expect(f.ok).toBe(false);
   expect(f.why).toContain("not pushed");
   expect(readCommit(st, "r1")!.pushed).toBe(false);
