@@ -509,7 +509,13 @@ export async function dashboard(
         }
         next.push({ ...k, dot: DOTS[k.status as Status | "idea" | "starting"]() });
       }
+      // The cursor is a row index and the done column reorders as runs move: stay on
+      // the card that was selected, not the slot it was in.
+      const id = (k: Drawn) => `${k.state}/${k.id ?? k.text}`;
+      const was = cards.filter((k) => k.column === col)[row];
       cards = next;
+      const at = was ? next.filter((k) => k.column === col).findIndex((k) => id(k) === id(was)) : -1;
+      if (at >= 0) row = at;
     };
 
     const inColumn = (n: number) => cards.filter((k) => k.column === n);
