@@ -16,6 +16,19 @@ const PAGE = join(dirname(import.meta.dir), "web", "board.html");
 const NOTES_PAGE = join(dirname(import.meta.dir), "web", "notes.html");
 const NOTES_JS = join(dirname(import.meta.dir), "web", "notebook.js");
 const DEFAULT_PORT = 7420;
+// Read once at start: a board keeps the code it started with, so this is what it
+// runs, not what is installed now. `/` sends it; `current()` compares the two.
+const VERSION = (() => {
+  try { return JSON.parse(readFileSync(join(dirname(import.meta.dir), "package.json"), "utf8")).version as string; }
+  catch { return "unknown"; }
+})();
+
+// A board answers at url and runs the installed version. A board from before the
+// version header sends none, so it counts as stale too.
+export async function current(url: string) {
+  const r = await fetch(url, { signal: AbortSignal.timeout(1500) }).catch(() => null);
+  return !!r?.ok && r.headers.get("x-kaizen-version") === VERSION;
+}
 
 type Opts = { port?: number; open?: boolean };
 
@@ -158,11 +171,12 @@ export async function web(repoDir: string, opts: Opts = {}) {
       if (!["EADDRINUSE", "EACCES"].includes((e as { code?: string }).code ?? "")) throw e;
       const url = `http://127.0.0.1:${port}/`;
       const up = await fetch(url, { signal: AbortSignal.timeout(1500) }).then((r) => r.ok, () => false);
-      if (up) { console.log(`\n  kaizen web already at ${url}\n`); if (opts.open !== false) await openApp(url); return; }
-      // A listener that does not answer is a board that hung; it is ours to stop.
+      if (up && await current(url)) { console.log(`\n  kaizen web already at ${url}\n`); if (opts.open !== false) await openApp(url); return; }
+      // A listener that does not answer is a board that hung, and one running an
+      // older kaizen serves 404 for whatever came since; both are ours to stop.
       const pid = await pidOnPort(port);
       if (pid && pid !== process.pid) {
-        try { process.kill(pid, "SIGTERM"); console.log(`  stopped a hung board on ${port} (pid ${pid})`); } catch { /* not ours to kill */ }
+        try { process.kill(pid, "SIGTERM"); console.log(`  stopped a ${up ? "stale" : "hung"} board on ${port} (pid ${pid})`); } catch { /* not ours to kill */ }
         await Bun.sleep(300);
         try { server = serve(port); continue; } catch { /* still held */ }
       }
@@ -186,7 +200,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         if (!existsSync(PAGE)) return new Response("web/board.html missing", { status: 500 });
         // The page gets the notify rule from state.ts rather than keeping its own copy.
         return new Response(readFileSync(PAGE, "utf8").replace("/*notifier*/", () => notifier.toString()), {
-          headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
+          headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-kaizen-version": VERSION },
         });
       }
 

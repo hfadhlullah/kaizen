@@ -279,7 +279,6 @@ if (wantWeb) {
   const port = at !== -1 ? Number(Bun.argv[at + 1]) || undefined : undefined;
   const url = `http://127.0.0.1:${port ?? 7420}/`;
   const pidFile = join(home, ".kaizen", "web.pid");
-  const alive = async () => { try { await fetch(url); return true; } catch { return false; } };
 
   if (args.has("--stop")) {
     // The pid file only knows a --daemon; a board started from the shortcut or a
@@ -300,7 +299,10 @@ if (wantWeb) {
   if (args.has("--daemon")) {
     // The daemon is this same command, detached, with the browser left to us:
     // ignored stdio is what lets it outlive the terminal.
-    if (await alive()) {
+    // A board running an older kaizen is not "already running": the child finds
+    // it on the port and replaces it (web() in web.ts).
+    const { current } = await import("./web.ts");
+    if (await current(url)) {
       console.log(`  kaizen web already running at ${url}`);
     } else {
       const argv = Bun.argv.slice(2).filter((a) => a !== "--daemon" && a !== "--no-open");
@@ -310,8 +312,8 @@ if (wantWeb) {
       child.unref();
       mkdirSync(dirname(pidFile), { recursive: true });
       writeFileSync(pidFile, String(child.pid));
-      for (let i = 0; i < 30 && !(await alive()); i++) await Bun.sleep(100);
-      if (!(await alive())) { console.log(`  kaizen web did not come up on ${url}`); process.exit(1); }
+      for (let i = 0; i < 30 && !(await current(url)); i++) await Bun.sleep(100);
+      if (!(await current(url))) { console.log(`  kaizen web did not come up on ${url}`); process.exit(1); }
       console.log(`\n  kaizen web  ${url}  (pid ${child.pid}, detached)`);
       console.log(`  kaizen web --stop to stop it\n`);
     }
