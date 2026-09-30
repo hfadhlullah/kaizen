@@ -1,9 +1,9 @@
 // `kaizen web`: the board in a browser. A loopback HTTP server over state.ts and
 // one HTML page; the page never sees the filesystem, only JSON.
-import { existsSync, readFileSync, readdirSync, statSync, watch, appendFileSync, type FSWatcher } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync, watch, appendFileSync, mkdirSync, type FSWatcher } from "node:fs";
 import { join, dirname } from "node:path";
 import {
-  home, type Item, boardCards, knownProjects, remember, locate, label, tilde,
+  home, type Item, boardCards, knownProjects, remember, locate, label, tilde, searchRoots, findProjects,
   readInbox, writeInbox, replaceIdea, abandonRun, launchRun, parseItem, short, setArchived, writeNotes,
   appendNote, saveAttachment, pidOnPort,
 } from "./state.ts";
@@ -25,9 +25,30 @@ export async function web(repoDir: string, opts: Opts = {}) {
       if (ev === "uncaughtException") process.exit(1);
     });
   }
-  const state = locate();
+  // Not fixed for the life of the board: picking a project in the page moves here.
+  let state = locate();
   if (state && dirname(state) !== home) remember(dirname(state));
-  const project = state ? label(state) : null;
+  let project = state ? label(state) : null;
+  // Folders under the "Projects folder" setting that have no .kaizen yet, offered in
+  // the project list so one can be chosen without a terminal. A folder that does not
+  // look like a project itself (no .git, no package.json) is taken for a group of
+  // them, and its own folders are offered too: ~/Projects/<client>/<project>.
+  const fresh = async () => {
+    const { listSettings } = await import("./settings.ts");
+    let root = listSettings(repoDir).rows.find((r) => r.key === "board.projects_dir")?.value ?? "";
+    if (root.startsWith("~")) root = home + root.slice(1);
+    if (!root) return [];
+    const dirs = (d: string) => {
+      try {
+        return readdirSync(d).filter((n) => !n.startsWith(".") && n !== "node_modules")
+          .map((n) => join(d, n)).filter((p) => { try { return statSync(p).isDirectory(); } catch { return false; } });
+      } catch { return []; }
+    };
+    const isProject = (d: string) => [".kaizen", ".git", "package.json"].some((m) => existsSync(join(d, m)));
+    // One already set up but never opened joins the known projects instead.
+    return dirs(root).flatMap((d) => isProject(d) ? [d] : [d, ...dirs(d)])
+      .filter((d) => existsSync(join(d, ".kaizen")) ? (remember(d), false) : true).sort();
+  };
 
   const states = (all: boolean) => (all || !state
     ? [...knownProjects().map((d) => join(d, ".kaizen")), join(home, ".kaizen")]
@@ -140,10 +161,13 @@ export async function web(repoDir: string, opts: Opts = {}) {
 
       if (req.method === "GET" && path === "/state") {
         const all = url.searchParams.get("all") === "1";
+        // Before the project list: it registers folders that turn out to be set up.
+        const unset = await fresh();
         const dirs = states(all);
         return json({
-          project, all,
+          project, all, dir: state,
           projects: states(true).map((d) => ({ dir: d, label: label(d) })),
+          fresh: unset.map((d) => ({ dir: join(d, ".kaizen"), label: tilde(d) })),
           cards: boardCards(dirs, Date.now()),
           now: Date.now(),
         });
@@ -208,9 +232,37 @@ export async function web(repoDir: string, opts: Opts = {}) {
         if (!local(req)) return bad("cross-origin write refused", 403);
         let body: any;
         try { body = await req.json(); } catch { return bad("json body expected"); }
+
+        // The same search as the TUI's "find more": every .kaizen under $HOME, the
+        // drives, and where the board was started, added to the registry.
+        // ponytail: synchronous walk, the board stalls for its length; move to a worker if a big disk makes that seconds.
+        if (path === "/find") {
+          const before = knownProjects().length;
+          const roots = searchRoots([dirname(state ?? process.cwd()), process.cwd()]);
+          for (const d of new Set(roots.flatMap((r) => findProjects(r)))) remember(d);
+          changed();
+          return json({ ok: true, added: knownProjects().length - before });
+        }
+
         // No project here means the global inbox, which is where the TUI puts ideas too.
         const dir: string = body.dir ?? state ?? join(home, ".kaizen");
+        // Choosing a folder from the projects folder is what sets it up: an empty
+        // .kaizen, which the first run fills in. Only folders the board offered.
+        if (path === "/cd" && dir === join(dirname(dir), ".kaizen") && (await fresh()).includes(dirname(dir))) {
+          mkdirSync(dir, { recursive: true });
+          remember(dirname(dir));
+        }
         if (!dir || !states(true).includes(dir)) return bad("unknown state dir", 404);
+
+        // The board moves to the chosen project: new ideas and runs default to it,
+        // and the process follows so anything resolved from cwd agrees.
+        if (path === "/cd") {
+          state = dir;
+          project = label(dir);
+          try { process.chdir(dirname(dir)); } catch { /* the state dir is what matters */ }
+          changed();
+          return json({ ok: true, project });
+        }
 
         if (path === "/inbox") {
           const text = String(body.text ?? "").trim();

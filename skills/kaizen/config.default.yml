@@ -165,6 +165,12 @@ agent:
   # opencode: { model: anthropic/claude-sonnet-4-6 }
   # gemini: { model: gemini-2.5-pro }
 
+board:
+  # A folder your projects live in, e.g. ~/Projects. Every folder inside it is
+  # offered in the web board's project list; choosing one creates its .kaizen and
+  # moves the board there. A folder that is not itself a project (no .git, no
+  # package.json) is read as a group, and the folders inside it are offered too.
+  projects_dir: ""
 
 dictation:
   # Whisper model the web board dictates with. Runs in the browser; downloaded once
