@@ -4,9 +4,13 @@ Source of truth for how kaizen looks, on every surface: terminal dashboard, web 
 README images, and any desktop wrapper that comes later. When a surface and this file
 disagree, this file wins; fix the surface.
 
-Direction: **terminal-native**. The web board is the TUI grown up, not a different
-product. Someone who uses the dashboard should recognise the web board in one glance,
-and vice versa.
+Direction: **two surfaces, one product**. The terminal dashboard is terminal-native:
+monospace, glyphs, block wordmark. The web board is **calm studio**: the surface for
+someone who has never opened a terminal, so it uses a system sans face, soft depth,
+ordinary switches and buttons, and words that say what a thing is rather than which
+file holds it. What the two share is what makes them one product: the palette, the
+five columns, the status set, the tanuki, and the voice. Where a rule below differs by
+surface, it says so; a rule that does not say applies to both.
 
 ## 1. Brand
 
@@ -22,9 +26,11 @@ Block-glyph ASCII art, the same one the installer prints. Two sizes exist:
 - Large, 6 rows (`assets/make-images.py`, `WORD`) for images.
 - Compact, 3 rows (`cli/dashboard.ts`, `WORDMARK`) for the terminal header.
 
-On the web, use the compact one inside a `<pre>`, never an image, so it stays crisp at any
-DPI and inherits the theme colour. Vertical gradient from `--ink-hi` at the top row to
-`--accent` at the bottom row (the banner does the same, row by row).
+On the web, use the compact one inside a `<pre>` in `--mono`, never an image, so it
+stays crisp at any DPI and inherits the theme colour. Vertical gradient from `--ink-hi`
+at the top row to `--accent` at the bottom row (the banner does the same, row by row).
+The block wordmark is the one terminal-native element the web board keeps: it is the
+logo, not a control.
 
 ### Mascot: the tanuki
 
@@ -56,6 +62,9 @@ Rules:
 
 Dark is the default; light follows `prefers-color-scheme` or the Theme setting
 (system / light / dark) stored in `localStorage`. Every colour is a custom property; no hex appears in component CSS.
+Two helper tokens sit beside the table on the web: `--on-accent` (white, text on an
+`--accent` fill) and `--shade` (the one shadow colour: navy at 10 % in light, black at
+45 % in dark).
 
 | Token | Dark | Light | Job |
 |---|---|---|---|
@@ -82,28 +91,45 @@ tightest pair; do not lighten `--bg-2` without rechecking.
 
 ## 3. Shape
 
-Two radii, as tokens, nothing else:
+Web board. Three radii, as tokens, nothing else:
 
 | Token | Value | Used on |
 |---|---|---|
-| `--r` | `6px` | cards, buttons, inputs, selects, menus, toasts, dialogs, inline forms |
-| `--r-s` | `4px` | chips, menu items, code blocks, strip filters |
+| `--r` | `10px` | cards, menus, toasts, dialogs, inline forms, chips |
+| `--r-s` | `6px` | buttons, inputs, selects, menu items, code blocks, segments |
+| `--r-pill` | `999px` | strip filters, column counts, switches |
 
 Edge-attached surfaces (header, footer, side panel) have no radius. Borders are always
-1 px `--line`. No shadows anywhere; depth comes from `--bg-2` on `--bg` and from the
-border brightening on hover (`--line` to `--dim`).
+1 px `--line`.
+
+Depth is two shadows, both built from `--shade`, and nothing else:
+
+| Token | Used on |
+|---|---|
+| `--shadow-1` | cards and buttons at rest, the switch thumb |
+| `--shadow-2` | a hovered card, menus, inline forms, the side panel, toast, help |
+
+The scrim behind the panel and the help dialog is `--bg` at 60 % with a 3 px blur.
+No gradients on surfaces, no coloured shadows, no glow except the dictation field.
 
 ## 4. Type
 
-- One family: `ui-monospace, "JetBrains Mono", "Cascadia Code", "SF Mono", Menlo,
-  Consolas, monospace`. No web font download.
-- Sizes: `14px` body, `13px` card titles and buttons, `12px` meta, ids, ages, column
-  headers, `11px` chips. Nothing larger except the wordmark.
-- Weight: regular everywhere. `600` only for column headers and the panel title. Card
-  titles are regular; a bold title on every card is noise.
+Web board:
+
+- UI face `--font`: `system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+  sans-serif`. Code face `--mono`: `ui-monospace, "JetBrains Mono", "Cascadia Code",
+  "SF Mono", Menlo, Consolas, monospace`, used only for the wordmark, code in rendered
+  markdown, and the key caps in the shortcuts list. No web font download: the board is a loopback
+  page and must look right offline.
+- Sizes: `14px` body and card titles, `13px` buttons, selects, tabs, column headers,
+  `12px` meta, ids, ages, hints, `11px` chips, `17px` panel title.
+- Weight: regular body; `500` card titles, buttons, tabs, setting names; `600` column
+  headers, panel title, markdown headings. Nothing bolder except the wordmark.
 - Line height `1.5` body, `1.45` card titles.
-- Rendered markdown (plan, findings) uses the same family; headings are `12px` uppercase
-  `--dim` with `0.08em` tracking, not bigger. Code blocks `--bg` on `--bg-2`, `--r-s`.
+- Rendered markdown: `h1`/`h2` `15px` weight 600; `h3` `12px` uppercase `--dim` with
+  `0.08em` tracking. Code blocks `--bg` on `--bg-2`, `--r-s`.
+
+Terminal: whatever monospace the terminal has.
 
 ## 5. Semantics: status icons and stages
 
@@ -150,15 +176,16 @@ listed behind a `Keyboard shortcuts` link in the footer, never the only way.
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
-- Header: compact ASCII wordmark (the 3-row `WORDMARK`, in a `<pre>`, rows coloured
-  `--ink-hi` to `--accent`), project `<select>`, then right-aligned: `New idea` primary
-  text button and a gear icon for Settings. The mascot is not in the header.
-- Strip: one line of counts. Each count is a filter toggle; active filter gets a
-  `--dim` 12 % fill. `waiting on you` is `--warn`.
-- Columns: CSS grid, five `minmax(200px, 1fr)`, `gap: 20px`, gutter `24px` (`16px`
+- Header: `--bg-2` ground, the compact block wordmark (section 1), project `<select>` (at
+  most `320px` wide), then right-aligned: `New idea` primary text button and a gear
+  icon for Settings. The mascot is not in the header.
+- Strip: one line of counts. Each count is a pill with a 1 px `--line` ring and its
+  status icon, and is a filter toggle; the active filter gets a `--dim` 12 % fill.
+  `waiting on you` is `--warn` with a `--warn` ring.
+- Columns: CSS grid, five `minmax(200px, 1fr)`, `gap: 24px`, gutter `28px` (`16px`
   under 900 px). Under 900 px the grid is one column, headers sticky.
-- Column header: `12px` weight 600, count in `--dim` after it, no underline. The Ideas
-  header carries a `+` icon that opens the new-idea form in place.
+- Column header: `13px` weight 600, count after it in a `--dim` 12 % pill, no
+  underline. The Ideas header carries a `+` icon that opens the new-idea form in place.
 - Card ground is `--bg-2`; column ground is `--bg`. That contrast is the board.
 - A column shows six cards, then one dashed `Show N more` line in `--dim` that unfolds
   it, and `Show less` folds it back. Per column, per page load.
@@ -169,7 +196,8 @@ listed behind a `Keyboard shortcuts` link in the footer, never the only way.
   same columns, cards at 70 % opacity, `⋯` offers `Restore`. Archiving never moves a
   run directory: it is a list in `<state>/archive.md`, ideas take inbox status
   `archived`, and the TUI hides both.
-- Empty board: tanuki at 120 px, `Nothing here yet.`, a `New idea` button.
+- Empty board: tanuki at 120 px, `Nothing here yet` in `16px` weight 600, one `--dim`
+  line saying what kaizen does with an idea, a `New idea` button.
 
 ### Card
 
@@ -183,9 +211,10 @@ web board from design.md
 
 - Line 1 `.c-id`: status icon, run id in `--dim` (date prefix stripped; ideas read
   `idea`), age right in tabular digits. On hover the age is replaced by a `⋯` button.
-- Line 2 `.c-title`: `13px` regular `--ink`, wraps to two lines then clips.
-- Line 3 `.c-chips`: chips, `20px` tall, `--r-s`, 12 to 14 % tinted fill of their
-  colour, no border. A state chip first when the run is waiting (`--warn`) or running
+- Line 2 `.c-title`: `14px` weight 500 `--ink`, wraps to two lines then clips.
+- Line 3 `.c-chips`: chips, `22px` tall (taller only when a long project path wraps),
+  `--r`, 12 to 14 % tinted fill of their colour, no border. A waiting chip says what is
+  needed in words (`plan needs your approval`), never the config key. A state chip first when the run is waiting (`--warn`) or running
   (`--run`), then project when viewing all projects, then run kind (`full`/`lite` in
   `--accent`), then agent (`--dim`). No chips, no line.
 
@@ -208,47 +237,56 @@ Kind and agent chips carry an 11 px mark before the word, drawn as our own strok
 
 Swapping in a real brand mark later means replacing one symbol's paths under the same
 id, subject to that vendor's brand terms; no other change.
-- Padding `10px 12px`, gap `6px`, `--r`, 1 px `--line`. Hover: border `--dim`. Open in
-  the panel: border `--accent`.
+- Padding `12px 14px`, gap `6px`, `--r`, 1 px `--line`, `--shadow-1`. Hover:
+  `--shadow-2` and a slightly brighter border. Open in the panel: `--accent` border
+  and a 1 px `--accent` ring.
 - No buttons on a card, ever. New zones are added as one more `.c-*` child; the card
   is a flex column and needs no other change.
 
 ### Card menu
 
-`⋯` opens a popover under it: `--bg-2`, `--r`, 1 px `--line`, items `12px` with an
-icon, `--r-s` hover fill, a rule before the destructive item, which is `--danger`.
+`⋯` opens a popover under it: `--bg-2`, `--r`, 1 px `--line`, `--shadow-2`, items
+`13px` with an icon, `--r-s` hover fill, a rule before the destructive item, which is `--danger`.
 Ideas: Run · Edit · Reject · Delete. Waiting run: Review plan / See findings · Abandon.
 Running or stalled: Open · Abandon. Done: Open. Click anywhere else closes it.
 
 ### Inline forms
 
-A form replaces the card it acts on, in place, same size, `--accent` border. New idea
-appears at the top of Ideas. Every form ends with a `Cancel` ghost button and one
-primary: `Add to inbox`, `Save`, `Reject` (`--warn`), `Delete` (`--danger`), or
-`Full run` with a secondary `Lite`. One line of `--dim` copy says what happens
-(`Opens Claude Code in a new terminal with the request typed in.`). Enter submits,
-Esc cancels.
+A form replaces the card it acts on, in place, `--accent` border, `--shadow-2`. New
+idea appears at the top of Ideas. Every form ends with a `Cancel` ghost button and one
+primary: `Add idea`, `Save`, `Reject` (`--warn`), `Delete` (`--danger`), or
+`Full run` with a secondary `Lite`. `--dim` copy says what happens (`Opens your agent
+in a new terminal with the request typed in.`), and the run form adds one line saying
+what Full and Lite each mean. A focused field has an `--accent` border and a 3 px
+`--accent` 22 % ring. Enter submits, Esc cancels.
 
 ### Detail panel
 
-Slides in from the right, `480px`, full height, `--bg-2`, `--line` left border, a
-scrim over the board that closes on click. Header: title, one `--dim` line of id and
-state, close icon. Tabs for runs: Plan · Impl · Review · Backlog, `--accent` underline
-on the active tab. Footer holds the decision buttons and nothing else:
+Slides in from the right, `520px`, full height, `--bg-2`, `--line` left border,
+`--shadow-2`, a blurred scrim over the board that closes on click. Header: title, one
+`--dim` line of id and state, close icon. Tabs for runs: Request · Notes · Plan · Work ·
+Preview · Review · Backlog, `--accent` underline on the active tab. An empty tab says
+`No plan yet.`, never the file name. Footer holds the decision buttons and nothing else:
 
 - waiting on plan: `Approve plan` (primary) · `Change something` · `Abandon` (ghost)
 - waiting on fixes: findings as checkboxes, `Fix ticked` (primary) · `Leave as is`
 - running: `Abandon run` (ghost)
 - done or abandoned: no footer
 
-Settings opens in the same panel: Theme (system / light / dark), Agent, Default run,
-Notifications, as segmented text toggles. Theme lives here, not in the header.
+Settings opens in the same panel, one row per setting: its name (weight 500) with its
+one-sentence help always visible under it in `--dim`, and its control on the right.
+Three controls: a switch for on/off (36 × 20 px track, `--accent` when on, white
+thumb), one segment per value for a small number (the chosen one `--accent`), a select
+for a choice. A path is a text field. Rows are divided by 1 px `--line`. Config keys
+are not shown; the settings file path is the tooltip on the panel's sub-line. Theme
+lives here, not in the header.
 
 ### Buttons and icons
 
-Text buttons: `13px`, `--r`, 1 px `--line`, `--bg-2`; `.pri` is `--accent` fill with
-white text, one per view; `.ghost` has no border until hover. Icon buttons are 34 px
-squares (26 px inside cards), `--dim` at rest, `--ink` with a `--line` border on hover,
+Text buttons: `13px` weight 500, `--r-s`, 1 px `--line`, `--bg-2`, `--shadow-1`;
+`.pri` is `--accent` fill with `--on-accent` text, one per view; `.ghost` has no
+border or shadow and takes a `--dim` 12 % fill on hover. Icon buttons are 34 px
+squares (26 px inside cards), `--dim` at rest, `--ink` on a `--dim` 12 % fill on hover,
 always with `title` and `aria-label`. Icons are inline SVG symbols, 1.6 px stroke,
 round caps: plus, gear, play, pen, x, trash, more. No icon fonts, no emoji.
 
@@ -259,7 +297,7 @@ abandon, `r` run, `a` all projects, `Esc` close, `?` this list. Inert while an i
 focus.
 
 Motion: panel slide `180ms`, toast fade `200ms`, running icon pulse `1.6s`, card move
-between columns `150ms`. `prefers-reduced-motion` makes all of it instant. No spinners;
+between columns `150ms`, hover and switch transitions `120ms`, menu fade-in `120ms`. `prefers-reduced-motion` makes all of it instant. No spinners;
 liveness is the file mtime and the UI must not pretend to know more.
 
 ## 8. Notifications
@@ -282,12 +320,15 @@ lives in the shared state module, not in either UI.
 ## 10. Do and don't
 
 Do: keep the five columns, keep the status icon set, keep amber for waiting and red for
-destructive only, keep one monospace family, keep two radii, keep copy to one line where
-the TUI keeps it to one line.
+destructive only, keep the three radii and the two shadows, keep copy to one line where
+the TUI keeps it to one line. On the web, say what a thing is in plain words: `Work`,
+not `Impl`; `No plan yet`, not `No 01-plan.md yet`.
 
-Don't: add avatars, add icon fonts, add drag-and-drop between columns, add a progress
-bar, add shadows, put buttons on cards, add a splash screen, animate the tanuki, or let
-the web board show a state the TUI cannot.
+Don't: add avatars, add icon fonts, add a web font, add drag-and-drop between columns,
+add a progress bar, add a third shadow or a coloured one, put buttons on cards, add a
+splash screen, animate the tanuki, replace the block wordmark, draw a web control out of text glyphs (`[✓]`,
+`▮▮▯`), show a file name or config key as primary copy on the web, or let the web
+board show a state the TUI cannot.
 
 ## 11. Files
 

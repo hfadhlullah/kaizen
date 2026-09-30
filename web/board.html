@@ -9,21 +9,27 @@
 @media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0c162f;--bg-2:#121e3c;--line:#22305a;--ink:#eef2fa;--ink-hi:#deeeff;--dim:#96aacd;--accent:#486ed9;--run:#4fd6e6;--ok:#5fd28a;--warn:#e6b450;--danger:#e85050;color-scheme:dark}}
 :root[data-theme=dark]{--bg:#0c162f;--bg-2:#121e3c;--line:#22305a;--ink:#eef2fa;--ink-hi:#deeeff;--dim:#96aacd;--accent:#486ed9;--run:#4fd6e6;--ok:#5fd28a;--warn:#e6b450;--danger:#e85050;color-scheme:dark}
 *{box-sizing:border-box}
-:root{--r:6px;--r-s:4px}
-body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 ui-monospace,"JetBrains Mono","Cascadia Code","SF Mono",Menlo,Consolas,monospace;height:100vh;height:100dvh;overflow:hidden;display:flex;flex-direction:column}
+/* Shape, type and depth. --shade is the one shadow colour, themed like the rest. */
+:root{--r:10px;--r-s:6px;--r-pill:999px;--font:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;--mono:ui-monospace,"JetBrains Mono","Cascadia Code","SF Mono",Menlo,Consolas,monospace;--on-accent:#fff;--hover:color-mix(in srgb,var(--dim) 12%,transparent);--shade:rgb(12 22 47/.1);--shadow-1:0 1px 2px var(--shade);--shadow-2:0 2px 6px var(--shade),0 16px 40px -12px var(--shade)}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--shade:rgb(0 0 0/.45)}}
+:root[data-theme=dark]{--shade:rgb(0 0 0/.45)}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(--font);-webkit-font-smoothing:antialiased;height:100vh;height:100dvh;overflow:hidden;display:flex;flex-direction:column}
 button,input,select{font:inherit;color:inherit;background:none;border:0;padding:0}
 button{cursor:pointer}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;display:block}
 
 /* header */
-.hdr{display:flex;align-items:center;gap:16px;padding:10px 24px;border-bottom:1px solid var(--line);flex-wrap:wrap}
-pre.mark{margin:0;font-size:8px;line-height:1;font-weight:700}
+.hdr{display:flex;align-items:center;gap:16px;padding:14px 28px;border-bottom:1px solid var(--line);background:var(--bg-2);flex-wrap:wrap}
+pre.mark{margin:0;font:700 8px/1 var(--mono)}
 pre.mark span:nth-child(1){color:var(--ink-hi)}pre.mark span:nth-child(2){color:color-mix(in srgb,var(--ink-hi),var(--accent))}pre.mark span:nth-child(3){color:var(--accent)}
-.sel{border:1px solid var(--line);border-radius:var(--r);padding:5px 8px;background:var(--bg-2);cursor:pointer;color:var(--ink);appearance:auto;font-size:13px}
+.sel{border:1px solid var(--line);border-radius:var(--r-s);padding:6px 12px;background-color:var(--bg-2);color:var(--ink);font-size:13px}
+select.sel{cursor:pointer;appearance:none;padding-right:30px;max-width:100%;background-image:linear-gradient(45deg,transparent 50%,var(--dim) 50%),linear-gradient(135deg,var(--dim) 50%,transparent 50%);background-position:calc(100% - 16px) 50%,calc(100% - 11px) 50%;background-size:5px 5px;background-repeat:no-repeat}
+.sel:hover{border-color:var(--dim)}
+.hdr select.sel{max-width:min(320px,100%);text-overflow:ellipsis}
 .sp{flex:1}
-.ib{width:34px;height:34px;display:grid;place-items:center;color:var(--dim);border:1px solid transparent;border-radius:var(--r)}
-.ib:hover{color:var(--ink);border-color:var(--line)}
+.ib{width:34px;height:34px;display:grid;place-items:center;color:var(--dim);border-radius:var(--r-s);transition:background .12s,color .12s}
+.ib:hover{color:var(--ink);background:var(--hover)}
 .ib.pri{color:var(--accent)}
 .ib.sm{width:26px;height:26px}.ib.sm svg{width:15px;height:15px}
 /* dictation mic: accent while listening (pulsing) or still transcribing; digits while the model downloads */
@@ -32,45 +38,47 @@ pre.mark span:nth-child(1){color:var(--ink-hi)}pre.mark span:nth-child(2){color:
 /* the mic button turns into a level meter while listening: five bars, each weighted so the set reads as a wave */
 .vu{display:inline-flex;gap:2px;align-items:center;height:100%}.vu i{width:2px;border-radius:1px;background:currentColor;height:calc(3px + 12px*min(1,var(--lvl,0)*var(--w)));transition:height .08s}
 .ib.mic.on{color:var(--accent)}.ib.mic.busy{color:var(--accent)}.ib.mic i{font-style:normal;font-size:10px;font-variant-numeric:tabular-nums}.row .mic{margin-right:auto;align-self:center}
-.btn{border:1px solid var(--line);border-radius:var(--r);padding:5px 12px;color:var(--ink);background:var(--bg-2);min-height:30px;font-size:13px}
+.btn{border:1px solid var(--line);border-radius:var(--r-s);padding:6px 14px;color:var(--ink);background:var(--bg-2);min-height:32px;font-size:13px;font-weight:500;box-shadow:var(--shadow-1);transition:background .12s,border-color .12s,color .12s}
 .btn:hover{border-color:var(--dim)}
-.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}.btn.pri:hover{box-shadow:var(--shadow-2)}
 .btn.warn{border-color:var(--warn);color:var(--warn)}.btn.warn:hover{background:var(--warn);color:var(--bg)}
 .btn.danger{color:var(--danger)}.btn.danger:hover{border-color:var(--danger)}
-.btn.ghost{background:none;border-color:transparent;color:var(--dim)}.btn.ghost:hover{color:var(--ink);border-color:var(--line)}
+.btn.ghost{background:none;border-color:transparent;color:var(--dim);box-shadow:none}.btn.ghost:hover{color:var(--ink);background:var(--hover)}
 
-/* summary strip */
-.strip{display:flex;gap:18px;padding:8px 24px;border-bottom:1px solid var(--line);flex-wrap:wrap;align-items:center;font-size:13px;color:var(--dim)}
-.strip button{color:var(--dim);padding:2px 8px;border-radius:var(--r-s)}
-.strip button:hover,.strip button.on{color:var(--ink);background:color-mix(in srgb,var(--dim) 12%,transparent)}
-.strip button.attn{color:var(--warn)}
+/* summary strip: each count is a pill that filters the board */
+.strip{display:flex;gap:8px;padding:10px 28px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--dim)}
+.strip button{display:inline-flex;align-items:center;gap:6px;color:var(--dim);padding:4px 12px;border-radius:var(--r-pill);box-shadow:inset 0 0 0 1px var(--line);transition:background .12s,color .12s}
+.strip button:hover,.strip button.on{color:var(--ink);background:var(--hover)}
+.strip button.attn{color:var(--warn);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--warn) 45%,transparent)}
+.strip svg{width:14px;height:14px;stroke-width:1.8}
 
 /* board */
-main{flex:1;min-height:0;display:grid;grid-template-columns:repeat(5,minmax(200px,1fr));gap:20px;padding:0 24px 16px;overflow:auto;align-content:start}
+main{flex:1;min-height:0;display:grid;grid-template-columns:repeat(5,minmax(200px,1fr));gap:24px;padding:0 28px 20px;overflow:auto;align-content:start}
 section h2::before{content:"";display:block;height:16px;margin-top:-16px}
 section{padding-top:16px}
-section h2{margin:0;font-size:12px;color:var(--ink);font-weight:600;display:flex;align-items:center;gap:8px;height:30px;position:sticky;top:0;background:var(--bg);z-index:1}
-section h2 i{font-style:normal;font-weight:400}
+section h2{margin:0;font-size:13px;color:var(--ink);font-weight:600;display:flex;align-items:center;gap:8px;height:30px;position:sticky;top:0;background:var(--bg);z-index:1}
+section h2 i{font-style:normal;font-weight:500;font-size:12px;color:var(--ink);background:var(--hover);border-radius:var(--r-pill);padding:0 7px;min-width:20px;text-align:center}
+section h2 i:empty{display:none}
 section h2 .ib{margin-left:auto}
-ul{list-style:none;margin:0;padding:8px 0 0;display:flex;flex-direction:column;gap:8px}
+ul{list-style:none;margin:0;padding:8px 0 0;display:flex;flex-direction:column;gap:10px}
 
 /* card, Linear grammar in our palette
-     line 1  status icon · id (dim mono) · ⋯ menu on hover
-     line 2  title, regular weight, wraps to 2 lines
+     line 1  status icon · id (dim) · ⋯ menu on hover
+     line 2  title, medium weight, wraps to 2 lines
      line 3  chips, only when set
-   Card ground is --bg-2 on a --bg column. Actions never sit on the card. */
-.card{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;cursor:pointer;display:flex;flex-direction:column;gap:6px;position:relative}
-.card:hover{border-color:var(--dim)}
-.card.open{border-color:var(--accent)}
+   Card ground is --bg-2 on a --bg column, lifted by --shadow-1. Actions never sit on the card. */
+.card{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;cursor:pointer;display:flex;flex-direction:column;gap:6px;position:relative;box-shadow:var(--shadow-1);transition:box-shadow .12s,border-color .12s}
+.card:hover{box-shadow:var(--shadow-2);border-color:color-mix(in srgb,var(--dim) 50%,var(--line))}
+.card.menu{z-index:2}
+.card.open{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
 .card.archived .c-title,.card.archived .c-id{opacity:.7}
 section h2 .clear{margin-left:auto;min-height:22px;padding:0 8px}
-section h2{position:sticky}
 .clear-pop{top:30px;right:0;min-width:200px}
-.clear-pop button i{font-style:normal;color:var(--dim);margin-left:auto}
+.clear-pop button i{font-style:normal;color:var(--dim);margin-left:auto;background:none;padding:0}
 .pickbar{margin-left:auto;display:flex;gap:4px}
 .pickbar .btn.sm{min-height:22px;padding:0 8px}
-.btn[disabled]{opacity:.5;cursor:default}
-.card .pick{position:absolute;right:12px;top:12px;margin:0;accent-color:var(--accent)}
+.btn[disabled],.chk[disabled]{opacity:.5;cursor:default}
+.card .pick{position:absolute;right:14px;top:14px;margin:0;accent-color:var(--accent)}
 .card.picked{border-color:var(--accent)}
 .card:has(.pick) .age,.card:has(.pick) .more{display:none}
 .c-id{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dim);min-height:20px}
@@ -81,10 +89,10 @@ section h2{position:sticky}
 .c-id .more{display:none;margin:-4px -6px -4px 0}
 .card:hover .more,.card:focus-within .more,.card.menu .more{display:grid}
 .card:hover .age,.card.menu .age{display:none}
-.c-title{font-size:13px;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;color:var(--ink)}
-.c-chips{display:flex;gap:6px;flex-wrap:wrap}
+.c-title{font-size:14px;font-weight:500;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;color:var(--ink)}
+.c-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:2px}
 .c-chips:empty{display:none}
-.chip{display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 7px;border-radius:var(--r-s);font-size:11px;color:var(--dim);background:color-mix(in srgb,var(--dim) 12%,transparent)}
+.chip{display:inline-flex;align-items:center;gap:5px;min-height:22px;padding:2px 9px;border-radius:var(--r);overflow-wrap:anywhere;font-size:11px;font-weight:500;color:var(--dim);background:var(--hover)}
 .chip i{width:6px;height:6px;border-radius:50%;background:var(--dim)}
 .chip svg{width:11px;height:11px;stroke-width:1.7}
 .chip.warn{color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,transparent)}.chip.warn i{background:var(--warn)}
@@ -96,75 +104,84 @@ section h2{position:sticky}
 .d-run .pulse,.st.d-run svg{animation:pl 1.6s infinite}
 @keyframes pl{50%{opacity:.35}}
 /* hover menu */
-.menu-pop{position:absolute;right:8px;top:30px;background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r);padding:4px;z-index:3;min-width:140px;display:flex;flex-direction:column}
-.menu-pop button{text-align:left;padding:6px 10px;font-size:12px;color:var(--ink);border-radius:var(--r-s);display:flex;gap:8px;align-items:center}
-.menu-pop button:hover{background:color-mix(in srgb,var(--dim) 12%,transparent)}
+.menu-pop{position:absolute;right:8px;top:34px;background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r);padding:6px;z-index:3;min-width:160px;display:flex;flex-direction:column;box-shadow:var(--shadow-2);animation:fi .12s}
+.menu-pop button{text-align:left;padding:7px 10px;font-size:13px;font-weight:400;color:var(--ink);border-radius:var(--r-s);display:flex;gap:8px;align-items:center}
+.menu-pop button:hover{background:var(--hover)}
 .menu-pop button.danger{color:var(--danger)}
+.menu-pop svg{width:15px;height:15px}
 .menu-pop hr{border:0;border-top:1px solid var(--line);margin:4px 0}
 .more-btn{width:100%;padding:8px;color:var(--dim);font-size:12px;border:1px dashed var(--line);border-radius:var(--r)}
 .more-btn:hover{color:var(--ink);border-color:var(--dim)}
 
 /* inline forms replace a card while editing */
-.inl{display:flex;flex-direction:column;gap:8px;padding:10px 12px;background:var(--bg-2);border:1px solid var(--accent);border-radius:var(--r)}
-.inl input,.inl textarea,.notes textarea{width:100%;border:1px solid var(--line);border-radius:var(--r);padding:7px 10px;background:var(--bg-2);font:inherit;color:var(--ink)}
+.inl{display:flex;flex-direction:column;gap:10px;padding:14px;background:var(--bg-2);border:1px solid var(--accent);border-radius:var(--r);box-shadow:var(--shadow-2)}
+.inl input,.inl textarea,.notes textarea{width:100%;border:1px solid var(--line);border-radius:var(--r-s);padding:8px 12px;background:var(--bg-2);font:inherit;color:var(--ink)}
+.inl input:focus,.inl textarea:focus,.notes textarea:focus,.sel:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
 .inl textarea,.notes textarea{min-height:72px;resize:vertical}
 .notes textarea{min-height:160px}
 .inl input::placeholder,.inl textarea::placeholder,.notes textarea::placeholder{color:var(--dim)}
 .inl .row,.notes .row{display:flex;gap:6px;justify-content:flex-end}
 .notes{display:flex;flex-direction:column;gap:8px}
-.chat{display:flex;flex-direction:column;gap:10px;margin:0 0 14px}.msg{border:1px solid var(--line);border-radius:var(--r);padding:8px 10px;background:var(--bg-2)}.msg time{display:block;font-size:11px;color:var(--dim);margin-bottom:4px}.msg p:last-child{margin-bottom:0}.msg img{max-width:100%;max-height:260px;border-radius:4px;display:block;margin:4px 0}
+.chat{display:flex;flex-direction:column;gap:10px;margin:0 0 14px}.msg{border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;background:var(--bg)}.msg time{display:block;font-size:11px;color:var(--dim);margin-bottom:4px}.msg p:last-child{margin-bottom:0}.msg img{max-width:100%;max-height:260px;border-radius:var(--r-s);display:block;margin:4px 0}
 .notes .tools{display:flex;gap:6px;align-items:center}.notes .tools span{flex:1;font-size:11px;color:var(--dim)}.notes .att{font-size:11px;color:var(--dim)}
-.inl .q{font-size:13px}.inl .q.dim{color:var(--dim)}
-.empty{grid-column:1/-1;display:flex;flex-direction:column;align-items:center;gap:14px;padding-block:60px;color:var(--dim)}
+.inl .q{font-size:14px;font-weight:500}.inl .q.dim{color:var(--dim);font-size:13px;font-weight:400}
+.empty{grid-column:1/-1;display:flex;flex-direction:column;align-items:center;gap:12px;padding-block:60px;color:var(--dim);text-align:center}
+.empty b{font-size:16px;font-weight:600;color:var(--ink)}.empty p{margin:0 0 6px;max-width:44ch}
 .mascot{width:120px;height:112px;background:var(--ink);-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 428 400%22%3E%3Cpath fill=%22currentColor%22 fill-rule=%22evenodd%22 d=%22M130 381L122 362L119 346L119 325L124 305L123 294L119 288L117 288L115 285L109 282L89 264L89 262L82 256L82 254L79 252L79 250L76 248L76 246L73 244L70 237L68 236L58 216L53 201L49 182L48 166L45 166L39 170L19 177L7 178L2 176L0 173L0 163L4 157L4 154L7 150L7 147L10 143L16 126L20 120L26 103L30 97L30 94L34 88L37 78L41 72L44 62L48 56L48 53L52 47L52 44L56 38L59 28L64 20L67 10L70 7L247 0L252 4L253 11L250 18L243 25L243 27L209 60L207 60L203 65L201 65L197 70L195 70L191 75L189 75L186 79L180 82L169 92L164 93L161 90L162 85L169 81L171 78L173 78L176 74L178 74L181 70L183 70L186 66L193 62L197 57L199 57L205 50L207 50L235 23L235 21L242 14L244 9L241 9L226 14L220 18L217 18L199 27L198 29L190 32L189 34L183 36L182 38L178 39L177 41L173 42L167 47L163 48L156 54L152 55L151 57L149 57L148 59L146 59L145 61L143 61L142 63L140 63L139 65L137 65L136 67L134 67L133 69L131 69L130 71L116 79L114 82L106 86L104 89L99 91L93 97L88 99L86 102L84 102L82 105L80 105L78 108L76 108L74 111L72 111L70 114L68 114L66 117L64 117L62 120L56 123L53 127L51 127L48 131L41 135L37 140L35 140L15 159L15 161L11 164L9 169L21 167L30 164L34 161L37 161L45 156L48 156L50 140L57 132L71 131L75 133L79 138L81 138L87 135L88 133L94 131L95 129L104 126L107 129L106 134L82 147L82 156L85 172L92 188L94 189L94 194L92 196L88 196L84 192L79 182L74 164L73 144L69 140L62 140L58 144L58 182L62 200L68 217L76 232L82 239L82 241L92 252L92 254L107 269L109 269L112 273L114 273L128 285L132 292L133 307L128 325L128 345L131 361L140 382L149 390L160 392L191 381L228 377L238 373L251 362L251 360L254 358L255 354L258 351L261 341L261 322L259 315L253 304L243 294L232 288L220 285L203 286L188 292L176 303L176 305L170 313L167 323L168 345L178 363L187 370L187 375L184 377L179 376L169 366L161 352L158 341L158 323L162 309L167 300L170 298L170 296L181 286L194 279L207 276L221 276L234 279L244 284L249 289L251 289L263 303L270 322L270 342L266 355L260 363L260 365L257 367L257 369L247 378L243 379L240 382L253 386L263 391L277 391L281 389L290 379L298 358L300 347L300 323L296 307L297 298L302 292L318 287L333 279L335 276L337 276L339 273L341 273L345 268L349 266L349 264L355 259L351 251L349 242L345 243L341 247L329 253L309 258L290 258L276 255L274 257L262 261L236 266L192 266L154 257L130 245L129 243L121 239L119 236L117 236L101 220L101 218L98 216L96 212L95 207L107 192L113 180L119 159L121 157L121 151L118 146L118 142L115 135L114 112L117 101L124 92L129 90L138 90L146 92L159 99L169 109L184 103L204 99L231 100L244 103L259 109L264 103L266 103L268 100L270 100L271 98L280 93L290 90L302 91L309 97L314 112L314 130L311 143L307 152L307 156L310 161L316 182L325 198L332 205L333 210L328 219L322 224L322 226L317 231L315 231L310 237L308 237L306 240L296 245L292 249L309 249L325 245L341 236L347 230L350 210L360 193L360 187L355 178L355 174L357 172L387 172L389 177L384 187L385 195L387 194L391 182L394 180L401 180L415 187L426 190L428 193L428 202L423 211L423 214L421 216L421 219L419 221L419 224L417 226L417 229L415 231L415 234L413 236L413 239L411 241L405 258L402 260L395 260L390 257L388 259L366 259L361 264L361 266L340 285L318 297L307 300L305 302L305 307L309 325L318 323L325 319L334 310L334 308L337 306L341 298L354 283L356 283L362 277L377 271L394 271L400 273L407 277L415 285L420 294L423 306L421 323L416 335L408 344L408 346L401 353L399 353L397 356L395 356L388 362L369 370L353 373L330 373L304 367L301 377L297 385L294 387L294 389L288 395L279 400L261 400L240 391L216 387L192 390L167 400L150 400L139 394L132 386ZM130 155L119 189L116 192L112 201L106 207L107 210L119 207L126 200L134 185L136 184L137 180L149 166L163 158L171 156L180 156L191 160L198 166L202 173L204 182L203 192L195 205L194 216L196 220L205 227L212 229L221 228L227 225L233 219L234 207L225 191L225 177L233 163L235 163L237 160L241 158L248 156L262 157L278 165L289 177L289 179L295 186L297 192L299 193L300 197L309 207L316 210L323 209L313 196L307 184L304 171L297 154L302 142L305 129L304 107L301 101L298 99L291 99L278 104L261 119L257 119L243 112L224 108L197 109L185 112L171 119L167 119L163 114L161 114L157 109L155 109L150 104L138 99L130 99L126 103L123 113L123 128L125 138L131 152ZM380 280L372 282L361 289L361 306L364 310L375 312L382 317L384 321L384 337L386 339L390 341L400 341L408 331L413 319L413 301L409 292L400 283L393 280ZM144 187L141 193L139 194L138 198L134 202L134 204L131 206L131 208L125 214L123 214L120 217L113 218L113 220L124 230L126 230L128 233L138 238L139 240L156 248L180 255L201 258L226 258L257 253L277 246L291 239L292 237L303 231L315 220L315 218L306 216L298 209L298 207L291 199L290 195L288 194L287 190L285 189L281 181L271 171L257 165L245 166L241 168L235 175L234 190L242 203L243 217L240 224L234 231L221 237L207 237L201 235L194 229L192 229L186 220L185 207L187 201L193 193L195 185L193 175L187 168L179 165L171 165L164 167L158 172L156 172L148 180ZM367 179L364 179L367 185L367 195L362 204L360 205L355 219L355 240L357 247L361 253L383 253L388 245L390 236L389 218L383 203L377 195L377 185L380 179ZM319 362L330 364L360 363L376 358L387 352L389 349L382 347L376 341L375 323L371 320L362 319L359 316L357 316L353 310L351 300L348 306L343 311L343 313L333 324L331 324L329 327L320 332L309 334L309 348L307 358ZM130 59L132 59L133 57L147 49L149 46L76 18L66 105L72 100L74 100L76 97L78 97L80 94L82 94L84 91L89 89L91 86L93 86L95 83L97 83L105 76L113 72L115 69L129 61ZM213 204L218 204L225 208L224 213L217 218L211 218L207 216L203 210L205 206ZM39 96L20 142L26 136L28 136L33 130L35 130L38 126L40 126L43 122L45 122L48 118L50 118L53 114L56 113L64 41L56 57L56 60L52 66L49 76L45 82L42 92ZM194 11L101 14L95 16L98 16L100 18L103 18L105 20L108 20L110 22L113 22L115 24L118 24L120 26L123 26L125 28L128 28L130 30L133 30L135 32L138 32L140 34L143 34L145 36L148 36L159 41L164 37L168 36L169 34L173 33L174 31L178 30L179 28L213 11ZM409 203L413 193L412 191L404 189L400 186L396 186L394 190L390 203L395 213L397 230L401 223L407 205ZM418 210L421 200L423 198L423 196L418 195L412 212L407 221L407 224L405 226L405 229L403 231L403 234L401 236L401 239L399 241L399 244L397 246L397 249L395 251L396 254L400 254ZM182 191L178 195L170 194L167 190L168 182L172 179L180 180L183 183ZM256 194L250 195L245 190L245 184L250 179L256 179L261 184L261 190L258 194Z%22/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 428 400%22%3E%3Cpath fill=%22currentColor%22 fill-rule=%22evenodd%22 d=%22M130 381L122 362L119 346L119 325L124 305L123 294L119 288L117 288L115 285L109 282L89 264L89 262L82 256L82 254L79 252L79 250L76 248L76 246L73 244L70 237L68 236L58 216L53 201L49 182L48 166L45 166L39 170L19 177L7 178L2 176L0 173L0 163L4 157L4 154L7 150L7 147L10 143L16 126L20 120L26 103L30 97L30 94L34 88L37 78L41 72L44 62L48 56L48 53L52 47L52 44L56 38L59 28L64 20L67 10L70 7L247 0L252 4L253 11L250 18L243 25L243 27L209 60L207 60L203 65L201 65L197 70L195 70L191 75L189 75L186 79L180 82L169 92L164 93L161 90L162 85L169 81L171 78L173 78L176 74L178 74L181 70L183 70L186 66L193 62L197 57L199 57L205 50L207 50L235 23L235 21L242 14L244 9L241 9L226 14L220 18L217 18L199 27L198 29L190 32L189 34L183 36L182 38L178 39L177 41L173 42L167 47L163 48L156 54L152 55L151 57L149 57L148 59L146 59L145 61L143 61L142 63L140 63L139 65L137 65L136 67L134 67L133 69L131 69L130 71L116 79L114 82L106 86L104 89L99 91L93 97L88 99L86 102L84 102L82 105L80 105L78 108L76 108L74 111L72 111L70 114L68 114L66 117L64 117L62 120L56 123L53 127L51 127L48 131L41 135L37 140L35 140L15 159L15 161L11 164L9 169L21 167L30 164L34 161L37 161L45 156L48 156L50 140L57 132L71 131L75 133L79 138L81 138L87 135L88 133L94 131L95 129L104 126L107 129L106 134L82 147L82 156L85 172L92 188L94 189L94 194L92 196L88 196L84 192L79 182L74 164L73 144L69 140L62 140L58 144L58 182L62 200L68 217L76 232L82 239L82 241L92 252L92 254L107 269L109 269L112 273L114 273L128 285L132 292L133 307L128 325L128 345L131 361L140 382L149 390L160 392L191 381L228 377L238 373L251 362L251 360L254 358L255 354L258 351L261 341L261 322L259 315L253 304L243 294L232 288L220 285L203 286L188 292L176 303L176 305L170 313L167 323L168 345L178 363L187 370L187 375L184 377L179 376L169 366L161 352L158 341L158 323L162 309L167 300L170 298L170 296L181 286L194 279L207 276L221 276L234 279L244 284L249 289L251 289L263 303L270 322L270 342L266 355L260 363L260 365L257 367L257 369L247 378L243 379L240 382L253 386L263 391L277 391L281 389L290 379L298 358L300 347L300 323L296 307L297 298L302 292L318 287L333 279L335 276L337 276L339 273L341 273L345 268L349 266L349 264L355 259L351 251L349 242L345 243L341 247L329 253L309 258L290 258L276 255L274 257L262 261L236 266L192 266L154 257L130 245L129 243L121 239L119 236L117 236L101 220L101 218L98 216L96 212L95 207L107 192L113 180L119 159L121 157L121 151L118 146L118 142L115 135L114 112L117 101L124 92L129 90L138 90L146 92L159 99L169 109L184 103L204 99L231 100L244 103L259 109L264 103L266 103L268 100L270 100L271 98L280 93L290 90L302 91L309 97L314 112L314 130L311 143L307 152L307 156L310 161L316 182L325 198L332 205L333 210L328 219L322 224L322 226L317 231L315 231L310 237L308 237L306 240L296 245L292 249L309 249L325 245L341 236L347 230L350 210L360 193L360 187L355 178L355 174L357 172L387 172L389 177L384 187L385 195L387 194L391 182L394 180L401 180L415 187L426 190L428 193L428 202L423 211L423 214L421 216L421 219L419 221L419 224L417 226L417 229L415 231L415 234L413 236L413 239L411 241L405 258L402 260L395 260L390 257L388 259L366 259L361 264L361 266L340 285L318 297L307 300L305 302L305 307L309 325L318 323L325 319L334 310L334 308L337 306L341 298L354 283L356 283L362 277L377 271L394 271L400 273L407 277L415 285L420 294L423 306L421 323L416 335L408 344L408 346L401 353L399 353L397 356L395 356L388 362L369 370L353 373L330 373L304 367L301 377L297 385L294 387L294 389L288 395L279 400L261 400L240 391L216 387L192 390L167 400L150 400L139 394L132 386ZM130 155L119 189L116 192L112 201L106 207L107 210L119 207L126 200L134 185L136 184L137 180L149 166L163 158L171 156L180 156L191 160L198 166L202 173L204 182L203 192L195 205L194 216L196 220L205 227L212 229L221 228L227 225L233 219L234 207L225 191L225 177L233 163L235 163L237 160L241 158L248 156L262 157L278 165L289 177L289 179L295 186L297 192L299 193L300 197L309 207L316 210L323 209L313 196L307 184L304 171L297 154L302 142L305 129L304 107L301 101L298 99L291 99L278 104L261 119L257 119L243 112L224 108L197 109L185 112L171 119L167 119L163 114L161 114L157 109L155 109L150 104L138 99L130 99L126 103L123 113L123 128L125 138L131 152ZM380 280L372 282L361 289L361 306L364 310L375 312L382 317L384 321L384 337L386 339L390 341L400 341L408 331L413 319L413 301L409 292L400 283L393 280ZM144 187L141 193L139 194L138 198L134 202L134 204L131 206L131 208L125 214L123 214L120 217L113 218L113 220L124 230L126 230L128 233L138 238L139 240L156 248L180 255L201 258L226 258L257 253L277 246L291 239L292 237L303 231L315 220L315 218L306 216L298 209L298 207L291 199L290 195L288 194L287 190L285 189L281 181L271 171L257 165L245 166L241 168L235 175L234 190L242 203L243 217L240 224L234 231L221 237L207 237L201 235L194 229L192 229L186 220L185 207L187 201L193 193L195 185L193 175L187 168L179 165L171 165L164 167L158 172L156 172L148 180ZM367 179L364 179L367 185L367 195L362 204L360 205L355 219L355 240L357 247L361 253L383 253L388 245L390 236L389 218L383 203L377 195L377 185L380 179ZM319 362L330 364L360 363L376 358L387 352L389 349L382 347L376 341L375 323L371 320L362 319L359 316L357 316L353 310L351 300L348 306L343 311L343 313L333 324L331 324L329 327L320 332L309 334L309 348L307 358ZM130 59L132 59L133 57L147 49L149 46L76 18L66 105L72 100L74 100L76 97L78 97L80 94L82 94L84 91L89 89L91 86L93 86L95 83L97 83L105 76L113 72L115 69L129 61ZM213 204L218 204L225 208L224 213L217 218L211 218L207 216L203 210L205 206ZM39 96L20 142L26 136L28 136L33 130L35 130L38 126L40 126L43 122L45 122L48 118L50 118L53 114L56 113L64 41L56 57L56 60L52 66L49 76L45 82L42 92ZM194 11L101 14L95 16L98 16L100 18L103 18L105 20L108 20L110 22L113 22L115 24L118 24L120 26L123 26L125 28L128 28L130 30L133 30L135 32L138 32L140 34L143 34L145 36L148 36L159 41L164 37L168 36L169 34L173 33L174 31L178 30L179 28L213 11ZM409 203L413 193L412 191L404 189L400 186L396 186L394 190L390 203L395 213L397 230L401 223L407 205ZM418 210L421 200L423 198L423 196L418 195L412 212L407 221L407 224L405 226L405 229L403 231L403 234L401 236L401 239L399 241L399 244L397 246L397 249L395 251L396 254L400 254ZM182 191L178 195L170 194L167 190L168 182L172 179L180 180L183 183ZM256 194L250 195L245 190L245 184L250 179L256 179L261 184L261 190L258 194Z%22/%3E%3C/svg%3E") center/contain no-repeat}
 @keyframes fi{from{opacity:0}}
 
 /* footer */
-.ftr{display:flex;justify-content:space-between;gap:16px;padding:8px 24px;border-top:1px solid var(--line);color:var(--dim);font-size:12px;flex-wrap:wrap;align-items:center}
+.ftr{display:flex;justify-content:space-between;gap:16px;padding:10px 28px;border-top:1px solid var(--line);color:var(--dim);font-size:12px;flex-wrap:wrap;align-items:center}
 .ftr span+span{margin-left:14px}.ftr .st svg{width:12px;height:12px}
-.ftr a{color:var(--dim);cursor:pointer;text-decoration:underline}
+.ftr a{color:var(--dim);cursor:pointer;text-decoration:underline;text-underline-offset:2px}.ftr a:hover{color:var(--ink)}
 
 /* side panel */
-.scrim{position:fixed;inset:0;z-index:10;background:color-mix(in srgb,var(--bg) 55%,transparent);display:none}
+.scrim{position:fixed;inset:0;z-index:10;background:color-mix(in srgb,var(--bg) 60%,transparent);backdrop-filter:blur(3px);display:none}
 .scrim.on{display:block}
-aside{position:fixed;top:0;right:0;bottom:0;z-index:11;width:480px;max-width:100%;background:var(--bg-2);border-left:1px solid var(--line);display:flex;flex-direction:column;transform:translateX(100%);transition:transform .18s}
-aside.open{transform:none}
-aside header{display:flex;align-items:flex-start;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line)}
+aside{position:fixed;top:0;right:0;bottom:0;z-index:11;width:520px;max-width:100%;background:var(--bg-2);border-left:1px solid var(--line);box-shadow:var(--shadow-2);display:flex;flex-direction:column;transform:translateX(100%);visibility:hidden;transition:transform .18s,visibility .18s}
+aside.open{transform:none;visibility:visible}
+aside header{display:flex;align-items:flex-start;gap:12px;padding:20px 24px 16px;border-bottom:1px solid var(--line)}
 aside header .t{flex:1;min-width:0}
-aside header b{display:block;font-size:15px}
-aside header .sub{color:var(--dim);font-size:12px;margin-top:2px}
-aside nav{display:flex;border-bottom:1px solid var(--line);padding-inline:8px}
+aside header b{display:block;font-size:17px;font-weight:600;line-height:1.35}
+aside header .sub{color:var(--dim);font-size:12px;margin-top:4px}
+aside nav{display:flex;border-bottom:1px solid var(--line);padding-inline:12px;overflow:auto hidden;scrollbar-width:none}
 aside nav:empty{display:none}
-aside nav button{padding:10px 12px;color:var(--dim);border-bottom:2px solid transparent;margin-bottom:-1px}
+aside nav button{padding:12px;font-size:13px;font-weight:500;color:var(--dim);white-space:nowrap}
 aside nav button:hover{color:var(--ink)}
-aside nav button.on{color:var(--ink);border-bottom-color:var(--accent)}
-aside .body{padding:20px;overflow:auto;flex:1}
-aside .foot{padding:14px 20px;border-top:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap}
+aside nav button.on{color:var(--ink);box-shadow:inset 0 -2px var(--accent)}
+aside .body{padding:24px;overflow:auto;flex:1}
+aside .foot{padding:16px 24px;border-top:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 aside .foot:empty{display:none}
-.md h3{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin:18px 0 6px}.md h3:first-child{margin-top:0}
-.md p{margin:0 0 10px;max-width:62ch}.md ol,.md ul{padding-left:1.4em;margin:0 0 10px}.md li{margin:3px 0}
-.md pre{background:var(--bg);border:1px solid var(--line);border-radius:var(--r-s);padding:8px 10px;overflow-x:auto;margin:0 0 8px;font-size:12px}
-.md h1,.md h2{font-size:13px;margin:16px 0 6px}.md h1:first-child,.md h2:first-child{margin-top:0}.md code{background:var(--bg);padding:0 4px;border-radius:var(--r-s)}.md table{border-collapse:collapse;font-size:12px;margin:0 0 10px}.md td,.md th{border:1px solid var(--line);padding:3px 8px;text-align:left}.md hr{border:0;border-top:1px solid var(--line);margin:12px 0}
+.md h3{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin:20px 0 8px}.md h3:first-child{margin-top:0}
+.md p{margin:0 0 10px;max-width:62ch}.md ol,.md ul{display:block;padding:0 0 0 1.4em;margin:0 0 10px;list-style:revert}.md li{margin:3px 0}
+.md pre{background:var(--bg);border:1px solid var(--line);border-radius:var(--r-s);padding:10px 12px;overflow-x:auto;margin:0 0 10px;font:12px/1.5 var(--mono)}
+.md h1,.md h2{font-size:15px;font-weight:600;margin:20px 0 8px}.md h1:first-child,.md h2:first-child{margin-top:0}.md code{font:12px var(--mono);background:var(--bg);padding:1px 5px;border-radius:var(--r-s)}.md table{border-collapse:collapse;font-size:12px;margin:0 0 10px}.md td,.md th{border:1px solid var(--line);padding:4px 8px;text-align:left}.md hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 .find{border-bottom:1px solid var(--line);padding:10px 0;display:flex;gap:10px;align-items:flex-start}
 .find input{margin-top:4px}
 .find .sev{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--warn)}.find .sev.hi{color:var(--danger)}
 .find .loc{color:var(--dim);font-size:12px;margin-left:8px}
-/* settings: the TUI screen, one row per setting — label, then the value in its own grammar */
-.sg{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin:18px 0 6px;font-weight:600}.sg:first-child{margin-top:0}
-.srow{display:grid;grid-template-columns:200px 1fr;gap:0 16px;align-items:center;font-size:13px;padding:4px 8px;margin:0 -8px;border-radius:var(--r)}
-.srow:hover,.srow:focus-within{background:color-mix(in srgb,var(--dim) 8%,transparent)}
-.srow label{color:var(--dim)}
-.srow .hint{display:none;grid-column:1/-1;margin:6px 0 2px;font-size:12px;color:var(--dim);line-height:1.45;max-width:60ch}.srow:hover .hint,.srow:focus-within .hint{display:block}.srow .hint code{background:none;padding:0;color:var(--dim)}
-.srow .sel{padding:2px 6px;font-size:13px;justify-self:start;border-color:transparent}.srow:hover .sel,.srow .sel:focus{border-color:var(--line)}
-.chk{justify-self:start;color:var(--ink);padding:2px 0;font-variant-numeric:tabular-nums}.chk:not(.on){color:var(--dim)}.chk i{font-style:normal;color:var(--ink)}
-.bar{display:inline-flex;align-items:center;gap:2px;justify-self:start}.bar button{width:10px;height:14px;border:1px solid var(--dim);border-radius:2px;background:none}.bar button.on{background:var(--ink);border-color:var(--ink)}.bar button:hover{border-color:var(--accent)}.bar b{font-weight:400;margin-left:6px;font-variant-numeric:tabular-nums}
-.toast{position:fixed;z-index:12;left:24px;bottom:52px;background:var(--ink);color:var(--bg);border-radius:var(--r);padding:8px 14px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}
+/* settings: one row per setting — name and what it does on the left, its control on the right */
+.sg{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin:24px 0 2px;font-weight:600}.sg:first-child{margin-top:0}
+.srow{display:grid;grid-template-columns:1fr auto;gap:2px 16px;padding:12px 0;border-bottom:1px solid var(--line)}
+.srow label{font-weight:500}
+.srow>:nth-child(2){grid-column:2;grid-row:1/span 2;align-self:center;justify-self:end}
+.srow .hint{grid-column:1;margin:0;font-size:12px;color:var(--dim);line-height:1.45;max-width:46ch}
+.srow input.sel{width:170px}
+/* a switch: the same <button role="switch"> the save wiring binds to, drawn as a track and a thumb */
+.chk{width:36px;height:20px;flex-shrink:0;border-radius:var(--r-pill);background:color-mix(in srgb,var(--dim) 40%,transparent);position:relative;transition:background .12s}
+.chk::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--on-accent);box-shadow:var(--shadow-1);transition:transform .12s}
+.chk.on{background:var(--accent)}.chk.on::after{transform:translateX(16px)}
+/* a small number: one segment per value */
+.bar{display:inline-flex;border:1px solid var(--line);border-radius:var(--r-s);overflow:hidden}
+.bar button{min-width:30px;height:28px;font-size:13px;color:var(--dim);font-variant-numeric:tabular-nums}.bar button+button{border-left:1px solid var(--line)}
+.bar button:hover{background:var(--hover);color:var(--ink)}.bar button.on,.bar button.on:hover{background:var(--accent);color:var(--on-accent)}.bar button:focus-visible{outline-offset:-2px;outline-color:var(--ink)}
+.toast{position:fixed;z-index:12;left:28px;bottom:56px;max-width:calc(100% - 56px);background:var(--ink);color:var(--bg);border-radius:var(--r);padding:10px 16px;font-size:13px;box-shadow:var(--shadow-2);opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.on{opacity:1}
-.help{position:fixed;inset:0;z-index:12;display:none;align-items:center;justify-content:center;background:color-mix(in srgb,var(--bg) 70%,transparent)}
-.help.on{display:flex}.help div{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r);padding:20px 24px;line-height:2}
-.help kbd{display:inline-block;width:7ch;color:var(--accent)}
-@media(max-width:900px){main{grid-template-columns:1fr;padding-inline:16px;gap:8px}.hdr,.strip,.ftr{padding-inline:16px}section h2{position:sticky;top:0;background:var(--bg);z-index:1}.more{display:grid}.card:hover .age{display:inline}}
-@media(prefers-reduced-motion:reduce){aside,.toast,.mascot,.d-run .pulse,.ib.mic.on,.dictating,.vu i{transition:none;animation:none}}
+.help{position:fixed;inset:0;z-index:12;display:none;align-items:center;justify-content:center;background:color-mix(in srgb,var(--bg) 60%,transparent);backdrop-filter:blur(3px)}
+.help.on{display:flex}.help div{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r);padding:24px 28px;line-height:2.2;box-shadow:var(--shadow-2)}
+.help kbd{display:inline-block;min-width:40px;margin-right:12px;padding:0 6px;text-align:center;border:1px solid var(--line);border-radius:var(--r-s);background:var(--bg);font:12px/20px var(--mono);color:var(--ink)}
+@media(max-width:900px){main{grid-template-columns:1fr;padding-inline:16px;gap:8px}.hdr,.strip,.ftr{padding-inline:16px}.more{display:grid}.card:hover .age{display:inline}.toast{left:16px;max-width:calc(100% - 32px)}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
 </style>
 </head>
 <body>
@@ -311,6 +328,7 @@ const MARKS={claude:1,codex:1,agy:1,opencode:1,gemini:1,cursor:1,full:1,lite:1};
 const COLS=["Ideas","Planning","Building","Review","Done"];
 // state.ts statuses onto the icon set in the <defs> above.
 const ICON={idea:"idea",starting:"start",running:"run",stalled:"stall",waiting:"wait",done:"done",abandoned:"aband"};
+const NEED={"approvals.plan":"plan needs your approval","approvals.review":"review needs your approval"},need=a=>NEED[a]||a;
 const WORD={idea:"idea",starting:"starting",running:"running",stalled:"stalled",waiting:"waiting on you",done:"done",abandoned:"abandoned"};
 
 let S={project:null,projects:[],cards:[],now:Date.now(),all:false};
@@ -321,23 +339,25 @@ let archive=false;
 let clearMenu=false,picking=false;const picked=new Set();     // Clear on Done: menu, then cherry-pick mode                                   // showing the archive instead of the board
 const wasAwaiting=new Map();let first=true;
 
-const key=c=>c.kind==="idea"?"idea:"+c.state+":"+c.text:"run:"+c.state+":"+c.id;
+// Two ideas may carry the same text; load() numbers the repeats so a key names one card.
+const key=c=>c._k||(c.kind==="idea"?"idea:"+c.state+":"+c.text:"run:"+c.state+":"+c.id);
 
 async function load(){
  let r;try{r=await fetch("/state"+(all?"?all=1":""))}catch{toast(GONE);return}S=await r.json();
+ {const seen=new Map();for(const c of S.cards){const b=key(c),n=seen.get(b)||0;seen.set(b,n+1);c._k=n?b+"#"+n:b}}
  for(const c of S.cards){if(c.kind!=="run")continue;const k=key(c),before=wasAwaiting.get(k);
-  if(!first&&before===null&&c.awaiting)notifyUser("kaizen — waiting on you",c.text+" · "+c.awaiting);wasAwaiting.set(k,c.awaiting)}
+  if(!first&&before===null&&c.awaiting)notifyUser("kaizen — waiting on you",c.text+" · "+need(c.awaiting));wasAwaiting.set(k,c.awaiting)}
  first=false;render();
  if(openKey){const c=S.cards.find(x=>key(x)===openKey);if(c&&runDoc)openRun(c,true);else if(c&&c.kind==="idea"){const ta=$("pbody").querySelector("textarea");if(!(ta&&document.activeElement===ta))chat(c,c.notes,c.archived||c.status!=="idea")}}}
 // A tab outliving its server would otherwise swallow every click: say so.
 const GONE="The board server is not running — start it with kaizen web (or the shortcut), then reload.";
-async function post(path,body){let r;try{r=await fetch(path,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)})}catch{toast(GONE);return{ok:false}}const j=await r.json().catch(()=>({}));if(!r.ok){toast(j.error||j.why||"failed");if(j.manual)console.log("run manually:",j.manual)}return j}
+async function post(path,body){let r;try{r=await fetch(path,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)})}catch{toast(GONE);return{ok:false}}const j=await r.json().catch(()=>({}));if(!r.ok){toast(j.error||j.why||"That did not work");if(j.manual)console.log("run manually:",j.manual)}return j}
 
 function card(c){
  const k=key(c),el=document.createElement("div");el.className="card"+(k===openKey?" open":"")+(k===menuKey?" menu":"")+(c.archived?" archived":"");el.tabIndex=0;el.setAttribute("role","button");
  const st=ICON[c.status]||"idea",idt=c.kind==="idea"?"idea":c.text;
  const chips=[];
- if(c.status==="waiting")chips.push(`<span class="chip warn"><i></i>${esc(c.awaiting||"needs you")}</span>`);
+ if(c.status==="waiting")chips.push(`<span class="chip warn"><i></i>${esc(need(c.awaiting)||"needs you")}</span>`);
  else if(c.status==="running")chips.push(`<span class="chip run"><i></i>running</span>`);
  if(all)chips.push(`<span class="chip">${esc(c.where)}</span>`);
  chips.push(...(c.tags||[]).map(t=>{const mark=MARKS[t]?`<svg><use href="#c-${t}"/></svg>`:"";return `<span class="chip${t==="full"||t==="lite"?" accent":""}">${mark}${esc(NAMES[t]||t)}</span>`}));
@@ -367,7 +387,7 @@ function inlineForm(c){
  if(mode==="edit"){li.innerHTML=`<input value="${esc(c.text)}"><textarea placeholder="Notes: links, paths, background">${esc(c.notes||"")}</textarea><div class="row"><button class="btn ghost" data-a="c">Cancel</button><button class="btn pri" data-a="s">Save</button></div>`;li.querySelector('[data-a=s]').onclick=async()=>{const next=li.querySelector("input").value.trim(),notes=li.querySelector("textarea").value.trim();mode=null;if(next&&(next!==c.text||notes!==(c.notes||"")))await post("/inbox",{op:"edit",dir,text:c.text,next,notes});load()}}
  if(mode==="reject"){const idea=c.kind==="idea";li.innerHTML=`<div class="q">${idea?"Reject this idea?":"Abandon this run?"} The reason is recorded.</div><input placeholder="Reason"><div class="row"><button class="btn ghost" data-a="c">Keep it</button><button class="btn warn" data-a="s">${idea?"Reject":"Abandon"}</button></div>`;li.querySelector('[data-a=s]').onclick=async()=>{const why=li.querySelector("input").value.trim();if(!why){toast("A reason is required");return}mode=null;const r=idea?await post("/inbox",{op:"reject",dir,text:c.text,reason:why}):await post("/abort",{dir,id:c.id,why});if(r.ok)toast(idea?"Rejected":"Abandoned, reason recorded");load()}}
  if(mode==="delete"){li.innerHTML=`<div class="q">Delete "${esc(c.text)}"?</div><div class="q dim">Not recorded anywhere.</div><div class="row"><button class="btn ghost" data-a="c">Keep it</button><button class="btn danger" data-a="s">Delete</button></div>`;li.querySelector('[data-a=s]').onclick=async()=>{mode=null;const r=await post("/inbox",{op:"delete",dir,text:c.text});if(r.ok)toast("Deleted");load()}}
- if(mode==="run"){li.innerHTML=`<div class="q">Start a run for "${esc(c.text)}"</div><div class="q dim">Opens your agent in a new terminal with the request typed in.</div><div class="row"><button class="btn ghost" data-a="c">Cancel</button><button class="btn" data-a="l">Lite</button><button class="btn pri" data-a="s">Full run</button></div>`;li.querySelector('[data-a=s]').onclick=()=>startRun(c,"full");li.querySelector('[data-a=l]').onclick=()=>startRun(c,"lite")}
+ if(mode==="run"){li.innerHTML=`<div class="q">Start a run for "${esc(c.text)}"</div><div class="q dim">Opens your agent in a new terminal with the request typed in.</div><div class="q dim">Full: planned, built, then checked by a separate reviewer. Lite: one session does it all, faster and cheaper.</div><div class="row"><button class="btn ghost" data-a="c">Cancel</button><button class="btn" data-a="l">Lite</button><button class="btn pri" data-a="s">Full run</button></div>`;li.querySelector('[data-a=s]').onclick=()=>startRun(c,"full");li.querySelector('[data-a=l]').onclick=()=>startRun(c,"lite")}
  li.querySelector('[data-a=c]').onclick=()=>{mode=null;render()};
  // Edit and reject take dictation; the run prompt has no field.
  if(mode!=="run"){const m=mic([...li.querySelectorAll("input,textarea")]);if(m)li.querySelector(".row").prepend(m)}
@@ -377,7 +397,7 @@ function inlineForm(c){
 async function startRun(c,kind){
  mode=null;askNotify();
  const r=await post("/run",{dir:c.state,text:c.text,kind});
- if(r.ok)toast(kind+" run opened in your terminal: "+r.agent.name);
+ if(r.ok)toast((kind==="full"?"Full":"Lite")+" run opened in your terminal: "+r.agent.name);
  load()}
 
 function render(){
@@ -385,14 +405,14 @@ function render(){
  const nArch=S.cards.filter(c=>c.archived).length;
  const n=s=>cs.filter(c=>c.status===s).length;
  const strip=[];
- if(n("waiting"))strip.push(`<button class="attn ${filter==="waiting"?"on":""}" data-f="waiting">● ${n("waiting")} waiting on you</button>`);
- strip.push(`<button class="${filter==="running"?"on":""}" data-f="running"><span class="d-run"><span class="pulse"></span></span> ${n("running")} running</button>`);
- if(n("stalled"))strip.push(`<button class="${filter==="stalled"?"on":""}" data-f="stalled">◐ ${n("stalled")} stalled</button>`);
+ if(n("waiting"))strip.push(`<button class="attn ${filter==="waiting"?"on":""}" data-f="waiting"><svg><use href="#s-wait"/></svg>${n("waiting")} waiting on you</button>`);
+ strip.push(`<button class="${filter==="running"?"on":""}" data-f="running"><span class="d-run"><span class="pulse"></span></span>${n("running")} running</button>`);
+ if(n("stalled"))strip.push(`<button class="${filter==="stalled"?"on":""}" data-f="stalled"><svg><use href="#s-stall"/></svg>${n("stalled")} stalled</button>`);
  strip.push(`<span class="sp"></span><span>${cs.filter(c=>c.kind==="idea").length} ideas · ${cs.filter(c=>c.kind==="run").length} runs</span>`,`<button class="${archive?"on":""}" data-f="__archive">${archive?"Back to board":"Archive "+nArch}</button>`);
  $("strip").innerHTML=strip.join("");
  $("strip").querySelectorAll("button").forEach(c=>c.onclick=()=>{if(c.dataset.f==="__archive"){archive=!archive;filter=null;render();return}filter=filter===c.dataset.f?null:c.dataset.f;render()});
- const sel=$("proj");sel.innerHTML=`<option value="all">All projects</option>`+(S.project?`<option value="cur">${esc(S.project)}</option>`:"");sel.value=all||!S.project?"all":"cur";
- if(!cs.length&&mode!=="new"){b.innerHTML=archive?'<div class="empty"><div class="mascot"></div><div>Nothing archived.</div></div>':'<div class="empty"><div class="mascot"></div><div>Nothing here yet.</div><button class="btn pri" id="newempty">New idea</button></div>';if(!archive)$("newempty").onclick=()=>{mode="new";render()};}
+ const sel=$("proj");sel.innerHTML=`<option value="all">All projects</option>`+S.projects.map(p=>`<option value="${esc(p.dir)}">${esc(p.label)}</option>`).join("")+(S.fresh.length?`<optgroup label="In your projects folder">${S.fresh.map(p=>`<option value="${esc(p.dir)}">${esc(p.label)}</option>`).join("")}</optgroup>`:"")+`<option value="__find">Find projects on this PC…</option>`;sel.value=all||!S.dir?"all":S.dir;
+ if(!cs.length&&mode!=="new"){b.innerHTML=archive?'<div class="empty"><div class="mascot"></div><b>Nothing archived</b></div>':'<div class="empty"><div class="mascot"></div><b>Nothing here yet</b><p>Add an idea and kaizen will plan it, build it, and check the result.</p><button class="btn pri" id="newempty">New idea</button></div>';if(!archive)$("newempty").onclick=()=>{mode="new";render()};}
  COLS.forEach((name,ci)=>{
   const s=document.createElement("section");const list=cs.filter(c=>c.column===ci&&(!filter||c.status===filter));
   const clearable=ci===4&&!archive&&list.length;
@@ -412,8 +432,8 @@ function render(){
    s.querySelectorAll("[data-p]").forEach(bt=>bt.onclick=async e=>{e.stopPropagation();if(bt.dataset.p==="cancel"){picking=false;picked.clear();render();return}
     const set=list.filter(c=>picked.has(key(c)));picking=false;picked.clear();for(const c of set)await post("/archive",{dir:c.state,id:c.id});toast("Archived "+set.length);load()});}
   const ul=document.createElement("ul");
-  if(ci===0&&mode==="new"){const f=document.createElement("li");f.className="inl";f.innerHTML=`<input id="newidea" placeholder="One line, like a commit subject"><textarea id="newnotes" placeholder="Notes: links, paths, background (optional)"></textarea><div class="row"><button class="btn ghost" id="nc">Cancel</button><button class="btn pri" id="ns">Add to inbox</button></div>`;ul.appendChild(f);
-   const inp=f.querySelector("input");const save=async()=>{const text=inp.value.trim();if(!text)return;const notes=f.querySelector("textarea").value.trim();mode=null;const r=await post("/inbox",{op:"add",text,notes});if(r.ok)toast("Added to inbox.md");load()};
+  if(ci===0&&mode==="new"){const f=document.createElement("li");f.className="inl";f.innerHTML=`<input id="newidea" placeholder="What would you like done?"><textarea id="newnotes" placeholder="Notes: links, paths, background (optional)"></textarea><div class="row"><button class="btn ghost" id="nc">Cancel</button><button class="btn pri" id="ns">Add idea</button></div>`;ul.appendChild(f);
+   const inp=f.querySelector("input");const save=async()=>{const text=inp.value.trim();if(!text)return;const notes=f.querySelector("textarea").value.trim();mode=null;const r=await post("/inbox",{op:"add",text,notes});if(r.ok)toast("Idea added");load()};
    f.querySelector("#ns").onclick=save;f.querySelector("#nc").onclick=()=>{mode=null;render()};{const m=mic([inp,f.querySelector("textarea")]);if(m)f.querySelector(".row").prepend(m)}inp.onkeydown=e=>{if(e.key==="Enter")save();if(e.key==="Escape"){mode=null;render()}};setTimeout(()=>inp.focus())}
   const shown=unfolded.has(ci)||list.length<=FOLD+1?list:list.slice(0,FOLD);
   shown.forEach(c=>{if(modeKey===key(c)&&mode){ul.appendChild(inlineForm(c));return}const li=document.createElement("li");li.appendChild(card(c));ul.appendChild(li)});
@@ -429,7 +449,7 @@ function render(){
 function open(c){
  stopDictation(true); // the panel body is about to be replaced
  openKey=key(c);$("panel").classList.add("open");$("scrim").classList.add("on");$("ptitle").textContent=c.text;render();
- if(c.kind==="idea"){runDoc=null;$("psub").textContent="idea · inbox.md · "+c.where;$("ptabs").innerHTML="";chat(c,c.notes,c.archived||c.status!=="idea");
+ if(c.kind==="idea"){runDoc=null;$("psub").textContent="Idea · "+c.where;$("ptabs").innerHTML="";chat(c,c.notes,c.archived||c.status!=="idea");
   const foot=$("pfoot");foot.innerHTML=c.archived?`<button class="btn pri" data-a="restore">Restore</button>`:c.status==="idea"?`<button class="btn pri" data-a="run">Run</button><button class="btn" data-a="edit">Edit</button><button class="btn" data-a="reject">Reject</button><button class="btn ghost" data-a="archive">Archive</button><button class="btn ghost danger" data-a="delete">Delete</button>`:`<span style="color:var(--dim);font-size:12px;flex:1">Starting: a run was launched for this idea. No terminal with your agent? Run it again.</span><button class="btn" data-a="run">Run again</button>`;
   foot.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{const a=b.dataset.a;if(a==="archive"||a==="restore"){toggleArchive(c,a==="archive");return}const k=key(c);close();mode=a;modeKey=k;render()});return}
  openRun(c,false)}
@@ -460,18 +480,18 @@ async function openRun(c,refresh){
  if(openKey!==key(c))return;
  // A refresh while notes are being typed would wipe the textarea.
  const ta=$("pbody").querySelector("textarea");if(refresh&&ta&&document.activeElement===ta)return;
- $("psub").textContent=c.id+" · "+(WORD[c.status]||c.status)+(c.awaiting?" · "+c.awaiting:"");
- const tabs=[["Request","request"],["Notes","notes"],["Plan","plan"],["Impl","impl"],["Preview","preview"],["Review","review"],["Backlog","backlog"]];
+ $("psub").textContent=c.id+" · "+(WORD[c.status]||c.status)+(c.awaiting?" · "+need(c.awaiting):"");
+ const tabs=[["Request","request"],["Notes","notes"],["Plan","plan"],["Work","impl"],["Preview","preview"],["Review","review"],["Backlog","backlog"]];
  $("ptabs").innerHTML=tabs.map((t,i)=>`<button class="${i===tab?"on":""}" data-i="${i}">${t[0]}</button>`).join("");
  [...$("ptabs").children].forEach(b=>b.onclick=()=>{tab=+b.dataset.i;openRun(c,true)});
  const k=tabs[tab][1],doc=k==="preview"?preview(runDoc.impl):runDoc[k];
  if(k==="notes"){const ro=c.archived||c.status==="done"||c.status==="abandoned";
   chat(c,doc,ro);}
- else $("pbody").innerHTML=doc?md(doc):`<p style="color:var(--dim)">No ${({request:"00-request.md",plan:"01-plan.md",impl:"03-impl.md",preview:"'## Preview' in 03-impl.md",review:"04-review.md",backlog:"06-backlog.md"})[k]} yet.</p>`;
+ else $("pbody").innerHTML=doc?md(doc):`<p style="color:var(--dim)">No ${({request:"request",plan:"plan",impl:"work report",preview:"preview",review:"review",backlog:"backlog"})[k]} yet.</p>`;
  const foot=$("pfoot");
  const arch=c.archived?`<button class="btn pri" data-a="restore">Restore</button>`:`<button class="btn ghost" data-a="archive">Archive</button>`;
  if(c.archived)foot.innerHTML=arch;
- else if(c.status==="waiting")foot.innerHTML=`<span style="color:var(--dim);font-size:12px;flex:1">Waiting on <b>${esc(c.awaiting)}</b>. Answer in the terminal running this run.</span>${arch}<button class="btn ghost" data-a="ab">Abandon</button>`;
+ else if(c.status==="waiting")foot.innerHTML=`<span style="color:var(--dim);font-size:12px;flex:1">Waiting on you: ${esc(need(c.awaiting))}. Answer in the terminal running this run.</span>${arch}<button class="btn ghost" data-a="ab">Abandon</button>`;
  else if(c.status==="done"||c.status==="abandoned")foot.innerHTML=arch;
  else foot.innerHTML=`${arch}<button class="btn ghost" data-a="ab">Abandon run</button>`;
  foot.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{const a=b.dataset.a;if(a==="archive"||a==="restore"){toggleArchive(c,a==="archive");return}close();mode="reject";modeKey=key(c);render()})}
@@ -503,26 +523,31 @@ async function openSettings(){
  openKey=null;runDoc=null;$("panel").classList.add("open");$("scrim").classList.add("on");$("ptitle").textContent="Settings";$("ptabs").innerHTML="";$("pfoot").innerHTML="";
  const cur=document.documentElement.dataset.theme||"system";
  const cfg=await fetch("/settings").then(r=>r.json()).catch(()=>null);
- $("psub").textContent=cfg?`theme is this browser's; the rest is ${cfg.file}`:"theme is this browser's";
- // One control per row, in the TUI's grammar: [✓] on / [ ] off for a switch, ▮▮▯ bars for a
- // number, the word itself (a select) for a choice. Help shows for the row under the pointer.
+ $("psub").textContent="Theme applies to this browser. Everything else is saved to your kaizen settings.";$("psub").title=cfg?cfg.file:"";
+ // One control per row: a switch for on/off, one segment per value for a small number,
+ // a select for a choice. The row's label names the control; its help sits under it.
  const ctl=(id,vals,on)=>{
-  if(vals.length===2&&vals.includes("true")&&vals.includes("false")){const yes=on==="true";return `<button class="chk${yes?" on":""}" id="${id}" data-v="${yes?"false":"true"}" role="switch" aria-checked="${yes}"><i>[${yes?"✓":" "}]</i> ${yes?"on":"off"}</button>`}
-  if(vals.every(v=>/^\d+$/.test(v))){const at=vals.indexOf(on);return `<span class="bar" id="${id}">${vals.map((v,i)=>`<button data-v="${v}" class="${i<=at?"on":""}" title="${v}"></button>`).join("")}<b>${esc(on)}</b></span>`}
+  if(vals.length===2&&vals.includes("true")&&vals.includes("false")){const yes=on==="true";return `<button class="chk${yes?" on":""}" id="${id}" data-v="${yes?"false":"true"}" role="switch" aria-checked="${yes}" title="${yes?"On":"Off"}"></button>`}
+  if(vals.every(v=>/^\d+$/.test(v)))return `<span class="bar" id="${id}" role="group">${vals.map(v=>`<button data-v="${v}" class="${v===on?"on":""}" aria-pressed="${v===on}">${v}</button>`).join("")}</span>`;
   return `<select class="sel" id="${id}">${vals.map(v=>`<option value="${esc(v)}"${v===on?" selected":""}>${v===""?"—":esc(v)}</option>`).join("")}</select>`};
- const row=(label,control,hint)=>`<div class="srow"><label>${esc(label)}</label>${control}<p class="hint">${hint}</p></div>`;
- $("pbody").innerHTML=`<h3 class="sg">Browser</h3>${row("Theme",ctl("th",["system","light","dark"],cur),"Light or dark for this browser only; system follows the OS.")}
-  ${row("Notifications",`<button class="chk" id="nt"><i>[${typeof Notification!=="undefined"&&Notification.permission==="granted"?"✓":" "}]</i> ${typeof Notification==="undefined"?"unsupported":Notification.permission==="granted"?"on":"ask"}</button>`,"A desktop notification when a run starts waiting on you.")}
-  ${cfg?groups(cfg.rows).map(([g,rows])=>`<h3 class="sg">${esc(g)}</h3>${rows.map(r=>row(r.label,ctl("s-"+r.key.replace(/\./g,"-"),r.values,r.value),`<code>${esc(r.key)}</code> options: ${r.values.map(v=>v||'""').map(esc).join(" / ")}<br>${esc(r.help)}`)).join("")}`).join(""):`<p style="color:var(--dim);margin-top:20px">Settings could not be read. Run <code>kaizen settings</code>.</p>`}`;
+ const row=(label,control,hint,id)=>`<div class="srow"><label for="${id}">${esc(label)}</label>${control}<p class="hint">${hint}</p></div>`;
+ const np=typeof Notification==="undefined"?null:Notification.permission;
+ $("pbody").innerHTML=`<h3 class="sg">Browser</h3>${row("Theme",ctl("th",["system","light","dark"],cur),"Light or dark for this browser only; system follows your device.","th")}
+  ${row("Notifications",`<button class="chk${np==="granted"?" on":""}" id="nt" role="switch" aria-checked="${np==="granted"}"${np&&np!=="denied"?"":" disabled"}></button>`,"A desktop notification when a run starts waiting on you."+(np?np==="denied"?" Blocked in this browser's site settings.":"":" Not supported in this browser."),"nt")}
+  ${cfg?groups(cfg.rows).map(([g,rows])=>`<h3 class="sg">${esc(g)}</h3>${rows.map(r=>{const id="s-"+r.key.replace(/\./g,"-");return row(r.label,r.text?`<input class="sel" id="${id}" value="${esc(r.value)}" placeholder="~/Projects" spellcheck="false">`:ctl(id,r.values,r.value),esc(r.help),id)}).join("")}`).join(""):`<p style="color:var(--dim);margin-top:20px">Settings could not be read. Run <code>kaizen settings</code>.</p>`}`;
  const setTheme=t=>{if(t==="system")delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme=t;try{t==="system"?localStorage.removeItem("kz-theme"):localStorage.setItem("kz-theme",t)}catch(e){}};
  $("th").onchange=e=>setTheme(e.target.value);
  $("nt").onclick=()=>{askNotify();setTimeout(openSettings,300)};
- if(cfg)cfg.rows.forEach(r=>{const el=$("s-"+r.key.replace(/\./g,"-"));const save=async v=>{const j=await post("/settings",{key:r.key,value:v});if(j.ok)toast(`saved ${r.key} = ${v||'""'}`);openSettings()};
-  if(el.tagName==="SELECT")el.onchange=()=>save(el.value);else el.querySelectorAll("[data-v]").forEach(b=>b.onclick=()=>save(b.dataset.v));if(el.matches(".chk"))el.onclick=()=>save(el.dataset.v)})}
+ if(cfg)cfg.rows.forEach(r=>{const el=$("s-"+r.key.replace(/\./g,"-"));const save=async v=>{const j=await post("/settings",{key:r.key,value:v});if(j.ok)toast("Saved");openSettings()};
+  if(el.tagName==="SELECT"||el.tagName==="INPUT")el.onchange=async()=>{await save(el.value.trim());if(el.tagName==="INPUT")load()};else el.querySelectorAll("[data-v]").forEach(b=>b.onclick=()=>save(b.dataset.v));if(el.matches(".chk"))el.onclick=()=>save(el.dataset.v)})}
 let tt;function toast(s){const t=$("toast");t.textContent=s;t.classList.add("on");clearTimeout(tt);tt=setTimeout(()=>t.classList.remove("on"),4000)}
 function askNotify(){try{if(typeof Notification!=="undefined"&&Notification.permission==="default")Notification.requestPermission()}catch(e){}}
 function notifyUser(title,body){try{if(typeof Notification!=="undefined"&&Notification.permission==="granted")new Notification(title,{body})}catch(e){}}
-$("proj").onchange=e=>{all=e.target.value==="all";load()};
+$("proj").onchange=async e=>{const v=e.target.value;
+ if(v==="__find"){toast("Searching…");const j=await post("/find",{});if(j.ok)toast(j.added?`Found ${j.added} new project${j.added===1?"":"s"}`:"No new projects found")}
+ else if(v==="all")all=true;
+ else{const j=await post("/cd",{dir:v});if(j.ok)all=false}
+ load()};
 $("newtop").onclick=()=>{mode="new";render();$("board").scrollTo(0,0)};
 $("settings").onclick=openSettings;
 try{const t=localStorage.getItem("kz-theme");if(t)document.documentElement.dataset.theme=t}catch(e){}
