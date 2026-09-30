@@ -8,7 +8,7 @@ import {
   appendNote, saveAttachment, pidOnPort, runGit, readCommit, commitPush, notice, notifier, LOGO,
   reviewFindings, pickFindings, fixPrompt,
 } from "./state.ts";
-import { readSources, addSource, removeSource, gatherSource, gatherAll, due } from "./sources.ts";
+import { readSources, addSource, removeSource, moveSource, gatherSource, gatherAll, gatherDirs, due } from "./sources.ts";
 
 const PAGE = join(dirname(import.meta.dir), "web", "board.html");
 const DEFAULT_PORT = 7420;
@@ -226,12 +226,17 @@ export async function web(repoDir: string, opts: Opts = {}) {
       }
 
       if (req.method === "GET" && path === "/sources") {
-        const dir = url.searchParams.get("dir") || state || join(home, ".kaizen");
-        if (!states(true).includes(dir)) return bad("unknown state dir", 404);
-        try {
+        // One project's sources, or with no dir every known project's: each entry
+        // says which project it belongs to. Nothing is assumed from where the board started.
+        const dir = url.searchParams.get("dir");
+        if (dir && !states(true).includes(dir)) return bad("unknown state dir", 404);
+        const sources = [], failed = [];
+        for (const d of dir ? [dir] : states(true)) {
           // The seen list is bookkeeping, not something the page shows.
-          return json({ sources: readSources(dir).map(({ seen, ...s }) => s), every: await every() });
-        } catch (e) { return bad((e as Error).message, 500); }
+          try { sources.push(...readSources(d).map(({ seen, ...s }) => ({ ...s, dir: d }))); }
+          catch { failed.push(label(d)); }
+        }
+        return json({ sources, failed, every: await every() });
       }
 
       if (req.method === "GET" && path === "/settings") {
@@ -336,14 +341,28 @@ export async function web(repoDir: string, opts: Opts = {}) {
         // Request sources. Gathering adds ideas and nothing else: no run starts here.
         if (path === "/sources") {
           const link = String(body.url ?? "").trim();
+          // A source belongs to the project the request names. The fallback above
+          // (where the board started, or the global dir) is a guess, and a guess
+          // here puts someone's requests in the wrong project.
+          const named = typeof body.dir === "string" && body.dir !== "";
           try {
             let results;
+            if (body.op === "gather" && !named && !link) {
+              results = await gatherDirs(states(true));
+              changed();
+              return json({ ok: true, results });
+            }
+            if (!named) return bad(body.op === "add" ? "choose the project this source belongs to" : "say which project's source this is");
             if (body.op === "add") {
               const why = addSource(dir, link, typeof body.label === "string" ? body.label : undefined);
               if (why) return bad(why);
             } else if (body.op === "remove") {
               const why = removeSource(dir, link);
               if (why) return bad(why, 404);
+            } else if (body.op === "move") {
+              if (typeof body.to !== "string" || !states(true).includes(body.to)) return bad("unknown state dir", 404);
+              const why = moveSource(dir, body.to, link);
+              if (why) return bad(why, why === "no such source" ? 404 : 409);
             } else if (body.op === "gather") {
               if (link && !readSources(dir).some((s) => s.url === link)) return bad("no such source", 404);
               results = link ? [await gatherSource(dir, link)] : await gatherAll(dir);

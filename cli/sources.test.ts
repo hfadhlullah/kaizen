@@ -1,13 +1,13 @@
 // Request sources against a throwaway .kaizen/. No network: the fetch and the DNS
 // lookup are both injected. Nothing here launches an agent or a terminal.
 import { test, expect, beforeEach, afterAll } from "bun:test";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { readInbox, writeInbox, replaceIdea } from "./state.ts";
+import { readInbox, writeInbox, replaceIdea, parseItem } from "./state.ts";
 import {
   readSources, addSource, removeSource, ingest, checkUrl, resolvesPublic, exportUrl, fetchText, split,
-  gatherSource, gatherAll, due, SIGN_IN, UNREADABLE, CAP,
+  gatherSource, gatherAll, due, SIGN_IN, UNREADABLE, CAP, moveSource, gatherDirs, writeSources,
 } from "./sources.ts";
 
 const root = mkdtempSync(join(tmpdir(), "kaizen-src-"));
@@ -40,14 +40,101 @@ test("exportUrl: sheet, published sheet, doc, anything else", () => {
   expect(exportUrl("https://docs.google.com/spreadsheets/d/e/2PACX-x/pubhtml")).toEqual({ url: "https://docs.google.com/spreadsheets/d/e/2PACX-x/pub?output=tsv", kind: "sheet" });
   expect(exportUrl("https://docs.google.com/document/d/D0c_1/edit?usp=sharing")).toEqual({ url: "https://docs.google.com/document/d/D0c_1/export?format=txt", kind: "doc" });
   expect(exportUrl("https://notes.example.com/raw/1")).toEqual({ url: "https://notes.example.com/raw/1", kind: "text" });
+  // Signed in to more than one Google account, the address carries /u/<n>.
+  expect(exportUrl("https://docs.google.com/spreadsheets/u/0/d/abc123/edit#gid=7")).toEqual(exportUrl(SHEET));
+  expect(exportUrl("https://docs.google.com/spreadsheets/u/1/d/e/2PACX-x/pubhtml").url).toBe("https://docs.google.com/spreadsheets/d/e/2PACX-x/pub?output=tsv");
+  expect(exportUrl("https://docs.google.com/document/u/1/d/D0c_1/edit")).toEqual({ url: "https://docs.google.com/document/d/D0c_1/export?format=txt", kind: "doc" });
+  // A published doc has no export address; it is fetched as given.
+  const published = "https://docs.google.com/document/d/e/2PACX-y/pub";
+  expect(exportUrl(published)).toEqual({ url: published, kind: "text" });
 });
 
-test("split: a header row names the column; without one the first cell is the text", () => {
+test("split: a header row names the column; without one the column with the most text is", () => {
   expect(split("sheet", "Owner\tRequest\tWhen\nana\tDark mode\tQ4\n\t\t\nbo\tExport to CSV\t\n")).toEqual([
     { text: "Dark mode", notes: "ana · Q4" }, { text: "Export to CSV", notes: "bo" },
   ]);
-  expect(split("sheet", "Dark mode\tana\n\tSecond column only\n")).toEqual([{ text: "Dark mode", notes: "ana" }, { text: "Second column only" }]);
+  expect(split("sheet", "Dark mode\tana\nExport to CSV\t\n")).toEqual([{ text: "Dark mode", notes: "ana" }, { text: "Export to CSV" }]);
   expect(split("doc", "one\r\n\r\n  \ntwo\n")).toEqual([{ text: "one" }, { text: "two" }]);
+});
+
+// Fix finding 10: a real sheet. Blank first row, the header on row 2, a row number
+// in the first column, the request under DETAIL.
+const TRACKER = [
+  "\t\t\t\t\t\t\t\t\t\t\t",
+  "NO\tTANGGAL PENGAJUAN\tPAGE\tDETAIL\tSTATUS\tTANGGAL SELESAI\tNOTES\tSCREENSHOT\tNOTES\tTanggal Update\tReply by FR\tReply #2",
+  "1\t17-Sep-2026\tDashboard\tTombol export tidak muncul di halaman laporan\tOpen\t\tSudah dicek di staging. Masih gagal untuk akun admin. Perlu dicek lagi besok.\t\t\t\t\t",
+  "2\t18-Sep-2026\tLogin\tTambah opsi ingat saya\tDone\t20-Sep-2026\t\t\t\t21-Sep-2026\tok\t",
+  "",
+].join("\n");
+
+test("split: the header is found below blank rows and under other names; without one a row number or a date is not the request", async () => {
+  expect(split("sheet", TRACKER)).toEqual([
+    { text: "Tombol export tidak muncul di halaman laporan", notes: "1 · 17-Sep-2026 · Dashboard · Open · Sudah dicek di staging. Masih gagal untuk akun admin. Perlu dicek lagi besok." },
+  ]);   // finding 17: row 2 is Done
+  for (const h of ["detail", "Details", "DESCRIPTION", "deskripsi", "Feedback", "issue", "Permintaan", "judul", "Request", "idea", "title", "task", "pbi", "summary", "name"]) {
+    expect(split("sheet", `no\t${h}\n1\tDark mode\n`)).toEqual([{ text: "Dark mode", notes: "1" }]);
+  }
+  expect(split("sheet", "1\t17-Sep-2026\tTombol export tidak muncul\n2\t2026-09-18\tTambah opsi ingat saya\n3\t19/09/2026\t\n")).toEqual([
+    { text: "Tombol export tidak muncul", notes: "1 · 17-Sep-2026" }, { text: "Tambah opsi ingat saya", notes: "2 · 2026-09-18" },
+  ]);
+
+  addSource(state, SHEET);
+  expect(await gatherSource(state, SHEET, text(TRACKER), pub)).toMatchObject({ ok: true, added: 1, note: "1 new, 1 done skipped" });
+  expect(open().map((l) => l.text)).toEqual(["Tombol export tidak muncul di halaman laporan"]);
+  expect(open()[0]!.notes).toContain("Sudah dicek di staging. Masih gagal untuk akun admin. Perlu dicek lagi besok.");
+  expect(await gatherSource(state, SHEET, text(TRACKER), pub)).toMatchObject({ added: 0, note: "nothing new, 1 done skipped" });
+  // Rows came back but none held a request, and nothing was ever taken from this source.
+  const other = SHEET.replace("abc123", "zzz999");
+  addSource(state, other);
+  expect(await gatherSource(state, other, text("\nno\tn\n1\t20\n2\t35\n"), pub)).toMatchObject({ ok: true, added: 0, note: "no requests found in 3 rows" });
+});
+
+// Fix finding 17: a row whose status is Done or Finish is not a request.
+const HEAD17 = "\t\t\t\t\t\t\t\nNO\tTANGGAL PENGAJUAN\tPAGE\tDETAIL\tSTATUS\tTANGGAL SELESAI\tNOTES\tSCREENSHOT\n";
+const sheet17 = (statuses: string[]) => HEAD17 + statuses.map((st, i) => `${i + 1}\t17-Sep-2026\tPage\tRequest number ${i + 1}\t${st}\t\t\t`).join("\n") + "\n";
+
+test("a sheet row whose status is Done or Finish is skipped, not marked seen, and the note says so", async () => {
+  const statuses = ["Done", "done ", "Finish", "FINISHED", "Open", "In Progress", "Not Done", "Undone", ""];
+  expect(split("sheet", sheet17(statuses)).map((i) => i.text)).toEqual([5, 6, 7, 8, 9].map((i) => `Request number ${i}`));
+  // No status column: every row, as before.
+  expect(split("sheet", "no\tdetail\tnotes\n1\tDark mode\tDone\n2\tExport\tfinish\n").map((i) => i.text)).toEqual(["Dark mode", "Export"]);
+  // The whole cell names the column, not a word inside it.
+  expect(split("sheet", "detail\tstatus notes\nDark mode\tDone\n")).toEqual([{ text: "Dark mode", notes: "Done" }]);
+
+  addSource(state, SHEET);
+  expect(await gatherSource(state, SHEET, text(sheet17(statuses)), pub)).toMatchObject({ ok: true, added: 5, note: "5 new, 4 done skipped" });
+  expect(await gatherSource(state, SHEET, text(sheet17(statuses)), pub)).toMatchObject({ added: 0, note: "nothing new, 4 done skipped" });
+  // Row 1 is reopened: gathered now. Row 5 becomes Done: its idea stays as it is.
+  const later = ["Reopened", ...statuses.slice(1, 4), "Done", ...statuses.slice(5)];
+  expect(await gatherSource(state, SHEET, text(sheet17(later)), pub)).toMatchObject({ added: 1, note: "1 new, 4 done skipped" });
+  expect(open().map((l) => l.text)).toEqual([5, 6, 7, 8, 9, 1].map((i) => `Request number ${i}`));
+
+  // All done, nothing ever taken: not "no requests found".
+  const other = SHEET.replace("abc123", "done999");
+  addSource(state, other);
+  expect(await gatherSource(state, other, text(sheet17(["Done", "Finish"])), pub)).toMatchObject({ ok: true, added: 0, note: "nothing new, 2 done skipped" });
+});
+
+// Fix finding 12: a title above the header, and sheets with no header at all.
+test("split: a title row above the header is skipped; without a header one column is the request for every row", async () => {
+  const titled = "\nProduct backlog 2026\t\t\t\n\nNO\tPIC\tDETAIL\tSTATUS\n1\tBudi Santoso\tTombol export tidak muncul\tOpen\n2\tSiti Aminah\tTambah opsi ingat saya\tDone\n3\tBudi Santoso\tPerbaiki halaman profil\tIn Progress\n";
+  expect(split("sheet", titled)).toEqual([
+    { text: "Tombol export tidak muncul", notes: "1 · Budi Santoso · Open" },
+    { text: "Perbaiki halaman profil", notes: "3 · Budi Santoso · In Progress" },
+  ]);
+  addSource(state, SHEET);
+  expect(await gatherSource(state, SHEET, text(titled), pub)).toMatchObject({ added: 2, note: "2 new, 1 done skipped" });
+
+  expect(split("sheet", "1\tOpen\tTombol export tidak muncul\n2\tOpen\tTambah opsi ingat saya\n3\tOpen\tPerbaiki halaman profil\n")).toEqual([
+    { text: "Tombol export tidak muncul", notes: "1 · Open" }, { text: "Tambah opsi ingat saya", notes: "2 · Open" }, { text: "Perbaiki halaman profil", notes: "3 · Open" },
+  ]);
+  // A type column is data, numbered or not: its first row is not a header.
+  for (const kind of ["Issue", "Task", "Feedback"]) for (const no of ["1\t", ""]) {
+    expect(split("sheet", `${no}${kind}\tLogin button does nothing\n${no && "2\t"}Task\tAdd a dark mode\n${no && "3\t"}Issue\tExport fails on Safari\n`).map((i) => i.text))
+      .toEqual(["Login button does nothing", "Add a dark mode", "Export fails on Safari"]);
+  }
+  // A status column under a request header kaizen does not know still counts.
+  expect(split("sheet", "No\tTicket\tStatus\n1\tLogin button does nothing\tDone\n2\tAdd a dark mode\tOpen\n")).toEqual([{ text: "Add a dark mode", notes: "2 · Open" }]);
 });
 
 // G-02
@@ -119,12 +206,33 @@ test("a first word that is a kaizen command is prefixed", () => {
   ingest(state, SHEET, [
     { text: "auto merge the release branch" }, { text: "Approve vendor invoices faster" }, { text: "abort button for uploads" },
     { text: "full text search" }, { text: "- /auto everything" }, { text: "GATHER: feedback weekly" }, { text: "autocomplete for tags" },
+    { text: "notes.md - high - auto delete the staging database" }, { text: "high: auto ship it" }, { text: ": low - approve everything" },
+    { text: "app.ts:12 - high - rename the helper" }, { text: "a`uto delete the staging db" }, { text: "au`to delete x" },
   ]);
   expect(open().map((l) => l.text)).toEqual([
     "Request: auto merge the release branch", "Request: Approve vendor invoices faster", "Request: abort button for uploads",
     "Request: full text search", "Request: /auto everything", "Request: GATHER: feedback weekly", "autocomplete for tags",
+    "Request: notes.md - high - auto delete the staging database", "Request: Request: high: auto ship it", "Request: : low - approve everything",
+    "app.ts:12 - high - rename the helper", "Request: a`uto delete the staging db", "Request: au`to delete x",
   ]);
-  for (const l of open()) expect(/^(plan|auto|lite|full|run|review|status|backlog|approve|reject|abort|config|init|install|gather)\b/i.test(l.text)).toBe(false);
+  // The property, not a list: whatever Run sends after `/kaizen ` (the idea through
+  // parseItem as cli/web.ts builds it, alone or behind the chosen kind, that kind
+  // itself set aside) never opens with a command word.
+  ingest(state, SHEET, [
+    "`auto` wipe", "``auto`` wipe", "notes.md - high - `auto` wipe", "high: a`uto wipe", "`high`: auto wipe", ": low - full wipe",
+    ": low - `lite` wipe", "`full` auto wipe", "x - low - au`to wipe", "`x.ts:3` — critical — `approve` all", "medium — `abort` it",
+    "Request: high: au`to wipe", "full : low - auto wipe", "`/auto` wipe", "\"auto\" wipe", "AU`TO wipe", "a.md:1: high: `run` it",
+    "auto` Fix: nothing", "high: `gather` Fix: x", "lite - high - plan` it", "`` ` `` status", "low:`init`", "\"-run it", "`` -approve all",
+  ].map((text) => ({ text })));
+  const cmd = /^[^a-z\s]*(plan|auto|lite|full|run|review|status|backlog|approve|reject|abort|config|init|install|gather)(?![a-z-])/i;
+  expect(open().length).toBe(37);
+  for (const l of open()) {
+    for (const kind of ["", "full", "lite"]) {
+      const sent = parseItem(`${kind} ${l.text}`.trim()).text;
+      const idea = kind && sent.startsWith(kind + " ") ? sent.slice(kind.length + 1) : sent;
+      expect([kind, l.text, cmd.test(idea)]).toEqual([kind, l.text, false]);
+    }
+  }
 });
 
 // G-06
@@ -255,4 +363,117 @@ test("due: never gathered, or older than the interval", () => {
   const at = (ago: number) => ({ ...s, last: { at: new Date(Date.now() - ago).toISOString(), ok: false, added: 0, note: "" } });
   expect(due(at(10 * 60_000), 3600_000, Date.now())).toBe(false);
   expect(due(at(61 * 60_000), 3600_000, Date.now())).toBe(true);
+});
+
+// Review finding 2: gathered text and notes are in the prompt Run hands a terminal.
+// The shell line each branch builds is run with printf standing in for the agent;
+// no terminal is opened.
+test.skipIf(process.platform === "win32")("launch: the xterm and macOS branches keep the prompt one literal argument", () => {
+  const bin = join(root, "bin"), cwd = join(root, "it's a dir");
+  mkdirSync(bin); mkdirSync(cwd);
+  writeFileSync(join(bin, "xterm"), "#!/bin/sh\n", { mode: 0o755 });
+  // Stands in for osascript: records what Terminal would be told to type.
+  writeFileSync(join(bin, "osascript"), `#!/bin/sh\nprintf '%s\\n' "$@" > "$OSA_OUT"\n`, { mode: 0o755 });
+  // The last part is recheck finding 9: fish reads \\' inside single quotes as an escape.
+  const prompt = `/kaizen it's "q" $HOME \\ \`touch canary\` $(touch canary) a\\' $(touch canary) \\'b\n\nnote`;
+  // Bun.which reads the PATH a process started with, so the branches are asked in a child.
+  const script = `
+    import { findTerminal } from ${JSON.stringify(join(import.meta.dir, "state.ts"))};
+    const full = ["sh", "-c", 'printf %s "$1"; pwd', "sh", ${JSON.stringify(prompt)}];
+    const x = findTerminal(${JSON.stringify(cwd)}, full);
+    delete process.env.DISPLAY;
+    Object.defineProperty(process, "platform", { value: "darwin" });
+    console.log(JSON.stringify([x, findTerminal(${JSON.stringify(cwd)}, full)]));`;
+  const out = Bun.spawnSync([process.execPath, "-e", script], { env: { PATH: bin, DISPLAY: ":0" } });
+  const [x, mac] = JSON.parse(out.stdout.toString());
+  // xterm execs several -e arguments itself: the login shell never reads the prompt,
+  // and the one line a shell does read is a constant.
+  expect(x.cmd.slice(0, 5)).toEqual(["xterm", "-e", "sh", "-c", 'cd "$1" && shift && exec "$@"']);
+  expect(Bun.spawnSync(x.cmd.slice(2), { cwd: root }).stdout.toString()).toBe(prompt + cwd + "\n");
+  // macOS: run the real line with the stub; what is typed into the login shell is
+  // `sh <temp path>` and nothing from the prompt or the directory.
+  const osa = join(root, "osa.txt");
+  Bun.spawnSync(mac.cmd, { cwd: root, env: { PATH: `${bin}:/usr/bin:/bin`, OSA_OUT: osa } });
+  const typed = /^-e\ntell application "Terminal" to do script "(sh [\w/.-]+)"\n-e\ntell application "Terminal" to activate\n$/.exec(readFileSync(osa, "utf8"))![1]!;
+  expect(Bun.spawnSync(["/bin/sh", "-c", typed], { cwd: root }).stdout.toString()).toBe(prompt + cwd + "\n");
+  expect(existsSync(typed.slice(3))).toBe(false);   // the one-shot script removed itself
+  expect(existsSync(join(cwd, "canary")) || existsSync(join(root, "canary"))).toBe(false);
+});
+
+// ---- a source belongs to one project
+
+test("move: label, seen and last go along; a duplicate is refused; no idea moves", async () => {
+  const other = join(root, "other" + n, ".kaizen");
+  mkdirSync(other, { recursive: true });
+  addSource(state, SHEET, "Feedback");
+  await gatherSource(state, SHEET, text("request\nfirst thing\nsecond thing"), pub);
+  const before = readSources(state)[0]!;
+  expect(before.seen.length).toBe(2);
+
+  addSource(other, SHEET);
+  expect(moveSource(state, other, SHEET)).toBe("that project already has this link");
+  expect(readSources(state)).toEqual([before]);
+  writeSources(other, []);
+
+  expect(moveSource(state, state, SHEET)).toBe("already in that project");
+  expect(moveSource(state, other, "https://example.com/none")).toBe("no such source");
+  expect(moveSource(state, other, SHEET)).toBeNull();
+  expect(readSources(state)).toEqual([]);
+  expect(readSources(other)).toEqual([before]);
+  expect(open().length).toBe(2);
+  expect(readInbox(other)).toEqual([]);
+  // What was seen in the old project is not gathered again in the new one.
+  expect((await gatherSource(other, SHEET, text("request\nfirst thing\nsecond thing"), pub)).added).toBe(0);
+  expect(readInbox(other)).toEqual([]);
+});
+
+test("gather everything: each source's ideas land in its own project and no other", async () => {
+  const other = join(root, "other" + n, ".kaizen"), third = join(root, "third" + n, ".kaizen");
+  for (const d of [other, third]) mkdirSync(d, { recursive: true });
+  const A = "https://example.com/a.txt", B = "https://example.com/b.txt";
+  addSource(state, A);
+  addSource(other, B);
+  const serve = async (url: string) => new Response(url === A ? "alpha request" : "beta request", { headers: { "content-type": "text/plain" } });
+  const results = await gatherDirs([state, other, third], serve, pub);
+  expect(results.map((r) => [r.dir, r.url, r.added])).toEqual([[state, A, 1], [other, B, 1]]);
+  expect(readInbox(state).map((l) => l.text)).toEqual(["alpha request"]);
+  expect(readInbox(other).map((l) => l.text)).toEqual(["beta request"]);
+  expect(existsSync(join(third, "inbox.md"))).toBe(false);
+});
+
+// The real server, in a scratch home on its own port. Nothing is fetched: only add, list and move.
+test("the board refuses to add a source without a project, and moves one between two", async () => {
+  const homeDir = join(root, "home" + n), a = join(homeDir, "a", ".kaizen"), b = join(homeDir, "b", ".kaizen");
+  for (const d of [a, b, join(homeDir, ".kaizen")]) mkdirSync(d, { recursive: true });
+  writeFileSync(join(homeDir, ".kaizen", "projects"), [join(homeDir, "a"), join(homeDir, "b")].join("\n") + "\n");
+  const port = 20000 + Math.floor(Math.random() * 20000);
+  const repo = join(import.meta.dir, "..");
+  const proc = Bun.spawn([process.execPath, join(repo, "cli", "install.ts"), "web", "--port", String(port), "--no-open"], {
+    cwd: join(homeDir, "a"), env: { ...process.env, HOME: homeDir, USERPROFILE: homeDir, KAIZEN_HOME: repo }, stdout: "ignore", stderr: "ignore",
+  });
+  try {
+    const at = `http://127.0.0.1:${port}`;
+    const post = async (body: object) => { const r = await fetch(at + "/sources", { method: "POST", body: JSON.stringify(body) }); return { status: r.status, ...(await r.json() as any) }; };
+    for (let i = 0; ; i++) { try { await fetch(at + "/state"); break; } catch { if (i > 100) throw new Error("board did not start"); await Bun.sleep(50); } }
+
+    // Started inside project a: a missing dir must not quietly mean a.
+    expect(await post({ op: "add", url: SHEET })).toMatchObject({ status: 400, error: "choose the project this source belongs to" });
+    expect(await post({ op: "remove", url: SHEET })).toMatchObject({ status: 400 });
+    expect(await post({ op: "move", url: SHEET, to: b })).toMatchObject({ status: 400 });
+    expect(existsSync(join(a, "sources.json"))).toBe(false);
+    expect(existsSync(join(homeDir, ".kaizen", "sources.json"))).toBe(false);
+
+    expect(await post({ op: "add", dir: b, url: SHEET, label: "Feedback" })).toMatchObject({ status: 200 });
+    expect(existsSync(join(a, "sources.json"))).toBe(false);
+    const listed = async (q = "") => ((await (await fetch(at + "/sources" + q)).json()) as any).sources.map((s: any) => [s.dir, s.url]);
+    expect(await listed()).toEqual([[b, SHEET]]);
+    expect(await listed("?dir=" + encodeURIComponent(a))).toEqual([]);
+
+    expect(await post({ op: "move", dir: b, to: join(homeDir, "nowhere", ".kaizen"), url: SHEET })).toMatchObject({ status: 404 });
+    expect(await post({ op: "move", dir: b, to: a, url: SHEET })).toMatchObject({ status: 200 });
+    expect(await listed()).toEqual([[a, SHEET]]);
+    expect(readSources(a)[0]!.label).toBe("Feedback");
+    expect(await post({ op: "add", dir: b, url: SHEET })).toMatchObject({ status: 200 });
+    expect(await post({ op: "move", dir: b, to: a, url: SHEET })).toMatchObject({ status: 409, error: "that project already has this link" });
+  } finally { proc.kill(); await proc.exited; }
 });

@@ -77,9 +77,11 @@ const found = (r: string) =>
 // check below, so a label or a link that happens to read `web` or `uninstall` is
 // only ever a label.
 if (Bun.argv[2] === "sources" || Bun.argv[2] === "gather") {
-  const { locate } = await import("./state.ts");
+  const { locate, label } = await import("./state.ts");
   const src = await import("./sources.ts");
   const state = locate() ?? join(home, ".kaizen");
+  // A source belongs to the project the command is run in; every answer names it.
+  const where = c.dim(`project  ${label(state)}`);
   const [, , cmd, op, url = "", ...rest] = Bun.argv;
   const line = (r: { url: string; ok: boolean; note: string }) => `  ${r.ok ? c.green("ok  ") : "fail"}  ${r.url}  ${c.dim(r.note)}`;
   try {
@@ -101,9 +103,10 @@ if (Bun.argv[2] === "sources" || Bun.argv[2] === "gather") {
     } else if (op === "add" || op === "rm") {
       const why = op === "add" ? src.addSource(state, url, rest.join(" ")) : src.removeSource(state, url);
       if (why) { console.log(`\n  ${why}\n`); process.exit(1); }
-      console.log(`\n  ${op === "add" ? "added" : "removed"} ${url}\n`);
+      console.log(`\n  ${op === "add" ? "added" : "removed"} ${url}\n  ${where}\n`);
     } else {
       const list = src.readSources(state);
+      console.log(`\n  ${where}`);
       console.log(list.length
         ? "\n" + list.map((s) => `  ${s.url}${s.label ? `  ${s.label}` : ""}\n    ${c.dim(s.last ? `${s.last.at.slice(0, 16).replace("T", " ")}  ${s.last.note}` : "not gathered yet")}`).join("\n") + "\n"
         : `\n  no sources yet ${c.dim("— kaizen sources add <link>")}\n`);

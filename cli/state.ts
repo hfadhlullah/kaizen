@@ -129,7 +129,8 @@ export function findTerminal(cwd: string, fullCmd: string[]): { cmd: string[]; d
     return { cmd: ["sh", "-c", script, "sh", cwd, line], detached: false };
   }
   if (answers(["tmux", "has-session"])) {
-    return { cmd: ["tmux", "new-window", "-c", cwd, line], detached: false };
+    // Several arguments are run as they are; one would go through the default-shell.
+    return { cmd: ["tmux", "new-window", "-c", cwd, ...fullCmd], detached: false };
   }
 
   if (process.env.TERMINAL && Bun.which(process.env.TERMINAL)) {
@@ -154,13 +155,15 @@ export function findTerminal(cwd: string, fullCmd: string[]): { cmd: string[]; d
     if (Bun.which("gnome-terminal")) return { cmd: ["gnome-terminal", `--working-directory=${cwd}`, "--", ...fullCmd], detached: true };
     if (Bun.which("xfce4-terminal")) return { cmd: ["xfce4-terminal", `--default-working-directory=${cwd}`, "-x", ...fullCmd], detached: true };
     if (Bun.which("konsole")) return { cmd: ["konsole", "--workdir", cwd, "-e", ...fullCmd], detached: true };
-    if (Bun.which("xterm")) return { cmd: ["xterm", "-e", `cd "${cwd}" && ${fullCmd.join(" ")}`], detached: true };
+    // One argument after -e is handed to the login shell, which may not be a POSIX one.
+    if (Bun.which("xterm")) return { cmd: ["xterm", "-e", "sh", "-c", 'cd "$1" && shift && exec "$@"', "sh", cwd, ...fullCmd], detached: true };
   }
 
   if (process.platform === "darwin") {
-    const cmdStr = fullCmd.map((a) => (a.includes(" ") ? `\\"${a}\\"` : a)).join(" ");
-    const script = `tell application "Terminal" to do script "cd \\"${cwd}\\" && ${cmdStr}"\ntell application "Terminal" to activate`;
-    return { cmd: ["osascript", "-e", script], detached: true };
+    // Terminal types what it is given into the login shell, so, as with herdr, the
+    // line goes into a one-shot script and only `sh <path>` is typed.
+    const script = `f=$(mktemp) && printf 'rm -f "$0"\\ncd %s && exec %s\\n' "$1" "$2" > "$f" && osascript -e "tell application \\"Terminal\\" to do script \\"sh $f\\"" -e 'tell application "Terminal" to activate'`;
+    return { cmd: ["/bin/sh", "-c", script, "sh", shq(cwd), line], detached: true };
   }
 
   return null;
@@ -804,9 +807,12 @@ export function projectOf(from: string) {
 
 export function manualCommand(projectDir: string, agentCmd: string, prompt: string, flags: string[] = []) {
   const bin = [agentCmd, ...flags].join(" ");
+  // Pasted into whatever shell the user has. fish reads \' and \\ inside single
+  // quotes as escapes, so ' and \ each go in double quotes, which sh and fish read alike.
+  const q = (a: string) => `'${a.replace(/['\\]/g, (ch) => (ch === "'" ? `'"'"'` : `'"\\\\"'`))}'`;
   return process.platform === "win32"
     ? `cd '${projectDir}'; & ${bin} '${prompt.replace(/'/g, "''")}'`
-    : `cd "${projectDir}" && ${bin} "${prompt}"`;
+    : `cd ${q(projectDir)} && ${bin} ${q(prompt)}`;
 }
 
 export function launchRun(it: Item, from: string): Launch {

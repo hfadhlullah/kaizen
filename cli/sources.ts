@@ -5,7 +5,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { isIP } from "node:net";
 import { lookup as dnsLookup } from "node:dns/promises";
-import { type InboxLine, readInbox, writeInbox, normalise, formatNote } from "./state.ts";
+import { type InboxLine, readInbox, writeInbox, normalise, formatNote, parseItem } from "./state.ts";
 
 export type Last = { at: string; ok: boolean; added: number; note: string };
 export type Source = { url: string; label?: string; added: string; last?: Last; seen: string[] };
@@ -53,7 +53,31 @@ export function removeSource(state: string, url: string): string | null {
   return null;
 }
 
+// A source belongs to one project. Moving it carries its label, seen list and last
+// result, so nothing is gathered twice; ideas already in the old inbox stay there.
+// Written to the new project first: a crash leaves it listed twice, never lost.
+export function moveSource(from: string, to: string, url: string): string | null {
+  if (from === to) return "already in that project";
+  const list = readSources(from);
+  const src = list.find((s) => s.url === url);
+  if (!src) return "no such source";
+  const dest = readSources(to);
+  if (dest.some((s) => s.url === url)) return "that project already has this link";
+  writeSources(to, [...dest, src]);
+  writeSources(from, list.filter((s) => s.url !== url));
+  return null;
+}
+
 const COMMANDS = new Set("plan auto lite full run review status backlog approve reject abort config init install gather".split(" "));
+const isCommand = (t: string) => COMMANDS.has((/[a-z][a-z-]*/i.exec(t.split(" ")[0]!)?.[0] ?? "").toLowerCase());
+// Run sends an idea through parseItem, alone or behind the chosen kind, and that
+// drops a `<where> - <severity> -` or `<severity>:` lead and every backtick. The
+// check is on that final text, whatever parseItem did to get there; the kind the
+// user chose, when it is still in front, is theirs and set aside.
+const obeyed = (t: string) => isCommand(t) || ["", "full ", "lite "].some((kind) => {
+  const sent = parseItem(kind + t).text;
+  return isCommand(kind && sent.startsWith(kind) ? sent.slice(kind.length) : sent);
+});
 export const CAP = 50;
 
 // The single place outside text becomes ideas. Synchronous on purpose: nothing
@@ -74,7 +98,7 @@ export function ingest(state: string, url: string, items: { text: string; notes?
     if (text.length < 3) continue;
     // The board runs an idea as `/kaizen <text>`: a first word that is a command
     // would be obeyed as one.
-    if (COMMANDS.has((/[a-z-]+/i.exec(text.split(" ")[0]!)?.[0] ?? "").toLowerCase())) text = "Request: " + text;
+    while (obeyed(text)) text = "Request: " + text;   // twice at most: `Request: high: auto x` still parses
     const key = normalise(text);
     if (known.has(key)) { seen.push(key); continue; }
     if (fresh.length >= CAP) { held++; continue; }   // not marked seen: the next gather takes it
@@ -132,14 +156,16 @@ export async function resolvesPublic(host: string, lookup: Lookup = dnsLookup): 
 export function exportUrl(raw: string): { url: string; kind: "sheet" | "doc" | "text" } {
   const u = new URL(raw);
   if (u.hostname === "docs.google.com") {
-    const pub = /^\/spreadsheets\/d\/e\/([\w-]+)\/pub/.exec(u.pathname);
+    // Signed in to several accounts, Google puts /u/<n> after the first segment.
+    const pub = /^\/spreadsheets(?:\/u\/\d+)?\/d\/e\/([\w-]+)\/pub/.exec(u.pathname);
     if (pub) return { url: `https://docs.google.com/spreadsheets/d/e/${pub[1]}/pub?output=tsv`, kind: "sheet" };
-    const sheet = /^\/spreadsheets\/d\/([\w-]+)/.exec(u.pathname);
+    const sheet = /^\/spreadsheets(?:\/u\/\d+)?\/d\/([\w-]+)/.exec(u.pathname);
     if (sheet) {
       const gid = u.searchParams.get("gid") ?? /gid=(\d+)/.exec(u.hash)?.[1] ?? "0";
       return { url: `https://docs.google.com/spreadsheets/d/${sheet[1]}/export?format=tsv&gid=${/^\d+$/.test(gid) ? gid : "0"}`, kind: "sheet" };
     }
-    const doc = /^\/document\/d\/([\w-]+)/.exec(u.pathname);
+    // A published doc (/document/d/e/<id>/pub) has no export address: fetched as given.
+    const doc = /^\/document(?:\/u\/\d+)?\/d\/(?!e\/)([\w-]+)/.exec(u.pathname);
     if (doc) return { url: `https://docs.google.com/document/d/${doc[1]}/export?format=txt`, kind: "doc" };
   }
   return { url: raw, kind: "text" };
@@ -185,20 +211,53 @@ export async function fetchText(url: string, doFetch: Fetch = fetch, lookup: Loo
   return { ok: false, note: "Too many redirects." };
 }
 
-const HEADER = /^(request|idea|title|task|pbi|summary|name)$/i;
+const HEADER = /^(request|idea|title|task|pbi|summary|name|details?|description|deskripsi|feedback|issue|permintaan|judul)$/i;
+// A row number or a date (`17-Sep-2026`; an all-digit one has no letter): never a
+// request, and never a cell of a header row.
+const datum = (c: string) => !/\p{L}/u.test(c) || /^\d{1,2}[-\/ .]\p{L}+[-\/ .]\d{2,4}$/u.test(c);
+const wordy = (c: string) => c.length >= 3 && !datum(c);
 
-export function split(kind: "sheet" | "doc" | "text", body: string): { text: string; notes?: string }[] {
+// A sheet row whose status cell says one of these is finished work, not a request.
+const STATUS = /^status$/i;
+const DONE = /^(done|finish|finished)$/i;
+
+type Item = { text: string; notes?: string };
+
+export const split = (kind: "sheet" | "doc" | "text", body: string): Item[] => sift(kind, body).items;
+
+// The requests, and how many rows were left out for their status. A row left out is
+// never handed to ingest, so it is not marked seen: reopened, it is gathered then.
+export function sift(kind: "sheet" | "doc" | "text", body: string): { items: Item[]; done: number } {
   const rows = body.split(/\r?\n/);
-  if (kind !== "sheet") return rows.filter((r) => r.trim()).map((text) => ({ text }));
+  if (kind !== "sheet") return { items: rows.filter((r) => r.trim()).map((text) => ({ text })), done: 0 };
   const cells = rows.map((r) => r.split("\t").map((c) => c.trim()));
-  const col = (cells[0] ?? []).findIndex((c) => HEADER.test(c));
-  return (col >= 0 ? cells.slice(1) : cells).flatMap((row) => {
-    const at = col >= 0 ? col : row.findIndex(Boolean);
-    const text = row[at] ?? "";
-    if (!text) return [];
-    const rest = row.filter((c, i) => c && i !== at).join(" · ");
+  const filled = cells.filter((row) => row.some(Boolean));
+  // Sheets often open with blank rows or a title: the header is looked for in the
+  // first few rows holding anything. It is a row of labels naming a request or status
+  // column. `1 | Issue | ...` is data: it holds a row number, or the same column says
+  // `Task` further down.
+  // ponytail: a guess from shape; a header repeated down the sheet is read as data.
+  const named = (row: string[], re: RegExp) => row.findIndex((c, i) => re.test(c) && !filled.some((o) => o !== row && re.test(o[i] ?? "")));
+  const head = filled.slice(0, 5).find((row) => row.every((c) => !c || !datum(c)) && (named(row, HEADER) >= 0 || named(row, STATUS) >= 0));
+  const data = head ? filled.slice(filled.indexOf(head) + 1) : filled;
+  const status = head ? named(head, STATUS) : -1;
+  const known = head ? named(head, HEADER) : -1;
+  // No request column named: one column for the whole sheet, the one holding the most
+  // text that reads like a request. Never a cell per row, which takes `Open` or a name.
+  let col = known;
+  if (col < 0) for (let i = 0, most = 0; i < Math.max(0, ...data.map((row) => row.length)); i++) {
+    const n = i === status ? 0 : data.reduce((sum, row) => sum + (wordy(row[i] ?? "") ? row[i]!.length : 0), 0);
+    if (n > most) { most = n; col = i; }
+  }
+  let done = 0;
+  const items = data.flatMap((row) => {
+    const text = row[col] ?? "";
+    if (!text || (known < 0 && !wordy(text))) return [];
+    if (status >= 0 && DONE.test(row[status] ?? "")) { done++; return []; }
+    const rest = row.filter((c, i) => c && i !== col).join(" · ");
     return [{ text, ...(rest ? { notes: rest } : {}) }];
   });
+  return { items, done };
 }
 
 function setLast(state: string, url: string, last: Last) {
@@ -210,8 +269,12 @@ function setLast(state: string, url: string, last: Last) {
 }
 
 // What one ingest amounted to, in the words the board shows.
-export function record(state: string, url: string, r: { added: number; held: number }): Result {
-  const note = r.added ? `${r.added} new${r.held ? `, ${r.held} held for next time` : ""}` : "nothing new";
+export function record(state: string, url: string, r: { added: number; held: number }, rows?: number, done = 0): Result {
+  // "nothing new" is only true of a source something was once taken from.
+  const never = rows !== undefined && !readSources(state).find((s) => s.url === url)?.seen.length;
+  const skipped = done ? `, ${done} done skipped` : "";
+  const note = r.added ? `${r.added} new${r.held ? `, ${r.held} held for next time` : ""}${skipped}`
+    : done ? `nothing new${skipped}` : never ? `no requests found in ${rows} rows` : "nothing new";
   const last = { at: new Date().toISOString(), ok: true, added: r.added, note };
   setLast(state, url, last);
   return { url, ...last };
@@ -222,7 +285,10 @@ export async function gatherSource(state: string, url: string, doFetch?: Fetch, 
   try {
     const target = exportUrl(url);
     const got = await fetchText(target.url, doFetch, lookup);
-    if (got.ok) return record(state, url, ingest(state, url, split(target.kind, got.body)));
+    if (got.ok) {
+      const { items, done } = sift(target.kind, got.body);
+      return record(state, url, ingest(state, url, items), got.body.split("\n").filter((r) => r.trim()).length, done);
+    }
     const last = { at: new Date().toISOString(), ok: false, added: 0, note: got.note };
     setLast(state, url, last);
     return { url, ...last };
@@ -242,6 +308,13 @@ export async function gatherAll(state: string, doFetch?: Fetch, lookup?: Lookup)
   catch (e) { return [{ url: "sources.json", at: new Date().toISOString(), ok: false, added: 0, note: (e as Error).message }]; }
   const out: Result[] = [];
   for (const s of list) out.push(await gatherSource(state, s.url, doFetch, lookup));
+  return out;
+}
+
+// Every project's sources, each into its own project's inbox and no other.
+export async function gatherDirs(states: string[], doFetch?: Fetch, lookup?: Lookup): Promise<(Result & { dir: string })[]> {
+  const out: (Result & { dir: string })[] = [];
+  for (const dir of states) for (const r of await gatherAll(dir, doFetch, lookup)) out.push({ ...r, dir });
   return out;
 }
 

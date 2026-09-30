@@ -174,7 +174,18 @@ test("notes: the prompt is text, blank line, notes; still one quoted argument", 
   expect(requestOf("/kaizen do x")).toBe("/kaizen do x");
   expect(requestOf("/kaizen do x", "l1\nl2\n")).toBe("/kaizen do x\n\nl1\nl2");
   const cmd = manualCommand("/p", "claude", requestOf("/kaizen do x", "l1"));
-  if (process.platform !== "win32") expect(cmd).toBe('cd "/p" && claude "/kaizen do x\n\nl1"');
+  if (process.platform !== "win32") {
+    expect(cmd).toBe("cd '/p' && claude '/kaizen do x\n\nl1'");
+    // Pasted into a shell, outside text must stay text.
+    // ' and \ sit in double quotes: fish reads \' inside single quotes as an escape.
+    const hostile = "a $(x) `y` 'z' a\\' $(touch canary) \\'b \\";
+    const pasted = manualCommand("/p", "printf %s", hostile);
+    expect(pasted).toBe(`cd '/p' && printf %s 'a $(x) \`y\` '"'"'z'"'"' a'"\\\\"''"'"' $(touch canary) '"\\\\"''"'"'b '"\\\\"''`);
+    expect(pasted.replace(/'[^'\\]*'|"['\\]+"/g, "")).toBe("cd  && printf %s ");   // only '…' without \ or ', and "'" or "\\"
+    for (const sh of ["/bin/sh", "bash", "zsh"].filter((s) => Bun.which(s))) {
+      expect(Bun.spawnSync([sh, "-c", pasted.replace("cd '/p'", "cd /")]).stdout.toString()).toBe(hostile);
+    }
+  }
 });
 
 test("notes: a run's notes.md is read beside it, written only for a real run", () => {
@@ -330,7 +341,7 @@ test.skipIf(process.platform === "win32")("findTerminal: a running herdr wins, t
     stub("herdr", 0);
     const h = findTerminal("/p", full)!;
     expect([h.cmd[0], h.cmd[1], h.cmd[4], h.detached]).toEqual(["sh", "-c", "/p", false]);
-    expect(h.cmd[5]).toBe(t.cmd[4]);
+    expect(t.cmd.slice(4)).toEqual(full);   // argv: tmux runs it without its default-shell
     const back = Bun.spawnSync(["/bin/sh", "-c", `printf '%s\\n' ${h.cmd[5]}`]).stdout.toString();
     expect(back).toBe(full.join("\n") + "\n");
   } finally {

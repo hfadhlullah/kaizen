@@ -632,7 +632,9 @@ const ago=at=>{const m=Math.round((Date.now()-Date.parse(at))/60000);return m<1?
 async function openSources(){
  stopDictation(true);
  // What is half typed survives a refresh from the server.
- const typed=srcOpen()?[$("src-url")?.value||"",$("src-label")?.value||"",document.activeElement?.id]:["",""];
+ const typed=srcOpen()?[$("src-url")?.value||"",$("src-label")?.value||"",document.activeElement?.id,$("src-dir")?.value]:["",""];
+ // So does a project picked on a row but not yet moved.
+ const picked=new Map(srcOpen()?[...$("pbody").querySelectorAll("[data-mv]")].map(m=>[m.dataset.k,m.value]):[]);
  openKey=null;runDoc=null;$("panel").classList.add("open");$("scrim").classList.add("on");$("ptitle").textContent=SRC;$("ptabs").innerHTML="";$("pfoot").innerHTML="";
  $("psub").textContent="Links kaizen checks for new requests. What it finds lands in Ideas; nothing starts on its own.";$("psub").title="";
  const dir=all?null:S.dir,q=dir?"?dir="+encodeURIComponent(dir):"";
@@ -640,15 +642,25 @@ async function openSources(){
  if(!srcOpen())return;
  const host=u=>{try{return new URL(u).hostname}catch{return u}};
  const list=d&&d.sources||[];
- const rows=list.map((s,i)=>`<div class="srow"><label>${esc(s.label||host(s.url))}</label><button class="btn ghost" data-rm="${i}">Remove</button><p class="hint" style="overflow-wrap:anywhere">${s.url.startsWith("https://")?`<a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer" style="color:inherit">${esc(s.url)}</a>`:esc(s.url)}<br>${s.last?(s.last.ok?esc(s.last.note):`<span style="color:var(--ink);font-weight:500">Failed: ${esc(s.last.note)}</span>`)+" · "+ago(s.last.at):"Not gathered yet"}</p></div>`).join("");
+ // A source belongs to one project, named on its row. Picking another only arms Move: a select
+ // changes on every arrow key, and each change would have moved the source. The names are the picker's.
+ const opts=on=>S.projects.map(p=>`<option value="${esc(p.dir)}"${p.dir===on?" selected":""}>${esc(p.label)}</option>`).join("");
+ const rows=list.map((s,i)=>`<div class="srow"><label>${esc(s.label||host(s.url))}</label><button class="btn ghost" id="src-rm-${i}" data-rm="${i}" aria-label="Remove ${esc(s.label||host(s.url))}">Remove</button><p class="hint" style="overflow-wrap:anywhere">${s.url.startsWith("https://")?`<a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer" style="color:inherit">${esc(s.url)}</a>`:esc(s.url)}<br>${s.last?(s.last.ok?esc(s.last.note):`<span style="color:var(--ink);font-weight:500">Failed: ${esc(s.last.note)}</span>`)+" · "+ago(s.last.at):"Not gathered yet"}</p><p class="hint" style="margin-top:6px">Ideas go to <select class="sel" id="src-mv-${i}" data-mv="${i}" data-k="${esc(s.dir+" "+s.url)}" aria-label="Project of ${esc(s.label||host(s.url))}">${opts(s.dir)}</select> <button class="btn" id="src-mb-${i}" aria-label="Move ${esc(s.label||host(s.url))} to the chosen project" disabled>Move</button></p></div>`).join("")+(d&&d.failed||[]).map(f=>`<p style="color:var(--dim)">The sources of ${esc(f)} could not be read.</p>`).join("");
  $("pbody").innerHTML=(d&&d.error?`<p style="color:var(--dim)">${esc(d.error)}</p>`:!d?`<p style="color:var(--dim)">Sources could not be read.</p>`:rows||`<p style="color:var(--dim)">No sources yet. Paste a link to a Google Sheet, a Doc, or a shared note.</p>`)
-  +`<h3 class="sg">Add a source</h3><div style="display:grid;gap:8px;margin-top:10px"><input class="sel" id="src-url" aria-label="Link" placeholder="https://docs.google.com/…" spellcheck="false" autocomplete="off" style="width:100%;max-width:none"><input class="sel" id="src-label" aria-label="Label (optional)" placeholder="Label (optional)" style="width:100%;max-width:none"><div style="display:flex;gap:8px"><button class="btn pri" id="src-add">Add source</button><button class="btn" id="src-go"${list.length?"":" disabled"}>Gather now</button></div><p class="hint" style="font-size:12px;color:var(--dim);margin:0">${d&&d.every&&d.every!=="off"?`Checked every ${esc(d.every)} while the board is running.`:"Automatic checks are off."} Change it in Settings.</p></div>`;
- $("src-url").value=typed[0];$("src-label").value=typed[1];if(typed[2]&&$(typed[2]))$(typed[2]).focus();
- const act=async(body,done)=>{const j=await post("/sources",{dir:dir||undefined,...body});if(j.ok){done(j);load()}if(srcOpen())openSources()};
- $("src-add").onclick=()=>{const url=$("src-url").value.trim();if(!url){$("src-url").focus();return}act({op:"add",url,label:$("src-label").value.trim()},()=>{$("src-url").value=$("src-label").value="";toast("Source added")})};
+  +`<h3 class="sg">Add a source</h3><div style="display:grid;gap:8px;margin-top:10px"><input class="sel" id="src-url" aria-label="Link" placeholder="https://docs.google.com/…" spellcheck="false" autocomplete="off" style="width:100%;max-width:none"><input class="sel" id="src-label" aria-label="Label (optional)" placeholder="Label (optional)" style="width:100%;max-width:none"><select class="sel" id="src-dir" aria-label="Project this source belongs to" style="width:100%;max-width:none">${dir?"":`<option value="">Choose the project it belongs to…</option>`}${opts(dir)}</select><div style="display:flex;gap:8px"><button class="btn pri" id="src-add">Add source</button><button class="btn" id="src-go"${list.length?"":" disabled"}>Gather now</button></div><p class="hint" style="font-size:12px;color:var(--dim);margin:0">${d&&d.every&&d.every!=="off"?`Checked every ${esc(d.every)} while the board is running.`:"Automatic checks are off."} Change it in Settings.</p></div>`;
+ $("src-url").value=typed[0];$("src-label").value=typed[1];if(typed[3]!==undefined)$("src-dir").value=typed[3];
+ $("pbody").querySelectorAll("[data-mv]").forEach(m=>{const s=list[+m.dataset.mv],b=$("src-mb-"+m.dataset.mv),to=picked.get(m.dataset.k);
+  if(to&&[...m.options].some(o=>o.value===to))m.value=to;
+  (m.onchange=()=>{b.disabled=m.value===s.dir})();
+  b.onclick=()=>act({op:"move",dir:s.dir,to:m.value,url:s.url},()=>toast("Source moved"))});
+ // A Move button that went back to disabled cannot take focus; its select can.
+ const was=typed[2]&&$(typed[2]);if(was)(was.disabled?$(was.id.replace("src-mb-","src-mv-")):was).focus();
+ // Every action names the project it acts on; only "gather everything" goes without one.
+ const act=async(body,done)=>{const j=await post("/sources",body);if(j.ok){done(j);load()}if(srcOpen())openSources()};
+ $("src-add").onclick=()=>{const url=$("src-url").value.trim();if(!url){$("src-url").focus();return}const to=$("src-dir").value;if(!to){$("src-dir").focus();return}act({op:"add",dir:to,url,label:$("src-label").value.trim()},()=>{$("src-url").value=$("src-label").value="";toast("Source added")})};
  $("src-url").onkeydown=$("src-label").onkeydown=e=>{if(e.key==="Enter")$("src-add").click()};
- $("src-go").onclick=()=>{$("src-go").disabled=true;$("src-go").textContent="Gathering…";act({op:"gather"},j=>{const n=(j.results||[]).reduce((a,r)=>a+r.added,0),bad=(j.results||[]).filter(r=>!r.ok).length;toast((n?`${n} new idea${n===1?"":"s"}`:"Nothing new")+(bad?`, ${bad} source${bad===1?"":"s"} could not be read`:""))})};
- $("pbody").querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>act({op:"remove",url:list[+b.dataset.rm].url},()=>toast("Source removed")))}
+ $("src-go").onclick=()=>{$("src-go").disabled=true;$("src-go").textContent="Gathering…";act({op:"gather",dir:dir||undefined},j=>{const n=(j.results||[]).reduce((a,r)=>a+r.added,0),bad=(j.results||[]).filter(r=>!r.ok).length;toast((n?`${n} new idea${n===1?"":"s"}`:"Nothing new")+(bad?`, ${bad} source${bad===1?"":"s"} could not be read`:""))})};
+ $("pbody").querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>act({op:"remove",dir:list[+b.dataset.rm].dir,url:list[+b.dataset.rm].url},()=>toast("Source removed")))}
 let tt;function toast(s){const t=$("toast");t.textContent=s;t.classList.add("on");clearTimeout(tt);tt=setTimeout(()=>t.classList.remove("on"),4000)}
 function askNotify(){try{if(typeof Notification!=="undefined"&&Notification.permission==="default")Notification.requestPermission()}catch(e){}}
 function notifyUser(body){try{if(typeof Notification!=="undefined"&&Notification.permission==="granted")new Notification("kaizen",{body,icon:"/logo.png"})}catch(e){}}
