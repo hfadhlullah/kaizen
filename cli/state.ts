@@ -70,9 +70,27 @@ export function agentFlags(projectDir: string, cmd: string, configText?: string)
   ];
 }
 
+// One argument as a POSIX shell reads it literally: a prompt carries quotes, `$`,
+// backticks and, with notes, newlines.
+const shq = (a: string) => `'${a.replace(/'/g, `'\\''`)}'`;
+
+// Bun.which reads the PATH the process started with unless handed the current one.
+const onPath = (bin: string) => Bun.which(bin, { PATH: process.env.PATH });
+
+// Whether a multiplexer's server is up: its own CLI says so by exit code. spawnSync
+// throws on a missing binary, so the path is resolved first.
+function answers(cmd: string[]): boolean {
+  const bin = onPath(cmd[0]);
+  if (!bin) return false;
+  try {
+    return Bun.spawnSync([bin, ...cmd.slice(1)], { stdin: "ignore", stdout: "ignore", stderr: "ignore", timeout: 2000 }).exitCode === 0;
+  } catch {
+    return false;
+  }
+}
+
 export function findTerminal(cwd: string, fullCmd: string[]): { cmd: string[]; detached: boolean } | null {
   const hasDisplay = Boolean(process.env.WAYLAND_DISPLAY || process.env.DISPLAY);
-  const inTmux = Boolean(process.env.TMUX);
 
   // Windows has no xdg anything, and none of the terminals below exist there.
   // PowerShell is what a Windows user has open anyway. The command reaches it as
@@ -94,6 +112,22 @@ export function findTerminal(cwd: string, fullCmd: string[]): { cmd: string[]; d
       cmd: ["cmd.exe", "/c", "start", "", "/D", cwd, shell, "-NoExit", "-EncodedCommand", enc],
       detached: true,
     };
+  }
+
+  // Someone working inside a multiplexer wants the run there, not in a stray window.
+  // The server is asked each time: the board outlives the multiplexer it was started
+  // in, so $TMUX or $HERDR_ENV only says what was running then. herdr has no "new tab
+  // running this", and what it sends a pane is typed into an interactive shell, which
+  // eats tabs and quotes its own way -- so the line goes into a one-shot script and
+  // only `sh <path>` is typed.
+  // ponytail: the mktemp path is typed unquoted; quote it if a TMPDIR with spaces shows up.
+  const line = fullCmd.map(shq).join(" ");
+  if (answers(["herdr", "workspace", "list"])) {
+    const script = `f=$(mktemp) && printf 'rm -f "$0"\\nexec %s\\n' "$2" > "$f" && p=$(herdr tab create --cwd "$1" --label kaizen --focus | sed -n 's/.*"pane_id":"\\([^"]*\\)".*/\\1/p') && [ -n "$p" ] && herdr pane run "$p" "sh $f"`;
+    return { cmd: ["sh", "-c", script, "sh", cwd, line], detached: false };
+  }
+  if (answers(["tmux", "has-session"])) {
+    return { cmd: ["tmux", "new-window", "-c", cwd, line], detached: false };
   }
 
   if (process.env.TERMINAL && Bun.which(process.env.TERMINAL)) {
@@ -119,11 +153,6 @@ export function findTerminal(cwd: string, fullCmd: string[]): { cmd: string[]; d
     if (Bun.which("xfce4-terminal")) return { cmd: ["xfce4-terminal", `--default-working-directory=${cwd}`, "-x", ...fullCmd], detached: true };
     if (Bun.which("konsole")) return { cmd: ["konsole", "--workdir", cwd, "-e", ...fullCmd], detached: true };
     if (Bun.which("xterm")) return { cmd: ["xterm", "-e", `cd "${cwd}" && ${fullCmd.join(" ")}`], detached: true };
-  }
-
-  if (inTmux && Bun.which("tmux")) {
-    const cmdStr = fullCmd.map((a) => (a.includes(" ") ? JSON.stringify(a) : a)).join(" ");
-    return { cmd: ["tmux", "new-window", "-c", cwd, cmdStr], detached: false };
   }
 
   if (process.platform === "darwin") {

@@ -291,7 +291,8 @@ in a tab.
 <img src="https://raw.githubusercontent.com/hfadhlullah/kaizen/main/assets/board-web.png" alt="kaizen web board" width="760">
 
 Same columns, same files: an idea added here lands in `inbox.md`, a run
-started here opens your agent in a new terminal exactly as `r` does, and the board
+started here opens your agent in a new terminal exactly as `r` does (a new herdr tab
+or tmux window when one of those is running), and the board
 redraws as your agents write to disk. Mouse first; the TUI's keys still work. Click a card for its plan, review and
 backlog; `⋯` on a card runs, edits, rejects, abandons or archives. `Clear` on Done sends
 every finished run to the archive (`.kaizen/archive.md`, a list, nothing moves), and

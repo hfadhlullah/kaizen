@@ -8,7 +8,7 @@ import {
   readRuns, readInbox, writeInbox, replaceIdea, abandonRun, allBacklog, backlog,
   statusOf, columnOf, parseItem, startedRuns, boardCards, readArchive, setArchived,
   requestOf, agentFlags, readNotes, writeNotes, manualCommand, parseNotes, formatNote, appendNote, saveAttachment,
-  gitStatus, commitPush, readCommit,
+  gitStatus, commitPush, readCommit, findTerminal,
 } from "./state.ts";
 
 let state: string;
@@ -240,4 +240,34 @@ test("commitPush: commits everything, pushes, and records it; the message never 
   expect(f.why).toContain("not pushed");
   expect(readCommit(st, "r1")!.pushed).toBe(false);
   expect(gitStatus(proj)).toMatchObject({ files: [], ahead: 1 });
+});
+
+test.skipIf(process.platform === "win32")("findTerminal: a running herdr wins, then tmux, else neither; the prompt stays one literal argument", () => {
+  const bin = mkdtempSync(join(tmpdir(), "kz-bin-"));
+  const stub = (name: string, code: number) => writeFileSync(join(bin, name), `#!/bin/sh\nexit ${code}\n`, { mode: 0o755 });
+  const keys = ["PATH", "HERDR_ENV", "TMUX", "TERMINAL"];
+  const saved = keys.map((k) => process.env[k]);
+  try {
+    process.env.PATH = bin;
+    for (const k of keys.slice(1)) delete process.env[k];
+    const prompt = `/kaizen it's "q" $HOME \`id\`\n\nnote`;
+    const full = ["/usr/bin/claude", "--model", "opus", prompt];
+    expect(findTerminal("/p", full)?.cmd[0]).not.toMatch(/^(sh|tmux)$/);   // neither installed
+    stub("herdr", 1); stub("tmux", 1);
+    expect(findTerminal("/p", full)?.cmd[0]).not.toMatch(/^(sh|tmux)$/);   // installed, no server
+    process.env.TMUX = "/tmp/x,1,0"; process.env.HERDR_ENV = "1";
+    expect(findTerminal("/p", full)?.cmd[0]).not.toMatch(/^(sh|tmux)$/);   // stale env from a server since stopped
+    delete process.env.TMUX; delete process.env.HERDR_ENV; stub("tmux", 0);
+    const t = findTerminal("/p", full)!;                                   // outside it, server up
+    expect(t.cmd.slice(0, 4)).toEqual(["tmux", "new-window", "-c", "/p"]);
+    stub("herdr", 0);
+    const h = findTerminal("/p", full)!;
+    expect([h.cmd[0], h.cmd[1], h.cmd[4], h.detached]).toEqual(["sh", "-c", "/p", false]);
+    expect(h.cmd[5]).toBe(t.cmd[4]);
+    const back = Bun.spawnSync(["/bin/sh", "-c", `printf '%s\\n' ${h.cmd[5]}`]).stdout.toString();
+    expect(back).toBe(full.join("\n") + "\n");
+  } finally {
+    keys.forEach((k, i) => (saved[i] === undefined ? delete process.env[k] : (process.env[k] = saved[i])));
+    rmSync(bin, { recursive: true, force: true });
+  }
 });

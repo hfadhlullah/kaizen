@@ -907,7 +907,7 @@ export async function dashboard(
       return;
     }
     await report([
-      c.bold("Started in new terminal"),
+      c.bold(r.cmd[0] === "sh" && r.cmd[2]?.includes("herdr tab create") ? "Started in a new herdr tab" : r.cmd[0] === "tmux" ? "Started in a new tmux window" : "Started in new terminal"),
       "",
       `  ${c.cyan("Agent")}     ${r.agent.name} (${c.bold(r.agent.cmd)})`,
       `  ${c.cyan("Project")}   ${tilde(r.projectDir)}`,
