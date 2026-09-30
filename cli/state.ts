@@ -335,26 +335,42 @@ export function readFindings(file: string) {
 
 // The review's numbered findings, under its Findings heading when it has one. The
 // number is the reviewer's own, which is how a fix names a finding. `done` is what
-// the run's backlog says was fixed or rejected, by number or by the finding's text.
-// ponytail: a finding fixed in the loop reads open until the backlog is written at the
-// final approval; read 05-iterations rechecks too if that gets picked twice.
+// the run's backlog says was fixed or rejected, by number or by the finding's text,
+// or what a recheck in the fix loop called closed before the backlog was written.
+// ponytail: a recheck is prose, matched as "Finding <n> — closed"; one that numbers
+// its own findings instead of the review's would close the wrong line here.
 export function reviewFindings(state: string, id: string) {
+  const base = join(state, "runs", id);
   const read = (f: string) => {
-    const p = join(state, "runs", id, f);
+    const p = join(base, f);
     return existsSync(p) ? readFileSync(p, "utf8").split("\n").map((l) => l.trim()) : [];
   };
   let lines = read("04-review.md");
   const at = lines.findIndex((l) => /^#+\s*findings/i.test(l));
   if (at >= 0) {
-    const end = lines.findIndex((l, i) => i > at && l.startsWith("#"));
+    // Sub-headings group findings; only a heading at the section's own level ends it.
+    const depth = (l: string) => /^#*/.exec(l)![0].length;
+    const end = lines.findIndex((l, i) => i > at && depth(l) > 0 && depth(l) <= depth(lines[at]!));
     lines = lines.slice(at + 1, end < 0 ? undefined : end);
   }
   const closed = read("06-backlog.md").flatMap((l) => /^-\s*(?:done|rejected):\s*(.*)$/.exec(l)?.[1] ?? []);
+  const iter = join(base, "05-iterations");
+  const rechecked = new Set((existsSync(iter) ? readdirSync(iter) : []).filter((f) => f.endsWith("-recheck.md"))
+    .flatMap((f) => [...readFileSync(join(iter, f), "utf8").matchAll(/finding\s+(\d+)\W{1,8}closed/gi)].map((m) => Number(m[1]))));
   return lines.flatMap((l) => {
     const m = /^(\d+)\.\s+(.+)$/.exec(l);
     if (!m) return [];
-    return [{ n: Number(m[1]), text: m[2]!, done: closed.some((c) => c.startsWith(`${m[1]}. `) || c.includes(m[2]!)) }];
+    const n = Number(m[1]);
+    return [{ n, text: m[2]!, done: rechecked.has(n) || closed.some((c) => c.startsWith(`${n}. `) || c.includes(m[2]!)) }];
   });
+}
+
+// The numbers a fix request may name: every one an open finding of this review, or
+// null. One that is not refuses the lot, so a stale page never fixes half of what it showed.
+export function pickFindings(state: string, id: string, nums: unknown): number[] | null {
+  const want = new Set<unknown>(Array.isArray(nums) ? nums : []);
+  const got = reviewFindings(state, id).filter((f) => !f.done && want.has(f.n)).map((f) => f.n);
+  return got.length && got.length === want.size ? got : null;
 }
 
 // What the agent is launched with to fix picked findings: the run and the numbers,
@@ -767,7 +783,11 @@ export function boardCards(states: string[], now: number): Card[] {
       });
     }
   }
-  return next;
+  // Done reads newest first: by `moved`, the time each card prints as its age.
+  // Sorted into the slots the done cards already hold, so no other card moves.
+  const done = next.filter((k) => k.column === 4).sort((a, b) => (b.moved ?? 0) - (a.moved ?? 0));
+  let i = 0;
+  return next.map((k) => (k.column === 4 ? done[i++]! : k));
 }
 
 // What starting a run needs, minus the screens: the TUI and the web board both
@@ -840,30 +860,84 @@ export async function pidOnPort(port: number): Promise<number | null> {
 // ---- git, for the board's commit and push. Always argv, never a shell: the commit
 // message is whatever the user typed. A credential prompt has no terminal to appear
 // in, so git is told not to ask and is given a minute at most.
+const gitOpts = () => ({ env: { ...process.env, GIT_TERMINAL_PROMPT: "0" }, stdin: "ignore" as const, timeout: 60_000 });
+const gitDone = (code: number | null, stdout: string, stderr: string) => {
+  const out = stdout.trimEnd(), err = stderr.trim();
+  return { ok: code === 0, out, why: (err || out).split("\n").pop() || "git did not finish" };
+};
+const NO_GIT = { ok: false, out: "", why: "git is not installed" };
 function git(dir: string, ...args: string[]) {
   // spawnSync throws when git is not installed; to the board that is just "no repo".
   let r;
+  try { r = Bun.spawnSync(["git", "-C", dir, ...args], gitOpts()); } catch { return NO_GIT; }
+  return gitDone(r.exitCode, r.stdout.toString(), r.stderr.toString());
+}
+// The same, without holding the server: for the push, the one call that waits on a network.
+async function gitAsync(dir: string, ...args: string[]) {
   try {
-    r = Bun.spawnSync(["git", "-C", dir, ...args], {
-      env: { ...process.env, GIT_TERMINAL_PROMPT: "0" }, stdin: "ignore", timeout: 60_000,
-    });
-  } catch { return { ok: false, out: "", why: "git is not installed" }; }
-  const out = r.stdout.toString().trimEnd(), err = r.stderr.toString().trim();
-  return { ok: r.exitCode === 0, out, why: (err || out).split("\n").pop() || "git did not finish" };
+    const p = Bun.spawn(["git", "-C", dir, ...args], { ...gitOpts(), stdout: "pipe", stderr: "pipe" });
+    const [out, err, code] = await Promise.all([new Response(p.stdout).text(), new Response(p.stderr).text(), p.exited]);
+    return gitDone(code, out, err);
+  } catch { return NO_GIT; }
 }
 
-export type GitStatus = { repo: false } | { repo: true; branch: string; remote: string; files: string[]; ahead: number };
+export type GitStatus = { repo: false } | { repo: true; branch: string; remote: string; files: string[]; ahead: number; others?: number; shared?: string[] };
 
 // A project the board can commit for: a git work tree with somewhere to push.
 export function gitStatus(projectDir: string): GitStatus {
   if (!git(projectDir, "rev-parse", "--is-inside-work-tree").ok) return { repo: false };
   const remote = git(projectDir, "remote").out.split("\n")[0] ?? "";
   if (!remote) return { repo: false };
-  const st = git(projectDir, "status", "--porcelain").out;
+  // Every untracked file on its own line: a new directory is never committed whole.
+  const st = git(projectDir, "status", "--porcelain", "--untracked-files=all").out;
   // No upstream yet means nothing of this branch is on the remote: any commit is ahead.
   const up = git(projectDir, "rev-list", "--count", "@{u}..HEAD");
   const ahead = up.ok ? Number(up.out) : git(projectDir, "rev-parse", "HEAD").ok ? 1 : 0;
   return { repo: true, branch: git(projectDir, "branch", "--show-current").out, remote, files: st ? st.split("\n") : [], ahead };
+}
+
+// The path of a `git status --porcelain` line; for a rename, the new one.
+// ponytail: only the surrounding quotes are undone, so a name git escapes (non-ASCII,
+// a quote, a backslash) never matches a report; read `status -z` if that comes up.
+const statusPath = (line: string) => line.slice(3).split(" -> ").pop()!.replace(/^"|"$/g, "");
+
+// What a run reported changing: 03-impl.md and its fix rounds, and when the newest
+// of them was written.
+function runReport(state: string, id: string) {
+  const base = join(state, "runs", id), its = join(base, "05-iterations");
+  const fixes = existsSync(its) ? readdirSync(its).filter((n) => n.endsWith("-fix.md")).map((n) => join(its, n)) : [];
+  let text = "", at = 0;
+  for (const f of [join(base, "03-impl.md"), ...fixes]) try { text += readFileSync(f, "utf8") + "\n"; at = Math.max(at, statSync(f).mtimeMs); } catch {}
+  return { text, at };
+}
+const names = (report: string, path: string) => report.includes("`" + path + "`") || report.includes("`" + path + ":");
+
+// The project's status narrowed to one run: a changed file is the run's when its
+// report names the path in backticks and no run that reported later names it too,
+// so a finished run is not offered the work of the ones after it. `others` counts
+// the changed files left for other runs. `shared` says which of this run's files
+// also hold an earlier run's work: one that named the file and reported after the
+// file was last committed. A file is committed whole, so the user is told whose.
+// ponytail: runs in the same file are named, not separated; that takes a worktree
+// per run or a saved patch per run.
+export function runGit(state: string, id: string): GitStatus {
+  const dir = dirname(state), s = gitStatus(dir);
+  if (!s.repo) return s;
+  const mine = runReport(state, id);
+  let ids: string[] = [];
+  try { ids = readdirSync(join(state, "runs")); } catch {}
+  const rest = ids.filter((o) => o !== id).map((o) => ({ id: o, ...runReport(state, o) }));
+  const files = s.files.filter((l) => {
+    const p = statusPath(l);
+    return names(mine.text, p) && !rest.some((r) => r.at > mine.at && names(r.text, p));
+  });
+  const shared = files.flatMap((l) => {
+    const p = statusPath(l);
+    const since = Number(git(dir, "--literal-pathspecs", "log", "-1", "--format=%ct", "--", p).out) * 1000;
+    const who = rest.filter((r) => r.at > since && names(r.text, p)).map((r) => short(r.id));
+    return who.length ? [`${p}: ${who.join(", ")}`] : [];
+  });
+  return { ...s, files, others: s.files.length - files.length, shared };
 }
 
 // What the board did for a run, kept beside the run and not in state.json, whose
@@ -879,19 +953,22 @@ export function readCommit(state: string, id: string): { sha: string; pushed: bo
 const COMMIT_TYPES = ["feat", "fix", "refactor", "perf", "docs", "test", "build", "ci", "chore", "style", "revert"];
 const COMMIT_TYPE = new RegExp(`^(${COMMIT_TYPES.join("|")})(\\([^)\\n]+\\))?!?: \\S`);
 
-// Commits everything changed in the project when anything is, then pushes. The record
+// Commits the run's changed files (`runGit`) when there are any, then pushes. The record
 // is written after the commit and again after the push, so a push that failed reads
 // as committed and not pushed. `shown` is the file list the user confirmed: anything
 // that changed since is refused, not swept in unseen.
-export function commitPush(state: string, id: string, message: string, shown: string[]): { ok: true; sha: string } | { ok: false; why: string } {
+export async function commitPush(state: string, id: string, message: string, shown: string[]): Promise<{ ok: true; sha: string } | { ok: false; why: string }> {
   const dir = dirname(state);
-  const s = gitStatus(dir);
+  const s = runGit(state, id);
   if (!s.repo) return { ok: false, why: "This project has no git remote." };
   if (s.files.join("\n") !== shown.join("\n")) return { ok: false, why: "The changed files are no longer the ones shown. Look at the list again." };
   if (s.files.length) {
     if (!message.trim()) return { ok: false, why: "A commit message is required." };
     if (!COMMIT_TYPE.test(message.trim())) return { ok: false, why: `Start the message with a type (${COMMIT_TYPES.join(", ")}), then a colon. For example, fix(web): what changed.` };
-    for (const args of [["add", "-A"], ["commit", "-m", message.trim()]]) {
+    // By path, both times: a file staged by hand for another run stays out of this commit.
+    // Literal, so a file named `a*.txt` is that file and not a pattern.
+    const paths = s.files.map(statusPath), lit = "--literal-pathspecs";
+    for (const args of [[lit, "add", "-A", "--", ...paths], [lit, "commit", "-m", message.trim(), "--", ...paths]]) {
       const r = git(dir, ...args);
       if (!r.ok) return { ok: false, why: r.why };
     }
@@ -899,7 +976,7 @@ export function commitPush(state: string, id: string, message: string, shown: st
   const sha = git(dir, "rev-parse", "--short", "HEAD").out;
   const record = (pushed: boolean) => writeFileSync(join(state, "runs", id, "07-commit.md"), `commit: ${sha}\npushed: ${pushed ? "yes" : "no"}\n`);
   record(false);
-  const p = git(dir, "rev-parse", "--abbrev-ref", "@{u}").ok ? git(dir, "push") : git(dir, "push", "-u", s.remote, "HEAD");
+  const p = await (git(dir, "rev-parse", "--abbrev-ref", "@{u}").ok ? gitAsync(dir, "push") : gitAsync(dir, "push", "-u", s.remote, "HEAD"));
   if (!p.ok) return { ok: false, why: `${sha} is committed but not pushed: ${p.why}` };
   record(true);
   return { ok: true, sha };

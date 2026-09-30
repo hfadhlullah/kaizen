@@ -5,8 +5,8 @@ import { join, dirname } from "node:path";
 import {
   home, type Item, boardCards, knownProjects, remember, locate, label, tilde, searchRoots, findProjects,
   readInbox, writeInbox, replaceIdea, abandonRun, launchRun, parseItem, short, setArchived, writeNotes,
-  appendNote, saveAttachment, pidOnPort, gitStatus, readCommit, commitPush, notice, notifier, LOGO,
-  reviewFindings, fixPrompt,
+  appendNote, saveAttachment, pidOnPort, runGit, readCommit, commitPush, notice, notifier, LOGO,
+  reviewFindings, pickFindings, fixPrompt,
 } from "./state.ts";
 import { readSources, addSource, removeSource, gatherSource, gatherAll, due } from "./sources.ts";
 
@@ -217,9 +217,11 @@ export async function web(repoDir: string, opts: Opts = {}) {
           id, short: short(id), state: read("state.json"),
           request: read("00-request.md"), plan: read("01-plan.md"), approval: read("02-approval.md"),
           impl: read("03-impl.md"), review: read("04-review.md"), backlog: read("06-backlog.md"),
-          notes: read("notes.md"), findings: reviewFindings(dir, id),
+          notes: read("notes.md"),
+          // Nothing to pick in the global state dir: /fix refuses it.
+          findings: dir === join(home, ".kaizen") ? [] : reviewFindings(dir, id),
           // The global state dir sits in $HOME, which is not a project to commit.
-          commit: readCommit(dir, id), git: dir === join(home, ".kaizen") ? { repo: false } : gitStatus(dirname(dir)),
+          commit: readCommit(dir, id), git: dir === join(home, ".kaizen") ? { repo: false } : runGit(dir, id),
         });
       }
 
@@ -424,23 +426,23 @@ export async function web(repoDir: string, opts: Opts = {}) {
           let run: any;
           try { run = JSON.parse(readFileSync(join(dir, "runs", id, "state.json"), "utf8")); } catch { return bad("no such run", 404); }
           if (run.stage !== "done" && run.awaiting !== "approvals.review") return bad("this run is not finished", 409);
-          const r = commitPush(dir, id, String(body.message ?? ""), Array.isArray(body.files) ? body.files.map(String) : []);
+          const r = await commitPush(dir, id, String(body.message ?? ""), Array.isArray(body.files) ? body.files.map(String) : []);
           changed();
           return json(r, r.ok ? 200 : 409);
         }
 
-        // Fix picked findings, on the same runs /commit takes. Only numbers that are
-        // open findings of this run's review reach the prompt; one that is not
-        // refuses the whole request, so a stale page never fixes half of what it showed.
+        // Fix picked findings, on the same runs /commit takes and for the same reason
+        // never in the global state dir: the agent starts in a project, and the run is
+        // not there. Only numbers the review itself holds reach the prompt.
         if (path === "/fix") {
           const id = String(body.id ?? "");
           if (!/^[\w.-]+$/.test(id)) return bad("bad run id");
+          if (dir === join(home, ".kaizen")) return bad("no project to fix in", 409);
           let run: any;
           try { run = JSON.parse(readFileSync(join(dir, "runs", id, "state.json"), "utf8")); } catch { return bad("no such run", 404); }
           if (run.stage !== "done" && run.awaiting !== "approvals.review" && run.awaiting !== "findings") return bad("this run is still being worked on", 409);
-          const want = new Set<unknown>(Array.isArray(body.nums) ? body.nums : []);
-          const nums = reviewFindings(dir, id).filter((f) => !f.done && want.has(f.n)).map((f) => f.n);
-          if (!nums.length || nums.length !== want.size) return bad("pick open findings of this review");
+          const nums = pickFindings(dir, id, body.nums);
+          if (!nums) return bad("pick open findings of this review");
           const text = fixPrompt(id, nums);
           const r = launchRun({ severity: null, where: null, text, raw: text }, dir);
           changed();

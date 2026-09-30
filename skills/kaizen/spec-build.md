@@ -62,7 +62,10 @@ cover, and note in `03-impl.md` what was missing from it.
 
 `03-impl.md` must list: what was produced or changed with a one-line reason each,
 deviations from the plan and why, verification carried out with its actual result,
-and anything deliberately left undone. Report failures honestly; a false claim of
+and anything deliberately left undone. Write each changed path in backticks, relative
+to the repository, and no other path that way: the board commits a run by the changed
+files its report names, so a changed path written any other way is left out of the
+commit, and a backticked path the run did not change is taken into it. Report failures honestly; a false claim of
 success poisons the review stage, which trusts this report.
 
 **A `## Preview` section says how to see the result.** For an app or service: the

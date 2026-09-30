@@ -361,12 +361,19 @@ const key=c=>c._k||(c.kind==="idea"?"idea:"+c.state+":"+c.text:"run:"+c.state+":
 // second tab refreshing cannot undo it; a view the URL asked for is a one-off.
 const urlAll=new URLSearchParams(location.search).has("all");
 function keep(d){if(urlAll)return;try{d?localStorage.setItem("kz-proj",d):localStorage.removeItem("kz-proj")}catch(e){}}
-async function load(){
+// Half-typed text outlives a redraw and a page reload. Per tab, so two tabs cannot
+// overwrite each other; form drafts are under "f:", notes under "n:".
+const DK="kz-d:";
+function draft(el,k){try{const v=sessionStorage.getItem(DK+k);if(v!=null)el.value=v}catch(e){}el.addEventListener("input",()=>{try{sessionStorage.setItem(DK+k,el.value)}catch(e){}})}
+function undraft(p){try{Object.keys(sessionStorage).forEach(k=>{if(k.startsWith(DK+p))sessionStorage.removeItem(k)})}catch(e){}}
+// quiet: the server said something changed, nobody asked for a redraw.
+async function load(quiet){
  let r;try{r=await fetch("/state"+(all?"?all=1":""))}catch{toast(GONE);return}S=await r.json();
  {const seen=new Map();for(const c of S.cards){const b=key(c),n=seen.get(b)||0;seen.set(b,n+1);c._k=n?b+"#"+n:b}}
  for(const c of S.cards){if(c.kind!=="run"||c.archived)continue;if(due(key(c),c.notice,c.status==="done",S.now))notifyUser(c.notice)}
- render();
- if(openKey){const c=S.cards.find(x=>key(x)===openKey);if(c&&runDoc)openRun(c,true);else if(c&&c.kind==="idea"){const ta=$("pbody").querySelector("textarea");if(!(ta&&document.activeElement===ta))chat(c,c.notes,c.archived||c.status!=="idea")}}}
+ // A redraw under a form being typed in would reset its fields and its focus.
+ if(!(quiet&&mode&&$("board").querySelector(".inl input")))render();
+ if(openKey){const c=S.cards.find(x=>key(x)===openKey),ta=$("pbody").querySelector(".notes textarea");if(!c||ta&&document.activeElement===ta)return;if(runDoc)openRun(c,true,true);else if(c.kind==="idea")chat(c,c.notes,c.archived||c.status!=="idea")}}
 // A tab outliving its server would otherwise swallow every click: say so.
 const GONE="The board server is not running — start it with kaizen web (or the shortcut), then reload.";
 async function post(path,body){let r;try{r=await fetch(path,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)})}catch{toast(GONE);return{ok:false}}const j=await r.json().catch(()=>({}));if(!r.ok){toast(j.error||j.why||"That did not work");if(j.manual)console.log("run manually:",j.manual)}return j}
@@ -408,6 +415,7 @@ function inlineForm(c){
  if(mode==="run"){li.innerHTML=`<div class="q">Start a run for "${esc(c.text)}"</div><div class="q dim">Opens your agent in a new terminal, or a herdr tab or tmux window when one is running, with the request typed in.</div><div class="q dim">Full: planned, built, then checked by a separate reviewer. Lite: one session does it all, faster and cheaper.</div><div class="row"><button class="btn ghost" data-a="c">Cancel</button><button class="btn" data-a="l">Lite</button><button class="btn pri" data-a="s">Full run</button></div>`;li.querySelector('[data-a=s]').onclick=()=>startRun(c,"full");li.querySelector('[data-a=l]').onclick=()=>startRun(c,"lite")}
  li.querySelector('[data-a=c]').onclick=()=>{mode=null;render()};
  // Edit and reject take dictation; the run prompt has no field.
+ li.querySelectorAll("input,textarea").forEach((f,i)=>draft(f,"f:"+mode+":"+modeKey+":"+i));
  if(mode!=="run"){const m=mic([...li.querySelectorAll("input,textarea")]);if(m)li.querySelector(".row").prepend(m)}
  const inp=li.querySelector("input");if(inp){inp.onkeydown=e=>{if(e.key==="Enter")li.querySelector('[data-a=s]').click();if(e.key==="Escape"){mode=null;render()}};setTimeout(()=>inp.focus())}
  return li;}
@@ -419,6 +427,10 @@ async function startRun(c,kind){
  load()}
 
 function render(){
+ // A closed form leaves no draft behind; an open one is reopened after a reload.
+ // A form whose card is gone (restored after a reload, or deleted elsewhere) has nowhere to show.
+ if(mode&&mode!=="new"&&!S.cards.some(c=>key(c)===modeKey))mode=null;
+ if(!mode)undraft("f:");try{sessionStorage.setItem("kz-form",JSON.stringify(["new","edit","reject"].includes(mode)?[mode,modeKey]:null))}catch(e){}
  const cs=S.cards.filter(c=>c.archived===archive),b=$("board");b.innerHTML="";
  const nArch=S.cards.filter(c=>c.archived).length;
  const n=s=>cs.filter(c=>c.status===s).length;
@@ -454,7 +466,7 @@ function render(){
     const set=list.filter(c=>picked.has(key(c)));picking=false;picked.clear();for(const c of set)await post("/archive",{dir:c.state,id:c.id});toast("Archived "+set.length);load()});}
   const ul=document.createElement("ul");
   if(ci===0&&mode==="new"){const f=document.createElement("li");f.className="inl";f.innerHTML=`<input id="newidea" placeholder="What would you like done?"><textarea id="newnotes" placeholder="Notes: links, paths, background (optional)"></textarea><div class="row"><button class="btn ghost" id="nc">Cancel</button><button class="btn pri" id="ns">Add idea</button></div>`;ul.appendChild(f);
-   const inp=f.querySelector("input");const save=async()=>{const text=inp.value.trim();if(!text)return;const notes=f.querySelector("textarea").value.trim();mode=null;const r=await post("/inbox",{op:"add",text,notes});if(r.ok)toast("Idea added");load()};
+   const inp=f.querySelector("input");draft(inp,"f:new:0");draft(f.querySelector("textarea"),"f:new:1");const save=async()=>{const text=inp.value.trim();if(!text)return;const notes=f.querySelector("textarea").value.trim();mode=null;const r=await post("/inbox",{op:"add",text,notes});if(r.ok)toast("Idea added");load()};
    f.querySelector("#ns").onclick=save;f.querySelector("#nc").onclick=()=>{mode=null;render()};{const m=mic([inp,f.querySelector("textarea")]);if(m)f.querySelector(".row").prepend(m)}inp.onkeydown=e=>{if(e.key==="Enter")save();if(e.key==="Escape"){mode=null;render()}};setTimeout(()=>inp.focus())}
   const shown=unfolded.has(ci)||list.length<=FOLD+1?list:list.slice(0,FOLD);
   shown.forEach(c=>{if(modeKey===key(c)&&mode){ul.appendChild(inlineForm(c));return}const li=document.createElement("li");li.appendChild(card(c));ul.appendChild(li)});
@@ -485,13 +497,14 @@ function chat(c,src,ro){
  $("pbody").innerHTML=h;
  if(ro)return;
  const ta=$("pbody").querySelector("textarea"),files=[];
+ draft(ta,"n:"+key(c));
  {const m=mic([ta]);if(m)$("npick").before(m)}
  const show=()=>{$("natt").textContent=files.map(f=>f.name).join(" · ")};
  const add=f=>{files.push(f);show()};
  $("npick").onclick=()=>$("nfile").click();$("nfile").onchange=e=>{[...e.target.files].forEach(add);e.target.value=""};
  ta.onpaste=e=>{for(const it of e.clipboardData.items)if(it.kind==="file"){const f=it.getAsFile();add(new File([f],f.name==="image.png"?`paste-${Date.now()}.png`:f.name,{type:f.type}));e.preventDefault()}};
  const send=async()=>{stopDictation(true);const text=ta.value.trim();if(!text&&!files.length)return;const enc=await Promise.all(files.map(f=>new Promise(r=>{const rd=new FileReader();rd.onload=()=>r({name:f.name,data:rd.result});rd.readAsDataURL(f)})));
-  const body=c.kind==="run"?{dir:c.state,id:c.id,text,files:enc}:{dir:c.state,for:c.text,text,files:enc};const r=await post("/note",body);if(r.ok){files.length=0;ta.value="";toast("Noted");load()}};
+  const body=c.kind==="run"?{dir:c.state,id:c.id,text,files:enc}:{dir:c.state,for:c.text,text,files:enc};const r=await post("/note",body);if(r.ok){files.length=0;ta.value="";try{sessionStorage.removeItem(DK+"n:"+key(c))}catch(e){}toast("Noted");load()}};
  $("nsend").onclick=send;ta.onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send()}};
  $("pbody").scrollTop=0}
 // The builder's "## Preview" section of 03-impl.md: how to run the app, or the result itself.
@@ -499,8 +512,12 @@ function chat(c,src,ro){
 function section(impl,name){const m=impl&&impl.match(new RegExp(`^##\\s+${name}\\s*\\n([\\s\\S]*?)(?=\\n##\\s|$(?![\\s\\S]))`,"m"));return m?m[1].trim():null}
 const preview=impl=>section(impl,"Preview");
 const commitMsg=impl=>(section(impl,"Commit")||"").replace(/^```\w*\n|\n```$/g,"").trim();
-async function openRun(c,refresh){
- if(!refresh||!runDoc||runDoc.id!==c.id){runDoc=await fetch(`/run/${encodeURIComponent(c.id)}?dir=${encodeURIComponent(c.state)}`).then(r=>r.json())}
+// again: something changed on the server. Where the footer offers git, the doc is read
+// afresh: a commit or push made in a terminal shows in nothing the page already holds.
+async function openRun(c,refresh,again){
+ if(!refresh||!runDoc||runDoc.id!==c.id||again&&gitBtn(c)){const d=await fetch(`/run/${encodeURIComponent(c.id)}?dir=${encodeURIComponent(c.state)}`).then(r=>r.json());
+  // A file list being confirmed, or a push under way, keeps the doc it was drawn from.
+  if(refresh&&$("pfoot").querySelector(".inl,[data-busy]"))return;runDoc=d}
  if(openKey!==key(c))return;
  // A refresh while notes are being typed would wipe the textarea.
  const ta=$("pbody").querySelector("textarea");if(refresh&&ta&&document.activeElement===ta)return;
@@ -515,7 +532,7 @@ async function openRun(c,refresh){
  if(k==="review")fixForm(c);
  const foot=$("pfoot");
  // A refresh while the commit is being confirmed would wipe the message.
- if(refresh&&foot.querySelector(".inl"))return;
+ if(refresh&&foot.querySelector(".inl,[data-busy]"))return;
  const arch=gitBtn(c)+(c.archived?`<button class="btn pri" data-a="restore">Restore</button>`:`<button class="btn ghost" data-a="archive">Archive</button>`);
  if(c.archived)foot.innerHTML=arch;
  else if(c.status==="waiting")foot.innerHTML=`<span style="color:var(--dim);font-size:12px;flex:1">Waiting on you: ${esc(need(c.awaiting))}. Answer in the terminal running this run.</span>${arch}<button class="btn ghost" data-a="ab">Abandon</button>`;
@@ -523,17 +540,20 @@ async function openRun(c,refresh){
  else foot.innerHTML=`${arch}<button class="btn ghost" data-a="ab">Abandon run</button>`;
  foot.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{const a=b.dataset.a;if(a==="archive"||a==="restore"){toggleArchive(c,a==="archive");return}if(a==="push"){commitPush(c,"",b);return}if(a==="commit"){confirmCommit(c);return}close();mode="reject";modeKey=key(c);render()})}
 // Fix picked findings, under the review: open ones ticked, closed ones listed but settled.
-// Unticked numbers live outside the form, which every refresh rebuilds.
+// Unticked numbers live outside the form, which every refresh rebuilds. A finding is one
+// line, so md() gives one paragraph; its wrapper is dropped to sit inline in the label.
 const fixOff=new Set();
 function fixForm(c){const fs=runDoc.findings||[],open=fs.filter(f=>!f.done);
  if(c.archived||!open.length||!(c.status==="done"||c.awaiting==="findings"||c.awaiting==="approvals.review"))return;
  const el=document.createElement("div");el.className="inl fix";
- el.innerHTML=`<div class="q">Fix findings</div><div class="q dim">Opens your agent in this project, told to fix the ticked findings and recheck them.</div>`+fs.map(f=>`<label class="${f.done?"off":""}"><input type="checkbox" data-n="${f.n}" ${f.done?"disabled":fixOff.has(f.n)?"":"checked"}><span>${f.n}. ${esc(f.text)}${f.done?" (closed)":""}</span></label>`).join("")+`<div class="row"><button class="btn ghost" data-a="all"></button><button class="btn pri" data-a="s"></button></div>`;
+ el.innerHTML=`<div class="q">Fix findings</div><div class="q dim">Opens your agent in this project, told to fix the ticked findings and recheck them.</div>${c.status==="waiting"?`<div class="q dim">A session is already waiting on this run in a terminal; this opens another one.</div>`:""}`+fs.map(f=>`<label class="${f.done?"off":""}"><input type="checkbox" data-n="${f.n}" ${f.done?"disabled":fixOff.has(f.n)?"":"checked"}><span>${f.n}. ${md(f.text).replace(/^<p>|<\/p>$/g,"")}${f.done?" (closed)":""}</span></label>`).join("")+`<div class="row"><button class="btn ghost" data-a="all"></button><button class="btn pri" data-a="s"></button></div>`;
  const go=el.querySelector("[data-a=s]"),allb=el.querySelector("[data-a=all]"),picks=()=>open.filter(f=>!fixOff.has(f.n)).map(f=>f.n);
  const sync=()=>{const n=picks().length;go.textContent=n===open.length?"Fix all "+n:"Fix "+n+" selected";go.disabled=!n;allb.textContent=n===open.length?"Select none":"Select all";el.querySelectorAll("input:not(:disabled)").forEach(i=>i.checked=!fixOff.has(+i.dataset.n))};
  el.onchange=e=>{const n=+e.target.dataset.n;e.target.checked?fixOff.delete(n):fixOff.add(n);sync()};
  allb.onclick=()=>{const none=picks().length===open.length;fixOff.clear();if(none)open.forEach(f=>fixOff.add(f.n));sync()};
- go.onclick=async()=>{const nums=picks();go.disabled=true;askNotify();const r=await post("/fix",{dir:c.state,id:c.id,nums});if(r.ok)toast("Fixing "+nums.length+" finding"+(nums.length===1?"":"s")+" in your terminal: "+r.agent.name);sync()};
+ go.onclick=async()=>{const nums=picks();go.disabled=true;askNotify();const r=await post("/fix",{dir:c.state,id:c.id,nums});
+  // Sent findings come unticked, so a second press cannot open a second agent on them.
+  if(r.ok){toast("Fixing "+nums.length+" finding"+(nums.length===1?"":"s")+" in your terminal: "+r.agent.name);nums.forEach(n=>fixOff.add(n))}sync()};
  sync();$("pbody").appendChild(el)}
 // Commit and push, for a finished run in a project with a git remote. What the board
 // did is recorded per run, so the settled label outlives later changes to the tree.
@@ -543,17 +563,18 @@ function gitBtn(c){const g=runDoc.git,k=runDoc.commit;
  if(k&&k.pushed)return `<button class="btn" disabled title="${esc(k.sha)}">Committed &amp; pushed</button>`+(g.files.length?`<button class="btn" data-a="commit">Commit new changes</button>`:g.ahead>0?`<button class="btn" data-a="push">Push</button>`:"");
  if(g.files.length)return `<button class="btn pri" data-a="commit">Commit &amp; push</button>`;
  if(g.ahead>0)return `<button class="btn pri" data-a="push">Push</button>`;
- // Clean and level with the remote: it was committed and pushed somewhere else.
- return `<button class="btn" disabled>Committed &amp; pushed</button>`}
+ // Clean and level with the remote: it was committed and pushed somewhere else. With
+ // other files still changed and no record, nothing says this run was ever committed.
+ return k||!g.others?`<button class="btn" disabled>Committed &amp; pushed</button>`:""}
 function confirmCommit(c,msg){const g=runDoc.git,foot=$("pfoot");
- foot.innerHTML=`<div class="inl" style="flex:1"><div class="q">Commit ${g.files.length} changed file${g.files.length===1?"":"s"} on ${esc(g.branch||"this branch")} and push to ${esc(g.remote)}?</div><div class="q dim">Everything changed in the project is included.</div><pre class="files">${esc(g.files.join("\n"))}</pre><textarea aria-label="Commit message" placeholder="feat(scope): what changed">${esc(msg||commitMsg(runDoc.impl)||c.title||c.text)}</textarea><div class="q dim" id="clong" hidden>The first line is over 72 characters; logs will cut it short.</div><div class="row"><button class="btn ghost" data-a="c">Cancel</button><button class="btn pri" data-a="s">Commit &amp; push</button></div></div>`;
+ foot.innerHTML=`<div class="inl" style="flex:1"><div class="q">Commit ${g.files.length} changed file${g.files.length===1?"":"s"} on ${esc(g.branch||"this branch")} and push to ${esc(g.remote)}?</div><div class="q dim">Only the files this run's report names.${g.others?` ${g.others} other changed file${g.others===1?" is":"s are"} left alone.`:""}</div><pre class="files">${esc(g.files.join("\n"))}</pre>${g.shared&&g.shared.length?`<div class="q">These files also hold other runs' changes, and a file is committed whole:</div><pre class="files">${esc(g.shared.join("\n"))}</pre>`:""}<textarea aria-label="Commit message" placeholder="feat(scope): what changed">${esc(msg||commitMsg(runDoc.impl)||c.title||c.text)}</textarea><div class="q dim" id="clong" hidden>The first line is over 72 characters; logs will cut it short.</div><div class="row"><button class="btn ghost" data-a="c">Cancel</button><button class="btn pri" data-a="s">Commit &amp; push</button></div></div>`;
  const inp=foot.querySelector("textarea"),go=foot.querySelector("[data-a=s]");inp.focus();
  // Tall enough to show the whole message, up to half the window.
  const fit=()=>{inp.style.height="auto";inp.style.height=Math.min(inp.scrollHeight+2,innerHeight/2)+"px";$("clong").hidden=inp.value.split("\n")[0].length<=72};inp.oninput=fit;fit();
  foot.querySelector("[data-a=c]").onclick=()=>{foot.innerHTML="";openRun(c,true)};
  go.onclick=()=>{if(!inp.value.trim()){toast("A commit message is required");return}commitPush(c,inp.value,go)};
  inp.onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();go.click()}}}
-async function commitPush(c,message,b){b.disabled=true;b.textContent="Pushing…";
+async function commitPush(c,message,b){b.disabled=true;b.dataset.busy=1;b.textContent="Pushing…";
  const r=await post("/commit",{dir:c.state,id:c.id,message,files:runDoc.git.files});if(r.ok)toast("Committed & pushed "+r.sha);
  $("pfoot").innerHTML="";if(openKey!==key(c))return;await openRun(c,false);
  // A refused message comes back for another try, beside the current file list.
@@ -574,7 +595,7 @@ function md(src,tick){
   const hm=/^(#{1,6})\s+(.*)$/.exec(l);if(hm){endList();out.push(`<h${Math.min(hm[1].length,3)}>${inl(hm[2])}</h${Math.min(hm[1].length,3)}>`);i++;continue}
   if(/^---+$/.test(l.trim())){endList();out.push("<hr>");i++;continue}
   if(/^\|/.test(l)){endList();const rows=[];while(i<lines.length&&/^\|/.test(lines[i]))rows.push(lines[i++]);const cells=r=>r.replace(/^\||\|$/g,"").split("|").map(c=>inl(c.trim()));out.push("<table>"+rows.filter(r=>!/^\|\s*-/.test(r)).map((r,n)=>`<tr>${cells(r).map(c=>n?`<td>${c}</td>`:`<th>${c}</th>`).join("")}</tr>`).join("")+"</table>");continue}
-  const li=/^\s*(?:[-*]|\d+\.)\s+(.*)$/.exec(l);if(li){const t=/^\s*\d+\./.test(l)?"ol":"ul";if(list!==t){endList();out.push(`<${t}>`);list=t}const tk=tick&&/^(open|done|rejected):\s*(.*)$/.exec(li[1]);out.push(tk?`<li class="tk${tk[1]==="rejected"?" rej":""}"><label><input type="checkbox" tabindex="-1" onclick="return false"${tk[1]==="done"?" checked":""} aria-label="${tk[1]}"><span>${inl(tk[2])}</span></label></li>`:`<li>${inl(li[1])}</li>`);i++;continue}
+  const li=/^\s*(?:[-*]|\d+\.)\s+(.*)$/.exec(l);if(li){const t=/^\s*\d+\./.test(l)?"ol":"ul";if(list!==t){endList();out.push(`<${t}>`);list=t}const tk=tick&&/^(open|done|rejected):\s*(.*)$/.exec(li[1]);out.push(tk?`<li class="tk${tk[1]==="rejected"?" rej":""}"><label><input type="checkbox" tabindex="-1" aria-disabled="true" onclick="return false"${tk[1]==="done"?" checked":""} aria-label="${tk[1]}"><span>${inl(tk[2])}</span></label></li>`:`<li>${inl(li[1])}</li>`);i++;continue}
   if(!l.trim()){endList();i++;continue}
   endList();const buf=[l];i++;while(i<lines.length&&lines[i].trim()&&!/^(#|```|\||\s*[-*]\s|\s*\d+\.\s|---)/.test(lines[i]))buf.push(lines[i++]);out.push(`<p>${inl(buf.join(" "))}</p>`)}
  endList();return out.join("")}
@@ -668,11 +689,14 @@ document.onkeydown=e=>{
 
 // ---- live
 let boot=null;
-function listen(){const es=new EventSource("/events");es.onmessage=ev=>{if(ev.data==="changed"){load();if(srcOpen()&&!$("src-go")?.disabled)openSources()}else if(ev.data==="reload")location.reload();else if(ev.data.startsWith("hello ")){const b=ev.data.slice(6);if(boot&&b!==boot)location.reload();boot=b}};es.onerror=()=>{es.close();setTimeout(listen,3000)}}
+// Back from a terminal: what was committed or pushed there touched nothing the server watches.
+addEventListener("focus",()=>load(true));
+function listen(){const es=new EventSource("/events");es.onmessage=ev=>{if(ev.data==="changed"){load(true);if(srcOpen()&&!$("src-go")?.disabled)openSources()}else if(ev.data==="reload")location.reload();else if(ev.data.startsWith("hello ")){const b=ev.data.slice(6);if(boot&&b!==boot)location.reload();boot=b}};es.onerror=()=>{es.close();setTimeout(listen,3000)}}
 // Back to the project picked last time, unless the URL says which view it wants. A
 // plain fetch: a project that is gone should fall back to all, not raise a toast.
 (async()=>{let d;try{d=localStorage.getItem("kz-proj")}catch(e){}
  if(d&&!urlAll)try{if((await fetch("/cd",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({dir:d})})).ok)all=false;else keep()}catch(e){}
+ try{const f=JSON.parse(sessionStorage.getItem("kz-form"));if(f)[mode,modeKey]=f}catch(e){}
  load();listen()})();
 </script>
 </body>

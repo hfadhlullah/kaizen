@@ -8,7 +8,7 @@ import {
   readRuns, readInbox, writeInbox, replaceIdea, abandonRun, allBacklog, backlog,
   statusOf, columnOf, parseItem, startedRuns, boardCards, readArchive, setArchived,
   requestOf, agentFlags, readNotes, writeNotes, manualCommand, parseNotes, formatNote, appendNote, saveAttachment,
-  reviewFindings, fixPrompt, gitStatus, commitPush, readCommit, findTerminal, pruneRuns, unrechecked, notice, notifier, notifyArgs, LOGO, type Card,
+  reviewFindings, pickFindings, fixPrompt, gitStatus, runGit, commitPush, readCommit, findTerminal, pruneRuns, unrechecked, notice, notifier, notifyArgs, LOGO, type Card,
 } from "./state.ts";
 
 let state: string;
@@ -116,7 +116,15 @@ test("reviewFindings: numbered lines under Findings, closed by the backlog; the 
   expect(reviewFindings(state, "2026-09-02-done").map((f) => [f.n, f.done])).toEqual([[1, true], [2, false], [3, true]]);
   expect(reviewFindings(state, "2026-09-02-done")[1]!.text).toBe("b.ts:2: low: two.");
   expect(reviewFindings(state, "2026-09-03-stale")).toEqual([]);
+  expect(pickFindings(state, "2026-09-02-done", [2])).toEqual([2]);
+  for (const bad of [[2, 99], [1], ["2"], [], "2", undefined]) expect(pickFindings(state, "2026-09-02-done", bad)).toBeNull();
+  // Sub-headings stay inside the section; a recheck closes a finding before the backlog does.
   writeFileSync(join(dir, "06-backlog.md"), before);
+  writeFileSync(join(dir, "04-review.md"), "## Findings\n\n### High\n\n1. a.ts:1: high: one.\n\n### Low\n\n2. b.ts:2: low: two.\n\n## Gate\n\n3. no\n");
+  mkdirSync(join(dir, "05-iterations"), { recursive: true });
+  writeFileSync(join(dir, "05-iterations", "01-recheck.md"), "**Finding 1 — closed.** Proven.\n\n**Finding 2 — still open**, by choice.\n");
+  expect(reviewFindings(state, "2026-09-02-done").map((f) => [f.n, f.done])).toEqual([[1, true], [2, false]]);
+  rmSync(join(dir, "05-iterations"), { recursive: true });
   expect(fixPrompt("2026-09-02-done", [2])).toStartWith("run 2026-09-02-done: fix finding 2 from");
   expect(fixPrompt("x", [2, 5])).toContain("fix findings 2, 5 from");
 });
@@ -219,7 +227,22 @@ test("boardCards: a short idea is not retired by a request that merely contains 
   expect(boardCards([dir], Date.now()).filter((k) => k.kind === "idea").map((k) => k.text)).toEqual(["test"]);
 });
 
-test("commitPush: commits everything, pushes, and records it; the message never meets a shell", () => {
+test("boardCards: the done column is newest-moved first, the rest keep their place", () => {
+  const dir = join(mkdtempSync(join(tmpdir(), "kz-")), ".kaizen");
+  const at = (id: string, stage: string, hoursAgo: number) => {
+    mkdirSync(join(dir, "runs", id), { recursive: true });
+    writeFileSync(join(dir, "runs", id, "state.json"), JSON.stringify({ stage, awaiting: null }));
+    const t = new Date(Date.now() - hoursAgo * 3600_000);
+    utimesSync(join(dir, "runs", id, "state.json"), t, t);
+  };
+  at("2026-09-01-a", "done", 1); at("2026-09-02-b", "done", 3); at("2026-09-03-c", "abandoned", 2);
+  at("2026-09-04-d", "build", 9); at("2026-09-05-e", "done", 0);
+  const ids = boardCards([dir], Date.now()).map((k) => k.id);
+  // Unsorted this is e, d, c, b, a: d keeps slot two, the four finished runs reorder around it.
+  expect(ids).toEqual(["2026-09-05-e", "2026-09-04-d", "2026-09-01-a", "2026-09-03-c", "2026-09-02-b"]);
+});
+
+test("commitPush: commits the run's files only, pushes, and records it; the message never meets a shell", async () => {
   const root = mkdtempSync(join(tmpdir(), "kz-git-"));
   const sh = (cwd: string, ...a: string[]) => Bun.spawnSync(["git", "-C", cwd, ...a]).stdout.toString().trim();
   expect(gitStatus(root)).toEqual({ repo: false });
@@ -232,34 +255,58 @@ test("commitPush: commits everything, pushes, and records it; the message never 
   sh(proj, "remote", "add", "origin", bare);
   writeFileSync(join(proj, ".gitignore"), ".kaizen/\n");
   writeFileSync(join(proj, "a.txt"), "a");
-  expect((gitStatus(proj) as any).files.length).toBe(2);
-  const files = () => (gitStatus(proj) as any).files as string[];
-  expect(commitPush(st, "r1", "m", ["?? a.txt"])).toMatchObject({ ok: false });   // not the list that was shown
+  // Another run's file, staged by hand: the report does not name it, so it stays out.
+  writeFileSync(join(proj, "c.txt"), "c");
+  sh(proj, "add", "c.txt");
+  expect((gitStatus(proj) as any).files.length).toBe(3);
+  expect(runGit(st, "r1")).toMatchObject({ files: [], others: 3 });   // no report, no files
+  writeFileSync(join(st, "runs", "r1", "03-impl.md"), "## Changed\n\n- `.gitignore`: x\n- `a.txt:1`: y\n- c.txt and `c.txt.bak` are not named\n");
+  const files = () => (runGit(st, "r1") as any).files as string[];
+  expect(files()).toEqual(["?? .gitignore", "?? a.txt"]);
+  // An earlier run that named the same file is not offered it: the later report has it.
+  mkdirSync(join(st, "runs", "r0"));
+  writeFileSync(join(st, "runs", "r0", "03-impl.md"), "- `a.txt`: z\n");
+  utimesSync(join(st, "runs", "r0", "03-impl.md"), new Date(1000), new Date(1000));
+  expect(runGit(st, "r0")).toMatchObject({ files: [], others: 3 });
+  // The later run is told the file holds the earlier run's work too.
+  expect(runGit(st, "r1")).toMatchObject({ shared: ["a.txt: r0"] });
+  expect(await commitPush(st, "r1", "m", ["?? a.txt"])).toMatchObject({ ok: false });   // not the list that was shown
   expect(sh(proj, "rev-list", "--all", "--count")).toBe("0");                             // and nothing was committed
-  expect(commitPush(st, "r1", " ", files())).toEqual({ ok: false, why: "A commit message is required." });
+  expect(await commitPush(st, "r1", " ", files())).toEqual({ ok: false, why: "A commit message is required." });
   // A subject with no type is refused before anything is staged.
   for (const untyped of ["add the thing", "feature: x", "fix:no space", "note\n\nfix: in the body"])
-    expect((commitPush(st, "r1", untyped, files()) as { why: string }).why).toContain("Start the message with a type");
+    expect((await commitPush(st, "r1", untyped, files()) as { why: string }).why).toContain("Start the message with a type");
   expect(sh(proj, "rev-list", "--all", "--count")).toBe("0");
-  expect(sh(proj, "diff", "--cached", "--name-only")).toBe("");
+  expect(sh(proj, "diff", "--cached", "--name-only")).toBe("c.txt");   // only what was staged by hand
   const msg = 'fix(web)!: $(touch pwned); "q" `id`', text = "what changed\nand why";
-  const r = commitPush(st, "r1", `${msg}\n\n${text}`, files()) as { ok: true; sha: string };
+  let ticked = false;
+  setTimeout(() => { ticked = true; }, 0);
+  const r = await commitPush(st, "r1", `${msg}\n\n${text}`, files()) as { ok: true; sha: string };
   expect(r.ok).toBe(true);
+  expect(ticked).toBe(true);   // the push did not hold the event loop
   expect(sh(proj, "log", "-1", "--format=%s")).toBe(msg);
   expect(sh(proj, "log", "-1", "--format=%b")).toBe(text);
   expect(existsSync(join(proj, "pwned"))).toBe(false);
   expect(sh(bare, "rev-parse", "--short", "HEAD")).toBe(r.sha);
-  expect(gitStatus(proj)).toMatchObject({ files: [], ahead: 0 });
+  expect(runGit(st, "r1")).toMatchObject({ files: [], ahead: 0, others: 1, shared: [] });
+  expect(sh(proj, "show", "--name-only", "--format=", "HEAD")).toBe(".gitignore\na.txt");
+  expect(Bun.spawnSync(["git", "-C", proj, "status", "--porcelain"]).stdout.toString()).toBe("A  c.txt\n");
   expect(readCommit(st, "r1")).toEqual({ sha: r.sha, pushed: true });
 
   // A push that fails leaves a record that says so.
   sh(proj, "remote", "set-url", "origin", join(root, "gone.git"));
-  writeFileSync(join(proj, "b.txt"), "b");
-  const f = commitPush(st, "r1", "chore: second", files()) as { ok: false; why: string };
+  // A fix round's report names files too, and a name with a star in it is not a pattern.
+  mkdirSync(join(st, "runs", "r1", "05-iterations"));
+  writeFileSync(join(st, "runs", "r1", "05-iterations", "01-fix.md"), "- `b*.txt`: fixed\n");
+  writeFileSync(join(proj, "b*.txt"), "b");
+  writeFileSync(join(proj, "bb.txt"), "b");
+  expect(files()).toEqual(["?? b*.txt"]);
+  const f = await commitPush(st, "r1", "chore: second", files()) as { ok: false; why: string };
   expect(f.ok).toBe(false);
   expect(f.why).toContain("not pushed");
   expect(readCommit(st, "r1")!.pushed).toBe(false);
-  expect(gitStatus(proj)).toMatchObject({ files: [], ahead: 1 });
+  expect(sh(proj, "show", "--name-only", "--format=", "HEAD")).toBe("b*.txt");
+  expect(runGit(st, "r1")).toMatchObject({ files: [], ahead: 1, others: 2 });
 });
 
 test.skipIf(process.platform === "win32")("findTerminal: a running herdr wins, then tmux, else neither; the prompt stays one literal argument", () => {
