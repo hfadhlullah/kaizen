@@ -2,13 +2,16 @@
 import {
   symlinkSync, mkdirSync, readdirSync, lstatSync, readlinkSync, unlinkSync,
   existsSync, copyFileSync, readFileSync, appendFileSync, rmSync, writeFileSync, renameSync,
-  statSync, cpSync,
+  statSync, cpSync, realpathSync,
 } from "node:fs";
 import { join, dirname, basename } from "node:path";
 import { homedir, tmpdir } from "node:os";
 import { applyPreset, detectPreset, PRESETS, type PresetName } from "./settings.ts";
 
-const home = homedir();
+// The real path: process.cwd() is always physical, so a raw $HOME that crosses a
+// symlink (/home -> var/home) would never compare equal to it, and the home
+// directory would be offered set-up as if it were a project.
+const home = (() => { try { return realpathSync(homedir()); } catch { return homedir(); } })();
 const REPO_URL = "https://github.com/hfadhlullah/kaizen.git";
 const args = new Set(Bun.argv.slice(2));
 const upgrade = args.has("upgrade") || args.has("--upgrade");
@@ -69,6 +72,45 @@ const onPath = new Set(
 );
 const found = (r: string) =>
   AGENTS.filter((a) => existsSync(join(r, a.dir)) || onPath.has(a.dir));
+
+// Request sources. Dispatched on the first word alone and ahead of every flag
+// check below, so a label or a link that happens to read `web` or `uninstall` is
+// only ever a label.
+if (Bun.argv[2] === "sources" || Bun.argv[2] === "gather") {
+  const { locate } = await import("./state.ts");
+  const src = await import("./sources.ts");
+  const state = locate() ?? join(home, ".kaizen");
+  const [, , cmd, op, url = "", ...rest] = Bun.argv;
+  const line = (r: { url: string; ok: boolean; note: string }) => `  ${r.ok ? c.green("ok  ") : "fail"}  ${r.url}  ${c.dim(r.note)}`;
+  try {
+    if (cmd === "gather" && op === "--stdin") {
+      // What an agent read from a link kaizen could not: one request per line, an
+      // optional tab, then notes. Only for a link already listed.
+      if (!src.readSources(state).some((s) => s.url === url)) { console.log(`
+  not a listed source: ${url || "(no link given)"}
+`); process.exit(1); }
+      const items = (await Bun.stdin.text()).split("\n").filter((l) => l.trim()).map((l) => {
+        const [text = "", ...notes] = l.split("\t");
+        return { text, notes: notes.join(" ") };
+      });
+      console.log(line(src.record(state, url, src.ingest(state, url, items))));
+    } else if (cmd === "gather") {
+      const results = await src.gatherAll(state);
+      console.log(results.length ? results.map(line).join("\n") : `\n  no sources yet ${c.dim("— kaizen sources add <link>")}\n`);
+      if (results.some((r) => !r.ok)) process.exit(1);
+    } else if (op === "add" || op === "rm") {
+      const why = op === "add" ? src.addSource(state, url, rest.join(" ")) : src.removeSource(state, url);
+      if (why) { console.log(`\n  ${why}\n`); process.exit(1); }
+      console.log(`\n  ${op === "add" ? "added" : "removed"} ${url}\n`);
+    } else {
+      const list = src.readSources(state);
+      console.log(list.length
+        ? "\n" + list.map((s) => `  ${s.url}${s.label ? `  ${s.label}` : ""}\n    ${c.dim(s.last ? `${s.last.at.slice(0, 16).replace("T", " ")}  ${s.last.note}` : "not gathered yet")}`).join("\n") + "\n"
+        : `\n  no sources yet ${c.dim("— kaizen sources add <link>")}\n`);
+    }
+  } catch (e) { console.log(`\n  ${(e as Error).message}\n`); process.exit(1); }
+  process.exit(0);
+}
 
 if (args.has("--version") || args.has("-v") || args.has("version")) {
   console.log(versionOf(dirname(import.meta.dir)));
@@ -209,6 +251,22 @@ async function openUrl(url: string) {
 if (wantSettings) {
   const { settings } = await import("./settings.ts");
   await settings(await resolveRepoQuietly());
+  process.exit(0);
+}
+
+// Deleting runs is a job for code with a test, not for an agent with `rm`. Lists by
+// default; --yes is what deletes.
+if (args.has("prune")) {
+  const { locate, pruneRuns } = await import("./state.ts");
+  const { listSettings } = await import("./settings.ts");
+  const state = locate();
+  if (!state) { console.log("\n  no .kaizen here\n"); process.exit(1); }
+  const keep = Number(listSettings(await resolveRepoQuietly()).rows.find((r) => r.key === "state.keep_runs")?.value) || 20;
+  const apply = args.has("--yes");
+  const gone = pruneRuns(state, keep, apply);
+  console.log(gone.length
+    ? `\n  ${apply ? "pruned" : "would prune"} ${gone.length} finished run(s), keeping the newest ${keep}:\n${gone.map((g) => `    ${g.id}${g.rescued ? c.dim(`  ${g.rescued} open item(s) ${apply ? "moved" : "to move"} to backlog.md`) : ""}`).join("\n")}\n${apply ? "" : `\n  ${c.dim("nothing deleted — run:")} ${c.cyan("kaizen prune --yes")}\n`}`
+    : `\n  nothing to prune ${c.dim(`(${keep} finished runs are kept)`)}\n`);
   process.exit(0);
 }
 
@@ -629,7 +687,17 @@ for (const [src, sub] of links) {
   if (verbose) console.log(c.dim(`  link  ${name}`));
 }
 
+// A project's spec copies are what a run there reads, and they are copied once.
+function specDrift() {
+  const dir = join(process.cwd(), ".kaizen");
+  return readdirSync(join(repo, "skills/kaizen"))
+    .filter((f) => f.startsWith("spec") && existsSync(join(dir, f)) && !sameFile(join(repo, "skills/kaizen", f), join(dir, f)));
+}
+
 if (check) {
+  const drift = specDrift();
+  for (const f of drift) console.log(`DRIFT .kaizen/${f} (behind the skill's copy)`);
+  if (drift.length) { console.log(`\n${drift.length} spec file(s) behind — run: kaizen --yes`); if (!blocked) process.exit(1); }
   console.log(blocked ? `\n${blocked} link(s) missing — run: bunx kaizen-agent` : "\nall linked");
   process.exit(blocked ? 1 : 0);
 }
@@ -734,7 +802,9 @@ if (inProject && !kaizenAbove()) {
       : false;
   if (now) initProject();
 } else if (existsSync(kaizenDir)) {
-  step(`${basename(process.cwd())}/.kaizen already set up`);
+  const drift = specDrift();
+  for (const f of drift) copyFileSync(join(repo, "skills/kaizen", f), join(kaizenDir, f));
+  step(`${basename(process.cwd())}/.kaizen already set up${drift.length ? ` — refreshed ${drift.join(", ")}` : ""}`);
 }
 
 function initProject() {

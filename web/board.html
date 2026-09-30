@@ -134,6 +134,7 @@ section h2 .clear{margin-left:auto;min-height:22px;padding:0 8px}
 .chat{display:flex;flex-direction:column;gap:10px;margin:0 0 14px}.msg{border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;background:var(--bg)}.msg time{display:block;font-size:11px;color:var(--dim);margin-bottom:4px}.msg p:last-child{margin-bottom:0}.msg img{max-width:100%;max-height:260px;border-radius:var(--r-s);display:block;margin:4px 0}
 .notes .tools{display:flex;gap:6px;align-items:center}.notes .tools span{flex:1;font-size:11px;color:var(--dim)}.notes .att{font-size:11px;color:var(--dim)}
 .inl pre.files{margin:0;max-height:140px;overflow:auto;font:12px/1.5 var(--mono);color:var(--dim)}
+.inl.fix{margin-top:16px}.inl.fix label{display:flex;gap:8px;align-items:baseline;font-size:13px;cursor:pointer}.inl.fix label.off{color:var(--dim);cursor:default}.inl.fix input{flex:none;width:auto;margin:0;accent-color:var(--accent);position:relative;top:2px}
 .inl .q{font-size:14px;font-weight:500}.inl .q.dim{color:var(--dim);font-size:13px;font-weight:400}
 .empty{grid-column:1/-1;display:flex;flex-direction:column;align-items:center;gap:12px;padding-block:60px;color:var(--dim);text-align:center}
 .empty b{font-size:16px;font-weight:600;color:var(--ink)}.empty p{margin:0 0 6px;max-width:44ch}
@@ -164,6 +165,7 @@ aside .foot{padding:16px 24px;border-top:1px solid var(--line);display:flex;gap:
 aside .foot:empty{display:none}
 .md h3{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin:20px 0 8px}.md h3:first-child{margin-top:0}
 .md p{margin:0 0 10px;max-width:62ch}.md ol,.md ul{display:block;padding:0 0 0 1.4em;margin:0 0 10px;list-style:revert}.md li{margin:3px 0}
+.md li.tk{list-style:none;margin-left:-1.4em}.md li.tk label{display:flex;gap:8px;align-items:baseline}.md li.tk input{flex:none;margin:0;accent-color:var(--accent);position:relative;top:2px;cursor:default}.md li.rej{color:var(--dim);text-decoration:line-through}
 .md pre{background:var(--bg);border:1px solid var(--line);border-radius:var(--r-s);padding:10px 12px;overflow-x:auto;margin:0 0 10px;font:12px/1.5 var(--mono)}
 .md h1,.md h2{font-size:15px;font-weight:600;margin:20px 0 8px}.md h1:first-child,.md h2:first-child{margin-top:0}.md code{font:12px var(--mono);background:var(--bg);padding:1px 5px;border-radius:var(--r-s)}.md table{border-collapse:collapse;font-size:12px;margin:0 0 10px}.md td,.md th{border:1px solid var(--line);padding:4px 8px;text-align:left}.md hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 .find{border-bottom:1px solid var(--line);padding:10px 0;display:flex;gap:10px;align-items:flex-start}
@@ -199,6 +201,7 @@ aside .foot:empty{display:none}
 <svg style="display:none"><defs>
 <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
 <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+<symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.1.4l3-3a5 5 0 0 0-7.1-7.1l-1.7 1.7M14 11a5 5 0 0 0-7.1-.4l-3 3a5 5 0 0 0 7.1 7.1l1.7-1.7"/></symbol>
 <symbol id="i-play" viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z"/></symbol>
 <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6"/></symbol>
 <symbol id="i-pen" viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></symbol>
@@ -230,6 +233,7 @@ aside .foot:empty{display:none}
   <div class="combo" id="combo"><button class="sel" id="proj" aria-label="project" aria-haspopup="listbox" aria-expanded="false"></button><div class="menu-pop" id="projpop" hidden><input class="sel" id="projq" aria-label="Search projects" placeholder="Search projects…" spellcheck="false" autocomplete="off"><div id="projs" role="listbox"></div></div></div>
   <span class="sp"></span>
   <button class="btn pri" id="newtop">New idea</button>
+  <button class="ib" id="sources" title="Request sources" aria-label="Request sources"><svg><use href="#i-link"/></svg></button>
   <button class="ib" id="settings" title="Settings" aria-label="Settings"><svg><use href="#i-gear"/></svg></button>
 </div>
 <div class="strip" id="strip"></div>
@@ -333,7 +337,7 @@ function mic(fields){
  return b}
 const m=60e3,h=3600e3,d=86400e3;
 const age=(t,now)=>{const x=now-t;return x<h?Math.round(x/m)+"m":x<d?Math.round(x/h)+"h":Math.round(x/d)+"d"};
-const NAMES={claude:"Claude Code",codex:"Codex",agy:"Antigravity",opencode:"OpenCode",gemini:"Gemini",cursor:"Cursor"};
+const NAMES={claude:"Claude Code",codex:"Codex",agy:"Antigravity",opencode:"OpenCode",gemini:"Gemini",cursor:"Cursor",unrechecked:"fix not rechecked"};
 const MARKS={claude:1,codex:1,agy:1,opencode:1,gemini:1,cursor:1,full:1,lite:1};
 const COLS=["Ideas","Planning","Building","Review","Done"];
 // state.ts statuses onto the icon set in the <defs> above.
@@ -347,7 +351,8 @@ let all=new URLSearchParams(location.search).get("all")!=="0",openKey=null,mode=
 const FOLD=6;const unfolded=new Set();
 let archive=false;
 let clearMenu=false,picking=false;const picked=new Set();     // Clear on Done: menu, then cherry-pick mode                                   // showing the archive instead of the board
-const wasAwaiting=new Map();let first=true;
+// The server writes notifier() from state.ts over the marker: one rule for both UIs.
+const due=(/*notifier*/)();
 
 // Two ideas may carry the same text; load() numbers the repeats so a key names one card.
 const key=c=>c._k||(c.kind==="idea"?"idea:"+c.state+":"+c.text:"run:"+c.state+":"+c.id);
@@ -359,9 +364,8 @@ function keep(d){if(urlAll)return;try{d?localStorage.setItem("kz-proj",d):localS
 async function load(){
  let r;try{r=await fetch("/state"+(all?"?all=1":""))}catch{toast(GONE);return}S=await r.json();
  {const seen=new Map();for(const c of S.cards){const b=key(c),n=seen.get(b)||0;seen.set(b,n+1);c._k=n?b+"#"+n:b}}
- for(const c of S.cards){if(c.kind!=="run")continue;const k=key(c),before=wasAwaiting.get(k);
-  if(!first&&before===null&&c.awaiting)notifyUser("kaizen — waiting on you",c.text+" · "+need(c.awaiting));wasAwaiting.set(k,c.awaiting)}
- first=false;render();
+ for(const c of S.cards){if(c.kind!=="run"||c.archived)continue;if(due(key(c),c.notice,c.status==="done",S.now))notifyUser(c.notice)}
+ render();
  if(openKey){const c=S.cards.find(x=>key(x)===openKey);if(c&&runDoc)openRun(c,true);else if(c&&c.kind==="idea"){const ta=$("pbody").querySelector("textarea");if(!(ta&&document.activeElement===ta))chat(c,c.notes,c.archived||c.status!=="idea")}}}
 // A tab outliving its server would otherwise swallow every click: say so.
 const GONE="The board server is not running — start it with kaizen web (or the shortcut), then reload.";
@@ -465,7 +469,7 @@ function render(){
 // ---- detail panel
 function open(c){
  stopDictation(true); // the panel body is about to be replaced
- openKey=key(c);$("panel").classList.add("open");$("scrim").classList.add("on");$("ptitle").textContent=c.text;render();
+ fixOff.clear();openKey=key(c);$("panel").classList.add("open");$("scrim").classList.add("on");$("ptitle").textContent=c.text;render();
  if(c.kind==="idea"){runDoc=null;$("psub").textContent="Idea · "+c.where;$("ptabs").innerHTML="";chat(c,c.notes,c.archived||c.status!=="idea");
   const foot=$("pfoot");foot.innerHTML=c.archived?`<button class="btn pri" data-a="restore">Restore</button>`:c.status==="idea"?`<button class="btn pri" data-a="run">Run</button><button class="btn" data-a="edit">Edit</button><button class="btn" data-a="reject">Reject</button><button class="btn ghost" data-a="archive">Archive</button><button class="btn ghost danger" data-a="delete">Delete</button>`:`<span style="color:var(--dim);font-size:12px;flex:1">Starting: a run was launched for this idea. No terminal with your agent? Run it again.</span><button class="btn" data-a="run">Run again</button>`;
   foot.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{const a=b.dataset.a;if(a==="archive"||a==="restore"){toggleArchive(c,a==="archive");return}const k=key(c);close();mode=a;modeKey=k;render()});return}
@@ -507,7 +511,8 @@ async function openRun(c,refresh){
  const k=tabs[tab][1],doc=k==="preview"?preview(runDoc.impl):runDoc[k];
  if(k==="notes"){const ro=c.archived||c.status==="done"||c.status==="abandoned";
   chat(c,doc,ro);}
- else $("pbody").innerHTML=doc?md(doc):`<p style="color:var(--dim)">No ${({request:"request",plan:"plan",impl:"work report",preview:"preview",review:"review",backlog:"backlog"})[k]} yet.</p>`;
+ else $("pbody").innerHTML=doc?md(doc,k==="backlog"):`<p style="color:var(--dim)">No ${({request:"request",plan:"plan",impl:"work report",preview:"preview",review:"review",backlog:"backlog"})[k]} yet.</p>`;
+ if(k==="review")fixForm(c);
  const foot=$("pfoot");
  // A refresh while the commit is being confirmed would wipe the message.
  if(refresh&&foot.querySelector(".inl"))return;
@@ -517,6 +522,19 @@ async function openRun(c,refresh){
  else if(c.status==="done"||c.status==="abandoned")foot.innerHTML=arch;
  else foot.innerHTML=`${arch}<button class="btn ghost" data-a="ab">Abandon run</button>`;
  foot.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{const a=b.dataset.a;if(a==="archive"||a==="restore"){toggleArchive(c,a==="archive");return}if(a==="push"){commitPush(c,"",b);return}if(a==="commit"){confirmCommit(c);return}close();mode="reject";modeKey=key(c);render()})}
+// Fix picked findings, under the review: open ones ticked, closed ones listed but settled.
+// Unticked numbers live outside the form, which every refresh rebuilds.
+const fixOff=new Set();
+function fixForm(c){const fs=runDoc.findings||[],open=fs.filter(f=>!f.done);
+ if(c.archived||!open.length||!(c.status==="done"||c.awaiting==="findings"||c.awaiting==="approvals.review"))return;
+ const el=document.createElement("div");el.className="inl fix";
+ el.innerHTML=`<div class="q">Fix findings</div><div class="q dim">Opens your agent in this project, told to fix the ticked findings and recheck them.</div>`+fs.map(f=>`<label class="${f.done?"off":""}"><input type="checkbox" data-n="${f.n}" ${f.done?"disabled":fixOff.has(f.n)?"":"checked"}><span>${f.n}. ${esc(f.text)}${f.done?" (closed)":""}</span></label>`).join("")+`<div class="row"><button class="btn ghost" data-a="all"></button><button class="btn pri" data-a="s"></button></div>`;
+ const go=el.querySelector("[data-a=s]"),allb=el.querySelector("[data-a=all]"),picks=()=>open.filter(f=>!fixOff.has(f.n)).map(f=>f.n);
+ const sync=()=>{const n=picks().length;go.textContent=n===open.length?"Fix all "+n:"Fix "+n+" selected";go.disabled=!n;allb.textContent=n===open.length?"Select none":"Select all";el.querySelectorAll("input:not(:disabled)").forEach(i=>i.checked=!fixOff.has(+i.dataset.n))};
+ el.onchange=e=>{const n=+e.target.dataset.n;e.target.checked?fixOff.delete(n):fixOff.add(n);sync()};
+ allb.onclick=()=>{const none=picks().length===open.length;fixOff.clear();if(none)open.forEach(f=>fixOff.add(f.n));sync()};
+ go.onclick=async()=>{const nums=picks();go.disabled=true;askNotify();const r=await post("/fix",{dir:c.state,id:c.id,nums});if(r.ok)toast("Fixing "+nums.length+" finding"+(nums.length===1?"":"s")+" in your terminal: "+r.agent.name);sync()};
+ sync();$("pbody").appendChild(el)}
 // Commit and push, for a finished run in a project with a git remote. What the board
 // did is recorded per run, so the settled label outlives later changes to the tree.
 function gitBtn(c){const g=runDoc.git,k=runDoc.commit;
@@ -545,8 +563,9 @@ function close(){stopDictation(true);openKey=null;runDoc=null;$("panel").classLi
 $("pclose").onclick=close;$("scrim").onclick=close;
 
 // Enough markdown for kaizen's own files: headings, lists, fences, tables,
-// inline code, bold. Everything is escaped first.
-function md(src){
+// inline code, bold. Everything is escaped first. With `tick`, a backlog item
+// (`- open: …`, `- done: …`, `- rejected: …`) shows its status as a checkbox.
+function md(src,tick){
  const lines=src.split("\n"),out=[];let i=0,list=null;
  const inl=s=>esc(s).replace(/`([^`]+)`/g,"<code>$1</code>").replace(/\*\*([^*]+)\*\*/g,"<b>$1</b>").replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g,'<a href="$2" target="_blank"><img src="$2" alt="$1"></a>').replace(/\[([^\]]+)\]\(([^)\s]+)\)/g,'<a href="$2" target="_blank">$1</a>');
  const endList=()=>{if(list){out.push(`</${list}>`);list=null}};
@@ -555,7 +574,7 @@ function md(src){
   const hm=/^(#{1,6})\s+(.*)$/.exec(l);if(hm){endList();out.push(`<h${Math.min(hm[1].length,3)}>${inl(hm[2])}</h${Math.min(hm[1].length,3)}>`);i++;continue}
   if(/^---+$/.test(l.trim())){endList();out.push("<hr>");i++;continue}
   if(/^\|/.test(l)){endList();const rows=[];while(i<lines.length&&/^\|/.test(lines[i]))rows.push(lines[i++]);const cells=r=>r.replace(/^\||\|$/g,"").split("|").map(c=>inl(c.trim()));out.push("<table>"+rows.filter(r=>!/^\|\s*-/.test(r)).map((r,n)=>`<tr>${cells(r).map(c=>n?`<td>${c}</td>`:`<th>${c}</th>`).join("")}</tr>`).join("")+"</table>");continue}
-  const li=/^\s*(?:[-*]|\d+\.)\s+(.*)$/.exec(l);if(li){const t=/^\s*\d+\./.test(l)?"ol":"ul";if(list!==t){endList();out.push(`<${t}>`);list=t}out.push(`<li>${inl(li[1])}</li>`);i++;continue}
+  const li=/^\s*(?:[-*]|\d+\.)\s+(.*)$/.exec(l);if(li){const t=/^\s*\d+\./.test(l)?"ol":"ul";if(list!==t){endList();out.push(`<${t}>`);list=t}const tk=tick&&/^(open|done|rejected):\s*(.*)$/.exec(li[1]);out.push(tk?`<li class="tk${tk[1]==="rejected"?" rej":""}"><label><input type="checkbox" tabindex="-1" onclick="return false"${tk[1]==="done"?" checked":""} aria-label="${tk[1]}"><span>${inl(tk[2])}</span></label></li>`:`<li>${inl(li[1])}</li>`);i++;continue}
   if(!l.trim()){endList();i++;continue}
   endList();const buf=[l];i++;while(i<lines.length&&lines[i].trim()&&!/^(#|```|\||\s*[-*]\s|\s*\d+\.\s|---)/.test(lines[i]))buf.push(lines[i++]);out.push(`<p>${inl(buf.join(" "))}</p>`)}
  endList();return out.join("")}
@@ -585,9 +604,33 @@ async function openSettings(){
  $("nt").onclick=()=>{askNotify();setTimeout(openSettings,300)};
  if(cfg)cfg.rows.forEach(r=>{const el=$("s-"+r.key.replace(/\./g,"-"));const save=async v=>{const j=await post("/settings",{key:r.key,value:v});if(j.ok)toast("Saved");openSettings()};
   if(el.tagName==="SELECT"||el.tagName==="INPUT")el.onchange=async()=>{await save(el.value.trim());if(el.tagName==="INPUT")load()};else el.querySelectorAll("[data-v]").forEach(b=>b.onclick=()=>save(b.dataset.v));if(el.matches(".chk"))el.onclick=()=>save(el.dataset.v)})}
+// ---- request sources: links kaizen reads for new ideas. Same panel as settings.
+const SRC="Request sources";
+const srcOpen=()=>$("panel").classList.contains("open")&&$("ptitle").textContent===SRC;
+const ago=at=>{const m=Math.round((Date.now()-Date.parse(at))/60000);return m<1?"just now":m<60?m+" min ago":m<1440?Math.round(m/60)+" h ago":Math.round(m/1440)+" d ago"};
+async function openSources(){
+ stopDictation(true);
+ // What is half typed survives a refresh from the server.
+ const typed=srcOpen()?[$("src-url")?.value||"",$("src-label")?.value||"",document.activeElement?.id]:["",""];
+ openKey=null;runDoc=null;$("panel").classList.add("open");$("scrim").classList.add("on");$("ptitle").textContent=SRC;$("ptabs").innerHTML="";$("pfoot").innerHTML="";
+ $("psub").textContent="Links kaizen checks for new requests. What it finds lands in Ideas; nothing starts on its own.";$("psub").title="";
+ const dir=all?null:S.dir,q=dir?"?dir="+encodeURIComponent(dir):"";
+ const d=await fetch("/sources"+q).then(r=>r.json()).catch(()=>null);
+ if(!srcOpen())return;
+ const host=u=>{try{return new URL(u).hostname}catch{return u}};
+ const list=d&&d.sources||[];
+ const rows=list.map((s,i)=>`<div class="srow"><label>${esc(s.label||host(s.url))}</label><button class="btn ghost" data-rm="${i}">Remove</button><p class="hint" style="overflow-wrap:anywhere">${s.url.startsWith("https://")?`<a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer" style="color:inherit">${esc(s.url)}</a>`:esc(s.url)}<br>${s.last?(s.last.ok?esc(s.last.note):`<span style="color:var(--ink);font-weight:500">Failed: ${esc(s.last.note)}</span>`)+" · "+ago(s.last.at):"Not gathered yet"}</p></div>`).join("");
+ $("pbody").innerHTML=(d&&d.error?`<p style="color:var(--dim)">${esc(d.error)}</p>`:!d?`<p style="color:var(--dim)">Sources could not be read.</p>`:rows||`<p style="color:var(--dim)">No sources yet. Paste a link to a Google Sheet, a Doc, or a shared note.</p>`)
+  +`<h3 class="sg">Add a source</h3><div style="display:grid;gap:8px;margin-top:10px"><input class="sel" id="src-url" aria-label="Link" placeholder="https://docs.google.com/…" spellcheck="false" autocomplete="off" style="width:100%;max-width:none"><input class="sel" id="src-label" aria-label="Label (optional)" placeholder="Label (optional)" style="width:100%;max-width:none"><div style="display:flex;gap:8px"><button class="btn pri" id="src-add">Add source</button><button class="btn" id="src-go"${list.length?"":" disabled"}>Gather now</button></div><p class="hint" style="font-size:12px;color:var(--dim);margin:0">${d&&d.every&&d.every!=="off"?`Checked every ${esc(d.every)} while the board is running.`:"Automatic checks are off."} Change it in Settings.</p></div>`;
+ $("src-url").value=typed[0];$("src-label").value=typed[1];if(typed[2]&&$(typed[2]))$(typed[2]).focus();
+ const act=async(body,done)=>{const j=await post("/sources",{dir:dir||undefined,...body});if(j.ok){done(j);load()}if(srcOpen())openSources()};
+ $("src-add").onclick=()=>{const url=$("src-url").value.trim();if(!url){$("src-url").focus();return}act({op:"add",url,label:$("src-label").value.trim()},()=>{$("src-url").value=$("src-label").value="";toast("Source added")})};
+ $("src-url").onkeydown=$("src-label").onkeydown=e=>{if(e.key==="Enter")$("src-add").click()};
+ $("src-go").onclick=()=>{$("src-go").disabled=true;$("src-go").textContent="Gathering…";act({op:"gather"},j=>{const n=(j.results||[]).reduce((a,r)=>a+r.added,0),bad=(j.results||[]).filter(r=>!r.ok).length;toast((n?`${n} new idea${n===1?"":"s"}`:"Nothing new")+(bad?`, ${bad} source${bad===1?"":"s"} could not be read`:""))})};
+ $("pbody").querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>act({op:"remove",url:list[+b.dataset.rm].url},()=>toast("Source removed")))}
 let tt;function toast(s){const t=$("toast");t.textContent=s;t.classList.add("on");clearTimeout(tt);tt=setTimeout(()=>t.classList.remove("on"),4000)}
 function askNotify(){try{if(typeof Notification!=="undefined"&&Notification.permission==="default")Notification.requestPermission()}catch(e){}}
-function notifyUser(title,body){try{if(typeof Notification!=="undefined"&&Notification.permission==="granted")new Notification(title,{body})}catch(e){}}
+function notifyUser(body){try{if(typeof Notification!=="undefined"&&Notification.permission==="granted")new Notification("kaizen",{body,icon:"/logo.png"})}catch(e){}}
 // The project picker: a button shaped like a select that opens a search field over the list.
 let PL=[];
 function list(){const q=$("projq").value.trim().toLowerCase();let g=0;
@@ -608,7 +651,7 @@ async function pick(v){
  else{const j=await post("/cd",{dir:v});if(j.ok){all=false;keep(v)}}
  load()}
 $("newtop").onclick=()=>{mode="new";render();$("board").scrollTo(0,0)};
-$("settings").onclick=openSettings;
+$("settings").onclick=openSettings;$("sources").onclick=openSources;
 try{const t=localStorage.getItem("kz-theme");if(t)document.documentElement.dataset.theme=t}catch(e){}
 $("kbd").onclick=()=>$("help").classList.add("on");$("help").onclick=()=>$("help").classList.remove("on");
 document.addEventListener("click",()=>{if(menuKey||clearMenu){menuKey=null;clearMenu=false;render()}});
@@ -625,7 +668,7 @@ document.onkeydown=e=>{
 
 // ---- live
 let boot=null;
-function listen(){const es=new EventSource("/events");es.onmessage=ev=>{if(ev.data==="changed")load();else if(ev.data==="reload")location.reload();else if(ev.data.startsWith("hello ")){const b=ev.data.slice(6);if(boot&&b!==boot)location.reload();boot=b}};es.onerror=()=>{es.close();setTimeout(listen,3000)}}
+function listen(){const es=new EventSource("/events");es.onmessage=ev=>{if(ev.data==="changed"){load();if(srcOpen()&&!$("src-go")?.disabled)openSources()}else if(ev.data==="reload")location.reload();else if(ev.data.startsWith("hello ")){const b=ev.data.slice(6);if(boot&&b!==boot)location.reload();boot=b}};es.onerror=()=>{es.close();setTimeout(listen,3000)}}
 // Back to the project picked last time, unless the URL says which view it wants. A
 // plain fetch: a project that is gone should fall back to all, not raise a toast.
 (async()=>{let d;try{d=localStorage.getItem("kz-proj")}catch(e){}

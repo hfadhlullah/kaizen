@@ -266,7 +266,9 @@ Slides in from the right, `520px`, full height, `--bg-2`, `--line` left border,
 `--shadow-2`, a blurred scrim over the board that closes on click. Header: title, one
 `--dim` line of id and state, close icon. Tabs for runs: Request · Notes · Plan · Work ·
 Preview · Review · Backlog, `--accent` underline on the active tab. An empty tab says
-`No plan yet.`, never the file name. Footer holds the decision buttons and nothing else:
+`No plan yet.`, never the file name. Backlog items carry a read-only checkbox in place
+of the bullet: ticked in `--accent` when done, empty when open, empty with the text
+`--dim` and struck through when rejected. Footer holds the decision buttons and nothing else:
 
 - waiting on plan: `Approve plan` (primary) · `Change something` · `Abandon` (ghost)
 - waiting on fixes: findings as checkboxes, `Fix ticked` (primary) · `Leave as is`
@@ -281,6 +283,13 @@ for a choice. A path is a text field. Rows are divided by 1 px `--line`. Config 
 are not shown; the settings file path is the tooltip on the panel's sub-line. Theme
 lives here, not in the header.
 
+Request sources opens in the same panel from a link icon left of the gear, one row per
+source in the settings row shape: its label (or host) at weight 500, the full link and
+the last result with its age under it in `--dim`, a ghost `Remove` on the right. A
+failed gather is said in words in `--ink` at weight 500, not by colour: `--warn` text
+does not reach 4.5:1 on `--bg-2` in light. Below the rows: a link field, an optional
+label field, `Add source` (the panel's primary) and `Gather now`.
+
 ### Buttons and icons
 
 Text buttons: `13px` weight 500, `--r-s`, 1 px `--line`, `--bg-2`, `--shadow-1`;
@@ -288,7 +297,7 @@ Text buttons: `13px` weight 500, `--r-s`, 1 px `--line`, `--bg-2`, `--shadow-1`;
 border or shadow and takes a `--dim` 12 % fill on hover. Icon buttons are 34 px
 squares (26 px inside cards), `--dim` at rest, `--ink` on a `--dim` 12 % fill on hover,
 always with `title` and `aria-label`. Icons are inline SVG symbols, 1.6 px stroke,
-round caps: plus, gear, play, pen, x, trash, more. No icon fonts, no emoji.
+round caps: plus, gear, link, play, pen, x, trash, more. No icon fonts, no emoji.
 
 ## 7. Keyboard and motion
 
@@ -302,10 +311,34 @@ liveness is the file mtime and the UI must not pretend to know more.
 
 ## 8. Notifications
 
-Web `Notification` when a run enters *waiting on you* or *done*, title `kaizen`, body
-`payroll export needs your approval`. Asked for permission once, on the first `r`, never
-on load. The TUI's `notify()` sends the same text through `notify-send`, so the wording
-lives in the shared state module, not in either UI.
+One notification when a run starts waiting on you, and one when it is done. Title
+`kaizen`, the logo (`assets/kaizen-logo.png`) as its icon, and a two-line body: what
+happened, then the project.
+
+```
+kaizen
+payroll-export — plan needs your approval
+~/Projects/acme
+```
+
+| The run | Body says |
+|---|---|
+| awaits `approvals.plan` | `plan needs your approval` |
+| awaits `approvals.review` | `review needs your approval` |
+| awaits `approvals.each_file` | `an edit needs your approval` |
+| awaits `findings` | `pick the findings to fix` |
+| awaits anything else | `waiting on <key>` |
+| is done | `done` |
+
+The wording is `notice()` in the shared state module, not in either UI: the web gets it
+on each card from `/state` and shows it through `Notification`, the TUI sends it through
+`notify-send`. When to send is `notifier()`, beside it, and the server hands the page
+that same function. Sent only for a run the board has already seen, when what it says
+changes: never on load, never for a run that arrives already waiting, and not `done`
+within a minute of the run leaving a wait, since you just finished it yourself.
+Abandoned and
+archived runs say nothing. The web asks for permission once, on the first `r`, never on
+load.
 
 ## 9. Accessibility
 

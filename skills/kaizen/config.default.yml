@@ -119,8 +119,9 @@ backlog:
 
 state:
   dir: .kaizen
-  # Keep this many completed runs before pruning the oldest. Pruning first rescues
-  # open backlog items into backlog.orphan_file, so it never destroys open work.
+  # Keep this many completed runs before pruning the oldest. `kaizen prune` lists
+  # what would go and `kaizen prune --yes` deletes it, after rescuing open backlog
+  # items into backlog.orphan_file, so it never destroys open work.
   keep_runs: 20
 
 git:
@@ -171,6 +172,13 @@ board:
   # moves the board there. A folder that is not itself a project (no .git, no
   # package.json) is read as a group, and the folders inside it are offered too.
   projects_dir: ""
+
+sources:
+  # How often the web board checks your request sources (links added in the board's
+  # Sources panel or with `kaizen sources add`) for new requests, while it is
+  # running: off | 1h | 6h | 24h. off means only when you press Gather now or run
+  # `kaizen gather`. What is found lands in Ideas; nothing starts on its own.
+  every: 24h
 
 dictation:
   # Whisper model the web board dictates with. Runs in the browser; downloaded once

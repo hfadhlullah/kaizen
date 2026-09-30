@@ -117,8 +117,9 @@ items stop being printed and stop being counted.
 Status is read live from each run's `state.json`, so nothing gets renamed or moved when
 a run finishes and no path you have written down elsewhere ever breaks.
 
-One thing to know about pruning: `state.keep_runs` eventually deletes old run
-directories. Before a run goes, its still-open items are moved into
+One thing to know about pruning: `kaizen prune` lists the finished runs beyond
+`state.keep_runs`, and `kaizen prune --yes` deletes them. Nothing else deletes a run
+directory. Before a run goes, its still-open items are moved into
 `.kaizen/backlog.md` — that file exists only as an orphanage. `kaizen backlog` reads it
 too and prints those items last, under *Orphaned*, so nothing outstanding disappears
 just because its run did. Items already done or rejected are deleted with their run,
@@ -228,6 +229,7 @@ even in `auto`.
   config.yml
   memory.md                     # cross-run lessons, appended by the reviewer
   backlog.md                    # orphanage only: open items rescued before pruning
+  sources.json                  # request sources: the links, and what was already gathered
   runs/
     2026-09-02-add-oauth/
       00-request.md             # the original request, verbatim

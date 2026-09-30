@@ -29,6 +29,7 @@ anything.
 | `/kaizen review [target]` | Review-only: audit existing code, no plan, no implementation |
 | `/kaizen status` | List every run grouped waiting-on-you / in flight / done / abandoned, plus open backlog count |
 | `/kaizen backlog` | Print open backlog items across all runs, grouped by source run, rescued items last under `Orphaned` |
+| `/kaizen gather` | Read request sources kaizen cannot read by itself; their requests land as ideas, nothing starts |
 | `/kaizen approve` | Approve whatever the current run is waiting on |
 | `/kaizen reject <reason>` | Reject it; the reason decides revise (back to planner) vs kill (abandon) |
 | `/kaizen abort` | Mark the current run abandoned |
@@ -96,6 +97,7 @@ Each iteration is written to `runs/<id>/05-iterations/`.
 | `git.branch_before_implement` | `true` | Branch before implement stage when on the default branch |
 | `subagents.model` | `inherit` | Model the stage subagents run on (opus/sonnet/haiku, Claude Code only) |
 | `subagents.effort` | `inherit` | Reasoning effort for the stage subagents (low/medium/high, Claude Code only) |
+| `sources.every` | `24h` | How often the web board checks request sources for new ideas (`off\|1h\|6h\|24h`) |
 | `agent.default` | `auto` | Coding agent to launch from dashboard backlog |
 | `agent.<cmd>.model`, `.effort` | — | Model/effort flags for the launched session, per tool (`claude`, `codex`, `agy`, `opencode`, `gemini`); model names are the tool's own |
 

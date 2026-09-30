@@ -21,6 +21,8 @@
   "scripts": {
     "install-links": "bun run cli/install.ts",
     "check": "bun run cli/install.ts --check",
+    "test": "bun test",
+    "prepublishOnly": "bun test",
     "postpublish": "sh cli/release.sh",
     "publish:gh": "sh cli/publish-gh.sh",
     "release": "bun publish && bun run publish:gh"

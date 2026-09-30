@@ -7,7 +7,7 @@ import {
   KNOWN_AGENTS, detectDefaultAgent, findTerminal,
   searchRoots, knownProjects, remember, findProjects, locate,
   readRuns, backlog, version, label, tilde, section, readFindings, parseItem, tidy, readBacklog, allBacklog,
-  startedRuns, normalise, statusOf, columnOf, readInbox, writeInbox, notify, short,
+  startedRuns, normalise, statusOf, columnOf, readInbox, writeInbox, notify, notice, notifier, short,
   abandonRun, replaceIdea, boardCards, launchRun, appendNote, parseNotes,
 } from "./state.ts";
 const rgb = (r: number, g: number, b: number, s: string) =>
@@ -488,10 +488,9 @@ export async function dashboard(
     // cards differently, and a stale guess after a resize clicks the wrong card.
     type Hit = { y: number; x0: number; x1: number; col: number; row: number };
     let hits: Hit[] = [];
-    // What each run was awaiting last time we looked, so a redraw can tell the
+    // What each run said last time we looked, so a redraw can tell the
     // difference between "still blocked" and "just became blocked".
-    const wasAwaiting = new Map<string, string | null>();
-    let first = true;
+    const due = notifier();
 
     const states = () => (allProjects
       ? [...knownProjects().map((d) => join(d, ".kaizen")), join(home, ".kaizen")]
@@ -505,16 +504,12 @@ export async function dashboard(
         if (k.archived) continue;                    // cleared from the board; kaizen web shows the archive
         if (k.kind === "run") {
           const key = `${k.state}/${k.id}`;
-          const before = wasAwaiting.get(key);
-          if (!first && before === null && k.awaiting) {
-            notify("kaizen — waiting on you", `${k.text} · ${k.awaiting}`);
-          }
-          wasAwaiting.set(key, k.awaiting);
+          const say = notice(k);
+          if (due(key, say, k.status === "done", now) && say) notify(say);
         }
         next.push({ ...k, dot: DOTS[k.status as Status | "idea" | "starting"]() });
       }
       cards = next;
-      first = false;
     };
 
     const inColumn = (n: number) => cards.filter((k) => k.column === n);

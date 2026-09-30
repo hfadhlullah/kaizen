@@ -30,6 +30,11 @@ are moved into it, so pruning never destroys outstanding work. Items already `do
 `rejected` are pruned with their run. Nothing else is ever written there, and
 `06-backlog.md` is never replaced by it.
 
+**Pruning is the CLI's job, never a stage's.** `kaizen prune` in a terminal lists the
+finished runs beyond `state.keep_runs`, and `kaizen prune --yes` rescues their open
+items and deletes them. No agent deletes a run directory by hand: when the count is
+over the limit, say so at the final report and name the command.
+
 `/kaizen backlog` reads `<state.dir>/backlog.md` as well as every
 `runs/*/06-backlog.md`, and prints its open items last, under an **Orphaned** group —
 otherwise a rescued item would be invisible to the only command that lists outstanding

@@ -5,8 +5,10 @@ import { join, dirname } from "node:path";
 import {
   home, type Item, boardCards, knownProjects, remember, locate, label, tilde, searchRoots, findProjects,
   readInbox, writeInbox, replaceIdea, abandonRun, launchRun, parseItem, short, setArchived, writeNotes,
-  appendNote, saveAttachment, pidOnPort, gitStatus, readCommit, commitPush,
+  appendNote, saveAttachment, pidOnPort, gitStatus, readCommit, commitPush, notice, notifier, LOGO,
+  reviewFindings, fixPrompt,
 } from "./state.ts";
+import { readSources, addSource, removeSource, gatherSource, gatherAll, due } from "./sources.ts";
 
 const PAGE = join(dirname(import.meta.dir), "web", "board.html");
 const DEFAULT_PORT = 7420;
@@ -101,7 +103,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
   const fingerprint = () => {
     let sum = 0;
     for (const dir of states(true)) {
-      for (const f of ["inbox.md", "backlog.md", "archive.md"]) { try { sum += statSync(join(dir, f)).mtimeMs; } catch { /* absent */ } }
+      for (const f of ["inbox.md", "backlog.md", "archive.md", "sources.json"]) { try { sum += statSync(join(dir, f)).mtimeMs; } catch { /* absent */ } }
       const runs = join(dir, "runs");
       if (!existsSync(runs)) continue;
       for (const id of readdirSync(runs)) { try { sum += statSync(join(runs, id, "state.json")).mtimeMs; } catch { /* absent */ } }
@@ -115,6 +117,28 @@ export async function web(repoDir: string, opts: Opts = {}) {
     const now = states(true).join("\n"); if (now !== seen) { seen = now; watchAll(); }
     const fp = fingerprint(); if (fp !== last) { last = fp; changed(); }
   }, 2000);
+
+  // The schedule: once a minute, gather every request source that is due. It writes
+  // inbox.md and sources.json only, never a state.json, and starts nothing. All of
+  // it sits in a try: an uncaught error here would end the board.
+  const every = async () => {
+    const { listSettings } = await import("./settings.ts");
+    return listSettings(repoDir).rows.find((r) => r.key === "sources.every")?.value ?? "off";
+  };
+  let busy = false;
+  const gather = setInterval(async () => {
+    if (busy) return;
+    busy = true;
+    try {
+      const ms = (parseInt(await every()) || 0) * 3600_000;   // "off" parses to nothing
+      if (ms) for (const dir of states(true)) {
+        let list;
+        try { list = readSources(dir); } catch { continue; }   // unreadable: left as it is
+        for (const s of list) if (due(s, ms, Date.now()) && (await gatherSource(dir, s.url)).added) changed();
+      }
+    } catch { /* the next tick tries again */ }
+    busy = false;
+  }, 60_000);
 
   const BOOT = Date.now().toString(36);
   const ping = setInterval(() => { for (const c of clients) { try { c.enqueue(": ping\n\n"); } catch { clients.delete(c); } } }, 8000);
@@ -156,9 +180,16 @@ export async function web(repoDir: string, opts: Opts = {}) {
 
       if (req.method === "GET" && path === "/") {
         if (!existsSync(PAGE)) return new Response("web/board.html missing", { status: 500 });
-        return new Response(readFileSync(PAGE), {
+        // The page gets the notify rule from state.ts rather than keeping its own copy.
+        return new Response(readFileSync(PAGE, "utf8").replace("/*notifier*/", () => notifier.toString()), {
           headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
         });
+      }
+
+      // The icon on a web notification; this one file and nothing beside it.
+      if (req.method === "GET" && path === "/logo.png") {
+        if (!existsSync(LOGO)) return bad("no logo", 404);
+        return new Response(Bun.file(LOGO), { headers: { "content-type": "image/png", "cache-control": "max-age=86400" } });
       }
 
       if (req.method === "GET" && path === "/state") {
@@ -170,7 +201,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           project, all, dir: state,
           projects: states(true).map((d) => ({ dir: d, label: label(d) })),
           fresh: unset.map((d) => ({ dir: join(d, ".kaizen"), label: tilde(d) })),
-          cards: boardCards(dirs, Date.now()),
+          cards: boardCards(dirs, Date.now()).map((c) => ({ ...c, notice: notice(c) })),
           now: Date.now(),
         });
       }
@@ -186,10 +217,19 @@ export async function web(repoDir: string, opts: Opts = {}) {
           id, short: short(id), state: read("state.json"),
           request: read("00-request.md"), plan: read("01-plan.md"), approval: read("02-approval.md"),
           impl: read("03-impl.md"), review: read("04-review.md"), backlog: read("06-backlog.md"),
-          notes: read("notes.md"),
+          notes: read("notes.md"), findings: reviewFindings(dir, id),
           // The global state dir sits in $HOME, which is not a project to commit.
           commit: readCommit(dir, id), git: dir === join(home, ".kaizen") ? { repo: false } : gitStatus(dirname(dir)),
         });
+      }
+
+      if (req.method === "GET" && path === "/sources") {
+        const dir = url.searchParams.get("dir") || state || join(home, ".kaizen");
+        if (!states(true).includes(dir)) return bad("unknown state dir", 404);
+        try {
+          // The seen list is bookkeeping, not something the page shows.
+          return json({ sources: readSources(dir).map(({ seen, ...s }) => s), every: await every() });
+        } catch (e) { return bad((e as Error).message, 500); }
       }
 
       if (req.method === "GET" && path === "/settings") {
@@ -291,6 +331,26 @@ export async function web(repoDir: string, opts: Opts = {}) {
           return json({ ok: true });
         }
 
+        // Request sources. Gathering adds ideas and nothing else: no run starts here.
+        if (path === "/sources") {
+          const link = String(body.url ?? "").trim();
+          try {
+            let results;
+            if (body.op === "add") {
+              const why = addSource(dir, link, typeof body.label === "string" ? body.label : undefined);
+              if (why) return bad(why);
+            } else if (body.op === "remove") {
+              const why = removeSource(dir, link);
+              if (why) return bad(why, 404);
+            } else if (body.op === "gather") {
+              if (link && !readSources(dir).some((s) => s.url === link)) return bad("no such source", 404);
+              results = link ? [await gatherSource(dir, link)] : await gatherAll(dir);
+            } else return bad("unknown op");
+            changed();
+            return json({ ok: true, sources: readSources(dir).map(({ seen, ...s }) => s), results });
+          } catch (e) { return bad((e as Error).message, 500); }
+        }
+
         if (path === "/run") {
           const text = String(body.text ?? "").trim();
           const kind = body.kind === "full" || body.kind === "lite" ? body.kind : "";
@@ -369,6 +429,26 @@ export async function web(repoDir: string, opts: Opts = {}) {
           return json(r, r.ok ? 200 : 409);
         }
 
+        // Fix picked findings, on the same runs /commit takes. Only numbers that are
+        // open findings of this run's review reach the prompt; one that is not
+        // refuses the whole request, so a stale page never fixes half of what it showed.
+        if (path === "/fix") {
+          const id = String(body.id ?? "");
+          if (!/^[\w.-]+$/.test(id)) return bad("bad run id");
+          let run: any;
+          try { run = JSON.parse(readFileSync(join(dir, "runs", id, "state.json"), "utf8")); } catch { return bad("no such run", 404); }
+          if (run.stage !== "done" && run.awaiting !== "approvals.review" && run.awaiting !== "findings") return bad("this run is still being worked on", 409);
+          const want = new Set<unknown>(Array.isArray(body.nums) ? body.nums : []);
+          const nums = reviewFindings(dir, id).filter((f) => !f.done && want.has(f.n)).map((f) => f.n);
+          if (!nums.length || nums.length !== want.size) return bad("pick open findings of this review");
+          const text = fixPrompt(id, nums);
+          const r = launchRun({ severity: null, where: null, text, raw: text }, dir);
+          changed();
+          return json(r.ok
+            ? { ok: true, agent: r.agent }
+            : { ok: false, why: r.why, manual: r.manual, agent: r.agent }, r.ok ? 200 : 500);
+        }
+
         if (path === "/abort") {
           const id = String(body.id ?? "");
           const why = String(body.why ?? "").trim() || "abandoned from the web board";
@@ -390,7 +470,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
   if (opts.open !== false) await openApp(url);
 
   await new Promise<void>((resolve) => {
-    const stop = () => { clearInterval(poll); clearInterval(ping); for (const w of watchers) { try { w.close(); } catch { /* gone */ } } server.stop(true); resolve(); };
+    const stop = () => { clearInterval(poll); clearInterval(ping); clearInterval(gather); for (const w of watchers) { try { w.close(); } catch { /* gone */ } } server.stop(true); resolve(); };
     process.on("SIGINT", stop);
     process.on("SIGTERM", stop);
   });
@@ -448,7 +528,7 @@ function winChrome(exe: string) {
 export async function shortcut() {
   const bun = process.execPath;
   const script = Bun.argv[1]!;
-  const icon = join(dirname(import.meta.dir), "assets", "kaizen-logo.png");
+  const icon = LOGO;
   const hasIcon = existsSync(icon);
   const { mkdirSync, writeFileSync, chmodSync } = await import("node:fs");
 

@@ -1,14 +1,14 @@
 // State module against a throwaway .kaizen/. Nothing here spawns a terminal: the
 // launch path is covered only up to the command it would run.
 import { test, expect, beforeAll, afterAll } from "bun:test";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, utimesSync, existsSync } from "node:fs";
-import { join } from "node:path";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, utimesSync, existsSync, readdirSync } from "node:fs";
+import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
 import {
   readRuns, readInbox, writeInbox, replaceIdea, abandonRun, allBacklog, backlog,
   statusOf, columnOf, parseItem, startedRuns, boardCards, readArchive, setArchived,
   requestOf, agentFlags, readNotes, writeNotes, manualCommand, parseNotes, formatNote, appendNote, saveAttachment,
-  gitStatus, commitPush, readCommit, findTerminal,
+  reviewFindings, fixPrompt, gitStatus, commitPush, readCommit, findTerminal, pruneRuns, unrechecked, notice, notifier, notifyArgs, LOGO, type Card,
 } from "./state.ts";
 
 let state: string;
@@ -105,6 +105,20 @@ test("parseItem: finding line splits into where, severity, text", () => {
   const it = parseItem("`cli/x.ts:12`: low: first thing. Fix: do it.");
   expect([it.where, it.severity, it.text]).toEqual(["x.ts:12", "low", "first thing."]);
   expect(parseItem("plain item").severity).toBeNull();
+});
+
+test("reviewFindings: numbered lines under Findings, closed by the backlog; the prompt names only what was picked", () => {
+  const dir = join(state, "runs", "2026-09-02-done");
+  writeFileSync(join(dir, "04-review.md"),
+    "# Review\n\n1. not a finding, above the heading\n\n## Findings\n\n1. a.ts:1: high: one. Fix: x.\n2. b.ts:2: low: two.\n3. c.ts:3: low: three.\n\n## Notes\n\n4. not a finding either\n");
+  const before = readFileSync(join(dir, "06-backlog.md"), "utf8");
+  writeFileSync(join(dir, "06-backlog.md"), before + "- done: 1. a.ts:1: high: one, reworded | fixed in iteration 1\n- rejected: c.ts:3: low: three. | not worth it\n- open: 2. b.ts:2: low: two.\n");
+  expect(reviewFindings(state, "2026-09-02-done").map((f) => [f.n, f.done])).toEqual([[1, true], [2, false], [3, true]]);
+  expect(reviewFindings(state, "2026-09-02-done")[1]!.text).toBe("b.ts:2: low: two.");
+  expect(reviewFindings(state, "2026-09-03-stale")).toEqual([]);
+  writeFileSync(join(dir, "06-backlog.md"), before);
+  expect(fixPrompt("2026-09-02-done", [2])).toStartWith("run 2026-09-02-done: fix finding 2 from");
+  expect(fixPrompt("x", [2, 5])).toContain("fix findings 2, 5 from");
 });
 
 test("startedRuns: normalised request bodies", () => {
@@ -276,4 +290,75 @@ test.skipIf(process.platform === "win32")("findTerminal: a running herdr wins, t
     keys.forEach((k, i) => (saved[i] === undefined ? delete process.env[k] : (process.env[k] = saved[i])));
     rmSync(bin, { recursive: true, force: true });
   }
+});
+
+test("prune: only finished runs beyond keep go, open items are rescued, a dry run deletes nothing", () => {
+  const st = join(mkdtempSync(join(tmpdir(), "kaizen-prune-")), ".kaizen");
+  const mk = (id: string, stage: string, backlog = "") => {
+    const dir = join(st, "runs", id);
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, "state.json"), JSON.stringify({ stage, awaiting: null }));
+    if (backlog) writeFileSync(join(dir, "06-backlog.md"), backlog);
+  };
+  mk("2026-01-01-old-build", "build");                      // oldest of all, not finished
+  mk("2026-01-02-old-review", "review");
+  mk("2026-01-03-old-plan", "plan");
+  mk("2026-01-04-done", "done", "- open: keep me\n- done: closed | x\n");
+  mk("2026-01-05-abandoned", "abandoned", "- open: not open work\n");
+  mk("2026-01-06-done", "done");
+  mk("2026-01-07-done", "done");
+  writeFileSync(join(st, "backlog.md"), "- open: already here");   // no trailing newline
+
+  expect(pruneRuns(st, 2).map((g) => g.id)).toEqual(["2026-01-04-done", "2026-01-05-abandoned"]);
+  expect(readdirSync(join(st, "runs")).length).toBe(7);           // dry run
+
+  expect(pruneRuns(st, 2, true)).toEqual([{ id: "2026-01-04-done", rescued: 1 }, { id: "2026-01-05-abandoned", rescued: 0 }]);
+  expect(readdirSync(join(st, "runs")).sort()).toEqual(
+    ["2026-01-01-old-build", "2026-01-02-old-review", "2026-01-03-old-plan", "2026-01-06-done", "2026-01-07-done"]);
+  expect(readFileSync(join(st, "backlog.md"), "utf8")).toBe("- open: already here\n- open: keep me | from 2026-01-04-done\n");
+  expect(pruneRuns(st, 2, true)).toEqual([]);
+  rmSync(dirname(st), { recursive: true, force: true });
+});
+
+test("unrechecked: the last fix with no recheck beside it", () => {
+  const dir = run("2026-09-04-fixes", { stage: "done", awaiting: null });
+  expect(unrechecked(state, "2026-09-04-fixes")).toBe(false);
+  mkdirSync(join(dir, "05-iterations"));
+  writeFileSync(join(dir, "05-iterations", "01-fix.md"), "");
+  expect(unrechecked(state, "2026-09-04-fixes")).toBe(true);
+  writeFileSync(join(dir, "05-iterations", "01-recheck.md"), "");
+  expect(unrechecked(state, "2026-09-04-fixes")).toBe(false);
+  writeFileSync(join(dir, "05-iterations", "02-fix.md"), "");
+  expect(boardCards([state], Date.now()).find((c) => c.id === "2026-09-04-fixes")!.tags).toContain("unrechecked");
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("notice: plain words for what a run waits on, done, and nothing for the rest", () => {
+  const c = (o: Partial<Card>): Card => ({ kind: "run", status: "waiting", text: "payroll", state: "", where: "~/acme", column: 1, awaiting: null, dim: false, archived: false, ...o });
+  expect(notice(c({ awaiting: "approvals.plan" }))).toBe("payroll — plan needs your approval\n~/acme");
+  for (const a of ["approvals.plan", "approvals.review", "approvals.each_file", "findings"]) expect(notice(c({ awaiting: a }))).not.toContain("waiting on");
+  expect(notice(c({ awaiting: "something.new" }))).toBe("payroll — waiting on something.new\n~/acme");
+  expect(notice(c({ status: "done" }))).toBe("payroll — done\n~/acme");
+  for (const o of [{ status: "running" }, { status: "abandoned" }, { kind: "idea" as const, status: "idea" }]) expect(notice(c(o))).toBeNull();
+  expect(notifyArgs("x")).toEqual(["notify-send", "-a", "kaizen", "-i", LOGO, "kaizen", "x"]);
+});
+
+test("notifier: only a run seen before, saying something new, and not a done the user just approved", () => {
+  const due = notifier(), M = 60_000;
+  expect(due("r", "a", false, 0)).toBe(false);           // first load, or arrived already waiting
+  expect(due("r", "a", false, 1)).toBe(false);           // still waiting
+  expect(due("r", "b", false, 2)).toBe(true);            // waiting on something else now
+  expect(due("r", "d", true, 3 * M)).toBe(false);        // approved: waiting straight to done
+  expect(due("s", null, false, 0)).toBe(false);
+  expect(due("s", "a", false, 1)).toBe(true);            // started waiting
+  expect(due("s", null, false, 2)).toBe(false);          // approved, back to work
+  expect(due("s", "d", true, 3)).toBe(false);            // ...and done in a second write
+  expect(due("t", "a", false, 0)).toBe(false);
+  expect(due("t", null, false, 1)).toBe(false);
+  expect(due("t", "d", true, 2 * M)).toBe(true);         // finished on its own, long after the last wait
+  expect(due("u", null, false, 0)).toBe(false);
+  expect(due("u", "d", true, 1)).toBe(true);             // never waited
+  // web.ts writes the function into the page over this marker; without it the board throws on load.
+  expect(notifier.toString()).toStartWith("function notifier(");
+  expect(readFileSync(join(import.meta.dir, "..", "web", "board.html"), "utf8")).toContain("(/*notifier*/)()");
 });

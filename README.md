@@ -296,7 +296,7 @@ or tmux window when one of those is running), and the board
 redraws as your agents write to disk. Mouse first; the TUI's keys still work. Click a card for its plan, review and
 backlog; `⋯` on a card runs, edits, rejects, abandons or archives. `Clear` on Done sends
 every finished run to the archive (`.kaizen/archive.md`, a list, nothing moves), and
-`Archive` in the strip shows what is there, with `Restore` on each card. A finished run in a project with a git remote gets `Commit & push` in its panel: it lists the changed files, offers the commit message the builder wrote for the work (the `## Commit` section of its report; a message must start with a type such as `feat:` or `fix:`), commits everything and pushes, and reads `Committed & pushed` afterwards (`Push` alone when the work is already committed). The gear at the top right holds the browser's theme
+`Archive` in the strip shows what is there, with `Restore` on each card. A finished run in a project with a git remote gets `Commit & push` in its panel: it lists the changed files, offers the commit message the builder wrote for the work (the `## Commit` section of its report; a message must start with a type such as `feat:` or `fix:`), commits everything and pushes, and reads `Committed & pushed` afterwards (`Push` alone when the work is already committed). The `Review` tab of such a run, or of one waiting on you at the review, lists the findings with a checkbox each: `Fix all` or `Fix N selected` opens your agent in the project to fix exactly those and recheck them. The gear at the top right holds the browser's theme
 and every `kaizen settings` knob, same rows, same `config.yml`. `--port N` picks a port, `--no-open` just
 serves, the board opens on every project, or on the one picked last time in that browser; `?all=0` in the URL narrows it to the one it was started in. `--daemon` starts the server
 detached so it outlives the terminal (pid kept in `~/.kaizen/web.pid`); `--stop` ends it. `kaizen web --shortcut` adds a launcher
@@ -312,6 +312,37 @@ board — switches to `tiny`, `base`, or `large-v3-turbo` (about 1.5 GB, needs a
 first time you press the mic in a session, so that first press needs the network; the
 model does not download again. Chromium and Edge qualify (Firefox falls back to the
 slower CPU path); a browser without a microphone API or WebAssembly shows no mic.
+
+### Request sources
+
+Requests that already live somewhere else — a team's Google Sheet, a Doc, a shared
+note — do not have to be retyped. The link icon beside the gear opens **Request
+sources**: paste a link, and kaizen reads it and adds every request it has not seen
+before to Ideas, each with a note saying where it came from. In a sheet, a column headed
+`Request`, `Idea`, `Title`, `Task`, `PBI`, `Summary` or `Name` is the request and the
+other cells become its notes; without such a header the first filled cell is. A doc or
+a plain-text link gives one idea per line.
+
+Nothing starts on its own: gathered requests sit in Ideas until you press Run.
+Gathering twice adds nothing, and an idea you deleted, edited or rejected does not come
+back. Rewording a row in the source makes it a new request. At most 50 arrive per
+gather; the rest come with the next one.
+
+While the board is running it checks each source every 24 hours — `kaizen settings` →
+*Gather requests*, or the gear, sets `off`, `1h`, `6h` or `24h` — and **Gather now**
+does it on demand. With the board stopped nothing is gathered. From a terminal:
+
+```
+kaizen sources add <link> [label]     kaizen sources        kaizen sources rm <link>
+kaizen gather
+```
+
+Kaizen fetches public `https` links only, with no login and no cookies: share a sheet
+or doc as "anyone with the link can view". A link that needs a sign-in, or a note app
+that only renders in a browser, says so in the panel; run `/kaizen gather` in your
+agent, which reads it with its own access and hands the requests over. Either way what
+a source says is treated as text for an idea, never as instructions. The links live in
+`<state.dir>/sources.json`.
 
 ### Mouse
 
@@ -519,6 +550,9 @@ tells you what it concluded, so you correct a sentence instead of filling in a f
 | `/kaizen-run` | Carry on with an approved plan |
 | `/kaizen-backlog` | Everything noticed but not done, across all runs |
 | `/kaizen-abort` | Abandon the current run |
+| `/kaizen-gather` | Read the request sources kaizen cannot read by itself into Ideas |
+| `kaizen sources [add\|rm <link>]` | In a terminal: list, add or remove request sources |
+| `kaizen gather` | In a terminal: check every source now and add new requests to Ideas |
 | `/kaizen-config` | Show this project's settings and change them |
 | `/kaizen-init` | Set up the current project — optional, the first run does it |
 | `/kaizen-help` | The full card |

@@ -115,6 +115,7 @@ const SETTINGS: Setting[] = [
   { key: "subagents.effort", label: "Effort for stage agents", group: "Agents", values: ["inherit", "low", "medium", "high"], help: "How hard the stage agents think. low is faster and cheaper; high finds more. Claude Code only" },
   { key: "agent.default", label: "Tool the board launches", group: "Agents", values: ["auto", "claude", "codex", "agy", "opencode", "gemini"], help: "Coding tool opened when you start a run from the board. auto: Claude Code if installed, else the first one found" },
   { key: "dictation.model", label: "Dictation model", group: "Board", values: ["tiny", "base", "small", "large-v3-turbo"], help: "Whisper model the web board dictates with, in the browser. tiny ~60 MB rough; base ~165 MB English-leaning; small ~410 MB accurate across languages; large-v3-turbo ~1.5 GB best, needs a capable GPU. Downloaded once on the next mic press" },
+  { key: "sources.every", label: "Gather requests", group: "Board", values: ["off", "1h", "6h", "24h"], help: "How often the board checks your request sources for new ideas while it is running. off: only when you press Gather now" },
   { key: "board.projects_dir", label: "Projects folder", group: "Board", values: [], text: true, help: "A folder your projects live in, e.g. ~/Projects. Every folder inside it appears in the board's project list, ready to choose; choosing one sets it up. Empty: only projects kaizen already knows" },
 ];
 

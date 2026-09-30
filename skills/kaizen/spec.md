@@ -102,7 +102,8 @@ categorize their own request up front.
 
 Write into `00-request.md`: the verbatim request, the deliverable, what done means,
 and what wrong means. Record in `state.json`: `id`, `mode`, `runner`, `agent`, `track`,
-`stage: "plan"`, `awaiting: null`.
+`stage: "plan"`, `awaiting: null`, `iteration: 0`, and `updated` — the time of this
+write, refreshed on every later one.
 
 `stage` takes exactly one of five words, and boards key their columns on them:
 `plan`, `build`, `review`, `done`, `abandoned`. Set it when the stage starts —

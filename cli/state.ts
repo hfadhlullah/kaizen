@@ -1,11 +1,13 @@
 // Everything kaizen knows about a project's state, read from and written to the
 // `.kaizen/` directory. No terminal, no HTTP: the TUI (`dashboard.ts`) and the web
 // board (`web.ts`) both import this and draw it their own way.
-import { existsSync, readFileSync, readdirSync, appendFileSync, writeFileSync, mkdirSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, appendFileSync, writeFileSync, mkdirSync, statSync, realpathSync, rmSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { homedir } from "node:os";
 
-export const home = homedir();
+// The real path: process.cwd() is always physical, so a raw $HOME that crosses a
+// symlink (/home -> var/home) would never compare equal to it.
+export const home = (() => { try { return realpathSync(homedir()); } catch { return homedir(); } })();
 
 export type Run = { id: string; stage: string; awaiting: string | null; moved: number; runner?: string; agent?: string };
 
@@ -263,6 +265,35 @@ export function readRuns(state: string): Run[] {
   }).reverse();
 }
 
+// The finished runs beyond the newest `keep`, oldest first; with `apply`, deleted.
+// A run still in plan, build or review is never a candidate, whatever its age. A
+// done run's open backlog items move to the orphanage first; an abandoned run's are
+// not open work and go with it.
+export function pruneRuns(state: string, keep: number, apply = false): { id: string; rescued: number }[] {
+  const finished = readRuns(state).filter((r) => r.stage === "done" || r.stage === "abandoned");
+  return finished.slice(Math.max(0, keep)).reverse().map((r) => {
+    const dir = join(state, "runs", r.id);
+    const open = r.stage === "done" ? readBacklog(join(dir, "06-backlog.md")) : [];
+    if (apply) {
+      const orphanage = join(state, "backlog.md");
+      const gap = existsSync(orphanage) && !readFileSync(orphanage, "utf8").endsWith("\n") ? "\n" : "";
+      if (open.length) appendFileSync(orphanage, gap + open.map((i) => `- open: ${i} | from ${r.id}\n`).join(""));
+      rmSync(dir, { recursive: true, force: true });
+    }
+    return { id: r.id, rescued: open.length };
+  });
+}
+
+// True when the last fix of the run's fix loop was never rechecked: the highest
+// NN-fix.md in 05-iterations/ has no NN-recheck.md beside it.
+export function unrechecked(state: string, id: string) {
+  const dir = join(state, "runs", id, "05-iterations");
+  if (!existsSync(dir)) return false;
+  const files = readdirSync(dir);
+  const last = files.filter((f) => /^\d+-fix\.md$/.test(f)).sort().pop();
+  return !!last && !files.includes(last.replace("-fix.md", "-recheck.md"));
+}
+
 // Open items are the ones worth a number; done and rejected stay as record.
 export function backlog(state: string) {
   const files = [join(state, "backlog.md")];
@@ -300,6 +331,37 @@ export function readFindings(file: string) {
   return readFileSync(file, "utf8").split("\n")
     .map((l) => l.trim())
     .filter((l) => /^\d+\.\s/.test(l) || /\b(critical|high|medium|low)\b:/.test(l));
+}
+
+// The review's numbered findings, under its Findings heading when it has one. The
+// number is the reviewer's own, which is how a fix names a finding. `done` is what
+// the run's backlog says was fixed or rejected, by number or by the finding's text.
+// ponytail: a finding fixed in the loop reads open until the backlog is written at the
+// final approval; read 05-iterations rechecks too if that gets picked twice.
+export function reviewFindings(state: string, id: string) {
+  const read = (f: string) => {
+    const p = join(state, "runs", id, f);
+    return existsSync(p) ? readFileSync(p, "utf8").split("\n").map((l) => l.trim()) : [];
+  };
+  let lines = read("04-review.md");
+  const at = lines.findIndex((l) => /^#+\s*findings/i.test(l));
+  if (at >= 0) {
+    const end = lines.findIndex((l, i) => i > at && l.startsWith("#"));
+    lines = lines.slice(at + 1, end < 0 ? undefined : end);
+  }
+  const closed = read("06-backlog.md").flatMap((l) => /^-\s*(?:done|rejected):\s*(.*)$/.exec(l)?.[1] ?? []);
+  return lines.flatMap((l) => {
+    const m = /^(\d+)\.\s+(.+)$/.exec(l);
+    if (!m) return [];
+    return [{ n: Number(m[1]), text: m[2]!, done: closed.some((c) => c.startsWith(`${m[1]}. `) || c.includes(m[2]!)) }];
+  });
+}
+
+// What the agent is launched with to fix picked findings: the run and the numbers,
+// nothing else. launchRun puts `/kaizen ` in front.
+export function fixPrompt(id: string, nums: number[]) {
+  return `run ${id}: fix finding${nums.length === 1 ? "" : "s"} ${nums.join(", ")} from its 04-review.md and recheck. `
+    + `Leave every other finding alone, and mark the fixed ones done in its 06-backlog.md.`;
 }
 
 // Backlog items are often a reviewer's finding pasted verbatim -- a backticked
@@ -364,7 +426,7 @@ export type Card = {
   moved?: number;                                  // runs only: state.json mtime
   title?: string;                                  // runs only: first line of the request
   archived: boolean;                               // hidden from the board unless asked for
-  tags?: string[];                                 // runs only: runner and agent, when recorded
+  tags?: string[];                                 // runs only: runner, agent, "unrechecked"
   notes?: string;                                  // inbox notes, or runs/<id>/notes.md
 };
 
@@ -534,11 +596,47 @@ export function saveAttachment(state: string, id: string | null, name: string, b
   return join(rel, file);
 }
 
+// What a card is worth interrupting someone for, in the words both UIs send: a run
+// that wants a decision, or one that finished. Null for everything else. The second
+// line is the project, since a notification outlives the board that raised it.
+const NEED: Record<string, string> = {
+  "approvals.plan": "plan needs your approval",
+  "approvals.review": "review needs your approval",
+  "approvals.each_file": "an edit needs your approval",
+  findings: "pick the findings to fix",
+};
+export function notice(c: Card): string | null {
+  if (c.kind !== "run") return null;
+  const what = c.awaiting ? NEED[c.awaiting] ?? `waiting on ${c.awaiting}` : c.status === "done" ? "done" : null;
+  return what && `${c.text} — ${what}\n${c.where}`;
+}
+
+// When a notice is worth sending, for both UIs: each keeps one of these, and the
+// board page is served this very function, so it must stand on its own -- no
+// imports, no outer names. A run never seen before says nothing, which covers first
+// load and a run arriving already waiting. A `done` within a minute of the run
+// leaving a wait was finished by the person's own decision, so that one stays quiet.
+// ponytail: a fixed minute; an approval whose last writes take longer still pings.
+export function notifier() {
+  const said = new Map<string, string | null>(), left = new Map<string, number>();
+  return (key: string, say: string | null, done: boolean, now: number) => {
+    const before = said.get(key);
+    said.set(key, say);
+    if (before && say !== before) left.set(key, now);
+    return before !== undefined && !!say && say !== before && !(done && now - (left.get(key) ?? -Infinity) < 60_000);
+  };
+}
+
+export const LOGO = join(dirname(import.meta.dir), "assets", "kaizen-logo.png");
+
 // Best effort: a machine without notify-send loses the notification, not the board.
-export function notify(title: string, body: string) {
+export function notifyArgs(body: string) {
+  return ["notify-send", "-a", "kaizen", ...(existsSync(LOGO) ? ["-i", LOGO] : []), "kaizen", body];
+}
+export function notify(body: string) {
   try {
     if (!Bun.which("notify-send")) return;
-    Bun.spawn(["notify-send", title, body], {
+    Bun.spawn(notifyArgs(body), {
       stdin: "ignore", stdout: "ignore", stderr: "ignore", detached: true,
     }).unref();
   } catch { /* notifications are not worth an exception */ }
@@ -664,7 +762,7 @@ export function boardCards(states: string[], now: number): Card[] {
         awaiting: r.stage === "abandoned" ? null : r.awaiting,
         dim: r.stage === "abandoned",
         archived: archive.has(r.id),
-        tags: [r.runner, r.agent].filter((t): t is string => !!t),
+        tags: [r.runner, r.agent, unrechecked(st, r.id) ? "unrechecked" : undefined].filter((t): t is string => !!t),
         notes: readNotes(st, r.id) || undefined,
       });
     }
