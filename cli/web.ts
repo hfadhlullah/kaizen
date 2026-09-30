@@ -9,7 +9,7 @@ import {
   reviewFindings, pickFindings, fixPrompt,
 } from "./state.ts";
 import { readSources, addSource, removeSource, moveSource, gatherSource, gatherAll, gatherDirs, due } from "./sources.ts";
-import { listNotes, saveNote, renameNote, deleteNote } from "./notes.ts";
+import { listNotes, saveNote, renameNote, deleteNote, boardIndex, linksTo } from "./notes.ts";
 
 const PAGE = join(dirname(import.meta.dir), "web", "board.html");
 // The notebook: its page, and the CodeMirror bundle `bun run build:web` commits beside it.
@@ -203,6 +203,13 @@ export async function web(repoDir: string, opts: Opts = {}) {
         return json({ dir, notes: listNotes(dir) });
       }
 
+      // What a note can link to on this project's board: runs, findings, backlog, ideas.
+      if (req.method === "GET" && path === "/links") {
+        const dir = url.searchParams.get("dir") ?? state ?? join(home, ".kaizen");
+        if (!states(true).includes(dir)) return bad("unknown state dir", 404);
+        return json(boardIndex(dir));
+      }
+
       // The icon on a web notification; this one file and nothing beside it.
       if (req.method === "GET" && path === "/logo.png") {
         if (!existsSync(LOGO)) return bad("no logo", 404);
@@ -241,6 +248,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
           request: read("00-request.md"), plan: read("01-plan.md"), approval: read("02-approval.md"),
           impl: read("03-impl.md"), review: read("04-review.md"), backlog: read("06-backlog.md"),
           notes: read("notes.md"),
+          // Notebook notes whose [[run:…]] links name this run.
+          linkedFrom: linksTo(dir, id),
           // Nothing to pick in the global state dir: /fix refuses it.
           findings: dir === join(home, ".kaizen") ? [] : reviewFindings(dir, id),
           // The global state dir sits in $HOME, which is not a project to commit.

@@ -352,11 +352,23 @@ link icon; the notebook's wordmark and a `Board` ghost button lead back.
 - A table the cursor is not in is drawn as one: 1 px `--line` grid, `--r-s` outer
   corners, `15px` cells padded `7px 14px`, the header row weight 600 on `--bg`, column
   alignment from the delimiter row. Clicking it shows its markdown to edit.
+- Links to the board use the wikilink with a kind: `[[run:<id>]]`, `[[run:<id>#review]]`
+  (any panel tab), `[[run:<id>#finding-2]]`, `[[run:<id>#backlog-3]]`, `[[idea:<text>]]`.
+  Off the cursor line each is a chip: section 6 chip shape on `--hover`, the card's
+  status icon (section 5) at 12 px, the run's name without its date, then `› finding 2`
+  in `--dim`. One that no longer resolves is `--dim` with a dashed underline and does
+  nothing. A click leaves for the board (`/?all=1&dir=…&run=…&tab=…&item=…`), which opens
+  that panel on that tab and marks the item with a 2 px `--accent` ring for 2 s.
+  `[[` completes notes, runs and ideas; `#` after a run completes its tabs, findings
+  and backlog items. A run's Notes tab starts with `Linked from notes`, one link per note, above its own notes.
 - `/` at the start of a line opens the block menu (section 6 card menu shape: `--bg-2`,
   `--r`, 1 px `--line`, `--shadow-2`, `13px` items with a `--dim` hint, `--hover` on the
   chosen one): Checkbox, Divider, Heading 1-3, Bullet list, Numbered list, Quote, Code
   block, Table, Link to note, Tag. Typing filters it; Enter or a click puts the block's
   markdown in place of the `/word`.
+- Width: boxed (the `68ch` reading column, the default) or full width (the note spans
+  the paper side with `56px` gutters). An arrows icon in the note's `--dim` line
+  switches; the choice is kept per browser.
 - Full screen is off by default. A maximise / minimise icon in the note's `--dim`
   line turns it on or off; `Esc` turns it off. While on, header and sidebar are hidden
   and the paper side fills the window, from note to note. With no note open the page

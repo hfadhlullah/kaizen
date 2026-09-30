@@ -70,6 +70,7 @@ select.sel{cursor:pointer;appearance:none;padding-right:30px;max-width:min(320px
 /* the note: one reading column on paper */
 .main{overflow:auto;background:var(--bg-2)}
 .page{max-width:68ch;margin:0 auto;padding:40px 28px 30vh}
+.wide .page{max-width:none;padding-inline:56px}
 /* Dealing a page: the old one is a copy beneath, the new one slides over it. */
 .sheet{position:fixed;z-index:5;margin:0;overflow:hidden;pointer-events:none}
 .sheet .shade{position:absolute;inset:0;opacity:0;background:color-mix(in srgb,var(--shade) 60%,transparent)}
@@ -129,6 +130,13 @@ select.sel{cursor:pointer;appearance:none;padding-right:30px;max-width:min(320px
 #editor .cm-table tbody tr:last-child td{border-bottom:0}
 #editor .cm-table th{font-weight:600;background:var(--bg)}
 #editor .cm-table th:first-child{border-top-left-radius:var(--r-s)}#editor .cm-table th:last-child{border-top-right-radius:var(--r-s)}
+/* A link to the board: the section 6 chip with the card's status icon (section 5). */
+#editor .cm-board{display:inline-flex;align-items:center;gap:5px;padding:1px 8px 1px 6px;border-radius:var(--r);background:var(--hover);color:var(--ink);font-size:.86em;font-weight:500;cursor:pointer;vertical-align:1px}
+#editor .cm-board:hover{background:color-mix(in srgb,var(--accent) 16%,transparent)}
+#editor .cm-board .sub{color:var(--dim);font-weight:400}
+#editor .cm-board-missing{background:none;color:var(--dim);text-decoration:underline dashed;text-underline-offset:3px;cursor:default}
+.st{width:12px;height:12px;display:grid;place-items:center;flex-shrink:0}.st svg{width:12px;height:12px;stroke-width:1.8}
+.st.d-idea,.st.d-stall,.st.d-aband{color:var(--dim)}.st.d-run{color:var(--run)}.st.d-wait{color:var(--warn)}.st.d-done{color:var(--ok)}
 /* The / menu: the board's menu popover. */
 #editor .cm-tooltip.cm-tooltip-autocomplete{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow-2);padding:6px;font:13px/1.4 var(--font);animation:fi .12s}
 #editor .cm-tooltip-autocomplete>ul{max-height:380px;min-width:220px;font:inherit;scrollbar-color:var(--line) transparent}
@@ -151,9 +159,17 @@ select.sel{cursor:pointer;appearance:none;padding-right:30px;max-width:min(320px
 </head>
 <body>
 <svg style="display:none"><defs>
+<symbol id="s-idea" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" stroke-dasharray="2 2.5"/></symbol>
+<symbol id="s-run" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 2a6 6 0 0 1 0 12z" fill="currentColor" stroke="none"/></symbol>
+<symbol id="s-stall" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 2a6 6 0 0 1 0 12z" fill="currentColor" stroke="none" opacity=".35"/></symbol>
+<symbol id="s-wait" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11v.1"/></symbol>
+<symbol id="s-done" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="currentColor" stroke="none"/><path d="M5.5 8l1.8 1.8L10.8 6" stroke="var(--bg-2)"/></symbol>
+<symbol id="s-aband" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M5.5 5.5l5 5M10.5 5.5l-5 5"/></symbol>
 <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6"/></symbol>
 <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
 <symbol id="i-chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+<symbol id="i-wide" viewBox="0 0 24 24"><path d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4"/></symbol>
+<symbol id="i-box" viewBox="0 0 24 24"><path d="M4 5v14M20 5v14M8 12h8M11 9l-3 3 3 3M13 9l3 3-3 3"/></symbol>
 <symbol id="i-max" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
 <symbol id="i-min" viewBox="0 0 24 24"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></symbol>
 <symbol id="i-list" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>

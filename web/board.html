@@ -166,6 +166,8 @@ aside .foot{padding:16px 24px;border-top:1px solid var(--line);display:flex;gap:
 aside .foot:empty{display:none}
 .md h3{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin:20px 0 8px}.md h3:first-child{margin-top:0}
 .md p{margin:0 0 10px;max-width:62ch}.md ol,.md ul{display:block;padding:0 0 0 1.4em;margin:0 0 10px;list-style:revert}.md li{margin:3px 0}
+.md .lnk a{color:var(--accent);text-underline-offset:3px}
+.md .hit{outline:2px solid var(--accent);outline-offset:3px;border-radius:var(--r-s);transition:outline-color .6s}
 .md li.tk{list-style:none;margin-left:-1.4em}.md li.tk label{display:flex;gap:8px;align-items:baseline}.md li.tk input{flex:none;margin:0;accent-color:var(--accent);position:relative;top:2px;cursor:default}.md li.rej{color:var(--dim);text-decoration:line-through}
 .md pre{background:var(--bg);border:1px solid var(--line);border-radius:var(--r-s);padding:10px 12px;overflow-x:auto;margin:0 0 10px;font:12px/1.5 var(--mono)}
 .md h1,.md h2{font-size:15px;font-weight:600;margin:20px 0 8px}.md h1:first-child,.md h2:first-child{margin-top:0}.md code{font:12px var(--mono);background:var(--bg);padding:1px 5px;border-radius:var(--r-s)}.md table{border-collapse:collapse;font-size:12px;margin:0 0 10px}.md td,.md th{border:1px solid var(--line);padding:4px 8px;text-align:left}.md hr{border:0;border-top:1px solid var(--line);margin:14px 0}
@@ -536,6 +538,10 @@ async function openRun(c,refresh,again){
   chat(c,doc,ro);}
  else $("pbody").innerHTML=doc?md(doc,k==="backlog"):`<p style="color:var(--dim)">No ${({request:"request",plan:"plan",impl:"work report",preview:"preview",review:"review",backlog:"backlog"})[k]} yet.</p>`;
  if(k==="review")fixForm(c);
+ // The notebook's notes that link here, each opening that note: above the run's own notes.
+ if(k==="notes"&&runDoc.linkedFrom&&runDoc.linkedFrom.length)$("pbody").insertAdjacentHTML("afterbegin",`<h3>Linked from notes</h3><ul class="lnk">${runDoc.linkedFrom.map(n=>`<li><a href="/notebook?dir=${encodeURIComponent(c.state)}&amp;note=${encodeURIComponent(n)}">${esc(n)}</a></li>`).join("")}</ul>`);
+ // Only the panel the link asked for: another card opened meanwhile drops the mark.
+ if(hit&&!refresh){if(hit.k===key(c))mark(hit);else hit=null}
  const foot=$("pfoot");
  // A refresh while the commit is being confirmed would wipe the message.
  if(refresh&&foot.querySelector(".inl,[data-busy]"))return;
@@ -545,6 +551,24 @@ async function openRun(c,refresh,again){
  else if(c.status==="done"||c.status==="abandoned")foot.innerHTML=arch;
  else foot.innerHTML=`${arch}<button class="btn ghost" data-a="ab">Abandon run</button>`;
  foot.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{const a=b.dataset.a;if(a==="archive"||a==="restore"){toggleArchive(c,a==="archive");return}if(a==="push"){commitPush(c,"",b);return}if(a==="commit"){confirmCommit(c);return}close();mode="reject";modeKey=key(c);render()})}
+// A link from a note (?run= or ?idea=, with dir, tab, item) opens that card's panel;
+// a finding or backlog item named is scrolled to and marked. Found by its text, since
+// the rendered list does not carry the numbers.
+let hit=null;
+function deep(){const p=new URLSearchParams(location.search),d=p.get("dir"),id=p.get("run"),idea=p.get("idea");if(!id&&idea===null)return;
+ history.replaceState(null,"",location.pathname+"?all=1");
+ const c=S.cards.find(x=>x.state===d&&(id?x.kind==="run"&&x.id===id:x.kind==="idea"&&x.text===idea));
+ if(!c){toast(id?"That run is not on this board":"That idea is not on this board");return}
+ const m=/^(finding|backlog)-(\d+)$/.exec(p.get("item")||"");
+ // An item's tab is its own when the link does not name one.
+ const t=["request","notes","plan","work","preview","review","backlog"].indexOf(p.get("tab")||(m?(m[1]==="finding"?"review":"backlog"):""));tab=t<0?0:t;hit=m?{type:m[1],n:+m[2],k:key(c)}:null;open(c)}
+// What md() leaves of a line as text: no backticks or stars, a link reduced to its words.
+function mark(h){hit=null;const flat=t=>String(t).replace(/!?\[([^\]]*)\]\([^)\s]+\)/g,"$1").replace(/[`*]/g,"").replace(/\s+/g," ").trim();
+ const b=[...(runDoc.backlog||"").matchAll(/^\s*-\s*(?:open|done|rejected):\s*(.*)$/gm)];
+ const text=h.type==="finding"?(runDoc.findings||[]).find(f=>f.n===h.n)?.text:b[h.n-1]?.[1];
+ if(!text){toast("That item is not in this run");return}
+ const want=flat(text).slice(0,60),el=[...$("pbody").querySelectorAll("li,p")].find(e=>flat(e.textContent).includes(want));
+ if(!el)return;el.scrollIntoView({block:"center"});el.classList.add("hit");setTimeout(()=>el.classList.remove("hit"),2400)}
 // Fix picked findings, under the review: open ones ticked, closed ones listed but settled.
 // Unticked numbers live outside the form, which every refresh rebuilds. A finding is one
 // line, so md() gives one paragraph; its wrapper is dropped to sit inline in the label.
@@ -715,7 +739,7 @@ function listen(){const es=new EventSource("/events");es.onmessage=ev=>{if(ev.da
 (async()=>{let d;try{d=localStorage.getItem("kz-proj")}catch(e){}
  if(d&&!urlAll)try{if((await fetch("/cd",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({dir:d})})).ok)all=false;else keep()}catch(e){}
  try{const f=JSON.parse(sessionStorage.getItem("kz-form"));if(f)[mode,modeKey]=f}catch(e){}
- load();listen()})();
+ load().then(deep);listen()})();
 </script>
 </body>
 </html>

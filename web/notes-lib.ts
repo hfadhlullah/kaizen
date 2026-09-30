@@ -19,16 +19,48 @@ export function uncode(text: string) {
   return indented.replace(/(`+)[^`\n]+?\1/g, blank);
 }
 
-export type Wikilink = { from: number; to: number; name: string; label: string };
+// `target` is everything before the `|`; `name` is it up to the `#`, `anchor` after.
+export type Wikilink = { from: number; to: number; name: string; label: string; target: string; anchor: string };
 const WIKI = /\[\[([^\[\]|\n]+?)(?:\|([^\[\]\n]+?))?\]\]/g;
 export function wikilinks(text: string): Wikilink[] {
   const out: Wikilink[] = [];
   for (const m of uncode(text).matchAll(WIKI)) {
     // A heading anchor (`[[Note#Part]]`) still links to the note.
-    const name = m[1]!.split("#")[0]!.trim();
-    if (name) out.push({ from: m.index!, to: m.index! + m[0].length, name, label: (m[2] ?? m[1]!).trim() });
+    const target = m[1]!.trim(), at = target.indexOf("#");
+    const name = (at < 0 ? target : target.slice(0, at)).trim(), anchor = at < 0 ? "" : target.slice(at + 1).trim();
+    if (name) out.push({ from: m.index!, to: m.index! + m[0].length, name, label: (m[2] ?? m[1]!).trim(), target, anchor });
   }
   return out;
+}
+
+// A link to the board instead of a note: `run:<id>` with an optional anchor naming a
+// tab, `finding-<n>` or `backlog-<n>`, or `idea:<text>` (the whole target, `#` and all).
+// Null for a note link. Note names can never hold `:`, so the two never collide.
+export const TABS = ["request", "notes", "plan", "work", "preview", "review", "backlog"] as const;
+export type BoardLink =
+  | { kind: "run"; id: string; tab?: (typeof TABS)[number]; item?: { type: "finding" | "backlog"; n: number } }
+  | { kind: "idea"; text: string };
+export function boardLink(w: Pick<Wikilink, "name" | "anchor" | "target">): BoardLink | null {
+  const idea = /^idea:\s*(.+)$/i.exec(w.target);
+  if (idea) return { kind: "idea", text: idea[1]!.trim() };
+  const run = /^run:\s*([\w.-]+)$/i.exec(w.name);
+  if (!run) return null;
+  const a = w.anchor.toLowerCase(), item = /^(finding|backlog)-(\d+)$/.exec(a);
+  if (item) return { kind: "run", id: run[1]!, tab: item[1] === "finding" ? "review" : "backlog", item: { type: item[1] as "finding" | "backlog", n: Number(item[2]) } };
+  return { kind: "run", id: run[1]!, ...((TABS as readonly string[]).includes(a) ? { tab: a as (typeof TABS)[number] } : {}) };
+}
+
+// A run id as written: the directory name, or the name without its date, which
+// means the newest run of that name (ids sort by date).
+export function resolveRun(id: string, ids: string[]): string | null {
+  if (ids.includes(id)) return id;
+  return ids.filter((x) => /^\d{4}-\d{2}-\d{2}-/.test(x) && x.slice(11) === id).sort().pop() ?? null;
+}
+
+// What a chip says after the run's name: `finding 2`, `backlog 3`, `review`.
+export function anchorWords(l: BoardLink) {
+  if (l.kind !== "run") return "";
+  return l.item ? `${l.item.type} ${l.item.n}` : l.tab ?? "";
 }
 
 // `#tag` at the start of a line or after whitespace, with at least one letter; not a

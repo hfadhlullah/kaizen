@@ -309,7 +309,7 @@ the line you are on shows its markdown, the rest reads typeset, and `/` at the s
 notes and creates the one that does not exist yet, every note lists what links to it,
 `#tags` filter the list, and a `/` in a note's name puts it in a folder. Notes save as
 you type; a note changed elsewhere since you opened it is never overwritten without
-asking, and a deleted one goes to `.kaizen/notes/.trash/`. The editor is CodeMirror,
+asking, and a deleted one goes to `.kaizen/notes/.trash/`. Notes link to the board too: `[[run:<id>#finding-2]]`, a tab (`#review`, `#backlog`), a backlog item (`#backlog-3`) or `[[idea:…]]` show as chips that open the board on that item, and a run's Notes tab lists the notes that link to it. The editor is CodeMirror,
 bundled into the package, so the notebook works offline.
 
 **Dictate instead of type.** Every text field on the board — a new idea, its notes, an

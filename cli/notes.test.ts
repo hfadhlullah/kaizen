@@ -4,8 +4,8 @@ import { test, expect, beforeEach } from "bun:test";
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, readdirSync, utimesSync, symlinkSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
-import { safeName, listNotes, saveNote, renameNote, deleteNote } from "./notes.ts";
-import { wikilinks, tags, resolve, safeUrl, tree, uncode, freshName, parseTable } from "../web/notes-lib.ts";
+import { safeName, listNotes, saveNote, renameNote, deleteNote, boardIndex, linksTo } from "./notes.ts";
+import { wikilinks, tags, resolve, safeUrl, tree, uncode, freshName, parseTable, boardLink, resolveRun, anchorWords } from "../web/notes-lib.ts";
 import { sourceHash, OUT } from "./build-web.ts";
 
 let state = "";
@@ -143,6 +143,54 @@ test("parseTable: header, alignment, rows padded, escaped pipes kept", () => {
   expect(parseTable("A | B\r\n--- | ---\r\nx | y").rows).toEqual([["x", "y"]]);
 });
 
+test("board links: kinds, tabs, items; a note link is not one", () => {
+  const w = (t: string) => wikilinks(t)[0]!;
+  expect(boardLink(w("[[run:2026-10-01-notebook]]"))).toEqual({ kind: "run", id: "2026-10-01-notebook" });
+  expect(boardLink(w("[[run:notebook#Review|see]]"))).toEqual({ kind: "run", id: "notebook", tab: "review" });
+  expect(boardLink(w("[[run:notebook#finding-2]]"))).toEqual({ kind: "run", id: "notebook", tab: "review", item: { type: "finding", n: 2 } });
+  expect(boardLink(w("[[run:notebook#backlog-13]]"))).toEqual({ kind: "run", id: "notebook", tab: "backlog", item: { type: "backlog", n: 13 } });
+  expect(boardLink(w("[[run:notebook#nonsense]]"))).toEqual({ kind: "run", id: "notebook" });
+  expect(boardLink(w("[[idea:fix #12 in the FAQ]]"))).toEqual({ kind: "idea", text: "fix #12 in the FAQ" });
+  expect(boardLink(w("[[Standup]]"))).toBeNull();
+  expect(boardLink(w("[[run:../../x]]"))).toBeNull();
+  expect(w("[[Note#Part|p]]")).toMatchObject({ name: "Note", anchor: "Part", target: "Note#Part", label: "p" });
+  expect(anchorWords({ kind: "run", id: "x", tab: "review", item: { type: "finding", n: 2 } })).toBe("finding 2");
+});
+
+test("resolveRun: exact id, else the newest run of that name", () => {
+  const ids = ["2026-09-01-notebook", "2026-10-01-notebook", "2026-10-01-notebook-board-links"];
+  expect(resolveRun("2026-09-01-notebook", ids)).toBe("2026-09-01-notebook");
+  expect(resolveRun("notebook", ids)).toBe("2026-10-01-notebook");
+  expect(resolveRun("board-links", ids)).toBeNull();
+  expect(resolveRun("nope", ids)).toBeNull();
+});
+
+test("boardIndex and linksTo: runs with findings and every backlog line numbered; notes that link a run", () => {
+  const run = (id: string, files: Record<string, string>) => {
+    mkdirSync(join(state, "runs", id), { recursive: true });
+    writeFileSync(join(state, "runs", id, "state.json"), JSON.stringify({ id, stage: "done", awaiting: null }));
+    for (const [f, t] of Object.entries(files)) writeFileSync(join(state, "runs", id, f), t);
+  };
+  run("2026-10-01-notes", {
+    "00-request.md": "# Request\n\n> make notes\n",
+    "04-review.md": "# Review\n\n## Findings\n\n1. a.ts:1: high: first. fix.\n2. b.ts:2: low: second. fix.\n",
+    "06-backlog.md": "# Backlog\n\n- done: one | x\n- open: two | y\n- rejected: three | z\n",
+  });
+  run("2026-10-02-other", {});
+  writeFileSync(join(state, "inbox.md"), "- open: an idea here\n");
+  const ix = boardIndex(state);
+  const r = ix.runs.find((x) => x.id === "2026-10-01-notes")!;
+  expect(r.short).toBe("notes");
+  expect(r.findings.map((f) => f.n)).toEqual([1, 2]);
+  expect(r.backlog).toEqual([{ n: 1, status: "done", text: "one | x" }, { n: 2, status: "open", text: "two | y" }, { n: 3, status: "rejected", text: "three | z" }]);
+  expect(ix.ideas.map((i) => i.text)).toEqual(["an idea here"]);
+  saveNote(state, "A", "see [[run:notes#finding-1]]", 0);
+  saveNote(state, "B", "see [[run:2026-10-02-other]] and [[notes]]", 0);
+  saveNote(state, "C", "`[[run:notes]]` in code", 0);
+  expect(linksTo(state, "2026-10-01-notes")).toEqual(["A"]);
+  expect(linksTo(state, "2026-10-02-other")).toEqual(["B"]);
+});
+
 test("tree and freshName", () => {
   const tr = tree(["b", "Z/c", "A/x", "A/B/y", "a2"]);
   expect([...tr.folders.keys()]).toEqual(["A", "Z"]);
@@ -160,6 +208,9 @@ test("the notebook's design tokens are the board's, line for line", () => {
   };
   expect(block("notes.html")).toBe(block("board.html"));
   expect(block("board.html")).toContain("data-theme=dark]{--shade");
+  const syms = (f: string) => readFileSync(join(root, "web", f), "utf8").split("\n").filter((l) => l.startsWith('<symbol id="s-')).join("\n");
+  expect(syms("notes.html")).toBe(syms("board.html"));
+  expect(syms("board.html").split("\n").length).toBe(6);
   const mascot = (f: string) => readFileSync(join(root, "web", f), "utf8").split("\n").find((l) => l.startsWith(".mascot{"));
   expect(mascot("notes.html")).toBe(mascot("board.html")!);
 });

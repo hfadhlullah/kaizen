@@ -3,6 +3,8 @@
 // the page goes through safeName before it becomes a path.
 import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, rmdirSync, statSync, writeFileSync } from "node:fs";
 import { join, dirname, resolve, sep } from "node:path";
+import { boardCards, reviewFindings } from "./state.ts";
+import { wikilinks, boardLink, resolveRun } from "../web/notes-lib.ts";
 
 export type Note = { name: string; mtime: number; text: string };
 
@@ -102,4 +104,36 @@ function prune(state: string, dir: string) {
   for (let d = resolve(dir); d.startsWith(root + sep); d = dirname(d)) {
     try { if (readdirSync(d).length) return; rmdirSync(d); } catch { return; }
   }
+}
+
+// What a note can link to on the board, for the notebook's chips and completion: the
+// project's runs, each with its review findings and its backlog items numbered from 1
+// in file order (items are never deleted, so a number keeps pointing at its item),
+// and its ideas. Archived and abandoned ones too: a link outlives the card.
+// ponytail: every run's review and backlog read per request; cache by mtime if a
+// project keeps hundreds of runs.
+export function boardIndex(state: string) {
+  const cards = boardCards([state], Date.now());
+  const backlog = (id: string) => {
+    let text = "";
+    try { text = readFileSync(join(state, "runs", id, "06-backlog.md"), "utf8"); } catch { /* none */ }
+    return [...text.matchAll(/^\s*-\s*(open|done|rejected):\s*(.*)$/gm)].map((m, i) => ({ n: i + 1, status: m[1]!, text: m[2]!.trim() }));
+  };
+  return {
+    runs: cards.filter((c) => c.kind === "run").map((c) => ({
+      id: c.id!, short: c.id!.replace(/^\d{4}-\d{2}-\d{2}-/, ""), title: c.title ?? c.text, status: c.status,
+      findings: reviewFindings(state, c.id!), backlog: backlog(c.id!),
+    })),
+    ideas: cards.filter((c) => c.kind === "idea").map((c) => ({ text: c.text, status: c.status })),
+  };
+}
+
+// The notes whose board links name this run, for the board's "Linked from notes".
+export function linksTo(state: string, id: string) {
+  let ids: string[] = [];
+  try { ids = readdirSync(join(state, "runs")); } catch { return []; }
+  return listNotes(state).filter((n) => wikilinks(n.text).some((w) => {
+    const l = boardLink(w);
+    return l?.kind === "run" && resolveRun(l.id, ids) === id;
+  })).map((n) => n.name);
 }

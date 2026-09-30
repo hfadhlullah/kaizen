@@ -6,8 +6,8 @@ import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirro
 import { syntaxTree, syntaxHighlighting, HighlightStyle } from "@codemirror/language";
 import { markdown, markdownLanguage, markdownKeymap } from "@codemirror/lang-markdown";
 import { tags as t } from "@lezer/highlight";
-import { autocompletion, type CompletionContext, type Completion } from "@codemirror/autocomplete";
-import { wikilinks, tags, resolve, safeUrl, tree, freshName, parseTable, type Tree } from "./notes-lib.ts";
+import { autocompletion, startCompletion, type CompletionContext, type Completion } from "@codemirror/autocomplete";
+import { wikilinks, tags, resolve, safeUrl, tree, freshName, parseTable, boardLink, resolveRun, anchorWords, TABS, type Tree, type BoardLink } from "./notes-lib.ts";
 
 type Note = { name: string; mtime: number; text: string };
 
@@ -17,6 +17,11 @@ const ico = (n: string) => `<svg><use href="#i-${n}"/></svg>`;
 const last = (name: string) => name.split("/").pop()!;
 const folderOf = (name: string) => name.includes("/") ? name.slice(0, name.lastIndexOf("/")) : "";
 
+type Board = {
+  runs: { id: string; short: string; title: string; status: string; findings: { n: number; text: string; done: boolean }[]; backlog: { n: number; status: string; text: string }[] }[];
+  ideas: { text: string; status: string }[];
+};
+let board: Board = { runs: [], ideas: [] };   // what [[run:…]] and [[idea:…]] can name, from /links
 let dir = "";                         // the state dir whose notes/ is shown
 let notes: Note[] = [];
 let open: string | null = null;       // the note in the editor
@@ -112,6 +117,50 @@ const tableField = StateField.define<DecorationSet>({
   provide: (f) => EditorView.decorations.from(f),
 });
 
+// A link to the board: where it goes, what the chip says, and whether it is there.
+const ICON: Record<string, string> = { idea: "idea", starting: "idea", running: "run", stalled: "stall", waiting: "wait", done: "done", abandoned: "aband" };
+function boardTarget(l: BoardLink) {
+  const q = (o: Record<string, string>) => "/?" + new URLSearchParams({ all: "1", dir, ...o }).toString();
+  if (l.kind === "idea") {
+    const t = l.text.toLowerCase();
+    const idea = board.ideas.find((i) => i.text.toLowerCase() === t) ?? board.ideas.find((i) => i.text.toLowerCase().startsWith(t));
+    return { name: idea?.text ?? l.text, sub: "idea", status: idea?.status ?? "", href: idea ? q({ idea: idea.text }) : null };
+  }
+  const id = resolveRun(l.id, board.runs.map((r) => r.id)), run = board.runs.find((r) => r.id === id);
+  const item = l.item && run && (l.item.type === "finding" ? run.findings : run.backlog).some((x) => x.n === l.item!.n);
+  const ok = !!run && (!l.item || item);
+  return {
+    name: run?.short ?? l.id, sub: anchorWords(l), status: run?.status ?? "",
+    href: ok ? q({ run: run!.id, ...(l.tab ? { tab: l.tab } : {}), ...(l.item ? { item: `${l.item.type}-${l.item.n}` } : {}) }) : null,
+  };
+}
+// Leave for the board only once the note is on disk.
+async function go(href: string) {
+  await flush();
+  if (dirty) { toast("This note is not saved yet"); return; }
+  location.href = href;
+}
+class BoardChip extends WidgetType {
+  constructor(readonly name: string, readonly sub: string, readonly status: string, readonly href: string | null) { super(); }
+  eq(o: BoardChip) { return o.name === this.name && o.sub === this.sub && o.status === this.status && o.href === this.href; }
+  toDOM() {
+    const c = document.createElement("span");
+    c.className = "cm-board" + (this.href ? "" : " cm-board-missing");
+    c.title = this.href ? "Open on the board" : "Not on the board";
+    if (this.status) {
+      const ic = document.createElement("span");
+      ic.className = "st d-" + (ICON[this.status] ?? "idea");
+      ic.innerHTML = `<svg><use href="#s-${ICON[this.status] ?? "idea"}"/></svg>`;
+      c.append(ic);
+    }
+    c.append(this.name);
+    if (this.sub) { const s = document.createElement("span"); s.className = "sub"; s.textContent = "› " + this.sub; c.append(s); }
+    c.addEventListener("mousedown", (e) => { e.preventDefault(); if (this.href) void go(this.href); else toast("That is not on the board"); });
+    return c;
+  }
+  ignoreEvent() { return true; }
+}
+
 const hide = Decoration.replace({});
 const refresh = StateEffect.define<null>();   // the list of notes changed: redraw missing links
 
@@ -192,6 +241,13 @@ function build(view: EditorView): DecorationSet {
   // ponytail: the whole note is scanned on each redraw; limit to visible ranges if notes reach megabytes.
   const text = doc.toString(), names = notes.map((x) => x.name);
   for (const w of wikilinks(text)) {
+    const bl = boardLink(w);
+    if (bl) {
+      if (on(w.from)) { out.push(Decoration.mark({ class: "cm-wiki" }).range(w.from, w.to)); continue; }
+      const t = boardTarget(bl);
+      put(Decoration.replace({ widget: new BoardChip(w.label !== w.target ? w.label : t.name, t.sub, t.status, t.href) }), w.from, w.to);
+      continue;
+    }
     const target = resolve(w.name, names);
     const cls = "cm-wiki" + (target ? "" : " cm-wiki-missing");
     if (on(w.from)) { out.push(Decoration.mark({ class: cls }).range(w.from, w.to)); continue; }
@@ -256,6 +312,7 @@ const BLOCKS: [string, string, string][] = [
   ["Code block", "```\n|\n```", "monospace"],
   ["Table", "| Column | Column |\n| --- | --- |\n| | |", "rows"],
   ["Link to note", "[[|]]", "[[ ]]"],
+  ["Link to run", "[[run:|]]", "board"],
   ["Tag", "#|", "#"],
 ];
 function slash(cx: CompletionContext) {
@@ -276,13 +333,52 @@ function slash(cx: CompletionContext) {
         const gap = (label === "Divider" || label === "Table") && line.number > 1 && view.state.doc.line(line.number - 1).text.trim() ? "\n" : "";
         const text = gap + src.replace("|", ""), caret = from + gap.length + src.indexOf("|");
         view.dispatch({ changes: { from, to, insert: text }, selection: { anchor: caret }, userEvent: "input.complete" });
+        // A link is only begun: the next list offers what it can point at.
+        if (label.startsWith("Link to")) setTimeout(() => startCompletion(view));
       },
     })),
   };
 }
 
+// `[[` offers notes, runs and ideas; `#` after a run offers its tabs, findings and
+// backlog items. Picking one closes the link unless it is a run, which leaves the
+// cursor before `]]` so a `#` can follow.
+function links(cx: CompletionContext) {
+  const m = cx.matchBefore(/\[\[[^\]\n|]*$/);
+  if (!m) return null;
+  const q = m.text.slice(2), close = cx.state.sliceDoc(cx.pos, cx.pos + 2) === "]]";
+  const put = (text: string, stay: boolean) => (view: EditorView, _c: Completion, from: number, to: number) => {
+    view.dispatch({ changes: { from, to, insert: text + (close ? "" : "]]") }, selection: { anchor: from + text.length + (stay ? 0 : 2) }, userEvent: "input.complete" });
+  };
+  const anchor = /^run:\s*([\w.-]+)#([\w-]*)$/i.exec(q);
+  if (anchor) {
+    const id = resolveRun(anchor[1]!, board.runs.map((r) => r.id)), run = board.runs.find((r) => r.id === id);
+    if (!run) return null;
+    const cut = (t: string) => t.length > 60 ? t.slice(0, 59) + "…" : t;
+    return {
+      from: cx.pos - anchor[2]!.length, validFor: /^[\w-]*$/,
+      options: [
+        ...TABS.map((t, i): Completion => ({ label: t, detail: "tab", boost: 20 - i, apply: put(t, false) })),
+        ...run.findings.map((f): Completion => ({ label: `finding-${f.n}`, detail: cut(f.text) + (f.done ? " (closed)" : ""), apply: put(`finding-${f.n}`, false) })),
+        ...run.backlog.map((b): Completion => ({ label: `backlog-${b.n}`, detail: `${b.status}: ${cut(b.text)}`, apply: put(`backlog-${b.n}`, false) })),
+      ],
+    };
+  }
+  return {
+    from: m.from + 2, validFor: /^[^\]\n|#]*$/,
+    options: [
+      ...notes.map((n): Completion => ({ label: n.name, detail: "note", apply: put(n.name, false) })),
+      // Newest first, by the name the board shows; the full id is what gets written.
+      ...[...board.runs].sort((a, b) => b.id.localeCompare(a.id)).map((r, i): Completion => ({
+        label: "run:" + r.id, displayLabel: r.short, detail: r.id.slice(0, 10) + " · " + r.title, boost: Math.max(-99, 60 - i), apply: put("run:" + r.id, true),
+      })),
+      ...board.ideas.map((i): Completion => ({ label: "idea:" + i.text, detail: "idea", apply: put("idea:" + i.text, false) })),
+    ],
+  };
+}
+
 const exts = (crlf: boolean) => [
-  autocompletion({ override: [slash], icons: false }),
+  autocompletion({ override: [slash, links], icons: false }),
   history(),
   keymap.of([...markdownKeymap, ...defaultKeymap, ...historyKeymap, indentWithTab, { key: "Mod-s", run: () => { void flush(); return true; } }]),
   markdown({ base: markdownLanguage }),
@@ -336,6 +432,8 @@ async function load() {
   try { r = await (await fetch("/vault?dir=" + encodeURIComponent(dir))).json(); } catch { toast("The board is not running"); return; }
   if (!r.notes) { toast(r.error || "Could not read notes"); return; }
   notes = r.notes;
+  // The board's items, for chips and completion; a failure keeps the last ones.
+  try { const b = await (await fetch("/links?dir=" + encodeURIComponent(dir))).json(); if (Array.isArray(b.runs)) board = b; } catch { /* keep */ }
   const mine = open && notes.find((n) => n.name === open);
   // Someone else changed the open note: take it only when nothing typed here is unsaved.
   if (mine && mine.mtime !== base && !dirty && !saving) { base = mine.mtime; setText(mine.text, false); }
@@ -466,10 +564,19 @@ function drawSide() {
 // open the page is never full screen: picking one needs the sidebar.
 let full = false;
 function setFull(on: boolean) { full = on; drawPane(); }
+// Width: the reading column (boxed, 68ch) or the whole paper side. Kept per browser.
+let wide = false;
+try { wide = localStorage.getItem("kz-note-wide") === "1"; } catch { /* no storage */ }
+function setWide(on: boolean) {
+  wide = on;
+  try { localStorage.setItem("kz-note-wide", on ? "1" : "0"); } catch { /* no storage */ }
+  drawPane();
+}
 
 function drawPane() {
   const has = !!open;
   document.body.classList.toggle("full", has && full);
+  document.body.classList.toggle("wide", wide);
   $("pane").hidden = !has;
   $("empty").hidden = has || notes.length > 0;
   $("pick").hidden = has || !notes.length;
@@ -495,9 +602,10 @@ function drawMeta(state?: string) {
     return;
   }
   const where = folderOf(open);
-  m.innerHTML = `<span>${where ? esc(where) : "Notes"}</span><span>·</span><span id="saved">${state ?? (dirty ? "Not saved yet" : "Saved")}</span><span class="sp"></span><button class="ib" id="full" title="${full ? "Exit full screen (Esc)" : "Full screen"}" aria-label="${full ? "Exit full screen" : "Full screen"}">${ico(full ? "min" : "max")}</button><button class="ib" id="trash" title="Delete note" aria-label="Delete note">${ico("trash")}</button>`;
+  m.innerHTML = `<span>${where ? esc(where) : "Notes"}</span><span>·</span><span id="saved">${state ?? (dirty ? "Not saved yet" : "Saved")}</span><span class="sp"></span><button class="ib" id="wide" title="${wide ? "Boxed width" : "Full width"}" aria-label="${wide ? "Boxed width" : "Full width"}" aria-pressed="${wide}">${ico(wide ? "box" : "wide")}</button><button class="ib" id="full" title="${full ? "Exit full screen (Esc)" : "Full screen"}" aria-label="${full ? "Exit full screen" : "Full screen"}">${ico(full ? "min" : "max")}</button><button class="ib" id="trash" title="Delete note" aria-label="Delete note">${ico("trash")}</button>`;
   $("trash").onclick = () => { confirmDelete = true; drawMeta(); };
   $("full").onclick = () => setFull(!full);
+  $("wide").onclick = () => setWide(!wide);
 }
 
 function drawLinks() {
@@ -574,6 +682,9 @@ addEventListener("pagehide", () => {
   await load();
   let again: string | null = null;
   try { again = sessionStorage.getItem("kz-note:" + dir); } catch { /* no storage */ }
+  // ?note= is the board's "Linked from notes"; otherwise the note open last in this tab.
+  const asked = new URLSearchParams(location.search).get("note");
+  if (asked && notes.some((n) => n.name === asked)) again = asked;
   if (again && notes.some((n) => n.name === again)) await openNote(again);
   // Every write under a state dir arrives as `changed`, this page's own saves included.
   const listen = () => {
