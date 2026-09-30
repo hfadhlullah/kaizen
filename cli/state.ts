@@ -599,9 +599,15 @@ export function boardCards(states: string[], now: number): Card[] {
     return bodies.get(f)!;
   };
   const requests: string[] = [];
+  // Each request line on its own, quote and list markers stripped: what an idea
+  // nobody launched from the board is matched against.
+  const lines: string[] = [];
   for (const st of [...states, ...knownProjects().map((d) => join(d, ".kaizen")), join(home, ".kaizen")]
     .filter((d, i, all) => all.indexOf(d) === i && existsSync(join(d, "runs")))) {
-    for (const id of readdirSync(join(st, "runs"))) { const b = body(st, id); if (b) requests.push(normalise(b)); }
+    for (const id of readdirSync(join(st, "runs"))) { const b = body(st, id); if (!b) continue;
+      requests.push(normalise(b));
+      for (const l of b.split("\n")) lines.push(normalise(l.replace(/^[\s>*"'`-]+|[\s"'`.]+$/g, "")));
+    }
   }
   for (const st of states) {
     const where = label(st);
@@ -612,7 +618,12 @@ export function boardCards(states: string[], now: number): Card[] {
       // Checking `started` items only would leave every idea acted on outside the
       // board sitting in IDEA forever, and typing `/kaizen ...` in a terminal is
       // the common way a run begins.
-      if (requests.some((r) => r.includes(normalise(it.text)))) continue;
+      // An idea that was launched only has to appear somewhere in a request. One
+      // that was not must be what a request line says (after any `/kaizen lite`
+      // prefix): a short idea like "test" is a substring of half the requests
+      // ever written, and would vanish the moment it was added.
+      const t = normalise(it.text);
+      if (it.status === "started" ? requests.some((r) => r.includes(t)) : lines.some((l) => l === t || l.endsWith(" " + t))) continue;
       next.push(it.status === "started"
         ? { kind: "idea", status: "starting", text: it.text, state: st, where, column: 1, awaiting: null, dim: true, archived: false, notes: it.notes }
         : { kind: "idea", status: "idea", text: it.text, state: st, where, column: 0, awaiting: null, dim: false, archived: it.status === "archived", notes: it.notes });
