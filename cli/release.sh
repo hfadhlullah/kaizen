@@ -38,8 +38,8 @@ git log --reverse --format='### %s%n%n%b' ${prev:+"$prev.."}"$tag" \
   | grep -vE '^### Release [0-9.]+:' \
   | cat -s > "$notes"
 [ -n "$prev" ] && printf '\n**Full Changelog**: https://github.com/hfadhlullah/kaizen/compare/%s...%s\n' "$prev" "$tag" >> "$notes"
-gh release create "$tag" --title "$title" --notes-file "$notes" >/dev/null 2>&1 \
+err="$(gh release create "$tag" --title "$title" --notes-file "$notes" 2>&1 >/dev/null)" \
   && echo "release: published $tag  https://github.com/hfadhlullah/kaizen/releases/tag/$tag" \
-  || echo "release: tag pushed, release not created"
+  || echo "release: tag pushed, release not created: $err"
 rm -f "$notes"
 exit 0
