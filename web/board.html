@@ -145,7 +145,7 @@ section h2 .clear{margin-left:auto;min-height:22px;padding:0 8px}
 
 /* footer */
 .ftr{display:flex;justify-content:space-between;gap:16px;padding:10px 28px;border-top:1px solid var(--line);color:var(--dim);font-size:12px;flex-wrap:wrap;align-items:center}
-.ftr span+span{margin-left:14px}.ftr .st svg{width:12px;height:12px}
+.ftr span+span,.ftr a+a{margin-left:14px}.ftr .st svg{width:12px;height:12px}
 .ftr a{color:var(--dim);cursor:pointer;text-decoration:underline;text-underline-offset:2px}.ftr a:hover{color:var(--ink)}
 
 /* side panel */
@@ -223,6 +223,7 @@ aside .foot .more .menu-pop{left:0;right:auto;top:auto;bottom:calc(100% + 4px)}.
 .car i{display:flex;gap:3px}.car u{width:14px;height:3px;border-radius:2px;background:var(--line)}.car u.on{background:var(--accent)}
 .toast{position:fixed;z-index:12;left:28px;bottom:56px;max-width:calc(100% - 56px);background:var(--ink);color:var(--bg);border-radius:var(--r);padding:10px 16px;font-size:13px;box-shadow:var(--shadow-2);opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.on{opacity:1}
+.toast.on.rep{pointer-events:auto}.toast a{color:inherit;margin-left:8px;text-decoration:underline;text-underline-offset:2px}
 .help{position:fixed;inset:0;z-index:12;display:none;align-items:center;justify-content:center;background:color-mix(in srgb,var(--bg) 60%,transparent);backdrop-filter:blur(3px)}
 .help.on{display:flex}.help div{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r);padding:24px 28px;line-height:2.2;box-shadow:var(--shadow-2)}
 .help kbd{display:inline-block;min-width:40px;margin-right:12px;padding:0 6px;text-align:center;border:1px solid var(--line);border-radius:var(--r-s);background:var(--bg);font:12px/20px var(--mono);color:var(--ink)}
@@ -278,7 +279,7 @@ aside .foot .more .menu-pop{left:0;right:auto;top:auto;bottom:calc(100% + 4px)}.
 
 <main id="board" aria-live="polite"></main>
 
-<div class="ftr"><span id="legend"></span><span><a id="kbd">Keyboard shortcuts</a></span></div>
+<div class="ftr"><span id="legend"></span><span><a href="/issue" target="_blank" rel="noopener">Report an issue</a><a id="kbd">Keyboard shortcuts</a></span></div>
 
 <div class="scrim" id="scrim"></div>
 <aside id="panel" aria-label="detail">
@@ -426,7 +427,7 @@ async function follow(idea){
  if(openKey===k)close()}
 // A tab outliving its server would otherwise swallow every click: say so.
 const GONE="The board server is not running — start it with kaizen web (or the shortcut), then reload.";
-async function post(path,body){let r;try{r=await fetch(path,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)})}catch{toast(GONE);return{ok:false}}const j=await r.json().catch(()=>({}));if(!r.ok){toast(j.error||j.why||"That did not work");if(j.manual)console.log("run manually:",j.manual)}return j}
+async function post(path,body){let r;try{r=await fetch(path,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)})}catch{toast(GONE);return{ok:false}}const j=await r.json().catch(()=>({}));if(!r.ok){const m=j.error||j.why||"That did not work";toast(m,{title:m.slice(0,80),what:`POST ${path} failed (HTTP ${r.status}): ${m}`});if(j.manual)console.log("run manually:",j.manual)}return j}
 
 function card(c){
  const k=key(c),el=document.createElement("div");el.className="card"+(k===openKey?" open":"")+(k===menuKey?" menu":"")+(c.archived?" archived":"");el.tabIndex=0;el.dataset.k=k;el.setAttribute("role","button");
@@ -465,7 +466,7 @@ function inlineForm(c){
  if(mode==="edit"){li.innerHTML=`<input value="${esc(c.text)}"><textarea placeholder="Notes: links, paths, background">${esc(c.notes||"")}</textarea><div class="q dim" id="clong" hidden>The first line is over 72 characters; logs will cut it short.</div><div class="row"><button class="btn ghost" data-a="c">Cancel</button><button class="btn pri" data-a="s">Save</button></div>`;li.querySelector('[data-a=s]').onclick=async()=>{const next=li.querySelector("input").value.trim(),notes=li.querySelector("textarea").value.trim();mode=null;if(next&&(next!==c.text||notes!==(c.notes||"")))await post("/inbox",{op:"edit",dir,text:c.text,next,notes});load()}}
  if(mode==="reject"){const idea=c.kind==="idea";li.innerHTML=`<div class="q">${idea?"Reject this idea?":"Abandon this run?"} The reason is recorded.</div><input placeholder="Reason"><div class="row"><button class="btn ghost" data-a="c">Keep it</button><button class="btn warn" data-a="s">${idea?"Reject":"Abandon"}</button></div>`;li.querySelector('[data-a=s]').onclick=async()=>{const why=li.querySelector("input").value.trim();if(!why){toast("A reason is required");return}mode=null;const r=idea?await post("/inbox",{op:"reject",dir,text:c.text,reason:why}):await post("/abort",{dir,id:c.id,why});if(r.ok)toast(idea?"Rejected":"Abandoned, reason recorded");load()}}
  if(mode==="delete"){li.innerHTML=`<div class="q">Delete "${esc(c.text)}"?</div><div class="q dim">Not recorded anywhere.</div><div class="row"><button class="btn ghost" data-a="c">Keep it</button><button class="btn danger" data-a="s">Delete</button></div>`;li.querySelector('[data-a=s]').onclick=async()=>{mode=null;const r=await post("/inbox",{op:"delete",dir,text:c.text});if(r.ok)toast("Deleted");load()}}
- if(mode==="run"){li.innerHTML=`<div class="q">Start a run for "${esc(c.text)}"</div><div class="q dim">Opens your agent in a new terminal, or a herdr tab or tmux window when one is running, with the request typed in.</div><div class="q dim">Full: planned, built, then checked by a separate reviewer. Lite: one session does it all, faster and cheaper.</div><div class="row"><button class="btn ghost" data-a="c">Cancel</button><button class="btn" data-a="l">Lite</button><button class="btn pri" data-a="s">Full run</button></div>`;li.querySelector('[data-a=s]').onclick=()=>startRun(c,"full");li.querySelector('[data-a=l]').onclick=()=>startRun(c,"lite")}
+ if(mode==="run"){li.innerHTML=`<div class="q">Start a run for "${esc(c.text)}"</div><div class="q dim">Opens your agent in a new terminal, or a herdr tab or tmux window when one is running, with the request typed in.</div><div class="q dim">Full: planned, built, then checked by a separate reviewer. Lite: one session does it all, faster and cheaper.</div><div id="run-pick" style="display:grid;gap:6px"><select class="sel" id="run-agent" aria-label="Agent" style="width:100%;max-width:none"></select><input id="run-model" aria-label="Model" spellcheck="false" autocomplete="off"></div><div class="row"><button class="btn ghost" data-a="c">Cancel</button><button class="btn" data-a="l">Lite</button><button class="btn pri" data-a="s">Full run</button></div>`;li.querySelector('[data-a=s]').onclick=()=>startRun(c,"full");li.querySelector('[data-a=l]').onclick=()=>startRun(c,"lite");runForm(li,c)}
  li.querySelector('[data-a=c]').onclick=()=>{mode=null;render()};
  // Edit and reject take dictation; the run prompt has no field.
  li.querySelectorAll("input,textarea").forEach((f,i)=>draft(f,"f:"+mode+":"+modeKey+":"+i));
@@ -473,10 +474,28 @@ function inlineForm(c){
  const inp=li.querySelector("input");if(inp){inp.onkeydown=e=>{if(e.key==="Enter")li.querySelector('[data-a=s]').click();if(e.key==="Escape"){mode=null;render()}};setTimeout(()=>inp.focus())}
  return li;}
 
+// The agent and model picked in the open Run form. Kept here, not in the form: the
+// board is rebuilt on every server change, and the choice must outlive that.
+let runPick=null;
+// The tool a launch opened, and why when it is not the one asked for.
+const via=a=>a.name+(a.note?". "+a.note:"");
+async function runForm(li,c){
+ const k=key(c),sel=li.querySelector("#run-agent"),inp=li.querySelector("#run-model");
+ const d=await fetch("/agents?dir="+encodeURIComponent(c.state)).then(r=>r.json()).catch(()=>null);
+ if(!d||!d.agents||!d.agents.length){li.querySelector("#run-pick").hidden=true;return}
+ if(!runPick||runPick.k!==k)runPick={k,agent:d.agents.some(a=>a.cmd===d.default)?d.default:d.agents[0].cmd,model:null};
+ sel.innerHTML=d.agents.map(a=>`<option value="${esc(a.cmd)}"${a.cmd===runPick.agent?" selected":""}>${esc(a.name)}</option>`).join("");
+ const show=()=>{const a=d.agents.find(x=>x.cmd===sel.value);runPick.models=!!a.models;inp.hidden=!a.models;inp.placeholder="Model: "+a.name+"'s default";inp.value=runPick.model??a.model};
+ sel.onchange=()=>{runPick.agent=sel.value;runPick.model=null;show()};sel.onkeydown=e=>{if(e.key==="Escape"){mode=null;render()}};
+ inp.oninput=()=>{runPick.model=inp.value};
+ show()}
+
 async function startRun(c,kind){
  mode=null;askNotify();
- const r=await post("/run",{dir:c.state,text:c.text,kind});
- if(r.ok)toast((kind==="full"?"Full":"Lite")+" run opened in your terminal: "+r.agent.name);
+ const p=runPick&&runPick.k===key(c)?runPick:null,inp=$("run-model");runPick=null;
+ const agent=p?p.agent:undefined,model=p&&p.models?((inp?inp.value:p.model)||"").trim()||undefined:undefined;
+ const r=await post("/run",{dir:c.state,text:c.text,kind,agent,model});
+ if(r.ok)toast((kind==="full"?"Full":"Lite")+" run opened in your terminal: "+via(r.agent));
  load()}
 
 function render(){
@@ -658,7 +677,7 @@ const APPROVAL={"approvals.plan":"The plan is ready. Read it in the Plan tab, th
 async function decide(c,b,why,answers){b.disabled=true;askNotify();const r=await post("/decide",{dir:c.state,id:c.id,awaiting:c.awaiting,...(why===undefined?{}:{why}),...(answers?{answers}:{})});
  // A failed send keeps the footer, and with it a typed comment.
  if(!r.ok){b.disabled=false;return}
- decided.add(answer(c));toast((why===undefined?"Approved":"Sent back")+" in your terminal: "+r.agent.name);
+ decided.add(answer(c));toast((why===undefined?"Approved":"Sent back")+" in your terminal: "+via(r.agent));
  if(openKey===key(c)){$("pfoot").innerHTML="";openRun(c,true)}}
 function confirmRevise(c){const foot=$("pfoot"),plan=c.awaiting==="approvals.plan";
  foot.innerHTML=`<div class="inl" style="flex:1"><div class="q">${plan?"What should the plan do differently?":"What should change in the work?"}</div><div class="q dim">Opens your agent on this run with your comment.${plan?" It revises the plan and comes back here for approval.":" It changes the work, rechecks it and comes back here."}</div><textarea aria-label="Revise comment"></textarea><div class="row"><button class="btn ghost" data-a="c">Cancel</button><button class="btn pri" data-a="s">Send back</button></div></div>`;
@@ -707,7 +726,7 @@ function fixForm(c){const k=n=>c.id+":"+n,sent=f=>fixSent.has(k(f.n)),fs=runDoc.
  allb.onclick=()=>{const none=picks().length===open.length;open.forEach(f=>none?fixOff.add(k(f.n)):fixOff.delete(k(f.n)));sync()};
  go.onclick=async()=>{const nums=picks();go.disabled=true;askNotify();const r=await post("/fix",{dir:c.state,id:c.id,nums});
   // Sent findings lock as sent, so a second press cannot open a second agent on them.
-  if(r.ok){toast("Fixing "+nums.length+" finding"+(nums.length===1?"":"s")+" in your terminal: "+r.agent.name);nums.forEach(n=>fixSent.add(k(n)));try{sessionStorage.setItem(SK,JSON.stringify([...fixSent]))}catch(e){}openRun(c,true)}else sync()};
+  if(r.ok){toast("Fixing "+nums.length+" finding"+(nums.length===1?"":"s")+" in your terminal: "+via(r.agent));nums.forEach(n=>fixSent.add(k(n)));try{sessionStorage.setItem(SK,JSON.stringify([...fixSent]))}catch(e){}openRun(c,true)}else sync()};
  sync();$("pbody").appendChild(el)}
 // Commit and push, for a finished run in a project with a git remote. What the board
 // did is recorded per run, so the settled label outlives later changes to the tree.
@@ -852,7 +871,9 @@ async function openSources(){
  $("src-url").onkeydown=$("src-label").onkeydown=e=>{if(e.key==="Enter")$("src-add").click()};
  $("src-go").onclick=()=>{$("src-go").disabled=true;$("src-go").textContent="Gathering…";act({op:"gather",dir:dir||undefined},j=>{const n=(j.results||[]).reduce((a,r)=>a+r.added,0),bad=(j.results||[]).filter(r=>!r.ok).length;toast((n?`${n} new idea${n===1?"":"s"}`:"Nothing new")+(bad?`, ${bad} source${bad===1?"":"s"} could not be read`:""))})};
  $("pbody").querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{const s=list[+b.dataset.rm];if(!confirm(`Remove ${s.label||host(s.url)}? Ideas it gathered stay; added again later, it may bring back ones you deleted.`))return;act({op:"remove",dir:list[+b.dataset.rm].dir,url:list[+b.dataset.rm].url},()=>toast("Source removed"))})}
-let tt;function toast(s){const t=$("toast");t.textContent=s;t.classList.add("on");clearTimeout(tt);tt=setTimeout(()=>t.classList.remove("on"),4000)}
+// With `report`, the toast carries a link to a prefilled GitHub bug form (/issue) and
+// stays long enough to click it.
+let tt;function toast(s,report){const t=$("toast");t.textContent=s;t.classList.toggle("rep",!!report);if(report){const a=document.createElement("a");a.href="/issue?"+new URLSearchParams(report);a.target="_blank";a.rel="noopener";a.textContent="Report";t.append(" ",a)}t.classList.add("on");clearTimeout(tt);tt=setTimeout(()=>t.classList.remove("on"),report?8000:4000)}
 function askNotify(){try{if(typeof Notification!=="undefined"&&Notification.permission==="default")Notification.requestPermission()}catch(e){}}
 function notifyUser(body){try{if(typeof Notification!=="undefined"&&Notification.permission==="granted")new Notification("kaizen",{body,icon:"/logo.png"})}catch(e){}}
 // The project picker: a button shaped like a select that opens a search field over the list.

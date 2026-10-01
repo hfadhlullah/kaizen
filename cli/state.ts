@@ -3,7 +3,7 @@
 // board (`web.ts`) both import this and draw it their own way.
 import { existsSync, readFileSync, readdirSync, appendFileSync, writeFileSync, mkdirSync, statSync, realpathSync, rmSync } from "node:fs";
 import { join, dirname, win32 } from "node:path";
-import { homedir } from "node:os";
+import { homedir, arch, cpus, release, totalmem, version as osVersion } from "node:os";
 
 // The real path: process.cwd() is always physical, so a raw $HOME that crosses a
 // symlink (/home -> var/home) would never compare equal to it.
@@ -20,25 +20,34 @@ export const KNOWN_AGENTS = [
   { name: "Cursor", dir: ".cursor", cmd: "cursor" },
 ];
 
-export function detectDefaultAgent(projectDir: string): { name: string; cmd: string } {
-  const cfgFile = existsSync(join(projectDir, ".kaizen", "config.yml"))
-    ? join(projectDir, ".kaizen", "config.yml")
-    : join(home, ".kaizen", "config.yml");
-  if (existsSync(cfgFile)) {
-    const text = readText(cfgFile);
-    const m = /^\s*agent:\s*\n\s*default:\s*(\S+)/m.exec(text) || /^\s*agent\.default:\s*(\S+)/m.exec(text);
-    if (m && m[1] && m[1] !== "auto") {
-      const found = KNOWN_AGENTS.find((a) => a.cmd === m[1] || a.name.toLowerCase() === m[1].toLowerCase());
-      if (found && Bun.which(found.cmd)) return found;
-    }
-  }
+export type Agent = { name: string; cmd: string; note?: string };
 
-  for (const a of KNOWN_AGENTS) {
-    if (existsSync(join(projectDir, a.dir)) && Bun.which(a.cmd)) return a;
+// Each config.yml in the chain, project first: the first one that sets a key decides
+// it, so a project file that is silent about `agent` leaves the global one in force.
+const configTexts = (projectDir: string) =>
+  [join(projectDir, ".kaizen", "config.yml"), join(home, ".kaizen", "config.yml")].filter(existsSync).map(readText);
+
+// `want` is a per-run pick; without one, agent.default from the config chain. A
+// wanted tool that is not installed is swapped for the auto choice, and said so.
+export function detectDefaultAgent(projectDir: string, want?: string): Agent {
+  if (!want) for (const t of configTexts(projectDir)) {
+    const m = /^agent:\n(?:[ \t]+.*\n)*?[ \t]+default:[ \t]*["']?([^"'\s]+)/m.exec(t) || /^agent\.default:[ \t]*["']?([^"'\s]+)/m.exec(t);
+    if (m) { want = m[1]; break; }
   }
-  if (Bun.which("claude")) return { name: "Claude Code", cmd: "claude" };
+  if (!want || want === "auto") return autoAgent(projectDir);
+  const found = KNOWN_AGENTS.find((a) => a.cmd === want || a.name.toLowerCase() === want!.toLowerCase());
+  if (found && onPath(found.cmd)) return found;
+  const a = autoAgent(projectDir);
+  return { ...a, note: `${found?.name ?? want} is not installed; opened ${a.name} instead` };
+}
+
+function autoAgent(projectDir: string): Agent {
   for (const a of KNOWN_AGENTS) {
-    if (Bun.which(a.cmd)) return a;
+    if (existsSync(join(projectDir, a.dir)) && onPath(a.cmd)) return a;
+  }
+  if (onPath("claude")) return { name: "Claude Code", cmd: "claude" };
+  for (const a of KNOWN_AGENTS) {
+    if (onPath(a.cmd)) return a;
   }
   return { name: "Claude Code", cmd: "claude" };
 }
@@ -56,20 +65,39 @@ const EFFORT_FLAGS: Record<string, (e: string) => string[]> = {
   codex: (e) => ["-c", `model_reasoning_effort=${e}`],
 };
 
-export function agentFlags(projectDir: string, cmd: string, configText?: string): string[] {
-  if (configText === undefined) {
-    const f = [join(projectDir, ".kaizen", "config.yml"), join(home, ".kaizen", "config.yml")].find(existsSync);
-    configText = f ? readText(f) : "";
-  }
+// A model typed on the board reaches launch lines and the manual command as text, so
+// only a plain name is taken: no spaces, quotes, `$`, `;`, backticks or globs.
+export const plainModel = (m: string) => /^[A-Za-z0-9][\w.:\/@-]{0,79}$/.test(m);
+
+// The tool's own block in the first config.yml of the chain that has one.
+function agentConfig(projectDir: string, cmd: string, configText?: string) {
   // ponytail: regex over the yaml, like detectDefaultAgent; a parser when a third key needs it
-  const block = new RegExp(`^agent:\\n(?:[ \\t]+.*\\n)*?[ \\t]+${cmd}:[ \\t]*(\\{[^}]*\\}|\\n(?:[ \\t]+[a-z]+:.*\\n?)+)`, "m").exec(configText);
-  if (!block) return [];
-  const get = (k: string) => new RegExp(`\\b${k}:[ \\t]*["']?([^"',}\\s]+)`).exec(block[1])?.[1];
-  const model = get("model"), effort = get("effort");
+  const re = new RegExp(`^agent:\\n(?:[ \\t]+.*\\n)*?[ \\t]+${cmd}:[ \\t]*(\\{[^}]*\\}|\\n(?:[ \\t]+[a-z]+:.*\\n?)+)`, "m");
+  let block: RegExpExecArray | null = null;
+  for (const t of configText === undefined ? configTexts(projectDir) : [configText]) if ((block = re.exec(t))) break;
+  const get = (k: string) => block && new RegExp(`\\b${k}:[ \\t]*["']?([^"',}\\s]+)`).exec(block[1])?.[1];
+  return { model: get("model") || undefined, effort: get("effort") || undefined };
+}
+
+// `model`: a per-run pick, in place of the configured one. Effort stays configured.
+export function agentFlags(projectDir: string, cmd: string, configText?: string, model?: string): string[] {
+  const cfg = agentConfig(projectDir, cmd, configText);
+  const m = model || cfg.model;
   return [
-    ...(model && MODEL_FLAGS[cmd] ? MODEL_FLAGS[cmd](model) : []),
-    ...(effort && EFFORT_FLAGS[cmd] ? EFFORT_FLAGS[cmd](effort) : []),
+    ...(m && MODEL_FLAGS[cmd] ? MODEL_FLAGS[cmd](m) : []),
+    ...(cfg.effort && EFFORT_FLAGS[cmd] ? EFFORT_FLAGS[cmd](cfg.effort) : []),
   ];
+}
+
+// What the board's Run form offers: the installed tools, the one it would pick, and
+// each one's configured model to start the field from.
+export function agentChoices(projectDir: string) {
+  return {
+    default: detectDefaultAgent(projectDir).cmd,
+    agents: KNOWN_AGENTS.filter((a) => onPath(a.cmd)).map((a) => ({
+      name: a.name, cmd: a.cmd, model: agentConfig(projectDir, a.cmd).model ?? "", models: !!MODEL_FLAGS[a.cmd],
+    })),
+  };
 }
 
 // One argument as a POSIX shell reads it literally: a prompt carries quotes, `$`,
@@ -874,8 +902,8 @@ export function boardCards(states: string[], now: number): Card[] {
 // What starting a run needs, minus the screens: the TUI and the web board both
 // launch the same way and only differ in how they tell the user.
 export type Launch =
-  | { ok: true; agent: { name: string; cmd: string }; prompt: string; projectDir: string; cmd: string[] }
-  | { ok: false; agent: { name: string; cmd: string }; prompt: string; projectDir: string; manual: string; why: string };
+  | { ok: true; agent: Agent; prompt: string; projectDir: string; cmd: string[] }
+  | { ok: false; agent: Agent; prompt: string; projectDir: string; manual: string; why: string };
 
 export function projectOf(from: string) {
   return from === join(home, ".kaizen")
@@ -894,10 +922,10 @@ export function manualCommand(projectDir: string, agentCmd: string, prompt: stri
 }
 
 // Agent sessions kaizen opened. Each launch leaves `sessions/<key>.json` in the
-// project's state dir ({run, text, cmd, sessionId, started}) and `<key>.pid`, which
+// project's state dir ({run, text, cmd, model, sessionId, started}) and `<key>.pid`, which
 // the agent writes itself. Only these are ever closed or resumed: a session the user
 // opened by hand has no record.
-export type Session = { key: string; run: string | null; text: string; cmd: string; sessionId: string | null; started: number };
+export type Session = { key: string; run: string | null; text: string; cmd: string; model?: string | null; sessionId: string | null; started: number };
 
 // Tools that take a conversation id at launch and resume it by that id. Every other
 // tool gets a fresh session on each decision, as before.
@@ -1026,10 +1054,22 @@ export function firstSession(st: string, id: string, cmd: string, cwd: string): 
   return readSessions(st).find((s) => s.sessionId && s.cmd === cmd && ownerOf(st, s) === id && existsSync(f.transcript(cwd, s.sessionId))) ?? null;
 }
 
+// The tool and model a run was started with: its latest recorded launch, else the
+// agent its state.json names. A decision continues on these whatever the config says now.
+export function runAgent(st: string, id: string): { cmd: string; model: string | null } | null {
+  const s = readSessions(st).filter((x) => ownerOf(st, x) === id).pop();
+  if (s) return { cmd: s.cmd, model: s.model ?? null };
+  try {
+    const a = JSON.parse(readText(join(st, "runs", id, "state.json"))).agent;
+    if (typeof a === "string" && a) return { cmd: a, model: null };
+  } catch { /* no run */ }
+  return null;
+}
+
 // The agent's argv for a launch, and its record. With a run, a decision: it resumes
 // the run's conversation when there is one. A project without a state dir gets no
 // record; making one here would shadow the user's.
-export function sessionLaunch(projectDir: string, cmd: string, base: string[], prompt: string, text: string, run?: string) {
+export function sessionLaunch(projectDir: string, cmd: string, base: string[], prompt: string, text: string, run?: string, model?: string) {
   const st = join(projectDir, ".kaizen");
   if (!existsSync(st)) return { fullCmd: [...base, prompt], pidFile: undefined, record: undefined };
   const f = SESSION_FLAGS[cmd];
@@ -1039,21 +1079,25 @@ export function sessionLaunch(projectDir: string, cmd: string, base: string[], p
   const key = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   mkdirSync(sessionsDir(st), { recursive: true });
   const record = join(sessionsDir(st), key + ".json");
-  writeFileSync(record, JSON.stringify({ run: run ?? null, text, cmd, sessionId, started: Date.now() }) + "\n");
+  writeFileSync(record, JSON.stringify({ run: run ?? null, text, cmd, model: model ?? null, sessionId, started: Date.now() }) + "\n");
   return { fullCmd, pidFile: join(sessionsDir(st), key + ".pid"), record };
 }
 
 // run: the run a decision is for. Without it, an idea starting a new run.
-export function launchRun(it: Item, from: string, run?: string): Launch {
+// pick: the tool and model chosen for a new run; a decision takes the run's own.
+export function launchRun(it: Item, from: string, run?: string, pick: { agent?: string; model?: string } = {}): Launch {
   const projectDir = projectOf(from);
   // The run will be born here; the board must know the dir or the idea never retires.
   remember(projectDir);
-  const agent = detectDefaultAgent(projectDir);
+  const own = run && !pick.agent ? runAgent(join(projectDir, ".kaizen"), run) : null;
+  const agent = detectDefaultAgent(projectDir, pick.agent ?? own?.cmd);
   const agentBin = Bun.which(agent.cmd) ?? agent.cmd;
   const prompt = requestOf(it.where ? `/kaizen ${it.text} (${it.where})` : `/kaizen ${it.text}`, it.notes, from);
-  const flags = agentFlags(projectDir, agent.cmd);
+  const wanted = pick.model ?? (own?.cmd === agent.cmd ? own.model : null) ?? undefined;
+  const model = wanted && plainModel(wanted) ? wanted : undefined;
+  const flags = agentFlags(projectDir, agent.cmd, undefined, model);
   // The idea as its run's request will hold it: without the runner word in front.
-  const s = sessionLaunch(projectDir, agent.cmd, [agentBin, ...flags], prompt, it.text.replace(/^(lite|full|auto|plan)\s+/i, ""), run);
+  const s = sessionLaunch(projectDir, agent.cmd, [agentBin, ...flags], prompt, it.text.replace(/^(lite|full|auto|plan)\s+/i, ""), run, model);
   const manual = manualCommand(projectDir, agent.cmd, prompt, flags);
   const drop = () => { if (s.record) rmSync(s.record, { force: true }); };
 
@@ -1248,4 +1292,59 @@ export async function commitPush(state: string, id: string, message: string, sho
   if (!p.ok) return { ok: false, why: `${sha} is committed but not pushed: ${p.why}` };
   record(true);
   return { ok: true, sha };
+}
+
+// ---- issue reports
+
+// Where a bug report goes: package.json's repository, so a fork reports to itself.
+export const REPO_URL = (() => {
+  try {
+    const u = JSON.parse(readFileSync(join(import.meta.dir, "..", "package.json"), "utf8")).repository.url as string;
+    return u.replace(/^git\+/, "").replace(/\.git$/, "");
+  } catch { return "https://github.com/hfadhlullah/kaizen"; }
+})();
+
+// The machine, as an issue's Environment field. Nothing that names the person: no
+// hostname, no username, no paths.
+export function systemInfo(): string {
+  let osName = osVersion();
+  try {
+    if (process.platform === "linux") osName = /^PRETTY_NAME="?([^"\n]*)/m.exec(readFileSync("/etc/os-release", "utf8"))?.[1] || osName;
+    else if (process.platform === "darwin") osName = `macOS ${Bun.spawnSync(["sw_vers", "-productVersion"]).stdout.toString().trim()}`;
+  } catch { /* the kernel's own version string is still an answer */ }
+  let kaizen = "?";
+  try { kaizen = JSON.parse(readFileSync(join(import.meta.dir, "..", "package.json"), "utf8")).version; } catch {}
+  const cpu = cpus();
+  return [
+    `kaizen: ${kaizen}`,
+    `OS: ${osName} (${process.platform} ${release()}, ${arch()})`,
+    `CPU: ${cpu[0]?.model.trim() ?? "?"} × ${cpu.length}`,
+    `RAM: ${Math.round(totalmem() / 2 ** 30)} GB`,
+    `bun: ${Bun.version}`,
+    `terminal: ${process.env.TERM_PROGRAM ?? process.env.TERM ?? "?"}`,
+  ].join("\n");
+}
+
+// The home folder as `~`, so a pasted error does not carry the username. Windows paths
+// also arrive JSON-escaped (`C:\\Users\\x`) or with forward slashes, in any case.
+export function scrubHome(s: string, homes = [home, homedir()], win = process.platform === "win32"): string {
+  const forms = [...new Set(homes.filter((h) => h.length > 1).flatMap((h) => [h, h.replaceAll("\\", "\\\\"), h.replaceAll("\\", "/")]))]
+    .sort((a, b) => b.length - a.length);
+  return forms.reduce((t, h) => t.replace(new RegExp(h.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), win ? "gi" : "g"), "~"), s);
+}
+
+// A new-issue link with the bug form filled in. The user reads and submits it on
+// GitHub; nothing is sent from here. GitHub refuses URLs much past 8 KB, so the error
+// text gives way first.
+export function issueUrl(o: { title?: string; what?: string } = {}): string {
+  let what = scrubHome(o.what ?? "");
+  const title = scrubHome(o.title ?? "").slice(0, 120), env = systemInfo();
+  // `what` and `env` fill the form's fields; `body` carries the same text for when GitHub
+  // has no bug.yml (not pushed yet, a fork without it) and ignores the field params.
+  const build = () => `${REPO_URL}/issues/new?` + new URLSearchParams({
+    template: "bug.yml", title, what, env, body: `### What happened\n\n${what}\n\n### Environment\n\n\`\`\`text\n${env}\n\`\`\``,
+  }).toString();
+  let url = build();
+  while (url.length > 7500 && what) { what = what.slice(0, Math.floor(what.length * 0.8)) + "\n…(cut)"; url = build(); if (what.length < 20) what = ""; }
+  return url;
 }

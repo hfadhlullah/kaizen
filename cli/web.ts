@@ -6,7 +6,7 @@ import {
   home, type Item, type Card, boardCards, knownProjects, remember, locate, label, tilde, searchRoots, findProjects,
   readInbox, writeInbox, replaceIdea, abandonRun, launchRun, parseItem, agentChoices, projectOf, KNOWN_AGENTS, plainModel, short, setArchived, writeNotes,
   appendNote, saveAttachment, pidOnPort, readText, cmdExe, sysExe, powershellExe, runGit, cardsGit, readCommit, commitPush, notice, notifier, LOGO,
-  reviewFindings, pickFindings, fixPrompt, approvalPrompt, nativePath, closeSessions, sweepSessions,
+  reviewFindings, pickFindings, fixPrompt, approvalPrompt, nativePath, closeSessions, sweepSessions, issueUrl,
 } from "./state.ts";
 import { readSources, addSource, removeSource, moveSource, gatherSource, gatherAll, gatherDirs, due } from "./sources.ts";
 import { listNotes, saveNote, renameNote, deleteNote, boardIndex, linksTo } from "./notes.ts";
@@ -316,6 +316,12 @@ export async function web(repoDir: string, opts: Opts = {}) {
       }
 
       // The Run form's choices for one project: installed tools and their models.
+      // A prefilled GitHub bug form. A redirect, so a plain link opens it with no script
+      // and no popup blocker in the way.
+      if (req.method === "GET" && path === "/issue") {
+        return Response.redirect(issueUrl({ title: url.searchParams.get("title") ?? "", what: url.searchParams.get("what") ?? "" }), 302);
+      }
+
       if (req.method === "GET" && path === "/agents") {
         const dir = url.searchParams.get("dir");
         if (!dir || !states(true).includes(dir)) return bad("unknown state dir", 404);

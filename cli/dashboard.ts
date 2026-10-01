@@ -911,6 +911,7 @@ export async function dashboard(
       c.bold(r.cmd[0] === "sh" && r.cmd[2]?.includes("herdr tab create") ? "Started in a new herdr tab" : r.cmd[0] === "tmux" ? "Started in a new tmux window" : "Started in new terminal"),
       "",
       `  ${c.cyan("Agent")}     ${r.agent.name} (${c.bold(r.agent.cmd)})`,
+      ...(r.agent.note ? [`  ${c.amber(r.agent.note)}`] : []),
       `  ${c.cyan("Project")}   ${tilde(r.projectDir)}`,
       `  ${c.cyan("Task")}      ${it.text}`,
       ...(it.where ? [`  ${c.cyan("File")}      ${it.where}`] : []),

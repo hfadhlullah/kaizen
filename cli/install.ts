@@ -115,6 +115,20 @@ if (Bun.argv[2] === "sources" || Bun.argv[2] === "gather") {
   process.exit(0);
 }
 
+// `kaizen issue [what happened]` opens kaizen's GitHub bug form with this machine's
+// details filled in; `--env` only prints them.
+if (Bun.argv[2] === "issue") {
+  const { issueUrl, systemInfo } = await import("./state.ts");
+  if (args.has("--env")) { console.log(systemInfo()); process.exit(0); }
+  const what = Bun.argv.slice(3).join(" ");
+  const url = issueUrl({ title: what.split("\n")[0], what });
+  console.log(`\n  ${c.cyan(url)}\n`);
+  console.log(await openUrl(url)
+    ? `  ${c.dim("Opened in your browser. Check it, then submit it on GitHub.")}\n`
+    : `  ${c.dim("Open that link to file the issue.")}\n`);
+  process.exit(0);
+}
+
 if (args.has("--version") || args.has("-v") || args.has("version")) {
   console.log(versionOf(dirname(import.meta.dir)));
   process.exit(0);

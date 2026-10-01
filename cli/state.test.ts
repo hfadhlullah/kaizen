@@ -4,10 +4,11 @@ import { test, expect, beforeAll, afterAll } from "bun:test";
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, utimesSync, existsSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
+import { issueUrl, systemInfo, scrubHome, REPO_URL, home as realHome } from "./state.ts";
 import {
   readRuns, readInbox, writeInbox, replaceIdea, abandonRun, allBacklog, backlog,
   statusOf, columnOf, parseItem, startedRuns, boardCards, readArchive, setArchived,
-  requestOf, agentFlags, readNotes, writeNotes, manualCommand, parseNotes, formatNote, appendNote, saveAttachment,
+  requestOf, agentFlags, plainModel, readNotes, writeNotes, manualCommand, parseNotes, formatNote, appendNote, saveAttachment,
   reviewFindings, pickFindings, fixPrompt, approvalPrompt, sessionLaunch, closeSessions, sweepSessions, readSessions, ownerOf, CLOSE_GRACE_MS, gitStatus, runGit, cardsGit, commitPush, readCommit, findTerminal, nativePath, pruneRuns, unrechecked, notice, notifier, notifyArgs, LOGO, type Card,
 } from "./state.ts";
 
@@ -244,6 +245,51 @@ test("agentFlags: per-tool model and effort from the agent block, inline or nest
   expect(agentFlags("/p", "gemini", cfg)).toEqual(["-m", "gemini-2.5-pro"]);
   expect(agentFlags("/p", "agy", cfg)).toEqual([]);
   expect(agentFlags("/p", "codex", "agent:\n  default: codex\n")).toEqual([]);
+});
+
+test("plainModel: a typed model reaches launch lines only as a plain name", () => {
+  for (const m of ["opus", "gpt-5.1", "gemini-2.5-pro", "anthropic/claude-sonnet-4", "o3:high", "x@y"]) expect(plainModel(m)).toBe(true);
+  for (const m of ["", "x; rm -rf ~", "$(id)", "`id`", "a b", "'q'", "\"q\"", "opus[1m]", "-rf", "x".repeat(81)]) expect(plainModel(m)).toBe(false);
+});
+
+test.skipIf(process.platform === "win32")("agent choice: project then global config, a note for a missing tool, a pick, and a run keeps its own", () => {
+  // The global config sits at the home bound at import, so this runs in a child with a scratch HOME.
+  const home = mkdtempSync(join(tmpdir(), "kz-home-")), bin = mkdtempSync(join(tmpdir(), "kz-bin-"));
+  for (const t of ["claude", "codex"]) writeFileSync(join(bin, t), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+  const script = `const S = await import(${JSON.stringify(join(dirname(import.meta.path), "state.ts"))});
+const fs = require("node:fs"), { join } = require("node:path");
+const P = join(process.env.HOME, "proj"), st = join(P, ".kaizen"), G = join(process.env.HOME, ".kaizen");
+fs.mkdirSync(join(st, "runs", "r1"), { recursive: true }); fs.mkdirSync(G, { recursive: true });
+fs.writeFileSync(join(G, "config.yml"), "agent:\\n  default: codex\\n  codex: { model: gpt-5, effort: low }\\n");
+fs.writeFileSync(join(st, "config.yml"), "mode: approve\\n");
+const out = { chain: [S.detectDefaultAgent(P).cmd, S.agentFlags(P, "codex")] };
+fs.writeFileSync(join(st, "config.yml"), "agent:\\n  default: claude\\n  codex:\\n    model: o3\\n");
+out.project = [S.detectDefaultAgent(P).cmd, S.agentFlags(P, "codex")];
+out.missing = S.detectDefaultAgent(P, "gemini");
+out.pick = [S.detectDefaultAgent(P, "codex").cmd, S.agentFlags(P, "codex", undefined, "gpt-5.1")];
+out.choices = S.agentChoices(P);
+fs.writeFileSync(join(st, "runs", "r1", "state.json"), JSON.stringify({ agent: "codex" }));
+out.fromState = S.runAgent(st, "r1");
+S.sessionLaunch(P, "codex", ["codex"], "/kaizen x", "x", "r1", "gpt-5.1");
+out.fromRecord = S.runAgent(st, "r1");
+console.log(JSON.stringify(out));`;
+  try {
+    const p = Bun.spawnSync(["bun", "-e", script], { cwd: home, env: { ...process.env, HOME: home, PATH: bin + ":" + dirname(process.execPath) } });
+    if (p.exitCode !== 0) throw new Error(p.stderr.toString());
+    expect(JSON.parse(p.stdout.toString())).toEqual({
+      // A project config.yml with no agent block leaves the global one in force.
+      chain: ["codex", ["-m", "gpt-5", "-c", "model_reasoning_effort=low"]],
+      project: ["claude", ["-m", "o3"]],
+      missing: { name: "Claude Code", cmd: "claude", note: "Gemini CLI is not installed; opened Claude Code instead" },
+      pick: ["codex", ["-m", "gpt-5.1"]],
+      choices: { default: "claude", agents: [
+        { name: "Claude Code", cmd: "claude", model: "", models: true },
+        { name: "Codex", cmd: "codex", model: "o3", models: true },
+      ] },
+      fromState: { cmd: "codex", model: null },
+      fromRecord: { cmd: "codex", model: "gpt-5.1" },
+    });
+  } finally { rmSync(home, { recursive: true, force: true }); rmSync(bin, { recursive: true, force: true }); }
 });
 
 test("boardCards: a short idea is not retired by a request that merely contains the word", () => {
@@ -703,4 +749,32 @@ test("folder dialog: each platform's script is well formed", async () => {
     const check = `$e=$null;[void][System.Management.Automation.Language.Parser]::ParseInput($env:KZ_PS,[ref]$null,[ref]$e);exit $e.Count`;
     expect(Bun.spawnSync([win[0], "-NoProfile", "-Command", check], { env: { ...process.env, KZ_PS: win.at(-1)! } }).exitCode).toBe(0);
   }
+});
+
+test("issueUrl prefills the bug form's fields, without the home path", () => {
+  const u = new URL(issueUrl({ title: "boom", what: `ENOENT ${realHome}/Projects/x/.kaizen/state.json` }));
+  expect(`${u.origin}${u.pathname}`).toBe(`${REPO_URL}/issues/new`);
+  expect(u.searchParams.get("what")).toBe("ENOENT ~/Projects/x/.kaizen/state.json");
+  expect(u.searchParams.get("env")).toBe(systemInfo());
+  // Every key but GitHub's own must be a field id in the form, or it is dropped silently.
+  const ids = [...readFileSync(join(import.meta.dir, "..", ".github", "ISSUE_TEMPLATE", "bug.yml"), "utf8").matchAll(/^\s+id: (\S+)/gm)].map((m) => m[1]);
+  for (const k of u.searchParams.keys()) if (!["template", "title", "body"].includes(k)) expect(ids).toContain(k);
+  // Without the form on GitHub only `body` is read, so it must hold the machine too.
+  expect(u.searchParams.get("body")).toContain(systemInfo());
+  expect(u.searchParams.get("body")).toContain("ENOENT ~/Projects/x/.kaizen/state.json");
+  expect(systemInfo()).toMatch(/^kaizen: .+\nOS: .+\nCPU: .+\nRAM: \d+ GB\nbun: /);
+});
+
+test("issueUrl stays under GitHub's URL limit for a huge error", () => {
+  const u = issueUrl({ title: "x".repeat(500), what: "é".repeat(20000) });
+  expect(u.length).toBeLessThan(8000);
+  expect(new URL(u).searchParams.get("what")).toContain("…(cut)");
+});
+
+test("scrubHome hides a Windows home however the error spells it", () => {
+  const h = ["C:\\Users\\Firman"];
+  expect(scrubHome(`open C:\\Users\\Firman\\x, "c:\\\\users\\\\firman\\\\y", C:/Users/Firman/z`, h, true))
+    .toBe(`open ~\\x, "~\\\\y", ~/z`);
+  // Case matters off Windows: /home/Ann is not /home/ann.
+  expect(scrubHome("/home/ann/a /home/Ann/b", ["/home/ann"], false)).toBe("~/a /home/Ann/b");
 });

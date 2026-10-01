@@ -1,0 +1,26 @@
+name: Bug report
+description: Something in kaizen broke or behaved wrong
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: The error message, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Run `kaizen web`
+        2. Click ...
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: Filled in by `kaizen issue` and the board's Report link. Otherwise paste the output of `kaizen issue --env`.
+      render: text
+    validations:
+      required: true

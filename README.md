@@ -703,6 +703,19 @@ for f in ~/kaizen/commands/kaizen-*.md; do ln -s "$f" ~/.claude/commands/"$(base
 
 </details>
 
+## Reporting a bug
+
+```
+kaizen issue [what happened]
+```
+
+Opens kaizen's GitHub bug form with your machine filled in: kaizen version, OS, arch,
+CPU, RAM, bun version, terminal. The board does the same from *Report an issue* in its
+footer, and every error it shows carries a *Report* link with the error already in the
+form. Your home folder is written as `~`; no hostname or username is included. Nothing
+is sent until you read it and press Submit on GitHub. `kaizen issue --env` only prints
+the details.
+
 ## License
 
 MIT. *Kaizen (改善) is Japanese for continuous improvement — small changes, checked
