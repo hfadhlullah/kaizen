@@ -108,7 +108,10 @@ write, refreshed on every later one.
 `stage` takes exactly one of five words, and boards key their columns on them:
 `plan`, `build`, `review`, `done`, `abandoned`. Set it when the stage starts —
 `build` before the builder touches anything, `review` before the reviewer reads — as
-its own write, not tacked onto a longer command that may not finish. Any other word
+its own write, not tacked onto a longer command that may not finish. Fixing findings
+is building and a recheck is reviewing, whoever runs them and whether the loop or the
+user picked the findings: `build` with `iteration` raised and `awaiting: null` before
+each iteration's first edit, `review` before its recheck reads. Any other word
 (`implement`, `fix`, `building`) is unknown to every reader and shows as still planning.
 
 `awaiting` is `null` or the config key of the approval being waited on —
