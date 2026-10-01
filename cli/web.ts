@@ -291,7 +291,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           id, short: short(id), state: read("state.json"),
           request: read("00-request.md"), plan: read("01-plan.md"), approval: read("02-approval.md"),
           impl: read("03-impl.md"), review: read("04-review.md"), backlog: read("06-backlog.md"),
-          notes: read("notes.md"),
+          notes: read("notes.md"), progress: read("progress.md"),
           // Notebook notes whose [[run:…]] links name this run.
           linkedFrom: linksTo(dir, id),
           // Nothing to pick in the global state dir: /fix refuses it.
@@ -575,7 +575,10 @@ export async function web(repoDir: string, opts: Opts = {}) {
           try { run = JSON.parse(readText(join(dir, "runs", id, "state.json"))); } catch { return bad("no such run", 404); }
           if (run.awaiting !== "approvals.plan" && run.awaiting !== "approvals.review" || run.awaiting !== body.awaiting) return bad("this run is not waiting on that approval", 409);
           if (body.why !== undefined && !String(body.why).trim()) return bad("a revise needs a comment");
-          const text = approvalPrompt(id, run.awaiting, body.why === undefined ? undefined : String(body.why));
+          const answers = body.answers;
+          if (answers !== undefined && (run.awaiting !== "approvals.plan" || body.why !== undefined || !Array.isArray(answers)
+            || !answers.length || answers.length > 20 || answers.some((a: unknown) => typeof a !== "string" || !a.trim()))) return bad("bad answers");
+          const text = approvalPrompt(id, run.awaiting, body.why === undefined ? undefined : String(body.why), answers);
           // The run is stopped at this approval, so its window is idle: the same
           // conversation continues in one new window, and then the idle one ends. A
           // failed launch leaves it open, since the decision went nowhere.

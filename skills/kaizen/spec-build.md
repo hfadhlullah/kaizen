@@ -39,6 +39,14 @@ Rules:
   folder there is no branch to make and no commit to skip, and that absence is not a
   finding.
 
+**Keep `progress.md` while you work.** Before the first change, write
+`runs/<id>/progress.md` with one line per bullet of the plan's Work list, in order:
+`- todo: <bullet text>`. Change a line's prefix to `- doing:` when you start that item
+and to `- done:` when it is finished, with exactly one `doing` at a time. Rewrite the
+prefix only, never the text or the order. The board shows this file live on a building
+run, so it is how a person sees where the build is. It is a progress report, not the
+record — `03-impl.md` still is — and fix iterations do not touch it.
+
 **Baseline first, in any track with an existing suite of checks.** Before changing
 anything, run whatever already proves the existing material correct — the test suite,
 the linter, the link checker, the fact-check pass — and record the result in

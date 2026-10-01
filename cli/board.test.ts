@@ -53,3 +53,46 @@ test("undraft removes by prefix and leaves the rest", () => {
   undraft("f:");
   expect(Object.keys(ss).sort()).toEqual(["kz-d:n:x", "kz-form"]);
 });
+
+// A building run's progress list, lifted the same way.
+const pat = html.indexOf("function progress(");
+const progress = new Function(`${esc}\n${html.slice(pat, html.indexOf("\n\n", pat))}\nreturn progress`)() as (src: string, prev?: string[]) => string;
+
+test("progress: each item marked done, working on or to do, with the count", () => {
+  const out = progress("# Progress\n- done: one\n- doing: two <b>x</b>\n- todo: `three`\n- open: not an item\n");
+  expect(out).toContain("1 of 3 done");
+  expect(out).toContain("width:33%");
+  expect(out.match(/<li class="p-(\w+)/g)).toEqual(['<li class="p-done', '<li class="p-doing', '<li class="p-todo']);
+  expect(out).toContain("two &lt;b&gt;x&lt;/b&gt;");
+  expect(out).toContain("<code>three</code>");
+  expect(out).not.toContain("chg");
+});
+
+test("progress: only an item whose status moved animates", () => {
+  const out = progress("- done: one\n- doing: two\n- todo: three\n", ["done", "todo", "todo"]);
+  expect(out.match(/<li class="[^"]*"/g)).toEqual(['<li class="p-done"', '<li class="p-doing chg"', '<li class="p-todo"']);
+});
+
+test("progress: a file with no items draws nothing", () => {
+  expect(progress("# Progress\n\nnothing yet\n")).toBe("");
+});
+
+// A plan's open questions, lifted the same way: the function ends at the first line not indented.
+const pq = html.indexOf("function planQuestions(");
+type Q = { q: string; multi: boolean; options: { text: string; label: string; rec: boolean }[] };
+const planQuestions = new Function(`${html.slice(pq).split(/\n(?! )/)[0]}\nreturn planQuestions`)() as (src: string) => Q[];
+
+test("planQuestions: Q lines with options, recommended and multi-select read", () => {
+  const qs = planQuestions(`# Plan\n## 9. Open questions\n\nQ: Which improvements to build? (multi-select)\n   - Own project in row (recommended) — fixes Move; XS\n   - Gather on add — instant result\nQ: Where the progress shows\n   - Top of the Backlog tab (recommended): what you asked for.\n   - Its own tab: adds an eighth tab\n## 10. Out of scope suggestions\n- not a question\n`);
+  expect(qs.map((q) => [q.q, q.multi])).toEqual([["Which improvements to build? (multi-select)", true], ["Where the progress shows", false]]);
+  expect(qs[0]!.options.map((o) => [o.label, o.rec])).toEqual([["Own project in row", true], ["Gather on add", false]]);
+  expect(qs[1]!.options.map((o) => o.label)).toEqual(["Top of the Backlog tab", "Its own tab"]);
+});
+
+test("planQuestions: fenced and numbered questions, sub-headings kept, none and missing read as nothing", () => {
+  const qs = planQuestions("## Open questions\n### Board\n```\nQ1: How should it run?\n   - Detach (recommended): prompt comes back\n   - Foreground: as is\n```\n");
+  expect(qs.map((q) => [q.q, q.options.length])).toEqual([["How should it run?", 2]]);
+  expect(planQuestions("## 9. Open questions\n\nNone.\n")).toEqual([]);
+  expect(planQuestions("## 9. Open questions\n- Building → Backlog taken literally.\n")).toEqual([]);
+  expect(planQuestions("# Plan\nno section\n")).toEqual([]);
+});

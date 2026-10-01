@@ -136,6 +136,7 @@ section h2 .clear{margin-left:auto;min-height:22px;padding:0 8px}
 .notes .tools{display:flex;gap:6px;align-items:center}.notes .tools span{flex:1;font-size:11px;color:var(--dim)}.notes .att{font-size:11px;color:var(--dim)}
 .inl pre.files{margin:0;max-height:140px;overflow:auto;font:12px/1.5 var(--mono);color:var(--dim)}
 .inl.fix{margin-top:16px}.inl.fix label{display:flex;gap:8px;align-items:baseline;font-size:13px;cursor:pointer}.inl.fix label.off{color:var(--dim);cursor:default}.inl.fix input{flex:none;width:auto;margin:0;accent-color:var(--accent);position:relative;top:2px}
+.inl.qa{max-height:60vh;overflow:auto}.inl.qa fieldset{border:0;padding:0;margin:0;display:flex;flex-direction:column;gap:4px}.inl.qa legend{font-size:13px;font-weight:500;padding:0;margin-bottom:4px}.inl.qa label{display:flex;gap:8px;align-items:baseline;font-size:13px;cursor:pointer}.inl.qa label input{flex:none;width:auto;margin:0;accent-color:var(--accent);position:relative;top:2px}
 .inl .q{font-size:14px;font-weight:500}.inl .q.dim{color:var(--dim);font-size:13px;font-weight:400}
 .empty{grid-column:1/-1;display:flex;flex-direction:column;align-items:center;gap:12px;padding-block:60px;color:var(--dim);text-align:center}
 .empty b{font-size:16px;font-weight:600;color:var(--ink)}.empty p{margin:0 0 6px;max-width:44ch}
@@ -176,6 +177,18 @@ aside .foot .more .menu-pop{left:0;right:auto;top:auto;bottom:calc(100% + 4px)}.
 .md .lnk a{color:var(--accent);text-underline-offset:3px}
 .md .hit{outline:2px solid var(--accent);outline-offset:3px;border-radius:var(--r-s);transition:outline-color .6s}
 .md li.tk{list-style:none;margin-left:-1.4em}.md li.tk label{display:flex;gap:8px;align-items:baseline}.md li.tk input{flex:none;margin:0;accent-color:var(--accent);position:relative;top:2px;cursor:default}.md li.rej{color:var(--dim);text-decoration:line-through}
+/* A building run's progress.md: the work list as done, working on, to do. Only a
+   changed item animates (.chg); the bar slides from its last width. */
+.prog{margin:0 0 18px}.prog .ph{display:flex;justify-content:space-between;font-size:13px;color:var(--dim);margin-bottom:6px}.prog .ph b{color:var(--ink)}
+.pbar{height:6px;border-radius:3px;background:var(--line);overflow:hidden}.pbar i{display:block;height:100%;background:var(--accent);border-radius:3px;transition:width .26s cubic-bezier(.22,.61,.36,1)}
+.md .prog ol{list-style:none;padding:0;margin:12px 0 0;display:flex;flex-direction:column;gap:2px}
+.prog li{display:flex;gap:10px;align-items:baseline;margin:0;padding:6px 8px;border-radius:var(--r-s);transition:background .12s,color .12s}
+.prog .pi{flex:none;width:16px;height:16px;border-radius:50%;display:inline-grid;place-items:center;font-size:11px;position:relative;top:3px}
+.prog .p-done{color:var(--dim)}.prog .p-done .pi{background:var(--ok);color:var(--bg-2)}
+.prog .p-doing{background:color-mix(in srgb,var(--accent) 10%,transparent);font-weight:600}.prog .p-doing .pi{color:var(--accent);border:1.5px solid currentColor}.prog .p-doing .pulse{animation:pl 1.6s infinite}
+.prog .p-todo{color:var(--dim)}.prog .p-todo .pi{border:1.5px solid var(--line)}
+.prog li.chg{animation:fi .26s}.prog li.chg .pi{animation:pop .26s cubic-bezier(.22,.61,.36,1)}
+@keyframes pop{from{transform:scale(.4)}}
 .md pre{background:var(--bg);border:1px solid var(--line);border-radius:var(--r-s);padding:10px 12px;overflow-x:auto;margin:0 0 10px;font:12px/1.5 var(--mono)}
 .md h1,.md h2{font-size:15px;font-weight:600;margin:20px 0 8px}.md h1:first-child,.md h2:first-child{margin-top:0}.md code{font:12px var(--mono);background:var(--bg);padding:1px 5px;border-radius:var(--r-s)}.md table{border-collapse:collapse;font-size:12px;margin:0 0 10px}.md td,.md th{border:1px solid var(--line);padding:4px 8px;text-align:left}.md hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 .find{border-bottom:1px solid var(--line);padding:10px 0;display:flex;gap:10px;align-items:flex-start}
@@ -513,15 +526,21 @@ function nav(dx,dy){
  const t=cols[ci][ri];t.focus({preventScroll:true});t.scrollIntoView({block:"nearest",inline:"nearest"})}
 
 // ---- detail panel
-function open(c){
+// A run's tabs, its phases in board order. A card opens on its column's tab.
+const TABS=[["Request","request"],["Notes","notes"],["Plan","plan"],["Backlog","backlog"],["Work","impl"],["Review","review"],["Preview","preview"]];
+const tabOf=k=>TABS.findIndex(t=>t[1]===k);
+// keepTab: a link already chose the tab.
+function open(c,keepTab){
  stopDictation(true); // the panel body is about to be replaced
  fixOff.clear();openKey=key(c);$("panel").classList.add("open");$("scrim").classList.add("on");$("ptitle").textContent=c.text;render();
  if(c.kind==="idea"){runDoc=null;$("psub").textContent="Idea · "+c.where;$("ptabs").innerHTML="";chat(c,c.notes,c.archived||c.status!=="idea");
   const foot=$("pfoot");foot.innerHTML=c.archived?`<button class="btn pri" data-a="restore">Restore</button>`:c.status==="idea"?`<button class="btn ghost danger" data-a="delete">Delete</button><button class="btn ghost" data-a="archive">Archive</button><span class="dec"><button class="btn" data-a="reject">Reject</button><button class="btn" data-a="edit">Edit</button><button class="btn pri" data-a="run">Run</button></span>`:`<span class="note">Starting: a run was launched for this idea. No terminal with your agent? Run it again.</span><span class="dec"><button class="btn" data-a="run">Run again</button></span>`;
   foot.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{const a=b.dataset.a;if(a==="archive"||a==="restore"){toggleArchive(c,a==="archive");return}const k=key(c);close();mode=a;modeKey=k;render()});return}
+ if(!keepTab)tab=tabOf(c.status==="abandoned"?"plan":({1:"plan",2:"backlog",3:"review",4:"preview"})[c.column]||"request");
  openRun(c,false)}
 // Notes are a chat: one entry per message, files attached by paste or picker.
 function parseNotes(src){const out=[];for(const raw of (src||"").split("\n")){const m=/^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2})\]\s?(.*)$/.exec(raw);if(m){out.push({at:m[1],text:m[2]});continue}const last=out[out.length-1];if(last)last.text+="\n"+raw.replace(/^\s{2}/,"");else if(raw.trim())out.push({at:"",text:raw})}return out.map(n=>({...n,text:n.text.trim()})).filter(n=>n.text)}
+let nfocus=null;
 function chat(c,src,ro){
  const base=c.kind==="run"?`runs/${c.id}/`:"";
  const fix=t=>t.replace(/\]\((attachments\/[^)]+)\)/g,(_,p)=>`](/file?dir=${encodeURIComponent(c.state)}&p=${encodeURIComponent(base+p)})`);
@@ -532,13 +551,16 @@ function chat(c,src,ro){
  if(ro)return;
  const ta=$("pbody").querySelector("textarea"),files=[];
  draft(ta,"n:"+key(c));
+ // Enter leaves focus in the box, and a focused box blocks the redraw: send blurs it
+ // so the note shows, and the new box takes focus back for the next note.
+ if(nfocus===key(c)){nfocus=null;ta.focus()}
  {const m=mic([ta]);if(m)$("npick").before(m)}
  const show=()=>{$("natt").textContent=files.map(f=>f.name).join(" · ")};
  const add=f=>{files.push(f);show()};
  $("npick").onclick=()=>$("nfile").click();$("nfile").onchange=e=>{[...e.target.files].forEach(add);e.target.value=""};
  ta.onpaste=e=>{for(const it of e.clipboardData.items)if(it.kind==="file"){const f=it.getAsFile();add(new File([f],f.name==="image.png"?`paste-${Date.now()}.png`:f.name,{type:f.type}));e.preventDefault()}};
  const send=async()=>{stopDictation(true);const text=ta.value.trim();if(!text&&!files.length)return;const enc=await Promise.all(files.map(f=>new Promise(r=>{const rd=new FileReader();rd.onload=()=>r({name:f.name,data:rd.result});rd.readAsDataURL(f)})));
-  const body=c.kind==="run"?{dir:c.state,id:c.id,text,files:enc}:{dir:c.state,for:c.text,text,files:enc};const r=await post("/note",body);if(r.ok){files.length=0;ta.value="";try{sessionStorage.removeItem(DK+"n:"+key(c))}catch(e){}toast("Noted");load()}};
+  const body=c.kind==="run"?{dir:c.state,id:c.id,text,files:enc}:{dir:c.state,for:c.text,text,files:enc};const r=await post("/note",body);if(r.ok){files.length=0;ta.value="";try{sessionStorage.removeItem(DK+"n:"+key(c))}catch(e){}toast("Noted");nfocus=key(c);ta.blur();load()}};
  $("nsend").onclick=send;ta.onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send()}};
  $("pbody").scrollTop=0}
 // The builder's "## Preview" section of 03-impl.md: how to run the app, or the result itself,
@@ -547,23 +569,43 @@ function chat(c,src,ro){
 function section(impl,name){const m=impl&&impl.match(new RegExp(`^##\\s+${name}\\s*\\n([\\s\\S]*?)(?=\\n##\\s|$(?![\\s\\S]))`,"m"));return m?m[1].trim():null}
 const preview=impl=>section(impl,"Preview");
 const commitMsg=impl=>(section(impl,"Commit")||"").replace(/^```\w*\n|\n```$/g,"").trim();
-// again: something changed on the server. Where the footer offers git, the doc is read
-// afresh: a commit or push made in a terminal shows in nothing the page already holds.
+// A plan's Open questions as a pick list: `Q: question` lines with `- option` lines under
+// each, "(recommended)" marking the default and "multi-select" in the question allowing
+// several. The format is pinned in spec-plan.md; a section in any other shape reads as none.
+function planQuestions(src){const lines=(src||"").split("\n"),at=lines.findIndex(l=>/^#+\s*(\d+\.\s*)?open questions/i.test(l.trim()));if(at<0)return[];
+ const lvl=/^#+/.exec(lines[at].trim())[0].length,out=[];
+ for(const raw of lines.slice(at+1)){const l=raw.trim(),h=/^#+(?=\s)/.exec(l);if(h&&h[0].length<=lvl)break;
+  const q=/^\**Q\d*\s*[:.)]\**\s*(.+)$/.exec(l);if(q){out.push({q:q[1].trim(),multi:/multi-?select/i.test(q[1]),options:[]});continue}
+  const o=/^[-*]\s+(.+)$/.exec(l),cur=out[out.length-1];
+  if(o&&cur){const t=o[1].trim();cur.options.push({text:t,rec:/\(recommended\)/i.test(t),label:t.replace(/\s*\(recommended\)/i,"").split(/\s+[—–-]\s+|:\s/)[0].trim()})}}
+ return out.filter(x=>x.options.length)}
+// A building run's Backlog tab opens with its progress, above the deferred items. The
+// first draw of a run animates nothing; later ones animate what moved, the bar included.
+let lastProg=null;
+function showProgress(c){
+ const src=c.column===2&&runDoc.progress,prev=lastProg&&lastProg.id===c.id?lastProg:null,h=src?progress(src,prev&&prev.st):"";
+ if(!h)return;lastProg={id:c.id,st:[...src.matchAll(/^\s*-\s*(todo|doing|done):/gm)].map(m=>m[1]),w:+(/width:(\d+)%/.exec(h)[1])};
+ $("pbody").innerHTML=h+(runDoc.backlog?"<h3>Backlog</h3>"+md(runDoc.backlog,true):"");
+ const bar=$("pbody").querySelector(".pbar i");if(prev&&prev.w!==lastProg.w){bar.style.width=prev.w+"%";bar.offsetWidth;bar.style.width=lastProg.w+"%"}}
+// again: something changed on the server, so the doc is read afresh: a note sent, a plan
+// written or a commit made elsewhere shows in nothing the page already holds. One /run
+// fetch per change while a run panel is open; a tab switch reuses the doc.
 async function openRun(c,refresh,again){
- if(!refresh||!runDoc||runDoc.id!==c.id||again&&gitBtn(c)){const d=await fetch(`/run/${encodeURIComponent(c.id)}?dir=${encodeURIComponent(c.state)}`).then(r=>r.json());
+ if(!refresh||!runDoc||runDoc.id!==c.id||again){const d=await fetch(`/run/${encodeURIComponent(c.id)}?dir=${encodeURIComponent(c.state)}`).then(r=>r.json());
   // A file list being confirmed, or a push under way, keeps the doc it was drawn from.
   if(refresh&&$("pfoot").querySelector(".inl,[data-busy],.more[open]"))return;runDoc=d}
  if(openKey!==key(c))return;
  // A refresh while notes are being typed would wipe the textarea.
  const ta=$("pbody").querySelector("textarea");if(refresh&&ta&&document.activeElement===ta)return;
  $("psub").textContent=c.id+" · "+(WORD[c.status]||c.status)+(c.awaiting?" · "+need(c.awaiting):"");
- const tabs=[["Request","request"],["Notes","notes"],["Plan","plan"],["Work","impl"],["Preview","preview"],["Review","review"],["Backlog","backlog"]];
+ const tabs=TABS;
  $("ptabs").innerHTML=tabs.map((t,i)=>`<button class="${i===tab?"on":""}" data-i="${i}">${t[0]}</button>`).join("");
  [...$("ptabs").children].forEach(b=>b.onclick=()=>{tab=+b.dataset.i;openRun(c,true)});
  const k=tabs[tab][1],doc=k==="preview"?preview(runDoc.impl):runDoc[k];
  if(k==="notes"){const ro=c.archived||c.status==="done"||c.status==="abandoned";
   chat(c,doc,ro);}
  else $("pbody").innerHTML=doc?md(doc,k==="backlog"):`<p style="color:var(--dim)">No ${({request:"request",plan:"plan",impl:"work report",preview:"preview",review:"review",backlog:"backlog"})[k]} yet.</p>`;
+ if(k==="backlog")showProgress(c);
  if(k==="review")fixForm(c);
  // The notebook's notes that link here, each opening that note: above the run's own notes.
  if(k==="notes"&&runDoc.linkedFrom&&runDoc.linkedFrom.length)$("pbody").insertAdjacentHTML("afterbegin",`<h3>Linked from notes</h3><ul class="lnk">${runDoc.linkedFrom.map(n=>`<li><a href="/notebook?dir=${encodeURIComponent(c.state)}&amp;note=${encodeURIComponent(n)}">${esc(n)}</a></li>`).join("")}</ul>`);
@@ -573,15 +615,17 @@ async function openRun(c,refresh,again){
  // A refresh while the commit is being confirmed would wipe the message.
  if(refresh&&foot.querySelector(".inl,[data-busy],.more[open]"))return;
  const arch=gitBtn(c)+(c.archived?`<button class="btn pri" data-a="restore">Restore</button>`:`<button class="btn ghost" data-a="archive">Archive</button>`);
+ // A plan that asks questions takes their answers with the approval.
+ const qs=c.status==="waiting"&&c.awaiting==="approvals.plan"?planQuestions(runDoc.plan):[];
  if(c.archived)foot.innerHTML=arch;
- else if(c.status==="waiting"&&APPROVAL[c.awaiting]){const sent=decided.has(answer(c));
+ else if(c.status==="waiting"&&APPROVAL[c.awaiting]){const sent=decided.has(answer(c)),asks=qs.length?` It asks ${qs.length===1?"one question":qs.length+" questions"}: Approve opens ${qs.length===1?"it":"them"}.`:"";
   // gitBtn's buttons restyled as menu rows.
   const more=gitBtn(c).replace(/class="btn( pri)?"/g,"")+`<button data-a="archive">Archive</button><hr><button data-a="ab" class="danger">Abandon</button>`;
-  foot.innerHTML=`<span class="note">${sent?"Sent to your agent.":APPROVAL[c.awaiting]+" Answering here opens a new agent session."}</span><details class="more"><summary class="btn ghost">More</summary><div class="menu-pop">${more}</div></details><span class="dec"><button class="btn" data-a="revise"${sent?" disabled":""}>Revise</button><button class="btn pri" data-a="approve"${sent?" disabled":""}>Approve</button></span>`}
+  foot.innerHTML=`<span class="note">${sent?"Sent to your agent.":APPROVAL[c.awaiting]+asks+" Answering here opens a new agent session."}</span><details class="more"><summary class="btn ghost">More</summary><div class="menu-pop">${more}</div></details><span class="dec"><button class="btn" data-a="revise"${sent?" disabled":""}>Revise</button><button class="btn pri" data-a="approve"${sent?" disabled":""}>Approve</button></span>`}
  else if(c.status==="waiting")foot.innerHTML=`<span class="note">Waiting on you: ${esc(need(c.awaiting))}. Answer in the terminal running this run.</span>${arch}<button class="btn ghost" data-a="ab">Abandon</button>`;
  else if(c.status==="done"||c.status==="abandoned")foot.innerHTML=arch;
  else foot.innerHTML=`<span class="note">${c.status==="stalled"?"No progress for a while. Resume it with <code>/kaizen run</code> in your agent, or abandon it.":"Running in your agent."}</span>${arch}<button class="btn ghost" data-a="ab">Abandon run</button>`;
- foot.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{const a=b.dataset.a;if(a==="archive"||a==="restore"){toggleArchive(c,a==="archive");return}if(a==="push"){commitPush(c,"",b);return}if(a==="commit"){confirmCommit(c);return}if(a==="approve"){decide(c,b);return}if(a==="revise"){confirmRevise(c);return}close();mode="reject";modeKey=key(c);render()})}
+ foot.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{const a=b.dataset.a;if(a==="archive"||a==="restore"){toggleArchive(c,a==="archive");return}if(a==="push"){commitPush(c,"",b);return}if(a==="commit"){confirmCommit(c);return}if(a==="approve"){if(qs.length)confirmAnswers(c,qs);else decide(c,b);return}if(a==="revise"){confirmRevise(c);return}close();mode="reject";modeKey=key(c);render()})}
 // Answering an approval from the panel opens your agent on the run, told the decision and,
 // for a revise, the comment. Answered approvals are remembered outside the footer, which
 // every refresh rebuilds, so a second press cannot open a second agent. Keyed by when the
@@ -589,7 +633,7 @@ async function openRun(c,refresh,again){
 // The footer's More menu is a <details>: close it on a click anywhere else.
 document.addEventListener("click",e=>{for(const d of document.querySelectorAll(".more[open]"))if(!d.contains(e.target))d.open=false});
 const APPROVAL={"approvals.plan":"The plan is ready. Read it in the Plan tab, then approve or send it back.","approvals.review":"The work is reviewed. Approve to finish it, or revise with what to change."},decided=new Set(),answer=c=>key(c)+":"+c.awaiting+":"+c.moved;
-async function decide(c,b,why){b.disabled=true;askNotify();const r=await post("/decide",{dir:c.state,id:c.id,awaiting:c.awaiting,...(why===undefined?{}:{why})});
+async function decide(c,b,why,answers){b.disabled=true;askNotify();const r=await post("/decide",{dir:c.state,id:c.id,awaiting:c.awaiting,...(why===undefined?{}:{why}),...(answers?{answers}:{})});
  // A failed send keeps the footer, and with it a typed comment.
  if(!r.ok){b.disabled=false;return}
  decided.add(answer(c));toast((why===undefined?"Approved":"Sent back")+" in your terminal: "+r.agent.name);
@@ -599,6 +643,14 @@ function confirmRevise(c){const foot=$("pfoot"),plan=c.awaiting==="approvals.pla
  const inp=foot.querySelector("textarea");inp.focus();
  foot.querySelector("[data-a=c]").onclick=()=>{foot.innerHTML="";openRun(c,true)};
  foot.querySelector("[data-a=s]").onclick=e=>{const why=inp.value.trim();if(!why){toast("Say what should change");inp.focus();return}decide(c,e.target,why)}}
+// The plan's questions, answered with the approval: the recommended option preselected,
+// a note for what the options miss. Each answer reaches the agent as one line.
+function confirmAnswers(c,qs){const foot=$("pfoot");
+ foot.innerHTML=`<div class="inl qa" style="flex:1"><div class="q">The plan asks ${qs.length===1?"one question":qs.length+" questions"}.</div><div class="q dim">Your answers go to your agent with the approval. It records them and builds the plan.</div>${qs.map((x,i)=>`<fieldset><legend>${esc(x.q)}</legend>${x.options.map((o,j)=>`<label><input type="${x.multi?"checkbox":"radio"}" name="q${i}" value="${j}"${o.rec||!x.multi&&!j&&!x.options.some(p=>p.rec)?" checked":""}> ${esc(o.text)}</label>`).join("")}<input type="text" data-n="${i}" placeholder="Note (optional)" aria-label="Note: ${esc(x.q)}"></fieldset>`).join("")}<div class="row"><button class="btn ghost" data-a="c">Cancel</button><button class="btn pri" data-a="s">Approve with these answers</button></div></div>`;
+ foot.querySelector("[data-a=c]").onclick=()=>{foot.innerHTML="";openRun(c,true)};
+ foot.querySelector("[data-a=s]").onclick=e=>decide(c,e.target,undefined,qs.map((x,i)=>{
+  const picked=[...foot.querySelectorAll(`[name=q${i}]:checked`)].map(n=>x.options[+n.value].label).join(", ")||"none of the options",note=foot.querySelector(`[data-n="${i}"]`).value.trim();
+  return `${x.q} — ${picked}${note?"; "+note:""}`}))}
 // A link from a note (?run= or ?idea=, with dir, tab, item) opens that card's panel;
 // a finding or backlog item named is scrolled to and marked. Found by its text, since
 // the rendered list does not carry the numbers.
@@ -609,13 +661,13 @@ function deep(){const p=new URLSearchParams(location.search),d=p.get("dir"),id=p
  if(!c){toast(id?"That run is not on this board":"That idea is not on this board");return}
  const m=/^(finding|backlog)-(\d+)$/.exec(p.get("item")||"");
  // An item's tab is its own when the link does not name one.
- const t=["request","notes","plan","work","preview","review","backlog"].indexOf(p.get("tab")||(m?(m[1]==="finding"?"review":"backlog"):""));tab=t<0?0:t;hit=m?{type:m[1],n:+m[2],k:key(c)}:null;open(c)}
+ const n=p.get("tab")||(m?(m[1]==="finding"?"review":"backlog"):""),t=tabOf(n==="work"?"impl":n);if(t>=0)tab=t;hit=m?{type:m[1],n:+m[2],k:key(c)}:null;open(c,t>=0)}
 // What md() leaves of a line as text: no backticks or stars, a link reduced to its words.
 function mark(h){hit=null;const flat=t=>String(t).replace(/!?\[([^\]]*)\]\([^)\s]+\)/g,"$1").replace(/[`*]/g,"").replace(/\s+/g," ").trim();
  const b=[...(runDoc.backlog||"").matchAll(/^\s*-\s*(?:open|done|rejected):\s*(.*)$/gm)];
  const text=h.type==="finding"?(runDoc.findings||[]).find(f=>f.n===h.n)?.text:b[h.n-1]?.[1];
  if(!text){toast("That item is not in this run");return}
- const want=flat(text).slice(0,60),el=[...$("pbody").querySelectorAll("li,p")].find(e=>flat(e.textContent).includes(want));
+ const want=flat(text).slice(0,60),el=[...$("pbody").querySelectorAll("li,p")].find(e=>!e.closest(".prog")&&flat(e.textContent).includes(want));
  if(!el)return;el.scrollIntoView({block:"center"});el.classList.add("hit");setTimeout(()=>el.classList.remove("hit"),2400)}
 // Fix picked findings, under the review: open ones ticked, closed ones listed but settled.
 // Unticked numbers live outside the form, which every refresh rebuilds. A finding is one
@@ -677,6 +729,13 @@ function md(src,tick){
   if(!l.trim()){endList();i++;continue}
   endList();const buf=[l];i++;while(i<lines.length&&lines[i].trim()&&!/^(#|```|\||\s*[-*]\s|\s*\d+\.\s|---)/.test(lines[i]))buf.push(lines[i++]);out.push(`<p>${inl(buf.join(" "))}</p>`)}
  endList();return out.join("")}
+
+// A building run's progress.md, one `- todo|doing|done: text` line per Work-list item.
+// prev: the statuses last drawn for this run; an item whose status moved gets .chg.
+function progress(src,prev){
+ const items=[...src.matchAll(/^\s*-\s*(todo|doing|done):\s*(.*)$/gm)].map(m=>[m[1],m[2]]);if(!items.length)return "";
+ const n=items.filter(t=>t[0]==="done").length,pct=Math.round(n/items.length*100),ic={done:"✓",doing:'<span class="pulse"></span>',todo:""};
+ return `<div class="prog"><div class="ph"><b>${n} of ${items.length} done</b><span>${pct}%</span></div><div class="pbar"><i style="width:${pct}%"></i></div><ol>${items.map(([st,t],i)=>`<li class="p-${st}${prev&&prev[i]&&prev[i]!==st?" chg":""}"><span class="pi">${ic[st]}</span><span>${esc(t).replace(/`([^`]+)`/g,"<code>$1</code>")}</span></li>`).join("")}</ol></div>`}
 
 // ---- settings, toast, notifications, keys
 // Rows in config order, grouped as the TUI groups them.
