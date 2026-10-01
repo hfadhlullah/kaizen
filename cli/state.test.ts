@@ -139,6 +139,12 @@ test("approvalPrompt: approve or revise, the comment kept on one line", () => {
   expect(approvalPrompt("r", "approvals.review", "rename it")).toContain('final approval: "rename it". Record it in 02-approval.md, change the work');
 });
 
+test("approvalPrompt: a plan's answers numbered on one line", () => {
+  const p = approvalPrompt("r", "approvals.plan", undefined, ["Where? — Footer", "Chip?\n — No; keep it\tsmall"]);
+  expect(p).toBe("run r: the plan is approved from the board, with answers to its open questions: 1) Where? — Footer; 2) Chip? — No; keep it small. Record them in 02-approval.md and build the plan with them.");
+  expect(approvalPrompt("r", "approvals.plan", "redo it", ["x"])).toContain("to revise");
+});
+
 test("startedRuns: normalised request bodies", () => {
   expect(startedRuns(state).sort()).toEqual(["# request add oauth login", "# request rename cli flags"]);
 });

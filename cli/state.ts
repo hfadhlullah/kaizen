@@ -431,9 +431,13 @@ export function fixPrompt(id: string, nums: number[]) {
 
 // The board's answer to an approval the run is waiting on. The comment is collapsed to
 // one line: where the prompt is typed into a shell (herdr), a newline sends it early.
-export function approvalPrompt(id: string, awaiting: string, why?: string) {
+// Answers are the plan's open questions answered at the approval, one per question.
+export function approvalPrompt(id: string, awaiting: string, why?: string, answers?: string[]) {
   const plan = awaiting === "approvals.plan";
-  const note = why?.replace(/\s+/g, " ").trim();
+  const one = (t: string) => t.replace(/\s+/g, " ").trim();
+  const note = why === undefined ? undefined : one(why);
+  if (plan && !note && answers?.length) return `run ${id}: the plan is approved from the board, with answers to its open questions: `
+    + answers.map((a, i) => `${i + 1}) ${one(a).replace(/[.;]$/, "")}`).join("; ") + `. Record them in 02-approval.md and build the plan with them.`;
   if (!note) return plan
     ? `run ${id}: the plan is approved from the board. Record it in 02-approval.md and build it.`
     : `run ${id}: the work is approved from the board at the final approval. Record it, write the backlog and finish the run.`;
