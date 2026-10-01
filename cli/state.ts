@@ -106,7 +106,8 @@ function answers(cmd: string[]): boolean {
   }
 }
 
-export function findTerminal(cwd: string, fullCmd: string[]): { cmd: string[]; detached: boolean } | null {
+// pidFile: where the launched agent writes its own PID, so closeSessions can end it.
+export function findTerminal(cwd: string, fullCmd: string[], pidFile?: string): { cmd: string[]; detached: boolean } | null {
   const hasDisplay = Boolean(process.env.WAYLAND_DISPLAY || process.env.DISPLAY);
 
   // Windows has no xdg anything, and none of the terminals below exist there.
@@ -118,7 +119,8 @@ export function findTerminal(cwd: string, fullCmd: string[]): { cmd: string[]; d
   if (process.platform === "win32") {
     const q = (a: string) => `'${a.replace(/'/g, "''")}'`;
     const shell = powershellExe();
-    const ps = `Set-Location ${q(cwd)}; & ${fullCmd.map(q).join(" ")}`;
+    // This PowerShell's PID: ending its tree closes the -NoExit tab or window.
+    const ps = `${pidFile ? `$PID | Set-Content -LiteralPath ${q(pidFile)}; ` : ""}Set-Location ${q(cwd)}; & ${fullCmd.map(q).join(" ")}`;
     const enc = Buffer.from(ps, "utf16le").toString("base64");
     // herdr (beta on Windows) first, as elsewhere: a new tab, and the run typed into
     // its PowerShell. Typed text ends at a newline, so what is typed is one line, the
@@ -150,6 +152,9 @@ if ($o -match '"pane_id":"([^"]*)"') { & ${q(herdr)} pane run $Matches[1] ${q(ty
   // eats tabs and quotes its own way -- so the line goes into a one-shot script and
   // only `sh <path>` is typed.
   // ponytail: the mktemp path is typed unquoted; quote it if a TMPDIR with spaces shows up.
+  // The wrapper writes its PID and then becomes the agent, so the PID is the agent's
+  // on every branch below, whatever terminal or launcher sits in front of it.
+  if (pidFile) fullCmd = ["sh", "-c", 'echo $$ > "$0"; exec "$@"', pidFile, ...fullCmd];
   const line = fullCmd.map(shq).join(" ");
   if (answers(["herdr", "workspace", "list"])) {
     const script = `f=$(mktemp) && printf 'rm -f "$0"\\nexec %s\\n' "$2" > "$f" && p=$(herdr tab create --cwd "$1" --label kaizen --focus | sed -n 's/.*"pane_id":"\\([^"]*\\)".*/\\1/p') && [ -n "$p" ] && herdr pane run "$p" "sh $f"`;
@@ -734,6 +739,7 @@ export function abandonRun(st: string, id: string, why: string): string | null {
     // resume contract every kaizen tool reads.
     appendFileSync(join(st, "runs", id, "02-approval.md"),
       `\n---\n\n## Abandoned\n\n${new Date().toISOString()} — abandoned from the board.\n\n${why}\n`);
+    closeSessions(st, id);
     return null;
   } catch (err: any) {
     return err?.message ?? String(err);
@@ -869,7 +875,156 @@ export function manualCommand(projectDir: string, agentCmd: string, prompt: stri
     : `cd ${q(projectDir)} && ${bin} ${q(prompt)}`;
 }
 
-export function launchRun(it: Item, from: string): Launch {
+// Agent sessions kaizen opened. Each launch leaves `sessions/<key>.json` in the
+// project's state dir ({run, text, cmd, sessionId, started}) and `<key>.pid`, which
+// the agent writes itself. Only these are ever closed or resumed: a session the user
+// opened by hand has no record.
+export type Session = { key: string; run: string | null; text: string; cmd: string; sessionId: string | null; started: number };
+
+// Tools that take a conversation id at launch and resume it by that id. Every other
+// tool gets a fresh session on each decision, as before.
+const SESSION_FLAGS: Record<string, { start: (id: string) => string[]; resume: (id: string) => string[]; transcript: (cwd: string, id: string) => string }> = {
+  claude: {
+    start: (id) => ["--session-id", id],
+    resume: (id) => ["--resume", id],
+    transcript: (cwd, id) => join(process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), ".claude"), "projects", cwd.replace(/[^A-Za-z0-9]/g, "-"), `${id}.jsonl`),
+  },
+};
+
+export const CLOSE_GRACE_MS = 2 * 60_000;
+const sessionsDir = (st: string) => join(st, "sessions");
+
+export function readSessions(st: string): Session[] {
+  const dir = sessionsDir(st);
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir).filter((f) => f.endsWith(".json")).flatMap((f) => {
+    try { return [{ ...JSON.parse(readText(join(dir, f))), key: f.slice(0, -5) }]; } catch { return []; }
+  }).sort((a, b) => a.started - b.started);
+}
+
+// Whose session a record is. A decision's launch names its run. An idea's launch came
+// before its run existed, so it belongs to the first run created after it whose
+// request holds the idea's text: one run per record, never every run that mentions it.
+export function ownerOf(st: string, s: Session): string | null {
+  if (s.run) return s.run;
+  const t = normalise(s.text);
+  let best: string | null = null, at = Infinity;
+  try {
+    for (const id of readdirSync(join(st, "runs"))) {
+      try {
+        const f = join(st, "runs", id, "00-request.md");
+        const st2 = statSync(f), born = st2.birthtimeMs || st2.mtimeMs;
+        // A second of slack: file times come from a coarser clock than Date.now().
+        if (born >= s.started - 1000 && born < at && normalise(readText(f)).includes(t)) { best = id; at = born; }
+      } catch { /* no request yet */ }
+    }
+  } catch { /* no runs dir */ }
+  return best;
+}
+
+// agent.close in the config chain: on unless it says off.
+export function closeEnabled(projectDir: string) {
+  for (const f of [join(projectDir, ".kaizen", "config.yml"), join(home, ".kaizen", "config.yml")]) {
+    try {
+      const m = /^agent:\n(?:[ \t]+.*\n)*?[ \t]+close:[ \t]*(\S+)/m.exec(readText(f));
+      if (m) return !/^(off|false|no)$/i.test(m[1]);
+    } catch { /* absent */ }
+  }
+  return true;
+}
+
+// Whether a live PID is still the agent a record launched, not a stranger that reused
+// the number: the tool's name (and conversation id) in its arguments, started no
+// earlier than the record. On Windows the PID is the PowerShell kaizen opened.
+function isSession(pid: number, s: Session): boolean {
+  try {
+    if (process.platform === "win32") {
+      const out = Bun.spawnSync([sysExe("tasklist.exe"), "/FI", `PID eq ${pid}`, "/FO", "CSV", "/NH"], { stdin: "ignore", timeout: 5000, windowsHide: true }).stdout.toString();
+      return /^"(powershell|pwsh)\.exe"/i.test(out.trim());
+    }
+    const ps = onPath("ps");
+    if (!ps) return false;
+    const m = /^\s*(\S+)\s+(.*)$/.exec(Bun.spawnSync([ps, "-o", "etime=,args=", "-p", String(pid)], { stdin: "ignore", timeout: 5000 }).stdout.toString().trim());
+    if (!m) return false;
+    // etime is [[dd-]hh:]mm:ss
+    const [d, rest] = m[1].includes("-") ? m[1].split("-") : ["0", m[1]];
+    const secs = rest.split(":").reduce((a, n) => a * 60 + Number(n), 0) + Number(d) * 86400;
+    return Date.now() - secs * 1000 >= s.started - 2000 && m[2].includes(s.cmd) && (!s.sessionId || m[2].includes(s.sessionId));
+  } catch {
+    return false;
+  }
+}
+
+// End one recorded session if it is still running, and drop its PID file either way:
+// without one, the record is never looked at for closing again.
+function closeOne(st: string, s: Session): boolean {
+  const pidFile = join(sessionsDir(st), s.key + ".pid");
+  let closed = false;
+  try {
+    const pid = parseInt(readText(pidFile));
+    if (pid > 0 && isSession(pid, s)) {
+      if (process.platform === "win32") Bun.spawnSync([sysExe("taskkill.exe"), "/T", "/F", "/PID", String(pid)], { stdin: "ignore", stdout: "ignore", stderr: "ignore", timeout: 5000, windowsHide: true });
+      else process.kill(pid, "SIGTERM");
+      closed = true;
+    }
+  } catch { /* already gone */ }
+  rmSync(pidFile, { force: true });
+  return closed;
+}
+
+const openSessions = (st: string) => readSessions(st).filter((s) => existsSync(join(sessionsDir(st), s.key + ".pid")));
+
+// Close every session kaizen opened for a run, those launched before `before` only,
+// so a decision's own successor is never caught. The record stays: it holds the
+// conversation id the next decision resumes. Never throws.
+export function closeSessions(st: string, id: string, opts: { before?: number } = {}): number {
+  try {
+    if (!closeEnabled(dirname(st))) return 0;
+    return openSessions(st).filter((s) => s.started < (opts.before ?? Infinity) && ownerOf(st, s) === id).filter((s) => closeOne(st, s)).length;
+  } catch { return 0; }
+}
+
+// The board's minute sweep: sessions of runs done or abandoned for longer than the
+// grace, so the final summary can still be read first.
+export function sweepSessions(st: string, now: number) {
+  try {
+    const live = openSessions(st);
+    if (!live.length || !closeEnabled(dirname(st))) return;
+    const runs = new Map(readRuns(st).map((r) => [r.id, r]));
+    for (const s of live) {
+      const r = runs.get(ownerOf(st, s) ?? "");
+      if (r && (r.stage === "done" || r.stage === "abandoned") && now - r.moved >= CLOSE_GRACE_MS) closeOne(st, s);
+    }
+  } catch { /* the next sweep tries again */ }
+}
+
+// The run's conversation to continue: its first recorded one, on this tool, whose
+// transcript is still on disk. None means a fresh session, never a guess.
+export function firstSession(st: string, id: string, cmd: string, cwd: string): Session | null {
+  const f = SESSION_FLAGS[cmd];
+  if (!f) return null;
+  return readSessions(st).find((s) => s.sessionId && s.cmd === cmd && ownerOf(st, s) === id && existsSync(f.transcript(cwd, s.sessionId))) ?? null;
+}
+
+// The agent's argv for a launch, and its record. With a run, a decision: it resumes
+// the run's conversation when there is one. A project without a state dir gets no
+// record; making one here would shadow the user's.
+export function sessionLaunch(projectDir: string, cmd: string, base: string[], prompt: string, text: string, run?: string) {
+  const st = join(projectDir, ".kaizen");
+  if (!existsSync(st)) return { fullCmd: [...base, prompt], pidFile: undefined, record: undefined };
+  const f = SESSION_FLAGS[cmd];
+  const prev = run ? firstSession(st, run, cmd, projectDir) : null;
+  const sessionId = f ? prev?.sessionId ?? crypto.randomUUID() : null;
+  const fullCmd = [...base, ...(f && sessionId ? (prev ? f.resume(sessionId) : f.start(sessionId)) : []), prompt];
+  const key = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  mkdirSync(sessionsDir(st), { recursive: true });
+  const record = join(sessionsDir(st), key + ".json");
+  writeFileSync(record, JSON.stringify({ run: run ?? null, text, cmd, sessionId, started: Date.now() }) + "\n");
+  return { fullCmd, pidFile: join(sessionsDir(st), key + ".pid"), record };
+}
+
+// run: the run a decision is for. Without it, an idea starting a new run.
+export function launchRun(it: Item, from: string, run?: string): Launch {
   const projectDir = projectOf(from);
   // The run will be born here; the board must know the dir or the idea never retires.
   remember(projectDir);
@@ -877,11 +1032,14 @@ export function launchRun(it: Item, from: string): Launch {
   const agentBin = Bun.which(agent.cmd) ?? agent.cmd;
   const prompt = requestOf(it.where ? `/kaizen ${it.text} (${it.where})` : `/kaizen ${it.text}`, it.notes, from);
   const flags = agentFlags(projectDir, agent.cmd);
-  const fullCmd = [agentBin, ...flags, prompt];
+  // The idea as its run's request will hold it: without the runner word in front.
+  const s = sessionLaunch(projectDir, agent.cmd, [agentBin, ...flags], prompt, it.text.replace(/^(lite|full|auto|plan)\s+/i, ""), run);
   const manual = manualCommand(projectDir, agent.cmd, prompt, flags);
+  const drop = () => { if (s.record) rmSync(s.record, { force: true }); };
 
-  const term = findTerminal(projectDir, fullCmd);
+  const term = findTerminal(projectDir, s.fullCmd, s.pidFile);
   if (!term) {
+    drop();
     return {
       ok: false, agent, prompt, projectDir, manual,
       why: process.platform === "darwin"
@@ -903,6 +1061,7 @@ export function launchRun(it: Item, from: string): Launch {
     if (term.detached) proc.unref();
     return { ok: true, agent, prompt, projectDir, cmd: term.cmd };
   } catch (err: any) {
+    drop();
     return { ok: false, agent, prompt, projectDir, manual, why: err?.message ?? String(err) };
   }
 }

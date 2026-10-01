@@ -8,7 +8,7 @@ import {
   readRuns, readInbox, writeInbox, replaceIdea, abandonRun, allBacklog, backlog,
   statusOf, columnOf, parseItem, startedRuns, boardCards, readArchive, setArchived,
   requestOf, agentFlags, readNotes, writeNotes, manualCommand, parseNotes, formatNote, appendNote, saveAttachment,
-  reviewFindings, pickFindings, fixPrompt, approvalPrompt, gitStatus, runGit, cardsGit, commitPush, readCommit, findTerminal, nativePath, pruneRuns, unrechecked, notice, notifier, notifyArgs, LOGO, type Card,
+  reviewFindings, pickFindings, fixPrompt, approvalPrompt, sessionLaunch, closeSessions, sweepSessions, readSessions, ownerOf, CLOSE_GRACE_MS, gitStatus, runGit, cardsGit, commitPush, readCommit, findTerminal, nativePath, pruneRuns, unrechecked, notice, notifier, notifyArgs, LOGO, type Card,
 } from "./state.ts";
 
 let state: string;
@@ -517,4 +517,144 @@ test("files saved with CRLF (PowerShell, autocrlf clones) read the same as LF", 
   expect(readInbox(crlf)).toEqual(readInbox(lf));
   const runs = (s: string) => readRuns(s).map(({ moved, ...r }) => ({ ...r, dir: undefined }));
   expect(runs(crlf)).toEqual(runs(lf));
+});
+
+// A project whose agent sessions are recorded: close on, one run asked for "tidy logs".
+const sessionProject = () => {
+  const p = mkdtempSync(join(tmpdir(), "kz-sess-"));
+  mkdirSync(join(p, ".kaizen", "runs"), { recursive: true });
+  writeFileSync(join(p, ".kaizen", "config.yml"), "agent:\n  default: claude\n  close: on\n");
+  return p;
+};
+const newRun = (p: string, id: string, request: string, s: object = { stage: "plan", awaiting: "approvals.plan" }) => {
+  mkdirSync(join(p, ".kaizen", "runs", id), { recursive: true });
+  writeFileSync(join(p, ".kaizen", "runs", id, "00-request.md"), `# Request (verbatim)\n\n${request}\n`);
+  writeFileSync(join(p, ".kaizen", "runs", id, "state.json"), JSON.stringify(s));
+};
+
+test("sessionLaunch: claude gets a conversation id, a decision resumes it while its transcript exists, codex starts fresh", () => {
+  const p = sessionProject(), st = join(p, ".kaizen");
+  const saved = process.env.CLAUDE_CONFIG_DIR;
+  process.env.CLAUDE_CONFIG_DIR = mkdtempSync(join(tmpdir(), "kz-claude-"));
+  try {
+    const idea = sessionLaunch(p, "claude", ["/bin/claude", "--model", "opus"], "/kaizen tidy logs", "tidy logs");
+    const [rec] = readSessions(st);
+    expect(rec.sessionId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(idea.fullCmd).toEqual(["/bin/claude", "--model", "opus", "--session-id", rec.sessionId!, "/kaizen tidy logs"]);
+    expect(idea.pidFile).toBe(join(st, "sessions", rec.key + ".pid"));
+    newRun(p, "2026-10-01-tidy-logs", "/kaizen tidy logs");
+    expect(ownerOf(st, rec)).toBe("2026-10-01-tidy-logs");
+
+    // No transcript on disk: a fresh session, with an id of its own.
+    const fresh = sessionLaunch(p, "claude", ["/bin/claude"], "/kaizen run x: approved", "run x: approved", "2026-10-01-tidy-logs");
+    expect(fresh.fullCmd[1]).toBe("--session-id");
+    expect(fresh.fullCmd[2]).not.toBe(rec.sessionId);
+
+    const t = join(process.env.CLAUDE_CONFIG_DIR, "projects", p.replace(/[^A-Za-z0-9]/g, "-"));
+    mkdirSync(t, { recursive: true });
+    writeFileSync(join(t, `${rec.sessionId}.jsonl`), "{}\n");
+    const back = sessionLaunch(p, "claude", ["/bin/claude"], "/kaizen run x: approved", "run x: approved", "2026-10-01-tidy-logs");
+    expect(back.fullCmd).toEqual(["/bin/claude", "--resume", rec.sessionId!, "/kaizen run x: approved"]);
+    expect(readSessions(st).filter((r) => r.run === "2026-10-01-tidy-logs" && r.sessionId === rec.sessionId)).toHaveLength(1);
+
+    // Another tool's record never resumes; codex takes no id at all.
+    expect(sessionLaunch(p, "codex", ["/bin/codex"], "/kaizen run x: approved", "x", "2026-10-01-tidy-logs").fullCmd).toEqual(["/bin/codex", "/kaizen run x: approved"]);
+  } finally {
+    saved === undefined ? delete process.env.CLAUDE_CONFIG_DIR : (process.env.CLAUDE_CONFIG_DIR = saved);
+  }
+  // A folder with no state dir gets no record, and no .kaizen made for one.
+  const bare = mkdtempSync(join(tmpdir(), "kz-bare-"));
+  expect(sessionLaunch(bare, "claude", ["claude"], "/kaizen x", "x")).toMatchObject({ fullCmd: ["claude", "/kaizen x"], pidFile: undefined });
+  expect(existsSync(join(bare, ".kaizen"))).toBe(false);
+});
+
+test("ownerOf: an idea's session belongs to the first run created after it, not an older one with the same words", () => {
+  const p = sessionProject(), st = join(p, ".kaizen");
+  newRun(p, "2026-09-01-old", "/kaizen fix the login page");
+  const rec = { key: "k", run: null, text: "fix the login page", cmd: "claude", sessionId: null, started: Date.now() + 5000 };
+  expect(ownerOf(st, rec)).toBe(null);
+  expect(ownerOf(st, { ...rec, started: 0 })).toBe("2026-09-01-old");
+  expect(ownerOf(st, { ...rec, run: "2026-10-01-x" })).toBe("2026-10-01-x");
+});
+
+test("findTerminal records the agent's PID: a POSIX wrapper that execs it, a PowerShell prefix on Windows", () => {
+  const keys = ["PATH", "HERDR_ENV", "TMUX", "TERMINAL", "SystemRoot", "windir", "ComSpec"];
+  const saved = keys.map((k) => process.env[k]);
+  const platform = Object.getOwnPropertyDescriptor(process, "platform")!;
+  const bin = mkdtempSync(join(tmpdir(), "kz-bin-"));
+  try {
+    process.env.PATH = bin;
+    for (const k of keys.slice(1)) delete process.env[k];
+    writeFileSync(join(bin, "tmux"), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+    if (process.platform !== "win32") {
+      const t = findTerminal("/p", ["claude", "/kaizen x"], "/s/k.pid")!;
+      expect(t.cmd.slice(4)).toEqual(["sh", "-c", 'echo $$ > "$0"; exec "$@"', "/s/k.pid", "claude", "/kaizen x"]);
+    }
+    Object.defineProperty(process, "platform", { value: "win32" });
+    process.env.SystemRoot = "D:\\Win";
+    const w = findTerminal("C:\\p", ["claude", "/kaizen x"], "C:\\p\\.kaizen\\sessions\\k.pid")!;
+    const ps = Buffer.from(w.cmd.at(-1)!, "base64").toString("utf16le");
+    expect(ps).toBe("$PID | Set-Content -LiteralPath 'C:\\p\\.kaizen\\sessions\\k.pid'; Set-Location 'C:\\p'; & 'claude' '/kaizen x'");
+  } finally {
+    Object.defineProperty(process, "platform", platform);
+    keys.forEach((k, i) => (saved[i] === undefined ? delete process.env[k] : (process.env[k] = saved[i])));
+    rmSync(bin, { recursive: true, force: true });
+  }
+});
+
+test.skipIf(process.platform === "win32")("closeSessions ends only the run's own live sessions launched before the decision", async () => {
+  const p = sessionProject(), st = join(p, ".kaizen"), dir = join(st, "sessions");
+  newRun(p, "2026-10-01-a", "/kaizen a");
+  mkdirSync(dir, { recursive: true });
+  // A stand-in agent through the real wrapper: `kzagent <id>` in its arguments, as
+  // `claude --session-id <id>` would be. `; :` keeps sh from exec'ing sleep itself.
+  const start = (key: string, rec: object) => {
+    writeFileSync(join(dir, key + ".json"), JSON.stringify({ run: "2026-10-01-a", text: "a", cmd: "kzagent", sessionId: "sid-" + key, started: Date.now() - 5000, ...rec }));
+    return Bun.spawn(["sh", "-c", 'echo $$ > "$0"; exec "$@"', join(dir, key + ".pid"), "sh", "-c", "sleep 30; :", "kzagent", "sid-" + key], { stdout: "ignore", stderr: "ignore" });
+  };
+  const procs = {
+    mine: start("mine", {}),
+    later: start("later", { started: Date.now() + 60_000 }),        // the decision's own successor
+    stranger: start("stranger", { cmd: "notkzagent" }),             // a PID that is not this agent
+    other: start("other", { run: "2026-10-01-b" }),                 // another run's
+  };
+  for (let i = 0; i < 100 && Object.keys(procs).some((k) => !existsSync(join(dir, k + ".pid"))); i++) await Bun.sleep(20);
+  writeFileSync(join(dir, "dead.json"), JSON.stringify({ run: "2026-10-01-a", text: "a", cmd: "kzagent", sessionId: null, started: 0 }));
+  writeFileSync(join(dir, "dead.pid"), "999999\n");
+  try {
+    expect(closeSessions(st, "2026-10-01-a", { before: Date.now() })).toBe(1);
+    expect(await procs.mine.exited).not.toBe(0);
+    for (const k of ["later", "stranger", "other"] as const) expect(procs[k].exitCode).toBe(null);
+    expect(existsSync(join(dir, "mine.pid"))).toBe(false);
+    expect(existsSync(join(dir, "mine.json"))).toBe(true);       // its conversation id is still needed
+    expect(existsSync(join(dir, "dead.pid"))).toBe(false);
+    expect(existsSync(join(dir, "later.pid"))).toBe(true);
+
+    // Off: nothing is ended.
+    writeFileSync(join(st, "config.yml"), "agent:\n  default: claude\n  close: off\n");
+    expect(closeSessions(st, "2026-10-01-b")).toBe(0);
+    expect(procs.other.exitCode).toBe(null);
+    writeFileSync(join(st, "config.yml"), "agent:\n  default: claude\n  close: on\n");
+
+    // The sweep: run b done within the grace keeps its window, past it loses it.
+    newRun(p, "2026-10-01-b", "/kaizen b", { stage: "done", awaiting: null });
+    sweepSessions(st, Date.now());
+    await Bun.sleep(100);
+    expect(procs.other.exitCode).toBe(null);
+    sweepSessions(st, Date.now() + CLOSE_GRACE_MS);
+    expect(await procs.other.exited).not.toBe(0);
+    expect(procs.later.exitCode).toBe(null);                     // run a is still waiting
+  } finally {
+    for (const pr of Object.values(procs)) pr.kill();
+  }
+});
+
+test("abandonRun closes the run's recorded sessions", () => {
+  const p = sessionProject(), st = join(p, ".kaizen");
+  newRun(p, "2026-10-01-z", "/kaizen z");
+  mkdirSync(join(st, "sessions"));
+  writeFileSync(join(st, "sessions", "k.json"), JSON.stringify({ run: "2026-10-01-z", text: "z", cmd: "kzagent", sessionId: null, started: 0 }));
+  writeFileSync(join(st, "sessions", "k.pid"), "999999\n");
+  expect(abandonRun(st, "2026-10-01-z", "no")).toBe(null);
+  expect(existsSync(join(st, "sessions", "k.pid"))).toBe(false);
 });
