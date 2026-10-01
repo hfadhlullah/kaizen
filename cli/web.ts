@@ -6,7 +6,7 @@ import {
   home, type Item, type Card, boardCards, knownProjects, remember, locate, label, tilde, searchRoots, findProjects,
   readInbox, writeInbox, replaceIdea, abandonRun, launchRun, parseItem, short, setArchived, writeNotes,
   appendNote, saveAttachment, pidOnPort, readText, cmdExe, sysExe, powershellExe, runGit, cardsGit, readCommit, commitPush, notice, notifier, LOGO,
-  reviewFindings, pickFindings, fixPrompt, approvalPrompt, nativePath,
+  reviewFindings, pickFindings, fixPrompt, approvalPrompt, nativePath, closeSessions, sweepSessions,
 } from "./state.ts";
 import { readSources, addSource, removeSource, moveSource, gatherSource, gatherAll, gatherDirs, due } from "./sources.ts";
 import { listNotes, saveNote, renameNote, deleteNote, boardIndex, linksTo } from "./notes.ts";
@@ -136,7 +136,10 @@ export async function web(repoDir: string, opts: Opts = {}) {
   };
   let last = fingerprint();
   let seen = states(true).join("\n");
+  let ticks = 0;
   const poll = setInterval(() => {
+    // Once a minute: windows of runs finished or abandoned past the grace are closed.
+    if (++ticks % 30 === 0) for (const dir of states(true)) sweepSessions(dir, Date.now());
     // A project registered since start (a run launched into a fresh dir) gets a watcher too.
     const now = states(true).join("\n"); if (now !== seen) { seen = now; watchAll(); }
     const fp = fingerprint(); if (fp !== last) { last = fp; changed(); }
@@ -551,7 +554,9 @@ export async function web(repoDir: string, opts: Opts = {}) {
           const nums = pickFindings(dir, id, body.nums);
           if (!nums) return bad("pick open findings of this review");
           const text = fixPrompt(id, nums);
-          const r = launchRun({ severity: null, where: null, text, raw: text }, dir);
+          // The run's waiting window ends, and its conversation picks the fix up.
+          closeSessions(dir, id, { before: Date.now() });
+          const r = launchRun({ severity: null, where: null, text, raw: text }, dir, id);
           changed();
           return json(r.ok
             ? { ok: true, agent: r.agent }
@@ -569,7 +574,10 @@ export async function web(repoDir: string, opts: Opts = {}) {
           if (run.awaiting !== "approvals.plan" && run.awaiting !== "approvals.review" || run.awaiting !== body.awaiting) return bad("this run is not waiting on that approval", 409);
           if (body.why !== undefined && !String(body.why).trim()) return bad("a revise needs a comment");
           const text = approvalPrompt(id, run.awaiting, body.why === undefined ? undefined : String(body.why));
-          const r = launchRun({ severity: null, where: null, text, raw: text }, dir);
+          // The run is stopped at this approval, so its window is idle: end it, and
+          // continue the same conversation in one new window.
+          closeSessions(dir, id, { before: Date.now() });
+          const r = launchRun({ severity: null, where: null, text, raw: text }, dir, id);
           changed();
           return json(r.ok
             ? { ok: true, agent: r.agent }
