@@ -25,7 +25,7 @@ export function detectDefaultAgent(projectDir: string): { name: string; cmd: str
     ? join(projectDir, ".kaizen", "config.yml")
     : join(home, ".kaizen", "config.yml");
   if (existsSync(cfgFile)) {
-    const text = readFileSync(cfgFile, "utf8");
+    const text = readText(cfgFile);
     const m = /^\s*agent:\s*\n\s*default:\s*(\S+)/m.exec(text) || /^\s*agent\.default:\s*(\S+)/m.exec(text);
     if (m && m[1] && m[1] !== "auto") {
       const found = KNOWN_AGENTS.find((a) => a.cmd === m[1] || a.name.toLowerCase() === m[1].toLowerCase());
@@ -59,7 +59,7 @@ const EFFORT_FLAGS: Record<string, (e: string) => string[]> = {
 export function agentFlags(projectDir: string, cmd: string, configText?: string): string[] {
   if (configText === undefined) {
     const f = [join(projectDir, ".kaizen", "config.yml"), join(home, ".kaizen", "config.yml")].find(existsSync);
-    configText = f ? readFileSync(f, "utf8") : "";
+    configText = f ? readText(f) : "";
   }
   // ponytail: regex over the yaml, like detectDefaultAgent; a parser when a third key needs it
   const block = new RegExp(`^agent:\\n(?:[ \\t]+.*\\n)*?[ \\t]+${cmd}:[ \\t]*(\\{[^}]*\\}|\\n(?:[ \\t]+[a-z]+:.*\\n?)+)`, "m").exec(configText);
@@ -77,6 +77,11 @@ export function agentFlags(projectDir: string, cmd: string, configText?: string)
 const shq = (a: string) => `'${a.replace(/'/g, `'\\''`)}'`;
 
 // Bun.which reads the PATH the process started with unless handed the current one.
+// Windows PowerShell 5.1 writes `Set-Content -Encoding utf8` with a byte order mark,
+// and agents on Windows write run files that way. JSON.parse refuses a leading BOM
+// (the run vanished from the board) and it hides a first line from every ^ regex.
+export const readText = (file: string) => readFileSync(file, "utf8").replace(/^\uFEFF/, "");
+
 const onPath = (bin: string) => Bun.which(bin, { PATH: process.env.PATH });
 
 // Windows' own programs by full path: a board started from the shortcut or a
@@ -211,7 +216,7 @@ export function searchRoots(extra: string[] = []): string[] {
 
 export function knownProjects(): string[] {
   if (!existsSync(REGISTRY)) return [];
-  return readFileSync(REGISTRY, "utf8").split("\n")
+  return readText(REGISTRY).split("\n")
     .map((l) => l.trim())
     .filter((l) => l && !l.startsWith("#"))
     .map(nativePath)
@@ -289,7 +294,7 @@ export function readRuns(state: string): Run[] {
   return readdirSync(dir).sort().flatMap((id) => {
     try {
       const file = join(dir, id, "state.json");
-      const s = JSON.parse(readFileSync(file, "utf8"));
+      const s = JSON.parse(readText(file));
       // When the run last moved. Kaizen records no liveness signal, so the file's
       // own mtime is the only evidence that anything is still working on it.
       let moved = 0;
@@ -310,7 +315,7 @@ export function pruneRuns(state: string, keep: number, apply = false): { id: str
     const open = r.stage === "done" ? readBacklog(join(dir, "06-backlog.md")) : [];
     if (apply) {
       const orphanage = join(state, "backlog.md");
-      const gap = existsSync(orphanage) && !readFileSync(orphanage, "utf8").endsWith("\n") ? "\n" : "";
+      const gap = existsSync(orphanage) && !readText(orphanage).endsWith("\n") ? "\n" : "";
       if (open.length) appendFileSync(orphanage, gap + open.map((i) => `- open: ${i} | from ${r.id}\n`).join(""));
       rmSync(dir, { recursive: true, force: true });
     }
@@ -336,13 +341,13 @@ export function backlog(state: string) {
   let n = 0;
   for (const f of files) {
     if (!existsSync(f)) continue;
-    n += (readFileSync(f, "utf8").match(/^\s*-\s*open:/gm) ?? []).length;
+    n += (readText(f).match(/^\s*-\s*open:/gm) ?? []).length;
   }
   return n;
 }
 
 export function version(repo: string) {
-  try { return JSON.parse(readFileSync(join(repo, "package.json"), "utf8")).version; } catch { return ""; }
+  try { return JSON.parse(readText(join(repo, "package.json"))).version; } catch { return ""; }
 }
 // The global state directory is not a project and has no parent worth naming.
 export function label(stateDir: string) {
@@ -354,7 +359,7 @@ export function tilde(p: string) { return p.startsWith(home) ? "~" + p.slice(hom
 // The first few real lines of a file's body, blank lines and headings dropped.
 export function section(file: string, n: number) {
   if (!existsSync(file)) return [];
-  return readFileSync(file, "utf8").split("\n")
+  return readText(file).split("\n")
     .map((l) => l.trim())
     .filter((l) => l && !l.startsWith("#"))
     .slice(0, n);
@@ -362,7 +367,7 @@ export function section(file: string, n: number) {
 
 export function readFindings(file: string) {
   if (!existsSync(file)) return [];
-  return readFileSync(file, "utf8").split("\n")
+  return readText(file).split("\n")
     .map((l) => l.trim())
     .filter((l) => /^\d+\.\s/.test(l) || /\b(critical|high|medium|low)\b:/.test(l));
 }
@@ -377,7 +382,7 @@ export function reviewFindings(state: string, id: string) {
   const base = join(state, "runs", id);
   const read = (f: string) => {
     const p = join(base, f);
-    return existsSync(p) ? readFileSync(p, "utf8").split("\n").map((l) => l.trim()) : [];
+    return existsSync(p) ? readText(p).split("\n").map((l) => l.trim()) : [];
   };
   let lines = read("04-review.md");
   const at = lines.findIndex((l) => /^#+\s*findings/i.test(l));
@@ -390,7 +395,7 @@ export function reviewFindings(state: string, id: string) {
   const closed = read("06-backlog.md").flatMap((l) => /^-\s*(?:done|rejected):\s*(.*)$/.exec(l)?.[1] ?? []);
   const iter = join(base, "05-iterations");
   const rechecked = new Set((existsSync(iter) ? readdirSync(iter) : []).filter((f) => f.endsWith("-recheck.md"))
-    .flatMap((f) => [...readFileSync(join(iter, f), "utf8").matchAll(/finding\s+(\d+)\W{1,8}closed/gi)].map((m) => Number(m[1]))));
+    .flatMap((f) => [...readText(join(iter, f)).matchAll(/finding\s+(\d+)\W{1,8}closed/gi)].map((m) => Number(m[1]))));
   return lines.flatMap((l) => {
     const m = /^(\d+)\.\s+(.+)$/.exec(l);
     if (!m) return [];
@@ -439,7 +444,7 @@ export function tidy(text: string) {
 
 export function readBacklog(file: string) {
   if (!existsSync(file)) return [];
-  return readFileSync(file, "utf8").split("\n")
+  return readText(file).split("\n")
     .map((l) => l.trim())
     .filter((l) => /^-\s*open:/.test(l))
     .map((l) => l.replace(/^-\s*open:\s*/, ""));
@@ -493,7 +498,7 @@ export function startedRuns(state: string): string[] {
   if (!existsSync(dir)) return [];
   const out: string[] = [];
   for (const id of readdirSync(dir)) {
-    try { out.push(normalise(readFileSync(join(dir, id, "00-request.md"), "utf8"))); }
+    try { out.push(normalise(readText(join(dir, id, "00-request.md")))); }
     catch { /* no request file, or unreadable */ }
   }
   return out;
@@ -539,7 +544,7 @@ export function readInbox(state: string): InboxLine[] {
   const f = join(state, "inbox.md");
   if (!existsSync(f)) return [];
   const out: InboxLine[] = [];
-  for (const raw of readFileSync(f, "utf8").split("\n")) {
+  for (const raw of readText(f).split("\n")) {
     const m = /^-\s*(open|started|done|rejected|archived):\s*(.+)$/.exec(raw.trim());
     if (m) { out.push({ status: m[1]!, text: m[2]!.trim() }); continue; }
     // An indented line belongs to the bullet above it; anything else is noise.
@@ -579,7 +584,7 @@ export function requestOf(text: string, notes?: string, state?: string) {
 // Free text beside a run -- what the user learned after the idea became a run.
 // Its own file, never state.json: that shape is the resume contract.
 export function readNotes(state: string, id: string) {
-  try { return readFileSync(join(state, "runs", id, "notes.md"), "utf8"); } catch { return ""; }
+  try { return readText(join(state, "runs", id, "notes.md")); } catch { return ""; }
 }
 
 export function writeNotes(state: string, id: string, text: string): string | null {
@@ -701,7 +706,7 @@ export function short(id: string) { return id.replace(/^\d{4}-\d{2}-\d{2}-/, "")
 export function abandonRun(st: string, id: string, why: string): string | null {
   const file = join(st, "runs", id, "state.json");
   try {
-    const run = JSON.parse(readFileSync(file, "utf8"));
+    const run = JSON.parse(readText(file));
     if (run.stage === "abandoned") return "That run is already abandoned.";
     run.stage = "abandoned";
     run.awaiting = null;
@@ -731,7 +736,7 @@ export function replaceIdea(state: string, text: string, next: InboxLine | null)
 export function readArchive(state: string): Set<string> {
   const f = join(state, "archive.md");
   if (!existsSync(f)) return new Set();
-  return new Set(readFileSync(f, "utf8").split("\n")
+  return new Set(readText(f).split("\n")
     .map((l) => /^-\s*(\S+)/.exec(l.trim())?.[1])
     .filter((x): x is string => !!x));
 }
@@ -772,7 +777,7 @@ export function boardCards(states: string[], now: number): Card[] {
   const bodies = new Map<string, string>();
   const body = (st: string, id: string) => {
     const f = join(st, "runs", id, "00-request.md");
-    if (!bodies.has(f)) { try { bodies.set(f, readFileSync(f, "utf8")); } catch { bodies.set(f, ""); } }
+    if (!bodies.has(f)) { try { bodies.set(f, readText(f)); } catch { bodies.set(f, ""); } }
     return bodies.get(f)!;
   };
   const requests: string[] = [];
@@ -944,7 +949,7 @@ function runReport(state: string, id: string) {
   const base = join(state, "runs", id), its = join(base, "05-iterations");
   const fixes = existsSync(its) ? readdirSync(its).filter((n) => n.endsWith("-fix.md")).map((n) => join(its, n)) : [];
   let text = "", at = 0;
-  for (const f of [join(base, "03-impl.md"), ...fixes]) try { text += readFileSync(f, "utf8") + "\n"; at = Math.max(at, statSync(f).mtimeMs); } catch {}
+  for (const f of [join(base, "03-impl.md"), ...fixes]) try { text += readText(f) + "\n"; at = Math.max(at, statSync(f).mtimeMs); } catch {}
   return { text, at };
 }
 const names = (report: string, path: string) => report.includes("`" + path + "`") || report.includes("`" + path + ":");
@@ -987,7 +992,7 @@ export function runGit(state: string, id: string): GitStatus {
 // mtime is the liveness signal.
 export function readCommit(state: string, id: string): { sha: string; pushed: boolean } | null {
   try {
-    const t = readFileSync(join(state, "runs", id, "07-commit.md"), "utf8");
+    const t = readText(join(state, "runs", id, "07-commit.md"));
     return { sha: /^commit: (\S+)/m.exec(t)?.[1] ?? "", pushed: /^pushed: yes/m.test(t) };
   } catch { return null; }
 }

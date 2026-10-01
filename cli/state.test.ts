@@ -466,3 +466,12 @@ test("notifier: only a run seen before, saying something new, and not a done the
   expect(notifier.toString()).toStartWith("function notifier(");
   expect(readFileSync(join(import.meta.dir, "..", "web", "board.html"), "utf8")).toContain("(/*notifier*/)()");
 });
+
+test("files written by Windows PowerShell, with a byte order mark, still read: the run shows, the first idea is an idea", () => {
+  const st = join(mkdtempSync(join(tmpdir(), "kaizen-bom-")), ".kaizen");
+  mkdirSync(join(st, "runs", "r1"), { recursive: true });
+  writeFileSync(join(st, "runs", "r1", "state.json"), "﻿" + JSON.stringify({ id: "r1", stage: "plan", awaiting: "approvals.plan" }));
+  writeFileSync(join(st, "inbox.md"), "﻿- open: first idea\n");
+  expect(readRuns(st).map((r) => [r.id, r.stage])).toEqual([["r1", "plan"]]);
+  expect(readInbox(st)).toEqual([{ status: "open", text: "first idea" }]);
+});

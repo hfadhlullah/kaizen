@@ -1,8 +1,9 @@
 // Full-screen settings browser for .kaizen/config.yml.
 // Arrow keys move and change; every change is written straight to the file.
-import { existsSync, readFileSync, writeFileSync, copyFileSync, mkdirSync } from "node:fs";
+import { existsSync, writeFileSync, copyFileSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { homedir } from "node:os";
+import { readText } from "./state.ts";
 
 // `text` is a value typed rather than chosen: a path. It has no values to cycle.
 type Setting = { key: string; label: string; group: string; values: string[]; help: string; text?: boolean };
@@ -123,8 +124,8 @@ const SETTINGS: Setting[] = [
 // one place decides what a setting is called, what it may be, and how it is saved.
 export function listSettings(repoRoot: string) {
   const file = locate();
-  const defaults = readFileSync(join(repoRoot, "skills/kaizen/config.default.yml"), "utf8");
-  const text = existsSync(file) ? readFileSync(file, "utf8") : "";
+  const defaults = readText(join(repoRoot, "skills/kaizen/config.default.yml"));
+  const text = existsSync(file) ? readText(file) : "";
   const preset = detectPreset(text, defaults);
   return {
     file: tilde(file),
@@ -141,8 +142,8 @@ export function setSetting(repoRoot: string, key: string, value: string) {
   const file = locate();
   const defaultsPath = join(repoRoot, "skills/kaizen/config.default.yml");
   if (!existsSync(file)) { mkdirSync(dirname(file), { recursive: true }); copyFileSync(defaultsPath, file); }
-  const defaults = readFileSync(defaultsPath, "utf8");
-  const text = readFileSync(file, "utf8");
+  const defaults = readText(defaultsPath);
+  const text = readText(file);
   let updated: string;
   if (key === "preset") {
     if (value === "custom") return { error: "custom is what any other change makes" };
@@ -180,12 +181,12 @@ export async function settings(repoRoot: string, standalone = true) {
   const { stdin, stdout } = process;
   if (!stdin.isTTY) { console.log(`Settings live in ${file}`); return; }
 
-  const defaults = readFileSync(join(repoRoot, "skills/kaizen/config.default.yml"), "utf8");
+  const defaults = readText(join(repoRoot, "skills/kaizen/config.default.yml"));
   let active = 0, saved = "";
   // Screen line -> setting index, rebuilt on every draw; the mouse clicks by line.
   let rowAt: number[] = [];
   const draw = () => {
-    const text = readFileSync(file, "utf8");
+    const text = readText(file);
     const currentPreset = detectPreset(text, defaults);
     // Booleans as a checkbox, numeric scales as a level bar; the file still holds the words.
     const show = (s: Setting, v: string) => {
@@ -227,7 +228,7 @@ export async function settings(repoRoot: string, standalone = true) {
   };
 
   stdout.write("\x1b[?1049h\x1b[?25l");      // alternate screen, hide cursor
-  const mouse = /^\s*ui:\s*\n(?:\s*#.*\n)*\s*mouse:\s*(\S+)/m.exec(readFileSync(file, "utf8"));
+  const mouse = /^\s*ui:\s*\n(?:\s*#.*\n)*\s*mouse:\s*(\S+)/m.exec(readText(file));
   const mouseOn = mouse?.[1] === "true";
   if (mouseOn) { stdout.write("\x1b[?1000h\x1b[?1006h"); mouseArmed = true; }
   stdin.setRawMode(true);
@@ -238,7 +239,7 @@ export async function settings(repoRoot: string, standalone = true) {
     const s = SETTINGS[active]!;
     const wasMouse = s.key === "ui.mouse";
     if (s.text) { saved = c.dim(`type ${s.key} in the board's settings, or in ${tilde(file)}`); return; }
-    const text = readFileSync(file, "utf8");
+    const text = readText(file);
     if (s.key === "preset") {
       const current = detectPreset(text, defaults);
       const presets: PresetName[] = ["low", "medium", "ultra"];

@@ -1,9 +1,9 @@
 // The notebook's files: plain markdown under <state>/notes/, folders and all, so any
 // editor (Obsidian included) can open the same folder. Every name that arrives from
 // the page goes through safeName before it becomes a path.
-import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, rmdirSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, realpathSync, renameSync, rmdirSync, statSync, writeFileSync } from "node:fs";
 import { join, dirname, resolve, sep } from "node:path";
-import { boardCards, reviewFindings } from "./state.ts";
+import { boardCards, reviewFindings, readText } from "./state.ts";
 import { wikilinks, boardLink, resolveRun } from "../web/notes-lib.ts";
 
 export type Note = { name: string; mtime: number; text: string };
@@ -49,7 +49,7 @@ export function listNotes(state: string): Note[] {
       try { st = statSync(p); } catch { continue; }
       if (st.isDirectory()) walk(p, prefix + n + "/");
       else if (n.toLowerCase().endsWith(".md") && safeName(prefix + n) === prefix + n.slice(0, -3)) {
-        try { out.push({ name: prefix + n.slice(0, -3), mtime: st.mtimeMs, text: readFileSync(p, "utf8") }); } catch { /* vanished */ }
+        try { out.push({ name: prefix + n.slice(0, -3), mtime: st.mtimeMs, text: readText(p) }); } catch { /* vanished */ }
       }
     }
   };
@@ -65,7 +65,7 @@ export function saveNote(state: string, name: unknown, text: string, base: numbe
   if (!t) return { ok: false, why: "bad name" };
   if (existsSync(t.file)) {
     const now = statSync(t.file).mtimeMs;
-    if (now !== base) return { ok: false, why: "conflict", text: readFileSync(t.file, "utf8"), mtime: now };
+    if (now !== base) return { ok: false, why: "conflict", text: readText(t.file), mtime: now };
   } else if (base) return { ok: false, why: "conflict", text: "", mtime: 0 };
   mkdirSync(dirname(t.file), { recursive: true });
   writeFileSync(t.file, text);
@@ -116,7 +116,7 @@ export function boardIndex(state: string) {
   const cards = boardCards([state], Date.now());
   const backlog = (id: string) => {
     let text = "";
-    try { text = readFileSync(join(state, "runs", id, "06-backlog.md"), "utf8"); } catch { /* none */ }
+    try { text = readText(join(state, "runs", id, "06-backlog.md")); } catch { /* none */ }
     return [...text.matchAll(/^\s*-\s*(open|done|rejected):\s*(.*)$/gm)].map((m, i) => ({ n: i + 1, status: m[1]!, text: m[2]!.trim() }));
   };
   return {

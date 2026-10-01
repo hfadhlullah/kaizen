@@ -1,11 +1,11 @@
 // `kaizen web`: the board in a browser. A loopback HTTP server over state.ts and
 // one HTML page; the page never sees the filesystem, only JSON.
-import { existsSync, readFileSync, readdirSync, statSync, watch, appendFileSync, mkdirSync, type FSWatcher } from "node:fs";
+import { existsSync, readdirSync, statSync, watch, appendFileSync, mkdirSync, type FSWatcher } from "node:fs";
 import { join, dirname } from "node:path";
 import {
   home, type Item, type Card, boardCards, knownProjects, remember, locate, label, tilde, searchRoots, findProjects,
   readInbox, writeInbox, replaceIdea, abandonRun, launchRun, parseItem, short, setArchived, writeNotes,
-  appendNote, saveAttachment, pidOnPort, cmdExe, sysExe, powershellExe, runGit, cardsGit, readCommit, commitPush, notice, notifier, LOGO,
+  appendNote, saveAttachment, pidOnPort, readText, cmdExe, sysExe, powershellExe, runGit, cardsGit, readCommit, commitPush, notice, notifier, LOGO,
   reviewFindings, pickFindings, fixPrompt,
 } from "./state.ts";
 import { readSources, addSource, removeSource, moveSource, gatherSource, gatherAll, gatherDirs, due } from "./sources.ts";
@@ -19,7 +19,7 @@ const DEFAULT_PORT = 7420;
 // Read once at start: a board keeps the code it started with, so this is what it
 // runs, not what is installed now. `/` sends it; `current()` compares the two.
 const VERSION = (() => {
-  try { return JSON.parse(readFileSync(join(dirname(import.meta.dir), "package.json"), "utf8")).version as string; }
+  try { return JSON.parse(readText(join(dirname(import.meta.dir), "package.json"))).version as string; }
   catch { return "unknown"; }
 })();
 
@@ -203,7 +203,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
       if (req.method === "GET" && path === "/") {
         if (!existsSync(PAGE)) return new Response("web/board.html missing", { status: 500 });
         // The page gets the notify rule from state.ts rather than keeping its own copy.
-        return new Response(readFileSync(PAGE, "utf8").replace("/*notifier*/", () => notifier.toString()), {
+        return new Response(readText(PAGE).replace("/*notifier*/", () => notifier.toString()), {
           headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-kaizen-version": VERSION },
         });
       }
@@ -260,7 +260,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         if (!dir || !states(true).includes(dir) || !/^[\w.-]+$/.test(id)) return bad("no such run", 404);
         const base = join(dir, "runs", id);
         if (!existsSync(base)) return bad("no such run", 404);
-        const read = (f: string) => existsSync(join(base, f)) ? readFileSync(join(base, f), "utf8") : null;
+        const read = (f: string) => existsSync(join(base, f)) ? readText(join(base, f)) : null;
         return json({
           id, short: short(id), state: read("state.json"),
           request: read("00-request.md"), plan: read("01-plan.md"), approval: read("02-approval.md"),
@@ -508,7 +508,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           if (!/^[\w.-]+$/.test(id)) return bad("bad run id");
           if (dir === join(home, ".kaizen")) return bad("no project to commit", 409);
           let run: any;
-          try { run = JSON.parse(readFileSync(join(dir, "runs", id, "state.json"), "utf8")); } catch { return bad("no such run", 404); }
+          try { run = JSON.parse(readText(join(dir, "runs", id, "state.json"))); } catch { return bad("no such run", 404); }
           if (run.stage !== "done" && run.awaiting !== "approvals.review") return bad("this run is not finished", 409);
           const r = await commitPush(dir, id, String(body.message ?? ""), Array.isArray(body.files) ? body.files.map(String) : []);
           changed();
@@ -523,7 +523,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           if (!/^[\w.-]+$/.test(id)) return bad("bad run id");
           if (dir === join(home, ".kaizen")) return bad("no project to fix in", 409);
           let run: any;
-          try { run = JSON.parse(readFileSync(join(dir, "runs", id, "state.json"), "utf8")); } catch { return bad("no such run", 404); }
+          try { run = JSON.parse(readText(join(dir, "runs", id, "state.json"))); } catch { return bad("no such run", 404); }
           if (run.stage !== "done" && run.awaiting !== "approvals.review" && run.awaiting !== "findings") return bad("this run is still being worked on", 409);
           const nums = pickFindings(dir, id, body.nums);
           if (!nums) return bad("pick open findings of this review");
