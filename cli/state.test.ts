@@ -130,7 +130,7 @@ test("reviewFindings: numbered lines under Findings, closed by the backlog; the 
 });
 
 test("approvalPrompt: approve or revise, the comment kept on one line", () => {
-  expect(approvalPrompt("r", "approvals.plan")).toBe("run r: the plan is approved from the board. Record it in 02-approval.md and build it.");
+  expect(approvalPrompt("r", "approvals.plan")).toBe("run r: the plan is approved from the board. Record it in 02-approval.md and build it, first asking any of its open questions still unanswered.");
   expect(approvalPrompt("r", "approvals.review", "  ")).toContain("approved from the board at the final approval");
   const p = approvalPrompt("r", "approvals.plan", " drop step 3,\n\tkeep \"the rest\" ");
   expect(p).toContain('to revise: "drop step 3, keep "the rest"".');

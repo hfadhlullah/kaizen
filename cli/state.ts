@@ -439,7 +439,7 @@ export function approvalPrompt(id: string, awaiting: string, why?: string, answe
   if (plan && !note && answers?.length) return `run ${id}: the plan is approved from the board, with answers to its open questions: `
     + answers.map((a, i) => `${i + 1}) ${one(a).replace(/[.;]$/, "")}`).join("; ") + `. Record them in 02-approval.md and build the plan with them.`;
   if (!note) return plan
-    ? `run ${id}: the plan is approved from the board. Record it in 02-approval.md and build it.`
+    ? `run ${id}: the plan is approved from the board. Record it in 02-approval.md and build it, first asking any of its open questions still unanswered.`
     : `run ${id}: the work is approved from the board at the final approval. Record it, write the backlog and finish the run.`;
   return plan
     ? `run ${id}: the plan is sent back from the board to revise: "${note}". Record it in 02-approval.md, revise 01-plan.md with it, and stop at the plan approval again.`

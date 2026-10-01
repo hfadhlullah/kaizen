@@ -99,7 +99,12 @@ The planner reads code but writes none. Its plan must contain:
 8. **Risks** — what could break, what is irreversible, what needs a migration or a
    backup taken first.
 9. **Open questions** — assumptions that survived the interview. If this list is
-   non-empty, the approval must ask the user about it rather than defaulting.
+   non-empty, the approval must ask the user about it rather than defaulting. The
+   board shows a waiting plan's questions as a pick list and sends the answers with
+   its approval, so keep this shape: each question on its own line as
+   `Q: <question>`, its options beneath as `- <label> (recommended) — <why>`, the
+   label short since it is what is sent back, `(multi-select)` in the question when
+   several may be picked, and `None.` when there are none.
 10. **Out of scope suggestions** — worthwhile things noticed but not asked for, each
    its own proposal. Never folded into a step.
 

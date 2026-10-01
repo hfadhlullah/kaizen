@@ -80,19 +80,24 @@ test("progress: a file with no items draws nothing", () => {
 // A plan's open questions, lifted the same way: the function ends at the first line not indented.
 const pq = html.indexOf("function planQuestions(");
 type Q = { q: string; multi: boolean; options: { text: string; label: string; rec: boolean }[] };
-const planQuestions = new Function(`${html.slice(pq).split(/\n(?! )/)[0]}\nreturn planQuestions`)() as (src: string) => Q[];
+const planQuestions = new Function(`${html.slice(pq).split(/\n(?! )/)[0]}\nreturn planQuestions`)() as (src: string) => Q[] | null;
 
 test("planQuestions: Q lines with options, recommended and multi-select read", () => {
-  const qs = planQuestions(`# Plan\n## 9. Open questions\n\nQ: Which improvements to build? (multi-select)\n   - Own project in row (recommended) — fixes Move; XS\n   - Gather on add — instant result\nQ: Where the progress shows\n   - Top of the Backlog tab (recommended): what you asked for.\n   - Its own tab: adds an eighth tab\n## 10. Out of scope suggestions\n- not a question\n`);
-  expect(qs.map((q) => [q.q, q.multi])).toEqual([["Which improvements to build? (multi-select)", true], ["Where the progress shows", false]]);
+  const qs = planQuestions(`# Plan\n## 9. Open questions\n\nQ: Which improvements to build? (multi-select)\n   - Own project in row (recommended) — fixes Move; XS\n   - Gather on add — instant result\nQ: Where the progress shows\n   - Top of the Backlog tab (recommended): what you asked for.\n   - Its own tab: adds an eighth tab\n\n- Note: not an option\n## 10. Out of scope suggestions\n- not a question\n`);
+  expect(qs!.map((q) => [q.q, q.multi])).toEqual([["Which improvements to build? (multi-select)", true], ["Where the progress shows", false]]);
   expect(qs[0]!.options.map((o) => [o.label, o.rec])).toEqual([["Own project in row", true], ["Gather on add", false]]);
   expect(qs[1]!.options.map((o) => o.label)).toEqual(["Top of the Backlog tab", "Its own tab"]);
 });
 
 test("planQuestions: fenced and numbered questions, sub-headings kept, none and missing read as nothing", () => {
   const qs = planQuestions("## Open questions\n### Board\n```\nQ1: How should it run?\n   - Detach (recommended): prompt comes back\n   - Foreground: as is\n```\n");
-  expect(qs.map((q) => [q.q, q.options.length])).toEqual([["How should it run?", 2]]);
+  expect(qs!.map((q) => [q.q, q.options.length])).toEqual([["How should it run?", 2]]);
   expect(planQuestions("## 9. Open questions\n\nNone.\n")).toEqual([]);
-  expect(planQuestions("## 9. Open questions\n- Building → Backlog taken literally.\n")).toEqual([]);
+  expect(planQuestions("## 9. Open questions\n- Building → Backlog taken literally.\n")).toBeNull();
   expect(planQuestions("# Plan\nno section\n")).toEqual([]);
+});
+
+test("planQuestions: a bullet after a blank line is not one more option", () => {
+  const qs = planQuestions("## Open questions\nQ: One?\n   - A (recommended)\n   - B\n\n- Note: aside\n")!;
+  expect(qs[0]!.options.map((o) => o.label)).toEqual(["A", "B"]);
 });

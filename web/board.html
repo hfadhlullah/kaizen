@@ -215,6 +215,11 @@ aside .foot .more .menu-pop{left:0;right:auto;top:auto;bottom:calc(100% + 4px)}.
 .bar{display:inline-flex;border:1px solid var(--line);border-radius:var(--r-s);overflow:hidden}
 .bar button{min-width:30px;height:28px;font-size:13px;color:var(--dim);font-variant-numeric:tabular-nums}.bar button+button{border-left:1px solid var(--line)}
 .bar button:hover{background:var(--hover);color:var(--ink)}.bar button.on,.bar button.on:hover{background:var(--accent);color:var(--on-accent)}.bar button:focus-visible{outline-offset:-2px;outline-color:var(--ink)}
+/* the preset: a game's quick-preset carousel — arrows either side, the tier lit underneath */
+.car{display:inline-grid;grid-template-columns:32px 96px 32px;align-items:center;border:1px solid var(--line);border-radius:var(--r-s);background:var(--bg-2)}
+.car button{height:32px;color:var(--dim);font-size:12px}.car button:hover{background:var(--hover);color:var(--accent)}.car button:focus-visible{outline-offset:-2px}
+.car span{display:flex;flex-direction:column;align-items:center;gap:3px;font-weight:600;text-transform:capitalize}
+.car i{display:flex;gap:3px}.car u{width:14px;height:3px;border-radius:2px;background:var(--line)}.car u.on{background:var(--accent)}
 .toast{position:fixed;z-index:12;left:28px;bottom:56px;max-width:calc(100% - 56px);background:var(--ink);color:var(--bg);border-radius:var(--r);padding:10px 16px;font-size:13px;box-shadow:var(--shadow-2);opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.on{opacity:1}
 .help{position:fixed;inset:0;z-index:12;display:none;align-items:center;justify-content:center;background:color-mix(in srgb,var(--bg) 60%,transparent);backdrop-filter:blur(3px)}
@@ -571,14 +576,17 @@ const preview=impl=>section(impl,"Preview");
 const commitMsg=impl=>(section(impl,"Commit")||"").replace(/^```\w*\n|\n```$/g,"").trim();
 // A plan's Open questions as a pick list: `Q: question` lines with `- option` lines under
 // each, "(recommended)" marking the default and "multi-select" in the question allowing
-// several. The format is pinned in spec-plan.md; a section in any other shape reads as none.
+// several. A blank or other line ends a question's options. The format is pinned in
+// spec-plan.md; a section with content in any other shape is null, none at all is [].
 function planQuestions(src){const lines=(src||"").split("\n"),at=lines.findIndex(l=>/^#+\s*(\d+\.\s*)?open questions/i.test(l.trim()));if(at<0)return[];
- const lvl=/^#+/.exec(lines[at].trim())[0].length,out=[];
+ const lvl=/^#+/.exec(lines[at].trim())[0].length,out=[];let cur=null,said=false;
  for(const raw of lines.slice(at+1)){const l=raw.trim(),h=/^#+(?=\s)/.exec(l);if(h&&h[0].length<=lvl)break;
-  const q=/^\**Q\d*\s*[:.)]\**\s*(.+)$/.exec(l);if(q){out.push({q:q[1].trim(),multi:/multi-?select/i.test(q[1]),options:[]});continue}
-  const o=/^[-*]\s+(.+)$/.exec(l),cur=out[out.length-1];
-  if(o&&cur){const t=o[1].trim();cur.options.push({text:t,rec:/\(recommended\)/i.test(t),label:t.replace(/\s*\(recommended\)/i,"").split(/\s+[—–-]\s+|:\s/)[0].trim()})}}
- return out.filter(x=>x.options.length)}
+  if(!h&&l&&!/^```/.test(l)&&!/^none\.?$/i.test(l))said=true;
+  const q=/^\**Q\d*\s*[:.)]\**\s*(.+)$/.exec(l);if(q){out.push(cur={q:q[1].trim(),multi:/multi-?select/i.test(q[1]),options:[]});continue}
+  const o=/^[-*]\s+(.+)$/.exec(l);
+  if(o&&cur){const t=o[1].trim();cur.options.push({text:t,rec:/\(recommended\)/i.test(t),label:t.replace(/\s*\(recommended\)/i,"").split(/\s+[—–-]\s+|:\s/)[0].trim()})}
+  else if(cur&&cur.options.length)cur=null}
+ const qs=out.filter(x=>x.options.length);return qs.length||!said?qs:null}
 // A building run's Backlog tab opens with its progress, above the deferred items. The
 // first draw of a run animates nothing; later ones animate what moved, the bar included.
 let lastProg=null;
@@ -616,9 +624,10 @@ async function openRun(c,refresh,again){
  if(refresh&&foot.querySelector(".inl,[data-busy],.more[open]"))return;
  const arch=gitBtn(c)+(c.archived?`<button class="btn pri" data-a="restore">Restore</button>`:`<button class="btn ghost" data-a="archive">Archive</button>`);
  // A plan that asks questions takes their answers with the approval.
- const qs=c.status==="waiting"&&c.awaiting==="approvals.plan"?planQuestions(runDoc.plan):[];
+ // One the board cannot read is said, so it is answered in the terminal instead of skipped.
+ const pq=c.status==="waiting"&&c.awaiting==="approvals.plan"?planQuestions(runDoc.plan):[],qs=pq||[];
  if(c.archived)foot.innerHTML=arch;
- else if(c.status==="waiting"&&APPROVAL[c.awaiting]){const sent=decided.has(answer(c)),asks=qs.length?` It asks ${qs.length===1?"one question":qs.length+" questions"}: Approve opens ${qs.length===1?"it":"them"}.`:"";
+ else if(c.status==="waiting"&&APPROVAL[c.awaiting]){const sent=decided.has(answer(c)),asks=!pq?" It has open questions the board cannot show: answer them in the terminal running this run, or approve and your agent asks them.":qs.length?` It asks ${qs.length===1?"one question":qs.length+" questions"}: Approve opens ${qs.length===1?"it":"them"}.`:"";
   // gitBtn's buttons restyled as menu rows.
   const more=gitBtn(c).replace(/class="btn( pri)?"/g,"")+`<button data-a="archive">Archive</button><hr><button data-a="ab" class="danger">Abandon</button>`;
   foot.innerHTML=`<span class="note">${sent?"Sent to your agent.":APPROVAL[c.awaiting]+asks+" Answering here opens a new agent session."}</span><details class="more"><summary class="btn ghost">More</summary><div class="menu-pop">${more}</div></details><span class="dec"><button class="btn" data-a="revise"${sent?" disabled":""}>Revise</button><button class="btn pri" data-a="approve"${sent?" disabled":""}>Approve</button></span>`}
@@ -649,7 +658,7 @@ function confirmAnswers(c,qs){const foot=$("pfoot");
  foot.innerHTML=`<div class="inl qa" style="flex:1"><div class="q">The plan asks ${qs.length===1?"one question":qs.length+" questions"}.</div><div class="q dim">Your answers go to your agent with the approval. It records them and builds the plan.</div>${qs.map((x,i)=>`<fieldset><legend>${esc(x.q)}</legend>${x.options.map((o,j)=>`<label><input type="${x.multi?"checkbox":"radio"}" name="q${i}" value="${j}"${o.rec||!x.multi&&!j&&!x.options.some(p=>p.rec)?" checked":""}> ${esc(o.text)}</label>`).join("")}<input type="text" data-n="${i}" placeholder="Note (optional)" aria-label="Note: ${esc(x.q)}"></fieldset>`).join("")}<div class="row"><button class="btn ghost" data-a="c">Cancel</button><button class="btn pri" data-a="s">Approve with these answers</button></div></div>`;
  foot.querySelector("[data-a=c]").onclick=()=>{foot.innerHTML="";openRun(c,true)};
  foot.querySelector("[data-a=s]").onclick=e=>decide(c,e.target,undefined,qs.map((x,i)=>{
-  const picked=[...foot.querySelectorAll(`[name=q${i}]:checked`)].map(n=>x.options[+n.value].label).join(", ")||"none of the options",note=foot.querySelector(`[data-n="${i}"]`).value.trim();
+  const picked=[...foot.querySelectorAll(`[name=q${i}]:checked`)].map(n=>`"${x.options[+n.value].label}"`).join(", ")||"none of the options",note=foot.querySelector(`[data-n="${i}"]`).value.trim();
   return `${x.q} — ${picked}${note?"; "+note:""}`}))}
 // A link from a note (?run= or ?idea=, with dir, tab, item) opens that card's panel;
 // a finding or backlog item named is scrolled to and marked. Found by its text, since
@@ -751,6 +760,10 @@ async function openSettings(){
  // One control per row: a switch for on/off, one segment per value for a small number,
  // a select for a choice. The row's label names the control; its help sits under it.
  const ctl=(id,vals,on)=>{
+  // The preset steps like a game's quick preset: ◁ ▷ go to the neighbouring tier,
+  // wrapping, and never to custom, which only an edit to another row makes.
+  if(id==="s-preset"){const t=vals.filter(v=>v!=="custom"),at=t.indexOf(on),go=d=>t[at<0?(d>0?0:t.length-1):(at+d+t.length)%t.length];
+   return `<span class="car" id="${id}" role="group" aria-label="Preset"><button id="${id}-prev" data-v="${go(-1)}" aria-label="Previous preset: ${go(-1)}" title="${go(-1)}">◁</button><span aria-live="polite">${esc(on)}<i aria-hidden="true">${t.map(v=>`<u class="${v===on?"on":""}"></u>`).join("")}</i></span><button id="${id}-next" data-v="${go(1)}" aria-label="Next preset: ${go(1)}" title="${go(1)}">▷</button></span>`}
   if(vals.length===2&&vals.includes("true")&&vals.includes("false")){const yes=on==="true";return `<button class="chk${yes?" on":""}" id="${id}" data-v="${yes?"false":"true"}" role="switch" aria-checked="${yes}" title="${yes?"On":"Off"}"></button>`}
   if(vals.every(v=>/^\d+$/.test(v)))return `<span class="bar" id="${id}" role="group">${vals.map(v=>`<button data-v="${v}" class="${v===on?"on":""}" aria-pressed="${v===on}">${v}</button>`).join("")}</span>`;
   return `<select class="sel" id="${id}">${vals.map(v=>`<option value="${esc(v)}"${v===on?" selected":""}>${v===""?"—":esc(v)}</option>`).join("")}</select>`};
@@ -778,7 +791,7 @@ async function openSettings(){
  const setTheme=t=>{if(t==="system")delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme=t;try{t==="system"?localStorage.removeItem("kz-theme"):localStorage.setItem("kz-theme",t)}catch(e){}};
  $("th").onchange=e=>setTheme(e.target.value);
  $("nt").onclick=()=>{askNotify();setTimeout(openSettings,300)};
- if(cfg)cfg.rows.forEach(r=>{const el=$("s-"+r.key.replace(/\./g,"-"));const save=async v=>{const j=await post("/settings",{key:r.key,value:v});if(j.ok)toast("Saved");openSettings()};
+ if(cfg)cfg.rows.forEach(r=>{const el=$("s-"+r.key.replace(/\./g,"-"));const save=async v=>{const f=document.activeElement?.id;const j=await post("/settings",{key:r.key,value:v});if(j.ok)toast("Saved");await openSettings();if(f?.startsWith("s-preset-"))$(f)?.focus()};
   if(el.tagName==="SELECT"||el.tagName==="INPUT")el.onchange=async()=>{await save(el.value.trim());if(el.tagName==="INPUT")load()};else el.querySelectorAll("[data-v]").forEach(b=>b.onclick=()=>save(b.dataset.v));if(el.matches(".chk"))el.onclick=()=>save(el.dataset.v)})}
 // ---- request sources: links kaizen reads for new ideas. Same panel as settings.
 const SRC="Request sources";
