@@ -4,7 +4,7 @@ import { existsSync, readdirSync, statSync, watch, appendFileSync, mkdirSync, ty
 import { join, dirname, resolve, sep } from "node:path";
 import {
   home, type Item, type Card, boardCards, knownProjects, remember, locate, label, tilde, searchRoots, findProjects,
-  readInbox, writeInbox, replaceIdea, abandonRun, launchRun, parseItem, short, setArchived, writeNotes,
+  readInbox, writeInbox, replaceIdea, abandonRun, launchRun, parseItem, agentChoices, projectOf, KNOWN_AGENTS, plainModel, short, setArchived, writeNotes,
   appendNote, saveAttachment, pidOnPort, readText, cmdExe, sysExe, powershellExe, runGit, cardsGit, readCommit, commitPush, notice, notifier, LOGO,
   reviewFindings, pickFindings, fixPrompt, approvalPrompt, nativePath, closeSessions, sweepSessions,
 } from "./state.ts";
@@ -315,6 +315,13 @@ export async function web(repoDir: string, opts: Opts = {}) {
         return json({ sources, failed, every: await every() });
       }
 
+      // The Run form's choices for one project: installed tools and their models.
+      if (req.method === "GET" && path === "/agents") {
+        const dir = url.searchParams.get("dir");
+        if (!dir || !states(true).includes(dir)) return bad("unknown state dir", 404);
+        return json(agentChoices(projectOf(dir)));
+      }
+
       if (req.method === "GET" && path === "/settings") {
         const { listSettings } = await import("./settings.ts");
         return json(listSettings(repoDir));
@@ -327,6 +334,28 @@ export async function web(repoDir: string, opts: Opts = {}) {
         const { setSetting } = await import("./settings.ts");
         const r = setSetting(repoDir, String(body.key ?? ""), String(body.value ?? ""));
         return "error" in r ? bad(r.error) : json(r);
+      }
+
+      // A page cannot learn a real path from a file input, so the board, which runs
+      // on the user's machine, opens the system's own folder dialog and answers it.
+      if (req.method === "POST" && path === "/pick-folder") {
+        if (!local(req)) return bad("cross-origin write refused", 403);
+        if (picking) return bad("a folder dialog is already open", 409);
+        const cmd = folderDialog();
+        if (!cmd) return bad("No folder dialog found: install zenity or kdialog, or type the path");
+        picking = true;
+        try {
+          const p = Bun.spawn(cmd, { stdin: "ignore", stdout: "pipe", stderr: "pipe" });
+          const [out, err, code] = await Promise.all([new Response(p.stdout).text(), new Response(p.stderr).text(), p.exited]);
+          // osascript ends a folder with "/"; a bare root (/, C:\) keeps its own.
+          const picked = /^([A-Za-z]:)?[\\/]$/.test(out.trim()) ? out.trim() : out.trim().replace(/[\\/]+$/, "");
+          if (code === 0 && picked) return json({ path: picked });
+          // Cancel: exit 1 with nothing said (zenity, kdialog), -128 (osascript), or exit 0 with no path (PowerShell).
+          if (code === 0 || !err.trim() || err.includes("-128")) return json({ cancelled: true });
+          return bad(err.trim().split("\n")[0]);
+        } catch (e) {
+          return bad(e instanceof Error ? e.message : String(e));
+        } finally { picking = false; }
       }
 
       // Attachments only, never a run's own files: the path must sit under an
@@ -452,11 +481,15 @@ export async function web(repoDir: string, opts: Opts = {}) {
           const text = String(body.text ?? "").trim();
           const kind = body.kind === "full" || body.kind === "lite" ? body.kind : "";
           if (!text) return bad("empty idea");
+          const agent = typeof body.agent === "string" && body.agent ? body.agent : undefined;
+          if (agent && !KNOWN_AGENTS.some((a) => a.cmd === agent)) return bad("unknown agent");
+          const model = typeof body.model === "string" ? body.model.trim() : "";
+          if (model && !plainModel(model)) return bad("A model name is letters, digits and . : / @ _ - only");
           const it: Item = parseItem(`${kind} ${text}`.trim());
           // A `started` idea may be run again: the terminal the first launch opened
           // can come up empty, and nothing else tells the board a run never began.
           it.notes = readInbox(dir).find((l) => (l.status === "open" || l.status === "started") && l.text === text)?.notes;
-          const r = launchRun(it, dir);
+          const r = launchRun(it, dir, undefined, { agent, model: model || undefined });
           if (r.ok) replaceIdea(dir, text, { status: "started", text });
           changed();
           return json(r.ok
@@ -651,6 +684,29 @@ export async function openApp(url: string) {
 }
 
 // Windows keeps browsers out of PATH; the usual install roots are the next best guess.
+// One dialog at a time: a second click while one is open would stack another.
+let picking = false;
+
+// The system folder picker for this platform, printing the chosen path on stdout.
+// macOS and Windows always have one; on Linux it is whichever desktop tool exists.
+export function folderDialog(platform: string = process.platform): string[] | null {
+  const prompt = "Choose your projects folder";
+  // osascript is a background process: without `activate` its dialog can open behind
+  // the browser. Plain `activate` targets osascript itself, so no Automation prompt.
+  if (platform === "darwin") return ["osascript", "-e", "activate", "-e", `POSIX path of (choose folder with prompt "${prompt}")`];
+  if (platform === "win32") {
+    // An owner form kept on top, or the dialog opens behind the browser.
+    const ps = `[Console]::OutputEncoding=[Text.Encoding]::UTF8;Add-Type -AssemblyName System.Windows.Forms;`
+      + `$o=New-Object System.Windows.Forms.Form -Property @{TopMost=$true};$d=New-Object System.Windows.Forms.FolderBrowserDialog;`
+      + `$d.Description='${prompt}';if($d.ShowDialog($o) -eq 'OK'){[Console]::Out.Write($d.SelectedPath)}`;
+    return [powershellExe(), "-NoProfile", "-STA", "-Command", ps];
+  }
+  const zenity = Bun.which("zenity", { PATH: process.env.PATH });
+  if (zenity) return [zenity, "--file-selection", "--directory", `--title=${prompt}`];
+  const kdialog = Bun.which("kdialog", { PATH: process.env.PATH });
+  return kdialog ? [kdialog, "--getexistingdirectory", home, "--title", prompt] : null;
+}
+
 function winChrome(exe: string) {
   const roots = [process.env["ProgramFiles"], process.env["ProgramFiles(x86)"], process.env["LOCALAPPDATA"]].filter(Boolean) as string[];
   const sub: Record<string, string> = {

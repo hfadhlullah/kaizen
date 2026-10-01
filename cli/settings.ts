@@ -6,7 +6,7 @@ import { homedir } from "node:os";
 import { readText } from "./state.ts";
 
 // `text` is a value typed rather than chosen: a path. It has no values to cycle.
-type Setting = { key: string; label: string; group: string; values: string[]; help: string; text?: boolean };
+type Setting = { key: string; label: string; group: string; values: string[]; help: string; text?: boolean; folder?: boolean };
 
 export type PresetName = "low" | "medium" | "ultra";
 
@@ -116,7 +116,7 @@ const SETTINGS: Setting[] = [
   { key: "state.keep_runs", label: "Runs to keep", group: "Project", values: ["5", "10", "20", "50"], help: "Finished runs kept before the oldest is pruned. Open backlog items are rescued first" },
   { key: "dictation.model", label: "Dictation model", group: "Board", values: ["tiny", "base", "small", "large-v3-turbo"], help: "Whisper model the web board dictates with, in the browser. tiny ~60 MB rough; base ~165 MB English-leaning; small ~410 MB accurate across languages; large-v3-turbo ~1.5 GB best, needs a capable GPU. Downloaded once on the next mic press" },
   { key: "sources.every", label: "Gather requests", group: "Board", values: ["off", "1h", "6h", "24h"], help: "How often the board checks your request sources for new ideas while it is running. off: only when you press Gather now" },
-  { key: "board.projects_dir", label: "Projects folder", group: "Board", values: [], text: true, help: `A folder your projects live in, e.g. ${process.platform === "win32" ? join(homedir(), "Projects") : "~/Projects"}. Every folder inside it appears in the board's project list, ready to choose; choosing one sets it up. Empty: only projects kaizen already knows` },
+  { key: "board.projects_dir", label: "Projects folder", group: "Board", values: [], text: true, folder: true, help: `A folder your projects live in, e.g. ${process.platform === "win32" ? join(homedir(), "Projects") : "~/Projects"}. Every folder inside it appears in the board's project list, ready to choose; choosing one sets it up. Empty: only projects kaizen already knows` },
   { key: "ui.mouse", label: "Enable mouse", group: "Terminal", values: ["false", "true"], help: "Click to select, click again to act. While on, the terminal cannot select text with the mouse" },
 ];
 

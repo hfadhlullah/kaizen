@@ -687,3 +687,20 @@ test("abandonRun closes the run's recorded sessions", () => {
   expect(abandonRun(st, "2026-10-01-z", "no")).toBe(null);
   expect(existsSync(join(st, "sessions", "k.pid"))).toBe(false);
 });
+
+// The folder dialog cannot be opened in a test, but its script can be checked without
+// showing it: compiled on a Mac, parsed on Windows. Elsewhere only the shape is pinned.
+test("folder dialog: each platform's script is well formed", async () => {
+  const { folderDialog } = await import("./web.ts");
+  const mac = folderDialog("darwin")!, win = folderDialog("win32")!;
+  expect(mac.slice(0, 3)).toEqual(["osascript", "-e", "activate"]);
+  expect(win.at(-1)).toContain("FolderBrowserDialog");
+  if (process.platform === "darwin") {
+    const out = join(mkdtempSync(join(tmpdir(), "kaizen-osa-")), "x.scpt");
+    expect(Bun.spawnSync(["osacompile", ...mac.slice(1), "-o", out]).exitCode).toBe(0);
+  }
+  if (process.platform === "win32") {
+    const check = `$e=$null;[void][System.Management.Automation.Language.Parser]::ParseInput($env:KZ_PS,[ref]$null,[ref]$e);exit $e.Count`;
+    expect(Bun.spawnSync([win[0], "-NoProfile", "-Command", check], { env: { ...process.env, KZ_PS: win.at(-1)! } }).exitCode).toBe(0);
+  }
+});
