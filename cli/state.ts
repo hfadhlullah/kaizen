@@ -984,8 +984,10 @@ export function closeSessions(st: string, id: string, opts: { before?: number } 
   } catch { return 0; }
 }
 
-// The board's minute sweep: sessions of runs done or abandoned for longer than the
-// grace, so the final summary can still be read first.
+// The board's minute sweep: sessions of runs done for longer than the grace, so the
+// final summary can still be read first. Only sessions launched before the run last
+// moved: a fix started on a done run leaves it done until that agent writes, and is
+// the one doing the work. Abandoned runs are closed by abandonRun, not here.
 export function sweepSessions(st: string, now: number) {
   try {
     const live = openSessions(st);
@@ -993,7 +995,7 @@ export function sweepSessions(st: string, now: number) {
     const runs = new Map(readRuns(st).map((r) => [r.id, r]));
     for (const s of live) {
       const r = runs.get(ownerOf(st, s) ?? "");
-      if (r && (r.stage === "done" || r.stage === "abandoned") && now - r.moved >= CLOSE_GRACE_MS) closeOne(st, s);
+      if (r && r.stage === "done" && s.started <= r.moved && now - r.moved >= CLOSE_GRACE_MS) closeOne(st, s);
     }
   } catch { /* the next sweep tries again */ }
 }
