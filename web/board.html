@@ -108,7 +108,7 @@ section h2 .clear{margin-left:auto;min-height:22px;padding:0 8px}
 .chip.accent{color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,transparent)}.chip.accent i{background:var(--accent)}
 .chip.ok{color:color-mix(in srgb,var(--ok) 80%,var(--ink));background:color-mix(in srgb,var(--ok) 14%,transparent)}
 .chip.run{color:var(--run);background:color-mix(in srgb,var(--run) 14%,transparent)}.chip.run i{background:var(--run)}
-.st.d-idea{color:var(--dim)}.st.d-run{color:var(--run)}.st.d-stall{color:var(--dim)}.st.d-wait{color:var(--warn)}.st.d-done{color:var(--ok)}.st.d-aband{color:var(--dim)}
+.st.d-idea{color:var(--dim)}.st.d-start{color:var(--run)}.st.d-run{color:var(--run)}.st.d-stall{color:var(--dim)}.st.d-wait{color:var(--warn)}.st.d-done{color:var(--ok)}.st.d-aband{color:var(--dim)}
 .d-run{color:var(--run)}.d-wait{color:var(--warn)}.d-done{color:var(--ok)}
 .pulse{display:inline-block;width:7px;height:7px;border-radius:50%;background:currentColor;vertical-align:middle}
 .d-run .pulse,.st.d-run svg{animation:pl 1.6s infinite}
@@ -182,6 +182,11 @@ aside .foot:empty{display:none}
 .srow>:nth-child(2){grid-column:2;grid-row:1/span 2;align-self:center;justify-self:end}
 .srow .hint{grid-column:1;margin:0;font-size:12px;color:var(--dim);line-height:1.45;max-width:46ch}
 .srow input.sel{width:170px}
+.srow[hidden],.sg[hidden],.sjump button[hidden]{display:none}
+/* search and section chips: pinned to the top of the panel while the rows scroll under it */
+.sq{position:sticky;top:-24px;z-index:1;background:var(--bg-2);padding:24px 0 12px;margin:-24px 0 4px;border-bottom:1px solid var(--line)}.sq input{width:100%;max-width:none}.sq+.sg{margin-top:16px}
+.sjump{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.sjump button{padding:3px 10px;border:1px solid var(--line);border-radius:var(--r-pill);font-size:12px;color:var(--dim)}.sjump button:hover{background:var(--hover);color:var(--ink)}
+.snone{color:var(--dim);margin-top:20px}
 /* a switch: the same <button role="switch"> the save wiring binds to, drawn as a track and a thumb */
 .chk{width:36px;height:20px;flex-shrink:0;border-radius:var(--r-pill);background:color-mix(in srgb,var(--dim) 40%,transparent);position:relative;transition:background .12s}
 .chk::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--on-accent);box-shadow:var(--shadow-1);transition:transform .12s}
@@ -214,6 +219,7 @@ aside .foot:empty{display:none}
 <symbol id="i-close" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></symbol>
 <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="19" cy="12" r="1.2" fill="currentColor"/></symbol>
 <symbol id="s-idea" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" stroke-dasharray="2 2.5"/></symbol>
+<symbol id="s-start" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" stroke-dasharray="2 2.5"/><path d="M6.5 5.5v5l4-2.5z" fill="currentColor" stroke="none"/></symbol>
 <symbol id="s-run" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 2a6 6 0 0 1 0 12z" fill="currentColor" stroke="none"/></symbol>
 <symbol id="s-stall" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 2a6 6 0 0 1 0 12z" fill="currentColor" stroke="none" opacity=".35"/></symbol>
 <symbol id="s-wait" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11v.1"/></symbol>
@@ -392,7 +398,8 @@ function card(c){
  else if(c.status==="running")chips.push(`<span class="chip run"><i></i>running</span>`);
  if(all)chips.push(`<span class="chip">${esc(c.where)}</span>`);
  chips.push(...(c.tags||[]).map(t=>{const mark=MARKS[t]?`<svg><use href="#c-${t}"/></svg>`:"";return `<span class="chip${t==="full"||t==="lite"?" accent":""}">${mark}${esc(NAMES[t]||t)}</span>`}));
- if(c.notes)chips.push(`<span class="chip">notes</span>`);
+ // A gathered idea's notes open with the stamp ingest() writes; its chip names the source.
+ const g=c.notes&&/^\[[^\]]*\] Gathered from (.+?)\. Outside text/.exec(c.notes);if(g)chips.push(`<span class="chip" title="From ${esc(g[1])}">gathered</span>`);else if(c.notes)chips.push(`<span class="chip">notes</span>`);
  // Information only: the panel's button is where it is committed and pushed.
  if(c.git){const t=c.git==="pushed"?"Committed & pushed":"Not committed & pushed yet";chips.push(`<span class="chip ${c.git==="pushed"?"ok":"warn"}" role="img" title="${t}" aria-label="${t}"><svg><use href="#c-git"/></svg></span>`)}
  const pick=picking&&!archive&&c.column===4;
@@ -515,7 +522,8 @@ function chat(c,src,ro){
   const body=c.kind==="run"?{dir:c.state,id:c.id,text,files:enc}:{dir:c.state,for:c.text,text,files:enc};const r=await post("/note",body);if(r.ok){files.length=0;ta.value="";try{sessionStorage.removeItem(DK+"n:"+key(c))}catch(e){}toast("Noted");load()}};
  $("nsend").onclick=send;ta.onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send()}};
  $("pbody").scrollTop=0}
-// The builder's "## Preview" section of 03-impl.md: how to run the app, or the result itself.
+// The builder's "## Preview" section of 03-impl.md: how to run the app, or the result itself,
+// and its "### How to test" steps.
 // "## Commit" is the message the builder wrote for the work, offered at commit and push.
 function section(impl,name){const m=impl&&impl.match(new RegExp(`^##\\s+${name}\\s*\\n([\\s\\S]*?)(?=\\n##\\s|$(?![\\s\\S]))`,"m"));return m?m[1].trim():null}
 const preview=impl=>section(impl,"Preview");
@@ -633,6 +641,8 @@ function md(src,tick){
 // ---- settings, toast, notifications, keys
 // Rows in config order, grouped as the TUI groups them.
 const groups=rows=>{const m=new Map();for(const r of rows){if(!m.has(r.group))m.set(r.group,[]);m.get(r.group).push(r)}return [...m]};
+// The search survives the re-render each save does; the gear button starts it empty.
+let setQ="";
 async function openSettings(){
  stopDictation(true);
  openKey=null;runDoc=null;$("panel").classList.add("open");$("scrim").classList.add("on");$("ptitle").textContent="Settings";$("ptabs").innerHTML="";$("pfoot").innerHTML="";
@@ -645,11 +655,27 @@ async function openSettings(){
   if(vals.length===2&&vals.includes("true")&&vals.includes("false")){const yes=on==="true";return `<button class="chk${yes?" on":""}" id="${id}" data-v="${yes?"false":"true"}" role="switch" aria-checked="${yes}" title="${yes?"On":"Off"}"></button>`}
   if(vals.every(v=>/^\d+$/.test(v)))return `<span class="bar" id="${id}" role="group">${vals.map(v=>`<button data-v="${v}" class="${v===on?"on":""}" aria-pressed="${v===on}">${v}</button>`).join("")}</span>`;
   return `<select class="sel" id="${id}">${vals.map(v=>`<option value="${esc(v)}"${v===on?" selected":""}>${v===""?"—":esc(v)}</option>`).join("")}</select>`};
- const row=(label,control,hint,id)=>`<div class="srow"><label for="${id}">${esc(label)}</label>${control}<p class="hint">${hint}</p></div>`;
+ const row=(label,control,hint,id,q)=>`<div class="srow" data-q="${esc(q.toLowerCase())}"><label for="${id}">${esc(label)}</label>${control}<p class="hint">${hint}</p></div>`;
+ const hadFocus=document.activeElement?.id==="sq";
  const np=typeof Notification==="undefined"?null:Notification.permission;
- $("pbody").innerHTML=`<h3 class="sg">Browser</h3>${row("Theme",ctl("th",["system","light","dark"],cur),"Light or dark for this browser only; system follows your device.","th")}
-  ${row("Notifications",`<button class="chk${np==="granted"?" on":""}" id="nt" role="switch" aria-checked="${np==="granted"}"${np&&np!=="denied"?"":" disabled"}></button>`,"A desktop notification when a run starts waiting on you."+(np?np==="denied"?" Blocked in this browser's site settings.":"":" Not supported in this browser."),"nt")}
-  ${cfg?groups(cfg.rows).map(([g,rows])=>`<h3 class="sg">${esc(g)}</h3>${rows.map(r=>{const id="s-"+r.key.replace(/\./g,"-");return row(r.label,r.text?`<input class="sel" id="${id}" value="${esc(r.value)}" placeholder="~/Projects" spellcheck="false">`:ctl(id,r.values,r.value),esc(r.help),id)}).join("")}`).join(""):`<p style="color:var(--dim);margin-top:20px">Settings could not be read. Run <code>kaizen settings</code>.</p>`}`;
+ const ntHelp="A desktop notification when a run starts waiting on you."+(np?np==="denied"?" Blocked in this browser's site settings.":"":" Not supported in this browser.");
+ const names=[...(cfg?groups(cfg.rows).map(([g])=>g):[]),"Browser"];
+ $("pbody").innerHTML=`<div class="sq"><input class="sel" id="sq" type="search" placeholder="Search settings" aria-label="Search settings" spellcheck="false" autocomplete="off" value="${esc(setQ)}"><div class="sjump" role="group" aria-label="Jump to section">${names.map(g=>`<button data-g="${esc(g)}">${esc(g)}</button>`).join("")}</div></div>
+  ${cfg?groups(cfg.rows).map(([g,rows])=>`<h3 class="sg">${esc(g)}</h3>${rows.map(r=>{const id="s-"+r.key.replace(/\./g,"-");return row(r.label,r.text?`<input class="sel" id="${id}" value="${esc(r.value)}" placeholder="not set" spellcheck="false">`:ctl(id,r.values,r.value),esc(r.help),id,[r.label,r.help,r.key,g,...r.values].join(" "))}).join("")}`).join(""):`<p class="snone">Settings could not be read. Run <code>kaizen settings</code>.</p>`}
+  <h3 class="sg">Browser</h3>${row("Theme",ctl("th",["system","light","dark"],cur),"Light or dark for this browser only; system follows your device.","th","theme light dark system browser")}
+  ${row("Notifications",`<button class="chk${np==="granted"?" on":""}" id="nt" role="switch" aria-checked="${np==="granted"}"${np&&np!=="denied"?"":" disabled"}></button>`,ntHelp,"nt","notifications "+ntHelp+" browser")}
+  <p class="snone" id="snone" hidden></p>`;
+ // Hides rows that do not match, then any group (and its chip) left with none.
+ const heads=[...$("pbody").querySelectorAll(".sg")],chips=[...$("pbody").querySelectorAll(".sjump button")];
+ const filter=()=>{const q=setQ.trim().toLowerCase();let any=false;
+  heads.forEach((h,i)=>{let n=h.nextElementSibling,vis=false;for(;n&&n.matches(".srow");n=n.nextElementSibling){n.hidden=!!q&&!n.dataset.q.includes(q);vis||=!n.hidden}h.hidden=!vis;if(chips[i])chips[i].hidden=!vis;any||=vis});
+  $("snone").hidden=any;$("snone").textContent=`No setting matches “${setQ.trim()}”.`};
+ // Scrolled by measure: the pinned bar's height changes as the chips wrap.
+ chips.forEach((b,i)=>b.onclick=()=>{const pb=$("pbody");pb.scrollTo({top:pb.scrollTop+heads[i].getBoundingClientRect().top-pb.querySelector(".sq").getBoundingClientRect().bottom-8,behavior:"smooth"})});
+ $("sq").oninput=e=>{setQ=e.target.value;filter()};
+ // Esc clears a search; with nothing to clear it closes the panel, as it does outside the field.
+ $("sq").onkeydown=e=>{if(e.key!=="Escape")return;e.preventDefault();if(setQ){setQ="";e.target.value="";filter()}else close()};
+ filter();if(hadFocus){const f=$("sq");f.focus();f.setSelectionRange(f.value.length,f.value.length)}
  const setTheme=t=>{if(t==="system")delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme=t;try{t==="system"?localStorage.removeItem("kz-theme"):localStorage.setItem("kz-theme",t)}catch(e){}};
  $("th").onchange=e=>setTheme(e.target.value);
  $("nt").onclick=()=>{askNotify();setTimeout(openSettings,300)};
@@ -673,24 +699,30 @@ async function openSources(){
  const host=u=>{try{return new URL(u).hostname}catch{return u}};
  const list=d&&d.sources||[];
  // A source belongs to one project, named on its row. Picking another only arms Move: a select
- // changes on every arrow key, and each change would have moved the source. The names are the picker's.
- const opts=on=>S.projects.map(p=>`<option value="${esc(p.dir)}"${p.dir===on?" selected":""}>${esc(p.label)}</option>`).join("");
- const rows=list.map((s,i)=>`<div class="srow"><label>${esc(s.label||host(s.url))}</label><button class="btn ghost" id="src-rm-${i}" data-rm="${i}" aria-label="Remove ${esc(s.label||host(s.url))}">Remove</button><p class="hint" style="overflow-wrap:anywhere">${s.url.startsWith("https://")?`<a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer" style="color:inherit">${esc(s.url)}</a>`:esc(s.url)}<br>${s.last?(s.last.ok?esc(s.last.note):`<span style="color:var(--ink);font-weight:500">Failed: ${esc(s.last.note)}</span>`)+" · "+ago(s.last.at):"Not gathered yet"}</p><p class="hint" style="margin-top:6px">Ideas go to <select class="sel" id="src-mv-${i}" data-mv="${i}" data-k="${esc(s.dir+" "+s.url)}" aria-label="Project of ${esc(s.label||host(s.url))}">${opts(s.dir)}</select> <button class="btn" id="src-mb-${i}" aria-label="Move ${esc(s.label||host(s.url))} to the chosen project" disabled>Move</button></p></div>`).join("")+(d&&d.failed||[]).map(f=>`<p style="color:var(--dim)">The sources of ${esc(f)} could not be read.</p>`).join("");
+ // changes on every arrow key, and each change would have moved the source. The names are the picker's;
+ // a row whose project the picker does not list still gets its own, selected, so Move never points elsewhere.
+ const opts=(on,name)=>(on&&!S.projects.some(p=>p.dir===on)?`<option value="${esc(on)}" selected>${esc(name||on)}</option>`:"")+S.projects.map(p=>`<option value="${esc(p.dir)}"${p.dir===on?" selected":""}>${esc(p.label)}</option>`).join("");
+ const rows=list.map((s,i)=>`<div class="srow"><label>${esc(s.label||host(s.url))}</label><button class="btn ghost" id="src-rm-${i}" data-rm="${i}" aria-label="Remove ${esc(s.label||host(s.url))}">Remove</button><p class="hint" style="overflow-wrap:anywhere">${s.url.startsWith("https://")?`<a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer" style="color:inherit">${esc(s.url)}</a>`:esc(s.url)}<br>${s.last?(s.last.ok?esc(s.last.note):`<span style="color:var(--ink);font-weight:500">Failed: ${esc(s.last.note)}</span>`)+" · "+ago(s.last.at):"Not gathered yet"}</p><p class="hint" style="margin-top:6px">Ideas go to <select class="sel" id="src-mv-${i}" data-mv="${i}" data-k="${esc(s.dir+" "+s.url)}" aria-label="Project of ${esc(s.label||host(s.url))}">${opts(s.dir,s.project)}</select> <button class="btn" id="src-mb-${i}" aria-label="Move ${esc(s.label||host(s.url))} to the chosen project" disabled>Move</button></p></div>`).join("")+(d&&d.failed||[]).map(f=>`<p style="color:var(--dim)">The sources of ${esc(f)} could not be read.</p>`).join("");
  $("pbody").innerHTML=(d&&d.error?`<p style="color:var(--dim)">${esc(d.error)}</p>`:!d?`<p style="color:var(--dim)">Sources could not be read.</p>`:rows||`<p style="color:var(--dim)">No sources yet. Paste a link to a Google Sheet, a Doc, or a shared note.</p>`)
   +`<h3 class="sg">Add a source</h3><div style="display:grid;gap:8px;margin-top:10px"><input class="sel" id="src-url" aria-label="Link" placeholder="https://docs.google.com/…" spellcheck="false" autocomplete="off" style="width:100%;max-width:none"><input class="sel" id="src-label" aria-label="Label (optional)" placeholder="Label (optional)" style="width:100%;max-width:none"><select class="sel" id="src-dir" aria-label="Project this source belongs to" style="width:100%;max-width:none">${dir?"":`<option value="">Choose the project it belongs to…</option>`}${opts(dir)}</select><div style="display:flex;gap:8px"><button class="btn pri" id="src-add">Add source</button><button class="btn" id="src-go"${list.length?"":" disabled"}>Gather now</button></div><p class="hint" style="font-size:12px;color:var(--dim);margin:0">${d&&d.every&&d.every!=="off"?`Checked every ${esc(d.every)} while the board is running.`:"Automatic checks are off."} Change it in Settings.</p></div>`;
  $("src-url").value=typed[0];$("src-label").value=typed[1];if(typed[3]!==undefined)$("src-dir").value=typed[3];
  $("pbody").querySelectorAll("[data-mv]").forEach(m=>{const s=list[+m.dataset.mv],b=$("src-mb-"+m.dataset.mv),to=picked.get(m.dataset.k);
   if(to&&[...m.options].some(o=>o.value===to))m.value=to;
   (m.onchange=()=>{b.disabled=m.value===s.dir})();
-  b.onclick=()=>act({op:"move",dir:s.dir,to:m.value,url:s.url},()=>toast("Source moved"))});
+  b.onclick=()=>act({op:"move",dir:s.dir,to:m.value,url:s.url},()=>toast(`Source moved. Ideas already gathered stay in ${s.project||"the old project"}.`))});
  // A Move button that went back to disabled cannot take focus; its select can.
  const was=typed[2]&&$(typed[2]);if(was)(was.disabled?$(was.id.replace("src-mb-","src-mv-")):was).focus();
  // Every action names the project it acts on; only "gather everything" goes without one.
  const act=async(body,done)=>{const j=await post("/sources",body);if(j.ok){done(j);load()}if(srcOpen())openSources()};
- $("src-add").onclick=()=>{const url=$("src-url").value.trim();if(!url){$("src-url").focus();return}const to=$("src-dir").value;if(!to){$("src-dir").focus();return}act({op:"add",dir:to,url,label:$("src-label").value.trim()},()=>{$("src-url").value=$("src-label").value="";toast("Source added")})};
+ $("src-add").onclick=()=>{const url=$("src-url").value.trim();if(!url){$("src-url").focus();return}const to=$("src-dir").value;if(!to){$("src-dir").focus();return}// A new source is read at once, so the user learns now whether the link works.
+  $("src-add").disabled=true;$("src-add").textContent="Adding…";
+  (async()=>{const j=await post("/sources",{op:"add",dir:to,url,label:$("src-label").value.trim()});
+   if(j.ok){$("src-url").value=$("src-label").value="";const g=await post("/sources",{op:"gather",dir:to,url}),r=g.results&&g.results[0];
+    toast(r?(r.ok?`Source added: ${r.note}`:`Source added, but: ${r.note}`):"Source added");load()}
+   if(srcOpen())openSources()})()};
  $("src-url").onkeydown=$("src-label").onkeydown=e=>{if(e.key==="Enter")$("src-add").click()};
  $("src-go").onclick=()=>{$("src-go").disabled=true;$("src-go").textContent="Gathering…";act({op:"gather",dir:dir||undefined},j=>{const n=(j.results||[]).reduce((a,r)=>a+r.added,0),bad=(j.results||[]).filter(r=>!r.ok).length;toast((n?`${n} new idea${n===1?"":"s"}`:"Nothing new")+(bad?`, ${bad} source${bad===1?"":"s"} could not be read`:""))})};
- $("pbody").querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>act({op:"remove",dir:list[+b.dataset.rm].dir,url:list[+b.dataset.rm].url},()=>toast("Source removed")))}
+ $("pbody").querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{const s=list[+b.dataset.rm];if(!confirm(`Remove ${s.label||host(s.url)}? Ideas it gathered stay; added again later, it may bring back ones you deleted.`))return;act({op:"remove",dir:list[+b.dataset.rm].dir,url:list[+b.dataset.rm].url},()=>toast("Source removed"))})}
 let tt;function toast(s){const t=$("toast");t.textContent=s;t.classList.add("on");clearTimeout(tt);tt=setTimeout(()=>t.classList.remove("on"),4000)}
 function askNotify(){try{if(typeof Notification!=="undefined"&&Notification.permission==="default")Notification.requestPermission()}catch(e){}}
 function notifyUser(body){try{if(typeof Notification!=="undefined"&&Notification.permission==="granted")new Notification("kaizen",{body,icon:"/logo.png"})}catch(e){}}
@@ -714,13 +746,14 @@ async function pick(v){
  else{const j=await post("/cd",{dir:v});if(j.ok){all=false;keep(v)}}
  load()}
 $("newtop").onclick=()=>{mode="new";render();$("board").scrollTo(0,0)};
-$("settings").onclick=openSettings;$("sources").onclick=openSources;
+$("settings").onclick=()=>{setQ="";openSettings()};$("sources").onclick=openSources;
 try{const t=localStorage.getItem("kz-theme");if(t)document.documentElement.dataset.theme=t}catch(e){}
 $("kbd").onclick=()=>$("help").classList.add("on");$("help").onclick=()=>$("help").classList.remove("on");
 document.addEventListener("click",()=>{if(menuKey||clearMenu){menuKey=null;clearMenu=false;render()}});
 document.onkeydown=e=>{
  if(e.target.matches("input,select,textarea,[contenteditable]"))return;
  if(e.key==="?"){$("help").classList.toggle("on");return}
+ if(e.key==="/"&&$("sq")&&$("panel").classList.contains("open")){e.preventDefault();$("sq").focus();return}
  if(e.key==="Escape"){$("help").classList.remove("on");if(mode){mode=null;render()}else close();return}
  if(e.key==="n"){mode="new";render()}
  if(e.key==="a"){all=!all;keep(all?null:S.dir);load()}
@@ -733,7 +766,7 @@ document.onkeydown=e=>{
 let boot=null;
 // Back from a terminal: what was committed or pushed there touched nothing the server watches.
 addEventListener("focus",()=>load(true));
-function listen(){const es=new EventSource("/events");es.onmessage=ev=>{if(ev.data==="changed"){load(true);if(srcOpen()&&!$("src-go")?.disabled)openSources()}else if(ev.data==="reload")location.reload();else if(ev.data.startsWith("hello ")){const b=ev.data.slice(6);if(boot&&b!==boot)location.reload();boot=b}};es.onerror=()=>{es.close();setTimeout(listen,3000)}}
+function listen(){const es=new EventSource("/events");es.onmessage=ev=>{if(ev.data==="changed"){load(true);if(srcOpen()&&!$("src-go")?.disabled&&!$("src-add")?.disabled)openSources()}else if(ev.data==="reload")location.reload();else if(ev.data.startsWith("hello ")){const b=ev.data.slice(6);if(boot&&b!==boot)location.reload();boot=b}};es.onerror=()=>{es.close();setTimeout(listen,3000)}}
 // Back to the project picked last time, unless the URL says which view it wants. A
 // plain fetch: a project that is gone should fall back to all, not raise a toast.
 (async()=>{let d;try{d=localStorage.getItem("kz-proj")}catch(e){}
