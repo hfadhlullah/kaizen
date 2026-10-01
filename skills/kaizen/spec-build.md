@@ -74,6 +74,15 @@ where one exists. For anything else — a document, copy, a runbook, a memo — 
 to open, or the result itself when it fits in a screen. The board shows this section on
 the run's card, so a person can try the work without reading the rest of the report.
 
+It also says how to test the result, under a `### How to test` subhead: numbered steps a
+person follows to check the run did what was asked, each an action and what they should
+see — "open Settings → Board, clear the field: it shows `not set`". Derive the steps
+from the plan's gate, covering what the request asked for rather than every internal
+check. An automated check goes in too, as its command and the result it should give,
+but never alone: a test command tells a person the code passes, not that the work does
+what they wanted. Use `###` subheads inside the section, never `##`: the board ends the
+section at the next `##`.
+
 **A `## Commit` section is the commit message for the work**, where the work sits in a
 git repository. The first line is a Conventional Commits subject,
 `<type>(<scope>): <what changed>`, with the type one of `feat`, `fix`, `refactor`,
