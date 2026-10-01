@@ -101,3 +101,70 @@ test("planQuestions: a bullet after a blank line is not one more option", () => 
   const qs = planQuestions("## Open questions\nQ: One?\n   - A (recommended)\n   - B\n\n- Note: aside\n")!;
   expect(qs[0]!.options.map((o) => o.label)).toEqual(["A", "B"]);
 });
+
+test("card menu items: appropriate actions and distinct icons across phases", () => {
+  expect(html).toContain('<symbol id="i-open"');
+  expect(html).toContain('<symbol id="i-archive"');
+  expect(html).toContain('<symbol id="i-restore"');
+
+  const ico = (n: string) => `<svg><use href="#i-${n}"/></svg>`;
+  const menuSnippet = (html.slice(html.indexOf("if(k===menuKey){"), html.indexOf("el.innerHTML+=`<div class=\"menu-pop\"", html.indexOf("if(k===menuKey){"))) + "}").replace("const items=[];", "items=[];");
+  const getItems = new Function("c", "archive", `const ico = ${ico.toString()};\nlet k = 1, menuKey = 1, items = [];\n${menuSnippet}\nreturn items;`);
+
+  // Phase 0: Ideas (idea card)
+  const idea = { kind: "idea", status: "idea", column: 0 };
+  const ideaItems = getItems(idea, false);
+  expect(ideaItems.map((i: any) => i ? i[1] : null)).toEqual(["Run", "Edit", "Archive", null, "Reject", "Delete"]);
+  expect(ideaItems[0][2]).toBe(ico("play"));
+  expect(ideaItems[1][2]).toBe(ico("pen"));
+  expect(ideaItems[2][2]).toBe(ico("archive"));
+  expect(ideaItems[4][2]).toBe(ico("x"));
+  expect(ideaItems[5][2]).toBe(ico("trash"));
+
+  // Phase 1: Planning (starting idea)
+  const startingIdea = { kind: "idea", status: "starting", column: 1 };
+  const startItems = getItems(startingIdea, false);
+  expect(startItems.map((i: any) => i ? i[1] : null)).toEqual(["Open", "Run again", "Archive", null, "Remove"]);
+
+  // Phase 1: Planning (run waiting for plan approval)
+  const planWaiting = { kind: "run", status: "waiting", awaiting: "approvals.plan", column: 1 };
+  const planItems = getItems(planWaiting, false);
+  expect(planItems.map((i: any) => i ? i[1] : null)).toEqual(["Review plan", "Archive", null, "Abandon"]);
+  expect(planItems[0][2]).toBe(ico("open"));
+  expect(planItems[1][2]).toBe(ico("archive"));
+  expect(planItems[3][2]).toBe(ico("x"));
+
+  // Phase 2: Building (running run)
+  const buildingRun = { kind: "run", status: "running", column: 2 };
+  const buildItems = getItems(buildingRun, false);
+  expect(buildItems.map((i: any) => i ? i[1] : null)).toEqual(["Open", "Archive", null, "Abandon"]);
+
+  // Phase 3: Review (run waiting for review approval)
+  const reviewWaiting = { kind: "run", status: "waiting", awaiting: "approvals.review", column: 3 };
+  const reviewItems = getItems(reviewWaiting, false);
+  expect(reviewItems.map((i: any) => i ? i[1] : null)).toEqual(["Review work", "Archive", null, "Abandon"]);
+
+  // Phase 3: Review (run waiting on findings)
+  const findingsWaiting = { kind: "run", status: "waiting", awaiting: "findings", column: 3 };
+  const findingsItems = getItems(findingsWaiting, false);
+  expect(findingsItems.map((i: any) => i ? i[1] : null)).toEqual(["See findings", "Archive", null, "Abandon"]);
+
+  // Phase 4: Done (done run - no Abandon)
+  const doneRun = { kind: "run", status: "done", column: 4 };
+  const doneItems = getItems(doneRun, false);
+  expect(doneItems.map((i: any) => i ? i[1] : null)).toEqual(["Open", "Archive"]);
+
+  // Phase 4: Done (abandoned run - no Abandon)
+  const abandonedRun = { kind: "run", status: "abandoned", column: 4 };
+  const abandItems = getItems(abandonedRun, false);
+  expect(abandItems.map((i: any) => i ? i[1] : null)).toEqual(["Open", "Archive"]);
+
+  // Archive view
+  const archRun = getItems(doneRun, true);
+  expect(archRun.map((i: any) => i ? i[1] : null)).toEqual(["Restore", "Open"]);
+  expect(archRun[0][2]).toBe(ico("restore"));
+  expect(archRun[1][2]).toBe(ico("open"));
+
+  const archIdea = getItems(idea, true);
+  expect(archIdea.map((i: any) => i ? i[1] : null)).toEqual(["Restore", "Open", null, "Delete"]);
+});
