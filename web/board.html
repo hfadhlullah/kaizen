@@ -405,12 +405,24 @@ function draft(el,k){try{const v=sessionStorage.getItem(DK+k);if(v!=null)el.valu
 function undraft(p){try{Object.keys(sessionStorage).forEach(k=>{if(k.startsWith(DK+p))sessionStorage.removeItem(k)})}catch(e){}}
 // quiet: the server said something changed, nobody asked for a redraw.
 async function load(quiet){
- let r;try{r=await fetch("/state"+(all?"?all=1":""))}catch{toast(GONE);return}S=await r.json();
+ let r;try{r=await fetch("/state"+(all?"?all=1":""))}catch{toast(GONE);return}const was=openKey&&S.cards.find(x=>key(x)===openKey);S=await r.json();
  {const seen=new Map();for(const c of S.cards){const b=key(c),n=seen.get(b)||0;seen.set(b,n+1);c._k=n?b+"#"+n:b}}
  for(const c of S.cards){if(c.kind!=="run"||c.archived)continue;if(due(key(c),c.notice,c.status==="done",S.now))notifyUser(c.notice)}
  // A redraw under a form being typed in would reset its fields and its focus.
  if(!(quiet&&mode&&$("board").querySelector(".inl input")))render();
- if(openKey){const c=S.cards.find(x=>key(x)===openKey),ta=$("pbody").querySelector(".notes textarea");if(!c||ta&&document.activeElement===ta)return;if(runDoc)openRun(c,true,true);else if(c.kind==="idea")chat(c,c.notes,c.archived||c.status!=="idea")}}
+ if(openKey){const c=S.cards.find(x=>key(x)===openKey),ta=$("pbody").querySelector(".notes textarea");if(ta&&document.activeElement===ta)return;
+  if(!c){if(was&&was.kind==="idea")follow(was);return}if(runDoc)openRun(c,true,true);else if(c.kind==="idea")chat(c,c.notes,c.archived||c.status!=="idea")}}
+// An idea's card goes when its run starts. Follow it to that run rather than keep
+// offering "Run again": the newest run in its project whose request holds the idea's
+// text, the rule boardCards() retires it by. No such run: close the panel.
+// ponytail: checks the five newest runs, one /run fetch each; a run that took the idea
+// further back than that closes the panel instead.
+async function follow(idea){
+ const k=key(idea),norm=s=>s.toLowerCase().replace(/\s+/g," ").trim(),t=norm(idea.text);
+ for(const r of S.cards.filter(x=>x.kind==="run"&&x.state===idea.state).sort((a,b)=>(b.moved??0)-(a.moved??0)).slice(0,5)){
+  const d=await fetch(`/run/${encodeURIComponent(r.id)}?dir=${encodeURIComponent(r.state)}`).then(x=>x.json()).catch(()=>null);
+  if(openKey!==k)return;if(norm(d?.request||"").includes(t)){open(r);return}}
+ if(openKey===k)close()}
 // A tab outliving its server would otherwise swallow every click: say so.
 const GONE="The board server is not running — start it with kaizen web (or the shortcut), then reload.";
 async function post(path,body){let r;try{r=await fetch(path,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)})}catch{toast(GONE);return{ok:false}}const j=await r.json().catch(()=>({}));if(!r.ok){toast(j.error||j.why||"That did not work");if(j.manual)console.log("run manually:",j.manual)}return j}
@@ -678,21 +690,23 @@ function mark(h){hit=null;const flat=t=>String(t).replace(/!?\[([^\]]*)\]\([^)\s
  if(!text){toast("That item is not in this run");return}
  const want=flat(text).slice(0,60),el=[...$("pbody").querySelectorAll("li,p")].find(e=>!e.closest(".prog")&&flat(e.textContent).includes(want));
  if(!el)return;el.scrollIntoView({block:"center"});el.classList.add("hit");setTimeout(()=>el.classList.remove("hit"),2400)}
-// Fix picked findings, under the review: open ones ticked, closed ones listed but settled.
-// Unticked numbers live outside the form, which every refresh rebuilds. A finding is one
-// line, so md() gives one paragraph; its wrapper is dropped to sit inline in the label.
-const fixOff=new Set();
-function fixForm(c){const fs=runDoc.findings||[],open=fs.filter(f=>!f.done);
- if(c.archived||!open.length||!(c.status==="done"||c.awaiting==="findings"||c.awaiting==="approvals.review"))return;
+// Fix picked findings, under the review: open ones ticked, closed and sent ones ticked but
+// locked. Unticked and sent findings live outside the form, which every refresh rebuilds,
+// keyed "run:number"; sent ones also survive a reload of this tab. A finding is one line,
+// so md() gives one paragraph; its wrapper is dropped to sit inline in the label.
+const SK="kz-sent",fixOff=new Set(),fixSent=new Set((()=>{try{return JSON.parse(sessionStorage.getItem(SK))||[]}catch(e){return[]}})());
+function fixForm(c){const k=n=>c.id+":"+n,sent=f=>fixSent.has(k(f.n)),fs=runDoc.findings||[],open=fs.filter(f=>!f.done&&!sent(f));
+ if(c.archived||!fs.some(f=>!f.done)||!(c.status==="done"||c.awaiting==="findings"||c.awaiting==="approvals.review"))return;
  const el=document.createElement("div");el.className="inl fix";
- el.innerHTML=`<div class="q">Fix findings</div><div class="q dim">Opens your agent in this project, told to fix the ticked findings and recheck them.</div>${c.status==="waiting"?`<div class="q dim">A session is already waiting on this run in a terminal; this opens another one.</div>`:""}`+fs.map(f=>`<label class="${f.done?"off":""}"><input type="checkbox" data-n="${f.n}" ${f.done?"disabled":fixOff.has(f.n)?"":"checked"}><span>${f.n}. ${md(f.text).replace(/^<p>|<\/p>$/g,"")}${f.done?" (closed)":""}</span></label>`).join("")+`<div class="row"><button class="btn ghost" data-a="all"></button><button class="btn pri" data-a="s"></button></div>`;
- const go=el.querySelector("[data-a=s]"),allb=el.querySelector("[data-a=all]"),picks=()=>open.filter(f=>!fixOff.has(f.n)).map(f=>f.n);
- const sync=()=>{const n=picks().length;go.textContent=n===open.length?"Fix all "+n:"Fix "+n+" selected";go.disabled=!n;allb.textContent=n===open.length?"Select none":"Select all";el.querySelectorAll("input:not(:disabled)").forEach(i=>i.checked=!fixOff.has(+i.dataset.n))};
- el.onchange=e=>{const n=+e.target.dataset.n;e.target.checked?fixOff.delete(n):fixOff.add(n);sync()};
- allb.onclick=()=>{const none=picks().length===open.length;fixOff.clear();if(none)open.forEach(f=>fixOff.add(f.n));sync()};
+ el.innerHTML=`<div class="q">Fix findings</div><div class="q dim">Opens your agent in this project, told to fix the ticked findings and recheck them.</div>${c.status==="waiting"?`<div class="q dim">A session is already waiting on this run in a terminal; this opens another one.</div>`:""}`+fs.map(f=>{const x=f.done?" (closed)":sent(f)?" (sent)":"";return`<label class="${x?"off":""}"><input type="checkbox" data-n="${f.n}" ${x?"checked disabled":fixOff.has(k(f.n))?"":"checked"}><span>${f.n}. ${md(f.text).replace(/^<p>|<\/p>$/g,"")}${x}</span></label>`}).join("")+(open.length?`<div class="row"><button class="btn ghost" data-a="all"></button><button class="btn pri" data-a="s"></button></div>`:"");
+ if(!open.length)return $("pbody").appendChild(el);
+ const go=el.querySelector("[data-a=s]"),allb=el.querySelector("[data-a=all]"),picks=()=>open.filter(f=>!fixOff.has(k(f.n))).map(f=>f.n);
+ const sync=()=>{const n=picks().length;go.textContent=n===open.length?"Fix all "+n:"Fix "+n+" selected";go.disabled=!n;allb.textContent=n===open.length?"Select none":"Select all";el.querySelectorAll("input:not(:disabled)").forEach(i=>i.checked=!fixOff.has(k(i.dataset.n)))};
+ el.onchange=e=>{const n=k(e.target.dataset.n);e.target.checked?fixOff.delete(n):fixOff.add(n);sync()};
+ allb.onclick=()=>{const none=picks().length===open.length;open.forEach(f=>none?fixOff.add(k(f.n)):fixOff.delete(k(f.n)));sync()};
  go.onclick=async()=>{const nums=picks();go.disabled=true;askNotify();const r=await post("/fix",{dir:c.state,id:c.id,nums});
-  // Sent findings come unticked, so a second press cannot open a second agent on them.
-  if(r.ok){toast("Fixing "+nums.length+" finding"+(nums.length===1?"":"s")+" in your terminal: "+r.agent.name);nums.forEach(n=>fixOff.add(n))}sync()};
+  // Sent findings lock as sent, so a second press cannot open a second agent on them.
+  if(r.ok){toast("Fixing "+nums.length+" finding"+(nums.length===1?"":"s")+" in your terminal: "+r.agent.name);nums.forEach(n=>fixSent.add(k(n)));try{sessionStorage.setItem(SK,JSON.stringify([...fixSent]))}catch(e){}openRun(c,true)}else sync()};
  sync();$("pbody").appendChild(el)}
 // Commit and push, for a finished run in a project with a git remote. What the board
 // did is recorded per run, so the settled label outlives later changes to the tree.
