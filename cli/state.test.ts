@@ -8,7 +8,7 @@ import {
   readRuns, readInbox, writeInbox, replaceIdea, abandonRun, allBacklog, backlog,
   statusOf, columnOf, parseItem, startedRuns, boardCards, readArchive, setArchived,
   requestOf, agentFlags, readNotes, writeNotes, manualCommand, parseNotes, formatNote, appendNote, saveAttachment,
-  reviewFindings, pickFindings, fixPrompt, gitStatus, runGit, cardsGit, commitPush, readCommit, findTerminal, nativePath, pruneRuns, unrechecked, notice, notifier, notifyArgs, LOGO, type Card,
+  reviewFindings, pickFindings, fixPrompt, approvalPrompt, gitStatus, runGit, cardsGit, commitPush, readCommit, findTerminal, nativePath, pruneRuns, unrechecked, notice, notifier, notifyArgs, LOGO, type Card,
 } from "./state.ts";
 
 let state: string;
@@ -127,6 +127,16 @@ test("reviewFindings: numbered lines under Findings, closed by the backlog; the 
   rmSync(join(dir, "05-iterations"), { recursive: true });
   expect(fixPrompt("2026-09-02-done", [2])).toStartWith("run 2026-09-02-done: fix finding 2 from");
   expect(fixPrompt("x", [2, 5])).toContain("fix findings 2, 5 from");
+});
+
+test("approvalPrompt: approve or revise, the comment kept on one line", () => {
+  expect(approvalPrompt("r", "approvals.plan")).toBe("run r: the plan is approved from the board. Record it in 02-approval.md and build it.");
+  expect(approvalPrompt("r", "approvals.review", "  ")).toContain("approved from the board at the final approval");
+  const p = approvalPrompt("r", "approvals.plan", " drop step 3,\n\tkeep \"the rest\" ");
+  expect(p).toContain('to revise: "drop step 3, keep "the rest"".');
+  expect(p).toContain("revise 01-plan.md");
+  expect(p).not.toContain("\n");
+  expect(approvalPrompt("r", "approvals.review", "rename it")).toContain('final approval: "rename it". Record it in 02-approval.md, change the work');
 });
 
 test("startedRuns: normalised request bodies", () => {
@@ -474,4 +484,37 @@ test("files written by Windows PowerShell, with a byte order mark, still read: t
   writeFileSync(join(st, "inbox.md"), "﻿- open: first idea\n");
   expect(readRuns(st).map((r) => [r.id, r.stage])).toEqual([["r1", "plan"]]);
   expect(readInbox(st)).toEqual([{ status: "open", text: "first idea" }]);
+});
+
+test("remember on Windows stores one spelling per folder, the one knownProjects returns", () => {
+  // REGISTRY is bound to the home at import, so this runs in a child with a scratch HOME.
+  const home = mkdtempSync(join(tmpdir(), "kz-home-"));
+  const script = `Object.defineProperty(process, "platform", { value: "win32" });
+const { remember, knownProjects, REGISTRY } = await import(${JSON.stringify(join(dirname(import.meta.path), "state.ts"))});
+remember("c:\\\\p"); remember("C:\\\\p"); remember("/c/p");
+console.log(JSON.stringify([require("node:fs").readFileSync(REGISTRY, "utf8"), knownProjects()]));`;
+  try {
+    const p = Bun.spawnSync(["bun", "-e", script], { cwd: home, env: { ...process.env, HOME: home, USERPROFILE: home } });
+    if (p.exitCode !== 0) throw new Error(p.stderr.toString());
+    expect(JSON.parse(p.stdout.toString())).toEqual(["C:\\p\n", ["C:\\p"]]);
+  } finally { rmSync(home, { recursive: true, force: true }); }
+});
+
+test("files saved with CRLF (PowerShell, autocrlf clones) read the same as LF", () => {
+  const lf = join(mkdtempSync(join(tmpdir(), "kz-")), ".kaizen"), crlf = join(mkdtempSync(join(tmpdir(), "kz-")), ".kaizen");
+  const files = {
+    "config.yml": "agent:\n  default: claude\n  claude: { model: opus, effort: high }\n",
+    "inbox.md": "# Inbox\n\n- open: add retry\n- rejected: drop cache\n",
+    "runs/2026-10-01-a/state.json": JSON.stringify({ stage: "build", status: "running" }, null, 2) + "\n",
+    "runs/2026-10-01-a/00-request.md": "# Request\n\n> /kaizen add retry\n",
+  };
+  for (const [dir, eol] of [[lf, "\n"], [crlf, "\r\n"]] as const)
+    for (const [f, text] of Object.entries(files)) {
+      mkdirSync(dirname(join(dir, f)), { recursive: true });
+      writeFileSync(join(dir, f), text.replace(/\n/g, eol));
+    }
+  expect(agentFlags(dirname(crlf), "claude")).toEqual(["--model", "opus", "--effort", "high"]);
+  expect(readInbox(crlf)).toEqual(readInbox(lf));
+  const runs = (s: string) => readRuns(s).map(({ moved, ...r }) => ({ ...r, dir: undefined }));
+  expect(runs(crlf)).toEqual(runs(lf));
 });

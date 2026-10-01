@@ -80,7 +80,9 @@ const shq = (a: string) => `'${a.replace(/'/g, `'\\''`)}'`;
 // Windows PowerShell 5.1 writes `Set-Content -Encoding utf8` with a byte order mark,
 // and agents on Windows write run files that way. JSON.parse refuses a leading BOM
 // (the run vanished from the board) and it hides a first line from every ^ regex.
-export const readText = (file: string) => readFileSync(file, "utf8").replace(/^\uFEFF/, "");
+// PowerShell and Git for Windows clones (autocrlf) also write CRLF, which breaks
+// every `key:\n` regex the same silent way, so line endings are made LF here too.
+export const readText = (file: string) => readFileSync(file, "utf8").replace(/^\uFEFF/, "").replace(/\r\n/g, "\n");
 
 const onPath = (bin: string) => Bun.which(bin, { PATH: process.env.PATH });
 
@@ -236,6 +238,7 @@ export function nativePath(p: string) {
 // dashboard to stop opening.
 export function remember(projectDir: string) {
   try {
+    projectDir = nativePath(projectDir);
     if (knownProjects().includes(projectDir)) return;
     mkdirSync(dirname(REGISTRY), { recursive: true });
     appendFileSync(REGISTRY, projectDir + "\n");
@@ -275,13 +278,15 @@ export function findProjects(root: string, depth = 4): string[] {
   return found;
 }
 
+// The same spelling knownProjects() gives: a terminal handing out c:\... (lower-case
+// drive) would otherwise make every POST from the board fail "unknown state dir".
 export function locate() {
-  let dir = process.cwd();
+  let dir = nativePath(process.cwd());
   for (;;) {
     if (existsSync(join(dir, ".kaizen"))) return join(dir, ".kaizen");
     if (existsSync(join(dir, ".git"))) return null;
     const up = dirname(dir);
-    if (up === dir) return existsSync(join(home, ".kaizen")) ? join(home, ".kaizen") : null;
+    if (up === dir) return existsSync(join(home, ".kaizen")) ? nativePath(join(home, ".kaizen")) : null;
     dir = up;
   }
 }
@@ -417,6 +422,19 @@ export function pickFindings(state: string, id: string, nums: unknown): number[]
 export function fixPrompt(id: string, nums: number[]) {
   return `run ${id}: fix finding${nums.length === 1 ? "" : "s"} ${nums.join(", ")} from its 04-review.md and recheck. `
     + `Leave every other finding alone, and mark the fixed ones done in its 06-backlog.md.`;
+}
+
+// The board's answer to an approval the run is waiting on. The comment is collapsed to
+// one line: where the prompt is typed into a shell (herdr), a newline sends it early.
+export function approvalPrompt(id: string, awaiting: string, why?: string) {
+  const plan = awaiting === "approvals.plan";
+  const note = why?.replace(/\s+/g, " ").trim();
+  if (!note) return plan
+    ? `run ${id}: the plan is approved from the board. Record it in 02-approval.md and build it.`
+    : `run ${id}: the work is approved from the board at the final approval. Record it, write the backlog and finish the run.`;
+  return plan
+    ? `run ${id}: the plan is sent back from the board to revise: "${note}". Record it in 02-approval.md, revise 01-plan.md with it, and stop at the plan approval again.`
+    : `run ${id}: the work is sent back from the board at the final approval: "${note}". Record it in 02-approval.md, change the work to address it, recheck, and stop at the final approval again.`;
 }
 
 // Backlog items are often a reviewer's finding pasted verbatim -- a backticked
