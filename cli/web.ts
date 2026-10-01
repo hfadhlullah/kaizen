@@ -1,12 +1,12 @@
 // `kaizen web`: the board in a browser. A loopback HTTP server over state.ts and
 // one HTML page; the page never sees the filesystem, only JSON.
 import { existsSync, readdirSync, statSync, watch, appendFileSync, mkdirSync, type FSWatcher } from "node:fs";
-import { join, dirname } from "node:path";
+import { join, dirname, resolve, sep } from "node:path";
 import {
   home, type Item, type Card, boardCards, knownProjects, remember, locate, label, tilde, searchRoots, findProjects,
   readInbox, writeInbox, replaceIdea, abandonRun, launchRun, parseItem, short, setArchived, writeNotes,
   appendNote, saveAttachment, pidOnPort, readText, cmdExe, sysExe, powershellExe, runGit, cardsGit, readCommit, commitPush, notice, notifier, LOGO,
-  reviewFindings, pickFindings, fixPrompt,
+  reviewFindings, pickFindings, fixPrompt, approvalPrompt, nativePath,
 } from "./state.ts";
 import { readSources, addSource, removeSource, moveSource, gatherSource, gatherAll, gatherDirs, due } from "./sources.ts";
 import { listNotes, saveNote, renameNote, deleteNote, boardIndex, linksTo } from "./notes.ts";
@@ -48,14 +48,24 @@ export async function web(repoDir: string, opts: Opts = {}) {
   let state = locate();
   if (state && dirname(state) !== home) remember(dirname(state));
   let project = state ? label(state) : null;
-  // Folders under the "Projects folder" setting that have no .kaizen yet, offered in
-  // the project list so one can be chosen without a terminal. A folder that does not
-  // look like a project itself (no .git, no package.json) is taken for a group of
-  // them, and its own folders are offered too: ~/Projects/<client>/<project>.
-  const fresh = async () => {
+  // The "Projects folder" setting, resolved; empty when unset.
+  const projectsRoot = async () => {
     const { listSettings } = await import("./settings.ts");
     let root = listSettings(repoDir).rows.find((r) => r.key === "board.projects_dir")?.value ?? "";
     if (root.startsWith("~")) root = home + root.slice(1);
+    // Typed on Windows as d:\work, D:/work or Git Bash /d/work: one spelling, the one
+    // remember() and the known-project check use, or /d/work reads as C:\d\work.
+    return root ? resolve(nativePath(root)) : "";
+  };
+  // .kaizen is not a sign of one: a group folder that was chosen once has it, and
+  // must keep showing what is inside.
+  const isProject = (d: string) => [".git", "package.json"].some((m) => existsSync(join(d, m)));
+  // Folders under the "Projects folder" setting that have no .kaizen yet, offered in
+  // the project list so one can be chosen without a terminal. A folder that does not
+  // look like a project itself (no .git, no package.json) is taken for a group of
+  // them, and its own folders are offered instead: ~/Projects/<client>/<project>.
+  const fresh = async () => {
+    const root = await projectsRoot();
     if (!root) return [];
     const dirs = (d: string) => {
       try {
@@ -63,11 +73,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
           .map((n) => join(d, n)).filter((p) => { try { return statSync(p).isDirectory(); } catch { return false; } });
       } catch { return []; }
     };
-    // .kaizen is not a sign of one: a group folder that was chosen once has it, and
-    // must keep showing what is inside.
-    const isProject = (d: string) => [".git", "package.json"].some((m) => existsSync(join(d, m)));
     // One already set up but never opened joins the known projects instead.
-    return dirs(root).flatMap((d) => isProject(d) ? [d] : [d, ...dirs(d)])
+    return dirs(root).flatMap((d) => isProject(d) ? [d] : dirs(d))
       .filter((d) => existsSync(join(d, ".kaizen")) ? (remember(d), false) : true).sort();
   };
 
@@ -239,6 +246,22 @@ export async function web(repoDir: string, opts: Opts = {}) {
         // Before the project list: it registers folders that turn out to be set up.
         const unset = await fresh();
         const dirs = states(all);
+        // With a projects folder set, the picker offers only real projects inside it,
+        // and always the one open now so it never hides where the board is.
+        const root = await projectsRoot();
+        // Windows paths compare without case: c:\users\me\projects holds C:\Users\me\Projects\app.
+        // A group folder is what fresh() takes for one, a folder right inside the projects
+        // folder with no .git or package.json; with an empty .kaizen it was chosen once and
+        // is hidden. Anything else is a project, a writing one included, even before its
+        // first run. A drive or filesystem root already ends in a separator.
+        const fold = (p: string) => process.platform === "win32" ? p.toLowerCase() : p;
+        const filled = (d: string) => { try { return readdirSync(d).length > 0; } catch { return false; } };
+        const inside = fold(root.endsWith(sep) ? root : root + sep);
+        const picker = states(true).filter((d) => {
+          const p = dirname(d);
+          return !root || d === state || (fold(p).startsWith(inside)
+            && (isProject(p) || filled(d) || fold(dirname(p)) !== fold(root)));
+        });
         const cards = boardCards(dirs, Date.now());
         // The git mark, for the cards whose panel offers commit and push: one status per project.
         const marks = new Map<string, Record<string, string>>();
@@ -247,7 +270,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           marks.set(d, cardsGit(d, cards.filter((c) => markable(c) && c.state === d).map((c) => c.id!)));
         return json({
           project, all, dir: state,
-          projects: states(true).map((d) => ({ dir: d, label: label(d) })),
+          projects: picker.map((d) => ({ dir: d, label: label(d) })),
           fresh: unset.map((d) => ({ dir: join(d, ".kaizen"), label: tilde(d) })),
           cards: cards.map((c) => ({ ...c, notice: notice(c), git: markable(c) ? marks.get(c.state)?.[c.id!] : undefined })),
           now: Date.now(),
@@ -283,7 +306,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         const sources = [], failed = [];
         for (const d of dir ? [dir] : states(true)) {
           // The seen list is bookkeeping, not something the page shows.
-          try { sources.push(...readSources(d).map(({ seen, ...s }) => ({ ...s, dir: d }))); }
+          try { sources.push(...readSources(d).map(({ seen, ...s }) => ({ ...s, dir: d, project: label(d) }))); }
           catch { failed.push(label(d)); }
         }
         return json({ sources, failed, every: await every() });
@@ -528,6 +551,24 @@ export async function web(repoDir: string, opts: Opts = {}) {
           const nums = pickFindings(dir, id, body.nums);
           if (!nums) return bad("pick open findings of this review");
           const text = fixPrompt(id, nums);
+          const r = launchRun({ severity: null, where: null, text, raw: text }, dir);
+          changed();
+          return json(r.ok
+            ? { ok: true, agent: r.agent }
+            : { ok: false, why: r.why, manual: r.manual, agent: r.agent }, r.ok ? 200 : 500);
+        }
+
+        // Approve or send back what a run is waiting on, from its panel. The page names
+        // the approval it saw: one already answered elsewhere is not answered twice.
+        if (path === "/decide") {
+          const id = String(body.id ?? "");
+          if (!/^[\w.-]+$/.test(id)) return bad("bad run id");
+          if (dir === join(home, ".kaizen")) return bad("no project to run in", 409);
+          let run: any;
+          try { run = JSON.parse(readText(join(dir, "runs", id, "state.json"))); } catch { return bad("no such run", 404); }
+          if (run.awaiting !== "approvals.plan" && run.awaiting !== "approvals.review" || run.awaiting !== body.awaiting) return bad("this run is not waiting on that approval", 409);
+          if (body.why !== undefined && !String(body.why).trim()) return bad("a revise needs a comment");
+          const text = approvalPrompt(id, run.awaiting, body.why === undefined ? undefined : String(body.why));
           const r = launchRun({ severity: null, where: null, text, raw: text }, dir);
           changed();
           return json(r.ok

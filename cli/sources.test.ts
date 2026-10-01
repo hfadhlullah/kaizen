@@ -1,7 +1,7 @@
 // Request sources against a throwaway .kaizen/. No network: the fetch and the DNS
 // lookup are both injected. Nothing here launches an agent or a terminal.
 import { test, expect, beforeEach, afterAll } from "bun:test";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync, chmodSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { readInbox, writeInbox, replaceIdea, parseItem } from "./state.ts";
@@ -250,6 +250,22 @@ test("a first word that is a kaizen command is prefixed", () => {
   }
 });
 
+// A one-cell header stays the header, whatever the rows under it hold. A title above
+// it is read as the header (backlog), as it always was.
+test("split: a one-cell header is the header over any rows below it", async () => {
+  const feedback = "Feedback\nNO\tPIC\tDETAIL\tSTATUS\n1\tBudi\tTombol export tidak muncul\tOpen\n2\tSiti\tTambah opsi\tDone\n";
+  expect(sift("sheet", feedback)).toEqual({ items: [{ text: "NO", notes: "PIC · DETAIL · STATUS" }, { text: "1", notes: "Budi · Tombol export tidak muncul · Open" }, { text: "2", notes: "Siti · Tambah opsi · Done" }], done: 0 });
+  expect(sift("sheet", "Request\nFix login\nAdd export\n")).toEqual({ items: [{ text: "Fix login" }, { text: "Add export" }], done: 0 });
+  expect(sift("sheet", "Request\nFix login\nAdd export\tsee ticket 5\n")).toEqual({ items: [{ text: "Fix login" }, { text: "Add export", notes: "see ticket 5" }], done: 0 });
+  expect(sift("sheet", "Request\t\nFix login\tBudi\nAdd export\tSiti\n")).toEqual({ items: [{ text: "Fix login", notes: "Budi" }, { text: "Add export", notes: "Siti" }], done: 0 });
+  // A later row whose lone cell reads like a header word is still data.
+  expect(sift("sheet", "Request\nFix login\tBug\nRename page heading\tTitle\nAdd export\tFeature\n")).toEqual({ items: [{ text: "Fix login", notes: "Bug" }, { text: "Rename page heading", notes: "Title" }, { text: "Add export", notes: "Feature" }], done: 0 });
+  expect(sift("sheet", "Request\nFix login\tStatus\nAdd export\tdone\n")).toEqual({ items: [{ text: "Fix login", notes: "Status" }, { text: "Add export", notes: "done" }], done: 0 });
+  const guessed = "1\tOpen\tTombol export tidak muncul\n2\tOpen\tTambah opsi ingat saya\n";
+  addSource(state, SHEET);
+  expect(await gatherSource(state, SHEET, text(guessed), pub)).toMatchObject({ added: 2, note: "2 new" });
+});
+
 // G-06
 test("the URL guard refuses anything that is not public https", async () => {
   for (const u of [
@@ -267,14 +283,23 @@ test("the URL guard refuses anything that is not public https", async () => {
     expect(await resolvesPublic("x.example", async () => [{ address: "93.184.216.34" }, { address }])).toBe(false);
   }
   expect(await resolvesPublic("x.example", async () => [{ address: "93.184.216.34" }, { address: "2606:2800:220:1::1" }, { address: "172.32.0.1" }])).toBe(true);
-  expect(await resolvesPublic("x.example", async () => [])).toBe(false);
-  expect(await resolvesPublic("x.example", async () => { throw new Error("ENOTFOUND"); })).toBe(false);
+  expect(await resolvesPublic("x.example", async () => [])).toBeNull();
+  expect(await resolvesPublic("x.example", async () => { throw new Error("ENOTFOUND"); })).toBeNull();
 
   // A hostname resolving to a private address is never fetched.
   let calls = 0;
   const spy = async () => { calls++; return new Response("secret", { headers: { "content-type": "text/plain" } }); };
   expect(await fetchText("https://rebind.example/a", spy, async () => [{ address: "192.168.1.1" }])).toEqual({ ok: false, note: "Refused: not a public address." });
   expect(calls).toBe(0);
+  // A name that does not resolve reads as a typo, and is not fetched either.
+  for (const look of [async () => [], async () => { throw new Error("ENOTFOUND"); }]) {
+    expect(await fetchText("https://kaizen-nope.invalid/a", spy, look)).toEqual({ ok: false, note: "The link's address could not be found. Check it for a typo." });
+  }
+  expect(calls).toBe(0);
+  // Only the user's own link can hold their typo; a redirect hop is named as such.
+  const hopper = async () => new Response(null, { status: 302, headers: { location: "https://gone.invalid/b" } });
+  const look = async (h: string) => h === "gone.invalid" ? [] : [{ address: "93.184.216.34" }];
+  expect(await fetchText("https://example.com/a", hopper, look)).toEqual({ ok: false, note: "The link redirected to an address that could not be found." });
 
   // Nor is a redirect hop to any of them.
   for (const to of ["http://example.com/a", "file:///etc/passwd", "https://localhost/a", "https://127.0.0.1/a", "https://10.0.0.5/a", "https://192.168.1.1/a", "https://169.254.169.254/a", "https://[::1]/a", "https://inner.example/a"]) {
@@ -440,6 +465,20 @@ test("move: label, seen and last go along; a duplicate is refused; no idea moves
   // What was seen in the old project is not gathered again in the new one.
   expect((await gatherSource(other, SHEET, text("request\nfirst thing\nsecond thing"), pub)).added).toBe(0);
   expect(readInbox(other)).toEqual([]);
+});
+
+// Root ignores file modes, and Windows read-only does not stop this write.
+test.skipIf(process.platform === "win32" || process.getuid?.() === 0)("move: when the old project cannot be written, the source stays only there", () => {
+  const other = join(root, "other" + n, ".kaizen");
+  mkdirSync(other, { recursive: true });
+  addSource(state, SHEET);
+  const f = join(state, "sources.json");
+  chmodSync(f, 0o444);
+  try {
+    expect(() => moveSource(state, other, SHEET)).toThrow();
+    expect(readSources(other).map((s) => s.url)).toEqual([]);
+    expect(readSources(state).map((s) => s.url)).toEqual([SHEET]);
+  } finally { chmodSync(f, 0o644); }
 });
 
 test("gather everything: each source's ideas land in its own project and no other", async () => {

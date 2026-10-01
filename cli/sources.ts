@@ -55,7 +55,8 @@ export function removeSource(state: string, url: string): string | null {
 
 // A source belongs to one project. Moving it carries its label, seen list and last
 // result, so nothing is gathered twice; ideas already in the old inbox stay there.
-// Written to the new project first: a crash leaves it listed twice, never lost.
+// Written to the new project first, and taken back out if the old one cannot be
+// written: only a crash between the two writes leaves it listed twice, never lost.
 export function moveSource(from: string, to: string, url: string): string | null {
   if (from === to) return "already in that project";
   const list = readSources(from);
@@ -64,7 +65,8 @@ export function moveSource(from: string, to: string, url: string): string | null
   const dest = readSources(to);
   if (dest.some((s) => s.url === url)) return "that project already has this link";
   writeSources(to, [...dest, src]);
-  writeSources(from, list.filter((s) => s.url !== url));
+  try { writeSources(from, list.filter((s) => s.url !== url)); }
+  catch (e) { writeSources(to, dest); throw e; }
   return null;
 }
 
@@ -144,11 +146,12 @@ type Lookup = (host: string, opts: { all: true }) => Promise<{ address: string }
 // ponytail: check-then-connect. The fetch resolves the name again and is not pinned
 // to the address checked here, so DNS rebinding on a listed hostname gets through.
 // Accepted because the user adds every link by hand; pin the socket if that changes.
-export async function resolvesPublic(host: string, lookup: Lookup = dnsLookup): Promise<boolean> {
+// null: the name does not resolve at all, most often a typo.
+export async function resolvesPublic(host: string, lookup: Lookup = dnsLookup): Promise<boolean | null> {
   try {
     const found = await lookup(host, { all: true });
-    return found.length > 0 && found.every((f) => !isPrivate(f.address));
-  } catch { return false; }
+    return found.length ? found.every((f) => !isPrivate(f.address)) : null;
+  } catch { return null; }
 }
 
 // Google serves a sheet or a doc as plain text from its export address, to anyone
@@ -186,7 +189,9 @@ export async function fetchText(url: string, doFetch: Fetch = fetch, lookup: Loo
     if (why) return { ok: false, note: `Refused: ${why}.` };
     const host = new URL(url).hostname;
     if (host === "accounts.google.com") return { ok: false, note: SIGN_IN };
-    if (!(await resolvesPublic(host, lookup))) return { ok: false, note: "Refused: not a public address." };
+    const pub = await resolvesPublic(host, lookup);
+    if (pub === null) return { ok: false, note: hop ? "The link redirected to an address that could not be found." : "The link's address could not be found. Check it for a typo." };
+    if (!pub) return { ok: false, note: "Refused: not a public address." };
     const res = await doFetch(url, { redirect: "manual", credentials: "omit", signal, headers: { accept: "text/plain, text/*" } });
     if (res.status >= 300 && res.status < 400) {
       const to = res.headers.get("location");

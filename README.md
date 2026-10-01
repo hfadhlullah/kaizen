@@ -301,6 +301,7 @@ and every `kaizen settings` knob, same rows, same `config.yml`. `--port N` picks
 serves, the board opens on every project, or on the one picked last time in that browser; `?all=0` in the URL narrows it to the one it was started in. `--daemon` starts the server
 detached so it outlives the terminal (pid kept in `~/.kaizen/web.pid`); `--stop` ends it. `kaizen web --shortcut` adds a launcher
 the OS can find — Spotlight on macOS, the app menu on Linux, a Desktop shortcut on Windows. Each one starts the board in the background (`--daemon`) and opens it; `kaizen web --stop` ends it.
+On Windows `kaizen web` starts in the background unless `--foreground` is given; `kaizen web --stop` ends it.
 
 **A notebook beside the board.** The note icon in the board's header opens
 `/notebook`: markdown notes for the project, kept as plain files in `.kaizen/notes/`
@@ -327,10 +328,14 @@ slower CPU path); a browser without a microphone API or WebAssembly shows no mic
 
 Requests that already live somewhere else — a team's Google Sheet, a Doc, a shared
 note — do not have to be retyped. The link icon beside the gear opens **Request
-sources**: paste a link, and kaizen reads it and adds every request it has not seen
-before to Ideas, each with a note saying where it came from. In a sheet, a column headed
-`Request`, `Idea`, `Title`, `Task`, `PBI`, `Summary` or `Name` is the request and the
-other cells become its notes; without such a header the request is one column for the whole sheet, the one holding the most text. A row whose `Status` column says `Done`,
+sources**: paste a link, and kaizen reads it at once and adds every request it has not
+seen before to Ideas, each with a note saying where it came from and a *gathered* chip;
+the panel says what came back, or why the link could not be read. In a sheet, the header
+is looked for in the first five rows that hold anything, and a column headed `Request`,
+`Idea`, `Title`, `Task`, `PBI`, `Summary`, `Name`, `Detail`, `Details`, `Description`,
+`Deskripsi`, `Feedback`, `Issue`, `Permintaan` or `Judul` is the request; the other
+cells become its notes. Without such
+a header the request is one column for the whole sheet, the one holding the most text. A row whose `Status` column says `Done`,
 `Finish` or `Finished` is left out, and gathered later if its status changes. A doc or
 a plain-text link gives one idea per line.
 
@@ -657,14 +662,14 @@ with a comment on each key, if you would rather edit the file.
 | `--yes` | Take every default, ask nothing |
 | `--verbose` | List every link instead of a one-line summary |
 | `upgrade` | Pull, relink, and clear the installer cache. No prompts. |
-| `uninstall` | Remove the links, the clone, and the launcher. Asks whether to keep your runs and settings. |
+| `uninstall` | Remove the links, the clone, and the launcher. Asks whether to keep your runs and settings. The clone goes only when it is `~/kaizen`, cloned from kaizen's repository, with no local changes; any other `KAIZEN_HOME` is kept and named. |
 | `uninstall --purge` | The same, and delete `~/.kaizen` and this project's `.kaizen/` too. |
 | `settings` | Open the settings browser for the nearest `.kaizen/`. Also `config`. |
 
 Uninstalling works the same on Linux, macOS and Windows — `kaizen uninstall`, or
 `bunx kaizen-agent uninstall` when the command itself is already gone. It offers three
 answers — keep your runs and settings, remove everything, or cancel — and takes the
-first without asking when the output is not a terminal. It lists what it removed; the `## Kaizen workflow` line in each project's `CLAUDE.md` is left for
+first without asking when the output is not a terminal. It lists what it removed and what it kept; the `## Kaizen workflow` line in each project's `CLAUDE.md` is left for
 you to delete, since you may have edited around it.
 
 A global install also writes `~/.local/bin/kaizen` (`kaizen.cmd` in bun's bin
