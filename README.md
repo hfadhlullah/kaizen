@@ -169,7 +169,7 @@ kaizen Done, and reviewed. Two things found:
 - **Notes and voice, offline.** A markdown notebook beside the board, plus dictation on every field. Whisper runs in the page, so audio never leaves your machine.
 - **Plain files, any agent.** Every run is a folder of markdown in `.kaizen/`. Start in Claude Code, finish in Codex, Antigravity, OpenCode, Cursor or Gemini CLI.
 
-<img src="https://raw.githubusercontent.com/hfadhlullah/kaizen/main/assets/board.png" alt="kaizen web board" width="760">
+<img src="https://raw.githubusercontent.com/hfadhlullah/kaizen/c858bb6d666a65780d09c06032c8819489b87da5/assets/board.png" alt="kaizen web board" width="760">
 
 ## Commands
 
