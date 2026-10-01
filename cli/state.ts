@@ -65,6 +65,13 @@ const EFFORT_FLAGS: Record<string, (e: string) => string[]> = {
   codex: (e) => ["-c", `model_reasoning_effort=${e}`],
 };
 
+// Each tool's own skip-every-permission-prompt mode, taken only when the Run form's
+// Yolo is picked for that launch. Flags as each tool's --help spells them.
+export const YOLO_FLAGS: Record<string, string[]> = {
+  claude: ["--dangerously-skip-permissions"], agy: ["--dangerously-skip-permissions"],
+  codex: ["--dangerously-bypass-approvals-and-sandbox"], gemini: ["--yolo"], opencode: ["--auto"],
+};
+
 // How each tool takes the opening prompt and stays interactive. agy refuses a bare
 // argument and exits; opencode reads one as the project folder to open.
 const PROMPT_FLAGS: Record<string, string[]> = { agy: ["-i"], opencode: ["--prompt"] };
@@ -100,7 +107,7 @@ export function agentChoices(projectDir: string) {
   return {
     default: detectDefaultAgent(projectDir).cmd,
     agents: KNOWN_AGENTS.filter((a) => onPath(a.cmd)).map((a) => ({
-      name: a.name, cmd: a.cmd, model: agentConfig(projectDir, a.cmd).model ?? "", models: !!MODEL_FLAGS[a.cmd],
+      name: a.name, cmd: a.cmd, model: agentConfig(projectDir, a.cmd).model ?? "", models: !!MODEL_FLAGS[a.cmd], yolo: !!YOLO_FLAGS[a.cmd],
     })),
   };
 }
@@ -555,7 +562,7 @@ export type Card = {
   moved?: number;                                  // runs only: state.json mtime
   title?: string;                                  // runs only: first line of the request
   archived: boolean;                               // hidden from the board unless asked for
-  tags?: string[];                                 // runs only: runner, agent, "unrechecked"
+  tags?: string[];                                 // runs only: runner, agent, "yolo", "unrechecked"
   notes?: string;                                  // inbox notes, or runs/<id>/notes.md
 };
 
@@ -885,6 +892,9 @@ export function boardCards(states: string[], now: number): Card[] {
         ? { kind: "idea", status: "starting", text: it.text, state: st, where, column: 1, awaiting: null, dim: true, archived: false, notes: it.notes }
         : { kind: "idea", status: "idea", text: it.text, state: st, where, column: 0, awaiting: null, dim: false, archived: it.status === "archived", notes: it.notes });
     }
+    // Runs started in Yolo. Only yolo records are matched to runs, so a project that
+    // never used it pays one directory read.
+    const yolos = new Set(readSessions(st).filter((s) => s.yolo).map((s) => ownerOf(st, s)));
     for (const r of readRuns(st)) {
       next.push({
         kind: "run", id: r.id, status: statusOf(r, now), text: short(r.id), state: st, where, column: columnOf(r.stage, r.awaiting), moved: r.moved,
@@ -892,7 +902,7 @@ export function boardCards(states: string[], now: number): Card[] {
         awaiting: r.stage === "abandoned" ? null : r.awaiting,
         dim: r.stage === "abandoned",
         archived: archive.has(r.id),
-        tags: [r.runner, r.agent, unrechecked(st, r.id) ? "unrechecked" : undefined].filter((t): t is string => !!t),
+        tags: [r.runner, r.agent, yolos.has(r.id) ? "yolo" : undefined, unrechecked(st, r.id) ? "unrechecked" : undefined].filter((t): t is string => !!t),
         notes: readNotes(st, r.id) || undefined,
       });
     }
@@ -930,7 +940,7 @@ export function manualCommand(projectDir: string, agentCmd: string, prompt: stri
 // project's state dir ({run, text, cmd, model, sessionId, started}) and `<key>.pid`, which
 // the agent writes itself. Only these are ever closed or resumed: a session the user
 // opened by hand has no record.
-export type Session = { key: string; run: string | null; text: string; cmd: string; model?: string | null; sessionId: string | null; started: number };
+export type Session = { key: string; run: string | null; text: string; cmd: string; model?: string | null; yolo?: boolean; sessionId: string | null; started: number };
 
 // Tools that take a conversation id at launch and resume it by that id. Every other
 // tool gets a fresh session on each decision, as before.
@@ -1074,7 +1084,7 @@ export function runAgent(st: string, id: string): { cmd: string; model: string |
 // The agent's argv for a launch, and its record. With a run, a decision: it resumes
 // the run's conversation when there is one. A project without a state dir gets no
 // record; making one here would shadow the user's.
-export function sessionLaunch(projectDir: string, cmd: string, base: string[], prompt: string, text: string, run?: string, model?: string) {
+export function sessionLaunch(projectDir: string, cmd: string, base: string[], prompt: string, text: string, run?: string, model?: string, yolo?: boolean) {
   const st = join(projectDir, ".kaizen");
   if (!existsSync(st)) return { fullCmd: [...base, ...promptArgs(cmd, prompt)], pidFile: undefined, record: undefined };
   const f = SESSION_FLAGS[cmd];
@@ -1084,13 +1094,14 @@ export function sessionLaunch(projectDir: string, cmd: string, base: string[], p
   const key = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   mkdirSync(sessionsDir(st), { recursive: true });
   const record = join(sessionsDir(st), key + ".json");
-  writeFileSync(record, JSON.stringify({ run: run ?? null, text, cmd, model: model ?? null, sessionId, started: Date.now() }) + "\n");
+  writeFileSync(record, JSON.stringify({ run: run ?? null, text, cmd, model: model ?? null, ...(yolo ? { yolo: true } : {}), sessionId, started: Date.now() }) + "\n");
   return { fullCmd, pidFile: join(sessionsDir(st), key + ".pid"), record };
 }
 
 // run: the run a decision is for. Without it, an idea starting a new run.
-// pick: the tool and model chosen for a new run; a decision takes the run's own.
-export function launchRun(it: Item, from: string, run?: string, pick: { agent?: string; model?: string } = {}): Launch {
+// pick: the tool, model and yolo chosen for a new run; a decision takes the run's own
+// tool and model, and never yolo.
+export function launchRun(it: Item, from: string, run?: string, pick: { agent?: string; model?: string; yolo?: boolean } = {}): Launch {
   const projectDir = projectOf(from);
   // The run will be born here; the board must know the dir or the idea never retires.
   remember(projectDir);
@@ -1100,9 +1111,11 @@ export function launchRun(it: Item, from: string, run?: string, pick: { agent?: 
   const prompt = requestOf(it.where ? `/kaizen ${it.text} (${it.where})` : `/kaizen ${it.text}`, it.notes, from);
   const wanted = pick.model ?? (own?.cmd === agent.cmd ? own.model : null) ?? undefined;
   const model = wanted && plainModel(wanted) ? wanted : undefined;
-  const flags = agentFlags(projectDir, agent.cmd, undefined, model);
+  // Yolo was picked for one tool; a fallback to another opens in its normal mode.
+  const yolo = !!pick.yolo && agent.cmd === pick.agent && !!YOLO_FLAGS[agent.cmd];
+  const flags = [...agentFlags(projectDir, agent.cmd, undefined, model), ...(yolo ? YOLO_FLAGS[agent.cmd] : [])];
   // The idea as its run's request will hold it: without the runner word in front.
-  const s = sessionLaunch(projectDir, agent.cmd, [agentBin, ...flags], prompt, it.text.replace(/^(lite|full|auto|plan)\s+/i, ""), run, model);
+  const s = sessionLaunch(projectDir, agent.cmd, [agentBin, ...flags], prompt, it.text.replace(/^(lite|full|auto|plan)\s+/i, ""), run, model, yolo);
   const manual = manualCommand(projectDir, agent.cmd, prompt, flags);
   const drop = () => { if (s.record) rmSync(s.record, { force: true }); };
 

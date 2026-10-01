@@ -495,7 +495,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           // A `started` idea may be run again: the terminal the first launch opened
           // can come up empty, and nothing else tells the board a run never began.
           it.notes = readInbox(dir).find((l) => (l.status === "open" || l.status === "started") && l.text === text)?.notes;
-          const r = launchRun(it, dir, undefined, { agent, model: model || undefined });
+          const r = launchRun(it, dir, undefined, { agent, model: model || undefined, yolo: body.yolo === true });
           if (r.ok) replaceIdea(dir, text, { status: "started", text });
           changed();
           return json(r.ok
