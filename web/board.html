@@ -210,7 +210,7 @@ aside .foot .more .menu-pop{left:0;right:auto;top:auto;bottom:calc(100% + 4px)}.
 .srow .hint{grid-column:1;margin:0;font-size:12px;color:var(--dim);line-height:1.45;max-width:46ch}
 .srow input.sel{width:170px}
 .fpick{display:inline-flex;gap:6px;align-items:center}
-.srow[hidden],.sg[hidden],.sjump button[hidden]{display:none}
+.srow[hidden],.yolo[hidden],.sg[hidden],.sjump button[hidden]{display:none}
 /* search and section chips: pinned to the top of the panel while the rows scroll under it */
 .sq{position:sticky;top:-24px;z-index:1;background:var(--bg-2);padding:24px 0 12px;margin:-24px 0 4px;border-bottom:1px solid var(--line)}.sq input{width:100%;max-width:none}.sq+.sg{margin-top:16px}
 .sjump{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.sjump button{padding:3px 10px;border:1px solid var(--line);border-radius:var(--r-pill);font-size:12px;color:var(--dim)}.sjump button:hover{background:var(--hover);color:var(--ink)}
@@ -232,7 +232,9 @@ aside .foot .more .menu-pop{left:0;right:auto;top:auto;bottom:calc(100% + 4px)}.
 .toast.on{opacity:1}
 .toast.on.rep{pointer-events:auto}.toast a{color:inherit;margin-left:8px;text-decoration:underline;text-underline-offset:2px}
 .help{position:fixed;inset:0;z-index:12;display:none;align-items:center;justify-content:center;background:color-mix(in srgb,var(--bg) 60%,transparent);backdrop-filter:blur(3px)}
-.help.on{display:flex}.help div{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r);padding:24px 28px;line-height:2.2;box-shadow:var(--shadow-2)}
+.help.on{display:flex}.help div{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r);padding:24px 28px;box-shadow:var(--shadow-2)}
+.help p{margin:0 0 16px;color:var(--dim)}.help dl{display:grid;grid-template-columns:auto 1fr;gap:10px 20px;align-items:center;margin:0}.help dt{display:flex;gap:6px;justify-content:flex-end}.help dd{margin:0}
+.help kbd{font:12px/1 ui-monospace,monospace;padding:4px 7px;border:1px solid var(--line);border-bottom-width:2px;border-radius:var(--r-s);background:var(--bg);color:var(--ink-hi)}
 /* request sources: cards, status badges, top bar, and add-box */
 .src-topbar{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg);border:1px solid var(--line);border-radius:var(--r);margin:14px 0 16px;gap:12px}
 .src-topbar .meta{display:flex;flex-direction:column;gap:2px}
@@ -346,8 +348,8 @@ aside .foot .more .menu-pop{left:0;right:auto;top:auto;bottom:calc(100% + 4px)}.
 </aside>
 <div class="toast" id="toast" role="status"></div>
 <div class="help" id="help"><div>
-Optional. Everything here is also a button.<br>
-<kbd>←↓↑→</kbd><kbd>hjkl</kbd>move between cards<br><kbd>Enter</kbd>open<br><kbd>←→</kbd><kbd>hl</kbd>tabs, in an open run<br><kbd>↑↓</kbd><kbd>jk</kbd>scroll, in an open run<br><kbd>n</kbd>new idea<br><kbd>e</kbd>edit<br><kbd>x</kbd>reject / abandon<br><kbd>r</kbd>run<br><kbd>a</kbd>all projects<br><kbd>Esc</kbd>close<br><kbd>?</kbd>this list</div></div>
+<p>Optional. Everything here is also a button.</p>
+<dl><dt><kbd>←↓↑→</kbd><kbd>hjkl</kbd></dt><dd>move between cards</dd><dt><kbd>Enter</kbd></dt><dd>open</dd><dt><kbd>←→</kbd><kbd>hl</kbd></dt><dd>tabs, in an open run</dd><dt><kbd>↑↓</kbd><kbd>jk</kbd></dt><dd>scroll, in an open run</dd><dt><kbd>n</kbd></dt><dd>new idea</dd><dt><kbd>e</kbd></dt><dd>edit</dd><dt><kbd>x</kbd></dt><dd>reject / abandon</dd><dt><kbd>r</kbd></dt><dd>run</dd><dt><kbd>a</kbd></dt><dd>all projects</dd><dt><kbd>Esc</kbd></dt><dd>close</dd><dt><kbd>?</kbd></dt><dd>this list</dd></dl></div></div>
 
 <script>
 // The page never touches the filesystem. Everything comes from /state and the run
