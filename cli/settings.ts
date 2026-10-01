@@ -211,7 +211,10 @@ export async function settings(repoRoot: string, standalone = true) {
     const rows = SETTINGS.map((s) => ({
       s,
       // Older configs spell "infer the track" as an empty string; show what it means.
-      value: s.key === "preset" ? currentPreset : show(s, (read(fileFor(s) === file ? text : readText(fileFor(s)), s.key) || (s.key === "track.default" ? "auto" : undefined)) ?? c.dim("(default)")),
+      // The preset as a game's quick preset: arrows either side, the tier lit after it. No colour codes: the selected row wraps this in inverse, which a reset would end.
+      value: s.key === "preset"
+        ? `◁ ${currentPreset.padEnd(6)} ▷ ${(["low", "medium", "ultra"] as const).map((p) => p === currentPreset ? "━" : "─").join("")}`
+        : show(s, (read(fileFor(s) === file ? text : readText(fileFor(s)), s.key) || (s.key === "track.default" ? "auto" : undefined)) ?? c.dim("(default)")),
     }));
     const width = Math.max(...SETTINGS.map((s) => s.label.length)) + 4;
 
