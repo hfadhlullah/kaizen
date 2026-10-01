@@ -98,7 +98,7 @@ function answers(cmd: string[]): boolean {
   const bin = onPath(cmd[0]);
   if (!bin) return false;
   try {
-    return Bun.spawnSync([bin, ...cmd.slice(1)], { stdin: "ignore", stdout: "ignore", stderr: "ignore", timeout: 2000 }).exitCode === 0;
+    return Bun.spawnSync([bin, ...cmd.slice(1)], { stdin: "ignore", stdout: "ignore", stderr: "ignore", timeout: 2000, windowsHide: true }).exitCode === 0;
   } catch {
     return false;
   }
@@ -878,6 +878,9 @@ export function launchRun(it: Item, from: string): Launch {
       stdout: "ignore",
       stderr: "ignore",
       detached: term.detached,
+      // A detached launch is the terminal window itself; anything else (herdr's
+      // launcher) is plumbing, and must not flash a console on Windows.
+      windowsHide: !term.detached,
     });
     if (term.detached) proc.unref();
     return { ok: true, agent, prompt, projectDir, cmd: term.cmd };
@@ -902,7 +905,9 @@ export async function pidOnPort(port: number): Promise<number | null> {
 // ---- git, for the board's commit and push. Always argv, never a shell: the commit
 // message is whatever the user typed. A credential prompt has no terminal to appear
 // in, so git is told not to ask and is given a minute at most.
-const gitOpts = () => ({ env: { ...process.env, GIT_TERMINAL_PROMPT: "0" }, stdin: "ignore" as const, timeout: 60_000 });
+// windowsHide: a board started from the Windows shortcut has no console, so each
+// git it runs would open one of its own -- a window flashing on every refresh.
+const gitOpts = () => ({ env: { ...process.env, GIT_TERMINAL_PROMPT: "0" }, stdin: "ignore" as const, timeout: 60_000, windowsHide: true });
 const gitDone = (code: number | null, stdout: string, stderr: string) => {
   const out = stdout.trimEnd(), err = stderr.trim();
   return { ok: code === 0, out, why: (err || out).split("\n").pop() || "git did not finish" };
