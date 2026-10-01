@@ -96,28 +96,28 @@ export function applyPreset(text: string, preset: PresetName, defaults: string):
 
 const SETTINGS: Setting[] = [
   { key: "preset", label: "Preset", group: "Preset", values: ["low", "medium", "ultra", "custom"], help: "Sets every row below at once. low: you do it here, step by step. medium: balanced. ultra: hands-off. Change any row and it becomes custom" },
-  { key: "mode", label: "Stop for approval", group: "Run", values: ["approve", "auto", "plan-only", "review-only"], help: "approve: pause and ask you at each enabled checkpoint. auto: never pause. plan-only: write the plan and stop. review-only: just audit existing work" },
-  { key: "git.auto_commit", label: "Commit when done", group: "Run", values: ["false", "true"], help: "Commit the work when a run finishes. Never pushes" },
-  { key: "state.keep_runs", label: "Runs to keep", group: "Run", values: ["5", "10", "20", "50"], help: "Finished runs kept before the oldest is pruned. Open backlog items are rescued first" },
-  { key: "ui.mouse", label: "Enable mouse", group: "Run", values: ["false", "true"], help: "Click to select, click again to act. While on, the terminal cannot select text with the mouse" },
-  { key: "approvals.plan", label: "Approve the plan first", group: "Planning", values: ["true", "false"], help: "Show the plan and wait for your OK before anything is built" },
-  { key: "track.default", label: "Kind of work", group: "Planning", values: ["auto", "software", "writing", "communication", "operations", "research"], help: "Pin what runs in this project are (a docs repo is always writing). auto: the planner infers it per run" },
-  { key: "build.executor", label: "Who builds", group: "Building", values: ["subagent", "inline", "ask"], help: "subagent: a separate agent builds and reports back. inline: this session builds while you watch. ask: choose at the plan approval" },
-  { key: "approvals.each_file", label: "Confirm every file edit", group: "Building", values: ["true", "false"], help: "Ask before each individual file change. Maximum control, slowest" },
-  { key: "git.branch_before_implement", label: "Branch before building", group: "Building", values: ["true", "false"], help: "Create a branch before building when you are on the default branch" },
-  { key: "approvals.review", label: "Approve after review", group: "Review", values: ["true", "false"], help: "After the review, wait for your OK before the run is called done" },
-  { key: "auto_fix.enabled", label: "Fix findings automatically", group: "Review", values: ["true", "false"], help: "true: findings severe enough get fixed and re-reviewed without asking. false: every finding stops and asks you" },
-  { key: "auto_fix.min_severity", label: "Auto-fix from severity", group: "Review", values: ["critical", "high", "medium", "low"], help: "The least severe finding still fixed automatically. low fixes everything; critical fixes almost nothing" },
-  { key: "auto_fix.max_iterations", label: "Max fix rounds", group: "Review", values: ["1", "2", "3", "4", "5"], help: "Fix-then-recheck rounds before leftovers are handed to you. Each round is a full build plus a full review, the priciest knob here" },
-  { key: "review.write_memory", label: "Remember lessons", group: "Review", values: ["true", "false"], help: "Let the reviewer save what it learned to .kaizen/memory.md, which every future run reads" },
-  { key: "review.memory_max_lines", label: "Memory size cap", group: "Review", values: ["50", "100", "200", "400"], help: "Lines memory.md may hold before old lessons are pruned. Every run reads it, so bigger costs more" },
+  { key: "mode", label: "Stop for approval", group: "Approvals", values: ["approve", "auto", "plan-only", "review-only"], help: "approve: pause and ask you at each enabled checkpoint. auto: never pause. plan-only: write the plan and stop. review-only: just audit existing work" },
+  { key: "approvals.plan", label: "Approve the plan first", group: "Approvals", values: ["true", "false"], help: "Show the plan and wait for your OK before anything is built" },
+  { key: "approvals.review", label: "Approve after review", group: "Approvals", values: ["true", "false"], help: "After the review, wait for your OK before the run is called done" },
+  { key: "approvals.each_file", label: "Confirm every file edit", group: "Approvals", values: ["true", "false"], help: "Ask before each individual file change. Maximum control, slowest" },
   { key: "runner", label: "Stage isolation", group: "Agents", values: ["full", "lite"], help: "full: each stage is a fresh agent, so the reviewer never saw the work (costs more). lite: this one session does every stage, cheaper, reviewer may miss its own mistakes" },
+  { key: "build.executor", label: "Who builds", group: "Agents", values: ["subagent", "inline", "ask"], help: "subagent: a separate agent builds and reports back. inline: this session builds while you watch. ask: choose at the plan approval" },
+  { key: "agent.default", label: "Tool the board launches", group: "Agents", values: ["auto", "claude", "codex", "agy", "opencode", "gemini"], help: "Coding tool opened when you start a run from the board. auto: Claude Code if installed, else the first one found" },
   { key: "subagents.model", label: "Model for stage agents", group: "Agents", values: ["inherit", "opus", "sonnet", "haiku"], help: "Which Claude model the planner, builder and reviewer run on. inherit: same as your main session. Claude Code only" },
   { key: "subagents.effort", label: "Effort for stage agents", group: "Agents", values: ["inherit", "low", "medium", "high"], help: "How hard the stage agents think. low is faster and cheaper; high finds more. Claude Code only" },
-  { key: "agent.default", label: "Tool the board launches", group: "Agents", values: ["auto", "claude", "codex", "agy", "opencode", "gemini"], help: "Coding tool opened when you start a run from the board. auto: Claude Code if installed, else the first one found" },
+  { key: "auto_fix.enabled", label: "Fix findings automatically", group: "Auto-fix", values: ["true", "false"], help: "true: findings severe enough get fixed and re-reviewed without asking. false: every finding stops and asks you" },
+  { key: "auto_fix.min_severity", label: "Auto-fix from severity", group: "Auto-fix", values: ["critical", "high", "medium", "low"], help: "The least severe finding still fixed automatically. low fixes everything; critical fixes almost nothing" },
+  { key: "auto_fix.max_iterations", label: "Max fix rounds", group: "Auto-fix", values: ["1", "2", "3", "4", "5"], help: "Fix-then-recheck rounds before leftovers are handed to you. Each round is a full build plus a full review, the priciest knob here" },
+  { key: "git.auto_commit", label: "Commit when done", group: "Git", values: ["false", "true"], help: "Commit the work when a run finishes. Never pushes" },
+  { key: "git.branch_before_implement", label: "Branch before building", group: "Git", values: ["true", "false"], help: "Create a branch before building when you are on the default branch" },
+  { key: "track.default", label: "Kind of work", group: "Project", values: ["auto", "software", "writing", "communication", "operations", "research"], help: "Pin what runs in this project are (a docs repo is always writing). auto: the planner infers it per run" },
+  { key: "review.write_memory", label: "Remember lessons", group: "Project", values: ["true", "false"], help: "Let the reviewer save what it learned to .kaizen/memory.md, which every future run reads" },
+  { key: "review.memory_max_lines", label: "Memory size cap", group: "Project", values: ["50", "100", "200", "400"], help: "Lines memory.md may hold before old lessons are pruned. Every run reads it, so bigger costs more" },
+  { key: "state.keep_runs", label: "Runs to keep", group: "Project", values: ["5", "10", "20", "50"], help: "Finished runs kept before the oldest is pruned. Open backlog items are rescued first" },
   { key: "dictation.model", label: "Dictation model", group: "Board", values: ["tiny", "base", "small", "large-v3-turbo"], help: "Whisper model the web board dictates with, in the browser. tiny ~60 MB rough; base ~165 MB English-leaning; small ~410 MB accurate across languages; large-v3-turbo ~1.5 GB best, needs a capable GPU. Downloaded once on the next mic press" },
   { key: "sources.every", label: "Gather requests", group: "Board", values: ["off", "1h", "6h", "24h"], help: "How often the board checks your request sources for new ideas while it is running. off: only when you press Gather now" },
-  { key: "board.projects_dir", label: "Projects folder", group: "Board", values: [], text: true, help: "A folder your projects live in, e.g. ~/Projects. Every folder inside it appears in the board's project list, ready to choose; choosing one sets it up. Empty: only projects kaizen already knows" },
+  { key: "board.projects_dir", label: "Projects folder", group: "Board", values: [], text: true, help: `A folder your projects live in, e.g. ${process.platform === "win32" ? join(homedir(), "Projects") : "~/Projects"}. Every folder inside it appears in the board's project list, ready to choose; choosing one sets it up. Empty: only projects kaizen already knows` },
+  { key: "ui.mouse", label: "Enable mouse", group: "Terminal", values: ["false", "true"], help: "Click to select, click again to act. While on, the terminal cannot select text with the mouse" },
 ];
 
 // The same rows and the same write the TUI uses, for `kaizen web`'s settings panel:
@@ -125,13 +125,14 @@ const SETTINGS: Setting[] = [
 export function listSettings(repoRoot: string) {
   const file = locate();
   const defaults = readText(join(repoRoot, "skills/kaizen/config.default.yml"));
-  const text = existsSync(file) ? readText(file) : "";
+  const load = (f: string) => existsSync(f) ? readText(f) : "";
+  const text = load(file), board = load(globalFile());
   const preset = detectPreset(text, defaults);
   return {
     file: tilde(file),
     rows: SETTINGS.map((s) => ({
       ...s,
-      value: s.key === "preset" ? preset : (read(text, s.key) || read(defaults, s.key)) ?? s.values[0] ?? "",
+      value: s.key === "preset" ? preset : (read(s.group === "Board" ? board : text, s.key) || read(defaults, s.key)) ?? s.values[0] ?? "",
     })),
   };
 }
@@ -139,7 +140,7 @@ export function listSettings(repoRoot: string) {
 export function setSetting(repoRoot: string, key: string, value: string) {
   const s = SETTINGS.find((x) => x.key === key);
   if (!s || !(s.text || s.values.includes(value))) return { error: "unknown setting or value" };
-  const file = locate();
+  const file = fileFor(s);
   const defaultsPath = join(repoRoot, "skills/kaizen/config.default.yml");
   if (!existsSync(file)) { mkdirSync(dirname(file), { recursive: true }); copyFileSync(defaultsPath, file); }
   const defaults = readText(defaultsPath);
@@ -183,6 +184,16 @@ export async function settings(repoRoot: string, standalone = true) {
 
   const defaults = readText(join(repoRoot, "skills/kaizen/config.default.yml"));
   let active = 0, saved = "";
+  // `/` filters the rows by name, help, key, group or option; moving only visits matches.
+  let query = "", typing = false;
+  const shown = () => SETTINGS.flatMap((s, i) =>
+    `${s.label} ${s.help} ${s.key} ${s.group} ${s.values.join(" ")}`.toLowerCase().includes(query.toLowerCase()) ? [i] : []);
+  const move = (step: number) => {
+    const list = shown();
+    if (!list.length) return;
+    const at = list.indexOf(active);
+    active = at < 0 ? list[0]! : list[(at + step + list.length) % list.length]!;
+  };
   // Screen line -> setting index, rebuilt on every draw; the mouse clicks by line.
   let rowAt: number[] = [];
   const draw = () => {
@@ -200,15 +211,19 @@ export async function settings(repoRoot: string, standalone = true) {
     const rows = SETTINGS.map((s) => ({
       s,
       // Older configs spell "infer the track" as an empty string; show what it means.
-      value: s.key === "preset" ? currentPreset : show(s, (read(text, s.key) || (s.key === "track.default" ? "auto" : undefined)) ?? c.dim("(default)")),
+      value: s.key === "preset" ? currentPreset : show(s, (read(fileFor(s) === file ? text : readText(fileFor(s)), s.key) || (s.key === "track.default" ? "auto" : undefined)) ?? c.dim("(default)")),
     }));
     const width = Math.max(...SETTINGS.map((s) => s.label.length)) + 4;
 
     stdout.write("\x1b[H\x1b[2J");           // home, clear
-    stdout.write(`\n  ${c.bold("kaizen settings")}   ${c.dim(tilde(file))}\n`);
+    // On the title line, so the screen-line -> row map below is unchanged.
+    const search = typing || query ? `   / ${query}${typing ? "▏" : ""}` : "";
+    stdout.write(`\n  ${c.bold("kaizen settings")}   ${c.dim(tilde(file))}${c.cyan(search)}\n`);
     rowAt = [];
     let line = 2, group = "";
+    const list = shown();
     for (const [i, { s, value }] of rows.entries()) {
+      if (!list.includes(i)) continue;
       if (s.group !== group) {
         group = s.group;
         stdout.write(`\n  ${c.dim(group.toUpperCase())}\n`);
@@ -222,9 +237,14 @@ export async function settings(repoRoot: string, standalone = true) {
       rowAt[line++] = i;
     }
     const cur = SETTINGS[active]!;
-    stdout.write(`\n  ${c.dim(cur.key)}  ${c.dim("options:")} ${cur.values.map((v) => v || '""').join(c.dim(" / "))}\n`);
-    stdout.write(`  ${cur.help}\n`);
-    stdout.write(`\n  ${c.dim("↑↓ pick a setting · ←→ or enter to change it (saved instantly) · esc back")}   ${saved}\n`);
+    if (!list.length) stdout.write(`\n  ${c.dim(`no setting matches "${query}"`)}\n\n`);
+    else {
+      stdout.write(`\n  ${c.dim(cur.key)}  ${c.dim("options:")} ${cur.values.map((v) => v || '""').join(c.dim(" / "))}\n`);
+      stdout.write(`  ${cur.help}\n`);
+    }
+    stdout.write(`\n  ${c.dim(typing
+      ? "type to filter · enter or ↑↓ keep it · esc clear"
+      : `↑↓ pick a setting · ←→ or enter to change it (saved instantly) · / search · esc ${query ? "clear search" : "back"}`)}   ${saved}\n`);
   };
 
   stdout.write("\x1b[?1049h\x1b[?25l");      // alternate screen, hide cursor
@@ -236,17 +256,20 @@ export async function settings(repoRoot: string, standalone = true) {
   draw();
 
   function cycle(step: number) {
+    if (!shown().includes(active)) return;
     const s = SETTINGS[active]!;
     const wasMouse = s.key === "ui.mouse";
-    if (s.text) { saved = c.dim(`type ${s.key} in the board's settings, or in ${tilde(file)}`); return; }
-    const text = readText(file);
+    const f = fileFor(s);
+    if (s.text) { saved = c.dim(`type ${s.key} in the board's settings, or in ${tilde(f)}`); return; }
+    if (!existsSync(f)) { mkdirSync(dirname(f), { recursive: true }); copyFileSync(join(repoRoot, "skills/kaizen/config.default.yml"), f); }
+    const text = readText(f);
     if (s.key === "preset") {
       const current = detectPreset(text, defaults);
       const presets: PresetName[] = ["low", "medium", "ultra"];
       const at = presets.indexOf(current as PresetName);
       const next = presets[((at < 0 ? 0 : at) + step + presets.length) % presets.length]!;
       const updated = applyPreset(text, next, defaults);
-      writeFileSync(file, updated);
+      writeFileSync(f, updated);
       saved = c.green(`applied preset: ${next}`);
     } else {
       const now = read(text, s.key) ?? s.values[0]!;
@@ -255,7 +278,7 @@ export async function settings(repoRoot: string, standalone = true) {
       let updated = write(text, s.key, next, defaults);
       const detected = detectPreset(updated, defaults);
       updated = write(updated, "preset", detected, defaults);
-      writeFileSync(file, updated);
+      writeFileSync(f, updated);
       // Only claim a save that happened. Reporting one that did not is worse
       // than failing loudly: the setting reads back unchanged and nobody knows why.
       saved = read(updated, s.key) === next
@@ -279,8 +302,8 @@ export async function settings(repoRoot: string, standalone = true) {
         if (m) {
           i += m[0].length - 1;
           const button = +m[1]!, y = +m[3]!, press = m[4] === "M";
-          if (button === 64) active = (active - 1 + SETTINGS.length) % SETTINGS.length;
-          else if (button === 65) active = (active + 1) % SETTINGS.length;
+          if (button === 64) move(-1);
+          else if (button === 65) move(1);
           else if (press && button === 0) {
             const row = rowAt[y - 1];
             if (row === undefined) continue;
@@ -292,6 +315,23 @@ export async function settings(repoRoot: string, standalone = true) {
           draw();
           continue;
         }
+        // While searching, keys type into the query: esc drops it, enter or an
+        // arrow keeps it and goes back to picking.
+        if (typing) {
+          if (rest === "\x1b") { query = ""; typing = false; }
+          else if (rest.startsWith("\r")) typing = false;
+          else if (rest.startsWith("\x1b[A") || rest.startsWith("\x1b[B")) { typing = false; move(rest[2] === "A" ? -1 : 1); i += 2; }
+          else if (rest.startsWith("\x1b[")) { i += 2; continue; }
+          else if (rest.startsWith("\x7f") || rest.startsWith("\b")) query = query.slice(0, -1);
+          else if (rest.startsWith("\x03")) { stdin.off("data", onData); return resolve(); }
+          else if (rest[0]! >= " ") query += rest[0];
+          else continue;
+          if (!shown().includes(active)) move(0);
+          draw();
+          continue;
+        }
+        if (rest.startsWith("/")) { query = ""; typing = true; draw(); continue; }
+        if (rest === "\x1b" && query) { query = ""; draw(); continue; }
         // esc, q, backspace, and left-at-the-edge all mean "back to where I came
         // from" -- the settings screen is always something you opened from
         // somewhere else.
@@ -299,13 +339,13 @@ export async function settings(repoRoot: string, standalone = true) {
             || rest.startsWith("\x7f") || rest.startsWith("\b")) {
           stdin.off("data", onData); return resolve();
         }
-        if (rest.startsWith("\x1b[A")) { active = (active - 1 + SETTINGS.length) % SETTINGS.length; i += 2; }
-        else if (rest.startsWith("\x1b[B")) { active = (active + 1) % SETTINGS.length; i += 2; }
+        if (rest.startsWith("\x1b[A")) { move(-1); i += 2; }
+        else if (rest.startsWith("\x1b[B")) { move(1); i += 2; }
         else if (rest.startsWith("\x1b[C") || rest.startsWith("\x1b[D") || rest.startsWith("\r")) {
           cycle(rest.startsWith("\x1b[D") ? -1 : 1);
           if (!rest.startsWith("\r")) i += 2;
-        } else if (rest.startsWith("k")) active = (active - 1 + SETTINGS.length) % SETTINGS.length;
-        else if (rest.startsWith("j")) active = (active + 1) % SETTINGS.length;
+        } else if (rest.startsWith("k")) move(-1);
+        else if (rest.startsWith("j")) move(1);
         else continue;
         draw();
       }
@@ -335,7 +375,19 @@ function locate() {
     if (up === dir) break;
     dir = up;
   }
+  return globalFile();
+}
+
+function globalFile() {
   return join(homedir(), ".kaizen", "config.yml");
+}
+
+// Board settings describe this machine's board (its projects folder, dictation,
+// how often it gathers), not a project. They always live in the global config:
+// a project's own config.yml, often committed to its repo, would otherwise hide
+// them the moment the board moves into that project.
+function fileFor(s: Setting) {
+  return s.group === "Board" ? globalFile() : locate();
 }
 
 // Read and write a dotted key by walking indentation, so the comment above every

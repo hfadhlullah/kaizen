@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
 import {
-  symlinkSync, mkdirSync, readdirSync, lstatSync, readlinkSync, unlinkSync,
+  symlinkSync, mkdirSync, readdirSync, lstatSync, unlinkSync,
   existsSync, copyFileSync, readFileSync, appendFileSync, rmSync, writeFileSync, renameSync,
-  statSync, cpSync, realpathSync,
+  statSync, cpSync, realpathSync, rmdirSync,
 } from "node:fs";
-import { join, dirname, basename } from "node:path";
+import { join, dirname, basename, resolve } from "node:path";
 import { homedir, tmpdir } from "node:os";
 import { applyPreset, detectPreset, PRESETS, type PresetName } from "./settings.ts";
 
@@ -141,11 +141,14 @@ async function removeEverything() {
   }
   const gone: string[] = [];
   const stuck: string[] = [];
+  const kept: string[] = [];
   const drop = (p: string) => {
     if (!existsSync(p) && !isLink(p)) return;
     // Windows refuses to delete a file another process holds open, and a silent
     // failure here would read as a clean uninstall that removed nothing.
-    try { rmSync(p, { recursive: true, force: true }); gone.push(tilde(p)); }
+    // A link goes as a link: a recursive delete aimed at a junction can walk into
+    // the clone it points at.
+    try { if (isLink(p)) removeLink(p); else rmSync(p, { recursive: true, force: true }); gone.push(tilde(p)); }
     catch { stuck.push(tilde(p)); }
   };
 
@@ -172,7 +175,26 @@ async function removeEverything() {
     }
   }
 
-  drop(process.env.KAIZEN_HOME ?? join(home, "kaizen"));
+  // KAIZEN_HOME can point anywhere, a development checkout included, and deleting
+  // that takes .git and every uncommitted edit with it. Only ~/kaizen is deleted,
+  // and only as kaizen left it: its own clone with a clean tree, or the copy made
+  // without git. Anything else is named and left for its owner. The path is compared
+  // as written, so a KAIZEN_HOME that reaches ~/kaizen through a link is refused too.
+  // A clone holds no ignored files unless someone used it (.kaizen/ is ignored), and
+  // no commits that are not on a remote.
+  const install = process.env.KAIZEN_HOME ?? join(home, "kaizen");
+  const git = async (...a: string[]) => {
+    try { return (await Bun.$`git -C ${install} ${a}`.quiet().text()).trim(); } catch { return null; }
+  };
+  const repo = (u: string | null) => u?.replace(/\/+$/, "").replace(/\.git$/, "");
+  const why = !existsSync(install) ? ""
+    : resolve(install) !== join(home, "kaizen") ? "KAIZEN_HOME is not ~/kaizen"
+    : !existsSync(join(install, ".git")) ? (existsSync(join(install, "cli", "install.ts")) ? "" : "not a kaizen install")
+    : repo(await git("remote", "get-url", "origin")) !== repo(REPO_URL) ? "a git checkout of another repository"
+    : (await git("status", "--porcelain", "--ignored")) !== "" ? "a git checkout with local changes or ignored files"
+    : (await git("rev-list", "--branches", "--not", "--remotes")) !== "" ? "a git checkout with commits not pushed" : "";
+  if (why) kept.push(`${tilde(install)} ${c.dim(`(${why}; delete it yourself if it is only kaizen)`)}`);
+  else drop(install);
   drop(join(process.env.BUN_INSTALL ?? join(home, ".bun"), "bin", "kaizen.cmd"));
   drop(join(home, ".local", "bin", "kaizen"));
   await clearBunxCache();
@@ -184,7 +206,8 @@ async function removeEverything() {
 
   console.log(`\n  ${c.bold("Uninstalled")}`);
   for (const p of gone) console.log(`  ${c.dim("removed  " + p)}`);
-  if (!gone.length && !stuck.length) console.log(`  ${c.dim("nothing left to remove")}`);
+  for (const p of kept) console.log(`  ${c.dim("kept     ")}${p}`);
+  if (!gone.length && !stuck.length && !kept.length) console.log(`  ${c.dim("nothing left to remove")}`);
   if (stuck.length) {
     console.log(`\n  ${c.bold("could not remove")} ${c.dim("— close any dashboard or agent still using these, then run it again")}`);
     for (const p of stuck) console.log(`  ${c.dim(p)}`);
@@ -199,6 +222,12 @@ async function removeEverything() {
 // removing here.
 function isLink(p: string) {
   try { return lstatSync(p).isSymbolicLink(); } catch { return false; }
+}
+
+// Removes the link itself, never what it points at. A Windows junction is a
+// directory to unlink(), so rmdir() is the fallback; neither one recurses.
+function removeLink(p: string) {
+  try { unlinkSync(p); } catch { rmdirSync(p); }
 }
 
 // Nothing to install into. kaizen is a workflow an agent runs; on its own it does
@@ -296,7 +325,10 @@ if (wantWeb) {
     process.exit(0);
   }
 
-  if (args.has("--daemon")) {
+  // On Windows a board in the foreground shares its console with every child it
+  // starts and Ctrl+C on kaizen.cmd asks "Terminate batch job (Y/N)?", so there a
+  // bare `kaizen web` detaches like the shortcut; --foreground keeps it here.
+  if (args.has("--daemon") || (process.platform === "win32" && !args.has("--foreground"))) {
     // The daemon is this same command, detached, with the browser left to us:
     // ignored stdio is what lets it outlive the terminal.
     // A board running an older kaizen is not "already running": the child finds
@@ -306,7 +338,7 @@ if (wantWeb) {
       console.log(`  kaizen web already running at ${url}`);
     } else {
       const argv = Bun.argv.slice(2).filter((a) => a !== "--daemon" && a !== "--no-open");
-      const child = Bun.spawn([process.execPath, Bun.main, ...argv, "--no-open"], {
+      const child = Bun.spawn([process.execPath, Bun.main, ...argv, "--no-open", "--foreground"], {
         detached: true, stdio: ["ignore", "ignore", "ignore"], windowsHide: true,
       });
       child.unref();
@@ -661,7 +693,10 @@ function linkState(src: string, dest: string) {
       if (isWindows && st.isFile()) return sameFile(src, dest) ? "linked" : "stale";
       return "occupied";
     }
-    return readlinkSync(dest) === src ? "linked" : "stale";
+    // Compared by where they lead, not by spelling: a junction reads back with a
+    // trailing \ or a \\?\ prefix, which made every upgrade relink every skill.
+    try { return realpathSync(dest) === realpathSync(src) ? "linked" : "stale"; }
+    catch { return "stale"; } // dangling: still a link to replace, not a free slot
   } catch {
     return "missing";
   }
@@ -686,7 +721,8 @@ for (const [src, sub] of links) {
     continue;
   }
   mkdirSync(dir, { recursive: true });
-  if (state !== "missing") rmSync(dest, { recursive: true, force: true });
+  if (state === "occupied") rmSync(dest, { recursive: true, force: true });
+  else if (state === "stale") removeLink(dest);
   makeLink(src, dest);
   wrote++;
   if (verbose) console.log(c.dim(`  link  ${name}`));
