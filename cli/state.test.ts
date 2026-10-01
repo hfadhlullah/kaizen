@@ -278,13 +278,20 @@ out.project = [S.detectDefaultAgent(P).cmd, S.agentFlags(P, "codex")];
 out.missing = S.detectDefaultAgent(P, "gemini");
 out.pick = [S.detectDefaultAgent(P, "codex").cmd, S.agentFlags(P, "codex", undefined, "gpt-5.1")];
 out.choices = S.agentChoices(P);
+// No terminal on PATH or display in env: the launch fails and hands back its manual line.
+const idea = { severity: null, where: null, text: "x", raw: "x" };
+// macOS always drives Terminal.app, which would open a real window: Linux only.
+if (process.platform === "linux") out.yolo = [S.launchRun(idea, P, undefined, { agent: "codex", yolo: true }), S.launchRun(idea, P, undefined, { agent: "codex" }), S.launchRun(idea, P, undefined, { agent: "gemini", yolo: true })].map((r) => [r.ok, r.agent.cmd, /--dangerously-bypass|--dangerously-skip|--yolo/.test(r.manual)]);
 fs.writeFileSync(join(st, "runs", "r1", "state.json"), JSON.stringify({ agent: "codex" }));
 out.fromState = S.runAgent(st, "r1");
 S.sessionLaunch(P, "codex", ["codex"], "/kaizen x", "x", "r1", "gpt-5.1");
 out.fromRecord = S.runAgent(st, "r1");
+out.tags = [S.boardCards([st], Date.now()).find((c) => c.id === "r1")?.tags];
+S.sessionLaunch(P, "codex", ["codex"], "/kaizen x", "x", "r1", undefined, true);
+out.tags.push(S.boardCards([st], Date.now()).find((c) => c.id === "r1")?.tags);
 console.log(JSON.stringify(out));`;
   try {
-    const p = Bun.spawnSync(["bun", "-e", script], { cwd: home, env: { ...process.env, HOME: home, PATH: bin + ":" + dirname(process.execPath) } });
+    const p = Bun.spawnSync(["bun", "-e", script], { cwd: home, env: { ...process.env, HOME: home, PATH: bin + ":" + dirname(process.execPath), DISPLAY: "", WAYLAND_DISPLAY: "", TERMINAL: "", TMUX: "", HERDR_ENV: "" } });
     if (p.exitCode !== 0) throw new Error(p.stderr.toString());
     expect(JSON.parse(p.stdout.toString())).toEqual({
       // A project config.yml with no agent block leaves the global one in force.
@@ -293,9 +300,12 @@ console.log(JSON.stringify(out));`;
       missing: { name: "Claude Code", cmd: "claude", note: "Gemini CLI is not installed; opened Claude Code instead" },
       pick: ["codex", ["-m", "gpt-5.1"]],
       choices: { default: "claude", agents: [
-        { name: "Claude Code", cmd: "claude", model: "", models: true },
-        { name: "Codex", cmd: "codex", model: "o3", models: true },
+        { name: "Claude Code", cmd: "claude", model: "", models: true, yolo: true },
+        { name: "Codex", cmd: "codex", model: "o3", models: true, yolo: true },
       ] },
+      // Yolo adds the tool's bypass flag only when asked for, and not to a fallback tool.
+      ...(process.platform === "linux" ? { yolo: [[false, "codex", true], [false, "codex", false], [false, "claude", false]] } : {}),
+      tags: [["codex"], ["codex", "yolo"]],
       fromState: { cmd: "codex", model: null },
       fromRecord: { cmd: "codex", model: "gpt-5.1" },
     });
