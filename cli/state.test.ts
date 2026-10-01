@@ -8,7 +8,7 @@ import {
   readRuns, readInbox, writeInbox, replaceIdea, abandonRun, allBacklog, backlog,
   statusOf, columnOf, parseItem, startedRuns, boardCards, readArchive, setArchived,
   requestOf, agentFlags, readNotes, writeNotes, manualCommand, parseNotes, formatNote, appendNote, saveAttachment,
-  reviewFindings, pickFindings, fixPrompt, gitStatus, runGit, cardsGit, commitPush, readCommit, findTerminal, pruneRuns, unrechecked, notice, notifier, notifyArgs, LOGO, type Card,
+  reviewFindings, pickFindings, fixPrompt, gitStatus, runGit, cardsGit, commitPush, readCommit, findTerminal, nativePath, pruneRuns, unrechecked, notice, notifier, notifyArgs, LOGO, type Card,
 } from "./state.ts";
 
 let state: string;
@@ -352,6 +352,47 @@ test.skipIf(process.platform === "win32")("findTerminal: a running herdr wins, t
   } finally {
     keys.forEach((k, i) => (saved[i] === undefined ? delete process.env[k] : (process.env[k] = saved[i])));
     rmSync(bin, { recursive: true, force: true });
+  }
+});
+
+test("nativePath on Windows reads the spellings Git Bash writes into the projects registry as one folder", () => {
+  const platform = Object.getOwnPropertyDescriptor(process, "platform")!;
+  try {
+    Object.defineProperty(process, "platform", { value: "win32" });
+    for (const p of ["/c/Users/me/proj", "C:/Users/me/proj", "c:\\Users\\me\\proj\\", "C:\\Users\\me\\proj"])
+      expect(nativePath(p)).toBe("C:\\Users\\me\\proj");
+    expect(nativePath("/d")).toBe("D:\\");
+  } finally { Object.defineProperty(process, "platform", platform); }
+  expect(nativePath("/c/Users/me")).toBe("/c/Users/me");   // elsewhere a path is left alone
+});
+
+test("findTerminal on Windows names cmd and PowerShell by full path, so a PATH without System32 still launches", () => {
+  const keys = ["PATH", "ComSpec", "SystemRoot", "windir"];
+  const saved = keys.map((k) => process.env[k]);
+  const platform = Object.getOwnPropertyDescriptor(process, "platform")!;
+  try {
+    Object.defineProperty(process, "platform", { value: "win32" });
+    process.env.PATH = mkdtempSync(join(tmpdir(), "kz-empty-"));
+    for (const k of keys.slice(1)) delete process.env[k];
+    process.env.SystemRoot = "D:\\Win";
+    const t = findTerminal("C:\\p", ["claude", "/kaizen x"])!;
+    expect(t.cmd[0]).toBe("D:\\Win\\System32\\cmd.exe");
+    expect(t.cmd[6]).toBe("D:\\Win\\System32\\WindowsPowerShell\\v1.0\\powershell.exe");
+    process.env.ComSpec = "E:\\cmd.exe";
+    expect(findTerminal("C:\\p", ["claude"])!.cmd[0]).toBe("E:\\cmd.exe");
+    // A running herdr: a tab, and the run typed into it as one encoded line.
+    writeFileSync(join(process.env.PATH, "herdr"), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+    const h = findTerminal("C:\\p", ["claude", "/kaizen it's\nnote"])!;
+    expect([h.cmd[0], h.cmd[1], h.cmd[2], h.detached]).toEqual(["D:\\Win\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", "-NoProfile", "-EncodedCommand", false]);
+    const launch = Buffer.from(h.cmd[3], "base64").toString("utf16le");
+    expect(launch).toContain("tab create --cwd 'C:\\p' --label kaizen --focus");
+    const typed = /pane run \$Matches\[1\] '(.*)' \}/.exec(launch)![1].replace(/''/g, "'");
+    expect(typed).not.toContain("\n");
+    const run = Buffer.from(typed.split(" -EncodedCommand ")[1], "base64").toString("utf16le");
+    expect(run).toBe("Set-Location 'C:\\p'; & 'claude' '/kaizen it''s\nnote'");
+  } finally {
+    Object.defineProperty(process, "platform", platform);
+    keys.forEach((k, i) => (saved[i] === undefined ? delete process.env[k] : (process.env[k] = saved[i])));
   }
 });
 

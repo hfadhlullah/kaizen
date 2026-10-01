@@ -244,7 +244,7 @@ async function noAgent() {
 async function openUrl(url: string) {
   // `start` is a cmd builtin, not a program, so it has to go through cmd.
   if (process.platform === "win32") {
-    try { await Bun.$`cmd /c start "" ${url}`.quiet(); return true; } catch { return false; }
+    try { const { cmdExe } = await import("./state.ts"); await Bun.$`${cmdExe()} /c start "" ${url}`.quiet(); return true; } catch { return false; }
   }
   const opener = process.platform === "darwin" ? "open" : "xdg-open";
   if (!Bun.which(opener)) return false;

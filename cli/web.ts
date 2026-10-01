@@ -5,7 +5,7 @@ import { join, dirname } from "node:path";
 import {
   home, type Item, type Card, boardCards, knownProjects, remember, locate, label, tilde, searchRoots, findProjects,
   readInbox, writeInbox, replaceIdea, abandonRun, launchRun, parseItem, short, setArchived, writeNotes,
-  appendNote, saveAttachment, pidOnPort, runGit, cardsGit, readCommit, commitPush, notice, notifier, LOGO,
+  appendNote, saveAttachment, pidOnPort, cmdExe, sysExe, powershellExe, runGit, cardsGit, readCommit, commitPush, notice, notifier, LOGO,
   reviewFindings, pickFindings, fixPrompt,
 } from "./state.ts";
 import { readSources, addSource, removeSource, moveSource, gatherSource, gatherAll, gatherDirs, due } from "./sources.ts";
@@ -188,6 +188,10 @@ export async function web(repoDir: string, opts: Opts = {}) {
   function serve(port: number) { return Bun.serve({
     hostname: "127.0.0.1",
     port,
+    // Bun drops a request after 10s idle by default. A slow /state (git status in a
+    // big repo, on Windows) then comes back as nothing, and the page shows an empty
+    // board. Loopback only, so nothing waits on us but our own page.
+    idleTimeout: 0,
     async fetch(req) {
       // Host first: a hostname rebound to 127.0.0.1 by an attacker's DNS still
       // arrives with that hostname in Host, and gets nothing.
@@ -583,7 +587,7 @@ export async function openApp(url: string) {
   } catch { /* fall through to a plain tab */ }
   // `start` is a cmd builtin, not a program, so it has to go through cmd.
   if (process.platform === "win32") {
-    try { await Bun.$`cmd /c start "" ${url}`.quiet(); return true; } catch { return false; }
+    try { await Bun.$`${cmdExe()} /c start "" ${url}`.quiet(); return true; } catch { return false; }
   }
   const opener = process.platform === "darwin" ? "open" : "xdg-open";
   if (!Bun.which(opener)) return false;
@@ -644,8 +648,8 @@ export async function shortcut() {
     mkdirSync(dirname(vbs), { recursive: true });
     const vq = (s: string) => `""${s}""`;                       // a quoted arg inside a VBScript string
     writeFileSync(vbs, `CreateObject("WScript.Shell").Run "${vq(bun)} ${vq(script)} web --daemon", 0, False\r\n`);
-    const ps = `$s=(New-Object -ComObject WScript.Shell).CreateShortcut('${lnk}');$s.TargetPath='wscript.exe';$s.Arguments='"${vbs}"';$s.WorkingDirectory='${home}';${existsSync(ico) ? `$s.IconLocation='${ico}';` : ""}$s.Save()`;
-    await Bun.$`powershell -NoProfile -Command ${ps}`.quiet();
+    const ps = `$s=(New-Object -ComObject WScript.Shell).CreateShortcut('${lnk}');$s.TargetPath='${sysExe("wscript.exe")}';$s.Arguments='"${vbs}"';$s.WorkingDirectory='${home}';${existsSync(ico) ? `$s.IconLocation='${ico}';` : ""}$s.Save()`;
+    await Bun.$`${powershellExe()} -NoProfile -Command ${ps}`.quiet();
     return `${lnk} — double-click starts the board in the background and opens it; kaizen web --stop ends it`;
   }
 

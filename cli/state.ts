@@ -2,7 +2,7 @@
 // `.kaizen/` directory. No terminal, no HTTP: the TUI (`dashboard.ts`) and the web
 // board (`web.ts`) both import this and draw it their own way.
 import { existsSync, readFileSync, readdirSync, appendFileSync, writeFileSync, mkdirSync, statSync, realpathSync, rmSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { join, dirname, win32 } from "node:path";
 import { homedir } from "node:os";
 
 // The real path: process.cwd() is always physical, so a raw $HOME that crosses a
@@ -79,6 +79,14 @@ const shq = (a: string) => `'${a.replace(/'/g, `'\\''`)}'`;
 // Bun.which reads the PATH the process started with unless handed the current one.
 const onPath = (bin: string) => Bun.which(bin, { PATH: process.env.PATH });
 
+// Windows' own programs by full path: a board started from the shortcut or a
+// stripped-down environment can have a PATH without System32, and a bare "cmd.exe"
+// then fails with "Executable not found in $PATH".
+const sysRoot = () => process.env.SystemRoot ?? process.env.windir ?? "C:\\Windows";
+export const sysExe = (name: string) => `${sysRoot()}\\System32\\${name}`;
+export const cmdExe = () => process.env.ComSpec ?? sysExe("cmd.exe");
+export const powershellExe = () => onPath("pwsh.exe") ?? onPath("powershell.exe") ?? sysExe("WindowsPowerShell\\v1.0\\powershell.exe");
+
 // Whether a multiplexer's server is up: its own CLI says so by exit code. spawnSync
 // throws on a missing binary, so the path is resolved first.
 function answers(cmd: string[]): boolean {
@@ -102,16 +110,28 @@ export function findTerminal(cwd: string, fullCmd: string[]): { cmd: string[]; d
   // Terminal hosts the shell when installed; otherwise `start` gives it a window.
   if (process.platform === "win32") {
     const q = (a: string) => `'${a.replace(/'/g, "''")}'`;
-    const shell = Bun.which("pwsh.exe") ? "pwsh.exe" : "powershell.exe";
+    const shell = powershellExe();
     const ps = `Set-Location ${q(cwd)}; & ${fullCmd.map(q).join(" ")}`;
     const enc = Buffer.from(ps, "utf16le").toString("base64");
-    if (Bun.which("wt.exe")) {
-      return { cmd: ["wt.exe", "-d", cwd, shell, "-NoExit", "-EncodedCommand", enc], detached: true };
+    // herdr (beta on Windows) first, as elsewhere: a new tab, and the run typed into
+    // its PowerShell. Typed text ends at a newline, so what is typed is one line, the
+    // same encoded command; -EncodedCommand is also not a script file, so an
+    // execution policy that blocks .ps1 files does not stop it.
+    const herdr = onPath("herdr");
+    if (herdr && answers([herdr, "workspace", "list"])) {
+      const typed = `& ${q(shell)} -NoProfile -EncodedCommand ${enc}`;
+      const launch = `$o = & ${q(herdr)} tab create --cwd ${q(cwd)} --label kaizen --focus | Out-String
+if ($o -match '"pane_id":"([^"]*)"') { & ${q(herdr)} pane run $Matches[1] ${q(typed)} } else { exit 1 }`;
+      return { cmd: [shell, "-NoProfile", "-EncodedCommand", Buffer.from(launch, "utf16le").toString("base64")], detached: false };
+    }
+    const wt = onPath("wt.exe");
+    if (wt) {
+      return { cmd: [wt, "-d", cwd, shell, "-NoExit", "-EncodedCommand", enc], detached: true };
     }
     // `start` reads a title only when quoted; an unquoted word is the command, so
     // "kaizen" here ran kaizen's own launcher. The empty title is what Bun quotes.
     return {
-      cmd: ["cmd.exe", "/c", "start", "", "/D", cwd, shell, "-NoExit", "-EncodedCommand", enc],
+      cmd: [cmdExe(), "/c", "start", "", "/D", cwd, shell, "-NoExit", "-EncodedCommand", enc],
       detached: true,
     };
   }
@@ -193,7 +213,18 @@ export function knownProjects(): string[] {
   if (!existsSync(REGISTRY)) return [];
   return readFileSync(REGISTRY, "utf8").split("\n")
     .map((l) => l.trim())
-    .filter((l) => l && !l.startsWith("#"));
+    .filter((l) => l && !l.startsWith("#"))
+    .map(nativePath)
+    .filter((d, i, all) => all.indexOf(d) === i);
+}
+
+// On Windows the registry is also written by agents running Git Bash, which says
+// /c/Users/me/proj or C:/Users/me/proj. Read as is, the first is C:\c\Users\..., a
+// folder that does not exist, and the project drops off the board. One spelling
+// per folder, drive letter upper case, so the same project is not listed twice.
+export function nativePath(p: string) {
+  if (process.platform !== "win32") return p;
+  return win32.resolve(p.replace(/^\/([a-zA-Z])(?=\/|$)/, "$1:/")).replace(/^[a-z]:/, (d) => d.toUpperCase());
 }
 
 // Never fails the command that triggered it: a read-only home is not a reason for a
@@ -854,7 +885,7 @@ export function launchRun(it: Item, from: string): Launch {
 export async function pidOnPort(port: number): Promise<number | null> {
   try {
     if (process.platform === "win32") {
-      const out = await Bun.$`netstat -ano -p tcp`.text();
+      const out = await Bun.$`${sysExe("netstat.exe")} -ano -p tcp`.text();
       const m = new RegExp(`127\\.0\\.0\\.1:${port}\\s+\\S+\\s+LISTENING\\s+(\\d+)`).exec(out);
       return m ? Number(m[1]) : null;
     }
