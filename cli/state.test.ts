@@ -252,6 +252,16 @@ test("plainModel: a typed model reaches launch lines only as a plain name", () =
   for (const m of ["", "x; rm -rf ~", "$(id)", "`id`", "a b", "'q'", "\"q\"", "opus[1m]", "-rf", "x".repeat(81)]) expect(plainModel(m)).toBe(false);
 });
 
+test("each tool gets the opening prompt the way it takes one: agy -i, opencode --prompt, the rest bare", () => {
+  const p = mkdtempSync(join(tmpdir(), "kz-"));   // no .kaizen: no session record
+  const argv = (cmd: string) => sessionLaunch(p, cmd, [cmd], "/kaizen x", "x").fullCmd;
+  expect(argv("agy")).toEqual(["agy", "-i", "/kaizen x"]);
+  expect(argv("opencode")).toEqual(["opencode", "--prompt", "/kaizen x"]);
+  expect(argv("codex")).toEqual(["codex", "/kaizen x"]);
+  expect(argv("gemini")).toEqual(["gemini", "/kaizen x"]);
+  if (process.platform !== "win32") expect(manualCommand("/p", "agy", "/kaizen x", ["--model", "m"])).toBe("cd '/p' && agy --model m -i '/kaizen x'");
+});
+
 test.skipIf(process.platform === "win32")("agent choice: project then global config, a note for a missing tool, a pick, and a run keeps its own", () => {
   // The global config sits at the home bound at import, so this runs in a child with a scratch HOME.
   const home = mkdtempSync(join(tmpdir(), "kz-home-")), bin = mkdtempSync(join(tmpdir(), "kz-bin-"));

@@ -65,6 +65,11 @@ const EFFORT_FLAGS: Record<string, (e: string) => string[]> = {
   codex: (e) => ["-c", `model_reasoning_effort=${e}`],
 };
 
+// How each tool takes the opening prompt and stays interactive. agy refuses a bare
+// argument and exits; opencode reads one as the project folder to open.
+const PROMPT_FLAGS: Record<string, string[]> = { agy: ["-i"], opencode: ["--prompt"] };
+export const promptArgs = (cmd: string, prompt: string) => [...(PROMPT_FLAGS[cmd] ?? []), prompt];
+
 // A model typed on the board reaches launch lines and the manual command as text, so
 // only a plain name is taken: no spaces, quotes, `$`, `;`, backticks or globs.
 export const plainModel = (m: string) => /^[A-Za-z0-9][\w.:\/@-]{0,79}$/.test(m);
@@ -912,7 +917,7 @@ export function projectOf(from: string) {
 }
 
 export function manualCommand(projectDir: string, agentCmd: string, prompt: string, flags: string[] = []) {
-  const bin = [agentCmd, ...flags].join(" ");
+  const bin = [agentCmd, ...flags, ...(PROMPT_FLAGS[agentCmd] ?? [])].join(" ");
   // Pasted into whatever shell the user has. fish reads \' and \\ inside single
   // quotes as escapes, so ' and \ each go in double quotes, which sh and fish read alike.
   const q = (a: string) => `'${a.replace(/['\\]/g, (ch) => (ch === "'" ? `'"'"'` : `'"\\\\"'`))}'`;
@@ -1071,11 +1076,11 @@ export function runAgent(st: string, id: string): { cmd: string; model: string |
 // record; making one here would shadow the user's.
 export function sessionLaunch(projectDir: string, cmd: string, base: string[], prompt: string, text: string, run?: string, model?: string) {
   const st = join(projectDir, ".kaizen");
-  if (!existsSync(st)) return { fullCmd: [...base, prompt], pidFile: undefined, record: undefined };
+  if (!existsSync(st)) return { fullCmd: [...base, ...promptArgs(cmd, prompt)], pidFile: undefined, record: undefined };
   const f = SESSION_FLAGS[cmd];
   const prev = run ? firstSession(st, run, cmd, projectDir) : null;
   const sessionId = f ? prev?.sessionId ?? crypto.randomUUID() : null;
-  const fullCmd = [...base, ...(f && sessionId ? (prev ? f.resume(sessionId) : f.start(sessionId)) : []), prompt];
+  const fullCmd = [...base, ...(f && sessionId ? (prev ? f.resume(sessionId) : f.start(sessionId)) : []), ...promptArgs(cmd, prompt)];
   const key = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   mkdirSync(sessionsDir(st), { recursive: true });
   const record = join(sessionsDir(st), key + ".json");
