@@ -164,6 +164,10 @@ aside nav button.on{color:var(--ink);box-shadow:inset 0 -2px var(--accent)}
 aside .body{padding:24px;overflow:auto;flex:1}
 aside .foot{padding:16px 24px;border-top:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 aside .foot:empty{display:none}
+/* The footer's message takes its own line; housekeeping sits left, the decision right. */
+aside .foot .note{flex-basis:100%;color:var(--dim);font-size:12px;line-height:1.5}
+/* Kept together and right-aligned even when it wraps under the rest. */
+aside .foot .dec{margin-left:auto;display:flex;gap:8px}
 .md h3{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin:20px 0 8px}.md h3:first-child{margin-top:0}
 .md p{margin:0 0 10px;max-width:62ch}.md ol,.md ul{display:block;padding:0 0 0 1.4em;margin:0 0 10px;list-style:revert}.md li{margin:3px 0}
 .md .lnk a{color:var(--accent);text-underline-offset:3px}
@@ -264,7 +268,7 @@ aside .foot:empty{display:none}
 <div class="toast" id="toast" role="status"></div>
 <div class="help" id="help"><div>
 Optional. Everything here is also a button.<br>
-<kbd>n</kbd>new idea<br><kbd>e</kbd>edit<br><kbd>x</kbd>reject / abandon<br><kbd>r</kbd>run<br><kbd>a</kbd>all projects<br><kbd>Esc</kbd>close<br><kbd>?</kbd>this list</div></div>
+<kbd>←↓↑→</kbd><kbd>hjkl</kbd>move between cards<br><kbd>Enter</kbd>open<br><kbd>←→</kbd><kbd>hl</kbd>tabs, in an open run<br><kbd>↑↓</kbd><kbd>jk</kbd>scroll, in an open run<br><kbd>n</kbd>new idea<br><kbd>e</kbd>edit<br><kbd>x</kbd>reject / abandon<br><kbd>r</kbd>run<br><kbd>a</kbd>all projects<br><kbd>Esc</kbd>close<br><kbd>?</kbd>this list</div></div>
 
 <script>
 // The page never touches the filesystem. Everything comes from /state and the run
@@ -391,7 +395,7 @@ const GONE="The board server is not running — start it with kaizen web (or the
 async function post(path,body){let r;try{r=await fetch(path,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)})}catch{toast(GONE);return{ok:false}}const j=await r.json().catch(()=>({}));if(!r.ok){toast(j.error||j.why||"That did not work");if(j.manual)console.log("run manually:",j.manual)}return j}
 
 function card(c){
- const k=key(c),el=document.createElement("div");el.className="card"+(k===openKey?" open":"")+(k===menuKey?" menu":"")+(c.archived?" archived":"");el.tabIndex=0;el.setAttribute("role","button");
+ const k=key(c),el=document.createElement("div");el.className="card"+(k===openKey?" open":"")+(k===menuKey?" menu":"")+(c.archived?" archived":"");el.tabIndex=0;el.dataset.k=k;el.setAttribute("role","button");
  const st=ICON[c.status]||"idea",idt=c.kind==="idea"?"idea":c.text;
  const chips=[];
  if(c.status==="waiting")chips.push(`<span class="chip warn"><i></i>${esc(need(c.awaiting)||"needs you")}</span>`);
@@ -446,6 +450,8 @@ function render(){
  // A form whose card is gone (restored after a reload, or deleted elsewhere) has nowhere to show.
  if(mode&&mode!=="new"&&!S.cards.some(c=>key(c)===modeKey))mode=null;
  if(!mode)undraft("f:");try{sessionStorage.setItem("kz-form",JSON.stringify(["new","edit","reject"].includes(mode)?[mode,modeKey]:null))}catch(e){}
+ // The board is rebuilt below; the card that had focus gets it back.
+ const fk=focusedKey();
  const cs=S.cards.filter(c=>c.archived===archive),b=$("board");b.innerHTML="";
  const nArch=S.cards.filter(c=>c.archived).length;
  const n=s=>cs.filter(c=>c.status===s).length;
@@ -491,14 +497,24 @@ function render(){
  const seen=new Map();cs.forEach(c=>seen.set(c.status,1));
  $("legend").innerHTML=[...seen.keys()].map(s=>`<span class="st d-${ICON[s]}" style="display:inline-grid;vertical-align:-2px"><svg><use href="#s-${ICON[s]}"/></svg></span> ${WORD[s]||s}`).join("   ");
  stopDictation(false); // forms were just rebuilt; a listener whose field is gone would write into nothing
+ if(fk&&document.activeElement===document.body)cardEl(fk)?.focus({preventScroll:true});
 }
+const focusedKey=()=>document.activeElement?.closest?.("#board .card")?.dataset.k;
+const cardEl=k=>k&&$("board").querySelector('.card[data-k="'+CSS.escape(k)+'"]');
+// Arrows and hjkl, as on the terminal board: up/down within a column, left/right to the
+// nearest column with cards, at the same row or its last card.
+function nav(dx,dy){
+ const cols=[...$("board").querySelectorAll("section")].map(s=>[...s.querySelectorAll(".card")]).filter(l=>l.length);if(!cols.length)return;
+ const cur=document.activeElement.closest(".card");let ci=cols.findIndex(l=>l.includes(cur)),ri=0;
+ if(ci<0)ci=0;else{ri=cols[ci].indexOf(cur);if(dy)ri=Math.max(0,Math.min(cols[ci].length-1,ri+dy));else{ci=Math.max(0,Math.min(cols.length-1,ci+dx));ri=Math.min(ri,cols[ci].length-1)}}
+ const t=cols[ci][ri];t.focus({preventScroll:true});t.scrollIntoView({block:"nearest",inline:"nearest"})}
 
 // ---- detail panel
 function open(c){
  stopDictation(true); // the panel body is about to be replaced
  fixOff.clear();openKey=key(c);$("panel").classList.add("open");$("scrim").classList.add("on");$("ptitle").textContent=c.text;render();
  if(c.kind==="idea"){runDoc=null;$("psub").textContent="Idea · "+c.where;$("ptabs").innerHTML="";chat(c,c.notes,c.archived||c.status!=="idea");
-  const foot=$("pfoot");foot.innerHTML=c.archived?`<button class="btn pri" data-a="restore">Restore</button>`:c.status==="idea"?`<button class="btn pri" data-a="run">Run</button><button class="btn" data-a="edit">Edit</button><button class="btn" data-a="reject">Reject</button><button class="btn ghost" data-a="archive">Archive</button><button class="btn ghost danger" data-a="delete">Delete</button>`:`<span style="color:var(--dim);font-size:12px;flex:1">Starting: a run was launched for this idea. No terminal with your agent? Run it again.</span><button class="btn" data-a="run">Run again</button>`;
+  const foot=$("pfoot");foot.innerHTML=c.archived?`<button class="btn pri" data-a="restore">Restore</button>`:c.status==="idea"?`<button class="btn ghost danger" data-a="delete">Delete</button><button class="btn ghost" data-a="archive">Archive</button><span class="dec"><button class="btn" data-a="reject">Reject</button><button class="btn" data-a="edit">Edit</button><button class="btn pri" data-a="run">Run</button></span>`:`<span class="note">Starting: a run was launched for this idea. No terminal with your agent? Run it again.</span><span class="dec"><button class="btn" data-a="run">Run again</button></span>`;
   foot.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{const a=b.dataset.a;if(a==="archive"||a==="restore"){toggleArchive(c,a==="archive");return}const k=key(c);close();mode=a;modeKey=k;render()});return}
  openRun(c,false)}
 // Notes are a chat: one entry per message, files attached by paste or picker.
@@ -555,10 +571,27 @@ async function openRun(c,refresh,again){
  if(refresh&&foot.querySelector(".inl,[data-busy]"))return;
  const arch=gitBtn(c)+(c.archived?`<button class="btn pri" data-a="restore">Restore</button>`:`<button class="btn ghost" data-a="archive">Archive</button>`);
  if(c.archived)foot.innerHTML=arch;
- else if(c.status==="waiting")foot.innerHTML=`<span style="color:var(--dim);font-size:12px;flex:1">Waiting on you: ${esc(need(c.awaiting))}. Answer in the terminal running this run.</span>${arch}<button class="btn ghost" data-a="ab">Abandon</button>`;
+ else if(c.status==="waiting"&&APPROVAL[c.awaiting]){const sent=decided.has(answer(c));
+  foot.innerHTML=`<span class="note">${sent?"Sent to your agent.":APPROVAL[c.awaiting]+" If a terminal is already waiting on this run, answering here opens another session."}</span>${arch}<button class="btn ghost" data-a="ab">Abandon</button><span class="dec"><button class="btn" data-a="revise"${sent?" disabled":""}>Revise</button><button class="btn pri" data-a="approve"${sent?" disabled":""}>Approve</button></span>`}
+ else if(c.status==="waiting")foot.innerHTML=`<span class="note">Waiting on you: ${esc(need(c.awaiting))}. Answer in the terminal running this run.</span>${arch}<button class="btn ghost" data-a="ab">Abandon</button>`;
  else if(c.status==="done"||c.status==="abandoned")foot.innerHTML=arch;
- else foot.innerHTML=`${arch}<button class="btn ghost" data-a="ab">Abandon run</button>`;
- foot.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{const a=b.dataset.a;if(a==="archive"||a==="restore"){toggleArchive(c,a==="archive");return}if(a==="push"){commitPush(c,"",b);return}if(a==="commit"){confirmCommit(c);return}close();mode="reject";modeKey=key(c);render()})}
+ else foot.innerHTML=`<span class="note">${c.status==="stalled"?"No progress for a while. Resume it with <code>/kaizen run</code> in your agent, or abandon it.":"Running in your agent."}</span>${arch}<button class="btn ghost" data-a="ab">Abandon run</button>`;
+ foot.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{const a=b.dataset.a;if(a==="archive"||a==="restore"){toggleArchive(c,a==="archive");return}if(a==="push"){commitPush(c,"",b);return}if(a==="commit"){confirmCommit(c);return}if(a==="approve"){decide(c,b);return}if(a==="revise"){confirmRevise(c);return}close();mode="reject";modeKey=key(c);render()})}
+// Answering an approval from the panel opens your agent on the run, told the decision and,
+// for a revise, the comment. Answered approvals are remembered outside the footer, which
+// every refresh rebuilds, so a second press cannot open a second agent. Keyed by when the
+// run last moved: the same approval reached again after a revise is a new question.
+const APPROVAL={"approvals.plan":"The plan is ready. Read it in the Plan tab, then approve or send it back.","approvals.review":"The work is reviewed. Approve to finish it, or send it back with what to change."},decided=new Set(),answer=c=>key(c)+":"+c.awaiting+":"+c.moved;
+async function decide(c,b,why){b.disabled=true;askNotify();const r=await post("/decide",{dir:c.state,id:c.id,awaiting:c.awaiting,...(why===undefined?{}:{why})});
+ // A failed send keeps the footer, and with it a typed comment.
+ if(!r.ok){b.disabled=false;return}
+ decided.add(answer(c));toast((why===undefined?"Approved":"Sent back")+" in your terminal: "+r.agent.name);
+ if(openKey===key(c)){$("pfoot").innerHTML="";openRun(c,true)}}
+function confirmRevise(c){const foot=$("pfoot"),plan=c.awaiting==="approvals.plan";
+ foot.innerHTML=`<div class="inl" style="flex:1"><div class="q">${plan?"What should the plan do differently?":"What should change in the work?"}</div><div class="q dim">Opens your agent on this run with your comment.${plan?" It revises the plan and comes back here for approval.":" It changes the work, rechecks it and comes back here."}</div><textarea aria-label="Revise comment"></textarea><div class="row"><button class="btn ghost" data-a="c">Cancel</button><button class="btn pri" data-a="s">Send back</button></div></div>`;
+ const inp=foot.querySelector("textarea");inp.focus();
+ foot.querySelector("[data-a=c]").onclick=()=>{foot.innerHTML="";openRun(c,true)};
+ foot.querySelector("[data-a=s]").onclick=e=>{const why=inp.value.trim();if(!why){toast("Say what should change");inp.focus();return}decide(c,e.target,why)}}
 // A link from a note (?run= or ?idea=, with dir, tab, item) opens that card's panel;
 // a finding or backlog item named is scrolled to and marked. Found by its text, since
 // the rendered list does not carry the numbers.
@@ -599,8 +632,10 @@ function gitBtn(c){const g=runDoc.git,k=runDoc.commit;
  if(c.archived||!g||!g.repo||!(c.status==="done"||c.awaiting==="approvals.review"))return"";
  // A run already pushed keeps saying so; work changed since is offered beside it.
  if(k&&k.pushed)return `<button class="btn" disabled title="${esc(k.sha)}">Committed &amp; pushed</button>`+(g.files.length?`<button class="btn" data-a="commit">Commit new changes</button>`:g.ahead>0?`<button class="btn" data-a="push">Push</button>`:"");
- if(g.files.length)return `<button class="btn pri" data-a="commit">Commit &amp; push</button>`;
- if(g.ahead>0)return `<button class="btn pri" data-a="push">Push</button>`;
+ // Awaiting review, Approve is the footer's one primary.
+ const p=c.status==="done"?" pri":"";
+ if(g.files.length)return `<button class="btn${p}" data-a="commit">Commit &amp; push</button>`;
+ if(g.ahead>0)return `<button class="btn${p}" data-a="push">Push</button>`;
  // None of its files changed and level with the remote: it was committed and pushed
  // somewhere else. With no record and no report, nothing says it was ever committed.
  return k||runDoc.impl?`<button class="btn" disabled>Committed &amp; pushed</button>`:""}
@@ -618,7 +653,7 @@ async function commitPush(c,message,b){b.disabled=true;b.dataset.busy=1;b.textCo
  // A refused message comes back for another try, beside the current file list.
  if(!r.ok&&message&&openKey===key(c)&&runDoc.git.files&&runDoc.git.files.length)confirmCommit(c,message)}
 async function toggleArchive(c,archived){const r=await post("/archive",c.kind==="idea"?{dir:c.state,text:c.text,archived}:{dir:c.state,id:c.id,archived});if(r.ok)toast(archived?"Archived":"Restored");close();load()}
-function close(){stopDictation(true);openKey=null;runDoc=null;$("panel").classList.remove("open");$("scrim").classList.remove("on");render()}
+function close(){const k=openKey;stopDictation(true);openKey=null;runDoc=null;$("panel").classList.remove("open");$("scrim").classList.remove("on");render();if(k)cardEl(k)?.focus({preventScroll:true})}
 $("pclose").onclick=close;$("scrim").onclick=close;
 
 // Enough markdown for kaizen's own files: headings, lists, fences, tables,
@@ -757,7 +792,13 @@ document.onkeydown=e=>{
  if(e.key==="Escape"){$("help").classList.remove("on");if(mode){mode=null;render()}else close();return}
  if(e.key==="n"){mode="new";render()}
  if(e.key==="a"){all=!all;keep(all?null:S.dir);load()}
- const oc=openKey&&S.cards.find(c=>key(c)===openKey);if(!oc)return;
+ const mv={ArrowUp:[0,-1],k:[0,-1],ArrowDown:[0,1],j:[0,1],ArrowLeft:[-1,0],h:[-1,0],ArrowRight:[1,0],l:[1,0]}[e.key];
+ // In a run's panel: left/right between its tabs, up/down scroll it. Other panels keep the browser's arrows.
+ const rc=mv&&openKey&&!e.altKey&&!e.ctrlKey&&!e.metaKey&&S.cards.find(c=>key(c)===openKey&&c.kind==="run");
+ if(rc&&$("ptabs").children.length){e.preventDefault();if(mv[0]){const t=Math.max(0,Math.min($("ptabs").children.length-1,tab+mv[0]));if(t!==tab){tab=t;openRun(rc,true)}}else $("pbody").scrollBy({top:mv[1]*40});return}
+ if(mv&&!$("panel").classList.contains("open")&&!e.altKey&&!e.ctrlKey&&!e.metaKey&&(e.target===document.body||e.target.matches("#board .card"))){e.preventDefault();nav(...mv);return}
+ // The open card, else the focused one.
+ const ok=openKey||focusedKey(),oc=ok&&S.cards.find(c=>key(c)===ok);if(!oc)return;
  if(e.key==="e"&&oc.kind==="idea"){close();mode="edit";modeKey=key(oc);render()}
  if(e.key==="x"&&!["done","abandoned","starting"].includes(oc.status)){close();mode="reject";modeKey=key(oc);render()}
  if(e.key==="r"&&oc.kind==="idea"){close();mode="run";modeKey=key(oc);render()}};
