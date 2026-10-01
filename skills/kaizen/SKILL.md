@@ -62,7 +62,10 @@ If the user typed `/kaizen` with no argument and a run is in progress, treat it 
 ## Before doing anything
 
 1. Locate the state directory: `.kaizen/` in the project folder's root, else
-   `~/.kaizen/` keyed by working directory. If neither exists and the user is starting
+   `~/.kaizen/` keyed by working directory. The project folder is the working
+   directory this session started in — never the folder this skill was read from, nor
+   the repository it lives in, even when that has a `.kaizen/` of its own. A run
+   written there is invisible to the board the user launched it from. If neither exists and the user is starting
    work, run `/kaizen init` first: it creates `.kaizen/` with a copy of the `spec*.md`
    files and — where the folder is a git repository — the gitignore entry
    (see [`adapters.md`](adapters.md)). Also append the project folder's absolute path
