@@ -747,7 +747,7 @@ async function openRun(c,refresh,again){
 // run last moved: the same approval reached again after a revise is a new question.
 // The footer's More menu is a <details>: close it on a click anywhere else.
 document.addEventListener("click",e=>{for(const d of document.querySelectorAll(".more[open]"))if(!d.contains(e.target))d.open=false});
-const APPROVAL={"approvals.plan":"The plan is ready. Read it in the Plan tab, then approve or send it back.","approvals.review":"The work is reviewed. Approve to finish it, or revise with what to change."},decided=new Set(),answer=c=>key(c)+":"+c.awaiting+":"+c.moved;
+const APPROVAL={"approvals.plan":"The plan is ready. Read it in the Plan tab, then approve or send it back.","approvals.review":"The work is ready to check. Approve to finish it, or revise with what to change."},decided=new Set(),answer=c=>key(c)+":"+c.awaiting+":"+c.moved;
 async function decide(c,b,why,answers){b.disabled=true;askNotify();const r=await post("/decide",{dir:c.state,id:c.id,awaiting:c.awaiting,...(why===undefined?{}:{why}),...(answers?{answers}:{})});
  // A failed send keeps the footer, and with it a typed comment.
  if(!r.ok){b.disabled=false;return}

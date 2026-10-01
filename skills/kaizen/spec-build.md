@@ -9,6 +9,11 @@ builder's contract. The planner and reviewer do not read it.
 **Agent:** builder. **Input:** `01-plan.md`, `02-approval.md`, the track.
 **Output:** the deliverable itself, plus `03-impl.md`.
 
+On the direct path (see `spec.md`, Stage 0) there is no plan: the input is
+`00-request.md`, and the request is the scope. If the work turns out to need a
+decision, more than the one obvious change, or anything the direct path excludes,
+stop and send the run back to `stage: "plan"`.
+
 The builder produces whatever the track's deliverable is — code, a chapter, the
 campaign copy, the runbook — and nothing else.
 

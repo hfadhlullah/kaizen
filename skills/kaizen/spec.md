@@ -5,7 +5,8 @@ follow this document; only the way stages are dispatched differs per tool. If an
 adapter and this file disagree, this file wins.
 
 A stage may only start when the previous stage's artifact exists on disk and the approval
-between them, if enabled, has been resolved.
+between them, if enabled, has been resolved. The one exception is the direct path
+(see *Stage 0*), which skips the plan and the review on purpose.
 
 ---
 
@@ -133,6 +134,16 @@ the config said the day someone came back to it.
 
 If the request remains ambiguous enough that a plan would be guesswork, ask now. One
 round of questions here is cheaper than a rejected plan.
+
+**The direct path.** Where the request is one obvious change with nothing to decide —
+a typo, a label, a one-line copy or config tweak — and being wrong is cheap and
+visible, intake may skip the plan and the review: say so in one line, set
+`stage: "build"`, build against `00-request.md`, write `03-impl.md`, then set
+`stage: "review"`, `awaiting: "approvals.review"` and stop for the user to check the
+result. No `01-plan.md` or `04-review.md` is written, and no `02-approval.md` unless
+the user revises at that stop. Never for money, data, a migration, security, anything
+hard to undo, or a request with an open question; never in `plan-only` or `auto`
+mode or under `runner: full`; and when in doubt, not.
 
 ---
 

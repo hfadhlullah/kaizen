@@ -84,12 +84,15 @@ subagents at all.
 
 ## Final approval
 
-Controlled by `approvals.review`, skipped in `auto`.
+Controlled by `approvals.review`, skipped in `auto`. A direct-path run always stops here,
+whatever `approvals.review` says: the user's check is its only review.
 
 Report: what was built, verification results, findings fixed, findings still open,
 and anything the builder noted as out of scope. Where the run used `runner: lite`, say
 so in that report — the reviewer saw the work, and nobody should read a same-session
-review as an independent one because the output looked the same. Then stop. Committing, pushing, or
+review as an independent one because the output looked the same. Where the run took
+the direct path, say there was no plan and no review: the user's check is the review.
+Then stop. Committing, pushing, or
 opening a pull request happens only if the user asks.
 
 **Open findings are offered by number.** List them with the reviewer's numbering

@@ -108,6 +108,17 @@ worth two more stages to confirm a one-line message now reads correctly. A findi
 `high` or above pulls the run back onto the full path whatever its size, since that
 severity is the loop's whole reason for existing.
 
+**Trivial changes take the direct path.** Where the request is one obvious change with
+nothing to decide — a typo, a label, a one-line copy or config tweak — a plan is longer
+than the work and a review re-reads what the user is about to look at anyway. Write
+`00-request.md`, build straight away, write `03-impl.md`, and stop at
+`stage: "review"`, `awaiting: "approvals.review"`: the user checks the result and
+approves it or says what to change. No `01-plan.md`, no plan approval, no
+`04-review.md` — the user's check is the review. Never the direct path for money, data,
+a migration, security, anything hard to undo, or a request with an open question; in
+`plan-only`, `auto`, or `/kaizen full`; or when in doubt. Work that turns out bigger
+mid-build stops and goes back to a plan.
+
 This is a judgement, not a threshold to enforce: fifty lines that change how money is
 rounded are not a small change. Say which path you took and why, in one line, when the
 run starts.
