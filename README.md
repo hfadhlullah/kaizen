@@ -9,7 +9,7 @@
   <a href="https://www.npmjs.com/package/kaizen-agent"><img alt="npm" src="https://img.shields.io/npm/v/kaizen-agent?color=2d50a5&label=npm"></a>
   <a href="https://github.com/hfadhlullah/kaizen/blob/main/LICENSE"><img alt="license" src="https://img.shields.io/npm/l/kaizen-agent?color=2d50a5"></a>
   <img alt="dependencies" src="https://img.shields.io/badge/dependencies-0-2d50a5">
-  <img alt="works with" src="https://img.shields.io/badge/Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Antigravity-2d50a5">
+  <img alt="works with" src="https://img.shields.io/badge/Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Antigravity%20%C2%B7%20OpenCode%20%C2%B7%20Cursor%20%C2%B7%20Gemini%20CLI-2d50a5">
 </p>
 
 ---
@@ -164,10 +164,10 @@ kaizen Done, and reviewed. Two things found:
 
 - **It isn't just for code.** Emails, docs, runbooks, research. kaizen works out what *done* and *wrong* mean for each request, so a book chapter is never reviewed for race conditions.
 - **The reviewer has nothing to defend.** It starts cold, sees only the plan and the result, and finds what the builder talked itself past.
-- **A board for all your work.** Run `kaizen` in a terminal, or `kaizen web` in the browser. Ideas, plans, builds and reviews across every project, updating live.
+- **A board for all your work.** Run `kaizen` in a terminal, or `kaizen web` in the browser. Ideas, plans, builds and reviews across every project, updating live. Start a run, approve or revise a plan, answer its questions, pick which findings to fix, then commit and push, all without opening a terminal.
 - **Requests come to you.** Paste a Google Sheet or Doc link and every request in it lands on the board as an idea.
 - **Notes and voice, offline.** A markdown notebook beside the board, plus dictation on every field. Whisper runs in the page, so audio never leaves your machine.
-- **Plain files, any agent.** Every run is a folder of markdown in `.kaizen/`. Start in Claude Code, finish in Codex or Antigravity.
+- **Plain files, any agent.** Every run is a folder of markdown in `.kaizen/`. Start in Claude Code, finish in Codex, Antigravity, OpenCode, Cursor or Gemini CLI.
 
 <img src="https://raw.githubusercontent.com/hfadhlullah/kaizen/main/assets/board-web.png" alt="kaizen web board" width="760">
 
@@ -182,7 +182,10 @@ kaizen Done, and reviewed. Two things found:
 | `/kaizen-full <request>` | Every stage its own cold agent: the independent review |
 | `/kaizen-review [target]` | Review something that already exists |
 | `/kaizen-approve` · `/kaizen-reject <reason>` | Answer whatever the run is waiting on |
+| `/kaizen-run` · `/kaizen-abort` | Carry on with an approved plan, or drop the run |
 | `/kaizen-status` · `/kaizen-backlog` | What's waiting, in flight, done, or left over |
+| `/kaizen-gather` | Pull new requests from your sources onto the board |
+| `/kaizen-config` | Change this project's settings |
 | `/kaizen-help` | The full card |
 
 In a terminal: `kaizen` (dashboard), `kaizen web` (board), `kaizen settings`, `kaizen upgrade`.
@@ -191,8 +194,8 @@ In a terminal: `kaizen` (dashboard), `kaizen web` (board), `kaizen settings`, `k
 
 - **[The guide](https://github.com/hfadhlullah/kaizen/blob/main/docs/guide.md)**: the board, request sources, notebook, settings, installer flags, uninstall
 - [`spec.md`](https://github.com/hfadhlullah/kaizen/blob/main/skills/kaizen/spec.md): the contract every stage follows
-- [`adapters.md`](https://github.com/hfadhlullah/kaizen/blob/main/skills/kaizen/adapters.md): running under Codex or Antigravity
-- Found a bug? `kaizen issue` opens a pre-filled report. Nothing is sent until you press Submit.
+- [`adapters.md`](https://github.com/hfadhlullah/kaizen/blob/main/skills/kaizen/adapters.md): running outside Claude Code, with Codex and Antigravity as the worked examples. OpenCode, Cursor and Gemini CLI load the same skill folder
+- Found a bug? `kaizen issue`, or *Report an issue* on the board, opens a GitHub bug form with your system details filled in. Nothing is sent until you press Submit on GitHub.
 
 ## License
 
