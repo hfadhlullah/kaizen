@@ -125,10 +125,11 @@ export function findTerminal(cwd: string, fullCmd: string[], pidFile?: string): 
     // herdr (beta on Windows) first, as elsewhere: a new tab, and the run typed into
     // its PowerShell. Typed text ends at a newline, so what is typed is one line, the
     // same encoded command; -EncodedCommand is also not a script file, so an
-    // execution policy that blocks .ps1 files does not stop it.
+    // execution policy that blocks .ps1 files does not stop it. The trailing exit
+    // closes the tab once the run's PowerShell ends.
     const herdr = onPath("herdr");
     if (herdr && answers([herdr, "workspace", "list"])) {
-      const typed = `& ${q(shell)} -NoProfile -EncodedCommand ${enc}`;
+      const typed = `& ${q(shell)} -NoProfile -EncodedCommand ${enc}; exit`;
       const launch = `$o = & ${q(herdr)} tab create --cwd ${q(cwd)} --label kaizen --focus | Out-String
 if ($o -match '"pane_id":"([^"]*)"') { & ${q(herdr)} pane run $Matches[1] ${q(typed)} } else { exit 1 }`;
       return { cmd: [shell, "-NoProfile", "-EncodedCommand", Buffer.from(launch, "utf16le").toString("base64")], detached: false };
@@ -150,14 +151,18 @@ if ($o -match '"pane_id":"([^"]*)"') { & ${q(herdr)} pane run $Matches[1] ${q(ty
   // in, so $TMUX or $HERDR_ENV only says what was running then. herdr has no "new tab
   // running this", and what it sends a pane is typed into an interactive shell, which
   // eats tabs and quotes its own way -- so the line goes into a one-shot script and
-  // only `sh <path>` is typed.
+  // only `exec sh <path>` is typed. The exec is what closes the tab when the agent
+  // ends: left behind, the pane's own shell would sit at a prompt.
   // ponytail: the mktemp path is typed unquoted; quote it if a TMPDIR with spaces shows up.
   // The wrapper writes its PID and then becomes the agent, so the PID is the agent's
   // on every branch below, whatever terminal or launcher sits in front of it.
   if (pidFile) fullCmd = ["sh", "-c", 'echo $$ > "$0"; exec "$@"', pidFile, ...fullCmd];
   const line = fullCmd.map(shq).join(" ");
+  // The one-shot scripts below end the tab when the agent ends, but a launch that
+  // never started (126/127: not executable, not found) holds it open on its error.
+  const hold = 's=$?; [ $s = 126 ] || [ $s = 127 ] || exit $s; printf "kaizen: the agent did not start. Press Enter to close. "; read _';
   if (answers(["herdr", "workspace", "list"])) {
-    const script = `f=$(mktemp) && printf 'rm -f "$0"\\nexec %s\\n' "$2" > "$f" && p=$(herdr tab create --cwd "$1" --label kaizen --focus | sed -n 's/.*"pane_id":"\\([^"]*\\)".*/\\1/p') && [ -n "$p" ] && herdr pane run "$p" "sh $f"`;
+    const script = `f=$(mktemp) && printf 'rm -f "$0"\\n%s\\n${hold}\\n' "$2" > "$f" && p=$(herdr tab create --cwd "$1" --label kaizen --focus | sed -n 's/.*"pane_id":"\\([^"]*\\)".*/\\1/p') && [ -n "$p" ] && herdr pane run "$p" "exec sh $f"`;
     return { cmd: ["sh", "-c", script, "sh", cwd, line], detached: false };
   }
   if (answers(["tmux", "has-session"])) {
@@ -193,8 +198,17 @@ if ($o -match '"pane_id":"([^"]*)"') { & ${q(herdr)} pane run $Matches[1] ${q(ty
 
   if (process.platform === "darwin") {
     // Terminal types what it is given into the login shell, so, as with herdr, the
-    // line goes into a one-shot script and only `sh <path>` is typed.
-    const script = `f=$(mktemp) && printf 'rm -f "$0"\\ncd %s && exec %s\\n' "$1" "$2" > "$f" && osascript -e "tell application \\"Terminal\\" to do script \\"sh $f\\"" -e 'tell application "Terminal" to activate'`;
+    // line goes into a one-shot script and only `exec sh <path>` is typed. Whether the
+    // window closes when that ends is a profile setting kaizen cannot reach, so the
+    // launcher waits for the tab to run something, then to run nothing, and closes it:
+    // a tab with nothing running closes without Terminal asking first.
+    // ponytail: untested on a real Mac; the try leaves the window as it was if any step fails.
+    const close = ["tell application \"Terminal\"", "set t to do script \"exec sh $f\"", "activate", "try",
+      "repeat 150 times", "if busy of t then exit repeat", "delay 0.2", "end repeat",
+      "repeat while busy of t", "delay 1", "end repeat",
+      "repeat with w in windows", "if tabs of w contains t then close w", "end repeat",
+      "end try", "end tell"].map((l) => `-e ${JSON.stringify(l)}`).join(" ");
+    const script = `f=$(mktemp) && printf 'rm -f "$0"\\n{ cd %s || (exit 127); } && %s\\n${hold}\\n' "$1" "$2" > "$f" && osascript ${close}`;
     return { cmd: ["/bin/sh", "-c", script, "sh", shq(cwd), line], detached: true };
   }
 

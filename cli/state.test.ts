@@ -362,6 +362,8 @@ test.skipIf(process.platform === "win32")("findTerminal: a running herdr wins, t
     stub("herdr", 0);
     const h = findTerminal("/p", full)!;
     expect([h.cmd[0], h.cmd[1], h.cmd[4], h.detached]).toEqual(["sh", "-c", "/p", false]);
+    expect(h.cmd[2]).toContain(`pane run "$p" "exec sh $f"`);   // exec: the tab closes with the agent
+    expect(h.cmd[2]).toContain("[ $s = 127 ] || exit $s");   // ...unless it never started
     expect(t.cmd.slice(4)).toEqual(full);   // argv: tmux runs it without its default-shell
     const back = Bun.spawnSync(["/bin/sh", "-c", `printf '%s\\n' ${h.cmd[5]}`]).stdout.toString();
     expect(back).toBe(full.join("\n") + "\n");
@@ -404,7 +406,8 @@ test("findTerminal on Windows names cmd and PowerShell by full path, so a PATH w
     expect(launch).toContain("tab create --cwd 'C:\\p' --label kaizen --focus");
     const typed = /pane run \$Matches\[1\] '(.*)' \}/.exec(launch)![1].replace(/''/g, "'");
     expect(typed).not.toContain("\n");
-    const run = Buffer.from(typed.split(" -EncodedCommand ")[1], "base64").toString("utf16le");
+    expect(typed).toEndWith("; exit");   // the tab closes with the run
+    const run = Buffer.from(typed.split(" -EncodedCommand ")[1].replace(/; exit$/, ""), "base64").toString("utf16le");
     expect(run).toBe("Set-Location 'C:\\p'; & 'claude' '/kaizen it''s\nnote'");
   } finally {
     Object.defineProperty(process, "platform", platform);
