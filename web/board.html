@@ -60,14 +60,14 @@ select.sel,button.sel{cursor:pointer;appearance:none;padding-right:30px;max-widt
 .btn.ghost{background:none;border-color:transparent;color:var(--dim);box-shadow:none}.btn.ghost:hover{color:var(--ink);background:var(--hover)}
 
 /* summary strip: each count is a pill that filters the board */
-.strip{display:flex;gap:8px;padding:10px 28px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--dim)}
+.strip{display:inline-flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--dim)}
 .strip button{display:inline-flex;align-items:center;gap:6px;color:var(--dim);padding:4px 12px;border-radius:var(--r-pill);box-shadow:inset 0 0 0 1px var(--line);transition:background .12s,color .12s}
 .strip button:hover,.strip button.on{color:var(--ink);background:var(--hover)}
 .strip button.attn{color:var(--warn);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--warn) 45%,transparent)}
 .strip svg{width:14px;height:14px;stroke-width:1.8}
 
 /* board */
-main{flex:1;min-height:0;display:grid;grid-template-columns:repeat(5,minmax(200px,1fr));gap:24px;padding:0 28px 20px;overflow:auto;align-content:start}
+main{flex:1;min-height:0;display:grid;grid-template-columns:repeat(5,minmax(200px,1fr));gap:24px;padding:16px 28px 20px;overflow:auto;align-content:start}
 section h2::before{content:"";display:block;height:16px;margin-top:-16px}
 section{padding-top:16px}
 section h2{margin:0;font-size:13px;color:var(--ink);font-weight:600;display:flex;align-items:center;gap:8px;height:30px;position:sticky;top:0;background:var(--bg);z-index:1}
@@ -150,8 +150,10 @@ section h2 .clear{margin-left:auto;min-height:22px;padding:0 8px}
 
 /* footer */
 .ftr{display:flex;justify-content:space-between;gap:16px;padding:10px 28px;border-top:1px solid var(--line);color:var(--dim);font-size:12px;flex-wrap:wrap;align-items:center}
-.ftr span+span,.ftr a+a{margin-left:14px}.ftr .st svg{width:12px;height:12px}
-.ftr a{color:var(--dim);cursor:pointer;text-decoration:underline;text-underline-offset:2px}.ftr a:hover{color:var(--ink)}
+.ftr span+span,.ftr a+a{margin-left:14px}.ftr .strip{margin-right:14px;vertical-align:middle;font-size:12px}
+/* The footer is out of the eye's path, so the waiting alert is filled, not just outlined. */
+.ftr .strip .attn{color:var(--ink);background:color-mix(in srgb,var(--warn) 18%,transparent);box-shadow:inset 0 0 0 1px var(--warn)}.ftr .strip .attn:hover,.ftr .strip .attn.on{background:color-mix(in srgb,var(--warn) 30%,transparent)}.ftr .strip .attn svg{color:var(--warn)}.ftr .st svg{width:12px;height:12px}
+.ftr a{color:var(--dim);cursor:pointer;white-space:nowrap;text-decoration:underline;text-underline-offset:2px}.ftr a:hover{color:var(--ink)}
 
 /* side panel */
 .scrim{position:fixed;inset:0;z-index:10;background:color-mix(in srgb,var(--bg) 60%,transparent);backdrop-filter:blur(3px);display:none}
@@ -231,8 +233,52 @@ aside .foot .more .menu-pop{left:0;right:auto;top:auto;bottom:calc(100% + 4px)}.
 .toast.on.rep{pointer-events:auto}.toast a{color:inherit;margin-left:8px;text-decoration:underline;text-underline-offset:2px}
 .help{position:fixed;inset:0;z-index:12;display:none;align-items:center;justify-content:center;background:color-mix(in srgb,var(--bg) 60%,transparent);backdrop-filter:blur(3px)}
 .help.on{display:flex}.help div{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r);padding:24px 28px;line-height:2.2;box-shadow:var(--shadow-2)}
-.help kbd{display:inline-block;min-width:40px;margin-right:12px;padding:0 6px;text-align:center;border:1px solid var(--line);border-radius:var(--r-s);background:var(--bg);font:12px/20px var(--mono);color:var(--ink)}
-@media(max-width:900px){main{grid-template-columns:1fr;padding-inline:16px;gap:8px}.hdr,.strip,.ftr{padding-inline:16px}.more{display:grid}.card:hover .age{display:inline}.toast{left:16px;max-width:calc(100% - 32px)}}
+/* request sources: cards, status badges, top bar, and add-box */
+.src-topbar{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg);border:1px solid var(--line);border-radius:var(--r);margin:14px 0 16px;gap:12px}
+.src-topbar .meta{display:flex;flex-direction:column;gap:2px}
+.src-topbar .count{font-size:13px;font-weight:600;color:var(--ink)}
+.src-topbar .sched{font-size:12px;color:var(--dim)}
+.src-topbar .sched a{color:var(--accent);text-decoration:none;cursor:pointer}
+.src-topbar .sched a:hover{text-decoration:underline}
+.src-topbar .btn{display:inline-flex;align-items:center;gap:6px}
+.src-topbar .btn svg{width:14px;height:14px}
+.src-list{display:flex;flex-direction:column;gap:10px}
+.src-card{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r);padding:14px;box-shadow:var(--shadow-1);display:flex;flex-direction:column;gap:9px;transition:border-color .15s}
+.src-card:hover{border-color:color-mix(in srgb,var(--line) 70%,var(--ink))}
+.src-hd{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.src-info{display:flex;align-items:center;gap:8px;min-width:0}
+.src-ico{width:20px;height:20px;flex-shrink:0;color:var(--accent);display:inline-flex;align-items:center;justify-content:center}
+.src-ico svg{width:18px;height:18px}
+.src-title{font-size:14px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.src-acts{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.src-acts .btn{display:inline-flex;align-items:center;gap:5px}
+.src-acts .btn svg{width:14px;height:14px}
+.src-url{font-size:12px;color:var(--dim);overflow-wrap:anywhere;line-height:1.4}
+.src-url a{color:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:4px}
+.src-url a:hover{color:var(--ink);text-decoration:underline}
+.src-url svg{width:12px;height:12px;stroke-width:1.8;flex-shrink:0}
+.src-status{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:12px}
+.src-badge{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:var(--r-pill);font-size:11px;font-weight:500}
+.src-badge.ok{background:color-mix(in srgb,var(--ok) 14%,transparent);color:var(--ok)}
+.src-badge.warn{background:color-mix(in srgb,var(--warn) 20%,transparent);color:var(--ink);font-weight:500}
+.src-badge.warn svg{color:var(--warn)}
+.src-badge.dim{background:color-mix(in srgb,var(--dim) 14%,transparent);color:var(--dim)}
+.src-badge svg{width:12px;height:12px;stroke-width:2;flex-shrink:0}
+.src-dest{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dim);padding-top:8px;border-top:1px solid var(--line)}
+.src-dest .sel{flex:1;max-width:240px;height:28px;font-size:12px;padding:2px 8px}
+.src-dest .btn{height:28px;padding:0 10px;font-size:12px}
+.src-empty{padding:26px 16px;text-align:center;background:var(--bg);border:1px dashed var(--line);border-radius:var(--r);margin:12px 0 16px}
+.src-empty-ico{width:36px;height:36px;margin:0 auto 10px;color:var(--dim);display:flex;align-items:center;justify-content:center}
+.src-empty-ico svg{width:32px;height:32px}
+.src-empty h4{margin:0 0 6px;font-size:14px;font-weight:600;color:var(--ink)}
+.src-empty p{margin:0 0 12px;font-size:12px;color:var(--dim);line-height:1.5}
+.src-empty-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-top:12px;text-align:left}
+.src-empty-item{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r-s);padding:8px 10px;font-size:11px;color:var(--dim);line-height:1.4}
+.src-empty-item strong{display:block;color:var(--ink);font-weight:500;margin-bottom:2px}
+.src-add-box{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-top:16px;box-shadow:var(--shadow-1)}
+.src-add-box h3{margin:0 0 12px;font-size:13px;font-weight:600;color:var(--ink);display:flex;align-items:center;gap:6px}
+.src-add-box h3 svg{width:16px;height:16px}
+@media(max-width:900px){main{grid-template-columns:1fr;padding-inline:16px;gap:8px}.hdr,.ftr{padding-inline:16px}.more{display:grid}.card:hover .age{display:inline}.toast{left:16px;max-width:calc(100% - 32px)}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
 </style>
 </head>
@@ -253,6 +299,10 @@ aside .foot .more .menu-pop{left:0;right:auto;top:auto;bottom:calc(100% + 4px)}.
 <symbol id="i-open" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/></symbol>
 <symbol id="i-archive" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8M10 12h4"/></symbol>
 <symbol id="i-restore" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></symbol>
+<symbol id="i-sheet" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></symbol>
+<symbol id="i-doc" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></symbol>
+<symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 3v5h-5M3 21v-5h5M20.5 13A9 9 0 0 1 5.7 18.3L3 16M3.5 11A9 9 0 0 1 18.3 5.7L21 8"/></symbol>
+<symbol id="i-ext" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></symbol>
 <symbol id="s-idea" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" stroke-dasharray="2 2.5"/></symbol>
 <symbol id="s-start" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" stroke-dasharray="2 2.5"/><path d="M6.5 5.5v5l4-2.5z" fill="currentColor" stroke="none"/></symbol>
 <symbol id="s-run" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 2a6 6 0 0 1 0 12z" fill="currentColor" stroke="none"/></symbol>
@@ -283,11 +333,9 @@ aside .foot .more .menu-pop{left:0;right:auto;top:auto;bottom:calc(100% + 4px)}.
   <button class="ib" id="sources" title="Request sources" aria-label="Request sources"><svg><use href="#i-link"/></svg></button>
   <button class="ib" id="settings" title="Settings" aria-label="Settings"><svg><use href="#i-gear"/></svg></button>
 </div>
-<div class="strip" id="strip"></div>
-
 <main id="board" aria-live="polite"></main>
 
-<div class="ftr"><span id="legend"></span><span><a href="/issue" target="_blank" rel="noopener">Report an issue</a><a id="kbd">Keyboard shortcuts</a></span></div>
+<div class="ftr"><span id="legend"></span><span><span class="strip" id="strip"></span><a href="/issue" target="_blank" rel="noopener">Report an issue</a><a id="kbd">Keyboard shortcuts</a></span></div>
 
 <div class="scrim" id="scrim"></div>
 <aside id="panel" aria-label="detail">
@@ -538,7 +586,7 @@ function render(){
  if(n("waiting"))strip.push(`<button class="attn ${filter==="waiting"?"on":""}" data-f="waiting"><svg><use href="#s-wait"/></svg>${n("waiting")} waiting on you</button>`);
  strip.push(`<button class="${filter==="running"?"on":""}" data-f="running"><span class="d-run"><span class="pulse"></span></span>${n("running")} running</button>`);
  if(n("stalled"))strip.push(`<button class="${filter==="stalled"?"on":""}" data-f="stalled"><svg><use href="#s-stall"/></svg>${n("stalled")} stalled</button>`);
- strip.push(`<span class="sp"></span><span>${cs.filter(c=>c.kind==="idea").length} ideas · ${cs.filter(c=>c.kind==="run").length} runs</span>`,`<button class="${archive?"on":""}" data-f="__archive">${archive?"Back to board":"Archive "+nArch}</button>`);
+ strip.push(`<span>${cs.filter(c=>c.kind==="idea").length} ideas · ${cs.filter(c=>c.kind==="run").length} runs</span>`,`<button class="${archive?"on":""}" data-f="__archive">${archive?"Back to board":"Archive "+nArch}</button>`);
  $("strip").innerHTML=strip.join("");
  $("strip").querySelectorAll("button").forEach(c=>c.onclick=()=>{if(c.dataset.f==="__archive"){archive=!archive;filter=null;render();return}filter=filter===c.dataset.f?null:c.dataset.f;render()});
  // [label, folder, from the projects folder]: the button names the current one, the open list is redrawn.
@@ -871,32 +919,47 @@ async function openSources(){
  const d=await fetch("/sources"+q).then(r=>r.json()).catch(()=>null);
  if(!srcOpen())return;
  const host=u=>{try{return new URL(u).hostname}catch{return u}};
+ const srcType=u=>{if(u.includes("docs.google.com/spreadsheets")||u.endsWith(".csv")||u.endsWith(".tsv"))return "sheet";if(u.includes("docs.google.com/document"))return "doc";return "link"};
  const list=d&&d.sources||[];
  // A source belongs to one project, named on its row. Picking another only arms Move: a select
  // changes on every arrow key, and each change would have moved the source. The names are the picker's;
  // a row whose project the picker does not list still gets its own, selected, so Move never points elsewhere.
  const opts=(on,name)=>(on&&!S.projects.some(p=>p.dir===on)?`<option value="${esc(on)}" selected>${esc(name||on)}</option>`:"")+S.projects.map(p=>`<option value="${esc(p.dir)}"${p.dir===on?" selected":""}>${esc(p.label)}</option>`).join("");
- const rows=list.map((s,i)=>`<div class="srow"><label>${esc(s.label||host(s.url))}</label><button class="btn ghost" id="src-rm-${i}" data-rm="${i}" aria-label="Remove ${esc(s.label||host(s.url))}">Remove</button><p class="hint" style="overflow-wrap:anywhere">${s.url.startsWith("https://")?`<a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer" style="color:inherit">${esc(s.url)}</a>`:esc(s.url)}<br>${s.last?(s.last.ok?esc(s.last.note):`<span style="color:var(--ink);font-weight:500">Failed: ${esc(s.last.note)}</span>`)+" · "+ago(s.last.at):"Not gathered yet"}</p><p class="hint" style="margin-top:6px">Ideas go to <select class="sel" id="src-mv-${i}" data-mv="${i}" data-k="${esc(s.dir+" "+s.url)}" aria-label="Project of ${esc(s.label||host(s.url))}">${opts(s.dir,s.project)}</select> <button class="btn" id="src-mb-${i}" aria-label="Move ${esc(s.label||host(s.url))} to the chosen project" disabled>Move</button></p></div>`).join("")+(d&&d.failed||[]).map(f=>`<p style="color:var(--dim)">The sources of ${esc(f)} could not be read.</p>`).join("");
- $("pbody").innerHTML=(d&&d.error?`<p style="color:var(--dim)">${esc(d.error)}</p>`:!d?`<p style="color:var(--dim)">Sources could not be read.</p>`:rows||`<p style="color:var(--dim)">No sources yet. Paste a link to a Google Sheet, a Doc, or a shared note.</p>`)
-  +`<h3 class="sg">Add a source</h3><div style="display:grid;gap:8px;margin-top:10px"><input class="sel" id="src-url" aria-label="Link" placeholder="https://docs.google.com/…" spellcheck="false" autocomplete="off" style="width:100%;max-width:none"><input class="sel" id="src-label" aria-label="Label (optional)" placeholder="Label (optional)" style="width:100%;max-width:none"><select class="sel" id="src-dir" aria-label="Project this source belongs to" style="width:100%;max-width:none">${dir?"":`<option value="">Choose the project it belongs to…</option>`}${opts(dir)}</select><div style="display:flex;gap:8px"><button class="btn pri" id="src-add">Add source</button><button class="btn" id="src-go"${list.length?"":" disabled"}>Gather now</button></div><p class="hint" style="font-size:12px;color:var(--dim);margin:0">${d&&d.every&&d.every!=="off"?`Checked every ${esc(d.every)} while the board is running.`:"Automatic checks are off."} Change it in Settings.</p></div>`;
- $("src-url").value=typed[0];$("src-label").value=typed[1];if(typed[3]!==undefined)$("src-dir").value=typed[3];
+ const topBar=`<div class="src-topbar"><div class="meta"><span class="count">${list.length} source${list.length===1?"":"s"}${dir?` in ${esc(S.projects.find(p=>p.dir===dir)?.label||dir)}`:""}</span><span class="sched">${d&&d.every&&d.every!=="off"?`Auto-check: every ${esc(d.every)}`:"Auto-check: off"} · <a id="src-to-settings" role="button" tabindex="0">Settings</a></span></div><button class="btn sm" id="src-go"${list.length?"":" disabled"}>${ico("refresh")} Gather all</button></div>`;
+ const cards=list.map((s,i)=>{
+  const st=srcType(s.url),title=s.label||host(s.url);
+  const statusHtml=!s.last?`<span class="src-badge dim">Not gathered yet</span>`:s.last.ok?`<span class="src-badge ok"><svg viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-6" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>${esc(s.last.note)}</span><span class="hint" style="margin:0">${ago(s.last.at)}</span>`:`<span class="src-badge warn"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" stroke="currentColor" fill="none" stroke-width="1.8"/><path d="M8 5v3.5M8 11v.1" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round"/></svg>Failed: ${esc(s.last.note)}</span><span class="hint" style="margin:0">${ago(s.last.at)}</span>`;
+  return `<div class="src-card" id="src-card-${i}"><div class="src-hd"><div class="src-info"><span class="src-ico" title="${st}">${ico(st==="sheet"?"sheet":st==="doc"?"doc":"link")}</span><span class="src-title" title="${esc(title)}">${esc(title)}</span></div><div class="src-acts"><button class="btn ghost sm" id="src-chk-${i}" data-chk="${i}" aria-label="Check ${esc(title)} now" title="Check this source now">${ico("refresh")} Check</button><button class="btn ghost danger sm" id="src-rm-${i}" data-rm="${i}" aria-label="Remove ${esc(title)}" title="Remove source">${ico("trash")}</button></div></div><div class="src-url"><a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer" title="${esc(s.url)}"><span>${esc(s.url)}</span>${ico("ext")}</a></div><div class="src-status">${statusHtml}</div><div class="src-dest"><span>Ideas go to</span><select class="sel" id="src-mv-${i}" data-mv="${i}" data-k="${esc(s.dir+" "+s.url)}" aria-label="Project of ${esc(title)}">${opts(s.dir,s.project)}</select><button class="btn sm" id="src-mb-${i}" aria-label="Move ${esc(title)} to the chosen project" disabled>Move</button></div></div>`;
+ }).join("")+(d&&d.failed||[]).map(f=>`<p style="color:var(--dim)">The sources of ${esc(f)} could not be read.</p>`).join("");
+ const emptyState=`<div class="src-empty"><div class="src-empty-ico">${ico("link")}</div><h4>No request sources yet</h4><p>Connect shared links to gather requests into your Ideas backlog. Nothing runs automatically until you start it.</p><div class="src-empty-grid"><div class="src-empty-item"><strong>📊 Google Sheets</strong>Public sheets with idea or task rows. Rows marked Done are skipped.</div><div class="src-empty-item"><strong>📄 Google Docs</strong>Shared public docs with items or notes written line by line.</div><div class="src-empty-item"><strong>🌐 Public links</strong>TSV, CSV, or raw text links containing requests.</div></div></div>`;
+ const addBox=`<div class="src-add-box"><h3>${ico("plus")} Add a source</h3><div style="display:grid;gap:8px"><div><label for="src-url" class="hint" style="display:block;margin-bottom:4px;font-weight:500;color:var(--ink)">Link</label><input class="sel" id="src-url" aria-label="Link" placeholder="https://docs.google.com/spreadsheets/d/… or public URL" spellcheck="false" autocomplete="off" style="width:100%;max-width:none"></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div><label for="src-label" class="hint" style="display:block;margin-bottom:4px">Label (optional)</label><input class="sel" id="src-label" aria-label="Label (optional)" placeholder="e.g. Feedback Q4" style="width:100%;max-width:none"></div><div><label for="src-dir" class="hint" style="display:block;margin-bottom:4px">Target project</label><select class="sel" id="src-dir" aria-label="Project this source belongs to" style="width:100%;max-width:none">${dir?"":`<option value="">Choose project…</option>`}${opts(dir)}</select></div></div><div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px"><button class="btn pri" id="src-add">Add source</button><span class="hint" style="font-size:11px;color:var(--dim);margin:0">Public links only. For private docs, run /kaizen gather.</span></div></div></div>`;
+ $("pbody").innerHTML=(d&&d.error?`<p style="color:var(--dim)">${esc(d.error)}</p>`:!d?`<p style="color:var(--dim)">Sources could not be read.</p>`:topBar+(list.length?`<div class="src-list">${cards}</div>`:emptyState))+addBox;
+ $("src-url").value=typed[0];$("src-label").value=typed[1];if(typed[3]!==undefined&&$("src-dir"))$("src-dir").value=typed[3];
+ if($("src-to-settings"))$("src-to-settings").onclick=()=>{setQ="sources";openSettings()};
+ const act=async(body,done)=>{const j=await post("/sources",body);if(j.ok){done(j);load()}if(srcOpen())openSources()};
  $("pbody").querySelectorAll("[data-mv]").forEach(m=>{const s=list[+m.dataset.mv],b=$("src-mb-"+m.dataset.mv),to=picked.get(m.dataset.k);
   if(to&&[...m.options].some(o=>o.value===to))m.value=to;
   (m.onchange=()=>{b.disabled=m.value===s.dir})();
   b.onclick=()=>act({op:"move",dir:s.dir,to:m.value,url:s.url},()=>toast(`Source moved. Ideas already gathered stay in ${s.project||"the old project"}.`))});
- // A Move button that went back to disabled cannot take focus; its select can.
- const was=typed[2]&&$(typed[2]);if(was)(was.disabled?$(was.id.replace("src-mb-","src-mv-")):was).focus();
- // Every action names the project it acts on; only "gather everything" goes without one.
- const act=async(body,done)=>{const j=await post("/sources",body);if(j.ok){done(j);load()}if(srcOpen())openSources()};
- $("src-add").onclick=()=>{const url=$("src-url").value.trim();if(!url){$("src-url").focus();return}const to=$("src-dir").value;if(!to){$("src-dir").focus();return}// A new source is read at once, so the user learns now whether the link works.
+ $("pbody").querySelectorAll("[data-chk]").forEach(b=>{const s=list[+b.dataset.chk];
+  b.onclick=()=>{b.disabled=true;b.innerHTML=ico("refresh")+" Checking…";
+   act({op:"gather",dir:s.dir,url:s.url},j=>{const r=j.results&&j.results[0];
+    toast(r?(r.ok?`${s.label||host(s.url)}: ${r.note}`:`Failed: ${r.note}`):"Checked")})}});
+ $("pbody").querySelectorAll("[data-rm]").forEach(b=>{const s=list[+b.dataset.rm];
+  b.onclick=()=>{if(!confirm(`Remove ${s.label||host(s.url)}? Ideas it gathered stay; added again later, it may bring back ones you deleted.`))return;
+   act({op:"remove",dir:list[+b.dataset.rm].dir,url:list[+b.dataset.rm].url},()=>toast("Source removed"))}});
+ const was=typed[2]&&$(typed[2]);if(was)(was.disabled?$(was.id.replace("src-mb-","src-mv-")):was)?.focus();
+ $("src-add").onclick=()=>{const url=$("src-url").value.trim();if(!url){$("src-url").focus();return}const to=$("src-dir").value;if(!to){$("src-dir").focus();return}
   $("src-add").disabled=true;$("src-add").textContent="Adding…";
   (async()=>{const j=await post("/sources",{op:"add",dir:to,url,label:$("src-label").value.trim()});
    if(j.ok){$("src-url").value=$("src-label").value="";const g=await post("/sources",{op:"gather",dir:to,url}),r=g.results&&g.results[0];
     toast(r?(r.ok?`Source added: ${r.note}`:`Source added, but: ${r.note}`):"Source added");load()}
+   else toast(j.error||"Could not add source");
    if(srcOpen())openSources()})()};
  $("src-url").onkeydown=$("src-label").onkeydown=e=>{if(e.key==="Enter")$("src-add").click()};
- $("src-go").onclick=()=>{$("src-go").disabled=true;$("src-go").textContent="Gathering…";act({op:"gather",dir:dir||undefined},j=>{const n=(j.results||[]).reduce((a,r)=>a+r.added,0),bad=(j.results||[]).filter(r=>!r.ok).length;toast((n?`${n} new idea${n===1?"":"s"}`:"Nothing new")+(bad?`, ${bad} source${bad===1?"":"s"} could not be read`:""))})};
- $("pbody").querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{const s=list[+b.dataset.rm];if(!confirm(`Remove ${s.label||host(s.url)}? Ideas it gathered stay; added again later, it may bring back ones you deleted.`))return;act({op:"remove",dir:list[+b.dataset.rm].dir,url:list[+b.dataset.rm].url},()=>toast("Source removed"))})}
+ if($("src-go"))$("src-go").onclick=()=>{$("src-go").disabled=true;$("src-go").innerHTML=ico("refresh")+" Gathering…";
+  act({op:"gather",dir:dir||undefined},j=>{const n=(j.results||[]).reduce((a,r)=>a+r.added,0),bad=(j.results||[]).filter(r=>!r.ok).length;
+   toast((n?`${n} new idea${n===1?"":"s"}`:"Nothing new")+(bad?`, ${bad} source${bad===1?"":"s"} could not be read`:""))})}}
 // With `report`, the toast carries a link to a prefilled GitHub bug form (/issue) and
 // stays long enough to click it.
 let tt;function toast(s,report){const t=$("toast");t.textContent=s;t.classList.toggle("rep",!!report);if(report){const a=document.createElement("a");a.href="/issue?"+new URLSearchParams(report);a.target="_blank";a.rel="noopener";a.textContent="Report";t.append(" ",a)}t.classList.add("on");clearTimeout(tt);tt=setTimeout(()=>t.classList.remove("on"),report?8000:4000)}
