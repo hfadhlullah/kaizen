@@ -210,7 +210,7 @@ test("the notebook's design tokens are the board's, line for line", () => {
   expect(block("board.html")).toContain("data-theme=dark]{--shade");
   const syms = (f: string) => readFileSync(join(root, "web", f), "utf8").split("\n").filter((l) => l.startsWith('<symbol id="s-')).join("\n");
   expect(syms("notes.html")).toBe(syms("board.html"));
-  expect(syms("board.html").split("\n").length).toBe(6);
+  expect(syms("board.html").split("\n").length).toBe(7);
   const mascot = (f: string) => readFileSync(join(root, "web", f), "utf8").split("\n").find((l) => l.startsWith(".mascot{"));
   expect(mascot("notes.html")).toBe(mascot("board.html")!);
 });

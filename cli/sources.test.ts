@@ -431,10 +431,10 @@ test.skipIf(process.platform === "win32")("launch: the xterm and macOS branches 
   expect(x.cmd.slice(0, 5)).toEqual(["xterm", "-e", "sh", "-c", 'cd "$1" && shift && exec "$@"']);
   expect(Bun.spawnSync(x.cmd.slice(2), { cwd: root }).stdout.toString()).toBe(prompt + cwd + "\n");
   // macOS: run the real line with the stub; what is typed into the login shell is
-  // `sh <temp path>` and nothing from the prompt or the directory.
+  // `exec sh <temp path>` and nothing from the prompt or the directory.
   const osa = join(root, "osa.txt");
   Bun.spawnSync(mac.cmd, { cwd: root, env: { PATH: `${bin}:/usr/bin:/bin`, OSA_OUT: osa } });
-  const typed = /^-e\ntell application "Terminal" to do script "(sh [\w/.-]+)"\n-e\ntell application "Terminal" to activate\n$/.exec(readFileSync(osa, "utf8"))![1]!;
+  const typed = /\nset t to do script "exec (sh [\w/.-]+)"\n/.exec(readFileSync(osa, "utf8"))![1]!;
   expect(Bun.spawnSync(["/bin/sh", "-c", typed], { cwd: root }).stdout.toString()).toBe(prompt + cwd + "\n");
   expect(existsSync(typed.slice(3))).toBe(false);   // the one-shot script removed itself
   expect(existsSync(join(cwd, "canary")) || existsSync(join(root, "canary"))).toBe(false);
