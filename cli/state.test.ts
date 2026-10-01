@@ -612,7 +612,9 @@ test.skipIf(process.platform === "win32")("closeSessions ends only the run's own
     writeFileSync(join(dir, key + ".json"), JSON.stringify({ run: "2026-10-01-a", text: "a", cmd: "kzagent", sessionId: "sid-" + key, started: Date.now() - 5000, ...rec }));
     return Bun.spawn(["sh", "-c", 'echo $$ > "$0"; exec "$@"', join(dir, key + ".pid"), "sh", "-c", "sleep 30; :", "kzagent", "sid-" + key], { stdout: "ignore", stderr: "ignore" });
   };
-  const procs = {
+  // Killed by a signal, a process keeps exitCode null; signalCode says it died.
+  const alive = (pr: ReturnType<typeof Bun.spawn>) => pr.exitCode === null && pr.signalCode === null;
+  const procs: Record<string, ReturnType<typeof Bun.spawn>> = {
     mine: start("mine", {}),
     later: start("later", { started: Date.now() + 60_000 }),        // the decision's own successor
     stranger: start("stranger", { cmd: "notkzagent" }),             // a PID that is not this agent
@@ -624,7 +626,7 @@ test.skipIf(process.platform === "win32")("closeSessions ends only the run's own
   try {
     expect(closeSessions(st, "2026-10-01-a", { before: Date.now() })).toBe(1);
     expect(await procs.mine.exited).not.toBe(0);
-    for (const k of ["later", "stranger", "other"] as const) expect(procs[k].exitCode).toBe(null);
+    for (const k of ["later", "stranger", "other"] as const) expect(alive(procs[k])).toBe(true);
     expect(existsSync(join(dir, "mine.pid"))).toBe(false);
     expect(existsSync(join(dir, "mine.json"))).toBe(true);       // its conversation id is still needed
     expect(existsSync(join(dir, "dead.pid"))).toBe(false);
@@ -633,17 +635,35 @@ test.skipIf(process.platform === "win32")("closeSessions ends only the run's own
     // Off: nothing is ended.
     writeFileSync(join(st, "config.yml"), "agent:\n  default: claude\n  close: off\n");
     expect(closeSessions(st, "2026-10-01-b")).toBe(0);
-    expect(procs.other.exitCode).toBe(null);
+    expect(alive(procs.other)).toBe(true);
     writeFileSync(join(st, "config.yml"), "agent:\n  default: claude\n  close: on\n");
 
     // The sweep: run b done within the grace keeps its window, past it loses it.
     newRun(p, "2026-10-01-b", "/kaizen b", { stage: "done", awaiting: null });
     sweepSessions(st, Date.now());
     await Bun.sleep(100);
-    expect(procs.other.exitCode).toBe(null);
+    expect(alive(procs.other)).toBe(true);
     sweepSessions(st, Date.now() + CLOSE_GRACE_MS);
     expect(await procs.other.exited).not.toBe(0);
-    expect(procs.later.exitCode).toBe(null);                     // run a is still waiting
+    expect(alive(procs.later)).toBe(true);                     // run a is still waiting
+
+    // A fix launched on a done run, after it last moved, is doing the work: kept.
+    const fix = start("fix", { run: "2026-10-01-b", started: Date.now() + 1000 });
+    procs.fix = fix;
+    for (let i = 0; i < 100 && !existsSync(join(dir, "fix.pid")); i++) await Bun.sleep(20);
+    sweepSessions(st, Date.now() + 2 * CLOSE_GRACE_MS);
+    await Bun.sleep(100);
+    expect(alive(fix)).toBe(true);
+
+    // An abandoned run is left to abandonRun; the sweep does not close it, even a
+    // session launched long before the run last moved.
+    const gone = start("gone", { started: 0 });
+    procs.gone = gone;
+    for (let i = 0; i < 100 && !existsSync(join(dir, "gone.pid")); i++) await Bun.sleep(20);
+    writeFileSync(join(st, "runs", "2026-10-01-a", "state.json"), JSON.stringify({ stage: "abandoned", awaiting: null }));
+    sweepSessions(st, Date.now() + 2 * CLOSE_GRACE_MS);
+    await Bun.sleep(100);
+    expect(alive(gone)).toBe(true);
   } finally {
     for (const pr of Object.values(procs)) pr.kill();
   }

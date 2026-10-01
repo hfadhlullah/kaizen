@@ -554,9 +554,11 @@ export async function web(repoDir: string, opts: Opts = {}) {
           const nums = pickFindings(dir, id, body.nums);
           if (!nums) return bad("pick open findings of this review");
           const text = fixPrompt(id, nums);
-          // The run's waiting window ends, and its conversation picks the fix up.
-          closeSessions(dir, id, { before: Date.now() });
+          // The run's conversation picks the fix up, and once that window is open the
+          // waiting one ends. A failed launch leaves it: the decision has nowhere else.
+          const before = Date.now();
           const r = launchRun({ severity: null, where: null, text, raw: text }, dir, id);
+          if (r.ok) closeSessions(dir, id, { before });
           changed();
           return json(r.ok
             ? { ok: true, agent: r.agent }
@@ -574,10 +576,12 @@ export async function web(repoDir: string, opts: Opts = {}) {
           if (run.awaiting !== "approvals.plan" && run.awaiting !== "approvals.review" || run.awaiting !== body.awaiting) return bad("this run is not waiting on that approval", 409);
           if (body.why !== undefined && !String(body.why).trim()) return bad("a revise needs a comment");
           const text = approvalPrompt(id, run.awaiting, body.why === undefined ? undefined : String(body.why));
-          // The run is stopped at this approval, so its window is idle: end it, and
-          // continue the same conversation in one new window.
-          closeSessions(dir, id, { before: Date.now() });
+          // The run is stopped at this approval, so its window is idle: the same
+          // conversation continues in one new window, and then the idle one ends. A
+          // failed launch leaves it open, since the decision went nowhere.
+          const before = Date.now();
           const r = launchRun({ severity: null, where: null, text, raw: text }, dir, id);
+          if (r.ok) closeSessions(dir, id, { before });
           changed();
           return json(r.ok
             ? { ok: true, agent: r.agent }
