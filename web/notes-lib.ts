@@ -36,7 +36,7 @@ export function wikilinks(text: string): Wikilink[] {
 // A link to the board instead of a note: `run:<id>` with an optional anchor naming a
 // tab, `finding-<n>` or `backlog-<n>`, or `idea:<text>` (the whole target, `#` and all).
 // Null for a note link. Note names can never hold `:`, so the two never collide.
-export const TABS = ["request", "notes", "plan", "work", "preview", "review", "backlog"] as const;
+export const TABS = ["request", "notes", "plan", "backlog", "work", "review", "preview"] as const;
 export type BoardLink =
   | { kind: "run"; id: string; tab?: (typeof TABS)[number]; item?: { type: "finding" | "backlog"; n: number } }
   | { kind: "idea"; text: string };
