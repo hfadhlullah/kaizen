@@ -165,10 +165,15 @@ Write `01-plan.md` with exactly these sections:
 - **Track** — one or two sentences opening the plan: what kind of work this is, the
   deliverable, what done means, what wrong means. Stated as your reading of the
   request, so it can be corrected in a breath.
-- **Framing** — the problem in your own words: what is wrong now, what would be true
-  instead, and why it matters. Then the approach you chose, and the alternatives you
-  rejected with one line each on why. This section is what the human checks first; if
-  your restatement is off, everything after it is off too.
+- **Framing** — the problem in your own words, as short labelled bullets, not a
+  paragraph: **Problem** (what is wrong now, as the user meets it), **Fix** (what will
+  be true instead, and the approach you chose), **Rejected** (each alternative, one
+  line on why). This section is what the human checks first; if your restatement is
+  off, everything after it is off too.
+- **Work list** — the plan in plain bullets, one line per thing that will actually be
+  done, no jargon. It sits right after Framing and is shown again right before the
+  builder starts, so write it for someone who has not read the rest of the plan. Five
+  bullets is usually plenty; if it needs fifteen, the run is too big.
 - **Goal** — one paragraph in the user's terms describing what will be true when done.
 - **Scope** — bullets for what is included, then an explicit **Not included** list.
 - **Reuse** — existing material to build on: `path:line` for code, a section or page
@@ -182,10 +187,6 @@ Write `01-plan.md` with exactly these sections:
   it unaided for a runbook. Real and checkable, never a placeholder.
 - **Risks** — what could break, what is irreversible, what needs a backup or
   migration first. Call out anything touching data, auth, or production config.
-- **Work list** — the plan in plain bullets, one line per thing that will actually be
-  done, no jargon. This is shown to the user right before the builder starts, so
-  write it for someone who has not read the rest of the plan. Five bullets is usually
-  plenty; if it needs fifteen, the run is too big.
 - **Open questions** — every assumption that survived your analysis. Leave the list
   empty only if it genuinely is.
 
@@ -209,6 +210,13 @@ Write `01-plan.md` with exactly these sections:
   Never fold one into a step. Anything not taken at the approval is captured into the
   run's backlog, so write each as a standalone one-liner that still makes sense read
   months later with no plan around it.
+
+Write Track, Framing, Work list, Goal, Scope, Risks and Out of scope suggestions for a
+person deciding whether to approve, often on a narrow panel: everyday words, short
+sentences, one idea per bullet, things named by what the user sees rather than by
+function, file, CSS value or gate id. Code names, `path:line` and gate ids belong in
+Reuse, Steps and Verification, where the builder and reviewer need them exact. If a
+sentence only makes sense to someone who has read the code, it is in the wrong section.
 
 ## The goals are the user's, the solution is yours
 

@@ -44,10 +44,17 @@ scope suggestions* for a separate decision.
 
 The planner reads code but writes none. Its plan must contain:
 
-0. **Framing** — the problem in the planner's own words: what is wrong now, what
-   would be true instead, why it matters, the approach chosen, and the alternatives
-   rejected with a reason each. The human checks this first; a wrong restatement
-   makes everything after it wrong.
+0. **Framing** — the problem in the planner's own words, as a few short labelled
+   bullets rather than a paragraph: **Problem** (what is wrong now, as the user meets
+   it), **Fix** (what will be true instead, and the approach), **Rejected** (each
+   alternative with its reason, one line), then the track in one line. The human
+   checks this first; a wrong restatement makes everything after it wrong.
+
+   Right below it, the **Work list**: plain bullets, one line per thing that will
+   actually be done, written for someone who has not read the rest of the plan.
+   Five bullets is usually plenty. It sits second so the reader learns what will
+   happen before the detail; the plan approval shows it verbatim and the builder
+   tracks progress against it.
 1. **Goal** — one paragraph, in the user's terms, on what will be true when done.
 2. **Scope** — what is included, and an explicit *not included* list. The second list
    is what prevents the builder from wandering.
@@ -115,11 +122,21 @@ installs packages.
 fix loop reads it again per iteration, so a line written once is read five or six
 times. Sections 3 to 6 — the material to reuse, the file manifest, the steps, the
 verification — earn their length: they are what stop every later stage searching the
-material again, and cutting them costs more than it saves. Sections 0, 1, 8 and 10 are
-read once by a human at the approval and should be as short as they can be and still
-be correct: a paragraph of framing, a paragraph of goal, the risks that are real, the
+material again, and cutting them costs more than it saves. Sections 0 (Framing and the
+Work list), 1, 8 and 10 are read once by a human at the approval and should be as
+short as they can be and still be correct: a few labelled lines of framing, a short
+work list, a paragraph of goal, the risks that are real, the
 questions that are open. An alternative rejected gets a line saying what and why, not
 a case against it.
+
+**Write the parts a person reads for a person.** Framing, the Work list, Goal, Scope,
+Risks and Out of scope suggestions are read by someone deciding whether to approve,
+often on a narrow panel. Write them in everyday words: short sentences, one idea per
+bullet, things named by what the user sees ("the chat bubble", "the Plan tab") rather
+than by function, file, CSS value or gate id. Code names, `path:line` and gate ids
+belong in Reuse, the File manifest, Steps and Verification, where the builder and
+reviewer need them exact. If a sentence only makes sense to someone who has read the
+code, it is in the wrong section.
 
 A plan whose framing is longer than its steps is a plan that spent the run's budget
 explaining itself.
@@ -133,8 +150,8 @@ Controlled by `approvals.plan` (default on), skipped in `auto`.
 Present to the user, in this order:
 
 1. The track, the goal, and the top risk — a few lines, not the whole plan file.
-2. **The work list**, verbatim from the plan: plain bullets of what will actually be
-   done. This is the last thing the user sees before anything is produced, so it must
+2. **The work list**, verbatim from the plan, where it sits right after Framing:
+   plain bullets of what will actually be done. This is the last thing the user sees before anything is produced, so it must
    be readable on its own, without the plan's reasoning around it.
 3. The open questions, **as a pick list** — see below.
 
