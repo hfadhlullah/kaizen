@@ -26,6 +26,16 @@ if gh release view "$tag" >/dev/null 2>&1; then
   exit 0
 fi
 
+# Kaizen Bot as one app file per OS, attached so users can download it. A failed
+# build still publishes the release, just without the app files.
+rm -rf bot/dist
+assets=""
+if (cd bot && bun run build >/dev/null 2>&1); then
+  assets="$(ls bot/dist/kaizen-bot-* 2>/dev/null)"
+else
+  echo "release: Kaizen Bot app build failed, releasing without it"
+fi
+
 # --generate-notes only lists pull requests, and this repo merges none, so the
 # notes are built here: the title from the release commit's subject, the body from
 # every commit since the previous tag with its message, oldest first.
@@ -38,7 +48,7 @@ git log --reverse --format='### %s%n%n%b' ${prev:+"$prev.."}"$tag" \
   | grep -vE '^### Release [0-9.]+:' \
   | cat -s > "$notes"
 [ -n "$prev" ] && printf '\n**Full Changelog**: https://github.com/hfadhlullah/kaizen/compare/%s...%s\n' "$prev" "$tag" >> "$notes"
-err="$(gh release create "$tag" --title "$title" --notes-file "$notes" 2>&1 >/dev/null)" \
+err="$(gh release create "$tag" --title "$title" --notes-file "$notes" $assets 2>&1 >/dev/null)" \
   && echo "release: published $tag  https://github.com/hfadhlullah/kaizen/releases/tag/$tag" \
   || echo "release: tag pushed, release not created: $err"
 rm -f "$notes"

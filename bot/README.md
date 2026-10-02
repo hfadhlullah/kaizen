@@ -43,8 +43,10 @@ speak.
 
 ## Download the app
 
-No Bun or repo needed: one file per OS, from `bun run build` in `bot/` (it writes all five to
-`dist/`, about 60–85 MB each since each carries the Bun runtime).
+No Bun or repo needed: one file per OS, attached to every
+[GitHub release](https://github.com/hfadhlullah/kaizen/releases/latest) (about 60–85 MB each,
+since each carries the Bun runtime). To build them yourself, `bun run build` in `bot/` writes
+all five to `dist/`.
 
 | OS | File |
 |---|---|

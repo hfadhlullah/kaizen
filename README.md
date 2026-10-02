@@ -195,7 +195,8 @@ bun start                 # http://127.0.0.1:7430
 ### Download the app
 
 Kaizen Bot also runs as a single app file for Linux, macOS and Windows, with no Bun or repo needed.
-`bun run build` in `bot/` writes all five to `bot/dist/`:
+Download yours from the [latest release](https://github.com/hfadhlullah/kaizen/releases/latest)
+(or build all five with `bun run build` in `bot/`):
 
 | OS | File |
 |---|---|
