@@ -7,7 +7,7 @@ import { openStore, type Store } from "../src/db";
 import { createApp } from "../src/server";
 import { runTurn, systemPrompt } from "../src/agent";
 import { loopbackUrl, resolveProject, type BoardState } from "../src/board";
-import { ROLES } from "../src/roles";
+import { DEFAULTS, ROLES } from "../src/roles";
 import type { ModelConfig } from "../src/model";
 
 const KEY = "sk-test-SECRET-123";
@@ -68,7 +68,7 @@ function setup() {
   const app = createApp({ store, env: ENV, boardFetch: board.f, watch: false });
   const req = (path: string, body?: unknown) => app.handle(new Request(`http://127.0.0.1:7430${path}`, body === undefined ? { headers: { host: "127.0.0.1:7430" } }
     : { method: "POST", headers: { host: "127.0.0.1:7430", "content-type": "application/json" }, body: JSON.stringify(body) }));
-  const chief = store.bots().find((b) => b.role === "chief")!;
+  const chief = store.createBot("chief");
   const say = (botId: number, f: ReturnType<typeof model>) =>
     runTurn({ store, cfg, board: boardClientFor(board.f), fetch: f }, botId, "go", () => {});
   return { store, board, app, req, chief, say };
@@ -278,7 +278,7 @@ test("G-16: a v1 database opens after the upgrade with every row intact, and a b
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test("G-39/G-32: every role says what it never does; Chief is seeded, first and the front door", () => {
+test("G-39/G-32: every role says what it never does; Chief is first and the front door", () => {
   for (const r of ROLES) expect(r.never.length).toBeGreaterThan(0);
   const { store, chief } = setup();
   store.createBot("sales");
@@ -287,12 +287,32 @@ test("G-39/G-32: every role says what it never does; Chief is seeded, first and 
     const p = systemPrompt(store, b.id);
     for (const n of ROLES.find((r) => r.id === b.role)!.never) expect(p).toContain(n);
   }
-  // Seeding happens once: deleting Chief is respected across restarts.
-  store.deleteBot(chief.id);
-  createApp({ store, env: ENV, boardFetch: fakeBoard().f, watch: false });
-  expect(store.bots().some((b) => b.role === "chief")).toBe(false);
   // Division agents cannot decide, fix or abort; that is Chief's.
   for (const r of ROLES.filter((x) => x.id !== "chief")) expect(r.tools.some((t) => ["propose_decision", "propose_fix", "propose_abort"].includes(t))).toBe(false);
+});
+
+test("nothing is preinstalled: the ready-made agents are offered in /info and added on request", async () => {
+  const store = openStore(":memory:");
+  const app = createApp({ store, env: ENV, boardFetch: fakeBoard().f, watch: false });
+  const req = (path: string, body?: unknown) => app.handle(new Request(`http://127.0.0.1:7430${path}`, body === undefined ? { headers: { host: "127.0.0.1:7430" } }
+    : { method: "POST", headers: { host: "127.0.0.1:7430", "content-type": "application/json" }, body: JSON.stringify(body) }));
+  expect(store.bots()).toHaveLength(0);
+  const roles = (await (await req("/info")).json()).roles as { id: string; preset: boolean }[];
+  expect(roles.filter((r) => r.preset).map((r) => r.id)).toEqual(DEFAULTS);
+  expect((await req("/bots", { role: "sales" })).status).toBe(201);
+  expect((await req("/bots", { role: "custom" })).status).toBe(201);
+  expect(store.bots().map((b) => b.role).sort()).toEqual(["custom", "sales"]);
+  // A restart adds nothing back.
+  createApp({ store, env: ENV, boardFetch: fakeBoard().f, watch: false });
+  expect(store.bots()).toHaveLength(2);
+  // Dismissing a chat hides it and keeps it; un-dismissing brings it back.
+  const sales = store.bots().find((b) => b.role === "sales")!;
+  store.addMessage(sales.id, "user", "hi");
+  const patch = (hidden: boolean) => app.handle(new Request(`http://127.0.0.1:7430/bots/${sales.id}`,
+    { method: "PATCH", headers: { host: "127.0.0.1:7430", "content-type": "application/json" }, body: JSON.stringify({ hidden }) }));
+  expect((await (await patch(true)).json()).hidden).toBe(1);
+  expect(store.messages(sales.id)).toHaveLength(1);
+  expect((await (await patch(false)).json()).hidden).toBe(0);
 });
 
 test("G-20: the model is not in /info", async () => {
@@ -355,4 +375,160 @@ test("finding 2: a card whose run, review or idea changed since it was made is r
   // Proposing a run for an idea already started is refused up front.
   await say(chief.id, model(["propose_start_run", { project: "kaizen", idea: "invoice export" }]));
   expect(cards(store, chief.id).filter((a) => a.kind === "start_run")).toHaveLength(1);
+});
+
+// ---- routines ----
+import { nextRun, scheduleLabel } from "../src/db";
+
+test("routines G-03: nextRun picks the next allowed local slot; labels read as said", () => {
+  const fri = new Date(2026, 9, 2, 9, 0); // a Friday morning
+  expect(fri.getDay()).toBe(5);
+  const at = (d: number, h: number, m: number) => new Date(2026, 9, d, h, m).getTime();
+  const WD = [1, 2, 3, 4, 5];
+  expect(nextRun(WD, "10:30", fri.getTime())).toBe(at(2, 10, 30)); // same day, later
+  expect(nextRun(WD, "07:00", fri.getTime())).toBe(at(5, 7, 0)); // Friday after the time → Monday
+  expect(nextRun(WD, "09:00", fri.getTime())).toBe(at(5, 9, 0)); // exactly now is not next
+  expect(nextRun([5], "08:00", fri.getTime())).toBe(at(9, 8, 0)); // weekly, a week on
+  expect(nextRun([0, 1, 2, 3, 4, 5, 6], "00:00", fri.getTime())).toBe(at(3, 0, 0));
+  expect(nextRun([5], "23:59", fri.getTime())).toBe(at(2, 23, 59));
+  expect(() => nextRun([], "07:00", fri.getTime())).toThrow();
+  expect(scheduleLabel(WD, "07:00")).toBe("Weekdays at 07:00");
+  expect(scheduleLabel([0, 1, 2, 3, 4, 5, 6], "07:00")).toBe("Daily at 07:00");
+  expect(scheduleLabel([6, 0], "09:00")).toBe("Weekends at 09:00");
+  expect(scheduleLabel([5], "17:00")).toBe("Fridays at 17:00");
+  expect(scheduleLabel([3], "17:00")).toBe("Wednesdays at 17:00");
+  expect(scheduleLabel([0, 3, 1], "08:15")).toBe("Mon, Wed, Sun at 08:15");
+});
+
+test("routines G-07: create_routine saves a valid routine with a receipt and refuses bad input", async () => {
+  const { store, chief, say } = setup();
+  await say(chief.id, model(
+    ["create_routine", { name: "Morning briefing", prompt: "Brief me on the board", days: ["mon", "tue", "wed", "thu", "fri"], time: "07:00" }],
+    ["create_routine", { name: "x", prompt: "y", days: ["mon"], time: "7:00" }],
+    ["create_routine", { name: "x", prompt: "y", days: ["someday"], time: "07:00" }],
+    ["create_routine", { name: "x", prompt: "", days: ["mon"], time: "07:00" }],
+  ));
+  const rs = store.routines(chief.id);
+  expect(rs).toHaveLength(1);
+  expect(rs[0]).toMatchObject({ name: "Morning briefing", days: "1,2,3,4,5", time: "07:00", enabled: 1 });
+  expect(rs[0]!.next_run).toBeGreaterThan(Date.now());
+  expect(store.messages(chief.id).some((m) => m.kind === "receipt" && m.text === "Routine → created Morning briefing · Weekdays at 07:00")).toBe(true);
+  expect(systemPrompt(store, chief.id)).toContain("Morning briefing: Weekdays at 07:00");
+  for (let i = 1; i < 20; i++) store.addRoutine(chief.id, { name: `r${i}`, prompt: "p", days: [1], time: "07:00" });
+  await say(chief.id, model(["create_routine", { name: "21st", prompt: "p", days: ["mon"], time: "07:00" }]));
+  expect(store.routines(chief.id)).toHaveLength(20);
+});
+
+test("routines G-01/G-02/G-04/G-08: a due routine fires once as a turn, gated work waits on a card, busy agents wait a tick", async () => {
+  const store = openStore(":memory:");
+  const board = fakeBoard();
+  const prompts: string[] = [];
+  const replies = [{ content: [{ type: "tool_use", id: "t0", name: "draft_message", input: { channel: "email", to: "dana", body: "hi" } }] },
+    { content: [{ type: "tool_use", id: "t1", name: "propose_start_run", input: { project: "kaizen", idea: "weekly report" } }] }];
+  const f = async (_u: string, init: RequestInit) => {
+    const b = JSON.parse(String(init.body));
+    const last = b.messages.at(-1);
+    if (typeof last.content === "string") prompts.push(last.content);
+    return new Response(JSON.stringify(replies.shift() ?? { content: [{ type: "text", text: "briefing done" }] }));
+  };
+  const app = createApp({ store, env: ENV, fetch: f as any, boardFetch: board.f, watch: false });
+  const chief = store.createBot("chief");
+  const r = store.addRoutine(chief.id, { name: "Morning briefing", prompt: "Brief me", days: [1, 2, 3, 4, 5], time: "07:00" });
+  const t0 = new Date(2026, 9, 2, 9, 0).getTime(); // Friday; slots on Wed and Thu and Fri 07:00 were missed
+  store.updateRoutine(r.id, { next_run: new Date(2026, 9, 1, 7, 0).getTime() - 86_400_000 });
+
+  await app.tick(t0);
+  const msgs = store.messages(chief.id);
+  expect(msgs[0]).toMatchObject({ kind: "receipt", text: "Routine → Morning briefing" });
+  expect(msgs.some((m) => m.kind === "user")).toBe(false);
+  expect(msgs.at(-1)).toMatchObject({ kind: "bot", text: "briefing done" });
+  expect(prompts[0]).toContain('Scheduled routine "Morning briefing"');
+  expect(prompts[0]).toContain("Brief me");
+  // Gated work from a routine is a waiting card; nothing reached the board.
+  expect(store.actions({ botId: chief.id }).map((a) => [a.kind, a.status])).toEqual([["draft", "needed"], ["start_run", "needed"]]);
+  expect(board.writes).toEqual([]);
+  // Fired once for all the missed slots, and moved to the next future slot (Monday).
+  expect(store.routine(chief.id, r.id)).toMatchObject({ last_run: t0, next_run: new Date(2026, 9, 5, 7, 0).getTime() });
+  const n = store.messages(chief.id).length;
+  await app.tick(t0);
+  await app.tick(t0 + 60_000);
+  expect(store.messages(chief.id).length).toBe(n);
+
+  // Two due routines on one agent: one per tick, the other on the next.
+  const a = store.addRoutine(chief.id, { name: "A", prompt: "a", days: [5], time: "08:00" });
+  const b = store.addRoutine(chief.id, { name: "B", prompt: "b", days: [5], time: "08:00" });
+  store.updateRoutine(a.id, { next_run: t0 - 1 }); store.updateRoutine(b.id, { next_run: t0 - 1 });
+  await app.tick(t0);
+  expect([store.routine(chief.id, a.id)!.last_run, store.routine(chief.id, b.id)!.last_run]).toEqual([t0, null]);
+  await app.tick(t0 + 30_000);
+  expect(store.routine(chief.id, b.id)!.last_run).toBe(t0 + 30_000);
+});
+
+test("routines G-05/G-10: paused never fires, resuming schedules from now, routes stay per agent", async () => {
+  const { store, app, chief } = setup();
+  const other = store.createBot("sales");
+  const r = store.addRoutine(chief.id, { name: "R", prompt: "p", days: [0, 1, 2, 3, 4, 5, 6], time: "07:00" });
+  const call = (path: string, method = "GET", body?: unknown, host = "127.0.0.1:7430", origin?: string) => app.handle(new Request(`http://127.0.0.1:7430${path}`,
+    { method, headers: { host, "content-type": "application/json", ...(origin ? { origin } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) }));
+  const list = await (await call(`/bots/${chief.id}/routines`)).json();
+  expect(list[0]).toMatchObject({ id: r.id, label: "Daily at 07:00" });
+  expect((await call(`/bots/${other.id}/routines/${r.id}`, "PATCH", { enabled: false })).status).toBe(404);
+  expect((await call(`/bots/${other.id}/routines/${r.id}`, "DELETE")).status).toBe(404);
+  expect((await call(`/bots/${chief.id}/routines/${r.id}`, "PATCH", { enabled: false }, "127.0.0.1:7430", "https://evil.test")).status).toBe(403);
+
+  expect((await (await call(`/bots/${chief.id}/routines/${r.id}`, "PATCH", { enabled: false })).json()).enabled).toBe(0);
+  store.updateRoutine(r.id, { next_run: 1 }); // long overdue while paused
+  await app.tick(Date.now());
+  expect(store.messages(chief.id)).toHaveLength(0);
+  const on = await (await call(`/bots/${chief.id}/routines/${r.id}`, "PATCH", { enabled: true })).json();
+  expect(on.enabled).toBe(1);
+  expect(on.next_run).toBeGreaterThan(Date.now());
+  expect((await call(`/bots/${chief.id}/routines/${r.id}`, "DELETE")).status).toBe(200);
+  expect(store.routines(chief.id)).toHaveLength(0);
+});
+
+test("routines G-06: a v2 database without the table gains it on open, rows kept", () => {
+  const dir = mkdtempSync(join(tmpdir(), "kbot-"));
+  try {
+    const path = join(dir, "bot.db");
+    const s1 = openStore(path);
+    const bot = s1.createBot("sales");
+    s1.addMessage(bot.id, "user", "hello");
+    s1.close();
+    const raw = new Database(path);
+    raw.exec("DROP TABLE routines");
+    raw.close();
+    const s2 = openStore(path);
+    expect(s2.messages(bot.id)[0]!.text).toBe("hello");
+    expect(s2.addRoutine(bot.id, { name: "R", prompt: "p", days: [1], time: "07:00" }).id).toBe(1);
+    expect(existsSync(`${path}.bak`)).toBe(false); // already v2: no new backup
+    s2.close();
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("routines review 1/2: a turn whose agent is deleted mid-turn does not reject tick; an unschedulable row is paused, not stuck", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "kbot-"));
+  try {
+    const path = join(dir, "bot.db");
+    const store = openStore(path);
+    let victim = 0;
+    const f = async () => { store.deleteBot(victim); return new Response(JSON.stringify({ content: [{ type: "text", text: "hi" }] })); };
+    const app = createApp({ store, env: ENV, fetch: f as any, boardFetch: fakeBoard().f, watch: false });
+    victim = store.createBot("sales").id;
+    const r = store.addRoutine(victim, { name: "R", prompt: "p", days: [1], time: "07:00" });
+    store.updateRoutine(r.id, { next_run: 1 });
+    await app.tick(Date.now()); // resolves: the FOREIGN KEY error stays inside the tick
+    victim = -1; // ids are reused; stop the fake model deleting the next agent
+
+    // A row with no valid days can only come from editing the DB.
+    const other = store.createBot("sales");
+    const bad = store.addRoutine(other.id, { name: "Bad", prompt: "p", days: [1], time: "07:00" });
+    const raw = new Database(path);
+    raw.query("UPDATE routines SET days='', next_run=1 WHERE id=?").run(bad.id);
+    raw.close();
+    await app.tick(Date.now());
+    expect(store.routine(other.id, bad.id)!.enabled).toBe(0);
+    expect(store.messages(other.id)).toHaveLength(0);
+    store.close();
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });

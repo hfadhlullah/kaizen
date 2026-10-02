@@ -1,14 +1,15 @@
 import { join } from "node:path";
-import { openStore, type Store, type DraftStatus, type Action } from "./db";
+import { openStore, nextRun, parseDays, scheduleLabel, type Store, type DraftStatus, type Action } from "./db";
 import { configFromEnv, listModels, probe, type ModelConfig } from "./model";
 import { runTurn } from "./agent";
-import { ROLES } from "./roles";
+import { DEFAULTS, ROLES } from "./roles";
 import { boardClient, boardLink, loopbackUrl, normalise, reviewMark, runUpdated, BoardDown, type BoardRun, type BoardState } from "./board";
 
 const PAGE = join(import.meta.dir, "../web/index.html");
 const DEFAULT_BOARD = "http://127.0.0.1:7420"; // kaizen web's DEFAULT_PORT (web.ts:18)
 const POLL_MS = 15_000; // fallback for board events lost to a restart or a dropped stream
 const UNSEEN_MS = 10 * 60_000; // a launch with no matching run after this says so
+const TICK_MS = 30_000; // how often due routines are looked for
 
 type Fetch = (url: string, init?: RequestInit) => Promise<Response>;
 type Env = Record<string, string | undefined>;
@@ -87,12 +88,6 @@ export function createApp(deps: { store: Store; env: Env; fetch?: Fetch; boardFe
   const cfgNow = (): ModelConfig => configFromEnv(merged());
   const boardUrl = () => loopbackUrl(store.setting("boardUrl") ?? "") ?? loopbackUrl(env.BOARD_URL ?? "") ?? DEFAULT_BOARD;
   const boardNow = () => boardClient(boardUrl(), deps.boardFetch ?? fetch);
-
-  // Chief is the front door: there on first start.
-  if (!store.setting("seeded")) {
-    if (!store.bots().some((b) => b.role === "chief")) store.createBot("chief");
-    store.setSetting("seeded", "1");
-  }
 
   // A card as the page draws it: JSON fields parsed, and its link into the board.
   const view = (a: Action & Record<string, unknown>) => {
@@ -280,6 +275,32 @@ export function createApp(deps: { store: Store; env: Env; fetch?: Fetch; boardFe
 
   const busy = new Set<number>();
 
+  // ---- routines: a due one runs as an ordinary turn, its output pushed to every open page.
+  // Rescheduled from now before it runs, so a slow turn or a long downtime fires it once.
+  // An agent mid-turn is skipped this tick and picked up on the next.
+  async function tick(at = Date.now()) {
+    let cfg: ModelConfig;
+    try { cfg = cfgNow(); } catch { return; }
+    const turns: Promise<void>[] = [];
+    for (const r of store.dueRoutines(at)) {
+      if (busy.has(r.bot_id)) continue;
+      // A row with no valid days (only by editing the DB) can never be scheduled: pause it.
+      let next: number;
+      try { next = nextRun(parseDays(r.days), r.time, at); } catch { store.updateRoutine(r.id, { enabled: 0 }); continue; }
+      store.updateRoutine(r.id, { next_run: next, last_run: at });
+      const botId = r.bot_id;
+      busy.add(botId);
+      turns.push(runTurn({ store, cfg, board: boardNow(), fetch: deps.fetch }, botId, r.prompt,
+        (ev, data) => push(ev === "message" ? "msg" : ev, ev === "action" ? one((data as Action).id) : { ...(data as object), bot_id: botId }),
+        { routine: r.name })
+        .finally(() => { busy.delete(botId); push("status", { bot_id: botId, text: null }); })
+        // Bun exits on an unhandled rejection; a turn that throws (its agent deleted mid-turn) must not take the server down.
+        .catch(() => {}));
+    }
+    await Promise.all(turns);
+  }
+  if (deps.watch !== false) timers.push(setInterval(() => void tick().catch(() => {}), TICK_MS));
+
   async function handle(req: Request): Promise<Response> {
     // Host check stops DNS rebinding: a rebound name still arrives with that name in Host.
     const host = (req.headers.get("host") ?? "").replace(/:\d+$/, "");
@@ -305,7 +326,7 @@ export function createApp(deps: { store: Store; env: Env; fetch?: Fetch; boardFe
 
     // The model is deliberately absent here: it lives in Settings only.
     if (m === "GET" && a === "info" && !b)
-      return json({ user: store.setting("userName") ?? "You", roles: ROLES.map(({ id, name, division, color, blurb, never }) => ({ id, name, division, color, blurb, never })) });
+      return json({ user: store.setting("userName") ?? "You", roles: ROLES.map(({ id, name, division, color, blurb, never }) => ({ id, name, division, color, blurb, never, preset: DEFAULTS.includes(id) })) });
 
     if (m === "GET" && a === "board" && !b) {
       const board = boardNow();
@@ -367,6 +388,7 @@ export function createApp(deps: { store: Store; env: Env; fetch?: Fetch; boardFe
           if (p.description !== undefined) patch.description = text(p.description, 1000);
           if (p.notify !== undefined) patch.notify = p.notify ? 1 : 0;
           if (p.project !== undefined) patch.project = text(p.project, 500);
+          if (p.hidden !== undefined) patch.hidden = p.hidden ? 1 : 0;
           return json(store.updateBot(botId, patch));
         }
         if (m === "DELETE") { store.deleteBot(botId); return json({ ok: true }); }
@@ -393,6 +415,18 @@ export function createApp(deps: { store: Store; env: Env; fetch?: Fetch; boardFe
           });
           return new Response(stream, { headers: { "content-type": "text/event-stream", "cache-control": "no-store" } });
         }
+      }
+      if (c === "routines") {
+        const rv = (x: ReturnType<typeof store.routines>[number]) => ({ ...x, label: scheduleLabel(parseDays(x.days), x.time) });
+        if (m === "GET" && !d) return json(store.routines(botId).map(rv));
+        const r = store.routine(botId, id(d));
+        if (!r) return bad("no such routine", 404);
+        if (m === "PATCH") {
+          const on = (await body(req)).enabled ? 1 : 0;
+          // Resuming schedules from now, so a paused routine never fires the moment it is turned back on.
+          return json(rv(store.updateRoutine(r.id, { enabled: on, next_run: on && !r.enabled ? nextRun(parseDays(r.days), r.time, Date.now()) : r.next_run })!));
+        }
+        if (m === "DELETE") { store.deleteRoutine(botId, r.id); return json({ ok: true }); }
       }
       if (c === "memories") {
         if (m === "GET" && !d) return json(store.memories(botId));
@@ -481,7 +515,7 @@ export function createApp(deps: { store: Store; env: Env; fetch?: Fetch; boardFe
   }
 
   return {
-    handle, refresh, approve,
+    handle, refresh, approve, tick,
     stop() { stopper.abort(); for (const t of timers) clearInterval(t); },
   };
 }

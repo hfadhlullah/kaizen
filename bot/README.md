@@ -32,12 +32,27 @@ cp .env.example .env      # then set PROVIDER, MODEL and that provider's key
 bun start                 # Kaizen Bot, on http://127.0.0.1:7430
 ```
 
-Open http://127.0.0.1:7430. Chief is there from the start; pick its default project in
+Open http://127.0.0.1:7430. The sidebar starts empty: press **+** and add Chief, the front door,
+or any of the ready-made agents (Sales Outbound, Inbox Manager, Account Manager, Talent Scout,
+Expense Manager). Once Chief is added, pick its default project in
 its side panel (the panel icon, top right), then ask: *what's waiting on me?*
-Press **+** on the left for a new chat: pick an agent, or create one from a division.
+Press **+** on the left for a new chat: pick an agent, or create your own and describe its job.
 
 Type and press **Enter** to send (**Shift+Enter** for a new line), or press the mic and
 speak.
+
+## Routines
+
+Ask any agent to do something on a schedule: *every weekday at 7, brief me on the board*.
+It saves a routine and says so in the thread. At each time it runs the task by itself and
+posts the result in its thread, with a notification if the tab is in the background. The
+same rules hold as when you type: anything that starts a run or goes to someone outside
+still waits on a card for your click.
+
+The agent's side panel lists its routines with their schedule and next run; pause, resume or
+delete them there. Routines run on set weekdays at a set time, in this computer's local time,
+and only while `bun start` is running. One missed while the bot was stopped runs once, late,
+when it starts again.
 
 ## Settings
 

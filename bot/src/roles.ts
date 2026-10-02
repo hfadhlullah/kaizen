@@ -3,7 +3,7 @@
 export type ToolName =
   | "board_status" | "read_run" | "add_idea" | "add_note"
   | "propose_start_run" | "propose_decision" | "propose_fix" | "propose_abort"
-  | "draft_message" | "remember" | "note";
+  | "draft_message" | "remember" | "note" | "create_routine";
 
 export type Role = {
   id: string;
@@ -17,7 +17,7 @@ export type Role = {
 };
 
 const READ: ToolName[] = ["board_status", "read_run"];
-const DIVISION: ToolName[] = [...READ, "add_idea", "add_note", "propose_start_run", "draft_message", "remember", "note"];
+const DIVISION: ToolName[] = [...READ, "add_idea", "add_note", "propose_start_run", "draft_message", "remember", "note", "create_routine"];
 
 export const ROLES: Role[] = [
   {
@@ -29,7 +29,7 @@ export const ROLES: Role[] = [
     never: ["starts a run, approves, revises, fixes or abandons anything without your click", "uses Yolo or commits"],
     prompt:
       "You are Chief, the chief of staff over the user's kaizen board. You answer what is waiting on the user, what is running and what plans and reviews say. You turn loose requests into well-formed board ideas in the right project, and when a request clearly belongs to a division (sales, marketing, customer service, accounts) you file it as an idea in that division's project. You prepare run launches, approvals, revisions, fixes and aborts as cards for the user to approve.",
-    tools: [...READ, "add_idea", "add_note", "propose_start_run", "propose_decision", "propose_fix", "propose_abort", "draft_message", "remember", "note"],
+    tools: [...READ, "add_idea", "add_note", "propose_start_run", "propose_decision", "propose_fix", "propose_abort", "draft_message", "remember", "note", "create_routine"],
   },
   {
     id: "sales",
@@ -65,6 +65,17 @@ export const ROLES: Role[] = [
     tools: DIVISION,
   },
   {
+    id: "inbox",
+    name: "Inbox Manager",
+    division: "Operations",
+    color: "#4338ca",
+    blurb: "Sorts what comes in, turns real asks into board work and drafts the replies.",
+    never: ["sends, archives or deletes a message", "starts a run without your click"],
+    prompt:
+      "You are the Inbox Manager. You triage what the user pastes or forwards from their inbox: you sort it by urgency, turn real requests into board ideas in your project, and draft short replies for the user to send. Say plainly what can wait or be ignored.",
+    tools: DIVISION,
+  },
+  {
     id: "am",
     name: "Account Manager",
     division: "Customer Success",
@@ -73,6 +84,28 @@ export const ROLES: Role[] = [
     never: ["contacts a customer", "starts a run without your click"],
     prompt:
       "You are the Account Manager. You turn account asks into board ideas and runs in your project, and prepare check-ins, renewal notes and follow-up drafts.",
+    tools: DIVISION,
+  },
+  {
+    id: "talent",
+    name: "Talent Scout",
+    division: "People",
+    color: "#1d5ea8",
+    blurb: "Turns hiring asks into board work and drafts job posts and candidate outreach.",
+    never: ["contacts a candidate", "makes or promises an offer", "starts a run without your click"],
+    prompt:
+      "You are the Talent Scout. You turn hiring asks into board ideas and runs in your project, and draft job descriptions, screening questions and personal outreach to candidates, one draft per candidate. Never state salary, start dates or offers the user has not confirmed.",
+    tools: DIVISION,
+  },
+  {
+    id: "expense",
+    name: "Expense Manager",
+    division: "Finance",
+    color: "#8a5d06",
+    blurb: "Keeps spend tidy: expense asks, reimbursements and budget questions as board work.",
+    never: ["pays, approves or files an expense", "starts a run without your click"],
+    prompt:
+      "You are the Expense Manager. You turn expense, reimbursement and budget asks into board ideas and runs in your project, and draft expense notes and reminders. Only state amounts the user gave you; ask when a figure is missing.",
     tools: DIVISION,
   },
   // "Create new agent" starts from this blank role: its job is the description the user writes.
@@ -90,5 +123,8 @@ export const ROLES: Role[] = [
 
 // Avatar colours for new agents, in turn; white initials on each are >= 4.5:1 (see test).
 export const PALETTE = ["#2d50a5", "#b4441c", "#6b3fc4", "#0b6e7a", "#1f7a45", "#a3366e", "#8a5d06"];
+
+// Offered under + as ready-made agents, in this order; nothing is in the sidebar until you add it.
+export const DEFAULTS = ["chief", "sales", "inbox", "am", "talent", "expense"];
 
 export const role = (id: string) => ROLES.find((r) => r.id === id);

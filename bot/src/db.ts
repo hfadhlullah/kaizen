@@ -5,7 +5,7 @@ import { role, PALETTE } from "./roles";
 
 export type Bot = {
   id: number; name: string; role: string; color: string; created: number;
-  title: string; description: string; notify: number; project: string;
+  title: string; description: string; notify: number; project: string; hidden: number;
 };
 export type Message = { id: number; bot_id: number; kind: "user" | "bot" | "receipt"; text: string; at: number };
 export type DraftStatus = "pending" | "approved" | "rejected";
@@ -14,6 +14,10 @@ export type Draft = {
   status: DraftStatus; at: number;
 };
 export type Memory = { id: number; bot_id: number; text: string; at: number };
+export type Routine = {
+  id: number; bot_id: number; name: string; prompt: string; days: string; time: string;
+  enabled: number; next_run: number; last_run: number | null; created: number;
+};
 
 // An action is one card in a thread: something a bot did or asks to do.
 // Direct kinds start "working" and end done/failed; gated kinds start "needed" and
@@ -39,7 +43,30 @@ CREATE TABLE IF NOT EXISTS drafts(id INTEGER PRIMARY KEY, bot_id INTEGER NOT NUL
   status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','approved','rejected')), at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS memories(id INTEGER PRIMARY KEY, bot_id INTEGER NOT NULL REFERENCES bots(id) ON DELETE CASCADE,
   text TEXT NOT NULL, at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS routines(id INTEGER PRIMARY KEY, bot_id INTEGER NOT NULL REFERENCES bots(id) ON DELETE CASCADE,
+  name TEXT NOT NULL, prompt TEXT NOT NULL, days TEXT NOT NULL, time TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 1,
+  next_run INTEGER NOT NULL, last_run INTEGER, created INTEGER NOT NULL);
 `;
+
+// Routines run on a set of weekdays (0 = Sunday) at HH:MM, in the server's local time.
+const DAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const DAYS = ["Sundays", "Mondays", "Tuesdays", "Wednesdays", "Thursdays", "Fridays", "Saturdays"];
+export const parseDays = (days: string) => days.split(",").filter(Boolean).map(Number).filter((d) => d >= 0 && d <= 6);
+export function nextRun(days: number[], time: string, from: number) {
+  const [h, m] = time.split(":").map(Number);
+  const d = new Date(from);
+  for (let i = 0; i <= 7; i++) {
+    const t = new Date(d.getFullYear(), d.getMonth(), d.getDate() + i, h, m).getTime();
+    if (t > from && days.includes(new Date(t).getDay())) return t;
+  }
+  throw new Error("routine has no days");
+}
+export function scheduleLabel(days: number[], time: string) {
+  const s = [...new Set(days)].sort().join("");
+  const when = s === "0123456" ? "Daily" : s === "12345" ? "Weekdays" : s === "06" ? "Weekends"
+    : s.length === 1 ? DAYS[days[0]!] : [1, 2, 3, 4, 5, 6, 0].filter((d) => days.includes(d)).map((d) => DAY[d]).join(", ");
+  return `${when} at ${time}`;
+}
 
 // v2: bot profile columns, settings, and action cards. Additive only.
 const V2 = `
@@ -59,6 +86,9 @@ INSERT INTO actions(bot_id,kind,gated,summary,status,draft_id,at,updated)
     CASE status WHEN 'approved' THEN 'done' WHEN 'rejected' THEN 'declined' ELSE 'needed' END, id, at, at FROM drafts;
 `;
 
+// v3: a dismissed chat leaves the sidebar but keeps its history; + brings it back.
+const V3 = "ALTER TABLE bots ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0;";
+
 export function openStore(path = "data/bot.db") {
   const file = path !== ":memory:";
   if (file) mkdirSync(dirname(path), { recursive: true });
@@ -70,6 +100,7 @@ export function openStore(path = "data/bot.db") {
     if (existed) { db.exec("PRAGMA wal_checkpoint"); copyFileSync(path, `${path}.bak`); }
     db.transaction(() => { db.exec(V2); db.exec("PRAGMA user_version = 2"); })();
   }
+  if (version < 3) db.transaction(() => { db.exec(V3); db.exec("PRAGMA user_version = 3"); })();
 
   // One clock for messages and actions: strictly increasing, so a thread built from
   // both tables sorts in the order things happened, even within a millisecond.
@@ -96,12 +127,12 @@ export function openStore(path = "data/bot.db") {
       return db.query("INSERT INTO bots(name,role,color,created,description) VALUES(?,?,?,?,?) RETURNING *")
         .get(name?.trim() || r.name, r.id, color, now(), r.blurb) as Bot;
     },
-    updateBot(id: number, p: Partial<Pick<Bot, "name" | "title" | "description" | "notify" | "project">>) {
+    updateBot(id: number, p: Partial<Pick<Bot, "name" | "title" | "description" | "notify" | "project" | "hidden">>) {
       const cur = store.bot(id);
       if (!cur) return null;
       const n = { ...cur, ...p };
-      return db.query("UPDATE bots SET name=?, title=?, description=?, notify=?, project=? WHERE id=? RETURNING *")
-        .get(n.name, n.title, n.description, n.notify, n.project, id) as Bot;
+      return db.query("UPDATE bots SET name=?, title=?, description=?, notify=?, project=?, hidden=? WHERE id=? RETURNING *")
+        .get(n.name, n.title, n.description, n.notify, n.project, n.hidden, id) as Bot;
     },
     deleteBot: (id: number) => db.query("DELETE FROM bots WHERE id=?").run(id).changes > 0,
 
@@ -165,6 +196,20 @@ export function openStore(path = "data/bot.db") {
     claimAction: (id: number, from: ActionStatus, to: ActionStatus) =>
       db.query("UPDATE actions SET status=?, updated=? WHERE id=? AND status=?").run(to, now(), id, from).changes > 0,
     claimedRuns: () => (db.query("SELECT run_id FROM actions WHERE kind='start_run' AND run_id IS NOT NULL").all() as { run_id: string }[]).map((r) => r.run_id),
+
+    routines: (botId: number) => db.query("SELECT * FROM routines WHERE bot_id=? ORDER BY id").all(botId) as Routine[],
+    routine: (botId: number, id: number) => db.query("SELECT * FROM routines WHERE id=? AND bot_id=?").get(id, botId) as Routine | null,
+    addRoutine: (botId: number, r: { name: string; prompt: string; days: number[]; time: string }) =>
+      db.query("INSERT INTO routines(bot_id,name,prompt,days,time,next_run,created) VALUES(?,?,?,?,?,?,?) RETURNING *")
+        .get(botId, r.name, r.prompt, r.days.join(","), r.time, nextRun(r.days, r.time, Date.now()), now()) as Routine,
+    updateRoutine(id: number, p: Partial<Pick<Routine, "enabled" | "next_run" | "last_run">>) {
+      const cur = db.query("SELECT * FROM routines WHERE id=?").get(id) as Routine | null;
+      if (!cur) return null;
+      const n = { ...cur, ...p };
+      return db.query("UPDATE routines SET enabled=?, next_run=?, last_run=? WHERE id=? RETURNING *").get(n.enabled, n.next_run, n.last_run, id) as Routine;
+    },
+    deleteRoutine: (botId: number, id: number) => db.query("DELETE FROM routines WHERE id=? AND bot_id=?").run(id, botId).changes > 0,
+    dueRoutines: (at: number) => db.query("SELECT * FROM routines WHERE enabled=1 AND next_run<=? ORDER BY next_run").all(at) as Routine[],
 
     setting: (key: string) => (db.query("SELECT value FROM settings WHERE key=?").get(key) as { value: string } | null)?.value,
     setSetting: (key: string, value: string) => { db.query("INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(key, value); },
