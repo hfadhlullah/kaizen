@@ -121,7 +121,8 @@ aside.side{width:340px;flex:none;border-left:1px solid var(--line);background:va
 .toggle{display:flex;gap:12px;align-items:flex-start;border:1px solid var(--line);border-radius:var(--r);padding:12px;margin-top:14px}
 .toggle div{flex:1}.toggle small{display:block;color:var(--dim)}
 .toggle input{width:38px;height:22px;accent-color:var(--accent)}
-.mem{display:flex;gap:6px;align-items:flex-start;margin-top:6px}.mem textarea{flex:1;min-height:38px}
+.memline{align-self:center;font-size:13px;color:var(--dim);display:flex;align-items:center;gap:6px}
+.memline .who{display:inline-flex;align-items:center;gap:5px;padding:1px 8px 1px 3px;border-radius:var(--r-pill);color:var(--accent-ink);background:color-mix(in srgb,var(--accent) 14%,var(--bg-2))}.memline .av{width:16px;height:16px;font-size:9px}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:var(--r-s);z-index:9;max-width:90vw}
 
 @media(max-width:860px){aside.side{position:fixed;inset:0 0 0 auto;width:min(380px,100%);z-index:5;box-shadow:var(--shadow-2)}}
@@ -200,13 +201,14 @@ const avatar = (b, cls = "") => el("div", { class: `av ${cls}`, style: { backgro
 const initials = (s) => s.trim().split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase() || "?";
 
 let info = { roles: [], user: "You" }, bots = [], current = null, items = [], board = { ok: null, projects: [] }, panel = null;
-const working = new Set(), doingText = new Map();
+const working = new Set(), doingText = new Map(), routineBusy = new Set();
+const shown = () => bots.filter((b) => !b.hidden); // a dismissed chat is still yours, under +
 const roleOf = (b) => info.roles.find((r) => r.id === b.role) || { never: [], name: b.role };
 
 // ---- sidebar: one row per agent; a dot when a card waits on you ----
 function renderList() {
   const q = $("q").value.trim().toLowerCase();
-  const list = bots.filter((b) => !q || b.name.toLowerCase().includes(q));
+  const list = shown().filter((b) => !q || b.name.toLowerCase().includes(q));
   $("rows").replaceChildren(...list.map((b) => {
     const a = avatar(b);
     if (b.needed) a.append(el("span", { class: "dot", title: `${b.needed} waiting on you` }));
@@ -233,12 +235,18 @@ function openTo() {
   $("thread").replaceChildren();
   $("toq").value = ""; renderTo(); $("toq").focus();
 }
-// "Create new agent" first, then your agents.
+// "Create new agent" first, then the ready-made agents you have not added, then your agents.
 function renderTo() {
   const q = $("toq").value.trim().toLowerCase();
+  const hit = (n) => !q || n.toLowerCase().includes(q);
+  const presets = info.roles.filter((r) => r.preset && hit(r.name) && !bots.some((b) => b.role === r.id));
+  const mine = bots.filter((b) => hit(b.name));
   $("tomenu").replaceChildren(
-    el("button", { type: "button", onclick: createBot }, icon(el("span", { class: "plus-c" }), "plus"), el("span", {}, "Create new agent")),
-    ...bots.filter((b) => !q || b.name.toLowerCase().includes(q)).map((b) => el("button", { type: "button", onclick: () => select(b.id) }, avatar(b, "sm"), el("span", {}, b.name))));
+    el("button", { type: "button", onclick: () => createBot() }, icon(el("span", { class: "plus-c" }), "plus"), el("span", {}, "Create new agent")),
+    ...(presets.length ? [el("div", { class: "grp" }, "Add an agent")] : []),
+    ...presets.map((r) => el("button", { type: "button", onclick: () => createBot(r.id) }, avatar(r, "sm"), el("span", {}, r.name, el("small", {}, r.blurb)))),
+    ...(presets.length && mine.length ? [el("div", { class: "grp" }, "Your agents")] : []),
+    ...mine.map((b) => el("button", { type: "button", onclick: () => select(b.id) }, avatar(b, "sm"), el("span", {}, b.name))));
   toHi = 0; hiTo();
 }
 const toButtons = () => [...$("tomenu").querySelectorAll("button")];
@@ -249,13 +257,16 @@ $("toq").addEventListener("keydown", (e) => {
   if (e.key === "ArrowDown") { e.preventDefault(); toHi = Math.min(bs.length - 1, toHi + 1); hiTo(); bs[toHi]?.scrollIntoView({ block: "nearest" }); }
   else if (e.key === "ArrowUp") { e.preventDefault(); toHi = Math.max(0, toHi - 1); hiTo(); bs[toHi]?.scrollIntoView({ block: "nearest" }); }
   else if (e.key === "Enter") { e.preventDefault(); bs[toHi]?.click(); }
-  else if (e.key === "Escape" && bots[0]) select(bots[0].id);
+  else if (e.key === "Escape" && shown()[0]) select(shown()[0].id);
 });
-// A blank agent: you give it a name and describe its job in its settings.
-async function createBot() {
+// A ready-made agent opens straight into its chat; a blank one opens its settings so you
+// give it a name and describe its job.
+async function createBot(role = "custom") {
   try {
-    const b = await api("/bots", { method: "POST", body: { role: "custom" } });
-    await loadBots(); await select(b.id); await renderAgent(); openSide("agent");
+    const b = await api("/bots", { method: "POST", body: { role } });
+    await loadBots(); await select(b.id);
+    if (role !== "custom") return;
+    await renderAgent(); openSide("agent");
     document.querySelector('#sideBody input[aria-label="Name"]')?.select();
   } catch (e) { toast(e.message); }
 }
@@ -264,6 +275,8 @@ async function createBot() {
 async function select(id) {
   current = bots.find((b) => b.id === id);
   if (!current) return;
+  history.replaceState(null, "", "#" + id); // a refresh reopens this chat
+  if (current.hidden) { current = await api(`/bots/${id}`, { method: "PATCH", body: { hidden: false } }); await loadBots(); }
   $("to").hidden = true; $("top").hidden = false; document.body.classList.add("open"); renderList();
   $("tav").replaceChildren(avatar(current, "sm"));
   $("tname").textContent = current.name; $("ttitle").textContent = current.title || "";
@@ -314,6 +327,8 @@ async function act(a, body, btn) {
   finally { if (btn) btn.disabled = false; loadBots(); }
 }
 function card(a) {
+  // A memory save is a quiet line, not a card: the fact itself stays out of the thread.
+  if (a.kind === "memory") return el("div", { class: "memline", id: `act-${a.id}` }, "Updated memory for ", el("span", { class: "who" }, avatar(current, "sm"), current.name));
   const s = a.snapshot || {};
   const live = a.kind === "start_run" && s.launched;
   const c = el("div", { class: "act", id: `act-${a.id}` },
@@ -426,6 +441,7 @@ async function send() {
         const here = current?.id === botId;
         if (ev === "status") { doingText.set(botId, data.text); if (here) showDoing(data.text); }
         else if (ev === "message" && here) { items.push({ type: "m", at: data.at, m: data }); addMsg(data); $("thread").scrollTop = $("thread").scrollHeight; }
+        if (ev === "message" && here && panel === "agent" && data.kind === "receipt" && data.text.startsWith("Routine → created")) renderRoutines();
         else if (ev === "action") { upsert(data); $("thread").scrollTop = $("thread").scrollHeight; if (data.status === "needed") notify(bot, "needs you", data.summary); }
       }
     }
@@ -450,6 +466,22 @@ function listen() {
   const es = new EventSource("/events");
   es.addEventListener("action", (e) => { const a = JSON.parse(e.data); upsert(a); loadBots(); if (a.status === "needed" && a.snapshot?.launched) notify(bots.find((b) => b.id === a.bot_id), "has a run waiting on you", a.summary); });
   es.addEventListener("board", (e) => { const ok = JSON.parse(e.data).ok; if (ok !== board.ok) loadBoard(); });
+  // A routine's turn: no send() stream is open for it, so its messages and status come here.
+  es.addEventListener("msg", (e) => {
+    const m = JSON.parse(e.data), bot = bots.find((b) => b.id === m.bot_id);
+    if (current?.id === m.bot_id) { items.push({ type: "m", at: m.at, m }); addMsg(m); $("thread").scrollTop = $("thread").scrollHeight; }
+    if (m.kind === "bot") notify(bot, "posted", m.text);
+    loadBots();
+  });
+  const routineDone = (id) => { routineBusy.delete(id); working.delete(id); doingText.delete(id); if (current?.id === id) { showDoing(null); if (panel === "agent") renderRoutines(); } };
+  es.addEventListener("status", (e) => {
+    const s = JSON.parse(e.data);
+    if (s.text) { routineBusy.add(s.bot_id); working.add(s.bot_id); doingText.set(s.bot_id, s.text); if (current?.id === s.bot_id) showDoing(s.text); }
+    else routineDone(s.bot_id);
+    renderList();
+  });
+  // A dropped stream may have lost a routine's final status; don't leave its agent stuck as working.
+  es.addEventListener("open", () => { if (routineBusy.size) { [...routineBusy].forEach(routineDone); renderList(); } });
   es.addEventListener("waiting", (e) => { const w = JSON.parse(e.data); notify(bots.find((b) => b.id === w.botId), "has a run waiting on you", `${w.run} in ${w.project}`); });
 }
 
@@ -489,7 +521,6 @@ async function renderAgent() {
     if (notifyBox.checked && "Notification" in window && Notification.permission === "default") await Notification.requestPermission();
     patchBot({ notify: notifyBox.checked });
   } });
-  const mems = el("div");
   $("sideBody").replaceChildren(
     el("div", { style: { display: "grid", placeItems: "center", marginTop: "6px" } }, avatar(b, "lg")),
     el("label", { class: "k" }, "Name"), name,
@@ -498,21 +529,32 @@ async function renderAgent() {
     el("label", { class: "k" }, "Default project"), proj,
     el("div", { class: "toggle" }, el("div", {}, "Notifications", el("small", {}, "When this agent finishes, needs your click, or a run it started waits on you, while this tab is in the background.")), notifyBox),
     el("label", { class: "k" }, "Never does without your yes"), el("ul", { class: "never" }, r.never.map((n) => el("li", {}, n))),
-    el("label", { class: "k" }, "Memory"), mems,
-    el("div", { class: "row", style: { marginTop: "20px" } }, el("button", { class: "btn danger", onclick: async () => {
-      if (!confirm(`Delete ${b.name}, its messages, cards and memory?`)) return;
-      await api(`/bots/${b.id}`, { method: "DELETE" }); closeSide(); current = null; await loadBots(); bots[0] ? select(bots[0].id) : openTo();
-    } }, "Delete agent")));
-  const list = await api(`/bots/${b.id}/memories`);
-  const add = el("textarea", { class: "f", placeholder: "Add something it should remember", "aria-label": "New memory" });
-  mems.replaceChildren(
-    ...(list.length ? list.map((m) => {
-      const ta = el("textarea", { class: "f", "aria-label": "Memory" }); ta.value = m.text;
-      return el("div", { class: "mem" }, ta,
-        el("button", { class: "btn", onclick: async () => { await api(`/bots/${b.id}/memories/${m.id}`, { method: "PUT", body: { text: ta.value } }); toast("Saved"); } }, "Save"),
-        el("button", { class: "btn danger", "aria-label": "Delete memory", onclick: async () => { await api(`/bots/${b.id}/memories/${m.id}`, { method: "DELETE" }); renderAgent(); } }, "✕"));
-    }) : [el("p", { class: "dim" }, "Nothing yet. It learns as you work together.")]),
-    el("div", { class: "mem" }, add, el("button", { class: "btn", onclick: async () => { if (!add.value.trim()) return; await api(`/bots/${b.id}/memories`, { method: "POST", body: { text: add.value } }); renderAgent(); } }, "Add")));
+    el("label", { class: "k" }, "Routines"), el("div", { id: "routines" }),
+    el("div", { class: "row", style: { marginTop: "20px" } },
+      el("button", { class: "btn", title: "Remove from the sidebar; its chat stays, and + brings it back", onclick: async () => {
+        await api(`/bots/${b.id}`, { method: "PATCH", body: { hidden: true } }); closeSide(); current = null; await loadBots(); shown()[0] ? select(shown()[0].id) : openTo();
+      } }, "Dismiss chat"),
+      el("button", { class: "btn danger", onclick: async () => {
+        if (!confirm(`Delete ${b.name}, its messages, cards and memory?`)) return;
+        await api(`/bots/${b.id}`, { method: "DELETE" }); closeSide(); current = null; await loadBots(); shown()[0] ? select(shown()[0].id) : openTo();
+      } }, "Delete agent")));
+  renderRoutines();
+}
+// Only the Routines block, so a refresh never discards text being typed elsewhere in the panel.
+async function renderRoutines() {
+  const b = current, box = $("routines");
+  if (!b || !box) return;
+  const rs = await api(`/bots/${b.id}/routines`);
+  const when = (t) => new Date(t).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" });
+  box.replaceChildren(...(rs.length ? rs.map((x) => el("div", { class: "toggle", style: { marginTop: "6px" } },
+    el("div", {}, el("b", {}, x.name), el("small", {}, x.label), el("small", {}, x.enabled ? `Next: ${when(x.next_run)}` : "Paused")),
+    el("input", { type: "checkbox", checked: !!x.enabled, "aria-label": `Run ${x.name}`, title: x.enabled ? "Pause" : "Resume",
+      onchange: async (e) => { try { await api(`/bots/${b.id}/routines/${x.id}`, { method: "PATCH", body: { enabled: e.target.checked } }); } catch (err) { toast(err.message); } renderRoutines(); } }),
+    el("button", { class: "btn danger", "aria-label": `Delete ${x.name}`, onclick: async () => {
+      if (!confirm(`Delete the routine "${x.name}"?`)) return;
+      await api(`/bots/${b.id}/routines/${x.id}`, { method: "DELETE" }); renderRoutines();
+    } }, "✕")))
+    : [el("p", { class: "dim" }, "None yet. Ask in chat, like: every weekday at 7, brief me on the board.")]));
 }
 async function renderSettings() {
   $("sideTitle").textContent = "Settings";
@@ -679,7 +721,8 @@ setupMic();
   info = await api("/info");
   await Promise.all([loadBots(), loadBoard()]);
   listen();
-  if (bots[0]) select(bots[0].id); else openTo();
+  const last = shown().find((b) => String(b.id) === location.hash.slice(1)) || shown()[0];
+  if (last) select(last.id); else openTo();
 })();
 </script>
 </body>
