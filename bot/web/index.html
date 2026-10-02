@@ -35,7 +35,7 @@ textarea.f{resize:vertical;min-height:70px}
 label.k{display:block;font-size:12px;color:var(--dim);margin:12px 0 4px}
 
 /* sidebar: + and search on top, one row per agent, you at the bottom — nothing else */
-aside.list{width:290px;flex:none;border-right:1px solid var(--line);background:var(--bg-2);display:flex;flex-direction:column}
+aside.list{width:var(--list-w,290px);flex:none;position:relative;border-right:1px solid var(--line);background:var(--bg-2);display:flex;flex-direction:column}
 .list-hd{display:flex;justify-content:flex-end;padding:10px 12px 4px}
 .search{margin:0 12px 8px;display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:var(--r-s);padding:7px 10px;background:var(--bg);color:var(--dim)}
 .search input{flex:1;outline:none;color:var(--ink);min-width:0}
@@ -47,6 +47,11 @@ aside.list{width:290px;flex:none;border-right:1px solid var(--line);background:v
 .ag .dot{position:absolute;top:-1px;right:-1px;width:11px;height:11px;border-radius:50%;background:var(--warn);border:2px solid var(--bg-2)}
 .you{display:flex;align-items:center;gap:10px;margin:8px;padding:8px;border-radius:var(--r);text-align:left}
 .you:hover{background:var(--hover)}
+/* drag the right edge to resize; below the snap point the list folds to an avatar rail */
+.grip{position:absolute;top:0;bottom:0;right:-3px;width:6px;cursor:col-resize;z-index:2;touch-action:none}
+.grip:hover,.grip:focus-visible,body.dragging .grip{background:var(--accent);outline:none}
+body.dragging{user-select:none;cursor:col-resize}
+@media(min-width:721px){body.rail .search,body.rail .ag .meta,body.rail #youName{display:none}body.rail .list-hd,body.rail .ag,body.rail .you{justify-content:center}}
 .me{width:32px;height:32px;border-radius:50%;background:var(--hover);color:var(--ink);font-size:12px;font-weight:600;display:grid;place-items:center;flex:none}
 
 /* main column */
@@ -120,7 +125,7 @@ aside.side{width:340px;flex:none;border-left:1px solid var(--line);background:va
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:var(--r-s);z-index:9;max-width:90vw}
 
 @media(max-width:860px){aside.side{position:fixed;inset:0 0 0 auto;width:min(380px,100%);z-index:5;box-shadow:var(--shadow-2)}}
-@media(max-width:720px){aside.list{width:100%}body.open aside.list{display:none}body:not(.open) main{display:none}.back{display:grid!important}}
+@media(max-width:720px){aside.list{width:100%}.grip{display:none}body.open aside.list{display:none}body:not(.open) main{display:none}.back{display:grid!important}}
 </style>
 </head>
 <body>
@@ -129,6 +134,7 @@ aside.side{width:340px;flex:none;border-left:1px solid var(--line);background:va
   <label class="search"><span id="searchIcon"></span><input id="q" placeholder="Search" aria-label="Search agents"></label>
   <nav id="rows"></nav>
   <button class="you" id="you" title="Settings" aria-label="Settings"><span class="me" id="me"></span><span id="youName"></span></button>
+  <div class="grip" id="grip" role="separator" aria-orientation="vertical" aria-label="Resize agent list" aria-valuemin="72" aria-valuemax="480" tabindex="0" title="Drag to resize, double-click to collapse"></div>
 </aside>
 <main>
   <div class="top" id="top">
@@ -204,7 +210,7 @@ function renderList() {
   $("rows").replaceChildren(...list.map((b) => {
     const a = avatar(b);
     if (b.needed) a.append(el("span", { class: "dot", title: `${b.needed} waiting on you` }));
-    return el("button", { class: "ag" + (b.id === current?.id ? " on" : ""), onclick: () => select(b.id) }, a,
+    return el("button", { class: "ag" + (b.id === current?.id ? " on" : ""), title: b.name, onclick: () => select(b.id) }, a,
       el("span", { class: "meta" }, el("b", {}, b.name), el("span", { class: "last" }, working.has(b.id) ? "Typing…" : (b.last && splitFiles(b.last).text) || (b.last ? "📎 Attachment" : "No messages yet"))));
   }));
   $("me").textContent = initials(info.user); $("youName").textContent = info.user;
@@ -551,6 +557,36 @@ async function loadBoard() { try { board = await api("/board"); setBoard(board.o
 // theme: system by default, chosen in Settings
 const setTheme = (t) => { t ? document.documentElement.dataset.theme = t : delete document.documentElement.dataset.theme; try { localStorage.theme = t; } catch {} };
 try { setTheme(localStorage.theme || ""); } catch {}
+
+// ---- sidebar width: drag the grip; under SNAP it folds to the avatar rail ----
+const RAIL = 72, MIN = 220, MAX = 480, SNAP = 150;
+let listW = 290, wideW = 290;
+function setListW(w, save = true) {
+  const rail = w < SNAP;
+  listW = rail ? RAIL : Math.min(MAX, Math.max(MIN, Math.round(w)));
+  if (!rail) wideW = listW;
+  document.body.style.setProperty("--list-w", listW + "px");
+  document.body.classList.toggle("rail", rail);
+  $("grip").setAttribute("aria-valuenow", listW);
+  if (save) try { localStorage.listW = listW; } catch {}
+}
+const toggleRail = () => setListW(listW === RAIL ? wideW : 0);
+{
+  const g = $("grip");
+  g.addEventListener("pointerdown", (e) => { if (e.button) return; e.preventDefault(); g.setPointerCapture(e.pointerId); document.body.classList.add("dragging"); });
+  g.addEventListener("pointermove", (e) => { if (g.hasPointerCapture(e.pointerId)) setListW(e.clientX - g.parentElement.getBoundingClientRect().left, false); });
+  g.addEventListener("lostpointercapture", () => { document.body.classList.remove("dragging"); setListW(listW); });
+  g.addEventListener("dblclick", toggleRail);
+  g.addEventListener("keydown", (e) => {
+    const step = { ArrowLeft: -20, ArrowRight: 20 }[e.key];
+    if (step) setListW(listW === RAIL ? (step > 0 ? MIN : 0) : listW === MIN && step < 0 ? 0 : listW + step);
+    else if (e.key === "Enter") toggleRail();
+    else return;
+    e.preventDefault();
+  });
+  let saved = 0; try { saved = +localStorage.listW || 0; } catch {}
+  setListW(saved || 290, false);
+}
 
 // ---- dictation: Whisper in the page, adapted from the kaizen board (web/board.html:362-433).
 // Audio never leaves the browser. Library and model download only on the first press, from
