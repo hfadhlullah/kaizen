@@ -2,6 +2,8 @@
 ; Per-user install, no admin. Opened again over an installed copy, it asks whether to
 ; reinstall/upgrade or uninstall. ~/.kaizen-bot (chats and settings) is never removed
 ; unless the uninstaller's checkbox asks for it.
+; A first install also asks for the model provider and key and writes ~/.kaizen-bot/.env,
+; so the app opens ready to chat.
 ; Defines from package.ts: VERSION, EXE (the compiled app), ICO, OUT.
 Unicode true
 !include MUI2.nsh
@@ -31,12 +33,19 @@ Var WantShortcut
 Var ShortcutBox
 Var DeleteData
 Var DeleteDataBox
+Var Provider
+Var ProviderBox
+Var ApiKey
+Var ApiKeyBox
+Var Model
+Var ModelBox
 
 !insertmacro MUI_PAGE_WELCOME
 Page custom MaintenancePage MaintenanceLeave
 !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipIfMaintaining
 !insertmacro MUI_PAGE_DIRECTORY
 Page custom OptionsPage OptionsLeave
+Page custom ProviderPage ProviderLeave
 !insertmacro MUI_PAGE_INSTFILES
 !insertmacro MUI_PAGE_FINISH
 
@@ -98,6 +107,50 @@ Function OptionsLeave
   ${NSD_GetState} $ShortcutBox $WantShortcut
 FunctionEnd
 
+; Skipped once .env exists (an upgrade, or a reinstall): the user's settings stand.
+Function ProviderPage
+  ${If} ${FileExists} "$PROFILE\.kaizen-bot\.env"
+    Abort
+  ${EndIf}
+  !insertmacro MUI_HEADER_TEXT "Model provider" "Kaizen Bot needs a model provider and its API key."
+  nsDialogs::Create 1018
+  Pop $0
+  ${NSD_CreateLabel} 0 0 30% 12u "&Provider"
+  Pop $0
+  ${NSD_CreateDropList} 30% 0 70% 60u ""
+  Pop $ProviderBox
+  ${NSD_CB_AddString} $ProviderBox "anthropic"
+  ${NSD_CB_AddString} $ProviderBox "openai"
+  ${NSD_CB_AddString} $ProviderBox "requesty"
+  ${NSD_CB_SelectString} $ProviderBox "anthropic"
+  ${NSD_CreateLabel} 0 20u 30% 12u "API &key"
+  Pop $0
+  ${NSD_CreatePassword} 30% 20u 70% 12u ""
+  Pop $ApiKeyBox
+  ${NSD_CreateLabel} 0 40u 30% 12u "&Model"
+  Pop $0
+  ${NSD_CreateText} 30% 40u 70% 12u ""
+  Pop $ModelBox
+  ${NSD_CreateLabel} 0 60u 100% 40u "Model is optional for anthropic (claude-sonnet-5-5). openai needs one, e.g. gpt-4.1; requesty one like anthropic/claude-sonnet-5-5. The key is saved in $PROFILE\.kaizen-bot\.env; you can change provider and model later in Settings."
+  Pop $0
+  nsDialogs::Show
+FunctionEnd
+
+Function ProviderLeave
+  ${NSD_GetText} $ProviderBox $Provider
+  ${NSD_GetText} $ApiKeyBox $ApiKey
+  ${NSD_GetText} $ModelBox $Model
+  ${If} $ApiKey == ""
+    MessageBox MB_ICONEXCLAMATION "Enter the API key for $Provider."
+    Abort
+  ${EndIf}
+  ${If} $Model == ""
+  ${AndIf} $Provider != "anthropic"
+    MessageBox MB_ICONEXCLAMATION "$Provider needs a model id."
+    Abort
+  ${EndIf}
+FunctionEnd
+
 Section "Install"
   ; A running copy holds its exe open.
   nsExec::Exec 'taskkill /f /im "${NAME}.exe"'
@@ -109,6 +162,20 @@ Section "Install"
   CreateShortcut "$SMPROGRAMS\${NAME}.lnk" "$INSTDIR\${NAME}.exe" "" "$INSTDIR\kaizen.ico"
   ${If} $WantShortcut == ${BST_CHECKED}
     CreateShortcut "$DESKTOP\${NAME}.lnk" "$INSTDIR\${NAME}.exe" "" "$INSTDIR\kaizen.ico"
+  ${EndIf}
+  ${If} $Provider != ""
+    StrCpy $0 "ANTHROPIC_API_KEY"
+    ${If} $Provider == "openai"
+      StrCpy $0 "OPENAI_API_KEY"
+    ${ElseIf} $Provider == "requesty"
+      StrCpy $0 "REQUESTY_API_KEY"
+    ${EndIf}
+    CreateDirectory "$PROFILE\.kaizen-bot"
+    FileOpen $1 "$PROFILE\.kaizen-bot\.env" w
+    FileWrite $1 "# Written by the Kaizen Bot setup. Same keys as bot/.env.example.$\r$\n"
+    FileWrite $1 "PROVIDER=$Provider$\r$\nMODEL=$Model$\r$\n$0=$ApiKey$\r$\n"
+    FileWrite $1 "PORT=7430$\r$\nBOARD_URL=http://127.0.0.1:7420$\r$\n"
+    FileClose $1
   ${EndIf}
   WriteRegStr HKCU "${KEY}" "DisplayName" "${NAME}"
   WriteRegStr HKCU "${KEY}" "DisplayVersion" "${VERSION}"

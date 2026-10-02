@@ -200,7 +200,7 @@ Kaizen Bot also comes as a desktop app, with no Bun or repo needed. Download you
 | OS | File | Install |
 |---|---|---|
 | macOS | `Kaizen-Bot-macos-arm64.dmg` (Apple Silicon), `Kaizen-Bot-macos-x64.dmg` (Intel) | Open it, drag Kaizen Bot to Applications |
-| Windows | `Kaizen-Bot-Setup-windows-x64.exe` | Run the setup wizard |
+| Windows | `Kaizen-Bot-Setup-windows-x64.exe` | Run the setup; it asks for your provider and API key |
 | Linux | `kaizen-bot-linux-x64`, `kaizen-bot-linux-arm64` | `chmod +x`, then run it |
 
 The first time, it creates `~/.kaizen-bot/.env` for your provider and key. After that it

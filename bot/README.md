@@ -61,8 +61,10 @@ without it, in a throwaway Debian container through Docker.
   Launchpad or Spotlight. It has no Dock icon; the chat opens in its own window.
 - **Windows:** run the setup and follow the wizard. It installs for your user (no admin
   needed) to `%LOCALAPPDATA%\Programs\Kaizen Bot` by default, adds a Start menu entry, an
-  optional desktop shortcut and an entry in Settings → Apps → Installed apps. Running the setup
-  again over an installed copy asks whether to reinstall/upgrade or uninstall.
+  optional desktop shortcut and an entry in Settings → Apps → Installed apps. On a first install
+  it also asks for the provider, API key and model and writes `~/.kaizen-bot/.env`, so the app
+  opens ready to chat. Running the setup again over an installed copy asks whether to
+  reinstall/upgrade or uninstall, and keeps your `.env`.
 - **Linux:** `chmod +x kaizen-bot-linux-x64`, then run it from a terminal the first time: a
   file manager usually starts it with no terminal, so the first-run message can't be seen.
 
