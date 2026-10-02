@@ -1,6 +1,7 @@
 name: Bug report
 description: Something in kaizen broke or behaved wrong
 labels: [bug]
+projects: ["hfadhlullah/1"]
 body:
   - type: textarea
     id: what
