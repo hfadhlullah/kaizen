@@ -79,7 +79,7 @@ const statusFrom = (snap: { stage: string; awaiting: string | null; answered?: u
   snap.stage === "abandoned" ? "declined" : snap.stage === "done" ? "done" : snap.awaiting && !snap.answered ? "needed" : "working";
 const sameWait = (x: any, b: any) => x?.awaiting === b?.awaiting && (x?.seen ?? null) === (b?.seen ?? null);
 
-export function createApp(deps: { store: Store; env: Env; fetch?: Fetch; boardFetch?: Fetch; watch?: boolean; quit?: () => void }) {
+export function createApp(deps: { store: Store; env: Env; fetch?: Fetch; boardFetch?: Fetch; watch?: boolean; quit?: () => void; startBoard?: (url: string) => Promise<string | null> }) {
   const { store, env } = deps;
   const clients = new Set<ReadableStreamDefaultController>();
   const enc = new TextEncoder();
@@ -350,13 +350,19 @@ export function createApp(deps: { store: Store; env: Env; fetch?: Fetch; boardFe
       if (ping.ok) try { projects = (await board.state()).projects; } catch { /* listed as none */ }
       return json({ ok: ping.ok, url: board.base, version: ping.version ?? null, projects });
     }
+    if (m === "POST" && a === "board" && b === "start") {
+      if (!deps.startBoard) return bad("not found", 404);
+      const why = await deps.startBoard(boardUrl());
+      return why ? bad(why, 502) : json({ ok: true });
+    }
 
     if (a === "settings") {
       const keys = { anthropic: !!env.ANTHROPIC_API_KEY?.trim(), openai: !!env.OPENAI_API_KEY?.trim(), requesty: !!env.REQUESTY_API_KEY?.trim() };
       if (m === "GET" && !b) {
         let cfg: ModelConfig | null = null;
         try { cfg = cfgNow(); } catch { /* shown as unset */ }
-        return json({ provider: cfg?.provider ?? null, model: cfg?.model ?? null, keys, boardUrl: boardUrl(), userName: store.setting("userName") ?? "You", canQuit: !!deps.quit });
+        return json({ provider: cfg?.provider ?? null, model: cfg?.model ?? null, keys, boardUrl: boardUrl(), userName: store.setting("userName") ?? "You", canQuit: !!deps.quit,
+          autoBoard: store.setting("autoBoard") !== "off", canStartBoard: !!deps.startBoard });
       }
       if (m === "GET" && b === "models") {
         try { return json(await listModels(configFromEnv(merged({ provider: url.searchParams.get("provider") ?? undefined, model: "x" })), deps.fetch)); }
@@ -370,6 +376,7 @@ export function createApp(deps: { store: Store; env: Env; fetch?: Fetch; boardFe
           store.setSetting("boardUrl", u);
         }
         if (p.userName !== undefined) store.setSetting("userName", text(p.userName, 40) || "You");
+        if (p.autoBoard !== undefined) store.setSetting("autoBoard", p.autoBoard ? "on" : "off");
         if (p.provider !== undefined || p.model !== undefined) {
           let cfg: ModelConfig;
           try { cfg = configFromEnv(merged({ provider: text(p.provider, 20) || undefined, model: text(p.model, 120) || undefined })); }
@@ -535,6 +542,19 @@ export function createApp(deps: { store: Store; env: Env; fetch?: Fetch; boardFe
   };
 }
 
+// `kaizen web --daemon` on the board's port; returns why it could not, or null once it runs.
+export async function startBoard(board: string): Promise<string | null> {
+  const kaizen = Bun.which("kaizen");
+  if (!kaizen) return "kaizen is not installed, or not on PATH. Install it, then try again.";
+  const args = ["web", "--daemon", "--no-open", "--port", new URL(board).port || "80"];
+  const { cmdExe } = await import("../../cli/state.ts");
+  const cmd = process.platform === "win32" ? [cmdExe(), "/c", "kaizen", ...args] : [kaizen, ...args];
+  try {
+    const code = await Bun.spawn(cmd, { stdio: ["ignore", "inherit", "inherit"], windowsHide: true }).exited;
+    return code === 0 ? null : `kaizen web exited ${code}`;
+  } catch (e) { return `could not start kaizen web: ${(e as Error).message}`; }
+}
+
 if (import.meta.main) {
   // The compiled app runs from Bun's virtual filesystem, started from any folder, so its
   // .env and database live in ~/.kaizen-bot instead of beside the source.
@@ -585,18 +605,13 @@ if (import.meta.main) {
   const openApp = async (u: string) => web?.openApp(u, join(home, "window"));
   if (compiled) {
     const board = loopbackUrl(store.setting("boardUrl") ?? "") ?? loopbackUrl(env.BOARD_URL ?? "") ?? DEFAULT_BOARD;
-    const kaizen = Bun.which("kaizen");
-    if (kaizen && !(await answers(board))) {
-      const args = ["web", "--daemon", "--no-open", "--port", new URL(board).port || "80"];
-      const { cmdExe } = await import("../../cli/state.ts");
-      const cmd = process.platform === "win32" ? [cmdExe(), "/c", "kaizen", ...args] : [kaizen, ...args];
-      try {
-        const code = await Bun.spawn(cmd, { stdio: ["ignore", "inherit", "inherit"], windowsHide: true }).exited;
-        if (code !== 0) console.error(`kaizen-bot: kaizen web exited ${code}; the board shows as down`);
-      } catch (e) { console.error(`kaizen-bot: could not start kaizen web: ${(e as Error).message}`); }
+    // Settings → "Start the board with Kaizen Bot", on unless turned off.
+    if (store.setting("autoBoard") !== "off" && Bun.which("kaizen") && !(await answers(board))) {
+      const why = await startBoard(board);
+      if (why) console.error(`kaizen-bot: ${why}; the board shows as down`);
     }
   }
-  const app = createApp({ store, env, quit: compiled ? () => process.exit(0) : undefined });
+  const app = createApp({ store, env, quit: compiled ? () => process.exit(0) : undefined, startBoard });
   try {
     Bun.serve({ hostname: "127.0.0.1", port, idleTimeout: 0, fetch: app.handle });
   } catch (e) {

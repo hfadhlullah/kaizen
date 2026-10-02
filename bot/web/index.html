@@ -648,6 +648,14 @@ async function renderSettings() {
   } }, "Save model");
   const url = el("input", { class: "f", value: s.boardUrl, "aria-label": "Board URL" });
   const bstat = el("span", { class: "dim" }, board.ok ? `Connected${board.version ? ` · kaizen ${board.version}` : ""}` : "Not running. Start it with: kaizen web");
+  const startBtn = !board.ok && s.canStartBoard && el("button", { class: "btn", onclick: async () => {
+    startBtn.disabled = true; bstat.textContent = "Starting the board…";
+    try { await api("/board/start", { method: "POST" }); await loadBoard(); renderSettings(); }
+    catch (e) { bstat.textContent = e.message; startBtn.disabled = false; }
+  } }, "Start board");
+  const auto = el("input", { type: "checkbox", checked: s.autoBoard, onchange: async () => {
+    try { await api("/settings", { method: "POST", body: { autoBoard: auto.checked } }); } catch (e) { auto.checked = !auto.checked; toast(e.message); }
+  } });
   const theme = el("select", { class: "f", "aria-label": "Theme", onchange: () => setTheme(theme.value) },
     [["", "System"], ["light", "Light"], ["dark", "Dark"]].map(([v, t]) => el("option", { value: v, selected: (document.documentElement.dataset.theme || "") === v }, t)));
   $("sideBody").replaceChildren(
@@ -659,7 +667,8 @@ async function renderSettings() {
     el("label", { class: "k" }, "Kaizen board"), url,
     el("div", { class: "row", style: { marginTop: "8px", flexWrap: "wrap" } }, el("button", { class: "btn", onclick: async () => {
       try { await api("/settings", { method: "POST", body: { boardUrl: url.value } }); await loadBoard(); renderSettings(); } catch (e) { toast(e.message); }
-    } }, "Save"), bstat),
+    } }, "Save"), startBtn, bstat),
+    el("label", { class: "row", style: { marginTop: "8px", gap: "8px" } }, auto, "Start the board with Kaizen Bot"),
     el("label", { class: "k" }, "Dictation"),
     el("p", { class: "dim", style: { margin: 0 } }, "The mic runs Whisper (base, about 80 MB) in this browser. It downloads once from huggingface.co and cdn.jsdelivr.net on the first press; your audio never leaves the browser."),
     el("label", { class: "k" }, "Theme"), theme,

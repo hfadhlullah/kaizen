@@ -39,3 +39,29 @@ test("quit: only the app has it, and only from this machine", async () => {
   await Bun.sleep(150);
   expect(quit).toBe(1);
 });
+
+test("board: Start board runs the starter on the board URL; auto-start is a setting", async () => {
+  const env = { PROVIDER: "anthropic", MODEL: "m", ANTHROPIC_API_KEY: "k" };
+  const req = (app: ReturnType<typeof createApp>, path: string, init: RequestInit = {}) =>
+    app.handle(new Request(`http://127.0.0.1:7430${path}`, { ...init, headers: { host: "127.0.0.1:7430", ...(init.headers as object) } }));
+  const json = (body: unknown): RequestInit => ({ method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json" } });
+
+  const without = createApp({ store: openStore(":memory:"), env, watch: false });
+  expect((await req(without, "/board/start", { method: "POST" })).status).toBe(404);
+  expect((await (await req(without, "/settings")).json()).canStartBoard).toBe(false);
+
+  const asked: string[] = [];
+  let why: string | null = "kaizen is not installed";
+  const app = createApp({ store: openStore(":memory:"), env, watch: false, startBoard: async (u) => { asked.push(u); return why; } });
+  expect((await req(app, "/board/start", { method: "POST", headers: { origin: "https://evil.test" } })).status).toBe(403);
+  const fail = await req(app, "/board/start", { method: "POST" });
+  expect(fail.status).toBe(502);
+  expect(await fail.text()).toContain("not installed");
+  why = null;
+  expect((await req(app, "/board/start", { method: "POST" })).status).toBe(200);
+  expect(asked).toEqual(["http://127.0.0.1:7420", "http://127.0.0.1:7420"]);
+
+  expect((await (await req(app, "/settings")).json()).autoBoard).toBe(true);
+  expect((await req(app, "/settings", json({ autoBoard: false }))).status).toBe(200);
+  expect((await (await req(app, "/settings")).json()).autoBoard).toBe(false);
+});

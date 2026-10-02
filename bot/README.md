@@ -71,7 +71,9 @@ without it, in a throwaway Debian container through Docker.
 The first time, it creates `~/.kaizen-bot/.env`, opens it, and asks you to set `PROVIDER` and
 that provider's key; save it and open the app again. From then on it starts the board if
 `kaizen` is installed and the board isn't running, and opens the chat in its own window.
-Opening it again while it runs just opens the window. To stop it, use **Settings → Quit Kaizen
+Turn that off in Settings → **Start the board with Kaizen Bot** if you run the board yourself;
+when the board is down, Settings has a **Start board** button. Opening it again while it runs
+just opens the window. To stop it, use **Settings → Quit Kaizen
 Bot**. Errors on start show as a dialog on macOS and Windows. The window is Chrome or Edge in
 app mode with its own profile in `~/.kaizen-bot/window`, so it stays apart from your browser.
 
