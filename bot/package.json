@@ -1,0 +1,11 @@
+{
+  "name": "kaizen-bot",
+  "version": "0.1.0",
+  "description": "AI teammates for every division: role bots you chat with, which draft work and hold it for your approval.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "bun run src/server.ts",
+    "test": "bun test"
+  }
+}

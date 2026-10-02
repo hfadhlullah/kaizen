@@ -5,3 +5,7 @@ node_modules/
 # source, and committing both is how the two drift apart.
 .kaizen/
 .npmrc
+
+# Kaizen Bot: its API key and local database never leave this machine.
+bot/.env
+bot/data/

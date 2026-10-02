@@ -1,0 +1,650 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kaizen Bot</title>
+<style>
+/* Kaizen-family tokens (kaizen design.md / web/board.html). Adjusted for >= 4.5:1 text contrast,
+   checked in test/app.test.ts: light --ok #1f9d55 -> #177a42, light --warn #a8720a -> #8a5d06,
+   dark --danger #e85050 -> #ef6363, light --dim #5b6b8c -> #56668a (4.44 -> 4.76:1 on the selected row).
+   --accent-ink is accent used as text: the dark accent #486ed9 is 3.53:1 on --bg-2, so text uses #7d9cf0. */
+:root{--bg:#f6f8fc;--bg-2:#ffffff;--line:#d9e0ee;--ink:#0c162f;--dim:#56668a;--accent:#2d50a5;--accent-ink:#2d50a5;--ok:#177a42;--warn:#8a5d06;--danger:#c8322f;--on-accent:#ffffff;color-scheme:light}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0c162f;--bg-2:#121e3c;--line:#22305a;--ink:#eef2fa;--dim:#96aacd;--accent:#486ed9;--accent-ink:#7d9cf0;--ok:#5fd28a;--warn:#e6b450;--danger:#ef6363;color-scheme:dark}}
+:root[data-theme=dark]{--bg:#0c162f;--bg-2:#121e3c;--line:#22305a;--ink:#eef2fa;--dim:#96aacd;--accent:#486ed9;--accent-ink:#7d9cf0;--ok:#5fd28a;--warn:#e6b450;--danger:#ef6363;color-scheme:dark}
+:root{--r:12px;--r-s:8px;--r-pill:999px;--font:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;--hover:color-mix(in srgb,var(--dim) 12%,transparent);--shade:rgb(12 22 47/.1);--shadow-2:0 2px 6px var(--shade),0 16px 40px -12px var(--shade)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(--font);-webkit-font-smoothing:antialiased;height:100vh;height:100dvh;overflow:hidden;display:flex}
+button,input,textarea,select{font:inherit;color:inherit;background:none;border:0;padding:0}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;display:block}
+[hidden]{display:none!important}
+.ib{width:36px;height:36px;display:grid;place-items:center;color:var(--dim);border-radius:var(--r-s);position:relative;flex:none}
+.ib:hover{color:var(--ink);background:var(--hover)}
+.btn{border:1px solid var(--line);border-radius:var(--r-pill);padding:5px 14px;background:var(--bg-2);min-height:32px;font-size:13px;font-weight:500;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{border-color:var(--dim)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.danger{color:var(--danger)}
+a.btn{color:var(--ink);text-decoration:none}
+.dim{color:var(--dim)}
+.av{flex:none;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:600;font-size:15px;position:relative}
+.av.sm{width:22px;height:22px;font-size:11px}.av.lg{width:72px;height:72px;font-size:30px}
+input.f,textarea.f,select.f{border:1px solid var(--line);border-radius:var(--r-s);padding:8px 10px;background:var(--bg);width:100%}
+textarea.f{resize:vertical;min-height:70px}
+label.k{display:block;font-size:12px;color:var(--dim);margin:12px 0 4px}
+
+/* sidebar: + and search on top, one row per agent, you at the bottom — nothing else */
+aside.list{width:290px;flex:none;border-right:1px solid var(--line);background:var(--bg-2);display:flex;flex-direction:column}
+.list-hd{display:flex;justify-content:flex-end;padding:10px 12px 4px}
+.search{margin:0 12px 8px;display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:var(--r-s);padding:7px 10px;background:var(--bg);color:var(--dim)}
+.search input{flex:1;outline:none;color:var(--ink);min-width:0}
+#rows{flex:1;overflow-y:auto;overflow-x:hidden;padding:0 8px}
+.ag{display:flex;gap:12px;align-items:center;width:100%;text-align:left;padding:9px 10px;border-radius:var(--r);margin-bottom:2px}
+.ag:hover{background:var(--hover)}.ag.on{background:color-mix(in srgb,var(--accent) 12%,var(--bg-2))}
+.ag .meta{flex:1;min-width:0}.ag b{display:block;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ag .last{display:block;font-size:13px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ag .dot{position:absolute;top:-1px;right:-1px;width:11px;height:11px;border-radius:50%;background:var(--warn);border:2px solid var(--bg-2)}
+.you{display:flex;align-items:center;gap:10px;margin:8px;padding:8px;border-radius:var(--r);text-align:left}
+.you:hover{background:var(--hover)}
+.me{width:32px;height:32px;border-radius:50%;background:var(--hover);color:var(--ink);font-size:12px;font-weight:600;display:grid;place-items:center;flex:none}
+
+/* main column */
+main{flex:1;display:flex;flex-direction:column;min-width:0}
+.top{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--line);min-height:56px}
+.top .t{flex:1;min-width:0;display:flex;align-items:baseline;gap:8px}.top .t b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.top .t span{font-size:12px;color:var(--dim)}
+#thread{flex:1;overflow-y:auto;padding:20px 16px;display:flex;flex-direction:column;gap:8px}
+.msg{max-width:min(640px,85%);padding:9px 14px;border-radius:18px;white-space:pre-wrap;overflow-wrap:anywhere}
+.msg.bot{align-self:flex-start;background:var(--bg-2);border:1px solid var(--line)}
+.msg.user{align-self:flex-end;background:var(--accent);color:var(--on-accent)}
+.receipts{align-self:flex-start;max-width:min(640px,85%);background:var(--bg-2);border:1px solid var(--line);border-radius:18px;padding:8px 14px;display:flex;flex-direction:column;gap:2px}
+.tick{display:flex;gap:8px;align-items:baseline}.tick i{font-style:normal;color:var(--ok);flex:none;width:1em;text-align:center}.tick.todo i{color:var(--dim)}.tick.doing i{color:var(--accent-ink)}
+.empty{margin:auto;text-align:center;color:var(--dim);max-width:440px}
+.doing{display:flex;align-items:center;gap:10px;padding:0 16px 8px;color:var(--dim);font-size:13px}
+
+/* action cards: every thing a bot does or asks to do */
+.act{align-self:flex-start;width:min(560px,92%);background:var(--bg-2);border:1px solid var(--line);border-radius:18px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.act.flash{box-shadow:0 0 0 2px var(--accent)}
+.act .hd{display:flex;align-items:center;gap:8px}.act .hd b{flex:1}
+.pill{font-size:12px;font-weight:600;padding:2px 10px;border-radius:var(--r-pill);display:inline-flex;align-items:center;gap:5px}
+.pill.needed{color:var(--warn);background:color-mix(in srgb,var(--warn) 10%,var(--bg-2))}
+.pill.working{color:var(--accent-ink);background:color-mix(in srgb,var(--accent-ink) 10%,var(--bg-2))}
+.pill.done{color:var(--ok);background:color-mix(in srgb,var(--ok) 10%,var(--bg-2))}
+.pill.declined{color:var(--dim);background:color-mix(in srgb,var(--dim) 10%,var(--bg-2))}
+.pill.failed{color:var(--danger);background:color-mix(in srgb,var(--danger) 10%,var(--bg-2))}
+.pill.working::before{content:"";width:7px;height:7px;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.act .desc{white-space:pre-wrap;overflow-wrap:anywhere}
+.act .box{border:1px solid var(--line);border-radius:var(--r-s);padding:8px 10px;background:var(--bg);display:flex;flex-direction:column;gap:2px;font-size:13px}
+.act .box .k{font-size:12px;color:var(--dim)}
+.act .note{font-size:12px;color:var(--dim)}
+.act .acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.act .q{display:flex;flex-direction:column;gap:4px}
+.draft-body{white-space:pre-wrap;overflow-wrap:anywhere}
+
+form.composer{display:flex;gap:8px;align-items:flex-end;margin:4px 16px 16px;border:1px solid var(--line);border-radius:24px;padding:6px;background:var(--bg-2)}
+form.composer .field{flex:1;min-width:0;display:flex;flex-direction:column}
+form.composer textarea{resize:none;max-height:160px;padding:7px 0;outline:none}
+.attach{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:var(--hover);color:var(--ink);flex:none}
+.chips{display:flex;flex-wrap:wrap;gap:6px}.chips:empty{display:none}.chips{padding-top:4px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;border:1px solid var(--line);border-radius:var(--r-pill);padding:2px 4px 2px 10px;background:var(--bg)}
+.chip button{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;color:var(--dim)}.chip button:hover{background:var(--hover);color:var(--ink)}
+.msg .chip{background:transparent;border-color:currentColor;margin-top:6px;padding-right:10px}
+.mic{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:var(--ink);color:var(--bg);flex:none}
+.mic.on,.mic.busy{background:var(--accent);color:var(--on-accent)}
+.mic i{font-style:normal;font-size:10px;font-variant-numeric:tabular-nums}
+/* while dictating: a glow that swells with the voice level (--lvl, 0..1), as on the kaizen board */
+.dictating{box-shadow:0 0 calc(6px + 16px*var(--lvl,0)) calc(1px + 3px*var(--lvl,0)) color-mix(in srgb,var(--accent) 45%,transparent)}
+.vu{display:inline-flex;gap:2px;align-items:center;height:100%}.vu i{width:2px;border-radius:1px;background:currentColor;height:calc(3px + 12px*min(1,var(--lvl,0)*var(--w)))}
+
+/* "To:" picker */
+.to{position:relative;padding:10px 16px;border-bottom:1px solid var(--line);display:flex;gap:8px;align-items:center}
+.to input{flex:1;border:1px solid var(--accent);border-radius:var(--r-s);padding:6px 10px;outline:none;background:var(--bg-2)}
+.to .menu{position:absolute;left:16px;right:16px;top:calc(100% + 6px);background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow-2);padding:6px;max-height:60vh;overflow-y:auto;z-index:4}
+.to .menu .grp{font-size:12px;color:var(--dim);padding:8px 10px 4px}
+.plus-c{width:22px;height:22px;border-radius:50%;background:var(--hover);display:grid;place-items:center;flex:none}.plus-c svg{width:14px;height:14px}
+.to .menu button{display:flex;gap:12px;align-items:center;width:100%;text-align:left;padding:8px 10px;border-radius:var(--r-s)}
+.to .menu button:hover,.to .menu button.hi{background:var(--hover)}
+.to .menu small{display:block;color:var(--dim)}
+
+/* right panel: agent and settings */
+aside.side{width:340px;flex:none;border-left:1px solid var(--line);background:var(--bg-2);display:flex;flex-direction:column}
+.side .hd{display:flex;align-items:center;gap:6px;padding:10px 12px;border-bottom:1px solid var(--line);min-height:56px}.side .hd b{flex:1;text-align:center}
+.side .bd{flex:1;overflow-y:auto;padding:12px 16px 24px}
+.never{margin:6px 0 0;padding-left:18px;color:var(--dim);font-size:13px}
+.row{display:flex;gap:8px;align-items:center}
+.toggle{display:flex;gap:12px;align-items:flex-start;border:1px solid var(--line);border-radius:var(--r);padding:12px;margin-top:14px}
+.toggle div{flex:1}.toggle small{display:block;color:var(--dim)}
+.toggle input{width:38px;height:22px;accent-color:var(--accent)}
+.mem{display:flex;gap:6px;align-items:flex-start;margin-top:6px}.mem textarea{flex:1;min-height:38px}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:var(--r-s);z-index:9;max-width:90vw}
+
+@media(max-width:860px){aside.side{position:fixed;inset:0 0 0 auto;width:min(380px,100%);z-index:5;box-shadow:var(--shadow-2)}}
+@media(max-width:720px){aside.list{width:100%}body.open aside.list{display:none}body:not(.open) main{display:none}.back{display:grid!important}}
+</style>
+</head>
+<body>
+<aside class="list" aria-label="Agents">
+  <div class="list-hd"><button class="ib" id="newBtn" title="New chat" aria-label="New chat"></button></div>
+  <label class="search"><span id="searchIcon"></span><input id="q" placeholder="Search" aria-label="Search agents"></label>
+  <nav id="rows"></nav>
+  <button class="you" id="you" title="Settings" aria-label="Settings"><span class="me" id="me"></span><span id="youName"></span></button>
+</aside>
+<main>
+  <div class="top" id="top">
+    <button class="ib back" id="backBtn" aria-label="Back to agents" hidden></button>
+    <div id="tav"></div>
+    <div class="t"><b id="tname">New chat</b><span id="ttitle"></span></div>
+    <button class="ib" id="panelBtn" title="Agent" aria-label="Agent details" hidden></button>
+  </div>
+  <div class="to" id="to" hidden>
+    <span class="dim">To:</span>
+    <input id="toq" placeholder="Search or create agents" aria-label="Search or create agents" autocomplete="off">
+    <div class="menu" id="tomenu" role="listbox"></div>
+  </div>
+  <div id="thread"></div>
+  <div class="doing" id="doing" hidden></div>
+  <form class="composer" id="composer" hidden>
+    <button class="attach" type="button" id="attach" title="Attach files" aria-label="Attach files"></button>
+    <input type="file" id="files" multiple hidden accept=".txt,.md,.markdown,.csv,.tsv,.json,.log,.yml,.yaml,.xml,.html,.ics,.eml,text/*">
+    <div class="field"><div class="chips" id="chips"></div><textarea id="input" rows="1" placeholder="Message" aria-label="Message"></textarea></div>
+    <button class="mic" type="button" id="mic" title="Dictate" aria-label="Dictate"></button>
+  </form>
+</main>
+<aside class="side" id="side" hidden>
+  <div class="hd"><button class="ib" id="sideBack" aria-label="Back" hidden></button><b id="sideTitle"></b><button class="ib" id="sideClose" aria-label="Close"></button></div>
+  <div class="bd" id="sideBody"></div>
+</aside>
+
+<script>
+// All server, board and model text reaches the page through textContent (el() below), never innerHTML.
+// The only HTML insertion is ICONS: constant strings defined here.
+const ICONS = {
+  plus: '<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
+  x: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  back: '<svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg>',
+  search: '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg>',
+  panel: '<svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M15 5v14"/></svg>',
+  mic: '<svg viewBox="0 0 24 24"><rect x="9" y="4" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0M12 17v3"/></svg>',
+};
+const icon = (node, name) => { node.replaceChildren(); node.insertAdjacentHTML("afterbegin", ICONS[name]); return node; };
+
+function el(tag, props = {}, ...kids) {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (v == null || v === false) continue;
+    if (k === "class") n.className = v;
+    else if (k.startsWith("on")) n.addEventListener(k.slice(2), v);
+    else if (k === "style") Object.assign(n.style, v);
+    else if (k === "value") n.value = v;
+    else n.setAttribute(k, v === true ? "" : v);
+  }
+  for (const k of kids.flat()) if (k != null && k !== false) n.append(typeof k === "string" ? document.createTextNode(k) : k);
+  return n;
+}
+const $ = (id) => document.getElementById(id);
+const api = async (path, opts = {}) => {
+  const r = await fetch(path, { ...opts, headers: { "content-type": "application/json" }, body: opts.body && JSON.stringify(opts.body) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+};
+const toast = (t) => { const n = el("div", { class: "toast", role: "status" }, t); document.body.append(n); setTimeout(() => n.remove(), 4000); };
+const avatar = (b, cls = "") => el("div", { class: `av ${cls}`, style: { background: b.color }, "aria-hidden": "true" }, (b.name || "?").trim()[0].toUpperCase());
+const initials = (s) => s.trim().split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase() || "?";
+
+let info = { roles: [], user: "You" }, bots = [], current = null, items = [], board = { ok: null, projects: [] }, panel = null;
+const working = new Set(), doingText = new Map();
+const roleOf = (b) => info.roles.find((r) => r.id === b.role) || { never: [], name: b.role };
+
+// ---- sidebar: one row per agent; a dot when a card waits on you ----
+function renderList() {
+  const q = $("q").value.trim().toLowerCase();
+  const list = bots.filter((b) => !q || b.name.toLowerCase().includes(q));
+  $("rows").replaceChildren(...list.map((b) => {
+    const a = avatar(b);
+    if (b.needed) a.append(el("span", { class: "dot", title: `${b.needed} waiting on you` }));
+    return el("button", { class: "ag" + (b.id === current?.id ? " on" : ""), onclick: () => select(b.id) }, a,
+      el("span", { class: "meta" }, el("b", {}, b.name), el("span", { class: "last" }, working.has(b.id) ? "Typing…" : (b.last && splitFiles(b.last).text) || (b.last ? "📎 Attachment" : "No messages yet"))));
+  }));
+  $("me").textContent = initials(info.user); $("youName").textContent = info.user;
+}
+$("q").addEventListener("input", renderList);
+async function loadBots() {
+  bots = await api("/bots");
+  if (current) current = bots.find((b) => b.id === current.id) || current;
+  renderList();
+}
+// The board's state shows in Settings and, when it is down, in the chat; not on the main screen.
+function setBoard(ok) { board.ok = ok; }
+
+// ---- "To:" picker: open an agent or create one from a division template ----
+let toHi = 0;
+function openTo() {
+  current = null; renderList(); closeSide();
+  document.body.classList.add("open");
+  $("top").hidden = true; $("to").hidden = false; $("composer").hidden = true; $("doing").hidden = true;
+  $("thread").replaceChildren();
+  $("toq").value = ""; renderTo(); $("toq").focus();
+}
+// "Create new agent" first, then your agents.
+function renderTo() {
+  const q = $("toq").value.trim().toLowerCase();
+  $("tomenu").replaceChildren(
+    el("button", { type: "button", onclick: createBot }, icon(el("span", { class: "plus-c" }), "plus"), el("span", {}, "Create new agent")),
+    ...bots.filter((b) => !q || b.name.toLowerCase().includes(q)).map((b) => el("button", { type: "button", onclick: () => select(b.id) }, avatar(b, "sm"), el("span", {}, b.name))));
+  toHi = 0; hiTo();
+}
+const toButtons = () => [...$("tomenu").querySelectorAll("button")];
+function hiTo() { toButtons().forEach((b, i) => b.classList.toggle("hi", i === toHi)); }
+$("toq").addEventListener("input", renderTo);
+$("toq").addEventListener("keydown", (e) => {
+  const bs = toButtons();
+  if (e.key === "ArrowDown") { e.preventDefault(); toHi = Math.min(bs.length - 1, toHi + 1); hiTo(); bs[toHi]?.scrollIntoView({ block: "nearest" }); }
+  else if (e.key === "ArrowUp") { e.preventDefault(); toHi = Math.max(0, toHi - 1); hiTo(); bs[toHi]?.scrollIntoView({ block: "nearest" }); }
+  else if (e.key === "Enter") { e.preventDefault(); bs[toHi]?.click(); }
+  else if (e.key === "Escape" && bots[0]) select(bots[0].id);
+});
+// A blank agent: you give it a name and describe its job in its settings.
+async function createBot() {
+  try {
+    const b = await api("/bots", { method: "POST", body: { role: "custom" } });
+    await loadBots(); await select(b.id); await renderAgent(); openSide("agent");
+    document.querySelector('#sideBody input[aria-label="Name"]')?.select();
+  } catch (e) { toast(e.message); }
+}
+
+// ---- thread: messages and cards, in the order they happened ----
+async function select(id) {
+  current = bots.find((b) => b.id === id);
+  if (!current) return;
+  $("to").hidden = true; $("top").hidden = false; document.body.classList.add("open"); renderList();
+  $("tav").replaceChildren(avatar(current, "sm"));
+  $("tname").textContent = current.name; $("ttitle").textContent = current.title || "";
+  $("panelBtn").hidden = false; $("composer").hidden = false;
+  $("input").placeholder = `Message ${current.name}`;
+  showDoing(working.has(id) ? doingText.get(id) : null);
+  const r = await api(`/bots/${id}/messages`);
+  if (current?.id !== id) return;
+  items = [...r.messages.map((m) => ({ type: "m", at: m.at, m })), ...r.actions.map((a) => ({ type: "a", at: a.at, a }))].sort((x, y) => x.at - y.at);
+  renderThread();
+  if (panel === "agent") renderAgent();
+  $("input").focus();
+}
+function renderThread() {
+  const t = $("thread");
+  t.replaceChildren();
+  if (!items.length) t.append(el("div", { class: "empty" }, `Give ${current.name} a task, like you would a teammate. Anything that starts a run, approves a plan or goes to someone outside waits on a card for your click.`));
+  for (const it of items) it.type === "m" ? addMsg(it.m) : t.append(card(it.a));
+  t.scrollTop = t.scrollHeight;
+}
+function addMsg(m) {
+  const t = $("thread");
+  t.querySelector(".empty")?.remove();
+  if (m.kind === "receipt") {
+    let box = t.lastElementChild;
+    if (!box?.classList.contains("receipts")) t.append(box = el("div", { class: "receipts" }));
+    box.append(el("div", { class: "tick" }, el("i", { "aria-hidden": "true" }, "✓"), m.text));
+  } else if (m.kind === "user") {
+    const { text, files } = splitFiles(m.text);
+    t.append(el("div", { class: "msg user" }, text, files.length ? el("div", {}, files.map((n) => el("span", { class: "chip" }, `📎 ${n}`))) : null));
+  } else t.append(el("div", { class: `msg ${m.kind}` }, m.text));
+}
+function upsert(a) {
+  if (!current || a.bot_id !== current.id) return;
+  const i = items.findIndex((x) => x.type === "a" && x.a.id === a.id);
+  if (i >= 0) { items[i].a = a; document.getElementById(`act-${a.id}`)?.replaceWith(card(a)); }
+  else { items.push({ type: "a", at: a.at, a }); $("thread").querySelector(".empty")?.remove(); $("thread").append(card(a)); }
+}
+
+const TITLE = { idea: "Board", note: "Board", memory: "Memory", draft: "Draft", start_run: "Run", decision: "Run", fix: "Run", abort: "Run" };
+const PILL = { needed: "Action needed", working: "Working", done: "Done", declined: "Declined", failed: "Failed" };
+const STAGE = { plan: "Planning", build: "Building", review: "Review", done: "Done", abandoned: "Abandoned", starting: "Starting…" };
+
+async function act(a, body, btn) {
+  if (btn) btn.disabled = true;
+  try { upsert(await api(`/actions/${a.id}`, { method: "POST", body })); }
+  catch (e) { toast(e.message); try { (await api(`/bots/${a.bot_id}/messages`)).actions.forEach(upsert); } catch {} }
+  finally { if (btn) btn.disabled = false; loadBots(); }
+}
+function card(a) {
+  const s = a.snapshot || {};
+  const live = a.kind === "start_run" && s.launched;
+  const c = el("div", { class: "act", id: `act-${a.id}` },
+    el("div", { class: "hd" }, el("b", {}, TITLE[a.kind] || "Action"), el("span", { class: `pill ${a.status}` }, live && a.status === "needed" ? "Waiting on you" : PILL[a.status])),
+    el("div", { class: "desc" }, a.summary));
+  const acts = el("div", { class: "acts" });
+
+  if (a.kind === "draft") {
+    const view = el("div", { class: "box" }, el("div", { class: "k" }, `To: ${a.recipient}${a.subject ? ` · ${a.subject}` : ""}`), el("div", { class: "draft-body" }, a.draft_body));
+    c.append(view);
+    if (a.status === "needed") {
+      const to = el("input", { class: "f", value: a.recipient, "aria-label": "To" });
+      const subj = el("input", { class: "f", value: a.subject, placeholder: "Subject", "aria-label": "Subject" });
+      const body = el("textarea", { class: "f", "aria-label": "Body", rows: "6" }); body.value = a.draft_body;
+      const edit = el("div", { class: "box", hidden: true }, to, subj, body,
+        el("div", { class: "acts" }, el("button", { class: "btn", onclick: (e) => act(a, { op: "edit", recipient: to.value, subject: subj.value, body: body.value }, e.currentTarget) }, "Save")));
+      c.append(edit);
+      acts.append(el("button", { class: "btn pri", onclick: (e) => act(a, { op: "approve" }, e.currentTarget) }, "Approve"),
+        el("button", { class: "btn", onclick: () => { edit.hidden = !edit.hidden; view.hidden = !edit.hidden; } }, "Edit"),
+        el("button", { class: "btn danger", onclick: (e) => act(a, { op: "decline" }, e.currentTarget) }, "Decline"));
+    }
+    if (a.status === "done") {
+      const copy = el("button", { class: "btn", onclick: () => navigator.clipboard.writeText([a.subject && `Subject: ${a.subject}`, a.draft_body].filter(Boolean).join("\n\n"))
+        .then(() => { copy.textContent = "Copied"; setTimeout(() => copy.textContent = "Copy", 1200); }) }, "Copy");
+      acts.append(copy, el("span", { class: "note" }, "Approved. Nothing is sent: copy it and send it yourself."));
+    }
+  } else if (live) {
+    // A started run, live: its stage and work list, then its questions when it waits on you.
+    c.append(el("div", { class: "note" }, `${a.run_id ? `${a.run_id} · ` : ""}${STAGE[s.stage] || s.stage}${s.stalled ? " · stalled: no change in 30 minutes" : ""}`));
+    if (!a.run_id) c.append(el("div", { class: "note" }, s.unseen ? "Not seen on the board yet. Open it in the board to check the launch." : "Waiting for the run to appear on the board…"));
+    if (s.items?.length) c.append(el("div", { class: "box" }, s.items.map((it) => el("div", { class: `tick ${it.state}` }, el("i", { "aria-hidden": "true" }, it.state === "done" ? "✓" : it.state === "doing" ? "•" : "○"), it.text))));
+    if (s.verdict && (a.status === "done" || s.awaiting === "approvals.review")) c.append(el("div", { class: "note" }, s.verdict));
+    if (a.status === "needed" && s.awaiting) {
+      if (s.work?.length) c.append(el("div", { class: "box" }, el("div", { class: "k" }, "Work list"), s.work.map((w) => el("div", {}, `• ${w}`))));
+      if (s.open?.length && s.awaiting === "approvals.review") c.append(el("div", { class: "box" }, el("div", { class: "k" }, "Open findings"), s.open.map((f) => el("div", {}, `${f.n}. ${f.text}`))));
+      const picks = (s.questions || []).map((q) => ({ q, sel: el("select", { class: "f", "aria-label": q.q }, q.options.map((o) => el("option", { value: o.replace(/ \(recommended\)$/, "") }, o))) }));
+      for (const { q, sel } of picks) c.append(el("div", { class: "q" }, el("span", { class: "note" }, q.q), sel));
+      const why = el("textarea", { class: "f", placeholder: "What should change? (needed to revise)", "aria-label": "Revise comment", rows: "2" });
+      c.append(why);
+      acts.append(el("button", { class: "btn pri", onclick: (e) => act(a, { op: "decide", approve: true, answers: picks.map((p) => p.sel.value) }, e.currentTarget) }, s.awaiting === "approvals.plan" ? "Approve plan" : "Approve work"),
+        el("button", { class: "btn", onclick: (e) => { if (!why.value.trim()) { why.focus(); toast("Say what to change first"); return; } act(a, { op: "decide", approve: false, why: why.value }, e.currentTarget); } }, "Revise"));
+    }
+  } else if (a.gated && a.status === "needed") {
+    acts.append(el("button", { class: "btn pri", onclick: (e) => act(a, { op: "approve" }, e.currentTarget) }, "Approve"),
+      el("button", { class: "btn", onclick: (e) => act(a, { op: "decline" }, e.currentTarget) }, "Decline"));
+  }
+  if ((a.status === "failed" || a.status === "declined") && a.result) c.append(el("div", { class: "note" }, a.result));
+  if (a.link) acts.append(el("a", { class: "btn", href: a.link, target: "_blank", rel: "noopener" }, "Open in board"));
+  if (acts.childNodes.length) c.append(acts);
+  return c;
+}
+
+// ---- the "doing X" line under the agent while it works ----
+function showDoing(text) {
+  const d = $("doing");
+  if (!text || !current) { d.hidden = true; return; }
+  d.replaceChildren(avatar(current, "sm"), el("span", {}, text));
+  d.hidden = false;
+}
+
+// ---- attachments: text files are read here and sent inside the message, after a marker
+// the thread draws as a chip. Images are not sent yet. ----
+const ATTACH = "\n\n--- Attached: ", MAX_FILE = 200_000, MAX_ALL = 280_000;
+let attached = [];
+function renderChips() {
+  $("chips").replaceChildren(...attached.map((f, i) => el("span", { class: "chip" }, `📎 ${f.name}`,
+    el("button", { type: "button", "aria-label": `Remove ${f.name}`, onclick: () => { attached.splice(i, 1); renderChips(); } }, "✕"))));
+}
+icon($("attach"), "plus").onclick = () => $("files").click();
+$("files").onchange = async (e) => {
+  for (const file of e.target.files) {
+    const isText = file.type.startsWith("text/") || /\.(txt|md|markdown|csv|tsv|json|log|ya?ml|xml|html|ics|eml)$/i.test(file.name);
+    if (!isText) { toast(`${file.name}: only text files can be attached for now`); continue; }
+    if (file.size > MAX_FILE) { toast(`${file.name} is over 200 KB`); continue; }
+    const content = await file.text();
+    if (attached.reduce((n, f) => n + f.content.length, 0) + content.length > MAX_ALL) { toast("That is more than one message can carry"); break; }
+    attached.push({ name: file.name.replace(/\s*---\s*/g, " "), content });
+  }
+  e.target.value = ""; renderChips(); $("input").focus();
+};
+// A user message is the typed text, then each file after the marker.
+const withFiles = (text) => text + attached.map((f) => `${ATTACH}${f.name} ---\n${f.content}`).join("");
+const splitFiles = (text) => { const parts = text.split(ATTACH); return { text: parts[0], files: parts.slice(1).map((p) => p.slice(0, p.indexOf(" ---"))) }; };
+
+// ---- composer: Enter sends, Shift+Enter is a new line; no Send button ----
+$("input").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } });
+$("input").addEventListener("input", (e) => { e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; });
+$("composer").onsubmit = (e) => { e.preventDefault(); send(); };
+async function send() {
+  const typed = $("input").value.trim();
+  if ((!typed && !attached.length) || !current || working.has(current.id)) return;
+  const text = withFiles(typed);
+  const bot = current, botId = bot.id;
+  if (bot.notify && "Notification" in window && Notification.permission === "default") Notification.requestPermission();
+  working.add(botId); doingText.set(botId, "Thinking…"); renderList(); showDoing("Thinking…");
+  $("input").value = ""; $("input").style.height = "auto"; attached = []; renderChips();
+  try {
+    const res = await fetch(`/bots/${botId}/messages`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text }) });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || res.statusText);
+    const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+    let buf = "";
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += value;
+      let i;
+      while ((i = buf.indexOf("\n\n")) >= 0) {
+        const chunk = buf.slice(0, i); buf = buf.slice(i + 2);
+        const ev = /^event: (.*)$/m.exec(chunk)?.[1], data = JSON.parse(/^data: (.*)$/m.exec(chunk)?.[1] || "{}");
+        const here = current?.id === botId;
+        if (ev === "status") { doingText.set(botId, data.text); if (here) showDoing(data.text); }
+        else if (ev === "message" && here) { items.push({ type: "m", at: data.at, m: data }); addMsg(data); $("thread").scrollTop = $("thread").scrollHeight; }
+        else if (ev === "action") { upsert(data); $("thread").scrollTop = $("thread").scrollHeight; if (data.status === "needed") notify(bot, "needs you", data.summary); }
+      }
+    }
+    notify(bot, "finished", "Your turn.");
+  } catch (err) {
+    toast(`Couldn't send: ${err.message}`);
+  } finally {
+    working.delete(botId); doingText.delete(botId);
+    if (current?.id === botId) showDoing(null);
+    loadBots();
+  }
+}
+
+// ---- notifications: only while the tab is open but hidden, for agents that want them ----
+function notify(bot, what, body) {
+  if (!bot?.notify || !document.hidden || !("Notification" in window) || Notification.permission !== "granted") return;
+  try { new Notification(`${bot.name} ${what}`, { body: String(body || "").slice(0, 140), tag: `kbot-${bot.id}` }); } catch {}
+}
+
+// ---- live events: cards, board status, runs waiting on you ----
+function listen() {
+  const es = new EventSource("/events");
+  es.addEventListener("action", (e) => { const a = JSON.parse(e.data); upsert(a); loadBots(); if (a.status === "needed" && a.snapshot?.launched) notify(bots.find((b) => b.id === a.bot_id), "has a run waiting on you", a.summary); });
+  es.addEventListener("board", (e) => { const ok = JSON.parse(e.data).ok; if (ok !== board.ok) loadBoard(); });
+  es.addEventListener("waiting", (e) => { const w = JSON.parse(e.data); notify(bots.find((b) => b.id === w.botId), "has a run waiting on you", `${w.run} in ${w.project}`); });
+}
+
+// ---- right panel ----
+function openSide(kind) {
+  panel = kind; $("side").hidden = false; $("sideBack").hidden = true;
+  if (kind === "agent") renderAgent(); else renderSettings();
+}
+function closeSide() { panel = null; $("side").hidden = true; }
+icon($("sideClose"), "x").onclick = closeSide;
+icon($("sideBack"), "back").onclick = () => current ? openSide("agent") : closeSide();
+icon($("panelBtn"), "panel").onclick = () => panel === "agent" ? closeSide() : openSide("agent");
+icon($("newBtn"), "plus").onclick = openTo;
+icon($("searchIcon"), "search");
+icon($("backBtn"), "back").onclick = () => document.body.classList.remove("open");
+$("you").onclick = () => panel === "settings" ? closeSide() : openSide("settings");
+
+async function patchBot(p) {
+  try {
+    current = await api(`/bots/${current.id}`, { method: "PATCH", body: p });
+    await loadBots(); $("tname").textContent = current.name; $("ttitle").textContent = current.title || "";
+    $("tav").replaceChildren(avatar(current, "sm"));
+  } catch (e) { toast(e.message); }
+}
+async function renderAgent() {
+  if (!current) return closeSide();
+  $("sideTitle").textContent = "Agent";
+  const b = current, r = roleOf(b);
+  const name = el("input", { class: "f", value: b.name, "aria-label": "Name", onchange: () => patchBot({ name: name.value }) });
+  const title = el("input", { class: "f", value: b.title, placeholder: "Add a title", "aria-label": "Title", onchange: () => patchBot({ title: title.value }) });
+  const desc = el("textarea", { class: "f", "aria-label": "Description", onchange: () => patchBot({ description: desc.value }) }); desc.value = b.description;
+  const proj = el("select", { class: "f", "aria-label": "Default project", onchange: () => patchBot({ project: proj.value }) },
+    el("option", { value: "" }, board.ok ? "None: ask each time" : "None (board not running)"),
+    board.projects.map((p) => el("option", { value: p.dir, selected: p.dir === b.project }, p.label)));
+  if (b.project && !board.projects.some((p) => p.dir === b.project)) proj.append(el("option", { value: b.project, selected: true }, `${b.project} (not on the board now)`));
+  const notifyBox = el("input", { type: "checkbox", checked: !!b.notify, "aria-label": "Notifications", onchange: async () => {
+    if (notifyBox.checked && "Notification" in window && Notification.permission === "default") await Notification.requestPermission();
+    patchBot({ notify: notifyBox.checked });
+  } });
+  const mems = el("div");
+  $("sideBody").replaceChildren(
+    el("div", { style: { display: "grid", placeItems: "center", marginTop: "6px" } }, avatar(b, "lg")),
+    el("label", { class: "k" }, "Name"), name,
+    el("label", { class: "k" }, "Title (optional)"), title,
+    el("label", { class: "k" }, "Description: shapes how this agent works"), desc,
+    el("label", { class: "k" }, "Default project"), proj,
+    el("div", { class: "toggle" }, el("div", {}, "Notifications", el("small", {}, "When this agent finishes, needs your click, or a run it started waits on you, while this tab is in the background.")), notifyBox),
+    el("label", { class: "k" }, "Never does without your yes"), el("ul", { class: "never" }, r.never.map((n) => el("li", {}, n))),
+    el("label", { class: "k" }, "Memory"), mems,
+    el("div", { class: "row", style: { marginTop: "20px" } }, el("button", { class: "btn danger", onclick: async () => {
+      if (!confirm(`Delete ${b.name}, its messages, cards and memory?`)) return;
+      await api(`/bots/${b.id}`, { method: "DELETE" }); closeSide(); current = null; await loadBots(); bots[0] ? select(bots[0].id) : openTo();
+    } }, "Delete agent")));
+  const list = await api(`/bots/${b.id}/memories`);
+  const add = el("textarea", { class: "f", placeholder: "Add something it should remember", "aria-label": "New memory" });
+  mems.replaceChildren(
+    ...(list.length ? list.map((m) => {
+      const ta = el("textarea", { class: "f", "aria-label": "Memory" }); ta.value = m.text;
+      return el("div", { class: "mem" }, ta,
+        el("button", { class: "btn", onclick: async () => { await api(`/bots/${b.id}/memories/${m.id}`, { method: "PUT", body: { text: ta.value } }); toast("Saved"); } }, "Save"),
+        el("button", { class: "btn danger", "aria-label": "Delete memory", onclick: async () => { await api(`/bots/${b.id}/memories/${m.id}`, { method: "DELETE" }); renderAgent(); } }, "✕"));
+    }) : [el("p", { class: "dim" }, "Nothing yet. It learns as you work together.")]),
+    el("div", { class: "mem" }, add, el("button", { class: "btn", onclick: async () => { if (!add.value.trim()) return; await api(`/bots/${b.id}/memories`, { method: "POST", body: { text: add.value } }); renderAgent(); } }, "Add")));
+}
+async function renderSettings() {
+  $("sideTitle").textContent = "Settings";
+  $("sideBack").hidden = !current;
+  const s = await api("/settings");
+  const user = el("input", { class: "f", value: s.userName, "aria-label": "Your name", onchange: async () => { await api("/settings", { method: "POST", body: { userName: user.value } }); info.user = user.value.trim() || "You"; renderList(); } });
+  const provider = el("select", { class: "f", "aria-label": "Provider" }, ["anthropic", "openai", "requesty"].map((p) =>
+    el("option", { value: p, selected: p === s.provider, disabled: !s.keys[p] }, `${p}${s.keys[p] ? "" : " (no key in .env)"}`)));
+  const list = el("datalist", { id: "models" });
+  const model = el("input", { class: "f", value: s.model || "", list: "models", "aria-label": "Model", placeholder: "Model id" });
+  const fill = async () => { const ids = await api(`/settings/models?provider=${provider.value}`).catch(() => []); list.replaceChildren(...ids.map((i) => el("option", { value: i }))); };
+  provider.onchange = () => { model.value = ""; fill(); };
+  const status = el("span", { class: "dim" });
+  const save = el("button", { class: "btn pri", onclick: async () => {
+    save.disabled = true; status.textContent = "Checking the model answers…";
+    try { await api("/settings", { method: "POST", body: { provider: provider.value, model: model.value } }); status.textContent = "Saved. New messages use this model."; }
+    catch (e) { status.textContent = e.message; }
+    finally { save.disabled = false; }
+  } }, "Save model");
+  const url = el("input", { class: "f", value: s.boardUrl, "aria-label": "Board URL" });
+  const bstat = el("span", { class: "dim" }, board.ok ? `Connected${board.version ? ` · kaizen ${board.version}` : ""}` : "Not running. Start it with: kaizen web");
+  const theme = el("select", { class: "f", "aria-label": "Theme", onchange: () => setTheme(theme.value) },
+    [["", "System"], ["light", "Light"], ["dark", "Dark"]].map(([v, t]) => el("option", { value: v, selected: (document.documentElement.dataset.theme || "") === v }, t)));
+  $("sideBody").replaceChildren(
+    el("label", { class: "k" }, "Your name"), user,
+    el("label", { class: "k" }, "Model provider"), provider,
+    el("label", { class: "k" }, "Model"), model, list,
+    el("div", { class: "row", style: { marginTop: "8px", flexWrap: "wrap" } }, save, status),
+    el("p", { class: "dim" }, "Keys stay in .env and never reach this page. What you type goes to this provider."),
+    el("label", { class: "k" }, "Kaizen board"), url,
+    el("div", { class: "row", style: { marginTop: "8px", flexWrap: "wrap" } }, el("button", { class: "btn", onclick: async () => {
+      try { await api("/settings", { method: "POST", body: { boardUrl: url.value } }); await loadBoard(); renderSettings(); } catch (e) { toast(e.message); }
+    } }, "Save"), bstat),
+    el("label", { class: "k" }, "Dictation"),
+    el("p", { class: "dim", style: { margin: 0 } }, "The mic runs Whisper (base, about 80 MB) in this browser. It downloads once from huggingface.co and cdn.jsdelivr.net on the first press; your audio never leaves the browser."),
+    el("label", { class: "k" }, "Theme"), theme,
+    el("label", { class: "k" }, "Approved drafts"), el("a", { class: "btn", href: "/drafts/export", download: true }, "Export as Markdown"));
+  fill();
+}
+async function loadBoard() { try { board = await api("/board"); setBoard(board.ok); } catch { setBoard(false); } }
+
+// theme: system by default, chosen in Settings
+const setTheme = (t) => { t ? document.documentElement.dataset.theme = t : delete document.documentElement.dataset.theme; try { localStorage.theme = t; } catch {} };
+try { setTheme(localStorage.theme || ""); } catch {}
+
+// ---- dictation: Whisper in the page, adapted from the kaizen board (web/board.html:362-433).
+// Audio never leaves the browser. Library and model download only on the first press, from
+// cdn.jsdelivr.net and huggingface.co, after a one-time note; nothing is fetched at page load.
+const TFJS = "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.0", ASR_MODEL = "onnx-community/whisper-base";
+const WORKER_SRC = `import{pipeline}from"${TFJS}";let asr=null;
+onmessage=async e=>{const m=e.data;try{
+ if(m.type==="load"){const prog=p=>{if(p.status==="progress")postMessage({type:"progress",file:p.file,pct:p.progress||0})};
+  const gpu=m.webgpu?{device:"webgpu",dtype:{encoder_model:m.f16?"fp16":"fp32",decoder_model_merged:"q4"}}:null,cpu={device:"wasm",dtype:"q8"};
+  try{if(!gpu)throw 0;asr=await pipeline("automatic-speech-recognition",m.model,{...gpu,progress_callback:prog})}
+  catch(e){if(gpu)postMessage({type:"fallback",why:String(e&&e.message||e)});asr=await pipeline("automatic-speech-recognition",m.model,{...cpu,progress_callback:prog})}
+  postMessage({type:"ready"})}
+ if(m.type==="run"){const r=await asr(m.audio,{chunk_length_s:30,return_timestamps:false});postMessage({type:"text",sid:m.sid,seq:m.seq,text:(r.text||"").trim()})}
+}catch(err){postMessage({type:"error",sid:m.sid,seq:m.seq,error:String(err&&err.message||err)})}}`;
+const WORKLET_SRC = `class T extends AudioWorkletProcessor{process(i){const c=i[0]&&i[0][0];if(c)this.port.postMessage(c.slice(0));return true}}registerProcessor("kz-tap",T)`;
+const HAS_MIC = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.AudioWorkletNode && window.WebAssembly && window.Worker);
+let asrWorker = null, asrReady = null, asrProgress = () => {}, active = null, starting = false;
+const sessions = new Set();
+function loadAsr() {
+  if (asrReady) return asrReady;
+  asrReady = new Promise(async (res, rej) => {
+    asrWorker = new Worker(URL.createObjectURL(new Blob([WORKER_SRC], { type: "text/javascript" })), { type: "module" });
+    const files = {};
+    asrWorker.onmessage = (e) => {
+      const m = e.data;
+      if (m.type === "progress") { files[m.file] = m.pct; const v = Object.values(files); asrProgress(Math.round(v.reduce((a, b) => a + b, 0) / v.length)); }
+      else if (m.type === "ready") res();
+      else if (m.type === "fallback") toast("GPU could not run the model, using the CPU");
+      else if (m.type === "error" && m.seq == null) rej(new Error(m.error));
+      for (const s of sessions) s.onmsg(m);
+    };
+    asrWorker.onerror = (e) => rej(new Error(e.message || "worker failed"));
+    let adapter = null; try { adapter = navigator.gpu && await navigator.gpu.requestAdapter(); } catch {}
+    asrWorker.postMessage({ type: "load", model: ASR_MODEL, webgpu: !!adapter, f16: !!(adapter && adapter.features.has("shader-f16")) });
+  });
+  asrReady.catch(() => { asrReady = null; try { asrWorker.terminate(); } catch {} asrWorker = null; });
+  return asrReady;
+}
+function setupMic() {
+  const b = $("mic"), f = $("input"), form = $("composer");
+  if (!HAS_MIC) { b.hidden = true; return; }
+  const idle = () => { icon(b, "mic"); b.classList.remove("on", "busy"); };
+  idle();
+  b.onclick = async (e) => {
+    e.preventDefault();
+    if (active) { active.stop(); return; }
+    if (starting) return;
+    let ok = false; try { ok = localStorage.dictationOk === "1"; } catch {}
+    if (!ok) {
+      if (!confirm("Dictation downloads a speech model (about 80 MB) once from huggingface.co and cdn.jsdelivr.net, then runs it in this browser. Your audio never leaves the browser. Continue?")) return;
+      try { localStorage.dictationOk = "1"; } catch {}
+    }
+    starting = true;
+    b.classList.add("busy"); asrProgress = (pct) => b.replaceChildren(el("i", {}, `${pct}%`));
+    try { await loadAsr(); } catch (err) { idle(); asrProgress = () => {}; starting = false; toast(`Dictation could not load: ${err.message}. Typing and Enter still work.`); return; }
+    asrProgress = () => {}; icon(b, "mic");
+    let stream;
+    try { stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, noiseSuppression: true, echoCancellation: true } }); }
+    catch (err) { idle(); starting = false; toast(`Microphone not available: ${err.name === "NotAllowedError" ? "permission denied" : err.message}`); return; }
+    const ctx = new AudioContext({ sampleRate: 16000 });
+    await ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([WORKLET_SRC], { type: "text/javascript" })));
+    const src = ctx.createMediaStreamSource(stream), tap = new AudioWorkletNode(ctx, "kz-tap"); src.connect(tap);
+    let at = f.selectionStart ?? f.value.length;
+    const vu = el("span", { class: "vu", "aria-hidden": "true" }, [.5, .9, 1.3, .8, .45].map(() => el("i")));
+    vu.querySelectorAll("i").forEach((i, k) => i.style.setProperty("--w", [.5, .9, 1.3, .8, .45][k]));
+    let buf = [], len = 0, voiced = 0, quiet = 0, seq = 0, done = 0, stopping = false;
+    const pending = new Map(), SR = 16000, MAX = 6 * SR, SIL = 0.8 * SR, MIN = 1 * SR;
+    const insert = (t) => { if (!t || !f.isConnected) return; const v = f.value; if (document.activeElement === f) at = f.selectionStart; at = Math.min(at, v.length); const head = v.slice(0, at), sep = head && !/\s$/.test(head) ? " " : ""; f.value = head + sep + t + v.slice(at); at = head.length + sep.length + t.length; f.selectionStart = f.selectionEnd = at; f.dispatchEvent(new Event("input", { bubbles: true })); };
+    const flush = () => { if (!len || voiced < MIN) { buf = []; len = 0; voiced = 0; quiet = 0; return; } const a = new Float32Array(len); let o = 0; for (const c of buf) { a.set(c, o); o += c.length; } buf = []; len = 0; voiced = 0; quiet = 0; pending.set(seq, null); asrWorker.postMessage({ type: "run", sid, seq, audio: a }, [a.buffer]); seq++; b.classList.add("busy"); };
+    const drain = () => { while (pending.has(done) && pending.get(done) !== null) { insert(pending.get(done)); pending.delete(done); done++; } if (!pending.size) { b.classList.remove("busy"); if (stopping) { idle(); sessions.delete(sess); } } };
+    tap.port.onmessage = (e) => {
+      const c = e.data; buf.push(c); len += c.length; let s = 0; for (let i = 0; i < c.length; i++) s += c[i] * c[i]; const rms = Math.sqrt(s / c.length);
+      if (rms > 0.01) { voiced += c.length; quiet = 0; } else quiet += c.length;
+      const l = Math.min(1, rms * 8).toFixed(2); form.style.setProperty("--lvl", l); vu.style.setProperty("--lvl", l);
+      if (len >= MAX || (voiced >= MIN && quiet >= SIL)) flush();
+    };
+    const sid = Math.random().toString(36).slice(2);
+    const sess = {
+      onmsg: (m) => { if (m.sid !== sid) return; if (m.type === "text") { pending.set(m.seq, m.text); drain(); } else if (m.type === "error" && m.seq != null) { pending.set(m.seq, ""); toast(`Dictation failed: ${m.error}`); drain(); } },
+      stop: () => { if (stopping) return; stopping = true; b.classList.remove("on"); form.classList.remove("dictating"); icon(b, "mic"); try { tap.port.onmessage = null; src.disconnect(); tap.disconnect(); stream.getTracks().forEach((t) => t.stop()); ctx.close(); } catch {} active = null; flush(); drain(); },
+    };
+    sessions.add(sess); active = sess; starting = false;
+    b.classList.remove("busy"); b.classList.add("on"); form.classList.add("dictating"); b.replaceChildren(vu); f.focus();
+  };
+}
+
+// ---- start ----
+setupMic();
+(async () => {
+  info = await api("/info");
+  await Promise.all([loadBots(), loadBoard()]);
+  listen();
+  if (bots[0]) select(bots[0].id); else openTo();
+})();
+</script>
+</body>
+</html>
