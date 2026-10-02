@@ -41,6 +41,35 @@ Press **+** on the left for a new chat: pick an agent, or create your own and de
 Type and press **Enter** to send (**Shift+Enter** for a new line), or press the mic and
 speak.
 
+## Download the app
+
+No Bun or repo needed: one file per OS, from `bun run build` in `bot/` (it writes all five to
+`dist/`, about 60–85 MB each since each carries the Bun runtime).
+
+| OS | File |
+|---|---|
+| Linux | `kaizen-bot-linux-x64`, `kaizen-bot-linux-arm64` |
+| macOS | `kaizen-bot-darwin-arm64` (Apple Silicon), `kaizen-bot-darwin-x64` (Intel) |
+| Windows | `kaizen-bot-windows-x64.exe` |
+
+Open it. The first time, it creates `~/.kaizen-bot/.env`, opens it, and asks you to set
+`PROVIDER` and that provider's key; save it and open the app again. From then on it starts
+the board if `kaizen` is installed and the board isn't running, and opens the chat in its own
+window. Opening it again while it runs just opens the window. Closing the console window
+stops it.
+
+The app keeps everything in `~/.kaizen-bot/`: `.env` and `bot.db` (your chats, cards and
+settings). It never reads `bot/.env` or `bot/data/`, so the source run and the app have
+separate histories.
+
+The files are not signed, so the OS warns on first open:
+
+- **macOS:** right-click the file → Open → Open, or run
+  `xattr -d com.apple.quarantine kaizen-bot-darwin-arm64`. Mark it runnable with `chmod +x` first.
+- **Windows:** SmartScreen's "Windows protected your PC" → More info → Run anyway.
+- **Linux:** `chmod +x kaizen-bot-linux-x64`, then run it from a terminal the first time: a
+  file manager usually starts it with no terminal, so the first-run message can't be seen.
+
 ## Teammates
 
 An agent can ask a teammate: *Chief, ask Sales Outbound which accounts are warm*. The teammate

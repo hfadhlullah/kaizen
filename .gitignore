@@ -9,3 +9,4 @@ node_modules/
 # Kaizen Bot: its API key and local database never leave this machine.
 bot/.env
 bot/data/
+bot/dist/

@@ -192,6 +192,22 @@ cp .env.example .env      # set PROVIDER, MODEL and that provider's key
 bun start                 # http://127.0.0.1:7430
 ```
 
+### Download the app
+
+Kaizen Bot also runs as a single app file for Linux, macOS and Windows, with no Bun or repo needed.
+`bun run build` in `bot/` writes all five to `bot/dist/`:
+
+| OS | File |
+|---|---|
+| Linux | `kaizen-bot-linux-x64`, `kaizen-bot-linux-arm64` |
+| macOS | `kaizen-bot-darwin-arm64` (Apple Silicon), `kaizen-bot-darwin-x64` (Intel) |
+| Windows | `kaizen-bot-windows-x64.exe` |
+
+Open it. The first time, it creates `~/.kaizen-bot/.env` for your provider and key. After that it
+starts the board if `kaizen` is installed, and opens the chat in its own window. The files are
+unsigned, so macOS and Windows warn on first open. How to get past that is in
+[Download the app](https://github.com/hfadhlullah/kaizen/blob/main/bot/README.md#download-the-app).
+
 Anthropic, OpenAI and Requesty are supported. Setup, privacy and settings are in the [Kaizen Bot README](https://github.com/hfadhlullah/kaizen/blob/main/bot/README.md).
 
 ## Commands

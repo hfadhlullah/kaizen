@@ -1,11 +1,16 @@
 import { join } from "node:path";
+import { homedir } from "node:os";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { parseEnv } from "node:util";
 import { openStore, nextRun, parseDays, scheduleLabel, type Store, type DraftStatus, type Action } from "./db";
 import { configFromEnv, listModels, probe, type ModelConfig } from "./model";
 import { runTurn } from "./agent";
 import { DEFAULTS, ROLES } from "./roles";
 import { boardClient, boardLink, loopbackUrl, normalise, reviewMark, runUpdated, BoardDown, type BoardRun, type BoardState } from "./board";
+// Embedded by `bun build --compile`; the source run gets the real paths.
+import PAGE from "../web/index.html" with { type: "file" };
+import ENV_TEMPLATE from "../.env.example" with { type: "text" };
 
-const PAGE = join(import.meta.dir, "../web/index.html");
 const DEFAULT_BOARD = "http://127.0.0.1:7420"; // kaizen web's DEFAULT_PORT (web.ts:18)
 const POLL_MS = 15_000; // fallback for board events lost to a restart or a dropped stream
 const UNSEEN_MS = 10 * 60_000; // a launch with no matching run after this says so
@@ -523,20 +528,70 @@ export function createApp(deps: { store: Store; env: Env; fetch?: Fetch; boardFe
 }
 
 if (import.meta.main) {
-  const store = openStore(join(import.meta.dir, "../data/bot.db"));
+  // The compiled app runs from Bun's virtual filesystem, started from any folder, so its
+  // .env and database live in ~/.kaizen-bot instead of beside the source.
+  const compiled = import.meta.dir.startsWith("/$bunfs") || import.meta.dir.includes("~BUN");
+  const home = join(homedir(), ".kaizen-bot");
+  const envFile = join(home, ".env");
   const env = process.env;
+  if (compiled && existsSync(envFile)) {
+    for (const [k, v] of Object.entries(parseEnv(readFileSync(envFile, "utf8")))) env[k] ??= v;
+  }
+  // A double-clicked app's console closes the moment it exits; keep the reason on screen.
+  const fail = (why: string): never => {
+    console.error(`kaizen-bot: ${why}`);
+    if (compiled) prompt("\nPress Enter to close.");
+    process.exit(1);
+  };
+  const store = openStore(compiled ? join(home, "bot.db") : join(import.meta.dir, "../data/bot.db"));
   // Refuse to start without a working provider config, saying which key or model is missing.
   try {
     const s = { PROVIDER: store.setting("provider"), MODEL: store.setting("model") };
     configFromEnv({ ...env, PROVIDER: s.PROVIDER ?? env.PROVIDER, MODEL: s.MODEL ?? env.MODEL });
   } catch (e) {
-    console.error(`kaizen-bot: ${(e as Error).message}`);
-    process.exit(1);
+    let why = (e as Error).message;
+    if (compiled && !existsSync(envFile)) {
+      mkdirSync(home, { recursive: true });
+      writeFileSync(envFile, ENV_TEMPLATE);
+      const edit = process.platform === "win32" ? ["notepad", envFile] : process.platform === "darwin" ? ["open", "-t", envFile] : ["xdg-open", envFile];
+      try { Bun.spawn(edit, { stdio: ["ignore", "ignore", "ignore"] }).unref(); } catch { /* the path is printed below */ }
+      why = `first run: created ${envFile}\nSet PROVIDER and its API key in it, save, then open Kaizen Bot again.`;
+    } else if (compiled) why += `\nSettings are read from ${envFile}`;
+    fail(why);
   }
   if (env.BOARD_URL && !loopbackUrl(env.BOARD_URL)) console.error(`kaizen-bot: BOARD_URL must be a loopback http URL; using ${DEFAULT_BOARD}`);
-  const app = createApp({ store, env });
   const port = Number(env.PORT) || 7430;
-  Bun.serve({ hostname: "127.0.0.1", port, idleTimeout: 0, fetch: app.handle });
-  console.log(`Kaizen Bot on http://127.0.0.1:${port}`);
+  const url = `http://127.0.0.1:${port}`;
+  // Loopback only: the board URL passed loopbackUrl() and url is 127.0.0.1.
+  const answers = (u: string, f: Fetch = fetch) => f(u, { signal: AbortSignal.timeout(1500) }).then((r) => r.ok, () => false);
+  // Only the app opens windows and starts the board; `bun start` behaves as it always has.
+  const { openApp } = compiled ? await import("../../cli/web.ts") : { openApp: async (_: string) => false };
+  if (compiled) {
+    const board = loopbackUrl(store.setting("boardUrl") ?? "") ?? loopbackUrl(env.BOARD_URL ?? "") ?? DEFAULT_BOARD;
+    const kaizen = Bun.which("kaizen");
+    if (kaizen && !(await answers(board))) {
+      const args = ["web", "--daemon", "--no-open", "--port", new URL(board).port || "80"];
+      const { cmdExe } = await import("../../cli/state.ts");
+      const cmd = process.platform === "win32" ? [cmdExe(), "/c", "kaizen", ...args] : [kaizen, ...args];
+      try {
+        const code = await Bun.spawn(cmd, { stdio: ["ignore", "inherit", "inherit"], windowsHide: true }).exited;
+        if (code !== 0) console.error(`kaizen-bot: kaizen web exited ${code}; the board shows as down`);
+      } catch (e) { console.error(`kaizen-bot: could not start kaizen web: ${(e as Error).message}`); }
+    }
+  }
+  const app = createApp({ store, env });
+  try {
+    Bun.serve({ hostname: "127.0.0.1", port, idleTimeout: 0, fetch: app.handle });
+  } catch (e) {
+    // Something already answers on the port: a second launch of the app just opens its window.
+    if (compiled && (await answers(url))) {
+      console.log(`Kaizen Bot already running on ${url}`);
+      await openApp(url);
+      process.exit(0);
+    }
+    if (!compiled) throw e;
+    fail(`cannot listen on ${url}: ${(e as Error).message}`);
+  }
+  console.log(`Kaizen Bot on ${url}`);
+  if (compiled) await openApp(url);
 }
-
