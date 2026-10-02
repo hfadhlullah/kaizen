@@ -134,6 +134,38 @@ test("remember with for teaches a teammate, and an unknown name saves nothing", 
   s.close();
 });
 
+test("ask_teammate: one hop, nothing in the teammate's thread, busy teammate refused", async () => {
+  const s = openStore(":memory:");
+  const chief = s.createBot("chief"), sales = s.createBot("sales");
+  const shown: string[] = [];
+  const emitTo = (id: number) => (ev: string, d: any) => { if (ev === "message") shown.push(`${id}:${d.kind}`); };
+  // Chief asks Sales; Sales tries to ask back (refused: depth), then answers; Chief wraps up.
+  const { f, calls } = fake([
+    anthTool("ask_teammate", { to: "sales outbound", message: "Is Acme warm?" }),
+    anthTool("ask_teammate", { to: "Chief", message: "loop?" }),
+    anthText("Acme is warm."),
+    anthText("Sales says Acme is warm."),
+  ]);
+  const busy = new Set<number>();
+  await runTurn({ store: s, cfg: anthropicCfg, fetch: f, busy, emitTo }, chief.id, "how is acme?", () => {});
+  expect(JSON.stringify(calls[1].body.messages)).toContain("Your teammate Chief asks you");
+  expect(JSON.stringify(calls[2].body.messages)).toContain("you cannot ask another one now");
+  expect(JSON.stringify(calls[3].body.messages)).toContain("Reply from Sales Outbound:\\nAcme is warm.");
+  // The asker relays the answer; the teammate's thread stays as it was.
+  expect(s.messages(sales.id)).toEqual([]);
+  expect(shown).toEqual([]);
+  expect(s.messages(chief.id).map((m) => m.text)).toEqual(["how is acme?", "Teammate → asked Sales Outbound", "Sales says Acme is warm."]);
+  expect(busy.size).toBe(0);
+
+  busy.add(sales.id);
+  const { f: f2, calls: c2 } = fake([anthTool("ask_teammate", { to: "Sales Outbound", message: "hi" }), anthText("ok")]);
+  await runTurn({ store: s, cfg: anthropicCfg, fetch: f2, busy, emitTo }, chief.id, "ask sales", () => {});
+  expect(c2).toHaveLength(2);
+  expect(JSON.stringify(c2[1].body.messages)).toContain("Sales Outbound is busy");
+  expect(s.messages(sales.id)).toEqual([]);
+  s.close();
+});
+
 test("G-05 tool loop is capped and model errors become a visible message", async () => {
   const s = openStore(":memory:");
   const bot = s.createBot("chief");

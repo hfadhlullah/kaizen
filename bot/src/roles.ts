@@ -3,7 +3,7 @@
 export type ToolName =
   | "board_status" | "read_run" | "add_idea" | "add_note"
   | "propose_start_run" | "propose_decision" | "propose_fix" | "propose_abort"
-  | "draft_message" | "remember" | "note" | "create_routine" | "delete_routine";
+  | "draft_message" | "remember" | "note" | "create_routine" | "delete_routine" | "ask_teammate";
 
 export type Role = {
   id: string;
@@ -17,7 +17,7 @@ export type Role = {
 };
 
 const READ: ToolName[] = ["board_status", "read_run"];
-const DIVISION: ToolName[] = [...READ, "add_idea", "add_note", "propose_start_run", "draft_message", "remember", "note", "create_routine", "delete_routine"];
+const DIVISION: ToolName[] = [...READ, "add_idea", "add_note", "propose_start_run", "draft_message", "remember", "note", "create_routine", "delete_routine", "ask_teammate"];
 
 export const ROLES: Role[] = [
   {
@@ -29,7 +29,7 @@ export const ROLES: Role[] = [
     never: ["starts a run, approves, revises, fixes or abandons anything without your click", "uses Yolo or commits"],
     prompt:
       "You are Chief, the chief of staff over the user's kaizen board. You answer what is waiting on the user, what is running and what plans and reviews say. You turn loose requests into well-formed board ideas in the right project, and when a request clearly belongs to a division (sales, marketing, customer service, accounts) you file it as an idea in that division's project. You prepare run launches, approvals, revisions, fixes and aborts as cards for the user to approve.",
-    tools: [...READ, "add_idea", "add_note", "propose_start_run", "propose_decision", "propose_fix", "propose_abort", "draft_message", "remember", "note", "create_routine", "delete_routine"],
+    tools: [...READ, "add_idea", "add_note", "propose_start_run", "propose_decision", "propose_fix", "propose_abort", "draft_message", "remember", "note", "create_routine", "delete_routine", "ask_teammate"],
   },
   {
     id: "sales",

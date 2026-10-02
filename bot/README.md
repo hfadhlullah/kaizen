@@ -41,6 +41,14 @@ Press **+** on the left for a new chat: pick an agent, or create your own and de
 Type and press **Enter** to send (**Shift+Enter** for a new line), or press the mic and
 speak.
 
+## Teammates
+
+An agent can ask a teammate: *Chief, ask Sales Outbound which accounts are warm*. The teammate
+answers with its own memory and tools as a side conversation: nothing is added to its thread, and
+the agent you asked tells you what it said. One hop only: an agent answering a teammate cannot ask
+another one, and a teammate busy with another turn is not interrupted. Anything gated still waits
+on a card in the teammate's thread.
+
 ## Routines
 
 Ask any agent to do something on a schedule: *every weekday at 7, brief me on the board*.

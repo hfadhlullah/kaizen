@@ -274,6 +274,10 @@ export function createApp(deps: { store: Store; env: Env; fetch?: Fetch; boardFe
   }
 
   const busy = new Set<number>();
+  // A thread with no send() stream open for it (a routine's, a teammate's): its events go to every page.
+  const broadcast = (botId: number) => (ev: string, data: unknown) =>
+    push(ev === "message" ? "msg" : ev, ev === "action" ? one((data as Action).id) : { ...(data as object), bot_id: botId });
+  const ctxNow = (cfg: ModelConfig) => ({ store, cfg, board: boardNow(), fetch: deps.fetch, busy, emitTo: broadcast });
 
   // ---- routines: a due one runs as an ordinary turn, its output pushed to every open page.
   // Rescheduled from now before it runs, so a slow turn or a long downtime fires it once.
@@ -281,7 +285,7 @@ export function createApp(deps: { store: Store; env: Env; fetch?: Fetch; boardFe
   async function tick(at = Date.now()) {
     let cfg: ModelConfig;
     try { cfg = cfgNow(); } catch { return; }
-    const turns: Promise<void>[] = [];
+    const turns: Promise<unknown>[] = [];
     for (const r of store.dueRoutines(at)) {
       if (busy.has(r.bot_id)) continue;
       // A row with no valid days (only by editing the DB) can never be scheduled: pause it.
@@ -290,9 +294,7 @@ export function createApp(deps: { store: Store; env: Env; fetch?: Fetch; boardFe
       store.updateRoutine(r.id, { next_run: next, last_run: at });
       const botId = r.bot_id;
       busy.add(botId);
-      turns.push(runTurn({ store, cfg, board: boardNow(), fetch: deps.fetch }, botId, r.prompt,
-        (ev, data) => push(ev === "message" ? "msg" : ev, ev === "action" ? one((data as Action).id) : { ...(data as object), bot_id: botId }),
-        { routine: r.name })
+      turns.push(runTurn(ctxNow(cfg), botId, r.prompt, broadcast(botId), { routine: r.name })
         .finally(() => { busy.delete(botId); push("status", { bot_id: botId, text: null }); })
         // Bun exits on an unhandled rejection; a turn that throws (its agent deleted mid-turn) must not take the server down.
         .catch(() => {}));
@@ -408,7 +410,7 @@ export function createApp(deps: { store: Store; env: Env; fetch?: Fetch; boardFe
             async start(ctl) {
               const send = (ev: string, data: unknown) => { try { ctl.enqueue(enc.encode(`event: ${ev}\ndata: ${JSON.stringify(data)}\n\n`)); } catch {} };
               try {
-                await runTurn({ store, cfg, board: boardNow(), fetch: deps.fetch }, botId, msg,
+                await runTurn(ctxNow(cfg), botId, msg,
                   (ev, data) => send(ev, ev === "action" ? one((data as Action).id) : data));
               } finally { busy.delete(botId); send("done", {}); try { ctl.close(); } catch {} }
             },
