@@ -171,6 +171,29 @@ kaizen Done, and reviewed. Two things found:
 
 <img src="https://raw.githubusercontent.com/hfadhlullah/kaizen/c858bb6d666a65780d09c06032c8819489b87da5/assets/board.png" alt="kaizen web board" width="760">
 
+## Kaizen Bot
+
+A chat front end for your board, with AI teammates for every division. Ask **Chief** what's
+waiting on you, what's running, and what a plan or review says. Hand Sales Outbound,
+Marketing, Customer Service or Account Manager their team's asks, and they turn them into board ideas
+and runs. The board still does the real work: plan, approval, build, review.
+
+- **Nothing happens behind your back.** An agent may read the board, add an idea or a note, remember a fact and draft a message. Starting a run, approving a plan or fixing findings waits on a card until you click Approve. It never turns on Yolo and never commits.
+- **Nothing is ever sent.** Emails, posts and replies are drafts: approve one, then copy it or export them all as Markdown.
+- **Teammates and routines.** One agent can ask another, and any agent can run a task on a schedule: *every weekday at 7, brief me on the board*.
+
+<img src="https://raw.githubusercontent.com/hfadhlullah/kaizen/main/assets/bot.png" alt="Kaizen Bot: Account Manager holds a drafted email on a card until you approve it" width="760">
+
+Kaizen Bot lives in the repo's `bot/` folder, not the npm package. With the board running (`kaizen web`):
+
+```sh
+git clone https://github.com/hfadhlullah/kaizen && cd kaizen/bot
+cp .env.example .env      # set PROVIDER, MODEL and that provider's key
+bun start                 # http://127.0.0.1:7430
+```
+
+Anthropic, OpenAI and Requesty are supported. Setup, privacy and settings are in the [Kaizen Bot README](https://github.com/hfadhlullah/kaizen/blob/main/bot/README.md).
+
 ## Commands
 
 | Command | |
@@ -193,6 +216,7 @@ In a terminal: `kaizen` (dashboard), `kaizen web` (board), `kaizen settings`, `k
 ## Learn more
 
 - **[The guide](https://github.com/hfadhlullah/kaizen/blob/main/docs/guide.md)**: the board, request sources, notebook, settings, installer flags, uninstall
+- [Kaizen Bot](https://github.com/hfadhlullah/kaizen/blob/main/bot/README.md): the chat front end, its agents, routines and privacy
 - [`spec.md`](https://github.com/hfadhlullah/kaizen/blob/main/skills/kaizen/spec.md): the contract every stage follows
 - [`adapters.md`](https://github.com/hfadhlullah/kaizen/blob/main/skills/kaizen/adapters.md): running outside Claude Code, with Codex and Antigravity as the worked examples. OpenCode, Cursor and Gemini CLI load the same skill folder
 - Found a bug? `kaizen issue`, or *Report an issue* on the board, opens a GitHub bug form with your system details filled in. Nothing is sent until you press Submit on GitHub.
