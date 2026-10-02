@@ -114,6 +114,26 @@ test("G-04 memories persist across a fresh connection and reach the next system 
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
+test("remember with for teaches a teammate, and an unknown name saves nothing", async () => {
+  const s = openStore(":memory:");
+  const sales = s.createBot("sales"), am = s.createBot("am");
+  expect(systemPrompt(s, sales.id)).toContain("Your teammates: Account Manager");
+  expect(systemPrompt(s, sales.id)).toContain("the user sets a standing rule for you");
+  const { f } = fake([anthTool("remember", { fact: "Acme only signs annual", for: "account manager" }), anthText("Noted.")]);
+  await runTurn({ store: s, cfg: anthropicCfg, fetch: f }, sales.id, "acme signs annual only", () => {});
+  expect(s.memories(am.id).map((m) => m.text)).toEqual(["Acme only signs annual (from Sales Outbound)"]);
+  expect(s.memories(sales.id)).toEqual([]);
+  expect(systemPrompt(s, am.id)).toContain("Acme only signs annual (from Sales Outbound)");
+  const act = s.actions({ botId: sales.id }).find((a) => a.kind === "memory")!;
+  expect(JSON.parse(act.body)).toEqual({ for: am.id, fact: "Acme only signs annual" });
+
+  const { f: f2, calls } = fake([anthTool("remember", { fact: "x", for: "Nobody" }), anthText("ok")]);
+  await runTurn({ store: s, cfg: anthropicCfg, fetch: f2 }, sales.id, "tell nobody", () => {});
+  expect(JSON.stringify(calls[1].body.messages)).toContain('no teammate named \\"Nobody\\", nothing saved. Teammates: Account Manager');
+  expect([...s.memories(am.id), ...s.memories(sales.id)]).toHaveLength(1);
+  s.close();
+});
+
 test("G-05 tool loop is capped and model errors become a visible message", async () => {
   const s = openStore(":memory:");
   const bot = s.createBot("chief");

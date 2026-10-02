@@ -419,6 +419,16 @@ test("routines G-07: create_routine saves a valid routine with a receipt and ref
   expect(store.routines(chief.id)).toHaveLength(20);
 });
 
+test("delete_routine deletes by name with a receipt, and an unknown name deletes nothing", async () => {
+  const { store, chief, say } = setup();
+  store.addRoutine(chief.id, { name: "Daily weather briefing", prompt: "p", days: [1], time: "07:00" });
+  store.addRoutine(chief.id, { name: "Keep", prompt: "p", days: [1], time: "07:00" });
+  await say(chief.id, model(["delete_routine", { name: "nope" }], ["delete_routine", { name: "daily weather briefing" }]));
+  expect(store.routines(chief.id).map((r) => r.name)).toEqual(["Keep"]);
+  expect(store.messages(chief.id).some((m) => m.kind === "receipt" && m.text === "Routine → deleted Daily weather briefing")).toBe(true);
+  expect(systemPrompt(store, chief.id)).toContain("Never say you did something no tool call of yours did");
+});
+
 test("routines G-01/G-02/G-04/G-08: a due routine fires once as a turn, gated work waits on a card, busy agents wait a tick", async () => {
   const store = openStore(":memory:");
   const board = fakeBoard();

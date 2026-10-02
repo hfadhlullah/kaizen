@@ -57,6 +57,7 @@ body.dragging{user-select:none;cursor:col-resize}
 /* main column */
 main{flex:1;display:flex;flex-direction:column;min-width:0}
 .top{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--line);min-height:56px}
+.top .who{flex:1;min-width:0;display:flex;align-items:center;gap:10px;text-align:left}.top .who:hover b{text-decoration:underline}
 .top .t{flex:1;min-width:0;display:flex;align-items:baseline;gap:8px}.top .t b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.top .t span{font-size:12px;color:var(--dim)}
 #thread{flex:1;overflow-y:auto;padding:20px 16px;display:flex;flex-direction:column;gap:8px}
 .msg{max-width:min(640px,85%);padding:9px 14px;border-radius:18px;white-space:pre-wrap;overflow-wrap:anywhere}
@@ -116,12 +117,11 @@ form.composer textarea{resize:none;max-height:160px;padding:7px 0;outline:none}
 aside.side{width:340px;flex:none;border-left:1px solid var(--line);background:var(--bg-2);display:flex;flex-direction:column}
 .side .hd{display:flex;align-items:center;gap:6px;padding:10px 12px;border-bottom:1px solid var(--line);min-height:56px}.side .hd b{flex:1;text-align:center}
 .side .bd{flex:1;overflow-y:auto;padding:12px 16px 24px}
-.never{margin:6px 0 0;padding-left:18px;color:var(--dim);font-size:13px}
 .row{display:flex;gap:8px;align-items:center}
 .toggle{display:flex;gap:12px;align-items:flex-start;border:1px solid var(--line);border-radius:var(--r);padding:12px;margin-top:14px}
 .toggle div{flex:1}.toggle small{display:block;color:var(--dim)}
 .toggle input{width:38px;height:22px;accent-color:var(--accent)}
-.memline{align-self:center;font-size:13px;color:var(--dim);display:flex;align-items:center;gap:6px}
+.memline{align-self:center;font-size:13px;color:var(--dim);display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:6px}.memline .fact{flex-basis:100%;text-align:center;font-style:italic}
 .memline .who{display:inline-flex;align-items:center;gap:5px;padding:1px 8px 1px 3px;border-radius:var(--r-pill);color:var(--accent-ink);background:color-mix(in srgb,var(--accent) 14%,var(--bg-2))}.memline .av{width:16px;height:16px;font-size:9px}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:var(--r-s);z-index:9;max-width:90vw}
 
@@ -140,8 +140,7 @@ aside.side{width:340px;flex:none;border-left:1px solid var(--line);background:va
 <main>
   <div class="top" id="top">
     <button class="ib back" id="backBtn" aria-label="Back to agents" hidden></button>
-    <div id="tav"></div>
-    <div class="t"><b id="tname">New chat</b><span id="ttitle"></span></div>
+    <button class="who" id="who" title="Agent profile"><span id="tav"></span><span class="t"><b id="tname">New chat</b><span id="ttitle"></span></span></button>
     <button class="ib" id="panelBtn" title="Agent" aria-label="Agent details" hidden></button>
   </div>
   <div class="to" id="to" hidden>
@@ -203,7 +202,6 @@ const initials = (s) => s.trim().split(/\s+/).map((w) => w[0]).join("").slice(0,
 let info = { roles: [], user: "You" }, bots = [], current = null, items = [], board = { ok: null, projects: [] }, panel = null;
 const working = new Set(), doingText = new Map(), routineBusy = new Set();
 const shown = () => bots.filter((b) => !b.hidden); // a dismissed chat is still yours, under +
-const roleOf = (b) => info.roles.find((r) => r.id === b.role) || { never: [], name: b.role };
 
 // ---- sidebar: one row per agent; a dot when a card waits on you ----
 function renderList() {
@@ -328,7 +326,13 @@ async function act(a, body, btn) {
 }
 function card(a) {
   // A memory save is a quiet line, not a card: the fact itself stays out of the thread.
-  if (a.kind === "memory") return el("div", { class: "memline", id: `act-${a.id}` }, "Updated memory for ", el("span", { class: "who" }, avatar(current, "sm"), current.name));
+  if (a.kind === "memory") {
+    // A taught teammate since deleted reads as such, not as this agent. A fact written
+    // into another agent's memory is shown, so a cross-agent write is never invisible.
+    const to = a.body?.for ? bots.find((b) => b.id === a.body.for) : current;
+    return el("div", { class: "memline", id: `act-${a.id}` }, "Updated memory for ", to ? el("span", { class: "who" }, avatar(to, "sm"), to.name) : "a deleted agent",
+      a.body?.for && a.body.fact ? el("span", { class: "fact" }, `“${a.body.fact}”`) : null);
+  }
   const s = a.snapshot || {};
   const live = a.kind === "start_run" && s.launched;
   const c = el("div", { class: "act", id: `act-${a.id}` },
@@ -441,7 +445,7 @@ async function send() {
         const here = current?.id === botId;
         if (ev === "status") { doingText.set(botId, data.text); if (here) showDoing(data.text); }
         else if (ev === "message" && here) { items.push({ type: "m", at: data.at, m: data }); addMsg(data); $("thread").scrollTop = $("thread").scrollHeight; }
-        if (ev === "message" && here && panel === "agent" && data.kind === "receipt" && data.text.startsWith("Routine → created")) renderRoutines();
+        if (ev === "message" && here && panel === "agent" && data.kind === "receipt" && /^Routine → (created|deleted) /.test(data.text)) renderRoutines();
         else if (ev === "action") { upsert(data); $("thread").scrollTop = $("thread").scrollHeight; if (data.status === "needed") notify(bot, "needs you", data.summary); }
       }
     }
@@ -494,6 +498,7 @@ function closeSide() { panel = null; $("side").hidden = true; }
 icon($("sideClose"), "x").onclick = closeSide;
 icon($("sideBack"), "back").onclick = () => current ? openSide("agent") : closeSide();
 icon($("panelBtn"), "panel").onclick = () => panel === "agent" ? closeSide() : openSide("agent");
+$("who").onclick = () => openSide("agent");
 icon($("newBtn"), "plus").onclick = openTo;
 icon($("searchIcon"), "search");
 icon($("backBtn"), "back").onclick = () => document.body.classList.remove("open");
@@ -509,7 +514,7 @@ async function patchBot(p) {
 async function renderAgent() {
   if (!current) return closeSide();
   $("sideTitle").textContent = "Agent";
-  const b = current, r = roleOf(b);
+  const b = current;
   const name = el("input", { class: "f", value: b.name, "aria-label": "Name", onchange: () => patchBot({ name: name.value }) });
   const title = el("input", { class: "f", value: b.title, placeholder: "Add a title", "aria-label": "Title", onchange: () => patchBot({ title: title.value }) });
   const desc = el("textarea", { class: "f", "aria-label": "Description", onchange: () => patchBot({ description: desc.value }) }); desc.value = b.description;
@@ -528,7 +533,6 @@ async function renderAgent() {
     el("label", { class: "k" }, "Description: shapes how this agent works"), desc,
     el("label", { class: "k" }, "Default project"), proj,
     el("div", { class: "toggle" }, el("div", {}, "Notifications", el("small", {}, "When this agent finishes, needs your click, or a run it started waits on you, while this tab is in the background.")), notifyBox),
-    el("label", { class: "k" }, "Never does without your yes"), el("ul", { class: "never" }, r.never.map((n) => el("li", {}, n))),
     el("label", { class: "k" }, "Routines"), el("div", { id: "routines" }),
     el("div", { class: "row", style: { marginTop: "20px" } },
       el("button", { class: "btn", title: "Remove from the sidebar; its chat stays, and + brings it back", onclick: async () => {
