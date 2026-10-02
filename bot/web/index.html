@@ -63,6 +63,13 @@ main{flex:1;display:flex;flex-direction:column;min-width:0}
 .msg{max-width:min(640px,85%);padding:9px 14px;border-radius:18px;white-space:pre-wrap;overflow-wrap:anywhere}
 .msg.bot{align-self:flex-start;background:var(--bg-2);border:1px solid var(--line)}
 .msg.user{align-self:flex-end;background:var(--accent);color:var(--on-accent)}
+/* agent replies render their Markdown (mdTree below) */
+.msg.md{white-space:normal}.msg.md>*{margin:0}.msg.md>*+*{margin-top:8px}
+.msg.md ul,.msg.md ol{padding-left:20px}.msg.md li>ul,.msg.md li>ol{margin:2px 0 0;padding-left:18px}.msg.md li+li{margin-top:2px}
+.msg.md h4{font-size:14px;font-weight:600}.msg.md hr{border:0;border-top:1px solid var(--line)}
+.msg.md a{color:var(--accent-ink);text-underline-offset:2px}
+.msg.md code{font:12.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:0 4px}
+.msg.md pre{background:var(--bg);border:1px solid var(--line);border-radius:var(--r-s);padding:8px 10px;overflow-x:auto;white-space:pre}.msg.md pre code{border:0;padding:0;background:none}
 .receipts{align-self:flex-start;max-width:min(640px,85%);background:var(--bg-2);border:1px solid var(--line);border-radius:18px;padding:8px 14px;display:flex;flex-direction:column;gap:2px}
 .tick{display:flex;gap:8px;align-items:baseline}.tick i{font-style:normal;color:var(--ok);flex:none;width:1em;text-align:center}.tick.todo i{color:var(--dim)}.tick.doing i{color:var(--accent-ink)}
 .empty{margin:auto;text-align:center;color:var(--dim);max-width:440px}
@@ -305,7 +312,8 @@ function addMsg(m) {
   } else if (m.kind === "user") {
     const { text, files } = splitFiles(m.text);
     t.append(el("div", { class: "msg user" }, text, files.length ? el("div", {}, files.map((n) => el("span", { class: "chip" }, `📎 ${n}`))) : null));
-  } else t.append(el("div", { class: `msg ${m.kind}` }, m.text));
+  } else if (m.kind === "bot") t.append(el("div", { class: "msg bot md" }, mdTree(m.text).map(mdNodes)));
+  else t.append(el("div", { class: `msg ${m.kind}` }, m.text));
 }
 function upsert(a) {
   if (!current || a.bot_id !== current.id) return;
@@ -416,6 +424,66 @@ $("files").onchange = async (e) => {
 // A user message is the typed text, then each file after the marker.
 const withFiles = (text) => text + attached.map((f) => `${ATTACH}${f.name} ---\n${f.content}`).join("");
 const splitFiles = (text) => { const parts = text.split(ATTACH); return { text: parts[0], files: parts.slice(1).map((p) => p.slice(0, p.indexOf(" ---"))) }; };
+
+// ---- markdown: agent replies are Markdown. mdTree turns one into [tag, props, ...kids] nodes with
+// strings as text, and mdNodes draws them through el(), so model text never becomes HTML.
+// Unclosed or unknown syntax stays as literal text; links only for http(s) and mailto.
+const SAFE_URL = /^(https?:|mailto:)/i;
+const INLINE = /`([^`\n]+)`|\*\*(?=\S)(.+?)(?<=\S)\*\*|(?<![\w*])\*(?=[^\s*])(.+?)(?<=[^\s*])\*(?![\w*])|(?<!\w)_(?=\S)(.+?)(?<=\S)_(?!\w)|\[([^\]\n]+)\]\(([^)\s]+)\)/g;
+function mdInline(s) {
+  const out = [], re = new RegExp(INLINE);
+  let i = 0, m;
+  while ((m = re.exec(s))) {
+    if (m.index > i) out.push(s.slice(i, m.index));
+    if (m[1] != null) out.push(["code", {}, m[1]]);
+    else if (m[2] != null) out.push(["strong", {}, ...mdInline(m[2])]);
+    else if (m[3] != null || m[4] != null) out.push(["em", {}, ...mdInline(m[3] ?? m[4])]);
+    else if (SAFE_URL.test(m[6])) out.push(["a", { href: m[6], target: "_blank", rel: "noopener noreferrer" }, ...mdInline(m[5])]);
+    else out.push(m[0]);
+    i = re.lastIndex;
+  }
+  if (i < s.length) out.push(s.slice(i));
+  return out;
+}
+function mdTree(text) {
+  const lines = text.replace(/\r\n?/g, "\n").split("\n"), out = [];
+  const UL = /^\s*[-*+]\s+(.*)$/, OL = /^\s*(\d+)[.)]\s+(.*)$/, H = /^#{1,6}\s+(.*?)(\s+#+)?\s*$/, FENCE = /^\s*(```|~~~)/, HR = /^\s*([-*_])(\s*\1){2,}\s*$/;
+  const deep = (s) => /^\s{2,}/.test(s);
+  const item = (o, u) => ["li", {}, ...mdInline(o ? o[2] : u[1])];
+  const list = (o) => [o ? "ol" : "ul", o && +o[1] !== 1 ? { start: o[1] } : {}];
+  const starts = (s) => FENCE.test(s) || H.test(s) || HR.test(s) || (!deep(s) && (UL.test(s) || OL.test(s)));
+  for (let i = 0; i < lines.length; ) {
+    const l = lines[i];
+    if (!l.trim()) { i++; continue; }
+    if (FENCE.test(l)) {
+      const f = l.trim().slice(0, 3), body = [];
+      for (i++; i < lines.length && !lines[i].trim().startsWith(f); i++) body.push(lines[i]);
+      i++; out.push(["pre", {}, ["code", {}, body.join("\n")]]); continue;
+    }
+    if (HR.test(l)) { i++; out.push(["hr", {}]); continue; }
+    let m = l.match(H);
+    if (m) { i++; out.push(["h4", {}, ...mdInline(m[1])]); continue; }
+    if (starts(l)) {
+      // One list per run of items; an indented item nests one level under the item above it.
+      const ordered = OL.test(l), top = list(l.match(OL));
+      for (; i < lines.length && lines[i].trim(); i++) {
+        const s = lines[i], o = s.match(OL), u = !o && s.match(UL), last = top[top.length - 1];
+        if (!deep(s)) { if (!o === ordered || (!o && !u)) break; top.push(item(o, u)); continue; }
+        if (o || u) {
+          let sub = last[last.length - 1];
+          if (!Array.isArray(sub) || sub[0] !== (o ? "ol" : "ul")) last.push(sub = list(o));
+          sub.push(item(o, u));
+        } else last.push(["br", {}], ...mdInline(s.trim()));
+      }
+      out.push(top); continue;
+    }
+    const para = [];
+    while (i < lines.length && lines[i].trim() && !(para.length && starts(lines[i]))) para.push(lines[i++].trim());
+    out.push(["p", {}, ...para.flatMap((p, k) => (k ? [["br", {}], ...mdInline(p)] : mdInline(p)))]);
+  }
+  return out;
+}
+const mdNodes = (n) => (typeof n === "string" ? n : el(n[0], n[1], ...n.slice(2).map(mdNodes)));
 
 // ---- composer: Enter sends, Shift+Enter is a new line; no Send button ----
 $("input").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } });

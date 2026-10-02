@@ -235,6 +235,44 @@ test("G-03 page never feeds data to innerHTML", () => {
   expect(page.match(/insertAdjacentHTML\([^)]*\)/g)).toEqual(['insertAdjacentHTML("afterbegin", ICONS[name])']);
 });
 
+// Agent replies render Markdown through mdTree, a pure function in the page: load it on its own.
+const mdTree: (s: string) => any[] = (() => {
+  const page = readFileSync(join(import.meta.dir, "../web/index.html"), "utf8");
+  const src = /\/\/ ---- markdown[\s\S]*?(?=const mdNodes)/.exec(page)![0];
+  return new Function(`${src}; return mdTree;`)();
+})();
+const tags = (n: any): string[] => (typeof n === "string" ? [] : [n[0], ...n.slice(2).flatMap(tags)]);
+const texts = (n: any): string[] => (typeof n === "string" ? [n] : n.slice(2).flatMap(texts));
+
+test("markdown: each construct becomes its node", () => {
+  const t = mdTree("# Title\n\n**Bold** and *it* and _it_ and `c`\n\n- a\n- b\n  - nested\n\n3. x\n4. y\n\n```js\nlet a = 1;\n```\n\n[docs](https://x.dev) ---\n\n---");
+  expect(t.map((n) => n[0])).toEqual(["h4", "p", "ul", "ol", "pre", "p", "hr"]);
+  expect(tags(t[1])).toEqual(["p", "strong", "em", "em", "code"]);
+  expect(tags(t[2])).toEqual(["ul", "li", "li", "ul", "li"]);
+  expect(t[3][1]).toEqual({ start: "3" });
+  expect(texts(t[4])).toEqual(["let a = 1;"]);
+  expect(t[5][2]).toEqual(["a", { href: "https://x.dev", target: "_blank", rel: "noopener noreferrer" }, "docs"]);
+  expect(tags(mdTree("line one\nline two")[0])).toEqual(["p", "br"]);
+});
+
+test("markdown: unsafe links and HTML stay text; stray and unclosed syntax is kept", () => {
+  for (const s of ["[x](javascript:alert(1))", "<b>hi</b><img src=x onerror=alert(1)>", "[x](data:text/html,hi)"]) {
+    const t = mdTree(s);
+    expect(t.flatMap(tags)).toEqual(["p"]);
+    expect(texts(t[0]).join("")).toBe(s);
+  }
+  expect(texts(mdTree("5 * 3 * 2 and snake_case_name")[0]).join("")).toBe("5 * 3 * 2 and snake_case_name");
+  expect(texts(mdTree("**never closed")[0]).join("")).toBe("**never closed");
+  expect(mdTree("```\nopen fence\nto the end")).toEqual([["pre", {}, ["code", {}, "open fence\nto the end"]]]);
+});
+
+test("markdown: no words lost or reordered in a stored-reply shape", () => {
+  const s = "**Talent Scout introduced themselves:**\n\nHi! I'm **Talent Scout** — your teammate.\n\n**What I do**\n- Turn a need into an idea (plan → approval)\n- Draft `job` posts, one *per* role\n\n1. First\n2. Second\nstill second";
+  const want = s.replace(/[*`]|^\s*(-|\d+\.)\s/gm, " ").split(/\s+/).filter(Boolean);
+  const got = mdTree(s).flatMap(texts).join(" ").split(/\s+/).filter(Boolean);
+  expect(got).toEqual(want);
+});
+
 // G-12: WCAG contrast of every text/background pair the page uses, both themes.
 const lum = (hex: string) => {
   const n = parseInt(hex.slice(1), 16);
