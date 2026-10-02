@@ -6,7 +6,7 @@ import { openStore, nextRun, parseDays, scheduleLabel, type Store, type DraftSta
 import { configFromEnv, listModels, probe, type ModelConfig } from "./model";
 import { runTurn } from "./agent";
 import { DEFAULTS, ROLES } from "./roles";
-import { dialog, installWindows, loginPath, uninstallWindows } from "./desktop";
+import { dialog, loginPath } from "./desktop";
 import { boardClient, boardLink, loopbackUrl, normalise, reviewMark, runUpdated, BoardDown, type BoardRun, type BoardState } from "./board";
 // Embedded by `bun build --compile`; the source run gets the real paths.
 import PAGE from "../web/index.html" with { type: "file" };
@@ -553,14 +553,6 @@ if (import.meta.main) {
     else { console.error(`kaizen-bot: ${why}`); if (compiled) prompt("\nPress Enter to close."); }
     process.exit(1);
   };
-  if (compiled && process.platform === "win32") {
-    const { version } = await import("../../package.json");
-    if (process.argv.includes("--uninstall")) {
-      uninstallWindows(home);
-      process.exit(0);
-    }
-    if (installWindows(version)) process.exit(0);
-  }
   if (compiled && process.platform === "darwin") {
     const path = loginPath();
     if (path) env.PATH = path;
@@ -587,7 +579,10 @@ if (import.meta.main) {
   // Loopback only: the board URL passed loopbackUrl() and url is 127.0.0.1.
   const answers = (u: string, f: Fetch = fetch) => f(u, { signal: AbortSignal.timeout(1500) }).then((r) => r.ok, () => false);
   // Only the app opens windows and starts the board; `bun start` behaves as it always has.
-  const { openApp } = compiled ? await import("../../cli/web.ts") : { openApp: async (_: string) => false };
+  const web = compiled ? await import("../../cli/web.ts") : null;
+  // Its own browser profile makes the window the app's alone: own taskbar entry, never a
+  // tab in, or a window of, the browser the user already has open.
+  const openApp = async (u: string) => web?.openApp(u, join(home, "window"));
   if (compiled) {
     const board = loopbackUrl(store.setting("boardUrl") ?? "") ?? loopbackUrl(env.BOARD_URL ?? "") ?? DEFAULT_BOARD;
     const kaizen = Bun.which("kaizen");

@@ -1,6 +1,6 @@
 // `bun run build`: Kaizen Bot as an app per OS, written to dist/.
 //   macOS    Kaizen-Bot-macos-<arch>.dmg   Kaizen Bot.app beside an Applications shortcut
-//   Windows  Kaizen-Bot-windows-x64.exe    no console; installs itself on first open
+//   Windows  Kaizen-Bot-Setup-windows-x64.exe  setup wizard (scripts/installer.nsi) around the app
 //   Linux    kaizen-bot-linux-<arch>       the plain binary, as before
 import { $ } from "bun";
 import { join } from "node:path";
@@ -51,7 +51,18 @@ if (import.meta.main) {
 
   // Bun sets the exe's icon, title and version only when building on Windows; the Start
   // menu shortcut carries the icon instead.
-  await compile("windows-x64", join(dist, "Kaizen-Bot-windows-x64.exe"), ["--windows-hide-console"]);
+  const win = join(dist, "win");
+  mkdirSync(win);
+  await compile("windows-x64", join(win, "Kaizen Bot.exe"), ["--windows-hide-console"]);
+  const defs = (d: string) => [`-DVERSION=${version}`, `-DEXE=${d}/win/Kaizen Bot.exe`, `-DICO=${d}/kaizen.ico`, `-DOUT=${d}/Kaizen-Bot-Setup-windows-x64.exe`];
+  writeFileSync(join(dist, "kaizen.ico"), readFileSync(join(root, "../assets/kaizen.ico")));
+  writeFileSync(join(dist, "installer.nsi"), readFileSync(join(root, "scripts/installer.nsi")));
+  // No makensis here: run it in a throwaway Debian container instead.
+  if (Bun.which("makensis")) await $`makensis -V2 ${defs(dist)} ${join(dist, "installer.nsi")}`;
+  else await $`docker run --rm -v ${dist}:/w debian:stable-slim sh -c ${`export DEBIAN_FRONTEND=noninteractive; apt-get update -qq && apt-get install -qq -y nsis >/dev/null && makensis -V2 ${defs("/w").map((d) => `'${d}'`).join(" ")} /w/installer.nsi && chown -R ${process.getuid!()}:${process.getgid!()} /w`}`;
+  rmSync(win, { recursive: true });
+  rmSync(join(dist, "kaizen.ico"));
+  rmSync(join(dist, "installer.nsi"));
 
   for (const arch of ["arm64", "x64"]) {
     const stage = join(dist, `mac-${arch}`);

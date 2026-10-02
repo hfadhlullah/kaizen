@@ -46,22 +46,23 @@ speak.
 No Bun or repo needed: the app is attached to every
 [GitHub release](https://github.com/hfadhlullah/kaizen/releases/latest). To build it yourself,
 `bun run build` in `bot/` writes everything to `dist/` (install `cdrtools` for the macOS `.dmg`;
-without it you get a `.zip` of the app instead).
+without it you get a `.zip` of the app instead). The Windows setup is built with `makensis`, or,
+without it, in a throwaway Debian container through Docker.
 
 | OS | File |
 |---|---|
 | macOS | `Kaizen-Bot-macos-arm64.dmg` (Apple Silicon), `Kaizen-Bot-macos-x64.dmg` (Intel) |
-| Windows | `Kaizen-Bot-windows-x64.exe` |
+| Windows | `Kaizen-Bot-Setup-windows-x64.exe` |
 | Linux | `kaizen-bot-linux-x64`, `kaizen-bot-linux-arm64` |
 
 **Install**
 
 - **macOS:** open the `.dmg` and drag **Kaizen Bot** onto **Applications**. Start it from
   Launchpad or Spotlight. It has no Dock icon; the chat opens in its own window.
-- **Windows:** open the `.exe`. It installs itself for your user (no admin needed): a copy in
-  `%LOCALAPPDATA%\Programs\Kaizen Bot`, a **Kaizen Bot** entry in the Start menu, and an entry in
-  Settings → Apps → Installed apps. After that, start it from the Start menu; you can delete the
-  download.
+- **Windows:** run the setup and follow the wizard. It installs for your user (no admin
+  needed) to `%LOCALAPPDATA%\Programs\Kaizen Bot` by default, adds a Start menu entry, an
+  optional desktop shortcut and an entry in Settings → Apps → Installed apps. Running the setup
+  again over an installed copy asks whether to reinstall/upgrade or uninstall.
 - **Linux:** `chmod +x kaizen-bot-linux-x64`, then run it from a terminal the first time: a
   file manager usually starts it with no terminal, so the first-run message can't be seen.
 
@@ -69,7 +70,8 @@ The first time, it creates `~/.kaizen-bot/.env`, opens it, and asks you to set `
 that provider's key; save it and open the app again. From then on it starts the board if
 `kaizen` is installed and the board isn't running, and opens the chat in its own window.
 Opening it again while it runs just opens the window. To stop it, use **Settings → Quit Kaizen
-Bot**. Errors on start show as a dialog on macOS and Windows.
+Bot**. Errors on start show as a dialog on macOS and Windows. The window is Chrome or Edge in
+app mode with its own profile in `~/.kaizen-bot/window`, so it stays apart from your browser.
 
 The app keeps everything in `~/.kaizen-bot/`: `.env` and `bot.db` (your chats, cards and
 settings). It never reads `bot/.env` or `bot/data/`, so the source run and the app have
@@ -84,9 +86,10 @@ The app is not signed, so the OS warns on first open:
 **Uninstall**
 
 - **macOS:** quit it, then drag **Kaizen Bot** from Applications to the Trash.
-- **Windows:** Settings → Apps → Installed apps → Kaizen Bot → Uninstall.
+- **Windows:** Settings → Apps → Installed apps → Kaizen Bot → Uninstall, or run the setup
+  again and pick **Uninstall**. Its last page has a checkbox to delete your chats and settings too.
 
-Either way `~/.kaizen-bot/` (chats and settings) stays; delete that folder to remove them too.
+Otherwise `~/.kaizen-bot/` (chats and settings) stays; delete that folder to remove them too.
 
 ## Teammates
 

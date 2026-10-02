@@ -26,7 +26,7 @@ if gh release view "$tag" >/dev/null 2>&1; then
   exit 0
 fi
 
-# Kaizen Bot as an app per OS (macOS .dmg, or .zip without mkisofs; Windows .exe;
+# Kaizen Bot as an app per OS (macOS .dmg, or .zip without mkisofs; Windows setup .exe;
 # Linux binaries), attached so users can download it. A failed build still publishes
 # the release, just without the app files.
 rm -rf bot/dist

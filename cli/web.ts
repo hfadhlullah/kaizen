@@ -659,7 +659,10 @@ export async function web(repoDir: string, opts: Opts = {}) {
 
 // A Chromium-family browser in --app mode is a window with no tabs or address bar,
 // which is as close to a desktop app as a web page gets. Anything else gets a tab.
-export async function openApp(url: string) {
+// A profile folder gives the window a browser instance of its own (Kaizen Bot's app);
+// on macOS that takes -n, as `open` otherwise hands the args to a running browser.
+export async function openApp(url: string, profile?: string) {
+  const args = [`--app=${url}`, ...(profile ? [`--user-data-dir=${profile}`] : [])];
   const chromes = process.platform === "darwin"
     ? ["Google Chrome", "Chromium", "Microsoft Edge", "Brave Browser"]
     : process.platform === "win32"
@@ -668,14 +671,14 @@ export async function openApp(url: string) {
   try {
     if (process.platform === "darwin") {
       for (const app of chromes) {
-        const r = await Bun.$`open -a ${app} --args --app=${url}`.quiet().nothrow();
+        const r = await Bun.$`open ${profile ? "-na" : "-a"} ${app} --args ${args}`.quiet().nothrow();
         if (r.exitCode === 0) return true;
       }
     } else {
       for (const bin of chromes) {
         const found = Bun.which(bin) ?? (process.platform === "win32" ? winChrome(bin) : null);
         if (!found) continue;
-        Bun.spawn([found, `--app=${url}`], { stdin: "ignore", stdout: "ignore", stderr: "ignore", detached: true }).unref();
+        Bun.spawn([found, ...args], { stdin: "ignore", stdout: "ignore", stderr: "ignore", detached: true }).unref();
         return true;
       }
     }

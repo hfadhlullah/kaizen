@@ -1,22 +1,13 @@
 import { test, expect } from "bun:test";
 import { openStore } from "../src/db";
 import { createApp } from "../src/server";
-import { pathFrom, winPaths, isInstalled } from "../src/desktop";
+import { pathFrom } from "../src/desktop";
 import { icns } from "../scripts/package";
 
 test("desktop: login-shell PATH is read past rc-file banners", () => {
   expect(pathFrom("Welcome!\nfortune says hi\n__KB_PATH__/opt/homebrew/bin:/usr/bin")).toBe("/opt/homebrew/bin:/usr/bin");
   expect(pathFrom("")).toBeNull();
   expect(pathFrom("banner but no marker")).toBeNull();
-});
-
-test("desktop: Windows install paths, and an installed copy is recognised", () => {
-  const p = winPaths({ LOCALAPPDATA: "C:\\Users\\a\\AppData\\Local", APPDATA: "C:\\Users\\a\\AppData\\Roaming" });
-  expect(p.dir).toContain("Programs");
-  expect(p.exe.endsWith("Kaizen Bot.exe")).toBe(true);
-  expect(p.lnk).toContain("Start Menu");
-  expect(isInstalled(p.exe.toUpperCase(), p.dir)).toBe(true);
-  expect(isInstalled("/home/a/Downloads/Kaizen-Bot-windows-x64.exe", p.dir)).toBe(false);
 });
 
 test("desktop: .icns is a valid header around one ic10 PNG", () => {
