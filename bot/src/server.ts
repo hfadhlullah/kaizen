@@ -6,6 +6,7 @@ import { openStore, nextRun, parseDays, scheduleLabel, type Store, type DraftSta
 import { configFromEnv, listModels, probe, type ModelConfig } from "./model";
 import { runTurn } from "./agent";
 import { DEFAULTS, ROLES } from "./roles";
+import { dialog, installWindows, loginPath, uninstallWindows } from "./desktop";
 import { boardClient, boardLink, loopbackUrl, normalise, reviewMark, runUpdated, BoardDown, type BoardRun, type BoardState } from "./board";
 // Embedded by `bun build --compile`; the source run gets the real paths.
 import PAGE from "../web/index.html" with { type: "file" };
@@ -78,7 +79,7 @@ const statusFrom = (snap: { stage: string; awaiting: string | null; answered?: u
   snap.stage === "abandoned" ? "declined" : snap.stage === "done" ? "done" : snap.awaiting && !snap.answered ? "needed" : "working";
 const sameWait = (x: any, b: any) => x?.awaiting === b?.awaiting && (x?.seen ?? null) === (b?.seen ?? null);
 
-export function createApp(deps: { store: Store; env: Env; fetch?: Fetch; boardFetch?: Fetch; watch?: boolean }) {
+export function createApp(deps: { store: Store; env: Env; fetch?: Fetch; boardFetch?: Fetch; watch?: boolean; quit?: () => void }) {
   const { store, env } = deps;
   const clients = new Set<ReadableStreamDefaultController>();
   const enc = new TextEncoder();
@@ -331,6 +332,13 @@ export function createApp(deps: { store: Store; env: Env; fetch?: Fetch; boardFe
       return new Response(stream, { headers: { "content-type": "text/event-stream", "cache-control": "no-store" } });
     }
 
+    // The app has no console window to close; Settings stops it through here.
+    if (m === "POST" && a === "quit" && !b) {
+      if (!deps.quit) return bad("not found", 404);
+      setTimeout(deps.quit, 100);
+      return json({ ok: true });
+    }
+
     // The model is deliberately absent here: it lives in Settings only.
     if (m === "GET" && a === "info" && !b)
       return json({ user: store.setting("userName") ?? "You", roles: ROLES.map(({ id, name, division, color, blurb, never }) => ({ id, name, division, color, blurb, never, preset: DEFAULTS.includes(id) })) });
@@ -348,7 +356,7 @@ export function createApp(deps: { store: Store; env: Env; fetch?: Fetch; boardFe
       if (m === "GET" && !b) {
         let cfg: ModelConfig | null = null;
         try { cfg = cfgNow(); } catch { /* shown as unset */ }
-        return json({ provider: cfg?.provider ?? null, model: cfg?.model ?? null, keys, boardUrl: boardUrl(), userName: store.setting("userName") ?? "You" });
+        return json({ provider: cfg?.provider ?? null, model: cfg?.model ?? null, keys, boardUrl: boardUrl(), userName: store.setting("userName") ?? "You", canQuit: !!deps.quit });
       }
       if (m === "GET" && b === "models") {
         try { return json(await listModels(configFromEnv(merged({ provider: url.searchParams.get("provider") ?? undefined, model: "x" })), deps.fetch)); }
@@ -537,12 +545,26 @@ if (import.meta.main) {
   if (compiled && existsSync(envFile)) {
     for (const [k, v] of Object.entries(parseEnv(readFileSync(envFile, "utf8")))) env[k] ??= v;
   }
-  // A double-clicked app's console closes the moment it exits; keep the reason on screen.
+  // The macOS and Windows apps have no console, so the reason is a dialog; a Linux
+  // binary's console closes the moment it exits, so it waits for Enter.
+  const gui = compiled && (process.platform === "darwin" || process.platform === "win32");
   const fail = (why: string): never => {
-    console.error(`kaizen-bot: ${why}`);
-    if (compiled) prompt("\nPress Enter to close.");
+    if (gui) dialog(why);
+    else { console.error(`kaizen-bot: ${why}`); if (compiled) prompt("\nPress Enter to close."); }
     process.exit(1);
   };
+  if (compiled && process.platform === "win32") {
+    const { version } = await import("../../package.json");
+    if (process.argv.includes("--uninstall")) {
+      uninstallWindows(home);
+      process.exit(0);
+    }
+    if (installWindows(version)) process.exit(0);
+  }
+  if (compiled && process.platform === "darwin") {
+    const path = loginPath();
+    if (path) env.PATH = path;
+  }
   const store = openStore(compiled ? join(home, "bot.db") : join(import.meta.dir, "../data/bot.db"));
   // Refuse to start without a working provider config, saying which key or model is missing.
   try {
@@ -579,7 +601,7 @@ if (import.meta.main) {
       } catch (e) { console.error(`kaizen-bot: could not start kaizen web: ${(e as Error).message}`); }
     }
   }
-  const app = createApp({ store, env });
+  const app = createApp({ store, env, quit: compiled ? () => process.exit(0) : undefined });
   try {
     Bun.serve({ hostname: "127.0.0.1", port, idleTimeout: 0, fetch: app.handle });
   } catch (e) {

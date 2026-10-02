@@ -26,12 +26,14 @@ if gh release view "$tag" >/dev/null 2>&1; then
   exit 0
 fi
 
-# Kaizen Bot as one app file per OS, attached so users can download it. A failed
-# build still publishes the release, just without the app files.
+# Kaizen Bot as an app per OS (macOS .dmg, or .zip without mkisofs; Windows .exe;
+# Linux binaries), attached so users can download it. A failed build still publishes
+# the release, just without the app files.
 rm -rf bot/dist
 assets=""
 if (cd bot && bun run build >/dev/null 2>&1); then
-  assets="$(ls bot/dist/kaizen-bot-* 2>/dev/null)"
+  assets="$(ls bot/dist/Kaizen-Bot-* bot/dist/kaizen-bot-linux-* 2>/dev/null)"
+  ls bot/dist/*.zip >/dev/null 2>&1 && echo "release: mkisofs not found (install cdrtools), macOS app attached as .zip instead of .dmg"
 else
   echo "release: Kaizen Bot app build failed, releasing without it"
 fi

@@ -664,6 +664,10 @@ async function renderSettings() {
     el("p", { class: "dim", style: { margin: 0 } }, "The mic runs Whisper (base, about 80 MB) in this browser. It downloads once from huggingface.co and cdn.jsdelivr.net on the first press; your audio never leaves the browser."),
     el("label", { class: "k" }, "Theme"), theme,
     el("label", { class: "k" }, "Approved drafts"), el("a", { class: "btn", href: "/drafts/export", download: true }, "Export as Markdown"));
+  // The app has no console window to close, so it is stopped from here.
+  if (s.canQuit) $("sideBody").append(el("label", { class: "k" }, "Kaizen Bot"), el("button", { class: "btn", onclick: async () => {
+    try { await api("/quit", { method: "POST" }); document.body.replaceChildren(el("p", { class: "dim", style: { padding: "24px" } }, "Kaizen Bot has stopped. Open it again to carry on.")); } catch (e) { toast(e.message); }
+  } }, "Quit Kaizen Bot"));
   fill();
 }
 async function loadBoard() { try { board = await api("/board"); setBoard(board.ok); } catch { setBoard(false); } }

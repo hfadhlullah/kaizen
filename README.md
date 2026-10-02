@@ -194,19 +194,19 @@ bun start                 # http://127.0.0.1:7430
 
 ### Download the app
 
-Kaizen Bot also runs as a single app file for Linux, macOS and Windows, with no Bun or repo needed.
-Download yours from the [latest release](https://github.com/hfadhlullah/kaizen/releases/latest)
-(or build all five with `bun run build` in `bot/`):
+Kaizen Bot also comes as a desktop app, with no Bun or repo needed. Download yours from the
+[latest release](https://github.com/hfadhlullah/kaizen/releases/latest):
 
-| OS | File |
-|---|---|
-| Linux | `kaizen-bot-linux-x64`, `kaizen-bot-linux-arm64` |
-| macOS | `kaizen-bot-darwin-arm64` (Apple Silicon), `kaizen-bot-darwin-x64` (Intel) |
-| Windows | `kaizen-bot-windows-x64.exe` |
+| OS | File | Install |
+|---|---|---|
+| macOS | `Kaizen-Bot-macos-arm64.dmg` (Apple Silicon), `Kaizen-Bot-macos-x64.dmg` (Intel) | Open it, drag Kaizen Bot to Applications |
+| Windows | `Kaizen-Bot-windows-x64.exe` | Open it; it installs itself to the Start menu |
+| Linux | `kaizen-bot-linux-x64`, `kaizen-bot-linux-arm64` | `chmod +x`, then run it |
 
-Open it. The first time, it creates `~/.kaizen-bot/.env` for your provider and key. After that it
-starts the board if `kaizen` is installed, and opens the chat in its own window. The files are
-unsigned, so macOS and Windows warn on first open. How to get past that is in
+The first time, it creates `~/.kaizen-bot/.env` for your provider and key. After that it
+starts the board if `kaizen` is installed, and opens the chat in its own window; quit it from
+Settings. The app is unsigned, so macOS and Windows warn on first open. How to get past that,
+and how to uninstall, is in
 [Download the app](https://github.com/hfadhlullah/kaizen/blob/main/bot/README.md#download-the-app).
 
 Anthropic, OpenAI and Requesty are supported. Setup, privacy and settings are in the [Kaizen Bot README](https://github.com/hfadhlullah/kaizen/blob/main/bot/README.md).
