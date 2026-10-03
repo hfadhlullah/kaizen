@@ -6,13 +6,14 @@ the final approval. No subagent reads this file.
 ---
 ## Backlog
 
-Every run produces work it deliberately does not do. Three sources, all already
+Every run produces work it deliberately does not do. Four sources, all already
 written down by the time a run ends:
 
 1. Out of scope suggestions the planner listed and the user did not fold into the
    approved scope.
 2. Findings below `auto_fix.min_severity`, and findings the fix loop could not close.
 3. Debts deferred at an approval because they fell outside the approved scope.
+4. Criteria the reviewer answered `CANNOT VERIFY` that the user did not settle.
 
 Without capture these survive only in the conversation that produced them.
 
@@ -88,7 +89,8 @@ Controlled by `approvals.review`, skipped in `auto`. A direct-path run always st
 whatever `approvals.review` says: the user's check is its only review.
 
 Report: what was built, verification results, findings fixed, findings still open,
-and anything the builder noted as out of scope. Where the run used `runner: lite`, say
+every criterion the reviewer answered `CANNOT VERIFY` with the check it says a human
+must make, and anything the builder noted as out of scope. Where the run used `runner: lite`, say
 so in that report — the reviewer saw the work, and nobody should read a same-session
 review as an independent one because the output looked the same. Where the run took
 the direct path, say there was no plan and no review: the user's check is the review.
@@ -101,9 +103,9 @@ touched, and goes to the backlog as `open` like any other deferred item. This is
 same granularity the fix loop already works at; the only change is that the user
 picks the subset instead of accepting or declining the whole review.
 
-Before setting `stage: "done"`, append the same three categories just reported —
-findings still open, findings below the fix threshold, and the builder's out-of-scope
-notes from `03-impl.md` — to `runs/<id>/06-backlog.md`, each as `open`, in the format
+Before setting `stage: "done"`, append the same categories just reported — findings
+still open, findings below the fix threshold, `CANNOT VERIFY` criteria the user did
+not settle, and the builder's out-of-scope notes from `03-impl.md` — to `runs/<id>/06-backlog.md`, each as `open`, in the format
 given in *Backlog* above. Every input is already assembled at this moment; the only
 change is that it is written down rather than spoken and discarded.
 

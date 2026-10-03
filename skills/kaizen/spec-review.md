@@ -7,12 +7,21 @@ reviewer's contract. The planner and builder do not read it.
 ## Stage 3 — Review
 
 **Agent:** reviewer, with a context that has never seen the builder's reasoning.
-**Input:** `01-plan.md` (its File manifest names what to read), `03-impl.md`, the
-track, and the work produced.
+**Input:** `00-request.md` first, then `01-plan.md` (its File manifest names what to
+read), `03-impl.md`, and the work produced.
 **Output:** `04-review.md`.
 
 The track's third answer — *what would make it wrong* — is the reviewer's primary
 brief. It reads that first and hunts for it specifically.
+
+**Acceptance criteria come from the request, not the plan.** Before opening the plan,
+the reviewer writes down what the verbatim request and its *done* and *wrong* lines
+require, one checkable criterion each. Then it maps them onto the plan's gate: a
+criterion a `G-nn` item already covers takes that id, and one the gate missed becomes
+`R-01`, `R-02`, … A reviewer that takes its criteria from the plan checks the plan's
+reading of the request, and inherits whatever the planner misread; an `R-nn` item is
+where that misreading shows up. Plan conformance (check 2) still compares the work to
+the plan; this compares it to what was asked.
 
 Five checks are universal, in every track:
 
@@ -34,12 +43,13 @@ Five checks are universal, in every track:
    now is a `high` finding at minimum, whatever else the work achieved. If the builder
    recorded no baseline, that absence is itself the finding.
 
-5. **The plan's gate** — every `G-nn` item from the plan's Verification section,
-   re-answered against the work rather than against `03-impl.md`. A gate item the
-   builder marked `PASS` with no evidence behind it, or with evidence that only
-   restates the item, is treated as unproven and re-checked here; if it does not hold,
-   that is the finding. A `reason`-tier item fails when the technique is present and
-   the written reason is not.
+5. **Acceptance** — every criterion, `G-nn` and `R-nn`, answered against the work
+   rather than against `03-impl.md`, by trying to falsify it: name the concrete check
+   that would fail if the criterion did not hold — an input, a command, a sentence to
+   compare, a step to walk — and run it. `PASS` means that attempt came back clean, not
+   that the builder's evidence reads well. A `reason`-tier item fails when the
+   technique is present and the written reason is not. An `R-nn` item that fails takes
+   its severity on its own merits, like any finding outside the gate.
 
 Then the track's own checks. For software work: security, reuse and simplification,
 test coverage. For a document: completeness against its own structure, accuracy of
@@ -76,9 +86,33 @@ it is not a judgment the reviewer re-litigates: the tier was set at the plan, wh
 the user approved. A finding outside the gate carries no id and is graded on its own
 merits.
 
+**Each criterion gets one of three answers**, in an `## Acceptance` section of its
+own, after the findings — one unnumbered line per criterion, so nothing reads it as a
+finding to fix:
+
+```
+G-01 PASS: ran `bun test` with the cache dir unwritable — 0 failed, error shown
+G-02 FAIL: see finding 3
+R-01 CANNOT VERIFY: needs a live Stripe account; the test-mode fixture skips webhooks. Human: refund one real charge and confirm the ledger row.
+```
+
+`CANNOT VERIFY` is for a check that needs something the reviewer does not have —
+taste, a live account or device, a real reader, production data, a person's decision.
+It states what was tried, why that does not settle it, and exactly what a human must
+check. A check that is only slow or tedious is not unverifiable: run it. A `block`-tier
+item left `CANNOT VERIFY` means the run is not clean, whatever the findings say.
+
 The reviewer verifies before reporting: a finding it cannot construct a concrete
-failing input or scenario for is dropped, not softened into a maybe. No praise, no
-summary of what the code does, no style nits that do not change meaning.
+failing input or scenario for is dropped, not softened into a maybe. That drops
+suspicions, never criteria: a criterion that cannot be settled is `CANNOT VERIFY`,
+not silence. No praise, no summary of what the code does, no style nits that do not
+change meaning.
+
+The file ends with one verdict line: `PASS` when no finding is at or above medium
+and no criterion is `CANNOT VERIFY`; otherwise
+`FINDINGS: <n> critical, <n> high, <n> medium, <n> low`, followed by
+`; <n> cannot verify` when any criterion was — even when every count is 0, so an open
+human check never reads as a clean pass.
 
 The reviewer also appends any durable lesson about this material to `memory.md` —
 a recurring bug pattern, a non-obvious constraint, a convention worth keeping. Not
@@ -103,7 +137,7 @@ A finding the loop could not close is escalated to the user with the reviewer's
 description intact — never quietly downgraded to make the run look clean.
 
 **A recheck is not a second review.** Re-answer the findings it was meant to close,
-the gate items the change could plausibly touch, and the regression check. Nothing
+the criteria (`G-nn` and `R-nn`) the change could plausibly touch, and the regression check. Nothing
 else. State which items were skipped and why, in one line, so the reader can disagree
 with the judgement — a skipped item is a claim that the change could not have reached
 it, and that claim is checkable.

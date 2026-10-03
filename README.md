@@ -163,7 +163,7 @@ kaizen Done, and reviewed. Two things found:
 ## Why people use it
 
 - **It isn't just for code.** Emails, docs, runbooks, research. kaizen works out what *done* and *wrong* mean for each request, so a book chapter is never reviewed for race conditions.
-- **The reviewer has nothing to defend.** It starts cold, sees only the plan and the result, and finds what the builder talked itself past.
+- **The reviewer has nothing to defend.** It starts cold, sees only your request, the plan and the result, and finds what the builder talked itself past.
 - **A board for all your work.** Run `kaizen` in a terminal, or `kaizen web` in the browser. Ideas, plans, builds and reviews across every project, updating live. Start a run, approve or revise a plan, answer its questions, pick which findings to fix, then commit and push, all without opening a terminal.
 - **Requests come to you.** Paste a Google Sheet or Doc link and every request in it lands on the board as an idea.
 - **Notes and voice, offline.** A markdown notebook beside the board, plus dictation on every field. Whisper runs in the page, so audio never leaves your machine.

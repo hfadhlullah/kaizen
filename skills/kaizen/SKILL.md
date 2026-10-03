@@ -22,7 +22,7 @@ request -> PLAN -> [approval] -> IMPLEMENT -> REVIEW -> [fix loop] -> [approval]
 
 Three separate subagents do the work. They never share a context window, which is
 the point: a reviewer that watched the code being written will rationalize it, a
-reviewer that sees only the diff and the plan will not.
+reviewer that sees only the request, the plan and the diff will not.
 
 The stage contract is split so no reader loads a stage it is not running:
 [`spec.md`](spec.md) is the core (track, intake, resume) and every reader takes it,

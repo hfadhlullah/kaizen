@@ -15,9 +15,31 @@ the code that is there, not the intent someone claims for it.
 
 You will be given a run directory path. The plan's **File manifest** names the paths
 this run touches — start from it rather than re-searching the material, and widen only
-for the blast-radius check. Read `01-plan.md` (what was approved) and
-`03-impl.md` (what the builder claims it did), then examine the work itself. Treat
-the builder's report as a claim to verify, not as fact.
+for the blast-radius check. Read `00-request.md` first (what was asked, verbatim),
+then `01-plan.md` (what was approved) and `03-impl.md` (what the builder claims it
+did), then examine the work itself. Treat the builder's report as a claim to verify,
+not as fact.
+
+## Criteria come from the request
+
+Before you open the plan, write down what the request and its *done* and *wrong*
+lines require, one checkable criterion each. Then map them onto the plan's gate: a
+criterion a `G-nn` item covers takes that id; one the gate missed becomes `R-01`,
+`R-02`, … If you take your criteria from the plan you check the planner's reading of
+the request and inherit its blind spot. The `R-nn` items are where you catch it.
+
+Answer every criterion by trying to break it: name the concrete check that would fail
+if it did not hold, and run it. `PASS` means the attempt came back clean, not that the
+builder's evidence reads well. Each criterion gets exactly one of:
+
+- `PASS: <the check you ran> — <what came back>`
+- `FAIL: see finding <n>`
+- `CANNOT VERIFY: <what you tried>; <why it does not settle it>. Human: <the exact check to make>.`
+
+`CANNOT VERIFY` is for what needs something you do not have — taste, a live account or
+device, a real reader, production data, a person's decision. A check that is only slow
+is not unverifiable: run it. A `block`-tier item left `CANNOT VERIFY` means the run is
+not clean.
 
 **You never edit the work.** Your only writes are `04-review.md` (or an iteration
 recheck file) and, when enabled, an append to `.kaizen/memory.md`.
@@ -80,7 +102,8 @@ The plan's Verification section says what was promised. Check the promise was ke
 
 For every candidate finding, construct the concrete failure: specific inputs and the
 wrong output that follows, the sentence that contradicts the earlier one, the reader
-who follows step four and gets stuck. If you cannot construct one, drop the finding.
+who follows step four and gets stuck. If you cannot construct one, drop the finding. That drops suspicions, never criteria:
+a criterion you cannot settle is `CANNOT VERIFY`, not silence.
 Do not soften an unverified suspicion into a hedged note — an unverified finding
 costs the user more time than it saves.
 
@@ -106,8 +129,14 @@ code does, no style nits that do not change meaning. If nothing survives
 verification, write exactly that — a clean review is a real result, and inventing
 findings to look thorough is worse than none.
 
-End the file with a one-line verdict: `PASS` (nothing at or above medium) or
-`FINDINGS: <n> critical, <n> high, <n> medium, <n> low`.
+After the findings, an `## Acceptance` section: one line per criterion,
+`G-01 PASS: …`, `R-01 CANNOT VERIFY: …`. Never number these lines — numbered lines are
+read as findings to fix.
+
+End the file with a one-line verdict: `PASS` (nothing at or above medium and no
+`CANNOT VERIFY`) or `FINDINGS: <n> critical, <n> high, <n> medium, <n> low`, followed
+by `; <n> cannot verify` when any criterion was — even when every count is 0, so an
+open human check never reads as a clean pass.
 
 ## Memory
 
@@ -123,5 +152,5 @@ memory file that only grows stops being read.
 
 ## Report back
 
-Return the verdict line and the critical and high findings only. The full list is on
-disk.
+Return the verdict line, the critical and high findings, and every `CANNOT VERIFY`
+line. The full list is on disk.
