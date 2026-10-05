@@ -119,6 +119,7 @@ test("remember with for teaches a teammate, and an unknown name saves nothing", 
   const sales = s.createBot("sales"), am = s.createBot("am");
   expect(systemPrompt(s, sales.id)).toContain("Your teammates: Account Manager");
   expect(systemPrompt(s, sales.id)).toContain("the user sets a standing rule for you");
+  expect(systemPrompt(s, sales.id)).toContain("A question gets an answer, not board work");
   const { f } = fake([anthTool("remember", { fact: "Acme only signs annual", for: "account manager" }), anthText("Noted.")]);
   await runTurn({ store: s, cfg: anthropicCfg, fetch: f }, sales.id, "acme signs annual only", () => {});
   expect(s.memories(am.id).map((m) => m.text)).toEqual(["Acme only signs annual (from Sales Outbound)"]);
