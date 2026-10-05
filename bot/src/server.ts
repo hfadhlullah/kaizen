@@ -41,6 +41,8 @@ const text = (v: unknown, max = 20000) => (typeof v === "string" ? v.trim().slic
 const id = (s: string | undefined) => (s && /^\d{1,12}$/.test(s) ? Number(s) : 0);
 const parse = (s: string | null | undefined) => { try { return s ? JSON.parse(s) : null; } catch { return null; } };
 
+const clipDoc = (t: string | null) => (t ? (t.length > 12000 ? `${t.slice(0, 12000)}\n\n…(cut)` : t) : null);
+
 // What a live run card shows, read from the board's /run/:id.
 export function snapshotOf(r: BoardRun) {
   const st = parse(r.state) ?? {};
@@ -70,6 +72,8 @@ export function snapshotOf(r: BoardRun) {
     items, questions: st.awaiting === "approvals.plan" ? questions.filter((q) => q.options.length) : [],
     work: st.awaiting === "approvals.plan" ? work.slice(0, 12) : [],
     verdict, open: open.map((f) => ({ n: f.n, text: f.text.slice(0, 300) })),
+    // What the user reads to decide: the plan for a plan wait, the review for the rest.
+    doc: clipDoc(st.awaiting === "approvals.plan" ? r.plan : st.awaiting === "approvals.review" || st.awaiting === "findings" ? r.review : null),
   };
 }
 
@@ -148,8 +152,10 @@ export function createApp(deps: { store: Store; env: Env; fetch?: Fetch; boardFe
     }
     // One answer per wait: a decision already sent for this run and this wait refuses the
     // next. No await between this check and the claim below, so two clicks cannot both pass.
-    const sent = a.kind !== "decision" ? null : store.actions().find((x) => x.id !== a.id && x.kind === "decision" && x.run_id === a.run_id
-      && x.project_dir === a.project_dir && (x.status === "working" || x.status === "done") && sameWait(parse(x.body), b));
+    // A fix from a live card carries the wait it answers (`wait`: state.json updated) for the same check.
+    const same = (x: any) => a.kind === "decision" ? sameWait(x, b) : b.wait != null && x?.wait === b.wait;
+    const sent = a.kind !== "decision" && !(a.kind === "fix" && b.wait != null) ? null : store.actions().find((x) => x.id !== a.id && x.kind === a.kind && x.run_id === a.run_id
+      && x.project_dir === a.project_dir && (x.status === "working" || x.status === "done") && same(parse(x.body)));
     if (sent) return stale(`${a.run_id} was already answered (card #${sent.id})`);
 
     if (!store.claimAction(a.id, "needed", "working")) return bad("this card is already handled", 409);
@@ -167,10 +173,11 @@ export function createApp(deps: { store: Store; env: Env; fetch?: Fetch; boardFe
     else store.updateAction(a.id, { status: "done", result: "ok" });
     emitAction(a.id);
     // The run's live card stops asking: this wait is answered.
-    if (a.kind === "decision" && r.ok) for (const c of store.actions().filter((x) => x.kind === "start_run" && x.run_id === a.run_id && x.project_dir === a.project_dir)) {
+    if ((a.kind === "decision" || a.kind === "fix") && r.ok) for (const c of store.actions().filter((x) => x.kind === "start_run" && x.run_id === a.run_id && x.project_dir === a.project_dir)) {
       const s = parse(c.snapshot) ?? {};
-      if (s.awaiting !== b.awaiting) continue;
-      store.updateAction(c.id, { status: "working", snapshot: JSON.stringify({ ...s, answered: { awaiting: b.awaiting, seen: b.seen ?? null } }) });
+      const fits = a.kind === "decision" ? s.awaiting === b.awaiting : s.awaiting === "approvals.review" || s.awaiting === "findings";
+      if (!fits) continue;
+      store.updateAction(c.id, { status: "working", snapshot: JSON.stringify({ ...s, answered: { awaiting: s.awaiting, seen: a.kind === "decision" ? b.seen ?? null : s.updated ?? null } }) });
       emitAction(c.id);
     }
     if (a.kind === "start_run" && r.ok) void refresh();
@@ -186,16 +193,6 @@ export function createApp(deps: { store: Store; env: Env; fetch?: Fetch; boardFe
     const board = boardNow();
     let st: BoardState;
     try { st = await board.state(); } catch { return; }
-
-    // "Waiting on you" notifications: runs that started waiting since the last look.
-    const now = new Set(st.cards.filter((c) => c.kind === "run" && c.awaiting).map((c) => `${c.state}|${c.id}|${c.awaiting}`));
-    if (waiting) for (const k of now) if (!waiting.has(k)) {
-      const [dir, run, awaiting] = k.split("|");
-      const owner = store.actions().find((a) => a.kind === "start_run" && a.run_id === run && a.project_dir === dir)?.bot_id
-        ?? store.bots().find((b) => b.role === "chief")?.id;
-      push("waiting", { run, awaiting, project: st.projects.find((p) => p.dir === dir)?.label ?? dir, botId: owner });
-    }
-    waiting = now;
 
     const claimed = new Set(store.claimedRuns());
     for (const a of launched()) {
@@ -237,6 +234,40 @@ export function createApp(deps: { store: Store; env: Env; fetch?: Fetch; boardFe
         emitAction(a.id);
       }
     }
+
+    // A run waiting on the user that no card follows (started on the board or in a
+    // terminal) gets a live card in a chat, so its decision is made there too.
+    const taken = new Set(store.claimedRuns());
+    const linking = launched().filter((a) => !a.run_id && !parse(a.snapshot)?.unseen);
+    const bots = store.bots().filter((b) => !b.hidden);
+    for (const c of st.cards) {
+      if (c.kind !== "run" || !c.awaiting || !c.id || c.archived || taken.has(c.id)) continue;
+      // It may be the run a launch card is still waiting to link.
+      if (linking.some((a) => a.project_dir === c.state && !(parse(a.known_runs) ?? []).includes(c.id))) continue;
+      const proj = st.projects.find((p) => p.dir === c.state);
+      const owner = bots.find((b) => b.project && proj && (b.project === proj.label || b.project === proj.dir))
+        ?? bots.find((b) => b.role === "chief") ?? bots[0];
+      if (!owner) continue;
+      const r = await board.run(c.state, c.id).catch(() => null);
+      if (!r) continue;
+      const title = c.title ?? c.text;
+      const a = store.addAction(owner.id, { kind: "start_run", project_dir: c.state, run_id: c.id, body: { text: title, adopted: true },
+        summary: `Run ${c.id} in ${proj?.label ?? c.state}: ${title}`.slice(0, 300) });
+      const snap = { ...snapshotOf(r), stalled: c.status === "stalled", at: Date.now() };
+      store.updateAction(a.id, { snapshot: JSON.stringify(snap), status: statusFrom(snap) });
+      taken.add(c.id);
+      emitAction(a.id);
+    }
+
+    // "Waiting on you" notifications: runs that started waiting since the last look.
+    const now = new Set(st.cards.filter((c) => c.kind === "run" && c.awaiting).map((c) => `${c.state}|${c.id}|${c.awaiting}`));
+    if (waiting) for (const k of now) if (!waiting.has(k)) {
+      const [dir, run, awaiting] = k.split("|");
+      const owner = store.actions().find((a) => a.kind === "start_run" && a.run_id === run && a.project_dir === dir)?.bot_id
+        ?? store.bots().find((b) => b.role === "chief")?.id;
+      push("waiting", { run, awaiting, project: st.projects.find((p) => p.dir === dir)?.label ?? dir, botId: owner });
+    }
+    waiting = now;
   }
   // One refresh at a time; a change during one is picked up by running again after it.
   let again = false;
@@ -495,10 +526,26 @@ export function createApp(deps: { store: Store; env: Env; fetch?: Fetch; boardFe
           emitAction(act.id);
           return json(one(act.id));
         }
+        if (p.op === "fix") {
+          // From a live run card: fix the picked open findings, as one fix card approved at once.
+          const snap = parse(act.snapshot);
+          if (act.kind !== "start_run" || !snap?.launched || !act.run_id || !(snap.awaiting === "approvals.review" || snap.awaiting === "findings")) return bad("this run is not waiting on its findings", 409);
+          if (snap.answered) return bad("already answered; waiting for the run to pick it up", 409);
+          const open = new Set<number>((snap.open ?? []).map((f: { n: number }) => f.n));
+          const nums = Array.isArray(p.nums) ? [...new Set(p.nums.map(Number))] : [];
+          if (!nums.length || nums.some((n) => !open.has(n))) return bad("pick open findings to fix");
+          let r: BoardRun;
+          try { r = await boardNow().run(act.project_dir, act.run_id); } catch { return bad(`could not read ${act.run_id}`, 503); }
+          const fix = store.addAction(act.bot_id, { kind: "fix", project_dir: act.project_dir, run_id: act.run_id, body: { nums, seen: reviewMark(r), wait: snap.updated ?? "" },
+            summary: `Fix finding${nums.length > 1 ? "s" : ""} ${nums.join(", ")} of ${act.run_id}` });
+          emitAction(fix.id);
+          return approve(fix);
+        }
         if (p.op === "decide") {
           // From a live run card: the click makes a decision card and approves it in one go.
           const snap = parse(act.snapshot);
           if (act.kind !== "start_run" || !snap?.launched || !act.run_id || !snap.awaiting) return bad("this run is not waiting on you", 409);
+          if (snap.awaiting !== "approvals.plan" && snap.awaiting !== "approvals.review") return bad("the board takes no approval for this wait", 409);
           if (snap.answered) return bad("already answered; waiting for the run to pick it up", 409);
           const approveIt = p.approve === true;
           const why = text(p.why, 2000);

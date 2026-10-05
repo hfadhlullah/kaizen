@@ -542,3 +542,62 @@ test("routines review 1/2: a turn whose agent is deleted mid-turn does not rejec
     store.close();
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
+
+test("decisions in chat G-01/G-02/G-05: a run waiting on you that no card follows gets one live card with what to read", async () => {
+  const { store, board, chief, app } = setup();
+  const sales = store.createBot("sales");
+  store.updateBot(sales.id, { project: "sales" });
+  board.setRun(P, "r-running", { stage: "build", awaiting: null }, { request: "busy" });
+  board.setRun(S, "r-plan", { stage: "plan", awaiting: "approvals.plan" }, { request: "Leads list", plan: "# Plan\n\n## Work list\n\n- Pull leads\n" });
+  board.setRun(P, "r-review", { stage: "review", awaiting: "approvals.review" }, { request: "Docs", review: "FINDINGS: 0 critical, 0 high, 1 medium, 0 low" });
+  await app.refresh();
+  await app.refresh();
+  const live = store.actions().filter((a) => a.kind === "start_run");
+  expect(live.map((a) => [a.run_id, a.bot_id, a.status])).toEqual([["r-plan", sales.id, "needed"], ["r-review", chief.id, "needed"]]);
+  const plan = JSON.parse(live[0]!.snapshot!), review = JSON.parse(live[1]!.snapshot!);
+  expect(plan).toMatchObject({ launched: true, awaiting: "approvals.plan", work: ["Pull leads"] });
+  expect(plan.doc).toContain("Pull leads");
+  expect(review.doc).toContain("FINDINGS:");
+  // A launch card still linking keeps the new run it is waiting for.
+  board.setRun(P, "r-known", { stage: "plan", awaiting: null }, { request: "x" });
+  const launch = store.addAction(chief.id, { kind: "start_run", project_dir: P, body: { text: "invoice export" }, summary: "s" });
+  store.updateAction(launch.id, { known_runs: JSON.stringify(["r-running", "r-review", "r-known"]), snapshot: JSON.stringify({ launched: true, stage: "starting", at: Date.now() }) });
+  board.setRun(P, "r-new", { stage: "plan", awaiting: "approvals.plan" }, { request: "something unrelated" });
+  board.setRun(P, "r-known", { stage: "plan", awaiting: "approvals.plan" }, { request: "x" });
+  await app.refresh();
+  expect(store.actions().filter((a) => a.kind === "start_run" && a.run_id === "r-new")).toEqual([]);
+  expect(store.actions().filter((a) => a.kind === "start_run" && a.run_id === "r-known").length).toBe(1);
+});
+
+test("decisions in chat G-03/G-04: findings are fixed from the live card once; refused waits make no board call", async () => {
+  const { store, board, app, req } = setup();
+  board.setRun(P, "r-f", { stage: "review", awaiting: "findings", updated: "t1" }, {
+    request: "Fixes", review: "# Findings\n\n1. a\n2. b\n3. c", findings: [{ n: 1, text: "a", done: false }, { n: 2, text: "b", done: false }, { n: 3, text: "c", done: true }],
+  });
+  await app.refresh();
+  const live = store.actions().find((a) => a.run_id === "r-f")!;
+  expect(JSON.parse(live.snapshot!).open.map((f: any) => f.n)).toEqual([1, 2]);
+  const before = board.writes.length;
+  expect((await req(`/actions/${live.id}`, { op: "decide", approve: true })).status).toBe(409);
+  expect((await req(`/actions/${live.id}`, { op: "fix", nums: [3] })).status).toBe(400);
+  expect((await req(`/actions/${live.id}`, { op: "fix", nums: [] })).status).toBe(400);
+  expect(board.writes.length).toBe(before);
+  expect((await req(`/actions/${live.id}`, { op: "fix", nums: [2, 1, 2] })).status).toBe(200);
+  expect(board.writes.at(-1)).toEqual({ path: "/fix", body: { dir: P, id: "r-f", nums: [2, 1] } });
+  expect(store.action(live.id)!.status).toBe("working");
+  expect((await req(`/actions/${live.id}`, { op: "fix", nums: [1] })).status).toBe(409);
+  // Two tabs clicking at once: only one fix reaches the board.
+  board.setRun(P, "r-f", { stage: "review", awaiting: "findings", updated: "t2" });
+  await app.refresh();
+  expect(store.action(live.id)!.status).toBe("needed");
+  const two = await Promise.all([req(`/actions/${live.id}`, { op: "fix", nums: [1] }), req(`/actions/${live.id}`, { op: "fix", nums: [1] })]);
+  expect(two.map((r) => r.status).sort()).toEqual([200, 409]);
+  expect(board.writes.length).toBe(before + 2);
+  // An edit-by-edit approval: the board takes no answer, so the card sends none.
+  board.setRun(P, "r-e", { stage: "build", awaiting: "approvals.each_file" }, { request: "Edits" });
+  await app.refresh();
+  const e = store.actions().find((a) => a.run_id === "r-e")!;
+  expect((await req(`/actions/${e.id}`, { op: "decide", approve: true })).status).toBe(409);
+  expect((await req(`/actions/${e.id}`, { op: "fix", nums: [1] })).status).toBe(409);
+  expect(board.writes.length).toBe(before + 2);
+});

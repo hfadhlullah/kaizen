@@ -33,7 +33,7 @@ bun start                 # Kaizen Bot, on http://127.0.0.1:7430
 ```
 
 Open http://127.0.0.1:7430. The sidebar starts empty: press **+** and add Chief, the front door,
-or any of the ready-made agents (Sales Outbound, Inbox Manager, Account Manager, Talent Scout,
+or any of the ready-made agents (Tech Lead, Sales Outbound, Inbox Manager, Account Manager, Talent Scout,
 Expense Manager). Once Chief is added, pick its default project in
 its side panel (the panel icon, top right), then ask: *what's waiting on me?*
 Press **+** on the left for a new chat: pick an agent, or create your own and describe its job.

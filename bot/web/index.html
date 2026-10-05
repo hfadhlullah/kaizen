@@ -64,12 +64,12 @@ main{flex:1;display:flex;flex-direction:column;min-width:0}
 .msg.bot{align-self:flex-start;background:var(--bg-2);border:1px solid var(--line)}
 .msg.user{align-self:flex-end;background:var(--accent);color:var(--on-accent)}
 /* agent replies render their Markdown (mdTree below) */
-.msg.md{white-space:normal}.msg.md>*{margin:0}.msg.md>*+*{margin-top:8px}
-.msg.md ul,.msg.md ol{padding-left:20px}.msg.md li>ul,.msg.md li>ol{margin:2px 0 0;padding-left:18px}.msg.md li+li{margin-top:2px}
+.msg.md,.act .md{white-space:normal}.msg.md>*,.act .md>*{margin:0}.msg.md>*+*,.act .md>*+*{margin-top:8px}
+.msg.md ul,.msg.md ol,.act .md ul,.act .md ol{padding-left:20px}.msg.md li>ul,.msg.md li>ol{margin:2px 0 0;padding-left:18px}.msg.md li+li{margin-top:2px}
 .msg.md h4{font-size:14px;font-weight:600}.msg.md hr{border:0;border-top:1px solid var(--line)}
 .msg.md a{color:var(--accent-ink);text-underline-offset:2px}
-.msg.md code{font:12.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:0 4px}
-.msg.md pre{background:var(--bg);border:1px solid var(--line);border-radius:var(--r-s);padding:8px 10px;overflow-x:auto;white-space:pre}.msg.md pre code{border:0;padding:0;background:none}
+.msg.md code,.act .md code{font:12.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:0 4px}
+.msg.md pre,.act .md pre{background:var(--bg);border:1px solid var(--line);border-radius:var(--r-s);padding:8px 10px;overflow-x:auto;white-space:pre}.msg.md pre code{border:0;padding:0;background:none}
 .receipts{align-self:flex-start;max-width:min(640px,85%);background:var(--bg-2);border:1px solid var(--line);border-radius:18px;padding:8px 14px;display:flex;flex-direction:column;gap:2px}
 .tick{display:flex;gap:8px;align-items:baseline}.tick i{font-style:normal;color:var(--ok);flex:none;width:1em;text-align:center}.tick.todo i{color:var(--dim)}.tick.doing i{color:var(--accent-ink)}
 .empty{margin:auto;text-align:center;color:var(--dim);max-width:440px}
@@ -90,6 +90,8 @@ main{flex:1;display:flex;flex-direction:column;min-width:0}
 .act .desc{white-space:pre-wrap;overflow-wrap:anywhere}
 .act .box{border:1px solid var(--line);border-radius:var(--r-s);padding:8px 10px;background:var(--bg);display:flex;flex-direction:column;gap:2px;font-size:13px}
 .act .box .k{font-size:12px;color:var(--dim)}
+/* a waiting run's plan or review, read in the card; .md takes the reply styles above */
+.act details summary{cursor:pointer;color:var(--accent-ink)}.act details .md{max-height:420px;overflow-y:auto;margin-top:6px}.act label.tick{cursor:pointer}
 .act .note{font-size:12px;color:var(--dim)}
 .act .acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .act .q{display:flex;flex-direction:column;gap:4px}
@@ -299,27 +301,40 @@ function renderThread() {
   const t = $("thread");
   t.replaceChildren();
   if (!items.length) t.append(el("div", { class: "empty" }, `Give ${current.name} a task, like you would a teammate. Anything that starts a run, approves a plan or goes to someone outside waits on a card for your click.`));
-  for (const it of items) it.type === "m" ? addMsg(it.m) : t.append(card(it.a));
+  for (const it of items) it.type === "m" ? addMsg(it.m) : put(card(it.a));
   t.scrollTop = t.scrollHeight;
+}
+// An open card (waiting on you, or a run still working) stays below the newest message, so
+// what the agent is doing is never scrolled away. Everything else goes in above the open cards.
+function put(node) {
+  const t = $("thread");
+  if (node.classList.contains("pin")) t.append(node);
+  else t.insertBefore(node, t.querySelector(":scope > .pin"));
 }
 function addMsg(m) {
   const t = $("thread");
   t.querySelector(".empty")?.remove();
   if (m.kind === "receipt") {
-    let box = t.lastElementChild;
-    if (!box?.classList.contains("receipts")) t.append(box = el("div", { class: "receipts" }));
+    const pin = t.querySelector(":scope > .pin");
+    let box = pin ? pin.previousElementSibling : t.lastElementChild;
+    if (!box?.classList.contains("receipts")) put(box = el("div", { class: "receipts" }));
     box.append(el("div", { class: "tick" }, el("i", { "aria-hidden": "true" }, "✓"), m.text));
   } else if (m.kind === "user") {
     const { text, files } = splitFiles(m.text);
-    t.append(el("div", { class: "msg user" }, text, files.length ? el("div", {}, files.map((n) => el("span", { class: "chip" }, `📎 ${n}`))) : null));
-  } else if (m.kind === "bot") t.append(el("div", { class: "msg bot md" }, mdTree(m.text).map(mdNodes)));
-  else t.append(el("div", { class: `msg ${m.kind}` }, m.text));
+    put(el("div", { class: "msg user" }, text, files.length ? el("div", {}, files.map((n) => el("span", { class: "chip" }, `📎 ${n}`))) : null));
+  } else if (m.kind === "bot") put(el("div", { class: "msg bot md" }, mdTree(m.text).map(mdNodes)));
+  else put(el("div", { class: `msg ${m.kind}` }, m.text));
 }
 function upsert(a) {
   if (!current || a.bot_id !== current.id) return;
   const i = items.findIndex((x) => x.type === "a" && x.a.id === a.id);
-  if (i >= 0) { items[i].a = a; document.getElementById(`act-${a.id}`)?.replaceWith(card(a)); }
-  else { items.push({ type: "a", at: a.at, a }); $("thread").querySelector(".empty")?.remove(); $("thread").append(card(a)); }
+  if (i >= 0) {
+    items[i].a = a;
+    const old = document.getElementById(`act-${a.id}`), c = card(a);
+    // A card that reopens joins the open ones at the bottom; any other update stays in place.
+    if (old && c.classList.contains("pin") && !old.classList.contains("pin")) { old.remove(); put(c); } else old?.replaceWith(c);
+  }
+  else { items.push({ type: "a", at: a.at, a }); $("thread").querySelector(".empty")?.remove(); put(card(a)); }
 }
 
 const TITLE = { idea: "Board", note: "Board", memory: "Memory", draft: "Draft", start_run: "Run", decision: "Run", fix: "Run", abort: "Run" };
@@ -343,7 +358,7 @@ function card(a) {
   }
   const s = a.snapshot || {};
   const live = a.kind === "start_run" && s.launched;
-  const c = el("div", { class: "act", id: `act-${a.id}` },
+  const c = el("div", { class: a.status === "needed" || a.status === "working" ? "act pin" : "act", id: `act-${a.id}` },
     el("div", { class: "hd" }, el("b", {}, TITLE[a.kind] || "Action"), el("span", { class: `pill ${a.status}` }, live && a.status === "needed" ? "Waiting on you" : PILL[a.status])),
     el("div", { class: "desc" }, a.summary));
   const acts = el("div", { class: "acts" });
@@ -374,14 +389,26 @@ function card(a) {
     if (s.items?.length) c.append(el("div", { class: "box" }, s.items.map((it) => el("div", { class: `tick ${it.state}` }, el("i", { "aria-hidden": "true" }, it.state === "done" ? "✓" : it.state === "doing" ? "•" : "○"), it.text))));
     if (s.verdict && (a.status === "done" || s.awaiting === "approvals.review")) c.append(el("div", { class: "note" }, s.verdict));
     if (a.status === "needed" && s.awaiting) {
+      const decides = s.awaiting === "approvals.plan" || s.awaiting === "approvals.review";
+      const fixes = s.awaiting === "approvals.review" || s.awaiting === "findings";
       if (s.work?.length) c.append(el("div", { class: "box" }, el("div", { class: "k" }, "Work list"), s.work.map((w) => el("div", {}, `• ${w}`))));
-      if (s.open?.length && s.awaiting === "approvals.review") c.append(el("div", { class: "box" }, el("div", { class: "k" }, "Open findings"), s.open.map((f) => el("div", {}, `${f.n}. ${f.text}`))));
-      const picks = (s.questions || []).map((q) => ({ q, sel: el("select", { class: "f", "aria-label": q.q }, q.options.map((o) => el("option", { value: o.replace(/ \(recommended\)$/, "") }, o))) }));
-      for (const { q, sel } of picks) c.append(el("div", { class: "q" }, el("span", { class: "note" }, q.q), sel));
-      const why = el("textarea", { class: "f", placeholder: "What should change? (needed to revise)", "aria-label": "Revise comment", rows: "2" });
-      c.append(why);
-      acts.append(el("button", { class: "btn pri", onclick: (e) => act(a, { op: "decide", approve: true, answers: picks.map((p) => p.sel.value) }, e.currentTarget) }, s.awaiting === "approvals.plan" ? "Approve plan" : "Approve work"),
-        el("button", { class: "btn", onclick: (e) => { if (!why.value.trim()) { why.focus(); toast("Say what to change first"); return; } act(a, { op: "decide", approve: false, why: why.value }, e.currentTarget); } }, "Revise"));
+      if (s.doc) c.append(el("details", { class: "box" }, el("summary", {}, s.awaiting === "approvals.plan" ? "Read the plan" : "Read the review"), el("div", { class: "md" }, mdTree(s.doc).map(mdNodes))));
+      const checks = fixes ? (s.open || []).map((f) => ({ n: f.n, box: el("input", { type: "checkbox", "aria-label": `Finding ${f.n}` }), text: f.text })) : [];
+      if (checks.length) c.append(el("div", { class: "box" }, el("div", { class: "k" }, "Open findings — tick the ones to fix"),
+        checks.map((f) => el("label", { class: "tick" }, f.box, ` ${f.n}. ${f.text}`))));
+      if (checks.length) acts.append(el("button", { class: decides ? "btn" : "btn pri", onclick: (e) => {
+        const nums = checks.filter((f) => f.box.checked).map((f) => f.n);
+        if (!nums.length) { toast("Tick the findings to fix first"); return; }
+        act(a, { op: "fix", nums }, e.currentTarget);
+      } }, "Fix selected"));
+      if (decides) {
+        const picks = (s.questions || []).map((q) => ({ q, sel: el("select", { class: "f", "aria-label": q.q }, q.options.map((o) => el("option", { value: o.replace(/ \(recommended\)$/, "") }, o))) }));
+        for (const { q, sel } of picks) c.append(el("div", { class: "q" }, el("span", { class: "note" }, q.q), sel));
+        const why = el("textarea", { class: "f", placeholder: "What should change? (needed to revise)", "aria-label": "Revise comment", rows: "2" });
+        c.append(why);
+        acts.prepend(el("button", { class: "btn pri", onclick: (e) => act(a, { op: "decide", approve: true, answers: picks.map((p) => p.sel.value) }, e.currentTarget) }, s.awaiting === "approvals.plan" ? "Approve plan" : "Approve work"),
+          el("button", { class: "btn", onclick: (e) => { if (!why.value.trim()) { why.focus(); toast("Say what to change first"); return; } act(a, { op: "decide", approve: false, why: why.value }, e.currentTarget); } }, "Revise"));
+      } else if (!fixes) c.append(el("div", { class: "note" }, "Answer this one where the run is running."));
     }
   } else if (a.gated && a.status === "needed") {
     acts.append(el("button", { class: "btn pri", onclick: (e) => act(a, { op: "approve" }, e.currentTarget) }, "Approve"),
