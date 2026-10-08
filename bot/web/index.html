@@ -135,14 +135,17 @@ aside.side{width:340px;flex:none;border-left:1px solid var(--line);background:va
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:var(--r-s);z-index:9;max-width:90vw}
 
 @media(max-width:860px){aside.side{position:fixed;inset:0 0 0 auto;width:min(380px,100%);z-index:5;box-shadow:var(--shadow-2)}}
-@media(max-width:720px){aside.list{width:100%}.grip{display:none}body.open aside.list{display:none}body:not(.open) main{display:none}.back{display:grid!important}}
+@media(max-width:720px){aside.list{width:100%}.grip{display:none}body.open aside.list{display:none}body:not(.open) main{display:none}.back{display:grid!important}#needsBtn{display:none}}
+/* "Needs you": every card waiting on you, across agents (desktop only for now) */
+#needsBtn .av{background:var(--warn)}#needsBtn .av.none{background:var(--hover);color:var(--dim)}
+#thread .ag{align-self:stretch;max-width:640px;width:100%;margin:0 auto 2px}
 </style>
 </head>
 <body>
 <aside class="list" aria-label="Agents">
   <div class="list-hd"><button class="ib" id="newBtn" title="New chat" aria-label="New chat"></button></div>
   <label class="search"><span id="searchIcon"></span><input id="q" placeholder="Search" aria-label="Search agents"></label>
-  <nav id="rows"></nav>
+  <nav id="rows"><button class="ag" id="needsBtn" title="Needs you"><div class="av" aria-hidden="true">!</div><span class="meta"><b>Needs you</b><span class="last" id="needsN"></span></span></button><div id="agRows"></div></nav>
   <button class="you" id="you" title="Settings" aria-label="Settings"><span class="me" id="me"></span><span id="youName"></span></button>
   <div class="grip" id="grip" role="separator" aria-orientation="vertical" aria-label="Resize agent list" aria-valuemin="72" aria-valuemax="480" tabindex="0" title="Drag to resize, double-click to collapse"></div>
 </aside>
@@ -216,13 +219,17 @@ const shown = () => bots.filter((b) => !b.hidden); // a dismissed chat is still 
 function renderList() {
   const q = $("q").value.trim().toLowerCase();
   const list = shown().filter((b) => !q || b.name.toLowerCase().includes(q));
-  $("rows").replaceChildren(...list.map((b) => {
+  $("agRows").replaceChildren(...list.map((b) => {
     const a = avatar(b);
     if (b.needed) a.append(el("span", { class: "dot", title: `${b.needed} waiting on you` }));
     return el("button", { class: "ag" + (b.id === current?.id ? " on" : ""), title: b.name, onclick: () => select(b.id) }, a,
       el("span", { class: "meta" }, el("b", {}, b.name), el("span", { class: "last" }, working.has(b.id) ? "Typing…" : (b.last && splitFiles(b.last).text) || (b.last ? "📎 Attachment" : "No messages yet"))));
   }));
   $("me").textContent = initials(info.user); $("youName").textContent = info.user;
+  const n = bots.reduce((s, b) => s + (b.needed || 0), 0);
+  $("needsN").textContent = n ? `${n} waiting on you` : "Nothing waiting";
+  $("needsBtn").querySelector(".av").className = n ? "av" : "av none";
+  $("needsBtn").classList.toggle("on", needsOpen);
 }
 $("q").addEventListener("input", renderList);
 async function loadBots() {
@@ -233,10 +240,40 @@ async function loadBots() {
 // The board's state shows in Settings and, when it is down, in the chat; not on the main screen.
 function setBoard(ok) { board.ok = ok; }
 
+// ---- "Needs you": cards with status needed, across every agent; a row opens its chat at the card ----
+let needsOpen = false;
+const ago = (t) => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? "just now" : m < 60 ? `${m}m` : m < 1440 ? `${Math.round(m / 60)}h` : `${Math.round(m / 1440)}d`; };
+async function openNeeds() {
+  current = null; needsOpen = true; renderList(); closeSide();
+  history.replaceState(null, "", "#needs");
+  document.body.classList.add("open");
+  $("to").hidden = true; $("top").hidden = false; $("composer").hidden = true; $("doing").hidden = true; $("panelBtn").hidden = true;
+  $("tav").replaceChildren(); $("tname").textContent = "Needs you"; $("ttitle").textContent = "";
+  await renderNeeds();
+}
+async function renderNeeds() {
+  const list = await api("/actions?status=needed").catch((e) => (toast(e.message), null));
+  if (!needsOpen || !list) return;
+  list.sort((x, y) => x.updated - y.updated); // longest waiting first
+  $("ttitle").textContent = list.length ? `${list.length} waiting on you` : "";
+  $("thread").replaceChildren(...(list.length ? list.map((a) => {
+    const b = bots.find((x) => x.id === a.bot_id) || { name: "Agent", color: "var(--dim)" }, s = a.snapshot || {};
+    const why = s.stalled ? "Run stalled — check it" : s.questions?.length ? `Question: ${s.questions[0].q}` : a.summary || PILL.needed;
+    return el("button", { class: "ag", onclick: () => openCard(a) }, avatar(b),
+      el("span", { class: "meta" }, el("b", {}, `${b.name} · ${TITLE[a.kind] || "Action"}`), el("span", { class: "last" }, why)),
+      el("span", { class: "pill needed" }, ago(a.updated)));
+  }) : [el("div", { class: "empty" }, "Nothing waits on you. Cards that need your click in any chat show up here.")]));
+}
+async function openCard(a) {
+  await select(a.bot_id);
+  document.getElementById(`act-${a.id}`)?.scrollIntoView({ block: "center" });
+}
+$("needsBtn").onclick = openNeeds;
+
 // ---- "To:" picker: open an agent or create one from a division template ----
 let toHi = 0;
 function openTo() {
-  current = null; renderList(); closeSide();
+  current = null; needsOpen = false; renderList(); closeSide();
   document.body.classList.add("open");
   $("top").hidden = true; $("to").hidden = false; $("composer").hidden = true; $("doing").hidden = true;
   $("thread").replaceChildren();
@@ -280,6 +317,7 @@ async function createBot(role = "custom") {
 
 // ---- thread: messages and cards, in the order they happened ----
 async function select(id) {
+  needsOpen = false;
   current = bots.find((b) => b.id === id);
   if (!current) return;
   history.replaceState(null, "", "#" + id); // a refresh reopens this chat
@@ -563,7 +601,7 @@ function notify(bot, what, body) {
 // ---- live events: cards, board status, runs waiting on you ----
 function listen() {
   const es = new EventSource("/events");
-  es.addEventListener("action", (e) => { const a = JSON.parse(e.data); upsert(a); loadBots(); if (a.status === "needed" && a.snapshot?.launched) notify(bots.find((b) => b.id === a.bot_id), "has a run waiting on you", a.summary); });
+  es.addEventListener("action", (e) => { const a = JSON.parse(e.data); upsert(a); loadBots(); if (needsOpen) renderNeeds(); if (a.status === "needed" && a.snapshot?.launched) notify(bots.find((b) => b.id === a.bot_id), "has a run waiting on you", a.summary); });
   es.addEventListener("board", (e) => { const ok = JSON.parse(e.data).ok; if (ok !== board.ok) loadBoard(); });
   // A routine's turn: no send() stream is open for it, so its messages and status come here.
   es.addEventListener("msg", (e) => {
@@ -834,7 +872,7 @@ setupMic();
   await Promise.all([loadBots(), loadBoard()]);
   listen();
   const last = shown().find((b) => String(b.id) === location.hash.slice(1)) || shown()[0];
-  if (last) select(last.id); else openTo();
+  if (location.hash === "#needs") openNeeds(); else if (last) select(last.id); else openTo();
 })();
 </script>
 </body>

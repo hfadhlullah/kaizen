@@ -350,3 +350,10 @@ test("attachments: the + reads text files in the page and the server takes a mes
   await res.text();
   expect(s.messages(bot.id)[0]!.text.length).toBe(big.length);
 });
+
+test("Needs you: lists only needed cards and never acts on them", () => {
+  const page = PAGE();
+  const block = page.slice(page.indexOf("async function openNeeds()"), page.indexOf('$("needsBtn").onclick'));
+  expect(block).toContain('api("/actions?status=needed")');
+  expect(block).not.toMatch(/method:|act\(|\/messages/);
+});
