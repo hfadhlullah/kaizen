@@ -1,7 +1,7 @@
 // Everything kaizen knows about a project's state, read from and written to the
 // `.kaizen/` directory. No terminal, no HTTP: the TUI (`dashboard.ts`) and the web
 // board (`web.ts`) both import this and draw it their own way.
-import { existsSync, readFileSync, readdirSync, appendFileSync, writeFileSync, mkdirSync, statSync, realpathSync, rmSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, appendFileSync, writeFileSync, mkdirSync, statSync, realpathSync, rmSync, renameSync } from "node:fs";
 import { join, dirname, win32 } from "node:path";
 import { homedir, arch, cpus, release, totalmem, version as osVersion } from "node:os";
 
@@ -1098,6 +1098,23 @@ export function sessionLaunch(projectDir: string, cmd: string, base: string[], p
   return { fullCmd, pidFile: join(sessionsDir(st), key + ".pid"), record };
 }
 
+// Claude Code asks "do you trust this folder?" the first time it opens one, and inside
+// a git repo it looks for the answer only up to the repo root. A launch from the board
+// is the user opening the project on purpose, so record yes for that root ahead of
+// time, in Claude's own config. Best effort: any failure just means Claude asks.
+export function trustFolder(dir: string, cfg = join(process.env.CLAUDE_CONFIG_DIR ?? homedir(), ".claude.json")) {
+  try {
+    const top = Bun.spawnSync(["git", "-C", dir, "rev-parse", "--show-toplevel"], { stderr: "ignore" });
+    const root = top.success ? top.stdout.toString().trim() || dir : dir;
+    const d = JSON.parse(readFileSync(cfg, "utf8"));
+    if (d.projects?.[root]?.hasTrustDialogAccepted) return;
+    d.projects ??= {};
+    d.projects[root] = { ...d.projects[root], hasTrustDialogAccepted: true };
+    writeFileSync(cfg + ".tmp", JSON.stringify(d, null, 2));
+    renameSync(cfg + ".tmp", cfg);
+  } catch { /* Claude asks as before */ }
+}
+
 // run: the run a decision is for. Without it, an idea starting a new run.
 // pick: the tool, model and yolo chosen for a new run; a decision takes the run's own
 // tool and model, and never yolo.
@@ -1107,6 +1124,7 @@ export function launchRun(it: Item, from: string, run?: string, pick: { agent?: 
   remember(projectDir);
   const own = run && !pick.agent ? runAgent(join(projectDir, ".kaizen"), run) : null;
   const agent = detectDefaultAgent(projectDir, pick.agent ?? own?.cmd);
+  if (agent.cmd === "claude") trustFolder(projectDir);
   const agentBin = Bun.which(agent.cmd) ?? agent.cmd;
   const prompt = requestOf(it.where ? `/kaizen ${it.text} (${it.where})` : `/kaizen ${it.text}`, it.notes, from);
   const wanted = pick.model ?? (own?.cmd === agent.cmd ? own.model : null) ?? undefined;

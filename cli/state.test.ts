@@ -1,10 +1,10 @@
 // State module against a throwaway .kaizen/. Nothing here spawns a terminal: the
 // launch path is covered only up to the command it would run.
 import { test, expect, beforeAll, afterAll } from "bun:test";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, utimesSync, existsSync, readdirSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, utimesSync, existsSync, readdirSync, realpathSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
-import { issueUrl, systemInfo, scrubHome, REPO_URL, home as realHome } from "./state.ts";
+import { issueUrl, systemInfo, scrubHome, REPO_URL, home as realHome, trustFolder } from "./state.ts";
 import {
   readRuns, readInbox, writeInbox, replaceIdea, abandonRun, allBacklog, backlog,
   statusOf, columnOf, parseItem, startedRuns, boardCards, readArchive, setArchived,
@@ -797,4 +797,23 @@ test("scrubHome hides a Windows home however the error spells it", () => {
     .toBe(`open ~\\x, "~\\\\y", ~/z`);
   // Case matters off Windows: /home/Ann is not /home/ann.
   expect(scrubHome("/home/ann/a /home/Ann/b", ["/home/ann"], false)).toBe("~/a /home/Ann/b");
+});
+
+test("trustFolder: marks the repo root trusted in a temp config, keeps the rest, survives a bad file", () => {
+  const t = mkdtempSync(join(tmpdir(), "kz-trust-"));
+  const repo = join(t, "repo"), sub = join(repo, "sub"), plain = join(t, "plain");
+  mkdirSync(sub, { recursive: true }); mkdirSync(plain);
+  Bun.spawnSync(["git", "init", "-q", repo]);
+  const cfg = join(t, ".claude.json");
+  writeFileSync(cfg, JSON.stringify({ keep: 1, projects: { [plain]: { x: 2 } } }));
+  trustFolder(sub, cfg);
+  trustFolder(plain, cfg);
+  const d = JSON.parse(readFileSync(cfg, "utf8"));
+  expect(d.keep).toBe(1);
+  expect(d.projects[realpathSync(repo)]).toEqual({ hasTrustDialogAccepted: true });
+  expect(d.projects[plain]).toEqual({ x: 2, hasTrustDialogAccepted: true });
+  writeFileSync(cfg, "{bad");
+  trustFolder(plain, cfg);
+  expect(readFileSync(cfg, "utf8")).toBe("{bad");
+  rmSync(t, { recursive: true, force: true });
 });
