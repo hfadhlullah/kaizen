@@ -483,6 +483,10 @@ export function fixPrompt(id: string, nums: number[]) {
     + `Leave every other finding alone, and mark the fixed ones done in its 06-backlog.md.`;
 }
 
+export function canApproveAwaiting(awaiting: unknown): awaiting is "approvals.plan" | "approvals.review" | "findings" {
+  return awaiting === "approvals.plan" || awaiting === "approvals.review" || awaiting === "findings";
+}
+
 // The board's answer to an approval the run is waiting on. The comment is collapsed to
 // one line: where the prompt is typed into a shell (herdr), a newline sends it early.
 // Answers are the plan's open questions answered at the approval, one per question.
@@ -490,6 +494,7 @@ export function approvalPrompt(id: string, awaiting: string, why?: string, answe
   const plan = awaiting === "approvals.plan";
   const one = (t: string) => t.replace(/\s+/g, " ").trim();
   const note = why === undefined ? undefined : one(why);
+  if (awaiting === "findings" && !note) return `run ${id}: the user approved the run as-is at the findings gate. Record approval in 02-approval.md, leave every remaining finding open in 06-backlog.md, do not fix or mark findings closed, and finish the run.`;
   if (plan && !note && answers?.length) return `run ${id}: the plan is approved from the board, with answers to its open questions: `
     + answers.map((a, i) => `${i + 1}) ${one(a).replace(/[.;]$/, "")}`).join("; ") + `. Record them in 02-approval.md and build the plan with them.`;
   if (!note) return plan

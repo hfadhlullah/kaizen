@@ -6,7 +6,7 @@ import {
   home, type Item, type Card, boardCards, knownProjects, remember, locate, label, tilde, searchRoots, findProjects,
   readInbox, writeInbox, replaceIdea, abandonRun, launchRun, parseItem, agentChoices, projectOf, KNOWN_AGENTS, plainModel, short, setArchived, writeNotes,
   appendNote, saveAttachment, pidOnPort, readText, cmdExe, sysExe, powershellExe, runGit, cardsGit, readCommit, commitPush, notice, notifier, LOGO,
-  reviewFindings, pickFindings, fixPrompt, approvalPrompt, nativePath, closeSessions, sweepSessions, issueUrl,
+  reviewFindings, pickFindings, fixPrompt, approvalPrompt, canApproveAwaiting, nativePath, closeSessions, sweepSessions, issueUrl,
 } from "./state.ts";
 import { readSources, addSource, removeSource, moveSource, gatherSource, gatherAll, gatherDirs, due } from "./sources.ts";
 import { listNotes, saveNote, renameNote, deleteNote, boardIndex, linksTo } from "./notes.ts";
@@ -612,7 +612,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
           if (dir === join(home, ".kaizen")) return bad("no project to run in", 409);
           let run: any;
           try { run = JSON.parse(readText(join(dir, "runs", id, "state.json"))); } catch { return bad("no such run", 404); }
-          if (run.awaiting !== "approvals.plan" && run.awaiting !== "approvals.review" || run.awaiting !== body.awaiting) return bad("this run is not waiting on that approval", 409);
+          if (!canApproveAwaiting(run.awaiting) || run.awaiting !== body.awaiting) return bad("this run is not waiting on that approval", 409);
+          if (run.awaiting === "findings" && body.why !== undefined) return bad("open findings can only be approved as-is or fixed individually", 409);
           if (body.why !== undefined && !String(body.why).trim()) return bad("a revise needs a comment");
           const answers = body.answers;
           if (answers !== undefined && (run.awaiting !== "approvals.plan" || body.why !== undefined || !Array.isArray(answers)

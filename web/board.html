@@ -735,10 +735,10 @@ async function openRun(c,refresh,again){
  // One the board cannot read is said, so it is answered in the terminal instead of skipped.
  const pq=c.status==="waiting"&&c.awaiting==="approvals.plan"?planQuestions(runDoc.plan):[],qs=pq||[];
  if(c.archived)foot.innerHTML=arch;
- else if(c.status==="waiting"&&APPROVAL[c.awaiting]){const sent=decided.has(answer(c)),asks=!pq?" It has open questions the board cannot show: answer them in the terminal running this run, or approve and your agent asks them.":qs.length?` It asks ${qs.length===1?"one question":qs.length+" questions"}: Approve opens ${qs.length===1?"it":"them"}.`:"";
+ else if((c.status==="waiting"||c.awaiting==="findings")&&APPROVAL[c.awaiting]){const sent=decided.has(answer(c)),asks=!pq?" It has open questions the board cannot show: answer them in the terminal running this run, or approve and your agent asks them.":qs.length?` It asks ${qs.length===1?"one question":qs.length+" questions"}: Approve opens ${qs.length===1?"it":"them"}.`:"";
   // gitBtn's buttons restyled as menu rows.
   const more=gitBtn(c).replace(/class="btn( pri)?"/g,"")+`<button data-a="archive">Archive</button><hr><button data-a="ab" class="danger">Abandon</button>`;
-  foot.innerHTML=`<span class="note">${sent?"Sent to your agent.":APPROVAL[c.awaiting]+asks+" Answering here opens a new agent session."}</span><details class="more"><summary class="btn ghost">More</summary><div class="menu-pop">${more}</div></details><span class="dec"><button class="btn" data-a="revise"${sent?" disabled":""}>Revise</button><button class="btn pri" data-a="approve"${sent?" disabled":""}>Approve</button></span>`}
+  foot.innerHTML=`<span class="note">${sent?"Sent to your agent.":APPROVAL[c.awaiting]+asks+" Answering here opens a new agent session."}</span><details class="more"><summary class="btn ghost">More</summary><div class="menu-pop">${more}</div></details><span class="dec"><button class="btn" data-a="revise"${sent?" disabled":""}>Revise</button><button class="btn pri" data-a="approve"${sent?" disabled":""}>${c.awaiting==="findings"?"Approve as-is":"Approve"}</button></span>`}
  else if(c.status==="waiting")foot.innerHTML=`<span class="note">Waiting on you: ${esc(need(c.awaiting))}. Answer in the terminal running this run.</span>${arch}<button class="btn ghost" data-a="ab">Abandon</button>`;
  else if(c.status==="done"||c.status==="abandoned")foot.innerHTML=arch;
  else foot.innerHTML=`<span class="note">${c.status==="stalled"?"No progress for a while. Resume it with <code>/kaizen run</code> in your agent, or abandon it.":"Running in your agent."}</span>${arch}<button class="btn ghost" data-a="ab">Abandon run</button>`;
@@ -749,7 +749,7 @@ async function openRun(c,refresh,again){
 // run last moved: the same approval reached again after a revise is a new question.
 // The footer's More menu is a <details>: close it on a click anywhere else.
 document.addEventListener("click",e=>{for(const d of document.querySelectorAll(".more[open]"))if(!d.contains(e.target))d.open=false});
-const APPROVAL={"approvals.plan":"The plan is ready. Read it in the Plan tab, then approve or send it back.","approvals.review":"The work is ready to check. Approve to finish it, or revise with what to change."},decided=new Set(),answer=c=>key(c)+":"+c.awaiting+":"+c.moved;
+const APPROVAL={"approvals.plan":"The plan is ready. Read it in the Plan tab, then approve or send it back.","approvals.review":"The work is ready to check. Approve to finish it, or revise with what to change.","findings":"The review has open findings. Approve as-is to accept them and finish, or fix selected findings first."},decided=new Set(),answer=c=>key(c)+":"+c.awaiting+":"+c.moved;
 async function decide(c,b,why,answers){b.disabled=true;askNotify();const r=await post("/decide",{dir:c.state,id:c.id,awaiting:c.awaiting,...(why===undefined?{}:{why}),...(answers?{answers}:{})});
  // A failed send keeps the footer, and with it a typed comment.
  if(!r.ok){b.disabled=false;return}

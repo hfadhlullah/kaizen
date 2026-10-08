@@ -5,6 +5,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, utimesSync
 import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
 import { issueUrl, systemInfo, scrubHome, REPO_URL, home as realHome, trustFolder } from "./state.ts";
+import * as stateModule from "./state.ts";
 import {
   readRuns, readInbox, writeInbox, replaceIdea, abandonRun, allBacklog, backlog,
   statusOf, columnOf, parseItem, startedRuns, boardCards, readArchive, setArchived,
@@ -138,6 +139,15 @@ test("approvalPrompt: approve or revise, the comment kept on one line", () => {
   expect(p).toContain("revise 01-plan.md");
   expect(p).not.toContain("\n");
   expect(approvalPrompt("r", "approvals.review", "rename it")).toContain('final approval: "rename it". Record it in 02-approval.md, change the work');
+});
+
+test("final approval can explicitly accept a run still awaiting findings", () => {
+  expect(stateModule.canApproveAwaiting("approvals.plan")).toBe(true);
+  expect(stateModule.canApproveAwaiting("approvals.review")).toBe(true);
+  expect(stateModule.canApproveAwaiting("findings")).toBe(true);
+  expect(stateModule.canApproveAwaiting("building")).toBe(false);
+  expect(approvalPrompt("r", "findings")).toContain("run as-is at the findings gate");
+  expect(approvalPrompt("r", "findings")).toContain("leave every remaining finding open");
 });
 
 test("approvalPrompt: a plan's answers numbered on one line", () => {
