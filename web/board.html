@@ -37,11 +37,12 @@ select.sel,button.sel{cursor:pointer;appearance:none;padding-right:30px;max-widt
 .combo .menu-pop{left:0;right:auto;top:calc(100% + 4px);width:320px;max-width:calc(100vw - 32px);gap:6px;z-index:9}
 .combo[hidden],.combo .menu-pop[hidden]{display:none}
 .combo input.sel{width:100%;max-width:none}
-#projs{display:flex;flex-direction:column;max-height:300px;overflow-y:auto}
-#projs button{display:block;flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#projs button.on{background:var(--hover)}
+#ndc>.sel{width:100%;max-width:none;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#projs,#nds{display:flex;flex-direction:column;max-height:300px;overflow-y:auto}
+#projs button,#nds button{display:block;flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#projs button.on,#nds button.on{background:var(--hover)}
 #shows{display:flex;flex-direction:column;max-height:300px;overflow-y:auto}#shows label{display:flex;gap:8px;align-items:center;padding:6px 10px;font-size:13px;border-radius:var(--r-s);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#shows label:hover{background:var(--hover)}#shows .grp{padding:8px 10px 4px;font-size:11px;color:var(--dim)}
-#projs .grp{padding:8px 10px 4px;font-size:11px;color:var(--dim)}
+#projs .grp,#nds .grp{padding:8px 10px 4px;font-size:11px;color:var(--dim)}
 .sp{flex:1}
 .ib{width:34px;height:34px;display:grid;place-items:center;color:var(--dim);border-radius:var(--r-s);transition:background .12s,color .12s}
 .ib:hover{color:var(--ink);background:var(--hover)}
@@ -629,9 +630,9 @@ function render(){
    s.querySelectorAll("[data-p]").forEach(bt=>bt.onclick=async e=>{e.stopPropagation();if(bt.dataset.p==="cancel"){picking=false;picked.clear();render();return}
     const set=list.filter(c=>picked.has(key(c)));picking=false;picked.clear();for(const c of set)await post("/archive",{dir:c.state,id:c.id});toast("Archived "+set.length);load()});}
   const ul=document.createElement("ul");
-  if(ci===0&&mode==="new"){const f=document.createElement("li");f.className="inl";f.innerHTML=`${all?`<select class="sel" id="newdir" aria-label="Project for this idea" style="width:100%;max-width:none">${ideaDirs().map(p=>`<option value="${esc(p.dir)}">${esc(p.label)}</option>`).join("")}</select>`:""}<input id="newidea" placeholder="What would you like done?"><textarea id="newnotes" placeholder="Notes: links, paths, background (optional)"></textarea><div class="row"><button class="btn ghost" id="nc">Cancel</button><button class="btn pri" id="ns">Add idea</button></div>`;ul.appendChild(f);
-   const inp=f.querySelector("input");draft(inp,"f:new:0");draft(f.querySelector("textarea"),"f:new:1");const save=async()=>{const text=inp.value.trim();if(!text)return;const notes=f.querySelector("textarea").value.trim();mode=null;const dir=f.querySelector("#newdir")?.value;const r=await post("/inbox",dir?{op:"add",dir,text,notes}:{op:"add",text,notes});if(r.ok)toast("Idea added");load()};
-   f.querySelector("#ns").onclick=save;f.querySelector("#nc").onclick=()=>{mode=null;render()};{const m=mic([inp,f.querySelector("textarea")]);if(m)f.querySelector(".row").prepend(m)}inp.onkeydown=e=>{if(e.key==="Enter")save();if(e.key==="Escape"){mode=null;render()}};setTimeout(()=>inp.focus())}
+  if(ci===0&&mode==="new"){const f=document.createElement("li");f.className="inl";f.innerHTML=`${all?`<div class="combo" id="ndc"><button class="sel" id="newdir" aria-label="Project for this idea" aria-haspopup="listbox" aria-expanded="false"></button><div class="menu-pop" hidden><input class="sel" aria-label="Search projects" placeholder="Search projects…" spellcheck="false" autocomplete="off"><div id="nds" role="listbox"></div></div></div>`:""}<input id="newidea" placeholder="What would you like done?"><textarea id="newnotes" placeholder="Notes: links, paths, background (optional)"></textarea><div class="row"><button class="btn ghost" id="nc">Cancel</button><button class="btn pri" id="ns">Add idea</button></div>`;ul.appendChild(f);
+   const inp=f.querySelector("#newidea");draft(inp,"f:new:0");draft(f.querySelector("textarea"),"f:new:1");const save=async()=>{const text=inp.value.trim();if(!text)return;const notes=f.querySelector("textarea").value.trim();mode=null;const dir=all?newDir:null;const r=await post("/inbox",dir?{op:"add",dir,text,notes}:{op:"add",text,notes});if(r.ok)toast("Idea added");load()};
+   if(all)ideaCombo(f);f.querySelector("#ns").onclick=save;f.querySelector("#nc").onclick=()=>{mode=null;render()};{const m=mic([inp,f.querySelector("textarea")]);if(m)f.querySelector(".row").prepend(m)}inp.onkeydown=e=>{if(e.key==="Enter")save();if(e.key==="Escape"){mode=null;render()}};setTimeout(()=>inp.focus())}
   const shown=unfolded.has(ci)||list.length<=FOLD+1?list:list.slice(0,FOLD);
   shown.forEach(c=>{if(modeKey===key(c)&&mode){ul.appendChild(inlineForm(c));return}const li=document.createElement("li");li.appendChild(card(c));ul.appendChild(li)});
   if(shown.length<list.length){const li=document.createElement("li");li.innerHTML=`<button class="more-btn">Show ${list.length-shown.length} more</button>`;li.firstChild.onclick=()=>{unfolded.add(ci);render()};ul.appendChild(li)}
@@ -1022,6 +1023,16 @@ async function pick(v){
 let shown=new Set((()=>{try{return JSON.parse(localStorage.getItem("kz-show"))||[]}catch(e){return[]}})());
 // Known projects, plus any folder a card comes from that is not one (the global inbox).
 // New idea in All projects: the projects being shown, else every one.
+let newDir=null;
+// Same combo as the header's project picker: a button, then a searchable list.
+function ideaCombo(f){const ps=ideaDirs(),btn=f.querySelector("#newdir"),pp=f.querySelector("#ndc .menu-pop"),q=pp.querySelector("input"),box=f.querySelector("#nds");
+ if(!ps.some(p=>p.dir===newDir))newDir=ps[0]?.dir??null;
+ const name=()=>{btn.textContent=(ps.find(p=>p.dir===newDir)||{label:"Choose project"}).label};
+ const draw=()=>{const t=q.value.trim().toLowerCase();box.innerHTML=ps.filter(p=>p.label.toLowerCase().includes(t)).map(p=>`<button type="button" role="option" data-d="${esc(p.dir)}" title="${esc(p.label)}" class="${p.dir===newDir?"on":""}">${esc(p.label)}</button>`).join("")||`<div class="grp">No match</div>`;
+  box.querySelectorAll("button").forEach(b=>b.onclick=()=>{newDir=b.dataset.d;name();open(false);f.querySelector("#newidea").focus()})};
+ const open=on=>{pp.hidden=!on;btn.setAttribute("aria-expanded",on);if(on){q.value="";draw();q.focus()}};
+ btn.onclick=e=>{e.preventDefault();open(pp.hidden)};q.oninput=draw;q.onkeydown=e=>{if(e.key==="Escape"){e.stopPropagation();open(false)}if(e.key==="Enter"){e.preventDefault();box.querySelector("button")?.click()}};
+ name()}
 function ideaDirs(){const sp=showable(),pick=sp.filter(p=>shown.has(p.dir));return pick.length?pick:sp}
 function showable(){const l=[...S.projects];for(const c of S.cards)if(!l.some(p=>p.dir===c.state))l.push({dir:c.state,label:c.where});return l}
 let SP=[];
