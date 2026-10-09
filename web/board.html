@@ -629,8 +629,8 @@ function render(){
    s.querySelectorAll("[data-p]").forEach(bt=>bt.onclick=async e=>{e.stopPropagation();if(bt.dataset.p==="cancel"){picking=false;picked.clear();render();return}
     const set=list.filter(c=>picked.has(key(c)));picking=false;picked.clear();for(const c of set)await post("/archive",{dir:c.state,id:c.id});toast("Archived "+set.length);load()});}
   const ul=document.createElement("ul");
-  if(ci===0&&mode==="new"){const f=document.createElement("li");f.className="inl";f.innerHTML=`<input id="newidea" placeholder="What would you like done?"><textarea id="newnotes" placeholder="Notes: links, paths, background (optional)"></textarea><div class="row"><button class="btn ghost" id="nc">Cancel</button><button class="btn pri" id="ns">Add idea</button></div>`;ul.appendChild(f);
-   const inp=f.querySelector("input");draft(inp,"f:new:0");draft(f.querySelector("textarea"),"f:new:1");const save=async()=>{const text=inp.value.trim();if(!text)return;const notes=f.querySelector("textarea").value.trim();mode=null;const r=await post("/inbox",{op:"add",text,notes});if(r.ok)toast("Idea added");load()};
+  if(ci===0&&mode==="new"){const f=document.createElement("li");f.className="inl";f.innerHTML=`${all?`<select class="sel" id="newdir" aria-label="Project for this idea" style="width:100%;max-width:none">${ideaDirs().map(p=>`<option value="${esc(p.dir)}">${esc(p.label)}</option>`).join("")}</select>`:""}<input id="newidea" placeholder="What would you like done?"><textarea id="newnotes" placeholder="Notes: links, paths, background (optional)"></textarea><div class="row"><button class="btn ghost" id="nc">Cancel</button><button class="btn pri" id="ns">Add idea</button></div>`;ul.appendChild(f);
+   const inp=f.querySelector("input");draft(inp,"f:new:0");draft(f.querySelector("textarea"),"f:new:1");const save=async()=>{const text=inp.value.trim();if(!text)return;const notes=f.querySelector("textarea").value.trim();mode=null;const dir=f.querySelector("#newdir")?.value;const r=await post("/inbox",dir?{op:"add",dir,text,notes}:{op:"add",text,notes});if(r.ok)toast("Idea added");load()};
    f.querySelector("#ns").onclick=save;f.querySelector("#nc").onclick=()=>{mode=null;render()};{const m=mic([inp,f.querySelector("textarea")]);if(m)f.querySelector(".row").prepend(m)}inp.onkeydown=e=>{if(e.key==="Enter")save();if(e.key==="Escape"){mode=null;render()}};setTimeout(()=>inp.focus())}
   const shown=unfolded.has(ci)||list.length<=FOLD+1?list:list.slice(0,FOLD);
   shown.forEach(c=>{if(modeKey===key(c)&&mode){ul.appendChild(inlineForm(c));return}const li=document.createElement("li");li.appendChild(card(c));ul.appendChild(li)});
@@ -1021,6 +1021,8 @@ async function pick(v){
 // The all-projects filter: tick the projects to show; none ticked shows every one. Kept per browser.
 let shown=new Set((()=>{try{return JSON.parse(localStorage.getItem("kz-show"))||[]}catch(e){return[]}})());
 // Known projects, plus any folder a card comes from that is not one (the global inbox).
+// New idea in All projects: the projects being shown, else every one.
+function ideaDirs(){const sp=showable(),pick=sp.filter(p=>shown.has(p.dir));return pick.length?pick:sp}
 function showable(){const l=[...S.projects];for(const c of S.cards)if(!l.some(p=>p.dir===c.state))l.push({dir:c.state,label:c.where});return l}
 let SP=[];
 function showList(){const q=$("showq").value.trim().toLowerCase();SP=showable();
