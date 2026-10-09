@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { issueUrl, systemInfo, scrubHome, REPO_URL, home as realHome, trustFolder } from "./state.ts";
 import * as stateModule from "./state.ts";
 import {
-  readRuns, readInbox, writeInbox, replaceIdea, abandonRun, allBacklog, backlog,
+  readRuns, readInbox, writeInbox, replaceIdea, moveIdea, abandonRun, allBacklog, backlog,
   statusOf, columnOf, parseItem, startedRuns, boardCards, readArchive, setArchived,
   requestOf, agentFlags, plainModel, readNotes, writeNotes, manualCommand, parseNotes, formatNote, appendNote, saveAttachment,
   reviewFindings, pickFindings, fixPrompt, approvalPrompt, sessionLaunch, closeSessions, sweepSessions, readSessions, ownerOf, CLOSE_GRACE_MS, gitStatus, runGit, cardsGit, commitPush, readCommit, findTerminal, nativePath, pruneRuns, unrechecked, notice, notifier, notifyArgs, LOGO, type Card,
@@ -826,4 +826,21 @@ test("trustFolder: marks the repo root trusted in a temp config, keeps the rest,
   trustFolder(plain, cfg);
   expect(readFileSync(cfg, "utf8")).toBe("{bad");
   rmSync(t, { recursive: true, force: true });
+});
+
+test("moveIdea carries notes and linked attachments, leaves the old inbox without it", () => {
+  const root = mkdtempSync(join(tmpdir(), "kaizen-mv-"));
+  const a = join(root, "a", ".kaizen"), b = join(root, "b", ".kaizen");
+  mkdirSync(join(a, "attachments"), { recursive: true });
+  writeFileSync(join(a, "attachments", "x-shot.png"), "png");
+  writeInbox(a, [{ status: "open", text: "keep" }, { status: "open", text: "go", notes: "see [shot](attachments/x-shot.png)" }]);
+  expect(moveIdea(a, a, "go")).toBe("already in that project");
+  expect(moveIdea(a, b, "nope")).toBe("no such idea");
+  expect(moveIdea(a, b, "go")).toBeNull();
+  expect(readInbox(a).map((l) => l.text)).toEqual(["keep"]);
+  expect(readInbox(b)).toEqual([{ status: "open", text: "go", notes: "see [shot](attachments/x-shot.png)" }]);
+  expect(readFileSync(join(b, "attachments", "x-shot.png"), "utf8")).toBe("png");
+  writeInbox(a, [{ status: "open", text: "go" }]);
+  expect(moveIdea(a, b, "go")).toBe("that project already has this idea");
+  rmSync(root, { recursive: true, force: true });
 });

@@ -4,7 +4,7 @@ import { existsSync, readdirSync, statSync, watch, appendFileSync, mkdirSync, ty
 import { join, dirname, resolve, sep } from "node:path";
 import {
   home, type Item, type Card, boardCards, knownProjects, remember, locate, label, tilde, searchRoots, findProjects,
-  readInbox, writeInbox, replaceIdea, abandonRun, launchRun, parseItem, agentChoices, projectOf, KNOWN_AGENTS, plainModel, short, setArchived, writeNotes,
+  readInbox, writeInbox, replaceIdea, moveIdea, abandonRun, launchRun, parseItem, agentChoices, projectOf, KNOWN_AGENTS, plainModel, short, setArchived, writeNotes,
   appendNote, saveAttachment, pidOnPort, readText, cmdExe, sysExe, powershellExe, runGit, cardsGit, readCommit, commitPush, notice, notifier, LOGO,
   reviewFindings, pickFindings, fixPrompt, approvalPrompt, canApproveAwaiting, nativePath, closeSessions, sweepSessions, issueUrl,
 } from "./state.ts";
@@ -444,6 +444,10 @@ export async function web(repoDir: string, opts: Opts = {}) {
             replaceIdea(dir, text, { status: "rejected", text: `${text} | ${why}` });
           } else if (body.op === "delete") {
             replaceIdea(dir, text, null);
+          } else if (body.op === "move") {
+            if (typeof body.to !== "string" || !states(true).includes(body.to)) return bad("unknown state dir", 404);
+            const why = moveIdea(dir, body.to, text);
+            if (why) return bad(why, why === "no such idea" ? 404 : 409);
           } else return bad("unknown op");
           changed();
           return json({ ok: true });

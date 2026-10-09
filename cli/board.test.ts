@@ -109,12 +109,16 @@ test("card menu items: appropriate actions and distinct icons across phases", ()
 
   const ico = (n: string) => `<svg><use href="#i-${n}"/></svg>`;
   const menuSnippet = (html.slice(html.indexOf("if(k===menuKey){"), html.indexOf("el.innerHTML+=`<div class=\"menu-pop\"", html.indexOf("if(k===menuKey){"))) + "}").replace("const items=[];", "items=[];");
-  const getItems = new Function("c", "archive", `const ico = ${ico.toString()};\nlet k = 1, menuKey = 1, items = [];\n${menuSnippet}\nreturn items;`);
+  const getItems = new Function("c", "archive", "S", `const ico = ${ico.toString()};\nlet k = 1, menuKey = 1, items = [];\n${menuSnippet}\nreturn items;`);
 
   // Phase 0: Ideas (idea card)
   const idea = { kind: "idea", status: "idea", column: 0 };
-  const ideaItems = getItems(idea, false);
+  const ideaItems = getItems(idea, false, { projects: [] });
   expect(ideaItems.map((i: any) => i ? i[1] : null)).toEqual(["Run", "Edit", "Archive", null, "Reject", "Delete"]);
+  // Move only when there is another project to move to.
+  const moveItems = getItems({ ...idea, state: "/a" }, false, { projects: [{ dir: "/a" }, { dir: "/b" }] });
+  expect(moveItems.map((i: any) => i ? i[1] : null)).toEqual(["Run", "Edit", "Move to project", "Archive", null, "Reject", "Delete"]);
+  expect(moveItems[2][2]).toBe(ico("ext"));
   expect(ideaItems[0][2]).toBe(ico("play"));
   expect(ideaItems[1][2]).toBe(ico("pen"));
   expect(ideaItems[2][2]).toBe(ico("archive"));

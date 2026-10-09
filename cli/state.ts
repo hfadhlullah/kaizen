@@ -1,7 +1,7 @@
 // Everything kaizen knows about a project's state, read from and written to the
 // `.kaizen/` directory. No terminal, no HTTP: the TUI (`dashboard.ts`) and the web
 // board (`web.ts`) both import this and draw it their own way.
-import { existsSync, readFileSync, readdirSync, appendFileSync, writeFileSync, mkdirSync, statSync, realpathSync, rmSync, renameSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, appendFileSync, writeFileSync, mkdirSync, statSync, realpathSync, rmSync, renameSync, copyFileSync } from "node:fs";
 import { join, dirname, win32 } from "node:path";
 import { homedir, arch, cpus, release, totalmem, version as osVersion } from "node:os";
 
@@ -815,6 +815,29 @@ export function replaceIdea(state: string, text: string, next: InboxLine | null)
   if (at < 0) return;                            // changed underneath us; the redraw will show why
   if (next) lines[at] = { notes: lines[at]!.notes, ...next }; else lines.splice(at, 1);
   writeInbox(state, lines);
+}
+
+// An open idea, notes and all, from one project's inbox to another's. Files its notes
+// link (attachments/...) are copied along, so the links resolve from the new state dir.
+// Written to the new project first and taken back out if the old one cannot be
+// written, like moveSource: a crash between the two leaves it listed twice, never lost.
+export function moveIdea(from: string, to: string, text: string): string | null {
+  if (from === to) return "already in that project";
+  const src = readInbox(from);
+  const at = src.findIndex((l) => l.status === "open" && l.text === text);
+  if (at < 0) return "no such idea";
+  const dest = readInbox(to);
+  if (dest.some((l) => l.status === "open" && l.text === text)) return "that project already has this idea";
+  const idea = src[at]!;
+  for (const m of (idea.notes ?? "").matchAll(/\]\((attachments\/[^)\/]+)\)/g)) {
+    if (!existsSync(join(from, m[1]!)) || !statSync(join(from, m[1]!)).isFile()) continue;
+    mkdirSync(join(to, "attachments"), { recursive: true });
+    copyFileSync(join(from, m[1]!), join(to, m[1]!));
+  }
+  writeInbox(to, [...dest, idea]);
+  try { writeInbox(from, src.filter((_, i) => i !== at)); }
+  catch (e) { writeInbox(to, dest); throw e; }
+  return null;
 }
 
 // Archived runs stay exactly where they are on disk -- run directories are never
