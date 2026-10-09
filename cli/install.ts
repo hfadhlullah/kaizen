@@ -46,6 +46,9 @@ const c = {
   green: (s: string) => `\x1b[32m${s}\x1b[0m`,
 };
 
+// Skill folders shipped in skills/ and linked into every agent.
+const SKILLS = ["kaizen", "kaizen-help", "story-deck", "story-video"];
+
 // Where each agent reads skills from. The skill folders follow the open Agent
 // Skills standard, so every one of these can run the workflow; agents/ and
 // commands/ are Claude Code's own formats and go nowhere else.
@@ -177,7 +180,7 @@ async function removeEverything() {
 
   for (const root of roots) {
     for (const a of AGENTS) {
-      for (const n of ["kaizen", "kaizen-help"]) drop(join(root, a.dir, "skills", n));
+      for (const n of SKILLS) drop(join(root, a.dir, "skills", n));
       for (const sub of ["agents", "commands"]) {
         const dir = join(root, a.dir, sub);
         try {
@@ -386,7 +389,7 @@ if (interactive && !upgrade && Bun.argv.length === 2) {
   if (!stale) {
     const here = found(home);
     const linked = here.length > 0 && here.every((a) =>
-      ["kaizen", "kaizen-help"].every((n) => existsSync(join(home, a.dir, "skills", n))));
+      SKILLS.every((n) => existsSync(join(home, a.dir, "skills", n))));
     if (linked) {
       const { dashboard } = await import("./dashboard.ts");
       await dashboard(repoDir, here.map((a) => a.name), async (action) => {
@@ -679,7 +682,7 @@ function dirEntries(sub: string) {
 }
 
 const links = targets.flatMap((a) => [
-  ...["kaizen", "kaizen-help"].map((n) => [join(repo, "skills", n), join(a.dir, "skills")] as const),
+  ...SKILLS.map((n) => [join(repo, "skills", n), join(a.dir, "skills")] as const),
   ...(a.full ? [
     ...dirEntries("agents").map((f) => [f, join(a.dir, "agents")] as const),
     ...dirEntries("commands").map((f) => [f, join(a.dir, "commands")] as const),

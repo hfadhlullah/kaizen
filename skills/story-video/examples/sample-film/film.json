@@ -1,0 +1,16 @@
+{
+ "preset": "cinematic-drama",
+ "language": "en",
+ "voiceProvider": "edge",
+ "edgeVoice": "en-US-AriaNeural",
+ "brand": { "palette": { "accent": "#D9A441", "accentBg": "#D9A441" } },
+ "labels": { "source": "Source", "next": "Next step" },
+ "cta": { "title": "See your own numbers in 20 minutes.", "sub": "Book a demo", "url": "[website]" },
+ "beats": [
+  { "vo": "v01", "kind": "black", "title": "Every café closes at ten.", "sub": "The real work starts after.", "ambience": "amb-night" },
+  { "vo": "v02", "kind": "stat", "kick": "The hidden shift", "stat": [{ "value": 4, "suffix": "+ hours", "label": "a week reconciling receipts (example figure — replace with a sourced one)", "source": "[source]" }] },
+  { "vo": "v03", "kind": "question", "title": "What if the books closed themselves?" },
+  { "vo": "v04", "kind": "reveal", "title": "Ledgerly", "sub": "Bookkeeping that closes with the café.", "line": "Invoices · Cash · Reports" },
+  { "vo": "v05", "kind": "cta", "hold": 2.5 }
+ ]
+}

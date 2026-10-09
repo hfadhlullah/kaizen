@@ -1,0 +1,58 @@
+{
+  "cinematic-drama": {
+    "palette": { "bg": "#14110F", "fg": "#F3EDE3", "muted": "#B8AFA3", "accent": "#C9A24E", "accentBg": "#C9A96E" },
+    "fonts": { "display": "Playfair Display", "body": "Inter" },
+    "pace": { "lead": 0.8, "tail": 1.1 },
+    "text": "rise",
+    "transition": "fade",
+    "layout": "fullbleed",
+    "grade": { "grain": 0.07, "vignette": 0.55, "leak": false },
+    "captions": "subtitle",
+    "music": { "base": 0.2, "lift": 0.32, "track": "music.mp3" },
+    "sfx": { "cut": "", "text": "", "reveal": "hit", "question": "riser" },
+    "kenburns": 0.08,
+    "loudness": -16
+  },
+  "promo-booth": {
+    "palette": { "bg": "#14110F", "fg": "#F3EDE3", "muted": "#B8AFA3", "accent": "#C9A24E", "accentBg": "#C9A96E" },
+    "fonts": { "display": "Playfair Display", "body": "Inter" },
+    "pace": { "lead": 0.45, "tail": 0.7 },
+    "text": "slide",
+    "transition": "wipe",
+    "layout": "window",
+    "grade": { "grain": 0.04, "vignette": 0.35, "leak": false },
+    "captions": "subtitle",
+    "music": { "base": 0.28, "lift": 0.4, "track": "music.mp3" },
+    "sfx": { "cut": "whoosh", "text": "tick", "reveal": "hit", "question": "riser" },
+    "kenburns": 0.05,
+    "loudness": -16
+  },
+  "fun-energetic": {
+    "palette": { "bg": "#FFF6E8", "fg": "#1E1A17", "muted": "#5A524A", "accent": "#E8833A", "accentBg": "#F4C95D" },
+    "fonts": { "display": "Fraunces", "body": "Inter" },
+    "pace": { "lead": 0.2, "tail": 0.35 },
+    "text": "pop",
+    "transition": "punch",
+    "layout": "card",
+    "grade": { "grain": 0.0, "vignette": 0.0, "leak": true },
+    "captions": "subtitle",
+    "music": { "base": 0.38, "lift": 0.5, "track": "music.mp3" },
+    "sfx": { "cut": "pop", "text": "pop", "reveal": "chime", "question": "pop" },
+    "kenburns": 0.1,
+    "loudness": -14
+  },
+  "viral-social": {
+    "palette": { "bg": "#0E0C0B", "fg": "#FFFFFF", "muted": "#D6CEC4", "accent": "#F2C14E", "accentBg": "#F2C14E" },
+    "fonts": { "display": "Inter", "body": "Inter" },
+    "pace": { "lead": 0.05, "tail": 0.2 },
+    "text": "pop",
+    "transition": "punch",
+    "layout": "fullbleed",
+    "grade": { "grain": 0.03, "vignette": 0.45, "leak": false },
+    "captions": "kinetic",
+    "music": { "base": 0.3, "lift": 0.42, "track": "music.mp3" },
+    "sfx": { "cut": "whoosh", "text": "", "reveal": "hit", "question": "riser" },
+    "kenburns": 0.14,
+    "loudness": -14
+  }
+}
