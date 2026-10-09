@@ -4,7 +4,7 @@
 // Skipped on Windows: there uninstall also walks every drive (searchRoots) and
 // strips kaizen links from real projects, whatever HOME says.
 import { test, expect } from "bun:test";
-import { mkdtempSync, mkdirSync, writeFileSync, existsSync, rmSync, symlinkSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, existsSync, rmSync, symlinkSync, cpSync, readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -82,4 +82,59 @@ it.skipIf(!Bun.which("git"))("uninstall removes a clean clone of kaizen and keep
   const unpushed = uninstall(clone(REPO, false, commit));
   expect(unpushed.left).toBe(true);
   expect(unpushed.out).toContain("commits not pushed");
+});
+
+// An npm package of this checkout, at a version no real release has: no .git, so its
+// installer runs as `bunx kaizen-agent` would. Scratch HOME only; ~/kaizen is a fake.
+const fromPackage = (make: (k: string) => void, custom = false) => {
+  const root = mkdtempSync(join(tmpdir(), "kz-replace-"));
+  const home = join(root, "home"), pkg = join(root, "pkg");
+  const k = custom ? join(root, "kaizen") : join(home, "kaizen");
+  mkdirSync(home);
+  const src = dirname(dirname(import.meta.path));
+  for (const d of ["cli", "skills", "agents", "commands", "web", "package.json"]) {
+    cpSync(join(src, d), join(pkg, d), { recursive: true, filter: (p) => !p.includes("node_modules") });
+  }
+  const pj = join(pkg, "package.json");
+  writeFileSync(pj, readFileSync(pj, "utf8").replace(/"version": "[^"]*"/, '"version": "9.9.9"'));
+  make(k);
+  const env: Record<string, string> = { PATH: process.env.PATH ?? "", HOME: home, USERPROFILE: home, TMPDIR: root };
+  if (custom) env.KAIZEN_HOME = k;
+  const p = Bun.spawnSync([process.execPath, join(pkg, "cli", "install.ts"), "--yes", "--global"], { cwd: home, env });
+  const r = {
+    out: p.stdout.toString(),
+    version: existsSync(join(k, "package.json")) ? JSON.parse(readFileSync(join(k, "package.json"), "utf8")).version : null,
+    oldKept: existsSync(join(`${k}.old`, "mine.txt")),
+    mineInPlace: existsSync(join(k, "mine.txt")),
+  };
+  rmSync(root, { recursive: true, force: true });
+  return r;
+};
+
+it.skipIf(!Bun.which("git"))("an npm package replaces a ~/kaizen clone with local edits, keeping it as .old", () => {
+  const r = fromPackage(clone(REPO, true));
+  expect(r.version).toBe("9.9.9");
+  expect(r.mineInPlace).toBe(false);
+  expect(r.oldKept).toBe(true);
+  expect(r.out).toContain("replaced");
+});
+
+it.skipIf(!Bun.which("git"))("an npm package never replaces a development checkout", () => {
+  expect(fromPackage(clone(REPO, true), true).mineInPlace).toBe(true);
+  const unpushed = fromPackage(clone(REPO, true, commit));
+  expect(unpushed.mineInPlace).toBe(true);
+  expect(unpushed.out).toContain("commits not pushed");
+});
+
+it("upgrade with npm unreachable says not upgraded, never up to date", () => {
+  const root = mkdtempSync(join(tmpdir(), "kz-offline-"));
+  const home = join(root, "home");
+  mkdirSync(home);
+  kaizenFiles(join(home, "kaizen"));
+  const env = { PATH: process.env.PATH ?? "", HOME: home, TMPDIR: root, HTTPS_PROXY: "http://127.0.0.1:9", https_proxy: "http://127.0.0.1:9" };
+  const p = Bun.spawnSync([process.execPath, script, "upgrade"], { cwd: home, env });
+  rmSync(root, { recursive: true, force: true });
+  expect(p.exitCode).not.toBe(0);
+  expect(p.stdout.toString()).toContain("Not upgraded");
+  expect(p.stdout.toString()).not.toContain("Up to date");
 });

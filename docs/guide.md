@@ -329,8 +329,9 @@ Installing puts the `kaizen` command on your PATH, so updating later is:
 kaizen upgrade
 ```
 
-That pulls the latest workflow, relinks anything new, and clears the installer cache
-`bunx` keeps — which is what otherwise leaves you on an old version without saying
+That installs the newest release from npm over `~/kaizen` — local edits included;
+the previous install is kept as `~/kaizen.old` — relinks anything new, and clears the
+installer cache `bunx` keeps — which is what otherwise leaves you on an old version without saying
 so. `bunx kaizen-agent upgrade` does the same thing if you would rather not have the
 command. `kaizen --version` prints what is installed; `bunx kaizen-agent --version`
 prints what npm has.
@@ -440,7 +441,7 @@ with a comment on each key, if you would rather edit the file.
 | `--preset <name>` | Pre-select workflow preset (`low`, `medium`, or `ultra`) |
 | `--yes` | Take every default, ask nothing |
 | `--verbose` | List every link instead of a one-line summary |
-| `upgrade` | Pull, relink, and clear the installer cache. No prompts. |
+| `upgrade` | Install the newest npm release over `~/kaizen` (old one kept as `~/kaizen.old`), relink, clear the installer cache. A development checkout is never replaced. No prompts. |
 | `uninstall` | Remove the links, the clone, and the launcher. Asks whether to keep your runs and settings. The clone goes only when it is `~/kaizen`, cloned from kaizen's repository, with no local changes; any other `KAIZEN_HOME` is kept and named. |
 | `uninstall --purge` | The same, and delete `~/.kaizen` and this project's `.kaizen/` too. |
 | `settings` | Open the settings browser for the nearest `.kaizen/`. Also `config`. |

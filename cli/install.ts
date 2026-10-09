@@ -407,35 +407,40 @@ if (interactive && !upgrade && Bun.argv.length === 2) {
 
 if (upgrade) await clearBunxCache();
 
-// An install made without git is a copy, not a clone, so there is nothing to pull:
-// upgrading itself would copy ~/kaizen over ~/kaizen and report "already up to
-// date" forever. The new version comes from npm, and the installer inside it does
-// the copying and relinking, so hand the job over and stop.
-if (upgrade && !existsSync(join(dirname(import.meta.dir), ".git"))) {
+// Upgrade means the newest release on npm, whatever the install on disk is: a clone
+// with local edits used to fail its pull and still report "Up to date". The npm
+// package's own installer replaces the install (see resolveRepo), so hand it over.
+if (upgrade) {
+  const dest = installDir();
+  const now = versionOf(dest);
+  const why = await devCheckout(dest);
+  if (why) {
+    console.log(`\n  ${c.bold("Not upgraded")}  ${c.dim(`${tilde(dest)} is ${why}; update it with git`)}\n`);
+    process.exit(1);
+  }
   const latest = await npmLatest();
-  const now = versionOf(dirname(import.meta.dir));
-  // A copy can only upgrade through npm. When the version lookup fails, bun still
-  // resolves "latest" its own way, so ask for that rather than falling through --
-  // which would copy this install over itself and call it up to date.
-  if (latest !== now) {
-    const want = latest ?? "latest";
-    step(`fetching kaizen ${want} from npm`);
-    // --force so a stale package manifest cannot resolve the version away, and the
-    // failure is printed rather than swallowed: a silent catch here looked exactly
-    // like a successful upgrade that changed nothing.
-    const r = await Bun.$`${process.execPath} x --force kaizen-agent@${want} --yes`
-      .quiet().nothrow();
-    const out = clean(r.stdout.toString() + r.stderr.toString()).filter((l) => l.trim());
-    for (const l of out) console.log(l.startsWith("  ") ? l : `  ${l}`);
-    if (r.exitCode !== 0) {
-      console.log(`\n  ${c.bold(`could not fetch kaizen ${want}`)}`);
-      console.log(`  ${c.dim("try:")} ${c.cyan(`bunx kaizen-agent@${want}`)}\n`);
-      process.exit(1);
-    }
-    const after = versionOf(process.env.KAIZEN_HOME ?? join(home, "kaizen"));
-    if (after === now) console.log(`\n  ${c.bold(`kaizen ${now} is the latest on npm`)}\n`);
+  if (!latest) {
+    console.log(`\n  ${c.bold("Not upgraded")}  ${c.dim(`could not reach npm (kaizen ${now})`)}\n`);
+    process.exit(1);
+  }
+  if (latest === now) {
+    console.log(`\n  ${c.bold("Up to date")}${c.dim(`  —  kaizen ${now}`)}\n`);
     process.exit(0);
   }
+  step(`fetching kaizen ${latest} from npm`);
+  // --force so a stale package manifest cannot resolve the version away, and the
+  // failure is printed rather than swallowed.
+  const r = await Bun.$`${process.execPath} x --force kaizen-agent@${latest} --yes`.quiet().nothrow();
+  const out = clean(r.stdout.toString() + r.stderr.toString()).filter((l) => l.trim());
+  for (const l of out) console.log(l.startsWith("  ") ? l : `  ${l}`);
+  const after = versionOf(dest);
+  if (r.exitCode !== 0 || after !== latest) {
+    console.log(`\n  ${c.bold(`could not install kaizen ${latest}`)}`);
+    console.log(`  ${c.dim("try:")} ${c.cyan(`bunx kaizen-agent@${latest}`)}\n`);
+    process.exit(1);
+  }
+  console.log(`\n  ${c.bold("Upgraded")}  ${c.dim(now)} → ${c.green(after)}\n  ${c.dim("Restart Claude Code to pick up any new slash commands.")}\n`);
+  process.exit(0);
 }
 if (!check && !upgrade) await welcome();
 
@@ -597,41 +602,34 @@ async function resolveRepoQuietly() {
 
 async function resolveRepo() {
   const here = dirname(import.meta.dir);
-  const dest = process.env.KAIZEN_HOME ?? join(home, "kaizen");
-  // The launcher runs the clone itself, so an upgrade from inside it must pull
-  // that clone -- returning it untouched was "Up to date" at whatever was there.
-  for (const dir of [here, dest]) {
-    if (!existsSync(join(dir, ".git"))) continue;
-    if (!upgrade && dir === here) return dir;
-    // A pull can refuse for reasons that have nothing to do with linking -- local
-    // edits, a detached head, no network. Linking the checkout already on disk
-    // still works, so say what happened and carry on.
-    try {
-      await Bun.$`git -C ${dir} pull --ff-only`.quiet();
-      step(`updated ${tilde(dir)}`);
-    } catch {
-      step(`kept ${tilde(dir)} ${c.dim("(could not pull)")}`);
-    }
-    return dir;
-  }
-  // A copy made before git was installed can never be pulled, so it keeps upgrading
-  // through npm and its caches. Once git is here, replace it with a real clone --
-  // into a sibling first, so a clone that fails leaves the working copy alone.
-  if (Bun.which("git") && existsSync(join(dest, "cli", "install.ts"))) {
-    const fresh = `${dest}.new`;
-    try {
-      rmSync(fresh, { recursive: true, force: true });
-      await Bun.$`git clone --quiet ${REPO_URL} ${fresh}`;
-      rmSync(dest, { recursive: true, force: true });
-      renameSync(fresh, dest);
-      step(`re-cloned ${tilde(dest)} ${c.dim("(git is available now)")}`);
+  const dest = installDir();
+  // Running from a checkout (development, or the launcher's old clone): link it as is.
+  if (existsSync(join(here, ".git"))) return here;
+  // Running from an npm package: that package is the version wanted, so it replaces
+  // whatever ~/kaizen holds -- local edits included -- rather than a pull that any
+  // edit makes fail. The previous install is kept as <dest>.old, one deep.
+  if (here !== dest && existsSync(dest)) {
+    const why = await devCheckout(dest);
+    if (why) {
+      step(`kept ${tilde(dest)} ${c.dim(`(${why}; not replaced)`)}`);
       return dest;
-    } catch {
-      rmSync(fresh, { recursive: true, force: true });
-      // Fall through to the copy below: an unreachable network is not a reason to
-      // leave the install untouched.
     }
+    const fresh = `${dest}.new`, old = `${dest}.old`;
+    rmSync(fresh, { recursive: true, force: true });
+    cpSync(here, fresh, { recursive: true, dereference: true, filter: (src) => basename(src) !== "node_modules" });
+    rmSync(old, { recursive: true, force: true });
+    // Windows refuses to move a folder a running kaizen still holds open. The
+    // install stays as it was; say how to finish rather than throwing.
+    try { renameSync(dest, old); } catch {
+      rmSync(fresh, { recursive: true, force: true });
+      step(`kept ${tilde(dest)} ${c.dim("(in use; close kaizen and any dashboard, then run bunx kaizen-agent@latest)")}`);
+      return dest;
+    }
+    renameSync(fresh, dest);
+    step(`replaced ${tilde(dest)} with kaizen ${versionOf(dest)} ${c.dim(`(previous install kept in ${tilde(old)})`)}`);
+    return dest;
   }
+  if (here === dest) return dest;
 
   // Cloning needs an empty directory, and a copy made on a machine that had no git
   // is anything but: installing git later must not turn every run into a fatal.
@@ -906,14 +904,7 @@ function writePointer() {
 
 // ---------------------------------------------------------------- done
 
-if (upgrade) {
-  let version = "";
-  try { version = JSON.parse(readFileSync(join(repo, "package.json"), "utf8")).version; } catch {}
-  console.log(`
-  ${c.bold("Up to date")}${version ? c.dim(`  —  kaizen ${version}`) : ""}
-  ${c.dim("Restart Claude Code to pick up any new slash commands.")}
-`);
-} else {
+{
   console.log(`
   ${c.bold("Next")}
     1  restart Claude Code ${c.dim("— skills load live, slash commands only at session start")}
@@ -948,12 +939,24 @@ async function runUpgrade(repoDir: string) {
       .map((l) => c.dim(l.trim())),
   ];
   if (latest && latest !== after) {
-    lines.push("", c.dim(existsSync(join(repoDir, ".git"))
-      ? `npm publishes ${latest}; this install follows the git clone.`
-      : `npm publishes ${latest} — run: bunx kaizen-agent@${latest}`));
+    lines.push("", c.dim(`npm publishes ${latest} — run: bunx kaizen-agent@${latest}`));
   }
   lines.push("", c.dim("Restart your agent to pick up new slash commands."));
   return lines;
+}
+
+function installDir() { return process.env.KAIZEN_HOME ?? join(home, "kaizen"); }
+
+// A folder someone develops kaizen in must never be replaced by a release: a git
+// checkout KAIZEN_HOME points at, or any checkout holding commits on no remote.
+// ~/kaizen as the installer cloned it is fair game, edits and all (kept in .old).
+async function devCheckout(dir: string) {
+  if (!existsSync(join(dir, ".git"))) return "";
+  if (resolve(dir) !== join(home, "kaizen")) return "a git checkout named by KAIZEN_HOME";
+  try {
+    const ahead = (await Bun.$`git -C ${dir} rev-list --branches --not --remotes`.quiet().text()).trim();
+    return ahead ? "a git checkout with commits not pushed" : "";
+  } catch { return ""; }
 }
 
 function versionOf(dir: string) {
