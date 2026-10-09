@@ -336,6 +336,8 @@ so. `bunx kaizen-agent upgrade` does the same thing if you would rather not have
 command. `kaizen --version` prints what is installed; `bunx kaizen-agent --version`
 prints what npm has.
 
+Stuck on 1.18.0 or older? If `kaizen upgrade` says *could not pull* and stays on the old version, run this once: `bunx kaizen-agent@latest`. Your old install is kept as `~/kaizen.old`; from then on `kaizen upgrade` works by itself.
+
 Then, in any project, just ask for something:
 
 ```

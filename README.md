@@ -230,6 +230,8 @@ Anthropic, OpenAI and Requesty are supported. Setup, privacy and settings are in
 
 In a terminal: `kaizen` (dashboard), `kaizen web` (board), `kaizen settings`, `kaizen upgrade`.
 
+Stuck on 1.18.0 or older? If `kaizen upgrade` says *could not pull* and stays on the old version, run this once: `bunx kaizen-agent@latest`. Your old install is kept as `~/kaizen.old`; from then on `kaizen upgrade` works by itself.
+
 ## Learn more
 
 - **[The guide](https://github.com/hfadhlullah/kaizen/blob/main/docs/guide.md)**: the board, request sources, notebook, settings, installer flags, uninstall
