@@ -35,11 +35,12 @@ select.sel,button.sel{cursor:pointer;appearance:none;padding-right:30px;max-widt
 /* project picker: a select-shaped button over a searchable list */
 .combo{position:relative;max-width:100%;display:flex}
 .combo .menu-pop{left:0;right:auto;top:calc(100% + 4px);width:320px;max-width:calc(100vw - 32px);gap:6px;z-index:9}
-.combo .menu-pop[hidden]{display:none}
+.combo[hidden],.combo .menu-pop[hidden]{display:none}
 .combo input.sel{width:100%;max-width:none}
 #projs{display:flex;flex-direction:column;max-height:300px;overflow-y:auto}
 #projs button{display:block;flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #projs button.on{background:var(--hover)}
+#shows{display:flex;flex-direction:column;max-height:300px;overflow-y:auto}#shows label{display:flex;gap:8px;align-items:center;padding:6px 10px;font-size:13px;border-radius:var(--r-s);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#shows label:hover{background:var(--hover)}#shows .grp{padding:8px 10px 4px;font-size:11px;color:var(--dim)}
 #projs .grp{padding:8px 10px 4px;font-size:11px;color:var(--dim)}
 .sp{flex:1}
 .ib{width:34px;height:34px;display:grid;place-items:center;color:var(--dim);border-radius:var(--r-s);transition:background .12s,color .12s}
@@ -137,6 +138,7 @@ section h2 .clear{margin-left:auto;min-height:22px;padding:0 8px}
 .inl input::placeholder,.inl textarea::placeholder,.notes textarea::placeholder{color:var(--dim)}
 .inl .row,.notes .row{display:flex;gap:6px;justify-content:flex-end}
 .notes{display:flex;flex-direction:column;gap:8px}
+.desc{border-bottom:1px solid var(--line);padding-bottom:6px;margin-bottom:14px}.desc h3{margin-top:14px}
 .chat{display:flex;flex-direction:column;gap:10px;margin:0 0 14px}.msg{border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;background:var(--bg)}.msg time{display:block;font-size:11px;color:var(--dim);margin-bottom:4px}.msg p:last-child{margin-bottom:0}.msg img{max-width:100%;max-height:260px;border-radius:var(--r-s);display:block;margin:4px 0}
 .notes .tools{display:flex;gap:6px;align-items:center}.notes .tools span{flex:1;font-size:11px;color:var(--dim)}.notes .att{font-size:11px;color:var(--dim)}
 .inl pre.files{margin:0;max-height:140px;overflow:auto;font:12px/1.5 var(--mono);color:var(--dim)}
@@ -329,6 +331,7 @@ aside .foot .more .menu-pop{left:0;right:auto;top:auto;bottom:calc(100% + 4px)}.
 <span>█▀▄  █▀█  █   ▄▀  ██▄  █ ▀█</span>
 <span>█ █  █ █  █  █▄▄  █▄▄  █  █</span></pre>
   <div class="combo" id="combo"><button class="sel" id="proj" aria-label="project" aria-haspopup="listbox" aria-expanded="false"></button><div class="menu-pop" id="projpop" hidden><input class="sel" id="projq" aria-label="Search projects" placeholder="Search projects…" spellcheck="false" autocomplete="off"><div id="projs" role="listbox"></div></div></div>
+  <div class="combo" id="showc" hidden><button class="sel" id="show" aria-label="Projects shown" aria-haspopup="true" aria-expanded="false"></button><div class="menu-pop" id="showpop" hidden><input class="sel" id="showq" aria-label="Search projects" placeholder="Search projects…" spellcheck="false" autocomplete="off"><div id="shows"></div><button id="showall">Show all</button></div></div>
   <span class="sp"></span>
   <button class="btn pri" id="newtop">New idea</button>
   <a class="ib" href="/notebook" title="Notebook" aria-label="Notebook"><svg><use href="#i-note"/></svg></a>
@@ -501,7 +504,7 @@ function card(c){
  if(c.git){const t=c.git==="pushed"?"Committed & pushed":"Not committed & pushed yet";chips.push(`<span class="chip ${c.git==="pushed"?"ok":"warn"}" role="img" title="${t}" aria-label="${t}"><svg><use href="#c-git"/></svg></span>`)}
  const pick=picking&&!archive&&c.column===4;
  el.innerHTML=(pick?`<input type="checkbox" class="pick" ${picked.has(k)?"checked":""} aria-label="Select">`:"")+`<div class="c-id"><span class="st d-${st}"><svg><use href="#s-${st}"/></svg></span><span class="idt">${esc(idt)}</span><span class="age">${c.kind==="run"?age(c.moved||S.now,S.now):""}</span><button class="ib sm more" data-a="menu" title="Actions" aria-label="Actions" aria-haspopup="menu" aria-expanded="${k===menuKey}">${ico("more")}</button></div>
-  <div class="c-title">${esc(c.kind==="idea"?c.text:(c.title||c.id))}</div>
+  <div class="c-title"${c.kind==="idea"&&brief(c.text).parts.length?` title="${esc(c.text)}"`:""}>${esc(c.kind==="idea"?brief(c.text).head:(c.title||c.id))}</div>
   <div class="c-chips">${chips.join("")}</div>`;
  if(k===menuKey){
   const items=[];
@@ -581,7 +584,9 @@ function render(){
  if(!mode)undraft("f:");try{sessionStorage.setItem("kz-form",JSON.stringify(["new","edit","reject"].includes(mode)?[mode,modeKey]:null))}catch(e){}
  // The board is rebuilt below; the card that had focus gets it back.
  const fk=focusedKey();
- const cs=S.cards.filter(c=>c.archived===archive),b=$("board");b.innerHTML="";
+ // All projects: only the ones ticked in the filter, or every one when none is.
+ const only=all&&shown.size&&showable().some(p=>shown.has(p.dir));
+ const cs=S.cards.filter(c=>c.archived===archive&&(!only||shown.has(c.state))),b=$("board");b.innerHTML="";
  const nArch=S.cards.filter(c=>c.archived).length;
  const n=s=>cs.filter(c=>c.status===s).length;
  const strip=[];
@@ -595,6 +600,8 @@ function render(){
  PL=[["All projects","all"],...S.projects.map(p=>[p.label,p.dir]),...S.fresh.map(p=>[p.label,p.dir,1]),["Find projects on this PC…","__find"]];
  $("proj").textContent=all||!S.dir?"All projects":(PL.find(p=>p[1]===S.dir)||["All projects"])[0];
  if(!$("projpop").hidden)list();
+ $("showc").hidden=!all;const sp=showable(),ns=sp.filter(p=>shown.has(p.dir)).length;$("show").textContent=ns?`Showing ${ns} of ${sp.length}`:"Showing all";
+ if(!$("showpop").hidden)showList();
  if(!cs.length&&mode!=="new"){b.innerHTML=archive?'<div class="empty"><div class="mascot"></div><b>Nothing archived</b></div>':'<div class="empty"><div class="mascot"></div><b>Nothing here yet</b><p>Add an idea and kaizen will plan it, build it, and check the result.</p><button class="btn pri" id="newempty">New idea</button></div>';if(!archive)$("newempty").onclick=()=>{mode="new";render()};}
  COLS.forEach((name,ci)=>{
   const s=document.createElement("section");const list=cs.filter(c=>c.column===ci&&(!filter||c.status===filter));
@@ -645,7 +652,7 @@ const tabOf=k=>TABS.findIndex(t=>t[1]===k);
 // keepTab: a link already chose the tab.
 function open(c,keepTab){
  stopDictation(true); // the panel body is about to be replaced
- fixOff.clear();openKey=key(c);$("panel").classList.add("open");$("scrim").classList.add("on");$("ptitle").textContent=c.text;render();
+ fixOff.clear();openKey=key(c);$("panel").classList.add("open");$("scrim").classList.add("on");$("ptitle").textContent=c.kind==="idea"?brief(c.text).head:c.text;render();
  if(c.kind==="idea"){runDoc=null;$("psub").textContent="Idea · "+c.where;$("ptabs").innerHTML="";chat(c,c.notes,c.archived||c.status!=="idea");
   const foot=$("pfoot");foot.innerHTML=c.archived?`<button class="btn pri" data-a="restore">Restore</button>`:c.status==="idea"?`<button class="btn ghost danger" data-a="delete">Delete</button><button class="btn ghost" data-a="archive">Archive</button><span class="dec"><button class="btn" data-a="reject">Reject</button><button class="btn" data-a="edit">Edit</button><button class="btn pri" data-a="run">Run</button></span>`:`<span class="note">Starting: a run was launched for this idea. No terminal with your agent? Run it again.</span><span class="dec"><button class="btn" data-a="run">Run again</button></span>`;
   foot.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{const a=b.dataset.a;if(a==="archive"||a==="restore"){toggleArchive(c,a==="archive");return}const k=key(c);close();mode=a;modeKey=k;render()});return}
@@ -658,7 +665,8 @@ function chat(c,src,ro){
  const base=c.kind==="run"?`runs/${c.id}/`:"";
  const fix=t=>t.replace(/\]\((attachments\/[^)]+)\)/g,(_,p)=>`](/file?dir=${encodeURIComponent(c.state)}&p=${encodeURIComponent(base+p)})`);
  const entries=parseNotes(src);
- let h=`<div class="chat">${entries.map(n=>`<div class="msg">${n.at?`<time>${esc(n.at)}</time>`:""}${md(fix(n.text))}</div>`).join("")||`<p style="color:var(--dim)">No notes yet.</p>`}</div>`;
+ const b=c.kind==="idea"?brief(c.text):{parts:[]};
+ let h=(b.parts.length?`<section class="desc">${md(b.parts.map(p=>`### ${p.label}\n${p.body}`).join("\n\n"))}</section>`:"")+`<div class="chat">${entries.map(n=>`<div class="msg">${n.at?`<time>${esc(n.at)}</time>`:""}${md(fix(n.text))}</div>`).join("")||`<p style="color:var(--dim)">No notes yet.</p>`}</div>`;
  if(!ro)h+=`<div class="notes"><textarea placeholder="Add a note. Paste a screenshot, or attach files."></textarea><div class="att" id="natt"></div><div class="tools"><input type="file" id="nfile" multiple hidden><button class="btn ghost" id="npick">Attach</button><span>Enter sends, Shift+Enter newline</span><button class="btn pri" id="nsend">Send</button></div></div>`;
  $("pbody").innerHTML=h;
  if(ro)return;
@@ -831,6 +839,22 @@ async function commitPush(c,message,b){b.disabled=true;b.dataset.busy=1;b.textCo
 async function toggleArchive(c,archived){const r=await post("/archive",c.kind==="idea"?{dir:c.state,text:c.text,archived}:{dir:c.state,id:c.id,archived});if(r.ok)toast(archived?"Archived":"Restored");close();load()}
 function close(){const k=openKey;stopDictation(true);openKey=null;runDoc=null;$("panel").classList.remove("open");$("scrim").classList.remove("on");render();if(k)cardEl(k)?.focus({preventScroll:true})}
 $("pclose").onclick=close;$("scrim").onclick=close;
+// An idea is one inbox line, so a structured request arrives as one wall:
+// "Fix x Problem: … Scope: … Acceptance criteria: (1) … (2) …". Split it, for display
+// only, into the text before the first label and one part per label; inline (1) (2)
+// become a numbered list. Fewer than two labels is plain text and is left whole.
+function brief(t){
+ // A label opens a sentence; only the first may follow the head without punctuation,
+ // and then only as one word ("… previews Problem:"), so "the Board shows: x" is prose.
+ const re=/(^|[.!?)]\s+|\s)([A-Z][\w-]*(?: [a-z][\w-]*){0,3}):\s+/g,cut=[];let m;
+ while((m=re.exec(t)))if(!/^\s+$/.test(m[1])||(!cut.length&&!m[2].includes(" ")))cut.push([m.index+m[1].length,m[2],re.lastIndex]);
+ if(cut.length<2)return {head:t,parts:[]};
+ // Inline (1) (2) … become a list; numbers that do not run 1, 2, 3 keep their own text.
+ const parts=cut.map(([,label,from],i)=>{const body=t.slice(from,i+1<cut.length?cut[i+1][0]:t.length).trim(),n=body.split(/\s*\((\d+)\)\s+/);
+  if(n.length<5)return {label,body};const its=[];for(let k=1;k<n.length;k+=2)its.push([n[k],n[k+1]]);
+  const seq=its.every(([d],k)=>+d===k+1);
+  return {label,body:(n[0]?n[0]+"\n":"")+its.map(([d,x],k)=>seq?`${k+1}. ${x}`:`- (${d}) ${x}`).join("\n")}});
+ return {head:t.slice(0,cut[0][0]).trim()||`${parts[0].label}: ${t.slice(cut[0][2],cut[1][0]).trim()}`,parts}}
 
 // Enough markdown for kaizen's own files: headings, lists, fences, tables,
 // inline code, bold. Everything is escaped first. With `tick`, a backlog item
@@ -986,6 +1010,21 @@ async function pick(v){
  else if(v==="all"){all=true;keep()}
  else{const j=await post("/cd",{dir:v});if(j.ok){all=false;keep(v)}}
  load()}
+// The all-projects filter: tick the projects to show; none ticked shows every one. Kept per browser.
+let shown=new Set((()=>{try{return JSON.parse(localStorage.getItem("kz-show"))||[]}catch(e){return[]}})());
+// Known projects, plus any folder a card comes from that is not one (the global inbox).
+function showable(){const l=[...S.projects];for(const c of S.cards)if(!l.some(p=>p.dir===c.state))l.push({dir:c.state,label:c.where});return l}
+let SP=[];
+function showList(){const q=$("showq").value.trim().toLowerCase();SP=showable();
+ $("shows").innerHTML=SP.map((p,i)=>p.label.toLowerCase().includes(q)?`<label title="${esc(p.label)}"><input type="checkbox" data-i="${i}" ${shown.has(p.dir)?"checked":""}>${esc(p.label)}</label>`:"").join("")||`<div class="grp">No match</div>`}
+function setShown(){try{localStorage.setItem("kz-show",JSON.stringify([...shown]))}catch(e){}render()}
+$("show").onclick=()=>{const on=$("showpop").hidden;$("showpop").hidden=!on;$("show").setAttribute("aria-expanded",on);if(on){$("showq").value="";showList();$("showq").focus()}};
+$("showq").oninput=showList;
+$("showq").onkeydown=e=>{if(e.key==="Escape"){$("showpop").hidden=true;$("show").setAttribute("aria-expanded",false);$("show").focus()}};
+// render() redraws the list; the ticked box keeps keyboard focus.
+$("shows").onchange=e=>{const i=e.target.dataset.i,d=SP[i]?.dir;if(!d)return;e.target.checked?shown.add(d):shown.delete(d);setShown();$("shows").querySelector(`[data-i="${i}"]`)?.focus()};
+$("showall").onclick=()=>{shown.clear();setShown()};
+document.addEventListener("click",e=>{if(!e.target.closest("#showc")){$("showpop").hidden=true;$("show").setAttribute("aria-expanded",false)}});
 $("newtop").onclick=()=>{mode="new";render();$("board").scrollTo(0,0)};
 $("settings").onclick=()=>{setQ="";openSettings()};$("sources").onclick=openSources;
 try{const t=localStorage.getItem("kz-theme");if(t)document.documentElement.dataset.theme=t}catch(e){}

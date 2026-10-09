@@ -168,3 +168,33 @@ test("card menu items: appropriate actions and distinct icons across phases", ()
   const archIdea = getItems(idea, true);
   expect(archIdea.map((i: any) => i ? i[1] : null)).toEqual(["Restore", "Open", null, "Delete"]);
 });
+
+// brief() lifted the same way: a one-line structured idea split for display only.
+const bat = html.indexOf("function brief(");
+const brief = new Function(`${html.slice(bat, html.indexOf("\n\n", bat))}\nreturn brief`)() as (t: string) => { head: string; parts: { label: string; body: string }[] };
+
+test("a labelled idea splits into a head and one part per label", () => {
+  const b = brief("Improve previews Problem: one dense block. Non-goals: no rewrites. Acceptance criteria: (1) scannable. (2) full text kept.");
+  expect(b.head).toBe("Improve previews");
+  expect(b.parts.map(p => p.label)).toEqual(["Problem", "Non-goals", "Acceptance criteria"]);
+  expect(b.parts[2].body).toBe("1. scannable.\n2. full text kept.");
+  expect(md(`### ${b.parts[2].label}\n${b.parts[2].body}`)).toBe("<h3>Acceptance criteria</h3><ol><li>scannable.</li><li>full text kept.</li></ol>");
+});
+
+test("plain ideas, and a single label, are left whole", () => {
+  for (const t of ["fix the typo in README", "Bug: clicking twice opens two panels"]) expect(brief(t)).toEqual({ head: t, parts: [] });
+});
+
+test("an idea that opens with a label heads with its first part", () => {
+  expect(brief("Goal: faster board. Scope: cards only.").head).toBe("Goal: faster board.");
+});
+
+test("a capitalised phrase mid-sentence is prose, not a label", () => {
+  const b = brief("Fix cards Problem: the Board shows: nothing useful. Scope: cards.");
+  expect(b.parts.map(p => p.label)).toEqual(["Problem", "Scope"]);
+  expect(b.parts[0].body).toBe("the Board shows: nothing useful.");
+});
+
+test("criteria not numbered from 1 keep their own numbers", () => {
+  expect(brief("X Goal: g. Criteria: (2) two. (3) three.").parts[1].body).toBe("- (2) two.\n- (3) three.");
+});
