@@ -432,8 +432,11 @@ if (upgrade) {
   // failure is printed rather than swallowed.
   const r = await Bun.$`${process.execPath} x --force kaizen-agent@${latest} --yes`.quiet().nothrow();
   const out = clean(r.stdout.toString() + r.stderr.toString()).filter((l) => l.trim());
-  for (const l of out) console.log(l.startsWith("  ") ? l : `  ${l}`);
   const after = versionOf(dest);
+  // The new installer's banner and first-install "Next" steps are noise here: show
+  // its step lines, or everything when it failed so the error is not hidden.
+  const shown = after === latest ? out.filter((l) => /^\s*(\+|skip)\s/.test(l)) : out;
+  for (const l of shown) console.log(l.startsWith("  ") ? l : `  ${l}`);
   // The installer exits 1 when it skipped a link (an agent file the user owns), which
   // is not a failed upgrade: the version on disk is what decides.
   if (after !== latest) {
