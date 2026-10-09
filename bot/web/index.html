@@ -375,7 +375,8 @@ function upsert(a) {
   else { items.push({ type: "a", at: a.at, a }); $("thread").querySelector(".empty")?.remove(); put(card(a)); }
 }
 
-const TITLE = { idea: "Board", note: "Board", memory: "Memory", draft: "Draft", start_run: "Run", decision: "Run", fix: "Run", abort: "Run" };
+const TITLE = { idea: "Board", note: "Board", memory: "Memory", draft: "Draft", start_run: "Run", decision: "Run", fix: "Run", abort: "Run", computer: "Computer" };
+const SANDBOX = { starting: "Starting the sandbox", running: "Running in the sandbox", stopping: "Saving files, then removing the sandbox", stopped: "Stopped · sandbox removed", error: "Error" };
 const PILL = { needed: "Action needed", working: "Working", done: "Done", declined: "Declined", failed: "Failed" };
 const STAGE = { plan: "Planning", build: "Building", review: "Review", done: "Done", abandoned: "Abandoned", starting: "Starting…" };
 
@@ -448,6 +449,35 @@ function card(a) {
           el("button", { class: "btn", onclick: (e) => { if (!why.value.trim()) { why.focus(); toast("Say what to change first"); return; } act(a, { op: "decide", approve: false, why: why.value }, e.currentTarget); } }, "Revise"));
       } else if (!fixes) c.append(el("div", { class: "note" }, "Answer this one where the run is running."));
     }
+  } else if (a.kind === "computer" && a.status !== "needed") {
+    // A computer task: its sandbox state live, then the files it brought back.
+    const secs = s.ms?.total ? ` · ${(s.ms.total / 1000).toFixed(1)} s` : "";
+    c.append(el("div", { class: "note" }, `${SANDBOX[s.state] || (a.status === "declined" ? "Not run" : "Waiting")}${secs}`));
+    const files = s.artifacts || [];
+    if (files.length) c.append(el("div", { class: "box" }, files.map((f) => {
+      const href = `/actions/${a.id}/artifacts/${encodeURIComponent(f.name)}`;
+      return el("div", {}, f.type === "image/png" ? el("img", { src: `${href}?inline`, alt: `Screenshot ${f.name}`, style: { maxWidth: "100%", display: "block", borderRadius: "6px" } }) : null,
+        el("a", { href, download: f.name }, `${f.name} (${Math.max(1, Math.round(f.bytes / 1024))} KB)`));
+    })));
+    if (s.proxy?.denied) c.append(el("div", { class: "note" }, `${s.proxy.denied} request${s.proxy.denied > 1 ? "s" : ""} outside the allowlist ${s.proxy.denied > 1 ? "were" : "was"} blocked.`));
+    // The sandbox's screen, live while it runs: the server says when a new frame is in, and
+    // the last one is kept here so a redraw of the card does not blank it.
+    // The <img> plays the server's MJPEG stream; it is kept across card redraws so the
+    // video does not restart on every state change.
+    if (a.status === "working") {
+      const f = liveFrames.get(a.id);
+      let img = liveImgs.get(a.id);
+      if (!img) {
+        img = el("img", { id: `live-${a.id}`, alt: "The sandbox's screen, live", hidden: true,
+          style: { width: "100%", aspectRatio: "1280 / 800", display: "block", borderRadius: "6px", background: "var(--line)" } });
+        liveImgs.set(a.id, img);
+      }
+      if (f && !img.src) { img.src = `/actions/${a.id}/live.mjpeg`; img.hidden = false; }
+      c.append(el("div", { class: "box" }, el("div", { class: "k" }, "Live screen · view only"),
+        el("div", { id: `step-${a.id}`, class: "note", "aria-live": "polite" }, s.state === "stopping" ? "Browsing done. Saving the files, then removing the sandbox." : f?.step || (s.state === "starting" ? "Starting the sandbox…" : "Waiting for the screen…")),
+        el("a", { href: `/actions/${a.id}/live.mjpeg`, target: "_blank", rel: "noopener", title: "Open the live screen full size" }, img)));
+    } else if (liveImgs.has(a.id)) { liveImgs.get(a.id).src = ""; liveImgs.delete(a.id); }
+    if (a.status === "working") acts.append(el("button", { class: "btn danger", onclick: (e) => act(a, { op: "cancel" }, e.currentTarget) }, "Cancel"));
   } else if (a.gated && a.status === "needed") {
     acts.append(el("button", { class: "btn pri", onclick: (e) => act(a, { op: "approve" }, e.currentTarget) }, "Approve"),
       el("button", { class: "btn", onclick: (e) => act(a, { op: "decline" }, e.currentTarget) }, "Decline"));
@@ -599,9 +629,22 @@ function notify(bot, what, body) {
 }
 
 // ---- live events: cards, board status, runs waiting on you ----
+const liveFrames = new Map(); // computer card id -> its latest { at, step }
+const liveImgs = new Map(); // computer card id -> the <img> playing its live.mjpeg
+let opened = 0;
+async function refreshCards() { if (current) try { (await api(`/bots/${current.id}/messages`)).actions.forEach(upsert); } catch {} }
+// A running computer task is re-read every 5 s too, so a lost event never leaves its card stale.
+setInterval(() => { if (items.some((x) => x.type === "a" && x.a.kind === "computer" && x.a.status === "working")) refreshCards(); }, 5000);
 function listen() {
   const es = new EventSource("/events");
   es.addEventListener("action", (e) => { const a = JSON.parse(e.data); upsert(a); loadBots(); if (needsOpen) renderNeeds(); if (a.status === "needed" && a.snapshot?.launched) notify(bots.find((b) => b.id === a.bot_id), "has a run waiting on you", a.summary); });
+  es.addEventListener("frame", (e) => {
+    const f = JSON.parse(e.data);
+    liveFrames.set(f.id, f);
+    const img = liveImgs.get(f.id), step = document.getElementById(`step-${f.id}`);
+    if (img && !img.src) { img.src = `/actions/${f.id}/live.mjpeg`; img.hidden = false; }
+    if (step && f.step) step.textContent = f.step;
+  });
   es.addEventListener("board", (e) => { const ok = JSON.parse(e.data).ok; if (ok !== board.ok) loadBoard(); });
   // A routine's turn: no send() stream is open for it, so its messages and status come here.
   es.addEventListener("msg", (e) => {
@@ -618,7 +661,8 @@ function listen() {
     renderList();
   });
   // A dropped stream may have lost a routine's final status; don't leave its agent stuck as working.
-  es.addEventListener("open", () => { if (routineBusy.size) { [...routineBusy].forEach(routineDone); renderList(); } });
+  // Card events sent while the stream was down are lost: refetch this chat's cards on reconnect.
+  es.addEventListener("open", () => { if (routineBusy.size) { [...routineBusy].forEach(routineDone); renderList(); } if (opened++) refreshCards(); });
   es.addEventListener("waiting", (e) => { const w = JSON.parse(e.data); notify(bots.find((b) => b.id === w.botId), "has a run waiting on you", `${w.run} in ${w.project}`); });
 }
 
@@ -734,6 +778,7 @@ async function renderSettings() {
       try { await api("/settings", { method: "POST", body: { boardUrl: url.value } }); await loadBoard(); renderSettings(); } catch (e) { toast(e.message); }
     } }, "Save"), startBtn, bstat),
     el("label", { class: "row", style: { marginTop: "8px", gap: "8px" } }, auto, "Start the board with Kaizen Bot"),
+    computerPilot(s.computer),
     el("label", { class: "k" }, "Dictation"),
     el("p", { class: "dim", style: { margin: 0 } }, "The mic runs Whisper (base, about 80 MB) in this browser. It downloads once from huggingface.co and cdn.jsdelivr.net on the first press; your audio never leaves the browser."),
     el("label", { class: "k" }, "Theme"), theme,
@@ -743,6 +788,19 @@ async function renderSettings() {
     try { await api("/quit", { method: "POST" }); document.body.replaceChildren(el("p", { class: "dim", style: { padding: "24px" } }, "Kaizen Bot has stopped. Open it again to carry on.")); } catch (e) { toast(e.message); }
   } }, "Quit Kaizen Bot"));
   fill();
+}
+// Settings → Computer pilot: one Tech Lead agent may run throwaway sandbox tasks; off stops any running one.
+function computerPilot(cp) {
+  const techs = bots.filter((b) => b.role === "tech");
+  if (!techs.length) return el("div", {}, el("label", { class: "k" }, "Computer pilot"), el("p", { class: "dim", style: { margin: 0 } }, "Add a Tech Lead agent to try the computer pilot."));
+  const who = el("select", { class: "f", "aria-label": "Computer pilot agent" }, techs.map((b) => el("option", { value: b.id, selected: b.id === cp?.bot }, b.name)));
+  const on = el("input", { type: "checkbox", checked: !!cp?.enabled });
+  const save = async (body) => { try { await api("/settings", { method: "POST", body }); } catch (e) { toast(e.message); renderSettings(); } };
+  who.onchange = () => save({ computerBot: Number(who.value) });
+  on.onchange = () => save({ computerBot: Number(who.value), computerEnabled: on.checked });
+  return el("div", {}, el("label", { class: "k" }, "Computer pilot"), who,
+    el("label", { class: "row", style: { marginTop: "8px", gap: "8px" } }, on, "Let this agent propose tasks in a throwaway local sandbox"),
+    el("p", { class: "dim", style: { margin: 0 } }, "Needs Docker and the images from bot/pilot/setup.sh. Each task waits for your Approve, reads allowlisted test pages only, and the sandbox is deleted after. Turning this off stops a running task."));
 }
 async function loadBoard() { try { board = await api("/board"); setBoard(board.ok); } catch { setBoard(false); } }
 

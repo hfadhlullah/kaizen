@@ -23,7 +23,7 @@ export type Routine = {
 // Direct kinds start "working" and end done/failed; gated kinds start "needed" and
 // reach the board only through the approve route in server.ts.
 export const DIRECT = ["idea", "note", "memory"] as const;
-export const GATED = ["start_run", "decision", "fix", "abort"] as const;
+export const GATED = ["start_run", "decision", "fix", "abort", "computer"] as const;
 export type ActionKind = (typeof DIRECT)[number] | (typeof GATED)[number] | "draft";
 export type ActionStatus = "needed" | "working" | "done" | "declined" | "failed";
 export type Action = {
@@ -89,6 +89,20 @@ INSERT INTO actions(bot_id,kind,gated,summary,status,draft_id,at,updated)
 // v3: a dismissed chat leaves the sidebar but keeps its history; + brings it back.
 const V3 = "ALTER TABLE bots ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0;";
 
+// v4: computer-pilot cards. SQLite cannot widen a CHECK in place, so actions is rebuilt
+// with the same columns and every row copied; a .bak of the file is taken first.
+const V4 = `
+CREATE TABLE actions_v4(id INTEGER PRIMARY KEY, bot_id INTEGER NOT NULL REFERENCES bots(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL CHECK(kind IN ('idea','note','memory','draft','start_run','decision','fix','abort','computer')),
+  gated INTEGER NOT NULL, project_dir TEXT NOT NULL DEFAULT '', run_id TEXT, body TEXT NOT NULL DEFAULT '{}',
+  summary TEXT NOT NULL, status TEXT NOT NULL CHECK(status IN ('needed','working','done','declined','failed')),
+  snapshot TEXT, result TEXT, known_runs TEXT, draft_id INTEGER REFERENCES drafts(id) ON DELETE CASCADE,
+  at INTEGER NOT NULL, updated INTEGER NOT NULL);
+INSERT INTO actions_v4 SELECT id,bot_id,kind,gated,project_dir,run_id,body,summary,status,snapshot,result,known_runs,draft_id,at,updated FROM actions;
+DROP TABLE actions;
+ALTER TABLE actions_v4 RENAME TO actions;
+`;
+
 export function openStore(path = "data/bot.db") {
   const file = path !== ":memory:";
   if (file) mkdirSync(dirname(path), { recursive: true });
@@ -101,6 +115,10 @@ export function openStore(path = "data/bot.db") {
     db.transaction(() => { db.exec(V2); db.exec("PRAGMA user_version = 2"); })();
   }
   if (version < 3) db.transaction(() => { db.exec(V3); db.exec("PRAGMA user_version = 3"); })();
+  if (version < 4) {
+    if (existed) { db.exec("PRAGMA wal_checkpoint"); copyFileSync(path, `${path}.v3.bak`); }
+    db.transaction(() => { db.exec(V4); db.exec("PRAGMA user_version = 4"); })();
+  }
 
   // One clock for messages and actions: strictly increasing, so a thread built from
   // both tables sorts in the order things happened, even within a millisecond.

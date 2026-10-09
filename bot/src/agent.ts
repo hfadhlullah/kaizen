@@ -1,6 +1,7 @@
 import { parseDays, scheduleLabel, type Store, type Message, type Action } from "./db";
 import { chat, type ModelConfig, type ToolDef, type Turn } from "./model";
 import { role, type ToolName } from "./roles";
+import { checkUrls, LIMITS, HOSTS as COMPUTER_HOSTS } from "./computer";
 import { BoardDown, normalise, resolveProject, reviewMark, runUpdated, type Board, type BoardProject } from "./board";
 
 const MAX_STEPS = 8;
@@ -100,6 +101,11 @@ const TOOLS: Record<ToolName, ToolDef> = {
     description: "Ask a teammate a question or hand them a task. They answer in their own thread with their own tools (anything gated still waits on a card), and their reply comes back to you here.",
     schema: obj({ to: { type: "string", description: "The teammate's name" }, message: { type: "string", description: "What you ask or need from them, self-contained" } }, ["to", "message"]),
   },
+  propose_computer_task: {
+    name: "propose_computer_task",
+    description: "Pilot: propose researching 1-3 allowlisted test pages in a throwaway sandbox computer, which returns a screenshot of each page and a CSV of its headings, paragraphs, list items and table cells. Only creates a card; nothing runs until the user approves it. The sandbox can only read (GET) allowlisted test pages: it cannot log in, submit forms, send or buy anything.",
+    schema: obj({ urls: { type: "array", items: { type: "string" }, description: "1 to 3 full URLs on the pilot allowlist" }, purpose: { type: "string", description: "One line: what the user wants found out" } }, ["urls", "purpose"]),
+  },
 };
 
 const VERB: Record<string, string> = {
@@ -107,10 +113,15 @@ const VERB: Record<string, string> = {
   propose_start_run: "Preparing the run", propose_decision: "Preparing the decision", propose_fix: "Preparing the fix",
   propose_abort: "Preparing the abort", draft_message: "Drafting", remember: "Remembering", note: "Writing",
   create_routine: "Saving the routine", delete_routine: "Deleting the routine", ask_teammate: "Asking a teammate",
+  propose_computer_task: "Preparing the computer task",
 };
 
 const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
 const clip = (t: string | null, n = DOC_MAX) => (t ? (t.length > n ? `${t.slice(0, n)}\n…(cut)` : t) : "(none)");
+
+// The computer pilot is on for exactly one bot, and only while the switch is on.
+export const computerBot = (store: Store) =>
+  store.setting("computer.enabled") === "on" ? Number(store.setting("computer.bot")) || 0 : 0;
 
 export function systemPrompt(store: Store, botId: number, board?: string) {
   const bot = store.bot(botId)!;
@@ -127,6 +138,7 @@ export function systemPrompt(store: Store, botId: number, board?: string) {
     "A question gets an answer, not board work: when the user only asks something, answer it in chat (read the board first if the answer is there) and add no idea, note or card. Add an idea only when the user asks for something to be done, or asks you to file it.",
     "A propose_* tool only creates a card. Nothing on the board changes until the user clicks Approve, so never say a run started, a plan was approved, a fix began or a run was abandoned; say the card is waiting for them.",
     "Anything meant for someone outside goes through draft_message. You can never send anything.",
+    computerBot(store) === botId ? `You have a pilot computer: a throwaway sandbox with a real browser, which overrides anything above saying you have no browser or computer access. When the user asks you to open, check, research or screenshot a web page "on your computer", call propose_computer_task in that same turn, without asking first. Its card appears right here in this chat (not on the kaizen board); the user clicks Approve on it here, and then watches your screen live on the card while you type the URL, load the page, read it and take the screenshot. The files appear on the card when it finishes. It can only read these test sites: ${[...COMPUTER_HOSTS].join(", ")}. For any other site, say it is outside the pilot allowlist and make no card.` : "",
     "Report exceptions only; stay quiet about what is fine. If a tool or connector is missing, work from what the user pastes.",
     "The board changes all the time: take what is waiting, running or done only from board_status or read_run in this turn, never from earlier messages.",
     board ?? "",
@@ -195,6 +207,14 @@ async function runTool(ctx: Ctx, botId: number, emit: Emit, name: string, input:
     const a = store.addAction(botId, { kind: "memory", body: { for: to.id, fact }, summary: `For ${to.name}: ${fact}` });
     card(store.updateAction(a.id, { status: "done" }));
     return { result: `Saved to ${to.name}'s memory.` };
+  }
+  if (name === "propose_computer_task") {
+    const urls = Array.isArray(input.urls) ? input.urls.map(str).filter(Boolean) : [];
+    const bad = checkUrls(urls);
+    if (bad) return { result: `Error: ${bad}. Nothing was proposed.` };
+    const purpose = str(input.purpose).slice(0, 300) || "Research test pages";
+    const a = card(store.addAction(botId, { kind: "computer", body: { urls, purpose }, summary: `Computer task: ${purpose} (${urls.join(", ")})` }))!;
+    return { result: `Card #${a.id} is waiting for the user's click. Nothing has run yet; when approved it runs in a fresh sandbox for at most ${LIMITS.taskMs / 60000} minutes and the files appear on the card.` };
   }
   if (name === "create_routine") {
     const rname = str(input.name), prompt = str(input.prompt), time = str(input.time);
@@ -370,6 +390,7 @@ export async function runTurn(ctx: Ctx, botId: number, userText: string, emit: E
   save(opts.routine ? "receipt" : "user", opts.routine ? `Routine → ${opts.routine}` : userText);
   const bot = store.bot(botId)!;
   const allowed = new Set(role(bot.role)!.tools);
+  if (computerBot(store) === botId) allowed.add("propose_computer_task");
   const tools = Object.values(TOOLS).filter((t) => allowed.has(t.name as ToolName));
   // Facts the model must not take from old messages: whether the board answers now, and
   // which of this agent's cards are really still open. A down board is also shown to the

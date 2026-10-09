@@ -4,7 +4,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { parseEnv } from "node:util";
 import { openStore, nextRun, parseDays, scheduleLabel, type Store, type DraftStatus, type Action } from "./db";
 import { configFromEnv, listModels, probe, type ModelConfig } from "./model";
-import { runTurn } from "./agent";
+import { runTurn, computerBot } from "./agent";
+import { runTask, sweep, type Docker, type Stream } from "./computer";
 import { DEFAULTS, ROLES } from "./roles";
 import { dialog, loginPath } from "./desktop";
 import { boardClient, boardLink, loopbackUrl, normalise, reviewMark, runUpdated, BoardDown, type BoardRun, type BoardState } from "./board";
@@ -83,7 +84,8 @@ const statusFrom = (snap: { stage: string; awaiting: string | null; answered?: u
   snap.stage === "abandoned" ? "declined" : snap.stage === "done" ? "done" : snap.awaiting && !snap.answered ? "needed" : "working";
 const sameWait = (x: any, b: any) => x?.awaiting === b?.awaiting && (x?.seen ?? null) === (b?.seen ?? null);
 
-export function createApp(deps: { store: Store; env: Env; fetch?: Fetch; boardFetch?: Fetch; watch?: boolean; quit?: () => void; startBoard?: (url: string) => Promise<string | null> }) {
+export function createApp(deps: { store: Store; env: Env; fetch?: Fetch; boardFetch?: Fetch; watch?: boolean; quit?: () => void; startBoard?: (url: string) => Promise<string | null>;
+  dataDir?: string; computer?: { docker?: Docker; stream?: Stream; taskMs?: number } }) {
   const { store, env } = deps;
   const clients = new Set<ReadableStreamDefaultController>();
   const enc = new TextEncoder();
@@ -110,9 +112,66 @@ export function createApp(deps: { store: Store; env: Env; fetch?: Fetch; boardFe
   const one = (actionId: number) => view(store.actions().find((x) => x.id === actionId)!);
   const emitAction = (actionId: number) => push("action", one(actionId));
 
+  // ---- the computer pilot: one sandbox at a time, at most COMPUTER_DAY tasks a day ----
+  const dataDir = deps.dataDir ?? join(import.meta.dir, "../data");
+  const running = new Map<number, AbortController>();
+  const frames = new Map<number, { jpeg: Uint8Array; at: number; step: string }>(); // live screen, only while a task runs
+  // Pages watching a card's screen as an MJPEG stream: each new frame is written to all of them.
+  const watchers = new Map<number, Set<ReadableStreamDefaultController>>();
+  const part = (jpeg: Uint8Array) => {
+    const head = enc.encode(`--frame\r\nContent-Type: image/jpeg\r\nContent-Length: ${jpeg.length}\r\n\r\n`);
+    const out = new Uint8Array(head.length + jpeg.length + 2);
+    out.set(head); out.set(jpeg, head.length); out.set([13, 10], head.length + jpeg.length);
+    return out;
+  };
+  const endWatch = (id: number) => { for (const c of watchers.get(id) ?? []) try { c.close(); } catch { /* gone */ } watchers.delete(id); };
+  const COMPUTER_DAY = 50;
+  const snapOf = (actionId: number) => parse(store.action(actionId)?.snapshot) ?? {};
+  // A card left working by a stopped server: its sandbox is the sweeper's to remove.
+  for (const x of store.actions({ status: "working" })) if (x.kind === "computer")
+    store.updateAction(x.id, { status: "failed", result: "interrupted: Kaizen Bot stopped while this ran; the sweeper removes its sandbox", snapshot: JSON.stringify({ ...snapOf(x.id), state: "error" }) });
+
+  function startComputer(a: Action): Response {
+    if (computerBot(store) !== a.bot_id) return bad("the computer pilot is off for this agent (Settings → Computer pilot)", 409);
+    if (running.size) return bad("another computer task is running; approve this one when it finishes", 409);
+    const midnight = new Date().setHours(0, 0, 0, 0);
+    const today = store.actions().filter((x) => x.kind === "computer" && (parse(x.snapshot)?.started ?? 0) >= midnight).length;
+    if (today >= COMPUTER_DAY) return bad(`the pilot's ${COMPUTER_DAY} tasks for today are used up`, 409);
+    if (!store.claimAction(a.id, "needed", "working")) return bad("this card is already handled", 409);
+    const b = parse(a.body) ?? {};
+    const ctl = new AbortController();
+    running.set(a.id, ctl);
+    store.updateAction(a.id, { snapshot: JSON.stringify({ state: "starting", started: Date.now() }) });
+    emitAction(a.id);
+    void runTask({
+      id: a.id, urls: b.urls ?? [], dir: join(dataDir, "artifacts"), logDir: join(dataDir, "computer-logs"),
+      docker: deps.computer?.docker, stream: deps.computer?.stream, taskMs: deps.computer?.taskMs, signal: ctl.signal,
+      onState: (state, note) => { store.updateAction(a.id, { snapshot: JSON.stringify({ ...snapOf(a.id), state, note: note ?? null }) }); emitAction(a.id); },
+      onFrame: (jpeg, step) => {
+        const at = Date.now(), prev = frames.get(a.id);
+        frames.set(a.id, { jpeg, at, step });
+        const p = part(jpeg);
+        for (const c of watchers.get(a.id) ?? []) try { c.enqueue(p); } catch { watchers.get(a.id)?.delete(c); }
+        // The page hears about the first frame and each new step; the video itself goes over live.mjpeg.
+        if (!prev || prev.step !== step) push("frame", { id: a.id, at, step });
+      },
+    }).then((r) => {
+      store.updateAction(a.id, { status: r.ok ? "done" : "failed", result: r.ok ? "ok" : r.error ?? "failed",
+        snapshot: JSON.stringify({ ...snapOf(a.id), artifacts: r.artifacts, ms: r.ms, usage: r.usage ?? null, proxy: r.proxy ?? null, clean: r.clean }) });
+    }).catch((e) => {
+      store.updateAction(a.id, { status: "failed", result: `the runner crashed: ${(e as Error).message}; the sweeper removes its sandbox`, snapshot: JSON.stringify({ ...snapOf(a.id), state: "error" }) });
+    }).finally(() => { running.delete(a.id); frames.delete(a.id); endWatch(a.id); try { emitAction(a.id); } catch { /* card deleted with its agent */ } });
+    return json(one(a.id));
+  }
+  // Bun exits on an unhandled rejection: the sweeper swallows its own errors.
+  // A card of this store that is not running here is an orphan now; a card this store does
+  // not know (another Kaizen Bot, or pilot/run-pilot.ts) is left to its expiry.
+  const sweepNow = () => sweep((card) => running.has(card) || store.action(card)?.kind !== "computer", deps.computer?.docker).catch(() => [] as string[]);
+
   // ---- the only code that calls the board's /run, /decide, /fix and /abort ----
   async function approve(a: Action): Promise<Response> {
     if (a.status !== "needed") return bad("this card is already handled", 409);
+    if (a.kind === "computer") return startComputer(a);
     const b = parse(a.body) ?? {};
     if (a.kind === "draft") {
       if (!store.claimAction(a.id, "needed", "done")) return bad("this card is already handled", 409);
@@ -282,6 +341,7 @@ export function createApp(deps: { store: Store; env: Env; fetch?: Fetch; boardFe
   let boardUp: boolean | null = null;
   const stopper = new AbortController();
   const timers: ReturnType<typeof setInterval>[] = [];
+  if (deps.watch !== false) { void sweepNow(); timers.push(setInterval(() => void sweepNow(), 60_000)); }
   if (deps.watch !== false) {
     // Board events, reconnecting with backoff. ponytail: one stream per server; fine for one user.
     (async () => {
@@ -393,7 +453,8 @@ export function createApp(deps: { store: Store; env: Env; fetch?: Fetch; boardFe
         let cfg: ModelConfig | null = null;
         try { cfg = cfgNow(); } catch { /* shown as unset */ }
         return json({ provider: cfg?.provider ?? null, model: cfg?.model ?? null, keys, boardUrl: boardUrl(), userName: store.setting("userName") ?? "You", canQuit: !!deps.quit,
-          autoBoard: store.setting("autoBoard") !== "off", canStartBoard: !!deps.startBoard });
+          autoBoard: store.setting("autoBoard") !== "off", canStartBoard: !!deps.startBoard,
+          computer: { bot: Number(store.setting("computer.bot")) || null, enabled: store.setting("computer.enabled") === "on" } });
       }
       if (m === "GET" && b === "models") {
         try { return json(await listModels(configFromEnv(merged({ provider: url.searchParams.get("provider") ?? undefined, model: "x" })), deps.fetch)); }
@@ -408,6 +469,16 @@ export function createApp(deps: { store: Store; env: Env; fetch?: Fetch; boardFe
         }
         if (p.userName !== undefined) store.setSetting("userName", text(p.userName, 40) || "You");
         if (p.autoBoard !== undefined) store.setSetting("autoBoard", p.autoBoard ? "on" : "off");
+        // The computer pilot: one Tech Lead agent, and a switch that also stops a running task.
+        if (p.computerBot !== undefined) {
+          const pick = store.bot(Number(p.computerBot));
+          if (!pick || pick.role !== "tech") return bad("the computer pilot runs on a Tech Lead agent only");
+          store.setSetting("computer.bot", String(pick.id));
+        }
+        if (p.computerEnabled !== undefined) {
+          store.setSetting("computer.enabled", p.computerEnabled ? "on" : "off");
+          if (!p.computerEnabled) for (const c of running.values()) c.abort();
+        }
         if (p.provider !== undefined || p.model !== undefined) {
           let cfg: ModelConfig;
           try { cfg = configFromEnv(merged({ provider: text(p.provider, 20) || undefined, model: text(p.model, 120) || undefined })); }
@@ -506,6 +577,36 @@ export function createApp(deps: { store: Store; env: Env; fetch?: Fetch; boardFe
       const actionId = id(b);
       const act = actionId ? store.action(actionId) : null;
       if (!act) return bad("no such card", 404);
+      if (m === "GET" && c === "live.mjpeg" && !d) {
+        // The screen as video: multipart JPEGs, which an <img> plays natively. Ends with the task.
+        if (act.kind !== "computer" || !running.has(act.id)) return bad("no live screen", 404);
+        let me: ReadableStreamDefaultController;
+        const stream = new ReadableStream({
+          start(ctl) {
+            me = ctl;
+            if (!watchers.has(act.id)) watchers.set(act.id, new Set());
+            watchers.get(act.id)!.add(ctl);
+            const f = frames.get(act.id);
+            if (f) ctl.enqueue(part(f.jpeg));
+          },
+          cancel() { watchers.get(act.id)?.delete(me); },
+        });
+        return new Response(stream, { headers: { "content-type": "multipart/x-mixed-replace; boundary=frame", "cache-control": "no-store", "x-content-type-options": "nosniff" } });
+      }
+      if (m === "GET" && c === "live" && !d) {
+        const f = frames.get(act.id);
+        if (act.kind !== "computer" || !f) return bad("no live screen", 404);
+        return new Response(f.jpeg, { headers: { "content-type": "image/jpeg", "cache-control": "no-store", "x-content-type-options": "nosniff" } });
+      }
+      if (m === "GET" && c === "artifacts" && d) {
+        // Only a file the export accepted and listed on this card; the name never reaches a path otherwise.
+        const f = (parse(act.snapshot)?.artifacts ?? []).find((x: { name: string }) => x.name === d);
+        if (act.kind !== "computer" || !f) return bad("no such file", 404);
+        const file = Bun.file(join(dataDir, "artifacts", String(act.id), f.name));
+        if (!(await file.exists())) return bad("this file is no longer on disk", 404);
+        return new Response(file, { headers: { "content-type": f.type === "image/png" ? "image/png" : "text/csv; charset=utf-8", "x-content-type-options": "nosniff",
+          "content-disposition": `${f.type === "image/png" && url.searchParams.has("inline") ? "inline" : "attachment"}; filename="${f.name}"`, "cache-control": "no-store" } });
+      }
       if (m === "POST" && !c) {
         const p = await body(req);
         if (p.op === "approve") return approve(act);
@@ -516,6 +617,12 @@ export function createApp(deps: { store: Store; env: Env; fetch?: Fetch; boardFe
           store.updateAction(act.id, { result: text(p.why, 500) || "declined" });
           if (act.kind === "draft") store.updateDraft(act.draft_id!, { status: "rejected" });
           emitAction(act.id);
+          return json(one(act.id));
+        }
+        if (p.op === "cancel") {
+          const ctl = running.get(act.id);
+          if (act.kind !== "computer" || !ctl) return bad("this computer task is not running", 409);
+          ctl.abort();
           return json(one(act.id));
         }
         if (p.op === "edit") {
@@ -584,7 +691,7 @@ export function createApp(deps: { store: Store; env: Env; fetch?: Fetch; boardFe
   }
 
   return {
-    handle, refresh, approve, tick,
+    handle, refresh, approve, tick, sweepNow, computerRunning: () => running.size,
     stop() { stopper.abort(); for (const t of timers) clearInterval(t); },
   };
 }
@@ -658,7 +765,7 @@ if (import.meta.main) {
       if (why) console.error(`kaizen-bot: ${why}; the board shows as down`);
     }
   }
-  const app = createApp({ store, env, quit: compiled ? () => process.exit(0) : undefined, startBoard });
+  const app = createApp({ store, env, quit: compiled ? () => process.exit(0) : undefined, startBoard, dataDir: compiled ? home : undefined });
   try {
     Bun.serve({ hostname: "127.0.0.1", port, idleTimeout: 0, fetch: app.handle });
   } catch (e) {

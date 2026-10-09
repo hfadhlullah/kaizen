@@ -3,7 +3,9 @@
 export type ToolName =
   | "board_status" | "read_run" | "add_idea" | "add_note"
   | "propose_start_run" | "propose_decision" | "propose_fix" | "propose_abort"
-  | "draft_message" | "remember" | "note" | "create_routine" | "delete_routine" | "ask_teammate";
+  | "draft_message" | "remember" | "note" | "create_routine" | "delete_routine" | "ask_teammate"
+  // Never in a role's list: offered only to the one bot named in the computer.bot setting.
+  | "propose_computer_task";
 
 export type Role = {
   id: string;
