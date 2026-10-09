@@ -127,6 +127,12 @@ aside.side{width:340px;flex:none;border-left:1px solid var(--line);background:va
 .side .hd{display:flex;align-items:center;gap:6px;padding:10px 12px;border-bottom:1px solid var(--line);min-height:56px}.side .hd b{flex:1;text-align:center}
 .side .bd{flex:1;overflow-y:auto;padding:12px 16px 24px}
 .row{display:flex;gap:8px;align-items:center}
+.sec{padding:14px 0;border-top:1px solid var(--line)}.sec:first-child{border-top:0;padding-top:4px}
+.sec h3{margin:0 0 2px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)}
+.sec h3{display:flex;align-items:center;gap:6px}
+.tip{width:16px;height:16px;border-radius:50%;border:1px solid var(--line);font-size:10px;display:inline-grid;place-items:center;color:var(--dim);cursor:help;text-transform:none}.tip:hover,.tip:focus{color:var(--ink);border-color:var(--dim)}
+.sec .st{width:8px;height:8px;border-radius:50%;flex:none}
+.sec .toggle{cursor:pointer;margin-top:10px}.sec .toggle b{font-weight:500}
 .toggle{display:flex;gap:12px;align-items:flex-start;border:1px solid var(--line);border-radius:var(--r);padding:12px;margin-top:14px}
 .toggle div{flex:1}.toggle small{display:block;color:var(--dim)}
 .toggle input{width:38px;height:22px;accent-color:var(--accent)}
@@ -768,40 +774,44 @@ async function renderSettings() {
   const theme = el("select", { class: "f", "aria-label": "Theme", onchange: () => setTheme(theme.value) },
     [["", "System"], ["light", "Light"], ["dark", "Dark"]].map(([v, t]) => el("option", { value: v, selected: (document.documentElement.dataset.theme || "") === v }, t)));
   $("sideBody").replaceChildren(
-    el("label", { class: "k" }, "Your name"), user,
-    el("label", { class: "k" }, "Model provider"), provider,
-    el("label", { class: "k" }, "Model"), model, list,
-    el("div", { class: "row", style: { marginTop: "8px", flexWrap: "wrap" } }, save, status),
-    el("p", { class: "dim" }, "Keys stay in .env and never reach this page. What you type goes to this provider."),
-    el("label", { class: "k" }, "Kaizen board"), url,
-    el("div", { class: "row", style: { marginTop: "8px", flexWrap: "wrap" } }, el("button", { class: "btn", onclick: async () => {
-      try { await api("/settings", { method: "POST", body: { boardUrl: url.value } }); await loadBoard(); renderSettings(); } catch (e) { toast(e.message); }
-    } }, "Save"), startBtn, bstat),
-    el("label", { class: "row", style: { marginTop: "8px", gap: "8px" } }, auto, "Start the board with Kaizen Bot"),
+    sec(["You"], el("label", { class: "k" }, "Name"), user),
+    sec(["AI model", "Keys stay in .env and never reach this page. What you type goes to this provider."],
+      el("label", { class: "k" }, "Provider"), provider,
+      el("label", { class: "k" }, "Model"), model, list,
+      el("div", { class: "row", style: { marginTop: "10px", flexWrap: "wrap" } }, save, status)),
+    sec(["Kaizen board"],
+      el("label", { class: "k" }, "Board URL"),
+      el("div", { class: "row" }, url, el("button", { class: "btn", onclick: async () => {
+        try { await api("/settings", { method: "POST", body: { boardUrl: url.value } }); await loadBoard(); renderSettings(); } catch (e) { toast(e.message); }
+      } }, "Save")),
+      el("div", { class: "row", style: { marginTop: "8px", flexWrap: "wrap" } }, el("span", { class: "st", style: { background: board.ok ? "var(--ok)" : "var(--danger)" } }), bstat, startBtn),
+      el("label", { class: "toggle" }, auto, el("div", {}, el("b", {}, "Start with Kaizen Bot")))),
     computerPilot(s.computer),
-    el("label", { class: "k" }, "Dictation"),
-    el("p", { class: "dim", style: { margin: 0 } }, "The mic runs Whisper (base, about 80 MB) in this browser. It downloads once from huggingface.co and cdn.jsdelivr.net on the first press; your audio never leaves the browser."),
-    el("label", { class: "k" }, "Theme"), theme,
-    el("label", { class: "k" }, "Approved drafts"), el("a", { class: "btn", href: "/drafts/export", download: true }, "Export as Markdown"));
+    sec(["Appearance"], el("label", { class: "k" }, "Theme"), theme,
+      el("label", { class: "k" }, "Dictation"), el("p", { class: "dim", style: { margin: 0, display: "flex", gap: "6px", alignItems: "center" } }, "Whisper, runs in this browser", tip("The mic runs Whisper (base, about 80 MB) in this browser. It downloads once from huggingface.co and cdn.jsdelivr.net on the first press; your audio never leaves the browser."))),
+        sec(["Data"], el("label", { class: "k" }, "Approved drafts"), el("a", { class: "btn", href: "/drafts/export", download: true }, "Export as Markdown")));
   // The app has no console window to close, so it is stopped from here.
-  if (s.canQuit) $("sideBody").append(el("label", { class: "k" }, "Kaizen Bot"), el("button", { class: "btn", onclick: async () => {
+  if (s.canQuit) $("sideBody").append(sec(["Kaizen Bot"], el("button", { class: "btn danger", style: { marginTop: "8px" }, onclick: async () => {
     try { await api("/quit", { method: "POST" }); document.body.replaceChildren(el("p", { class: "dim", style: { padding: "24px" } }, "Kaizen Bot has stopped. Open it again to carry on.")); } catch (e) { toast(e.message); }
-  } }, "Quit Kaizen Bot"));
+  } }, "Quit Kaizen Bot")));
   fill();
 }
 // Settings → Computer pilot: one Tech Lead agent may run throwaway sandbox tasks; off stops any running one.
 function computerPilot(cp) {
   const techs = bots.filter((b) => b.role === "tech");
-  if (!techs.length) return el("div", {}, el("label", { class: "k" }, "Computer pilot"), el("p", { class: "dim", style: { margin: 0 } }, "Add a Tech Lead agent to try the computer pilot."));
+  const head = ["Computer pilot", "Needs Docker and the images from bot/pilot/setup.sh. Each task waits for your Approve, reads allowlisted test pages only, and the sandbox is deleted after. Turning this off stops a running task."];
+  if (!techs.length) return sec(head, el("p", { class: "dim", style: { margin: "6px 0 0" } }, "Add a Tech Lead agent first."));
   const who = el("select", { class: "f", "aria-label": "Computer pilot agent" }, techs.map((b) => el("option", { value: b.id, selected: b.id === cp?.bot }, b.name)));
   const on = el("input", { type: "checkbox", checked: !!cp?.enabled });
   const save = async (body) => { try { await api("/settings", { method: "POST", body }); } catch (e) { toast(e.message); renderSettings(); } };
   who.onchange = () => save({ computerBot: Number(who.value) });
   on.onchange = () => save({ computerBot: Number(who.value), computerEnabled: on.checked });
-  return el("div", {}, el("label", { class: "k" }, "Computer pilot"), who,
-    el("label", { class: "row", style: { marginTop: "8px", gap: "8px" } }, on, "Let this agent propose tasks in a throwaway local sandbox"),
-    el("p", { class: "dim", style: { margin: 0 } }, "Needs Docker and the images from bot/pilot/setup.sh. Each task waits for your Approve, reads allowlisted test pages only, and the sandbox is deleted after. Turning this off stops a running task."));
+  return sec(head, el("label", { class: "k" }, "Agent"), who,
+    el("label", { class: "toggle" }, on, el("div", {}, el("b", {}, "Propose sandbox tasks"))));
 }
+// A settings section: [title, help?]; help hides behind a "?" (hover, focus or tap).
+const tip = (t) => el("button", { class: "tip", type: "button", title: t, "aria-label": t, onclick: () => toast(t) }, "?");
+const sec = ([title, help], ...kids) => el("section", { class: "sec" }, el("h3", {}, title, help && tip(help)), ...kids);
 async function loadBoard() { try { board = await api("/board"); setBoard(board.ok); } catch { setBoard(false); } }
 
 // theme: system by default, chosen in Settings
