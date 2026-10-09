@@ -18,10 +18,17 @@ const NOTES_JS = join(dirname(import.meta.dir), "web", "notebook.js");
 const DEFAULT_PORT = 7420;
 // Read once at start: a board keeps the code it started with, so this is what it
 // runs, not what is installed now. `/` sends it; `current()` compares the two.
-const VERSION = (() => {
+const installed = () => {
   try { return JSON.parse(readText(join(dirname(import.meta.dir), "package.json"))).version as string; }
   catch { return "unknown"; }
-})();
+};
+const VERSION = installed();
+// An upgrade replaces the page files under a running board but not its code, and a
+// page newer than its server sends ops the server does not know ("unknown op").
+// So the pages are kept as they were at start, and read live (dev edits) only while
+// the installed version is still the one this board runs.
+const AT_START = new Map([PAGE, NOTES_PAGE, NOTES_JS].map((f) => [f, existsSync(f) ? readText(f) : null]));
+const served = (f: string) => installed() === VERSION && existsSync(f) ? readText(f) : AT_START.get(f) ?? null;
 
 // A board answers at url and runs the installed version. A board from before the
 // version header sends none, so it counts as stale too.
@@ -211,17 +218,19 @@ export async function web(repoDir: string, opts: Opts = {}) {
       const path = url.pathname;
 
       if (req.method === "GET" && path === "/") {
-        if (!existsSync(PAGE)) return new Response("web/board.html missing", { status: 500 });
+        const page = served(PAGE);
+        if (page === null) return new Response("web/board.html missing", { status: 500 });
         // The page gets the notify rule from state.ts rather than keeping its own copy.
-        return new Response(readText(PAGE).replace("/*notifier*/", () => notifier.toString()), {
+        return new Response(page.replace("/*notifier*/", () => notifier.toString()), {
           headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-kaizen-version": VERSION },
         });
       }
 
       if (req.method === "GET" && (path === "/notebook" || path === "/notebook.js")) {
         const [f, type] = path === "/notebook" ? [NOTES_PAGE, "text/html; charset=utf-8"] : [NOTES_JS, "application/javascript; charset=utf-8"];
-        if (!existsSync(f)) return new Response(`${path} missing; run bun run build:web`, { status: 500 });
-        return new Response(Bun.file(f), { headers: { "content-type": type, "cache-control": "no-store" } });
+        const body = served(f);
+        if (body === null) return new Response(`${path} missing; run bun run build:web`, { status: 500 });
+        return new Response(body, { headers: { "content-type": type, "cache-control": "no-store" } });
       }
 
       // Every note of one project, text included: search, tags and backlinks are the page's.
