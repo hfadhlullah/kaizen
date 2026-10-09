@@ -1006,18 +1006,26 @@ async function clearBunxCache() {
     join(process.env.BUN_INSTALL ?? join(home, ".bun"), "install", "cache"),
     join(process.env.XDG_CACHE_HOME ?? join(home, ".cache"), "bun"),
     process.env.LOCALAPPDATA ? join(process.env.LOCALAPPDATA, "bun", "install", "cache") : null,
+    // bun's own answer beats guessing: on Linux it is ~/.cache/.bun/install/cache.
+    (await Bun.$`${process.execPath} pm cache`.quiet().nothrow().text()).trim() || null,
   ].filter((d): d is string => Boolean(d));
-  for (const dir of caches) {
+  for (const dir of new Set(caches)) {
     try {
       for (const name of readdirSync(dir)) {
-        if (!name.includes("kaizen-agent")) continue;
+        // The manifest is <hash>.npm, named by a hash, with the package name in its
+        // header: a stale one answers "no version matching" for a fresh release.
+        if (name.endsWith(".npm")) {
+          let head = "";
+          try { head = readFileSync(join(dir, name)).subarray(0, 1024).toString("latin1"); } catch {}
+          if (!head.includes("kaizen-agent")) continue;
+        } else if (!name.includes("kaizen-agent")) continue;
         rmSync(join(dir, name), { recursive: true, force: true });
         removed++;
       }
     } catch { /* no cache directory is the same as an empty one */ }
   }
 
-  step(removed ? `cleared ${removed} cached copy of the installer` : "no installer cache to clear");
+  step(removed ? `cleared ${removed} cached ${removed === 1 ? "copy" : "copies"} of the installer` : "no installer cache to clear");
 }
 function tilde(p: string) { return p.startsWith(home) ? "~" + p.slice(home.length) : p; }
 
