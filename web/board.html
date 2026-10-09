@@ -87,6 +87,7 @@ ul{list-style:none;margin:0;padding:8px 0 0;display:flex;flex-direction:column;g
 .card.menu{z-index:2}
 .card.open{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
 .card.archived .c-title,.card.archived .c-id{opacity:.7}
+section h2 .ord{min-height:22px;padding:0 8px;font-weight:500}
 section h2 .clear{margin-left:auto;min-height:22px;padding:0 8px}
 .clear-pop{top:30px;right:0;min-width:200px}
 .clear-pop button i{font-style:normal;color:var(--dim);margin-left:auto;background:none;padding:0}
@@ -138,6 +139,7 @@ section h2 .clear{margin-left:auto;min-height:22px;padding:0 8px}
 .inl input::placeholder,.inl textarea::placeholder,.notes textarea::placeholder{color:var(--dim)}
 .inl .row,.notes .row{display:flex;gap:6px;justify-content:flex-end}
 .notes{display:flex;flex-direction:column;gap:8px}
+#pbody img{max-width:100%;border-radius:var(--r-s)}
 .desc{border-bottom:1px solid var(--line);padding-bottom:6px;margin-bottom:14px}.desc h3{margin-top:14px}
 .chat{display:flex;flex-direction:column;gap:10px;margin:0 0 14px}.msg{border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;background:var(--bg)}.msg time{display:block;font-size:11px;color:var(--dim);margin-bottom:4px}.msg p:last-child{margin-bottom:0}.msg img{max-width:100%;max-height:260px;border-radius:var(--r-s);display:block;margin:4px 0}
 .notes .tools{display:flex;gap:6px;align-items:center}.notes .tools span{flex:1;font-size:11px;color:var(--dim)}.notes .att{font-size:11px;color:var(--dim)}
@@ -449,6 +451,8 @@ let S={project:null,projects:[],cards:[],now:Date.now(),all:false};
 let all=new URLSearchParams(location.search).get("all")!=="0",openKey=null,mode=null,modeKey=null,filter=null,menuKey=null,tab=0,runDoc=null;
 // A column shows this many cards, then a "more" line; Done is where it matters.
 const FOLD=6;const unfolded=new Set();
+// Per column: "old" puts the oldest first; anything else is newest first.
+let order=(()=>{try{return JSON.parse(localStorage.getItem("kz-order"))||{}}catch(e){return{}}})();
 let archive=false;
 let clearMenu=false,picking=false;const picked=new Set();     // Clear on Done: menu, then cherry-pick mode                                   // showing the archive instead of the board
 // The server writes notifier() from state.ts over the marker: one rule for both UIs.
@@ -605,13 +609,16 @@ function render(){
  if(!cs.length&&mode!=="new"){b.innerHTML=archive?'<div class="empty"><div class="mascot"></div><b>Nothing archived</b></div>':'<div class="empty"><div class="mascot"></div><b>Nothing here yet</b><p>Add an idea and kaizen will plan it, build it, and check the result.</p><button class="btn pri" id="newempty">New idea</button></div>';if(!archive)$("newempty").onclick=()=>{mode="new";render()};}
  COLS.forEach((name,ci)=>{
   const s=document.createElement("section");const list=cs.filter(c=>c.column===ci&&(!filter||c.status===filter));
+  // Runs age by their last move, ideas by inbox position (new ones are appended).
+  if(ci<4){const at=c=>c.kind==="run"?c.moved||0:S.cards.indexOf(c),old=order[ci]==="old";list.sort((a,b)=>old?at(a)-at(b):at(b)-at(a))}
   const clearable=ci===4&&!archive&&list.length;
   const olderThan=days=>list.filter(c=>S.now-(c.moved||S.now)>days*d);
-  let head=`<h2>${name}<i>${list.length||""}</i>${ci===0&&!archive?`<button class="ib sm" title="New idea" aria-label="New idea">${ico("plus")}</button>`:""}`;
+  let head=`<h2>${name}<i>${list.length||""}</i>${ci<4&&list.length>1?`<button class="btn sm ghost ord" title="Sort order">${order[ci]==="old"?"Oldest":"Newest"}</button>`:""}${ci===0&&!archive?`<button class="ib sm" title="New idea" aria-label="New idea">${ico("plus")}</button>`:""}`;
   if(clearable&&picking)head+=`<span class="pickbar"><button class="btn sm ghost" data-p="cancel">Cancel</button><button class="btn sm pri" data-p="go" ${picked.size?"":"disabled"}>Archive ${picked.size||""}</button></span>`;
   else if(clearable)head+=`<button class="btn sm ghost clear" title="Archive finished runs">Clear ▾</button>`;
   if(clearable&&clearMenu)head+=`<div class="menu-pop clear-pop"><button data-c="7">Older than a week <i>${olderThan(7).length}</i></button><button data-c="3">Older than 3 days <i>${olderThan(3).length}</i></button><button data-c="0">Everything <i>${list.length}</i></button><hr><button data-c="pick">Pick which…</button></div>`;
   s.innerHTML=head+`</h2>`;
+  {const o=s.querySelector(".ord");if(o)o.onclick=e=>{e.stopPropagation();order[ci]=order[ci]==="old"?"new":"old";try{localStorage.setItem("kz-order",JSON.stringify(order))}catch(e){}render()}}
   if(ci===0&&!archive)s.querySelector(".ib").onclick=()=>{mode="new";render()};
   if(clearable){
    const cl=s.querySelector(".clear");if(cl)cl.onclick=e=>{e.stopPropagation();clearMenu=!clearMenu;render()};
@@ -662,8 +669,7 @@ function open(c,keepTab){
 function parseNotes(src){const out=[];for(const raw of (src||"").split("\n")){const m=/^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2})\]\s?(.*)$/.exec(raw);if(m){out.push({at:m[1],text:m[2]});continue}const last=out[out.length-1];if(last)last.text+="\n"+raw.replace(/^\s{2}/,"");else if(raw.trim())out.push({at:"",text:raw})}return out.map(n=>({...n,text:n.text.trim()})).filter(n=>n.text)}
 let nfocus=null;
 function chat(c,src,ro){
- const base=c.kind==="run"?`runs/${c.id}/`:"";
- const fix=t=>t.replace(/\]\((attachments\/[^)]+)\)/g,(_,p)=>`](/file?dir=${encodeURIComponent(c.state)}&p=${encodeURIComponent(base+p)})`);
+ const fix=t=>attach(t,c);
  const entries=parseNotes(src);
  const b=c.kind==="idea"?brief(c.text):{parts:[]};
  let h=(b.parts.length?`<section class="desc">${md(b.parts.map(p=>`### ${p.label}\n${p.body}`).join("\n\n"))}</section>`:"")+`<div class="chat">${entries.map(n=>`<div class="msg">${n.at?`<time>${esc(n.at)}</time>`:""}${md(fix(n.text))}</div>`).join("")||`<p style="color:var(--dim)">No notes yet.</p>`}</div>`;
@@ -689,6 +695,8 @@ function chat(c,src,ro){
 // "## Commit" is the message the builder wrote for the work, offered at commit and push.
 function section(impl,name){const m=impl&&impl.match(new RegExp(`^##\\s+${name}\\s*\\n([\\s\\S]*?)(?=\\n##\\s|$(?![\\s\\S]))`,"m"));return m?m[1].trim():null}
 const preview=impl=>section(impl,"Preview");
+// Links to a card's attachments/ (notes, or screenshots the builder put in Preview) via /file.
+const attach=(t,c)=>t.replace(/\]\((attachments\/[^)]+)\)/g,(_,p)=>`](/file?dir=${encodeURIComponent(c.state)}&p=${encodeURIComponent((c.kind==="run"?`runs/${c.id}/`:"")+p)})`);
 const commitMsg=impl=>(section(impl,"Commit")||"").replace(/^```\w*\n|\n```$/g,"").trim();
 // A plan's Open questions as a pick list: `Q: question` lines with `- option` lines under
 // each, "(recommended)" marking the default and "multi-select" in the question allowing
@@ -725,7 +733,7 @@ async function openRun(c,refresh,again){
  const tabs=TABS;
  $("ptabs").innerHTML=tabs.map((t,i)=>`<button class="${i===tab?"on":""}" data-i="${i}">${t[0]}</button>`).join("");
  [...$("ptabs").children].forEach(b=>b.onclick=()=>{tab=+b.dataset.i;openRun(c,true)});
- const k=tabs[tab][1],doc=k==="preview"?preview(runDoc.impl):runDoc[k];
+ const k=tabs[tab][1],doc=k==="preview"?(preview(runDoc.impl)&&attach(preview(runDoc.impl),c)):runDoc[k];
  if(k==="notes"){const ro=c.archived||c.status==="done"||c.status==="abandoned";
   chat(c,doc,ro);}
  else $("pbody").innerHTML=doc?md(doc,k==="backlog"):`<p style="color:var(--dim)">No ${({request:"request",plan:"plan",impl:"work report",preview:"preview",review:"review",backlog:"backlog"})[k]} yet.</p>`;

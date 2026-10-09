@@ -86,6 +86,9 @@ commands to start it locally and the URL to open, copied from the material's own
 where one exists. For anything else — a document, copy, a runbook, a memo — the path
 to open, or the result itself when it fits in a screen. The board shows this section on
 the run's card, so a person can try the work without reading the rest of the report.
+Where the result can be seen, put screenshots of it here: save each under
+`runs/<id>/attachments/` (letters, digits, `.`, `-`, `_` only) and embed it as
+`![what it shows](attachments/<name>.png)`; the board shows them in the Preview tab.
 
 It also says how to test the result, under a `### How to test` subhead: numbered steps a
 person follows to check the run did what was asked, each an action and what they should
