@@ -434,7 +434,9 @@ if (upgrade) {
   const out = clean(r.stdout.toString() + r.stderr.toString()).filter((l) => l.trim());
   for (const l of out) console.log(l.startsWith("  ") ? l : `  ${l}`);
   const after = versionOf(dest);
-  if (r.exitCode !== 0 || after !== latest) {
+  // The installer exits 1 when it skipped a link (an agent file the user owns), which
+  // is not a failed upgrade: the version on disk is what decides.
+  if (after !== latest) {
     console.log(`\n  ${c.bold(`could not install kaizen ${latest}`)}`);
     console.log(`  ${c.dim("try:")} ${c.cyan(`bunx kaizen-agent@${latest}`)}\n`);
     process.exit(1);
