@@ -1,7 +1,7 @@
 // Request sources against a throwaway .kaizen/. No network: the fetch and the DNS
 // lookup are both injected. Nothing here launches an agent or a terminal.
 import { test, expect, beforeEach, afterAll } from "bun:test";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync, chmodSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync, chmodSync, realpathSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { readInbox, writeInbox, replaceIdea, parseItem } from "./state.ts";
@@ -11,7 +11,7 @@ import {
   readIcebox, writeIcebox, promote, dismiss, markReplied, setCategory, socialUrl, socialOf, AGENT_ONLY, PLATFORMS,
 } from "./sources.ts";
 
-const root = mkdtempSync(join(tmpdir(), "kaizen-src-"));
+const root = realpathSync(mkdtempSync(join(tmpdir(), "kaizen-src-")));   // macOS: tmpdir is a symlink into /private
 let state: string;
 let n = 0;
 beforeEach(() => { state = join(root, String(n++), ".kaizen"); mkdirSync(state, { recursive: true }); });

@@ -174,7 +174,8 @@ export async function browse<T>(use: (page: Page) => Promise<T>): Promise<T | { 
   let page: Page | null = null;
   try {
     let port = "";
-    for (let i = 0; i < 100 && !port; i++) {
+    // A first start on a fresh profile took over 10 s on Windows.
+    for (let i = 0; i < 300 && !port; i++) {
       await Bun.sleep(100);
       try { port = readFileSync(join(dir, "DevToolsActivePort"), "utf8").split("\n")[0]!.trim(); } catch { /* not yet */ }
       if (proc.exitCode !== null) break;

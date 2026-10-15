@@ -13,7 +13,10 @@ afterAll(() => rmSync(home, { recursive: true, force: true }));
 
 // Async, so the pages this process serves can answer the browser meanwhile.
 const run = async (code: string, env: Record<string, string> = {}) => {
+  // The profile lands in the throwaway HOME, but Chrome itself gets the real one: under
+  // a scratch HOME it cannot reach the keychain (macOS) or start at all (Windows).
   const script = `import * as br from ${JSON.stringify(join(repo, "cli/browser.ts"))};
+Object.assign(process.env, ${JSON.stringify({ HOME: process.env.HOME ?? "", USERPROFILE: process.env.USERPROFILE ?? "" })});
 console.log(JSON.stringify(await (async () => { ${code} })()));`;
   const p = Bun.spawn(["bun", "-e", script], { cwd: home, env: { ...process.env, HOME: home, USERPROFILE: home, ...env }, stdout: "pipe", stderr: "pipe" });
   const [out, err, code_] = [await new Response(p.stdout).text(), await new Response(p.stderr).text(), await p.exited];
