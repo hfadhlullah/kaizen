@@ -79,6 +79,7 @@ tells you what it concluded, so you correct a sentence instead of filling in a f
 | `kaizen icebox [promote\|dismiss <ids>]` | In a terminal: list what waits in the icebox, promote it to Ideas, or dismiss it |
 | `/kaizen-config` | Show this project's settings and change them |
 | `/kaizen-init` | Set up the current project — optional, the first run does it |
+| `/kaizen-install` | Install the workflow itself, globally or per-project |
 | `/kaizen-help` | The full card |
 
 ## The board
@@ -361,9 +362,9 @@ Run `kaizen` anytime to open the terminal dashboard:
   ⢠⣏⠔⣫⣀⡤⢸⠀⠀⠉⠁⠀⠀⠈⠉⠀⠀⡇⠀⠀⠀⠀⠀⠀    █▀▄  █▀█  █   ▄▀  ██▄  █ ▀█
   ⢾⠥⢾⡅⢧⠀⢸⠃⡤⠖⠢⡀⢀⠔⠲⢤⠘⡇⠀⠀⣀⣀⠀⠀    █ █  █ █  █  █▄▄  █▄▄  █  █
   ⠀⠀⠈⣇⠈⢠⣫⠞⠀⠘⢱⢣⡜⡎⠃⠀⠳⣝⡄⢠⠇⢻⢉⣷
-  ⠀⠀⠀⠘⢆⠀⠑⢦⣀⡀⠈⠓⠚⠁⢀⣀⣤⣊⣠⢾⡀⢠⣿⠃    0.7.2   plan · approve · build · review
+  ⠀⠀⠀⠘⢆⠀⠑⢦⣀⡀⠈⠓⠚⠁⢀⣀⣤⣊⣠⢾⡀⢠⣿⠃    1.22.1  plan · approve · build · review
   ⠀⠀⠀⠀⠈⠓⢄⠀⠀⠉⣉⣭⣭⣉⠉⠀⠈⢀⣠⢔⡩⠥⢥⡀    ~/Projects/app
-  ⠀⠀⠀⠀⠀⠀⢠⡇⠀⡞⠁⠀⠀⠈⢳⠀⢰⣍⣠⠚⠧⡀⠀⡷    Claude Code, Codex, Antigravity, OpenCode, Gemini CLI
+  ⠀⠀⠀⠀⠀⠀⢠⡇⠀⡞⠁⠀⠀⠈⢳⠀⢰⣍⣠⠚⠧⡀⠀⡷    Claude Code, Codex, Antigravity, OpenCode, Cursor, Gemini CLI
   ⠀⠀⠀⠀⠀⠀⠸⡇⠀⣇⠀⠀⠀⠀⣸⠀⢠⡏⠀⠀⢀⣳⠞⠁
   ⠀⠀⠀⠀⠀⠀⠀⠳⣀⣨⠥⠤⠶⠾⣅⣀⠞⠉⠉⠉⠉⠀⠀⠀
 
