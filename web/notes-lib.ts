@@ -8,14 +8,17 @@
 // item is its continuation, not code.
 export function uncode(text: string) {
   const blank = (s: string) => s.replace(/[^\n]/g, " ");
-  let prev = "", code = false;
+  let prev = "",
+    code = false;
   const indented = text
     .replace(/^(```|~~~)[^\n]*\n[\s\S]*?(?:^\1[^\n]*$|(?![\s\S]))/gm, blank)
-    .split("\n").map((l) => {
+    .split("\n")
+    .map((l) => {
       code = /^( {4}|\t)/.test(l) && l.trim() !== "" ? code || prev.trim() === "" : l.trim() === "" && code;
       prev = l;
       return code ? blank(l) : l;
-    }).join("\n");
+    })
+    .join("\n");
   return indented.replace(/(`+)[^`\n]+?\1/g, blank);
 }
 
@@ -26,9 +29,12 @@ export function wikilinks(text: string): Wikilink[] {
   const out: Wikilink[] = [];
   for (const m of uncode(text).matchAll(WIKI)) {
     // A heading anchor (`[[Note#Part]]`) still links to the note.
-    const target = m[1]!.trim(), at = target.indexOf("#");
-    const name = (at < 0 ? target : target.slice(0, at)).trim(), anchor = at < 0 ? "" : target.slice(at + 1).trim();
-    if (name) out.push({ from: m.index!, to: m.index! + m[0].length, name, label: (m[2] ?? m[1]!).trim(), target, anchor });
+    const target = m[1]!.trim(),
+      at = target.indexOf("#");
+    const name = (at < 0 ? target : target.slice(0, at)).trim(),
+      anchor = at < 0 ? "" : target.slice(at + 1).trim();
+    if (name)
+      out.push({ from: m.index!, to: m.index! + m[0].length, name, label: (m[2] ?? m[1]!).trim(), target, anchor });
   }
   return out;
 }
@@ -45,22 +51,38 @@ export function boardLink(w: Pick<Wikilink, "name" | "anchor" | "target">): Boar
   if (idea) return { kind: "idea", text: idea[1]!.trim() };
   const run = /^run:\s*([\w.-]+)$/i.exec(w.name);
   if (!run) return null;
-  const a = w.anchor.toLowerCase(), item = /^(finding|backlog)-(\d+)$/.exec(a);
-  if (item) return { kind: "run", id: run[1]!, tab: item[1] === "finding" ? "review" : "backlog", item: { type: item[1] as "finding" | "backlog", n: Number(item[2]) } };
-  return { kind: "run", id: run[1]!, ...((TABS as readonly string[]).includes(a) ? { tab: a as (typeof TABS)[number] } : {}) };
+  const a = w.anchor.toLowerCase(),
+    item = /^(finding|backlog)-(\d+)$/.exec(a);
+  if (item)
+    return {
+      kind: "run",
+      id: run[1]!,
+      tab: item[1] === "finding" ? "review" : "backlog",
+      item: { type: item[1] as "finding" | "backlog", n: Number(item[2]) },
+    };
+  return {
+    kind: "run",
+    id: run[1]!,
+    ...((TABS as readonly string[]).includes(a) ? { tab: a as (typeof TABS)[number] } : {}),
+  };
 }
 
 // A run id as written: the directory name, or the name without its date, which
 // means the newest run of that name (ids sort by date).
 export function resolveRun(id: string, ids: string[]): string | null {
   if (ids.includes(id)) return id;
-  return ids.filter((x) => /^\d{4}-\d{2}-\d{2}-/.test(x) && x.slice(11) === id).sort().pop() ?? null;
+  return (
+    ids
+      .filter((x) => /^\d{4}-\d{2}-\d{2}-/.test(x) && x.slice(11) === id)
+      .sort()
+      .pop() ?? null
+  );
 }
 
 // What a chip says after the run's name: `finding 2`, `backlog 3`, `review`.
 export function anchorWords(l: BoardLink) {
   if (l.kind !== "run") return "";
-  return l.item ? `${l.item.type} ${l.item.n}` : l.tab ?? "";
+  return l.item ? `${l.item.type} ${l.item.n}` : (l.tab ?? "");
 }
 
 // `#tag` at the start of a line or after whitespace, with at least one letter; not a
@@ -119,17 +141,31 @@ export function tree(names: string[]): Tree {
 export function freshName(names: string[], folder = "", base = "Untitled") {
   const taken = new Set(names.map((n) => n.toLowerCase()));
   const at = (n: string) => (folder ? folder + "/" : "") + n;
-  for (let i = 1; ; i++) { const n = at(i === 1 ? base : `${base} ${i}`); if (!taken.has(n.toLowerCase())) return n; }
+  for (let i = 1; ; i++) {
+    const n = at(i === 1 ? base : `${base} ${i}`);
+    if (!taken.has(n.toLowerCase())) return n;
+  }
 }
 
 // A GFM table's source as cells: the header row, each column's alignment from the
 // delimiter row, and the body rows padded to the header's width. `\|` stays a pipe.
 export type Table = { head: string[]; align: ("left" | "center" | "right" | "")[]; rows: string[][] };
 export function parseTable(src: string): Table {
-  const cells = (l: string) => l.trim().replace(/^\|/, "").replace(/(?<!\\)\|$/, "").split(/(?<!\\)\|/).map((c) => c.trim().replace(/\\\|/g, "|"));
+  const cells = (l: string) =>
+    l
+      .trim()
+      .replace(/^\|/, "")
+      .replace(/(?<!\\)\|$/, "")
+      .split(/(?<!\\)\|/)
+      .map((c) => c.trim().replace(/\\\|/g, "|"));
   const lines = src.split(/\r?\n/).filter((l) => l.trim());
   const head = cells(lines[0] ?? "");
-  const align = cells(lines[1] ?? "").map((d) => d.startsWith(":") && d.endsWith(":") ? "center" : d.endsWith(":") ? "right" : d.startsWith(":") ? "left" : "") as Table["align"];
-  const rows = lines.slice(2).map((l) => { const r = cells(l); return head.map((_, i) => r[i] ?? ""); });
+  const align = cells(lines[1] ?? "").map((d) =>
+    d.startsWith(":") && d.endsWith(":") ? "center" : d.endsWith(":") ? "right" : d.startsWith(":") ? "left" : "",
+  ) as Table["align"];
+  const rows = lines.slice(2).map((l) => {
+    const r = cells(l);
+    return head.map((_, i) => r[i] ?? "");
+  });
   return { head, align, rows };
 }

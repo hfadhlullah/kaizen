@@ -1481,7 +1481,7 @@ export function readCommit(state: string, id: string): { sha: string; pushed: bo
 }
 
 // The card's git mark for each run asked about, by the rules of the panel's button
-// (`gitBtn` in web/board.html): one project status and one read of the reports for
+// (`gitBtn` in web/board/git.ts): one project status and one read of the reports for
 // the lot. A run with nothing to say either way gets no entry.
 export function cardsGit(state: string, ids: string[]): Record<string, "pending" | "pushed"> {
   const s = gitStatus(dirname(state)), out: Record<string, "pending" | "pushed"> = {};

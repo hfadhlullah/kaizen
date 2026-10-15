@@ -1,12 +1,12 @@
-// The board's markdown renderer, lifted out of web/board.html and run as it ships.
+// The board's markdown renderer and helpers, imported from the board's modules as they ship.
 import { test, expect } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
+import { md, progress, planQuestions, brief } from "../web/board/markdown.ts";
+import { draft, undraft } from "../web/board/drafts.ts";
 
 const html = readFileSync(join(dirname(import.meta.dir), "web", "board.html"), "utf8");
-const esc = html.match(/^const esc=.*$/m)![0];
-const at = html.indexOf("function md(");
-const md = new Function(`${esc}\n${html.slice(at, html.indexOf("\n\n", at))}\nreturn md`)() as (src: string, tick?: boolean) => string;
+const cards = readFileSync(join(dirname(import.meta.dir), "web", "board", "cards.ts"), "utf8");
 
 test("backlog items: a checkbox each, ticked only when done", () => {
   const out = md('- open: one | why\n- done: two <b>x</b> | fixed\n- rejected: three | no\n- plain\n', true);
@@ -23,16 +23,16 @@ test("without the flag a backlog line is an ordinary list item", () => {
   expect(md("- done: two\n")).toBe("<ul><li>done: two</li></ul>");
 });
 
-// draft()/undraft() lifted the same way, against a stub sessionStorage whose keys are its own properties.
+// draft()/undraft(), against a stub sessionStorage whose keys are its own properties.
 const store = () => Object.defineProperties({} as Record<string, string>, {
   getItem: { value(k: string) { return k in this ? this[k] : null; } },
   setItem: { value(k: string, v: string) { this[k] = String(v); } },
   removeItem: { value(k: string) { delete this[k]; } },
 });
-const line = (re: RegExp) => html.match(re)![0];
-const drafts = (ss: object) => new Function("sessionStorage",
-  `${line(/^const DK=.*$/m)}\n${line(/^function draft\(.*$/m)}\n${line(/^function undraft\(.*$/m)}\nreturn {draft,undraft}`)(ss) as
-  { draft: (el: any, k: string) => void; undraft: (p: string) => void };
+const drafts = (ss: object) => {
+  (globalThis as any).sessionStorage = ss;
+  return { draft, undraft } as { draft: (el: any, k: string) => void; undraft: (p: string) => void };
+};
 const field = (value = "") => ({ value, on: () => {}, addEventListener(_: string, f: () => void) { this.on = f; } });
 
 test("a draft is saved on input and restored into a rebuilt field", () => {
@@ -54,9 +54,7 @@ test("undraft removes by prefix and leaves the rest", () => {
   expect(Object.keys(ss).sort()).toEqual(["kz-d:n:x", "kz-form"]);
 });
 
-// A building run's progress list, lifted the same way.
-const pat = html.indexOf("function progress(");
-const progress = new Function(`${esc}\n${html.slice(pat, html.indexOf("\n\n", pat))}\nreturn progress`)() as (src: string, prev?: string[]) => string;
+// A building run's progress list.
 
 test("progress: each item marked done, working on or to do, with the count", () => {
   const out = progress("# Progress\n- done: one\n- doing: two <b>x</b>\n- todo: `three`\n- open: not an item\n");
@@ -77,10 +75,7 @@ test("progress: a file with no items draws nothing", () => {
   expect(progress("# Progress\n\nnothing yet\n")).toBe("");
 });
 
-// A plan's open questions, lifted the same way: the function ends at the first line not indented.
-const pq = html.indexOf("function planQuestions(");
-type Q = { q: string; multi: boolean; options: { text: string; label: string; rec: boolean }[] };
-const planQuestions = new Function(`${html.slice(pq).split(/\n(?! )/)[0]}\nreturn planQuestions`)() as (src: string) => Q[] | null;
+// A plan's open questions.
 
 test("planQuestions: Q lines with options, recommended and multi-select read", () => {
   const qs = planQuestions(`# Plan\n## 9. Open questions\n\nQ: Which improvements to build? (multi-select)\n   - Own project in row (recommended) — fixes Move; XS\n   - Gather on add — instant result\nQ: Where the progress shows\n   - Top of the Backlog tab (recommended): what you asked for.\n   - Its own tab: adds an eighth tab\n\n- Note: not an option\n## 10. Out of scope suggestions\n- not a question\n`);
@@ -108,8 +103,9 @@ test("card menu items: appropriate actions and distinct icons across phases", ()
   expect(html).toContain('<symbol id="i-restore"');
 
   const ico = (n: string) => `<svg><use href="#i-${n}"/></svg>`;
-  const menuSnippet = (html.slice(html.indexOf("if(k===menuKey){"), html.indexOf("el.innerHTML+=`<div class=\"menu-pop\"", html.indexOf("if(k===menuKey){"))) + "}").replace("const items=[];", "items=[];");
-  const getItems = new Function("c", "archive", "S", `const ico = ${ico.toString()};\nlet k = 1, menuKey = 1, items = [];\n${menuSnippet}\nreturn items;`);
+  const from = cards.indexOf("if (k === store.menuKey) {");
+  const menuSnippet = (cards.slice(from, cards.indexOf('el.innerHTML += `<div class="menu-pop"', from)) + "}").replace("const items = [];", "items = [];");
+  const getItems = new Function("c", "archive", "S", `const ico = ${ico.toString()};\nconst store = { S, menuKey: 1 };\nlet k = 1, items = [];\n${menuSnippet}\nreturn items;`);
 
   // Phase 0: Ideas (idea card)
   const idea = { kind: "idea", status: "idea", column: 0 };
@@ -173,9 +169,7 @@ test("card menu items: appropriate actions and distinct icons across phases", ()
   expect(archIdea.map((i: any) => i ? i[1] : null)).toEqual(["Restore", "Open", null, "Delete"]);
 });
 
-// brief() lifted the same way: a one-line structured idea split for display only.
-const bat = html.indexOf("function brief(");
-const brief = new Function(`${html.slice(bat, html.indexOf("\n\n", bat))}\nreturn brief`)() as (t: string) => { head: string; parts: { label: string; body: string }[] };
+// brief(): a one-line structured idea split for display only.
 
 test("a labelled idea splits into a head and one part per label", () => {
   const b = brief("Improve previews Problem: one dense block. Non-goals: no rewrites. Acceptance criteria: (1) scannable. (2) full text kept.");

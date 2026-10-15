@@ -7,6 +7,7 @@ import { configFromEnv, chat, type ModelConfig } from "../src/model";
 import { runTurn, systemPrompt } from "../src/agent";
 import { createApp } from "../src/server";
 import { ROLES, PALETTE } from "../src/roles";
+import { mdTree } from "../web/app/markdown.ts";
 
 const KEY = "sk-test-SECRET-123";
 const anthropicCfg: ModelConfig = { provider: "anthropic", model: "m", key: KEY, baseUrl: "https://api.anthropic.com/v1" };
@@ -229,19 +230,18 @@ test("G-02 secrets stay out of git and the DB", () => {
   expect(schema).not.toMatch(/api.?key|secret|token/i);
 });
 
+// The page is index.html plus the modules bundled into its script (web/app/).
+const PAGE = () => [readFileSync(join(import.meta.dir, "../web/index.html"), "utf8"),
+  ...readdirSync(join(import.meta.dir, "../web/app")).filter((f) => f.endsWith(".ts")).sort().map((f) => readFileSync(join(import.meta.dir, "../web/app", f), "utf8"))].join("\n");
+
 test("G-03 page never feeds data to innerHTML", () => {
-  const page = readFileSync(join(import.meta.dir, "../web/index.html"), "utf8");
+  const page = PAGE();
   expect(page).not.toMatch(/\.innerHTML\s*=|outerHTML|document\.write/);
   // the one insertAdjacentHTML takes a constant icon string
   expect(page.match(/insertAdjacentHTML\([^)]*\)/g)).toEqual(['insertAdjacentHTML("afterbegin", ICONS[name])']);
 });
 
-// Agent replies render Markdown through mdTree, a pure function in the page: load it on its own.
-const mdTree: (s: string) => any[] = (() => {
-  const page = readFileSync(join(import.meta.dir, "../web/index.html"), "utf8");
-  const src = /\/\/ ---- markdown[\s\S]*?(?=const mdNodes)/.exec(page)![0];
-  return new Function(`${src}; return mdTree;`)();
-})();
+// Agent replies render Markdown through mdTree, a pure function in web/app/markdown.ts.
 const tags = (n: any): string[] => (typeof n === "string" ? [] : [n[0], ...n.slice(2).flatMap(tags)]);
 const texts = (n: any): string[] => (typeof n === "string" ? [n] : n.slice(2).flatMap(texts));
 
@@ -315,7 +315,6 @@ test("G-12 text contrast >= 4.5:1 in light and dark", () => {
   }
 });
 
-const PAGE = () => readFileSync(join(import.meta.dir, "../web/index.html"), "utf8");
 test("G-17/G-18: nothing is fetched from another site at load; the CDN is only in the worker built on the first mic press; audio is only posted to that worker", () => {
   const page = PAGE();
   expect(page).not.toMatch(/<(script|link|img)[^>]+(src|href)="https?:/);
@@ -332,7 +331,7 @@ test("G-19/G-20: no Send button; Enter sends and Shift+Enter makes a new line; t
   const page = PAGE();
   expect(page).not.toMatch(/>\s*Send\s*</);
   expect(page).toContain('e.key === "Enter" && !e.shiftKey');
-  const body = page.slice(page.indexOf("<body>"), page.indexOf("<script>"));
+  const body = page.slice(page.indexOf("<body>"), page.indexOf("<script"));
   expect(body).not.toMatch(/model/i);
 });
 

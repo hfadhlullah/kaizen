@@ -19,7 +19,7 @@ Plain markdown files under `<state>/notes/`, folders allowed, so Obsidian can op
 - `/kaizen docs` writes `Project/` here ([[Workflow]]).
 
 ## Watch out
-- `web/notebook.js` is committed and hash-checked: after editing `notebook.ts` run `bun run build:web`, or `cli/notes.test.ts` fails.
+- `web/notebook.js` is committed and hash-checked: after editing `notebook.ts` run `bun run build:web`, or `cli/notes.test.ts` fails. The hash covers every bundled source and the devDependencies, so a change to the board or bot modules, or a new dev tool, also rebuilds it.
 - Inside `notebook.ts`, `history` is CodeMirror's undo; use `window.history` (`.kaizen/memory.md`).
 - Backlog links count lines by position; reordering a `06-backlog.md` repoints them (`.kaizen/memory.md`).
 - Every autosave fires `changed`, so every open board refetches `/state` (`.kaizen/memory.md`).

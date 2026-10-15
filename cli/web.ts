@@ -16,6 +16,8 @@ import { postLink, sendReply } from "./browser.ts";
 import { listNotes, saveNote, renameNote, deleteNote, boardIndex, linksTo } from "./notes.ts";
 
 const PAGE = join(dirname(import.meta.dir), "web", "board.html");
+// The board's script: web/board/*.ts, bundled into one file by `bun run build:web`.
+const BOARD_JS = join(dirname(import.meta.dir), "web", "board.js");
 // The notebook: its page, and the CodeMirror bundle `bun run build:web` commits beside it.
 const NOTES_PAGE = join(dirname(import.meta.dir), "web", "notes.html");
 const ICO = join(dirname(import.meta.dir), "assets", "kaizen.ico");
@@ -38,7 +40,7 @@ const VERSION = installed();
 // page newer than its server sends ops the server does not know ("unknown op").
 // So the pages are kept as they were at start, and read live (dev edits) only while
 // the installed version is still the one this board runs.
-const AT_START = new Map([PAGE, NOTES_PAGE, NOTES_JS, TERM_JS, TERM_CSS].map((f) => [f, existsSync(f) ? readText(f) : null]));
+const AT_START = new Map([PAGE, BOARD_JS, NOTES_PAGE, NOTES_JS, TERM_JS, TERM_CSS].map((f) => [f, existsSync(f) ? readText(f) : null]));
 const served = (f: string) => installed() === VERSION && existsSync(f) ? readText(f) : AT_START.get(f) ?? null;
 
 // A board answers at url and runs the installed version. A board from before the
@@ -167,9 +169,9 @@ export async function web(repoDir: string, opts: Opts = {}) {
       : ideaPty.get(`${c.state}\0${c.text}`);
     return key && live.has(key) ? { key, alive: ptyState(key)!.alive } : undefined;
   };
-  // Dev: the page reloads itself when board.html is saved. Server code needs
+  // Dev: the page reloads itself when board.html or its bundle is saved. Server code needs
   // `bun --watch cli/install.ts web`; the page reconnects and reloads on hello.
-  try { watch(PAGE, () => { for (const c of clients) { try { c.enqueue("data: reload\n\n"); } catch { clients.delete(c); } } }); } catch { /* no dev reload */ }
+  for (const f of [PAGE, BOARD_JS]) try { watch(f, () => { for (const c of clients) { try { c.enqueue("data: reload\n\n"); } catch { clients.delete(c); } } }); } catch { /* no dev reload */ }
   const watchers: FSWatcher[] = [];
   const watchAll = () => {
     for (const w of watchers) { try { w.close(); } catch { /* gone */ } }
@@ -291,6 +293,12 @@ export async function web(repoDir: string, opts: Opts = {}) {
         return new Response(page.replace("/*notifier*/", () => notifier.toString()), {
           headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-kaizen-version": VERSION },
         });
+      }
+
+      if (req.method === "GET" && path === "/board.js") {
+        const body = served(BOARD_JS);
+        if (body === null) return new Response(`${path} missing; run bun run build:web`, { status: 500 });
+        return new Response(body, { headers: { "content-type": "application/javascript; charset=utf-8", "cache-control": "no-store" } });
       }
 
       if (req.method === "GET" && (path === "/notebook" || path === "/notebook.js")) {

@@ -92,7 +92,7 @@ export function resolveProject(st: BoardState, name: string): BoardProject | nul
   return st.projects.find((p) => p.dir === n || p.dir === `${n}/.kaizen` || p.label.toLowerCase() === n.toLowerCase()) ?? null;
 }
 
-// The board's deep link (kaizen web/board.html:775).
+// The board's deep link (kaizen web/board/panel.ts, `deep()`).
 export function boardLink(base: string, dir: string, to: { run?: string; idea?: string }) {
   const q = new URLSearchParams({ dir, ...(to.run ? { run: to.run } : { idea: to.idea ?? "" }) });
   return `${base}/?${q}`;

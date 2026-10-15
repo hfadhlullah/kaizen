@@ -10,12 +10,12 @@ updated: 2026-10-15
 Tests are `bun test` (all `*.test.ts`, `cli/` and `bot/`), run in CI on Ubuntu and Windows (`.github/workflows/test.yml`). The package is `kaizen-agent` on npm; `bun run release` publishes to npm and then GitHub Packages (`package.json` scripts).
 
 ## Where it lives
-- `package.json` — `test`, `build:web`, `release`, `prepublishOnly` (tests), `postpublish` (`cli/release.sh`: tag + GitHub release).
+- `package.json` — `test`, `build:web`, `format` / `format:check` (Prettier over the frontend TypeScript: `web/*.ts`, `web/board/`, `bot/web/app/`), `release`, `prepublishOnly` (tests), `postpublish` (`cli/release.sh`: tag + GitHub release).
 - `cli/publish-gh.sh` — same tarball as `@hfadhlullah/kaizen-agent` on GitHub Packages.
-- `cli/build-web.ts` — bundles `web/notebook.js` and `web/term.js`, committed.
+- `cli/build-web.ts` — bundles `web/notebook.js`, `web/term.js`, `web/board.js` and `bot/web/app.js`, committed; `cli/notes.test.ts` fails when one is older than its sources.
 
 ## How it connects
-- Bundles feed the [[Notebook]] and the [[Web board]]'s terminal.
+- Bundles feed the [[Notebook]], the [[Web board]] and its terminal, and [[Kaizen bot]]'s page.
 
 ## Watch out
 - npm serves a new version only after its automated review finishes — minutes after `bun publish` says success; a re-publish answers 409 (`.kaizen/memory.md`).

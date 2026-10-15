@@ -11,6 +11,8 @@ import { dialog, loginPath } from "./desktop";
 import { boardClient, boardLink, loopbackUrl, normalise, reviewMark, runUpdated, BoardDown, type BoardRun, type BoardState } from "./board";
 // Embedded by `bun build --compile`; the source run gets the real paths.
 import PAGE from "../web/index.html" with { type: "file" };
+// The page's script, bundled from web/app/ by `bun run build:web` at the repo root.
+import APP_JS from "../web/app.js" with { type: "file" };
 import ENV_TEMPLATE from "../.env.example" with { type: "text" };
 
 const DEFAULT_BOARD = "http://127.0.0.1:7420"; // kaizen web's DEFAULT_PORT (web.ts:18)
@@ -413,6 +415,8 @@ export function createApp(deps: { store: Store; env: Env; fetch?: Fetch; boardFe
 
     if (m === "GET" && parts.length === 0)
       return new Response(Bun.file(PAGE), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
+    if (m === "GET" && a === "app.js" && !b)
+      return new Response(Bun.file(APP_JS), { headers: { "content-type": "application/javascript; charset=utf-8", "cache-control": "no-store" } });
 
     if (m === "GET" && a === "events" && !b) {
       let ctl: ReadableStreamDefaultController;
