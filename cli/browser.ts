@@ -169,8 +169,9 @@ export async function browse<T>(use: (page: Page) => Promise<T>): Promise<T | { 
   if (!exe) return { ok: false, note: NO_BROWSER };
   const dir = profile();
   rmSync(join(dir, "DevToolsActivePort"), { force: true });
+  // env passed explicitly: without it Bun hands the child its startup env, not process.env as it is now.
   const proc = Bun.spawn([exe, "--headless=new", `--user-data-dir=${dir}`, "--remote-debugging-address=127.0.0.1", "--remote-debugging-port=0",
-    "--no-first-run", "--no-default-browser-check", "--window-size=1280,2000", "about:blank"], { stdout: "ignore", stderr: "ignore" });
+    "--no-first-run", "--no-default-browser-check", "--window-size=1280,2000", "about:blank"], { env: process.env, stdout: "ignore", stderr: "ignore" });
   let page: Page | null = null;
   try {
     let port = "";
