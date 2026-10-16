@@ -6,12 +6,13 @@ import { Database } from "bun:sqlite";
 import { join, dirname, win32, posix } from "node:path";
 import { homedir, arch, cpus, release, totalmem, version as osVersion } from "node:os";
 import { startPty, ptySupported } from "./pty.ts";
+import { codeDir, projectFromWorktree } from "./worktree.ts";
 
 // The real path: process.cwd() is always physical, so a raw $HOME that crosses a
 // symlink (/home -> var/home) would never compare equal to it.
 export const home = (() => { try { return realpathSync(homedir()); } catch { return homedir(); } })();
 
-export type Run = { id: string; stage: string; awaiting: string | null; moved: number; runner?: string; agent?: string };
+export type Run = { id: string; stage: string; awaiting: string | null; moved: number; runner?: string; agent?: string; branch?: string };
 
 export const KNOWN_AGENTS = [
   { name: "Claude Code", dir: ".claude", cmd: "claude" },
@@ -356,7 +357,8 @@ export function findProjects(root: string, depth = 4): string[] {
 // The same spelling knownProjects() gives: a terminal handing out c:\... (lower-case
 // drive) would otherwise make every POST from the board fail "unknown state dir".
 export function locate() {
-  let dir = nativePath(process.cwd());
+  // A run's worktree holds a partial .kaizen of its own (the committed notes); the runs are the project's.
+  let dir = projectFromWorktree(nativePath(process.cwd()));
   for (;;) {
     if (existsSync(join(dir, ".kaizen"))) return join(dir, ".kaizen");
     if (existsSync(join(dir, ".git"))) return null;
@@ -379,7 +381,7 @@ export function readRuns(state: string): Run[] {
       // own mtime is the only evidence that anything is still working on it.
       let moved = 0;
       try { moved = statSync(file).mtimeMs; } catch { /* vanished mid-read */ }
-      return [{ id, stage: s.stage ?? "?", awaiting: s.awaiting ?? null, moved, runner: s.runner, agent: s.agent }];
+      return [{ id, stage: s.stage ?? "?", awaiting: s.awaiting ?? null, moved, runner: s.runner, agent: s.agent, branch: typeof s.branch === "string" ? s.branch : undefined }];
     } catch { return []; }
   }).reverse();
 }
@@ -511,8 +513,11 @@ export function canApproveAwaiting(awaiting: unknown): awaiting is "approvals.pl
 // The board's answer to an approval the run is waiting on. The comment is collapsed to
 // one line: where the prompt is typed into a shell (herdr), a newline sends it early.
 // Answers are the plan's open questions answered at the approval, one per question.
-// Approving a run to done also asks for its commit and push; a failed push is reported, not retried.
-const COMMIT_PUSH = " Then commit and push this run's changed files only, with the ## Commit message from 03-impl.md (if already committed and nothing changed, only push); if the push fails, say so and stop.";
+// Approving a run to done also asks for its commit and push. A run with its own worktree
+// is landed by `kaizen worktree land`, which pushes the branch and merges it; any other
+// run pushes where it is, and a failed push is reported, not retried.
+const COMMIT_PUSH = " Then commit and push this run's changed files only, with the ## Commit message from 03-impl.md (if already committed and nothing changed, only push); if the push fails, say so and stop."
+  + " If state.json names a `worktree`, commit there instead and then run `kaizen worktree land` with this run's id from the project folder in place of the push; report its result as it prints it.";
 
 export function approvalPrompt(id: string, awaiting: string, why?: string, answers?: string[]) {
   const plan = awaiting === "approvals.plan";
@@ -591,6 +596,7 @@ export type Card = {
   moved?: number;                                  // runs only: state.json mtime
   title?: string;                                  // runs only: first line of the request
   archived: boolean;                               // hidden from the board unless asked for
+  branch?: string;                                 // runs only: the run's own branch while it has a worktree
   tags?: string[];                                 // runs only: runner, agent, "yolo", "unrechecked"
   notes?: string;                                  // inbox notes, or runs/<id>/notes.md
 };
@@ -957,6 +963,7 @@ export function boardCards(states: string[], now: number): Card[] {
         awaiting: r.stage === "abandoned" ? null : r.awaiting,
         dim: r.stage === "abandoned",
         archived: archive.has(r.id),
+        branch: r.branch,
         tags: [r.runner, r.agent, yolos.has(r.id) ? "yolo" : undefined, unrechecked(st, r.id) ? "unrechecked" : undefined].filter((t): t is string => !!t),
         notes: readNotes(st, r.id) || undefined,
       });
@@ -1472,7 +1479,7 @@ const runFiles = (changed: string[], mine: Report, rest: Report[]) => changed.fi
 // ponytail: runs in the same file are named, not separated; that takes a worktree
 // per run or a saved patch per run.
 export function runGit(state: string, id: string): GitStatus {
-  const dir = dirname(state), s = gitStatus(dir);
+  const dir = codeDir(dirname(state), id), s = gitStatus(dir);
   if (!s.repo) return s;
   const all = runReports(state), mine = all.find((r) => r.id === id) ?? { id, text: "", at: 0 };
   const rest = all.filter((o) => o.id !== id);
@@ -1522,7 +1529,7 @@ const COMMIT_TYPE = new RegExp(`^(${COMMIT_TYPES.join("|")})(\\([^)\\n]+\\))?!?:
 // as committed and not pushed. `shown` is the file list the user confirmed: anything
 // that changed since is refused, not swept in unseen.
 export async function commitPush(state: string, id: string, message: string, shown: string[]): Promise<{ ok: true; sha: string } | { ok: false; why: string }> {
-  const dir = dirname(state);
+  const dir = codeDir(dirname(state), id);
   const s = runGit(state, id);
   if (!s.repo) return { ok: false, why: "This project has no git remote." };
   if (s.files.join("\n") !== shown.join("\n")) return { ok: false, why: "The changed files are no longer the ones shown. Look at the list again." };

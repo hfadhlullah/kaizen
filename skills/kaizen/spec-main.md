@@ -95,6 +95,13 @@ review as an independent one because the output looked the same.
 Later build requests in the same session follow *Follow-ups are runs too* in [`spec.md`](spec.md): a revise of this run until it is `done`, then a new linked run.
 Then stop. Committing, pushing, or
 opening a pull request happens only if the user asks; the board's Approve button is that ask for commit and push, and its prompt says so.
+For a run with a `worktree` in `state.json`, that ask means: commit in the worktree, then
+`kaizen worktree land` with the run id, from the project folder,. It pushes `kaizen/<id>`, opens a pull
+request and rebase-merges it when GitHub says it is clean (without `gh`: a rebase onto
+the default branch and a push, tried twice), and removes the worktree and branch only
+once the default branch holds the work. A conflict or an unmerged pull request leaves
+everything in place: report its message as printed and let the user decide. The run is
+`done` once approved; whether the work landed is reported, not hidden.
 
 **Open findings are offered by number.** List them with the reviewer's numbering
 intact and let the user name which to fix — "fix 2 and 5". A number not named is not

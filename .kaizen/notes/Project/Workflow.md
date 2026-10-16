@@ -1,8 +1,8 @@
 ---
 description: What a kaizen run is, which files define it, and where its state lives
 tags: [project, workflow]
-sources: [skills/kaizen, agents, commands]
-updated: 2026-10-15
+sources: [skills/kaizen, agents, commands, cli/worktree.ts]
+updated: 2026-10-17
 ---
 # Workflow
 
@@ -14,6 +14,7 @@ The product itself: a staged workflow (plan, approval, build, independent review
 - `skills/kaizen/spec.md` + `spec-plan.md` / `spec-build.md` / `spec-review.md` / `spec-main.md` — the stage contracts; each reader takes core plus its own stage.
 - `skills/kaizen/gather.md`, `discover.md`, `docs.md`, `status.md`, `settings.md`, `install.md` — one file per sub-command.
 - `skills/kaizen/config.default.yml` — every setting and its default.
+- `cli/worktree.ts` — each run builds on branch `kaizen/<id>` in `.kaizen/wt/<id>` (`git.worktree_per_run`); `kaizen worktree start|land <id>` makes and lands it, and `state.json` records `worktree` and `branch`. Run notes stay in the project's `.kaizen/runs/`.
 - `skills/kaizen/adapters.md` — running it under Codex or Antigravity.
 - `agents/kaizen-*.md` — the planner, builder and reviewer subagents.
 - `commands/kaizen-*.md` — Claude Code slash commands, each a one-line hand-off to the skill.

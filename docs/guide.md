@@ -23,6 +23,14 @@ install details, settings, and the installer's flags.
 | 4 | **Review** | A different agent, which never saw stage 3's reasoning, checks the work and lists what is wrong, numbered and graded. |
 | 5 | **Fix** | Serious findings get fixed and re-checked, up to a limit. Anything left over is handed to you, never quietly dropped. |
 
+In a git repository with a remote, the build happens on the run's own branch
+(`kaizen/<run id>`) in its own folder under `.kaizen/wt/`, so runs and people working
+at the same time never touch each other's files. When you approve the finished run,
+kaizen pushes the branch, opens a pull request and merges it if GitHub says it is
+clean (without the `gh` tool it rebases and pushes to the default branch instead). A
+conflict leaves the pull request and the folder in place and tells you. Turn it off
+with the `git.worktree_per_run` setting.
+
 Each stage runs as its own agent with a clean slate, and writes a file before the
 next one starts. That is what makes stage 4 worth anything: a reviewer that watched
 itself do the work will defend it.

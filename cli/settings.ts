@@ -30,6 +30,7 @@ export const PRESETS: Record<PresetName, {
       "auto_fix.max_iterations": "1",
       "git.auto_commit": "false",
       "git.branch_before_implement": "false",
+      "git.worktree_per_run": "false",
     },
   },
   medium: {
@@ -47,6 +48,7 @@ export const PRESETS: Record<PresetName, {
       "auto_fix.max_iterations": "2",
       "git.auto_commit": "false",
       "git.branch_before_implement": "true",
+      "git.worktree_per_run": "true",
     },
   },
   ultra: {
@@ -64,6 +66,7 @@ export const PRESETS: Record<PresetName, {
       "auto_fix.max_iterations": "4",
       "git.auto_commit": "true",
       "git.branch_before_implement": "true",
+      "git.worktree_per_run": "true",
     },
   },
 };
@@ -111,6 +114,7 @@ const SETTINGS: Setting[] = [
   { key: "auto_fix.max_iterations", label: "Max fix rounds", group: "Auto-fix", values: ["1", "2", "3", "4", "5"], help: "Fix-then-recheck rounds before leftovers are handed to you. Each round is a full build plus a full review, the priciest knob here" },
   { key: "git.auto_commit", label: "Commit when done", group: "Git", values: ["false", "true"], help: "Commit the work when a run finishes. Never pushes" },
   { key: "git.branch_before_implement", label: "Branch before building", group: "Git", values: ["true", "false"], help: "Create a branch before building when you are on the default branch" },
+  { key: "git.worktree_per_run", label: "Branch and folder per run", group: "Git", values: ["true", "false"], help: "Build each run on its own branch in its own git worktree, then land it by pull request. false: every run builds in the project folder" },
   { key: "track.default", label: "Kind of work", group: "Project", values: ["auto", "software", "writing", "communication", "operations", "research"], help: "Pin what runs in this project are (a docs repo is always writing). auto: the planner infers it per run" },
   { key: "review.write_memory", label: "Remember lessons", group: "Project", values: ["true", "false"], help: "Let the reviewer save what it learned to .kaizen/memory.md, which every future run reads" },
   { key: "review.memory_max_lines", label: "Memory size cap", group: "Project", values: ["50", "100", "200", "400"], help: "Lines memory.md may hold before old lessons are pruned. Every run reads it, so bigger costs more" },

@@ -2,7 +2,7 @@
 description: How work is done in this repo, and the traps that have bitten before
 tags: [project, conventions]
 sources: [.kaizen/memory.md, design.md]
-updated: 2026-10-15
+updated: 2026-10-17
 ---
 # Conventions and gotchas
 
@@ -15,6 +15,7 @@ The rules that are not visible in any one file. The full list of lessons is `.ka
 
 ## Shared tree
 - More than one session works in this checkout at once. Never `git stash` or `git checkout` a path to get a baseline, and never append cleanup commands to a build; take baselines from a `git worktree` (`.kaizen/memory.md`).
+- A run now builds in its own worktree (`.kaizen/wt/<id>`, branch `kaizen/<id>`), so the stash and checkout ban only matters for runs without one. Never `git worktree remove` one that holds unlanded work. See [[Workflow]].
 - Two runs in one tree can land in one commit; check `git log --stat -1` before believing nothing is committed (`.kaizen/memory.md`).
 
 ## Code style
