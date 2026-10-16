@@ -346,6 +346,20 @@ if (wantSettings) {
   process.exit(0);
 }
 
+// A run's own branch and worktree: `start` makes them before the build, `land` pushes
+// and merges them at the final approval. Run from the project folder.
+if (args.has("worktree")) {
+  const [, verb = "", id = ""] = Bun.argv.slice(2).filter((a) => !a.startsWith("-"));
+  const { locate } = await import("./state.ts");
+  const { startWorktree, landWorktree } = await import("./worktree.ts");
+  const state = locate();
+  if (!state || (verb !== "start" && verb !== "land")) { console.log("\n  usage: kaizen worktree start|land <run-id>, in a project with .kaizen\n"); process.exit(1); }
+  const project = dirname(state);
+  const r = verb === "start" ? startWorktree(project, id) : landWorktree(project, id);
+  console.log(r.ok ? `\n  ${verb === "start" ? `worktree ready: ${(r as { path: string }).path}` : `landed by ${(r as { how: string }).how}`}\n` : `\n  ${r.why}\n`);
+  process.exit(r.ok ? 0 : 1);
+}
+
 // Deleting runs is a job for code with a test, not for an agent with `rm`. Lists by
 // default; --yes is what deletes.
 if (args.has("prune")) {

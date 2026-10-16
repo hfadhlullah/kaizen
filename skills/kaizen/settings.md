@@ -24,6 +24,7 @@ nearest first, so a change lands globally unless this project keeps its own conf
 | `review.write_memory` | `true`, `false` | Let the reviewer append lessons to `memory.md` |
 | `git.auto_commit` | `true`, `false` | Commit the work when a run finishes |
 | `git.branch_before_implement` | `true`, `false` | Branch before building when on the default branch |
+| `git.worktree_per_run` | `true`, `false` | Build each run on its own branch in its own worktree and land it by pull request |
 | `ui.mouse` | `false`, `true` | Click to select, click again to act; while on, the terminal cannot select text |
 | `subagents.model` | `inherit`, `opus`, `sonnet`, `haiku` | Model the stage subagents run on (Claude Code only) |
 | `subagents.effort` | `inherit`, `low`, `medium`, `high` | Reasoning effort for the stage subagents (Claude Code only) |

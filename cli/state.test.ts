@@ -140,6 +140,7 @@ test("approvalPrompt: approve or revise, the comment kept on one line", () => {
   expect(p).not.toContain("\n");
   expect(approvalPrompt("r", "approvals.review")).toContain("commit and push this run's changed files only");
   expect(approvalPrompt("r", "findings")).toContain("commit and push");
+  expect(approvalPrompt("r", "approvals.review")).toContain("kaizen worktree land");
   expect(approvalPrompt("r", "approvals.review", "rename it")).not.toContain("push");
   expect(approvalPrompt("r", "approvals.plan")).not.toContain("push");
   expect(approvalPrompt("r", "approvals.review", "rename it")).toContain('final approval: "rename it". Record it in 02-approval.md, change the work');

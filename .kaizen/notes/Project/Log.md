@@ -44,3 +44,4 @@ updated: 2026-10-15
 - 2026-10-16 release — 1.34.1: each board page keeps its own project; icebox images open through a fresh link
 - 2026-10-16 run 2026-10-16-card-terminal-touch-scroll — Web board (swipe scrolls the in-card terminal on a phone)
 - 2026-10-16 release — 1.34.2: swipe scrolls the in-card terminal on a phone
+- 2026-10-17 run 2026-10-17-worktree-per-run — Workflow, CLI, Conventions and gotchas (a branch and worktree per run, landed by pull request)

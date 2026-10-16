@@ -39,6 +39,21 @@ Rules:
   folder there is no branch to make and no commit to skip, and that absence is not a
   finding.
 
+**Build on the run's own branch, where `git.worktree_per_run` is on** (the default, in a
+git repository with a remote). Right after `stage: "build"` is written and before the
+first edit, run `kaizen worktree start` with the run id from the project folder. It
+makes `.kaizen/wt/<id>` on the branch `kaizen/<id>`, cut from the remote default branch,
+and records `worktree` and `branch` in `state.json`. From then on every edit, test run
+and commit of the code happens inside that folder, and never in the project folder,
+which other sessions may be using. Everything the run *records* stays in the project's
+`.kaizen/runs/<id>/`: `03-impl.md`, `progress.md`, attachments and `state.json` are
+written there by absolute path. The docs vault is committed, so its notes are updated in
+the worktree with the code. The worktree has its own checkout: run `bun install` or the
+project's equivalent there before the baseline. Fix iterations and the reviewer read the
+code in the same folder. If `kaizen worktree start` fails, say why and stop; do not fall
+back to the project folder unasked. A run whose `state.json` has no `worktree` builds in
+place, exactly as before.
+
 **Keep `progress.md` while you work.** Before the first change, write
 `runs/<id>/progress.md` with one line per bullet of the plan's Work list, in order:
 `- todo: <bullet text>`. Change a line's prefix to `- doing:` when you start that item

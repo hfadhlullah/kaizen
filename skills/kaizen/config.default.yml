@@ -131,6 +131,11 @@ git:
   # Create a branch before the implement stage when on the default branch.
   # Ignored when the project is not a git repository.
   branch_before_implement: true
+  # Build each run on its own branch (kaizen/<run-id>) in its own git worktree under
+  # .kaizen/wt/, so runs and people working at the same time never share a folder. Done
+  # lands the branch by pull request (gh) or a rebase and push. Ignored when the
+  # project is not a git repository with a remote.
+  worktree_per_run: true
 
 ui:
   # Mouse in the TUI: click a row or card to select it, click it again to open or

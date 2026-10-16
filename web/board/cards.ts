@@ -73,6 +73,7 @@ function card(c) {
   // A gathered idea's notes open with the stamp promote() writes (ingest() wrote it before
   // the icebox); its chip names the source.
   const g = c.notes && /^\[[^\]]*\] (?:Gathered from|Promoted from the icebox:) (.+?)\. Outside text/.exec(c.notes);
+  if (c.branch) chips.push(`<span class="chip" title="Built on its own branch, ${esc(c.branch)}">branch</span>`);
   if (g) chips.push(`<span class="chip" title="From ${esc(g[1])}">gathered</span>`);
   else if (c.notes) chips.push(`<span class="chip">notes</span>`);
   // Information only: the panel's button is where it is committed and pushed.
