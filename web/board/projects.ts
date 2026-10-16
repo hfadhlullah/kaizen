@@ -15,6 +15,8 @@ export function keep(d) {
     d ? localStorage.setItem("kz-proj", d) : localStorage.removeItem("kz-proj");
   } catch (e) {}
 }
+// A project shows by its folder name alone; the full path stays in the tooltip.
+export const short = (l) => l.split(/[\\/]/).pop() || l;
 // The project picker: a button shaped like a select that opens a search field over the list.
 export function list() {
   const q = $("projq").value.trim().toLowerCase();
@@ -23,7 +25,7 @@ export function list() {
     store.PL.map((p, i) =>
       p[0].toLowerCase().includes(q)
         ? (p[2] && !g++ ? `<div class="grp">In your projects folder</div>` : "") +
-          `<button role="option" data-i="${i}" title="${esc(p[0])}">${esc(p[0])}</button>`
+          `<button role="option" data-i="${i}" title="${esc(p[0])}">${esc(short(p[0]))}</button>`
         : "",
     ).join("") || `<div class="grp">No match</div>`;
   const f = $("projs").querySelector("button");

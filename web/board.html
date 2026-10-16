@@ -209,8 +209,8 @@ aside{position:fixed;top:0;right:0;bottom:0;z-index:11;width:520px;max-width:100
 aside.open{transform:none;visibility:visible}
 /* Settings and the Icebox are pages: the same panel, docked into the app column, full width like the board */
 body.paged #board,body.paged .ftr,body.paged .scrim{display:none}
-/* The Icebox keeps the project bar, without the board's title and New idea; Settings has none */
-body.paged:not(.ice) .hdr,body.ice .hdr h1{display:none}body.ice #newtop{visibility:hidden}
+/* The Icebox keeps the project bar with its own title, without New idea or the panel's header; Settings has none */
+body.paged:not(.ice) .hdr,body.ice aside.docked>header{display:none}body.ice #newtop{visibility:hidden}
 aside.docked{position:static;z-index:auto;flex:1;min-height:0;width:auto;transform:none;visibility:visible;transition:none;box-shadow:none;border:0;background:none}
 aside.docked>header,aside.docked>.body{padding-inline:28px}
 aside.docked>header{border-bottom:0;padding-top:28px;padding-bottom:12px}
@@ -461,9 +461,9 @@ body:not(.paged) .src-sec,body:not(.paged) .src-scrim{display:none}
   <div class="top"><a class="home" href="/" title="Board" aria-label="kaizen board"><pre class="mark"><span>█ █  ▄▀█  █  ▀▀█  █▀▀  █▄ █</span>
 <span>█▀▄  █▀█  █   ▄▀  ██▄  █ ▀█</span>
 <span>█ █  █ █  █  █▄▄  █▄▄  █  █</span></pre><span class="mascot"></span></a><button class="ib" id="fold" aria-label="Collapse menu" title="Collapse menu"><svg><use href="#i-side"/></svg></button></div>
+  <a class="it" href="/?view=icebox" data-view="sources" title="Icebox: requests gathered from your sources"><svg><use href="#i-inbox"/></svg><span class="lbl">Icebox</span></a>
   <a class="it" href="/" data-view="board" title="Board"><svg><use href="#i-board"/></svg><span class="lbl">Board</span></a>
   <a class="it" href="/notebook" data-view="notes" title="Notes"><svg><use href="#i-note"/></svg><span class="lbl">Notes</span></a>
-  <a class="it" href="/?view=icebox" data-view="sources" title="Icebox: requests gathered from your sources"><svg><use href="#i-inbox"/></svg><span class="lbl">Icebox</span></a>
   <a class="it" href="/?view=settings" data-view="settings" title="Settings"><svg><use href="#i-gear"/></svg><span class="lbl">Settings</span></a>
   <span class="end"></span>
   <div class="theme" role="group" aria-label="Theme"><button data-t="light" title="Light theme"><svg><use href="#i-sun"/></svg><span class="lbl">Light</span></button><button data-t="dark" title="Dark theme"><svg><use href="#i-moon"/></svg><span class="lbl">Dark</span></button></div>

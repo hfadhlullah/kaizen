@@ -92,8 +92,7 @@ export async function openSources() {
   $("ptitle").textContent = SRC;
   $("ptabs").innerHTML = "";
   $("pfoot").innerHTML = "";
-  $("psub").textContent =
-    "Requests gathered from your sources wait here until you promote them to Ideas or dismiss them; nothing starts on its own.";
+  $("psub").textContent = "";
   $("psub").title = "";
   const dir = store.all ? null : store.S.dir,
     q = dir ? "?dir=" + encodeURIComponent(dir) : "";
