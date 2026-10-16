@@ -41,7 +41,47 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
     term.write(`\r\n\x1b[2m[${e.reason === "ended" ? "agent ended" : "connection to the board lost"}]\x1b[0m\r\n`);
     onEnd?.();
   };
-  const typed = term.onData((d) => send({ t: "i", d }));
+  // Phone/tablet: a bar of the keys a soft keyboard lacks. Ctrl and Alt are sticky —
+  // they modify the next key typed, from the soft keyboard or the bar. The ⌨ button
+  // hides the native keyboard (inputmode none) so the bar alone drives the terminal.
+  const mods = { ctrl: false, alt: false };
+  const typed = term.onData((d) => {
+    if (d.length === 1 && mods.ctrl && /[a-z@[\\\]^_]/i.test(d)) d = String.fromCharCode(d.toUpperCase().charCodeAt(0) & 31);
+    if (mods.alt) d = "\x1b" + d;
+    mods.ctrl = mods.alt = false;
+    bar?.querySelectorAll(".on").forEach((b) => b.classList.remove("on"));
+    send({ t: "i", d });
+  });
+  let bar: HTMLElement | null = null;
+  if (matchMedia("(pointer: coarse)").matches) {
+    const arrow = (c: string) => () => `\x1b${term.modes.applicationCursorKeysMode ? "O" : "["}${c}`;
+    const keys: [string, string | (() => string) | "ctrl" | "alt" | "kbd"][] = [
+      ["Esc", "\x1b"], ["Tab", "\t"], ["↵", "\r"], ["⇧⇥", "\x1b[Z"], ["Ctrl", "ctrl"], ["Alt", "alt"],
+      ["←", arrow("D")], ["↑", arrow("A")], ["↓", arrow("B")], ["→", arrow("C")], ["^C", "\x03"], ["⌨", "kbd"],
+    ];
+    bar = document.createElement("div");
+    bar.className = "termkeys";
+    for (const [label, v] of keys) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = label;
+      // pointerdown + preventDefault: the tap must not move focus off the terminal, or the keyboard closes.
+      b.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        if (v === "ctrl" || v === "alt") b.classList.toggle("on", (mods[v] = !mods[v]));
+        else if (v === "kbd") {
+          const ta = el.querySelector<HTMLTextAreaElement>(".xterm-helper-textarea");
+          if (ta) ta.inputMode = ta.inputMode === "none" ? "text" : "none";
+          b.classList.toggle("on", ta?.inputMode === "none");
+          ta?.blur();
+          ta?.focus();
+        } else send({ t: "i", d: (typeof v === "function" ? v() : v) as string });
+        term.focus();
+      });
+      bar.append(b);
+    }
+    el.after(bar);
+  }
   // xterm.js has no touch scrolling, so on a phone a swipe did nothing. Each line's
   // worth of swipe scrolls the buffer, or — when the agent tracks the mouse, as a
   // full-screen Claude Code does — goes to it as a wheel report.
@@ -74,6 +114,7 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
     el.removeEventListener("touchstart", touchStart);
     el.removeEventListener("touchmove", touchMove);
     typed.dispose();
+    bar?.remove();
     ws.onclose = null;
     ws.close();
     term.dispose();
