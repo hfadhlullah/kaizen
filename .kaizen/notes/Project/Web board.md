@@ -33,6 +33,7 @@ updated: 2026-10-16
 - Settings and the Icebox share one panel and fill it after a fetch: `openSettings()` / `openSources()` must keep the `store.pageGen` check (`go()` bumps it), or a slow answer paints one page under the other's title. Switching to one of them clears the body to a Loading line before the fetch, or the old page shows under the new title until it answers.
 - Settings and the Icebox are full width: `aside.docked` header and body pad 28px each side (16px under 900px), no centred column.
 - The Icebox is titled in the board header (`markView()` sets the `h1`) and hides the docked panel's header; the project picker shows folder names only, full path in the tooltip. The rail lists Icebox first, in both `board.html` and `notes.html` (a test holds them line for line).
+- The server keeps no current project: each page sends its pick as `x-kz-dir` (`dirHeader()` in `web/board/api.ts`) and `cli/web.ts` resolves the project per request, so a phone picking another project never moves a desktop tab. `/cd` only checks the folder (and sets up a fresh one).
 
 ## Notes
 <!-- yours: /kaizen docs never rewrites this section -->

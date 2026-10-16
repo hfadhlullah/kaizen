@@ -52,6 +52,7 @@ async function pick(v) {
     const j = await post("/cd", { dir: v });
     if (j.ok) {
       store.all = false;
+      store.dir = v;
       keep(v);
     }
   }

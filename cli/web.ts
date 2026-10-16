@@ -91,10 +91,10 @@ export async function web(repoDir: string, opts: Opts = {}) {
   // Before anything looks for an agent on PATH: the board starts agents itself, and
   // from a launcher it would otherwise have none of the user's shell setup.
   adoptLoginEnv();
-  // Not fixed for the life of the board: picking a project in the page moves here.
-  let state = locate();
-  if (state && dirname(state) !== home) remember(dirname(state));
-  let project = state ? label(state) : null;
+  // Where the board started. Each page picks its own project and names it in the
+  // x-kz-dir header, so a phone choosing another project never moves this tab.
+  const boardState = locate();
+  if (boardState && dirname(boardState) !== home) remember(dirname(boardState));
   // The "Projects folder" setting, resolved; empty when unset.
   const projectsRoot = async () => {
     const { listSettings } = await import("./settings.ts");
@@ -125,9 +125,9 @@ export async function web(repoDir: string, opts: Opts = {}) {
       .filter((d) => existsSync(join(d, ".kaizen")) ? (remember(d), false) : true).sort();
   };
 
-  const states = (all: boolean) => (all || !state
+  const states = (all: boolean, cur = boardState) => (all || !cur
     ? [...knownProjects().map((d) => join(d, ".kaizen")), join(home, ".kaizen")]
-    : [state]
+    : [cur]
   ).filter((d, i, arr) => arr.indexOf(d) === i && existsSync(d));
 
   // Hostnames the user put in KAIZEN_WEB_HOSTS (e.g. a `tailscale serve` name):
@@ -290,6 +290,9 @@ export async function web(repoDir: string, opts: Opts = {}) {
       if (hostname !== "127.0.0.1" && hostname !== "localhost" && !extraHosts.has(hostname)) return new Response("forbidden", { status: 403 });
       const url = new URL(req.url);
       const path = url.pathname;
+      const asked = req.headers.get("x-kz-dir");
+      const state = asked && states(true).includes(asked) ? asked : boardState;
+      const project = state ? label(state) : null;
 
       if (req.method === "GET" && path === "/") {
         const page = served(PAGE);
@@ -373,7 +376,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         const all = url.searchParams.get("all") === "1";
         // Before the project list: it registers folders that turn out to be set up.
         const unset = await fresh();
-        const dirs = states(all);
+        const dirs = states(all, state);
         // With a projects folder set, the picker offers only real projects inside it,
         // and always the one open now so it never hides where the board is.
         const root = await projectsRoot();
@@ -622,14 +625,10 @@ export async function web(repoDir: string, opts: Opts = {}) {
         }
         if (!dir || !states(true).includes(dir)) return bad("unknown state dir", 404);
 
-        // The board moves to the chosen project: new ideas and runs default to it,
-        // and the process follows so anything resolved from cwd agrees.
+        // Only checks the project: the page that picked it sends it back in x-kz-dir.
         if (path === "/cd") {
-          state = dir;
-          project = label(dir);
-          try { process.chdir(dirname(dir)); } catch { /* the state dir is what matters */ }
           changed();
-          return json({ ok: true, project });
+          return json({ ok: true, project: label(dir) });
         }
 
         if (path === "/inbox") {
@@ -951,7 +950,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
 
   const url = `http://127.0.0.1:${server.port}/`;
   console.log(`\n  kaizen web  ${url}`);
-  console.log(`  ${project ? `project  ${project}` : "no .kaizen here; showing every known project"}`);
+  console.log(`  ${boardState ? `project  ${label(boardState)}` : "no .kaizen here; showing every known project"}`);
   console.log(`  ctrl-c to stop\n`);
   if (opts.open !== false) await openApp(url);
 

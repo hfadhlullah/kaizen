@@ -7,11 +7,14 @@ import { notifyUser, toast } from "./toast.ts";
 // The server writes notifier() from state.ts over a marker in board.html: one rule for both UIs.
 declare const due: (key: string, say: string | null, done: boolean, now: number) => boolean;
 
+// This page's project, sent with each request: the server keeps none, so another
+// tab or a phone picking a project never moves this one.
+export const dirHeader = () => (store.dir ? { "x-kz-dir": store.dir } : {});
 // quiet: the server said something changed, nobody asked for a redraw.
 export async function load(quiet) {
   let r;
   try {
-    r = await fetch("/state" + (store.all ? "?all=1" : ""));
+    r = await fetch("/state" + (store.all ? "?all=1" : ""), { headers: dirHeader() });
   } catch {
     toast(GONE);
     return;
@@ -85,7 +88,7 @@ export async function post(path, body) {
   try {
     r = await fetch(path, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...dirHeader() },
       body: JSON.stringify(body),
     });
   } catch {

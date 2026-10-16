@@ -52,8 +52,10 @@ export function initLive() {
               body: JSON.stringify({ dir: d }),
             })
           ).ok
-        )
+        ) {
           store.all = false;
+          store.dir = d;
+        }
         else keep();
       } catch (e) {}
     try {

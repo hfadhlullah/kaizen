@@ -4,6 +4,8 @@
 export const store = {
   S: { project: null, projects: [], cards: [], now: Date.now(), all: false },
   all: new URLSearchParams(location.search).get("all") !== "0",
+  // The project this page picked; null is wherever the board started.
+  dir: null,
   openKey: null,
   mode: null,
   modeKey: null,
