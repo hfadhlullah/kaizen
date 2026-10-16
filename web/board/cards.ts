@@ -43,7 +43,7 @@ function card(c) {
   el.dataset.k = k;
   el.setAttribute("role", "button");
   const st = ICON[c.status] || "idea",
-    idt = c.kind === "idea" ? "idea" : c.text;
+    idt = c.kind === "idea" ? "idea" : c.text.replace(/-/g, " ");
   // The status icon carries the state; what a waiting run needs is its tooltip.
   const sttl = c.status === "waiting" ? need(c.awaiting) || "needs you" : c.status || "idea";
   // Footer: words on the left (project, what it needs), icon-only marks on the right.
