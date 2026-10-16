@@ -85,17 +85,16 @@ subagents at all.
 
 ## Final approval
 
-Controlled by `approvals.review`, skipped in `auto`. A direct-path run always stops here,
-whatever `approvals.review` says: the user's check is its only review.
+Controlled by `approvals.review`, skipped in `auto`.
 
-Report: what was built, verification results, findings fixed, findings still open,
+Report: what was built (for a code run with a UI, show the Preview screenshot), verification results, findings fixed, findings still open,
 every criterion the reviewer answered `CANNOT VERIFY` with the check it says a human
 must make, and anything the builder noted as out of scope. Where the run used `runner: lite`, say
 so in that report — the reviewer saw the work, and nobody should read a same-session
-review as an independent one because the output looked the same. Where the run took
-the direct path, say there was no plan and no review: the user's check is the review.
+review as an independent one because the output looked the same.
+Later build requests in the same session follow *Follow-ups are runs too* in [`spec.md`](spec.md): a revise of this run until it is `done`, then a new linked run.
 Then stop. Committing, pushing, or
-opening a pull request happens only if the user asks.
+opening a pull request happens only if the user asks; the board's Approve button is that ask for commit and push, and its prompt says so.
 
 **Open findings are offered by number.** List them with the reviewer's numbering
 intact and let the user name which to fix — "fix 2 and 5". A number not named is not

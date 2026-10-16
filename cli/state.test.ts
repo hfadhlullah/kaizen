@@ -8,7 +8,7 @@ import { issueUrl, systemInfo, scrubHome, REPO_URL, home as realHome, trustFolde
 import * as stateModule from "./state.ts";
 import {
   readRuns, readInbox, writeInbox, replaceIdea, moveIdea, abandonRun, allBacklog, backlog,
-  statusOf, columnOf, parseItem, startedRuns, boardCards, readArchive, setArchived,
+  requestTitle, statusOf, columnOf, parseItem, startedRuns, boardCards, readArchive, setArchived,
   requestOf, agentFlags, plainModel, readNotes, writeNotes, manualCommand, parseNotes, formatNote, appendNote, saveAttachment,
   reviewFindings, pickFindings, fixPrompt, approvalPrompt, sessionLaunch, closeSessions, sweepSessions, readSessions, ownerOf, CLOSE_GRACE_MS, gitStatus, runGit, cardsGit, commitPush, readCommit, findTerminal, nativePath, pruneRuns, unrechecked, notice, notifier, notifyArgs, LOGO, type Card,
 } from "./state.ts";
@@ -138,6 +138,10 @@ test("approvalPrompt: approve or revise, the comment kept on one line", () => {
   expect(p).toContain('to revise: "drop step 3, keep "the rest"".');
   expect(p).toContain("revise 01-plan.md");
   expect(p).not.toContain("\n");
+  expect(approvalPrompt("r", "approvals.review")).toContain("commit and push this run's changed files only");
+  expect(approvalPrompt("r", "findings")).toContain("commit and push");
+  expect(approvalPrompt("r", "approvals.review", "rename it")).not.toContain("push");
+  expect(approvalPrompt("r", "approvals.plan")).not.toContain("push");
   expect(approvalPrompt("r", "approvals.review", "rename it")).toContain('final approval: "rename it". Record it in 02-approval.md, change the work');
 });
 
@@ -1028,4 +1032,9 @@ test("the board answers only the hosts listed in KAIZEN_WEB_HOSTS", async () => 
     expect(m.status).toBe(200);
     expect((await m.json()).display).toBe("standalone");
   } finally { proc.kill(); await proc.exited; rmSync(homeDir, { recursive: true, force: true }); }
+});
+
+test("requestTitle: drops the launch command, keeps the first sentence, caps at 90", () => {
+  expect(requestTitle("/kaizen lite simplify the card. Then more words")).toBe("simplify the card.");
+  expect(requestTitle("x".repeat(200)).length).toBe(90);
 });

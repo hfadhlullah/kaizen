@@ -511,16 +511,19 @@ export function canApproveAwaiting(awaiting: unknown): awaiting is "approvals.pl
 // The board's answer to an approval the run is waiting on. The comment is collapsed to
 // one line: where the prompt is typed into a shell (herdr), a newline sends it early.
 // Answers are the plan's open questions answered at the approval, one per question.
+// Approving a run to done also asks for its commit and push; a failed push is reported, not retried.
+const COMMIT_PUSH = " Then commit and push this run's changed files only, with the ## Commit message from 03-impl.md (if already committed and nothing changed, only push); if the push fails, say so and stop.";
+
 export function approvalPrompt(id: string, awaiting: string, why?: string, answers?: string[]) {
   const plan = awaiting === "approvals.plan";
   const one = (t: string) => t.replace(/\s+/g, " ").trim();
   const note = why === undefined ? undefined : one(why);
-  if (awaiting === "findings" && !note) return `run ${id}: the user approved the run as-is at the findings gate. Record approval in 02-approval.md, leave every remaining finding open in 06-backlog.md, do not fix or mark findings closed, and finish the run.`;
+  if (awaiting === "findings" && !note) return `run ${id}: the user approved the run as-is at the findings gate. Record approval in 02-approval.md, leave every remaining finding open in 06-backlog.md, do not fix or mark findings closed, and finish the run.${COMMIT_PUSH}`;
   if (plan && !note && answers?.length) return `run ${id}: the plan is approved from the board, with answers to its open questions: `
     + answers.map((a, i) => `${i + 1}) ${one(a).replace(/[.;]$/, "")}`).join("; ") + `. Record them in 02-approval.md and build the plan with them.`;
   if (!note) return plan
     ? `run ${id}: the plan is approved from the board. Record it in 02-approval.md and build it, first asking any of its open questions still unanswered.`
-    : `run ${id}: the work is approved from the board at the final approval. Record it, write the backlog and finish the run.`;
+    : `run ${id}: the work is approved from the board at the final approval. Record it, write the backlog and finish the run.${COMMIT_PUSH}`;
   return plan
     ? `run ${id}: the plan is sent back from the board to revise: "${note}". Record it in 02-approval.md, revise 01-plan.md with it, and stop at the plan approval again.`
     : `run ${id}: the work is sent back from the board at the final approval: "${note}". Record it in 02-approval.md, change the work to address it, recheck, and stop at the final approval again.`;
@@ -894,7 +897,9 @@ export function requestTitle(text: string) {
     .filter((l) => l && !l.startsWith("#"))
     .slice(0, 6)
     .find((l) => l && !l.endsWith(":") && !/^---/.test(l)) ?? "";
-  return line.length > 140 ? line.slice(0, 139) + "…" : line;
+  // Drop the command that launched it, keep the first sentence: a card reads, it does not quote.
+  const first = line.replace(/^\/kaizen(?:-\w+)?\s+(?:(?:lite|full|auto|plan)\s+)?/i, "").split(/(?<=[.!?])\s/)[0];
+  return first.length > 90 ? first.slice(0, 89).trimEnd() + "…" : first;
 }
 
 // Every card on the board, for the state dirs asked for. Retirement of an idea is
