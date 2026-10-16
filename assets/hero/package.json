@@ -1,0 +1,15 @@
+{
+  "name": "kaizen-readme-hero",
+  "private": true,
+  "description": "Builds the README hero animation. Dev-only; not part of the kaizen package.",
+  "scripts": {
+    "capture": "bun capture.ts",
+    "render": "cp ../banner.png public/ && remotion render src/index.ts Hero out/hero.mp4 --browser-executable=$(command -v chromium || command -v google-chrome) && sh to-gif.sh"
+  },
+  "devDependencies": {
+    "@remotion/cli": "4.0.290",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "remotion": "4.0.290"
+  }
+}
