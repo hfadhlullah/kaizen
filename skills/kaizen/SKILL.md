@@ -111,20 +111,13 @@ worth two more stages to confirm a one-line message now reads correctly. A findi
 `high` or above pulls the run back onto the full path whatever its size, since that
 severity is the loop's whole reason for existing.
 
-**Trivial changes take the direct path.** Where the request is one obvious change with
-nothing to decide — a typo, a label, a one-line copy or config tweak — a plan is longer
-than the work and a review re-reads what the user is about to look at anyway. Write
-`00-request.md`, build straight away, write `03-impl.md`, and stop at
-`stage: "review"`, `awaiting: "approvals.review"`: the user checks the result and
-approves it or says what to change. No `01-plan.md`, no plan approval, no
-`04-review.md` — the user's check is the review. Never the direct path for money, data,
-a migration, security, anything hard to undo, or a request with an open question; in
-`plan-only`, `auto`, or `/kaizen full`; or when in doubt. Work that turns out bigger
-mid-build stops and goes back to a plan.
+**Short work still gets a run.** A one-line change is not skipped past the stages: the card on the board moves through plan, build and review like any other. Run it with `runner: lite` and the short path above — a brief plan, the build, a short review — so the cost stays small and the run stays visible.
 
 This is a judgement, not a threshold to enforce: fifty lines that change how money is
-rounded are not a small change. Say which path you took and why, in one line, when the
+rounded are not a small change. Say which path you took (short or full) and why, in one line, when the
 run starts.
+
+**Follow-ups are runs too.** Both runners record the same artifacts: `01-plan.md`, `03-impl.md`, `04-review.md`, and a final `state.json` — `lite` and `full` differ only in who executes the stages. A message the user sends later in the same session is judged by what it asks: a question, explanation or chat is answered, no run; a request to change or produce something is building, so it goes through the flow. While the previous run has not reached `done` (including awaiting its final approval), the change is a revise of that run, recorded in `02-approval.md`. After `done` or `abandoned`, open a new run whose `00-request.md` is the user's words verbatim, then a line `Follow-up of: <previous run id>`. Never reopen a finished run. When unsure whether a message asks for a change, ask once.
 
 ## Modes
 
