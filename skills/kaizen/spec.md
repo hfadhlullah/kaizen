@@ -86,7 +86,9 @@ Record the track in `state.json` as `track`, with the three answers written into
 
 Create the run id as `YYYY-MM-DD-<short-kebab-slug>`. Write the request verbatim —
 do not summarize it, since later stages read this instead of the conversation and a
-summary is where requirements quietly disappear.
+summary is where requirements quietly disappear. The board also finds a run's card by
+this text: a request that does not contain the user's words leaves their idea as a
+second card. Context you add goes below the verbatim text, never in place of it.
 
 Verbatim includes the mess. Requests arrive as thinking out loud: half-formed,
 out of order, self-correcting, with the decisive constraint tucked into an aside near
@@ -110,6 +112,8 @@ Write into `00-request.md`: the verbatim request, the deliverable, what done mea
 and what wrong means. Record in `state.json`: `id`, `mode`, `runner`, `agent`, `track`,
 `stage: "plan"`, `awaiting: null`, `iteration: 0`, and `updated` — the time of this
 write, refreshed on every later one.
+Where the environment has `CLAUDE_CODE_SESSION_ID`, also record it as `session`: the
+board keeps the run on the card it was launched from by that id.
 
 `stage` takes exactly one of five words, and boards key their columns on them:
 `plan`, `build`, `review`, `done`, `abandoned`. Set it when the stage starts —

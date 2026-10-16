@@ -687,6 +687,16 @@ test("ownerOf: an idea's session belongs to the first run created after it, not 
   expect(ownerOf(st, { ...rec, run: "2026-10-01-x" })).toBe("2026-10-01-x");
 });
 
+test("ownerOf: a run that recorded the launch's session id owns it, however its request is worded", () => {
+  const p = sessionProject(), st = join(p, ".kaizen");
+  newRun(p, "2026-10-02-reworded", "/kaizen something else entirely");
+  const f = join(st, "runs", "2026-10-02-reworded", "state.json");
+  writeFileSync(f, JSON.stringify({ ...JSON.parse(readFileSync(f, "utf8")), session: "abc" }));
+  const rec = { key: "k", run: null, text: "open it on my phone", cmd: "claude", sessionId: "abc", started: Date.now() };
+  expect(ownerOf(st, rec)).toBe("2026-10-02-reworded");
+  expect(ownerOf(st, { ...rec, sessionId: "other" })).toBe(null);
+});
+
 test("findTerminal records the agent's PID: a POSIX wrapper that execs it, a PowerShell prefix on Windows", () => {
   const keys = ["PATH", "HERDR_ENV", "TMUX", "TERMINAL", "SystemRoot", "windir", "ComSpec"];
   const saved = keys.map((k) => process.env[k]);

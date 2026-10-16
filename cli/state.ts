@@ -1121,6 +1121,16 @@ export function readSessions(st: string): Session[] {
 // request holds the idea's text: one run per record, never every run that mentions it.
 export function ownerOf(st: string, s: Session): string | null {
   if (s.run) return s.run;
+  // The launch's own conversation id, recorded by the run at intake: holds however the
+  // request was worded. Text matching below is for tools that expose no id.
+  if (s.sessionId) {
+    try {
+      const mine = readdirSync(join(st, "runs")).filter((id) => {
+        try { return JSON.parse(readText(join(st, "runs", id, "state.json"))).session === s.sessionId; } catch { return false; }
+      }).sort();
+      if (mine.length) return mine[0]!;
+    } catch { /* no runs dir */ }
+  }
   const t = normalise(s.text);
   let best: string | null = null, at = Infinity;
   try {
