@@ -34,3 +34,4 @@ updated: 2026-10-15
 - 2026-10-15 run 2026-10-15-settings-check-update — Web board (Check for updates in Settings)
 - 2026-10-15 release — 1.32.0: Check for updates in Settings (run 2026-10-15-settings-check-update)
 - 2026-10-15 run 2026-10-15-frontend-code-style — Web board, Kaizen bot, Release and testing, Notebook (page scripts split into modules)
+- 2026-10-16 release — 1.33.0: board restyle, Chrome env fix, REA evidence hint (run 2026-10-16-rea-evidence-hint)
