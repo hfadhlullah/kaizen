@@ -2,7 +2,7 @@
 description: `kaizen web`: the browser board, its HTTP routes, and the shared state layer
 tags: [project, web-board]
 sources: [cli/web.ts, cli/state.ts, cli/pty.ts, web/board.html, web/board, web/term.ts, design.md]
-updated: 2026-10-15
+updated: 2026-10-16
 ---
 # Web board
 
@@ -15,6 +15,7 @@ updated: 2026-10-15
 - `cli/pty.ts` + `web/term.ts` — the in-card terminal (agent runs inside the board). When that agent ends, the footer offers Resume: `/resume` continues an in-flight run with a prompt, and on a waiting or done run reopens its conversation with nothing sent (refused when none is on disk).
 - `web/board.html` — the page: markup, CSS, the side-menu script, and the notifier marker.
 - `web/board/*.ts` — the page's script, one module per part (`cards.ts` columns, `panel.ts` run panel, `settings.ts`, `icebox.ts`, `projects.ts`, `dictation.ts`, `markdown.ts`, `live.ts`…), wired up by `main.ts` and bundled into `web/board.js` (served at `/board.js`) by `bun run build:web`. State that more than one module writes lives on the one `store` object in `store.ts`; everything else stays in the module that owns it.
+- Hosts: the Host guard and `local()` (write Origin check) accept loopback plus the exact names in `KAIZEN_WEB_HOSTS` (read once at start), for `tailscale serve`; `GET /manifest.webmanifest` makes the board installable on a phone (guide: "From your phone").
 - Update alert: `GET /version` (running vs npm `latest`, cached 6 h) puts a dot on the Settings menu item and an Update bar at the top of Settings; with no update known, that bar is a quiet row whose Check for updates asks `/version?fresh=1`, which skips the cache; `POST /upgrade` runs `install.ts upgrade` in the server, then spawns a new board on the same port, which stops this one through the stale-board path in `web()`; the page reloads on the new boot id.
 
 ## How it connects
@@ -35,3 +36,4 @@ updated: 2026-10-15
 
 ## Notes
 <!-- yours: /kaizen docs never rewrites this section -->
+- 2026-10-16 run 2026-10-16-tailscale-phone-board — Web board (KAIZEN_WEB_HOSTS allowlist, web app manifest, safe-area insets)

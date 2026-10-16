@@ -130,6 +130,11 @@ export async function web(repoDir: string, opts: Opts = {}) {
     : [state]
   ).filter((d, i, arr) => arr.indexOf(d) === i && existsSync(d));
 
+  // Hostnames the user put in KAIZEN_WEB_HOSTS (e.g. a `tailscale serve` name):
+  // their explicit opt-in, matched exactly, empty when unset.
+  const extraHosts = new Set((process.env.KAIZEN_WEB_HOSTS ?? "").split(",")
+    .map((s) => s.trim().toLowerCase().replace(/:\d+$/, "")).filter(Boolean));
+
   // Any tab on this machine can reach loopback. GET only reads the user's own
   // files, but a POST from a page on the wider web must not write them.
   const local = (req: Request) => {
@@ -137,7 +142,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
     if (!origin) return true;                      // curl, same-origin fetch on old browsers
     try {
       const h = new URL(origin).hostname;
-      return h === "127.0.0.1" || h === "localhost" || h === "[::1]" || h === "::1";
+      return h === "127.0.0.1" || h === "localhost" || h === "[::1]" || h === "::1" || extraHosts.has(h);
     } catch { return false; }
   };
   const json = (body: unknown, status = 200) =>
@@ -281,8 +286,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
     async fetch(req, srv) {
       // Host first: a hostname rebound to 127.0.0.1 by an attacker's DNS still
       // arrives with that hostname in Host, and gets nothing.
-      const hostname = (req.headers.get("host") ?? "").replace(/:\d+$/, "");
-      if (hostname !== "127.0.0.1" && hostname !== "localhost") return new Response("forbidden", { status: 403 });
+      const hostname = (req.headers.get("host") ?? "").toLowerCase().replace(/:\d+$/, "");
+      if (hostname !== "127.0.0.1" && hostname !== "localhost" && !extraHosts.has(hostname)) return new Response("forbidden", { status: 403 });
       const url = new URL(req.url);
       const path = url.pathname;
 
@@ -353,6 +358,15 @@ export async function web(repoDir: string, opts: Opts = {}) {
       if (req.method === "GET" && path === "/logo.png") {
         if (!existsSync(LOGO)) return bad("no logo", 404);
         return new Response(Bun.file(LOGO), { headers: { "content-type": "image/png", "cache-control": "max-age=86400" } });
+      }
+
+      // Lets a phone add the board to its home screen as a standalone app.
+      if (req.method === "GET" && path === "/manifest.webmanifest") {
+        return new Response(JSON.stringify({
+          name: "kaizen", short_name: "kaizen", start_url: "/", scope: "/", display: "standalone",
+          background_color: "#0c162f", theme_color: "#0c162f",
+          icons: [{ src: "/logo.png", sizes: "1024x1024", type: "image/png", purpose: "any" }],
+        }), { headers: { "content-type": "application/manifest+json" } });
       }
 
       if (req.method === "GET" && path === "/state") {

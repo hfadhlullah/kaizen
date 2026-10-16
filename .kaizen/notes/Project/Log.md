@@ -37,3 +37,4 @@ updated: 2026-10-15
 - 2026-10-16 release — 1.33.0: board restyle, Chrome env fix, REA evidence hint (run 2026-10-16-rea-evidence-hint)
 - 2026-10-16 release — 1.33.1: sheet gather picks the request column over a named page column
 - 2026-10-16 run 2026-10-16-gather-images — Sources and icebox
+- 2026-10-16 run 2026-10-16-tailscale-phone-board — Web board (KAIZEN_WEB_HOSTS allowlist, web app manifest, safe-area insets)

@@ -154,6 +154,22 @@ detached so it outlives the terminal (pid kept in `~/.kaizen/web.pid`); `--stop`
 the OS can find — Spotlight on macOS, the app menu on Linux, a Desktop shortcut on Windows. Each one starts the board in the background (`--daemon`) and opens it; `kaizen web --stop` ends it.
 On Windows `kaizen web` starts in the background unless `--foreground` is given; `kaizen web --stop` ends it.
 
+**From your phone (Tailscale).** The board stays on loopback; `tailscale serve` puts it on
+your tailnet over HTTPS.
+
+1. Start the board as usual: `kaizen web`.
+2. `tailscale serve --bg 127.0.0.1:7420` (the port `kaizen web` printed).
+3. Set `KAIZEN_WEB_HOSTS=<pc>.<tailnet>.ts.net` (comma-separated for more than one) in the
+   environment that starts the board, then restart it. Only the names you list are let in;
+   every other host still gets 403. A launcher from `--shortcut` does not see a shell
+   export, so start the board from that shell or add the variable to the launcher.
+4. On the phone open `https://<pc>.<tailnet>.ts.net` and choose Add to Home screen: it opens
+   full screen with the kaizen icon.
+
+Never use `tailscale funnel`: it publishes the board to the internet. Anyone on your
+tailnet who can reach this PC can drive your agents, terminals included; restrict it with
+Tailscale ACLs.
+
 **A notebook beside the board.** The note icon in the board's header opens
 `/notebook`: markdown notes for the project, kept as plain files in `.kaizen/notes/`
 (folders included, so Obsidian can open the same folder). Notes are edited in place —
