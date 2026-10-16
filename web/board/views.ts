@@ -6,12 +6,15 @@ import { openSettings } from "./settings.ts";
 
 // ---- views: the board, or Settings and the Icebox as pages in the docked panel, each with its own address
 export let view = "board";
-export const markView = (v) =>
+export const markView = (v) => {
   document
     .querySelectorAll(".rail a.it")
     .forEach((a) =>
       a.dataset.view === v ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current"),
     );
+  // The Icebox is titled in the header, top left, like the board.
+  document.querySelector(".hdr h1").textContent = v === "sources" ? "Icebox" : "Board";
+};
 export function go(v, push) {
   store.pageGen++;
   if (v === "icebox") v = "sources";

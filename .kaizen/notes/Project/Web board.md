@@ -31,6 +31,7 @@ updated: 2026-10-15
 - A global `ul{display:flex}` in `board.html` hits lists in rendered markdown (`.kaizen/memory.md`).
 - Settings and the Icebox share one panel and fill it after a fetch: `openSettings()` / `openSources()` must keep the `store.pageGen` check (`go()` bumps it), or a slow answer paints one page under the other's title. Switching to one of them clears the body to a Loading line before the fetch, or the old page shows under the new title until it answers.
 - Settings and the Icebox are full width: `aside.docked` header and body pad 28px each side (16px under 900px), no centred column.
+- The Icebox is titled in the board header (`markView()` sets the `h1`) and hides the docked panel's header; the project picker shows folder names only, full path in the tooltip. The rail lists Icebox first, in both `board.html` and `notes.html` (a test holds them line for line).
 
 ## Notes
 <!-- yours: /kaizen docs never rewrites this section -->

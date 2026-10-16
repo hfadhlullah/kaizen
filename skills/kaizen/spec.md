@@ -68,6 +68,11 @@ Common shapes, as illustration only — never as a menu to force a request into:
 A run may be a mix. Record it as a mix — the honest description beats the nearest
 label.
 
+Evidence about software whose source is not at hand — a shipped binary, an app
+bundle, an APK, a package — comes from REA (`rea-agents`) when its tools are
+connected in the session: cite what it returns, limitations included. When they are
+not connected, say the claim is unverified rather than guess at internals.
+
 Record the track in `state.json` as `track`, with the three answers written into
 `00-request.md`. Every subsequent stage reads them before starting, and the words
 *build*, *verify*, and *finding* below are always to be read in the track's terms.

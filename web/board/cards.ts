@@ -7,7 +7,7 @@ import { draft, undraft } from "./drafts.ts";
 import { COLS, ICON, MARKS, NAMES, WORD, age, d, need } from "./labels.ts";
 import { brief } from "./markdown.ts";
 import { open, toggleArchive } from "./panel.ts";
-import { ideaCombo, list, newDir, showList, showable } from "./projects.ts";
+import { ideaCombo, list, newDir, short, showList, showable } from "./projects.ts";
 import { askNotify, toast } from "./toast.ts";
 
 let filter = null;
@@ -398,8 +398,9 @@ export function render() {
     ...store.S.fresh.map((p) => [p.label, p.dir, 1]),
     ["Find projects on this PC…", "__find"],
   ];
-  $("proj").textContent =
-    store.all || !store.S.dir ? "All projects" : (store.PL.find((p) => p[1] === store.S.dir) || ["All projects"])[0];
+  const cur = store.all || !store.S.dir ? "All projects" : (store.PL.find((p) => p[1] === store.S.dir) || ["All projects"])[0];
+  $("proj").textContent = short(cur);
+  $("proj").title = cur;
   if (!$("projpop").hidden) list();
   $("showc").hidden = !store.all;
   const sp = showable(),
