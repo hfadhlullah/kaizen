@@ -30,6 +30,7 @@ Shared links (sheets, docs, social searches) kaizen reads for requests; each req
 - A `github.com/<owner>/<repo>/issues` link is read from the public API (`exportUrl` kind `github`, `fetchText(..., json)`): open issues, pull requests dropped, notes `#n · link` only so an edited body is not a new item. Private repos answer 404; the 60/h unauthenticated limit answers 403 (shown as the sign-in note).
 - `readPage` stops after 3 scans with nothing new only once some post was seen; an empty page scans all 12 rounds (~20 s), since TikTok can render its search late.
 - `sift` finds a sheet's header by shape; test any change against a fixed set of sheet shapes, old vs new side by side (`.kaizen/memory.md`).
+- A named request column (`DETAIL`) loses to a column holding over 3× its request-like text in open rows: some sheets name the page in `DETAIL` and write the request in `NOTES`.
 - The Sources panel rebuilds on every action; controls need an id and an explicit step (`.kaizen/memory.md`).
 - The Add a source form sits at the top of the Sources drawer, collapsed behind the header's Add button (`srcAdd`) once a source exists; it stays open across rebuilds while any field holds text, and closes after a successful add.
 

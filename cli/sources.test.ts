@@ -101,6 +101,9 @@ test("a sheet row whose status is Done or Finish is skipped, not marked seen, an
   expect(split("sheet", "no\tdetail\tnotes\n1\tDark mode\tDone\n2\tExport\tfinish\n").map((i) => i.text)).toEqual(["Dark mode", "Export"]);
   // The whole cell names the column, not a word inside it.
   expect(split("sheet", "detail\tstatus notes\nDark mode\tDone\n")).toEqual([{ text: "Dark mode", notes: "Done" }]);
+  // A named column of page names loses to the column holding the requests.
+  expect(split("sheet", "NO\tPAGE\tDETAIL\tSTATUS\tNOTES\n1\tDash\tList\tDone\tAdd a chart to the list\n2\tPlan\tTimeline\t\tDropdown closes before an item can be picked\n3\tPlan\t\t\tRename the statuses to proposal and tender\n").map((i) => i.text))
+    .toEqual(["Dropdown closes before an item can be picked", "Rename the statuses to proposal and tender"]);
 
   addSource(state, SHEET);
   expect(await gatherSource(state, SHEET, text(sheet17(statuses)), pub)).toMatchObject({ ok: true, added: 5, note: "5 new, 4 done skipped" });

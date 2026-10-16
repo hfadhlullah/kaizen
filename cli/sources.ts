@@ -385,14 +385,19 @@ export function sift(kind: Kind, body: string): { items: Item[]; done: number } 
   const head = filled.slice(0, 5).find((row) => !/^\d{1,3}[.)]?$/.test(row.find(Boolean) ?? "") && (named(row, HEADER) >= 0 || named(row, STATUS) >= 0));
   const data = head ? filled.slice(filled.indexOf(head) + 1) : filled;
   const status = head ? named(head, STATUS) : -1;
-  const known = head ? named(head, HEADER) : -1;
-  // No request column named: one column for the whole sheet, the one holding the most
-  // text that reads like a request. Never a cell per row, which takes `Open` or a name.
-  let col = known;
-  if (col < 0) for (let i = 0, most = 0; i < Math.max(0, ...data.map((row) => row.length)); i++) {
-    const n = i === status ? 0 : data.reduce((sum, row) => sum + (wordy(row[i] ?? "") ? row[i]!.length : 0), 0);
-    if (n > most) { most = n; col = i; }
-  }
+  // One column for the whole sheet, the one holding the most text that reads like a
+  // request. Never a cell per row, which takes `Open` or a name.
+  // Finished rows do not vote: their replies outweigh the requests still open.
+  const open = data.filter((row) => status < 0 || !DONE.test(row[status] ?? ""));
+  const text = (i: number) => i === status ? 0 : open.reduce((sum, row) => sum + (wordy(row[i] ?? "") ? row[i]!.length : 0), 0);
+  let wordiest = -1;
+  for (let i = 0, most = 0; i < Math.max(0, ...data.map((row) => row.length)); i++) if (text(i) > most) { most = text(i); wordiest = i; }
+  // A named column loses to one holding far more text: `DETAIL` naming the page while
+  // `NOTES` holds the request.
+  let known = head ? named(head, HEADER) : -1;
+  // ponytail: a named column with no wordy text at all keeps it (one-cell title rows, pinned by test).
+  if (known >= 0 && wordiest >= 0 && text(known) > 0 && text(wordiest) > 3 * text(known)) known = -1;
+  const col = known >= 0 ? known : wordiest;
   let done = 0;
   const items = data.flatMap((row) => {
     const text = row[col] ?? "";
