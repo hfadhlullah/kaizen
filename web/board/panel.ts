@@ -138,6 +138,7 @@ export async function openRun(c, refresh, again) {
   pt.hidden = !c.pty;
   pt.classList.toggle("on", store.tab === "term");
   pt.setAttribute("aria-pressed", store.tab === "term");
+  pt.title = pt.ariaLabel = store.tab === "term" ? "Close terminal" : "Terminal";
   pt.onclick = () => {
     store.tab = store.tab === "term" ? store.lastTab : "term";
     openRun(c, true);
