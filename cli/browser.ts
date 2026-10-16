@@ -9,7 +9,7 @@ import { join } from "node:path";
 import { home } from "./state.ts";
 import { socialOf, PLATFORMS } from "./sources.ts";
 
-export type Post = { text: string; author: string; link: string; date: string };
+export type Post = { text: string; author: string; link: string; date: string; images?: string[] };
 export type Read = { ok: true; posts: Post[] } | { ok: false; note: string };
 
 export const profileDir = () => join(home, ".kaizen", "browser");
@@ -131,7 +131,10 @@ const COLLECT = (re: RegExp) => `(() => {
     if (time) names.add(time.innerText.trim());
     const lines = (box.innerText || "").split("\\n").map((l) => l.trim()).filter(Boolean);
     const text = own ? own.innerText : lines.filter((l) => !names.has(l) && !junk.test(l) && !when.test(l)).join("\\n");
-    posts.set(k, { link: location.origin + k, text, date: time ? (time.getAttribute("datetime") || time.innerText) : (lines.find((l) => when.test(l)) || "") });
+    // A post's own pictures, not avatars or icons: 100px across or more, https only.
+    const images = [...box.querySelectorAll("img")].filter((i) => Math.max(i.naturalWidth, i.width) >= 100)
+      .map((i) => i.currentSrc || i.src).filter((u) => u.startsWith("https://")).slice(0, 4);
+    posts.set(k, { link: location.origin + k, text, images, date: time ? (time.getAttribute("datetime") || time.innerText) : (lines.find((l) => when.test(l)) || "") });
   }
   return [...posts.values()];
 })()`;
@@ -140,7 +143,7 @@ const COLLECT = (re: RegExp) => `(() => {
 const CAPTION = `(() => {
   const m = (p) => document.querySelector('meta[property="' + p + '"]')?.getAttribute("content") || "";
   const time = document.querySelector("time");
-  return { text: m("og:description") || m("og:title"), date: time ? (time.getAttribute("datetime") || time.innerText) : "" };
+  return { text: m("og:description") || m("og:title"), image: m("og:image"), date: time ? (time.getAttribute("datetime") || time.innerText) : "" };
 })()`;
 
 // A sign-in page. OFFERS also counts a page that offers to sign in, which tells only
@@ -158,7 +161,8 @@ export function caption(raw: string): { text: string; author: string; date: stri
 }
 
 // A post's notes, as the icebox shows them: `@author · link · date`.
-export const noteOf = (p: Post) => [p.author, p.link, p.date].filter(Boolean).join(" · ");
+// Its images follow as `img <url>` tokens, which ingest takes out of the notes.
+export const noteOf = (p: Post) => [p.author, p.link, p.date].filter(Boolean).join(" · ") + (p.images ?? []).map((u) => ` img ${u}`).join("");
 
 export const authorOf = (link: string) => { try { const p = new URL(link).pathname.split("/").filter(Boolean); return p[0]!.startsWith("@") ? p[0]! : p.length > 2 ? "@" + p[0] : ""; } catch { return ""; } };
 
@@ -217,7 +221,7 @@ export async function readPage(page: Page, url: string, platform: string, max = 
   await page.go(url);
   if (!onPlatform(await page.js<string>("location.href")) || (await page.js<boolean>(WALL))) return { ok: false, note: signInNote(platform) };
   if (await page.js<boolean>(CHECK)) return { ok: false, note: checkNote(platform) };
-  const seen = new Map<string, { link: string; text: string; date: string; author?: string }>();
+  const seen = new Map<string, { link: string; text: string; date: string; author?: string; images?: string[] }>();
   for (let i = 0, still = 0; i < 12 && seen.size < max && still < 3; i++) {
     const before = seen.size;
     for (const p of await page.js<any[]>(COLLECT(re)) ?? []) if (!seen.has(p.link) && onPlatform(p.link)) seen.set(p.link, p);
@@ -233,13 +237,13 @@ export async function readPage(page: Page, url: string, platform: string, max = 
       if (!onPlatform(p.link)) continue;
       await page.go(p.link);
       if (!onPlatform(await page.js<string>("location.href"))) continue;
-      const c = await page.js<{ text: string; date: string }>(CAPTION);
+      const c = await page.js<{ text: string; date: string; image: string }>(CAPTION);
       const cap = caption(c?.text ?? "");
-      read.push({ link: p.link, text: cap.text || p.text, date: c?.date || cap.date || p.date, author: cap.author });
+      read.push({ link: p.link, text: cap.text || p.text, date: c?.date || cap.date || p.date, author: cap.author, images: c?.image?.startsWith("https://") ? [c.image] : p.images });
     }
     found = read;
   }
-  const posts = found.map((p) => ({ link: p.link, author: p.author || authorOf(p.link), date: p.date, text: p.text.trim() })).filter((p) => p.text);
+  const posts = found.map((p) => ({ link: p.link, author: p.author || authorOf(p.link), date: p.date, text: p.text.trim(), ...(p.images?.length ? { images: p.images } : {}) })).filter((p) => p.text);
   if (!posts.length && (await page.js<boolean>(CHECK))) return { ok: false, note: checkNote(platform) };
   if (!posts.length && (await page.js<boolean>(OFFERS))) return { ok: false, note: signInNote(platform) };
   return { ok: true, posts };

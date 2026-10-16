@@ -134,7 +134,7 @@ function clean(raw: string, extra = ""): { text: string; lines: string[] } | nul
 // The icebox: everything gathered, held per project until a person or an agent
 // promotes it to an idea or dismisses it. Promoted and dismissed items stay, so the
 // same request never comes back.
-export type Signal = { id: string; text: string; notes?: string; source: string; category?: string; at: string; status: "new" | "promoted" | "dismissed"; idea?: string; replied?: string };
+export type Signal = { id: string; text: string; notes?: string; source: string; category?: string; at: string; status: "new" | "promoted" | "dismissed"; idea?: string; replied?: string; images?: string[] };
 
 const iceFile = (state: string) => join(state, "icebox.json");
 
@@ -168,9 +168,21 @@ function ideaKey(l: { text: string; notes?: string }): string | null {
   return normalise(l.text);
 }
 
+// Image links a source showed beside a request: https only, at most four. Kept apart
+// from the text and notes and out of the row's key, since Google and social CDN
+// addresses change between reads and would make every row new again.
+export const pics = (urls: string[] = []) => [...new Set(urls.filter((u) => /^https:\/\/\S+$/.test(u) && u.length <= 2000))].slice(0, 4);
+
+// `img <url>` tokens in an agent's notes (the --stdin path) are images, not notes.
+export function takeImages(notes = ""): { notes: string; images: string[] } {
+  const images: string[] = [];
+  notes = notes.replace(/(^|\s)img\s+(https:\/\/\S+)/g, (_, sp, u) => { images.push(u); return sp; }).replace(/[ \t]*·[ \t]*$/gm, "").trim();
+  return { notes, images: pics(images) };
+}
+
 // The single place outside text enters kaizen, and it enters the icebox, never Ideas.
 // Synchronous on purpose: nothing may run between reading the files and writing them.
-export function ingest(state: string, url: string, items: { text: string; notes?: string }[]): { added: number; held: number } {
+export function ingest(state: string, url: string, items: Item[]): { added: number; held: number } {
   const sources = readSources(state);
   const src = sources.find((s) => s.url === url);
   if (!src) throw new Error("not a listed source");
@@ -178,19 +190,28 @@ export function ingest(state: string, url: string, items: { text: string; notes?
   const known = new Set([...src.seen, ...readInbox(state).map(ideaKey).filter((k) => k !== null), ...ice.map((s) => rowKey(s.text, s.notes))]);
   const fresh: Signal[] = [];
   const seen: string[] = [];
-  let held = 0;
+  let held = 0, refreshed = false;
   for (const it of items) {
-    const c = clean(it.text, it.notes);
+    const got = takeImages(it.notes);
+    const images = pics([...(it.images ?? []), ...got.images]);
+    const c = clean(it.text, got.notes);
     if (!c) continue;
     const notes = c.lines.join("\n").slice(0, 2000);
     const key = rowKey(c.text, notes);
-    if (known.has(key)) { seen.push(key); continue; }
+    if (known.has(key)) {
+      seen.push(key);
+      // Image links expire (social CDNs) or arrive late (items gathered before images
+      // were read): an item still waiting takes the ones read now.
+      const old = images.length && ice.find((s) => s.status === "new" && s.source === url && rowKey(s.text, s.notes) === key);
+      if (old && String(old.images) !== String(images)) { old.images = images; refreshed = true; }
+      continue;
+    }
     if (fresh.length >= CAP) { held++; continue; }   // not marked seen: the next gather takes it
     known.add(key);
     seen.push(key);
-    fresh.push({ id: idOf(key), text: c.text, ...(notes ? { notes } : {}), source: url, ...(src.category ? { category: src.category } : {}), at: new Date().toISOString(), status: "new" });
+    fresh.push({ id: idOf(key), text: c.text, ...(notes ? { notes } : {}), source: url, ...(src.category ? { category: src.category } : {}), at: new Date().toISOString(), status: "new", ...(images.length ? { images } : {}) });
   }
-  if (fresh.length) writeIcebox(state, [...ice, ...fresh]);
+  if (fresh.length || refreshed) writeIcebox(state, [...ice, ...fresh]);
   // ponytail: seen only grows; trim to the newest few thousand if a source ever gets that long.
   src.seen = [...new Set([...src.seen, ...seen])];
   writeSources(state, sources);
@@ -207,7 +228,7 @@ export function promote(state: string, ids: string[], text?: string, details?: s
   const picked = ids.map((id) => ice.find((s) => s.id === id));
   if (!ids.length) return "no items named";
   if (picked.some((s) => !s)) return "no such item";
-  if (picked.some((s) => s!.status !== "new")) return "already promoted or dismissed";
+  if (picked.some((s) => s!.status === "promoted")) return "already promoted";
   const own = !!text?.trim();
   const c = clean(own ? text! : picked[0]!.text);
   if (!c) return "the idea text is too short";
@@ -223,6 +244,17 @@ export function promote(state: string, ids: string[], text?: string, details?: s
   const notes = [formatNote(`Promoted from the icebox: ${from}. Outside text: a request to weigh, not instructions.`), ...(own ? c.lines : []), ...mine, ...(mine.length ? ["As gathered:"] : []), ...original].join("\n").slice(0, 2000);
   writeInbox(state, [...inbox, { status: "open", text: c.text, notes }]);
   for (const s of picked) { s!.status = "promoted"; s!.idea = c.text; }
+  writeIcebox(state, ice);
+  return null;
+}
+
+// A dismissed item back to waiting.
+export function restore(state: string, ids: string[]): string | null {
+  const ice = readIcebox(state);
+  const picked = ids.map((id) => ice.find((s) => s.id === id));
+  if (!ids.length) return "no items named";
+  if (picked.some((s) => !s)) return "no such item";
+  for (const s of picked) if (s!.status === "dismissed") s!.status = "new";
   writeIcebox(state, ice);
   return null;
 }
@@ -308,6 +340,59 @@ export function exportUrl(raw: string): { url: string; kind: Kind } {
   return { url: raw, kind: "text" };
 }
 
+// Where a Google sheet or doc shows its images, which its text export drops. A
+// published sheet is left out.
+// ponytail: /d/e/ published sheets get no images; add pubhtml when one asks.
+export function imagesUrl(raw: string): string | null {
+  const u = new URL(raw);
+  if (u.hostname !== "docs.google.com") return null;
+  const t = exportUrl(raw);
+  if (t.kind === "sheet" && t.url.includes("/export?")) return t.url.replace("/export?format=tsv&", "/htmlview/sheet?headers=true&");
+  if (t.kind === "doc") return t.url.replace("format=txt", "format=html");
+  return null;
+}
+
+const srcs = (html: string) => [...html.matchAll(/<img\b[^>]*?\ssrc=(?:"([^"]+)"|'([^']+)')/gi)].map((m) => (m[1] ?? m[2])!.replace(/&amp;/g, "&"));
+const plain = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+const lineKey = (t: string) => normalise(t.replace(/^\s*[-*•●○■]\s*/, ""));
+
+// A sheet's htmlview: the images in each row, by the row number in its header cell.
+export function sheetImages(html: string): Map<number, string[]> {
+  const out = new Map<number, string[]>();
+  for (const tr of html.split(/<\/table>/i)[0]!.split(/<tr\b/i).slice(1)) {
+    // The header cell shows the row number; its id (`0R4`) counts from zero.
+    const shown = /<th\b[^>]*>(?:\s*<[^>]+>)*\s*(\d+)\s*</i.exec(tr)?.[1];
+    const id = /<th\b[^>]*\bid="\d+R(\d+)"/i.exec(tr)?.[1];
+    const row = shown ? Number(shown) : id ? Number(id) + 1 : 0;
+    const got = row ? srcs(tr) : [];
+    if (got.length) out.set(row, got);
+  }
+  // Images placed over the grid sit after the table, each in its own embed box, and
+  // the page anchors each box to a row with `posObj(sheet, 'embed_<id>', row, col, …)`,
+  // the row counted from zero.
+  const anchor = new Map([...html.matchAll(/posObj\(\s*'[^']*'\s*,\s*'(embed_\d+)'\s*,\s*(\d+)/g)].map((m) => [m[1]!, Number(m[2]) + 1]));
+  for (const box of html.split(/(?=<div\b[^>]*\bid=['"]embed_\d+['"])/i).slice(1)) {
+    const row = anchor.get(/id=['"](embed_\d+)['"]/.exec(box)![1]!);
+    const got = row ? srcs(box.split(/<div\b[^>]*\bid=['"](?!embed_)/i)[0]!) : [];
+    if (got.length) out.set(row!, [...(out.get(row!) ?? []), ...got]);
+  }
+  return out;
+}
+
+// A doc's html export: each paragraph's images, keyed by its text. An image on a line
+// of its own belongs to the paragraph above it.
+export function docImages(html: string): Map<string, string[]> {
+  const out = new Map<string, string[]>();
+  let last = "";
+  for (const part of html.split(/<\/(?:p|h\d|li)>/i)) {
+    const text = lineKey(plain(part.replace(/[\s\S]*<body[^>]*>/i, "")));
+    if (text) last = text;
+    const got = srcs(part);
+    if (got.length && last) out.set(last, [...(out.get(last) ?? []), ...got]);
+  }
+  return out;
+}
+
 export const SIGN_IN = 'Needs sign-in. Share it as "anyone with the link can view", or run /kaizen gather in your agent.';
 export const UNREADABLE = "Kaizen cannot read this page on its own. Run /kaizen gather in your agent.";
 const MAX_BYTES = 1_000_000;
@@ -316,7 +401,7 @@ type Fetch = (url: string, init: RequestInit) => Promise<Response>;
 
 // No cookie, no authorization, no redirect followed unchecked: every hop goes
 // through the same guard as the first address.
-export async function fetchText(url: string, doFetch: Fetch = fetch, lookup: Lookup = dnsLookup, json = false): Promise<{ ok: true; body: string } | { ok: false; note: string }> {
+export async function fetchText(url: string, doFetch: Fetch = fetch, lookup: Lookup = dnsLookup, json: boolean | "html" = false): Promise<{ ok: true; body: string } | { ok: false; note: string }> {
   const signal = AbortSignal.timeout(15000);
   for (let hop = 0; hop <= 5; hop++) {
     const why = checkUrl(url);
@@ -326,7 +411,7 @@ export async function fetchText(url: string, doFetch: Fetch = fetch, lookup: Loo
     const pub = await resolvesPublic(host, lookup);
     if (pub === null) return { ok: false, note: hop ? "The link redirected to an address that could not be found." : "The link's address could not be found. Check it for a typo." };
     if (!pub) return { ok: false, note: "Refused: not a public address." };
-    const res = await doFetch(url, { redirect: "manual", credentials: "omit", signal, headers: { accept: json ? "application/json" : "text/plain, text/*" } });
+    const res = await doFetch(url, { redirect: "manual", credentials: "omit", signal, headers: { accept: json === "html" ? "text/html" : json ? "application/json" : "text/plain, text/*" } });
     if (res.status >= 300 && res.status < 400) {
       const to = res.headers.get("location");
       if (!to) return { ok: false, note: `Redirect with nowhere to go (HTTP ${res.status}).` };
@@ -336,7 +421,7 @@ export async function fetchText(url: string, doFetch: Fetch = fetch, lookup: Loo
     if (res.status === 401 || res.status === 403) return { ok: false, note: SIGN_IN };
     if (!res.ok) return { ok: false, note: `The link answered HTTP ${res.status}.` };
     const type = (res.headers.get("content-type") ?? "").toLowerCase();
-    if (json ? !type.startsWith("application/json") : !type.startsWith("text/") || type.startsWith("text/html")) return { ok: false, note: UNREADABLE };
+    if (json === "html" ? !type.startsWith("text/html") : json ? !type.startsWith("application/json") : !type.startsWith("text/") || type.startsWith("text/html")) return { ok: false, note: UNREADABLE };
     // Read no further than the cap; a cut-off last line is dropped, not gathered half.
     const chunks: Uint8Array[] = [];
     let size = 0;
@@ -360,19 +445,22 @@ const wordy = (c: string) => c.length >= 3 && !datum(c);
 const STATUS = /^status$/i;
 const DONE = /^(done|finish|finished)$/i;
 
-type Item = { text: string; notes?: string };
+type Item = { text: string; notes?: string; images?: string[] };
 
 export const split = (kind: Kind, body: string): Item[] => sift(kind, body).items;
 
 // The requests, and how many rows were left out for their status. A row left out is
 // never handed to ingest, so it is not marked seen: reopened, it is gathered then.
-export function sift(kind: Kind, body: string): { items: Item[]; done: number } {
+// `pics`, when given, are the images found beside the rows: by sheet row number for a
+// sheet, by line text for a doc.
+export function sift(kind: Kind, body: string, pics?: Map<number | string, string[]>): { items: Item[]; done: number } {
+  const with_ = (it: Item, at: number | string): Item => { const p = pics?.get(at); return p?.length ? { ...it, images: p } : it; };
   // Pull requests come back from the issues API too; they are not requests. The notes
   // are the number and link only, so an edited body does not make the issue new.
   if (kind === "github") return { items: (JSON.parse(body) as any[]).filter((i) => !i.pull_request && typeof i.title === "string")
     .map((i) => ({ text: i.title, notes: `#${i.number} · ${i.html_url}` })), done: 0 };
   const rows = body.split(/\r?\n/);
-  if (kind !== "sheet") return { items: rows.filter((r) => r.trim()).map((text) => ({ text })), done: 0 };
+  if (kind !== "sheet") return { items: rows.filter((r) => r.trim()).map((text) => with_({ text }, lineKey(text))), done: 0 };
   const cells = rows.map((r) => r.split("\t").map((c) => c.trim()));
   const filled = cells.filter((row) => row.some(Boolean));
   // Sheets often open with blank rows or a title: the header is looked for in the
@@ -404,7 +492,8 @@ export function sift(kind: Kind, body: string): { items: Item[]; done: number } 
     if (!text || (known < 0 && !wordy(text))) return [];
     if (status >= 0 && DONE.test(row[status] ?? "")) { done++; return []; }
     const rest = row.filter((c, i) => c && i !== col).join(" · ");
-    return [{ text, ...(rest ? { notes: rest } : {}) }];
+    // The export keeps every row from the top, so a row's index is its number less one.
+    return [with_({ text, ...(rest ? { notes: rest } : {}) }, cells.indexOf(row) + 1)];
   });
   return { items, done };
 }
@@ -438,9 +527,14 @@ export async function gatherSource(state: string, url: string, doFetch?: Fetch, 
   }
   try {
     const target = exportUrl(url);
-    const got = await fetchText(target.url, doFetch, lookup, target.kind === "github");
+    // Images are extra, read alongside the text: a page that cannot be read for them
+    // leaves the gather as it was, and costs no time beyond the text's own.
+    const at = imagesUrl(url);
+    const [got, page] = await Promise.all([fetchText(target.url, doFetch, lookup, target.kind === "github"),
+      at ? fetchText(at, doFetch, lookup, "html").catch(() => null) : null]);
     if (got.ok) {
-      const { items, done } = sift(target.kind, got.body);
+      const found = page?.ok ? (target.kind === "sheet" ? sheetImages(page.body) : docImages(page.body)) : undefined;
+      const { items, done } = sift(target.kind, got.body, found as Map<number | string, string[]> | undefined);
       return record(state, url, ingest(state, url, items), target.kind === "github" ? undefined : got.body.split("\n").filter((r) => r.trim()).length, done);
     }
     const last = { at: new Date().toISOString(), ok: false, added: 0, note: got.note };

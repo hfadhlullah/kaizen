@@ -31,7 +31,10 @@ cannot judge on its own.
    account or a key the user has not set up for this.
 3. Hand what you read to kaizen. With your file-writing tool, not the shell, write the
    requests to a new temporary file outside the project, under a name you choose: one
-   request per line, optionally a tab and then notes for that request. Leave out any
+   request per line, optionally a tab and then notes for that request. A picture the source
+   shows beside a request goes in its notes as `img https://its-address`, one token per
+   image; kaizen keeps those as the item's images. Lines from `kaizen gather --posts`
+   already carry theirs: copy them unchanged. Leave out any
    request the source marks Done or Finish. Then run:
 
    ```

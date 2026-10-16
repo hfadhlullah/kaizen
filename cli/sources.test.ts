@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { readInbox, writeInbox, replaceIdea, parseItem } from "./state.ts";
 import {
   readSources, addSource, removeSource, ingest, checkUrl, resolvesPublic, exportUrl, fetchText, split, sift,
-  gatherSource, gatherAll, due, SIGN_IN, UNREADABLE, CAP, moveSource, gatherDirs, writeSources,
+  gatherSource, gatherAll, due, takeImages, sheetImages, docImages, imagesUrl, SIGN_IN, UNREADABLE, CAP, moveSource, gatherDirs, writeSources,
   readIcebox, writeIcebox, promote, dismiss, markReplied, setCategory, socialUrl, socialOf, AGENT_ONLY, PLATFORMS,
 } from "./sources.ts";
 
@@ -230,7 +230,7 @@ test("promote: one or several items become one open idea with where they came fr
   expect(readIcebox(state).map((s) => [s.status, s.idea])).toEqual([
     ["promoted", idea.text], ["promoted", idea.text], ["new", undefined],
   ]);
-  expect(promote(state, [a!.id])).toBe("already promoted or dismissed");
+  expect(promote(state, [a!.id])).toBe("already promoted");
   expect(promote(state, [c!.id], "  ")).toBeNull();   // blank text: the item's own
   expect(readInbox(state).at(-1)!.text).toBe("Tambah personel");
   expect(dismiss(state, ["nope0000"])).toBe("no such item");
@@ -634,10 +634,14 @@ test("the board refuses to add a source without a project, and moves one between
     expect(await ice({ op: "promote", dir: a, ids: ["nope0000"] })).toMatchObject({ status: 404 });
     expect(await ice({ op: "explode", dir: a, ids: [x!.id] })).toMatchObject({ status: 400 });
     expect(await ice({ op: "promote", dir: a, ids: [x!.id] })).toMatchObject({ status: 200 });
-    expect(await ice({ op: "promote", dir: a, ids: [x!.id] })).toMatchObject({ status: 409, error: "already promoted or dismissed" });
+    expect(await ice({ op: "promote", dir: a, ids: [x!.id] })).toMatchObject({ status: 409, error: "already promoted" });
     expect(await ice({ op: "dismiss", dir: a, ids: [y!.id] })).toMatchObject({ status: 200 });
     expect(readInbox(a).map((l) => l.text)).toEqual(["Dark mode"]);
     expect(readIcebox(a).map((s) => s.status)).toEqual(["promoted", "dismissed"]);
+    // A dismissed item can be restored, then dismissed or promoted again.
+    expect(await ice({ op: "restore", dir: a, ids: [y!.id] })).toMatchObject({ status: 200 });
+    expect(readIcebox(a).map((s) => s.status)).toEqual(["promoted", "new"]);
+    expect(await ice({ op: "dismiss", dir: a, ids: [y!.id] })).toMatchObject({ status: 200 });
     const listedIce = ((await (await fetch(at + "/sources")).json()) as any).icebox;
     expect(listedIce).toEqual([]);
   } finally { proc.kill(); await proc.exited; }
@@ -709,4 +713,54 @@ test("a GitHub issues link is read through the API: open issues, no pull request
   expect(accept).toBe("application/json");
   // JSON only when asked: a plain source answering JSON is still refused.
   expect(await fetchText(api, json, pub)).toEqual({ ok: false, note: UNREADABLE });
+});
+
+test("images ride beside a request, never in its key", () => {
+  addSource(state, SHEET);
+  expect(ingest(state, SHEET, [{ text: "Broken chart", notes: "@ana · https://x.com/ana/status/1 img https://pbs.example/a.jpg ", images: ["https://cdn.example/c.png", "http://plain/b.jpg"] }])).toEqual({ added: 1, held: 0 });
+  const [it] = readIcebox(state);
+  expect(it!.notes).toBe("@ana · https://x.com/ana/status/1");
+  expect(it!.images).toEqual(["https://cdn.example/c.png", "https://pbs.example/a.jpg"]);
+  // The same post read again with fresh CDN links is not new.
+  expect(ingest(state, SHEET, [{ text: "Broken chart", notes: "@ana · https://x.com/ana/status/1 img https://pbs.example/z.jpg" }])).toEqual({ added: 0, held: 0 });
+  expect(takeImages("a · b").images).toEqual([]);
+  expect(takeImages("img broken on page")).toEqual({ notes: "img broken on page", images: [] });
+});
+
+test("sheet and doc images land on their row and line", async () => {
+  const sheetHtml = `<table><tr><th></th><th>A</th></tr><tr><th id="0R0"><div class="row-header-wrapper">1</div></th><td>Request</td></tr>
+<tr><th id="0R1"><div>2</div></th><td>Fix login</td><td><div><img src="https://lh3.googleusercontent.com/x?a=1&amp;b=2"></div></td></tr>
+<tr><th id="0R2"><div>3</div></th><td>Dark mode</td></tr></table>`;
+  expect(sheetImages(sheetHtml)).toEqual(new Map([[2, ["https://lh3.googleusercontent.com/x?a=1&b=2"]]]));
+  expect(sift("sheet", "Request\nFix login\nDark mode\n", sheetImages(sheetHtml) as any).items).toEqual([
+    { text: "Fix login", images: ["https://lh3.googleusercontent.com/x?a=1&b=2"] }, { text: "Dark mode" }]);
+  const docHtml = `<html><body><p><span>Export is slow</span></p><p><img src="https://lh7.example/p.png"></p><li>Add &amp; remove tags</li></body></html>`;
+  expect(sift("doc", "Export is slow\n\n* Add & remove tags\n", docImages(docHtml) as any).items).toEqual([
+    { text: "Export is slow", images: ["https://lh7.example/p.png"] }, { text: "* Add & remove tags" }]);
+  expect(imagesUrl(SHEET)).toBe("https://docs.google.com/spreadsheets/d/abc123/htmlview/sheet?headers=true&gid=7");
+  expect(imagesUrl("https://docs.google.com/document/d/D0c_1/edit")).toBe("https://docs.google.com/document/d/D0c_1/export?format=html");
+  expect(imagesUrl("https://notes.example.com/raw/1")).toBeNull();
+  // A gather whose image page fails still gathers.
+  addSource(state, SHEET);
+  expect(await gatherSource(state, SHEET, text("Request\nFix login\n"), pub)).toMatchObject({ ok: true, added: 1 });
+});
+
+test("a waiting item takes fresh image links when gathered again", () => {
+  addSource(state, SHEET);
+  ingest(state, SHEET, [{ text: "Old request" }]);
+  ingest(state, SHEET, [{ text: "Old request", images: ["https://cdn.example/new.jpg"] }]);
+  expect(readIcebox(state)[0]!.images).toEqual(["https://cdn.example/new.jpg"]);
+  // No images read this time: the ones it has stay.
+  ingest(state, SHEET, [{ text: "Old request" }]);
+  expect(readIcebox(state)[0]!.images).toEqual(["https://cdn.example/new.jpg"]);
+  expect(sheetImages(`<tr><th id="0R4" class="row-headers-background"></th><td><img src="https://x.example/i.png"></td></tr>`)).toEqual(new Map([[5, ["https://x.example/i.png"]]]));
+});
+
+test("sheet images placed over the grid land on their anchored row", () => {
+  // The shape of a real htmlview/sheet page: rows in the table, floating images after it.
+  const html = `<table><tbody><tr><th id="0R0"><div>1</div></th><td>Request</td></tr><tr><th id="0R1"><div>2</div></th><td>Fix login</td></tr></tbody></table>`
+    + `<div id='embed_11' class='waffle-embedded-object-overlay'><img src='https://docs.google.com/sheets-images-rt/A=s2048' style='display: block;'></div>`
+    + `<div id='embed_22' class='waffle-embedded-object-overlay'><img src='https://docs.google.com/sheets-images-rt/B=s2048'></div>`
+    + `<script>posObj('0', 'embed_11', 1, 7, 14, 9);posObj('0', 'embed_22', 1, 7, 7, 316);</script>`;
+  expect(sheetImages(html)).toEqual(new Map([[2, ["https://docs.google.com/sheets-images-rt/A=s2048", "https://docs.google.com/sheets-images-rt/B=s2048"]]]));
 });

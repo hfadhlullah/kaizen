@@ -10,7 +10,7 @@ import {
   launchMode, readSessions, ownerOf, resumePrompt, runAgent, firstSession,
 } from "./state.ts";
 import { attachPty, writePty, resizePty, ptyState, ptyKeys, adoptLoginEnv } from "./pty.ts";
-import { readSources, addSource, removeSource, moveSource, setCategory, readIcebox, promote, dismiss, markReplied, gatherSource, gatherAll, gatherDirs, due, socialUrl, socialOf } from "./sources.ts";
+import { readSources, addSource, removeSource, moveSource, setCategory, readIcebox, promote, dismiss, restore, markReplied, gatherSource, gatherAll, gatherDirs, due, socialUrl, socialOf } from "./sources.ts";
 import * as chatgpt from "./chatgpt.ts";
 import { postLink, sendReply } from "./browser.ts";
 import { listNotes, saveNote, renameNote, deleteNote, boardIndex, linksTo } from "./notes.ts";
@@ -417,16 +417,21 @@ export async function web(repoDir: string, opts: Opts = {}) {
         // says which project it belongs to. Nothing is assumed from where the board started.
         const dir = url.searchParams.get("dir");
         if (dir && !states(true).includes(dir)) return bad("unknown state dir", 404);
-        const sources = [], icebox = [], failed = [];
+        const sources = [], icebox = [], dismissed = [], failed = [];
         for (const d of dir ? [dir] : states(true)) {
           // The seen list is bookkeeping, not something the page shows.
           try { sources.push(...readSources(d).map(({ seen, ...s }) => ({ ...s, social: socialOf(s.url), dir: d, project: label(d) }))); }
           catch { failed.push(label(d)); }
           // Only what still waits for a decision; promoted and dismissed items are record.
-          try { icebox.push(...readIcebox(d).filter((s) => s.status === "new").map((s) => ({ ...s, post: postLink(s.notes), dir: d, project: label(d) }))); }
+          // Dismissed ones come apart, for the Dismissed category, where they can be restored.
+          try {
+            const all = readIcebox(d).map((s) => ({ ...s, post: postLink(s.notes), dir: d, project: label(d) }));
+            icebox.push(...all.filter((s) => s.status === "new"));
+            dismissed.push(...all.filter((s) => s.status === "dismissed"));
+          }
           catch { failed.push(label(d) + " (icebox)"); }
         }
-        return json({ sources, icebox, failed, every: await every(), gatherer: { use: await setting("sources.agent"), ...chatgpt.status() } });
+        return json({ sources, icebox, dismissed, failed, every: await every(), gatherer: { use: await setting("sources.agent"), ...chatgpt.status() } });
       }
 
       // The Run form's choices for one project: installed tools and their models.
@@ -690,7 +695,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           const ids = Array.isArray(body.ids) ? body.ids.filter((i: unknown) => typeof i === "string") : [];
           try {
             const why = body.op === "promote" ? promote(body.dir, ids, typeof body.text === "string" ? body.text : undefined, typeof body.details === "string" ? body.details : undefined)
-              : body.op === "dismiss" ? dismiss(body.dir, ids) : "unknown op";
+              : body.op === "dismiss" ? dismiss(body.dir, ids) : body.op === "restore" ? restore(body.dir, ids) : "unknown op";
             if (why) return bad(why, why === "no such item" ? 404 : why === "unknown op" ? 400 : 409);
           } catch (e) { return bad((e as Error).message, 500); }
           changed();

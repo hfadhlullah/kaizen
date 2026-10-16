@@ -134,7 +134,9 @@ export async function openSources() {
     return "link";
   };
   const list = (d && d.sources) || [],
-    ice = (d && d.icebox) || [],
+    // Dismissed items ride along, shown only under their own category.
+    ice = [...((d && d.icebox) || []), ...((d && d.dismissed) || [])],
+    waiting = ((d && d.icebox) || []).length,
     G = (d && d.gatherer) || {},
     chatOn = G.use === "chatgpt" && G.connected;
   // A source belongs to one project, named on its row. Picking another only arms Move: a select
@@ -186,7 +188,7 @@ export async function openSources() {
     srcKey = (it) => it.dir + " " + it.source;
   // Filters narrow in turn: project (the board's own picker, all projects only), then
   // category, then source; each chip counts what the filters before it leave.
-  const catOf = (it) => it.category || "Uncategorised",
+  const catOf = (it) => (it.status === "dismissed" ? "Dismissed" : it.category || "Uncategorised"),
     count = (xs, f) => {
       const m = new Map();
       xs.forEach((it) => {
@@ -213,7 +215,7 @@ export async function openSources() {
   if (iceForm && !keys.has(iceForm)) iceForm = null;
   const groups = new Map();
   ice.forEach((it, i) => {
-    if (!inProj(it) || (iceCat && catOf(it) !== iceCat) || (iceSrc && srcKey(it) !== iceSrc)) return;
+    if (!inProj(it) || (iceCat ? catOf(it) !== iceCat : it.status === "dismissed") || (iceSrc && srcKey(it) !== iceSrc)) return;
     const k = catOf(it);
     groups.has(k) || groups.set(k, []);
     groups.get(k).push(i);
@@ -253,7 +255,7 @@ export async function openSources() {
           ...[...bySrc].map(([k, { it }]) => opt(k, iceSrc === k, srcName(it))),
         ])
       : "");
-  const bar = `<div class="ice-bar">${order.length ? `<input type="checkbox" id="ice-all" aria-label="Select every request shown"${nSel && nSel === order.length ? " checked" : ""}>` : ""}<span class="count">${order.length < ice.length ? `${order.length} of ${ice.length}` : ice.length} waiting</span>${chips}<span class="end"></span><button class="btn sm" id="src-go"${list.length ? "" : " disabled"}>${ico("refresh")} Gather all</button><button class="btn ghost sm" id="src-tog" aria-expanded="${srcShow ?? !list.length}" aria-controls="src-sec">${ico("link")} Sources · ${list.length}</button></div>`;
+  const bar = `<div class="ice-bar">${order.length ? `<input type="checkbox" id="ice-all" aria-label="Select every request shown"${nSel && nSel === order.length ? " checked" : ""}>` : ""}<span class="count">${iceCat === "Dismissed" ? `${order.length} dismissed` : `${order.length < waiting ? `${order.length} of ${waiting}` : waiting} waiting`}</span>${chips}<span class="end"></span><button class="btn sm" id="src-go"${list.length ? "" : " disabled"}>${ico("refresh")} Gather all</button><button class="btn ghost sm" id="src-tog" aria-expanded="${srcShow ?? !list.length}" aria-controls="src-sec">${ico("link")} Sources · ${list.length}</button></div>`;
   const bulk = iceSel.size
     ? `<div class="ice-bulk" role="toolbar" aria-label="Selected requests"><span>${iceSel.size} selected</span><span class="end"></span><button class="btn sm" id="ice-bp" title="Each becomes its own idea, titled as gathered (p)">${ico("plus")} Promote</button><button class="btn ghost sm" id="ice-bd" title="Dismiss (d)">${ico("x")} Dismiss</button><button class="btn ghost sm" id="ice-bc" title="Clear selection (Esc)">Clear</button></div>`
     : "";
@@ -282,16 +284,16 @@ export async function openSources() {
       k = iceKey(it),
       open = iceForm === k;
     return (
-      `<div class="ice-row${iceCur === k ? " cur" : ""}${iceSel.has(k) ? " sel" : ""}" data-i="${i}" data-k="${esc(k)}"><input type="checkbox" id="ice-ck-${i}" data-ck="${i}"${iceSel.has(k) ? " checked" : ""} aria-label="Select: ${esc(it.text)}"><span class="ice-src" title="${esc(srcName(it))}">${fav(it.source, "link", list.find((x) => x.dir === it.dir && x.url === it.source)?.social)}</span><button class="ice-t" id="ice-o-${i}" data-o="${i}" aria-expanded="${open}" title="${esc(it.text)}">${esc(it.text)}</button><span class="ice-meta">${many ? `<span class="nm">${esc(it.project || "")}</span>` : ""}${it.replied ? `<span title="Replied ${esc(ago(it.replied))}">replied</span>` : ""}<span class="ice-age">${ago(it.at)}</span><span class="ice-ra"><button class="btn ghost sm" id="ice-pr-${i}" data-pr="${i}" title="Promote to Ideas as gathered (p)" aria-label="Promote to Ideas: ${esc(it.text)}">${ico("plus")}</button><button class="btn ghost sm" id="ice-ds-${i}" data-ds="${i}" title="Dismiss (d)" aria-label="Dismiss: ${esc(it.text)}">${ico("x")}</button></span></span></div>` +
+      `<div class="ice-row${iceCur === k ? " cur" : ""}${iceSel.has(k) ? " sel" : ""}" data-i="${i}" data-k="${esc(k)}"><input type="checkbox" id="ice-ck-${i}" data-ck="${i}"${iceSel.has(k) ? " checked" : ""} aria-label="Select: ${esc(it.text)}"><span class="ice-src" title="${esc(srcName(it))}">${fav(it.source, "link", list.find((x) => x.dir === it.dir && x.url === it.source)?.social)}</span><button class="ice-t" id="ice-o-${i}" data-o="${i}" aria-expanded="${open}" title="${esc(it.text)}">${esc(it.text)}</button><span class="ice-meta">${many ? `<span class="nm">${esc(it.project || "")}</span>` : ""}${it.replied ? `<span title="Replied ${esc(ago(it.replied))}">replied</span>` : ""}<span class="ice-age">${ago(it.at)}</span><span class="ice-ra"><button class="btn ghost sm" id="ice-pr-${i}" data-pr="${i}" title="Promote to Ideas as gathered (p)" aria-label="Promote to Ideas: ${esc(it.text)}">${ico("plus")}</button>${it.status === "dismissed" ? `<button class="btn ghost sm" id="ice-rs-${i}" data-rs="${i}" title="Restore to waiting" aria-label="Restore: ${esc(it.text)}">Restore</button>` : `<button class="btn ghost sm" id="ice-ds-${i}" data-ds="${i}" title="Dismiss (d)" aria-label="Dismiss: ${esc(it.text)}">${ico("x")}</button>`}</span></span></div>` +
       (open
-        ? `<div class="ice-open">${it.notes ? `<div class="ice-notes">${esc(it.notes)}</div>` : ""}<span class="hint" style="margin:0">From ${esc(srcName(it))} · ${ago(it.at)}${it.post ? ` · <a href="${esc(it.post)}" target="_blank" rel="noopener">open post</a>` : ""}</span>${replyBox(it)}${form(it)}</div>`
+        ? `<div class="ice-open">${it.notes ? `<div class="ice-notes">${esc(it.notes)}</div>` : ""}${(it.images || []).filter((u) => /^https:\/\//.test(u)).length ? `<details class="ice-imgs"><summary>Show images (${it.images.filter((u) => /^https:\/\//.test(u)).length}) — loads them from the source's site</summary>${it.images.filter((u) => /^https:\/\//.test(u)).map((u) => `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer"><img data-src="${esc(u)}" alt="" referrerpolicy="no-referrer"></a>`).join("")}</details>` : ""}<span class="hint" style="margin:0">From ${esc(srcName(it))} · ${ago(it.at)}${it.post ? ` · <a href="${esc(it.post)}" target="_blank" rel="noopener">open post</a>` : ""}</span>${replyBox(it)}${form(it)}</div>`
         : "")
     );
   };
   const inbox =
-    ice.length && !order.length
-      ? `<div class="ice-zero"><h4>Nothing matches</h4><p>${ice.length} waiting outside these filters.</p><p style="margin-top:10px"><button class="btn sm" id="ice-unf">Clear filters</button></p></div>`
-      : ice.length
+    waiting && !order.length
+      ? `<div class="ice-zero"><h4>Nothing matches</h4><p>${waiting} waiting outside these filters.</p><p style="margin-top:10px"><button class="btn sm" id="ice-unf">Clear filters</button></p></div>`
+      : order.length
         ? `<div class="ice-list">${[...groups].map(([g, ix]) => `<div class="ice-cat">${esc(g)}<i>${ix.length}</i></div>${ix.map(row).join("")}`).join("")}</div>`
         : `<div class="ice-zero"><h4>Inbox zero</h4><p>Nothing waiting. Gather all checks your sources for new requests; /kaizen discover in your agent sorts what comes in.</p></div>`;
   // The sources, in the right-hand drawer: shut until asked for, open by itself while there
@@ -573,6 +575,10 @@ export async function openSources() {
   $("pbody")
     .querySelectorAll("[data-o]")
     .forEach((b) => (b.onclick = () => toggle(+b.dataset.o)));
+  // Images from a source load only when asked: fetching one tells its host the item was opened.
+  $("pbody")
+    .querySelectorAll("details.ice-imgs")
+    .forEach((d) => (d.ontoggle = () => d.open && d.querySelectorAll("img[data-src]").forEach((i) => (i.src = i.dataset.src))));
   $("pbody")
     .querySelectorAll("[data-pr]")
     .forEach(
@@ -589,6 +595,15 @@ export async function openSources() {
         (b.onclick = () => {
           b.disabled = true;
           iceAct("dismiss", ice[+b.dataset.ds], "Dismissed");
+        }),
+    );
+  $("pbody")
+    .querySelectorAll("[data-rs]")
+    .forEach(
+      (b) =>
+        (b.onclick = () => {
+          b.disabled = true;
+          iceAct("restore", ice[+b.dataset.rs], "Restored");
         }),
     );
   const open1 = ice.find((it) => iceKey(it) === iceForm);

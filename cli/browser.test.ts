@@ -31,6 +31,7 @@ test("an Instagram caption splits into author, date and the post's own words; no
   expect(authorOf("https://x.com/ana/status/1")).toBe("@ana");
   expect(authorOf("https://www.instagram.com/p/AAA")).toBe("");
   expect(noteOf({ text: "t", author: "@ana", link: "https://x.com/ana/status/1", date: "" })).toBe("@ana · https://x.com/ana/status/1");
+  expect(noteOf({ text: "t", author: "@ana", link: "https://x.com/ana/status/1", date: "", images: ["https://pbs.example/a.jpg"] })).toBe("@ana · https://x.com/ana/status/1 img https://pbs.example/a.jpg");
 });
 
 test("no browser, or a link that is not social, is a note and not a crash; no profile is made", async () => {
