@@ -42,3 +42,4 @@ updated: 2026-10-15
 - 2026-10-16 run 2026-10-16-icebox-image-403 — Sources and icebox (icebox images open through /ice-image, re-read fresh from Google)
 - 2026-10-16 run 2026-10-16-board-project-per-page — Web board (each page keeps its own project via x-kz-dir)
 - 2026-10-16 release — 1.34.1: each board page keeps its own project; icebox images open through a fresh link
+- 2026-10-16 run 2026-10-16-card-terminal-touch-scroll — Web board (swipe scrolls the in-card terminal on a phone)

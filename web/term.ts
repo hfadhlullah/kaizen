@@ -42,12 +42,37 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
     onEnd?.();
   };
   const typed = term.onData((d) => send({ t: "i", d }));
+  // xterm.js has no touch scrolling, so on a phone a swipe did nothing. Each line's
+  // worth of swipe scrolls the buffer, or — when the agent tracks the mouse, as a
+  // full-screen Claude Code does — goes to it as a wheel report.
+  // ponytail: always the SGR (1006) encoding; an agent asking for X10 mouse would misread it.
+  let lastY: number | null = null;
+  const touchStart = (e: TouchEvent) => { lastY = e.touches.length === 1 ? e.touches[0].clientY : null; };
+  const touchMove = (e: TouchEvent) => {
+    if (lastY === null || e.touches.length !== 1) return;
+    const screen = el.querySelector<HTMLElement>(".xterm-screen");
+    const cell = (screen?.clientHeight || el.clientHeight) / term.rows;
+    const t = e.touches[0];
+    const lines = Math.trunc((lastY - t.clientY) / cell);
+    e.preventDefault();
+    if (!lines) return;
+    lastY -= lines * cell;
+    if (term.modes.mouseTrackingMode === "none") return term.scrollLines(lines);
+    const r = (screen ?? el).getBoundingClientRect();
+    const col = Math.min(term.cols, Math.max(1, Math.ceil((t.clientX - r.left) / (r.width / term.cols))));
+    const row = Math.min(term.rows, Math.max(1, Math.ceil((t.clientY - r.top) / cell)));
+    send({ t: "i", d: `\x1b[<${lines > 0 ? 65 : 64};${col};${row}M`.repeat(Math.abs(lines)) });
+  };
+  el.addEventListener("touchstart", touchStart, { passive: true });
+  el.addEventListener("touchmove", touchMove, { passive: false });
   const ro = new ResizeObserver(size);
   ro.observe(el);
   term.focus();
 
   return () => {
     ro.disconnect();
+    el.removeEventListener("touchstart", touchStart);
+    el.removeEventListener("touchmove", touchMove);
     typed.dispose();
     ws.onclose = null;
     ws.close();
