@@ -87,7 +87,7 @@ subagents at all.
 
 Controlled by `approvals.review`, skipped in `auto`.
 
-Report: what was built (for a code run with a UI, show the Preview screenshot), verification results, findings fixed, findings still open,
+Report: what was built (for a code run, show its Preview proof), verification results, findings fixed, findings still open,
 every criterion the reviewer answered `CANNOT VERIFY` with the check it says a human
 must make, and anything the builder noted as out of scope. Where the run used `runner: lite`, say
 so in that report — the reviewer saw the work, and nobody should read a same-session

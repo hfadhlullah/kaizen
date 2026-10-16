@@ -43,7 +43,9 @@ Five checks are universal, in every track:
    now is a `high` finding at minimum, whatever else the work achieved. If the builder
    recorded no baseline, that absence is itself the finding. So is a `03-impl.md`
    without a `## Preview` section, or one without `### How to test` steps: `medium`,
-   since the user is left with no way to try the work.
+   since the user is left with no way to try the work. A `code` run whose
+   `## Preview` has no proof (screenshot for a UI, real command output otherwise) and gives
+   no reason is `high`.
 
 5. **Acceptance** — every criterion, `G-nn` and `R-nn`, answered against the work
    rather than against `03-impl.md`, by trying to falsify it: name the concrete check

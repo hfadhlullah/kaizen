@@ -9,11 +9,6 @@ builder's contract. The planner and reviewer do not read it.
 **Agent:** builder. **Input:** `01-plan.md`, `02-approval.md`, the track.
 **Output:** the deliverable itself, plus `03-impl.md`.
 
-On the direct path (see `spec.md`, Stage 0) there is no plan: the input is
-`00-request.md`, and the request is the scope. If the work turns out to need a
-decision, more than the one obvious change, or anything the direct path excludes,
-stop and send the run back to `stage: "plan"`.
-
 The builder produces whatever the track's deliverable is — code, a chapter, the
 campaign copy, the runbook — and nothing else.
 
@@ -87,8 +82,7 @@ cover, and note in `03-impl.md` what was missing from it.
 deviations from the plan and why, verification carried out with its actual result,
 anything deliberately left undone, a `## Preview` section with its `### How to test`
 steps, and — in a git repository — a `## Commit` section, both described below. A
-report without `## Preview` leaves the board's Preview tab empty, in every runner and
-on the direct path alike. Write each changed path in backticks, relative
+report without `## Preview` leaves the board's Preview tab empty, in every runner. Write each changed path in backticks, relative
 to the repository, and no other path that way: the board commits a run by the changed
 files its report names, so a changed path written any other way is left out of the
 commit, and a backticked path the run did not change is taken into it. Report failures honestly; a false claim of
@@ -99,9 +93,14 @@ commands to start it locally and the URL to open, copied from the material's own
 where one exists. For anything else — a document, copy, a runbook, a memo — the path
 to open, or the result itself when it fits in a screen. The board shows this section on
 the run's card, so a person can try the work without reading the rest of the report.
-Where the result can be seen, put screenshots of it here: save each under
+Where the result can be seen, put screenshots of it here. On a `code` track this is required, not optional: run the result and attach proof.
+A UI (a page, a board, a terminal screen, an app window) gets a screenshot of the changed
+screen; a CLI, library or API gets the real output of the command that exercises it, pasted
+in a code block. A code report with no proof is incomplete. Save each under
 `runs/<id>/attachments/` (letters, digits, `.`, `-`, `_` only) and embed it as
 `![what it shows](attachments/<name>.png)`; the board shows them in the Preview tab.
+A headless browser does it: `playwright screenshot <url> runs/<id>/attachments/<name>.png`.
+Where no proof can be produced, say why in one line under `## Preview`.
 
 It also says how to test the result, under a `### How to test` subhead: numbered steps a
 person follows to check the run did what was asked, each an action and what they should
