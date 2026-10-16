@@ -39,3 +39,4 @@ updated: 2026-10-15
 - 2026-10-16 run 2026-10-16-gather-images — Sources and icebox
 - 2026-10-16 run 2026-10-16-tailscale-phone-board — Web board (KAIZEN_WEB_HOSTS allowlist, web app manifest, safe-area insets)
 - 2026-10-16 release — 1.34.0: open the board from a phone over Tailscale (KAIZEN_WEB_HOSTS, installable web app)
+- 2026-10-16 run 2026-10-16-icebox-image-403 — Sources and icebox (icebox images open through /ice-image, re-read fresh from Google)

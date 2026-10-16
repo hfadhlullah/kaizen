@@ -10,7 +10,7 @@ import {
   launchMode, readSessions, ownerOf, resumePrompt, runAgent, firstSession,
 } from "./state.ts";
 import { attachPty, writePty, resizePty, ptyState, ptyKeys, adoptLoginEnv } from "./pty.ts";
-import { readSources, addSource, removeSource, moveSource, setCategory, readIcebox, promote, dismiss, restore, markReplied, gatherSource, gatherAll, gatherDirs, due, socialUrl, socialOf } from "./sources.ts";
+import { readSources, addSource, removeSource, moveSource, setCategory, readIcebox, promote, dismiss, restore, markReplied, gatherSource, freshImages, gatherAll, gatherDirs, due, socialUrl, socialOf } from "./sources.ts";
 import * as chatgpt from "./chatgpt.ts";
 import { postLink, sendReply } from "./browser.ts";
 import { listNotes, saveNote, renameNote, deleteNote, boardIndex, linksTo } from "./notes.ts";
@@ -570,6 +570,16 @@ export async function web(repoDir: string, opts: Opts = {}) {
         const f = join(dir, p);
         if (!existsSync(f)) return bad("no such file", 404);
         return new Response(Bun.file(f), { headers: { "cache-control": "private, max-age=3600" } });
+      }
+
+      // An icebox image, sent on to a link read fresh from its source: the one kept
+      // since the gather may have expired. Only an https link the item holds is followed.
+      if (req.method === "GET" && path === "/ice-image") {
+        const dir = url.searchParams.get("dir") ?? "";
+        if (!states(true).includes(dir)) return bad("unknown state dir", 404);
+        const u = (await freshImages(dir, url.searchParams.get("id") ?? ""))[Number(url.searchParams.get("i"))];
+        if (!u || !/^https:\/\//.test(u)) return bad("no such image", 404);
+        return new Response(null, { status: 302, headers: { location: u, "cache-control": "no-store", "referrer-policy": "no-referrer" } });
       }
 
       if (req.method === "GET" && path === "/events") {

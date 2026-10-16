@@ -182,6 +182,15 @@ export function takeImages(notes = ""): { notes: string; images: string[] } {
 
 // The single place outside text enters kaizen, and it enters the icebox, never Ideas.
 // Synchronous on purpose: nothing may run between reading the files and writing them.
+// A gathered item as the icebox keeps it, keyed the way dedup sees it.
+function shape(it: Item) {
+  const got = takeImages(it.notes);
+  const c = clean(it.text, got.notes);
+  if (!c) return null;
+  const notes = c.lines.join("\n").slice(0, 2000);
+  return { c, notes, images: pics([...(it.images ?? []), ...got.images]), key: rowKey(c.text, notes) };
+}
+
 export function ingest(state: string, url: string, items: Item[]): { added: number; held: number } {
   const sources = readSources(state);
   const src = sources.find((s) => s.url === url);
@@ -192,12 +201,9 @@ export function ingest(state: string, url: string, items: Item[]): { added: numb
   const seen: string[] = [];
   let held = 0, refreshed = false;
   for (const it of items) {
-    const got = takeImages(it.notes);
-    const images = pics([...(it.images ?? []), ...got.images]);
-    const c = clean(it.text, got.notes);
-    if (!c) continue;
-    const notes = c.lines.join("\n").slice(0, 2000);
-    const key = rowKey(c.text, notes);
+    const s = shape(it);
+    if (!s) continue;
+    const { c, notes, images, key } = s;
     if (known.has(key)) {
       seen.push(key);
       // Image links expire (social CDNs) or arrive late (items gathered before images
@@ -516,6 +522,39 @@ export function record(state: string, url: string, r: { added: number; held: num
   const last = { at: new Date().toISOString(), ok: true, added: r.added, note };
   setLast(state, url, last);
   return { url, ...last };
+}
+
+// An item's images read again from its source now. Google signs sheet and doc image
+// links with a token that expires, so a link kept since the gather answers 403; this
+// reads the page again and returns the same row's links. Falls back to the kept ones.
+// A source's page is read once a minute however many items and images ask, and a
+// fresh link is only taken on a host the kept links already used.
+const pages = new Map<string, { at: number; p: Promise<Map<string, string[]> | null> }>();
+async function readPage(source: string, doFetch?: Fetch, lookup?: Lookup) {
+  const target = exportUrl(source), at = imagesUrl(source)!;
+  const [got, page] = await Promise.all([fetchText(target.url, doFetch, lookup), fetchText(at, doFetch, lookup, "html")]);
+  if (!got.ok || !page.ok) return null;
+  const found = target.kind === "sheet" ? sheetImages(page.body) : docImages(page.body);
+  const byKey = new Map<string, string[]>();
+  for (const x of sift(target.kind, got.body, found as Map<number | string, string[]>).items) {
+    const s = shape(x);
+    if (s?.images.length) byKey.set(s.key, s.images);
+  }
+  return byKey;
+}
+export async function freshImages(state: string, id: string, doFetch?: Fetch, lookup?: Lookup): Promise<string[]> {
+  const it = readIcebox(state).find((s) => s.id === id);
+  if (!it) return [];
+  const kept = it.images ?? [];
+  if (!imagesUrl(it.source)) return kept;
+  const now = Date.now();
+  for (const [k, v] of pages) if (now - v.at >= 60_000) pages.delete(k);
+  const hit = doFetch ? undefined : pages.get(it.source);   // a test's own fetch is never cached
+  const p = hit?.p ?? readPage(it.source, doFetch, lookup).catch(() => null);
+  if (!hit && !doFetch) pages.set(it.source, { at: now, p });
+  const hosts = new Set(kept.map((u) => new URL(u).hostname));
+  const fresh = ((await p)?.get(rowKey(it.text, it.notes)) ?? []).filter((u) => hosts.has(new URL(u).hostname));
+  return fresh.length ? fresh : kept;
 }
 
 // Never throws. A failure is recorded on the source and marks nothing seen.

@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { readInbox, writeInbox, replaceIdea, parseItem } from "./state.ts";
 import {
   readSources, addSource, removeSource, ingest, checkUrl, resolvesPublic, exportUrl, fetchText, split, sift,
-  gatherSource, gatherAll, due, takeImages, sheetImages, docImages, imagesUrl, SIGN_IN, UNREADABLE, CAP, moveSource, gatherDirs, writeSources,
+  gatherSource, freshImages, gatherAll, due, takeImages, sheetImages, docImages, imagesUrl, SIGN_IN, UNREADABLE, CAP, moveSource, gatherDirs, writeSources,
   readIcebox, writeIcebox, promote, dismiss, markReplied, setCategory, socialUrl, socialOf, AGENT_ONLY, PLATFORMS,
 } from "./sources.ts";
 
@@ -763,4 +763,29 @@ test("sheet images placed over the grid land on their anchored row", () => {
     + `<div id='embed_22' class='waffle-embedded-object-overlay'><img src='https://docs.google.com/sheets-images-rt/B=s2048'></div>`
     + `<script>posObj('0', 'embed_11', 1, 7, 14, 9);posObj('0', 'embed_22', 1, 7, 7, 316);</script>`;
   expect(sheetImages(html)).toEqual(new Map([[2, ["https://docs.google.com/sheets-images-rt/A=s2048", "https://docs.google.com/sheets-images-rt/B=s2048"]]]));
+});
+
+test("an item's images are read again from its source, since Google's links expire", async () => {
+  addSource(state, SHEET);
+  ingest(state, SHEET, [{ text: "Fix login", images: ["https://docs.google.com/sheets-images-rt/OLD=s2048"] }]);
+  const id = readIcebox(state)[0]!.id;
+  const html = `<table><tr><th id="0R0"><div>1</div></th><td>Request</td></tr><tr><th id="0R1"><div>2</div></th><td>Fix login</td><td><img src="https://docs.google.com/sheets-images-rt/NEW=s2048"></td></tr></table>`;
+  const page: any = async (u: string) => u.includes("htmlview")
+    ? new Response(html, { headers: { "content-type": "text/html" } })
+    : new Response("Request\nFix login\n", { headers: { "content-type": "text/plain" } });
+  expect(await freshImages(state, id, page, pub)).toEqual(["https://docs.google.com/sheets-images-rt/NEW=s2048"]);
+  // The source cannot be read: the kept links come back.
+  expect(await freshImages(state, id, (async () => new Response("", { status: 500 })) as any, pub)).toEqual(["https://docs.google.com/sheets-images-rt/OLD=s2048"]);
+  expect(await freshImages(state, "nope", page, pub)).toEqual([]);
+});
+
+test("a fresh image link on a host the item never used is not taken", async () => {
+  addSource(state, SHEET);
+  ingest(state, SHEET, [{ text: "Fix login", images: ["https://docs.google.com/sheets-images-rt/OLD=s2048"] }]);
+  const id = readIcebox(state)[0]!.id;
+  const html = `<table><tr><th id="0R1"><div>2</div></th><td>Fix login</td><td><img src="https://evil.example/x.png"></td></tr></table>`;
+  const page: any = async (u: string) => u.includes("htmlview")
+    ? new Response(html, { headers: { "content-type": "text/html" } })
+    : new Response("Request\nFix login\n", { headers: { "content-type": "text/plain" } });
+  expect(await freshImages(state, id, page, pub)).toEqual(["https://docs.google.com/sheets-images-rt/OLD=s2048"]);
 });
