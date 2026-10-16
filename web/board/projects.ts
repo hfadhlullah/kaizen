@@ -2,7 +2,7 @@ import { store } from "./store.ts";
 import { load, post } from "./api.ts";
 import { render } from "./cards.ts";
 import { $, esc } from "./dom.ts";
-import { openSources } from "./icebox.ts";
+import { openSources, srcOpen } from "./icebox.ts";
 import { toast } from "./toast.ts";
 import { view } from "./views.ts";
 
@@ -144,6 +144,8 @@ export function setShown() {
     localStorage.setItem("kz-show", JSON.stringify([...store.shown]));
   } catch (e) {}
   render();
+  // The Icebox narrows by the same picker, so it redraws too.
+  if (srcOpen()) openSources();
 }
 
 export function initProjects() {

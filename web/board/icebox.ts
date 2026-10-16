@@ -229,20 +229,13 @@ export async function openSources() {
   }
   if (!order.some((i) => iceKey(ice[i]) === iceCur)) iceCur = order.length ? iceKey(ice[order[0]]) : null;
   const nSel = order.filter((i) => iceSel.has(iceKey(ice[i]))).length;
-  // Filters are plain dropdowns, each shown only when it has a choice to make. The project one
-  // is the board's own picker: one project, or all; several picked on the board read as such.
+  // Filters are plain dropdowns, each shown only when it has a choice to make. Projects are
+  // narrowed by the board's own Showing picker above, not here.
   const many = byProj.size > 1,
     opt = (v, on, t) => `<option value="${esc(v)}"${on ? " selected" : ""}>${esc(t)}</option>`;
   const pick = (id, label, xs) =>
     `<select class="sel ice-sel" id="${id}" aria-label="${label}">${xs.join("")}</select>`;
   const chips =
-    (many
-      ? pick("ice-fp", "Project", [
-          opt("", !store.shown.size, "All projects"),
-          ...(store.shown.size > 1 ? [opt("*", true, store.shown.size + " projects")] : []),
-          ...[...byProj].map(([k, { it }]) => opt(k, store.shown.size === 1 && store.shown.has(k), it.project || k)),
-        ])
-      : "") +
     (byCat.size > 1
       ? pick("ice-fc", "Category", [
           opt("", !iceCat, "All categories"),
@@ -398,14 +391,6 @@ export async function openSources() {
   if ($("ice-fc"))
     $("ice-fc").onchange = (e) => {
       iceCat = e.target.value;
-      openSources();
-    };
-  if ($("ice-fp"))
-    $("ice-fp").onchange = (e) => {
-      const v = e.target.value;
-      if (v === "*") return;
-      store.shown = new Set(v ? [v] : []);
-      setShown();
       openSources();
     };
   if ($("ice-unf"))
