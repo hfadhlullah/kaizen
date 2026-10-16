@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# Stand-in for `claude` in the README recording. The scratch board launches it
+# in a card's terminal like the real agent; it prints a scripted session and
+# writes the run's files, so the board moves exactly as it does for a real run.
+# Never on a real PATH: make-hero.ts puts it first on the scratch board's PATH.
+prompt="${@: -1}"; prompt="${prompt%%$'\n'*}"   # first line: the board appends the idea's notes
+run=.kaizen/runs/2026-10-16-retry-payment-webhook
+mkdir -p "$run"
+say() { printf '%b\n' "$1"; sleep "${2:-0.35}"; }
+dim='\033[2m'; b='\033[1m'; g='\033[32m'; r='\033[31m'; y='\033[33m'; c='\033[36m'; o='\033[0m'
+state() { printf '{"id":"2026-10-16-retry-payment-webhook","mode":"approve","runner":"full","agent":"claude","track":"code","stage":"%s","awaiting":%s,"iteration":%s,"updated":"%s"}\n' "$1" "$2" "${3:-0}" "$(date -Iseconds)" > "$run/state.json"; }
+clear
+say "${c}✻${o} ${b}Claude Code${o}  ${dim}acme-pay${o}" 0.6
+shown="$prompt"; [ ${#shown} -gt 72 ] && shown="${shown:0:71}…"
+say "${b}>${o} $shown" 0.8
+case "$prompt" in
+  *approve*)
+    echo "- plan approved" > "$run/02-approval.md"; state build null
+    say "${dim}⏺ Plan approved. Building.${o}" 0.5
+    printf -- '- doing: Retry with backoff\n- todo: Idempotency key\n- todo: Give up and alert\n- todo: Tests\n' > "$run/progress.md"
+    say "  ${g}Update${o}(webhooks/pay.ts)  ${dim}+38 −4${o}" 0.9
+    printf -- '- done: Retry with backoff\n- doing: Idempotency key\n- todo: Give up and alert\n- todo: Tests\n' > "$run/progress.md"
+    say "  ${g}Update${o}(webhooks/pay.ts)  ${dim}+12 −2${o}" 0.9
+    printf -- '- done: Retry with backoff\n- done: Idempotency key\n- done: Give up and alert\n- doing: Tests\n' > "$run/progress.md"
+    say "  ${g}Write${o}(webhooks/pay.test.ts)  ${dim}+64${o}" 0.9
+    say "  ${g}Bash${o}(bun test webhooks)  ${g}✓ 9 pass${o}" 0.9
+    printf -- '- done: Retry with backoff\n- done: Idempotency key\n- done: Give up and alert\n- done: Tests\n' > "$run/progress.md"
+    printf '# Implementation\n\nChanged `webhooks/pay.ts`, `webhooks/pay.test.ts`. Tests pass.\n' > "$run/03-impl.md"
+    say "${dim}⏺ Handing the diff to a reviewer that never saw this session…${o}" 1.6
+    printf '# Review\n\n1. high — `webhooks/pay.ts:41`: the idempotency key is made per attempt, so a timeout after the bank accepted still charges twice.\n2. low — `webhooks/pay.test.ts`: no test for the third try giving up.\n' > "$run/04-review.md"
+    state review '"findings"'
+    say "  ${r}1. high${o}  pay.ts:41  key made per attempt: double charge" 0.4
+    say "  ${y}2. low${o}   no test for the third try giving up" 0.4
+    say "${b}⏺${o} Pick the findings to fix on the board." 3 ;;
+  *fix*|*Fix*)
+    say "${dim}⏺ Fixing finding 1.${o}" 0.5
+    say "  ${g}Update${o}(webhooks/pay.ts)  ${dim}one key per payment, reused on retry${o}" 0.9
+    say "  ${g}Bash${o}(bun test webhooks)  ${g}✓ 10 pass${o}" 0.9
+    mkdir -p "$run/05-iterations"
+    echo "Finding 1 — closed: one key per payment, reused on every retry." > "$run/05-iterations/01-recheck.md"
+    say "${dim}⏺ Reviewer re-checks: finding 1 closed.${o}" 0.8
+    printf -- '- [ ] low: no test for the third try giving up\n' > "$run/06-backlog.md"
+    state done null 1
+    say "${b}⏺${o} Done. One low finding left in the backlog." 3 ;;
+  *)
+    printf '%s\n' "${prompt#/kaizen full }" > "$run/00-request.md"
+    say "${dim}⏺ Reading webhooks/ and the bank client…${o}" 1.2
+    cat > "$run/01-plan.md" <<'P'
+# Plan — retry the payment webhook
+
+**Done means:** a payment the bank timed out on is retried, up to 3 times.
+**Wrong means:** a customer is charged twice.
+
+## Work list
+- Retry with backoff in `webhooks/pay.ts`
+- Send an idempotency key so a retry cannot charge twice
+- Give up after 3 tries and alert #payments
+- Tests for timeout, success after retry, and give-up
+P
+    state plan '"approvals.plan"'
+    say "  ${b}Done means${o}   a timed-out payment is retried, up to 3 times" 0.3
+    say "  ${b}Wrong means${o}  a customer is charged twice" 0.6
+    say "${b}⏺${o} Plan written. Approve it on the board." 3 ;;
+esac
