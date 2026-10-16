@@ -8,7 +8,7 @@ import { readInbox, writeInbox, replaceIdea, parseItem } from "./state.ts";
 import {
   readSources, addSource, removeSource, ingest, checkUrl, resolvesPublic, exportUrl, fetchText, split, sift,
   gatherSource, freshImages, gatherAll, due, takeImages, sheetImages, docImages, imagesUrl, SIGN_IN, UNREADABLE, CAP, moveSource, gatherDirs, writeSources,
-  readIcebox, writeIcebox, promote, dismiss, markReplied, setCategory, socialUrl, socialOf, AGENT_ONLY, PLATFORMS,
+  readIcebox, writeIcebox, promote, markDone, dismiss, markReplied, setCategory, socialUrl, socialOf, AGENT_ONLY, PLATFORMS,
 } from "./sources.ts";
 
 const root = realpathSync(mkdtempSync(join(tmpdir(), "kaizen-src-")));   // macOS: tmpdir is a symlink into /private
@@ -145,7 +145,7 @@ test("split: a title row above the header is skipped; without a header one colum
 test("split: a header row holding a `#`, a year or a date cell is still the header", async () => {
   for (const head of ["#\tRequest\tStatus", "No\tRequest\tStatus\t2026", "No\tRequest\tStatus\t2026-09-30", "No\tRequest\tStatus\t17-Sep-2026", "\tRequest\tStatus"]) {
     const body = `${head}\n1\tFix login page\tOpen\n2\tAdd export\tDone\n`;
-    expect(sift("sheet", body)).toEqual({ items: [{ text: "Fix login page", notes: "1 · Open" }], done: 1 });
+    expect(sift("sheet", body)).toEqual({ items: [{ text: "Fix login page", notes: "1 · Open", row: 2 }], done: 1 });
   }
   // A numbered row is data even when one of its cells is a header word said once.
   expect(split("sheet", "1\tIssue\tLogin fails on Safari\n2\tBug\tExport drops rows\n3\tBug\tSearch is slow\n").map((i) => i.text))
@@ -347,15 +347,16 @@ test("a first word that is a kaizen command is prefixed", () => {
 
 // A one-cell header stays the header, whatever the rows under it hold. A title above
 // it is read as the header (backlog), as it always was.
+const noRow = (r: ReturnType<typeof sift>) => ({ ...r, items: r.items.map(({ row, ...i }) => i) });
 test("split: a one-cell header is the header over any rows below it", async () => {
   const feedback = "Feedback\nNO\tPIC\tDETAIL\tSTATUS\n1\tBudi\tTombol export tidak muncul\tOpen\n2\tSiti\tTambah opsi\tDone\n";
-  expect(sift("sheet", feedback)).toEqual({ items: [{ text: "NO", notes: "PIC · DETAIL · STATUS" }, { text: "1", notes: "Budi · Tombol export tidak muncul · Open" }, { text: "2", notes: "Siti · Tambah opsi · Done" }], done: 0 });
-  expect(sift("sheet", "Request\nFix login\nAdd export\n")).toEqual({ items: [{ text: "Fix login" }, { text: "Add export" }], done: 0 });
-  expect(sift("sheet", "Request\nFix login\nAdd export\tsee ticket 5\n")).toEqual({ items: [{ text: "Fix login" }, { text: "Add export", notes: "see ticket 5" }], done: 0 });
-  expect(sift("sheet", "Request\t\nFix login\tBudi\nAdd export\tSiti\n")).toEqual({ items: [{ text: "Fix login", notes: "Budi" }, { text: "Add export", notes: "Siti" }], done: 0 });
+  expect(sift("sheet", feedback)).toEqual({ items: [{ text: "NO", notes: "PIC · DETAIL · STATUS", row: 2 }, { text: "1", notes: "Budi · Tombol export tidak muncul · Open", row: 3 }, { text: "2", notes: "Siti · Tambah opsi · Done", row: 4 }], done: 0 });
+  expect(sift("sheet", "Request\nFix login\nAdd export\n")).toEqual({ items: [{ text: "Fix login", row: 2 }, { text: "Add export", row: 3 }], done: 0 });
+  expect(noRow(sift("sheet", "Request\nFix login\nAdd export\tsee ticket 5\n"))).toEqual({ items: [{ text: "Fix login" }, { text: "Add export", notes: "see ticket 5" }], done: 0 });
+  expect(noRow(sift("sheet", "Request\t\nFix login\tBudi\nAdd export\tSiti\n"))).toEqual({ items: [{ text: "Fix login", notes: "Budi" }, { text: "Add export", notes: "Siti" }], done: 0 });
   // A later row whose lone cell reads like a header word is still data.
-  expect(sift("sheet", "Request\nFix login\tBug\nRename page heading\tTitle\nAdd export\tFeature\n")).toEqual({ items: [{ text: "Fix login", notes: "Bug" }, { text: "Rename page heading", notes: "Title" }, { text: "Add export", notes: "Feature" }], done: 0 });
-  expect(sift("sheet", "Request\nFix login\tStatus\nAdd export\tdone\n")).toEqual({ items: [{ text: "Fix login", notes: "Status" }, { text: "Add export", notes: "done" }], done: 0 });
+  expect(noRow(sift("sheet", "Request\nFix login\tBug\nRename page heading\tTitle\nAdd export\tFeature\n"))).toEqual({ items: [{ text: "Fix login", notes: "Bug" }, { text: "Rename page heading", notes: "Title" }, { text: "Add export", notes: "Feature" }], done: 0 });
+  expect(noRow(sift("sheet", "Request\nFix login\tStatus\nAdd export\tdone\n"))).toEqual({ items: [{ text: "Fix login", notes: "Status" }, { text: "Add export", notes: "done" }], done: 0 });
   const guessed = "1\tOpen\tTombol export tidak muncul\n2\tOpen\tTambah opsi ingat saya\n";
   addSource(state, SHEET);
   expect(await gatherSource(state, SHEET, text(guessed), pub)).toMatchObject({ added: 2, note: "2 new" });
@@ -643,7 +644,7 @@ test("the board refuses to add a source without a project, and moves one between
     expect(readIcebox(a).map((s) => s.status)).toEqual(["promoted", "new"]);
     expect(await ice({ op: "dismiss", dir: a, ids: [y!.id] })).toMatchObject({ status: 200 });
     const listedIce = ((await (await fetch(at + "/sources")).json()) as any).icebox;
-    expect(listedIce).toEqual([]);
+    expect(listedIce.map((s: any) => s.status)).toEqual(["promoted"]);   // promoted stays; dismissed comes apart
   } finally { proc.kill(); await proc.exited; }
 }, 30_000);   // a cold board start is slow on Windows
 
@@ -733,7 +734,7 @@ test("sheet and doc images land on their row and line", async () => {
 <tr><th id="0R2"><div>3</div></th><td>Dark mode</td></tr></table>`;
   expect(sheetImages(sheetHtml)).toEqual(new Map([[2, ["https://lh3.googleusercontent.com/x?a=1&b=2"]]]));
   expect(sift("sheet", "Request\nFix login\nDark mode\n", sheetImages(sheetHtml) as any).items).toEqual([
-    { text: "Fix login", images: ["https://lh3.googleusercontent.com/x?a=1&b=2"] }, { text: "Dark mode" }]);
+    { text: "Fix login", row: 2, images: ["https://lh3.googleusercontent.com/x?a=1&b=2"] }, { text: "Dark mode", row: 3 }]);
   const docHtml = `<html><body><p><span>Export is slow</span></p><p><img src="https://lh7.example/p.png"></p><li>Add &amp; remove tags</li></body></html>`;
   expect(sift("doc", "Export is slow\n\n* Add & remove tags\n", docImages(docHtml) as any).items).toEqual([
     { text: "Export is slow", images: ["https://lh7.example/p.png"] }, { text: "* Add & remove tags" }]);
@@ -788,4 +789,32 @@ test("a fresh image link on a host the item never used is not taken", async () =
     ? new Response(html, { headers: { "content-type": "text/html" } })
     : new Response("Request\nFix login\n", { headers: { "content-type": "text/plain" } });
   expect(await freshImages(state, id, page, pub)).toEqual(["https://docs.google.com/sheets-images-rt/OLD=s2048"]);
+});
+
+test("a promoted item stays promoted until its run is done, then reads done", () => {
+  writeIcebox(state, [{ id: "a1", text: "Dark mode", source: "s", at: "2026-10-17", status: "new" }]);
+  expect(promote(state, ["a1"])).toBeNull();
+  const run = join(state, "runs", "r1");
+  mkdirSync(run, { recursive: true });
+  writeFileSync(join(run, "00-request.md"), "Dark mode");
+  writeFileSync(join(run, "state.json"), JSON.stringify({ stage: "build" }));
+  markDone(state);
+  expect(readIcebox(state)[0]!.status).toBe("promoted");
+  writeFileSync(join(run, "state.json"), JSON.stringify({ stage: "done" }));
+  markDone(state);
+  expect(readIcebox(state)[0]!.status).toBe("done");
+});
+
+test("a done run that only mentions the idea does not finish it", () => {
+  writeIcebox(state, [{ id: "a1", text: "Test", source: "s", at: "2026-10-17", status: "new" }]);
+  expect(promote(state, ["a1"])).toBeNull();
+  const run = join(state, "runs", "r1");
+  mkdirSync(run, { recursive: true });
+  writeFileSync(join(run, "00-request.md"), "lite fix the test runner on Windows");
+  writeFileSync(join(run, "state.json"), JSON.stringify({ stage: "done" }));
+  markDone(state);
+  expect(readIcebox(state)[0]!.status).toBe("promoted");
+  writeFileSync(join(run, "00-request.md"), "lite Test");
+  markDone(state);
+  expect(readIcebox(state)[0]).toMatchObject({ status: "done", run: "r1" });
 });

@@ -40,6 +40,9 @@ export async function openSettings() {
   const cfg = await fetch("/settings")
     .then((r) => r.json())
     .catch(() => null);
+  const gg = await fetch("/google")
+    .then((r) => r.json())
+    .catch(() => ({}));
   if (gen !== store.pageGen) return;
   $("psub").textContent = "Theme applies to this browser. Everything else is saved to your kaizen settings.";
   $("psub").title = cfg ? cfg.file : "";
@@ -69,7 +72,7 @@ export async function openSettings() {
   const ntHelp =
     "A desktop notification when a run starts waiting on you." +
     (np ? (np === "denied" ? " Blocked in this browser's site settings." : "") : " Not supported in this browser.");
-  const names = [...(cfg ? groups(cfg.rows).map(([g]) => g) : []), "Browser"];
+  const names = [...(cfg ? groups(cfg.rows).map(([g]) => g) : []), "Google", "Browser"];
   $("pbody").innerHTML =
     `<div class="sq"><input class="sel" id="sq" type="search" placeholder="Search settings" aria-label="Search settings" spellcheck="false" autocomplete="off" value="${esc(store.setQ)}"><div class="sjump" role="group" aria-label="Jump to section">${names.map((g) => `<button data-g="${esc(g)}">${esc(g)}</button>`).join("")}</div></div>
   ${
@@ -97,6 +100,9 @@ export async function openSettings() {
           .join("")
       : `<p class="snone">Settings could not be read. Run <code>kaizen settings</code>.</p>`
   }
+  <h3 class="sg">Google</h3>${row("OAuth client id", `<input class="sel" id="gg-id" placeholder="${gg.hasClient ? "saved; type to replace" : "from Google Cloud, Desktop app"}" spellcheck="false" autocomplete="off">`, "Kaizen writes Done into a sheet through your own Google client: create an OAuth client of type Desktop app in Google Cloud and enable the Sheets API. Nothing is shared with other installs.", "gg-id", "google oauth client id sheets write back")}
+  ${row("OAuth client secret", `<span class="fpick"><input class="sel" id="gg-secret" type="password" placeholder="${gg.hasClient ? "saved; type to replace" : ""}" spellcheck="false" autocomplete="off"><button class="btn" id="gg-save" type="button">Save</button></span>`, "Kept in ~/.kaizen/google.json, readable only by you. Saving a new client signs Google out.", "gg-secret", "google oauth client secret")}
+  ${row("Google account", `<button class="btn${gg.connected ? "" : " pri"}" id="gg-conn" type="button"${gg.hasClient || gg.connected ? "" : " disabled"}>${gg.connected ? "Disconnect" : "Connect"}</button>`, gg.connected ? "Connected. Sources with Write back on put Done in the sheet row once their run is done." : "Connect after saving the client. Needed only for Write back on sheet sources.", "gg-conn", "google account connect sheets write back")}
   <h3 class="sg">Browser</h3>${row("Theme", ctl("th", ["system", "light", "dark"], cur), "Light or dark for this browser only; system follows your device.", "th", "theme light dark system browser")}
   ${row("Notifications", `<button class="chk${np === "granted" ? " on" : ""}" id="nt" role="switch" aria-checked="${np === "granted"}"${np && np !== "denied" ? "" : " disabled"}></button>`, ntHelp, "nt", "notifications " + ntHelp + " browser")}
   <p class="snone" id="snone" hidden></p>`;
@@ -156,6 +162,25 @@ export async function openSettings() {
     f.focus();
     f.setSelectionRange(f.value.length, f.value.length);
   }
+  $("gg-save").onclick = async () => {
+    const j = await post("/google", { op: "client", id: $("gg-id").value, secret: $("gg-secret").value });
+    if (j.ok) toast("Saved");
+    else toast(j.error || "Enter both the client id and the secret");
+    openSettings();
+  };
+  $("gg-conn").onclick = async () => {
+    if (gg.connected) {
+      await post("/google", { op: "disconnect" });
+      return openSettings();
+    }
+    const w = window.open("", "_blank");
+    const j = await post("/google", { op: "connect" });
+    if (j.ok && w) w.location = j.url;
+    else {
+      w?.close();
+      toast(j.error || "Could not start Google sign-in");
+    }
+  };
   $("th").onchange = (e) => setTheme(e.target.value);
   $("nt").onclick = () => {
     askNotify();

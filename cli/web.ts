@@ -10,8 +10,10 @@ import {
   launchMode, readSessions, ownerOf, resumePrompt, runAgent, firstSession,
 } from "./state.ts";
 import { attachPty, writePty, resizePty, ptyState, ptyKeys, adoptLoginEnv } from "./pty.ts";
-import { readSources, addSource, removeSource, moveSource, setCategory, readIcebox, promote, dismiss, restore, markReplied, gatherSource, freshImages, gatherAll, gatherDirs, due, socialUrl, socialOf } from "./sources.ts";
+import { readSources, addSource, removeSource, moveSource, setCategory, setWriteback, readIcebox, promote, dismiss, restore, markDone, markReplied, gatherSource, freshImages, gatherAll, gatherDirs, due, socialUrl, socialOf } from "./sources.ts";
 import * as chatgpt from "./chatgpt.ts";
+import * as google from "./google.ts";
+import { writeBacks } from "./writeback.ts";
 import { postLink, sendReply } from "./browser.ts";
 import { listNotes, saveNote, renameNote, deleteNote, boardIndex, linksTo } from "./notes.ts";
 
@@ -234,6 +236,12 @@ export async function web(repoDir: string, opts: Opts = {}) {
     busy = false;
   }, 60_000);
 
+  // Done requests are reported back to their sources here, on the board's own clock: a
+  // page load only reads, so opening the Icebox never closes an issue.
+  const loop = setInterval(async () => {
+    for (const dir of states(true)) { try { markDone(dir); await writeBacks(dir); } catch { /* the next tick tries again */ } }
+  }, 60_000);
+
   const BOOT = Date.now().toString(36);
   const ping = setInterval(() => { for (const c of clients) { try { c.enqueue(": ping\n\n"); } catch { clients.delete(c); } } }, 8000);
   // A launcher clicked while a board is already up should show that board, not die.
@@ -439,16 +447,17 @@ export async function web(repoDir: string, opts: Opts = {}) {
           // The seen list is bookkeeping, not something the page shows.
           try { sources.push(...readSources(d).map(({ seen, ...s }) => ({ ...s, social: socialOf(s.url), dir: d, project: label(d) }))); }
           catch { failed.push(label(d)); }
-          // Only what still waits for a decision; promoted and dismissed items are record.
-          // Dismissed ones come apart, for the Dismissed category, where they can be restored.
+          // Waiting and promoted items stay in the list; dismissed and done ones come apart,
+          // for their own categories.
           try {
+            markDone(d);
             const all = readIcebox(d).map((s) => ({ ...s, post: postLink(s.notes), dir: d, project: label(d) }));
-            icebox.push(...all.filter((s) => s.status === "new"));
-            dismissed.push(...all.filter((s) => s.status === "dismissed"));
+            icebox.push(...all.filter((s) => s.status === "new" || s.status === "promoted"));
+            dismissed.push(...all.filter((s) => s.status === "dismissed" || s.status === "done"));
           }
           catch { failed.push(label(d) + " (icebox)"); }
         }
-        return json({ sources, icebox, dismissed, failed, every: await every(), gatherer: { use: await setting("sources.agent"), ...chatgpt.status() } });
+        return json({ sources, icebox, dismissed, failed, every: await every(), gatherer: { use: await setting("sources.agent"), ...chatgpt.status() }, google: google.status() });
       }
 
       // The Run form's choices for one project: installed tools and their models.
@@ -490,6 +499,14 @@ export async function web(repoDir: string, opts: Opts = {}) {
         return new Response(`<!doctype html><meta charset="utf-8"><title>kaizen</title><body style="font:15px system-ui;padding:40px;max-width:560px;margin:auto">${msg.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`)}</body>`, { headers: { "content-type": "text/html; charset=utf-8" } });
       }
 
+      // Sign in with Google comes back here, for writing a done request into its sheet.
+      if (req.method === "GET" && path === "/google-callback") {
+        const why = await google.callback(url.searchParams);
+        if (!why) changed();
+        const msg = why ? `Could not connect Google: ${why}` : "Google connected. Done requests are written back to sheets that have Write back on. You can close this tab.";
+        return new Response(`<!doctype html><meta charset="utf-8"><title>kaizen</title><body style="font:15px system-ui;padding:40px;max-width:560px;margin:auto">${msg.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`)}</body>`, { headers: { "content-type": "text/html; charset=utf-8" } });
+      }
+
       // What this board runs and what npm has: the page shows an Update button on a newer one.
       if (req.method === "GET" && path === "/version") {
         const v = await npmLatest(url.searchParams.has("fresh"));
@@ -518,6 +535,22 @@ export async function web(repoDir: string, opts: Opts = {}) {
           }, 300);
           return json({ ok: true, version: installed() });
         } finally { upgrading = false; }
+      }
+
+      if (req.method === "GET" && path === "/google") return json(google.status());
+
+      // The Google client the user created, and connecting or disconnecting Google.
+      if (req.method === "POST" && path === "/google") {
+        if (!local(req)) return bad("cross-origin write refused", 403);
+        let body: any;
+        try { body = await req.json(); } catch { return bad("json body expected"); }
+        if (body.op === "client") {
+          if (typeof body.id !== "string" || typeof body.secret !== "string" || !body.id.trim() || !body.secret.trim()) return bad("client id and secret expected");
+          google.setClient(body.id, body.secret); changed(); return json({ ok: true });
+        }
+        if (body.op === "connect") { try { return json({ ok: true, url: await google.authorizeUrl(Number(url.port)) }); } catch (e) { return bad((e as Error).message); } }
+        if (body.op === "disconnect") { google.signOut(); changed(); return json({ ok: true }); }
+        return bad("unknown op");
       }
 
       // Connect or disconnect the ChatGPT plan. The page opens the URL it is handed.
@@ -681,6 +714,9 @@ export async function web(repoDir: string, opts: Opts = {}) {
               if (why) return bad(why);
             } else if (body.op === "category") {
               const why = setCategory(dir, link, String(body.category ?? ""));
+              if (why) return bad(why, 404);
+            } else if (body.op === "writeback") {
+              const why = setWriteback(dir, link, body.on === true);
               if (why) return bad(why, 404);
             } else if (body.op === "remove") {
               const why = removeSource(dir, link);
@@ -955,7 +991,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
   if (opts.open !== false) await openApp(url);
 
   await new Promise<void>((resolve) => {
-    const stop = () => { clearInterval(poll); clearInterval(ping); clearInterval(gather); for (const w of watchers) { try { w.close(); } catch { /* gone */ } } server.stop(true); resolve(); };
+    const stop = () => { clearInterval(poll); clearInterval(ping); clearInterval(gather); clearInterval(loop); for (const w of watchers) { try { w.close(); } catch { /* gone */ } } server.stop(true); resolve(); };
     process.on("SIGINT", stop);
     process.on("SIGTERM", stop);
   });

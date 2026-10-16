@@ -7,10 +7,10 @@ import { join } from "node:path";
 import { isIP } from "node:net";
 import { createHash } from "node:crypto";
 import { lookup as dnsLookup } from "node:dns/promises";
-import { readInbox, writeInbox, normalise, formatNote, parseItem } from "./state.ts";
+import { readInbox, writeInbox, normalise, formatNote, parseItem, readRuns, readText } from "./state.ts";
 
 export type Last = { at: string; ok: boolean; added: number; note: string };
-export type Source = { url: string; label?: string; category?: string; added: string; last?: Last; seen: string[] };
+export type Source = { url: string; label?: string; category?: string; added: string; last?: Last; seen: string[]; writeback?: boolean };
 export type Result = { url: string } & Last;
 
 const file = (state: string) => join(state, "sources.json");
@@ -84,6 +84,16 @@ export function setCategory(state: string, url: string, category: string): strin
   return null;
 }
 
+// Whether a done item is reported back to this source (see writeback.ts). Off by default.
+export function setWriteback(state: string, url: string, on: boolean): string | null {
+  const list = readSources(state);
+  const src = list.find((s) => s.url === url);
+  if (!src) return "no such source";
+  if (on) src.writeback = true; else delete src.writeback;
+  writeSources(state, list);
+  return null;
+}
+
 // Drops the entry and its seen list. Items already gathered stay in the icebox.
 export function removeSource(state: string, url: string): string | null {
   const list = readSources(state);
@@ -134,7 +144,7 @@ function clean(raw: string, extra = ""): { text: string; lines: string[] } | nul
 // The icebox: everything gathered, held per project until a person or an agent
 // promotes it to an idea or dismisses it. Promoted and dismissed items stay, so the
 // same request never comes back.
-export type Signal = { id: string; text: string; notes?: string; source: string; category?: string; at: string; status: "new" | "promoted" | "dismissed"; idea?: string; replied?: string; images?: string[] };
+export type Signal = { id: string; text: string; notes?: string; source: string; category?: string; at: string; status: "new" | "promoted" | "dismissed" | "done"; idea?: string; replied?: string; images?: string[]; row?: number; run?: string; written?: string; writeError?: string };
 
 const iceFile = (state: string) => join(state, "icebox.json");
 
@@ -188,7 +198,7 @@ function shape(it: Item) {
   const c = clean(it.text, got.notes);
   if (!c) return null;
   const notes = c.lines.join("\n").slice(0, 2000);
-  return { c, notes, images: pics([...(it.images ?? []), ...got.images]), key: rowKey(c.text, notes) };
+  return { c, notes, row: it.row, images: pics([...(it.images ?? []), ...got.images]), key: rowKey(c.text, notes) };
 }
 
 export function ingest(state: string, url: string, items: Item[]): { added: number; held: number } {
@@ -203,9 +213,12 @@ export function ingest(state: string, url: string, items: Item[]): { added: numb
   for (const it of items) {
     const s = shape(it);
     if (!s) continue;
-    const { c, notes, images, key } = s;
+    const { c, notes, images, key, row } = s;
     if (known.has(key)) {
       seen.push(key);
+      // The row can move; the newest read is the one a write-back trusts.
+      const at = row && ice.find((s) => s.source === url && rowKey(s.text, s.notes) === key);
+      if (at && at.row !== row) { at.row = row; refreshed = true; }
       // Image links expire (social CDNs) or arrive late (items gathered before images
       // were read): an item still waiting takes the ones read now.
       const old = images.length && ice.find((s) => s.status === "new" && s.source === url && rowKey(s.text, s.notes) === key);
@@ -215,7 +228,7 @@ export function ingest(state: string, url: string, items: Item[]): { added: numb
     if (fresh.length >= CAP) { held++; continue; }   // not marked seen: the next gather takes it
     known.add(key);
     seen.push(key);
-    fresh.push({ id: idOf(key), text: c.text, ...(notes ? { notes } : {}), source: url, ...(src.category ? { category: src.category } : {}), at: new Date().toISOString(), status: "new", ...(images.length ? { images } : {}) });
+    fresh.push({ id: idOf(key), text: c.text, ...(notes ? { notes } : {}), source: url, ...(src.category ? { category: src.category } : {}), at: new Date().toISOString(), status: "new", ...(images.length ? { images } : {}), ...(row ? { row } : {}) });
   }
   if (fresh.length || refreshed) writeIcebox(state, [...ice, ...fresh]);
   // ponytail: seen only grows; trim to the newest few thousand if a source ever gets that long.
@@ -252,6 +265,21 @@ export function promote(state: string, ids: string[], text?: string, details?: s
   for (const s of picked) { s!.status = "promoted"; s!.idea = c.text; }
   writeIcebox(state, ice);
   return null;
+}
+
+// A promoted item stays in the icebox until the run its idea became is done; then it
+// is marked done. Matched the way the board retires an idea: some line of the run's
+// request is the idea (after any `/kaizen lite` prefix), never merely contains it.
+export function markDone(state: string): void {
+  const ice = readIcebox(state);
+  const waiting = ice.filter((s) => s.status === "promoted" && s.idea);
+  if (!waiting.length) return;
+  const done = readRuns(state).filter((r) => r.stage === "done").flatMap((r) => {
+    try { return [{ id: r.id, lines: readText(join(state, "runs", r.id, "00-request.md")).split("\n").map((l) => normalise(l.replace(/^[\s>*"'`-]+|[\s"'`.]+$/g, ""))) }]; } catch { return []; }
+  });
+  let changed = false;
+  for (const s of waiting) { const t = normalise(s.idea!), r = done.find((d) => d.lines.some((l) => l === t || l.endsWith(" " + t))); if (r) { s.status = "done"; s.run = r.id; changed = true; } }
+  if (changed) writeIcebox(state, ice);
 }
 
 // A dismissed item back to waiting.
@@ -451,9 +479,9 @@ const wordy = (c: string) => c.length >= 3 && !datum(c);
 const STATUS = /^status$/i;
 const DONE = /^(done|finish|finished)$/i;
 
-type Item = { text: string; notes?: string; images?: string[] };
+type Item = { text: string; notes?: string; images?: string[]; row?: number };
 
-export const split = (kind: Kind, body: string): Item[] => sift(kind, body).items;
+export const split = (kind: Kind, body: string): Item[] => sift(kind, body).items.map(({ row, ...it }) => it);   // the row number is write-back's, not what a read says
 
 // The requests, and how many rows were left out for their status. A row left out is
 // never handed to ingest, so it is not marked seen: reopened, it is gathered then.
@@ -499,7 +527,7 @@ export function sift(kind: Kind, body: string, pics?: Map<number | string, strin
     if (status >= 0 && DONE.test(row[status] ?? "")) { done++; return []; }
     const rest = row.filter((c, i) => c && i !== col).join(" · ");
     // The export keeps every row from the top, so a row's index is its number less one.
-    return [with_({ text, ...(rest ? { notes: rest } : {}) }, cells.indexOf(row) + 1)];
+    return [with_({ text, ...(rest ? { notes: rest } : {}), row: cells.indexOf(row) + 1 }, cells.indexOf(row) + 1)];
   });
   return { items, done };
 }

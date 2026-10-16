@@ -1,8 +1,8 @@
 ---
 description: Request sources, gather, the icebox, kaizen's browser for social posts, and ChatGPT judging them
 tags: [project, sources]
-sources: [cli/sources.ts, cli/chatgpt.ts, cli/browser.ts, skills/kaizen/gather.md, skills/kaizen/discover.md]
-updated: 2026-10-16
+sources: [cli/sources.ts, cli/writeback.ts, cli/google.ts, cli/chatgpt.ts, cli/browser.ts, skills/kaizen/gather.md, skills/kaizen/discover.md]
+updated: 2026-10-17
 ---
 # Sources and icebox
 
@@ -18,7 +18,7 @@ Shared links (sheets, docs, social searches) kaizen reads for requests; each req
 
 ## How it connects
 - Panels and routes in the [[Web board]] (`/sources`, `/icebox`, `/reply`, `/chatgpt`).
-- Promoted items become ideas on the board, and ideas start [[Workflow]] runs.
+- Promoted items become ideas on the board, and ideas start [[Workflow]] runs. A promoted item stays in the Icebox list (tagged `promoted`); `markDone()` (run on each `GET /sources` and by the write-back timer) sets it `done` once a done run has a request line equal to its idea, and done items sit under the Done category beside Dismissed.
 
 ## Watch out
 - Social gathers judge posts against what the project is for: `about()` in `cli/chatgpt.ts` sends the README (else the notebook Index), first 1500 chars, to ChatGPT; `gather.md` tells the agent the same. Without either, it falls back to generic "asks for something".
@@ -36,6 +36,8 @@ Shared links (sheets, docs, social searches) kaizen reads for requests; each req
 
 - Reply styles: only `promo` and `helpful` send the README to ChatGPT, so `casual`/`fun` cannot name the project. The style from the client is checked with `Object.hasOwn` (a plain lookup lets `constructor` through). The board keeps the style per project (`kz-reply-style:<dir>`) and shows the picker and Regenerate only when ChatGPT is connected.
 - Replying posts publicly and cannot be undone. `/reply` `draft` writes nothing; only `send` with the user's text posts, and pressing the platform's send button stamps `replied` on the item even when the page never confirmed, so a retry cannot double post. `REPLY` selectors in `cli/browser.ts` are per platform and break on a redesign; the fixture test only covers the X shape. Threads replies in the inline composer under the post: its send is an icon button (`svg[aria-label="Reply"]`) that appears only once text is typed; there is no "Post" button unless the composer is expanded (issue #6). `FIND` looks for the send button nearest the box first (walking up from `[data-kaizen-box]`), then the last dialog, then the page.
+
+- `cli/writeback.ts` / `cli/google.ts` — closing the loop. `writeBacks()` (run by a 60 s timer in `cli/web.ts`; page loads only read) reports each done item (`run`, `row` kept by `ingest`) to its source when `Source.writeback` is on: GitHub via `gh issue close --comment` (args as an array), sheets via the Sheets API (re-reads the row and compares its text first, finds or adds the `Status` header). `written` / `writeError` live on the item; failures retry, successes never repeat. Google OAuth uses the user's own Desktop client (`~/.kaizen/google.json`, 0600), set in Settings → Google; routes `/google`, `/google-callback`.
 
 ## Notes
 <!-- yours: /kaizen docs never rewrites this section -->

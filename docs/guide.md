@@ -215,6 +215,8 @@ a header the request is one column for the whole sheet, the one holding the most
 `Finish` or `Finished` is left out, and gathered later if its status changes. A doc or
 a plain-text link gives one request per line.
 
+**Closing the loop.** A promoted request stays in the icebox, tagged *promoted*, until its run is done; then it moves to the **Done** category. A Google Sheet or GitHub issues source has a **Write back** switch (off by default): once the run is done, kaizen puts "Done in kaizen run <id>" in the row's Status column (added if missing) or comments on the issue and closes it. Issues go through your own `gh` login. Sheets need **Settings → Google**: create an OAuth client of type Desktop app in Google Cloud, enable the Sheets API, paste its id and secret, then Connect. A row that moved since it was gathered is left alone, and a failed write shows on the item and is retried.
+
 A source can also be social media: switch the form to **Social**, pick X, TikTok,
 Instagram or Threads, and type a keyword, a `#hashtag` or an `@account` to follow.
 Kaizen stores it as that platform's search, tag or profile link, and reads it through

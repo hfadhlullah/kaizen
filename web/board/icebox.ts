@@ -162,7 +162,7 @@ export async function openSources() {
             : s.last.ok
               ? `<span class="src-badge ok"><svg viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-6" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>${esc(s.last.note)}</span><span class="hint" style="margin:0">${ago(s.last.at)}</span>`
               : `<span class="src-badge warn"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" stroke="currentColor" fill="none" stroke-width="1.8"/><path d="M8 5v3.5M8 11v.1" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round"/></svg>Failed: ${esc(s.last.note)}</span><span class="hint" style="margin:0">${ago(s.last.at)}</span>`;
-      return `<div class="src-card" id="src-card-${i}"><div class="src-hd"><div class="src-info"><span class="src-ico" title="${st === "social" ? esc(PLAT[s.social] || "social") : st}">${fav(s.url, st === "sheet" ? "sheet" : st === "doc" ? "doc" : st === "social" ? "at" : "link", s.social)}</span><span class="src-title" title="${esc(title)}">${esc(title)}</span></div><div class="src-acts">${s.social ? `<button class="btn ghost sm" id="src-ag-${i}" data-ag="${i}" aria-label="Gather ${esc(title)} with your agent" title="${chatOn ? "Read this source with your ChatGPT plan" : "Open your agent to run /kaizen gather for this project"}">${ico("refresh")} Gather</button>` : `<button class="btn ghost sm" id="src-chk-${i}" data-chk="${i}" aria-label="Check ${esc(title)} now" title="Check this source now">${ico("refresh")} Check</button>`}<button class="btn ghost danger sm" id="src-rm-${i}" data-rm="${i}" aria-label="Remove ${esc(title)}" title="Remove source">${ico("trash")}</button></div></div><div class="src-url"><a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer" title="${esc(s.url)}"><span>${esc(s.url)}</span>${ico("ext")}</a></div><div class="src-status">${statusHtml}</div><div class="src-dest"><span>Category</span><input class="sel" id="src-ct-${i}" data-ct="${i}" data-k="${esc(s.dir + " " + s.url)}" value="${esc(s.category || "")}" placeholder="e.g. Feedback" maxlength="40" aria-label="Category of ${esc(title)}"><button class="btn sm" id="src-cs-${i}" aria-label="Save the category of ${esc(title)}" disabled>Save</button></div><div class="src-dest"><span>Project</span><select class="sel" id="src-mv-${i}" data-mv="${i}" data-k="${esc(s.dir + " " + s.url)}" aria-label="Project of ${esc(title)}">${opts(s.dir, s.project)}</select><button class="btn sm" id="src-mb-${i}" aria-label="Move ${esc(title)} to the chosen project" disabled>Move</button></div></div>`;
+      return `<div class="src-card" id="src-card-${i}"><div class="src-hd"><div class="src-info"><span class="src-ico" title="${st === "social" ? esc(PLAT[s.social] || "social") : st}">${fav(s.url, st === "sheet" ? "sheet" : st === "doc" ? "doc" : st === "social" ? "at" : "link", s.social)}</span><span class="src-title" title="${esc(title)}">${esc(title)}</span></div><div class="src-acts">${s.social ? `<button class="btn ghost sm" id="src-ag-${i}" data-ag="${i}" aria-label="Gather ${esc(title)} with your agent" title="${chatOn ? "Read this source with your ChatGPT plan" : "Open your agent to run /kaizen gather for this project"}">${ico("refresh")} Gather</button>` : `<button class="btn ghost sm" id="src-chk-${i}" data-chk="${i}" aria-label="Check ${esc(title)} now" title="Check this source now">${ico("refresh")} Check</button>`}<button class="btn ghost danger sm" id="src-rm-${i}" data-rm="${i}" aria-label="Remove ${esc(title)}" title="Remove source">${ico("trash")}</button></div></div><div class="src-url"><a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer" title="${esc(s.url)}"><span>${esc(s.url)}</span>${ico("ext")}</a></div><div class="src-status">${statusHtml}</div><div class="src-dest"><span>Category</span><input class="sel" id="src-ct-${i}" data-ct="${i}" data-k="${esc(s.dir + " " + s.url)}" value="${esc(s.category || "")}" placeholder="e.g. Feedback" maxlength="40" aria-label="Category of ${esc(title)}"><button class="btn sm" id="src-cs-${i}" aria-label="Save the category of ${esc(title)}" disabled>Save</button></div>${st === "sheet" || /github\.com/.test(s.url) ? `<div class="src-dest"><span>Write back</span><label class="hint" style="margin:0"><input type="checkbox" id="src-wb-${i}" data-wb="${i}"${s.writeback ? " checked" : ""}> ${st === "sheet" ? "Put Done in the row's Status column" : "Comment and close the issue"} when its run is done</label></div>` : ""}<div class="src-dest"><span>Project</span><select class="sel" id="src-mv-${i}" data-mv="${i}" data-k="${esc(s.dir + " " + s.url)}" aria-label="Project of ${esc(title)}">${opts(s.dir, s.project)}</select><button class="btn sm" id="src-mb-${i}" aria-label="Move ${esc(title)} to the chosen project" disabled>Move</button></div></div>`;
     })
     .join("");
   const fails = ((d && d.failed) || [])
@@ -188,7 +188,7 @@ export async function openSources() {
     srcKey = (it) => it.dir + " " + it.source;
   // Filters narrow in turn: project (the board's own picker, all projects only), then
   // category, then source; each chip counts what the filters before it leave.
-  const catOf = (it) => (it.status === "dismissed" ? "Dismissed" : it.category || "Uncategorised"),
+  const catOf = (it) => (it.status === "dismissed" ? "Dismissed" : it.status === "done" ? "Done" : it.category || "Uncategorised"),
     count = (xs, f) => {
       const m = new Map();
       xs.forEach((it) => {
@@ -215,7 +215,7 @@ export async function openSources() {
   if (iceForm && !keys.has(iceForm)) iceForm = null;
   const groups = new Map();
   ice.forEach((it, i) => {
-    if (!inProj(it) || (iceCat ? catOf(it) !== iceCat : it.status === "dismissed") || (iceSrc && srcKey(it) !== iceSrc)) return;
+    if (!inProj(it) || (iceCat ? catOf(it) !== iceCat : it.status === "dismissed" || it.status === "done") || (iceSrc && srcKey(it) !== iceSrc)) return;
     const k = catOf(it);
     groups.has(k) || groups.set(k, []);
     groups.get(k).push(i);
@@ -248,7 +248,7 @@ export async function openSources() {
           ...[...bySrc].map(([k, { it }]) => opt(k, iceSrc === k, srcName(it))),
         ])
       : "");
-  const bar = `<div class="ice-bar">${order.length ? `<input type="checkbox" id="ice-all" aria-label="Select every request shown"${nSel && nSel === order.length ? " checked" : ""}>` : ""}<span class="count">${iceCat === "Dismissed" ? `${order.length} dismissed` : `${order.length < waiting ? `${order.length} of ${waiting}` : waiting} waiting`}</span>${chips}<span class="end"></span><button class="btn sm" id="src-go"${list.length ? "" : " disabled"}>${ico("refresh")} Gather all</button><button class="btn ghost sm" id="src-tog" aria-expanded="${srcShow ?? !list.length}" aria-controls="src-sec">${ico("link")} Sources · ${list.length}</button></div>`;
+  const bar = `<div class="ice-bar">${order.length ? `<input type="checkbox" id="ice-all" aria-label="Select every request shown"${nSel && nSel === order.length ? " checked" : ""}>` : ""}<span class="count">${iceCat === "Dismissed" || iceCat === "Done" ? `${order.length} ${iceCat.toLowerCase()}` : `${order.length < waiting ? `${order.length} of ${waiting}` : waiting} waiting`}</span>${chips}<span class="end"></span><button class="btn sm" id="src-go"${list.length ? "" : " disabled"}>${ico("refresh")} Gather all</button><button class="btn ghost sm" id="src-tog" aria-expanded="${srcShow ?? !list.length}" aria-controls="src-sec">${ico("link")} Sources · ${list.length}</button></div>`;
   const bulk = iceSel.size
     ? `<div class="ice-bulk" role="toolbar" aria-label="Selected requests"><span>${iceSel.size} selected</span><span class="end"></span><button class="btn sm" id="ice-bp" title="Each becomes its own idea, titled as gathered (p)">${ico("plus")} Promote</button><button class="btn ghost sm" id="ice-bd" title="Dismiss (d)">${ico("x")} Dismiss</button><button class="btn ghost sm" id="ice-bc" title="Clear selection (Esc)">Clear</button></div>`
     : "";
@@ -277,7 +277,7 @@ export async function openSources() {
       k = iceKey(it),
       open = iceForm === k;
     return (
-      `<div class="ice-row${iceCur === k ? " cur" : ""}${iceSel.has(k) ? " sel" : ""}" data-i="${i}" data-k="${esc(k)}"><input type="checkbox" id="ice-ck-${i}" data-ck="${i}"${iceSel.has(k) ? " checked" : ""} aria-label="Select: ${esc(it.text)}"><span class="ice-src" title="${esc(srcName(it))}">${fav(it.source, "link", list.find((x) => x.dir === it.dir && x.url === it.source)?.social)}</span><button class="ice-t" id="ice-o-${i}" data-o="${i}" aria-expanded="${open}" title="${esc(it.text)}">${esc(it.text)}</button><span class="ice-meta">${many ? `<span class="nm">${esc(it.project || "")}</span>` : ""}${it.replied ? `<span title="Replied ${esc(ago(it.replied))}">replied</span>` : ""}<span class="ice-age">${ago(it.at)}</span><span class="ice-ra"><button class="btn ghost sm" id="ice-pr-${i}" data-pr="${i}" title="Promote to Ideas as gathered (p)" aria-label="Promote to Ideas: ${esc(it.text)}">${ico("plus")}</button>${it.status === "dismissed" ? `<button class="btn ghost sm" id="ice-rs-${i}" data-rs="${i}" title="Restore to waiting" aria-label="Restore: ${esc(it.text)}">Restore</button>` : `<button class="btn ghost sm" id="ice-ds-${i}" data-ds="${i}" title="Dismiss (d)" aria-label="Dismiss: ${esc(it.text)}">${ico("x")}</button>`}</span></span></div>` +
+      `<div class="ice-row${iceCur === k ? " cur" : ""}${iceSel.has(k) ? " sel" : ""}" data-i="${i}" data-k="${esc(k)}"><input type="checkbox" id="ice-ck-${i}" data-ck="${i}"${iceSel.has(k) ? " checked" : ""} aria-label="Select: ${esc(it.text)}"><span class="ice-src" title="${esc(srcName(it))}">${fav(it.source, "link", list.find((x) => x.dir === it.dir && x.url === it.source)?.social)}</span><button class="ice-t" id="ice-o-${i}" data-o="${i}" aria-expanded="${open}" title="${esc(it.text)}">${esc(it.text)}</button><span class="ice-meta">${many ? `<span class="nm">${esc(it.project || "")}</span>` : ""}${it.status === "done" && it.written ? `<span title="Written back ${esc(ago(it.written))}">written back</span>` : ""}${it.status === "done" && it.writeError ? `<span title="${esc(it.writeError)}">write-back failed</span>` : ""}${it.status === "promoted" ? `<span title="Promoted to Ideas: ${esc(it.idea || "")}">promoted</span>` : ""}${it.replied ? `<span title="Replied ${esc(ago(it.replied))}">replied</span>` : ""}<span class="ice-age">${ago(it.at)}</span><span class="ice-ra">${it.status === "promoted" || it.status === "done" ? "" : `<button class="btn ghost sm" id="ice-pr-${i}" data-pr="${i}" title="Promote to Ideas as gathered (p)" aria-label="Promote to Ideas: ${esc(it.text)}">${ico("plus")}</button>`}${it.status === "promoted" || it.status === "done" ? "" : it.status === "dismissed" ? `<button class="btn ghost sm" id="ice-rs-${i}" data-rs="${i}" title="Restore to waiting" aria-label="Restore: ${esc(it.text)}">Restore</button>` : `<button class="btn ghost sm" id="ice-ds-${i}" data-ds="${i}" title="Dismiss (d)" aria-label="Dismiss: ${esc(it.text)}">${ico("x")}</button>`}</span></span></div>` +
       (open
         ? `<div class="ice-open">${it.notes ? `<div class="ice-notes">${esc(it.notes)}</div>` : ""}${(it.images || []).filter((u) => /^https:\/\//.test(u)).length ? `<details class="ice-imgs"><summary>Show images (${it.images.filter((u) => /^https:\/\//.test(u)).length}) — loads them from the source's site</summary>${it.images.filter((u) => /^https:\/\//.test(u)).map((u, n) => { const src = `/ice-image?dir=${encodeURIComponent(it.dir)}&id=${encodeURIComponent(it.id)}&i=${n}`; return `<a href="${esc(src)}" target="_blank" rel="noopener noreferrer"><img data-src="${esc(src)}" alt="" referrerpolicy="no-referrer"></a>`; }).join("")}</details>` : ""}<span class="hint" style="margin:0">From ${esc(srcName(it))} · ${ago(it.at)}${it.post ? ` · <a href="${esc(it.post)}" target="_blank" rel="noopener">open post</a>` : ""}</span>${replyBox(it)}${form(it)}</div>`
         : "")
@@ -293,7 +293,7 @@ export async function openSources() {
   // are none until closed. Slid in only when opened; a rebuild while open shows it in place.
   const drawer = srcShow ?? !list.length,
     slide = drawer && !$("src-sec")?.classList.contains("open");
-  const sec = `<div class="src-scrim${drawer && !slide ? " on" : ""}" id="src-scrim"></div><aside class="src-sec${drawer && !slide ? " open" : ""}" id="src-sec" aria-label="Sources"${drawer ? "" : " inert"}><header><div class="t"><b>Sources</b><div class="sub">${d && d.every && d.every !== "off" ? `Auto-check every ${esc(d.every)}` : "Auto-check off"} · <a id="src-to-settings" role="button" tabindex="0">Settings</a> · ${G.connected ? `ChatGPT${G.email ? " " + esc(G.email) : ""} <a id="cg-out" role="button" tabindex="0">Disconnect</a>` : `<a id="cg-in" role="button" tabindex="0">Connect ChatGPT</a>`}</div></div><div class="src-hda">${list.length ? `<button class="btn sm" id="src-new" aria-expanded="${addOn}" aria-controls="src-addbox">${ico("plus")} Add</button>` : ""}<button class="ib" id="src-x" aria-label="Close sources" title="Close">${ico("close")}</button></div></header><div class="body">${addBox}${list.length ? `<div class="src-list">${cards}</div>` : emptyState}</div></aside>`;
+  const sec = `<div class="src-scrim${drawer && !slide ? " on" : ""}" id="src-scrim"></div><aside class="src-sec${drawer && !slide ? " open" : ""}" id="src-sec" aria-label="Sources"${drawer ? "" : " inert"}><header><div class="t"><b>Sources</b><div class="sub">${d && d.every && d.every !== "off" ? `Auto-check every ${esc(d.every)}` : "Auto-check off"} · <a id="src-to-settings" role="button" tabindex="0">Settings</a> · ${G.connected ? `ChatGPT${G.email ? " " + esc(G.email) : ""} <a id="cg-out" role="button" tabindex="0">Disconnect</a>` : `<a id="cg-in" role="button" tabindex="0">Connect ChatGPT</a>`} · ${(d.google || {}).connected ? `Google <a id="gg-out" role="button" tabindex="0">Disconnect</a>` : `<a id="gg-in" role="button" tabindex="0">Connect Google</a>`}</div></div><div class="src-hda">${list.length ? `<button class="btn sm" id="src-new" aria-expanded="${addOn}" aria-controls="src-addbox">${ico("plus")} Add</button>` : ""}<button class="ib" id="src-x" aria-label="Close sources" title="Close">${ico("close")}</button></div></header><div class="body">${addBox}${list.length ? `<div class="src-list">${cards}</div>` : emptyState}</div></aside>`;
   // First visit: offer the ChatGPT plan for social sources, or keep the agent.
   const onb =
     G.use === "ask" && !G.connected
@@ -335,6 +335,32 @@ export async function openSources() {
     }
   };
   for (const id of ["cg-go", "cg-in"]) if ($(id)) $(id).onclick = connect;
+  // Google needs the user's own OAuth client (Desktop app, Sheets API on); asked once.
+  if ($("gg-in"))
+    $("gg-in").onclick = async () => {
+      if (!(d.google || {}).hasClient) {
+        toast("Add your Google client in Settings first");
+        store.setQ = "google";
+        go("settings", true);
+        return;
+      }
+      const w = window.open("", "_blank");
+      const j = await post("/google", { op: "connect" });
+      if (j.ok && w) w.location = j.url;
+      else {
+        w?.close();
+        if (j.ok) location.href = j.url;
+        else toast(j.error || "Could not start Google sign-in");
+      }
+    };
+  if ($("gg-out"))
+    $("gg-out").onclick = async () => {
+      if (!confirm("Disconnect Google? Done requests stop being written to sheets.")) return;
+      if ((await post("/google", { op: "disconnect" })).ok) {
+        toast("Google disconnected");
+        openSources();
+      }
+    };
   if ($("cg-skip"))
     $("cg-skip").onclick = async () => {
       if ((await post("/chatgpt", { op: "skip" })).ok) {
@@ -432,6 +458,25 @@ export async function openSources() {
         act({ op: "move", dir: s.dir, to: m.value, url: s.url }, () =>
           toast(`Source moved. Requests already gathered stay in ${s.project || "the old project"}.`),
         );
+    });
+  $("pbody")
+    .querySelectorAll("[data-wb]")
+    .forEach((m) => {
+      const s = list[+m.dataset.wb];
+      m.onchange = () => {
+        if (m.checked && s.social === undefined && /docs\.google\.com/.test(s.url) && !(d.google || {}).connected) {
+          alert("Connect Google first (Sources header), so kaizen can write to the sheet.");
+          m.checked = false;
+          return;
+        }
+        if (m.checked && !confirm("When a promoted request's run is done, kaizen will write that back to this source. A closed issue or a changed cell is visible to others. Turn on?")) {
+          m.checked = false;
+          return;
+        }
+        act({ op: "writeback", dir: s.dir, url: s.url, on: m.checked }, () =>
+          toast(m.checked ? "Done requests will be written back" : "Write back off"),
+        );
+      };
     });
   // The category saves on its button or Enter, never per keystroke.
   $("pbody")
