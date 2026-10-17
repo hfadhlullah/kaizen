@@ -95,14 +95,26 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
       if (v === "alt") b.classList.add(v);
       grid.append(b);
     }
-    const hide = key("⌨ ▾", () => {
-      const off = hide.textContent === "⌨ ▾";
+    const hide = key("Keys ▾", () => {
+      const off = hide.textContent === "Keys ▾";
       grid.hidden = pad.hidden = true;
       if (!off) grid.hidden = false;
-      hide.textContent = off ? "⌨ ▴" : "⌨ ▾";
+      hide.textContent = off ? "Keys ▴" : "Keys ▾";
     });
-    hide.className = "keyhide";
-    bar.append(hide, pad, grid);
+    // The native keyboard stays shut (inputmode none) until this button asks for it, so
+    // tapping the terminal or a key never pops it over the Ctrl pad and Paste.
+    const ta = term.textarea;
+    if (ta) ta.inputMode = "none";
+    const kbd = key("⌨", () => {
+      if (!ta) return;
+      const on = kbd.classList.toggle("on");
+      ta.inputMode = on ? "text" : "none";
+      ta.blur(); // inputmode is read on focus; the key's term.focus() reopens it
+    });
+    const top = document.createElement("div");
+    top.className = "keytop";
+    top.append(hide, kbd);
+    bar.append(top, pad, grid);
     el.after(bar);
   }
   // xterm.js has no touch scrolling, so on a phone a swipe did nothing. Each line's
