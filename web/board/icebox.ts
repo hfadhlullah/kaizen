@@ -31,6 +31,8 @@ const rStyle = (dir) => {
 };
 const STYLES = { casual: "Casual", fun: "Fun", helpful: "Helpful", promo: "Promo" };
 export let iceForm = null,
+  // The item whose promote form is showing: opened by its "+", never by opening the row.
+  icePro = null,
   iceCur = null,
   iceSrc = "",
   iceCat = "",
@@ -213,6 +215,7 @@ export async function openSources() {
   if (iceSrc && !bySrc.has(iceSrc)) iceSrc = "";
   const keys = new Set(ice.map(iceKey));
   if (iceForm && !keys.has(iceForm)) iceForm = null;
+  if (icePro !== iceForm) icePro = null;
   const groups = new Map();
   ice.forEach((it, i) => {
     if (!inProj(it) || (iceCat ? catOf(it) !== iceCat : it.status === "dismissed" || it.status === "done") || (iceSrc && srcKey(it) !== iceSrc)) return;
@@ -278,9 +281,9 @@ export async function openSources() {
       k = iceKey(it),
       open = iceForm === k;
     return (
-      `<div class="ice-row${iceCur === k ? " cur" : ""}${iceSel.has(k) ? " sel" : ""}" data-i="${i}" data-k="${esc(k)}"><input type="checkbox" id="ice-ck-${i}" data-ck="${i}"${iceSel.has(k) ? " checked" : ""} aria-label="Select: ${esc(it.text)}"><span class="ice-src" title="${esc(srcName(it))}">${fav(it.source, "link", list.find((x) => x.dir === it.dir && x.url === it.source)?.social)}</span><button class="ice-t" id="ice-o-${i}" data-o="${i}" aria-expanded="${open}" title="${esc(it.text)}">${esc(it.text)}</button><span class="ice-meta">${many ? `<span class="nm" title="${esc(it.project || "")}">${esc(short(it.project || ""))}</span>` : ""}${it.status === "done" && it.written ? `<span title="Written back ${esc(ago(it.written))}">written back</span>` : ""}${it.status === "done" && it.writeError ? `<span title="${esc(it.writeError)}">write-back failed</span>` : ""}${it.status === "promoted" ? `<span title="Promoted to Ideas: ${esc(it.idea || "")}">promoted</span>` : ""}${it.replied ? `<span title="Replied ${esc(ago(it.replied))}">replied</span>` : ""}<span class="ice-age">${ago(it.at)}</span><span class="ice-ra">${it.status === "promoted" || it.status === "done" ? "" : `<button class="btn ghost sm" id="ice-pr-${i}" data-pr="${i}" title="Promote to Ideas as gathered (p)" aria-label="Promote to Ideas: ${esc(it.text)}">${ico("plus")}</button>`}${it.status === "promoted" || it.status === "done" ? "" : it.status === "dismissed" ? `<button class="btn ghost sm" id="ice-rs-${i}" data-rs="${i}" title="Restore to waiting" aria-label="Restore: ${esc(it.text)}">Restore</button>` : `<button class="btn ghost sm" id="ice-ds-${i}" data-ds="${i}" title="Dismiss (d)" aria-label="Dismiss: ${esc(it.text)}">${ico("x")}</button>`}</span></span></div>` +
+      `<div class="ice-row${iceCur === k ? " cur" : ""}${iceSel.has(k) ? " sel" : ""}" data-i="${i}" data-k="${esc(k)}"><input type="checkbox" id="ice-ck-${i}" data-ck="${i}"${iceSel.has(k) ? " checked" : ""} aria-label="Select: ${esc(it.text)}"><span class="ice-src" title="${esc(srcName(it))}">${fav(it.source, "link", list.find((x) => x.dir === it.dir && x.url === it.source)?.social)}</span><button class="ice-t" id="ice-o-${i}" data-o="${i}" aria-expanded="${open}" title="${esc(it.text)}">${esc(it.text)}</button><span class="ice-meta">${many ? `<span class="nm" title="${esc(it.project || "")}">${esc(short(it.project || ""))}</span>` : ""}${it.status === "done" && it.written ? `<span title="Written back ${esc(ago(it.written))}">written back</span>` : ""}${it.status === "done" && it.writeError ? `<span title="${esc(it.writeError)}">write-back failed</span>` : ""}${it.status === "promoted" ? `<span title="Promoted to Ideas: ${esc(it.idea || "")}">promoted</span>` : ""}${it.replied ? `<span title="Replied ${esc(ago(it.replied))}">replied</span>` : ""}<span class="ice-age">${ago(it.at)}</span><span class="ice-ra">${it.status === "promoted" || it.status === "done" ? "" : `<button class="btn ghost sm" id="ice-pr-${i}" data-pr="${i}" title="Promote to Ideas (p)" aria-label="Promote to Ideas: ${esc(it.text)}">${ico("plus")}</button>`}${it.status === "promoted" || it.status === "done" ? "" : it.status === "dismissed" ? `<button class="btn ghost sm" id="ice-rs-${i}" data-rs="${i}" title="Restore to waiting" aria-label="Restore: ${esc(it.text)}">Restore</button>` : `<button class="btn ghost sm" id="ice-ds-${i}" data-ds="${i}" title="Dismiss (d)" aria-label="Dismiss: ${esc(it.text)}">${ico("x")}</button>`}</span></span></div>` +
       (open
-        ? `<div class="ice-open">${it.notes ? `<div class="ice-notes">${esc(it.notes)}</div>` : ""}${(it.images || []).filter((u) => /^https:\/\//.test(u)).length ? `<details class="ice-imgs"><summary>Show images (${it.images.filter((u) => /^https:\/\//.test(u)).length}) — loads them from the source's site</summary>${it.images.filter((u) => /^https:\/\//.test(u)).map((u, n) => { const src = `/ice-image?dir=${encodeURIComponent(it.dir)}&id=${encodeURIComponent(it.id)}&i=${n}`; return `<a href="${esc(src)}" target="_blank" rel="noopener noreferrer"><img data-src="${esc(src)}" alt="" referrerpolicy="no-referrer"></a>`; }).join("")}</details>` : ""}<span class="hint" style="margin:0">From ${esc(srcName(it))} · ${ago(it.at)}${it.post ? ` · <a href="${esc(it.post)}" target="_blank" rel="noopener">open post</a>` : ""}</span>${replyBox(it)}${form(it)}</div>`
+        ? `<div class="ice-open">${it.notes ? `<div class="ice-notes">${esc(it.notes)}</div>` : ""}${(it.images || []).filter((u) => /^https:\/\//.test(u)).length ? `<details class="ice-imgs"><summary>Show images (${it.images.filter((u) => /^https:\/\//.test(u)).length}) — loads them from the source's site</summary>${it.images.filter((u) => /^https:\/\//.test(u)).map((u, n) => { const src = `/ice-image?dir=${encodeURIComponent(it.dir)}&id=${encodeURIComponent(it.id)}&i=${n}`; return `<a href="${esc(src)}" target="_blank" rel="noopener noreferrer"><img data-src="${esc(src)}" alt="" referrerpolicy="no-referrer"></a>`; }).join("")}</details>` : ""}<span class="hint" style="margin:0">From ${esc(srcName(it))} · ${ago(it.at)}${it.post ? ` · <a href="${esc(it.post)}" target="_blank" rel="noopener">open post</a>` : ""}</span>${replyBox(it)}${icePro === k ? form(it) : ""}</div>`
         : "")
     );
   };
@@ -522,7 +525,7 @@ export async function openSources() {
       stepPast(new Set([iceKey(it)]));
       const j = await post("/icebox", { op, dir: it.dir, ids: [it.id], ...extra });
       if (j.ok) {
-        if (op === "promote" && iceForm === iceKey(it)) iceForm = null;
+        if (op === "promote" && iceForm === iceKey(it)) iceForm = icePro = null;
         toast(msg);
         load();
       }
@@ -587,13 +590,8 @@ export async function openSources() {
     const k = iceKey(ice[i]);
     iceCur = k;
     iceForm = iceForm === k ? null : k;
-    openSources().then(() => {
-      const t = $("ice-title");
-      if (t && iceForm === k) {
-        t.focus();
-        t.select();
-      } else $("ice-o-" + i)?.focus();
-    });
+    icePro = null;
+    openSources().then(() => $("ice-o-" + i)?.focus());
   };
   $("pbody")
     .querySelectorAll(".ice-row")
@@ -615,8 +613,12 @@ export async function openSources() {
     .forEach(
       (b) =>
         (b.onclick = () => {
-          b.disabled = true;
-          iceAct("promote", ice[+b.dataset.pr], "Promoted to Ideas");
+          const k = iceKey(ice[+b.dataset.pr]);
+          iceCur = iceForm = icePro = k;
+          openSources().then(() => {
+            $("ice-title")?.focus();
+            $("ice-title")?.select();
+          });
         }),
     );
   $("pbody")
@@ -716,7 +718,7 @@ export async function openSources() {
     };
     $("ice-ok").onclick = ok;
     $("ice-cancel").onclick = () => {
-      iceForm = null;
+      icePro = null;
       openSources();
     };
     $("ice-title").onkeydown = (e) => {
@@ -740,7 +742,8 @@ export async function openSources() {
         return true;
       }
       if (iceForm) {
-        iceForm = null;
+        if (icePro) icePro = null;
+        else iceForm = null;
         openSources();
         return true;
       }
