@@ -309,13 +309,20 @@ side menu, no scrim, no close button, its title at `20px` and its content in a c
 `760px` column. Each has its own address (`/?view=settings`, `/?view=sources`), so Back
 and reload return to it. Opening a card from anywhere goes back to the board first.
 
-Settings shows one row per setting: its name (weight 500) with its
-one-sentence help always visible under it in `--dim`, and its control on the right.
-Three controls: a switch for on/off (36 × 20 px track, `--accent` when on, white
-thumb), one segment per value for a small number (the chosen one `--accent`), a select
-for a choice. A path is a text field. Rows are divided by 1 px `--line`. Config keys
-are not shown; the settings file path is the tooltip on the panel's sub-line. Theme
+Settings follows the phone settings grammar. Each group is a heading (`13px`, uppercase,
+weight 400, `--dim`) over an inset rounded group (`--r`, a `--dim` 9 % fill on `--bg-2`).
+A row is one setting: its name (`15px`, weight 400) with its one-sentence help always
+visible under it in `--dim`, and its control on the right, `44px` tall at least. Rows in
+a group are divided by a 1 px `--line` that starts `16px` in, so it does not touch the
+group's edge. Three controls: a switch for on/off (51 × 31 px track, `--ok` when on,
+white thumb), one segment per value for a small number (a `--hover` track, the chosen
+one raised on `--bg-2` with `--shadow-1`, weight 600), a select for a choice. A select
+or text field sits borderless, right-aligned in `--dim`; a path is a text field. Config
+keys are not shown; the settings file path is the tooltip on the panel's sub-line. Theme
 lives here too, beside the side menu's switch.
+
+This switch is the one place `--ok` means "on" rather than "done". Other `.chk` uses (the
+Run form's Yolo) inherit that size.
 
 Request sources shows one row per
 source in the settings row shape: its label (or host) at weight 500, the full link and

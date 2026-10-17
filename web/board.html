@@ -269,26 +269,29 @@ aside .foot .more .menu-pop{left:0;right:auto;top:auto;bottom:calc(100% + 4px)}.
 .find .sev{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--warn)}.find .sev.hi{color:var(--danger)}
 .find .loc{color:var(--dim);font-size:12px;margin-left:8px}
 /* settings: one row per setting — name and what it does on the left, its control on the right */
-.sg{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin:24px 0 2px;font-weight:600}.sg:first-child{margin-top:0}
-.srow{display:grid;grid-template-columns:1fr auto;gap:2px 16px;padding:12px 0;border-bottom:1px solid var(--line)}
-.srow label{font-weight:500}
+.sg{font-size:13px;text-transform:uppercase;letter-spacing:.02em;color:var(--dim);margin:28px 0 6px 16px;font-weight:400}.sg:first-child{margin-top:0}
+.sgrp{background:color-mix(in srgb,var(--dim) 9%,var(--bg-2));border-radius:var(--r);overflow:hidden}
+.srow{display:grid;grid-template-columns:1fr auto;gap:2px 16px;padding:11px 16px;min-height:44px}
+.srow:not([hidden])~.srow:not([hidden]){border-top:1px solid var(--line);margin-left:16px;padding-left:0;padding-right:16px}
+.srow label{font-weight:400;font-size:15px}
 .srow>:nth-child(2){grid-column:2;grid-row:1/span 2;align-self:center;justify-self:end}
 .srow .hint{grid-column:1;margin:0;font-size:12px;color:var(--dim);line-height:1.45;max-width:46ch}
-.srow input.sel{width:170px}
+.srow input.sel,.srow select.sel{width:170px;border:0;background-color:transparent;text-align:right;color:var(--dim);box-shadow:none}
+.srow select.sel{text-align-last:right}
 .fpick{display:inline-flex;gap:6px;align-items:center}
-.srow[hidden],.yolo[hidden],.sg[hidden],.sjump button[hidden]{display:none}
+.srow[hidden],.yolo[hidden],.sg[hidden],.sg[hidden]+.sgrp,.sjump button[hidden]{display:none}
 /* search and section chips: pinned to the top of the panel while the rows scroll under it */
 .sq{position:sticky;top:-24px;z-index:1;background:var(--bg-2);padding:24px 0 12px;margin:-24px 0 4px;border-bottom:1px solid var(--line)}.sq input{width:100%;max-width:none}.sq+.sg{margin-top:16px}
 .sjump{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.sjump button{padding:3px 10px;border:1px solid var(--line);border-radius:var(--r-pill);font-size:12px;color:var(--dim)}.sjump button:hover{background:var(--hover);color:var(--ink)}
 .snone{color:var(--dim);margin-top:20px}
 /* a switch: the same <button role="switch"> the save wiring binds to, drawn as a track and a thumb */
-.chk{width:36px;height:20px;flex-shrink:0;border-radius:var(--r-pill);background:color-mix(in srgb,var(--dim) 40%,transparent);position:relative;transition:background .12s}
-.chk::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--on-accent);box-shadow:var(--shadow-1);transition:transform .12s}
-.chk.on{background:var(--accent)}.chk.on::after{transform:translateX(16px)}
+.chk{width:51px;height:31px;flex-shrink:0;border-radius:var(--r-pill);background:color-mix(in srgb,var(--dim) 40%,transparent);position:relative;transition:background .12s}
+.chk::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:var(--on-accent);box-shadow:0 2px 4px rgb(0 0 0/.25);transition:transform .12s}
+.chk.on{background:var(--ok)}.chk.on::after{transform:translateX(20px)}
 /* a small number: one segment per value */
-.bar{display:inline-flex;border:1px solid var(--line);border-radius:var(--r-s);overflow:hidden}
-.bar button{min-width:30px;height:28px;font-size:13px;color:var(--dim);font-variant-numeric:tabular-nums}.bar button+button{border-left:1px solid var(--line)}
-.bar button:hover{background:var(--hover);color:var(--ink)}.bar button.on,.bar button.on:hover{background:var(--accent);color:var(--on-accent)}.bar button:focus-visible{outline-offset:-2px;outline-color:var(--ink)}
+.bar{display:inline-flex;padding:2px;gap:2px;background:var(--hover);border-radius:var(--r-s)}
+.bar button{min-width:32px;height:28px;border-radius:6px;font-size:13px;color:var(--ink);font-variant-numeric:tabular-nums}
+.bar button:hover{background:var(--hover);color:var(--ink)}.bar button.on,.bar button.on:hover{background:var(--bg-2);box-shadow:var(--shadow-1);font-weight:600}.bar button:focus-visible{outline-offset:-2px;outline-color:var(--ink)}
 /* the preset: a game's quick-preset carousel — arrows either side, the tier lit underneath */
 .car{display:inline-grid;grid-template-columns:32px 96px 32px;align-items:center;border:1px solid var(--line);border-radius:var(--r-s);background:var(--bg-2)}
 .car button{height:32px;color:var(--dim);font-size:12px}.car button:hover{background:var(--hover);color:var(--accent)}.car button:focus-visible{outline-offset:-2px}
