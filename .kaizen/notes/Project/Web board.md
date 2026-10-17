@@ -2,7 +2,7 @@
 description: `kaizen web`: the browser board, its HTTP routes, and the shared state layer
 tags: [project, web-board]
 sources: [cli/web.ts, cli/state.ts, cli/pty.ts, web/board.html, web/board, web/term.ts, design.md]
-updated: 2026-10-16
+updated: 2026-10-17
 ---
 # Web board
 
@@ -24,6 +24,7 @@ updated: 2026-10-16
 - Kaizen Bot calls these routes ([[Kaizen bot]], `bot/src/board.ts`).
 
 ## Watch out
+- The New idea form (`web/board/cards.ts`) takes files by Attach or paste: the idea is added through `/inbox` first, then the files go to `/note` (`for: <idea text>`), which saves them under `attachments/` and links them in the idea's notes. A failed upload leaves a text-only idea. `requestOf()` makes the links absolute when the run starts.
 - `web/board.html` is not served verbatim: `notifier()` from `state.ts` is written over a `/*notifier*/` marker (`.kaizen/memory.md`).
 - `render()` (`web/board/cards.ts`) rebuilds `#board` on every `changed` event; fields need a `draft()` key (`.kaizen/memory.md`).
 - `web/board.js` is committed and hash-checked: after editing `web/board/`, run `bun run build:web` or `cli/notes.test.ts` fails. A module that assigns another module's variable must go through `store`: an imported binding cannot be assigned.

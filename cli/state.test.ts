@@ -250,6 +250,10 @@ test("notes log: append to a run and to an idea; attachments saved and made abso
   const rel = saveAttachment(state, null, "../evil name.png", new Uint8Array([1]));
   expect(rel).toMatch(/^attachments\/\w+-_evil_name\.png$/);
   expect(requestOf("x", `![s](${rel})`, state)).toBe(`x\n\n![s](${join(state, rel)})`);
+  // The New idea form's path: idea first, then its files as a note; a plain file reaches the run by absolute path.
+  const doc = saveAttachment(state, null, "spec.pdf", new Uint8Array([3]));
+  expect(appendNote(state, { text: "chatty zq6" }, `[spec.pdf](${doc})`)).toBeNull();
+  expect(requestOf("/kaizen chatty zq6", readInbox(state)[0]!.notes, state)).toContain(`[spec.pdf](${join(state, doc)})`);
   expect(saveAttachment(state, "2026-09-01-waiting", "b.txt", new Uint8Array([2]))).toMatch(/^runs\/2026-09-01-waiting\/attachments\//);
 });
 
