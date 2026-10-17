@@ -277,6 +277,22 @@ if ($o -match '"pane_id":"([^"]*)"') { & ${q(herdr)} pane run $Matches[1] ${q(ty
 // read and corrected in an editor; blanks and # lines ignored.
 export const REGISTRY = join(home, ".kaizen", "projects");
 
+// Names the board answers to besides loopback: KAIZEN_WEB_HOSTS and ~/.kaizen/web-hosts
+// (one per line, written by `kaizen setup`). Read on every call, so a name added while
+// the board runs works at once. Exact match only; a port or case is ignored.
+export const WEB_HOSTS = join(home, ".kaizen", "web-hosts");
+export function webHosts(): Set<string> {
+  const raw = (process.env.KAIZEN_WEB_HOSTS ?? "").split(",");
+  try { raw.push(...readFileSync(WEB_HOSTS, "utf8").split("\n")); } catch { /* none yet */ }
+  return new Set(raw.map((s) => s.trim().toLowerCase().replace(/:\d+$/, "")).filter((l) => l && !l.startsWith("#")));
+}
+export function addWebHost(name: string) {
+  name = name.trim().toLowerCase();
+  if (!name || webHosts().has(name)) return;
+  mkdirSync(dirname(WEB_HOSTS), { recursive: true });
+  appendFileSync(WEB_HOSTS, name + "\n");
+}
+
 // Windows spreads work across drives -- the profile on C:, the projects on D: or E: --
 // and a search that only knows $HOME finds none of them. Every letter that answers is
 // a root worth walking; elsewhere there is one filesystem and $HOME is where work

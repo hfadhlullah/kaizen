@@ -86,6 +86,7 @@ tells you what it concluded, so you correct a sentence instead of filling in a f
 | `kaizen gather` | In a terminal: check every source now and add new requests to the icebox |
 | `kaizen icebox [promote\|dismiss <ids>]` | In a terminal: list what waits in the icebox, promote it to Ideas, or dismiss it |
 | `/kaizen-config` | Show this project's settings and change them |
+| `kaizen setup` | Guided first run after install: project, settings, board, phone (QR) |
 | `/kaizen-init` | Set up the current project — optional, the first run does it |
 | `/kaizen-install` | Install the workflow itself, globally or per-project |
 | `/kaizen-help` | The full card |
@@ -162,15 +163,17 @@ detached so it outlives the terminal (pid kept in `~/.kaizen/web.pid`); `--stop`
 the OS can find — Spotlight on macOS, the app menu on Linux, a Desktop shortcut on Windows. Each one starts the board in the background (`--daemon`) and opens it; `kaizen web --stop` ends it.
 On Windows `kaizen web` starts in the background unless `--foreground` is given; `kaizen web --stop` ends it.
 
+**After you install: `kaizen setup`.** The installer ends by asking "Run setup now?"; `kaizen setup` runs the same walk any time. It asks for your project folder when you are not in one (Enter skips), offers a settings preset (or keeps yours), starts the board, and, when Tailscale is running, offers to put the board on your phone. Every step can be skipped and nothing changes without an answer.
+
 **From your phone (Tailscale).** The board stays on loopback; `tailscale serve` puts it on
-your tailnet over HTTPS.
+your tailnet over HTTPS. `kaizen setup` does all of this and prints a QR code to scan; by hand:
 
 1. Start the board as usual: `kaizen web`.
 2. `tailscale serve --bg 127.0.0.1:7420` (the port `kaizen web` printed).
-3. Set `KAIZEN_WEB_HOSTS=<pc>.<tailnet>.ts.net` (comma-separated for more than one) in the
-   environment that starts the board, then restart it. Only the names you list are let in;
-   every other host still gets 403. A launcher from `--shortcut` does not see a shell
-   export, so start the board from that shell or add the variable to the launcher.
+3. Add `<pc>.<tailnet>.ts.net` to `~/.kaizen/web-hosts` (one name per line), or set
+   `KAIZEN_WEB_HOSTS=<pc>.<tailnet>.ts.net` (comma-separated for more than one) in the
+   environment that starts the board. Only the names you list are let in; every other
+   host still gets 403. The file is read on every request, so no restart is needed.
 4. On the phone open `https://<pc>.<tailnet>.ts.net` and choose Add to Home screen: it opens
    full screen with the kaizen icon.
 

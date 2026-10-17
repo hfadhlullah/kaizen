@@ -340,6 +340,17 @@ async function openUrl(url: string) {
   try { await Bun.$`${opener} ${url}`.quiet(); return true; } catch { return false; }
 }
 
+if (args.has("setup")) {
+  await runSetup();
+  process.exit(0);
+}
+
+async function runSetup() {
+  const s = await import("./setup.ts");
+  if (!process.stdin.isTTY) { console.log(s.manual()); return; }
+  await s.setup({ select, c, ask: (q) => prompt(q) });
+}
+
 if (wantSettings) {
   const { settings } = await import("./settings.ts");
   await settings(await resolveRepoQuietly());
@@ -908,7 +919,7 @@ function kaizenAbove() {
 }
 
 if (inProject && !kaizenAbove()) {
-  const now = root === process.cwd()
+  const now = root === process.cwd() || args.has("--init-project")
     ? true
     : interactive
       ? await select(`Set up ${basename(process.cwd())}/ for kaizen now`, [
@@ -976,9 +987,14 @@ function writePointer() {
   ${c.bold("Next")}
     1  restart Claude Code ${c.dim("— skills load live, slash commands only at session start")}
     2  ${c.cyan("/kaizen <what you want done>")} ${c.dim("in any project — it sets itself up on first run")}
+    3  ${c.cyan("kaizen setup")} ${c.dim("— settings, the board, and the phone app, any time")}
 
   ${c.dim("/kaizen-help lists every command.  kaizen upgrade updates all of this.")}
 `);
+  if (interactive && !blocked && await select("Run setup now?", [
+    { label: "Not now", hint: "kaizen setup runs it later", value: false },
+    { label: "Yes", hint: "a project folder, settings, the board, the phone", value: true },
+  ])) await runSetup();
 }
 if (blocked) process.exit(1);
 

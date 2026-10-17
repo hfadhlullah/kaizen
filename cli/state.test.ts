@@ -1019,7 +1019,7 @@ test("the board refuses an upgrade from another origin", async () => {
 });
 
 // KAIZEN_WEB_HOSTS (tailscale serve): the listed host gets in, any other is still refused.
-test("the board answers only the hosts listed in KAIZEN_WEB_HOSTS", async () => {
+test("the board answers only the hosts listed in KAIZEN_WEB_HOSTS or web-hosts", async () => {
   const homeDir = mkdtempSync(join(tmpdir(), "kaizen-hosts-"));
   for (const d of [join(homeDir, ".kaizen"), join(homeDir, ".claude")]) mkdirSync(d, { recursive: true });
   const port = 20000 + Math.floor(Math.random() * 20000), repo = join(import.meta.dir, "..");
@@ -1032,6 +1032,10 @@ test("the board answers only the hosts listed in KAIZEN_WEB_HOSTS", async () => 
     expect((await fetch(at + "/state", { headers: { host: "pc.tail1234.ts.net" } })).status).toBe(200);
     expect((await fetch(at + "/state", { headers: { host: "evil.example" } })).status).toBe(403);
     expect((await fetch(at + "/state", { headers: { host: "other.tail1234.ts.net" } })).status).toBe(403);
+    // ~/.kaizen/web-hosts (written by `kaizen setup`) is read per request: no restart.
+    writeFileSync(join(homeDir, ".kaizen", "web-hosts"), "# phone\nOther.tail1234.ts.net\n");
+    expect((await fetch(at + "/state", { headers: { host: "other.tail1234.ts.net" } })).status).toBe(200);
+    expect((await fetch(at + "/state", { headers: { host: "evil.example" } })).status).toBe(403);
     expect((await fetch(at + "/upgrade", { method: "POST", headers: { origin: "https://evil.example" } })).status).toBe(403);
     const m = await fetch(at + "/manifest.webmanifest");
     expect(m.status).toBe(200);

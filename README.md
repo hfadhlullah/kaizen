@@ -70,6 +70,8 @@ kaizen web
 
 The board opens in your browser. The side menu holds the board, notes, the icebox of gathered requests and settings, with a light and dark switch. From there you can start a run, approve or revise its plan, pick which review findings to fix, then commit and push.
 
+Right after installing, `kaizen setup` walks you through your project, settings, this board and the phone app (it prints a QR code to scan).
+
 To add a launcher (Spotlight on macOS, the app menu on Linux, a Desktop shortcut on Windows), run `kaizen web --shortcut` once.
 
 ## Development
