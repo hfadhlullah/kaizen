@@ -54,3 +54,4 @@ updated: 2026-10-15
 - 2026-10-17 release — 1.34.9: settings in iPhone-style grouped rows, switch, segmented preset
 - 2026-10-17 release — 1.34.10: installed app blocks pinch and keyboard zoom; browser tab still zooms
 - 2026-10-17 release — 1.34.11: installed app top no longer blurred on iOS 26
+- 2026-10-17 release — 1.34.12: icebox "+" opens the promote form; new-idea form gets Add and an attach icon
