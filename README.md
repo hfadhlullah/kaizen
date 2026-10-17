@@ -72,6 +72,18 @@ The board opens in your browser. The side menu holds the board, notes, the icebo
 
 Right after installing, `kaizen setup` walks you through your project, settings, this board and the phone app (it prints a QR code to scan).
 
+### Phone app
+
+The board is a PWA: installed from the browser, it opens full screen with the kaizen icon. It needs [Tailscale](https://tailscale.com/download) on this PC and on your phone, both signed in to the same account.
+
+```bash
+kaizen setup        # guided: starts the board, runs tailscale serve, prints a QR code
+```
+
+Scan the QR code with your phone camera, then **Add to Home screen** (iOS: Share menu; Android: browser menu, *Install app*).
+
+By hand: run `kaizen web`, then `tailscale serve --bg 127.0.0.1:7420`, add `<pc>.<tailnet>.ts.net` to `~/.kaizen/web-hosts`, and open `https://<pc>.<tailnet>.ts.net` on the phone. Details in [docs/guide.md](docs/guide.md#from-your-phone-tailscale). Never use `tailscale funnel` — it publishes the board to the internet.
+
 To add a launcher (Spotlight on macOS, the app menu on Linux, a Desktop shortcut on Windows), run `kaizen web --shortcut` once.
 
 ## Development
