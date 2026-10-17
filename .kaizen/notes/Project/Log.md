@@ -53,3 +53,4 @@ updated: 2026-10-15
 - 2026-10-17 release — 1.34.8: phone app fits the screen — safe-area insets in standalone, no dark bands
 - 2026-10-17 release — 1.34.9: settings in iPhone-style grouped rows, switch, segmented preset
 - 2026-10-17 release — 1.34.10: installed app blocks pinch and keyboard zoom; browser tab still zooms
+- 2026-10-17 release — 1.34.11: installed app top no longer blurred on iOS 26
