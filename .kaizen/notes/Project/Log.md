@@ -49,3 +49,5 @@ updated: 2026-10-15
 - 2026-10-17 run 2026-10-17-idea-file-upload — Web board
 - 2026-10-17 run 2026-10-17-onboarding-setup — CLI, Web board (kaizen setup, QR for the phone URL, web-hosts file)
 - 2026-10-17 release — 1.34.7: phone app fills the screen, Notes clears the status bar
+- 2026-10-17 run 2026-10-17-pwa-fit-screen — Web board (safe-area padding in standalone, inset strips blend with app)
+- 2026-10-17 release — 1.34.8: phone app fits the screen — safe-area insets in standalone, no dark bands
