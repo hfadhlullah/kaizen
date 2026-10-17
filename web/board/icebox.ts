@@ -236,7 +236,8 @@ export async function openSources() {
   const pick = (id, label, xs) =>
     `<select class="sel ice-sel" id="${id}" aria-label="${label}">${xs.join("")}</select>`;
   const chips =
-    (byCat.size > 1
+    // Dismissed and Done are hidden until picked, so even a lone one is a choice.
+    (byCat.size > 1 || byCat.has("Dismissed") || byCat.has("Done")
       ? pick("ice-fc", "Category", [
           opt("", !iceCat, "All categories"),
           ...[...byCat.keys()].map((k) => opt(k, iceCat === k, k)),
