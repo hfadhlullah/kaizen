@@ -41,45 +41,68 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
     term.write(`\r\n\x1b[2m[${e.reason === "ended" ? "agent ended" : "connection to the board lost"}]\x1b[0m\r\n`);
     onEnd?.();
   };
-  // Phone/tablet: a bar of the keys a soft keyboard lacks. Ctrl and Alt are sticky —
-  // they modify the next key typed, from the soft keyboard or the bar. The ⌨ button
-  // hides the native keyboard (inputmode none) so the bar alone drives the terminal.
-  const mods = { ctrl: false, alt: false };
+  // Phone/tablet: a bar of the keys a soft keyboard lacks. Alt is sticky for the next key.
+  // Ctrl opens its own a-z pad instead of waiting on the native keyboard, whose IME can
+  // deliver the letter without the modifier. The handle above the bar hides it.
+  const mods = { alt: false };
   const typed = term.onData((d) => {
-    if (d.length === 1 && mods.ctrl && /[a-z@[\\\]^_]/i.test(d)) d = String.fromCharCode(d.toUpperCase().charCodeAt(0) & 31);
     if (mods.alt) d = "\x1b" + d;
-    mods.ctrl = mods.alt = false;
-    bar?.querySelectorAll(".on").forEach((b) => b.classList.remove("on"));
+    mods.alt = false;
+    bar?.querySelector(".alt")?.classList.remove("on");
     send({ t: "i", d });
   });
   let bar: HTMLElement | null = null;
   if (matchMedia("(pointer: coarse)").matches) {
     const arrow = (c: string) => () => `\x1b${term.modes.applicationCursorKeysMode ? "O" : "["}${c}`;
-    const keys: [string, string | (() => string) | "ctrl" | "alt" | "kbd"][] = [
-      ["Esc", "\x1b"], ["Tab", "\t"], ["↵", "\r"], ["⇧⇥", "\x1b[Z"], ["Ctrl", "ctrl"], ["Alt", "alt"],
-      ["←", arrow("D")], ["↑", arrow("A")], ["↓", arrow("B")], ["→", arrow("C")], ["^C", "\x03"], ["⌨", "kbd"],
+    const paste = () => navigator.clipboard?.readText().then((t) => t && term.paste(t), () => {});
+    // inverted T: Up above Down, Left and Right beside it
+    const keys: [string, string | (() => unknown) | "alt" | "ctrl" | ""][] = [
+      ["Esc", "\x1b"], ["Paste", paste], ["↵", "\r"], ["⇧⇥", "\x1b[Z"], ["↑", arrow("A")], ["", ""],
+      ["Ctrl", "ctrl"], ["Alt", "alt"], ["^C", "\x03"], ["←", arrow("D")], ["↓", arrow("B")], ["→", arrow("C")],
     ];
     bar = document.createElement("div");
     bar.className = "termkeys";
-    for (const [label, v] of keys) {
+    // pointerdown + preventDefault: a tap must not move focus off the terminal.
+    const key = (label: string, fn: () => void) => {
       const b = document.createElement("button");
       b.type = "button";
       b.textContent = label;
-      // pointerdown + preventDefault: the tap must not move focus off the terminal, or the keyboard closes.
-      b.addEventListener("pointerdown", (e) => {
-        e.preventDefault();
-        if (v === "ctrl" || v === "alt") b.classList.toggle("on", (mods[v] = !mods[v]));
-        else if (v === "kbd") {
-          const ta = el.querySelector<HTMLTextAreaElement>(".xterm-helper-textarea");
-          if (ta) ta.inputMode = ta.inputMode === "none" ? "text" : "none";
-          b.classList.toggle("on", ta?.inputMode === "none");
-          ta?.blur();
-          ta?.focus();
-        } else send({ t: "i", d: (typeof v === "function" ? v() : v) as string });
-        term.focus();
-      });
-      bar.append(b);
+      b.addEventListener("pointerdown", (e) => { e.preventDefault(); fn(); term.focus(); });
+      return b;
+    };
+    const grid = document.createElement("div");
+    grid.className = "keygrid";
+    const setPad = (on: boolean) => { pad.hidden = !on; grid.hidden = on; };
+    const pad = document.createElement("div");
+    pad.className = "ctrlpad";
+    pad.hidden = true;
+    // qwerty rows; the last row ends with ✕ to leave the pad
+    for (const row of ["qwertyuiop", "asdfghjkl", "zxcvbnm✕"]) {
+      const r = document.createElement("div");
+      for (const c of row) r.append(key(c, () => {
+        if (c !== "✕") send({ t: "i", d: String.fromCharCode(c.charCodeAt(0) & 31) });
+        setPad(false);
+      }));
+      pad.append(r);
     }
+    for (const [label, v] of keys) {
+      if (!label) { grid.append(document.createElement("i")); continue; }
+      const b = key(label, () => {
+        if (v === "alt") b.classList.toggle("on", (mods.alt = !mods.alt));
+        else if (v === "ctrl") setPad(true);
+        else send({ t: "i", d: (typeof v === "function" ? v() : v) as string });
+      });
+      if (v === "alt") b.classList.add(v);
+      grid.append(b);
+    }
+    const hide = key("⌨ ▾", () => {
+      const off = hide.textContent === "⌨ ▾";
+      grid.hidden = pad.hidden = true;
+      if (!off) grid.hidden = false;
+      hide.textContent = off ? "⌨ ▴" : "⌨ ▾";
+    });
+    hide.className = "keyhide";
+    bar.append(hide, pad, grid);
     el.after(bar);
   }
   // xterm.js has no touch scrolling, so on a phone a swipe did nothing. Each line's
