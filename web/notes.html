@@ -22,6 +22,8 @@ body{margin:0;background:var(--canvas);color:var(--ink);font:14px/1.5 var(--font
 html{background:var(--canvas);touch-action:manipulation}
 @media(display-mode:standalone){body{position:fixed;inset:0;height:auto;overscroll-behavior:none;touch-action:pan-x pan-y;-webkit-text-size-adjust:100%}}
 @media(max-width:640px),(display-mode:standalone){body{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}}
+/* iOS 26 blurs the page under the status bar unless a fixed bar touches the top edge: give it one in the page colour */
+@media(display-mode:standalone){body::before{content:"";position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top);background:inherit;z-index:100;pointer-events:none}}
 button,input,select{font:inherit;color:inherit;background:none;border:0;padding:0}
 button{cursor:pointer}
 a{color:inherit;text-decoration:none}
