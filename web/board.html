@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<script>addEventListener("gesturestart",e=>e.preventDefault())</script>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<script>if(matchMedia("(display-mode:standalone)").matches||navigator.standalone){document.querySelector("meta[name=viewport]").content+=",maximum-scale=1,user-scalable=no";addEventListener("gesturestart",e=>e.preventDefault())}</script>
 <title>kaizen</title>
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#f6f8fc" media="(prefers-color-scheme: light)">
