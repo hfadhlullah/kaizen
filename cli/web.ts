@@ -7,7 +7,7 @@ import {
   readInbox, writeInbox, replaceIdea, moveIdea, abandonRun, launchRun, parseItem, agentChoices, projectOf, KNOWN_AGENTS, plainModel, short, setArchived, writeNotes,
   appendNote, saveAttachment, pidOnPort, readText, cmdExe, sysExe, powershellExe, runGit, cardsGit, readCommit, commitPush, notice, notifier, LOGO,
   reviewFindings, pickFindings, fixPrompt, approvalPrompt, canApproveAwaiting, nativePath, closeSessions, sweepSessions, issueUrl,
-  launchMode, readSessions, ownerOf, resumePrompt, runAgent, firstSession,
+  launchMode, readSessions, ownerOf, resumePrompt, runAgent, firstSession, webHosts,
 } from "./state.ts";
 import { attachPty, writePty, resizePty, ptyState, ptyKeys, adoptLoginEnv } from "./pty.ts";
 import { readSources, addSource, removeSource, moveSource, setCategory, setWriteback, readIcebox, promote, dismiss, restore, markDone, markReplied, gatherSource, freshImages, gatherAll, gatherDirs, due, socialUrl, socialOf } from "./sources.ts";
@@ -132,10 +132,9 @@ export async function web(repoDir: string, opts: Opts = {}) {
     : [cur]
   ).filter((d, i, arr) => arr.indexOf(d) === i && existsSync(d));
 
-  // Hostnames the user put in KAIZEN_WEB_HOSTS (e.g. a `tailscale serve` name):
-  // their explicit opt-in, matched exactly, empty when unset.
-  const extraHosts = new Set((process.env.KAIZEN_WEB_HOSTS ?? "").split(",")
-    .map((s) => s.trim().toLowerCase().replace(/:\d+$/, "")).filter(Boolean));
+  // Hostnames the user opted into (KAIZEN_WEB_HOSTS or ~/.kaizen/web-hosts, e.g. a
+  // `tailscale serve` name): matched exactly, empty when neither is set.
+  const extraHosts = { has: (h: string) => webHosts().has(h) };
 
   // Any tab on this machine can reach loopback. GET only reads the user's own
   // files, but a POST from a page on the wider web must not write them.

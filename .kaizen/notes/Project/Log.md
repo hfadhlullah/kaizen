@@ -47,3 +47,4 @@ updated: 2026-10-15
 - 2026-10-17 run 2026-10-17-worktree-per-run — Workflow, CLI, Conventions and gotchas (a branch and worktree per run, landed by pull request)
 - 2026-10-17 run 2026-10-17-icebox-writeback — Sources and icebox
 - 2026-10-17 run 2026-10-17-idea-file-upload — Web board
+- 2026-10-17 run 2026-10-17-onboarding-setup — CLI, Web board (kaizen setup, QR for the phone URL, web-hosts file)
