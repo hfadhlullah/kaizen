@@ -49,14 +49,12 @@ export async function openSettings() {
   // One control per row: a switch for on/off, one segment per value for a small number,
   // a select for a choice. The row's label names the control; its help sits under it.
   const ctl = (id, vals, on) => {
-    // The preset steps like a game's quick preset: ◁ ▷ go to the neighbouring tier,
-    // wrapping, and never to custom, which only an edit to another row makes.
-    if (id === "s-preset") {
-      const t = vals.filter((v) => v !== "custom"),
-        at = t.indexOf(on),
-        go = (d) => t[at < 0 ? (d > 0 ? 0 : t.length - 1) : (at + d + t.length) % t.length];
-      return `<span class="car" id="${id}" role="group" aria-label="Preset"><button id="${id}-prev" data-v="${go(-1)}" aria-label="Previous preset: ${go(-1)}" title="${go(-1)}">◁</button><span aria-live="polite">${esc(on)}<i aria-hidden="true">${t.map((v) => `<u class="${v === on ? "on" : ""}"></u>`).join("")}</i></span><button id="${id}-next" data-v="${go(1)}" aria-label="Next preset: ${go(1)}" title="${go(1)}">▷</button></span>`;
-    }
+    // The preset is a segmented control over the tiers; custom, which only an edit to another row makes, lights none.
+    if (id === "s-preset")
+      return `<span class="bar" id="${id}" role="group" aria-label="Preset">${vals
+        .filter((v) => v !== "custom")
+        .map((v) => `<button id="${id}-${v}" data-v="${v}" class="${v === on ? "on" : ""}" aria-pressed="${v === on}">${v}</button>`)
+        .join("")}</span>`;
     if (vals.length === 2 && vals.includes("true") && vals.includes("false")) {
       const yes = on === "true";
       return `<button class="chk${yes ? " on" : ""}" id="${id}" data-v="${yes ? "false" : "true"}" role="switch" aria-checked="${yes}" title="${yes ? "On" : "Off"}"></button>`;
