@@ -507,9 +507,10 @@ export function render() {
     if (ci === 0 && store.mode === "new") {
       const f = document.createElement("li");
       f.className = "inl";
-      f.innerHTML = `${store.all ? `<div class="combo" id="ndc"><button class="sel" id="newdir" aria-label="Project for this idea" aria-haspopup="listbox" aria-expanded="false"></button><div class="menu-pop" hidden><input class="sel" aria-label="Search projects" placeholder="Search projects…" spellcheck="false" autocomplete="off"><div id="nds" role="listbox"></div></div></div>` : ""}<input id="newidea" placeholder="What would you like done?"><textarea id="newnotes" placeholder="Notes: links, paths, background (optional)"></textarea><div class="row"><button class="btn ghost" id="nc">Cancel</button><button class="btn pri" id="ns">Add idea</button></div>`;
+      f.innerHTML = `${store.all ? `<div class="combo" id="ndc"><button class="sel" id="newdir" aria-label="Project for this idea" aria-haspopup="listbox" aria-expanded="false"></button><div class="menu-pop" hidden><input class="sel" aria-label="Search projects" placeholder="Search projects…" spellcheck="false" autocomplete="off"><div id="nds" role="listbox"></div></div></div>` : ""}<input id="newidea" placeholder="What would you like done?"><textarea id="newnotes" placeholder="Notes: links, paths, background (optional)"></textarea><div class="att" id="newatt"></div><input type="file" id="newfile" multiple hidden><div class="row"><button class="btn ghost" id="newpick">Attach</button><button class="btn ghost" id="nc">Cancel</button><button class="btn pri" id="ns">Add idea</button></div>`;
       ul.appendChild(f);
-      const inp = f.querySelector("#newidea");
+      const inp = f.querySelector("#newidea"),
+        files = [];
       draft(inp, "f:new:0");
       draft(f.querySelector("textarea"), "f:new:1");
       const save = async () => {
@@ -519,9 +520,44 @@ export function render() {
         store.mode = null;
         const dir = store.all ? newDir : null;
         const r = await post("/inbox", dir ? { op: "add", dir, text, notes } : { op: "add", text, notes });
-        if (r.ok) toast("Idea added");
+        if (r.ok) {
+          toast("Idea added");
+          // The idea exists first: a failed upload leaves it as plain text.
+          if (files.length) {
+            const enc = await Promise.all(
+              files.map(
+                (x) =>
+                  new Promise((res) => {
+                    const rd = new FileReader();
+                    rd.onload = () => res({ name: x.name, data: rd.result });
+                    rd.readAsDataURL(x);
+                  }),
+              ),
+            );
+            const n = await post("/note", { dir, for: text, text: "", files: enc });
+            if (!n.ok) toast("Idea added, files not attached");
+          }
+        }
         load();
       };
+      const add = (x) => {
+        files.push(x);
+        f.querySelector("#newatt").textContent = files.map((y) => y.name).join(" · ");
+      };
+      f.querySelector("#newpick").onclick = () => f.querySelector("#newfile").click();
+      f.querySelector("#newfile").onchange = (e) => {
+        [...e.target.files].forEach(add);
+        e.target.value = "";
+      };
+      for (const el of [inp, f.querySelector("textarea")])
+        el.onpaste = (e) => {
+          for (const it of e.clipboardData.items)
+            if (it.kind === "file") {
+              const x = it.getAsFile();
+              add(new File([x], x.name === "image.png" ? `paste-${Date.now()}.png` : x.name, { type: x.type }));
+              e.preventDefault();
+            }
+        };
       if (store.all) ideaCombo(f);
       f.querySelector("#ns").onclick = save;
       f.querySelector("#nc").onclick = () => {
