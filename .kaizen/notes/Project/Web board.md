@@ -26,6 +26,7 @@ updated: 2026-10-17
 ## Watch out
 - The New idea form (`web/board/cards.ts`) takes files by Attach or paste: the idea is added through `/inbox` first, then the files go to `/note` (`for: <idea text>`), which saves them under `attachments/` and links them in the idea's notes. A failed upload leaves a text-only idea. `requestOf()` makes the links absolute when the run starts.
 - `web/board.html` is not served verbatim: `notifier()` from `state.ts` is written over a `/*notifier*/` marker (`.kaizen/memory.md`).
+- Installed as a phone app (`display-mode:standalone`) the body is `position:fixed;inset:0`, because iOS `100dvh` leaves the home-indicator strip black; both pages use `viewport-fit=cover` plus safe-area padding on phones.
 - `render()` (`web/board/cards.ts`) rebuilds `#board` on every `changed` event; fields need a `draft()` key (`.kaizen/memory.md`).
 - `web/board.js` is committed and hash-checked: after editing `web/board/`, run `bun run build:web` or `cli/notes.test.ts` fails. A module that assigns another module's variable must go through `store`: an imported binding cannot be assigned.
 - Commit & push stages the whole working tree, and runs commit the paths backticked in `03-impl.md` (`runGit()`; `.kaizen/memory.md`).
