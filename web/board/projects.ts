@@ -71,7 +71,7 @@ export function ideaCombo(f) {
     box = f.querySelector("#nds");
   if (!ps.some((p) => p.dir === newDir)) newDir = ps[0]?.dir ?? null;
   const name = () => {
-    btn.textContent = (ps.find((p) => p.dir === newDir) || { label: "Choose project" }).label;
+    btn.textContent = short((ps.find((p) => p.dir === newDir) || { label: "Choose project" }).label);
   };
   const draw = () => {
     const t = q.value.trim().toLowerCase();
@@ -80,7 +80,7 @@ export function ideaCombo(f) {
         .filter((p) => p.label.toLowerCase().includes(t))
         .map(
           (p) =>
-            `<button type="button" role="option" data-d="${esc(p.dir)}" title="${esc(p.label)}" class="${p.dir === newDir ? "on" : ""}">${esc(p.label)}</button>`,
+            `<button type="button" role="option" data-d="${esc(p.dir)}" title="${esc(p.label)}" class="${p.dir === newDir ? "on" : ""}">${esc(short(p.label))}</button>`,
         )
         .join("") || `<div class="grp">No match</div>`;
     box.querySelectorAll("button").forEach(
@@ -136,7 +136,7 @@ export function showList() {
   $("shows").innerHTML =
     SP.map((p, i) =>
       p.label.toLowerCase().includes(q)
-        ? `<label title="${esc(p.label)}"><input type="checkbox" data-i="${i}" ${store.shown.has(p.dir) ? "checked" : ""}>${esc(p.label)}</label>`
+        ? `<label title="${esc(p.label)}"><input type="checkbox" data-i="${i}" ${store.shown.has(p.dir) ? "checked" : ""}>${esc(short(p.label))}</label>`
         : "",
     ).join("") || `<div class="grp">No match</div>`;
 }
