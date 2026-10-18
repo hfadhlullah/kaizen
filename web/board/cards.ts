@@ -116,7 +116,7 @@ function card(c) {
         ? `<ul>${kids
             .map((x, i) => {
               const s = ICON[x.status] || "idea";
-              return `<li data-i="${i}" tabindex="0" role="button" title="Open"><span class="st d-${s}"><svg><use href="#s-${s}"/></svg></span><span class="kids-s">${esc(WORD[x.status] || x.status)}</span><span class="kids-n">${esc(x.kind === "idea" ? brief(x.text).head : x.title || x.id)}</span></li>`;
+              return `<li data-i="${i}" tabindex="0" role="button" title="Open"><span class="st d-${s}"><svg><use href="#s-${s}"/></svg></span><span class="kids-s">${esc(WORD[x.status] || x.status)}</span><span class="kids-n" title="${esc(x.title || x.text || x.id)}">${esc(x.kind === "idea" ? brief(x.text).head : (x.text || x.id || "").replace(/-/g, " "))}</span></li>`;
             })
             .join("")}</ul>`
         : "");
