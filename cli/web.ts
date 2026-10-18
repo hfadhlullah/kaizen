@@ -77,6 +77,23 @@ export function newer(a: string, b: string) {
   return false;
 }
 
+// What each newer release brings, for the update bar's What's new: the GitHub release
+// titles ("v1.35.0: project logos, ...") above `from`, newest first. Cached like
+// npmLatest; GitHub unreachable gives none and the bar shows no What's new.
+let rel: { list: { v: string; text: string }[]; at: number } = { list: [], at: 0 };
+async function releaseNotes(from: string, fresh = false) {
+  if (fresh || !rel.list.length || Date.now() - rel.at > 6 * 3600_000) {
+    try {
+      const r = await fetch("https://api.github.com/repos/hfadhlullah/kaizen/releases?per_page=30", { signal: AbortSignal.timeout(10000) });
+      const list = ((await r.json()) as { tag_name: string; name?: string }[])
+        .map((x) => ({ v: x.tag_name.replace(/^v/, ""), text: (x.name || "").replace(/^v?[\d.]+:\s*/, "") }))
+        .filter((x) => x.text);
+      rel = { list, at: Date.now() };
+    } catch {}
+  }
+  return rel.list.filter((x) => newer(x.v, from));
+}
+
 type Opts = { port?: number; open?: boolean };
 
 export async function web(repoDir: string, opts: Opts = {}) {
@@ -526,7 +543,9 @@ export async function web(repoDir: string, opts: Opts = {}) {
       // What this board runs and what npm has: the page shows an Update button on a newer one.
       if (req.method === "GET" && path === "/version") {
         const v = await npmLatest(url.searchParams.has("fresh"));
-        return json({ version: VERSION, latest: v, update: !!v && newer(v, VERSION) });
+        const update = !!v && newer(v, VERSION);
+        const notes = update ? await releaseNotes(VERSION, url.searchParams.has("fresh")) : [];
+        return json({ version: VERSION, latest: v, update, notes });
       }
 
       // `kaizen upgrade`, run here with no window, then a new board on this port: it

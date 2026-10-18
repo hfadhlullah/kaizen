@@ -179,6 +179,7 @@ section h2 .clear{margin-left:auto;min-height:22px;padding:0 8px}
 .chip.accent i{background:var(--accent)}.chip.accent svg{color:var(--accent)}
 .chip.ok svg{color:var(--ok)}
 .chip.run{color:var(--ink)}.chip.run i{background:var(--run)}
+.chip.link,.pst.link{color:var(--accent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 40%,transparent)}.pst.link{padding-left:9px;background:color-mix(in srgb,var(--accent) 10%,transparent)}
 .st.d-idea{color:var(--dim)}.st.d-start{color:var(--run)}.st.d-run{color:var(--run)}.st.d-stall{color:var(--dim)}.st.d-wait{color:var(--warn)}.st.d-done{color:var(--ok)}.st.d-aband{color:var(--dim)}
 .d-run{color:var(--run)}.d-wait{color:var(--warn)}.d-done{color:var(--ok)}
 .pulse{display:inline-block;width:7px;height:7px;border-radius:50%;background:currentColor;vertical-align:middle}
@@ -312,6 +313,11 @@ aside .foot .more .menu-pop{left:0;right:auto;top:auto;bottom:calc(100% + 4px)}.
 .toast.on{opacity:1}
 .rail a.upd svg{overflow:visible}.rail a.upd{position:relative}.rail a.upd::after{content:"";position:absolute;left:28px;top:8px;width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 2px var(--bg)}
 .updbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:space-between;margin:0 0 36px;padding:10px 14px;border:1px solid var(--accent);border-radius:var(--r);background:color-mix(in srgb,var(--accent) 10%,var(--bg-2));font-size:13px}
+.updact{display:flex;gap:8px;align-items:center}
+.updnew{position:relative}
+.updpop{display:none;position:absolute;right:0;top:calc(100% + 6px);z-index:20;width:min(360px,80vw);padding:10px 14px;border:1px solid var(--line);border-radius:var(--r);background:var(--bg-2);box-shadow:var(--shadow-1);font-size:13px;line-height:1.5}
+.updnew:hover .updpop,.updnew:focus-within .updpop{display:block}
+.updpop ul{margin:0 0 8px;padding-left:18px}.updpop li{margin:2px 0}.updpop a{color:var(--accent)}
 .updbar.quiet{border-color:var(--line);background:var(--bg-2);color:var(--dim)}
 .toast.on.rep{pointer-events:auto}.toast a{color:inherit;margin-left:8px;text-decoration:underline;text-underline-offset:2px}
 .help{position:fixed;inset:0;z-index:12;display:none;align-items:center;justify-content:center;background:color-mix(in srgb,var(--bg) 60%,transparent);backdrop-filter:blur(3px)}

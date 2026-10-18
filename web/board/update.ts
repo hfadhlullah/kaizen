@@ -47,7 +47,14 @@ export function updBar() {
   }
   const d = document.createElement("div");
   d.className = "updbar";
-  d.innerHTML = `<span>kaizen <b>${esc(upd.latest)}</b> is available. You are running ${esc(upd.version)}.</span><button class="btn pri" id="upd-go">Update kaizen</button>`;
+  // What's new: each newer release's one-line title, shown on hover, focus or click.
+  const notes = (upd.notes || [])
+    .map((n) => `<li><b>${esc(n.v)}</b> ${esc(n.text)}</li>`)
+    .join("");
+  const news = notes
+    ? `<span class="updnew"><button class="btn" aria-describedby="upd-notes">What's new</button><span class="updpop" id="upd-notes" role="tooltip"><ul>${notes}</ul><a href="https://github.com/hfadhlullah/kaizen/releases" target="_blank" rel="noopener">All release notes</a></span></span>`
+    : "";
+  d.innerHTML = `<span>kaizen <b>${esc(upd.latest)}</b> is available. You are running ${esc(upd.version)}.</span><span class="updact">${news}<button class="btn pri" id="upd-go">Update kaizen</button></span>`;
   $("pbody").prepend(d);
   const b = $("upd-go");
   b.onclick = async () => {
