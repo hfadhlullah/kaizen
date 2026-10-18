@@ -68,7 +68,11 @@ change — do not refactor around it. Write what you changed to
 - **Verification** — each check carried out, with its actual result. Quote failures.
 - **Not done** — steps skipped, out-of-scope observations, known gaps.
 - **Preview** — how to see the result: commands to run it locally and the URL for an
-  app; the path to open, or the result itself, for anything else. Then `### How to test`:
+  app; the path to open, or the result itself, for anything else. It must embed at
+  least one screenshot of the result (`![…](attachments/<name>.png)`, saved under
+  `runs/<id>/attachments/`, e.g. `playwright screenshot <url> <path>`) whenever it shows on
+  a screen. On a revise of a run that already shows screenshots, retake them so
+  none shows the result from before the change. Then `### How to test`:
   numbered steps from the plan's gate, each an action and what the person should see,
   plus any test command with its expected result. `###` subheads only — the board ends
   the section at the next `##`. The board shows it.

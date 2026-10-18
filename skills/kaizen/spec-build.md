@@ -108,14 +108,25 @@ commands to start it locally and the URL to open, copied from the material's own
 where one exists. For anything else — a document, copy, a runbook, a memo — the path
 to open, or the result itself when it fits in a screen. The board shows this section on
 the run's card, so a person can try the work without reading the rest of the report.
-Where the result can be seen, put screenshots of it here. On a `code` track this is required, not optional: run the result and attach proof.
+Every run whose result shows on a screen must put at least one screenshot of it here,
+on any track and in every runner — this is required, not optional: run the result and capture it.
 A UI (a page, a board, a terminal screen, an app window) gets a screenshot of the changed
-screen; a CLI, library or API gets the real output of the command that exercises it, pasted
-in a code block. A code report with no proof is incomplete. Save each under
+screen; a document gets one of it rendered; a CLI gets one of the terminal running it, with
+the real output also pasted in a code block. Only a result with no screen at all — a
+library, an API — may give command output alone. A report with no screenshot is incomplete. Save each under
 `runs/<id>/attachments/` (letters, digits, `.`, `-`, `_` only) and embed it as
 `![what it shows](attachments/<name>.png)`; the board shows them in the Preview tab.
-A headless browser does it: `playwright screenshot <url> runs/<id>/attachments/<name>.png`.
+A headless browser does it: `playwright screenshot <url> runs/<id>/attachments/<name>.png`,
+or `chromium --headless --screenshot=<abs path>.png --window-size=1280,900 <url>` where
+playwright has no browser installed. A file (document, diff, output) opens as `file://<path>`.
 Where no proof can be produced, say why in one line under `## Preview`.
+
+**A revise retakes the screenshots.** When the run being revised, or the run a follow-up
+names in `Follow-up of:`, already shows screenshots in its `## Preview`, the build that
+answers the revise captures the same views again after the change. In a revised run,
+overwrite each stale image under the same name (or replace its embed) so the Preview tab
+never shows the result from before the revise; in a follow-up run, embed the new ones in
+its own `## Preview`. A view the revise removed is dropped, not left showing the old result.
 
 It also says how to test the result, under a `### How to test` subhead: numbered steps a
 person follows to check the run did what was asked, each an action and what they should
