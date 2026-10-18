@@ -88,6 +88,7 @@ function card(c) {
         c.git === "pushed" ? " ok" : " warn",
       ),
     );
+  if (c.open) marks.push(mk("i-bug", `${c.open} open finding${c.open === 1 ? "" : "s"} to fix`, " warn"));
   const pick = picking && !archive && c.column === 4;
   el.innerHTML =
     (pick ? `<input type="checkbox" class="pick" ${picked.has(k) ? "checked" : ""} aria-label="Select">` : "") +

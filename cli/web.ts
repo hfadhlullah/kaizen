@@ -440,11 +440,14 @@ export async function web(repoDir: string, opts: Opts = {}) {
         const markable = (c: Card) => c.kind === "run" && !c.archived && (c.status === "done" || c.awaiting === "approvals.review") && c.state !== join(home, ".kaizen");
         for (const d of new Set(cards.filter(markable).map((c) => c.state)))
           marks.set(d, cardsGit(d, cards.filter((c) => markable(c) && c.state === d).map((c) => c.id!)));
+        // Open findings the panel's Fix findings form would offer, on the same runs.
+        const openFindings = (c: Card) => c.kind === "run" && !c.archived && (c.status === "done" || c.awaiting === "findings" || c.awaiting === "approvals.review") && c.state !== join(home, ".kaizen")
+          ? reviewFindings(c.state, c.id!).filter((f) => !f.done).length || undefined : undefined;
         return json({
           project, all, dir: state,
           projects: picker.map((d) => ({ dir: d, label: label(d), logo: !!projectLogo(d) })),
           fresh: unset.map((d) => ({ dir: join(d, ".kaizen"), label: tilde(d) })),
-          cards: cards.map((c) => ({ ...c, notice: notice(c), git: markable(c) ? marks.get(c.state)?.[c.id!] : undefined, pty: ptyOf(c) })),
+          cards: cards.map((c) => ({ ...c, notice: notice(c), git: markable(c) ? marks.get(c.state)?.[c.id!] : undefined, open: openFindings(c), pty: ptyOf(c) })),
           now: Date.now(),
         });
       }
