@@ -40,7 +40,7 @@ export function fixForm(c) {
     fs
       .map((f) => {
         const x = f.done ? " (closed)" : sent(f) ? " (sent)" : "";
-        return `<label class="${x ? "off" : ""}"><input type="checkbox" data-n="${f.n}" ${x ? "checked disabled" : fixOff.has(k(f.n)) ? "" : "checked"}><span>${f.n}. ${md(f.text).replace(/^<p>|<\/p>$/g, "")}${x}</span></label>`;
+        return `<label class="${f.done ? "off done" : x ? "off" : ""}"><input type="checkbox" data-n="${f.n}" ${x ? "checked disabled" : fixOff.has(k(f.n)) ? "" : "checked"}><span>${f.n}. ${md(f.text).replace(/^<p>|<\/p>$/g, "")}${x}</span></label>`;
       })
       .join("") +
     (open.length
