@@ -58,3 +58,4 @@ updated: 2026-10-15
 - 2026-10-18 run 2026-10-18-board-ui-revision — Web board (project logos, one popup at a time, sources drawer and icebox filters)
 - 2026-10-18 release 1.35.0 — project logos in pickers, one popup at a time, tidier sources drawer and searchable icebox filters
 - 2026-10-18 parent-child-cards: Parent: link line, child-card rule in spec-main, board badges.
+- 2026-10-18 run 2026-10-18-nest-child-cards — Web board: child cards nest inside the parent card while it is in flight

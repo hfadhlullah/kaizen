@@ -31,6 +31,14 @@ const picked = new Set();
 export const key = (c) =>
   c._k || (c.kind === "idea" ? "idea:" + c.state + ":" + c.text : "run:" + c.state + ":" + c.id);
 
+// Cards filed by a run sit inside it while it is on the board and not done; once the
+// parent is done, archived or gone, they are back in their own columns.
+const kidsOf = (p) => (p.kind === "run" ? store.S.cards.filter((c) => c.parent === p.id && c.state === p.state) : []);
+const nested = (c) =>
+  !!c.parent &&
+  store.S.cards.some((p) => p.kind === "run" && p.id === c.parent && p.state === c.state && !p.archived && p.column !== 4);
+const kidsOpen = new Set();
+
 function card(c) {
   const k = key(c),
     el = document.createElement("div");
@@ -95,6 +103,38 @@ function card(c) {
     `<div class="c-id"><span class="st d-${st}" role="img" title="${esc(sttl)}" aria-label="${esc(sttl)}"><svg><use href="#s-${st}"/></svg></span><span class="idt">${esc(idt)}</span><span class="age">${c.kind === "run" ? age(c.moved || store.S.now, store.S.now) : ""}</span><button class="ib sm more" data-a="menu" title="Actions" aria-label="Actions" aria-haspopup="menu" aria-expanded="${k === store.menuKey}">${ico("more")}</button></div>
   <div class="c-title"${c.kind === "idea" && brief(c.text).parts.length ? ` title="${esc(c.text)}"` : ""}>${esc(c.kind === "idea" ? brief(c.text).head : c.title || c.id)}</div>
   ${chips.length || marks.length ? `<div class="c-foot"><span class="c-chips">${chips.join("")}</span><span class="c-marks">${marks.join("")}</span></div>` : ""}`;
+  const kids = kidsOf(c);
+  if (kids.length) {
+    const on = kidsOpen.has(k),
+      nDone = kids.filter((x) => x.status === "done").length,
+      wait = kids.some((x) => x.status === "waiting");
+    const box = document.createElement("div");
+    box.className = "kids";
+    box.innerHTML =
+      `<button class="kids-t" aria-expanded="${on}">${on ? "▾" : "▸"} ${kids.length} ${kids.length === 1 ? "child" : "children"}${nDone ? ` · ${nDone} done` : ""}${wait ? `<span class="kids-w" title="A child is waiting on you"></span>` : ""}</button>` +
+      (on
+        ? `<ul>${kids
+            .map((x, i) => {
+              const s = ICON[x.status] || "idea";
+              return `<li data-i="${i}" tabindex="0" role="button" title="Open"><span class="st d-${s}"><svg><use href="#s-${s}"/></svg></span><span class="kids-s">${esc(WORD[x.status] || x.status)}</span><span class="kids-n">${esc(x.kind === "idea" ? brief(x.text).head : x.title || x.id)}</span></li>`;
+            })
+            .join("")}</ul>`
+        : "");
+    box.querySelector(".kids-t").onclick = (e) => {
+      e.stopPropagation();
+      on ? kidsOpen.delete(k) : kidsOpen.add(k);
+      render();
+    };
+    box.querySelectorAll("li").forEach((li) => {
+      const go = (e) => {
+        e.stopPropagation();
+        open(kids[+li.dataset.i]);
+      };
+      li.onclick = go;
+      li.onkeydown = (e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), go(e));
+    });
+    el.appendChild(box);
+  }
   if (k === store.menuKey) {
     const items = [];
     if (archive) {
@@ -427,7 +467,7 @@ export function render() {
   }
   COLS.forEach((name, ci) => {
     const s = document.createElement("section");
-    const list = cs.filter((c) => c.column === ci && (!filter || c.status === filter));
+    const list = cs.filter((c) => c.column === ci && (!filter || c.status === filter) && (archive || !nested(c)));
     // Runs age by their last move, ideas by inbox position (new ones are appended).
     if (ci < 4) {
       const at = (c) => (c.kind === "run" ? c.moved || 0 : store.S.cards.indexOf(c)),
