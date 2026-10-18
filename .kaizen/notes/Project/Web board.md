@@ -1,8 +1,8 @@
 ---
 description: `kaizen web`: the browser board, its HTTP routes, and the shared state layer
 tags: [project, web-board]
-sources: [cli/web.ts, cli/state.ts, cli/pty.ts, web/board.html, web/board, web/term.ts, design.md]
-updated: 2026-10-17
+sources: [cli/web.ts, cli/logo.ts, cli/state.ts, cli/pty.ts, web/board.html, web/board, web/term.ts, design.md]
+updated: 2026-10-18
 ---
 # Web board
 
@@ -35,6 +35,8 @@ updated: 2026-10-17
 - Settings and the Icebox share one panel and fill it after a fetch: `openSettings()` / `openSources()` must keep the `store.pageGen` check (`go()` bumps it), or a slow answer paints one page under the other's title. Switching to one of them clears the body to a Loading line before the fetch, or the old page shows under the new title until it answers.
 - Settings and the Icebox are full width: `aside.docked` header and body pad 28px each side (16px under 900px), no centred column.
 - The Icebox is titled in the board header (`markView()` sets the `h1`) and hides the docked panel's header; the project picker shows folder names only, full path in the tooltip. The rail lists Icebox first, in both `board.html` and `notes.html` (a test holds them line for line).
+- Popups: `web/board/main.ts` closes every open `.menu-pop` on a capture-phase `pointerdown` outside it, so only the newest one stays (card menus use stopPropagation, so bubble listeners never saw those clicks). New popups should be a `.menu-pop` inside a `.combo` to get this for free.
+- Project logos: `cli/logo.ts` `projectLogo()` (fixed names only); `/state` projects carry `logo`, `GET /project-logo?dir=` serves it sandboxed; `plogo()` in `web/board/projects.ts` draws it or the folder initial.
 - The server keeps no current project: each page sends its pick as `x-kz-dir` (`dirHeader()` in `web/board/api.ts`) and `cli/web.ts` resolves the project per request, so a phone picking another project never moves a desktop tab. `/cd` only checks the folder (and sets up a fresh one).
 
 ## Notes

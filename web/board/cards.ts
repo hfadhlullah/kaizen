@@ -7,7 +7,7 @@ import { draft, undraft } from "./drafts.ts";
 import { COLS, ICON, MARKS, NAMES, WORD, age, d, need } from "./labels.ts";
 import { brief } from "./markdown.ts";
 import { open, toggleArchive } from "./panel.ts";
-import { ideaCombo, list, newDir, short, showList, showable } from "./projects.ts";
+import { ideaCombo, list, newDir, plogo, short, showList, showable } from "./projects.ts";
 import { askNotify, toast } from "./toast.ts";
 
 let filter = null;
@@ -227,7 +227,7 @@ function inlineForm(c) {
   }
   if (store.mode === "move") {
     const ps = store.S.projects.filter((p) => p.dir !== dir);
-    li.innerHTML = `<div class="q">Move "${esc(c.text)}" to</div><select class="sel" aria-label="Project">${ps.map((p) => `<option value="${esc(p.dir)}">${esc(p.label)}</option>`).join("")}</select><div class="row"><button class="btn ghost" data-a="c">Cancel</button><button class="btn pri" data-a="s">Move</button></div>`;
+    li.innerHTML = `<div class="q">Move "${esc(c.text)}" to</div><select class="sel" aria-label="Project">${ps.map((p) => `<option value="${esc(p.dir)}" title="${esc(p.label)}">${esc(short(p.label))}</option>`).join("")}</select><div class="row"><button class="btn ghost" data-a="c">Cancel</button><button class="btn pri" data-a="s">Move</button></div>`;
     li.querySelector("[data-a=s]").onclick = async () => {
       const sel = li.querySelector("select"),
         to = sel.value,
@@ -400,7 +400,10 @@ export function render() {
     ["Find projects on this PC…", "__find"],
   ];
   const cur = store.all || !store.S.dir ? "All projects" : (store.PL.find((p) => p[1] === store.S.dir) || ["All projects"])[0];
-  $("proj").textContent = short(cur);
+  $("proj").innerHTML =
+    store.all || !store.S.dir
+      ? `<span class="plogo" aria-hidden="true">${ico("board")}</span><span>${esc(cur)}</span>`
+      : `${plogo(store.S.dir, cur)}<span>${esc(short(cur))}</span>`;
   $("proj").title = cur;
   if (!$("projpop").hidden) list();
   $("showc").hidden = !store.all;

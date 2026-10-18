@@ -87,7 +87,18 @@ select.sel,button.sel{cursor:pointer;appearance:none;padding-right:30px;max-widt
 #projs,#nds{display:flex;flex-direction:column;max-height:300px;overflow-y:auto}
 #projs button,#nds button{display:block;flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #projs button.on,#nds button.on{background:var(--hover)}
-#shows{display:flex;flex-direction:column;max-height:300px;overflow-y:auto}#shows label{display:flex;gap:8px;align-items:center;padding:6px 10px;font-size:13px;border-radius:var(--r-s);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#shows label:hover{background:var(--hover)}#shows .grp{padding:8px 10px 4px;font-size:11px;color:var(--dim)}
+#shows{display:flex;flex-direction:column;max-height:320px;overflow-y:auto;gap:1px}
+#shows button,#projs button,#nds button,.pick-list button{display:flex;align-items:center;gap:9px;flex:none;min-width:0;white-space:nowrap}
+#shows button>span:not([class]),#projs button>span:not([class]),#nds button>span:not([class]),.pick-list button>span:not([class]){flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+#shows .ck{width:14px;height:14px;color:var(--accent);visibility:hidden}#shows button[aria-checked=true] .ck{visibility:visible}#shows button[aria-checked=true]{color:var(--ink);font-weight:500}
+#shows .grp{padding:8px 10px 4px;font-size:11px;color:var(--dim)}
+#showpop{padding:6px}#showpop .pop-ft{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--line);margin-top:4px;padding:6px 4px 0;font-size:12px;color:var(--dim)}#showpop .pop-ft button{padding:4px 8px;font-size:12px;color:var(--accent)}
+.plogo{width:18px;height:18px;border-radius:5px;flex:none;object-fit:contain;display:inline-grid;place-items:center;font-size:10px;font-weight:600;color:var(--dim);background:var(--hover);overflow:hidden}
+img.plogo{background:none}.ice-meta .plogo{width:14px;height:14px;font-size:9px;border-radius:4px}
+#proj,#show,#ndc>.sel{display:inline-flex;align-items:center;gap:8px}#proj>span:last-child,#ndc>.sel>span:last-child{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.pick-list{display:flex;flex-direction:column;max-height:300px;overflow-y:auto}.pick-list .grp{padding:8px 10px 4px;font-size:11px;color:var(--dim);display:flex;align-items:center;gap:6px}.pick-list .grp svg{width:12px;height:12px}.pick-list button.on{background:var(--hover);color:var(--ink);font-weight:500}.pick-list button.sub{padding-left:28px}
+.ice-combo>.sel{display:inline-flex;align-items:center;gap:7px;max-width:220px;height:30px;font-size:12px}.ice-combo>.sel>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ice-combo>.sel>svg{width:14px;height:14px;flex:none}.ice-combo>.sel>svg:last-child{color:var(--dim)}.ice-combo .menu-pop{width:280px}
+.ice-combo .fav,.pick-list .fav{width:15px;height:15px;justify-content:center}.ice-combo .fav svg,.pick-list .fav svg,.ice-combo .fav img,.pick-list .fav img{width:14px;height:14px}.pick-list button>span:not([class]),.ice-combo>.sel>span:not([class]){text-align:left}
 #projs .grp,#nds .grp{padding:8px 10px 4px;font-size:11px;color:var(--dim)}
 .sp{flex:1}
 .ib{width:34px;height:34px;display:grid;place-items:center;color:var(--dim);border-radius:var(--r-s);transition:background .12s,color .12s}
@@ -214,7 +225,7 @@ aside.wide{width:100%;border-left:0}#pbody:has(.term){display:flex;flex-directio
 .ftr span+span,.ftr a+a{margin-left:14px}.ftr .strip{font-size:12px}.ftr .strip .st{display:inline-grid}
 /* The footer is out of the eye's path, so the waiting alert is filled, not just outlined. */
 .ftr .strip .attn{color:var(--ink);background:color-mix(in srgb,var(--warn) 18%,transparent);box-shadow:inset 0 0 0 1px var(--warn)}.ftr .strip .attn:hover,.ftr .strip .attn.on{background:color-mix(in srgb,var(--warn) 30%,transparent)}.ftr .strip .attn svg{color:var(--warn)}.ftr .st svg{width:12px;height:12px}
-.ftr a{color:var(--dim);cursor:pointer;white-space:nowrap;text-decoration:none}.ftr a:hover{color:var(--ink)}
+.ftr a{color:var(--dim);cursor:pointer;white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center;gap:5px}.ftr a>svg{width:13px;height:13px}.ftr a:hover{color:var(--ink)}
 
 /* side panel */
 .scrim{position:fixed;inset:0;z-index:10;background:color-mix(in srgb,var(--bg) 60%,transparent);backdrop-filter:blur(3px);display:none}
@@ -233,7 +244,7 @@ aside.docked #pclose{display:none}
 aside header{display:flex;align-items:flex-start;gap:12px;padding:20px 24px 16px;border-bottom:1px solid var(--line)}
 aside header .t{flex:1;min-width:0}
 aside header b{display:block;font-size:17px;font-weight:600;line-height:1.35}
-aside header .sub{color:var(--dim);font-size:12px;margin-top:4px}
+aside header .sub{color:var(--dim);font-size:12px;margin-top:6px}#psub{display:flex;flex-wrap:wrap;gap:6px}.pst{display:inline-flex;align-items:center;gap:6px;padding:2px 9px 2px 6px;border-radius:var(--r-pill);background:var(--hover);color:var(--ink);font-size:12px;font-weight:500}.pst.dim{color:var(--dim);font-weight:400;padding-left:9px}.pst .st{display:inline-grid;width:14px;height:14px}.pst .st svg{width:14px;height:14px}
 aside nav{display:flex;border-bottom:1px solid var(--line);padding-inline:12px;overflow:auto hidden;scrollbar-width:none}
 aside nav:empty{display:none}
 aside nav button{padding:12px;font-size:13px;font-weight:500;color:var(--dim);white-space:nowrap}
@@ -317,9 +328,10 @@ aside .foot .more .menu-pop{left:0;right:auto;top:auto;bottom:calc(100% + 4px)}.
 .ice-bar .end{flex:1}
 .ice-bar .btn,.ice-bulk .btn,.ice-ra .btn{display:inline-flex;align-items:center;gap:6px}
 .ice-bar .btn svg,.ice-bulk .btn svg,.ice-ra .btn svg{width:14px;height:14px}
-.ice-bar input,.ice-row input,.ice-bulk input{accent-color:var(--accent);width:15px;height:15px;margin:0;flex-shrink:0}
+.ice-bar>input,.ice-row input,.ice-bulk input{accent-color:var(--accent);width:15px;height:15px;margin:0;flex-shrink:0}
 .ice-bar .ice-sel{width:auto;max-width:170px;height:28px;font-size:12px;padding:2px 26px 2px 8px}
-@media(max-width:640px){.ice-bar{flex-wrap:wrap}.ice-bar .ice-sel{max-width:none;min-width:0;width:0;flex:1 1 40%}}
+@media(max-width:640px){.ice-bar{flex-wrap:wrap}.ice-bar .ice-combo{min-width:0;flex:1 1 40%}.ice-bar .ice-combo>.sel{max-width:none;width:100%}}
+.pick-list i{font-style:normal;font-size:11px;color:var(--dim);font-variant-numeric:tabular-nums}.pick-list [hidden]{display:none}
 .ice-bulk{position:sticky;top:0;z-index:1;display:flex;align-items:center;gap:8px;padding:6px 8px 6px 14px;margin:0 0 8px;border-radius:var(--r-pill);background:color-mix(in srgb,var(--dim) 12%,var(--bg-2));font-size:13px;color:var(--ink)}
 .ice-bulk .end{flex:1}
 .ice-list{display:flex;flex-direction:column;gap:1px}
@@ -332,7 +344,7 @@ aside .foot .more .menu-pop{left:0;right:auto;top:auto;bottom:calc(100% + 4px)}.
 .ice-t{font:inherit;font-size:13px;color:var(--ink);background:none;border:0;padding:6px 0;text-align:left;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ice-t[aria-expanded=true]{font-weight:500}
 .ice-src{display:inline-flex;align-items:center}
-.ice-meta{display:inline-flex;align-items:center;gap:10px;min-width:0;font-size:11px;color:var(--dim)}.ice-meta .nm{max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ice-meta{display:inline-flex;align-items:center;gap:10px;min-width:0;font-size:11px;color:var(--dim)}.ice-meta .nm{display:inline-flex;align-items:center;gap:5px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ice-age{font-size:11px;color:var(--dim);font-variant-numeric:tabular-nums;white-space:nowrap;min-width:64px;text-align:right}
 .ice-ra{display:none;gap:2px;min-width:64px;justify-content:flex-end}
 .ice-ra .btn{padding:0 6px}
@@ -347,39 +359,49 @@ aside .foot .more .menu-pop{left:0;right:auto;top:auto;bottom:calc(100% + 4px)}.
 body:not(.paged) .src-sec,body:not(.paged) .src-scrim{display:none}
 .src-scrim{position:fixed;inset:0;z-index:10;background:color-mix(in srgb,var(--bg) 60%,transparent);backdrop-filter:blur(3px);opacity:0;visibility:hidden;transition:opacity .18s,visibility .18s}
 .src-scrim.on{opacity:1;visibility:visible}
-.src-sec .sub a{color:var(--accent);text-decoration:none;cursor:pointer}
-.src-sec .sub a:hover{text-decoration:underline}
 @media(hover:none){.ice-ra{display:flex}.ice-age{display:none}}
 @media(max-width:640px){.ice-meta .nm{display:none}.ice-open{padding-left:12px}}
 .src-list{display:flex;flex-direction:column;gap:10px}
-.src-card{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r);padding:14px;box-shadow:var(--shadow-1);display:flex;flex-direction:column;gap:9px;transition:border-color .15s}
+.src-card{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r);padding:12px 12px 10px;display:flex;flex-direction:column;gap:8px;transition:border-color .15s}
 .src-card:hover{border-color:color-mix(in srgb,var(--line) 70%,var(--ink))}
-.src-hd{display:flex;justify-content:space-between;align-items:center;gap:10px}
-.src-info{display:flex;align-items:center;gap:8px;min-width:0}
-.src-ico{width:20px;height:20px;flex-shrink:0;color:var(--accent);display:inline-flex;align-items:center;justify-content:center}
-.src-ico svg{width:18px;height:18px}
+.src-hd{display:flex;align-items:center;gap:10px}
+.src-info{display:flex;flex-direction:column;min-width:0;flex:1;gap:1px}
+.src-ico{width:28px;height:28px;flex-shrink:0;color:var(--ink);display:inline-grid;place-items:center;border-radius:8px;background:var(--hover)}
+.src-ico svg{width:16px;height:16px}
 /* a site's own favicon; the generic icon after it shows only once the image fails and removes itself */
 .fav{display:inline-flex;align-items:center;flex-shrink:0}.fav img{width:16px;height:16px;border-radius:4px;padding:1px;background:#fff;box-sizing:border-box}.fav img+svg{display:none}
 .ice-src .fav svg{width:14px;height:14px}
-.src-title{font-size:14px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.src-acts{display:flex;align-items:center;gap:4px;flex-shrink:0}
-.src-acts .btn{display:inline-flex;align-items:center;gap:5px}
-.src-acts .btn svg{width:14px;height:14px}
-.src-url{font-size:12px;color:var(--dim);overflow-wrap:anywhere;line-height:1.4}
-.src-url a{color:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:4px}
-.src-url a:hover{color:var(--ink);text-decoration:underline}
-.src-url svg{width:12px;height:12px;stroke-width:1.8;flex-shrink:0}
-.src-status{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:12px}
+.src-title{font-size:13px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.src-url{font-size:11px;color:var(--dim);text-decoration:none;display:inline-flex;align-items:center;gap:4px;min-width:0}
+.src-url span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.src-url:hover{color:var(--ink)}
+.src-url svg{width:11px;height:11px;flex-shrink:0;opacity:0;transition:opacity .15s}.src-url:hover svg{opacity:1}
+.src-acts{display:flex;align-items:center;gap:2px;flex-shrink:0}
+.src-acts .ib{color:var(--dim)}.src-acts .ib:hover{color:var(--ink)}.src-acts .ib.danger:hover{color:var(--danger)}
+.src-status{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:11px;color:var(--dim)}
 .src-badge{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:var(--r-pill);font-size:11px;font-weight:500}
 .src-badge.ok{background:color-mix(in srgb,var(--ok) 14%,transparent);color:var(--ok)}
 .src-badge.warn{background:color-mix(in srgb,var(--warn) 20%,transparent);color:var(--ink);font-weight:500}
 .src-badge.warn svg{color:var(--warn)}
 .src-badge.dim{background:color-mix(in srgb,var(--dim) 14%,transparent);color:var(--dim)}
 .src-badge svg{width:12px;height:12px;stroke-width:2;flex-shrink:0}
-.src-dest{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dim);padding-top:8px;border-top:1px solid var(--line)}
-.src-dest .sel{flex:1;min-width:0;max-width:240px;height:28px;font-size:12px;padding:2px 8px}
-.src-dest .btn{height:28px;padding:0 10px;font-size:12px;display:inline-flex;align-items:center;gap:5px}
-.src-dest .btn svg{width:14px;height:14px;flex-shrink:0}
+.src-fields{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding-top:8px;border-top:1px solid var(--line)}
+.src-f{display:flex;align-items:center;gap:6px;min-width:0;font-size:11px;color:var(--dim)}
+.src-f>span:first-child{flex:none}
+.src-f .sel{flex:1;min-width:0;height:28px;font-size:12px;padding:2px 8px;background-color:transparent;border-color:transparent}
+.src-f select.sel{padding-right:26px}
+.src-f .sel:hover,.src-f .sel:focus{border-color:var(--line);background-color:var(--bg)}
+.src-f .btn{height:26px;padding:0 9px;font-size:12px}.src-f .btn:disabled{display:none}
+.src-f .plogo{width:16px;height:16px}
+.src-wb{grid-column:1/-1;display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer}.src-wb input{accent-color:var(--accent);margin:0}
+@media(max-width:640px){.src-fields{grid-template-columns:1fr}}
+.src-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.schip{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px;border-radius:var(--r-pill);border:1px solid var(--line);font-size:12px;color:var(--dim);text-decoration:none;cursor:pointer;white-space:nowrap}
+.schip svg{width:13px;height:13px}
+a.schip:hover{color:var(--ink);border-color:color-mix(in srgb,var(--line) 60%,var(--ink))}
+.schip.on{color:var(--ink);background:color-mix(in srgb,var(--ok) 10%,transparent);border-color:color-mix(in srgb,var(--ok) 35%,var(--line))}
+.schip.on>svg:first-child{color:var(--ok)}
+.schip a{display:inline-grid;place-items:center;margin-right:-4px;width:16px;height:16px;border-radius:50%;color:var(--dim);cursor:pointer}.schip a:hover{background:var(--hover);color:var(--danger)}.schip a svg{width:11px;height:11px}
 .ice-hd{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:22px 0 4px}
 .ice-hd h3{margin:0;font-size:14px;font-weight:600;color:var(--ink)}
 .ice-cat{font-size:12px;font-weight:600;color:var(--dim);margin:14px 0 6px}
@@ -428,6 +450,13 @@ body:not(.paged) .src-sec,body:not(.paged) .src-scrim{display:none}
 
 <svg style="display:none"><defs>
 <symbol id="i-clip" viewBox="0 0 24 24"><path d="M21.4 11.1l-9.2 9.2a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7l-9.2 9.2a2 2 0 0 1-2.8-2.8l8.5-8.5"/></symbol>
+<symbol id="i-bug" viewBox="0 0 24 24"><rect x="8" y="6" width="8" height="14" rx="4"/><path d="M12 20v-9M8 12H4M20 12h-4M9 7 7 4M15 7l2-3M8 17l-3 2M16 17l3 2M8.5 8.5 5 7M15.5 8.5 19 7"/></symbol>
+<symbol id="i-kbd" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+<symbol id="i-chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+<symbol id="i-ai" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></symbol>
+<symbol id="i-google" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M12.48 10.92v3.28h7.84c-.24 1.84-.85 3.18-1.73 4.1-1.08 1.08-2.76 2.26-5.7 2.26-4.82 0-8.6-3.89-8.6-8.72s3.78-8.72 8.6-8.72c2.6 0 4.5 1.02 5.9 2.34l2.31-2.31C19.13 1.19 16.56 0 12.48 0 5.87 0 .31 5.39.31 12s5.56 12 12.17 12c3.57 0 6.26-1.17 8.37-3.36 2.16-2.16 2.84-5.21 2.84-7.66 0-.76-.05-1.47-.17-2.06z"/></symbol>
 <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
 <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
 <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5.1L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.9A2 2 0 0 0 16.8 4H7.2a2 2 0 0 0-1.7 1.1z"/></symbol>
@@ -505,13 +534,13 @@ body:not(.paged) .src-sec,body:not(.paged) .src-scrim{display:none}
 <div class="hdr">
   <h1>Board</h1>
   <div class="combo" id="combo"><button class="sel" id="proj" aria-label="project" aria-haspopup="listbox" aria-expanded="false"></button><div class="menu-pop" id="projpop" hidden><input class="sel" id="projq" aria-label="Search projects" placeholder="Search projects…" spellcheck="false" autocomplete="off"><div id="projs" role="listbox"></div></div></div>
-  <div class="combo" id="showc" hidden><button class="sel" id="show" aria-label="Projects shown" aria-haspopup="true" aria-expanded="false"></button><div class="menu-pop" id="showpop" hidden><input class="sel" id="showq" aria-label="Search projects" placeholder="Search projects…" spellcheck="false" autocomplete="off"><div id="shows"></div><button id="showall">Show all</button></div></div>
+  <div class="combo" id="showc" hidden><button class="sel" id="show" aria-label="Projects shown" aria-haspopup="true" aria-expanded="false"></button><div class="menu-pop" id="showpop" hidden><input class="sel" id="showq" aria-label="Search projects" placeholder="Search projects…" spellcheck="false" autocomplete="off"><div id="shows"></div><div class="pop-ft"><span id="showcount"></span><button id="showall">Show all</button></div></div></div>
   <span class="sp"></span>
   <button class="btn pri" id="newtop">New idea</button>
 </div>
 <main id="board" aria-live="polite"></main>
 
-<div class="ftr"><span class="strip" id="strip"></span><span><a href="/issue" target="_blank" rel="noopener">Report an issue</a><a id="kbd">Keyboard shortcuts</a></span></div>
+<div class="ftr"><span class="strip" id="strip"></span><span><a href="/issue" target="_blank" rel="noopener"><svg><use href="#i-bug"/></svg>Report an issue</a><a id="kbd"><svg><use href="#i-kbd"/></svg>Keyboard shortcuts</a></span></div>
 
 <div class="scrim" id="scrim"></div>
 <aside id="panel" aria-label="detail">

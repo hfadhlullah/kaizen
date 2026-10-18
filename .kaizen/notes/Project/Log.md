@@ -55,3 +55,4 @@ updated: 2026-10-15
 - 2026-10-17 release — 1.34.10: installed app blocks pinch and keyboard zoom; browser tab still zooms
 - 2026-10-17 release — 1.34.11: installed app top no longer blurred on iOS 26
 - 2026-10-17 release — 1.34.12: icebox "+" opens the promote form; new-idea form gets Add and an attach icon
+- 2026-10-18 run 2026-10-18-board-ui-revision — Web board (project logos, one popup at a time, sources drawer and icebox filters)

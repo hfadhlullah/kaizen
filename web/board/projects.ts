@@ -1,7 +1,7 @@
 import { store } from "./store.ts";
 import { load, post } from "./api.ts";
 import { render } from "./cards.ts";
-import { $, esc } from "./dom.ts";
+import { $, esc, ico } from "./dom.ts";
 import { openSources, srcOpen } from "./icebox.ts";
 import { toast } from "./toast.ts";
 import { view } from "./views.ts";
@@ -17,6 +17,16 @@ export function keep(d) {
 }
 // A project shows by its folder name alone; the full path stays in the tooltip.
 export const short = (l) => l.split(/[\\/]/).pop() || l;
+// A project's mark in every picker: its own logo when /state found one, else its initial.
+// A logo the browser cannot draw falls back to the initial too.
+export const plogo = (dir, label = "") => {
+  const ini = `<span class="plogo" aria-hidden="true">${esc((short(label) || "?").charAt(0).toUpperCase())}</span>`;
+  return store.S?.projects?.some((p) => p.dir === dir && p.logo)
+    ? `<img class="plogo" src="/project-logo?dir=${encodeURIComponent(dir)}" alt="" loading="lazy" onerror="this.outerHTML=this.dataset.f" data-f="${esc(ini)}">`
+    : ini;
+};
+// A picker row: the mark, then the folder name; the full path in the tooltip.
+const prow = (dir, label) => `${plogo(dir, label)}<span>${esc(short(label))}</span>`;
 // The project picker: a button shaped like a select that opens a search field over the list.
 export function list() {
   const q = $("projq").value.trim().toLowerCase();
@@ -25,7 +35,7 @@ export function list() {
     store.PL.map((p, i) =>
       p[0].toLowerCase().includes(q)
         ? (p[2] && !g++ ? `<div class="grp">In your projects folder</div>` : "") +
-          `<button role="option" data-i="${i}" title="${esc(p[0])}">${esc(short(p[0]))}</button>`
+          `<button role="option" data-i="${i}" title="${esc(p[0])}">${p[1] === "all" ? `<span class="plogo" aria-hidden="true">${ico("board")}</span><span>${esc(p[0])}</span>` : p[1] === "__find" ? `<span class="plogo" aria-hidden="true">${ico("plus")}</span><span>${esc(p[0])}</span>` : prow(p[1], p[0])}</button>`
         : "",
     ).join("") || `<div class="grp">No match</div>`;
   const f = $("projs").querySelector("button");
@@ -71,7 +81,8 @@ export function ideaCombo(f) {
     box = f.querySelector("#nds");
   if (!ps.some((p) => p.dir === newDir)) newDir = ps[0]?.dir ?? null;
   const name = () => {
-    btn.textContent = short((ps.find((p) => p.dir === newDir) || { label: "Choose project" }).label);
+    const p = ps.find((p) => p.dir === newDir);
+    btn.innerHTML = p ? prow(p.dir, p.label) : "Choose project";
   };
   const draw = () => {
     const t = q.value.trim().toLowerCase();
@@ -80,7 +91,7 @@ export function ideaCombo(f) {
         .filter((p) => p.label.toLowerCase().includes(t))
         .map(
           (p) =>
-            `<button type="button" role="option" data-d="${esc(p.dir)}" title="${esc(p.label)}" class="${p.dir === newDir ? "on" : ""}">${esc(short(p.label))}</button>`,
+            `<button type="button" role="option" data-d="${esc(p.dir)}" title="${esc(p.label)}" class="${p.dir === newDir ? "on" : ""}">${prow(p.dir, p.label)}</button>`,
         )
         .join("") || `<div class="grp">No match</div>`;
     box.querySelectorAll("button").forEach(
@@ -136,9 +147,11 @@ export function showList() {
   $("shows").innerHTML =
     SP.map((p, i) =>
       p.label.toLowerCase().includes(q)
-        ? `<label title="${esc(p.label)}"><input type="checkbox" data-i="${i}" ${store.shown.has(p.dir) ? "checked" : ""}>${esc(short(p.label))}</label>`
+        ? `<button type="button" role="menuitemcheckbox" data-i="${i}" aria-checked="${store.shown.has(p.dir)}" title="${esc(p.label)}">${prow(p.dir, p.label)}<svg class="ck"><use href="#i-check"/></svg></button>`
         : "",
     ).join("") || `<div class="grp">No match</div>`;
+  const n = SP.filter((p) => store.shown.has(p.dir)).length;
+  $("showcount").textContent = n ? `${n} of ${SP.length} shown` : `All ${SP.length} shown`;
 }
 export function setShown() {
   try {
@@ -196,12 +209,13 @@ export function initProjects() {
       $("show").focus();
     }
   };
-  // render() redraws the list; the ticked box keeps keyboard focus.
-  $("shows").onchange = (e) => {
-    const i = e.target.dataset.i,
+  // render() redraws the list; the toggled row keeps keyboard focus.
+  $("shows").onclick = (e) => {
+    const b = e.target.closest("button[data-i]"),
+      i = b?.dataset.i,
       d = SP[i]?.dir;
     if (!d) return;
-    e.target.checked ? store.shown.add(d) : store.shown.delete(d);
+    store.shown.has(d) ? store.shown.delete(d) : store.shown.add(d);
     setShown();
     $("shows").querySelector(`[data-i="${i}"]`)?.focus();
   };

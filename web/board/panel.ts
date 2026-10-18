@@ -8,7 +8,7 @@ import { stopDictation } from "./dictation.ts";
 import { $, esc } from "./dom.ts";
 import { fixForm, fixOff } from "./fixes.ts";
 import { commitPush, confirmCommit, gitBtn } from "./git.ts";
-import { WORD, need } from "./labels.ts";
+import { ICON, WORD, need } from "./labels.ts";
 import { attach, brief, md, planQuestions, preview, progress } from "./markdown.ts";
 import { toast } from "./toast.ts";
 import { go, view } from "./views.ts";
@@ -25,6 +25,18 @@ const TABS = [
   ["Preview", "preview"],
 ];
 // keepTab: a link already chose the tab.
+const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+// "2026-10-18-board-ui-revision" or "board-ui-revision" reads "Board UI revision".
+const readable = (t) =>
+  /\s/.test(t)
+    ? t
+    : cap(
+        t
+          .replace(/^\d{4}-\d{2}-\d{2}-/, "")
+          .split(/[-_]/)
+          .map((w) => (/^(ui|ux|api|cli|ai|ci|id|url|pr|tui|ios|pwa)$/i.test(w) ? w.toUpperCase() : w))
+          .join(" "),
+      );
 export function open(c, keepTab) {
   if (view !== "board") go("board", true);
   stopDictation(true); // the panel body is about to be replaced
@@ -32,12 +44,14 @@ export function open(c, keepTab) {
   store.openKey = key(c);
   $("panel").classList.add("open");
   $("scrim").classList.add("on");
-  $("ptitle").textContent = c.kind === "idea" ? brief(c.text).head : c.text;
+  // A run is titled as its card is, its slug made readable; the id stays in the tooltip.
+  $("ptitle").textContent = c.kind === "idea" ? brief(c.text).head : readable(c.title || c.text);
+  $("ptitle").title = c.kind === "idea" ? "" : c.id || "";
   render();
   $("pterm").hidden = true;
   if (c.kind === "idea") {
     store.runDoc = null;
-    $("psub").textContent = "Idea · " + c.where;
+    $("psub").innerHTML = `<span class="pst"><span class="st d-idea"><svg><use href="#s-idea"/></svg></span>Idea</span><span class="pst dim">${esc(c.where.split(/[\\/]/).pop() || c.where)}</span>`;
     $("ptabs").innerHTML = "";
     ideaBody(c);
     const foot = $("pfoot");
@@ -113,7 +127,10 @@ export async function openRun(c, refresh, again) {
   // A refresh while notes are being typed would wipe the textarea.
   const ta = $("pbody").querySelector(".notes textarea");
   if (refresh && ta && document.activeElement === ta) return;
-  $("psub").textContent = c.id + " · " + (WORD[c.status] || c.status) + (c.awaiting ? " · " + need(c.awaiting) : "");
+  // The board's own status mark, then what it waits on: chips, not a dotted line.
+  $("psub").innerHTML =
+    `<span class="pst"><span class="st d-${ICON[c.status] || "idea"}"><svg><use href="#s-${ICON[c.status] || "idea"}"/></svg></span>${esc(cap(WORD[c.status] || c.status))}</span>` +
+    (c.awaiting ? `<span class="pst dim">${esc(cap(need(c.awaiting)))}</span>` : "");
   // Only tabs with something in them show. A card whose agent runs in the board gets its
   // terminal behind the header's terminal button, chosen once right after a launch from here.
   const tabs = TABS.filter(

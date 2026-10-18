@@ -4,7 +4,7 @@ import { load, post } from "./api.ts";
 import { via } from "./cards.ts";
 import { stopDictation } from "./dictation.ts";
 import { $, esc, ico } from "./dom.ts";
-import { setShown, short, showable } from "./projects.ts";
+import { plogo, setShown, short, showable } from "./projects.ts";
 import { toast } from "./toast.ts";
 import { go, view } from "./views.ts";
 
@@ -54,6 +54,60 @@ const ago = (at) => {
         ? Math.round(m / 60) + " h ago"
         : Math.round(m / 1440) + " d ago";
 };
+// A searchable filter picker: the button opens it, typing narrows the rows (a group header
+// stays while any of its rows does), Enter or a click picks.
+function wirePick(id, set) {
+  const c = $(id);
+  if (!c) return;
+  const btn = c.querySelector("button.sel"),
+    pp = c.querySelector(".menu-pop"),
+    q = pp.querySelector("input"),
+    box = pp.querySelector(".pick-list");
+  const show = (on) => {
+    pp.hidden = !on;
+    btn.setAttribute("aria-expanded", on);
+    if (on) {
+      q.value = "";
+      narrow();
+      q.focus();
+    }
+  };
+  const narrow = () => {
+    const t = q.value.trim().toLowerCase();
+    let g = null,
+      any = false;
+    for (const el of box.children) {
+      if (el.classList.contains("grp")) {
+        if (g) g.hidden = !any;
+        g = el;
+        any = false;
+      } else {
+        const hit = !t || el.dataset.q.includes(t) || (g && g.dataset.g.includes(t));
+        el.hidden = !hit;
+        any ||= hit;
+      }
+    }
+    if (g) g.hidden = !any;
+  };
+  btn.onclick = () => show(pp.hidden);
+  q.oninput = narrow;
+  q.onkeydown = (e) => {
+    if (e.key === "Escape") {
+      e.stopPropagation();
+      show(false);
+      btn.focus();
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      box.querySelector("button:not([hidden])")?.click();
+    }
+  };
+  box.onclick = (e) => {
+    const b = e.target.closest("button[data-v]");
+    if (!b) return;
+    show(false);
+    set(b.dataset.v);
+  };
+}
 export async function openSources() {
   if (view !== "sources") return;
   const gen = ++store.pageGen;
@@ -128,6 +182,8 @@ export async function openSources() {
           : h + "/favicon.ico";
     return `<span class="fav">${src ? `<img src="${esc(src)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ""}${ico(fb)}</span>`;
   };
+  // What a source is called when nothing names it: its platform, else its site.
+  const platOf = (s) => PLAT[s?.social] || (s ? host(s.url).replace(/^www\./, "") : "") || "Other";
   const srcType = (s) => {
     if (s.social) return "social";
     const u = s.url;
@@ -146,10 +202,10 @@ export async function openSources() {
   // a row whose project the picker does not list still gets its own, selected, so Move never points elsewhere.
   const opts = (on, name) =>
     (on && !store.S.projects.some((p) => p.dir === on)
-      ? `<option value="${esc(on)}" selected>${esc(name || on)}</option>`
+      ? `<option value="${esc(on)}" title="${esc(name || on)}" selected>${esc(short(name || on))}</option>`
       : "") +
     store.S.projects
-      .map((p) => `<option value="${esc(p.dir)}"${p.dir === on ? " selected" : ""}>${esc(p.label)}</option>`)
+      .map((p) => `<option value="${esc(p.dir)}" title="${esc(p.label)}"${p.dir === on ? " selected" : ""}>${esc(short(p.label))}</option>`)
       .join("");
   const cards = list
     .map((s, i) => {
@@ -164,7 +220,9 @@ export async function openSources() {
             : s.last.ok
               ? `<span class="src-badge ok"><svg viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-6" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>${esc(s.last.note)}</span><span class="hint" style="margin:0">${ago(s.last.at)}</span>`
               : `<span class="src-badge warn"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" stroke="currentColor" fill="none" stroke-width="1.8"/><path d="M8 5v3.5M8 11v.1" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round"/></svg>Failed: ${esc(s.last.note)}</span><span class="hint" style="margin:0">${ago(s.last.at)}</span>`;
-      return `<div class="src-card" id="src-card-${i}"><div class="src-hd"><div class="src-info"><span class="src-ico" title="${st === "social" ? esc(PLAT[s.social] || "social") : st}">${fav(s.url, st === "sheet" ? "sheet" : st === "doc" ? "doc" : st === "social" ? "at" : "link", s.social)}</span><span class="src-title" title="${esc(title)}">${esc(title)}</span></div><div class="src-acts">${s.social ? `<button class="btn ghost sm" id="src-ag-${i}" data-ag="${i}" aria-label="Gather ${esc(title)} with your agent" title="${chatOn ? "Read this source with your ChatGPT plan" : "Open your agent to run /kaizen gather for this project"}">${ico("refresh")} Gather</button>` : `<button class="btn ghost sm" id="src-chk-${i}" data-chk="${i}" aria-label="Check ${esc(title)} now" title="Check this source now">${ico("refresh")} Check</button>`}<button class="btn ghost danger sm" id="src-rm-${i}" data-rm="${i}" aria-label="Remove ${esc(title)}" title="Remove source">${ico("trash")}</button></div></div><div class="src-url"><a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer" title="${esc(s.url)}"><span>${esc(s.url)}</span>${ico("ext")}</a></div><div class="src-status">${statusHtml}</div><div class="src-dest"><span>Category</span><input class="sel" id="src-ct-${i}" data-ct="${i}" data-k="${esc(s.dir + " " + s.url)}" value="${esc(s.category || "")}" placeholder="e.g. Feedback" maxlength="40" aria-label="Category of ${esc(title)}"><button class="btn sm" id="src-cs-${i}" aria-label="Save the category of ${esc(title)}" disabled>Save</button></div>${st === "sheet" || /github\.com/.test(s.url) ? `<div class="src-dest"><span>Write back</span><label class="hint" style="margin:0"><input type="checkbox" id="src-wb-${i}" data-wb="${i}"${s.writeback ? " checked" : ""}> ${st === "sheet" ? "Put Done in the row's Status column" : "Comment and close the issue"} when its run is done</label></div>` : ""}<div class="src-dest"><span>Project</span><select class="sel" id="src-mv-${i}" data-mv="${i}" data-k="${esc(s.dir + " " + s.url)}" aria-label="Project of ${esc(title)}">${opts(s.dir, s.project)}</select><button class="btn sm" id="src-mb-${i}" aria-label="Move ${esc(title)} to the chosen project" disabled>Move</button></div></div>`;
+      const kind = st === "sheet" ? "sheet" : st === "doc" ? "doc" : st === "social" ? "at" : "link",
+        bare = s.url.replace(/^https?:\/\/(www\.)?/, "");
+      return `<div class="src-card" id="src-card-${i}"><div class="src-hd"><span class="src-ico" title="${st === "social" ? esc(PLAT[s.social] || "social") : st}">${fav(s.url, kind, s.social)}</span><div class="src-info"><span class="src-title" title="${esc(title)}">${esc(title)}</span><a class="src-url" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer" title="${esc(s.url)}"><span>${esc(bare)}</span>${ico("ext")}</a></div><div class="src-acts">${s.social ? `<button class="ib sm" id="src-ag-${i}" data-ag="${i}" aria-label="Gather ${esc(title)} with your agent" title="${chatOn ? "Gather with your ChatGPT plan" : "Gather: opens your agent on /kaizen gather"}">${ico("refresh")}</button>` : `<button class="ib sm" id="src-chk-${i}" data-chk="${i}" aria-label="Check ${esc(title)} now" title="Check now">${ico("refresh")}</button>`}<button class="ib sm danger" id="src-rm-${i}" data-rm="${i}" aria-label="Remove ${esc(title)}" title="Remove source">${ico("trash")}</button></div></div><div class="src-status">${statusHtml}</div><div class="src-fields"><label class="src-f" title="Category"><span>Category</span><input class="sel" id="src-ct-${i}" data-ct="${i}" data-k="${esc(s.dir + " " + s.url)}" value="${esc(s.category || "")}" placeholder="${esc(platOf(s))}" maxlength="40" aria-label="Category of ${esc(title)}"><button class="btn sm pri" id="src-cs-${i}" aria-label="Save the category of ${esc(title)}" disabled>Save</button></label><label class="src-f" title="Project"><span>Project</span>${plogo(s.dir, s.project || "")}<select class="sel" id="src-mv-${i}" data-mv="${i}" data-k="${esc(s.dir + " " + s.url)}" aria-label="Project of ${esc(title)}">${opts(s.dir, s.project)}</select><button class="btn sm pri" id="src-mb-${i}" aria-label="Move ${esc(title)} to the chosen project" disabled>Move</button></label>${st === "sheet" || /github\.com/.test(s.url) ? `<label class="src-wb"><input type="checkbox" id="src-wb-${i}" data-wb="${i}"${s.writeback ? " checked" : ""}> ${st === "sheet" ? "Mark the row Done" : "Comment and close the issue"} when its run is done</label>` : ""}</div></div>`;
     })
     .join("");
   const fails = ((d && d.failed) || [])
@@ -190,7 +248,14 @@ export async function openSources() {
     srcKey = (it) => it.dir + " " + it.source;
   // Filters narrow in turn: project (the board's own picker, all projects only), then
   // category, then source; each chip counts what the filters before it leave.
-  const catOf = (it) => (it.status === "dismissed" ? "Dismissed" : it.status === "done" ? "Done" : it.category || "Uncategorised"),
+  // An item with no category of its own takes its source's, else the source's platform or site.
+  const srcOf = (it) => list.find((x) => x.dir === it.dir && x.url === it.source),
+    catOf = (it) =>
+      it.status === "dismissed"
+        ? "Dismissed"
+        : it.status === "done"
+          ? "Done"
+          : it.category || srcOf(it)?.category || platOf(srcOf(it) || { url: it.source }),
     count = (xs, f) => {
       const m = new Map();
       xs.forEach((it) => {
@@ -234,23 +299,46 @@ export async function openSources() {
   const nSel = order.filter((i) => iceSel.has(iceKey(ice[i]))).length;
   // Filters are plain dropdowns, each shown only when it has a choice to make. Projects are
   // narrowed by the board's own Showing picker above, not here.
-  const many = byProj.size > 1,
-    opt = (v, on, t) => `<option value="${esc(v)}"${on ? " selected" : ""}>${esc(t)}</option>`;
-  const pick = (id, label, xs) =>
-    `<select class="sel ice-sel" id="${id}" aria-label="${label}">${xs.join("")}</select>`;
+  const many = byProj.size > 1;
+  // Filters are searchable pickers (the header's combo): a button, then a search over the list.
+  const pick = (id, label, cur, rows) =>
+    `<div class="combo ice-combo" id="${id}"><button class="sel" aria-label="${label}" aria-haspopup="listbox" aria-expanded="false">${cur}</button><div class="menu-pop" hidden><input class="sel" aria-label="Search ${label.toLowerCase()}" placeholder="Search…" spellcheck="false" autocomplete="off"><div class="pick-list" role="listbox">${rows}</div></div></div>`;
+  const opt = (v, on, html, q, cls = "") =>
+    `<button type="button" role="option" data-v="${esc(v)}" data-q="${esc(q.toLowerCase())}" class="${on ? "on" : ""}${cls}" aria-selected="${on}">${html}</button>`;
+  // Sources group by platform: two Threads searches sit under one Threads.
+  const srcGroups = new Map();
+  for (const [k, { it }] of bySrc) {
+    const g = platOf(srcOf(it) || { url: it.source });
+    srcGroups.has(g) || srcGroups.set(g, []);
+    srcGroups.get(g).push([k, it]);
+  }
+  const srcIco = (it) => fav(it.source, "link", srcOf(it)?.social);
+  const curSrc = iceSrc && [...bySrc].find(([k]) => k === iceSrc)?.[1].it;
   const chips =
     // Dismissed and Done are hidden until picked, so even a lone one is a choice.
     (byCat.size > 1 || byCat.has("Dismissed") || byCat.has("Done")
-      ? pick("ice-fc", "Category", [
-          opt("", !iceCat, "All categories"),
-          ...[...byCat.keys()].map((k) => opt(k, iceCat === k, k)),
-        ])
+      ? pick(
+          "ice-fc",
+          "Category",
+          `<span>${esc(iceCat || "All categories")}</span>`,
+          opt("", !iceCat, `<span>All categories</span>`, "all categories") +
+            [...byCat].map(([k, { n }]) => opt(k, iceCat === k, `<span>${esc(k)}</span><i>${n}</i>`, k)).join(""),
+        )
       : "") +
     (bySrc.size > 1
-      ? pick("ice-fs", "Source", [
-          opt("", !iceSrc, "All sources"),
-          ...[...bySrc].map(([k, { it }]) => opt(k, iceSrc === k, srcName(it))),
-        ])
+      ? pick(
+          "ice-fs",
+          "Source",
+          curSrc ? `${srcIco(curSrc)}<span>${esc(srcName(curSrc))}</span>` : `<span>All sources</span>`,
+          opt("", !iceSrc, `<span>All sources</span>`, "all sources") +
+            [...srcGroups]
+              .map(
+                ([g, xs]) =>
+                  `<div class="grp" data-g="${esc(g.toLowerCase())}">${srcIco(xs[0][1])}${esc(g)}</div>` +
+                  xs.map(([k, it]) => opt(k, iceSrc === k, `${srcIco(it)}<span>${esc(srcName(it).toLowerCase().startsWith(g.toLowerCase() + ":") ? srcName(it).slice(g.length + 1).trim() : srcName(it))}</span><i>${bySrc.get(k).n}</i>`, g + " " + srcName(it), " sub")).join(""),
+              )
+              .join(""),
+        )
       : "");
   const bar = `<div class="ice-bar">${order.length ? `<input type="checkbox" id="ice-all" aria-label="Select every request shown"${nSel && nSel === order.length ? " checked" : ""}>` : ""}<span class="count">${iceCat === "Dismissed" || iceCat === "Done" ? `${order.length} ${iceCat.toLowerCase()}` : `${order.length < waiting ? `${order.length} of ${waiting}` : waiting} waiting`}</span>${chips}<span class="end"></span><button class="btn sm" id="src-go"${list.length ? "" : " disabled"}>${ico("refresh")} Gather all</button><button class="btn ghost sm" id="src-tog" aria-expanded="${srcShow ?? !list.length}" aria-controls="src-sec">${ico("link")} Sources · ${list.length}</button></div>`;
   const bulk = iceSel.size
@@ -281,7 +369,7 @@ export async function openSources() {
       k = iceKey(it),
       open = iceForm === k;
     return (
-      `<div class="ice-row${iceCur === k ? " cur" : ""}${iceSel.has(k) ? " sel" : ""}" data-i="${i}" data-k="${esc(k)}"><input type="checkbox" id="ice-ck-${i}" data-ck="${i}"${iceSel.has(k) ? " checked" : ""} aria-label="Select: ${esc(it.text)}"><span class="ice-src" title="${esc(srcName(it))}">${fav(it.source, "link", list.find((x) => x.dir === it.dir && x.url === it.source)?.social)}</span><button class="ice-t" id="ice-o-${i}" data-o="${i}" aria-expanded="${open}" title="${esc(it.text)}">${esc(it.text)}</button><span class="ice-meta">${many ? `<span class="nm" title="${esc(it.project || "")}">${esc(short(it.project || ""))}</span>` : ""}${it.status === "done" && it.written ? `<span title="Written back ${esc(ago(it.written))}">written back</span>` : ""}${it.status === "done" && it.writeError ? `<span title="${esc(it.writeError)}">write-back failed</span>` : ""}${it.status === "promoted" ? `<span title="Promoted to Ideas: ${esc(it.idea || "")}">promoted</span>` : ""}${it.replied ? `<span title="Replied ${esc(ago(it.replied))}">replied</span>` : ""}<span class="ice-age">${ago(it.at)}</span><span class="ice-ra">${it.status === "promoted" || it.status === "done" ? "" : `<button class="btn ghost sm" id="ice-pr-${i}" data-pr="${i}" title="Promote to Ideas (p)" aria-label="Promote to Ideas: ${esc(it.text)}">${ico("plus")}</button>`}${it.status === "promoted" || it.status === "done" ? "" : it.status === "dismissed" ? `<button class="btn ghost sm" id="ice-rs-${i}" data-rs="${i}" title="Restore to waiting" aria-label="Restore: ${esc(it.text)}">Restore</button>` : `<button class="btn ghost sm" id="ice-ds-${i}" data-ds="${i}" title="Dismiss (d)" aria-label="Dismiss: ${esc(it.text)}">${ico("x")}</button>`}</span></span></div>` +
+      `<div class="ice-row${iceCur === k ? " cur" : ""}${iceSel.has(k) ? " sel" : ""}" data-i="${i}" data-k="${esc(k)}"><input type="checkbox" id="ice-ck-${i}" data-ck="${i}"${iceSel.has(k) ? " checked" : ""} aria-label="Select: ${esc(it.text)}"><span class="ice-src" title="${esc(srcName(it))}">${fav(it.source, "link", list.find((x) => x.dir === it.dir && x.url === it.source)?.social)}</span><button class="ice-t" id="ice-o-${i}" data-o="${i}" aria-expanded="${open}" title="${esc(it.text)}">${esc(it.text)}</button><span class="ice-meta">${many ? `<span class="nm" title="${esc(it.project || "")}">${plogo(it.dir, it.project || "")}${esc(short(it.project || ""))}</span>` : ""}${it.status === "done" && it.written ? `<span title="Written back ${esc(ago(it.written))}">written back</span>` : ""}${it.status === "done" && it.writeError ? `<span title="${esc(it.writeError)}">write-back failed</span>` : ""}${it.status === "promoted" ? `<span title="Promoted to Ideas: ${esc(it.idea || "")}">promoted</span>` : ""}${it.replied ? `<span title="Replied ${esc(ago(it.replied))}">replied</span>` : ""}<span class="ice-age">${ago(it.at)}</span><span class="ice-ra">${it.status === "promoted" || it.status === "done" ? "" : `<button class="btn ghost sm" id="ice-pr-${i}" data-pr="${i}" title="Promote to Ideas (p)" aria-label="Promote to Ideas: ${esc(it.text)}">${ico("plus")}</button>`}${it.status === "promoted" || it.status === "done" ? "" : it.status === "dismissed" ? `<button class="btn ghost sm" id="ice-rs-${i}" data-rs="${i}" title="Restore to waiting" aria-label="Restore: ${esc(it.text)}">Restore</button>` : `<button class="btn ghost sm" id="ice-ds-${i}" data-ds="${i}" title="Dismiss (d)" aria-label="Dismiss: ${esc(it.text)}">${ico("x")}</button>`}</span></span></div>` +
       (open
         ? `<div class="ice-open">${it.notes ? `<div class="ice-notes">${esc(it.notes)}</div>` : ""}${(it.images || []).filter((u) => /^https:\/\//.test(u)).length ? `<details class="ice-imgs"><summary>Show images (${it.images.filter((u) => /^https:\/\//.test(u)).length}) — loads them from the source's site</summary>${it.images.filter((u) => /^https:\/\//.test(u)).map((u, n) => { const src = `/ice-image?dir=${encodeURIComponent(it.dir)}&id=${encodeURIComponent(it.id)}&i=${n}`; return `<a href="${esc(src)}" target="_blank" rel="noopener noreferrer"><img data-src="${esc(src)}" alt="" referrerpolicy="no-referrer"></a>`; }).join("")}</details>` : ""}<span class="hint" style="margin:0">From ${esc(srcName(it))} · ${ago(it.at)}${it.post ? ` · <a href="${esc(it.post)}" target="_blank" rel="noopener">open post</a>` : ""}</span>${replyBox(it)}${icePro === k ? form(it) : ""}</div>`
         : "")
@@ -297,7 +385,7 @@ export async function openSources() {
   // are none until closed. Slid in only when opened; a rebuild while open shows it in place.
   const drawer = srcShow ?? !list.length,
     slide = drawer && !$("src-sec")?.classList.contains("open");
-  const sec = `<div class="src-scrim${drawer && !slide ? " on" : ""}" id="src-scrim"></div><aside class="src-sec${drawer && !slide ? " open" : ""}" id="src-sec" aria-label="Sources"${drawer ? "" : " inert"}><header><div class="t"><b>Sources</b><div class="sub">${d && d.every && d.every !== "off" ? `Auto-check every ${esc(d.every)}` : "Auto-check off"} · <a id="src-to-settings" role="button" tabindex="0">Settings</a> · ${G.connected ? `ChatGPT${G.email ? " " + esc(G.email) : ""} <a id="cg-out" role="button" tabindex="0">Disconnect</a>` : `<a id="cg-in" role="button" tabindex="0">Connect ChatGPT</a>`} · ${(d.google || {}).connected ? `Google <a id="gg-out" role="button" tabindex="0">Disconnect</a>` : `<a id="gg-in" role="button" tabindex="0">Connect Google</a>`}</div></div><div class="src-hda">${list.length ? `<button class="btn sm" id="src-new" aria-expanded="${addOn}" aria-controls="src-addbox">${ico("plus")} Add</button>` : ""}<button class="ib" id="src-x" aria-label="Close sources" title="Close">${ico("close")}</button></div></header><div class="body">${addBox}${list.length ? `<div class="src-list">${cards}</div>` : emptyState}</div></aside>`;
+  const sec = `<div class="src-scrim${drawer && !slide ? " on" : ""}" id="src-scrim"></div><aside class="src-sec${drawer && !slide ? " open" : ""}" id="src-sec" aria-label="Sources"${drawer ? "" : " inert"}><header><div class="t"><b>Sources</b><div class="src-chips"><a id="src-to-settings" class="schip" role="button" tabindex="0" title="${d && d.every && d.every !== "off" ? `Checked every ${esc(d.every)}` : "Auto-check off"}: change in Settings">${ico("clock")}${d && d.every && d.every !== "off" ? esc(d.every) : "Off"}</a>${G.connected ? `<span class="schip on" title="ChatGPT${G.email ? ": " + esc(G.email) : ""}">${ico("ai")}ChatGPT<a id="cg-out" role="button" tabindex="0" aria-label="Disconnect ChatGPT" title="Disconnect">${ico("x")}</a></span>` : `<a id="cg-in" class="schip" role="button" tabindex="0" title="Connect ChatGPT">${ico("ai")}ChatGPT</a>`}${(d.google || {}).connected ? `<span class="schip on" title="Google connected">${ico("google")}Google<a id="gg-out" role="button" tabindex="0" aria-label="Disconnect Google" title="Disconnect">${ico("x")}</a></span>` : `<a id="gg-in" class="schip" role="button" tabindex="0" title="Connect Google">${ico("google")}Google</a>`}</div></div><div class="src-hda">${list.length ? `<button class="btn sm" id="src-new" aria-expanded="${addOn}" aria-controls="src-addbox">${ico("plus")} Add</button>` : ""}<button class="ib" id="src-x" aria-label="Close sources" title="Close">${ico("close")}</button></div></header><div class="body">${addBox}${list.length ? `<div class="src-list">${cards}</div>` : emptyState}</div></aside>`;
   // First visit: offer the ChatGPT plan for social sources, or keep the agent.
   const onb =
     G.use === "ask" && !G.connected
@@ -413,16 +501,14 @@ export async function openSources() {
     srcShow = true;
     openSources().then(() => srcShow && $("src-url")?.focus());
   };
-  if ($("ice-fs"))
-    $("ice-fs").onchange = (e) => {
-      iceSrc = e.target.value;
-      openSources();
-    };
-  if ($("ice-fc"))
-    $("ice-fc").onchange = (e) => {
-      iceCat = e.target.value;
-      openSources();
-    };
+  wirePick("ice-fs", (v) => {
+    iceSrc = v;
+    openSources();
+  });
+  wirePick("ice-fc", (v) => {
+    iceCat = v;
+    openSources();
+  });
   if ($("ice-unf"))
     $("ice-unf").onclick = () => {
       iceCat = iceSrc = "";

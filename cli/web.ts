@@ -11,6 +11,7 @@ import {
 } from "./state.ts";
 import { attachPty, writePty, resizePty, ptyState, ptyKeys, adoptLoginEnv } from "./pty.ts";
 import { readSources, addSource, removeSource, moveSource, setCategory, setWriteback, readIcebox, promote, dismiss, restore, markDone, markReplied, gatherSource, freshImages, gatherAll, gatherDirs, due, socialUrl, socialOf } from "./sources.ts";
+import { projectLogo, LOGO_TYPES } from "./logo.ts";
 import * as chatgpt from "./chatgpt.ts";
 import * as google from "./google.ts";
 import { writeBacks } from "./writeback.ts";
@@ -370,6 +371,16 @@ export async function web(repoDir: string, opts: Opts = {}) {
         return new Response(Bun.file(LOGO), { headers: { "content-type": "image/png", "cache-control": "max-age=86400" } });
       }
 
+      // A project's own logo, for the project pickers: only a known project, only the fixed
+      // names in LOGOS, sandboxed so an SVG opened directly runs nothing on this origin.
+      if (req.method === "GET" && path === "/project-logo") {
+        const dir = url.searchParams.get("dir") ?? "";
+        const f = states(true).includes(dir) ? projectLogo(dir) : null;
+        if (!f) return bad("no logo", 404);
+        const ext = f.slice(f.lastIndexOf(".") + 1).toLowerCase();
+        return new Response(Bun.file(f), { headers: { "content-type": LOGO_TYPES[ext], "content-security-policy": "sandbox", "x-content-type-options": "nosniff", "cache-control": "max-age=300" } });
+      }
+
       // Lets a phone add the board to its home screen as a standalone app.
       if (req.method === "GET" && path === "/manifest.webmanifest") {
         return new Response(JSON.stringify({
@@ -408,7 +419,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           marks.set(d, cardsGit(d, cards.filter((c) => markable(c) && c.state === d).map((c) => c.id!)));
         return json({
           project, all, dir: state,
-          projects: picker.map((d) => ({ dir: d, label: label(d) })),
+          projects: picker.map((d) => ({ dir: d, label: label(d), logo: !!projectLogo(d) })),
           fresh: unset.map((d) => ({ dir: join(d, ".kaizen"), label: tilde(d) })),
           cards: cards.map((c) => ({ ...c, notice: notice(c), git: markable(c) ? marks.get(c.state)?.[c.id!] : undefined, pty: ptyOf(c) })),
           now: Date.now(),
