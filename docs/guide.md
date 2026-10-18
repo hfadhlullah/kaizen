@@ -163,6 +163,8 @@ detached so it outlives the terminal (pid kept in `~/.kaizen/web.pid`); `--stop`
 the OS can find — Spotlight on macOS, the app menu on Linux, a Desktop shortcut on Windows. Each one starts the board in the background (`--daemon`) and opens it; `kaizen web --stop` ends it.
 On Windows `kaizen web` starts in the background unless `--foreground` is given; `kaizen web --stop` ends it.
 
+**No agent yet?** When the installer finds no AI coding agent it asks which one you want. Claude Code, Codex, Gemini CLI and OpenCode are installed with their official command (shown first, run only after you choose Yes; Codex and Gemini CLI need Node.js for npm). kaizen then offers to start the agent once so you can sign in, and carries on installing in the same run. Cursor and Antigravity have no command-line installer, so their download page opens instead, as it does when an install fails.
+
 **After you install: `kaizen setup`.** The installer ends by asking "Run setup now?"; `kaizen setup` runs the same walk any time. It asks for your project folder when you are not in one (Enter skips), offers a settings preset (or keeps yours), starts the board, and, when Tailscale is running, offers to put the board on your phone. Every step can be skipped and nothing changes without an answer.
 
 **From your phone (Tailscale).** The board stays on loopback; `tailscale serve` puts it on

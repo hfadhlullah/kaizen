@@ -60,3 +60,4 @@ updated: 2026-10-15
 - 2026-10-18 parent-child-cards: Parent: link line, child-card rule in spec-main, board badges.
 - 2026-10-18 run 2026-10-18-nest-child-cards — Web board: child cards nest inside the parent card while it is in flight
 - 2026-10-18 child rows inside a parent card show the run name, wrapped instead of truncated (run 2026-10-18-child-row-run-name)
+- 2026-10-18 run 2026-10-18-install-agent-in-setup — CLI (installer installs the picked agent)

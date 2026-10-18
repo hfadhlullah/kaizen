@@ -54,25 +54,30 @@ const SKILLS = ["kaizen", "kaizen-help", "story-deck", "story-video"];
 // commands/ are Claude Code's own formats and go nowhere else.
 const AGENTS = [
   { name: "Claude Code", dir: ".claude", cmd: "claude", full: true,
-    docs: "https://docs.claude.com/en/docs/claude-code" },
+    docs: "https://docs.claude.com/en/docs/claude-code",
+    install: { posix: "curl -fsSL https://claude.ai/install.sh | bash", win32: "irm https://claude.ai/install.ps1 | iex" } },
   { name: "Codex", dir: ".codex", cmd: "codex", full: false,
-    docs: "https://github.com/openai/codex" },
+    docs: "https://github.com/openai/codex",
+    install: { posix: "npm install -g @openai/codex", win32: "npm install -g @openai/codex" } },
   { name: "Antigravity", dir: ".agents", cmd: "agy", full: false,
     docs: "https://antigravity.google" },
   { name: "OpenCode", dir: ".opencode", cmd: "opencode", full: false,
-    docs: "https://opencode.ai" },
+    docs: "https://opencode.ai",
+    install: { posix: "curl -fsSL https://opencode.ai/install | bash", win32: "npm install -g opencode-ai" } },
   { name: "Cursor", dir: ".cursor", cmd: "cursor", full: false,
     docs: "https://cursor.com" },
   { name: "Gemini CLI", dir: ".gemini", cmd: "gemini", full: false,
-    docs: "https://github.com/google-gemini/gemini-cli" },
-];
+    docs: "https://github.com/google-gemini/gemini-cli",
+    install: { posix: "npm install -g @google/gemini-cli", win32: "npm install -g @google/gemini-cli" } },
+] as { name: string; dir: string; cmd: string; full: boolean; docs: string; install?: { posix: string; win32: string } }[];
 
 // An agent counts as present if it has a directory or a command. The directory
 // alone misses someone who installed the agent and has not run it yet; the command
 // alone misses one that is not on this shell's PATH.
-const onPath = new Set(
-  AGENTS.filter((a) => Bun.which(a.cmd)).map((a) => a.dir),
-);
+// Recomputed after kaizen installs an agent, so the install carries on in the same run.
+// PATH passed explicitly: Bun.which does not see later edits to process.env.PATH.
+const detect = () => new Set(AGENTS.filter((a) => Bun.which(a.cmd, { PATH: process.env.PATH })).map((a) => a.dir));
+let onPath = detect();
 const found = (r: string) =>
   AGENTS.filter((a) => existsSync(join(r, a.dir)) || onPath.has(a.dir));
 
@@ -308,38 +313,83 @@ function removeLink(p: string) {
 // nothing, so send them to the agent first rather than laying out files no reader
 // will ever load.
 if (!found(home).length && !args.has("--force")) {
-  await noAgent();
-  process.exit(0);
+  if (!(await noAgent())) process.exit(0);
 }
 
-async function noAgent() {
+// Returns true once an agent is installed and found, so the kaizen install goes on.
+async function noAgent(): Promise<boolean> {
   console.log(`  ${c.bold("No AI coding agent found on this machine.")}\n`);
   console.log(`  ${c.dim("kaizen is a workflow that an agent runs — it plans, you approve, it builds,")}`);
   console.log(`  ${c.dim("and a second agent reviews. So an agent has to be installed first.")}\n`);
 
-  if (!interactive) {
+  const list = () => {
     for (const a of AGENTS) console.log(`    ${a.name.padEnd(14)} ${a.docs}`);
     console.log(`\n  ${c.dim("Install one, then run this again.")}`);
-    return;
-  }
+  };
+  if (!interactive) { list(); return false; }
 
   const pick = await select("Which one would you like to install?", [
     ...AGENTS.map((a) => ({ label: a.name, hint: a.docs, value: a as (typeof AGENTS)[number] | null })),
     { label: "None of these — just show me the list", hint: "", value: null },
   ]);
+  if (!pick) { list(); return false; }
 
-  if (!pick) {
-    for (const a of AGENTS) console.log(`    ${a.name.padEnd(14)} ${a.docs}`);
-    console.log(`\n  ${c.dim("Install one, then run this again.")}`);
-    return;
+  const docs = async (why = "") => {
+    if (why) console.log(`  ${why}`);
+    console.log(`  ${c.bold(pick.name)}`);
+    console.log(`  ${c.cyan(pick.docs)}\n`);
+    const opened = await openUrl(pick.docs);
+    console.log(opened
+      ? `  ${c.dim("Opened in your browser. Install it, then run")} ${c.cyan("kaizen")} ${c.dim("again.")}`
+      : `  ${c.dim("Open that page to install it, then run")} ${c.cyan("kaizen")} ${c.dim("again.")}`);
+    return false;
+  };
+
+  const win = process.platform === "win32";
+  const cmd = pick.install?.[win ? "win32" : "posix"];
+  if (!cmd) return docs();
+  if (cmd.startsWith("npm ") && !Bun.which("npm")) return docs(c.dim(`${pick.name} installs with npm, which needs Node.js: https://nodejs.org`));
+
+  console.log(`\n  ${c.dim("Official installer:")} ${c.cyan(cmd)}`);
+  if (!(await select(`Install ${pick.name} now?`, [
+    { label: "Yes", hint: "run the command above", value: true },
+    { label: "No", hint: "open the docs page instead", value: false },
+  ]))) return docs();
+
+  // ponytail: sh/powershell straight from the vendor's one-liner; no sudo, a failure falls back to the docs.
+  const code = Bun.spawnSync(win ? ["powershell", "-NoProfile", "-Command", cmd] : ["sh", "-c", cmd],
+    { stdio: ["inherit", "inherit", "inherit"] }).exitCode;
+  addInstallerBins();
+  onPath = detect();
+  const bin = Bun.which(pick.cmd, { PATH: process.env.PATH });
+  if (code !== 0 || !bin) {
+    return docs(code !== 0
+      ? `${c.bold("The install did not finish")} ${c.dim(`(exit ${code}).`)}`
+      : `${c.bold(`${pick.name} installed, but`)} ${c.cyan(pick.cmd)} ${c.bold("is not on PATH yet.")} ${c.dim("Open a new terminal and run kaizen again.")}`);
   }
+  step(`installed ${pick.name}`);
 
-  console.log(`  ${c.bold(pick.name)}`);
-  console.log(`  ${c.cyan(pick.docs)}\n`);
-  const opened = await openUrl(pick.docs);
-  console.log(opened
-    ? `  ${c.dim("Opened in your browser. Install it, then run")} ${c.cyan("kaizen")} ${c.dim("again.")}`
-    : `  ${c.dim("Open that page to install it, then run")} ${c.cyan("kaizen")} ${c.dim("again.")}`);
+  if (await select(`Start ${pick.name} now to sign in?`, [
+    { label: "Yes", hint: "exit the agent once you are signed in, and kaizen carries on", value: true },
+    { label: "Later", hint: `run ${pick.cmd} yourself before your first run`, value: false },
+  ])) Bun.spawnSync([bin], { stdio: ["inherit", "inherit", "inherit"] });
+  console.log();
+  return true;
+}
+
+// The vendors' installers drop the binary in a folder the running shell may not have
+// on PATH yet; add the usual ones so Bun.which sees the new agent.
+function addInstallerBins() {
+  const dirs = [join(home, ".local", "bin"), join(home, ".opencode", "bin")];
+  if (Bun.which("npm")) {
+    try {
+      const prefix = Bun.spawnSync(["npm", "prefix", "-g"]).stdout.toString().trim();
+      if (prefix) dirs.push(process.platform === "win32" ? prefix : join(prefix, "bin"));
+    } catch {}
+  }
+  const sep = process.platform === "win32" ? ";" : ":";
+  const have = (process.env.PATH ?? "").split(sep);
+  process.env.PATH = [...dirs.filter((d) => existsSync(d) && !have.includes(d)), ...have].join(sep);
 }
 
 // Best effort: a headless box or a locked-down desktop has no opener, and the URL

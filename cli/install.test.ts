@@ -159,3 +159,63 @@ it("init's gitignore keeps run state and personal notes out, the docs vault in",
     expect(ignored(".kaizen/notes/Project/Archive/Old.md")).toBe(false);
   } finally { rmSync(proj, { recursive: true, force: true }); }
 });
+
+// A box with no agent: the picker installs the chosen one with its official command and
+// the kaizen install carries on in the same run. `curl` is a fake that hands back a
+// script dropping a stub `claude` in ~/.local/bin, as the real installer does; nothing
+// reaches the network.
+const noAgentBox = () => {
+  const root = mkdtempSync(join(tmpdir(), "kz-noagent-"));
+  const home = join(root, "home"), pkg = join(root, "pkg"), bin = join(root, "bin");
+  mkdirSync(home); mkdirSync(bin);
+  const src = dirname(dirname(import.meta.path));
+  for (const d of ["cli", "skills", "agents", "commands", "web", "package.json"]) {
+    cpSync(join(src, d), join(pkg, d), { recursive: true, filter: (p) => !p.includes("node_modules") });
+  }
+  for (const t of ["sh", "bash", "mkdir", "chmod", "cat"]) { const w = Bun.which(t); if (w) symlinkSync(w, join(bin, t)); }
+  symlinkSync(process.execPath, join(bin, "bun"));
+  writeFileSync(join(bin, "curl"), `#!/bin/sh\necho "curl $*" >> "$HOME/curl.log"\nprintf 'mkdir -p "$HOME/.local/bin"\\nprintf "#!/bin/sh\\\\nexit 0\\\\n" > "$HOME/.local/bin/claude"\\nchmod +x "$HOME/.local/bin/claude"\\n'\n`, { mode: 0o755 });
+  const env = { PATH: bin, HOME: home, USERPROFILE: home, TMPDIR: root, TERM: "xterm" };
+  return { root, home, pkg, env };
+};
+
+it.skipIf(typeof (Bun as any).Terminal !== "function")("no agent: the picked agent is installed after a yes, and the kaizen install goes on", async () => {
+  const { root, home, pkg, env } = noAgentBox();
+  let out = "";
+  const answered = new Set<string>();
+  const proc = Bun.spawn([process.execPath, join(pkg, "cli", "install.ts"), "--global"], {
+    cwd: home, env,
+    terminal: { cols: 160, rows: 40, data: (_t: unknown, d: Uint8Array) => { out += new TextDecoder().decode(d); } },
+  } as any);
+  const answer = (prompt: string, keys: string) => {
+    if (!answered.has(prompt) && out.includes(prompt)) { answered.add(prompt); (proc as any).terminal.write(keys); }
+  };
+  const until = Date.now() + 30_000;
+  try {
+    while (Date.now() < until && !out.includes("to install, or")) {
+      answer("Which one would you like to install?", "\r");
+      answer("Install Claude Code now?", "\r");
+      answer("Start Claude Code now to sign in?", "\x1b[B\r");
+      await Bun.sleep(100);
+    }
+    expect(out).toContain("curl -fsSL https://claude.ai/install.sh | bash");
+    expect(readFileSync(join(home, "curl.log"), "utf8")).toContain("https://claude.ai/install.sh");
+    expect(out).toContain("installed Claude Code");
+    expect(existsSync(join(home, ".local", "bin", "claude"))).toBe(true);
+    expect(out).toContain("to install, or");   // the kaizen install went on, no rerun
+  } finally {
+    proc.kill();
+    await proc.exited;
+    rmSync(root, { recursive: true, force: true });
+  }
+}, 40_000);
+
+it("no agent, no terminal: the list is printed and nothing is installed", () => {
+  const { root, home, pkg, env } = noAgentBox();
+  const p = Bun.spawnSync([process.execPath, join(pkg, "cli", "install.ts")], { cwd: home, env });
+  const ran = existsSync(join(home, "curl.log"));
+  rmSync(root, { recursive: true, force: true });
+  expect(p.exitCode).toBe(0);
+  expect(p.stdout.toString()).toContain("Install one, then run this again.");
+  expect(ran).toBe(false);
+});

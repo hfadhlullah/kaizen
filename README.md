@@ -48,7 +48,7 @@ curl -fsSL https://bun.sh/install | bash && ~/.bun/bin/bunx kaizen-agent
 
 Already have Bun? Run `bunx kaizen-agent`.
 
-You also need an AI coding agent such as [Claude Code](https://docs.claude.com/en/docs/claude-code), and Git for the board's commit and push.
+kaizen needs an AI coding agent such as [Claude Code](https://docs.claude.com/en/docs/claude-code). If none is installed, the installer lets you pick one, runs its official installer after you say yes, and then carries on. Git is needed for the board's commit and push.
 
 ### Windows
 
@@ -58,7 +58,7 @@ Windows support is still in beta. In PowerShell:
 irm bun.sh/install.ps1 | iex; & "$env:USERPROFILE\.bun\bin\bunx.exe" kaizen-agent
 ```
 
-Already have Bun? Run `bunx kaizen-agent`. As on macOS and Linux you need an AI coding agent; Git is only needed for the board's commit and push.
+Already have Bun? Run `bunx kaizen-agent`. As on macOS and Linux, the installer offers to install an AI coding agent when none is found; Git is only needed for the board's commit and push.
 
 ## Use the board
 
