@@ -220,7 +220,9 @@ export async function readPage(page: Page, url: string, platform: string, max = 
   const re = POST[platform]!;
   await page.go(url);
   if (!onPlatform(await page.js<string>("location.href")) || (await page.js<boolean>(WALL))) return { ok: false, note: signInNote(platform) };
-  if (await page.js<boolean>(CHECK)) return { ok: false, note: checkNote(platform) };
+  // TikTok lays a closable check over posts it has already shown: close it and read on.
+  // A check that leaves no posts still fails below.
+  await page.js(`document.querySelector("#captcha_close_button")?.click()`);
   const seen = new Map<string, { link: string; text: string; date: string; author?: string; images?: string[] }>();
   for (let i = 0, still = 0; i < 12 && seen.size < max && still < 3; i++) {
     const before = seen.size;

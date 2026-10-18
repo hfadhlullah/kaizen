@@ -25,7 +25,7 @@ Shared links (sheets, docs, social searches) kaizen reads for requests; each req
 - ChatGPT answers only post numbers (`{ keep: [...] }`); the icebox text is the post's own as read. Never let the model write request text.
 - The browser only opens the source link and post links on its platform or host (`readPage`); post links are found by URL shape, not CSS classes, so a platform redesign breaks less.
 - `~/.kaizen/browser/` holds live sign-in cookies (0700). A visible login window locks the profile; a read meanwhile says to close it.
-- The timed gather (`sources.every`) still skips social sources (`AGENT_ONLY`); only Gather reads them. Instagram opens each post page, so a 40-post read takes ~3 minutes.
+- The timed gather (`sources.every`) reads social sources through ChatGPT when `sources.agent` is `chatgpt` and it is connected; otherwise it skips them and only Gather reads them. TikTok often lays a closable captcha over posts it already shows: `readPage` clicks `#captcha_close_button` and reads on, failing only when no posts come through. Instagram opens each post page, so a 40-post read takes ~3 minutes.
 - A source whose `seen` list is empty reports "no requests found", never "nothing new" (`record()`).
 - A `github.com/<owner>/<repo>/issues` link is read from the public API (`exportUrl` kind `github`, `fetchText(..., json)`): open issues, pull requests dropped, notes `#n · link` only so an edited body is not a new item. Private repos answer 404; the 60/h unauthenticated limit answers 403 (shown as the sign-in note).
 - `readPage` stops after 3 scans with nothing new only once some post was seen; an empty page scans all 12 rounds (~20 s), since TikTok can render its search late.

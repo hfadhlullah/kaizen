@@ -391,6 +391,8 @@ export async function openSources() {
     G.use === "ask" && !G.connected
       ? `<div class="cg-onb"><b>Gather social posts with your ChatGPT plan</b><p>Connect ChatGPT Plus or Pro and Gather reads X, TikTok, Instagram and Threads sources right here, counted against your plan, with no agent to open. Skip it and Gather keeps using your agent. You can change this in Settings.</p><div class="acts"><button class="btn ghost" id="cg-skip">Skip for now</button><button class="btn pri" id="cg-go">Continue with ChatGPT</button></div></div>`
       : "";
+  // A rebuild replaces the drawer: keep where it was scrolled to.
+  const at = $("src-sec")?.querySelector(".body")?.scrollTop ?? 0;
   $("pbody").innerHTML =
     d && d.error
       ? `<p style="color:var(--dim)">${esc(d.error)}</p>`
@@ -398,6 +400,8 @@ export async function openSources() {
         ? `<p style="color:var(--dim)">The icebox could not be read.</p>`
         : onb + bar + bulk + fails + inbox + sec;
   if (!d || d.error) return;
+  const body = $("src-sec")?.querySelector(".body");
+  if (body) body.scrollTop = at;
   if (iceDraft && iceDraft[0] === iceForm && $("ice-title")) {
     $("ice-title").value = iceDraft[1];
     $("ice-details").value = iceDraft[2];

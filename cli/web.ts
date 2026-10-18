@@ -230,7 +230,13 @@ export async function web(repoDir: string, opts: Opts = {}) {
       if (ms) for (const dir of states(true)) {
         let list;
         try { list = readSources(dir); } catch { continue; }   // unreadable: left as it is
-        for (const s of list) if (due(s, ms, Date.now()) && (await gatherSource(dir, s.url)).added) changed();
+        // Social sources need a reader that picks posts: only ChatGPT can do that unattended.
+        const gpt = await setting("sources.agent") === "chatgpt" && chatgpt.status().connected;
+        for (const s of list) {
+          if (!due(s, ms, Date.now())) continue;
+          if (!socialOf(s.url)) { if ((await gatherSource(dir, s.url)).added) changed(); }
+          else if (gpt) { await chatgpt.gatherSource(dir, s.url, await setting("sources.model"), (await setting("sources.effort")) || "low"); changed(); }
+        }
       }
     } catch { /* the next tick tries again */ }
     busy = false;
