@@ -8,7 +8,7 @@ import { issueUrl, systemInfo, scrubHome, REPO_URL, home as realHome, trustFolde
 import * as stateModule from "./state.ts";
 import {
   readRuns, readInbox, writeInbox, replaceIdea, moveIdea, abandonRun, allBacklog, backlog,
-  requestTitle, statusOf, columnOf, parseItem, startedRuns, boardCards, readArchive, setArchived,
+  requestTitle, statusOf, columnOf, parseItem, startedRuns, boardCards, parentOf, addCard, readArchive, setArchived,
   requestOf, agentFlags, plainModel, readNotes, writeNotes, manualCommand, parseNotes, formatNote, appendNote, saveAttachment,
   reviewFindings, pickFindings, fixPrompt, approvalPrompt, sessionLaunch, closeSessions, sweepSessions, readSessions, ownerOf, CLOSE_GRACE_MS, gitStatus, runGit, cardsGit, commitPush, readCommit, findTerminal, nativePath, pruneRuns, unrechecked, notice, notifier, notifyArgs, LOGO, type Card,
 } from "./state.ts";
@@ -1046,4 +1046,32 @@ test("the board answers only the hosts listed in KAIZEN_WEB_HOSTS or web-hosts",
 test("requestTitle: drops the launch command, keeps the first sentence, caps at 90", () => {
   expect(requestTitle("/kaizen lite simplify the card. Then more words")).toBe("simplify the card.");
   expect(requestTitle("x".repeat(200)).length).toBe(90);
+});
+
+test("parent/child: a Parent line links a run and an idea to the run that filed them", () => {
+  expect(parentOf("do x\nFollow-up of: 2026-01-01-a.")).toBe("2026-01-01-a");
+  expect(parentOf("  [2026-10-18 20:57] Parent: 2026-01-01-a")).toBe("2026-01-01-a");
+  expect(parentOf("no parent here")).toBeUndefined();
+  const st = join(mkdtempSync(join(tmpdir(), "kaizen-pc-")), ".kaizen");
+  for (const [id, req] of [["2026-01-01-a", "parent work"], ["2026-01-02-b", "child work\nParent: 2026-01-01-a"]]) {
+    mkdirSync(join(st, "runs", id), { recursive: true });
+    writeFileSync(join(st, "runs", id, "00-request.md"), req + "\n");
+    writeFileSync(join(st, "runs", id, "state.json"), JSON.stringify({ stage: "done", awaiting: null }));
+  }
+  writeFileSync(join(st, "inbox.md"), "# Inbox\n\n- open: follow-on idea\n  Parent: 2026-01-01-a\n");
+  const cards = boardCards([st], Date.now());
+  expect(cards.find((k) => k.id === "2026-01-01-a")!.children).toEqual(["2026-01-02-b"]);
+  expect(cards.find((k) => k.id === "2026-01-02-b")!.parent).toBe("2026-01-01-a");
+  expect(cards.find((k) => k.kind === "idea")!.parent).toBe("2026-01-01-a");
+  // The done child is noted in its parent once, however often the board refreshes.
+  boardCards([st], Date.now());
+  expect(readFileSync(join(st, "runs", "2026-01-01-a", "notes.md"), "utf8").match(/Child 2026-01-02-b done: child work/g)!.length).toBe(1);
+  // card add: no run in flight, so a parent must be named.
+  expect(addCard(st, "next thing")).toMatch(/no run in flight/);
+  writeFileSync(join(st, "runs", "2026-01-02-b", "state.json"), JSON.stringify({ stage: "build", awaiting: null }));
+  expect(addCard(st, "next thing")).toEqual({ parent: "2026-01-02-b" });
+  expect(addCard(st, "next thing")).toMatch(/already/);
+  expect(addCard(st, "other", "nope")).toMatch(/no such run/);
+  expect(boardCards([st], Date.now()).find((k) => k.text === "next thing")!.parent).toBe("2026-01-02-b");
+  rmSync(dirname(st), { recursive: true, force: true });
 });

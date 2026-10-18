@@ -130,7 +130,8 @@ export async function openRun(c, refresh, again) {
   // The board's own status mark, then what it waits on: chips, not a dotted line.
   $("psub").innerHTML =
     `<span class="pst"><span class="st d-${ICON[c.status] || "idea"}"><svg><use href="#s-${ICON[c.status] || "idea"}"/></svg></span>${esc(cap(WORD[c.status] || c.status))}</span>` +
-    (c.awaiting ? `<span class="pst dim">${esc(cap(need(c.awaiting)))}</span>` : "");
+    (c.awaiting ? `<span class="pst dim">${esc(cap(need(c.awaiting)))}</span>` : "") +
+    (c.parent ? `<span class="pst link" title="Filed by this run">${esc(c.parent)}</span>` : "");
   // Only tabs with something in them show. A card whose agent runs in the board gets its
   // terminal behind the header's terminal button, chosen once right after a launch from here.
   const tabs = TABS.filter(

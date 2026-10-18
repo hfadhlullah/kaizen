@@ -615,7 +615,15 @@ export type Card = {
   branch?: string;                                 // runs only: the run's own branch while it has a worktree
   tags?: string[];                                 // runs only: runner, agent, "yolo", "unrechecked"
   notes?: string;                                  // inbox notes, or runs/<id>/notes.md
+  parent?: string;                                 // the run this card was filed from
+  children?: string[];                             // runs only: runs that name this one as parent
 };
+
+// A `Parent: <run id>` line (or the older `Follow-up of: <run id>`) in a request or
+// an idea's notes is what links a card to the run it came from.
+export function parentOf(text?: string) {
+  return /^\s*(?:\[[^\]]*\]\s*)?(?:Parent|Follow-up of):\s*(\S+)/im.exec(text ?? "")?.[1]?.replace(/[.,]$/, "");
+}
 
 // A run is called running on the evidence that it moved recently; there is no PID
 // to ask. Anything in flight and older than this is stalled, not running -- the
@@ -768,6 +776,20 @@ export function appendNote(state: string, target: { id: string } | { text: strin
   lines[at] = { ...lines[at]!, notes: (prev ? prev + "\n" : "") + formatNote(text) };
   writeInbox(state, lines);
   return null;
+}
+
+// A card filed by a run: an open idea whose note names the run as its parent. The
+// parent is the one named, else the newest run still in flight.
+export function addCard(state: string, text: string, parent?: string): { parent: string } | string {
+  text = text.trim().replace(/\s+/g, " ");
+  if (!text) return "empty card";
+  const id = parent ?? readRuns(state).find((r) => r.stage !== "done" && r.stage !== "abandoned")?.id;
+  if (!id) return "no run in flight to be its parent; pass --parent <run id>";
+  if (!existsSync(join(state, "runs", id, "state.json"))) return `no such run: ${id}`;
+  const lines = readInbox(state);
+  if (lines.some((l) => l.status === "open" && l.text === text)) return "that card is already on the board";
+  writeInbox(state, [...lines, { status: "open", text, notes: `Parent: ${id}` }]);
+  return { parent: id };
 }
 
 // A file beside the notes it belongs to: runs/<id>/attachments/ for a run,
@@ -966,8 +988,8 @@ export function boardCards(states: string[], now: number): Card[] {
       const t = normalise(it.text);
       if (it.status === "started" ? requests.some((r) => r.includes(t)) : lines.some((l) => l === t || l.endsWith(" " + t))) continue;
       next.push(it.status === "started"
-        ? { kind: "idea", status: "starting", text: it.text, state: st, where, column: 1, awaiting: null, dim: true, archived: false, notes: it.notes }
-        : { kind: "idea", status: "idea", text: it.text, state: st, where, column: 0, awaiting: null, dim: false, archived: it.status === "archived", notes: it.notes });
+        ? { kind: "idea", status: "starting", text: it.text, state: st, where, column: 1, awaiting: null, dim: true, archived: false, notes: it.notes, parent: parentOf(it.notes) }
+        : { kind: "idea", status: "idea", text: it.text, state: st, where, column: 0, awaiting: null, dim: false, archived: it.status === "archived", notes: it.notes, parent: parentOf(it.notes) });
     }
     // Runs started in Yolo. Only yolo records are matched to runs, so a project that
     // never used it pays one directory read.
@@ -982,7 +1004,18 @@ export function boardCards(states: string[], now: number): Card[] {
         branch: r.branch,
         tags: [r.runner, r.agent, yolos.has(r.id) ? "yolo" : undefined, unrechecked(st, r.id) ? "unrechecked" : undefined].filter((t): t is string => !!t),
         notes: readNotes(st, r.id) || undefined,
+        parent: parentOf(body(st, r.id)),
       });
+    }
+  }
+  for (const k of next) if (k.kind === "run") {
+    const kids = next.filter((c) => c.kind === "run" && c.parent === k.id && c.state === k.state);
+    if (kids.length) k.children = kids.map((c) => c.id!);
+    // A child that is done tells its parent once, so the parent has it on record
+    // whether or not the agent remembered to.
+    for (const c of kids) if (c.status === "done" && !(k.notes ?? "").includes(`Child ${c.id} done`)) {
+      const line = `Child ${c.id} done: ${c.title || c.text}`;
+      if (!appendNote(k.state, { id: k.id! }, line)) k.notes = (k.notes ? k.notes + "\n" : "") + line;
     }
   }
   // Done reads newest first: by `moved`, the time each card prints as its age.

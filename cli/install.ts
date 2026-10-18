@@ -91,6 +91,20 @@ if (Bun.argv[2] === "browser") {
   process.exit(0);
 }
 
+// `kaizen card add "<text>" [--parent <run id>]`: what a run files as new work, linked
+// to the run it came from.
+if (Bun.argv[2] === "card") {
+  const { locate, label, addCard } = await import("./state.ts");
+  const state = locate() ?? join(home, ".kaizen");
+  const args = Bun.argv.slice(4), at = args.indexOf("--parent");
+  const parent = at >= 0 ? args.splice(at, 2)[1] : undefined;
+  if (Bun.argv[3] !== "add" || !args.length || (at >= 0 && !parent)) { console.log(`\n  kaizen card add "<text>" [--parent <run id>]\n`); process.exit(1); }
+  const r = addCard(state, args.join(" "), parent);
+  if (typeof r === "string") { console.log(`\n  ${r}\n`); process.exit(1); }
+  console.log(`\n  ${c.green("added")}  ${args.join(" ")}\n  ${c.dim(`parent ${r.parent}  ·  project ${label(state)}`)}\n`);
+  process.exit(0);
+}
+
 if (Bun.argv[2] === "sources" || Bun.argv[2] === "gather" || Bun.argv[2] === "icebox") {
   const { locate, label } = await import("./state.ts");
   const src = await import("./sources.ts");

@@ -73,6 +73,9 @@ function card(c) {
   // A gathered idea's notes open with the stamp promote() writes (ingest() wrote it before
   // the icebox); its chip names the source.
   const g = c.notes && /^\[[^\]]*\] (?:Gathered from|Promoted from the icebox:) (.+?)\. Outside text/.exec(c.notes);
+  // A card filed by a run names that run; the parent itself shows nothing.
+  if (c.parent)
+    chips.push(`<span class="chip link" title="Filed by ${esc(c.parent)}">${esc(c.parent.replace(/^\d{4}-\d\d-\d\d-/, "").replace(/-/g, " "))}</span>`);
   if (c.branch) chips.push(`<span class="chip" title="Built on its own branch, ${esc(c.branch)}">branch</span>`);
   if (g) chips.push(`<span class="chip" title="From ${esc(g[1])}">gathered</span>`);
   else if (c.notes) chips.push(`<span class="chip">notes</span>`);

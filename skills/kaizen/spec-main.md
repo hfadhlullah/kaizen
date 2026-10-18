@@ -118,3 +118,16 @@ change is that it is written down rather than spoken and discarded.
 Set `stage: "done"` in `state.json` once the user accepts.
 
 ---
+
+## Child cards
+
+A run may file new work as its own card instead of growing its scope — under either
+runner. Under `full`, subagents only suggest it in their report; the main thread files it,
+from the project folder: `kaizen card add "<the work, one line>"`. It links the card to
+the run in flight (`--parent <run id>` names another), and the link follows the card into
+the run it becomes. The board shows the parent's name on the child.
+
+When a child run reaches `done`, the board appends `Child <child id> done: <title>` to
+the parent's `notes.md` by itself. The parent documents it from there: if it is still in
+flight its next stage reads `notes.md`; if it is already `done`, the entry is the record.
+Never reopen a finished parent.
