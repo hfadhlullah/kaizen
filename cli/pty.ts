@@ -4,7 +4,7 @@
 // window ends the agent in it. Bun has no pseudo-terminal on Windows.
 import { writeFileSync } from "node:fs";
 
-type Pty = { proc: Bun.Subprocess; out: string[]; size: number; listeners: Set<(d: string | null) => void>; exit: number | null };
+type Pty = { proc: Bun.Subprocess; out: string[]; size: number; listeners: Set<(d: string | null) => void>; exit: number | null; asking: boolean; quiet?: Timer; total: number; since: number; onChange?: () => void };
 
 // What a page attaching late gets replayed. A full-screen tool redraws often, so the
 // tail of its output is enough to rebuild the screen.
@@ -13,21 +13,38 @@ const CAP = 512 * 1024;
 const KEEP_MS = 10 * 60_000;
 
 const ptys = new Map<string, Pty>();
+
+// A question the agent stopped on: Claude Code's and Codex's approval and choice prompts.
+// ponytail: screen-text heuristic, misses a prompt worded otherwise; read agent hooks if that bites.
+const ASK = /Would you like to|Do you want to|[❯›>] ?1\. |Type something|\(y\/n\)|\[y\/N\]|Press enter to/i;
+// Escape sequences out; a cursor move becomes a space so words drawn apart stay apart.
+export const asking = (screen: string) =>
+  ASK.test(screen.replace(/\x1b\[[0-9;?]*[A-Za-z]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[()][0-9A-Za-z]/g, " "));
+// How long output stays still before the screen is read for a question.
+const QUIET_MS = 700;
 // Bun gained pseudo-terminals in 1.3.5; an older one spawns without a tty, so it
 // keeps opening terminal windows.
 export const ptySupported = process.platform !== "win32" && typeof (Bun as any).Terminal === "function";
 
 // Starts cmd in a new pseudo-terminal under `key` and returns its PID. pidFile gets
 // that PID, the agent's own, so closeSessions can end it like any launched session.
-// onChange: called when the agent ends, so the board can redraw.
+// onChange: called when the agent ends or starts or stops asking, so the board can redraw.
 export function startPty(key: string, cmd: string[], cwd: string, pidFile?: string, onChange?: () => void): number {
   const dec = new TextDecoder();
-  const p: Pty = { proc: null as unknown as Bun.Subprocess, out: [], size: 0, listeners: new Set(), exit: null };
+  const p: Pty = { proc: null as unknown as Bun.Subprocess, out: [], size: 0, listeners: new Set(), exit: null, asking: false, total: 0, since: 0, onChange };
+  const flag = (v: boolean) => { if (p.asking !== v) { p.asking = v; onChange?.(); } };
   const push = (d: string) => {
     p.out.push(d);
     p.size += d.length;
+    p.total += d.length;
     while (p.size > CAP && p.out.length > 1) p.size -= p.out.shift()!.length;
     for (const f of p.listeners) f(d);
+    clearTimeout(p.quiet);
+    p.quiet = setTimeout(() => {
+      // Only what came after the user's last keystroke: a question already answered may still be in the tail.
+      const n = Math.min(4096, p.total - p.since);
+      flag(p.exit === null && n > 0 && asking(p.out.join("").slice(-n)));
+    }, QUIET_MS);
   };
   p.proc = Bun.spawn(cmd, {
     cwd,
@@ -38,6 +55,8 @@ export function startPty(key: string, cmd: string[], cwd: string, pidFile?: stri
   if (pidFile) writeFileSync(pidFile, String(p.proc.pid));
   p.proc.exited.then((code) => {
     p.exit = code;
+    clearTimeout(p.quiet);
+    p.asking = false;
     for (const f of p.listeners) f(null);
     p.listeners.clear();
     try { p.proc.terminal?.close(); } catch { /* already closed */ }
@@ -60,7 +79,10 @@ export function attachPty(key: string, fn: (d: string | null) => void): (() => v
 
 export function writePty(key: string, d: string) {
   const p = ptys.get(key);
-  if (p && p.exit === null) p.proc.terminal?.write(d);
+  if (!p || p.exit !== null) return;
+  p.since = p.total;
+  if (p.asking) { p.asking = false; p.onChange?.(); }
+  p.proc.terminal?.write(d);
 }
 
 export function resizePty(key: string, cols: number, rows: number) {
@@ -73,7 +95,7 @@ export const ptyKeys = () => [...ptys.keys()];
 
 export const ptyState = (key: string) => {
   const p = ptys.get(key);
-  return p ? { alive: p.exit === null, exit: p.exit } : null;
+  return p ? { alive: p.exit === null, exit: p.exit, asking: p.asking } : null;
 };
 
 // The environment the user's login shell builds: PATH and anything exported in their

@@ -49,7 +49,7 @@ test.skipIf(process.platform === "win32")("the board runs the agent in the card:
     expect(r.ok).toBe(true);
     expect(r.pty).toMatch(/^[\w-]+$/);
     const card = ((await (await fetch(at + "/state")).json()) as any).cards.find((c: any) => c.text === "say hello");
-    expect(card.pty).toEqual({ key: r.pty, alive: true });
+    expect(card.pty).toEqual({ key: r.pty, alive: true, asking: false });
 
     // G-01: no Origin, a foreign one, and another local port are all refused.
     const url = `${at}/pty?key=${r.pty}`, up = { upgrade: "websocket", connection: "Upgrade", "sec-websocket-version": "13", "sec-websocket-key": "dGhlIHNhbXBsZSBub25jZQ==" };
@@ -185,4 +185,12 @@ test.skipIf(process.platform === "win32")("the done sweep keeps a session the us
   await Bun.sleep(200);
   expect(alive(used)).toBe(true);
   process.kill(used, "SIGTERM");
+});
+
+test("asking: Claude Code and Codex prompts count as a question, ordinary output does not", async () => {
+  const { asking } = await import("./pty.ts");
+  expect(asking("\x1b[1mWould you like to run the following command?\x1b[0m")).toBe(true);
+  expect(asking("What behavior do you want?\r\n\x1b[36m❯ 1. Retry with backoff\x1b[0m\r\n  2. Fail\r\n  4. Type something.")).toBe(true);
+  expect(asking("Do you want to make this edit to cli/pty.ts?")).toBe(true);
+  expect(asking("Reading cli/pty.ts\r\n\x1b[2K✻ Thinking… 1. step one done")).toBe(false);
 });

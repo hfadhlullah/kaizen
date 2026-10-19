@@ -84,7 +84,9 @@ function card(c) {
       marks.push(`<span class="mk warn" title="Started in Yolo: the agent runs commands without asking">yolo</span>`);
     else chips.push(`<span class="chip">${esc(NAMES[t] || t)}</span>`);
   }
-  if (c.pty && c.pty.alive)
+  if (c.pty && c.pty.alive && c.pty.asking)
+    marks.push(mk("i-ask", "The agent is asking you something: open it, terminal button at the top", " warn ask"));
+  else if (c.pty && c.pty.alive)
     marks.push(mk("i-term", "The agent is running in this card: open it, terminal button at the top", " run"));
   // A gathered idea's notes open with the stamp promote() writes (ingest() wrote it before
   // the icebox); its chip names the source.

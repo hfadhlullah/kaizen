@@ -191,7 +191,9 @@ export async function web(repoDir: string, opts: Opts = {}) {
     const key = c.kind === "run"
       ? readSessions(c.state).filter((s) => live.has(s.key) && ownerOf(c.state, s) === c.id).pop()?.key
       : ideaPty.get(`${c.state}\0${c.text}`);
-    return key && live.has(key) ? { key, alive: ptyState(key)!.alive } : undefined;
+    if (!key || !live.has(key)) return undefined;
+    const st = ptyState(key)!;
+    return { key, alive: st.alive, asking: st.asking };
   };
   // Dev: the page reloads itself when board.html or its bundle is saved. Server code needs
   // `bun --watch cli/install.ts web`; the page reconnects and reloads on hello.

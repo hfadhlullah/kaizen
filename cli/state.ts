@@ -1392,7 +1392,7 @@ export function trustFolder(dir: string, cfg = join(process.env.CLAUDE_CONFIG_DI
 
 // run: the run a decision is for. Without it, an idea starting a new run.
 // pick: the tool, model and yolo chosen for a new run; a decision takes the run's own
-// tool and model, and never yolo. card: run it inside the board (agent.launch: card),
+// tool and model, and stays in Yolo when the run was started in it. card: run it inside the board (agent.launch: card),
 // where a pseudo-terminal exists; onChange is told when that agent ends.
 const CHILD_ENV = /^(CLAUDECODE|CLAUDE_PID|CLAUDE_CODE_(SESSION_ID|CHILD_SESSION|SESSION_ATTENDED|MESSAGING_SOCKET|MESSAGING_TOKEN))$/;
 
@@ -1413,7 +1413,10 @@ export function launchRun(it: Item, from: string, run?: string, pick: { agent?: 
   const wanted = pick.model ?? (own?.cmd === agent.cmd ? own.model : null) ?? undefined;
   const model = wanted && plainModel(wanted) ? wanted : undefined;
   // Yolo was picked for one tool; a fallback to another opens in its normal mode.
-  const yolo = !!pick.yolo && agent.cmd === pick.agent && !!YOLO_FLAGS[agent.cmd];
+  // A decision on a run started in Yolo keeps it, or its next stage stops on every command.
+  const st = join(projectDir, ".kaizen");
+  const wasYolo = !!run && !pick.agent && readSessions(st).some((s) => s.yolo && s.cmd === agent.cmd && ownerOf(st, s) === run);
+  const yolo = (wasYolo || (!!pick.yolo && agent.cmd === pick.agent)) && !!YOLO_FLAGS[agent.cmd];
   const flags = [...agentFlags(projectDir, agent.cmd, undefined, model), ...(yolo ? YOLO_FLAGS[agent.cmd] : [])];
   // The idea as its run's request will hold it: without the runner word in front.
   const s = sessionLaunch(projectDir, agent.cmd, [agentBin, ...flags], prompt, it.text.replace(/^(lite|full|auto|plan)\s+/i, ""), run, model, yolo);
