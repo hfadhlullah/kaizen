@@ -3,6 +3,7 @@
 // Terminal tab opens and calls window.kzTerm(el, key).
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
+import { WebglAddon } from "@xterm/addon-webgl";
 
 function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void {
   const css = getComputedStyle(el);
@@ -22,6 +23,13 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
   const fit = new FitAddon();
   term.loadAddon(fit);
   term.open(el);
+  // The DOM renderer lags on a full-screen agent's constant redraws; WebGL keeps up.
+  // No WebGL, or the context lost: xterm.js falls back to the DOM renderer by itself.
+  try {
+    const gl = new WebglAddon();
+    gl.onContextLoss(() => gl.dispose());
+    term.loadAddon(gl);
+  } catch { /* DOM renderer */ }
 
   const ws = new WebSocket(
     `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/pty?key=${encodeURIComponent(key)}`,
@@ -140,12 +148,16 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
   };
   el.addEventListener("touchstart", touchStart, { passive: true });
   el.addEventListener("touchmove", touchMove, { passive: false });
-  const ro = new ResizeObserver(size);
+  // Each resize makes the agent redraw its whole screen, so a panel animating or a
+  // soft keyboard opening sends one, not dozens.
+  let resizing: Timer | undefined;
+  const ro = new ResizeObserver(() => { clearTimeout(resizing); resizing = setTimeout(size, 100); });
   ro.observe(el);
   term.focus();
 
   return () => {
     ro.disconnect();
+    clearTimeout(resizing);
     el.removeEventListener("touchstart", touchStart);
     el.removeEventListener("touchmove", touchMove);
     typed.dispose();
