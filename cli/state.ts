@@ -1292,9 +1292,25 @@ export function sweepSessions(st: string, now: number) {
     const runs = new Map(readRuns(st).map((r) => [r.id, r]));
     for (const s of live) {
       const r = runs.get(ownerOf(st, s) ?? "");
-      if (r && r.stage === "done" && s.started <= r.moved && now - r.moved >= CLOSE_GRACE_MS) closeOne(st, s);
+      if (r && r.stage === "done" && s.started <= r.moved && now - r.moved >= CLOSE_GRACE_MS && !typedSince(st, s, r.moved)) closeOne(st, s);
     }
   } catch { /* the next sweep tries again */ }
+}
+
+// Whether the user typed into the session's terminal after `t`: its tty's access time
+// moves when input is read. Such a session is the user's now, not the run's to close.
+// No tty (Windows, a stranger's PID): false, so the sweep closes as before.
+function typedSince(st: string, s: Session, t: number): boolean {
+  try {
+    if (process.platform === "win32") return false;
+    const pid = parseInt(readText(join(sessionsDir(st), s.key + ".pid")));
+    const ps = onPath("ps");
+    if (!(pid > 0) || !ps || !isSession(pid, s)) return false;
+    const tty = Bun.spawnSync([ps, "-o", "tty=", "-p", String(pid)], { stdin: "ignore", timeout: 5000 }).stdout.toString().trim();
+    if (!tty || tty === "?" || tty === "??") return false;
+    // The kernel stamps tty times in 8-second steps, rounded down.
+    return statSync(join("/dev", tty)).atimeMs > t - 8000;
+  } catch { return false; }
 }
 
 // The run's conversation to continue: its first recorded one, on this tool, whose
