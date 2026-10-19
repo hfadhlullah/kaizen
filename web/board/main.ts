@@ -9,6 +9,7 @@ import { initViews } from "./views.ts";
 import { initProjects } from "./projects.ts";
 import { initUpdate } from "./update.ts";
 import { initKeys } from "./keys.ts";
+import { filterBox } from "./cards.ts";
 import { initLive } from "./live.ts";
 import { store } from "./store.ts";
 
@@ -18,6 +19,7 @@ initProjects();
 initUpdate();
 initKeys();
 initLive();
+filterBox();
 
 // One popup at a time: a press anywhere first shuts every open popup it is not inside,
 // before any handler runs (several stop propagation), so the one it opens is the only one

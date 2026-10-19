@@ -55,6 +55,14 @@ svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6;stroke
 [data-rail=min] .theme{flex-direction:column}
 [data-rail=min] .theme button{width:34px;flex:none}
 @media(max-width:640px){#fold{display:none}}
+/* phones: the side menu is a bottom tab bar, in the page flow so nothing sits under it; it owns the bottom safe area */
+@media(max-width:640px){body{flex-direction:column;padding-bottom:0}.app{flex:1;min-height:0}
+.rail,[data-rail=min] .rail{order:2;width:auto;flex-direction:row;align-items:stretch;gap:0;padding:4px 6px calc(4px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--bg-2);overflow:visible}
+.rail .top,.rail .end,.rail .theme{display:none}
+.rail a.it,[data-rail=min] .rail a.it{flex:1;width:auto;flex-direction:column;justify-content:center;gap:2px;height:auto;min-height:48px;padding:4px 0;font-size:11px}
+.rail a.it[aria-current=page]{background:none;color:var(--accent)}
+[data-rail=min] .rail .lbl{position:static;width:auto;height:auto;overflow:visible;clip-path:none}
+body .rail a.upd::after{left:calc(50% + 6px);top:4px}body .toast{left:16px;bottom:calc(68px + env(safe-area-inset-bottom))}}
 /* end side menu */
 /* the work area: an inset rounded panel on the canvas the side menu sits on */
 .app{flex:1;min-width:0;display:flex;flex-direction:column;margin:8px 8px 8px 0;background:var(--bg);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}

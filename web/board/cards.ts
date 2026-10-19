@@ -9,8 +9,10 @@ import { brief } from "./markdown.ts";
 import { open, toggleArchive } from "./panel.ts";
 import { ideaCombo, list, newDir, plogo, short, showList, showable } from "./projects.ts";
 import { askNotify, toast } from "./toast.ts";
+import { resumable, resume } from "./approvals.ts";
 
 let filter = null;
+let query = ""; // the header filter box, matched against a card's title and request
 // A column shows this many cards, then a "more" line; Done is where it matters.
 const FOLD = 6;
 const unfolded = new Set();
@@ -39,6 +41,12 @@ const nested = (c) =>
   store.S.cards.some((p) => p.kind === "run" && p.id === c.parent && p.state === c.state && !p.archived && p.column !== 4);
 const kidsOpen = new Set();
 
+// What opening a waiting run does, in words: the card's button and its menu say the same.
+const actionOf = (c) =>
+  c.status !== "waiting"
+    ? "Open"
+    : { "approvals.plan": "Review plan", findings: "See findings", "approvals.review": "Review work" }[c.awaiting] || "Open";
+
 function card(c) {
   const k = key(c),
     el = document.createElement("div");
@@ -51,7 +59,7 @@ function card(c) {
   el.dataset.k = k;
   el.setAttribute("role", "button");
   const st = ICON[c.status] || "idea",
-    idt = c.kind === "idea" ? "idea" : c.text.replace(/-/g, " ");
+    idt = c.kind === "idea" ? "" : c.text.replace(/-/g, " ");
   // The status icon carries the state; what a waiting run needs is its tooltip.
   const sttl = c.status === "waiting" ? need(c.awaiting) || "needs you" : c.status || "idea";
   // Footer: words on the left (project, what it needs), icon-only marks on the right.
@@ -98,10 +106,22 @@ function card(c) {
     );
   if (c.open) marks.push(mk("i-bug", `${c.open} open finding${c.open === 1 ? "" : "s"} to fix`, " warn"));
   const pick = picking && !archive && c.column === 4;
+  // Done cards are one line on the board; the panel still shows everything.
+  if (c.column === 4 && !archive) el.classList.add("compact");
+  // The one thing a card asks of you, on its face: what a waiting run needs, or resuming a stalled one.
+  const act =
+    c.kind === "run" && !archive && !pick
+      ? c.status === "waiting"
+        ? `<button class="btn sm pri act" data-a="open">${actionOf(c)}</button>`
+        : c.status === "stalled" && resumable(c)
+          ? `<button class="btn sm act" data-a="resume">Resume</button>`
+          : ""
+      : "";
   el.innerHTML =
     (pick ? `<input type="checkbox" class="pick" ${picked.has(k) ? "checked" : ""} aria-label="Select">` : "") +
     `<div class="c-id"><span class="st d-${st}" role="img" title="${esc(sttl)}" aria-label="${esc(sttl)}"><svg><use href="#s-${st}"/></svg></span><span class="idt">${esc(idt)}</span><span class="age">${c.kind === "run" ? age(c.moved || store.S.now, store.S.now) : ""}</span><button class="ib sm more" data-a="menu" title="Actions" aria-label="Actions" aria-haspopup="menu" aria-expanded="${k === store.menuKey}">${ico("more")}</button></div>
   <div class="c-title"${c.kind === "idea" && brief(c.text).parts.length ? ` title="${esc(c.text)}"` : ""}>${esc(c.kind === "idea" ? brief(c.text).head : c.title || c.id)}</div>
+  ${act}
   ${chips.length || marks.length ? `<div class="c-foot"><span class="c-chips">${chips.join("")}</span><span class="c-marks">${marks.join("")}</span></div>` : ""}`;
   const kids = kidsOf(c);
   if (kids.length) {
@@ -160,17 +180,7 @@ function card(c) {
         ["delete", "Remove", ico("trash"), "danger"],
       );
     } else {
-      const openLabel =
-        c.status === "waiting"
-          ? c.awaiting === "approvals.plan"
-            ? "Review plan"
-            : c.awaiting === "findings"
-              ? "See findings"
-              : c.awaiting === "approvals.review"
-                ? "Review work"
-                : "Open"
-          : "Open";
-      items.push(["open", openLabel, ico("open")]);
+      items.push(["open", actionOf(c), ico("open")]);
       items.push(["archive", "Archive", ico("archive")]);
       if (c.status === "waiting" || c.status === "running" || c.status === "stalled") {
         items.push(null, ["reject", "Abandon", ico("x"), "danger"]);
@@ -192,6 +202,10 @@ function card(c) {
         }
         if (a === "open") {
           open(c);
+          return;
+        }
+        if (a === "resume") {
+          resume(c, bt);
           return;
         }
         if (a === "archive" || a === "restore") {
@@ -383,6 +397,8 @@ async function startRun(c, kind) {
   load();
 }
 
+const HINT = { 1: "Ideas you run are planned here", 2: "Approved plans are built here", 3: "Finished builds are checked here" };
+
 export function render() {
   // A closed form leaves no draft behind; an open one is reopened after a reload.
   // A form whose card is gone (restored after a reload, or deleted elsewhere) has nowhere to show.
@@ -468,12 +484,21 @@ export function render() {
   }
   COLS.forEach((name, ci) => {
     const s = document.createElement("section");
-    const list = cs.filter((c) => c.column === ci && (!filter || c.status === filter) && (archive || !nested(c)));
+    const q = query.trim().toLowerCase();
+    const list = cs.filter(
+      (c) =>
+        c.column === ci &&
+        (!filter || c.status === filter) &&
+        (archive || !nested(c)) &&
+        (!q || `${c.title || ""} ${c.text || ""} ${c.id || ""}`.toLowerCase().includes(q)),
+    );
     // Runs age by their last move, ideas by inbox position (new ones are appended).
     if (ci < 4) {
       const at = (c) => (c.kind === "run" ? c.moved || 0 : store.S.cards.indexOf(c)),
         old = order[ci] === "old";
-      list.sort((a, b) => (old ? at(a) - at(b) : at(b) - at(a)));
+      // Runs waiting on you go first, then the column's own order.
+      const w = (c) => (c.status === "waiting" ? 1 : 0);
+      list.sort((a, b) => w(b) - w(a) || (old ? at(a) - at(b) : at(b) - at(a)));
     }
     const clearable = ci === 4 && !archive && list.length;
     const olderThan = (days) => list.filter((c) => store.S.now - (c.moved || store.S.now) > days * d);
@@ -652,11 +677,35 @@ export function render() {
       };
       ul.appendChild(li);
     }
+    // An empty middle column says what lands in it, so it does not look broken.
+    if (!list.length && ci >= 1 && ci <= 3 && cs.length && !filter && !q && !archive)
+      ul.innerHTML = `<li class="hint">${HINT[ci]}</li>`;
     s.appendChild(ul);
     b.appendChild(s);
   });
+  // The tab says how many runs wait on you, so a background tab still tells you.
+  const nw = store.S.cards.filter((c) => c.kind === "run" && c.status === "waiting" && !c.archived).length;
+  document.title = nw ? `(${nw}) kaizen` : "kaizen";
   stopDictation(false); // forms were just rebuilt; a listener whose field is gone would write into nothing
   if (fk && document.activeElement === document.body) cardEl(fk)?.focus({ preventScroll: true });
+}
+// The header filter box lives outside #board, so a redraw keeps what is typed; draft() keeps it over a reload.
+export function filterBox() {
+  const el = $("bq");
+  draft(el, "bq");
+  query = el.value;
+  el.addEventListener("input", () => {
+    query = el.value;
+    render();
+  });
+  el.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      e.stopPropagation();
+      el.value = "";
+      el.dispatchEvent(new Event("input"));
+      el.blur();
+    }
+  });
 }
 export const focusedKey = () => document.activeElement?.closest?.("#board .card")?.dataset.k;
 export const cardEl = (k) => k && $("board").querySelector('.card[data-k="' + CSS.escape(k) + '"]');

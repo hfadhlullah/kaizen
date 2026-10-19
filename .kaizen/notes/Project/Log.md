@@ -66,3 +66,4 @@ updated: 2026-10-15
 - 2026-10-19 keep-used-terminal: board done-sweep leaves a session open when the user typed into its terminal after the run finished (cli/state.ts typedSince).
 - 2026-10-19 release — 1.38.0 published to npm, GitHub Packages, GitHub release (keep-used-terminal, loading skeletons)
 - 2026-10-19 run 2026-10-19-resume-done-run — Web board (agents launched by a board started inside Claude Code now keep a transcript, so done runs resume; #14)
+- 2026-10-19 run 2026-10-19-board-ux — Web board (phone bottom tab bar, needs-you button and Resume on cards, tab title count, waiting-first sort, compact Done, empty-column hints, header filter box)

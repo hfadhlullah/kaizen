@@ -39,6 +39,11 @@ export function initKeys() {
       $("sq").focus();
       return;
     }
+    if (e.key === "/" && view === "board" && $("bq")) {
+      e.preventDefault();
+      $("bq").focus();
+      return;
+    }
     if (e.key === "Escape") {
       $("help").classList.remove("on");
       if (store.mode) {
