@@ -1394,6 +1394,8 @@ export function trustFolder(dir: string, cfg = join(process.env.CLAUDE_CONFIG_DI
 // pick: the tool, model and yolo chosen for a new run; a decision takes the run's own
 // tool and model, and never yolo. card: run it inside the board (agent.launch: card),
 // where a pseudo-terminal exists; onChange is told when that agent ends.
+const CHILD_ENV = /^(CLAUDECODE|CLAUDE_PID|CLAUDE_CODE_(SESSION_ID|CHILD_SESSION|SESSION_ATTENDED|MESSAGING_SOCKET|MESSAGING_TOKEN))$/;
+
 export function launchRun(it: Item, from: string, run?: string, pick: { agent?: string; model?: string; yolo?: boolean; card?: boolean; onChange?: () => void } = {}): Launch {
   const projectDir = projectOf(from);
   // The run will be born here; the board must know the dir or the idea never retires.
@@ -1401,6 +1403,9 @@ export function launchRun(it: Item, from: string, run?: string, pick: { agent?: 
   const own = run && !pick.agent ? runAgent(join(projectDir, ".kaizen"), run) : null;
   const agent = detectDefaultAgent(projectDir, pick.agent ?? own?.cmd);
   if (agent.cmd === "claude") trustFolder(projectDir);
+  // A board started inside a Claude Code session carries that session's identity. An
+  // agent inheriting it runs as its child and keeps no transcript, so nothing to resume.
+  for (const k of Object.keys(process.env)) if (CHILD_ENV.test(k)) delete process.env[k];
   // onPath, not Bun.which: the board may have taken a login shell's PATH after it started.
   const agentBin = onPath(agent.cmd) ?? agent.cmd;
   // No text: a run's conversation reopened as it was, with nothing sent to it.
