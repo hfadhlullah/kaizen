@@ -119,7 +119,12 @@ library, an API — may give command output alone. A report with no screenshot i
 A headless browser does it: `playwright screenshot <url> runs/<id>/attachments/<name>.png`,
 or `chromium --headless --screenshot=<abs path>.png --window-size=1280,900 <url>` where
 playwright has no browser installed. A file (document, diff, output) opens as `file://<path>`.
-Where no proof can be produced, say why in one line under `## Preview`.
+Where no proof can be produced, say why in one line under `## Preview` — but a missing
+browser is never that reason. Before giving up, try each of: `playwright screenshot`,
+`bunx playwright screenshot`, `chromium --headless`, `google-chrome --headless`,
+and `bunx playwright install chromium` then retry. Start the app if it is not running.
+Only a result with no screen, or a capture that failed after every one of these (quote
+the error), may skip the screenshot.
 
 **A revise retakes the screenshots.** When the run being revised, or the run a follow-up
 names in `Follow-up of:`, already shows screenshots in its `## Preview`, the build that

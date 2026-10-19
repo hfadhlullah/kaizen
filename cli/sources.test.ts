@@ -281,7 +281,7 @@ test("hostile content becomes plain icebox items, and promoted, plain open ideas
   for (const l of open()) promote(state, [l.id]);
   const lines = readInbox(state);
   expect(lines.length).toBe(7);
-  expect(lines[0]).toEqual({ status: "started", text: "already here" });
+  expect(lines[0]).toMatchObject({ status: "started", text: "already here" });
   const fresh = lines.slice(1);
   expect(fresh.every((l) => l.status === "open")).toBe(true);
   expect(fresh.map((l) => l.text)).toEqual([

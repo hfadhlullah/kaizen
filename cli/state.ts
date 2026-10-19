@@ -676,7 +676,8 @@ export function columnOf(stage: string, awaiting: string | null = null) {
 
 // notes: free text under the bullet -- links, path:line refs, background. Kept as
 // indented continuation lines so a one-line inbox from before notes reads unchanged.
-export type InboxLine = { status: string; text: string; notes?: string };
+// `added` is when the line first appeared (ms), kept as a hidden comment on its bullet.
+export type InboxLine = { status: string; text: string; notes?: string; added?: number };
 
 // Ideas with no run yet. Deliberately not backlog.md, which the spec defines as
 // an orphanage for items rescued from pruned runs, and not a run stub each.
@@ -686,7 +687,11 @@ export function readInbox(state: string): InboxLine[] {
   const out: InboxLine[] = [];
   for (const raw of readText(f).split("\n")) {
     const m = /^-\s*(open|started|done|rejected|archived):\s*(.+)$/.exec(raw.trim());
-    if (m) { out.push({ status: m[1]!, text: m[2]!.trim() }); continue; }
+    if (m) {
+      const a = /\s*<!-- added:(\d+) -->$/.exec(m[2]!);
+      out.push(a ? { status: m[1]!, text: m[2]!.slice(0, a.index).trim(), added: +a[1]! } : { status: m[1]!, text: m[2]!.trim() });
+      continue;
+    }
     // An indented line belongs to the bullet above it; anything else is noise.
     const last = out[out.length - 1];
     if (last && /^\s{2,}\S/.test(raw)) last.notes = (last.notes ? last.notes + "\n" : "") + raw.trim();
@@ -699,12 +704,16 @@ export function readInbox(state: string): InboxLine[] {
 // needs a lock or an append-only journal.
 export function writeInbox(state: string, lines: InboxLine[]) {
   mkdirSync(state, { recursive: true });
+  // A line already in the file keeps its stamp; a text the file never had is new now.
+  // Lines from before stamps existed stay unstamped rather than looking new.
+  const had = new Map(readInbox(state).map((l) => [l.text, l.added]));
+  const stamp = (l: InboxLine) => l.added ?? (had.has(l.text) ? had.get(l.text) : Date.now());
   const body = [
     "# Inbox",
     "",
     "Ideas with no run yet. One line each, same format as a run's backlog.",
     "",
-    ...lines.flatMap((l) => [`- ${l.status}: ${l.text}`, ...noteLines(l.notes)]),
+    ...lines.flatMap((l) => { const a = stamp(l); return [`- ${l.status}: ${l.text}${a ? ` <!-- added:${a} -->` : ""}`, ...noteLines(l.notes)]; }),
   ];
   writeFileSync(join(state, "inbox.md"), body.join("\n") + "\n");
 }
@@ -961,15 +970,18 @@ export function boardCards(states: string[], now: number): Card[] {
     if (!bodies.has(f)) { try { bodies.set(f, readText(f)); } catch { bodies.set(f, ""); } }
     return bodies.get(f)!;
   };
-  const requests: string[] = [];
+  // Each request with when it was written, so a run older than an idea cannot retire it.
+  const requests: { at: number; text: string }[] = [];
   // Each request line on its own, quote and list markers stripped: what an idea
   // nobody launched from the board is matched against.
-  const lines: string[] = [];
+  const lines: { at: number; text: string }[] = [];
   for (const st of [...states, ...knownProjects().map((d) => join(d, ".kaizen")), join(home, ".kaizen")]
     .filter((d, i, all) => all.indexOf(d) === i && existsSync(join(d, "runs")))) {
     for (const id of readdirSync(join(st, "runs"))) { const b = body(st, id); if (!b) continue;
-      requests.push(normalise(b));
-      for (const l of b.split("\n")) lines.push(normalise(l.replace(/^[\s>*"'`-]+|[\s"'`.]+$/g, "")));
+      let at = 0;
+      try { at = statSync(join(st, "runs", id, "00-request.md")).mtimeMs; } catch {}
+      requests.push({ at, text: normalise(b) });
+      for (const l of b.split("\n")) lines.push({ at, text: normalise(l.replace(/^[\s>*"'`-]+|[\s"'`.]+$/g, "")) });
     }
   }
   for (const st of states) {
@@ -986,7 +998,11 @@ export function boardCards(states: string[], now: number): Card[] {
       // prefix): a short idea like "test" is a substring of half the requests
       // ever written, and would vanish the moment it was added.
       const t = normalise(it.text);
-      if (it.status === "started" ? requests.some((r) => r.includes(t)) : lines.some((l) => l === t || l.endsWith(" " + t))) continue;
+      // A run written before the idea existed is not this idea's run: an old request
+      // titled "fix this bugs" must not swallow a new idea with the same words.
+      // ponytail: 2s slack for coarse filesystem clocks.
+      const after = (r: { at: number }) => !it.added || r.at >= it.added - 2000;
+      if (it.status === "started" ? requests.some((r) => after(r) && r.text.includes(t)) : lines.some((l) => after(l) && (l.text === t || l.text.endsWith(" " + t)))) continue;
       next.push(it.status === "started"
         ? { kind: "idea", status: "starting", text: it.text, state: st, where, column: 1, awaiting: null, dim: true, archived: false, notes: it.notes, parent: parentOf(it.notes) }
         : { kind: "idea", status: "idea", text: it.text, state: st, where, column: 0, awaiting: null, dim: false, archived: it.status === "archived", notes: it.notes, parent: parentOf(it.notes) });

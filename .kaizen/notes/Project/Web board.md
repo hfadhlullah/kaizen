@@ -26,6 +26,7 @@ updated: 2026-10-19
 
 ## Watch out
 - The New idea form (`web/board/cards.ts`) takes files by Attach or paste: the idea is added through `/inbox` first, then the files go to `/note` (`for: <idea text>`), which saves them under `attachments/` and links them in the idea's notes. A failed upload leaves a text-only idea. `requestOf()` makes the links absolute when the run starts.
+- Each inbox bullet carries a hidden `<!-- added:<ms> -->` stamp (`writeInbox` sets it for new text, keeps it otherwise). `boardCards` retires an idea only against runs whose `00-request.md` is not older than that stamp, so an old run with the same words cannot swallow a new idea. Unstamped legacy lines match as before.
 - `web/board.html` is not served verbatim: `notifier()` from `state.ts` is written over a `/*notifier*/` marker (`.kaizen/memory.md`).
 - Installed as a phone app (`display-mode:standalone`) the body is `position:fixed;inset:0`, because iOS `100dvh` leaves the home-indicator strip black; both pages use `viewport-fit=cover` plus safe-area padding on phones and in standalone at any width; on phones the page background is `--bg` so the inset strips show no dark band.
 - `render()` (`web/board/cards.ts`) rebuilds `#board` on every `changed` event; fields need a `draft()` key (`.kaizen/memory.md`).

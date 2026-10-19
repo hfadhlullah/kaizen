@@ -25,6 +25,12 @@ const run = (id: string, s: object, request = "") => {
 beforeAll(() => {
   state = join(mkdtempSync(join(tmpdir(), "kaizen-")), ".kaizen");
   mkdirSync(state, { recursive: true });
+  writeInbox(state, [
+    { status: "open", text: "add oauth login" },
+    { status: "open", text: "retry failed webhooks" },
+    { status: "started", text: "nightly digest" },
+    { status: "rejected", text: "gantt view | not this product" },
+  ]);
   run("2026-09-01-waiting", { stage: "plan", awaiting: "approvals.plan" }, "# Request\n\nAdd OAuth login\n");
   run("2026-09-02-done", { stage: "done", awaiting: null }, "# Request\n\nRename cli flags\n");
   const old = run("2026-09-03-stale", { stage: "build", awaiting: null });
@@ -33,12 +39,6 @@ beforeAll(() => {
   writeFileSync(join(state, "runs", "2026-09-02-done", "06-backlog.md"),
     "# Backlog\n\n- open: `cli/x.ts:12`: low: first thing. Fix: do it.\n- done: closed one | run y\n- open: plain item\n");
   writeFileSync(join(state, "backlog.md"), "- open: orphaned item\n");
-  writeInbox(state, [
-    { status: "open", text: "add oauth login" },
-    { status: "open", text: "retry failed webhooks" },
-    { status: "started", text: "nightly digest" },
-    { status: "rejected", text: "gantt view | not this product" },
-  ]);
 });
 afterAll(() => rmSync(join(state, ".."), { recursive: true, force: true }));
 
@@ -78,6 +78,28 @@ test("boardCards: idea retired once a run's request contains it; started idea si
   expect(ideas).toEqual([["retry failed webhooks", 0, "idea"], ["nightly digest", 1, "starting"]]);
   const runs = cards.filter((k) => k.kind === "run").map((k) => [k.id, k.column, k.status]);
   expect(runs).toEqual([["2026-09-03-stale", 2, "stalled"], ["2026-09-02-done", 4, "done"], ["2026-09-01-waiting", 1, "waiting"]]);
+});
+
+test("boardCards: a run older than the idea does not retire it", () => {
+  const dir = join(mkdtempSync(join(tmpdir(), "kaizen-")), ".kaizen");
+  const r = join(dir, "runs", "2026-01-01-old");
+  mkdirSync(r, { recursive: true });
+  writeFileSync(join(r, "state.json"), JSON.stringify({ id: "2026-01-01-old", stage: "done", awaiting: null }));
+  writeFileSync(join(r, "00-request.md"), "fix this bugs\n");
+  const then = new Date(Date.now() - 3600_000);
+  utimesSync(join(r, "00-request.md"), then, then);
+  writeInbox(dir, [{ status: "open", text: "fix this bugs" }]);
+  expect(readFileSync(join(dir, "inbox.md"), "utf8")).toMatch(/- open: fix this bugs <!-- added:\d+ -->/);
+  expect(readInbox(dir)[0]!.text).toBe("fix this bugs");
+  const ideas = () => boardCards([dir], Date.now()).filter((k) => k.kind === "idea").map((k) => k.text);
+  expect(ideas()).toEqual(["fix this bugs"]);
+  // Rewriting keeps the stamp, so an edit to notes does not make it vanish.
+  writeInbox(dir, readInbox(dir).map((l) => ({ status: l.status, text: l.text, notes: "n" })));
+  expect(ideas()).toEqual(["fix this bugs"]);
+  // A run started after it retires it as before.
+  utimesSync(join(r, "00-request.md"), new Date(), new Date(Date.now() + 5000));
+  expect(ideas()).toEqual([]);
+  rmSync(join(dir, ".."), { recursive: true, force: true });
 });
 
 test("replaceIdea edits, rejects, deletes by text", () => {
@@ -188,8 +210,8 @@ test("notes: indented lines under a bullet round-trip; a legacy file is untouche
   expect(readFileSync(join(state, "inbox.md"), "utf8")).toBe(legacy);
   writeInbox(state, [{ status: "open", text: "with notes", notes: "see https://x.y/z\ncli/state.ts:12 | not a reason" }, { status: "open", text: "plain zq8" }]);
   const [a, b] = readInbox(state);
-  expect(a).toEqual({ status: "open", text: "with notes", notes: "see https://x.y/z\ncli/state.ts:12 | not a reason" });
-  expect(b).toEqual({ status: "open", text: "plain zq8" });
+  expect(a).toMatchObject({ status: "open", text: "with notes", notes: "see https://x.y/z\ncli/state.ts:12 | not a reason" });
+  expect(b).toMatchObject({ status: "open", text: "plain zq8" });
 });
 
 test("notes: survive reject and started; edit can replace or clear them", () => {
@@ -986,7 +1008,7 @@ test("moveIdea carries notes and linked attachments, leaves the old inbox withou
   expect(moveIdea(a, b, "nope")).toBe("no such idea");
   expect(moveIdea(a, b, "go")).toBeNull();
   expect(readInbox(a).map((l) => l.text)).toEqual(["keep"]);
-  expect(readInbox(b)).toEqual([{ status: "open", text: "go", notes: "see [shot](attachments/x-shot.png)" }]);
+  expect(readInbox(b)).toMatchObject([{ status: "open", text: "go", notes: "see [shot](attachments/x-shot.png)" }]);
   expect(readFileSync(join(b, "attachments", "x-shot.png"), "utf8")).toBe("png");
   writeInbox(a, [{ status: "open", text: "go" }]);
   expect(moveIdea(a, b, "go")).toBe("that project already has this idea");
