@@ -9,53 +9,52 @@ import { view } from "./views.ts";
 // is a quiet row whose Check for updates asks npm now instead of the server's 6 h cache.
 let upd = null,
   ver = null;
-function gotVer(v) {
+export function gotVer(v) {
   ver = v;
-  if (!v.update) return false;
-  upd = v;
+  upd = v.update ? v : null;
   const a = document.querySelector('.rail a[data-view="settings"]');
-  a.classList.add("upd");
-  a.title = `Settings: kaizen ${v.latest} is available`;
-  return true;
+  a.classList.toggle("upd", !!upd);
+  a.title = upd ? `Settings: kaizen ${v.latest} is available` : "Settings";
+  return !!upd;
 }
 export function updBar() {
-  if (!upd) {
-    const d = document.createElement("div");
-    d.className = "updbar quiet";
-    d.innerHTML = `<span id="upd-msg" aria-live="polite">${ver ? `You are running kaizen ${esc(ver.version)}.` : "kaizen"}</span><button class="btn" id="upd-chk">Check for updates</button>`;
-    $("pbody").prepend(d);
-    const b = $("upd-chk");
-    b.onclick = async () => {
-      b.disabled = true;
-      b.textContent = "Checking…";
-      const v = await fetch("/version?fresh=1")
-        .then((r) => r.json())
-        .catch(() => null);
-      if (!d.isConnected) return;
-      b.disabled = false;
-      b.textContent = "Check for updates";
-      if (v && gotVer(v)) {
-        d.remove();
-        updBar();
-        $("upd-go").focus();
-        return;
-      }
-      $("upd-msg").textContent =
-        !v || !v.latest ? "Could not reach npm. Try again later." : `kaizen ${v.version} is up to date.`;
-    };
-    return;
-  }
   const d = document.createElement("div");
-  d.className = "updbar";
-  // What's new: each newer release's one-line title, shown on hover, focus or click.
-  const notes = (upd.notes || [])
-    .map((n) => `<li><b>${esc(n.v)}</b> ${esc(n.text)}</li>`)
-    .join("");
-  const news = notes
-    ? `<span class="updnew"><button class="btn" aria-describedby="upd-notes">What's new</button><span class="updpop" id="upd-notes" role="tooltip"><ul>${notes}</ul><a href="https://github.com/hfadhlullah/kaizen/releases" target="_blank" rel="noopener">All release notes</a></span></span>`
-    : "";
-  d.innerHTML = `<span>kaizen <b>${esc(upd.latest)}</b> is available. You are running ${esc(upd.version)}.</span><span class="updact">${news}<button class="btn pri" id="upd-go">Update kaizen</button></span>`;
+  d.className = `updbar${upd ? "" : " quiet"}`;
+  if (!upd) {
+    d.innerHTML = `<span id="upd-msg" aria-live="polite">${ver ? `You are running kaizen ${esc(ver.version)}.` : "kaizen"}</span><button class="btn" id="upd-chk">Check for updates</button>`;
+  } else {
+    // What's new: each newer release's one-line title, shown on hover, focus or click.
+    const notes = (upd.notes || []).map((n) => `<li><b>${esc(n.v)}</b> ${esc(n.text)}</li>`).join("");
+    const news = notes
+      ? `<span class="updnew"><button class="btn" aria-describedby="upd-notes">What's new</button><span class="updpop" id="upd-notes" role="tooltip"><ul>${notes}</ul><a href="https://github.com/hfadhlullah/kaizen/releases" target="_blank" rel="noopener">All release notes</a></span></span>`
+      : "";
+    d.innerHTML = `<span>kaizen <b>${esc(upd.latest)}</b> is available. You are running ${esc(upd.version)}.</span><span class="updact">${news}<button class="btn" id="upd-chk">Check for updates</button><button class="btn pri" id="upd-go">Update kaizen</button></span>`;
+  }
   $("pbody").prepend(d);
+  const check = $("upd-chk");
+  check.onclick = async () => {
+    check.disabled = true;
+    check.textContent = "Checking…";
+    const v = await fetch("/version?fresh=1")
+      .then((r) => r.json())
+      .catch(() => null);
+    if (!d.isConnected) return;
+    check.disabled = false;
+    if (!v || !v.latest) {
+      if (upd) check.textContent = "Could not check. Try again";
+      else $("upd-msg").textContent = "Could not reach npm. Try again later.";
+      return;
+    }
+    gotVer(v);
+    d.remove();
+    updBar();
+    if (upd) $("upd-go").focus();
+    else {
+      $("upd-msg").textContent = `kaizen ${v.version} is up to date.`;
+      $("upd-chk").focus();
+    }
+  };
+  if (!upd) return;
   const b = $("upd-go");
   b.onclick = async () => {
     if (!confirm(`Update kaizen to ${upd.latest}? The board restarts, and agents running inside cards stop.`)) return;

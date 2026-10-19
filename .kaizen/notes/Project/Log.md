@@ -1,7 +1,7 @@
 ---
 description: Append-only history of builds and updates to this vault
 tags: [project, log]
-updated: 2026-10-15
+updated: 2026-10-19
 ---
 # Log
 
@@ -69,3 +69,4 @@ updated: 2026-10-15
 - 2026-10-19 run 2026-10-19-board-ux — Web board (phone bottom tab bar, needs-you button and Resume on cards, tab title count, waiting-first sort, compact Done, empty-column hints, header filter box)
 - 2026-10-19 run 2026-10-19-preview-gate — Workflow (main thread checks `## Preview` + screenshot before build -> review, both runners)
 - 2026-10-19 runs 2026-10-19-mobile-popover, 2026-10-19-mobile-status-filter — Web board (phone: Showing list stays on screen; status strip behind a header filter button)
+- 2026-10-19 run 2026-10-19-release-update-check — Web board, Release and testing (Settings rechecks an existing update alert; release 1.39.0)

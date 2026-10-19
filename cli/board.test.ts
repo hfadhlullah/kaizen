@@ -8,6 +8,56 @@ import { draft, undraft } from "../web/board/drafts.ts";
 const html = readFileSync(join(dirname(import.meta.dir), "web", "board.html"), "utf8");
 const cards = readFileSync(join(dirname(import.meta.dir), "web", "board", "cards.ts"), "utf8");
 
+test("Settings rechecks an existing update alert and clears or refreshes it", async () => {
+  const classes = new Set<string>();
+  const link = { classList: { toggle(name: string, on: boolean) { on ? classes.add(name) : classes.delete(name); } }, title: "Settings" };
+  const previous = globalThis.document;
+  const previousLocation = globalThis.location;
+  const previousFetch = globalThis.fetch;
+  const elements = new Map<string, any>();
+  const body = { row: null as any, prepend(row: any) { this.row = row; row.isConnected = true; } };
+  (globalThis as any).location = { search: "" };
+  (globalThis as any).document = {
+    querySelector: () => link,
+    getElementById: (id: string) => id === "pbody" ? body : elements.get(id),
+    createElement: () => ({
+      isConnected: false,
+      set innerHTML(html: string) {
+        this.html = html;
+        elements.clear();
+        for (const [, id] of html.matchAll(/id="([^"]+)"/g)) elements.set(id, { textContent: "", disabled: false, focus() {} });
+      },
+      remove() { this.isConnected = false; },
+    }),
+  };
+  try {
+    const { gotVer, updBar } = await import("../web/board/update.ts");
+    expect(gotVer({ version: "1.38.1", latest: "1.39.0", update: true })).toBe(true);
+    updBar();
+    expect(body.row.html).toContain('id="upd-chk"');
+    expect(classes.has("upd")).toBe(true);
+    expect(link.title).toContain("1.39.0");
+    globalThis.fetch = (async () => ({ json: async () => ({ version: "1.39.0", latest: "1.39.0", update: false }) })) as any;
+    await elements.get("upd-chk").onclick();
+    expect(classes.has("upd")).toBe(false);
+    expect(link.title).toBe("Settings");
+    expect(body.row.className).toContain("quiet");
+    expect(elements.get("upd-msg").textContent).toBe("kaizen 1.39.0 is up to date.");
+    globalThis.fetch = (async () => ({ json: async () => ({ version: "1.39.0", latest: "1.40.0", update: true }) })) as any;
+    await elements.get("upd-chk").onclick();
+    expect(classes.has("upd")).toBe(true);
+    expect(body.row.html).toContain("1.40.0");
+    globalThis.fetch = (async () => { throw Error("offline"); }) as any;
+    await elements.get("upd-chk").onclick();
+    expect(classes.has("upd")).toBe(true);
+    expect(body.row.html).toContain("1.40.0");
+  } finally {
+    globalThis.document = previous;
+    globalThis.location = previousLocation;
+    globalThis.fetch = previousFetch;
+  }
+});
+
 test("backlog items: a checkbox each, ticked only when done", () => {
   const out = md('- open: one | why\n- done: two <b>x</b> | fixed\n- rejected: three | no\n- plain\n', true);
   const boxes = out.match(/<li[^>]*>.*?<\/li>/g)!;

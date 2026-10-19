@@ -2,12 +2,12 @@
 description: How to test, build the web bundles, and publish a release
 tags: [project, release]
 sources: [package.json, cli/release.sh, cli/publish-gh.sh, .github/workflows/test.yml, cli/build-web.ts]
-updated: 2026-10-15
+updated: 2026-10-19
 ---
 # Release and testing
 
 ## What it does
-Tests are `bun test` (all `*.test.ts`, `cli/` and `bot/`), run in CI on Ubuntu and Windows (`.github/workflows/test.yml`). The package is `kaizen-agent` on npm; `bun run release` publishes to npm and then GitHub Packages (`package.json` scripts).
+Tests are `bun test` (all `*.test.ts`, `cli/` and `bot/`), run in CI on Ubuntu and Windows (`.github/workflows/test.yml`). The package is `kaizen-agent` on npm (version 1.39.0 in this checkout); `bun run release` publishes to npm and then GitHub Packages (`package.json` scripts).
 
 ## Where it lives
 - `package.json` — `test`, `build:web`, `format` / `format:check` (Prettier over the frontend TypeScript: `web/*.ts`, `web/board/`, `bot/web/app/`), `release`, `prepublishOnly` (tests), `postpublish` (`cli/release.sh`: tag + GitHub release).
