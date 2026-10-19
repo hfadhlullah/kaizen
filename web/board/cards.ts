@@ -438,6 +438,10 @@ export function render() {
     `<button class="${archive ? "on" : ""}" data-f="__archive" title="${cs.filter((c) => c.kind === "idea").length} ideas · ${cs.filter((c) => c.kind === "run").length} runs on the board">${archive ? "Back to board" : "Archive " + nArch}</button>`,
   );
   $("strip").innerHTML = strip.join("");
+  // The phone's status button: amber dot while a run waits, accent while a filter or the archive is on.
+  $("fbtn").hidden = false;
+  $("fbtn").classList.toggle("on", !!filter || archive);
+  $("fbtn").classList.toggle("wait", !filter && !archive && n("waiting") > 0);
   $("strip")
     .querySelectorAll("button")
     .forEach(
@@ -706,6 +710,21 @@ export function filterBox() {
       el.blur();
     }
   });
+}
+// Phones: the footer's status strip opens as a sheet under the filter button; a press outside closes it.
+export function statusSheet() {
+  const b = $("fbtn"),
+    f = document.querySelector(".ftr");
+  const set = (on) => {
+    f.classList.toggle("on", on);
+    b.setAttribute("aria-expanded", on);
+    if (on) f.style.top = b.getBoundingClientRect().bottom + 6 + "px";
+  };
+  b.onclick = () => set(!f.classList.contains("on"));
+  document.addEventListener("pointerdown", (e) => {
+    if (f.classList.contains("on") && !f.contains(e.target) && !b.contains(e.target)) set(false);
+  });
+  document.addEventListener("keydown", (e) => e.key === "Escape" && f.classList.contains("on") && set(false));
 }
 export const focusedKey = () => document.activeElement?.closest?.("#board .card")?.dataset.k;
 export const cardEl = (k) => k && $("board").querySelector('.card[data-k="' + CSS.escape(k) + '"]');
