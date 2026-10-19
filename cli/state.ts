@@ -985,7 +985,9 @@ export function boardCards(states: string[], now: number): Card[] {
   const lines: { at: number; text: string }[] = [];
   for (const st of [...states, ...knownProjects().map((d) => join(d, ".kaizen")), join(home, ".kaizen")]
     .filter((d, i, all) => all.indexOf(d) === i && existsSync(join(d, "runs")))) {
-    for (const id of readdirSync(join(st, "runs"))) { const b = body(st, id); if (!b) continue;
+    // A run with no state.json yet has no card either: retiring the idea against it
+    // leaves the board showing neither until the agent writes one.
+    for (const id of readdirSync(join(st, "runs"))) { const b = body(st, id); if (!b || !existsSync(join(st, "runs", id, "state.json"))) continue;
       let at = 0;
       try { at = statSync(join(st, "runs", id, "00-request.md")).mtimeMs; } catch {}
       requests.push({ at, text: normalise(b) });

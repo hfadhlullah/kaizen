@@ -80,6 +80,19 @@ test("boardCards: idea retired once a run's request contains it; started idea si
   expect(runs).toEqual([["2026-09-03-stale", 2, "stalled"], ["2026-09-02-done", 4, "done"], ["2026-09-01-waiting", 1, "waiting"]]);
 });
 
+test("boardCards: a started idea stays until its run has a state.json", () => {
+  const dir = join(mkdtempSync(join(tmpdir(), "kaizen-")), ".kaizen");
+  const r = join(dir, "runs", "2026-01-01-new");
+  mkdirSync(r, { recursive: true });
+  writeInbox(dir, [{ status: "started", text: "full release" }]);
+  writeFileSync(join(r, "00-request.md"), "full release\n");
+  const cards = () => boardCards([dir], Date.now()).map((k) => k.kind);
+  expect(cards()).toEqual(["idea"]);
+  writeFileSync(join(r, "state.json"), JSON.stringify({ id: "2026-01-01-new", stage: "plan", awaiting: null }));
+  expect(cards()).toEqual(["run"]);
+  rmSync(join(dir, ".."), { recursive: true, force: true });
+});
+
 test("boardCards: a run older than the idea does not retire it", () => {
   const dir = join(mkdtempSync(join(tmpdir(), "kaizen-")), ".kaizen");
   const r = join(dir, "runs", "2026-01-01-old");
@@ -363,6 +376,7 @@ console.log(JSON.stringify(out));`;
 test("boardCards: a short idea is not retired by a request that merely contains the word", () => {
   const dir = join(mkdtempSync(join(tmpdir(), "kz-")), ".kaizen");
   mkdirSync(join(dir, "runs", "2026-09-01-a"), { recursive: true });
+  writeFileSync(join(dir, "runs", "2026-09-01-a", "state.json"), JSON.stringify({ id: "2026-09-01-a", stage: "plan", awaiting: null }));
   writeFileSync(join(dir, "runs", "2026-09-01-a", "00-request.md"), "# Request\n\n> /kaizen lite add retry\n\nDone means the tests pass.\n");
   writeInbox(dir, [{ status: "open", text: "test" }, { status: "open", text: "add retry" }]);
   expect(boardCards([dir], Date.now()).filter((k) => k.kind === "idea").map((k) => k.text)).toEqual(["test"]);

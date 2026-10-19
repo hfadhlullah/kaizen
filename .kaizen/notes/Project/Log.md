@@ -72,3 +72,4 @@ updated: 2026-10-19
 - 2026-10-19 run 2026-10-19-release-update-check — Web board, Release and testing (Settings rechecks an existing update alert; release 1.39.0)
 - 2026-10-19 run 2026-10-19-idea-title-retired — Web board, Workflow (ideas stamped so older runs cannot retire them; no-browser is not a reason to skip the Preview screenshot)
 - 2026-10-19 run 2026-10-19-idea-restamp — Web board (re-added idea with the same words as an old inbox line gets its own stamp)
+- 2026-10-19 run 2026-10-19-idea-vanish-no-state — Web board (a run with no state.json yet cannot retire an idea, so the idea shows until its run card does)
