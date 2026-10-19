@@ -222,22 +222,22 @@ export async function openSources() {
               : `<span class="src-badge warn"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" stroke="currentColor" fill="none" stroke-width="1.8"/><path d="M8 5v3.5M8 11v.1" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round"/></svg>Failed: ${esc(s.last.note)}</span><span class="hint" style="margin:0">${ago(s.last.at)}</span>`;
       const kind = st === "sheet" ? "sheet" : st === "doc" ? "doc" : st === "social" ? "at" : "link",
         bare = s.url.replace(/^https?:\/\/(www\.)?/, "");
-      return `<div class="src-card" id="src-card-${i}"><div class="src-hd"><span class="src-ico" title="${st === "social" ? esc(PLAT[s.social] || "social") : st}">${fav(s.url, kind, s.social)}</span><div class="src-info"><span class="src-title" title="${esc(title)}">${esc(title)}</span><a class="src-url" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer" title="${esc(s.url)}"><span>${esc(bare)}</span>${ico("ext")}</a></div><div class="src-acts">${s.social ? `<button class="ib sm" id="src-ag-${i}" data-ag="${i}" aria-label="Gather ${esc(title)} with your agent" title="${chatOn ? "Gather with your ChatGPT plan" : "Gather: opens your agent on /kaizen gather"}">${ico("refresh")}</button>` : `<button class="ib sm" id="src-chk-${i}" data-chk="${i}" aria-label="Check ${esc(title)} now" title="Check now">${ico("refresh")}</button>`}<button class="ib sm danger" id="src-rm-${i}" data-rm="${i}" aria-label="Remove ${esc(title)}" title="Remove source">${ico("trash")}</button></div></div><div class="src-status">${statusHtml}</div><div class="src-fields"><label class="src-f" title="Category"><span>Category</span><input class="sel" id="src-ct-${i}" data-ct="${i}" data-k="${esc(s.dir + " " + s.url)}" value="${esc(s.category || "")}" placeholder="${esc(platOf(s))}" maxlength="40" aria-label="Category of ${esc(title)}"><button class="btn sm pri" id="src-cs-${i}" aria-label="Save the category of ${esc(title)}" disabled>Save</button></label><label class="src-f" title="Project"><span>Project</span>${plogo(s.dir, s.project || "")}<select class="sel" id="src-mv-${i}" data-mv="${i}" data-k="${esc(s.dir + " " + s.url)}" aria-label="Project of ${esc(title)}">${opts(s.dir, s.project)}</select><button class="btn sm pri" id="src-mb-${i}" aria-label="Move ${esc(title)} to the chosen project" disabled>Move</button></label>${st === "sheet" || /github\.com/.test(s.url) ? `<label class="src-wb"><input type="checkbox" id="src-wb-${i}" data-wb="${i}"${s.writeback ? " checked" : ""}> ${st === "sheet" ? "Mark the row Done" : "Comment and close the issue"} when its run is done</label>` : ""}</div></div>`;
+      return `<div class="src-card" id="src-card-${i}"><div class="src-hd"><span class="src-ico" title="${st === "social" ? esc(PLAT[s.social] || "social") : st}">${fav(s.url, kind, s.social)}</span><div class="src-info"><span class="src-title" title="${esc(title)}">${esc(title)}</span><a class="src-url" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer" title="${esc(s.url)}"><span>${esc(bare)}</span>${ico("ext")}</a></div><div class="src-acts">${s.social ? `<button class="ib sm" id="src-ag-${i}" data-ag="${i}" aria-label="Gather ${esc(title)} with your agent" title="${chatOn ? "Gather with your ChatGPT plan" : "Gather: opens your agent on /kaizen gather"}">${ico("refresh")}</button>` : `<button class="ib sm" id="src-chk-${i}" data-chk="${i}" aria-label="Check ${esc(title)} now" title="Check now">${ico("refresh")}</button>`}<button class="ib sm danger" id="src-rm-${i}" data-rm="${i}" aria-label="Remove ${esc(title)}" title="Remove source">${ico("trash")}</button></div></div><div class="src-status">${statusHtml}</div><div class="src-fields"><label class="src-f" title="Category"><span>Category</span><input class="sel" id="src-ct-${i}" data-ct="${i}" data-k="${esc(s.dir + " " + s.url)}" value="${esc(s.category || "")}" placeholder="${esc(platOf(s))}" maxlength="40" aria-label="Category of ${esc(title)}"><button class="btn sm pri" id="src-cs-${i}" aria-label="Save the category of ${esc(title)}" disabled>Save</button></label><label class="src-f" title="Project"><span>Project</span>${plogo(s.dir, s.project || "")}<select class="sel" id="src-mv-${i}" data-mv="${i}" data-k="${esc(s.dir + " " + s.url)}" aria-label="Project of ${esc(title)}">${opts(s.dir, s.project)}</select><button class="btn sm pri" id="src-mb-${i}" aria-label="Move ${esc(title)} to the chosen project" disabled>Move</button></label>${st === "sheet" || /github\.com/.test(s.url) ? `<label class="src-wb"><input type="checkbox" id="src-wb-${i}" data-wb="${i}"${s.writeback ? " checked" : ""}> Write back</label>` : ""}</div></div>`;
     })
     .join("");
   const fails = ((d && d.failed) || [])
     .map((f) => `<p style="color:var(--dim)">The sources of ${esc(f)} could not be read.</p>`)
     .join("");
-  const emptyState = `<div class="src-empty"><div class="src-empty-ico">${ico("link")}</div><h4>No request sources yet</h4><p>Connect shared links to gather requests into the icebox, where you choose which become ideas. Nothing runs automatically until you start it.</p><div class="src-empty-grid"><div class="src-empty-item"><strong>Google Sheets</strong>Public sheets with idea or task rows. Rows marked Done are skipped.</div><div class="src-empty-item"><strong>Google Docs</strong>Shared public docs with items or notes written line by line.</div><div class="src-empty-item"><strong>Public links</strong>TSV, CSV, or raw text links containing requests.</div><div class="src-empty-item"><strong>Social media</strong>A keyword, #hashtag or @account on X, TikTok, Instagram or Threads, read by your agent.</div></div></div>`;
+  const emptyState = `<div class="src-empty"><div class="src-empty-ico">${ico("link")}</div><h4>No sources yet</h4></div>`;
   const social = srcKind === "social";
   const addOn = !list.length || srcAdd || [typed[0], typed[1], typed[4], typed[6]].some(Boolean);
-  const addBox = `<div class="src-add" id="src-addbox"${addOn ? "" : " hidden"}><div class="hd"><h4>Add a source</h4><div class="src-kind" role="group" aria-label="Kind of source"><button id="src-k-link" data-kind="link" aria-pressed="${!social}">Link</button><button id="src-k-social" data-kind="social" aria-pressed="${social}">Social</button></div></div><label for="src-url"${social ? " hidden" : ""}><span>Link</span><input class="sel" id="src-url" placeholder="https://docs.google.com/spreadsheets/d/… or any public link" spellcheck="false" autocomplete="off"></label><div class="two plat"${social ? "" : " hidden"}><label for="src-plat"><span>Platform</span><select class="sel" id="src-plat">${Object.entries(
+  const addBox = `<div class="src-add" id="src-addbox"${addOn ? "" : " hidden"}><div class="hd"><h4>Add a source</h4><div class="src-kind" role="group" aria-label="Kind of source"><button id="src-k-link" data-kind="link" aria-pressed="${!social}">Link</button><button id="src-k-social" data-kind="social" aria-pressed="${social}">Social</button></div></div><label for="src-url"${social ? " hidden" : ""}><span>Link</span><input class="sel" id="src-url" placeholder="Link" spellcheck="false" autocomplete="off"></label><div class="two plat"${social ? "" : " hidden"}><label for="src-plat"><span>Platform</span><select class="sel" id="src-plat">${Object.entries(
     PLAT,
   )
     .map(([k, v]) => `<option value="${k}">${v}</option>`)
     .join(
       "",
-    )}</select></label><label for="src-q"><span>Follow</span><input class="sel" id="src-q" placeholder="keyword, #hashtag or @account" maxlength="100" spellcheck="false" autocomplete="off"></label></div><div class="two"><label for="src-label"><span>Label <i>optional</i></span><input class="sel" id="src-label" placeholder="${social ? "e.g. Mentions on X" : "e.g. Feedback Q4"}"></label><label for="src-cat"><span>Category <i>optional</i></span><input class="sel" id="src-cat" placeholder="${social ? "e.g. Social" : "e.g. Bugs"}" maxlength="40"></label></div><label for="src-dir"><span>Project</span><select class="sel" id="src-dir">${dir ? "" : `<option value="">Choose project…</option>`}${opts(dir)}</select></label><div class="acts"><span class="hint">${social ? (chatOn ? "Your ChatGPT plan reads public posts when you press Gather on the source." : "Kaizen signs in nowhere. Your agent reads public posts when you press Gather on the source.") : "Public links only. For private docs, run /kaizen gather."}</span><button class="btn pri" id="src-add">Add source</button></div></div>`;
+    )}</select></label><label for="src-q"><span>Follow</span><input class="sel" id="src-q" placeholder="keyword, #hashtag or @account" maxlength="100" spellcheck="false" autocomplete="off"></label></div><div class="two"><label for="src-label"><span>Label <i>optional</i></span><input class="sel" id="src-label" placeholder="${social ? "e.g. Mentions on X" : "e.g. Feedback Q4"}"></label><label for="src-cat"><span>Category <i>optional</i></span><input class="sel" id="src-cat" placeholder="${social ? "e.g. Social" : "e.g. Bugs"}" maxlength="40"></label></div><label for="src-dir"><span>Project</span><select class="sel" id="src-dir">${dir ? "" : `<option value="">Choose project…</option>`}${opts(dir)}</select></label><div class="acts"><span class="end"></span><button class="btn pri" id="src-add">Add source</button></div></div>`;
   // The inbox: one row per request, by project when showing all, then by category,
   // narrowed to one source by its chip. Checked, open and cursor items are kept by key.
   const srcName = (it) => {
@@ -342,19 +342,19 @@ export async function openSources() {
       : "");
   const bar = `<div class="ice-bar">${order.length ? `<input type="checkbox" id="ice-all" aria-label="Select every request shown"${nSel && nSel === order.length ? " checked" : ""}>` : ""}<span class="count">${iceCat === "Dismissed" || iceCat === "Done" ? `${order.length} ${iceCat.toLowerCase()}` : `${order.length < waiting ? `${order.length} of ${waiting}` : waiting} waiting`}</span><span class="end"></span>${chips ? `<details class="ice-filt"><summary class="ib${iceCat || iceSrc ? " on" : ""}" aria-label="Filter requests" title="Filter requests">${ico("filter")}</summary><div class="ice-fpop">${chips}</div></details>` : ""}<button class="btn sm" id="src-go"${list.length ? "" : " disabled"}>${ico("refresh")} Gather all</button><button class="btn ghost sm" id="src-tog" aria-expanded="${srcShow ?? !list.length}" aria-controls="src-sec">${ico("link")} Sources · ${list.length}</button></div>`;
   const bulk = iceSel.size
-    ? `<div class="ice-bulk" role="toolbar" aria-label="Selected requests"><span>${iceSel.size} selected</span><span class="end"></span><button class="btn sm" id="ice-bp" title="Each becomes its own idea, titled as gathered (p)">${ico("plus")} Promote</button><button class="btn ghost sm" id="ice-bd" title="Dismiss (d)">${ico("x")} Dismiss</button><button class="btn ghost sm" id="ice-bc" title="Clear selection (Esc)">Clear</button></div>`
+    ? `<div class="ice-bulk" role="toolbar" aria-label="Selected requests"><span>${iceSel.size} selected</span><span class="end"></span><button class="btn sm" id="ice-bp" title="Promote (p)">${ico("plus")} Promote</button><button class="btn ghost sm" id="ice-bd" title="Dismiss (d)">${ico("x")} Dismiss</button><button class="btn ghost sm" id="ice-bc" title="Clear selection (Esc)">Clear</button></div>`
     : "";
   // The open item's form: a clean title for the idea's card and the person's own details;
   // what was gathered is added to the idea's notes by the server.
   const form = (it) =>
-    `<div class="ice-form"><label for="ice-title" class="hint" style="margin:0">Idea title</label><input class="sel" id="ice-title" data-k="${esc(iceKey(it))}" maxlength="200" value="${esc(it.text)}" aria-label="Idea title"><label for="ice-details" class="hint" style="margin:0">Details</label><textarea class="sel" id="ice-details" rows="3" placeholder="What, for whom, why" aria-label="Details"></textarea><div class="ice-form-acts"><span class="hint">Source goes into the notes.</span><button class="btn ghost sm" id="ice-cancel">Cancel</button><button class="btn pri sm" id="ice-ok">Promote</button></div></div>`;
+    `<div class="ice-form"><label for="ice-title" class="hint" style="margin:0">Idea title</label><input class="sel" id="ice-title" data-k="${esc(iceKey(it))}" maxlength="200" value="${esc(it.text)}" aria-label="Idea title"><label for="ice-details" class="hint" style="margin:0">Details</label><textarea class="sel" id="ice-details" rows="3" aria-label="Details"></textarea><div class="ice-form-acts"><span class="end"></span><button class="btn ghost sm" id="ice-cancel">Cancel</button><button class="btn pri sm" id="ice-ok">Promote</button></div></div>`;
   // A gathered post can be answered: Reply drafts, the box is the approval, Send reply posts that text.
   const replyBox = (it) => {
     if (!it.post) return "";
     if (it.replied) return `<span class="hint" style="margin:0">You replied to this post ${ago(it.replied)}.</span>`;
     const r = iceReply && iceReply.k === iceKey(it) ? iceReply : null;
     const style = (d) =>
-      `<select class="sel" id="ice-rst" aria-label="Reply style" title="Promo names kaizen; Helpful may mention it when it fits; Casual and Fun never do"${d ? " disabled" : ""}>${Object.entries(
+      `<select class="sel" id="ice-rst" aria-label="Reply style"${d ? " disabled" : ""}>${Object.entries(
         STYLES,
       )
         .map(([v, l]) => `<option value="${v}"${v === rStyle(it.dir) ? " selected" : ""}>${l}</option>`)
@@ -377,10 +377,10 @@ export async function openSources() {
   };
   const inbox =
     waiting && !order.length
-      ? `<div class="ice-zero"><h4>Nothing matches</h4><p>${waiting} waiting outside these filters.</p><p style="margin-top:10px"><button class="btn sm" id="ice-unf">Clear filters</button></p></div>`
+      ? `<div class="ice-zero"><h4>No matches</h4><p style="margin-top:10px"><button class="btn sm" id="ice-unf">Clear filters</button></p></div>`
       : order.length
         ? `<div class="ice-list">${[...groups].map(([g, ix]) => `<div class="ice-cat">${esc(g)}<i>${ix.length}</i></div>${ix.map(row).join("")}`).join("")}</div>`
-        : `<div class="ice-zero"><h4>Inbox zero</h4><p>Nothing waiting. Gather all checks your sources for new requests; /kaizen discover in your agent sorts what comes in.</p></div>`;
+        : `<div class="ice-zero"><h4>Nothing waiting</h4></div>`;
   // The sources, in the right-hand drawer: shut until asked for, open by itself while there
   // are none until closed. Slid in only when opened; a rebuild while open shows it in place.
   const drawer = srcShow ?? !list.length,
@@ -389,7 +389,7 @@ export async function openSources() {
   // First visit: offer the ChatGPT plan for social sources, or keep the agent.
   const onb =
     G.use === "ask" && !G.connected
-      ? `<div class="cg-onb"><b>Gather social posts with your ChatGPT plan</b><p>Connect ChatGPT Plus or Pro and Gather reads X, TikTok, Instagram and Threads sources right here, counted against your plan, with no agent to open. Skip it and Gather keeps using your agent. You can change this in Settings.</p><div class="acts"><button class="btn ghost" id="cg-skip">Skip for now</button><button class="btn pri" id="cg-go">Continue with ChatGPT</button></div></div>`
+      ? `<div class="cg-onb"><div class="acts"><b>Gather social posts with ChatGPT?</b><span class="end"></span><button class="btn ghost" id="cg-skip">Skip</button><button class="btn pri" id="cg-go">Connect</button></div></div>`
       : "";
   // A rebuild replaces the drawer: keep where it was scrolled to.
   const at = $("src-sec")?.querySelector(".body")?.scrollTop ?? 0;
@@ -460,7 +460,6 @@ export async function openSources() {
   if ($("cg-skip"))
     $("cg-skip").onclick = async () => {
       if ((await post("/chatgpt", { op: "skip" })).ok) {
-        toast("Gather keeps using your agent");
         openSources();
       }
     };
@@ -550,7 +549,7 @@ export async function openSources() {
       })();
       b.onclick = () =>
         act({ op: "move", dir: s.dir, to: m.value, url: s.url }, () =>
-          toast(`Source moved. Requests already gathered stay in ${s.project || "the old project"}.`),
+          toast("Source moved"),
         );
     });
   $("pbody")
@@ -568,7 +567,7 @@ export async function openSources() {
           return;
         }
         act({ op: "writeback", dir: s.dir, url: s.url, on: m.checked }, () =>
-          toast(m.checked ? "Done requests will be written back" : "Write back off"),
+          toast(m.checked ? "Write back on" : "Write back off"),
         );
       };
     });
@@ -967,7 +966,7 @@ export async function openSources() {
         );
         if (j.ok && social) {
           $("src-q").value = $("src-label").value = $("src-cat").value = "";
-          toast("Source added. Click Gather on it to have your agent read its posts.");
+          toast("Source added");
           load();
         } else if (j.ok) {
           $("src-url").value = $("src-label").value = $("src-cat").value = "";

@@ -64,15 +64,12 @@ export async function openSettings() {
     return `<select class="sel" id="${id}">${vals.map((v) => `<option value="${esc(v)}"${v === on ? " selected" : ""}>${v === "" ? "—" : esc(v)}</option>`).join("")}</select>`;
   };
   const row = (label, control, hint, id, q) =>
-    `<div class="srow" data-q="${esc(q.toLowerCase())}"><label for="${id}">${esc(label)}</label>${control}<p class="hint">${hint}</p></div>`;
+    `<div class="srow" data-q="${esc(q.toLowerCase())}"><label for="${id}">${esc(label)}</label>${control}${hint ? `<p class="hint">${hint}</p>` : ""}</div>`;
   const hadFocus = document.activeElement?.id === "sq";
   const np = typeof Notification === "undefined" ? null : Notification.permission;
-  const ntHelp =
-    "A desktop notification when a run starts waiting on you." +
-    (np ? (np === "denied" ? " Blocked in this browser's site settings." : "") : " Not supported in this browser.");
-  const names = [...(cfg ? groups(cfg.rows).map(([g]) => g) : []), "Google", "Browser"];
+  const ntHelp = np ? (np === "denied" ? "Blocked by this browser" : "") : "Not supported in this browser";
   $("pbody").innerHTML =
-    `<div class="sq"><input class="sel" id="sq" type="search" placeholder="Search settings" aria-label="Search settings" spellcheck="false" autocomplete="off" value="${esc(store.setQ)}"><div class="sjump" role="group" aria-label="Jump to section">${names.map((g) => `<button data-g="${esc(g)}">${esc(g)}</button>`).join("")}</div></div>
+    `<div class="sq"><input class="sel" id="sq" type="search" placeholder="Search settings" aria-label="Search settings" spellcheck="false" autocomplete="off" value="${esc(store.setQ)}"></div>
   ${
     cfg
       ? groups(cfg.rows)
@@ -98,47 +95,30 @@ export async function openSettings() {
           .join("")
       : `<p class="snone">Settings could not be read. Run <code>kaizen settings</code>.</p>`
   }
-  <h3 class="sg">Google</h3><div class="sgrp">${row("OAuth client id", `<input class="sel" id="gg-id" placeholder="${gg.hasClient ? "saved; type to replace" : "from Google Cloud, Desktop app"}" spellcheck="false" autocomplete="off">`, "Kaizen writes Done into a sheet through your own Google client: create an OAuth client of type Desktop app in Google Cloud and enable the Sheets API. Nothing is shared with other installs.", "gg-id", "google oauth client id sheets write back")}
-  ${row("OAuth client secret", `<span class="fpick"><input class="sel" id="gg-secret" type="password" placeholder="${gg.hasClient ? "saved; type to replace" : ""}" spellcheck="false" autocomplete="off"><button class="btn" id="gg-save" type="button">Save</button></span>`, "Kept in ~/.kaizen/google.json, readable only by you. Saving a new client signs Google out.", "gg-secret", "google oauth client secret")}
-  ${row("Google account", `<button class="btn${gg.connected ? "" : " pri"}" id="gg-conn" type="button"${gg.hasClient || gg.connected ? "" : " disabled"}>${gg.connected ? "Disconnect" : "Connect"}</button>`, gg.connected ? "Connected. Sources with Write back on put Done in the sheet row once their run is done." : "Connect after saving the client. Needed only for Write back on sheet sources.", "gg-conn", "google account connect sheets write back")}</div>
-  <h3 class="sg">Browser</h3><div class="sgrp">${row("Theme", ctl("th", ["system", "light", "dark"], cur), "Light or dark for this browser only; system follows your device.", "th", "theme light dark system browser")}
+  <h3 class="sg">Google</h3><div class="sgrp">${row("OAuth client id", `<input class="sel" id="gg-id" placeholder="${gg.hasClient ? "saved; type to replace" : "from Google Cloud, Desktop app"}" spellcheck="false" autocomplete="off">`, "", "gg-id", "google oauth client id sheets write back")}
+  ${row("OAuth client secret", `<span class="fpick"><input class="sel" id="gg-secret" type="password" placeholder="${gg.hasClient ? "saved; type to replace" : ""}" spellcheck="false" autocomplete="off"><button class="btn" id="gg-save" type="button">Save</button></span>`, "", "gg-secret", "google oauth client secret")}
+  ${row("Google account", `<button class="btn${gg.connected ? "" : " pri"}" id="gg-conn" type="button"${gg.hasClient || gg.connected ? "" : " disabled"}>${gg.connected ? "Disconnect" : "Connect"}</button>`, "", "gg-conn", "google account connect sheets write back")}</div>
+  <h3 class="sg">Browser</h3><div class="sgrp">${row("Theme", ctl("th", ["system", "light", "dark"], cur), "", "th", "theme light dark system browser")}
   ${row("Notifications", `<button class="chk${np === "granted" ? " on" : ""}" id="nt" role="switch" aria-checked="${np === "granted"}"${np && np !== "denied" ? "" : " disabled"}></button>`, ntHelp, "nt", "notifications " + ntHelp + " browser")}</div>
   <p class="snone" id="snone" hidden></p>`;
   // Hides rows that do not match, then any group (and its chip) left with none.
   updBar();
-  const heads = [...$("pbody").querySelectorAll(".sg")],
-    chips = [...$("pbody").querySelectorAll(".sjump button")];
+  const heads = [...$("pbody").querySelectorAll(".sg")];
   const filter = () => {
     const q = store.setQ.trim().toLowerCase();
     let any = false;
-    heads.forEach((h, i) => {
+    heads.forEach((h) => {
       let vis = false;
       for (const n of h.nextElementSibling.children) {
         n.hidden = !!q && !n.dataset.q.includes(q);
         vis ||= !n.hidden;
       }
       h.hidden = !vis;
-      if (chips[i]) chips[i].hidden = !vis;
       any ||= vis;
     });
     $("snone").hidden = any;
     $("snone").textContent = `No setting matches “${store.setQ.trim()}”.`;
   };
-  // Scrolled by measure: the pinned bar's height changes as the chips wrap.
-  chips.forEach(
-    (b, i) =>
-      (b.onclick = () => {
-        const pb = $("pbody");
-        pb.scrollTo({
-          top:
-            pb.scrollTop +
-            heads[i].getBoundingClientRect().top -
-            pb.querySelector(".sq").getBoundingClientRect().bottom -
-            8,
-          behavior: "smooth",
-        });
-      }),
-  );
   $("sq").oninput = (e) => {
     store.setQ = e.target.value;
     filter();

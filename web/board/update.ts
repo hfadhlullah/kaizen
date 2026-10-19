@@ -21,7 +21,7 @@ export function updBar() {
   const d = document.createElement("div");
   d.className = `updbar${upd ? "" : " quiet"}`;
   if (!upd) {
-    d.innerHTML = `<span id="upd-msg" aria-live="polite">${ver ? `You are running kaizen ${esc(ver.version)}.` : "kaizen"}</span><button class="btn" id="upd-chk">Check for updates</button>`;
+    d.innerHTML = `<span id="upd-msg" aria-live="polite">${ver ? `kaizen ${esc(ver.version)}` : "kaizen"}</span><button class="btn" id="upd-chk">Check for updates</button>`;
   } else {
     // What's new: each newer release's one-line title, shown on hover, focus or click.
     const notes = (upd.notes || []).map((n) => `<li><b>${esc(n.v)}</b> ${esc(n.text)}</li>`).join("");
