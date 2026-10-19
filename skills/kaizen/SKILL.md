@@ -108,8 +108,9 @@ rather than dispatching them, then stop after the review: report the findings an
 the user choose, rather than entering the fix loop. The loop
 exists because a fix to something intricate can be worse than the defect — it is not
 worth two more stages to confirm a one-line message now reads correctly. A finding at
-`high` or above pulls the run back onto the full path whatever its size, since that
-severity is the loop's whole reason for existing.
+`high` or above still enters the fix loop whatever the run's size, since that
+severity is the loop's whole reason for existing — on the same runner, which is fixed
+at intake.
 
 **Short work still gets a run.** A one-line change is not skipped past the stages: the card on the board moves through plan, build and review like any other. Run it with `runner: lite` and the short path above — a brief plan, the build, a short review — so the cost stays small and the run stays visible.
 

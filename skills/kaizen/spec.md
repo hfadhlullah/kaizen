@@ -143,7 +143,7 @@ the config said the day someone came back to it.
 If the request remains ambiguous enough that a plan would be guesswork, ask now. One
 round of questions here is cheaper than a rejected plan.
 
-**Short work is not skipped.** Even a one-line change gets `01-plan.md` and `04-review.md`, so the run moves through every stage. Keep them brief and run under `runner: lite`.
+**Short work is not skipped.** Even a one-line change gets `01-plan.md` and `04-review.md`, so the run moves through every stage. Keep them brief and run under `runner: lite`; a `high`+ finding still enters the fix loop, on that same runner.
 
 **Follow-ups are runs too.** Both runners record the same artifacts: `01-plan.md`, `03-impl.md`, `04-review.md`, and a final `state.json` — `lite` and `full` differ only in who executes the stages. A message the user sends later in the same session is judged by what it asks: a question, explanation or chat is answered, no run; a request to change or produce something is building, so it goes through the flow. While the previous run has not reached `done` (including awaiting its final approval), the change is a revise of that run, recorded in `02-approval.md`. After `done` or `abandoned`, open a new run whose `00-request.md` is the user's words verbatim, then a line `Follow-up of: <previous run id>`. Never reopen a finished run. When unsure whether a message asks for a change, ask once.
 

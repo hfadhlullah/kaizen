@@ -145,6 +145,20 @@ test("backlog: open items only, orphanage last, count matches", () => {
   expect(backlog(state)).toBe(3);
 });
 
+test("backlog: an abandoned run's items are neither listed nor counted", () => {
+  const dir = join(state, "runs", "2026-09-03-dropped");
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, "state.json"), JSON.stringify({ id: "2026-09-03-dropped", stage: "abandoned" }));
+  writeFileSync(join(dir, "06-backlog.md"), "- open: never happening\n");
+  expect(allBacklog(state).some((g) => g.run === "2026-09-03-dropped")).toBe(false);
+  expect(backlog(state)).toBe(3);
+  rmSync(dir, { recursive: true });
+});
+
+test("abandonRun refuses a done run", () => {
+  expect(abandonRun(state, "2026-09-02-done", "late")).toMatch(/already done/);
+});
+
 test("parseItem: finding line splits into where, severity, text", () => {
   const it = parseItem("`cli/x.ts:12`: low: first thing. Fix: do it.");
   expect([it.where, it.severity, it.text]).toEqual(["x.ts:12", "low", "first thing."]);

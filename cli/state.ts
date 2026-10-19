@@ -435,7 +435,7 @@ export function unrechecked(state: string, id: string) {
 export function backlog(state: string) {
   const files = [join(state, "backlog.md")];
   const runs = join(state, "runs");
-  if (existsSync(runs)) for (const id of readdirSync(runs)) files.push(join(runs, id, "06-backlog.md"));
+  if (existsSync(runs)) for (const id of readdirSync(runs)) if (!abandoned(join(runs, id))) files.push(join(runs, id, "06-backlog.md"));
   let n = 0;
   for (const f of files) {
     if (!existsSync(f)) continue;
@@ -581,11 +581,17 @@ export function readBacklog(file: string) {
     .map((l) => l.replace(/^-\s*open:\s*/, ""));
 }
 
+// An abandoned run's backlog is not open work (spec-main.md).
+function abandoned(run: string) {
+  try { return JSON.parse(readText(join(run, "state.json"))).stage === "abandoned"; } catch { return false; }
+}
+
 export function allBacklog(state: string) {
   const out: { run: string; items: string[] }[] = [];
   const runs = join(state, "runs");
   if (existsSync(runs)) {
     for (const id of readdirSync(runs).sort().reverse()) {
+      if (abandoned(join(runs, id))) continue;
       const items = readBacklog(join(runs, id, "06-backlog.md"));
       if (items.length) out.push({ run: id, items });
     }
@@ -880,6 +886,7 @@ export function abandonRun(st: string, id: string, why: string): string | null {
   try {
     const run = JSON.parse(readText(file));
     if (run.stage === "abandoned") return "That run is already abandoned.";
+    if (run.stage === "done") return "That run is already done.";
     run.stage = "abandoned";
     run.awaiting = null;
     run.updated = new Date().toISOString();
