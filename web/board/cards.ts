@@ -402,6 +402,7 @@ export function render() {
   const cs = store.S.cards.filter((c) => c.archived === archive && (!only || store.shown.has(c.state))),
     b = $("board");
   b.innerHTML = "";
+  b.removeAttribute("aria-busy");
   const nArch = store.S.cards.filter((c) => c.archived).length;
   const n = (s) => cs.filter((c) => c.status === s).length;
   const strip = [];

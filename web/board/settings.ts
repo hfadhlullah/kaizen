@@ -2,7 +2,7 @@ import { store } from "./store.ts";
 import { termStop } from "./agent-term.ts";
 import { load, post } from "./api.ts";
 import { stopDictation } from "./dictation.ts";
-import { $, esc } from "./dom.ts";
+import { $, esc, SKEL } from "./dom.ts";
 import { close } from "./panel.ts";
 import { askNotify, toast } from "./toast.ts";
 import { updBar } from "./update.ts";
@@ -24,7 +24,7 @@ export async function openSettings() {
   stopDictation(true);
   // Coming from another page or a card, its body goes now, not when the fetch answers.
   if (!$("panel").classList.contains("open") || $("ptitle").textContent !== "Settings") {
-    $("pbody").innerHTML = `<p class="snone">Loading…</p>`;
+    $("pbody").innerHTML = SKEL;
     $("psub").textContent = "";
   }
   termStop();

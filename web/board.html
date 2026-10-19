@@ -450,6 +450,7 @@ a.schip:hover{color:var(--ink);border-color:color-mix(in srgb,var(--line) 60%,va
 @media(max-width:900px){main{grid-template-columns:1fr;padding-inline:16px;gap:8px}.hdr,.ftr,aside.docked>header,aside.docked>.body{padding-inline:16px}.more{display:grid}.card:hover .age{display:inline}.toast{left:16px;max-width:calc(100% - 32px)}}
 @media(max-width:640px){.hdr{gap:8px 12px}.hdr h1{order:0;flex:1 0 50%}#newtop{order:1}.hdr .combo{order:2;flex:1 1 calc(50% - 6px);min-width:0}.hdr .combo>.sel{width:100%;max-width:none}.hdr .sp{display:none}.ftr{gap:6px 12px}}
 @media(hover:none){#kbd{display:none}}
+.skel{display:block;border-radius:6px;background:linear-gradient(90deg,var(--line) 25%,color-mix(in srgb,var(--line) 45%,transparent) 50%,var(--line) 75%);background-size:200% 100%;animation:skel 1.2s ease-in-out infinite}@keyframes skel{from{background-position:200% 0}to{background-position:-200% 0}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
 </style>
 </head>
@@ -545,7 +546,7 @@ a.schip:hover{color:var(--ink);border-color:color-mix(in srgb,var(--line) 60%,va
   <span class="sp"></span>
   <button class="btn pri" id="newtop">New idea</button>
 </div>
-<main id="board" aria-live="polite"></main>
+<main id="board" aria-live="polite" aria-busy="true"><section aria-hidden="true"><span class="skel" style="height:14px;width:40%;margin:4px 0 12px"></span><span class="skel" style="height:72px;margin-bottom:8px"></span><span class="skel" style="height:72px"></span></section><section aria-hidden="true"><span class="skel" style="height:14px;width:40%;margin:4px 0 12px"></span><span class="skel" style="height:72px;margin-bottom:8px"></span><span class="skel" style="height:72px"></span></section><section aria-hidden="true"><span class="skel" style="height:14px;width:40%;margin:4px 0 12px"></span><span class="skel" style="height:72px;margin-bottom:8px"></span><span class="skel" style="height:72px"></span></section><section aria-hidden="true"><span class="skel" style="height:14px;width:40%;margin:4px 0 12px"></span><span class="skel" style="height:72px;margin-bottom:8px"></span><span class="skel" style="height:72px"></span></section><section aria-hidden="true"><span class="skel" style="height:14px;width:40%;margin:4px 0 12px"></span><span class="skel" style="height:72px;margin-bottom:8px"></span><span class="skel" style="height:72px"></span></section></main>
 
 <div class="ftr"><span class="strip" id="strip"></span><span><a href="/issue" target="_blank" rel="noopener"><svg><use href="#i-bug"/></svg>Report an issue</a><a id="kbd"><svg><use href="#i-kbd"/></svg>Keyboard shortcuts</a></span></div>
 

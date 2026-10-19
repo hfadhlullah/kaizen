@@ -3,7 +3,7 @@ import { termStop } from "./agent-term.ts";
 import { load, post } from "./api.ts";
 import { via } from "./cards.ts";
 import { stopDictation } from "./dictation.ts";
-import { $, esc, ico } from "./dom.ts";
+import { $, esc, ico, SKEL } from "./dom.ts";
 import { plogo, setShown, short, showable } from "./projects.ts";
 import { toast } from "./toast.ts";
 import { go, view } from "./views.ts";
@@ -138,7 +138,7 @@ export async function openSources() {
   const cats = new Map(
     srcOpen() ? [...$("pbody").querySelectorAll("[data-ct]")].map((m) => [m.dataset.k, m.value]) : [],
   );
-  if (!srcOpen()) $("pbody").innerHTML = `<p class="snone">Loading…</p>`;
+  if (!srcOpen()) $("pbody").innerHTML = SKEL;
   termStop();
   store.openKey = null;
   store.runDoc = null;

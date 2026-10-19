@@ -191,6 +191,7 @@ select.sel{cursor:pointer;appearance:none;padding-right:30px;max-width:min(320px
  .toast{left:16px;max-width:calc(100% - 32px)}
 }
 @media(min-width:901px){#side{display:none}}
+.skel{display:block;border-radius:6px;background:linear-gradient(90deg,var(--line) 25%,color-mix(in srgb,var(--line) 45%,transparent) 50%,var(--line) 75%);background-size:200% 100%;animation:skel 1.2s ease-in-out infinite}@keyframes skel{from{background-position:200% 0}to{background-position:-200% 0}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
 </style>
 </head>
@@ -262,7 +263,7 @@ select.sel{cursor:pointer;appearance:none;padding-right:30px;max-width:min(320px
     <h3 id="tagsh" hidden>Tags</h3>
     <div class="tags" id="tags"></div>
     <h3>Notes</h3>
-    <div class="tree" id="tree"></div>
+    <div class="tree" id="tree"><span class="skel" style="height:14px;margin:8px 0"></span><span class="skel" style="height:14px;margin:8px 0"></span><span class="skel" style="height:14px;margin:8px 0"></span><span class="skel" style="height:14px;margin:8px 0"></span><span class="skel" style="height:14px;margin:8px 0"></span></div>
   </nav>
   <main class="main">
     <div class="page">

@@ -44,3 +44,4 @@ updated: 2026-10-18
 <!-- yours: /kaizen docs never rewrites this section -->
 - 2026-10-16 run 2026-10-16-tailscale-phone-board — Web board (KAIZEN_WEB_HOSTS allowlist, web app manifest, safe-area insets)
 - 2026-10-17 run 2026-10-17-onboarding-setup — Web board (web-hosts file read per request)
+- 2026-10-19 board, settings, icebox and notes tree show shimmer skeletons (`.skel`, `SKEL` in dom.ts) while loading (run 2026-10-19-loading-skeletons)
