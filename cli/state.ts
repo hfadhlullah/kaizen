@@ -706,8 +706,16 @@ export function writeInbox(state: string, lines: InboxLine[]) {
   mkdirSync(state, { recursive: true });
   // A line already in the file keeps its stamp; a text the file never had is new now.
   // Lines from before stamps existed stay unstamped rather than looking new.
-  const had = new Map(readInbox(state).map((l) => [l.text, l.added]));
-  const stamp = (l: InboxLine) => l.added ?? (had.has(l.text) ? had.get(l.text) : Date.now());
+  // Stamps queue per text and each is used once: re-adding words the file already
+  // holds (a done or rejected line, or an open duplicate) is a new idea, not the old
+  // one's stamp, which an older run with those words would retire.
+  const had = new Map<string, (number | undefined)[]>();
+  for (const l of readInbox(state)) had.set(l.text, [...(had.get(l.text) ?? []), l.added]);
+  const stamp = (l: InboxLine) => {
+    if (l.added) return l.added;
+    const q = had.get(l.text);
+    return q?.length ? q.shift() : Date.now();
+  };
   const body = [
     "# Inbox",
     "",

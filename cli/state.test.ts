@@ -99,6 +99,13 @@ test("boardCards: a run older than the idea does not retire it", () => {
   // A run started after it retires it as before.
   utimesSync(join(r, "00-request.md"), new Date(), new Date(Date.now() + 5000));
   expect(ideas()).toEqual([]);
+  // Re-adding the same words while an old line holds them is a new idea with its
+  // own stamp, not the old line's (or no) stamp.
+  writeFileSync(join(dir, "inbox.md"), "- done: fix this bugs\n");
+  writeInbox(dir, [...readInbox(dir), { status: "open", text: "fix this bugs" }]);
+  utimesSync(join(r, "00-request.md"), then, then);
+  expect(ideas()).toEqual(["fix this bugs"]);
+
   rmSync(join(dir, ".."), { recursive: true, force: true });
 });
 

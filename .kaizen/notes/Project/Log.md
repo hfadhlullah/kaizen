@@ -71,3 +71,4 @@ updated: 2026-10-19
 - 2026-10-19 runs 2026-10-19-mobile-popover, 2026-10-19-mobile-status-filter — Web board (phone: Showing list stays on screen; status strip behind a header filter button)
 - 2026-10-19 run 2026-10-19-release-update-check — Web board, Release and testing (Settings rechecks an existing update alert; release 1.39.0)
 - 2026-10-19 run 2026-10-19-idea-title-retired — Web board, Workflow (ideas stamped so older runs cannot retire them; no-browser is not a reason to skip the Preview screenshot)
+- 2026-10-19 run 2026-10-19-idea-restamp — Web board (re-added idea with the same words as an old inbox line gets its own stamp)
