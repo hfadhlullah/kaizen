@@ -44,8 +44,8 @@ export async function openSettings() {
     .then((r) => r.json())
     .catch(() => ({}));
   if (gen !== store.pageGen) return;
-  $("psub").textContent = "Theme applies to this browser. Everything else is saved to your kaizen settings.";
-  $("psub").title = cfg ? cfg.file : "";
+  $("psub").textContent = "";
+  $("psub").title = "";
   // One control per row: a switch for on/off, one segment per value for a small number,
   // a select for a choice. The row's label names the control; its help sits under it.
   const ctl = (id, vals, on) => {
