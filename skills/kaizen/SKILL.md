@@ -273,6 +273,9 @@ first dispatch of the run. `inherit` means leave the file alone.
 
 After a subagent returns, update `state.json` yourself in the main thread. Subagents
 report; the main thread owns the state machine.
+Before moving any run from `build` to `review`, under either runner, apply the
+*Preview gate* in [`spec-main.md`](spec-main.md): no `## Preview` with a screenshot
+(or a one-line reason there is none) means the build is not done.
 
 **Name files, do not narrate them.** The prompt says which paths to read, which
 decisions bind the stage, and what to report back. It does not summarize those files:

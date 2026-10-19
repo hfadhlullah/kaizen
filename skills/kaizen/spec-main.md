@@ -83,6 +83,19 @@ subagents at all.
 
 ---
 
+## Preview gate
+
+Before setting `stage: "review"` after a build, in either runner, open `03-impl.md` and
+check its `## Preview`: it has `### How to test` steps, and — when the result shows on a
+screen — at least one `![…](attachments/<name>.png)` embed whose file exists under
+`runs/<id>/attachments/`. A result with no screen needs one line under `## Preview`
+saying why there is no screenshot. Anything missing means the build is not finished:
+under `lite`, take the screenshot and write the section now; under `full`, send the
+builder back to add it. Then advance. This is the step that keeps the board's Preview
+tab from staying empty; the reviewer flagging it later is a second net, not the first.
+
+---
+
 ## Final approval
 
 Controlled by `approvals.review`, skipped in `auto`.
