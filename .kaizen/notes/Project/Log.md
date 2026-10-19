@@ -64,3 +64,4 @@ updated: 2026-10-15
 - 2026-10-18 release — 1.37.0 published to npm, GitHub Packages, GitHub release (run 2026-10-18-install-agent-in-setup)
 - 2026-10-19 run 2026-10-19-loading-skeletons — Web board, Notebook (loading skeletons)
 - 2026-10-19 keep-used-terminal: board done-sweep leaves a session open when the user typed into its terminal after the run finished (cli/state.ts typedSince).
+- 2026-10-19 release — 1.38.0 published to npm, GitHub Packages, GitHub release (keep-used-terminal, loading skeletons)
