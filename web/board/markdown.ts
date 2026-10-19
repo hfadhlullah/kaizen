@@ -9,12 +9,15 @@ function section(impl, name) {
 }
 export const preview = (impl) => section(impl, "Preview");
 // Links to a card's attachments/ (notes, or screenshots the builder put in Preview) via /file.
+// Any other relative link (../video.mp4, out/x.srt) would resolve against the board's URL
+// and open "not found": the board serves attachments only, so it shows as its path instead.
 export const attach = (t, c) =>
-  t.replace(
-    /\]\((attachments\/[^)]+)\)/g,
-    (_, p) =>
-      `](/file?dir=${encodeURIComponent(c.state)}&p=${encodeURIComponent((c.kind === "run" ? `runs/${c.id}/` : "") + p)})`,
-  );
+  t.replace(/(!?)\[([^\]]*)\]\(([^)\s]+)\)/g, (all, img, label, p) => {
+    if (/^attachments\/[^)]+$/.test(p))
+      return `${img}[${label}](/file?dir=${encodeURIComponent(c.state)}&p=${encodeURIComponent((c.kind === "run" ? `runs/${c.id}/` : "") + p)})`;
+    if (/^([a-z][\w+.-]*:|\/|#)/i.test(p)) return all;
+    return `${label} (\`${p}\`)`;
+  });
 export const commitMsg = (impl) => (section(impl, "Commit") || "").replace(/^```\w*\n|\n```$/g, "").trim();
 // A plan's Open questions as a pick list: `Q: question` lines with `- option` lines under
 // each, "(recommended)" marking the default and "multi-select" in the question allowing

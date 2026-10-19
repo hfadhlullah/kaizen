@@ -115,7 +115,9 @@ screen; a document gets one of it rendered; a CLI gets one of the terminal runni
 the real output also pasted in a code block. Only a result with no screen at all — a
 library, an API — may give command output alone. A report with no screenshot is incomplete. Save each under
 `runs/<id>/attachments/` (letters, digits, `.`, `-`, `_` only) and embed it as
-`![what it shows](attachments/<name>.png)`; the board shows them in the Preview tab.
+`![what it shows](attachments/<name>.png)`; the board shows them in the Preview tab. A link
+the user should open from the board (a video, a captions file) goes there too, as
+`[label](attachments/<name>)`: the board serves nothing else, and shows any other relative link as its path.
 A headless browser does it: `playwright screenshot <url> runs/<id>/attachments/<name>.png`,
 or `chromium --headless --screenshot=<abs path>.png --window-size=1280,900 <url>` where
 playwright has no browser installed. A file (document, diff, output) opens as `file://<path>`.
