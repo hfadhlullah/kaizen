@@ -157,7 +157,7 @@ test("card menu items: appropriate actions and distinct icons across phases", ()
   const menuSnippet = (cards.slice(from, cards.indexOf('el.innerHTML += `<div class="menu-pop"', from)) + "}").replace("const items = [];", "items = [];");
   const a0 = cards.indexOf("const actionOf =");
   const actionOf = cards.slice(a0, cards.indexOf("\n\n", a0));
-  const getItems = new Function("c", "archive", "S", `const ico = ${ico.toString()};\n${actionOf}\nconst store = { S, menuKey: 1 };\nlet k = 1, items = [];\n${menuSnippet}\nreturn items;`);
+  const getItems = new Function("c", "archive", "S", `const ico = ${ico.toString()};\nconst decided = new Set(), answer = () => "";\n${actionOf}\nconst store = { S, menuKey: 1 };\nlet k = 1, items = [];\n${menuSnippet}\nreturn items;`);
 
   // Phase 0: Ideas (idea card)
   const idea = { kind: "idea", status: "idea", column: 0 };

@@ -9,7 +9,7 @@ import { brief } from "./markdown.ts";
 import { open, toggleArchive } from "./panel.ts";
 import { ideaCombo, list, newDir, plogo, short, showList, showable } from "./projects.ts";
 import { askNotify, toast } from "./toast.ts";
-import { resumable, resume } from "./approvals.ts";
+import { answer, decided, resumable, resume } from "./approvals.ts";
 
 let filter = null;
 let query = ""; // the header filter box, matched against a card's title and request
@@ -42,8 +42,11 @@ const nested = (c) =>
 const kidsOpen = new Set();
 
 // What opening a waiting run does, in words: the card's button and its menu say the same.
+// One already answered from this page says so until the agent moves the run on.
 const actionOf = (c) =>
-  c.status !== "waiting"
+  decided.has(answer(c))
+    ? "Sent to agent"
+    : c.status !== "waiting"
     ? "Open"
     : { "approvals.plan": "Review plan", findings: "See findings", "approvals.review": "Review work" }[c.awaiting] || "Open";
 
@@ -114,7 +117,7 @@ function card(c) {
   const act =
     c.kind === "run" && !archive && !pick
       ? c.status === "waiting"
-        ? `<button class="btn sm pri act" data-a="open">${actionOf(c)}</button>`
+        ? `<button class="btn sm${decided.has(answer(c)) ? "" : " pri"} act" data-a="open">${actionOf(c)}</button>`
         : c.status === "stalled" && resumable(c)
           ? `<button class="btn sm act" data-a="resume">Resume</button>`
           : ""
