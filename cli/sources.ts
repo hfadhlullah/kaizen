@@ -507,10 +507,15 @@ export function sift(kind: Kind, body: string, pics?: Map<number | string, strin
   const head = filled.slice(0, 5).find((row) => !/^\d{1,3}[.)]?$/.test(row.find(Boolean) ?? "") && (named(row, HEADER) >= 0 || named(row, STATUS) >= 0));
   const data = head ? filled.slice(filled.indexOf(head) + 1) : filled;
   const status = head ? named(head, STATUS) : -1;
+  // A task merged over several rows has its number and status in the top row only:
+  // the export leaves both blank below, so such a row takes the status above it.
+  let above = "";
+  const state = new Map(data.map((row) => { const own = row[status] ?? ""; if (own || row[0]) above = own; return [row, own || above]; }));
+  const finished = (row: string[]) => status >= 0 && DONE.test(state.get(row) ?? "");
   // One column for the whole sheet, the one holding the most text that reads like a
   // request. Never a cell per row, which takes `Open` or a name.
   // Finished rows do not vote: their replies outweigh the requests still open.
-  const open = data.filter((row) => status < 0 || !DONE.test(row[status] ?? ""));
+  const open = data.filter((row) => !finished(row));
   const text = (i: number) => i === status ? 0 : open.reduce((sum, row) => sum + (wordy(row[i] ?? "") ? row[i]!.length : 0), 0);
   let wordiest = -1;
   for (let i = 0, most = 0; i < Math.max(0, ...data.map((row) => row.length)); i++) if (text(i) > most) { most = text(i); wordiest = i; }
@@ -524,7 +529,7 @@ export function sift(kind: Kind, body: string, pics?: Map<number | string, strin
   const items = data.flatMap((row) => {
     const text = row[col] ?? "";
     if (!text || (known < 0 && !wordy(text))) return [];
-    if (status >= 0 && DONE.test(row[status] ?? "")) { done++; return []; }
+    if (finished(row)) { done++; return []; }
     const rest = row.filter((c, i) => c && i !== col).join(" · ");
     // The export keeps every row from the top, so a row's index is its number less one.
     return [with_({ text, ...(rest ? { notes: rest } : {}), row: cells.indexOf(row) + 1 }, cells.indexOf(row) + 1)];

@@ -146,6 +146,9 @@ test("split: a header row holding a `#`, a year or a date cell is still the head
   for (const head of ["#\tRequest\tStatus", "No\tRequest\tStatus\t2026", "No\tRequest\tStatus\t2026-09-30", "No\tRequest\tStatus\t17-Sep-2026", "\tRequest\tStatus"]) {
     const body = `${head}\n1\tFix login page\tOpen\n2\tAdd export\tDone\n`;
     expect(sift("sheet", body)).toEqual({ items: [{ text: "Fix login page", notes: "1 · Open", row: 2 }], done: 1 });
+    // a Done task merged over two rows: the export leaves NO and status blank below
+    const merged = "NO\tRequest\tStatus\n1\tExport button missing\tDone\n\tExport keeps old filter\t\n2\tAdd dark mode\t\n";
+    expect(sift("sheet", merged)).toEqual({ items: [{ text: "Add dark mode", notes: "2", row: 4 }], done: 2 });
   }
   // A numbered row is data even when one of its cells is a header word said once.
   expect(split("sheet", "1\tIssue\tLogin fails on Safari\n2\tBug\tExport drops rows\n3\tBug\tSearch is slow\n").map((i) => i.text))
