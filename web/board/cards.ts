@@ -468,6 +468,7 @@ export function render() {
     ...store.S.projects.map((p) => [p.label, p.dir]),
     ...store.S.fresh.map((p) => [p.label, p.dir, 1]),
     ["Find projects on this PC…", "__find"],
+    ["Clone from GitHub…", "__clone"],
   ];
   const cur = store.all || !store.S.dir ? "All projects" : (store.PL.find((p) => p[1] === store.S.dir) || ["All projects"])[0];
   $("proj").innerHTML =

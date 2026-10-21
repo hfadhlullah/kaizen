@@ -10,7 +10,7 @@ import {
   launchMode, readSessions, ownerOf, resumePrompt, runAgent, firstSession, webHosts,
 } from "./state.ts";
 import { attachPty, writePty, resizePty, ptyState, ptyKeys, adoptLoginEnv } from "./pty.ts";
-import { readSources, addSource, removeSource, moveSource, setCategory, setWriteback, readIcebox, promote, dismiss, restore, markDone, markReplied, gatherSource, freshImages, gatherAll, gatherDirs, due, socialUrl, socialOf } from "./sources.ts";
+import { readSources, addSource, removeSource, moveSource, setCategory, setWriteback, readIcebox, promote, dismiss, restore, addItem, githubRepo, markDone, markReplied, gatherSource, freshImages, gatherAll, gatherDirs, due, socialUrl, socialOf } from "./sources.ts";
 import { projectLogo, LOGO_TYPES } from "./logo.ts";
 import * as chatgpt from "./chatgpt.ts";
 import * as google from "./google.ts";
@@ -688,6 +688,34 @@ export async function web(repoDir: string, opts: Opts = {}) {
           return json({ ok: true, added: knownProjects().length - before });
         }
 
+        // Clone a GitHub repository into the projects folder (else ~/Projects) and
+        // set it up as a project. Arguments go to git as an array: no shell.
+        if (path === "/clone") {
+          const link = typeof body.url === "string" ? body.url.trim() : "";
+          const name = githubRepo(link);
+          if (!name) return bad("paste a GitHub link: https://github.com/owner/repo or git@github.com:owner/repo.git");
+          const root = (await projectsRoot()) || join(home, "Projects");
+          // The page may name the folder: typed (~ allowed, relative to home) or picked.
+          // A new one is made, parents too; an empty one is used; anything else refused.
+          let to = join(root, name);
+          if (typeof body.to === "string" && body.to.trim()) {
+            const t = body.to.trim();
+            to = resolve(home, nativePath(t.startsWith("~") ? home + t.slice(1) : t));
+          }
+          if (body.check) return json({ ok: true, to, name });
+          let used = false;
+          try { used = readdirSync(to).length > 0; } catch (e) { used = existsSync(to); }
+          if (used) return bad(`${to} already exists and is not empty`, 409);
+          mkdirSync(to, { recursive: true });
+          const p = Bun.spawn(["git", "clone", "--", link, to], { stdin: "ignore", stdout: "ignore", stderr: "pipe", env: { ...process.env, GIT_TERMINAL_PROMPT: "0", GIT_SSH_COMMAND: process.env.GIT_SSH_COMMAND ?? "ssh -o BatchMode=yes" } });
+          const [err, code] = await Promise.all([new Response(p.stderr).text(), p.exited]);
+          if (code !== 0) return bad(err.trim().split("\n").filter(Boolean).pop() || "git clone failed", 500);
+          mkdirSync(join(to, ".kaizen"), { recursive: true });
+          remember(to);
+          changed();
+          return json({ ok: true, dir: join(to, ".kaizen") });
+        }
+
         // No project here means the global inbox, which is where the TUI puts ideas too.
         const dir: string = body.dir ?? state ?? join(home, ".kaizen");
         // Choosing a folder from the projects folder is what sets it up: an empty
@@ -794,6 +822,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           const ids = Array.isArray(body.ids) ? body.ids.filter((i: unknown) => typeof i === "string") : [];
           try {
             const why = body.op === "promote" ? promote(body.dir, ids, typeof body.text === "string" ? body.text : undefined, typeof body.details === "string" ? body.details : undefined)
+              : body.op === "add" ? addItem(body.dir, typeof body.text === "string" ? body.text : "", typeof body.details === "string" ? body.details : "")
               : body.op === "dismiss" ? dismiss(body.dir, ids) : body.op === "restore" ? restore(body.dir, ids) : "unknown op";
             if (why) return bad(why, why === "no such item" ? 404 : why === "unknown op" ? 400 : 409);
           } catch (e) { return bad((e as Error).message, 500); }

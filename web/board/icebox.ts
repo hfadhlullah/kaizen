@@ -340,7 +340,7 @@ export async function openSources() {
               .join(""),
         )
       : "");
-  const bar = `<div class="ice-bar">${order.length ? `<input type="checkbox" id="ice-all" aria-label="Select every request shown"${nSel && nSel === order.length ? " checked" : ""}>` : ""}<span class="count">${iceCat === "Dismissed" || iceCat === "Done" ? `${order.length} ${iceCat.toLowerCase()}` : `${order.length < waiting ? `${order.length} of ${waiting}` : waiting} waiting`}</span><span class="end"></span>${chips ? `<details class="ice-filt"><summary class="ib${iceCat || iceSrc ? " on" : ""}" aria-label="Filter requests" title="Filter requests">${ico("filter")}</summary><div class="ice-fpop">${chips}</div></details>` : ""}<button class="btn sm" id="src-go"${list.length ? "" : " disabled"}>${ico("refresh")} Gather all</button><button class="btn ghost sm" id="src-tog" aria-expanded="${srcShow ?? !list.length}" aria-controls="src-sec">${ico("link")} Sources · ${list.length}</button></div>`;
+  const bar = `<div class="ice-bar">${order.length ? `<input type="checkbox" id="ice-all" aria-label="Select every request shown"${nSel && nSel === order.length ? " checked" : ""}>` : ""}<span class="count">${iceCat === "Dismissed" || iceCat === "Done" ? `${order.length} ${iceCat.toLowerCase()}` : `${order.length < waiting ? `${order.length} of ${waiting}` : waiting} waiting`}</span><span class="end"></span>${chips ? `<details class="ice-filt"><summary class="ib${iceCat || iceSrc ? " on" : ""}" aria-label="Filter requests" title="Filter requests">${ico("filter")}</summary><div class="ice-fpop">${chips}</div></details>` : ""}<button class="btn ghost sm" id="ice-new" title="Add a request by hand">${ico("plus")} Add</button><button class="btn sm" id="src-go"${list.length ? "" : " disabled"}>${ico("refresh")} Gather all</button><button class="btn ghost sm" id="src-tog" aria-expanded="${srcShow ?? !list.length}" aria-controls="src-sec">${ico("link")} Sources · ${list.length}</button></div>`;
   const bulk = iceSel.size
     ? `<div class="ice-bulk" role="toolbar" aria-label="Selected requests"><span>${iceSel.size} selected</span><span class="end"></span><button class="btn sm" id="ice-bp" title="Promote (p)">${ico("plus")} Promote</button><button class="btn ghost sm" id="ice-bd" title="Dismiss (d)">${ico("x")} Dismiss</button><button class="btn ghost sm" id="ice-bc" title="Clear selection (Esc)">Clear</button></div>`
     : "";
@@ -987,6 +987,15 @@ export async function openSources() {
           if (e.key === "Enter") $("src-add").click();
         };
   }
+  if ($("ice-new"))
+    $("ice-new").onclick = async () => {
+      const to = dir || showable()[0]?.dir;
+      if (!to) return toast("Pick a project first");
+      const text = prompt(dir ? "New request for the icebox:" : `New request for ${short(showable()[0].label)}:`)?.trim();
+      if (!text) return;
+      const j = await post("/icebox", { op: "add", dir: to, text });
+      if (j.ok) toast("Added to the icebox");
+    };
   if ($("src-go"))
     $("src-go").onclick = () => {
       $("src-go").disabled = true;

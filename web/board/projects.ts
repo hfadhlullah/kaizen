@@ -35,7 +35,7 @@ export function list() {
     store.PL.map((p, i) =>
       p[0].toLowerCase().includes(q)
         ? (p[2] && !g++ ? `<div class="grp">In your projects folder</div>` : "") +
-          `<button role="option" data-i="${i}" title="${esc(p[0])}">${p[1] === "all" ? `<span class="plogo" aria-hidden="true">${ico("board")}</span><span>${esc(p[0])}</span>` : p[1] === "__find" ? `<span class="plogo" aria-hidden="true">${ico("plus")}</span><span>${esc(p[0])}</span>` : prow(p[1], p[0])}</button>`
+          `<button role="option" data-i="${i}" title="${esc(p[0])}">${p[1] === "all" ? `<span class="plogo" aria-hidden="true">${ico("board")}</span><span>${esc(p[0])}</span>` : p[1] === "__find" || p[1] === "__clone" ? `<span class="plogo" aria-hidden="true">${ico("plus")}</span><span>${esc(p[0])}</span>` : prow(p[1], p[0])}</button>`
         : "",
     ).join("") || `<div class="grp">No match</div>`;
   const f = $("projs").querySelector("button");
@@ -55,6 +55,26 @@ async function pick(v) {
     toast("Searching…");
     const j = await post("/find", {});
     if (j.ok) toast(j.added ? `Found ${j.added} new project${j.added === 1 ? "" : "s"}` : "No new projects found");
+  } else if (v === "__clone") {
+    const url = prompt("GitHub link to clone (https or ssh):")?.trim();
+    if (!url) return;
+    const d = await post("/clone", { url, check: true });
+    if (!d.ok) return;
+    let to = prompt("Clone into (a new folder is created). Leave empty to pick a folder:", d.to);
+    if (to === null) return;
+    if (!to.trim()) {
+      const f = await post("/pick-folder", {});
+      if (!f.path) return;
+      to = f.path.replace(/[\\/]+$/, "") + (f.path.includes("\\") ? "\\" : "/") + d.name;
+    }
+    toast("Cloning…");
+    const j = await post("/clone", { url, to });
+    if (!j.ok) return;
+    await post("/cd", { dir: j.dir });
+    store.all = false;
+    store.dir = j.dir;
+    keep(j.dir);
+    toast("Cloned");
   } else if (v === "all") {
     store.all = true;
     keep();

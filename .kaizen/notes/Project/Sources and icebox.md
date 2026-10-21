@@ -11,6 +11,7 @@ Shared links (sheets, docs, social searches) kaizen reads for requests; each req
 
 ## Where it lives
 - `cli/sources.ts` — sources, fetching, `sift` (sheet parsing), the icebox. Images: an icebox item's `images` (https links, max 4) sit outside its dedup key; sheets read them from `htmlview` by row number, docs from the html export by line, agents and `--posts` pass `img <url>` tokens in notes (`takeImages`). Google image links expire (403 later), so the board never opens a kept link: `GET /ice-image?dir&id&i` (`cli/web.ts`) reads the source again via `freshImages` and redirects to the fresh one.
+- Items typed by hand: the Icebox bar's Add button posts `/icebox {op:"add", text}`; `addItem()` stores it as `source: "manual"`, deduped by the same row key as gathered items. In All projects it goes to the first project shown.
 - `cli/browser.ts` — finds Chrome/Chromium/Edge, drives it over the DevTools protocol (Bun `WebSocket`, no dependency), reads posts by their links (`POST`), `login()`; `postLink()` and `sendReply()`/`replyOn()` post a reply (selectors per platform in `REPLY`).
 - `cli/chatgpt.ts` — Sign in with ChatGPT, judging read posts by number, and `draftReply()`; both go through `ask()`, the one streaming Responses call.
 - `skills/kaizen/gather.md`, `skills/kaizen/discover.md` — the agent side.

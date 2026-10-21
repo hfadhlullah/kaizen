@@ -237,6 +237,26 @@ export function ingest(state: string, url: string, items: Item[]): { added: numb
   return { added: fresh.length, held };
 }
 
+// A request typed into the icebox by hand: kept like a gathered one, source "manual".
+// Returns why not, or null.
+export function addItem(state: string, text: string, notes = ""): string | null {
+  const c = clean(text, notes);
+  if (!c) return "write the request first";
+  const ice = readIcebox(state);
+  const n = c.lines.join("\n").slice(0, 2000), key = rowKey(c.text, n);
+  if (ice.some((s) => rowKey(s.text, s.notes) === key)) return "already in the icebox";
+  ice.push({ id: idOf("manual " + key), text: c.text, ...(n ? { notes: n } : {}), source: "manual", at: new Date().toISOString(), status: "new" });
+  writeIcebox(state, ice);
+  return null;
+}
+
+// A GitHub repository link git can clone: https://github.com/o/r(.git) or
+// git@github.com:o/r(.git). Returns the folder name it clones into, or null.
+export function githubRepo(raw: string): string | null {
+  const m = raw.trim().match(/^(?:https:\/\/github\.com\/|git@github\.com:|ssh:\/\/git@github\.com\/)[\w.-]+\/([\w.-]+?)(?:\.git)?\/?$/);
+  return m && m[1] !== "." && m[1] !== ".." ? m[1] : null;
+}
+
 // The only way icebox text becomes an idea. Several items may become one idea (the
 // same need said twice); the idea's text is the caller's, or the first item's, and
 // `details` are the caller's own words for it. The notes hold those details first,

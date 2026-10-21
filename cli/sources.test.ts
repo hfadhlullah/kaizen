@@ -8,7 +8,7 @@ import { readInbox, writeInbox, replaceIdea, parseItem } from "./state.ts";
 import {
   readSources, addSource, removeSource, ingest, checkUrl, resolvesPublic, exportUrl, fetchText, split, sift,
   gatherSource, freshImages, gatherAll, due, takeImages, sheetImages, docImages, imagesUrl, SIGN_IN, UNREADABLE, CAP, moveSource, gatherDirs, writeSources,
-  readIcebox, writeIcebox, promote, markDone, dismiss, markReplied, setCategory, socialUrl, socialOf, AGENT_ONLY, PLATFORMS,
+  readIcebox, writeIcebox, promote, markDone, addItem, githubRepo, dismiss, markReplied, setCategory, socialUrl, socialOf, AGENT_ONLY, PLATFORMS,
 } from "./sources.ts";
 
 const root = realpathSync(mkdtempSync(join(tmpdir(), "kaizen-src-")));   // macOS: tmpdir is a symlink into /private
@@ -820,4 +820,23 @@ test("a done run that only mentions the idea does not finish it", () => {
   writeFileSync(join(run, "00-request.md"), "lite Test");
   markDone(state);
   expect(readIcebox(state)[0]).toMatchObject({ status: "done", run: "r1" });
+});
+
+test("icebox: an item added by hand lands new, once, and promotes like a gathered one", () => {
+  expect(addItem(state, "  ")).toBe("write the request first");
+  expect(addItem(state, "Dark mode for the board", "asked twice")).toBeNull();
+  expect(addItem(state, "Dark mode for the board", "asked twice")).toBe("already in the icebox");
+  const [it] = open();
+  expect(it).toMatchObject({ text: "Dark mode for the board", notes: "asked twice", source: "manual", status: "new" });
+  expect(promote(state, [it.id])).toBeNull();
+  expect(readInbox(state).map((l) => l.text)).toEqual(["Dark mode for the board"]);
+});
+
+test("githubRepo: https and ssh GitHub links only, named by the repository", () => {
+  expect(githubRepo("https://github.com/acme/app")).toBe("app");
+  expect(githubRepo("https://github.com/acme/app.git")).toBe("app");
+  expect(githubRepo("git@github.com:acme/my.repo.git")).toBe("my.repo");
+  expect(githubRepo("ssh://git@github.com/acme/app.git")).toBe("app");
+  for (const bad of ["http://github.com/a/b", "https://gitlab.com/a/b", "https://github.com/a", "git@github.com:a/..", "--upload-pack=x", "https://github.com/a/b;rm -rf ~"])
+    expect(githubRepo(bad)).toBeNull();
 });
