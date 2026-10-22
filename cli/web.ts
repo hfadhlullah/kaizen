@@ -815,6 +815,15 @@ export async function web(repoDir: string, opts: Opts = {}) {
           } catch (e) { return bad((e as Error).message, 500); }
         }
 
+        // Files added with a hand-written icebox item: saved beside the state, linked in its notes.
+        const iceFiles = (state: string, files: unknown) => {
+          const fs: { name: string; data: string }[] = Array.isArray(files) ? files : [];
+          if (fs.reduce((t, f) => t + (f.data?.length ?? 0), 0) > 20_000_000) throw new Error("attachments over 15MB");
+          return fs.map((f) => {
+            const rel = saveAttachment(state, null, String(f.name ?? "file"), Buffer.from(String(f.data).replace(/^data:[^,]*,/, ""), "base64"));
+            return (/\.(png|jpe?g|gif|webp|svg)$/i.test(rel) ? "!" : "") + `[${String(f.name ?? "file")}](${rel})`;
+          });
+        };
         // The icebox: the only way gathered text becomes an idea, one explicit click
         // (or agent call) at a time. An idea is made; no run starts.
         if (path === "/icebox") {
@@ -822,7 +831,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           const ids = Array.isArray(body.ids) ? body.ids.filter((i: unknown) => typeof i === "string") : [];
           try {
             const why = body.op === "promote" ? promote(body.dir, ids, typeof body.text === "string" ? body.text : undefined, typeof body.details === "string" ? body.details : undefined)
-              : body.op === "add" ? addItem(body.dir, typeof body.text === "string" ? body.text : "", typeof body.details === "string" ? body.details : "")
+              : body.op === "add" ? addItem(body.dir, typeof body.text === "string" ? body.text : "", [typeof body.details === "string" ? body.details : "", ...iceFiles(body.dir, body.files)].filter(Boolean).join("\n"))
               : body.op === "dismiss" ? dismiss(body.dir, ids) : body.op === "restore" ? restore(body.dir, ids) : "unknown op";
             if (why) return bad(why, why === "no such item" ? 404 : why === "unknown op" ? 400 : 409);
           } catch (e) { return bad((e as Error).message, 500); }

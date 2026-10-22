@@ -2,9 +2,9 @@ import { store } from "./store.ts";
 import { termStop } from "./agent-term.ts";
 import { load, post } from "./api.ts";
 import { via } from "./cards.ts";
-import { stopDictation } from "./dictation.ts";
-import { $, esc, ico, SKEL } from "./dom.ts";
-import { plogo, setShown, short, showable } from "./projects.ts";
+import { mic, stopDictation } from "./dictation.ts";
+import { $, dataUrls, esc, ico, modal, SKEL } from "./dom.ts";
+import { ideaCombo, newDir, plogo, setShown, short, showable } from "./projects.ts";
 import { toast } from "./toast.ts";
 import { go, view } from "./views.ts";
 
@@ -988,13 +988,57 @@ export async function openSources() {
         };
   }
   if ($("ice-new"))
-    $("ice-new").onclick = async () => {
-      const to = dir || showable()[0]?.dir;
-      if (!to) return toast("Pick a project first");
-      const text = prompt(dir ? "New request for the icebox:" : `New request for ${short(showable()[0].label)}:`)?.trim();
-      if (!text) return;
-      const j = await post("/icebox", { op: "add", dir: to, text });
-      if (j.ok) toast("Added to the icebox");
+    $("ice-new").onclick = () => {
+      const all = !dir;
+      if (!dir && !showable().length) return toast("Pick a project first");
+      // The new-idea form, cut down: the request, files, dictation and, in All projects, the project.
+      const dl = modal(
+        `${all ? `<div class="combo" id="ndc"><button type="button" class="sel" id="newdir" aria-label="Project for this request" aria-haspopup="listbox" aria-expanded="false"></button><div class="menu-pop" hidden><input class="sel" aria-label="Search projects" placeholder="Search projects…" spellcheck="false" autocomplete="off"><div id="nds" role="listbox"></div></div></div>` : ""}<textarea id="newidea" placeholder="New request for the icebox" aria-label="Request"></textarea><div class="att"></div><input type="file" multiple hidden><div class="row"><button type="button" class="ib" id="newpick" aria-label="Attach files" title="Attach files">${ico("clip")}</button><button type="button" class="btn ghost" value="">Cancel</button><button class="btn pri">Add</button></div>`,
+      );
+      const f = dl.querySelector("form"),
+        inp = f.querySelector("textarea"),
+        files = [];
+      const add = (x) => {
+        files.push(x);
+        f.querySelector(".att").textContent = files.map((y) => y.name).join(" · ");
+      };
+      f.querySelector("#newpick").onclick = () => f.querySelector("input[type=file]").click();
+      f.querySelector("input[type=file]").onchange = (e) => {
+        [...e.target.files].forEach(add);
+        e.target.value = "";
+      };
+      inp.onpaste = (e) => {
+        for (const it of e.clipboardData.items)
+          if (it.kind === "file") {
+            const x = it.getAsFile();
+            add(new File([x], x.name === "image.png" ? `paste-${Date.now()}.png` : x.name, { type: x.type }));
+            e.preventDefault();
+          }
+      };
+      f.querySelector(".btn.ghost").onclick = () => dl.close();
+      if (all) ideaCombo(f);
+      const m = mic([inp]);
+      if (m) f.querySelector(".row").prepend(m);
+      dl.addEventListener("close", () => stopDictation(false));
+      inp.onkeydown = (e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          f.requestSubmit();
+        }
+      };
+      f.onsubmit = async (e) => {
+        e.preventDefault();
+        const text = inp.value.trim(),
+          to = dir || newDir;
+        if (!text) return inp.focus();
+        if (!to) return toast("Pick a project first");
+        const j = await post("/icebox", { op: "add", dir: to, text, files: await dataUrls(files) });
+        if (j.ok) {
+          toast("Added to the icebox");
+          dl.close();
+        }
+      };
+      inp.focus();
     };
   if ($("src-go"))
     $("src-go").onclick = () => {

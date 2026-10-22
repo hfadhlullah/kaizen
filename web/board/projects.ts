@@ -1,7 +1,7 @@
 import { store } from "./store.ts";
 import { load, post } from "./api.ts";
 import { render } from "./cards.ts";
-import { $, esc, ico } from "./dom.ts";
+import { $, esc, ico, modal } from "./dom.ts";
 import { openSources, srcOpen } from "./icebox.ts";
 import { toast } from "./toast.ts";
 import { view } from "./views.ts";
@@ -56,24 +56,49 @@ async function pick(v) {
     const j = await post("/find", {});
     if (j.ok) toast(j.added ? `Found ${j.added} new project${j.added === 1 ? "" : "s"}` : "No new projects found");
   } else if (v === "__clone") {
-    const url = prompt("GitHub link to clone (https or ssh):")?.trim();
-    if (!url) return;
-    const d = await post("/clone", { url, check: true });
-    if (!d.ok) return;
-    let to = prompt("Clone into (a new folder is created). Leave empty to pick a folder:", d.to);
-    if (to === null) return;
-    if (!to.trim()) {
-      const f = await post("/pick-folder", {});
-      if (!f.path) return;
-      to = f.path.replace(/[\\/]+$/, "") + (f.path.includes("\\") ? "\\" : "/") + d.name;
-    }
-    toast("Cloning…");
-    const j = await post("/clone", { url, to });
-    if (!j.ok) return;
-    await post("/cd", { dir: j.dir });
+    // One form: the link, then where it goes. The folder fills in once the link names a repo.
+    const dl = modal(
+      `<b>Clone from GitHub</b><input name="url" placeholder="https://github.com/owner/repo or git@github.com:owner/repo" aria-label="GitHub link (https or ssh)" spellcheck="false" autocomplete="off"><div class="row"><input name="to" placeholder="Clone into (a new folder is made)" aria-label="Clone into" spellcheck="false" autocomplete="off"><button type="button" class="btn ghost" data-a="pick">Pick…</button></div><div class="row"><button type="button" class="btn ghost" data-a="x">Cancel</button><button class="btn pri">Clone</button></div>`,
+    );
+    const f = dl.querySelector("form"),
+      url = f.querySelector("[name=url]"),
+      to = f.querySelector("[name=to]");
+    let name = "",
+      auto = ""; // the folder this form filled in; one the user typed is left alone
+    const check = async () => {
+      const u = url.value.trim();
+      if (!u) return null;
+      const d = await post("/clone", { url: u, check: true });
+      if (!d.ok) return null;
+      name = d.name;
+      if (!to.value.trim() || to.value === auto) to.value = auto = d.to;
+      return d;
+    };
+    url.onchange = check;
+    f.querySelector("[data-a=x]").onclick = () => dl.close();
+    f.querySelector("[data-a=pick]").onclick = async () => {
+      if (!(await check())) return url.focus();
+      const p = await post("/pick-folder", {});
+      if (p.path) to.value = p.path.replace(/[\\/]+$/, "") + (p.path.includes("\\") ? "\\" : "/") + name;
+    };
+    url.focus();
+    const dir = await new Promise((done) => {
+      dl.addEventListener("close", () => done(null));
+      f.onsubmit = async (e) => {
+        e.preventDefault();
+        if (!(await check())) return url.focus();
+        toast("Cloning…");
+        const j = await post("/clone", { url: url.value.trim(), to: to.value.trim() || undefined });
+        if (!j.ok) return;
+        done(j.dir);
+        dl.close();
+      };
+    });
+    if (!dir) return;
+    await post("/cd", { dir });
     store.all = false;
-    store.dir = j.dir;
-    keep(j.dir);
+    store.dir = dir;
+    keep(dir);
     toast("Cloned");
   } else if (v === "all") {
     store.all = true;

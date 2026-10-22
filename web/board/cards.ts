@@ -2,7 +2,7 @@ import { store } from "./store.ts";
 import { where } from "./agent-term.ts";
 import { load, post } from "./api.ts";
 import { mic, stopDictation } from "./dictation.ts";
-import { $, esc, ico } from "./dom.ts";
+import { $, dataUrls, esc, ico } from "./dom.ts";
 import { draft, undraft } from "./drafts.ts";
 import { COLS, ICON, MARKS, NAMES, WORD, age, d, need } from "./labels.ts";
 import { brief } from "./markdown.ts";
@@ -502,13 +502,15 @@ export function render() {
         (archive || !nested(c)) &&
         (!q || `${c.title || ""} ${c.text || ""} ${c.id || ""}`.toLowerCase().includes(q)),
     );
-    // Runs age by their last move, ideas by inbox position (new ones are appended).
+    // Runs age by their last move, ideas by when they were added, across every project;
+    // an idea from before the stamp falls back to its inbox position.
     if (ci < 4) {
-      const at = (c) => (c.kind === "run" ? c.moved || 0 : store.S.cards.indexOf(c)),
-        old = order[ci] === "old";
+      const at = (c) => (c.kind === "run" ? c.moved || 0 : c.added || 0),
+        old = order[ci] === "old",
+        pos = (c) => store.S.cards.indexOf(c);
       // Runs waiting on you go first, then the column's own order.
       const w = (c) => (c.status === "waiting" ? 1 : 0);
-      list.sort((a, b) => w(b) - w(a) || (old ? at(a) - at(b) : at(b) - at(a)));
+      list.sort((a, b) => w(b) - w(a) || (old ? at(a) - at(b) || pos(a) - pos(b) : at(b) - at(a) || pos(b) - pos(a)));
     }
     const clearable = ci === 4 && !archive && list.length;
     const olderThan = (days) => list.filter((c) => store.S.now - (c.moved || store.S.now) > days * d);
@@ -607,16 +609,7 @@ export function render() {
           toast("Idea added");
           // The idea exists first: a failed upload leaves it as plain text.
           if (files.length) {
-            const enc = await Promise.all(
-              files.map(
-                (x) =>
-                  new Promise((res) => {
-                    const rd = new FileReader();
-                    rd.onload = () => res({ name: x.name, data: rd.result });
-                    rd.readAsDataURL(x);
-                  }),
-              ),
-            );
+            const enc = await dataUrls(files);
             const n = await post("/note", { dir, for: text, text: "", files: enc });
             if (!n.ok) toast("Idea added, files not attached");
           }

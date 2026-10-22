@@ -616,6 +616,7 @@ export type Card = {
   awaiting: string | null;
   dim: boolean;
   moved?: number;                                  // runs only: state.json mtime
+  added?: number;                                  // ideas only: when the inbox line first appeared (ms)
   title?: string;                                  // runs only: first line of the request
   archived: boolean;                               // hidden from the board unless asked for
   branch?: string;                                 // runs only: the run's own branch while it has a worktree
@@ -1022,7 +1023,7 @@ export function boardCards(states: string[], now: number): Card[] {
       if (it.status === "started" ? requests.some((r) => after(r) && r.text.includes(t)) : lines.some((l) => after(l) && (l.text === t || l.text.endsWith(" " + t)))) continue;
       next.push(it.status === "started"
         ? { kind: "idea", status: "starting", text: it.text, state: st, where, column: 1, awaiting: null, dim: true, archived: false, notes: it.notes, parent: parentOf(it.notes) }
-        : { kind: "idea", status: "idea", text: it.text, state: st, where, column: 0, awaiting: null, dim: false, archived: it.status === "archived", notes: it.notes, parent: parentOf(it.notes) });
+        : { kind: "idea", status: "idea", text: it.text, state: st, where, column: 0, awaiting: null, dim: false, archived: it.status === "archived", notes: it.notes, parent: parentOf(it.notes), added: it.added });
     }
     // Runs started in Yolo. Only yolo records are matched to runs, so a project that
     // never used it pays one directory read.

@@ -75,3 +75,4 @@ updated: 2026-10-19
 - 2026-10-19 run 2026-10-19-idea-vanish-no-state — Web board (a run with no state.json yet cannot retire an idea, so the idea shows until its run card does)
 - 2026-10-21 run 2026-10-21-clone-and-ice-add — Web board, Sources and icebox (clone a GitHub repo from the project picker; add an icebox item by hand)
 - 2026-10-21 run 2026-10-21-clone-path — Web board (clone destination typed or picked; new folders are created)
+- 2026-10-22 run 2026-10-22-ice-form-clone-modal — Web board (icebox add and GitHub clone as modal forms; ideas sorted by creation time)
