@@ -95,5 +95,5 @@ export const resizeSeq = (cols: number, rows: number) => `\x1b]kzr;${cols};${row
 export function innerCommand(shell: string, cmd: string[]): string {
   const q = (a: string) => `'${a.replace(/'/g, "''")}'`;
   const enc = Buffer.from(`& ${cmd.map(q).join(" ")}`, "utf16le").toString("base64");
-  return `"${shell}" -NoProfile -EncodedCommand ${enc}`;
+  return `"${shell}" -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${enc}`;
 }

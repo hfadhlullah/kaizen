@@ -1148,3 +1148,11 @@ test("parent/child: a Parent line links a run and an idea to the run that filed 
   expect(boardCards([st], Date.now()).find((k) => k.text === "next thing")!.parent).toBe("2026-01-02-b");
   rmSync(dirname(st), { recursive: true, force: true });
 });
+
+test("winShim swaps an npm .cmd shim for the .ps1 beside it, so a multi-line prompt survives", () => {
+  const { winShim } = stateModule;
+  const has = (p: string) => p === "C:\\npm\\claude.ps1";
+  expect(winShim("C:\\npm\\claude.cmd", has)).toBe("C:\\npm\\claude.ps1");
+  expect(winShim("C:\\npm\\codex.CMD", () => false)).toBe("C:\\npm\\codex.CMD");
+  expect(winShim("C:\\bin\\claude.exe", () => true)).toBe("C:\\bin\\claude.exe");
+});

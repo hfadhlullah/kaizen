@@ -200,7 +200,7 @@ test("Windows ConPTY host: resize travels in-band, the agent command survives qu
   expect(resizeSeq(100, 40)).toBe("\x1b]kzr;100;40\x07");
   const line = innerCommand("C:\\ps.exe", ["claude", "it's\nhere"]);
   const enc = line.split(" ").pop()!;
-  expect(line.startsWith('"C:\\ps.exe" -NoProfile -EncodedCommand ')).toBe(true);
+  expect(line.startsWith('"C:\\ps.exe" -NoProfile -ExecutionPolicy Bypass -EncodedCommand ')).toBe(true);
   expect(Buffer.from(enc, "base64").toString("utf16le")).toBe("& 'claude' 'it''s\nhere'");
   // The host script decodes to PowerShell carrying the C# whole.
   expect(Buffer.from(conptyHost(), "base64").toString("utf16le")).toContain("CreatePseudoConsole");

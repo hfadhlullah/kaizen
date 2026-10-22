@@ -130,6 +130,14 @@ export const readText = (file: string) => readFileSync(file, "utf8").replace(/^\
 
 const onPath = (bin: string) => Bun.which(bin, { PATH: process.env.PATH });
 
+// npm installs a Windows tool as x.cmd with x.ps1 beside it. PowerShell hands a .cmd to
+// cmd.exe, which ends the command line at the first newline -- a prompt with notes lost
+// everything after its first line. The .ps1 runs in PowerShell itself, argument intact.
+export const winShim = (bin: string, exists = existsSync) => {
+  const ps1 = bin.replace(/\.cmd$/i, ".ps1");
+  return ps1 !== bin && exists(ps1) ? ps1 : bin;
+};
+
 // Windows' own programs by full path: a board started from the shortcut or a
 // stripped-down environment can have a PATH without System32, and a bare "cmd.exe"
 // then fails with "Executable not found in $PATH".
@@ -173,19 +181,19 @@ export function findTerminal(cwd: string, fullCmd: string[], pidFile?: string): 
     // closes the tab once the run's PowerShell ends.
     const herdr = onPath("herdr");
     if (herdr && answers([herdr, "workspace", "list"])) {
-      const typed = `& ${q(shell)} -NoProfile -EncodedCommand ${enc}; exit`;
+      const typed = `& ${q(shell)} -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${enc}; exit`;
       const launch = `$o = & ${q(herdr)} tab create --cwd ${q(cwd)} --label kaizen --focus | Out-String
 if ($o -match '"pane_id":"([^"]*)"') { & ${q(herdr)} pane run $Matches[1] ${q(typed)} } else { exit 1 }`;
       return { cmd: [shell, "-NoProfile", "-EncodedCommand", Buffer.from(launch, "utf16le").toString("base64")], detached: false };
     }
     const wt = onPath("wt.exe");
     if (wt) {
-      return { cmd: [wt, "-d", cwd, shell, "-NoExit", "-EncodedCommand", enc], detached: true };
+      return { cmd: [wt, "-d", cwd, shell, "-NoExit", "-ExecutionPolicy", "Bypass", "-EncodedCommand", enc], detached: true };
     }
     // `start` reads a title only when quoted; an unquoted word is the command, so
     // "kaizen" here ran kaizen's own launcher. The empty title is what Bun quotes.
     return {
-      cmd: [cmdExe(), "/c", "start", "", "/D", cwd, shell, "-NoExit", "-EncodedCommand", enc],
+      cmd: [cmdExe(), "/c", "start", "", "/D", cwd, shell, "-NoExit", "-ExecutionPolicy", "Bypass", "-EncodedCommand", enc],
       detached: true,
     };
   }
@@ -1444,7 +1452,7 @@ export function launchRun(it: Item, from: string, run?: string, pick: { agent?: 
   // agent inheriting it runs as its child and keeps no transcript, so nothing to resume.
   for (const k of Object.keys(process.env)) if (CHILD_ENV.test(k)) delete process.env[k];
   // onPath, not Bun.which: the board may have taken a login shell's PATH after it started.
-  const agentBin = onPath(agent.cmd) ?? agent.cmd;
+  const agentBin = winShim(onPath(agent.cmd) ?? agent.cmd);
   // No text: a run's conversation reopened as it was, with nothing sent to it.
   const prompt = !it.text ? "" : requestOf(it.where ? `/kaizen ${it.text} (${it.where})` : `/kaizen ${it.text}`, it.notes, from);
   const wanted = pick.model ?? (own?.cmd === agent.cmd ? own.model : null) ?? undefined;
