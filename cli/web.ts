@@ -1,6 +1,6 @@
 // `kaizen web`: the board in a browser. A loopback HTTP server over state.ts and
 // one HTML page; the page never sees the filesystem, only JSON.
-import { existsSync, readdirSync, statSync, watch, appendFileSync, mkdirSync, type FSWatcher } from "node:fs";
+import { existsSync, readdirSync, statSync, watch, appendFileSync, mkdirSync, cpSync, rmSync, type FSWatcher } from "node:fs";
 import { join, dirname, resolve, sep, basename } from "node:path";
 import {
   home, type Item, type Card, boardCards, knownProjects, remember, locate, label, tilde, searchRoots, findProjects,
@@ -550,7 +550,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         const v = await npmLatest(url.searchParams.has("fresh"));
         const update = !!v && newer(v, VERSION);
         const notes = update ? await releaseNotes(VERSION, url.searchParams.has("fresh")) : [];
-        return json({ version: VERSION, latest: v, update, notes });
+        return json({ version: VERSION, latest: v, update, notes, failed: upgradeFailed });
       }
 
       // `kaizen upgrade`, run here with no window, then a new board on this port: it
@@ -560,6 +560,21 @@ export async function web(repoDir: string, opts: Opts = {}) {
       if (req.method === "POST" && path === "/upgrade") {
         if (!local(req)) return bad("cross-origin write refused", 403);
         if (upgrading) return bad("an upgrade is already running", 409);
+        // Windows will not rename ~/kaizen while this board holds files in it, so the
+        // upgrade waits in its own process for this one to exit, then starts the board
+        // again; ~/.kaizen/upgrade.log keeps what it said. It runs from a copy of cli/,
+        // so nothing runs out of ~/kaizen while it is renamed.
+        if (process.platform === "win32") {
+          const helper = join(home, ".kaizen", "upgrader");
+          rmSync(helper, { recursive: true, force: true });
+          cpSync(join(repoDir, "cli"), join(helper, "cli"), { recursive: true });
+          const log = Bun.file(UPGRADE_LOG);
+          Bun.spawn([process.execPath, join(helper, "cli", "install.ts"), "upgrade", "--wait", String(process.pid), "--restart", String(srv.port)], {
+            cwd: home, detached: true, stdio: ["ignore", log, log], windowsHide: true,
+          }).unref();
+          setTimeout(() => process.exit(0), 300);
+          return json({ ok: true });
+        }
         upgrading = true;
         try {
           const p = Bun.spawn([process.execPath, join(repoDir, "cli", "install.ts"), "upgrade"], { stdin: "ignore", stdout: "pipe", stderr: "pipe", windowsHide: true });
@@ -1151,6 +1166,18 @@ async function openDefault(url: string) {
 let picking = false;
 // One `kaizen upgrade` at a time, from any page.
 let upgrading = false;
+// What a Windows hand-off upgrade said (see POST /upgrade). Read once at start: no
+// "Upgraded" or "Up to date" line means it failed, and its last lines say why.
+const UPGRADE_LOG = join(home, ".kaizen", "upgrade.log");
+const upgradeFailed = (() => {
+  if (!existsSync(UPGRADE_LOG)) return null;
+  const lines = readText(UPGRADE_LOG).replace(/\x1b\[[0-9;]*m/g, "").split("\n").map((l) => l.trim()).filter(Boolean);
+  try { rmSync(UPGRADE_LOG, { force: true }); } catch { /* shown again next start */ }
+  if (lines.some((l) => /^(Upgraded|Up to date)\b/.test(l))) return null;
+  // "kept ~/kaizen (in use …)" is the reason when there is one; else the closing lines.
+  const kept = lines.find((l) => /^\+?\s*kept\b/.test(l));
+  return kept?.replace(/^\+\s*/, "") ?? (lines.filter((l) => !l.startsWith("+")).slice(-2).join(" — ") || "kaizen upgrade said nothing");
+})();
 
 // The system folder picker for this platform, printing the chosen path on stdout.
 // macOS and Windows always have one; on Linux it is whichever desktop tool exists.

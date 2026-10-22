@@ -540,6 +540,15 @@ if (interactive && !upgrade && Bun.argv.length === 2) {
   }
 }
 
+// A board on Windows hands its Update here and exits: Windows will not rename
+// ~/kaizen while that board holds files in it. Wait for it to go, and bring a board
+// back on its port however the upgrade ends (finish()).
+const argAt = (flag: string) => { const i = Bun.argv.indexOf(flag); return i === -1 ? NaN : Number(Bun.argv[i + 1]); };
+if (upgrade && argAt("--wait") > 0) {
+  for (let i = 0; i < 100; i++) {
+    try { process.kill(argAt("--wait"), 0); await Bun.sleep(200); } catch { break; }
+  }
+}
 if (upgrade) await clearBunxCache();
 
 // Upgrade means the newest release on npm, whatever the install on disk is: a clone
@@ -551,16 +560,16 @@ if (upgrade) {
   const why = await devCheckout(dest);
   if (why) {
     console.log(`\n  ${c.bold("Not upgraded")}  ${c.dim(`${tilde(dest)} is ${why}; update it with git`)}\n`);
-    process.exit(1);
+    finish(1);
   }
   const latest = await npmLatest();
   if (!latest) {
     console.log(`\n  ${c.bold("Not upgraded")}  ${c.dim(`could not reach npm (kaizen ${now})`)}\n`);
-    process.exit(1);
+    finish(1);
   }
   if (latest === now) {
     console.log(`\n  ${c.bold("Up to date")}${c.dim(`  —  kaizen ${now}`)}\n`);
-    process.exit(0);
+    finish(0);
   }
   step(`fetching kaizen ${latest} from npm`);
   // --force so a stale package manifest cannot resolve the version away, and the
@@ -580,7 +589,7 @@ if (upgrade) {
     process.exit(1);
   }
   console.log(`\n  ${c.bold("Upgraded")}  ${c.dim(now)} → ${c.green(after)}\n  ${c.dim("Restart Claude Code to pick up any new slash commands.")}\n`);
-  process.exit(0);
+  finish(0);
 }
 if (!check && !upgrade) await welcome();
 
@@ -1065,6 +1074,16 @@ if (blocked) process.exit(1);
 // ---------------------------------------------------------------- helpers
 
 function step(msg: string) { console.log(`  ${c.green("+")} ${msg}`); }
+function finish(code: number): never {
+  const port = argAt("--restart");
+  if (port > 0) {
+    Bun.spawn([process.execPath, join(installDir(), "cli", "install.ts"), "web", "--port", String(port), "--no-open", "--foreground"], {
+      cwd: home, detached: true, stdio: ["ignore", "ignore", "ignore"], windowsHide: true,
+    }).unref();
+  }
+  process.exit(code);
+}
+
 
 // Runs the upgrade and reports what it actually did, version to version, so the
 // dashboard can show a result rather than the user wondering whether it worked.

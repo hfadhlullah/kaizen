@@ -30,6 +30,7 @@ export function updBar() {
       : "";
     d.innerHTML = `<span>kaizen <b>${esc(upd.latest)}</b> is available. You are running ${esc(upd.version)}.</span><span class="updact">${news}<button class="btn" id="upd-chk">Check for updates</button><button class="btn pri" id="upd-go">Update kaizen</button></span>`;
   }
+  if (ver && ver.failed) d.insertAdjacentHTML("afterbegin", `<span class="updfail" role="alert">Last update failed: ${esc(ver.failed)}</span>`);
   $("pbody").prepend(d);
   const check = $("upd-chk");
   check.onclick = async () => {
