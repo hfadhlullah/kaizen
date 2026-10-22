@@ -341,7 +341,9 @@ changing because a setting moved:
 ```
 
 Every run writes all nine keys, from intake on: `id`, `mode`, `runner`, `agent`,
-`track`, `stage`, `awaiting`, `iteration` (0 until the fix loop runs), `updated`. The
+`track`, `stage`, `awaiting`, `iteration` (0 until the fix loop runs), `updated`. Where
+the environment has `CLAUDE_CODE_SESSION_ID`, also `session` with its value: without it
+a card launched from the board can stay stuck in planning beside its own run. The
 legal values of `stage` and `awaiting` are in [`spec.md`](spec.md).
 
 In a git repository, `init` also adds a gitignore entry that ignores run state but

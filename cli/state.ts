@@ -1002,6 +1002,9 @@ export function boardCards(states: string[], now: number): Card[] {
       for (const l of b.split("\n")) lines.push({ at, text: normalise(l.replace(/^[\s>*"'`-]+|[\s"'`.]+$/g, "")) });
     }
   }
+  // A launched idea whose run reworded the request: the board's own launch record,
+  // owned by a run (session id in its state.json, see ownerOf), retires it all the same.
+  const launchedInto = (st: string, t: string) => readSessions(st).some((s) => !s.run && normalise(s.text.replace(/^(lite|full|auto|plan)\s+/i, "")) === t.replace(/^(lite|full|auto|plan)\s+/i, "") && ownerOf(st, s) !== null);
   for (const st of states) {
     const where = label(st);
     const archive = readArchive(st);
@@ -1020,7 +1023,7 @@ export function boardCards(states: string[], now: number): Card[] {
       // titled "fix this bugs" must not swallow a new idea with the same words.
       // ponytail: 2s slack for coarse filesystem clocks.
       const after = (r: { at: number }) => !it.added || r.at >= it.added - 2000;
-      if (it.status === "started" ? requests.some((r) => after(r) && r.text.includes(t)) : lines.some((l) => after(l) && (l.text === t || l.text.endsWith(" " + t)))) continue;
+      if (it.status === "started" ? requests.some((r) => after(r) && r.text.includes(t)) || launchedInto(st, t) : lines.some((l) => after(l) && (l.text === t || l.text.endsWith(" " + t)))) continue;
       next.push(it.status === "started"
         ? { kind: "idea", status: "starting", text: it.text, state: st, where, column: 1, awaiting: null, dim: true, archived: false, notes: it.notes, parent: parentOf(it.notes) }
         : { kind: "idea", status: "idea", text: it.text, state: st, where, column: 0, awaiting: null, dim: false, archived: it.status === "archived", notes: it.notes, parent: parentOf(it.notes), added: it.added });

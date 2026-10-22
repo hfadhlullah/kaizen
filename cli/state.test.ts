@@ -93,6 +93,22 @@ test("boardCards: a started idea stays until its run has a state.json", () => {
   rmSync(join(dir, ".."), { recursive: true, force: true });
 });
 
+test("boardCards: a started idea retires into the run its launch's session wrote, however reworded", () => {
+  const dir = join(mkdtempSync(join(tmpdir(), "kaizen-")), ".kaizen");
+  const r = join(dir, "runs", "2026-01-01-reworded");
+  mkdirSync(r, { recursive: true });
+  mkdirSync(join(dir, "sessions"));
+  writeInbox(dir, [{ status: "started", text: "revision" }]);
+  writeFileSync(join(r, "00-request.md"), "- add a form for the icebox\n");
+  writeFileSync(join(dir, "sessions", "1-a.json"), JSON.stringify({ run: null, text: "revision", cmd: "claude", sessionId: "abc", started: Date.now() }));
+  const cards = () => boardCards([dir], Date.now()).map((k) => k.kind);
+  writeFileSync(join(r, "state.json"), JSON.stringify({ id: "2026-01-01-reworded", stage: "build", awaiting: null }));
+  expect(cards()).toEqual(["idea", "run"]);
+  writeFileSync(join(r, "state.json"), JSON.stringify({ id: "2026-01-01-reworded", stage: "build", awaiting: null, session: "abc" }));
+  expect(cards()).toEqual(["run"]);
+  rmSync(join(dir, ".."), { recursive: true, force: true });
+});
+
 test("boardCards: a run older than the idea does not retire it", () => {
   const dir = join(mkdtempSync(join(tmpdir(), "kaizen-")), ".kaizen");
   const r = join(dir, "runs", "2026-01-01-old");
