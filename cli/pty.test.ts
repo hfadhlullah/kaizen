@@ -5,7 +5,8 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, realpa
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { launchMode, closeSessions, readSessions, sweepSessions, CLOSE_GRACE_MS } from "./state.ts";
-import { loginEnv, startPty, writePty } from "./pty.ts";
+import { loginEnv, startPty, writePty, attachPty, ptyState } from "./pty.ts";
+import { conptyHost, innerCommand, resizeSeq } from "./conpty.ts";
 
 const root = realpathSync(mkdtempSync(join(tmpdir(), "kaizen-pty-")));
 
@@ -194,3 +195,27 @@ test("asking: Claude Code and Codex prompts count as a question, ordinary output
   expect(asking("Do you want to make this edit to cli/pty.ts?")).toBe(true);
   expect(asking("Reading cli/pty.ts\r\n\x1b[2K✻ Thinking… 1. step one done")).toBe(false);
 });
+
+test("Windows ConPTY host: resize travels in-band, the agent command survives quotes and newlines", () => {
+  expect(resizeSeq(100, 40)).toBe("\x1b]kzr;100;40\x07");
+  const line = innerCommand("C:\\ps.exe", ["claude", "it's\nhere"]);
+  const enc = line.split(" ").pop()!;
+  expect(line.startsWith('"C:\\ps.exe" -NoProfile -EncodedCommand ')).toBe(true);
+  expect(Buffer.from(enc, "base64").toString("utf16le")).toBe("& 'claude' 'it''s\nhere'");
+  // The host script decodes to PowerShell carrying the C# whole.
+  expect(Buffer.from(conptyHost(), "base64").toString("utf16le")).toContain("CreatePseudoConsole");
+});
+
+test.skipIf(process.platform !== "win32")("on Windows a card agent runs in a pseudo console and takes typed input", async () => {
+  const key = `win-${Date.now()}`;
+  const out: string[] = [];
+  startPty(key, ["cmd.exe", "/q", "/k", "echo ready"], root);
+  attachPty(key, (d) => { if (d) out.push(d); });
+  const until = async (re: RegExp) => { for (let i = 0; i < 300 && !re.test(out.join("")); i++) await Bun.sleep(100); return out.join(""); };
+  expect(await until(/ready/)).toContain("ready");
+  writePty(key, "echo typed-%OS%\r");
+  expect(await until(/typed-Windows_NT/)).toContain("typed-Windows_NT");
+  writePty(key, "exit\r");
+  for (let i = 0; i < 100 && ptyState(key)?.alive; i++) await Bun.sleep(100);
+  expect(ptyState(key)?.alive).toBe(false);
+}, 60_000);

@@ -1,8 +1,15 @@
 // Agents the web board runs itself, each in a pseudo-terminal the board owns, so a
 // card can show the agent's screen and pass it the user's typing (agent.launch: card).
 // They live in this process: the board stopping ends them, as closing a terminal
-// window ends the agent in it. Bun has no pseudo-terminal on Windows.
+// window ends the agent in it. Bun has no pseudo-terminal on Windows; there the
+// agent runs under a ConPTY host (conpty.ts) spoken to over pipes.
 import { writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { conptyHost, innerCommand, resizeSeq } from "./conpty.ts";
+
+const WIN = process.platform === "win32";
+// Windows PowerShell, which every Windows has, both hosts the console and runs the agent in it.
+const winPs = () => join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
 
 type Pty = { proc: Bun.Subprocess; out: string[]; size: number; listeners: Set<(d: string | null) => void>; exit: number | null; asking: boolean; quiet?: Timer; total: number; since: number; onChange?: () => void };
 
@@ -24,7 +31,7 @@ export const asking = (screen: string) =>
 const QUIET_MS = 700;
 // Bun gained pseudo-terminals in 1.3.5; an older one spawns without a tty, so it
 // keeps opening terminal windows.
-export const ptySupported = process.platform !== "win32" && typeof (Bun as any).Terminal === "function";
+export const ptySupported = WIN || typeof (Bun as any).Terminal === "function";
 
 // Starts cmd in a new pseudo-terminal under `key` and returns its PID. pidFile gets
 // that PID, the agent's own, so closeSessions can end it like any launched session.
@@ -46,7 +53,21 @@ export function startPty(key: string, cmd: string[], cwd: string, pidFile?: stri
       flag(p.exit === null && n > 0 && asking(p.out.join("").slice(-n)));
     }, QUIET_MS);
   };
-  p.proc = Bun.spawn(cmd, {
+  if (WIN) {
+    const ps = winPs();
+    p.proc = Bun.spawn([ps, "-NoProfile", "-NonInteractive", "-EncodedCommand", conptyHost()], {
+      cwd,
+      env: { ...process.env, KZ_PTY_CMD: innerCommand(ps, cmd), KZ_PTY_CWD: cwd, KZ_PTY_COLS: "120", KZ_PTY_ROWS: "32" },
+      stdin: "pipe", stdout: "pipe", stderr: "pipe", windowsHide: true,
+    });
+    const read = async (s: ReadableStream<Uint8Array>) => {
+      const d = new TextDecoder();
+      for await (const c of s) push(d.decode(c, { stream: true }));
+    };
+    read(p.proc.stdout as ReadableStream<Uint8Array>).catch(() => {});
+    // The host's own failures (Add-Type, CreateProcess) land on the screen, not nowhere.
+    read(p.proc.stderr as ReadableStream<Uint8Array>).catch(() => {});
+  } else p.proc = Bun.spawn(cmd, {
     cwd,
     env: { ...process.env, TERM: "xterm-256color", COLORTERM: "truecolor" },
     terminal: { cols: 120, rows: 32, data: (_t, d) => push(dec.decode(d, { stream: true })) },
@@ -82,13 +103,18 @@ export function writePty(key: string, d: string) {
   if (!p || p.exit !== null) return;
   p.since = p.total;
   if (p.asking) { p.asking = false; p.onChange?.(); }
-  p.proc.terminal?.write(d);
+  send(p, d);
 }
+
+const send = (p: Pty, d: string) => {
+  if (!WIN) return p.proc.terminal?.write(d);
+  try { (p.proc.stdin as Bun.FileSink).write(d); (p.proc.stdin as Bun.FileSink).flush(); } catch { /* host gone */ }
+};
 
 export function resizePty(key: string, cols: number, rows: number) {
   const p = ptys.get(key);
   const c = Math.max(10, Math.min(500, cols | 0)), r = Math.max(5, Math.min(300, rows | 0));
-  if (p && p.exit === null) p.proc.terminal?.resize(c, r);
+  if (p && p.exit === null) WIN ? send(p, resizeSeq(c, r)) : p.proc.terminal?.resize(c, r);
 }
 
 export const ptyKeys = () => [...ptys.keys()];

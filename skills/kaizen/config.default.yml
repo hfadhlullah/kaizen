@@ -168,8 +168,8 @@ agent:
   # Where the web board runs the agent it launches.
   #   card     - inside the board: the card's Terminal tab shows the agent live and
   #              takes your typing. The agent lives in the board's process, so
-  #              stopping or upgrading the board ends it. Not on Windows, where it
-  #              falls back to a terminal window.
+  #              stopping or upgrading the board ends it. On Windows it runs in
+  #              a ConPTY console that Windows PowerShell hosts.
   #   terminal - a new terminal window (or tmux/herdr tab) per launch.
   # The terminal dashboard always opens terminal windows.
   launch: card
