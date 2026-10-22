@@ -585,8 +585,9 @@ if (upgrade) {
   // is not a failed upgrade: the version on disk is what decides.
   if (after !== latest) {
     console.log(`\n  ${c.bold(`could not install kaizen ${latest}`)}`);
-    console.log(`  ${c.dim("try:")} ${c.cyan(`bunx kaizen-agent@${latest}`)}\n`);
-    process.exit(1);
+    // npm names a new version before it serves it (its review takes minutes).
+    console.log(`  ${c.dim("npm may still be publishing it: try again in a few minutes, or run")} ${c.cyan(`bunx kaizen-agent@${latest}`)}\n`);
+    finish(1);
   }
   console.log(`\n  ${c.bold("Upgraded")}  ${c.dim(now)} → ${c.green(after)}\n  ${c.dim("Restart Claude Code to pick up any new slash commands.")}\n`);
   finish(0);
@@ -1073,7 +1074,6 @@ if (blocked) process.exit(1);
 
 // ---------------------------------------------------------------- helpers
 
-function step(msg: string) { console.log(`  ${c.green("+")} ${msg}`); }
 function finish(code: number): never {
   const port = argAt("--restart");
   if (port > 0) {
@@ -1084,6 +1084,7 @@ function finish(code: number): never {
   process.exit(code);
 }
 
+function step(msg: string) { console.log(`  ${c.green("+")} ${msg}`); }
 
 // Runs the upgrade and reports what it actually did, version to version, so the
 // dashboard can show a result rather than the user wondering whether it worked.

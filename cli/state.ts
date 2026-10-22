@@ -172,7 +172,10 @@ export function findTerminal(cwd: string, fullCmd: string[], pidFile?: string): 
     const q = (a: string) => `'${a.replace(/'/g, "''")}'`;
     const shell = powershellExe();
     // This PowerShell's PID: ending its tree closes the -NoExit tab or window.
-    const ps = `${pidFile ? `$PID | Set-Content -LiteralPath ${q(pidFile)}; ` : ""}Set-Location ${q(cwd)}; & ${fullCmd.map(q).join(" ")}`;
+    // The pid file gone after the agent means closeSessions ended it: exit 0, which closes
+    // the tab (Windows Terminal keeps one open after a non-zero exit). An agent that ends
+    // by itself leaves the window open, -NoExit, so what it printed can still be read.
+    const ps = `${pidFile ? `$PID | Set-Content -LiteralPath ${q(pidFile)}; ` : ""}Set-Location ${q(cwd)}; & ${fullCmd.map(q).join(" ")}${pidFile ? `; if (-not (Test-Path -LiteralPath ${q(pidFile)})) { exit 0 }` : ""}`;
     const enc = Buffer.from(ps, "utf16le").toString("base64");
     // herdr (beta on Windows) first, as elsewhere: a new tab, and the run typed into
     // its PowerShell. Typed text ends at a newline, so what is typed is one line, the
@@ -1305,8 +1308,14 @@ function closeOne(st: string, s: Session): boolean {
   try {
     const pid = parseInt(readText(pidFile));
     if (pid > 0 && isSession(pid, s)) {
-      if (process.platform === "win32") Bun.spawnSync([sysExe("taskkill.exe"), "/T", "/F", "/PID", String(pid)], { stdin: "ignore", stdout: "ignore", stderr: "ignore", timeout: 5000, windowsHide: true });
-      else process.kill(pid, "SIGTERM");
+      if (process.platform === "win32") {
+        // The pid file first, then only the PowerShell's children: the PowerShell sees the
+        // file gone and exits 0 by itself, closing its tab. Killed, it exits 1 and the tab stays.
+        rmSync(pidFile, { force: true });
+        const kids = Bun.spawnSync([powershellExe(), "-NoProfile", "-NonInteractive", "-Command", `(Get-CimInstance Win32_Process -Filter 'ParentProcessId=${pid}').ProcessId`], { stdin: "ignore", stderr: "ignore", timeout: 10000, windowsHide: true }).stdout.toString().match(/\d+/g) ?? [];
+        // No children (a launch from before this): the PowerShell itself, as before.
+        for (const k of kids.length ? kids : [String(pid)]) Bun.spawnSync([sysExe("taskkill.exe"), "/T", "/F", "/PID", k], { stdin: "ignore", stdout: "ignore", stderr: "ignore", timeout: 5000, windowsHide: true });
+      } else process.kill(pid, "SIGTERM");
       closed = true;
     }
   } catch { /* already gone */ }

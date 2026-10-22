@@ -78,8 +78,9 @@ updated: 2026-10-19
 - 2026-10-22 run 2026-10-22-ice-form-clone-modal — Web board (icebox add and GitHub clone as modal forms; ideas sorted by creation time)
 - 2026-10-22 run 2026-10-22-idea-stuck-planning — Web board, Workflow (a launched idea retires into the run its session wrote even when the request was reworded; SKILL.md lists `session`)
 - 2026-10-22 run 2026-10-22-modal-submit-fix — Web board (modal forms submit again: the backdrop handler no longer returns false and cancels clicks)
+- 2026-10-22 run 2026-10-22-win-close-old-terminal — CLI/state (Windows: a decision closes the previous agent tab; PowerShell exits 0 instead of being killed)
 - 2026-10-22 run 2026-10-22-win-board-upgrade — Web board, CLI (Windows: board Update hands the upgrade to a detached process that waits for the board to exit, then restarts it)
 
 - 2026-10-22 — build 2026-10-22-new-project-picker: New project… in the board project picker (`POST /new-project`). Updated [[Web board]].
-- 2026-10-22 — build 2026-10-22-new-project-windows: `/new-project` applies Windows folder-name rules and reports mkdir failures. Updated [[Web board]].
 - 2026-10-22 run 2026-10-22-win-upgrade-followup — Web board (Windows upgrade helper runs from a copy of cli/; a failed upgrade shows its reason in the Update bar)
+- 2026-10-22 — build 2026-10-22-new-project-windows: `/new-project` applies Windows folder-name rules and reports mkdir failures. Updated [[Web board]].

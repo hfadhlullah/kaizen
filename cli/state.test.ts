@@ -796,7 +796,7 @@ test("findTerminal records the agent's PID: a POSIX wrapper that execs it, a Pow
     process.env.SystemRoot = "D:\\Win";
     const w = findTerminal("C:\\p", ["claude", "/kaizen x"], "C:\\p\\.kaizen\\sessions\\k.pid")!;
     const ps = Buffer.from(w.cmd.at(-1)!, "base64").toString("utf16le");
-    expect(ps).toBe("$PID | Set-Content -LiteralPath 'C:\\p\\.kaizen\\sessions\\k.pid'; Set-Location 'C:\\p'; & 'claude' '/kaizen x'");
+    expect(ps).toBe("$PID | Set-Content -LiteralPath 'C:\\p\\.kaizen\\sessions\\k.pid'; Set-Location 'C:\\p'; & 'claude' '/kaizen x'; if (-not (Test-Path -LiteralPath 'C:\\p\\.kaizen\\sessions\\k.pid')) { exit 0 }");
   } finally {
     Object.defineProperty(process, "platform", platform);
     keys.forEach((k, i) => (saved[i] === undefined ? delete process.env[k] : (process.env[k] = saved[i])));
