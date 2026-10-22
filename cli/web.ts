@@ -1,7 +1,7 @@
 // `kaizen web`: the board in a browser. A loopback HTTP server over state.ts and
 // one HTML page; the page never sees the filesystem, only JSON.
 import { existsSync, readdirSync, statSync, watch, appendFileSync, mkdirSync, type FSWatcher } from "node:fs";
-import { join, dirname, resolve, sep } from "node:path";
+import { join, dirname, resolve, sep, basename } from "node:path";
 import {
   home, type Item, type Card, boardCards, knownProjects, remember, locate, label, tilde, searchRoots, findProjects,
   readInbox, writeInbox, replaceIdea, moveIdea, abandonRun, launchRun, parseItem, agentChoices, projectOf, KNOWN_AGENTS, plainModel, short, setArchived, writeNotes,
@@ -686,6 +686,33 @@ export async function web(repoDir: string, opts: Opts = {}) {
           for (const d of new Set(roots.flatMap((r) => findProjects(r)))) remember(d);
           changed();
           return json({ ok: true, added: knownProjects().length - before });
+        }
+
+        // A new, empty project: a folder in the projects folder (else ~/Projects), or
+        // where the page names, set up at once. /find only sees folders that already
+        // have a .kaizen, so a folder made by hand never shows there.
+        if (path === "/new-project") {
+          const name = typeof body.name === "string" ? body.name.trim() : "";
+          // Windows' rules on every platform, so a project made here also opens there:
+          // no reserved device names (CON, NUL, COM1…), no trailing dot or space.
+          const winBad = (n: string) => !n || /[\\/:*?"<>|\x00-\x1f]/.test(n) || /[. ]$/.test(n)
+            || /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i.test(n);
+          const t = typeof body.to === "string" ? body.to.trim() : "";
+          const to = t ? resolve(home, nativePath(t.startsWith("~") ? home + t.slice(1) : t))
+            : join((await projectsRoot()) || join(home, "Projects"), name);
+          // The page asks while the name is typed: "con" on the way to "config" is no error yet.
+          if (body.check) return json({ ok: true, to });
+          if (winBad(name)) return bad("name the project: a folder name, without / \\ : * ? \" < > |, not ending in a dot or space, and not CON, NUL, COM1 or the like");
+          if (winBad(basename(to))) return bad(`${basename(to)} cannot be a folder name on Windows`);
+          let used = false;
+          try { used = readdirSync(to).length > 0; } catch (e) { used = existsSync(to); }
+          if (used) return bad(`${to} already exists and is not empty`, 409);
+          // A drive that is not there, a read-only folder, a path too long: said in a toast, not a crash.
+          try { mkdirSync(join(to, ".kaizen"), { recursive: true }); }
+          catch (e) { return bad(`could not create ${to}: ${(e as Error).message}`); }
+          remember(to);
+          changed();
+          return json({ ok: true, dir: join(to, ".kaizen") });
         }
 
         // Clone a GitHub repository into the projects folder (else ~/Projects) and

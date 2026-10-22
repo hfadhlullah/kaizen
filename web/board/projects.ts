@@ -35,7 +35,7 @@ export function list() {
     store.PL.map((p, i) =>
       p[0].toLowerCase().includes(q)
         ? (p[2] && !g++ ? `<div class="grp">In your projects folder</div>` : "") +
-          `<button role="option" data-i="${i}" title="${esc(p[0])}">${p[1] === "all" ? `<span class="plogo" aria-hidden="true">${ico("board")}</span><span>${esc(p[0])}</span>` : p[1] === "__find" || p[1] === "__clone" ? `<span class="plogo" aria-hidden="true">${ico("plus")}</span><span>${esc(p[0])}</span>` : prow(p[1], p[0])}</button>`
+          `<button role="option" data-i="${i}" title="${esc(p[0])}">${p[1] === "all" ? `<span class="plogo" aria-hidden="true">${ico("board")}</span><span>${esc(p[0])}</span>` : p[1] === "__new" || p[1] === "__find" || p[1] === "__clone" ? `<span class="plogo" aria-hidden="true">${ico("plus")}</span><span>${esc(p[0])}</span>` : prow(p[1], p[0])}</button>`
         : "",
     ).join("") || `<div class="grp">No match</div>`;
   const f = $("projs").querySelector("button");
@@ -55,6 +55,45 @@ async function pick(v) {
     toast("Searching…");
     const j = await post("/find", {});
     if (j.ok) toast(j.added ? `Found ${j.added} new project${j.added === 1 ? "" : "s"}` : "No new projects found");
+  } else if (v === "__new") {
+    // A name, and where it goes: the projects folder unless typed or picked.
+    const dl = modal(
+      `<b>New project</b><input name="name" placeholder="Project name" aria-label="Project name" spellcheck="false" autocomplete="off"><div class="row"><input name="to" placeholder="Create in (a new folder is made)" aria-label="Create in" spellcheck="false" autocomplete="off"><button type="button" class="btn ghost" data-a="pick">Pick…</button></div><div class="row"><button type="button" class="btn ghost" data-a="x">Cancel</button><button class="btn pri">Create</button></div>`,
+    );
+    const f = dl.querySelector("form"),
+      name = f.querySelector("[name=name]"),
+      to = f.querySelector("[name=to]");
+    let auto = ""; // the folder this form filled in; one the user typed is left alone
+    name.oninput = async () => {
+      const n = name.value.trim();
+      if (!n || /[\\/:*?"<>|]/.test(n) || (to.value.trim() && to.value !== auto)) return; // a bad name is reported once, at Create
+      const d = await post("/new-project", { name: n, check: true });
+      if (d.ok && name.value.trim() === n) to.value = auto = d.to;
+    };
+    f.querySelector("[data-a=x]").onclick = () => dl.close();
+    f.querySelector("[data-a=pick]").onclick = async () => {
+      const p = await post("/pick-folder", {});
+      if (p.path)
+        to.value = p.path.replace(/[\\/]+$/, "") + (p.path.includes("\\") ? "\\" : "/") + (name.value.trim() || "");
+    };
+    name.focus();
+    const dir = await new Promise((done) => {
+      dl.addEventListener("close", () => done(null));
+      f.onsubmit = async (e) => {
+        e.preventDefault();
+        if (!name.value.trim()) return name.focus();
+        const j = await post("/new-project", { name: name.value.trim(), to: to.value.trim() || undefined });
+        if (!j.ok) return;
+        done(j.dir);
+        dl.close();
+      };
+    });
+    if (!dir) return;
+    await post("/cd", { dir });
+    store.all = false;
+    store.dir = dir;
+    keep(dir);
+    toast("Project created");
   } else if (v === "__clone") {
     // One form: the link, then where it goes. The folder fills in once the link names a repo.
     const dl = modal(

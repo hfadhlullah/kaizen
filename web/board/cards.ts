@@ -467,6 +467,7 @@ export function render() {
     ["All projects", "all"],
     ...store.S.projects.map((p) => [p.label, p.dir]),
     ...store.S.fresh.map((p) => [p.label, p.dir, 1]),
+    ["New project…", "__new"],
     ["Find projects on this PC…", "__find"],
     ["Clone from GitHub…", "__clone"],
   ];
