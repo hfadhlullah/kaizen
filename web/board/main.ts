@@ -12,6 +12,7 @@ import { initKeys } from "./keys.ts";
 import { filterBox, statusSheet } from "./cards.ts";
 import { initLive } from "./live.ts";
 import { store } from "./store.ts";
+import { initViewer } from "./viewer.ts";
 
 initPanel();
 initViews();
@@ -19,6 +20,7 @@ initProjects();
 initUpdate();
 initKeys();
 initLive();
+initViewer();
 filterBox();
 statusSheet();
 

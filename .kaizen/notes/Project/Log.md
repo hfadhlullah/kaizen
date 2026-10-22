@@ -84,3 +84,4 @@ updated: 2026-10-19
 - 2026-10-22 — build 2026-10-22-new-project-picker: New project… in the board project picker (`POST /new-project`). Updated [[Web board]].
 - 2026-10-22 run 2026-10-22-win-upgrade-followup — Web board (Windows upgrade helper runs from a copy of cli/; a failed upgrade shows its reason in the Update bar)
 - 2026-10-22 — build 2026-10-22-new-project-windows: `/new-project` applies Windows folder-name rules and reports mkdir failures. Updated [[Web board]].
+- 2026-10-22 — build 2026-10-22-file-popup: board file links (`/file`, `/ice-image`) open in a popup instead of a new tab. Updated [[Web board]].
