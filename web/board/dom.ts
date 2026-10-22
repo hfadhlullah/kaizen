@@ -27,7 +27,11 @@ export function modal(html: string) {
   dl.className = "kz";
   dl.innerHTML = `<form class="inl" method="dialog">${html}</form>`;
   dl.onclose = () => dl.remove();
-  dl.onclick = (e) => e.target === dl && dl.close(); // a tap on the backdrop
+  // A tap on the backdrop. Braces matter: an on* handler that returns false cancels the click,
+  // which stopped every submit button inside the form.
+  dl.onclick = (e) => {
+    if (e.target === dl) dl.close();
+  };
   document.body.appendChild(dl);
   dl.showModal();
   return dl;

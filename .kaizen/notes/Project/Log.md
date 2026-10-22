@@ -77,3 +77,4 @@ updated: 2026-10-19
 - 2026-10-21 run 2026-10-21-clone-path — Web board (clone destination typed or picked; new folders are created)
 - 2026-10-22 run 2026-10-22-ice-form-clone-modal — Web board (icebox add and GitHub clone as modal forms; ideas sorted by creation time)
 - 2026-10-22 run 2026-10-22-idea-stuck-planning — Web board, Workflow (a launched idea retires into the run its session wrote even when the request was reworded; SKILL.md lists `session`)
+- 2026-10-22 run 2026-10-22-modal-submit-fix — Web board (modal forms submit again: the backdrop handler no longer returns false and cancels clicks)
