@@ -131,6 +131,17 @@ change is that it is written down rather than spoken and discarded.
 
 Set `stage: "done"` in `state.json` once the user accepts.
 
+**Commit at done, when `git.auto_commit` is `true`.** Setting `stage: "done"` — the
+user approving at review, or an `auto` run finishing — is then the ask to commit, under
+either runner. Commit only the files this run changed (the paths `03-impl.md` names,
+that `git status` shows changed), by path: `git add -A -- <paths>` then
+`git commit -m <message> -- <paths>`, never the whole tree, since other sessions edit
+the same checkout. The message is `03-impl.md`'s `## Commit`. In a run with a
+`worktree`, commit there. Then write `runs/<id>/07-commit.md` as `commit: <short sha>`
+and `pushed: no`, so the board shows it committed and offers the push. Never push. A
+failed commit is reported as printed; the run is still `done`. With the setting
+`false`, nothing is committed unless the user asks.
+
 ---
 
 ## Child cards

@@ -125,7 +125,9 @@ state:
   keep_runs: 20
 
 git:
-  # Never commit, push, or open a PR unless the user explicitly asks.
+  # true: when a run reaches done (approved at review, or an auto run finishing),
+  # commit the files that run changed, by path, with its ## Commit message. Never
+  # pushes. false: never commit, push, or open a PR unless the user explicitly asks.
   # Ignored when the project is not a git repository.
   auto_commit: false
   # Create a branch before the implement stage when on the default branch.

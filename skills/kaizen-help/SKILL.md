@@ -95,7 +95,7 @@ Each iteration is written to `runs/<id>/05-iterations/`.
 | `backlog.orphan_file` | `backlog.md` | Where a pruned run's open items are rescued to |
 | `state.dir` | `.kaizen` | State directory |
 | `state.keep_runs` | `20` | Completed runs kept before pruning oldest (rescues open backlog first) |
-| `git.auto_commit` | `false` | Never commit/push/PR unless the user explicitly asks |
+| `git.auto_commit` | `false` | `true`: commit the run's changed files when it is done; never pushes |
 | `git.branch_before_implement` | `true` | Branch before implement stage when on the default branch |
 | `subagents.model` | `inherit` | Model the stage subagents run on (opus/sonnet/haiku, Claude Code only) |
 | `subagents.effort` | `inherit` | Reasoning effort for the stage subagents (low/medium/high, Claude Code only) |
