@@ -768,11 +768,19 @@ async function resolveRepo() {
     rmSync(fresh, { recursive: true, force: true });
     cpSync(here, fresh, { recursive: true, dereference: true, filter: (src) => basename(src) !== "node_modules" });
     rmSync(old, { recursive: true, force: true });
-    // Windows refuses to move a folder a running kaizen still holds open. The
-    // install stays as it was; say how to finish rather than throwing.
+    // Windows refuses to move a folder a running kaizen still holds open (kaizen
+    // upgrade itself runs from it). Copy over it in place instead; files the new
+    // version dropped stay behind, which is harmless.
     try { renameSync(dest, old); } catch {
+      try {
+        cpSync(fresh, dest, { recursive: true, force: true });
+      } catch {
+        rmSync(fresh, { recursive: true, force: true });
+        step(`kept ${tilde(dest)} ${c.dim("(in use; close kaizen and any dashboard, then run bunx kaizen-agent@latest)")}`);
+        return dest;
+      }
       rmSync(fresh, { recursive: true, force: true });
-      step(`kept ${tilde(dest)} ${c.dim("(in use; close kaizen and any dashboard, then run bunx kaizen-agent@latest)")}`);
+      step(`updated ${tilde(dest)} in place to kaizen ${versionOf(dest)} ${c.dim("(folder in use, so not swapped)")}`);
       return dest;
     }
     renameSync(fresh, dest);
