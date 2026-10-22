@@ -127,6 +127,13 @@ export async function web(repoDir: string, opts: Opts = {}) {
   // .kaizen is not a sign of one: a group folder that was chosen once has it, and
   // must keep showing what is inside.
   const isProject = (d: string) => [".git", "package.json"].some((m) => existsSync(join(d, m)));
+  // A group holds projects: no project marker of its own, and folders inside. An empty
+  // folder is a project not started yet (New project… makes one), never a group.
+  const isGroup = (d: string) => {
+    if (isProject(d)) return false;
+    try { return readdirSync(d, { withFileTypes: true }).some((e) => e.isDirectory() && !e.name.startsWith(".") && e.name !== "node_modules"); }
+    catch { return false; }
+  };
   // Folders under the "Projects folder" setting that have no .kaizen yet, offered in
   // the project list so one can be chosen without a terminal. A folder that does not
   // look like a project itself (no .git, no package.json) is taken for a group of
@@ -141,7 +148,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
       } catch { return []; }
     };
     // One already set up but never opened joins the known projects instead.
-    return dirs(root).flatMap((d) => isProject(d) ? [d] : dirs(d))
+    return dirs(root).flatMap((d) => isGroup(d) ? dirs(d) : [d])
       .filter((d) => existsSync(join(d, ".kaizen")) ? (remember(d), false) : true).sort();
   };
 
@@ -425,7 +432,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         const root = await projectsRoot();
         // Windows paths compare without case: c:\users\me\projects holds C:\Users\me\Projects\app.
         // A group folder is what fresh() takes for one, a folder right inside the projects
-        // folder with no .git or package.json; with an empty .kaizen it was chosen once and
+        // folder with no .git or package.json and folders inside; with an empty .kaizen it was chosen once and
         // is hidden. Anything else is a project, a writing one included, even before its
         // first run. A drive or filesystem root already ends in a separator.
         const fold = (p: string) => process.platform === "win32" ? p.toLowerCase() : p;
@@ -434,7 +441,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         const picker = states(true).filter((d) => {
           const p = dirname(d);
           return !root || d === state || (fold(p).startsWith(inside)
-            && (isProject(p) || filled(d) || fold(dirname(p)) !== fold(root)));
+            && (!isGroup(p) || filled(d) || fold(dirname(p)) !== fold(root)));
         });
         const cards = boardCards(dirs, Date.now());
         // The git mark, for the cards whose panel offers commit and push: one status per project.
