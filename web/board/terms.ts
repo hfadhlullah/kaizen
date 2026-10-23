@@ -3,6 +3,7 @@ import { $, html, ico } from "./dom.ts";
 import { load } from "./api.ts";
 import { termLoad } from "./agent-term.ts";
 import { open } from "./panel.ts";
+import { resume } from "./approvals.ts";
 
 // ---- the Terminal page: every in-card agent session the board knows, Ideas to Done, tiled.
 // A tile is one more kzTerm mount on /pty beside the card panel's (attachPty takes many
@@ -62,7 +63,9 @@ export function openTerms() {
       tiles.delete(k);
     }
   const rank = (k) => (lay.order.includes(k) ? lay.order.indexOf(k) : 1e9);
-  const keys = [...all.keys()].filter((k) => !lay.hidden.includes(k)).sort((a, b) => rank(a) - rank(b));
+  // Live tiles first, ended ones after; each in the saved order.
+  const ended = (k) => (all.get(k).pty.alive ? 0 : 1);
+  const keys = [...all.keys()].filter((k) => !lay.hidden.includes(k)).sort((a, b) => ended(a) - ended(b) || rank(a) - rank(b));
   for (const k of keys) if (!lay.order.includes(k)) lay.order.push(k);
   if (lay.max && !keys.includes(lay.max)) lay.max = null;
   let grid = box.querySelector<HTMLElement>(".tgrid"),
@@ -72,7 +75,8 @@ export function openTerms() {
     grid = box.querySelector(".tgrid")!;
     bar = box.querySelector(".tbar")!;
   }
-  const hid = [...all.keys()].filter((k) => lay.hidden.includes(k));
+  // An ended session closed with × has nothing to come back to: no chip for it.
+  const hid = [...all.keys()].filter((k) => lay.hidden.includes(k) && all.get(k).pty.alive);
   bar!.innerHTML = html`<span class="bar" role="group" aria-label="Layout">${MODES.map(([v, l]) => html`<button data-mode="${v}" class="${lay.mode === v ? "on" : ""}" aria-pressed="${String(lay.mode === v)}">${l}</button>`)}</span>${hid.length ? html`<span class="dim">Hidden</span>${hid.map((k) => html`<button class="chip" data-show="${k}" title="Show this terminal">${ico("plus")}${nameOf(all.get(k))} - ${projOf(all.get(k))}</button>`)}` : ""}`.s;
   bar!.querySelectorAll<HTMLElement>("[data-mode]").forEach(
     (b) =>
@@ -114,10 +118,13 @@ export function openTerms() {
       mount(k, t);
       wire(el);
     }
-    const st = !c.pty.alive ? "ended" : c.pty.asking ? "asking" : "running";
+    const st = !c.pty.alive ? "ended" : c.pty.asking ? "asking" : "running",
+      off = st === "ended";
     const hd = t.el.querySelector("header")!;
     hd.title = (c.kind === "run" ? c.id : c.text) + " · " + c.where;
-    hd.innerHTML = html`<span class="tdot ${st}" role="img" title="${st}" aria-label="${st}"></span><b>${nameOf(c)} - ${projOf(c)}</b><span class="sp"></span><button class="ib sm" data-a="card" title="Open card" aria-label="Open card">${ico("open")}</button><button class="ib sm" data-a="max" title="${lay.max === k ? "Restore" : "Maximise"}" aria-label="${lay.max === k ? "Restore" : "Maximise"}">${ico(lay.max === k ? "min" : "max")}</button><button class="ib sm" data-a="hide" title="Hide" aria-label="Hide">${ico("close")}</button>`.s;
+    // An ended run can be resumed from here; an idea whose agent ended has no run to resume.
+    hd.innerHTML = html`<span class="tdot ${st}" role="img" title="${st}" aria-label="${st}"></span><b>${nameOf(c)} - ${projOf(c)}</b>${off ? html`<span class="tend">ended</span>` : ""}<span class="sp"></span>${off && c.kind === "run" ? html`<button class="btn sm" data-a="resume" title="Continue this run's agent">Resume</button>` : ""}<button class="ib sm" data-a="card" title="Open card" aria-label="Open card">${ico("open")}</button><button class="ib sm" data-a="max" title="${lay.max === k ? "Restore" : "Maximise"}" aria-label="${lay.max === k ? "Restore" : "Maximise"}">${ico(lay.max === k ? "min" : "max")}</button><button class="ib sm" data-a="hide" title="${off ? "Close" : "Hide"}" aria-label="${off ? "Close" : "Hide"}">${ico("close")}</button>`.s;
+    t.el.classList.toggle("ended", off);
     t.el.classList.toggle("off", !!lay.max && lay.max !== k);
     t.el.style.gridColumn = "";
     grid.append(t.el); // in order
@@ -159,6 +166,11 @@ function wire(el: HTMLElement) {
     } else if (a === "card") {
       const c = sessions().get(k);
       if (c) open(c);
+      return;
+    } else if (a === "resume") {
+      const c = sessions().get(k);
+      // resume() asks the board to open the card on its new session; here the new tile shows it.
+      if (c) resume(c, (e.target as HTMLElement).closest("button")).then(() => (store.wantTerm = null));
       return;
     } else return;
     save();

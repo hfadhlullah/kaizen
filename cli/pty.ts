@@ -81,7 +81,8 @@ export function startPty(key: string, cmd: string[], cwd: string, pidFile?: stri
     for (const f of p.listeners) f(null);
     p.listeners.clear();
     try { p.proc.terminal?.close(); } catch { /* already closed */ }
-    setTimeout(() => { if (ptys.get(key) === p) ptys.delete(key); }, KEEP_MS).unref();
+    // Dropped: pages showing it (the Terminal page) refresh, or its tile lingers until some other change.
+    setTimeout(() => { if (ptys.get(key) === p) { ptys.delete(key); onChange?.(); } }, KEEP_MS).unref();
     onChange?.();
   });
   return p.proc.pid;
