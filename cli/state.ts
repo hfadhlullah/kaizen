@@ -1324,20 +1324,32 @@ export function readSessions(st: string): Session[] {
   }).sort((a, b) => a.started - b.started);
 }
 
+// Each conversation id a run recorded at intake, to the first run (by id) that recorded it.
+export function runSessions(st: string): Map<string, string> {
+  const m = new Map<string, string>();
+  try {
+    for (const id of readdirSync(join(st, "runs")).sort()) {
+      try {
+        const sid = JSON.parse(readText(join(st, "runs", id, "state.json"))).session;
+        if (sid && !m.has(sid)) m.set(sid, id);
+      } catch { /* no state yet */ }
+    }
+  } catch { /* no runs dir */ }
+  return m;
+}
+
 // Whose session a record is. A decision's launch names its run. An idea's launch came
 // before its run existed, so it belongs to the first run created after it whose
 // request holds the idea's text: one run per record, never every run that mentions it.
-export function ownerOf(st: string, s: Session): string | null {
+// A caller asking about many sessions passes runSessions(st) once: built per call, it
+// reads every run's state.json each time.
+export function ownerOf(st: string, s: Session, bySession?: Map<string, string>): string | null {
   if (s.run) return s.run;
   // The launch's own conversation id, recorded by the run at intake: holds however the
   // request was worded. Text matching below is for tools that expose no id.
   if (s.sessionId) {
-    try {
-      const mine = readdirSync(join(st, "runs")).filter((id) => {
-        try { return JSON.parse(readText(join(st, "runs", id, "state.json"))).session === s.sessionId; } catch { return false; }
-      }).sort();
-      if (mine.length) return mine[0]!;
-    } catch { /* no runs dir */ }
+    const mine = (bySession ?? runSessions(st)).get(s.sessionId);
+    if (mine) return mine;
   }
   const t = normalise(s.text);
   let best: string | null = null, at = Infinity;

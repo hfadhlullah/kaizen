@@ -59,3 +59,4 @@ updated: 2026-10-23
 - 2026-10-17 run 2026-10-17-onboarding-setup — Web board (web-hosts file read per request)
 - 2026-10-19 board, settings, icebox and notes tree show shimmer skeletons (`.skel`, `SKEL` in dom.ts) while loading (run 2026-10-19-loading-skeletons)
 - 2026-10-19 in-card agent asking mark; Yolo kept on decisions (run 2026-10-19-pty-asking-badge)
+- 2026-10-23 `/state` resolves in-card terminal owners once per reply, not per card (`ptyOf` in `cli/web.ts`, session ids indexed once by `runSessions` in `cli/state.ts`): ~1 s off every reload while agents run in cards (run 2026-10-23-snappy-select)

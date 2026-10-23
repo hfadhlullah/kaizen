@@ -7,7 +7,7 @@ import {
   readInbox, writeInbox, replaceIdea, moveIdea, abandonRun, launchRun, parseItem, agentChoices, projectOf, KNOWN_AGENTS, plainModel, short, setArchived, writeNotes,
   appendNote, saveAttachment, pidOnPort, readText, cmdExe, sysExe, powershellExe, runGit, cardsGit, readCommit, commitPush, notice, notifier, LOGO,
   reviewFindings, pickFindings, backlogCards, backlogItem, startedBacklog, closeBacklog, markBacklogDone, fixPrompt, approvalPrompt, canApproveAwaiting, nativePath, closeSessions, sweepSessions, issueUrl,
-  launchMode, readSessions, ownerOf, resumePrompt, runAgent, firstSession, webHosts,
+  launchMode, readSessions, ownerOf, runSessions, resumePrompt, runAgent, firstSession, webHosts,
 } from "./state.ts";
 import { attachPty, writePty, resizePty, ptyState, ptyKeys, adoptLoginEnv } from "./pty.ts";
 import { readSources, addSource, removeSource, moveSource, setCategory, setWriteback, readIcebox, promote, dismiss, restore, addItem, githubRepo, markDone, markReplied, gatherSource, freshImages, gatherAll, gatherDirs, due, socialUrl, socialOf } from "./sources.ts";
@@ -195,15 +195,22 @@ export async function web(repoDir: string, opts: Opts = {}) {
   const backlogLaunched = new Set<string>();
   // The card's newest in-card session, live or recently ended. Sessions are only read
   // while this board has any, so /state costs nothing more for terminal launches.
-  const ptyOf = (c: Card) => {
+  // Owners are worked out once per /state: per card it re-read every session and every
+  // run's state.json, about a second on a board of 400 runs.
+  const ptyOf = (cards: Card[]) => {
     const live = new Set(ptyKeys());
-    if (!live.size) return undefined;
-    const key = c.kind === "run"
-      ? readSessions(c.state).filter((s) => live.has(s.key) && ownerOf(c.state, s) === c.id).pop()?.key
-      : ideaPty.get(`${c.state}\0${c.text}`);
-    if (!key || !live.has(key)) return undefined;
-    const st = ptyState(key)!;
-    return { key, alive: st.alive, asking: st.asking };
+    if (!live.size) return () => undefined;
+    const runs = new Map<string, string>();
+    for (const d of new Set(cards.filter((c) => c.kind === "run").map((c) => c.state))) {
+      const ids = runSessions(d);
+      for (const s of readSessions(d)) if (live.has(s.key)) runs.set(`${d}\0${ownerOf(d, s, ids)}`, s.key); // oldest first: the newest wins
+    }
+    return (c: Card) => {
+      const key = c.kind === "run" ? runs.get(`${c.state}\0${c.id}`) : ideaPty.get(`${c.state}\0${c.text}`);
+      if (!key || !live.has(key)) return undefined;
+      const st = ptyState(key)!;
+      return { key, alive: st.alive, asking: st.asking };
+    };
   };
   // Dev: the page reloads itself when board.html or its bundle is saved. Server code needs
   // `bun --watch cli/install.ts web`; the page reconnects and reloads on hello.
@@ -446,7 +453,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           return !root || d === state || (fold(p).startsWith(inside)
             && (!isGroup(p) || filled(d) || fold(dirname(p)) !== fold(root)));
         });
-        const cards = boardCards(dirs, Date.now());
+        const cards = boardCards(dirs, Date.now()), pty = ptyOf(cards);
         // The git mark, for the cards whose panel offers commit and push: one status per project.
         const marks = new Map<string, Record<string, string>>();
         const markable = (c: Card) => c.kind === "run" && !c.archived && (c.status === "done" || c.awaiting === "approvals.review") && c.state !== join(home, ".kaizen");
@@ -459,7 +466,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           project, all, dir: state,
           projects: picker.map((d) => ({ dir: d, label: label(d), logo: !!projectLogo(d) })),
           fresh: unset.map((d) => ({ dir: join(d, ".kaizen"), label: tilde(d) })),
-          cards: cards.map((c) => ({ ...c, notice: notice(c), git: markable(c) ? marks.get(c.state)?.[c.id!] : undefined, open: openFindings(c), pty: ptyOf(c) })),
+          cards: cards.map((c) => ({ ...c, notice: notice(c), git: markable(c) ? marks.get(c.state)?.[c.id!] : undefined, open: openFindings(c), pty: pty(c) })),
           backlog: backlogCards(dirs).map((b) => ({ ...b, starting: backlogLaunched.has(`${b.state}\0${b.source}#${b.n}`) || undefined })),
           now: Date.now(),
         });
