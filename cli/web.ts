@@ -4,7 +4,7 @@ import { existsSync, readdirSync, statSync, watch, appendFileSync, mkdirSync, cp
 import { join, dirname, resolve, sep, basename } from "node:path";
 import {
   home, type Item, type Card, boardCards, knownProjects, remember, locate, label, tilde, searchRoots, findProjects,
-  readInbox, writeInbox, replaceIdea, moveIdea, abandonRun, launchRun, parseItem, agentChoices, projectOf, KNOWN_AGENTS, plainModel, short, setArchived, writeNotes,
+  readInbox, writeInbox, replaceIdea, moveIdea, abandonRun, runToIdea, launchRun, parseItem, agentChoices, projectOf, KNOWN_AGENTS, plainModel, short, setArchived, writeNotes,
   appendNote, saveAttachment, pidOnPort, readText, cmdExe, sysExe, powershellExe, runGit, cardsGit, readCommit, commitPush, notice, notifier, LOGO,
   reviewFindings, pickFindings, backlogCards, backlogItem, startedBacklog, closeBacklog, markBacklogDone, fixPrompt, approvalPrompt, canApproveAwaiting, nativePath, closeSessions, sweepSessions, issueUrl,
   launchMode, readSessions, ownerOf, runIndex, resumePrompt, runAgent, firstSession, webHosts,
@@ -1138,6 +1138,14 @@ export async function web(repoDir: string, opts: Opts = {}) {
           return json(r.ok
             ? { ok: true, agent: r.agent, pty: r.pty }
             : { ok: false, why: r.why, manual: r.manual, agent: r.agent }, r.ok ? 200 : 500);
+        }
+
+        if (path === "/to-idea") {
+          const id = String(body.id ?? "");
+          if (!/^[\w.-]+$/.test(id)) return bad("bad run id");
+          const failed = runToIdea(dir, id);
+          changed();
+          return failed ? bad(failed, 409) : json({ ok: true });
         }
 
         if (path === "/abort") {

@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { issueUrl, systemInfo, scrubHome, REPO_URL, home as realHome, trustFolder } from "./state.ts";
 import * as stateModule from "./state.ts";
 import {
-  readRuns, readInbox, writeInbox, replaceIdea, moveIdea, abandonRun, allBacklog, backlog,
+  readRuns, readInbox, writeInbox, replaceIdea, moveIdea, abandonRun, runToIdea, allBacklog, backlog,
   requestTitle, statusOf, columnOf, parseItem, startedRuns, boardCards, parentOf, addCard, readArchive, setArchived,
   requestOf, agentFlags, plainModel, readNotes, writeNotes, manualCommand, parseNotes, formatNote, appendNote, saveAttachment,
   reviewFindings, pickFindings, fixPrompt, approvalPrompt, sessionLaunch, closeSessions, sweepSessions, readSessions, ownerOf, CLOSE_GRACE_MS, gitStatus, runGit, cardsGit, commitPush, readCommit, findTerminal, nativePath, pruneRuns, unrechecked, notice, notifier, notifyArgs, LOGO, type Card,
@@ -173,6 +173,30 @@ test("backlog: an abandoned run's items are neither listed nor counted", () => {
   writeFileSync(join(dir, "06-backlog.md"), "- open: never happening\n");
   expect(allBacklog(state).some((g) => g.run === "2026-09-03-dropped")).toBe(false);
   expect(backlog(state)).toBe(3);
+  rmSync(dir, { recursive: true });
+});
+
+test("runToIdea: a planning run goes back to its idea, newer than the run", () => {
+  const id = "2026-09-04-planning", dir = join(state, "runs", id);
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, "state.json"), JSON.stringify({ id, stage: "plan", awaiting: "approvals.plan" }));
+  writeFileSync(join(dir, "00-request.md"), "/kaizen lite export invoices as csv\n");
+  const then = new Date(Date.now() - 30_000);
+  utimesSync(join(dir, "00-request.md"), then, then);
+  writeInbox(state, [...readInbox(state), { status: "started", text: "export invoices", added: Date.now() - 60_000 }, { status: "started", text: "export invoices as csv", notes: "see #12", added: Date.now() - 60_000 }]);
+  expect(runToIdea(state, id)).toBeNull();
+  expect(JSON.parse(readFileSync(join(dir, "state.json"), "utf8")).stage).toBe("abandoned");
+  const cards = boardCards([state], Date.now());
+  expect(cards.find((c) => c.kind === "idea" && c.text === "export invoices as csv")).toMatchObject({ status: "idea", notes: "see #12" });
+  expect(cards.find((c) => c.kind === "run" && c.id === id)?.archived).toBe(true);
+  expect(readInbox(state).filter((l) => l.text === "export invoices as csv").length).toBe(1);
+  expect(readInbox(state).find((l) => l.text === "export invoices")?.status).toBe("started");
+  expect(runToIdea(state, id)).toMatch(/planning/);
+  writeFileSync(join(dir, "state.json"), JSON.stringify({ id, stage: "plan" }));
+  rmSync(join(dir, "00-request.md"));
+  expect(runToIdea(state, id)).toMatch(/no request/);
+  replaceIdea(state, "export invoices", null);
+  setArchived(state, id, false);
   rmSync(dir, { recursive: true });
 });
 

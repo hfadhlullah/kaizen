@@ -237,6 +237,7 @@ function card(c) {
     } else {
       items.push(["open", actionOf(c), ico("open")]);
       items.push(["archive", "Archive", ico("archive")]);
+      if (c.column === 1 && c.status !== "abandoned") items.push(["toidea", "Back to idea", ico("restore")]);
       if (c.status === "waiting" || c.status === "running" || c.status === "stalled") {
         items.push(null, ["reject", "Abandon", ico("x"), "danger"]);
       }
@@ -265,6 +266,12 @@ function card(c) {
         }
         if (a === "archive" || a === "restore") {
           toggleArchive(c, a === "archive");
+          return;
+        }
+        if (a === "toidea") {
+          const r = await post("/to-idea", { dir: c.state, id: c.id });
+          if (r.ok) toast("Back in Ideas");
+          load();
           return;
         }
         store.mode = a;

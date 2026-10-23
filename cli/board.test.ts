@@ -186,10 +186,11 @@ test("card menu items: appropriate actions and distinct icons across phases", ()
   // Phase 1: Planning (run waiting for plan approval)
   const planWaiting = { kind: "run", status: "waiting", awaiting: "approvals.plan", column: 1 };
   const planItems = getItems(planWaiting, false);
-  expect(planItems.map((i: any) => i ? i[1] : null)).toEqual(["Review plan", "Archive", null, "Abandon"]);
+  expect(planItems.map((i: any) => i ? i[1] : null)).toEqual(["Review plan", "Archive", "Back to idea", null, "Abandon"]);
   expect(planItems[0][2]).toBe(ico("open"));
   expect(planItems[1][2]).toBe(ico("archive"));
-  expect(planItems[3][2]).toBe(ico("x"));
+  expect(planItems[2][2]).toBe(ico("restore"));
+  expect(planItems[4][2]).toBe(ico("x"));
 
   // Phase 2: Building (running run)
   const buildingRun = { kind: "run", status: "running", column: 2 };

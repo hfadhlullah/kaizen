@@ -1015,6 +1015,32 @@ export function abandonRun(st: string, id: string, why: string): string | null {
   }
 }
 
+// A run still planning, back to the idea it came from: abandoned and archived (the
+// record stays), and the idea open again. Its fresh stamp is newer than the run's
+// request, so the old run no longer retires it.
+export function runToIdea(st: string, id: string): string | null {
+  let stage = "";
+  try { stage = JSON.parse(readText(join(st, "runs", id, "state.json"))).stage; } catch {}
+  if (stage !== "plan") return "Only a run still in planning goes back to an idea.";
+  let req = "";
+  try { req = readText(join(st, "runs", id, "00-request.md")).trim(); } catch {}
+  const lines = readInbox(st);
+  // The longest started idea the request holds: "test" must not stand in for "test login".
+  let at = -1;
+  lines.forEach((l, i) => { if (l.status === "started" && normalise(req).includes(normalise(l.text)) && (at < 0 || l.text.length > lines[at]!.text.length)) at = i; });
+  const [first = "", ...rest] = req.split("\n");
+  const idea: InboxLine = at >= 0
+    ? { ...lines[at]!, status: "open", added: Date.now() }
+    : { status: "open", text: first.replace(/^\/kaizen(?:-\w+)?\s+(?:(?:lite|full|auto|plan)\s+)?/i, "").trim(), notes: rest.join("\n").trim() || undefined, added: Date.now() };
+  if (!idea.text) return "That run has no request to make an idea of.";
+  const failed = abandonRun(st, id, "Sent back to ideas from the board.");
+  if (failed) return failed;
+  setArchived(st, id, true);
+  if (at >= 0) lines.splice(at, 1);
+  writeInbox(st, [...lines, idea]);
+  return null;
+}
+
 export function replaceIdea(state: string, text: string, next: InboxLine | null) {
   const lines = readInbox(state);
   const at = lines.findIndex((l) => (l.status === "open" || l.status === "started") && l.text === text);
