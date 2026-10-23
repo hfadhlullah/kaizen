@@ -178,6 +178,10 @@ test("card menu items: appropriate actions and distinct icons across phases", ()
   const startItems = getItems(startingIdea, false);
   expect(startItems.map((i: any) => i ? i[1] : null)).toEqual(["Open", "Run again", "Archive", null, "Remove"]);
 
+  // Ideas column, Backlog tab: a run's leftover, run like an idea, rejected with a reason.
+  expect(getItems({ kind: "backlog", status: "idea", column: 0 }, false).map((i: any) => i ? i[1] : null)).toEqual(["Run", "Open its run", null, "Reject"]);
+  expect(getItems({ kind: "backlog", status: "starting", column: 0 }, false)[0][1]).toBe("Run again");
+
   // Phase 1: Planning (run waiting for plan approval)
   const planWaiting = { kind: "run", status: "waiting", awaiting: "approvals.plan", column: 1 };
   const planItems = getItems(planWaiting, false);

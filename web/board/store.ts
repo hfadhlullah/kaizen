@@ -14,6 +14,8 @@ export const store = {
   lastTab: "request",
   runDoc: null,
   clearMenu: false,
+  // The Ideas column's severity menu, on its Backlog tab.
+  sevMenu: false,
   wantTerm: null,
   // The settings search survives the re-render each save does; the gear button starts it empty.
   setQ: "",

@@ -612,6 +612,105 @@ export function allBacklog(state: string) {
   return out;
 }
 
+// Every `- open|done|rejected:` line of a backlog file, numbered from 1 in file order.
+// The number is how a notebook link (`#backlog-3`) and a backlog card name an item, so
+// lines are never removed or reordered: closing one rewrites its status word in place.
+export function backlogLines(file: string) {
+  let text = "";
+  try { text = readText(file); } catch { return []; }
+  const out: { n: number; status: string; text: string; line: number }[] = [];
+  text.split("\n").forEach((l, line) => {
+    const m = /^\s*-\s*(open|done|rejected):\s*(.*)$/.exec(l.replace(/\r$/, ""));
+    if (m) out.push({ n: out.length + 1, status: m[1]!, text: m[2]!.trim(), line });
+  });
+  return out;
+}
+
+// A backlog card's source: a run id, or "orphan" for the state dir's backlog.md.
+function backlogFile(state: string, source: string) {
+  if (source === "orphan") return join(state, "backlog.md");
+  return /^[\w.-]+$/.test(source) ? join(state, "runs", source, "06-backlog.md") : null;
+}
+
+// Line n of a backlog, or null when the source or the line does not exist.
+export function backlogItem(state: string, source: string, n: number) {
+  const file = backlogFile(state, source);
+  return (file && backlogLines(file).find((l) => l.n === n)) || null;
+}
+
+// The runs started from a backlog item, by the `Backlog: <source>#<n>` line the board
+// puts in their request (beside `Parent:`). A run with no state.json yet is not counted.
+// ponytail: reads every 00-request.md per refresh, as startedRuns does.
+export function startedBacklog(state: string) {
+  const out = new Map<string, { id: string; stage: string }[]>();
+  for (const r of readRuns(state)) {
+    let body = "";
+    try { body = readText(join(state, "runs", r.id, "00-request.md")); } catch { continue; }
+    const m = /^\s*(?:\[[^\]]*\]\s*)?Backlog:\s*([\w.-]+)#(\d+)\s*$/im.exec(body);
+    if (!m) continue;
+    const k = `${m[1]}#${Number(m[2])}`;
+    out.set(k, [...(out.get(k) ?? []), { id: r.id, stage: r.stage }]);
+  }
+  return out;
+}
+
+export type BacklogCard = { state: string; where: string; source: string; n: number; text: string; raw: string; severity: string | null; at: string | null };
+
+const SEVERITY_RANK: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+
+// The open backlog items of every non-abandoned run and the orphanage, as cards for the
+// board's Ideas column: most severe first, then newest run first, then file order. An
+// item a live run was started from is not shown; an abandoned one gives it back.
+export function backlogCards(states: string[]): BacklogCard[] {
+  const out: BacklogCard[] = [];
+  for (const st of states) {
+    const where = label(st);
+    const started = startedBacklog(st);
+    const runs = existsSync(join(st, "runs")) ? readdirSync(join(st, "runs")).sort().reverse() : [];
+    const sources = [...runs.filter((id) => existsSync(join(st, "runs", id, "state.json")) && !abandoned(join(st, "runs", id))), "orphan"];
+    for (const source of sources) {
+      for (const l of backlogLines(backlogFile(st, source)!)) {
+        if (l.status !== "open") continue;
+        if ((started.get(`${source}#${l.n}`) ?? []).some((c) => c.stage !== "abandoned")) continue;
+        const it = parseItem(l.text);
+        out.push({ state: st, where, source, n: l.n, text: it.text, raw: l.text, severity: it.severity, at: it.where });
+      }
+    }
+  }
+  const rank = (c: BacklogCard) => SEVERITY_RANK[c.severity ?? ""] ?? 4;
+  return out.sort((a, b) => rank(a) - rank(b));
+}
+
+// Rewrite the status of backlog line n from open, keeping its text and every other
+// byte of the file; `suffix` is appended after a ` | `. Null when written, else why not.
+export function closeBacklog(state: string, source: string, n: number, status: "done" | "rejected", suffix: string): string | null {
+  const file = backlogFile(state, source);
+  if (!file || !existsSync(file)) return "no such backlog";
+  const item = backlogLines(file).find((l) => l.n === n);
+  if (!item) return "no such backlog item";
+  if (item.status !== "open") return "that item is already closed";
+  // The raw bytes, not readText: a CRLF file or a BOM stays as it was written.
+  const lines = readFileSync(file, "utf8").split("\n");
+  const old = lines[item.line]!, cr = old.endsWith("\r") ? "\r" : "", bom = item.line === 0 && old.startsWith("\uFEFF") ? "\uFEFF" : "";
+  const body = old.slice(bom.length).replace(/\r$/, "");
+  if (!/^\s*-\s*open:/.test(body)) return "no such backlog item";
+  lines[item.line] = bom + body.replace(/^(\s*-\s*)open:\s*/, `$1${status}: `).replace(/\s+$/, "") + ` | ${suffix}` + cr;
+  writeFileSync(file, lines.join("\n"));
+  return null;
+}
+
+// A backlog item whose run is done is closed by that run: `done: <text> | <run id>`.
+// Run from the board's clock, never from a page load. Reads requests and state.json,
+// writes only backlog files, so no run looks as if it moved.
+export function markBacklogDone(state: string) {
+  for (const [k, kids] of startedBacklog(state)) {
+    const done = kids.find((c) => c.stage === "done");
+    if (!done) continue;
+    const [source, n] = k.split("#");
+    closeBacklog(state, source!, Number(n), "done", done.id);
+  }
+}
+
 // ---------------------------------------------------------------- board data
 
 // ---------------------------------------------------------------- board data

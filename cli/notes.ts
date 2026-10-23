@@ -3,7 +3,7 @@
 // the page goes through safeName before it becomes a path.
 import { existsSync, mkdirSync, readdirSync, realpathSync, renameSync, rmdirSync, statSync, writeFileSync } from "node:fs";
 import { join, dirname, resolve, sep } from "node:path";
-import { boardCards, reviewFindings, readText } from "./state.ts";
+import { backlogLines, boardCards, reviewFindings, readText } from "./state.ts";
 import { wikilinks, boardLink, resolveRun } from "../web/notes-lib.ts";
 
 export type Note = { name: string; mtime: number; text: string };
@@ -114,11 +114,7 @@ function prune(state: string, dir: string) {
 // project keeps hundreds of runs.
 export function boardIndex(state: string) {
   const cards = boardCards([state], Date.now());
-  const backlog = (id: string) => {
-    let text = "";
-    try { text = readText(join(state, "runs", id, "06-backlog.md")); } catch { /* none */ }
-    return [...text.matchAll(/^\s*-\s*(open|done|rejected):\s*(.*)$/gm)].map((m, i) => ({ n: i + 1, status: m[1]!, text: m[2]!.trim() }));
-  };
+  const backlog = (id: string) => backlogLines(join(state, "runs", id, "06-backlog.md")).map(({ n, status, text }) => ({ n, status, text }));
   return {
     runs: cards.filter((c) => c.kind === "run").map((c) => ({
       id: c.id!, short: c.id!.replace(/^\d{4}-\d{2}-\d{2}-/, ""), title: c.title ?? c.text, status: c.status,

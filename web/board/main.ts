@@ -44,6 +44,7 @@ document.addEventListener(
         own.classList.remove("menu");
         store.menuKey = null;
         store.clearMenu = false;
+        store.sevMenu = false;
       }
     }
   },

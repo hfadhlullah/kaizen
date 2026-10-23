@@ -154,7 +154,11 @@ started here opens your agent in a new terminal exactly as `r` does (a new herdr
 or tmux window when one of those is running; otherwise `$TERMINAL`, which on macOS
 may name an app such as `Ghostty` or `iTerm`), and the board
 redraws as your agents write to disk. Mouse first; the TUI's keys still work. Click a card for its plan, review and
-backlog; `⋯` on a card runs, edits, rejects, abandons or archives. `Clear` on Done sends
+backlog; `⋯` on a card runs, edits, rejects, abandons or archives. The Ideas column has two
+tabs, shown as icons at its top: **Ideas**, and **Backlog**, which lists what finished runs left open, most severe first,
+with a filter icon for severity. A backlog card runs like an idea (the new run names the run it came
+from, and when it is done the item reads `done` in that run's backlog), opens its run's Backlog
+tab when clicked, and Reject marks it `rejected` with your reason. `Clear` on Done sends
 every finished run to the archive (`.kaizen/archive.md`, a list, nothing moves), and
 `Archive` in the strip shows what is there, with `Restore` on each card. A finished run in a project with a git remote gets `Commit & push` in its panel: it lists the changed files that run's report names, offers the commit message the builder wrote for the work (the `## Commit` section of its report; a message must start with a type such as `feat:` or `fix:`), commits those files and no others and pushes, and reads `Committed & pushed` afterwards (`Push` alone when the work is already committed). The `Review` tab of such a run, or of one waiting on you at the review, lists the findings with a checkbox each: `Fix all` or `Fix N selected` opens your agent in the project to fix exactly those and recheck them. The gear at the top right holds the browser's theme
 and every `kaizen settings` knob, same rows, same `config.yml`. `--port N` picks a port, `--no-open` just

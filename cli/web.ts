@@ -6,7 +6,7 @@ import {
   home, type Item, type Card, boardCards, knownProjects, remember, locate, label, tilde, searchRoots, findProjects,
   readInbox, writeInbox, replaceIdea, moveIdea, abandonRun, launchRun, parseItem, agentChoices, projectOf, KNOWN_AGENTS, plainModel, short, setArchived, writeNotes,
   appendNote, saveAttachment, pidOnPort, readText, cmdExe, sysExe, powershellExe, runGit, cardsGit, readCommit, commitPush, notice, notifier, LOGO,
-  reviewFindings, pickFindings, fixPrompt, approvalPrompt, canApproveAwaiting, nativePath, closeSessions, sweepSessions, issueUrl,
+  reviewFindings, pickFindings, backlogCards, backlogItem, startedBacklog, closeBacklog, markBacklogDone, fixPrompt, approvalPrompt, canApproveAwaiting, nativePath, closeSessions, sweepSessions, issueUrl,
   launchMode, readSessions, ownerOf, resumePrompt, runAgent, firstSession, webHosts,
 } from "./state.ts";
 import { attachPty, writePty, resizePty, ptyState, ptyKeys, adoptLoginEnv } from "./pty.ts";
@@ -190,6 +190,9 @@ export async function web(repoDir: string, opts: Opts = {}) {
   const inCard = (dir: string) => ({ card: launchMode(projectOf(dir)) === "card", onChange: changed });
   // An idea's session, until its run exists and owns it (ownerOf).
   const ideaPty = new Map<string, string>();
+  // Backlog items this board launched whose run has not written its state.json yet:
+  // shown as starting, like a started idea. Forgotten on restart; the card then offers Run again.
+  const backlogLaunched = new Set<string>();
   // The card's newest in-card session, live or recently ended. Sessions are only read
   // while this board has any, so /state costs nothing more for terminal launches.
   const ptyOf = (c: Card) => {
@@ -271,7 +274,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
   // Done requests are reported back to their sources here, on the board's own clock: a
   // page load only reads, so opening the Icebox never closes an issue.
   const loop = setInterval(async () => {
-    for (const dir of states(true)) { try { markDone(dir); await writeBacks(dir); } catch { /* the next tick tries again */ } }
+    for (const dir of states(true)) { try { markDone(dir); markBacklogDone(dir); await writeBacks(dir); } catch { /* the next tick tries again */ } }
   }, 60_000);
 
   const BOOT = Date.now().toString(36);
@@ -457,6 +460,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           projects: picker.map((d) => ({ dir: d, label: label(d), logo: !!projectLogo(d) })),
           fresh: unset.map((d) => ({ dir: join(d, ".kaizen"), label: tilde(d) })),
           cards: cards.map((c) => ({ ...c, notice: notice(c), git: markable(c) ? marks.get(c.state)?.[c.id!] : undefined, open: openFindings(c), pty: ptyOf(c) })),
+          backlog: backlogCards(dirs).map((b) => ({ ...b, starting: backlogLaunched.has(`${b.state}\0${b.source}#${b.n}`) || undefined })),
           now: Date.now(),
         });
       }
@@ -667,7 +671,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
         if (!/^(runs\/[\w.-]+\/)?attachments\/[\w.-]+$/.test(p)) return bad("bad path");
         const f = join(dir, p);
         if (!existsSync(f)) return bad("no such file", 404);
-        return new Response(Bun.file(f), { headers: { "cache-control": "private, max-age=3600" } });
+        // no-cache: a revise retakes a screenshot under the same name, and the browser must ask again.
+        return new Response(Bun.file(f), { headers: { "cache-control": "private, no-cache" } });
       }
 
       // An icebox image, sent on to a link read fresh from its source: the one kept
@@ -779,6 +784,18 @@ export async function web(repoDir: string, opts: Opts = {}) {
         if (path === "/cd") {
           changed();
           return json({ ok: true, project: label(dir) });
+        }
+
+        // "Not doing this" on a backlog card: the line is closed in place with the reason,
+        // never removed, so a notebook link to it keeps its number.
+        if (path === "/backlog") {
+          if (body.op !== "reject") return bad("unknown op");
+          const why = String(body.reason ?? "").trim();
+          if (!why) return bad("a rejection needs a reason");
+          const err = closeBacklog(dir, String(body.source ?? ""), Number(body.n), "rejected", why);
+          if (err) return bad(err, err === "that item is already closed" ? 409 : 404);
+          changed();
+          return json({ ok: true });
         }
 
         if (path === "/inbox") {
@@ -922,11 +939,30 @@ export async function web(repoDir: string, opts: Opts = {}) {
         if (path === "/run") {
           const text = String(body.text ?? "").trim();
           const kind = body.kind === "full" || body.kind === "lite" ? body.kind : "";
-          if (!text) return bad("empty idea");
+          if (!text && !body.backlog) return bad("empty idea");
           const agent = typeof body.agent === "string" && body.agent ? body.agent : undefined;
           if (agent && !KNOWN_AGENTS.some((a) => a.cmd === agent)) return bad("unknown agent");
           const model = typeof body.model === "string" ? body.model.trim() : "";
           if (model && !plainModel(model)) return bad("A model name is letters, digits and . : / @ _ - only");
+          // A backlog item runs as an idea would, its text read here from the file, never
+          // from the page. The request names its source, which is how the board finds the
+          // line again: to hide the card while the run lives, and to close it when done.
+          if (body.backlog) {
+            const source = String(body.backlog.source ?? ""), n = Number(body.backlog.n);
+            const line = backlogItem(dir, source, n);
+            if (!line) return bad("no such backlog item", 404);
+            if (line.status !== "open") return bad("that item is already closed", 409);
+            if ((startedBacklog(dir).get(`${source}#${n}`) ?? []).some((c) => c.stage !== "abandoned")) return bad("a run was already started from that item", 409);
+            const p = parseItem(line.text);
+            const it: Item = { ...p, text: kind ? `${kind} ${p.text}` : p.text };
+            it.notes = [source !== "orphan" ? `Parent: ${source}` : "", `Backlog: ${source}#${n}`, p.text !== line.text ? `Backlog item: ${line.text}` : ""].filter(Boolean).join("\n");
+            const r = launchRun(it, dir, undefined, { agent, model: model || undefined, yolo: body.yolo === true, ...inCard(dir) });
+            if (r.ok) backlogLaunched.add(`${dir}\0${source}#${n}`);
+            changed();
+            return json(r.ok
+              ? { ok: true, agent: r.agent, project: tilde(r.projectDir), pty: r.pty }
+              : { ok: false, why: r.why, manual: r.manual, agent: r.agent }, r.ok ? 200 : 500);
+          }
           const it: Item = parseItem(`${kind} ${text}`.trim());
           // A `started` idea may be run again: the terminal the first launch opened
           // can come up empty, and nothing else tells the board a run never began.

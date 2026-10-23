@@ -6,7 +6,7 @@ import { $, dataUrls, esc, ico } from "./dom.ts";
 import { draft, undraft } from "./drafts.ts";
 import { COLS, ICON, MARKS, NAMES, WORD, age, d, need } from "./labels.ts";
 import { brief } from "./markdown.ts";
-import { open, toggleArchive } from "./panel.ts";
+import { open, openAt, toggleArchive } from "./panel.ts";
 import { ideaCombo, list, newDir, plogo, short, showList, showable } from "./projects.ts";
 import { askNotify, toast } from "./toast.ts";
 import { answer, decided, resumable, resume } from "./approvals.ts";
@@ -25,6 +25,41 @@ let order = (() => {
   }
 })();
 let archive = false; // showing the archive instead of the board
+// The Ideas column shows ideas or the runs' open backlog, never both; kept per browser.
+let ideasTab = (() => {
+  try {
+    return localStorage.getItem("kz-ideas-tab") === "backlog" ? "backlog" : "ideas";
+  } catch (e) {
+    return "ideas";
+  }
+})();
+// On the Backlog tab: one severity, or null for every one.
+let sev = null;
+const SEVS = [
+  ["high", "High+", (s) => s === "critical" || s === "high"],
+  ["medium", "Medium", (s) => s === "medium"],
+  ["low", "Low", (s) => s === "low"],
+  ["none", "No severity", (s) => !s],
+];
+// Open backlog items as cards for the Ideas column. A card's key names its line by
+// source and number, which is what Start and Reject send back.
+const backlogList = () =>
+  (store.S.backlog || []).map((b) => ({
+    ...b,
+    kind: "backlog",
+    status: b.starting ? "starting" : "idea",
+    title: b.text,
+    column: 0,
+    archived: false,
+    _k: "backlog:" + b.state + ":" + b.source + "#" + b.n,
+  }));
+// A backlog card opens its source run on the Backlog tab, the item marked.
+const show = (c) => {
+  if (c.kind !== "backlog") return open(c);
+  const r = store.S.cards.find((x) => x.kind === "run" && x.id === c.source && x.state === c.state);
+  if (!r) return toast(c.source === "orphan" ? "Kept from a run that was pruned" : "That run is not on this board");
+  openAt(r, "backlog", c.n);
+};
 // Clear on Done: menu, then cherry-pick mode.
 let picking = false;
 const picked = new Set();
@@ -62,7 +97,7 @@ function card(c) {
   el.dataset.k = k;
   el.setAttribute("role", "button");
   const st = ICON[c.status] || "idea",
-    idt = c.kind === "idea" ? "" : c.text.replace(/-/g, " ");
+    idt = c.kind === "run" ? c.text.replace(/-/g, " ") : "";
   // The status icon carries the state; what a waiting run needs is its tooltip.
   const sttl = c.status === "waiting" ? need(c.awaiting) || "needs you" : c.status || "idea";
   // Footer: words on the left (project, what it needs), icon-only marks on the right.
@@ -97,6 +132,15 @@ function card(c) {
   // A card filed by a run names that run; the parent itself shows nothing.
   if (c.parent)
     chips.push(`<span class="chip link" title="Filed by ${esc(c.parent)}">${esc(c.parent.replace(/^\d{4}-\d\d-\d\d-/, "").replace(/-/g, " "))}</span>`);
+  if (c.kind === "backlog") {
+    if (c.severity)
+      chips.push(`<span class="chip${c.severity === "critical" || c.severity === "high" ? " warn" : ""}"><i></i>${esc(c.severity)}</span>`);
+    chips.push(
+      c.source === "orphan"
+        ? `<span class="chip" title="Kept from a pruned run">orphaned</span>`
+        : `<span class="chip link" title="Left by ${esc(c.source)}${c.at ? " · " + esc(c.at) : ""}">${esc(c.source.replace(/^\d{4}-\d\d-\d\d-/, "").replace(/-/g, " "))}</span>`,
+    );
+  }
   if (c.branch) chips.push(`<span class="chip" title="Built on its own branch, ${esc(c.branch)}">branch</span>`);
   if (g) chips.push(`<span class="chip" title="From ${esc(g[1])}">gathered</span>`);
   else if (c.notes) chips.push(`<span class="chip">notes</span>`);
@@ -166,6 +210,13 @@ function card(c) {
       items.push(["restore", "Restore", ico("restore")]);
       items.push(["open", "Open", ico("open")]);
       if (c.kind === "idea") items.push(null, ["delete", "Delete", ico("trash"), "danger"]);
+    } else if (c.kind === "backlog") {
+      items.push(
+        ["run", c.status === "starting" ? "Run again" : "Run", ico("play")],
+        ["open", "Open its run", ico("open")],
+        null,
+        ["reject", "Reject", ico("x"), "danger"],
+      );
     } else if (c.kind === "idea" && c.status === "idea") {
       items.push(
         ["run", "Run", ico("play")],
@@ -206,7 +257,7 @@ function card(c) {
           return;
         }
         if (a === "open") {
-          open(c);
+          show(c);
           return;
         }
         if (a === "resume") {
@@ -236,12 +287,12 @@ function card(c) {
       render();
       return;
     }
-    open(c);
+    show(c);
   };
   el.onkeydown = (e) => {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
-      open(c);
+      show(c);
     }
   };
   return el;
@@ -263,8 +314,8 @@ function inlineForm(c) {
     };
   }
   if (store.mode === "reject") {
-    const idea = c.kind === "idea";
-    li.innerHTML = `<div class="q">${idea ? "Reject this idea?" : "Abandon this run?"} The reason is recorded.</div><input placeholder="Reason"><div class="row"><button class="btn ghost" data-a="c">Keep it</button><button class="btn warn" data-a="s">${idea ? "Reject" : "Abandon"}</button></div>`;
+    const idea = c.kind !== "run";
+    li.innerHTML = `<div class="q">${c.kind === "backlog" ? "Not doing this backlog item?" : idea ? "Reject this idea?" : "Abandon this run?"} The reason is recorded.</div><input placeholder="Reason"><div class="row"><button class="btn ghost" data-a="c">Keep it</button><button class="btn warn" data-a="s">${idea ? "Reject" : "Abandon"}</button></div>`;
     li.querySelector("[data-a=s]").onclick = async () => {
       const why = li.querySelector("input").value.trim();
       if (!why) {
@@ -272,9 +323,12 @@ function inlineForm(c) {
         return;
       }
       store.mode = null;
-      const r = idea
-        ? await post("/inbox", { op: "reject", dir, text: c.text, reason: why })
-        : await post("/abort", { dir, id: c.id, why });
+      const r =
+        c.kind === "backlog"
+          ? await post("/backlog", { op: "reject", dir, source: c.source, n: c.n, reason: why })
+          : idea
+            ? await post("/inbox", { op: "reject", dir, text: c.text, reason: why })
+            : await post("/abort", { dir, id: c.id, why });
       if (r.ok) toast(idea ? "Rejected" : "Abandoned, reason recorded");
       load();
     };
@@ -394,10 +448,12 @@ async function startRun(c, kind) {
   const p = runPick && runPick.k === key(c) ? runPick : null;
   runPick = null;
   const yolo = !!(p && p.yolo && !$("run-yolo")?.hidden);
-  const r = await post("/run", { dir: c.state, text: c.text, kind, agent: p ? p.agent : undefined, yolo });
+  const backlog = c.kind === "backlog" ? { source: c.source, n: c.n } : undefined;
+  const r = await post("/run", { dir: c.state, text: c.text, backlog, kind, agent: p ? p.agent : undefined, yolo });
   if (r.ok) {
     toast((kind === "full" ? "Full" : "Lite") + (yolo ? " yolo" : "") + " run " + where(r) + ": " + via(r.agent));
-    if (r.pty) store.wantTerm = key(c);
+    // A backlog card has no terminal of its own; the run's card gets it once the run exists.
+    if (r.pty && !backlog) store.wantTerm = key(c);
   }
   load();
 }
@@ -407,7 +463,8 @@ const HINT = { 1: "Ideas you run are planned here", 2: "Approved plans are built
 export function render() {
   // A closed form leaves no draft behind; an open one is reopened after a reload.
   // A form whose card is gone (restored after a reload, or deleted elsewhere) has nowhere to show.
-  if (store.mode && store.mode !== "new" && !store.S.cards.some((c) => key(c) === store.modeKey)) store.mode = null;
+  if (store.mode && store.mode !== "new" && ![...store.S.cards, ...backlogList()].some((c) => key(c) === store.modeKey))
+    store.mode = null;
   if (store.mode !== "run" && runPick) runPick.yolo = false;
   if (!store.mode) undraft("f:");
   try {
@@ -496,16 +553,19 @@ export function render() {
   COLS.forEach((name, ci) => {
     const s = document.createElement("section");
     const q = query.trim().toLowerCase();
-    const list = cs.filter(
+    const bl = ci === 0 && !archive && ideasTab === "backlog";
+    const all = bl ? backlogList().filter((c) => !only || store.shown.has(c.state)) : cs;
+    const list = all.filter(
       (c) =>
         c.column === ci &&
+        (!bl || !sev || SEVS.find((x) => x[0] === sev)[2](c.severity)) &&
         (!filter || c.status === filter) &&
         (archive || !nested(c)) &&
         (!q || `${c.title || ""} ${c.text || ""} ${c.id || ""}`.toLowerCase().includes(q)),
     );
     // Runs age by their last move, ideas by when they were added, across every project;
     // an idea from before the stamp falls back to its inbox position.
-    if (ci < 4) {
+    if (ci < 4 && !bl) {
       const at = (c) => (c.kind === "run" ? c.moved || 0 : c.added || 0),
         old = order[ci] === "old",
         pos = (c) => store.S.cards.indexOf(c);
@@ -515,13 +575,66 @@ export function render() {
     }
     const clearable = ci === 4 && !archive && list.length;
     const olderThan = (days) => list.filter((c) => store.S.now - (c.moved || store.S.now) > days * d);
-    let head = `<h2>${name}<i>${list.length || ""}</i>${ci < 4 && list.length > 1 ? `<button class="btn sm ghost ord" title="Sort order">${order[ci] === "old" ? "Oldest" : "Newest"}</button>` : ""}${ci === 0 && !archive ? `<button class="ib sm" title="New idea" aria-label="New idea">${ico("plus")}</button>` : ""}`;
+    // The Ideas column is titled by its two tabs, icons with their counts: ideas, or the
+    // runs' leftovers. On Backlog a filter icon narrows it to one severity.
+    const tabbed = ci === 0 && !archive,
+      nb = tabbed ? backlogList().filter((c) => !only || store.shown.has(c.state)) : [];
+    const title = tabbed
+      ? `<span class="itabs" role="tablist" aria-label="Ideas column">${[
+          ["ideas", "Ideas", `<svg><use href="#s-idea"/></svg>`, cs.filter((c) => c.column === 0).length],
+          ["backlog", "Backlog: what finished runs left undone", ico("clock"), nb.length],
+        ]
+          .map(
+            ([v, l, svg, k]) =>
+              `<button role="tab" aria-selected="${ideasTab === v}" data-t="${v}" title="${l}" aria-label="${l}, ${k}">${svg}<i>${k}</i></button>`,
+          )
+          .join("")}</span>`
+      : `${name}<i>${list.length || ""}</i>`;
+    const sevBtn = bl
+      ? `<button class="ib sm sevf${sev ? " on" : ""}" data-sv="1" title="${sev ? "Severity: " + SEVS.find((x) => x[0] === sev)[1] : "Filter by severity"}" aria-label="Filter by severity" aria-haspopup="menu" aria-expanded="${store.sevMenu}">${ico("filter")}</button>` +
+        (store.sevMenu
+          ? `<div class="menu-pop sev-pop" role="menu"><button role="menuitemradio" aria-checked="${!sev}" data-s="">All severities <i>${nb.length}</i></button><hr>${SEVS.map(
+              ([v, l, f]) =>
+                `<button role="menuitemradio" aria-checked="${sev === v}" data-s="${v}">${l} <i>${nb.filter((c) => f(c.severity)).length}</i></button>`,
+            ).join("")}</div>`
+          : "")
+      : "";
+    let head = `<h2>${title}${ci < 4 && !bl && list.length > 1 ? `<button class="btn sm ghost ord" title="Sort order">${order[ci] === "old" ? "Oldest" : "Newest"}</button>` : ""}${sevBtn}${tabbed ? `<button class="ib sm newi" title="New idea" aria-label="New idea">${ico("plus")}</button>` : ""}`;
     if (clearable && picking)
       head += `<span class="pickbar"><button class="btn sm ghost" data-p="cancel">Cancel</button><button class="btn sm pri" data-p="go" ${picked.size ? "" : "disabled"}>Archive ${picked.size || ""}</button></span>`;
     else if (clearable) head += `<button class="btn sm ghost clear" title="Archive finished runs">Clear ▾</button>`;
     if (clearable && store.clearMenu)
       head += `<div class="menu-pop clear-pop"><button data-c="7">Older than a week <i>${olderThan(7).length}</i></button><button data-c="3">Older than 3 days <i>${olderThan(3).length}</i></button><button data-c="0">Everything <i>${list.length}</i></button><hr><button data-c="pick">Pick which…</button></div>`;
     s.innerHTML = head + `</h2>`;
+    if (tabbed) {
+      s.querySelectorAll("[data-t]").forEach(
+        (bt) =>
+          (bt.onclick = () => {
+            ideasTab = bt.dataset.t;
+            store.sevMenu = false;
+            try {
+              localStorage.setItem("kz-ideas-tab", ideasTab);
+            } catch (e) {}
+            render();
+          }),
+      );
+      const sv = s.querySelector("[data-sv]");
+      if (sv)
+        sv.onclick = (e) => {
+          e.stopPropagation();
+          store.sevMenu = !store.sevMenu;
+          render();
+        };
+      s.querySelectorAll("[data-s]").forEach(
+        (bt) =>
+          (bt.onclick = (e) => {
+            e.stopPropagation();
+            sev = bt.dataset.s || null;
+            store.sevMenu = false;
+            render();
+          }),
+      );
+    }
     {
       const o = s.querySelector(".ord");
       if (o)
@@ -534,9 +647,10 @@ export function render() {
           render();
         };
     }
-    if (ci === 0 && !archive)
-      s.querySelector(".ib").onclick = () => {
+    if (tabbed)
+      s.querySelector(".newi").onclick = () => {
         store.mode = "new";
+        ideasTab = "ideas";
         render();
       };
     if (clearable) {
@@ -684,6 +798,8 @@ export function render() {
     // An empty middle column says what lands in it, so it does not look broken.
     if (!list.length && ci >= 1 && ci <= 3 && cs.length && !filter && !q && !archive)
       ul.innerHTML = `<li class="hint">${HINT[ci]}</li>`;
+    if (bl && !list.length && !filter && !q)
+      ul.innerHTML = `<li class="hint">${sev ? "Nothing at this severity" : "What finished runs left undone shows here"}</li>`;
     s.appendChild(ul);
     b.appendChild(s);
   });

@@ -290,6 +290,12 @@ export function deep() {
   hit = m ? { type: m[1], n: +m[2], k: key(c) } : null;
   open(c, !!t);
 }
+// A run's panel on the tab of one of its items, that item scrolled to and marked.
+export function openAt(c, type, n) {
+  store.tab = type === "finding" ? "review" : "backlog";
+  hit = { type, n, k: key(c) };
+  open(c, true);
+}
 // What md() leaves of a line as text: no backticks or stars, a link reduced to its words.
 function mark(h) {
   hit = null;

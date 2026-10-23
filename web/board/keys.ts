@@ -11,9 +11,10 @@ export function initKeys() {
   $("kbd").onclick = () => $("help").classList.add("on");
   $("help").onclick = () => $("help").classList.remove("on");
   document.addEventListener("click", () => {
-    if (store.menuKey || store.clearMenu) {
+    if (store.menuKey || store.clearMenu || store.sevMenu) {
       store.menuKey = null;
       store.clearMenu = false;
+      store.sevMenu = false;
       render();
     }
   });
