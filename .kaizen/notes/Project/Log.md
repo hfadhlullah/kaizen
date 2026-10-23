@@ -86,4 +86,6 @@ updated: 2026-10-19
 - 2026-10-22 — build 2026-10-22-new-project-windows: `/new-project` applies Windows folder-name rules and reports mkdir failures. Updated [[Web board]].
 - 2026-10-22 — build 2026-10-22-file-popup: board file links (`/file`, `/ice-image`) open in a popup instead of a new tab. Updated [[Web board]].
 - 2026-10-23 run 2026-10-23-backlog-in-ideas — Web board (Ideas column Ideas/Backlog tabs; backlog items run like ideas and close in place)
+- 2026-10-23 — build 2026-10-23-html-escape-tag: board templates use the escape-by-default `html` tag. Updated [[Web board]].
 - 2026-10-23 — 2026-10-23-new-idea-modal: New idea opens in a modal (top bar, empty board, `n`); `+` in Ideas stays inline. Updated [[Web board]].
+- 2026-10-23 run 2026-10-23-backend-improve — Web board: commit/push judged per run, progress.md liveness, session owner index

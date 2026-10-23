@@ -1,7 +1,7 @@
 import { store } from "./store.ts";
 import { post } from "./api.ts";
 import { key } from "./cards.ts";
-import { $, esc } from "./dom.ts";
+import { $, html } from "./dom.ts";
 import { commitMsg } from "./markdown.ts";
 import { openRun } from "./panel.ts";
 import { toast } from "./toast.ts";
@@ -15,7 +15,7 @@ export function gitBtn(c) {
   // A run already pushed keeps saying so; work changed since is offered beside it.
   if (k && k.pushed)
     return (
-      `<button class="btn" disabled title="${esc(k.sha)}">Committed &amp; pushed</button>` +
+      html`<button class="btn" disabled title="${k.sha}">Committed &amp; pushed</button>` +
       (g.files.length
         ? `<button class="btn" data-a="commit">Commit new changes</button>`
         : g.ahead > 0
@@ -31,7 +31,7 @@ export function gitBtn(c) {
 export function confirmCommit(c, msg) {
   const g = store.runDoc.git,
     foot = $("pfoot");
-  foot.innerHTML = `<div class="inl" style="flex:1"><div class="q">Commit ${g.files.length} changed file${g.files.length === 1 ? "" : "s"} on ${esc(g.branch || "this branch")} and push to ${esc(g.remote)}?</div><div class="q dim">Only the files this run's report names.${g.others ? ` ${g.others} other changed file${g.others === 1 ? " is" : "s are"} left alone.` : ""}</div><pre class="files">${esc(g.files.join("\n"))}</pre>${g.shared && g.shared.length ? `<div class="q">These files also hold other runs' changes, and a file is committed whole:</div><pre class="files">${esc(g.shared.join("\n"))}</pre>` : ""}<textarea aria-label="Commit message" placeholder="feat(scope): what changed">${esc(msg || commitMsg(store.runDoc.impl) || c.title || c.text)}</textarea><div class="q dim" id="clong" hidden>The first line is over 72 characters; logs will cut it short.</div><div class="row"><button class="btn ghost" data-a="c">Cancel</button><button class="btn pri" data-a="s">Commit &amp; push</button></div></div>`;
+  foot.innerHTML = html`<div class="inl" style="flex:1"><div class="q">Commit ${g.files.length} changed file${g.files.length === 1 ? "" : "s"} on ${g.branch || "this branch"} and push to ${g.remote}?</div><div class="q dim">Only the files this run's report names.${g.others ? ` ${g.others} other changed file${g.others === 1 ? " is" : "s are"} left alone.` : ""}</div><pre class="files">${g.files.join("\n")}</pre>${g.shared && g.shared.length ? html`<div class="q">These files also hold other runs' changes, and a file is committed whole:</div><pre class="files">${g.shared.join("\n")}</pre>` : ""}<textarea aria-label="Commit message" placeholder="feat(scope): what changed">${msg || commitMsg(store.runDoc.impl) || c.title || c.text}</textarea><div class="q dim" id="clong" hidden>The first line is over 72 characters; logs will cut it short.</div><div class="row"><button class="btn ghost" data-a="c">Cancel</button><button class="btn pri" data-a="s">Commit &amp; push</button></div></div>`;
   const inp = foot.querySelector("textarea"),
     go = foot.querySelector("[data-a=s]");
   inp.focus();

@@ -2,7 +2,7 @@ import { store } from "./store.ts";
 import { where } from "./agent-term.ts";
 import { post } from "./api.ts";
 import { key, via } from "./cards.ts";
-import { $ } from "./dom.ts";
+import { $, html, raw } from "./dom.ts";
 import { md } from "./markdown.ts";
 import { openRun } from "./panel.ts";
 import { askNotify, toast } from "./toast.ts";
@@ -35,17 +35,15 @@ export function fixForm(c) {
     return;
   const el = document.createElement("div");
   el.className = "inl fix";
-  el.innerHTML =
-    `<div class="q">Fix findings</div><div class="q dim">Opens your agent in this project, told to fix the ticked findings and recheck them.</div>${c.status === "waiting" ? `<div class="q dim">A session is already waiting on this run in a terminal; this opens another one.</div>` : ""}` +
+  el.innerHTML = html`<div class="q">Fix findings</div><div class="q dim">Opens your agent in this project, told to fix the ticked findings and recheck them.</div>${c.status === "waiting" ? html`<div class="q dim">A session is already waiting on this run in a terminal; this opens another one.</div>` : ""}${
     fs
       .map((f) => {
         const x = f.done ? " (closed)" : sent(f) ? " (sent)" : "";
-        return `<label class="${f.done ? "off done" : x ? "off" : ""}"><input type="checkbox" data-n="${f.n}" ${x ? "checked disabled" : fixOff.has(k(f.n)) ? "" : "checked"}><span>${f.n}. ${md(f.text).replace(/^<p>|<\/p>$/g, "")}${x}</span></label>`;
+        return html`<label class="${f.done ? "off done" : x ? "off" : ""}"><input type="checkbox" data-n="${f.n}" ${x ? "checked disabled" : fixOff.has(k(f.n)) ? "" : "checked"}><span>${f.n}. ${raw(md(f.text).replace(/^<p>|<\/p>$/g, ""))}${x}</span></label>`;
       })
-      .join("") +
-    (open.length
-      ? `<div class="row"><button class="btn ghost" data-a="all"></button><button class="btn pri" data-a="s"></button></div>`
-      : "");
+}${open.length
+      ? html`<div class="row"><button class="btn ghost" data-a="all"></button><button class="btn pri" data-a="s"></button></div>`
+      : ""}`;
   if (!open.length) return $("pbody").appendChild(el);
   const go = el.querySelector("[data-a=s]"),
     allb = el.querySelector("[data-a=all]"),

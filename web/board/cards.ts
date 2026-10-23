@@ -2,7 +2,7 @@ import { store } from "./store.ts";
 import { where } from "./agent-term.ts";
 import { load, post } from "./api.ts";
 import { mic, stopDictation } from "./dictation.ts";
-import { $, dataUrls, esc, ico, modal } from "./dom.ts";
+import { $, dataUrls, html, ico, modal, raw } from "./dom.ts";
 import { draft, undraft } from "./drafts.ts";
 import { COLS, ICON, MARKS, NAMES, WORD, age, d, need } from "./labels.ts";
 import { brief } from "./markdown.ts";
@@ -104,10 +104,10 @@ function card(c) {
   const chips = [],
     marks = [],
     mk = (id, t, cls = "") =>
-      `<span class="mk${cls}" role="img" title="${esc(t)}" aria-label="${esc(t)}"><svg><use href="#${id}"/></svg></span>`;
+      html`<span class="mk${cls}" role="img" title="${t}" aria-label="${t}"><svg><use href="#${id}"/></svg></span>`;
   if (store.all) {
     const n = c.where.split("/").filter(Boolean).pop() || c.where;
-    chips.push(`<span class="chip proj" title="${esc(c.where)}">${esc(n)}</span>`);
+    chips.push(html`<span class="chip proj" title="${c.where}">${n}</span>`);
   }
   for (const t of c.tags || []) {
     if (MARKS[t])
@@ -119,8 +119,8 @@ function card(c) {
         ),
       );
     else if (t === "yolo")
-      marks.push(`<span class="mk warn" title="Started in Yolo: the agent runs commands without asking">yolo</span>`);
-    else chips.push(`<span class="chip">${esc(NAMES[t] || t)}</span>`);
+      marks.push(html`<span class="mk warn" title="Started in Yolo: the agent runs commands without asking">yolo</span>`);
+    else chips.push(html`<span class="chip">${NAMES[t] || t}</span>`);
   }
   if (c.pty && c.pty.alive && c.pty.asking)
     marks.push(mk("i-ask", "The agent is asking you something: open it, terminal button at the top", " warn ask"));
@@ -131,19 +131,19 @@ function card(c) {
   const g = c.notes && /^\[[^\]]*\] (?:Gathered from|Promoted from the icebox:) (.+?)\. Outside text/.exec(c.notes);
   // A card filed by a run names that run; the parent itself shows nothing.
   if (c.parent)
-    chips.push(`<span class="chip link" title="Filed by ${esc(c.parent)}">${esc(c.parent.replace(/^\d{4}-\d\d-\d\d-/, "").replace(/-/g, " "))}</span>`);
+    chips.push(html`<span class="chip link" title="Filed by ${c.parent}">${c.parent.replace(/^\d{4}-\d\d-\d\d-/, "").replace(/-/g, " ")}</span>`);
   if (c.kind === "backlog") {
     if (c.severity)
-      chips.push(`<span class="chip${c.severity === "critical" || c.severity === "high" ? " warn" : ""}"><i></i>${esc(c.severity)}</span>`);
+      chips.push(html`<span class="chip${c.severity === "critical" || c.severity === "high" ? " warn" : ""}"><i></i>${c.severity}</span>`);
     chips.push(
       c.source === "orphan"
-        ? `<span class="chip" title="Kept from a pruned run">orphaned</span>`
-        : `<span class="chip link" title="Left by ${esc(c.source)}${c.at ? " · " + esc(c.at) : ""}">${esc(c.source.replace(/^\d{4}-\d\d-\d\d-/, "").replace(/-/g, " "))}</span>`,
+        ? html`<span class="chip" title="Kept from a pruned run">orphaned</span>`
+        : html`<span class="chip link" title="Left by ${c.source}${c.at ? " · " + c.at : ""}">${c.source.replace(/^\d{4}-\d\d-\d\d-/, "").replace(/-/g, " ")}</span>`,
     );
   }
-  if (c.branch) chips.push(`<span class="chip" title="Built on its own branch, ${esc(c.branch)}">branch</span>`);
-  if (g) chips.push(`<span class="chip" title="From ${esc(g[1])}">gathered</span>`);
-  else if (c.notes) chips.push(`<span class="chip">notes</span>`);
+  if (c.branch) chips.push(html`<span class="chip" title="Built on its own branch, ${c.branch}">branch</span>`);
+  if (g) chips.push(html`<span class="chip" title="From ${g[1]}">gathered</span>`);
+  else if (c.notes) chips.push(html`<span class="chip">notes</span>`);
   // Information only: the panel's button is where it is committed and pushed.
   if (c.git)
     marks.push(
@@ -161,17 +161,17 @@ function card(c) {
   const act =
     c.kind === "run" && !archive && !pick
       ? c.status === "waiting"
-        ? `<button class="btn sm${decided.has(answer(c)) ? "" : " pri"} act" data-a="open">${actionOf(c)}</button>`
+        ? html`<button class="btn sm${decided.has(answer(c)) ? "" : " pri"} act" data-a="open">${actionOf(c)}</button>`
         : c.status === "stalled" && resumable(c)
-          ? `<button class="btn sm act" data-a="resume">Resume</button>`
+          ? html`<button class="btn sm act" data-a="resume">Resume</button>`
           : ""
       : "";
   el.innerHTML =
-    (pick ? `<input type="checkbox" class="pick" ${picked.has(k) ? "checked" : ""} aria-label="Select">` : "") +
-    `<div class="c-id"><span class="st d-${st}" role="img" title="${esc(sttl)}" aria-label="${esc(sttl)}"><svg><use href="#s-${st}"/></svg></span><span class="idt">${esc(idt)}</span><span class="age">${c.kind === "run" ? age(c.moved || store.S.now, store.S.now) : ""}</span><button class="ib sm more" data-a="menu" title="Actions" aria-label="Actions" aria-haspopup="menu" aria-expanded="${k === store.menuKey}">${ico("more")}</button></div>
-  <div class="c-title"${c.kind === "idea" && brief(c.text).parts.length ? ` title="${esc(c.text)}"` : ""}>${esc(c.kind === "idea" ? brief(c.text).head : c.title || c.id)}</div>
+    (pick ? html`<input type="checkbox" class="pick" ${raw(picked.has(k) ? "checked" : "")} aria-label="Select">` : "") +
+    html`<div class="c-id"><span class="st d-${st}" role="img" title="${sttl}" aria-label="${sttl}"><svg><use href="#s-${st}"/></svg></span><span class="idt">${idt}</span><span class="age">${c.kind === "run" ? age(c.moved || store.S.now, store.S.now) : ""}</span><button class="ib sm more" data-a="menu" title="Actions" aria-label="Actions" aria-haspopup="menu" aria-expanded="${String(k === store.menuKey)}">${ico("more")}</button></div>
+  <div class="c-title"${c.kind === "idea" && brief(c.text).parts.length ? html` title="${c.text}"` : ""}>${c.kind === "idea" ? brief(c.text).head : c.title || c.id}</div>
   ${act}
-  ${chips.length || marks.length ? `<div class="c-foot"><span class="c-chips">${chips.join("")}</span><span class="c-marks">${marks.join("")}</span></div>` : ""}`;
+  ${chips.length || marks.length ? html`<div class="c-foot"><span class="c-chips">${chips}</span><span class="c-marks">${marks}</span></div>` : ""}`;
   const kids = kidsOf(c);
   if (kids.length) {
     const on = kidsOpen.has(k),
@@ -180,14 +180,13 @@ function card(c) {
     const box = document.createElement("div");
     box.className = "kids";
     box.innerHTML =
-      `<button class="kids-t" aria-expanded="${on}">${on ? "▾" : "▸"} ${kids.length} ${kids.length === 1 ? "child" : "children"}${nDone ? ` · ${nDone} done` : ""}${wait ? `<span class="kids-w" title="A child is waiting on you"></span>` : ""}</button>` +
+      html`<button class="kids-t" aria-expanded="${String(on)}">${on ? "▾" : "▸"} ${kids.length} ${kids.length === 1 ? "child" : "children"}${nDone ? ` · ${nDone} done` : ""}${wait ? html`<span class="kids-w" title="A child is waiting on you"></span>` : ""}</button>` +
       (on
-        ? `<ul>${kids
+        ? html`<ul>${kids
             .map((x, i) => {
               const s = ICON[x.status] || "idea";
-              return `<li data-i="${i}" tabindex="0" role="button" title="Open"><span class="st d-${s}"><svg><use href="#s-${s}"/></svg></span><span class="kids-s">${esc(WORD[x.status] || x.status)}</span><span class="kids-n" title="${esc(x.title || x.text || x.id)}">${esc(x.kind === "idea" ? brief(x.text).head : (x.text || x.id || "").replace(/-/g, " "))}</span></li>`;
-            })
-            .join("")}</ul>`
+              return html`<li data-i="${i}" tabindex="0" role="button" title="Open"><span class="st d-${s}"><svg><use href="#s-${s}"/></svg></span><span class="kids-s">${WORD[x.status] || x.status}</span><span class="kids-n" title="${x.title || x.text || x.id}">${x.kind === "idea" ? brief(x.text).head : (x.text || x.id || "").replace(/-/g, " ")}</span></li>`;
+            })}</ul>`
         : "");
     box.querySelector(".kids-t").onclick = (e) => {
       e.stopPropagation();
@@ -242,7 +241,7 @@ function card(c) {
         items.push(null, ["reject", "Abandon", ico("x"), "danger"]);
       }
     }
-    el.innerHTML += `<div class="menu-pop" role="menu">${items.map((i) => (i ? `<button role="menuitem" data-a="${i[0]}" class="${i[3] || ""}">${i[2]}${i[1]}</button>` : "<hr>")).join("")}</div>`;
+    el.innerHTML += html`<div class="menu-pop" role="menu">${items.map((i) => (i ? html`<button role="menuitem" data-a="${i[0]}" class="${i[3] || ""}">${i[2]}${i[1]}</button>` : raw("<hr>")))}</div>`;
   }
   el.querySelectorAll("[data-a]").forEach(
     (bt) =>
@@ -303,7 +302,7 @@ function inlineForm(c) {
   li.className = "inl";
   const dir = c.state;
   if (store.mode === "edit") {
-    li.innerHTML = `<input value="${esc(c.text)}"><textarea placeholder="Notes: links, paths, background">${esc(c.notes || "")}</textarea><div class="q dim" id="clong" hidden>The first line is over 72 characters; logs will cut it short.</div><div class="row"><button class="btn ghost" data-a="c">Cancel</button><button class="btn pri" data-a="s">Save</button></div>`;
+    li.innerHTML = html`<input value="${c.text}"><textarea placeholder="Notes: links, paths, background">${c.notes || ""}</textarea><div class="q dim" id="clong" hidden>The first line is over 72 characters; logs will cut it short.</div><div class="row"><button class="btn ghost" data-a="c">Cancel</button><button class="btn pri" data-a="s">Save</button></div>`;
     li.querySelector("[data-a=s]").onclick = async () => {
       const next = li.querySelector("input").value.trim(),
         notes = li.querySelector("textarea").value.trim();
@@ -315,7 +314,7 @@ function inlineForm(c) {
   }
   if (store.mode === "reject") {
     const idea = c.kind !== "run";
-    li.innerHTML = `<div class="q">${c.kind === "backlog" ? "Not doing this backlog item?" : idea ? "Reject this idea?" : "Abandon this run?"} The reason is recorded.</div><input placeholder="Reason"><div class="row"><button class="btn ghost" data-a="c">Keep it</button><button class="btn warn" data-a="s">${idea ? "Reject" : "Abandon"}</button></div>`;
+    li.innerHTML = html`<div class="q">${c.kind === "backlog" ? "Not doing this backlog item?" : idea ? "Reject this idea?" : "Abandon this run?"} The reason is recorded.</div><input placeholder="Reason"><div class="row"><button class="btn ghost" data-a="c">Keep it</button><button class="btn warn" data-a="s">${idea ? "Reject" : "Abandon"}</button></div>`;
     li.querySelector("[data-a=s]").onclick = async () => {
       const why = li.querySelector("input").value.trim();
       if (!why) {
@@ -334,7 +333,7 @@ function inlineForm(c) {
     };
   }
   if (store.mode === "delete") {
-    li.innerHTML = `<div class="q">Delete "${esc(c.text)}"?</div><div class="q dim">Not recorded anywhere.</div><div class="row"><button class="btn ghost" data-a="c">Keep it</button><button class="btn danger" data-a="s">Delete</button></div>`;
+    li.innerHTML = html`<div class="q">Delete "${c.text}"?</div><div class="q dim">Not recorded anywhere.</div><div class="row"><button class="btn ghost" data-a="c">Keep it</button><button class="btn danger" data-a="s">Delete</button></div>`;
     li.querySelector("[data-a=s]").onclick = async () => {
       store.mode = null;
       const r = await post("/inbox", { op: "delete", dir, text: c.text });
@@ -344,7 +343,7 @@ function inlineForm(c) {
   }
   if (store.mode === "move") {
     const ps = store.S.projects.filter((p) => p.dir !== dir);
-    li.innerHTML = `<div class="q">Move "${esc(c.text)}" to</div><select class="sel" aria-label="Project">${ps.map((p) => `<option value="${esc(p.dir)}" title="${esc(p.label)}">${esc(short(p.label))}</option>`).join("")}</select><div class="row"><button class="btn ghost" data-a="c">Cancel</button><button class="btn pri" data-a="s">Move</button></div>`;
+    li.innerHTML = html`<div class="q">Move "${c.text}" to</div><select class="sel" aria-label="Project">${ps.map((p) => html`<option value="${p.dir}" title="${p.label}">${short(p.label)}</option>`)}</select><div class="row"><button class="btn ghost" data-a="c">Cancel</button><button class="btn pri" data-a="s">Move</button></div>`;
     li.querySelector("[data-a=s]").onclick = async () => {
       const sel = li.querySelector("select"),
         to = sel.value,
@@ -356,7 +355,7 @@ function inlineForm(c) {
     };
   }
   if (store.mode === "run") {
-    li.innerHTML = `<div class="q">Run "${esc(c.text)}"</div><div class="q dim">Opens your agent with this request in a terminal.</div><div class="q dim">Full plans, builds, and checks with a separate reviewer. Lite does it in one session.</div><div id="run-pick" style="display:grid;gap:6px"><div id="run-agent" class="agents" role="radiogroup" aria-label="Agent"></div></div><div class="run-actions"><label class="yolo" id="run-yolo" title="Yolo: the agent runs every command and edit without asking" hidden><button type="button" class="chk" role="switch" aria-checked="false"></button>Yolo</label><div class="row"><button class="btn ghost" data-a="c">Cancel</button><button class="btn" data-a="l">Lite</button><button class="btn pri" data-a="s">Full run</button></div></div>`;
+    li.innerHTML = html`<div class="q">Run "${c.text}"</div><div class="q dim">Opens your agent with this request in a terminal.</div><div class="q dim">Full plans, builds, and checks with a separate reviewer. Lite does it in one session.</div><div id="run-pick" style="display:grid;gap:6px"><div id="run-agent" class="agents" role="radiogroup" aria-label="Agent"></div></div><div class="run-actions"><label class="yolo" id="run-yolo" title="Yolo: the agent runs every command and edit without asking" hidden><button type="button" class="chk" role="switch" aria-checked="false"></button>Yolo</label><div class="row"><button class="btn ghost" data-a="c">Cancel</button><button class="btn" data-a="l">Lite</button><button class="btn pri" data-a="s">Full run</button></div></div>`;
     li.querySelector("[data-a=s]").onclick = () => startRun(c, "full");
     li.querySelector("[data-a=l]").onclick = () => startRun(c, "lite");
     runForm(li, c);
@@ -408,7 +407,7 @@ async function runForm(li, c) {
   box.innerHTML = d.agents
     .map(
       (a) =>
-        `<button type="button" class="agent" role="radio" aria-checked="${a.cmd === runPick.agent}" data-cmd="${esc(a.cmd)}"><svg><use href="#c-${esc(a.cmd)}"/></svg>${esc(a.name)}</button>`,
+        html`<button type="button" class="agent" role="radio" aria-checked="${String(a.cmd === runPick.agent)}" data-cmd="${a.cmd}"><svg><use href="#c-${a.cmd}"/></svg>${a.name}</button>`,
     )
     .join("");
   const yb = li.querySelector("#run-yolo");
@@ -462,7 +461,7 @@ const HINT = { 1: "Ideas you run are planned here", 2: "Approved plans are built
 
 // The new-idea form, wired into f: inline at the top of Ideas, or in a modal.
 function ideaForm(f, close) {
-  f.innerHTML = `${store.all ? `<div class="combo" id="ndc"><button type="button" class="sel" id="newdir" aria-label="Project for this idea" aria-haspopup="listbox" aria-expanded="false"></button><div class="menu-pop" hidden><input class="sel" aria-label="Search projects" placeholder="Search projects…" spellcheck="false" autocomplete="off"><div id="nds" role="listbox"></div></div></div>` : ""}<input id="newidea" placeholder="What would you like done?"><textarea id="newnotes" placeholder="Notes: links, paths, background (optional)"></textarea><div class="att" id="newatt"></div><input type="file" id="newfile" multiple hidden><div class="row"><button type="button" class="ib" id="newpick" aria-label="Attach files" title="Attach files">${ico("clip")}</button><button type="button" class="btn ghost" id="nc">Cancel</button><button type="button" class="btn pri" id="ns">Add</button></div>`;
+  f.innerHTML = html`${store.all ? html`<div class="combo" id="ndc"><button type="button" class="sel" id="newdir" aria-label="Project for this idea" aria-haspopup="listbox" aria-expanded="false"></button><div class="menu-pop" hidden><input class="sel" aria-label="Search projects" placeholder="Search projects…" spellcheck="false" autocomplete="off"><div id="nds" role="listbox"></div></div></div>` : ""}<input id="newidea" placeholder="What would you like done?"><textarea id="newnotes" placeholder="Notes: links, paths, background (optional)"></textarea><div class="att" id="newatt"></div><input type="file" id="newfile" multiple hidden><div class="row"><button type="button" class="ib" id="newpick" aria-label="Attach files" title="Attach files">${ico("clip")}</button><button type="button" class="btn ghost" id="nc">Cancel</button><button type="button" class="btn pri" id="ns">Add</button></div>`;
   const inp = f.querySelector("#newidea"),
     files = [];
   draft(inp, "f:new:0");
@@ -607,8 +606,8 @@ export function render() {
   const cur = store.all || !store.S.dir ? "All projects" : (store.PL.find((p) => p[1] === store.S.dir) || ["All projects"])[0];
   $("proj").innerHTML =
     store.all || !store.S.dir
-      ? `<span class="plogo" aria-hidden="true">${ico("board")}</span><span>${esc(cur)}</span>`
-      : `${plogo(store.S.dir, cur)}<span>${esc(short(cur))}</span>`;
+      ? html`<span class="plogo" aria-hidden="true">${ico("board")}</span><span>${cur}</span>`
+      : html`${plogo(store.S.dir, cur)}<span>${short(cur)}</span>`;
   $("proj").title = cur;
   if (!$("projpop").hidden) list();
   $("showc").hidden = !store.all;
@@ -659,16 +658,16 @@ export function render() {
         ]
           .map(
             ([v, l, svg, k]) =>
-              `<button role="tab" aria-selected="${ideasTab === v}" data-t="${v}" title="${l}" aria-label="${l}, ${k}">${svg}<i>${k}</i></button>`,
+              `<button role="tab" aria-selected="${String(ideasTab === v)}" data-t="${v}" title="${l}" aria-label="${l}, ${k}">${svg}<i>${k}</i></button>`,
           )
           .join("")}</span>`
       : `${name}<i>${list.length || ""}</i>`;
     const sevBtn = bl
-      ? `<button class="ib sm sevf${sev ? " on" : ""}" data-sv="1" title="${sev ? "Severity: " + SEVS.find((x) => x[0] === sev)[1] : "Filter by severity"}" aria-label="Filter by severity" aria-haspopup="menu" aria-expanded="${store.sevMenu}">${ico("filter")}</button>` +
+      ? `<button class="ib sm sevf${sev ? " on" : ""}" data-sv="1" title="${sev ? "Severity: " + SEVS.find((x) => x[0] === sev)[1] : "Filter by severity"}" aria-label="Filter by severity" aria-haspopup="menu" aria-expanded="${String(store.sevMenu)}">${ico("filter")}</button>` +
         (store.sevMenu
-          ? `<div class="menu-pop sev-pop" role="menu"><button role="menuitemradio" aria-checked="${!sev}" data-s="">All severities <i>${nb.length}</i></button><hr>${SEVS.map(
+          ? `<div class="menu-pop sev-pop" role="menu"><button role="menuitemradio" aria-checked="${String(!sev)}" data-s="">All severities <i>${nb.length}</i></button><hr>${SEVS.map(
               ([v, l, f]) =>
-                `<button role="menuitemradio" aria-checked="${sev === v}" data-s="${v}">${l} <i>${nb.filter((c) => f(c.severity)).length}</i></button>`,
+                `<button role="menuitemradio" aria-checked="${String(sev === v)}" data-s="${v}">${l} <i>${nb.filter((c) => f(c.severity)).length}</i></button>`,
             ).join("")}</div>`
           : "")
       : "";

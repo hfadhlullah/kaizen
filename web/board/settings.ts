@@ -2,7 +2,7 @@ import { store } from "./store.ts";
 import { termStop } from "./agent-term.ts";
 import { load, post } from "./api.ts";
 import { stopDictation } from "./dictation.ts";
-import { $, esc, SKEL } from "./dom.ts";
+import { $, html, SKEL } from "./dom.ts";
 import { close } from "./panel.ts";
 import { askNotify, toast } from "./toast.ts";
 import { updBar } from "./update.ts";
@@ -51,55 +51,51 @@ export async function openSettings() {
   const ctl = (id, vals, on) => {
     // The preset is a segmented control over the tiers; custom, which only an edit to another row makes, lights none.
     if (id === "s-preset")
-      return `<span class="bar" id="${id}" role="group" aria-label="Preset">${vals
+      return html`<span class="bar" id="${id}" role="group" aria-label="Preset">${vals
         .filter((v) => v !== "custom")
-        .map((v) => `<button id="${id}-${v}" data-v="${v}" class="${v === on ? "on" : ""}" aria-pressed="${v === on}">${v}</button>`)
-        .join("")}</span>`;
+        .map((v) => html`<button id="${id}-${v}" data-v="${v}" class="${v === on ? "on" : ""}" aria-pressed="${String(v === on)}">${v}</button>`)}</span>`;
     if (vals.length === 2 && vals.includes("true") && vals.includes("false")) {
       const yes = on === "true";
-      return `<button class="chk${yes ? " on" : ""}" id="${id}" data-v="${yes ? "false" : "true"}" role="switch" aria-checked="${yes}" title="${yes ? "On" : "Off"}"></button>`;
+      return html`<button class="chk${yes ? " on" : ""}" id="${id}" data-v="${yes ? "false" : "true"}" role="switch" aria-checked="${String(yes)}" title="${yes ? "On" : "Off"}"></button>`;
     }
     if (vals.every((v) => /^\d+$/.test(v)))
-      return `<span class="bar" id="${id}" role="group">${vals.map((v) => `<button data-v="${v}" class="${v === on ? "on" : ""}" aria-pressed="${v === on}">${v}</button>`).join("")}</span>`;
-    return `<select class="sel" id="${id}">${vals.map((v) => `<option value="${esc(v)}"${v === on ? " selected" : ""}>${v === "" ? "—" : esc(v)}</option>`).join("")}</select>`;
+      return html`<span class="bar" id="${id}" role="group">${vals.map((v) => html`<button data-v="${v}" class="${v === on ? "on" : ""}" aria-pressed="${String(v === on)}">${v}</button>`)}</span>`;
+    return html`<select class="sel" id="${id}">${vals.map((v) => html`<option value="${v}"${v === on ? " selected" : ""}>${v === "" ? "—" : v}</option>`)}</select>`;
   };
   const row = (label, control, hint, id, q) =>
-    `<div class="srow" data-q="${esc(q.toLowerCase())}"><label for="${id}">${esc(label)}</label>${control}${hint ? `<p class="hint">${hint}</p>` : ""}</div>`;
+    html`<div class="srow" data-q="${q.toLowerCase()}"><label for="${id}">${label}</label>${control}${hint ? html`<p class="hint">${hint}</p>` : ""}</div>`;
   const hadFocus = document.activeElement?.id === "sq";
   const np = typeof Notification === "undefined" ? null : Notification.permission;
   const ntHelp = np ? (np === "denied" ? "Blocked by this browser" : "") : "Not supported in this browser";
-  $("pbody").innerHTML =
-    `<div class="sq"><input class="sel" id="sq" type="search" placeholder="Search settings" aria-label="Search settings" spellcheck="false" autocomplete="off" value="${esc(store.setQ)}"></div>
+  $("pbody").innerHTML = html`<div class="sq"><input class="sel" id="sq" type="search" placeholder="Search settings" aria-label="Search settings" spellcheck="false" autocomplete="off" value="${store.setQ}"></div>
   ${
     cfg
       ? groups(cfg.rows)
           .map(
             ([g, rows]) =>
-              `<h3 class="sg">${esc(g)}</h3><div class="sgrp">${rows
+              html`<h3 class="sg">${g}</h3><div class="sgrp">${rows
                 .map((r) => {
                   const id = "s-" + r.key.replace(/\./g, "-");
                   return row(
                     r.label,
                     r.text
                       ? r.folder
-                        ? `<span class="fpick"><input class="sel" id="${id}" value="${esc(r.value)}" placeholder="not set" spellcheck="false"><button class="btn" id="${id}-pick" type="button">Browse…</button></span>`
-                        : `<input class="sel" id="${id}" value="${esc(r.value)}" placeholder="not set" spellcheck="false">`
+                        ? html`<span class="fpick"><input class="sel" id="${id}" value="${r.value}" placeholder="not set" spellcheck="false"><button class="btn" id="${id}-pick" type="button">Browse…</button></span>`
+                        : html`<input class="sel" id="${id}" value="${r.value}" placeholder="not set" spellcheck="false">`
                       : ctl(id, r.values, r.value),
-                    esc(r.help),
+                    r.help,
                     id,
                     [r.label, r.help, r.key, g, ...r.values].join(" "),
                   );
-                })
-                .join("")}</div>`,
+                })}</div>`,
           )
-          .join("")
-      : `<p class="snone">Settings could not be read. Run <code>kaizen settings</code>.</p>`
+      : html`<p class="snone">Settings could not be read. Run <code>kaizen settings</code>.</p>`
   }
-  <h3 class="sg">Google</h3><div class="sgrp">${row("OAuth client id", `<input class="sel" id="gg-id" placeholder="${gg.hasClient ? "saved; type to replace" : "from Google Cloud, Desktop app"}" spellcheck="false" autocomplete="off">`, "", "gg-id", "google oauth client id sheets write back")}
-  ${row("OAuth client secret", `<span class="fpick"><input class="sel" id="gg-secret" type="password" placeholder="${gg.hasClient ? "saved; type to replace" : ""}" spellcheck="false" autocomplete="off"><button class="btn" id="gg-save" type="button">Save</button></span>`, "", "gg-secret", "google oauth client secret")}
-  ${row("Google account", `<button class="btn${gg.connected ? "" : " pri"}" id="gg-conn" type="button"${gg.hasClient || gg.connected ? "" : " disabled"}>${gg.connected ? "Disconnect" : "Connect"}</button>`, "", "gg-conn", "google account connect sheets write back")}</div>
+  <h3 class="sg">Google</h3><div class="sgrp">${row("OAuth client id", html`<input class="sel" id="gg-id" placeholder="${gg.hasClient ? "saved; type to replace" : "from Google Cloud, Desktop app"}" spellcheck="false" autocomplete="off">`, "", "gg-id", "google oauth client id sheets write back")}
+  ${row("OAuth client secret", html`<span class="fpick"><input class="sel" id="gg-secret" type="password" placeholder="${gg.hasClient ? "saved; type to replace" : ""}" spellcheck="false" autocomplete="off"><button class="btn" id="gg-save" type="button">Save</button></span>`, "", "gg-secret", "google oauth client secret")}
+  ${row("Google account", html`<button class="btn${gg.connected ? "" : " pri"}" id="gg-conn" type="button"${gg.hasClient || gg.connected ? "" : " disabled"}>${gg.connected ? "Disconnect" : "Connect"}</button>`, "", "gg-conn", "google account connect sheets write back")}</div>
   <h3 class="sg">Browser</h3><div class="sgrp">${row("Theme", ctl("th", ["system", "light", "dark"], cur), "", "th", "theme light dark system browser")}
-  ${row("Notifications", `<button class="chk${np === "granted" ? " on" : ""}" id="nt" role="switch" aria-checked="${np === "granted"}"${np && np !== "denied" ? "" : " disabled"}></button>`, ntHelp, "nt", "notifications " + ntHelp + " browser")}</div>
+  ${row("Notifications", html`<button class="chk${np === "granted" ? " on" : ""}" id="nt" role="switch" aria-checked="${String(np === "granted")}"${np && np !== "denied" ? "" : " disabled"}></button>`, ntHelp, "nt", "notifications " + ntHelp + " browser")}</div>
   <p class="snone" id="snone" hidden></p>`;
   // Hides rows that do not match, then any group (and its chip) left with none.
   updBar();

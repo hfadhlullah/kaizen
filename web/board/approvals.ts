@@ -2,7 +2,7 @@ import { store } from "./store.ts";
 import { where } from "./agent-term.ts";
 import { post } from "./api.ts";
 import { key, via } from "./cards.ts";
-import { $, esc } from "./dom.ts";
+import { $, html } from "./dom.ts";
 import { openRun } from "./panel.ts";
 import { askNotify, toast } from "./toast.ts";
 
@@ -57,7 +57,7 @@ export async function decide(c, b, why, answers) {
 export function confirmRevise(c) {
   const foot = $("pfoot"),
     plan = c.awaiting === "approvals.plan";
-  foot.innerHTML = `<div class="inl" style="flex:1"><div class="q">${plan ? "What should the plan do differently?" : "What should change in the work?"}</div><div class="q dim">Opens your agent on this run with your comment.${plan ? " It revises the plan and comes back here for approval." : " It changes the work, rechecks it and comes back here."}</div><textarea aria-label="Revise comment"></textarea><div class="row"><button class="btn ghost" data-a="c">Cancel</button><button class="btn pri" data-a="s">Send back</button></div></div>`;
+  foot.innerHTML = html`<div class="inl" style="flex:1"><div class="q">${plan ? "What should the plan do differently?" : "What should change in the work?"}</div><div class="q dim">Opens your agent on this run with your comment.${plan ? " It revises the plan and comes back here for approval." : " It changes the work, rechecks it and comes back here."}</div><textarea aria-label="Revise comment"></textarea><div class="row"><button class="btn ghost" data-a="c">Cancel</button><button class="btn pri" data-a="s">Send back</button></div></div>`;
   const inp = foot.querySelector("textarea");
   inp.focus();
   foot.querySelector("[data-a=c]").onclick = () => {
@@ -78,7 +78,7 @@ export function confirmRevise(c) {
 // a note for what the options miss. Each answer reaches the agent as one line.
 export function confirmAnswers(c, qs) {
   const foot = $("pfoot");
-  foot.innerHTML = `<div class="inl qa" style="flex:1"><div class="q">The plan asks ${qs.length === 1 ? "one question" : qs.length + " questions"}.</div><div class="q dim">Your answers go to your agent with the approval. It records them and builds the plan.</div>${qs.map((x, i) => `<fieldset><legend>${esc(x.q)}</legend>${x.options.map((o, j) => `<label><input type="${x.multi ? "checkbox" : "radio"}" name="q${i}" value="${j}"${o.rec || (!x.multi && !j && !x.options.some((p) => p.rec)) ? " checked" : ""}> ${esc(o.text)}</label>`).join("")}<input type="text" data-n="${i}" placeholder="Note (optional)" aria-label="Note: ${esc(x.q)}"></fieldset>`).join("")}<div class="row"><button class="btn ghost" data-a="c">Cancel</button><button class="btn pri" data-a="s">Approve with these answers</button></div></div>`;
+  foot.innerHTML = html`<div class="inl qa" style="flex:1"><div class="q">The plan asks ${qs.length === 1 ? "one question" : qs.length + " questions"}.</div><div class="q dim">Your answers go to your agent with the approval. It records them and builds the plan.</div>${qs.map((x, i) => html`<fieldset><legend>${x.q}</legend>${x.options.map((o, j) => html`<label><input type="${x.multi ? "checkbox" : "radio"}" name="q${i}" value="${j}"${o.rec || (!x.multi && !j && !x.options.some((p) => p.rec)) ? " checked" : ""}> ${o.text}</label>`)}<input type="text" data-n="${i}" placeholder="Note (optional)" aria-label="Note: ${x.q}"></fieldset>`)}<div class="row"><button class="btn ghost" data-a="c">Cancel</button><button class="btn pri" data-a="s">Approve with these answers</button></div></div>`;
   foot.querySelector("[data-a=c]").onclick = () => {
     foot.innerHTML = "";
     openRun(c, true);

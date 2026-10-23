@@ -5,7 +5,7 @@ import { APPROVAL, answer, confirmAnswers, confirmRevise, decide, decided, resum
 import { cardEl, key, render } from "./cards.ts";
 import { chat } from "./chat.ts";
 import { stopDictation } from "./dictation.ts";
-import { $, esc } from "./dom.ts";
+import { $, html, raw } from "./dom.ts";
 import { fixForm, fixOff } from "./fixes.ts";
 import { commitPush, confirmCommit, gitBtn } from "./git.ts";
 import { ICON, WORD, need } from "./labels.ts";
@@ -51,7 +51,7 @@ export function open(c, keepTab) {
   $("pterm").hidden = true;
   if (c.kind === "idea") {
     store.runDoc = null;
-    $("psub").innerHTML = `<span class="pst"><span class="st d-idea"><svg><use href="#s-idea"/></svg></span>Idea</span><span class="pst dim">${esc(c.where.split(/[\\/]/).pop() || c.where)}</span>`;
+    $("psub").innerHTML = html`<span class="pst"><span class="st d-idea"><svg><use href="#s-idea"/></svg></span>Idea</span><span class="pst dim">${c.where.split(/[\\/]/).pop() || c.where}</span>`;
     $("ptabs").innerHTML = "";
     ideaBody(c);
     const foot = $("pfoot");
@@ -97,7 +97,7 @@ function showProgress(c) {
     st: [...src.matchAll(/^\s*-\s*(todo|doing|done):/gm)].map((m) => m[1]),
     w: +/width:(\d+)%/.exec(h)[1],
   };
-  $("pbody").innerHTML = h + (store.runDoc.backlog ? "<h3>Backlog</h3>" + md(store.runDoc.backlog, true) : "");
+  $("pbody").innerHTML = html`${raw(h)}${store.runDoc.backlog ? html`<h3>Backlog</h3>${raw(md(store.runDoc.backlog, true))}` : ""}`;
   const bar = $("pbody").querySelector(".pbar i");
   if (prev && prev.w !== lastProg.w) {
     bar.style.width = prev.w + "%";
@@ -129,9 +129,9 @@ export async function openRun(c, refresh, again) {
   if (refresh && ta && document.activeElement === ta) return;
   // The board's own status mark, then what it waits on: chips, not a dotted line.
   $("psub").innerHTML =
-    `<span class="pst"><span class="st d-${ICON[c.status] || "idea"}"><svg><use href="#s-${ICON[c.status] || "idea"}"/></svg></span>${esc(cap(WORD[c.status] || c.status))}</span>` +
-    (c.awaiting ? `<span class="pst dim">${esc(cap(need(c.awaiting)))}</span>` : "") +
-    (c.parent ? `<span class="pst link" title="Filed by this run">${esc(c.parent)}</span>` : "");
+    html`<span class="pst"><span class="st d-${ICON[c.status] || "idea"}"><svg><use href="#s-${ICON[c.status] || "idea"}"/></svg></span>${cap(WORD[c.status] || c.status)}</span>` +
+    (c.awaiting ? html`<span class="pst dim">${cap(need(c.awaiting))}</span>` : "") +
+    (c.parent ? html`<span class="pst link" title="Filed by this run">${c.parent}</span>` : "");
   // Only tabs with something in them show. A card whose agent runs in the board gets its
   // terminal behind the header's terminal button, chosen once right after a launch from here.
   const tabs = TABS.filter(
@@ -162,7 +162,7 @@ export async function openRun(c, refresh, again) {
     openRun(c, true);
   };
   $("ptabs").innerHTML = tabs
-    .map((t) => `<button class="${t[1] === store.tab ? "on" : ""}" data-k="${t[1]}">${t[0]}</button>`)
+    .map((t) => html`<button class="${t[1] === store.tab ? "on" : ""}" data-k="${t[1]}">${t[0]}</button>`)
     .join("");
   [...$("ptabs").children].forEach(
     (b) =>
@@ -180,15 +180,15 @@ export async function openRun(c, refresh, again) {
     chat(c, doc, ro);
   } else
     $("pbody").innerHTML = doc
-      ? md(doc, k === "backlog")
-      : `<p style="color:var(--dim)">No ${{ request: "request", plan: "plan", impl: "work report", preview: "preview", review: "review", backlog: "backlog" }[k]} yet.</p>`;
+      ? raw(md(doc, k === "backlog"))
+      : html`<p style="color:var(--dim)">No ${{ request: "request", plan: "plan", impl: "work report", preview: "preview", review: "review", backlog: "backlog" }[k]} yet.</p>`;
   if (k === "backlog") showProgress(c);
   if (k === "review") fixForm(c);
   // The notebook's notes that link here, each opening that note: above the run's own notes.
   if (k === "notes" && store.runDoc.linkedFrom && store.runDoc.linkedFrom.length)
     $("pbody").insertAdjacentHTML(
       "afterbegin",
-      `<h3>Linked from notes</h3><ul class="lnk">${store.runDoc.linkedFrom.map((n) => `<li><a href="/notebook?dir=${encodeURIComponent(c.state)}&amp;note=${encodeURIComponent(n)}">${esc(n)}</a></li>`).join("")}</ul>`,
+      html`<h3>Linked from notes</h3><ul class="lnk">${store.runDoc.linkedFrom.map((n) => html`<li><a href="/notebook?dir=${encodeURIComponent(c.state)}&amp;note=${encodeURIComponent(n)}">${n}</a></li>`)}</ul>`,
     );
   // Only the panel the link asked for: another card opened meanwhile drops the mark.
   if (hit && !refresh) {
@@ -209,7 +209,7 @@ export async function openRun(c, refresh, again) {
     qs = pq || [];
   // Its in-card agent ended on a waiting or done run: reopen that conversation, nothing sent.
   const rs = c.pty && !c.pty.alive ? `<button class="btn" data-a="resume">Resume session</button>` : "";
-  if (c.archived) foot.innerHTML = arch;
+  if (c.archived) foot.innerHTML = raw(arch);
   else if ((c.status === "waiting" || c.awaiting === "findings") && APPROVAL[c.awaiting]) {
     const sent = decided.has(answer(c)),
       asks = !pq
@@ -221,13 +221,13 @@ export async function openRun(c, refresh, again) {
     const more =
       gitBtn(c).replace(/class="btn( pri)?"/g, "") +
       `<button data-a="archive">Archive</button><hr><button data-a="ab" class="danger">Abandon</button>`;
-    foot.innerHTML = `<span class="note">${sent ? "Sent to your agent." : APPROVAL[c.awaiting] + asks + " Answering here opens a new agent session."}</span><details class="more"><summary class="btn ghost">More</summary><div class="menu-pop">${more}</div></details>${rs}<span class="dec"><button class="btn" data-a="revise"${sent ? " disabled" : ""}>Revise</button><button class="btn pri" data-a="approve"${sent ? " disabled" : ""}>${c.awaiting === "findings" ? "Approve as-is" : "Approve"}</button></span>`;
+    foot.innerHTML = html`<span class="note">${sent ? "Sent to your agent." : APPROVAL[c.awaiting] + asks + " Answering here opens a new agent session."}</span><details class="more"><summary class="btn ghost">More</summary><div class="menu-pop">${raw(more)}</div></details>${raw(rs)}<span class="dec"><button class="btn" data-a="revise"${sent ? " disabled" : ""}>Revise</button><button class="btn pri" data-a="approve"${sent ? " disabled" : ""}>${c.awaiting === "findings" ? "Approve as-is" : "Approve"}</button></span>`;
   } else if (c.status === "waiting")
-    foot.innerHTML = `<span class="note">Waiting on you: ${esc(need(c.awaiting))}. Answer in the ${c.pty && c.pty.alive ? "terminal (button at the top)" : "terminal running this run"}.</span>${arch}<button class="btn ghost" data-a="ab">Abandon</button>${rs}`;
-  else if (c.status === "done") foot.innerHTML = arch + rs;
-  else if (c.status === "abandoned") foot.innerHTML = arch;
+    foot.innerHTML = html`<span class="note">Waiting on you: ${need(c.awaiting)}. Answer in the ${c.pty && c.pty.alive ? "terminal (button at the top)" : "terminal running this run"}.</span>${raw(arch)}<button class="btn ghost" data-a="ab">Abandon</button>${raw(rs)}`;
+  else if (c.status === "done") foot.innerHTML = raw(arch + rs);
+  else if (c.status === "abandoned") foot.innerHTML = raw(arch);
   else
-    foot.innerHTML = `<span class="note">${c.pty && !c.pty.alive ? "Its agent ended before the stage finished. Resume continues it here." : c.status === "stalled" ? "No progress for a while. Resume it, or abandon it." : c.pty ? "" : "Running in your agent."}</span>${arch}<button class="btn ghost" data-a="ab">Abandon run</button>${resumable(c) ? `<button class="btn pri" data-a="resume">Resume</button>` : ""}`;
+    foot.innerHTML = html`<span class="note">${c.pty && !c.pty.alive ? "Its agent ended before the stage finished. Resume continues it here." : c.status === "stalled" ? "No progress for a while. Resume it, or abandon it." : c.pty ? "" : "Running in your agent."}</span>${raw(arch)}<button class="btn ghost" data-a="ab">Abandon run</button>${resumable(c) ? html`<button class="btn pri" data-a="resume">Resume</button>` : ""}`;
   foot.querySelectorAll("[data-a]").forEach(
     (b) =>
       (b.onclick = () => {

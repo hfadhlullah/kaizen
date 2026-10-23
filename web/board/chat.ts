@@ -1,7 +1,7 @@
 import { load, post } from "./api.ts";
 import { key } from "./cards.ts";
 import { mic, stopDictation } from "./dictation.ts";
-import { $, esc } from "./dom.ts";
+import { $, html, raw as rawHtml } from "./dom.ts";
 import { DK, draft } from "./drafts.ts";
 import { attach, brief, md } from "./markdown.ts";
 import { toast } from "./toast.ts";
@@ -28,12 +28,12 @@ export function chat(c, src, ro) {
   const b = c.kind === "idea" ? brief(c.text) : { parts: [] };
   let h =
     (b.parts.length
-      ? `<section class="desc">${md(b.parts.map((p) => `### ${p.label}\n${p.body}`).join("\n\n"))}</section>`
+      ? html`<section class="desc">${rawHtml(md(b.parts.map((p) => `### ${p.label}\n${p.body}`).join("\n\n")))}</section>`
       : "") +
-    `<div class="chat">${entries.map((n) => `<div class="msg">${n.at ? `<time>${esc(n.at)}</time>` : ""}${md(fix(n.text))}</div>`).join("") || `<p style="color:var(--dim)">No notes yet.</p>`}</div>`;
+    html`<div class="chat">${entries.map((n) => html`<div class="msg">${n.at ? html`<time>${n.at}</time>` : ""}${rawHtml(md(fix(n.text)))}</div>`)}${entries.length ? "" : html`<p style="color:var(--dim)">No notes yet.</p>`}</div>`;
   if (!ro)
     h += `<div class="notes"><textarea placeholder="Add a note. Paste a screenshot, or attach files."></textarea><div class="att" id="natt"></div><div class="tools"><input type="file" id="nfile" multiple hidden><button class="btn ghost" id="npick">Attach</button><span>Enter sends, Shift+Enter newline</span><button class="btn pri" id="nsend">Send</button></div></div>`;
-  $("pbody").innerHTML = h;
+  $("pbody").innerHTML = rawHtml(h);
   if (ro) return;
   const ta = $("pbody").querySelector("textarea"),
     files = [];

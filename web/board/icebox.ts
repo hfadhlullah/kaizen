@@ -3,7 +3,7 @@ import { termStop } from "./agent-term.ts";
 import { load, post } from "./api.ts";
 import { via } from "./cards.ts";
 import { mic, stopDictation } from "./dictation.ts";
-import { $, dataUrls, esc, ico, modal, SKEL } from "./dom.ts";
+import { $, dataUrls, html, ico, modal, raw, SKEL } from "./dom.ts";
 import { ideaCombo, newDir, plogo, setShown, short, showable } from "./projects.ts";
 import { toast } from "./toast.ts";
 import { go, view } from "./views.ts";
@@ -167,7 +167,7 @@ export async function openSources() {
   // Sheets and Docs, whose site icon is generic): nothing but the host reaches anyone. A social
   // platform's mark is drawn here instead: Meta's favicons are same-origin only.
   const fav = (u, fb, soc) => {
-    if (PLAT[soc]) return `<span class="fav">${ico("b-" + soc)}</span>`;
+    if (PLAT[soc]) return html`<span class="fav">${ico("b-" + soc)}</span>`;
     let h;
     try {
       const x = new URL(u);
@@ -180,7 +180,7 @@ export async function openSources() {
         : u.includes("docs.google.com/document")
           ? "https://ssl.gstatic.com/docs/documents/images/kix-favicon7.ico"
           : h + "/favicon.ico";
-    return `<span class="fav">${src ? `<img src="${esc(src)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ""}${ico(fb)}</span>`;
+    return html`<span class="fav">${src ? html`<img src="${src}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ""}${ico(fb)}</span>`;
   };
   // What a source is called when nothing names it: its platform, else its site.
   const platOf = (s) => PLAT[s?.social] || (s ? host(s.url).replace(/^www\./, "") : "") || "Other";
@@ -201,12 +201,7 @@ export async function openSources() {
   // changes on every arrow key, and each change would have moved the source. The names are the picker's;
   // a row whose project the picker does not list still gets its own, selected, so Move never points elsewhere.
   const opts = (on, name) =>
-    (on && !store.S.projects.some((p) => p.dir === on)
-      ? `<option value="${esc(on)}" title="${esc(name || on)}" selected>${esc(short(name || on))}</option>`
-      : "") +
-    store.S.projects
-      .map((p) => `<option value="${esc(p.dir)}" title="${esc(p.label)}"${p.dir === on ? " selected" : ""}>${esc(short(p.label))}</option>`)
-      .join("");
+    html`${on && !store.S.projects.some((p) => p.dir === on) ? html`<option value="${on}" title="${name || on}" selected>${short(name || on)}</option>` : ""}${store.S.projects.map((p) => html`<option value="${p.dir}" title="${p.label}"${p.dir === on ? " selected" : ""}>${short(p.label)}</option>`)}`;
   const cards = list
     .map((s, i) => {
       const st = srcType(s),
@@ -214,30 +209,24 @@ export async function openSources() {
       // A social source is never read by kaizen, so its not-ok is the agent's turn, not a failure.
       const statusHtml =
         s.social && (!s.last || (!s.last.ok && /gathered by your agent/i.test(s.last.note)))
-          ? `<span class="src-badge dim">${ico("at")}${chatOn ? "Gathered with ChatGPT" : "Gathered by your agent"}</span>`
+          ? html`<span class="src-badge dim">${ico("at")}${chatOn ? "Gathered with ChatGPT" : "Gathered by your agent"}</span>`
           : !s.last
-            ? `<span class="src-badge dim">Not gathered yet</span>`
+            ? html`<span class="src-badge dim">Not gathered yet</span>`
             : s.last.ok
-              ? `<span class="src-badge ok"><svg viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-6" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>${esc(s.last.note)}</span><span class="hint" style="margin:0">${ago(s.last.at)}</span>`
-              : `<span class="src-badge warn"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" stroke="currentColor" fill="none" stroke-width="1.8"/><path d="M8 5v3.5M8 11v.1" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round"/></svg>Failed: ${esc(s.last.note)}</span><span class="hint" style="margin:0">${ago(s.last.at)}</span>`;
+              ? html`<span class="src-badge ok"><svg viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-6" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>${s.last.note}</span><span class="hint" style="margin:0">${ago(s.last.at)}</span>`
+              : html`<span class="src-badge warn"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" stroke="currentColor" fill="none" stroke-width="1.8"/><path d="M8 5v3.5M8 11v.1" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round"/></svg>Failed: ${s.last.note}</span><span class="hint" style="margin:0">${ago(s.last.at)}</span>`;
       const kind = st === "sheet" ? "sheet" : st === "doc" ? "doc" : st === "social" ? "at" : "link",
         bare = s.url.replace(/^https?:\/\/(www\.)?/, "");
-      return `<div class="src-card" id="src-card-${i}"><div class="src-hd"><span class="src-ico" title="${st === "social" ? esc(PLAT[s.social] || "social") : st}">${fav(s.url, kind, s.social)}</span><div class="src-info"><span class="src-title" title="${esc(title)}">${esc(title)}</span><a class="src-url" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer" title="${esc(s.url)}"><span>${esc(bare)}</span>${ico("ext")}</a></div><div class="src-acts">${s.social ? `<button class="ib sm" id="src-ag-${i}" data-ag="${i}" aria-label="Gather ${esc(title)} with your agent" title="${chatOn ? "Gather with your ChatGPT plan" : "Gather: opens your agent on /kaizen gather"}">${ico("refresh")}</button>` : `<button class="ib sm" id="src-chk-${i}" data-chk="${i}" aria-label="Check ${esc(title)} now" title="Check now">${ico("refresh")}</button>`}<button class="ib sm danger" id="src-rm-${i}" data-rm="${i}" aria-label="Remove ${esc(title)}" title="Remove source">${ico("trash")}</button></div></div><div class="src-status">${statusHtml}</div><div class="src-fields"><label class="src-f" title="Category"><span>Category</span><input class="sel" id="src-ct-${i}" data-ct="${i}" data-k="${esc(s.dir + " " + s.url)}" value="${esc(s.category || "")}" placeholder="${esc(platOf(s))}" maxlength="40" aria-label="Category of ${esc(title)}"><button class="btn sm pri" id="src-cs-${i}" aria-label="Save the category of ${esc(title)}" disabled>Save</button></label><label class="src-f" title="Project"><span>Project</span>${plogo(s.dir, s.project || "")}<select class="sel" id="src-mv-${i}" data-mv="${i}" data-k="${esc(s.dir + " " + s.url)}" aria-label="Project of ${esc(title)}">${opts(s.dir, s.project)}</select><button class="btn sm pri" id="src-mb-${i}" aria-label="Move ${esc(title)} to the chosen project" disabled>Move</button></label>${st === "sheet" || /github\.com/.test(s.url) ? `<label class="src-wb"><input type="checkbox" id="src-wb-${i}" data-wb="${i}"${s.writeback ? " checked" : ""}> Write back</label>` : ""}</div></div>`;
-    })
-    .join("");
-  const fails = ((d && d.failed) || [])
-    .map((f) => `<p style="color:var(--dim)">The sources of ${esc(f)} could not be read.</p>`)
-    .join("");
-  const emptyState = `<div class="src-empty"><div class="src-empty-ico">${ico("link")}</div><h4>No sources yet</h4></div>`;
+      return html`<div class="src-card" id="src-card-${i}"><div class="src-hd"><span class="src-ico" title="${st === "social" ? (PLAT[s.social] || "social") : st}">${fav(s.url, kind, s.social)}</span><div class="src-info"><span class="src-title" title="${title}">${title}</span><a class="src-url" href="${s.url}" target="_blank" rel="noopener noreferrer" title="${s.url}"><span>${bare}</span>${ico("ext")}</a></div><div class="src-acts">${s.social ? html`<button class="ib sm" id="src-ag-${i}" data-ag="${i}" aria-label="Gather ${title} with your agent" title="${chatOn ? "Gather with your ChatGPT plan" : "Gather: opens your agent on /kaizen gather"}">${ico("refresh")}</button>` : html`<button class="ib sm" id="src-chk-${i}" data-chk="${i}" aria-label="Check ${title} now" title="Check now">${ico("refresh")}</button>`}<button class="ib sm danger" id="src-rm-${i}" data-rm="${i}" aria-label="Remove ${title}" title="Remove source">${ico("trash")}</button></div></div><div class="src-status">${statusHtml}</div><div class="src-fields"><label class="src-f" title="Category"><span>Category</span><input class="sel" id="src-ct-${i}" data-ct="${i}" data-k="${s.dir + " " + s.url}" value="${s.category || ""}" placeholder="${platOf(s)}" maxlength="40" aria-label="Category of ${title}"><button class="btn sm pri" id="src-cs-${i}" aria-label="Save the category of ${title}" disabled>Save</button></label><label class="src-f" title="Project"><span>Project</span>${plogo(s.dir, s.project || "")}<select class="sel" id="src-mv-${i}" data-mv="${i}" data-k="${s.dir + " " + s.url}" aria-label="Project of ${title}">${opts(s.dir, s.project)}</select><button class="btn sm pri" id="src-mb-${i}" aria-label="Move ${title} to the chosen project" disabled>Move</button></label>${st === "sheet" || /github\.com/.test(s.url) ? html`<label class="src-wb"><input type="checkbox" id="src-wb-${i}" data-wb="${i}"${s.writeback ? " checked" : ""}> Write back</label>` : ""}</div></div>`;
+    });
+  const fails = ((d && d.failed) || []).map((f) => html`<p style="color:var(--dim)">The sources of ${f} could not be read.</p>`);
+  const emptyState = html`<div class="src-empty"><div class="src-empty-ico">${ico("link")}</div><h4>No sources yet</h4></div>`;
   const social = srcKind === "social";
   const addOn = !list.length || srcAdd || [typed[0], typed[1], typed[4], typed[6]].some(Boolean);
-  const addBox = `<div class="src-add" id="src-addbox"${addOn ? "" : " hidden"}><div class="hd"><h4>Add a source</h4><div class="src-kind" role="group" aria-label="Kind of source"><button id="src-k-link" data-kind="link" aria-pressed="${!social}">Link</button><button id="src-k-social" data-kind="social" aria-pressed="${social}">Social</button></div></div><label for="src-url"${social ? " hidden" : ""}><span>Link</span><input class="sel" id="src-url" placeholder="Link" spellcheck="false" autocomplete="off"></label><div class="two plat"${social ? "" : " hidden"}><label for="src-plat"><span>Platform</span><select class="sel" id="src-plat">${Object.entries(
+  const addBox = html`<div class="src-add" id="src-addbox"${addOn ? "" : " hidden"}><div class="hd"><h4>Add a source</h4><div class="src-kind" role="group" aria-label="Kind of source"><button id="src-k-link" data-kind="link" aria-pressed="${String(!social)}">Link</button><button id="src-k-social" data-kind="social" aria-pressed="${String(social)}">Social</button></div></div><label for="src-url"${social ? " hidden" : ""}><span>Link</span><input class="sel" id="src-url" placeholder="Link" spellcheck="false" autocomplete="off"></label><div class="two plat"${social ? "" : " hidden"}><label for="src-plat"><span>Platform</span><select class="sel" id="src-plat">${Object.entries(
     PLAT,
   )
-    .map(([k, v]) => `<option value="${k}">${v}</option>`)
-    .join(
-      "",
-    )}</select></label><label for="src-q"><span>Follow</span><input class="sel" id="src-q" placeholder="keyword, #hashtag or @account" maxlength="100" spellcheck="false" autocomplete="off"></label></div><div class="two"><label for="src-label"><span>Label <i>optional</i></span><input class="sel" id="src-label" placeholder="${social ? "e.g. Mentions on X" : "e.g. Feedback Q4"}"></label><label for="src-cat"><span>Category <i>optional</i></span><input class="sel" id="src-cat" placeholder="${social ? "e.g. Social" : "e.g. Bugs"}" maxlength="40"></label></div><label for="src-dir"><span>Project</span><select class="sel" id="src-dir">${dir ? "" : `<option value="">Choose project…</option>`}${opts(dir)}</select></label><div class="acts"><span class="end"></span><button class="btn pri" id="src-add">Add source</button></div></div>`;
+    .map(([k, v]) => html`<option value="${k}">${v}</option>`)}</select></label><label for="src-q"><span>Follow</span><input class="sel" id="src-q" placeholder="keyword, #hashtag or @account" maxlength="100" spellcheck="false" autocomplete="off"></label></div><div class="two"><label for="src-label"><span>Label <i>optional</i></span><input class="sel" id="src-label" placeholder="${social ? "e.g. Mentions on X" : "e.g. Feedback Q4"}"></label><label for="src-cat"><span>Category <i>optional</i></span><input class="sel" id="src-cat" placeholder="${social ? "e.g. Social" : "e.g. Bugs"}" maxlength="40"></label></div><label for="src-dir"><span>Project</span><select class="sel" id="src-dir">${dir ? "" : html`<option value="">Choose project…</option>`}${opts(dir)}</select></label><div class="acts"><span class="end"></span><button class="btn pri" id="src-add">Add source</button></div></div>`;
   // The inbox: one row per request, by project when showing all, then by category,
   // narrowed to one source by its chip. Checked, open and cursor items are kept by key.
   const srcName = (it) => {
@@ -302,9 +291,9 @@ export async function openSources() {
   const many = byProj.size > 1;
   // Filters are searchable pickers (the header's combo): a button, then a search over the list.
   const pick = (id, label, cur, rows) =>
-    `<div class="combo ice-combo" id="${id}"><button class="sel" aria-label="${label}" aria-haspopup="listbox" aria-expanded="false">${cur}</button><div class="menu-pop" hidden><input class="sel" aria-label="Search ${label.toLowerCase()}" placeholder="Search…" spellcheck="false" autocomplete="off"><div class="pick-list" role="listbox">${rows}</div></div></div>`;
-  const opt = (v, on, html, q, cls = "") =>
-    `<button type="button" role="option" data-v="${esc(v)}" data-q="${esc(q.toLowerCase())}" class="${on ? "on" : ""}${cls}" aria-selected="${on}">${html}</button>`;
+    html`<div class="combo ice-combo" id="${id}"><button class="sel" aria-label="${label}" aria-haspopup="listbox" aria-expanded="false">${cur}</button><div class="menu-pop" hidden><input class="sel" aria-label="Search ${label.toLowerCase()}" placeholder="Search…" spellcheck="false" autocomplete="off"><div class="pick-list" role="listbox">${rows}</div></div></div>`;
+  const opt = (v, on, inner, q, cls = "") =>
+    html`<button type="button" role="option" data-v="${v}" data-q="${q.toLowerCase()}" class="${on ? "on" : ""}${cls}" aria-selected="${String(on)}">${inner}</button>`;
   // Sources group by platform: two Threads searches sit under one Threads.
   const srcGroups = new Map();
   for (const [k, { it }] of bySrc) {
@@ -314,91 +303,84 @@ export async function openSources() {
   }
   const srcIco = (it) => fav(it.source, "link", srcOf(it)?.social);
   const curSrc = iceSrc && [...bySrc].find(([k]) => k === iceSrc)?.[1].it;
-  const chips =
+  const chips = html`${
     // Dismissed and Done are hidden until picked, so even a lone one is a choice.
-    (byCat.size > 1 || byCat.has("Dismissed") || byCat.has("Done")
+    byCat.size > 1 || byCat.has("Dismissed") || byCat.has("Done")
       ? pick(
           "ice-fc",
           "Category",
-          `<span>${esc(iceCat || "All categories")}</span>`,
-          opt("", !iceCat, `<span>All categories</span>`, "all categories") +
-            [...byCat].map(([k, { n }]) => opt(k, iceCat === k, `<span>${esc(k)}</span><i>${n}</i>`, k)).join(""),
+          html`<span>${iceCat || "All categories"}</span>`,
+          html`${opt("", !iceCat, html`<span>All categories</span>`, "all categories")}${[...byCat].map(([k, { n }]) => opt(k, iceCat === k, html`<span>${k}</span><i>${n}</i>`, k))}`,
         )
-      : "") +
-    (bySrc.size > 1
+      : ""}${
+    bySrc.size > 1
       ? pick(
           "ice-fs",
           "Source",
-          curSrc ? `${srcIco(curSrc)}<span>${esc(srcName(curSrc))}</span>` : `<span>All sources</span>`,
-          opt("", !iceSrc, `<span>All sources</span>`, "all sources") +
-            [...srcGroups]
-              .map(
-                ([g, xs]) =>
-                  `<div class="grp" data-g="${esc(g.toLowerCase())}">${srcIco(xs[0][1])}${esc(g)}</div>` +
-                  xs.map(([k, it]) => opt(k, iceSrc === k, `${srcIco(it)}<span>${esc(srcName(it).toLowerCase().startsWith(g.toLowerCase() + ":") ? srcName(it).slice(g.length + 1).trim() : srcName(it))}</span><i>${bySrc.get(k).n}</i>`, g + " " + srcName(it), " sub")).join(""),
-              )
-              .join(""),
+          curSrc ? html`${srcIco(curSrc)}<span>${srcName(curSrc)}</span>` : html`<span>All sources</span>`,
+          html`${opt("", !iceSrc, html`<span>All sources</span>`, "all sources")}${[...srcGroups].map(
+            ([g, xs]) =>
+              html`<div class="grp" data-g="${g.toLowerCase()}">${srcIco(xs[0][1])}${g}</div>${xs.map(([k, it]) => opt(k, iceSrc === k, html`${srcIco(it)}<span>${srcName(it).toLowerCase().startsWith(g.toLowerCase() + ":") ? srcName(it).slice(g.length + 1).trim() : srcName(it)}</span><i>${bySrc.get(k).n}</i>`, g + " " + srcName(it), " sub"))}`,
+          )}`,
         )
-      : "");
-  const bar = `<div class="ice-bar">${order.length ? `<input type="checkbox" id="ice-all" aria-label="Select every request shown"${nSel && nSel === order.length ? " checked" : ""}>` : ""}<span class="count">${iceCat === "Dismissed" || iceCat === "Done" ? `${order.length} ${iceCat.toLowerCase()}` : `${order.length < waiting ? `${order.length} of ${waiting}` : waiting} waiting`}</span><span class="end"></span>${chips ? `<details class="ice-filt"><summary class="ib${iceCat || iceSrc ? " on" : ""}" aria-label="Filter requests" title="Filter requests">${ico("filter")}</summary><div class="ice-fpop">${chips}</div></details>` : ""}<button class="btn ghost sm" id="ice-new" title="Add a request by hand">${ico("plus")} Add</button><button class="btn sm" id="src-go"${list.length ? "" : " disabled"}>${ico("refresh")} Gather all</button><button class="btn ghost sm" id="src-tog" aria-expanded="${srcShow ?? !list.length}" aria-controls="src-sec">${ico("link")} Sources · ${list.length}</button></div>`;
+      : ""}`;
+  const bar = html`<div class="ice-bar">${order.length ? html`<input type="checkbox" id="ice-all" aria-label="Select every request shown"${nSel && nSel === order.length ? " checked" : ""}>` : ""}<span class="count">${iceCat === "Dismissed" || iceCat === "Done" ? `${order.length} ${iceCat.toLowerCase()}` : `${order.length < waiting ? `${order.length} of ${waiting}` : waiting} waiting`}</span><span class="end"></span>${String(chips) ? html`<details class="ice-filt"><summary class="ib${iceCat || iceSrc ? " on" : ""}" aria-label="Filter requests" title="Filter requests">${ico("filter")}</summary><div class="ice-fpop">${chips}</div></details>` : ""}<button class="btn ghost sm" id="ice-new" title="Add a request by hand">${ico("plus")} Add</button><button class="btn sm" id="src-go"${list.length ? "" : " disabled"}>${ico("refresh")} Gather all</button><button class="btn ghost sm" id="src-tog" aria-expanded="${String(srcShow ?? !list.length)}" aria-controls="src-sec">${ico("link")} Sources · ${list.length}</button></div>`;
   const bulk = iceSel.size
-    ? `<div class="ice-bulk" role="toolbar" aria-label="Selected requests"><span>${iceSel.size} selected</span><span class="end"></span><button class="btn sm" id="ice-bp" title="Promote (p)">${ico("plus")} Promote</button><button class="btn ghost sm" id="ice-bd" title="Dismiss (d)">${ico("x")} Dismiss</button><button class="btn ghost sm" id="ice-bc" title="Clear selection (Esc)">Clear</button></div>`
+    ? html`<div class="ice-bulk" role="toolbar" aria-label="Selected requests"><span>${iceSel.size} selected</span><span class="end"></span><button class="btn sm" id="ice-bp" title="Promote (p)">${ico("plus")} Promote</button><button class="btn ghost sm" id="ice-bd" title="Dismiss (d)">${ico("x")} Dismiss</button><button class="btn ghost sm" id="ice-bc" title="Clear selection (Esc)">Clear</button></div>`
     : "";
   // The open item's form: a clean title for the idea's card and the person's own details;
   // what was gathered is added to the idea's notes by the server.
   const form = (it) =>
-    `<div class="ice-form"><label for="ice-title" class="hint" style="margin:0">Idea title</label><input class="sel" id="ice-title" data-k="${esc(iceKey(it))}" maxlength="200" value="${esc(it.text)}" aria-label="Idea title"><label for="ice-details" class="hint" style="margin:0">Details</label><textarea class="sel" id="ice-details" rows="3" aria-label="Details"></textarea><div class="ice-form-acts"><span class="end"></span><button class="btn ghost sm" id="ice-cancel">Cancel</button><button class="btn pri sm" id="ice-ok">Promote</button></div></div>`;
+    html`<div class="ice-form"><label for="ice-title" class="hint" style="margin:0">Idea title</label><input class="sel" id="ice-title" data-k="${iceKey(it)}" maxlength="200" value="${it.text}" aria-label="Idea title"><label for="ice-details" class="hint" style="margin:0">Details</label><textarea class="sel" id="ice-details" rows="3" aria-label="Details"></textarea><div class="ice-form-acts"><span class="end"></span><button class="btn ghost sm" id="ice-cancel">Cancel</button><button class="btn pri sm" id="ice-ok">Promote</button></div></div>`;
   // A gathered post can be answered: Reply drafts, the box is the approval, Send reply posts that text.
   const replyBox = (it) => {
     if (!it.post) return "";
-    if (it.replied) return `<span class="hint" style="margin:0">You replied to this post ${ago(it.replied)}.</span>`;
+    if (it.replied) return html`<span class="hint" style="margin:0">You replied to this post ${ago(it.replied)}.</span>`;
     const r = iceReply && iceReply.k === iceKey(it) ? iceReply : null;
     const style = (d) =>
-      `<select class="sel" id="ice-rst" aria-label="Reply style"${d ? " disabled" : ""}>${Object.entries(
+      html`<select class="sel" id="ice-rst" aria-label="Reply style"${d ? " disabled" : ""}>${Object.entries(
         STYLES,
       )
-        .map(([v, l]) => `<option value="${v}"${v === rStyle(it.dir) ? " selected" : ""}>${l}</option>`)
-        .join("")}</select>`;
+        .map(([v, l]) => html`<option value="${v}"${v === rStyle(it.dir) ? " selected" : ""}>${l}</option>`)}</select>`;
     if (!r)
-      return `<div class="ice-form-acts"><span class="hint">You review it before it posts.</span>${G.connected ? style(false) : ""}<button class="btn sm" id="ice-rp">Reply</button></div>`;
-    if (r.wait) return `<div class="ice-form-acts"><span class="hint">Drafting…</span></div>`;
-    return `<div class="ice-form"><label for="ice-reply" class="hint" style="margin:0">Your reply${r.note ? ` · ${esc(r.note)}` : ""}</label><textarea class="sel" id="ice-reply" rows="3" maxlength="2000" aria-label="Your reply"${r.busy || r.again ? " disabled" : ""}>${esc(r.text)}</textarea><span class="hint" id="ice-rn" style="margin:0">${r.again ? "Writing another…" : `${r.text.length} chars`}</span><div class="ice-form-acts"><span class="end"></span>${G.connected ? `${style(r.busy || r.again)}<button class="btn ghost sm" id="ice-rg"${r.busy || r.again ? " disabled" : ""}>Regenerate</button>` : ""}<button class="btn ghost sm" id="ice-rc"${r.busy ? " disabled" : ""}>Cancel</button><button class="btn pri sm" id="ice-rs"${r.busy || r.again || !r.text.trim() ? " disabled" : ""}>${r.busy ? "Sending…" : "Send reply"}</button></div></div>`;
+      return html`<div class="ice-form-acts"><span class="hint">You review it before it posts.</span>${G.connected ? style(false) : ""}<button class="btn sm" id="ice-rp">Reply</button></div>`;
+    if (r.wait) return html`<div class="ice-form-acts"><span class="hint">Drafting…</span></div>`;
+    return html`<div class="ice-form"><label for="ice-reply" class="hint" style="margin:0">Your reply${r.note ? ` · ${r.note}` : ""}</label><textarea class="sel" id="ice-reply" rows="3" maxlength="2000" aria-label="Your reply"${r.busy || r.again ? " disabled" : ""}>${r.text}</textarea><span class="hint" id="ice-rn" style="margin:0">${r.again ? "Writing another…" : `${r.text.length} chars`}</span><div class="ice-form-acts"><span class="end"></span>${G.connected ? html`${style(r.busy || r.again)}<button class="btn ghost sm" id="ice-rg"${r.busy || r.again ? " disabled" : ""}>Regenerate</button>` : ""}<button class="btn ghost sm" id="ice-rc"${r.busy ? " disabled" : ""}>Cancel</button><button class="btn pri sm" id="ice-rs"${r.busy || r.again || !r.text.trim() ? " disabled" : ""}>${r.busy ? "Sending…" : "Send reply"}</button></div></div>`;
   };
   const row = (i) => {
     const it = ice[i],
       k = iceKey(it),
       open = iceForm === k;
-    return (
-      `<div class="ice-row${iceCur === k ? " cur" : ""}${iceSel.has(k) ? " sel" : ""}" data-i="${i}" data-k="${esc(k)}"><input type="checkbox" id="ice-ck-${i}" data-ck="${i}"${iceSel.has(k) ? " checked" : ""} aria-label="Select: ${esc(it.text)}"><span class="ice-src" title="${esc(srcName(it))}">${fav(it.source, "link", list.find((x) => x.dir === it.dir && x.url === it.source)?.social)}</span><button class="ice-t" id="ice-o-${i}" data-o="${i}" aria-expanded="${open}" title="${esc(it.text)}">${esc(it.text)}</button><span class="ice-meta">${many ? `<span class="nm" title="${esc(it.project || "")}">${plogo(it.dir, it.project || "")}${esc(short(it.project || ""))}</span>` : ""}${it.status === "done" && it.written ? `<span title="Written back ${esc(ago(it.written))}">written back</span>` : ""}${it.status === "done" && it.writeError ? `<span title="${esc(it.writeError)}">write-back failed</span>` : ""}${it.status === "promoted" ? `<span title="Promoted to Ideas: ${esc(it.idea || "")}">promoted</span>` : ""}${it.replied ? `<span title="Replied ${esc(ago(it.replied))}">replied</span>` : ""}<span class="ice-age">${ago(it.at)}</span><span class="ice-ra">${it.status === "promoted" || it.status === "done" ? "" : `<button class="btn ghost sm" id="ice-pr-${i}" data-pr="${i}" title="Promote to Ideas (p)" aria-label="Promote to Ideas: ${esc(it.text)}">${ico("plus")}</button>`}${it.status === "promoted" || it.status === "done" ? "" : it.status === "dismissed" ? `<button class="btn ghost sm" id="ice-rs-${i}" data-rs="${i}" title="Restore to waiting" aria-label="Restore: ${esc(it.text)}">Restore</button>` : `<button class="btn ghost sm" id="ice-ds-${i}" data-ds="${i}" title="Dismiss (d)" aria-label="Dismiss: ${esc(it.text)}">${ico("x")}</button>`}</span></span></div>` +
-      (open
-        ? `<div class="ice-open">${it.notes ? `<div class="ice-notes">${esc(it.notes)}</div>` : ""}${(it.images || []).filter((u) => /^https:\/\//.test(u)).length ? `<details class="ice-imgs"><summary>Show images (${it.images.filter((u) => /^https:\/\//.test(u)).length}) — loads them from the source's site</summary>${it.images.filter((u) => /^https:\/\//.test(u)).map((u, n) => { const src = `/ice-image?dir=${encodeURIComponent(it.dir)}&id=${encodeURIComponent(it.id)}&i=${n}`; return `<a href="${esc(src)}" target="_blank" rel="noopener noreferrer"><img data-src="${esc(src)}" alt="" referrerpolicy="no-referrer"></a>`; }).join("")}</details>` : ""}<span class="hint" style="margin:0">From ${esc(srcName(it))} · ${ago(it.at)}${it.post ? ` · <a href="${esc(it.post)}" target="_blank" rel="noopener">open post</a>` : ""}</span>${replyBox(it)}${icePro === k ? form(it) : ""}</div>`
-        : "")
-    );
+    const head = html`<div class="ice-row${iceCur === k ? " cur" : ""}${iceSel.has(k) ? " sel" : ""}" data-i="${i}" data-k="${k}"><input type="checkbox" id="ice-ck-${i}" data-ck="${i}"${iceSel.has(k) ? " checked" : ""} aria-label="Select: ${it.text}"><span class="ice-src" title="${srcName(it)}">${fav(it.source, "link", list.find((x) => x.dir === it.dir && x.url === it.source)?.social)}</span><button class="ice-t" id="ice-o-${i}" data-o="${i}" aria-expanded="${String(open)}" title="${it.text}">${it.text}</button><span class="ice-meta">${many ? html`<span class="nm" title="${it.project || ""}">${plogo(it.dir, it.project || "")}${short(it.project || "")}</span>` : ""}${it.status === "done" && it.written ? html`<span title="Written back ${ago(it.written)}">written back</span>` : ""}${it.status === "done" && it.writeError ? html`<span title="${it.writeError}">write-back failed</span>` : ""}${it.status === "promoted" ? html`<span title="Promoted to Ideas: ${it.idea || ""}">promoted</span>` : ""}${it.replied ? html`<span title="Replied ${ago(it.replied)}">replied</span>` : ""}<span class="ice-age">${ago(it.at)}</span><span class="ice-ra">${it.status === "promoted" || it.status === "done" ? "" : html`<button class="btn ghost sm" id="ice-pr-${i}" data-pr="${i}" title="Promote to Ideas (p)" aria-label="Promote to Ideas: ${it.text}">${ico("plus")}</button>`}${it.status === "promoted" || it.status === "done" ? "" : it.status === "dismissed" ? html`<button class="btn ghost sm" id="ice-rs-${i}" data-rs="${i}" title="Restore to waiting" aria-label="Restore: ${it.text}">Restore</button>` : html`<button class="btn ghost sm" id="ice-ds-${i}" data-ds="${i}" title="Dismiss (d)" aria-label="Dismiss: ${it.text}">${ico("x")}</button>`}</span></span></div>`;
+    const more = open
+      ? html`<div class="ice-open">${it.notes ? html`<div class="ice-notes">${it.notes}</div>` : ""}${(it.images || []).filter((u) => /^https:\/\//.test(u)).length ? html`<details class="ice-imgs"><summary>Show images (${it.images.filter((u) => /^https:\/\//.test(u)).length}) — loads them from the source's site</summary>${it.images.filter((u) => /^https:\/\//.test(u)).map((u, n) => { const src = `/ice-image?dir=${encodeURIComponent(it.dir)}&id=${encodeURIComponent(it.id)}&i=${n}`; return html`<a href="${src}" target="_blank" rel="noopener noreferrer"><img data-src="${src}" alt="" referrerpolicy="no-referrer"></a>`; })}</details>` : ""}<span class="hint" style="margin:0">From ${srcName(it)} · ${ago(it.at)}${it.post ? html` · <a href="${it.post}" target="_blank" rel="noopener">open post</a>` : ""}</span>${replyBox(it)}${icePro === k ? form(it) : ""}</div>`
+      : "";
+    return html`${head}${more}`;
   };
   const inbox =
     waiting && !order.length
-      ? `<div class="ice-zero"><h4>No matches</h4><p style="margin-top:10px"><button class="btn sm" id="ice-unf">Clear filters</button></p></div>`
+      ? html`<div class="ice-zero"><h4>No matches</h4><p style="margin-top:10px"><button class="btn sm" id="ice-unf">Clear filters</button></p></div>`
       : order.length
-        ? `<div class="ice-list">${[...groups].map(([g, ix]) => `<div class="ice-cat">${esc(g)}<i>${ix.length}</i></div>${ix.map(row).join("")}`).join("")}</div>`
-        : `<div class="ice-zero"><h4>Nothing waiting</h4></div>`;
+        ? html`<div class="ice-list">${[...groups].map(([g, ix]) => html`<div class="ice-cat">${g}<i>${ix.length}</i></div>${ix.map(row)}`)}</div>`
+        : html`<div class="ice-zero"><h4>Nothing waiting</h4></div>`;
   // The sources, in the right-hand drawer: shut until asked for, open by itself while there
   // are none until closed. Slid in only when opened; a rebuild while open shows it in place.
   const drawer = srcShow ?? !list.length,
     slide = drawer && !$("src-sec")?.classList.contains("open");
-  const sec = `<div class="src-scrim${drawer && !slide ? " on" : ""}" id="src-scrim"></div><aside class="src-sec${drawer && !slide ? " open" : ""}" id="src-sec" aria-label="Sources"${drawer ? "" : " inert"}><header><div class="t"><b>Sources</b><div class="src-chips"><a id="src-to-settings" class="schip" role="button" tabindex="0" title="${d && d.every && d.every !== "off" ? `Checked every ${esc(d.every)}` : "Auto-check off"}: change in Settings">${ico("clock")}${d && d.every && d.every !== "off" ? esc(d.every) : "Off"}</a>${G.connected ? `<span class="schip on" title="ChatGPT${G.email ? ": " + esc(G.email) : ""}">${ico("ai")}ChatGPT<a id="cg-out" role="button" tabindex="0" aria-label="Disconnect ChatGPT" title="Disconnect">${ico("x")}</a></span>` : `<a id="cg-in" class="schip" role="button" tabindex="0" title="Connect ChatGPT">${ico("ai")}ChatGPT</a>`}${(d.google || {}).connected ? `<span class="schip on" title="Google connected">${ico("google")}Google<a id="gg-out" role="button" tabindex="0" aria-label="Disconnect Google" title="Disconnect">${ico("x")}</a></span>` : `<a id="gg-in" class="schip" role="button" tabindex="0" title="Connect Google">${ico("google")}Google</a>`}</div></div><div class="src-hda">${list.length ? `<button class="btn sm" id="src-new" aria-expanded="${addOn}" aria-controls="src-addbox">${ico("plus")} Add</button>` : ""}<button class="ib" id="src-x" aria-label="Close sources" title="Close">${ico("close")}</button></div></header><div class="body">${addBox}${list.length ? `<div class="src-list">${cards}</div>` : emptyState}</div></aside>`;
+  const sec = html`<div class="src-scrim${drawer && !slide ? " on" : ""}" id="src-scrim"></div><aside class="src-sec${drawer && !slide ? " open" : ""}" id="src-sec" aria-label="Sources"${drawer ? "" : " inert"}><header><div class="t"><b>Sources</b><div class="src-chips"><a id="src-to-settings" class="schip" role="button" tabindex="0" title="${d && d.every && d.every !== "off" ? `Checked every ${d.every}` : "Auto-check off"}: change in Settings">${ico("clock")}${d && d.every && d.every !== "off" ? (d.every) : "Off"}</a>${G.connected ? html`<span class="schip on" title="ChatGPT${G.email ? ": " + (G.email) : ""}">${ico("ai")}ChatGPT<a id="cg-out" role="button" tabindex="0" aria-label="Disconnect ChatGPT" title="Disconnect">${ico("x")}</a></span>` : html`<a id="cg-in" class="schip" role="button" tabindex="0" title="Connect ChatGPT">${ico("ai")}ChatGPT</a>`}${(d.google || {}).connected ? html`<span class="schip on" title="Google connected">${ico("google")}Google<a id="gg-out" role="button" tabindex="0" aria-label="Disconnect Google" title="Disconnect">${ico("x")}</a></span>` : html`<a id="gg-in" class="schip" role="button" tabindex="0" title="Connect Google">${ico("google")}Google</a>`}</div></div><div class="src-hda">${list.length ? html`<button class="btn sm" id="src-new" aria-expanded="${String(addOn)}" aria-controls="src-addbox">${ico("plus")} Add</button>` : ""}<button class="ib" id="src-x" aria-label="Close sources" title="Close">${ico("close")}</button></div></header><div class="body">${addBox}${list.length ? html`<div class="src-list">${cards}</div>` : emptyState}</div></aside>`;
   // First visit: offer the ChatGPT plan for social sources, or keep the agent.
   const onb =
     G.use === "ask" && !G.connected
-      ? `<div class="cg-onb"><div class="acts"><b>Gather social posts with ChatGPT?</b><span class="end"></span><button class="btn ghost" id="cg-skip">Skip</button><button class="btn pri" id="cg-go">Connect</button></div></div>`
+      ? html`<div class="cg-onb"><div class="acts"><b>Gather social posts with ChatGPT?</b><span class="end"></span><button class="btn ghost" id="cg-skip">Skip</button><button class="btn pri" id="cg-go">Connect</button></div></div>`
       : "";
   // A rebuild replaces the drawer: keep where it was scrolled to.
   const at = $("src-sec")?.querySelector(".body")?.scrollTop ?? 0;
   $("pbody").innerHTML =
     d && d.error
-      ? `<p style="color:var(--dim)">${esc(d.error)}</p>`
+      ? html`<p style="color:var(--dim)">${d.error}</p>`
       : !d
-        ? `<p style="color:var(--dim)">The icebox could not be read.</p>`
-        : onb + bar + bulk + fails + inbox + sec;
+        ? html`<p style="color:var(--dim)">The icebox could not be read.</p>`
+        : html`${onb}${bar}${bulk}${fails}${inbox}${sec}`;
   if (!d || d.error) return;
   const body = $("src-sec")?.querySelector(".body");
   if (body) body.scrollTop = at;

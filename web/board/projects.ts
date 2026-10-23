@@ -1,7 +1,7 @@
 import { store } from "./store.ts";
 import { load, post } from "./api.ts";
 import { newIdea, render } from "./cards.ts";
-import { $, esc, ico, modal } from "./dom.ts";
+import { $, html, ico, modal } from "./dom.ts";
 import { openSources, srcOpen } from "./icebox.ts";
 import { toast } from "./toast.ts";
 import { view } from "./views.ts";
@@ -20,13 +20,13 @@ export const short = (l) => l.split(/[\\/]/).pop() || l;
 // A project's mark in every picker: its own logo when /state found one, else its initial.
 // A logo the browser cannot draw falls back to the initial too.
 export const plogo = (dir, label = "") => {
-  const ini = `<span class="plogo" aria-hidden="true">${esc((short(label) || "?").charAt(0).toUpperCase())}</span>`;
+  const ini = html`<span class="plogo" aria-hidden="true">${(short(label) || "?").charAt(0).toUpperCase()}</span>`;
   return store.S?.projects?.some((p) => p.dir === dir && p.logo)
-    ? `<img class="plogo" src="/project-logo?dir=${encodeURIComponent(dir)}" alt="" loading="lazy" onerror="this.outerHTML=this.dataset.f" data-f="${esc(ini)}">`
+    ? html`<img class="plogo" src="/project-logo?dir=${encodeURIComponent(dir)}" alt="" loading="lazy" onerror="this.outerHTML=this.dataset.f" data-f="${String(ini)}">`
     : ini;
 };
 // A picker row: the mark, then the folder name; the full path in the tooltip.
-const prow = (dir, label) => `${plogo(dir, label)}<span>${esc(short(label))}</span>`;
+const prow = (dir, label) => html`${plogo(dir, label)}<span>${short(label)}</span>`;
 // The project picker: a button shaped like a select that opens a search field over the list.
 export function list() {
   const q = $("projq").value.trim().toLowerCase();
@@ -34,8 +34,7 @@ export function list() {
   $("projs").innerHTML =
     store.PL.map((p, i) =>
       p[0].toLowerCase().includes(q)
-        ? (p[2] && !g++ ? `<div class="grp">In your projects folder</div>` : "") +
-          `<button role="option" data-i="${i}" title="${esc(p[0])}">${p[1] === "all" ? `<span class="plogo" aria-hidden="true">${ico("board")}</span><span>${esc(p[0])}</span>` : p[1] === "__new" || p[1] === "__find" || p[1] === "__clone" ? `<span class="plogo" aria-hidden="true">${ico("plus")}</span><span>${esc(p[0])}</span>` : prow(p[1], p[0])}</button>`
+        ? html`${p[2] && !g++ ? html`<div class="grp">In your projects folder</div>` : ""}<button role="option" data-i="${i}" title="${p[0]}">${p[1] === "all" ? html`<span class="plogo" aria-hidden="true">${ico("board")}</span><span>${p[0]}</span>` : p[1] === "__new" || p[1] === "__find" || p[1] === "__clone" ? html`<span class="plogo" aria-hidden="true">${ico("plus")}</span><span>${p[0]}</span>` : prow(p[1], p[0])}</button>`
         : "",
     ).join("") || `<div class="grp">No match</div>`;
   const f = $("projs").querySelector("button");
@@ -175,7 +174,7 @@ export function ideaCombo(f) {
         .filter((p) => p.label.toLowerCase().includes(t))
         .map(
           (p) =>
-            `<button type="button" role="option" data-d="${esc(p.dir)}" title="${esc(p.label)}" class="${p.dir === newDir ? "on" : ""}">${prow(p.dir, p.label)}</button>`,
+            html`<button type="button" role="option" data-d="${p.dir}" title="${p.label}" class="${p.dir === newDir ? "on" : ""}">${prow(p.dir, p.label)}</button>`,
         )
         .join("") || `<div class="grp">No match</div>`;
     box.querySelectorAll("button").forEach(
@@ -231,7 +230,7 @@ export function showList() {
   $("shows").innerHTML =
     SP.map((p, i) =>
       p.label.toLowerCase().includes(q)
-        ? `<button type="button" role="menuitemcheckbox" data-i="${i}" aria-checked="${store.shown.has(p.dir)}" title="${esc(p.label)}">${prow(p.dir, p.label)}<svg class="ck"><use href="#i-check"/></svg></button>`
+        ? html`<button type="button" role="menuitemcheckbox" data-i="${i}" aria-checked="${String(store.shown.has(p.dir))}" title="${p.label}">${prow(p.dir, p.label)}<svg class="ck"><use href="#i-check"/></svg></button>`
         : "",
     ).join("") || `<div class="grp">No match</div>`;
   const n = SP.filter((p) => store.shown.has(p.dir)).length;

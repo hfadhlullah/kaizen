@@ -1,5 +1,5 @@
 import { post } from "./api.ts";
-import { $, esc } from "./dom.ts";
+import { $, html } from "./dom.ts";
 import { openSettings } from "./settings.ts";
 import { view } from "./views.ts";
 
@@ -21,16 +21,16 @@ export function updBar() {
   const d = document.createElement("div");
   d.className = `updbar${upd ? "" : " quiet"}`;
   if (!upd) {
-    d.innerHTML = `<span id="upd-msg" aria-live="polite">${ver ? `kaizen ${esc(ver.version)}` : "kaizen"}</span><button class="btn" id="upd-chk">Check for updates</button>`;
+    d.innerHTML = html`<span id="upd-msg" aria-live="polite">${ver ? `kaizen ${ver.version}` : "kaizen"}</span><button class="btn" id="upd-chk">Check for updates</button>`;
   } else {
     // What's new: each newer release's one-line title, shown on hover, focus or click.
-    const notes = (upd.notes || []).map((n) => `<li><b>${esc(n.v)}</b> ${esc(n.text)}</li>`).join("");
-    const news = notes
-      ? `<span class="updnew"><button class="btn" aria-describedby="upd-notes">What's new</button><span class="updpop" id="upd-notes" role="tooltip"><ul>${notes}</ul><a href="https://github.com/hfadhlullah/kaizen/releases" target="_blank" rel="noopener">All release notes</a></span></span>`
+    const notes = (upd.notes || []).map((n) => html`<li><b>${n.v}</b> ${n.text}</li>`);
+    const news = notes.length
+      ? html`<span class="updnew"><button class="btn" aria-describedby="upd-notes">What's new</button><span class="updpop" id="upd-notes" role="tooltip"><ul>${notes}</ul><a href="https://github.com/hfadhlullah/kaizen/releases" target="_blank" rel="noopener">All release notes</a></span></span>`
       : "";
-    d.innerHTML = `<span>kaizen <b>${esc(upd.latest)}</b> is available. You are running ${esc(upd.version)}.</span><span class="updact">${news}<button class="btn" id="upd-chk">Check for updates</button><button class="btn pri" id="upd-go">Update kaizen</button></span>`;
+    d.innerHTML = html`<span>kaizen <b>${upd.latest}</b> is available. You are running ${upd.version}.</span><span class="updact">${news}<button class="btn" id="upd-chk">Check for updates</button><button class="btn pri" id="upd-go">Update kaizen</button></span>`;
   }
-  if (ver && ver.failed) d.insertAdjacentHTML("afterbegin", `<span class="updfail" role="alert">Last update failed: ${esc(ver.failed)}</span>`);
+  if (ver && ver.failed) d.insertAdjacentHTML("afterbegin", html`<span class="updfail" role="alert">Last update failed: ${ver.failed}</span>`);
   $("pbody").prepend(d);
   const check = $("upd-chk");
   check.onclick = async () => {
