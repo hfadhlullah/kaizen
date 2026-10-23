@@ -7,7 +7,7 @@ import {
   readInbox, writeInbox, replaceIdea, moveIdea, abandonRun, launchRun, parseItem, agentChoices, projectOf, KNOWN_AGENTS, plainModel, short, setArchived, writeNotes,
   appendNote, saveAttachment, pidOnPort, readText, cmdExe, sysExe, powershellExe, runGit, cardsGit, readCommit, commitPush, notice, notifier, LOGO,
   reviewFindings, pickFindings, backlogCards, backlogItem, startedBacklog, closeBacklog, markBacklogDone, fixPrompt, approvalPrompt, canApproveAwaiting, nativePath, closeSessions, sweepSessions, issueUrl,
-  launchMode, readSessions, ownerOf, runSessions, resumePrompt, runAgent, firstSession, webHosts,
+  launchMode, readSessions, ownerOf, runIndex, resumePrompt, runAgent, firstSession, webHosts,
 } from "./state.ts";
 import { attachPty, writePty, resizePty, ptyState, ptyKeys, adoptLoginEnv } from "./pty.ts";
 import { readSources, addSource, removeSource, moveSource, setCategory, setWriteback, readIcebox, promote, dismiss, restore, addItem, githubRepo, markDone, markReplied, gatherSource, freshImages, gatherAll, gatherDirs, due, socialUrl, socialOf } from "./sources.ts";
@@ -202,7 +202,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
     if (!live.size) return () => undefined;
     const runs = new Map<string, string>();
     for (const d of new Set(cards.filter((c) => c.kind === "run").map((c) => c.state))) {
-      const ids = runSessions(d);
+      const ids = runIndex(d);
       for (const s of readSessions(d)) if (live.has(s.key)) runs.set(`${d}\0${ownerOf(d, s, ids)}`, s.key); // oldest first: the newest wins
     }
     return (c: Card) => {

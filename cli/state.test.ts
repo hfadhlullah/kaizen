@@ -57,6 +57,11 @@ test("statusOf: waiting beats stage, mtime decides running vs stalled", () => {
   expect(statusOf(stale!, now)).toBe("stalled");
   expect(statusOf({ ...stale!, moved: now }, now)).toBe("running");
   expect(statusOf({ ...stale!, stage: "abandoned", awaiting: "x" }, now)).toBe("abandoned");
+  // A builder ticking progress.md is moving, though state.json is old.
+  const progress = join(state, "runs", "2026-09-03-stale", "progress.md");
+  writeFileSync(progress, "- doing: step 2\n");
+  try { expect(statusOf(readRuns(state)[0]!, now)).toBe("running"); } finally { rmSync(progress); }
+  expect(statusOf(readRuns(state)[0]!, now)).toBe("stalled");
 });
 
 test("columnOf: every stage word lands somewhere", () => {
@@ -501,6 +506,52 @@ test("commitPush: commits the run's files only, pushes, and records it; the mess
   expect(cardsGit(join(root, ".kaizen"), ["r1"])).toEqual({});   // not a repo
 }, 60_000);   // dozens of git calls, ~250ms each on Windows
 
+test("runGit, cardsGit: a run committed elsewhere is not offered the edits made since, nor another run's unpushed commit", () => {
+  const root = mkdtempSync(join(tmpdir(), "kz-git-"));
+  const bare = join(root, "remote.git"), proj = join(root, "proj"), st = join(proj, ".kaizen");
+  // Commit times pinned (seconds since the epoch), so each sits where the test says.
+  const sh = (cwd: string, at: number | null, ...a: string[]) => Bun.spawnSync(["git", "-C", cwd, ...a], { env: { ...process.env, ...(at ? { GIT_COMMITTER_DATE: `@${at} +0000`, GIT_AUTHOR_DATE: `@${at} +0000` } : {}) } }).stdout.toString().trim();
+  const report = (id: string, text: string, at: number) => {
+    mkdirSync(join(st, "runs", id), { recursive: true });
+    writeFileSync(join(st, "runs", id, "03-impl.md"), text);
+    utimesSync(join(st, "runs", id, "03-impl.md"), new Date(at * 1000), new Date(at * 1000));
+  };
+  Bun.spawnSync(["git", "init", "-q", "--bare", bare]);
+  Bun.spawnSync(["git", "init", "-q", proj]);
+  for (const kv of [["user.name", "t"], ["user.email", "t@t"], ["commit.gpgsign", "false"], ["core.hooksPath", "/dev/null"]]) sh(proj, null, "config", ...kv);
+  sh(proj, null, "remote", "add", "origin", bare);
+  writeFileSync(join(proj, ".gitignore"), ".kaizen/\n");
+  writeFileSync(join(proj, "x.txt"), "1");
+  report("old", "- `x.txt`: x\n", 1000);
+  sh(proj, null, "add", "-A");
+  sh(proj, 2000, "commit", "-qm", "feat: x");
+  sh(proj, null, "push", "-qu", "origin", "HEAD");
+  // Edited again after the run's commit, by someone with no run of their own.
+  writeFileSync(join(proj, "x.txt"), "2");
+  expect(runGit(st, "old")).toMatchObject({ files: [], ahead: 0, others: 1 });
+  expect(cardsGit(st, ["old"])).toEqual({ old: "pushed" });
+  // Another run's commit, not pushed: the branch is ahead, the old run is not.
+  writeFileSync(join(proj, "y.txt"), "y");
+  report("new", "- `y.txt`: y\n", 3000);
+  sh(proj, null, "add", "y.txt");
+  sh(proj, 4000, "commit", "-qm", "feat: y");
+  expect(runGit(st, "old")).toMatchObject({ files: [], ahead: 0 });
+  expect(runGit(st, "new")).toMatchObject({ files: [], ahead: 1 });
+  expect(cardsGit(st, ["old", "new"])).toEqual({ old: "pushed", new: "pending" });
+  // The old run reporting again after its commit: the edit is its work after all.
+  report("old", "- `x.txt`: x, again\n", 5000);
+  expect((runGit(st, "old") as any).files).toEqual([" M x.txt"]);
+  // A commit no run's report names still gets a push: from the run that reported last by then.
+  const commit = (f: string, at: number, msg: string) => { writeFileSync(join(proj, f), f); sh(proj, null, "add", f); sh(proj, at, "commit", "-qm", msg); };
+  commit("z.txt", 6000, "chore: z");
+  expect(runGit(st, "old")).toMatchObject({ ahead: 1 });
+  expect(runGit(st, "new")).toMatchObject({ ahead: 1 });
+  // A run whose report holds the commit's subject as a line owns it, over the file count.
+  report("new", "- `y.txt`: y\n\n## Commit\nchore: z\n", 3000);
+  expect(runGit(st, "old")).toMatchObject({ ahead: 0 });
+  expect(runGit(st, "new")).toMatchObject({ ahead: 2 });
+}, 60_000);
+
 test.skipIf(process.platform === "win32")("findTerminal: a running herdr wins, then tmux, else neither; the prompt stays one literal argument", () => {
   const bin = mkdtempSync(join(tmpdir(), "kz-bin-"));
   const stub = (name: string, code: number) => writeFileSync(join(bin, name), `#!/bin/sh\nexit ${code}\n`, { mode: 0o755 });
@@ -921,7 +972,7 @@ test.skipIf(process.platform === "win32")("closeSessions ends only the run's own
   const alive = (pr: ReturnType<typeof Bun.spawn>) => pr.exitCode === null && pr.signalCode === null;
   const procs: Record<string, ReturnType<typeof Bun.spawn>> = {
     mine: start("mine", {}),
-    later: start("later", { started: Date.now() + 60_000 }),        // the decision's own successor
+    later: start("later", { started: Date.now() - 1000 }),          // the decision's own successor: after `before` below
     stranger: start("stranger", { cmd: "notkzagent" }),             // a PID that is not this agent
     other: start("other", { run: "2026-10-01-b" }),                 // another run's
   };
@@ -929,13 +980,14 @@ test.skipIf(process.platform === "win32")("closeSessions ends only the run's own
   writeFileSync(join(dir, "dead.json"), JSON.stringify({ run: "2026-10-01-a", text: "a", cmd: "kzagent", sessionId: null, started: 0 }));
   writeFileSync(join(dir, "dead.pid"), "999999\n");
   try {
-    expect(closeSessions(st, "2026-10-01-a", { before: Date.now() })).toBe(1);
+    expect(closeSessions(st, "2026-10-01-a", { before: Date.now() - 3000 })).toBe(1);
     expect(await procs.mine.exited).not.toBe(0);
     for (const k of ["later", "stranger", "other"] as const) expect(alive(procs[k])).toBe(true);
     expect(existsSync(join(dir, "mine.pid"))).toBe(false);
     expect(existsSync(join(dir, "mine.json"))).toBe(true);       // its conversation id is still needed
     expect(existsSync(join(dir, "dead.pid"))).toBe(false);
     expect(existsSync(join(dir, "later.pid"))).toBe(true);
+    expect(existsSync(join(dir, "stranger.pid"))).toBe(false);   // its number is held by something else: dropped, not killed
 
     // Off: nothing is ended.
     writeFileSync(join(st, "config.yml"), "agent:\n  default: claude\n  close: off\n");
@@ -951,6 +1003,13 @@ test.skipIf(process.platform === "win32")("closeSessions ends only the run's own
     sweepSessions(st, Date.now() + CLOSE_GRACE_MS);
     expect(await procs.other.exited).not.toBe(0);
     expect(alive(procs.later)).toBe(true);                     // run a is still waiting
+    // A PID file whose process is gone is dropped by the sweep, whatever its run is doing.
+    writeFileSync(join(dir, "dead2.json"), JSON.stringify({ run: "2026-10-01-a", text: "a", cmd: "kzagent", sessionId: null, started: 0 }));
+    writeFileSync(join(dir, "dead2.pid"), "999999\n");
+    sweepSessions(st, Date.now());
+    expect(existsSync(join(dir, "dead2.pid"))).toBe(false);
+    expect(existsSync(join(dir, "dead2.json"))).toBe(true);
+    expect(existsSync(join(dir, "later.pid"))).toBe(true);
 
     // A fix launched on a done run, after it last moved, is doing the work: kept.
     const fix = start("fix", { run: "2026-10-01-b", started: Date.now() + 1000 });

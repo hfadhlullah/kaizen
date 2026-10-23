@@ -405,9 +405,11 @@ export function readRuns(state: string): Run[] {
       const file = join(dir, id, "state.json");
       const s = JSON.parse(readText(file));
       // When the run last moved. Kaizen records no liveness signal, so the file's
-      // own mtime is the only evidence that anything is still working on it.
+      // own mtime is the evidence that anything is still working on it, along with
+      // progress.md, which a builder ticks between state.json writes.
       let moved = 0;
       try { moved = statSync(file).mtimeMs; } catch { /* vanished mid-read */ }
+      try { moved = Math.max(moved, statSync(join(dir, id, "progress.md")).mtimeMs); } catch { /* no progress kept */ }
       return [{ id, stage: s.stage ?? "?", awaiting: s.awaiting ?? null, moved, runner: s.runner, agent: s.agent, branch: typeof s.branch === "string" ? s.branch : undefined }];
     } catch { return []; }
   }).reverse();
@@ -1114,7 +1116,8 @@ export function boardCards(states: string[], now: number): Card[] {
   }
   // A launched idea whose run reworded the request: the board's own launch record,
   // owned by a run (session id in its state.json, see ownerOf), retires it all the same.
-  const launchedInto = (st: string, t: string) => readSessions(st).some((s) => !s.run && normalise(s.text.replace(/^(lite|full|auto|plan)\s+/i, "")) === t.replace(/^(lite|full|auto|plan)\s+/i, "") && ownerOf(st, s) !== null);
+  const indexes = new Map<string, RunIndex>(), indexOf = (st: string) => indexes.get(st) ?? indexes.set(st, runIndex(st)).get(st)!;
+  const launchedInto = (st: string, t: string) => readSessions(st).some((s) => !s.run && normalise(s.text.replace(/^(lite|full|auto|plan)\s+/i, "")) === t.replace(/^(lite|full|auto|plan)\s+/i, "") && ownerOf(st, s, indexOf(st)) !== null);
   for (const st of states) {
     const where = label(st);
     const archive = readArchive(st);
@@ -1140,7 +1143,8 @@ export function boardCards(states: string[], now: number): Card[] {
     }
     // Runs started in Yolo. Only yolo records are matched to runs, so a project that
     // never used it pays one directory read.
-    const yolos = new Set(readSessions(st).filter((s) => s.yolo).map((s) => ownerOf(st, s)));
+    const yoloRecs = readSessions(st).filter((s) => s.yolo);
+    const yolos = new Set(yoloRecs.length ? yoloRecs.map((s) => ownerOf(st, s, indexOf(st))) : []);
     for (const r of readRuns(st)) {
       next.push({
         kind: "run", id: r.id, status: statusOf(r, now), text: short(r.id), state: st, where, column: columnOf(r.stage, r.awaiting), moved: r.moved,
@@ -1324,45 +1328,45 @@ export function readSessions(st: string): Session[] {
   }).sort((a, b) => a.started - b.started);
 }
 
-// Each conversation id a run recorded at intake, to the first run (by id) that recorded it.
-export function runSessions(st: string): Map<string, string> {
-  const m = new Map<string, string>();
+// What ownerOf matches a record against, read once: each conversation id a run recorded
+// at intake, to the first run (by id) that recorded it, and every run's request with
+// when it was written.
+type RunIndex = { bySession: Map<string, string>; requests: { id: string; born: number; text: string }[] };
+export function runIndex(st: string): RunIndex {
+  const bySession = new Map<string, string>(), requests: RunIndex["requests"] = [];
   try {
     for (const id of readdirSync(join(st, "runs")).sort()) {
       try {
         const sid = JSON.parse(readText(join(st, "runs", id, "state.json"))).session;
-        if (sid && !m.has(sid)) m.set(sid, id);
+        if (sid && !bySession.has(sid)) bySession.set(sid, id);
       } catch { /* no state yet */ }
+      try {
+        const f = join(st, "runs", id, "00-request.md"), st2 = statSync(f);
+        requests.push({ id, born: st2.birthtimeMs || st2.mtimeMs, text: normalise(readText(f)) });
+      } catch { /* no request yet */ }
     }
   } catch { /* no runs dir */ }
-  return m;
+  return { bySession, requests };
 }
 
 // Whose session a record is. A decision's launch names its run. An idea's launch came
 // before its run existed, so it belongs to the first run created after it whose
 // request holds the idea's text: one run per record, never every run that mentions it.
-// A caller asking about many sessions passes runSessions(st) once: built per call, it
-// reads every run's state.json each time.
-export function ownerOf(st: string, s: Session, bySession?: Map<string, string>): string | null {
+// A caller asking about many sessions passes runIndex(st) once: built per call, it
+// reads every run's state.json and request each time.
+export function ownerOf(st: string, s: Session, idx?: RunIndex): string | null {
   if (s.run) return s.run;
+  const { bySession, requests } = idx ?? runIndex(st);
   // The launch's own conversation id, recorded by the run at intake: holds however the
   // request was worded. Text matching below is for tools that expose no id.
   if (s.sessionId) {
-    const mine = (bySession ?? runSessions(st)).get(s.sessionId);
+    const mine = bySession.get(s.sessionId);
     if (mine) return mine;
   }
   const t = normalise(s.text);
   let best: string | null = null, at = Infinity;
-  try {
-    for (const id of readdirSync(join(st, "runs"))) {
-      try {
-        const f = join(st, "runs", id, "00-request.md");
-        const st2 = statSync(f), born = st2.birthtimeMs || st2.mtimeMs;
-        // A second of slack: file times come from a coarser clock than Date.now().
-        if (born >= s.started - 1000 && born < at && normalise(readText(f)).includes(t)) { best = id; at = born; }
-      } catch { /* no request yet */ }
-    }
-  } catch { /* no runs dir */ }
+  // A second of slack: file times come from a coarser clock than Date.now().
+  for (const r of requests) if (r.born >= s.started - 1000 && r.born < at && r.text.includes(t)) { best = r.id; at = r.born; }
   return best;
 }
 
@@ -1389,16 +1393,17 @@ export function launchMode(projectDir: string): "card" | "terminal" {
 // Whether a live PID is still the agent a record launched, not a stranger that reused
 // the number: the tool's name (and conversation id) in its arguments, started no
 // earlier than the record. On Windows the PID is the PowerShell kaizen opened.
-function isSession(pid: number, s: Session): boolean {
+// null: the system could not say (no ps, no answer), which callers treat as not ours.
+function isSession(pid: number, s: Session): boolean | null {
   try {
     if (process.platform === "win32") {
-      const out = Bun.spawnSync([sysExe("tasklist.exe"), "/FI", `PID eq ${pid}`, "/FO", "CSV", "/NH"], { stdin: "ignore", timeout: 5000, windowsHide: true }).stdout.toString();
-      return /^"(powershell|pwsh)\.exe"/i.test(out.trim());
+      const out = Bun.spawnSync([sysExe("tasklist.exe"), "/FI", `PID eq ${pid}`, "/FO", "CSV", "/NH"], { stdin: "ignore", timeout: 5000, windowsHide: true }).stdout.toString().trim();
+      return out.startsWith('"') ? /^"(powershell|pwsh)\.exe"/i.test(out) : null;
     }
     const ps = onPath("ps");
-    if (!ps) return false;
+    if (!ps) return null;
     const m = /^\s*(\S+)\s+(.*)$/.exec(Bun.spawnSync([ps, "-o", "etime=,args=", "-p", String(pid)], { stdin: "ignore", timeout: 5000 }).stdout.toString().trim());
-    if (!m) return false;
+    if (!m) return null;
     // etime is [[dd-]hh:]mm:ss
     const [d, rest] = m[1].includes("-") ? m[1].split("-") : ["0", m[1]];
     const secs = rest.split(":").reduce((a, n) => a * 60 + Number(n), 0) + Number(d) * 86400;
@@ -1407,7 +1412,7 @@ function isSession(pid: number, s: Session): boolean {
     const idInArgs = s.sessionId && (SESSION_FLAGS[s.cmd]?.start || s.resumed);
     return Date.now() - secs * 1000 >= s.started - 2000 && m[2].includes(s.cmd) && (!idInArgs || m[2].includes(s.sessionId!));
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -1434,7 +1439,19 @@ function closeOne(st: string, s: Session): boolean {
   return closed;
 }
 
-const openSessions = (st: string) => readSessions(st).filter((s) => existsSync(join(sessionsDir(st), s.key + ".pid")));
+// Sessions with a PID file. A file whose process is gone, or whose number another
+// process now holds, is dropped on the way: one is left per launch that ended by itself,
+// and each would be asked about every sweep. Only when the system says so; a PID it
+// cannot answer for stays.
+const openSessions = (st: string) => readSessions(st).filter((s) => {
+  const f = join(sessionsDir(st), s.key + ".pid");
+  if (!existsSync(f)) return false;
+  const pid = parseInt(readText(f));
+  let gone = false;
+  try { process.kill(pid, 0); } catch (e: any) { gone = e?.code === "ESRCH"; }
+  if (gone || (pid > 0 && isSession(pid, s) === false)) { rmSync(f, { force: true }); return false; }
+  return true;
+});
 
 // Close every session kaizen opened for a run, those launched before `before` only,
 // so a decision's own successor is never caught. The record stays: it holds the
@@ -1442,7 +1459,8 @@ const openSessions = (st: string) => readSessions(st).filter((s) => existsSync(j
 export function closeSessions(st: string, id: string, opts: { before?: number } = {}): number {
   try {
     if (!closeEnabled(dirname(st))) return 0;
-    return openSessions(st).filter((s) => s.started < (opts.before ?? Infinity) && ownerOf(st, s) === id).filter((s) => closeOne(st, s)).length;
+    const idx = runIndex(st);
+    return openSessions(st).filter((s) => s.started < (opts.before ?? Infinity) && ownerOf(st, s, idx) === id).filter((s) => closeOne(st, s)).length;
   } catch { return 0; }
 }
 
@@ -1454,9 +1472,9 @@ export function sweepSessions(st: string, now: number) {
   try {
     const live = openSessions(st);
     if (!live.length || !closeEnabled(dirname(st))) return;
-    const runs = new Map(readRuns(st).map((r) => [r.id, r]));
+    const runs = new Map(readRuns(st).map((r) => [r.id, r])), idx = runIndex(st);
     for (const s of live) {
-      const r = runs.get(ownerOf(st, s) ?? "");
+      const r = runs.get(ownerOf(st, s, idx) ?? "");
       if (r && r.stage === "done" && s.started <= r.moved && now - r.moved >= CLOSE_GRACE_MS && !typedSince(st, s, r.moved)) closeOne(st, s);
     }
   } catch { /* the next sweep tries again */ }
@@ -1487,9 +1505,9 @@ export function firstSession(st: string, id: string, cmd: string, cwd: string): 
   const f = SESSION_FLAGS[cmd];
   if (!f) return null;
   const all = readSessions(st);
-  const taken = new Set(all.flatMap((s) => (s.sessionId ? [s.sessionId] : [])));
+  const taken = new Set(all.flatMap((s) => (s.sessionId ? [s.sessionId] : []))), idx = runIndex(st);
   for (const s of all) {
-    if (s.cmd !== cmd || ownerOf(st, s) !== id) continue;
+    if (s.cmd !== cmd || ownerOf(st, s, idx) !== id) continue;
     if (!s.sessionId && f.find) {
       // Before the tool's next launch here, any run's: from then on a conversation may be that launch's.
       const next = all.find((o) => o.cmd === cmd && o.started > s.started)?.started ?? Infinity;
@@ -1508,7 +1526,7 @@ export function firstSession(st: string, id: string, cmd: string, cwd: string): 
 // The tool and model a run was started with: its latest recorded launch, else the
 // agent its state.json names. A decision continues on these whatever the config says now.
 export function runAgent(st: string, id: string): { cmd: string; model: string | null } | null {
-  const s = readSessions(st).filter((x) => ownerOf(st, x) === id).pop();
+  const idx = runIndex(st), s = readSessions(st).filter((x) => ownerOf(st, x, idx) === id).pop();
   if (s) return { cmd: s.cmd, model: s.model ?? null };
   try {
     const a = JSON.parse(readText(join(st, "runs", id, "state.json"))).agent;
@@ -1580,7 +1598,9 @@ export function launchRun(it: Item, from: string, run?: string, pick: { agent?: 
   // Yolo was picked for one tool; a fallback to another opens in its normal mode.
   // A decision on a run started in Yolo keeps it, or its next stage stops on every command.
   const st = join(projectDir, ".kaizen");
-  const wasYolo = !!run && !pick.agent && readSessions(st).some((s) => s.yolo && s.cmd === agent.cmd && ownerOf(st, s) === run);
+  const yoloRecs = run && !pick.agent ? readSessions(st).filter((s) => s.yolo && s.cmd === agent.cmd) : [];
+  const idx = yoloRecs.length ? runIndex(st) : undefined;
+  const wasYolo = yoloRecs.some((s) => ownerOf(st, s, idx) === run);
   const yolo = (wasYolo || (!!pick.yolo && agent.cmd === pick.agent)) && !!YOLO_FLAGS[agent.cmd];
   const flags = [...agentFlags(projectDir, agent.cmd, undefined, model), ...(yolo ? YOLO_FLAGS[agent.cmd] : [])];
   // The idea as its run's request will hold it: without the runner word in front.
@@ -1666,7 +1686,8 @@ async function gitAsync(dir: string, ...args: string[]) {
   } catch { return NO_GIT; }
 }
 
-export type GitStatus = { repo: false } | { repo: true; branch: string; remote: string; files: string[]; ahead: number; others?: number; shared?: string[] };
+export type GitStatus = { repo: false } | { repo: true; branch: string; remote: string; files: string[]; ahead: number; others?: number; shared?: string[]; unpushed?: Unpushed[] };
+type Unpushed = { at: number; subject: string; files: string[] };
 
 // A project the board can commit for: a git work tree with somewhere to push.
 export function gitStatus(projectDir: string): GitStatus {
@@ -1678,7 +1699,14 @@ export function gitStatus(projectDir: string): GitStatus {
   // No upstream yet means nothing of this branch is on the remote: any commit is ahead.
   const up = git(projectDir, "rev-list", "--count", "@{u}..HEAD");
   const ahead = up.ok ? Number(up.out) : git(projectDir, "rev-parse", "HEAD").ok ? 1 : 0;
-  return { repo: true, branch: git(projectDir, "branch", "--show-current").out, remote, files: st ? st.split("\n") : [], ahead };
+  // Each commit not on the remote yet, with its files: a run is ahead only by its own.
+  const unpushed = up.ok && ahead > 0
+    ? git(projectDir, "log", "@{u}..HEAD", "--format=%x00%ct %s", "--name-only").out.split("\0").slice(1).map((c) => {
+        const [head, ...files] = c.trim().split("\n"), sp = head.indexOf(" ");
+        return { at: Number(head.slice(0, sp)) * 1000, subject: head.slice(sp + 1).trim(), files: files.filter(Boolean) };
+      })
+    : undefined;
+  return { repo: true, branch: git(projectDir, "branch", "--show-current").out, remote, files: st ? st.split("\n") : [], ahead, ...(unpushed ? { unpushed } : {}) };
 }
 
 // The path of a `git status --porcelain` line; for a rename, the new one.
@@ -1703,10 +1731,44 @@ function runReports(state: string): Report[] {
   try { ids = readdirSync(join(state, "runs")); } catch {}
   return ids.map((id) => ({ id, ...runReport(state, id) }));
 }
-const runFiles = (changed: string[], mine: Report, rest: Report[]) => changed.filter((l) => {
+// A run holds a path at time `t` when its report names it, was written by then, and no
+// other run naming it reported in between.
+const owns = (mine: Report, rest: Report[], p: string, t: number) =>
+  names(mine.text, p) && mine.at <= t && !rest.some((r) => r.at > mine.at && r.at <= t && names(r.text, p));
+const lastCommit = (dir: string, p: string) => Number(git(dir, "--literal-pathspecs", "log", "-1", "--format=%ct", "--", p).out) * 1000;
+// A changed file is the run's unless it was committed after the report: then the run's
+// work in it is in, and what changed since is someone else's. A commit in the same
+// second as the report keeps the file offered; hiding real work is the worse mistake.
+const runFiles = (dir: string, changed: string[], mine: Report, rest: Report[]) => changed.filter((l) => {
   const p = statusPath(l);
-  return names(mine.text, p) && !rest.some((r) => r.at > mine.at && names(r.text, p));
+  return owns(mine, rest, p, Infinity) && !(lastCommit(dir, p) > mine.at);
 });
+// How many unpushed commits each run has, worked out once for every run. A commit is
+// one run's, so a wide commit is not pinned on every old run that once touched a file
+// in it: the run whose report holds its subject (the `## Commit` message), else, of
+// the runs that reported by then (to the end of that second, since commit times are
+// whole seconds), the one naming most of its paths, the latest on a tie. One naming
+// none, a merge or a hand commit, goes to the run that reported last, so some run
+// still offers the push. No upstream yet: nothing is on the remote, every run is ahead by
+// the branch.
+function aheadBy(s: GitStatus & { repo: true }, all: Report[]): (id: string) => number {
+  if (!s.unpushed) return () => s.ahead;
+  const n = new Map<string, number>();
+  for (const c of s.unpushed) {
+    // The subject as a line of its own: a short one ("wip") is not found inside prose.
+    let best = c.subject ? all.find((r) => r.text.split("\n").some((l) => l.trim() === c.subject)) : undefined;
+    if (!best) {
+      let most = -1;
+      for (const r of all) {
+        if (!r.text || r.at > c.at + 999) continue;
+        const k = c.files.filter((p) => names(r.text, p)).length;
+        if (k > most || (k === most && r.at > best!.at)) { best = r; most = k; }
+      }
+    }
+    if (best) n.set(best.id, (n.get(best.id) ?? 0) + 1);
+  }
+  return (id) => n.get(id) ?? 0;
+}
 
 // The project's status narrowed to one run: a changed file is the run's when its
 // report names the path in backticks and no run that reported later names it too,
@@ -1721,14 +1783,15 @@ export function runGit(state: string, id: string): GitStatus {
   if (!s.repo) return s;
   const all = runReports(state), mine = all.find((r) => r.id === id) ?? { id, text: "", at: 0 };
   const rest = all.filter((o) => o.id !== id);
-  const files = runFiles(s.files, mine, rest);
+  const files = runFiles(dir, s.files, mine, rest);
   const shared = files.flatMap((l) => {
     const p = statusPath(l);
-    const since = Number(git(dir, "--literal-pathspecs", "log", "-1", "--format=%ct", "--", p).out) * 1000;
+    const since = lastCommit(dir, p);
     const who = rest.filter((r) => r.at > since && names(r.text, p)).map((r) => short(r.id));
     return who.length ? [`${p}: ${who.join(", ")}`] : [];
   });
-  return { ...s, files, others: s.files.length - files.length, shared };
+  const { unpushed, ...base } = s;
+  return { ...base, files, ahead: aheadBy(s, all)(id), others: s.files.length - files.length, shared };
 }
 
 // What the board did for a run, kept beside the run and not in state.json, whose
@@ -1744,15 +1807,15 @@ export function readCommit(state: string, id: string): { sha: string; pushed: bo
 // (`gitBtn` in web/board/git.ts): one project status and one read of the reports for
 // the lot. A run with nothing to say either way gets no entry.
 export function cardsGit(state: string, ids: string[]): Record<string, "pending" | "pushed"> {
-  const s = gitStatus(dirname(state)), out: Record<string, "pending" | "pushed"> = {};
+  const dir = dirname(state), s = gitStatus(dir), out: Record<string, "pending" | "pushed"> = {};
   if (!s.repo) return out;
-  const all = runReports(state);
+  const all = runReports(state), ahead = aheadBy(s, all);
   for (const id of ids) {
     const mine = all.find((r) => r.id === id) ?? { id, text: "", at: 0 }, k = readCommit(state, id);
-    const files = runFiles(s.files, mine, all.filter((o) => o.id !== id)).length;
+    const files = runFiles(dir, s.files, mine, all.filter((o) => o.id !== id)).length;
     if (files) out[id] = "pending";
     else if (k?.pushed) out[id] = "pushed";
-    else if (s.ahead > 0) out[id] = "pending";
+    else if (ahead(id) > 0) out[id] = "pending";
     else if (k || mine.text) out[id] = "pushed";
   }
   return out;
