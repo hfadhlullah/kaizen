@@ -57,7 +57,7 @@ async function pick(v) {
   } else if (v === "__new") {
     // A name, and where it goes: the projects folder unless typed or picked.
     const dl = modal(
-      `<b>New project</b><input name="name" placeholder="Project name" aria-label="Project name" spellcheck="false" autocomplete="off"><div class="row"><input name="to" placeholder="Create in (a new folder is made)" aria-label="Create in" spellcheck="false" autocomplete="off"><button type="button" class="btn ghost" data-a="pick">Pick…</button></div><div class="row"><button type="button" class="btn ghost" data-a="x">Cancel</button><button class="btn pri">Create</button></div>`,
+      `<b>New project</b><input name="name" placeholder="Project name" aria-label="Project name" spellcheck="false" autocomplete="off"><div class="row"><input name="to" placeholder="Folder to create" aria-label="Create in" spellcheck="false" autocomplete="off"><button type="button" class="btn ghost" data-a="pick">Pick…</button></div><div class="row"><button type="button" class="btn ghost" data-a="x">Cancel</button><button class="btn pri">Create</button></div>`,
     );
     const f = dl.querySelector("form"),
       name = f.querySelector("[name=name]"),
@@ -96,7 +96,7 @@ async function pick(v) {
   } else if (v === "__clone") {
     // One form: the link, then where it goes. The folder fills in once the link names a repo.
     const dl = modal(
-      `<b>Clone from GitHub</b><input name="url" placeholder="https://github.com/owner/repo or git@github.com:owner/repo" aria-label="GitHub link (https or ssh)" spellcheck="false" autocomplete="off"><div class="row"><input name="to" placeholder="Clone into (a new folder is made)" aria-label="Clone into" spellcheck="false" autocomplete="off"><button type="button" class="btn ghost" data-a="pick">Pick…</button></div><div class="row"><button type="button" class="btn ghost" data-a="x">Cancel</button><button class="btn pri">Clone</button></div>`,
+      `<b>Clone from GitHub</b><input name="url" placeholder="https://github.com/owner/repo" aria-label="GitHub link (https or ssh)" spellcheck="false" autocomplete="off"><div class="row"><input name="to" placeholder="Folder to clone into" aria-label="Clone into" spellcheck="false" autocomplete="off"><button type="button" class="btn ghost" data-a="pick">Pick…</button></div><div class="row"><button type="button" class="btn ghost" data-a="x">Cancel</button><button class="btn pri">Clone</button></div>`,
     );
     const f = dl.querySelector("form"),
       url = f.querySelector("[name=url]"),

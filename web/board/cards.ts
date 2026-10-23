@@ -309,7 +309,7 @@ function inlineForm(c) {
   li.className = "inl";
   const dir = c.state;
   if (store.mode === "edit") {
-    li.innerHTML = html`<input value="${c.text}"><textarea placeholder="Notes: links, paths, background">${c.notes || ""}</textarea><div class="q dim" id="clong" hidden>The first line is over 72 characters; logs will cut it short.</div><div class="row"><button class="btn ghost" data-a="c">Cancel</button><button class="btn pri" data-a="s">Save</button></div>`;
+    li.innerHTML = html`<input value="${c.text}"><textarea placeholder="Anything the planner should know">${c.notes || ""}</textarea><div class="q dim" id="clong" hidden>The first line is over 72 characters; logs will cut it short.</div><div class="row"><button class="btn ghost" data-a="c">Cancel</button><button class="btn pri" data-a="s">Save</button></div>`;
     li.querySelector("[data-a=s]").onclick = async () => {
       const next = li.querySelector("input").value.trim(),
         notes = li.querySelector("textarea").value.trim();
@@ -321,7 +321,7 @@ function inlineForm(c) {
   }
   if (store.mode === "reject") {
     const idea = c.kind !== "run";
-    li.innerHTML = html`<div class="q">${c.kind === "backlog" ? "Not doing this backlog item?" : idea ? "Reject this idea?" : "Abandon this run?"} The reason is recorded.</div><input placeholder="Reason"><div class="row"><button class="btn ghost" data-a="c">Keep it</button><button class="btn warn" data-a="s">${idea ? "Reject" : "Abandon"}</button></div>`;
+    li.innerHTML = html`<div class="q">${c.kind === "backlog" ? "Not doing this backlog item?" : idea ? "Reject this idea?" : "Abandon this run?"} The reason is recorded.</div><input placeholder="Why not?"><div class="row"><button class="btn ghost" data-a="c">Keep it</button><button class="btn warn" data-a="s">${idea ? "Reject" : "Abandon"}</button></div>`;
     li.querySelector("[data-a=s]").onclick = async () => {
       const why = li.querySelector("input").value.trim();
       if (!why) {
@@ -468,7 +468,7 @@ const HINT = { 1: "Ideas you run are planned here", 2: "Approved plans are built
 
 // The new-idea form, wired into f: inline at the top of Ideas, or in a modal.
 function ideaForm(f, close) {
-  f.innerHTML = html`${store.all ? html`<div class="combo" id="ndc"><button type="button" class="sel" id="newdir" aria-label="Project for this idea" aria-haspopup="listbox" aria-expanded="false"></button><div class="menu-pop" hidden><input class="sel" aria-label="Search projects" placeholder="Search projects…" spellcheck="false" autocomplete="off"><div id="nds" role="listbox"></div></div></div>` : ""}<input id="newidea" placeholder="What would you like done?"><textarea id="newnotes" placeholder="Notes: links, paths, background (optional)"></textarea><div class="att" id="newatt"></div><input type="file" id="newfile" multiple hidden><div class="row"><button type="button" class="ib" id="newpick" aria-label="Attach files" title="Attach files">${ico("clip")}</button><button type="button" class="btn ghost" id="nc">Cancel</button><button type="button" class="btn pri" id="ns">Add</button></div>`;
+  f.innerHTML = html`${store.all ? html`<div class="combo" id="ndc"><button type="button" class="sel" id="newdir" aria-label="Project for this idea" aria-haspopup="listbox" aria-expanded="false"></button><div class="menu-pop" hidden><input class="sel" aria-label="Search projects" placeholder="Search projects…" spellcheck="false" autocomplete="off"><div id="nds" role="listbox"></div></div></div>` : ""}<input id="newidea" placeholder="What do you want to build?"><textarea id="newnotes" placeholder="Anything the planner should know (optional)"></textarea><div class="att" id="newatt"></div><input type="file" id="newfile" multiple hidden><div class="row"><button type="button" class="ib" id="newpick" aria-label="Attach files" title="Attach files">${ico("clip")}</button><button type="button" class="btn ghost" id="nc">Cancel</button><button type="button" class="btn pri" id="ns">Add</button></div>`;
   const inp = f.querySelector("#newidea"),
     files = [];
   draft(inp, "f:new:0");

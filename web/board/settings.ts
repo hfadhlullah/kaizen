@@ -93,8 +93,8 @@ export async function openSettings() {
           )
       : html`<p class="snone">Settings could not be read. Run <code>kaizen settings</code>.</p>`
   }
-  <h3 class="sg">Google</h3><div class="sgrp">${row("OAuth client id", html`<input class="sel" id="gg-id" placeholder="${gg.hasClient ? "saved; type to replace" : "from Google Cloud, Desktop app"}" spellcheck="false" autocomplete="off">`, "", "gg-id", "google oauth client id sheets write back")}
-  ${row("OAuth client secret", html`<span class="fpick"><input class="sel" id="gg-secret" type="password" placeholder="${gg.hasClient ? "saved; type to replace" : ""}" spellcheck="false" autocomplete="off"><button class="btn" id="gg-save" type="button">Save</button></span>`, "", "gg-secret", "google oauth client secret")}
+  <h3 class="sg">Google</h3><div class="sgrp">${row("OAuth client id", html`<input class="sel" id="gg-id" placeholder="${gg.hasClient ? "Saved. Paste a new one to replace it" : "Desktop app client id from Google Cloud"}" spellcheck="false" autocomplete="off">`, "", "gg-id", "google oauth client id sheets write back")}
+  ${row("OAuth client secret", html`<span class="fpick"><input class="sel" id="gg-secret" type="password" placeholder="${gg.hasClient ? "Saved. Paste a new one to replace it" : ""}" spellcheck="false" autocomplete="off"><button class="btn" id="gg-save" type="button">Save</button></span>`, "", "gg-secret", "google oauth client secret")}
   ${row("Google account", html`<button class="btn${gg.connected ? "" : " pri"}" id="gg-conn" type="button"${gg.hasClient || gg.connected ? "" : " disabled"}>${gg.connected ? "Disconnect" : "Connect"}</button>`, "", "gg-conn", "google account connect sheets write back")}</div>
   <h3 class="sg">Browser</h3><div class="sgrp">${row("Theme", ctl("th", ["system", "light", "dark"], cur), "", "th", "theme light dark system browser")}
   ${row("Notifications", html`<button class="chk${np === "granted" ? " on" : ""}" id="nt" role="switch" aria-checked="${String(np === "granted")}"${np && np !== "denied" ? "" : " disabled"}></button>`, ntHelp, "nt", "notifications " + ntHelp + " browser")}</div>
