@@ -125,7 +125,8 @@ and no criterion is `CANNOT VERIFY`; otherwise
 `; <n> cannot verify` when any criterion was — even when every count is 0, so an open
 human check never reads as a clean pass.
 
-The reviewer also appends any durable lesson about this material to `memory.md` —
+Where `review.write_memory` is true (the default), the reviewer also appends any
+durable lesson about this material to `memory.md` —
 a recurring bug pattern, a non-obvious constraint, a convention worth keeping. Not
 run-specific detail; only what the next run would want to know.
 

@@ -2,7 +2,7 @@
 description: The kaizen command: installer, upgrade, uninstall, settings, prune, sources
 tags: [project, cli]
 sources: [cli/install.ts, cli/setup.ts, cli/qr.ts, cli/settings.ts, cli/worktree.ts, package.json]
-updated: 2026-10-18
+updated: 2026-10-23
 ---
 # CLI
 
@@ -27,6 +27,7 @@ updated: 2026-10-18
 - `install.ts` has no exports, so its logic is tested by running it, or by reading a literal from source (the gitignore test).
 - Never run `bun cli/install.ts --yes` from this checkout to "fix" `--check`: it repoints the global links (`.kaizen/memory.md`).
 - `settings.ts` reads config keys by indentation; keep a key's nesting depth exact (`.kaizen/memory.md`).
+- A `SETTINGS` row with `when: [key, value]` only has an effect while that other key holds that value; `listSettings()` returns the reason as `idle` and both settings screens dim the row but keep it editable. A row must be a key in `config.default.yml` (a test checks).
 - `removeEverything()` lazy-imports from `cli/dashboard.ts`; moving those helpers breaks uninstall (`.kaizen/memory.md`).
 
 - `--init-project` makes the installer set up the folder it runs in without asking; `kaizen setup` uses it with `--yes`.

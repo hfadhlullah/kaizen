@@ -142,7 +142,7 @@ open human check never reads as a clean pass.
 
 ## Memory
 
-When memory writing is enabled, append to `.kaizen/memory.md` any durable lesson
+When `review.write_memory` is true (the default), append to `.kaizen/memory.md` any durable lesson
 about this codebase: a recurring bug pattern, a non-obvious constraint, a convention
 worth preserving. One line each. Nothing run-specific, nothing already obvious from
 reading the code.

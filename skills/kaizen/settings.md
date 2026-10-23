@@ -23,16 +23,23 @@ nearest first, so a change lands globally unless this project keeps its own conf
 | `auto_fix.max_iterations` | `1`–`5` | Fix and recheck rounds before what is left is escalated |
 | `review.write_memory` | `true`, `false` | Let the reviewer append lessons to `memory.md` |
 | `git.auto_commit` | `true`, `false` | Commit the work when a run finishes |
-| `git.branch_before_implement` | `true`, `false` | Branch before building when on the default branch |
 | `git.worktree_per_run` | `true`, `false` | Build each run on its own branch in its own worktree and land it by pull request |
 | `ui.mouse` | `false`, `true` | Click to select, click again to act; while on, the terminal cannot select text |
 | `subagents.model` | `inherit`, `opus`, `sonnet`, `haiku` | Model the stage subagents run on (Claude Code only) |
 | `subagents.effort` | `inherit`, `low`, `medium`, `high` | Reasoning effort for the stage subagents (Claude Code only) |
 | `sources.every` | `off`, `1h`, `6h`, `24h` | How often the web board checks request sources for new requests, into the icebox, while it runs |
-| `sources.agent` | `ask`, `chatgpt`, `agent` | Who reads social sources when Gather is pressed: the ChatGPT plan signed in from the Icebox, or your agent on `/kaizen gather` |
+| `sources.agent` | `ask`, `chatgpt`, `agent` | Who picks the posts that fit from social sources when Gather is pressed: the ChatGPT plan signed in from the Icebox, or your agent on `/kaizen gather` |
 | `sources.model` | text | Model the ChatGPT plan gathers with; empty takes the first it lists |
 | `sources.effort` | `low`, `medium`, `high` | Reasoning effort of that model while gathering |
 | `agent.default` | `auto`, `claude`, `codex`, `agy`, `opencode`, `gemini` | Coding agent to launch from dashboard backlog |
+
+Some settings only have an effect while another stands a certain way: the approvals
+while `mode` is `approve`, `build.executor` and `subagents.*` while `runner` is `full`,
+`auto_fix.min_severity` and `auto_fix.max_iterations` while `auto_fix.enabled` is
+`true`, `sources.model` and `sources.effort` while `sources.agent` is `chatgpt`. When
+printing one of these that has no effect now, say so beside its value. Still offer it:
+a value set now applies once the other setting changes, and `/kaizen full` overrides
+the runner for one run.
 
 Rules for writing the file:
 
@@ -46,7 +53,7 @@ Rules for writing the file:
 - After writing, print the setting and its new value, and nothing else. No summary of
   the whole file.
 
-Settings not in the table — the review checks, backlog and state paths, and the per-tool
+Settings not in the table — such as `state.dir` and the per-tool
 `agent.<cmd>.model` / `agent.<cmd>.effort` the board launches a session with — are edited by
 hand in `config.yml`, which is commented throughout. Say so rather than offering a
 picker with thirty options.

@@ -6,7 +6,10 @@ import { homedir } from "node:os";
 import { readText } from "./state.ts";
 
 // `text` is a value typed rather than chosen: a path. It has no values to cycle.
-type Setting = { key: string; label: string; group: string; values: string[]; help: string; text?: boolean; folder?: boolean };
+// `when`: the row only has an effect while that other key holds that value; both
+// settings screens dim it otherwise, and it stays editable (`/kaizen full` overrides
+// the runner for one run, so a subagent model still matters under `runner: lite`).
+type Setting = { key: string; label: string; group: string; values: string[]; help: string; text?: boolean; folder?: boolean; when?: [string, string] };
 
 export type PresetName = "low" | "medium" | "ultra";
 
@@ -29,7 +32,6 @@ export const PRESETS: Record<PresetName, {
       "auto_fix.min_severity": "high",
       "auto_fix.max_iterations": "1",
       "git.auto_commit": "false",
-      "git.branch_before_implement": "false",
       "git.worktree_per_run": "false",
     },
   },
@@ -47,7 +49,6 @@ export const PRESETS: Record<PresetName, {
       "auto_fix.min_severity": "high",
       "auto_fix.max_iterations": "2",
       "git.auto_commit": "false",
-      "git.branch_before_implement": "true",
       "git.worktree_per_run": "true",
     },
   },
@@ -65,7 +66,6 @@ export const PRESETS: Record<PresetName, {
       "auto_fix.min_severity": "low",
       "auto_fix.max_iterations": "4",
       "git.auto_commit": "true",
-      "git.branch_before_implement": "true",
       "git.worktree_per_run": "true",
     },
   },
@@ -99,31 +99,29 @@ export function applyPreset(text: string, preset: PresetName, defaults: string):
 
 const SETTINGS: Setting[] = [
   { key: "preset", label: "Preset", group: "Preset", values: ["low", "medium", "ultra", "custom"], help: "" },
-  { key: "mode", label: "Stop for approval", group: "Approvals", values: ["approve", "auto", "plan-only", "review-only"], help: "" },
-  { key: "approvals.plan", label: "Approve the plan first", group: "Approvals", values: ["true", "false"], help: "" },
-  { key: "approvals.review", label: "Approve after review", group: "Approvals", values: ["true", "false"], help: "" },
-  { key: "approvals.each_file", label: "Confirm every file edit", group: "Approvals", values: ["true", "false"], help: "" },
+  { key: "mode", label: "Run mode", group: "Approvals", values: ["approve", "auto", "plan-only", "review-only"], help: "" },
+  { key: "approvals.plan", label: "Approve the plan first", group: "Approvals", values: ["true", "false"], help: "", when: ["mode", "approve"] },
+  { key: "approvals.review", label: "Approve after review", group: "Approvals", values: ["true", "false"], help: "", when: ["mode", "approve"] },
+  { key: "approvals.each_file", label: "Confirm every file edit", group: "Approvals", values: ["true", "false"], help: "", when: ["mode", "approve"] },
   { key: "runner", label: "Stage isolation", group: "Agents", values: ["full", "lite"], help: "full: separate agent per stage. lite: one session" },
-  { key: "build.executor", label: "Who builds", group: "Agents", values: ["subagent", "inline", "ask"], help: "" },
+  { key: "build.executor", label: "Who builds", group: "Agents", values: ["subagent", "inline", "ask"], help: "subagent: its own agent · inline: this session · ask: pick at plan approval", when: ["runner", "full"] },
   { key: "agent.default", label: "Tool the board launches", group: "Agents", values: ["auto", "claude", "codex", "agy", "opencode", "gemini"], help: "" },
   { key: "agent.launch", label: "Where the board runs agents", group: "Agents", values: ["card", "terminal"], help: "" },
-  { key: "subagents.model", label: "Model for stage agents", group: "Agents", values: ["inherit", "opus", "sonnet", "haiku"], help: "" },
-  { key: "subagents.effort", label: "Effort for stage agents", group: "Agents", values: ["inherit", "low", "medium", "high"], help: "" },
+  { key: "subagents.model", label: "Model for subagents", group: "Agents", values: ["inherit", "opus", "sonnet", "haiku"], help: "Planner, builder, reviewer", when: ["runner", "full"] },
+  { key: "subagents.effort", label: "Effort for subagents", group: "Agents", values: ["inherit", "low", "medium", "high"], help: "Planner, builder, reviewer", when: ["runner", "full"] },
   { key: "auto_fix.enabled", label: "Fix findings automatically", group: "Auto-fix", values: ["true", "false"], help: "" },
-  { key: "auto_fix.min_severity", label: "Auto-fix from severity", group: "Auto-fix", values: ["critical", "high", "medium", "low"], help: "" },
-  { key: "auto_fix.max_iterations", label: "Max fix rounds", group: "Auto-fix", values: ["1", "2", "3", "4", "5"], help: "" },
+  { key: "auto_fix.min_severity", label: "Lowest severity to fix", group: "Auto-fix", values: ["critical", "high", "medium", "low"], help: "", when: ["auto_fix.enabled", "true"] },
+  { key: "auto_fix.max_iterations", label: "Max fix rounds", group: "Auto-fix", values: ["1", "2", "3", "4", "5"], help: "", when: ["auto_fix.enabled", "true"] },
   { key: "git.auto_commit", label: "Commit when done", group: "Git", values: ["false", "true"], help: "Never pushes" },
-  { key: "git.branch_before_implement", label: "Branch before building", group: "Git", values: ["true", "false"], help: "" },
   { key: "git.worktree_per_run", label: "Branch and folder per run", group: "Git", values: ["true", "false"], help: "" },
-  { key: "track.default", label: "Kind of work", group: "Project", values: ["auto", "software", "writing", "communication", "operations", "research"], help: "" },
   { key: "review.write_memory", label: "Remember lessons", group: "Project", values: ["true", "false"], help: "" },
   { key: "review.memory_max_lines", label: "Memory size cap", group: "Project", values: ["50", "100", "200", "400"], help: "" },
   { key: "state.keep_runs", label: "Runs to keep", group: "Project", values: ["5", "10", "20", "50"], help: "" },
   { key: "dictation.model", label: "Dictation model", group: "Board", values: ["tiny", "base", "small", "large-v3-turbo"], help: "" },
   { key: "sources.every", label: "Gather requests", group: "Board", values: ["off", "1h", "6h", "24h"], help: "" },
-  { key: "sources.agent", label: "Who reads social sources", group: "Board", values: ["ask", "chatgpt", "agent"], help: "" },
-  { key: "sources.model", label: "ChatGPT model for gathering", group: "Board", values: [], text: true, help: "Empty: plan default" },
-  { key: "sources.effort", label: "ChatGPT effort for gathering", group: "Board", values: ["low", "medium", "high"], help: "" },
+  { key: "sources.agent", label: "Who picks social posts", group: "Board", values: ["ask", "chatgpt", "agent"], help: "X, TikTok, Instagram, Threads" },
+  { key: "sources.model", label: "ChatGPT model for gathering", group: "Board", values: [], text: true, help: "Empty: plan default", when: ["sources.agent", "chatgpt"] },
+  { key: "sources.effort", label: "ChatGPT effort for gathering", group: "Board", values: ["low", "medium", "high"], help: "", when: ["sources.agent", "chatgpt"] },
   { key: "board.projects_dir", label: "Projects folder", group: "Board", values: [], text: true, folder: true, help: "Empty: known projects only" },
   { key: "board.open", label: "Open the board in", group: "Board", values: ["browser", "app"], help: "" },
   { key: "ui.mouse", label: "Enable mouse", group: "Terminal", values: ["false", "true"], help: "" },
@@ -137,13 +135,18 @@ export function listSettings(repoRoot: string) {
   const load = (f: string) => existsSync(f) ? readText(f) : "";
   const text = load(file), board = load(globalFile());
   const preset = detectPreset(text, defaults);
-  return {
-    file: tilde(file),
-    rows: SETTINGS.map((s) => ({
-      ...s,
-      value: s.key === "preset" ? preset : (read(s.group === "Board" ? board : text, s.key) || read(defaults, s.key)) ?? s.values[0] ?? "",
-    })),
-  };
+  const rows = SETTINGS.map((s) => ({
+    ...s,
+    value: s.key === "preset" ? preset : (read(s.group === "Board" ? board : text, s.key) || read(defaults, s.key)) ?? s.values[0] ?? "",
+  }));
+  const valueOf = (k: string) => rows.find((r) => r.key === k)?.value ?? null;
+  return { file: tilde(file), rows: rows.map((r) => ({ ...r, idle: idle(r, valueOf) })) };
+}
+
+// Why a row has no effect right now, or "" while it has one: its `when` is not met.
+function idle(s: Setting, valueOf: (key: string) => string | null) {
+  if (!s.when || valueOf(s.when[0]) === s.when[1]) return "";
+  return `No effect unless ${SETTINGS.find((x) => x.key === s.when![0])!.label} is ${s.when[1] === "true" ? "on" : s.when[1]}`;
 }
 
 export function setSetting(repoRoot: string, key: string, value: string) {
@@ -217,13 +220,17 @@ export async function settings(repoRoot: string, standalone = true) {
       }
       return v;
     };
+    const valueOf = (k: string) => {
+      const d = SETTINGS.find((x) => x.key === k)!;
+      return read(fileFor(d) === file ? text : readText(fileFor(d)), k) || read(defaults, k);
+    };
     const rows = SETTINGS.map((s) => ({
       s,
-      // Older configs spell "infer the track" as an empty string; show what it means.
+      idle: idle(s, valueOf),
       // The preset as a game's quick preset: arrows either side, the tier lit after it. No colour codes: the selected row wraps this in inverse, which a reset would end.
       value: s.key === "preset"
         ? `◁ ${currentPreset.padEnd(6)} ▷ ${(["low", "medium", "ultra"] as const).map((p) => p === currentPreset ? "━" : "─").join("")}`
-        : show(s, (read(fileFor(s) === file ? text : readText(fileFor(s)), s.key) || (s.key === "track.default" ? "auto" : undefined)) ?? c.dim("(default)")),
+        : show(s, read(fileFor(s) === file ? text : readText(fileFor(s)), s.key) ?? c.dim("(default)")),
     }));
     const width = Math.max(...SETTINGS.map((s) => s.label.length)) + 4;
 
@@ -234,7 +241,7 @@ export async function settings(repoRoot: string, standalone = true) {
     rowAt = [];
     let line = 2, group = "";
     const list = shown();
-    for (const [i, { s, value }] of rows.entries()) {
+    for (const [i, { s, value, idle: off }] of rows.entries()) {
       if (!list.includes(i)) continue;
       if (s.group !== group) {
         group = s.group;
@@ -245,14 +252,14 @@ export async function settings(repoRoot: string, standalone = true) {
       const name = s.label.padEnd(width);
       stdout.write(on
         ? `  ${c.cyan("›")} ${c.bold(name)}${c.inv(` ${value} `)}\n`
-        : `    ${c.dim(name)}${value}\n`);
+        : `    ${c.dim(name)}${off ? c.dim(value) : value}\n`);
       rowAt[line++] = i;
     }
     const cur = SETTINGS[active]!;
     if (!list.length) stdout.write(`\n  ${c.dim(`no setting matches "${query}"`)}\n\n`);
     else {
       stdout.write(`\n  ${c.dim(cur.key)}  ${c.dim("options:")} ${cur.values.map((v) => v || '""').join(c.dim(" / "))}\n`);
-      stdout.write(`  ${cur.help}\n`);
+      stdout.write(`  ${[cur.help, rows[active]!.idle].filter(Boolean).join(" · ")}\n`);
     }
     stdout.write(`\n  ${c.dim(typing
       ? "type to filter · enter or ↑↓ keep it · esc clear"

@@ -88,15 +88,11 @@ Each iteration is written to `runs/<id>/05-iterations/`.
 | `auto_fix.enabled` | `true` | Auto-fix findings vs. escalate everything |
 | `auto_fix.min_severity` | `high` | Threshold for auto-fix (`critical\|high\|medium\|low`) |
 | `auto_fix.max_iterations` | `2` | Fix/recheck rounds before escalating remaining findings |
-| `track.default` | `auto` (inferred per run) | Pin a track for a repo that is always one kind of work |
 | `review.write_memory` | `true` | Let the reviewer append lessons to `.kaizen/memory.md` |
 | `backlog.enabled` | `true` | Capture what a run deliberately did not do |
-| `backlog.file` | `06-backlog.md` | Per-run backlog file |
-| `backlog.orphan_file` | `backlog.md` | Where a pruned run's open items are rescued to |
 | `state.dir` | `.kaizen` | State directory |
 | `state.keep_runs` | `20` | Completed runs kept before pruning oldest (rescues open backlog first) |
 | `git.auto_commit` | `false` | `true`: commit the run's changed files when it is done; never pushes |
-| `git.branch_before_implement` | `true` | Branch before implement stage when on the default branch |
 | `subagents.model` | `inherit` | Model the stage subagents run on (opus/sonnet/haiku, Claude Code only) |
 | `subagents.effort` | `inherit` | Reasoning effort for the stage subagents (low/medium/high, Claude Code only) |
 | `sources.every` | `24h` | How often the web board checks request sources for new ideas (`off\|1h\|6h\|24h`) |

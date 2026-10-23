@@ -64,8 +64,9 @@ export async function openSettings() {
     // Wired by stepper() below; the group takes its name from the row's label.
     return html`<span class="step" id="${id}" role="group" aria-labelledby="${id}-l"><button id="${id}-prev" aria-label="Previous">‹</button><output aria-live="polite">${on === "" ? "—" : on}</output><button id="${id}-next" aria-label="Next">›</button></span>`;
   };
-  const row = (label, control, hint, id, q) =>
-    html`<div class="srow" data-q="${q.toLowerCase()}"><label for="${id}" id="${id}-l">${label}</label>${control}${hint ? html`<p class="hint">${hint}</p>` : ""}</div>`;
+  // `off`: the row has no effect while another setting stands as it is; dimmed, still editable.
+  const row = (label, control, hint, id, q, off = false) =>
+    html`<div class="srow${off ? " off" : ""}" data-q="${q.toLowerCase()}"><label for="${id}" id="${id}-l">${label}</label>${control}${hint ? html`<p class="hint">${hint}</p>` : ""}</div>`;
   const hadFocus = document.activeElement?.id === "sq";
   const np = typeof Notification === "undefined" ? null : Notification.permission;
   const ntHelp = np ? (np === "denied" ? "Blocked by this browser" : "") : "Not supported in this browser";
@@ -85,9 +86,10 @@ export async function openSettings() {
                         ? html`<span class="fpick"><input class="sel" id="${id}" value="${r.value}" placeholder="not set" spellcheck="false"><button class="btn" id="${id}-pick" type="button">Browse…</button></span>`
                         : html`<input class="sel" id="${id}" value="${r.value}" placeholder="not set" spellcheck="false">`
                       : ctl(id, r.values, r.value),
-                    r.help,
+                    [r.help, r.idle].filter(Boolean).join(" · "),
                     id,
                     [r.label, r.help, r.key, g, ...r.values].join(" "),
+                    !!r.idle,
                   );
                 })}</div>`,
           )

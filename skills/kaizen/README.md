@@ -207,11 +207,7 @@ the defaults.
 | `auto_fix.max_iterations` | `2` | Fix/recheck rounds before whatever is left is escalated to you |
 | `review.memory_max_lines` | `100` | The cap on `memory.md`, which every stage of every run reads. Raise only if the lessons are genuinely all load-bearing |
 | `git.auto_commit` | `false` | `true` commits the files a run changed when it is done, by path. Never pushes |
-| `track.default` | `auto` (inferred) | A repo that is always one kind of work, e.g. a docs repo |
 | `backlog.enabled` | `true` | Set `false` to skip both backlog capture points; the run still executes, just without a `06-backlog.md` |
-| `backlog.file` | `06-backlog.md` | The per-run file name. Rarely. |
-| `backlog.statuses` | `[open, done, rejected]` | Rarely. Only `open` items are printed |
-| `backlog.orphan_file` | `backlog.md` | Where open items go when their run is pruned |
 | `state.keep_runs` | `20` | You want a longer or shorter run history |
 
 Mode never overrides a refusal: destructive or irreversible actions still get confirmed
