@@ -1,8 +1,9 @@
 # Kaizen — docs
 
 Read for `/kaizen docs` and `/kaizen docs lint`. Nothing else needs this file, except
-the two paragraphs in `spec-build.md` and `spec-review.md` that keep the vault current
-during a run.
+the paragraphs in `spec-build.md` and `spec-review.md` that keep the vault current
+during a run, and the *Docs gate* in `spec-main.md`, which reads *Update* step 4 and
+*Lint* before a run is done.
 
 `/kaizen docs` writes a project's documentation into the notebook as a small vault an
 agent reads before it plans or builds: an **Index** listing every note with one line on

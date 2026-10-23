@@ -23,7 +23,7 @@ The product itself: a staged workflow (plan, approval, build, independent review
 ## How it connects
 - Runs are written to `.kaizen/runs/<id>/`; [[Web board]] and [[Terminal board]] read them through `cli/state.ts`.
 - [[CLI]] installs these folders as links into `~/.claude/`.
-- `/kaizen docs` writes this vault.
+- `/kaizen docs` writes this vault. During a run the builder updates the notes whose `sources` it changed, and the *Docs gate* in `spec-main.md` makes the main thread finish the job before the final report and before `stage: "done"`, in every runner and mode: fix-iteration changes, and changed files no note covers (added to a note's `sources`, or a new note).
 
 ## Watch out
 - `skills/kaizen/` is the source; `.kaizen/spec*.md` in a project are copies (`kaizen --check` reports drift). In this repo the copies are not committed (`.gitignore`).

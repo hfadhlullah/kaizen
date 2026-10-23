@@ -92,3 +92,4 @@ updated: 2026-10-19
 - 2026-10-23 run 2026-10-23-settings-stepper — Web board (settings choices are ‹ value › steppers)
 - 2026-10-23 run 2026-10-23-settings-cleanup — CLI, Web board, Workflow (dead settings removed; settings that have no effect are dimmed)
 - 2026-10-23 — build 2026-10-23-friendlier-placeholders: board placeholders reworded in plain language (new idea, notes, reject reason, project folders, icebox, Google OAuth, filter, commit).
+- 2026-10-23 run 2026-10-23-docs-gate — Workflow (Docs gate: the vault is brought up to date before a run is done)

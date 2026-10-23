@@ -97,13 +97,48 @@ tab from staying empty; the reviewer flagging it later is a second net, not the 
 
 ---
 
+## Docs gate
+
+Before a run can be `done` — in every runner and every mode, `auto` included — bring
+the project's docs vault up to date with what the run changed. Apply it once the review
+is settled and before the final approval report, so the user approves the notes with
+the work; where the user's answer sends findings back to be fixed, apply it again over
+those fixes before setting `stage: "done"`. In a run with a `worktree`, edit the notes
+in the worktree, where the vault is committed with the code. Where
+`notes/Project/Index.md` does not exist in the state directory, there is no vault and
+nothing to do. The builder already updates the notes it can see during the build; this
+is the step that catches what it could not: fix iterations after it, and changes no
+note covers.
+
+1. **What changed:** every path named in `03-impl.md` and in each
+   `05-iterations/*-fix.md`, leaving out `.kaizen/` itself.
+2. **Covered:** for each note whose `sources` include one of those paths (a folder in
+   `sources` covers everything under it), check the note against the changed files.
+   Where the change made it untrue or left something out, correct it as *Keep the
+   project's docs vault current* in [`spec-build.md`](spec-build.md) says — never the
+   `## Notes` section — set `updated` to today, and append the `Log.md` line, unless the
+   builder already wrote this run's line, in which case add the notes to it.
+3. **Not covered:** a changed path no note's `sources` reach. Add it to the `sources`
+   of the note whose area it belongs to and describe it there; where it belongs to no
+   area, write a note for it as step 4 of *Update* in [`docs.md`](docs.md) says and
+   list it in `Index.md`. A path that is not part of the project's material — a lock
+   file, a generated bundle — needs no note.
+4. **Lint** the notes touched, as *Lint* in [`docs.md`](docs.md) lists, and fix what
+   this run broke.
+
+Name the notes touched in the final report; the commit at done includes them. A run
+whose changes leave every note true touches nothing and says so in one line.
+
+---
+
 ## Final approval
 
 Controlled by `approvals.review`, skipped in `auto`.
 
 Report: what was built (for a code run, show its Preview proof), verification results, findings fixed, findings still open,
 every criterion the reviewer answered `CANNOT VERIFY` with the check it says a human
-must make, and anything the builder noted as out of scope. Where the run used `runner: lite`, say
+must make, anything the builder noted as out of scope, and the notes the *Docs gate*
+touched. Where the run used `runner: lite`, say
 so in that report — the reviewer saw the work, and nobody should read a same-session
 review as an independent one because the output looked the same.
 Later build requests in the same session follow *Follow-ups are runs too* in [`spec.md`](spec.md): a revise of this run until it is `done`, then a new linked run.
@@ -133,10 +168,10 @@ Set `stage: "done"` in `state.json` once the user accepts.
 
 **Commit at done, when `git.auto_commit` is `true`.** Setting `stage: "done"` — the
 user approving at review, or an `auto` run finishing — is then the ask to commit, under
-either runner. Commit only the files this run changed (the paths `03-impl.md` names,
-that `git status` shows changed), by path: `git add -A -- <paths>` then
-`git commit -m <message> -- <paths>`, never the whole tree, since other sessions edit
-the same checkout. The message is `03-impl.md`'s `## Commit`. In a run with a
+either runner. Commit only the files this run changed (the paths `03-impl.md` names
+and the notes the *Docs gate* touched, that `git status` shows changed), by path:
+`git add -A -- <paths>` then `git commit -m <message> -- <paths>`, never the whole
+tree, since other sessions edit the same checkout. The message is `03-impl.md`'s `## Commit`. In a run with a
 `worktree`, commit there. Then write `runs/<id>/07-commit.md` as `commit: <short sha>`
 and `pushed: no`, so the board shows it committed and offers the push. Never push. A
 failed commit is reported as printed; the run is still `done`. With the setting

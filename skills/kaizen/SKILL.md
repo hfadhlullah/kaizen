@@ -276,7 +276,10 @@ After a subagent returns, update `state.json` yourself in the main thread. Subag
 report; the main thread owns the state machine.
 Before moving any run from `build` to `review`, under either runner, apply the
 *Preview gate* in [`spec-main.md`](spec-main.md): no `## Preview` with a screenshot
-(or a one-line reason there is none) means the build is not done.
+(or a one-line reason there is none) means the build is not done. Before the final
+report and before `stage: "done"`, under either runner and in every mode, apply the
+*Docs gate* there too: the project's docs vault is brought up to date with what the
+run changed.
 
 **Name files, do not narrate them.** The prompt says which paths to read, which
 decisions bind the stage, and what to report back. It does not summarize those files:

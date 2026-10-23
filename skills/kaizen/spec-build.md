@@ -86,8 +86,9 @@ the note, correct what the change made untrue or left out — never the `## Note
 section, which is the user's — and set its `updated` to today. Refresh the note's line
 in `Index.md` if its `description` changed, and append one line to `Log.md`:
 `- YYYY-MM-DD run <id> — <notes touched>`. Name the notes touched in `03-impl.md`. A
-change no note covers is not written up here: say "suggest `/kaizen docs`" in
-`03-impl.md` and leave the vault alone. No Index, nothing to do.
+change no note covers is not written up here: list it in `03-impl.md` as "no note
+covers `<path>`" — the main thread's *Docs gate* in `spec-main.md` documents it before
+the run is done. No Index, nothing to do.
 
 **Read the plan's File manifest instead of searching.** The planner already located
 every path this run touches. Search the material only for what the manifest does not
