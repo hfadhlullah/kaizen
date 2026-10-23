@@ -2,7 +2,7 @@ import { store } from "./store.ts";
 import { where } from "./agent-term.ts";
 import { load, post } from "./api.ts";
 import { mic, stopDictation } from "./dictation.ts";
-import { $, dataUrls, esc, ico } from "./dom.ts";
+import { $, dataUrls, esc, ico, modal } from "./dom.ts";
 import { draft, undraft } from "./drafts.ts";
 import { COLS, ICON, MARKS, NAMES, WORD, age, d, need } from "./labels.ts";
 import { brief } from "./markdown.ts";
@@ -460,6 +460,82 @@ async function startRun(c, kind) {
 
 const HINT = { 1: "Ideas you run are planned here", 2: "Approved plans are built here", 3: "Finished builds are checked here" };
 
+// The new-idea form, wired into f: inline at the top of Ideas, or in a modal.
+function ideaForm(f, close) {
+  f.innerHTML = `${store.all ? `<div class="combo" id="ndc"><button type="button" class="sel" id="newdir" aria-label="Project for this idea" aria-haspopup="listbox" aria-expanded="false"></button><div class="menu-pop" hidden><input class="sel" aria-label="Search projects" placeholder="Search projects…" spellcheck="false" autocomplete="off"><div id="nds" role="listbox"></div></div></div>` : ""}<input id="newidea" placeholder="What would you like done?"><textarea id="newnotes" placeholder="Notes: links, paths, background (optional)"></textarea><div class="att" id="newatt"></div><input type="file" id="newfile" multiple hidden><div class="row"><button type="button" class="ib" id="newpick" aria-label="Attach files" title="Attach files">${ico("clip")}</button><button type="button" class="btn ghost" id="nc">Cancel</button><button type="button" class="btn pri" id="ns">Add</button></div>`;
+  const inp = f.querySelector("#newidea"),
+    files = [];
+  draft(inp, "f:new:0");
+  draft(f.querySelector("textarea"), "f:new:1");
+  const save = async () => {
+    const text = inp.value.trim();
+    if (!text) return;
+    const notes = f.querySelector("textarea").value.trim();
+    close();
+    const dir = store.all ? newDir : null;
+    const r = await post("/inbox", dir ? { op: "add", dir, text, notes } : { op: "add", text, notes });
+    if (r.ok) {
+      toast("Idea added");
+      // The idea exists first: a failed upload leaves it as plain text.
+      if (files.length) {
+        const enc = await dataUrls(files);
+        const n = await post("/note", { dir, for: text, text: "", files: enc });
+        if (!n.ok) toast("Idea added, files not attached");
+      }
+    }
+    load();
+  };
+  const add = (x) => {
+    files.push(x);
+    f.querySelector("#newatt").textContent = files.map((y) => y.name).join(" · ");
+  };
+  f.querySelector("#newpick").onclick = () => f.querySelector("#newfile").click();
+  f.querySelector("#newfile").onchange = (e) => {
+    [...e.target.files].forEach(add);
+    e.target.value = "";
+  };
+  for (const el of [inp, f.querySelector("textarea")])
+    el.onpaste = (e) => {
+      for (const it of e.clipboardData.items)
+        if (it.kind === "file") {
+          const x = it.getAsFile();
+          add(new File([x], x.name === "image.png" ? `paste-${Date.now()}.png` : x.name, { type: x.type }));
+          e.preventDefault();
+        }
+    };
+  if (store.all) ideaCombo(f);
+  f.querySelector("#ns").onclick = save;
+  f.querySelector("#nc").onclick = close;
+  {
+    const m = mic([inp, f.querySelector("textarea")]);
+    if (m) f.querySelector(".row").prepend(m);
+  }
+  inp.onkeydown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      save();
+    }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      close();
+    }
+  };
+  setTimeout(() => inp.focus());
+}
+
+// New idea from the top bar, the empty board or n: the same form, in a modal.
+export function newIdea() {
+  if (store.mode === "new") {
+    store.mode = null;
+    render();
+  }
+  const dl = modal("");
+  const f = dl.querySelector("form");
+  f.onsubmit = (e) => e.preventDefault();
+  dl.addEventListener("close", () => stopDictation(false));
+  ideaForm(f, () => dl.close());
+}
+
 export function render() {
   // A closed form leaves no draft behind; an open one is reopened after a reload.
   // A form whose card is gone (restored after a reload, or deleted elsewhere) has nowhere to show.
@@ -545,10 +621,7 @@ export function render() {
       ? '<div class="empty"><div class="mascot"></div><b>Nothing archived</b></div>'
       : '<div class="empty"><div class="mascot"></div><b>Nothing here yet</b><p>Add an idea and kaizen will plan it, build it, and check the result.</p><button class="btn pri" id="newempty">New idea</button></div>';
     if (!archive)
-      $("newempty").onclick = () => {
-        store.mode = "new";
-        render();
-      };
+      $("newempty").onclick = newIdea;
   }
   COLS.forEach((name, ci) => {
     const s = document.createElement("section");
@@ -707,66 +780,11 @@ export function render() {
     if (ci === 0 && store.mode === "new") {
       const f = document.createElement("li");
       f.className = "inl";
-      f.innerHTML = `${store.all ? `<div class="combo" id="ndc"><button class="sel" id="newdir" aria-label="Project for this idea" aria-haspopup="listbox" aria-expanded="false"></button><div class="menu-pop" hidden><input class="sel" aria-label="Search projects" placeholder="Search projects…" spellcheck="false" autocomplete="off"><div id="nds" role="listbox"></div></div></div>` : ""}<input id="newidea" placeholder="What would you like done?"><textarea id="newnotes" placeholder="Notes: links, paths, background (optional)"></textarea><div class="att" id="newatt"></div><input type="file" id="newfile" multiple hidden><div class="row"><button class="ib" id="newpick" aria-label="Attach files" title="Attach files">${ico("clip")}</button><button class="btn ghost" id="nc">Cancel</button><button class="btn pri" id="ns">Add</button></div>`;
       ul.appendChild(f);
-      const inp = f.querySelector("#newidea"),
-        files = [];
-      draft(inp, "f:new:0");
-      draft(f.querySelector("textarea"), "f:new:1");
-      const save = async () => {
-        const text = inp.value.trim();
-        if (!text) return;
-        const notes = f.querySelector("textarea").value.trim();
-        store.mode = null;
-        const dir = store.all ? newDir : null;
-        const r = await post("/inbox", dir ? { op: "add", dir, text, notes } : { op: "add", text, notes });
-        if (r.ok) {
-          toast("Idea added");
-          // The idea exists first: a failed upload leaves it as plain text.
-          if (files.length) {
-            const enc = await dataUrls(files);
-            const n = await post("/note", { dir, for: text, text: "", files: enc });
-            if (!n.ok) toast("Idea added, files not attached");
-          }
-        }
-        load();
-      };
-      const add = (x) => {
-        files.push(x);
-        f.querySelector("#newatt").textContent = files.map((y) => y.name).join(" · ");
-      };
-      f.querySelector("#newpick").onclick = () => f.querySelector("#newfile").click();
-      f.querySelector("#newfile").onchange = (e) => {
-        [...e.target.files].forEach(add);
-        e.target.value = "";
-      };
-      for (const el of [inp, f.querySelector("textarea")])
-        el.onpaste = (e) => {
-          for (const it of e.clipboardData.items)
-            if (it.kind === "file") {
-              const x = it.getAsFile();
-              add(new File([x], x.name === "image.png" ? `paste-${Date.now()}.png` : x.name, { type: x.type }));
-              e.preventDefault();
-            }
-        };
-      if (store.all) ideaCombo(f);
-      f.querySelector("#ns").onclick = save;
-      f.querySelector("#nc").onclick = () => {
+      ideaForm(f, () => {
         store.mode = null;
         render();
-      };
-      {
-        const m = mic([inp, f.querySelector("textarea")]);
-        if (m) f.querySelector(".row").prepend(m);
-      }
-      inp.onkeydown = (e) => {
-        if (e.key === "Enter") save();
-        if (e.key === "Escape") {
-          store.mode = null;
-          render();
-        }
-      };
-      setTimeout(() => inp.focus());
+      });
     }
     const shown = unfolded.has(ci) || list.length <= FOLD + 1 ? list : list.slice(0, FOLD);
     shown.forEach((c) => {

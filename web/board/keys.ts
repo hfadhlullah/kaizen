@@ -1,6 +1,6 @@
 import { store } from "./store.ts";
 import { load } from "./api.ts";
-import { focusedKey, key, nav, render } from "./cards.ts";
+import { focusedKey, key, nav, newIdea, render } from "./cards.ts";
 import { $ } from "./dom.ts";
 import { iceNav, srcOpen } from "./icebox.ts";
 import { close, openRun } from "./panel.ts";
@@ -30,7 +30,8 @@ export function initKeys() {
       iceNav(e)
     )
       return;
-    if (e.target.matches("input,select,textarea,[contenteditable]")) return;
+    // A dialog handles its own keys; Escape there must not also close the panel.
+    if (e.target.matches("input,select,textarea,[contenteditable]") || e.target.closest("dialog")) return;
     if (e.key === "?") {
       $("help").classList.toggle("on");
       return;
@@ -53,10 +54,9 @@ export function initKeys() {
       } else close();
       return;
     }
-    if (e.key === "n") {
+    if (e.key === "n" && !document.querySelector("dialog[open]")) {
       if (view !== "board") go("board", true);
-      store.mode = "new";
-      render();
+      newIdea();
     }
     if (e.key === "a") {
       store.all = !store.all;

@@ -1,6 +1,6 @@
 import { store } from "./store.ts";
 import { load, post } from "./api.ts";
-import { render } from "./cards.ts";
+import { newIdea, render } from "./cards.ts";
 import { $, esc, ico, modal } from "./dom.ts";
 import { openSources, srcOpen } from "./icebox.ts";
 import { toast } from "./toast.ts";
@@ -313,9 +313,5 @@ export function initProjects() {
       $("show").setAttribute("aria-expanded", false);
     }
   });
-  $("newtop").onclick = () => {
-    store.mode = "new";
-    render();
-    $("board").scrollTo(0, 0);
-  };
+  $("newtop").onclick = newIdea;
 }
