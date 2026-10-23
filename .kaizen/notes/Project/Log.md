@@ -89,3 +89,4 @@ updated: 2026-10-19
 - 2026-10-23 — build 2026-10-23-html-escape-tag: board templates use the escape-by-default `html` tag. Updated [[Web board]].
 - 2026-10-23 — 2026-10-23-new-idea-modal: New idea opens in a modal (top bar, empty board, `n`); `+` in Ideas stays inline. Updated [[Web board]].
 - 2026-10-23 run 2026-10-23-backend-improve — Web board: commit/push judged per run, progress.md liveness, session owner index
+- 2026-10-23 run 2026-10-23-settings-stepper — Web board (settings choices are ‹ value › steppers)

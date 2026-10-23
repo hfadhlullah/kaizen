@@ -54,6 +54,7 @@ updated: 2026-10-23
 - Popups: `web/board/main.ts` closes every open `.menu-pop` on a capture-phase `pointerdown` outside it, so only the newest one stays (card menus use stopPropagation, so bubble listeners never saw those clicks). New popups should be a `.menu-pop` inside a `.combo` to get this for free.
 - Project logos: `cli/logo.ts` `projectLogo()` (fixed names only); `/state` projects carry `logo`, `GET /project-logo?dir=` serves it sandboxed; `plogo()` in `web/board/projects.ts` draws it or the folder initial.
 - The server keeps no current project: each page sends its pick as `x-kz-dir` (`dirHeader()` in `web/board/api.ts`) and `cli/web.ts` resolves the project per request, so a phone picking another project never moves a desktop tab. `/cd` only checks the folder (and sets up a fresh one).
+- Settings controls (`ctl()` in `web/board/settings.ts`): a switch for on/off, a `.bar` segment per value for the preset and numbers, and a `.step` stepper (`‹ value ›`, ids `<id>-prev`/`<id>-next`) for every other choice, Theme included. `stepper()` keeps the position and wraps at the ends: the shown value changes on each click, a config row saves 300 ms after the last click (one POST per burst), Theme applies at once. ←/→ press the arrows, the group is named by its row's `<label id="<id>-l">`, and the re-render puts focus back on the arrow pressed (`refocus()`).
 
 ## Notes
 <!-- yours: /kaizen docs never rewrites this section -->

@@ -47,7 +47,8 @@ export async function openSettings() {
   $("psub").textContent = "";
   $("psub").title = "";
   // One control per row: a switch for on/off, one segment per value for a small number,
-  // a select for a choice. The row's label names the control; its help sits under it.
+  // ‹ value › for a choice, stepping and wrapping like a game's options screen. The row's
+  // label names the control; its help sits under it.
   const ctl = (id, vals, on) => {
     // The preset is a segmented control over the tiers; custom, which only an edit to another row makes, lights none.
     if (id === "s-preset")
@@ -60,10 +61,11 @@ export async function openSettings() {
     }
     if (vals.every((v) => /^\d+$/.test(v)))
       return html`<span class="bar" id="${id}" role="group">${vals.map((v) => html`<button data-v="${v}" class="${v === on ? "on" : ""}" aria-pressed="${String(v === on)}">${v}</button>`)}</span>`;
-    return html`<select class="sel" id="${id}">${vals.map((v) => html`<option value="${v}"${v === on ? " selected" : ""}>${v === "" ? "—" : v}</option>`)}</select>`;
+    // Wired by stepper() below; the group takes its name from the row's label.
+    return html`<span class="step" id="${id}" role="group" aria-labelledby="${id}-l"><button id="${id}-prev" aria-label="Previous">‹</button><output aria-live="polite">${on === "" ? "—" : on}</output><button id="${id}-next" aria-label="Next">›</button></span>`;
   };
   const row = (label, control, hint, id, q) =>
-    html`<div class="srow" data-q="${q.toLowerCase()}"><label for="${id}">${label}</label>${control}${hint ? html`<p class="hint">${hint}</p>` : ""}</div>`;
+    html`<div class="srow" data-q="${q.toLowerCase()}"><label for="${id}" id="${id}-l">${label}</label>${control}${hint ? html`<p class="hint">${hint}</p>` : ""}</div>`;
   const hadFocus = document.activeElement?.id === "sq";
   const np = typeof Notification === "undefined" ? null : Notification.permission;
   const ntHelp = np ? (np === "denied" ? "Blocked by this browser" : "") : "Not supported in this browser";
@@ -154,7 +156,32 @@ export async function openSettings() {
       toast(j.error || "Could not start Google sign-in");
     }
   };
-  $("th").onchange = (e) => setTheme(e.target.value);
+  // A stepper keeps its own position, so each click moves one value even before a save
+  // re-renders the panel; the shown value changes at once and apply() gets the new one.
+  // ←/→ press its arrows; focus moves to the arrow pressed.
+  const stepper = (el, vals, on, apply) => {
+    let i = Math.max(vals.indexOf(on), 0);
+    const step = (d) => {
+      i = (i + d + vals.length) % vals.length;
+      el.querySelector("output").textContent = vals[i] === "" ? "—" : vals[i];
+      apply(vals[i]);
+    };
+    $(el.id + "-prev").onclick = () => step(-1);
+    $(el.id + "-next").onclick = () => step(1);
+    el.onkeydown = (e) => {
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      e.preventDefault();
+      const b = $(el.id + (e.key === "ArrowLeft" ? "-prev" : "-next"));
+      b.focus();
+      b.click();
+    };
+  };
+  // Re-rendering replaces the arrows, so the one pressed gets focus back.
+  const refocus = async (f) => {
+    await openSettings();
+    if (f && /^s-preset-|-(prev|next)$/.test(f)) $(f)?.focus();
+  };
+  stepper($("th"), ["system", "light", "dark"], cur, setTheme);
   $("nt").onclick = () => {
     askNotify();
     setTimeout(openSettings, 300);
@@ -166,16 +193,22 @@ export async function openSettings() {
         const f = document.activeElement?.id;
         const j = await post("/settings", { key: r.key, value: v });
         if (j.ok) toast("Saved");
-        await openSettings();
-        if (f?.startsWith("s-preset-")) $(f)?.focus();
+        await refocus(f);
       };
-      if (el.tagName === "SELECT" || el.tagName === "INPUT")
+      if (el.tagName === "INPUT")
         el.onchange = async () => {
           await save(el.value.trim());
-          if (el.tagName === "INPUT") load();
+          load();
         };
       else el.querySelectorAll("[data-v]").forEach((b) => (b.onclick = () => save(b.dataset.v)));
       if (el.matches(".chk")) el.onclick = () => save(el.dataset.v);
+      // Clicks in quick succession save once, the value they settle on.
+      let t;
+      if (el.matches(".step"))
+        stepper(el, r.values, r.value, (v) => {
+          clearTimeout(t);
+          t = setTimeout(() => save(v), 300);
+        });
       // The system's own folder dialog, opened by the board: a page cannot read a real path.
       if (r.folder)
         $(el.id + "-pick").onclick = async () => {
