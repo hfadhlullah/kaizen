@@ -89,7 +89,10 @@ updated: 2026-10-19
 - 2026-10-23 — build 2026-10-23-html-escape-tag: board templates use the escape-by-default `html` tag. Updated [[Web board]].
 - 2026-10-23 — 2026-10-23-new-idea-modal: New idea opens in a modal (top bar, empty board, `n`); `+` in Ideas stays inline. Updated [[Web board]].
 - 2026-10-23 run 2026-10-23-backend-improve — Web board: commit/push judged per run, progress.md liveness, session owner index
+- 2026-10-23 — build 2026-10-23-idea-start-run: new-idea form gets Start run (add, then launch with the default runner and agent). Updated [[Web board]].
 - 2026-10-23 run 2026-10-23-settings-stepper — Web board (settings choices are ‹ value › steppers)
+- 2026-10-23 — build 2026-10-23-add-split-button: Start run moves into a dropdown on the Add split button. Updated [[Web board]].
+- 2026-10-23 — build 2026-10-23-add-menu-compact: Add menu item made compact; keyboard-only focus on open.
 - 2026-10-23 run 2026-10-23-settings-cleanup — CLI, Web board, Workflow (dead settings removed; settings that have no effect are dimmed)
 - 2026-10-23 — build 2026-10-23-friendlier-placeholders: board placeholders reworded in plain language (new idea, notes, reject reason, project folders, icebox, Google OAuth, filter, commit).
 - 2026-10-23 run 2026-10-23-docs-gate — Workflow (Docs gate: the vault is brought up to date before a run is done)

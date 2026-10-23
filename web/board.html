@@ -229,7 +229,8 @@ section li.hint{display:block;padding:14px;border:1px dashed var(--line);border-
 .inl textarea,.notes textarea{min-height:72px;resize:vertical}
 .notes textarea{min-height:160px}
 .inl input::placeholder,.inl textarea::placeholder,.notes textarea::placeholder{color:var(--dim)}
-.inl .row,.notes .row{display:flex;gap:6px;justify-content:flex-end;align-items:center}
+.inl .row,.notes .row{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;align-items:center}
+.split{position:relative;display:inline-flex}.split>#ns{border-top-right-radius:0;border-bottom-right-radius:0}.split>#nm{border-top-left-radius:0;border-bottom-left-radius:0;border-left-color:color-mix(in srgb,var(--on-accent) 35%,var(--accent));padding:0 7px;display:inline-flex;align-items:center}.split>#nm svg{width:14px;height:14px;stroke-width:2}.split .menu-pop{right:0;top:calc(100% + 4px);z-index:9;white-space:nowrap;min-width:0;padding:4px}.split .menu-pop button{padding:5px 8px;font-size:12px;gap:6px}.split .menu-pop svg{width:13px;height:13px}.split .menu-pop button:focus-visible{outline-width:1px;outline-offset:-1px}.split .menu-pop[hidden]{display:none}
 .inl .row .mic{margin-right:0}.inl .row #newpick{margin-right:auto}.inl .row .btn{white-space:nowrap}.inl .att{font-size:12px;color:var(--dim)}.inl .att{font-size:12px;color:var(--dim)}.inl .att:empty{display:none}
 dialog.kz{border:0;padding:0;background:none;width:min(480px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:visible;color:var(--ink)}dialog.kz::backdrop{background:rgb(0 0 0/.45)}dialog.kz .row input{flex:1;min-width:0}dialog.kz #ndc{align-self:flex-start}dialog.viewer{width:min(1100px,calc(100vw - 32px));height:calc(100dvh - 32px);background:var(--bg);border-radius:var(--r);display:none;flex-direction:column;overflow:hidden}dialog.viewer[open]{display:flex}.viewer-hd{display:flex;gap:12px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line)}.viewer-hd span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}dialog.viewer img{flex:1;min-height:0;width:100%;object-fit:contain}dialog.viewer iframe{flex:1;border:0;width:100%;background:#fff}
 .inl .run-actions{display:grid;gap:8px}.inl .run-actions .row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.inl .run-actions .pri{grid-column:1/-1}
@@ -339,8 +340,8 @@ aside .foot .more .menu-pop{left:0;right:auto;top:auto;bottom:calc(100% + 4px)}.
 .srow label{font-weight:400;font-size:15px;align-self:center}
 .srow>:nth-child(2){grid-column:2;grid-row:1;align-self:center;justify-self:end}
 .srow .hint{grid-column:1/-1;grid-row:2;margin:0;font-size:12px;color:var(--dim);line-height:1.45;max-width:46ch}
-.srow input.sel,.srow select.sel{width:170px;border:0;background-color:transparent;text-align:right;color:var(--dim);box-shadow:none}
 .srow.off>label,.srow.off>:nth-child(2){opacity:.5}
+.srow input.sel,.srow select.sel{width:170px;border:0;background-color:transparent;text-align:right;color:var(--dim);box-shadow:none}
 .srow select.sel{width:auto;text-align-last:right}
 .fpick{display:inline-flex;gap:6px;align-items:center}
 .srow[hidden],.yolo[hidden],.sg[hidden],.sg[hidden]+.sgrp,.sjump button[hidden]{display:none}

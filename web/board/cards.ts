@@ -457,7 +457,7 @@ async function startRun(c, kind) {
   const backlog = c.kind === "backlog" ? { source: c.source, n: c.n } : undefined;
   const r = await post("/run", { dir: c.state, text: c.text, backlog, kind, agent: p ? p.agent : undefined, yolo });
   if (r.ok) {
-    toast((kind === "full" ? "Full" : "Lite") + (yolo ? " yolo" : "") + " run " + where(r) + ": " + via(r.agent));
+    toast((kind === "full" ? "Full" : kind === "lite" ? "Lite" : "Started") + (yolo ? " yolo" : "") + " run " + where(r) + ": " + via(r.agent));
     // A backlog card has no terminal of its own; the run's card gets it once the run exists.
     if (r.pty && !backlog) store.wantTerm = key(c);
   }
@@ -468,12 +468,13 @@ const HINT = { 1: "Ideas you run are planned here", 2: "Approved plans are built
 
 // The new-idea form, wired into f: inline at the top of Ideas, or in a modal.
 function ideaForm(f, close) {
-  f.innerHTML = html`${store.all ? html`<div class="combo" id="ndc"><button type="button" class="sel" id="newdir" aria-label="Project for this idea" aria-haspopup="listbox" aria-expanded="false"></button><div class="menu-pop" hidden><input class="sel" aria-label="Search projects" placeholder="Search projects…" spellcheck="false" autocomplete="off"><div id="nds" role="listbox"></div></div></div>` : ""}<input id="newidea" placeholder="What do you want to build?"><textarea id="newnotes" placeholder="Anything the planner should know (optional)"></textarea><div class="att" id="newatt"></div><input type="file" id="newfile" multiple hidden><div class="row"><button type="button" class="ib" id="newpick" aria-label="Attach files" title="Attach files">${ico("clip")}</button><button type="button" class="btn ghost" id="nc">Cancel</button><button type="button" class="btn pri" id="ns">Add</button></div>`;
+  f.innerHTML = html`${store.all ? html`<div class="combo" id="ndc"><button type="button" class="sel" id="newdir" aria-label="Project for this idea" aria-haspopup="listbox" aria-expanded="false"></button><div class="menu-pop" hidden><input class="sel" aria-label="Search projects" placeholder="Search projects…" spellcheck="false" autocomplete="off"><div id="nds" role="listbox"></div></div></div>` : ""}<input id="newidea" placeholder="What do you want to build?"><textarea id="newnotes" placeholder="Anything the planner should know (optional)"></textarea><div class="att" id="newatt"></div><input type="file" id="newfile" multiple hidden><div class="row"><button type="button" class="ib" id="newpick" aria-label="Attach files" title="Attach files">${ico("clip")}</button><button type="button" class="btn ghost" id="nc">Cancel</button><div class="split"><button type="button" class="btn pri" id="ns">Add</button><button type="button" class="btn pri" id="nm" aria-label="More ways to add" aria-haspopup="menu" aria-expanded="false">${ico("chev")}</button><div class="menu-pop" role="menu" hidden><button type="button" role="menuitem" id="nr" title="Add the idea and run it now">${ico("play")}Start run</button></div></div></div>`;
   const inp = f.querySelector("#newidea"),
     files = [];
   draft(inp, "f:new:0");
   draft(f.querySelector("textarea"), "f:new:1");
-  const save = async () => {
+  // run: add the idea, then launch it at once with the project's runner and agent.
+  const save = async (run) => {
     const text = inp.value.trim();
     if (!text) return;
     const notes = f.querySelector("textarea").value.trim();
@@ -487,6 +488,11 @@ function ideaForm(f, close) {
         const enc = await dataUrls(files);
         const n = await post("/note", { dir, for: text, text: "", files: enc });
         if (!n.ok) toast("Idea added, files not attached");
+      }
+      if (run) {
+        await load();
+        const c = store.S.cards.find((x) => x.kind === "idea" && x.text === text && (!dir || x.state === dir));
+        if (c) return startRun(c);
       }
     }
     load();
@@ -510,7 +516,37 @@ function ideaForm(f, close) {
         }
     };
   if (store.all) ideaCombo(f);
-  f.querySelector("#ns").onclick = save;
+  f.querySelector("#ns").onclick = () => save(false);
+  f.querySelector("#nr").onclick = () => save(true);
+  {
+    const mb = f.querySelector("#nm"),
+      menu = f.querySelector(".split .menu-pop");
+    // Focus moves into the menu only when it was opened from the keyboard.
+    const show = (on, kbd) => {
+      menu.hidden = !on;
+      mb.setAttribute("aria-expanded", String(on));
+      if (on && kbd) setTimeout(() => menu.querySelector("button").focus());
+    };
+    mb.onclick = (e) => {
+      e.stopPropagation();
+      show(menu.hidden, e.detail === 0);
+    };
+    menu.onkeydown = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        show(false);
+        mb.focus();
+      }
+    };
+    f.addEventListener("click", (e) => {
+      if (!menu.hidden && !e.target.closest(".split")) show(false);
+    });
+    const sp = f.querySelector(".split");
+    sp.addEventListener("focusout", (e) => {
+      if (!sp.contains(e.relatedTarget)) show(false);
+    });
+  }
   f.querySelector("#nc").onclick = close;
   {
     const m = mic([inp, f.querySelector("textarea")]);
@@ -519,7 +555,7 @@ function ideaForm(f, close) {
   inp.onkeydown = (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      save();
+      save(false);
     }
     if (e.key === "Escape") {
       e.preventDefault();
