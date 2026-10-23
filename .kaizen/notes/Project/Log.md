@@ -93,3 +93,4 @@ updated: 2026-10-19
 - 2026-10-23 run 2026-10-23-settings-cleanup — CLI, Web board, Workflow (dead settings removed; settings that have no effect are dimmed)
 - 2026-10-23 — build 2026-10-23-friendlier-placeholders: board placeholders reworded in plain language (new idea, notes, reject reason, project folders, icebox, Google OAuth, filter, commit).
 - 2026-10-23 run 2026-10-23-docs-gate — Workflow (Docs gate: the vault is brought up to date before a run is done)
+- 2026-10-23 — build 2026-10-23-browser-test-pace: `bun test` 113 s to 17 s; browser waits scale with `KAIZEN_BROWSER_PACE`, and `browse()` no longer keeps the process alive 5 s after Chrome exits. Updated [[Sources and icebox]].

@@ -30,6 +30,8 @@ export const POST: Record<string, RegExp> = {
 };
 // Grids show thumbnails, not text: each post page is opened for its caption.
 const GRID = new Set(["instagram"]);
+// The fixed waits below are sized for real platforms; KAIZEN_BROWSER_PACE scales them (the tests run at 0.1).
+const nap = (ms: number) => Bun.sleep(ms * (Number(process.env.KAIZEN_BROWSER_PACE) || 1));
 
 // KAIZEN_BROWSER, else the usual names on PATH, else the usual install paths.
 export function findBrowser(): string | null {
@@ -97,9 +99,9 @@ export class Page {
   async go(url: string) {
     await this.call("Page.navigate", { url });
     const end = Date.now() + 20_000;
-    await Bun.sleep(1500);
-    while (Date.now() < end && (await this.js("document.readyState")) !== "complete") await Bun.sleep(250);
-    await Bun.sleep(2000);   // the posts arrive after the page itself
+    await nap(1500);
+    while (Date.now() < end && (await this.js("document.readyState")) !== "complete") await nap(250);
+    await nap(2000);   // the posts arrive after the page itself
   }
   close() { try { this.ws.close(); } catch { /* already gone */ } }
 }
@@ -200,7 +202,10 @@ export async function browse<T>(use: (page: Page) => Promise<T>): Promise<T | { 
   } finally {
     page?.close();
     proc.kill();
-    await Promise.race([proc.exited, Bun.sleep(5000)]);
+    // A cleared timer, not Bun.sleep: a pending sleep keeps the process alive 5 s after Chrome is gone.
+    let t: Timer | undefined;
+    await Promise.race([proc.exited, new Promise((r) => { t = setTimeout(r, 5000); })]);
+    clearTimeout(t);
     if (proc.exitCode === null) proc.kill(9);
   }
 }
@@ -230,7 +235,7 @@ export async function readPage(page: Page, url: string, platform: string, max = 
     // A page that renders its posts late is not empty: stop early only once some arrived.
     still = seen.size && seen.size === before ? still + 1 : 0;
     await page.js("window.scrollBy(0, window.innerHeight * 1.5)");
-    await Bun.sleep(1500);
+    await nap(1500);
   }
   let found = [...seen.values()].slice(0, max);
   if (GRID.has(platform)) {
@@ -310,12 +315,12 @@ export async function replyOn(page: Page, link: string, platform: string, text: 
   if (!(await page.js<boolean>(FIND(how.box, "focus"))))
     return { ok: false, note: (await page.js<boolean>(OFFERS)) ? signInNote(platform) : `Could not find the reply box on ${name}. Nothing was posted.` };
   await page.call("Input.insertText", { text });
-  await Bun.sleep(800);
+  await nap(800);
   if (!(await here())) return { ok: false, note: `The page left ${name}. Nothing was posted.` };
   if (!(await page.js<boolean>(FIND(how.send, "click")))) return { ok: false, note: `Could not find ${name}'s send button. Nothing was posted.` };
   // Sent once the box is gone or emptied; still holding the text means it did not go.
   for (let i = 0; i < 20; i++) {
-    await Bun.sleep(500);
+    await nap(500);
     const left = await page.js<string | null>(BOX);
     if (left === null || !left.trim()) return { ok: true };
   }

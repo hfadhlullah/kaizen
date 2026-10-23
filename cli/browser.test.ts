@@ -18,7 +18,7 @@ const run = async (code: string, env: Record<string, string> = {}) => {
   const script = `import * as br from ${JSON.stringify(join(repo, "cli/browser.ts"))};
 Object.assign(process.env, ${JSON.stringify({ HOME: process.env.HOME ?? "", USERPROFILE: process.env.USERPROFILE ?? "" })});
 console.log(JSON.stringify(await (async () => { ${code} })()));`;
-  const p = Bun.spawn(["bun", "-e", script], { cwd: home, env: { ...process.env, HOME: home, USERPROFILE: home, ...env }, stdout: "pipe", stderr: "pipe" });
+  const p = Bun.spawn(["bun", "-e", script], { cwd: home, env: { ...process.env, HOME: home, USERPROFILE: home, KAIZEN_BROWSER_PACE: "0.1", ...env }, stdout: "pipe", stderr: "pipe" });
   const [out, err, code_] = [await new Response(p.stdout).text(), await new Response(p.stderr).text(), await p.exited];
   if (code_ !== 0) throw new Error(err);
   return JSON.parse(out.trim().split("\n").at(-1)!);
