@@ -268,6 +268,21 @@ aside.open{transform:none;visibility:visible}
 body.paged #board,body.paged .ftr,body.paged .scrim,body.paged #bq{display:none}
 /* The Icebox keeps the project bar with its own title, without New idea or the panel's header; Settings has none */
 body.paged:not(.ice) .hdr,body.ice aside.docked>header{display:none}body.ice #newtop{visibility:hidden}
+/* The Terminal page: the project bar stays (it picks whose terminals show), the board gives way to the tiles */
+#terms{display:none}body.termv.paged .hdr{display:flex}body.termv #newtop,body.termv #fbtn{display:none!important}
+body.termv #terms{flex:1;min-height:0;display:flex;flex-direction:column;gap:8px;padding:10px 20px 14px 28px}
+.tbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:12px}.tbar .bar{margin-right:8px}.tbar .bar button{padding:0 10px;font-size:12px}.tbar .chip{cursor:pointer;background:none;border:0;font:inherit;font-size:11px}.tbar .chip:hover{color:var(--ink)}.tbar svg{width:12px;height:12px}
+.tgrid{position:relative;flex:1;min-height:0;display:grid;gap:6px}
+.tile{display:flex;flex-direction:column;min-width:0;min-height:0;border:1px solid var(--line);border-radius:var(--r-s);background:var(--bg);overflow:hidden}.tile.off{display:none}.tile.drop{outline:2px solid var(--accent);outline-offset:-2px}
+.tile header{display:flex;align-items:center;gap:8px;min-height:30px;padding:0 4px 0 10px;border-bottom:1px solid var(--line);background:var(--bg-2);cursor:grab;user-select:none}
+.tile header b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:600}.tile header .sp{flex:1}
+.tdot{flex:none;width:8px;height:8px;border-radius:50%;background:var(--run)}.tdot.asking{background:var(--warn)}.tdot.ended{background:var(--dim);opacity:.6}
+.tile .term{flex:1;min-height:0}.tile .term .xterm{height:100%;padding:4px}.tile .term .xterm-viewport{background:transparent!important}
+.tsplit{position:absolute;z-index:2;touch-action:none}.tsplit.c{top:0;width:10px;margin-left:-5px;cursor:col-resize}.tsplit.r{left:0;right:0;height:10px;margin-top:-5px;cursor:row-resize}.tsplit:hover,.tdrag .tsplit:active{background:color-mix(in srgb,var(--accent) 35%,transparent)}
+body.tdrag{user-select:none}body.tdrag .tile{pointer-events:none}
+@media(max-width:900px){body.termv #terms{padding-inline:16px}}
+/* A phone has no room for a grid: tiles stack, each most of a screen tall, and the splits go */
+@media(max-width:640px){.tbar .bar{display:none}.tgrid{display:flex;flex-direction:column;overflow:auto}.tile{flex:none;height:70vh}.tile.off{display:none}.tsplit{display:none}}
 aside.docked{position:static;z-index:auto;flex:1;min-height:0;width:auto;transform:none;visibility:visible;transition:none;box-shadow:none;border:0;background:none}
 aside.docked>header,aside.docked>.body{padding-inline:28px}
 aside.docked>header{border-bottom:0;padding-top:28px;padding-bottom:12px}
@@ -515,6 +530,8 @@ a.schip:hover{color:var(--ink);border-color:color-mix(in srgb,var(--line) 60%,va
 <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6"/></symbol>
 <symbol id="i-ask" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/><path d="M9.8 9.5a2.3 2.3 0 0 1 4.4.8c0 1.5-2.2 2-2.2 3.2M12 16.5h.01"/></symbol>
 <symbol id="i-term" viewBox="0 0 24 24"><path d="M4 17l6-5-6-5M12 19h8"/></symbol>
+<symbol id="i-max" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
+<symbol id="i-min" viewBox="0 0 24 24"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></symbol>
 <symbol id="i-close" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></symbol>
 <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="19" cy="12" r="1.2" fill="currentColor"/></symbol>
 <symbol id="i-open" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/></symbol>
@@ -557,6 +574,7 @@ a.schip:hover{color:var(--ink);border-color:color-mix(in srgb,var(--line) 60%,va
   <a class="it" href="/?view=icebox" data-view="sources" title="Icebox: requests gathered from your sources"><svg><use href="#i-inbox"/></svg><span class="lbl">Icebox</span></a>
   <a class="it" href="/" data-view="board" title="Board"><svg><use href="#i-board"/></svg><span class="lbl">Board</span></a>
   <a class="it" href="/notebook" data-view="notes" title="Notes"><svg><use href="#i-note"/></svg><span class="lbl">Notes</span></a>
+  <a class="it" href="/?view=terminal" data-view="terminal" title="Terminal: every agent running in its card"><svg><use href="#i-term"/></svg><span class="lbl">Terminal</span></a>
   <a class="it" href="/?view=settings" data-view="settings" title="Settings"><svg><use href="#i-gear"/></svg><span class="lbl">Settings</span></a>
   <span class="end"></span>
   <div class="theme" role="group" aria-label="Theme"><button data-t="light" title="Light theme"><svg><use href="#i-sun"/></svg><span class="lbl">Light</span></button><button data-t="dark" title="Dark theme"><svg><use href="#i-moon"/></svg><span class="lbl">Dark</span></button></div>
@@ -588,6 +606,8 @@ a.schip:hover{color:var(--ink);border-color:color-mix(in srgb,var(--line) 60%,va
   <button class="btn pri" id="newtop">New idea</button>
 </div>
 <main id="board" aria-live="polite" aria-busy="true"><section aria-hidden="true"><span class="skel" style="height:14px;width:40%;margin:4px 0 12px"></span><span class="skel" style="height:72px;margin-bottom:8px"></span><span class="skel" style="height:72px"></span></section><section aria-hidden="true"><span class="skel" style="height:14px;width:40%;margin:4px 0 12px"></span><span class="skel" style="height:72px;margin-bottom:8px"></span><span class="skel" style="height:72px"></span></section><section aria-hidden="true"><span class="skel" style="height:14px;width:40%;margin:4px 0 12px"></span><span class="skel" style="height:72px;margin-bottom:8px"></span><span class="skel" style="height:72px"></span></section><section aria-hidden="true"><span class="skel" style="height:14px;width:40%;margin:4px 0 12px"></span><span class="skel" style="height:72px;margin-bottom:8px"></span><span class="skel" style="height:72px"></span></section><section aria-hidden="true"><span class="skel" style="height:14px;width:40%;margin:4px 0 12px"></span><span class="skel" style="height:72px;margin-bottom:8px"></span><span class="skel" style="height:72px"></span></section></main>
+
+<div id="terms" aria-label="Terminals"></div>
 
 <div class="ftr"><span class="strip" id="strip"></span><span><a href="/issue" target="_blank" rel="noopener"><svg><use href="#i-bug"/></svg>Report an issue</a><a id="kbd"><svg><use href="#i-kbd"/></svg>Keyboard shortcuts</a></span></div>
 

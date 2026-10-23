@@ -3,6 +3,7 @@ import { key, render } from "./cards.ts";
 import { $ } from "./dom.ts";
 import { close, ideaBody, open, openRun } from "./panel.ts";
 import { notifyUser, toast } from "./toast.ts";
+import { openTerms, termsShowing } from "./terms.ts";
 
 // The server writes notifier() from state.ts over a marker in board.html: one rule for both UIs.
 declare const due: (key: string, say: string | null, done: boolean, now: number) => boolean;
@@ -36,6 +37,7 @@ export async function load(quiet) {
   }
   // A redraw under a form being typed in would reset its fields and its focus.
   if (!(quiet && store.mode && $("board").querySelector(".inl input"))) render();
+  if (termsShowing()) openTerms();
   // Run on an idea closed the panel: open the card on its agent once the board knows the session.
   if (store.wantTerm && !store.openKey && !store.mode) {
     const n = store.S.cards.find((x) => key(x) === store.wantTerm && x.pty);

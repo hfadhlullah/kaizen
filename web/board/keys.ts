@@ -54,6 +54,8 @@ export function initKeys() {
       } else close();
       return;
     }
+    // The Terminal page has no cards to move between; its keys are the terminals'.
+    if (view === "terminal") return;
     if (e.key === "n" && !document.querySelector("dialog[open]")) {
       if (view !== "board") go("board", true);
       newIdea();

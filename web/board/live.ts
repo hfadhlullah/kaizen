@@ -34,9 +34,10 @@ const v0 = ((v) => (v === "icebox" ? "sources" : v))(new URLSearchParams(locatio
 export function initLive() {
   // Back from a terminal: what was committed or pushed there touched nothing the server watches.
   addEventListener("focus", () => load(true));
-  markView(["settings", "sources"].includes(v0) ? v0 : "board");
-  document.body.classList.toggle("paged", ["settings", "sources"].includes(v0));
+  markView(["settings", "sources", "terminal"].includes(v0) ? v0 : "board");
+  document.body.classList.toggle("paged", ["settings", "sources", "terminal"].includes(v0));
   document.body.classList.toggle("ice", v0 === "sources");
+  document.body.classList.toggle("termv", v0 === "terminal");
   (async () => {
     let d;
     try {

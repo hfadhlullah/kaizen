@@ -11,7 +11,7 @@ let termKey = null,
   termOff = null,
   termLib = null;
 export const where = (r) => (r.pty ? "running in its card" : "opened in your terminal");
-const termLoad = () =>
+export const termLoad = () =>
   (termLib ||= new Promise((ok, no) => {
     const l = document.createElement("link");
     l.rel = "stylesheet";
