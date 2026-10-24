@@ -108,7 +108,9 @@ updated: YYYY-MM-DD
 2. Split it into 5–12 areas a newcomer would name — by what the parts do, not by
    folder alone. Fewer for a small project.
 3. Write one note per area in the shape above, then `Index.md`, then `Log.md` with the
-   first line.
+   first line. Every source file lands in some note's `sources` — the area's helpers,
+   small screens and scripts too, not only its main files — named directly or through a
+   folder that holds it (see *Coverage* below).
 4. Write the pointer (below).
 5. Lint, and report.
 
@@ -124,8 +126,9 @@ updated: YYYY-MM-DD
    rewrite the sections they affect — never `## Notes` — and set `updated`.
 3. Every `sources` path is gone: move the note to `Project/Archive/` and drop it from
    the Index. Never delete a note.
-4. A part of the repository no note covers (a new top-level folder, a new entry point):
-   write a note for it.
+4. A source file no note covers (see *Coverage*): add it to the `sources` of the note
+   whose area it belongs to, and mention it there; where it fits no area (a new top-level
+   folder, a new entry point), write a note for it.
 5. Refresh the Index lines whose description changed, append one Log line naming every
    note touched, refresh the pointer, lint, and report.
 
@@ -138,9 +141,19 @@ Checks, reported and not silently fixed:
 - every note has `description`, `tags`, `sources` and `updated` (the Index and Log need
   no `sources`), and is listed in the Index;
 - every `sources` path exists;
+- **uncovered**: source files no note's `sources` names or holds, listed one per line;
 - **stale**: notes whose `sources` changed after their `updated` day, found as in
   *Update* step 1;
 - `Index.md` is under 60 lines.
+
+## Coverage
+
+A **source file** is one the repository tracks (`git ls-files`; outside git, every file
+not ignored), leaving out lockfiles, generated or built output, vendored code, binaries,
+and bulk data folders. A note covers a file when its `sources` names the file or a folder
+that holds it, so a data folder such as `public/quran` is covered by naming the folder.
+Lint's *uncovered* list is what makes this checkable: a file no note covers is also a file
+whose changes *stale* never sees, so the vault falls behind without saying so.
 
 ## The pointer
 

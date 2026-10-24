@@ -31,7 +31,7 @@ anything.
 | `/kaizen backlog` | Print open backlog items across all runs, grouped by source run, rescued items last under `Orphaned` |
 | `/kaizen gather` | Read request sources kaizen cannot read by itself; their requests land in the icebox, nothing starts |
 | `/kaizen discover` | Group what is in the icebox and promote the ideas you pick; nothing starts |
-| `/kaizen docs [lint]` | Write or refresh the project's docs vault in the notebook, which agents read first; `lint` only reports what is stale or broken |
+| `/kaizen docs [lint]` | Write or refresh the project's docs vault in the notebook, which agents read first; `lint` only reports what is stale, broken or uncovered |
 | `/kaizen approve` | Approve whatever the current run is waiting on |
 | `/kaizen reject <reason>` | Reject it; the reason decides revise (back to planner) vs kill (abandon) |
 | `/kaizen abort` | Mark the current run abandoned |
