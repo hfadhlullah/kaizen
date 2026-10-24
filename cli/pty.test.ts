@@ -5,7 +5,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, realpa
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { launchMode, closeSessions, readSessions, sweepSessions, CLOSE_GRACE_MS } from "./state.ts";
-import { loginEnv, startPty, writePty, attachPty, ptyState } from "./pty.ts";
+import { loginEnv, startPty, writePty, attachPty, ptyState, exitPty } from "./pty.ts";
 import { conptyHost, innerCommand, resizeSeq } from "./conpty.ts";
 
 const root = realpathSync(mkdtempSync(join(tmpdir(), "kaizen-pty-")));
@@ -196,6 +196,18 @@ test.skipIf(process.platform === "win32")("the done sweep keeps a session the us
   expect(ptyState("looked")!.typed).toBe(0);
   sweepSessions(st, Date.now() + CLOSE_GRACE_MS);
   expect(await gone(looked)).toBe(true);
+});
+
+test.skipIf(process.platform === "win32")("exitPty types /exit, and ends an agent that ignores it", async () => {
+  const wait = async (k: string) => { for (let i = 0; i < 100 && ptyState(k)!.alive; i++) await Bun.sleep(30); return ptyState(k)!.alive; };
+  startPty("polite", ["sh", "-c", "while read l; do case $l in */exit*) exit 0;; esac; done"], root);
+  expect(exitPty("polite", 60_000)).toBe(true);
+  expect(await wait("polite")).toBe(false);
+  startPty("stubborn", ["sh", "-c", "trap '' INT; while read l; do :; done"], root);
+  await Bun.sleep(100);
+  exitPty("stubborn", 300);
+  expect(await wait("stubborn")).toBe(false);
+  expect(exitPty("stubborn")).toBe(false);
 });
 
 test("asking: Claude Code and Codex prompts count as a question, ordinary output does not", async () => {

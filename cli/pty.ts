@@ -120,6 +120,17 @@ const send = (p: Pty, d: string) => {
   try { (p.proc.stdin as Bun.FileSink).write(d); (p.proc.stdin as Bun.FileSink).flush(); } catch { /* host gone */ }
 };
 
+// The tile's ×: ask the agent to quit as the user would (/exit), then end it if it is
+// still there after `grace`. Escape first clears whatever is half-typed at its prompt.
+export function exitPty(key: string, grace = 5000): boolean {
+  const p = ptys.get(key);
+  if (!p || p.exit !== null) return false;
+  send(p, "\x1b");
+  setTimeout(() => send(p, "/exit\r"), 100);
+  setTimeout(() => { if (p.exit === null) p.proc.kill(); }, grace).unref();
+  return true;
+}
+
 export function resizePty(key: string, cols: number, rows: number) {
   const p = ptys.get(key);
   const c = Math.max(10, Math.min(500, cols | 0)), r = Math.max(5, Math.min(300, rows | 0));

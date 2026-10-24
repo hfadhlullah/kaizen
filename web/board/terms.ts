@@ -1,6 +1,6 @@
 import { store } from "./store.ts";
 import { $, html, ico } from "./dom.ts";
-import { load } from "./api.ts";
+import { load, post } from "./api.ts";
 import { termLoad } from "./agent-term.ts";
 import { open } from "./panel.ts";
 import { resume } from "./approvals.ts";
@@ -86,7 +86,9 @@ export function openTerms() {
   }
   // An ended session closed with × has nothing to come back to: no chip for it.
   const hid = [...all.keys()].filter((k) => lay.hidden.includes(k) && all.get(k).pty.alive);
-  bar!.innerHTML = html`<span class="bar" role="group" aria-label="Layout">${MODES.map(([v, l]) => html`<button data-mode="${v}" class="${lay.mode === v ? "on" : ""}" aria-pressed="${String(lay.mode === v)}">${l}</button>`)}</span>${hid.length ? html`<span class="dim">Hidden</span>${hid.map((k) => html`<button class="chip" data-show="${k}" title="Show this terminal">${ico("plus")}${nameOf(all.get(k))} - ${projOf(all.get(k))}</button>`)}` : ""}${phone.matches && keys.length > 1 ? html`<span class="ttabs" role="group" aria-label="Terminals">${keys.map((k) => html`<button class="${k === one ? "on" : ""}" data-pick="${k}" aria-pressed="${String(k === one)}"><span class="tdot ${tst(all.get(k))}"></span>${nameOf(all.get(k))} - ${projOf(all.get(k))}</button>`)}</span>` : ""}`.s;
+  // The layout switch sits at the right of the page header.
+  $("tmodes").innerHTML = html`${MODES.map(([v, l]) => html`<button data-mode="${v}" class="${lay.mode === v ? "on" : ""}" aria-pressed="${String(lay.mode === v)}">${l}</button>`)}`.s;
+  bar!.innerHTML = html`${hid.length ? html`<span class="dim">Hidden</span>${hid.map((k) => html`<button class="chip" data-show="${k}" title="Show this terminal">${ico("plus")}${nameOf(all.get(k))} - ${projOf(all.get(k))}</button>`)}` : ""}${phone.matches && keys.length > 1 ? html`<span class="ttabs" role="group" aria-label="Terminals">${keys.map((k) => html`<button class="${k === one ? "on" : ""}" data-pick="${k}" aria-pressed="${String(k === one)}"><span class="tdot ${tst(all.get(k))}"></span>${nameOf(all.get(k))} - ${projOf(all.get(k))}</button>`)}</span>` : ""}`.s;
   bar!.querySelectorAll<HTMLElement>("[data-pick]").forEach(
     (b) =>
       (b.onclick = () => {
@@ -95,7 +97,7 @@ export function openTerms() {
       }),
   );
   bar!.querySelector(".ttabs .on")?.scrollIntoView({ block: "nearest", inline: "nearest" });
-  bar!.querySelectorAll<HTMLElement>("[data-mode]").forEach(
+  $("tmodes").querySelectorAll<HTMLElement>("[data-mode]").forEach(
     (b) =>
       (b.onclick = () => {
         lay.mode = b.dataset.mode!;
@@ -140,7 +142,7 @@ export function openTerms() {
     const hd = t.el.querySelector("header")!;
     hd.title = (c.kind === "run" ? c.id : c.text) + " · " + c.where;
     // An ended run can be resumed from here; an idea whose agent ended has no run to resume.
-    hd.innerHTML = html`<span class="tdot ${st}" role="img" title="${st}" aria-label="${st}"></span><b>${nameOf(c)} - ${projOf(c)}</b>${off ? html`<span class="tend">ended</span>` : ""}<span class="sp"></span>${off && c.kind === "run" ? html`<button class="btn sm" data-a="resume" title="Continue this run's agent">Resume</button>` : ""}<button class="ib sm" data-a="card" title="Open card" aria-label="Open card">${ico("open")}</button><button class="ib sm" data-a="max" title="${lay.max === k ? "Restore" : "Maximise"}" aria-label="${lay.max === k ? "Restore" : "Maximise"}">${ico(lay.max === k ? "min" : "max")}</button><button class="ib sm" data-a="hide" title="${off ? "Close" : "Hide"}" aria-label="${off ? "Close" : "Hide"}">${ico("close")}</button>`.s;
+    hd.innerHTML = html`<span class="tdot ${st}" role="img" title="${st}" aria-label="${st}"></span><b>${nameOf(c)} - ${projOf(c)}</b>${off ? html`<span class="tend">ended</span>` : ""}<span class="sp"></span>${off && c.kind === "run" ? html`<button class="btn sm" data-a="resume" title="Continue this run's agent">Resume</button>` : ""}<button class="ib sm" data-a="card" title="Open card" aria-label="Open card">${ico("open")}</button><button class="ib sm" data-a="max" title="${lay.max === k ? "Restore" : "Maximise"}" aria-label="${lay.max === k ? "Restore" : "Maximise"}">${ico(lay.max === k ? "min" : "max")}</button>${off ? "" : html`<button class="ib sm" data-a="hide" title="Hide" aria-label="Hide">${ico("dash")}</button>`}<button class="ib sm" data-a="${off ? "hide" : "exit"}" title="${off ? "Close" : "Exit session"}" aria-label="${off ? "Close" : "Exit session"}">${ico("close")}</button>`.s;
     t.el.classList.toggle("ended", off);
     t.el.classList.toggle("off", !!one && one !== k);
     t.el.style.gridColumn = "";
@@ -180,6 +182,10 @@ function wire(el: HTMLElement) {
     else if (a === "hide") {
       lay.hidden.push(k);
       if (lay.max === k) lay.max = null;
+    } else if (a === "exit") {
+      // The tile stays, turning "ended" with its Resume button when the agent is gone.
+      if (confirm("End this agent session? A run can be resumed from its tile or card.")) post("/pty/exit", { key: k }).then(() => load(true));
+      return;
     } else if (a === "card") {
       const c = sessions().get(k);
       if (c) open(c);

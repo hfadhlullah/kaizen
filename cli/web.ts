@@ -9,7 +9,7 @@ import {
   reviewFindings, pickFindings, backlogCards, backlogItem, startedBacklog, closeBacklog, markBacklogDone, fixPrompt, approvalPrompt, canApproveAwaiting, nativePath, closeSessions, sweepSessions, issueUrl,
   launchMode, readSessions, ownerOf, runIndex, resumePrompt, runAgent, firstSession, webHosts,
 } from "./state.ts";
-import { attachPty, writePty, resizePty, ptyState, ptyKeys, adoptLoginEnv } from "./pty.ts";
+import { attachPty, writePty, resizePty, exitPty, ptyState, ptyKeys, adoptLoginEnv } from "./pty.ts";
 import { readSources, addSource, removeSource, moveSource, setCategory, setWriteback, readIcebox, promote, dismiss, restore, addItem, githubRepo, markDone, markReplied, gatherSource, freshImages, gatherAll, gatherDirs, due, socialUrl, socialOf } from "./sources.ts";
 import { projectLogo, LOGO_TYPES } from "./logo.ts";
 import * as chatgpt from "./chatgpt.ts";
@@ -387,6 +387,16 @@ export async function web(repoDir: string, opts: Opts = {}) {
         if (!/^[\w-]+$/.test(key) || !ptyState(key)) return bad("no such terminal", 404);
         if (srv.upgrade(req, { data: { key, detach: null } })) return undefined as unknown as Response;
         return bad("websocket expected", 426);
+      }
+
+      // The Terminal page's ×: the agent is asked to /exit, and ended if it will not.
+      if (req.method === "POST" && path === "/pty/exit") {
+        if (!local(req)) return bad("cross-origin write refused", 403);
+        let body: any;
+        try { body = await req.json(); } catch { return bad("json body expected"); }
+        const key = String(body.key ?? "");
+        if (!/^[\w-]+$/.test(key) || !ptyState(key)) return bad("no such terminal", 404);
+        return json({ ok: exitPty(key) });
       }
 
       // Every note of one project, text included: search, tags and backlinks are the page's.
