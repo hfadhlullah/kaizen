@@ -13,7 +13,7 @@ import { resume } from "./approvals.ts";
 // ponytail: a √n grid with draggable borders, not an i3-style split tree; add one if a grid falls short.
 // mode: grid (√n), cols (side by side) or rows (stacked, so borders drag up and down).
 type Lay = { mode: string; order: string[]; hidden: string[]; max: string | null; sizes: Record<string, { c: number[]; r: number[] }> };
-const MODES = [["grid", "Grid"], ["cols", "Side by side"], ["rows", "Stacked"]];
+const MODES = [["grid", "Grid", "lgrid"], ["cols", "Side by side", "lcols"], ["rows", "Stacked", "lrows"]];
 const GAP = 6;
 let lay: Lay = { mode: "grid", order: [], hidden: [], max: null, sizes: {} };
 try {
@@ -51,10 +51,31 @@ function sessions() {
 
 export function termsStop() {
   showing = false;
+  document.body.classList.remove("tmax");
   for (const t of tiles.values()) t.off?.();
   tiles.clear();
   $("terms").innerHTML = "";
 }
+
+// A header button took focus off the terminal; give it back so typing carries on.
+const focusTerm = (k: string) => tiles.get(k)?.el.querySelector<HTMLElement>(".xterm-helper-textarea")?.focus({ preventScroll: true });
+// Ctrl+Shift+M maximises or restores the tile being typed in. Escape belongs to the agent,
+// so the key is read in capture, before xterm sends it on.
+if (typeof window !== "undefined") addEventListener(
+  "keydown",
+  (e) => {
+    if (!showing || !e.ctrlKey || !e.shiftKey || e.altKey || e.metaKey || e.code !== "KeyM" || phone?.matches) return;
+    const k = (e.target as HTMLElement).closest?.<HTMLElement>(".tile")?.dataset.k || lay.max;
+    if (!k) return;
+    e.preventDefault();
+    e.stopPropagation();
+    lay.max = lay.max === k ? null : k;
+    save();
+    openTerms();
+    focusTerm(k);
+  },
+  true,
+);
 
 export function openTerms() {
   showing = true;
@@ -87,7 +108,7 @@ export function openTerms() {
   // An ended session closed with × has nothing to come back to: no chip for it.
   const hid = [...all.keys()].filter((k) => lay.hidden.includes(k) && all.get(k).pty.alive);
   // The layout switch sits at the right of the page header.
-  $("tmodes").innerHTML = html`${MODES.map(([v, l]) => html`<button data-mode="${v}" class="${lay.mode === v ? "on" : ""}" aria-pressed="${String(lay.mode === v)}">${l}</button>`)}`.s;
+  $("tmodes").innerHTML = html`${MODES.map(([v, l, i]) => html`<button data-mode="${v}" class="${lay.mode === v ? "on" : ""}" aria-pressed="${String(lay.mode === v)}" title="${l}" aria-label="${l}">${ico(i)}</button>`)}`.s;
   bar!.innerHTML = html`${hid.length ? html`<span class="dim">Hidden</span>${hid.map((k) => html`<button class="chip" data-show="${k}" title="Show this terminal">${ico("plus")}${nameOf(all.get(k))} - ${projOf(all.get(k))}</button>`)}` : ""}${phone.matches && keys.length > 1 ? html`<span class="ttabs" role="group" aria-label="Terminals">${keys.map((k) => html`<button class="${k === one ? "on" : ""}" data-pick="${k}" aria-pressed="${String(k === one)}"><span class="tdot ${tst(all.get(k))}"></span>${nameOf(all.get(k))} - ${projOf(all.get(k))}</button>`)}</span>` : ""}`.s;
   bar!.querySelectorAll<HTMLElement>("[data-pick]").forEach(
     (b) =>
@@ -124,6 +145,8 @@ export function openTerms() {
     );
     return;
   }
+  const had = document.activeElement;
+  let i = 0;
   for (const k of keys) {
     const c = all.get(k);
     let t = tiles.get(k);
@@ -142,12 +165,19 @@ export function openTerms() {
     const hd = t.el.querySelector("header")!;
     hd.title = (c.kind === "run" ? c.id : c.text) + " · " + c.where;
     // An ended run can be resumed from here; an idea whose agent ended has no run to resume.
-    hd.innerHTML = html`<span class="tdot ${st}" role="img" title="${st}" aria-label="${st}"></span><b>${nameOf(c)} - ${projOf(c)}</b>${off ? html`<span class="tend">ended</span>` : ""}<span class="sp"></span>${off && c.kind === "run" ? html`<button class="btn sm" data-a="resume" title="Continue this run's agent">Resume</button>` : ""}<button class="ib sm" data-a="card" title="Open card" aria-label="Open card">${ico("open")}</button><button class="ib sm" data-a="max" title="${lay.max === k ? "Restore" : "Maximise"}" aria-label="${lay.max === k ? "Restore" : "Maximise"}">${ico(lay.max === k ? "min" : "max")}</button>${off ? "" : html`<button class="ib sm" data-a="hide" title="Hide" aria-label="Hide">${ico("dash")}</button>`}<button class="ib sm" data-a="${off ? "hide" : "exit"}" title="${off ? "Close" : "Exit session"}" aria-label="${off ? "Close" : "Exit session"}">${ico("close")}</button>`.s;
+    hd.innerHTML = html`<span class="tdot ${st}" role="img" title="${st}" aria-label="${st}"></span><b>${nameOf(c)} - ${projOf(c)}</b>${off ? html`<span class="tend">ended</span>` : ""}<span class="sp"></span>${off && c.kind === "run" ? html`<button class="btn sm" data-a="resume" title="Continue this run's agent">Resume</button>` : ""}<button class="ib sm" data-a="card" title="Open card" aria-label="Open card">${ico("open")}</button><button class="ib sm" data-a="max" title="${lay.max === k ? "Restore" : "Maximise"} (Ctrl+Shift+M)" aria-label="${lay.max === k ? "Restore" : "Maximise"}">${ico(lay.max === k ? "min" : "max")}</button>${off ? "" : html`<button class="ib sm" data-a="hide" title="Hide" aria-label="Hide">${ico("dash")}</button>`}<button class="ib sm" data-a="${off ? "hide" : "exit"}" title="${off ? "Close" : "Exit session"}" aria-label="${off ? "Close" : "Exit session"}">${ico("close")}</button>`.s;
     t.el.classList.toggle("ended", off);
     t.el.classList.toggle("off", !!one && one !== k);
+    t.el.classList.toggle("max", !phone.matches && lay.max === k);
     t.el.style.gridColumn = "";
-    grid.append(t.el); // in order
+    // In order, moving only what is out of place: a moved tile loses its terminal's focus,
+    // and every /state tick came here, so typed keys fell to the page (Firefox's find bar).
+    if (grid.children[i] !== t.el) grid.insertBefore(t.el, grid.children[i] || null);
+    i++;
   }
+  if (had instanceof HTMLElement && had !== document.activeElement && had.isConnected) had.focus({ preventScroll: true });
+  // Maximised fills the window, over the sidebar and header: with one terminal it was already the whole grid.
+  document.body.classList.toggle("tmax", !!lay.max && !phone.matches);
   // Grid is √n, the last tile spanning what its row leaves empty; side by side is one row, stacked one column.
   const n = one ? 1 : keys.length,
     cols = lay.mode === "cols" ? n : lay.mode === "rows" ? 1 : Math.ceil(Math.sqrt(n)),
@@ -198,6 +228,7 @@ function wire(el: HTMLElement) {
     } else return;
     save();
     openTerms();
+    focusTerm(k);
   };
   el.querySelector("header")!.ondblclick = (e) => {
     // A phone shows one tile anyway: a double-tap there would only leave desktop maximised.
@@ -205,6 +236,7 @@ function wire(el: HTMLElement) {
     lay.max = lay.max === k ? null : k;
     save();
     openTerms();
+    focusTerm(k);
   };
   // Drag a header onto another tile: the two swap places.
   el.querySelector("header")!.ondragstart = (e) => {

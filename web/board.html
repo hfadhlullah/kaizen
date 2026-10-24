@@ -272,7 +272,7 @@ body.paged:not(.ice) .hdr,body.ice aside.docked>header{display:none}body.ice #ne
 /* The Terminal page: the project bar stays (it picks whose terminals show), the board gives way to the tiles */
 #terms{display:none}body.termv.paged .hdr{display:flex}body.termv #newtop,body.termv #fbtn{display:none!important}
 body.termv #terms{flex:1;min-height:0;display:flex;flex-direction:column;gap:8px;padding:10px 20px 14px 28px}
-.tbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:12px}#tmodes{display:none}body.termv #tmodes{display:inline-flex}#tmodes button{padding:0 10px;font-size:12px}.tbar .chip{cursor:pointer;background:none;border:0;font:inherit;font-size:11px}.tbar .chip:hover{color:var(--ink)}.tbar svg{width:12px;height:12px}
+.tbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:12px}#tmodes{display:none}body.termv #tmodes{display:inline-flex}#tmodes button{display:inline-grid;place-items:center;padding:0 8px}#tmodes svg{width:16px;height:16px}.tbar .chip{cursor:pointer;background:none;border:0;font:inherit;font-size:11px}.tbar .chip:hover{color:var(--ink)}.tbar svg{width:12px;height:12px}
 .tgrid{position:relative;flex:1;min-height:0;display:grid;gap:6px}
 .tile{display:flex;flex-direction:column;min-width:0;min-height:0;border:1px solid var(--line);border-radius:var(--r-s);background:var(--bg);overflow:hidden}.tile.off{display:none}.tile.drop{outline:2px solid var(--accent);outline-offset:-2px}
 .tile header{display:flex;align-items:center;gap:8px;min-height:30px;padding:0 4px 0 10px;border-bottom:1px solid var(--line);background:var(--bg-2);cursor:grab;user-select:none}
@@ -281,6 +281,7 @@ body.termv #terms{flex:1;min-height:0;display:flex;flex-direction:column;gap:8px
 .tdot{flex:none;width:8px;height:8px;border-radius:50%;background:var(--run)}.tdot.asking{background:var(--warn)}.tdot.ended{background:var(--dim);opacity:.6}
 .tile .term{flex:1;min-height:0}.tile .term .xterm{height:100%;padding:4px}.tile .term .xterm-viewport{background:transparent!important}
 .tsplit{position:absolute;z-index:2;touch-action:none}.tsplit.c{top:0;width:10px;margin-left:-5px;cursor:col-resize}.tsplit.r{left:0;right:0;height:10px;margin-top:-5px;cursor:row-resize}.tsplit:hover,.tdrag .tsplit:active{background:color-mix(in srgb,var(--accent) 35%,transparent)}
+.tile.max{position:fixed;inset:8px;z-index:10;box-shadow:var(--shadow-1)}body.tmax .tsplit{display:none}
 body.tdrag{user-select:none}body.tdrag .tile{pointer-events:none}
 @media(max-width:900px){body.termv #terms{padding-inline:16px}}
 /* A phone has no room for a grid or a stack: one terminal fills the page, and tabs above pick which */
@@ -535,6 +536,9 @@ a.schip:hover{color:var(--ink);border-color:color-mix(in srgb,var(--line) 60%,va
 <symbol id="i-term" viewBox="0 0 24 24"><path d="M4 17l6-5-6-5M12 19h8"/></symbol>
 <symbol id="i-max" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
 <symbol id="i-min" viewBox="0 0 24 24"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></symbol>
+<symbol id="i-lgrid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
+<symbol id="i-lcols" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 3v18"/></symbol>
+<symbol id="i-lrows" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 12h18"/></symbol>
 <symbol id="i-dash" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
 <symbol id="i-close" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></symbol>
 <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="19" cy="12" r="1.2" fill="currentColor"/></symbol>
