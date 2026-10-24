@@ -107,3 +107,4 @@ updated: 2026-10-19
 - 2026-10-24 SKILL.md: runner lite must read spec-build/spec-main and take real Preview screenshots
 - 2026-10-24 run 2026-10-24-note-rich-editor — Web board (card note field is a rich editor that formats markdown as you type; the dashed preview is gone)
 - 2026-10-24 run 2026-10-24-note-rich-editor fix 1 — Web board (md() italic and two-space hard breaks; note editor soft breaks, placeholder after clearing, no re-render inside code)
+- 2026-10-24 terminal-tile-exit-hide: tile × exits the agent session, − hides; layout switch in header.

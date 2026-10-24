@@ -68,3 +68,5 @@ updated: 2026-10-24
 - 2026-10-19 in-card agent asking mark; Yolo kept on decisions (run 2026-10-19-pty-asking-badge)
 - 2026-10-23 board templates written to `innerHTML` use the escape-by-default `html` tag in `web/board/dom.ts`: every `${}` is escaped unless it is `raw()`, `ico()`, `SKEL`, another `html` value, or an array of them; do not wrap values in `esc()` inside it (double escaping), keep attributes double-quoted, and join pieces with `html`, never `+` or `.join("")`, which yield a plain string that the next `html` escapes (run 2026-10-23-html-escape-tag)
 - 2026-10-23 `/state` resolves in-card terminal owners once per reply, not per card (`ptyOf` in `cli/web.ts`, session ids indexed once by `runSessions` in `cli/state.ts`): ~1 s off every reload while agents run in cards (run 2026-10-23-snappy-select)
+
+- Terminal tiles: `−` hides a live tile into the Hidden chips; `×` asks, then `POST /pty/exit` types `/exit` into the agent (`exitPty` in `cli/pty.ts`, SIGTERM after 5s); the tile stays as ended with Resume. The Grid / Side by side / Stacked switch lives in the page header (`#tmodes`).
