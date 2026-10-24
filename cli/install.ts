@@ -311,6 +311,12 @@ function removeLink(p: string) {
   try { unlinkSync(p); } catch { rmdirSync(p); }
 }
 
+// Setup only wires the board to the phone; it installs nothing, so no agent is needed.
+if (args.has("setup")) {
+  await runSetup();
+  process.exit(0);
+}
+
 // Nothing to install into. kaizen is a workflow an agent runs; on its own it does
 // nothing, so send them to the agent first rather than laying out files no reader
 // will ever load.
@@ -404,11 +410,6 @@ async function openUrl(url: string) {
   const opener = process.platform === "darwin" ? "open" : "xdg-open";
   if (!Bun.which(opener)) return false;
   try { await Bun.$`${opener} ${url}`.quiet(); return true; } catch { return false; }
-}
-
-if (args.has("setup")) {
-  await runSetup();
-  process.exit(0);
 }
 
 async function runSetup() {

@@ -6,6 +6,8 @@ import { tmpdir } from "node:os";
 import { startWorktree, landWorktree, codeDir, projectFromWorktree, run, type Run } from "./worktree.ts";
 
 const ID = "2026-10-17-demo";
+// CI runners have no git identity, and landWorktree's rebase writes commits.
+const idRun: Run = (cmd, cwd) => run(cmd[0] === "git" ? ["git", "-c", "user.email=a@b.c", "-c", "user.name=t", ...cmd.slice(1)] : cmd, cwd);
 let remote: string, project: string, other: string;
 const g = (cwd: string, ...a: string[]) => { const r = run(["git", "-c", "user.email=a@b.c", "-c", "user.name=t", ...a], cwd); if (!r.ok) throw new Error(r.why); return r.out; };
 const commit = (cwd: string, f: string, text: string) => { writeFileSync(join(cwd, f), text); g(cwd, "add", f); g(cwd, "commit", "-qm", `feat: ${f}`); };
@@ -46,7 +48,7 @@ test("G-02 lands by rebase and push after main moved on", () => {
   const w = (startWorktree(project, ID) as { path: string }).path;
   commit(w, "run.txt", "mine");
   commit(other, "theirs.txt", "x"); g(other, "push", "-q", "origin", "HEAD:main"); // main moves ahead
-  const r = landWorktree(project, ID, run, false);
+  const r = landWorktree(project, ID, idRun, false);
   expect(r).toEqual({ ok: true, how: "push", url: undefined });
   g(project, "fetch", "-q", "origin");
   expect(g(project, "ls-tree", "--name-only", "origin/main").split("\n")).toEqual(["a.txt", "run.txt", "theirs.txt"]);
