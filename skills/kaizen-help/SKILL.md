@@ -23,7 +23,7 @@ anything.
 | `/kaizen <request>` | Start a new run in the configured mode (default: `approve`) |
 | `/kaizen plan <request>` | Start a run and stop after the plan (`plan-only`) |
 | `/kaizen auto <request>` | Start a run in `auto` mode: every stage back to back, no approval stops |
-| `/kaizen lite <request>` | Run the stages in this session — cheap, reviewer has seen the work |
+| `/kaizen lite <request>` | Run the stages in this session — cheap, reviewer has seen the work (unless `review.executor: subagent`) |
 | `/kaizen full <request>` | Dispatch each stage as its own cold agent |
 | `/kaizen run` | Resume the current run and execute the approved plan |
 | `/kaizen review [target]` | Review-only: audit existing code, no plan, no implementation |
@@ -85,6 +85,7 @@ Each iteration is written to `runs/<id>/05-iterations/`.
 | `approvals.review` | `false` | Stop after the review |
 | `approvals.each_file` | `false` | Confirm every file edit |
 | `build.executor` | `subagent` | Who builds: `subagent`, `inline` (main thread), or `ask` at the approval |
+| `review.executor` | `inline` | Lite only — who reviews: `inline` (this session), `subagent` (cold agent), or `ask` |
 | `auto_fix.enabled` | `true` | Auto-fix findings vs. escalate everything |
 | `auto_fix.min_severity` | `high` | Threshold for auto-fix (`critical\|high\|medium\|low`) |
 | `auto_fix.max_iterations` | `2` | Fix/recheck rounds before escalating remaining findings |

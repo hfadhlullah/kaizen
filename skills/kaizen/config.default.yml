@@ -59,6 +59,14 @@ auto_fix:
   max_iterations: 2
 
 review:
+  # Who reviews a lite run. Only read when runner is lite; under full the reviewer is
+  # always its own agent.
+  #   inline   - this session reviews its own work. Cheapest; expect it to miss what
+  #              it just did. The default, so a lite run costs what it always has.
+  #   subagent - plan and build stay in this session, the review (and every recheck in
+  #              the fix loop) goes to a cold reviewer agent that never saw the work.
+  #   ask      - offer the choice when the build is done, before the review.
+  executor: inline
   # Let the reviewer append durable lessons to .kaizen/memory.md.
   write_memory: true
   # Every stage of every future run reads memory.md, so cap it. Over this, the reviewer

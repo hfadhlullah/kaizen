@@ -59,7 +59,9 @@ leave it as `subagent` and it is handed off and reported back, which keeps your
 conversation short and is the only workable choice on a big run. Set it to `ask` to
 be offered the choice each time you approve a plan. Stage 4 does not move: the
 reviewer is a separate agent either way, because that is the whole reason its
-findings are worth reading.
+findings are worth reading. Under `runner: lite` it moves with
+`review.executor`: `subagent` keeps that cold reviewer, `inline` lets the session
+review itself.
 
 ## How it knows what kind of work this is
 
@@ -88,7 +90,7 @@ tells you what it concluded, so you correct a sentence instead of filling in a f
 | `/kaizen <request>` | Start a run |
 | `/kaizen-plan <request>` | Plan only — stop before anything is built |
 | `/kaizen-auto <request>` | No approval stops; report at the end |
-| `/kaizen-lite <request>` | Every stage in this session — cheap, and the reviewer has seen the work |
+| `/kaizen-lite <request>` | Every stage in this session — cheap, and the reviewer has seen the work unless `review.executor` is `subagent` |
 | `/kaizen-full <request>` | Every stage its own cold agent — the independent review |
 | `/kaizen-review [target]` | Review something that already exists |
 | `/kaizen-status` | What is waiting on you, in flight, done |
@@ -497,6 +499,7 @@ in one can be finished in another. See [adapters.md](https://github.com/hfadhlul
 | `mode` | `approve` | `approve` stops for you; `auto` never does; `plan-only` stops after the plan |
 | `runner` | `full` | `full` gives each stage its own agent, so the reviewer never saw the work — several times the cost. `lite` runs every stage here, at about the cost of doing it by hand |
 | `build.executor` | `subagent` | Who does the work: a separate agent, `inline` in the current one, or `ask` each time |
+| `review.executor` | `inline` | Lite runs only — who reviews: `inline` in the current session, a cold `subagent` that never saw the work, or `ask` before each review |
 | `auto_fix.min_severity` | `high` | Findings this bad or worse get fixed without asking |
 | `approvals.plan` | `true` | Stop and show the plan before anything is built |
 | `ui.mouse` | `false` | Click to select, click again to act; while on, the terminal cannot select text |
@@ -518,6 +521,7 @@ change written as you make it, esc to close:
     mode                           approve
     runner                         full
     build.executor                 subagent
+    review.executor                inline
     approvals.plan                 true
     approvals.review               false
     auto_fix.enabled               true

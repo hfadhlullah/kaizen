@@ -10,7 +10,7 @@ updated: 2026-10-24
 The product itself: a staged workflow (plan, approval, build, independent review, bounded fix loop) that an agent follows from markdown instructions. Nothing here is code; the agent reads it and does the stages. How a run goes for a user is in `docs/guide.md` ("How a run goes"); the full behaviour is in `skills/kaizen/SKILL.md`.
 
 ## Where it lives
-- `skills/kaizen/SKILL.md` — entry point: commands, modes, runner, state layout.
+- `skills/kaizen/SKILL.md` — entry point: commands, modes, runner, state layout. Under `runner: lite`, `review.executor` (`inline` default, `subagent`, `ask`) decides whether the review still goes to a cold `kaizen-reviewer`; the `low` preset sets `inline`.
 - `skills/kaizen/spec.md` + `spec-plan.md` / `spec-build.md` / `spec-review.md` / `spec-main.md` — the stage contracts; each reader takes core plus its own stage.
 - `skills/kaizen/gather.md`, `discover.md`, `docs.md`, `status.md`, `settings.md`, `install.md` — one file per sub-command.
 - `skills/kaizen/config.default.yml` — every setting and its default. Only keys something reads belong there; the review checks, track and backlog paths are fixed in the spec files, not settings.

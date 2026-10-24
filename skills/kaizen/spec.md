@@ -111,6 +111,7 @@ Write into `00-request.md`: the verbatim request, the deliverable, what done mea
 and what wrong means. Record in `state.json`: `id`, `mode`, `runner`, `agent`, `track`,
 `stage: "plan"`, `awaiting: null`, `iteration: 0`, and `updated` — the time of this
 write, refreshed on every later one.
+A `lite` run also records `review_executor` (`inline` or `subagent`, from `review.executor`, `ask` resolved) once it is known, and a resumed run keeps it.
 Where the environment has `CLAUDE_CODE_SESSION_ID`, also record it as `session`: the
 board keeps the run on the card it was launched from by that id.
 

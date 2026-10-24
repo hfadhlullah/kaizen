@@ -86,3 +86,11 @@ test("a config still holding git.branch_before_implement keeps its preset", () =
   expect(detectPreset(low, text)).toBe("low");
   expect(detectPreset(text, text)).toBe("medium");
 });
+
+test("a low-preset config saved before review.executor existed still reads as low", () => {
+  const text = readFileSync(defaults, "utf8");
+  const low = applyPreset("", "low", text);
+  const old = low.replace(/(review:\n(?:\s*#.*\n)*)\s*executor: inline\n/, "$1");
+  expect(old).not.toContain("executor: inline\n  # Let");
+  expect(detectPreset(old, text)).toBe("low");
+});

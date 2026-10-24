@@ -138,7 +138,7 @@ Controlled by `approvals.review`, skipped in `auto`.
 Report: what was built (for a code run, show its Preview proof), verification results, findings fixed, findings still open,
 every criterion the reviewer answered `CANNOT VERIFY` with the check it says a human
 must make, anything the builder noted as out of scope, and the notes the *Docs gate*
-touched. Where the run used `runner: lite`, say
+touched. Where the run used `runner: lite` and reviewed inline (`review.executor: inline`), say
 so in that report — the reviewer saw the work, and nobody should read a same-session
 review as an independent one because the output looked the same.
 Later build requests in the same session follow *Follow-ups are runs too* in [`spec.md`](spec.md): a revise of this run until it is `done`, then a new linked run.

@@ -42,7 +42,7 @@ Porting the workflow to Codex or Antigravity is covered in [`adapters.md`](adapt
 | `/kaizen <request>` | Start a new run in the configured mode (default: `approve`) |
 | `/kaizen plan <request>` | Start a run and stop after the plan (`plan-only`) |
 | `/kaizen auto <request>` | Start a run in `auto` mode: every stage back to back, no approval stops |
-| `/kaizen lite <request>` | Run every stage in this session — cheap, and the reviewer has seen the work |
+| `/kaizen lite <request>` | Run every stage in this session — cheap, and the reviewer has seen the work unless `review.executor` is `subagent` |
 | `/kaizen full <request>` | Dispatch every stage as its own agent — the reviewer starts cold |
 | `/kaizen run` | Resume the current run and execute the approved plan |
 | `/kaizen review [target]` | Review-only: audit existing code, no plan, no implementation (`review-only`) |
@@ -210,11 +210,13 @@ would cost in one session and several times that. Set it for the project with
   The reviewer has never seen how the work was done, so it has nothing to defend.
   That is the entire reason its findings are worth reading, and it is what catches the
   bug in a fix rather than the bug in the plan.
-- **`lite`** — this session runs every stage itself, in order, as
+- **`lite`** — this session runs every stage itself (the review too, unless `review.executor` says otherwise), in order, as
   [`adapters.md`](adapters.md) already describes for tools that have no subagents.
   Read only the stage's declared inputs, write its artifact before starting the next,
   and when reviewing, judge the work on its own terms rather than defending the
   reasoning you used producing it.
+  `review.executor: subagent` hands just the review to a cold agent, which buys
+  back the independence for the price of one stage.
 
 Everything else holds in both: the plan, the approval stop, the numbered gate answered
 with evidence, numbered findings, the files, and a run another tool can pick up.
@@ -227,7 +229,7 @@ produced it — and a fix that is worse than the finding it closes is exactly th
 
 So: `lite` where being wrong is cheap and obvious, which is also where the short path
 above applies. `full` where being wrong is expensive. When a run is going to
-touch money, a migration, or anything hard to undo, say which runner it used at the
+touch money, a migration, or anything hard to undo, say which runner (and, for `lite`, which reviewer) it used at the
 final report, so nobody reads a same-session review as an independent one.
 
 ## Running a stage
@@ -241,7 +243,7 @@ it. Everything else in this file holds unchanged.
 
 **Check `runner` first.**
 
-- `runner: lite` — do not call the Agent tool. You run plan, build and review
+- `runner: lite` — do not call the Agent tool, except for the review as below. You run plan, build and review
   yourself, in that order, reading only each stage's declared inputs and writing its
   artifact before starting the next. The stage table below still applies; you are the
   agent for every row.
@@ -251,6 +253,9 @@ it. Everything else in this file holds unchanged.
   `runs/<id>/attachments/` embedded in `## Preview`, taken by driving a headless browser
   against the running app; "no browser session" or "same renderer as before" is not a
   reason, it is the gate failing. Short path or not, no screenshot means not built.
+  The review stage follows `review.executor`: `inline` (default) reviews in this session; `subagent` dispatches
+  `kaizen-reviewer` cold, as under `full`, for the review and every recheck; `ask` puts the choice to the user when the build is done.
+  Record the answer as `review_executor` in `state.json` so a resumed run keeps it.
 - `runner: full` — dispatch each stage as its own subagent, as follows.
 
 Under `full`, each stage runs as a subagent via the Agent tool, with the agent type
@@ -271,7 +276,7 @@ the choice at the plan approval. Building inline does not make the review less
 independent: the reviewer is a separate agent in every case, and never sees the
 conversation the work happened in.
 
-`subagents.model` and `subagents.effort` apply to every stage dispatched this way.
+`subagents.model` and `subagents.effort` apply to every stage dispatched this way, including a lite run's reviewer under `review.executor: subagent`.
 Pass `model` on the Agent call when it is not `inherit`. Effort has no call-time
 knob: when it is not `inherit`, make sure the frontmatter of the agent's definition
 (`~/.claude/agents/kaizen-<stage>.md`, or the project's `.claude/agents/` copy)
