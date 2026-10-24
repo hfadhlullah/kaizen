@@ -76,6 +76,27 @@ if (typeof window !== "undefined") addEventListener(
   },
   true,
 );
+// Alt+1…9 goes to the Nth tile; where one tile shows (maximised, or a phone's tabs) it switches
+// which. Read by code, so the layout and Alt's own characters do not matter. Alt+arrows stay the shell's word jump.
+if (typeof window !== "undefined") addEventListener(
+  "keydown",
+  (e) => {
+    const n = /^Digit([1-9])$/.exec(e.code)?.[1];
+    if (!showing || !n || !e.altKey || e.ctrlKey || e.shiftKey || e.metaKey) return;
+    const k = [...$("terms").querySelectorAll<HTMLElement>(".tile")][+n - 1]?.dataset.k;
+    if (!k) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (phone?.matches) pick = k;
+    else if (lay.max && lay.max !== k) {
+      lay.max = k;
+      save();
+    }
+    openTerms();
+    focusTerm(k);
+  },
+  true,
+);
 
 export function openTerms() {
   showing = true;
@@ -163,7 +184,7 @@ export function openTerms() {
     const st = tst(c),
       off = st === "ended";
     const hd = t.el.querySelector("header")!;
-    hd.title = (c.kind === "run" ? c.id : c.text) + " · " + c.where;
+    hd.title = (c.kind === "run" ? c.id : c.text) + " · " + c.where + (i < 9 ? ` · Alt+${i + 1}` : "");
     // An ended run can be resumed from here; an idea whose agent ended has no run to resume.
     hd.innerHTML = html`<span class="tdot ${st}" role="img" title="${st}" aria-label="${st}"></span><b>${nameOf(c)} - ${projOf(c)}</b>${off ? html`<span class="tend">ended</span>` : ""}<span class="sp"></span>${off && c.kind === "run" ? html`<button class="btn sm" data-a="resume" title="Continue this run's agent">Resume</button>` : ""}<button class="ib sm" data-a="card" title="Open card" aria-label="Open card">${ico("open")}</button><button class="ib sm" data-a="max" title="${lay.max === k ? "Restore" : "Maximise"} (Ctrl+Shift+M)" aria-label="${lay.max === k ? "Restore" : "Maximise"}">${ico(lay.max === k ? "min" : "max")}</button>${off ? "" : html`<button class="ib sm" data-a="hide" title="Hide" aria-label="Hide">${ico("dash")}</button>`}<button class="ib sm" data-a="${off ? "hide" : "exit"}" title="${off ? "Close" : "Exit session"}" aria-label="${off ? "Close" : "Exit session"}">${ico("close")}</button>`.s;
     t.el.classList.toggle("ended", off);
