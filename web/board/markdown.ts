@@ -64,7 +64,8 @@ export function planQuestions(src) {
 export function brief(t) {
   // A label opens a sentence; only the first may follow the head without punctuation,
   // and then only as one word ("… previews Problem:"), so "the Board shows: x" is prose.
-  const re = /(^|[.!?)]\s+|\s)([A-Z][\w-]*(?: [a-z][\w-]*){0,3}):\s+/g,
+  const re =
+      /(^|[.!?)]\s+|\s)((?:[A-Z][A-Z-]+(?: [A-Z][A-Z-]+){1,3}|[A-Z][\w-]*(?: [a-z][\w-]*){0,3})(?: \([^)]*\))?):\s+/g,
     cut = [];
   let m;
   while ((m = re.exec(t)))
@@ -88,7 +89,7 @@ export function brief(t) {
 }
 
 // Enough markdown for kaizen's own files: headings, lists, fences, tables,
-// inline code, bold. Everything is escaped first. With `tick`, a backlog item
+// inline code, bold, italic, hard line breaks. Everything is escaped first. With `tick`, a backlog item
 // (`- open: …`, `- done: …`, `- rejected: …`) shows its status as a checkbox.
 export function md(src, tick) {
   const lines = src.split("\n"),
@@ -99,6 +100,7 @@ export function md(src, tick) {
     esc(s)
       .replace(/`([^`]+)`/g, "<code>$1</code>")
       .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
+      .replace(/(^|[^*])\*([^*\s<][^*<]*?)\*(?!\*)/g, "$1<i>$2</i>")
       .replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, '<a href="$2" target="_blank"><img src="$2" alt="$1"></a>')
       .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '<a href="$2" target="_blank">$1</a>');
   const endList = () => {
@@ -182,7 +184,10 @@ export function md(src, tick) {
     i++;
     while (i < lines.length && lines[i].trim() && !/^(#|```|\||\s*[-*]\s|\s*\d+\.\s|---)/.test(lines[i]))
       buf.push(lines[i++]);
-    out.push(`<p>${inl(buf.join(" "))}</p>`);
+    // A line ending in two spaces is a hard line break.
+    out.push(
+      `<p>${inl(buf.map((l, k) => (k < buf.length - 1 && / {2}$/.test(l) ? l.trimEnd() + "\0" : l)).join(" ")).replace(/\0 /g, "<br>")}</p>`,
+    );
   }
   endList();
   return out.join("");

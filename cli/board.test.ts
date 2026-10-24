@@ -254,3 +254,46 @@ test("a capitalised phrase mid-sentence is prose, not a label", () => {
 test("criteria not numbered from 1 keep their own numbers", () => {
   expect(brief("X Goal: g. Criteria: (2) two. (3) three.").parts[1].body).toBe("- (2) two.\n- (3) three.");
 });
+
+// pretty(): a one-line idea note splits into one paragraph per label.
+test("pretty splits a labelled plain line in a note by its labels", async () => {
+  const { pretty } = await import("../web/board/chat.ts");
+  const t = "Parent: run-x add a timezone. OPEN QUESTION (waiting on Johan): recalc old rows? Context: PR #452.";
+  expect(pretty(t)).toBe("**Parent:** run-x add a timezone.\n\n**OPEN QUESTION (waiting on Johan):** recalc old rows?\n\n**Context:** PR #452.");
+  expect(pretty("just a note")).toBe("just a note");
+  expect(pretty("Goal: a\nScope: b")).toBe("Goal: a\nScope: b");
+  expect(pretty("Parent: x\ndo y. NOTE: a. Context: b.")).toBe("Parent: x\n\ndo y.\n\n**NOTE:** a.\n\n**Context:** b.");
+  expect(pretty("- Goal: a. Scope: b.")).toBe("- Goal: a. Scope: b.");
+});
+
+test("the note editor turns its DOM back into the markdown md() rendered it from", async () => {
+  const { toMd } = await import("../web/board/rich.ts");
+  // A minimal DOM: element nodes from md()'s tag soup, enough for toMd.
+  const parse = (h) => {
+    const root = { nodeType: 1, nodeName: "DIV", childNodes: [], getAttribute: () => null };
+    const stack = [root];
+    for (const m of h.matchAll(/<(\/?)(\w+)([^>]*)>|([^<]+)/g)) {
+      const top = stack[stack.length - 1];
+      if (m[4]) top.childNodes.push({ nodeType: 3, nodeName: "#text", textContent: m[4].replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&") });
+      else if (m[1]) stack.pop();
+      else {
+        const attrs = Object.fromEntries([...m[3].matchAll(/(\w+)="([^"]*)"/g)].map((a) => [a[1], a[2]]));
+        const el = { nodeType: 1, nodeName: m[2].toUpperCase(), childNodes: [], getAttribute: (k) => attrs[k] ?? null };
+        Object.defineProperty(el, "textContent", { get: () => el.childNodes.map((c) => c.textContent).join("") });
+        top.childNodes.push(el);
+        if (!/^(img|br)$/.test(m[2])) stack.push(el);
+      }
+    }
+    return root;
+  };
+  const src = "# Title\n\nsome **bold**, *em* and `code` here  \nnext\n\n- one\n- two\n\n1. first\n2. second\n\n![shot](/f/a.png) [link](http://x)";
+  expect(toMd(parse(md(src)))).toBe(src);
+  // A fresh line typed straight into the box, then one Chrome wrapped in a div.
+  expect(toMd(parse("plain <b>b</b>​<div>next line</div>"))).toBe("plain **b**\n\nnext line");
+});
+
+test("md() renders italic and two-space hard breaks, and leaves globs in code alone", () => {
+  expect(md("an *em* word")).toBe("<p>an <i>em</i> word</p>");
+  expect(md("`*.ts` and `*.md`, a * b * c")).toBe("<p><code>*.ts</code> and <code>*.md</code>, a * b * c</p>");
+  expect(md("one  \ntwo\nthree")).toBe("<p>one<br>two three</p>");
+});
