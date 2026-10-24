@@ -209,6 +209,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
       const key = c.kind === "run" ? runs.get(`${c.state}\0${c.id}`) : ideaPty.get(`${c.state}\0${c.text}`);
       if (!key || !live.has(key)) return undefined;
       const st = ptyState(key)!;
+      // A finished run's agent that has ended has nothing left to show or resume.
+      if (!st.alive && (c.status === "done" || c.status === "abandoned")) return undefined;
       return { key, alive: st.alive, asking: st.asking };
     };
   };

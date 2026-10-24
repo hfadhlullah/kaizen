@@ -114,7 +114,7 @@ agent:
   # auto picks Claude Code if installed, otherwise the first agent found on PATH.
   default: auto
   # on: a board decision ends the run's waiting session before continuing its
-  # conversation, and abandoned or done runs (after 2 minutes) have theirs ended.
+  # conversation, and abandoned or done runs (after 1 minute) have theirs ended.
   # Only sessions the board or dashboard launched are touched. off: nothing is
   # ended, and a resumed conversation opens beside the window still waiting.
   close: on

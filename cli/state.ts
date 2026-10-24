@@ -5,7 +5,7 @@ import { existsSync, readFileSync, readdirSync, appendFileSync, writeFileSync, m
 import { Database } from "bun:sqlite";
 import { join, dirname, win32, posix } from "node:path";
 import { homedir, arch, cpus, release, totalmem, version as osVersion } from "node:os";
-import { startPty, ptySupported } from "./pty.ts";
+import { startPty, ptySupported, ptyState } from "./pty.ts";
 import { codeDir, projectFromWorktree } from "./worktree.ts";
 
 // The real path: process.cwd() is always physical, so a raw $HOME that crosses a
@@ -1343,7 +1343,7 @@ function opencodeRows(sql: string, ...args: (string | number)[]): string[] {
   } catch { return []; }
 }
 
-export const CLOSE_GRACE_MS = 2 * 60_000;
+export const CLOSE_GRACE_MS = 60_000;
 const sessionsDir = (st: string) => join(st, "sessions");
 
 export function readSessions(st: string): Session[] {
@@ -1509,7 +1509,11 @@ export function sweepSessions(st: string, now: number) {
 // Whether the user typed into the session's terminal after `t`: its tty's access time
 // moves when input is read. Such a session is the user's now, not the run's to close.
 // No tty (Windows, a stranger's PID): false, so the sweep closes as before.
+// A board card's session is judged by its keystrokes: the page's terminal answers the
+// agent's focus and query reports on that tty too, which moved its time on every look.
 function typedSince(st: string, s: Session, t: number): boolean {
+  const card = ptyState(s.key);
+  if (card) return card.typed > t;
   try {
     if (process.platform === "win32") return false;
     const pid = parseInt(readText(join(sessionsDir(st), s.key + ".pid")));

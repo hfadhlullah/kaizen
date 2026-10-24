@@ -186,6 +186,16 @@ test.skipIf(process.platform === "win32")("the done sweep keeps a session the us
   await Bun.sleep(200);
   expect(alive(used)).toBe(true);
   process.kill(used, "SIGTERM");
+
+  // Only looked at: the page's focus and query answers reach the tty but are not typing.
+  done(Date.now() - 60_000);
+  const looked = launch("looked");
+  await Bun.sleep(200);
+  writePty("looked", "\x1b[I\x1b[O\x1b[?0u\x1b[<64;10;5M\x1bP>|xterm.js(6.0)\x1b\\");
+  await Bun.sleep(200);
+  expect(ptyState("looked")!.typed).toBe(0);
+  sweepSessions(st, Date.now() + CLOSE_GRACE_MS);
+  expect(await gone(looked)).toBe(true);
 });
 
 test("asking: Claude Code and Codex prompts count as a question, ordinary output does not", async () => {

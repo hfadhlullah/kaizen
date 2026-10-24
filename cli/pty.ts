@@ -11,7 +11,7 @@ const WIN = process.platform === "win32";
 // Windows PowerShell, which every Windows has, both hosts the console and runs the agent in it.
 const winPs = () => join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
 
-type Pty = { proc: Bun.Subprocess; out: string[]; size: number; listeners: Set<(d: string | null) => void>; exit: number | null; asking: boolean; quiet?: Timer; total: number; since: number; onChange?: () => void };
+type Pty = { proc: Bun.Subprocess; out: string[]; size: number; listeners: Set<(d: string | null) => void>; exit: number | null; asking: boolean; quiet?: Timer; total: number; since: number; typed: number; onChange?: () => void };
 
 // What a page attaching late gets replayed. A full-screen tool redraws often, so the
 // tail of its output is enough to rebuild the screen.
@@ -38,7 +38,7 @@ export const ptySupported = WIN || typeof (Bun as any).Terminal === "function";
 // onChange: called when the agent ends or starts or stops asking, so the board can redraw.
 export function startPty(key: string, cmd: string[], cwd: string, pidFile?: string, onChange?: () => void): number {
   const dec = new TextDecoder();
-  const p: Pty = { proc: null as unknown as Bun.Subprocess, out: [], size: 0, listeners: new Set(), exit: null, asking: false, total: 0, since: 0, onChange };
+  const p: Pty = { proc: null as unknown as Bun.Subprocess, out: [], size: 0, listeners: new Set(), exit: null, asking: false, total: 0, since: 0, typed: 0, onChange };
   const flag = (v: boolean) => { if (p.asking !== v) { p.asking = v; onChange?.(); } };
   const push = (d: string) => {
     p.out.push(d);
@@ -99,11 +99,19 @@ export function attachPty(key: string, fn: (d: string | null) => void): (() => v
   return () => p.listeners.delete(fn);
 }
 
+// What the page's terminal sends by itself: focus in/out (Claude Code turns focus
+// reporting on), mouse and wheel reports, and answers to the agent's queries (cursor,
+// device, mode, colour, version). None of it is the user typing.
+const REPORT = /\x1b\[[IO]|\x1b\[<[\d;]*[Mm]|\x1b\[\?[\d;]*(?:[cnu]|\$y)|\x1b\[>[\d;]*c|\x1b\[\d+;\d+R|\x1b\[\d*n|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1bP[^\x1b]*\x1b\\/g;
+
 export function writePty(key: string, d: string) {
   const p = ptys.get(key);
   if (!p || p.exit !== null) return;
-  p.since = p.total;
-  if (p.asking) { p.asking = false; p.onChange?.(); }
+  if (d.replace(REPORT, "")) {
+    p.typed = Date.now();
+    p.since = p.total;
+    if (p.asking) { p.asking = false; p.onChange?.(); }
+  }
   send(p, d);
 }
 
@@ -122,7 +130,7 @@ export const ptyKeys = () => [...ptys.keys()];
 
 export const ptyState = (key: string) => {
   const p = ptys.get(key);
-  return p ? { alive: p.exit === null, exit: p.exit, asking: p.asking } : null;
+  return p ? { alive: p.exit === null, exit: p.exit, asking: p.asking, typed: p.typed } : null;
 };
 
 // The environment the user's login shell builds: PATH and anything exported in their

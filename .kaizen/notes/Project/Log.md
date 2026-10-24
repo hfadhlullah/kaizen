@@ -100,3 +100,4 @@ updated: 2026-10-19
 - 2026-10-23 run 2026-10-23-terminal-menu — Web board (Terminal page: every in-card agent tiled, with resizable splits)
 - 2026-10-23 run 2026-10-23-terminal-ended-tiles — Web board (ended terminals: labelled, last, Resume, × closes, leave when dropped)
 - 2026-10-24 run 2026-10-24-terminal-mobile-scroll — Web board (Terminal page on a phone: one terminal at a time, tabs to switch)
+- 2026-10-24 run 2026-10-24-done-run-terminal-close — Web board (done run's card agent closed after 1 min; xterm reports are not typing; its ended tile leaves at once)
