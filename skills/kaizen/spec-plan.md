@@ -27,6 +27,39 @@ different work behind each, nothing available to break the tie — and even then
 its recommendation with the question. Questions the existing material can answer are
 never asked; that is the planner's own work.
 
+**Offer REA for what exists but is not here.** In every run and every track: when the
+request or what came with it names something that already exists but whose source is
+not at hand — an app or site to copy, replace or integrate with, an APK or IPA, a
+binary, a package, a file format, a device or its firmware, a protocol or a capture —
+and REA's tools are connected in the session, the plan asks once:
+`Q: Study <the thing> with REA first?`, with `yes` (recommended where how it works
+inside decides the design) and `no`. Under `runner: lite` or an inline planner, a yes
+given before the plan is written lets the planner run REA itself and plan from what it
+found. Under `full`, where the planner has no REA tools, the main thread runs the study
+on a yes, writes what it found to the run's `notes.md`, and dispatches the planner
+again; a yes given at the plan approval instead makes the study the build's first
+step. What REA
+returns is cited with its limitations, as *the track* in `spec.md` already requires.
+REA not connected: ask instead
+`Q: REA isn't installed — set it up first?`, with `help me install it` (recommended
+where how it works inside decides the design), `I'll install it myself` and `skip
+REA`. On *help me install it* the main thread follows REA's own setup: it runs
+`npx -y rea-agents@<version> doctor --client <client> --json` — the version pinned,
+as REA's own guide pins it, taken from `npm view rea-agents version` and shown to the
+user; the client from the run's `agent` (`claude` → `claude_code`, `codex` → `codex`,
+`agy` → `antigravity`, `opencode` → `opencode`, `gemini` → `gemini_cli`, `cursor` →
+`cursor`) — then `setup --client <client> --dry-run --json` with the same version, shows the user the exact files it
+would change, and runs `setup --client <client> --yes` only after they approve it —
+setup writes the agent's own configuration, so it is never run unseen, in any mode.
+On *I'll install it myself* it gives that same command and waits. Either way the new
+tools appear only after the agent restarts: say so, and the run resumes from its
+`state.json`, the yes to REA recorded beforehand in `02-approval.md` so the resumed
+session studies the thing rather than asking again. REA's prerequisites (Node, and
+Java, Ghidra or JADX for some targets) are named where doctor reports them missing,
+never installed by the run. On *skip REA*, or when setup fails, the plan says so
+once and claims about that thing's internals are marked unverified. Nothing of the
+kind named: REA is not mentioned.
+
 **Building from nothing is the exception: settle the foundation first.** When the
 track is a new product or app, there is no material to answer the questions that
 decide everything after them, and "wrong" for this track is a wrong foundation — the
@@ -38,6 +71,67 @@ read from the request, proposed with its reason, or — where two answers lead t
 materially different builds — put to the user as an *Open question* with options,
 all in one round, before anything is built. Three quick questions and a default for
 the rest is how a run ends up writing the second app instead of the first.
+
+**A whole application is a roadmap, not a run.** When the track is a new product or
+app — web, mobile, PWA, desktop, anything — and it covers more than one independent
+module, one run cannot hold it: the plan, the diff and the review all outgrow what a
+reader can check. A single screen or a single feature stays one run. The Framing says
+in one line that the plan is a roadmap, so the user can refuse it. A roadmap plan adds
+three sections right after the Goal, each written for a person, and the
+foundation round above becomes up to three rounds:
+
+- **`## Discovery`** — the planner goes deep before it designs. It reads everything the
+  user brought first (decks, forms, sheets, screenshots, an existing repo, REA's
+  findings), then asks only what is still open, in up to three rounds of `Q:` pick
+  lists, each question with a recommended option: (1) purpose, who uses it and in what
+  roles, what it replaces; (2) the flows of each module and their domain rules;
+  (3) the foundation choices, among them how it ships, as a multi-select — full CI/CD
+  (tests and deploy on every merge), Docker (an image and a compose file that run
+  anywhere), a managed platform (Vercel, Fly, Railway or similar), mobile app ready
+  (store builds with signing, for example Capacitor or Expo/EAS), or a simple manual
+  deploy — and, where the app has a screen and no design system exists, its look and
+  feel, asked as item 7 *Design direction* below says: the feel (for example rich and
+  animated, calm and simple, enterprise and dense, gen-z and playful) and how much
+  motion. A round with nothing left to ask is skipped. Under `runner: full` the
+  planner writes `01-plan.md` with the Framing, `## Discovery` so far and the round's
+  questions as *Open questions*, and no `## Roadmap`, then stops; that file is a
+  round, not a plan. The main thread asks them and dispatches it again with the
+  answers. Under
+  `lite` or inline, the session asks them directly. The section records the roles, the
+  main flows, the things the app keeps track of and how they relate, a glossary of
+  the domain's words, and every answer given.
+- **`## Foundation`** — a decision with its reason, derived from Discovery, for each
+  of: platform; frontend (framework, UI kit, state, the design direction chosen);
+  backend (runtime, framework, API style); the contract between them (REST, RPC or
+  realtime, and where its types live); hosting and deploy, as chosen in discovery;
+  database (engine, where it runs, the main tables or collections and their
+  relations, how migrations are done); auth and access; repo layout and conventions.
+  Every increment builds on it.
+- **`## Roadmap`** — the increments, numbered, one line each:
+  `N. <title> — <what it delivers> — after: #a, #b` (or `any time`), with
+  `— blocked: <reason>` when something outside the work holds it. Increment 1 is always
+  the skeleton: the scaffold, the stack wired, the database schema and migration setup,
+  an auth stub, and a deploy of the empty app the way the Foundation ships (in its
+  Docker image, through its pipeline, as a store test build). Every feature increment
+  after it is one feature end to end — its screens, its API, its tables and migration,
+  and its tests — so each can be tried on its own; splitting by layer ("all the APIs", then "all the screens")
+  is only for an app with no UI or no backend. Each increment is sized to one ordinary
+  run. Where real people will use the app, the last increment is going live: what
+  the deploy choice still needs (the full pipeline, the production image, store
+  listings and release builds), backups, monitoring and error tracking, and the
+  production deploy. A last line says which must go in order and which can start any
+  time.
+
+The rest of a roadmap plan — Work list, Steps, File manifest, gate — covers increment 1
+only; it is this run's build. The others become child cards at the approval (see
+*Child cards* in `spec-main.md`).
+
+**An increment run builds inside its parent's decisions.** A request with a `Parent:`
+line whose parent run's `01-plan.md` has a `## Roadmap` is an increment. Its planner
+reads that plan's Discovery, Foundation and its own Roadmap line before anything else.
+They bind it: a deviation from the Foundation is an *Open question* to the user, and a
+change to the roadmap is an *Out of scope suggestion*, never a silent edit of the
+parent's plan.
 
 The goals stay the user's. The planner may propose a better solution to what was
 asked, or argue that the request as stated will not achieve what the user wants, but
@@ -132,7 +226,7 @@ questions that are open. An alternative rejected gets a line saying what and why
 a case against it.
 
 **Write the parts a person reads for a person.** Framing, the Work list, Goal, Scope,
-Risks and Out of scope suggestions are read by someone deciding whether to approve,
+Discovery, Foundation, Roadmap, Risks and Out of scope suggestions are read by someone deciding whether to approve,
 often on a narrow panel. Write them in everyday words: short sentences, one idea per
 bullet, things named by what the user sees ("the chat bubble", "the Plan tab") rather
 than by function, file, CSS value or gate id. Code names, `path:line` and gate ids

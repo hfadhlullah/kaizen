@@ -31,6 +31,24 @@ clean (without the `gh` tool it rebases and pushes to the default branch instead
 conflict leaves the pull request and the folder in place and tells you. Turn it off
 with the `git.worktree_per_run` setting.
 
+Asking for a whole app — web, mobile, PWA, anything with more than one module — gets a
+roadmap instead of one big run. The planner reads what you brought, offers to study an
+existing app with REA when you name one, and asks up to three short rounds of
+questions about who uses it, how it works, how it is built and how it should look and
+feel (rich and animated, calm and simple, enterprise, gen-z playful) and how it ships
+(full CI/CD, Docker, a managed platform, mobile app ready for the stores). The plan then
+fixes the foundation (frontend, backend and how they talk, database and its tables,
+auth, hosting, folder layout) and numbers the increments, each with what it waits on.
+Each increment is one feature end to end — screens, API, tables and tests — so you can
+try it when it is done, and an app real people will use ends with a go-live increment
+(the pipeline or store builds you chose, backups, monitoring, production deploy). Approving it builds increment 1, the
+skeleton, and puts every other increment on the board as a child card of the run; you
+start each one when you choose, and each builds on the same foundation. Any run whose
+request names an app, file format or device whose source is not at hand gets the same
+one-question REA offer. If REA is not installed, kaizen offers to set it up for you
+(it shows what it would change and installs only when you say yes), tells you the
+command to run yourself, or goes on without it.
+
 Each stage runs as its own agent with a clean slate, and writes a file before the
 next one starts. That is what makes stage 4 worth anything: a reviewer that watched
 itself do the work will defend it.

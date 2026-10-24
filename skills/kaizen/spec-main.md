@@ -191,3 +191,31 @@ When a child run reaches `done`, the board appends `Child <child id> done: <titl
 the parent's `notes.md` by itself. The parent documents it from there: if it is still in
 flight its next stage reads `notes.md`; if it is already `done`, the entry is the record.
 Never reopen a finished parent.
+
+**A roadmap's increments are filed at its approval.** When the approved plan has a
+`## Roadmap` (see *A whole application is a roadmap* in `spec-plan.md`), the same write
+that records the approval files increments 2 to N, in order, from the project folder:
+`kaizen card add "<title> (roadmap #N · after #a, #b)" --parent <run id>`, with
+`any time` in place of `after …` where it has no prerequisite and its `blocked: <reason>`
+kept in the text where it has one. Increment 1 is this run's own build. Nothing starts
+by itself: the user starts an increment from its card when they choose, and the parent's
+card lists its children with their status. An increment cut at the approval is not
+filed; it goes to the backlog like anything else cut there.
+
+## Discovery rounds
+
+A roadmap plan's Discovery and any run's REA offer reach the user through the main
+thread, under every runner: each round's questions are asked with the tool's structured
+question mechanism (AskUserQuestion in Claude Code), all of a round's questions in one
+call, each with the planner's recommended option first. Under `runner: full`, the
+planner stops after writing a round; dispatch it again with the answers, recorded in
+`02-approval.md` as that round's decisions, until it writes a plan with no round left
+to ask, then present that plan at the plan approval as usual. Answers are not an
+approval: the run stays at `stage: "plan"` with `awaiting: null` throughout, and
+`awaiting: "approvals.plan"` is set only once `01-plan.md` has a `## Roadmap` — a round
+written to that file is not a plan to approve, and a tool resuming the run re-asks its
+questions. Where the user says yes to REA before the plan exists, run the study here,
+write what it found to the run's `notes.md`, and dispatch the planner with it. Where
+REA has to be installed first, the install in *Offer REA* (`spec-plan.md`) is the main
+thread's too: doctor, the dry-run shown to the user, setup only on their approval,
+then the restart, after which the run resumes at `stage: "plan"` from `state.json`.

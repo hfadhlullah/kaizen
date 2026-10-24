@@ -101,3 +101,4 @@ updated: 2026-10-19
 - 2026-10-23 run 2026-10-23-terminal-ended-tiles — Web board (ended terminals: labelled, last, Resume, × closes, leave when dropped)
 - 2026-10-24 run 2026-10-24-terminal-mobile-scroll — Web board (Terminal page on a phone: one terminal at a time, tabs to switch)
 - 2026-10-24 run 2026-10-24-done-run-terminal-close — Web board (done run's card agent closed after 1 min; xterm reports are not typing; its ended tile leaves at once)
+- 2026-10-24 run 2026-10-24-app-roadmap-runs — Workflow (app requests become Discovery, Foundation and a Roadmap of child runs; REA offered for what exists but is not here; guide paragraph; revise: end-to-end increments, frontend/backend foundation, go-live increment, look-and-feel question; revise 2: deployment choice; revise 3: offer to install REA)
