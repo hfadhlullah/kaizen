@@ -24,9 +24,10 @@ export function askNotify() {
     if (typeof Notification !== "undefined" && Notification.permission === "default") Notification.requestPermission();
   } catch (e) {}
 }
-export function notifyUser(body) {
+// tag: one notification per thing, so several open board tabs replace each other's.
+export function notifyUser(body, tag?: string) {
   try {
     if (typeof Notification !== "undefined" && Notification.permission === "granted")
-      new Notification("kaizen", { body, icon: "/logo.png" });
+      new Notification("kaizen", { body, icon: "/logo.png", tag });
   } catch (e) {}
 }

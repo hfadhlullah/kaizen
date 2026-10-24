@@ -110,3 +110,4 @@ updated: 2026-10-19
 - 2026-10-24 terminal-tile-exit-hide: tile × exits the agent session, − hides; layout switch in header.
 - 2026-10-24 run 2026-10-24-lite-review-executor — Workflow, CLI (review.executor: lite runs can send the review to a cold reviewer agent; "Reviewer" row in settings)
 - 2026-10-24 terminal-page-fixes: terminal keeps focus across /state ticks; maximise fills the window; layout switch as icons.
+- 2026-10-24 run 2026-10-24-terminal-needs-you — Web board (asking tile pulse, title count, notification)

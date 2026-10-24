@@ -8,6 +8,10 @@ import { openTerms, termsShowing } from "./terms.ts";
 // The server writes notifier() from state.ts over a marker in board.html: one rule for both UIs.
 declare const due: (key: string, say: string | null, done: boolean, now: number) => boolean;
 
+// In-card agents waiting on input, by session key. null until the first /state: what is
+// already asking when the page loads is not news, only what starts asking after.
+let asked: Set<string> | null = null;
+
 // This page's project, sent with each request: the server keeps none, so another
 // tab or a phone picking a project never moves this one.
 export const dirHeader = () => (store.dir ? { "x-kz-dir": store.dir } : {});
@@ -34,6 +38,12 @@ export async function load(quiet) {
   for (const c of store.S.cards) {
     if (c.kind !== "run" || c.archived) continue;
     if (due(key(c), c.notice, c.status === "done", store.S.now)) notifyUser(c.notice);
+  }
+  {
+    const now = new Map(store.S.cards.filter((c) => !c.archived && c.pty?.alive && c.pty.asking).map((c) => [c.pty.key, c]));
+    if (asked && document.hidden)
+      for (const [k, c] of now) if (!asked.has(k)) notifyUser(`${c.kind === "run" ? c.id : String(c.text).split("\n")[0].slice(0, 80)} needs you`, "ask:" + k);
+    asked = new Set(now.keys());
   }
   // A redraw under a form being typed in would reset its fields and its focus.
   if (!(quiet && store.mode && $("board").querySelector(".inl input"))) render();

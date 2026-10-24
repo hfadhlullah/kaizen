@@ -863,8 +863,8 @@ export function render() {
     s.appendChild(ul);
     b.appendChild(s);
   });
-  // The tab says how many runs wait on you, so a background tab still tells you.
-  const nw = store.S.cards.filter((c) => c.kind === "run" && c.status === "waiting" && !c.archived).length;
+  // The tab says how many runs wait on you, or agents wait on input, so a background tab still tells you.
+  const nw = store.S.cards.filter((c) => !c.archived && ((c.kind === "run" && c.status === "waiting") || (c.pty?.alive && c.pty.asking))).length;
   document.title = nw ? `(${nw}) kaizen` : "kaizen";
   stopDictation(false); // forms were just rebuilt; a listener whose field is gone would write into nothing
   if (fk && document.activeElement === document.body) cardEl(fk)?.focus({ preventScroll: true });
