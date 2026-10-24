@@ -915,8 +915,9 @@ export function appendNote(state: string, target: { id: string } | { text: strin
 }
 
 // A card filed by a run: an open idea whose note names the run as its parent. The
-// parent is the one named, else the newest run still in flight.
-export function addCard(state: string, text: string, parent?: string): { parent: string } | string {
+// parent is the one named, else the newest run still in flight. `details` go in the
+// idea's notes below the Parent line, so the title stays a title.
+export function addCard(state: string, text: string, parent?: string, details?: string): { parent: string } | string {
   text = text.trim().replace(/\s+/g, " ");
   if (!text) return "empty card";
   const id = parent ?? readRuns(state).find((r) => r.stage !== "done" && r.stage !== "abandoned")?.id;
@@ -924,7 +925,7 @@ export function addCard(state: string, text: string, parent?: string): { parent:
   if (!existsSync(join(state, "runs", id, "state.json"))) return `no such run: ${id}`;
   const lines = readInbox(state);
   if (lines.some((l) => l.status === "open" && l.text === text)) return "that card is already on the board";
-  writeInbox(state, [...lines, { status: "open", text, notes: `Parent: ${id}` }]);
+  writeInbox(state, [...lines, { status: "open", text, notes: [`Parent: ${id}`, details?.trim()].filter(Boolean).join("\n") }]);
   return { parent: id };
 }
 

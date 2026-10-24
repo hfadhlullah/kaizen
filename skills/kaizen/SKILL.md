@@ -245,6 +245,12 @@ it. Everything else in this file holds unchanged.
   yourself, in that order, reading only each stage's declared inputs and writing its
   artifact before starting the next. The stage table below still applies; you are the
   agent for every row.
+  Read `spec-build.md` before building and `spec-main.md` before moving the run to
+  `review`: being the main thread does not excuse a stage its contract. Its *Preview
+  gate* holds in full — a result that shows on a screen needs a real screenshot under
+  `runs/<id>/attachments/` embedded in `## Preview`, taken by driving a headless browser
+  against the running app; "no browser session" or "same renderer as before" is not a
+  reason, it is the gate failing. Short path or not, no screenshot means not built.
 - `runner: full` — dispatch each stage as its own subagent, as follows.
 
 Under `full`, each stage runs as a subagent via the Agent tool, with the agent type

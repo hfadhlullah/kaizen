@@ -104,5 +104,6 @@ updated: 2026-10-19
 - 2026-10-24 run 2026-10-24-app-roadmap-runs — Workflow (app requests become Discovery, Foundation and a Roadmap of child runs; REA offered for what exists but is not here; guide paragraph; revise: end-to-end increments, frontend/backend foundation, go-live increment, look-and-feel question; revise 2: deployment choice; revise 3: offer to install REA)
 - 2026-10-24 run 2026-10-24-idea-note-preview — Web board (one-line labelled card notes render one paragraph per label; brief() takes ALL-CAPS and parenthesised labels)
 - 2026-10-24 run 2026-10-24-note-live-preview — Web board (live markdown preview under the card note field)
+- 2026-10-24 SKILL.md: runner lite must read spec-build/spec-main and take real Preview screenshots
 - 2026-10-24 run 2026-10-24-note-rich-editor — Web board (card note field is a rich editor that formats markdown as you type; the dashed preview is gone)
 - 2026-10-24 run 2026-10-24-note-rich-editor fix 1 — Web board (md() italic and two-space hard breaks; note editor soft breaks, placeholder after clearing, no re-render inside code)

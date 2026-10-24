@@ -183,7 +183,10 @@ failed commit is reported as printed; the run is still `done`. With the setting
 
 A run may file new work as its own card instead of growing its scope — under either
 runner. Under `full`, subagents only suggest it in their report; the main thread files it,
-from the project folder: `kaizen card add "<the work, one line>"`. It links the card to
+from the project folder: `kaizen card add "<short title>" --notes "<details>"`. The title
+is what the card shows — a few words, like a commit subject; everything else (scope,
+context, open questions, where it came from) goes in `--notes`, never in the title.
+It links the card to
 the run in flight (`--parent <run id>` names another), and the link follows the card into
 the run it becomes. The board shows the parent's name on the child.
 

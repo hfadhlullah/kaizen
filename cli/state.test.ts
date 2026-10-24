@@ -1228,6 +1228,8 @@ test("parent/child: a Parent line links a run and an idea to the run that filed 
   expect(addCard(st, "next thing")).toEqual({ parent: "2026-01-02-b" });
   expect(addCard(st, "next thing")).toMatch(/already/);
   expect(addCard(st, "other", "nope")).toMatch(/no such run/);
+  addCard(st, "titled", "2026-01-02-b", "the details\nline two");
+  expect(readInbox(st).find((l) => l.text === "titled")?.notes).toContain("Parent: 2026-01-02-b\nthe details");
   expect(boardCards([st], Date.now()).find((k) => k.text === "next thing")!.parent).toBe("2026-01-02-b");
   rmSync(dirname(st), { recursive: true, force: true });
 });
