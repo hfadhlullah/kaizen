@@ -200,7 +200,11 @@ select.sel{cursor:pointer;appearance:none;padding-right:30px;max-width:min(320px
 }
 @media(min-width:901px){#side{display:none}}
 .skel{display:block;border-radius:6px;background:linear-gradient(90deg,var(--line) 25%,color-mix(in srgb,var(--line) 45%,transparent) 50%,var(--line) 75%);background-size:200% 100%;animation:skel 1.2s ease-in-out infinite}@keyframes skel{from{background-position:200% 0}to{background-position:-200% 0}}
-@media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
+/* motion: data-motion (Settings) wins over the system's reduced-motion */
+@view-transition{navigation:auto}
+::view-transition-group(*){animation-duration:.2s}
+@media(prefers-reduced-motion:reduce){:root:not([data-motion=full]) *,:root:not([data-motion=full]) *::before,:root:not([data-motion=full]) *::after,:root:not([data-motion=full])::view-transition-group(*),:root:not([data-motion=full])::view-transition-old(*),:root:not([data-motion=full])::view-transition-new(*){transition:none!important;animation:none!important}}
+:root[data-motion=reduce] *,:root[data-motion=reduce] *::before,:root[data-motion=reduce] *::after,:root[data-motion=reduce]::view-transition-group(*),:root[data-motion=reduce]::view-transition-old(*),:root[data-motion=reduce]::view-transition-new(*){transition:none!important;animation:none!important}
 </style>
 </head>
 <body>
@@ -256,6 +260,9 @@ select.sel{cursor:pointer;appearance:none;padding-right:30px;max-width:min(320px
  const paint=()=>{const d=r.dataset.theme?r.dataset.theme==="dark":os.matches;document.querySelectorAll(".theme button").forEach(b=>b.setAttribute("aria-pressed",(b.dataset.t==="dark")===d))};
  window.setTheme=t=>{if(t==="system")delete r.dataset.theme;else r.dataset.theme=t;try{t==="system"?localStorage.removeItem("kz-theme"):localStorage.setItem("kz-theme",t)}catch(e){}paint();dispatchEvent(new Event("kz-theme"))};
  try{const t=localStorage.getItem("kz-theme");if(t)r.dataset.theme=t}catch(e){}
+ // Motion: full, reduce, or unset to follow the system's reduced-motion, in kz-motion.
+ window.setMotion=m=>{if(m==="system")delete r.dataset.motion;else r.dataset.motion=m;try{m==="system"?localStorage.removeItem("kz-motion"):localStorage.setItem("kz-motion",m)}catch(e){}};
+ try{const m=localStorage.getItem("kz-motion");if(m)r.dataset.motion=m}catch(e){}
  os.addEventListener("change",paint);paint();
  document.querySelectorAll(".theme button").forEach(b=>b.onclick=()=>setTheme(b.dataset.t))})();
 </script>

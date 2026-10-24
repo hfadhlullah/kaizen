@@ -1,6 +1,6 @@
 import { store } from "./store.ts";
 import { key, render } from "./cards.ts";
-import { $ } from "./dom.ts";
+import { $, vt } from "./dom.ts";
 import { close, ideaBody, open, openRun } from "./panel.ts";
 import { notifyUser, toast } from "./toast.ts";
 import { openTerms, termsShowing } from "./terms.ts";
@@ -11,6 +11,10 @@ declare const due: (key: string, say: string | null, done: boolean, now: number)
 // In-card agents waiting on input, by session key. null until the first /state: what is
 // already asking when the page loads is not news, only what starts asking after.
 let asked: Set<string> | null = null;
+
+// Each card's column and whether it needed you, as of the last /state: a card that changed
+// column slides to the new one, one that starts needing you flashes. null: the first load is not news.
+let before: Map<string, [number, boolean]> | null = null;
 
 // This page's project, sent with each request: the server keeps none, so another
 // tab or a phone picking a project never moves this one.
@@ -45,8 +49,26 @@ export async function load(quiet) {
       for (const [k, c] of now) if (!asked.has(k)) notifyUser(`${c.kind === "run" ? c.id : String(c.text).split("\n")[0].slice(0, 80)} needs you`, "ask:" + k);
     asked = new Set(now.keys());
   }
+  const need = (c) => c.status === "waiting" || !!(c.pty?.alive && c.pty.asking),
+    moved = [];
+  for (const c of before ? store.S.cards : []) {
+    const b = before.get(key(c));
+    if (b && b[0] !== c.column) moved.push(key(c));
+    if (b && !b[1] && need(c)) store.flash.add(key(c));
+  }
+  before = new Map(store.S.cards.map((c) => [key(c), [c.column, need(c)]]));
+  // The old and new element of a moved card share a view-transition-name, so the browser slides one into the other.
+  const name = () =>
+    moved.forEach((k, i) => {
+      const el = $("board").querySelector(`[data-k="${CSS.escape(k)}"]`);
+      if (el) el.style.viewTransitionName = "kzm" + i;
+    });
   // A redraw under a form being typed in would reset its fields and its focus.
-  if (!(quiet && store.mode && $("board").querySelector(".inl input"))) render();
+  if (!(quiet && store.mode && $("board").querySelector(".inl input"))) {
+    name();
+    await (moved.length ? vt(() => (render(), name())) : (render(), undefined));
+    store.flash.clear();
+  } else store.flash.clear(); // no redraw now: a flash at some later one would be stale
   if (termsShowing()) openTerms();
   // Run on an idea closed the panel: open the card on its agent once the board knows the session.
   if (store.wantTerm && !store.openKey && !store.mode) {

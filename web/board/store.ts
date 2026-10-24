@@ -10,6 +10,8 @@ export const store = {
   mode: null,
   modeKey: null,
   menuKey: null,
+  // Cards that just started needing you: card() gives them one .flash.
+  flash: new Set<string>(),
   tab: "request",
   lastTab: "request",
   runDoc: null,

@@ -2,7 +2,7 @@
 description: `kaizen web`: the browser board, its HTTP routes, and the shared state layer
 tags: [project, web-board]
 sources: [cli/web.ts, cli/logo.ts, cli/state.ts, cli/pty.ts, cli/conpty.ts, web/board.html, web/board, web/term.ts, design.md]
-updated: 2026-10-24
+updated: 2026-10-25
 ---
 # Web board
 
@@ -57,6 +57,7 @@ updated: 2026-10-24
 - Popups: `web/board/main.ts` closes every open `.menu-pop` on a capture-phase `pointerdown` outside it, so only the newest one stays (card menus use stopPropagation, so bubble listeners never saw those clicks). New popups should be a `.menu-pop` inside a `.combo` to get this for free.
 - Project logos: `cli/logo.ts` `projectLogo()` (fixed names only); `/state` projects carry `logo`, `GET /project-logo?dir=` serves it sandboxed; `plogo()` in `web/board/projects.ts` draws it or the folder initial.
 - The server keeps no current project: each page sends its pick as `x-kz-dir` (`dirHeader()` in `web/board/api.ts`) and `cli/web.ts` resolves the project per request, so a phone picking another project never moves a desktop tab. `/cd` only checks the folder (and sets up a fresh one).
+- Motion: Settings → Browser → Motion (`system`/`full`/`reduce`, `kz-motion` in localStorage) sets `<html data-motion>` from the head script of both `board.html` and `notes.html` (`setMotion`, beside `setTheme`). The reduced-motion CSS rule applies under the OS preference unless `data-motion=full`, and always under `reduce`; it covers the `::view-transition-*` pseudos too. `motion()`/`vt()` in `web/board/dom.ts` gate JS motion: `load()` (`web/board/api.ts`) gives a card that changed column the same `view-transition-name` on its old and new element and renders inside `vt()`, so it slides; a card that starts waiting or asking gets `.flash` for one render (`store.flash`). Rail clicks and popstate run `go()` inside `vt()` (crossfade), but `go()` itself stays synchronous for callers that open a panel right after. Board ↔ Notes crossfade via `@view-transition{navigation:auto}`. Notebook's sheet deal (`lift()`) honours `data-motion` too.
 - Settings controls (`ctl()` in `web/board/settings.ts`): a switch for on/off, a `.bar` segment per value for the preset and numbers, and a `.step` stepper (`‹ value ›`, ids `<id>-prev`/`<id>-next`) for every other choice, Theme included. `stepper()` keeps the position and wraps at the ends: the shown value changes on each click, a config row saves 300 ms after the last click (one POST per burst), Theme applies at once. ←/→ press the arrows, the group is named by its row's `<label id="<id>-l">`, and the re-render puts focus back on the arrow pressed (`refocus()`).
 - A settings row whose `idle` reason is set (from `when` in `cli/settings.ts`) gets `.srow.off`: dimmed, still clickable, reason appended to its hint.
 

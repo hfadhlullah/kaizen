@@ -99,6 +99,7 @@ export async function openSettings() {
   ${row("OAuth client secret", html`<span class="fpick"><input class="sel" id="gg-secret" type="password" placeholder="${gg.hasClient ? "Saved. Paste a new one to replace it" : ""}" spellcheck="false" autocomplete="off"><button class="btn" id="gg-save" type="button">Save</button></span>`, "", "gg-secret", "google oauth client secret")}
   ${row("Google account", html`<button class="btn${gg.connected ? "" : " pri"}" id="gg-conn" type="button"${gg.hasClient || gg.connected ? "" : " disabled"}>${gg.connected ? "Disconnect" : "Connect"}</button>`, "", "gg-conn", "google account connect sheets write back")}</div>
   <h3 class="sg">Browser</h3><div class="sgrp">${row("Theme", ctl("th", ["system", "light", "dark"], cur), "", "th", "theme light dark system browser")}
+  ${row("Motion", ctl("mo", ["system", "full", "reduce"], document.documentElement.dataset.motion || "system"), "Animations on the board and notes. System follows the device's reduce-motion setting.", "mo", "motion animation reduce reduced browser")}
   ${row("Notifications", html`<button class="chk${np === "granted" ? " on" : ""}" id="nt" role="switch" aria-checked="${String(np === "granted")}"${np && np !== "denied" ? "" : " disabled"}></button>`, ntHelp, "nt", "notifications " + ntHelp + " browser")}</div>
   <p class="snone" id="snone" hidden></p>`;
   // Hides rows that do not match, then any group (and its chip) left with none.
@@ -184,6 +185,7 @@ export async function openSettings() {
     if (f && /^s-preset-|-(prev|next)$/.test(f)) $(f)?.focus();
   };
   stepper($("th"), ["system", "light", "dark"], cur, setTheme);
+  stepper($("mo"), ["system", "full", "reduce"], document.documentElement.dataset.motion || "system", setMotion);
   $("nt").onclick = () => {
     askNotify();
     setTimeout(openSettings, 300);

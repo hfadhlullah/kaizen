@@ -1,5 +1,5 @@
 import { store } from "./store.ts";
-import { $ } from "./dom.ts";
+import { $, vt } from "./dom.ts";
 import { openSources } from "./icebox.ts";
 import { close } from "./panel.ts";
 import { openSettings } from "./settings.ts";
@@ -63,15 +63,15 @@ export function initViews() {
       if (e.ctrlKey || e.metaKey || e.shiftKey || e.button) return;
       e.preventDefault();
       if (a.dataset.view === "settings") store.setQ = "";
-      go(a.dataset.view, true);
+      vt(() => go(a.dataset.view, true));
     };
   });
   document.querySelector(".rail .home").onclick = (e) => {
     if (e.ctrlKey || e.metaKey || e.shiftKey || e.button) return;
     e.preventDefault();
-    go("board", true);
+    vt(() => go("board", true));
   };
-  addEventListener("popstate", () => go(new URLSearchParams(location.search).get("view")));
+  addEventListener("popstate", () => vt(() => go(new URLSearchParams(location.search).get("view"))));
   // The menu's theme switch while Settings shows: its Theme row follows.
   addEventListener("kz-theme", () => {
     if (view === "settings") openSettings();

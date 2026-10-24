@@ -93,6 +93,7 @@ function card(c) {
     "card" +
     (k === store.openKey ? " open" : "") +
     (k === store.menuKey ? " menu" : "") +
+    (store.flash.has(k) ? " flash" : "") +
     (c.archived ? " archived" : "");
   el.tabIndex = 0;
   el.dataset.k = k;

@@ -819,7 +819,8 @@ async function load() {
 const DEAL = { duration: 260, easing: "cubic-bezier(.22,.61,.36,1)" };
 function lift(): HTMLElement | null {
   const main = document.querySelector<HTMLElement>(".main")!;
-  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return null;
+  const m = document.documentElement.dataset.motion;
+  if (m ? m === "reduce" : matchMedia("(prefers-reduced-motion: reduce)").matches) return null;
   const r = main.getBoundingClientRect(),
     top = main.scrollTop;
   const sheet = main.cloneNode(true) as HTMLElement;
