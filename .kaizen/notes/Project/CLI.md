@@ -32,5 +32,6 @@ updated: 2026-10-23
 
 - `--init-project` makes the installer set up the folder it runs in without asking; `kaizen setup` uses it with `--yes`.
 
+- `kaizen setup` is dispatched before the no-agent guard: it installs nothing, and CI runners have no agent (2026-10-25-ci-checks-fail).
 ## Notes
 <!-- yours: /kaizen docs never rewrites this section -->
