@@ -283,8 +283,9 @@ body.termv #terms{flex:1;min-height:0;display:flex;flex-direction:column;gap:8px
 .tsplit{position:absolute;z-index:2;touch-action:none}.tsplit.c{top:0;width:10px;margin-left:-5px;cursor:col-resize}.tsplit.r{left:0;right:0;height:10px;margin-top:-5px;cursor:row-resize}.tsplit:hover,.tdrag .tsplit:active{background:color-mix(in srgb,var(--accent) 35%,transparent)}
 body.tdrag{user-select:none}body.tdrag .tile{pointer-events:none}
 @media(max-width:900px){body.termv #terms{padding-inline:16px}}
-/* A phone has no room for a grid: tiles stack, each most of a screen tall, and the splits go */
-@media(max-width:640px){.tbar .bar{display:none}.tgrid{display:flex;flex-direction:column;overflow:auto}.tile{flex:none;height:70vh}.tile.off{display:none}.tsplit{display:none}}
+/* A phone has no room for a grid or a stack: one terminal fills the page, and tabs above pick which */
+.ttabs{display:none}
+@media(max-width:640px){.tbar .bar,.tile [data-a=max],.tsplit{display:none}.ttabs{display:flex;order:-1;flex:1 0 100%;min-width:0;gap:6px;overflow-x:auto;scrollbar-width:none}.ttabs button{flex:none;display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px;border:1px solid var(--line);border-radius:var(--r-pill);background:none;color:var(--dim);font:inherit;font-size:12px;white-space:nowrap}.ttabs button.on{color:var(--ink);background:var(--hover);border-color:var(--accent)}.tgrid{display:flex;flex-direction:column}.tile{flex:1}.tile.off{display:none}}
 aside.docked{position:static;z-index:auto;flex:1;min-height:0;width:auto;transform:none;visibility:visible;transition:none;box-shadow:none;border:0;background:none}
 aside.docked>header,aside.docked>.body{padding-inline:28px}
 aside.docked>header{border-bottom:0;padding-top:28px;padding-bottom:12px}

@@ -29,12 +29,18 @@ const save = () => {
 // key -> its tile and the function that unmounts its terminal.
 const tiles = new Map<string, { el: HTMLElement; off: (() => void) | null }>();
 let showing = false;
+// A phone shows one terminal at a time, picked from tabs: stacked, each terminal took every
+// swipe and the page could only be scrolled by its thin headers. The pick is per visit.
+// Made on first show, so importing this module needs no window.
+let phone: MediaQueryList | null = null,
+  pick: string | null = null;
 
 // The header: run name - project name. A run's name is its id without the date, as card chips name runs.
 const nameOf = (c) =>
   c.kind === "run"
     ? String(c.id || c.text).replace(/^\d{4}-\d\d-\d\d-/, "").replace(/-/g, " ")
     : String(c.text).split("\n")[0].slice(0, 80);
+const tst = (c) => (!c.pty.alive ? "ended" : c.pty.asking ? "asking" : "running");
 const projOf = (c) => String(c.where || "").split(/[\\/]/).filter(Boolean).pop() || c.where || "";
 // One card per session; the newest card wins a shared key.
 function sessions() {
@@ -52,6 +58,7 @@ export function termsStop() {
 
 export function openTerms() {
   showing = true;
+  if (!phone) (phone = matchMedia("(max-width:640px)")).onchange = () => showing && openTerms();
   // A /state tick mid-drag would rebuild the handle being dragged.
   if (document.body.classList.contains("tdrag")) return;
   const box = $("terms"),
@@ -68,6 +75,8 @@ export function openTerms() {
   const keys = [...all.keys()].filter((k) => !lay.hidden.includes(k)).sort((a, b) => ended(a) - ended(b) || rank(a) - rank(b));
   for (const k of keys) if (!lay.order.includes(k)) lay.order.push(k);
   if (lay.max && !keys.includes(lay.max)) lay.max = null;
+  // The one tile showing: on a phone the tab picked (the first by default), else the maximised one.
+  const one = phone.matches ? (pick && keys.includes(pick) ? pick : keys[0]) : lay.max;
   let grid = box.querySelector<HTMLElement>(".tgrid"),
     bar = box.querySelector<HTMLElement>(".tbar");
   if (!grid) {
@@ -77,7 +86,15 @@ export function openTerms() {
   }
   // An ended session closed with × has nothing to come back to: no chip for it.
   const hid = [...all.keys()].filter((k) => lay.hidden.includes(k) && all.get(k).pty.alive);
-  bar!.innerHTML = html`<span class="bar" role="group" aria-label="Layout">${MODES.map(([v, l]) => html`<button data-mode="${v}" class="${lay.mode === v ? "on" : ""}" aria-pressed="${String(lay.mode === v)}">${l}</button>`)}</span>${hid.length ? html`<span class="dim">Hidden</span>${hid.map((k) => html`<button class="chip" data-show="${k}" title="Show this terminal">${ico("plus")}${nameOf(all.get(k))} - ${projOf(all.get(k))}</button>`)}` : ""}`.s;
+  bar!.innerHTML = html`<span class="bar" role="group" aria-label="Layout">${MODES.map(([v, l]) => html`<button data-mode="${v}" class="${lay.mode === v ? "on" : ""}" aria-pressed="${String(lay.mode === v)}">${l}</button>`)}</span>${hid.length ? html`<span class="dim">Hidden</span>${hid.map((k) => html`<button class="chip" data-show="${k}" title="Show this terminal">${ico("plus")}${nameOf(all.get(k))} - ${projOf(all.get(k))}</button>`)}` : ""}${phone.matches && keys.length > 1 ? html`<span class="ttabs" role="group" aria-label="Terminals">${keys.map((k) => html`<button class="${k === one ? "on" : ""}" data-pick="${k}" aria-pressed="${String(k === one)}"><span class="tdot ${tst(all.get(k))}"></span>${nameOf(all.get(k))} - ${projOf(all.get(k))}</button>`)}</span>` : ""}`.s;
+  bar!.querySelectorAll<HTMLElement>("[data-pick]").forEach(
+    (b) =>
+      (b.onclick = () => {
+        pick = b.dataset.pick!;
+        openTerms();
+      }),
+  );
+  bar!.querySelector(".ttabs .on")?.scrollIntoView({ block: "nearest", inline: "nearest" });
   bar!.querySelectorAll<HTMLElement>("[data-mode]").forEach(
     (b) =>
       (b.onclick = () => {
@@ -118,24 +135,24 @@ export function openTerms() {
       mount(k, t);
       wire(el);
     }
-    const st = !c.pty.alive ? "ended" : c.pty.asking ? "asking" : "running",
+    const st = tst(c),
       off = st === "ended";
     const hd = t.el.querySelector("header")!;
     hd.title = (c.kind === "run" ? c.id : c.text) + " · " + c.where;
     // An ended run can be resumed from here; an idea whose agent ended has no run to resume.
     hd.innerHTML = html`<span class="tdot ${st}" role="img" title="${st}" aria-label="${st}"></span><b>${nameOf(c)} - ${projOf(c)}</b>${off ? html`<span class="tend">ended</span>` : ""}<span class="sp"></span>${off && c.kind === "run" ? html`<button class="btn sm" data-a="resume" title="Continue this run's agent">Resume</button>` : ""}<button class="ib sm" data-a="card" title="Open card" aria-label="Open card">${ico("open")}</button><button class="ib sm" data-a="max" title="${lay.max === k ? "Restore" : "Maximise"}" aria-label="${lay.max === k ? "Restore" : "Maximise"}">${ico(lay.max === k ? "min" : "max")}</button><button class="ib sm" data-a="hide" title="${off ? "Close" : "Hide"}" aria-label="${off ? "Close" : "Hide"}">${ico("close")}</button>`.s;
     t.el.classList.toggle("ended", off);
-    t.el.classList.toggle("off", !!lay.max && lay.max !== k);
+    t.el.classList.toggle("off", !!one && one !== k);
     t.el.style.gridColumn = "";
     grid.append(t.el); // in order
   }
   // Grid is √n, the last tile spanning what its row leaves empty; side by side is one row, stacked one column.
-  const n = lay.max ? 1 : keys.length,
+  const n = one ? 1 : keys.length,
     cols = lay.mode === "cols" ? n : lay.mode === "rows" ? 1 : Math.ceil(Math.sqrt(n)),
     rows = Math.ceil(n / cols);
   // The column where the last row's tile starts spanning; borders right of it are not inner ones there.
   let spanFrom = cols;
-  if (!lay.max && cols * rows > n) {
+  if (!one && cols * rows > n) {
     tiles.get(keys[keys.length - 1])!.el.style.gridColumn = `span ${cols * rows - n + 1}`;
     spanFrom = n - (rows - 1) * cols - 1;
   }
@@ -143,7 +160,7 @@ export function openTerms() {
     sz = lay.sizes[shape];
   const c = sz?.c?.length === cols ? sz.c : Array(cols).fill(1),
     r = sz?.r?.length === rows ? sz.r : Array(rows).fill(1);
-  layout(grid, c, r, shape, spanFrom);
+  layout(grid, c, r, shape, spanFrom, !one);
 }
 
 function mount(k, t) {
@@ -177,7 +194,8 @@ function wire(el: HTMLElement) {
     openTerms();
   };
   el.querySelector("header")!.ondblclick = (e) => {
-    if ((e.target as HTMLElement).closest("button")) return;
+    // A phone shows one tile anyway: a double-tap there would only leave desktop maximised.
+    if ((e.target as HTMLElement).closest("button") || phone?.matches) return;
     lay.max = lay.max === k ? null : k;
     save();
     openTerms();
@@ -215,7 +233,7 @@ const at = (tr: number[], i: number) => {
     S = tr.slice(0, i + 1).reduce((a, b) => a + b, 0);
   return `calc((100% - ${(tr.length - 1) * GAP}px) * ${S / F} + ${i * GAP + GAP / 2}px)`;
 };
-function layout(grid: HTMLElement, c: number[], r: number[], shape: string, spanFrom: number) {
+function layout(grid: HTMLElement, c: number[], r: number[], shape: string, spanFrom: number, splits: boolean) {
   grid.querySelectorAll(".tsplit").forEach((s) => s.remove());
   const place = () => {
     grid.style.gridTemplateColumns = c.map((x) => x + "fr").join(" ");
@@ -227,7 +245,7 @@ function layout(grid: HTMLElement, c: number[], r: number[], shape: string, span
       h.style.bottom = i >= spanFrom ? `calc(100% - ${at(r, r.length - 2)} + ${GAP / 2}px)` : "0px";
     });
   };
-  if (!lay.max)
+  if (splits)
     for (const [axis, tr] of [["c", c], ["r", r]] as const)
       for (let i = 0; i < tr.length - 1; i++) {
         const h = document.createElement("div");
