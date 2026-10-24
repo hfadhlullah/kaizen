@@ -28,7 +28,7 @@
     "prepublishOnly": "bun test",
     "postpublish": "sh cli/release.sh",
     "publish:gh": "sh cli/publish-gh.sh",
-    "release": "bun publish && bun run publish:gh"
+    "release": "bun run cli/release.ts"
   },
   "repository": {
     "type": "git",
