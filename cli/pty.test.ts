@@ -216,6 +216,13 @@ test("asking: Claude Code and Codex prompts count as a question, ordinary output
   expect(asking("What behavior do you want?\r\n\x1b[36m❯ 1. Retry with backoff\x1b[0m\r\n  2. Fail\r\n  4. Type something.")).toBe(true);
   expect(asking("Do you want to make this edit to cli/pty.ts?")).toBe(true);
   expect(asking("Reading cli/pty.ts\r\n\x1b[2K✻ Thinking… 1. step one done")).toBe(false);
+  // Answered: the working line drawn after the question clears it.
+  expect(asking("Do you want to make this edit?\r\n\x1b[2K✻ Contemplating… (1m 4s · ↓ 4.4k tokens)")).toBe(false);
+  expect(asking("Would you like to run the following command?\r\n• Working (12s • esc to interrupt)")).toBe(false);
+  expect(asking("Do you want to proceed?\r\n⠋ Reading files (esc to cancel, 4s)")).toBe(false);
+  expect(asking("Do you want to proceed?\r\n  esc interrupt")).toBe(false);
+  expect(asking("Do you want to proceed?\r\n❯ 1. Yes\r\n  2. No\r\n\r\nEsc to cancel · Tab to amend")).toBe(true);
+  expect(asking("✻ Thinking… (3s · esc to interrupt)\r\nDo you want to proceed?\r\n❯ 1. Yes")).toBe(true);
 });
 
 test("Windows ConPTY host: resize travels in-band, the agent command survives quotes and newlines", () => {

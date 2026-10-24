@@ -25,8 +25,18 @@ const ptys = new Map<string, Pty>();
 // ponytail: screen-text heuristic, misses a prompt worded otherwise; read agent hooks if that bites.
 const ASK = /Would you like to|Do you want to|[❯›>] ?1\. |Type something|\(y\/n\)|\[y\/N\]|Press enter to/i;
 // Escape sequences out; a cursor move becomes a space so words drawn apart stay apart.
-export const asking = (screen: string) =>
-  ASK.test(screen.replace(/\x1b\[[0-9;?]*[A-Za-z]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[()][0-9A-Za-z]/g, " "));
+// The agent's working line (Claude Code's "✻ Thinking… (12s · ↓ 1.2k tokens)", Codex's
+// "Working (12s • esc to interrupt)", Gemini's "(esc to cancel, 12s)", opencode's "esc interrupt")
+// drawn after the last question means the question was answered and it is working again: a
+// redraw of the answered prompt or prompt-like words in its output would otherwise keep it "asking".
+// Not a bare "Esc to cancel": Claude Code's own question footer says that.
+const WORK = /\(\d+m? ?\d*s [·•]|esc to interrupt|\(esc to cancel, \d|esc interrupt/gi;
+const lastAt = (re: RegExp, t: string) => { let i = -1; for (const m of t.matchAll(re)) i = m.index!; return i; };
+export const asking = (screen: string) => {
+  const t = screen.replace(/\x1b\[[0-9;?]*[A-Za-z]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[()][0-9A-Za-z]/g, " ");
+  const q = lastAt(new RegExp(ASK.source, "gi"), t);
+  return q >= 0 && q > lastAt(WORK, t);
+};
 // How long output stays still before the screen is read for a question.
 const QUIET_MS = 700;
 // Bun gained pseudo-terminals in 1.3.5; an older one spawns without a tty, so it

@@ -49,6 +49,17 @@ function sessions() {
   return m;
 }
 
+// The side menu's Terminal entry counts the tiles hidden here (the Hidden bar's chips), on every page.
+export function termsBadge() {
+  const all = sessions();
+  const n = lay.hidden.filter((k) => all.get(k)?.pty.alive).length;
+  const a = document.querySelector<HTMLElement>('.rail a[data-view="terminal"]');
+  if (!a) return;
+  if (n) a.dataset.n = String(n);
+  else delete a.dataset.n;
+  a.title = "Terminal: every agent running in its card" + (n ? ` (${n} hidden)` : "");
+}
+
 export function termsStop() {
   showing = false;
   document.body.classList.remove("tmax");
@@ -131,6 +142,7 @@ export function openTerms() {
   // The layout switch sits at the right of the page header.
   $("tmodes").innerHTML = html`${MODES.map(([v, l, i]) => html`<button data-mode="${v}" class="${lay.mode === v ? "on" : ""}" aria-pressed="${String(lay.mode === v)}" title="${l}" aria-label="${l}">${ico(i)}</button>`)}`.s;
   bar!.innerHTML = html`${hid.length ? html`<span class="dim">Hidden</span>${hid.map((k) => html`<button class="chip" data-show="${k}" title="Show this terminal">${ico("plus")}${nameOf(all.get(k))} - ${projOf(all.get(k))}</button>`)}` : ""}${phone.matches && keys.length > 1 ? html`<span class="ttabs" role="group" aria-label="Terminals">${keys.map((k) => html`<button class="${k === one ? "on" : ""}" data-pick="${k}" aria-pressed="${String(k === one)}"><span class="tdot ${tst(all.get(k))}"></span>${nameOf(all.get(k))} - ${projOf(all.get(k))}</button>`)}</span>` : ""}`.s;
+  termsBadge();
   bar!.querySelectorAll<HTMLElement>("[data-pick]").forEach(
     (b) =>
       (b.onclick = () => {

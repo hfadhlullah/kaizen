@@ -68,6 +68,8 @@ svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6;stroke
 [data-rail=min] .rail .lbl{position:static;width:auto;height:auto;overflow:visible;clip-path:none}
 body .rail a.upd::after{left:calc(50% + 6px);top:4px}body .toast{left:16px;bottom:calc(68px + env(safe-area-inset-bottom))}}
 /* end side menu */
+.rail a.it[data-n]{position:relative}.rail a.it[data-n]::after{content:attr(data-n);position:absolute;left:24px;top:3px;min-width:16px;height:16px;padding:0 4px;box-sizing:border-box;border-radius:8px;background:var(--dim);color:var(--bg);font:600 10px/16px var(--font);text-align:center;box-shadow:0 0 0 2px var(--bg)}
+@media(max-width:640px){body .rail a.it[data-n]::after{left:calc(50% + 4px);top:2px}}
 /* the work area: an inset rounded panel on the canvas the side menu sits on */
 .app{flex:1;min-width:0;display:flex;flex-direction:column;margin:8px 8px 8px 0;background:var(--bg);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
 @media(max-width:640px){.app{margin:0;border:0;border-radius:0}html,body{background:var(--bg)}aside:not(.docked){padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) 0}}
