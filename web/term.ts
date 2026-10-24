@@ -4,6 +4,8 @@
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
+import { WebLinksAddon } from "@xterm/addon-web-links";
+import { SearchAddon } from "@xterm/addon-search";
 
 function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void {
   const css = getComputedStyle(el);
@@ -13,6 +15,7 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
     fontFamily: tok("--mono"),
     fontSize: 12,
     scrollback: 5000,
+    allowProposedApi: true, // search match decorations
     theme: {
       background: tok("--bg"),
       foreground: tok("--ink-hi"),
@@ -22,6 +25,9 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
   });
   const fit = new FitAddon();
   term.loadAddon(fit);
+  term.loadAddon(new WebLinksAddon((_e, url) => window.open(url, "_blank", "noopener")));
+  const search = new SearchAddon();
+  term.loadAddon(search);
   term.open(el);
   // The DOM renderer lags on a full-screen agent's constant redraws; WebGL keeps up.
   // No WebGL, or the context lost: xterm.js falls back to the DOM renderer by itself.
@@ -148,6 +154,58 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
   };
   el.addEventListener("touchstart", touchStart, { passive: true });
   el.addEventListener("touchmove", touchMove, { passive: false });
+  // Top-right strip: search the output (all devices; Ctrl/Cmd+Shift+F from the terminal)
+  // and, with a mouse, Paste — phones already have Paste in the key bar.
+  const tools = document.createElement("div");
+  tools.className = "termtools";
+  const tool = (label: string, title: string, fn: () => void) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = label;
+    b.title = title;
+    b.addEventListener("mousedown", (e) => e.preventDefault());
+    b.addEventListener("click", fn);
+    return b;
+  };
+  const q = document.createElement("input");
+  q.type = "search";
+  q.placeholder = "Search";
+  const deco = { matchBackground: "#7a5c00", activeMatchBackground: "#d08000", matchOverviewRuler: "#d08000", activeMatchColorOverviewRuler: "#ff9900" };
+  const find = (back = false) => {
+    if (!q.value) return search.clearDecorations();
+    const o = { decorations: deco };
+    back ? search.findPrevious(q.value, o) : search.findNext(q.value, o);
+  };
+  const box = document.createElement("span");
+  box.className = "tsearch";
+  box.hidden = true;
+  const closeSearch = () => { box.hidden = true; search.clearDecorations(); term.focus(); };
+  const openSearch = () => { box.hidden = false; q.select(); q.focus(); };
+  q.addEventListener("input", () => find());
+  q.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); find(e.shiftKey); }
+    else if (e.key === "Escape") { e.preventDefault(); closeSearch(); }
+  });
+  box.append(q, tool("↑", "Previous (Shift+Enter)", () => find(true)), tool("↓", "Next (Enter)", () => find()), tool("✕", "Close (Esc)", closeSearch));
+  tools.append(box, tool("⌕", "Search (Ctrl+Shift+F)", () => (box.hidden ? openSearch() : closeSearch())));
+  // A refused read (permission, or a plain-http origin) says so on the button for a moment.
+  const pasteBtn = tool("Paste", "Paste from clipboard", () => {
+    const no = () => { pasteBtn.textContent = "Blocked"; setTimeout(() => (pasteBtn.textContent = "Paste"), 1500); };
+    if (!navigator.clipboard?.readText) no();
+    else navigator.clipboard.readText().then((t) => t && term.paste(t), no);
+    term.focus();
+  });
+  if (!bar) tools.append(pasteBtn);
+  el.append(tools);
+  // xterm keeps one custom key handler: add further shortcuts here, not in a second call.
+  term.attachCustomKeyEventHandler((e) => {
+    if (e.type === "keydown" && (e.ctrlKey || e.metaKey) && e.shiftKey && e.code === "KeyF") {
+      e.preventDefault();
+      openSearch();
+      return false;
+    }
+    return true;
+  });
   // Each resize makes the agent redraw its whole screen, so a panel animating or a
   // soft keyboard opening sends one, not dozens.
   let resizing: Timer | undefined;
@@ -162,6 +220,7 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
     el.removeEventListener("touchmove", touchMove);
     typed.dispose();
     bar?.remove();
+    tools.remove();
     ws.onclose = null;
     ws.close();
     term.dispose();
