@@ -37,23 +37,50 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
     term.loadAddon(gl);
   } catch { /* DOM renderer */ }
 
-  const ws = new WebSocket(
-    `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/pty?key=${encodeURIComponent(key)}`,
-  );
+  // A dropped socket (network blip, sleep, a proxy hanging up) retries by itself a few
+  // times, and the Reconnect button in the top-right strip retries on demand. The board
+  // replays the whole session on attach, so a reopened socket starts from a reset screen.
+  const WAIT = [1, 2, 4, 8, 15];
+  let ws: WebSocket | undefined;
+  let tries = 0;
+  let retry: Timer | undefined;
+  let lost = false;
   const send = (m: object) => {
-    if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(m));
+    if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(m));
   };
   const size = () => {
     if (!el.offsetWidth) return;
     fit.fit();
     send({ t: "r", c: term.cols, r: term.rows });
   };
-  ws.onopen = size;
-  ws.onmessage = (e) => term.write(String(e.data));
-  // The board closes with "ended" when the agent exits; anything else is the board gone.
-  ws.onclose = (e) => {
-    term.write(`\r\n\x1b[2m[${e.reason === "ended" ? "agent ended" : "connection to the board lost"}]\x1b[0m\r\n`);
-    onEnd?.();
+  const connect = () => {
+    clearTimeout(retry);
+    // A click during a retry's handshake must not leave two sockets attached.
+    if (ws) { ws.onopen = ws.onmessage = ws.onclose = null; ws.close(); }
+    ws = new WebSocket(
+      `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/pty?key=${encodeURIComponent(key)}`,
+    );
+    ws.onopen = () => {
+      if (lost) term.reset();
+      lost = false;
+      tries = 0;
+      reBtn.hidden = true;
+      size();
+    };
+    ws.onmessage = (e) => term.write(String(e.data));
+    // The board closes with "ended" when the agent exits; anything else is the board gone.
+    ws.onclose = (e) => {
+      if (e.reason === "ended") {
+        term.write("\r\n\x1b[2m[agent ended]\x1b[0m\r\n");
+        reBtn.hidden = true;
+      } else {
+        if (!lost) term.write("\r\n\x1b[2m[connection to the board lost]\x1b[0m\r\n");
+        lost = true;
+        reBtn.hidden = false;
+        if (tries < WAIT.length) retry = setTimeout(connect, WAIT[tries++] * 1000);
+      }
+      onEnd?.();
+    };
   };
   // Phone/tablet: a bar of the keys a soft keyboard lacks. Alt is sticky for the next key.
   // Ctrl opens its own a-z pad instead of waiting on the native keyboard, whose IME can
@@ -196,7 +223,12 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
     term.focus();
   });
   if (!bar) tools.append(pasteBtn);
+  const reBtn = tool("Reconnect", "Reconnect to the board", () => { tries = 0; connect(); term.focus(); });
+  reBtn.className = "recon";
+  reBtn.hidden = true;
+  tools.prepend(reBtn);
   el.append(tools);
+  connect();
   // xterm keeps one custom key handler: add further shortcuts here, not in a second call.
   term.attachCustomKeyEventHandler((e) => {
     if (e.type === "keydown" && (e.ctrlKey || e.metaKey) && e.shiftKey && e.code === "KeyF") {
@@ -221,6 +253,7 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
     typed.dispose();
     bar?.remove();
     tools.remove();
+    clearTimeout(retry);
     ws.onclose = null;
     ws.close();
     term.dispose();
