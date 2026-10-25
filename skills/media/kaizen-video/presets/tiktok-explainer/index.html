@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="id" data-resolution="portrait">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script src="captions.js"></script>
+    <style>
+      @font-face { font-family: "Montserrat"; src: url("assets/fonts/Montserrat.ttf"); font-weight: 100 900; }
+      @font-face { font-family: "Instrument Serif"; src: url("assets/fonts/InstrumentSerif.ttf"); }
+      @font-face { font-family: "Space Mono"; src: url("assets/fonts/SpaceMono.ttf"); font-weight: 700; }
+      :root { --ink: #0c0b0a; --cream: #efe6d6; --orange: #f7a93b; --red: #ef4b3a; --dim: #8d867b; }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1080px; height: 1920px; overflow: hidden; background: var(--ink); }
+      body { font-family: "Montserrat", sans-serif; color: var(--cream); }
+      #root { position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--ink); }
+      .fill { position: absolute; inset: 0; }
+      .serif { font-family: "Instrument Serif", serif; font-weight: 400; }
+      .mono { font-family: "Space Mono", monospace; font-weight: 700; }
+      .acc { color: var(--orange); }
+
+      /* Background: near-black with two soft diagonal light streaks that drift. */
+      #streaks { inset: -30%; opacity: .9;
+        background:
+          linear-gradient(115deg, transparent 38%, rgba(239,230,214,.045) 44%, transparent 50%),
+          linear-gradient(115deg, transparent 58%, rgba(247,169,59,.05) 62%, transparent 67%); }
+      #vignette { background: radial-gradient(ellipse 85% 70% at 50% 45%, transparent 55%, rgba(0,0,0,.55) 100%); }
+
+      /* The speaker sits in a cream-framed clip card, like a frame pulled from an editor. */
+      #pose { position: absolute; left: 190px; top: 470px; width: 700px; height: 930px; }
+      #cam { position: absolute; inset: 0; border-radius: 34px; overflow: hidden;
+        border: 6px solid var(--cream); background: #1a1816; box-shadow: 0 40px 100px rgba(0,0,0,.75); transform-origin: 50% 50%; }
+      #a-roll { width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; filter: contrast(1.06) saturate(.92); }
+      #cam .chip { position: absolute; top: 22px; left: 22px; display: flex; align-items: center; gap: 10px; padding: 6px 14px;
+        border-radius: 10px; background: rgba(12,11,10,.72); font-size: 30px; color: var(--orange); }
+      #cam .chip b { width: 14px; height: 14px; border-radius: 50%; background: var(--red); }
+      #cam .shade { position: absolute; inset: 0; background: #000; opacity: 0; }
+
+      /* Hook: small serif setup line, then one huge headline. */
+      #hook { position: absolute; left: 70px; right: 70px; top: 150px; text-align: center; opacity: 0; }
+      #hook .setup { font-size: 64px; line-height: 1; opacity: .9; }
+      #hook h1 { margin-top: 8px; white-space: nowrap; font-weight: 900; font-size: 132px; line-height: .95; letter-spacing: -4px; }
+      #hook .sub { margin-top: 18px; font-size: 52px; color: var(--orange); }
+
+      /* Kinetic captions: words pop in as they are spoken; the spoken word is orange. */
+      #captions { position: absolute; left: 100px; right: 100px; top: 1450px; height: 250px; }
+      .chunk { position: absolute; inset: 0; display: flex; flex-wrap: wrap; justify-content: center; align-content: flex-start; gap: 0 22px; opacity: 0; }
+      .w { display: block; font-weight: 900; font-size: 80px; line-height: 1.08; letter-spacing: -2px; text-transform: lowercase;
+        color: var(--cream); opacity: 0; text-shadow: 0 6px 24px rgba(0,0,0,.85); }
+
+      /* Big numeral scene ("title" with "big"): outlined digit that fills up in orange. */
+      .scene { position: absolute; inset: 0; opacity: 0; }
+      .big { position: absolute; left: 40px; top: 40px; font-weight: 900; font-size: 980px; line-height: .9; letter-spacing: -40px; }
+      .big .o { color: transparent; -webkit-text-stroke: 6px var(--orange); }
+      .big .f { position: absolute; inset: 0; color: var(--orange); clip-path: inset(100% 0 0 0); }
+      .txt { position: absolute; left: 90px; right: 90px; top: 1130px; }
+      .txt .k { font-size: 62px; line-height: 1; }
+      .txt h1 { white-space: nowrap; font-weight: 900; font-size: 130px; line-height: .95; letter-spacing: -4px; margin-top: 6px; }
+      .txt .s { font-size: 64px; color: var(--orange); margin-top: 10px; }
+      .scene.center .txt { top: 760px; text-align: center; }
+      .scene .frame { width: 900px; height: 560px; margin: 0 auto 40px; border-radius: 30px; overflow: hidden; border: 6px solid var(--cream); }
+      .frame img { width: 100%; height: 100%; object-fit: cover; }
+      .scene.has-img .txt { top: 330px; }
+
+      /* Banner scene ("case"): headline on top, orange tape across the greyed clip, optional red stamp. */
+      .banner .head { position: absolute; left: 80px; right: 80px; top: 170px; text-align: center; }
+      .banner .head .k { font-size: 58px; line-height: 1; }
+      .banner .head h2 { font-weight: 900; font-size: 96px; line-height: 1; letter-spacing: -3px; margin-top: 8px; }
+      .tape { position: absolute; left: -60px; right: -60px; top: 800px; padding: 26px 80px; background: var(--orange); color: var(--ink);
+        transform: rotate(-6deg); text-align: center; font-weight: 900; font-size: 96px; line-height: 1; letter-spacing: -3px;
+        box-shadow: 0 0 0 10px var(--red), 0 30px 80px rgba(0,0,0,.7); }
+      .tape span { display: inline-block; }
+      .banner .stamp { position: absolute; left: 0; right: 0; top: 1130px; margin: auto; width: max-content; padding: 6px 30px;
+        border: 9px solid var(--red); color: var(--red); background: rgba(12,11,10,.55); font-weight: 900; font-size: 110px; letter-spacing: 2px; opacity: 0; }
+      .banner .s { position: absolute; left: 90px; right: 90px; top: 1480px; text-align: center; font-size: 60px; }
+
+      /* Photo card: slides in over the clip card's place. */
+      .photo { position: absolute; left: 150px; top: 430px; width: 780px; opacity: 0; display: flex; flex-direction: column; align-items: center; }
+      .photo .frame { width: 780px; height: 940px; border-radius: 34px; overflow: hidden; border: 6px solid var(--cream); box-shadow: 0 40px 100px rgba(0,0,0,.75); }
+      .photo p { margin-top: 26px; padding: 6px 18px; border-radius: 10px; background: rgba(239,230,214,.08); font-size: 34px; color: var(--orange); }
+
+      /* Steps list ("item"). */
+      #list { position: absolute; left: 90px; right: 90px; top: 700px; display: flex; flex-direction: column; gap: 40px; opacity: 0; }
+      #list .head { font-size: 66px; color: var(--orange); opacity: 0; }
+      .item { display: flex; align-items: center; gap: 30px; opacity: 0; }
+      .item b { flex: none; min-width: 120px; padding: 6px 14px; border-radius: 12px; background: var(--orange); color: var(--ink); text-align: center; font-size: 44px; }
+      .item span { font-weight: 900; font-size: 74px; line-height: 1; letter-spacing: -2px; }
+
+      /* Ending: stacked question, a giant orange glyph, a call to comment. */
+      .end .txt { top: 300px; text-align: center; }
+      .end .txt h1 { font-size: 120px; }
+      .end .glyph { position: absolute; left: 0; right: 0; top: 640px; text-align: center; font-weight: 900; font-size: 640px; line-height: 1; color: var(--orange);
+        text-shadow: 0 30px 90px rgba(247,169,59,.25); }
+      .end .s { position: absolute; left: 0; right: 0; top: 1500px; text-align: center; font-size: 58px; }
+
+      /* Optional mascot: drop mascot.png in the video's images/ folder. */
+      #mascot { position: absolute; left: 36px; bottom: 70px; width: 230px; height: 230px; opacity: 0; }
+      #mascot img { width: 100%; height: 100%; object-fit: contain; object-position: center bottom; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="{{DURATION}}" data-width="1080" data-height="1920">
+      <div id="streaks" class="fill"></div>
+      <div id="pose" data-layout-allow-overflow><div id="cam">
+        <video id="a-roll" class="clip" src="{{VIDEO}}" playsinline data-start="0" data-duration="{{VIDEO_DURATION}}" data-track-index="0" data-has-audio="true" data-fx-chain="{&quot;version&quot;: 1, &quot;nodes&quot;: [{&quot;type&quot;: &quot;highpass&quot;, &quot;id&quot;: &quot;n1&quot;, &quot;label&quot;: &quot;Remove Rumble&quot;, &quot;params&quot;: {&quot;frequency&quot;: 90, &quot;q&quot;: 0.707, &quot;poles&quot;: &quot;2&quot;}}, {&quot;type&quot;: &quot;compressor&quot;, &quot;id&quot;: &quot;n2&quot;, &quot;label&quot;: &quot;Even Out Loudness&quot;, &quot;params&quot;: {&quot;threshold&quot;: -26, &quot;ratio&quot;: 3, &quot;attack&quot;: 10, &quot;release&quot;: 200, &quot;knee&quot;: 2.83, &quot;makeup&quot;: 6, &quot;mix&quot;: 1}}, {&quot;type&quot;: &quot;gain&quot;, &quot;id&quot;: &quot;n3&quot;, &quot;label&quot;: &quot;Level Up&quot;, &quot;params&quot;: {&quot;gain&quot;: 5}}, {&quot;type&quot;: &quot;truepeak&quot;, &quot;id&quot;: &quot;n4&quot;, &quot;label&quot;: &quot;Peak Ceiling&quot;, &quot;params&quot;: {&quot;ceiling&quot;: -1.5, &quot;lookahead&quot;: 3, &quot;release&quot;: 80}}]}"></video>
+        <div class="shade"></div>
+        <div class="chip mono"><b></b><span id="tc">0:00</span></div>
+      </div></div>
+      <div id="vignette" class="fill"></div>
+
+      <div id="hook"><div class="setup serif">{{HOOK_1}}</div><h1>{{HOOK_2}}</h1><div class="sub serif">{{HOOK_SUB}}</div></div>
+      <div id="beats"></div>
+      <div id="list"></div>
+      <div id="captions"></div>
+      <div id="mascot"></div>
+
+      <audio id="music" src="assets/music.wav" data-start="0" data-duration="{{DURATION}}" data-track-index="2" data-volume="{{MUSIC_VOLUME}}"></audio>
+      <!-- SFX:BEGIN --><!-- SFX:END -->
+    </div>
+
+    <script>
+      const END = {{DURATION}}, VEND = {{VIDEO_DURATION}}, HOOK = 3.0, DUR = { title: 1.8, case: 3.2, photo: 2.8 };
+      const tl = gsap.timeline({ paused: true });
+      const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html) e.innerHTML = html; return e; };
+      const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+      // Trailing ? or ! in a headline turns orange, as in the reference ("BASA-BASI?").
+      const punch = s => esc(s).replace(/([?!.]+)$/, '<span class="acc">$1</span>');
+      // Shrink a headline wider than the safe area.
+      const fit = (n, max = 900) => n.querySelectorAll("h1, h2").forEach(h => { const w = h.scrollWidth; if (w > max) h.style.fontSize = Math.floor(parseFloat(getComputedStyle(h).fontSize) * max / w) + "px"; });
+
+      // Clip card idles with a slight tilt that flips on every jump cut, plus a slow push.
+      const REST = i => ({ x: 0, y: 0, rotation: i % 2 ? 1.6 : -1.6, scale: i % 2 ? 1.03 : 1 });
+      SEG_STARTS.forEach((s, i) => tl.fromTo("#cam", { ...REST(i) }, { scale: REST(i).scale + 0.02, duration: (SEG_STARTS[i + 1] ?? END) - s, ease: "none", immediateRender: i === 0 }, s));
+      tl.fromTo("#streaks", { x: -60 }, { x: 60, duration: END, ease: "none" }, 0);
+      // Timecode on the card counts the footage time.
+      const tc = document.getElementById("tc");
+      for (let i = 0; i <= Math.floor(VEND); i++) tl.call(() => { tc.textContent = `${Math.floor(i / 60)}:${String(i % 60).padStart(2, "0")}`; }, null, i);
+
+      // Clip card poses while a card is on screen: tucked top-right, greyed in place, or swept off to the left.
+      const POSE = {
+        aside: { x: 250, y: -330, rotation: 5, scale: 0.42 },
+        grey: { scale: 0.96 },
+        away: { x: -980, rotation: -10 },
+      };
+      const pose = (kind, t, d) => {
+        tl.to("#pose", { ...POSE[kind], duration: 0.4, ease: "power3.inOut" }, t);
+        tl.to("#cam .shade", { opacity: kind === "grey" ? 0.55 : kind === "aside" ? 0.2 : 0, duration: 0.3 }, t);
+        if (kind === "grey") tl.to("#a-roll", { filter: "contrast(1.06) saturate(0) blur(3px)", duration: 0.3 }, t);
+        if (t + d >= END) return;
+        const back = t + d - 0.35;
+        tl.to("#pose", { x: 0, y: 0, rotation: 0, scale: 1, duration: 0.35, ease: "power3.inOut" }, back);
+        tl.to("#cam .shade", { opacity: 0, duration: 0.3 }, back);
+        if (kind === "grey") tl.to("#a-roll", { filter: "contrast(1.06) saturate(.92) blur(0px)", duration: 0.3 }, back);
+      };
+
+      // Hook.
+      const hook = document.getElementById("hook");
+      hook.querySelector("h1").innerHTML = punch(hook.querySelector("h1").textContent);
+      fit(hook);
+      tl.fromTo("#hook", { opacity: 0, y: -30 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 0.05);
+      tl.fromTo("#hook h1", { scale: 1.25 }, { scale: 1, duration: 0.45, ease: "back.out(1.6)" }, 0.12);
+      tl.to("#hook", { opacity: 0, duration: 0.3 }, HOOK - 0.3);
+
+      const beats = document.getElementById("beats"), list = document.getElementById("list");
+      const pic = b => b.img ? `<div class="frame"><img src="assets/img/${esc(b.img)}" alt="" data-layout-allow-overflow></div>` : "";
+      const kb = (n, t, d) => { const im = n.querySelector(".frame img"); if (im) tl.fromTo(im, { scale: 1.12 }, { scale: 1, duration: d, ease: "none" }, t); };
+      let listStart = null;
+      BEATS.forEach((b, i) => {
+        const d = b.dur ?? DUR[b.kind];
+        if (b.kind === "title") {
+          // Keyword scene: card tucks aside; optional giant outlined numeral that fills up in orange.
+          const big = b.big ? `<div class="big"><span class="o">${esc(b.big)}</span><span class="f">${esc(b.big)}</span></div>` : "";
+          const n = el("div", "scene" + (b.big ? "" : " center") + (b.img ? " has-img" : ""), big +
+            `<div class="txt">${pic(b)}${b.kicker ? `<div class="k serif">${esc(b.kicker)}</div>` : ""}<h1>${punch(b.title)}</h1>` +
+            (b.sub ? `<div class="s serif">${esc(b.sub)}</div>` : "") + "</div>");
+          beats.append(n); fit(n); pose("aside", b.t, d); kb(n, b.t, d);
+          tl.set(n, { opacity: 1 }, b.t);
+          if (b.big) {
+            tl.fromTo(n.querySelector(".big"), { opacity: 0, y: 80 }, { opacity: 1, y: 0, duration: 0.35, ease: "power3.out" }, b.t);
+            tl.fromTo(n.querySelector(".big .f"), { clipPath: "inset(100% 0 0 0)" }, { clipPath: "inset(0% 0 0 0)", duration: Math.min(1.2, d * 0.6), ease: "power2.inOut" }, b.t + 0.3);
+          }
+          const parts = n.querySelectorAll(".txt > *");
+          parts.forEach((p, j) => tl.fromTo(p, { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.3, ease: "power3.out" }, b.t + 0.12 + j * 0.22));
+          tl.to(n, { opacity: 0, duration: 0.25 }, b.t + d - 0.25);
+        } else if (b.kind === "case") {
+          // Banner scene: headline on top, orange tape across the greyed clip card, red stamp slammed on.
+          const n = el("div", "scene banner",
+            `<div class="head">${b.kicker ? `<div class="k serif">${esc(b.kicker)}</div>` : ""}${b.sub ? `<h2>${punch(b.sub)}</h2>` : ""}</div>` +
+            `<div class="tape" data-layout-allow-overflow>${esc(b.title).split(" ").map(w => `<span>${w}</span>`).join(" ")}</div>` +
+            (b.stamp ? `<div class="stamp" data-layout-allow-overlap>${esc(b.stamp)}</div>` : "") +
+            (b.note ? `<div class="s serif">${esc(b.note)}</div>` : ""));
+          beats.append(n); fit(n); pose("grey", b.t, d);
+          tl.set(n, { opacity: 1 }, b.t);
+          tl.fromTo(n.querySelector(".head"), { opacity: 0, y: -40 }, { opacity: 1, y: 0, duration: 0.3, ease: "power3.out" }, b.t + 0.05);
+          tl.fromTo(n.querySelector(".tape"), { xPercent: -110 }, { xPercent: 0, duration: 0.35, ease: "power4.out" }, b.t + 0.25);
+          tl.fromTo(n.querySelectorAll(".tape span"), { scale: 1.4, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.2, stagger: 0.07, ease: "back.out(2)" }, b.t + 0.4);
+          const st = n.querySelector(".stamp");
+          if (st) tl.fromTo(st, { opacity: 0, scale: 2.4, rotation: -20 }, { opacity: 1, scale: 1, rotation: -8, duration: 0.22, ease: "power4.in" }, b.t + 1.12 - 0.22);
+          const s = n.querySelector(".s");
+          if (s) tl.fromTo(s, { opacity: 0 }, { opacity: 1, duration: 0.3 }, b.t + 0.6);
+          tl.to(n, { opacity: 0, duration: 0.3 }, b.t + d - 0.3);
+        } else if (b.kind === "photo") {
+          // Photo card sweeps the clip card off and takes its place.
+          const n = el("div", "photo", pic(b) + (b.label ? `<p class="mono">${esc(b.label)}</p>` : ""));
+          beats.append(n); pose("away", b.t, d); kb(n, b.t, d);
+          tl.fromTo(n, { opacity: 0, x: 900, rotation: 8 }, { opacity: 1, x: 0, rotation: 1.5, duration: 0.45, ease: "power3.out" }, b.t + 0.05);
+          if (b.t + d < END) tl.to(n, { opacity: 0, x: 900, rotation: 8, duration: 0.35, ease: "power3.in" }, b.t + d - 0.35);
+        } else if (b.kind === "item") {
+          // Steps: orange mono chip plus a bold line, popped in on the word.
+          if (listStart === null) { listStart = b.t; if (b.head) { const h = el("div", "head serif"); h.textContent = b.head; list.append(h); } }
+          const k = list.querySelectorAll(".item").length + 1;
+          const n = el("div", "item", `<b class="mono">${esc(b.label ?? String(k).padStart(2, "0"))}</b><span>${punch(b.text)}</span>`);
+          list.append(n);
+          tl.fromTo(n, { opacity: 0, x: -60 }, { opacity: 1, x: 0, duration: 0.3, ease: "back.out(1.8)" }, b.t);
+          tl.fromTo(n.querySelector("b"), { scale: 1.5 }, { scale: 1, duration: 0.25, ease: "power3.out" }, b.t);
+        } else if (b.kind === "mascot") {
+          // Optional corner mascot from the video's images/, shown from its word on.
+          const m = document.getElementById("mascot"); m.innerHTML = `<img src="assets/img/${esc(b.img)}" alt="">`;
+          tl.fromTo(m, { opacity: 0, y: 120 }, { opacity: 1, y: 0, duration: 0.4, ease: "back.out(1.8)" }, b.t);
+          tl.fromTo(m.firstChild, { y: 0 }, { y: -10, duration: 0.6, ease: "sine.inOut", yoyo: true, repeat: Math.max(0, Math.floor((END - b.t) / 0.6) - 1) }, b.t + 0.4);
+        } else if (b.kind === "end") {
+          // Ending: the question stacks in, a giant orange glyph bounces in on the hit, then a call to comment.
+          const n = el("div", "scene end", `<div class="txt">${String(b.title).split("\n").map(l => `<h1>${punch(l)}</h1>`).join("")}</div>` +
+            `<div class="glyph">${esc(b.big ?? "?")}</div>` + (b.sub ? `<div class="s serif">${esc(b.sub)}</div>` : ""));
+          beats.append(n); fit(n); pose("aside", b.t, END - b.t);
+          tl.to("#pose", { opacity: 0, duration: 0.4 }, b.t + 0.2);
+          tl.set(n, { opacity: 1 }, b.t);
+          n.querySelectorAll(".txt h1").forEach((h, j) => tl.fromTo(h, { opacity: 0, y: 50 }, { opacity: 1, y: 0, duration: 0.3, ease: "power3.out" }, b.t + j * 0.18));
+          const land = b.t + 0.54;  // the ending sting's hit
+          const g = n.querySelector(".glyph");
+          tl.fromTo(g, { opacity: 0, scale: 0.2, rotation: -20 }, { opacity: 1, scale: 1, rotation: 0, duration: 0.5, ease: "back.out(2.2)" }, land - 0.2);
+          tl.to(g, { rotation: 6, duration: 0.5, ease: "sine.inOut", yoyo: true, repeat: Math.max(0, Math.floor((END - land - 0.3) / 0.5)) }, land + 0.3);
+          const s = n.querySelector(".s");
+          if (s) tl.fromTo(s, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.4 }, land + 0.4);
+        }
+      });
+      // The steps leave at the first jump cut after the last item (max 6 s later).
+      const items = BEATS.filter(b => b.kind === "item"), lastItem = items.length ? items[items.length - 1].t : 0;
+      const listEnd = Math.min(SEG_STARTS.find(s => s > lastItem + 1) ?? END, lastItem + 6);
+      if (items.length) {
+        const a = listStart - 0.4;
+        pose("aside", a, listEnd - a);
+        tl.fromTo("#list", { opacity: 0 }, { opacity: 1, duration: 0.25 }, a);
+        const h = list.querySelector(".head");
+        if (h) tl.fromTo(h, { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.3 }, a);
+        tl.to("#list", { opacity: 0, duration: 0.3 }, listEnd - 0.3);
+      }
+
+      // Captions: hidden while a scene owns the screen (photo cards keep them).
+      const busy = BEATS.filter(b => !["item", "photo", "mascot"].includes(b.kind)).map(b => [b.t, b.kind === "end" ? END : b.t + (b.dur ?? DUR[b.kind])])
+        .concat(items.length ? [[listStart - 0.4, listEnd]] : []).concat([[0, HOOK]]);
+      const cap = document.getElementById("captions");
+      CAPTIONS.forEach(chunk => {
+        const start = chunk[0].s, end = chunk[chunk.length - 1].hold;
+        if (busy.some(([a, b]) => start < b && end > a)) return;
+        const n = el("div", "chunk"); cap.append(n);
+        tl.set(n, { opacity: 1 }, start);
+        tl.set(n, { opacity: 0 }, end);
+        chunk.forEach((w, j) => {
+          const s = el("span", "w"); s.textContent = w.w.replace(/[,.]+$/, ""); n.append(s);
+          const until = chunk[j + 1] ? chunk[j + 1].s : end;
+          const t0 = Math.max(start, w.s - 1 / 30);
+          tl.fromTo(s, { opacity: 0, y: 30, scale: 0.7 }, { opacity: 1, y: 0, scale: 1, duration: 0.16, ease: "back.out(2.4)" }, t0);
+          tl.set(s, { color: "#f7a93b" }, t0);
+          tl.set(s, { color: "#efe6d6" }, until);
+        });
+      });
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

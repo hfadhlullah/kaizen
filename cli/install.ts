@@ -48,10 +48,10 @@ const c = {
 
 // Skill folders shipped in skills/ and linked into every agent, by their last
 // path segment: media/kaizen-deck is linked as skills/kaizen-deck.
-const SKILLS = ["kaizen", "kaizen-help", "media/kaizen-deck", "media/kaizen-motion", "media/kaizen-video", "media/kaizen-book"];
+const SKILLS = ["kaizen", "kaizen-help", "media/kaizen-deck", "media/kaizen-video", "media/kaizen-book"];
 // Skill names an older release linked; uninstall drops them and install
 // clears them when they are still our links.
-const RENAMED_SKILLS = ["story-deck", "story-video"];
+const RENAMED_SKILLS = ["story-deck", "story-video", "kaizen-motion"];
 
 // Where each agent reads skills from. The skill folders follow the open Agent
 // Skills standard, so every one of these can run the workflow; agents/ and

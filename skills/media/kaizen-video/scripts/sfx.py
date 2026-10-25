@@ -1,8 +1,8 @@
-"""Build the sound-effect / room-tone library into the shared engine (~/.kaizen/story-video/engine/sfx/).
+"""Build the sound-effect / room-tone library on this machine (~/.kaizen/kaizen-video/sfx/; override KAIZEN_VIDEO_HOME).
 Usage: python3 scripts/sfx.py [--provider synth|elevenlabs] [--force]
   synth       (default without ELEVENLABS_API_KEY) — synthesized locally with ffmpeg; free, no licence limits.
   elevenlabs  (default with a key) — generated sound effects; commercial use needs a paid ElevenLabs plan.
-Only missing files are made unless --force. Names are what presets.json and beats (sfx/ambience) use.
+Only missing files are made unless --force. Names are what a film preset's style.json and beats (sfx/ambience) use.
 No sound files ship with the skill: every machine makes its own."""
 import json, os, subprocess, sys, urllib.request
 
@@ -43,7 +43,7 @@ SYNTH = {
 args = sys.argv[1:]
 force = "--force" in args
 provider = args[args.index("--provider") + 1] if "--provider" in args else ("elevenlabs" if os.environ.get("ELEVENLABS_API_KEY") else "synth")
-SFX = os.path.expanduser(os.environ.get("STORY_VIDEO_ENGINE", "~/.kaizen/story-video/engine")) + "/sfx"
+SFX = os.path.expanduser(os.environ.get("KAIZEN_VIDEO_HOME", "~/.kaizen/kaizen-video")) + "/sfx"
 os.makedirs(SFX, exist_ok=True)
 H = {"xi-api-key": os.environ.get("ELEVENLABS_API_KEY", ""), "Content-Type": "application/json"}
 print("sfx provider:", provider)

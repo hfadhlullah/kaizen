@@ -1,0 +1,1 @@
+Fonts: "Fraunces" by Undercase Type, "Inter" by Rasmus Andersson (SIL Open Font License 1.1 (Google Fonts)).

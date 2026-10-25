@@ -9,3 +9,8 @@ Fonts (assets/fonts/):
 - Montserrat.ttf: "Montserrat" by Julieta Ulanovsky et al. (Google Fonts), SIL Open Font License 1.1.
 - Fredoka.ttf: "Fredoka" by Milena Brandao and Ben Nathan (Google Fonts), SIL Open Font License 1.1.
 - SpecialElite.ttf: "Special Elite" by Astigmatic (Google Fonts), Apache License 2.0.
+
+Film fonts (assets/film-fonts/), all SIL Open Font License 1.1 (Google Fonts):
+- PlayfairDisplay.ttf, PlayfairDisplay-Italic.ttf: "Playfair Display" by Claus Eggers Sørensen.
+- Inter.ttf: "Inter" by Rasmus Andersson.
+- Fraunces.ttf: "Fraunces" by Undercase Type.

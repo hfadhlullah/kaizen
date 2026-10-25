@@ -1,0 +1,12 @@
+Edit image 1, the minimal kaizen feature panel. Change ONLY the author avatar inside the top-right "Built by" chip.
+
+Image 2 is the AUTHORITATIVE ORIGINAL photograph of the actual author. The face in image 1 has drifted from the real likeness. Replace it using a faithful photographic crop from image 2. Do NOT preserve image 1's altered portrait. Do NOT invent, beautify, redraw, stylize, smooth or reinterpret the face. Preserve the original person's exact facial proportions, expression, closed mouth, eyes behind the same round dark glasses, hair shape, skin texture, stubble and natural lighting from image 2. Do not add a big smile or different teeth. This should look like the ACTUAL supplied photo placed in a circle.
+
+Crop tightly around the face and hair from image 2, reducing the background drastically. A useful crop region in the 460×460 original is roughly x=20 to 260, y=105 to 345: full hair, glasses, cheeks and chin should fit. Keep both eyes, both sides of the glasses, and the whole face visible, with a little space above the hair. No tiny distant face with lots of skyline.
+
+Make the avatar noticeably larger and sharper: roughly 90–96 pixels in diameter at final 1600×1100 scale. Enlarge the author pill vertically and slightly leftward if needed to accommodate it, using the empty header space. Keep the chip anchored top-right with clean margins, no collision with the headline and no overlap with the grid. Put the unchanged two author text lines neatly to its right:
+"Built by hfadhlullah"
+"Husein Fadhlullah · kaizen-agent on npm"
+Ensure enough width and legible unchanged type.
+
+Everything else is an invariant: DO NOT change the headline, titles, tile geometry, UI illustrations, diagrams, colors, wording, finding tags, links, buttons, or any spacing outside the author chip. DO NOT restore the removed descriptive subtitles. All currently visible words stay exactly unchanged. Keep the dark minimal design and 1600×1100 16:11 canvas. Output complete PNG with one faithful enlarged photographic avatar, not a new generated face.

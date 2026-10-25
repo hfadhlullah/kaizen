@@ -1,0 +1,39 @@
+{
+  "palette": {
+    "bg": "#14110F",
+    "fg": "#F3EDE3",
+    "muted": "#B8AFA3",
+    "accent": "#C9A24E",
+    "accentBg": "#C9A96E"
+  },
+  "fonts": {
+    "display": "Playfair Display",
+    "body": "Inter"
+  },
+  "pace": {
+    "lead": 0.45,
+    "tail": 0.7
+  },
+  "text": "slide",
+  "transition": "wipe",
+  "layout": "window",
+  "grade": {
+    "grain": 0.04,
+    "vignette": 0.35,
+    "leak": false
+  },
+  "captions": "subtitle",
+  "music": {
+    "base": 0.28,
+    "lift": 0.4,
+    "track": "music.mp3"
+  },
+  "sfx": {
+    "cut": "whoosh",
+    "text": "tick",
+    "reveal": "hit",
+    "question": "riser"
+  },
+  "kenburns": 0.05,
+  "loudness": -16
+}

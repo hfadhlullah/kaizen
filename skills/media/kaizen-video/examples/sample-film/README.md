@@ -1,12 +1,10 @@
 # Sample film (fictional product, no media needed)
-Runs with the free voice and synthesized sound effects — no accounts required:
+Runs with the free voice and synthesized sound effects. Run from a project folder:
 ```bash
 S=<skill>/scripts
-$S/setup.sh sample-film
-cp <skill>/examples/sample-film/{film.json,lines.json} ~/.kaizen/videos/sample-film/
-$S/music.sh ~/.kaizen/videos/sample-film "Wholesome"
-python3 $S/vo.py ~/.kaizen/videos/sample-film        # needs: pip install edge-tts
-$S/still.sh ~/.kaizen/videos/sample-film 16x9 30 200
-$S/master.sh ~/.kaizen/videos/sample-film 16x9 sample-film-16x9 -16 4
+mkdir -p videos/sample-film && cp <skill>/examples/sample-film/{film.json,lines.json} videos/sample-film/
+python3 $S/vo.py videos/sample-film            # needs: pip install edge-tts
+python3 $S/make_film.py videos/sample-film --render
 ```
+Music comes from `"music": "investigations"` (bundled). Switch shape with `"format": "16x9"` or `"9x16"`.
 The statistic is a placeholder: real films only show sourced numbers.

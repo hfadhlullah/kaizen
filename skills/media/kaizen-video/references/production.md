@@ -7,8 +7,8 @@ Learned by comparing deck-to-video renders against richer productions . The exam
    "140 pesan", `keyboard`, `bell`), soft whoosh/tick on cuts, a hit on the reveal, a riser into the
    question. Music ducks under speech and only lifts at the reveal — never a dramatic swell unless
    the preset is drama.
-2. **Captions**: always. Projectors and phones are often muted. Subtitle bar for 16:9, kinetic
-   2–3-word captions for 9:16. Captions come from `words.json`, so they follow the voice exactly.
+2. **Captions**: always. Projectors and phones are often muted. Subtitle bar (cinematic, booth, fun) or kinetic
+   2–3-word captions (viral), in either shape. Captions come from `words.json`, so they follow the voice exactly.
 3. **Staged builds inside a beat**: numbers count up, list items arrive one by one with the voice,
    triptych panels arrive in turn. A whole slide appearing at once reads as a slideshow.
 4. **Directed voice**: emotion tag per line, low and slow through the problem, lift at the question,

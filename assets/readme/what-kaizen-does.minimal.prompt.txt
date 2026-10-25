@@ -1,0 +1,52 @@
+Edit the attached kaizen feature panel to make it minimal by REMOVING descriptive subtext. Keep the 1600×1100 landscape 16:11 composition, dark theme, all seven tiles, header title, author chip/photo, bold tile titles and functional UI illustrations.
+
+DELETE ENTIRELY these eight descriptive text blocks, leaving NO traces or replacement text:
+1. Header subtitle: "Your AI agent plans, builds and gets an independent review. You approve the plan."
+2. "The agent writes what it will do and what wrong looks like. Nothing is built until you say yes."
+3. "A separate agent checks it from the request, the plan and the diff only."
+4. "Serious findings are fixed and re-checked, at most twice."
+5. "Icebox to commit and push, in the browser or the terminal."
+6. "Sheets, docs and posts land in an icebox."
+7. "Project notes every stage reads first."
+8. "Every run is files, so any session can pick it up."
+
+After deleting those descriptions, rebalance the whitespace elegantly: keep titles near each tile's top edge, and move the UI specimens modestly upward / center them in the now-larger free area. Keep generous breathing room, do not stretch the illustrations or add filler. Header title and chip remain aligned. No subtitle beneath the main headline. Do not change the overall tile grid, relative sizes, or panel dimensions.
+
+PRESERVE all of the following exactly, and permit NO other words:
+What kaizen does. (kaizen blue, remaining words white)
+Built by hfadhlullah
+Husein Fadhlullah · kaizen-agent on npm
+Plan first, then you approve.
+Approve
+Change
+A reviewer that never saw the work.
+Builder
+Reviewer
+separate context
+A fix loop that ends.
+≤ 2
+high
+medium
+low
+One board.
+Ideas
+Plan
+Build
+Review
+Done
+Requests from where they live.
+Google Sheets
+Docs
+Social posts
+A notebook agents read.
+[[links]] (two literal blue wiki-link labels, without this parenthetical)
+Any agent.
+Claude Code
+Codex
+Antigravity
+Gemini CLI
+On your phone
+
+The author chip's TWO lines and real avatar stay unchanged: they are identification, not feature-description copy. Keep the small "separate context" label and all mockup interface labels; only remove the eight descriptive blocks specified above.
+Preserve current fix-loop symbol ≤ 2: the user is changing subtext only.
+Near-black #0a0a0b, dark #141416 tiles with thin #26262a borders and 16px corners. Blue #3b82f6 functional accents; green status dots and fixed high check remain. No new graphics, words, logos, captions, glow or decorative effects. Crisp legible text and clean UI. Complete finished PNG.

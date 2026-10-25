@@ -18,7 +18,7 @@ updated: 2026-10-25
 - `cli/install.test.ts`, `cli/settings.test.ts`.
 
 ## How it connects
-- Links [[Workflow]] files into `~/.claude/skills`, `agents`, `commands`. Skills are linked by folder name, so `skills/media/kaizen-deck` lands as `skills/kaizen-deck`; a renamed skill's old link (`RENAMED_SKILLS`) is dropped by uninstall and cleared by install once it dangles and its target folder has that name.
+- Links [[Workflow]] files into `~/.claude/skills`, `agents`, `commands`. Skills are linked by folder name, so `skills/media/kaizen-deck` lands as `skills/kaizen-deck`; a renamed skill's old link (`RENAMED_SKILLS`, now incl. `kaizen-motion`, folded into `kaizen-video`) is dropped by uninstall and cleared by install once it dangles and its target folder has that name.
 - `web` starts the [[Web board]]; `sources`/`gather`/`icebox` and `browser login` drive [[Sources and icebox]].
 
 ## Watch out
