@@ -1,7 +1,7 @@
 // The Video page's server side: where videos are found, what a save may touch, the
 // paths a page may ask for, and the job queue the skill's scripts run in.
 import { test, expect } from "bun:test";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, symlinkSync, readdirSync, cpSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, symlinkSync, readdirSync, cpSync, rmSync, truncateSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -468,12 +468,23 @@ echo '{"success":true}'
     const abs = join(homeDir, ".kaizen", "output", "demo", "film-promo-booth", "demo-9x16.mp4");
     expect(argv).toEqual(["send", "-t", "whatsapp:123@lid", "--json", "--", `${send.text.trim()}\nMEDIA:\`${abs}\``]);
     for (const d of [homeDir, join(homeDir, ".kaizen"), join(homeDir, "a")]) expect(existsSync(join(d, "PWNED")) || existsSync(join(d, "PWNED2"))).toBe(false);
+    truncateSync(abs, 225_000_000);
+    expect((await post(send, at)).status).toBe(200);
+    for (let i = 0; (await state()).sends.length < 2; i++) { if (i > 100) throw new Error("large file never sent"); await Bun.sleep(50); }
+    expect(readFileSync(rec, "utf8").split("\n<END>\n").filter(Boolean).slice(-6)).toEqual([
+      "send", "-t", "whatsapp:123@lid", "--json", "--", `[[as_document]] ${send.text.trim()}\nMEDIA:\`${abs}\``,
+    ]);
+    truncateSync(abs, 2_000_000_001);
+    expect((await post(send, at)).status).toBe(400);
+    expect((await (await post(send, at)).json()).error).toBe("WhatsApp documents must be 2 GB or smaller");
+    expect(readFileSync(rec, "utf8").split("\n<END>\n").filter(Boolean).length).toBe(12);
+    truncateSync(abs, 1);
     // Hermes' failure is what the page shows, never "sent".
     writeFileSync(join(homeDir, "fail"), "");
     expect((await post(send, at)).status).toBe(200);
     for (let i = 0; (await state()).send?.state !== "failed"; i++) { if (i > 100) throw new Error("never failed"); await Bun.sleep(50); }
     const v = await state();
     expect(v.send.error).toBe("WhatsApp is not connected");
-    expect(v.sends.map((s: any) => s.state)).toEqual(["failed", "sent"]);
+    expect(v.sends.map((s: any) => s.state)).toEqual(["failed", "sent", "sent"]);
   } finally { proc.kill(); await proc.exited; }
 }, 30000);

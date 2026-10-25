@@ -7,7 +7,7 @@ updated: 2026-10-25
 # Workflow
 
 ## What it does
-The product itself: a staged workflow (plan, approval, build, independent review, bounded fix loop) that an agent follows from markdown instructions. Nothing here is code; the agent reads it and does the stages. How a run goes for a user is in `docs/guide.md` ("How a run goes"); the full behaviour is in `skills/kaizen/SKILL.md`.
+The product itself: a staged workflow (plan, approval, build, independent review, bounded fix loop) that an agent follows from markdown instructions. Nothing here is code; the agent reads it and does the stages. How a run goes for a user is in `docs/guide.md` ("How a run goes"); the full behaviour is in `skills/kaizen/SKILL.md`. The guide also covers Video page sends: large MP4s go to WhatsApp as documents.
 
 ## Where it lives
 - `skills/kaizen/SKILL.md` — entry point: commands, modes, runner, state layout. Under `runner: lite`, `review.executor` (`inline` default, `subagent`, `ask`) decides whether the review still goes to a cold `kaizen-reviewer`; the `low` preset sets `inline`.

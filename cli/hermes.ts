@@ -1,7 +1,7 @@
 // WhatsApp through Hermes (`hermes send`): the chats it knows, and one file with a
 // message to one of them. Always argv, never a shell line: the message is one argument.
 import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 export type Chat = { id: string; name: string; type: string };
@@ -47,8 +47,11 @@ export function message(text: string, file: string): string | { error: string } 
   if (text.length > 1000) return { error: "the message is over 1,000 characters" };
   if (/MEDIA:/i.test(text)) return { error: "the message may not contain MEDIA:" };
   if (/[`\n\r]/.test(file)) return { error: "the file's path cannot be passed to Hermes" };
+  let size: number;
+  try { size = statSync(file).size; } catch { return { error: "the file is no longer available" }; }
+  if (size > 2_000_000_000) return { error: "WhatsApp documents must be 2 GB or smaller" };
   // The path in backticks: Hermes reads a quoted path whole, spaces and all.
-  return `${text.trim()}${text.trim() ? "\n" : ""}MEDIA:\`${file}\``;
+  return `${file.toLowerCase().endsWith(".mp4") && size > 64 * 1024 * 1024 ? "[[as_document]] " : ""}${text.trim()}${text.trim() ? "\n" : ""}MEDIA:\`${file}\``;
 }
 
 // Sent only when Hermes exits 0 with {success: true}; anything else is its own error.

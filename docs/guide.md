@@ -238,7 +238,9 @@ in beat 4") the same way. **Send** on a finished file sends it on: to a phone or
 running the LocalSend app on the same Wi-Fi (pick it from the list, accept on the device), or
 to a WhatsApp chat through [Hermes](https://github.com/NousResearch/hermes-agent) with a
 message (`hermes send` must already be set up for WhatsApp). The page says whether it
-arrived or what went wrong, and lists the video's recent sends.
+arrived or what went wrong, and lists the video's recent sends. MP4s over 64 MiB go as
+WhatsApp documents with their original quality; smaller MP4s appear as video messages.
+WhatsApp documents over 2 GB are refused before upload.
 
 **Dictate instead of type.** Every text field on the board — a new idea, its notes, an
 edit, a reject reason, a note on a run — has a mic. Press it, talk, press it again; the
