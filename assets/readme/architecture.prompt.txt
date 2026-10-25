@@ -1,0 +1,48 @@
+Create the new kaizen architecture/process explainer, 1600×700, 16:7.
+Match the approved hero reference's restrained Swiss/editorial product design: flat nearly black #0b0b0c background, warm-white type, neutral gray rules, small precise blue #579aff accents. Clean Inter-like sans-serif, sharp vector-like edges, straight-on utilitarian work specimens, strong typographic hierarchy, generous spacing. No gradients, glow, bloom, grain, plastic shading, 3D, perspective, shadows, decorative connectors, oversized clip-art icons, pill clusters, fantasy landscapes, stock photos, robots, brains or generic AI ornament. Blue is a sparse accent, not a wash. All text precisely typeset. Reference is the visual system, not a layout to copy exactly.
+The message is ONE IDEA becomes many kinds of FINISHED WORK through a clear plan, creation and a fresh review. Make the process intelligible to people making apps, documents, videos or games. Avoid a developer-only folder diagram.
+
+Layout: left-aligned title at upper left, then an elegantly spaced LEFT-TO-RIGHT process across the middle with five clear areas: Your idea → Plan → Build → Review → Finished work. Separate columns with quiet whitespace and fine gray rules, not big glossy rounded panels. Use small purposeful straight blue arrows ONLY where they explain process. Keep all lines clear of type.
+
+Title, exact:
+"From idea to finished work."
+
+Area 1 "Your idea": one tiny flat dark request-sheet fragment with abstract gray strokes. No writing besides label.
+
+Area 2 "Plan": small secondary copy "Define the result." A tiny crisp pale planning sheet with deliberate indented task strokes, no readable text.
+
+Area 3 "Build": small secondary copy "Create the work." A tiny flat monochrome work-in-progress surface with one small blue selection; domain-neutral, NO code, editor, wrench, toy blocks or lightbulbs.
+
+Area 4 "Review": small secondary copy "A separate agent checks it." A tiny flat document excerpt with one blue correction underline; no eyes, face, magnifier or clip art. Make this stage clearly its own context through spacing and a thin boundary. Below it, small label "separate context".
+
+Area 5 "Finished work": a clean vertical list of exactly four outcome labels, each next to a tiny utilitarian flat specimen like the reference hero:
+"Apps" — tiny monochrome table/interface, one blue selection.
+"Documents" — tiny white report fragment with dark paragraph strokes.
+"Videos" — tiny dark three-track timeline with one blue clip.
+"Games" — tiny monochrome pixel platforms with a tiny blue goal flag.
+No shiny containing frames; precise editorial rows.
+
+Flow: Your idea points to Plan; Plan points to Build; Build points to Review; Review points to Finished work. A single small thin blue return loop BELOW the main row goes from Review back INTO Build, with exact label "Refine". Arrowhead must point toward Build, not Review. All other arrows point right. No crossings through any text or artwork.
+
+Along the bottom, a quiet horizontal rule and this single-line caption:
+"Your AI agent: Claude Code · Codex · Antigravity · Gemini CLI"
+
+ONLY text permitted:
+From idea to finished work.
+Your idea
+Plan
+Define the result.
+Build
+Create the work.
+Review
+A separate agent checks it.
+separate context
+Finished work
+Apps
+Documents
+Videos
+Games
+Refine
+Your AI agent: Claude Code · Codex · Antigravity · Gemini CLI
+
+Keep text verbatim, no extra labels or numerals, no logos or watermark. This is a mature flat editorial process diagram, not an illuminated flowchart. Complete PNG.

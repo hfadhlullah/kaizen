@@ -1,78 +1,118 @@
-<div align="center">
-<img src="https://raw.githubusercontent.com/hfadhlullah/kaizen/main/assets/banner.png" alt="kaizen" width="760">
-</div>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/hfadhlullah/kaizen/main/assets/readme/banner.png" alt="kaizen: build what you have in mind. Apps, documents, videos and games, with your AI agent" width="100%">
+</p>
 
-<p align="center"><b>One tool to build and maintain your product with AI agents.</b><br>Requests in, a plan you approve, the work, an independent review, done.</p>
+<p align="center">
+  <b>Build what you have in mind: an app, a document, a video, a game.</b><br>
+  Your AI agent plans it, you approve, it builds, and a reviewer that never saw the work checks it.
+</p>
 
-<p align="center"><img src="assets/hero.gif" alt="Animated walkthrough of the real kaizen board with sample data. 1: a request gathered from a support sheet waits in the Icebox and is promoted. 2: it is an idea on the board, and Run opens Claude Code. 3: the agent works in the card's own terminal and writes a plan. 4: the plan panel shows what done and wrong mean, and it is approved. 5: it builds, then a reviewer that never saw the work reports a high finding, a double charge. 6: only that finding is ticked and fixed. 7: the reviewer re-checks it. 8: the run lands in Done, with the low finding left in the backlog." width="760"></p>
+<p align="center">
+  <a href="https://www.npmjs.com/package/kaizen-agent"><img alt="npm" src="https://img.shields.io/npm/v/kaizen-agent?style=for-the-badge&color=000&labelColor=1c1c1e&logo=npm"></a>
+  <a href="https://github.com/hfadhlullah/kaizen/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/hfadhlullah/kaizen?style=for-the-badge&logo=github&color=000&labelColor=1c1c1e"></a>
+  <img alt="Bun 1.1+" src="https://img.shields.io/badge/Bun-1.1%2B-000?style=for-the-badge&logo=bun&logoColor=white">
+  <img alt="macOS · Linux · Windows beta" src="https://img.shields.io/badge/macOS_·_Linux_·_Windows_beta-000?style=for-the-badge">
+  <a href="LICENSE"><img alt="License MIT" src="https://img.shields.io/badge/license-MIT-000?style=for-the-badge"></a>
+</p>
+
+> **kaizen runs inside an AI agent; it is not one.** The agent does the work; kaizen gives it a plan, an approval stop and an independent review. It works with Claude Code, Codex, Antigravity and Gemini CLI, and the installer offers to set one up if you have none. A run costs several times a single prompt, so it is meant for work where being wrong is expensive. Windows support is in beta.
+
+<br>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/hfadhlullah/kaizen/main/assets/readme/what-kaizen-does.png" alt="What kaizen does: plan first, a reviewer that starts cold, a fix loop that ends, one board, requests from where they live, a notebook agents read, on your phone, any agent. Built by Husein Fadhlullah" width="100%">
+</p>
+
+<details>
+<summary><b>What kaizen does</b>, as text</summary>
+
+| | |
+|---|---|
+| **Any kind of work** | Each run works out what it is making (code, writing, communication, operations, research) and plans, builds and reviews it in those terms. Videos and decks go through the bundled `story-video` and `story-deck` skills. |
+| **Plan first** | The agent writes what it will do, and what *wrong* would look like, then waits for your approve or change. |
+| **A reviewer that starts cold** | A second agent reviews from the request, the plan and the diff only. It never saw the work, so it has nothing to defend. |
+| **A fix loop that ends** | Serious findings are fixed and re-checked, at most twice. The rest come to you; what is left goes to a backlog. |
+| **One board** | `kaizen web`: icebox, ideas, plan, build, review, fix, commit and push, in the browser or the terminal. |
+| **Requests from where they live** | Sheets, docs and social posts are gathered into an icebox, grouped, and promoted to ideas when you pick them. |
+| **A notebook agents read first** | An Obsidian-compatible vault under `.kaizen/notes/` that every stage reads before it plans or builds. |
+| **On your phone** | The board installs as a PWA over Tailscale. `kaizen setup` prints the QR code. |
+| **Any agent, any session** | Every stage is a file in `.kaizen/runs/<id>/`, so another session or another tool can pick a run up. |
+
+</details>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/hfadhlullah/kaizen/main/assets/hero.gif" alt="Animated walkthrough of the kaizen board, from a gathered request to a reviewed, fixed run" width="100%">
+</p>
 
 ## The problem
 
 You ask an AI coding agent to retry a payment webhook when the bank times out. It starts editing at once, then says *"Done, tests pass."* The tests do pass. They were written by the same agent, from the same assumption: that a timeout means the charge failed. Sometimes the bank said yes and the reply got lost. Now a retry charges the customer twice, and nothing in the agent's report would make you look.
 
-None of this is a lack of intelligence. It is a missing workflow:
-
-| What goes wrong | What kaizen does |
-| :--- | :--- |
-| The agent decides what "done" means on its own, and you find out from the diff | It writes a plan first, including what *wrong* would look like, and waits for your approve or change |
-| The author grades its own work, so its blind spot is in the code *and* in the check | A second agent that never saw the work reviews it, from the request, the plan and the diff only |
-| Findings get fixed in an endless loop, or silently dropped | Serious findings are fixed and re-checked, at most twice; the rest come to you, and what is left goes to a backlog |
-| Requests live in sheets, docs and social posts; the plan in one chat, the review in another, the commit somewhere else | One board, from an icebox that gathers those requests to an idea, a plan, the build, the review, the fix loop and the commit, every step on file |
-
-Many assistants now ask for approval before they act, and some run a checker on their own draft. The difference here is *who* checks: a reviewer that shares the author's context shares its blind spots. Kaizen's reviewer starts cold, on purpose.
-
-Every stage is a file in `.kaizen/runs/<id>/`, so a run can be resumed later, by another session or another tool (Claude Code, Codex, Antigravity), and read back when someone asks why the code is the way it is.
-
-## Who it is for
-
-**Good fit if you:**
-
-- Build and maintain a product, and want one place for it: requests gathered from where they live, then plan, build, review and commit, without switching tools.
-- Already use an AI coding agent, and have caught it confidently wrong more than once.
-- Change things where a mistake is expensive: money, data, migrations, anything a customer sees.
-- Want to see and steer the plan before code is written, not reverse-engineer it from a diff.
-
-**Not for you if:**
-
-- Your changes are typos and one-liners. A run costs several times one prompt; kaizen takes a short path for small work, but it is not free.
-- You want the agent to ship without you. Kaizen is built to stop and ask.
-- You do not use an AI coding agent. Kaizen runs inside one; it is not one.
+None of this is a lack of intelligence. It is a missing workflow. Many assistants now ask before they act, and some check their own draft. The difference is *who* checks: a reviewer that shares the author's context shares its blind spots. Kaizen's reviewer starts cold, on purpose.
 
 ## Install
 
-### macOS and Linux
+1. **Install** on macOS or Linux:
+   ```bash
+   curl -fsSL https://bun.sh/install | bash && ~/.bun/bin/bunx kaizen-agent
+   ```
+   On Windows (beta), in PowerShell:
+   ```powershell
+   irm bun.sh/install.ps1 | iex; & "$env:USERPROFILE\.bun\bin\bunx.exe" kaizen-agent
+   ```
+   Already have Bun? `bunx kaizen-agent`.
+2. **Run `kaizen setup`.** It walks you through your project, settings, the board and the phone app.
+3. **Open the board** with `kaizen web`, or type `/kaizen <request>` in your agent.
 
-```bash
-curl -fsSL https://bun.sh/install | bash && ~/.bun/bin/bunx kaizen-agent
+<p align="center">
+  <img src="https://raw.githubusercontent.com/hfadhlullah/kaizen/main/assets/board-v2.png" alt="The kaizen board: icebox, ideas, plan, build, review and done columns" width="100%">
+</p>
+
+## Requirements
+
+| | |
+|---|---|
+| Runtime | [Bun](https://bun.sh) 1.1 or newer. The installer above gets it. |
+| Agent | Claude Code, Codex, Antigravity or Gemini CLI. Claude Code gets the full flow with separate subagents; the others run every stage in one session. |
+| Git | Needed for the board's commit and push. Optional otherwise. |
+| OS | macOS, Linux. Windows in beta. |
+| Phone app | [Tailscale](https://tailscale.com/download) on the PC and the phone, same account. |
+
+## How it works
+
+```mermaid
+flowchart LR
+  R[Request] --> P[Plan]
+  P --> A{You approve}
+  A -- change --> P
+  A -- yes --> B[Build]
+  B --> V[Review<br/>cold agent]
+  V -- high findings --> F[Fix] --> V
+  V -- clean --> D[Done]
+  V -. the rest .-> L[Backlog]
 ```
 
-Already have Bun? Run `bunx kaizen-agent`.
+<p align="center">
+  <img src="https://raw.githubusercontent.com/hfadhlullah/kaizen/main/assets/readme/architecture.png" alt="From idea to finished work: your idea, plan, build, a review in a separate context, a refine loop, and the finished app, document, video or game" width="100%">
+</p>
 
-kaizen needs an AI coding agent such as [Claude Code](https://docs.claude.com/en/docs/claude-code). If none is installed, the installer lets you pick one, runs its official installer after you say yes, and then carries on. Git is needed for the board's commit and push.
+Each stage is its own agent with a clean context: planner, builder, reviewer. They never share a context window. The main thread owns the run's state in `.kaizen/runs/<id>/state.json`; the plan, the build notes, the review and every fix round are files beside it. Small changes take a short path in one session, so a typo does not cost a payroll change.
 
-### Windows
+## What kaizen changes on your machine
 
-Windows support is still in beta. In PowerShell:
+- Installs itself to `~/kaizen`, and keeps settings and the project list in `~/.kaizen/`.
+- Links its skills, agents and `/kaizen-*` commands into each agent it finds: `~/.claude`, `~/.codex`, `~/.agents`, `~/.gemini`. Re-running is safe.
+- Per project, `kaizen init` writes `.kaizen/` and, in a git repo, a `.gitignore` entry that keeps run state out of commits but keeps the `spec*.md` files and `config.yml`.
+- `kaizen web` serves the board on `127.0.0.1:7420`. After `kaizen setup` it is also reachable from your own Tailscale network, nothing wider; never use `tailscale funnel`.
+- `kaizen uninstall` removes the app and its links, and asks whether to keep your runs and settings (`--purge` deletes them too).
 
-```powershell
-irm bun.sh/install.ps1 | iex; & "$env:USERPROFILE\.bun\bin\bunx.exe" kaizen-agent
-```
+## Who it is for
 
-Already have Bun? Run `bunx kaizen-agent`. As on macOS and Linux, the installer offers to install an AI coding agent when none is found; Git is only needed for the board's commit and push.
+**Good fit if you** build and maintain a product with an AI coding agent, have caught it confidently wrong more than once, and change things where a mistake is expensive: money, data, migrations, anything a customer sees.
 
-## Use the board
+**Not for you if** your changes are typos and one-liners, or you want the agent to ship without you. Kaizen is built to stop and ask.
 
-```bash
-kaizen web
-```
-
-<img src="https://raw.githubusercontent.com/hfadhlullah/kaizen/main/assets/board-v2.png" alt="kaizen board" width="760">
-
-The board opens in your browser. The side menu holds the board, notes, the icebox of gathered requests and settings, with a light and dark switch. From there you can start a run, approve or revise its plan, pick which review findings to fix, then commit and push.
-
-Right after installing, `kaizen setup` walks you through your project, settings, this board and the phone app (it prints a QR code to scan).
-
-### Phone app
+## Phone app
 
 The board is a PWA: installed from the browser, it opens full screen with the kaizen icon. It needs [Tailscale](https://tailscale.com/download) on this PC and on your phone, both signed in to the same account.
 
@@ -82,32 +122,18 @@ kaizen setup        # guided: starts the board, runs tailscale serve, prints a Q
 
 Scan the QR code with your phone camera, then **Add to Home screen** (iOS: Share menu; Android: browser menu, *Install app*).
 
-By hand: run `kaizen web`, then `tailscale serve --bg 127.0.0.1:7420`, add `<pc>.<tailnet>.ts.net` to `~/.kaizen/web-hosts`, and open `https://<pc>.<tailnet>.ts.net` on the phone. Details in [docs/guide.md](docs/guide.md#from-your-phone-tailscale). Never use `tailscale funnel` — it publishes the board to the internet.
+By hand: run `kaizen web`, then `tailscale serve --bg 127.0.0.1:7420`, add `<pc>.<tailnet>.ts.net` to `~/.kaizen/web-hosts`, and open `https://<pc>.<tailnet>.ts.net` on the phone. Details in [docs/guide.md](docs/guide.md#in-a-browser). Never use `tailscale funnel` — it publishes the board to the internet.
 
 To add a launcher (Spotlight on macOS, the app menu on Linux, a Desktop shortcut on Windows), run `kaizen web --shortcut` once.
 
 ## Development
 
-TypeScript on [Bun](https://bun.sh) 1.1 or newer, zero runtime dependencies. No build step for the CLI — `cli/*.ts` runs as-is — and the web front end ships prebuilt.
+TypeScript on Bun, zero runtime dependencies. No build step for the CLI.
 
 ```bash
 git clone https://github.com/hfadhlullah/kaizen.git && cd kaizen
-bun install               # dev dependencies only
-bun test                  # the suite; what CI runs
-```
-
-To work on kaizen, install from your checkout so every link points at it:
-
-```bash
-bun run cli/install.ts
-```
-
-Skills, agents and commands are symlinked into every AI agent it finds; re-running is safe. From a checkout the workflow updates on any run, and `kaizen upgrade` leaves your local edits alone — update them with git.
-
-After editing `web/notebook.ts` or `web/notes-lib.ts`, rebuild the committed bundle:
-
-```bash
-bun run build:web         # rewrites web/notebook.js; a test fails if it goes stale
+bun install && bun test
+bun run cli/install.ts    # install from this checkout
 ```
 
 ### Layout
@@ -124,20 +150,21 @@ bun run build:web         # rewrites web/notebook.js; a test fails if it goes st
 | `design.md` | Design notes for the repo. |
 | `.kaizen/` | This repo's own runs — kaizen is built with kaizen. Gitignored: a fresh clone gets it on its first run. |
 
-### Kaizen Bot
+Kaizen Bot: [bot/README.md](bot/README.md). Other docs: [docs/README.md](docs/README.md). Pull requests welcome; CI runs `bun test` on Ubuntu and Windows and it must pass. For non-trivial work, dogfood: `/kaizen <change>` in this repo plans, builds and reviews it — [`skills/kaizen/spec.md`](skills/kaizen/spec.md) is the contract the stages follow.
 
-```bash
-cd bot
-cp .env.example .env      # PROVIDER, MODEL, that provider's key
-bun start                 # http://127.0.0.1:7430 — run `kaizen web` first
-bun test
-bun run build             # the desktop app, into dist/
-```
+## What you can make
 
-### Contributing
-
-Pull requests; CI runs `bun test` on Ubuntu and Windows and it must pass. For non-trivial work, dogfood: `/kaizen <change>` in this repo plans, builds and reviews it — [`skills/kaizen/spec.md`](skills/kaizen/spec.md) is the contract the stages follow.
+<p align="center">
+  <img src="https://raw.githubusercontent.com/hfadhlullah/kaizen/main/assets/readme/bento.png" alt="What you can make with kaizen: an app, a document, a video, a game. Plan first, a fresh review, keep refining, keep it together" width="100%">
+</p>
 
 ## License
 
-MIT
+kaizen is licensed under the [MIT License](LICENSE).
+
+<p>
+  <a href="https://github.com/hfadhlullah"><img src="https://github.com/hfadhlullah.png?size=64" width="32" height="32" alt="" align="left"></a>
+  &nbsp;Built by <a href="https://github.com/hfadhlullah"><b>Husein Fadhlullah</b></a>, with kaizen.
+</p>
+
+<sub>kaizen is not affiliated with Anthropic, OpenAI or Google. Claude Code, Codex, Antigravity and Gemini CLI are trademarks of their owners.</sub>

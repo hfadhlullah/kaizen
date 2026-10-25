@@ -1,0 +1,44 @@
+Create a NEW alternative kaizen hero banner, 1600×560, 20:7 ratio.
+The user rejected the previous approach as generic AI slop. This must look like an experienced editorial/product designer made it: restrained, specific, deliberate, extremely flat, almost monochrome. No AI fantasy imagery.
+
+Image 1 is ONLY the kaizen brand reference: lowercase white wordmark and little outline tanuki. Do NOT reuse its layout, blue glow, connectors, dashboard illustration, video landscape, game island, or card-grid composition.
+
+ART DIRECTION:
+Swiss editorial typography meets a beautifully typeset software README. Background nearly black #0b0b0c, warm-white #efefed lettering, understated gray rules. Use blue #579aff on only tiny functional details. Crisp modern sans-serif, consistent weights, strong alignment, ample whitespace, perfectly sharp edges. No grain, no gradients, no ambient lighting, no bloom, no rounded blue frames. NO 3D, NO floating glossy objects, NO connecting wires/nodes, NO spark icons, NO scenic illustrations, NO decorative blobs, NO perspective, NO drop shadows. Quiet and intentionally designed, not a shiny tech advertisement.
+
+LAYOUT:
+A generous 56px outer margin. Two unequal areas with a subtle vertical gray separator at about 52% width.
+
+LEFT:
+At the top left, small confident white lowercase "kaizen" wordmark with a VERY SMALL faithful blue outline tanuki beside it. The tanuki must remain a secondary brand mark, not an illustration.
+Below, large bold white headline in a clean editorial arrangement:
+"Build what you"
+"have in mind."
+Make this the dominant typography, with generous leading and no decorative colored punctuation.
+Below in understated smaller gray text:
+"Turn ideas into finished work with AI agents."
+Near the bottom left, a small plain-text process line:
+"Plan. Build. Review. Done."
+No pills, buttons, badges, arrows or decorative icons in the left area.
+
+RIGHT:
+Four clean horizontal editorial specimen rows stacked vertically, each separated only by a fine dark-gray horizontal rule. No containing cards. Each row has a clear small white category label on its left and a tiny utilitarian, extremely flat work-preview fragment on its right. These should look like real interface excerpts built from exact geometry, NOT illustrations or 3D icons. Approximate height 100px per row, ample white space.
+Row "Apps": a tiny monochrome browser/app fragment, crisp off-white square-cornered panel with a very small dark sidebar and a tidy two-column table, one small blue selection. No graphs, fake rounded dashboard bubbles or chart gradients.
+Row "Documents": a plain pale off-white document fragment, crisp dark header rule and a neatly aligned paragraph grid of dark short strokes. No glossy page curls, floating layers or perspective.
+Row "Videos": a minimal dark editing-timeline fragment, just three thin rectangular tracks, gray clip blocks, fine white playhead, one solid blue clip. NO preview landscape, stock-photo thumbnail, 3D play icon, timecodes, letters or numbers.
+Row "Games": a tiny minimal pixel-art platformer fragment on a nearly black rectangle. Monochrome pixel platforms and one tiny simple WHITE pixel player silhouette, with one small blue goal flag. No faces, cute mascots, floating islands, colorful scenery, collectibles or fantasy concept art. Understated and intentionally low-resolution pixel geometry, crisp hard pixel edges.
+
+The work specimens have NO readable text of their own. Each is small and understated; the editorial rows and clear category names carry the breadth of the product. All previews viewed straight-on and flat.
+
+ONLY permitted readable text, exact case:
+kaizen
+Build what you
+have in mind.
+Turn ideas into finished work with AI agents.
+Plan. Build. Review. Done.
+Apps
+Documents
+Videos
+Games
+
+No other text or numerals. No extra logos, watermarks or slogans. Do not use gold or yellow. The overall result must be calm, mature and useful, with none of the generic glossy AI aesthetic. Complete finished PNG.

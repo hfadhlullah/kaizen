@@ -1,0 +1,33 @@
+Create the new kaizen GitHub social card, 1280×640, aspect ratio 2:1.
+Match the approved hero reference's restrained Swiss/editorial product design: flat nearly black #0b0b0c background, warm-white type, neutral gray rules, small precise blue #579aff accents. Clean Inter-like sans-serif, sharp vector-like edges, straight-on utilitarian work specimens, strong typographic hierarchy, generous spacing. No gradients, glow, bloom, grain, plastic shading, 3D, perspective, shadows, decorative connectors, oversized clip-art icons, pill clusters, fantasy landscapes, stock photos, robots, brains or generic AI ornament. Blue is a sparse accent, not a wash. All text precisely typeset. Reference is the visual system, not a layout to copy exactly.
+Make a companion to the approved hero, optimized for small preview sizes.
+
+Layout: generous 48px outer margins, two editorial columns, separated by one fine gray vertical rule. Left column ~55%, right ~45%.
+LEFT: Small white lowercase "kaizen" wordmark at top left, with the SAME VERY SMALL faithful blue outline tanuki brand mark from the reference. It is a small identity detail, not a hero illustration.
+Below, dominant bold white headline in two lines:
+"Build what you"
+"have in mind."
+Below it in smaller muted white type:
+"With your AI agent."
+Near bottom left, small gray text:
+"Plan. Build. Review. Done."
+
+RIGHT: four simple editorial rows separated by fine gray horizontal rules, matching the approved hero. Labels "Apps", "Documents", "Videos", "Games", each with a tiny crisp flat work specimen aligned at the right:
+Apps: plain monochrome table/app with one blue selected row.
+Documents: flat pale report excerpt, dark title rule and gray paragraph strokes.
+Videos: dark timeline, gray rectangular clips, one blue clip, white playhead.
+Games: monochrome pixel platformer, tiny white player silhouette, small blue goal flag.
+Do not use cards around these rows, glowing outlines or polished 3D icons. Specimens are small utility UI excerpts, not scenic art. No readable microtext or numbers. Keep the headline dominant and the deliverables immediately recognizable.
+
+ONLY text allowed:
+kaizen
+Build what you
+have in mind.
+With your AI agent.
+Plan. Build. Review. Done.
+Apps
+Documents
+Videos
+Games
+
+No other writing, numbers, logos, watermark or footer. Preserve the approved tanuki identity. No gold. Complete finished PNG, crisp and restrained.

@@ -1,0 +1,52 @@
+Create a redesigned kaizen FEATURE SHOWCASE, 1600×900, 16:9, inspired by image 2's Apple feature-launch mosaic.
+REFERENCE ROLES: Image 1 is the old kaizen bento for product meaning only. Image 2 is the NEW dominant reference for layout, rounded tiles, visual hierarchy, scale, cropping, whitespace, and polished feature storytelling. Do not copy Apple's words, logos, products, iOS interface, apps or characters. This is original kaizen work.
+
+The user wants an Apple-style feature showcase, not eight identical bordered wireframe boxes. Use a LIGHT neutral-gray canvas (#ededed), mostly white tiles, soft neutral light-blue surfaces, black/charcoal typography and precise kaizen blue #579aff accents. One wide tile may have a deep navy surface for contrast. Large 28px softly rounded corners, consistent narrow gutters, beautifully aligned spacing. Quiet confident clean sans-serif typography. Images dominate; captions are short. Show carefully composed PRODUCT PREVIEWS, not giant glossy clip-art icons, vector placeholders in empty boxes, glowing brains, or generic AI fantasy art. Sharp and refined, no blur, no bloom, no colorful abstract blobs, no unnecessary decoration. Blue is the brand accent, no gold.
+
+Create exactly EIGHT tiles in an asymmetrical mosaic. Suggested spatial plan, on a four-column, three-row grid:
+- Build an app: tall tile, column 1 across rows 1–2.
+- Write a document: column 2, row 1.
+- Edit a video: wide tile, columns 3–4, row 1.
+- Create a game: wide tile, columns 2–3, row 2.
+- Plan first: column 4, row 2.
+- A fresh review: column 1, row 3.
+- Keep refining: column 2, row 3.
+- Keep it together: wide tile, columns 3–4, row 3.
+Maintain ample inner space and no overlapping tiles. Approx 24px outer margins, 16px gutters, three rows around 272px high. All eight clearly present, fully visible.
+
+Each tile uses the following EXACT title and short supporting line. Compose titles naturally above or below big cropped visuals as in the Apple reference; vary placement deliberately without clutter. Support text small but sharp and readable.
+
+1. "Build an app"
+"From idea to working interface."
+Large beautiful straight-on app prototype preview, a crisp desktop window and a small narrow mobile companion interface on a pale-blue surface. Realistically composed flat UI using a few clear controls, blue selections and purposeful layout, no random dashboards or glowy shapes. The windows may crop elegantly into the tile edge.
+
+2. "Write a document"
+"Reports. Proposals. Guides."
+Large white document/report page crop, carefully typeset-looking dark header strokes and organized columns/table, blue restrained highlight. No page curls or flying papers.
+
+3. "Edit a video"
+"Shape a finished story."
+A generous full-width professional video timeline preview, with multiple aligned tracks, gray and blue clip strips, fine waveform traces and a white playhead. Show a small preview frame using a simple abstract blue coastline image if helpful. No fantasy landscapes, timecode or text.
+
+4. "Create a game"
+"Make something playable."
+A WIDE charming, crisp monochrome-and-blue pixel platformer screenshot filling most of the tile. Tiny white player silhouette, clear pixel platforms, blue checkpoint flag. No glossy 3D mascot, neon islands or floating 3D props.
+
+5. "Plan first"
+"Know what you're making."
+A very clean structured plan fragment: sharp checkbox rows, indented lines, one blue marker. Plenty of white space. A product close-up rather than a clip-art checklist icon.
+
+6. "A fresh review"
+"A separate agent checks the work."
+A cropped before/after document comparison, clean columns and one blue correction highlight. No eyes, face, magnifying glass or robot.
+
+7. "Keep refining"
+"Iterate whenever you want."
+A simple elegant iteration sequence of three small work previews linked with a subtle continuous return line, in flat blue/gray. No numerical cap, no limit wording, no infinity symbol, no numerals, no giant circular 3D arrow.
+
+8. "Keep it together"
+"Ideas, plans, work, and notes."
+A wide clean board/notebook interface close-up, three or four aligned task columns, a small note panel, one blue selection. This is a precise realistic feature crop, not a decorative icon.
+
+ONLY readable text allowed is the eight titles and eight short supporting lines listed above, exactly. UI previews use crisp visual strokes instead of readable microtext. No other text, numbers, logos, Apple branding, overall heading, watermark, claim of iteration limits, or footer.
+The result should feel like a premium feature announcement mosaic: varied tile sizes, large product close-ups, concise captions, controlled light surfaces and blue accents. Complete PNG at 1600×900.

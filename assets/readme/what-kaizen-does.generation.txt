@@ -1,0 +1,137 @@
+Generation prompt
+
+Create a finished "What kaizen does." feature panel for a GitHub README, 1600×1100, landscape, aspect ratio 16:11. Render all text as crisp precise typesetting and keep the complete composition inside the canvas.
+
+REFERENCE IMAGES:
+Image 1: kaizen brand reference ONLY, lowercase white wordmark, small outline tanuki, blue accent. Do not reuse its four-outcome layout or copy.
+Image 2: DOMINANT LAYOUT reference. Match its dark feature-grid hierarchy, generous padding, header, one-line subtitle, small author chip at upper right, rounded feature cards, and polished miniature UI specimens. Copy its spacing and quality, never its words, game images, logos or content.
+Image 3: actual author's GitHub avatar. Use a small ROUND crop of this photograph inside the author chip. Preserve the person's likeness. Do not generate a substitute portrait. This supplied portrait is the only photo in the panel.
+
+STYLE:
+Near-black canvas #0a0a0b. Card surfaces #141416, thin 1px #26262a borders, 16px corners. Bold white Inter-like sans-serif headings, muted grey #9a9aa2 supporting copy. Sparing functional blue #3b82f6 accents. Green #22c55e for the fixed high finding check and the three connected-source status dots explicitly requested below. Flat, crisp, restrained. No glow, gradients on all cards, 3D icons, plastic objects, stock photos, robots, brains or ornament. At most ONE tile may have an extremely soft blue-gray background tone; prefer flat surfaces. UI specimens look like real useful interface excerpts, not glossy clip art or generic drawings.
+
+LAYOUT:
+Approx 48px outer margin. Top header area about 180px. A 2-row grid below with about 18px gutters. Top row = one WIDE tile spanning two underlying columns, then two NARROW tiles. Bottom row = four equal-width tiles. All edges aligned to the underlying four-column grid. About 400px height per row. All seven tiles fully visible with generous 26px inner padding. Keep the visual specimens small and below the body text, not huge decorative objects. Narrow tile headings may wrap naturally to two lines. Body sentences should be set small enough to fit about TWO clear lines without dropping any words.
+
+HEADER at top left:
+Large exact text "What kaizen does."
+"What " and " does." in white; only "kaizen" in blue #3b82f6.
+Directly underneath on ONE unbroken line, exact:
+"Your AI agent plans, builds and gets an independent review. You approve the plan."
+Use legible small grey type, fitted within the header width.
+
+TOP-RIGHT AUTHOR CHIP:
+One rounded dark pill with a small round crop of image 3, and exactly two lines:
+Bold white: "Built by hfadhlullah"
+Smaller grey: "Husein Fadhlullah · kaizen-agent on npm"
+No other text or social handle. Keep the author chip neatly separated from the headline and subtitle, not overlapping them.
+
+TOP ROW, LEFT, WIDE TILE:
+Title: "Plan first, then you approve."
+Body: "The agent writes what it will do and what wrong looks like. Nothing is built until you say yes."
+UI: a small flat dark plan card with FOUR neat checkbox rows and abstract grey task strokes. Below it exactly two normal UI buttons:
+"Approve" — blue filled.
+"Change" — neutral outline.
+No other words on the plan mockup.
+
+TOP ROW, MIDDLE, NARROW TILE:
+Title: "A reviewer that never saw the work."
+Body: "A separate agent checks it from the request, the plan and the diff only."
+UI: two distinct dark rectangular boxes labelled exactly "Builder" and "Reviewer", separated by a generous empty gap. In that GAP a small label exactly "separate context". No connecting context-sharing arrow between these two boxes. Stack them vertically if that makes the separation label more readable.
+
+TOP ROW, RIGHT, NARROW TILE:
+Title: "A fix loop that ends."
+Body: "Serious findings are fixed and re-checked, at most twice."
+UI: large exact "≤ 2" with a SMALL clean loop arrow nearby. Beneath it, a compact row of three findings tags:
+"high" with a green CHECKMARK to show it was fixed; "medium"; "low".
+Do NOT add the word fixed, numbers, extra severity tags, pass, or other text. Use the true ≤ symbol. This request intentionally includes the cap; preserve it exactly.
+
+BOTTOM ROW, TILE 1:
+Title: "One board."
+Body: "Icebox to commit and push, in the browser or the terminal."
+UI: tiny precise kanban board with FIVE columns labelled exactly:
+"Ideas", "Plan", "Build", "Review", "Done".
+A few small neutral rectangular task cards, no additional microtext.
+
+BOTTOM ROW, TILE 2:
+Title: "Requests from where they live."
+Body: "Sheets, docs and posts land in an icebox."
+UI: THREE small dark rows, each with a small green connected-status dot and respectively the exact label:
+"Google Sheets"
+"Docs"
+"Social posts"
+
+BOTTOM ROW, TILE 3:
+Title: "A notebook agents read."
+Body: "Project notes every stage reads first."
+UI: a small dark markdown note with a title represented by an ABSTRACT GREY BAR, not an invented word. Below it two blue literal wiki-link labels, each exactly:
+"[[links]]"
+Use that exact double-bracket syntax twice, without inventing names. Other note content only abstract grey horizontal strokes.
+
+BOTTOM ROW, TILE 4:
+Title: "Any agent."
+Body: "Every run is files, so any session can pick it up."
+UI: four small neutral outlined pills labelled exactly:
+"Claude Code"
+"Codex"
+"Antigravity"
+"Gemini CLI"
+Then a fifth pill labelled exactly "On your phone", filled WHITE with black text. Arrange four pills as a clean 2×2 and the last pill beneath.
+
+TEXT FIDELITY:
+Every quoted string above is exact artwork copy and must appear precisely as written. Add NO other words, letters, numbers, UI labels, captions, trademark text, title, footer or watermark. The only large numeric annotation is ≤ 2. The four checklist strokes are nontext. All UI microtext not explicitly specified must be replaced with abstract shapes. Copy and fit the complete sentences without paraphrasing or omission.
+Keep the panel flat, sharp, professional, legible and uncluttered. Complete finished PNG at 1600×1100.
+
+Refinement prompt
+
+Refine this finished kaizen feature panel. Preserve all words, all illustrations, the author avatar and chip, header, colors, and overall layout. Do not redesign it.
+
+Make exactly these small production corrections:
+1. Remove the YELLOW dot beside the "medium" tag. Change that dot to the same neutral GRAY as the "low" tag. No yellow, orange, red or gold accents anywhere. Blue #3b82f6 is the main functional accent, green #22c55e is only used for the fixed high check and source-status dots.
+2. Make the FOUR bottom-row tiles exactly EQUAL width, with consistent gutters, and align them to a true four-column grid. The wide top-left tile spans the first two equal columns. The reviewer tile aligns with column three; the fix-loop tile aligns with column four. Keep outer edges consistent. At final 1600×1100 the intended geometry is about: outer margins 36px, gutters 18px, four columns about 368px wide; wide tile about 754px. Preserve good padding and don't stretch letters.
+3. Fit the reviewer supporting sentence into TWO readable grey lines by modestly reducing that sentence's font size, not by omitting or changing words. Exact text: "A separate agent checks it from the request, the plan and the diff only." All other copy retains its spelling and punctuation. Do not crowd the title or UI boxes.
+
+Everything else stays the same. In particular preserve all these exact strings:
+What kaizen does.
+Your AI agent plans, builds and gets an independent review. You approve the plan.
+Built by hfadhlullah
+Husein Fadhlullah · kaizen-agent on npm
+Plan first, then you approve.
+The agent writes what it will do and what wrong looks like. Nothing is built until you say yes.
+Approve
+Change
+A reviewer that never saw the work.
+A separate agent checks it from the request, the plan and the diff only.
+Builder
+Reviewer
+separate context
+A fix loop that ends.
+Serious findings are fixed and re-checked, at most twice.
+≤ 2
+high
+medium
+low
+One board.
+Icebox to commit and push, in the browser or the terminal.
+Ideas
+Plan
+Build
+Review
+Done
+Requests from where they live.
+Sheets, docs and posts land in an icebox.
+Google Sheets
+Docs
+Social posts
+A notebook agents read.
+Project notes every stage reads first.
+[[links]] (shown twice in the note illustration, without this parenthetical)
+Any agent.
+Every run is files, so any session can pick it up.
+Claude Code
+Codex
+Antigravity
+Gemini CLI
+On your phone
+
+No new text, numbers or watermark. Preserve near-black/charcoal theme, crisp flat UI and rounded 16px tiles. Full landscape 16:11 PNG for exact 1600×1100 export.

@@ -1,0 +1,38 @@
+Create a "What kaizen does." feature panel for a GitHub README, 1600×1100, landscape.
+
+REFERENCES: Image 1 is the kaizen brand (lowercase white wordmark, small outline tanuki, blue accent #3b82f6). Image 2 is the layout reference: a dark product feature grid with a big headline, a one-line subtitle, a "Built by" chip top right, and rounded tiles, each holding a bold title, two lines of small grey text and one small, real-looking UI illustration. Copy its layout, spacing and polish, not its words or content. Image 3 (optional) is the author's GitHub avatar for the chip.
+
+STYLE: near-black background (#0a0a0b), tiles #141416 with a thin 1px #26262a border and 16px corners. White bold sans-serif titles (Inter-like), grey #9a9aa2 body text, one blue accent (#3b82f6) used sparingly, green (#22c55e) only for "pass" states. Flat, crisp, no glow, no gradients except one soft tile, no robots, no brains, no stock photos. Spell every word exactly as written below and add no other text.
+
+HEADER (top left): "What " + "kaizen" (in blue) + " does." Large. Under it, one line: "Your AI agent plans, builds and gets an independent review. You approve the plan."
+
+CHIP (top right): rounded pill with a small round avatar, bold "Built by hfadhlullah", and under it small grey "Husein Fadhlullah · kaizen-agent on npm".
+
+GRID: 2 rows. Row 1: one wide tile then two narrow. Row 2: four equal tiles.
+
+Row 1
+1. Wide tile — "Plan first, then you approve."
+   Text: "The agent writes what it will do and what wrong looks like. Nothing is built until you say yes."
+   Illustration: a small plan card with 4 checklist lines, and below it two buttons: "Approve" (blue, filled) and "Change" (outline).
+2. "A reviewer that never saw the work."
+   Text: "A separate agent checks it from the request, the plan and the diff only."
+   Illustration: two separate boxes, "Builder" and "Reviewer", with a clear gap between them labelled "separate context".
+3. "A fix loop that ends."
+   Text: "Serious findings are fixed and re-checked, at most twice."
+   Illustration: a big "≤ 2" with a small loop arrow, and a short row of three findings tags: "high" (fixed, green tick), "medium", "low".
+
+Row 2
+4. "One board."
+   Text: "Icebox to commit and push, in the browser or the terminal."
+   Illustration: a tiny kanban with five columns labelled "Ideas", "Plan", "Build", "Review", "Done", a few small cards.
+5. "Requests from where they live."
+   Text: "Sheets, docs and posts land in an icebox."
+   Illustration: three small rows with green dots: "Google Sheets", "Docs", "Social posts".
+6. "A notebook agents read."
+   Text: "Project notes every stage reads first."
+   Illustration: a small markdown note with a title line and two [[links]] in blue.
+7. "Any agent."
+   Text: "Every run is files, so any session can pick it up."
+   Illustration: four small pills: "Claude Code", "Codex", "Antigravity", "Gemini CLI", and the last pill "On your phone" filled white.
+
+Keep generous padding, align every tile edge, and leave the panel uncluttered.
