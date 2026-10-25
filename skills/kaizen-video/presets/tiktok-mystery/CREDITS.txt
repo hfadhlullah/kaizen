@@ -1,0 +1,12 @@
+Sound effects (Wikimedia Commons):
+- shutter.wav: "Holga shuttersound.ogg" by Doitashimashite at Dutch Wikipedia, public domain.
+- heart.wav: "Heartbeat speedsup.wav" by Bob Smaude, CC BY 4.0.
+- clock.wav: "Clock ticking.ogg" by natalie, public domain.
+- projector.wav: "Cinema projector Mayafot.mp3" by Carlosjvives, CC BY 4.0.
+- stamp.wav: "Rubber seal dabbed on ink pad.ogg" by Subhashish Panigrahi, CC BY 3.0.
+- ding.wav: "406243 stubb typewriter-ding-near-mono.wav" by stubb, CC0.
+- reveal.wav: "WWS Typewriter.ogg" by Work With Sounds / Konrad Gutkowski, CC BY 4.0, mixed with "Gong or bell vibrant (short).ogg" (PDSounds), CC0.
+- ending.wav: "Gong or bell vibrant (short).ogg" (PDSounds), CC0, reversed into the hit; may contain "WWS Typewriter.ogg" by Work With Sounds / Konrad Gutkowski, CC BY 4.0.
+- whoosh.wav: synthesized with ffmpeg, CC0.
+
+Fonts: "Montserrat" by Julieta Ulanovsky et al. (Google Fonts, SIL Open Font License 1.1); "Special Elite" by Astigmatic (Google Fonts, Apache License 2.0).

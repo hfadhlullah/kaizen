@@ -47,7 +47,7 @@ const c = {
 };
 
 // Skill folders shipped in skills/ and linked into every agent.
-const SKILLS = ["kaizen", "kaizen-help", "story-deck", "story-video"];
+const SKILLS = ["kaizen", "kaizen-help", "story-deck", "story-video", "kaizen-video"];
 
 // Where each agent reads skills from. The skill folders follow the open Agent
 // Skills standard, so every one of these can run the workflow; agents/ and

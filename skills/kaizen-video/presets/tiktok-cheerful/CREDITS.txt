@@ -1,0 +1,3 @@
+Sound effects: shutter.wav, stamp.wav, reveal.wav, ending.wav, ding.wav, whoosh.wav, pop.wav, chime.wav and boing.wav synthesized in Python (marimba, glockenspiel and bell partials with pitch envelopes), CC0.
+
+Fonts: "Fredoka" by Milena Brandao and Ben Nathan (Google Fonts, SIL Open Font License 1.1); "Montserrat" by Julieta Ulanovsky et al. (Google Fonts, SIL Open Font License 1.1).

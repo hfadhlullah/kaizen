@@ -1,0 +1,3 @@
+Sound effects: shutter.wav (swipe), stamp.wav (badge pop), reveal.wav (checklist tick) and ending.wav (riser into chord) synthesized with ffmpeg tone and noise generators, CC0.
+
+Fonts: "Montserrat" by Julieta Ulanovsky et al. (Google Fonts, SIL Open Font License 1.1).

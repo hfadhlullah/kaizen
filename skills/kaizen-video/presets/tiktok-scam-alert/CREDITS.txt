@@ -1,0 +1,8 @@
+Sound effects:
+- shutter.wav, stamp.wav, reveal.wav, ending.wav: synthesized with ffmpeg tone generators, CC0.
+- ding.wav: "406243 stubb typewriter-ding-near-mono.wav" by stubb (Wikimedia Commons), CC0.
+- heart.wav: "Heartbeat speedsup.wav" by Bob Smaude (Wikimedia Commons), CC BY 4.0.
+- clock.wav: "Clock ticking.ogg" by natalie (Wikimedia Commons), public domain.
+- whoosh.wav: synthesized with ffmpeg, CC0.
+
+Fonts: "Montserrat" by Julieta Ulanovsky et al. (Google Fonts, SIL Open Font License 1.1).

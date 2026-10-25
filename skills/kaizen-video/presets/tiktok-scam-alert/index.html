@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="id" data-resolution="portrait">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script src="captions.js"></script>
+    <style>
+      @font-face { font-family: "Montserrat"; src: url("assets/fonts/Montserrat.ttf"); font-weight: 100 900; }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1080px; height: 1920px; overflow: hidden; background: #05080a; }
+      body { font-family: "Montserrat", sans-serif; color: #f2efe8; }
+      #root { position: relative; width: 100%; height: 100%; overflow: hidden; }
+      .fill { position: absolute; inset: 0; }
+
+      /* Camera: high-contrast, desaturated grade with a heavy vignette for a tense, dramatic feel. */
+      #cam { position: absolute; inset: 0; transform-origin: 50% 38%; filter: blur(0px) brightness(1); }
+      #a-roll { width: 100%; height: 100%; object-fit: cover;
+        filter: contrast(1.14) saturate(0.78) brightness(0.94); }
+      #tint { background: linear-gradient(180deg, rgba(0,0,0,.18), transparent 30%, transparent 55%, rgba(0,0,0,.45)); }
+      /* Hazard tape, used by the hook, titles and the ending. */
+      .tape { width: 840px; height: 30px; background: repeating-linear-gradient(-45deg, #ffd400 0 34px, #111 34px 68px); box-shadow: 0 6px 24px rgba(0,0,0,.6); }
+      #alarm { box-shadow: inset 0 0 0 14px #e3262f, inset 0 0 140px rgba(227,38,47,.55); opacity: 0; }
+      #vignette { background: radial-gradient(ellipse 90% 75% at 50% 42%, transparent 55%, rgba(0,0,0,.62) 100%); }
+      #grain { inset: -50%; opacity: .06; mix-blend-mode: overlay;
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); }
+      #flash { background: #fff; opacity: 0; }
+      #dim { background: rgba(0,0,0,.45); opacity: 0; }
+      /* Alert transition: red brackets, warning tag, blades snap. */
+      #vf { opacity: 0; }
+      #vf i { position: absolute; width: 120px; height: 120px; border: 0 solid #e3262f; }
+      #vf i:nth-child(1) { left: 70px; top: 200px; border-width: 6px 0 0 6px; }
+      #vf i:nth-child(2) { right: 70px; top: 200px; border-width: 6px 6px 0 0; }
+      #vf i:nth-child(3) { left: 70px; bottom: 260px; border-width: 0 0 6px 6px; }
+      #vf i:nth-child(4) { right: 70px; bottom: 260px; border-width: 0 6px 6px 0; }
+      #vf .rec { position: absolute; left: 110px; top: 240px; font-weight: 800; font-size: 40px; letter-spacing: 3px; display: flex; align-items: center; gap: 14px; }
+      #vf .rec { color: #ffd400; }
+      #vf .rec b { width: 26px; height: 26px; border-radius: 50%; background: #e3262f; }
+      #vf .focus { position: absolute; left: 390px; top: 760px; width: 300px; height: 300px; border: 4px solid #ffd400; }
+      .blade { position: absolute; left: 0; right: 0; height: 50%; background: #000; }
+      #blade-t { top: 0; transform-origin: 50% 0; }
+      #blade-b { bottom: 0; transform-origin: 50% 100%; }
+
+      /* Captions: small caps chunks, active word in red. Equal side margins: centered, and mostly clear of TikTok's side buttons. */
+      #captions { position: absolute; left: 110px; right: 110px; top: 1270px; height: 220px; }
+      .chunk { position: absolute; inset: 0; display: flex; flex-wrap: wrap; justify-content: center; align-content: center;
+        gap: 6px 28px; opacity: 0; }
+      .w { position: relative; display: block; font-weight: 800; font-size: 64px; letter-spacing: 1px; text-transform: uppercase; color: #a7aeb2;
+        text-shadow: 0 4px 18px rgba(0,0,0,.9); }
+      /* Karaoke fill: a copy of the word revealed left to right while it is spoken. */
+      .w .fill { position: absolute; inset: 0; color: #ffd400; text-shadow: none; clip-path: inset(0 100% 0 0); }
+
+      /* Hook + keyword titles. */
+      .title { position: absolute; left: 0; right: 0; top: 640px; display: flex; flex-direction: column; align-items: center; opacity: 0; }
+      .title h1 { white-space: nowrap; font-weight: 900; font-size: 150px; line-height: .95; letter-spacing: 2px; text-align: center;
+        text-shadow: 0 8px 40px rgba(0,0,0,.9); }
+      .title .tape { margin-bottom: 34px; }
+      .title p { margin-top: 26px; background: #e3262f; color: #fff; font-weight: 700; font-size: 40px; padding: 6px 18px; }
+      #hook { top: 360px; }
+      #hook h1 { font-size: 132px; }
+      #hook h1:first-of-type { color: #ffd400; font-size: 190px; }
+      #hook .tape { margin: 0 0 30px; }
+      #hook .tape:last-child { margin: 34px 0 0; }
+      .title.end { top: 0; bottom: 0; justify-content: center; }
+      .end .tape { margin: 30px 0; }
+      .end h1 { color: #ffd400; font-size: 230px; line-height: .9; text-shadow: 0 0 60px rgba(255,212,0,.35), 0 10px 50px #000; }
+
+      /* Evidence / report cards. */
+      .case { position: absolute; left: 125px; right: 125px; top: 520px; padding: 56px 54px 64px; opacity: 0;
+        background: #f6f6f4; color: #121212; border-left: 22px solid #e3262f; border-radius: 10px; box-shadow: 0 30px 80px rgba(0,0,0,.8); }
+      .case .k { font-weight: 800; font-size: 34px; letter-spacing: 6px; color: #e3262f; border-bottom: 3px solid #121212; padding-bottom: 14px; }
+      .case h2 { font-weight: 900; font-size: 92px; margin-top: 30px; line-height: 1; }
+      .case .s { font-weight: 600; font-size: 40px; margin-top: 26px; line-height: 1.3; }
+      .case:has(.stamp) { padding-bottom: 170px; }
+      .stamp { position: absolute; right: 40px; bottom: 36px; border: 8px solid #c0161f; color: #c0161f; font-family: "Montserrat";
+        font-weight: 900; font-size: 76px; padding: 4px 22px; letter-spacing: 4px; opacity: 0; }
+
+      /* Photo cards (floating, like the reference's B-roll cards). */
+      .photo { position: absolute; left: 125px; right: 125px; top: 330px; opacity: 0; display: flex; flex-direction: column; align-items: center; }
+      .frame { width: 100%; height: 640px; border-radius: 28px; overflow: hidden; box-shadow: 0 30px 90px rgba(0,0,0,.85); border: 3px solid rgba(242,239,232,.15); }
+      .frame img { width: 100%; height: 100%; object-fit: cover; }
+      .frame.tall { height: 1180px; border: 6px solid #e3262f; }
+      .frame.tall img { object-position: 50% 3%; }
+      .photo p { margin-top: 28px; background: #e3262f; color: #fff; font-weight: 700; font-size: 38px; padding: 6px 18px; }
+      .title .frame { width: 820px; height: 560px; margin-bottom: 40px; }
+      .title.has-img { top: 300px; }
+      .case .frame { height: 420px; border-radius: 6px; margin-bottom: 26px; box-shadow: none; border: 0; }
+      
+
+      /* Safety-tips checklist. */
+      #list { position: absolute; left: 125px; right: 125px; top: 560px; display: flex; flex-direction: column; gap: 34px; opacity: 0; }
+      #list .head { font-weight: 900; font-size: 58px; letter-spacing: 8px; color: #2ee06f; opacity: 0;
+        border-bottom: 3px solid rgba(46,224,111,.6); padding-bottom: 12px; text-shadow: 0 4px 18px rgba(0,0,0,.8); }
+      .item { display: flex; align-items: center; gap: 30px; font-weight: 800; font-size: 52px; line-height: 1.15; text-transform: uppercase; opacity: 0;
+        text-shadow: 0 6px 24px rgba(0,0,0,.9); }
+      .item span { clip-path: inset(0 100% 0 0); }
+      .item b { flex: none; width: 72px; height: 72px; border-radius: 50%; background: #2ee06f; display: grid; place-items: center; color: #0b2a16;
+        font-family: "Montserrat"; font-weight: 900; font-size: 54px; box-shadow: 0 0 26px rgba(46,224,111,.6); }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="{{DURATION}}" data-width="1080" data-height="1920">
+      <div id="cam">
+        <video id="a-roll" class="clip" src="{{VIDEO}}" playsinline data-start="0" data-duration="{{VIDEO_DURATION}}" data-track-index="0" data-has-audio="true" data-fx-chain="{&quot;version&quot;: 1, &quot;nodes&quot;: [{&quot;type&quot;: &quot;highpass&quot;, &quot;id&quot;: &quot;n1&quot;, &quot;label&quot;: &quot;Remove Rumble&quot;, &quot;params&quot;: {&quot;frequency&quot;: 90, &quot;q&quot;: 0.707, &quot;poles&quot;: &quot;2&quot;}}, {&quot;type&quot;: &quot;compressor&quot;, &quot;id&quot;: &quot;n2&quot;, &quot;label&quot;: &quot;Even Out Loudness&quot;, &quot;params&quot;: {&quot;threshold&quot;: -26, &quot;ratio&quot;: 3, &quot;attack&quot;: 10, &quot;release&quot;: 200, &quot;knee&quot;: 2.83, &quot;makeup&quot;: 6, &quot;mix&quot;: 1}}, {&quot;type&quot;: &quot;gain&quot;, &quot;id&quot;: &quot;n3&quot;, &quot;label&quot;: &quot;Level Up&quot;, &quot;params&quot;: {&quot;gain&quot;: 5}}, {&quot;type&quot;: &quot;truepeak&quot;, &quot;id&quot;: &quot;n4&quot;, &quot;label&quot;: &quot;Peak Ceiling&quot;, &quot;params&quot;: {&quot;ceiling&quot;: -1.5, &quot;lookahead&quot;: 3, &quot;release&quot;: 80}}]}"></video>
+      </div>
+      <div id="tint" class="fill"></div>
+      <div id="vignette" class="fill"></div>
+      <div id="dim" class="fill"></div>
+
+      <div id="hook" class="title"><div class="tape"></div><h1>{{HOOK_1}}</h1><h1>{{HOOK_2}}</h1><p>{{HOOK_SUB}}</p><div class="tape"></div></div>
+      <div id="beats"></div>
+      <div id="list"></div>
+      <div id="captions"></div>
+
+      <div id="vf" class="fill"><i></i><i></i><i></i><i></i><div class="rec"><b></b>AWAS</div><div class="focus"></div></div>
+      <div id="blade-t" class="blade"></div>
+      <div id="blade-b" class="blade"></div>
+      <div id="alarm" class="fill"></div>
+      <div id="grain" class="fill"></div>
+      <div id="flash" class="fill"></div>
+
+      <audio id="music" src="assets/music.wav" data-start="0" data-duration="{{DURATION}}" data-track-index="2" data-volume="{{MUSIC_VOLUME}}"></audio>
+      <!-- SFX:BEGIN --><!-- SFX:END -->
+    </div>
+
+    <script>
+      const END = {{DURATION}}, HOOK = 3.0;
+      const tl = gsap.timeline({ paused: true });
+      const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html) e.innerHTML = html; return e; };
+
+      // Punch-in: alternate framing on every jump cut, slow push inside each segment.
+      SEG_STARTS.forEach((s, i) => {
+        const e = SEG_STARTS[i + 1] ?? END, base = i % 2 ? 1.14 : 1.0;
+        tl.fromTo("#cam", { scale: base }, { scale: base + 0.04, duration: e - s, ease: "none", immediateRender: i === 0 }, s);
+      });
+      // Grain jitter (fixed pattern, no Math.random).
+      const steps = Math.floor(END * 12);
+      for (let i = 0; i < steps; i++) tl.set("#grain", { x: ((i * 37) % 120) - 60, y: ((i * 53) % 120) - 60 }, i / 12);
+
+      // Flash + dim helper for every hard beat.
+      const hit = (t, dur, focus = true) => {
+        // Viewfinder frames the shot, focus box pulls in, shutter blades snap at t.
+        const v = Math.max(0, t - 0.3);
+        tl.set("#vf", { opacity: 1 }, v);
+        tl.fromTo("#vf .focus", { scale: 1.6, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.25, ease: "power2.out", immediateRender: false }, v);
+        tl.set("#vf", { opacity: 0 }, t + 0.12);
+        tl.fromTo(".blade", { scaleY: 0 }, { scaleY: 1, duration: 0.06, ease: "power2.in", immediateRender: false }, t);
+        tl.to(".blade", { scaleY: 0, duration: 0.12, ease: "power2.out" }, t + 0.07);
+        // Red alarm border pulses twice with the alert beep.
+        tl.fromTo("#alarm", { opacity: 0 }, { opacity: 1, duration: 0.12, yoyo: true, repeat: 3, ease: "power1.inOut", immediateRender: false }, t);
+        tl.set("#flash", { opacity: 0.25 }, t + 0.07);
+        tl.to("#flash", { opacity: 0, duration: 0.25, ease: "power2.out" }, t + 0.07);
+        if (!focus) return;  // hook: keep the speaker clear
+        tl.to("#dim", { opacity: 1, duration: 0.25 }, t);
+        tl.to("#cam", { filter: "blur(12px) brightness(1)", duration: 0.25 }, t);
+        if (t + dur < END) {
+          tl.to("#dim", { opacity: 0, duration: 0.3 }, t + dur - 0.3);
+          tl.to("#cam", { filter: "blur(0px) brightness(1)", duration: 0.3 }, t + dur - 0.3);
+        }
+      };
+
+      gsap.set(".blade", { scaleY: 0 });
+
+      // Shrink any title wider than the safe area (long words like PENGECUALIAN).
+      const fit = n => n.querySelectorAll("h1").forEach(h => { const w = h.scrollWidth; if (w > 840) h.style.fontSize = Math.floor(parseFloat(getComputedStyle(h).fontSize) * 840 / w) + "px"; });
+
+      // Hook.
+      fit(document.getElementById("hook"));
+      hit(0.3, HOOK - 0.3, false);
+      tl.fromTo("#hook", { opacity: 0, scale: 1.25 }, { opacity: 1, scale: 1, duration: 0.45, ease: "power3.out" }, 0.05);
+      tl.to("#hook", { opacity: 0, duration: 0.3 }, HOOK - 0.3);
+
+      // Beats.
+      const beats = document.getElementById("beats"), list = document.getElementById("list");
+      let listStart = null;
+      const pic = b => b.img ? `<div class="frame"><img src="assets/img/${b.img}" alt="" data-layout-allow-overflow></div>` : "";
+      const kbAt = (n, t) => { const im = n.querySelector(".frame img"); if (im) tl.fromTo(im, { scale: 1.14 }, { scale: 1, duration: 3.4, ease: "none" }, t); };
+      BEATS.forEach((b, i) => {
+        if (b.kind === "end") {
+          // Ending: one huge word per line, slammed in on the gong hit, camera shake, near-black.
+          const n = el("div", "title end", `<div class="tape"></div>` + b.title.split(" ").map(w => `<h1>${w}</h1>`).join("") + `<div class="tape"></div>`);
+          beats.append(n); fit(n);
+          tl.to("#dim", { opacity: 1, duration: 0.2 }, b.t);
+          tl.to("#cam", { filter: "blur(14px) brightness(0.5)", duration: 0.2 }, b.t);
+          tl.set(n, { opacity: 1 }, b.t);
+          n.querySelectorAll("h1").forEach((h, j) =>
+            tl.fromTo(h, { opacity: 0, scale: 2.6 }, { opacity: 1, scale: 1, duration: 0.22, ease: "power4.in" }, b.t + j * 0.16));
+          const land = b.t + (n.children.length - 1) * 0.16 + 0.22;
+          tl.set("#flash", { opacity: 0.35 }, land);
+          tl.to("#flash", { opacity: 0, duration: 0.4 }, land);
+          [14, -12, 9, -6, 3, 0].forEach((x, j) => tl.to(n, { x, duration: 0.05 }, land + j * 0.05));
+          tl.to(n, { scale: 1.06, duration: END - land, ease: "none" }, land);
+        } else if (b.kind === "title") {
+          const d = 1.8;
+          const n = el("div", "title" + (b.img ? " has-img" : ""), pic(b) + `<div class="tape"></div><h1>${b.title}</h1>` + (b.sub ? `<p>${b.sub}</p>` : ""));
+          beats.append(n); fit(n); hit(b.t, d); kbAt(n, b.t);
+          tl.fromTo(n, { opacity: 0, scale: 1.3 }, { opacity: 1, scale: 1, duration: 0.4, ease: "power3.out" }, b.t + 0.08);
+          tl.to(n, { opacity: 0, duration: 0.25 }, b.t + d - 0.25);
+        } else if (b.kind === "case") {
+          const d = 3.2;
+          const n = el("div", "case", pic(b) + `<div class="k">${b.kicker}</div><h2>${b.title}</h2>` +
+            (b.sub ? `<div class="s">${b.sub}</div>` : "") + (b.stamp ? `<div class="stamp" data-layout-allow-overlap>${b.stamp}</div>` : ""));
+          beats.append(n); hit(b.t, d); kbAt(n, b.t);
+          tl.fromTo(n, { opacity: 0, y: 120, rotation: -4 }, { opacity: 1, y: 0, rotation: -1.5, duration: 0.5, ease: "back.out(1.4)" }, b.t + 0.08);
+          const st = n.querySelector(".stamp");
+          if (st) tl.fromTo(st, { opacity: 0, scale: 2.4, rotation: -18 }, { opacity: 1, scale: 1, rotation: -12, duration: 0.25, ease: "power4.in" }, b.t + 0.9);
+          tl.to(n, { opacity: 0, y: -60, duration: 0.3 }, b.t + d - 0.3);
+        } else if (b.kind === "photo") {
+          const d = b.dur ?? 2.8;  // a tall screenshot needs longer to read
+          const n = el("div", "photo", pic(b).replace('class="frame"', b.tall ? 'class="frame tall"' : 'class="frame"') + `<p>${b.label}</p>`);
+          if (b.pos) n.querySelector(".frame img").style.objectPosition = b.pos;  // e.g. "50% 100%" to show a chat's last messages
+          beats.append(n); hit(b.t, d); kbAt(n, b.t);
+          tl.fromTo(n, { opacity: 0, y: 80, rotation: 3 }, { opacity: 1, y: 0, rotation: 1, duration: 0.45, ease: "power3.out" }, b.t + 0.08);
+          tl.to(n, { opacity: 0, scale: 0.92, duration: 0.3 }, b.t + d - 0.3);
+        } else {
+          if (listStart === null) listStart = b.t;
+          // Tip reveal: the check pops in, then the text types itself out.
+          const n = el("div", "item", `<b>✓</b><span>${b.text}</span>`);
+          list.append(n);
+          const box = n.querySelector("b"), txt = n.querySelector("span");
+          tl.set(n, { opacity: 1 }, b.t);
+          tl.fromTo(box, { scale: 0, rotation: -90 }, { scale: 1, rotation: 0, duration: 0.35, ease: "back.out(2.5)" }, b.t);
+          tl.fromTo(txt, { clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 0% 0 0)", duration: 0.85, ease: `steps(${b.text.length})` }, b.t + 0.05);
+                      }
+      });
+      // The checklist leaves when the speaker moves on: the next jump cut after the last item (max 6 s).
+      const items = BEATS.filter(b => b.kind === "item"), lastItem = items.length ? items[items.length - 1].t : 0;
+      const listEnd = Math.min(SEG_STARTS.find(s => s > lastItem + 1) ?? END, lastItem + 6);
+      if (items.length) {
+        const head = el("div", "head"); head.textContent = "TIPS AMAN:"; list.prepend(head);
+        tl.fromTo(head, { clipPath: "inset(0 100% 0 0)", opacity: 1 }, { clipPath: "inset(0 0% 0 0)", duration: 0.5, ease: "steps(12)" }, listStart - 0.6);
+        tl.fromTo("#list", { opacity: 0 }, { opacity: 1, duration: 0.3 }, listStart - 0.6);
+        tl.to("#dim", { opacity: 1, duration: 0.3 }, listStart - 0.6);
+        tl.to("#cam", { filter: "blur(10px) brightness(0.7)", duration: 0.4 }, listStart - 0.6);
+        tl.to(["#list", "#dim"], { opacity: 0, duration: 0.4 }, listEnd - 0.4);
+        tl.to("#cam", { filter: "blur(0px) brightness(1)", duration: 0.4 }, listEnd - 0.4);
+      }
+
+      // Captions (hidden under the hook and while a card or the list is on screen).
+      const busy = BEATS.filter(b => b.kind !== "item" && (b.kind !== "photo" || b.tall)).map(b => [b.t, b.t + (b.kind === "case" ? 3.2 : b.kind === "end" ? END : b.kind === "photo" ? b.dur ?? 2.8 : 1.8)])
+        .concat(items.length ? [[listStart - 0.6, listEnd]] : []);  // captions stay on under the hook
+      const cap = document.getElementById("captions");
+      CAPTIONS.forEach(chunk => {
+        const n = el("div", "chunk"); cap.append(n);
+        const start = chunk[0].s, end = chunk[chunk.length - 1].hold;
+        if (busy.some(([a, b]) => start < b && end > a)) return;
+        tl.fromTo(n, { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.12, ease: "power2.out" }, start);
+        tl.set(n, { opacity: 0 }, end);
+        chunk.forEach((w, j) => {
+          const txt = w.w.replace(/[,.?!]+$/, "");
+          const s = el("span", "w"); s.textContent = txt; n.append(s);
+          const f = el("span", "fill"); f.textContent = txt; s.append(f);
+          const until = chunk[j + 1] ? chunk[j + 1].s : end;
+          // Fill sweeps across the word over exactly its spoken duration, one frame early (reads as in sync).
+          const t0 = Math.max(start, w.s - 1 / 30), dur = Math.max(w.e - w.s, 0.1);
+          tl.fromTo(f, { clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 0% 0 0)", duration: dur, ease: "power1.out" }, t0);
+          tl.fromTo(s, { scale: 1.06 }, { scale: 1, duration: 0.18, ease: "power2.out" }, t0);
+          // Same rule for every word: grey upcoming, red while spoken, white once the next word starts.
+          tl.set(f, { color: "#f2efe8" }, until);
+        });
+      });
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

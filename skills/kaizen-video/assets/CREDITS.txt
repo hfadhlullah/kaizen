@@ -1,0 +1,11 @@
+Shared assets used by the bundled presets.
+
+Music (assets/music/):
+- lights.mp3: "Lights - Creepy Ambient Suspense" by Rafael Krux (filmmusic.io), CC BY 4.0.
+- investigations.mp3: "Investigations" by Kevin MacLeod (incompetech.com), CC BY 4.0.
+- sunny.mp3: "Carefree" by Kevin MacLeod (incompetech.com; Wikimedia Commons File:Kevin MacLeod - Carefree.ogg), CC BY 4.0.
+
+Fonts (assets/fonts/):
+- Montserrat.ttf: "Montserrat" by Julieta Ulanovsky et al. (Google Fonts), SIL Open Font License 1.1.
+- Fredoka.ttf: "Fredoka" by Milena Brandao and Ben Nathan (Google Fonts), SIL Open Font License 1.1.
+- SpecialElite.ttf: "Special Elite" by Astigmatic (Google Fonts), Apache License 2.0.

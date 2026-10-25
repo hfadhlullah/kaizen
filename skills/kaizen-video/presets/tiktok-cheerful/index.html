@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="id" data-resolution="portrait">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script src="captions.js"></script>
+    <style>
+      @font-face { font-family: "Montserrat"; src: url("assets/fonts/Montserrat.ttf"); font-weight: 100 900; }
+      @font-face { font-family: "Fredoka"; src: url("assets/fonts/Fredoka.ttf"); font-weight: 300 700; }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1080px; height: 1920px; overflow: hidden; background: #18120e; }
+      body { font-family: "Montserrat", sans-serif; color: #fffdf5; }
+      #root { position: relative; width: 100%; height: 100%; overflow: hidden; }
+      .fill { position: absolute; inset: 0; }
+
+      /* Camera: warm, sunlit Sunny Pop Explainer grade on the talking head. */
+      #cam { position: absolute; inset: 0; transform-origin: 50% 38%; filter: blur(0px) brightness(1); }
+      #a-roll { width: 100%; height: 100%; object-fit: cover;
+        filter: contrast(1.06) saturate(1.18) brightness(1.05); }
+      #tint { background: radial-gradient(circle at 50% 24%, rgba(255, 210, 63, .16), rgba(255, 122, 89, .08) 55%, rgba(255, 248, 231, .04)); mix-blend-mode: screen; }
+      #vignette { background: radial-gradient(ellipse 92% 80% at 50% 44%, transparent 66%, rgba(36, 22, 10, .24) 100%); }
+      #flash { background: #fff8e7; opacity: 0; }
+      #dim { background: rgba(24, 18, 14, .46); opacity: 0; }
+
+      /* Sunny pop burst transition: playful corner sparkles and sticker pill badge. */
+      #burst { opacity: 0; pointer-events: none; }
+      #burst i { position: absolute; width: 64px; height: 64px; display: grid; place-items: center;
+        font-family: "Fredoka", "Montserrat", sans-serif; font-weight: 700; font-size: 46px;
+        color: #1a1615; background: #ffd23f; border: 5px solid #1a1615; border-radius: 50%;
+        box-shadow: 0 6px 0 #1a1615; }
+      #burst i:nth-child(1) { left: 76px; top: 210px; }
+      #burst i:nth-child(2) { right: 76px; top: 210px; background: #ff6b6b; }
+      #burst i:nth-child(3) { left: 76px; bottom: 270px; background: #ff6b6b; }
+      #burst i:nth-child(4) { right: 76px; bottom: 270px; }
+      #burst .pop-ring { position: absolute; left: 370px; top: 740px; width: 340px; height: 340px;
+        border: 6px dashed #ffd23f; border-radius: 50%; opacity: 0; }
+
+      /* Captions: bold rounded chunks, active word sweeps sun-yellow. Equal side margins clear of TikTok UI. */
+      #captions { position: absolute; left: 110px; right: 110px; top: 1270px; height: 220px; }
+      .chunk { position: absolute; inset: 0; display: flex; flex-wrap: wrap; justify-content: center; align-content: center;
+        gap: 8px 26px; opacity: 0; }
+      .w { position: relative; display: block; font-family: "Fredoka", "Montserrat", sans-serif; font-weight: 700;
+        font-size: 64px; letter-spacing: 1px; text-transform: uppercase; color: #d8d0c5;
+        text-shadow: 0 5px 0 #1a1615, 0 8px 22px rgba(0,0,0,.85); }
+      /* Karaoke fill: sweeps sun-yellow left to right while spoken, then settles to crisp cream-white. */
+      .w .fill { position: absolute; inset: 0; color: #ffd23f; text-shadow: none; clip-path: inset(0 100% 0 0); }
+
+      /* Hook + keyword titles. */
+      .title { position: absolute; left: 0; right: 0; top: 620px; display: flex; flex-direction: column; align-items: center; opacity: 0; }
+      .title h1 { white-space: nowrap; font-family: "Fredoka", "Montserrat", sans-serif; font-weight: 700; font-size: 146px;
+        line-height: .96; letter-spacing: 2px; text-align: center; color: #ffd23f;
+        text-shadow: 0 10px 0 #1a1615, 0 18px 40px rgba(0,0,0,.75); }
+      .title p { margin-top: 26px; background: #fffdf5; color: #1a1615; font-weight: 800; font-size: 38px;
+        padding: 10px 28px; border: 5px solid #1a1615; border-radius: 999px; box-shadow: 0 8px 0 #1a1615; }
+      #hook { top: 340px; }
+      #hook h1 { font-size: 130px; color: #fffdf5; }
+      #hook .red { color: #ffd23f; }
+      #hook p { background: #ffd23f; color: #1a1615; }
+      .title.end { top: 0; bottom: 0; justify-content: center; gap: 10px; }
+      .end h1 { color: #ffd23f; font-size: 210px; line-height: .94;
+        text-shadow: 0 14px 0 #1a1615, 0 24px 50px rgba(0,0,0,.8); }
+      .end h1:nth-child(even) { color: #fffdf5; }
+
+      /* Sunny Pop sticker cards (replaces dark archive case file). */
+      .case { position: absolute; left: 125px; right: 125px; top: 490px; padding: 48px 50px 58px; opacity: 0;
+        background: #fffdf5; color: #1a1615; border: 6px solid #1a1615; border-radius: 36px;
+        box-shadow: 0 16px 0 #1a1615, 0 32px 70px rgba(0,0,0,.55); }
+      .case .k { display: inline-block; background: #ffd23f; color: #1a1615; border: 4px solid #1a1615;
+        border-radius: 999px; padding: 6px 22px; font-weight: 900; font-size: 28px; letter-spacing: 3px;
+        box-shadow: 0 5px 0 #1a1615; }
+      .case h2 { font-family: "Fredoka", "Montserrat", sans-serif; font-weight: 700; font-size: 92px;
+        margin-top: 24px; line-height: 1.02; color: #1a1615; }
+      .case .s { font-weight: 700; font-size: 38px; margin-top: 20px; line-height: 1.32; color: #2d2520; }
+      .case:has(.stamp) { padding-bottom: 165px; }
+      .stamp { position: absolute; right: 38px; bottom: 32px; background: #d92332; color: #fffdf5;
+        border: 5px solid #1a1615; border-radius: 20px; box-shadow: 0 8px 0 #1a1615;
+        font-family: "Fredoka", "Montserrat", sans-serif; font-weight: 700; font-size: 64px;
+        padding: 6px 24px; letter-spacing: 3px; opacity: 0; }
+
+      /* Polaroid / sticker photo cards (full vibrant color). */
+      .photo { position: absolute; left: 125px; right: 125px; top: 320px; opacity: 0; display: flex; flex-direction: column; align-items: center; }
+      .frame { width: 100%; height: 620px; border-radius: 32px; overflow: hidden;
+        background: #fffdf5; border: 6px solid #1a1615; box-shadow: 0 14px 0 #1a1615, 0 28px 65px rgba(0,0,0,.55); }
+      .frame img { width: 100%; height: 100%; object-fit: cover; filter: saturate(1.12) contrast(1.04) brightness(1.03); }
+      .photo p { margin-top: 28px; background: #ffd23f; color: #1a1615; font-weight: 800; font-size: 38px;
+        padding: 10px 28px; border: 5px solid #1a1615; border-radius: 999px; box-shadow: 0 8px 0 #1a1615; }
+      .title .frame { width: 820px; height: 540px; margin-bottom: 36px; }
+      .title.has-img { top: 290px; }
+      .case .frame { height: 400px; border-radius: 22px; margin-bottom: 24px; box-shadow: 0 8px 0 #1a1615; border: 4px solid #1a1615; }
+      .case .frame img { filter: saturate(1.1) contrast(1.04) brightness(1.02); }
+
+      /* Fun trivia checklist. */
+      #list { position: absolute; left: 125px; right: 125px; top: 520px; display: flex; flex-direction: column; gap: 28px; opacity: 0; }
+      #list .head { align-self: flex-start; background: #ffd23f; color: #1a1615; border: 5px solid #1a1615;
+        border-radius: 999px; padding: 10px 30px; font-family: "Fredoka", "Montserrat", sans-serif;
+        font-weight: 700; font-size: 46px; letter-spacing: 3px; box-shadow: 0 8px 0 #1a1615; opacity: 0; }
+      .item { display: flex; align-items: center; gap: 24px; background: #fffdf5; color: #1a1615;
+        border: 5px solid #1a1615; border-radius: 26px; padding: 18px 28px;
+        box-shadow: 0 10px 0 #1a1615, 0 22px 45px rgba(0,0,0,.45);
+        font-family: "Fredoka", "Montserrat", sans-serif; font-weight: 700; font-size: 52px;
+        text-transform: uppercase; opacity: 0; }
+      .item span { clip-path: inset(0 100% 0 0); }
+      .item b { flex: none; width: 68px; height: 68px; border-radius: 50%; background: #ffd23f;
+        border: 4px solid #1a1615; box-shadow: 0 5px 0 #1a1615; display: grid; place-items: center;
+        color: #1a1615; font-family: "Fredoka", "Montserrat", sans-serif; font-weight: 700; font-size: 40px; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="{{DURATION}}" data-width="1080" data-height="1920">
+      <div id="cam">
+        <video id="a-roll" class="clip" src="{{VIDEO}}" playsinline data-start="0" data-duration="{{VIDEO_DURATION}}" data-track-index="0" data-has-audio="true" data-fx-chain="{&quot;version&quot;: 1, &quot;nodes&quot;: [{&quot;type&quot;: &quot;highpass&quot;, &quot;id&quot;: &quot;n1&quot;, &quot;label&quot;: &quot;Remove Rumble&quot;, &quot;params&quot;: {&quot;frequency&quot;: 90, &quot;q&quot;: 0.707, &quot;poles&quot;: &quot;2&quot;}}, {&quot;type&quot;: &quot;compressor&quot;, &quot;id&quot;: &quot;n2&quot;, &quot;label&quot;: &quot;Even Out Loudness&quot;, &quot;params&quot;: {&quot;threshold&quot;: -26, &quot;ratio&quot;: 3.2, &quot;attack&quot;: 8, &quot;release&quot;: 180, &quot;knee&quot;: 2.83, &quot;makeup&quot;: 7, &quot;mix&quot;: 1}}, {&quot;type&quot;: &quot;gain&quot;, &quot;id&quot;: &quot;n3&quot;, &quot;label&quot;: &quot;Level Up&quot;, &quot;params&quot;: {&quot;gain&quot;: 6.5}}, {&quot;type&quot;: &quot;truepeak&quot;, &quot;id&quot;: &quot;n4&quot;, &quot;label&quot;: &quot;Peak Ceiling&quot;, &quot;params&quot;: {&quot;ceiling&quot;: -1.5, &quot;lookahead&quot;: 3, &quot;release&quot;: 80}}]}"></video>
+      </div>
+      <div id="tint" class="fill"></div>
+      <div id="vignette" class="fill"></div>
+      <div id="dim" class="fill"></div>
+
+      <div id="hook" class="title"><h1>{{HOOK_1}}</h1><h1 class="red">{{HOOK_2}}</h1><p>{{HOOK_SUB}}</p></div>
+      <div id="beats"></div>
+      <div id="list"></div>
+      <div id="captions"></div>
+
+      <div id="burst" class="fill"><i>★</i><i>✦</i><i>✦</i><i>★</i><div class="pop-ring"></div></div>
+      <div id="flash" class="fill"></div>
+
+      <audio id="music" src="assets/music.wav" data-start="0" data-duration="{{DURATION}}" data-track-index="2" data-volume="{{MUSIC_VOLUME}}"></audio>
+      <!-- SFX:BEGIN --><!-- SFX:END -->
+    </div>
+
+    <script>
+      const END = {{DURATION}}, HOOK = 3.0;
+      const tl = gsap.timeline({ paused: true });
+      const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html) e.innerHTML = html; return e; };
+
+      // Dynamic framing: alternate between 1.0x and 1.12x on jump cuts with a gentle upbeat push.
+      SEG_STARTS.forEach((s, i) => {
+        const e = SEG_STARTS[i + 1] ?? END, base = i % 2 ? 1.12 : 1.0;
+        tl.fromTo("#cam", { scale: base }, { scale: base + 0.035, duration: e - s, ease: "none", immediateRender: i === 0 }, s);
+      });
+
+      // Playful burst pop transition for every beat card.
+      const hit = (t, dur, focus = true) => {
+        const v = Math.max(0, t - 0.18);
+        tl.set("#burst", { opacity: 1 }, v);
+        tl.fromTo("#burst i", { scale: 0, rotation: -35 }, { scale: 1, rotation: 12, duration: 0.28, ease: "back.out(2.2)", immediateRender: false }, v);
+        tl.fromTo("#burst .pop-ring", { scale: 0.65, opacity: 0.9 }, { scale: 1.25, opacity: 0, duration: 0.35, ease: "power2.out", immediateRender: false }, t);
+        tl.to("#burst", { opacity: 0, duration: 0.18 }, t + 0.22);
+        tl.set("#flash", { opacity: 0.18 }, t);
+        tl.to("#flash", { opacity: 0, duration: 0.22, ease: "power2.out" }, t);
+        if (!focus) return;  // hook: keep the speaker clear
+        tl.to("#dim", { opacity: 1, duration: 0.22 }, t);
+        tl.to("#cam", { filter: "blur(10px) brightness(1.02)", duration: 0.22 }, t);
+        if (t + dur < END) {
+          tl.to("#dim", { opacity: 0, duration: 0.28 }, t + dur - 0.28);
+          tl.to("#cam", { filter: "blur(0px) brightness(1)", duration: 0.28 }, t + dur - 0.28);
+        }
+      };
+
+      // Shrink any title wider than the 840 px safe area (long words like PENGECUALIAN).
+      const fit = n => n.querySelectorAll("h1").forEach(h => { const w = h.scrollWidth; if (w > 840) h.style.fontSize = Math.floor(parseFloat(getComputedStyle(h).fontSize) * 840 / w) + "px"; });
+
+      // Hook: bouncy spring pop-in.
+      fit(document.getElementById("hook"));
+      hit(0.3, HOOK - 0.3, false);
+      tl.fromTo("#hook", { opacity: 0, scale: 0.72, y: 40 }, { opacity: 1, scale: 1, y: 0, duration: 0.48, ease: "back.out(1.8)" }, 0.05);
+      tl.to("#hook", { opacity: 0, scale: 0.9, duration: 0.25 }, HOOK - 0.28);
+
+      // Beats.
+      const beats = document.getElementById("beats"), list = document.getElementById("list");
+      let listStart = null;
+      const pic = b => b.img ? `<div class="frame"><img src="assets/img/${b.img}" alt="" data-layout-allow-overflow></div>` : "";
+      const kbAt = (n, t) => { const im = n.querySelector(".frame img"); if (im) tl.fromTo(im, { scale: 1.12 }, { scale: 1, duration: 3.2, ease: "power1.out" }, t); };
+      BEATS.forEach((b, i) => {
+        if (b.kind === "end") {
+          // Celebratory ending: bouncy staggered word pop-in with a cheerful float.
+          const n = el("div", "title end", b.title.split(" ").map(w => `<h1>${w}</h1>`).join(""));
+          beats.append(n); fit(n);
+          tl.to("#dim", { opacity: 1, duration: 0.25 }, b.t);
+          tl.to("#cam", { filter: "blur(12px) brightness(0.9)", duration: 0.25 }, b.t);
+          tl.set(n, { opacity: 1 }, b.t);
+          n.querySelectorAll("h1").forEach((h, j) =>
+            tl.fromTo(h, { opacity: 0, scale: 0.4, y: 60, rotation: j % 2 ? 6 : -6 },
+              { opacity: 1, scale: 1, y: 0, rotation: 0, duration: 0.36, ease: "back.out(2.1)" }, b.t + j * 0.14));
+          const land = b.t + (n.children.length - 1) * 0.14 + 0.36;
+          tl.set("#flash", { opacity: 0.25 }, land);
+          tl.to("#flash", { opacity: 0, duration: 0.35 }, land);
+          tl.to(n, { scale: 1.05, duration: END - land, ease: "sine.inOut" }, land);
+        } else if (b.kind === "title") {
+          const d = 1.8;
+          const n = el("div", "title" + (b.img ? " has-img" : ""), pic(b) + `<h1>${b.title}</h1>` + (b.sub ? `<p>${b.sub}</p>` : ""));
+          beats.append(n); fit(n); hit(b.t, d); kbAt(n, b.t);
+          tl.fromTo(n, { opacity: 0, scale: 0.75, y: 50 }, { opacity: 1, scale: 1, y: 0, duration: 0.42, ease: "back.out(1.7)" }, b.t + 0.06);
+          tl.to(n, { opacity: 0, scale: 0.92, duration: 0.24 }, b.t + d - 0.24);
+        } else if (b.kind === "case") {
+          const d = 3.2;
+          const n = el("div", "case", pic(b) + `<div class="k">${b.kicker}</div><h2>${b.title}</h2>` +
+            (b.sub ? `<div class="s">${b.sub}</div>` : "") + (b.stamp ? `<div class="stamp" data-layout-allow-overlap>${b.stamp}</div>` : ""));
+          beats.append(n); hit(b.t, d); kbAt(n, b.t);
+          tl.fromTo(n, { opacity: 0, y: 110, scale: 0.88, rotation: -3 }, { opacity: 1, y: 0, scale: 1, rotation: -1, duration: 0.48, ease: "back.out(1.7)" }, b.t + 0.06);
+          const st = n.querySelector(".stamp");
+          if (st) tl.fromTo(st, { opacity: 0, scale: 0.3, rotation: 14 }, { opacity: 1, scale: 1, rotation: -8, duration: 0.34, ease: "back.out(2.4)" }, b.t + 0.9);
+          tl.to(n, { opacity: 0, y: -50, scale: 0.94, duration: 0.28 }, b.t + d - 0.28);
+        } else if (b.kind === "photo") {
+          const d = 2.8;
+          const n = el("div", "photo", pic(b) + `<p>${b.label}</p>`);
+          beats.append(n); hit(b.t, d); kbAt(n, b.t);
+          tl.fromTo(n, { opacity: 0, y: 80, scale: 0.88, rotation: 3 }, { opacity: 1, y: 0, scale: 1, rotation: 1, duration: 0.45, ease: "back.out(1.6)" }, b.t + 0.06);
+          tl.to(n, { opacity: 0, scale: 0.92, duration: 0.28 }, b.t + d - 0.28);
+        } else {
+          if (listStart === null) listStart = b.t;
+          // Cheerful checklist reveal: bouncy star badge pops in, sticker bar springs up, and text glides open.
+          const n = el("div", "item", `<b>★</b><span>${b.text}</span>`);
+          list.append(n);
+          const box = n.querySelector("b"), txt = n.querySelector("span");
+          tl.fromTo(n, { opacity: 0, y: 36, scale: 0.9 }, { opacity: 1, y: 0, scale: 1, duration: 0.38, ease: "back.out(1.8)" }, b.t);
+          tl.fromTo(box, { scale: 0, rotation: -90 }, { scale: 1, rotation: 0, duration: 0.42, ease: "back.out(2.4)" }, b.t + 0.04);
+          tl.fromTo(txt, { clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 0% 0 0)", duration: 0.45, ease: "power2.out" }, b.t + 0.08);
+          tl.fromTo(box, { scale: 1 }, { scale: 1.1, duration: 0.5, ease: "sine.inOut", yoyo: true, repeat: 3 }, b.t + 0.5);
+        }
+      });
+
+      // The checklist leaves when the speaker moves on: the next jump cut after the last item (max 6 s).
+      const items = BEATS.filter(b => b.kind === "item"), lastItem = items.length ? items[items.length - 1].t : 0;
+      const listEnd = Math.min(SEG_STARTS.find(s => s > lastItem + 1) ?? END, lastItem + 6);
+      if (items.length) {
+        const head = el("div", "head"); head.textContent = "KEMUNGKINAN:"; list.prepend(head);
+        tl.fromTo(head, { opacity: 0, scale: 0.7, y: 20 }, { opacity: 1, scale: 1, y: 0, duration: 0.38, ease: "back.out(2)" }, listStart - 0.6);
+        tl.fromTo("#list", { opacity: 0 }, { opacity: 1, duration: 0.25 }, listStart - 0.6);
+        tl.to("#dim", { opacity: 1, duration: 0.28 }, listStart - 0.6);
+        tl.to("#cam", { filter: "blur(10px) brightness(0.95)", duration: 0.35 }, listStart - 0.6);
+        tl.to(["#list", "#dim"], { opacity: 0, duration: 0.35 }, listEnd - 0.35);
+        tl.to("#cam", { filter: "blur(0px) brightness(1)", duration: 0.35 }, listEnd - 0.35);
+      }
+
+      // Captions (hidden while a card or the list is on screen; kept visible under the hook).
+      const busy = BEATS.filter(b => b.kind !== "item" && b.kind !== "photo").map(b => [b.t, b.t + (b.kind === "case" ? 3.2 : b.kind === "end" ? END : 1.8)])
+        .concat(items.length ? [[listStart - 0.6, listEnd]] : []);
+      const cap = document.getElementById("captions");
+      CAPTIONS.forEach(chunk => {
+        const n = el("div", "chunk"); cap.append(n);
+        const start = chunk[0].s, end = chunk[chunk.length - 1].hold;
+        if (busy.some(([a, b]) => start < b && end > a)) return;
+        tl.fromTo(n, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.12, ease: "back.out(1.6)" }, start);
+        tl.set(n, { opacity: 0 }, end);
+        chunk.forEach((w, j) => {
+          const txt = w.w.replace(/[,.?!]+$/, "");
+          const s = el("span", "w"); s.textContent = txt; n.append(s);
+          const f = el("span", "fill"); f.textContent = txt; s.append(f);
+          const until = chunk[j + 1] ? chunk[j + 1].s : end;
+          const t0 = Math.max(start, w.s - 1 / 30), dur = Math.max(w.e - w.s, 0.1);
+          tl.fromTo(f, { clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 0% 0 0)", duration: dur, ease: "power1.out" }, t0);
+          tl.fromTo(s, { scale: 1.1 }, { scale: 1, duration: 0.18, ease: "back.out(2)" }, t0);
+          tl.set(f, { color: "#fffdf5" }, until);
+        });
+      });
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

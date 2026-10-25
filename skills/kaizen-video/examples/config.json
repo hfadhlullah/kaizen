@@ -1,0 +1,152 @@
+{
+  "name": "film-horor-cina",
+  "preset": "tiktok-cheerful",
+  "video": "work/cut.mp4",
+  "words": "transcript/words.json",
+  "plan": "transcript/render-plan.json",
+  "fix": {
+    "Mainan": "Mainland",
+    "role": "lore",
+    "horror": "horor"
+  },
+  "cold_open": {
+    "from": "film",
+    "after": 6,
+    "to": "hantunya"
+  },
+  "hook": {
+    "line1": "FILM HOROR",
+    "line2": "TANPA HANTU?",
+    "sub": "Kenapa dilarang di negara ini?"
+  },
+  "music": "sunny",
+  "music_volume": 0.30,
+  "beats": [
+    {
+      "kind": "title",
+      "word": "cina",
+      "img": "tiananmen.jpg",
+      "title": "CINA",
+      "sub": "Negara yang membatasi film horor"
+    },
+    {
+      "kind": "case",
+      "word": "vampir",
+      "img": "jiangshi.jpg",
+      "kicker": "BUKTI #1",
+      "title": "JIANGSHI",
+      "sub": "Vampir lompat-lompat — produksi Hongkong, bukan Cina daratan"
+    },
+    {
+      "kind": "photo",
+      "word": "hongkong",
+      "img": "hongkong.jpg",
+      "label": "Hongkong — bukan China Mainland"
+    },
+    {
+      "kind": "title",
+      "word": "rrc",
+      "title": "RRC",
+      "sub": "China Mainland"
+    },
+    {
+      "kind": "case",
+      "word": "dilarang",
+      "kicker": "ARSIP PEMERINTAH",
+      "title": "FILM TAHAYUL",
+      "stamp": "DILARANG"
+    },
+    {
+      "kind": "photo",
+      "word": "film",
+      "after": 50,
+      "img": "projector.jpg",
+      "label": "Film & media"
+    },
+    {
+      "kind": "title",
+      "word": "rasionalitas",
+      "title": "RASIONAL",
+      "sub": "Mistis & goib tidak boleh tampil"
+    },
+    {
+      "kind": "photo",
+      "word": "mistis",
+      "img": "ghosts.jpg",
+      "label": "Lukisan hantu, abad ke-18"
+    },
+    {
+      "kind": "title",
+      "word": "pengecualian",
+      "title": "PENGECUALIAN",
+      "sub": "Hantu boleh muncul... dengan syarat"
+    },
+    {
+      "kind": "case",
+      "word": "ancient",
+      "img": "mask.jpg",
+      "kicker": "SYARAT",
+      "title": "MASA LAMPAU",
+      "sub": "Setting kuno atau cerita rakyat — bukan era modern"
+    },
+    {
+      "kind": "title",
+      "word": "plot",
+      "title": "PLOT TWIST",
+      "sub": "Selalu ada penjelasan logis"
+    },
+    {
+      "kind": "item",
+      "word": "jiwa",
+      "text": "Sakit jiwa"
+    },
+    {
+      "kind": "item",
+      "word": "nyamar",
+      "text": "Orang menyamar"
+    },
+    {
+      "kind": "item",
+      "word": "mutasi",
+      "text": "Mutasi genetik"
+    },
+    {
+      "kind": "end",
+      "word": "bukan",
+      "after": 105,
+      "title": "PASTI BUKAN HANTU"
+    }
+  ],
+  "reactions": [
+    {
+      "sfx": "pop",
+      "word": "negara",
+      "after": 10,
+      "offset": -0.1,
+      "volume": 0.6,
+      "note": "Negara apakah itu?"
+    },
+    {
+      "sfx": "boing",
+      "word": "kenapa",
+      "after": 50,
+      "volume": 0.55,
+      "note": "Kenapa kayak gitu?"
+    },
+    {
+      "sfx": "chime",
+      "word": "film",
+      "after": 50,
+      "volume": 0.55,
+      "note": "film, media"
+    },
+    {
+      "sfx": "whoosh",
+      "word": "plot",
+      "offset": -0.35,
+      "volume": 0.55,
+      "note": "plot twist"
+    }
+  ],
+  "tail": 2.5
+}

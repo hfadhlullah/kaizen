@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="id" data-resolution="portrait">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script src="captions.js"></script>
+    <style>
+      @font-face { font-family: "Montserrat"; src: url("assets/fonts/Montserrat.ttf"); font-weight: 100 900; }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1080px; height: 1920px; overflow: hidden; background: #f4f1ea; }
+      body { font-family: "Montserrat", sans-serif; color: #1d2430; }
+      #root { position: relative; width: 100%; height: 100%; overflow: hidden; }
+      .fill { position: absolute; inset: 0; }
+
+      /* Grid paper behind the camera, seen when the camera steps back for a card. */
+      #paper { background-color: #f4f1ea;
+        background-image: linear-gradient(rgba(29,36,48,.07) 2px, transparent 2px), linear-gradient(90deg, rgba(29,36,48,.07) 2px, transparent 2px);
+        background-size: 60px 60px; }
+      /* Camera: bright and natural (slight lift, no vignette, no grain). */
+      #cam { position: absolute; inset: 0; overflow: hidden; transform-origin: 50% 40%; border-radius: 0; }
+      #a-roll { width: 100%; height: 100%; object-fit: cover; filter: brightness(1.05) contrast(1.02) saturate(1.06); }
+      #wash { background: #fffdf8; opacity: 0; }
+
+      /* Swipe transition: an amber band and a navy band sweep across the frame. */
+      .band { position: absolute; top: -10%; height: 120%; }
+      #band-a { left: 0; width: 70%; background: #ffb81c; }
+      #band-b { left: 0; width: 22%; background: #1d2430; }
+
+      /* Warning triangle (hook + ending). */
+      .sign { display: block; }
+
+      /* Captions: white box, spoken words dark, the current word on an amber marker. */
+      #captions { position: absolute; left: 110px; right: 110px; top: 1290px; height: 220px; }
+      .chunk { position: absolute; inset: 0; display: flex; justify-content: center; align-items: center; opacity: 0; }
+      .chunk .box { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 10px; background: #fff; border-radius: 22px;
+        padding: 16px 24px; box-shadow: 0 10px 30px rgba(29,36,48,.25); max-width: 860px; }
+      .w { font-weight: 800; font-size: 58px; line-height: 1.15; color: #9aa1ab; padding: 0 10px; border-radius: 12px; }
+
+      /* Hook card. */
+      #hook { position: absolute; left: 110px; right: 110px; top: 300px; background: #fff; border-radius: 40px; padding: 50px 40px 56px;
+        display: flex; flex-direction: column; align-items: center; box-shadow: 0 30px 70px rgba(29,36,48,.3); opacity: 0; }
+      #hook .sign { width: 170px; height: 150px; margin-bottom: 18px; }
+      .line { overflow: hidden; }
+      .line > span { display: block; }
+      #hook h1 { white-space: nowrap; font-weight: 900; text-align: center; line-height: 1; }
+      #hook h1.l1 { font-size: 170px; color: #e0352b; }
+      #hook h1.l2 { font-size: 100px; color: #1d2430; margin-top: 10px; }
+      #hook p { margin-top: 30px; background: #ffb81c; color: #1d2430; font-weight: 800; font-size: 40px; padding: 10px 26px; border-radius: 999px; text-align: center; }
+
+      /* Titles: dark headline on white, an amber marker stroke grows behind it. */
+      .title { position: absolute; left: 0; right: 0; top: 700px; display: flex; flex-direction: column; align-items: center; opacity: 0; }
+      .title .hlw { position: relative; padding: 18px 40px; background: #fff; border-radius: 28px; box-shadow: 0 24px 60px rgba(29,36,48,.3); }
+      .title .hl { position: absolute; left: 30px; right: 30px; bottom: 26px; height: 42%; background: #ffd56b; border-radius: 10px; transform-origin: 0 50%; }
+      .title h1 { position: relative; white-space: nowrap; font-weight: 900; font-size: 110px; line-height: 1.05; color: #1d2430; text-align: center; }
+      .title p { margin-top: 26px; background: #138a8a; color: #fff; font-weight: 700; font-size: 40px; padding: 8px 24px; border-radius: 999px; }
+
+      /* Fact cards: white card with a teal header strip and an optional red round badge. */
+      .case { position: absolute; left: 120px; right: 120px; top: 520px; background: #fff; border-radius: 34px; overflow: visible; opacity: 0;
+        box-shadow: 0 30px 70px rgba(29,36,48,.3); transform-origin: 50% 0; }
+      .case .k { background: #138a8a; color: #fff; font-weight: 800; font-size: 34px; letter-spacing: 5px; padding: 22px 46px; border-radius: 34px 34px 0 0; }
+      .case h2 { font-weight: 900; font-size: 84px; line-height: 1.02; padding: 34px 46px 0; color: #1d2430; }
+      .case .s { font-weight: 600; font-size: 40px; line-height: 1.3; padding: 22px 46px 52px; color: #3a4452; }
+      .badge { position: absolute; right: -30px; top: -60px; width: 190px; height: 190px; border-radius: 50%; background: #e0352b; color: #fff;
+        display: grid; place-items: center; text-align: center; font-weight: 900; font-size: 34px; line-height: 1.05; padding: 20px;
+        box-shadow: 0 14px 30px rgba(224,53,43,.45); border: 8px solid #fff; opacity: 0; }
+
+      /* Example photos: a white print with an "CONTOH" tag and a red circle drawn on it. */
+      .photo { position: absolute; left: 130px; right: 130px; top: 380px; background: #fff; padding: 22px 22px 30px; border-radius: 18px; opacity: 0;
+        box-shadow: 0 30px 80px rgba(29,36,48,.35); }
+      .photo .frame { position: relative; height: 700px; border-radius: 8px; overflow: hidden; }
+      .photo .frame img { width: 100%; height: 100%; object-fit: cover; }
+      .photo svg.ring { position: absolute; inset: 0; width: 100%; height: 100%; }
+      .photo .tag { position: absolute; left: -26px; top: -30px; background: #e0352b; color: #fff; font-weight: 900; font-size: 34px; letter-spacing: 4px;
+        padding: 10px 22px; border-radius: 12px; transform: rotate(-5deg); }
+      .photo p { margin-top: 24px; font-weight: 800; font-size: 42px; line-height: 1.2; text-align: center; color: #1d2430; }
+
+      /* Checklist on a clipboard card. */
+      #list { position: absolute; left: 100px; right: 100px; top: 470px; background: #fff; border-radius: 36px; padding: 0 0 40px; opacity: 0;
+        box-shadow: 0 30px 70px rgba(29,36,48,.3); }
+      #list .head { background: #ffb81c; color: #1d2430; font-weight: 900; font-size: 46px; padding: 26px 44px; border-radius: 36px 36px 0 0; }
+      .item { display: flex; align-items: center; gap: 28px; padding: 26px 44px 0; font-weight: 800; font-size: 46px; line-height: 1.15; opacity: 0; }
+      .item b { flex: none; width: 76px; height: 76px; border-radius: 50%; border: 6px solid #138a8a; color: #138a8a; display: grid; place-items: center; font-size: 40px; font-weight: 900; }
+
+      /* Ending: a swinging warning sign. */
+      .end { position: absolute; left: 0; right: 0; top: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; }
+      .end .hang { display: flex; flex-direction: column; align-items: center; transform-origin: 50% 0; }
+      .end .sign { width: 520px; height: 460px; }
+      .end h1 { margin-top: 20px; background: #fff; border-radius: 30px; padding: 10px 46px; font-weight: 900; font-size: 160px; color: #e0352b; white-space: nowrap;
+        box-shadow: 0 24px 60px rgba(29,36,48,.3); }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="{{DURATION}}" data-width="1080" data-height="1920">
+      <div id="paper" class="fill"></div>
+      <div id="cam">
+        <video id="a-roll" class="clip" src="{{VIDEO}}" playsinline data-start="0" data-duration="{{VIDEO_DURATION}}" data-track-index="0" data-has-audio="true" data-fx-chain="{&quot;version&quot;: 1, &quot;nodes&quot;: [{&quot;type&quot;: &quot;highpass&quot;, &quot;id&quot;: &quot;n1&quot;, &quot;label&quot;: &quot;Remove Rumble&quot;, &quot;params&quot;: {&quot;frequency&quot;: 90, &quot;q&quot;: 0.707, &quot;poles&quot;: &quot;2&quot;}}, {&quot;type&quot;: &quot;compressor&quot;, &quot;id&quot;: &quot;n2&quot;, &quot;label&quot;: &quot;Even Out Loudness&quot;, &quot;params&quot;: {&quot;threshold&quot;: -26, &quot;ratio&quot;: 3, &quot;attack&quot;: 10, &quot;release&quot;: 200, &quot;knee&quot;: 2.83, &quot;makeup&quot;: 6, &quot;mix&quot;: 1}}, {&quot;type&quot;: &quot;gain&quot;, &quot;id&quot;: &quot;n3&quot;, &quot;label&quot;: &quot;Level Up&quot;, &quot;params&quot;: {&quot;gain&quot;: 5}}, {&quot;type&quot;: &quot;truepeak&quot;, &quot;id&quot;: &quot;n4&quot;, &quot;label&quot;: &quot;Peak Ceiling&quot;, &quot;params&quot;: {&quot;ceiling&quot;: -1.5, &quot;lookahead&quot;: 3, &quot;release&quot;: 80}}]}"></video>
+        <div id="wash" class="fill"></div>
+      </div>
+
+      <div id="hook">
+        <svg class="sign" viewBox="0 0 120 106"><path d="M60 6 L114 100 H6 Z" fill="#ffb81c" stroke="#1d2430" stroke-width="8" stroke-linejoin="round"/><rect x="54" y="36" width="12" height="36" rx="5" fill="#1d2430"/><circle cx="60" cy="84" r="7" fill="#1d2430"/></svg>
+        <div class="line"><span><h1 class="l1">{{HOOK_1}}</h1></span></div>
+        <div class="line"><span><h1 class="l2">{{HOOK_2}}</h1></span></div>
+        <p>{{HOOK_SUB}}</p>
+      </div>
+      <div id="beats"></div>
+      <div id="list"></div>
+      <div id="captions"></div>
+
+      <div id="band-b" class="band"></div>
+      <div id="band-a" class="band"></div>
+
+      <audio id="music" src="assets/music.wav" data-start="0" data-duration="{{DURATION}}" data-track-index="2" data-volume="{{MUSIC_VOLUME}}"></audio>
+      <!-- SFX:BEGIN --><!-- SFX:END -->
+    </div>
+
+    <script>
+      const END = {{DURATION}}, HOOK = 3.0;
+      const tl = gsap.timeline({ paused: true });
+      const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html) e.innerHTML = html; return e; };
+      const SIGN = document.querySelector("#hook .sign").outerHTML;
+
+      // Jump cuts: a small settle-in on each new segment instead of alternating framing.
+      SEG_STARTS.forEach((s, i) => tl.fromTo("#cam", { scale: 1.035 }, { scale: 1, duration: 0.35, ease: "power2.out", immediateRender: i === 0 }, s));
+
+      // Swipe: amber + navy bands cross the frame, covering the card's arrival.
+      gsap.set(".band", { skewX: -14, x: -1700 });
+      const swipe = t => {
+        tl.fromTo("#band-b", { x: -1700 }, { x: 1900, duration: 0.5, ease: "power2.inOut", immediateRender: false }, t - 0.2);
+        tl.fromTo("#band-a", { x: -1700 }, { x: 1900, duration: 0.5, ease: "power2.inOut", immediateRender: false }, t - 0.16);
+      };
+      // Step back: the camera shrinks onto the grid paper with rounded corners while a card is up.
+      const stepBack = (t, dur) => {
+        tl.to("#cam", { scale: 0.84, y: -40, borderRadius: 56, duration: 0.45, ease: "power3.inOut" }, t - 0.1);
+        tl.to("#wash", { opacity: 0.5, duration: 0.45 }, t - 0.1);
+        if (t + dur < END) {
+          tl.to("#cam", { scale: 1, y: 0, borderRadius: 0, duration: 0.4, ease: "power3.inOut" }, t + dur - 0.35);
+          tl.to("#wash", { opacity: 0, duration: 0.4 }, t + dur - 0.35);
+        }
+      };
+
+      // Shrink any headline wider than the safe area.
+      const fit = (n, max = 820) => n.querySelectorAll("h1").forEach(h => { const w = h.scrollWidth; if (w > max) h.style.fontSize = Math.floor(parseFloat(getComputedStyle(h).fontSize) * max / w) + "px"; });
+
+      // Hook: card pops, sign bounces, lines rise out of their masks.
+      fit(document.getElementById("hook"), 780);
+      tl.fromTo("#hook", { opacity: 0, y: 60, scale: 0.9 }, { opacity: 1, y: 0, scale: 1, duration: 0.45, ease: "back.out(1.6)" }, 0.05);
+      tl.fromTo("#hook .sign", { scale: 0, rotation: -30 }, { scale: 1, rotation: 0, duration: 0.55, ease: "elastic.out(1, 0.5)" }, 0.2);
+      tl.fromTo("#hook .line > span", { yPercent: 105 }, { yPercent: 0, duration: 0.45, ease: "power3.out", stagger: 0.14 }, 0.35);
+      tl.fromTo("#hook p", { opacity: 0, scale: 0.6 }, { opacity: 1, scale: 1, duration: 0.3, ease: "back.out(2)" }, 0.8);
+      tl.to("#hook", { opacity: 0, y: -40, duration: 0.3 }, HOOK - 0.3);
+
+      const beats = document.getElementById("beats"), list = document.getElementById("list");
+      let listStart = null;
+      BEATS.forEach(b => {
+        if (b.kind === "end") {
+          const n = el("div", "end", `<div class="hang">${SIGN}<h1>${b.title}</h1></div>`);
+          beats.append(n); fit(n, 900);
+          stepBack(b.t, END - b.t); swipe(b.t);
+          tl.to("#wash", { opacity: 1, duration: 0.4 }, b.t);
+          tl.set(n, { opacity: 1 }, b.t);
+          const hang = n.querySelector(".hang");
+          tl.fromTo(hang, { y: -1400 }, { y: 0, duration: 0.5, ease: "power3.in" }, b.t);
+          // Swing settles like a hanging sign, landing with the chord hit at +1.2 s.
+          [16, -11, 7, -4, 2, 0].forEach((r, j) => tl.to(hang, { rotation: r, duration: 0.24, ease: "sine.inOut" }, b.t + 0.5 + j * 0.24));
+        } else if (b.kind === "title") {
+          const d = 1.8;
+          const n = el("div", "title", `<div class="hlw"><div class="hl"></div><h1>${b.title}</h1></div>` + (b.sub ? `<p>${b.sub}</p>` : ""));
+          beats.append(n); fit(n); swipe(b.t); stepBack(b.t, d);
+          tl.fromTo(n, { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.35, ease: "power3.out" }, b.t + 0.05);
+          tl.fromTo(n.querySelector(".hl"), { scaleX: 0 }, { scaleX: 1, duration: 0.4, ease: "power2.out" }, b.t + 0.3);
+          if (b.sub) tl.fromTo(n.querySelector("p"), { opacity: 0, x: -40 }, { opacity: 1, x: 0, duration: 0.3, ease: "power2.out" }, b.t + 0.45);
+          tl.to(n, { opacity: 0, y: -30, duration: 0.25 }, b.t + d - 0.25);
+        } else if (b.kind === "case") {
+          const d = 3.2;
+          const n = el("div", "case", `<div class="k">${b.kicker}</div><h2>${b.title}</h2>` + (b.sub ? `<div class="s">${b.sub}</div>` : "<div class='s'></div>") +
+            (b.stamp ? `<div class="badge" data-layout-allow-overlap>${b.stamp}</div>` : ""));
+          beats.append(n); swipe(b.t); stepBack(b.t, d);
+          // Card flips up from its top edge like a flash card.
+          tl.fromTo(n, { opacity: 0, rotationX: -80, transformPerspective: 1400 }, { opacity: 1, rotationX: 0, duration: 0.6, ease: "back.out(1.3)" }, b.t + 0.05);
+          const bd = n.querySelector(".badge");
+          if (bd) tl.fromTo(bd, { opacity: 0, scale: 0, rotation: 40 }, { opacity: 1, scale: 1, rotation: 12, duration: 0.4, ease: "back.out(2.5)" }, b.t + 0.95);
+          tl.to(n, { opacity: 0, rotationX: 70, duration: 0.3, ease: "power2.in" }, b.t + d - 0.3);
+        } else if (b.kind === "photo") {
+          const d = b.dur ?? 2.8;
+          const n = el("div", "photo", `<div class="tag" data-layout-allow-overlap>CONTOH</div><div class="frame"><img src="assets/img/${b.img}" alt="" data-layout-allow-overflow>` +
+            `<svg class="ring" viewBox="0 0 100 100" preserveAspectRatio="none"><ellipse cx="${b.cx ?? 50}" cy="${b.cy ?? 50}" rx="${b.rx ?? 30}" ry="${b.ry ?? 26}" fill="none" stroke="#e0352b" stroke-width="1.6" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100"/></svg></div><p>${b.label}</p>`);
+          if (b.pos) n.querySelector(".frame img").style.objectPosition = b.pos;
+          beats.append(n); swipe(b.t); stepBack(b.t, d);
+          tl.fromTo(n, { opacity: 0, scale: 0.6, rotation: -8 }, { opacity: 1, scale: 1, rotation: -1.5, duration: 0.5, ease: "back.out(1.5)" }, b.t + 0.05);
+          tl.fromTo(n.querySelector(".tag"), { scale: 0 }, { scale: 1, duration: 0.3, ease: "back.out(3)" }, b.t + 0.4);
+          tl.fromTo(n.querySelector("ellipse"), { attr: { "stroke-dashoffset": 100 } }, { attr: { "stroke-dashoffset": 0 }, duration: 0.6, ease: "power1.inOut" }, b.t + 0.6);
+          tl.to(n, { opacity: 0, y: 60, duration: 0.3 }, b.t + d - 0.3);
+        } else {
+          if (listStart === null) listStart = b.t;
+          const n = el("div", "item", `<b>${list.querySelectorAll(".item").length + 1}</b><span>${b.text}</span>`);
+          list.append(n);
+          tl.fromTo(n, { opacity: 0, x: -80, filter: "blur(8px)" }, { opacity: 1, x: 0, filter: "blur(0px)", duration: 0.45, ease: "power3.out" }, b.t);
+          tl.fromTo(n.querySelector("b"), { backgroundColor: "#ffffff", color: "#138a8a" }, { backgroundColor: "#138a8a", color: "#ffffff", duration: 0.2 }, b.t + 0.3);
+        }
+      });
+      // Checklist: stays until the next jump cut after the last item (max 6 s).
+      const items = BEATS.filter(b => b.kind === "item"), lastItem = items.length ? items[items.length - 1].t : 0;
+      const listEnd = Math.min(SEG_STARTS.find(s => s > lastItem + 1) ?? END, lastItem + 6);
+      if (items.length) {
+        list.prepend(el("div", "head", window.LIST_TITLE ?? "SEBELUM BELI, INGAT:"));
+        swipe(listStart - 0.6); stepBack(listStart - 0.6, listEnd - listStart + 0.6);
+        tl.fromTo("#list", { opacity: 0, y: 80 }, { opacity: 1, y: 0, duration: 0.45, ease: "back.out(1.4)" }, listStart - 0.55);
+        tl.to("#list", { opacity: 0, y: -40, duration: 0.35 }, listEnd - 0.35);
+      }
+
+      // Captions (hidden while a card or the list is up).
+      const busy = BEATS.filter(b => b.kind !== "item").map(b => [b.t, b.t + (b.kind === "case" ? 3.2 : b.kind === "end" ? END : b.kind === "photo" ? b.dur ?? 2.8 : 1.8)])
+        .concat(items.length ? [[listStart - 0.6, listEnd]] : []);
+      const cap = document.getElementById("captions");
+      CAPTIONS.forEach(chunk => {
+        const n = el("div", "chunk"), box = el("div", "box"); n.append(box); cap.append(n);
+        const start = chunk[0].s, end = chunk[chunk.length - 1].hold;
+        if (busy.some(([a, b]) => start < b && end > a)) return;
+        tl.fromTo(n, { opacity: 0, scale: 0.92 }, { opacity: 1, scale: 1, duration: 0.14, ease: "back.out(2)" }, start);
+        tl.set(n, { opacity: 0 }, end);
+        chunk.forEach((w, j) => {
+          const s = el("span", "w"); s.textContent = w.w.replace(/[,.?!]+$/, ""); box.append(s);
+          const until = chunk[j + 1] ? chunk[j + 1].s : end;
+          const t0 = Math.max(start, w.s - 1 / 30);
+          // Grey upcoming, amber marker while spoken, dark once said.
+          tl.set(s, { backgroundColor: "#ffd56b", color: "#1d2430" }, t0);
+          tl.set(s, { backgroundColor: "rgba(0,0,0,0)" }, until);
+        });
+      });
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>
