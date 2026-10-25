@@ -158,7 +158,7 @@ tags = "\n".join(f'      <audio id="sfx-{i}" src="assets/sfx/{n}.wav" data-start
 src, key = rel(cfg["video"]), proj / "source.key"
 vf = "scale=1080:1920:flags=lanczos,unsharp=5:5:0.6:5:5:0,fps=30,format=yuv420p"
 af = "afftdn=nf=-28,deesser=i=0.35,aformat=sample_rates=48000:channel_layouts=stereo"
-k = json.dumps([str(src), src.stat().st_mtime, co_a, co_b, vf, af])
+k = json.dumps([str(src), src.stat().st_mtime, co_a, co_b, vf, af, "g30"])
 if not (proj / "source.mp4").exists() or not key.exists() or key.read_text() != k:
     if co:
         graph = (f"[0:v]split[v1][v2];[0:a]asplit[a1][a2];"
@@ -167,7 +167,7 @@ if not (proj / "source.mp4").exists() or not key.exists() or key.read_text() != 
     else:
         graph = f"[0:v]{vf}[v];[0:a]{af}[a]"
     run("ffmpeg", "-v", "error", "-y", "-i", str(src), "-filter_complex", graph, "-map", "[v]", "-map", "[a]",
-        "-c:v", "libx264", "-crf", "14", "-preset", "medium", "-c:a", "aac", "-b:a", "256k", "source.mp4")
+        "-c:v", "libx264", "-crf", "14", "-preset", "medium", "-g", "30", "-c:a", "aac", "-b:a", "256k", "source.mp4")
     key.write_text(k)
 
 # 5. Music bed trimmed to length, then the composition from the template.
@@ -191,7 +191,12 @@ print(f"{len(chunks)} caption chunks, {len(beats)} beats, {len(sfx)} sfx, {durat
 if "--render" in sys.argv:
     out = WORK / "output" / cfg["name"] / cfg["preset"] / f"{cfg['name']}.mp4"
     out.parent.mkdir(parents=True, exist_ok=True)
-    run("npx", "--yes", HF, "render", "--crf", str(cfg.get("crf", 23)), "-o", str(out))  # CRF 23: ~1/3 the size of the default 16, same resolution
+    # Frame extraction writes gigabytes of temp files; /tmp is often a small tmpfs, which fails as VIDEO_SOURCE_UNRENDERABLE.
+    tmp = proj / ".render-tmp"
+    tmp.mkdir(exist_ok=True)
+    run("npx", "--yes", HF, "render", "--crf", str(cfg.get("crf", 23)), "-o", str(out),  # CRF 23: ~1/3 the size of the default 16, same resolution
+        env={**os.environ, "TMPDIR": str(tmp)})
+    shutil.rmtree(tmp, ignore_errors=True)
     shutil.rmtree(proj / "renders", ignore_errors=True)
     # The video's own credits (images, footage), the music bed actually used, then the preset's (fonts, sound effects).
     # A music credit is the line "- <music>.mp3: ..." in the preset's CREDITS.txt, else in the shared assets/CREDITS.txt.

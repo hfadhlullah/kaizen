@@ -71,3 +71,6 @@ the whole video and spot-checking the cut edges.
   sound-effect WAV peaks around −6.5 to −8.5 dBFS, and post-speech ending stings around −4 dBFS.
 - `tiktok/source.mp4` is always written as a new file. Never hard-link it to the input: overwriting it
   would wipe `work/cut.mp4`.
+- `--render` points `TMPDIR` at `tiktok/.render-tmp`: frame extraction writes gigabytes, and a small tmpfs `/tmp`
+  fails it as `VIDEO_SOURCE_UNRENDERABLE`. `source.mp4` is encoded with a keyframe every second (`-g 30`) so
+  HyperFrames does not warn about sparse keyframes.
