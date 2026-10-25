@@ -152,6 +152,10 @@ board:
   # not itself a project (no .git, no package.json) is read as a group, and the
   # folders inside it are offered too.
   projects_dir: ""
+  # The Video page's library: new videos go to <folder>/videos/<name>/ and their
+  # renders to <folder>/output/<name>/. Empty means ~/.kaizen. Known projects that
+  # have a videos/ folder are listed on the Video page too.
+  video_dir: ""
   # Where `kaizen web` opens the board: browser (a tab in your default browser) or
   # app (a Chrome, Edge or Brave window with no tabs or address bar).
   open: browser

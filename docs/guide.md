@@ -218,6 +218,28 @@ you type; a note changed elsewhere since you opened it is never overwritten with
 asking, and a deleted one goes to `.kaizen/notes/.trash/`. Notes link to the board too: `[[run:<id>#finding-2]]`, a tab (`#review`, `#backlog`), a backlog item (`#backlog-3`) or `[[idea:…]]` show as chips that open the board on that item, and a run's Notes tab lists the notes that link to it. The editor is CodeMirror,
 bundled into the package, so the notebook works offline.
 
+**Videos made with kaizen-video.** Video in the side menu opens `/video`: every video the
+kaizen-video skill has made, as a wall of tiles drawn at each video's real shape (9:16, 16:9,
+4:5), one tile per shape it was rendered in. Search finds a video by its title, the words
+said in it, its preset, platform or folder; the chips filter Draft, Rendering and Ready.
+Videos live in a library folder, `~/.kaizen` unless Settings → Board → Video library folder
+says otherwise (`videos/<name>/` for the work, `output/<name>/` for the finished files), and
+in any known project that has a `videos/` folder; each tile says which. Open a film to see
+its built preview play in the page, jump to a beat from the coloured strip, and change the
+words on screen; Save changes rebuilds the preview. Pick where it goes (TikTok, Reels, Shorts,
+WhatsApp Status, YouTube, Instagram feed) and Render final makes one file per shape in the
+background, so you can leave the page. **+ New video** asks for a brief (or a folder of
+your own footage), a style preset, where it goes, a length and a language, and where to
+save it (the library, or a project); Generate draft starts Claude with the kaizen-video
+skill in that folder, and its terminal opens at the top of the page, so you answer its
+questions there and the video appears in the library as it takes shape. On any video,
+**Ask Claude** takes a change in your own words ("make the hook punchier", "say the price
+in beat 4") the same way. **Send** on a finished file sends it on: to a phone or computer
+running the LocalSend app on the same Wi-Fi (pick it from the list, accept on the device), or
+to a WhatsApp chat through [Hermes](https://github.com/NousResearch/hermes-agent) with a
+message (`hermes send` must already be set up for WhatsApp). The page says whether it
+arrived or what went wrong, and lists the video's recent sends.
+
 **Dictate instead of type.** Every text field on the board — a new idea, its notes, an
 edit, a reject reason, a note on a run — has a mic. Press it, talk, press it again; the
 words land at the caret next to whatever you had typed. Recognition is Whisper running

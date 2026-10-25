@@ -17,6 +17,9 @@ import * as google from "./google.ts";
 import { writeBacks } from "./writeback.ts";
 import { postLink, sendReply } from "./browser.ts";
 import { listNotes, saveNote, renameNote, deleteNote, boardIndex, linksTo } from "./notes.ts";
+import * as video from "./video.ts";
+import * as localsend from "./localsend.ts";
+import * as hermes from "./hermes.ts";
 
 const PAGE = join(dirname(import.meta.dir), "web", "board.html");
 // The board's script: web/board/*.ts, bundled into one file by `bun run build:web`.
@@ -28,6 +31,9 @@ const NOTES_JS = join(dirname(import.meta.dir), "web", "notebook.js");
 // The in-card terminal (agent.launch: card): xterm.js, bundled the same way.
 const TERM_JS = join(dirname(import.meta.dir), "web", "term.js");
 const TERM_CSS = join(dirname(import.meta.dir), "web", "term.css");
+// The Video page (kaizen-video's library, editor and renders) and its bundle.
+const VIDEO_PAGE = join(dirname(import.meta.dir), "web", "video.html");
+const VIDEO_JS = join(dirname(import.meta.dir), "web", "video.js");
 const DEFAULT_PORT = 7420;
 // Gathered posts a reply is going out to right now: one send per item at a time.
 const replying = new Set<string>();
@@ -43,7 +49,7 @@ const VERSION = installed();
 // page newer than its server sends ops the server does not know ("unknown op").
 // So the pages are kept as they were at start, and read live (dev edits) only while
 // the installed version is still the one this board runs.
-const AT_START = new Map([PAGE, BOARD_JS, NOTES_PAGE, NOTES_JS, TERM_JS, TERM_CSS].map((f) => [f, existsSync(f) ? readText(f) : null]));
+const AT_START = new Map([PAGE, BOARD_JS, NOTES_PAGE, NOTES_JS, TERM_JS, TERM_CSS, VIDEO_PAGE, VIDEO_JS].map((f) => [f, existsSync(f) ? readText(f) : null]));
 const served = (f: string) => installed() === VERSION && existsSync(f) ? readText(f) : AT_START.get(f) ?? null;
 
 // A board answers at url and runs the installed version. A board from before the
@@ -259,6 +265,18 @@ export async function web(repoDir: string, opts: Opts = {}) {
     return listSettings(repoDir).rows.find((r) => r.key === key)?.value ?? "";
   };
   const every = async () => (await setting("sources.every")) || "off";
+  // Where videos live: the library folder (board.video_dir, default ~/.kaizen), then
+  // every known project with a videos/ folder. The page names one by its index.
+  const videoPlaces = async () => {
+    let d = await setting("board.video_dir");
+    if (d.startsWith("~")) d = home + d.slice(1);
+    return video.places(d ? resolve(nativePath(d)) : join(home, ".kaizen"), knownProjects());
+  };
+  video.onJobChange(() => changed());
+  // Send targets as last listed: a send may only go to a device the last search found
+  // or a chat Hermes listed, never to an address the page makes up.
+  let devices: { at: number; list: localsend.Device[]; note: string | null } = { at: 0, list: [], note: null };
+  let chats: hermes.Chat[] = [];
   let busy = false;
   const gather = setInterval(async () => {
     if (busy) return;
@@ -366,6 +384,54 @@ export async function web(repoDir: string, opts: Opts = {}) {
         const body = served(f);
         if (body === null) return new Response(`${path} missing; run bun run build:web`, { status: 500 });
         return new Response(body, { headers: { "content-type": type, "cache-control": "no-store" } });
+      }
+
+      if (req.method === "GET" && (path === "/video" || path === "/video.js")) {
+        const [f, type] = path === "/video" ? [VIDEO_PAGE, "text/html; charset=utf-8"] : [VIDEO_JS, "application/javascript; charset=utf-8"];
+        const body = served(f);
+        if (body === null) return new Response(`${path} missing; run bun run build:web`, { status: 500 });
+        return new Response(body, { headers: { "content-type": type, "cache-control": "no-store" } });
+      }
+
+      if (req.method === "GET" && path.startsWith("/video/")) {
+        const all = await videoPlaces();
+        const at = (v: { place: string }) => all.findIndex((p) => p.dir === v.place);
+        if (path === "/video/presets") {
+          const place = all[Number(url.searchParams.get("p") ?? 0)] ?? all[0]!;
+          return json({ presets: video.presets(place.dir), limits: video.LIMITS });
+        }
+        // Agents the page started, while the board still holds their terminal.
+        const agents = video.agentsOf().flatMap((a) => {
+          const s = ptyState(a.key), p = at(a);
+          return s && p >= 0 ? [{ place: p, name: a.name, pty: a.key, alive: s.alive, asking: !!s.asking, at: a.at }] : [];
+        });
+        if (path === "/video/list")
+          return json({ places: all.map((p, i) => ({ i, label: p.label, dir: tilde(p.dir) })), agents, jobs: video.jobList().map((j) => ({ ...j, place: at(j) })),
+            videos: video.listVideos(all).map((v) => ({ ...v, place: at(v), job: v.job && { ...v.job, place: at(v) },
+              send: video.sendOf(v.place, v.name), sends: video.sendLog(v.place, v.name).slice(-5).reverse() })) });
+        if (path === "/video/film") {
+          const place = all[Number(url.searchParams.get("p"))], name = url.searchParams.get("name");
+          if (!place || !video.okName(name)) return bad("unknown video", 404);
+          const film = video.readFilm(place.dir, name);
+          if (!film) return bad("not a film", 404);
+          return json({ ...film, stills: video.stills(place.dir, name), job: video.jobOf(place.dir, name), log: video.logOf(place.dir, name) });
+        }
+        if (path.startsWith("/video/f/")) return video.serveFile(all, path.slice("/video/f/".length).split("/"), req);
+        // LocalSend devices, searched again on ?fresh=1 or after two minutes.
+        if (path === "/video/devices") {
+          if (url.searchParams.get("fresh") === "1" || Date.now() - devices.at > 120_000) {
+            const r = await localsend.discover();
+            devices = { at: Date.now(), list: r.devices, note: r.note };
+          }
+          return json({ devices: devices.list.map(({ fingerprint, alias, deviceModel, deviceType }) => ({ id: fingerprint, alias, deviceModel, deviceType })), note: devices.note });
+        }
+        if (path === "/video/chats") {
+          const r = await hermes.targets();
+          if ("error" in r) return json({ chats: [], error: r.error });
+          chats = r.chats;
+          return json({ chats });
+        }
+        return bad("not found", 404);
       }
 
       if (req.method === "GET" && (path === "/term.js" || path === "/term.css")) {
@@ -722,6 +788,66 @@ export async function web(repoDir: string, opts: Opts = {}) {
         if (!local(req)) return bad("cross-origin write refused", 403);
         let body: any;
         try { body = await req.json(); } catch { return bad("json body expected"); }
+
+        // The Video page: a place by index, a video folder by name, both checked in video.ts.
+        if (path.startsWith("/video/")) {
+          const all = await videoPlaces();
+          if (path === "/video/cancel") return video.cancelJob(Number(body.id)) ? json({ ok: true }) : bad("no such job", 404);
+          // New video and Ask Claude: kaizen-video in a board terminal, in the place's folder.
+          if (path === "/video/new" || path === "/video/ask") {
+            const place = all[Number(body.p)];
+            if (!place || !Number.isInteger(Number(body.p))) return bad("unknown place", 404);
+            if (path === "/video/ask" && !video.okName(body.name)) return bad("unknown video", 404);
+            const r = path === "/video/new" ? video.requestFor(place.dir, body) : video.askFor(place.dir, body.name, body.text);
+            if ("error" in r) return bad(r.error);
+            const name = "name" in r ? r.name : body.name as string;
+            const launched = launchRun({ severity: null, where: null, text: r.text, raw: r.text }, place.dir, undefined,
+              { skill: "kaizen-video", cwd: place.dir, card: true, onChange: changed });
+            if (!launched.ok) return json({ ok: false, why: launched.why, manual: launched.manual }, 500);
+            if (launched.pty) video.noteAgent(launched.pty, place.dir, name);
+            changed();
+            return json({ ok: true, name, pty: launched.pty ?? null, agent: launched.agent.name });
+          }
+          const place = all[Number(body.p)];
+          if (!place || !Number.isInteger(Number(body.p)) || !video.okName(body.name)) return bad("unknown video", 404);
+          if (path === "/video/save") {
+            const err = video.saveFilm(place.dir, body.name, body.edits ?? [], body.platforms);
+            if (err) return bad(err);
+            const job = body.build === false ? null : video.startJob(place.dir, body.name, "build");
+            changed();
+            return json({ ok: true, job: typeof job === "string" ? null : { ...job, place: Number(body.p) }, note: typeof job === "string" ? job : null });
+          }
+          // A finished file to a device the last search found, or a chat Hermes listed.
+          if (path === "/video/send") {
+            const file = video.outputFile(place.dir, body.name, body.file);
+            if (!file) return bad("not one of this video's finished files", 404);
+            let err: string | null;
+            if (body.via === "localsend") {
+              const dev = devices.list.find((d) => d.fingerprint === body.to);
+              if (!dev) return bad("that device is not in the last search; search again", 404);
+              err = video.startSend(place.dir, body.name, { via: "localsend", to: dev.alias, file: body.file }, (step) => localsend.sendFile(dev, file, step));
+            } else if (body.via === "whatsapp") {
+              const chat = chats.find((c) => c.id === body.to);
+              if (!chat) return bad("that chat is not in Hermes' list", 404);
+              const text = typeof body.text === "string" ? body.text : "";
+              const m = hermes.message(text, file);
+              if (typeof m !== "string") return bad(m.error);
+              err = video.startSend(place.dir, body.name, { via: "whatsapp", to: chat.name, file: body.file }, () => hermes.sendMedia(chat.id, text, file));
+            } else return bad("send by localsend or whatsapp");
+            if (err) return bad(err, 409);
+            changed();
+            return json({ ok: true });
+          }
+          if (path === "/video/job") {
+            if (!["build", "preview", "render"].includes(body.kind)) return bad("unknown job");
+            const formats = Array.isArray(body.formats) ? body.formats : video.formatsFor(Array.isArray(body.platforms) ? body.platforms : []);
+            const job = video.startJob(place.dir, body.name, body.kind, formats);
+            if (typeof job === "string") return bad(job, 409);
+            changed();
+            return json({ ok: true, job: { ...job, place: Number(body.p) } });
+          }
+          return bad("not found", 404);
+        }
 
         // The same search as the TUI's "find more": every .kaizen under $HOME, the
         // drives, and where the board was started, added to the registry.

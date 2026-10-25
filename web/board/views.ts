@@ -58,7 +58,7 @@ export function go(v, push) {
 
 export function initViews() {
   document.querySelectorAll(".rail a[data-view]").forEach((a) => {
-    if (a.dataset.view === "notes") return;
+    if (a.dataset.view === "notes" || a.dataset.view === "video") return;
     a.onclick = (e) => {
       if (e.ctrlKey || e.metaKey || e.shiftKey || e.button) return;
       e.preventDefault();

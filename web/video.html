@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<script>if(matchMedia("(display-mode:standalone)").matches||navigator.standalone){document.querySelector("meta[name=viewport]").content+=",maximum-scale=1,user-scalable=no";addEventListener("gesturestart",e=>e.preventDefault())}</script>
+<title>kaizen video</title>
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" href="/logo.png">
+<link rel="apple-touch-icon" href="/logo.png">
+<style>
+/* Tokens: copied from web/board.html, line for line; cli/notes.test.ts holds them equal. */
+:root{--bg:#f6f8fc;--bg-2:#fff;--line:#d9e0ee;--ink:#0c162f;--ink-hi:#0c162f;--dim:#5b6b8c;--accent:#2d50a5;--run:#0f8fa3;--ok:#1f9d55;--warn:#a8720a;--danger:#c8322f;color-scheme:light}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0c162f;--bg-2:#121e3c;--line:#22305a;--ink:#eef2fa;--ink-hi:#deeeff;--dim:#96aacd;--accent:#486ed9;--run:#4fd6e6;--ok:#5fd28a;--warn:#e6b450;--danger:#e85050;color-scheme:dark}}
+:root[data-theme=dark]{--bg:#0c162f;--bg-2:#121e3c;--line:#22305a;--ink:#eef2fa;--ink-hi:#deeeff;--dim:#96aacd;--accent:#486ed9;--run:#4fd6e6;--ok:#5fd28a;--warn:#e6b450;--danger:#e85050;color-scheme:dark}
+*{box-sizing:border-box}
+/* Shape, type and depth. --shade is the one shadow colour, themed like the rest. */
+:root{--r:12px;--r-s:8px;--r-pill:999px;--font:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;--mono:ui-monospace,"JetBrains Mono","Cascadia Code","SF Mono",Menlo,Consolas,monospace;--on-accent:#fff;--hover:color-mix(in srgb,var(--dim) 12%,transparent);--shade:rgb(12 22 47/.08);--shadow-1:0 1px 2px var(--shade);--shadow-2:0 0 0 1px var(--shade),0 8px 24px -6px var(--shade);--canvas:color-mix(in srgb,var(--bg) 95.5%,var(--ink))}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--shade:rgb(0 0 0/.45);--canvas:color-mix(in srgb,var(--bg) 70%,black)}}
+:root[data-theme=dark]{--shade:rgb(0 0 0/.45);--canvas:color-mix(in srgb,var(--bg) 70%,black)}
+body{margin:0;background:var(--canvas);color:var(--ink);font:14px/1.5 var(--font);-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;height:100vh;height:100dvh;overflow:hidden;display:flex}
+html{background:var(--canvas);touch-action:manipulation}
+@media(display-mode:standalone){body{position:fixed;inset:0;height:auto;overscroll-behavior:none;touch-action:pan-x pan-y;-webkit-text-size-adjust:100%}}
+@media(max-width:640px),(display-mode:standalone){body{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}}
+/* iOS 26 blurs the page under the status bar unless a fixed bar touches the top edge: give it one in the page colour */
+@media(display-mode:standalone){body::before{content:"";position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top);background:inherit;z-index:100;pointer-events:none}}
+button,input,select{font:inherit;color:inherit;background:none;border:0;padding:0}
+button{cursor:pointer}
+a{color:inherit;text-decoration:none}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;display:block}
+[hidden]{display:none!important}
+
+/* side menu: the same lines in board.html and notes.html (a test holds them equal) */
+.rail{width:220px;flex:none;display:flex;flex-direction:column;gap:2px;padding:18px 12px 14px;overflow:hidden auto;transition:width .18s}
+.rail .top{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 0 18px 10px}
+.rail .home{display:block;color:inherit;text-decoration:none}
+.rail .top .mascot{display:none;width:36px;height:34px}
+.rail a.it{display:flex;align-items:center;gap:10px;height:34px;padding:0 10px;border-radius:var(--r-s);font-size:13px;font-weight:500;color:var(--dim);text-decoration:none;white-space:nowrap;transition:background .12s,color .12s}
+.rail a.it:hover{background:var(--hover);color:var(--ink)}
+.rail a.it[aria-current=page]{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--ink)}
+.rail a.it[aria-current=page] svg{color:var(--accent)}
+.rail .end{flex:1}
+.theme{display:flex;gap:2px;padding:3px;border-radius:var(--r-s);background:var(--hover)}
+.theme button{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;height:28px;border-radius:4px;font-size:12px;font-weight:500;color:var(--dim);transition:background .12s,color .12s}
+.theme button svg{width:15px;height:15px}
+.theme button:hover{color:var(--ink)}
+.theme button[aria-pressed=true]{background:var(--bg-2);color:var(--ink);box-shadow:var(--shadow-1)}
+[data-rail=min] .rail{width:60px;padding-inline:10px;align-items:center}
+[data-rail=min] .rail .top{flex-direction:column;gap:12px;padding:0 0 14px}
+[data-rail=min] .rail .top pre.mark{display:none}
+[data-rail=min] .rail .top .mascot{display:block}
+[data-rail=min] .rail a.it{width:40px;justify-content:center;padding:0}
+[data-rail=min] .rail .lbl{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+[data-rail=min] .theme{flex-direction:column}
+[data-rail=min] .theme button{width:34px;flex:none}
+@media(max-width:640px){#fold{display:none}}
+/* phones: the side menu is a bottom tab bar, in the page flow so nothing sits under it; it owns the bottom safe area */
+@media(max-width:640px){body{flex-direction:column;padding-bottom:0}.app{flex:1;min-height:0}
+.rail,[data-rail=min] .rail{order:2;width:auto;flex-direction:row;align-items:stretch;gap:0;padding:4px 6px calc(4px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--bg-2);overflow:visible}
+.rail .top,.rail .end,.rail .theme{display:none}
+.rail a.it,[data-rail=min] .rail a.it{flex:1;width:auto;flex-direction:column;justify-content:center;gap:2px;height:auto;min-height:48px;padding:4px 0;font-size:11px}
+.rail a.it[aria-current=page]{background:none;color:var(--accent)}
+[data-rail=min] .rail .lbl{position:static;width:auto;height:auto;overflow:visible;clip-path:none}
+body .rail a.upd::after{left:calc(50% + 6px);top:4px}body .toast{left:16px;bottom:calc(68px + env(safe-area-inset-bottom))}}
+/* end side menu */
+/* the work area: an inset rounded panel on the canvas the side menu sits on */
+.app{flex:1;min-width:0;display:flex;flex-direction:column;margin:8px 8px 8px 0;background:var(--bg);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+@media(max-width:640px){.app{margin:0;border:0;border-radius:0}html,body{background:var(--bg)}}
+.hdr{display:flex;align-items:center;gap:12px;padding:10px 20px 10px 28px;border-bottom:1px solid color-mix(in srgb,var(--line) 60%,transparent);flex-wrap:wrap}
+pre.mark{margin:0;font:700 8px/1 var(--mono)}
+.mascot{width:120px;height:112px;background:var(--ink);-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 428 400%22%3E%3Cpath fill=%22currentColor%22 fill-rule=%22evenodd%22 d=%22M130 381L122 362L119 346L119 325L124 305L123 294L119 288L117 288L115 285L109 282L89 264L89 262L82 256L82 254L79 252L79 250L76 248L76 246L73 244L70 237L68 236L58 216L53 201L49 182L48 166L45 166L39 170L19 177L7 178L2 176L0 173L0 163L4 157L4 154L7 150L7 147L10 143L16 126L20 120L26 103L30 97L30 94L34 88L37 78L41 72L44 62L48 56L48 53L52 47L52 44L56 38L59 28L64 20L67 10L70 7L247 0L252 4L253 11L250 18L243 25L243 27L209 60L207 60L203 65L201 65L197 70L195 70L191 75L189 75L186 79L180 82L169 92L164 93L161 90L162 85L169 81L171 78L173 78L176 74L178 74L181 70L183 70L186 66L193 62L197 57L199 57L205 50L207 50L235 23L235 21L242 14L244 9L241 9L226 14L220 18L217 18L199 27L198 29L190 32L189 34L183 36L182 38L178 39L177 41L173 42L167 47L163 48L156 54L152 55L151 57L149 57L148 59L146 59L145 61L143 61L142 63L140 63L139 65L137 65L136 67L134 67L133 69L131 69L130 71L116 79L114 82L106 86L104 89L99 91L93 97L88 99L86 102L84 102L82 105L80 105L78 108L76 108L74 111L72 111L70 114L68 114L66 117L64 117L62 120L56 123L53 127L51 127L48 131L41 135L37 140L35 140L15 159L15 161L11 164L9 169L21 167L30 164L34 161L37 161L45 156L48 156L50 140L57 132L71 131L75 133L79 138L81 138L87 135L88 133L94 131L95 129L104 126L107 129L106 134L82 147L82 156L85 172L92 188L94 189L94 194L92 196L88 196L84 192L79 182L74 164L73 144L69 140L62 140L58 144L58 182L62 200L68 217L76 232L82 239L82 241L92 252L92 254L107 269L109 269L112 273L114 273L128 285L132 292L133 307L128 325L128 345L131 361L140 382L149 390L160 392L191 381L228 377L238 373L251 362L251 360L254 358L255 354L258 351L261 341L261 322L259 315L253 304L243 294L232 288L220 285L203 286L188 292L176 303L176 305L170 313L167 323L168 345L178 363L187 370L187 375L184 377L179 376L169 366L161 352L158 341L158 323L162 309L167 300L170 298L170 296L181 286L194 279L207 276L221 276L234 279L244 284L249 289L251 289L263 303L270 322L270 342L266 355L260 363L260 365L257 367L257 369L247 378L243 379L240 382L253 386L263 391L277 391L281 389L290 379L298 358L300 347L300 323L296 307L297 298L302 292L318 287L333 279L335 276L337 276L339 273L341 273L345 268L349 266L349 264L355 259L351 251L349 242L345 243L341 247L329 253L309 258L290 258L276 255L274 257L262 261L236 266L192 266L154 257L130 245L129 243L121 239L119 236L117 236L101 220L101 218L98 216L96 212L95 207L107 192L113 180L119 159L121 157L121 151L118 146L118 142L115 135L114 112L117 101L124 92L129 90L138 90L146 92L159 99L169 109L184 103L204 99L231 100L244 103L259 109L264 103L266 103L268 100L270 100L271 98L280 93L290 90L302 91L309 97L314 112L314 130L311 143L307 152L307 156L310 161L316 182L325 198L332 205L333 210L328 219L322 224L322 226L317 231L315 231L310 237L308 237L306 240L296 245L292 249L309 249L325 245L341 236L347 230L350 210L360 193L360 187L355 178L355 174L357 172L387 172L389 177L384 187L385 195L387 194L391 182L394 180L401 180L415 187L426 190L428 193L428 202L423 211L423 214L421 216L421 219L419 221L419 224L417 226L417 229L415 231L415 234L413 236L413 239L411 241L405 258L402 260L395 260L390 257L388 259L366 259L361 264L361 266L340 285L318 297L307 300L305 302L305 307L309 325L318 323L325 319L334 310L334 308L337 306L341 298L354 283L356 283L362 277L377 271L394 271L400 273L407 277L415 285L420 294L423 306L421 323L416 335L408 344L408 346L401 353L399 353L397 356L395 356L388 362L369 370L353 373L330 373L304 367L301 377L297 385L294 387L294 389L288 395L279 400L261 400L240 391L216 387L192 390L167 400L150 400L139 394L132 386ZM130 155L119 189L116 192L112 201L106 207L107 210L119 207L126 200L134 185L136 184L137 180L149 166L163 158L171 156L180 156L191 160L198 166L202 173L204 182L203 192L195 205L194 216L196 220L205 227L212 229L221 228L227 225L233 219L234 207L225 191L225 177L233 163L235 163L237 160L241 158L248 156L262 157L278 165L289 177L289 179L295 186L297 192L299 193L300 197L309 207L316 210L323 209L313 196L307 184L304 171L297 154L302 142L305 129L304 107L301 101L298 99L291 99L278 104L261 119L257 119L243 112L224 108L197 109L185 112L171 119L167 119L163 114L161 114L157 109L155 109L150 104L138 99L130 99L126 103L123 113L123 128L125 138L131 152ZM380 280L372 282L361 289L361 306L364 310L375 312L382 317L384 321L384 337L386 339L390 341L400 341L408 331L413 319L413 301L409 292L400 283L393 280ZM144 187L141 193L139 194L138 198L134 202L134 204L131 206L131 208L125 214L123 214L120 217L113 218L113 220L124 230L126 230L128 233L138 238L139 240L156 248L180 255L201 258L226 258L257 253L277 246L291 239L292 237L303 231L315 220L315 218L306 216L298 209L298 207L291 199L290 195L288 194L287 190L285 189L281 181L271 171L257 165L245 166L241 168L235 175L234 190L242 203L243 217L240 224L234 231L221 237L207 237L201 235L194 229L192 229L186 220L185 207L187 201L193 193L195 185L193 175L187 168L179 165L171 165L164 167L158 172L156 172L148 180ZM367 179L364 179L367 185L367 195L362 204L360 205L355 219L355 240L357 247L361 253L383 253L388 245L390 236L389 218L383 203L377 195L377 185L380 179ZM319 362L330 364L360 363L376 358L387 352L389 349L382 347L376 341L375 323L371 320L362 319L359 316L357 316L353 310L351 300L348 306L343 311L343 313L333 324L331 324L329 327L320 332L309 334L309 348L307 358ZM130 59L132 59L133 57L147 49L149 46L76 18L66 105L72 100L74 100L76 97L78 97L80 94L82 94L84 91L89 89L91 86L93 86L95 83L97 83L105 76L113 72L115 69L129 61ZM213 204L218 204L225 208L224 213L217 218L211 218L207 216L203 210L205 206ZM39 96L20 142L26 136L28 136L33 130L35 130L38 126L40 126L43 122L45 122L48 118L50 118L53 114L56 113L64 41L56 57L56 60L52 66L49 76L45 82L42 92ZM194 11L101 14L95 16L98 16L100 18L103 18L105 20L108 20L110 22L113 22L115 24L118 24L120 26L123 26L125 28L128 28L130 30L133 30L135 32L138 32L140 34L143 34L145 36L148 36L159 41L164 37L168 36L169 34L173 33L174 31L178 30L179 28L213 11ZM409 203L413 193L412 191L404 189L400 186L396 186L394 190L390 203L395 213L397 230L401 223L407 205ZM418 210L421 200L423 198L423 196L418 195L412 212L407 221L407 224L405 226L405 229L403 231L403 234L401 236L401 239L399 241L399 244L397 246L397 249L395 251L396 254L400 254ZM182 191L178 195L170 194L167 190L168 182L172 179L180 180L183 183ZM256 194L250 195L245 190L245 184L250 179L256 179L261 184L261 190L258 194Z%22/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 428 400%22%3E%3Cpath fill=%22currentColor%22 fill-rule=%22evenodd%22 d=%22M130 381L122 362L119 346L119 325L124 305L123 294L119 288L117 288L115 285L109 282L89 264L89 262L82 256L82 254L79 252L79 250L76 248L76 246L73 244L70 237L68 236L58 216L53 201L49 182L48 166L45 166L39 170L19 177L7 178L2 176L0 173L0 163L4 157L4 154L7 150L7 147L10 143L16 126L20 120L26 103L30 97L30 94L34 88L37 78L41 72L44 62L48 56L48 53L52 47L52 44L56 38L59 28L64 20L67 10L70 7L247 0L252 4L253 11L250 18L243 25L243 27L209 60L207 60L203 65L201 65L197 70L195 70L191 75L189 75L186 79L180 82L169 92L164 93L161 90L162 85L169 81L171 78L173 78L176 74L178 74L181 70L183 70L186 66L193 62L197 57L199 57L205 50L207 50L235 23L235 21L242 14L244 9L241 9L226 14L220 18L217 18L199 27L198 29L190 32L189 34L183 36L182 38L178 39L177 41L173 42L167 47L163 48L156 54L152 55L151 57L149 57L148 59L146 59L145 61L143 61L142 63L140 63L139 65L137 65L136 67L134 67L133 69L131 69L130 71L116 79L114 82L106 86L104 89L99 91L93 97L88 99L86 102L84 102L82 105L80 105L78 108L76 108L74 111L72 111L70 114L68 114L66 117L64 117L62 120L56 123L53 127L51 127L48 131L41 135L37 140L35 140L15 159L15 161L11 164L9 169L21 167L30 164L34 161L37 161L45 156L48 156L50 140L57 132L71 131L75 133L79 138L81 138L87 135L88 133L94 131L95 129L104 126L107 129L106 134L82 147L82 156L85 172L92 188L94 189L94 194L92 196L88 196L84 192L79 182L74 164L73 144L69 140L62 140L58 144L58 182L62 200L68 217L76 232L82 239L82 241L92 252L92 254L107 269L109 269L112 273L114 273L128 285L132 292L133 307L128 325L128 345L131 361L140 382L149 390L160 392L191 381L228 377L238 373L251 362L251 360L254 358L255 354L258 351L261 341L261 322L259 315L253 304L243 294L232 288L220 285L203 286L188 292L176 303L176 305L170 313L167 323L168 345L178 363L187 370L187 375L184 377L179 376L169 366L161 352L158 341L158 323L162 309L167 300L170 298L170 296L181 286L194 279L207 276L221 276L234 279L244 284L249 289L251 289L263 303L270 322L270 342L266 355L260 363L260 365L257 367L257 369L247 378L243 379L240 382L253 386L263 391L277 391L281 389L290 379L298 358L300 347L300 323L296 307L297 298L302 292L318 287L333 279L335 276L337 276L339 273L341 273L345 268L349 266L349 264L355 259L351 251L349 242L345 243L341 247L329 253L309 258L290 258L276 255L274 257L262 261L236 266L192 266L154 257L130 245L129 243L121 239L119 236L117 236L101 220L101 218L98 216L96 212L95 207L107 192L113 180L119 159L121 157L121 151L118 146L118 142L115 135L114 112L117 101L124 92L129 90L138 90L146 92L159 99L169 109L184 103L204 99L231 100L244 103L259 109L264 103L266 103L268 100L270 100L271 98L280 93L290 90L302 91L309 97L314 112L314 130L311 143L307 152L307 156L310 161L316 182L325 198L332 205L333 210L328 219L322 224L322 226L317 231L315 231L310 237L308 237L306 240L296 245L292 249L309 249L325 245L341 236L347 230L350 210L360 193L360 187L355 178L355 174L357 172L387 172L389 177L384 187L385 195L387 194L391 182L394 180L401 180L415 187L426 190L428 193L428 202L423 211L423 214L421 216L421 219L419 221L419 224L417 226L417 229L415 231L415 234L413 236L413 239L411 241L405 258L402 260L395 260L390 257L388 259L366 259L361 264L361 266L340 285L318 297L307 300L305 302L305 307L309 325L318 323L325 319L334 310L334 308L337 306L341 298L354 283L356 283L362 277L377 271L394 271L400 273L407 277L415 285L420 294L423 306L421 323L416 335L408 344L408 346L401 353L399 353L397 356L395 356L388 362L369 370L353 373L330 373L304 367L301 377L297 385L294 387L294 389L288 395L279 400L261 400L240 391L216 387L192 390L167 400L150 400L139 394L132 386ZM130 155L119 189L116 192L112 201L106 207L107 210L119 207L126 200L134 185L136 184L137 180L149 166L163 158L171 156L180 156L191 160L198 166L202 173L204 182L203 192L195 205L194 216L196 220L205 227L212 229L221 228L227 225L233 219L234 207L225 191L225 177L233 163L235 163L237 160L241 158L248 156L262 157L278 165L289 177L289 179L295 186L297 192L299 193L300 197L309 207L316 210L323 209L313 196L307 184L304 171L297 154L302 142L305 129L304 107L301 101L298 99L291 99L278 104L261 119L257 119L243 112L224 108L197 109L185 112L171 119L167 119L163 114L161 114L157 109L155 109L150 104L138 99L130 99L126 103L123 113L123 128L125 138L131 152ZM380 280L372 282L361 289L361 306L364 310L375 312L382 317L384 321L384 337L386 339L390 341L400 341L408 331L413 319L413 301L409 292L400 283L393 280ZM144 187L141 193L139 194L138 198L134 202L134 204L131 206L131 208L125 214L123 214L120 217L113 218L113 220L124 230L126 230L128 233L138 238L139 240L156 248L180 255L201 258L226 258L257 253L277 246L291 239L292 237L303 231L315 220L315 218L306 216L298 209L298 207L291 199L290 195L288 194L287 190L285 189L281 181L271 171L257 165L245 166L241 168L235 175L234 190L242 203L243 217L240 224L234 231L221 237L207 237L201 235L194 229L192 229L186 220L185 207L187 201L193 193L195 185L193 175L187 168L179 165L171 165L164 167L158 172L156 172L148 180ZM367 179L364 179L367 185L367 195L362 204L360 205L355 219L355 240L357 247L361 253L383 253L388 245L390 236L389 218L383 203L377 195L377 185L380 179ZM319 362L330 364L360 363L376 358L387 352L389 349L382 347L376 341L375 323L371 320L362 319L359 316L357 316L353 310L351 300L348 306L343 311L343 313L333 324L331 324L329 327L320 332L309 334L309 348L307 358ZM130 59L132 59L133 57L147 49L149 46L76 18L66 105L72 100L74 100L76 97L78 97L80 94L82 94L84 91L89 89L91 86L93 86L95 83L97 83L105 76L113 72L115 69L129 61ZM213 204L218 204L225 208L224 213L217 218L211 218L207 216L203 210L205 206ZM39 96L20 142L26 136L28 136L33 130L35 130L38 126L40 126L43 122L45 122L48 118L50 118L53 114L56 113L64 41L56 57L56 60L52 66L49 76L45 82L42 92ZM194 11L101 14L95 16L98 16L100 18L103 18L105 20L108 20L110 22L113 22L115 24L118 24L120 26L123 26L125 28L128 28L130 30L133 30L135 32L138 32L140 34L143 34L145 36L148 36L159 41L164 37L168 36L169 34L173 33L174 31L178 30L179 28L213 11ZM409 203L413 193L412 191L404 189L400 186L396 186L394 190L390 203L395 213L397 230L401 223L407 205ZM418 210L421 200L423 198L423 196L418 195L412 212L407 221L407 224L405 226L405 229L403 231L403 234L401 236L401 239L399 241L399 244L397 246L397 249L395 251L396 254L400 254ZM182 191L178 195L170 194L167 190L168 182L172 179L180 180L183 183ZM256 194L250 195L245 190L245 184L250 179L256 179L261 184L261 190L258 194Z%22/%3E%3C/svg%3E") center/contain no-repeat}
+::view-transition-group(*){animation-duration:.2s}
+@media(prefers-reduced-motion:reduce){:root:not([data-motion=full]) *,:root:not([data-motion=full]) *::before,:root:not([data-motion=full]) *::after,:root:not([data-motion=full])::view-transition-group(*),:root:not([data-motion=full])::view-transition-old(*),:root:not([data-motion=full])::view-transition-new(*){transition:none!important;animation:none!important}}
+:root[data-motion=reduce] *,:root[data-motion=reduce] *::before,:root[data-motion=reduce] *::after,:root[data-motion=reduce]::view-transition-group(*),:root[data-motion=reduce]::view-transition-old(*),:root[data-motion=reduce]::view-transition-new(*){transition:none!important;animation:none!important}
+/* ---- the Video page ---- */
+.hdr h1{margin:0;font-size:15px;font-weight:600}
+.sp{flex:1}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 14px;border:1px solid var(--line);border-radius:var(--r-s);background:var(--bg-2);color:var(--ink);font-weight:500;white-space:nowrap}
+.btn:hover{background:var(--hover)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:600}
+.btn:disabled{opacity:.5;cursor:default}
+.ib{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:var(--r-s);color:var(--dim)}
+.ib:hover{background:var(--hover);color:var(--ink)}
+.page{flex:1;min-height:0;overflow:auto;padding-block:20px 40px;padding-left:max(16px,2.4vw);padding-right:max(16px,2.4vw)}
+.note{color:var(--dim);font-size:12px;margin:8px 0 0}
+.pill{display:inline-flex;align-items:center;gap:6px;width:max-content;max-width:100%;font-size:11px;font-weight:600;padding:2px 8px;border-radius:var(--r-pill);background:var(--hover);color:var(--dim)}
+.pill::before{content:"";flex:none;width:6px;height:6px;border-radius:50%;background:currentColor}
+.pill.ready{color:var(--ok)}.pill.rendering,.pill.building,.pill.queued{color:var(--run)}.pill.draft{color:var(--warn)}.pill.failed{color:var(--danger)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{min-height:32px;padding:0 12px;border-radius:var(--r-pill);border:1px solid var(--line);color:var(--dim)}
+.chip:hover{color:var(--ink)}
+.chip.on{border-color:var(--accent);color:var(--ink);background:color-mix(in srgb,var(--accent) 12%,transparent)}
+/* library: CSS columns, each tile at its video's real shape */
+.find{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+.find input{flex:1;min-width:200px;height:36px;border:1px solid var(--line);border-radius:var(--r-s);background:var(--bg-2);padding:0 12px}
+.grid{columns:200px;column-gap:16px}
+.vid{width:100%;break-inside:avoid;margin-bottom:16px;background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;text-align:left;display:flex;flex-direction:column;cursor:pointer}
+.vid:hover{box-shadow:var(--shadow-2)}
+.thumb{position:relative;aspect-ratio:var(--ar);max-width:100%;display:grid;place-items:center;padding:14px;text-align:center;color:#fff;font-weight:700;font-size:14px;background:linear-gradient(160deg,var(--accent),color-mix(in srgb,var(--accent) 30%,#000)) center/cover;overflow:hidden}
+.thumb img,.thumb video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.thumb span.t{position:relative;text-shadow:0 1px 8px rgb(0 0 0/.6);text-wrap:balance}
+.tag{position:absolute;z-index:1;font:600 10px/1 var(--mono);background:rgb(0 0 0/.6);color:#fff;padding:4px 6px;border-radius:4px}
+.tag.sh{top:8px;left:8px}.tag.du{bottom:10px;right:8px}
+.bar{position:absolute;z-index:1;left:0;bottom:0;height:4px;background:var(--run)}
+.vid .meta{padding:10px 12px;display:grid;gap:5px;min-width:0}
+.vid .meta b{overflow-wrap:anywhere}
+.plats{display:flex;flex-wrap:wrap;gap:4px}
+.plats i{font-style:normal;font-size:11px;padding:1px 6px;border-radius:4px;background:var(--hover);color:var(--dim)}
+.plats i.where{background:none;border:1px solid var(--line)}
+.blank{padding:60px 20px;text-align:center;color:var(--dim);display:grid;gap:8px;justify-items:center}
+.blank b{color:var(--ink);font-size:15px}
+/* editor */
+.crumb{color:var(--dim);font-size:12px}
+.crumb button{color:var(--accent)}
+.ehead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.ehead h2{margin:0;font-size:20px;flex:1;min-width:0;overflow-wrap:anywhere}
+.acts{display:flex;gap:8px;flex-wrap:wrap}
+.ed{display:grid;grid-template-columns:minmax(240px,340px) minmax(0,1fr);gap:20px;align-items:start}
+.player{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r);padding:12px;display:grid;gap:10px;position:sticky;top:0}
+.screen{position:relative;width:100%;aspect-ratio:var(--ar);max-width:100%;border-radius:var(--r-s);overflow:hidden;background:#000}
+.screen iframe{position:absolute;left:0;top:0;border:0;transform-origin:0 0;pointer-events:none}
+.screen .none{position:absolute;inset:0;display:grid;place-items:center;padding:20px;text-align:center;color:#cfd6e6;font-size:12px}
+.ctrl{display:flex;align-items:center;gap:10px;font-variant-numeric:tabular-nums;color:var(--dim);font-size:12px}
+.ctrl .play{width:32px;height:32px;border-radius:50%;background:var(--accent);color:var(--on-accent);display:grid;place-items:center}
+.ctrl .play svg{width:14px;height:14px;fill:currentColor;stroke:none}
+.strip{position:relative;display:flex;height:26px;border-radius:6px;overflow:hidden;gap:2px}
+.strip button{min-width:4px;font:700 10px/1 var(--mono);color:#fff;background:var(--c)}
+.strip button.on{outline:2px solid var(--ink);outline-offset:-2px}
+.head{position:absolute;top:0;bottom:0;width:2px;background:var(--ink);pointer-events:none}
+.stills{display:flex;gap:6px;overflow-x:auto}
+.stills img{height:90px;border-radius:4px;border:1px solid var(--line)}
+.beats{display:grid;gap:8px;min-width:0}
+.beat{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r-s);min-width:0}
+.beat.open{border-color:var(--accent)}
+.beat>button{width:100%;display:grid;grid-template-columns:12px 64px 92px minmax(0,1fr);gap:10px;align-items:center;padding:10px 12px;text-align:left}
+.beat>button .sw{width:12px;height:12px;border-radius:3px;background:var(--c)}
+.beat>button .k{font-weight:600;text-transform:capitalize}
+.beat>button .tm{font:11px var(--mono);color:var(--dim);font-variant-numeric:tabular-nums}
+.beat>button .tx{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dim)}
+.beat .form{display:none;padding:0 12px 14px 34px;gap:10px}
+.beat.open .form{display:grid}
+.form label{display:grid;gap:4px;color:var(--dim);font-size:12px}
+.form input,.form textarea{width:100%;border:1px solid var(--line);border-radius:var(--r-s);background:var(--bg);color:var(--ink);padding:8px 10px}
+.form textarea{min-height:56px;resize:vertical}
+.form .said{font-size:12px;color:var(--dim);border-left:2px solid var(--line);padding-left:10px}
+.savebar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r-s);padding:10px 12px}
+.savebar .chips{flex:1}
+.job{display:grid;gap:6px;background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r-s);padding:10px 12px}
+.job .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.job .prog{height:4px;border-radius:2px;background:var(--hover);overflow:hidden}
+.job .prog i{display:block;height:100%;background:var(--run)}
+.job pre{margin:0;max-height:160px;overflow:auto;font:11px/1.4 var(--mono);color:var(--dim);white-space:pre-wrap;overflow-wrap:anywhere}
+.files{display:grid;gap:8px}
+.file{display:flex;gap:10px;align-items:center;flex-wrap:wrap;border:1px solid var(--line);border-radius:var(--r-s);padding:8px 10px;background:var(--bg-2)}
+.file b{font-family:var(--mono);font-size:12px;overflow-wrap:anywhere;flex:1;min-width:0}
+.file a{color:var(--accent)}
+/* send: the mockup's send panel, one tab per way */
+.sendp{margin-top:16px;background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:grid;gap:12px;max-width:880px}
+.sendp .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.sendp h3{margin:0;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim)}
+.sendp select,.sendp textarea{border:1px solid var(--line);border-radius:var(--r-s);background:var(--bg);color:var(--ink);padding:8px 10px;max-width:100%;min-width:0}
+.sendp textarea{width:100%;min-height:64px;resize:vertical;font:inherit}
+.sendp label{display:grid;gap:4px;color:var(--dim);font-size:12px}
+.sendp .chip small{color:var(--dim);font-weight:400}
+.sendbox{border:1px solid var(--line);border-radius:var(--r-s);padding:12px;display:grid;gap:10px;align-content:start;background:var(--bg)}
+.sendres.sent{border-color:var(--ok)}.sendres.failed{border-color:var(--danger)}
+.sends{display:grid;gap:6px;margin:0;padding:0;list-style:none;font-size:12px}
+.sends li{overflow-wrap:anywhere}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.toast{position:fixed;left:50%;bottom:max(20px,env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:var(--r-s);font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s;z-index:50;max-width:calc(100vw - 32px)}
+.toast.on{opacity:1}
+/* new video: one form, the mockup's */
+.card{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r);padding:20px;display:grid;gap:22px;max-width:880px}
+.card h3{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim)}
+.card h3 small{text-transform:none;letter-spacing:0;font-weight:400}
+.src{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.opt{border:1px solid var(--line);border-radius:var(--r-s);padding:14px;text-align:left;display:grid;gap:4px}
+.opt small{color:var(--dim)}
+.opt.on,.sty.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.card textarea,.card input[type=text],.card select{width:100%;border:1px solid var(--line);border-radius:var(--r-s);background:var(--bg);color:var(--ink);padding:10px}
+.card textarea{min-height:96px;resize:vertical}
+.styles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.sty{border:1px solid var(--line);border-radius:var(--r-s);padding:10px 12px;text-align:left;display:grid;gap:2px}
+.sty small{color:var(--dim);font-size:11px}
+.lenrow{display:flex;gap:12px;align-items:center}
+.lenrow input[type=range]{flex:1;min-width:0;accent-color:var(--accent);height:28px}
+.lenrow input[type=text]{width:84px;text-align:center;font-variant-numeric:tabular-nums;font-weight:600}
+.ticks{position:relative;height:16px;margin-right:96px;color:var(--dim);font-size:11px;font-variant-numeric:tabular-nums}
+.ticks span{position:absolute;transform:translateX(-50%)}.ticks span:first-child{transform:none}.ticks span:last-child{transform:translateX(-100%)}
+.warn-t{color:var(--warn)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.two label{display:grid;gap:6px;color:var(--dim);font-size:12px}
+.pickrow{display:flex;gap:8px}
+.foot{display:flex;justify-content:flex-end;gap:8px}
+/* the agent working on this video: its board terminal, here */
+#dock:empty{display:none}
+#dock{display:grid;gap:8px;margin-bottom:16px}
+.agentbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:color-mix(in srgb,var(--run) 10%,var(--bg-2));border:1px solid color-mix(in srgb,var(--run) 45%,var(--line));border-radius:var(--r-s);padding:10px 12px}
+.agentbar.asking{background:color-mix(in srgb,var(--warn) 12%,var(--bg-2));border-color:var(--warn)}
+.agentbar b{flex:1;min-width:0}
+.term{height:min(440px,60vh);border:1px solid var(--line);border-radius:var(--r-s);overflow:hidden;background:var(--bg)}
+.term .xterm{height:100%;padding:6px}
+.ask{display:flex;gap:8px;align-items:center;background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r-s);padding:8px 10px}
+.ask input{flex:1;min-width:0;border:0;background:none;color:var(--ink);padding:6px}
+.thumb.making{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--run) 30%,#000) 0 14px,color-mix(in srgb,var(--run) 18%,#000) 14px 28px)}
+@media(max-width:640px){.ticks .m-hide{display:none}.src,.two{grid-template-columns:1fr}.styles{grid-template-columns:1fr 1fr}.foot .btn{flex:1;height:44px}.term{height:60vh}}
+@media(max-width:900px){.ed{grid-template-columns:minmax(0,1fr)}.player{position:static;max-width:360px;width:100%;justify-self:center}}
+@media(max-width:640px){.grid{columns:2;column-gap:10px}.vid{margin-bottom:10px}.thumb{font-size:12px;padding:10px}.vid .meta{padding:8px}
+  .beat>button{grid-template-columns:12px minmax(0,1fr) 84px}.beat>button .tx{display:none}.beat .form{padding-left:12px}
+  .acts{width:100%}.acts .btn{flex:1;height:40px}.chip{min-height:40px}}
+</style>
+</head>
+<body>
+<svg style="display:none"><defs>
+<symbol id="s-idea" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" stroke-dasharray="2 2.5"/></symbol>
+<symbol id="s-start" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" stroke-dasharray="2 2.5"/><path d="M6.5 5.5v5l4-2.5z" fill="currentColor" stroke="none"/></symbol>
+<symbol id="s-run" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 2a6 6 0 0 1 0 12z" fill="currentColor" stroke="none"/></symbol>
+<symbol id="s-stall" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 2a6 6 0 0 1 0 12z" fill="currentColor" stroke="none" opacity=".35"/></symbol>
+<symbol id="s-wait" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11v.1"/></symbol>
+<symbol id="s-done" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="currentColor" stroke="none"/><path d="M5.5 8l1.8 1.8L10.8 6" stroke="var(--bg-2)"/></symbol>
+<symbol id="s-aband" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M5.5 5.5l5 5M10.5 5.5l-5 5"/></symbol>
+<symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+<symbol id="i-inbox" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5.1L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.9A2 2 0 0 0 16.8 4H7.2a2 2 0 0 0-1.7 1.1z"/></symbol>
+<symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.1.4l3-3a5 5 0 0 0-7.1-7.1l-1.7 1.7M14 11a5 5 0 0 0-7.1-.4l-3 3a5 5 0 0 0 7.1 7.1l1.7-1.7"/></symbol>
+<symbol id="i-note" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></symbol>
+<symbol id="i-video" viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10.5l5-3v9l-5-3z"/></symbol>
+<symbol id="i-board" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M15 4v16"/></symbol>
+<symbol id="i-side" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></symbol>
+<symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+<symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></symbol>
+<symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6"/></symbol>
+<symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+<symbol id="i-chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+<symbol id="i-wide" viewBox="0 0 24 24"><path d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4"/></symbol>
+<symbol id="i-box" viewBox="0 0 24 24"><path d="M4 5v14M20 5v14M8 12h8M11 9l-3 3 3 3M13 9l3 3-3 3"/></symbol>
+<symbol id="i-term" viewBox="0 0 24 24"><path d="M4 17l6-5-6-5M12 19h8"/></symbol>
+<symbol id="i-max" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
+<symbol id="i-min" viewBox="0 0 24 24"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></symbol>
+<symbol id="i-list" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
+<symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z"/></symbol>
+<symbol id="i-pause" viewBox="0 0 24 24"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></symbol>
+</defs></svg>
+<nav class="rail" aria-label="Main">
+  <div class="top"><a class="home" href="/" title="Board" aria-label="kaizen board"><pre class="mark"><span>█ █  ▄▀█  █  ▀▀█  █▀▀  █▄ █</span>
+<span>█▀▄  █▀█  █   ▄▀  ██▄  █ ▀█</span>
+<span>█ █  █ █  █  █▄▄  █▄▄  █  █</span></pre><span class="mascot"></span></a><button class="ib" id="fold" aria-label="Collapse menu" title="Collapse menu"><svg><use href="#i-side"/></svg></button></div>
+  <a class="it" href="/?view=icebox" data-view="sources" title="Icebox: requests gathered from your sources"><svg><use href="#i-inbox"/></svg><span class="lbl">Icebox</span></a>
+  <a class="it" href="/" data-view="board" title="Board"><svg><use href="#i-board"/></svg><span class="lbl">Board</span></a>
+  <a class="it" href="/notebook" data-view="notes" title="Notes"><svg><use href="#i-note"/></svg><span class="lbl">Notes</span></a>
+  <a class="it" href="/video" data-view="video" title="Video: make and edit videos"><svg><use href="#i-video"/></svg><span class="lbl">Video</span></a>
+  <a class="it" href="/?view=terminal" data-view="terminal" title="Terminal: every agent running in its card"><svg><use href="#i-term"/></svg><span class="lbl">Terminal</span></a>
+  <a class="it" href="/?view=settings" data-view="settings" title="Settings"><svg><use href="#i-gear"/></svg><span class="lbl">Settings</span></a>
+  <span class="end"></span>
+  <div class="theme" role="group" aria-label="Theme"><button data-t="light" title="Light theme"><svg><use href="#i-sun"/></svg><span class="lbl">Light</span></button><button data-t="dark" title="Dark theme"><svg><use href="#i-moon"/></svg><span class="lbl">Dark</span></button></div>
+</nav>
+<script>
+// Side menu: theme and collapse, the same lines in board.html and notes.html. Runs before
+// the page draws, so a stored theme or a collapsed menu never flashes the default first.
+(()=>{const r=document.documentElement,wide=matchMedia("(max-width:1100px)"),phone=matchMedia("(max-width:640px)"),os=matchMedia("(prefers-color-scheme: dark)");
+ // The toggle's choice is kept per browser; with none, the width decides. A phone always gets icons.
+ let fold=null;try{fold=localStorage.getItem("kz-rail")}catch(e){}
+ const rail=()=>{const m=phone.matches||(fold?fold==="min":wide.matches),b=document.getElementById("fold");r.dataset.rail=m?"min":"full";b.title=m?"Expand menu":"Collapse menu";b.setAttribute("aria-label",b.title);b.setAttribute("aria-expanded",!m)};
+ wide.addEventListener("change",rail);phone.addEventListener("change",rail);rail();
+ document.getElementById("fold").onclick=()=>{fold=r.dataset.rail==="min"?"full":"min";try{localStorage.setItem("kz-rail",fold)}catch(e){}rail()};
+ // Theme: light, dark, or unset for system, in kz-theme. The switch shows what is on screen.
+ const paint=()=>{const d=r.dataset.theme?r.dataset.theme==="dark":os.matches;document.querySelectorAll(".theme button").forEach(b=>b.setAttribute("aria-pressed",(b.dataset.t==="dark")===d))};
+ window.setTheme=t=>{if(t==="system")delete r.dataset.theme;else r.dataset.theme=t;try{t==="system"?localStorage.removeItem("kz-theme"):localStorage.setItem("kz-theme",t)}catch(e){}paint();dispatchEvent(new Event("kz-theme"))};
+ try{const t=localStorage.getItem("kz-theme");if(t)r.dataset.theme=t}catch(e){}
+ // Motion: full, reduce, or unset to follow the system's reduced-motion, in kz-motion.
+ window.setMotion=m=>{if(m==="system")delete r.dataset.motion;else r.dataset.motion=m;try{m==="system"?localStorage.removeItem("kz-motion"):localStorage.setItem("kz-motion",m)}catch(e){}};
+ try{const m=localStorage.getItem("kz-motion");if(m)r.dataset.motion=m}catch(e){}
+ os.addEventListener("change",paint);paint();
+ document.querySelectorAll(".theme button").forEach(b=>b.onclick=()=>setTheme(b.dataset.t))})();
+</script>
+<div class="app">
+<div class="hdr">
+  <h1>Videos</h1>
+  <span class="sp"></span>
+  <button class="btn pri" id="new">+ New video</button>
+</div>
+<div class="page" id="lib">
+  <div class="find">
+    <input type="search" id="q" placeholder="Search title, words said, preset, platform, folder" aria-label="Search videos">
+    <div class="chips" id="fstat" role="group" aria-label="Status"><button class="chip on" data-f="">All</button><button class="chip" data-f="draft">Draft</button><button class="chip" data-f="busy">Rendering</button><button class="chip" data-f="ready">Ready</button></div>
+  </div>
+  <div class="grid" id="grid"></div>
+  <div class="blank" id="nores" hidden><b>No videos match</b><span>Try a word from the script, or clear the search.</span></div>
+  <div class="blank" id="empty" hidden><b>No videos yet</b><span id="emptyhow"></span></div>
+</div>
+<div class="page" id="edit" hidden><div id="dock"></div><div id="editbody"></div><div id="sendp"></div></div>
+<div class="page" id="wiz" hidden></div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+<script>document.querySelector('.rail a[data-view="video"]').setAttribute("aria-current","page")</script>
+<script src="/video.js"></script>
+</body>
+</html>

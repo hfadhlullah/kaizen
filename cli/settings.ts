@@ -125,6 +125,7 @@ const SETTINGS: Setting[] = [
   { key: "sources.model", label: "ChatGPT model for gathering", group: "Board", values: [], text: true, help: "Empty: plan default", when: ["sources.agent", "chatgpt"] },
   { key: "sources.effort", label: "ChatGPT effort for gathering", group: "Board", values: ["low", "medium", "high"], help: "", when: ["sources.agent", "chatgpt"] },
   { key: "board.projects_dir", label: "Projects folder", group: "Board", values: [], text: true, folder: true, help: "Empty: known projects only" },
+  { key: "board.video_dir", label: "Video library folder", group: "Board", values: [], text: true, folder: true, help: "Empty: ~/.kaizen" },
   { key: "board.open", label: "Open the board in", group: "Board", values: ["browser", "app"], help: "" },
   { key: "ui.mouse", label: "Enable mouse", group: "Terminal", values: ["false", "true"], help: "" },
 ];

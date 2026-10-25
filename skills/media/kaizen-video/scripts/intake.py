@@ -1,7 +1,7 @@
 """Turn whatever the user brought into film-ready assets.
 Usage: python3 scripts/intake.py <film-dir> [input_dir]   (default input_dir: <film-dir>/inputs)
 <input_dir> may contain, in any mix:
-  photos/      story photos            -> <name>-16x9.jpg + <name>-9x16.jpg (cropped, light grade)
+  photos/      story photos            -> <name>-16x9.jpg, -9x16.jpg, -4x5.jpg (cropped, light grade)
   screens/     app/web screenshots     -> copied untouched; ratio recorded (use kind "shot")
   footage/     video clips (.mp4/.mov) -> <name>.mp4 (H.264, no audio, 1080p max)
   logo*.png    logo(s)                  -> copied; dominant colours suggested for brand.palette
@@ -36,7 +36,7 @@ def grade(im):
 for f in sorted((src / "photos").glob("*")) if (src / "photos").exists() else []:
     if f.suffix.lower() not in IMG: continue
     im = Image.open(f).convert("RGB")
-    for tag, size in (("16x9", (1920, 1080)), ("9x16", (1080, 1920))):
+    for tag, size in (("16x9", (1920, 1080)), ("9x16", (1080, 1920)), ("4x5", (1080, 1350))):
         grade(crop(im, *size)).save(out / f"{f.stem}-{tag}.jpg", quality=88)
     manifest["photos"].append(f.stem)
 for f in sorted((src / "screens").glob("*")) if (src / "screens").exists() else []:

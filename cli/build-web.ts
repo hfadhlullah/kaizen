@@ -1,7 +1,7 @@
 // `bun run build:web`: bundles the notebook's script and CodeMirror into
 // web/notebook.js, the in-card terminal and xterm.js into web/term.js (+ its
 // stylesheet, web/term.css), the board's modules (web/board/) into web/board.js and
-// Kaizen Bot's page modules (bot/web/app/) into bot/web/app.js, all committed, so an install or a checkout serves it with no
+// Kaizen Bot's page modules (bot/web/app/) into bot/web/app.js, the Video page's script into web/video.js, all committed, so an install or a checkout serves it with no
 // install step and no network. The first line is a hash of what it was built from;
 // cli/notes.test.ts fails when a committed file no longer matches.
 import { createHash } from "node:crypto";
@@ -10,11 +10,12 @@ import { join, dirname } from "node:path";
 
 const root = dirname(import.meta.dir);
 const modules = (dir: string) => readdirSync(join(root, dir)).filter((f) => f.endsWith(".ts")).sort().map((f) => `${dir}/${f}`);
-const SOURCES = ["web/notebook.ts", "web/notes-lib.ts", "web/term.ts", ...modules("web/board"), ...modules("bot/web/app")];
+const SOURCES = ["web/notebook.ts", "web/notes-lib.ts", "web/term.ts", "web/video.ts", ...modules("web/board"), ...modules("bot/web/app")];
 export const OUT = join(root, "web", "notebook.js");
 export const TERM_OUT = join(root, "web", "term.js");
 export const BOARD_OUT = join(root, "web", "board.js");
 export const BOT_OUT = join(root, "bot", "web", "app.js");
+export const VIDEO_OUT = join(root, "web", "video.js");
 
 // The sources and the exact dependency versions: a CodeMirror bump is a rebuild too.
 export function sourceHash() {
@@ -31,6 +32,7 @@ if (import.meta.main) {
     ["web/term.ts", TERM_OUT, "terminal"],
     ["web/board/main.ts", BOARD_OUT, "board"],
     ["bot/web/app/main.ts", BOT_OUT, "bot page"],
+    ["web/video.ts", VIDEO_OUT, "video page"],
   ] as const;
   for (const [src, out, what] of bundles) {
     // The terminal, the board and the bot page are classic scripts: wrapped, or their

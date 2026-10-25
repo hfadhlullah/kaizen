@@ -1620,10 +1620,13 @@ export function trustFolder(dir: string, cfg = join(process.env.CLAUDE_CONFIG_DI
 // where a pseudo-terminal exists; onChange is told when that agent ends.
 const CHILD_ENV = /^(CLAUDECODE|CLAUDE_PID|CLAUDE_CODE_(SESSION_ID|CHILD_SESSION|SESSION_ATTENDED|MESSAGING_SOCKET|MESSAGING_TOKEN))$/;
 
-export function launchRun(it: Item, from: string, run?: string, pick: { agent?: string; model?: string; yolo?: boolean; card?: boolean; onChange?: () => void } = {}): Launch {
-  const projectDir = projectOf(from);
+// skill: start that skill instead of /kaizen (the Video page starts kaizen-video), in cwd:
+// a work folder that may not be a project, so it is not remembered as one. A session record is
+// written only where that folder has a .kaizen (a project place does; the library usually not).
+export function launchRun(it: Item, from: string, run?: string, pick: { agent?: string; model?: string; yolo?: boolean; card?: boolean; onChange?: () => void; skill?: "kaizen-video"; cwd?: string } = {}): Launch {
+  const projectDir = pick.cwd ?? projectOf(from);
   // The run will be born here; the board must know the dir or the idea never retires.
-  remember(projectDir);
+  if (!pick.cwd) remember(projectDir);
   const own = run && !pick.agent ? runAgent(join(projectDir, ".kaizen"), run) : null;
   const agent = detectDefaultAgent(projectDir, pick.agent ?? own?.cmd);
   if (agent.cmd === "claude") trustFolder(projectDir);
@@ -1633,7 +1636,9 @@ export function launchRun(it: Item, from: string, run?: string, pick: { agent?: 
   // onPath, not Bun.which: the board may have taken a login shell's PATH after it started.
   const agentBin = winShim(onPath(agent.cmd) ?? agent.cmd);
   // No text: a run's conversation reopened as it was, with nothing sent to it.
-  const prompt = !it.text ? "" : requestOf(it.where ? `/kaizen ${it.text} (${it.where})` : `/kaizen ${it.text}`, it.notes, from);
+  // A skill other than kaizen: Claude Code takes it as a slash command; other agents are told to use it.
+  const lead = !pick.skill ? "/kaizen" : agent.cmd === "claude" ? `/${pick.skill}` : `Use the ${pick.skill} skill.`;
+  const prompt = !it.text ? "" : requestOf(it.where ? `${lead} ${it.text} (${it.where})` : `${lead} ${it.text}`, it.notes, from);
   const wanted = pick.model ?? (own?.cmd === agent.cmd ? own.model : null) ?? undefined;
   const model = wanted && plainModel(wanted) ? wanted : undefined;
   // Yolo was picked for one tool; a fallback to another opens in its normal mode.

@@ -117,3 +117,8 @@ updated: 2026-10-19
 - 2026-10-25 run 2026-10-25-child-run-terminal — Web board (a run opened by another run's conversation owns that terminal: card shows it, Resume works)
 - 2026-10-25 run 2026-10-25-tidy-skills-folder — Workflow, CLI (media skills grouped under skills/media/; story-deck renamed kaizen-deck, old link cleared on upgrade)
 - 2026-10-25 run 2026-10-25-rename-kaizen-motion — Workflow, CLI (story-video renamed kaizen-motion; old link cleared on install)
+- 2026-10-25 run 2026-10-25-kaizen-video-from-scratch — Workflow, CLI (kaizen-motion folded into kaizen-video as its from-scratch mode on HyperFrames; kaizen-motion joins RENAMED_SKILLS)
+- 2026-10-25 run 2026-10-25-video-studio-page — Web board
+- 2026-10-25 run 2026-10-25-video-new-and-ask — Web board
+- 2026-10-25 run 2026-10-25-video-send — Web board
+- 2026-10-25 update — kaizen-video: new footage preset `tiktok-explainer` (dark editor look, speaker in a clip card, numeral/tape/steps/question scenes, optional `mascot` beat; synthesized CC0 sfx; Instrument Serif and Space Mono fonts)

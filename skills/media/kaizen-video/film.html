@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="{{LANG}}" data-resolution="{{RES}}">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width={{W}}, height={{H}}" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script src="film-data.js"></script>
+    <style>
+      /*FONTS*/
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: {{W}}px; height: {{H}}px; overflow: hidden; }
+      #root { position: relative; width: 100%; height: 100%; overflow: hidden; }
+      .fill { position: absolute; inset: 0; display: flex; flex-direction: column; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="{{DURATION}}" data-width="{{W}}" data-height="{{H}}">
+      <div id="beats" class="fill"></div>
+      <div id="grade" class="fill" style="pointer-events: none"></div>
+      <div id="captions" class="fill" style="pointer-events: none"></div>
+      <!-- AUDIO -->
+    </div>
+
+    <script>
+      // One film = FILM (film-data.js, written by make_film.py): the style, the beats with their absolute start/len
+      // in seconds, and the caption groups. One function per beat kind builds its DOM and its tweens.
+      const F = FILM, S = F.style, P = S.palette, FD = S.fonts, W = F.W, H = F.H, portrait = H > W, short = portrait && H < W * 1.5;   // short: 4:5, a portrait frame 1350 tall
+      const pad = portrait ? 80 : 140, lead = S.pace.lead, f = n => n / 30;
+      const isInter = FD.display === "Inter", light = P.bg.toUpperCase() > "#C";
+      const kinetic = S.captions === "kinetic";   // big captions take more of the bottom edge
+      const tl = gsap.timeline({ paused: true });
+      const $ = (css, html = "", parent) => { const e = document.createElement("div"); Object.assign(e.style, css); e.innerHTML = html; if (parent) parent.append(e); return e; };
+      const FILL = { position: "absolute", inset: 0, display: "flex", flexDirection: "column" };
+      const body = (size, color = P.muted, extra = {}) => ({ fontFamily: `"${FD.body}"`, fontSize: size + "px", color, ...extra });
+
+      // Text entrance by style: rise | slide | pop. `at` is seconds after the beat starts.
+      const enter = (b, el, at, origin = "left center") => {
+        const t = b.start + at, pop = S.text === "pop";
+        const from = { opacity: 0, ...(S.text === "rise" ? { y: 26 } : S.text === "slide" ? { x: -50 } : { scale: 0.6 }) };
+        gsap.set(el, { transformOrigin: origin });
+        tl.fromTo(el, from, { opacity: 1, x: 0, y: 0, scale: 1, duration: pop ? 0.4 : 0.5, ease: pop ? "back.out(2.2)" : "power2.out" }, t);
+      };
+      const kick = (b, text, at, parent) => { const e = $({ ...body(22, P.accent), fontWeight: 700, letterSpacing: "9px", textTransform: "uppercase" }, text, parent); enter(b, e, at); return e; };
+      const title = (b, text, at, size, o = {}, parent) => {
+        const e = $({ fontFamily: `"${FD.display}"`, fontWeight: isInter ? 900 : 400, fontStyle: o.italic ? "italic" : "normal", fontSize: size + "px",
+          lineHeight: 1.08, color: o.color || P.fg, letterSpacing: isInter ? "-1px" : "0", textAlign: o.center ? "center" : "left" }, text, parent);
+        enter(b, e, at, o.center ? "center" : "left center"); return e;
+      };
+      const italic = !isInter;
+      const textBlock = (b, parent, maxW, size = 88) => {
+        const box = $({ maxWidth: maxW + "px" }, "", parent);
+        if (b.kick) kick(b, b.kick, lead, box);
+        if (b.title) title(b, b.title, lead + 0.2, size, {}, box).style.marginTop = "22px";
+        if (b.sub) { const s = $(body(30, P.muted, { lineHeight: 1.4, marginTop: "28px" }), b.sub, box); enter(b, s, lead + 1.0); }
+        return box;
+      };
+      const photo = (b, parent, amount, style = {}) => {
+        const box = $({ ...FILL, overflow: "hidden", ...style }, "", parent);
+        const im = document.createElement("img"); im.src = b.img; im.setAttribute("data-layout-allow-overflow", "");
+        Object.assign(im.style, { width: "100%", height: "100%", objectFit: "cover" }); box.append(im);
+        tl.fromTo(im, { scale: 1, x: 0 }, { scale: 1 + amount, x: -24, duration: b.len, ease: "none" }, b.start);
+        return box;
+      };
+      const logoFor = () => (light && F.logoOnLight) || F.logo;
+      const items = (b, parent, line) => {
+        if (!b.items) return;
+        const box = $({ marginTop: "34px" }, "", parent);
+        b.items.forEach((it, i) => {
+          const e = $({ fontFamily: `"${FD.display}"`, fontStyle: italic ? "italic" : "normal", fontSize: "40px", color: P.accent, marginTop: "10px" }, it, box);
+          enter(b, e, lead + 0.67 + ((line - 0.67) * i) / b.items.length);
+        });
+      };
+
+      const KINDS = {
+        black(b, v, line) {
+          const c = $({ ...FILL, justifyContent: "center", alignItems: "center", textAlign: "center", padding: pad + "px" }, "", v);
+          title(b, b.title, lead, portrait ? 96 : 84, { italic, center: true }, c);
+          if (b.sub) { const s = $(body(34), b.sub, c); s.style.marginTop = "30px"; enter(b, s, lead + line * 0.55, "center"); }
+        },
+        question(b, v) {
+          const c = $({ ...FILL, justifyContent: "center", alignItems: "center", textAlign: "center", padding: pad * 1.5 + "px" }, "", v);
+          title(b, b.title, lead, portrait ? 92 : 88, { italic, center: true, color: P.bg }, c);
+        },
+        reveal(b, v, line) {
+          const c = $({ ...FILL, justifyContent: "center", alignItems: "center", textAlign: "center", padding: pad + "px" }, "", v);
+          const logo = logoFor();
+          if (logo) {
+            const im = document.createElement("img"); im.src = logo; Object.assign(im.style, { width: (portrait ? 760 : 820) + "px" }); c.append(im);
+            tl.fromTo(im, { clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 0% 0 0)", duration: 0.8, ease: "power2.out" }, b.start + lead);
+            tl.fromTo(im, { scale: 1.04 }, { scale: 1, duration: b.len - lead, ease: "none" }, b.start + lead);
+          } else {
+            const t = title(b, b.title, lead, 170, { center: true }, c);
+            t.style.maxWidth = W - pad * 2 + "px"; t.style.overflowWrap = "anywhere";
+            if (t.scrollWidth > W - pad * 2 || b.title.length * 170 * 0.55 > W - pad * 2) t.style.fontSize = Math.floor(Math.min(170, (W - pad * 2) / (b.title.length * 0.58))) + "px";
+          }
+          if (b.sub) { const s = title(b, b.sub, lead + 1.0, 46, { italic, center: true }, c); s.style.marginTop = "40px"; }
+          if (b.line) { const k = kick(b, b.line, lead + f(50), c); k.style.marginTop = "34px"; }
+        },
+        stat(b, v, line) {
+          const c = $({ ...FILL, padding: pad + "px", justifyContent: "center" }, "", v);
+          if (b.kick) kick(b, b.kick, lead, c);
+          const row = $({ display: "flex", flexDirection: portrait ? "column" : "row", gap: (short ? 36 : 70) + "px", marginTop: "40px" }, "", c);
+          const n = b.stat.length;
+          b.stat.forEach((st, i) => {
+            const at = lead + (line * i) / n, cell = $({}, "", row);
+            const num = $({ fontFamily: `"${FD.display}"`, fontSize: (short ? 112 : 150) + "px", color: P.accent, lineHeight: 1 }, "", cell);
+            const show = x => (num.textContent = Math.round(x).toLocaleString(F.language === "id" ? "id-ID" : "en-US") + (st.suffix || ""));
+            show(0);
+            const o = { x: 0 };
+            tl.to(o, { x: st.value, duration: 40 / 30, ease: "none", onUpdate: () => show(o.x) }, b.start + at);
+            $(body(30, P.muted, { marginTop: "12px", maxWidth: "560px" }), st.label, cell);
+            enter(b, cell, at);
+          });
+          if (b.title) { const t = title(b, b.title, lead + line * 0.7, 52, { italic }, c); t.style.marginTop = "50px"; }
+          const src = b.stat.map(s => s.source).filter(Boolean);
+          if (src.length) $({ position: "absolute", left: pad + "px", bottom: (kinetic ? (short ? 400 : portrait ? 520 : 260) : short ? 290 : portrait ? 330 : 70) + "px", ...body(18, P.muted, { opacity: 0.8 }) },
+            `${F.labels.source}: ${src.join(" · ")}`, c);
+        },
+        triptych(b, v, line) {
+          const c = $({ ...FILL, padding: pad + "px", justifyContent: "center" }, "", v);
+          const cw = portrait ? 270 : 420, ch = portrait ? 420 : 520;
+          if (b.kick) kick(b, b.kick, lead, c);
+          if (b.title) title(b, b.title, lead + 0.13, 60, {}, c).style.marginTop = "18px";
+          const row = $({ display: "flex", gap: "36px", marginTop: "50px" }, "", c);
+          b.panels.forEach((pn, i) => {
+            const cell = $({}, "", row);
+            const fr = $({ width: cw + "px", height: ch + "px", overflow: "hidden", border: `2px solid ${P.accent}` }, `<img src="${pn.img}" data-layout-allow-overflow style="width:100%;height:100%;object-fit:cover">`, cell);
+            $({ fontFamily: `"${FD.display}"`, fontSize: "34px", color: P.fg, marginTop: "16px", maxWidth: cw + "px" }, pn.title, cell);
+            $(body(22, P.muted, { marginTop: "6px", maxWidth: cw + "px" }), pn.sub || "", cell);
+            enter(b, cell, lead + (line * (i + 0.3)) / 3);
+          });
+        },
+        shot(b, v) {
+          const c = $({ ...FILL, padding: pad + "px", flexDirection: portrait ? "column" : "row", alignItems: "center", justifyContent: portrait ? "center" : "space-between", gap: "50px" }, "", v);
+          textBlock(b, c, portrait ? 900 : 560, 72);
+          // fit the screenshot inside its box, whatever its ratio (phone screenshots are tall)
+          const r = b.shotRatio || 1.6, mw = portrait ? 880 : 1000, mh = portrait ? 800 : 780, w = Math.min(mw, mh * r), h = w / r;
+          const fr = $({ padding: "10px", background: "#F3EDE3", border: `2px solid ${P.accent}` }, `<img src="${b.img}" data-layout-allow-overflow style="width:${w}px;height:${h}px;display:block">`, c);
+          enter(b, fr, lead + 0.33);
+          tl.fromTo(fr, { scale: 1 }, { scale: 1.04, duration: b.len, ease: "none" }, b.start);
+        },
+        cta(b, v) {
+          const c = F.cta;
+          if (b.img) { const g = $({ ...FILL, opacity: 0.35 }, "", v); photo(b, g, S.kenburns); }
+          const col = $({ ...FILL, padding: pad + "px", justifyContent: "center", alignItems: portrait ? "center" : "flex-start", textAlign: portrait ? "center" : "left" }, "", v);
+          kick(b, c.kick || F.labels.next, lead, col);
+          title(b, c.title, lead + 0.2, portrait ? 96 : 86, { center: portrait }, col).style.marginTop = "24px";
+          if (c.sub) kick(b, c.sub, lead + 1.0, col).style.marginTop = "40px";
+          (c.lines || []).forEach((l, i) => { const e = $(body(38, P.fg, { marginTop: "12px" }), l, col); enter(b, e, lead + 1.2 + i * 0.2); });
+          if (c.url) { const e = $(body(34, P.muted, { marginTop: "12px" }), c.url, col); enter(b, e, lead + 1.6); }
+          const qr = () => { const e = $({}, `<img src="${F.qr}" style="width:${portrait ? 360 : 330}px;height:${portrait ? 360 : 330}px;border-radius:8px;display:block">`); return e; };
+          if (portrait && F.qr) { const e = qr(); col.append(e); e.style.marginTop = "50px"; enter(b, e, lead + 1.8, "center"); }
+          const logo = logoFor();
+          if (logo) { const e = $({}, `<img src="${logo}" style="width:360px;display:block">`, col); e.style.marginTop = "60px"; enter(b, e, lead + 2.1, "center"); }
+          if (!portrait && F.qr) { const e = qr(); Object.assign(e.style, { position: "absolute", right: pad + "px", bottom: "150px" }); v.append(e); enter(b, e, lead + 1.8); }
+        },
+        media(b, v, line) {   // photo | footage | list: the layout depends on the style
+          const slot = (parent, style) => {
+            const box = $({ overflow: "hidden", ...style }, "", parent);
+            if (b.kind === "footage" && b.video) {
+              const vid = document.createElement("video"); vid.id = "fv-" + b.n; vid.muted = true; vid.setAttribute("muted", ""); vid.playsInline = true; vid.src = b.video;
+              vid.dataset.start = b.start; vid.dataset.duration = b.len; vid.dataset.trackIndex = 8;
+              Object.assign(vid.style, { width: "100%", height: "100%", objectFit: "cover", display: "block" }); box.append(vid);
+            } else if (b.img) { Object.assign(box.style, { display: "flex", flexDirection: "column" }); photo(b, box, S.kenburns, { position: "relative", flex: 1 }); }
+            return box;
+          };
+          if (S.layout === "window" && !portrait) {
+            const c = $({ ...FILL, flexDirection: "row" }, "", v);
+            const left = $({ width: "52%", padding: `0 ${pad}px`, display: "flex", flexDirection: "column", justifyContent: "center" }, "", c);
+            textBlock(b, left, 820, 76); items(b, left, line);
+            const win = slot(c, { width: "40%", margin: "110px 0", border: `2px solid ${P.accent}`, position: "relative" });
+            tl.fromTo(win, { clipPath: "inset(50% 0 50% 0)" }, { clipPath: "inset(0% 0 0% 0)", duration: 0.6, ease: "power2.out" }, b.start + lead);
+          } else if (S.layout === "card" && !portrait) {
+            const c = $({ ...FILL, flexDirection: "row", alignItems: "center" }, "", v);
+            const left = $({ width: "50%", padding: `0 ${pad}px` }, "", c);
+            textBlock(b, left, 780, 80); items(b, left, line);
+            const card = slot(c, { width: "760px", height: "760px", borderRadius: "40px", boxShadow: "0 30px 80px rgba(0,0,0,0.25)", position: "relative" });
+            tl.fromTo(card, { rotation: 10, scale: 0.8 }, { rotation: 2, scale: 1, duration: 0.6, ease: "back.out(2)" }, b.start + lead);
+          } else {
+            const top = portrait && S.captions === "kinetic", bottom = !top && (portrait || b.side !== "left");
+            slot(v, { ...FILL, position: "absolute" });
+            const g = top ? `linear-gradient(to bottom, ${P.bg}E6 0%, transparent 40%, transparent 55%, ${P.bg}CC 100%)`
+              : bottom ? `linear-gradient(to top, ${P.bg}F0 0%, ${P.bg}99 35%, transparent 65%)`
+              : `linear-gradient(to right, ${P.bg}F2 0%, ${P.bg}AA 40%, transparent 70%)`;
+            $({ ...FILL, background: g }, "", v);
+            const c = $({ ...FILL, padding: top ? `200px ${pad}px 0` : bottom ? `0 ${pad}px ${portrait ? 420 : kinetic ? 260 : 150}px` : `0 ${pad}px`,
+              justifyContent: top ? "flex-start" : bottom ? "flex-end" : "center" }, "", v);
+            textBlock(b, c, bottom ? 1400 : 900, portrait ? 92 : bottom ? 92 : 80); items(b, c, line);
+          }
+        },
+      };
+
+      // Beats: wrapper with the style's transition, then the kind's content.
+      F.beats.forEach((b, i) => {
+        const line = b.dur || b.len, end = b.start + b.len, T = S.transition;
+        const v = $({ ...FILL, opacity: 0, background: b.kind === "question" ? P.accentBg : "transparent" }, "", document.getElementById("beats"));
+        (KINDS[b.kind] || KINDS.media)(b, v, line);
+        const out = { opacity: 0, duration: f(10), ease: "none" };
+        if (T === "wipe") tl.fromTo(v, { opacity: 1, clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 0% 0 0)", duration: f(14), ease: "power2.out" }, b.start);
+        else if (T === "punch") tl.fromTo(v, { opacity: 0, scale: 1.12 }, { opacity: 1, scale: 1, duration: f(8), ease: "power2.out" }, b.start);
+        else tl.fromTo(v, { opacity: 0 }, { opacity: 1, duration: f(10), ease: "none" }, b.start);
+        if (b.len > f(20)) tl.to(v, out, end - f(10));
+      });
+
+      // Grade: vignette, light leak on every cut, drifting grain.
+      const G = S.grade, grade = document.getElementById("grade");
+      if (G.vignette > 0) $({ ...FILL, background: `radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,${G.vignette}) 100%)` }, "", grade);
+      if (G.leak) F.beats.forEach((b, i) => {
+        const x = 20 + ((i * 37) % 60), e = $({ ...FILL, opacity: 0, mixBlendMode: "screen", background: `radial-gradient(circle at ${x}% 30%, rgba(255,190,120,0.55) 0%, transparent 55%)` }, "", grade);
+        tl.fromTo(e, { opacity: 0 }, { opacity: 1, duration: f(8), ease: "none" }, b.start).to(e, { opacity: 0, duration: f(18), ease: "none" }, b.start + f(8));
+      });
+      if (G.grain > 0) {
+        const g = $({ position: "absolute", inset: "-60px", opacity: G.grain, mixBlendMode: "overlay" },
+          `<svg width="${W + 120}" height="${H + 120}"><filter id="g"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7"/></filter><rect width="100%" height="100%" filter="url(#g)"/></svg>`, grade);
+        for (let k = 0; k < F.total * 8; k++) tl.set(g, { x: (k * 53) % 60 - 30, y: (k * 29) % 60 - 30 }, k / 8);
+      }
+
+      // Captions from the voice's word timings (make_film.py cut them into groups).
+      const cap = document.getElementById("captions");
+      F.captions.forEach(c => {
+        const subtitle = S.captions === "subtitle";
+        const box = $({ ...FILL, opacity: 0, justifyContent: "flex-end", alignItems: "center", pointerEvents: "none",
+          paddingBottom: (subtitle ? (portrait ? 220 : 56) : (portrait ? 300 : 120)) + "px" }, "", cap);
+        let inner;
+        if (subtitle) {
+          inner = $({ ...body(portrait ? 40 : 32, light ? P.fg : "#FFFFFF"), textAlign: "center", background: light ? "rgba(255,255,255,0.75)" : "rgba(0,0,0,0.45)",
+            padding: "8px 18px", borderRadius: "6px", maxWidth: W - 120 + "px" }, c.words.map(w => w.w).join(" "), box);
+        } else {
+          inner = $({ display: "flex", flexWrap: "wrap", justifyContent: "center", maxWidth: (portrait ? 940 : 1500) + "px" }, "", box);
+          c.words.forEach(w => {
+            const s = document.createElement("span"); s.textContent = w.w;
+            Object.assign(s.style, { fontFamily: '"Inter"', fontWeight: 900, fontSize: (portrait ? 84 : 72) + "px", lineHeight: 1.15, textTransform: "uppercase", color: "#FFFFFF",
+              margin: "0 10px", webkitTextStroke: "3px #000", paintOrder: "stroke", textShadow: "0 6px 18px rgba(0,0,0,0.6)" });
+            inner.append(s);
+            tl.set(s, { color: P.accent }, w.s).set(s, { color: "#FFFFFF" }, w.e);
+          });
+          tl.fromTo(inner, { scale: 0.85 }, { scale: 1, duration: f(10), ease: "back.out(2)" }, c.s);
+        }
+        tl.set(box, { opacity: 1 }, c.s).set(box, { opacity: 0 }, c.e);
+      });
+
+      document.getElementById("root").style.background = P.bg;
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>
