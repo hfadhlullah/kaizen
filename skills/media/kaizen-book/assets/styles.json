@@ -1,0 +1,45 @@
+{
+  "classic": {
+    "note": "Non-fiction, essays, history, religious writing. Warm paper, gilt on navy.",
+    "fonts": { "body": "EB Garamond", "display": "Cormorant Garamond", "ui": "Plus Jakarta Sans" },
+    "cover": { "bg": "#0B1626", "ink": "#F2CF7A", "accent": "#F2CF7A", "pattern": "frame" },
+    "paper": "#F7F1E6", "ink": "#2A211B", "accent": "#8A5A2B", "desk": "#1B2433"
+  },
+  "romance": {
+    "note": "Romance, women's fiction. Blush paper, script display, rose accents.",
+    "fonts": { "body": "Lora", "display": "Playfair Display", "ui": "Nunito Sans" },
+    "cover": { "bg": "#F4D9D6", "ink": "#6B2737", "accent": "#B4475B", "pattern": "petals" },
+    "paper": "#FFF7F3", "ink": "#3B2328", "accent": "#B4475B", "desk": "#4A2A31"
+  },
+  "scifi": {
+    "note": "Science fiction, techno-thriller. Cool paper, geometric display, cyan glow.",
+    "fonts": { "body": "Source Serif 4", "display": "Orbitron", "ui": "Space Grotesk" },
+    "cover": { "bg": "#05070D", "ink": "#E6F6FF", "accent": "#3FD0FF", "pattern": "grid" },
+    "paper": "#F2F4F6", "ink": "#151A22", "accent": "#0A7FA8", "desk": "#0A0E16"
+  },
+  "fantasy": {
+    "note": "Fantasy, myth, adventure. Parchment paper, blackletter-flavoured display, deep green.",
+    "fonts": { "body": "Crimson Pro", "display": "Cinzel Decorative", "ui": "Alegreya Sans" },
+    "cover": { "bg": "#14301F", "ink": "#E9D9A6", "accent": "#C9A44C", "pattern": "frame" },
+    "paper": "#F3E9D2", "ink": "#2B2418", "accent": "#7A5A1E", "desk": "#1E2A1F"
+  },
+  "thriller": {
+    "note": "Mystery, crime, thriller, horror. Stark paper, condensed display, blood red.",
+    "fonts": { "body": "Libre Caslon Text", "display": "Bebas Neue", "ui": "Inter" },
+    "cover": { "bg": "#0E0E0E", "ink": "#F5F5F5", "accent": "#C8102E", "pattern": "slash" },
+    "paper": "#F6F5F2", "ink": "#121212", "accent": "#C8102E", "desk": "#161616"
+  },
+  "literary": {
+    "note": "Literary fiction, memoir, poetry. Off-white paper, quiet typography, no ornament.",
+    "fonts": { "body": "Newsreader", "display": "Newsreader", "ui": "Inter" },
+    "cover": { "bg": "#EDE8DF", "ink": "#1D1D1B", "accent": "#9C3D2E", "pattern": "none" },
+    "paper": "#FBF9F4", "ink": "#1D1D1B", "accent": "#9C3D2E", "desk": "#2E2B27"
+  },
+  "children": {
+    "note": "Children's and middle-grade. Big type, rounded fonts, bright colours.",
+    "fonts": { "body": "Andika", "display": "Baloo 2", "ui": "Nunito" },
+    "cover": { "bg": "#FFD23F", "ink": "#1B3B6F", "accent": "#EE4266", "pattern": "dots" },
+    "paper": "#FFFDF5", "ink": "#1B2A41", "accent": "#EE4266", "desk": "#3BCEAC",
+    "fontScale": 1.15
+  }
+}

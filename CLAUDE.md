@@ -18,7 +18,7 @@ fails when the bundle is stale).
 | Path | What it is |
 |---|---|
 | `cli/` | Installer and runtime behind every `kaizen` command. `install.ts` is the CLI entry; `state.ts` is the run engine; `web.ts` the board server; `dashboard.ts` the terminal board; `sources.ts` request sources; `settings.ts` config; `notes.ts` the notebook. Tests live beside the code as `*.test.ts`. |
-| `skills/` | The workflow as Agent Skills folders: `kaizen/` holds `SKILL.md` plus the `spec*.md` stage contracts, `adapters.md` and `config.default.yml`; `kaizen-help/` beside it; `media/` holds the bundled media skills `kaizen-deck/`, `kaizen-video/`, `kaizen-motion/`. |
+| `skills/` | The workflow as Agent Skills folders: `kaizen/` holds `SKILL.md` plus the `spec*.md` stage contracts, `adapters.md` and `config.default.yml`; `kaizen-help/` beside it; `media/` holds the bundled media skills `kaizen-deck/`, `kaizen-video/`, `kaizen-motion/`, `kaizen-book/`. |
 | `agents/` | Claude Code subagents the workflow dispatches: `kaizen-planner.md`, `kaizen-builder.md`, `kaizen-reviewer.md`. |
 | `commands/` | The `/kaizen-*` slash commands, one markdown file each. |
 | `web/` | Board and notebook front end: `board.html`, `notes.html`, `notebook.ts`, `notes-lib.ts`. |

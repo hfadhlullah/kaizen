@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="@@LANG@@">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>@@TITLE@@</title>
+<meta name="description" content="@@DESC@@">
+<!--@@FONTLINK@@-->
+<style>
+/*@@FONTS@@*/
+:root{--paper:#F7F1E6;--ink:#2A211B;--accent:#8A5A2B;--desk:#1B2433;--muted:color-mix(in srgb,var(--ink) 55%,transparent);--fs:18px;
+ --f-body:Georgia,serif;--f-display:Georgia,serif;--f-ui:system-ui,sans-serif;--cv-bg:#0B1626;--cv-ink:#F2CF7A;--cv-accent:#F2CF7A}
+html[data-theme=sepia]{--paper:#F1E4C9;--ink:#3A2C1C;--accent:#8A5A2B}
+html[data-theme=night]{--paper:#17191E;--ink:#D9D3C7;--accent:#D9A866;--desk:#08090B}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--desk);color:var(--ink);font-family:var(--f-ui);-webkit-tap-highlight-color:transparent}
+body{overflow:hidden}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;min-width:44px;min-height:44px;border-radius:10px}
+button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.view{position:fixed;inset:0;display:none}
+body[data-view=cover] #cover,body[data-view=toc] #toc,body[data-view=read] #read{display:flex}
+.paper{background-color:var(--paper);background-image:radial-gradient(ellipse at center,transparent 60%,rgba(60,40,20,.10)),url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .25 0 0 0 0 .15 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+html[data-theme=night] .paper{background-image:radial-gradient(ellipse at center,transparent 60%,rgba(0,0,0,.35))}
+
+/* ---------- cover */
+#cover{flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:24px 16px;background:radial-gradient(ellipse at 50% 40%,color-mix(in srgb,var(--desk) 70%,#fff 8%),var(--desk))}
+.book3d{position:relative;width:min(78vw,52vh,380px);aspect-ratio:2/3;perspective:2200px}
+.pageblock{position:absolute;inset:4px -10px 4px 6px;border-radius:2px 6px 6px 2px;background:repeating-linear-gradient(90deg,#efe6d4 0 1px,#d9ceb8 1px 2px);box-shadow:0 30px 60px rgba(0,0,0,.45)}
+.halftitle{position:absolute;inset:4px -10px 4px 6px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:12%;border-radius:2px 6px 6px 2px;color:var(--ink);font-family:var(--f-display)}
+.halftitle b{font-size:1.5em;line-height:1.1}.halftitle i{margin-top:.6em;color:var(--muted)}
+.board{position:absolute;inset:0;transform-origin:left center;transition:transform 1s cubic-bezier(.6,.05,.3,1);transform-style:preserve-3d;border-radius:3px 8px 8px 3px;overflow:hidden;cursor:pointer;box-shadow:inset 6px 0 10px -4px rgba(0,0,0,.5),0 18px 40px rgba(0,0,0,.4)}
+.board.open{transform:rotateY(-165deg)}
+.board img{width:100%;height:100%;object-fit:cover;display:block}
+.board::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,0,0,.35),rgba(255,255,255,.08) 3%,transparent 7%),url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .08 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");pointer-events:none}
+.hint{margin:0;color:color-mix(in srgb,#fff 60%,transparent);font-size:13px;letter-spacing:.08em}
+.cta{padding:12px 28px;border-radius:999px;background:var(--cv-accent);color:var(--cv-bg);font-weight:700;letter-spacing:.04em}
+/* typeset cover, shared by screen, print and og */
+.tc{position:relative;width:100%;height:100%;display:flex;flex-direction:column;padding:11% 10% 9%;background:var(--cv-bg);color:var(--cv-ink);font-family:var(--f-display);container-type:inline-size;overflow:hidden}
+.tc .t{font-size:12.5cqi;font-weight:700;line-height:1.02;margin-top:8%;letter-spacing:.01em}
+.tc .s{font-size:5.6cqi;font-style:italic;margin-top:4%;opacity:.9}
+.tc .g{font-size:4.2cqi;margin-top:8%;opacity:.8;font-family:var(--f-body)}
+.tc .v{font-size:4.6cqi;margin-top:6%;letter-spacing:.2em;text-transform:uppercase;font-weight:700;color:var(--cv-accent)}
+.tc .a{margin-top:auto;font-size:4.4cqi;letter-spacing:.22em;text-transform:uppercase;font-family:var(--f-ui);font-weight:600}
+.tc.frame::before{content:"";position:absolute;inset:4.5%;border:1.5px solid var(--cv-accent);outline:1px solid var(--cv-accent);outline-offset:-7px;pointer-events:none}
+.tc.grid{background:linear-gradient(transparent 96%,color-mix(in srgb,var(--cv-accent) 30%,transparent) 0) 0 0/100% 8%,linear-gradient(90deg,transparent 96%,color-mix(in srgb,var(--cv-accent) 30%,transparent) 0) 0 0/8% 100%,radial-gradient(circle at 70% 80%,color-mix(in srgb,var(--cv-accent) 45%,transparent),transparent 55%),var(--cv-bg)}
+.tc.petals{background:radial-gradient(circle at 85% 12%,color-mix(in srgb,var(--cv-accent) 35%,transparent) 0 14%,transparent 15%),radial-gradient(circle at 12% 88%,color-mix(in srgb,var(--cv-accent) 25%,transparent) 0 20%,transparent 21%),var(--cv-bg)}
+.tc.slash{background:linear-gradient(115deg,transparent 62%,var(--cv-accent) 62% 66%,transparent 66%),var(--cv-bg)}
+.tc.dots{background:radial-gradient(circle,color-mix(in srgb,var(--cv-accent) 28%,transparent) 16%,transparent 18%) 0 0/9% 6%,var(--cv-bg)}
+
+/* ---------- contents */
+#toc{justify-content:center;overflow:auto;padding:16px}
+.sheet{width:min(100%,640px);margin:auto 0;padding:28px 22px 40px;border-radius:4px;box-shadow:0 20px 50px rgba(0,0,0,.4);font-family:var(--f-body)}
+.sheet h1{font-family:var(--f-display);text-align:center;font-size:30px;margin:.2em 0 .1em}
+.sheet .by{text-align:center;color:var(--muted);margin:0 0 22px;font-style:italic}
+.sheet h2{font-family:var(--f-ui);font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);margin:22px 0 6px;font-weight:700}
+.row{display:flex;width:100%;align-items:baseline;gap:6px;padding:9px 2px;text-align:left;font-size:17px;border-radius:6px;min-height:44px}
+.row:hover{background:color-mix(in srgb,var(--accent) 10%,transparent)}
+.row .lead{flex:1;border-bottom:1px dotted var(--muted);transform:translateY(-4px);min-width:12px}
+.row small{color:var(--muted);font-family:var(--f-ui);font-size:12px}
+.toplinks{display:flex;justify-content:space-between;font-family:var(--f-ui);font-size:14px}
+.toplinks button{color:var(--accent);padding:0 8px}
+
+/* ---------- reader */
+#read{flex-direction:column}
+.bar{display:flex;align-items:center;gap:6px;padding:0 8px;height:52px;flex:none;color:color-mix(in srgb,#fff 82%,transparent);font-size:14px}
+.bar .rh{flex:1;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:var(--f-display);font-size:15px;letter-spacing:.02em}
+.bar .pg{flex:1;text-align:center;font-variant-numeric:tabular-nums}
+.stage{flex:1;display:flex;align-items:center;justify-content:center;position:relative;touch-action:pan-y;user-select:none;-webkit-user-select:none}
+.book{position:relative;perspective:2400px}
+.area{position:relative;overflow:hidden;border-radius:2px 4px 4px 2px;box-shadow:0 14px 34px rgba(0,0,0,.42)}
+.area::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,rgba(0,0,0,.16),transparent 5%)}
+.spread .area::after{background:linear-gradient(90deg,transparent 46%,rgba(0,0,0,.18) 50%,transparent 54%)}
+.flow{position:absolute;column-fill:auto;font-family:var(--f-body);font-size:var(--fs);line-height:1.62;color:var(--ink);will-change:transform;hyphens:auto;-webkit-hyphens:auto}
+.flow.justify{text-align:justify}
+.flow p{margin:0;text-indent:1.4em;orphans:2;widows:2}
+.flow h2+p,.flow .chhead+p,.flow h3+p,.flow h4+p,.flow .scene+p,.flow blockquote+p,.flow figure+p,.flow ul+p,.flow ol+p,.flow pre+p,.flow p:first-child{text-indent:0}
+.chhead{margin:2.2em 0 1.6em;text-align:center;break-inside:avoid}
+.chhead .k{display:block;font-family:var(--f-ui);font-size:.62em;letter-spacing:.2em;text-transform:uppercase;color:var(--accent)}
+.chhead h2{font-family:var(--f-display);font-size:1.55em;line-height:1.15;margin:.35em 0 0;font-weight:700}
+.chhead .sub{font-style:italic;color:var(--muted);margin-top:.5em;text-indent:0}
+.chhead::after{content:"";display:block;width:3em;height:1px;background:var(--accent);margin:1.1em auto 0}
+.chhead+p::first-letter{font-family:var(--f-display);float:left;font-size:3.2em;line-height:.85;padding:.06em .08em 0 0;color:var(--accent)}
+.partop{break-after:column;height:100%;display:flex;flex-direction:column;justify-content:center;text-align:center;font-family:var(--f-display)}
+.lead-in{break-after:column}
+.partop b{font-size:1.7em;line-height:1.15}.partop p{text-indent:0;font-family:var(--f-body);font-size:.92em;color:var(--muted);margin-top:1em;text-align:center}
+.partop::before{content:"❦";color:var(--accent);font-size:1.6em;margin-bottom:.4em}
+.flow h3{font-family:var(--f-display);font-size:1.15em;margin:1.3em 0 .5em;break-after:avoid}
+.flow h4{font-size:1em;margin:1.1em 0 .4em;break-after:avoid;font-style:italic}
+.flow blockquote{margin:.8em 0 .8em 1em;padding-left:.9em;border-left:2px solid color-mix(in srgb,var(--accent) 60%,transparent);font-style:italic}
+.flow blockquote p{text-indent:0}
+.flow ul,.flow ol{margin:.5em 0 .7em;padding-left:1.4em}
+.flow li{margin:.2em 0}
+.flow .scene{text-align:center;text-indent:0;margin:.8em 0;color:var(--accent);letter-spacing:.5em}
+.flow figure{margin:1em 0;text-align:center;break-inside:avoid}
+.flow img{max-width:100%;height:auto;max-height:var(--imgmax,60vh);border-radius:2px}
+.flow figcaption{font-size:.8em;color:var(--muted);font-style:italic;margin-top:.4em}
+.flow code{font-size:.88em}
+.flow pre{clear:both;font-size:.78em;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere;margin:.8em 0;padding:.7em .8em;border-radius:4px;background:color-mix(in srgb,var(--ink) 7%,transparent);break-inside:avoid}
+.flow a{color:var(--accent)}
+.flow sup.fn a{text-decoration:none;font-family:var(--f-ui);font-weight:700;font-size:.72em;padding:0 .15em}
+.flow .notes{font-size:.82em;line-height:1.45;border-top:1px solid color-mix(in srgb,var(--ink) 25%,transparent);padding-top:.6em;margin-top:1.4em;color:var(--muted)}
+.deco{position:absolute;inset:0;pointer-events:none;font-family:var(--f-ui);font-size:11px;letter-spacing:.14em;color:var(--muted)}
+.deco span{position:absolute;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:uppercase}
+.deco .pn{letter-spacing:0;text-transform:none;font-size:12px}
+.leaf{position:absolute;inset:0;margin:0;backface-visibility:hidden;pointer-events:none;box-shadow:none}
+.leaf .shade{position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,0,0,.28),rgba(0,0,0,0) 60%);opacity:0;pointer-events:none}
+.panel{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);width:min(calc(100% - 32px),420px);padding:18px;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.5);display:none;z-index:10;font-family:var(--f-ui)}
+.panel.on{display:block}
+.panel h3{margin:0 0 8px;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.seg{display:flex;gap:8px;margin-bottom:16px}
+.seg button{flex:1;border:1px solid color-mix(in srgb,var(--ink) 25%,transparent)}
+.seg button[aria-pressed=true]{border-color:var(--accent);color:var(--accent);font-weight:700}
+.panel .wide{width:100%;border:1px solid var(--accent);color:var(--accent);font-weight:700}
+.note{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(calc(100% - 32px),460px);max-height:70vh;overflow:auto;padding:20px 20px 10px;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.55);z-index:11;display:none;font-family:var(--f-body);line-height:1.5}
+.note.on{display:block}
+.note .x{float:right;margin:-12px -12px 0 0}
+@media (prefers-reduced-motion:reduce){.board{transition:none}}
+
+/* ---------- print + og */
+#print,#og{display:none}
+body.printing{overflow:visible;background:#fff}
+body.printing #app{display:none}
+body.printing #print{display:block}
+body.og #app{display:none}
+body.og #og{display:flex}
+#og{width:1200px;height:630px;align-items:center;gap:56px;padding:0 80px;background:radial-gradient(ellipse at 30% 50%,color-mix(in srgb,var(--cv-bg) 70%,#fff 10%),var(--cv-bg));color:var(--cv-ink);font-family:var(--f-display)}
+#og .ogc{width:340px;height:510px;flex:none;box-shadow:0 26px 60px rgba(0,0,0,.55);border-radius:3px 8px 8px 3px;overflow:hidden}
+#og .ogc img{width:100%;height:100%;object-fit:cover}
+#og h1{font-size:64px;line-height:1.02;margin:0}#og p{font-size:30px;font-style:italic;margin:16px 0 0;opacity:.85}#og .au{font-family:var(--f-ui);font-size:22px;letter-spacing:.2em;text-transform:uppercase;margin-top:40px;font-style:normal;color:var(--cv-accent)}
+@page{size:A5;margin:16mm 14mm 17mm;@bottom-center{content:counter(page);font-family:var(--f-ui);font-size:8.5pt;color:#666}}
+@page cover{margin:0;@bottom-center{content:none}}
+@page front{@bottom-center{content:none}}
+@media print{
+ html,body{height:auto;background:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+ #app,#og{display:none!important}#print{display:block!important}
+}
+#print{font-family:var(--f-body);font-size:10.6pt;line-height:1.48;color:#1a1a1a;background:#fff;hyphens:auto;-webkit-hyphens:auto}
+#print .pp{break-before:page}
+#print .p-cover{page:cover;width:148mm;height:210mm;overflow:hidden;break-after:page}
+#print .p-cover{position:relative}#print .vband{position:absolute;left:0;right:0;bottom:18mm;padding:3mm;text-align:center;background:var(--cv-bg);color:var(--cv-accent);font-family:var(--f-ui);font-weight:700;letter-spacing:.25em;text-transform:uppercase;font-size:12pt}
+#print .p-cover img{width:100%;height:100%;object-fit:cover;display:block}
+#print .front{page:front}
+#print .p-title{height:170mm;display:flex;flex-direction:column;justify-content:center;text-align:center;font-family:var(--f-display)}
+#print .p-title b{font-size:26pt;line-height:1.1}#print .p-title i{font-size:13pt;margin-top:4mm;color:#555}#print .p-title span{margin-top:auto;letter-spacing:.2em;text-transform:uppercase;font-family:var(--f-ui);font-size:9pt}
+#print .p-copy{height:170mm;display:flex;flex-direction:column;justify-content:flex-end;font-size:8.5pt;color:#555;white-space:pre-line}
+#print .p-ded{height:150mm;display:flex;align-items:center;justify-content:center;text-align:center;font-style:italic;white-space:pre-line}
+#print .p-toc h2{font-family:var(--f-display);text-align:center;font-size:18pt;margin:0 0 8mm}
+#print .p-toc h3 a{display:inline;margin:0}#print .p-toc h3{font-family:var(--f-ui);font-size:8pt;letter-spacing:.18em;text-transform:uppercase;margin:5mm 0 1.5mm;color:#444}
+#print .p-toc a{display:flex;gap:2mm;align-items:baseline;color:inherit;text-decoration:none;margin:1.2mm 0;break-inside:avoid}
+#print .p-toc a .lead{flex:1;border-bottom:.5pt dotted #888;transform:translateY(-1mm)}
+#print .p-toc a .n{min-width:9mm;text-align:right;font-variant-numeric:tabular-nums}
+#print .p-part{page:front;height:170mm;display:flex;flex-direction:column;justify-content:center;text-align:center;font-family:var(--f-display);break-after:page}
+#print .p-part b{font-size:22pt;line-height:1.15}#print .p-part div{font-family:var(--f-body);font-size:10pt;color:#555;margin-top:6mm}
+#print .chhead{margin:22mm 0 9mm}
+#print .chhead .k{font-size:8pt}#print .chhead h2{font-size:19pt}
+#print p{margin:0;text-indent:1.3em;text-align:justify;orphans:2;widows:2}
+#print .chhead+p,#print h3+p,#print h4+p,#print .scene+p,#print blockquote+p,#print figure+p,#print ul+p,#print ol+p,#print pre+p{text-indent:0}
+#print .chhead+p::first-letter{font-family:var(--f-display);float:left;font-size:3.1em;line-height:.85;padding:.05em .08em 0 0;color:var(--accent)}
+#print h3{font-family:var(--f-display);font-size:12.5pt;margin:5mm 0 2mm;break-after:avoid}
+#print h4{font-size:10.6pt;font-style:italic;margin:4mm 0 1.5mm;break-after:avoid}
+#print blockquote{margin:3mm 0 3mm 5mm;padding-left:4mm;border-left:.8pt solid var(--accent);font-style:italic}
+#print blockquote p{text-indent:0}
+#print .scene{text-align:center;text-indent:0;margin:3mm 0;letter-spacing:.5em;color:var(--accent)}
+#print figure{margin:4mm 0;text-align:center;break-inside:avoid}#print img{max-width:100%;max-height:120mm}
+#print figcaption{font-size:8.5pt;font-style:italic;color:#555;margin-top:1.5mm}
+#print sup.fn a{color:inherit;text-decoration:none;font-size:.75em}
+#print .notes{font-size:8.6pt;line-height:1.35;border-top:.5pt solid #999;padding-top:2mm;margin-top:6mm;color:#333}
+#print a{color:inherit}
+#print pre{clear:both;font-size:8.5pt;line-height:1.35;white-space:pre-wrap;overflow-wrap:anywhere;margin:3mm 0;padding:2mm 3mm;border-left:.8pt solid #999;break-inside:avoid}
+#print .tc{width:148mm;height:210mm}
+html.mono #print *,html.mono #print *::before,html.mono #print *::after,html.mono #print *::first-letter,html.mono #print *::marker{color:#000!important;-webkit-text-fill-color:currentColor!important;border-color:#000!important;text-decoration-color:#000!important;box-shadow:none!important}
+html.mono #print *:not(img){background:#fff!important;background-image:none!important}
+html.mono #print .tc{border:0}
+html.mono #print .chhead::after{background:#000!important}
+html.mono #print .tc.frame::before{outline-color:#000}
+html.mono #print img,html.mono #print .gs{filter:grayscale(1)}
+</style>
+</head>
+<body data-view="cover">
+<div id="app">
+ <section id="cover" class="view">
+  <div class="book3d"><div class="pageblock"></div><div class="halftitle paper"></div><div class="board" role="button" tabindex="0"></div></div>
+  <p class="hint"></p>
+  <button class="cta"></button>
+ </section>
+ <section id="toc" class="view"><div class="sheet paper"></div></section>
+ <section id="read" class="view">
+  <div class="bar"><button data-act="toc" aria-label="contents">☰</button><div class="rh"></div><button data-act="settings">Aa</button></div>
+  <div class="stage"><div class="book"><div class="area paper"><div class="flow"></div><div class="deco"></div></div></div></div>
+  <div class="bar"><button data-act="prev">‹</button><div class="pg"></div><button data-act="next">›</button></div>
+ </section>
+ <div class="panel paper" role="dialog"></div>
+ <div class="note paper" role="dialog"></div>
+</div>
+<div id="print"></div>
+<div id="og"></div>
+<script>
+const B = "@@BOOK@@";
+const L = B.labels, $ = (s, r = document) => r.querySelector(s), esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const root = document.documentElement, st = B.style;
+const vars = {"--paper": st.paper, "--ink": st.ink, "--accent": st.accent, "--desk": st.desk, "--cv-bg": st.cover.bg, "--cv-ink": st.cover.ink, "--cv-accent": st.cover.accent,
+  "--f-body": `"${st.fonts.body}",Georgia,serif`, "--f-display": `"${st.fonts.display}",Georgia,serif`, "--f-ui": `"${st.fonts.ui}",system-ui,sans-serif`};
+// a :root rule, not inline style, so html[data-theme=…] still overrides paper and ink
+document.head.insertAdjacentHTML("beforeend", `<style>:root{${Object.entries(vars).map(([k, v]) => `${k}:${v}`).join(";")}}</style>`);
+
+// Flat chapter list: {p: part index, c: chapter index, t, sub, html, first: first chapter of a part with a title or lead-in text}
+const CH = [];
+let lead = "";  // lead-in text of a part with no chapters (e.g. a preface before the first # part) goes before the next chapter
+B.parts.forEach((p, pi) => { if (!p.chs.length) { if (!p.title && p.intro) lead += `<div class="lead-in">${p.intro}</div>`; return; }
+  p.chs.forEach((c, ci) => { CH.push({...c, p: pi, first: ci === 0 && !!(p.title || p.intro), lead}); lead = ""; }); });
+const KEY = "kaizen-book:" + B.key;
+let S = {idx: 0, page: 0, fs: Math.round(18 * (st.fontScale || 1)), theme: "light"};
+try { Object.assign(S, JSON.parse(localStorage.getItem(KEY)) || {}); } catch (e) {}
+let hasSaved = false; try { hasSaved = !!localStorage.getItem(KEY); } catch (e) {}
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
+const applyTheme = () => { root.dataset.theme = S.theme; root.style.setProperty("--fs", S.fs + "px"); };
+applyTheme();
+
+function coverHTML(vol, forceType) {
+  if (B.cover && !forceType) return `<img src="${B.cover}" alt="${esc(B.title)}">${vol ? `<div class="vband">${esc(vol)}</div>` : ""}`;
+  return `<div class="tc ${esc(st.cover.pattern || "none")}"><div class="t">${esc(B.title)}</div>${B.subtitle ? `<div class="s">${esc(B.subtitle)}</div>` : ""}${B.tagline ? `<div class="g">${esc(B.tagline)}</div>` : ""}${vol ? `<div class="v">${esc(vol)}</div>` : ""}<div class="a">${esc(B.author)}</div></div>`;
+}
+const partHead = p => !p.title ? `<div class="lead-in">${p.intro}</div>` : `<div class="partop"><b>${esc(p.title)}</b>${p.intro ? `<div>${p.intro}</div>` : ""}</div>`;
+const chHead = c => `<header class="chhead"><span class="k">${esc(B.parts[c.p].title || "")}</span><h2>${esc(c.t)}</h2>${c.sub ? `<p class="sub">${esc(c.sub)}</p>` : ""}</header>`;
+
+// ---------- views
+function show(v) { document.body.dataset.view = v; $(".panel").classList.remove("on"); }
+function initCover() {
+  $(".board").innerHTML = coverHTML();
+  $(".halftitle").innerHTML = `<b>${esc(B.title)}</b><i>${esc(B.author)}</i>`;
+  $(".hint").textContent = L.tap;
+  $(".cta").textContent = hasSaved ? L.resume : L.start;
+  const open = then => { const b = $(".board"); if (b.classList.contains("open")) return then();
+    b.classList.add("open"); setTimeout(then, matchMedia("(prefers-reduced-motion:reduce)").matches ? 0 : 1050); };
+  $(".board").onclick = $(".board").onkeydown = e => { if (e.type === "keydown" && !/Enter| /.test(e.key)) return; open(() => show("toc")); };
+  $(".cta").onclick = () => open(() => openChapter(hasSaved ? S.idx : 0, hasSaved ? S.page : 0));
+}
+function initToc() {
+  let h = `<div class="toplinks"><button data-go="cover">← ${esc(L.cover)}</button>${hasSaved ? `<button data-go="resume">${esc(L.resume)} →</button>` : ""}</div>
+    <h1>${esc(B.title)}</h1><p class="by">${esc(B.subtitle || "")}${B.subtitle ? "<br>" : ""}${esc(B.author)}</p>`;
+  let last = -1;
+  CH.forEach((c, i) => {
+    if (c.p !== last) { last = c.p; if (B.parts[c.p].title) h += `<h2>${esc(B.parts[c.p].title)}</h2>`; }
+    h += `<button class="row" data-ch="${i}"><span>${esc(c.t)}</span><span class="lead"></span><small>${i + 1}</small></button>`;
+  });
+  const sh = $("#toc .sheet"); sh.innerHTML = h;
+  sh.onclick = e => { const r = e.target.closest("[data-ch],[data-go]"); if (!r) return;
+    if (r.dataset.go === "cover") { $(".board").classList.remove("open"); show("cover"); }
+    else if (r.dataset.go === "resume") openChapter(S.idx, S.page);
+    else openChapter(+r.dataset.ch, 0); };
+}
+
+// ---------- pagination
+let G = {W: 0, H: 0, pad: 0, spread: false, n: 1};
+function layout() {
+  const stage = $(".stage").getBoundingClientRect();
+  G.spread = innerWidth >= 900 && innerWidth > innerHeight;
+  const maxH = stage.height - (innerWidth < 500 ? 12 : 36);
+  let W = G.spread ? Math.min((innerWidth - 80) / 2, maxH / 1.42, 560) : Math.min(innerWidth - 24, 600, maxH / 1.25);
+  W = Math.floor(W); const H = Math.floor(G.spread ? Math.min(maxH, W * 1.42) : maxH);
+  const pad = Math.round(Math.max(18, Math.min(44, W * .085)));
+  Object.assign(G, {W, H, pad, top: pad + 14, bottom: pad + 14});
+  const area = $(".area"), flow = $(".flow");
+  $("#read").classList.toggle("spread", G.spread);
+  area.style.width = (G.spread ? 2 * W : W) + "px"; area.style.height = H + "px";
+  const cw = W - 2 * pad, ch = H - G.top - G.bottom;
+  Object.assign(flow.style, {left: pad + "px", top: G.top + "px", width: cw + "px", height: ch + "px", columnWidth: cw + "px", columnGap: 2 * pad + "px"});
+  flow.classList.toggle("justify", cw >= 380);
+  flow.style.setProperty("--imgmax", Math.max(120, ch - 130) + "px");
+}
+function measure() {
+  const flow = $(".flow"), end = $(".end", flow);
+  G.n = Math.max(1, Math.floor((end.getBoundingClientRect().left - flow.getBoundingClientRect().left + 1) / G.W) + 1);
+}
+// Pages of every chapter at the current size, so page numbers run through the whole book.
+// In a spread each chapter starts on a left page, so an odd count takes a blank right page.
+let mzKey = "";
+function measureAll() {
+  const key = [G.W, G.H, G.spread, S.fs, S.theme].join();
+  if (key === mzKey) return; mzKey = key;
+  const mz = $(".area").cloneNode(false), f = $(".flow").cloneNode(false);
+  mz.style.cssText += ";position:fixed;left:-99999px;top:0;visibility:hidden"; f.style.transform = "none";
+  mz.append(f); document.body.append(mz);
+  G.counts = CH.map((c, i) => { f.innerHTML = chapterHTML(i);
+    const n = Math.max(1, Math.floor(($(".end", f).getBoundingClientRect().left - f.getBoundingClientRect().left + 1) / G.W) + 1);
+    return G.spread ? n + (n % 2) : n; });
+  mz.remove();
+  G.off = [0]; G.counts.forEach((n, i) => G.off.push(G.off[i] + n));
+}
+const chapterHTML = i => { const c = CH[i]; return (c.lead || "") + (c.first ? partHead(B.parts[c.p]) : "") + chHead(c) + c.html + '<span class="end"></span>'; };
+function renderChapter(i) {
+  const c = CH[i];
+  $(".flow").innerHTML = chapterHTML(i);
+  $("#read .rh").textContent = c.t;
+  measure(); measureAll();
+}
+function step() { return G.spread ? 2 : 1; }
+function clampPage(p) { p = Math.max(0, Math.min(G.n - 1, p)); return G.spread ? p - (p % 2) : p; }
+function place() {
+  $(".flow").style.transform = `translateX(${-S.page * G.W}px)`;
+  const vis = G.spread ? [S.page, S.page + 1] : [S.page];
+  $(".deco").innerHTML = vis.filter(p => p < G.n).map((p, k) => {
+    const x = k * G.W, head = (G.spread && k === 0) ? B.title : CH[S.idx].t;
+    return `<span style="left:${x + G.pad}px;width:${G.W - 2 * G.pad}px;top:${Math.round(G.pad * .55)}px">${p ? esc(head) : ""}</span><span class="pn" style="left:${x}px;width:${G.W}px;bottom:${Math.round(G.pad * .5)}px">${G.off[S.idx] + p + 1}</span>`;
+  }).join("");
+  const g = G.off[S.idx] + S.page + 1;
+  $(".pg").textContent = `${g}${G.spread && S.page + 1 < G.n ? "–" + (g + 1) : ""} / ${G.off[CH.length]} · ${S.idx + 1}/${CH.length}`;
+  save();
+}
+async function openChapter(i, page) {
+  show("read"); S.idx = Math.max(0, Math.min(CH.length - 1, i | 0)); layout(); renderChapter(S.idx); S.page = clampPage(page === -1 ? G.n - 1 : page); place();
+  await document.fonts.ready; measure(); mzKey = ""; measureAll(); S.page = clampPage(page === -1 ? G.n - 1 : S.page); place();
+}
+
+// ---------- flip
+let busy = false;
+const reduced = () => matchMedia("(prefers-reduced-motion:reduce)").matches;
+function snap(clip) {
+  const a = $(".area").cloneNode(true); a.classList.add("leaf"); a.removeAttribute("id");
+  a.style.width = $(".area").style.width; a.style.height = $(".area").style.height;
+  if (clip) a.style.clipPath = clip;
+  a.insertAdjacentHTML("beforeend", '<div class="shade"></div>');
+  $(".book").append(a); return a;
+}
+const turn = (el, origin, from, to, ease, ms) => { el.style.transformOrigin = origin;
+  el.querySelector(".shade").animate([{opacity: from ? .5 : 0}, {opacity: from ? 0 : .5}], {duration: ms, easing: ease, fill: "forwards"});
+  return el.animate([{transform: `rotateY(${from}deg)`}, {transform: `rotateY(${to}deg)`}], {duration: ms, easing: ease, fill: "forwards"}).finished; };
+async function flip(dir) {
+  if (busy) return;
+  let idx = S.idx, page = S.page + dir * step();
+  if (page >= G.n) { if (idx + 1 >= CH.length) return; idx++; page = 0; }
+  else if (page < 0) { if (idx === 0) return; idx--; page = -1; }
+  const apply = () => { if (idx !== S.idx) { S.idx = idx; renderChapter(idx); } S.page = clampPage(page === -1 ? G.n - 1 : page); place(); };
+  if (reduced()) { const o = snap(); apply(); await o.animate([{opacity: 1}, {opacity: 0}], 200).finished; o.remove(); return; }
+  busy = true;
+  const L_ = "inset(0 50% 0 0)", R_ = "inset(0 0 0 50%)", ms = 380, done = [];
+  const old = [], neu = [];
+  if (!G.spread) {
+    if (dir > 0) { const lf = snap(); apply(); done.push(lf); await turn(lf, "left center", 0, -90, "ease-in", ms * 1.4); }
+    else { const base = snap(); apply(); const lf = snap(); base.after(lf); done.push(base, lf);
+      lf.style.zIndex = 2; await turn(lf, "left center", -90, 0, "ease-out", ms * 1.4); }
+  } else {
+    const keep = snap(dir > 0 ? L_ : R_), lf1 = snap(dir > 0 ? R_ : L_);
+    apply(); const lf2 = snap(dir > 0 ? L_ : R_); lf2.style.visibility = "hidden"; done.push(keep, lf1, lf2);
+    await turn(lf1, "50% 50%", 0, dir > 0 ? -90 : 90, "ease-in", ms);
+    lf1.style.visibility = "hidden"; lf2.style.visibility = "visible";
+    await turn(lf2, "50% 50%", dir > 0 ? 90 : -90, 0, "ease-out", ms);
+  }
+  done.forEach(e => e.remove()); busy = false;
+}
+
+// ---------- input
+function initReader() {
+  $("#read").addEventListener("click", e => {
+    const a = e.target.closest("[data-act]");
+    if (a) { const k = a.dataset.act;
+      if (k === "toc") show("toc"); else if (k === "settings") togglePanel(); else flip(k === "next" ? 1 : -1); return; }
+    const fn = e.target.closest("[data-fn]");
+    if (fn) { e.preventDefault(); const li = $(`.flow .notes li[data-n="${fn.dataset.fn}"]`);
+      const n = $(".note"); n.innerHTML = `<button class="x" aria-label="${esc(L.close)}">×</button><p><b>${fn.dataset.fn}.</b> ${li ? li.innerHTML : ""}</p>`; n.classList.add("on");
+      n.querySelector(".x").onclick = () => n.classList.remove("on"); return; }
+    if (e.target.closest("a")) return;
+    const r = $(".area").getBoundingClientRect(), x = (e.clientX - r.left) / r.width;
+    if (x > .7) flip(1); else if (x < .3) flip(-1);
+  });
+  let sx = 0, sy = 0;
+  $(".stage").addEventListener("touchstart", e => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, {passive: true});
+  $(".stage").addEventListener("touchend", e => { const dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy;
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.3) { flip(dx < 0 ? 1 : -1); e.preventDefault(); } });
+  addEventListener("keydown", e => { if (document.body.dataset.view !== "read") return;
+    if (["ArrowRight", "PageDown", " "].includes(e.key)) { e.preventDefault(); flip(1); }
+    else if (["ArrowLeft", "PageUp"].includes(e.key)) { e.preventDefault(); flip(-1); }
+    else if (e.key === "Escape") { $(".panel").classList.remove("on"); $(".note").classList.remove("on"); } });
+  let t; addEventListener("resize", () => { clearTimeout(t); t = setTimeout(() => { if (document.body.dataset.view !== "read") return;
+    const frac = G.n > 1 ? S.page / (G.n - 1) : 0; layout(); measure(); measureAll(); S.page = clampPage(Math.round(frac * (G.n - 1))); place(); }, 150); });
+}
+function togglePanel() {
+  const p = $(".panel"); if (p.classList.toggle("on") === false) return;
+  const th = [["light", L.light], ["sepia", L.sepia], ["night", L.night]];
+  p.innerHTML = `<h3>${esc(L.theme)}</h3><div class="seg">${th.map(([k, n]) => `<button data-th="${k}" aria-pressed="${S.theme === k}">${esc(n)}</button>`).join("")}</div>
+    <h3>${esc(L.size)}</h3><div class="seg"><button data-fs="-1" aria-label="smaller">A−</button><button disabled>${S.fs}</button><button data-fs="1" aria-label="larger">A+</button></div>
+    <button class="wide" data-pdf>${esc(L.print)}</button>`;
+  p.onclick = async e => { const b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.th) { S.theme = b.dataset.th; applyTheme(); }
+    else if (b.dataset.fs) { S.fs = Math.max(13, Math.min(28, S.fs + +b.dataset.fs)); applyTheme(); }
+    else if ("pdf" in b.dataset) return printBook();
+    else return;
+    const frac = G.n > 1 ? S.page / (G.n - 1) : 0; measure(); measureAll(); S.page = clampPage(Math.round(frac * (G.n - 1))); place(); p.classList.remove("on"); togglePanel(); };
+}
+// iOS ignores @page and adds white margins, so a deployed book opens its prebuilt book.pdf; offline it prints the print layout.
+async function printBook() {
+  try { const r = await fetch("book.pdf", {method: "HEAD"}); if (r.ok) { location.href = "book.pdf"; return; } } catch (e) {}
+  location.hash = "print"; buildPrint({}); setTimeout(() => print(), 300);
+}
+
+// ---------- print layout (also used by pdf.mjs)
+function buildPrint(o) {
+  const mono = !!o.mono, vol = o.vol || "";
+  root.classList.toggle("mono", mono); document.body.classList.add("printing");
+  let css = "", h = `<section class="p-cover">${coverHTML(vol, mono)}</section>`;
+  h += `<section class="front p-title"><b>${esc(B.title)}</b>${B.subtitle ? `<i>${esc(B.subtitle)}</i>` : ""}<span>${esc(B.author)}</span></section>`;
+  if (B.copyright) h += `<section class="front pp p-copy">${esc(B.copyright)}</section>`;
+  if (B.dedication) h += `<section class="front pp p-ded">${esc(B.dedication)}</section>`;
+  let toc = `<section class="front pp p-toc"><h2>${esc(L.contents)}</h2>`, last = -1;
+  CH.forEach((c, i) => { if (c.p !== last) { last = c.p; if (B.parts[c.p].title) toc += `<h3><a href="#part-${c.p}">${esc(B.parts[c.p].title)}</a></h3>`; }
+    toc += `<a href="#ch-${i}"><span>${esc(c.t)}</span><span class="lead"></span><span class="n" data-for="ch-${i}"></span></a>`; });
+  h += toc + "</section>";
+  B.parts.forEach((p, pi) => {
+    if (p.title) h += `<section class="pp p-part" id="part-${pi}"><b>${esc(p.title)}</b>${p.intro ? `<div>${p.intro}</div>` : ""}</section>`;
+    else if (p.intro) h += `<section class="pp">${p.intro}</section>`;
+    CH.forEach((c, i) => { if (c.p !== pi) return;
+      css += `@page c${i}{@top-center{content:"${c.t.replace(/["\\]/g, "\\$&")}";font-family:var(--f-ui);font-size:7.5pt;letter-spacing:.15em;text-transform:uppercase;color:#777}}#ch-${i}{page:c${i}}`;
+      h += `<section class="pp" id="ch-${i}">${chHead(c)}${c.html}</section>`; });
+  });
+  const el = $("#print"); el.innerHTML = h;
+  let s = $("#pagecss"); if (!s) { s = document.createElement("style"); s.id = "pagecss"; document.head.append(s); }
+  s.textContent = css;
+  if (mono) { // colour emoji ignore `color`: wrap each glyph so only it is greyscaled
+    const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT), re = /\p{Emoji_Presentation}|\p{Extended_Pictographic}\uFE0F/u, ns = [];
+    while (w.nextNode()) if (re.test(w.currentNode.data)) ns.push(w.currentNode);
+    for (const n of ns) { const sp = document.createElement("span");
+      sp.innerHTML = esc(n.data).replace(/\p{Emoji_Presentation}\uFE0F?|\p{Extended_Pictographic}\uFE0F/gu, m => `<span class="gs">${m}</span>`); n.replaceWith(...sp.childNodes); }
+  }
+}
+window.__fillToc = map => { for (const s of document.querySelectorAll("#print [data-for]")) s.textContent = map[s.dataset.for] || ""; };
+window.__buildPrint = buildPrint;
+
+// ---------- boot
+function boot() {
+  const hp = new URLSearchParams(location.hash.slice(1));
+  if (hp.has("og")) { document.body.classList.add("og");
+    $("#og").innerHTML = `<div class="ogc">${coverHTML()}</div><div><h1>${esc(B.title)}</h1>${B.subtitle ? `<p>${esc(B.subtitle)}</p>` : ""}<p class="au">${esc(B.author)}</p></div>`; }
+  else if (hp.has("print")) buildPrint({mono: hp.has("mono"), vol: hp.get("vol")});
+  initCover(); initToc(); initReader();
+  window.__ready = document.fonts.ready.then(() => true);
+}
+boot();
+</script>
+</body>
+</html>
