@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Requirements for story-deck. Exit 1 if anything required is missing.
+# Requirements for kaizen-deck. Exit 1 if anything required is missing.
 miss=0
 need(){ command -v "$1" >/dev/null 2>&1 && echo "ok   $1" || { echo "MISSING $1 — $2"; miss=1; }; }
 need node     "Node.js 18+ (https://nodejs.org or your package manager)"

@@ -2,7 +2,7 @@
 import {
   symlinkSync, mkdirSync, readdirSync, lstatSync, unlinkSync,
   existsSync, copyFileSync, readFileSync, appendFileSync, rmSync, writeFileSync, renameSync,
-  statSync, cpSync, realpathSync, rmdirSync,
+  statSync, cpSync, realpathSync, rmdirSync, readlinkSync,
 } from "node:fs";
 import { join, dirname, basename, resolve } from "node:path";
 import { homedir, tmpdir } from "node:os";
@@ -46,8 +46,12 @@ const c = {
   green: (s: string) => `\x1b[32m${s}\x1b[0m`,
 };
 
-// Skill folders shipped in skills/ and linked into every agent.
-const SKILLS = ["kaizen", "kaizen-help", "story-deck", "story-video", "kaizen-video"];
+// Skill folders shipped in skills/ and linked into every agent, by their last
+// path segment: media/kaizen-deck is linked as skills/kaizen-deck.
+const SKILLS = ["kaizen", "kaizen-help", "media/kaizen-deck", "media/kaizen-motion", "media/kaizen-video"];
+// Skill names an older release linked; uninstall drops them and install
+// clears them when they are still our links.
+const RENAMED_SKILLS = ["story-deck", "story-video"];
 
 // Where each agent reads skills from. The skill folders follow the open Agent
 // Skills standard, so every one of these can run the workflow; agents/ and
@@ -244,7 +248,9 @@ async function removeEverything() {
 
   for (const root of roots) {
     for (const a of AGENTS) {
-      for (const n of SKILLS) drop(join(root, a.dir, "skills", n));
+      for (const n of SKILLS) drop(join(root, a.dir, "skills", basename(n)));
+      // An old name is only ours while it is still a link; a real folder there is the user's.
+      for (const n of RENAMED_SKILLS) if (isLink(join(root, a.dir, "skills", n))) drop(join(root, a.dir, "skills", n));
       for (const sub of ["agents", "commands"]) {
         const dir = join(root, a.dir, sub);
         try {
@@ -524,7 +530,7 @@ if (interactive && !upgrade && Bun.argv.length === 2) {
   if (!stale) {
     const here = found(home);
     const linked = here.length > 0 && here.every((a) =>
-      SKILLS.every((n) => existsSync(join(home, a.dir, "skills", n))));
+      SKILLS.every((n) => existsSync(join(home, a.dir, "skills", basename(n)))));
     if (linked) {
       const { dashboard } = await import("./dashboard.ts");
       await dashboard(repoDir, here.map((a) => a.name), async (action) => {
@@ -899,6 +905,13 @@ for (const [src, sub] of links) {
   makeLink(src, dest);
   wrote++;
   if (verbose) console.log(c.dim(`  link  ${name}`));
+}
+if (!check) {
+  for (const a of targets) for (const n of RENAMED_SKILLS) {
+    const p = join(root, a.dir, "skills", n);
+    // Ours only: a dangling link to a folder of that same name, which kaizen has since renamed.
+    if (isLink(p) && !existsSync(p) && basename(readlinkSync(p).replace(/[\\/]+$/, "")) === n) removeLink(p);
+  }
 }
 
 // A project's spec copies are what a run there reads, and they are copied once.

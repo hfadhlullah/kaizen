@@ -2,7 +2,7 @@
 description: The kaizen command: installer, upgrade, uninstall, settings, prune, sources
 tags: [project, cli]
 sources: [cli/install.ts, cli/setup.ts, cli/qr.ts, cli/settings.ts, cli/worktree.ts, package.json]
-updated: 2026-10-23
+updated: 2026-10-25
 ---
 # CLI
 
@@ -18,7 +18,7 @@ updated: 2026-10-23
 - `cli/install.test.ts`, `cli/settings.test.ts`.
 
 ## How it connects
-- Links [[Workflow]] files into `~/.claude/skills`, `agents`, `commands`.
+- Links [[Workflow]] files into `~/.claude/skills`, `agents`, `commands`. Skills are linked by folder name, so `skills/media/kaizen-deck` lands as `skills/kaizen-deck`; a renamed skill's old link (`RENAMED_SKILLS`) is dropped by uninstall and cleared by install once it dangles and its target folder has that name.
 - `web` starts the [[Web board]]; `sources`/`gather`/`icebox` and `browser login` drive [[Sources and icebox]].
 
 ## Watch out

@@ -1,4 +1,4 @@
-"""Install STATIC Playfair Display + Inter into ~/.local/share/fonts/story-deck/.
+"""Install STATIC Playfair Display + Inter into ~/.local/share/fonts/kaizen-deck/.
 
 Variable-font builds (the [wght] files on Google Fonts) render large headlines greyed /
 semi-transparent in some desktop viewers (LibreOffice). Static instances do not.
@@ -29,7 +29,7 @@ JOBS = [
     ("ini", "Inter-Italic", {"wght": 400, "opsz": 14}),
 ]
 
-dest = os.path.expanduser("~/.local/share/fonts/story-deck/")
+dest = os.path.expanduser("~/.local/share/fonts/kaizen-deck/")
 os.makedirs(dest, exist_ok=True)
 with tempfile.TemporaryDirectory() as tmp:
     for key, path in SRC.items():

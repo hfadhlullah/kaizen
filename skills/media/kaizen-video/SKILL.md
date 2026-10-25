@@ -1,6 +1,6 @@
 ---
 name: kaizen-video
-description: Edit the user's own footage into a publish-ready vertical video — talking-head explainers for TikTok, Reels or Shorts. Transcribe with WhisperX, cut dead air, retakes and false starts, then build it in a preset style (tiktok-mystery, tiktok-cheerful, tiktok-scam-alert, educational-warning, or a preset the user adds) with word-synced karaoke captions, cards, images, sound effects and a music bed carved around the voice, rendered with HyperFrames. Use when the user has recorded footage and asks to cut it, caption it, style it or turn it into a TikTok, or wants a new video preset. Not for narrated product films made from scratch (that is story-video).
+description: Edit the user's own footage into a publish-ready vertical video — talking-head explainers for TikTok, Reels or Shorts. Transcribe with WhisperX, cut dead air, retakes and false starts, then build it in a preset style (tiktok-mystery, tiktok-cheerful, tiktok-scam-alert, educational-warning, or a preset the user adds) with word-synced karaoke captions, cards, images, sound effects and a music bed carved around the voice, rendered with HyperFrames. Use when the user has recorded footage and asks to cut it, caption it, style it or turn it into a TikTok, or wants a new video preset. Not for narrated product films made from scratch (that is kaizen-motion).
 ---
 
 # Kaizen video

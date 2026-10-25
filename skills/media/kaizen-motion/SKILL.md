@@ -1,5 +1,5 @@
 ---
-name: story-video
+name: kaizen-motion
 description: Turn whatever a user brings for any product — a prompt, a story, product photos, app screenshots, a deck (.pptx/.pdf), footage — into a publish-ready video (MP4 + SRT + thumbnail + credits) in a chosen style (cinematic-drama, promo-booth, fun-energetic, viral-social 9:16) with the product's own brand, narration in the user's language with emotional direction, word-synced captions, sound design, music, logo reveal and loudness mastering; then revise it on request. Use for promo / launch / opener / social / viral / explainer videos or "turn this deck into a video". Not for hand-editing an existing video timeline.
 ---
 
@@ -47,7 +47,7 @@ prompt or story, verbatim), then `python3 $S/intake.py ~/.kaizen/videos/<slug>`.
 text to `intake/`, and suggests a brand palette from the logo. Read the deck text, the brief and the
 slide images before writing anything.
 
-Missing material is fine: no photos → source candid ones (story-deck rules); no screenshots →
+Missing material is fine: no photos → source candid ones (kaizen-deck rules); no screenshots →
 ask for them (product beats need the real product); no story → propose one.
 
 ## 2. Brief — ask with options (one round)
@@ -98,7 +98,7 @@ Fonts available: Playfair Display, Inter, Fraunces, Montserrat, Poppins, DM Sans
 Plus Jakarta Sans, Space Grotesk (add more in `engine/Film.tsx` FONTS).
 
 ## Distribution
-Shipped with kaizen (`skills/story-video` in the kaizen repo).
+Shipped with kaizen (`skills/media/kaizen-motion` in the kaizen repo).
 
 ## Agent notes (Claude Code, Codex, Gemini CLI, OpenCode, Cursor…)
 Steps name capabilities, not tools. Where your agent lacks one:

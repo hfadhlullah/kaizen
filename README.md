@@ -28,7 +28,7 @@
 
 | | |
 |---|---|
-| **Any kind of work** | Each run works out what it is making (code, writing, communication, operations, research) and plans, builds and reviews it in those terms. Videos and decks go through the bundled `story-video`, `kaizen-video` (editing your own footage) and `story-deck` skills. |
+| **Any kind of work** | Each run works out what it is making (code, writing, communication, operations, research) and plans, builds and reviews it in those terms. Videos and decks go through the bundled `kaizen-motion`, `kaizen-video` (editing your own footage) and `kaizen-deck` skills. |
 | **Plan first** | The agent writes what it will do, and what *wrong* would look like, then waits for your approve or change. |
 | **A reviewer that starts cold** | A second agent reviews from the request, the plan and the diff only. It never saw the work, so it has nothing to defend. |
 | **A fix loop that ends** | Serious findings are fixed and re-checked, at most twice. The rest come to you; what is left goes to a backlog. |
@@ -141,7 +141,7 @@ bun run cli/install.ts    # install from this checkout
 | Path | What it is |
 |---|---|
 | `cli/` | The installer and the runtime behind every `kaizen` command: `install.ts` (the CLI), `state.ts` (runs), `web.ts` (board server), `dashboard.ts` (terminal board), `sources.ts`, `settings.ts`, `notes.ts`. Tests beside them. |
-| `skills/` | The workflow as Agent Skills folders: `kaizen/` (`SKILL.md`, the `spec-*.md` stage contracts, `adapters.md`, `config.default.yml`), `kaizen-help/`, `story-deck/`, `story-video/`, `kaizen-video/`. |
+| `skills/` | The workflow as Agent Skills folders: `kaizen/` (`SKILL.md`, the `spec-*.md` stage contracts, `adapters.md`, `config.default.yml`), `kaizen-help/`, and `media/` with `kaizen-deck/`, `kaizen-video/`, `kaizen-motion/`. |
 | `agents/` | The Claude Code subagents: `kaizen-planner`, `kaizen-builder`, `kaizen-reviewer`. |
 | `commands/` | The `/kaizen-*` slash commands, one file each. |
 | `web/` | The board and notebook front end: `board.html`, `notes.html`, `notebook.ts`. |

@@ -1,5 +1,5 @@
 ---
-name: story-deck
+name: kaizen-deck
 description: Build a cinematic, minimalist storytelling pitch deck (A5 landscape .pptx) in the style of a senior agency — story first, problem, a single "what if" question, then the product reveal and feature scenes, ending in a demo CTA. Dark ink + gold, Playfair Display + Inter, full-bleed graded photos. Use when the user asks for a pitch deck / sales deck / product showcase deck "that tells a story", "cinematic", or a new deck for a product or audience in that style. Do NOT use for editing an existing .pptx, plain bullet decks, or data reports — use the pptx skill for those.
 ---
 

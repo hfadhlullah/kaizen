@@ -1,8 +1,8 @@
 ---
 description: What a kaizen run is, which files define it, and where its state lives
 tags: [project, workflow]
-sources: [skills/kaizen, agents, commands, cli/worktree.ts, docs/guide.md]
-updated: 2026-10-24
+sources: [skills/kaizen, skills/media, agents, commands, cli/worktree.ts, docs/guide.md]
+updated: 2026-10-25
 ---
 # Workflow
 
@@ -18,7 +18,7 @@ The product itself: a staged workflow (plan, approval, build, independent review
 - `skills/kaizen/adapters.md` — running it under Codex or Antigravity.
 - `agents/kaizen-*.md` — the planner, builder and reviewer subagents.
 - `commands/kaizen-*.md` — Claude Code slash commands, each a one-line hand-off to the skill.
-- `skills/kaizen-help/` — the help card; `skills/story-deck/`, `skills/story-video/` — separate skills shipped in the same package.
+- `skills/kaizen-help/` — the help card; `skills/media/` — `kaizen-deck/`, `kaizen-video/`, `kaizen-motion/`: separate skills shipped in the same package.
 
 ## How it connects
 - A request for a whole app (more than one module) is planned as a roadmap (`spec-plan.md`, *A whole application is a roadmap*): `## Discovery` (up to three question rounds), `## Foundation` (frontend, backend and their contract, database and data model, auth, hosting and deploy as chosen in discovery (CI/CD, Docker, managed platform, mobile store builds), layout, and the look and feel asked in discovery) and a numbered `## Roadmap` of end-to-end feature increments, ending with a go-live increment for an app real people use. The run builds increment 1, the skeleton; at approval the main thread files increments 2..N with `kaizen card add --parent` (`spec-main.md`, *Child cards*), and the parent card lists them as children. An increment run reads its parent's Discovery and Foundation as binding.

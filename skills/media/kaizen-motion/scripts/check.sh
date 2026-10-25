@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Requirements for story-video. Prints what is missing and how to install it; exit 1 if anything required is missing.
+# Requirements for kaizen-motion. Prints what is missing and how to install it; exit 1 if anything required is missing.
 miss=0
 need(){ command -v "$1" >/dev/null 2>&1 && echo "ok   $1" || { echo "MISSING $1 — $2"; miss=1; }; }
 opt(){ command -v "$1" >/dev/null 2>&1 && echo "ok   $1" || echo "opt  $1 — $2"; }
