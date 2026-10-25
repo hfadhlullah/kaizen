@@ -1356,21 +1356,23 @@ export function readSessions(st: string): Session[] {
 }
 
 // What ownerOf matches a record against, read once: each conversation id a run recorded
-// at intake, to the first run (by id) that recorded it, and every run's request with
-// when it was written.
-type RunIndex = { bySession: Map<string, string>; requests: { id: string; born: number; text: string }[] };
+// at intake, to every run (by id) that recorded it with when its request was written,
+// and every run's request with that time.
+type RunIndex = { bySession: Map<string, { id: string; born: number; open: boolean }[]>; requests: { id: string; born: number; text: string }[] };
 export function runIndex(st: string): RunIndex {
-  const bySession = new Map<string, string>(), requests: RunIndex["requests"] = [];
+  const bySession: RunIndex["bySession"] = new Map(), requests: RunIndex["requests"] = [];
   try {
     for (const id of readdirSync(join(st, "runs")).sort()) {
-      try {
-        const sid = JSON.parse(readText(join(st, "runs", id, "state.json"))).session;
-        if (sid && !bySession.has(sid)) bySession.set(sid, id);
-      } catch { /* no state yet */ }
+      let born = 0;
       try {
         const f = join(st, "runs", id, "00-request.md"), st2 = statSync(f);
-        requests.push({ id, born: st2.birthtimeMs || st2.mtimeMs, text: normalise(readText(f)) });
+        born = st2.birthtimeMs || st2.mtimeMs;
+        requests.push({ id, born, text: normalise(readText(f)) });
       } catch { /* no request yet */ }
+      try {
+        const { session: sid, stage } = JSON.parse(readText(join(st, "runs", id, "state.json")));
+        if (sid) bySession.set(sid, [...(bySession.get(sid) ?? []), { id, born, open: stage !== "done" && stage !== "abandoned" }]);
+      } catch { /* no state yet */ }
     }
   } catch { /* no runs dir */ }
   return { bySession, requests };
@@ -1382,14 +1384,19 @@ export function runIndex(st: string): RunIndex {
 // A caller asking about many sessions passes runIndex(st) once: built per call, it
 // reads every run's state.json and request each time.
 export function ownerOf(st: string, s: Session, idx?: RunIndex): string | null {
-  if (s.run) return s.run;
   const { bySession, requests } = idx ?? runIndex(st);
   // The launch's own conversation id, recorded by the run at intake: holds however the
-  // request was worded. Text matching below is for tools that expose no id.
-  if (s.sessionId) {
-    const mine = bySession.get(s.sessionId);
-    if (mine) return mine;
-  }
+  // request was worded. A conversation that opened a run after this launch (a follow-up)
+  // has moved on to the newest such run, even from a decision on its parent: otherwise
+  // that run never gets the terminal or a Resume. A parent still in flight keeps it: its
+  // stage is not over, so the terminal is still its. Text matching below is for tools
+  // that expose no id.
+  const rec = s.sessionId ? bySession.get(s.sessionId) ?? [] : [];
+  const later = rec.filter((r) => r.born >= s.started - 1000).sort((a, b) => a.born - b.born);
+  const base = s.run ?? later[0]?.id ?? rec[0]?.id ?? null;
+  const newest = later.pop();
+  if (newest && !(base && base !== newest.id && rec.find((r) => r.id === base)?.open)) return newest.id;
+  if (base) return base;
   const t = normalise(s.text);
   let best: string | null = null, at = Infinity;
   // A second of slack: file times come from a coarser clock than Date.now().
@@ -1537,8 +1544,11 @@ export function firstSession(st: string, id: string, cmd: string, cwd: string): 
   if (!f) return null;
   const all = readSessions(st);
   const taken = new Set(all.flatMap((s) => (s.sessionId ? [s.sessionId] : []))), idx = runIndex(st);
+  // Conversations this run recorded at intake: still its to continue after a follow-up
+  // run it opened took the session's ownership.
+  const mine = new Set([...idx.bySession].filter(([, rs]) => rs.some((r) => r.id === id)).map(([sid]) => sid));
   for (const s of all) {
-    if (s.cmd !== cmd || ownerOf(st, s, idx) !== id) continue;
+    if (s.cmd !== cmd || (ownerOf(st, s, idx) !== id && !(s.sessionId && mine.has(s.sessionId)))) continue;
     if (!s.sessionId && f.find) {
       // Before the tool's next launch here, any run's: from then on a conversation may be that launch's.
       const next = all.find((o) => o.cmd === cmd && o.started > s.started)?.started ?? Infinity;

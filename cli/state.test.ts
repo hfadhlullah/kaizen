@@ -854,6 +854,43 @@ test("ownerOf: a run that recorded the launch's session id owns it, however its 
   expect(ownerOf(st, { ...rec, sessionId: "other" })).toBe(null);
 });
 
+test("ownerOf: a conversation that opens a follow-up run moves to it, even from a decision on its parent", () => {
+  const p = sessionProject(), st = join(p, ".kaizen");
+  const tag = (id: string, more: object = {}) => {
+    const f = join(st, "runs", id, "state.json");
+    writeFileSync(f, JSON.stringify({ ...JSON.parse(readFileSync(f, "utf8")), session: "abc", ...more }));
+  };
+  const rec = { key: "k", run: null, text: "tidy logs", cmd: "claude", sessionId: "abc", started: Date.now() - 2000 };
+  newRun(p, "2026-10-01-parent", "/kaizen tidy logs");
+  tag("2026-10-01-parent");
+  expect(ownerOf(st, rec)).toBe("2026-10-01-parent");
+  // A parent still in flight keeps its terminal.
+  newRun(p, "2026-10-02-child", "/kaizen rotate them too\nFollow-up of: 2026-10-01-parent");
+  tag("2026-10-02-child");
+  expect(ownerOf(st, rec)).toBe("2026-10-01-parent");
+  expect(ownerOf(st, { ...rec, run: "2026-10-01-parent" })).toBe("2026-10-01-parent");
+  tag("2026-10-01-parent", { stage: "done", awaiting: null });
+  expect(ownerOf(st, rec)).toBe("2026-10-02-child");
+  expect(ownerOf(st, { ...rec, run: "2026-10-01-parent" })).toBe("2026-10-02-child");
+  // A decision launched after both: the run it names, as before.
+  expect(ownerOf(st, { ...rec, run: "2026-10-01-parent", started: Date.now() + 5000 })).toBe("2026-10-01-parent");
+
+  // The parent's next decision still continues the conversation the child took over.
+  const saved = process.env.CLAUDE_CONFIG_DIR;
+  process.env.CLAUDE_CONFIG_DIR = mkdtempSync(join(tmpdir(), "kz-claude-"));
+  try {
+    mkdirSync(join(st, "sessions"), { recursive: true });
+    const { key, ...body } = rec;
+    writeFileSync(join(st, "sessions", key + ".json"), JSON.stringify(body) + "\n");
+    const t = join(process.env.CLAUDE_CONFIG_DIR, "projects", p.replace(/[^A-Za-z0-9]/g, "-"));
+    mkdirSync(t, { recursive: true });
+    writeFileSync(join(t, "abc.jsonl"), "{}\n");
+    expect(sessionLaunch(p, "claude", ["/bin/claude"], "/kaizen run x", "x", "2026-10-01-parent").fullCmd.slice(0, 3)).toEqual(["/bin/claude", "--resume", "abc"]);
+  } finally {
+    saved === undefined ? delete process.env.CLAUDE_CONFIG_DIR : (process.env.CLAUDE_CONFIG_DIR = saved);
+  }
+});
+
 test("findTerminal records the agent's PID: a POSIX wrapper that execs it, a PowerShell prefix on Windows", () => {
   const keys = ["PATH", "HERDR_ENV", "TMUX", "TERMINAL", "SystemRoot", "windir", "ComSpec"];
   const saved = keys.map((k) => process.env[k]);

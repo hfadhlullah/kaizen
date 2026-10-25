@@ -114,3 +114,4 @@ updated: 2026-10-19
 - 2026-10-24 run 2026-10-24-terminal-hidden-count — Web board (hidden-tile count on side menu Terminal; asking border clears once agent works)
 - 2026-10-25 run 2026-10-24-board-motion — Web board, Notebook (Motion setting; cards slide between columns, flash when they need you, page crossfades)
 - 2026-10-25 run 2026-10-25-terminal-reconnect — Web board (terminal reconnects after a lost connection, Reconnect button)
+- 2026-10-25 run 2026-10-25-child-run-terminal — Web board (a run opened by another run's conversation owns that terminal: card shows it, Resume works)
