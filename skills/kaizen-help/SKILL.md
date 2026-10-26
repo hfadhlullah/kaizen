@@ -68,9 +68,9 @@ request itself was wrong: set `stage: "abandoned"` and stop, nothing to revise t
 ## Fix loop
 
 - `auto_fix.enabled: false` — every finding stops the run, becomes a user decision.
-- `auto_fix.enabled: true` — builder fixes findings at or above `auto_fix.min_severity`,
-  reviewer re-checks, up to `auto_fix.max_iterations` rounds. Findings below threshold,
-  and anything still open when iterations run out, are reported to the user.
+- `auto_fix.enabled: true` — builder fixes findings at or above `auto_fix.min_severity`
+  (default `low`, all findings), reviewer re-checks, up to `auto_fix.max_iterations`
+  rounds. Anything still open when iterations run out is reported to the user.
 
 Each iteration is written to `runs/<id>/05-iterations/`.
 
@@ -87,7 +87,7 @@ Each iteration is written to `runs/<id>/05-iterations/`.
 | `build.executor` | `subagent` | Who builds: `subagent`, `inline` (main thread), or `ask` at the approval |
 | `review.executor` | `inline` | Lite only — who reviews: `inline` (this session), `subagent` (cold agent), or `ask` |
 | `auto_fix.enabled` | `true` | Auto-fix findings vs. escalate everything |
-| `auto_fix.min_severity` | `high` | Threshold for auto-fix (`critical\|high\|medium\|low`) |
+| `auto_fix.min_severity` | `low` | Threshold for auto-fix (`critical\|high\|medium\|low`) |
 | `auto_fix.max_iterations` | `2` | Fix/recheck rounds before escalating remaining findings |
 | `review.write_memory` | `true` | Let the reviewer append lessons to `.kaizen/memory.md` |
 | `backlog.enabled` | `true` | Capture what a run deliberately did not do |
@@ -113,7 +113,8 @@ this skill's `config.default.yml`.
 
 ## Backlog and status
 
-Backlog items: `- <status>: <item text>`, `<status>` one of `open`, `done`, `rejected`
+Backlog records explicit deferrals and findings still unresolved after the fix loop,
+not every out-of-scope suggestion. Items: `- <status>: <item text>`, `<status>` one of `open`, `done`, `rejected`
 (`rejected` carries a reason after `|`). `/kaizen backlog`/`status` are **read-only** —
 never edit `06-backlog.md` or `state.json`, even to fix a spotted inconsistency; report
 it and ask.

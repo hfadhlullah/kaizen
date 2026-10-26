@@ -292,12 +292,12 @@ goal goes back through the planner instead.
 
 Write the outcome to `02-approval.md`: decision, reason, timestamp, and any
 modification the user asked for. When the decision is an approval — full or partial —
-the same write appends to `runs/<id>/06-backlog.md` every out-of-scope suggestion that
-was not folded into the approved scope, plus anything cut from scope at this approval,
-each as `open` — see *Backlog* below for the format. The backlog is a candidate list,
-not a commitment list, so silence at the approval captures the item rather than losing
-it. A rejection appends nothing: there is no approved scope yet to measure against, and
-the approval of the revised plan is what captures the items, once.
+the same write appends to `runs/<id>/06-backlog.md` only work the user explicitly
+deferred, each as `open` — see *Backlog* below for the format. An unaccepted
+out-of-scope suggestion is not a backlog item merely because it appeared in the plan;
+silence is not a request to do it later. A rejection appends nothing: there is no
+approved scope yet to measure against, and the approval of the revised plan is what
+captures any explicit deferral, once.
 
 **A rejection is one of two different things, and the reason says which.** "Do it
 differently" is a revise: hand the file back to the planner with the reason, it

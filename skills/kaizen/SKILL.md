@@ -104,13 +104,9 @@ A tool that charges the same for a typo and a payroll change gets turned off for
 
 **Small changes take the short path.** Where the approved plan touches roughly two
 files or fifty lines, run the stages in this session (`runner: lite`, below)
-rather than dispatching them, then stop after the review: report the findings and let
-the user choose, rather than entering the fix loop. The loop
-exists because a fix to something intricate can be worse than the defect — it is not
-worth two more stages to confirm a one-line message now reads correctly. A finding at
-`high` or above still enters the fix loop whatever the run's size, since that
-severity is the loop's whole reason for existing — on the same runner, which is fixed
-at intake.
+rather than dispatching them. Keep the plan and review brief, then apply the same
+bounded fix loop to review findings. Small size does not leave a finding for a later
+run when it can be fixed within this one.
 
 **Short work still gets a run.** A one-line change is not skipped past the stages: the card on the board moves through plan, build and review like any other. Run it with `runner: lite` and the short path above — a brief plan, the build, a short review — so the cost stays small and the run stays visible.
 
@@ -171,10 +167,10 @@ When the reviewer reports findings, behavior depends on config:
   decision, listed by the reviewer's number so the user can name a subset. Nothing is
   fixed automatically.
 - `auto_fix.enabled: true` — the builder fixes findings at or above
-  `auto_fix.min_severity` (default `high`), the reviewer re-checks, repeating up to
-  `auto_fix.max_iterations` (default 2). Findings below the threshold, and anything
-  still open when iterations run out, are reported to the user rather than silently
-  dropped.
+  `auto_fix.min_severity` (default `low`, so every finding), the reviewer re-checks,
+  repeating up to `auto_fix.max_iterations` (default 2). Findings below a configured
+  higher threshold, and anything still open when iterations run out, are reported to
+  the user rather than silently dropped.
 
 Every iteration is written to `runs/<id>/05-iterations/` so the loop is auditable.
 
@@ -182,9 +178,9 @@ Every iteration is written to `runs/<id>/05-iterations/` so the loop is auditabl
 
 Each run keeps its own backlog at `runs/<id>/06-backlog.md`. You write it, in the main
 thread, at two writes that already happen: `02-approval.md` at the plan approval
-(out-of-scope suggestions not folded into the approved scope, and anything cut at the
-approval) and `stage: "done"` at the final approval (findings still open, findings
-below the fix threshold, and the builder's out-of-scope notes). No subagent writes it.
+(only work the user explicitly deferred) and `stage: "done"` at the final approval
+(findings still open after the fix loop, unresolved verification, and explicit
+deferrals). Suggestions the user did not request are not backlog items. No subagent writes it.
 The full rules are in [`spec-main.md`](spec-main.md).
 
 `/kaizen status` and `/kaizen backlog`: read [`status.md`](status.md) first and follow

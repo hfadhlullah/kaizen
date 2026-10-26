@@ -87,9 +87,9 @@ rather than quietly patched.
 
 ## What a run decided not to do
 
-Both stops throw things away. The planner's out-of-scope suggestions you did not take,
-the low findings nobody fixed, the "later" you said at an approval — all real work, all
-previously surviving only in the conversation.
+Some work is intentionally left open: a "later" you said at an approval, a review
+finding the bounded fix loop could not close, or a check only you can verify.
+Unaccepted planner suggestions are not open work unless you explicitly defer them.
 
 Kaizen writes them down instead, into `06-backlog.md` inside the run that produced
 them, so an item sits next to the plan and the review that explain it. You do not
@@ -168,7 +168,7 @@ height, in which case the larger fraction could overflow where the old one did n
 
 > `FINDINGS: 0 critical, 0 high, 0 medium, 1 low`
 
-Low is below the default fix threshold, so it was not auto-fixed. It was reported, with
+At the time, low was below the default fix threshold, so it was not auto-fixed. It was reported, with
 the exact command to settle it when that monitor is next plugged in. The reviewer also
 left a line in `memory.md`, which every later run in this directory reads:
 
@@ -203,7 +203,7 @@ the defaults.
 | `approvals.review` | `false` | Set `true` to add a second human stop after the review; with `auto_fix` on it mostly re-approves a report you are already reading |
 | `approvals.each_file` | `false` | You want to confirm every single file edit. Maximum control, slowest |
 | `auto_fix.enabled` | `true` | Set `false` and every finding becomes your decision instead |
-| `auto_fix.min_severity` | `high` | Lower to `medium` or `low` to have more auto-fixed; raise findings you see instead of auto-fixing |
+| `auto_fix.min_severity` | `low` | Raise to `medium` or `high` if you want minor findings reported instead of auto-fixed |
 | `auto_fix.max_iterations` | `2` | Fix/recheck rounds before whatever is left is escalated to you |
 | `review.memory_max_lines` | `100` | The cap on `memory.md`, which every stage of every run reads. Raise only if the lessons are genuinely all load-bearing |
 | `git.auto_commit` | `false` | `true` commits the files a run changed when it is done, by path. Never pushes |

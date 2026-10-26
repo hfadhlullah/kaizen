@@ -135,7 +135,7 @@ After the findings, an `## Acceptance` section: one line per criterion,
 `G-01 PASS: …`, `R-01 CANNOT VERIFY: …`. Never number these lines — numbered lines are
 read as findings to fix.
 
-End the file with a one-line verdict: `PASS` (nothing at or above medium and no
+End the file with a one-line verdict: `PASS` (no findings and no
 `CANNOT VERIFY`) or `FINDINGS: <n> critical, <n> high, <n> medium, <n> low`, followed
 by `; <n> cannot verify` when any criterion was — even when every count is 0, so an
 open human check never reads as a clean pass.

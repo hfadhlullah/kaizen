@@ -82,9 +82,11 @@ test("a row dims while the setting it depends on has it switched off, and a left
 
 test("a config still holding git.branch_before_implement keeps its preset", () => {
   const text = readFileSync(defaults, "utf8");
+  expect(inProject(`return value("auto_fix.min_severity")`)).toBe("low");
   const low = applyPreset(text, "low", text).replace("git:\n", "git:\n  branch_before_implement: true\n");
   expect(detectPreset(low, text)).toBe("low");
   expect(detectPreset(text, text)).toBe("medium");
+  expect(applyPreset(text, "medium", text)).toContain("min_severity: low");
 });
 
 test("a low-preset config saved before review.executor existed still reads as low", () => {

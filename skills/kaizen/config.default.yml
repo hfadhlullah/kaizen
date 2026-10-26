@@ -52,7 +52,7 @@ auto_fix:
   # true:  findings at or above min_severity are fixed and re-reviewed automatically.
   enabled: true
   # critical | high | medium | low
-  min_severity: high
+  min_severity: low
   # Fix/recheck rounds before remaining findings are escalated to the user. Each round
   # is a full builder pass plus a full reviewer pass, so this is the most expensive
   # knob in the file. A third round rarely closes what two could not.
@@ -74,8 +74,8 @@ review:
   memory_max_lines: 100
 
 backlog:
-  # Capture what a run deliberately did not do: out-of-scope suggestions the user did
-  # not take, findings below the fix threshold, and debts deferred at an approval.
+  # Capture work explicitly deferred, unresolved findings after the bounded fix loop,
+  # and verification the user still needs to settle.
   # Written by the main thread at the plan approval and again at the final approval.
   enabled: true
 

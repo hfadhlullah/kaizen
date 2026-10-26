@@ -1,8 +1,8 @@
 ---
 description: The kaizen command: installer, upgrade, uninstall, settings, prune, sources
 tags: [project, cli]
-sources: [cli/install.ts, cli/setup.ts, cli/qr.ts, cli/settings.ts, cli/worktree.ts, package.json]
-updated: 2026-10-25
+sources: [cli/install.ts, cli/setup.ts, cli/qr.ts, cli/settings.ts, cli/settings.test.ts, cli/worktree.ts, package.json]
+updated: 2026-10-26
 ---
 # CLI
 
@@ -14,7 +14,7 @@ updated: 2026-10-25
 - No agent found: `noAgent()` shows a picker; an agent with an `install` command in `AGENTS` (Claude Code, Codex, Gemini CLI, OpenCode) is installed after a Yes, `addInstallerBins()` puts `~/.local/bin`, `~/.opencode/bin` and npm's global bin on PATH, `detect()` re-reads it, the agent is offered once for sign-in, and the install continues. Cursor, Antigravity, a failed install or a missing npm fall back to the docs link. `Bun.which` needs `{ PATH: process.env.PATH }` to see a PATH changed at runtime.
 - `cli/setup.ts` — `kaizen setup`: project folder, preset, board, phone over Tailscale (writes `~/.kaizen/web-hosts`, prints a QR from `cli/qr.ts`); install offers it at the end. `install.ts` passes it `select`, so it stays testable.
 - `cli/qr.ts` — dependency-free QR encoder (byte mode, ECC L, versions 1-6), half-block output.
-- `cli/settings.ts` — the full-screen settings browser over `config.yml`.
+- `cli/settings.ts` — the full-screen settings browser over `config.yml`; the medium preset now fixes all review severities within its two-round limit.
 - `cli/install.test.ts`, `cli/settings.test.ts`.
 
 ## How it connects

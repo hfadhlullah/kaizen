@@ -38,7 +38,7 @@ export const PRESETS: Record<PresetName, {
   },
   medium: {
     label: "Medium",
-    hint: "balanced (recommended) — full runner, subagents, plan approval, auto-fix high/critical",
+    hint: "balanced (recommended) — full runner, subagents, plan approval, auto-fix all findings",
     settings: {
       mode: "approve",
       runner: "full",
@@ -47,7 +47,7 @@ export const PRESETS: Record<PresetName, {
       "approvals.review": "false",
       "approvals.each_file": "false",
       "auto_fix.enabled": "true",
-      "auto_fix.min_severity": "high",
+      "auto_fix.min_severity": "low",
       "auto_fix.max_iterations": "2",
       "git.auto_commit": "false",
       "git.worktree_per_run": "true",

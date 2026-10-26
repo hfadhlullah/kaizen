@@ -97,7 +97,7 @@ tells you what it concluded, so you correct a sentence instead of filling in a f
 | `/kaizen-approve` | Approve whatever the run is waiting on |
 | `/kaizen-reject <reason>` | Send it back with a reason, or kill the run |
 | `/kaizen-run` | Carry on with an approved plan |
-| `/kaizen-backlog` | Everything noticed but not done, across all runs |
+| `/kaizen-backlog` | Explicitly deferred and unresolved work across all runs |
 | `/kaizen-abort` | Abandon the current run |
 | `/kaizen-gather` | Read the request sources kaizen cannot read by itself into the icebox |
 | `/kaizen-discover` | An agent groups what is in the icebox, proposes ideas, and promotes the ones you pick |
@@ -508,7 +508,7 @@ Everything a run knows lives in files next to the work, not in a chat window:
     02-approval.md      # what you decided, and why
     03-impl.md          # what changed, and the proof it works
     04-review.md        # findings, numbered and graded
-    06-backlog.md       # what was noticed but not done
+    06-backlog.md       # explicit deferrals and unresolved work
 ```
 
 Plain files, so you can read them, commit them, and pick a run back up tomorrow —
@@ -525,7 +525,7 @@ in one can be finished in another. See [adapters.md](https://github.com/hfadhlul
 | `runner` | `full` | `full` gives each stage its own agent, so the reviewer never saw the work — several times the cost. `lite` runs every stage here, at about the cost of doing it by hand |
 | `build.executor` | `subagent` | Who does the work: a separate agent, `inline` in the current one, or `ask` each time |
 | `review.executor` | `inline` | Lite runs only — who reviews: `inline` in the current session, a cold `subagent` that never saw the work, or `ask` before each review |
-| `auto_fix.min_severity` | `high` | Findings this bad or worse get fixed without asking |
+| `auto_fix.min_severity` | `low` | All review findings enter the bounded fix loop by default |
 | `approvals.plan` | `true` | Stop and show the plan before anything is built |
 | `ui.mouse` | `false` | Click to select, click again to act; while on, the terminal cannot select text |
 | `subagents.model` | `inherit` | Model the stage subagents run on: `inherit`, `opus`, `sonnet`, `haiku` (Claude Code only) |
@@ -550,7 +550,7 @@ change written as you make it, esc to close:
     approvals.plan                 true
     approvals.review               false
     auto_fix.enabled               true
-    auto_fix.min_severity          high
+    auto_fix.min_severity          low
     auto_fix.max_iterations        2
     ...
 

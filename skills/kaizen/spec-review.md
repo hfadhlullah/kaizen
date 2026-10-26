@@ -119,8 +119,8 @@ suspicions, never criteria: a criterion that cannot be settled is `CANNOT VERIFY
 not silence. No praise, no summary of what the code does, no style nits that do not
 change meaning.
 
-The file ends with one verdict line: `PASS` when no finding is at or above medium
-and no criterion is `CANNOT VERIFY`; otherwise
+The file ends with one verdict line: `PASS` when there are no findings and no
+criterion is `CANNOT VERIFY`; otherwise
 `FINDINGS: <n> critical, <n> high, <n> medium, <n> low`, followed by
 `; <n> cannot verify` when any criterion was — even when every count is 0, so an open
 human check never reads as a clean pass.

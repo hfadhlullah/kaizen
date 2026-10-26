@@ -6,16 +6,16 @@ the final approval. No subagent reads this file.
 ---
 ## Backlog
 
-Every run produces work it deliberately does not do. Four sources, all already
-written down by the time a run ends:
+Some runs leave work deliberately unresolved. Capture only:
 
-1. Out of scope suggestions the planner listed and the user did not fold into the
-   approved scope.
-2. Findings below `auto_fix.min_severity`, and findings the fix loop could not close.
-3. Debts deferred at an approval because they fell outside the approved scope.
-4. Criteria the reviewer answered `CANNOT VERIFY` that the user did not settle.
+1. Work the user explicitly deferred at an approval.
+2. Findings still open after the bounded fix loop, or below a configured higher
+   `auto_fix.min_severity` that the user chose not to fix.
+3. Criteria the reviewer answered `CANNOT VERIFY` that the user did not settle.
 
-Without capture these survive only in the conversation that produced them.
+Planner suggestions and builder notes outside the approved scope are reported, but
+are not backlog items unless the user explicitly defers them. Without capture,
+unresolved work would survive only in the conversation that produced it.
 
 `backlog.enabled: false` skips both capture points — the `02-approval.md` append at
 plan approval and the `06-backlog.md` append at final approval — for that run. The run
@@ -69,8 +69,8 @@ unconditionally:
 
 | Capture point | Stage | What gets appended |
 |---|---|---|
-| Writing `02-approval.md`, when the decision is an approval | Plan approval | Every out-of-scope suggestion not folded into the approved scope, and anything cut from scope at the approval |
-| Setting `stage: "done"` | Final approval | Findings still open, findings below the fix threshold, and out-of-scope notes the builder wrote into `03-impl.md` |
+| Writing `02-approval.md`, when the decision is an approval | Plan approval | Only work the user explicitly deferred |
+| Setting `stage: "done"` | Final approval | Unresolved findings and `CANNOT VERIFY` criteria, plus explicit deferrals not already recorded |
 
 Neither is optional and neither is a separate step to remember — a run cannot finish
 without touching both files.
@@ -158,11 +158,13 @@ touched, and goes to the backlog as `open` like any other deferred item. This is
 same granularity the fix loop already works at; the only change is that the user
 picks the subset instead of accepting or declining the whole review.
 
-Before setting `stage: "done"`, append the same categories just reported — findings
-still open, findings below the fix threshold, `CANNOT VERIFY` criteria the user did
-not settle, and the builder's out-of-scope notes from `03-impl.md` — to `runs/<id>/06-backlog.md`, each as `open`, in the format
-given in *Backlog* above. Every input is already assembled at this moment; the only
-change is that it is written down rather than spoken and discarded.
+Before setting `stage: "done"`, append findings still open after the fix loop,
+findings below a configured higher fix threshold that the user chose not to fix,
+`CANNOT VERIFY` criteria the user did not settle, and work explicitly deferred at
+the final approval to `runs/<id>/06-backlog.md`, each as `open`, in the format given
+in *Backlog* above. Check existing entries and do not append a duplicate. Builder
+notes outside the approved scope are reported, but are not filed without an explicit
+deferral.
 
 Set `stage: "done"` in `state.json` once the user accepts.
 
@@ -203,7 +205,7 @@ that records the approval files increments 2 to N, in order, from the project fo
 kept in the text where it has one. Increment 1 is this run's own build. Nothing starts
 by itself: the user starts an increment from its card when they choose, and the parent's
 card lists its children with their status. An increment cut at the approval is not
-filed; it goes to the backlog like anything else cut there.
+filed; it goes to the backlog only when the user explicitly defers it.
 
 ## Discovery rounds
 
