@@ -523,3 +523,18 @@ echo '{"success":true}'
     expect(v.sends.map((s: any) => s.state)).toEqual(["failed", "sent", "sent"]);
   } finally { proc.kill(); await proc.exited; }
 }, 30000);
+
+test("deleting a version removes only that render's files, and only a listed render", () => {
+  const lib = library();
+  const a = join(lib, "output", "demo", "test-a"), b = join(lib, "output", "demo", "test-b");
+  mkdirSync(a, { recursive: true }); mkdirSync(b, { recursive: true });
+  for (const f of ["demo.mp4", "demo.srt", "demo-thumb.jpg", "CREDITS.txt"]) writeFileSync(join(a, f), "x");
+  writeFileSync(join(b, "demo.mp4"), "x");
+  expect(video.deleteOutput(lib, "demo", "o/test-a/demo.srt")).toBe("not one of this video's finished files");
+  expect(video.deleteOutput(lib, "demo", "o/../../videos/demo/film.json")).toBe("not one of this video's finished files");
+  expect(video.deleteOutput(lib, "demo", "o/nope/demo.mp4")).toBe("not one of this video's finished files");
+  expect(video.deleteOutput(lib, "demo", "o/test-a/demo.mp4")).toBe(null);
+  expect(readdirSync(a)).toEqual([]);
+  expect(existsSync(join(b, "demo.mp4"))).toBe(true);
+  expect(existsSync(join(lib, "videos", "demo", "film.json"))).toBe(true);
+});

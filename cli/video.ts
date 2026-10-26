@@ -2,7 +2,7 @@
 // library, a film's on-screen text edited in place, and the skill's own scripts run as
 // background jobs. The page never names a filesystem path: it names a place (one of
 // places()), a video folder name, and a path inside that video, all checked here.
-import { existsSync, readdirSync, readFileSync, realpathSync, renameSync, statSync, writeFileSync, appendFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, realpathSync, renameSync, statSync, writeFileSync, appendFileSync, unlinkSync } from "node:fs";
 import { join, dirname, resolve, sep, extname } from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 
@@ -69,11 +69,12 @@ function seconds(f: string): number | null {
   return probed.get(key)!;
 }
 
-export type Output = { format: Format | null; file: string; thumb: string | null; srt: string | null; seconds: number | null };
+// at: when the file was written (ms), so the page can tell whether the draft has changed since.
+export type Output = { format: Format | null; file: string; thumb: string | null; srt: string | null; seconds: number | null; at: number };
 export type Video = {
   place: string; where: string; name: string; mode: "film" | "footage"; preset: string; title: string;
   formats: Format[]; platforms: string[]; seconds: number | null; text: string; poster: string | null;
-  built: boolean; size: [number, number] | null; outputs: Output[]; job: JobView | null; status: "draft" | "queued" | "building" | "rendering" | "ready" | "failed";
+  built: boolean; builtAt: number; size: [number, number] | null; outputs: Output[]; job: JobView | null; status: "draft" | "queued" | "building" | "rendering" | "ready" | "failed";
 };
 
 const fmtOf = (s: string): Format | null => (s.match(/-(9x16|16x9|4x5)(?:\.|-|$)/)?.[1] as Format) ?? null;
@@ -87,7 +88,9 @@ function outputs(place: string, name: string, fallback: Format): Output[] {
     try { files = readdirSync(dir); } catch { return; }
     for (const f of files.filter((f) => f.endsWith(".mp4") && !f.endsWith(".raw.mp4")).sort()) {
       const base = f.slice(0, -4), sib = (s: string) => files.includes(base + s) ? rel + base + s : null;
-      found.push({ format: fmtOf(f) ?? fallback, file: rel + f, thumb: sib("-thumb.jpg"), srt: sib(".srt"), seconds: seconds(join(dir, f)) });
+      let at = 0;
+      try { at = statSync(join(dir, f)).mtimeMs; } catch { /* gone */ }
+      found.push({ format: fmtOf(f) ?? fallback, file: rel + f, thumb: sib("-thumb.jpg"), srt: sib(".srt"), seconds: seconds(join(dir, f)), at });
     }
   };
   const out = join(place, "output", name);
@@ -126,6 +129,9 @@ export function listVideos(all: Place[]): Video[] {
       const platforms = Array.isArray(film?.platforms) ? film.platforms.filter((x: unknown) => has(PLATFORMS, x))
         : Object.keys(PLATFORMS).filter((k) => formats.includes(PLATFORMS[k]!) && (k !== "YouTube Shorts" && k !== "WhatsApp Status"));
       const index = existsSync(join(vdir, "film", "index.html")) ? readFileSync(join(vdir, "film", "index.html"), "utf8") : "";
+      // When the draft was last built: a render rebuilds it first, so a render newer than this covers it.
+      let builtAt = 0;
+      try { builtAt = index ? statSync(join(vdir, "film", "index.html")).mtimeMs : 0; } catch { /* none */ }
       const built = Number(index.match(/id="root"[^>]*data-duration="([\d.]+)"/)?.[1] ?? NaN);
       // The preview is whichever shape was built last (a render builds each in turn), so the page sizes it from here.
       const wh = index.match(/id="root"[^>]*data-width="(\d+)"[^>]*data-height="(\d+)"/);
@@ -138,7 +144,7 @@ export function listVideos(all: Place[]): Video[] {
         place: p.dir, where: p.label, name, mode: film ? "film" : "footage", preset: String(film?.preset ?? cfg?.preset ?? ""),
         title: String(first), formats, platforms, seconds: Number.isFinite(built) ? Math.round(built) : outs[0]?.seconds ?? null,
         text: film ? spoken(readJson(join(vdir, "lines.json"))) : "", poster: film ? poster(vdir, film, fmt) : null,
-        built: !!index, size: wh ? [Number(wh[1]), Number(wh[2])] : null, outputs: outs, job, status,
+        built: !!index, builtAt, size: wh ? [Number(wh[1]), Number(wh[2])] : null, outputs: outs, job, status,
       });
     }
   }
@@ -493,6 +499,30 @@ export function outputFile(place: string, name: string, rel: unknown): string | 
   const listed = outputs(place, name, has(FORMATS, film?.format) ? film.format : "9x16").flatMap((o) => [o.file, o.srt, o.thumb]);
   if (!listed.includes(rel)) return null;
   return rel.startsWith("o/") ? inside(join(place, "output", name), rel.slice(2)) : inside(join(place, "videos", name), rel.slice(2));
+}
+
+// Delete one rendered version: its MP4 and that render's captions and thumbnail. Only a file this
+// video lists as finished, and not while a job or a send for the video runs. When no MP4 is left in that
+// preset's output folder, its CREDITS.txt goes too. Returns an error a person can act on, or null.
+export function deleteOutput(place: string, name: string, rel: unknown): string | null {
+  if (typeof rel !== "string" || !rel.endsWith(".mp4")) return "not one of this video's finished files";
+  const mp4 = outputFile(place, name, rel);
+  if (!mp4) return "not one of this video's finished files";
+  const j = jobOf(place, name);
+  if (j && (j.state === "running" || j.state === "queued")) return "a build or render is running for this video; wait for it to finish";
+  const s = sendOf(place, name);
+  if (s && (s.state === "waiting" || s.state === "uploading")) return "this video is being sent; wait for it to finish";
+  const base = rel.slice(0, -4);
+  for (const extra of [base + ".srt", base + "-thumb.jpg"]) {
+    const f = outputFile(place, name, extra);
+    if (f) unlinkSync(f);
+  }
+  unlinkSync(mp4);
+  const dir = dirname(mp4);
+  try {
+    if (!readdirSync(dir).some((f) => f.endsWith(".mp4"))) { const c = join(dir, "CREDITS.txt"); if (existsSync(c)) unlinkSync(c); }
+  } catch { /* gone already */ }
+  return null;
 }
 
 // One send per video at a time; what it is doing now, and the last 50 that finished,

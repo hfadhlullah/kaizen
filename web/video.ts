@@ -5,10 +5,10 @@
 
 type Format = "9x16" | "16x9" | "4x5";
 type Job = { id: number; kind: string; state: string; step: number; total: number; label: string[]; error: string | null; place: number; name: string };
-type Output = { format: Format | null; file: string; thumb: string | null; srt: string | null; seconds: number | null };
+type Output = { format: Format | null; file: string; thumb: string | null; srt: string | null; seconds: number | null; at: number };
 type Video = {
   place: number; where: string; name: string; mode: "film" | "footage"; preset: string; title: string; formats: Format[];
-  platforms: string[]; seconds: number | null; text: string; poster: string | null; built: boolean; size: [number, number] | null; outputs: Output[];
+  platforms: string[]; seconds: number | null; text: string; poster: string | null; built: boolean; builtAt: number; size: [number, number] | null; outputs: Output[];
   job: Job | null; status: "draft" | "queued" | "building" | "rendering" | "ready" | "failed"; send: Send | null; sends: Send[];
 };
 type Send = { at: number; via: "localsend" | "whatsapp"; to: string; file: string; state: "waiting" | "uploading" | "sent" | "failed"; pct: number; error: string | null };
@@ -85,6 +85,7 @@ function drawGrid() {
   });
   // Videos an agent is still setting up: no film.json yet, so only the agent knows them.
   const making = agents.filter((a) => a.alive && !videos.some((v) => v.place === a.place && v.name === a.name) && words.every((w) => a.name.includes(w)) && (!filter || filter === "busy" || filter === "draft"));
+  $("grid").removeAttribute("aria-busy");
   $("grid").innerHTML = making.map((a) => `<article class="vid" tabindex="0" data-p="${a.place}" data-n="${esc(a.name)}" aria-label="${esc(a.name)}, being made">
       <div class="thumb making" style="--ar:9/16"><span class="t">${a.asking ? "Claude is asking you something" : "Claude is making this"}</span></div>
       <div class="meta"><b>${esc(a.name)}</b><div class="plats"><i class="where">${esc(places[a.place]?.label ?? "")}</i></div>
@@ -149,8 +150,16 @@ function route() {
   film = null;
   edits = new Map();
   rtab = "form";
+  shown = null;
   sp = null;
   $("sendp").innerHTML = "";
+  // Opening a video: placeholders for the player and the form until its data arrives, as the board shows.
+  if (open && !cur()) {
+    parkDock();
+    // Not class "ed": refreshEditor takes a missing .ed to mean "draw the editor now".
+    $("editbody").innerHTML = `<div class="edskel" aria-busy="true"><span class="skel" style="aspect-ratio:9/16"></span>
+      <div style="display:grid;gap:10px"><span class="skel" style="height:36px;width:180px"></span><span class="skel" style="height:56px"></span><span class="skel" style="height:56px"></span><span class="skel" style="height:56px"></span></div></div>`;
+  }
   if (open) refreshEditor(true);
   else { parkDock(); $("editbody").innerHTML = ""; }
   if (wiz) drawWizard();
@@ -165,13 +174,15 @@ async function refreshEditor(first = false) {
   if (!v) {
     parkDock();
     const a = open && agentOn(open.place, open.name);
-    if (a) $("editbody").innerHTML = `<div class="crumb"><button data-back>Videos</button> / ${esc(places[a.place]?.label ?? "")}</div>
+    if (a) $("editbody").innerHTML = `<div class="crumb"><button data-back>‹ Back to videos</button></div>
       <div class="ehead"><h2>${esc(a.name)}</h2></div><p class="note">Claude is setting this video up. Answer its questions above; the editor opens here once the video has its storyboard.</p>`;
     else if (videos.length) $("editbody").innerHTML = `<p class="blank">That video is gone. <button class="btn" data-back>Back to videos</button></p>`;
     return;
   }
-  const jobKey = JSON.stringify(v.job && [v.job.id, v.job.state, v.job.step]);
-  if (!first && film && jobKey === lastJob) return;
+  // What, when it changes, needs a redraw: the job, the set of rendered versions (a render or a delete),
+  // or the draft rebuilt (an edit or an Ask Claude change: Render final comes back).
+  const jobKey = JSON.stringify([v.job && [v.job.id, v.job.state, v.job.step], v.outputs.map((o) => o.file), v.builtAt]);
+  if (!first && (film || v.mode !== "film") && jobKey === lastJob) return;
   const builtNow = lastJob && v.job?.state === "done" && jobKey !== lastJob;
   lastJob = jobKey;
   // Nothing drawn for this video yet: the first answer after opening it, however it arrives.
@@ -182,8 +193,8 @@ async function refreshEditor(first = false) {
     film = await r.json();
   }
   if (fresh) picked = new Set(film?.platforms.length ? film.platforms : v.platforms);
-  if (fresh || v.mode !== "film") drawEditor(v);
-  else { drawJob(v); drawFiles(v); if (builtNow) reloadPreview(v); }
+  if (fresh) drawEditor(v);
+  else { drawJob(v); drawFiles(v); drawRender(v); if (builtNow && !shown) reloadPreview(v); }
 }
 
 function drawEditor(v: Video) {
@@ -196,16 +207,16 @@ function drawEditor(v: Video) {
   // Terminal tab: the same element, so its session stays connected.
   const dock = parkDock();
   $("editbody").innerHTML = `
-    <div class="crumb"><button data-back>Videos</button> / ${esc(v.where)}</div>
+    <div class="crumb"><button data-back>‹ Back to videos</button></div>
     <div class="ehead"><h2>${esc(v.name)}</h2><span class="pill ${v.status}" id="stat">${LABEL[v.status]}</span>
       <div class="acts">${v.mode === "film" ? `<button class="btn" id="stillsBtn" title="Build the film and take three still frames">Preview stills</button>` : ""}
-      <button class="btn pri" id="render">Render final</button></div></div>
+      <span class="pill ready" id="rdone" hidden title="Nothing changed since the last render">Rendered</span><button class="btn pri" id="render">Render final</button></div></div>
     <div class="ed">
       <div class="player">
         <div class="screen" style="--ar:${w}/${h}" id="screen">${v.built
           ? `<iframe id="frame" title="Preview" src="${esc(fileUrl(v, "v/film/index.html"))}" width="${w}" height="${h}"></iframe>`
           : `<div class="none">No preview yet. Press <b>Preview stills</b> or save a change to build it.</div>`}</div>
-        <div class="ctrl"><button class="play" id="play" aria-label="Play" ${v.built ? "" : "disabled"}><svg><use href="#i-play"/></svg></button><span id="time">0:00 / ${mmss(dur)}</span><span class="sp"></span><span id="shape">${ratio(f)} · ${esc(v.preset)}</span></div>
+        <div class="ctrl"><button class="play" id="play" aria-label="Play" ${v.built ? "" : "disabled"}><svg><use href="#i-play"/></svg></button><span id="time">0:00 / ${mmss(dur)}</span><span class="sp"></span><span id="shape">${v.built ? `Draft · ${esc(v.preset)}` : `${ratio(f)} · ${esc(v.preset)}`}</span></div>
         ${beats.length ? `<div class="strip" id="strip">${beats.map((b, i) => `<button style="flex:${Math.max(1, b.len ?? 1)};--c:${COLORS[i % COLORS.length]}" data-b="${i}" title="${esc(b.kind)} ${mmss(b.start)}">${i + 1}</button>`).join("")}<span class="head" id="head" style="left:0"></span></div>` : ""}
         <div class="stills" id="stills">${(film?.stills ?? []).map((s) => `<a href="${esc(fileUrl(v, s))}" target="_blank" rel="noopener"><img src="${esc(fileUrl(v, s))}?t=${Date.now()}" alt="Still frame"></a>`).join("")}</div>
       </div>
@@ -231,6 +242,8 @@ function drawEditor(v: Video) {
   drawPlats();
   drawJob(v);
   drawFiles(v);
+  drawRender(v);
+  if (shown) showVersion(v);
 }
 
 function beatRow(b: Beat, i: number) {
@@ -285,13 +298,57 @@ function drawJob(v: Video) {
     ${j.state === "failed" && film?.log ? `<pre>${esc(film.log.split("\n").slice(-25).join("\n"))}</pre>` : ""}</div>`;
 }
 
+// Versions: the draft (the live build, not rendered) first, then each rendered file, labelled with the
+// preset it was rendered in (output/<name>/<preset>/<file>). Clicking a row shows it in the player.
+let shown: string | null = null;   // null: the draft; else a rendered file's path ("o/<preset>/<file>")
+const presetOf = (file: string) => file.split("/")[1] ?? "";
 function drawFiles(v: Video) {
   const el = document.getElementById("files");
   if (!el) return;
-  el.innerHTML = v.outputs.length ? `<p class="note" style="margin:0">Finished files</p>` + v.outputs.map((o) => `<div class="file"><span class="pill ready">${ratio(o.format)}</span><b>${esc(o.file.split("/").pop())}</b>
+  if (shown && !v.outputs.some((o) => o.file === shown)) shown = null;
+  const draft = v.built ? `<div class="file ver${shown ? "" : " on"}" data-show="">
+      <button class="vname" data-show="" aria-pressed="${!shown}"><span class="pill draft">Draft</span><b>${esc(v.preset)}</b></button><span class="note" style="margin:0">live preview, not rendered</span></div>` : "";
+  el.innerHTML = draft || v.outputs.length ? `<p class="note" style="margin:0">Versions</p>` + draft + v.outputs.map((o) => `<div class="file ver${shown === o.file ? " on" : ""}" data-show="${esc(o.file)}">
+      <button class="vname" data-show="${esc(o.file)}" aria-pressed="${shown === o.file}"><span class="pill ready">${ratio(o.format)}</span><b>${esc(presetOf(o.file))} · ${esc(o.file.split("/").pop())}</b></button>
       ${o.seconds != null ? `<span class="note" style="margin:0">${mmss(o.seconds)}</span>` : ""}
       <a href="${esc(fileUrl(v, o.file))}" target="_blank" rel="noopener">Open</a>${o.srt ? `<a href="${esc(fileUrl(v, o.srt))}" target="_blank" rel="noopener">Captions</a>` : ""}
-      <button class="btn" data-sendfile="${esc(o.file)}">Send</button></div>`).join("") : "";
+      <button class="btn" data-sendfile="${esc(o.file)}">Send</button>
+      <button class="btn danger" data-delfile="${esc(o.file)}" aria-label="Delete ${esc(presetOf(o.file))} version">Delete</button></div>`).join("") : "";
+}
+// Render final turns the draft into files. Nothing to do while a rendered version is shown, or when the
+// draft was rendered in its current preset after its last build; an edit or an Ask Claude change rebuilds
+// the draft, and the button comes back.
+function drawRender(v: Video) {
+  const b = document.getElementById("render"), done = document.getElementById("rdone");
+  if (!b || !done) return;
+  const draftDone = v.built && v.outputs.some((o) => presetOf(o.file) === v.preset && o.at >= v.builtAt);
+  const off = !!shown || draftDone;
+  b.hidden = off; done.hidden = !off;
+  done.textContent = shown ? "Rendered version" : "Rendered";
+}
+// The player shows the draft (the built page, driven by the play button) or a rendered MP4 (its own controls).
+function showVersion(v: Video) {
+  const box = document.getElementById("screen"), label = document.getElementById("shape"), play = document.getElementById("play") as HTMLButtonElement | null;
+  const o = shown && v.outputs.find((x) => x.file === shown);
+  if (!box) return;
+  // A rendered file plays with its own controls; the draft's play button and beat strip step aside.
+  box.closest(".player")?.classList.toggle("file", !!o);
+  if (!o) {
+    shown = null;
+    if (v.built) reloadPreview(v);
+    if (label) label.textContent = `Draft · ${v.preset}`;
+    const t = document.getElementById("time"), p = document.getElementById("play");
+    if (t) t.textContent = `0:00 / ${mmss(dur)}`;
+    if (p) { playing = false; p.innerHTML = `<svg><use href="#i-play"/></svg>`; p.setAttribute("aria-label", "Play"); }
+  } else {
+    box.innerHTML = `<video id="vid" src="${esc(fileUrl(v, o.file))}" controls playsinline preload="metadata" aria-label="Rendered ${esc(presetOf(o.file))} video"></video>`;
+    if (play) play.disabled = true;
+    const t = document.getElementById("time");
+    if (t) t.textContent = o.seconds != null ? mmss(o.seconds) : "";
+    if (label) label.textContent = `Rendered · ${presetOf(o.file)}${o.seconds != null ? ` · ${mmss(o.seconds)}` : ""}`;
+  }
+  drawFiles(v);
+  drawRender(v);
 }
 
 // ---- Send: the panel under the editor. Drawn on the person's own actions only, so a
@@ -425,10 +482,30 @@ $("edit").addEventListener("click", async (e) => {
   const seg = t.closest<HTMLElement>("#strip button");
   if (seg) return selectBeat(Number(seg.dataset.b));
   if (t.closest("#play")) return send({ kz: playing ? "pause" : "play" });
+  const ver = t.closest<HTMLElement>("[data-show]");
+  if (ver && (t.closest(".vname") || !t.closest("a, button"))) {
+    const want = ver.dataset.show || null;
+    if (want === shown) return;   // already showing: a second click must not reload the draft
+    shown = want;
+    return showVersion(v);
+  }
   const chip = t.closest<HTMLElement>("#plats .chip");
   if (chip) { const p = chip.dataset.p!; picked.has(p) ? picked.delete(p) : picked.add(p); chip.classList.toggle("on", picked.has(p)); return drawPlats(); }
   const sf = t.closest<HTMLElement>("[data-sendfile]");
   if (sf) return openSend(sf.dataset.sendfile!);
+  // Delete a rendered version: asks first, names what goes, and only touches that render's files.
+  const del = t.closest<HTMLElement>("[data-delfile]");
+  if (del) {
+    const f = del.dataset.delfile!, o = v.outputs.find((x) => x.file === f);
+    if (!o || !confirm(`Delete the ${presetOf(f)} version (${f.split("/").pop()})? Its rendered video${o.srt ? ", captions" : ""}${o.thumb ? ", thumbnail" : ""} are removed from disk. The draft and other versions stay.`)) return;
+    try {
+      await post("/video/delete", { p: v.place, name: v.name, file: f });
+      if (shown === f) { shown = null; showVersion(v); }
+      toast("Version deleted");
+      load();
+    } catch (err) { toast(err instanceof Error ? err.message : String(err)); }
+    return;
+  }
   const cancel = t.closest<HTMLElement>("[data-cancel]");
   try {
     if (cancel) { await post("/video/cancel", { id: Number(cancel.dataset.cancel) }); toast("Cancelled"); }
@@ -571,7 +648,7 @@ async function drawWizard() {
   const kind = wiz.source === "brief" ? "film" : "footage";  // the default is one of the start's own kind
   if (!list.some((p) => p.name === wiz.preset)) wiz.preset = (list.find((p) => p.kind === kind) ?? list.find((p) => p.kind === "template") ?? list[0])?.name ?? "";
   $("wiz").innerHTML = `
-    <div class="crumb"><button data-back>Videos</button> /</div>
+    <div class="crumb"><button data-back>‹ Back to videos</button></div>
     <div class="ehead"><h2>New video</h2></div>
     <form class="card" id="wform" novalidate>
       <div><h3>Start from</h3><div class="src">
@@ -671,6 +748,11 @@ function listen() {
   const es = new EventSource("/events");
   es.onmessage = () => load();
 }
+
+// The board only watches its own state, not video folders: a draft Claude rebuilds in its terminal (an Ask
+// Claude change) lands unannounced. While a video is open and the tab is visible, look again every 5 s,
+// so its Versions and Render final follow. Cheap: a few stat calls, durations are cached.
+setInterval(() => { if (open && document.visibilityState === "visible") load(); }, 5000);
 
 route();
 load();

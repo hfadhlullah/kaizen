@@ -817,6 +817,13 @@ export async function web(repoDir: string, opts: Opts = {}) {
             changed();
             return json({ ok: true, job: typeof job === "string" ? null : { ...job, place: Number(body.p) }, note: typeof job === "string" ? job : null });
           }
+          // Delete a rendered version (deleteOutput checks it is one of this video's finished files).
+          if (path === "/video/delete") {
+            const err = video.deleteOutput(place.dir, body.name, body.file);
+            if (err) return bad(err);
+            changed();
+            return json({ ok: true });
+          }
           // A finished file to a device the last search found, or a chat Hermes listed.
           if (path === "/video/send") {
             const file = video.outputFile(place.dir, body.name, body.file);
