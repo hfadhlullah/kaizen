@@ -28,6 +28,7 @@ a track without touching the others.
 
 ## Template contract
 
+
 `make_tiktok.py` fills these in `index.html`; keep them:
 
 - `{{DURATION}}`, `{{VIDEO_DURATION}}`, `{{VIDEO}}`, `{{MUSIC_VOLUME}}`
@@ -61,9 +62,39 @@ kaizen package.
 | cinematic-drama | pitch opener, brand film | dark, full-bleed photos, slow push-in, rise text, grain + vignette, fades | quiet music, hit on reveal, riser into the question, room tone | subtitle bar | −16 |
 | promo-booth | exhibition loop, deck-faithful promo (the friend's style) | photo in a framed window beside the text, wipes, slide-in text, staged builds | whoosh on cuts, tick on titles, slightly louder music | subtitle bar | −16 |
 | fun-energetic | social posts, parents, events | cream background, rounded photo cards that bounce in, pop text, light leaks | bright track (Carefree), pops and a chime | subtitle bar | −14 |
+| explainer-canvas | TikTok explainers that move like a motion-graphics edit (9:16) | one canvas, camera pans, zooms and follows; filmstrip, numerals, tape and stamp (`references/canvas.md`) | whoosh, pop, tick, stamp | kinetic, lowercase | −14 |
 | viral-social | TikTok / Reels / Shorts (9:16) | full-bleed, fast punch-in cuts, bold Inter, strong Ken Burns | Easy Lemon-type track, whooshes | kinetic 2–3 words, accent on the spoken word | −14 |
 
 Pace: `lead` / `tail` = silence before and after each line. Drama 0.8/1.1, booth 0.45/0.7, fun 0.2/0.35, viral 0.05/0.2.
+
+## Template presets
+
+`app-promo` is a template preset (`preset.json`, kind `template`): a whole HyperFrames film filled from a product brief, built by `make_promo.py`. See [`promo.md`](promo.md). It is the only preset the New video wizard offers today; the others carry a `.hidden` file until the user approves a video made with them, and they still build for existing videos.
+
+## Crossing over
+
+Any preset works for either start; the build script notices the other kind and bridges.
+
+- **Footage with a film preset.** `make_tiktok.py` writes `videos/<name>/film-bridge/`: the cut (`video` in the
+  config) re-encoded silent as `footage.mp4`, its sound as `v01.mp3`, the caption words as `words.json`, and a
+  `film.json` with one `footage` beat and `"style": {"pace": {"lead": 0, "tail": 0}}` so the voice stays on the lips.
+  It then runs `make_film.py` on that folder (passing `--render`), which writes `output/<name>/<preset>/` with the
+  .srt and thumbnail. Kept: the film style's grade, captions, music levels and loudness, and the config's `music`.
+  Dropped: the hook, the cold open and every card in `beats`.
+- **A brief with a footage preset.** `make_film.py` builds the film in `film-viral-social` with no captions, no
+  music and no cut sounds, renders it to `videos/<name>/film/pass1.mp4` on every build, then writes
+  `videos/<name>/footage-bridge/config.json` (the film's words on that timeline, a jump cut at every scene,
+  `hook` from film.json or the first six words, `music` from film.json or `sunny`) and runs `make_tiktok.py` on
+  it. Pass 1 carries pictures only and the clip card is hidden (`"card": false`), so the template draws the words
+  as its own scenes. Each film scene opens on a headline scene after the 3 s hook (`title` with kick, title, sub
+  and picture; `stat` with its first value as the giant numeral; `question` with a giant `?`), then `photo` scenes
+  cycle the beat's `img` and `"pics"` at its phrase breaks, about every 2 s, with the captions on. `items` become
+  `item` rows and `cta` the `end` card. Under the hook, the first picture shows. A headline over 14 characters
+  moves to the serif line with a warning. film.json `"footage_beats"` (template beats, placed with
+  `"t"` seconds or `"word"`) replaces the mapping; `"mascot"` (a transparent PNG in the video folder) adds the
+  corner mascot. 9:16 only; no .srt. A build takes a render longer.
+
+`film.json` `"style"` overrides keys of the preset's `style.json` for one film; a dict merges into the preset's.
 
 ## Writing for each preset
 - **drama**: full story arc, 70–110 s, long pauses allowed.

@@ -1,0 +1,25 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; background: var(--bg); font-family: var(--font), Inter, sans-serif; color: var(--ink); }
+    #end-mark { position: absolute; left: 50%; top: 470px; width: 340px; margin-left: -170px; }
+    #end-mark img { width: 100%; display: block; }
+    #end-word { position: absolute; left: 40px; right: 40px; top: 860px; text-align: center; font-weight: 900; font-size: {{END_SIZE}}px; letter-spacing: -0.04em; white-space: nowrap; }
+    #end-line { position: absolute; left: 80px; right: 80px; top: 1070px; text-align: center; font-weight: 700; font-size: 44px; color: var(--muted); }
+    #end-cta { position: absolute; left: 60px; right: 60px; top: 1180px; text-align: center; font-family: "JetBrains Mono", monospace; font-size: 50px; font-weight: 700; color: var(--accent); }
+  </style>
+  <div id="root" data-composition-id="end" data-width="1080" data-height="1920">
+    {{MARK}}
+    <div id="end-word">{{NAME}}</div>
+    <div id="end-line">{{TAGLINE}}</div>
+    <div id="end-cta">{{CTA}}</div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    // The mark fills from the bottom up, the name wipes in after it, the call to action lands and holds.
+    if (document.querySelector("#end-mark")) tl.fromTo("#end-mark", { clipPath: "inset(100% 0 0 0)" }, { clipPath: "inset(0% 0 0 0)", duration: 0.7, ease: "power2.inOut" }, 0.05);
+    tl.fromTo("#end-word", { clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 0% 0 0)", duration: 0.45, ease: "power3.out" }, 0.6);
+    tl.fromTo("#end-line", { opacity: 0, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.18, ease: "power2.out" }, 0.95);
+    tl.fromTo("#end-cta", { opacity: 0, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.18, ease: "power2.out" }, 1.15);
+    window.__timelines["end"] = tl;
+  </script>
+</template>

@@ -1,0 +1,135 @@
+{
+ "url": "http://127.0.0.1:8031/",
+ "note": "A local copy of Notula with its own empty database and two sample meetings spoken by synthetic voices.",
+ "clips": [
+  {
+   "name": "list",
+   "device": "phone",
+   "prep": [
+    [
+     "goto",
+     "/login"
+    ],
+    [
+     "type",
+     "#login",
+     "demo"
+    ],
+    [
+     "type",
+     "#password",
+     "demo-pass-1"
+    ],
+    [
+     "tap",
+     "button[type=submit]"
+    ],
+    [
+     "wait",
+     1500
+    ]
+   ],
+   "path": "/recordings",
+   "steps": [
+    [
+     "wait",
+     1200
+    ],
+    [
+     "tap",
+     "text:Summarized"
+    ],
+    [
+     "wait",
+     900
+    ],
+    [
+     "tap",
+     "text:All"
+    ],
+    [
+     "wait",
+     1200
+    ]
+   ]
+  },
+  {
+   "name": "list-web",
+   "device": "desktop",
+   "path": "/recordings",
+   "steps": [
+    [
+     "wait",
+     1200
+    ],
+    [
+     "tap",
+     "text:Summarized"
+    ],
+    [
+     "wait",
+     900
+    ],
+    [
+     "tap",
+     "text:All recordings"
+    ],
+    [
+     "wait",
+     900
+    ],
+    [
+     "tap",
+     "a[href*='01m5v03ej5ehymva3g3gx6jx84']"
+    ],
+    [
+     "wait",
+     1800
+    ]
+   ]
+  },
+  {
+   "name": "meeting",
+   "device": "phone",
+   "path": "/recordings",
+   "steps": [
+    [
+     "wait",
+     900
+    ],
+    [
+     "tap",
+     "a[href*='01m5v03ej5ehymva3g3gx6jx84']"
+    ],
+    [
+     "wait",
+     1500
+    ],
+    [
+     "tap",
+     "text:Transcript"
+    ],
+    [
+     "wait",
+     800
+    ],
+    [
+     "tap",
+     "button[aria-label=Play]"
+    ],
+    [
+     "wait",
+     4200
+    ],
+    [
+     "tap",
+     "text:Summary"
+    ],
+    [
+     "wait",
+     3200
+    ]
+   ]
+  }
+ ]
+}

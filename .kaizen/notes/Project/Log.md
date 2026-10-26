@@ -123,3 +123,8 @@ updated: 2026-10-19
 - 2026-10-25 run 2026-10-25-video-send — Web board
 - 2026-10-25 update — kaizen-video: new footage preset `tiktok-explainer` (dark editor look, speaker in a clip card, numeral/tape/steps/question scenes, optional `mascot` beat; synthesized CC0 sfx; Instrument Serif and Space Mono fonts)
 - 2026-10-25 run 2026-10-25-whatsapp-large-video — Web board, Workflow (large MP4s sent as WhatsApp documents; 2 GB limit checked)
+- 2026-10-25 run 2026-10-25-video-presets-cross-use — Web board, Workflow
+- 2026-10-25 run 2026-10-25-video-camera-moves — Workflow
+- 2026-10-26 run 2026-10-26-video-hyperframes-catalog — Workflow (motion kit kit/kit.js in every kaizen-video page: transitions by energy, ease/tempo variety, breathe, background layers, catalog moves)
+- 2026-10-26 run 2026-10-26-triage-backlog — Web board (parseItem reads more severity shapes)
+- 2026-10-26 run 2026-10-26-video-app-promo — Workflow, Web board (app-promo template preset, record.mjs, make_promo.py; motion kit removed; unapproved presets hidden)

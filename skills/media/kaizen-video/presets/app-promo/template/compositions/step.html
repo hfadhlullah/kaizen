@@ -1,0 +1,52 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; overflow: hidden; background: var(--bg); font-family: var(--font), Inter, sans-serif; }
+    .s-cap { position: absolute; left: 80px; right: 80px; top: 200px; text-align: center; color: var(--ink); font-weight: 900; font-size: 86px; line-height: 1.02; letter-spacing: -0.035em; }
+    .s-cap b { color: var(--accent); }
+    .s-cap span { display: inline-block; }
+    .s-cam { position: absolute; inset: 0; transform-origin: 50% 50%; }
+    /* Device frames. Content keeps the recording's own pixels; frames are drawn, not photographed. */
+    .s-phone { position: absolute; border-radius: 76px; background: var(--bezel); padding: 14px; box-shadow: 0 0 0 2px var(--bezel-edge), 0 60px 120px rgba(0,0,0,.45); }
+    .s-phone .scr { position: relative; border-radius: 62px; overflow: hidden; background: #fff; }
+    .s-win { position: absolute; border-radius: 18px; overflow: hidden; background: #fff; box-shadow: 0 0 0 2px var(--bezel-edge), 0 50px 110px rgba(0,0,0,.45); }
+    .s-win .bar { height: 64px; display: flex; align-items: center; gap: 12px; padding: 0 22px; background: #eef0f4; border-bottom: 1px solid #d6dae2; font-family: Inter, sans-serif; }
+    .s-win .bar i { width: 16px; height: 16px; border-radius: 50%; background: #c9ced8; }
+    .s-win .bar .url { flex: 1; margin-left: 10px; height: 40px; border-radius: 10px; background: #fff; border: 1px solid #d6dae2; display: flex; align-items: center; padding: 0 16px; font-size: 24px; color: #4a5468; }
+    .s-win .bar .ttl { flex: 1; text-align: center; font-size: 24px; font-weight: 600; color: #4a5468; margin-right: 60px; }
+    .s-win .scr { position: relative; overflow: hidden; background: #fff; }
+    .s-phone video, .s-win video { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; object-position: top; }
+    .s-tap { position: absolute; width: 74px; height: 74px; margin: -37px 0 0 -37px; border-radius: 50%; background: rgba(255,255,255,.9);
+      box-shadow: 0 0 0 3px rgba(12,22,47,.35), 0 8px 20px rgba(12,22,47,.35); opacity: 0; }
+    .s-tap.sm { width: 48px; height: 48px; margin: -24px 0 0 -24px; }
+  </style>
+  <div id="root" data-composition-id="{{ID}}" data-width="1080" data-height="1920">
+    <div class="s-cap" id="{{ID}}-cap">{{CAPTION}}</div>
+    <div class="s-cam" id="{{ID}}-cam" data-layout-allow-overflow>
+      {{FRAMES}}
+    </div>
+  </div>
+  <script>
+    // Data written by make_promo.py: taps (element id, time), punch-ins (time, x, y in frame px, zoom, hold),
+    // whether the device rises in (first step on a device) and the scene length.
+    const D = /*DATA*/{};
+    const tl = gsap.timeline({ paused: true }), cam = `#${D.id}-cam`;
+    gsap.set(cam, { scale: 1, x: 0, y: 0 });
+    if (D.rise) tl.fromTo(`#${D.id}-dev`, { y: 900 }, { y: 0, duration: 0.7, ease: "expo.out" }, 0);
+    D.taps.forEach(([id, t]) => {
+      tl.fromTo(`#${id}`, { opacity: 0, scale: 1.25 }, { opacity: 1, scale: 1, duration: 0.15, ease: "power2.out" }, Math.max(0, t - 0.2))
+        .to(`#${id}`, { scale: 0.82, duration: 0.08, ease: "power2.in" }, Math.max(0, t - 0.05))
+        .to(`#${id}`, { opacity: 0, scale: 1, duration: 0.2, ease: "power2.out" }, t + 0.08);
+    });
+    // Camera: punch in on the control a tap is about to hit, hold while the UI acts, pull back out.
+    // Never lift the device into the caption: its top stays below 430 px however far the camera zooms.
+    D.punches.forEach(([t, x, y, z, hold]) => {
+      const floor = 430 - 960 - (D.top - 960) * z;
+      tl.to(cam, { scale: z, x: (540 - x) * z, y: Math.max(floor, (1180 - y) * z * 0.6), duration: 0.5, ease: "power2.inOut" }, t)
+        .to(cam, { scale: 1, x: 0, y: 0, duration: 0.5, ease: "power2.inOut" }, t + 0.5 + hold);
+    });
+    // One caption: words blur in and the line holds still; it blurs out as the scene ends.
+    tl.fromTo(`#${D.id}-cap span`, { opacity: 0, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.13, stagger: 0.067, ease: "power2.out" }, 0.15);
+    if (!D.last) tl.to(`#${D.id}-cap`, { opacity: 0, filter: "blur(8px)", duration: 0.15, ease: "power3.in" }, D.dur - 0.15);
+    window.__timelines[D.id] = tl;
+  </script>
+</template>

@@ -1,0 +1,15 @@
+{
+  "engine": "canvas",
+  "palette": { "bg": "#0c0b0a", "fg": "#efe6d6", "muted": "#8d867b", "accent": "#f7a93b", "accentBg": "#f7a93b", "red": "#ef4b3a" },
+  "fonts": { "display": "Montserrat", "body": "Instrument Serif", "mono": "Space Mono" },
+  "pace": { "lead": 0.05, "tail": 0.15 },
+  "text": "pop",
+  "transition": "punch",
+  "layout": "fullbleed",
+  "grade": { "grain": 0, "vignette": 0.5, "leak": false },
+  "captions": "kinetic",
+  "music": { "base": 0.24, "lift": 0.32, "track": "music.mp3" },
+  "sfx": { "cut": "", "text": "", "reveal": "", "question": "" },
+  "kenburns": 0,
+  "loudness": -14
+}

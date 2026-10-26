@@ -169,7 +169,7 @@
         const d = b.dur ?? DUR[b.kind];
         if (b.kind === "title") {
           // Keyword scene: card tucks aside; optional giant outlined numeral that fills up in orange.
-          const big = b.big ? `<div class="big"><span class="o">${esc(b.big)}</span><span class="f">${esc(b.big)}</span></div>` : "";
+          const big = b.big ? `<div class="big"><span class="o" data-layout-ignore>${esc(b.big)}</span><span class="f">${esc(b.big)}</span></div>` : "";
           const n = el("div", "scene" + (b.big ? "" : " center") + (b.img ? " has-img" : ""), big +
             `<div class="txt">${pic(b)}${b.kicker ? `<div class="k serif">${esc(b.kicker)}</div>` : ""}<h1>${punch(b.title)}</h1>` +
             (b.sub ? `<div class="s serif">${esc(b.sub)}</div>` : "") + "</div>");

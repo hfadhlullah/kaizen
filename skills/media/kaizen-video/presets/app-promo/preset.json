@@ -1,0 +1,7 @@
+{
+  "kind": "template",
+  "build": "make_promo.py",
+  "formats": ["9x16"],
+  "devices": ["phone", "tablet", "desktop", "web"],
+  "approved": "2026-10-26, from the kaizen launch video (run 2026-10-26-video-hyperframes-catalog)"
+}

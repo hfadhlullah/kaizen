@@ -10,6 +10,10 @@ The preset is found by folder name in ./presets/, then $KAIZEN_VIDEO_PRESETS
 (default ~/.kaizen/video-presets/), then the skill's bundled presets/. A preset file
 missing from its folder falls back to the skill's shared assets/, tools/ and
 hyperframes.json.
+
+A film preset (a folder with style.json) works too: the cut footage becomes one full-length footage beat of
+a film in videos/<name>/film-bridge/, its sound the narration and its words the timings, and make_film.py
+builds and renders it in that style (the film's grade, captions, music and loudness; no cards from beats).
 """
 import html
 import os
@@ -33,10 +37,11 @@ proj.mkdir(exist_ok=True)
 cfg = json.loads((vdir / "config.json").read_text())
 dirs = [WORK / "presets", Path(os.environ.get("KAIZEN_VIDEO_PRESETS", Path.home() / ".kaizen/video-presets")), SKILL / "presets"]
 preset = next((d / cfg["preset"] for d in dirs if (d / cfg["preset"] / "index.html").exists()), None)
-if not preset:
-    names = sorted({p.parent.name for d in dirs if d.exists() for p in d.glob("*/index.html")})
+film_style = None if preset else next((d / n for n in (cfg["preset"], "film-" + cfg["preset"]) for d in dirs if (d / n / "style.json").exists()), None)
+if not preset and not film_style:
+    names = sorted({p.parent.name for d in dirs if d.exists() for p in [*d.glob("*/index.html"), *d.glob("*/style.json")]})
     sys.exit(f"preset {cfg['preset']!r} not found in {', '.join(map(str, dirs))}; available: {', '.join(names)}")
-print(f"preset {preset}")
+print(f"preset {preset or film_style}")
 src_of = lambda p: next(f for f in (preset / p, SKILL / p) if f.exists())  # preset file, else the shared one
 rel = lambda p: (vdir / p).resolve()
 
@@ -46,9 +51,9 @@ def run(*cmd, **kw):
 
 
 # 1. Preset files and this video's images into the project.
-for f in ["package.json", "hyperframes.json"]:
+for f in [] if film_style else ["package.json", "hyperframes.json"]:
     shutil.copy(src_of(f), proj / f)
-for d in ["fonts", "sfx"]:
+for d in [] if film_style else ["fonts", "sfx"]:
     shutil.rmtree(proj / "assets" / d, ignore_errors=True)
     for base in (SKILL, preset):  # shared assets first, the preset's own on top
         if (base / "assets" / d).exists():
@@ -87,6 +92,26 @@ for s0, s1, length in segs:
 cut_duration = offset
 flat = [w for c in chunks for w in c]
 
+if film_style:
+    # Hand the cut to the film engine: one footage beat as long as the cut, with no lead or tail so the voice stays on the lips.
+    bridge = vdir / "film-bridge"
+    bridge.mkdir(exist_ok=True)
+    src = rel(cfg["video"])
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(src), "-an", "-vf", "scale=1080:1920:flags=lanczos,fps=30,format=yuv420p",
+                    "-c:v", "libx264", "-crf", "16", "-g", "30", str(bridge / "footage.mp4")], check=True)
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(src), "-vn", "-af", "afftdn=nf=-28,deesser=i=0.35", "-b:a", "256k", str(bridge / "v01.mp3")], check=True)
+    length = float(subprocess.check_output(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(src)]))
+    (bridge / "words.json").write_text(json.dumps({"v01": {"dur": round(length, 3), "offset": 0, "text": " ".join(w["w"] for w in flat), "words": flat}}, ensure_ascii=False))
+    (bridge / "lines.json").write_text(json.dumps({"v01": " ".join(w["w"] for w in flat)}, ensure_ascii=False))
+    if (vdir / "CREDITS.txt").exists():
+        shutil.copy(vdir / "CREDITS.txt", bridge / "CREDITS.txt")
+    (bridge / "film.json").write_text(json.dumps({"name": cfg["name"], "preset": film_style.name, "format": "9x16", "language": cfg.get("language", "id"),
+                                                  "music": cfg["music"], "style": {"pace": {"lead": 0, "tail": 0}},
+                                                  "beats": [{"kind": "footage", "video": "footage.mp4", "vo": "v01"}]}, ensure_ascii=False, indent=1))
+    print(f"film preset {film_style.name}: building the cut as a film")
+    subprocess.run(["python3", str(SKILL / "scripts/make_film.py"), str(bridge), *(["--render"] if "--render" in sys.argv else [])], check=True, cwd=WORK)
+    sys.exit(0)
+
 
 def at(key, after=0):
     try:
@@ -103,7 +128,8 @@ if co:
 else:
     co_a = co_b = 0.0
 L = round(co_b - co_a, 3)
-beats = sorted(({**{k: v for k, v in b_.items() if k not in ("word", "after")}, "t": round(at(b_["word"], b_.get("after", 0)) + L, 3)}
+# A beat is placed on a spoken word, or at "t" seconds (films bridged from make_film.py).
+beats = sorted(({**{k: v for k, v in b_.items() if k not in ("word", "after")}, "t": round((b_["t"] if "t" in b_ else at(b_["word"], b_.get("after", 0))) + L, 3)}
                 for b_ in cfg["beats"]), key=lambda x: x["t"])
 shift = lambda w, d: {**w, "s": round(w["s"] + d, 3), "e": round(w["e"] + d, 3)}
 cold = [[shift(w, -co_a) for w in c if co_a <= w["s"] and w["e"] <= co_b] for c in chunks] if co else []
@@ -179,6 +205,8 @@ page = (preset / "index.html").read_text()
 for k, v in {"DURATION": duration, "VIDEO_DURATION": video_duration, "VIDEO": "source.mp4", "MUSIC_VOLUME": cfg.get("music_volume", 0.32),
              "HOOK_1": html.escape(h["line1"]), "HOOK_2": html.escape(h["line2"]), "HOOK_SUB": html.escape(h["sub"])}.items():
     page = page.replace("{{" + k + "}}", str(v))
+if cfg.get("card") is False:  # no real footage behind it (a film bridged from make_film.py): hide the clip card
+    page = page.replace("</head>", "<style>#cam { opacity: 0 !important; }</style>\n  </head>", 1)  # the renderer paints video despite visibility
 page = page.replace("<!-- SFX:BEGIN -->", "<!-- SFX:BEGIN -->\n" + tags + "\n      ")
 (proj / "index.html").write_text(page)
 

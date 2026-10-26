@@ -498,8 +498,8 @@ async function drawDock() {
 // ---- New video: one form, the mockup's. Every choice goes into the agent's request.
 
 const LANG_NAMES: Record<string, string> = { id: "Indonesian", en: "English" };
-const wiz = { source: "brief" as "brief" | "footage", brief: "", folder: "", preset: "", platforms: new Set(["TikTok"]), seconds: 60, language: "id", place: 0 };
-let wizPresets: { name: string; kind: "film" | "footage"; label: string }[] = [];
+const wiz = { source: "brief" as "brief" | "footage", brief: "", folder: "", assets: "", preset: "", platforms: new Set(["TikTok"]), seconds: 60, language: "id", place: 0 };
+let wizPresets: { name: string; kind: "film" | "footage" | "template"; label: string; hidden?: true }[] = [];
 let limits: Record<string, number> = {};
 const LEN_MIN = 15, LEN_MAX = 300;
 const tick = (s: number) => `${((s - LEN_MIN) / (LEN_MAX - LEN_MIN)) * 100}%`;
@@ -509,9 +509,11 @@ async function drawWizard() {
     const d = await (await fetch(`/video/presets?p=${wiz.place}`)).json();
     wizPresets = d.presets; limits = d.limits;
   } catch { toast("The board is not running"); return; }
-  const kind = wiz.source === "brief" ? "film" : "footage";
-  const list = wizPresets.filter((p) => p.kind === kind);
-  if (!list.some((p) => p.name === wiz.preset)) wiz.preset = list[0]?.name ?? "";
+  // Any film or footage preset works from either start (the build script bridges to the other engine);
+  // a template preset films a product, so it needs a brief. Hidden presets stay off the list.
+  const list = wizPresets.filter((p) => !p.hidden && (p.kind !== "template" || wiz.source === "brief"));
+  const kind = wiz.source === "brief" ? "film" : "footage";  // the default is one of the start's own kind
+  if (!list.some((p) => p.name === wiz.preset)) wiz.preset = (list.find((p) => p.kind === kind) ?? list.find((p) => p.kind === "template") ?? list[0])?.name ?? "";
   $("wiz").innerHTML = `
     <div class="crumb"><button data-back>Videos</button> /</div>
     <div class="ehead"><h2>New video</h2></div>
@@ -521,10 +523,12 @@ async function drawWizard() {
         <button type="button" class="opt${wiz.source === "footage" ? " on" : ""}" data-src="footage"><b>My footage</b><small>A talking-head video already on this computer. Claude cuts dead air and retakes, then captions it.</small></button>
       </div></div>
       ${wiz.source === "brief"
-        ? `<label style="display:grid;gap:6px"><h3 style="margin:0">Brief</h3><textarea id="wbrief" maxlength="4000" placeholder="60-second promo for … in Indonesian, friendly, ends with …">${esc(wiz.brief)}</textarea></label>`
+        ? `<label style="display:grid;gap:6px"><h3 style="margin:0">Brief</h3><textarea id="wbrief" maxlength="4000" placeholder="60-second promo for … in Indonesian, friendly, ends with …">${esc(wiz.brief)}</textarea></label>
+           <div><h3>Your assets <small>(optional)</small></h3><div class="pickrow"><input type="text" id="wassets" value="${esc(wiz.assets)}" placeholder="/home/you/Pictures/brand" aria-label="Assets folder"><button type="button" class="btn" id="wpicka">Pick…</button></div>
+           <p class="note">PNGs, logos, graphics, photos, a deck or clips Claude should use. Leave empty to make everything from scratch.</p></div>`
         : `<div><h3>Footage folder</h3><div class="pickrow"><input type="text" id="wfolder" value="${esc(wiz.folder)}" placeholder="/home/you/Videos/recording" aria-label="Footage folder"><button type="button" class="btn" id="wpick">Pick…</button></div>
            <p class="note">Claude copies the video from this folder into the video's own folder; the original stays where it is.</p></div>`}
-      <div><h3>Style preset</h3><div class="styles">${list.map((p) => `<button type="button" class="sty${p.name === wiz.preset ? " on" : ""}" data-preset="${esc(p.name)}"><b>${esc(p.label)}</b><small>${esc(p.name)}</small></button>`).join("") || `<p class="note">No ${kind} presets found.</p>`}</div></div>
+      <div><h3>Style preset</h3><div class="styles">${list.map((p) => `<button type="button" class="sty${p.name === wiz.preset ? " on" : ""}" data-preset="${esc(p.name)}"><b>${esc(p.label)}</b><small>${esc(p.name)} · ${p.kind}</small></button>`).join("") || `<p class="note">No presets found.</p>`}</div></div>
       <div><h3>Where it goes <small>(pick one or more)</small></h3><div class="chips" id="wplats">${Object.keys(PLATFORMS).map((p) => `<button type="button" class="chip${wiz.platforms.has(p) ? " on" : ""}" data-plat="${esc(p)}">${esc(p)}</button>`).join("")}</div><p class="note" id="wplatnote"></p></div>
       <div><h3>Length</h3>
         <div class="lenrow"><input type="range" id="wlen" min="${LEN_MIN}" max="${LEN_MAX}" step="5" value="${Math.min(LEN_MAX, wiz.seconds)}" aria-label="Length in seconds"><input type="text" id="wlentxt" value="${mmss(wiz.seconds)}" inputmode="numeric" aria-label="Length as minutes:seconds"></div>
@@ -558,6 +562,11 @@ $("wiz").addEventListener("click", async (e) => {
   if (pr) { wiz.preset = pr.dataset.preset!; for (const b of $("wiz").querySelectorAll("[data-preset]")) b.classList.toggle("on", b === pr); return; }
   const pl = t.closest<HTMLElement>("[data-plat]");
   if (pl) { const p = pl.dataset.plat!; wiz.platforms.has(p) ? wiz.platforms.delete(p) : wiz.platforms.add(p); pl.classList.toggle("on", wiz.platforms.has(p)); return wizNotes(); }
+  if (t.closest("#wpicka")) {
+    try { const r = await post("/pick-folder", {}); if (r.path) { wiz.assets = r.path; ($("wassets") as HTMLInputElement).value = r.path; } }
+    catch (err) { toast(err instanceof Error ? err.message : String(err)); }
+    return;
+  }
   if (t.closest("#wpick")) {
     try { const r = await post("/pick-folder", {}); if (r.path) { wiz.folder = r.path; ($("wfolder") as HTMLInputElement).value = r.path; } }
     catch (err) { toast(err instanceof Error ? err.message : String(err)); }
@@ -567,11 +576,13 @@ const keepText = () => {
   const b = document.getElementById("wbrief") as HTMLTextAreaElement | null, f = document.getElementById("wfolder") as HTMLInputElement | null;
   if (b) wiz.brief = b.value;
   if (f) wiz.folder = f.value;
+  const a = document.getElementById("wassets") as HTMLInputElement | null;
+  if (a) wiz.assets = a.value;
 };
 $("wiz").addEventListener("input", (e) => {
   const t = e.target as HTMLInputElement;
   if (t.id === "wlen") { wiz.seconds = Number(t.value); ($("wlentxt") as HTMLInputElement).value = mmss(wiz.seconds); wizNotes(); }
-  else if (t.id === "wbrief" || t.id === "wfolder") keepText();
+  else if (t.id === "wbrief" || t.id === "wfolder" || t.id === "wassets") keepText();
 });
 $("wiz").addEventListener("change", (e) => {
   const t = e.target as HTMLInputElement;
@@ -590,8 +601,8 @@ $("wiz").addEventListener("submit", async (e) => {
   const btn = $("wgo") as HTMLButtonElement;
   btn.disabled = true;
   try {
-    const r = await post("/video/new", { p: wiz.place, source: wiz.source, brief: wiz.brief, folder: wiz.folder, preset: wiz.preset, platforms: [...wiz.platforms], seconds: wiz.seconds, language: wiz.language });
-    wiz.brief = ""; wiz.folder = "";
+    const r = await post("/video/new", { p: wiz.place, source: wiz.source, brief: wiz.brief, folder: wiz.folder, assets: wiz.source === "brief" ? wiz.assets : "", preset: wiz.preset, platforms: [...wiz.platforms], seconds: wiz.seconds, language: wiz.language });
+    wiz.brief = ""; wiz.folder = ""; wiz.assets = "";
     await load();
     go(wiz.place, r.name);
     toast(r.pty ? "Claude started. Answer its questions in the terminal at the top." : "Claude opened in a terminal window.");

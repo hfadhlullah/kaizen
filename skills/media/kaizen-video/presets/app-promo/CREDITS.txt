@@ -1,0 +1,2 @@
+app-promo: layout and motion from the kaizen launch video approved on 2026-10-26, built with HyperFrames (Apache-2.0).
+Sound effects: synthesized with ffmpeg for kaizen-video, CC0 (whoosh, tick, pop, reveal).

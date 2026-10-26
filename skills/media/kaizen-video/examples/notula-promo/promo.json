@@ -1,0 +1,41 @@
+{
+ "preset": "app-promo",
+ "product": "Notula",
+ "url": "notula.huseinf.my.id",
+ "tagline": "Record & Summarize",
+ "cta": "notula.huseinf.my.id",
+ "hook": [
+  "You talked",
+  "for an hour.",
+  "Now what?"
+ ],
+ "brand": {
+  "logo": "logo.png",
+  "bg": "#f4f3ff",
+  "ink": "#16133a",
+  "accent": "#4b44cf",
+  "font": "Inter"
+ },
+ "music": "sunny",
+ "steps": [
+  {
+   "clip": "list-web",
+   "with": "list",
+   "caption": "Every meeting, / *recorded.*",
+   "from": 0.3,
+   "to": 4.2
+  },
+  {
+   "clip": "meeting",
+   "caption": "Who said what, / *transcribed.*",
+   "from": 0.5,
+   "to": 8.6
+  },
+  {
+   "clip": "meeting",
+   "caption": "Decisions and owners, / *summarized.*",
+   "from": 8.6,
+   "to": 12.2
+  }
+ ]
+}

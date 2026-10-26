@@ -1,0 +1,17 @@
+{
+  "preset": "app-promo",
+  "product": "kaizen",
+  "url": "localhost:7420",
+  "tagline": "Build what you have in mind.",
+  "cta": "bunx kaizen-agent",
+  "hook": ["Your agent", "said it was", "done."],
+  "brand": { "logo": "logo.png", "bg": "#0c162f", "ink": "#eef2fa", "accent": "#6d8cff", "font": "Inter" },
+  "music": "sunny",
+  "steps": [
+    { "clip": "idea-web", "with": "idea", "caption": "Drop in what / you *want.*", "from": 0.7, "to": 7.1 },
+    { "clip": "run", "caption": "It writes / the *plan.*", "from": 0.9, "to": 5.9 },
+    { "clip": "run", "caption": "Its work gets / *reviewed.*", "from": 5.9, "to": 8.7 },
+    { "clip": "run", "caption": "You see the / *result.*", "from": 8.7, "to": 12.2 },
+    { "clip": "settings", "caption": "Tune how / *strict* it is.", "from": 0.2, "to": 5.1 }
+  ]
+}

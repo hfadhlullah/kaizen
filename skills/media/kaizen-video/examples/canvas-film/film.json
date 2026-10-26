@@ -1,0 +1,460 @@
+{
+ "name": "canvas-film",
+ "preset": "film-explainer-canvas",
+ "format": "9x16",
+ "language": "id",
+ "voiceProvider": "edge",
+ "edgeVoice": "id-ID-ArdiNeural",
+ "music": "lights",
+ "mascot": "cat.png",
+ "canvas": {
+  "w": 3400,
+  "h": 7600,
+  "elements": [
+   {
+    "id": "setup",
+    "kind": "text",
+    "font": "serif",
+    "size": 70,
+    "text": "klip lu dibuka pake",
+    "x": 330,
+    "y": 230
+   },
+   {
+    "id": "basa",
+    "kind": "text",
+    "size": 150,
+    "text": "BASA-BASI*?*",
+    "x": 170,
+    "y": 320
+   },
+   {
+    "id": "clips",
+    "kind": "strip",
+    "x": 80,
+    "y": 640,
+    "fw": 300,
+    "fh": 400,
+    "pixel": true,
+    "playhead": 0,
+    "frames": [
+     {
+      "img": "talk.png",
+      "tc": "0:00"
+     },
+     {
+      "img": "talk.png",
+      "tc": "0:05"
+     },
+     {
+      "img": "talk.png",
+      "tc": "0:10"
+     },
+     {
+      "img": "talk.png",
+      "tc": "0:15"
+     },
+     {
+      "img": "wow.png",
+      "tc": "0:20"
+     },
+     {
+      "img": "talk.png",
+      "tc": "0:25"
+     }
+    ]
+   },
+   {
+    "id": "skip",
+    "kind": "img",
+    "img": "skip.png",
+    "pixel": true,
+    "w": 300,
+    "h": 300,
+    "x": 2150,
+    "y": 690,
+    "hidden": true
+   },
+   {
+    "id": "geser",
+    "kind": "text",
+    "size": 110,
+    "text": "*GESER.*",
+    "x": 2080,
+    "y": 1020,
+    "hidden": true
+   },
+   {
+    "id": "tengah",
+    "kind": "text",
+    "font": "serif",
+    "size": 56,
+    "color": "accent",
+    "text": "momen serunya di tengah",
+    "x": 1300,
+    "y": 1210,
+    "hidden": true
+   },
+   {
+    "id": "start",
+    "kind": "text",
+    "font": "mono",
+    "size": 44,
+    "color": "accent",
+    "text": "← detik 0",
+    "x": 120,
+    "y": 1210,
+    "hidden": true
+   },
+   {
+    "id": "one",
+    "kind": "numeral",
+    "value": "1",
+    "size": 1100,
+    "w": 760,
+    "x": 200,
+    "y": 2700
+   },
+   {
+    "id": "k1",
+    "kind": "text",
+    "font": "serif",
+    "size": 70,
+    "text": "detik satu:",
+    "x": 980,
+    "y": 3220
+   },
+   {
+    "id": "k2",
+    "kind": "text",
+    "font": "serif",
+    "size": 70,
+    "text": "detik dua–tiga:",
+    "x": 980,
+    "y": 3220,
+    "hidden": true
+   },
+   {
+    "id": "h1",
+    "kind": "text",
+    "size": 120,
+    "text": "PUNCHLINE",
+    "x": 980,
+    "y": 3300
+   },
+   {
+    "id": "h2",
+    "kind": "text",
+    "size": 120,
+    "text": "MOMENNYA*+*",
+    "x": 980,
+    "y": 3460,
+    "hidden": true
+   },
+   {
+    "id": "tape",
+    "kind": "tape",
+    "text": "gak nyangka endingnya!!",
+    "stamp": "zonk",
+    "w": 1300,
+    "size": 84,
+    "x": 260,
+    "y": 5500,
+    "rot": -6,
+    "hidden": true
+   },
+   {
+    "id": "janji",
+    "kind": "text",
+    "font": "serif",
+    "size": 72,
+    "text": "jangan janjiin yang gak ada.",
+    "x": 380,
+    "y": 5220
+   },
+   {
+    "id": "last",
+    "kind": "text",
+    "size": 110,
+    "text": "klip terakhir lu,",
+    "x": 240,
+    "y": 6600
+   },
+   {
+    "id": "row",
+    "kind": "strip",
+    "x": 60,
+    "y": 6850,
+    "fw": 230,
+    "fh": 300,
+    "playhead": 0,
+    "frames": [
+     {
+      "text": "?",
+      "tc": "0:00"
+     },
+     {
+      "text": "?",
+      "tc": "0:12"
+     },
+     {
+      "text": "?",
+      "tc": "0:24"
+     },
+     {
+      "text": "?",
+      "tc": "0:36"
+     },
+     {
+      "text": "?",
+      "tc": "0:42"
+     }
+    ]
+   },
+   {
+    "id": "big",
+    "kind": "card",
+    "text": "?",
+    "size": 420,
+    "w": 520,
+    "h": 620,
+    "fill": "accent",
+    "color": "bg",
+    "x": 520,
+    "y": 6780,
+    "hidden": true
+   }
+  ]
+ },
+ "beats": [
+  {
+   "vo": "v01",
+   "cam": {
+    "to": [
+     700,
+     640
+    ],
+    "zoom": 1.0
+   },
+   "do": [
+    {
+     "act": "pop",
+     "el": "basa",
+     "at": 0.1
+    }
+   ]
+  },
+  {
+   "vo": "v02",
+   "cam": {
+    "to": "clips/1",
+    "zoom": 1.5,
+    "dur": 0.7
+   },
+   "do": [
+    {
+     "act": "fade",
+     "el": "basa",
+     "to": 0,
+     "at": 0,
+     "dur": 0.3,
+     "sfx": ""
+    },
+    {
+     "act": "fade",
+     "el": "setup",
+     "to": 0,
+     "at": 0,
+     "dur": 0.3,
+     "sfx": ""
+    },
+    {
+     "act": "scrub",
+     "el": "clips",
+     "from": 0,
+     "to": 3,
+     "at": "word:sebelum",
+     "dur": 1.8
+    },
+    {
+     "act": "pop",
+     "el": "skip",
+     "at": "word:geser"
+    },
+    {
+     "act": "pop",
+     "el": "geser",
+     "at": "word:geser",
+     "sfx": ""
+    }
+   ]
+  },
+  {
+   "vo": "v03",
+   "cam": {
+    "to": "clips/4",
+    "zoom": 1.4,
+    "dur": 0.9
+   },
+   "do": [
+    {
+     "act": "glow",
+     "el": "clips/4",
+     "at": "word:momen"
+    },
+    {
+     "act": "fade",
+     "el": "tengah",
+     "at": "word:tengah"
+    }
+   ]
+  },
+  {
+   "vo": "v04",
+   "cam": {
+    "to": "clips/4",
+    "zoom": 1.1,
+    "dur": 0.5
+   },
+   "do": [
+    {
+     "act": "move",
+     "el": "clips/4",
+     "to": "clips/0",
+     "arc": 360,
+     "follow": true,
+     "zoom": 1.1,
+     "at": "word:pindahin",
+     "dur": 1.2
+    },
+    {
+     "act": "fade",
+     "el": "start",
+     "at": "word:depan"
+    }
+   ]
+  },
+  {
+   "vo": "v05",
+   "cam": {
+    "to": [
+     960,
+     3100
+    ],
+    "zoom": 0.62,
+    "dur": 0.9
+   },
+   "do": [
+    {
+     "act": "fill",
+     "el": "one",
+     "at": "word:satu"
+    }
+   ]
+  },
+  {
+   "vo": "v06",
+   "cam": {
+    "to": [
+     960,
+     3100
+    ],
+    "zoom": 0.62,
+    "dur": 0
+   },
+   "do": [
+    {
+     "act": "morph",
+     "el": "one",
+     "to": "2",
+     "at": "word:dua"
+    },
+    {
+     "act": "morph",
+     "el": "one",
+     "to": "3",
+     "at": "word:tiga"
+    },
+    {
+     "act": "fade",
+     "el": "h1",
+     "to": 0,
+     "at": "word:momennya",
+     "dur": 0.2
+    },
+    {
+     "act": "pop",
+     "el": "h2",
+     "at": "word:momennya"
+    },
+    {
+     "act": "fade",
+     "el": "k1",
+     "to": 0,
+     "at": "word:dua",
+     "dur": 0.2,
+     "sfx": ""
+    },
+    {
+     "act": "fade",
+     "el": "k2",
+     "at": "word:dua",
+     "dur": 0.3,
+     "sfx": ""
+    }
+   ]
+  },
+  {
+   "vo": "v07",
+   "cam": {
+    "to": "tape",
+    "zoom": 0.95,
+    "dur": 0.9,
+    "offset": [
+     0,
+     -160
+    ]
+   },
+   "do": [
+    {
+     "act": "stamp",
+     "el": "tape",
+     "at": "word:gak"
+    },
+    {
+     "act": "shake",
+     "el": "tape",
+     "at": "word:gak",
+     "sfx": ""
+    }
+   ]
+  },
+  {
+   "vo": "v08",
+   "cam": {
+    "to": [
+     620,
+     6950
+    ],
+    "zoom": 0.85,
+    "dur": 1.0
+   },
+   "do": [
+    {
+     "act": "scrub",
+     "el": "row",
+     "from": 0,
+     "to": 4,
+     "at": "word:terakhir",
+     "dur": 2.2
+    },
+    {
+     "act": "pop",
+     "el": "big",
+     "at": "word:berapa"
+    }
+   ],
+   "hold": 1.2
+  }
+ ]
+}

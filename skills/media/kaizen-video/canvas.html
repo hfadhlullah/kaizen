@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="{{LANG}}" data-resolution="{{RES}}">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width={{W}}, height={{H}}" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script src="film-data.js"></script>
+    <style>
+      /*FONTS*/
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: {{W}}px; height: {{H}}px; overflow: hidden; }
+      #root { position: relative; width: 100%; height: 100%; overflow: hidden; }
+      .fill { position: absolute; inset: 0; }
+      #world { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+      .el { position: absolute; }
+      .frame { border: 6px solid var(--fg); border-radius: 28px; overflow: hidden; background: #1a1816; box-shadow: 0 30px 80px rgba(0,0,0,.7); }
+      .frame img, .el > img { width: 100%; height: 100%; display: block; }
+      .pixel img { image-rendering: pixelated; }
+      .chip { position: absolute; left: 18px; top: 16px; padding: 4px 12px; border-radius: 8px; background: rgba(12,11,10,.75); color: var(--accent); font-size: 26px; }
+      .label { margin-top: 14px; text-align: center; color: var(--accent); font-size: 30px; }
+      .strip { background: #141210; border-top: 10px dashed #2a2622; border-bottom: 10px dashed #2a2622; display: flex; align-items: center; }
+      .strip .cell { position: relative; flex: none; display: flex; align-items: center; justify-content: center; }
+      .strip .q { font-weight: 900; color: var(--fg); }
+      .playhead { position: absolute; top: -40px; bottom: -40px; width: 6px; background: var(--red); }
+      .playhead::before { content: ""; position: absolute; left: -15px; top: -4px; border: 18px solid transparent; border-top-color: var(--red); border-bottom: 0; }
+      .playhead .tc { position: absolute; left: 50%; bottom: -70px; transform: translateX(-50%); font-size: 40px; color: var(--accent); opacity: 0; white-space: nowrap; }
+      .num { line-height: .85; font-weight: 900; letter-spacing: -0.04em; }
+      .num .d { position: absolute; left: 0; top: 0; }
+      .num .o { color: transparent; -webkit-text-stroke: 6px var(--accent); }
+      .num .f { position: absolute; left: 0; top: 0; color: var(--accent); clip-path: inset(100% 0 0 0); }
+      .tape { background: var(--accent); color: var(--bg); font-weight: 900; text-align: center; padding: 18px 30px; box-shadow: 0 14px 40px rgba(0,0,0,.5); text-transform: uppercase; line-height: 1; }
+      .stamp { position: absolute; left: 50%; top: 50%; padding: 6px 26px; border: 10px solid var(--red); color: var(--red); font-weight: 900; text-transform: uppercase;
+        transform: translate(-50%, -20%) rotate(-12deg); opacity: 0; white-space: nowrap; }
+      .acc { color: var(--accent); }
+      #streaks { inset: -30%;
+        background: linear-gradient(115deg, transparent 38%, rgba(239,230,214,.045) 44%, transparent 50%), linear-gradient(115deg, transparent 58%, rgba(247,169,59,.05) 62%, transparent 67%); }
+      #captions { position: absolute; left: 90px; right: 90px; top: 1460px; height: 260px; }
+      .chunk { position: absolute; inset: 0; display: flex; flex-wrap: wrap; justify-content: center; align-content: flex-start; gap: 0 22px; opacity: 0; }
+      .w { display: block; font-weight: 900; font-size: 78px; line-height: 1.08; letter-spacing: -2px; text-transform: lowercase; color: var(--fg); opacity: 0;
+        text-shadow: 0 6px 24px rgba(0,0,0,.9); }
+      #mascot { position: absolute; left: 30px; bottom: 60px; width: 230px; height: 230px; opacity: 0; }
+      #mascot img { width: 100%; height: 100%; object-fit: contain; object-position: center bottom; image-rendering: pixelated; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="{{DURATION}}" data-width="{{W}}" data-height="{{H}}">
+      <div id="streaks" class="fill"></div>
+      <div id="world"></div>
+      <div id="vignette" class="fill"></div>
+      <div id="mascot"></div>
+      <div id="captions"></div>
+      <!-- AUDIO -->
+    </div>
+
+    <script>
+      // A canvas film (film-data.js, written by make_film.py): one large canvas of elements, and a camera that moves
+      // over it beat by beat. Beats carry "cam" (where the camera goes when the beat starts) and "do" (actions on
+      // elements, each with an absolute time "t"). Everything is laid out once, then measured, then tweened on one
+      // paused timeline: no timers, so every frame is the same in preview and render.
+      document.fonts.ready.then(() => {   // text boxes are measured below, so the fonts must be in first
+      const F = FILM, S = F.style, P = S.palette, FD = S.fonts, C = F.canvas, W = F.W, H = F.H;
+      const tl = gsap.timeline({ paused: true });
+      const root = document.getElementById("root"), world = document.getElementById("world");
+      for (const [k, v] of Object.entries({ bg: P.bg, fg: P.fg, muted: P.muted, accent: P.accent, red: P.red || "#ef4b3a" })) root.style.setProperty("--" + k, v);
+      root.style.background = P.bg;
+      Object.assign(world.style, { width: C.w + "px", height: C.h + "px" });
+      const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+      const rich = s => esc(s).replace(/\*([^*]+)\*/g, '<span class="acc">$1</span>').replace(/\n/g, "<br>");   // *word* = accent
+      const FONT = { head: `"${FD.display}"`, serif: `"${FD.body}"`, mono: `"${FD.mono || FD.display}"` };
+      const COLOR = { fg: "var(--fg)", accent: "var(--accent)", muted: "var(--muted)", red: "var(--red)", bg: "var(--bg)" };
+      // A canvas is layered on purpose (a card over a row, a timecode under its playhead), so layout checks allow it.
+      const $ = (cls, css, html = "", parent = world) => {
+        const e = document.createElement("div"); e.className = cls; Object.assign(e.style, css); e.innerHTML = html; parent.append(e);
+        for (const k of ["overflow", "overlap", "occlusion"]) e.setAttribute("data-layout-allow-" + k, "");
+        return e;
+      };
+      const nodes = {};   // element id (and "strip/2" for a strip's cell) -> DOM node
+
+      // 1. Lay out every element at its canvas position.
+      const DRAW = {
+        text(e) {
+          return $("el", { width: e.w ? e.w + "px" : "auto", whiteSpace: e.w ? "normal" : "nowrap", fontFamily: FONT[e.font || "head"], fontWeight: (e.font || "head") === "head" ? 900 : 400,
+            fontSize: (e.size || 96) + "px", lineHeight: e.font === "serif" ? 1.1 : 0.98, letterSpacing: (e.font || "head") === "head" ? "-0.03em" : 0, color: COLOR[e.color || "fg"],
+            textAlign: e.align || "left" }, rich(e.text));
+        },
+        img(e) {
+          const n = $("el" + (e.frame ? " frame" : "") + (e.pixel ? " pixel" : ""), { width: e.w + "px", height: e.h + "px" },
+            `<img src="${esc(e.img)}" style="object-fit:${e.fit || (e.frame ? "cover" : "contain")}" data-layout-allow-overflow>` + (e.chip ? `<div class="chip" style="font-family:${FONT.mono}">${esc(e.chip)}</div>` : ""));
+          if (e.label) $("label", { fontFamily: FONT.serif, position: "absolute", left: 0, right: 0, top: "100%" }, esc(e.label), n);
+          return n;
+        },
+        card(e) {
+          return $("el frame", { width: e.w + "px", height: e.h + "px", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FONT.head, fontWeight: 900,
+            fontSize: (e.size || 140) + "px", color: COLOR[e.color || "fg"], background: e.fill ? COLOR[e.fill] : "#1a1816" }, rich(e.text));
+        },
+        strip(e) {
+          const fw = e.fw || 220, fh = e.fh || 300, gap = e.gap || 26, n = e.frames.length;
+          const s = $("el strip", { width: n * (fw + gap) + gap + "px", height: fh + 70 + "px", paddingLeft: gap + "px", gap: gap + "px" });
+          e.frames.forEach((fr, i) => {
+            const cell = $("cell frame" + (e.pixel ? " pixel" : ""), { width: fw + "px", height: fh + "px", borderWidth: "4px", borderRadius: "14px" },
+              fr.img ? `<img src="${esc(fr.img)}" style="object-fit:cover" data-layout-allow-overflow>` : `<div class="q" data-layout-allow-occlusion data-layout-allow-overlap style="font-size:${fh * 0.45}px;font-family:${FONT.head}">${esc(fr.text ?? "?")}</div>`, s);
+            if (fr.chip) $("chip", { fontFamily: FONT.mono, fontSize: "20px" }, esc(fr.chip), cell);
+            nodes[`${e.id}/${i}`] = cell;
+          });
+          if (e.playhead != null) {
+            const ph = $("playhead", { left: gap + e.playhead * (fw + gap) + fw / 2 + "px" }, "", s);
+            e.frames.forEach((fr, i) => $("tc", { fontFamily: FONT.mono }, esc(fr.tc ?? `0:${String(i).padStart(2, "0")}`), ph).dataset.i = i);
+            s.dataset.fw = fw + gap;
+            nodes[e.id + "/playhead"] = ph;
+          }
+          return s;
+        },
+        numeral(e) {
+          // Every value this numeral morphs to is drawn now, stacked; morphs swap which one shows.
+          const vals = [String(e.value), ...F.beats.flatMap(b => (b.do || []).filter(a => a.el === e.id && a.act === "morph").map(a => String(a.to)))];
+          const n = $("el num", { fontFamily: FONT.head, fontSize: (e.size || 900) + "px", width: (e.w || e.size * 0.75 || 700) + "px", height: (e.size || 900) * 0.9 + "px" });
+          vals.forEach((v, i) => { const d = $("d", { opacity: i ? 0 : 1 }, `<span class="o" data-layout-ignore>${esc(v)}</span><span class="f">${esc(v)}</span>`, n); d.dataset.v = v; });
+          return n;
+        },
+        tape(e) {
+          const n = $("el tape", { width: (e.w || 1000) + "px", fontFamily: FONT.head, fontSize: (e.size || 86) + "px" }, rich(e.text));
+          if (e.stamp) $("stamp", { fontFamily: FONT.head, fontSize: (e.stampSize || 150) + "px" }, esc(e.stamp), n);
+          return n;
+        },
+      };
+      C.elements.forEach(e => {
+        const n = (DRAW[e.kind] || DRAW.text)(e);
+        Object.assign(n.style, { left: e.x + "px", top: e.y + "px" });
+        if (e.rot) gsap.set(n, { rotation: e.rot });
+        if (e.hidden) gsap.set(n, { opacity: 0 });
+        nodes[e.id] = n;
+      });
+
+      // 2. Measure once, before anything moves: every target is a box in canvas coordinates.
+      const box = id => {
+        const n = nodes[id];
+        if (!n) throw new Error(`canvas: no element "${id}"`);
+        const r = n.getBoundingClientRect(), w0 = world.getBoundingClientRect();
+        return { x: r.left - w0.left, y: r.top - w0.top, w: r.width, h: r.height };
+      };
+      const BOX = Object.fromEntries(Object.keys(nodes).map(id => [id, box(id)]));
+      const moved = {};   // element id -> its current offset from where it was laid out
+      const centre = id => { const b = BOX[id], m = moved[id] || { x: 0, y: 0 }; return [b.x + b.w / 2 + m.x, b.y + b.h / 2 + m.y]; };
+
+      // 3. Camera: one transform on #world, framing a point at 42% of the height (the captions live below it).
+      let zoom = 1;
+      const fit = id => { const b = BOX[id]; return Math.min((W * 0.86) / b.w, (H * 0.5) / b.h, 3); };
+      const camTo = (t, c) => {
+        const [cx, cy] = Array.isArray(c.to) ? c.to : centre(c.to);
+        zoom = c.zoom ?? (Array.isArray(c.to) ? zoom : fit(c.to));
+        const [ox, oy] = c.offset || [0, 0];
+        const pose = { x: W / 2 - (cx + ox) * zoom, y: H * 0.42 - (cy + oy) * zoom, scale: zoom };
+        if (t === 0 || c.dur === 0) tl.set(world, pose, t);
+        else tl.to(world, { ...pose, duration: c.dur ?? 0.8, ease: c.ease || "power3.inOut" }, t);
+      };
+
+      // 4. Beats and actions, in time order so camera follows and moves stack correctly.
+      const events = [];
+      F.beats.forEach((b, i) => {
+        if (b.cam) events.push({ t: i ? b.start : 0, cam: b.cam });
+        (b.do || []).forEach(a => events.push({ t: a.t, act: a }));
+      });
+      events.sort((p, q) => p.t - q.t);
+      const ACT = {
+        move(a, t) {
+          const [x0, y0] = centre(a.el), [x1, y1] = Array.isArray(a.to) ? a.to : centre(a.to), m = moved[a.el] || { x: 0, y: 0 };
+          const dx = m.x + x1 - x0, dy = m.y + y1 - y0, d = a.dur ?? 0.9, lift = a.lift ?? 1.08;
+          const mid = { x: m.x + (dx - m.x) / 2, y: m.y + (dy - m.y) / 2 - (a.arc || 0), scale: lift, zIndex: 5 };
+          tl.to(nodes[a.el], { keyframes: [{ ...mid, duration: d / 2, ease: "power2.out" }, { x: dx, y: dy, scale: 1, duration: d / 2, ease: "power2.in" }], ease: "none" }, t);
+          moved[a.el] = { x: dx, y: dy };
+          if (a.follow) camTo(t, { to: [x1, y1], zoom: a.zoom ?? zoom, dur: d, ease: "power2.inOut" });
+        },
+        pop(a, t) { tl.fromTo(nodes[a.el], { opacity: 0, scale: 0.2 }, { opacity: 1, scale: 1, duration: a.dur ?? 0.45, ease: "back.out(2.2)", immediateRender: false }, t); },
+        fade(a, t) { tl.to(nodes[a.el], { opacity: a.to ?? 1, duration: a.dur ?? 0.4, ease: "none" }, t); },
+        glow(a, t) { tl.to(nodes[a.el], { boxShadow: `0 0 0 10px ${P.accent}, 0 30px 80px rgba(0,0,0,.7)`, scale: a.scale ?? 1.06, duration: 0.3, ease: "power2.out" }, t); },
+        scrub(a, t) {
+          const ph = nodes[a.el + "/playhead"], step = +ph.parentNode.dataset.fw, from = a.from ?? 0, to = a.to, d = a.dur ?? Math.abs(to - from) * 0.4;
+          tl.fromTo(ph, { x: (from - (C.elements.find(e => e.id === a.el).playhead || 0)) * step }, { x: (to - (C.elements.find(e => e.id === a.el).playhead || 0)) * step, duration: d, ease: "power1.inOut" }, t);
+          ph.querySelectorAll(".tc").forEach(tc => tl.set(tc, { opacity: 0 }, t));   // a new scrub starts clean
+          ph.querySelectorAll(".tc").forEach(tc => {
+            const i = +tc.dataset.i, lo = Math.min(from, to), hi = Math.max(from, to);
+            if (i < lo || i > hi) return;
+            const at = t + (d * Math.abs(i - from)) / Math.max(1, Math.abs(to - from));
+            tl.set(tc, { opacity: 1 }, at);
+            if (i !== to) tl.set(tc, { opacity: 0 }, at + d / Math.max(1, Math.abs(to - from)));
+          });
+        },
+        morph(a, t) {
+          const ds = [...nodes[a.el].querySelectorAll(".d")], cur = ds.find(d => d.dataset.cur) || ds[0], next = ds.find(d => d.dataset.v === String(a.to) && d !== cur);
+          delete cur.dataset.cur; next.dataset.cur = 1;
+          tl.to(cur, { opacity: 0, scale: 0.7, duration: 0.18, ease: "power2.in" }, t)
+            .fromTo(next, { opacity: 0, scale: 1.35 }, { opacity: 1, scale: 1, duration: 0.35, ease: "back.out(1.8)", immediateRender: false }, t + 0.15);
+          if (a.fill !== false) tl.fromTo(next.querySelector(".f"), { clipPath: "inset(100% 0 0 0)" }, { clipPath: "inset(0% 0 0 0)", duration: 0.8, ease: "power2.inOut", immediateRender: false }, t + 0.3);
+        },
+        fill(a, t) {
+          const d = [...nodes[a.el].querySelectorAll(".d")].find(x => x.dataset.cur) || nodes[a.el].querySelector(".d");
+          tl.fromTo(d.querySelector(".f"), { clipPath: "inset(100% 0 0 0)" }, { clipPath: "inset(0% 0 0 0)", duration: a.dur ?? 1, ease: "power2.inOut", immediateRender: false }, t);
+        },
+        stamp(a, t) {
+          const n = nodes[a.el];
+          tl.fromTo(n, { opacity: 0, scale: 1.6, rotation: (C.elements.find(e => e.id === a.el).rot || 0) - 8 },
+            { opacity: 1, scale: 1, rotation: C.elements.find(e => e.id === a.el).rot || 0, duration: 0.25, ease: "power4.out", immediateRender: false }, t);
+          const st = n.querySelector(".stamp");
+          if (st) tl.fromTo(st, { opacity: 0, scale: 2.4 }, { opacity: 1, scale: 1, duration: 0.18, ease: "power4.in", immediateRender: false }, t + 0.35);
+        },
+        shake(a, t) { tl.to(world, { keyframes: [{ x: "+=14" }, { x: "-=28" }, { x: "+=22" }, { x: "-=8" }], duration: 0.28, ease: "none" }, t); },
+      };
+      events.forEach(ev => {
+        if (ev.cam) camTo(ev.t, ev.cam);
+        else (ACT[ev.act.act] || (() => { throw new Error(`canvas: unknown action "${ev.act.act}"`); }))(ev.act, ev.t);
+      });
+      tl.fromTo("#streaks", { x: -60 }, { x: 60, duration: F.total, ease: "none" }, 0);
+
+      // 5. Mascot in the corner, screen-fixed.
+      if (F.mascot) {
+        const m = document.getElementById("mascot");
+        m.innerHTML = `<img src="${esc(F.mascot)}" alt="">`;
+        tl.fromTo(m, { opacity: 0, scale: 0.3 }, { opacity: 1, scale: 1, duration: 0.4, ease: "back.out(2.4)" }, 0.3);
+        for (let k = 0; 0.8 + k * 0.6 < F.total; k++) tl.to(m, { y: k % 2 ? 0 : -14, duration: 0.6, ease: "sine.inOut" }, 0.8 + k * 0.6);
+      }
+
+      // 6. Kinetic captions, screen-fixed: each word pops in as it is spoken, orange while spoken.
+      const cap = document.getElementById("captions");
+      F.captions.forEach(c => {
+        const ch = document.createElement("div"); ch.className = "chunk"; cap.append(ch);
+        c.words.forEach(w => {
+          const s = document.createElement("span"); s.className = "w"; s.textContent = w.w; s.style.fontFamily = FONT.head; ch.append(s);
+          tl.fromTo(s, { opacity: 0, y: 24, scale: 0.8 }, { opacity: 1, y: 0, scale: 1, duration: 0.16, ease: "back.out(2)", immediateRender: false }, w.s)
+            .set(s, { color: P.accent }, w.s).set(s, { color: P.fg }, w.e);
+        });
+        tl.set(ch, { opacity: 1 }, c.s).set(ch, { opacity: 0 }, c.e);
+      });
+
+      const vg = document.getElementById("vignette");
+      vg.style.background = `radial-gradient(ellipse 85% 70% at 50% 45%, transparent 55%, rgba(0,0,0,${S.grade.vignette}) 100%)`;
+      window.__timelines = window.__timelines || {};
+      window.__timelines["main"] = tl;   // registered only once the build is complete
+      });
+    </script>
+  </body>
+</html>

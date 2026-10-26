@@ -1,0 +1,19 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; background: var(--bg); font-family: var(--font), Inter, sans-serif; }
+    #hook-text { position: absolute; left: 90px; right: 90px; top: 560px; font-weight: 900; font-size: {{HOOK_SIZE}}px; line-height: 1.02; letter-spacing: -0.03em; }
+    #hook-text span { display: inline-block; color: var(--dim); }
+  </style>
+  <div id="root" data-composition-id="hook" data-width="1080" data-height="1920">
+    <div id="hook-text">{{HOOK_HTML}}</div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    // Frame 0 is the thumbnail: the first words are already lit; the rest light up word by word, the last in the accent.
+    gsap.set("#hook-text span:nth-child(-n+2)", { color: "var(--ink)" });
+    tl.fromTo("#hook-text span:nth-child(n+3)", { color: "var(--dim)" }, { color: "var(--ink)", duration: 0.1, stagger: 0.14, ease: "none" }, 0.2);
+    tl.fromTo("#hook-last", { color: "var(--ink)" }, { color: "var(--accent)", duration: 0.12, ease: "none", immediateRender: false }, 0.9);
+    tl.to("#hook-text", { x: -700, filter: "blur(16px)", duration: 0.22, ease: "power3.in" }, 2.18);
+    window.__timelines["hook"] = tl;
+  </script>
+</template>

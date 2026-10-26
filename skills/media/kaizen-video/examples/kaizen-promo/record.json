@@ -1,0 +1,10 @@
+{
+  "url": "http://127.0.0.1:7431/",
+  "note": "A sandboxed kaizen board: HOME and projects_dir point at a scratch copy of the repo's .kaizen, so only kaizen's own cards show (references/promo.md, Sandboxes).",
+  "clips": [
+    { "name": "idea", "device": "phone", "steps": [["wait", 900], ["tap", "text:New idea"], ["wait", 700], ["type", "#newidea", "Every setting: < > arrows like a game menu"], ["wait", 600], ["tap", "#ns"], ["wait", 1600]] },
+    { "name": "idea-web", "device": "desktop", "steps": [["wait", 900], ["tap", "text:New idea"], ["wait", 700], ["type", "#newidea", "Every setting: < > arrows like a game menu"], ["wait", 600], ["tap", "#ns"], ["wait", 1600]] },
+    { "name": "run", "device": "phone", "steps": [["type", "input[placeholder^='Filter cards']", "stepper", 0], ["wait", 900], ["tap", ".card"], ["wait", 1500], ["tap", "text:Plan"], ["wait", 1600], ["scroll", 500], ["wait", 1200], ["tap", "text:Review"], ["wait", 2400], ["tap", "text:Preview"], ["wait", 2400]] },
+    { "name": "settings", "device": "phone", "steps": [["tap", "text:Settings"], ["wait", 1100], ["tap", "button[aria-label=Next]"], ["wait", 700], ["tap", "button[aria-label=Next]"], ["wait", 900], ["wait", 1800]] }
+  ]
+}

@@ -1,6 +1,6 @@
 ---
 name: kaizen-video
-description: Make a publish-ready video from the user's own footage, or from nothing. Footage mode edits talking-head explainers for TikTok, Reels or Shorts. Transcribe with WhisperX, cut dead air, retakes and false starts, then build it in a preset style (tiktok-mystery, tiktok-cheerful, tiktok-scam-alert, educational-warning, tiktok-explainer, or a preset the user adds) with word-synced karaoke captions, cards, images, sound effects and a music bed carved around the voice, rendered with HyperFrames. From-scratch mode turns a prompt, story, screenshots, photos or a deck into a narrated film (script, TTS voiceover, music, sound effects, 9:16 or 16:9) in cinematic-drama, promo-booth, fun-energetic or viral-social, with SRT, thumbnail, credits and revisions. Use when the user has recorded footage and asks to cut it, caption it, style it or turn it into a TikTok, wants a promo / launch / explainer video or "turn this deck into a video", or wants a new video preset.
+description: Make a publish-ready video from the user's own footage, or from nothing. Footage mode edits talking-head explainers for TikTok, Reels or Shorts. Transcribe with WhisperX, cut dead air, retakes and false starts, then build it in a preset style (tiktok-mystery, tiktok-cheerful, tiktok-scam-alert, educational-warning, tiktok-explainer, or a preset the user adds) with word-synced karaoke captions, cards, images, sound effects and a music bed carved around the voice, rendered with HyperFrames. From-scratch mode turns a prompt, story, screenshots, photos or a deck into a narrated film (script, TTS voiceover, music, sound effects, 9:16 or 16:9) in cinematic-drama, promo-booth, fun-energetic, viral-social or explainer-canvas (a camera that pans, zooms and follows over one canvas), with SRT, thumbnail, credits and revisions. Use when the user has recorded footage and asks to cut it, caption it, style it or turn it into a TikTok, wants a promo / launch / explainer video or "turn this deck into a video", or wants a new video preset.
 ---
 
 # Kaizen video
@@ -14,6 +14,7 @@ Run every script from the project folder. `S=<this skill>/scripts`; every script
 Worked example config: [`examples/config.json`](examples/config.json).
 
 Read before styling: [`references/presets.md`](references/presets.md) — the preset contract and how to add one.
+A video about the user's product (an app, a site, a tool) uses the template preset `app-promo`: the real product filmed in use, framed in its own devices. Read [`references/promo.md`](references/promo.md); it also says how a new look becomes an approved preset.
 
 ## 0. Setup — once per machine
 `$S/check.sh` lists what is missing (ffmpeg, Node, uv). `$S/setup.sh` installs WhisperX 3.8.6 into
@@ -40,6 +41,9 @@ nominal fps. Footage with someone else's account or comments in it: blur those a
   `educational-warning` (bright, for health and consumer warnings), `tiktok-explainer` (dark editor look, the
   speaker in a clip card, big headlines, numeral and tape scenes). Each preset's `README.md` has its look,
   card types and config keys.
+- **A film preset works here too** (`film-cinematic-drama`, `film-viral-social`, …): `make_tiktok.py` hands the cut to
+  `make_film.py` as one full-length footage beat, so the video gets that film style's grade, captions, music and
+  loudness. Cards from `beats` are not drawn in a film style. See *Crossing over* in `references/presets.md`.
 - **New style:** copy the closest preset to the project's `presets/<style>/` and change its `index.html`
   (grade, fonts, card designs, transitions) and assets. See `references/presets.md`.
 - **Reference video:** analyze it first and keep it in the project's `references/`: specs with ffprobe, cuts
@@ -80,7 +84,21 @@ the whole video and spot-checking the cut edges.
 
 # From scratch
 
-A film is data in `videos/<name>/`: `film.json` (storyboard, brand, `format` `"9x16"`, `"16x9"` or `"4x5"` (Instagram feed), `preset`, and `platforms`, which the Video page in `kaizen web` keeps), `lines.json` (narration with emotion tags), `words.json` (word timings, generated), `inputs/` (the user's material), voice files `vNN.mp3`. `S=<this skill>/scripts`, run from the project folder. Worked example: [`examples/sample-film/`](examples/sample-film/). Run `$S/check.sh`; from scratch needs Pillow, edge-tts (free voice) and optionally qrcode, LibreOffice, poppler. No WhisperX.
+A film is data in `videos/<name>/`: `film.json` (storyboard, brand, `format` `"9x16"`, `"16x9"` or `"4x5"` (Instagram feed), `preset` (a film preset, or any footage preset such as `tiktok-explainer`: see *Crossing over* in `references/presets.md`), `style` (overrides of the preset's style.json), `hook` (for a footage preset), and `platforms`, which the Video page in `kaizen web` keeps), `lines.json` (narration with emotion tags), `words.json` (word timings, generated), `inputs/` (the user's material), voice files `vNN.mp3`. `S=<this skill>/scripts`, run from the project folder. Worked example: [`examples/sample-film/`](examples/sample-film/). Run `$S/check.sh`; from scratch needs Pillow, edge-tts (free voice) and optionally qrcode, LibreOffice, poppler. No WhisperX.
+
+**Camera moves (`film-explainer-canvas`):** for an explainer that pans, zooms and follows things across one canvas,
+like a motion-graphics edit, use a canvas preset and choreograph it in film.json. Read
+[`references/canvas.md`](references/canvas.md) first.
+
+**Writing for a footage preset** (a brief in `tiktok-*` or `educational-warning`): it is a fast explainer, not a film.
+Set film.json `"hook"` (a hook that lands in 3 s), write lines as 2–5-word phrases with punctuation between them, keep
+every `title` to 14 characters or fewer (a short keyword; the rest goes in `sub`), and give each beat two or three
+`"pics"` so the picture scenes that follow its headline change every couple of seconds.
+
+**Pictures when the user brought none:** draw them as pixel art rather than leaving scenes empty. Write a grid and
+palette (`$S/pixel.py`'s docstring has the format), render with `python3 $S/pixel.py art.txt <name>.png`, keep one
+palette per film, and make a mascot (a transparent PNG, set as film.json `"mascot"`) when the preset shows one.
+Add "Pixel art: drawn for this video (no third-party source)" to the video's `CREDITS.txt`.
 
 Read before producing: [`references/production.md`](references/production.md) (publish-grade, QA), [`references/script.md`](references/script.md) (**how to write the narration**), [`references/revisions.md`](references/revisions.md), [`references/licensing.md`](references/licensing.md) (**before publishing**), and the Film presets in [`references/presets.md`](references/presets.md).
 

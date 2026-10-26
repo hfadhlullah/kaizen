@@ -1,0 +1,3 @@
+Sound effects: synthesized with ffmpeg for this preset, CC0 (shutter, whoosh, pop, tick, ding, stamp, reveal, boing, ending).
+
+Fonts: "Montserrat" by Julieta Ulanovsky et al. (Google Fonts, SIL Open Font License 1.1); "Instrument Serif" by The Instrument Serif Project Authors (Google Fonts, SIL Open Font License 1.1); "Space Mono" by The Space Mono Project Authors (Google Fonts, SIL Open Font License 1.1).
