@@ -91,6 +91,8 @@ pre.mark span:nth-child(1){color:var(--ink-hi)}pre.mark span:nth-child(2){color:
 :root[data-motion=reduce] *,:root[data-motion=reduce] *::before,:root[data-motion=reduce] *::after,:root[data-motion=reduce]::view-transition-group(*),:root[data-motion=reduce]::view-transition-old(*),:root[data-motion=reduce]::view-transition-new(*){transition:none!important;animation:none!important}
 /* ---- the Video page ---- */
 .hdr h1{margin:0;font-size:15px;font-weight:600}
+@media(max-width:640px){.hdr{padding:28px 16px 12px}.hdr h1{flex:1;font-size:20px}}
+
 .sp{flex:1}
 /* Buttons as on the board and in Notes (board.html .btn/.ib): one look across every page. */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;border:1px solid var(--line);border-radius:var(--r-s);padding:4px 12px;color:var(--ink);background:var(--bg-2);min-height:30px;font-size:13px;font-weight:500;box-shadow:var(--shadow-1);transition:background .12s,border-color .12s,color .12s}

@@ -85,6 +85,8 @@ pre.mark span:nth-child(1){color:var(--ink-hi)}pre.mark span:nth-child(2){color:
 .sel{border:1px solid var(--line);border-radius:var(--r-s);padding:6px 12px;background-color:var(--bg-2);color:var(--ink);font-size:13px}
 select.sel{cursor:pointer;appearance:none;padding-right:30px;max-width:min(320px,100%);text-overflow:ellipsis;background-image:linear-gradient(45deg,transparent 50%,var(--dim) 50%),linear-gradient(135deg,var(--dim) 50%,transparent 50%);background-position:calc(100% - 16px) 50%,calc(100% - 11px) 50%;background-size:5px 5px;background-repeat:no-repeat}
 .sel:hover{border-color:var(--dim)}
+.hdr h1{display:none;margin:0;font-weight:600}
+@media(max-width:640px){.hdr{padding-top:28px;padding-bottom:12px}.hdr h1{display:block;flex:1 0 70%;font-size:20px;order:-2}#new{order:-1}.hdr .sp{display:none}.hdr>#side{order:1}.hdr>#proj{order:2}}
 .hdr>#proj{padding:4px 30px 4px 10px}.hdr>#proj:not(:hover):not(:focus){border-color:transparent;background-color:transparent}
 .sel:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
 .sel::placeholder{color:var(--dim)}
@@ -286,6 +288,7 @@ select.sel{cursor:pointer;appearance:none;padding-right:30px;max-width:min(320px
 </script>
 <div class="app">
 <div class="hdr">
+  <h1>Notes</h1>
   <button class="ib" id="side" title="Notes list" aria-label="Notes list"><svg><use href="#i-list"/></svg></button>
   <select class="sel" id="proj" aria-label="Project"></select>
   <span class="sp"></span>
