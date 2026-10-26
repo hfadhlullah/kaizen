@@ -224,7 +224,7 @@ test("the side menu is the board's on the notebook, line for line", () => {
   };
   for (const [from, to] of [["/* side menu:", "/* end side menu */"], ['<nav class="rail"', "</script>"]] as const)
     for (const page of ["notes.html", "video.html"]) expect(between(page, from, to)).toBe(between("board.html", from, to));
-  const syms = (f: string) => ["board", "note", "video", "link", "gear", "side", "sun", "moon"].map((n) => readFileSync(join(root, "web", f), "utf8").split("\n").find((l) => l.startsWith(`<symbol id="i-${n}"`)));
+  const syms = (f: string) => ["board", "note", "video", "link", "gear", "side", "sun", "moon", "more"].map((n) => readFileSync(join(root, "web", f), "utf8").split("\n").find((l) => l.startsWith(`<symbol id="i-${n}"`)));
   expect(syms("notes.html")).toEqual(syms("board.html"));
   expect(syms("video.html")).toEqual(syms("board.html"));
   expect(syms("board.html").every(Boolean)).toBe(true);

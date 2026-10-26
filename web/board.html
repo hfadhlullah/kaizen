@@ -59,6 +59,7 @@ svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6;stroke
 [data-rail=min] .theme{flex-direction:column}
 [data-rail=min] .theme button{width:34px;flex:none}
 @media(max-width:640px){#fold{display:none}}
+.mtab{display:none}
 /* phones: the side menu is a bottom tab bar, in the page flow so nothing sits under it; it owns the bottom safe area */
 @media(max-width:640px){body{flex-direction:column;padding-bottom:0}.app{flex:1;min-height:0}
 .rail,[data-rail=min] .rail{order:2;width:auto;flex-direction:row;align-items:stretch;gap:0;padding:4px 6px calc(4px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--bg-2);overflow:visible}
@@ -66,6 +67,16 @@ svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6;stroke
 .rail a.it,[data-rail=min] .rail a.it{flex:1;width:auto;flex-direction:column;justify-content:center;gap:2px;height:auto;min-height:48px;padding:4px 0;font-size:11px}
 .rail a.it[aria-current=page]{background:none;color:var(--accent)}
 [data-rail=min] .rail .lbl{position:static;width:auto;height:auto;overflow:visible;clip-path:none}
+.rail a.it.fold{display:none}
+.mtab{display:flex;flex:1;position:relative}
+.mtab summary{flex:1;list-style:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:48px;padding:4px 0;font-size:11px;font-weight:500;color:var(--dim);cursor:pointer}
+.mtab summary::-webkit-details-marker{display:none}
+.mtab svg{width:18px;height:18px}
+.mtab[open] summary,.rail:has(a.it.fold[aria-current=page]) .mtab summary{color:var(--accent)}
+.mpop{position:absolute;right:0;bottom:calc(100% + 8px);z-index:30;min-width:160px;display:flex;flex-direction:column;padding:6px;background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow-2)}
+.mpop a{display:flex;align-items:center;gap:10px;min-height:44px;padding:0 12px;border-radius:var(--r-s);font-size:14px;color:var(--ink);text-decoration:none}
+.mpop a:hover{background:var(--hover)}
+.rail:has(a.it.fold.upd) .mtab summary{position:relative}.rail:has(a.it.fold.upd) .mtab summary::after{content:"";position:absolute;left:calc(50% + 6px);top:4px;width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 2px var(--bg)}
 body .rail a.upd::after{left:calc(50% + 6px);top:4px}body .toast{left:16px;bottom:calc(68px + env(safe-area-inset-bottom))}}
 /* end side menu */
 .rail a.it[data-n]{position:relative}.rail a.it[data-n]::after{content:attr(data-n);position:absolute;left:24px;top:3px;min-width:16px;height:16px;padding:0 4px;box-sizing:border-box;border-radius:8px;background:var(--dim);color:var(--bg);font:600 10px/16px var(--font);text-align:center;box-shadow:0 0 0 2px var(--bg)}
@@ -591,9 +602,10 @@ a.schip:hover{color:var(--ink);border-color:color-mix(in srgb,var(--line) 60%,va
   <a class="it" href="/?view=icebox" data-view="sources" title="Icebox: requests gathered from your sources"><svg><use href="#i-inbox"/></svg><span class="lbl">Icebox</span></a>
   <a class="it" href="/" data-view="board" title="Board"><svg><use href="#i-board"/></svg><span class="lbl">Board</span></a>
   <a class="it" href="/notebook" data-view="notes" title="Notes"><svg><use href="#i-note"/></svg><span class="lbl">Notes</span></a>
-  <a class="it" href="/video" data-view="video" title="Video: make and edit videos"><svg><use href="#i-video"/></svg><span class="lbl">Video</span></a>
+  <a class="it fold" href="/video" data-view="video" title="Video: make and edit videos"><svg><use href="#i-video"/></svg><span class="lbl">Video</span></a>
   <a class="it" href="/?view=terminal" data-view="terminal" title="Terminal: every agent running in its card"><svg><use href="#i-term"/></svg><span class="lbl">Terminal</span></a>
-  <a class="it" href="/?view=settings" data-view="settings" title="Settings"><svg><use href="#i-gear"/></svg><span class="lbl">Settings</span></a>
+  <a class="it fold" href="/?view=settings" data-view="settings" title="Settings"><svg><use href="#i-gear"/></svg><span class="lbl">Settings</span></a>
+  <details class="mtab"><summary title="More"><svg><use href="#i-more"/></svg><span class="lbl">More</span></summary><div class="mpop"><a href="/video" data-view="video"><svg><use href="#i-video"/></svg>Video</a><a href="/?view=settings" data-view="settings"><svg><use href="#i-gear"/></svg>Settings</a></div></details>
   <span class="end"></span>
   <div class="theme" role="group" aria-label="Theme"><button data-t="light" title="Light theme"><svg><use href="#i-sun"/></svg><span class="lbl">Light</span></button><button data-t="dark" title="Dark theme"><svg><use href="#i-moon"/></svg><span class="lbl">Dark</span></button></div>
 </nav>
@@ -614,7 +626,10 @@ a.schip:hover{color:var(--ink);border-color:color-mix(in srgb,var(--line) 60%,va
  window.setMotion=m=>{if(m==="system")delete r.dataset.motion;else r.dataset.motion=m;try{m==="system"?localStorage.removeItem("kz-motion"):localStorage.setItem("kz-motion",m)}catch(e){}};
  try{const m=localStorage.getItem("kz-motion");if(m)r.dataset.motion=m}catch(e){}
  os.addEventListener("change",paint);paint();
- document.querySelectorAll(".theme button").forEach(b=>b.onclick=()=>setTheme(b.dataset.t))})();
+ document.querySelectorAll(".theme button").forEach(b=>b.onclick=()=>setTheme(b.dataset.t));
+ // Phones: More holds the tabs that do not fit; a pick or a tap elsewhere closes it.
+ const more=document.querySelector(".mtab");more.querySelectorAll("a").forEach(a=>a.addEventListener("click",()=>more.open=false));
+ addEventListener("pointerdown",e=>{if(more.open&&!more.contains(e.target))more.open=false},true)})();
 </script>
 <div class="app">
 <div class="hdr">
