@@ -576,6 +576,18 @@ export function parseItem(raw: string): Item {
   }
   const sev = /^(critical|high|medium|low)\s*[:—-]\s*(.+)$/i.exec(raw);
   if (sev) return { severity: sev[1]!.toLowerCase(), where: null, text: tidy(sev[2]!), raw };
+  // The other shapes backlogs hold: a place with ranges or backticks before the
+  // severity ("a.ts:4-9, b.ts:2: high: …", "x.ts `fn` - low - …"), "1. low — …",
+  // and a severity tag in brackets ("Finding 1 (medium) — …", "(review 2, low)",
+  // "[low] …"). A severity loose in prose ("too low") is not one.
+  const at = /^(.{1,160}?)\s*[:—-]\s*(critical|high|medium|low)\s*[:—-]\s*(.+)$/i.exec(raw);
+  // Only a real place counts as one (a path, or a line number): an idea's own words
+  // before a severity stay its words.
+  if (at && /\/|:\d/.test(at[1]!)) return { severity: at[2]!.toLowerCase(), where: at[1]!.replace(/`/g, "").trim().split("/").pop()!, text: tidy(at[3]!), raw };
+  const num = /^\d+\.\s*(critical|high|medium|low)\s*[:—-]\s*(.+)$/i.exec(raw);
+  if (num) return { severity: num[1]!.toLowerCase(), where: null, text: tidy(num[2]!), raw };
+  const tag = /[(\[](?:[^()\[\]]*,\s*)?(critical|high|medium|low)\s*[,)\]]/i.exec(raw);
+  if (tag) return { severity: tag[1]!.toLowerCase(), where: null, text: tidy(raw), raw };
   return { severity: null, where: null, text: tidy(raw), raw };
 }
 

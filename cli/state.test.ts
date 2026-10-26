@@ -210,6 +210,19 @@ test("parseItem: finding line splits into where, severity, text", () => {
   expect(parseItem("plain item").severity).toBeNull();
 });
 
+test("parseItem: severity written as a range, a tag in brackets, or a numbered line", () => {
+  const sev = (s: string) => parseItem(s).severity;
+  expect(parseItem("cli/a.ts:4-9, cli/b.ts:2: high: crashes. Fix: catch.")).toMatchObject({ severity: "high", where: "b.ts:2", text: "crashes." });
+  expect(sev("bot/x.ts `ctxNow` - low - no test")).toBe("low");
+  expect(parseItem("1. low — defaults are Bahasa")).toMatchObject({ severity: "low", where: null });
+  expect(sev("Finding 1 (medium) — proxy checks host only")).toBe("medium");
+  expect(sev("Tech Lead turn per item; watch cost. (review finding 3, low)")).toBe("low");
+  expect(sev("[low] Test for ptyOf")).toBe("low");
+  expect(sev("Crane top may touch low (2.2 m) storeys")).toBeNull();
+  expect(sev("add dark mode (low priority)")).toBeNull();
+  expect(sev("the price is too low")).toBeNull();
+});
+
 test("reviewFindings: numbered lines under Findings, closed by the backlog; the prompt names only what was picked", () => {
   const dir = join(state, "runs", "2026-09-02-done");
   writeFileSync(join(dir, "04-review.md"),
