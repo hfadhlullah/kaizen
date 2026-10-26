@@ -138,3 +138,4 @@ updated: 2026-10-19
 - 2026-10-26 run 2026-10-26-backlog-only-on-request — Workflow (backlog holds only what the user asks for; open findings offered, not filed)
 - 2026-10-26 run 2026-10-26-mobile-board-header — Web board (phone header placed like Settings: 20px title, 28px top padding, full-width search)
 - 2026-10-26 run 2026-10-26-mobile-headers-all — Web board, Notebook (Settings-style phone header on Icebox, Notes, Video and Terminal)
+- 2026-10-26 run 2026-10-26-home-chat — Web board (Home page: chat with kaizen's Codex agent across projects — switches or creates projects itself; Board at ?view=board; Home centered in phone bar)

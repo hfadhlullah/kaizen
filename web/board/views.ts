@@ -4,9 +4,12 @@ import { openSources } from "./icebox.ts";
 import { close } from "./panel.ts";
 import { openSettings } from "./settings.ts";
 import { openTerms, termsStop } from "./terms.ts";
+import { openHome } from "./home.ts";
 
-// ---- views: the board, Settings and the Icebox as pages in the docked panel, or the Terminal page; each with its own address
+// ---- views: Home (the chat, at /), the board, Settings and the Icebox as pages in the docked panel, or the Terminal page; each with its own address
 export let view = "board";
+// The board's own area, not the docked panel.
+const AREA = ["board", "terminal", "home"];
 export const markView = (v) => {
   document
     .querySelectorAll(".rail a.it")
@@ -14,27 +17,29 @@ export const markView = (v) => {
       a.dataset.view === v ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current"),
     );
   // The Icebox is titled in the header, top left, like the board.
-  document.querySelector(".hdr h1").textContent = v === "sources" ? "Icebox" : v === "terminal" ? "Terminal" : "Board";
+  document.querySelector(".hdr h1").textContent = v === "sources" ? "Icebox" : v === "terminal" ? "Terminal" : v === "home" ? "Home" : "Board";
 };
 export function go(v, push) {
   store.pageGen++;
   if (v === "icebox") v = "sources";
-  if (!["settings", "sources", "terminal"].includes(v)) v = "board";
+  if (!["settings", "sources", "terminal", "board"].includes(v)) v = "home";
   const was = view;
   view = v;
   markView(v);
   document.body.classList.toggle("paged", v !== "board");
   document.body.classList.toggle("ice", v === "sources");
   document.body.classList.toggle("termv", v === "terminal");
+  document.body.classList.toggle("homev", v === "home");
   if (push && v !== was)
-    history.pushState(null, "", v === "board" ? location.pathname : "?view=" + (v === "sources" ? "icebox" : v));
+    history.pushState(null, "", v === "home" ? location.pathname : "?view=" + (v === "sources" ? "icebox" : v));
   const p = $("panel");
   if (v === "terminal") openTerms();
   else termsStop();
+  if (v === "home") openHome();
   // The Terminal page is the board's own area, not the docked panel: the panel closes as on the board.
-  if (v === "board" || v === "terminal") {
-    if (was === "board" || was === "terminal") {
-      if (v === "terminal" && was === "board") {
+  if (AREA.includes(v)) {
+    if (AREA.includes(was)) {
+      if (v !== "board" && was === "board") {
         view = "board";
         close();
         view = v;
@@ -69,7 +74,7 @@ export function initViews() {
   document.querySelector(".rail .home").onclick = (e) => {
     if (e.ctrlKey || e.metaKey || e.shiftKey || e.button) return;
     e.preventDefault();
-    vt(() => go("board", true));
+    vt(() => go("home", true));
   };
   addEventListener("popstate", () => vt(() => go(new URLSearchParams(location.search).get("view"))));
   // The menu's theme switch while Settings shows: its Theme row follows.

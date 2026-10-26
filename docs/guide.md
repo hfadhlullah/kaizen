@@ -167,6 +167,8 @@ serves the same board on `http://127.0.0.1:7420/` — loopback only, no account 
 opens it in a tab of your default browser. Set **Open the board in** to `app` in
 `kaizen settings` for a Chromium-family app window instead (no tabs or address bar).
 
+**Home** is the page it opens on: a chat with kaizen's agent, like ChatGPT or Claude. A new chat starts in the project picked above, or in none when the board shows all projects. Talk about any project: when you mention another one the agent asks whether to move the chat there, and when what you describe fits no project it offers to create one (in your Projects folder, by the same rules as New project). Tell it "switch to D" or "make a new project called shop" and it does. The move applies from your next message, and the board follows the chat. A chat with no project can talk and plan but not edit files. For bigger work the agent starts a kaizen run, which shows on the Board. Chats are kept in `~/.kaizen/chats/`. The Board itself is at `/?view=board`. Home needs `codex` on the PATH and signed in.
+
 <img src="https://raw.githubusercontent.com/hfadhlullah/kaizen/main/assets/board-v2.png" alt="kaizen web board" width="760">
 
 Same columns, same files: an idea added here lands in `inbox.md`, a run

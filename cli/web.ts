@@ -20,6 +20,7 @@ import { listNotes, saveNote, renameNote, deleteNote, boardIndex, linksTo } from
 import * as video from "./video.ts";
 import * as localsend from "./localsend.ts";
 import * as hermes from "./hermes.ts";
+import { listChats, readChat, sendChat, stopChat, deleteChat, okId as okChatId, busy as chatBusy } from "./chat.ts";
 
 const PAGE = join(dirname(import.meta.dir), "web", "board.html");
 // The board's script: web/board/*.ts, bundled into one file by `bun run build:web`.
@@ -157,6 +158,30 @@ export async function web(repoDir: string, opts: Opts = {}) {
     return dirs(root).flatMap((d) => isGroup(d) ? dirs(d) : [d])
       .filter((d) => existsSync(join(d, ".kaizen")) ? (remember(d), false) : true).sort();
   };
+
+  // New project…: a folder in the Projects folder setting (else ~/Projects) or at `to`,
+  // empty or new, with .kaizen, registered. check: only say where it would go.
+  async function makeProject(name: string, t = "", check = false): Promise<{ dir: string } | { to: string } | { error: string; status?: number }> {
+    // Windows' rules on every platform, so a project made here also opens there:
+    // no reserved device names (CON, NUL, COM1…), no trailing dot or space.
+    const winBad = (n: string) => !n || /[\\/:*?"<>|\x00-\x1f]/.test(n) || /[. ]$/.test(n)
+      || /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i.test(n);
+    const to = t ? resolve(home, nativePath(t.startsWith("~") ? home + t.slice(1) : t))
+      : join((await projectsRoot()) || join(home, "Projects"), name);
+    // The page asks while the name is typed: "con" on the way to "config" is no error yet.
+    if (check) return { to };
+    if (winBad(name)) return { error: "name the project: a folder name, without / \\ : * ? \" < > |, not ending in a dot or space, and not CON, NUL, COM1 or the like" };
+    if (winBad(basename(to))) return { error: `${basename(to)} cannot be a folder name on Windows` };
+    let used = false;
+    try { used = readdirSync(to).length > 0; } catch (e) { used = existsSync(to); }
+    if (used) return { error: `${to} already exists and is not empty`, status: 409 };
+    // A drive that is not there, a read-only folder, a path too long: said in a toast, not a crash.
+    try { mkdirSync(join(to, ".kaizen"), { recursive: true }); }
+    catch (e) { return { error: `could not create ${to}: ${(e as Error).message}` }; }
+    remember(to);
+    changed();
+    return { dir: join(to, ".kaizen") };
+  }
 
   const states = (all: boolean, cur = boardState) => (all || !cur
     ? [...knownProjects().map((d) => join(d, ".kaizen")), join(home, ".kaizen")]
@@ -784,6 +809,45 @@ export async function web(repoDir: string, opts: Opts = {}) {
         });
       }
 
+      // Home's chat: chats live in ~/.kaizen/chats, each in a project of the board or in none.
+      // A send answers with the turn as NDJSON.
+      if (path === "/chats" || path === "/chat" || path === "/chat/stop" || path === "/chat/delete") {
+        const base = join(home, ".kaizen");
+        if (req.method === "GET" && path === "/chats") return json({ chats: listChats(base) });
+        if (req.method === "GET" && path === "/chat") {
+          const c = readChat(base, url.searchParams.get("id") ?? "");
+          return c ? json({ ...c, busy: chatBusy(base, c.id) }) : bad("no such chat", 404);
+        }
+        if (req.method !== "POST") return bad("method not allowed", 405);
+        if (!local(req)) return bad("cross-origin write refused", 403);
+        let body: any;
+        try { body = await req.json(); } catch { return bad("json body expected"); }
+        const id = body.id == null || body.id === "" ? null : body.id;
+        if (id !== null && !okChatId(id)) return bad("bad chat id");
+        if (path === "/chat/stop") return stopChat(base, id ?? "") ? json({ ok: true }) : bad("not working", 409);
+        if (path === "/chat/delete") { const why = deleteChat(base, id ?? ""); return why ? bad(why, 409) : json({ ok: true }); }
+        const text = String(body.text ?? "").trim();
+        if (!text) return bad("empty message");
+        if (text.length > 20000) return bad("message too long");
+        const board = {
+          projects: states(true).filter((d) => d !== base).map((d) => ({ dir: d, label: basename(dirname(d)) })),
+          create: async (name: string) => {
+            const r = await makeProject(name);
+            return "error" in r ? { error: r.error } : { dir: (r as { dir: string }).dir };
+          },
+        };
+        let ctl!: ReadableStreamDefaultController;
+        const stream = new ReadableStream({ start: (c) => { ctl = c; } });
+        const enc = new TextEncoder();
+        const why = sendChat(base, id, text, typeof body.project === "string" ? body.project : null, board, (e) => {
+          try { ctl.enqueue(enc.encode(JSON.stringify(e) + "\n")); if (e.t === "done") ctl.close(); } catch {}
+          // A turn often starts a run or edits the board's files.
+          if (e.t === "done") changed();
+        });
+        if (why) return bad(why, why === "no such chat" ? 404 : 409);
+        return new Response(stream, { headers: { "content-type": "application/x-ndjson", "cache-control": "no-store" } });
+      }
+
       if (req.method === "POST") {
         if (!local(req)) return bad("cross-origin write refused", 403);
         let body: any;
@@ -879,27 +943,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
         // where the page names, set up at once. /find only sees folders that already
         // have a .kaizen, so a folder made by hand never shows there.
         if (path === "/new-project") {
-          const name = typeof body.name === "string" ? body.name.trim() : "";
-          // Windows' rules on every platform, so a project made here also opens there:
-          // no reserved device names (CON, NUL, COM1…), no trailing dot or space.
-          const winBad = (n: string) => !n || /[\\/:*?"<>|\x00-\x1f]/.test(n) || /[. ]$/.test(n)
-            || /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i.test(n);
-          const t = typeof body.to === "string" ? body.to.trim() : "";
-          const to = t ? resolve(home, nativePath(t.startsWith("~") ? home + t.slice(1) : t))
-            : join((await projectsRoot()) || join(home, "Projects"), name);
-          // The page asks while the name is typed: "con" on the way to "config" is no error yet.
-          if (body.check) return json({ ok: true, to });
-          if (winBad(name)) return bad("name the project: a folder name, without / \\ : * ? \" < > |, not ending in a dot or space, and not CON, NUL, COM1 or the like");
-          if (winBad(basename(to))) return bad(`${basename(to)} cannot be a folder name on Windows`);
-          let used = false;
-          try { used = readdirSync(to).length > 0; } catch (e) { used = existsSync(to); }
-          if (used) return bad(`${to} already exists and is not empty`, 409);
-          // A drive that is not there, a read-only folder, a path too long: said in a toast, not a crash.
-          try { mkdirSync(join(to, ".kaizen"), { recursive: true }); }
-          catch (e) { return bad(`could not create ${to}: ${(e as Error).message}`); }
-          remember(to);
-          changed();
-          return json({ ok: true, dir: join(to, ".kaizen") });
+          const r = await makeProject(typeof body.name === "string" ? body.name.trim() : "", typeof body.to === "string" ? body.to.trim() : "", !!body.check);
+          return "error" in r ? bad(r.error, r.status) : json({ ok: true, ...r });
         }
 
         // Clone a GitHub repository into the projects folder (else ~/Projects) and

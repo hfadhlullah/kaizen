@@ -30,6 +30,8 @@ export async function load(quiet) {
   }
   const was = store.openKey && store.S.cards.find((x) => key(x) === store.openKey);
   store.S = await r.json();
+  // Home follows a project switch without the board importing it.
+  dispatchEvent(new Event("kz-state"));
   {
     const seen = new Map();
     for (const c of store.S.cards) {

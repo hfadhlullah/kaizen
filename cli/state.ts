@@ -1636,7 +1636,7 @@ export function trustFolder(dir: string, cfg = join(process.env.CLAUDE_CONFIG_DI
 // pick: the tool, model and yolo chosen for a new run; a decision takes the run's own
 // tool and model, and stays in Yolo when the run was started in it. card: run it inside the board (agent.launch: card),
 // where a pseudo-terminal exists; onChange is told when that agent ends.
-const CHILD_ENV = /^(CLAUDECODE|CLAUDE_PID|CLAUDE_CODE_(SESSION_ID|CHILD_SESSION|SESSION_ATTENDED|MESSAGING_SOCKET|MESSAGING_TOKEN))$/;
+export const CHILD_ENV = /^(CLAUDECODE|CLAUDE_PID|CLAUDE_CODE_(SESSION_ID|CHILD_SESSION|SESSION_ATTENDED|MESSAGING_SOCKET|MESSAGING_TOKEN))$/;
 
 // skill: start that skill instead of /kaizen (the Video page starts kaizen-video), in cwd:
 // a work folder that may not be a project, so it is not remembered as one. A session record is

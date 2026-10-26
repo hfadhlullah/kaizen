@@ -49,7 +49,7 @@ function pop(on) {
     $("projq").focus();
   }
 }
-async function pick(v) {
+export async function pick(v) {
   if (v === "__find") {
     toast("Searching…");
     const j = await post("/find", {});
