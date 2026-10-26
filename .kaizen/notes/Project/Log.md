@@ -130,3 +130,4 @@ updated: 2026-10-19
 - 2026-10-26 run 2026-10-26-video-app-promo — Workflow, Web board (app-promo template preset, record.mjs, make_promo.py; motion kit removed; unapproved presets hidden)
 - 2026-10-26 run 2026-10-26-video-page-terminal-tab — Web board (Video page: Form/Terminal tabs beside the preview)
 - 2026-10-26 run 2026-10-26-video-preview-finished — Web board (Video page: Versions list with the Draft, click to play a render)
+- 2026-10-26 update — Web board: video versions (filing, revise/try/keep/revert/restore/delete), phone layout of the Video page (run 2026-10-26-video-version-history)

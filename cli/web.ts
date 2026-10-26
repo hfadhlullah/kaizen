@@ -817,6 +817,14 @@ export async function web(repoDir: string, opts: Opts = {}) {
             changed();
             return json({ ok: true, job: typeof job === "string" ? null : { ...job, place: Number(body.p) }, note: typeof job === "string" ? job : null });
           }
+          // Versions: revise, keep, revert, restore, delete (a version or one history revision), new.
+          if (path === "/video/version") {
+            const r = video.versionAction(place.dir, body.name, body);
+            if ("error" in r) return bad(r.error);
+            changed();
+            const job = r.job;
+            return json({ ok: true, job: job && typeof job !== "string" ? { ...job, place: Number(body.p) } : null, note: typeof job === "string" ? job : null });
+          }
           // Delete a rendered version (deleteOutput checks it is one of this video's finished files).
           if (path === "/video/delete") {
             const err = video.deleteOutput(place.dir, body.name, body.file);

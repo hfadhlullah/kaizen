@@ -4,6 +4,7 @@
 // places()), a video folder name, and a path inside that video, all checked here.
 import { existsSync, readdirSync, readFileSync, realpathSync, renameSync, statSync, writeFileSync, appendFileSync, unlinkSync } from "node:fs";
 import { join, dirname, resolve, sep, extname } from "node:path";
+import * as versions from "./versions.ts";
 import { spawn, spawnSync } from "node:child_process";
 
 // KAIZEN_VIDEO_SKILL points at another copy of the skill: tests use a fake one whose scripts only sleep.
@@ -70,19 +71,33 @@ function seconds(f: string): number | null {
 }
 
 // at: when the file was written (ms), so the page can tell whether the draft has changed since.
-export type Output = { format: Format | null; file: string; thumb: string | null; srt: string | null; seconds: number | null; at: number };
+// A filed render (versions.ts) also names its version (letter), revision (rev), its place in that
+// version (current, trying, history), the preset, where it came from, and whether its recipe was kept.
+// A render the board has not filed yet (still settling) has kind "new".
+export type Output = {
+  format: Format | null; file: string; thumb: string | null; srt: string | null; seconds: number | null; at: number;
+  letter?: string; rev?: number; kind?: "current" | "trying" | "history" | "new"; preset?: string; from?: string | null; recipe?: boolean;
+};
 export type Video = {
   place: string; where: string; name: string; mode: "film" | "footage"; preset: string; title: string;
   formats: Format[]; platforms: string[]; seconds: number | null; text: string; poster: string | null;
   built: boolean; builtAt: number; size: [number, number] | null; outputs: Output[]; job: JobView | null; status: "draft" | "queued" | "building" | "rendering" | "ready" | "failed";
+  revising: string | null;   // the version whose recipe the draft holds (its renders file as that version's try)
 };
 
 const fmtOf = (s: string): Format | null => (s.match(/-(9x16|16x9|4x5)(?:\.|-|$)/)?.[1] as Format) ?? null;
 
-// Finished files for one video: output/<name>/<preset>/*.mp4, and the older videos/<name>/out/.
-// Earlier versions (previous/) are history, not outputs.
+// Finished files for one video: its versions (versions.ts files every settled render first), any render
+// still settling in output/<name>/<preset>/ (kind "new"), and the older videos/<name>/out/.
 function outputs(place: string, name: string, fallback: Format): Output[] {
-  const found: Output[] = [];
+  try { versions.fileRenders(place, name); } catch { /* listed as loose until the next try */ }
+  const found: Output[] = versions.revFiles(place, name).map((r) => {
+    const f = join(place, "output", name, r.mp4.slice(2));
+    let at = r.at;
+    try { at = statSync(f).mtimeMs; } catch { /* gone */ }
+    return { format: fmtOf(r.mp4) ?? fallback, file: r.mp4, thumb: r.thumb, srt: r.srt, seconds: seconds(f), at,
+      letter: r.letter, rev: r.n, kind: r.kind, preset: r.preset, from: r.from, recipe: r.recipe };
+  });
   const add = (dir: string, rel: string) => {
     let files: string[] = [];
     try { files = readdirSync(dir); } catch { return; }
@@ -94,7 +109,9 @@ function outputs(place: string, name: string, fallback: Format): Output[] {
     }
   };
   const out = join(place, "output", name);
-  try { for (const d of readdirSync(out)) if (statSync(join(out, d)).isDirectory()) add(join(out, d), `o/${d}/`); } catch { /* none yet */ }
+  const loose = found.length;
+  try { for (const d of readdirSync(out)) if (d !== "versions" && statSync(join(out, d)).isDirectory()) add(join(out, d), `o/${d}/`); } catch { /* none yet */ }
+  for (const o of found.slice(loose)) if (o.file.startsWith("o/")) { o.kind = "new"; o.preset = o.file.split("/")[1]; }
   add(join(place, "videos", name, "out"), "v/out/");
   return found;
 }
@@ -144,6 +161,7 @@ export function listVideos(all: Place[]): Video[] {
         place: p.dir, where: p.label, name, mode: film ? "film" : "footage", preset: String(film?.preset ?? cfg?.preset ?? ""),
         title: String(first), formats, platforms, seconds: Number.isFinite(built) ? Math.round(built) : outs[0]?.seconds ?? null,
         text: film ? spoken(readJson(join(vdir, "lines.json"))) : "", poster: film ? poster(vdir, film, fmt) : null,
+        revising: versions.readStore(p.dir, name)?.revising ?? null,
         built: !!index, builtAt, size: wh ? [Number(wh[1]), Number(wh[2])] : null, outputs: outs, job, status,
       });
     }
@@ -476,10 +494,12 @@ export function askFor(place: string, name: string, words: unknown): { text: str
   if (w.length > 2000) return { error: "over 2,000 characters" };
   const vdir = join(place, "videos", name);
   if (!existsSync(join(vdir, "film.json")) && !existsSync(join(vdir, "config.json"))) return { error: "not a video folder" };
+  const st = versions.readStore(place, name), rv = st?.revising ? st.versions.find((v) => v.letter === st.revising) : null;
   return { text: [
     `Revise the video in ${vdir} (work folder ${place}; run scripts from there), following references/revisions.md: touch only what the change needs, then build and tell me to look.`,
+    rv ? `The draft holds the ${rv.preset} version of this video (v${rv.current}): the user is revising it. Keep its preset; when they render, the result becomes its next v, which they keep or revert on the Video page.` : "",
     `\nWhat the user wants changed, as written:\n<<<\n${w}\n>>>`,
-  ].join("\n") };
+  ].filter(Boolean).join("\n") };
 }
 
 // Which agent is on which video: the board terminal it runs in, by its key.
@@ -506,6 +526,7 @@ export function outputFile(place: string, name: string, rel: unknown): string | 
 // preset's output folder, its CREDITS.txt goes too. Returns an error a person can act on, or null.
 export function deleteOutput(place: string, name: string, rel: unknown): string | null {
   if (typeof rel !== "string" || !rel.endsWith(".mp4")) return "not one of this video's finished files";
+  if (rel.startsWith("o/versions/")) return "a version is deleted with its own Delete (versionAction)";
   const mp4 = outputFile(place, name, rel);
   if (!mp4) return "not one of this video's finished files";
   const j = jobOf(place, name);
@@ -523,6 +544,30 @@ export function deleteOutput(place: string, name: string, rel: unknown): string 
     if (!readdirSync(dir).some((f) => f.endsWith(".mp4"))) { const c = join(dir, "CREDITS.txt"); if (existsSync(c)) unlinkSync(c); }
   } catch { /* gone already */ }
   return null;
+}
+
+// Version actions from the Video page: revise | keep | revert | restore | delete | new. Never while a
+// job or a send for the video runs. Revise and revert put a recipe back into the draft, so they start
+// a build; the caller gets the job (or a note) back.
+export function versionAction(place: string, name: string, b: any): { error: string } | { job: JobView | string | null } {
+  if (!okName(name)) return { error: "unknown video" };
+  const j = jobOf(place, name);
+  if (j && (j.state === "running" || j.state === "queued")) return { error: "a build or render is running for this video; wait for it to finish" };
+  const s = sendOf(place, name);
+  if (s && (s.state === "waiting" || s.state === "uploading")) return { error: "this video is being sent; wait for it to finish" };
+  const a = b?.action;
+  const err = a === "revise" ? versions.revise(place, name, b.letter)
+    : a === "keep" ? versions.keep(place, name, b.letter)
+    : a === "revert" ? versions.revert(place, name, b.letter)
+    : a === "restore" ? versions.restore(place, name, b.letter, b.n)
+    : a === "delete" ? versions.remove(place, name, b.letter, b.all === true ? "all" : b.n)
+    : a === "new" ? (versions.stopRevising(place, name), null)
+    : "unknown action";
+  if (err) return { error: err };
+  const st = versions.readStore(place, name), recipe = (l: unknown, n?: unknown) => !!st?.versions.find((v) => v.letter === l)?.revs.find((r) => r.n === Number(n ?? st.versions.find((v) => v.letter === l)?.current))?.recipe;
+  // A build only when the draft really changed: a recipe was copied back into it.
+  const rebuild = a === "revise" || (a === "revert" && recipe(b.letter)) || (a === "restore" && st?.revising === b.letter && recipe(b.letter, b.n));
+  return { job: rebuild ? startJob(place, name, "build") : null };
 }
 
 // One send per video at a time; what it is doing now, and the last 50 that finished,

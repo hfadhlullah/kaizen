@@ -5,10 +5,14 @@
 
 type Format = "9x16" | "16x9" | "4x5";
 type Job = { id: number; kind: string; state: string; step: number; total: number; label: string[]; error: string | null; place: number; name: string };
-type Output = { format: Format | null; file: string; thumb: string | null; srt: string | null; seconds: number | null; at: number };
+// letter..recipe: a filed version's revision (cli/versions.ts); kind "new" is a render still being filed.
+type Output = {
+  format: Format | null; file: string; thumb: string | null; srt: string | null; seconds: number | null; at: number;
+  letter?: string; rev?: number; kind?: "current" | "trying" | "history" | "new"; preset?: string; from?: string | null; recipe?: boolean;
+};
 type Video = {
   place: number; where: string; name: string; mode: "film" | "footage"; preset: string; title: string; formats: Format[];
-  platforms: string[]; seconds: number | null; text: string; poster: string | null; built: boolean; builtAt: number; size: [number, number] | null; outputs: Output[];
+  platforms: string[]; seconds: number | null; text: string; poster: string | null; built: boolean; builtAt: number; size: [number, number] | null; outputs: Output[]; revising: string | null;
   job: Job | null; status: "draft" | "queued" | "building" | "rendering" | "ready" | "failed"; send: Send | null; sends: Send[];
 };
 type Send = { at: number; via: "localsend" | "whatsapp"; to: string; file: string; state: "waiting" | "uploading" | "sent" | "failed"; pct: number; error: string | null };
@@ -68,7 +72,9 @@ async function load() {
 // One tile per rendered shape; a video with nothing rendered yet shows once, at its own shape.
 function tiles() {
   return videos.flatMap((v) => {
-    const outs = v.outputs.length ? v.outputs : [null];
+    // A version's tries and history stay on its page; the library shows what each version is now.
+    const live = v.outputs.filter((o) => o.kind !== "history" && o.kind !== "trying");
+    const outs = live.length ? live : [null];
     const shapes = new Map<string, Output | null>();
     for (const o of outs) if (!shapes.has(o?.format ?? v.formats[0]!)) shapes.set(o?.format ?? v.formats[0]!, o);
     return [...shapes].map(([f, o]) => ({ v, f: f as Format, o }));
@@ -181,7 +187,7 @@ async function refreshEditor(first = false) {
   }
   // What, when it changes, needs a redraw: the job, the set of rendered versions (a render or a delete),
   // or the draft rebuilt (an edit or an Ask Claude change: Render final comes back).
-  const jobKey = JSON.stringify([v.job && [v.job.id, v.job.state, v.job.step], v.outputs.map((o) => o.file), v.builtAt]);
+  const jobKey = JSON.stringify([v.job && [v.job.id, v.job.state, v.job.step], v.outputs.map((o) => [o.file, o.kind]), v.builtAt, v.revising]);
   if (!first && (film || v.mode !== "film") && jobKey === lastJob) return;
   const builtNow = lastJob && v.job?.state === "done" && jobKey !== lastJob;
   lastJob = jobKey;
@@ -302,18 +308,71 @@ function drawJob(v: Video) {
 // preset it was rendered in (output/<name>/<preset>/<file>). Clicking a row shows it in the player.
 let shown: string | null = null;   // null: the draft; else a rendered file's path ("o/<preset>/<file>")
 const presetOf = (file: string) => file.split("/")[1] ?? "";
+// The draft's preset for a file: a filed revision carries it; a loose render sits in output/<name>/<preset>/.
+const presetIn = (o: Output) => o.preset ?? presetOf(o.file);
+const stamp = (ms: number) => new Date(ms).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+// The draft has a render newer than its last build, in its own preset: nothing new to render.
+const draftDone = (v: Video) => v.built && v.outputs.some((o) => presetIn(o) === v.preset && o.kind !== "history" && o.at >= v.builtAt);
+
+// What a person sees for a version: the video's name and its preset (letters are only the store's key),
+// with "(2)", "(3)" when the same preset was rendered as more than one version.
+function vtitle(v: Video, l: string) {
+  const firsts = v.outputs.filter((o) => o.letter && o.kind === "current");
+  const me = firsts.find((o) => o.letter === l);
+  if (!me) return v.name;
+  const same = firsts.filter((o) => presetIn(o) === presetIn(me));
+  const i = same.indexOf(me);
+  return `${v.name} · ${presetIn(me)}${same.length > 1 && i > 0 ? ` (${i + 1})` : ""}`;
+}
+
+// One row: a button that shows it in the player, a line of facts, then its actions (wrapping under the
+// name on a phone).
+function verRow(v: Video, o: Output, label: string, facts: string, acts: string, cls = "") {
+  return `<div class="file ver${cls}${shown === o.file ? " on" : ""}" data-show="${esc(o.file)}">
+      <button class="vname" data-show="${esc(o.file)}" aria-pressed="${shown === o.file}">${label}</button>
+      <span class="vfacts">${facts}</span>
+      <span class="acts">${acts}</span></div>`;
+}
+const openLinks = (v: Video, o: Output) => `<a href="${esc(fileUrl(v, o.file))}" target="_blank" rel="noopener">Open</a>${o.srt ? `<a href="${esc(fileUrl(v, o.srt))}" target="_blank" rel="noopener">Captions</a>` : ""}`;
+const vact = (a: string, l: string, text: string, cls = "btn", n?: number, aria?: string) =>
+  `<button class="${cls}" data-vact="${a}" data-l="${esc(l)}"${n != null ? ` data-n="${n}"` : ""}${aria ? ` aria-label="${esc(aria)}"` : ""}>${text}</button>`;
+
 function drawFiles(v: Video) {
   const el = document.getElementById("files");
   if (!el) return;
   if (shown && !v.outputs.some((o) => o.file === shown)) shown = null;
+  const dur = (o: Output) => o.seconds != null ? ` · ${mmss(o.seconds)}` : "";
   const draft = v.built ? `<div class="file ver${shown ? "" : " on"}" data-show="">
-      <button class="vname" data-show="" aria-pressed="${!shown}"><span class="pill draft">Draft</span><b>${esc(v.preset)}</b></button><span class="note" style="margin:0">live preview, not rendered</span></div>` : "";
-  el.innerHTML = draft || v.outputs.length ? `<p class="note" style="margin:0">Versions</p>` + draft + v.outputs.map((o) => `<div class="file ver${shown === o.file ? " on" : ""}" data-show="${esc(o.file)}">
-      <button class="vname" data-show="${esc(o.file)}" aria-pressed="${shown === o.file}"><span class="pill ready">${ratio(o.format)}</span><b>${esc(presetOf(o.file))} · ${esc(o.file.split("/").pop())}</b></button>
-      ${o.seconds != null ? `<span class="note" style="margin:0">${mmss(o.seconds)}</span>` : ""}
-      <a href="${esc(fileUrl(v, o.file))}" target="_blank" rel="noopener">Open</a>${o.srt ? `<a href="${esc(fileUrl(v, o.srt))}" target="_blank" rel="noopener">Captions</a>` : ""}
-      <button class="btn" data-sendfile="${esc(o.file)}">Send</button>
-      <button class="btn danger" data-delfile="${esc(o.file)}" aria-label="Delete ${esc(presetOf(o.file))} version">Delete</button></div>`).join("") : "";
+      <button class="vname" data-show="" aria-pressed="${!shown}"><span class="pill draft">Draft</span><b>${esc(v.preset)}</b></button>
+      <span class="vfacts">${v.revising ? `revising ${esc(vtitle(v, v.revising))}; a render becomes its next v` : "live preview, not rendered"}</span>
+      ${v.revising ? `<span class="acts">${vact("new", v.revising, "Make a new version instead", "btn ghost")}</span>` : ""}</div>` : "";
+  // Filed versions, by letter: the current revision, its try (if any) and its history.
+  const letters = [...new Set(v.outputs.filter((o) => o.letter).map((o) => o.letter!))];
+  const groups = letters.map((l) => {
+    const revs = v.outputs.filter((o) => o.letter === l);
+    const cur = revs.find((o) => o.kind === "current"), tr = revs.find((o) => o.kind === "trying");
+    const hist = revs.filter((o) => o.kind === "history").sort((a, b) => b.rev! - a.rev!);
+    if (!cur) return "";
+    const N = vtitle(v, l);
+    const head = verRow(v, cur, `<b>${esc(N)}</b><span class="pill ver-l">v${cur.rev}</span>`,
+      `${dur(cur).slice(3)}${v.revising === l ? `${cur.seconds != null ? " · " : ""}in the draft` : ""}`,
+      (cur.recipe ? vact("revise", l, "Revise", "btn", undefined, `Revise ${N}`) : "")
+      + openLinks(v, cur) + `<button class="btn" data-sendfile="${esc(cur.file)}">Send</button>`
+      + vact("delete", l, "Delete", "btn danger", undefined, `Delete ${N} and its history`));
+    const tryRow = tr ? verRow(v, tr, `<span class="pill draft">Trying</span><b>v${tr.rev}</b>`,
+      `from v${esc((tr.from ?? "").replace(/^[a-z]+/, "") || String(cur.rev))}${dur(tr)} · compare, then keep or revert`,
+      vact("keep", l, "Keep", "btn pri", undefined, `Keep v${tr.rev} as ${N}`) + vact("revert", l, "Revert", "btn", undefined, `Revert ${N} to v${cur.rev}`) + openLinks(v, tr), " sub") : "";
+    const histRows = hist.length ? `<details class="hist"${hist.some((o) => o.file === shown) ? " open" : ""}><summary>Earlier versions (${hist.length})</summary>${hist.map((o) =>
+      verRow(v, o, `<b>v${o.rev}</b>`, `${stamp(o.at)}${dur(o)}`,
+        vact("restore", l, "Restore", "btn", o.rev, `Restore v${o.rev} as ${N}`) + openLinks(v, o) + vact("delete", l, "Delete", "btn danger", o.rev, `Delete v${o.rev} of ${N}`), " sub")).join("")}</details>` : "";
+    return `<div class="vgroup">${head}${tryRow}${histRows}</div>`;
+  });
+  // Renders still being filed (a few seconds after they finish) and the older videos/<name>/out/ files.
+  const rest = v.outputs.filter((o) => !o.letter).map((o) => verRow(v, o,
+    `<span class="pill ready">${ratio(o.format)}</span><b>${esc(presetIn(o))} · ${esc(o.file.split("/").pop())}</b>`,
+    o.kind === "new" ? `just rendered; becoming a version${dur(o)}` : dur(o).slice(3),
+    openLinks(v, o) + (o.kind === "new" ? "" : `<button class="btn" data-sendfile="${esc(o.file)}">Send</button><button class="btn danger" data-delfile="${esc(o.file)}" aria-label="Delete ${esc(presetIn(o))} version">Delete</button>`)));
+  el.innerHTML = draft || v.outputs.length ? `<p class="note" style="margin:0">Versions</p>` + draft + groups.join("") + rest.join("") : "";
 }
 // Render final turns the draft into files. Nothing to do while a rendered version is shown, or when the
 // draft was rendered in its current preset after its last build; an edit or an Ask Claude change rebuilds
@@ -321,10 +380,10 @@ function drawFiles(v: Video) {
 function drawRender(v: Video) {
   const b = document.getElementById("render"), done = document.getElementById("rdone");
   if (!b || !done) return;
-  const draftDone = v.built && v.outputs.some((o) => presetOf(o.file) === v.preset && o.at >= v.builtAt);
-  const off = !!shown || draftDone;
+  const off = !!shown || draftDone(v);
   b.hidden = off; done.hidden = !off;
   done.textContent = shown ? "Rendered version" : "Rendered";
+  b.textContent = v.revising ? "Render new v" : "Render final";
 }
 // The player shows the draft (the built page, driven by the play button) or a rendered MP4 (its own controls).
 function showVersion(v: Video) {
@@ -341,11 +400,11 @@ function showVersion(v: Video) {
     if (t) t.textContent = `0:00 / ${mmss(dur)}`;
     if (p) { playing = false; p.innerHTML = `<svg><use href="#i-play"/></svg>`; p.setAttribute("aria-label", "Play"); }
   } else {
-    box.innerHTML = `<video id="vid" src="${esc(fileUrl(v, o.file))}" controls playsinline preload="metadata" aria-label="Rendered ${esc(presetOf(o.file))} video"></video>`;
+    box.innerHTML = `<video id="vid" src="${esc(fileUrl(v, o.file))}" controls playsinline preload="metadata" aria-label="Rendered ${esc(presetIn(o))} video"></video>`;
     if (play) play.disabled = true;
     const t = document.getElementById("time");
     if (t) t.textContent = o.seconds != null ? mmss(o.seconds) : "";
-    if (label) label.textContent = `Rendered · ${presetOf(o.file)}${o.seconds != null ? ` · ${mmss(o.seconds)}` : ""}`;
+    if (label) label.textContent = `${o.letter ? `${vtitle(v, o.letter)} · v${o.rev}${o.kind === "trying" ? " (trying)" : o.kind === "history" ? " (history)" : ""}` : "Rendered · ${presetIn(o)}"}${o.seconds != null ? ` · ${mmss(o.seconds)}` : ""}`;
   }
   drawFiles(v);
   drawRender(v);
@@ -493,6 +552,31 @@ $("edit").addEventListener("click", async (e) => {
   if (chip) { const p = chip.dataset.p!; picked.has(p) ? picked.delete(p) : picked.add(p); chip.classList.toggle("on", picked.has(p)); return drawPlats(); }
   const sf = t.closest<HTMLElement>("[data-sendfile]");
   if (sf) return openSend(sf.dataset.sendfile!);
+  // Version actions (cli/versions.ts). Each asks first where something is replaced or removed.
+  const va = t.closest<HTMLElement>("[data-vact]");
+  if (va) {
+    const a = va.dataset.vact!, l = va.dataset.l!, n = va.dataset.n ? Number(va.dataset.n) : undefined;
+    const tr = v.outputs.find((o) => o.letter === l && o.kind === "trying"), cur = v.outputs.find((o) => o.letter === l && o.kind === "current");
+    const N = vtitle(v, l);
+    const unrendered = edits.size > 0 || (v.built && !draftDone(v));
+    const ask = a === "revise" ? (unrendered ? `The draft has changes that are not rendered. Revising ${N} replaces the draft with ${N}'s recipe, and those changes are lost. Go on?` : null)
+      : a === "keep" ? `Keep v${tr?.rev} as ${N}? The current v${cur?.rev} moves to ${N}'s history, where you can restore it.`
+      : a === "revert" ? `Revert ${N}? The try v${tr?.rev} is deleted from disk${cur?.recipe ? `, and the draft goes back to ${N}${unrendered ? "; its changes that are not rendered are lost" : ""}` : ""}.`
+      : a === "restore" ? `Restore v${n} for ${N}? The current v${cur?.rev} moves to the history.${v.revising === l && v.outputs.find((o) => o.letter === l && o.rev === n)?.recipe ? ` The draft becomes v${n}${unrendered ? "; its changes that are not rendered are lost" : ""}.` : ""}`
+      : a === "delete" ? (n != null ? `Delete v${n} from ${N}'s history? Its video, captions and thumbnail are removed from disk.` : `Delete ${N} with its try and its whole history? Every one of its videos is removed from disk. Other versions and the draft stay.`)
+      : null;
+    if (ask && !confirm(ask)) return;
+    try {
+      const r = await post("/video/version", { p: v.place, name: v.name, action: a, letter: l, n, all: a === "delete" && n == null });
+      if (a === "revise" || a === "revert") { edits = new Map(); shown = null; }
+      if (a === "delete" && shown && v.outputs.find((o) => o.file === shown)?.letter === l && (n == null || shown.includes(`/${l}/${n}/`))) shown = null;
+      toast(a === "revise" ? `The draft is now ${N}. Change it, then render a try.` : a === "keep" ? `Kept: ${N} is now v${tr?.rev}` : a === "revert" ? `Reverted ${N}` : a === "restore" ? `Version ${l} is v${n} again` : a === "new" ? "The next render makes a new version" : "Deleted");
+      if (r.note) toast(r.note);
+      showVersion(v);
+      load();
+    } catch (err) { toast(err instanceof Error ? err.message : String(err)); }
+    return;
+  }
   // Delete a rendered version: asks first, names what goes, and only touches that render's files.
   const del = t.closest<HTMLElement>("[data-delfile]");
   if (del) {
