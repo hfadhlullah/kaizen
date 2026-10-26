@@ -32,6 +32,7 @@ export function go(v, push) {
   document.body.classList.toggle("homev", v === "home");
   if (push && v !== was)
     history.pushState(null, "", v === "home" ? location.pathname : "?view=" + (v === "sources" ? "icebox" : v));
+  dispatchEvent(new Event("kz-view"));
   const p = $("panel");
   if (v === "terminal") openTerms();
   else termsStop();

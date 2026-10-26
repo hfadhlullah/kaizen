@@ -285,13 +285,12 @@ body.paged #board,body.paged .ftr,body.paged .scrim,body.paged #bq{display:none}
 /* The Icebox keeps the project bar with its own title, without New idea or the panel's header; Settings has none */
 body.paged:not(.ice) .hdr,body.ice aside.docked>header{display:none}body.ice #newtop{visibility:hidden}
 /* The Terminal page: the project bar stays (it picks whose terminals show), the board gives way to the tiles */
-#home{display:none}body.homev.paged .hdr{display:flex}body.homev #newtop,body.homev #fbtn{display:none!important}
+#home{display:none}#hnewtop{display:none}body.homev.paged .hdr{display:flex}body.homev #combo,body.homev #showc,body.homev #bq,body.homev #newtop,body.homev #fbtn,body.homev #tmodes{display:none!important}body.homev #hnewtop{display:inline-flex;align-items:center;gap:6px}#hnewtop svg{width:16px;height:16px}
 body.homev #home{flex:1;min-height:0;display:flex;position:relative;animation:fi .2s}
 .hside{flex:none;width:260px;overflow:hidden;border-right:1px solid color-mix(in srgb,var(--line) 60%,transparent);transition:width .28s cubic-bezier(.2,.7,.2,1),opacity .2s,border-color .28s}
 #home:not(.hopen) .hside{width:0;opacity:0;border-color:transparent}
 .hsin{width:260px;height:100%;display:flex;flex-direction:column;gap:8px;padding:12px 10px 12px 20px;box-sizing:border-box}
 .hshd{display:flex;align-items:center;justify-content:space-between;padding:0 4px 0 6px;font-size:12px;font-weight:600;color:var(--dim)}
-.hnew{display:inline-flex;flex-direction:row;align-items:center;gap:6px;justify-content:flex-start}.hnew svg{width:16px;height:16px}
 .hlist{display:flex;flex-direction:column;gap:2px;overflow-y:auto;min-height:0}
 .hli{display:flex;align-items:center;border-radius:var(--r-s);transition:background .15s}.hli:hover,.hli.on{background:var(--hover)}.hli.on>button:first-child{color:var(--ink)}
 .hli>button:first-child{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;text-align:left;background:none;border:0;padding:7px 10px;font:inherit;font-size:13px;color:var(--dim);cursor:pointer;white-space:nowrap}
@@ -299,36 +298,46 @@ body.homev #home{flex:1;min-height:0;display:flex;position:relative;animation:fi
 .hli .ib{opacity:0;transition:opacity .15s}.hli:hover .ib,.hli .ib:focus-visible{opacity:1}.hli .dot{display:inline-block;width:7px;height:7px;margin-right:6px;border-radius:50%;background:var(--run);animation:hpulse 1.4s ease-in-out infinite}
 .hmain{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:12px;min-height:0;padding:0 0 16px}
 .htop{align-self:stretch;display:flex;align-items:center;gap:4px;padding:8px 16px 0}
-.htop .ib svg{width:18px;height:18px}.hnewi{display:inline-flex;align-items:center;gap:6px}.hnewi svg{width:14px;height:14px}#home.hopen .htop .hnewi{display:none}
+.htop .ib svg{width:18px;height:18px}
 .hwhere{display:flex;align-items:center;gap:6px;margin-left:6px;font-size:12px;color:var(--dim)}.hwhere svg{width:13px;height:13px}
 .hmain.hfresh{justify-content:flex-start}.hmain.hfresh .hlog{flex:none;overflow:visible;margin-top:auto}.hmain.hfresh .hchips{margin-bottom:auto}
-.hlog{flex:1;width:100%;box-sizing:border-box;overflow-y:auto;display:flex;flex-direction:column;gap:16px;padding:8px max(20px,calc((100% - 960px)/2))}
+.hlog{flex:1;width:100%;box-sizing:border-box;overflow-y:auto;overflow-anchor:none;display:flex;flex-direction:column;gap:16px;padding:8px max(20px,calc((100% - 960px)/2))}
 .hhero{width:100%;text-align:center;animation:hin .4s cubic-bezier(.2,.7,.2,1)}.hhero .hint{margin:0;color:var(--dim)}.hhero h2{margin:0 0 6px;font-size:28px;font-weight:600;letter-spacing:-.01em;color:var(--ink-hi)}
 .hm{display:flex;flex-direction:column;gap:6px;align-items:flex-start}.hm.u{align-items:flex-end}.hm.in{animation:hin .32s cubic-bezier(.2,.7,.2,1) both}
 .hm.u .hb{max-width:80%;padding:9px 14px;border-radius:18px 18px 4px 18px;background:var(--hover);color:var(--ink);white-space:pre-wrap;overflow-wrap:anywhere}
+.hfiles,.hatt{display:flex;flex-wrap:wrap;gap:6px}.hfiles{justify-content:flex-end;max-width:80%}.hfiles span,.hatt span{display:inline-flex;align-items:center;gap:5px;max-width:100%;padding:4px 8px;border:1px solid var(--line);border-radius:var(--r-pill);font-size:11px;overflow-wrap:anywhere}.hfiles svg,.hatt svg{width:12px;height:12px;flex:none}.hatt:empty{display:none}.hatt button{border:0;background:none;color:var(--dim);cursor:pointer;font:inherit;padding:0 2px}.hatt button:hover{color:var(--ink)}
 .hm.a .hb{width:100%;max-width:none;color:var(--ink);overflow-wrap:anywhere;line-height:1.6}.hm.a .hb>:first-child{margin-top:0}.hm.a .hb>:last-child{margin-bottom:0}.hm .md p{max-width:none}
-.hsteps{font-size:12px;color:var(--dim)}.hsteps summary{cursor:pointer;width:max-content}.hsteps summary:hover{color:var(--ink)}.hsteps ul{list-style:none;margin:6px 0 0;padding:0 0 0 2px;display:flex;flex-direction:column;gap:3px;border-left:2px solid var(--line);padding-left:10px}
+.hsteps{font-size:12px;color:var(--dim);max-width:100%;min-width:0}.hsteps summary{cursor:pointer;width:max-content}.hsteps summary:hover{color:var(--ink)}.hsteps ul{list-style:none;margin:6px 0 0;padding:0 0 0 2px;display:flex;flex-direction:column;gap:3px;border-left:2px solid var(--line);padding-left:10px}
 .hsteps[open] ul{animation:fi .2s}
-.hsteps li{display:flex;align-items:center;gap:6px;min-width:0}.hsteps li code{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:var(--mono)}.hsteps li.bad{color:var(--danger)}.hsteps svg{flex:none;width:13px;height:13px}
+.hsteps li{display:flex;align-items:flex-start;gap:6px;min-width:0}.hsteps li code{min-width:0;white-space:pre-wrap;overflow-wrap:anywhere;font-family:var(--mono)}.hsteps li.bad{color:var(--danger)}.hsteps svg{flex:none;width:13px;height:13px;margin-top:2px}
 .herr{font-size:13px;color:var(--danger);white-space:pre-wrap}
-.hdots{display:inline-flex;gap:4px;padding:10px 2px}.hdots i{width:7px;height:7px;border-radius:50%;background:var(--dim);animation:hdot 1.2s ease-in-out infinite}.hdots i:nth-child(2){animation-delay:.15s}.hdots i:nth-child(3){animation-delay:.3s}
+.hactivity{display:flex;align-items:center;gap:10px;min-height:54px;font-size:12px;color:var(--dim);overflow-wrap:anywhere}
+.hmascot{position:relative;display:block;width:52px;height:52px;flex:none;border-radius:12px}
+.hmascot img{display:block;width:100%;height:100%;border-radius:inherit;animation:hfloat 2.4s ease-in-out infinite}
+.hlaptop{position:absolute;left:14px;bottom:5px;width:24px;height:13px;border:1.5px solid #dce9ff;border-radius:3px 3px 2px 2px;background:linear-gradient(145deg,#3269bd,#142e61);box-shadow:0 0 8px #4384ff66}
+.hlaptop:after{content:"";position:absolute;left:-4px;right:-4px;bottom:-4px;height:2px;border-radius:0 0 5px 5px;background:#b8d0ff}
+.hactivity-copy{display:flex;min-width:0;flex-direction:column;gap:6px}
+.hdots{display:flex;align-items:center;gap:6px;height:7px}
+.hdots i{width:6px;height:6px;border-radius:50%;background:var(--accent);opacity:.35;animation:hdot 1.05s ease-in-out infinite}
+.hdots i:nth-child(2){animation-delay:.16s}.hdots i:nth-child(3){animation-delay:.32s}
 .hrun{display:inline-flex;align-items:center;gap:6px}.hrun svg{width:14px;height:14px}
 .hmove{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ok)}.hmove.bad{color:var(--danger)}.hmove svg{width:13px;height:13px}
 .hbox{position:relative;width:calc(100% - 40px);max-width:960px;display:flex;align-items:flex-end;gap:8px;padding:10px 10px 10px 16px;border:1px solid var(--line);border-radius:22px;background:var(--bg-2);box-shadow:var(--shadow-2);view-transition-name:hbox;transition:border-color .15s,box-shadow .15s}
 .hbox:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 15%,transparent),var(--shadow-2)}
-.hbox textarea{flex:1;min-height:24px;max-height:220px;resize:none;border:0;outline:0;background:none;color:var(--ink);font:inherit;font-size:15px;line-height:1.5;padding:4px 0}
+.hinput{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}.hbox textarea{width:100%;box-sizing:border-box;min-height:24px;max-height:220px;resize:none;border:0;outline:0;background:none;color:var(--ink);font:inherit;font-size:15px;line-height:1.5;padding:4px 0}.hattach{flex:none;margin-bottom:2px}
 .hgo{flex:none;width:34px;height:34px;border-radius:50%;background:var(--accent);color:var(--on-accent);transition:transform .12s,filter .15s,background .15s}.hgo:hover{background:var(--accent);filter:brightness(1.1)}.hgo:active{transform:scale(.92)}.hgo.stop{background:var(--ink);color:var(--bg)}
 .hchips{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;width:calc(100% - 40px);max-width:960px;animation:hin .5s cubic-bezier(.2,.7,.2,1)}
 .hchips .chip{cursor:pointer;background:none;border:0;font:inherit;font-size:13px;padding:6px 12px;border-radius:var(--r-pill);transition:background .15s,color .15s,transform .15s}.hchips .chip:hover{color:var(--ink);background:var(--hover);transform:translateY(-1px)}
 .hscrim{display:none}
 @keyframes hin{from{opacity:0;transform:translateY(8px)}}
-@keyframes hdot{0%,60%,100%{opacity:.35;transform:none}30%{opacity:1;transform:translateY(-4px)}}
+@keyframes hfloat{50%{transform:translateY(-2px)}}
+@keyframes hdot{50%{opacity:1;transform:translateY(-1px)}}
 @keyframes hpulse{50%{opacity:.4}}
 ::view-transition-group(hbox){animation-duration:.35s;animation-timing-function:cubic-bezier(.2,.7,.2,1)}
 @media(max-width:640px){.hside{position:absolute;z-index:6;top:0;bottom:0;left:0;width:280px;max-width:85%;background:var(--bg-2);box-shadow:var(--shadow-2);transform:translateX(-105%);transition:transform .28s cubic-bezier(.2,.7,.2,1)}
 #home:not(.hopen) .hside{width:280px;opacity:1}#home.hopen .hside{transform:none}.hsin{width:100%}
 #home.hopen .hscrim{display:block;position:absolute;inset:0;z-index:5;background:var(--shade);animation:fi .2s}
-.htop{padding-inline:8px}.hlog{padding-inline:16px}.hbox,.hchips{width:calc(100% - 32px)}#home.hopen .htop .hnewi{display:inline-grid}}
+.htop{padding-inline:8px}.hlog{padding-inline:16px}.hbox,.hchips{width:calc(100% - 32px)}}
 @media(max-width:640px){.hhero h2{font-size:22px}.hbox textarea{font-size:16px}}
 #terms{display:none}body.termv.paged .hdr{display:flex}body.termv #newtop,body.termv #fbtn{display:none!important}
 body.termv #terms{flex:1;min-height:0;display:flex;flex-direction:column;gap:8px;padding:10px 20px 14px 28px;animation:fi .2s}
@@ -690,6 +699,7 @@ a.schip:hover{color:var(--ink);border-color:color-mix(in srgb,var(--line) 60%,va
   <span class="sp"></span>
   <span class="bar" id="tmodes" role="group" aria-label="Layout"></span>
   <button class="btn pri" id="newtop">New idea</button>
+  <button class="btn pri" id="hnewtop" aria-label="New chat"><svg><use href="#i-plus"/></svg>New chat</button>
 </div>
 <main id="board" aria-live="polite" aria-busy="true"><section aria-hidden="true"><span class="skel" style="height:14px;width:40%;margin:4px 0 12px"></span><span class="skel" style="height:72px;margin-bottom:8px"></span><span class="skel" style="height:72px"></span></section><section aria-hidden="true"><span class="skel" style="height:14px;width:40%;margin:4px 0 12px"></span><span class="skel" style="height:72px;margin-bottom:8px"></span><span class="skel" style="height:72px"></span></section><section aria-hidden="true"><span class="skel" style="height:14px;width:40%;margin:4px 0 12px"></span><span class="skel" style="height:72px;margin-bottom:8px"></span><span class="skel" style="height:72px"></span></section><section aria-hidden="true"><span class="skel" style="height:14px;width:40%;margin:4px 0 12px"></span><span class="skel" style="height:72px;margin-bottom:8px"></span><span class="skel" style="height:72px"></span></section><section aria-hidden="true"><span class="skel" style="height:14px;width:40%;margin:4px 0 12px"></span><span class="skel" style="height:72px;margin-bottom:8px"></span><span class="skel" style="height:72px"></span></section></main>
 

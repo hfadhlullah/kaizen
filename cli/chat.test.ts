@@ -4,7 +4,7 @@ import { test, expect, beforeEach, afterEach } from "bun:test";
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, chmodSync } from "node:fs";
 import { join, delimiter } from "node:path";
 import { tmpdir } from "node:os";
-import { sendChat, readChat, listChats, deleteChat, stopChat, parseLine, takeMoves, type Event, type Board } from "./chat.ts";
+import { sendChat, readChat, listChats, deleteChat, stopChat, parseLine, takeMoves, type Event, type Board, type Upload } from "./chat.ts";
 
 let root = "", base = "", bin = "", projA = "", projD = "", board: Board, created: string[] = [];
 const PATH = process.env.PATH;
@@ -16,19 +16,22 @@ function fake(body: string) {
 }
 const say = (text: string) => `cat <<'J'
 {"type":"thread.started","thread_id":"T1"}
+{"type":"turn.started"}
+{"type":"item.started","item":{"id":"i0","type":"command_execution","command":"/usr/bin/zsh -lc ls"}}
 {"type":"item.completed","item":{"id":"i0","type":"command_execution","command":"/usr/bin/zsh -lc ls","exit_code":0,"status":"completed"}}
+{"type":"item.started","item":{"id":"i1","type":"agent_message"}}
 {"type":"item.completed","item":{"id":"i1","type":"agent_message","text":${JSON.stringify(text)}}}
 {"type":"turn.completed"}
 J`;
 const argv = () => readFileSync(join(bin, "argv"), "utf8").trim().split("\n");
 
-function turn(id: string | null, text: string, project: string | null = null) {
+function turn(id: string | null, text: string, project: string | null = null, uploads: Upload[] = []) {
   const events: Event[] = [];
   return new Promise<{ events: Event[]; why: string | null; id: string }>((res) => {
     const why = sendChat(base, id, text, project, board, (e) => {
       events.push(e);
       if (e.t === "done") res({ events, why: null, id: (events[0] as any).id });
-    });
+    }, false, uploads);
     if (why) res({ events, why, id: "" });
   });
 }
@@ -60,22 +63,26 @@ test.if(posix)("a message streams the reply, saves both sides, runs in the chat'
   fake(say("Hi."));
   const { events, why, id } = await turn(null, "say hi", projA);
   expect(why).toBeNull();
-  expect(events.map((e) => e.t)).toEqual(["chat", "step", "text", "done"]);
-  expect((events[1] as any).step).toEqual({ kind: "cmd", text: "ls", ok: true });
+  expect(events.map((e) => e.t)).toEqual(["chat", "status", "status", "step", "status", "text", "done"]);
+  expect((events[2] as any).text).toBe("Running ls");
+  expect((events[3] as any).step).toEqual({ kind: "cmd", text: "ls", ok: true });
   const c = readChat(base, id)!;
   expect(c).toMatchObject({ thread: "T1", project: projA });
   expect(c.messages.map((m) => [m.role, m.text])).toEqual([["user", "say hi"], ["agent", "Hi."]]);
+  expect(c.messages[1].activity).toBeUndefined();
   expect(readFileSync(join(bin, "cwd"), "utf8").trim()).toBe(join(root, "A"));
   const stdin = readFileSync(join(bin, "stdin"), "utf8");
   expect(stdin).toContain(`Project of this chat: A (${join(root, "A")})`);
   expect(stdin).toContain(`- D — ${join(root, "D")}`);
   expect(stdin.endsWith("say hi")).toBe(true);
   expect(argv()).toContain("workspace-write");
+  expect(argv().slice(5, 9)).toEqual(["-m", "gpt-6-luna", "-c", "model_reasoning_effort=medium"]);
   expect(argv()).not.toContain("resume");
   expect(listChats(base).map((x) => [x.id, x.project])).toEqual([[id, projA]]);
 
   fake(say("Again."));
   await turn(id, "again");
+  expect(argv().slice(5, 9)).toEqual(["-m", "gpt-6-luna", "-c", "model_reasoning_effort=medium"]);
   expect(argv().slice(-3)).toEqual(["resume", "T1", "-"]);
   expect(readChat(base, id)!.messages).toHaveLength(4);
 });
@@ -92,6 +99,27 @@ test.if(posix)("no project: a read-only scratch folder outside every project", a
   expect(readChat(base, r.id)!.project).toBeUndefined();
 });
 
+test.if(posix)("uploaded images reach Codex and other files remain readable after reload", async () => {
+  fake(say("I can see both files."));
+  const image = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1, 2, 3, 4]);
+  const { id } = await turn(null, "", projA, [
+    { name: "../reference.png", bytes: image },
+    { name: "brief.txt", bytes: new TextEncoder().encode("hello") },
+  ]);
+  const c = readChat(base, id)!;
+  expect(c.title).toBe("../reference.png");
+  expect(c.messages[0].files?.map((f) => [f.name, f.image])).toEqual([["_reference.png", true], ["brief.txt", false]]);
+  for (const f of c.messages[0].files!) expect(existsSync(f.path)).toBe(true);
+  expect(argv()).toContain("-i");
+  expect(argv()[argv().indexOf("-i") + 1]).toBe(c.messages[0].files![0].path);
+  expect(readFileSync(join(bin, "stdin"), "utf8")).toContain(c.messages[0].files![1].path);
+  fake(say("Again."));
+  await turn(id, "check this too", null, [{ name: "more.png", bytes: image }]);
+  expect(argv().slice(-5)).toEqual(["resume", "T1", "-i", readChat(base, id)!.messages[2].files![0].path, "-"]);
+  expect(deleteChat(base, id)).toBeNull();
+  expect(existsSync(c.messages[0].files![0].path)).toBe(false);
+});
+
 test.if(posix)("the agent switches the chat to a listed project; the move line is not shown and the next turn runs there", async () => {
   fake(say(`Switching to D.\n[[kaizen:project ${join(root, "D")}]]`));
   const { events, id } = await turn(null, "let's work on D", projA);
@@ -101,6 +129,20 @@ test.if(posix)("the agent switches the chat to a listed project; the move line i
   expect(readChat(base, id)!.messages[1].steps!.at(-1)).toEqual({ kind: "project", text: "Switched to D", ok: true });
   fake(say("Here."));
   await turn(id, "go on");
+  expect(readFileSync(join(bin, "cwd"), "utf8").trim()).toBe(join(root, "D"));
+});
+
+test.if(posix)("a switched chat can continue the pending request in the same reply", async () => {
+  fake(say("Switching.\n[[kaizen:project D]]"));
+  const { id } = await turn(null, "check the latest build in D", projA);
+  fake(say("The latest build changed the shop."));
+  await new Promise<void>((res) => sendChat(base, id, "Continue the pending request.", null, board, (e) => {
+    if (e.t === "done") res();
+  }, true));
+  const c = readChat(base, id)!;
+  expect(c.messages).toHaveLength(2);
+  expect(c.messages[1].text).toBe("Switching.\n\nThe latest build changed the shop.");
+  expect(c.messages[1].activity).toBeUndefined();
   expect(readFileSync(join(bin, "cwd"), "utf8").trim()).toBe(join(root, "D"));
 });
 
@@ -132,16 +174,38 @@ test("chat ids that could leave chats/ are refused before any disk access", () =
   expect(existsSync(join(base, "chats"))).toBe(false);
 });
 
+test.if(posix)("too many attachments are refused before a chat is created", async () => {
+  fake(say("should not run"));
+  const { why } = await turn(null, "files", projA, Array.from({ length: 6 }, (_, i) => ({ name: `${i}.txt`, bytes: new Uint8Array([i]) })));
+  expect(why).toMatch(/up to 5 files/);
+  expect(listChats(base)).toEqual([]);
+});
+
 test.if(posix)("stop kills the agent and keeps what was said so far", async () => {
-  fake(`echo '{"type":"thread.started","thread_id":"T2"}'\necho '{"type":"item.completed","item":{"type":"agent_message","text":"Working"}}'\nsleep 30`);
+  fake(`echo '{"type":"thread.started","thread_id":"T2"}'\necho '{"type":"item.started","item":{"type":"command_execution","command":"/bin/sh -lc ls"}}'\necho '{"type":"item.completed","item":{"type":"agent_message","text":"Working"}}'\nsleep 30`);
   const events: Event[] = [];
   await new Promise<void>((res) => sendChat(base, null, "long job", projA, board, (e) => {
     events.push(e);
+    if (e.t === "status") expect(readChat(base, (events[0] as any).id)!.messages[1].activity).toBe("Running ls");
     if (e.t === "text") stopChat(base, (events[0] as any).id);
     if (e.t === "done") res();
   }));
   const c = readChat(base, (events[0] as any).id)!;
   expect(c.messages[1]).toMatchObject({ role: "agent", text: "Working", error: "Stopped." });
+  expect(c.messages[1].activity).toBeUndefined();
+  expect(listChats(base)[0].busy).toBe(false);
+});
+
+test.if(posix)("a turn persists activity and finishes independently of the page", async () => {
+  fake(`echo '{"type":"item.started","item":{"type":"command_execution","command":"/bin/sh -lc build"}}'\nsleep 0.05\necho '{"type":"item.completed","item":{"type":"agent_message","text":"Built."}}'`);
+  let id = "";
+  await new Promise<void>((res) => sendChat(base, null, "build", projA, board, (e) => {
+    if (e.t === "chat") id = e.id;
+    if (e.t === "status") expect(readChat(base, id)!.messages.at(-1)?.activity).toBe("Running build");
+    if (e.t === "done") res();
+  }));
+  expect(readChat(base, id)!.messages.at(-1)).toMatchObject({ text: "Built." });
+  expect(readChat(base, id)!.messages.at(-1)?.activity).toBeUndefined();
   expect(listChats(base)[0].busy).toBe(false);
 });
 
@@ -159,7 +223,13 @@ test("no codex on PATH: a message says how to get it", async () => {
 
 test("parseLine and takeMoves", () => {
   expect(parseLine("not json")).toBeNull();
-  expect(parseLine(`{"type":"turn.started"}`)).toBeNull();
+  expect(parseLine(`{"type":"turn.started"}`)).toEqual({ t: "status", text: "Thinking…" });
+  expect(parseLine(`{"type":"item.started","item":{"type":"mcp_tool_call","server":"docs","tool":"search"}}`))
+    .toEqual({ t: "status", text: "Using docs search" });
+  expect(parseLine(`{"type":"item.started","item":{"type":"web_search"}}`))
+    .toEqual({ t: "status", text: "Searching the web…" });
+  expect(parseLine(`{"type":"item.completed","item":{"type":"web_search","status":"completed"}}`))
+    .toEqual({ t: "step", step: { kind: "tool", text: "Web search", ok: true } });
   expect(parseLine(`{"type":"item.completed","item":{"type":"error","message":"metadata"}}`)).toBeNull();
   expect(parseLine(JSON.stringify({ type: "item.completed", item: { type: "command_execution", command: `/bin/bash -lc "cat a.md"`, exit_code: 1 } })))
     .toEqual({ t: "step", step: { kind: "cmd", text: "cat a.md", ok: false } });

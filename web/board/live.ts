@@ -8,16 +8,20 @@ import { go, markView } from "./views.ts";
 
 // ---- live
 let boot = null;
+let pendingReload = false;
+function reloadWhenAway() {
+  if (document.body.classList.contains("homev")) pendingReload = true;
+  else location.reload();
+}
 function listen() {
   const es = new EventSource("/events");
   es.onmessage = (ev) => {
     if (ev.data === "changed") {
       load(true);
       if (srcOpen() && !iceBusy && !$("src-go")?.disabled && !$("src-add")?.disabled) openSources();
-    } else if (ev.data === "reload") location.reload();
-    else if (ev.data.startsWith("hello ")) {
+    } else if (ev.data.startsWith("hello ")) {
       const b = ev.data.slice(6);
-      if (boot && b !== boot) location.reload();
+      if (boot && b !== boot) reloadWhenAway();
       boot = b;
     }
   };
@@ -32,6 +36,7 @@ function listen() {
 const v0 = ((v) => (v === "icebox" ? "sources" : v))(new URLSearchParams(location.search).get("view"));
 
 export function initLive() {
+  addEventListener("kz-view", () => { if (pendingReload && !document.body.classList.contains("homev")) location.reload(); });
   // Back from a terminal: what was committed or pushed there touched nothing the server watches.
   addEventListener("focus", () => load(true));
   // No view in the address is Home.

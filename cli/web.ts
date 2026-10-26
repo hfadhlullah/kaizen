@@ -20,7 +20,7 @@ import { listNotes, saveNote, renameNote, deleteNote, boardIndex, linksTo } from
 import * as video from "./video.ts";
 import * as localsend from "./localsend.ts";
 import * as hermes from "./hermes.ts";
-import { listChats, readChat, sendChat, stopChat, deleteChat, okId as okChatId, busy as chatBusy } from "./chat.ts";
+import { listChats, readChat, sendChat, stopChat, deleteChat, okId as okChatId, busy as chatBusy, type Event as ChatEvent, type Upload as ChatUpload } from "./chat.ts";
 
 const PAGE = join(dirname(import.meta.dir), "web", "board.html");
 // The board's script: web/board/*.ts, bundled into one file by `bun run build:web`.
@@ -245,9 +245,6 @@ export async function web(repoDir: string, opts: Opts = {}) {
       return { key, alive: st.alive, asking: st.asking };
     };
   };
-  // Dev: the page reloads itself when board.html or its bundle is saved. Server code needs
-  // `bun --watch cli/install.ts web`; the page reconnects and reloads on hello.
-  for (const f of [PAGE, BOARD_JS]) try { watch(f, () => { for (const c of clients) { try { c.enqueue("data: reload\n\n"); } catch { clients.delete(c); } } }); } catch { /* no dev reload */ }
   const watchers: FSWatcher[] = [];
   const watchAll = () => {
     for (const w of watchers) { try { w.close(); } catch { /* gone */ } }
@@ -821,13 +818,22 @@ export async function web(repoDir: string, opts: Opts = {}) {
         if (req.method !== "POST") return bad("method not allowed", 405);
         if (!local(req)) return bad("cross-origin write refused", 403);
         let body: any;
-        try { body = await req.json(); } catch { return bad("json body expected"); }
+        let uploads: ChatUpload[] = [];
+        if (path === "/chat" && req.headers.get("content-type")?.startsWith("multipart/form-data")) {
+          if (Number(req.headers.get("content-length")) > 28 * 1024 * 1024) return bad("attachments too large", 413);
+          let form: FormData;
+          try { form = await req.formData(); } catch { return bad("form data expected"); }
+          const files = form.getAll("files");
+          if (files.length > 5 || files.some((f) => !(f instanceof File) || f.size > 10 * 1024 * 1024) || files.reduce((n, f) => n + (f instanceof File ? f.size : 0), 0) > 20 * 1024 * 1024) return bad("up to 5 files, 10 MB each and 20 MB total", 413);
+          body = { id: form.get("id"), text: form.get("text") ?? "", project: form.get("project") };
+          uploads = await Promise.all(files.map(async (f) => ({ name: (f as File).name, bytes: new Uint8Array(await (f as File).arrayBuffer()) })));
+        } else try { body = await req.json(); } catch { return bad("json body expected"); }
         const id = body.id == null || body.id === "" ? null : body.id;
         if (id !== null && !okChatId(id)) return bad("bad chat id");
         if (path === "/chat/stop") return stopChat(base, id ?? "") ? json({ ok: true }) : bad("not working", 409);
         if (path === "/chat/delete") { const why = deleteChat(base, id ?? ""); return why ? bad(why, 409) : json({ ok: true }); }
         const text = String(body.text ?? "").trim();
-        if (!text) return bad("empty message");
+        if (!text && !uploads.length) return bad("empty message");
         if (text.length > 20000) return bad("message too long");
         const board = {
           projects: states(true).filter((d) => d !== base).map((d) => ({ dir: d, label: basename(dirname(d)) })),
@@ -839,11 +845,21 @@ export async function web(repoDir: string, opts: Opts = {}) {
         let ctl!: ReadableStreamDefaultController;
         const stream = new ReadableStream({ start: (c) => { ctl = c; } });
         const enc = new TextEncoder();
-        const why = sendChat(base, id, text, typeof body.project === "string" ? body.project : null, board, (e) => {
+        let chatId = id, moved = false, continued = false;
+        const emitChat = (e: ChatEvent) => {
+          if (e.t === "chat") chatId = e.id;
+          if (e.t === "project") moved = true;
+          if (e.t === "done" && moved && !continued && chatId) {
+            continued = true;
+            const why = sendChat(base, chatId, "Continue the user's pending request now that this chat is in the new project. Use the conversation context; finish the task without asking the user to repeat it. If they only asked to switch projects, stop after acknowledging the switch.", null, board, emitChat, true);
+            if (!why) return;
+            emitChat({ t: "error", error: why });
+          }
           try { ctl.enqueue(enc.encode(JSON.stringify(e) + "\n")); if (e.t === "done") ctl.close(); } catch {}
           // A turn often starts a run or edits the board's files.
           if (e.t === "done") changed();
-        });
+        };
+        const why = sendChat(base, id, text, typeof body.project === "string" ? body.project : null, board, emitChat, false, uploads);
         if (why) return bad(why, why === "no such chat" ? 404 : 409);
         return new Response(stream, { headers: { "content-type": "application/x-ndjson", "cache-control": "no-store" } });
       }
