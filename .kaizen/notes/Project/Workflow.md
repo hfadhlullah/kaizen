@@ -11,7 +11,7 @@ The product itself: a staged workflow (plan, approval, build, independent review
 
 ## Where it lives
 - `skills/kaizen/SKILL.md` — entry point: commands, modes, runner, state layout. Under `runner: lite`, `review.executor` (`inline` default, `subagent`, `ask`) decides whether the review still goes to a cold `kaizen-reviewer`; the `low` preset sets `inline`.
-- Review findings at every severity enter the bounded fix loop by default, including short lite runs; the reviewer says `PASS` only with zero findings. The backlog records findings still unresolved after the loop, unsettled verification, and work the user explicitly deferred; unaccepted planner suggestions and builder notes are reported without becoming open items.
+- Review findings at every severity enter the bounded fix loop by default, including short lite runs; the reviewer says `PASS` only with zero findings. The backlog records only what the user asked to backlog in their own words: open findings, unverified checks and out-of-scope ideas are offered by number at the approval and filed only when named, and in `auto` mode nothing is filed.
 - `skills/kaizen/spec.md` + `spec-plan.md` / `spec-build.md` / `spec-review.md` / `spec-main.md` — the stage contracts; each reader takes core plus its own stage.
 - `skills/kaizen/gather.md`, `discover.md`, `docs.md`, `status.md`, `settings.md`, `install.md` — one file per sub-command.
 - `skills/kaizen/config.default.yml` — every setting and its default. Only keys something reads belong there; the review checks, track and backlog paths are fixed in the spec files, not settings.

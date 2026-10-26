@@ -178,9 +178,9 @@ Every iteration is written to `runs/<id>/05-iterations/` so the loop is auditabl
 
 Each run keeps its own backlog at `runs/<id>/06-backlog.md`. You write it, in the main
 thread, at two writes that already happen: `02-approval.md` at the plan approval
-(only work the user explicitly deferred) and `stage: "done"` at the final approval
-(findings still open after the fix loop, unresolved verification, and explicit
-deferrals). Suggestions the user did not request are not backlog items. No subagent writes it.
+and `stage: "done"` at the final approval, and only with what the user asked to
+backlog. Open findings, unverified checks and suggestions are offered, never filed by
+themselves. No subagent writes it.
 The full rules are in [`spec-main.md`](spec-main.md).
 
 `/kaizen status` and `/kaizen backlog`: read [`status.md`](status.md) first and follow

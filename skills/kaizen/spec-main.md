@@ -6,16 +6,14 @@ the final approval. No subagent reads this file.
 ---
 ## Backlog
 
-Some runs leave work deliberately unresolved. Capture only:
-
-1. Work the user explicitly deferred at an approval.
-2. Findings still open after the bounded fix loop, or below a configured higher
-   `auto_fix.min_severity` that the user chose not to fix.
-3. Criteria the reviewer answered `CANNOT VERIFY` that the user did not settle.
-
-Planner suggestions and builder notes outside the approved scope are reported, but
-are not backlog items unless the user explicitly defers them. Without capture,
-unresolved work would survive only in the conversation that produced it.
+The backlog holds only what the user asked to put there. Nothing is filed because it
+was left over: findings still open after the fix loop, `CANNOT VERIFY` criteria,
+planner suggestions and builder notes are reported at the approval, and each goes to
+the backlog only when the user says so. What the user does not name stays in
+`04-review.md` or the plan as record, not as open work. In `auto` mode nobody is asked,
+so nothing is filed. Asking counts only in the user's own words naming the item ("do
+X next run", "backlog 5"); a bare approve files nothing. When unsure, ask once; do not
+file to be safe.
 
 `backlog.enabled: false` skips both capture points — the `02-approval.md` append at
 plan approval and the `06-backlog.md` append at final approval — for that run. The run
@@ -69,8 +67,8 @@ unconditionally:
 
 | Capture point | Stage | What gets appended |
 |---|---|---|
-| Writing `02-approval.md`, when the decision is an approval | Plan approval | Only work the user explicitly deferred |
-| Setting `stage: "done"` | Final approval | Unresolved findings and `CANNOT VERIFY` criteria, plus explicit deferrals not already recorded |
+| Writing `02-approval.md`, when the decision is an approval | Plan approval | Only items the user asked to backlog |
+| Setting `stage: "done"` | Final approval | Only items the user asked to backlog, not already recorded |
 
 Neither is optional and neither is a separate step to remember — a run cannot finish
 without touching both files.
@@ -153,18 +151,17 @@ everything in place: report its message as printed and let the user decide. The 
 `done` once approved; whether the work landed is reported, not hidden.
 
 **Open findings are offered by number.** List them with the reviewer's numbering
-intact and let the user name which to fix — "fix 2 and 5". A number not named is not
-touched, and goes to the backlog as `open` like any other deferred item. This is the
+intact, with `CANNOT VERIFY` criteria after them, and let the user name what to fix and
+what to backlog — "fix 2, backlog 5". A number not named is not touched and not filed;
+it stays in `04-review.md`. This is the
 same granularity the fix loop already works at; the only change is that the user
 picks the subset instead of accepting or declining the whole review.
 
-Before setting `stage: "done"`, append findings still open after the fix loop,
-findings below a configured higher fix threshold that the user chose not to fix,
-`CANNOT VERIFY` criteria the user did not settle, and work explicitly deferred at
-the final approval to `runs/<id>/06-backlog.md`, each as `open`, in the format given
+Before setting `stage: "done"`, append the findings, criteria and work the user asked
+to backlog at the final approval to `runs/<id>/06-backlog.md`, each as `open`, in the format given
 in *Backlog* above. Check existing entries and do not append a duplicate. Builder
 notes outside the approved scope are reported, but are not filed without an explicit
-deferral.
+request.
 
 Set `stage: "done"` in `state.json` once the user accepts.
 

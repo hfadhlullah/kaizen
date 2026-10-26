@@ -113,8 +113,8 @@ this skill's `config.default.yml`.
 
 ## Backlog and status
 
-Backlog records explicit deferrals and findings still unresolved after the fix loop,
-not every out-of-scope suggestion. Items: `- <status>: <item text>`, `<status>` one of `open`, `done`, `rejected`
+Backlog records only what the user asked to backlog at an approval; open findings and
+suggestions are offered, not filed by themselves. Items: `- <status>: <item text>`, `<status>` one of `open`, `done`, `rejected`
 (`rejected` carries a reason after `|`). `/kaizen backlog`/`status` are **read-only** —
 never edit `06-backlog.md` or `state.json`, even to fix a spotted inconsistency; report
 it and ask.

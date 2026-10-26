@@ -295,7 +295,8 @@ modification the user asked for. When the decision is an approval — full or pa
 the same write appends to `runs/<id>/06-backlog.md` only work the user explicitly
 deferred, each as `open` — see *Backlog* below for the format. An unaccepted
 out-of-scope suggestion is not a backlog item merely because it appeared in the plan;
-silence is not a request to do it later. A rejection appends nothing: there is no
+silence is not a request to do it later, and neither is a bare "approve" — a deferral
+is the user naming the item and asking for it later. A rejection appends nothing: there is no
 approved scope yet to measure against, and the approval of the revised plan is what
 captures any explicit deferral, once.
 

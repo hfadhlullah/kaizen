@@ -134,3 +134,5 @@ updated: 2026-10-19
 - 2026-10-26 run 2026-10-26-finish-findings-in-run — Workflow, CLI (bounded fix loop includes low findings; backlog records explicit deferrals and unresolved work)
 - 2026-10-26 run 2026-10-26-web-friendly-fixes — Web board, Sources and icebox (Ideas tab label and empty hint, run names on Done cards, plainer approval footer, Icebox opens on its list, folder names in Notes picker, bare inbox bullets read as ideas)
 - 2026-10-26 run 2026-10-26-phone-tab-more — Web board (phone tab bar: 4 tabs + More for Video and Settings)
+- 2026-10-26 run 2026-10-26-backlog-deferral-rule — Workflow (explicit deferral defined: user names the item; bare approve defers nothing)
+- 2026-10-26 run 2026-10-26-backlog-only-on-request — Workflow (backlog holds only what the user asks for; open findings offered, not filed)

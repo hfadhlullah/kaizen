@@ -97,7 +97,7 @@ tells you what it concluded, so you correct a sentence instead of filling in a f
 | `/kaizen-approve` | Approve whatever the run is waiting on |
 | `/kaizen-reject <reason>` | Send it back with a reason, or kill the run |
 | `/kaizen-run` | Carry on with an approved plan |
-| `/kaizen-backlog` | Explicitly deferred and unresolved work across all runs |
+| `/kaizen-backlog` | Work you asked to backlog, across all runs |
 | `/kaizen-abort` | Abandon the current run |
 | `/kaizen-gather` | Read the request sources kaizen cannot read by itself into the icebox |
 | `/kaizen-discover` | An agent groups what is in the icebox, proposes ideas, and promotes the ones you pick |
@@ -508,7 +508,7 @@ Everything a run knows lives in files next to the work, not in a chat window:
     02-approval.md      # what you decided, and why
     03-impl.md          # what changed, and the proof it works
     04-review.md        # findings, numbered and graded
-    06-backlog.md       # explicit deferrals and unresolved work
+    06-backlog.md       # what you asked to backlog
 ```
 
 Plain files, so you can read them, commit them, and pick a run back up tomorrow —
