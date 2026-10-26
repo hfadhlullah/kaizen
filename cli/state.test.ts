@@ -77,6 +77,17 @@ test("inbox round-trips and ignores malformed lines", () => {
   expect(readInbox(state).map((l) => l.status)).toEqual(["open", "open", "started", "rejected"]);
 });
 
+test("inbox reads a bullet typed by hand as an open idea", () => {
+  const dir = mkdtempSync(join(tmpdir(), "kz-inbox-"));
+  writeFileSync(join(dir, "inbox.md"), "# Ideas\n- Add dark mode\n* [ ] Faster search\n- done: shipped\n  a note\n");
+  expect(readInbox(dir).map((l) => [l.status, l.text, l.notes])).toEqual([
+    ["open", "Add dark mode", undefined],
+    ["open", "Faster search", undefined],
+    ["done", "shipped", "a note"],
+  ]);
+  rmSync(dir, { recursive: true, force: true });
+});
+
 test("boardCards: idea retired once a run's request contains it; started idea sits in planning", () => {
   const cards = boardCards([state], Date.now());
   const ideas = cards.filter((k) => k.kind === "idea").map((k) => [k.text, k.column, k.status]);

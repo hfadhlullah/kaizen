@@ -215,13 +215,13 @@ export async function openRun(c, refresh, again) {
       asks = !pq
         ? " It has open questions the board cannot show: answer them in the terminal running this run, or approve and your agent asks them."
         : qs.length
-          ? ` It asks ${qs.length === 1 ? "one question" : qs.length + " questions"}: Approve opens ${qs.length === 1 ? "it" : "them"}.`
+          ? ` Approve first asks you ${qs.length === 1 ? "its question" : "its " + qs.length + " questions"}.`
           : "";
     // gitBtn's buttons restyled as menu rows.
     const more =
       gitBtn(c).replace(/class="btn( pri)?"/g, "") +
       `<button data-a="archive">Archive</button><hr><button data-a="ab" class="danger">Abandon</button>`;
-    foot.innerHTML = html`<span class="note">${sent ? "Sent to your agent." : APPROVAL[c.awaiting] + asks + " Answering here opens a new agent session."}</span><details class="more"><summary class="btn ghost">More</summary><div class="menu-pop">${raw(more)}</div></details>${raw(rs)}<span class="dec"><button class="btn" data-a="revise"${sent ? " disabled" : ""}>Revise</button><button class="btn pri" data-a="approve"${sent ? " disabled" : ""}>${c.awaiting === "findings" ? "Approve as-is" : "Approve"}</button></span>`;
+    foot.innerHTML = html`<span class="note">${sent ? "Sent to your agent." : APPROVAL[c.awaiting] + asks}</span><details class="more"><summary class="btn ghost">More</summary><div class="menu-pop">${raw(more)}</div></details>${raw(rs)}<span class="dec"><button class="btn" data-a="revise"${sent ? " disabled" : ""}>Revise</button><button class="btn pri" data-a="approve"${sent ? " disabled" : ""}>${c.awaiting === "findings" ? "Approve as-is" : "Approve"}</button></span>`;
   } else if (c.status === "waiting")
     foot.innerHTML = html`<span class="note">Waiting on you: ${need(c.awaiting)}. Answer in the ${c.pty && c.pty.alive ? "terminal (button at the top)" : "terminal running this run"}.</span>${raw(arch)}<button class="btn ghost" data-a="ab">Abandon</button>${raw(rs)}`;
   else if (c.status === "done") foot.innerHTML = raw(arch + rs);

@@ -170,7 +170,7 @@ function card(c) {
       : "";
   el.innerHTML =
     (pick ? html`<input type="checkbox" class="pick" ${raw(picked.has(k) ? "checked" : "")} aria-label="Select">` : "") +
-    html`<div class="c-id"><span class="st d-${st}" role="img" title="${sttl}" aria-label="${sttl}"><svg><use href="#s-${st}"/></svg></span><span class="idt">${idt}</span><span class="age">${c.kind === "run" ? age(c.moved || store.S.now, store.S.now) : ""}</span><button class="ib sm more" data-a="menu" title="Actions" aria-label="Actions" aria-haspopup="menu" aria-expanded="${String(k === store.menuKey)}">${ico("more")}</button></div>
+    html`<div class="c-id"><span class="st d-${st}" role="img" title="${sttl}" aria-label="${sttl}"><svg><use href="#s-${st}"/></svg></span><span class="idt"${c.kind === "run" && c.title ? html` title="${c.title}"` : ""}>${idt}</span><span class="age">${c.kind === "run" ? age(c.moved || store.S.now, store.S.now) : ""}</span><button class="ib sm more" data-a="menu" title="Actions" aria-label="Actions" aria-haspopup="menu" aria-expanded="${String(k === store.menuKey)}">${ico("more")}</button></div>
   <div class="c-title"${c.kind === "idea" && brief(c.text).parts.length ? html` title="${c.text}"` : ""}>${c.kind === "idea" ? brief(c.text).head : c.title || c.id}</div>
   ${act}
   ${chips.length || marks.length ? html`<div class="c-foot"><span class="c-chips">${chips}</span><span class="c-marks">${marks}</span></div>` : ""}`;
@@ -466,7 +466,7 @@ async function startRun(c, kind) {
   load();
 }
 
-const HINT = { 1: "Ideas you run are planned here", 2: "Approved plans are built here", 3: "Finished builds are checked here" };
+const HINT = { 0: "Add an idea to start a run", 1: "Ideas you run are planned here", 2: "Approved plans are built here", 3: "Finished builds are checked here" };
 
 // The new-idea form, wired into f: inline at the top of Ideas, or in a modal.
 function ideaForm(f, close) {
@@ -703,7 +703,7 @@ export function render() {
         ]
           .map(
             ([v, l, svg, k]) =>
-              `<button role="tab" aria-selected="${String(ideasTab === v)}" data-t="${v}" title="${l}" aria-label="${l}, ${k}">${svg}<i>${k}</i></button>`,
+              `<button role="tab" aria-selected="${String(ideasTab === v)}" data-t="${v}" title="${l}" aria-label="${l}, ${k}">${svg}${ideasTab === v ? `<b>${l.split(":")[0]}</b>` : ""}<i>${k}</i></button>`,
           )
           .join("")}</span>`
       : `${name}<i>${list.length || ""}</i>`;
@@ -858,7 +858,7 @@ export function render() {
       ul.appendChild(li);
     }
     // An empty middle column says what lands in it, so it does not look broken.
-    if (!list.length && ci >= 1 && ci <= 3 && cs.length && !filter && !q && !archive)
+    if (!list.length && ci <= 3 && !bl && cs.length && !filter && !q && !archive)
       ul.innerHTML = `<li class="hint">${HINT[ci]}</li>`;
     if (bl && !list.length && !filter && !q)
       ul.innerHTML = `<li class="hint">${sev ? "Nothing at this severity" : "What finished runs left undone shows here"}</li>`;

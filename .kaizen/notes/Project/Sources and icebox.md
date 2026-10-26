@@ -33,6 +33,7 @@ Shared links (sheets, docs, social searches) kaizen reads for requests; each req
 - `sift` finds a sheet's header by shape; test any change against a fixed set of sheet shapes, old vs new side by side (`.kaizen/memory.md`). A row with a blank first cell and blank status takes the status of the row above: the TSV export leaves merged NO/STATUS cells blank below their top row.
 - A named request column (`DETAIL`) loses to a column holding over 3× its request-like text in open rows: some sheets name the page in `DETAIL` and write the request in `NOTES`.
 - The Sources panel rebuilds on every action; controls need an id and an explicit step (`.kaizen/memory.md`).
+- The Sources drawer stays shut until asked for (`srcShow`), even with no sources; the empty Icebox then says what it is for and offers Add a source, which opens the drawer.
 - The Add a source form sits at the top of the Sources drawer, collapsed behind the header's Add button (`srcAdd`) once a source exists; it stays open across rebuilds while any field holds text, and closes after a successful add.
 
 - Reply styles: only `promo` and `helpful` send the README to ChatGPT, so `casual`/`fun` cannot name the project. The style from the client is checked with `Object.hasOwn` (a plain lookup lets `constructor` through). The board keeps the style per project (`kz-reply-style:<dir>`) and shows the picker and Regenerate only when ChatGPT is connected.

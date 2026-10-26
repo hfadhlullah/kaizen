@@ -2,7 +2,7 @@
 description: The Notes tab: an Obsidian-compatible markdown folder under .kaizen/notes/
 tags: [project, notebook]
 sources: [cli/notes.ts, web/notebook.ts, web/notes-lib.ts, web/notes.html, cli/build-web.ts]
-updated: 2026-10-23
+updated: 2026-10-26
 ---
 # Notebook
 
@@ -13,6 +13,8 @@ Plain markdown files under `<state>/notes/`, folders allowed, so Obsidian can op
 - `cli/notes.ts` — list, save (with conflict check), rename, delete, `boardIndex()`, `linksTo()`.
 - `web/notes-lib.ts` — text rules (wikilinks, tags, code spans) shared by page and tests.
 - `web/notebook.ts` → bundled to `web/notebook.js` by `cli/build-web.ts` (`bun run build:web`); `web/notes.html` is the page.
+
+- The project picker lists folder names, as the board does; the full path is the select's tooltip.
 
 ## How it connects
 - Served by the [[Web board]] (`/notebook`, `/vault`); a run's panel shows "Linked from notes".

@@ -1203,14 +1203,18 @@ addEventListener("pagehide", () => {
   dir = [want, kept, S.dir].find(known) ?? S.projects[0]?.dir ?? "";
   const sel = $<HTMLSelectElement>("proj");
   sel.innerHTML = S.projects
-    .map((p) => `<option value="${esc(p.dir)}"${p.dir === dir ? " selected" : ""}>${esc(p.label)}</option>`)
+    .map((p) => `<option value="${esc(p.dir)}" title="${esc(p.label)}"${p.dir === dir ? " selected" : ""}>${esc(p.label.split(/[\\/]/).filter(Boolean).pop() || p.label)}</option>`)
     .join("");
+  // Folder names only, as on the board; the full path is the tooltip.
+  const full = () => (sel.title = S.projects.find((p) => p.dir === sel.value)?.label ?? "");
+  full();
   sel.onchange = async () => {
     if (!(await openNote(null))) {
       sel.value = dir;
       return;
     }
     dir = sel.value;
+    full();
     // window.: `history` here is CodeMirror's undo extension.
     const u = new URL(location.href);
     u.searchParams.set("dir", dir);

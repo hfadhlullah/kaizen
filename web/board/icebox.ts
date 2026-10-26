@@ -324,7 +324,7 @@ export async function openSources() {
           )}`,
         )
       : ""}`;
-  const bar = html`<div class="ice-bar">${order.length ? html`<input type="checkbox" id="ice-all" aria-label="Select every request shown"${nSel && nSel === order.length ? " checked" : ""}>` : ""}<span class="count">${iceCat === "Dismissed" || iceCat === "Done" ? `${order.length} ${iceCat.toLowerCase()}` : `${order.length < waiting ? `${order.length} of ${waiting}` : waiting} waiting`}</span><span class="end"></span>${String(chips) ? html`<details class="ice-filt"><summary class="ib${iceCat || iceSrc ? " on" : ""}" aria-label="Filter requests" title="Filter requests">${ico("filter")}</summary><div class="ice-fpop">${chips}</div></details>` : ""}<button class="btn ghost sm" id="ice-new" title="Add a request by hand">${ico("plus")} Add</button><button class="btn sm" id="src-go"${list.length ? "" : " disabled"}>${ico("refresh")} Gather all</button><button class="btn ghost sm" id="src-tog" aria-expanded="${String(srcShow ?? !list.length)}" aria-controls="src-sec">${ico("link")} Sources · ${list.length}</button></div>`;
+  const bar = html`<div class="ice-bar">${order.length ? html`<input type="checkbox" id="ice-all" aria-label="Select every request shown"${nSel && nSel === order.length ? " checked" : ""}>` : ""}<span class="count">${iceCat === "Dismissed" || iceCat === "Done" ? `${order.length} ${iceCat.toLowerCase()}` : `${order.length < waiting ? `${order.length} of ${waiting}` : waiting} waiting`}</span><span class="end"></span>${String(chips) ? html`<details class="ice-filt"><summary class="ib${iceCat || iceSrc ? " on" : ""}" aria-label="Filter requests" title="Filter requests">${ico("filter")}</summary><div class="ice-fpop">${chips}</div></details>` : ""}<button class="btn ghost sm" id="ice-new" title="Add a request by hand">${ico("plus")} Add</button><button class="btn sm" id="src-go"${list.length ? "" : " disabled"}>${ico("refresh")} Gather all</button><button class="btn ghost sm" id="src-tog" aria-expanded="${String(!!srcShow)}" aria-controls="src-sec">${ico("link")} Sources · ${list.length}</button></div>`;
   const bulk = iceSel.size
     ? html`<div class="ice-bulk" role="toolbar" aria-label="Selected requests"><span>${iceSel.size} selected</span><span class="end"></span><button class="btn sm" id="ice-bp" title="Promote (p)">${ico("plus")} Promote</button><button class="btn ghost sm" id="ice-bd" title="Dismiss (d)">${ico("x")} Dismiss</button><button class="btn ghost sm" id="ice-bc" title="Clear selection (Esc)">Clear</button></div>`
     : "";
@@ -362,10 +362,10 @@ export async function openSources() {
       ? html`<div class="ice-zero"><h4>No matches</h4><p style="margin-top:10px"><button class="btn sm" id="ice-unf">Clear filters</button></p></div>`
       : order.length
         ? html`<div class="ice-list">${[...groups].map(([g, ix]) => html`<div class="ice-cat">${g}<i>${ix.length}</i></div>${ix.map(row)}`)}</div>`
-        : html`<div class="ice-zero"><h4>Nothing waiting</h4></div>`;
-  // The sources, in the right-hand drawer: shut until asked for, open by itself while there
-  // are none until closed. Slid in only when opened; a rebuild while open shows it in place.
-  const drawer = srcShow ?? !list.length,
+        : html`<div class="ice-zero"><h4>Nothing waiting</h4><p>Requests gathered from your sources wait here until you turn them into ideas.</p>${list.length ? "" : html`<p style="margin-top:10px"><button class="btn sm pri" id="ice-addsrc">${ico("plus")} Add a source</button></p>`}</div>`;
+  // The sources, in the right-hand drawer: shut until asked for. Slid in only when opened;
+  // a rebuild while open shows it in place.
+  const drawer = !!srcShow,
     slide = drawer && !$("src-sec")?.classList.contains("open");
   const sec = html`<div class="src-scrim${drawer && !slide ? " on" : ""}" id="src-scrim"></div><aside class="src-sec${drawer && !slide ? " open" : ""}" id="src-sec" aria-label="Sources"${drawer ? "" : " inert"}><header><div class="t"><b>Sources</b><div class="src-chips"><a id="src-to-settings" class="schip" role="button" tabindex="0" title="${d && d.every && d.every !== "off" ? `Checked every ${d.every}` : "Auto-check off"}: change in Settings">${ico("clock")}${d && d.every && d.every !== "off" ? (d.every) : "Off"}</a>${G.connected ? html`<span class="schip on" title="ChatGPT${G.email ? ": " + (G.email) : ""}">${ico("ai")}ChatGPT<a id="cg-out" role="button" tabindex="0" aria-label="Disconnect ChatGPT" title="Disconnect">${ico("x")}</a></span>` : html`<a id="cg-in" class="schip" role="button" tabindex="0" title="Connect ChatGPT">${ico("ai")}ChatGPT</a>`}${(d.google || {}).connected ? html`<span class="schip on" title="Google connected">${ico("google")}Google<a id="gg-out" role="button" tabindex="0" aria-label="Disconnect Google" title="Disconnect">${ico("x")}</a></span>` : html`<a id="gg-in" class="schip" role="button" tabindex="0" title="Connect Google">${ico("google")}Google</a>`}</div></div><div class="src-hda">${list.length ? html`<button class="btn sm" id="src-new" aria-expanded="${String(addOn)}" aria-controls="src-addbox">${ico("plus")} Add</button>` : ""}<button class="ib" id="src-x" aria-label="Close sources" title="Close">${ico("close")}</button></div></header><div class="body">${addBox}${list.length ? html`<div class="src-list">${cards}</div>` : emptyState}</div></aside>`;
   // First visit: offer the ChatGPT plan for social sources, or keep the agent.
@@ -486,6 +486,7 @@ export async function openSources() {
     srcShow = true;
     openSources().then(() => srcShow && $("src-url")?.focus());
   };
+  if ($("ice-addsrc")) $("ice-addsrc").onclick = $("src-tog").onclick;
   wirePick("ice-fs", (v) => {
     iceSrc = v;
     openSources();

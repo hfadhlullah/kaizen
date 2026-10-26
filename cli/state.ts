@@ -823,6 +823,12 @@ export function readInbox(state: string): InboxLine[] {
       out.push(a ? { status: m[1]!, text: m[2]!.slice(0, a.index).trim(), added: +a[1]! } : { status: m[1]!, text: m[2]!.trim() });
       continue;
     }
+    // A bullet typed by hand, without a status, is an open idea.
+    const b = /^[-*]\s+(?:\[ \]\s+)?(.+)$/.exec(raw);
+    if (b) {
+      out.push({ status: "open", text: b[1]!.trim() });
+      continue;
+    }
     // An indented line belongs to the bullet above it; anything else is noise.
     const last = out[out.length - 1];
     if (last && /^\s{2,}\S/.test(raw)) last.notes = (last.notes ? last.notes + "\n" : "") + raw.trim();
