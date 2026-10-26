@@ -195,7 +195,16 @@ pre.mark{margin:0;font:700 8px/1 var(--mono)}
 .foot{display:flex;justify-content:flex-end;gap:8px}
 /* the agent working on this video: its board terminal, here */
 #dock:empty{display:none}
-#dock{display:grid;gap:8px;margin-bottom:16px}
+#dock{display:grid;gap:8px}
+.rcol{min-width:0;display:grid;gap:12px;align-content:start}
+.tabs{display:flex;gap:4px;padding:4px;background:var(--canvas);border:1px solid var(--line);border-radius:var(--r-s);width:max-content}
+.tabs button{all:unset;cursor:pointer;display:flex;align-items:center;gap:6px;padding:6px 16px;border-radius:6px;font-size:14px;font-weight:600;color:var(--dim)}
+.tabs button[aria-selected=true]{background:var(--bg-2);color:var(--ink);box-shadow:var(--shadow-1)}
+.tabs button:focus-visible{outline:2px solid var(--accent)}
+.tdot{display:none;width:8px;height:8px;border-radius:50%;background:var(--warn)}
+.tabs .ask .tdot{display:inline-block}
+.termpane:has(#dock:not(:empty)) .tnone{display:none}
+.termpane .term{height:min(640px,calc(100vh - 260px))}
 .agentbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:color-mix(in srgb,var(--run) 10%,var(--bg-2));border:1px solid color-mix(in srgb,var(--run) 45%,var(--line));border-radius:var(--r-s);padding:10px 12px}
 .agentbar.asking{background:color-mix(in srgb,var(--warn) 12%,var(--bg-2));border-color:var(--warn)}
 .agentbar b{flex:1;min-width:0}

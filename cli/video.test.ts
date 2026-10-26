@@ -349,17 +349,11 @@ test("every wizard value is checked", () => {
   const foot = video.requestFor(lib, { ...ok, source: "footage", preset: "tiktok-mystery", folder: join(lib, "videos") }) as { text: string; name: string };
   expect(foot.text).toContain(`Footage: the video file(s) in ${join(lib, "videos")} -- copy them into videos/${foot.name}/raw/`);
   expect(foot.text).not.toContain('"format"');
-  // Any preset from either start: the request says which engine bridges.
-  const cross = (video.requestFor(lib, { ...ok, preset: "tiktok-mystery" }) as { text: string }).text;
-  expect(cross).toContain("Preset: tiktok-mystery. It is a footage preset on a from-scratch video: build with make_film.py as usual; it bridges to the footage engine.");
+  // A footage preset edits the user's footage: refused for a brief. A film preset on footage bridges.
+  expect(video.requestFor(lib, { ...ok, preset: "tiktok-mystery" })).toEqual({ error: "tiktok-mystery edits your footage: start from My footage" });
   const crossFoot = (video.requestFor(lib, { ...ok, source: "footage", preset: "film-promo-booth", folder: join(lib, "videos") }) as { text: string }).text;
   expect(crossFoot).toContain("It is a film preset on a footage video: build with make_tiktok.py as usual");
   expect((video.requestFor(lib, ok) as { text: string }).text).not.toContain("bridges");
-  // A footage preset on a brief makes 9:16 only, whatever the platforms.
-  const yt = (video.requestFor(lib, { ...ok, preset: "tiktok-mystery", platforms: ["TikTok", "YouTube"] }) as { text: string }).text;
-  expect(yt).toContain('Set "format": "9x16"');
-  expect(yt).not.toContain("--format <shape>");
-  expect(yt).toContain("Note: tiktok-mystery is 9:16 only, so only the 9:16 file is made; tell the user 16x9 is skipped.");
   // Optional assets for a from-scratch film; ignored for footage.
   const withAssets = (video.requestFor(lib, { ...ok, assets: join(lib, "videos") }) as { text: string; name: string });
   expect(withAssets.text).toContain(`Assets: the user's files in ${join(lib, "videos")} -- copy them into videos/${withAssets.name}/inputs/ and run intake.py`);

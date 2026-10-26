@@ -417,6 +417,8 @@ export function requestFor(place: string, v: any): { text: string; name: string 
   if (!p) return { error: "unknown preset" };
   const start = v.source === "brief" ? "film" : "footage";
   if (p.kind === "template" && v.source !== "brief") return { error: `${p.name} starts from a brief about the product` };
+  // Footage presets edit the user's own recording: they are for a footage start only.
+  if (p.kind === "footage" && v.source !== "footage") return { error: `${p.name} edits your footage: start from My footage` };
   if (!Array.isArray(v.platforms) || !v.platforms.length || !v.platforms.every((x: unknown) => has(PLATFORMS, x))) return { error: "pick where it goes" };
   const secs = Number(v.seconds);
   if (!Number.isInteger(secs) || secs < 15 || secs > 600) return { error: "length must be 0:15 to 10:00" };

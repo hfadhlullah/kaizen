@@ -69,11 +69,11 @@ Pace: `lead` / `tail` = silence before and after each line. Drama 0.8/1.1, booth
 
 ## Template presets
 
-`app-promo` is a template preset (`preset.json`, kind `template`): a whole HyperFrames film filled from a product brief, built by `make_promo.py`. See [`promo.md`](promo.md). It is the only preset the New video wizard offers today; the others carry a `.hidden` file until the user approves a video made with them, and they still build for existing videos.
+`app-promo` is a template preset (`preset.json`, kind `template`): a whole HyperFrames film filled from a product brief, built by `make_promo.py`. See [`promo.md`](promo.md). The New video wizard offers it for a brief start, and the five footage presets (tiktok-explainer, tiktok-mystery, tiktok-cheerful, tiktok-scam-alert, educational-warning) for a footage start only: a footage preset edits the user's own recording, so a brief with one is refused. The film-* presets carry a `.hidden` file until the user approves a video made with them; they still build for existing videos.
 
 ## Crossing over
 
-Any preset works for either start; the build script notices the other kind and bridges.
+A film preset works for a footage start too: the build script notices it and bridges. A footage preset is offered only for footage on the Video page (2026-10-26); the brief-to-footage bridge below still works when make_film.py is run by hand.
 
 - **Footage with a film preset.** `make_tiktok.py` writes `videos/<name>/film-bridge/`: the cut (`video` in the
   config) re-encoded silent as `footage.mp4`, its sound as `v01.mp3`, the caption words as `words.json`, and a

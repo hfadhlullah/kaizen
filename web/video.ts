@@ -148,10 +148,11 @@ function route() {
   $("wiz").hidden = !wiz;
   film = null;
   edits = new Map();
+  rtab = "form";
   sp = null;
   $("sendp").innerHTML = "";
   if (open) refreshEditor(true);
-  else $("editbody").innerHTML = "";
+  else { parkDock(); $("editbody").innerHTML = ""; }
   if (wiz) drawWizard();
   drawDock();
 }
@@ -162,6 +163,7 @@ const cur = () => open && videos.find((v) => v.place === open!.place && v.name =
 async function refreshEditor(first = false) {
   const v = cur();
   if (!v) {
+    parkDock();
     const a = open && agentOn(open.place, open.name);
     if (a) $("editbody").innerHTML = `<div class="crumb"><button data-back>Videos</button> / ${esc(places[a.place]?.label ?? "")}</div>
       <div class="ehead"><h2>${esc(a.name)}</h2></div><p class="note">Claude is setting this video up. Answer its questions above; the editor opens here once the video has its storyboard.</p>`;
@@ -176,7 +178,7 @@ async function refreshEditor(first = false) {
   const fresh = first || !$("edit").querySelector(".ed");
   if (v.mode === "film") {
     const r = await fetch(`/video/film?p=${v.place}&name=${encodeURIComponent(v.name)}`);
-    if (!r.ok) { $("editbody").innerHTML = `<p class="blank">Could not read this film's film.json.</p>`; return; }
+    if (!r.ok) { parkDock(); $("editbody").innerHTML = `<p class="blank">Could not read this film's film.json.</p>`; return; }
     film = await r.json();
   }
   if (fresh) picked = new Set(film?.platforms.length ? film.platforms : v.platforms);
@@ -190,6 +192,9 @@ function drawEditor(v: Video) {
   const [w, h] = v.size ?? SIZE[f];
   const beats = film?.beats ?? [];
   dur = beats.reduce((a, b) => Math.max(a, b.start + (b.len ?? 0)), 0) || v.seconds || 0;
+  // The live terminal (#dock) is parked outside the editor while it is redrawn, then put back in the
+  // Terminal tab: the same element, so its session stays connected.
+  const dock = parkDock();
   $("editbody").innerHTML = `
     <div class="crumb"><button data-back>Videos</button> / ${esc(v.where)}</div>
     <div class="ehead"><h2>${esc(v.name)}</h2><span class="pill ${v.status}" id="stat">${LABEL[v.status]}</span>
@@ -204,17 +209,24 @@ function drawEditor(v: Video) {
         ${beats.length ? `<div class="strip" id="strip">${beats.map((b, i) => `<button style="flex:${Math.max(1, b.len ?? 1)};--c:${COLORS[i % COLORS.length]}" data-b="${i}" title="${esc(b.kind)} ${mmss(b.start)}">${i + 1}</button>`).join("")}<span class="head" id="head" style="left:0"></span></div>` : ""}
         <div class="stills" id="stills">${(film?.stills ?? []).map((s) => `<a href="${esc(fileUrl(v, s))}" target="_blank" rel="noopener"><img src="${esc(fileUrl(v, s))}?t=${Date.now()}" alt="Still frame"></a>`).join("")}</div>
       </div>
-      <div class="beats">
+      <div class="rcol">
+      <div class="tabs" role="tablist" aria-label="Edit or talk to Claude">
+        <button role="tab" id="tab-form" data-tab="form" aria-controls="formpane">Form</button><button role="tab" id="tab-term" data-tab="term" aria-controls="termpane">Terminal<i class="tdot" aria-hidden="true"></i><span class="sr" id="tdotsr"></span></button></div>
+      <div class="termpane" id="termpane" role="tabpanel" aria-labelledby="tab-term"><p class="note tnone">No Claude session for this video yet. Ask Claude for a change in the Form tab and it opens here.</p></div>
+      <div class="beats" id="formpane" role="tabpanel" aria-labelledby="tab-form">
         <div id="job"></div>
         ${v.mode === "film" ? beats.map((b, i) => beatRow(b, i)).join("") : `<p class="note">A video made from your footage. Its words come from what you said; change them by asking the kaizen-video skill. Render it again here.</p>`}
         <div class="savebar"><div class="chips" id="plats" role="group" aria-label="Where it goes">${Object.keys(PLATFORMS).map((p) => `<button class="chip${picked.has(p) ? " on" : ""}" data-p="${esc(p)}">${esc(p)}</button>`).join("")}</div>
           ${v.mode === "film" ? `<button class="btn pri" id="save">Save changes</button>` : ""}</div>
         <p class="note" id="platnote"></p>
         <div class="ask"><input id="askin" maxlength="2000" placeholder="Ask Claude for a bigger change, like a new voice line or a punchier hook" aria-label="Ask Claude to change this video"><button class="btn pri" id="askgo">Send</button></div>
-        <p class="note">Claude works in a terminal at the top of this page; answer it there.</p>
+        <p class="note">Claude works in the Terminal tab; answer it there.</p>
         <div class="files" id="files"></div>
       </div>
+      </div>
     </div>`;
+  $("termpane").append(dock);
+  showTab();
   fit();
   drawPlats();
   drawJob(v);
@@ -392,10 +404,21 @@ addEventListener("message", (e) => {
   }
 });
 
+// Tabs: arrow keys move between Form and Terminal (the WAI-ARIA tabs pattern).
+$("edit").addEventListener("keydown", (e) => {
+  const t = (e.target as HTMLElement).closest<HTMLElement>("[data-tab]");
+  if (!t || (e.key !== "ArrowLeft" && e.key !== "ArrowRight")) return;
+  e.preventDefault();
+  rtab = rtab === "form" ? "term" : "form";
+  showTab();
+  document.querySelector<HTMLElement>(`[data-tab=${rtab}]`)?.focus();
+});
 $("edit").addEventListener("click", async (e) => {
   const t = e.target as HTMLElement;
   const v = cur();
   if (t.closest("[data-back]")) return go(null);
+  const tab = t.closest<HTMLElement>("[data-tab]");
+  if (tab) { rtab = tab.dataset.tab as "form" | "term"; return showTab(); }
   if (!v) return;
   const beat = t.closest<HTMLElement>(".beat>button");
   if (beat) return selectBeat(Number(beat.parentElement!.dataset.b));
@@ -465,6 +488,26 @@ const loadTerm = () => termLib ??= new Promise((ok, no) => {
   document.head.append(sc);
 });
 let mounted: { key: string; off: () => void } | null = null;
+// The editor's right column: the form (default) or Claude's terminal. Reset to the form for each video.
+let rtab: "form" | "term" = "form";
+// #dock lives in the Terminal tab, which is inside #editbody: move it out before #editbody is rewritten,
+// or the rewrite deletes it (and the live terminal with it). Parked, it shows above the editor, as in the
+// "Claude is setting this video up" state, which has no tabs.
+function parkDock() {
+  const d = $("dock");
+  if (d.parentElement !== $("edit")) $("edit").prepend(d);
+  return d;
+}
+function showTab() {
+  const f = document.getElementById("formpane"), t = document.getElementById("termpane");
+  if (!f || !t) return;
+  f.hidden = rtab !== "form"; t.hidden = rtab !== "term";
+  for (const b of document.querySelectorAll<HTMLElement>("[data-tab]")) {
+    b.setAttribute("aria-selected", String(b.dataset.tab === rtab));
+    b.tabIndex = b.dataset.tab === rtab ? 0 : -1;
+  }
+  if (rtab === "term") drawDock();
+}
 
 async function drawDock() {
   const dock = $("dock");
@@ -472,15 +515,25 @@ async function drawDock() {
   if (!a) {
     mounted?.off(); mounted = null;
     dock.innerHTML = "";
+    document.querySelector("[data-tab=term]")?.classList.remove("ask");
+    const sr = document.getElementById("tdotsr");
+    if (sr) sr.textContent = "";
     return;
   }
-  if (mounted?.key !== a.pty) {
+  if (mounted?.key !== a.pty && !document.getElementById("term")?.dataset.pty?.includes(a.pty)) {
     mounted?.off(); mounted = null;
-    dock.innerHTML = `<div class="agentbar" id="abar"></div><div class="term" id="term"></div>`;
+    dock.innerHTML = `<div class="agentbar" id="abar"></div><div class="term" id="term" data-pty="${esc(a.pty)}"></div>`;
+  }
+  // The terminal starts only once it can be seen: started in a hidden tab, at zero size, it draws nothing.
+  // A placeholder claims the slot before the await, so two overlapping calls never mount it twice.
+  const seen = !dock.closest("#termpane") || rtab === "term";
+  if (mounted?.key !== a.pty && seen) {
+    const slot = { key: a.pty, off: () => {} };
+    mounted = slot;
     try {
       const mount = await loadTerm();
       const el = document.getElementById("term");
-      if (el && !mounted) mounted = { key: a.pty, off: mount(el, a.pty, () => load()) };
+      if (el && mounted === slot) slot.off = mount(el, a.pty, () => load());
     } catch {
       // Keep the message: the next poll would rebuild the dock and try again, every few seconds.
       mounted = { key: a.pty, off: () => {} };
@@ -488,6 +541,9 @@ async function drawDock() {
       if (el) el.textContent = "The terminal could not load. Open it on the board instead.";
     }
   }
+  document.querySelector("[data-tab=term]")?.classList.toggle("ask", a.alive && a.asking);
+  const sr = document.getElementById("tdotsr");
+  if (sr) sr.textContent = a.alive && a.asking ? " (Claude is asking you something)" : "";
   const bar = document.getElementById("abar");
   if (!bar) return;
   bar.className = "agentbar" + (a.alive && a.asking ? " asking" : "");
@@ -509,9 +565,9 @@ async function drawWizard() {
     const d = await (await fetch(`/video/presets?p=${wiz.place}`)).json();
     wizPresets = d.presets; limits = d.limits;
   } catch { toast("The board is not running"); return; }
-  // Any film or footage preset works from either start (the build script bridges to the other engine);
-  // a template preset films a product, so it needs a brief. Hidden presets stay off the list.
-  const list = wizPresets.filter((p) => !p.hidden && (p.kind !== "template" || wiz.source === "brief"));
+  // A template preset films a product, so it needs a brief; a footage preset edits the user's recording,
+  // so it needs footage; a film preset works from either start. Hidden presets stay off the list.
+  const list = wizPresets.filter((p) => !p.hidden && (p.kind === "film" || (p.kind === "template") === (wiz.source === "brief")));
   const kind = wiz.source === "brief" ? "film" : "footage";  // the default is one of the start's own kind
   if (!list.some((p) => p.name === wiz.preset)) wiz.preset = (list.find((p) => p.kind === kind) ?? list.find((p) => p.kind === "template") ?? list[0])?.name ?? "";
   $("wiz").innerHTML = `
