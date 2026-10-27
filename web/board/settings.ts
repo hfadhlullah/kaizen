@@ -102,7 +102,7 @@ export async function openSettings() {
   <h3 class="sg">Browser</h3><div class="sgrp">${row("Theme", ctl("th", ["system", "light", "dark"], cur), "", "th", "theme light dark system browser")}
   ${row("Motion", ctl("mo", ["system", "full", "reduce"], document.documentElement.dataset.motion || "system"), "Animations on the board and notes. System follows the device's reduce-motion setting.", "mo", "motion animation reduce reduced browser")}
   ${row("Notifications", html`<button class="chk${nton ? " on" : ""}" id="nt" role="switch" aria-checked="${String(nton)}"></button>`, ntHelp, "nt", "notifications " + ntHelp + " browser")}
-  ${row("Notification sound", ctl("ns", SOUNDS, soundPick()), "Plays with each notice. Changing it plays it.", "ns", "notification sound chime bell pop audio browser", !nton)}</div>
+  ${row("Notification sound", ctl("ns", SOUNDS, soundPick()), "Plays with each notice. Changing it plays it.", "ns", "notification sound audio browser " + SOUNDS.join(" "), !nton)}</div>
   <p class="snone" id="snone" hidden></p>`;
   // Hides rows that do not match, then any group (and its chip) left with none.
   updBar();

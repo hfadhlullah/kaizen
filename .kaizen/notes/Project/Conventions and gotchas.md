@@ -2,7 +2,7 @@
 description: How work is done in this repo, and the traps that have bitten before
 tags: [project, conventions]
 sources: [.kaizen/memory.md, design.md]
-updated: 2026-10-17
+updated: 2026-10-27
 ---
 # Conventions and gotchas
 

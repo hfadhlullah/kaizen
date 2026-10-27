@@ -26,7 +26,7 @@ export function askNotify() {
 }
 // Per browser: whether notices go out at all, and the sound each one plays. The OS
 // notification's own sound is often silent (Windows toasts, focus assist), so the page
-// plays its own, synthesized: no audio files to ship.
+// plays its own sound.
 const pref = (k, d) => {
   try {
     return localStorage.getItem(k) || d;
@@ -35,13 +35,18 @@ const pref = (k, d) => {
   }
 };
 export const notifyOn = () => pref("kz-notify", "on") === "on";
-export const soundPick = () => pref("kz-sound", "chime");
-export const SOUNDS = ["off", "chime", "bell", "pop"];
+export const soundPick = () => pref("kz-sound", "Bellatrix");
+const SAMPLES = ["Adara", "Alya", "Bellatrix", "Beryllium", "Cobalt", "Fluorine", "Krypton", "Palladium", "Rubidium", "Xenon"];
+export const SOUNDS = ["off", ...SAMPLES, "chime", "bell", "pop"];
 // [frequency Hz, start s, length s] per note.
 const NOTES = { chime: [[880, 0, 0.25], [1320, 0.12, 0.35]], bell: [[660, 0, 0.9]], pop: [[520, 0, 0.08]] };
 let actx;
 export function playSound(name = soundPick()) {
   try {
+    if (SAMPLES.includes(name)) {
+      new Audio(`/sounds/${name}.mp3`).play().catch(() => {});
+      return;
+    }
     if (!NOTES[name]) return;
     actx = actx || new AudioContext();
     actx.resume();

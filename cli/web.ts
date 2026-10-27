@@ -25,6 +25,7 @@ import { listChats, readChat, sendChat, stopChat, deleteChat, okId as okChatId, 
 const PAGE = join(dirname(import.meta.dir), "web", "board.html");
 // The board's script: web/board/*.ts, bundled into one file by `bun run build:web`.
 const BOARD_JS = join(dirname(import.meta.dir), "web", "board.js");
+const SOUNDS_DIR = join(dirname(import.meta.dir), "web", "sounds");
 // The notebook: its page, and the CodeMirror bundle `bun run build:web` commits beside it.
 const NOTES_PAGE = join(dirname(import.meta.dir), "web", "notes.html");
 const ICO = join(dirname(import.meta.dir), "assets", "kaizen.ico");
@@ -443,6 +444,13 @@ export async function web(repoDir: string, opts: Opts = {}) {
         const body = served(BOARD_JS);
         if (body === null) return new Response(`${path} missing; run bun run build:web`, { status: 500 });
         return new Response(body, { headers: { "content-type": "application/javascript; charset=utf-8", "cache-control": "no-store" } });
+      }
+
+      if (req.method === "GET" && path.startsWith("/sounds/")) {
+        const name = /^\/sounds\/([A-Za-z]+)\.mp3$/.exec(path)?.[1];
+        const file = name && join(SOUNDS_DIR, `${name}.mp3`);
+        if (!file || !existsSync(file)) return new Response("not found", { status: 404 });
+        return new Response(Bun.file(file), { headers: { "content-type": "audio/mpeg", "cache-control": "public, max-age=86400" } });
       }
 
       if (req.method === "GET" && (path === "/notebook" || path === "/notebook.js")) {

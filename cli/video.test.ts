@@ -171,7 +171,7 @@ test("a failed step stops the job and keeps the script's output; a cancel kills 
 
 // The real server in a scratch home: the routes, the project check, and the
 // cross-origin refusal every write goes through.
-test("the board serves the Video page and its routes, and refuses writes from other sites", async () => {
+test("the board serves sound assets and the Video page, and refuses unsafe paths and writes", async () => {
   const homeDir = mkdtempSync(join(tmpdir(), "kaizen-video-home-"));
   for (const d of [join(homeDir, ".kaizen"), join(homeDir, ".claude"), join(homeDir, "a", ".kaizen")]) mkdirSync(d, { recursive: true });
   writeFileSync(join(homeDir, ".kaizen", "projects"), join(homeDir, "a") + "\n");
@@ -187,6 +187,11 @@ test("the board serves the Video page and its routes, and refuses writes from ot
     for (let i = 0; ; i++) { try { await fetch(at + "/state"); break; } catch { if (i > 100) throw new Error("board did not start"); await Bun.sleep(50); } }
     expect((await fetch(at + "/video")).headers.get("content-type")).toContain("text/html");
     expect((await fetch(at + "/video.js")).status).toBe(200);
+    const sound = await fetch(at + "/sounds/Bellatrix.mp3");
+    expect(sound.headers.get("content-type")).toBe("audio/mpeg");
+    expect(new TextDecoder().decode((await sound.arrayBuffer()).slice(0, 3))).toBe("ID3");
+    expect((await fetch(at + "/sounds/Missing.mp3")).status).toBe(404);
+    expect((await fetch(at + "/sounds/%2e%2e%2fBellatrix.mp3")).status).toBe(404);
     const list = await (await fetch(at + "/video/list")).json() as any;
     expect(list.places.map((p: any) => p.label)).toEqual(["library"]);
     expect(list.videos.map((v: any) => [v.name, v.place, v.where]).sort()).toEqual([["demo", 0, "library"], ["talk", 0, "library"]]);
