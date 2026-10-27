@@ -51,7 +51,7 @@ export function open(c, keepTab) {
   $("pterm").hidden = true;
   if (c.kind === "idea") {
     store.runDoc = null;
-    $("psub").innerHTML = html`<span class="pst"><span class="st d-idea"><svg><use href="#s-idea"/></svg></span>Idea</span><span class="pst dim">${c.where.split(/[\\/]/).pop() || c.where}</span>`;
+    $("psub").innerHTML = c.status === "starting" && !c.archived ? steps(c) : html`<span class="pst"><span class="st d-idea"><svg><use href="#s-idea"/></svg></span>Idea</span><span class="pst dim">${c.where.split(/[\\/]/).pop() || c.where}</span>`;
     $("ptabs").innerHTML = "";
     ideaBody(c);
     const foot = $("pfoot");
@@ -105,6 +105,16 @@ function showProgress(c) {
     bar.style.width = lastProg.w + "%";
   }
 }
+// The header's Plan → Build → Review → Done bar: steps before the card's column are done,
+// its own is ringed in the run's status colour (waiting amber, stalled red), the rest wait.
+const STEPS = ["Plan", "Build", "Review", "Done"];
+function steps(c) {
+  const at = c.status === "done" ? 4 : Math.max(0, (c.column || 0) - 1),
+    tip = cap(WORD[c.status] || c.status) + (c.awaiting ? `: ${need(c.awaiting)}` : "");
+  return html`<span class="steps s-${c.status}" title="${tip}" aria-label="${tip}">${raw(
+    STEPS.map((n, i) => `<span class="${i < at ? "ok" : i === at ? "now" : ""}"><i></i>${n}</span>`).join(""),
+  )}</span>`;
+}
 // An idea's panel: its terminal while the run it started is being born there, else its notes.
 export function ideaBody(c) {
   if (c.pty) showTerm(c);
@@ -128,10 +138,9 @@ export async function openRun(c, refresh, again) {
   const ta = $("pbody").querySelector(".notes textarea");
   if (refresh && ta && document.activeElement === ta) return;
   // The board's own status mark, then what it waits on: chips, not a dotted line.
-  $("psub").innerHTML =
-    html`<span class="pst"><span class="st d-${ICON[c.status] || "idea"}"><svg><use href="#s-${ICON[c.status] || "idea"}"/></svg></span>${cap(WORD[c.status] || c.status)}</span>` +
+  $("psub").innerHTML = c.status === "abandoned" ? html`<span class="pst"><span class="st d-${ICON[c.status] || "idea"}"><svg><use href="#s-${ICON[c.status] || "idea"}"/></svg></span>${cap(WORD[c.status] || c.status)}</span>` +
     (c.awaiting ? html`<span class="pst dim">${cap(need(c.awaiting))}</span>` : "") +
-    (c.parent ? html`<span class="pst link" title="Filed by this run">${c.parent}</span>` : "");
+    (c.parent ? html`<span class="pst link" title="Filed by this run">${c.parent}</span>` : "") : steps(c);
   // Only tabs with something in them show. A card whose agent runs in the board gets its
   // terminal behind the header's terminal button, chosen once right after a launch from here.
   const tabs = TABS.filter(

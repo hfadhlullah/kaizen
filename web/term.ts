@@ -82,9 +82,10 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
       onEnd?.();
     };
   };
-  // Phone/tablet: a bar of the keys a soft keyboard lacks. Alt is sticky for the next key.
-  // Ctrl opens its own a-z pad instead of waiting on the native keyboard, whose IME can
-  // deliver the letter without the modifier. The handle above the bar hides it.
+  // Phone/tablet: a row of chips for the keys a soft keyboard lacks, and a message box
+  // that types into the agent and presses Enter. Alt is sticky for the next key. Ctrl
+  // opens its own a-z pad instead of waiting on the native keyboard, whose IME can
+  // deliver the letter without the modifier. ⋯ holds Search, Paste and Raw keyboard.
   const mods = { alt: false };
   const typed = term.onData((d) => {
     if (mods.alt) d = "\x1b" + d;
@@ -96,24 +97,25 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
   if (matchMedia("(pointer: coarse)").matches) {
     const arrow = (c: string) => () => `\x1b${term.modes.applicationCursorKeysMode ? "O" : "["}${c}`;
     const paste = () => navigator.clipboard?.readText().then((t) => t && term.paste(t), () => {});
-    // inverted T: Up above Down, Left and Right beside it
-    const keys: [string, string | (() => unknown) | "alt" | "ctrl" | ""][] = [
-      ["Esc", "\x1b"], ["Paste", paste], ["↵", "\r"], ["⇧⇥", "\x1b[Z"], ["↑", arrow("A")], ["", ""],
-      ["Ctrl", "ctrl"], ["Alt", "alt"], ["^C", "\x03"], ["←", arrow("D")], ["↓", arrow("B")], ["→", arrow("C")],
+    // 1-3 answer the agent's numbered prompts; the rest are the keys it asks for most.
+    const keys: [string, string | (() => unknown) | "alt" | "ctrl" | "more"][] = [
+      ["1", "1"], ["2", "2"], ["3", "3"], ["Esc", "\x1b"], ["^C", "\x03"], ["↑", arrow("A")], ["↓", arrow("B")],
+      ["←", arrow("D")], ["→", arrow("C")], ["↵", "\r"], ["⇧⇥", "\x1b[Z"], ["Ctrl", "ctrl"], ["Alt", "alt"], ["⋯", "more"],
     ];
     bar = document.createElement("div");
     bar.className = "termkeys";
-    // pointerdown + preventDefault: a tap must not move focus off the terminal.
+    const msg = document.createElement("input");
+    // pointerdown + preventDefault: a tap must not move focus off the terminal, nor
+    // close the soft keyboard while the message box is being typed in.
     const key = (label: string, fn: () => void) => {
       const b = document.createElement("button");
       b.type = "button";
       b.textContent = label;
-      b.addEventListener("pointerdown", (e) => { e.preventDefault(); fn(); term.focus(); });
+      b.addEventListener("pointerdown", (e) => { e.preventDefault(); fn(); if (document.activeElement !== msg) term.focus(); });
       return b;
     };
-    const grid = document.createElement("div");
-    grid.className = "keygrid";
-    const setPad = (on: boolean) => { pad.hidden = !on; grid.hidden = on; };
+    const chips = document.createElement("div");
+    chips.className = "chips";
     const pad = document.createElement("div");
     pad.className = "ctrlpad";
     pad.hidden = true;
@@ -122,40 +124,55 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
       const r = document.createElement("div");
       for (const c of row) r.append(key(c, () => {
         if (c !== "✕") send({ t: "i", d: String.fromCharCode(c.charCodeAt(0) & 31) });
-        setPad(false);
+        pad.hidden = true;
       }));
       pad.append(r);
     }
-    for (const [label, v] of keys) {
-      if (!label) { grid.append(document.createElement("i")); continue; }
-      const b = key(label, () => {
-        if (v === "alt") b.classList.toggle("on", (mods.alt = !mods.alt));
-        else if (v === "ctrl") setPad(true);
-        else send({ t: "i", d: (typeof v === "function" ? v() : v) as string });
-      });
-      if (v === "alt") b.classList.add(v);
-      grid.append(b);
-    }
-    const hide = key("Keys ▾", () => {
-      const off = hide.textContent === "Keys ▾";
-      grid.hidden = pad.hidden = true;
-      if (!off) grid.hidden = false;
-      hide.textContent = off ? "Keys ▴" : "Keys ▾";
-    });
-    // The native keyboard stays shut (inputmode none) until this button asks for it, so
-    // tapping the terminal or a key never pops it over the Ctrl pad and Paste.
+    // The native keyboard stays shut over the terminal (inputmode none) until Raw keyboard
+    // asks for it; the message box below has its own.
     const ta = term.textarea;
     if (ta) ta.inputMode = "none";
-    const kbd = key("⌨", () => {
+    const more = document.createElement("div");
+    more.className = "tmore";
+    more.hidden = true;
+    const raw = key("Raw keyboard", () => {
+      more.hidden = true;
       if (!ta) return;
-      const on = kbd.classList.toggle("on");
+      const on = raw.classList.toggle("on");
       ta.inputMode = on ? "text" : "none";
       ta.blur(); // inputmode is read on focus; the key's term.focus() reopens it
     });
-    const top = document.createElement("div");
-    top.className = "keytop";
-    top.append(hide, kbd);
-    bar.append(top, pad, grid);
+    more.append(key("Search", () => { more.hidden = true; openSearch(); }), key("Paste", () => { more.hidden = true; paste(); }), raw);
+    for (const [label, v] of keys) {
+      const b = key(label, () => {
+        if (v === "alt") b.classList.toggle("on", (mods.alt = !mods.alt));
+        else if (v === "ctrl") { pad.hidden = !pad.hidden; more.hidden = true; }
+        else if (v === "more") { more.hidden = !more.hidden; pad.hidden = true; }
+        else send({ t: "i", d: (typeof v === "function" ? v() : v) as string });
+      });
+      if (v === "alt") b.classList.add(v);
+      chips.append(b);
+    }
+    // Send types the text, then Enter a beat later: sent together, a TUI agent reads the
+    // pair as a paste and keeps the newline in its input instead of submitting.
+    const form = document.createElement("form");
+    form.className = "compose";
+    msg.placeholder = "Message the agent…";
+    msg.enterKeyHint = "send";
+    msg.autocomplete = "off";
+    msg.setAttribute("aria-label", "Message the agent");
+    const go = document.createElement("button");
+    go.textContent = "➤";
+    go.setAttribute("aria-label", "Send");
+    go.addEventListener("pointerdown", (e) => e.preventDefault()); // keep the keyboard up
+    form.append(msg, go);
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      if (msg.value) send({ t: "i", d: msg.value });
+      msg.value = "";
+      setTimeout(() => send({ t: "i", d: "\r" }), 60);
+    });
+    bar.append(pad, more, chips, form);
     el.after(bar);
   }
   // xterm.js has no touch scrolling, so on a phone a swipe did nothing. Each line's
