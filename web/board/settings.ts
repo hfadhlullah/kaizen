@@ -4,7 +4,7 @@ import { load, post } from "./api.ts";
 import { stopDictation } from "./dictation.ts";
 import { $, html, SKEL } from "./dom.ts";
 import { close } from "./panel.ts";
-import { askNotify, toast } from "./toast.ts";
+import { askNotify, notifyOn, playSound, soundPick, SOUNDS, toast } from "./toast.ts";
 import { updBar } from "./update.ts";
 import { view } from "./views.ts";
 
@@ -69,7 +69,8 @@ export async function openSettings() {
     html`<div class="srow${off ? " off" : ""}" data-q="${q.toLowerCase()}"><label for="${id}" id="${id}-l">${label}</label>${control}${hint ? html`<p class="hint">${hint}</p>` : ""}</div>`;
   const hadFocus = document.activeElement?.id === "sq";
   const np = typeof Notification === "undefined" ? null : Notification.permission;
-  const ntHelp = np ? (np === "denied" ? "Blocked by this browser" : "") : "Not supported in this browser";
+  const nton = notifyOn();
+  const ntHelp = !nton ? "Off in this browser" : np === "granted" ? "" : np === "denied" ? "Pop-ups blocked by this browser; the sound still plays" : np ? "Pop-ups wait for the browser to ask; the sound still plays" : "Pop-ups not supported here; the sound still plays";
   $("pbody").innerHTML = html`<div class="sq"><input class="sel" id="sq" type="search" placeholder="Search settings" aria-label="Search settings" spellcheck="false" autocomplete="off" value="${store.setQ}"></div>
   ${
     cfg
@@ -100,7 +101,8 @@ export async function openSettings() {
   ${row("Google account", html`<button class="btn${gg.connected ? "" : " pri"}" id="gg-conn" type="button"${gg.hasClient || gg.connected ? "" : " disabled"}>${gg.connected ? "Disconnect" : "Connect"}</button>`, "", "gg-conn", "google account connect sheets write back")}</div>
   <h3 class="sg">Browser</h3><div class="sgrp">${row("Theme", ctl("th", ["system", "light", "dark"], cur), "", "th", "theme light dark system browser")}
   ${row("Motion", ctl("mo", ["system", "full", "reduce"], document.documentElement.dataset.motion || "system"), "Animations on the board and notes. System follows the device's reduce-motion setting.", "mo", "motion animation reduce reduced browser")}
-  ${row("Notifications", html`<button class="chk${np === "granted" ? " on" : ""}" id="nt" role="switch" aria-checked="${String(np === "granted")}"${np && np !== "denied" ? "" : " disabled"}></button>`, ntHelp, "nt", "notifications " + ntHelp + " browser")}</div>
+  ${row("Notifications", html`<button class="chk${nton ? " on" : ""}" id="nt" role="switch" aria-checked="${String(nton)}"></button>`, ntHelp, "nt", "notifications " + ntHelp + " browser")}
+  ${row("Notification sound", ctl("ns", SOUNDS, soundPick()), "Plays with each notice. Changing it plays it.", "ns", "notification sound chime bell pop audio browser", !nton)}</div>
   <p class="snone" id="snone" hidden></p>`;
   // Hides rows that do not match, then any group (and its chip) left with none.
   updBar();
@@ -187,9 +189,19 @@ export async function openSettings() {
   stepper($("th"), ["system", "light", "dark"], cur, setTheme);
   stepper($("mo"), ["system", "full", "reduce"], document.documentElement.dataset.motion || "system", setMotion);
   $("nt").onclick = () => {
-    askNotify();
+    const on = !notifyOn();
+    try {
+      localStorage.setItem("kz-notify", on ? "on" : "off");
+    } catch (e) {}
+    if (on) askNotify();
     setTimeout(openSettings, 300);
   };
+  stepper($("ns"), SOUNDS, soundPick(), (v) => {
+    try {
+      localStorage.setItem("kz-sound", v);
+    } catch (e) {}
+    playSound(v);
+  });
   if (cfg)
     cfg.rows.forEach((r) => {
       const el = $("s-" + r.key.replace(/\./g, "-"));

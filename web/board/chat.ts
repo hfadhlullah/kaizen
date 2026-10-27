@@ -1,7 +1,7 @@
 import { load, post } from "./api.ts";
 import { key } from "./cards.ts";
 import { mic, stopDictation } from "./dictation.ts";
-import { $, html, raw as rawHtml } from "./dom.ts";
+import { $, dataUrls, html, raw as rawHtml } from "./dom.ts";
 import { DK, draft } from "./drafts.ts";
 import { attach, brief, md } from "./markdown.ts";
 import { rich } from "./rich.ts";
@@ -40,6 +40,9 @@ export function pretty(t) {
     .trim();
 }
 let nfocus = null;
+// Files picked per card, outside the panel: a redraw while the box is not focused
+// (just after the file picker, say) rebuilds it, and used to drop them.
+const pend = new Map();
 export function chat(c, src, ro) {
   const fix = (t) => attach(t, c);
   const entries = parseNotes(src);
@@ -57,8 +60,9 @@ export function chat(c, src, ro) {
     h += `<div class="notes"><textarea placeholder="Add a note. Paste a screenshot, or attach files."></textarea><div class="att" id="natt"></div><div class="tools"><input type="file" id="nfile" multiple hidden><button class="btn ghost" id="npick">Attach</button><span>Enter sends, Shift+Enter newline</span><button class="btn pri" id="nsend">Send</button></div></div>`;
   $("pbody").innerHTML = rawHtml(h);
   if (ro) return;
+  if (!pend.has(key(c))) pend.set(key(c), []);
   const ta = $("pbody").querySelector("textarea"),
-    files = [];
+    files = pend.get(key(c));
   draft(ta, "n:" + key(c));
   const ed = rich(ta);
   // Enter leaves focus in the box, and a focused box blocks the redraw: send blurs it
@@ -78,6 +82,7 @@ export function chat(c, src, ro) {
     files.push(f);
     show();
   };
+  show();
   $("npick").onclick = () => $("nfile").click();
   $("nfile").onchange = (e) => {
     [...e.target.files].forEach(add);
@@ -95,16 +100,7 @@ export function chat(c, src, ro) {
     stopDictation(true);
     const text = ta.value.trim();
     if (!text && !files.length) return;
-    const enc = await Promise.all(
-      files.map(
-        (f) =>
-          new Promise((r) => {
-            const rd = new FileReader();
-            rd.onload = () => r({ name: f.name, data: rd.result });
-            rd.readAsDataURL(f);
-          }),
-      ),
-    );
+    const enc = await dataUrls(files);
     const body =
       c.kind === "run" ? { dir: c.state, id: c.id, text, files: enc } : { dir: c.state, for: c.text, text, files: enc };
     const r = await post("/note", body);

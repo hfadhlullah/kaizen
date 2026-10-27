@@ -998,11 +998,24 @@ export const LOGO = join(dirname(import.meta.dir), "assets", "kaizen-logo.png");
 export function notifyArgs(body: string) {
   return ["notify-send", "-a", "kaizen", ...(existsSync(LOGO) ? ["-i", LOGO] : []), "kaizen", body];
 }
+// Windows: a toast through PowerShell's WinRT bridge, under PowerShell's own app id
+// (an unregistered id shows nothing). Windows PowerShell 5.1, not pwsh: 7 has no WinRT
+// projection. The body travels base64 so no quote can break out. The toast's own sound plays.
+export function winToastArgs(body: string) {
+  const b64 = Buffer.from(body, "utf8").toString("base64");
+  const ps = `$t=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${b64}'));` +
+    `[void][Windows.UI.Notifications.ToastNotificationManager,Windows.UI.Notifications,ContentType=WindowsRuntime];` +
+    `$x=[Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02);` +
+    `$n=$x.GetElementsByTagName('text');[void]$n.Item(0).AppendChild($x.CreateTextNode('kaizen'));[void]$n.Item(1).AppendChild($x.CreateTextNode($t));` +
+    `[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\\WindowsPowerShell\\v1.0\\powershell.exe').Show([Windows.UI.Notifications.ToastNotification]::new($x))`;
+  return [sysExe("WindowsPowerShell\\v1.0\\powershell.exe"), "-NoProfile", "-NonInteractive", "-Command", ps];
+}
 export function notify(body: string) {
   try {
-    if (!Bun.which("notify-send")) return;
-    Bun.spawn(notifyArgs(body), {
-      stdin: "ignore", stdout: "ignore", stderr: "ignore", detached: true,
+    const win = process.platform === "win32";
+    if (!win && !Bun.which("notify-send")) return;
+    Bun.spawn(win ? winToastArgs(body) : notifyArgs(body), {
+      stdin: "ignore", stdout: "ignore", stderr: "ignore", detached: true, windowsHide: true,
     }).unref();
   } catch { /* notifications are not worth an exception */ }
 }

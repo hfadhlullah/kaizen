@@ -10,7 +10,7 @@ import {
   readRuns, readInbox, writeInbox, replaceIdea, moveIdea, abandonRun, runToIdea, allBacklog, backlog,
   requestTitle, statusOf, columnOf, parseItem, startedRuns, boardCards, parentOf, addCard, readArchive, setArchived,
   requestOf, agentFlags, plainModel, readNotes, writeNotes, manualCommand, parseNotes, formatNote, appendNote, saveAttachment,
-  reviewFindings, pickFindings, fixPrompt, approvalPrompt, sessionLaunch, closeSessions, sweepSessions, readSessions, ownerOf, CLOSE_GRACE_MS, gitStatus, runGit, cardsGit, commitPush, readCommit, findTerminal, nativePath, pruneRuns, unrechecked, notice, notifier, notifyArgs, LOGO, type Card,
+  reviewFindings, pickFindings, fixPrompt, approvalPrompt, sessionLaunch, closeSessions, sweepSessions, readSessions, ownerOf, CLOSE_GRACE_MS, gitStatus, runGit, cardsGit, commitPush, readCommit, findTerminal, nativePath, pruneRuns, unrechecked, notice, notifier, notifyArgs, winToastArgs, LOGO, type Card,
 } from "./state.ts";
 
 let state: string;
@@ -746,6 +746,15 @@ test("notice: plain words for what a run waits on, done, and nothing for the res
   expect(notice(c({ status: "done" }))).toBe("payroll — done\n~/acme");
   for (const o of [{ status: "running" }, { status: "abandoned" }, { kind: "idea" as const, status: "idea" }]) expect(notice(c(o))).toBeNull();
   expect(notifyArgs("x")).toEqual(["notify-send", "-a", "kaizen", "-i", LOGO, "kaizen", "x"]);
+});
+
+test("winToastArgs carries the body base64, so a quote cannot end the PowerShell string", () => {
+  const body = "it's \"done\" — ~/acme\n$(rm)";
+  const a = winToastArgs(body);
+  expect(a[0]).toMatch(/WindowsPowerShell\\v1\.0\\powershell\.exe$/);
+  const b64 = /FromBase64String\('([^']+)'\)/.exec(a.at(-1)!)![1]!;
+  expect(Buffer.from(b64, "base64").toString("utf8")).toBe(body);
+  expect(a.at(-1)).not.toContain("rm)");
 });
 
 test("notifier: only a run seen before, saying something new, and not a done the user just approved", () => {

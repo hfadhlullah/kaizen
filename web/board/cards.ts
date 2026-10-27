@@ -468,11 +468,18 @@ async function startRun(c, kind) {
 
 const HINT = { 0: "Add an idea to start a run", 1: "Ideas you run are planned here", 2: "Approved plans are built here", 3: "Finished builds are checked here" };
 
+// Files picked in the new-idea form. Held here, not in the form, because the board
+// redraws the inline form on every change and a redraw would drop them.
+let newFiles = [];
 // The new-idea form, wired into f: inline at the top of Ideas, or in a modal.
-function ideaForm(f, close) {
+function ideaForm(f, shut) {
+  const close = () => {
+    newFiles = [];
+    shut();
+  };
   f.innerHTML = html`${store.all ? html`<div class="combo" id="ndc"><button type="button" class="sel" id="newdir" aria-label="Project for this idea" aria-haspopup="listbox" aria-expanded="false"></button><div class="menu-pop" hidden><input class="sel" aria-label="Search projects" placeholder="Search projects…" spellcheck="false" autocomplete="off"><div id="nds" role="listbox"></div></div></div>` : ""}<input id="newidea" placeholder="What do you want to build?"><textarea id="newnotes" placeholder="Anything the planner should know (optional)"></textarea><div class="att" id="newatt"></div><input type="file" id="newfile" multiple hidden><div class="row"><button type="button" class="ib" id="newpick" aria-label="Attach files" title="Attach files">${ico("clip")}</button><button type="button" class="btn ghost" id="nc">Cancel</button><div class="split"><button type="button" class="btn pri" id="ns">Add</button><button type="button" class="btn pri" id="nm" aria-label="More ways to add" aria-haspopup="menu" aria-expanded="false">${ico("chev")}</button><div class="menu-pop" role="menu" hidden><button type="button" role="menuitem" id="nr" title="Add the idea and run it now">${ico("play")}Start run</button></div></div></div>`;
   const inp = f.querySelector("#newidea"),
-    files = [];
+    files = newFiles;
   draft(inp, "f:new:0");
   draft(f.querySelector("textarea"), "f:new:1");
   // run: add the idea, then launch it at once with the project's runner and agent.
@@ -499,10 +506,12 @@ function ideaForm(f, close) {
     }
     load();
   };
+  const shown = () => (f.querySelector("#newatt").textContent = files.map((y) => y.name).join(" · "));
   const add = (x) => {
     files.push(x);
-    f.querySelector("#newatt").textContent = files.map((y) => y.name).join(" · ");
+    shown();
   };
+  shown();
   f.querySelector("#newpick").onclick = () => f.querySelector("#newfile").click();
   f.querySelector("#newfile").onchange = (e) => {
     [...e.target.files].forEach(add);
@@ -573,6 +582,7 @@ export function newIdea() {
     store.mode = null;
     render();
   }
+  newFiles = [];
   const dl = modal("");
   const f = dl.querySelector("form");
   f.onsubmit = (e) => e.preventDefault();
@@ -587,6 +597,8 @@ export function render() {
     store.mode = null;
   if (store.mode !== "run" && runPick) runPick.yolo = false;
   if (!store.mode) undraft("f:");
+  // Reassigned, not emptied: a form still open (the modal) keeps its own array.
+  if (store.mode !== "new") newFiles = [];
   try {
     sessionStorage.setItem(
       "kz-form",
@@ -858,7 +870,7 @@ export function render() {
       ul.appendChild(li);
     }
     // An empty middle column says what lands in it, so it does not look broken.
-    if (!list.length && ci <= 3 && !bl && cs.length && !filter && !q && !archive)
+    if (!list.length && !ul.children.length && ci <= 3 && !bl && cs.length && !filter && !q && !archive)
       ul.innerHTML = `<li class="hint">${HINT[ci]}</li>`;
     if (bl && !list.length && !filter && !q)
       ul.innerHTML = `<li class="hint">${sev ? "Nothing at this severity" : "What finished runs left undone shows here"}</li>`;
