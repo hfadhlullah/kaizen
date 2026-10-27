@@ -19,13 +19,19 @@ export type Event =
   | { t: "status"; text: string }
   | { t: "step"; step: Step }
   | { t: "project"; dir: string | null }
+  | { t: "run"; dir: string }
   | { t: "error"; error: string }
   | { t: "done" };
-// What the board knows, handed in by the server: its projects (state dirs) and how it makes one.
+// What the board knows, handed in by the server: its projects (state dirs), how it makes one,
+// the agents installed, and how it starts a kaizen run in a project.
 export type Board = {
   projects: { dir: string; label: string }[];
   create: (name: string) => Promise<{ dir: string } | { error: string }>;
+  agents: string[];
+  run: (dir: string, runner: "lite" | "full", agent: string, text: string) => Promise<{ agent: string } | { error: string }>;
 };
+// The project folders the agent may write in: every listed one, capped like the brief's list.
+const roots = (board: Board) => board.projects.slice(0, 80).map((p) => dirname(p.dir));
 
 export const okId = (id: unknown): id is string => typeof id === "string" && /^[\w-]{1,80}$/.test(id);
 const file = (base: string, id: string) => join(base, "chats", `${id}.json`);
@@ -60,11 +66,16 @@ export function brief(c: Chat, board: Board) {
   const list = board.projects.slice(0, 80).map((p) => `- ${p.label} — ${dirname(p.dir)}`).join("\n");
   return `[kaizen board context, not written by the user]
 You are kaizen's main agent, talking with the user from the kaizen board's Home page.
-Project of this chat: ${here ? `${here.label} (${dirname(here.dir)})` : "none — you are in a scratch folder and cannot edit files"}.
+Project of this chat: ${here ? `${here.label} (${dirname(here.dir)})` : "none — you are in a scratch folder"}.
 Projects on the board:
 ${list || "(none)"}
-You can move this chat. On a line of its own write [[kaizen:project <folder>]] to switch to a project listed above, or [[kaizen:new-project <name>]] to create one (a plain folder name). Do it when the user asks. When they talk about another listed project, ask whether to switch; when what they want fits no listed project, ask whether to create a new one. After a successful move, the board starts one follow-up turn in the new project to finish the pending request; do not ask the user to repeat it. Do not touch files outside your working folder.
-kaizen is installed: for work worth a plan and an independent review, start a run with /kaizen <request> (the kaizen skill); it shows on the board. Small things you may do directly. Keep replies short.
+You can read, analyse and edit files in any project folder listed above directly by its path; you do not need to switch to it. Do not write outside those folders and your working folder.
+Switching only changes this chat's home project (where you run and which project the board shows). On a line of its own write [[kaizen:project <folder>]] to switch to a listed project, or [[kaizen:new-project <name>]] to create one (a plain folder name). Switch only when the user asks; when what they want fits no listed project, ask whether to create a new one. After a successful move, the board starts one follow-up turn in the new project to finish the pending request; do not ask the user to repeat it.
+When the user asks you to develop, fix, change or enhance something (not a question, analysis or reading), first ask which way, as numbered options, and do nothing until they pick:
+1. Start a kaizen run for it: lite (cheap, one session) or full (independent review), with which agent (installed: ${board.agents.join(", ") || "none"}), in which project.
+2. Let you handle it here in the chat.
+For 1, once they pick, write on a line of its own [[kaizen:run <project folder> | <lite or full> | <agent> | <the request, one line>]]; the board starts the run in that project and it shows there. Do not start it yourself with /kaizen. For 2, do the work directly.
+Keep replies short.
 [end of context]
 
 `;
@@ -141,12 +152,21 @@ export function parseLine(line: string): Event | { t: "thread"; id: string } | n
   return null;
 }
 
-// The agent's move lines: taken out of what the user reads; the last one counts.
-const MOVE = /^[ \t]*\[\[kaizen:(project|new-project)[ \t]+([^\]\n]+?)\]\][ \t]*$/gm;
+// The agent's move and run lines: taken out of what the user reads; the last of each counts.
+const MOVE = /^[ \t]*\[\[kaizen:(project|new-project|run)[ \t]+([^\]\n]+?)\]\][ \t]*$/gm;
+export type RunAsk = { project: string; runner: string; agent: string; text: string };
 export function takeMoves(text: string) {
   let move: { op: "project" | "new-project"; arg: string } | null = null;
-  const rest = text.replace(MOVE, (_, op, arg) => { move = { op, arg: arg.trim() }; return ""; }).replace(/\n{3,}/g, "\n\n").trim();
-  return { text: rest, move: move as { op: "project" | "new-project"; arg: string } | null };
+  let run: RunAsk | null = null;
+  const rest = text.replace(MOVE, (_, op, arg) => {
+    if (op !== "run") move = { op, arg: arg.trim() };
+    else {
+      const [project = "", runner = "", agent = "", ...t] = arg.split("|").map((x: string) => x.trim());
+      run = { project, runner, agent, text: t.join(" | ").trim() };
+    }
+    return "";
+  }).replace(/\n{3,}/g, "\n\n").trim();
+  return { text: rest, move: move as { op: "project" | "new-project"; arg: string } | null, run: run as RunAsk | null };
 }
 
 // Not winShim: the message goes in on stdin, so the .cmd shim's newline limit never applies.
@@ -180,7 +200,7 @@ export function sendChat(base: string, id: string | null, text: string, project:
   chat.updated = now;
   save(base, chat);
 
-  // No project: a scratch folder outside every project, read-only.
+  // No project: a scratch folder outside every project.
   const scratch = join(base, "chats", "scratch");
   if (!chat.project) mkdirSync(scratch, { recursive: true });
   const cwd = chat.project ? dirname(chat.project) : scratch;
@@ -188,7 +208,9 @@ export function sendChat(base: string, id: string | null, text: string, project:
   const env: Record<string, string> = {};
   for (const [k, v] of Object.entries(process.env)) if (v !== undefined && !CHILD_ENV.test(k)) env[k] = v;
   const images = files.filter((f) => f.image).flatMap((f) => ["-i", f.path]);
-  const argv = [bin, "exec", "--json", "--skip-git-repo-check", "-s", chat.project ? "workspace-write" : "read-only",
+  // Every listed project is writable, so the agent works on any of them without a switch.
+  const dirs = roots(board).filter((d) => d !== cwd).flatMap((d) => ["--add-dir", d]);
+  const argv = [bin, "exec", "--json", "--skip-git-repo-check", "-s", "workspace-write", ...dirs,
     "-m", "gpt-6-luna", "-c", "model_reasoning_effort=medium", ...(chat.thread ? ["resume", chat.thread] : []), ...images, "-"];
   let p;
   try { p = Bun.spawn(argv, { cwd, env, stdin: "pipe", stdout: "pipe", stderr: "pipe" }); }
@@ -212,6 +234,7 @@ export function sendChat(base: string, id: string | null, text: string, project:
     const dec = new TextDecoder();
     let buf = "";
     let move: ReturnType<typeof takeMoves>["move"] = null;
+    let run: RunAsk | null = null;
     const take = (line: string) => {
       const e = parseLine(line);
       if (!e) return;
@@ -219,6 +242,7 @@ export function sendChat(base: string, id: string | null, text: string, project:
       if (e.t === "text") {
         const m = takeMoves(e.text);
         if (m.move) move = m.move;
+        if (m.run) run = m.run;
         if (!m.text) return;
         e.text = m.text;
         reply.text += (reply.text ? "\n\n" : "") + e.text;
@@ -244,6 +268,7 @@ export function sendChat(base: string, id: string | null, text: string, project:
         reply.error = err || `codex exited with code ${code}`;
         emit({ t: "error", error: reply.error });
       }
+      if (run && !stopped) await startRun(reply, run, board, emit);
       if (move && !stopped) await moveChat(chat, reply, move, board, emit);
     } finally {
       delete reply.activity;
@@ -256,14 +281,32 @@ export function sendChat(base: string, id: string | null, text: string, project:
   return null;
 }
 
+const findProject = (board: Board, arg: string) => {
+  const a = arg.replace(/[\\/]+$/, "");
+  return board.projects.find((x) => x.dir === a || dirname(x.dir) === a || x.dir === join(a, ".kaizen"))
+    ?? board.projects.find((x) => x.label === a || basename(dirname(x.dir)) === a);
+};
+
+// Start the run the user picked: only in a listed project, with an installed agent.
+async function startRun(reply: Msg, ask: RunAsk, board: Board, emit: (e: Event) => void) {
+  const step = (text: string, ok: boolean) => { const s: Step = { kind: "project", text, ok }; reply.steps!.push(s); emit({ t: "step", step: s }); };
+  const p = findProject(board, ask.project);
+  if (!p) return step(`No project ${ask.project} on the board`, false);
+  if (ask.runner !== "lite" && ask.runner !== "full") return step(`Unknown runner ${ask.runner}`, false);
+  if (!board.agents.includes(ask.agent)) return step(`Agent ${ask.agent} is not installed`, false);
+  if (!ask.text) return step("No request for the run", false);
+  const r = await board.run(p.dir, ask.runner, ask.agent, ask.text);
+  if ("error" in r) return step(`Could not start the run: ${r.error}`, false);
+  step(`Started a ${ask.runner} run in ${p.label} with ${r.agent}`, true);
+  emit({ t: "run", dir: p.dir });
+}
+
 // Apply the agent's move: only to a project the board lists, or one the board's own rules create.
 async function moveChat(chat: Chat, reply: Msg, move: { op: string; arg: string }, board: Board, emit: (e: Event) => void) {
   const step = (text: string, ok: boolean) => { const s: Step = { kind: "project", text, ok }; reply.steps!.push(s); emit({ t: "step", step: s }); };
   let dir: string | null = null;
   if (move.op === "project") {
-    const a = move.arg.replace(/[\\/]+$/, "");
-    const p = board.projects.find((x) => x.dir === a || dirname(x.dir) === a || x.dir === join(a, ".kaizen"))
-      ?? board.projects.find((x) => x.label === a || basename(dirname(x.dir)) === a);
+    const p = findProject(board, move.arg);
     if (!p) return step(`No project ${move.arg} on the board`, false);
     dir = p.dir;
   } else {

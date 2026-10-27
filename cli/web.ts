@@ -4,7 +4,7 @@ import { existsSync, readdirSync, statSync, watch, appendFileSync, mkdirSync, cp
 import { join, dirname, resolve, sep, basename } from "node:path";
 import {
   home, type Item, type Card, boardCards, knownProjects, remember, locate, label, tilde, searchRoots, findProjects,
-  readInbox, writeInbox, replaceIdea, moveIdea, abandonRun, runToIdea, launchRun, parseItem, agentChoices, projectOf, KNOWN_AGENTS, plainModel, short, setArchived, writeNotes,
+  readInbox, writeInbox, replaceIdea, moveIdea, abandonRun, runToIdea, launchRun, parseItem, agentChoices, onPath, projectOf, KNOWN_AGENTS, plainModel, short, setArchived, writeNotes,
   appendNote, saveAttachment, pidOnPort, readText, cmdExe, sysExe, powershellExe, runGit, cardsGit, readCommit, commitPush, notice, notifier, LOGO,
   reviewFindings, pickFindings, backlogCards, backlogItem, startedBacklog, closeBacklog, markBacklogDone, fixPrompt, approvalPrompt, canApproveAwaiting, nativePath, closeSessions, sweepSessions, issueUrl,
   launchMode, readSessions, ownerOf, runIndex, resumePrompt, runAgent, firstSession, webHosts,
@@ -840,6 +840,13 @@ export async function web(repoDir: string, opts: Opts = {}) {
           create: async (name: string) => {
             const r = await makeProject(name);
             return "error" in r ? { error: r.error } : { dir: (r as { dir: string }).dir };
+          },
+          agents: KNOWN_AGENTS.filter((a) => onPath(a.cmd)).map((a) => a.cmd),
+          // As POST /run starts an idea, without one on the inbox.
+          run: async (d: string, runner: "lite" | "full", agent: string, text: string) => {
+            const r = launchRun(parseItem(`${runner} ${text}`), d, undefined, { agent, ...inCard(d) });
+            changed();
+            return r.ok ? { agent: r.agent.cmd } : { error: r.why };
           },
         };
         let ctl!: ReadableStreamDefaultController;

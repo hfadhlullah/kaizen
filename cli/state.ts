@@ -128,7 +128,7 @@ const shq = (a: string) => `'${a.replace(/'/g, `'\\''`)}'`;
 // every `key:\n` regex the same silent way, so line endings are made LF here too.
 export const readText = (file: string) => readFileSync(file, "utf8").replace(/^\uFEFF/, "").replace(/\r\n/g, "\n");
 
-const onPath = (bin: string) => Bun.which(bin, { PATH: process.env.PATH });
+export const onPath = (bin: string) => Bun.which(bin, { PATH: process.env.PATH });
 
 // npm installs a Windows tool as x.cmd with x.ps1 beside it. PowerShell hands a .cmd to
 // cmd.exe, which ends the command line at the first newline -- a prompt with notes lost

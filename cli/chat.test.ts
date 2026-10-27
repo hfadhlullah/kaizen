@@ -6,7 +6,7 @@ import { join, delimiter } from "node:path";
 import { tmpdir } from "node:os";
 import { sendChat, readChat, listChats, deleteChat, stopChat, parseLine, takeMoves, type Event, type Board, type Upload } from "./chat.ts";
 
-let root = "", base = "", bin = "", projA = "", projD = "", board: Board, created: string[] = [];
+let root = "", base = "", bin = "", projA = "", projD = "", board: Board, created: string[] = [], runs: string[][] = [];
 const PATH = process.env.PATH;
 const posix = process.platform !== "win32";
 
@@ -46,7 +46,10 @@ beforeEach(() => {
   mkdirSync(bin);
   process.env.PATH = bin + delimiter + PATH;
   created = [];
+  runs = [];
   board = {
+    agents: ["claude", "codex"],
+    run: async (dir, runner, agent, text) => { runs.push([dir, runner, agent, text]); return { agent }; },
     projects: [{ dir: projA, label: "A" }, { dir: projD, label: "D" }],
     create: async (name) => {
       if (name.includes("/")) return { error: "bad name" };
@@ -76,13 +79,13 @@ test.if(posix)("a message streams the reply, saves both sides, runs in the chat'
   expect(stdin).toContain(`- D — ${join(root, "D")}`);
   expect(stdin.endsWith("say hi")).toBe(true);
   expect(argv()).toContain("workspace-write");
-  expect(argv().slice(5, 9)).toEqual(["-m", "gpt-6-luna", "-c", "model_reasoning_effort=medium"]);
+  expect(argv().slice(argv().indexOf("-m"), argv().indexOf("-m") + 4)).toEqual(["-m", "gpt-6-luna", "-c", "model_reasoning_effort=medium"]);
   expect(argv()).not.toContain("resume");
   expect(listChats(base).map((x) => [x.id, x.project])).toEqual([[id, projA]]);
 
   fake(say("Again."));
   await turn(id, "again");
-  expect(argv().slice(5, 9)).toEqual(["-m", "gpt-6-luna", "-c", "model_reasoning_effort=medium"]);
+  expect(argv().slice(argv().indexOf("-m"), argv().indexOf("-m") + 4)).toEqual(["-m", "gpt-6-luna", "-c", "model_reasoning_effort=medium"]);
   expect(argv().slice(-3)).toEqual(["resume", "T1", "-"]);
   expect(readChat(base, id)!.messages).toHaveLength(4);
 });
@@ -92,7 +95,8 @@ test.if(posix)("no project: a read-only scratch folder outside every project", a
   const { id } = await turn(null, "hello");
   expect(readChat(base, id)!.project).toBeUndefined();
   expect(readFileSync(join(bin, "cwd"), "utf8").trim()).toBe(join(base, "chats", "scratch"));
-  expect(argv()).toContain("read-only");
+  expect(argv()).toContain("workspace-write");
+  expect(argv().join(" ")).toContain(`--add-dir ${join(root, "A")} --add-dir ${join(root, "D")}`);
   expect(readFileSync(join(bin, "stdin"), "utf8")).toContain("Project of this chat: none");
   // A project the page names that the board does not list is not taken.
   const r = await turn(null, "hi", join(root, "elsewhere", ".kaizen"));
@@ -235,7 +239,36 @@ test("parseLine and takeMoves", () => {
     .toEqual({ t: "step", step: { kind: "cmd", text: "cat a.md", ok: false } });
   expect(parseLine(`{"type":"item.completed","item":{"type":"file_change","changes":[{"path":"a.ts"}],"status":"completed"}}`))
     .toEqual({ t: "step", step: { kind: "edit", text: "a.ts", ok: true } });
-  expect(takeMoves("ok\n\n[[kaizen:project A]]\n")).toEqual({ text: "ok", move: { op: "project", arg: "A" } });
+  expect(takeMoves("ok\n\n[[kaizen:project A]]\n")).toEqual({ text: "ok", move: { op: "project", arg: "A" }, run: null });
   // Only a line of its own counts: a move quoted inside a sentence is text.
   expect(takeMoves("write `[[kaizen:project A]]` to move").move).toBeNull();
+});
+
+test.if(posix)("every listed project is writable without a switch; the chat's own folder is not repeated", async () => {
+  fake(say("Read D."));
+  await turn(null, "what is in D", projA);
+  expect(argv().filter((a, i) => argv()[i - 1] === "--add-dir")).toEqual([join(root, "D")]);
+  const stdin = readFileSync(join(bin, "stdin"), "utf8");
+  expect(stdin).toContain("you do not need to switch");
+  expect(stdin).toContain("installed: claude, codex");
+});
+
+test.if(posix)("a run line starts a kaizen run in the named project; the chat stays where it is", async () => {
+  fake(say(`Starting it.\n[[kaizen:run ${join(root, "D")} | full | claude | add a dark mode]]`));
+  const { events, id } = await turn(null, "1, full, claude", projA);
+  expect(events.filter((e) => e.t === "text")).toEqual([{ t: "text", text: "Starting it." }]);
+  expect(runs).toEqual([[projD, "full", "claude", "add a dark mode"]]);
+  expect(events.find((e) => e.t === "run")).toEqual({ t: "run", dir: projD });
+  const c = readChat(base, id)!;
+  expect(c.project).toBe(projA);
+  expect(c.messages[1].steps!.at(-1)).toEqual({ kind: "project", text: "Started a full run in D with claude", ok: true });
+});
+
+test.if(posix)("a run line with an unlisted project, unknown runner or missing agent is refused", async () => {
+  for (const line of ["/etc | lite | claude | x", "D | auto | claude | x", "D | lite | gemini | x", "D | lite | claude | "]) {
+    fake(say(`[[kaizen:run ${line}]]`));
+    const { id } = await turn(null, "go", projA);
+    expect(readChat(base, id)!.messages[1].steps!.at(-1)).toMatchObject({ kind: "project", ok: false });
+  }
+  expect(runs).toEqual([]);
 });
