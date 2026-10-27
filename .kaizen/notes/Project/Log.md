@@ -150,3 +150,4 @@ updated: 2026-10-19
 
 - 2026-10-27 — README: Windows no longer marked beta (run 2026-10-27-windows-docs-usable).
 - 2026-10-27 — Web board: notification on/off and sound picker, Windows toast for the terminal board, empty-Ideas + fix, idea attachments kept and shrunk (run 2026-10-27-notify-sound-idea-fixes).
+- 2026-10-27 — Web board: in-card agents of runs mid-stage resume by themselves after Settings' Update restarts the board (run 2026-10-27-resume-after-upgrade).

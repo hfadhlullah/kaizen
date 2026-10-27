@@ -1,6 +1,6 @@
 // `kaizen web`: the board in a browser. A loopback HTTP server over state.ts and
 // one HTML page; the page never sees the filesystem, only JSON.
-import { existsSync, readdirSync, statSync, watch, appendFileSync, mkdirSync, cpSync, rmSync, type FSWatcher } from "node:fs";
+import { existsSync, readdirSync, statSync, watch, appendFileSync, mkdirSync, cpSync, rmSync, writeFileSync, type FSWatcher } from "node:fs";
 import { join, dirname, resolve, sep, basename } from "node:path";
 import {
   home, type Item, type Card, boardCards, knownProjects, remember, locate, label, tilde, searchRoots, findProjects,
@@ -222,6 +222,45 @@ export async function web(repoDir: string, opts: Opts = {}) {
   };
   // agent.launch: card runs what this board launches inside the board, shown on the card.
   const inCard = (dir: string) => ({ card: launchMode(projectOf(dir)) === "card", onChange: changed });
+
+  // Start a run's agent again after it ended mid-stage (crashed, closed, a stalled run, or
+  // the board restarting for an upgrade), in the conversation it had where the tool can
+  // resume one. A run waiting for a decision, or done, gets its conversation back with
+  // nothing sent to it -- the user talks to it -- and only when that conversation exists.
+  // Never beside a live in-card agent, never on an abandoned run.
+  const resumeRun = (dir: string, id: string) => {
+    let run: any;
+    try { run = JSON.parse(readText(join(dir, "runs", id, "state.json"))); } catch { return { error: "no such run", status: 404 }; }
+    if (run.stage === "abandoned") return { error: "this run was abandoned", status: 409 };
+    if (readSessions(dir).some((s) => ptyState(s.key)?.alive && ownerOf(dir, s) === id)) return { error: "its agent is still running in its card", status: 409 };
+    const quiet = run.stage === "done" || !!run.awaiting;
+    const own = quiet ? runAgent(dir, id) : null;
+    if (quiet && !(own && firstSession(dir, id, own.cmd, projectOf(dir)))) return { error: "no conversation of this run to resume", status: 409 };
+    const text = quiet ? "" : resumePrompt(id);
+    const before = Date.now();
+    const r = launchRun({ severity: null, where: null, text, raw: text }, dir, id, inCard(dir));
+    if (r.ok) closeSessions(dir, id, { before });
+    changed();
+    return r;
+  };
+
+  // Runs whose in-card agent was live when Settings' Update restarted the board: the
+  // agents end with the old board, so the new one starts them again (resumeRun). Each
+  // entry keeps its session key, so an idea whose run had not written state.json yet is
+  // matched to its run by the new board, once that run exists. The agents are ended here,
+  // not left to the board's exit, so none outlives it beside its resumed self.
+  const RESUME_LIST = join(home, ".kaizen", "resume-after-upgrade.json");
+  const saveLive = () => {
+    const live = new Set(ptyKeys().filter((k) => ptyState(k)?.alive));
+    if (!live.size) return;
+    const list: { dir: string; key: string; run: string | null }[] = [];
+    for (const d of states(true)) {
+      const idx = runIndex(d);
+      for (const s of readSessions(d)) if (live.has(s.key)) list.push({ dir: d, key: s.key, run: ownerOf(d, s, idx) });
+    }
+    try { writeFileSync(RESUME_LIST, JSON.stringify({ at: Date.now(), list })); } catch { /* nothing resumes; the card offers Resume */ }
+    for (const k of live) exitPty(k, 200);
+  };
   // An idea's session, until its run exists and owns it (ownerOf).
   const ideaPty = new Map<string, string>();
   // Backlog items this board launched whose run has not written its state.json yet:
@@ -750,6 +789,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           Bun.spawn([process.execPath, join(helper, "cli", "install.ts"), "upgrade", "--wait", String(process.pid), "--restart", String(srv.port)], {
             cwd: home, detached: true, stdio: ["ignore", log, log], windowsHide: true,
           }).unref();
+          saveLive();
           setTimeout(() => process.exit(0), 300);
           return json({ ok: true });
         }
@@ -761,6 +801,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           if (code !== 0) return bad(why || `kaizen upgrade exited ${code}`, 500);
           if (installed() === VERSION) return bad(why || "Already up to date");
           const port = srv.port;
+          saveLive();
           setTimeout(() => {
             Bun.spawn([process.execPath, join(repoDir, "cli", "install.ts"), "web", "--port", String(port), "--no-open", "--foreground"], {
               detached: true, stdio: ["ignore", "ignore", "ignore"], windowsHide: true,
@@ -1395,27 +1436,13 @@ export async function web(repoDir: string, opts: Opts = {}) {
             : { ok: false, why: r.why, manual: r.manual, agent: r.agent }, r.ok ? 200 : 500);
         }
 
-        // Start a run's agent again after it ended mid-stage (crashed, closed, or a stalled
-        // run), in the conversation it had where the tool can resume one. A run waiting for
-        // a decision, or done, gets its conversation back with nothing sent to it -- the
-        // user talks to it -- and only when that conversation exists. Never beside a live
-        // in-card agent, never on an abandoned run.
+        // Start a run's agent again after it ended mid-stage (resumeRun).
         if (path === "/resume") {
           const id = String(body.id ?? "");
           if (!/^[\w.-]+$/.test(id)) return bad("bad run id");
           if (dir === join(home, ".kaizen")) return bad("no project to run in", 409);
-          let run: any;
-          try { run = JSON.parse(readText(join(dir, "runs", id, "state.json"))); } catch { return bad("no such run", 404); }
-          if (run.stage === "abandoned") return bad("this run was abandoned", 409);
-          if (readSessions(dir).some((s) => ptyState(s.key)?.alive && ownerOf(dir, s) === id)) return bad("its agent is still running in its card", 409);
-          const quiet = run.stage === "done" || !!run.awaiting;
-          const own = quiet ? runAgent(dir, id) : null;
-          if (quiet && !(own && firstSession(dir, id, own.cmd, projectOf(dir)))) return bad("no conversation of this run to resume", 409);
-          const text = quiet ? "" : resumePrompt(id);
-          const before = Date.now();
-          const r = launchRun({ severity: null, where: null, text, raw: text }, dir, id, inCard(dir));
-          if (r.ok) closeSessions(dir, id, { before });
-          changed();
+          const r = resumeRun(dir, id);
+          if ("error" in r) return bad(r.error, r.status);
           return json(r.ok
             ? { ok: true, agent: r.agent, pty: r.pty }
             : { ok: false, why: r.why, manual: r.manual, agent: r.agent }, r.ok ? 200 : 500);
@@ -1442,6 +1469,24 @@ export async function web(repoDir: string, opts: Opts = {}) {
       return new Response("not found", { status: 404 });
     },
   }); }
+
+  // Read once and removed first, so a board that fails to start one does not retry it
+  // forever. A list older than an hour is from an upgrade whose board never came back
+  // (a failed Windows hand-off): too late to pick its runs up unasked.
+  if (existsSync(RESUME_LIST)) {
+    let saved: { at?: number; list?: { dir: string; key: string; run: string | null }[] } = {};
+    try { saved = JSON.parse(readText(RESUME_LIST)); } catch { /* unreadable: nothing to resume */ }
+    rmSync(RESUME_LIST, { force: true });
+    const done = new Set<string>();
+    for (const { dir, key, run } of Date.now() - (saved.at ?? 0) < 3600_000 ? saved.list ?? [] : []) {
+      const s = run ? null : readSessions(dir).find((x) => x.key === key);
+      const id = run ?? (s ? ownerOf(dir, s) : null);
+      if (!id || done.has(`${dir}\0${id}`)) continue;
+      done.add(`${dir}\0${id}`);
+      const r = resumeRun(dir, id);
+      console.log(`  ${"error" in r || !r.ok ? "could not resume" : "resumed"} ${id}${"error" in r ? ` (${r.error})` : !r.ok ? ` (${r.why})` : ""}`);
+    }
+  }
 
   const url = `http://127.0.0.1:${server.port}/`;
   console.log(`\n  kaizen web  ${url}`);
