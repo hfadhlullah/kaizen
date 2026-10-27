@@ -11,11 +11,11 @@
   <a href="https://www.npmjs.com/package/kaizen-agent"><img alt="npm" src="https://img.shields.io/npm/v/kaizen-agent?style=for-the-badge&color=000&labelColor=1c1c1e&logo=npm"></a>
   <a href="https://github.com/hfadhlullah/kaizen/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/hfadhlullah/kaizen?style=for-the-badge&logo=github&color=000&labelColor=1c1c1e"></a>
   <img alt="Bun 1.1+" src="https://img.shields.io/badge/Bun-1.1%2B-000?style=for-the-badge&logo=bun&logoColor=white">
-  <img alt="macOS · Linux · Windows beta" src="https://img.shields.io/badge/macOS_·_Linux_·_Windows_beta-000?style=for-the-badge">
+  <img alt="macOS · Linux · Windows" src="https://img.shields.io/badge/macOS_·_Linux_·_Windows-000?style=for-the-badge">
   <a href="LICENSE"><img alt="License MIT" src="https://img.shields.io/badge/license-MIT-000?style=for-the-badge"></a>
 </p>
 
-> **kaizen runs inside an AI agent; it is not one.** The agent does the work; kaizen gives it a plan, an approval stop and an independent review. It works with Claude Code, Codex, Antigravity and Gemini CLI, and the installer offers to set one up if you have none. A run costs several times a single prompt, so it is meant for work where being wrong is expensive. Windows support is in beta.
+> **kaizen runs inside an AI agent; it is not one.** The agent does the work; kaizen gives it a plan, an approval stop and an independent review. It works with Claude Code, Codex, Antigravity and Gemini CLI, and the installer offers to set one up if you have none. A run costs several times a single prompt, so it is meant for work where being wrong is expensive.
 
 <br>
 
@@ -56,7 +56,7 @@ None of this is a lack of intelligence. It is a missing workflow. Many assistant
    ```bash
    curl -fsSL https://bun.sh/install | bash && ~/.bun/bin/bunx kaizen-agent
    ```
-   On Windows (beta), in PowerShell:
+   On Windows, in PowerShell:
    ```powershell
    irm bun.sh/install.ps1 | iex; & "$env:USERPROFILE\.bun\bin\bunx.exe" kaizen-agent
    ```
@@ -75,7 +75,7 @@ None of this is a lack of intelligence. It is a missing workflow. Many assistant
 | Runtime | [Bun](https://bun.sh) 1.1 or newer. The installer above gets it. |
 | Agent | Claude Code, Codex, Antigravity or Gemini CLI. Claude Code gets the full flow with separate subagents; the others run every stage in one session. |
 | Git | Needed for the board's commit and push. Optional otherwise. |
-| OS | macOS, Linux. Windows in beta. |
+| OS | macOS, Linux, Windows. |
 | Phone app | [Tailscale](https://tailscale.com/download) on the PC and the phone, same account. |
 
 ## How it works

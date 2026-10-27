@@ -140,3 +140,12 @@ updated: 2026-10-19
 - 2026-10-26 run 2026-10-26-mobile-headers-all — Web board, Notebook (Settings-style phone header on Icebox, Notes, Video and Terminal)
 - 2026-10-26 run 2026-10-26-home-chat — Web board (Home page: chat with kaizen's Codex agent across projects — switches or creates projects itself; Board at ?view=board; Home centered in phone bar)
 - 2026-10-27 chat-all-projects: Home chat writes every listed project via --add-dir; development asks run (lite/full, agent) or in-chat; [[kaizen:run …]] directive.
+- 2026-10-27 popup-chat: `kaizen chat` opens a minimal Home chat window (/popup), floated and pinned on Hyprland like Hermes's HUD; a second call closes it.
+- 2026-10-27 popup-bubbles: popup is see-through (WebKitGTK shell, Chromium fallback), shadowed pop-in bubbles, Board button hides/shows the board window.
+- 2026-10-27 popup-side-icons: popup buttons are an icon rail beside the chat; board.chat_hotkey setting (default SUPER + ALT + SPACE) written into the Hyprland config.
+- 2026-10-27 popup-drag: popup drag handle (WebKitGTK begin_move_drag) and position remembered across hotkey toggles.
+- 2026-10-27 popup-handoff: Home pop-out icon opens the popup on the current chat and hides the board window; popup back icon restores and focuses the board and closes the popup.
+- 2026-10-27 popup-return-chat: Back from the popup opens the popup's chat on Home (/popup/handoff); Home's Chats list lost its duplicate toggle.
+- 2026-10-27 windows-bun-not-recognized: Windows kaizen.cmd calls bun by full path; kaizen web --shortcut finds the OneDrive-redirected Desktop.
+
+- 2026-10-27 — README: Windows no longer marked beta (run 2026-10-27-windows-docs-usable).
