@@ -106,12 +106,14 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
     bar.className = "termkeys";
     const msg = document.createElement("input");
     // pointerdown + preventDefault: a tap must not move focus off the terminal, nor
-    // close the soft keyboard while the message box is being typed in.
+    // close the soft keyboard while the message box is being typed in. The key itself
+    // fires on click, which the browser drops when the touch becomes a swipe of the row.
     const key = (label: string, fn: () => void) => {
       const b = document.createElement("button");
       b.type = "button";
       b.textContent = label;
-      b.addEventListener("pointerdown", (e) => { e.preventDefault(); fn(); if (document.activeElement !== msg) term.focus(); });
+      b.addEventListener("pointerdown", (e) => e.preventDefault());
+      b.addEventListener("click", () => { fn(); if (document.activeElement !== msg) term.focus(); });
       return b;
     };
     const chips = document.createElement("div");

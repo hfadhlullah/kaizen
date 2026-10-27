@@ -160,3 +160,4 @@ updated: 2026-10-27
 - 2026-10-27 — 2026-10-27-terminal-panel-revamp: run panel step bar, phone chips + message box, desktop 62% terminal panel. Web board note updated.
 - 2026-10-27 build — Home motion verified live in headless chromium; chat avatar follows the theme in light mode (2026-10-27-home-motion-verify)
 - 2026-10-27 update — Home input: project chip beside Send, new placeholder, steps under the reply (2026-10-27-home-motion-verify)
+- 2026-10-28 build — phone terminal: key chips fire on click so swiping the row no longer presses a key; card header lower, footer safe area not doubled (2026-10-28-termkeys-swipe-click)
