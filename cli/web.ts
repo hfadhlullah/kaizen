@@ -10,7 +10,7 @@ import {
   launchMode, readSessions, ownerOf, runIndex, resumePrompt, runAgent, firstSession, webHosts,
 } from "./state.ts";
 import { attachPty, writePty, resizePty, exitPty, ptyState, ptyKeys, adoptLoginEnv } from "./pty.ts";
-import { readSources, addSource, removeSource, moveSource, setCategory, setWriteback, readIcebox, promote, dismiss, restore, addItem, githubRepo, markDone, markReplied, gatherSource, freshImages, gatherAll, gatherDirs, due, socialUrl, socialOf } from "./sources.ts";
+import { readSources, addSource, removeSource, moveSource, setCategory, setWriteback, setPaused, readIcebox, promote, dismiss, restore, addItem, githubRepo, markDone, markReplied, gatherSource, freshImages, gatherAll, gatherDirs, due, socialUrl, socialOf } from "./sources.ts";
 import { projectLogo, LOGO_TYPES } from "./logo.ts";
 import * as chatgpt from "./chatgpt.ts";
 import * as google from "./google.ts";
@@ -354,7 +354,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         // Social sources need a reader that picks posts: only ChatGPT can do that unattended.
         const gpt = await setting("sources.agent") === "chatgpt" && chatgpt.status().connected;
         for (const s of list) {
-          if (!due(s, ms, Date.now())) continue;
+          if (s.paused || !due(s, ms, Date.now())) continue;
           if (!socialOf(s.url)) { if ((await gatherSource(dir, s.url)).added) changed(); }
           else if (gpt) { await chatgpt.gatherSource(dir, s.url, await setting("sources.model"), (await setting("sources.effort")) || "low"); changed(); }
         }
@@ -1190,6 +1190,9 @@ export async function web(repoDir: string, opts: Opts = {}) {
               if (why) return bad(why, 404);
             } else if (body.op === "writeback") {
               const why = setWriteback(dir, link, body.on === true);
+              if (why) return bad(why, 404);
+            } else if (body.op === "paused") {
+              const why = setPaused(dir, link, body.on === true);
               if (why) return bad(why, 404);
             } else if (body.op === "remove") {
               const why = removeSource(dir, link);

@@ -154,3 +154,4 @@ updated: 2026-10-27
 - 2026-10-27 run 2026-10-27-richer-notification-sounds — Web board and Conventions and gotchas: ten licensed AOSP notification sounds, MP3 for older Safari, preview and playback, legacy choices retained.
 - 2026-10-27 run 2026-10-27-global-knowledge — CLI, Workflow: kaizen remember/recall, global knowledge per track, SessionStart hook, Remembered lines in the final report.
 - 2026-10-27 run 2026-10-27-knowledge-quality-gate — Workflow: reviewer's four-test gate (reusable, high-signal, evidenced, new) before a lesson goes global.
+- 2026-10-27 run 2026-10-27-source-auto-gather-toggle — Sources and icebox: per-source Auto gather toggle (`paused` flag) the timed gather skips.

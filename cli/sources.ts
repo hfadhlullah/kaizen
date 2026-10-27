@@ -10,7 +10,7 @@ import { lookup as dnsLookup } from "node:dns/promises";
 import { readInbox, writeInbox, normalise, formatNote, parseItem, readRuns, readText } from "./state.ts";
 
 export type Last = { at: string; ok: boolean; added: number; note: string };
-export type Source = { url: string; label?: string; category?: string; added: string; last?: Last; seen: string[]; writeback?: boolean };
+export type Source = { url: string; label?: string; category?: string; added: string; last?: Last; seen: string[]; writeback?: boolean; paused?: boolean };
 export type Result = { url: string } & Last;
 
 const file = (state: string) => join(state, "sources.json");
@@ -90,6 +90,16 @@ export function setWriteback(state: string, url: string, on: boolean): string | 
   const src = list.find((s) => s.url === url);
   if (!src) return "no such source";
   if (on) src.writeback = true; else delete src.writeback;
+  writeSources(state, list);
+  return null;
+}
+
+// Whether the board's scheduled gather skips this source. Check now still reads it.
+export function setPaused(state: string, url: string, on: boolean): string | null {
+  const list = readSources(state);
+  const src = list.find((s) => s.url === url);
+  if (!src) return "no such source";
+  if (on) src.paused = true; else delete src.paused;
   writeSources(state, list);
   return null;
 }

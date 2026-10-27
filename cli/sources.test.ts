@@ -8,7 +8,7 @@ import { readInbox, writeInbox, replaceIdea, parseItem } from "./state.ts";
 import {
   readSources, addSource, removeSource, ingest, checkUrl, resolvesPublic, exportUrl, fetchText, split, sift,
   gatherSource, freshImages, gatherAll, due, takeImages, sheetImages, docImages, imagesUrl, SIGN_IN, UNREADABLE, CAP, moveSource, gatherDirs, writeSources,
-  readIcebox, writeIcebox, promote, markDone, addItem, githubRepo, dismiss, markReplied, setCategory, socialUrl, socialOf, AGENT_ONLY, PLATFORMS,
+  readIcebox, writeIcebox, promote, markDone, addItem, githubRepo, dismiss, markReplied, setCategory, setPaused, socialUrl, socialOf, AGENT_ONLY, PLATFORMS,
 } from "./sources.ts";
 
 const root = realpathSync(mkdtempSync(join(tmpdir(), "kaizen-src-")));   // macOS: tmpdir is a symlink into /private
@@ -32,6 +32,15 @@ test("sources: add, list, remove; refuses a duplicate and a bad link", () => {
   expect(removeSource(state, SHEET)).toBeNull();
   expect(removeSource(state, SHEET)).toBe("no such source");
   expect(readSources(state)).toEqual([]);
+});
+
+test("setPaused: on pauses the source, off clears the flag", () => {
+  addSource(state, SHEET);
+  expect(setPaused(state, SHEET, true)).toBeNull();
+  expect(readSources(state)[0]!.paused).toBe(true);
+  expect(setPaused(state, SHEET, false)).toBeNull();
+  expect("paused" in readSources(state)[0]!).toBe(false);
+  expect(setPaused(state, "https://example.com/none", true)).toBe("no such source");
 });
 
 test("exportUrl: sheet, published sheet, doc, anything else", () => {
