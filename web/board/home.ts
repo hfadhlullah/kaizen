@@ -403,7 +403,7 @@ async function takeHandoff() {
   if (chats.some((c) => c.id === r.id)) await show(r.id);
 }
 // ponytail: polling; push it through the board's state stream if this ever costs anything.
-if (typeof document !== "undefined") setInterval(() => document.body.classList.contains("homev") && takeHandoff(), 1500);
+if (typeof document !== "undefined") setInterval(() => globalThis.document?.body?.classList.contains("homev") && takeHandoff(), 1500);
 
 // A project picked above: a new chat's greeting names it. Only then: a redraw replays the greeting's entrance.
 let greeted;
