@@ -33,5 +33,6 @@ updated: 2026-10-26
 - `--init-project` makes the installer set up the folder it runs in without asking; `kaizen setup` uses it with `--yes`.
 
 - `kaizen setup` is dispatched before the no-agent guard: it installs nothing, and CI runners have no agent (2026-10-25-ci-checks-fail).
+- The Windows launcher `kaizen.cmd` calls bun by full path (`process.execPath`): cmd.exe on some machines fails to find bun on PATH even when PowerShell can. POSIX keeps bare `bun` because version managers put bun under versioned paths. `kaizen web --shortcut` asks Windows for the Desktop (`GetFolderPath('Desktop')`), since OneDrive moves it (2026-10-27-windows-bun-not-recognized).
 ## Notes
 <!-- yours: /kaizen docs never rewrites this section -->

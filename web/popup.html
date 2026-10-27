@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>kaizen chat</title>
+<style>
+:root{--bg-2:#fff;--line:#d9e0ee;--ink:#0c162f;--dim:#5b6b8c;--accent:#2d50a5;--danger:#c8322f;color-scheme:light}
+@media(prefers-color-scheme:dark){:root{--bg-2:#121e3c;--line:#22305a;--ink:#eef2fa;--dim:#96aacd;--accent:#486ed9;--danger:#e85050;color-scheme:dark}}
+*{box-sizing:border-box}
+/* No window background: only the bubbles, the input and the buttons show. */
+html{background:transparent}
+/* A soft dark glow behind the chat, fading to nothing at the edges, so text reads over any wallpaper. */
+body{background:radial-gradient(closest-side at 50% 62%,#0005,#0002 60%,transparent)}
+html,body{margin:0;height:100%;color:var(--ink);font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{display:flex;gap:8px;padding:14px}
+main{flex:1;min-width:0;display:flex;flex-direction:column}
+/* The icon rail beside the chat, level with the input. */
+nav{display:flex;flex-direction:column;gap:8px;padding-bottom:3px}
+nav .sp{flex:1}
+#drag{cursor:grab}
+/* A soft shadow under every floating piece, so it reads over any wallpaper. */
+:root{--shadow:0 1px 2px #0003,0 6px 18px #0006}
+button{display:grid;place-items:center;width:36px;height:36px;padding:0;color:var(--dim);background:var(--bg-2);border:1px solid var(--line);border-radius:50%;cursor:pointer;box-shadow:var(--shadow)}
+button[hidden]{display:none}
+button svg{width:17px;height:17px}
+button.on{color:#fff;background:var(--accent);border-color:var(--accent)}
+button:hover{color:var(--ink);border-color:var(--accent)}
+/* Older bubbles fade out toward the top as the chat grows. */
+#log{flex:1;min-height:0;overflow-y:auto;scrollbar-width:none;margin:0 -6px 0 -14px;padding:10px 6px 10px 14px;display:flex;flex-direction:column;gap:8px;-webkit-mask-image:linear-gradient(transparent,#000 22%);mask-image:linear-gradient(transparent,#000 22%)}
+#log::-webkit-scrollbar{display:none}
+#log>:first-child{margin-top:auto}
+.m{max-width:85%;padding:8px 12px;border-radius:18px;white-space:pre-wrap;word-wrap:break-word;box-shadow:var(--shadow)}
+.m.pop{animation:pop .28s cubic-bezier(.2,1.4,.4,1) both}
+@keyframes pop{from{opacity:0;transform:translateY(10px) scale(.85)}}
+.u{align-self:flex-end;background:var(--accent);color:#fff;border-bottom-right-radius:6px;transform-origin:bottom right}
+.a{align-self:flex-start;background:var(--bg-2);border:1px solid var(--line);border-bottom-left-radius:6px;transform-origin:bottom left}
+.a.wait{color:var(--dim);font-style:italic}
+.err{color:var(--danger)}
+form{display:flex;margin-top:6px}
+textarea{flex:1;resize:none;font:inherit;color:inherit;background:var(--bg-2);border:1px solid var(--line);border-radius:22px;padding:9px 16px;max-height:140px;outline:none;box-shadow:var(--shadow)}
+textarea:focus{border-color:var(--accent)}
+@media(prefers-reduced-motion:reduce){.m.pop{animation:none}}
+</style>
+</head>
+<body>
+<main><div id="log"></div>
+<form id="f"><textarea id="t" rows="1" placeholder="Ask kaizen…" autofocus></textarea></form></main>
+<nav><button id="drag" hidden title="Drag to move" aria-label="Drag to move"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="6" r=".6"/><circle cx="15" cy="6" r=".6"/><circle cx="9" cy="12" r=".6"/><circle cx="15" cy="12" r=".6"/><circle cx="9" cy="18" r=".6"/><circle cx="15" cy="18" r=".6"/></svg></button><span class="sp"></span><button id="stop" hidden title="Stop" aria-label="Stop"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="10" height="10" rx="2"/></svg></button><button id="board" title="Back to the board" aria-label="Back to the board"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button><button id="new" title="New chat" aria-label="New chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></button></nav>
+<script>
+// A small window over the desktop, on Home's chat: same chats, same agent.
+// Enter sends, Shift+Enter is a new line, Esc closes the window.
+const $ = (id) => document.getElementById(id);
+const K = "kz-popup-chat";
+let id = null, msgs = [], busy = false;
+try { id = localStorage.getItem(K); } catch (e) {}
+// Popped out of Home (`kaizen chat --chat <id>`): continue that chat.
+const handed = new URLSearchParams(location.search).get("chat");
+if (handed) { id = handed; try { localStorage.setItem(K, id); } catch (e) {} }
+
+let shown = 0;
+function draw() {
+  const log = $("log");
+  log.replaceChildren(...msgs.map((m, i) => {
+    const d = document.createElement("div");
+    // Only bubbles not shown before pop in; redraws of a streaming reply do not.
+    d.className = "m " + (m.role === "user" ? "u" : "a") + (m.wait ? " wait" : "") + (m.error ? " err" : "") + (i >= shown ? " pop" : "");
+    d.textContent = m.error || m.text || m.wait || "";
+    return d;
+  }));
+  shown = msgs.length;
+  log.scrollTop = log.scrollHeight;
+  $("stop").hidden = !busy;
+}
+
+async function open() {
+  if (!id) return draw();
+  const r = await fetch("/chat?id=" + encodeURIComponent(id));
+  if (!r.ok) { id = null; return draw(); }
+  const c = await r.json();
+  msgs = (c.messages || []).map((m) => ({ role: m.role, text: m.text, error: m.error }));
+  busy = !!c.busy;
+  draw();
+  // A turn still running from before this window opened: show it when it ends.
+  if (busy) setTimeout(open, 2000);
+}
+
+async function send(text) {
+  const reply = { role: "assistant", text: "", wait: "Thinking…" };
+  msgs.push({ role: "user", text }, reply);
+  busy = true; draw();
+  try {
+    const r = await fetch("/chat", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id, text }) });
+    if (!r.ok) { reply.error = (await r.json().catch(() => ({}))).error || "Could not send"; return; }
+    const rd = r.body.getReader(), dec = new TextDecoder();
+    let buf = "";
+    for (let x; !(x = await rd.read()).done; ) {
+      buf += dec.decode(x.value, { stream: true });
+      let i;
+      while ((i = buf.indexOf("\n")) >= 0) {
+        let e;
+        try { e = JSON.parse(buf.slice(0, i)); } catch (err) { e = {}; }
+        buf = buf.slice(i + 1);
+        if (e.t === "chat") { id = e.id; try { localStorage.setItem(K, id); } catch (err) {} }
+        if (e.t === "text") { reply.text += (reply.text ? "\n\n" : "") + e.text; delete reply.wait; }
+        if (e.t === "status" && !reply.text) reply.wait = e.text;
+        if (e.t === "error") reply.error = e.error;
+        draw();
+      }
+    }
+  } catch (e) {
+    reply.error = "Lost the connection; the agent keeps going and the chat saves when it finishes.";
+  } finally {
+    busy = false;
+    if (!reply.text && !reply.error) reply.wait = "(no reply)";
+    draw();
+  }
+}
+
+$("t").onkeydown = (e) => {
+  if (e.key !== "Enter" || e.shiftKey) return;
+  e.preventDefault();
+  const text = $("t").value.trim();
+  if (!text || busy) return;
+  $("t").value = "";
+  send(text);
+};
+$("t").oninput = () => { $("t").style.height = "auto"; $("t").style.height = $("t").scrollHeight + "px"; };
+$("new").onclick = () => { if (busy) return; id = null; msgs = []; try { localStorage.removeItem(K); } catch (e) {} draw(); $("t").focus(); };
+// Back to the board: the server shows and focuses its window, then closes this one.
+$("board").onclick = () => fetch("/popup/board", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id }) });
+// The see-through window (cli/chat-window.py) moves itself; Chromium's has no handler.
+const host = window.webkit?.messageHandlers?.kaizen;
+$("drag").hidden = !host;
+$("drag").onpointerdown = (e) => { if (e.button === 0) host.postMessage("drag"); };
+$("stop").onclick = () => fetch("/chat/stop", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id }) });
+addEventListener("keydown", (e) => { if (e.key === "Escape") window.close(); });
+open();
+</script>
+</body>
+</html>

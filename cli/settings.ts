@@ -127,6 +127,7 @@ const SETTINGS: Setting[] = [
   { key: "board.projects_dir", label: "Projects folder", group: "Board", values: [], text: true, folder: true, help: "Empty: known projects only" },
   { key: "board.video_dir", label: "Video library folder", group: "Board", values: [], text: true, folder: true, help: "Empty: ~/.kaizen" },
   { key: "board.open", label: "Open the board in", group: "Board", values: ["browser", "app"], help: "" },
+  { key: "board.chat_hotkey", label: "Popup chat hotkey", group: "Board", values: [], text: true, help: "Hyprland, e.g. SUPER + ALT + SPACE. Empty: none" },
   { key: "ui.mouse", label: "Enable mouse", group: "Terminal", values: ["false", "true"], help: "" },
 ];
 
@@ -169,7 +170,9 @@ export function setSetting(repoRoot: string, key: string, value: string) {
     updated = write(updated, "preset", detectPreset(updated, defaults), defaults);
     if (read(updated, key) !== value) return { error: `${key} did not save; edit ${tilde(file)} by hand` };
   }
+  if (key === "board.chat_hotkey" && !HOTKEY.test(value)) return { error: "keys are words joined by +, e.g. SUPER + ALT + SPACE" };
   writeFileSync(file, updated);
+  if (key === "board.chat_hotkey") bindChatHotkey(value);
   return { ok: true };
 }
 
@@ -492,4 +495,26 @@ function insert(text: string, key: string, shown: string, defaults: string) {
 function tilde(p: string) {
   const h = homedir();
   return p.startsWith(h) ? "~" + p.slice(h.length) : p;
+}
+
+// `board.chat_hotkey`: the key that toggles `kaizen chat`, written into the Hyprland
+// config as a marked block, unbinding whatever held the key first. Hyprland reloads
+// the file by itself. Elsewhere there is nowhere to bind it; returns where it went.
+const HOTKEY = /^$|^[A-Za-z0-9_]+( *\+ *[A-Za-z0-9_]+)*$/;
+const BEGIN = "kaizen chat hotkey (written by kaizen; change it in kaizen settings)", END = "end kaizen chat hotkey";
+// `missingOnly`: leave a block already there alone (`kaizen chat` applying the default).
+export function bindChatHotkey(keys: string, dir = join(homedir(), ".config", "hypr"), missingOnly = false) {
+  if (!HOTKEY.test(keys)) return null;
+  const lua = join(dir, "bindings.lua"), conf = join(dir, "hyprland.conf");
+  const file = existsSync(lua) ? lua : existsSync(conf) ? conf : null;
+  if (!file || (missingOnly && readText(file).includes(BEGIN))) return null;
+  const k = keys.split("+").map((x) => x.trim().toUpperCase());
+  const cmd = Bun.which("kaizen") ?? "kaizen";
+  const c = file === lua ? "--" : "#";
+  const body = !keys ? "" : file === lua
+    ? `pcall(hl.unbind, "${k.join(" + ")}")\no.bind("${k.join(" + ")}", "kaizen chat", "${cmd} chat")`
+    : `unbind = ${k.slice(0, -1).join(" ")}, ${k.at(-1)}\nbind = ${k.slice(0, -1).join(" ")}, ${k.at(-1)}, exec, ${cmd} chat`;
+  const text = readText(file).replace(new RegExp(`\\n?${c} ${BEGIN.replace(/[()]/g, "\\$&")}[\\s\\S]*?${c} ${END}\\n?`), "\n");
+  writeFileSync(file, text.replace(/\n*$/, "\n") + (body ? `\n${c} ${BEGIN}\n${body}\n${c} ${END}\n` : ""));
+  return file;
 }

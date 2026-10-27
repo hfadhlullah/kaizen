@@ -285,7 +285,7 @@ body.paged #board,body.paged .ftr,body.paged .scrim,body.paged #bq{display:none}
 /* The Icebox keeps the project bar with its own title, without New idea or the panel's header; Settings has none */
 body.paged:not(.ice) .hdr,body.ice aside.docked>header{display:none}body.ice #newtop{visibility:hidden}
 /* The Terminal page: the project bar stays (it picks whose terminals show), the board gives way to the tiles */
-#home{display:none}#hnewtop{display:none}body.homev.paged .hdr{display:flex}body.homev #combo,body.homev #showc,body.homev #bq,body.homev #newtop,body.homev #fbtn,body.homev #tmodes{display:none!important}body.homev #hnewtop{display:inline-flex;align-items:center;gap:6px}#hnewtop svg{width:16px;height:16px}
+#home{display:none}#hnewtop,#hpop{display:none}body.homev.paged .hdr{display:flex}body.homev #combo,body.homev #showc,body.homev #bq,body.homev #newtop,body.homev #fbtn,body.homev #tmodes{display:none!important}body.homev #hnewtop{display:inline-flex;align-items:center;gap:6px}@media(min-width:641px){body.homev #hpop{display:inline-grid}}#hnewtop svg{width:16px;height:16px}
 body.homev #home{flex:1;min-height:0;display:flex;position:relative;animation:fi .2s}
 .hside{flex:none;width:260px;overflow:hidden;border-right:1px solid color-mix(in srgb,var(--line) 60%,transparent);transition:width .28s cubic-bezier(.2,.7,.2,1),opacity .2s,border-color .28s}
 #home:not(.hopen) .hside{width:0;opacity:0;border-color:transparent}
@@ -595,6 +595,7 @@ a.schip:hover{color:var(--ink);border-color:color-mix(in srgb,var(--line) 60%,va
 <symbol id="i-chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
 <symbol id="i-ai" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></symbol>
 <symbol id="i-google" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M12.48 10.92v3.28h7.84c-.24 1.84-.85 3.18-1.73 4.1-1.08 1.08-2.76 2.26-5.7 2.26-4.82 0-8.6-3.89-8.6-8.72s3.78-8.72 8.6-8.72c2.6 0 4.5 1.02 5.9 2.34l2.31-2.31C19.13 1.19 16.56 0 12.48 0 5.87 0 .31 5.39.31 12s5.56 12 12.17 12c3.57 0 6.26-1.17 8.37-3.36 2.16-2.16 2.84-5.21 2.84-7.66 0-.76-.05-1.47-.17-2.06z"/></symbol>
+<symbol id="i-popout" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></symbol>
 <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
 <symbol id="i-send" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
 <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z"/></symbol>
@@ -699,6 +700,7 @@ a.schip:hover{color:var(--ink);border-color:color-mix(in srgb,var(--line) 60%,va
   <span class="sp"></span>
   <span class="bar" id="tmodes" role="group" aria-label="Layout"></span>
   <button class="btn pri" id="newtop">New idea</button>
+  <button class="ib" id="hpop" title="Pop out chat" aria-label="Pop out chat"><svg><use href="#i-popout"/></svg></button>
   <button class="btn pri" id="hnewtop" aria-label="New chat"><svg><use href="#i-plus"/></svg>New chat</button>
 </div>
 <main id="board" aria-live="polite" aria-busy="true"><section aria-hidden="true"><span class="skel" style="height:14px;width:40%;margin:4px 0 12px"></span><span class="skel" style="height:72px;margin-bottom:8px"></span><span class="skel" style="height:72px"></span></section><section aria-hidden="true"><span class="skel" style="height:14px;width:40%;margin:4px 0 12px"></span><span class="skel" style="height:72px;margin-bottom:8px"></span><span class="skel" style="height:72px"></span></section><section aria-hidden="true"><span class="skel" style="height:14px;width:40%;margin:4px 0 12px"></span><span class="skel" style="height:72px;margin-bottom:8px"></span><span class="skel" style="height:72px"></span></section><section aria-hidden="true"><span class="skel" style="height:14px;width:40%;margin:4px 0 12px"></span><span class="skel" style="height:72px;margin-bottom:8px"></span><span class="skel" style="height:72px"></span></section><section aria-hidden="true"><span class="skel" style="height:14px;width:40%;margin:4px 0 12px"></span><span class="skel" style="height:72px;margin-bottom:8px"></span><span class="skel" style="height:72px"></span></section></main>

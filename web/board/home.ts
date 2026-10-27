@@ -82,7 +82,7 @@ function chips() {
 }
 
 function list() {
-  return html`<div class="hsin"><div class="hshd"><span>Chats</span><button class="ib sm" id="hclose" aria-label="Hide chats" title="Hide chats">${ico("side")}</button></div><nav class="hlist" aria-label="Chats">${chats.map((c) => html`<div class="hli${cur && cur.id === c.id ? " on" : ""}"><button data-c="${c.id}" title="${c.title}">${c.busy ? html`<span class="dot"></span>` : ""}<span class="ht">${c.title}</span><span class="hp">${c.project ? name(c.project) : "No project"}</span></button><button class="ib sm" data-del="${c.id}" aria-label="Delete chat: ${c.title}" title="Delete chat">${ico("trash")}</button></div>`)}</nav></div>`;
+  return html`<div class="hsin"><div class="hshd"><span>Chats</span></div><nav class="hlist" aria-label="Chats">${chats.map((c) => html`<div class="hli${cur && cur.id === c.id ? " on" : ""}"><button data-c="${c.id}" title="${c.title}">${c.busy ? html`<span class="dot"></span>` : ""}<span class="ht">${c.title}</span><span class="hp">${c.project ? name(c.project) : "No project"}</span></button><button class="ib sm" data-del="${c.id}" aria-label="Delete chat: ${c.title}" title="Delete chat">${ico("trash")}</button></div>`)}</nav></div>`;
 }
 
 function bindReply(root) {
@@ -184,7 +184,6 @@ function draw() {
   seen = empty ? 0 : cur.messages.length;
   shown = cur && cur.id;
   $("htog").onclick = () => setSide(!side);
-  $("hclose").onclick = () => setSide(false);
   $("hscrim").onclick = () => setSide(false);
   const q = $("hq");
   renderAttachments();
@@ -212,6 +211,11 @@ function draw() {
   };
   syncSendButton();
   $("hnewtop").onclick = newChat;
+  // Pop out: `kaizen chat` opens the popup on this chat and hides this window.
+  $("hpop").onclick = () =>
+    fetch("/popup/open", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: cur?.id }) })
+      .then((r) => r.ok || toast("Could not open the popup"))
+      .catch(() => toast("Could not open the popup"));
   $("hnewtop").disabled = sending;
   bindChatItems(h);
   h.querySelectorAll("[data-s]").forEach(
@@ -388,6 +392,18 @@ export async function openHome() {
   if (id && chats.some((c) => c.id === id)) await show(id);
   else { remember(null); draw(); }
 }
+
+// Back from the popup (`kaizen chat`): the server brings this window back and hands
+// over the chat the popup was on; Home opens it. A browser window coming back from a
+// hidden Hyprland workspace fires no focus event, so Home asks every 1.5 s.
+async function takeHandoff() {
+  const r = await fetch("/popup/handoff").then((r) => r.json()).catch(() => null);
+  if (!r?.id) return;
+  await refreshChats();
+  if (chats.some((c) => c.id === r.id)) await show(r.id);
+}
+// ponytail: polling; push it through the board's state stream if this ever costs anything.
+if (typeof document !== "undefined") setInterval(() => document.body.classList.contains("homev") && takeHandoff(), 1500);
 
 // A project picked above: a new chat's greeting names it. Only then: a redraw replays the greeting's entrance.
 let greeted;

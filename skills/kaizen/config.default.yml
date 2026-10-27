@@ -159,6 +159,10 @@ board:
   # Where `kaizen web` opens the board: browser (a tab in your default browser) or
   # app (a Chrome, Edge or Brave window with no tabs or address bar).
   open: browser
+  # The key that opens and closes `kaizen chat`, the popup chat window. kaizen
+  # writes it into your Hyprland config (bindings.lua or hyprland.conf), taking the
+  # key over from whatever held it. Empty: no hotkey. Hyprland only for now.
+  chat_hotkey: "SUPER + ALT + SPACE"
 
 sources:
   # How often the web board checks your request sources (links added in the board's

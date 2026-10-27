@@ -34,6 +34,9 @@ const TERM_JS = join(dirname(import.meta.dir), "web", "term.js");
 const TERM_CSS = join(dirname(import.meta.dir), "web", "term.css");
 // The Video page (kaizen-video's library, editor and renders) and its bundle.
 const VIDEO_PAGE = join(dirname(import.meta.dir), "web", "video.html");
+const POPUP_PAGE = join(dirname(import.meta.dir), "web", "popup.html");
+// The chat the popup was on when its Back button was pressed, until Home takes it.
+let popupChat: string | null = null;
 const VIDEO_JS = join(dirname(import.meta.dir), "web", "video.js");
 const DEFAULT_PORT = 7420;
 // Gathered posts a reply is going out to right now: one send per item at a time.
@@ -406,6 +409,63 @@ export async function web(repoDir: string, opts: Opts = {}) {
         const body = served(f);
         if (body === null) return new Response(`${path} missing; run bun run build:web`, { status: 500 });
         return new Response(body, { headers: { "content-type": type, "cache-control": "no-store" } });
+      }
+
+      // `kaizen chat`: the small chat window over the desktop.
+      if (req.method === "GET" && path === "/popup") {
+        const body = served(POPUP_PAGE);
+        if (body === null) return new Response("web/popup.html missing", { status: 500 });
+        return new Response(body, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
+      }
+
+      // Handing the chat between Home and the popup (`kaizen chat`). /popup/open:
+      // open the popup on Home's chat and hide the board's browser window in a
+      // special workspace. /popup/board: bring that window back, focus it (open the
+      // board when no window shows it) and close the popup. Hyprland moves windows;
+      // elsewhere only the popup opens and closes.
+      if (req.method === "POST" && (path === "/popup/open" || path === "/popup/board")) {
+        const body = await req.json().catch(() => ({}));
+        const chat = (...a: string[]) => Bun.spawn([process.execPath, join(import.meta.dir, "install.ts"), "chat", "--port", String(new URL(req.url).port || DEFAULT_PORT), ...a], { stdout: "ignore", stderr: "ignore" }).exited;
+        const hypr = !!process.env.HYPRLAND_INSTANCE_SIGNATURE && !!Bun.which("hyprctl");
+        const json = async (cmd: string) => await Bun.$`hyprctl ${cmd} -j`.quiet().nothrow().json().catch(() => null);
+        // Several windows can show a board: Pop out takes the one clicked in (the active
+        // one), Back the one Pop out hid.
+        const isBoard = (c: any) => c && /(^|\) )kaizen( [—-] |$)/.test(String(c.title));
+        const all: any[] = hypr ? (await json("clients")) || [] : [];
+        const active = hypr ? await json("activewindow") : null;
+        const board = path === "/popup/open" ? (isBoard(active) ? active : all.find(isBoard))
+          : all.find((c) => isBoard(c) && c.workspace?.name === "special:kaizen") ?? all.find(isBoard);
+        const w = board && `address:${board.address}`;
+        // Lua grammar first (Hyprland 0.55+ with a Lua config), the classic words after.
+        const dispatch = async (lua: string, legacy: string[]) => {
+          if ((await Bun.$`hyprctl dispatch ${lua}`.quiet().nothrow().text()).trim() !== "ok") await Bun.$`hyprctl dispatch ${legacy}`.quiet().nothrow();
+        };
+        if (path === "/popup/open") {
+          const id = typeof body.id === "string" && /^[\w.-]+$/.test(body.id) ? body.id : "";
+          await chat("--show", ...(id ? ["--chat", id] : []));
+          if (w) await dispatch(`hl.dsp.window.move({ workspace = "special:kaizen", follow = false, window = "${w}" })`, ["movetoworkspacesilent", `special:kaizen,${w}`]);
+          // Typing goes to the popup, not to whatever was under the hidden board.
+          const pop = hypr && ((await json("clients")) || []).find((c: any) => c.class === "kaizen-chat" || String(c.class).startsWith("chrome-127.0.0.1__popup"));
+          if (pop) await dispatch(`hl.dsp.focus({ window = "address:${pop.address}" })`, ["focuswindow", `address:${pop.address}`]);
+          return Response.json({ ok: true, hidden: !!w });
+        }
+        if (!w) Bun.spawn([process.platform === "darwin" ? "open" : "xdg-open", new URL("/", req.url).href], { stdout: "ignore", stderr: "ignore" });
+        else {
+          if (String(board.workspace?.name).startsWith("special:")) {
+            const ws = (await json("activeworkspace"))?.id ?? 1;
+            await dispatch(`hl.dsp.window.move({ workspace = "${ws}", window = "${w}" })`, ["movetoworkspace", `${ws},${w}`]);
+          }
+          await dispatch(`hl.dsp.focus({ window = "${w}" })`, ["focuswindow", w]);
+        }
+        if (typeof body.id === "string") popupChat = body.id;
+        await chat("--close");
+        return Response.json({ ok: true });
+      }
+      // Home, refocused after Back, takes the popup's chat once.
+      if (req.method === "GET" && path === "/popup/handoff") {
+        const id = popupChat;
+        popupChat = null;
+        return Response.json({ id });
       }
 
       if (req.method === "GET" && (path === "/video" || path === "/video.js")) {
@@ -1525,7 +1585,9 @@ export async function shortcut() {
     // style 0 starts `kaizen web --daemon` with no window at all; the daemon outlives
     // that launcher and `kaizen web --stop` ends it. A crash has no console to land
     // in, so web() writes it to ~/.kaizen/web.log instead. A .lnk icon must be an .ico.
-    const lnk = join(home, "Desktop", "Kaizen.lnk");
+    // OneDrive moves the Desktop (C:\Users\x\OneDrive\Desktop), so ask Windows for it.
+    const desk = (await Bun.$`${powershellExe()} -NoProfile -Command [Environment]::GetFolderPath('Desktop')`.quiet().nothrow().text()).trim();
+    const lnk = join(desk || join(home, "Desktop"), "Kaizen.lnk");
     const ico = join(dirname(import.meta.dir), "assets", "kaizen.ico");
     const vbs = join(home, ".kaizen", "kaizen-web.vbs");
     mkdirSync(dirname(vbs), { recursive: true });

@@ -460,6 +460,77 @@ if (args.has("prune")) {
   process.exit(0);
 }
 
+// `kaizen chat`: Home's chat in a small window over the desktop, like Hermes's HUD.
+// Bind it to a hotkey: run again while the window is open and it closes.
+if (Bun.argv[2] === "chat") {
+  const at = Bun.argv.indexOf("--port");
+  const port = at !== -1 ? Number(Bun.argv[at + 1]) || 7420 : 7420;
+  const url = `http://127.0.0.1:${port}/`;
+  const { current } = await import("./web.ts");
+  if (!(await current(url))) await Bun.spawn([process.execPath, Bun.main, "web", "--daemon", "--no-open", "--port", String(port)], { stdout: "ignore", stderr: "inherit" }).exited;
+  // Chromium on Wayland ignores --class: the app window's class comes from the URL.
+  const isChat = (c: any) => c.class === "kaizen-chat" || String(c.class).startsWith("chrome-127.0.0.1__popup");
+  const hypr = !!process.env.HYPRLAND_INSTANCE_SIGNATURE && !!Bun.which("hyprctl");
+  const clients = async (): Promise<any[]> => hypr ? await Bun.$`hyprctl clients -j`.quiet().nothrow().json().catch(() => []) : [];
+  if (hypr) {
+    const { listSettings, bindChatHotkey } = await import("./settings.ts");
+    const keys = listSettings(dirname(import.meta.dir)).rows.find((r) => r.key === "board.chat_hotkey")?.value;
+    if (keys) bindChatHotkey(String(keys), undefined, true);
+  }
+  const open = (await clients()).find(isChat);
+  // Where the window was left, so the next one opens there.
+  const spot = join(home, ".kaizen", "chat-window.json");
+  // --show only opens (the board's Pop out), --close only closes (the popup's Back);
+  // plain `kaizen chat` toggles, for a hotkey.
+  if (open && Bun.argv.includes("--show")) {
+    await Bun.$`hyprctl dispatch ${`hl.dsp.focus({ window = "address:${open.address}" })`}`.quiet().nothrow();
+    process.exit(0);
+  }
+  if (!open && Bun.argv.includes("--close")) process.exit(0);
+  if (open) {
+    try { writeFileSync(spot, JSON.stringify({ x: open.at[0], y: open.at[1] })); } catch {}
+    try { process.kill(open.pid, "SIGTERM"); } catch {}
+    process.exit(0);
+  }
+  // A see-through WebKitGTK window when python3 has it; Chromium paints a background.
+  const ci = Bun.argv.indexOf("--chat"), chatId = ci !== -1 ? Bun.argv[ci + 1] ?? "" : "";
+  const page = `${url}popup${/^[\w.-]+$/.test(chatId) ? `?chat=${chatId}` : ""}`;
+  const shell = join(import.meta.dir, "chat-window.py");
+  const py = Bun.which("python3");
+  const bin = ["chromium", "chromium-browser", "google-chrome", "google-chrome-stable", "microsoft-edge", "brave", "brave-browser"].map((b) => Bun.which(b)).find(Boolean);
+  const cmd = py && Bun.spawnSync([py, shell, "--check"], { stdout: "ignore", stderr: "ignore" }).exitCode === 0 ? [py, shell, page]
+    // Its own profile, so it is its own process: closing it never takes the browser along.
+    : bin ? [bin, `--app=${page}`, `--user-data-dir=${join(home, ".kaizen", "chat-window")}`, "--window-size=420,600"] : null;
+  if (!cmd) { console.log(`  no Chromium-based browser found; open ${url}popup instead`); process.exit(1); }
+  Bun.spawn(cmd, { stdin: "ignore", stdout: "ignore", stderr: "ignore", detached: true }).unref();
+  if (hypr) {
+    let win: any;
+    for (let i = 0; i < 50 && !(win = (await clients()).find(isChat)); i++) await Bun.sleep(100);
+    if (win) {
+      // Hyprland 0.55+ on a Lua config reads dispatch as Lua; older ones want the classic words.
+      const w = `address:${win.address}`;
+      const mon = (await Bun.$`hyprctl monitors -j`.quiet().nothrow().json().catch(() => [])).find((m: any) => m.id === win.monitor);
+      let x = mon ? mon.x + Math.round(mon.width / mon.scale) - 440 : 100, y = mon ? mon.y + Math.round(mon.height / mon.scale) - 640 : 100;
+      // The saved spot, while it is still on a connected monitor.
+      const was = (() => { try { return JSON.parse(readFileSync(spot, "utf8")); } catch { return null; } })();
+      const mons: any[] = await Bun.$`hyprctl monitors -j`.quiet().nothrow().json().catch(() => []);
+      if (Number.isFinite(was?.x) && Number.isFinite(was?.y) && mons.some((m) => was.x >= m.x && was.y >= m.y && was.x < m.x + m.width / m.scale && was.y < m.y + m.height / m.scale)) ({ x, y } = was);
+      const steps = [
+        [`hl.dsp.window.float({ action = "enable", window = "${w}" })`, `setfloating ${w}`],
+        [`hl.dsp.window.pin({ action = "enable", window = "${w}" })`, `pin ${w}`],
+        // No border, rounding or shadow: only the bubbles show.
+        [`hl.dsp.window.set_prop({ prop = "no_shadow", value = "1", window = "${w}" })`, `setprop ${w} no_shadow 1`],
+        [`hl.dsp.window.set_prop({ prop = "border_size", value = "0", window = "${w}" })`, `setprop ${w} border_size 0`],
+        [`hl.dsp.window.resize({ x = 420, y = 600, window = "${w}" })`, `resizewindowpixel exact 420 600,${w}`],
+        [`hl.dsp.window.move({ x = ${x}, y = ${y}, window = "${w}" })`, `movewindowpixel exact ${x} ${y},${w}`],
+      ];
+      for (const [lua, legacy] of steps)
+        if ((await Bun.$`hyprctl dispatch ${lua}`.quiet().nothrow().text()).trim() !== "ok") await Bun.$`hyprctl dispatch ${legacy.split(" ")}`.quiet().nothrow();
+    }
+  }
+  process.exit(0);
+}
+
 if (wantWeb) {
   if (args.has("--shortcut")) { const { shortcut } = await import("./web.ts"); console.log(`\n  kaizen web shortcut  ${await shortcut()}\n`); process.exit(0); }
   const at = Bun.argv.indexOf("--port");
@@ -957,8 +1028,12 @@ function installLauncher() {
     ? join(process.env.BUN_INSTALL ?? join(home, ".bun"), "bin")
     : join(home, ".local", "bin");
   const bin = join(binDir, win ? "kaizen.cmd" : "kaizen");
+  // Windows calls bun by full path: cmd.exe on some machines cannot find bun on PATH
+  // even when PowerShell can, and `kaizen` then fails with "'bun' is not recognized".
+  // POSIX keeps `bun`, since version managers (mise, asdf) put bun under a versioned
+  // path that an upgrade removes.
   const script = win
-    ? `@echo off\r\nrem kaizen launcher -- installed by kaizen-agent\r\nbun run "${entry}" %*\r\n`
+    ? `@echo off\r\nrem kaizen launcher -- installed by kaizen-agent\r\n"${process.execPath}" run "${entry}" %*\r\n`
     : `#!/bin/sh\n# kaizen launcher -- installed by kaizen-agent\nexec bun run ${entry} "$@"\n`;
   try {
     if (existsSync(bin) && readFileSync(bin, "utf8") === script) return;
