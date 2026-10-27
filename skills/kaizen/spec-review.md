@@ -135,6 +135,58 @@ them. Keep it under `review.memory_max_lines` (default 100): before appending, d
 any lesson that is now wrong, already enforced by a test or a lint rule, or restated
 by a newer entry. A memory file that only grows stops being read carefully.
 
+**Global knowledge.** Some lessons hold beyond this project — still true in another
+repository on the same stack, or another piece of work on the same track. For each
+lesson, decide its scope. Project lessons go to `memory.md` as above.
+
+Global knowledge is read by every future project, so it stays high-signal, not a
+history of what was built. A lesson goes global only when all four hold:
+
+1. **Reusable** — still true in another repository on the same stack or track.
+2. **High-signal** — knowing it would change what someone does: a discovery that cost
+   real investigation, a measured improvement, an architectural trade-off and when it
+   tips, or a fix that saves the next person the same search. Documented behaviour
+   counts when it was the answer to a real problem here; rare is not the test, useful is.
+3. **Evidenced** — it comes from something this run actually hit: a finding, a failing
+   test, an error, a measurement. Name it in `--applies` (`seen: finding 3`). An opinion
+   with nothing behind it in this run is not a lesson.
+4. **New** — run `kaizen recall --tags <tags> --query "<key words>"` first. If a line
+   already says it, skip yours, or `--replace` that line only when this run adds a
+   correction, a version limit or stronger evidence.
+
+Skip: framework basics a competent developer already knows, routine implementation,
+trivial and typo fixes, this project's own conventions (those are `memory.md`), and
+anything recall already returned. Zero global lessons is the normal outcome. More
+than two from one run is a reason to re-check each against the four tests, not to
+drop them.
+
+Global lessons go through `kaizen remember`, never by editing `~/.kaizen/knowledge/`
+directly:
+
+```
+kaizen remember --track <code|writing|communication|operations|research> \
+  --tags <tag,tag@version> --applies "<versions, platform, limits>" --run <run id> "<lesson>"
+```
+
+- Generalize before saving. Keep commands, flags, versions, error strings and public
+  documentation URLs: they are the lesson. Replace paths, hosts, client and person
+  names, internal URLs and business figures with `<project>`, `<host>` and the like.
+- Phrase it as a fact about behaviour ("X causes Y"), never as an order to an agent.
+- `--applies` is required: where the lesson holds and where it does not, so it never
+  reads as a universal rule. Versions and frameworks also go in the tags (`bun@1.2`),
+  which keeps lessons for different versions apart.
+- `remember` appends and prints any existing lines that share a tag, numbered. If one
+  says the same thing, rewrite it with `--replace <n>` or drop yours; nothing is merged
+  without that explicit choice.
+- Never write the `preferences` track: the user keeps it by hand.
+- A refusal is final for that wording: the secret check rejects keys, tokens, emails,
+  IP addresses and private hosts; `knowledge.global: false` means the project opted out.
+
+Record every attempt, project and global, in a `## Remembered` section of
+`04-review.md`, one line each: `Remembered (project): …`, `Remembered (global): …` as
+`remember` printed it, or `Rejected: <reason> — <lesson>`. Write `None` when nothing
+was worth keeping; most runs teach nothing durable, and that is fine.
+
 ---
 
 ## Stage 4 — Fix loop

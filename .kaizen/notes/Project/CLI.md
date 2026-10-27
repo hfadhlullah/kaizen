@@ -1,13 +1,13 @@
 ---
 description: The kaizen command: installer, upgrade, uninstall, settings, prune, sources
 tags: [project, cli]
-sources: [cli/install.ts, cli/setup.ts, cli/qr.ts, cli/settings.ts, cli/settings.test.ts, cli/worktree.ts, package.json]
-updated: 2026-10-26
+sources: [cli/install.ts, cli/knowledge.ts, cli/setup.ts, cli/qr.ts, cli/settings.ts, cli/settings.test.ts, cli/worktree.ts, package.json]
+updated: 2026-10-27
 ---
 # CLI
 
 ## What it does
-`kaizen` / `kaizen-agent` (both `cli/install.ts`, see `package.json` `bin`) is one top-level script that installs the workflow as links into the agent's folders, and dispatches subcommands: `setup`, `web`, `settings`/`config`, `upgrade`, `uninstall`, `prune`, `sources`/`gather`/`icebox`, `browser login`, `issue`. With no subcommand in an installed setup it opens the [[Terminal board]]. Flags and behaviour for users: `docs/guide.md` ("Install", "Under the hood").
+`kaizen` / `kaizen-agent` (both `cli/install.ts`, see `package.json` `bin`) is one top-level script that installs the workflow as links into the agent's folders, and dispatches subcommands: `setup`, `web`, `settings`/`config`, `upgrade`, `uninstall`, `prune`, `sources`/`gather`/`icebox`, `browser login`, `issue`, `remember`/`recall` (global knowledge, `cli/knowledge.ts`). With no subcommand in an installed setup it opens the [[Terminal board]]. Flags and behaviour for users: `docs/guide.md` ("Install", "Under the hood").
 
 ## Where it lives
 - `cli/install.ts` — everything above; `initProject()` writes a project's `.kaizen/`, its gitignore block and the `## Kaizen workflow` block in `CLAUDE.md` (`writePointer()`).
@@ -18,6 +18,7 @@ updated: 2026-10-26
 - `cli/install.test.ts`, `cli/settings.test.ts`.
 
 ## How it connects
+- `cli/knowledge.ts` owns `~/.kaizen/knowledge/<track>.md`: `remember` (secret check, opt-out via `knowledge.global` in the config chain, append or explicit `--replace`), `recall` (tag + word scoring), and the Claude Code SessionStart hook that install merges into `~/.claude/settings.json` and uninstall removes. It imports nothing from `state.ts` so the hook stays fast. Its flags and line format are the stable interface; the ranking may change.
 - Links [[Workflow]] files into `~/.claude/skills`, `agents`, `commands`. Skills are linked by folder name, so `skills/media/kaizen-deck` lands as `skills/kaizen-deck`; a renamed skill's old link (`RENAMED_SKILLS`, now incl. `kaizen-motion`, folded into `kaizen-video`) is dropped by uninstall and cleared by install once it dangles and its target folder has that name.
 - `web` starts the [[Web board]]; `sources`/`gather`/`icebox` and `browser login` drive [[Sources and icebox]].
 

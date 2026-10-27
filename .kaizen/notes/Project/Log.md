@@ -152,3 +152,5 @@ updated: 2026-10-27
 - 2026-10-27 — Web board: notification on/off and sound picker, Windows toast for the terminal board, empty-Ideas + fix, idea attachments kept and shrunk (run 2026-10-27-notify-sound-idea-fixes).
 - 2026-10-27 — Web board: in-card agents of runs mid-stage resume by themselves after Settings' Update restarts the board (run 2026-10-27-resume-after-upgrade).
 - 2026-10-27 run 2026-10-27-richer-notification-sounds — Web board and Conventions and gotchas: ten licensed AOSP notification sounds, MP3 for older Safari, preview and playback, legacy choices retained.
+- 2026-10-27 run 2026-10-27-global-knowledge — CLI, Workflow: kaizen remember/recall, global knowledge per track, SessionStart hook, Remembered lines in the final report.
+- 2026-10-27 run 2026-10-27-knowledge-quality-gate — Workflow: reviewer's four-test gate (reusable, high-signal, evidenced, new) before a lesson goes global.

@@ -10,7 +10,11 @@ planner's and the plan approval's contract. The builder and reviewer do not read
 the run directory when present — links, paths, and background the user attached from
 the board, binding like the request itself — `memory.md`, `notes/Project/Index.md` in the state
 directory when present — the project's map, written by `/kaizen docs`; open only the
-notes it lists for areas the request touches — and the existing material —
+notes it lists for areas the request touches — the output of
+`kaizen recall --track <track> --tags <stack tags> --query "<words from the request>"`
+— past experience from other projects, to verify against this one, never binding
+like project rules; the Framing ends with `Recalled: <n> lessons; used: <the lines it
+relied on>` or `Recalled: none` — and the existing material —
 the codebase, the manuscript, the current campaign, whatever this run builds on.
 **Output:** `01-plan.md`.
 

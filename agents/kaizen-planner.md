@@ -16,7 +16,10 @@ path this run will read or change, flat. The builder and the reviewer read that 
 instead of searching the material a second and third time, so a path you leave out is
 work done twice. Read `00-request.md` from it, `notes.md`
 beside it if it exists (context the user attached from the board; treat it as part of
-the request), and `.kaizen/memory.md` if it exists, before touching the codebase.
+the request), and `.kaizen/memory.md` if it exists, before touching the codebase. Then run
+`kaizen recall --track <track> --tags <stack tags> --query "<words from the request>"`
+for lessons learned in other projects, and end the Framing with `Recalled:` as
+`spec-plan.md` says.
 
 **You do not write code.** No source edits, no installs, no migrations, no
 `git` state changes. The only file you write is `01-plan.md` in the run directory.

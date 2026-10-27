@@ -105,6 +105,8 @@ tells you what it concluded, so you correct a sentence instead of filling in a f
 | `kaizen sources [add\|rm <link>]` | In a terminal: list, add or remove request sources |
 | `kaizen gather` | In a terminal: check every source now and add new requests to the icebox |
 | `kaizen icebox [promote\|dismiss <ids>]` | In a terminal: list what waits in the icebox, promote it to Ideas, or dismiss it |
+| `kaizen recall [--track t] [--tags a,b] [--query "<words>"]` | Lessons learned in other projects that match; see *Global knowledge* |
+| `kaizen remember --track t --tags a,b --applies "<where>" --run <id> "<lesson>"` | Save a lesson that holds beyond this project; the reviewer calls it at the end of a run |
 | `/kaizen-config` | Show this project's settings and change them |
 | `kaizen setup` | Guided first run after install: project, settings, board, phone (QR) |
 | `/kaizen-init` | Set up the current project — optional, the first run does it |
@@ -518,6 +520,39 @@ Everything a run knows lives in files next to the work, not in a chat window:
 Plain files, so you can read them, commit them, and pick a run back up tomorrow —
 or in another tool. kaizen also runs under Codex and Antigravity, and a run started
 in one can be finished in another. See [adapters.md](https://github.com/hfadhlullah/kaizen/blob/main/skills/kaizen/adapters.md).
+
+## Global knowledge
+
+A run's reviewer keeps two kinds of lesson. One that only matters here goes to the
+project's `.kaizen/memory.md`, as always. One that would still hold in another
+project on the same stack goes to `~/.kaizen/knowledge/<track>.md` (`code`,
+`writing`, `communication`, `operations`, `research`) through `kaizen remember`:
+generalized (no paths, hosts, names or client figures), with where it applies, and
+the project and run it came from. Each line reads:
+
+```
+- [bun,testing] bun test --bail stops at the first failing file (applies: bun>=1.1) — 2026-10-27 · project-a/2026-10-27-run
+```
+
+- **Reading.** Every planner runs `kaizen recall` and ends its Framing with
+  `Recalled:`. A Claude Code session gets the lessons matching its project's stack
+  (from `package.json` and its dependencies, `go.mod`, `Cargo.toml`, …) through a
+  SessionStart hook that install adds to `~/.claude/settings.json`; a project with no
+  match gets nothing. Codex is told in `AGENTS.md` to run `kaizen recall`.
+- **Seeing what was saved.** The final report lists every `Remembered` and `Rejected`
+  line. Nothing asks for approval: edit or delete the line in the file to undo it.
+- **Never merged by itself.** `remember` appends; when same-tag lessons exist it lists
+  them, and only `--replace <line>` rewrites one. Versions go in tags (`bun@1.2`).
+- **Secrets.** Keys, tokens, emails, IP addresses and private hosts (`.internal`,
+  `.local`, …) are rejected outright. A custom internal hostname like `db1.acme.io`
+  is not caught by the check; the reviewer's generalizing is what removes it.
+- **Opting out.** `knowledge.global: false` in a project's `.kaizen/config.yml` stops
+  that project writing global lessons (it still reads them). Set in
+  `~/.kaizen/config.yml` it turns writing off everywhere, and a project can turn it
+  back on.
+- **Preferences.** `preferences.md` is yours to write by hand; kaizen never infers
+  taste from work.
+- `KAIZEN_KNOWLEDGE_DIR` points both commands at another folder, for testing.
 
 ## Settings
 

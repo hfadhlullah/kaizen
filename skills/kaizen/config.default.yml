@@ -73,6 +73,12 @@ review:
   # prunes stale or superseded lessons before appending rather than growing the file.
   memory_max_lines: 100
 
+knowledge:
+  # Lessons that hold beyond one project go to ~/.kaizen/knowledge/<track>.md through
+  # `kaizen remember`; planners and Claude Code sessions read them with `kaizen recall`.
+  # false: this project never writes there (recall still reads). For confidential work.
+  global: true
+
 backlog:
   # Capture work explicitly deferred, unresolved findings after the bounded fix loop,
   # and verification the user still needs to settle.

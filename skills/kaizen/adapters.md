@@ -32,6 +32,9 @@ continue from the stage it names. Never advance a run whose `awaiting` field is
 non-null without a recorded human decision in `02-approval.md` — another tool or
 session may be mid-run.
 
+Before non-trivial work, run `kaizen recall --track <track> --query "<topic>"` and
+treat what it returns as past experience from other projects to verify, not as rules.
+
 Codex has no separate subagents, so run the stages sequentially in one session,
 but keep them clean: start each stage by reading only that stage's declared inputs
 from its stage file, and write its artifact before moving on. When reviewing, judge the

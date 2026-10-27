@@ -38,6 +38,8 @@ anything.
 | `/kaizen config` | Show this project's settings and change them, one picker per setting |
 | `/kaizen init` | Set up this project folder: `.kaizen/` with `spec.md`, config, and — in a git repo — the gitignore entry |
 | `/kaizen install` | Install the workflow itself globally or per-project |
+| `kaizen recall [--track t] [--tags a,b] [--query "<words>"]` | Lessons from other projects that match (global knowledge, `~/.kaizen/knowledge/`) |
+| `kaizen remember --track t --tags a,b --applies "<where>" --run <id> "<lesson>"` | Save a lesson that holds beyond this project; the reviewer calls it |
 
 `/kaizen` with no argument: `status` if a run is in progress, else ask what to build.
 

@@ -116,6 +116,12 @@ if (Bun.argv[2] === "card") {
   process.exit(0);
 }
 
+// `kaizen remember …` / `kaizen recall …`: global knowledge, see cli/knowledge.ts.
+if (Bun.argv[2] === "remember" || Bun.argv[2] === "recall") {
+  const { cli } = await import("./knowledge.ts");
+  process.exit(cli(Bun.argv.slice(2)));
+}
+
 if (Bun.argv[2] === "sources" || Bun.argv[2] === "gather" || Bun.argv[2] === "icebox") {
   const { locate, label } = await import("./state.ts");
   const src = await import("./sources.ts");
@@ -284,6 +290,10 @@ async function removeEverything() {
   else drop(install);
   drop(join(process.env.BUN_INSTALL ?? join(home, ".bun"), "bin", "kaizen.cmd"));
   drop(join(home, ".local", "bin", "kaizen"));
+  {
+    const { removeSessionHook } = await import("./knowledge.ts");
+    if (removeSessionHook(join(home, ".claude", "settings.json"))) gone.push("the kaizen recall hook in ~/.claude/settings.json");
+  }
   await clearBunxCache();
 
   if (purge) {
@@ -1011,6 +1021,15 @@ if (targets.length === 1) {
   console.log(`    ${c.dim("if their directory exists when you install.")}`);
 }
 
+// Global knowledge reaches plain Claude Code sessions through a SessionStart hook
+// that prints only the lessons matching the project's stack (cli/knowledge.ts).
+if (!args.has("--project") && targets.some((a) => a.name === "Claude Code")) {
+  const { addSessionHook } = await import("./knowledge.ts");
+  const r = addSessionHook(join(home, ".claude", "settings.json"));
+  if (r === "added") step(`added the kaizen recall session hook to ${tilde(join(home, ".claude", "settings.json"))}`);
+  else if (r) step(c.dim(r));
+}
+
 // ---------------------------------------------------------------- repo setup
 
 if (!args.has("--project")) installLauncher();
@@ -1140,7 +1159,7 @@ function initProject() {
 // ("add a discount cap") does not reach kaizen unless the project says it should.
 // One line in the agent instructions is what makes it the default here.
 function writePointer() {
-  const block = `\n## Kaizen workflow\n\nNon-trivial work in this repository follows the staged workflow in\n\`.kaizen/spec.md\`: plan, human approval, build, independent review, bounded fix\nloop. Invoke the \`kaizen\` skill for it — do not carry the stages out inline.\n\nA run costs several times what the same change costs in one session, so spend it\nwhere being wrong is expensive: money, data loss, a migration or anything else hard\nto undo, work a customer sees, or a part of the system nobody has read in a year.\n\nWork where being wrong is cheap and obvious does not start a run. Answering a\nquestion, reading code, a one-line fix, a rename the compiler checks — do those\ndirectly. When it is genuinely unclear, ask rather than assuming the expensive path.\n\nRun state lives in \`.kaizen/runs/<id>/\`. Read \`state.json\` first and continue from\nthe stage it names; never advance a run whose \`awaiting\` field is non-null without a\nrecorded human decision.\n`;
+  const block = `\n## Kaizen workflow\n\nNon-trivial work in this repository follows the staged workflow in\n\`.kaizen/spec.md\`: plan, human approval, build, independent review, bounded fix\nloop. Invoke the \`kaizen\` skill for it — do not carry the stages out inline.\n\nA run costs several times what the same change costs in one session, so spend it\nwhere being wrong is expensive: money, data loss, a migration or anything else hard\nto undo, work a customer sees, or a part of the system nobody has read in a year.\n\nWork where being wrong is cheap and obvious does not start a run. Answering a\nquestion, reading code, a one-line fix, a rename the compiler checks — do those\ndirectly. When it is genuinely unclear, ask rather than assuming the expensive path.\n\nBefore non-trivial work, run \`kaizen recall --track <track> --query "<topic>"\` and\ntreat what it returns as past experience from other projects to verify, not as rules.\n\nRun state lives in \`.kaizen/runs/<id>/\`. Read \`state.json\` first and continue from\nthe stage it names; never advance a run whose \`awaiting\` field is non-null without a\nrecorded human decision.\n`;
 
   for (const name of ["CLAUDE.md", "AGENTS.md"]) {
     const f = join(process.cwd(), name);

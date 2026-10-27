@@ -2,7 +2,7 @@
 description: What a kaizen run is, which files define it, and where its state lives
 tags: [project, workflow]
 sources: [skills/kaizen, skills/kaizen-help, skills/media, agents, commands, cli/worktree.ts, docs/guide.md]
-updated: 2026-10-25
+updated: 2026-10-27
 ---
 # Workflow
 
@@ -22,6 +22,7 @@ The product itself: a staged workflow (plan, approval, build, independent review
 - `skills/kaizen-help/` — the help card; `skills/media/` — `kaizen-deck/`, `kaizen-video/` (footage editing and from-scratch films on HyperFrames; any preset works for either start, `make_tiktok.py`/`make_film.py` bridge to the other engine; a style.json with `"engine": "canvas"` builds with `canvas.html`, a camera over one large canvas, see `references/canvas.md`; a template preset (`preset.json`, e.g. `app-promo`) films the user's product with `record.mjs` and builds with `make_promo.py`, see `references/promo.md`; presets with a `.hidden` file stay off the New video wizard): separate skills shipped in the same package.
 
 ## How it connects
+- Global knowledge: the reviewer saves lessons that hold beyond the project with `kaizen remember` and lists them in `04-review.md` `## Remembered`, which the final report repeats, and only past a four-test gate in `spec-review.md` (reusable, high-signal, evidenced, new — recall before saving; zero is normal); the planner runs `kaizen recall` and ends its Framing with `Recalled:` (`spec-review.md`, `spec-plan.md`, `spec-main.md`). See [[CLI]].
 - A request for a whole app (more than one module) is planned as a roadmap (`spec-plan.md`, *A whole application is a roadmap*): `## Discovery` (up to three question rounds), `## Foundation` (frontend, backend and their contract, database and data model, auth, hosting and deploy as chosen in discovery (CI/CD, Docker, managed platform, mobile store builds), layout, and the look and feel asked in discovery) and a numbered `## Roadmap` of end-to-end feature increments, ending with a go-live increment for an app real people use. The run builds increment 1, the skeleton; at approval the main thread files increments 2..N with `kaizen card add --parent` (`spec-main.md`, *Child cards*), and the parent card lists them as children. An increment run reads its parent's Discovery and Foundation as binding.
 - A child card is filed as `kaizen card add "<short title>" --notes "<details>"`: the title stays a few words, the details land in the idea's notes under `Parent:` (`addCard` in `cli/state.ts`).
 - Any run whose request names an existing thing without its source (app, APK, binary, file format, device, protocol) offers REA once (`spec-plan.md`, *Offer REA*); when REA is not connected it offers to install it (`rea-agents doctor`, a `setup --dry-run` shown to the user, `setup --yes` only on approval, then a restart and resume), give the command, or skip; the main thread asks discovery rounds and that question (`spec-main.md`, *Discovery rounds*).

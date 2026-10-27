@@ -152,6 +152,11 @@ Every stage of every future run reads this file, so it is capped (default 100 li
 now wrong, already enforced by a test or lint rule, or restated by a newer line. A
 memory file that only grows stops being read.
 
+Lessons that hold beyond this project go to global knowledge through `kaizen remember`, under
+the rules in *Global knowledge* in `spec-review.md`: only past its four tests (reusable, high-signal,
+evidenced, new — recall before saving), generalized, with `--applies` naming the evidence, never the
+`preferences` track, every attempt listed in `04-review.md` `## Remembered`.
+
 ## Report back
 
 Return the verdict line, the critical and high findings, and every `CANNOT VERIFY`
