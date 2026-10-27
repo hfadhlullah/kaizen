@@ -5,7 +5,7 @@
 import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { basename, dirname, join } from "node:path";
-import { CHILD_ENV, readText } from "./state.ts";
+import { CHILD_ENV, readRuns, readText } from "./state.ts";
 
 export type Step = { kind: "cmd" | "edit" | "tool" | "project"; text: string; ok?: boolean };
 export type Attachment = { name: string; path: string; image: boolean };
@@ -64,11 +64,18 @@ function saveUploads(base: string, id: string, uploads: Upload[]): Attachment[] 
 export function brief(c: Chat, board: Board) {
   const here = board.projects.find((p) => p.dir === c.project);
   const list = board.projects.slice(0, 80).map((p) => `- ${p.label} — ${dirname(p.dir)}`).join("\n");
+  // So "what's waiting on me?" has an answer without a project.
+  const waiting = board.projects.slice(0, 80).flatMap((p) => readRuns(p.dir)
+    .filter((r) => r.awaiting && r.stage !== "done" && r.stage !== "abandoned")
+    .map((r) => `- ${p.label}: ${r.id} (${r.stage}, waiting on ${r.awaiting})`)).join("\n");
   return `[kaizen board context, not written by the user]
 You are kaizen's main agent, talking with the user from the kaizen board's Home page.
 Project of this chat: ${here ? `${here.label} (${dirname(here.dir)})` : "none — you are in a scratch folder"}.
 Projects on the board:
 ${list || "(none)"}
+Runs waiting on the user:
+${waiting || "(none)"}
+Each project's kaizen runs live in <project>/.kaizen/runs/<id>/ (state.json has stage and awaiting; 01-plan.md, 04-review.md, 06-backlog.md beside it); read them to answer questions about the board.
 You can read, analyse and edit files in any project folder listed above directly by its path; you do not need to switch to it. Do not write outside those folders and your working folder.
 Switching only changes this chat's home project (where you run and which project the board shows). On a line of its own write [[kaizen:project <folder>]] to switch to a listed project, or [[kaizen:new-project <name>]] to create one (a plain folder name). Switch only when the user asks; when what they want fits no listed project, ask whether to create a new one. After a successful move, the board starts one follow-up turn in the new project to finish the pending request; do not ask the user to repeat it.
 When the user asks you to develop, fix, change or enhance something (not a question, analysis or reading), first ask which way, as numbered options, and do nothing until they pick:
