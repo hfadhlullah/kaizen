@@ -3,9 +3,9 @@ import { termStop } from "./agent-term.ts";
 import { load, post } from "./api.ts";
 import { via } from "./cards.ts";
 import { mic, stopDictation } from "./dictation.ts";
-import { $, dataUrls, html, ico, modal, raw, SKEL } from "./dom.ts";
+import { $, dataUrls, html, ico, modal, motion, raw, SKEL } from "./dom.ts";
 import { ideaCombo, newDir, plogo, setShown, short, showable } from "./projects.ts";
-import { toast } from "./toast.ts";
+import { playSound, soundPick, toast } from "./toast.ts";
 import { go, view } from "./views.ts";
 
 // ---- the icebox: requests gathered from request sources, read like an inbox, until
@@ -42,6 +42,10 @@ export let iceForm = null,
   iceBusy = false,
   iceNav = null;
 const iceSel = new Set();
+// The swipe view: one waiting request at a time, decided by drag, button or arrow key.
+// Null when the list shows. It counts this session's decisions, keeps the last dismiss
+// for Undo, and how often each request was skipped (skipped ones go to the back).
+let iceSwipe = null;
 const PLAT = { x: "X", tiktok: "TikTok", instagram: "Instagram", threads: "Threads" };
 export const srcOpen = () => $("panel").classList.contains("open") && $("ptitle").textContent === SRC;
 const ago = (at) => {
@@ -217,7 +221,7 @@ export async function openSources() {
               : html`<span class="src-badge warn"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" stroke="currentColor" fill="none" stroke-width="1.8"/><path d="M8 5v3.5M8 11v.1" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round"/></svg>Failed: ${s.last.note}</span><span class="hint" style="margin:0">${ago(s.last.at)}</span>`;
       const kind = st === "sheet" ? "sheet" : st === "doc" ? "doc" : st === "social" ? "at" : "link",
         bare = s.url.replace(/^https?:\/\/(www\.)?/, "");
-      return html`<div class="src-card" id="src-card-${i}"><div class="src-hd"><span class="src-ico" title="${st === "social" ? (PLAT[s.social] || "social") : st}">${fav(s.url, kind, s.social)}</span><div class="src-info"><span class="src-title" title="${title}">${title}</span><a class="src-url" href="${s.url}" target="_blank" rel="noopener noreferrer" title="${s.url}"><span>${bare}</span>${ico("ext")}</a></div><div class="src-acts">${s.social ? html`<button class="ib sm" id="src-ag-${i}" data-ag="${i}" aria-label="Gather ${title} with your agent" title="${chatOn ? "Gather with your ChatGPT plan" : "Gather: opens your agent on /kaizen gather"}">${ico("refresh")}</button>` : html`<button class="ib sm" id="src-chk-${i}" data-chk="${i}" aria-label="Check ${title} now" title="Check now">${ico("refresh")}</button>`}<button class="ib sm danger" id="src-rm-${i}" data-rm="${i}" aria-label="Remove ${title}" title="Remove source">${ico("trash")}</button></div></div><div class="src-status">${statusHtml}</div><div class="src-fields"><label class="src-f" title="Category"><span>Category</span><input class="sel" id="src-ct-${i}" data-ct="${i}" data-k="${s.dir + " " + s.url}" value="${s.category || ""}" placeholder="${platOf(s)}" maxlength="40" aria-label="Category of ${title}"><button class="btn sm pri" id="src-cs-${i}" aria-label="Save the category of ${title}" disabled>Save</button></label><label class="src-f" title="Project"><span>Project</span>${plogo(s.dir, s.project || "")}<select class="sel" id="src-mv-${i}" data-mv="${i}" data-k="${s.dir + " " + s.url}" aria-label="Project of ${title}">${opts(s.dir, s.project)}</select><button class="btn sm pri" id="src-mb-${i}" aria-label="Move ${title} to the chosen project" disabled>Move</button></label>${st === "sheet" || /github\.com/.test(s.url) ? html`<label class="src-wb"><input type="checkbox" id="src-wb-${i}" data-wb="${i}"${s.writeback ? " checked" : ""}> Write back</label>` : ""}<label class="src-wb" title="Off: the scheduled gather skips this source; Check now still reads it"><input type="checkbox" id="src-ag-on-${i}" data-ag-on="${i}"${s.paused ? "" : " checked"}> Auto gather</label></div></div>`;
+      return html`<div class="src-card" id="src-card-${i}"><div class="src-hd"><span class="src-ico" title="${st === "social" ? (PLAT[s.social] || "social") : st}">${fav(s.url, kind, s.social)}</span><div class="src-info"><span class="src-title" title="${title}">${title}</span><a class="src-url" href="${s.url}" target="_blank" rel="noopener noreferrer" title="${s.url}"><span>${bare}</span>${ico("ext")}</a></div><div class="src-acts">${s.social ? html`<button class="ib sm" id="src-ag-${i}" data-ag="${i}" aria-label="Gather ${title} with your agent" title="${chatOn ? "Gather with your ChatGPT plan" : "Gather: opens your agent on /kaizen gather"}">${ico("refresh")}</button>` : html`<button class="ib sm" id="src-chk-${i}" data-chk="${i}" aria-label="Check ${title} now" title="Check now">${ico("refresh")}</button>`}<button class="ib sm danger" id="src-rm-${i}" data-rm="${i}" aria-label="Remove ${title}" title="Remove source">${ico("trash")}</button></div></div><div class="src-status">${statusHtml}</div><div class="src-fields"><label class="src-f" title="Category"><span>Category</span><input class="sel" id="src-ct-${i}" data-ct="${i}" data-k="${s.dir + " " + s.url}" value="${s.category || ""}" placeholder="${platOf(s)}" maxlength="40" aria-label="Category of ${title}"><button class="btn sm pri" id="src-cs-${i}" aria-label="Save the category of ${title}" disabled>Save</button></label><label class="src-f" title="Project"><span>Project</span>${plogo(s.dir, s.project || "")}<select class="sel" id="src-mv-${i}" data-mv="${i}" data-k="${s.dir + " " + s.url}" aria-label="Project of ${title}">${opts(s.dir, s.project)}</select><button class="btn sm pri" id="src-mb-${i}" aria-label="Move ${title} to the chosen project" disabled>Move</button></label></div><div class="src-sws">${st === "sheet" || /github\.com/.test(s.url) ? html`<label class="src-sw">Write back<button class="chk sm${s.writeback ? " on" : ""}" id="src-wb-${i}" data-wb="${i}" role="switch" aria-checked="${String(!!s.writeback)}" aria-label="Write back to ${title}"></button></label>` : ""}<label class="src-sw" title="Off: the scheduled gather skips this source; Check now still reads it">Auto gather<button class="chk sm${s.paused ? "" : " on"}" id="src-ag-on-${i}" data-ag-on="${i}" role="switch" aria-checked="${String(!s.paused)}" aria-label="Auto gather ${title}"></button></label></div></div>`;
     });
   const fails = ((d && d.failed) || []).map((f) => html`<p style="color:var(--dim)">The sources of ${f} could not be read.</p>`);
   const emptyState = html`<div class="src-empty"><div class="src-empty-ico">${ico("link")}</div><h4>No sources yet</h4></div>`;
@@ -279,6 +283,7 @@ export async function openSources() {
   });
   // Rows in the order they are drawn, which is the order j and k walk.
   const order = [...groups.values()].flat();
+  const isWaiting = (it) => !["promoted", "dismissed", "done"].includes(it.status);
   // A checked request a filter hides is unchecked: a bulk action only ever acts on what shows.
   {
     const vis = new Set(order.map((i) => iceKey(ice[i])));
@@ -324,7 +329,7 @@ export async function openSources() {
           )}`,
         )
       : ""}`;
-  const bar = html`<div class="ice-bar">${order.length ? html`<input type="checkbox" id="ice-all" aria-label="Select every request shown"${nSel && nSel === order.length ? " checked" : ""}>` : ""}<span class="count">${iceCat === "Dismissed" || iceCat === "Done" ? `${order.length} ${iceCat.toLowerCase()}` : `${order.length < waiting ? `${order.length} of ${waiting}` : waiting} waiting`}</span><span class="end"></span>${String(chips) ? html`<details class="ice-filt"><summary class="ib${iceCat || iceSrc ? " on" : ""}" aria-label="Filter requests" title="Filter requests">${ico("filter")}</summary><div class="ice-fpop">${chips}</div></details>` : ""}<button class="btn ghost sm" id="ice-new" title="Add a request by hand">${ico("plus")} Add</button><button class="btn sm" id="src-go"${list.length ? "" : " disabled"}>${ico("refresh")} Gather all</button><button class="btn ghost sm" id="src-tog" aria-expanded="${String(!!srcShow)}" aria-controls="src-sec">${ico("link")} Sources · ${list.length}</button></div>`;
+  const bar = html`<div class="ice-bar">${order.length ? html`<input type="checkbox" id="ice-all" aria-label="Select every request shown"${nSel && nSel === order.length ? " checked" : ""}>` : ""}<span class="count">${iceCat === "Dismissed" || iceCat === "Done" ? `${order.length} ${iceCat.toLowerCase()}` : `${order.length < waiting ? `${order.length} of ${waiting}` : waiting} waiting`}</span><span class="end"></span>${String(chips) ? html`<details class="ice-filt"><summary class="ib${iceCat || iceSrc ? " on" : ""}" aria-label="Filter requests" title="Filter requests">${ico("filter")}</summary><div class="ice-fpop">${chips}</div></details>` : ""}${order.some((i) => isWaiting(ice[i])) ? html`<button class="btn ghost sm" id="ice-sw" title="Sort one at a time: swipe right to promote, left to dismiss">${ico("restore")} Swipe</button>` : ""}<button class="btn ghost sm" id="ice-new" title="Add a request by hand">${ico("plus")} Add</button><button class="btn sm" id="src-go"${list.length ? "" : " disabled"}>${ico("refresh")} Gather all</button><button class="btn ghost sm" id="src-tog" aria-expanded="${String(!!srcShow)}" aria-controls="src-sec">${ico("link")} Sources · ${list.length}</button></div>`;
   const bulk = iceSel.size
     ? html`<div class="ice-bulk" role="toolbar" aria-label="Selected requests"><span>${iceSel.size} selected</span><span class="end"></span><button class="btn sm" id="ice-bp" title="Promote (p)">${ico("plus")} Promote</button><button class="btn ghost sm" id="ice-bd" title="Dismiss (d)">${ico("x")} Dismiss</button><button class="btn ghost sm" id="ice-bc" title="Clear selection (Esc)">Clear</button></div>`
     : "";
@@ -347,13 +352,15 @@ export async function openSources() {
     if (r.wait) return html`<div class="ice-form-acts"><span class="hint">Drafting…</span></div>`;
     return html`<div class="ice-form"><label for="ice-reply" class="hint" style="margin:0">Your reply${r.note ? ` · ${r.note}` : ""}</label><textarea class="sel" id="ice-reply" rows="3" maxlength="2000" aria-label="Your reply"${r.busy || r.again ? " disabled" : ""}>${r.text}</textarea><span class="hint" id="ice-rn" style="margin:0">${r.again ? "Writing another…" : `${r.text.length} chars`}</span><div class="ice-form-acts"><span class="end"></span>${G.connected ? html`${style(r.busy || r.again)}<button class="btn ghost sm" id="ice-rg"${r.busy || r.again ? " disabled" : ""}>Regenerate</button>` : ""}<button class="btn ghost sm" id="ice-rc"${r.busy ? " disabled" : ""}>Cancel</button><button class="btn pri sm" id="ice-rs"${r.busy || r.again || !r.text.trim() ? " disabled" : ""}>${r.busy ? "Sending…" : "Send reply"}</button></div></div>`;
   };
+  const imgs = (it) =>
+    (it.images || []).filter((u) => /^https:\/\//.test(u)).length ? html`<details class="ice-imgs"><summary>Show images (${it.images.filter((u) => /^https:\/\//.test(u)).length}) — loads them from the source's site</summary>${it.images.filter((u) => /^https:\/\//.test(u)).map((u, n) => { const src = `/ice-image?dir=${encodeURIComponent(it.dir)}&id=${encodeURIComponent(it.id)}&i=${n}`; return html`<a href="${src}" target="_blank" rel="noopener noreferrer"><img data-src="${src}" alt="" referrerpolicy="no-referrer"></a>`; })}</details>` : "";
   const row = (i) => {
     const it = ice[i],
       k = iceKey(it),
       open = iceForm === k;
     const head = html`<div class="ice-row${iceCur === k ? " cur" : ""}${iceSel.has(k) ? " sel" : ""}" data-i="${i}" data-k="${k}"><input type="checkbox" id="ice-ck-${i}" data-ck="${i}"${iceSel.has(k) ? " checked" : ""} aria-label="Select: ${it.text}"><span class="ice-src" title="${srcName(it)}">${fav(it.source, "link", list.find((x) => x.dir === it.dir && x.url === it.source)?.social)}</span><button class="ice-t" id="ice-o-${i}" data-o="${i}" aria-expanded="${String(open)}" title="${it.text}">${it.text}</button><span class="ice-meta">${many ? html`<span class="nm" title="${it.project || ""}">${plogo(it.dir, it.project || "")}${short(it.project || "")}</span>` : ""}${it.status === "done" && it.written ? html`<span title="Written back ${ago(it.written)}">written back</span>` : ""}${it.status === "done" && it.writeError ? html`<span title="${it.writeError}">write-back failed</span>` : ""}${it.status === "promoted" ? html`<span title="Promoted to Ideas: ${it.idea || ""}">promoted</span>` : ""}${it.replied ? html`<span title="Replied ${ago(it.replied)}">replied</span>` : ""}<span class="ice-age">${ago(it.at)}</span><span class="ice-ra">${it.status === "promoted" || it.status === "done" ? "" : html`<button class="btn ghost sm" id="ice-pr-${i}" data-pr="${i}" title="Promote to Ideas (p)" aria-label="Promote to Ideas: ${it.text}">${ico("plus")}</button>`}${it.status === "promoted" || it.status === "done" ? "" : it.status === "dismissed" ? html`<button class="btn ghost sm" id="ice-rs-${i}" data-rs="${i}" title="Restore to waiting" aria-label="Restore: ${it.text}">Restore</button>` : html`<button class="btn ghost sm" id="ice-ds-${i}" data-ds="${i}" title="Dismiss (d)" aria-label="Dismiss: ${it.text}">${ico("x")}</button>`}</span></span></div>`;
     const more = open
-      ? html`<div class="ice-open">${it.notes ? html`<div class="ice-notes">${it.notes}</div>` : ""}${(it.images || []).filter((u) => /^https:\/\//.test(u)).length ? html`<details class="ice-imgs"><summary>Show images (${it.images.filter((u) => /^https:\/\//.test(u)).length}) — loads them from the source's site</summary>${it.images.filter((u) => /^https:\/\//.test(u)).map((u, n) => { const src = `/ice-image?dir=${encodeURIComponent(it.dir)}&id=${encodeURIComponent(it.id)}&i=${n}`; return html`<a href="${src}" target="_blank" rel="noopener noreferrer"><img data-src="${src}" alt="" referrerpolicy="no-referrer"></a>`; })}</details>` : ""}<span class="hint" style="margin:0">From ${srcName(it)} · ${ago(it.at)}${it.post ? html` · <a href="${it.post}" target="_blank" rel="noopener">open post</a>` : ""}</span>${replyBox(it)}${icePro === k ? form(it) : ""}</div>`
+      ? html`<div class="ice-open">${it.notes ? html`<div class="ice-notes">${it.notes}</div>` : ""}${imgs(it)}<span class="hint" style="margin:0">From ${srcName(it)} · ${ago(it.at)}${it.post ? html` · <a href="${it.post}" target="_blank" rel="noopener">open post</a>` : ""}</span>${replyBox(it)}${icePro === k ? form(it) : ""}</div>`
       : "";
     return html`${head}${more}`;
   };
@@ -363,6 +370,49 @@ export async function openSources() {
       : order.length
         ? html`<div class="ice-list">${[...groups].map(([g, ix]) => html`<div class="ice-cat">${g}<i>${ix.length}</i></div>${ix.map(row)}`)}</div>`
         : html`<div class="ice-zero"><h4>Nothing waiting</h4><p>Requests gathered from your sources wait here until you turn them into ideas.</p>${list.length ? "" : html`<p style="margin-top:10px"><button class="btn sm pri" id="ice-addsrc">${ico("plus")} Add a source</button></p>`}</div>`;
+  // Swipe: the waiting requests the filters show, least skipped first; a restored one
+  // comes back on top. Nothing is written by a skip.
+  const deck = iceSwipe
+    ? order.filter((i) => isWaiting(ice[i])).sort((a, b) => (iceSwipe.skip.get(iceKey(ice[a])) || 0) - (iceSwipe.skip.get(iceKey(ice[b])) || 0))
+    : [];
+  const swCard = (i, back) => {
+    const it = ice[i];
+    return html`<div class="sw-card${back ? " back" : ""}"${back ? raw(' aria-hidden="true"') : raw(' id="sw-card"')}><div class="sw-hd">${fav(it.source, "link", srcOf(it)?.social)}<span class="sw-src" title="${srcName(it)}">${srcName(it)}</span>${many ? html`<span class="nm">${short(it.project || "")}</span>` : ""}<span class="ice-age">${ago(it.at)}</span></div><p class="sw-t">${it.text}</p>${back ? "" : html`${it.notes ? html`<div class="ice-notes">${it.notes}</div>` : ""}${imgs(it)}${it.post ? html`<a class="hint" href="${it.post}" target="_blank" rel="noopener">open post</a>` : ""}<span class="sw-stamp pro">Promote</span><span class="sw-stamp dis">Dismiss</span>`}</div>`;
+  };
+  // Icebox zero: the day's streak counts days in a row the stack was emptied, per project
+  // filter, in this browser only.
+  const swZero = () => {
+    const S = iceSwipe;
+    if (S.n && S.days === undefined) {
+      const key = "kz-ice-streak:" + (dir || "all"),
+        day = (t) => new Date(t).toLocaleDateString("sv"),
+        today = day(Date.now());
+      let st = { last: "", days: 0 };
+      try {
+        st = JSON.parse(localStorage.getItem(key) || "") || st;
+      } catch (e) {}
+      if (st.last !== today) st = { last: today, days: st.last === day(Date.now() - 864e5) ? st.days + 1 : 1 };
+      try {
+        localStorage.setItem(key, JSON.stringify(st));
+      } catch (e) {}
+      S.days = st.days;
+    }
+    const s = Math.round((Date.now() - S.t0) / 1000),
+      took = s < 60 ? s + " s" : Math.floor(s / 60) + " min " + (s % 60) + " s";
+    const bits = motion() ? html`<div class="sw-confetti" aria-hidden="true">${Array.from({ length: 14 }, (_, n) => raw(`<i style="--x:${(n * 37) % 100}%;--d:${(n % 5) * 0.08}s;--h:${(n * 53) % 360}"></i>`))}</div>` : "";
+    return html`<div class="sw-zero">${S.n ? bits : ""}<h4>✨ Icebox zero ✨</h4><p>${S.n ? `${S.n} sorted · ${S.pro} promoted · ${S.dis} dismissed · in ${took}` : "Nothing waiting here."}</p>${S.days ? html`<p>🗓 ${S.days}-day streak${S.days > 1 ? " — cleared every day" : ""}</p>` : ""}<p style="margin-top:14px"><button class="btn pri sm" id="sw-back">Back to list</button></p></div>`;
+  };
+  const swipe = () => {
+    const S = iceSwipe,
+      total = S.n + deck.length,
+      pop = S.pop;
+    S.pop = false;
+    const top = html`<div class="sw-top"><button class="btn ghost sm" id="sw-x" title="Back to the list (Esc)">← List</button><div class="sw-prog" role="progressbar" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${S.n}"><i style="width:${total ? Math.round((S.n / total) * 100) : 100}%"></i></div><span class="sw-of">${deck.length ? `${S.n + 1} of ${total}` : `${total} of ${total}`}</span><span class="sw-streak" title="Sorted this session">🔥 ${S.n}${pop ? html`<b class="sw-plus">+1</b>` : ""}</span></div>`;
+    if (!deck.length) return html`<div class="sw" id="sw">${top}${swZero()}</div>`;
+    const b = (id, cls, icon, label, key, off = false) =>
+      html`<button class="sw-b ${cls}" id="${id}" aria-label="${label} (${key})" title="${label} (${key})"${off ? " disabled" : ""}><span>${icon}</span><small>${label}</small></button>`;
+    return html`<div class="sw" id="sw">${top}<div class="sw-stack">${deck[1] !== undefined ? swCard(deck[1], true) : ""}${swCard(deck[0], false)}</div><div class="sw-acts">${b("sw-d", "dis", ico("x"), "Dismiss", "←")}${b("sw-s", "", "↓", "Skip", "↓", deck.length < 2)}${b("sw-u", "", ico("restore"), "Undo", "z", !S.last)}${b("sw-p", "pro", ico("check"), "Promote", "→")}</div></div>`;
+  };
   // The sources, in the right-hand drawer: shut until asked for. Slid in only when opened;
   // a rebuild while open shows it in place.
   const drawer = !!srcShow,
@@ -380,7 +430,9 @@ export async function openSources() {
       ? html`<p style="color:var(--dim)">${d.error}</p>`
       : !d
         ? html`<p style="color:var(--dim)">The icebox could not be read.</p>`
-        : html`${onb}${bar}${bulk}${fails}${inbox}${sec}`;
+        : iceSwipe
+          ? html`${swipe()}${sec}`
+          : html`${onb}${bar}${bulk}${fails}${inbox}${sec}`;
   if (!d || d.error) return;
   const body = $("src-sec")?.querySelector(".body");
   if (body) body.scrollTop = at;
@@ -481,12 +533,13 @@ export async function openSources() {
       srcShut();
     }
   };
-  $("src-tog").onclick = () => {
+  const srcTog = () => {
     if ($("src-sec").classList.contains("open")) return srcShut();
     srcShow = true;
     openSources().then(() => srcShow && $("src-url")?.focus());
   };
-  if ($("ice-addsrc")) $("ice-addsrc").onclick = $("src-tog").onclick;
+  if ($("src-tog")) $("src-tog").onclick = srcTog;
+  if ($("ice-addsrc")) $("ice-addsrc").onclick = srcTog;
   wirePick("ice-fs", (v) => {
     iceSrc = v;
     openSources();
@@ -539,18 +592,15 @@ export async function openSources() {
     .querySelectorAll("[data-wb]")
     .forEach((m) => {
       const s = list[+m.dataset.wb];
-      m.onchange = () => {
-        if (m.checked && s.social === undefined && /docs\.google\.com/.test(s.url) && !(d.google || {}).connected) {
+      m.onclick = () => {
+        const on = !m.classList.contains("on");
+        if (on && s.social === undefined && /docs\.google\.com/.test(s.url) && !(d.google || {}).connected) {
           alert("Connect Google first (Sources header), so kaizen can write to the sheet.");
-          m.checked = false;
           return;
         }
-        if (m.checked && !confirm("When a promoted request's run is done, kaizen will write that back to this source. A closed issue or a changed cell is visible to others. Turn on?")) {
-          m.checked = false;
-          return;
-        }
-        act({ op: "writeback", dir: s.dir, url: s.url, on: m.checked }, () =>
-          toast(m.checked ? "Write back on" : "Write back off"),
+        if (on && !confirm("When a promoted request's run is done, kaizen will write that back to this source. A closed issue or a changed cell is visible to others. Turn on?")) return;
+        act({ op: "writeback", dir: s.dir, url: s.url, on }, () =>
+          toast(on ? "Write back on" : "Write back off"),
         );
       };
     });
@@ -558,10 +608,12 @@ export async function openSources() {
     .querySelectorAll("[data-ag-on]")
     .forEach((m) => {
       const s = list[+m.dataset.agOn];
-      m.onchange = () =>
-        act({ op: "paused", dir: s.dir, url: s.url, on: !m.checked }, () =>
-          toast(m.checked ? "Auto gather on" : "Auto gather off"),
+      m.onclick = () => {
+        const on = !m.classList.contains("on");
+        act({ op: "paused", dir: s.dir, url: s.url, on: !on }, () =>
+          toast(on ? "Auto gather on" : "Auto gather off"),
         );
+      };
     });
   // The category saves on its button or Enter, never per keystroke.
   $("pbody")
@@ -811,10 +863,110 @@ export async function openSources() {
       if (e.key === "Escape") $("ice-cancel").click();
     };
   }
+  // Swipe: a decision flies the card off, clicks (when the board's sound is on), then posts.
+  const swGo = async (op) => {
+    const S = iceSwipe,
+      i = deck[0];
+    if (!S || S.busy || i === undefined) return;
+    const it = ice[i],
+      k = iceKey(it);
+    if (op === "skip") {
+      if (deck.length < 2) return;
+      S.skip.set(k, Math.max(...deck.map((x) => S.skip.get(iceKey(ice[x])) || 0)) + 1);
+      return openSources();
+    }
+    S.busy = true;
+    const c = $("sw-card");
+    if (c && motion()) {
+      c.classList.add(op === "promote" ? "fly-r" : "fly-l");
+      await new Promise((r) => setTimeout(r, 220));
+    }
+    if (soundPick() !== "off") playSound("pop");
+    const j = await post("/icebox", { op, dir: it.dir, ids: [it.id] });
+    S.busy = false;
+    if (j.ok) {
+      S.n++;
+      op === "promote" ? S.pro++ : S.dis++;
+      // Only a dismiss can be undone here: a promote has already made an idea card.
+      S.last = op === "dismiss" ? it : null;
+      S.pop = true;
+    } else toast(`Could not ${op}: ${j.error || "the board did not answer"}`);
+    load();
+    if (srcOpen()) openSources();
+  };
+  const swUndo = async () => {
+    const S = iceSwipe,
+      it = S && S.last;
+    if (!it || S.busy) return;
+    S.busy = true;
+    const j = await post("/icebox", { op: "restore", dir: it.dir, ids: [it.id] });
+    S.busy = false;
+    if (j.ok) {
+      S.n--;
+      S.dis--;
+      S.last = null;
+      S.skip.set(iceKey(it), -1);
+      toast("Restored");
+    }
+    load();
+    if (srcOpen()) openSources();
+  };
+  const swExit = () => {
+    iceSwipe = null;
+    openSources().then(focusCur);
+  };
+  if ($("ice-sw"))
+    $("ice-sw").onclick = () => {
+      iceSwipe = { n: 0, pro: 0, dis: 0, t0: Date.now(), last: null, skip: new Map(), busy: false, pop: false };
+      openSources().then(() => $("sw-card")?.focus());
+    };
+  if ($("sw-x")) $("sw-x").onclick = swExit;
+  if ($("sw-back")) $("sw-back").onclick = swExit;
+  if ($("sw-d")) $("sw-d").onclick = () => swGo("dismiss");
+  if ($("sw-p")) $("sw-p").onclick = () => swGo("promote");
+  if ($("sw-s")) $("sw-s").onclick = () => swGo("skip");
+  if ($("sw-u")) $("sw-u").onclick = swUndo;
+  // Drag: the card follows the pointer and tilts; past 100 px it decides, short of that it
+  // springs back. --p (-1..1) fades the stamp in. Controls inside the card still click.
+  const card = $("sw-card");
+  if (card)
+    card.onpointerdown = (e) => {
+      if (e.button || e.target.closest("a,button,summary,details")) return;
+      const x0 = e.clientX;
+      let dx = 0;
+      card.setPointerCapture(e.pointerId);
+      card.classList.add("drag");
+      card.onpointermove = (m) => {
+        dx = m.clientX - x0;
+        card.style.transform = `translateX(${dx}px) rotate(${dx / 20}deg)`;
+        card.style.setProperty("--p", String(Math.max(-1, Math.min(1, dx / 100))));
+      };
+      card.onpointerup = card.onpointercancel = () => {
+        card.onpointermove = card.onpointerup = card.onpointercancel = null;
+        card.classList.remove("drag");
+        if (Math.abs(dx) > 100) swGo(dx > 0 ? "promote" : "dismiss");
+        else {
+          card.style.transform = "";
+          card.style.removeProperty("--p");
+        }
+      };
+    };
   // Keys, read by the page's keydown while the icebox shows. True when the key was used.
   iceNav = (e) => {
     if (e.altKey || e.ctrlKey || e.metaKey) return false;
-    const k = e.key,
+    const k = e.key;
+    if (iceSwipe) {
+      if (k === "Escape" && $("src-sec")?.classList.contains("open")) {
+        srcShut();
+        return true;
+      }
+      const f = { ArrowLeft: () => swGo("dismiss"), ArrowRight: () => swGo("promote"), ArrowDown: () => swGo("skip"), z: swUndo, Escape: swExit }[k];
+      if (!f) return false;
+      e.preventDefault();
+      f();
+      return true;
+    }
+    const
       at = order.findIndex((i) => iceKey(ice[i]) === iceCur),
       i = order[at];
     if (k === "Escape") {
