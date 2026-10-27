@@ -187,7 +187,7 @@ export function sendChat(base: string, id: string | null, text: string, project:
   if (live.has(key)) return "this chat is still working";
   const chat = c;
   if (reuseReply && chat.messages.at(-1)?.role !== "agent") return "no reply to continue";
-  if (uploads.length > 5 || uploads.some((u) => !u.name || u.bytes.length > 10 * 1024 * 1024) || uploads.reduce((n, u) => n + u.bytes.length, 0) > 20 * 1024 * 1024) return "up to 5 files, 10 MB each and 20 MB total";
+  if (uploads.length > 20 || uploads.some((u) => !u.name || u.bytes.length > 100 * 1024 * 1024) || uploads.reduce((n, u) => n + u.bytes.length, 0) > 300 * 1024 * 1024) return "up to 20 files, 100 MB each and 300 MB total";
   // A project that left the board since: the chat goes on without one.
   if (chat.project && !board.projects.some((p) => p.dir === chat.project)) chat.project = undefined;
   let files: Attachment[] = [];

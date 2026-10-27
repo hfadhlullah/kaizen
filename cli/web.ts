@@ -399,6 +399,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
   function serve(port: number) { return Bun.serve({
     hostname: "127.0.0.1",
     port,
+    // Local only, so attachments may be large: Bun's 128 MB default would cut them.
+    maxRequestBodySize: 512 * 1024 * 1024,
     // Bun drops a request after 10s idle by default. A slow /state (git status in a
     // big repo, on Windows) then comes back as nothing, and the page shows an empty
     // board. Loopback only, so nothing waits on us but our own page.
@@ -921,11 +923,11 @@ export async function web(repoDir: string, opts: Opts = {}) {
         let body: any;
         let uploads: ChatUpload[] = [];
         if (path === "/chat" && req.headers.get("content-type")?.startsWith("multipart/form-data")) {
-          if (Number(req.headers.get("content-length")) > 28 * 1024 * 1024) return bad("attachments too large", 413);
+          if (Number(req.headers.get("content-length")) > 320 * 1024 * 1024) return bad("attachments too large", 413);
           let form: FormData;
           try { form = await req.formData(); } catch { return bad("form data expected"); }
           const files = form.getAll("files");
-          if (files.length > 5 || files.some((f) => !(f instanceof File) || f.size > 10 * 1024 * 1024) || files.reduce((n, f) => n + (f instanceof File ? f.size : 0), 0) > 20 * 1024 * 1024) return bad("up to 5 files, 10 MB each and 20 MB total", 413);
+          if (files.length > 20 || files.some((f) => !(f instanceof File) || f.size > 100 * 1024 * 1024) || files.reduce((n, f) => n + (f instanceof File ? f.size : 0), 0) > 300 * 1024 * 1024) return bad("up to 20 files, 100 MB each and 300 MB total", 413);
           body = { id: form.get("id"), text: form.get("text") ?? "", project: form.get("project") };
           uploads = await Promise.all(files.map(async (f) => ({ name: (f as File).name, bytes: new Uint8Array(await (f as File).arrayBuffer()) })));
         } else try { body = await req.json(); } catch { return bad("json body expected"); }
@@ -1213,7 +1215,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         // Files added with a hand-written icebox item: saved beside the state, linked in its notes.
         const iceFiles = (state: string, files: unknown) => {
           const fs: { name: string; data: string }[] = Array.isArray(files) ? files : [];
-          if (fs.reduce((t, f) => t + (f.data?.length ?? 0), 0) > 20_000_000) throw new Error("attachments over 15MB");
+          if (fs.reduce((t, f) => t + (f.data?.length ?? 0), 0) > 400_000_000) throw new Error("attachments over 300MB");
           return fs.map((f) => {
             const rel = saveAttachment(state, null, String(f.name ?? "file"), Buffer.from(String(f.data).replace(/^data:[^,]*,/, ""), "base64"));
             return (/\.(png|jpe?g|gif|webp|svg)$/i.test(rel) ? "!" : "") + `[${String(f.name ?? "file")}](${rel})`;
@@ -1336,7 +1338,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           const files: { name: string; data: string }[] = Array.isArray(body.files) ? body.files : [];
           let total = 0;
           for (const f of files) total += (f.data?.length ?? 0);
-          if (total > 20_000_000) return bad("attachments over 15MB");
+          if (total > 400_000_000) return bad("attachments over 300MB");
           const links = files.map((f) => {
             const bytes = Buffer.from(String(f.data).replace(/^data:[^,]*,/, ""), "base64");
             const rel = saveAttachment(dir, id, String(f.name ?? "file"), bytes).replace(/\\/g, "/");

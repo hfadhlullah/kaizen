@@ -180,8 +180,8 @@ test("chat ids that could leave chats/ are refused before any disk access", () =
 
 test.if(posix)("too many attachments are refused before a chat is created", async () => {
   fake(say("should not run"));
-  const { why } = await turn(null, "files", projA, Array.from({ length: 6 }, (_, i) => ({ name: `${i}.txt`, bytes: new Uint8Array([i]) })));
-  expect(why).toMatch(/up to 5 files/);
+  const { why } = await turn(null, "files", projA, Array.from({ length: 21 }, (_, i) => ({ name: `${i}.txt`, bytes: new Uint8Array([i]) })));
+  expect(why).toMatch(/up to 20 files/);
   expect(listChats(base)).toEqual([]);
 });
 
