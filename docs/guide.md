@@ -210,6 +210,10 @@ your tailnet over HTTPS. `kaizen setup` does all of this and prints a QR code to
 4. On the phone open `https://<pc>.<tailnet>.ts.net` and choose Add to Home screen: it opens
    full screen with the kaizen icon.
 
+The board's gear → Settings → Phone shows each configured phone address as a link. If
+none is configured, it points you to `kaizen setup`. A saved address does not confirm
+that Tailscale Serve is currently running.
+
 Never use `tailscale funnel`: it publishes the board to the internet. Anyone on your
 tailnet who can reach this PC can drive your agents, terminals included; restrict it with
 Tailscale ACLs.

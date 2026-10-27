@@ -741,6 +741,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
       if (req.method === "GET" && path === "/settings") {
         const { listSettings } = await import("./settings.ts");
         const cfg = listSettings(repoDir);
+        Object.assign(cfg, { phoneUrls: [...webHosts()].filter((h) => /^[a-z0-9-]+(?:\.[a-z0-9-]+)*\.ts\.net$/.test(h)).map((h) => `https://${h}`) });
         // Connected, the model is chosen from what the plan offers rather than typed.
         const m = cfg.rows.find((r) => r.key === "sources.model");
         if (m && chatgpt.status().connected) {

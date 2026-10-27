@@ -1234,11 +1234,12 @@ test("the board refuses an upgrade from another origin", async () => {
   for (const d of [join(homeDir, ".kaizen"), join(homeDir, ".claude")]) mkdirSync(d, { recursive: true });
   const port = 20000 + Math.floor(Math.random() * 20000), repo = join(import.meta.dir, "..");
   const proc = Bun.spawn([process.execPath, join(repo, "cli", "install.ts"), "web", "--port", String(port), "--no-open", "--foreground"], {
-    cwd: homeDir, env: { ...process.env, HOME: homeDir, USERPROFILE: homeDir, KAIZEN_HOME: repo }, stdout: "ignore", stderr: "ignore",
+    cwd: homeDir, env: { ...process.env, HOME: homeDir, USERPROFILE: homeDir, KAIZEN_HOME: repo, KAIZEN_WEB_HOSTS: "" }, stdout: "ignore", stderr: "ignore",
   });
   try {
     const at = `http://127.0.0.1:${port}`;
     for (let i = 0; ; i++) { try { await fetch(at + "/state"); break; } catch { if (i > 100) throw new Error("board did not start"); await Bun.sleep(50); } }
+    expect((await (await fetch(at + "/settings")).json()).phoneUrls).toEqual([]);
     const r = await fetch(at + "/upgrade", { method: "POST", headers: { origin: "https://evil.example" } });
     expect(r.status).toBe(403);
   } finally { proc.kill(); await proc.exited; rmSync(homeDir, { recursive: true, force: true }); }
@@ -1250,16 +1251,18 @@ test("the board answers only the hosts listed in KAIZEN_WEB_HOSTS or web-hosts",
   for (const d of [join(homeDir, ".kaizen"), join(homeDir, ".claude")]) mkdirSync(d, { recursive: true });
   const port = 20000 + Math.floor(Math.random() * 20000), repo = join(import.meta.dir, "..");
   const proc = Bun.spawn([process.execPath, join(repo, "cli", "install.ts"), "web", "--port", String(port), "--no-open", "--foreground"], {
-    cwd: homeDir, env: { ...process.env, HOME: homeDir, USERPROFILE: homeDir, KAIZEN_HOME: repo, KAIZEN_WEB_HOSTS: " PC.tail1234.ts.net:443 , " }, stdout: "ignore", stderr: "ignore",
+    cwd: homeDir, env: { ...process.env, HOME: homeDir, USERPROFILE: homeDir, KAIZEN_HOME: repo, KAIZEN_WEB_HOSTS: " PC.tail1234.ts.net:443 , bad@pc.tail1234.ts.net " }, stdout: "ignore", stderr: "ignore",
   });
   try {
     const at = `http://127.0.0.1:${port}`;
     for (let i = 0; ; i++) { try { await fetch(at + "/state"); break; } catch { if (i > 100) throw new Error("board did not start"); await Bun.sleep(50); } }
+    expect((await (await fetch(at + "/settings")).json()).phoneUrls).toEqual(["https://pc.tail1234.ts.net"]);
     expect((await fetch(at + "/state", { headers: { host: "pc.tail1234.ts.net" } })).status).toBe(200);
     expect((await fetch(at + "/state", { headers: { host: "evil.example" } })).status).toBe(403);
     expect((await fetch(at + "/state", { headers: { host: "other.tail1234.ts.net" } })).status).toBe(403);
     // ~/.kaizen/web-hosts (written by `kaizen setup`) is read per request: no restart.
     writeFileSync(join(homeDir, ".kaizen", "web-hosts"), "# phone\nOther.tail1234.ts.net\n");
+    expect((await (await fetch(at + "/settings")).json()).phoneUrls).toEqual(["https://pc.tail1234.ts.net", "https://other.tail1234.ts.net"]);
     expect((await fetch(at + "/state", { headers: { host: "other.tail1234.ts.net" } })).status).toBe(200);
     expect((await fetch(at + "/state", { headers: { host: "evil.example" } })).status).toBe(403);
     expect((await fetch(at + "/upgrade", { method: "POST", headers: { origin: "https://evil.example" } })).status).toBe(403);
