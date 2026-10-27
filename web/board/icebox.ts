@@ -46,6 +46,9 @@ const iceSel = new Set();
 // Null when the list shows. It counts this session's decisions, keeps the last dismiss
 // for Undo, and how often each request was skipped (skipped ones go to the back).
 let iceSwipe = null;
+// A rebuild while the card is held would drop the drag: it waits for the release.
+let swHeld = false,
+  swLate = false;
 const PLAT = { x: "X", tiktok: "TikTok", instagram: "Instagram", threads: "Threads" };
 export const srcOpen = () => $("panel").classList.contains("open") && $("ptitle").textContent === SRC;
 const ago = (at) => {
@@ -113,6 +116,10 @@ function wirePick(id, set) {
   };
 }
 export async function openSources() {
+  if (swHeld) {
+    swLate = true;
+    return;
+  }
   if (view !== "sources") return;
   const gen = ++store.pageGen;
   stopDictation(true);
@@ -329,7 +336,7 @@ export async function openSources() {
           )}`,
         )
       : ""}`;
-  const bar = html`<div class="ice-bar">${order.length ? html`<input type="checkbox" id="ice-all" aria-label="Select every request shown"${nSel && nSel === order.length ? " checked" : ""}>` : ""}<span class="count">${iceCat === "Dismissed" || iceCat === "Done" ? `${order.length} ${iceCat.toLowerCase()}` : `${order.length < waiting ? `${order.length} of ${waiting}` : waiting} waiting`}</span><span class="end"></span>${String(chips) ? html`<details class="ice-filt"><summary class="ib${iceCat || iceSrc ? " on" : ""}" aria-label="Filter requests" title="Filter requests">${ico("filter")}</summary><div class="ice-fpop">${chips}</div></details>` : ""}${order.some((i) => isWaiting(ice[i])) ? html`<button class="btn ghost sm" id="ice-sw" title="Sort one at a time: swipe right to promote, left to dismiss">${ico("restore")} Swipe</button>` : ""}<button class="btn ghost sm" id="ice-new" title="Add a request by hand">${ico("plus")} Add</button><button class="btn sm" id="src-go"${list.length ? "" : " disabled"}>${ico("refresh")} Gather all</button><button class="btn ghost sm" id="src-tog" aria-expanded="${String(!!srcShow)}" aria-controls="src-sec">${ico("link")} Sources · ${list.length}</button></div>`;
+  const bar = html`<div class="ice-bar">${order.length ? html`<input type="checkbox" id="ice-all" aria-label="Select every request shown"${nSel && nSel === order.length ? " checked" : ""}>` : ""}<span class="count">${iceCat === "Dismissed" || iceCat === "Done" ? `${order.length} ${iceCat.toLowerCase()}` : `${order.length < waiting ? `${order.length} of ${waiting}` : waiting} waiting`}</span><span class="end"></span>${String(chips) ? html`<details class="ice-filt"><summary class="ib${iceCat || iceSrc ? " on" : ""}" aria-label="Filter requests" title="Filter requests">${ico("filter")}</summary><div class="ice-fpop">${chips}</div></details>` : ""}${order.some((i) => isWaiting(ice[i])) ? html`<button class="btn ghost sm" id="ice-sw" title="Sort one at a time: swipe right to promote, left to dismiss"><span aria-hidden="true">⇆</span> Swipe</button>` : ""}<button class="btn ghost sm" id="ice-new" title="Add a request by hand">${ico("plus")} Add</button><button class="btn sm" id="src-go"${list.length ? "" : " disabled"}>${ico("refresh")} Gather all</button><button class="btn ghost sm" id="src-tog" aria-expanded="${String(!!srcShow)}" aria-controls="src-sec">${ico("link")} Sources · ${list.length}</button></div>`;
   const bulk = iceSel.size
     ? html`<div class="ice-bulk" role="toolbar" aria-label="Selected requests"><span>${iceSel.size} selected</span><span class="end"></span><button class="btn sm" id="ice-bp" title="Promote (p)">${ico("plus")} Promote</button><button class="btn ghost sm" id="ice-bd" title="Dismiss (d)">${ico("x")} Dismiss</button><button class="btn ghost sm" id="ice-bc" title="Clear selection (Esc)">Clear</button></div>`
     : "";
@@ -375,9 +382,11 @@ export async function openSources() {
   const deck = iceSwipe
     ? order.filter((i) => isWaiting(ice[i])).sort((a, b) => (iceSwipe.skip.get(iceKey(ice[a])) || 0) - (iceSwipe.skip.get(iceKey(ice[b])) || 0))
     : [];
+  // The card always names its project: a swipe decides for that project's Ideas.
+  const pName = (it) => it.project || store.S.projects.find((p) => p.dir === it.dir)?.label || "";
   const swCard = (i, back) => {
     const it = ice[i];
-    return html`<div class="sw-card${back ? " back" : ""}"${back ? raw(' aria-hidden="true"') : raw(' id="sw-card"')}><div class="sw-hd">${fav(it.source, "link", srcOf(it)?.social)}<span class="sw-src" title="${srcName(it)}">${srcName(it)}</span>${many ? html`<span class="nm">${short(it.project || "")}</span>` : ""}<span class="ice-age">${ago(it.at)}</span></div><p class="sw-t">${it.text}</p>${back ? "" : html`${it.notes ? html`<div class="ice-notes">${it.notes}</div>` : ""}${imgs(it)}${it.post ? html`<a class="hint" href="${it.post}" target="_blank" rel="noopener">open post</a>` : ""}<span class="sw-stamp pro">Promote</span><span class="sw-stamp dis">Dismiss</span>`}</div>`;
+    return html`<div class="sw-card${back ? " back" : ""}"${back ? raw(' aria-hidden="true"') : raw(' id="sw-card" tabindex="-1" aria-label="Request: swipe or press → to promote, ← to dismiss"')}><div class="sw-hd">${fav(it.source, "link", srcOf(it)?.social)}<span class="sw-src" title="${srcName(it)}">${srcName(it)}</span><span class="sw-proj" title="${pName(it)}">${plogo(it.dir, pName(it))}${short(pName(it))}</span><span class="ice-age">${ago(it.at)}</span></div><p class="sw-t">${it.text}</p>${back ? "" : html`${it.notes ? html`<div class="ice-notes">${it.notes}</div>` : ""}${imgs(it)}${it.post ? html`<a class="hint" href="${it.post}" target="_blank" rel="noopener">open post</a>` : ""}<span class="sw-stamp pro">Promote</span><span class="sw-stamp dis">Dismiss</span>`}</div>`;
   };
   // Icebox zero: the day's streak counts days in a row the stack was emptied, per project
   // filter, in this browser only.
@@ -878,8 +887,15 @@ export async function openSources() {
     S.busy = true;
     const c = $("sw-card");
     if (c && motion()) {
-      c.classList.add(op === "promote" ? "fly-r" : "fly-l");
-      await new Promise((r) => setTimeout(r, 220));
+      lift(c);
+      const dir = op === "promote" ? 1 : -1;
+      await c
+        .animate([{ transform: getComputedStyle(c).transform }, { transform: `translateX(${dir * innerWidth}px) rotate(${dir * 30}deg)`, opacity: 0 }], {
+          duration: 320,
+          easing: "cubic-bezier(.3,.6,.4,1)",
+          fill: "forwards",
+        })
+        .finished.catch(() => {});
     }
     if (soundPick() !== "off") playSound("pop");
     const j = await post("/icebox", { op, dir: it.dir, ids: [it.id] });
@@ -926,6 +942,19 @@ export async function openSources() {
   if ($("sw-p")) $("sw-p").onclick = () => swGo("promote");
   if ($("sw-s")) $("sw-s").onclick = () => swGo("skip");
   if ($("sw-u")) $("sw-u").onclick = swUndo;
+  // A held or flying card is fixed to the window where it sits, so the panel's scroll box
+  // and the page's own overflow cannot crop it on the way out.
+  const lift = (c) => {
+    if (c.classList.contains("lift")) return;
+    const r = c.getBoundingClientRect();
+    Object.assign(c.style, { left: r.left + "px", top: r.top + "px", width: r.width + "px", height: r.height + "px" });
+    c.classList.add("lift");
+  };
+  const drop = (c) => {
+    c.classList.remove("lift");
+    for (const k of ["left", "top", "width", "height", "transform"]) c.style.removeProperty(k);
+    c.style.removeProperty("--p");
+  };
   // Drag: the card follows the pointer and tilts; past 100 px it decides, short of that it
   // springs back. --p (-1..1) fades the stamp in. Controls inside the card still click.
   const card = $("sw-card");
@@ -936,18 +965,30 @@ export async function openSources() {
       let dx = 0;
       card.setPointerCapture(e.pointerId);
       card.classList.add("drag");
+      lift(card);
+      swHeld = true;
       card.onpointermove = (m) => {
         dx = m.clientX - x0;
-        card.style.transform = `translateX(${dx}px) rotate(${dx / 20}deg)`;
+        // Tilt by share of the card's width: a wide desktop card leans as much as a phone one.
+        card.style.transform = `translateX(${dx}px) rotate(${(dx / card.offsetWidth) * 18}deg)`;
         card.style.setProperty("--p", String(Math.max(-1, Math.min(1, dx / 100))));
       };
       card.onpointerup = card.onpointercancel = () => {
         card.onpointermove = card.onpointerup = card.onpointercancel = null;
         card.classList.remove("drag");
+        swHeld = false;
+        const late = swLate;
+        swLate = false;
         if (Math.abs(dx) > 100) swGo(dx > 0 ? "promote" : "dismiss");
         else {
-          card.style.transform = "";
+          const from = card.style.transform;
           card.style.removeProperty("--p");
+          const a = motion() && from ? card.animate([{ transform: from }, { transform: "none" }], { duration: 260, easing: "cubic-bezier(.3,1.4,.5,1)" }) : null;
+          card.style.transform = "";
+          (a ? a.finished.catch(() => {}) : Promise.resolve()).then(() => {
+            drop(card);
+            if (late) openSources();
+          });
         }
       };
     };

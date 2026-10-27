@@ -156,3 +156,4 @@ updated: 2026-10-27
 - 2026-10-27 run 2026-10-27-knowledge-quality-gate — Workflow: reviewer's four-test gate (reusable, high-signal, evidenced, new) before a lesson goes global.
 - 2026-10-27 run 2026-10-27-source-auto-gather-toggle — Sources and icebox: per-source Auto gather toggle (`paused` flag) the timed gather skips.
 - 2026-10-27 run 2026-10-27-source-toggle-switches — Sources and icebox: Write back and Auto gather use the Settings switch, in one row under the fields.
+- 2026-10-27 run 2026-10-27-icebox-swipe-view — Sources and icebox

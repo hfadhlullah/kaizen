@@ -2,7 +2,7 @@
 description: Request sources, gather, the icebox, kaizen's browser for social posts, and ChatGPT judging them
 tags: [project, sources]
 sources: [cli/sources.ts, cli/writeback.ts, cli/google.ts, cli/chatgpt.ts, cli/browser.ts, skills/kaizen/gather.md, skills/kaizen/discover.md]
-updated: 2026-10-23
+updated: 2026-10-27
 ---
 # Sources and icebox
 
@@ -11,6 +11,7 @@ Shared links (sheets, docs, social searches) kaizen reads for requests; each req
 
 ## Where it lives
 - `cli/sources.ts` — sources, fetching, `sift` (sheet parsing), the icebox. Images: an icebox item's `images` (https links, max 4) sit outside its dedup key; sheets read them from `htmlview` by row number, docs from the html export by line, agents and `--posts` pass `img <url>` tokens in notes (`takeImages`). Google image links expire (403 later), so the board never opens a kept link: `GET /ice-image?dir&id&i` (`cli/web.ts`) reads the source again via `freshImages` and redirects to the fresh one.
+- Swipe view (`iceSwipe` in `web/board/icebox.ts`, CSS `.sw*` in `web/board.html`): one waiting request at a time from the same filtered `order` as the list; drag past 100 px, arrow keys or buttons post `promote` / `dismiss` per item; Undo restores only the last dismiss (a promote already made an idea); skip only reorders this session. Session counts live in `iceSwipe`; the daily streak is `localStorage` `kz-ice-streak:<dir|all>`. On desktop `.sw` is full width with `height: calc(100dvh - 130px)` (min 420 px) so it fits the tab; under 640 px it is `position:fixed` full screen. Every card names its project (`.sw-proj`). A held or flying card is lifted to `position:fixed` (`lift()`/`drop()`) so `#pbody`/`.app` overflow cannot crop it; fly-off and spring-back use `element.animate` (no animation library: zero runtime deps). While the card is held, `openSources()` defers (`swHeld`/`swLate`) so a server change cannot drop the drag. Swipe click goes through `playSound("pop")` unless `soundPick()` is off.
 - Items typed by hand: the Icebox bar's Add button posts `/icebox {op:"add", text}`; `addItem()` stores it as `source: "manual"`, deduped by the same row key as gathered items. In All projects it goes to the first project shown.
 - `cli/browser.ts` — finds Chrome/Chromium/Edge, drives it over the DevTools protocol (Bun `WebSocket`, no dependency), reads posts by their links (`POST`), `login()`; `postLink()` and `sendReply()`/`replyOn()` post a reply (selectors per platform in `REPLY`). Its fixed waits (page settle, scroll passes, reply confirm) go through `nap()`, scaled by `KAIZEN_BROWSER_PACE` (default 1); `cli/browser.test.ts` runs at 0.1.
 - `cli/chatgpt.ts` — Sign in with ChatGPT, judging read posts by number, and `draftReply()`; both go through `ask()`, the one streaming Responses call.

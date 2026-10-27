@@ -316,7 +316,17 @@ other cells and promote it under a title of your own; **Promote** makes it an id
 Ideas, with a note saying where it came from and a *gathered* chip; **Dismiss** sets it
 aside. Check several rows to promote or dismiss them together (each promoted row
 becomes its own idea, titled as gathered). Keys: `j`/`k` move, `o` opens, `x` checks,
-`p` promotes, `d` dismisses, `Esc` closes. Run `/kaizen discover` in your agent and it reads the icebox for you: it groups
+`p` promotes, `d` dismisses, `Esc` closes.
+
+**Swipe** in the Icebox bar sorts the waiting requests one card at a time, each card naming its project. Drag the card
+right (or press `→`) to promote it under its gathered title, left (`←`) to dismiss it;
+`↓` skips to the next card without deciding, `z` undoes the last dismiss, `Esc` goes back
+to the list. A bar counts how far through you are, and an emptied stack ends on *Icebox
+zero* with what you sorted and a streak of days in a row you cleared it (kept in this
+browser). On a desktop the card fills the Icebox's width and the window's height; on a phone the view fills the screen. Each swipe clicks unless the board's
+sound is off.
+
+Run `/kaizen discover` in your agent and it reads the icebox for you: it groups
 requests that ask for the same thing, drafts one idea per need, and promotes only the
 ones you pick (`kaizen icebox promote <ids>` underneath).
 
