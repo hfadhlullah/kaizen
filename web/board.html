@@ -299,7 +299,7 @@ body.homev #home{flex:1;min-height:0;display:flex;position:relative;animation:fi
 .hmain{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:12px;min-height:0;padding:0 0 16px}
 .htop{align-self:stretch;display:flex;align-items:center;gap:4px;padding:8px 16px 0}
 .htop .ib svg{width:18px;height:18px}
-.hwhere{display:flex;align-items:center;gap:6px;margin-left:6px;font-size:12px;color:var(--dim)}.hwhere svg{width:13px;height:13px}
+.hwhere{flex:none;display:flex;align-items:center;gap:6px;max-width:30%;height:34px;font-size:12px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.hwhere svg{width:13px;height:13px}
 .hmain.hfresh{justify-content:flex-start}.hmain.hfresh .hlog{flex:none;overflow:visible;margin-top:auto}.hmain.hfresh .hchips{margin-bottom:auto}
 .hlog{flex:1;width:100%;box-sizing:border-box;overflow-y:auto;overflow-anchor:none;display:flex;flex-direction:column;gap:16px;padding:8px max(20px,calc((100% - 960px)/2))}
 .hhero{width:100%;text-align:center;animation:hin .4s cubic-bezier(.2,.7,.2,1)}.hhero .hint{margin:0;color:var(--dim)}.hhero h2{margin:0 0 6px;font-size:28px;font-weight:600;letter-spacing:-.01em;color:var(--ink-hi)}
@@ -313,7 +313,7 @@ body.homev #home{flex:1;min-height:0;display:flex;position:relative;animation:fi
 .herr{font-size:13px;color:var(--danger);white-space:pre-wrap}
 .hactivity{display:flex;align-items:center;gap:10px;min-height:54px;font-size:12px;color:var(--dim);overflow-wrap:anywhere}
 .hmascot{position:relative;display:block;width:52px;height:52px;flex:none;border-radius:12px}
-.hmascot img{display:block;width:100%;height:100%;border-radius:inherit;animation:hfloat 2.4s ease-in-out infinite}
+.hmascot .mascot{display:block;width:100%;height:100%;background:var(--accent);animation:hfloat 2.4s ease-in-out infinite}
 .hlaptop{position:absolute;left:14px;bottom:5px;width:24px;height:13px;border:1.5px solid #dce9ff;border-radius:3px 3px 2px 2px;background:linear-gradient(145deg,#3269bd,#142e61);box-shadow:0 0 8px #4384ff66}
 .hlaptop:after{content:"";position:absolute;left:-4px;right:-4px;bottom:-4px;height:2px;border-radius:0 0 5px 5px;background:#b8d0ff}
 .hactivity-copy{display:flex;min-width:0;flex-direction:column;gap:6px}
@@ -324,7 +324,7 @@ body.homev #home{flex:1;min-height:0;display:flex;position:relative;animation:fi
 .hmove{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ok)}.hmove.bad{color:var(--danger)}.hmove svg{width:13px;height:13px}
 .hbox{position:relative;width:calc(100% - 40px);max-width:960px;display:flex;align-items:flex-end;gap:8px;padding:10px 10px 10px 16px;border:1px solid var(--line);border-radius:22px;background:var(--bg-2);box-shadow:var(--shadow-2);view-transition-name:hbox;transition:border-color .15s,box-shadow .15s}
 .hbox:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 15%,transparent),var(--shadow-2)}
-.hinput{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}.hbox textarea{width:100%;box-sizing:border-box;min-height:24px;max-height:220px;resize:none;border:0;outline:0;background:none;color:var(--ink);font:inherit;font-size:15px;line-height:1.5;padding:4px 0}.hattach{flex:none;margin-bottom:2px}
+.hinput{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}.hbox textarea{width:100%;box-sizing:border-box;min-height:24px;max-height:220px;resize:none;border:0;outline:0;background:none;color:var(--ink);font:inherit;font-size:15px;line-height:1.5;padding:7px 0 5px}.hattach{flex:none}
 .hgo{flex:none;width:34px;height:34px;border-radius:50%;background:var(--accent);color:var(--on-accent);transition:transform .12s,filter .15s,background .15s}.hgo:hover{background:var(--accent);filter:brightness(1.1)}.hgo:active{transform:scale(.92)}.hgo.stop{background:var(--ink);color:var(--bg)}
 .hchips{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;width:calc(100% - 40px);max-width:960px;animation:hin .5s cubic-bezier(.2,.7,.2,1)}
 .hchips .chip{cursor:pointer;background:none;border:0;font:inherit;font-size:13px;padding:6px 12px;border-radius:var(--r-pill);transition:background .15s,color .15s,transform .15s}.hchips .chip:hover{color:var(--ink);background:var(--hover);transform:translateY(-1px)}

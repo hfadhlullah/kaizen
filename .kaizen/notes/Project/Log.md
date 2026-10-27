@@ -158,3 +158,5 @@ updated: 2026-10-27
 - 2026-10-27 run 2026-10-27-source-toggle-switches — Sources and icebox: Write back and Auto gather use the Settings switch, in one row under the fields.
 - 2026-10-27 run 2026-10-27-icebox-swipe-view — Sources and icebox
 - 2026-10-27 — 2026-10-27-terminal-panel-revamp: run panel step bar, phone chips + message box, desktop 62% terminal panel. Web board note updated.
+- 2026-10-27 build — Home motion verified live in headless chromium; chat avatar follows the theme in light mode (2026-10-27-home-motion-verify)
+- 2026-10-27 update — Home input: project chip beside Send, new placeholder, steps under the reply (2026-10-27-home-motion-verify)
