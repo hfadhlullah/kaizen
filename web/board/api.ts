@@ -20,8 +20,10 @@ let before: Map<string, [number, boolean]> | null = null;
 // This page's project, sent with each request: the server keeps none, so another
 // tab or a phone picking a project never moves this one.
 export const dirHeader = () => (store.dir ? { "x-kz-dir": store.dir } : {});
+let latestLoad = 0;
 // quiet: the server said something changed, nobody asked for a redraw.
 export async function load(quiet) {
+  const current = ++latestLoad;
   let r;
   try {
     r = await fetch("/state" + (store.all ? "?all=1" : ""), { headers: dirHeader() });
@@ -29,8 +31,10 @@ export async function load(quiet) {
     toast(GONE);
     return;
   }
+  const next = await r.json();
+  if (current !== latestLoad) return;
   const was = store.openKey && store.S.cards.find((x) => key(x) === store.openKey);
-  store.S = await r.json();
+  store.S = next;
   if (!store.all) void refreshBoardBadge();
   // Home follows a project switch without the board importing it.
   dispatchEvent(new Event("kz-state"));

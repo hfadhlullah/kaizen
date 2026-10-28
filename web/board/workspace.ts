@@ -213,6 +213,7 @@ export function initRail() {
     drawList();
     void drawSources();
     onCount?.(cards);
+    dispatchEvent(new Event("kz-cards"));
     told();
   });
   $("pfilter").onclick = (e) => {

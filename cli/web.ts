@@ -729,7 +729,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           await p.exited;
         } catch { return json({ tailscale: false }); }
         const r = phonePeers(out);
-        return json({ tailscale: r.running, phones: r.phones.length, online: r.phones.some((x) => x.online) });
+        return json({ tailscale: r.running, phones: r.phones.length, online: r.phones.some((x) => x.online), self: r.self, computers: r.computers });
       }
 
       // Every note of one project, text included: search, tags and backlinks are the page's.

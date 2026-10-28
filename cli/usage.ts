@@ -57,10 +57,16 @@ export async function claudeUsage(home: string, get: typeof fetch = fetch): Prom
 }
 
 // Phones on the tailnet from `tailscale status --json`: iOS and Android peers.
-export function phonePeers(json: string): { running: boolean; phones: { name: string; online: boolean }[] } {
+export type Computer = { name: string; dns: string; os: string; online: boolean };
+export function phonePeers(json: string): { running: boolean; phones: { name: string; online: boolean }[]; computers: Computer[]; self: Computer | null } {
   try {
     const s = JSON.parse(json);
-    const phones = Object.values<any>(s?.Peer ?? {}).filter((p) => /^(ios|android)$/i.test(p?.OS ?? "")).map((p) => ({ name: String(p.HostName ?? p.DNSName ?? ""), online: !!p.Online }));
-    return { running: s?.BackendState === "Running", phones };
-  } catch { return { running: false, phones: [] }; }
+    const peers = Object.values<any>(s?.Peer ?? {});
+    const isPhone = (p) => /^(ios|android)$/i.test(p?.OS ?? "");
+    const phones = peers.filter(isPhone).map((p) => ({ name: String(p.HostName ?? p.DNSName ?? ""), online: !!p.Online }));
+    // The other computers on the tailnet: the phone's Home lists them, a tap opens their board.
+    const comp = (p, online = !!p.Online): Computer => ({ name: String(p.HostName ?? ""), dns: String(p.DNSName ?? "").replace(/\.$/, ""), os: String(p.OS ?? ""), online });
+    const computers = peers.filter((p) => p?.OS && !isPhone(p)).map((p) => comp(p));
+    return { running: s?.BackendState === "Running", phones, computers, self: s?.Self ? comp(s.Self, true) : null };
+  } catch { return { running: false, phones: [], computers: [], self: null }; }
 }

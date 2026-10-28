@@ -119,7 +119,50 @@ body .rail a.upd::after{left:calc(50% + 6px);top:4px}body .toast{left:16px;botto
 [data-rail=min] .rail .psec{padding:0;margin:12px 0 2px;flex-direction:column}[data-rail=min] .rail .rbot{flex-direction:column}
 [data-rail=min] .plist .proj{justify-content:center;margin:10px 0 4px}[data-rail=min] .plist .row{grid-template-columns:14px;justify-content:center;padding:7px 0}
 @media(max-width:640px){.rail .psec,.rail .plist,.rail .rib{display:none}.rail .rbot,[data-rail=min] .rail .rbot{display:contents}.rail a.it[data-view=ideas]{order:3}.rail a.it[data-view=board]{order:4}.rail a.it .n,.rail a.it .srcs{display:none}}
+/* phones: Home, Chat, Runs, Settings. The board, Ideas and the Icebox are set up on a computer (web/board/phone.ts) */
+.rail a.it.ponly,#phome{display:none}
+@media(max-width:640px){
+.rail a.it:is([data-view=board],[data-view=ideas],[data-view=sources]),#foot,#ctx-open,body .rail .rbot .rib{display:none!important}
+.rail a.it.ponly{display:flex}
+.rail a.it[data-view=home]{order:1}.rail a.it[data-view=chat]{order:2}.rail a.it[data-view=device]{order:3}.rail a.it[data-view=settings]{order:4}
+.rail,[data-rail=min] .rail{padding:6px 8px calc(6px + env(safe-area-inset-bottom));border-top:1px solid color-mix(in srgb,var(--line) 70%,transparent)}
+.rail a.it,[data-rail=min] .rail a.it{min-height:50px;gap:3px;font-size:10.5px;letter-spacing:.01em}
+.rail a.it svg{width:44px;height:26px;padding:4px 12px;box-sizing:border-box;border-radius:13px;transition:background .15s}
+.rail a.it[aria-current=page] svg{background:color-mix(in srgb,var(--accent) 16%,transparent)}
+.rail a.it[aria-current=page]{font-weight:600}
+}
 /* end side menu */
+@media(max-width:640px){
+body .hdr{padding:12px 16px 10px;gap:8px;border-bottom:0}
+body.paged:is(.phomev,.homev) .hdr{display:flex!important;flex-wrap:nowrap}
+body .hdr h1{flex:1 1 auto;font-size:19px;letter-spacing:-.01em}
+body.homev #hnewtop{border-radius:19px}
+body.phomev .hdr>:not(h1):not(#newtop),body.phomev #board{display:none!important}
+body.phomev #newtop{display:inline-grid;place-items:center;width:38px;height:38px;padding:0;font-size:0;border-radius:19px}
+body.phomev #newtop::before{content:"+";display:block;height:38px;font-size:24px;font-weight:300;line-height:36px}
+body.pdevv #newtop{display:none!important}
+body.phomev #phome{display:block;flex:1;min-height:0;overflow:auto;padding:4px 16px 24px;animation:fi .2s}
+}
+#phome h3{margin:18px 4px 8px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)}
+#phome .psec2:first-child h3{margin-top:6px}
+.pdev{display:flex;align-items:center;gap:12px;margin-bottom:8px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--bg-2);color:var(--ink);text-decoration:none}
+.pdev[aria-disabled]{opacity:.6}
+.pico{width:36px;height:36px;display:grid;place-items:center;flex:none;border-radius:9px;background:var(--hover);color:var(--dim)}.pico svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8}
+.pmain{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.pmain b{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pmain small{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pmain small em{font-style:normal;color:var(--warn)}
+.pmain small .plogo{width:14px;height:14px;font-size:8px;border-radius:3px;display:inline-grid;place-items:center;flex:none;font-weight:600;background:var(--hover)}
+.pmain code{font:11.5px/1.4 var(--mono);color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pdot{width:7px;height:7px;border-radius:50%;flex:none;background:var(--dim)}.pdot.on{background:var(--ok)}
+.pchev{width:16px;height:16px;flex:none;fill:none;stroke:var(--dim);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.plist2{display:flex;flex-direction:column}
+.prow{display:flex;align-items:flex-start;gap:12px;padding:11px 4px;border-bottom:1px solid color-mix(in srgb,var(--line) 60%,transparent);color:var(--ink);text-decoration:none}
+.prow:last-child{border-bottom:0}.prow .si{margin-top:4px}.prow .page{font-size:11.5px;color:var(--dim);flex:none;margin-top:2px}
+.pgrp{margin-top:6px}.pgrp summary{display:flex;align-items:center;gap:8px;list-style:none;padding:12px 4px 6px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);cursor:pointer}
+.pgrp summary::-webkit-details-marker{display:none}.pgrp summary::before{content:"";width:6px;height:6px;border:solid currentColor;border-width:0 1.5px 1.5px 0;transform:rotate(-45deg);transition:transform .15s}.pgrp[open] summary::before{transform:rotate(45deg)}
+.pnote{margin:4px;font-size:12.5px;color:var(--dim)}
+.pusage{display:flex;flex-wrap:wrap;gap:14px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--bg-2);font-size:13px}
+
 /* the work area: an inset rounded panel on the canvas the side menu sits on */
 .app{flex:1;min-width:0;display:flex;flex-direction:column;margin:8px 8px 8px 0;background:var(--bg);border:1px solid var(--line);border-radius:12px;overflow:hidden}
 @media(max-width:640px){.app{margin:0;border:0;border-radius:0}html,body{background:var(--bg)}aside:not(.docked){padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) 0}}
@@ -848,8 +891,13 @@ body.ideav.paged .hdr{display:flex}body.ideav.paged #bq{display:block}body.ideav
   <symbol id="r-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
   <symbol id="r-bug" viewBox="0 0 24 24"><rect x="8" y="6" width="8" height="14" rx="4"/><path d="M12 20v-9M8 12H4M20 12h-4M9 7 7 4M15 7l2-3M8 17l-3 2M16 17l3 2"/></symbol>
   <symbol id="r-kbd" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></symbol>
+  <symbol id="r-desk" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></symbol>
+  <symbol id="r-chat" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></symbol>
+  <symbol id="r-runs" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1.2"/><circle cx="4.5" cy="12" r="1.2"/><circle cx="4.5" cy="18" r="1.2"/></symbol>
   </defs></svg>
   <a class="it" href="/" data-view="home" title="Home: chat with the project's agent"><svg><use href="#i-home"/></svg><span class="lbl">Home</span></a>
+  <a class="it ponly" href="/?view=chat" data-view="chat" title="Chat with kaizen's agent"><svg><use href="#r-chat"/></svg><span class="lbl">Chat</span></a>
+  <a class="it ponly" href="/?view=device" data-view="device" title="This computer's runs"><svg><use href="#r-runs"/></svg><span class="lbl">Runs</span></a>
   <a class="it fold" href="/?view=icebox" data-view="sources" title="Icebox: requests gathered from your sources"><svg><use href="#r-tray"/></svg><span class="lbl">Icebox</span><span class="srcs" id="rail-srcs"></span><span class="n" id="ice-n"></span></a>
   <a class="it" href="/?view=ideas" data-view="ideas" title="Ideas: every idea and run, filtered"><svg><use href="#r-bulb"/></svg><span class="lbl">Ideas</span></a>
   <a class="it" href="/?view=board" data-view="board" title="Board"><svg><use href="#i-board"/></svg><span class="lbl">Board</span></a>
@@ -898,6 +946,7 @@ body.ideav.paged .hdr{display:flex}body.ideav.paged #bq{display:block}body.ideav
 
 <div id="terms" aria-label="Terminals"></div>
 <div id="home" aria-label="Chat"></div>
+<div id="phome" aria-label="Devices and runs"></div>
 <div id="ideasv" aria-label="Ideas"></div>
 <div id="runv" aria-label="Run workspace"><nav id="rtabs" aria-label="Workspace tabs"></nav><div id="rpanes"></div></div>
 

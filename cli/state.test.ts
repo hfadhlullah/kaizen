@@ -49,6 +49,20 @@ test("readRuns: newest first, mtime as moved", () => {
   expect(runs[0]!.moved).toBeLessThan(Date.now() - 3600_000);
 });
 
+test("readRuns keeps a run visible during a partial state write", () => {
+  const file = join(state, "runs", "2026-09-03-stale", "state.json");
+  const saved = readFileSync(file);
+  readRuns(state);
+  try {
+    writeFileSync(file, '{"stage":');
+    expect(readRuns(state).some((r) => r.id === "2026-09-03-stale" && r.stage === "build")).toBe(true);
+  } finally {
+    writeFileSync(file, saved);
+    const then = new Date(Date.now() - 2 * 3600_000);
+    utimesSync(file, then, then);
+  }
+});
+
 test("statusOf: waiting beats stage, mtime decides running vs stalled", () => {
   const now = Date.now();
   const [stale, done, waiting] = readRuns(state);

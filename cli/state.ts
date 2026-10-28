@@ -3,7 +3,7 @@
 // board (`web.ts`) both import this and draw it their own way.
 import { existsSync, readFileSync, readdirSync, appendFileSync, writeFileSync, mkdirSync, statSync, realpathSync, rmSync, renameSync, copyFileSync, openSync, readSync, closeSync } from "node:fs";
 import { Database } from "bun:sqlite";
-import { join, dirname, win32, posix } from "node:path";
+import { join, dirname, sep, win32, posix } from "node:path";
 import { homedir, arch, cpus, release, totalmem, version as osVersion } from "node:os";
 import { startPty, ptySupported } from "./pty.ts";
 import { codeDir, projectFromWorktree } from "./worktree.ts";
@@ -395,14 +395,18 @@ export function locate() {
   }
 }
 
+const lastRun = new Map<string, Run>();
 export function readRuns(state: string): Run[] {
   const dir = join(state, "runs");
   if (!existsSync(dir)) return [];
   // readdir order is the filesystem's, not the alphabet's; ids start with the date,
   // so sorting is what makes "newest first" true everywhere.
-  return readdirSync(dir).sort().flatMap((id) => {
+  const ids = readdirSync(dir).sort();
+  for (const file of lastRun.keys()) if (file.startsWith(dir + sep) && !ids.includes(file.slice(dir.length + 1))) lastRun.delete(file);
+  return ids.flatMap((id) => {
+    const runDir = join(dir, id);
     try {
-      const file = join(dir, id, "state.json");
+      const file = join(runDir, "state.json");
       const s = JSON.parse(readText(file));
       // When the run last moved. Kaizen records no liveness signal, so the file's
       // own mtime is the evidence that anything is still working on it, along with
@@ -410,8 +414,10 @@ export function readRuns(state: string): Run[] {
       let moved = 0;
       try { moved = statSync(file).mtimeMs; } catch { /* vanished mid-read */ }
       try { moved = Math.max(moved, statSync(join(dir, id, "progress.md")).mtimeMs); } catch { /* no progress kept */ }
-      return [{ id, stage: s.stage ?? "?", awaiting: s.awaiting ?? null, moved, runner: s.runner, agent: s.agent, branch: typeof s.branch === "string" ? s.branch : undefined }];
-    } catch { return []; }
+      const run = { id, stage: s.stage ?? "?", awaiting: s.awaiting ?? null, moved, runner: s.runner, agent: s.agent, branch: typeof s.branch === "string" ? s.branch : undefined };
+      lastRun.set(runDir, run);
+      return [run];
+    } catch { return existsSync(join(runDir, "state.json")) ? [lastRun.get(runDir)].filter((r): r is Run => !!r) : []; }
   }).reverse();
 }
 

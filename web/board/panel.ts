@@ -12,6 +12,8 @@ import { ICON, WORD, need } from "./labels.ts";
 import { attach, brief, md, planQuestions, preview, progress } from "./markdown.ts";
 import { toast } from "./toast.ts";
 import { go, view } from "./views.ts";
+import { isPhone } from "./phone.ts";
+import { openWorkspace } from "./run-view.ts";
 
 // ---- detail panel
 // A run's tabs, its phases in board order. A card opens on its column's tab.
@@ -38,6 +40,8 @@ const readable = (t) =>
           .join(" "),
       );
 export function open(c, keepTab) {
+  // A phone has no board: a card opens as its run workspace, which docks this panel.
+  if (isPhone() && view !== "run") return void openWorkspace(c);
   // The run workspace docks this panel at its right: it stays there.
   if (view !== "board" && view !== "run" && view !== "ideas") go("board", true);
   stopDictation(true); // the panel body is about to be replaced

@@ -178,3 +178,5 @@ updated: 2026-10-28
 - 2026-10-28 ideas-detail-no-count: Ideas row opens detail panel in place; Ideas counts removed; Ideas header wraps on small laptops.
 
 - 2026-10-28 followup-run-title: a follow-up request that opens with "Question asked at …" titles its card from the Roadmap line, else the Answer (`requestTitle`, cli/state.ts); spec asks follow-ups that only answer a question to name the work first.
+
+- 2026-10-28 phone-layout-revamp: phones get Home (devices, recent runs, usage), Chat, Runs and Settings; no Board, Ideas or Icebox on phones; tidier header and tab bar (web/board/phone.ts, /phone lists tailnet computers).
