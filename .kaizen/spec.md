@@ -1,0 +1,171 @@
+# Kaizen workflow specification
+
+This file is the tool-neutral contract. Claude Code, Codex, and Antigravity all
+follow this document; only the way stages are dispatched differs per tool. If an
+adapter and this file disagree, this file wins.
+
+A stage may only start when the previous stage's artifact exists on disk and the approval
+between them, if enabled, has been resolved.
+
+---
+
+## The track
+
+Kaizen is not a software workflow. The stage structure — frame, approve, produce,
+review independently, fix under a bound — holds for a book, a marketing campaign, a
+migration runbook, or a research memo just as well as for code. What changes per kind
+of work is what the words *deliverable*, *verification*, and *finding* mean.
+
+That meaning is fixed once, at intake, and recorded as the run's **track**. Every
+later stage reads it and adapts. A reviewer hunting race conditions in a book
+manuscript is worse than no reviewer at all, and a track is what prevents it.
+
+**The track is inferred, never asked.** Reading a request and recognizing what kind
+of work it is — an app, a chapter, a campaign, a runbook — is the workflow's job, not
+the user's. Asking "is this software or writing?" hands back the analysis they came
+here to have done, and a request almost always says which it is: what it names, the
+verbs it uses, where the material lives, what the person is evidently trying to
+produce. Read it and decide.
+
+Do not classify against a fixed taxonomy of work types; the sixth kind of work will
+not be on the list. Establish the track by answering three questions from the request
+itself, and only then ask about what genuinely cannot be read from it:
+
+1. **What is the deliverable?** A merged code change, a chapter, a landing page, a
+   decision memo, a set of ad variants, a runbook someone else will execute.
+2. **What counts as done?** The concrete, checkable condition. Tests pass. The
+   chapter reads end to end without contradicting chapter two. A colleague can follow
+   the runbook without asking a question. Someone in the audience understands the
+   offer in one read.
+3. **What would make it wrong?** The failure this work must not have. A security
+   hole. A claim that is not true. A tone that alienates the reader. A step that
+   silently loses data.
+
+Answer three is what the reviewer becomes. Answer two is what the builder must
+demonstrate. Draft all three yourself from the request, then state them back as
+conclusions — "this is a book chapter; done means it reads end to end without
+contradicting chapter two; wrong means a claim that is not true" — so the user
+corrects a reading rather than performing a classification. A wrong reading stated
+plainly is easy to fix; a question about categories is work handed back.
+
+Only where the request genuinely leaves the outcome open — two plausible readings
+with materially different work behind them — does this become a question, and even
+then ask about the outcome the user wants, never about which category the work
+belongs to.
+
+Common shapes, as illustration only — never as a menu to force a request into:
+
+| Shape | Deliverable | Done means | Wrong means |
+|---|---|---|---|
+| Enhancing existing software | A change in this repo | Tests and the plan's checks pass | Regression, security hole, scope creep |
+| Building something new | A working first version | It runs and does the named thing | Wrong foundation, unnecessary complexity |
+| Writing and documentation | A document | Complete, accurate, follows its own structure | False claim, contradiction, unusable for its reader |
+| Marketing and communication | Copy, campaign, positioning | The audience takes the intended meaning | Overclaim, wrong audience, off-brand |
+| Operations and process | A runbook, a config, a migration | Someone else can execute it unaided | Missing rollback, unstated prerequisite |
+| Research and analysis | Findings and a recommendation | The conclusion follows from evidence shown | Unsupported leap, cherry-picked data |
+
+A run may be a mix. Record it as a mix — the honest description beats the nearest
+label.
+
+Evidence about software whose source is not at hand — a shipped binary, an app
+bundle, an APK, a package — comes from REA (`rea-agents`) when its tools are
+connected in the session: cite what it returns, limitations included. When they are
+not connected, say the claim is unverified rather than guess at internals.
+
+Record the track in `state.json` as `track`, with the three answers written into
+`00-request.md`. Every subsequent stage reads them before starting, and the words
+*build*, *verify*, and *finding* below are always to be read in the track's terms.
+
+---
+
+## Stage 0 — Intake
+
+**Input:** the user's request.
+**Output:** `runs/<id>/00-request.md`, `state.json`.
+
+Create the run id as `YYYY-MM-DD-<short-kebab-slug>`. Write the request verbatim —
+do not summarize it, since later stages read this instead of the conversation and a
+summary is where requirements quietly disappear. The board also finds a run's card by
+this text: a request that does not contain the user's words leaves their idea as a
+second card. Context you add goes below the verbatim text, never in place of it.
+
+Verbatim includes the mess. Requests arrive as thinking out loud: half-formed,
+out of order, self-correcting, with the decisive constraint tucked into an aside near
+the end. Capture all of it, in the order it was said, including the parts that were
+later revised — the revision only makes sense next to what it revised. Making sense
+of that material is the planner's work, not the user's, and the user is never asked
+to restate a request more precisely.
+
+Then read the request and infer the track, per the section above. This is the one
+moment where the direction of the whole run is set: whether it is an enhancement, a
+build from nothing, a document, or work with no code in it at all. Getting it wrong
+here is not recoverable later — every stage will do good work aimed at the wrong
+target.
+
+The inference is stated in the plan's Framing and confirmed at the plan approval along with
+everything else. That is the correction point, and it is enough: the user reads one
+sentence and either nods or says "no, this is a blog post". They are never asked to
+categorize their own request up front.
+
+Write into `00-request.md`: the verbatim request, the deliverable, what done means,
+and what wrong means. Record in `state.json`: `id`, `mode`, `runner`, `agent`, `track`,
+`stage: "plan"`, `awaiting: null`, `iteration: 0`, and `updated` — the time of this
+write, refreshed on every later one.
+A `lite` run also records `review_executor` (`inline` or `subagent`, from `review.executor`, `ask` resolved) once it is known, and a resumed run keeps it.
+Where the environment has `CLAUDE_CODE_SESSION_ID`, also record it as `session`: the
+board keeps the run on the card it was launched from by that id.
+
+`stage` takes exactly one of five words, and boards key their columns on them:
+`plan`, `build`, `review`, `done`, `abandoned`. Set it when the stage starts —
+`build` before the builder touches anything, `review` before the reviewer reads — as
+its own write, not tacked onto a longer command that may not finish. Fixing findings
+is building and a recheck is reviewing, whoever runs them and whether the loop or the
+user picked the findings: `build` with `iteration` raised and `awaiting: null` before
+each iteration's first edit, `review` before its recheck reads. Any other word
+(`implement`, `fix`, `building`) is unknown to every reader and shows as still planning.
+
+`awaiting` is `null` or the config key of the approval being waited on —
+`approvals.plan`, `approvals.review`, `approvals.each_file` — or `findings` when the
+run has stopped for the user to pick which review findings to fix. Boards read it to
+say what a run is waiting for and where it sits; a word outside this list is shown but
+not understood.
+
+`agent` is the tool this run is happening in — `claude`, `codex`, `agy`, `opencode`,
+`gemini`, or `cursor` — written once at intake and never changed, so a board can say
+which agent to look for when a run is waiting. The tool running this stage knows what
+it is; no detection is needed.
+
+`runner` is read from config at intake and written down here, because it decides
+whether the stages that follow are separate agents or this one. A run resumed later
+keeps the runner it started with: a review done in the same session as the work is a
+different thing from an independent one, and which happened should not depend on what
+the config said the day someone came back to it.
+
+If the request remains ambiguous enough that a plan would be guesswork, ask now. One
+round of questions here is cheaper than a rejected plan.
+
+**Short work is not skipped.** Even a one-line change gets `01-plan.md` and `04-review.md`, so the run moves through every stage. Keep them brief and run under `runner: lite`; a `high`+ finding still enters the fix loop, on that same runner.
+
+**Follow-ups are runs too.** Both runners record the same artifacts: `01-plan.md`, `03-impl.md`, `04-review.md`, and a final `state.json` — `lite` and `full` differ only in who executes the stages. A message the user sends later in the same session is judged by what it asks: a question, explanation or chat is answered, no run; a request to change or produce something is building, so it goes through the flow. While the previous run has not reached `done` (including awaiting its final approval), the change is a revise of that run, recorded in `02-approval.md`. After `done` or `abandoned`, ask the user before opening a new run — AskUserQuestion with *open a follow-up run*, *answer without a run*, *cancel* — and create nothing under `runs/` until they pick the first. An explicit `/kaizen <request>` is that answer already. The new run's `00-request.md` is the user's words verbatim, then a line `Follow-up of: <previous run id>`; where those words only answer a question ("Plan 2b next"), put one line naming the work first — the board titles the card from it. Never reopen a finished run. When unsure whether a message asks for a change, ask once.
+
+---
+
+## Stage files
+
+Read core (this file) plus the one file for the stage being run. Nothing else.
+
+| Reader | Reads |
+|---|---|
+| Planner | `spec.md` + [`spec-plan.md`](spec-plan.md) |
+| Builder | `spec.md` + [`spec-build.md`](spec-build.md) |
+| Reviewer | `spec.md` + [`spec-review.md`](spec-review.md) |
+| Main thread | `spec.md` + [`spec-main.md`](spec-main.md), plus the stage file for an approval it is presenting |
+
+---
+
+## Resume semantics
+
+Any tool picking up a run reads `state.json` and continues from `stage`, honoring
+`awaiting`. A run whose `awaiting` is non-null must not be advanced without a
+recorded decision in `02-approval.md`. This is what makes a run safe to hand between
+Claude Code, Codex, and Antigravity mid-flight.

@@ -38,3 +38,4 @@ The product itself: a staged workflow (plan, approval, build, independent review
 
 ## Notes
 <!-- yours: /kaizen docs never rewrites this section -->
+- Follow-up titles: a `00-request.md` opening with `Question asked at …` (a follow-up started from an approval question) is titled by `requestTitle` from its `Roadmap line:`, else its `Answer:`; spec tells such follow-ups to put one line naming the work first.

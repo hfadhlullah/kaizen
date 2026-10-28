@@ -1268,6 +1268,12 @@ test("requestTitle: drops the launch command, keeps the first sentence, caps at 
   expect(requestTitle("x".repeat(200)).length).toBe(90);
 });
 
+test("requestTitle: a follow-up opened from an approval question titles from its work, not the question", () => {
+  const q = '# Request (verbatim)\n\nQuestion asked at the final approval of a: "Next run?"\nAnswer: "Plan 2b next"\n\nFollow-up of: a\n';
+  expect(requestTitle(q)).toBe("Plan 2b next");
+  expect(requestTitle(q + "Roadmap line: 2. Accounts & access — OTP\n")).toBe("Accounts & access — OTP");
+});
+
 test("parent/child: a Parent line links a run and an idea to the run that filed them", () => {
   expect(parentOf("do x\nFollow-up of: 2026-01-01-a.")).toBe("2026-01-01-a");
   expect(parentOf("  [2026-10-18 20:57] Parent: 2026-01-01-a")).toBe("2026-01-01-a");

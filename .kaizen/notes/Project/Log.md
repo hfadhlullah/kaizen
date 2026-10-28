@@ -176,3 +176,5 @@ updated: 2026-10-28
 - 2026-10-28 run 2026-10-28-ask-before-new-run — Workflow: after a run is done or abandoned, the agent asks before opening a follow-up run (spec.md, SKILL.md).
 
 - 2026-10-28 ideas-detail-no-count: Ideas row opens detail panel in place; Ideas counts removed; Ideas header wraps on small laptops.
+
+- 2026-10-28 followup-run-title: a follow-up request that opens with "Question asked at …" titles its card from the Roadmap line, else the Answer (`requestTitle`, cli/state.ts); spec asks follow-ups that only answer a question to name the work first.

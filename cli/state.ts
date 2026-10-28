@@ -1133,11 +1133,17 @@ export function setArchived(state: string, id: string, archived: boolean) {
 // The request's first real line: not a heading, not a label ending in a colon,
 // quote marker dropped. Long enough to recognise the run, short enough for a card.
 export function requestTitle(text: string) {
-  const line = text.split("\n")
+  let line = text.split("\n")
     .map((l) => l.replace(/^>\s*/, "").trim())
     .filter((l) => l && !l.startsWith("#"))
     .slice(0, 6)
     .find((l) => l && !l.endsWith(":") && !/^---/.test(l)) ?? "";
+  // A follow-up opened from an approval question starts with the question; the work is
+  // its roadmap line, else the answer.
+  if (/^Question asked at\b/i.test(line)) {
+    const pick = (k: string) => text.match(new RegExp(`^${k}:\\s*(.+)$`, "im"))?.[1].trim().replace(/^"(.*)"$/, "$1");
+    line = (pick("Roadmap line") || pick("Answer") || line).replace(/^\d+\.\s+/, "");
+  }
   // Drop the command that launched it, keep the first sentence: a card reads, it does not quote.
   const first = line.replace(/^\/kaizen(?:-\w+)?\s+(?:(?:lite|full|auto|plan)\s+)?/i, "").split(/(?<=[.!?])\s/)[0];
   return first.length > 90 ? first.slice(0, 89).trimEnd() + "…" : first;
