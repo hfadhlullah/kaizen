@@ -7,7 +7,7 @@ updated: 2026-10-23
 # Release and testing
 
 ## What it does
-Tests are `bun test` (all `*.test.ts`, `cli/` and `bot/`), run in CI on Ubuntu and Windows (`.github/workflows/test.yml`). The package is `kaizen-agent` on npm (version 1.59.0 in this checkout); `bun run release [patch|minor|major] [summary]` (`cli/release.ts`) bumps the version — minor when a `feat` commit landed since the last tag, else patch — commits `Release x.y.z: <summary>`, publishes to npm (tests first), pushes, then GitHub Packages.
+Tests are `bun test` (all `*.test.ts`, `cli/` and `bot/`), run in CI on Ubuntu and Windows (`.github/workflows/test.yml`). The package is `kaizen-agent` on npm (version 1.59.1 in this checkout); `bun run release [patch|minor|major] [summary]` (`cli/release.ts`) bumps the version — minor when a `feat` commit landed since the last tag, else patch — commits `Release x.y.z: <summary>`, publishes to npm (tests first), pushes, then GitHub Packages.
 
 ## Where it lives
 - `package.json` — `test`, `build:web`, `format` / `format:check` (Prettier over the frontend TypeScript: `web/*.ts`, `web/board/`, `bot/web/app/`), `release`, `prepublishOnly` (tests), `postpublish` (`cli/release.sh`: tag + GitHub release).

@@ -15,8 +15,10 @@ const fixture = (updated = "2026-10-28") => {
 };
 
 test("clean vault, nested CLI invocation, and no writes", () => {
-  const f = fixture();
+  const f = fixture("2020-01-01");
   try {
+    // A source written today would be stale against any fixed date: back-date it.
+    utimesSync(join(f.root, "app.ts"), new Date("2020-01-01T10:00:00"), new Date("2020-01-01T10:00:00"));
     const nested = join(f.root, "inside"); mkdirSync(nested);
     const before = readFileSync(join(f.vault, "App.md"));
     const p = Bun.spawnSync([process.execPath, join(import.meta.dir, "install.ts"), "docs", "lint"], { cwd: nested });
