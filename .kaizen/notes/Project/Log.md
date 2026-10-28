@@ -174,3 +174,5 @@ updated: 2026-10-28
 - 2026-10-28 run 2026-10-28-run-panel-no-terminal — Web board: in the run workspace the right panel never opens the agent terminal; its terminal button is hidden there; the side menu highlight follows the opened card (markCurrent).
 - 2026-10-28 run-start-to-workspace: run form popup from Ideas Start / new-idea Start run; idea launches open the run workspace, which follows the idea to its run; note typing no longer loses focus on refresh.
 - 2026-10-28 run 2026-10-28-ask-before-new-run — Workflow: after a run is done or abandoned, the agent asks before opening a follow-up run (spec.md, SKILL.md).
+
+- 2026-10-28 ideas-detail-no-count: Ideas row opens detail panel in place; Ideas counts removed; Ideas header wraps on small laptops.
