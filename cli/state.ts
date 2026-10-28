@@ -741,6 +741,7 @@ export type Card = {
   dim: boolean;
   moved?: number;                                  // runs only: state.json mtime
   added?: number;                                  // ideas only: when the inbox line first appeared (ms)
+  inboxIndex?: number;                             // ideas only: line in the project's inbox
   title?: string;                                  // runs only: first line of the request
   archived: boolean;                               // hidden from the board unless asked for
   branch?: string;                                 // runs only: the run's own branch while it has a worktree
@@ -916,7 +917,7 @@ export function formatNote(text: string, at = stamp()) {
 
 // Append one entry: to runs/<id>/notes.md for a run, or under the idea's inbox
 // bullet. Attachments arrive as markdown links already written into text.
-export function appendNote(state: string, target: { id: string } | { text: string }, text: string): string | null {
+export function appendNote(state: string, target: { id: string } | { text: string; index?: number }, text: string): string | null {
   if (!text.trim()) return "empty note";
   if ("id" in target) {
     if (!existsSync(join(state, "runs", target.id, "state.json"))) return "no such run";
@@ -924,8 +925,8 @@ export function appendNote(state: string, target: { id: string } | { text: strin
     return null;
   }
   const lines = readInbox(state);
-  const at = lines.findIndex((l) => l.status === "open" && l.text === target.text);
-  if (at < 0) return "no such idea";
+  const at = target.index === undefined ? lines.findIndex((l) => l.status === "open" && l.text === target.text) : target.index;
+  if (lines[at]?.status !== "open" || lines[at]?.text !== target.text) return "no such idea";
   const prev = lines[at]!.notes;
   lines[at] = { ...lines[at]!, notes: (prev ? prev + "\n" : "") + formatNote(text) };
   writeInbox(state, lines);
@@ -1073,12 +1074,13 @@ export function runToIdea(st: string, id: string): string | null {
   return null;
 }
 
-export function replaceIdea(state: string, text: string, next: InboxLine | null) {
+export function replaceIdea(state: string, text: string, next: InboxLine | null, index?: number) {
   const lines = readInbox(state);
-  const at = lines.findIndex((l) => (l.status === "open" || l.status === "started") && l.text === text);
-  if (at < 0) return;                            // changed underneath us; the redraw will show why
+  const at = index === undefined ? lines.findIndex((l) => (l.status === "open" || l.status === "started") && l.text === text) : index;
+  if (!lines[at] || !["open", "started"].includes(lines[at]!.status) || lines[at]!.text !== text) return false;
   if (next) lines[at] = { notes: lines[at]!.notes, ...next }; else lines.splice(at, 1);
   writeInbox(state, lines);
+  return true;
 }
 
 // An open idea, notes and all, from one project's inbox to another's. Files its notes
@@ -1179,7 +1181,7 @@ export function boardCards(states: string[], now: number): Card[] {
   for (const st of states) {
     const where = label(st);
     const archive = readArchive(st);
-    for (const it of readInbox(st)) {
+    for (const [inboxIndex, it] of readInbox(st).entries()) {
       if (it.status !== "open" && it.status !== "started" && it.status !== "archived") continue;
       // Retired once any run's request contains this text -- whoever started it.
       // Checking `started` items only would leave every idea acted on outside the
@@ -1196,8 +1198,8 @@ export function boardCards(states: string[], now: number): Card[] {
       const after = (r: { at: number }) => !it.added || r.at >= it.added - 2000;
       if (it.status === "started" ? requests.some((r) => after(r) && r.text.includes(t)) || launchedInto(st, t) : lines.some((l) => after(l) && (l.text === t || l.text.endsWith(" " + t)))) continue;
       next.push(it.status === "started"
-        ? { kind: "idea", status: "starting", text: it.text, state: st, where, column: 1, awaiting: null, dim: true, archived: false, notes: it.notes, parent: parentOf(it.notes) }
-        : { kind: "idea", status: "idea", text: it.text, state: st, where, column: 0, awaiting: null, dim: false, archived: it.status === "archived", notes: it.notes, parent: parentOf(it.notes), added: it.added });
+        ? { kind: "idea", status: "starting", text: it.text, state: st, where, column: 1, awaiting: null, dim: true, archived: false, notes: it.notes, parent: parentOf(it.notes), inboxIndex }
+        : { kind: "idea", status: "idea", text: it.text, state: st, where, column: 0, awaiting: null, dim: false, archived: it.status === "archived", notes: it.notes, parent: parentOf(it.notes), added: it.added, inboxIndex });
     }
     // Runs started in Yolo. Only yolo records are matched to runs, so a project that
     // never used it pays one directory read.
@@ -1764,7 +1766,7 @@ async function gitAsync(dir: string, ...args: string[]) {
 }
 
 export type GitStatus = { repo: false } | { repo: true; branch: string; remote: string; files: string[]; ahead: number; others?: number; shared?: string[]; unpushed?: Unpushed[] };
-type Unpushed = { at: number; subject: string; files: string[] };
+type Unpushed = { sha: string; at: number; subject: string; files: string[] };
 
 // A project the board can commit for: a git work tree with somewhere to push.
 export function gitStatus(projectDir: string): GitStatus {
@@ -1778,9 +1780,9 @@ export function gitStatus(projectDir: string): GitStatus {
   const ahead = up.ok ? Number(up.out) : git(projectDir, "rev-parse", "HEAD").ok ? 1 : 0;
   // Each commit not on the remote yet, with its files: a run is ahead only by its own.
   const unpushed = up.ok && ahead > 0
-    ? git(projectDir, "log", "@{u}..HEAD", "--format=%x00%ct %s", "--name-only").out.split("\0").slice(1).map((c) => {
-        const [head, ...files] = c.trim().split("\n"), sp = head.indexOf(" ");
-        return { at: Number(head.slice(0, sp)) * 1000, subject: head.slice(sp + 1).trim(), files: files.filter(Boolean) };
+    ? git(projectDir, "log", "@{u}..HEAD", "--format=%x00%H %ct %s", "--name-only").out.split("\0").slice(1).map((c) => {
+        const [head, ...files] = c.trim().split("\n"), [sha, at, ...subject] = head.split(" ");
+        return { sha, at: Number(at) * 1000, subject: subject.join(" ").trim(), files: files.filter(Boolean) };
       })
     : undefined;
   return { repo: true, branch: git(projectDir, "branch", "--show-current").out, remote, files: st ? st.split("\n") : [], ahead, ...(unpushed ? { unpushed } : {}) };
@@ -1802,11 +1804,11 @@ function runReport(state: string, id: string) {
 }
 const names = (report: string, path: string) => report.includes("`" + path + "`") || report.includes("`" + path + ":");
 
-type Report = { id: string; text: string; at: number };
+type Report = { id: string; text: string; at: number; sha?: string };
 function runReports(state: string): Report[] {
   let ids: string[] = [];
   try { ids = readdirSync(join(state, "runs")); } catch {}
-  return ids.map((id) => ({ id, ...runReport(state, id) }));
+  return ids.map((id) => ({ id, ...runReport(state, id), sha: readCommit(state, id)?.sha }));
 }
 // A run holds a path at time `t` when its report names it, was written by then, and no
 // other run naming it reported in between.
@@ -1822,7 +1824,7 @@ const runFiles = (dir: string, changed: string[], mine: Report, rest: Report[]) 
 });
 // How many unpushed commits each run has, worked out once for every run. A commit is
 // one run's, so a wide commit is not pinned on every old run that once touched a file
-// in it: the run whose report holds its subject (the `## Commit` message), else, of
+// in it: the run whose record holds its SHA, then the report holding its subject, else, of
 // the runs that reported by then (to the end of that second, since commit times are
 // whole seconds), the one naming most of its paths, the latest on a tie. One naming
 // none, a merge or a hand commit, goes to the run that reported last, so some run
@@ -1832,8 +1834,10 @@ function aheadBy(s: GitStatus & { repo: true }, all: Report[]): (id: string) => 
   if (!s.unpushed) return () => s.ahead;
   const n = new Map<string, number>();
   for (const c of s.unpushed) {
+    // Only a unique commit prefix is exact; old or ambiguous records use the fallback.
+    let best = all.find((r) => r.sha && /^[0-9a-f]{4,40}$/i.test(r.sha) && c.sha.startsWith(r.sha) && s.unpushed!.filter((x) => x.sha.startsWith(r.sha!)).length === 1);
     // The subject as a line of its own: a short one ("wip") is not found inside prose.
-    let best = c.subject ? all.find((r) => r.text.split("\n").some((l) => l.trim() === c.subject)) : undefined;
+    if (!best) best = c.subject ? all.find((r) => r.text.split("\n").some((l) => l.trim() === c.subject)) : undefined;
     if (!best) {
       let most = -1;
       for (const r of all) {

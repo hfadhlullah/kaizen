@@ -2,7 +2,7 @@
 description: What a kaizen run is, which files define it, and where its state lives
 tags: [project, workflow]
 sources: [skills/kaizen, skills/kaizen-help, skills/media, agents, commands, cli/worktree.ts, docs/guide.md]
-updated: 2026-10-27
+updated: 2026-10-28
 ---
 # Workflow
 
@@ -28,7 +28,7 @@ The product itself: a staged workflow (plan, approval, build, independent review
 - Any run whose request names an existing thing without its source (app, APK, binary, file format, device, protocol) offers REA once (`spec-plan.md`, *Offer REA*); when REA is not connected it offers to install it (`rea-agents doctor`, a `setup --dry-run` shown to the user, `setup --yes` only on approval, then a restart and resume), give the command, or skip; the main thread asks discovery rounds and that question (`spec-main.md`, *Discovery rounds*).
 - Runs are written to `.kaizen/runs/<id>/`; [[Web board]] and [[Terminal board]] read them through `cli/state.ts`.
 - [[CLI]] installs these folders as links into `~/.claude/`.
-- `/kaizen docs` writes this vault. During a run the builder updates the notes whose `sources` it changed, and the *Docs gate* in `spec-main.md` makes the main thread finish the job before the final report and before `stage: "done"`, in every runner and mode: fix-iteration changes, and changed files no note covers (added to a note's `sources`, or a new note).
+- `/kaizen docs` writes this vault. During a run the builder updates the notes whose `sources` it changed, and the *Docs gate* in `spec-main.md` makes the main thread finish the job before the final report and before `stage: "done"`, in every runner and mode: fix-iteration changes, and changed files no note covers (added to a note's `sources`, or a new note). The gate runs `kaizen docs lint` after those updates; see [[CLI]].
 
 ## Watch out
 - `skills/kaizen/` is the source; `.kaizen/spec*.md` in a project are copies (`kaizen --check` reports drift). In this repo the copies are not committed (`.gitignore`).

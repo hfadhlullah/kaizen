@@ -10,19 +10,21 @@ import { SearchAddon } from "@xterm/addon-search";
 function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void {
   const css = getComputedStyle(el);
   const tok = (n: string) => css.getPropertyValue(n).trim() || undefined;
+  const theme = () => ({ background: tok("--bg"), foreground: tok("--ink-hi"), cursor: tok("--accent"), selectionBackground: tok("--line") });
   const term = new Terminal({
     cursorBlink: true,
     fontFamily: tok("--mono"),
     fontSize: 12,
     scrollback: 5000,
     allowProposedApi: true, // search match decorations
-    theme: {
-      background: tok("--bg"),
-      foreground: tok("--ink-hi"),
-      cursor: tok("--accent"),
-      selectionBackground: tok("--line"),
-    },
+    theme: theme(),
   });
+  // The board's theme toggle, or the system's scheme when none is set: the terminal follows live.
+  // getComputedStyle is live, so the same tokens read the new values.
+  const retheme = () => requestAnimationFrame(() => (term.options.theme = theme()));
+  const os = matchMedia("(prefers-color-scheme: dark)");
+  addEventListener("kz-theme", retheme);
+  os.addEventListener("change", retheme);
   const fit = new FitAddon();
   term.loadAddon(fit);
   term.loadAddon(new WebLinksAddon((_e, url) => window.open(url, "_blank", "noopener")));
@@ -275,6 +277,8 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
     clearTimeout(retry);
     ws.onclose = null;
     ws.close();
+    removeEventListener("kz-theme", retheme);
+    os.removeEventListener("change", retheme);
     term.dispose();
   };
 }

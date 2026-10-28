@@ -15,7 +15,7 @@
 :root[data-theme=dark]{--bg:#0c162f;--bg-2:#121e3c;--line:#22305a;--ink:#eef2fa;--ink-hi:#deeeff;--dim:#96aacd;--accent:#486ed9;--run:#4fd6e6;--ok:#5fd28a;--warn:#e6b450;--danger:#e85050;color-scheme:dark}
 *{box-sizing:border-box}
 /* Shape, type and depth. --shade is the one shadow colour, themed like the rest. */
-:root{--r:12px;--r-s:8px;--r-pill:999px;--font:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;--mono:ui-monospace,"JetBrains Mono","Cascadia Code","SF Mono",Menlo,Consolas,monospace;--on-accent:#fff;--hover:color-mix(in srgb,var(--dim) 12%,transparent);--shade:rgb(12 22 47/.08);--shadow-1:0 1px 2px var(--shade);--shadow-2:0 0 0 1px var(--shade),0 8px 24px -6px var(--shade);--canvas:color-mix(in srgb,var(--bg) 95.5%,var(--ink))}
+:root{--r:4px;--r-s:4px;--r-pill:999px;--font:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;--mono:ui-monospace,"JetBrains Mono","Cascadia Code","SF Mono",Menlo,Consolas,monospace;--on-accent:#fff;--hover:color-mix(in srgb,var(--dim) 12%,transparent);--shade:rgb(12 22 47/.08);--shadow-1:0 1px 2px var(--shade);--shadow-2:0 0 0 1px var(--shade),0 8px 24px -6px var(--shade);--canvas:color-mix(in srgb,var(--bg) 95.5%,var(--ink))}
 @media(prefers-color-scheme:dark){:root:not([data-theme=light]){--shade:rgb(0 0 0/.45);--canvas:color-mix(in srgb,var(--bg) 70%,black)}}
 :root[data-theme=dark]{--shade:rgb(0 0 0/.45);--canvas:color-mix(in srgb,var(--bg) 70%,black)}
 body{margin:0;background:var(--canvas);color:var(--ink);font:14px/1.5 var(--font);-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;height:100vh;height:100dvh;overflow:hidden;display:flex}
@@ -32,10 +32,10 @@ svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6;stroke
 [hidden]{display:none!important}
 
 /* side menu: the same lines in board.html and notes.html (a test holds them equal) */
-.rail{width:220px;flex:none;display:flex;flex-direction:column;gap:2px;padding:18px 12px 14px;overflow:hidden auto;transition:width .18s}
+.rail{width:250px;flex:none;display:flex;flex-direction:column;gap:2px;padding:18px 12px 14px;overflow:hidden auto;transition:width .18s}
 .rail .top{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 0 18px 10px}
 .rail .home{display:block;color:inherit;text-decoration:none}
-.rail .top .mascot{display:none;width:36px;height:34px}
+.rail .top .mascot{display:none;width:28px;height:26px}
 .rail a.it{display:flex;align-items:center;gap:10px;height:34px;padding:0 10px;border-radius:var(--r-s);font-size:13px;font-weight:500;color:var(--dim);text-decoration:none;white-space:nowrap;transition:background .12s,color .12s}
 .rail a.it:hover{background:var(--hover);color:var(--ink)}
 .rail a.it[aria-current=page]{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--ink)}
@@ -63,8 +63,8 @@ svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6;stroke
 .rail a.it,[data-rail=min] .rail a.it{flex:1;width:auto;flex-direction:column;justify-content:center;gap:2px;height:auto;min-height:48px;padding:4px 0;font-size:11px}
 .rail a.it[aria-current=page]{background:none;color:var(--accent)}
 [data-rail=min] .rail .lbl{position:static;width:auto;height:auto;overflow:visible;clip-path:none}
-.rail a.it.fold{display:none}
-.rail a.it[data-view=board]{order:1}.rail a.it[data-view=notes]{order:2}.rail a.it[data-view=home]{order:3}.rail a.it[data-view=terminal]{order:4}.mtab{order:5}
+.rail a.it.fold{display:flex}
+.rail a.it[data-view=home]{order:1}.rail a.it[data-view=sources]{order:2}.rail a.it[data-view=board]{order:3}.rail a.it[data-view=video]{order:4}.rail a.it[data-view=settings]{order:5}.mtab{display:none}
 .mtab{display:flex;flex:1;position:relative}
 .mtab summary{flex:1;list-style:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:48px;padding:4px 0;font-size:11px;font-weight:500;color:var(--dim);cursor:pointer}
 .mtab summary::-webkit-details-marker{display:none}
@@ -75,13 +75,55 @@ svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6;stroke
 .mpop a:hover{background:var(--hover)}
 .rail:has(a.it.fold.upd) .mtab summary{position:relative}.rail:has(a.it.fold.upd) .mtab summary::after{content:"";position:absolute;left:calc(50% + 6px);top:4px;width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 2px var(--bg)}
 body .rail a.upd::after{left:calc(50% + 6px);top:4px}body .toast{left:16px;bottom:calc(68px + env(safe-area-inset-bottom))}}
+.rail a.it[data-n]{position:relative}.rail a.it[data-n]::after{content:attr(data-n);position:absolute;left:24px;top:3px;min-width:16px;height:16px;padding:0 4px;box-sizing:border-box;border-radius:8px;background:var(--dim);color:var(--bg);font:600 10px/16px var(--font);text-align:center;box-shadow:0 0 0 2px var(--bg)}
+@media(max-width:640px){body .rail a.it[data-n]::after{left:calc(50% + 4px);top:2px}}
+.rail a.it[data-view=board][data-n]::after{left:auto;right:8px;top:9px;background:var(--warn)}
+[data-rail=min] .rail a.it[data-view=board][data-n]::after{left:24px;right:auto;top:3px}
+@media(max-width:640px){[data-rail=min] .rail a.it[data-view=board][data-n]::after{left:calc(50% + 4px);top:2px}}
+/* the rail's Projects list: ideas and runs grouped by project, each with its state icon */
+.rail a.it .n{margin-left:auto;font-size:11px;font-weight:400;color:var(--dim)}
+.rail a.it .srcs+.n{margin-left:8px}.rail a.it .srcs{margin-left:auto;display:flex;gap:4px;opacity:.75}.rail a.it .srcs svg,.rail a.it .srcs img{width:13px;height:13px}
+.rail a.it,.rail .theme,.rail .theme button{border-radius:4px}
+.rail .psec{display:flex;align-items:center;gap:2px;margin:14px 0 2px;padding-left:10px;font-size:11px;font-weight:600;color:var(--dim)}.rail .psec .lbl{flex:1}
+.rail .psec button,.rail .rib{width:26px;height:26px;display:grid;place-items:center;flex:none;border-radius:4px;color:var(--dim)}.rail .psec button:hover,.rail .rib:hover{background:var(--hover);color:var(--ink)}.rail .psec button svg,.rail .rib svg{width:15px;height:15px}
+.rail .psec button[aria-pressed=true]{color:var(--accent)}.rail .psec button{position:relative}.rail .psec button[aria-pressed=true]::after{content:"";position:absolute;right:3px;top:3px;width:6px;height:6px;border-radius:50%;background:var(--accent)}
+.pfpop{position:fixed;z-index:40;min-width:220px;max-width:280px;max-height:60vh;overflow:auto;padding:6px;display:flex;flex-direction:column;gap:1px;background:var(--bg-2);color:var(--ink);border:1px solid var(--line);border-radius:4px;box-shadow:var(--shadow-2);font-size:12.5px}
+.pfpop .sel{margin:2px 2px 6px;padding:5px 8px;border-radius:4px}.pfrow{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:4px;cursor:pointer;white-space:nowrap}.pfrow:hover{background:var(--hover)}.pfrow input{accent-color:var(--accent);margin:0}.pfrow .plogo{width:16px;height:16px;font-size:9px;border-radius:4px;display:inline-grid;place-items:center;flex:none;font-weight:600;color:var(--dim);background:var(--hover)}.pfrow img.plogo{background:none}
+.pfpop .pfh{margin:8px 8px 2px;font-size:11px;font-weight:600;color:var(--dim)}
+.rail .plist{flex:1;min-height:40px;overflow:hidden auto;margin:0 -4px;padding:0 4px}
+.plist .proj{display:flex;gap:8px;align-items:center;margin:10px 6px 4px;font-size:12.5px;font-weight:500;color:var(--ink);white-space:nowrap}.plist .proj .c{color:var(--dim);font-size:11px;font-weight:400}.plist .proj .plogo{width:16px;height:16px;font-size:9px;border-radius:4px;display:inline-grid;place-items:center;flex:none;font-weight:600;color:var(--dim);background:var(--hover);object-fit:contain}.plist .proj img.plogo{background:none}
+.plist .row{display:grid;grid-template-columns:14px minmax(0,1fr);gap:8px;align-items:center;padding:5px 8px;border-radius:4px;color:var(--ink);text-decoration:none}.plist .row:hover,.plist .row[aria-current]{background:var(--hover)}.plist .row .si{margin-top:0}
+.plist .row b{display:block;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.plist .row small{display:block;color:var(--dim);font:10.5px/1.4 var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.plist .none{padding:6px 10px;color:var(--dim);font-size:12px}
+.rail .rbot{display:flex;align-items:center;gap:2px;margin-top:6px}#themet .moon,#themet[data-dark=true] .sun{display:none}#themet[data-dark=true] .moon{display:block}.rail .rbot a.it{flex:1;min-width:0}
+/* a card's state: idle ring, planning arc, building tailed arc, reviewing orbit, waiting ripple, done check, stalled pause */
+.si{width:12px;height:12px;border-radius:50%;position:relative;flex:none;--ring:radial-gradient(farthest-side,#0000 calc(100% - 2px),#000 calc(100% - 1.5px))}
+.si.idle{box-shadow:inset 0 0 0 1.5px var(--dim)}
+.si.plan{background:conic-gradient(#8b7cf6 0 28%,color-mix(in srgb,#8b7cf6 22%,transparent) 0);-webkit-mask:var(--ring);mask:var(--ring);animation:si-spin .9s linear infinite}
+.si.build{background:conic-gradient(from 0deg,transparent,var(--accent) 85%,transparent 0);-webkit-mask:var(--ring);mask:var(--ring);animation:si-spin .7s linear infinite}
+.si.build::after{content:"";position:absolute;inset:0}
+.si.review{box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--warn) 35%,transparent);animation:si-spin 1.6s linear infinite}
+.si.review::after{content:"";position:absolute;width:4px;height:4px;border-radius:50%;background:var(--warn);top:-1px;left:4px;box-shadow:0 0 4px var(--warn)}
+.si.wait{background:var(--warn)}.si.wait::after{content:"";position:absolute;inset:0;border-radius:50%;background:var(--warn);animation:si-ping 1.6s cubic-bezier(0,0,.2,1) infinite}
+.si.done{background:var(--ok)}.si.done::after{content:"";position:absolute;left:4.2px;top:2px;width:2.5px;height:5.5px;border:solid var(--bg);border-width:0 1.6px 1.6px 0;transform:rotate(45deg)}
+.si.stalled{background:var(--danger)}.si.stalled::after{content:"";position:absolute;left:3.5px;top:3.5px;width:5px;height:5px;background:linear-gradient(90deg,var(--bg) 0 1.6px,transparent 0 3.4px,var(--bg) 0)}
+.si.aband{box-shadow:inset 0 0 0 1.5px var(--dim);opacity:.5}
+@keyframes si-spin{to{transform:rotate(360deg)}}@keyframes si-ping{75%,100%{transform:scale(2.2);opacity:0}}
+@media (prefers-reduced-motion:reduce){:root:not([data-motion=full]) .si{animation:none!important}}
+:root[data-motion=reduce] .si{animation:none!important}
+[data-rail=min] .rail a.it .n,[data-rail=min] .rail a.it .srcs,[data-rail=min] .rail .rib:not(.th),[data-rail=min] .plist .proj :not(.plogo),[data-rail=min] .plist .row div{display:none}
+[data-rail=min] .rail .psec{padding:0;margin:12px 0 2px;flex-direction:column}[data-rail=min] .rail .rbot{flex-direction:column}
+[data-rail=min] .plist .proj{justify-content:center;margin:10px 0 4px}[data-rail=min] .plist .row{grid-template-columns:14px;justify-content:center;padding:7px 0}
+@media(max-width:640px){.rail .psec,.rail .plist,.rail .rib{display:none}.rail .rbot,[data-rail=min] .rail .rbot{display:contents}.rail a.it[data-view=ideas]{order:3}.rail a.it[data-view=board]{order:4}.rail a.it .n,.rail a.it .srcs{display:none}}
 /* end side menu */
+#kbd{display:none}
+body.embed .rail,body.embed .hdr{display:none}body.embed .app{margin:0;border:0;border-radius:0}
 /* the work area: an inset rounded panel on the canvas the side menu sits on */
-.app{flex:1;min-width:0;display:flex;flex-direction:column;margin:8px 8px 8px 0;background:var(--bg);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.app{flex:1;min-width:0;display:flex;flex-direction:column;margin:8px 8px 8px 0;background:var(--bg);border:1px solid var(--line);border-radius:12px;overflow:hidden}
 @media(max-width:640px){.app{margin:0;border:0;border-radius:0}html,body{background:var(--bg)}}
 /* header: the board's */
 .hdr{display:flex;align-items:center;gap:12px;padding:10px 20px 10px 28px;border-bottom:1px solid color-mix(in srgb,var(--line) 60%,transparent);flex-wrap:wrap}
-pre.mark{margin:0;font:700 8px/1 var(--mono)}
+pre.mark{margin:0;font:700 5px/1 var(--mono)}
 pre.mark span:nth-child(1){color:var(--ink-hi)}pre.mark span:nth-child(2){color:color-mix(in srgb,var(--ink-hi),var(--accent))}pre.mark span:nth-child(3){color:var(--accent)}
 .sel{border:1px solid var(--line);border-radius:var(--r-s);padding:6px 12px;background-color:var(--bg-2);color:var(--ink);font-size:13px}
 select.sel{cursor:pointer;appearance:none;padding-right:30px;max-width:min(320px,100%);text-overflow:ellipsis;background-image:linear-gradient(45deg,transparent 50%,var(--dim) 50%),linear-gradient(135deg,var(--dim) 50%,transparent 50%);background-position:calc(100% - 16px) 50%,calc(100% - 11px) 50%;background-size:5px 5px;background-repeat:no-repeat}
@@ -256,16 +298,21 @@ select.sel{cursor:pointer;appearance:none;padding-right:30px;max-width:min(320px
   <div class="top"><a class="home" href="/" title="Home" aria-label="kaizen home"><pre class="mark"><span>█ █  ▄▀█  █  ▀▀█  █▀▀  █▄ █</span>
 <span>█▀▄  █▀█  █   ▄▀  ██▄  █ ▀█</span>
 <span>█ █  █ █  █  █▄▄  █▄▄  █  █</span></pre><span class="mascot"></span></a><button class="ib" id="fold" aria-label="Collapse menu" title="Collapse menu"><svg><use href="#i-side"/></svg></button></div>
+  <svg style="display:none"><defs>
+  <symbol id="r-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3z"/></symbol>
+  <symbol id="r-tray" viewBox="0 0 24 24"><path d="M12 3v9M8.5 8.5 12 12l3.5-3.5"/><path d="M3 14h5l1.5 2.5h5L16 14h5"/><path d="M3 14v5a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-5l-2.5-6H15M9 8H5.5L3 14"/></symbol>
+  <symbol id="r-filter" viewBox="0 0 24 24"><path d="M4 5h16l-6 8v6l-4-2v-4z"/></symbol>
+  <symbol id="r-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="r-bug" viewBox="0 0 24 24"><rect x="8" y="6" width="8" height="14" rx="4"/><path d="M12 20v-9M8 12H4M20 12h-4M9 7 7 4M15 7l2-3M8 17l-3 2M16 17l3 2"/></symbol>
+  <symbol id="r-kbd" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></symbol>
+  </defs></svg>
   <a class="it" href="/" data-view="home" title="Home: chat with the project's agent"><svg><use href="#i-home"/></svg><span class="lbl">Home</span></a>
-  <a class="it fold" href="/?view=icebox" data-view="sources" title="Icebox: requests gathered from your sources"><svg><use href="#i-inbox"/></svg><span class="lbl">Icebox</span></a>
+  <a class="it fold" href="/?view=icebox" data-view="sources" title="Icebox: requests gathered from your sources"><svg><use href="#r-tray"/></svg><span class="lbl">Icebox</span><span class="srcs" id="rail-srcs"></span><span class="n" id="ice-n"></span></a>
+  <a class="it" href="/?view=ideas" data-view="ideas" title="Ideas: every idea and run, filtered"><svg><use href="#r-bulb"/></svg><span class="lbl">Ideas</span></a>
   <a class="it" href="/?view=board" data-view="board" title="Board"><svg><use href="#i-board"/></svg><span class="lbl">Board</span></a>
-  <a class="it" href="/notebook" data-view="notes" title="Notes"><svg><use href="#i-note"/></svg><span class="lbl">Notes</span></a>
-  <a class="it fold" href="/video" data-view="video" title="Video: make and edit videos"><svg><use href="#i-video"/></svg><span class="lbl">Video</span></a>
-  <a class="it" href="/?view=terminal" data-view="terminal" title="Terminal: every agent running in its card"><svg><use href="#i-term"/></svg><span class="lbl">Terminal</span></a>
-  <a class="it fold" href="/?view=settings" data-view="settings" title="Settings"><svg><use href="#i-gear"/></svg><span class="lbl">Settings</span></a>
-  <details class="mtab"><summary title="More"><svg><use href="#i-more"/></svg><span class="lbl">More</span></summary><div class="mpop"><a href="/?view=icebox" data-view="sources"><svg><use href="#i-inbox"/></svg>Icebox</a><a href="/video" data-view="video"><svg><use href="#i-video"/></svg>Video</a><a href="/?view=settings" data-view="settings"><svg><use href="#i-gear"/></svg>Settings</a></div></details>
-  <span class="end"></span>
-  <div class="theme" role="group" aria-label="Theme"><button data-t="light" title="Light theme"><svg><use href="#i-sun"/></svg><span class="lbl">Light</span></button><button data-t="dark" title="Dark theme"><svg><use href="#i-moon"/></svg><span class="lbl">Dark</span></button></div>
+  <div class="psec"><span class="lbl">Projects</span><button id="pfilter" title="Show one project" aria-label="Show one project"><svg><use href="#r-filter"/></svg></button><button id="padd" title="New idea" aria-label="New idea"><svg><use href="#r-plus"/></svg></button></div>
+  <div class="plist" id="plist" aria-label="Ideas and runs by project"></div>
+  <div class="rbot"><a class="it fold" href="/?view=settings" data-view="settings" title="Settings"><svg><use href="#i-gear"/></svg><span class="lbl">Settings</span></a><a class="rib" href="/issue" target="_blank" rel="noopener" title="Report an issue" aria-label="Report an issue"><svg><use href="#r-bug"/></svg></a><button class="rib" id="kbd" title="Keyboard shortcuts" aria-label="Keyboard shortcuts"><svg><use href="#r-kbd"/></svg></button><button class="rib th" id="themet" title="Theme" aria-label="Theme"><svg class="sun"><use href="#i-sun"/></svg><svg class="moon"><use href="#i-moon"/></svg></button></div>
 </nav>
 <script>
 // Side menu: theme and collapse, the same lines in board.html and notes.html. Runs before
@@ -276,18 +323,17 @@ select.sel{cursor:pointer;appearance:none;padding-right:30px;max-width:min(320px
  const rail=()=>{const m=phone.matches||(fold?fold==="min":wide.matches),b=document.getElementById("fold");r.dataset.rail=m?"min":"full";b.title=m?"Expand menu":"Collapse menu";b.setAttribute("aria-label",b.title);b.setAttribute("aria-expanded",!m)};
  wide.addEventListener("change",rail);phone.addEventListener("change",rail);rail();
  document.getElementById("fold").onclick=()=>{fold=r.dataset.rail==="min"?"full":"min";try{localStorage.setItem("kz-rail",fold)}catch(e){}rail()};
- // Theme: light, dark, or unset for system, in kz-theme. The switch shows what is on screen.
- const paint=()=>{const d=r.dataset.theme?r.dataset.theme==="dark":os.matches;document.querySelectorAll(".theme button").forEach(b=>b.setAttribute("aria-pressed",(b.dataset.t==="dark")===d))};
+ // Theme: light, dark, or unset for system, in kz-theme. The toggle shows what is on screen and flips it.
+ const paint=()=>{const d=r.dataset.theme?r.dataset.theme==="dark":os.matches;const b=document.getElementById("themet");if(b){b.dataset.dark=d;b.title=d?"Dark theme: switch to light":"Light theme: switch to dark";b.setAttribute("aria-label",b.title)}};
  window.setTheme=t=>{if(t==="system")delete r.dataset.theme;else r.dataset.theme=t;try{t==="system"?localStorage.removeItem("kz-theme"):localStorage.setItem("kz-theme",t)}catch(e){}paint();dispatchEvent(new Event("kz-theme"))};
  try{const t=localStorage.getItem("kz-theme");if(t)r.dataset.theme=t}catch(e){}
  // Motion: full, reduce, or unset to follow the system's reduced-motion, in kz-motion.
  window.setMotion=m=>{if(m==="system")delete r.dataset.motion;else r.dataset.motion=m;try{m==="system"?localStorage.removeItem("kz-motion"):localStorage.setItem("kz-motion",m)}catch(e){}};
  try{const m=localStorage.getItem("kz-motion");if(m)r.dataset.motion=m}catch(e){}
  os.addEventListener("change",paint);paint();
- document.querySelectorAll(".theme button").forEach(b=>b.onclick=()=>setTheme(b.dataset.t));
+ document.getElementById("themet").onclick=e=>setTheme(e.currentTarget.dataset.dark==="true"?"light":"dark");
  // Phones: More holds the tabs that do not fit; a pick or a tap elsewhere closes it.
- const more=document.querySelector(".mtab");more.querySelectorAll("a").forEach(a=>a.addEventListener("click",()=>more.open=false));
- addEventListener("pointerdown",e=>{if(more.open&&!more.contains(e.target))more.open=false},true)})();
+ const more=document.querySelector(".mtab");if(more){more.querySelectorAll("a").forEach(a=>a.addEventListener("click",()=>more.open=false));addEventListener("pointerdown",e=>{if(more.open&&!more.contains(e.target))more.open=false},true)}})();
 </script>
 <div class="app">
 <div class="hdr">
@@ -321,7 +367,7 @@ select.sel{cursor:pointer;appearance:none;padding-right:30px;max-width:min(320px
 </div>
 </div>
 <div class="toast" id="toast" role="status"></div>
-<script>document.querySelector('.rail a[data-view="notes"]').setAttribute("aria-current","page")</script>
+
 <script src="/notebook.js"></script>
 </body>
 </html>

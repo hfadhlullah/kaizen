@@ -33,8 +33,7 @@ const sideAtStart = () => {
 function setSide(on) {
   side = on;
   $("home").classList.toggle("hopen", on);
-  const t = $("htog");
-  if (t) t.setAttribute("aria-expanded", String(on)), (t.title = on ? "Hide chats" : "Show chats");
+  for (const t of [$("htog"), $("hsidetop")]) if (t) t.setAttribute("aria-expanded", String(on)), (t.title = on ? "Hide chats" : "Show chats");
   if (!phone())
     try {
       localStorage.setItem("kz-hist", on ? "1" : "0");
@@ -180,10 +179,11 @@ function draw() {
   if (shown !== (cur && cur.id)) seen = 0;
   if (side === null) side = sideAtStart();
   h.classList.toggle("hopen", side);
-  h.innerHTML = String(html`<div class="hside">${list()}</div><div class="hscrim" id="hscrim"></div><div class="hmain${empty ? " hfresh" : ""}"><div class="htop"><button class="ib" id="htog" aria-label="Chats" aria-expanded="${String(side)}" title="${side ? "Hide chats" : "Show chats"}">${ico("side")}</button></div><div class="hlog" id="hlog" aria-live="polite">${empty ? hero() : cur.messages.map(msg)}</div><form class="hbox" id="hbox"><input id="hfile" type="file" multiple hidden><button type="button" class="ib hattach" id="hattach" aria-label="Attach files" title="Attach files">${ico("clip")}</button><div class="hinput"><div class="hatt" id="hatt"></div><textarea id="hq" rows="1" placeholder="Ask anything, or describe what to build…" aria-label="Message the agent"></textarea></div>${empty ? "" : html`<span class="hwhere" title="Project">${ico("board")}${cur.project ? name(cur.project) : "No project"}</span>`}${sendButton()}</form>${empty ? chips() : ""}</div>`);
+  h.innerHTML = String(html`<div class="hside">${list()}</div><div class="hscrim" id="hscrim"></div><div class="hmain${empty ? " hfresh" : ""}"><div class="htop"><button class="ib" id="htog" aria-label="Chats" aria-expanded="${String(side)}" title="${side ? "Hide chats" : "Show chats"}">${ico("side")}</button></div><div class="hlog" id="hlog" aria-live="polite">${empty ? hero() : cur.messages.map(msg)}</div><form class="hbox" id="hbox"><input id="hfile" type="file" multiple hidden><button type="button" class="ib hattach" id="hattach" aria-label="Attach files" title="Attach files">${ico("clip")}</button><div class="hinput"><div class="hatt" id="hatt"></div><textarea id="hq" rows="1" placeholder="${phone() ? "Ask or describe what to build…" : "Ask anything, or describe what to build…"}" aria-label="Message the agent"></textarea></div>${empty ? "" : html`<span class="hwhere" title="Project">${ico("board")}${cur.project ? name(cur.project) : "No project"}</span>`}${sendButton()}</form>${empty ? chips() : ""}</div>`);
   seen = empty ? 0 : cur.messages.length;
   shown = cur && cur.id;
   $("htog").onclick = () => setSide(!side);
+  $("hsidetop").onclick = () => setSide(!side);
   $("hscrim").onclick = () => setSide(false);
   const q = $("hq");
   renderAttachments();

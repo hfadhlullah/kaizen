@@ -121,8 +121,10 @@ note covers.
    area, write a note for it as step 4 of *Update* in [`docs.md`](docs.md) says and
    list it in `Index.md`. A path that is not part of the project's material — a lock
    file, a generated bundle — needs no note.
-4. **Lint** the notes touched, as *Lint* in [`docs.md`](docs.md) lists, and fix what
-   this run broke.
+4. **Lint:** run `kaizen docs lint` from the project or worktree. It checks the whole
+   vault and exits nonzero on findings. Fix findings this run introduced before the
+   final report, and report any pre-existing findings with the command output. Run it
+   again after any later fix round before setting `stage: "done"`.
 
 Name the notes touched in the final report; the commit at done includes them. A run
 whose changes leave every note true touches nothing and says so in one line.

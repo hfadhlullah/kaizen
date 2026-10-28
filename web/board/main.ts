@@ -13,6 +13,11 @@ import { filterBox, statusSheet } from "./cards.ts";
 import { initLive } from "./live.ts";
 import { store } from "./store.ts";
 import { initViewer } from "./viewer.ts";
+import { initContext } from "./context.ts";
+import { initFooter, initRail } from "./workspace.ts";
+import { go } from "./views.ts";
+import { openWorkspace } from "./run-view.ts";
+import { newIdea } from "./cards.ts";
 
 initPanel();
 initViews();
@@ -21,8 +26,24 @@ initUpdate();
 initKeys();
 initLive();
 initViewer();
+initContext();
 filterBox();
 statusSheet();
+initRail();
+initFooter(() => go("terminal", true));
+// The rail's rows and + open a card or the new-idea form here, on the board, when it has them.
+addEventListener("kz-open-card", (e: any) => {
+  const { dir, id, text } = e.detail;
+  const c = store.S.cards.find((x) => x.state === dir && (id ? x.kind === "run" && x.id === id : x.kind === "idea" && x.text === text));
+  if (!c) return;
+  e.preventDefault();
+  openWorkspace(c);
+});
+addEventListener("kz-new-idea", (e) => {
+  // A modal over whatever page is showing: the idea appears in the menu and Ideas by the usual refresh.
+  e.preventDefault();
+  newIdea({ dir: e.detail?.dir ?? null });
+});
 
 // One popup at a time: a press anywhere first shuts every open popup it is not inside,
 // before any handler runs (several stop propagation), so the one it opens is the only one

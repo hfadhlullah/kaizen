@@ -7,10 +7,11 @@ import { draft, undraft } from "./drafts.ts";
 import { COLS, ICON, MARKS, NAMES, WORD, age, d, need } from "./labels.ts";
 import { brief } from "./markdown.ts";
 import { open, openAt, toggleArchive } from "./panel.ts";
-import { ideaCombo, list, newDir, plogo, short, showList, showable } from "./projects.ts";
+import { ideaCombo, list, newDir, plogo, setNewDir, short, showList, showable } from "./projects.ts";
 import { askNotify, toast } from "./toast.ts";
 import { answer, decided, resumable, resume } from "./approvals.ts";
 import { termsBadge } from "./terms.ts";
+import { boardBadge, waitingCount } from "./badge.ts";
 
 let filter = null;
 let query = ""; // the header filter box, matched against a card's title and request
@@ -311,13 +312,40 @@ function inlineForm(c) {
   li.className = "inl";
   const dir = c.state;
   if (store.mode === "edit") {
-    li.innerHTML = html`<input value="${c.text}"><textarea placeholder="Anything the planner should know">${c.notes || ""}</textarea><div class="q dim" id="clong" hidden>The first line is over 72 characters; logs will cut it short.</div><div class="row"><button class="btn ghost" data-a="c">Cancel</button><button class="btn pri" data-a="s">Save</button></div>`;
+    if (editFiles.k !== key(c)) editFiles = { k: key(c), files: [] };
+    const files = editFiles.files;
+    li.innerHTML = html`<input value="${c.text}"><textarea placeholder="Anything the planner should know">${c.notes || ""}</textarea><div class="row"><div class="att" id="editatt"></div><button type="button" class="ib" id="editpick" aria-label="Attach files" title="Attach files">${ico("clip")}</button></div><input type="file" id="editfile" multiple hidden><div class="q dim" id="clong" hidden>The first line is over 72 characters; logs will cut it short.</div><div class="row"><button class="btn ghost" data-a="c">Cancel</button><button class="btn pri" data-a="s">Save</button></div>`;
+    const shown = () => (li.querySelector("#editatt").textContent = files.map((f) => f.name).join(" · "));
+    const add = (f) => { files.push(f); shown(); };
+    shown();
+    li.querySelector("#editpick").onclick = () => li.querySelector("#editfile").click();
+    li.querySelector("#editfile").onchange = (e) => {
+      [...e.target.files].forEach(add);
+      e.target.value = "";
+    };
+    for (const el of [li.querySelector("input"), li.querySelector("textarea")])
+      el.onpaste = (e) => {
+        for (const it of e.clipboardData.items)
+          if (it.kind === "file") {
+            const f = it.getAsFile();
+            add(new File([f], f.name === "image.png" ? `paste-${Date.now()}.png` : f.name, { type: f.type }));
+            e.preventDefault();
+          }
+      };
     li.querySelector("[data-a=s]").onclick = async () => {
       const next = li.querySelector("input").value.trim(),
         notes = li.querySelector("textarea").value.trim();
+      if (!next) return;
+      if (next !== c.text || notes !== (c.notes || "")) {
+        const r = await post("/inbox", { op: "edit", dir, text: c.text, next, notes });
+        if (!r.ok) return;
+      }
+      if (files.length) {
+        const r = await post("/note", { dir, for: next, text: "", files: await dataUrls(files) });
+        if (!r.ok) toast("Idea saved, files not attached");
+      }
+      editFiles = { k: "", files: [] };
       store.mode = null;
-      if (next && (next !== c.text || notes !== (c.notes || "")))
-        await post("/inbox", { op: "edit", dir, text: c.text, next, notes });
       load();
     };
   }
@@ -370,13 +398,14 @@ function inlineForm(c) {
     runForm(li, c);
   }
   li.querySelector("[data-a=c]").onclick = () => {
+    if (store.mode === "edit") editFiles = { k: "", files: [] };
     store.mode = null;
     render();
   };
   // Edit and reject take dictation; the run prompt has no field.
-  li.querySelectorAll("input,textarea").forEach((f, i) => draft(f, "f:" + store.mode + ":" + store.modeKey + ":" + i));
+  li.querySelectorAll("input:not([type=file]),textarea").forEach((f, i) => draft(f, "f:" + store.mode + ":" + store.modeKey + ":" + i));
   if (store.mode !== "run") {
-    const m = mic([...li.querySelectorAll("input,textarea")]);
+    const m = mic([...li.querySelectorAll("input:not([type=file]),textarea")]);
     if (m) li.querySelector(".row").prepend(m);
   }
   const inp = li.querySelector("input");
@@ -393,6 +422,7 @@ function inlineForm(c) {
   return li;
 }
 
+let editFiles = { k: "", files: [] };
 // The agent and Basic/Yolo picked in the open Run form. Kept here, not in the form:
 // the board is rebuilt on every server change, and the choice must outlive that.
 // Yolo never outlives the form: render() drops it once the form is closed.
@@ -472,12 +502,16 @@ const HINT = { 0: "Add an idea to start a run", 1: "Ideas you run are planned he
 // redraws the inline form on every change and a redraw would drop them.
 let newFiles = [];
 // The new-idea form, wired into f: inline at the top of Ideas, or in a modal.
+// Opened from another page (Ideas, a workspace, the side menu): always the project picker,
+// preset to that page's project or empty so one is chosen. The Board keeps its own rule.
+let formPick: { dir: string | null } | null = null;
 function ideaForm(f, shut) {
+  const picking = store.all || !!formPick;
   const close = () => {
     newFiles = [];
     shut();
   };
-  f.innerHTML = html`${store.all ? html`<div class="combo" id="ndc"><button type="button" class="sel" id="newdir" aria-label="Project for this idea" aria-haspopup="listbox" aria-expanded="false"></button><div class="menu-pop" hidden><input class="sel" aria-label="Search projects" placeholder="Search projects…" spellcheck="false" autocomplete="off"><div id="nds" role="listbox"></div></div></div>` : ""}<input id="newidea" placeholder="What do you want to build?"><textarea id="newnotes" placeholder="Anything the planner should know (optional)"></textarea><div class="att" id="newatt"></div><input type="file" id="newfile" multiple hidden><div class="row"><button type="button" class="ib" id="newpick" aria-label="Attach files" title="Attach files">${ico("clip")}</button><button type="button" class="btn ghost" id="nc">Cancel</button><div class="split"><button type="button" class="btn pri" id="ns">Add</button><button type="button" class="btn pri" id="nm" aria-label="More ways to add" aria-haspopup="menu" aria-expanded="false">${ico("chev")}</button><div class="menu-pop" role="menu" hidden><button type="button" role="menuitem" id="nr" title="Add the idea and run it now">${ico("play")}Start run</button></div></div></div>`;
+  f.innerHTML = html`${picking ? html`<div class="combo" id="ndc"><button type="button" class="sel" id="newdir" aria-label="Project for this idea" aria-haspopup="listbox" aria-expanded="false"></button><div class="menu-pop" hidden><input class="sel" aria-label="Search projects" placeholder="Search projects…" spellcheck="false" autocomplete="off"><div id="nds" role="listbox"></div></div></div>` : ""}<input id="newidea" placeholder="What do you want to build?"><label for="newnotes">Anything the planner should know <span class="dim">(optional)</span></label><textarea id="newnotes" placeholder="Context, constraints, examples, and what a good result looks like"></textarea><div class="att" id="newatt"></div><input type="file" id="newfile" multiple hidden><div class="row"><button type="button" class="ib" id="newpick" aria-label="Attach files" title="Attach files">${ico("clip")}</button><button type="button" class="btn ghost" id="nc">Cancel</button><div class="split"><button type="button" class="btn pri" id="ns">Add</button><button type="button" class="btn pri" id="nm" aria-label="More ways to add" aria-haspopup="menu" aria-expanded="false">${ico("chev")}</button><div class="menu-pop" role="menu" hidden><button type="button" role="menuitem" id="nr" title="Add the idea and run it now">${ico("play")}Start run</button></div></div></div>`;
   const inp = f.querySelector("#newidea"),
     files = newFiles;
   draft(inp, "f:new:0");
@@ -487,8 +521,13 @@ function ideaForm(f, shut) {
     const text = inp.value.trim();
     if (!text) return;
     const notes = f.querySelector("textarea").value.trim();
+    const dir = picking ? newDir : null;
+    if (picking && !dir) {
+      toast("Choose a project for this idea");
+      f.querySelector<HTMLElement>("#newdir")?.click();
+      return;
+    }
     close();
-    const dir = store.all ? newDir : null;
     const r = await post("/inbox", dir ? { op: "add", dir, text, notes } : { op: "add", text, notes });
     if (r.ok) {
       toast("Idea added");
@@ -526,7 +565,11 @@ function ideaForm(f, shut) {
           e.preventDefault();
         }
     };
-  if (store.all) ideaCombo(f);
+  if (picking) {
+    if (formPick) setNewDir(formPick.dir);
+    // From another page a choice is always required: a preset project the picker does not offer is not swapped for another.
+    ideaCombo(f, !!formPick);
+  }
   f.querySelector("#ns").onclick = () => save(false);
   f.querySelector("#nr").onclick = () => save(true);
   {
@@ -577,7 +620,9 @@ function ideaForm(f, shut) {
 }
 
 // New idea from the top bar, the empty board or n: the same form, in a modal.
-export function newIdea() {
+export function newIdea(from?: { dir: string | null }) {
+  // The header button passes its click event: only an explicit { dir } is another page's call.
+  formPick = from && "dir" in from ? from : null;
   if (store.mode === "new") {
     store.mode = null;
     render();
@@ -596,6 +641,7 @@ export function render() {
   if (store.mode && store.mode !== "new" && ![...store.S.cards, ...backlogList()].some((c) => key(c) === store.modeKey))
     store.mode = null;
   if (store.mode !== "run" && runPick) runPick.yolo = false;
+  if (store.mode !== "edit") editFiles = { k: "", files: [] };
   if (!store.mode) undraft("f:");
   // Reassigned, not emptied: a form still open (the modal) keeps its own array.
   if (store.mode !== "new") newFiles = [];
@@ -878,8 +924,9 @@ export function render() {
     b.appendChild(s);
   });
   // The tab says how many runs wait on you, or agents wait on input, so a background tab still tells you.
-  const nw = store.S.cards.filter((c) => !c.archived && ((c.kind === "run" && c.status === "waiting") || (c.pty?.alive && c.pty.asking))).length;
+  const nw = waitingCount(store.S.cards);
   document.title = nw ? `(${nw}) kaizen` : "kaizen";
+  if (store.all) boardBadge(store.S.cards, store.S.projects);
   termsBadge();
   stopDictation(false); // forms were just rebuilt; a listener whose field is gone would write into nothing
   if (fk && document.activeElement === document.body) cardEl(fk)?.focus({ preventScroll: true });

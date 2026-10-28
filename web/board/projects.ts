@@ -1,4 +1,5 @@
 import { store } from "./store.ts";
+import { startDir } from "./labels.ts";
 import { load, post } from "./api.ts";
 import { newIdea, render } from "./cards.ts";
 import { $, html, ico, modal } from "./dom.ts";
@@ -156,13 +157,14 @@ export async function pick(v) {
 // New idea in All projects: the projects being shown, else every one.
 export let newDir = null;
 // Same combo as the header's project picker: a button, then a searchable list.
-export function ideaCombo(f) {
+export function ideaCombo(f, choose = false) {
   const ps = ideaDirs(),
     btn = f.querySelector("#newdir"),
     pp = f.querySelector("#ndc .menu-pop"),
     q = pp.querySelector("input"),
     box = f.querySelector("#nds");
-  if (!ps.some((p) => p.dir === newDir)) newDir = ps[0]?.dir ?? null;
+  // Opened from a page with no project of its own: no default, the user picks one.
+  newDir = startDir(ps.map((p) => p.dir), newDir, choose);
   const name = () => {
     const p = ps.find((p) => p.dir === newDir);
     btn.innerHTML = p ? prow(p.dir, p.label) : "Choose project";
@@ -212,6 +214,44 @@ export function ideaCombo(f) {
     }
   };
   name();
+}
+export const setNewDir = (d) => (newDir = d);
+// The same searchable picker as the header's, for any page: All projects first, then each project.
+export function projectPicker(host: HTMLElement, ps: { dir: string; label: string }[], value: string, onPick: (dir: string) => void) {
+  host.classList.add("combo");
+  host.innerHTML = String(
+    html`<button type="button" class="sel" aria-label="Project" aria-haspopup="listbox" aria-expanded="false"></button><div class="menu-pop" hidden><input class="sel" aria-label="Search projects" placeholder="Search projects…" spellcheck="false" autocomplete="off"><div role="listbox"></div></div>`,
+  );
+  const btn = host.querySelector("button")!,
+    pp = host.querySelector<HTMLElement>(".menu-pop")!,
+    q = pp.querySelector("input")!,
+    box = pp.querySelector<HTMLElement>("[role=listbox]")!;
+  const all = { dir: "", label: "All projects" };
+  const row = (p) => (p.dir ? prow(p.dir, p.label) : html`<span class="plogo" aria-hidden="true">${ico("board")}</span><span>All projects</span>`);
+  btn.innerHTML = String(row([all, ...ps].find((p) => p.dir === value) || all));
+  const draw = () => {
+    const t = q.value.trim().toLowerCase();
+    box.innerHTML =
+      [all, ...ps]
+        .filter((p) => !t || p.label.toLowerCase().includes(t))
+        .map((p) => html`<button type="button" role="option" data-d="${p.dir}" title="${p.label}" class="${p.dir === value ? "on" : ""}">${row(p)}</button>`)
+        .join("") || `<div class="grp">No match</div>`;
+    box.querySelectorAll<HTMLElement>("button").forEach((b) => (b.onclick = () => onPick(b.dataset.d!)));
+  };
+  btn.onclick = () => {
+    pp.hidden = !pp.hidden;
+    btn.setAttribute("aria-expanded", String(!pp.hidden));
+    if (!pp.hidden) {
+      q.value = "";
+      draw();
+      q.focus();
+    }
+  };
+  q.oninput = draw;
+  q.onkeydown = (e) => {
+    if (e.key === "Escape") (pp.hidden = true), btn.focus();
+    if (e.key === "Enter") box.querySelector<HTMLElement>("button")?.click();
+  };
 }
 function ideaDirs() {
   const sp = showable(),

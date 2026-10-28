@@ -2,6 +2,8 @@
 // that shape), and an editor for a film's on-screen words with its built preview.
 // Bundled into web/video.js by `bun run build:web`. The server keeps every path; the
 // page names a video by its place number and folder name only.
+import { refreshBoardBadge } from "./board/badge.ts";
+import { initRail } from "./board/workspace.ts";
 
 type Format = "9x16" | "16x9" | "4x5";
 type Job = { id: number; kind: string; state: string; step: number; total: number; label: string[]; error: string | null; place: number; name: string };
@@ -830,7 +832,7 @@ $("wiz").addEventListener("submit", async (e) => {
 // The board's change stream: a job moving or a file landing redraws what is on screen.
 function listen() {
   const es = new EventSource("/events");
-  es.onmessage = () => load();
+  es.onmessage = () => { load(); void refreshBoardBadge(); };
 }
 
 // The board only watches its own state, not video folders: a draft Claude rebuilds in its terminal (an Ask
@@ -840,4 +842,6 @@ setInterval(() => { if (open && document.visibilityState === "visible") load(); 
 
 route();
 load();
+initRail();
+void refreshBoardBadge();
 listen();

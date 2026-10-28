@@ -38,7 +38,8 @@ const readable = (t) =>
           .join(" "),
       );
 export function open(c, keepTab) {
-  if (view !== "board") go("board", true);
+  // The run workspace docks this panel at its right: it stays there.
+  if (view !== "board" && view !== "run") go("board", true);
   stopDictation(true); // the panel body is about to be replaced
   fixOff.clear();
   store.openKey = key(c);
@@ -69,6 +70,8 @@ export function open(c, keepTab) {
             return;
           }
           const k = key(c);
+          // The form lives on the board: the run workspace hands over to it.
+          if (view === "run") go("board", true);
           close();
           store.mode = a;
           store.modeKey = k;
@@ -81,7 +84,8 @@ export function open(c, keepTab) {
     store.lastTab = store.tab =
       c.status === "abandoned" ? "plan" : { 1: "plan", 2: "backlog", 3: "review", 4: "preview" }[c.column] || "request";
   // A run its agent is working on in this board, while planning, building or reviewing, opens on that agent.
-  if (!keepTab && c.pty && c.pty.alive && c.column >= 1 && c.column <= 3) store.tab = "term";
+  // Not in the run workspace: there the agent is a centre tab.
+  if (!keepTab && c.pty && c.pty.alive && c.column >= 1 && c.column <= 3 && view !== "run") store.tab = "term";
   openRun(c, false);
 }
 // A building run's Backlog tab opens with its progress, above the deferred items. The
@@ -115,9 +119,23 @@ function steps(c) {
     STEPS.map((n, i) => `<span class="${i < at ? "ok" : i === at ? "now" : ""}"><i></i>${n}</span>`).join(""),
   )}</span>`;
 }
+// The run workspace's header, as in its mockup: project · runner · agent · mode, then
+// five bars (request, plan, build, review, done): done green, the current one amber.
+function meta(c) {
+  let st: any = {};
+  try {
+    st = JSON.parse(store.runDoc?.state || "{}");
+  } catch {}
+  const proj = String(c.where || "").split(/[\\/]/).filter(Boolean).pop() || "";
+  const parts = [proj, st.runner, st.agent, st.mode].filter(Boolean);
+  const at = c.status === "done" ? 5 : Math.max(1, c.column || 1);
+  return html`<div class="rmeta">${parts.join(" · ")}</div><div class="rbars" title="${cap(WORD[c.status] || c.status)}">${raw(
+    [0, 1, 2, 3, 4].map((i) => `<i class="${i < at ? "ok" : i === at ? "now" : ""}"></i>`).join(""),
+  )}</div>`;
+}
 // An idea's panel: its terminal while the run it started is being born there, else its notes.
 export function ideaBody(c) {
-  if (c.pty) showTerm(c);
+  if (c.pty && view !== "run") showTerm(c); // in the run workspace the agent is a centre tab
   else {
     termStop();
     chat(c, c.notes, c.archived || c.status !== "idea");
@@ -140,7 +158,7 @@ export async function openRun(c, refresh, again) {
   // The board's own status mark, then what it waits on: chips, not a dotted line.
   $("psub").innerHTML = c.status === "abandoned" ? html`<span class="pst"><span class="st d-${ICON[c.status] || "idea"}"><svg><use href="#s-${ICON[c.status] || "idea"}"/></svg></span>${cap(WORD[c.status] || c.status)}</span>` +
     (c.awaiting ? html`<span class="pst dim">${cap(need(c.awaiting))}</span>` : "") +
-    (c.parent ? html`<span class="pst link" title="Filed by this run">${c.parent}</span>` : "") : steps(c);
+    (c.parent ? html`<span class="pst link" title="Filed by this run">${c.parent}</span>` : "") : view === "run" ? meta(c) : steps(c);
   // Only tabs with something in them show. A card whose agent runs in the board gets its
   // terminal behind the header's terminal button, chosen once right after a launch from here.
   const tabs = TABS.filter(
@@ -171,11 +189,14 @@ export async function openRun(c, refresh, again) {
     openRun(c, true);
   };
   $("ptabs").innerHTML = tabs
-    .map((t) => html`<button class="${t[1] === store.tab ? "on" : ""}" data-k="${t[1]}">${t[0]}</button>`)
+    .map((t) => html`<button class="${t[1] === store.tab ? "on" : ""}" data-k="${t[1]}" title="${t[0]}"><svg aria-hidden="true"><use href="#t-${t[1]}"/></svg><span>${t[0]}</span></button>`)
     .join("");
   [...$("ptabs").children].forEach(
     (b) =>
       (b.onclick = () => {
+        // In the run workspace Preview is a centre tab, not a panel tab.
+        if (view === "run" && b.dataset.k === "preview") return void dispatchEvent(new Event("kz-run-preview"));
+        $("panel").classList.remove("pn");
         store.tab = b.dataset.k;
         openRun(c, true);
       }),
@@ -266,6 +287,7 @@ export async function openRun(c, refresh, again) {
           resume(c, b);
           return;
         }
+        if (view === "run") go("board", true);
         close();
         store.mode = "reject";
         store.modeKey = key(c);
@@ -282,7 +304,8 @@ export function deep() {
     d = p.get("dir"),
     id = p.get("run"),
     idea = p.get("idea");
-  if (!id && idea === null) return;
+  // A workspace address (?view=run&idea=) is the run view's own, not a note's deep link.
+  if ((!id && idea === null) || p.get("view") === "run") return;
   history.replaceState(null, "", location.pathname + "?all=1");
   const c = store.S.cards.find(
     (x) => x.state === d && (id ? x.kind === "run" && x.id === id : x.kind === "idea" && x.text === idea),
@@ -339,7 +362,7 @@ export async function toggleArchive(c, archived) {
   load();
 }
 export function close() {
-  if (view !== "board") return;
+  if (view !== "board" && view !== "run") return;
   const k = store.openKey;
   stopDictation(true);
   termStop();

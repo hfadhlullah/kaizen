@@ -40,12 +40,14 @@ export function initLive() {
   // Back from a terminal: what was committed or pushed there touched nothing the server watches.
   addEventListener("focus", () => load(true));
   // No view in the address is Home.
-  const first = ["settings", "sources", "terminal", "board"].includes(v0) ? v0 : "home";
+  const first = ["settings", "sources", "terminal", "board", "ideas", "run"].includes(v0) ? v0 : "home";
   markView(first);
   document.body.classList.toggle("paged", first !== "board");
   document.body.classList.toggle("ice", v0 === "sources");
   document.body.classList.toggle("termv", v0 === "terminal");
   document.body.classList.toggle("homev", first === "home");
+  document.body.classList.toggle("ideav", first === "ideas");
+  document.body.classList.toggle("runv", first === "run");
   (async () => {
     let d;
     try {

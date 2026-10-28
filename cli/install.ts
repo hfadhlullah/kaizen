@@ -122,6 +122,19 @@ if (Bun.argv[2] === "remember" || Bun.argv[2] === "recall") {
   process.exit(cli(Bun.argv.slice(2)));
 }
 
+if (Bun.argv[2] === "docs") {
+  if (Bun.argv.length !== 4 || Bun.argv[3] !== "lint") { console.log("\n  kaizen docs lint\n"); process.exit(1); }
+  const { locate } = await import("./state.ts");
+  const { lintDocs } = await import("./docs.ts");
+  const state = locate();
+  const gitRoot = Bun.which("git") ? Bun.spawnSync(["git", "rev-parse", "--show-toplevel"], { cwd: process.cwd() }) : null;
+  const repo = gitRoot?.exitCode === 0 ? gitRoot.stdout.toString().trim() : "";
+  const root = repo && existsSync(join(repo, ".kaizen")) ? repo : state ? dirname(state) : null;
+  const problems = root ? lintDocs(root) : ["no kaizen project found"];
+  console.log(problems.length ? `\n${problems.map((p) => `  ${p}`).join("\n")}\n\n  ${problems.length} docs lint finding(s)\n` : "\n  docs lint: clean\n");
+  process.exit(problems.length ? 1 : 0);
+}
+
 if (Bun.argv[2] === "sources" || Bun.argv[2] === "gather" || Bun.argv[2] === "icebox") {
   const { locate, label } = await import("./state.ts");
   const src = await import("./sources.ts");

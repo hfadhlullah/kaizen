@@ -1,5 +1,9 @@
 // The notebook page. Bundled into web/notebook.js by `bun run build:web`; the page
 // never sees the filesystem, only /vault. See design.md, "Notebook", for the look.
+import { refreshBoardBadge } from "./board/badge.ts";
+import { initRail } from "./board/workspace.ts";
+// embed=1: a run workspace's note tab shows the note alone, without the side menu and header.
+if (new URLSearchParams(location.search).has("embed")) document.body.classList.add("embed");
 import {
   EditorView,
   Decoration,
@@ -1232,11 +1236,13 @@ addEventListener("pagehide", () => {
   const asked = new URLSearchParams(location.search).get("note");
   if (asked && notes.some((n) => n.name === asked)) again = asked;
   if (again && notes.some((n) => n.name === again)) await openNote(again);
+  initRail();
+  void refreshBoardBadge();
   // Every write under a state dir arrives as `changed`, this page's own saves included.
   const listen = () => {
     const es = new EventSource("/events");
     es.onmessage = (ev) => {
-      if (ev.data === "changed") void load();
+      if (ev.data === "changed") { void load(); void refreshBoardBadge(); }
     };
     es.onerror = () => {
       es.close();

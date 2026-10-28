@@ -14,7 +14,7 @@ import { resume } from "./approvals.ts";
 // mode: grid (√n), cols (side by side) or rows (stacked, so borders drag up and down).
 type Lay = { mode: string; order: string[]; hidden: string[]; max: string | null; sizes: Record<string, { c: number[]; r: number[] }> };
 const MODES = [["grid", "Grid", "lgrid"], ["cols", "Side by side", "lcols"], ["rows", "Stacked", "lrows"]];
-const GAP = 6;
+const GAP = 1;
 let lay: Lay = { mode: "grid", order: [], hidden: [], max: null, sizes: {} };
 try {
   lay = { ...lay, ...JSON.parse(localStorage.getItem("kz-terms") || "{}") };
@@ -46,6 +46,8 @@ const projOf = (c) => String(c.where || "").split(/[\\/]/).filter(Boolean).pop()
 function sessions() {
   const m = new Map();
   for (const c of store.S.cards) if (c.pty && !c.archived) m.set(c.pty.key, c);
+  // Shells and bare agent sessions a run workspace opened (POST /shell): a tile each too.
+  for (const s of store.shells) m.set(s.key, { kind: "shell", text: s.title, where: s.dir.replace(/[\\/]\.kaizen$/, ""), state: s.dir, pty: { key: s.key, alive: true, asking: false } });
   return m;
 }
 
@@ -72,6 +74,8 @@ export function termsStop() {
 const focusTerm = (k: string) => tiles.get(k)?.el.querySelector<HTMLElement>(".xterm-helper-textarea")?.focus({ preventScroll: true });
 // Ctrl+Shift+M maximises or restores the tile being typed in. Escape belongs to the agent,
 // so the key is read in capture, before xterm sends it on.
+// The footer's /shells read changed the shell list.
+if (typeof window !== "undefined") addEventListener("kz-shells", () => showing && openTerms());
 if (typeof window !== "undefined") addEventListener(
   "keydown",
   (e) => {
@@ -198,7 +202,7 @@ export function openTerms() {
     const hd = t.el.querySelector("header")!;
     hd.title = (c.kind === "run" ? c.id : c.text) + " · " + c.where + (i < 9 ? ` · Alt+${i + 1}` : "");
     // An ended run can be resumed from here; an idea whose agent ended has no run to resume.
-    hd.innerHTML = html`<span class="tdot ${st}" role="img" title="${st}" aria-label="${st}"></span><b>${nameOf(c)} - ${projOf(c)}</b>${off ? html`<span class="tend">ended</span>` : ""}<span class="sp"></span>${off && c.kind === "run" ? html`<button class="btn sm" data-a="resume" title="Continue this run's agent">Resume</button>` : ""}<button class="ib sm" data-a="card" title="Open card" aria-label="Open card">${ico("open")}</button><button class="ib sm" data-a="max" title="${lay.max === k ? "Restore" : "Maximise"} (Ctrl+Shift+M)" aria-label="${lay.max === k ? "Restore" : "Maximise"}">${ico(lay.max === k ? "min" : "max")}</button>${off ? "" : html`<button class="ib sm" data-a="hide" title="Hide" aria-label="Hide">${ico("dash")}</button>`}<button class="ib sm" data-a="${off ? "hide" : "exit"}" title="${off ? "Close" : "Exit session"}" aria-label="${off ? "Close" : "Exit session"}">${ico("close")}</button>`.s;
+    hd.innerHTML = html`<span class="tdot ${st}" role="img" title="${st}" aria-label="${st}"></span><b>${nameOf(c)} - ${projOf(c)}</b>${off ? html`<span class="tend">ended</span>` : ""}<span class="sp"></span>${off && c.kind === "run" ? html`<button class="btn sm" data-a="resume" title="Continue this run's agent">Resume</button>` : ""}${c.kind === "shell" ? "" : html`<button class="ib sm" data-a="card" title="Open card" aria-label="Open card">${ico("open")}</button>`}<button class="ib sm" data-a="max" title="${lay.max === k ? "Restore" : "Maximise"} (Ctrl+Shift+M)" aria-label="${lay.max === k ? "Restore" : "Maximise"}">${ico(lay.max === k ? "min" : "max")}</button>${off ? "" : html`<button class="ib sm" data-a="hide" title="Hide" aria-label="Hide">${ico("dash")}</button>`}<button class="ib sm" data-a="${off ? "hide" : "exit"}" title="${off ? "Close" : "Exit session"}" aria-label="${off ? "Close" : "Exit session"}">${ico("close")}</button>`.s;
     t.el.classList.toggle("ended", off);
     t.el.classList.toggle("asking", st === "asking");
     t.el.classList.toggle("off", !!one && one !== k);
@@ -305,7 +309,7 @@ const at = (tr: number[], i: number) => {
     S = tr.slice(0, i + 1).reduce((a, b) => a + b, 0);
   return `calc((100% - ${(tr.length - 1) * GAP}px) * ${S / F} + ${i * GAP + GAP / 2}px)`;
 };
-function layout(grid: HTMLElement, c: number[], r: number[], shape: string, spanFrom: number, splits: boolean) {
+export function layout(grid: HTMLElement, c: number[], r: number[], shape: string, spanFrom: number, splits: boolean) {
   grid.querySelectorAll(".tsplit").forEach((s) => s.remove());
   const place = () => {
     grid.style.gridTemplateColumns = c.map((x) => x + "fr").join(" ");

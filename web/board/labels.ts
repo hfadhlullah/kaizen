@@ -16,6 +16,10 @@ export const NAMES = {
   unrechecked: "fix not rechecked",
 };
 export const MARKS = { claude: 1, codex: 1, agy: 1, opencode: 1, gemini: 1, cursor: 1, full: 1, lite: 1 };
+// The new-idea picker's starting project: the one asked for if it is offered, else none
+// when a choice is required, else the first offered.
+export const startDir = (offered: string[], want: string | null, choose: boolean) =>
+  want && offered.includes(want) ? want : choose ? null : (offered[0] ?? null);
 export const COLS = ["Ideas", "Planning", "Building", "Review", "Done"];
 // state.ts statuses onto the icon set in the <defs> above.
 export const ICON = {

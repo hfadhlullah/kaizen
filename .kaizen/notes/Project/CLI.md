@@ -1,19 +1,20 @@
 ---
 description: The kaizen command: installer, upgrade, uninstall, settings, prune, sources
 tags: [project, cli]
-sources: [cli/install.ts, cli/knowledge.ts, cli/setup.ts, cli/qr.ts, cli/settings.ts, cli/settings.test.ts, cli/worktree.ts, package.json]
-updated: 2026-10-27
+sources: [cli/install.ts, cli/docs.ts, cli/docs.test.ts, cli/knowledge.ts, cli/setup.ts, cli/qr.ts, cli/settings.ts, cli/settings.test.ts, cli/worktree.ts, package.json]
+updated: 2026-10-28
 ---
 # CLI
 
 ## What it does
-`kaizen` / `kaizen-agent` (both `cli/install.ts`, see `package.json` `bin`) is one top-level script that installs the workflow as links into the agent's folders, and dispatches subcommands: `setup`, `web`, `settings`/`config`, `upgrade`, `uninstall`, `prune`, `sources`/`gather`/`icebox`, `browser login`, `issue`, `remember`/`recall` (global knowledge, `cli/knowledge.ts`). With no subcommand in an installed setup it opens the [[Terminal board]]. Flags and behaviour for users: `docs/guide.md` ("Install", "Under the hood").
+`kaizen` / `kaizen-agent` (both `cli/install.ts`, see `package.json` `bin`) is one top-level script that installs the workflow as links into the agent's folders, and dispatches subcommands: `setup`, `web`, `settings`/`config`, `upgrade`, `uninstall`, `prune`, `sources`/`gather`/`icebox`, `browser login`, `issue`, `remember`/`recall` (global knowledge, `cli/knowledge.ts`), and `docs lint` (`cli/docs.ts`). With no subcommand in an installed setup it opens the [[Terminal board]]. Flags and behaviour for users: `docs/guide.md` ("Install", "Under the hood").
 
 ## Where it lives
 - `cli/install.ts` — everything above; `initProject()` writes a project's `.kaizen/`, its gitignore block and the `## Kaizen workflow` block in `CLAUDE.md` (`writePointer()`).
 - No agent found: `noAgent()` shows a picker; an agent with an `install` command in `AGENTS` (Claude Code, Codex, Gemini CLI, OpenCode) is installed after a Yes, `addInstallerBins()` puts `~/.local/bin`, `~/.opencode/bin` and npm's global bin on PATH, `detect()` re-reads it, the agent is offered once for sign-in, and the install continues. Cursor, Antigravity, a failed install or a missing npm fall back to the docs link. `Bun.which` needs `{ PATH: process.env.PATH }` to see a PATH changed at runtime.
 - `cli/setup.ts` — `kaizen setup`: project folder, preset, board, phone over Tailscale (writes `~/.kaizen/web-hosts`, prints a QR from `cli/qr.ts`); install offers it at the end. `install.ts` passes it `select`, so it stays testable.
 - `cli/qr.ts` — dependency-free QR encoder (byte mode, ECC L, versions 1-6), half-block output.
+- `cli/docs.ts` — read-only Project vault lint; reports broken links, metadata, coverage and staleness with a nonzero exit on findings. `cli/docs.test.ts` exercises small temporary projects.
 - `cli/settings.ts` — the full-screen settings browser over `config.yml`; the medium preset now fixes all review severities within its two-round limit.
 - `cli/install.test.ts`, `cli/settings.test.ts`.
 

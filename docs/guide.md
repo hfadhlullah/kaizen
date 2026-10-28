@@ -101,7 +101,8 @@ tells you what it concluded, so you correct a sentence instead of filling in a f
 | `/kaizen-abort` | Abandon the current run |
 | `/kaizen-gather` | Read the request sources kaizen cannot read by itself into the icebox |
 | `/kaizen-discover` | An agent groups what is in the icebox, proposes ideas, and promotes the ones you pick |
-| `/kaizen-docs [lint]` | Write or refresh this project's docs in Notes → `Project/`, which agents read before they build; `lint` lists stale notes and broken links |
+| `/kaizen-docs [lint]` | Write or refresh this project's docs in Notes → `Project/`, which agents read before they build; `lint` runs the CLI check below |
+| `kaizen docs lint` | Check the Project vault without changing it; print broken links, missing or uncovered sources and stale notes, and exit 1 on findings |
 | `kaizen sources [add\|rm <link>]` | In a terminal: list, add or remove request sources |
 | `kaizen gather` | In a terminal: check every source now and add new requests to the icebox |
 | `kaizen icebox [promote\|dismiss <ids>]` | In a terminal: list what waits in the icebox, promote it to Ideas, or dismiss it |
@@ -171,6 +172,14 @@ opens it in a tab of your default browser. Set **Open the board in** to `app` in
 
 **Home** is the page it opens on: a chat with kaizen's agent, like ChatGPT or Claude. New chat is at the top right. A new chat starts in the current Board project, or in none when the board shows all projects. Attach files with the paperclip, paste an image or file into the message box, or paste text normally; the limit is 20 files, 100 MB each and 300 MB total. While the agent works, Home shows the Kaizen mascot with its current tool or a thinking label. The agent keeps working when you leave Home; returning or refreshing restores the conversation and latest activity. Talk about any project: when you mention another one the agent asks whether to move the chat there, and when what you describe fits no project it offers to create one (in your Projects folder, by the same rules as New project). Tell it "switch to D" or "make a new project called shop" and it does. The board follows the chat and the agent continues the pending request in the new project without making you repeat it. A chat with no project can talk and plan but not edit files. For bigger work the agent starts a kaizen run, which shows on the Board. Chats are kept in `~/.kaizen/chats/`. The Board itself is at `/?view=board`. Home needs `codex` on the PATH and signed in.
 
+The left menu has Home, Icebox (with the number of new items), Ideas (with the icons of your first sources) and Board, then **Projects**: every open idea and run grouped by project, each with a small state icon (ring for an idea, an arc while planning or building, an orbiting dot in review, a ripple while it waits on you, a check when done, a pause when stalled; still when motion is reduced) and a line saying its stage and age. Done and abandoned runs stay listed for a day. The filter button steps through one project at a time and back to all; + adds an idea; a row opens that card's workspace. Settings, Report an issue and Keyboard shortcuts sit at the bottom. On a phone these become bottom tabs (Home, Icebox, Ideas, Board, Settings).
+
+**Ideas** is a table of every idea and run across your projects: Open, Running or Done, a search over titles and projects, a project picker, and a chip per source the ideas actually came from (an idea is matched to the Icebox item it was promoted from; one you typed is "Manual"). Start on an idea opens the same run form its card has; Open on a run opens its workspace.
+
+**A run's workspace** is where an idea or run is worked on. The run's own tabs (Request, Notes, Plan, Backlog, Work, Review) are an icon strip on the right, under the run's title and its Plan → Build → Review → Done bar, with Approve, Revise and the rest below them as on the card. The book icon at the bottom lists the project's notes; a note opens as a tab in the middle. The middle holds tabs: the run's agent, shells, the project's localhost, the run's Preview and opened notes. **+** opens a new shell in the project folder, your localhost (the address is remembered per project; from a phone over the tailnet, localhost is the phone, so it offers Open in a new tab instead), the Preview (a localhost address it names, else its screenshots), or a bare Claude or Codex session in the project (no run, only for agents you have installed). Split right and split down put a second tab beside or below the shown one, with a border you can drag. × on a shell ends it; × on the agent only hides its tab. The panel button at the top right hides the strip; on a phone it opens it as a sheet. Shells keep running when you leave the workspace and show as tiles on the Terminal page, which the footer's terminal count opens. Anyone who can reach the board can open a shell here, the same reach that can already run your agents: keep `web-hosts` to your own devices.
+
+A flat bar along the bottom shows your Claude and Codex plan usage, the 5-hour and weekly windows with when each resets in the tooltip, and a refresh button. Codex's numbers come from its own session logs; Claude's come from Anthropic's usage endpoint, asked by the board with the login Claude Code saved (the token stays on your computer's board server and is never sent to the page). An agent that is not installed, or has no data, has no chip; a Claude check that fails says "usage unavailable". On the right: the number of live terminals (it opens the Terminal page with all of them) and whether your phone is on your tailnet ("Phone connected", "Phone offline" or "Tailscale off"). On a desktop, the left menu and slim right project pane sit outside the rounded center workspace. The right pane opens on the read-only project file tree, with Notes and Terminal sessions beside it. Selecting a note opens it in the existing notebook editor. Selecting a text file previews it without editing; hidden files, generated folders, symlinks, binary files and large files are unavailable there. The Terminal tab can open the existing multi-terminal workspace in the center. Selecting a card replaces the right pane with its details and actions. At smaller widths, the side-panel button opens these tools as a sheet. The new-idea form has a larger field for planning context.
+
 <img src="https://raw.githubusercontent.com/hfadhlullah/kaizen/main/assets/board-v2.png" alt="kaizen web board" width="760">
 
 Same columns, same files: an idea added here lands in `inbox.md`, a run
@@ -218,7 +227,7 @@ Never use `tailscale funnel`: it publishes the board to the internet. Anyone on 
 tailnet who can reach this PC can drive your agents, terminals included; restrict it with
 Tailscale ACLs.
 
-**A notebook beside the board.** The note icon in the board's header opens
+**A notebook beside the board.** Selecting a note in the right panel opens
 `/notebook`: markdown notes for the project, kept as plain files in `.kaizen/notes/`
 (folders included, so Obsidian can open the same folder). Notes are edited in place —
 the line you are on shows its markdown, the rest reads typeset, and `/` at the start of a line offers checkboxes, dividers, headings and the other blocks. `[[Other note]]` links
@@ -228,7 +237,7 @@ you type; a note changed elsewhere since you opened it is never overwritten with
 asking, and a deleted one goes to `.kaizen/notes/.trash/`. Notes link to the board too: `[[run:<id>#finding-2]]`, a tab (`#review`, `#backlog`), a backlog item (`#backlog-3`) or `[[idea:…]]` show as chips that open the board on that item, and a run's Notes tab lists the notes that link to it. The editor is CodeMirror,
 bundled into the package, so the notebook works offline.
 
-**Videos made with kaizen-video.** Video in the side menu opens `/video`: every video the
+**Videos made with kaizen-video.** The `/video` page remains available by direct URL while its menu entry is hidden for this release. It shows every video the
 kaizen-video skill has made, as a wall of tiles drawn at each video's real shape (9:16, 16:9,
 4:5), one tile per shape it was rendered in. Search finds a video by its title, the words
 said in it, its preset, platform or folder; the chips filter Draft, Rendering and Ready.
@@ -687,8 +696,8 @@ kaizen issue [what happened]
 ```
 
 Opens kaizen's GitHub bug form with your machine filled in: kaizen version, OS, arch,
-CPU, RAM, bun version, terminal. The board does the same from *Report an issue* in its
-footer, and every error it shows carries a *Report* link with the error already in the
+CPU, RAM, bun version, terminal. The board does the same from *Report an issue* at the
+bottom of its side menu, and every error it shows carries a *Report* link with the error already in the
 form. Your home folder is written as `~`; no hostname or username is included. Nothing
 is sent until you read it and press Submit on GitHub. `kaizen issue --env` only prints
 the details.

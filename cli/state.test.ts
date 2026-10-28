@@ -598,6 +598,19 @@ test("runGit, cardsGit: a run committed elsewhere is not offered the edits made 
   report("new", "- `y.txt`: y\n\n## Commit\nchore: z\n", 3000);
   expect(runGit(st, "old")).toMatchObject({ ahead: 0 });
   expect(runGit(st, "new")).toMatchObject({ ahead: 2 });
+  // Both runs name the file; without a subject or SHA the newer report wins.
+  report("old", "- `x.txt`: x, again\n- `y.txt`: shared\n", 5000);
+  report("new", "- `y.txt`: shared\n\n## Commit\nchore: z\n", 5500);
+  writeFileSync(join(proj, "y.txt"), "shared change");
+  sh(proj, null, "add", "y.txt");
+  sh(proj, 7000, "commit", "-qm", "fix: shared");
+  expect(runGit(st, "old")).toMatchObject({ ahead: 0 });
+  expect(runGit(st, "new")).toMatchObject({ ahead: 2 });
+  const sha = sh(proj, null, "rev-parse", "--short", "HEAD");
+  writeFileSync(join(st, "runs", "old", "07-commit.md"), `commit: ${sha}\npushed: no\n`);
+  expect(runGit(st, "old")).toMatchObject({ ahead: 1 });
+  expect(runGit(st, "new")).toMatchObject({ ahead: 1 });
+  expect(cardsGit(st, ["old", "new"])).toEqual({ old: "pending", new: "pending" });
 }, 60_000);
 
 test.skipIf(process.platform === "win32")("findTerminal: a running herdr wins, then tmux, else neither; the prompt stays one literal argument", () => {

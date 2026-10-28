@@ -1,9 +1,10 @@
 ---
 description: Append-only history of builds and updates to this vault
 tags: [project, log]
-updated: 2026-10-27
+updated: 2026-10-28
 ---
 # Log
+
 
 - 2026-10-15 build — Index, Workflow, CLI, Terminal board, Web board, Notebook, Sources and icebox, Kaizen bot, Release and testing, Conventions and gotchas (run 2026-10-15-project-notes-vault)
 - 2026-10-15 update — Web board: card footer layout (run 2026-10-15-card-layout)
@@ -139,7 +140,7 @@ updated: 2026-10-27
 - 2026-10-26 run 2026-10-26-mobile-board-header — Web board (phone header placed like Settings: 20px title, 28px top padding, full-width search)
 - 2026-10-26 run 2026-10-26-mobile-headers-all — Web board, Notebook (Settings-style phone header on Icebox, Notes, Video and Terminal)
 - 2026-10-26 run 2026-10-26-home-chat — Web board (Home page: chat with kaizen's Codex agent across projects — switches or creates projects itself; Board at ?view=board; Home centered in phone bar)
-- 2026-10-27 chat-all-projects: Home chat writes every listed project via --add-dir; development asks run (lite/full, agent) or in-chat; [[kaizen:run …]] directive.
+- 2026-10-27 chat-all-projects: Home chat writes every listed project via --add-dir; development asks run (lite/full, agent) or in-chat; `[[kaizen:run …]]` directive.
 - 2026-10-27 popup-chat: `kaizen chat` opens a minimal Home chat window (/popup), floated and pinned on Hyprland like Hermes's HUD; a second call closes it.
 - 2026-10-27 popup-bubbles: popup is see-through (WebKitGTK shell, Chromium fallback), shadowed pop-in bubbles, Board button hides/shows the board window.
 - 2026-10-27 popup-side-icons: popup buttons are an icon rail beside the chat; board.chat_hotkey setting (default SUPER + ALT + SPACE) written into the Hyprland config.
@@ -162,3 +163,9 @@ updated: 2026-10-27
 - 2026-10-27 update — Home input: project chip beside Send, new placeholder, steps under the reply (2026-10-27-home-motion-verify)
 - 2026-10-28 build — phone terminal: key chips fire on click so swiping the row no longer presses a key; card header lower, footer safe area not doubled (2026-10-28-termkeys-swipe-click)
 - 2026-10-28 run 2026-10-28-phone-url-settings — Web board: configured Tailscale phone URLs in gear Settings.
+- 2026-10-28 run 2026-10-28-exact-run-commit-attribution — Web board
+- 2026-10-28 run 2026-10-28-board-waiting-count — Web board, Notebook
+- 2026-10-28 run 2026-10-28-docs-lint-cli — CLI, Workflow, Web board: read-only CLI docs lint and command-driven Docs gate.
+- 2026-10-28 run 2026-10-28-edit-idea-attachments — Web board: Edit idea accepts picked and pasted files.
+- 2026-10-28 run 2026-10-28-web-three-panel-layout — Web board, Notebook: responsive three-region layout, bounded project tree, compact logo, larger idea details field, Video hidden from menu.
+- 2026-10-28 run 2026-10-28-ide-workspace-layout — Web board, Notebook: side menu with Ideas and Projects list, Ideas page, run workspace (tabs, shells, split, docked icon strip, note tabs via notebook embed=1), flat footer with Claude/Codex usage and phone, /shell /usage /phone routes, 4px radii; then user revisions: flush tiles, theme toggle row, mockup state icons, right pane hidden on desktop, state-sorted Projects list with filter popover, run panel header/stage bar, themed terminals, "week" usage, Icebox tray icon and sources, New idea stays in place with project picker, shell cap and origin/content-type checks.

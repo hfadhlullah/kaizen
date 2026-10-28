@@ -5,11 +5,13 @@ import { close } from "./panel.ts";
 import { openSettings } from "./settings.ts";
 import { openTerms, termsStop } from "./terms.ts";
 import { openHome } from "./home.ts";
+import { initIdeas, openIdeas } from "./ideas.ts";
+import { initRunView, runStop, showRunView } from "./run-view.ts";
 
 // ---- views: Home (the chat, at /), the board, Settings and the Icebox as pages in the docked panel, or the Terminal page; each with its own address
 export let view = "board";
 // The board's own area, not the docked panel.
-const AREA = ["board", "terminal", "home"];
+const AREA = ["board", "terminal", "home", "ideas", "run"];
 export const markView = (v) => {
   document
     .querySelectorAll(".rail a.it")
@@ -17,12 +19,12 @@ export const markView = (v) => {
       a.dataset.view === v ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current"),
     );
   // The Icebox is titled in the header, top left, like the board.
-  document.querySelector(".hdr h1").textContent = v === "sources" ? "Icebox" : v === "terminal" ? "Terminal" : v === "home" ? "Home" : "Board";
+  document.querySelector(".hdr h1").textContent = v === "sources" ? "Icebox" : v === "ideas" ? "Ideas" : v === "run" ? "Run" : v === "terminal" ? "Terminal" : v === "home" ? "Home" : "Board";
 };
 export function go(v, push) {
   store.pageGen++;
   if (v === "icebox") v = "sources";
-  if (!["settings", "sources", "terminal", "board"].includes(v)) v = "home";
+  if (!["settings", "sources", "terminal", "board", "ideas", "run"].includes(v)) v = "home";
   const was = view;
   view = v;
   markView(v);
@@ -30,13 +32,26 @@ export function go(v, push) {
   document.body.classList.toggle("ice", v === "sources");
   document.body.classList.toggle("termv", v === "terminal");
   document.body.classList.toggle("homev", v === "home");
-  if (push && v !== was)
+  document.body.classList.toggle("ideav", v === "ideas");
+  document.body.classList.toggle("runv", v === "run");
+  // Leaving a workspace: its panel closes as the board's would, its terminals unmount.
+  if (was === "run" && v !== "run") {
+    runStop();
+    view = "board";
+    close();
+    view = v;
+  }
+  // The workspace's address names its card: openWorkspace() pushes it.
+  if (push && v !== was && v !== "run")
     history.pushState(null, "", v === "home" ? location.pathname : "?view=" + (v === "sources" ? "icebox" : v));
   dispatchEvent(new Event("kz-view"));
   const p = $("panel");
   if (v === "terminal") openTerms();
   else termsStop();
   if (v === "home") openHome();
+  if (v === "ideas") openIdeas();
+  // After the panel handling below, which closes the board's panel on the way in.
+  if (v === "run") queueMicrotask(() => void showRunView());
   // The Terminal page is the board's own area, not the docked panel: the panel closes as on the board.
   if (AREA.includes(v)) {
     if (AREA.includes(was)) {
@@ -63,6 +78,8 @@ export function go(v, push) {
 }
 
 export function initViews() {
+  initIdeas(go);
+  initRunView();
   document.querySelectorAll(".rail a[data-view]").forEach((a) => {
     if (a.dataset.view === "notes" || a.dataset.view === "video") return;
     a.onclick = (e) => {

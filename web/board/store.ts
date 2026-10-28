@@ -19,6 +19,8 @@ export const store = {
   // The Ideas column's severity menu, on its Backlog tab.
   sevMenu: false,
   wantTerm: null,
+  // Live shells from GET /shells (the footer reads them): tiles on the Terminal page.
+  shells: [] as { key: string; dir: string; title: string; agent: string }[],
   // The settings search survives the re-render each save does; the gear button starts it empty.
   setQ: "",
   // Settings and the Icebox fill the same panel after a fetch: a fill only lands if no other view

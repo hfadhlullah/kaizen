@@ -4,9 +4,56 @@ import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { md, progress, planQuestions, brief } from "../web/board/markdown.ts";
 import { draft, undraft } from "../web/board/drafts.ts";
+import { boardBadge, refreshBoardBadge, waitingCount } from "../web/board/badge.ts";
 
 const html = readFileSync(join(dirname(import.meta.dir), "web", "board.html"), "utf8");
 const cards = readFileSync(join(dirname(import.meta.dir), "web", "board", "cards.ts"), "utf8");
+
+test("Board badge counts each card needing input once and clears at zero", () => {
+  const link = { dataset: {} as Record<string, string>, title: "Board", label: "", setAttribute(_key: string, value: string) { this.label = value; } };
+  const previous = globalThis.document;
+  (globalThis as any).document = { querySelector: () => link };
+  try {
+    const cards = [
+      { kind: "run", status: "waiting", pty: { alive: true, asking: true } },
+      { kind: "idea", status: "idea", pty: { alive: true, asking: true } },
+      { kind: "run", status: "waiting", archived: true },
+      { kind: "run", status: "running", pty: { alive: false, asking: true } },
+    ];
+    expect(waitingCount(cards)).toBe(2);
+    boardBadge(cards);
+    expect(link.dataset.n).toBe("2");
+    expect(link.label).toBe("Board: 2 waiting on you");
+    boardBadge([]);
+    expect(link.dataset.n).toBeUndefined();
+    expect(link.label).toBe("Board");
+  } finally {
+    globalThis.document = previous;
+  }
+});
+
+test("Board badge coalesces overlapping updates and shows the latest count", async () => {
+  const link = { dataset: {} as Record<string, string>, title: "Board", setAttribute() {} };
+  const previousDocument = globalThis.document, previousFetch = globalThis.fetch;
+  (globalThis as any).document = { querySelector: () => link };
+  let release!: () => void, calls = 0;
+  globalThis.fetch = (async () => {
+    const n = ++calls;
+    if (n === 1) await new Promise<void>((resolve) => { release = resolve; });
+    return { ok: true, json: async () => ({ cards: n === 1 ? [{ kind: "run", status: "waiting" }] : [] }) } as Response;
+  }) as typeof fetch;
+  try {
+    const first = refreshBoardBadge(), second = refreshBoardBadge();
+    expect(calls).toBe(1);
+    release();
+    await Promise.all([first, second]);
+    expect(calls).toBe(2);
+    expect(link.dataset.n).toBeUndefined();
+  } finally {
+    globalThis.document = previousDocument;
+    globalThis.fetch = previousFetch;
+  }
+});
 
 test("Settings rechecks an existing update alert and clears or refreshes it", async () => {
   const classes = new Set<string>();
@@ -296,4 +343,13 @@ test("md() renders italic and two-space hard breaks, and leaves globs in code al
   expect(md("an *em* word")).toBe("<p>an <i>em</i> word</p>");
   expect(md("`*.ts` and `*.md`, a * b * c")).toBe("<p><code>*.ts</code> and <code>*.md</code>, a * b * c</p>");
   expect(md("one  \ntwo\nthree")).toBe("<p>one<br>two three</p>");
+});
+
+test("new-idea picker never swaps a preset project for another when a choice is required", async () => {
+  const { startDir } = await import("../web/board/labels.ts");
+  expect(startDir(["/a", "/b"], "/b", true)).toBe("/b");
+  expect(startDir(["/a", "/b"], "/gone", true)).toBeNull();
+  expect(startDir(["/a", "/b"], null, true)).toBeNull();
+  expect(startDir(["/a", "/b"], "/gone", false)).toBe("/a");
+  expect(startDir([], null, false)).toBeNull();
 });

@@ -51,7 +51,7 @@ Porting the workflow to Codex or Antigravity is covered in [`adapters.md`](adapt
 | `/kaizen gather` | Read the request sources kaizen cannot read by itself and hand their requests over to the icebox |
 | `/kaizen discover` | Read the icebox, group what was gathered, propose ideas, and promote the ones the user picks |
 | `/kaizen docs` | Write this project's documentation into the notebook as a vault agents read first, or bring it up to date |
-| `/kaizen docs lint` | Report broken links, missing sources and stale notes in that vault; writes nothing |
+| `/kaizen docs lint` | Run the read-only `kaizen docs lint` CLI command; report broken links, missing sources and stale notes |
 | `/kaizen approve` | Approve whatever the current run is waiting on |
 | `/kaizen reject <reason>` | Reject it; the reason is fed back to the stage that produced it |
 | `/kaizen abort` | Mark the current run abandoned |

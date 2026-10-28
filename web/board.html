@@ -21,7 +21,7 @@
 :root[data-theme=dark]{--bg:#0c162f;--bg-2:#121e3c;--line:#22305a;--ink:#eef2fa;--ink-hi:#deeeff;--dim:#96aacd;--accent:#486ed9;--run:#4fd6e6;--ok:#5fd28a;--warn:#e6b450;--danger:#e85050;color-scheme:dark}
 *{box-sizing:border-box}
 /* Shape, type and depth. --shade is the one shadow colour, themed like the rest. */
-:root{--r:12px;--r-s:8px;--r-pill:999px;--font:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;--mono:ui-monospace,"JetBrains Mono","Cascadia Code","SF Mono",Menlo,Consolas,monospace;--on-accent:#fff;--hover:color-mix(in srgb,var(--dim) 12%,transparent);--shade:rgb(12 22 47/.08);--shadow-1:0 1px 2px var(--shade);--shadow-2:0 0 0 1px var(--shade),0 8px 24px -6px var(--shade);--canvas:color-mix(in srgb,var(--bg) 95.5%,var(--ink))}
+:root{--r:4px;--r-s:4px;--r-pill:999px;--font:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;--mono:ui-monospace,"JetBrains Mono","Cascadia Code","SF Mono",Menlo,Consolas,monospace;--on-accent:#fff;--hover:color-mix(in srgb,var(--dim) 12%,transparent);--shade:rgb(12 22 47/.08);--shadow-1:0 1px 2px var(--shade);--shadow-2:0 0 0 1px var(--shade),0 8px 24px -6px var(--shade);--canvas:color-mix(in srgb,var(--bg) 95.5%,var(--ink))}
 @media(prefers-color-scheme:dark){:root:not([data-theme=light]){--shade:rgb(0 0 0/.45);--canvas:color-mix(in srgb,var(--bg) 70%,black)}}
 :root[data-theme=dark]{--shade:rgb(0 0 0/.45);--canvas:color-mix(in srgb,var(--bg) 70%,black)}
 body{margin:0;background:var(--canvas);color:var(--ink);font:13px/1.5 var(--font);-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;height:100vh;height:100dvh;overflow:hidden;display:flex}
@@ -36,10 +36,10 @@ button{cursor:pointer}
 svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;display:block}
 
 /* side menu: the same lines in board.html and notes.html (a test holds them equal) */
-.rail{width:220px;flex:none;display:flex;flex-direction:column;gap:2px;padding:18px 12px 14px;overflow:hidden auto;transition:width .18s}
+.rail{width:250px;flex:none;display:flex;flex-direction:column;gap:2px;padding:18px 12px 14px;overflow:hidden auto;transition:width .18s}
 .rail .top{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 0 18px 10px}
 .rail .home{display:block;color:inherit;text-decoration:none}
-.rail .top .mascot{display:none;width:36px;height:34px}
+.rail .top .mascot{display:none;width:28px;height:26px}
 .rail a.it{display:flex;align-items:center;gap:10px;height:34px;padding:0 10px;border-radius:var(--r-s);font-size:13px;font-weight:500;color:var(--dim);text-decoration:none;white-space:nowrap;transition:background .12s,color .12s}
 .rail a.it:hover{background:var(--hover);color:var(--ink)}
 .rail a.it[aria-current=page]{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--ink)}
@@ -67,8 +67,8 @@ svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6;stroke
 .rail a.it,[data-rail=min] .rail a.it{flex:1;width:auto;flex-direction:column;justify-content:center;gap:2px;height:auto;min-height:48px;padding:4px 0;font-size:11px}
 .rail a.it[aria-current=page]{background:none;color:var(--accent)}
 [data-rail=min] .rail .lbl{position:static;width:auto;height:auto;overflow:visible;clip-path:none}
-.rail a.it.fold{display:none}
-.rail a.it[data-view=board]{order:1}.rail a.it[data-view=notes]{order:2}.rail a.it[data-view=home]{order:3}.rail a.it[data-view=terminal]{order:4}.mtab{order:5}
+.rail a.it.fold{display:flex}
+.rail a.it[data-view=home]{order:1}.rail a.it[data-view=sources]{order:2}.rail a.it[data-view=board]{order:3}.rail a.it[data-view=video]{order:4}.rail a.it[data-view=settings]{order:5}.mtab{display:none}
 .mtab{display:flex;flex:1;position:relative}
 .mtab summary{flex:1;list-style:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:48px;padding:4px 0;font-size:11px;font-weight:500;color:var(--dim);cursor:pointer}
 .mtab summary::-webkit-details-marker{display:none}
@@ -79,15 +79,53 @@ svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6;stroke
 .mpop a:hover{background:var(--hover)}
 .rail:has(a.it.fold.upd) .mtab summary{position:relative}.rail:has(a.it.fold.upd) .mtab summary::after{content:"";position:absolute;left:calc(50% + 6px);top:4px;width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 2px var(--bg)}
 body .rail a.upd::after{left:calc(50% + 6px);top:4px}body .toast{left:16px;bottom:calc(68px + env(safe-area-inset-bottom))}}
-/* end side menu */
 .rail a.it[data-n]{position:relative}.rail a.it[data-n]::after{content:attr(data-n);position:absolute;left:24px;top:3px;min-width:16px;height:16px;padding:0 4px;box-sizing:border-box;border-radius:8px;background:var(--dim);color:var(--bg);font:600 10px/16px var(--font);text-align:center;box-shadow:0 0 0 2px var(--bg)}
 @media(max-width:640px){body .rail a.it[data-n]::after{left:calc(50% + 4px);top:2px}}
+.rail a.it[data-view=board][data-n]::after{left:auto;right:8px;top:9px;background:var(--warn)}
+[data-rail=min] .rail a.it[data-view=board][data-n]::after{left:24px;right:auto;top:3px}
+@media(max-width:640px){[data-rail=min] .rail a.it[data-view=board][data-n]::after{left:calc(50% + 4px);top:2px}}
+/* the rail's Projects list: ideas and runs grouped by project, each with its state icon */
+.rail a.it .n{margin-left:auto;font-size:11px;font-weight:400;color:var(--dim)}
+.rail a.it .srcs+.n{margin-left:8px}.rail a.it .srcs{margin-left:auto;display:flex;gap:4px;opacity:.75}.rail a.it .srcs svg,.rail a.it .srcs img{width:13px;height:13px}
+.rail a.it,.rail .theme,.rail .theme button{border-radius:4px}
+.rail .psec{display:flex;align-items:center;gap:2px;margin:14px 0 2px;padding-left:10px;font-size:11px;font-weight:600;color:var(--dim)}.rail .psec .lbl{flex:1}
+.rail .psec button,.rail .rib{width:26px;height:26px;display:grid;place-items:center;flex:none;border-radius:4px;color:var(--dim)}.rail .psec button:hover,.rail .rib:hover{background:var(--hover);color:var(--ink)}.rail .psec button svg,.rail .rib svg{width:15px;height:15px}
+.rail .psec button[aria-pressed=true]{color:var(--accent)}.rail .psec button{position:relative}.rail .psec button[aria-pressed=true]::after{content:"";position:absolute;right:3px;top:3px;width:6px;height:6px;border-radius:50%;background:var(--accent)}
+.pfpop{position:fixed;z-index:40;min-width:220px;max-width:280px;max-height:60vh;overflow:auto;padding:6px;display:flex;flex-direction:column;gap:1px;background:var(--bg-2);color:var(--ink);border:1px solid var(--line);border-radius:4px;box-shadow:var(--shadow-2);font-size:12.5px}
+.pfpop .sel{margin:2px 2px 6px;padding:5px 8px;border-radius:4px}.pfrow{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:4px;cursor:pointer;white-space:nowrap}.pfrow:hover{background:var(--hover)}.pfrow input{accent-color:var(--accent);margin:0}.pfrow .plogo{width:16px;height:16px;font-size:9px;border-radius:4px;display:inline-grid;place-items:center;flex:none;font-weight:600;color:var(--dim);background:var(--hover)}.pfrow img.plogo{background:none}
+.pfpop .pfh{margin:8px 8px 2px;font-size:11px;font-weight:600;color:var(--dim)}
+.rail .plist{flex:1;min-height:40px;overflow:hidden auto;margin:0 -4px;padding:0 4px}
+.plist .proj{display:flex;gap:8px;align-items:center;margin:10px 6px 4px;font-size:12.5px;font-weight:500;color:var(--ink);white-space:nowrap}.plist .proj .c{color:var(--dim);font-size:11px;font-weight:400}.plist .proj .plogo{width:16px;height:16px;font-size:9px;border-radius:4px;display:inline-grid;place-items:center;flex:none;font-weight:600;color:var(--dim);background:var(--hover);object-fit:contain}.plist .proj img.plogo{background:none}
+.plist .row{display:grid;grid-template-columns:14px minmax(0,1fr);gap:8px;align-items:center;padding:5px 8px;border-radius:4px;color:var(--ink);text-decoration:none}.plist .row:hover,.plist .row[aria-current]{background:var(--hover)}.plist .row .si{margin-top:0}
+.plist .row b{display:block;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.plist .row small{display:block;color:var(--dim);font:10.5px/1.4 var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.plist .none{padding:6px 10px;color:var(--dim);font-size:12px}
+.rail .rbot{display:flex;align-items:center;gap:2px;margin-top:6px}#themet .moon,#themet[data-dark=true] .sun{display:none}#themet[data-dark=true] .moon{display:block}.rail .rbot a.it{flex:1;min-width:0}
+/* a card's state: idle ring, planning arc, building tailed arc, reviewing orbit, waiting ripple, done check, stalled pause */
+.si{width:12px;height:12px;border-radius:50%;position:relative;flex:none;--ring:radial-gradient(farthest-side,#0000 calc(100% - 2px),#000 calc(100% - 1.5px))}
+.si.idle{box-shadow:inset 0 0 0 1.5px var(--dim)}
+.si.plan{background:conic-gradient(#8b7cf6 0 28%,color-mix(in srgb,#8b7cf6 22%,transparent) 0);-webkit-mask:var(--ring);mask:var(--ring);animation:si-spin .9s linear infinite}
+.si.build{background:conic-gradient(from 0deg,transparent,var(--accent) 85%,transparent 0);-webkit-mask:var(--ring);mask:var(--ring);animation:si-spin .7s linear infinite}
+.si.build::after{content:"";position:absolute;inset:0}
+.si.review{box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--warn) 35%,transparent);animation:si-spin 1.6s linear infinite}
+.si.review::after{content:"";position:absolute;width:4px;height:4px;border-radius:50%;background:var(--warn);top:-1px;left:4px;box-shadow:0 0 4px var(--warn)}
+.si.wait{background:var(--warn)}.si.wait::after{content:"";position:absolute;inset:0;border-radius:50%;background:var(--warn);animation:si-ping 1.6s cubic-bezier(0,0,.2,1) infinite}
+.si.done{background:var(--ok)}.si.done::after{content:"";position:absolute;left:4.2px;top:2px;width:2.5px;height:5.5px;border:solid var(--bg);border-width:0 1.6px 1.6px 0;transform:rotate(45deg)}
+.si.stalled{background:var(--danger)}.si.stalled::after{content:"";position:absolute;left:3.5px;top:3.5px;width:5px;height:5px;background:linear-gradient(90deg,var(--bg) 0 1.6px,transparent 0 3.4px,var(--bg) 0)}
+.si.aband{box-shadow:inset 0 0 0 1.5px var(--dim);opacity:.5}
+@keyframes si-spin{to{transform:rotate(360deg)}}@keyframes si-ping{75%,100%{transform:scale(2.2);opacity:0}}
+@media (prefers-reduced-motion:reduce){:root:not([data-motion=full]) .si{animation:none!important}}
+:root[data-motion=reduce] .si{animation:none!important}
+[data-rail=min] .rail a.it .n,[data-rail=min] .rail a.it .srcs,[data-rail=min] .rail .rib:not(.th),[data-rail=min] .plist .proj :not(.plogo),[data-rail=min] .plist .row div{display:none}
+[data-rail=min] .rail .psec{padding:0;margin:12px 0 2px;flex-direction:column}[data-rail=min] .rail .rbot{flex-direction:column}
+[data-rail=min] .plist .proj{justify-content:center;margin:10px 0 4px}[data-rail=min] .plist .row{grid-template-columns:14px;justify-content:center;padding:7px 0}
+@media(max-width:640px){.rail .psec,.rail .plist,.rail .rib{display:none}.rail .rbot,[data-rail=min] .rail .rbot{display:contents}.rail a.it[data-view=ideas]{order:3}.rail a.it[data-view=board]{order:4}.rail a.it .n,.rail a.it .srcs{display:none}}
+/* end side menu */
 /* the work area: an inset rounded panel on the canvas the side menu sits on */
-.app{flex:1;min-width:0;display:flex;flex-direction:column;margin:8px 8px 8px 0;background:var(--bg);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.app{flex:1;min-width:0;display:flex;flex-direction:column;margin:8px 8px 8px 0;background:var(--bg);border:1px solid var(--line);border-radius:12px;overflow:hidden}
 @media(max-width:640px){.app{margin:0;border:0;border-radius:0}html,body{background:var(--bg)}aside:not(.docked){padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) 0}}
 /* header */
 .hdr{display:flex;align-items:center;gap:12px;padding:10px 20px 10px 28px;border-bottom:1px solid color-mix(in srgb,var(--line) 60%,transparent);flex-wrap:wrap}
-pre.mark{margin:0;font:700 8px/1 var(--mono)}
+pre.mark{margin:0;font:700 5px/1 var(--mono)}
 pre.mark span:nth-child(1){color:var(--ink-hi)}pre.mark span:nth-child(2){color:color-mix(in srgb,var(--ink-hi),var(--accent))}pre.mark span:nth-child(3){color:var(--accent)}
 .sel{border:1px solid var(--line);border-radius:var(--r-s);padding:4px 10px;background-color:var(--bg-2);color:var(--ink);font-size:13px}
 select.sel,button.sel{cursor:pointer;appearance:none;padding-right:30px;max-width:100%;background-image:linear-gradient(45deg,transparent 50%,var(--dim) 50%),linear-gradient(135deg,var(--dim) 50%,transparent 50%);background-position:calc(100% - 16px) 50%,calc(100% - 11px) 50%;background-size:5px 5px;background-repeat:no-repeat}
@@ -119,7 +157,7 @@ select.sel,button.sel{cursor:pointer;appearance:none;padding-right:30px;max-widt
 #showpop{padding:6px}#showpop .pop-ft{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--line);margin-top:4px;padding:6px 4px 0;font-size:12px;color:var(--dim)}#showpop .pop-ft button{padding:4px 8px;font-size:12px;color:var(--accent)}
 .plogo{width:18px;height:18px;border-radius:5px;flex:none;object-fit:contain;display:inline-grid;place-items:center;font-size:10px;font-weight:600;color:var(--dim);background:var(--hover);overflow:hidden}
 img.plogo{background:none}.ice-meta .plogo{width:14px;height:14px;font-size:9px;border-radius:4px}
-#proj,#show,#ndc>.sel{display:inline-flex;align-items:center;gap:8px}#proj>span:last-child,#ndc>.sel>span:last-child{min-width:0;overflow:hidden;text-overflow:ellipsis}
+#proj,#show,#ndc>.sel,#ideas-proj>.sel{display:inline-flex;align-items:center;gap:8px}#proj>span:last-child,#ndc>.sel>span:last-child{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .pick-list{display:flex;flex-direction:column;max-height:300px;overflow-y:auto}.pick-list .grp{padding:8px 10px 4px;font-size:11px;color:var(--dim);display:flex;align-items:center;gap:6px}.pick-list .grp svg{width:12px;height:12px}.pick-list button.on{background:var(--hover);color:var(--ink);font-weight:500}.pick-list button.sub{padding-left:28px}
 .ice-combo>.sel{display:inline-flex;align-items:center;gap:7px;max-width:220px;height:30px;font-size:12px}.ice-combo>.sel>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ice-combo>.sel>svg{width:14px;height:14px;flex:none}.ice-combo>.sel>svg:last-child{color:var(--dim)}.ice-combo .menu-pop{width:280px}
 .ice-combo .fav,.pick-list .fav{width:15px;height:15px;justify-content:center}.ice-combo .fav svg,.pick-list .fav svg,.ice-combo .fav img,.pick-list .fav img{width:14px;height:14px}.pick-list button>span:not([class]),.ice-combo>.sel>span:not([class]){text-align:left}
@@ -241,6 +279,7 @@ section li.hint{display:block;padding:14px;border:1px dashed var(--line);border-
 .inl input,.inl textarea,.notes textarea{width:100%;border:1px solid var(--line);border-radius:var(--r-s);padding:8px 12px;background:var(--bg-2);font:inherit;color:var(--ink)}
 .inl input:focus,.inl textarea:focus,.notes textarea:focus,.sel:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
 .inl textarea,.notes textarea{min-height:72px;resize:vertical}
+#newnotes{min-height:180px;line-height:1.5}
 .notes textarea{min-height:160px}
 .inl input::placeholder,.inl textarea::placeholder,.notes textarea::placeholder{color:var(--dim)}
 .inl .row,.notes .row{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;align-items:center}
@@ -275,9 +314,94 @@ aside.wide{width:100%;border-left:0}@media(min-width:901px){aside.wide{width:62%
 .ftr .strip .attn{color:var(--ink);background:color-mix(in srgb,var(--warn) 18%,transparent);box-shadow:inset 0 0 0 1px var(--warn)}.ftr .strip .attn:hover,.ftr .strip .attn.on{background:color-mix(in srgb,var(--warn) 30%,transparent)}.ftr .strip .attn svg{color:var(--warn)}.ftr .st svg{width:12px;height:12px}
 .ftr a{color:var(--dim);cursor:pointer;white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center;gap:5px}.ftr a>svg{width:13px;height:13px}.ftr a:hover{color:var(--ink)}
 
+/* the flat footer under everything: agent usage, refresh; terminal count and phone on the right */
+@media(min-width:641px){body{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:minmax(0,1fr) auto}.rail{grid-area:1/1}.app{grid-area:1/2}#context{grid-area:1/3}.foot{grid-area:2/1/3/-1}.app{margin-bottom:0}#context{margin-bottom:0}}
+.foot{display:flex;align-items:center;gap:14px;padding:5px 12px;font-size:12px;color:var(--dim);min-width:0;white-space:nowrap}
+.foot .sp{flex:1}.foot #usage{display:flex;gap:14px;align-items:center;min-width:0}.foot svg{width:15px;height:15px}
+.foot .uchip{display:flex;align-items:center;gap:6px}.foot .uchip.na{opacity:.75}
+.foot .umtr{width:54px;height:5px;border-radius:3px;background:var(--line);overflow:hidden}.foot .umtr i{display:block;height:100%;background:var(--ok)}.foot .umtr i.mid{background:var(--warn)}.foot .umtr i.hi{background:var(--danger)}
+.foot .fb{display:flex;align-items:center;gap:6px;padding:3px 7px;border-radius:4px;color:var(--dim);text-decoration:none}.foot .fb:hover{background:var(--hover);color:var(--ink)}.foot .fb[hidden],.foot .uchip[hidden]{display:none}
+.foot .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 6px var(--ok)}.foot .dot.off{background:var(--dim);box-shadow:none}
+@media(max-width:640px){.foot{order:1;gap:10px;padding:4px 10px;border-top:1px solid var(--line)}.foot .umtr,.foot .wk,.foot .ptxt{display:none}}
+
+/* the Ideas page: source chips and project, then Open/Running/Done, search and the table */
+#ideasv{display:none}
+body.ideav #ideasv{flex:1;min-height:0;display:flex;flex-direction:column;gap:12px;padding:14px}
+#ideasv .ibar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#ideasv .pill{display:flex;gap:6px;align-items:center;padding:5px 11px;border-radius:4px;border:1px solid var(--line);color:var(--dim);white-space:nowrap}#ideasv .pill:hover{color:var(--ink)}#ideasv .pill.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+#ideasv .pill svg,#ideasv .pill img{width:15px;height:15px}#ideasv .pill .fav{display:contents}
+#ideasv .ibox{flex:1;min-height:0;display:flex;flex-direction:column}#ideasv .ibox>.ibar{padding:0 0 10px}
+#ideasv #ideas-q{flex:1;min-width:140px;border-radius:4px;padding:6px 10px;font-family:var(--mono);font-size:12px}
+#ideasv .iscroll{flex:1;min-height:0;overflow:auto}
+.itable{width:100%;border-collapse:collapse}.itable th{text-align:left;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);font-weight:600;padding:8px 12px;border-bottom:1px solid var(--line)}
+.itable td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:middle}.itable tr:hover td{background:var(--hover)}.itable td:first-child{width:28px;padding-right:0}.itable td.d{color:var(--dim);white-space:nowrap}
+.itable .ctx{display:flex;gap:6px;align-items:center;color:var(--dim);font-size:12px;margin-top:3px}.itable .tag{font-size:10.5px;border:1px solid var(--line);border-radius:4px;padding:0 7px}
+.itable .stc{display:flex;gap:8px;align-items:center;font-size:12px;white-space:nowrap}
+.itable .go{display:flex;gap:6px;align-items:center;padding:4px 10px;border:1px solid var(--line);border-radius:4px;white-space:nowrap}.itable .go:hover{background:var(--hover)}.itable .go svg{width:13px;height:13px}
+#ideasv .none{color:var(--dim);padding:12px}
+@media(max-width:640px){body.ideav #ideasv{padding:10px}.itable th:nth-child(4),.itable td:nth-child(4){display:none}.itable td,.itable th{padding:8px 6px}}
+
+/* the mockup has no right-hand project pane: the Files/Notes/Terminal pane (#context, context.ts) is not shown on desktop widths; the run workspace has its own strip */
+@media(min-width:641px){#context,#ctx-open{display:none!important}}
+/* with that pane gone the Board keeps its five columns in one row (the three-column rule was for the pane) */
+@media(min-width:1201px){html body:not(.paged) #board{grid-template-columns:repeat(5,minmax(200px,1fr))}}
+/* the run workspace (?view=run): a tabbed centre, and the card's panel docked right as an icon strip */
+#runv,#pnotes,#pnlist{display:none}.pstrip{display:contents}#ptabs svg{display:none}
+body.runv .hdr,body.runv #board,body.runv .ftr,body.runv #terms,body.runv #home,body.runv #ideasv,body.runv .scrim,body.runv #context{display:none!important}
+body.runv .app{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:minmax(0,1fr);margin-right:8px!important}body.runv #pfoot{min-width:0;flex-wrap:wrap}body.runv #pfoot .note{flex:1 1 100%;white-space:normal;min-width:0}
+body.runv #runv{grid-area:1/1;display:flex;flex-direction:column;min-width:0;min-height:0}
+#rtabs{display:flex;align-items:center;gap:2px;padding:6px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none;flex:none}#rtabs .sp{flex:1}
+.rtab{display:flex;gap:7px;align-items:center;padding:6px 11px;border-radius:4px;color:var(--dim);white-space:nowrap}.rtab:hover{color:var(--ink)}.rtab svg{width:15px;height:15px}.rtab.on{color:var(--ink);background:var(--hover)}.rtab.sec{color:var(--ink);box-shadow:inset 0 -2px var(--line)}
+.rtab i{font-style:normal;opacity:.5;padding:0 3px;margin-left:2px}.rtab i:hover{opacity:1}
+.rbtn{display:grid;place-items:center;flex:none;width:30px;height:30px;border-radius:4px;color:var(--dim);cursor:pointer}.rbtn:hover{background:var(--hover);color:var(--ink)}.rbtn svg{width:16px;height:16px}
+.radd{position:relative}.radd summary{list-style:none}.radd summary::-webkit-details-marker{display:none}
+.radd .menu-pop{position:fixed;z-index:20;right:auto;bottom:auto;width:max-content;margin-top:0;min-width:250px;padding:5px;background:var(--bg-2);border:1px solid var(--line);border-radius:4px;box-shadow:var(--shadow-2);display:flex;flex-direction:column}
+.radd .menu-pop button{display:grid;grid-template-columns:18px 1fr;gap:10px;align-items:start;text-align:left;padding:7px 9px;border-radius:4px}.radd .menu-pop button:hover{background:var(--hover)}.radd .menu-pop svg{width:16px;height:16px;margin-top:1px}.radd small{display:block;color:var(--dim);font-size:11.5px}
+#rpanes{flex:1;min-height:0;display:grid;gap:1px;position:relative}#rpanes:has(.rpane.split:not([hidden])){background:var(--line)}.rpane{background:var(--bg)}
+.rpane{min-width:0;min-height:0;display:flex;flex-direction:column;position:relative}.rpane[hidden]{display:none}
+.rpane .ph{display:none}.rpane.split .ph{display:flex;gap:6px;align-items:center;justify-content:space-between;padding:3px 10px;font-size:11px;color:var(--dim);border-bottom:1px solid var(--line)}.rpane.split .ph button{color:var(--dim);padding:0 4px}
+.rpane>.term{flex:1;min-height:0;padding:6px 0 0 8px}
+.rframe{flex:1;min-height:0;width:100%;border:0;background:var(--bg-2)}
+.urlbar{display:flex;gap:6px;align-items:center;padding:6px 10px;border-bottom:1px solid var(--line)}.urlbar input{flex:1;min-width:0;font:12px var(--mono);border-radius:4px}.urlbar button{width:28px;height:28px;display:grid;place-items:center;border-radius:4px;color:var(--dim);font-size:16px}.urlbar button:hover{background:var(--hover)}.urlbar svg{width:15px;height:15px}
+.rnote,.rnone{color:var(--dim);padding:16px;margin:0}.rprev{overflow:auto;padding:16px 20px}.rprev img{max-width:100%;border-radius:4px}
+.rempty{margin:auto;text-align:center;color:var(--dim)}
+body.runv #panel{grid-area:1/2;position:relative!important;inset:auto!important;transform:none!important;visibility:visible!important;transition:none;width:340px!important;max-width:none;z-index:auto!important;border:0;box-shadow:none;background:var(--canvas);display:grid;grid-template-columns:minmax(0,1fr) 44px;grid-template-rows:auto minmax(0,1fr) auto}
+body.runv #panel>header{grid-area:1/1;border:0;padding:14px 12px 12px 18px}body.runv #pfoot{border:0;padding:12px 12px 14px 18px}
+body.runv #psub{display:block}body.runv #pbody{padding:8px 12px 12px 18px}.rmeta{font-size:11px;color:var(--dim);margin-top:2px}.rbars{display:flex;gap:4px;margin:10px 0 0}.rbars i{flex:1;height:4px;border-radius:2px;background:var(--line)}.rbars i.ok{background:var(--ok)}.rbars i.now{background:var(--warn)}body.runv #pbody{grid-area:2/1;min-height:0}body.runv #pfoot{grid-area:3/1}
+body.runv #pclose,body.runv #pterm{display:none}
+body.runv .pstrip{grid-area:1/2/4/3;display:flex;flex-direction:column;align-items:center;padding-top:14px}body.runv #ptabs,body.runv #ptabs:empty{display:flex;flex-direction:column;align-items:center;gap:2px;padding:0;border:0;overflow:visible}
+body.runv #ptabs button{width:32px;height:32px;display:grid;place-items:center;padding:0;border-radius:4px;color:var(--dim);box-shadow:none}body.runv #ptabs button:hover,body.runv #ptabs button.on{background:var(--hover);color:var(--ink)}
+body.runv #ptabs svg{display:block;width:17px;height:17px}body.runv #ptabs span{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+body.runv #pnotes{display:grid;place-items:center;width:32px;height:32px;margin:12px auto 0;border-radius:4px;color:var(--dim);position:relative}body.runv #pnotes::before{content:"";position:absolute;top:-7px;left:6px;right:6px;border-top:1px solid var(--line)}
+body.runv #pnotes:hover,body.runv #panel.pn #pnotes{background:var(--hover);color:var(--ink)}body.runv #pnotes svg{width:17px;height:17px}
+body.runv #panel.pn #pbody,body.runv #panel.pn #pfoot{display:none}body.runv #panel.pn #pnlist{display:block;grid-area:2/1/4/2;overflow:auto;padding:12px 14px}
+#pnlist h3{margin:0 0 8px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)}#pnlist .tf{display:flex;gap:8px;align-items:center;width:100%;text-align:left;padding:4px 6px;border-radius:4px;font-size:12.5px;color:var(--ink)}#pnlist button.tf:hover{background:var(--hover)}#pnlist .tf svg{width:14px;height:14px;color:var(--dim)}#pnlist .tree{padding-left:14px}#pnlist .dir{color:var(--dim)}
+body.runv.rflip #panel{display:none}
+@media(max-width:640px){body.runv .app{grid-template-columns:minmax(0,1fr)}.rsplit{display:none}body.runv #panel{display:none}body.runv.rflip #pclose{display:grid}body.runv.rflip #panel{display:grid;position:fixed!important;inset:auto 0 0 0!important;height:72%;width:auto!important;z-index:15!important;background:var(--bg-2);box-shadow:var(--shadow-2);border-radius:12px 12px 0 0}#rtabs .rtab span{max-width:110px;overflow:hidden;text-overflow:ellipsis}}
+
+/* revise 5: the mockup's plain chrome for terminals, in the workspace and on the Terminal page */
+body.termv #tmodes{background:none;padding:0;gap:2px}body.termv #tmodes button{color:var(--dim);background:none;box-shadow:none;border-radius:4px;font-weight:400}body.termv #tmodes button:hover{background:var(--hover);color:var(--ink)}body.termv #tmodes button.on{color:var(--ink);background:var(--hover);box-shadow:none}
+body .tile header{min-height:26px;background:none;border-bottom:0;padding:0 4px 0 10px}body .tile header b{font-size:11px;font-weight:400;color:var(--dim)}body .tile header .ib.sm{width:22px;height:22px;color:var(--dim)}.tile header .ib.sm svg{width:13px;height:13px}
+.tile,.rpane{position:relative}.tile:focus-within::after,#rpanes:has(.rpane.split:not([hidden])) .rpane:focus-within::after{content:"";position:absolute;inset:0;box-shadow:inset 0 0 0 1px var(--accent);pointer-events:none;z-index:3}
+.rpane.split .ph{border-bottom:0;padding:4px 10px 0;background:none}
+body .termtools button,body .termtools input{border:0;background:transparent;color:var(--dim);border-radius:4px}body .termtools button:hover{background:var(--hover);color:var(--ink)}body .termtools input{border:1px solid var(--line)}
+body.runv .btn:not(.pri):not(.ghost){background:transparent;box-shadow:none}
+
 /* side panel */
 .scrim{position:fixed;inset:0;z-index:10;background:color-mix(in srgb,var(--bg) 60%,transparent);backdrop-filter:blur(3px);display:none}
 .scrim.on{display:block}
+.app{position:relative}
+#context{display:none;flex:none;flex-direction:column;width:300px;min-width:0;margin:8px 8px 8px 0;background:var(--canvas)}
+#context.on{display:flex}
+#context header{display:flex;align-items:center;gap:6px;padding:6px 10px;border-bottom:1px solid var(--line)}
+#context header .ib{width:28px;height:28px}#context header strong{flex:1;font-size:12px}#context nav{display:flex;padding:5px 7px;gap:4px;border-bottom:1px solid var(--line)}
+#context nav button{flex:1;min-height:30px;border-radius:var(--r-s);font-size:12px;color:var(--dim)}#context nav button.on{background:var(--hover);color:var(--ink)}
+#context-body{flex:1;min-height:0;overflow:auto;padding:12px}#context-body .tree-row{display:block;width:100%;text-align:left;padding:8px;border-radius:var(--r-s);font-size:13px;overflow-wrap:anywhere}#context-body a.tree-row{color:var(--ink);text-decoration:none}#context-body .tree-row:hover{background:var(--hover)}#context-body .tree-row.folder{font-weight:600}#context-body pre{white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.5 var(--mono)}
+#context-body .tree-back{margin-bottom:10px}#context-body .ctx-actions{display:flex;gap:6px;margin-bottom:10px}
+#ctx-open{display:grid}
+@media(min-width:1201px){.app:has(#panel.open:not(.docked)){margin-right:308px}.app:has(#panel.open.wide:not(.docked)){margin-right:calc(min(540px,45%) + 8px)}#panel.open:not(.docked){position:fixed;top:0;bottom:0;right:0;width:300px;max-width:none;background:var(--canvas);border-left:0;box-shadow:none;z-index:5}#panel.open:not(.docked)>header{padding:8px 12px}#panel.open:not(.docked)>.foot{padding:8px 12px;gap:6px}#panel.open.wide:not(.docked){width:min(540px,45%)}body:has(#panel.open:not(.docked)) #context{display:none}.app:has(#panel.open:not(.docked)) .scrim{display:none}body:not(.paged) #board{grid-template-columns:repeat(3,minmax(190px,1fr))}}
+@media(max-width:1200px){#context.on{position:fixed;top:0;bottom:0;right:0;width:min(360px,100vw);margin:0;background:var(--bg-2);z-index:12;box-shadow:var(--shadow-2)}}
+@media(max-width:640px){#context.on{left:0;width:100%;bottom:calc(56px + env(safe-area-inset-bottom));padding-top:env(safe-area-inset-top)}#ctx-open{order:0}}
 aside{position:fixed;top:0;right:0;bottom:0;z-index:11;width:520px;max-width:100%;background:var(--bg-2);border-left:1px solid var(--line);box-shadow:var(--shadow-2);display:flex;flex-direction:column;transform:translateX(100%);visibility:hidden;transition:transform .18s,visibility .18s}
 aside.open{transform:none;visibility:visible}
 /* Settings and the Icebox are pages: the same panel, docked into the app column, full width like the board */
@@ -285,7 +409,7 @@ body.paged #board,body.paged .ftr,body.paged .scrim,body.paged #bq{display:none}
 /* The Icebox keeps the project bar with its own title, without New idea or the panel's header; Settings has none */
 body.paged:not(.ice) .hdr,body.ice aside.docked>header{display:none}body.ice #newtop{visibility:hidden}
 /* The Terminal page: the project bar stays (it picks whose terminals show), the board gives way to the tiles */
-#home{display:none}#hnewtop,#hpop{display:none}body.homev.paged .hdr{display:flex}body.homev #combo,body.homev #showc,body.homev #bq,body.homev #newtop,body.homev #fbtn,body.homev #tmodes{display:none!important}body.homev #hnewtop{display:inline-flex;align-items:center;gap:6px}@media(min-width:641px){body.homev #hpop{display:inline-grid}}#hnewtop svg{width:16px;height:16px}
+#home{display:none}#hnewtop,#hpop,#hsidetop{display:none}body.homev.paged .hdr{display:flex}body.homev #combo,body.homev #showc,body.homev #bq,body.homev #newtop,body.homev #fbtn,body.homev #tmodes{display:none!important}body.homev #hnewtop{display:inline-flex;align-items:center;gap:6px}@media(min-width:641px){body.homev #hpop{display:inline-grid}}#hnewtop svg{width:16px;height:16px}
 body.homev #home{flex:1;min-height:0;display:flex;position:relative;animation:fi .2s}
 .hside{flex:none;width:260px;overflow:hidden;border-right:1px solid color-mix(in srgb,var(--line) 60%,transparent);transition:width .28s cubic-bezier(.2,.7,.2,1),opacity .2s,border-color .28s}
 #home:not(.hopen) .hside{width:0;opacity:0;border-color:transparent}
@@ -338,22 +462,25 @@ body.homev #home{flex:1;min-height:0;display:flex;position:relative;animation:fi
 #home:not(.hopen) .hside{width:280px;opacity:1}#home.hopen .hside{transform:none}.hsin{width:100%}
 #home.hopen .hscrim{display:block;position:absolute;inset:0;z-index:5;background:var(--shade);animation:fi .2s}
 .htop{padding-inline:8px}.hlog{padding-inline:16px}.hbox,.hchips{width:calc(100% - 32px)}}
-@media(max-width:640px){.hhero h2{font-size:22px}.hbox textarea{font-size:16px}}
+@media(max-width:640px){.hhero h2{font-size:22px}.hbox textarea{font-size:16px}
+body.homev #hsidetop{display:inline-grid;order:-1;flex:none}body.homev .hdr h1{flex:1 1 auto}body.homev #hnewtop{padding:0;width:38px;height:38px;justify-content:center}body.homev #hnewtop span{display:none}.htop{display:none}
+.hmain.hfresh .hlog{margin:auto 0}.hmain.hfresh .hchips{order:1;margin-bottom:0}.hmain.hfresh .hbox{order:2}
+.hchips{flex-wrap:nowrap;justify-content:flex-start;overflow-x:auto;scrollbar-width:none;width:100%;padding-inline:16px;box-sizing:border-box}.hchips::-webkit-scrollbar{display:none}.hchips .chip{flex:none;white-space:nowrap}}
 #terms{display:none}body.termv.paged .hdr{display:flex}body.termv #newtop,body.termv #fbtn{display:none!important}
-body.termv #terms{flex:1;min-height:0;display:flex;flex-direction:column;gap:8px;padding:10px 20px 14px 28px;animation:fi .2s}
+body.termv #terms{flex:1;min-height:0;display:flex;flex-direction:column;gap:0;padding:0;animation:fi .2s}body.termv .tbar:not(:empty){padding:8px 16px}
 .tbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:12px}#tmodes{display:none}body.termv #tmodes{display:inline-flex}#tmodes button{display:inline-grid;place-items:center;padding:0 8px}#tmodes svg{width:16px;height:16px}.tbar .chip{cursor:pointer;background:none;border:0;font:inherit;font-size:11px}.tbar .chip:hover{color:var(--ink)}.tbar svg{width:12px;height:12px}
-.tgrid{position:relative;flex:1;min-height:0;display:grid;gap:6px}
-.tile{display:flex;flex-direction:column;min-width:0;min-height:0;border:1px solid var(--line);border-radius:var(--r-s);background:var(--bg);overflow:hidden}.tile.off{display:none}.tile.drop{outline:2px solid var(--accent);outline-offset:-2px}
+.tgrid{position:relative;flex:1;min-height:0;display:grid;gap:1px;background:var(--line)}.tgrid:not(:has(.tile)){background:none}
+.tile{display:flex;flex-direction:column;min-width:0;min-height:0;border:0;border-radius:0;background:var(--bg);overflow:hidden}.tile.off{display:none}.tile.drop{outline:2px solid var(--accent);outline-offset:-2px}
 .tile header{display:flex;align-items:center;gap:8px;min-height:30px;padding:0 4px 0 10px;border-bottom:1px solid var(--line);background:var(--bg-2);cursor:grab;user-select:none}
 .tile header b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:600}.tile header .sp{flex:1}
 .tile.ended .term{opacity:.6}.tend{flex:none;padding:0 6px;border-radius:9px;font-size:11px;color:var(--dim);box-shadow:inset 0 0 0 1px var(--line)}.tile header .btn.sm{height:22px;padding:0 8px;font-size:11px}
-.tile.asking{border-color:var(--warn);animation:task 1.6s ease-in-out infinite}@keyframes task{50%{box-shadow:0 0 0 3px color-mix(in srgb,var(--warn) 45%,transparent)}}@media (prefers-reduced-motion:reduce){:root:not([data-motion=full]) .tile.asking{box-shadow:0 0 0 2px var(--warn)}}:root[data-motion=reduce] .tile.asking{box-shadow:0 0 0 2px var(--warn)}
+.tile.asking{box-shadow:inset 0 0 0 2px var(--warn);animation:task 1.6s ease-in-out infinite}@keyframes task{50%{box-shadow:inset 0 0 0 3px color-mix(in srgb,var(--warn) 45%,transparent)}}@media (prefers-reduced-motion:reduce){:root:not([data-motion=full]) .tile.asking{box-shadow:inset 0 0 0 2px var(--warn)}}:root[data-motion=reduce] .tile.asking{box-shadow:inset 0 0 0 2px var(--warn)}
 .tdot{flex:none;width:8px;height:8px;border-radius:50%;background:var(--run)}.tdot.asking{background:var(--warn)}.tdot.ended{background:var(--dim);opacity:.6}
 .term{position:relative}.termtools{position:absolute;top:6px;right:14px;z-index:5;display:flex;gap:4px;opacity:.35;transition:opacity .15s}.term:hover .termtools,.termtools:focus-within{opacity:1}.termtools button,.termtools input{height:24px;padding:0 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg-2);color:var(--ink-hi);font:12px var(--mono)}.termtools button:hover{background:var(--hover)}.termtools:has(.recon:not([hidden])){opacity:1}.termtools .recon{border-color:var(--accent);color:var(--accent)}.tsearch{display:flex;gap:4px}.tsearch[hidden]{display:none}.termtools input{width:160px;padding:0 6px}.tile .term{flex:1;min-height:0}.tile .term .xterm{height:100%;padding:4px}.tile .term .xterm-viewport{background:transparent!important}
 .tsplit{position:absolute;z-index:2;touch-action:none}.tsplit.c{top:0;width:10px;margin-left:-5px;cursor:col-resize}.tsplit.r{left:0;right:0;height:10px;margin-top:-5px;cursor:row-resize}.tsplit:hover,.tdrag .tsplit:active{background:color-mix(in srgb,var(--accent) 35%,transparent)}
 .tile.max{position:fixed;inset:8px;z-index:10;box-shadow:var(--shadow-1)}body.tmax .tsplit{display:none}
 body.tdrag{user-select:none}body.tdrag .tile{pointer-events:none}
-@media(max-width:900px){body.termv #terms{padding-inline:16px}}
+@media(max-width:900px){body.termv #terms{padding-inline:0}}
 /* A phone has no room for a grid or a stack: one terminal fills the page, and tabs above pick which */
 .ttabs{display:none}
 @media(max-width:640px){body.termv #tmodes,.tile [data-a=max],.tsplit{display:none}.ttabs{display:flex;order:-1;flex:1 0 100%;min-width:0;gap:6px;overflow-x:auto;scrollbar-width:none}.ttabs button{flex:none;display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px;border:1px solid var(--line);border-radius:var(--r-pill);background:none;color:var(--dim);font:inherit;font-size:12px;white-space:nowrap}.ttabs button.on{color:var(--ink);background:var(--hover);border-color:var(--accent)}.tgrid{display:flex;flex-direction:column}.tile{flex:1}.tile.off{display:none}}
@@ -662,6 +789,19 @@ a.schip:hover{color:var(--ink);border-color:color-mix(in srgb,var(--line) 60%,va
 <symbol id="i-ext" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></symbol>
 <symbol id="i-board" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M15 4v16"/></symbol>
 <symbol id="i-side" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></symbol>
+<symbol id="i-claude" viewBox="0 0 24 24"><g fill="#D97757" stroke="none"><rect x="11" y="1.5" width="2" height="9.5" rx="1"/><rect x="11" y="1.5" width="2" height="9.5" rx="1" transform="rotate(30 12 12)"/><rect x="11" y="1.5" width="2" height="9.5" rx="1" transform="rotate(60 12 12)"/><rect x="11" y="1.5" width="2" height="9.5" rx="1" transform="rotate(90 12 12)"/><rect x="11" y="1.5" width="2" height="9.5" rx="1" transform="rotate(120 12 12)"/><rect x="11" y="1.5" width="2" height="9.5" rx="1" transform="rotate(150 12 12)"/><rect x="11" y="1.5" width="2" height="9.5" rx="1" transform="rotate(180 12 12)"/><rect x="11" y="1.5" width="2" height="9.5" rx="1" transform="rotate(210 12 12)"/><rect x="11" y="1.5" width="2" height="9.5" rx="1" transform="rotate(240 12 12)"/><rect x="11" y="1.5" width="2" height="9.5" rx="1" transform="rotate(270 12 12)"/><rect x="11" y="1.5" width="2" height="9.5" rx="1" transform="rotate(300 12 12)"/><rect x="11" y="1.5" width="2" height="9.5" rx="1" transform="rotate(330 12 12)"/></g></symbol>
+<symbol id="i-codex" viewBox="0 0 24 24"><ellipse cx="12" cy="7.2" rx="3.3" ry="5"/><ellipse cx="12" cy="7.2" rx="3.3" ry="5" transform="rotate(60 12 12)"/><ellipse cx="12" cy="7.2" rx="3.3" ry="5" transform="rotate(120 12 12)"/><ellipse cx="12" cy="7.2" rx="3.3" ry="5" transform="rotate(180 12 12)"/><ellipse cx="12" cy="7.2" rx="3.3" ry="5" transform="rotate(240 12 12)"/><ellipse cx="12" cy="7.2" rx="3.3" ry="5" transform="rotate(300 12 12)"/></symbol>
+<symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+<symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="t-request" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol>
+<symbol id="t-notes" viewBox="0 0 24 24"><path d="M12 17v5M9 3h6l-1 6 3 3H7l3-3z"/></symbol>
+<symbol id="t-plan" viewBox="0 0 24 24"><path d="M9 5h11M9 12h11M9 19h11"/><path d="M4 5l1 1 2-2M4 12l1 1 2-2M4 19h2"/></symbol>
+<symbol id="t-backlog" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10h14V9M10 13h4"/></symbol>
+<symbol id="t-impl" viewBox="0 0 24 24"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/></symbol>
+<symbol id="t-review" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="t-preview" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></symbol>
+<symbol id="t-book" viewBox="0 0 24 24"><path d="M4 4h6a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H4zM20 4h-6a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h7z"/></symbol>
+<symbol id="i-phone" viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="3"/><path d="M11 18h2"/></symbol>
 <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
 <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></symbol>
 <symbol id="s-idea" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" stroke-dasharray="2 2.5"/></symbol>
@@ -687,16 +827,21 @@ a.schip:hover{color:var(--ink);border-color:color-mix(in srgb,var(--line) 60%,va
   <div class="top"><a class="home" href="/" title="Home" aria-label="kaizen home"><pre class="mark"><span>█ █  ▄▀█  █  ▀▀█  █▀▀  █▄ █</span>
 <span>█▀▄  █▀█  █   ▄▀  ██▄  █ ▀█</span>
 <span>█ █  █ █  █  █▄▄  █▄▄  █  █</span></pre><span class="mascot"></span></a><button class="ib" id="fold" aria-label="Collapse menu" title="Collapse menu"><svg><use href="#i-side"/></svg></button></div>
+  <svg style="display:none"><defs>
+  <symbol id="r-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3z"/></symbol>
+  <symbol id="r-tray" viewBox="0 0 24 24"><path d="M12 3v9M8.5 8.5 12 12l3.5-3.5"/><path d="M3 14h5l1.5 2.5h5L16 14h5"/><path d="M3 14v5a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-5l-2.5-6H15M9 8H5.5L3 14"/></symbol>
+  <symbol id="r-filter" viewBox="0 0 24 24"><path d="M4 5h16l-6 8v6l-4-2v-4z"/></symbol>
+  <symbol id="r-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="r-bug" viewBox="0 0 24 24"><rect x="8" y="6" width="8" height="14" rx="4"/><path d="M12 20v-9M8 12H4M20 12h-4M9 7 7 4M15 7l2-3M8 17l-3 2M16 17l3 2"/></symbol>
+  <symbol id="r-kbd" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></symbol>
+  </defs></svg>
   <a class="it" href="/" data-view="home" title="Home: chat with the project's agent"><svg><use href="#i-home"/></svg><span class="lbl">Home</span></a>
-  <a class="it fold" href="/?view=icebox" data-view="sources" title="Icebox: requests gathered from your sources"><svg><use href="#i-inbox"/></svg><span class="lbl">Icebox</span></a>
+  <a class="it fold" href="/?view=icebox" data-view="sources" title="Icebox: requests gathered from your sources"><svg><use href="#r-tray"/></svg><span class="lbl">Icebox</span><span class="srcs" id="rail-srcs"></span><span class="n" id="ice-n"></span></a>
+  <a class="it" href="/?view=ideas" data-view="ideas" title="Ideas: every idea and run, filtered"><svg><use href="#r-bulb"/></svg><span class="lbl">Ideas</span></a>
   <a class="it" href="/?view=board" data-view="board" title="Board"><svg><use href="#i-board"/></svg><span class="lbl">Board</span></a>
-  <a class="it" href="/notebook" data-view="notes" title="Notes"><svg><use href="#i-note"/></svg><span class="lbl">Notes</span></a>
-  <a class="it fold" href="/video" data-view="video" title="Video: make and edit videos"><svg><use href="#i-video"/></svg><span class="lbl">Video</span></a>
-  <a class="it" href="/?view=terminal" data-view="terminal" title="Terminal: every agent running in its card"><svg><use href="#i-term"/></svg><span class="lbl">Terminal</span></a>
-  <a class="it fold" href="/?view=settings" data-view="settings" title="Settings"><svg><use href="#i-gear"/></svg><span class="lbl">Settings</span></a>
-  <details class="mtab"><summary title="More"><svg><use href="#i-more"/></svg><span class="lbl">More</span></summary><div class="mpop"><a href="/?view=icebox" data-view="sources"><svg><use href="#i-inbox"/></svg>Icebox</a><a href="/video" data-view="video"><svg><use href="#i-video"/></svg>Video</a><a href="/?view=settings" data-view="settings"><svg><use href="#i-gear"/></svg>Settings</a></div></details>
-  <span class="end"></span>
-  <div class="theme" role="group" aria-label="Theme"><button data-t="light" title="Light theme"><svg><use href="#i-sun"/></svg><span class="lbl">Light</span></button><button data-t="dark" title="Dark theme"><svg><use href="#i-moon"/></svg><span class="lbl">Dark</span></button></div>
+  <div class="psec"><span class="lbl">Projects</span><button id="pfilter" title="Show one project" aria-label="Show one project"><svg><use href="#r-filter"/></svg></button><button id="padd" title="New idea" aria-label="New idea"><svg><use href="#r-plus"/></svg></button></div>
+  <div class="plist" id="plist" aria-label="Ideas and runs by project"></div>
+  <div class="rbot"><a class="it fold" href="/?view=settings" data-view="settings" title="Settings"><svg><use href="#i-gear"/></svg><span class="lbl">Settings</span></a><a class="rib" href="/issue" target="_blank" rel="noopener" title="Report an issue" aria-label="Report an issue"><svg><use href="#r-bug"/></svg></a><button class="rib" id="kbd" title="Keyboard shortcuts" aria-label="Keyboard shortcuts"><svg><use href="#r-kbd"/></svg></button><button class="rib th" id="themet" title="Theme" aria-label="Theme"><svg class="sun"><use href="#i-sun"/></svg><svg class="moon"><use href="#i-moon"/></svg></button></div>
 </nav>
 <script>
 // Side menu: theme and collapse, the same lines in board.html and notes.html. Runs before
@@ -707,21 +852,21 @@ a.schip:hover{color:var(--ink);border-color:color-mix(in srgb,var(--line) 60%,va
  const rail=()=>{const m=phone.matches||(fold?fold==="min":wide.matches),b=document.getElementById("fold");r.dataset.rail=m?"min":"full";b.title=m?"Expand menu":"Collapse menu";b.setAttribute("aria-label",b.title);b.setAttribute("aria-expanded",!m)};
  wide.addEventListener("change",rail);phone.addEventListener("change",rail);rail();
  document.getElementById("fold").onclick=()=>{fold=r.dataset.rail==="min"?"full":"min";try{localStorage.setItem("kz-rail",fold)}catch(e){}rail()};
- // Theme: light, dark, or unset for system, in kz-theme. The switch shows what is on screen.
- const paint=()=>{const d=r.dataset.theme?r.dataset.theme==="dark":os.matches;document.querySelectorAll(".theme button").forEach(b=>b.setAttribute("aria-pressed",(b.dataset.t==="dark")===d))};
+ // Theme: light, dark, or unset for system, in kz-theme. The toggle shows what is on screen and flips it.
+ const paint=()=>{const d=r.dataset.theme?r.dataset.theme==="dark":os.matches;const b=document.getElementById("themet");if(b){b.dataset.dark=d;b.title=d?"Dark theme: switch to light":"Light theme: switch to dark";b.setAttribute("aria-label",b.title)}};
  window.setTheme=t=>{if(t==="system")delete r.dataset.theme;else r.dataset.theme=t;try{t==="system"?localStorage.removeItem("kz-theme"):localStorage.setItem("kz-theme",t)}catch(e){}paint();dispatchEvent(new Event("kz-theme"))};
  try{const t=localStorage.getItem("kz-theme");if(t)r.dataset.theme=t}catch(e){}
  // Motion: full, reduce, or unset to follow the system's reduced-motion, in kz-motion.
  window.setMotion=m=>{if(m==="system")delete r.dataset.motion;else r.dataset.motion=m;try{m==="system"?localStorage.removeItem("kz-motion"):localStorage.setItem("kz-motion",m)}catch(e){}};
  try{const m=localStorage.getItem("kz-motion");if(m)r.dataset.motion=m}catch(e){}
  os.addEventListener("change",paint);paint();
- document.querySelectorAll(".theme button").forEach(b=>b.onclick=()=>setTheme(b.dataset.t));
+ document.getElementById("themet").onclick=e=>setTheme(e.currentTarget.dataset.dark==="true"?"light":"dark");
  // Phones: More holds the tabs that do not fit; a pick or a tap elsewhere closes it.
- const more=document.querySelector(".mtab");more.querySelectorAll("a").forEach(a=>a.addEventListener("click",()=>more.open=false));
- addEventListener("pointerdown",e=>{if(more.open&&!more.contains(e.target))more.open=false},true)})();
+ const more=document.querySelector(".mtab");if(more){more.querySelectorAll("a").forEach(a=>a.addEventListener("click",()=>more.open=false));addEventListener("pointerdown",e=>{if(more.open&&!more.contains(e.target))more.open=false},true)}})();
 </script>
 <div class="app">
 <div class="hdr">
+  <button class="ib" id="hsidetop" aria-label="Chats" title="Chats"><svg><use href="#i-side"/></svg></button>
   <h1>Board</h1>
   <div class="combo" id="combo"><button class="sel" id="proj" aria-label="project" aria-haspopup="listbox" aria-expanded="false"></button><div class="menu-pop" id="projpop" hidden><input class="sel" id="projq" aria-label="Search projects" placeholder="Search projects…" spellcheck="false" autocomplete="off"><div id="projs" role="listbox"></div></div></div>
   <div class="combo" id="showc" hidden><button class="sel" id="show" aria-label="Projects shown" aria-haspopup="true" aria-expanded="false"></button><div class="menu-pop" id="showpop" hidden><input class="sel" id="showq" aria-label="Search projects" placeholder="Search projects…" spellcheck="false" autocomplete="off"><div id="shows"></div><div class="pop-ft"><span id="showcount"></span><button id="showall">Show all</button></div></div></div>
@@ -730,24 +875,30 @@ a.schip:hover{color:var(--ink);border-color:color-mix(in srgb,var(--line) 60%,va
   <span class="sp"></span>
   <span class="bar" id="tmodes" role="group" aria-label="Layout"></span>
   <button class="btn pri" id="newtop">New idea</button>
+  <button class="ib" id="ctx-open" aria-label="Open side panel" title="Notes, files and terminals"><svg><use href="#i-side"/></svg></button>
   <button class="ib" id="hpop" title="Pop out chat" aria-label="Pop out chat"><svg><use href="#i-popout"/></svg></button>
-  <button class="btn pri" id="hnewtop" aria-label="New chat"><svg><use href="#i-plus"/></svg>New chat</button>
+  <button class="btn pri" id="hnewtop" aria-label="New chat"><svg><use href="#i-plus"/></svg><span>New chat</span></button>
 </div>
 <main id="board" aria-live="polite" aria-busy="true"><section aria-hidden="true"><span class="skel" style="height:14px;width:40%;margin:4px 0 12px"></span><span class="skel" style="height:72px;margin-bottom:8px"></span><span class="skel" style="height:72px"></span></section><section aria-hidden="true"><span class="skel" style="height:14px;width:40%;margin:4px 0 12px"></span><span class="skel" style="height:72px;margin-bottom:8px"></span><span class="skel" style="height:72px"></span></section><section aria-hidden="true"><span class="skel" style="height:14px;width:40%;margin:4px 0 12px"></span><span class="skel" style="height:72px;margin-bottom:8px"></span><span class="skel" style="height:72px"></span></section><section aria-hidden="true"><span class="skel" style="height:14px;width:40%;margin:4px 0 12px"></span><span class="skel" style="height:72px;margin-bottom:8px"></span><span class="skel" style="height:72px"></span></section><section aria-hidden="true"><span class="skel" style="height:14px;width:40%;margin:4px 0 12px"></span><span class="skel" style="height:72px;margin-bottom:8px"></span><span class="skel" style="height:72px"></span></section></main>
 
 <div id="terms" aria-label="Terminals"></div>
 <div id="home" aria-label="Chat"></div>
+<div id="ideasv" aria-label="Ideas"></div>
+<div id="runv" aria-label="Run workspace"><nav id="rtabs" aria-label="Workspace tabs"></nav><div id="rpanes"></div></div>
 
-<div class="ftr"><span class="strip" id="strip"></span><span><a href="/issue" target="_blank" rel="noopener"><svg><use href="#i-bug"/></svg>Report an issue</a><a id="kbd"><svg><use href="#i-kbd"/></svg>Keyboard shortcuts</a></span></div>
+<div class="ftr"><span class="strip" id="strip"></span></div>
 
 <div class="scrim" id="scrim"></div>
 <aside id="panel" aria-label="detail">
   <header><div class="t"><b id="ptitle"></b><div class="sub" id="psub"></div></div><button class="ib" id="pterm" aria-label="Terminal" title="Terminal" hidden><svg><use href="#i-term"/></svg></button><button class="ib" id="pclose" aria-label="Close" title="Close"><svg><use href="#i-close"/></svg></button></header>
-  <nav id="ptabs"></nav>
+  <div class="pstrip"><nav id="ptabs"></nav><button class="pnotes" id="pnotes" title="Project notes" aria-label="Project notes"><svg><use href="#t-book"/></svg></button></div>
+  <div class="body md" id="pnlist"></div>
   <div class="body md" id="pbody"></div>
   <div class="foot" id="pfoot"></div>
 </aside>
 </div>
+<footer class="foot" id="foot" aria-label="Usage and status"><span id="usage"></span><button class="fb" id="usage-r" title="Refresh usage" aria-label="Refresh usage"><svg><use href="#i-refresh"/></svg></button><span class="sp"></span><a class="fb" id="tcount" href="/?view=terminal" title="All terminals" hidden><svg><use href="#i-term"/></svg><span></span></a><span class="uchip" id="phone" hidden></span></footer>
+<section id="context" aria-label="Project context"><header><strong id="context-title">Project</strong><button class="ib" id="ctx-close" aria-label="Close side panel" title="Close"><svg><use href="#i-close"/></svg></button></header><nav aria-label="Side content"><button data-context="files">Files</button><button data-context="notes">Notes</button><button data-context="terminal">Terminal</button></nav><div id="context-body"></div></section>
 <div class="toast" id="toast" role="status"></div>
 <div class="help" id="help"><div>
 <p>Optional. Everything here is also a button.</p>

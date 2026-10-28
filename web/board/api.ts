@@ -4,6 +4,7 @@ import { $, vt } from "./dom.ts";
 import { close, ideaBody, open, openRun } from "./panel.ts";
 import { notifyUser, toast } from "./toast.ts";
 import { openTerms, termsShowing } from "./terms.ts";
+import { refreshBoardBadge } from "./badge.ts";
 
 // The server writes notifier() from state.ts over a marker in board.html: one rule for both UIs.
 declare const due: (key: string, say: string | null, done: boolean, now: number) => boolean;
@@ -30,6 +31,7 @@ export async function load(quiet) {
   }
   const was = store.openKey && store.S.cards.find((x) => key(x) === store.openKey);
   store.S = await r.json();
+  if (!store.all) void refreshBoardBadge();
   // Home follows a project switch without the board importing it.
   dispatchEvent(new Event("kz-state"));
   {

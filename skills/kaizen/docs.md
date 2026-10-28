@@ -27,7 +27,7 @@ inside a project note: that section is theirs, and it is never rewritten.
 
 - No `Project/Index.md`: **build**.
 - `Project/Index.md` exists: **update**.
-- `/kaizen docs lint`: **lint** alone, nothing written.
+- `/kaizen docs lint`: run the read-only CLI command `kaizen docs lint`; nothing written.
 
 Build and update both end with lint.
 
@@ -133,6 +133,11 @@ updated: YYYY-MM-DD
    note touched, refresh the pointer, lint, and report.
 
 ## Lint
+
+Run `kaizen docs lint` from the project or any directory under it. It reports each
+finding and exits 1 when any are present; a clean vault exits 0. Without a vault it
+exits 1 and says to run `/kaizen docs` first. The Docs gate skips lint when no vault
+exists, as `spec-main.md` says.
 
 Checks, reported and not silently fixed:
 

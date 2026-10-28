@@ -1,6 +1,6 @@
 // `kaizen web`: the board in a browser. A loopback HTTP server over state.ts and
 // one HTML page; the page never sees the filesystem, only JSON.
-import { existsSync, readdirSync, statSync, watch, appendFileSync, mkdirSync, cpSync, rmSync, writeFileSync, type FSWatcher } from "node:fs";
+import { existsSync, readdirSync, statSync, lstatSync, realpathSync, readFileSync, watch, appendFileSync, mkdirSync, cpSync, rmSync, writeFileSync, type FSWatcher } from "node:fs";
 import { join, dirname, resolve, sep, basename } from "node:path";
 import {
   home, type Item, type Card, boardCards, knownProjects, remember, locate, label, tilde, searchRoots, findProjects,
@@ -9,7 +9,8 @@ import {
   reviewFindings, pickFindings, backlogCards, backlogItem, startedBacklog, closeBacklog, markBacklogDone, fixPrompt, approvalPrompt, canApproveAwaiting, nativePath, closeSessions, sweepSessions, issueUrl,
   launchMode, readSessions, ownerOf, runIndex, resumePrompt, runAgent, firstSession, webHosts,
 } from "./state.ts";
-import { attachPty, writePty, resizePty, exitPty, ptyState, ptyKeys, adoptLoginEnv } from "./pty.ts";
+import { attachPty, writePty, resizePty, exitPty, ptyState, ptyKeys, adoptLoginEnv, startPty, ptySupported } from "./pty.ts";
+import { claudeUsage, codexUsage, phonePeers, type Usage } from "./usage.ts";
 import { readSources, addSource, removeSource, moveSource, setCategory, setWriteback, setPaused, readIcebox, promote, dismiss, restore, addItem, githubRepo, markDone, markReplied, gatherSource, freshImages, gatherAll, gatherDirs, due, socialUrl, socialOf } from "./sources.ts";
 import { projectLogo, LOGO_TYPES } from "./logo.ts";
 import * as chatgpt from "./chatgpt.ts";
@@ -213,6 +214,11 @@ export async function web(repoDir: string, opts: Opts = {}) {
   // Change notification: one SSE stream per open board, fed by fs.watch where it
   // works and a slow poll where it does not.
   const clients = new Set<ReadableStreamDefaultController>();
+  // Shells the board started (POST /shell), by /pty key; dead ones drop on the next /shells.
+  const shells = new Map<string, { key: string; dir: string; title: string; agent: string }>();
+  const SHELL_CAP = 8;
+  let usageCache: Usage[] = [];
+  let usageAt = 0;
   let pending: ReturnType<typeof setTimeout> | null = null;
   const changed = () => {
     if (pending) return;
@@ -596,11 +602,109 @@ export async function web(repoDir: string, opts: Opts = {}) {
         return json({ ok: exitPty(key) });
       }
 
+      // A plain shell, or a bare Claude/Codex session, in a project folder: the run
+      // workspace's + menu. Code execution, so local() as for every write, a registered
+      // project, and an agent only from KNOWN_AGENTS: no argv ever comes from the page.
+      // Its keys (sh-…) are /pty keys, so /pty's exact-origin check covers the socket.
+      if (req.method === "POST" && path === "/shell") {
+        // Stricter than local(): another local server's page (the dev server a localhost tab
+        // frames) shares the hostname, so the port must match too, and a JSON content type
+        // forces a preflight that a foreign page cannot pass.
+        const origin = req.headers.get("origin");
+        let same = !origin;
+        try { if (origin) { const o = new URL(origin); same = o.host === req.headers.get("host") || extraHosts.has(o.hostname); } } catch { /* bad origin */ }
+        if (!same) return bad("cross-origin shell refused", 403);
+        if (!/^application\/json\b/i.test(req.headers.get("content-type") ?? "")) return bad("json body expected", 415);
+        if (!ptySupported) return bad("terminals need a newer Bun", 501);
+        let body: any;
+        try { body = await req.json(); } catch { return bad("json body expected"); }
+        const dir = String(body.dir ?? "");
+        if (!states(true).includes(dir) || dir === join(home, ".kaizen")) return bad("choose a project", 404);
+        let cmd: string[];
+        let agent = "";
+        if (body.agent != null) {
+          const a = KNOWN_AGENTS.find((k) => k.cmd === body.agent);
+          if (!a || !onPath(a.cmd)) return bad("unknown agent", 400);
+          agent = a.cmd;
+          cmd = [a.cmd];
+        } else cmd = process.platform === "win32" ? [powershellExe()] : [process.env.SHELL || "sh", "-l"];
+        for (const k of shells.keys()) if (!ptyState(k)?.alive) shells.delete(k);
+        if ([...shells.values()].filter((x) => x.dir === dir).length >= SHELL_CAP) return bad(`at most ${SHELL_CAP} terminals per project: close one first`, 429);
+        const key = "sh-" + crypto.randomUUID().slice(0, 8);
+        const title = agent ? KNOWN_AGENTS.find((k) => k.cmd === agent)!.name : "shell";
+        startPty(key, cmd, projectOf(dir), undefined, changed);
+        shells.set(key, { key, dir, title, agent });
+        changed();
+        return json(shells.get(key));
+      }
+      if (req.method === "GET" && path === "/shells") {
+        const dir = url.searchParams.get("dir");
+        for (const k of shells.keys()) if (!ptyState(k)?.alive) shells.delete(k);
+        return json([...shells.values()].filter((s) => !dir || s.dir === dir));
+      }
+
+      // The footer: each installed agent's plan usage (cached a minute, ?refresh=1 asks
+      // again) and whether a phone is on the tailnet.
+      if (req.method === "GET" && path === "/usage") {
+        // A forced refresh only from the board's own pages, and not more than every 5 s: each one is a call with the user's token.
+        const force = url.searchParams.has("refresh") && local(req) && Date.now() - usageAt > 5_000;
+        if (force || Date.now() - usageAt > 60_000) {
+          const out: Usage[] = [];
+          if (onPath("claude")) { const u = await claudeUsage(home); if (u) out.push(u); }
+          if (onPath("codex")) { const u = codexUsage(home); if (u) out.push(u); }
+          usageCache = out;
+          usageAt = Date.now();
+        }
+        return json(usageCache);
+      }
+      if (req.method === "GET" && path === "/phone") {
+        // Async: a hung tailscale must not stall every terminal socket on this event loop.
+        let out = "";
+        try {
+          const p = Bun.spawn(["tailscale", "status", "--json"], { stdout: "pipe", stderr: "ignore", timeout: 5000 });
+          out = await new Response(p.stdout).text();
+          await p.exited;
+        } catch { return json({ tailscale: false }); }
+        const r = phonePeers(out);
+        return json({ tailscale: r.running, phones: r.phones.length, online: r.phones.some((x) => x.online) });
+      }
+
       // Every note of one project, text included: search, tags and backlinks are the page's.
       if (req.method === "GET" && path === "/vault") {
         const dir = url.searchParams.get("dir") ?? state ?? join(home, ".kaizen");
         if (!states(true).includes(dir)) return bad("unknown state dir", 404);
         return json({ dir, notes: listNotes(dir) });
+      }
+
+      if (req.method === "GET" && (path === "/project-tree" || path === "/project-text")) {
+        const treeState = url.searchParams.get("dir") ?? state;
+        if (!treeState || !states(true).includes(treeState) || treeState === join(home, ".kaizen")) return bad("choose a project", 404);
+        const rel = url.searchParams.get("path") ?? "";
+        const parts = rel ? rel.split("/") : [];
+        if (rel.includes("\\") || rel.startsWith("/") || /^[A-Za-z]:/.test(rel) || parts.some((part) => !part || part === "." || part === ".." || part.startsWith("."))) return bad("invalid path", 400);
+        const root = realpathSync(projectOf(treeState));
+        let file = root;
+        try {
+          for (const part of parts) {
+            file = join(file, part);
+            if (lstatSync(file).isSymbolicLink()) return bad("symlinks are unavailable", 403);
+          }
+          const actual = realpathSync(file);
+          if (actual !== root && !actual.startsWith(root + sep)) return bad("outside project", 403);
+          if (path === "/project-tree") {
+            if (!statSync(file).isDirectory()) return bad("not a folder", 400);
+            const skip = new Set(["node_modules", "dist", "build", "coverage", "target", "vendor", ".git", ".kaizen"]);
+            const entries = readdirSync(file, { withFileTypes: true }).filter((e) => !e.name.startsWith(".") && !skip.has(e.name) && !e.isSymbolicLink() && (e.isDirectory() || e.isFile())).sort((a, b) => Number(b.isDirectory()) - Number(a.isDirectory()) || a.name.localeCompare(b.name)).slice(0, 200).map((e) => ({ name: e.name, dir: e.isDirectory() }));
+            return json({ path: rel, entries });
+          }
+          const info = statSync(file);
+          if (!info.isFile() || info.size > 65536) return bad("file is unavailable or too large", 415);
+          const bytes = readFileSync(file);
+          if (bytes.includes(0)) return bad("binary file is unavailable", 415);
+          const content = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+          if (url.searchParams.has("download")) return new Response(content, { headers: { "content-type": "text/plain; charset=utf-8", "content-disposition": `attachment; filename*=UTF-8''${encodeURIComponent(basename(file))}`, "x-content-type-options": "nosniff" } });
+          return json({ path: rel, content });
+        } catch { return bad("file not found", 404); }
       }
 
       // What a note can link to on this project's board: runs, findings, backlog, ideas.
