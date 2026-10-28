@@ -226,7 +226,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
   // works and a slow poll where it does not.
   const clients = new Set<ReadableStreamDefaultController>();
   // Shells the board started (POST /shell), by /pty key; dead ones drop on the next /shells.
-  const shells = new Map<string, { key: string; dir: string; title: string; agent: string; run: string }>();
+  const shells = new Map<string, { key: string; dir: string; title: string; agent: string; run: string; pid?: number }>();
   const SHELL_CAP = 8;
   let usageCache: Usage[] = [];
   let usageAt = 0;
@@ -651,6 +651,14 @@ export async function web(repoDir: string, opts: Opts = {}) {
           // transcript-age check alone would miss it where there is no /proc.
           const idx = runIndex(dir);
           if (readSessions(dir).some((x) => ptyState(x.key)?.alive && ownerOf(dir, x, idx) === id)) return json({ live: true }, 409);
+          // Running in a board terminal (the Terminal page's shell, opened by another run or
+          // none): that terminal becomes this run's, so the run view shows it.
+          const host = [...shells.values()].find((x) => x.dir === dir && x.pid && ptyState(x.key)?.alive && shellHosts(x.pid, sid));
+          if (host) {
+            host.run = runKey;
+            changed();
+            return json(host);
+          }
           if (sessionLive(sid)) return json({ live: true }, 409);
           agent = "claude";
           cmd = ["claude", "--resume", sid];
@@ -664,9 +672,9 @@ export async function web(repoDir: string, opts: Opts = {}) {
         if ([...shells.values()].filter((x) => x.dir === dir).length >= SHELL_CAP) return bad(`at most ${SHELL_CAP} terminals per project: close one first`, 429);
         const key = "sh-" + crypto.randomUUID().slice(0, 8);
         const title = agent ? KNOWN_AGENTS.find((k) => k.cmd === agent)!.name : "shell";
-        startPty(key, cmd, projectOf(dir), undefined, changed);
+        const pid = startPty(key, cmd, projectOf(dir), undefined, changed);
         // The run workspace that opened it (its card key), so each run keeps its own centre.
-        shells.set(key, { key, dir, title, agent, run: runKey });
+        shells.set(key, { key, dir, title, agent, run: runKey, pid });
         changed();
         return json(shells.get(key));
       }
@@ -1702,6 +1710,24 @@ export function sessionLive(id: string): boolean {
       if (existsSync(f) && Date.now() - statSync(f).mtimeMs < 90_000) return true;
     }
   } catch {}
+  return false;
+}
+
+// Whether Claude Code session `id` runs as process `root` or under it: Claude Code records
+// each running session as ~/.claude/sessions/<pid>.json; /proc gives the parent chain.
+// Linux only; elsewhere false, and the run view says the session runs elsewhere.
+export function shellHosts(root: number, id: string): boolean {
+  try {
+    for (const f of readdirSync(join(home, ".claude", "sessions"))) {
+      if (!/^\d+\.json$/.test(f)) continue;
+      let pid = Number(f.slice(0, -5));
+      try { if (JSON.parse(readFileSync(join(home, ".claude", "sessions", f), "utf8")).sessionId !== id) continue; } catch { continue; }
+      for (let i = 0; i < 20 && pid > 1; i++) {
+        if (pid === root) return true;
+        try { pid = Number(readFileSync(`/proc/${pid}/stat`, "utf8").replace(/^.*\) /, "").split(" ")[1]); } catch { break; }
+      }
+    }
+  } catch { /* no sessions folder or no /proc */ }
   return false;
 }
 

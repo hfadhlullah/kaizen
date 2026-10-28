@@ -87,9 +87,6 @@ export function open(c, keepTab) {
   if (!keepTab)
     store.lastTab = store.tab =
       c.status === "abandoned" ? "plan" : { 1: "plan", 2: "backlog", 3: "review", 4: "preview" }[c.column] || "request";
-  // A run its agent is working on in this board, while planning, building or reviewing, opens on that agent.
-  // Not in the run workspace: there the agent is a centre tab.
-  if (!keepTab && c.pty && c.pty.alive && c.column >= 1 && c.column <= 3 && view !== "run") store.tab = "term";
   openRun(c, false);
 }
 // A building run's Backlog tab opens with its progress, above the deferred items. The
@@ -173,12 +170,9 @@ export async function openRun(c, refresh, again) {
         ? preview(store.runDoc.impl)
         : store.runDoc[t[1]] || (t[1] === "backlog" && c.column === 2 && store.runDoc.progress)),
   );
-  if (c.pty && store.wantTerm === key(c)) {
-    store.wantTerm = null;
-    store.tab = "term";
-  }
-  // In the run workspace the agent is a centre tab, so the panel never shows a terminal.
-  if (store.tab === "term" && (!c.pty || view === "run")) store.tab = store.lastTab;
+  if (store.wantTerm === key(c)) store.wantTerm = null;
+  // The agent is a centre tab of the run workspace only: the panel never shows a terminal.
+  if (store.tab === "term") store.tab = store.lastTab;
   // In the run workspace Preview is a centre tab, so the panel never shows it.
   if (view === "run" && store.tab === "preview") store.tab = "review";
   // A tab not written yet falls back to the latest one that is.
@@ -187,7 +181,7 @@ export async function openRun(c, refresh, again) {
   if (store.tab !== "term") store.lastTab = store.tab;
   $("panel").classList.toggle("wide", store.tab === "term");
   const pt = $("pterm");
-  pt.hidden = !c.pty || view === "run";
+  pt.hidden = true;
   pt.classList.toggle("on", store.tab === "term");
   pt.setAttribute("aria-pressed", store.tab === "term");
   pt.title = pt.ariaLabel = store.tab === "term" ? "Close terminal" : "Terminal";

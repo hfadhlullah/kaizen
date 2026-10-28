@@ -180,3 +180,6 @@ updated: 2026-10-28
 - 2026-10-28 followup-run-title: a follow-up request that opens with "Question asked at …" titles its card from the Roadmap line, else the Answer (`requestTitle`, cli/state.ts); spec asks follow-ups that only answer a question to name the work first.
 
 - 2026-10-28 phone-layout-revamp: phones get Home (devices, recent runs, usage), Chat, Runs and Settings; no Board, Ideas or Icebox on phones; tidier header and tab bar (web/board/phone.ts, /phone lists tailnet computers).
+
+- 2026-10-29 run-view-adopts-board-terminal: a run whose Claude session runs in a board terminal shows that terminal in its run view instead of "running in another terminal" (`shellHosts`, cli/web.ts).
+- 2026-10-29 run-view-board-terminal (revise): the Board drawer no longer shows the agent terminal; it lives only in the run view.
