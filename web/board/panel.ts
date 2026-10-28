@@ -153,8 +153,8 @@ export async function openRun(c, refresh, again) {
   // (a resumed agent's terminal, not the one that ended).
   c = store.S.cards.find((x) => key(x) === store.openKey) || c;
   // A refresh while notes are being typed would wipe the textarea.
-  const ta = $("pbody").querySelector(".notes textarea");
-  if (refresh && ta && document.activeElement === ta) return;
+  // The textarea is hidden under the rich editor: focus anywhere in the notes counts.
+  if (refresh && $("pbody").querySelector(".notes")?.contains(document.activeElement)) return;
   // The board's own status mark, then what it waits on: chips, not a dotted line.
   $("psub").innerHTML = c.status === "abandoned" ? html`<span class="pst"><span class="st d-${ICON[c.status] || "idea"}"><svg><use href="#s-${ICON[c.status] || "idea"}"/></svg></span>${cap(WORD[c.status] || c.status)}</span>` +
     (c.awaiting ? html`<span class="pst dim">${cap(need(c.awaiting))}</span>` : "") +

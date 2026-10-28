@@ -12,6 +12,7 @@ import { askNotify, toast } from "./toast.ts";
 import { answer, decided, resumable, resume } from "./approvals.ts";
 import { termsBadge } from "./terms.ts";
 import { boardBadge, waitingCount } from "./badge.ts";
+import { openWorkspace } from "./run-view.ts";
 
 let filter = null;
 let query = ""; // the header filter box, matched against a card's title and request
@@ -392,7 +393,7 @@ function inlineForm(c) {
     };
   }
   if (store.mode === "run") {
-    li.innerHTML = html`<div class="q">Run "${c.text}"</div><div class="q dim">Opens your agent with this request in a terminal.</div><div class="q dim">Full plans, builds, and checks with a separate reviewer. Lite does it in one session.</div><div id="run-pick" style="display:grid;gap:6px"><div id="run-agent" class="agents" role="radiogroup" aria-label="Agent"></div></div><div class="run-actions"><label class="yolo" id="run-yolo" title="Yolo: the agent runs every command and edit without asking" hidden><button type="button" class="chk" role="switch" aria-checked="false"></button>Yolo</label><div class="row"><button class="btn ghost" data-a="c">Cancel</button><button class="btn" data-a="l">Lite</button><button class="btn pri" data-a="s">Full run</button></div></div>`;
+    li.innerHTML = runHtml(c);
     li.querySelector("[data-a=s]").onclick = () => startRun(c, "full");
     li.querySelector("[data-a=l]").onclick = () => startRun(c, "lite");
     runForm(li, c);
@@ -420,6 +421,23 @@ function inlineForm(c) {
     setTimeout(() => inp.focus());
   }
   return li;
+}
+
+const runHtml = (c) =>
+  html`<div class="q">Run "${c.text}"</div><div class="q dim">Opens your agent with this request in a terminal.</div><div class="q dim">Full plans, builds, and checks with a separate reviewer. Lite does it in one session.</div><div id="run-pick" style="display:grid;gap:6px"><div id="run-agent" class="agents" role="radiogroup" aria-label="Agent"></div></div><div class="run-actions"><label class="yolo" id="run-yolo" title="Yolo: the agent runs every command and edit without asking" hidden><button type="button" class="chk" role="switch" aria-checked="false"></button>Yolo</label><div class="row"><button type="button" class="btn ghost" data-a="c">Cancel</button><button type="button" class="btn" data-a="l">Lite</button><button type="button" class="btn pri" data-a="s">Full run</button></div></div>`;
+// The run form as a popup over any page: Start in the new-idea form and on Ideas.
+export function runPopup(c) {
+  const dl = modal(runHtml(c)),
+    f = dl.querySelector("form");
+  const go = (kind) => {
+    // startRun reads the Yolo switch, so the dialog closes after it has.
+    void startRun(c, kind);
+    dl.close();
+  };
+  f.querySelector<HTMLElement>("[data-a=s]").onclick = () => go("full");
+  f.querySelector<HTMLElement>("[data-a=l]").onclick = () => go("lite");
+  f.querySelector<HTMLElement>("[data-a=c]").onclick = () => dl.close();
+  runForm(f, c);
 }
 
 let editFiles = { k: "", files: [] };
@@ -492,6 +510,8 @@ async function startRun(c, kind) {
     toast((kind === "full" ? "Full" : kind === "lite" ? "Lite" : "Started") + (yolo ? " yolo" : "") + " run " + where(r) + ": " + via(r.agent));
     // A backlog card has no terminal of its own; the run's card gets it once the run exists.
     if (r.pty && !backlog) store.wantTerm = key(c);
+    // An idea's run opens in its workspace; the view follows it once the run card exists.
+    if (!backlog) openWorkspace(c);
   }
   load();
 }
@@ -540,7 +560,7 @@ function ideaForm(f, shut) {
       if (run) {
         await load();
         const c = store.S.cards.find((x) => x.kind === "idea" && x.text === text && (!dir || x.state === dir));
-        if (c) return startRun(c);
+        if (c) return runPopup(c);
       }
     }
     load();

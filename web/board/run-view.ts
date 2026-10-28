@@ -115,6 +115,13 @@ export async function showRunView() {
     idea = p.get("idea");
   const find = (cs) => cs.find((x) => x.state === dir && (id ? x.kind === "run" && x.id === id : x.kind === "idea" && x.text === idea));
   const c = find(store.S.cards);
+  // A launched idea becomes a run: its agent session moves to the run's card, and the view follows.
+  const pk = idea && (c ?? card)?.kind === "idea" && (c ?? card)?.pty?.key;
+  const run = pk && store.S.cards.find((x) => x.kind === "run" && x.state === dir && (x.pty?.key === pk || x.pty?.all?.includes(pk)));
+  if (run) {
+    history.replaceState(null, "", cardHref(run));
+    return showRunView();
+  }
   if (!c) {
     // A project this board is not showing: the all-projects board has it.
     if (!store.all && find(railData().cards)) location.href = "/?all=1&" + p.toString();

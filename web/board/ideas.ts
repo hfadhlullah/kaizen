@@ -5,7 +5,7 @@
 import { store } from "./store.ts";
 import { $, html, ico, raw } from "./dom.ts";
 import { age, NAMES } from "./labels.ts";
-import { key, render } from "./cards.ts";
+import { key, runPopup } from "./cards.ts";
 import { openWorkspace } from "./run-view.ts";
 import { refreshBoardBadge } from "./badge.ts";
 import { cardHref, drawSources, logo, railData, srcIcon, stateOf, titleOf } from "./workspace.ts";
@@ -117,7 +117,7 @@ function draw() {
   mark();
 }
 
-// Start: the card's own run form on the board (agent pick, then go). Open: the card.
+// Start: the run form in a popup (agent pick, then go), then the run workspace. Open: the card.
 // Cards of a project this board is not showing go through the board's deep link.
 function act(c) {
   const here = store.S.cards.find((x) => key(x) === key(c));
@@ -126,10 +126,7 @@ function act(c) {
     return;
   }
   if (c.kind === "run") return openWorkspace(here);
-  go("board", true);
-  store.mode = "run";
-  store.modeKey = key(here);
-  render();
+  runPopup(here);
 }
 
 function mark() {
