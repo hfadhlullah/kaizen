@@ -32,16 +32,13 @@ export function initKeys() {
       return;
     // A dialog handles its own keys; Escape there must not also close the panel.
     if (e.target.matches("input,select,textarea,[contenteditable]") || e.target.closest("dialog")) return;
-    if (e.key === "?") {
-      $("help").classList.toggle("on");
-      return;
-    }
+    // The shortcuts overlay (?) is off for now, with its menu button; keys still work.
     if (e.key === "/" && $("sq") && $("panel").classList.contains("open")) {
       e.preventDefault();
       $("sq").focus();
       return;
     }
-    if (e.key === "/" && view === "board" && $("bq")) {
+    if (e.key === "/" && (view === "board" || view === "ideas") && $("bq")) {
       e.preventDefault();
       $("bq").focus();
       return;

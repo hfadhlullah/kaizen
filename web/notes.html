@@ -77,9 +77,9 @@ svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6;stroke
 body .rail a.upd::after{left:calc(50% + 6px);top:4px}body .toast{left:16px;bottom:calc(68px + env(safe-area-inset-bottom))}}
 .rail a.it[data-n]{position:relative}.rail a.it[data-n]::after{content:attr(data-n);position:absolute;left:24px;top:3px;min-width:16px;height:16px;padding:0 4px;box-sizing:border-box;border-radius:8px;background:var(--dim);color:var(--bg);font:600 10px/16px var(--font);text-align:center;box-shadow:0 0 0 2px var(--bg)}
 @media(max-width:640px){body .rail a.it[data-n]::after{left:calc(50% + 4px);top:2px}}
-.rail a.it[data-view=board][data-n]::after{left:auto;right:8px;top:9px;background:var(--warn)}
-[data-rail=min] .rail a.it[data-view=board][data-n]::after{left:24px;right:auto;top:3px}
-@media(max-width:640px){[data-rail=min] .rail a.it[data-view=board][data-n]::after{left:calc(50% + 4px);top:2px}}
+.rail a.it:is([data-view=board],[data-view=ideas])[data-n]::after{left:auto;right:8px;top:9px;background:var(--warn)}
+[data-rail=min] .rail a.it:is([data-view=board],[data-view=ideas])[data-n]::after{left:24px;right:auto;top:3px}
+@media(max-width:640px){[data-rail=min] .rail a.it:is([data-view=board],[data-view=ideas])[data-n]::after{left:calc(50% + 4px);top:2px}}
 /* the rail's Projects list: ideas and runs grouped by project, each with its state icon */
 .rail a.it .n{margin-left:auto;font-size:11px;font-weight:400;color:var(--dim)}
 .rail a.it .srcs+.n{margin-left:8px}.rail a.it .srcs{margin-left:auto;display:flex;gap:4px;opacity:.75}.rail a.it .srcs svg,.rail a.it .srcs img{width:13px;height:13px}
@@ -91,7 +91,7 @@ body .rail a.upd::after{left:calc(50% + 6px);top:4px}body .toast{left:16px;botto
 .pfpop .sel{margin:2px 2px 6px;padding:5px 8px;border-radius:4px}.pfrow{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:4px;cursor:pointer;white-space:nowrap}.pfrow:hover{background:var(--hover)}.pfrow input{accent-color:var(--accent);margin:0}.pfrow .plogo{width:16px;height:16px;font-size:9px;border-radius:4px;display:inline-grid;place-items:center;flex:none;font-weight:600;color:var(--dim);background:var(--hover)}.pfrow img.plogo{background:none}
 .pfpop .pfh{margin:8px 8px 2px;font-size:11px;font-weight:600;color:var(--dim)}
 .rail .plist{flex:1;min-height:40px;overflow:hidden auto;margin:0 -4px;padding:0 4px}
-.plist .proj{display:flex;gap:8px;align-items:center;margin:10px 6px 4px;font-size:12.5px;font-weight:500;color:var(--ink);white-space:nowrap}.plist .proj .c{color:var(--dim);font-size:11px;font-weight:400}.plist .proj .plogo{width:16px;height:16px;font-size:9px;border-radius:4px;display:inline-grid;place-items:center;flex:none;font-weight:600;color:var(--dim);background:var(--hover);object-fit:contain}.plist .proj img.plogo{background:none}
+#kbd{display:none!important}.plist .proj{all:unset;box-sizing:border-box;display:flex;gap:8px;align-items:center;margin:10px 6px 4px;font-size:12.5px;font-weight:500;color:var(--ink);white-space:nowrap;cursor:pointer;width:calc(100% - 12px);border-radius:4px}.proj:hover{background:var(--hover)}.proj:focus-visible{outline:2px solid var(--accent)}.proj .fchev{width:12px;height:12px;flex:none;color:var(--dim);transition:transform .15s;transform:rotate(90deg)}.proj.shut .fchev{transform:none}.plist .proj .c{color:var(--dim);font-size:11px;font-weight:400}.plist .proj .plogo{width:16px;height:16px;font-size:9px;border-radius:4px;display:inline-grid;place-items:center;flex:none;font-weight:600;color:var(--dim);background:var(--hover);object-fit:contain}.plist .proj img.plogo{background:none}
 .plist .row{display:grid;grid-template-columns:14px minmax(0,1fr);gap:8px;align-items:center;padding:5px 8px;border-radius:4px;color:var(--ink);text-decoration:none}.plist .row:hover,.plist .row[aria-current]{background:var(--hover)}.plist .row .si{margin-top:0}
 .plist .row b{display:block;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.plist .row small{display:block;color:var(--dim);font:10.5px/1.4 var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .plist .none{padding:6px 10px;color:var(--dim);font-size:12px}

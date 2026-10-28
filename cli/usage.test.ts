@@ -83,10 +83,34 @@ test.skipIf(process.platform === "win32")("/shell: foreign origin, unknown proje
     expect((await post({ dir: st, agent: "rm -rf /" })).status).toBe(400);
     expect((await post({ dir: st, agent: "codex" })).status).toBe(400); // known, not installed
 
+    // Resume: the session id comes only from the run's own state.json; a page-sent one is ignored.
+    const resume = (run: string, extra = {}) => post({ dir: st, run, resume: true, ...extra }, at);
+    mkdirSync(join(st, "runs", "r1"), { recursive: true });
+    writeFileSync(join(st, "runs", "r1", "state.json"), JSON.stringify({ id: "r1", agent: "claude" }));
+    expect((await resume(`run:${st}:r1`, { session: "aaaaaaaa-page-chosen" })).status).toBe(404); // no session recorded
+    expect((await resume(`run:${st}:..`)).status).toBe(404);
+    expect((await resume(`run:${st}:../r1`)).status).toBe(404);
+    expect((await resume(`run:/elsewhere/.kaizen:r1`)).status).toBe(404); // a run of another dir
+    writeFileSync(join(st, "runs", "r1", "state.json"), JSON.stringify({ id: "r1", agent: "codex", session: "abcdef12-3456" }));
+    expect((await resume(`run:${st}:r1`)).status).toBe(404); // not a Claude run
+    writeFileSync(join(st, "runs", "r1", "state.json"), JSON.stringify({ id: "r1", agent: "claude", session: "abcdef12-3456" }));
+    expect((await resume(`run:${st}:r1`)).status).toBe(400); // claude is not on this test's PATH
+
+    // /open-url: the same guards, and only an http(s) address. No success case: it opens a real window.
+    const open = (body: object, origin?: string, type = "application/json") => fetch(at + "/open-url", { method: "POST", headers: { "content-type": type, ...(origin ? { origin } : {}) }, body: JSON.stringify(body) });
+    expect((await open({ url: "http://localhost:3000/" }, "http://localhost:3000")).status).toBe(403);
+    expect((await open({ url: "http://localhost:3000/" }, at, "text/plain")).status).toBe(415);
+    expect((await open({ url: "file:///etc/passwd" }, at)).status).toBe(400);
+    expect((await open({ url: "javascript:alert(1)" }, at)).status).toBe(400);
+    // /frameable: board pages only, http(s) only; the answer is a boolean (or null when unreachable).
+    expect((await fetch(`${at}/frameable?url=${encodeURIComponent(at + "/")}`, { headers: { origin: "https://evil.example" } })).status).toBe(403);
+    expect((await fetch(`${at}/frameable?url=${encodeURIComponent("file:///etc/passwd")}`)).status).toBe(400);
+    expect(await (await fetch(`${at}/frameable?url=${encodeURIComponent(at + "/")}`)).json()).toEqual({ frameable: true });
+
     const r = await post({ dir: st }, at);
     expect(r.status).toBe(200);
     const sh1 = await r.json() as any;
-    expect(sh1).toMatchObject({ dir: st, title: "shell", agent: "" });
+    expect(sh1).toMatchObject({ dir: st, title: "shell", agent: "", run: "" });
     expect(sh1.key).toMatch(/^sh-[\w-]+$/);
     const url = `${at}/pty?key=${sh1.key}`, up = { upgrade: "websocket", connection: "Upgrade", "sec-websocket-version": "13", "sec-websocket-key": "dGhlIHNhbXBsZSBub25jZQ==" };
     expect((await fetch(url, { headers: { ...up, origin: "https://evil.example" } })).status).toBe(403);

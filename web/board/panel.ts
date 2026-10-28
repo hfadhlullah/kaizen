@@ -158,7 +158,7 @@ export async function openRun(c, refresh, again) {
   // The board's own status mark, then what it waits on: chips, not a dotted line.
   $("psub").innerHTML = c.status === "abandoned" ? html`<span class="pst"><span class="st d-${ICON[c.status] || "idea"}"><svg><use href="#s-${ICON[c.status] || "idea"}"/></svg></span>${cap(WORD[c.status] || c.status)}</span>` +
     (c.awaiting ? html`<span class="pst dim">${cap(need(c.awaiting))}</span>` : "") +
-    (c.parent ? html`<span class="pst link" title="Filed by this run">${c.parent}</span>` : "") : view === "run" ? meta(c) : steps(c);
+    (c.parent ? html`<span class="pst link" title="Filed by this run">${c.parent}</span>` : "") : view === "run" || innerWidth > 640 ? meta(c) : steps(c);
   // Only tabs with something in them show. A card whose agent runs in the board gets its
   // terminal behind the header's terminal button, chosen once right after a launch from here.
   const tabs = TABS.filter(
@@ -174,9 +174,11 @@ export async function openRun(c, refresh, again) {
     store.tab = "term";
   }
   if (store.tab === "term" && !c.pty) store.tab = store.lastTab;
+  // In the run workspace Preview is a centre tab, so the panel never shows it.
+  if (view === "run" && store.tab === "preview") store.tab = "review";
   // A tab not written yet falls back to the latest one that is.
   if (store.tab !== "term" && !tabs.some((t) => t[1] === store.tab))
-    store.tab = [...tabs].reverse().find((t) => t[1] !== "notes")[1];
+    store.tab = [...tabs].reverse().find((t) => t[1] !== "notes" && !(view === "run" && t[1] === "preview"))[1];
   if (store.tab !== "term") store.lastTab = store.tab;
   $("panel").classList.toggle("wide", store.tab === "term");
   const pt = $("pterm");

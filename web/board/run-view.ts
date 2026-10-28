@@ -16,9 +16,31 @@ import { layout } from "./terms.ts";
 import { cardHref, railData } from "./workspace.ts";
 import { go } from "./views.ts";
 
-type Tab = { id: string; kind: "agent" | "shell" | "local" | "preview" | "note"; title: string; key?: string; note?: string };
-// Per run: the extra tabs opened (localhost, preview, notes), agent tabs closed, the tab shown, the split.
-type Saved = { tabs: Tab[]; hidden: string[]; on: string | null; split: { dir: "cols" | "rows"; other: string } | null };
+type Tab = { id: string; kind: "agent" | "shell" | "local" | "preview" | "note" | "wait"; title: string; key?: string; note?: string; agent?: string };
+// Per run: the extra items opened (localhost, preview, notes), agent items closed, and the
+// screens. A screen is one tab of the bar: one or more items side by side or stacked.
+// A screen's layout is a tmux-style tree: a leaf is an item id; a split holds two or more
+// children side by side ("cols") or stacked ("rows"), with their relative sizes.
+type Node = string | { dir: "cols" | "rows"; kids: Node[]; sizes: number[] };
+type Screen = { id: string; tree: Node; focus: string };
+const leaves = (n: Node): string[] => (typeof n === "string" ? [n] : n.kids.flatMap(leaves));
+// Drops ids no longer open; a split left with one child becomes that child.
+function prune(n: Node, keep: (id: string) => boolean): Node | null {
+  if (typeof n === "string") return keep(n) ? n : null;
+  const kids: Node[] = [],
+    sizes: number[] = [];
+  n.kids.forEach((k, i) => {
+    const p = prune(k, keep);
+    if (p) (kids.push(p), sizes.push(n.sizes[i] ?? 1));
+  });
+  return !kids.length ? null : kids.length === 1 ? kids[0] : { dir: n.dir, kids, sizes };
+}
+// tmux: the focused pane splits in two, the new item right of or under it.
+function splitAt(n: Node, at: string, add: string, dir: "cols" | "rows", before = false): Node {
+  if (typeof n === "string") return n === at ? { dir, kids: before ? [add, n] : [n, add], sizes: [1, 1] } : n;
+  return { ...n, kids: n.kids.map((k) => splitAt(k, at, add, dir, before)) };
+}
+type Saved = { tabs: Tab[]; hidden: string[]; screens: Screen[]; on: string | null };
 const ALL: Record<string, Saved> = (() => {
   try {
     return JSON.parse(localStorage.getItem("kz-runtabs") || "{}");
@@ -34,21 +56,56 @@ const save = () => {
 let card: any = null;
 let shells: any[] = [];
 let noPty = false;
-let agents: string[] = [];
+// Every agent installed for this project (from /agents), each offered as a bare session.
+let agents: { name: string; cmd: string }[] = [];
+// The agents with their own mark in the sprite; the rest show the generic one.
+const MARKS = ["claude", "codex", "gemini"];
 // Tab id -> its pane, and for a terminal the function that unmounts it.
 const panes = new Map<string, { el: HTMLElement; off: (() => void) | null }>();
 const runKey = (c) => key(c);
-const saved = (): Saved => (ALL[runKey(card)] ||= { tabs: [], hidden: [], on: null, split: null });
+const saved = (): Saved => {
+  const s = (ALL[runKey(card)] ||= { tabs: [], hidden: [], screens: [], on: null });
+  if (!Array.isArray(s.screens) || s.screens.some((sc: any) => !sc.tree)) (s.screens = []), delete (s as any).split; // older saves
+  return s;
+};
+// Where the next item goes: a new screen (null), or beside/below the items of a screen.
+let target: { screen: string; dir: "cols" | "rows" } | null = null;
+// Every item sits in exactly one screen; a new one goes to `target` or its own screen.
+function screens(): Screen[] {
+  const s = saved(),
+    ids = tabs().map((t) => t.id);
+  s.screens = s.screens.flatMap((sc) => {
+    const tree = prune(sc.tree, (id) => ids.includes(id));
+    return tree ? [{ ...sc, tree, focus: leaves(tree).includes(sc.focus) ? sc.focus : leaves(tree)[0] }] : [];
+  });
+  for (const id of ids)
+    if (!s.screens.some((sc) => leaves(sc.tree).includes(id))) {
+      const into = target && s.screens.find((sc) => sc.id === target!.screen);
+      if (into) (into.tree = splitAt(into.tree, into.focus, id, target!.dir)), (into.focus = id), (s.on = into.id);
+      else s.screens.push({ id: "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), tree: id, focus: id });
+      target = null;
+    }
+  if (!s.screens.some((sc) => sc.id === s.on)) s.on = s.screens[0]?.id ?? null;
+  return s.screens;
+}
 const loopback = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
 
 function tabs(): Tab[] {
   const s = saved(),
     out: Tab[] = [];
-  if (card.pty) out.push({ id: "agent:" + card.pty.key, kind: "agent", title: card.tags?.includes("codex") ? "Codex" : "Agent", key: card.pty.key });
-  for (const sh of shells) out.push({ id: "sh:" + sh.key, kind: "shell", title: sh.title, key: sh.key });
+  // Every agent session the run has on this board, each its own tab.
+  const keys: string[] = card.pty ? card.pty.all ?? [card.pty.key] : [];
+  const runAgent = ["claude", "codex", "gemini", "agy", "opencode", "cursor"].find((a) => card.tags?.includes(a)) ?? undefined;
+  const named = (a?: string) => agents.find((x) => x.cmd === a)?.name ?? "Agent";
+  keys.forEach((k, i) => out.push({ id: "agent:" + k, kind: "agent", agent: runAgent, title: named(runAgent) + (keys.length > 1 ? " " + (i + 1) : ""), key: k }));
+  for (const sh of shells.filter((x) => x.run === runKey(card))) out.push({ id: "sh:" + sh.key, kind: sh.agent ? "agent" : "shell", agent: sh.agent || undefined, title: sh.title, key: sh.key });
+  // The run's own session is running in another terminal: a tab that says so.
+  if (elsewhere.has(runKey(card))) out.push({ id: "wait", kind: "wait", agent: "claude", title: named("claude") });
   return [...out.filter((t) => !s.hidden.includes(t.id)), ...s.tabs];
 }
-const icon = (t: Tab) => ico({ agent: "ai", shell: "term", local: "link", preview: "eye", note: "note" }[t.kind]);
+// An agent's tab shows the agent's own mark when the sprite has one.
+const icon = (t: Tab) => (t.agent && MARKS.includes(t.agent) ? raw(`<svg><use href="#i-${t.agent}"/></svg>`) : ico({ agent: "ai", shell: "term", local: "link", preview: "eye", note: "note", wait: "ai" }[t.kind]));
+const elsewhere = new Set<string>();
 
 // Called by go("run") and on every /state: draws the tab strip and keeps the panes.
 export async function showRunView() {
@@ -65,8 +122,8 @@ export async function showRunView() {
     return;
   }
   const fresh = !card || runKey(card) !== runKey(c);
-  // Another run of the same project keeps the project's shell panes (and their sockets); draw() drops the rest.
-  if (fresh && (!card || card.state !== c.state)) stopPanes();
+  // Each run has its own centre: switching runs unmounts this one's panes (its shells keep running on the server).
+  if (fresh) stopPanes();
   card = c;
   if (fresh || store.openKey !== key(c)) open(c);
   try {
@@ -75,15 +132,16 @@ export async function showRunView() {
   } catch {}
   if (fresh) {
     try {
-      agents = ((await (await fetch("/agents?dir=" + encodeURIComponent(c.state))).json()).agents ?? []).map((a) => a.cmd);
+      agents = (await (await fetch("/agents?dir=" + encodeURIComponent(c.state))).json()).agents ?? [];
     } catch {}
   }
   if (card !== c) return;
-  // Nothing to show (no board-launched agent, no shell, no tab saved): a shell in the project,
-  // once per project, so the centre is never blank. No agent is ever started this way.
-  if (!tabs().length && !noPty && !autoShell.has(c.state)) {
-    autoShell.add(c.state);
-    return void newPty();
+  // Nothing to show (no board-launched agent, no shell, no tab saved): the run's own Claude
+  // session resumed here, else a shell in the project, once per run per visit, so the centre
+  // is never blank. Only the run's recorded session is ever resumed; nothing new is started.
+  if (!tabs().length && !noPty && !autoShell.has(runKey(c))) {
+    autoShell.add(runKey(c));
+    return void (c.kind === "run" ? openAgent() : newPty());
   }
   draw();
 }
@@ -91,16 +149,22 @@ const autoShell = new Set<string>();
 
 function draw() {
   const s = saved(),
-    ts = tabs();
-  if (!ts.some((t) => t.id === s.on)) s.on = ts[0]?.id ?? null;
-  if (s.split && (!ts.some((t) => t.id === s.split!.other) || s.split.other === s.on)) s.split = null;
-  const name = (t: Tab) => t.title;
+    ts = tabs(),
+    scs = screens(),
+    cur = scs.find((sc) => sc.id === s.on);
+  const item = (id: string) => ts.find((t) => t.id === id)!;
   const PTY = !noPty;
+  const menu = html`<div class="menu-pop">${PTY ? html`<button data-n="shell">${ico("term")}<span>Shell<small>a terminal in the project folder</small></span></button>` : ""}<button data-n="local">${ico("link")}<span>Localhost<small>the project's dev server</small></span></button><button data-n="preview">${ico("eye")}<span>Preview<small>the run's Preview</small></span></button>${PTY ? agents.map((a) => html`<button data-n="agent:${a.cmd}">${MARKS.includes(a.cmd) ? raw(`<svg><use href="#i-${a.cmd}"/></svg>`) : ico("ai")}<span>${a.name} session<small>the agent alone, no run</small></span></button>`) : ""}</div>`;
   $("rtabs").innerHTML = String(
-    html`${ts.map((t) => html`<button class="rtab${t.id === s.on ? " on" : ""}${t.id === s.split?.other ? " sec" : ""}" data-t="${t.id}" title="${t.title}">${icon(t)}<span>${name(t)}</span><i data-x="${t.id}" role="button" aria-label="Close ${t.title}" title="Close">×</i></button>`)}<details class="radd"><summary class="rbtn" title="New tab" aria-label="New tab">${ico("plus")}</summary><div class="menu-pop">${PTY ? html`<button data-n="shell">${ico("term")}<span>New shell<small>a terminal in the project folder</small></span></button>` : ""}<button data-n="local">${ico("link")}<span>Open localhost<small>the project's dev server</small></span></button><button data-n="preview">${ico("eye")}<span>Open preview<small>the run's Preview</small></span></button>${PTY ? ["claude", "codex"].filter((a) => agents.includes(a)).map((a) => html`<button data-n="agent:${a}"><svg><use href="#i-${a}"/></svg><span>New ${a === "claude" ? "Claude" : "Codex"} session<small>the agent alone, no run</small></span></button>`) : ""}</div></details><span class="sp"></span><button class="rbtn rsplit" data-split="cols" title="Split right" aria-label="Split right">${ico("lcols")}</button><button class="rbtn rsplit" data-split="rows" title="Split down" aria-label="Split down">${ico("lrows")}</button><button class="rbtn" id="rside" title="Show or hide the run panel" aria-label="Show or hide the run panel" aria-pressed="${String(document.body.classList.contains("rflip"))}">${ico("open")}</button>`,
+    html`${scs.map((sc) => {
+      const ids = leaves(sc.tree),
+        first = item(ids[0]),
+        title = ids.map((id) => item(id).title).join(" + ");
+      return html`<button class="rtab${sc.id === s.on ? " on" : ""}" data-t="${sc.id}" title="${title}">${icon(first)}<span>${title}</span><i data-xs="${sc.id}" role="button" aria-label="Close ${title}" title="Close tab">×</i></button>`;
+    })}<details class="radd" data-mode="tab"><summary class="rbtn" title="New tab" aria-label="New tab">${ico("plus")}</summary>${menu}</details><span class="sp"></span>${cur ? html`<details class="radd rsplit" data-mode="cols"><summary class="rbtn" title="Split right: add to this tab" aria-label="Split right">${ico("lcols")}</summary>${menu}</details><details class="radd rsplit" data-mode="rows"><summary class="rbtn" title="Split down: add to this tab" aria-label="Split down">${ico("lrows")}</summary>${menu}</details>` : ""}<button class="rbtn" id="rside" title="Show or hide the run panel" aria-label="Show or hide the run panel" aria-pressed="${String(document.body.classList.contains("rflip"))}">${ico("open")}</button>`,
   );
   $("rtabs").querySelector(".rtab.on")?.scrollIntoView({ block: "nearest", inline: "nearest" });
-  // Panes: made once per tab, kept while it is open.
+  // Panes: made once per item, kept (hidden) while it is open, so terminals never reconnect.
   const box = $("rpanes");
   for (const [id, p] of panes)
     if (!ts.some((t) => t.id === id)) {
@@ -109,29 +173,104 @@ function draw() {
       panes.delete(id);
     }
   for (const t of ts) if (!panes.has(t.id)) makePane(t);
-  const shown = [s.on, s.split?.other].filter(Boolean) as string[];
+  const shown = cur ? leaves(cur.tree) : [];
   for (const [id, p] of panes) {
     p.el.hidden = !shown.includes(id);
-    p.el.classList.toggle("split", !!s.split);
-    // The mockup's slim pane line: "shell · split right ×" on the pane the split added.
-    const t = ts.find((x) => x.id === id);
-    if (t) p.el.querySelector(".ph span")!.textContent = t.title + (s.split && id === s.split.other ? ` · split ${s.split.dir === "cols" ? "right" : "down"}` : "");
-    if (shown.includes(id) && box.children[shown.indexOf(id)] !== p.el) box.insertBefore(p.el, box.children[shown.indexOf(id)] || null);
+    p.el.classList.toggle("split", shown.length > 1);
+    p.el.classList.toggle("focus", shown.length > 1 && id === cur?.focus);
+    p.el.querySelector(".ph span")!.textContent = item(id)?.title ?? "";
   }
-  box.querySelectorAll(".tsplit").forEach((h) => h.remove());
-  if (s.split) layout(box, s.split.dir === "cols" ? [1, 1] : [1], s.split.dir === "rows" ? [1, 1] : [1], "run:" + s.split.dir, 9, true);
-  else box.style.gridTemplateColumns = box.style.gridTemplateRows = "";
+  // The tree is rebuilt only when it changes: moving a pane in the DOM reloads its frame.
+  const sig = cur ? cur.id + JSON.stringify(cur.tree) : "";
+  if (sig !== shownSig) {
+    shownSig = sig;
+    for (const [, p] of panes) if (p.el.parentElement !== box) box.append(p.el);
+    box.querySelector(".rtree")?.remove();
+    if (cur) box.prepend(build(cur.tree, cur));
+  }
   // One empty note at most: every draw used to append another.
   box.querySelector(".rempty")?.remove();
-  if (!ts.length) box.insertAdjacentHTML("beforeend", String(html`<div class="empty rempty"><b>No tabs open</b><p>Open a shell, the project's localhost or the Preview with +.</p></div>`));
+  if (!scs.length) box.insertAdjacentHTML("beforeend", String(html`<div class="empty rempty"><b>No tabs open</b><p>Open a shell, the project's localhost or the Preview with +.</p></div>`));
   wire();
+}
+
+let shownSig = "";
+// Moves an item out of its tab into another one (split beside a pane there, or next to its
+// focused pane), or into a tab of its own (to = null). Terminals keep running; frames reload.
+function moveItem(id: string, to: string | null, at?: { pane: string; dir: "cols" | "rows"; before: boolean }) {
+  const s = saved();
+  if (at?.pane === id) return;
+  // Dropped on the tab it is already in, with no pane edge to split at: nothing to do.
+  if (!at && to && s.screens.find((sc) => sc.id === to && leaves(sc.tree).includes(id))) return;
+  for (const sc of s.screens) {
+    sc.tree = prune(sc.tree, (x) => x !== id) ?? "";
+    if (sc.tree !== "" && !leaves(sc.tree).includes(sc.focus)) sc.focus = leaves(sc.tree)[0];
+  }
+  s.screens = s.screens.filter((sc) => sc.tree !== "");
+  const dest = to && s.screens.find((sc) => sc.id === to);
+  if (dest) {
+    dest.tree = splitAt(dest.tree, at?.pane ?? dest.focus, id, at?.dir ?? "cols", at?.before ?? false);
+    dest.focus = id;
+    s.on = dest.id;
+  } else {
+    const sid = "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+    s.screens.push({ id: sid, tree: id, focus: id });
+    s.on = sid;
+  }
+  save();
+  draw();
+}
+let dragging: string | null = null;
+// One node of the layout tree as DOM: a pane, or a flex row/column of its children with a
+// draggable gutter between each pair (sizes saved on the node).
+function build(n: Node, sc: Screen): HTMLElement {
+  if (typeof n === "string") return panes.get(n)!.el;
+  const el = document.createElement("div");
+  el.className = "rtree " + n.dir;
+  n.kids.forEach((k, i) => {
+    if (i) {
+      const g = document.createElement("div");
+      g.className = "rgut";
+      g.onpointerdown = (e) => {
+        e.preventDefault();
+        const a = el.children[2 * i - 2] as HTMLElement,
+          b = el.children[2 * i] as HTMLElement,
+          horiz = n.dir === "cols",
+          ra = a.getBoundingClientRect(),
+          rb = b.getBoundingClientRect(),
+          total = horiz ? ra.width + rb.width : ra.height + rb.height,
+          sum = n.sizes[i - 1] + n.sizes[i],
+          start = horiz ? ra.left : ra.top;
+        g.setPointerCapture(e.pointerId);
+        g.onpointermove = (m) => {
+          const f = Math.min(0.9, Math.max(0.1, ((horiz ? m.clientX : m.clientY) - start) / total));
+          n.sizes[i - 1] = sum * f;
+          n.sizes[i] = sum * (1 - f);
+          a.style.flexGrow = String(n.sizes[i - 1]);
+          b.style.flexGrow = String(n.sizes[i]);
+        };
+        g.onpointerup = () => {
+          g.onpointermove = g.onpointerup = null;
+          shownSig = sc.id + JSON.stringify(sc.tree);
+          save();
+        };
+      };
+      el.append(g);
+    }
+    const c = build(k, sc);
+    c.style.flex = `${n.sizes[i] ?? 1} 1 0`;
+    el.append(c);
+  });
+  return el;
 }
 
 function makePane(t: Tab) {
   const el = document.createElement("section");
   el.className = "rpane";
   el.dataset.t = t.id;
-  el.innerHTML = String(html`<header class="ph"><span>${t.title}</span><button data-x="${t.id}" title="Close" aria-label="Close ${t.title}">×</button></header>`);
+  // The header is the handle: drag it onto a tab, onto + (a new tab) or onto a pane's edge;
+  // ⋯ does the same from a menu. × closes the item.
+  el.innerHTML = String(html`<header class="ph" draggable="true"><span>${t.title}</span><details class="pmove"><summary title="Move to another tab" aria-label="Move ${t.title}">⋯</summary><div class="menu-pop"></div></details><button data-x="${t.id}" title="Close" aria-label="Close ${t.title}">×</button></header>`);
   const p = { el, off: null as null | (() => void) };
   panes.set(t.id, p);
   $("rpanes").append(el);
@@ -144,7 +283,12 @@ function makePane(t: Tab) {
         if (panes.get(t.id) === p) p.off = m(term, t.key, () => load(true));
       })
       .catch(() => (term.textContent = "The terminal could not load."));
-  } else if (t.kind === "local") browser(el);
+  } else if (t.kind === "wait")
+    el.insertAdjacentHTML(
+      "beforeend",
+      String(html`<div class="empty rwait"><b>This run's agent is running in another terminal</b><p>One conversation cannot run in two places. Close it there, then open it here.</p><button type="button" class="rwin" data-b="recheck">${ico("refresh")}<span>Open here</span></button></div>`),
+    );
+  else if (t.kind === "local") browser(el);
   else if (t.kind === "note") el.insertAdjacentHTML("beforeend", String(html`<iframe class="rframe" title="${t.title}" src="/notebook?dir=${encodeURIComponent(card.state)}&note=${encodeURIComponent(t.note!)}&embed=1"></iframe>`));
   else void previewPane(el);
 }
@@ -160,11 +304,11 @@ function browser(el: HTMLElement) {
     fwd: string[] = [];
   el.insertAdjacentHTML(
     "beforeend",
-    String(html`<form class="urlbar"><button type="button" data-b="back" title="Back" aria-label="Back">‹</button><button type="button" data-b="fwd" title="Forward" aria-label="Forward">›</button><button type="button" data-b="reload" title="Reload" aria-label="Reload">${ico("refresh")}</button><input class="sel" aria-label="Address" spellcheck="false" value="${url}"><a class="rbtn" target="_blank" rel="noopener" title="Open in a new tab" aria-label="Open in a new tab" href="${url}">${ico("ext")}</a></form>`),
+    String(html`<form class="urlbar"><button type="button" data-b="back" title="Back" aria-label="Back">‹</button><button type="button" data-b="fwd" title="Forward" aria-label="Forward">›</button><button type="button" data-b="reload" title="Reload" aria-label="Reload">${ico("refresh")}</button><input class="sel" aria-label="Address" spellcheck="false" value="${url}">${winBtn(url)}</form>`),
   );
   const f = el.querySelector("form")!,
     inp = f.querySelector("input")!,
-    ext = f.querySelector("a")!;
+    ext = f.querySelector<HTMLAnchorElement>("a.rwin");
   // On a phone over the tailnet, localhost is the phone itself: framing it shows nothing useful.
   const local = (u) => /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/.test(u);
   const frame = document.createElement("iframe");
@@ -172,20 +316,35 @@ function browser(el: HTMLElement) {
   frame.title = "localhost";
   const note = document.createElement("p");
   note.className = "rnote";
-  note.textContent = "This page is on the computer running the board; from this device localhost is the device itself. Use Open in a new tab on that computer.";
+  const far = "This page is on the computer running the board; from this device localhost is the device itself. Use Open in browser on that computer.";
   el.append(frame, note);
   const go = (u, push = true) => {
     if (push && url !== u) back.push(url), (fwd.length = 0);
     url = u;
     inp.value = u;
-    ext.href = u;
+    if (ext) ext.href = u;
     try {
       localStorage.setItem(k, u);
     } catch {}
     const hide = !loopback && local(u);
     frame.hidden = hide;
     note.hidden = !hide;
-    if (!hide) frame.src = u;
+    note.textContent = far;
+    if (hide) return;
+    frame.src = u;
+    // Most public sites refuse to be framed (X-Frame-Options / frame-ancestors), and the
+    // browser only shows its own error page. The board asks the site first and says so.
+    void fetch("/frameable?url=" + encodeURIComponent(u))
+      .then((r) => r.json())
+      .then((j) => {
+        if (url !== u || j.frameable !== false) return;
+        frame.hidden = true;
+        frame.removeAttribute("src");
+        note.hidden = false;
+        note.textContent = `${new URL(u).host} does not allow being shown inside another page. `;
+        note.insertAdjacentHTML("beforeend", String(winBtn(u)));
+      })
+      .catch(() => {});
   };
   f.onsubmit = (e) => {
     e.preventDefault();
@@ -193,17 +352,31 @@ function browser(el: HTMLElement) {
     if (!/^https?:\/\//.test(u)) u = "http://" + u;
     go(u);
   };
-  f.onclick = (e) => {
+  el.onclick = (e) => {
     const b = (e.target as Element).closest<HTMLElement>("[data-b]")?.dataset.b;
-    if (b === "reload") go(url, false);
+    if (b === "win") void openWindow(url);
+    else if (b === "reload") go(url, false);
     else if (b === "back" && back.length) fwd.push(url), go(back.pop()!, false);
     else if (b === "fwd" && fwd.length) back.push(url), go(fwd.pop()!, false);
   };
   go(url, false);
 }
 
-// The run's Preview: a localhost address it names opens in a frame, else its screenshots
-// (each opens the image viewer on click), else what the Preview says.
+// A Chromium app window on the board's computer (POST /open-url): for dev servers that
+// refuse to be framed. Only offered when the page itself is on that computer.
+// One labelled button: on the board's computer a Chromium app window, elsewhere a new tab.
+const winBtn = (u: string) =>
+  loopback
+    ? html`<button type="button" class="rwin" data-b="win" title="Open in a browser window">${ico("popout")}<span>Open in browser</span></button>`
+    : html`<a class="rwin" target="_blank" rel="noopener" href="${u}">${ico("popout")}<span>Open in browser</span></a>`;
+async function openWindow(u: string) {
+  const r = await fetch("/open-url", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ url: u }) }).catch(() => null);
+  if (!r?.ok) toast("Could not open a browser window" + (r ? ": " + ((await r.json().catch(() => ({}))) as any).error : ""));
+}
+
+// The run's Preview: its screenshots (each opens the image viewer on click), with an Open
+// app link when it names a localhost address. The address is framed only when the Preview
+// has no images: the dev server a run used is often gone, and a dead frame hides the proof.
 async function previewPane(el: HTMLElement) {
   let doc = store.runDoc && store.runDoc.id === card.id ? store.runDoc : null;
   if (!doc && card.kind === "run")
@@ -212,22 +385,72 @@ async function previewPane(el: HTMLElement) {
     } catch {}
   const pv = doc && preview(doc.impl);
   const url = pv && /https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?[^\s)`'"<>]*/.exec(pv)?.[0];
-  if (url && loopback) el.insertAdjacentHTML("beforeend", String(html`<iframe class="rframe" title="Preview" src="${url}"></iframe>`));
-  else el.insertAdjacentHTML("beforeend", String(html`<div class="rprev md">${pv ? raw(md(attach(pv, card))) : html`<p class="rnone">This run has no Preview yet.</p>`}</div>`));
+  const shots = pv && /!\[[^\]]*\]\(/.test(pv);
+  if (url && loopback && !shots) return void el.insertAdjacentHTML("beforeend", String(html`<iframe class="rframe" title="Preview" src="${url}"></iframe>`));
+  const bar = url ? html`<div class="urlbar"><span class="sel">${url}</span>${winBtn(url)}</div>` : "";
+  el.insertAdjacentHTML("beforeend", String(html`${bar}<div class="rprev md">${pv ? raw(md(attach(pv, card))) : html`<p class="rnone">This run has no Preview yet.</p>`}</div>`));
+  el.querySelector<HTMLElement>(".urlbar [data-b=win]")?.addEventListener("click", () => void openWindow(url!));
+  // The screenshots as a grid, each captioned by its file name, after the Preview's text.
+  const box = el.querySelector(".rprev")!,
+    imgs = [...box.querySelectorAll("img")];
+  if (imgs.length) {
+    const grid = document.createElement("div");
+    grid.className = "shots";
+    for (const im of imgs) {
+      const p = im.parentElement!;
+      const fig = document.createElement("figure");
+      const cap = document.createElement("figcaption");
+      cap.textContent = im.alt || decodeURIComponent((im.getAttribute("src") || "").split("/").pop() || "");
+      fig.append(im.closest("a") ?? im, cap);
+      grid.append(fig);
+      if (p !== box && !p.textContent!.trim() && !p.querySelector("img")) p.remove();
+    }
+    box.append(grid);
+  }
 }
 
 function addTab(t: Tab) {
   const s = saved();
   if (!s.tabs.some((x) => x.id === t.id)) s.tabs.push(t);
-  s.on = t.id;
+  // Already open somewhere: moving it into the target screen means taking it out of its old one.
+  else if (target) for (const sc of s.screens) sc.tree = prune(sc.tree, (id) => id !== t.id) ?? sc.tree;
+  show(t.id);
+}
+// After an item is added: run screens() (which places it) and show the screen holding it.
+function show(id: string) {
+  const s = saved();
+  s.on = screens().find((sc) => leaves(sc.tree).includes(id))?.id ?? s.on;
   save();
   draw();
 }
 export const openNoteTab = (name: string) => addTab({ id: "note:" + name, kind: "note", title: name.slice(name.lastIndexOf("/") + 1), note: name });
 const openPreview = () => addTab({ id: "preview", kind: "preview", title: "Preview" });
 
+// The run's recorded session, resumed in a board terminal tied to it. While it still runs in
+// another terminal the server says so (409 live) and a tab explains; with no session, a shell.
+async function openAgent(again = false) {
+  const k = runKey(card);
+  const r = await fetch("/shell", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ dir: card.state, run: k, resume: true }) }).catch(() => null);
+  if (r?.ok) {
+    elsewhere.delete(k);
+    const sh = await r.json();
+    shells.push(sh);
+    return show("sh:" + sh.key);
+  }
+  const j: any = r ? await r.json().catch(() => ({})) : {};
+  if (r?.status === 409 && j.live) {
+    elsewhere.add(k);
+    if (again) toast("Still running in another terminal");
+    return draw();
+  }
+  elsewhere.delete(k);
+  if (again) toast(j.error || "Could not resume the session");
+  else if (!tabs().length) void newPty();
+  else draw();
+}
+
 async function newPty(agent?: string) {
-  const r = await fetch("/shell", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(agent ? { dir: card.state, agent } : { dir: card.state }) });
+  const r = await fetch("/shell", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ dir: card.state, run: runKey(card), ...(agent ? { agent } : {}) }) });
   if (r.status === 501) {
     noPty = true;
     return draw();
@@ -243,9 +466,7 @@ async function newPty(agent?: string) {
   }
   const sh = await r.json();
   shells.push(sh);
-  saved().on = "sh:" + sh.key;
-  save();
-  draw();
+  show("sh:" + sh.key);
 }
 
 async function closeTab(id: string) {
@@ -254,12 +475,32 @@ async function closeTab(id: string) {
     await post("/pty/exit", { key: id.slice(3) });
     shells = shells.filter((x) => "sh:" + x.key !== id);
   } else if (id.startsWith("agent:")) s.hidden.push(id);
+  else if (id === "wait") elsewhere.delete(runKey(card));
   else s.tabs = s.tabs.filter((t) => t.id !== id);
-  if (s.split?.other === id) s.split = null;
-  if (s.on === id) s.on = s.split ? s.split.other : null;
-  if (s.on === s.split?.other) s.split = null;
   save();
   draw();
+}
+// A tab's ×: everything in it closes (shells end, the agent is only hidden).
+async function closeScreen(sid: string) {
+  const sc = saved().screens.find((x) => x.id === sid);
+  for (const id of sc ? leaves(sc.tree) : []) await closeTab(id);
+}
+
+// A pane's ⋯ menu, filled when it opens: every other tab, and a tab of its own.
+function onMoveMenu(e: Event) {
+  const d = e.target as HTMLDetailsElement;
+  if (!d.classList?.contains("pmove") || !d.open) return;
+  const s = saved(),
+    id = d.closest<HTMLElement>(".rpane")!.dataset.t!,
+    ts = tabs(),
+    name = (sc: Screen) => leaves(sc.tree).map((x) => ts.find((t) => t.id === x)?.title ?? "").join(" + ");
+  const m = d.querySelector<HTMLElement>(".menu-pop")!;
+  m.innerHTML = String(
+    html`<b class="mh">Move to</b>${s.screens.filter((sc) => !leaves(sc.tree).includes(id)).map((sc) => html`<button data-mv="${sc.id}">${ico("arrow")}<span>${name(sc)}</span></button>`)}<button data-mv="">${ico("plus")}<span>New tab</span></button>`,
+  );
+  const r = d.querySelector("summary")!.getBoundingClientRect();
+  m.style.top = r.bottom + 4 + "px";
+  m.style.left = Math.max(8, r.right - m.offsetWidth) + "px";
 }
 
 function wire() {
@@ -267,65 +508,119 @@ function wire() {
     s = saved();
   bar.onclick = (e) => {
     const t = e.target as HTMLElement;
-    const x = t.closest<HTMLElement>("[data-x]")?.dataset.x;
-    if (x) return void closeTab(x);
+    const xs = t.closest<HTMLElement>("[data-xs]")?.dataset.xs;
+    if (xs) return void closeScreen(xs);
     const tab = t.closest<HTMLElement>("[data-t]")?.dataset.t;
     if (tab) {
-      if (s.split?.other === tab) s.split.other = s.on!;
       s.on = tab;
       save();
       return draw();
     }
     const n = t.closest<HTMLElement>("[data-n]")?.dataset.n;
     if (n) {
-      (bar.querySelector(".radd") as HTMLDetailsElement).open = false;
+      const d = t.closest<HTMLDetailsElement>(".radd")!;
+      const mode = d.dataset.mode;
+      d.open = false;
+      // + makes a new tab; split right/down adds to the tab shown.
+      target = mode === "tab" || !s.on ? null : { screen: s.on, dir: mode as "cols" | "rows" };
       if (n === "shell") void newPty();
       else if (n.startsWith("agent:")) void newPty(n.slice(6));
       else if (n === "local") addTab({ id: "local", kind: "local", title: "localhost" });
       else openPreview();
       return;
     }
-    const sp = t.closest<HTMLElement>("[data-split]")?.dataset.split as "cols" | "rows";
-    if (sp) {
-      // Beside or below the shown tab goes the next one; with one tab, a new shell.
-      const ts = tabs(),
-        other = ts.find((x) => x.id !== s.on);
-      if (s.split?.dir === sp) s.split = null;
-      else if (other) s.split = { dir: sp, other: other.id };
-      else if (!noPty) {
-        s.split = null;
-        void newPty().then(() => {
-          const o = tabs().find((x) => x.id !== saved().on);
-          if (o) {
-            saved().split = { dir: sp, other: saved().on! };
-            saved().on = o.id;
-            save();
-            draw();
-          }
-        });
-        return;
-      }
-      save();
-      return draw();
-    }
     if (t.closest("#rside")) {
       document.body.classList.toggle("rflip");
       draw();
     }
   };
-  // The + menu opens under its button, kept inside the centre panel.
-  const add = bar.querySelector<HTMLDetailsElement>(".radd")!;
-  add.ontoggle = () => {
-    if (!add.open) return;
-    const m = add.querySelector<HTMLElement>(".menu-pop")!,
-      r = add.querySelector("summary")!.getBoundingClientRect(),
-      box = $("runv").getBoundingClientRect();
-    m.style.top = r.bottom + 4 + "px";
-    m.style.left = Math.max(box.left + 4, Math.min(r.left, box.right - m.offsetWidth - 4)) + "px";
-  };
+  // The +, split right and split down menus open under their button, kept inside the
+  // centre panel; one open at a time. A pane's own × closes just that item.
+  const adds = [...bar.querySelectorAll<HTMLDetailsElement>(".radd")];
+  for (const add of adds)
+    add.ontoggle = () => {
+      if (!add.open) return;
+      for (const o of adds) if (o !== add) o.open = false;
+      const m = add.querySelector<HTMLElement>(".menu-pop")!,
+        r = add.querySelector("summary")!.getBoundingClientRect(),
+        box = $("runv").getBoundingClientRect();
+      m.style.top = r.bottom + 4 + "px";
+      m.style.left = Math.max(box.left + 4, Math.min(r.left, box.right - m.offsetWidth - 4)) + "px";
+    };
   $("rpanes").onclick = (e) => {
     const x = (e.target as HTMLElement).closest<HTMLElement>(".ph [data-x]")?.dataset.x;
-    if (x) void closeTab(x);
+    if (x) return void closeTab(x);
+    if ((e.target as HTMLElement).closest("[data-b=recheck]")) return void openAgent(true);
+    const mv = (e.target as HTMLElement).closest<HTMLElement>("[data-mv]");
+    if (mv) {
+      const id = mv.closest<HTMLElement>(".rpane")!.dataset.t!;
+      mv.closest("details")!.open = false;
+      return moveItem(id, mv.dataset.mv || null);
+    }
+  };
+  // Moving panes: the header's ⋯ menu lists the other tabs; dragging the header drops it on a
+  // tab, on + (a tab of its own) or on a pane's edge (split there on that side).
+  const box = $("rpanes");
+  box.ontoggle = null;
+  box.addEventListener("toggle", onMoveMenu, true);
+  box.ondragstart = (e) => {
+    const id = (e.target as HTMLElement).closest<HTMLElement>(".ph")?.closest<HTMLElement>(".rpane")?.dataset.t;
+    if (!id) return;
+    dragging = id;
+    e.dataTransfer!.setData("text/plain", id);
+    e.dataTransfer!.effectAllowed = "move";
+  };
+  box.ondragend = bar.ondragend = () => {
+    dragging = null;
+    document.querySelectorAll(".rdrop,.rdrop-l,.rdrop-r,.rdrop-t,.rdrop-b").forEach((x) => x.classList.remove("rdrop", "rdrop-l", "rdrop-r", "rdrop-t", "rdrop-b"));
+  };
+  const edge = (el: HTMLElement, e: DragEvent) => {
+    const r = el.getBoundingClientRect(),
+      x = (e.clientX - r.left) / r.width,
+      y = (e.clientY - r.top) / r.height;
+    const d = [["l", x], ["r", 1 - x], ["t", y], ["b", 1 - y]].sort((a, b) => (a[1] as number) - (b[1] as number))[0][0] as string;
+    return d;
+  };
+  box.ondragover = (e) => {
+    const pane = (e.target as HTMLElement).closest<HTMLElement>(".rpane");
+    if (!dragging || !pane || pane.dataset.t === dragging) return;
+    e.preventDefault();
+    const d = edge(pane, e);
+    pane.classList.remove("rdrop-l", "rdrop-r", "rdrop-t", "rdrop-b");
+    pane.classList.add("rdrop-" + d);
+  };
+  box.ondragleave = (e) => (e.target as HTMLElement).closest(".rpane")?.classList.remove("rdrop-l", "rdrop-r", "rdrop-t", "rdrop-b");
+  box.ondrop = (e) => {
+    const pane = (e.target as HTMLElement).closest<HTMLElement>(".rpane"),
+      id = dragging;
+    if (!id || !pane || pane.dataset.t === id) return;
+    e.preventDefault();
+    const d = edge(pane, e);
+    moveItem(id, s.on, { pane: pane.dataset.t!, dir: d === "l" || d === "r" ? "cols" : "rows", before: d === "l" || d === "t" });
+  };
+  bar.ondragover = (e) => {
+    const t = (e.target as HTMLElement).closest<HTMLElement>(".rtab,.radd[data-mode=tab]");
+    if (!dragging || !t) return;
+    e.preventDefault();
+    bar.querySelectorAll(".rdrop").forEach((x) => x.classList.remove("rdrop"));
+    t.classList.add("rdrop");
+  };
+  bar.ondrop = (e) => {
+    const t = (e.target as HTMLElement).closest<HTMLElement>(".rtab,.radd[data-mode=tab]"),
+      id = dragging;
+    if (!id || !t) return;
+    e.preventDefault();
+    moveItem(id, t.classList.contains("rtab") ? t.dataset.t! : null);
+  };
+  // The pane last clicked is the one a split divides.
+  $("rpanes").onpointerdown = (e) => {
+    const id = (e.target as HTMLElement).closest<HTMLElement>(".rpane")?.dataset.t,
+      sc = saved().screens.find((x) => x.id === saved().on);
+    if (id && sc && sc.focus !== id) {
+      sc.focus = id;
+      save();
+      for (const [k, p] of panes) p.el.classList.toggle("focus", p.el.classList.contains("split") && k === id);
+    }
   };
 }
 

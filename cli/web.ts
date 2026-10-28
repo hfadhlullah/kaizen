@@ -210,12 +210,23 @@ export async function web(repoDir: string, opts: Opts = {}) {
   const json = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
   const bad = (why: string, status = 400) => json({ error: why }, status);
+  // Stricter than local(), for routes that start a process: another local server's page
+  // (the dev server a localhost tab frames) shares the hostname, so the port must match
+  // too, and a JSON content type forces a preflight that a foreign page cannot pass.
+  const strict = (req: Request) => {
+    const origin = req.headers.get("origin");
+    let same = !origin;
+    try { if (origin) { const o = new URL(origin); same = o.host === req.headers.get("host") || extraHosts.has(o.hostname); } } catch { /* bad origin */ }
+    if (!same) return bad("cross-origin request refused", 403);
+    if (!/^application\/json\b/i.test(req.headers.get("content-type") ?? "")) return bad("json body expected", 415);
+    return null;
+  };
 
   // Change notification: one SSE stream per open board, fed by fs.watch where it
   // works and a slow poll where it does not.
   const clients = new Set<ReadableStreamDefaultController>();
   // Shells the board started (POST /shell), by /pty key; dead ones drop on the next /shells.
-  const shells = new Map<string, { key: string; dir: string; title: string; agent: string }>();
+  const shells = new Map<string, { key: string; dir: string; title: string; agent: string; run: string }>();
   const SHELL_CAP = 8;
   let usageCache: Usage[] = [];
   let usageAt = 0;
@@ -280,18 +291,25 @@ export async function web(repoDir: string, opts: Opts = {}) {
   const ptyOf = (cards: Card[]) => {
     const live = new Set(ptyKeys());
     if (!live.size) return () => undefined;
-    const runs = new Map<string, string>();
+    const runs = new Map<string, string[]>();
     for (const d of new Set(cards.filter((c) => c.kind === "run").map((c) => c.state))) {
       const ids = runIndex(d);
-      for (const s of readSessions(d)) if (live.has(s.key)) runs.set(`${d}\0${ownerOf(d, s, ids)}`, s.key); // oldest first: the newest wins
+      for (const s of readSessions(d))
+        if (live.has(s.key)) {
+          const k = `${d}\0${ownerOf(d, s, ids)}`;
+          runs.set(k, [...(runs.get(k) ?? []), s.key]); // oldest first: the newest is the card's
+        }
     }
     return (c: Card) => {
-      const key = c.kind === "run" ? runs.get(`${c.state}\0${c.id}`) : ideaPty.get(`${c.state}\0${c.text}`);
-      if (!key || !live.has(key)) return undefined;
+      const keys = c.kind === "run" ? runs.get(`${c.state}\0${c.id}`) ?? [] : [ideaPty.get(`${c.state}\0${c.text}`)].filter((k): k is string => !!k && live.has(k));
+      const key = keys.at(-1);
+      if (!key) return undefined;
       const st = ptyState(key)!;
       // A finished run's agent that has ended has nothing left to show or resume.
       if (!st.alive && (c.status === "done" || c.status === "abandoned")) return undefined;
-      return { key, alive: st.alive, asking: st.asking };
+      // Every agent session the run has had on this board, for the workspace's Agent tabs.
+      const all = keys.filter((k) => ptyState(k)?.alive || k === key);
+      return { key, alive: st.alive, asking: st.asking, all };
     };
   };
   const watchers: FSWatcher[] = [];
@@ -607,14 +625,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
       // project, and an agent only from KNOWN_AGENTS: no argv ever comes from the page.
       // Its keys (sh-…) are /pty keys, so /pty's exact-origin check covers the socket.
       if (req.method === "POST" && path === "/shell") {
-        // Stricter than local(): another local server's page (the dev server a localhost tab
-        // frames) shares the hostname, so the port must match too, and a JSON content type
-        // forces a preflight that a foreign page cannot pass.
-        const origin = req.headers.get("origin");
-        let same = !origin;
-        try { if (origin) { const o = new URL(origin); same = o.host === req.headers.get("host") || extraHosts.has(o.hostname); } } catch { /* bad origin */ }
-        if (!same) return bad("cross-origin shell refused", 403);
-        if (!/^application\/json\b/i.test(req.headers.get("content-type") ?? "")) return bad("json body expected", 415);
+        const refused = strict(req);
+        if (refused) return refused;
         if (!ptySupported) return bad("terminals need a newer Bun", 501);
         let body: any;
         try { body = await req.json(); } catch { return bad("json body expected"); }
@@ -622,7 +634,27 @@ export async function web(repoDir: string, opts: Opts = {}) {
         if (!states(true).includes(dir) || dir === join(home, ".kaizen")) return bad("choose a project", 404);
         let cmd: string[];
         let agent = "";
-        if (body.agent != null) {
+        // The run's own agent session, resumed here ("run:<dir>:<id>" names the run; the session
+        // id is read from that run's state.json, never taken from the page). Claude only: it is
+        // the agent whose session id runs record. Refused while that session is still running
+        // elsewhere, since two copies of one conversation overwrite each other's history.
+        const runKey = typeof body.run === "string" && body.run.length <= 300 ? body.run : "";
+        if (body.resume === true) {
+          const id = runKey.startsWith("run:" + dir + ":") ? runKey.slice(dir.length + 5) : "";
+          let st: any = {};
+          try { if (/^[\w-][\w.-]*$/.test(id) && !id.includes("..")) st = JSON.parse(readFileSync(join(dir, "runs", id, "state.json"), "utf8")); } catch {}
+          const sid = typeof st.session === "string" && /^[\w-]{8,80}$/.test(st.session) ? st.session : "";
+          if (!sid || (st.agent && st.agent !== "claude")) return bad("this run has no Claude session to resume", 404);
+          if (!onPath("claude")) return bad("claude is not installed", 400);
+          if ([...shells.values()].some((x) => x.run === runKey && x.agent === "claude" && ptyState(x.key)?.alive)) return bad("already open", 409);
+          // Live on this board already (an agent pty the run owns, idle or not): sessionLive's
+          // transcript-age check alone would miss it where there is no /proc.
+          const idx = runIndex(dir);
+          if (readSessions(dir).some((x) => ptyState(x.key)?.alive && ownerOf(dir, x, idx) === id)) return json({ live: true }, 409);
+          if (sessionLive(sid)) return json({ live: true }, 409);
+          agent = "claude";
+          cmd = ["claude", "--resume", sid];
+        } else if (body.agent != null) {
           const a = KNOWN_AGENTS.find((k) => k.cmd === body.agent);
           if (!a || !onPath(a.cmd)) return bad("unknown agent", 400);
           agent = a.cmd;
@@ -633,7 +665,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
         const key = "sh-" + crypto.randomUUID().slice(0, 8);
         const title = agent ? KNOWN_AGENTS.find((k) => k.cmd === agent)!.name : "shell";
         startPty(key, cmd, projectOf(dir), undefined, changed);
-        shells.set(key, { key, dir, title, agent });
+        // The run workspace that opened it (its card key), so each run keeps its own centre.
+        shells.set(key, { key, dir, title, agent, run: runKey });
         changed();
         return json(shells.get(key));
       }
@@ -641,6 +674,36 @@ export async function web(repoDir: string, opts: Opts = {}) {
         const dir = url.searchParams.get("dir");
         for (const k of shells.keys()) if (!ptyState(k)?.alive) shells.delete(k);
         return json([...shells.values()].filter((s) => !dir || s.dir === dir));
+      }
+      // The localhost tab's "Open in browser": a Chromium app window on this computer, for
+      // sites that refuse to be framed. Launches a process, so /shell's guards, and only an
+      // http(s) address, passed as one --app= argument, never a shell string.
+      if (req.method === "POST" && path === "/open-url") {
+        const refused = strict(req);
+        if (refused) return refused;
+        let body: any;
+        try { body = await req.json(); } catch { return bad("json body expected"); }
+        let u: URL;
+        try { u = new URL(String(body.url ?? "")); } catch { return bad("not a url"); }
+        if (!/^https?:$/.test(u.protocol)) return bad("only an http(s) address", 400);
+        return json({ ok: await openApp(u.href, join(home, ".kaizen", "app-window")) });
+      }
+      // Whether a page may be framed: X-Frame-Options or a CSP frame-ancestors that is not
+      // "*" says no. The browser hides that behind its own error page, so the localhost tab
+      // asks here first. Board pages only (it fetches on the user's behalf); the answer is
+      // one boolean, never the page; unknown (unreachable, timeout) counts as frameable.
+      if (req.method === "GET" && path === "/frameable") {
+        if (!local(req)) return bad("cross-origin request refused", 403);
+        let u: URL;
+        try { u = new URL(url.searchParams.get("url") ?? ""); } catch { return bad("not a url"); }
+        if (!/^https?:$/.test(u.protocol)) return bad("only an http(s) address", 400);
+        try {
+          const r = await fetch(u.href, { redirect: "follow", signal: AbortSignal.timeout(4000) });
+          r.body?.cancel().catch(() => {});
+          const xfo = (r.headers.get("x-frame-options") ?? "").trim();
+          const fa = /frame-ancestors([^;]*)/i.exec(r.headers.get("content-security-policy") ?? "")?.[1].trim() ?? "";
+          return json({ frameable: !xfo && (!fa || fa.split(/\s+/).includes("*")) });
+        } catch { return json({ frameable: null }); }
       }
 
       // The footer: each installed agent's plan usage (cached a minute, ?refresh=1 asks
@@ -1623,6 +1686,25 @@ export async function web(repoDir: string, opts: Opts = {}) {
 // which is as close to a desktop app as a web page gets. Anything else gets a tab.
 // A profile folder gives the window a browser instance of its own (Kaizen Bot's app);
 // on macOS that takes -n, as `open` otherwise hands the args to a running browser.
+// Whether a Claude Code session is running somewhere: a process whose command line names
+// it (Linux /proc), or its transcript written in the last 90 s (every platform).
+export function sessionLive(id: string): boolean {
+  try {
+    for (const pid of readdirSync("/proc")) {
+      if (!/^\d+$/.test(pid)) continue;
+      try { if (readFileSync(`/proc/${pid}/cmdline`, "utf8").split("\0").includes(id)) return true; } catch {}
+    }
+  } catch { /* no /proc */ }
+  try {
+    const root = join(home, ".claude", "projects");
+    for (const d of readdirSync(root)) {
+      const f = join(root, d, id + ".jsonl");
+      if (existsSync(f) && Date.now() - statSync(f).mtimeMs < 90_000) return true;
+    }
+  } catch {}
+  return false;
+}
+
 export async function openApp(url: string, profile?: string) {
   // Kaizen Bot's window (a profile) is always an app; the board asks the setting.
   if (!profile) {

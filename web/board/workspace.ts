@@ -27,9 +27,10 @@ export function subline(c, now) {
   return `${STAGE[c.column] ?? c.status} · ${age(t, now)}`;
 }
 export const titleOf = (c) => (c.title || c.text || "").split("\n")[0];
-// Shown in the list: open ideas, runs not archived; a finished run only for a day.
+// Shown in the list: runs not archived, a finished one only for a day. Ideas not started yet
+// live on the Ideas page; one whose agent is starting (it has a terminal) shows here.
 export const listed = (c, now) =>
-  !c.archived && (c.kind === "idea" || !["done", "abandoned"].includes(c.status) || now - (c.moved ?? 0) < DAY);
+  !c.archived && (c.kind === "idea" ? !!c.pty : !["done", "abandoned"].includes(c.status) || now - (c.moved ?? 0) < DAY);
 const projName = (dir, projects) => {
   const l = projects?.find((p) => p.dir === dir)?.label || dir.replace(/[\\/]\.kaizen$/, "");
   return l.split(/[\\/]/).pop() || l;
@@ -45,8 +46,8 @@ export const cardHref = (c) =>
   `/?view=run&dir=${encodeURIComponent(c.state)}&` + (c.kind === "run" ? "id=" + encodeURIComponent(c.id) : "idea=" + encodeURIComponent(c.text));
 
 // The Projects filter: projects ticked (none = all) and which kinds of card show. Kept per browser.
-type Filt = { dirs: string[]; active: boolean; ideas: boolean; done: boolean };
-const ALLF: Filt = { dirs: [], active: true, ideas: true, done: true };
+type Filt = { dirs: string[]; active: boolean; done: boolean };
+const ALLF: Filt = { dirs: [], active: true, done: true };
 let filt: Filt = (() => {
   try {
     return { ...ALLF, ...JSON.parse(localStorage.getItem("kz-rail-filter") || "{}") };
@@ -61,9 +62,24 @@ const keepFilt = () => {
 };
 const kindOf = (c) => {
   const st = stateOf(c);
-  return st === "idle" ? "ideas" : st === "done" || st === "aband" ? "done" : "active";
+  return st === "done" || st === "aband" ? "done" : "active";
 };
 let last: { cards: any[]; projects?: any[] } = { cards: [] };
+// Project groups folded shut in the side menu, kept per browser.
+const folded: Set<string> = (() => {
+  try {
+    return new Set(JSON.parse(localStorage.getItem("kz-rail-folded") || "[]"));
+  } catch {
+    return new Set();
+  }
+})();
+function fold(dir: string) {
+  folded.has(dir) ? folded.delete(dir) : folded.add(dir);
+  try {
+    localStorage.setItem("kz-rail-folded", JSON.stringify([...folded]));
+  } catch {}
+  drawList();
+}
 function drawList() {
   const box = $("plist");
   if (!box) return;
@@ -85,7 +101,7 @@ function drawList() {
   for (const [k, v] of ordered) groups.set(k, v);
 
   const f = $("pfilter");
-  const on = filt.dirs.some((d) => all.has(d)) || !filt.active || !filt.ideas || !filt.done;
+  const on = filt.dirs.some((d) => all.has(d)) || !filt.active || !filt.done;
   f.setAttribute("aria-pressed", String(on));
   f.title = on ? "Filter on: choose projects and kinds" : "Filter projects and kinds";
   if ($("pfpop")) drawPop(all);
@@ -94,12 +110,17 @@ function drawList() {
     [...groups]
       .map(([dir, cs]) => {
         const name = projName(dir, last.projects);
-        return html`<div class="proj" title="${dir}">${logo(dir, name, last.projects)}<span>${name}</span><span class="c">${cs.length}</span></div>${cs.map(
+        const shut = folded.has(dir);
+        return html`<button type="button" class="proj${shut ? " shut" : ""}" data-fold="${dir}" title="${dir}" aria-expanded="${String(!shut)}"><svg class="fchev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>${logo(dir, name, last.projects)}<span>${name}</span><span class="c">${cs.length}</span></button>${shut ? "" : cs.map(
           (c) =>
             html`<a class="row" href="${cardHref(c)}" data-dir="${c.state}" data-id="${c.id ?? ""}" data-text="${c.kind === "idea" ? c.text : ""}" title="${titleOf(c)}"${raw(cur.get("dir") === c.state && (cur.get("id") === c.id || cur.get("idea") === c.text) ? ' aria-current="true"' : "")}><span class="si ${stateOf(c)}"></span><div><b>${titleOf(c)}</b><small>${subline(c, now)}</small></div></a>`,
         )}`;
       })
-      .join("") || `<div class="none">No open ideas</div>`;
+      .join("") || `<div class="none">No runs</div>`;
+  box.onclick = (e) => {
+    const d = (e.target as HTMLElement).closest<HTMLElement>("[data-fold]")?.dataset.fold;
+    if (d) (e.preventDefault(), fold(d));
+  };
 }
 // The pages that can open a card in place (the board) answer this event and cancel it.
 const ask = (name, detail) => !dispatchEvent(new CustomEvent(name, { cancelable: true, detail }));
@@ -148,7 +169,7 @@ function drawPop(all: Set<string>) {
   const box = (on: boolean, attrs: string, label) => html`<label class="pfrow"><input type="checkbox" ${raw(attrs)}${on ? raw(" checked") : ""}>${label}</label>`;
   const had = document.activeElement?.id;
   p.innerHTML = String(
-    html`${dirs.length > 6 ? html`<input class="sel" id="pfq" placeholder="Search projects…" aria-label="Search projects" value="${pq}" autocomplete="off" spellcheck="false">` : ""}${box(!filt.dirs.length, 'data-all="1"', "All projects")}${shown.map((d) => box(filt.dirs.includes(d), `data-dir="${encodeURIComponent(d)}"`, html`${logo(d, projName(d, last.projects), last.projects)}<span>${projName(d, last.projects)}</span>`))}<div class="pfh">Show</div>${(["active", "ideas", "done"] as const).map((k) => box(filt[k], `data-k="${k}"`, { active: "Active runs", ideas: "Ideas", done: "Done (last day)" }[k]))}`,
+    html`${dirs.length > 6 ? html`<input class="sel" id="pfq" placeholder="Search projects…" aria-label="Search projects" value="${pq}" autocomplete="off" spellcheck="false">` : ""}${box(!filt.dirs.length, 'data-all="1"', "All projects")}${shown.map((d) => box(filt.dirs.includes(d), `data-dir="${encodeURIComponent(d)}"`, html`${logo(d, projName(d, last.projects), last.projects)}<span>${projName(d, last.projects)}</span>`))}<div class="pfh">Show</div>${(["active", "done"] as const).map((k) => box(filt[k], `data-k="${k}"`, { active: "Active runs", done: "Done (last day)" }[k]))}`,
   );
   if (had === "pfq") {
     const q = $("pfq") as HTMLInputElement;
@@ -225,13 +246,17 @@ const meter = (p) => html`<span class="umtr"><i class="${p >= 85 ? "hi" : p >= 5
 const when = (t) => (t ? new Date(t).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" }) : "unknown");
 const NAME = { claude: "Claude", codex: "Codex" };
 export function usageChips(list) {
+  // The agent's mark and its 5-hour %, coloured as it fills; the full figures on hover/focus.
+  const lvl = (p) => (p >= 95 ? " hi" : p >= 80 ? " mid" : "");
   return list
     .filter((u) => NAME[u.agent])
-    .map((u) =>
-      u.error
-        ? html`<span class="uchip na" title="${NAME[u.agent]} usage unavailable: ${u.error}"><svg aria-hidden="true"><use href="#i-${u.agent}"/></svg>usage unavailable</span>`
-        : html`<span class="uchip" title="${NAME[u.agent]}: 5-hour window resets ${when(u.five?.resetsAt)}; week resets ${when(u.week?.resetsAt)}"><svg aria-hidden="true"><use href="#i-${u.agent}"/></svg>${u.five ? meter(u.five.pct) : ""}<span>${u.five ? u.five.pct + "%" : ""}<span class="wk">${u.five ? " 5h" : ""}${u.week ? `${u.five ? " · " : ""}${u.week.pct}% week` : ""}</span></span></span>`,
-    )
+    .map((u) => {
+      const mark = html`<svg aria-hidden="true"><use href="#i-${u.agent}"/></svg>`;
+      if (u.error) return html`<span class="uchip na" tabindex="0">${mark}<b>–</b><span class="utip" role="tooltip"><b>${NAME[u.agent]}</b>Usage unavailable: ${u.error}</span></span>`;
+      const head = u.five ?? u.week;
+      const row = (label, w) => (w ? html`<span class="urow"><span>${label}</span><b class="${lvl(w.pct).trim()}">${w.pct}%</b><i><i style="width:${Math.min(100, w.pct)}%" class="${lvl(w.pct).trim()}"></i></i><small>resets ${when(w.resetsAt)}</small></span>` : "");
+      return html`<span class="uchip" tabindex="0" aria-label="${NAME[u.agent]} usage">${mark}<b class="${lvl(head?.pct ?? 0).trim()}">${head ? head.pct + "%" : ""}</b><span class="utip" role="tooltip"><b>${NAME[u.agent]}</b>${row("5-hour window", u.five)}${row("Week", u.week)}</span></span>`;
+    })
     .join("");
 }
 async function usage(refresh = false) {
@@ -272,6 +297,10 @@ async function terms() {
 }
 export function initFooter(goTerminal: () => void) {
   if (!$("foot")) return;
+  // The Board drawer is position:fixed; it stops above the footer, whose height varies.
+  const fh = () => document.documentElement.style.setProperty("--foot-h", $("foot").offsetHeight + "px");
+  new ResizeObserver(fh).observe($("foot"));
+  fh();
   void usage();
   void phone();
   setInterval(() => void usage(), 5 * 60_000);

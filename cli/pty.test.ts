@@ -50,7 +50,7 @@ test.skipIf(process.platform === "win32")("the board runs the agent in the card:
     expect(r.ok).toBe(true);
     expect(r.pty).toMatch(/^[\w-]+$/);
     const card = ((await (await fetch(at + "/state")).json()) as any).cards.find((c: any) => c.text === "say hello");
-    expect(card.pty).toEqual({ key: r.pty, alive: true, asking: false });
+    expect(card.pty).toEqual({ key: r.pty, alive: true, asking: false, all: [r.pty] });
 
     // G-01: no Origin, a foreign one, and another local port are all refused.
     const url = `${at}/pty?key=${r.pty}`, up = { upgrade: "websocket", connection: "Upgrade", "sec-websocket-version": "13", "sec-websocket-key": "dGhlIHNhbXBsZSBub25jZQ==" };

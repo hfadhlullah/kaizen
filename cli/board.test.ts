@@ -23,10 +23,10 @@ test("Board badge counts each card needing input once and clears at zero", () =>
     expect(waitingCount(cards)).toBe(2);
     boardBadge(cards);
     expect(link.dataset.n).toBe("2");
-    expect(link.label).toBe("Board: 2 waiting on you");
+    expect(link.label).toBe("Ideas: 2 waiting on you");
     boardBadge([]);
     expect(link.dataset.n).toBeUndefined();
-    expect(link.label).toBe("Board");
+    expect(link.label).toBe("Ideas: every idea and run, filtered");
   } finally {
     globalThis.document = previous;
   }

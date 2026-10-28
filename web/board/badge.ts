@@ -11,12 +11,13 @@ export const onBoardCards = (f: typeof onCards) => { onCards = f; };
 export function boardBadge(cards: BadgeCard[], projects?: unknown[]) {
   generation++;
   onCards?.(cards, projects);
-  const a = document.querySelector<HTMLElement>('.rail a[data-view="board"]');
+  // The waiting-on-you count sits on Ideas, the page that lists every run and idea.
+  const a = document.querySelector<HTMLElement>('.rail a[data-view="ideas"]');
   if (!a) return;
   const n = waitingCount(cards);
   if (n) a.dataset.n = String(n);
   else delete a.dataset.n;
-  a.title = n ? `Board: ${n} waiting on you` : "Board";
+  a.title = n ? `Ideas: ${n} waiting on you` : "Ideas: every idea and run, filtered";
   a.setAttribute("aria-label", a.title);
 }
 
