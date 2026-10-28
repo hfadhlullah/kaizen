@@ -498,7 +498,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
       // elsewhere only the popup opens and closes.
       if (req.method === "POST" && (path === "/popup/open" || path === "/popup/board")) {
         const body = await req.json().catch(() => ({}));
-        const chat = (...a: string[]) => Bun.spawn([process.execPath, join(import.meta.dir, "install.ts"), "chat", "--port", String(new URL(req.url).port || DEFAULT_PORT), ...a], { stdout: "ignore", stderr: "ignore" }).exited;
+        const chat = (...a: string[]) => Bun.spawn([process.execPath, join(import.meta.dir, "install.ts"), "chat", "--port", String(new URL(req.url).port || DEFAULT_PORT), ...a], { stdout: "ignore", stderr: "ignore", windowsHide: true }).exited;
         const hypr = !!process.env.HYPRLAND_INSTANCE_SIGNATURE && !!Bun.which("hyprctl");
         const json = async (cmd: string) => await Bun.$`hyprctl ${cmd} -j`.quiet().nothrow().json().catch(() => null);
         // Several windows can show a board: Pop out takes the one clicked in (the active
@@ -724,7 +724,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         // Async: a hung tailscale must not stall every terminal socket on this event loop.
         let out = "";
         try {
-          const p = Bun.spawn(["tailscale", "status", "--json"], { stdout: "pipe", stderr: "ignore", timeout: 5000 });
+          const p = Bun.spawn(["tailscale", "status", "--json"], { stdout: "pipe", stderr: "ignore", timeout: 5000, windowsHide: true });
           out = await new Response(p.stdout).text();
           await p.exited;
         } catch { return json({ tailscale: false }); }
@@ -1268,7 +1268,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           try { used = readdirSync(to).length > 0; } catch (e) { used = existsSync(to); }
           if (used) return bad(`${to} already exists and is not empty`, 409);
           mkdirSync(to, { recursive: true });
-          const p = Bun.spawn(["git", "clone", "--", link, to], { stdin: "ignore", stdout: "ignore", stderr: "pipe", env: { ...process.env, GIT_TERMINAL_PROMPT: "0", GIT_SSH_COMMAND: process.env.GIT_SSH_COMMAND ?? "ssh -o BatchMode=yes" } });
+          const p = Bun.spawn(["git", "clone", "--", link, to], { stdin: "ignore", stdout: "ignore", stderr: "pipe", env: { ...process.env, GIT_TERMINAL_PROMPT: "0", GIT_SSH_COMMAND: process.env.GIT_SSH_COMMAND ?? "ssh -o BatchMode=yes" }, windowsHide: true });
           const [err, code] = await Promise.all([new Response(p.stderr).text(), p.exited]);
           if (code !== 0) return bad(err.trim().split("\n").filter(Boolean).pop() || "git clone failed", 500);
           mkdirSync(join(to, ".kaizen"), { recursive: true });

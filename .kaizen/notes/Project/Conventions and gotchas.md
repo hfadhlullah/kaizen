@@ -22,6 +22,7 @@ The rules that are not visible in any one file. The full list of lessons is `.ka
 - Comments explain why, at the top of a file and above non-obvious functions; `ponytail:` comments mark deliberate shortcuts with their ceiling (e.g. `cli/notes.ts`).
 - Tests are plain `bun:test` files in `cli/*.test.ts` and `bot/test/`; not every module has its own (`cli/dashboard.ts` and `cli/web.ts` do not).
 - Optional tools (git) are shelled out to with a catch: `Bun.spawnSync` throws when the binary is missing (`.kaizen/memory.md`).
+- Every `Bun.spawn`/`spawnSync` of a console program from the board passes `windowsHide: true`: a board started from the Windows shortcut has no console, so each child otherwise flashes a new console window (#16, the 60 s `/phone` poll).
 
 ## How it connects
 - Every area note's "Watch out" cites its own lessons: [[CLI]], [[Web board]], [[Notebook]], [[Terminal board]], [[Sources and icebox]].
