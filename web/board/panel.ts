@@ -39,7 +39,7 @@ const readable = (t) =>
       );
 export function open(c, keepTab) {
   // The run workspace docks this panel at its right: it stays there.
-  if (view !== "board" && view !== "run") go("board", true);
+  if (view !== "board" && view !== "run" && view !== "ideas") go("board", true);
   stopDictation(true); // the panel body is about to be replaced
   fixOff.clear();
   store.openKey = key(c);
@@ -365,7 +365,7 @@ export async function toggleArchive(c, archived) {
   load();
 }
 export function close() {
-  if (view !== "board" && view !== "run") return;
+  if (view !== "board" && view !== "run" && view !== "ideas") return;
   const k = store.openKey;
   stopDictation(true);
   termStop();

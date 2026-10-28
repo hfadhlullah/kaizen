@@ -55,7 +55,7 @@ export function go(v, push) {
   // The Terminal page is the board's own area, not the docked panel: the panel closes as on the board.
   if (AREA.includes(v)) {
     if (AREA.includes(was)) {
-      if (v !== "board" && was === "board") {
+      if (v !== "board" && (was === "board" || was === "ideas")) {
         view = "board";
         close();
         view = v;

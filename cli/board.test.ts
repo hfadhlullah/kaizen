@@ -21,12 +21,9 @@ test("Board badge counts each card needing input once and clears at zero", () =>
       { kind: "run", status: "running", pty: { alive: false, asking: true } },
     ];
     expect(waitingCount(cards)).toBe(2);
+    // The Ideas link carries no count.
     boardBadge(cards);
-    expect(link.dataset.n).toBe("2");
-    expect(link.label).toBe("Ideas: 2 waiting on you");
-    boardBadge([]);
     expect(link.dataset.n).toBeUndefined();
-    expect(link.label).toBe("Ideas: every idea and run, filtered");
   } finally {
     globalThis.document = previous;
   }

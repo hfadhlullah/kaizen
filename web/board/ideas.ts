@@ -7,6 +7,7 @@ import { $, html, ico, raw } from "./dom.ts";
 import { age, NAMES } from "./labels.ts";
 import { key, runPopup } from "./cards.ts";
 import { openWorkspace } from "./run-view.ts";
+import { open } from "./panel.ts";
 import { refreshBoardBadge } from "./badge.ts";
 import { cardHref, drawSources, logo, railData, srcIcon, stateOf, titleOf } from "./workspace.ts";
 
@@ -112,6 +113,7 @@ function draw() {
   hx.querySelectorAll<HTMLElement>("[data-show]").forEach((b) => (b.onclick = () => ((f.show = b.dataset.show!), (hx.innerHTML = ""), draw())));
   $("ideas-ref").onclick = () => (void drawSources(true), void refreshBoardBadge());
   box.querySelectorAll<HTMLElement>("button.go").forEach((b) => (b.onclick = () => act(rows[+b.dataset.i!])));
+  box.querySelectorAll<HTMLElement>("tbody tr").forEach((tr, i) => (tr.onclick = (e) => !(e.target as Element).closest("button") && detail(rows[i])));
   shownRows = rows;
   sel = Math.max(0, Math.min(sel, rows.length - 1));
   mark();
@@ -127,6 +129,15 @@ function act(c) {
   }
   if (c.kind === "run") return openWorkspace(here);
   runPopup(here);
+}
+
+// A row's own click: the card's detail panel over this page. Another project's card goes
+// through the board's deep link, which opens the same panel there.
+function detail(c) {
+  const here = store.S.cards.find((x) => key(x) === key(c));
+  if (here) return open(here);
+  const e = encodeURIComponent;
+  location.href = `/?all=1&dir=${e(c.state)}&${c.kind === "run" ? "run=" + e(c.id) : "idea=" + e(c.text)}`;
 }
 
 function mark() {

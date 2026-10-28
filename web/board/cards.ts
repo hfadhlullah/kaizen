@@ -770,18 +770,18 @@ export function render() {
     }
     const clearable = ci === 4 && !archive && list.length;
     const olderThan = (days) => list.filter((c) => store.S.now - (c.moved || store.S.now) > days * d);
-    // The Ideas column is titled by its two tabs, icons with their counts: ideas, or the
+    // The Ideas column is titled by its two tabs, icons without counts: ideas, or the
     // runs' leftovers. On Backlog a filter icon narrows it to one severity.
     const tabbed = ci === 0 && !archive,
       nb = tabbed ? backlogList().filter((c) => !only || store.shown.has(c.state)) : [];
     const title = tabbed
       ? `<span class="itabs" role="tablist" aria-label="Ideas column">${[
-          ["ideas", "Ideas", `<svg><use href="#s-idea"/></svg>`, cs.filter((c) => c.column === 0).length],
-          ["backlog", "Backlog: what finished runs left undone", ico("clock"), nb.length],
+          ["ideas", "Ideas", `<svg><use href="#s-idea"/></svg>`],
+          ["backlog", "Backlog: what finished runs left undone", ico("clock")],
         ]
           .map(
-            ([v, l, svg, k]) =>
-              `<button role="tab" aria-selected="${String(ideasTab === v)}" data-t="${v}" title="${l}" aria-label="${l}, ${k}">${svg}${ideasTab === v ? `<b>${l.split(":")[0]}</b>` : ""}<i>${k}</i></button>`,
+            ([v, l, svg]) =>
+              `<button role="tab" aria-selected="${String(ideasTab === v)}" data-t="${v}" title="${l}" aria-label="${l}">${svg}${ideasTab === v ? `<b>${l.split(":")[0]}</b>` : ""}</button>`,
           )
           .join("")}</span>`
       : `${name}<i>${list.length || ""}</i>`;

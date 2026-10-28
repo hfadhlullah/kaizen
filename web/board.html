@@ -336,7 +336,7 @@ body.ideav #ideasv{flex:1;min-height:0;display:flex;flex-direction:column;gap:0;
 #ideasv #ideas-q{flex:0 1 240px;min-width:140px;border-radius:4px;padding:6px 10px;font-family:var(--mono);font-size:12px}
 #ideasv .iscroll{flex:1;min-height:0;overflow:auto}
 .itable{width:100%;border-collapse:collapse}.itable th{text-align:left;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);font-weight:600;padding:8px 12px;border-bottom:1px solid var(--line)}
-.itable td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:middle}.itable tr:hover td{background:var(--hover)}.itable tr.kb td{background:var(--hover)}.itable tr.kb td:first-child{box-shadow:inset 2px 0 0 var(--accent)}.itable td:first-child{width:28px;padding-right:0}.itable td.d{color:var(--dim);white-space:nowrap}
+.itable td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:middle}.itable tr:hover td{background:var(--hover)}#ideasv tbody tr{cursor:pointer}.itable tr.kb td{background:var(--hover)}.itable tr.kb td:first-child{box-shadow:inset 2px 0 0 var(--accent)}.itable td:first-child{width:28px;padding-right:0}.itable td.d{color:var(--dim);white-space:nowrap}
 .itable .ctx{display:flex;gap:6px;align-items:center;color:var(--dim);font-size:12px;margin-top:3px}.itable .tag{font-size:10.5px;border:1px solid var(--line);border-radius:4px;padding:0 7px}
 .itable .stc{display:flex;gap:8px;align-items:center;font-size:12px;white-space:nowrap}
 .itable .go{display:flex;gap:6px;align-items:center;padding:4px 10px;border:1px solid var(--line);border-radius:4px;white-space:nowrap}.itable .go:hover{background:var(--hover)}.itable .go svg{width:13px;height:13px}
@@ -750,6 +750,9 @@ a.schip:hover{color:var(--ink);border-color:color-mix(in srgb,var(--line) 60%,va
 /* Ideas uses the Board's own header, as the Icebox does; its extra filters go in #hx. */
 body.ideav.paged .hdr{display:flex}body.ideav.paged #bq{display:block}body.ideav #fbtn,body.ideav #tmodes{display:none}body:not(.ideav) #hx{display:none}#hx{display:flex;gap:8px;align-items:center}
 @media(min-width:641px){.app .hdr,#ideasv .hdr.ihdr,#rtabs,#panel.docked>header{height:52px;min-height:52px;box-sizing:border-box;padding-top:0;padding-bottom:0;border-bottom:1px solid var(--line);align-items:center;flex-wrap:nowrap}.itable th{border-bottom-color:var(--line)}}
+
+/* Ideas header on a small laptop: one row, nothing wraps; the search box gives way first. */
+#newtop{white-space:nowrap}@media(min-width:641px) and (max-width:1440px){body.ideav .app .hdr{gap:8px;padding:8px 12px 8px 20px;height:auto;flex-wrap:wrap}body.ideav #bq{flex:1 1 120px;width:auto;min-width:90px}body.ideav #hx{gap:6px;min-width:0}body.ideav #hx .iseg{gap:2px}body.ideav #hx .pill{padding:4px 8px}body.ideav #hx .ipop .sel{max-width:130px}}
 </style>
 </head>
 <body>
