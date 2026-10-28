@@ -11,8 +11,8 @@ const DAY = 864e5;
 const STAGE = ["idea", "planning", "building", "reviewing", "done"];
 // A card's state icon (.si) and the word under its title.
 export function stateOf(c) {
-  // An idea with a terminal is a run being born: show it as planning.
-  if (c.kind === "idea") return c.pty ? "plan" : "idle";
+  // An idea whose agent is working is a run being born: show it as planning.
+  if (c.kind === "idea") return !c.pty?.alive ? "idle" : c.pty.asking ? "wait" : c.pty.busy ? "plan" : "idle";
   if (c.status === "waiting" || (c.pty?.alive && c.pty.asking)) return "wait";
   if (c.status === "done") return "done";
   if (c.status === "abandoned") return "aband";
@@ -20,7 +20,8 @@ export function stateOf(c) {
   return c.column >= 3 ? "review" : c.column === 2 ? "build" : "plan";
 }
 export function subline(c, now) {
-  if (c.kind === "idea") return c.pty ? "planning · starting" : "idea";
+  // An idle agent and no run yet: it answered, or waits for the user.
+  if (c.kind === "idea") return !c.pty?.alive ? "idea" : c.pty.asking ? "waiting on you" : c.pty.busy ? "planning · starting" : "agent · open";
   const t = c.moved ?? now;
   if (c.status === "waiting") return c.awaiting ? `${STAGE[c.column] ?? "waiting"} · ${need(c.awaiting)}` : "waiting on you";
   if (c.status === "done" || c.status === "abandoned") return `${c.status} · ${age(t, now)} ago`;

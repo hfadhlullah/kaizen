@@ -5,7 +5,7 @@ import { existsSync, readFileSync, readdirSync, appendFileSync, writeFileSync, m
 import { Database } from "bun:sqlite";
 import { join, dirname, win32, posix } from "node:path";
 import { homedir, arch, cpus, release, totalmem, version as osVersion } from "node:os";
-import { startPty, ptySupported, ptyState } from "./pty.ts";
+import { startPty, ptySupported } from "./pty.ts";
 import { codeDir, projectFromWorktree } from "./worktree.ts";
 
 // The real path: process.cwd() is always physical, so a raw $HOME that crosses a
@@ -1377,7 +1377,6 @@ function opencodeRows(sql: string, ...args: (string | number)[]): string[] {
   } catch { return []; }
 }
 
-export const CLOSE_GRACE_MS = 60_000;
 const sessionsDir = (st: string) => join(st, "sessions");
 
 export function readSessions(st: string): Session[] {
@@ -1531,40 +1530,11 @@ export function closeSessions(st: string, id: string, opts: { before?: number } 
   } catch { return 0; }
 }
 
-// The board's minute sweep: sessions of runs done for longer than the grace, so the
-// final summary can still be read first. Only sessions launched before the run last
-// moved: a fix started on a done run leaves it done until that agent writes, and is
-// the one doing the work. Abandoned runs are closed by abandonRun, not here.
-export function sweepSessions(st: string, now: number) {
-  try {
-    const live = openSessions(st);
-    if (!live.length || !closeEnabled(dirname(st))) return;
-    const runs = new Map(readRuns(st).map((r) => [r.id, r])), idx = runIndex(st);
-    for (const s of live) {
-      const r = runs.get(ownerOf(st, s, idx) ?? "");
-      if (r && r.stage === "done" && s.started <= r.moved && now - r.moved >= CLOSE_GRACE_MS && !typedSince(st, s, r.moved)) closeOne(st, s);
-    }
-  } catch { /* the next sweep tries again */ }
-}
-
-// Whether the user typed into the session's terminal after `t`: its tty's access time
-// moves when input is read. Such a session is the user's now, not the run's to close.
-// No tty (Windows, a stranger's PID): false, so the sweep closes as before.
-// A board card's session is judged by its keystrokes: the page's terminal answers the
-// agent's focus and query reports on that tty too, which moved its time on every look.
-function typedSince(st: string, s: Session, t: number): boolean {
-  const card = ptyState(s.key);
-  if (card) return card.typed > t;
-  try {
-    if (process.platform === "win32") return false;
-    const pid = parseInt(readText(join(sessionsDir(st), s.key + ".pid")));
-    const ps = onPath("ps");
-    if (!(pid > 0) || !ps || !isSession(pid, s)) return false;
-    const tty = Bun.spawnSync([ps, "-o", "tty=", "-p", String(pid)], { stdin: "ignore", timeout: 5000 }).stdout.toString().trim();
-    if (!tty || tty === "?" || tty === "??") return false;
-    // The kernel stamps tty times in 8-second steps, rounded down.
-    return statSync(join("/dev", tty)).atimeMs > t - 8000;
-  } catch { return false; }
+// The board's minute sweep: drops the PID files of sessions that have ended. A done
+// run's agent is left running; the user closes it, a decision replaces it, or
+// abandonRun ends it.
+export function sweepSessions(st: string) {
+  try { openSessions(st); } catch { /* the next sweep tries again */ }
 }
 
 // The run's conversation to continue: its first recorded one, on this tool, whose

@@ -11,7 +11,7 @@ const WIN = process.platform === "win32";
 // Windows PowerShell, which every Windows has, both hosts the console and runs the agent in it.
 const winPs = () => join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
 
-type Pty = { proc: Bun.Subprocess; out: string[]; size: number; listeners: Set<(d: string | null) => void>; exit: number | null; asking: boolean; quiet?: Timer; total: number; since: number; typed: number; onChange?: () => void };
+type Pty = { proc: Bun.Subprocess; out: string[]; size: number; listeners: Set<(d: string | null) => void>; exit: number | null; asking: boolean; busy: boolean; quiet?: Timer; total: number; since: number; onChange?: () => void };
 
 // What a page attaching late gets replayed. A full-screen tool redraws often, so the
 // tail of its output is enough to rebuild the screen.
@@ -48,16 +48,21 @@ export const ptySupported = WIN || typeof (Bun as any).Terminal === "function";
 // onChange: called when the agent ends or starts or stops asking, so the board can redraw.
 export function startPty(key: string, cmd: string[], cwd: string, pidFile?: string, onChange?: () => void): number {
   const dec = new TextDecoder();
-  const p: Pty = { proc: null as unknown as Bun.Subprocess, out: [], size: 0, listeners: new Set(), exit: null, asking: false, total: 0, since: 0, typed: 0, onChange };
+  const p: Pty = { proc: null as unknown as Bun.Subprocess, out: [], size: 0, listeners: new Set(), exit: null, asking: false, busy: false, total: 0, since: 0, onChange };
   const flag = (v: boolean) => { if (p.asking !== v) { p.asking = v; onChange?.(); } };
+  // busy: output in the last QUIET_MS. A working agent redraws its spinner many times a second,
+  // so a quiet terminal is one waiting at its prompt.
+  const work = (v: boolean) => { if (p.busy !== v) { p.busy = v; onChange?.(); } };
   const push = (d: string) => {
     p.out.push(d);
     p.size += d.length;
     p.total += d.length;
     while (p.size > CAP && p.out.length > 1) p.size -= p.out.shift()!.length;
     for (const f of p.listeners) f(d);
+    work(p.exit === null);
     clearTimeout(p.quiet);
     p.quiet = setTimeout(() => {
+      work(false);
       // Only what came after the user's last keystroke: a question already answered may still be in the tail.
       const n = Math.min(4096, p.total - p.since);
       flag(p.exit === null && n > 0 && asking(p.out.join("").slice(-n)));
@@ -88,6 +93,7 @@ export function startPty(key: string, cmd: string[], cwd: string, pidFile?: stri
     p.exit = code;
     clearTimeout(p.quiet);
     p.asking = false;
+    p.busy = false;
     for (const f of p.listeners) f(null);
     p.listeners.clear();
     try { p.proc.terminal?.close(); } catch { /* already closed */ }
@@ -118,7 +124,6 @@ export function writePty(key: string, d: string) {
   const p = ptys.get(key);
   if (!p || p.exit !== null) return;
   if (d.replace(REPORT, "")) {
-    p.typed = Date.now();
     p.since = p.total;
     if (p.asking) { p.asking = false; p.onChange?.(); }
   }
@@ -151,7 +156,7 @@ export const ptyKeys = () => [...ptys.keys()];
 
 export const ptyState = (key: string) => {
   const p = ptys.get(key);
-  return p ? { alive: p.exit === null, exit: p.exit, asking: p.asking, typed: p.typed } : null;
+  return p ? { alive: p.exit === null, exit: p.exit, asking: p.asking, busy: p.busy } : null;
 };
 
 // The environment the user's login shell builds: PATH and anything exported in their

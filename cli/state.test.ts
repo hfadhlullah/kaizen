@@ -10,7 +10,7 @@ import {
   readRuns, readInbox, writeInbox, replaceIdea, moveIdea, abandonRun, runToIdea, allBacklog, backlog,
   requestTitle, statusOf, columnOf, parseItem, startedRuns, boardCards, parentOf, addCard, readArchive, setArchived,
   requestOf, agentFlags, plainModel, readNotes, writeNotes, manualCommand, parseNotes, formatNote, appendNote, saveAttachment,
-  reviewFindings, pickFindings, fixPrompt, approvalPrompt, sessionLaunch, closeSessions, sweepSessions, readSessions, ownerOf, CLOSE_GRACE_MS, gitStatus, runGit, cardsGit, commitPush, readCommit, findTerminal, nativePath, pruneRuns, unrechecked, notice, notifier, notifyArgs, winToastArgs, LOGO, type Card,
+  reviewFindings, pickFindings, fixPrompt, approvalPrompt, sessionLaunch, closeSessions, sweepSessions, readSessions, ownerOf, gitStatus, runGit, cardsGit, commitPush, readCommit, findTerminal, nativePath, pruneRuns, unrechecked, notice, notifier, notifyArgs, winToastArgs, LOGO, type Card,
 } from "./state.ts";
 
 let state: string;
@@ -1102,39 +1102,17 @@ test.skipIf(process.platform === "win32")("closeSessions ends only the run's own
     expect(alive(procs.other)).toBe(true);
     writeFileSync(join(st, "config.yml"), "agent:\n  default: claude\n  close: on\n");
 
-    // The sweep: run b done within the grace keeps its window, past it loses it.
+    // The sweep: a done run keeps its window; only a PID file whose process is gone is dropped.
     newRun(p, "2026-10-01-b", "/kaizen b", { stage: "done", awaiting: null });
-    sweepSessions(st, Date.now());
+    sweepSessions(st);
     await Bun.sleep(100);
     expect(alive(procs.other)).toBe(true);
-    sweepSessions(st, Date.now() + CLOSE_GRACE_MS);
-    expect(await procs.other.exited).not.toBe(0);
-    expect(alive(procs.later)).toBe(true);                     // run a is still waiting
-    // A PID file whose process is gone is dropped by the sweep, whatever its run is doing.
     writeFileSync(join(dir, "dead2.json"), JSON.stringify({ run: "2026-10-01-a", text: "a", cmd: "kzagent", sessionId: null, started: 0 }));
     writeFileSync(join(dir, "dead2.pid"), "999999\n");
-    sweepSessions(st, Date.now());
+    sweepSessions(st);
     expect(existsSync(join(dir, "dead2.pid"))).toBe(false);
     expect(existsSync(join(dir, "dead2.json"))).toBe(true);
     expect(existsSync(join(dir, "later.pid"))).toBe(true);
-
-    // A fix launched on a done run, after it last moved, is doing the work: kept.
-    const fix = start("fix", { run: "2026-10-01-b", started: Date.now() + 1000 });
-    procs.fix = fix;
-    for (let i = 0; i < 100 && !existsSync(join(dir, "fix.pid")); i++) await Bun.sleep(20);
-    sweepSessions(st, Date.now() + 2 * CLOSE_GRACE_MS);
-    await Bun.sleep(100);
-    expect(alive(fix)).toBe(true);
-
-    // An abandoned run is left to abandonRun; the sweep does not close it, even a
-    // session launched long before the run last moved.
-    const gone = start("gone", { started: 0 });
-    procs.gone = gone;
-    for (let i = 0; i < 100 && !existsSync(join(dir, "gone.pid")); i++) await Bun.sleep(20);
-    writeFileSync(join(st, "runs", "2026-10-01-a", "state.json"), JSON.stringify({ stage: "abandoned", awaiting: null }));
-    sweepSessions(st, Date.now() + 2 * CLOSE_GRACE_MS);
-    await Bun.sleep(100);
-    expect(alive(gone)).toBe(true);
   } finally {
     for (const pr of Object.values(procs)) pr.kill();
   }

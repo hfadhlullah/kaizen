@@ -4,7 +4,7 @@ import { test, expect } from "bun:test";
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, realpathSync, rmSync, utimesSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { launchMode, closeSessions, readSessions, sweepSessions, CLOSE_GRACE_MS } from "./state.ts";
+import { launchMode, closeSessions, readSessions, sweepSessions } from "./state.ts";
 import { loginEnv, startPty, writePty, attachPty, ptyState, exitPty } from "./pty.ts";
 import { conptyHost, innerCommand, resizeSeq } from "./conpty.ts";
 
@@ -50,7 +50,7 @@ test.skipIf(process.platform === "win32")("the board runs the agent in the card:
     expect(r.ok).toBe(true);
     expect(r.pty).toMatch(/^[\w-]+$/);
     const card = ((await (await fetch(at + "/state")).json()) as any).cards.find((c: any) => c.text === "say hello");
-    expect(card.pty).toEqual({ key: r.pty, alive: true, asking: false, all: [r.pty] });
+    expect(card.pty).toMatchObject({ key: r.pty, alive: true, asking: false, all: [r.pty] });
 
     // G-01: no Origin, a foreign one, and another local port are all refused.
     const url = `${at}/pty?key=${r.pty}`, up = { upgrade: "websocket", connection: "Upgrade", "sec-websocket-version": "13", "sec-websocket-key": "dGhlIHNhbXBsZSBub25jZQ==" };
@@ -153,49 +153,20 @@ test.skipIf(process.platform === "win32")("a board started from a launcher takes
   expect(pwd).not.toBe("/elsewhere");
 });
 
-test.skipIf(process.platform === "win32")("the done sweep keeps a session the user typed into after the run finished", async () => {
+test.skipIf(process.platform === "win32")("the sweep leaves a done run's agent running", async () => {
   const st = join(root, "typed", ".kaizen"), ses = join(st, "sessions"), runDir = join(st, "runs", "r1");
   mkdirSync(ses, { recursive: true });
   mkdirSync(runDir, { recursive: true });
   writeFileSync(join(st, "config.yml"), "agent:\n  close: on\n");
-  const done = (at: number) => {
-    writeFileSync(join(runDir, "state.json"), JSON.stringify({ id: "r1", stage: "done", awaiting: null }));
-    utimesSync(join(runDir, "state.json"), new Date(at), new Date(at));
-  };
-  const launch = (key: string) => {
-    writeFileSync(join(ses, key + ".json"), JSON.stringify({ run: "r1", text: "x", cmd: "sh", sessionId: null, started: 0 }));
-    return startPty(key, ["sh", "-c", "while read l; do echo got:$l; done"], root, join(ses, key + ".pid"));
-  };
-  const alive = (pid: number) => { try { process.kill(pid, 0); return true; } catch { return false; } };
-  const gone = async (pid: number) => { for (let i = 0; i < 50 && alive(pid); i++) await Bun.sleep(30); return !alive(pid); };
-
-  // Untouched since the run finished: closed once the grace is over.
-  const idle = launch("idle");
+  writeFileSync(join(runDir, "state.json"), JSON.stringify({ id: "r1", stage: "done", awaiting: null }));
+  utimesSync(join(runDir, "state.json"), new Date(0), new Date(0));
+  writeFileSync(join(ses, "idle.json"), JSON.stringify({ run: "r1", text: "x", cmd: "sh", sessionId: null, started: 0 }));
+  const idle = startPty("idle", ["sh", "-c", "while read l; do echo got:$l; done"], root, join(ses, "idle.pid"));
   await Bun.sleep(200);
-  done(Date.now() + 10_000);
-  sweepSessions(st, Date.now() + 10_000 + CLOSE_GRACE_MS);
-  expect(await gone(idle)).toBe(true);
-
-  // Typed into after the run finished: the user's now, left open.
-  done(Date.now() - 60_000);
-  const used = launch("used");
+  sweepSessions(st);
   await Bun.sleep(200);
-  writePty("used", "hi\r");
-  await Bun.sleep(200);
-  sweepSessions(st, Date.now() + CLOSE_GRACE_MS);
-  await Bun.sleep(200);
-  expect(alive(used)).toBe(true);
-  process.kill(used, "SIGTERM");
-
-  // Only looked at: the page's focus and query answers reach the tty but are not typing.
-  done(Date.now() - 60_000);
-  const looked = launch("looked");
-  await Bun.sleep(200);
-  writePty("looked", "\x1b[I\x1b[O\x1b[?0u\x1b[<64;10;5M\x1bP>|xterm.js(6.0)\x1b\\");
-  await Bun.sleep(200);
-  expect(ptyState("looked")!.typed).toBe(0);
-  sweepSessions(st, Date.now() + CLOSE_GRACE_MS);
-  expect(await gone(looked)).toBe(true);
+  expect(() => process.kill(idle, 0)).not.toThrow();
+  process.kill(idle, "SIGTERM");
 });
 
 test.skipIf(process.platform === "win32")("exitPty types /exit, and ends an agent that ignores it", async () => {
@@ -248,3 +219,13 @@ test.skipIf(process.platform !== "win32")("on Windows a card agent runs in a pse
   for (let i = 0; i < 100 && ptyState(key)?.alive; i++) await Bun.sleep(100);
   expect(ptyState(key)?.alive).toBe(false);
 }, 60_000);
+
+test("busy: on while the agent prints, off once its output goes quiet", async () => {
+  const key = "busy-" + Date.now();
+  startPty(key, ["sh", "-c", "for i in 1 2 3 4 5 6; do echo tick; sleep 0.1; done; read l"], root);
+  await Bun.sleep(250);
+  expect(ptyState(key)!.busy).toBe(true);
+  await Bun.sleep(1800);
+  expect(ptyState(key)).toMatchObject({ alive: true, busy: false });
+  exitPty(key);
+});

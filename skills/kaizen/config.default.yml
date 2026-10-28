@@ -127,10 +127,10 @@ agent:
   # Default coding agent to launch from dashboard backlog (auto | claude | codex | agy | opencode | gemini).
   # auto picks Claude Code if installed, otherwise the first agent found on PATH.
   default: auto
-  # on: a board decision ends the run's waiting session before continuing its
-  # conversation, and abandoned or done runs (after 1 minute) have theirs ended.
-  # Only sessions the board or dashboard launched are touched. off: nothing is
-  # ended, and a resumed conversation opens beside the window still waiting.
+  # on: a board decision ends the run's waiting session once the new one continuing
+  # its conversation is open, and abandoning a run ends its session. A done run's
+  # session is left open. Only sessions the board or dashboard launched are touched.
+  # off: nothing is ended, and a resumed conversation opens beside the window still waiting.
   close: on
   # Where the web board runs the agent it launches.
   #   card     - inside the board: the card's Terminal tab shows the agent live and

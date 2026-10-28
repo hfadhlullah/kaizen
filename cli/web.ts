@@ -309,7 +309,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
       if (!st.alive && (c.status === "done" || c.status === "abandoned")) return undefined;
       // Every agent session the run has had on this board, for the workspace's Agent tabs.
       const all = keys.filter((k) => ptyState(k)?.alive || k === key);
-      return { key, alive: st.alive, asking: st.asking, all };
+      return { key, alive: st.alive, asking: st.asking, busy: st.busy, all };
     };
   };
   const watchers: FSWatcher[] = [];
@@ -340,7 +340,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
   let ticks = 0;
   const poll = setInterval(() => {
     // Once a minute: windows of runs finished or abandoned past the grace are closed.
-    if (++ticks % 30 === 0) for (const dir of states(true)) sweepSessions(dir, Date.now());
+    if (++ticks % 30 === 0) for (const dir of states(true)) sweepSessions(dir);
     // A project registered since start (a run launched into a fresh dir) gets a watcher too.
     const now = states(true).join("\n"); if (now !== seen) { seen = now; watchAll(); }
     const fp = fingerprint(); if (fp !== last) { last = fp; changed(); }
