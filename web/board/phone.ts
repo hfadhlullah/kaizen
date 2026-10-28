@@ -13,6 +13,9 @@ let mode: "home" | "device" | null = null;
 
 const chev = raw(`<svg class="pchev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>`);
 const runs = () => railData().cards.filter((c) => c.kind === "run" && !c.archived);
+// Ideas not started yet: a phone has no Ideas page, so the Runs page lists them.
+const ideas = () => railData().cards.filter((c) => c.kind === "idea" && !c.archived);
+const rowKey = (c) => (c.kind === "run" ? c.id : c.text);
 const projName = (dir: string) => {
   const l = railData().projects?.find((p) => p.dir === dir)?.label || dir.replace(/[\\/]\.kaizen$/, "");
   return l.split(/[\\/]/).pop() || l;
@@ -20,7 +23,7 @@ const projName = (dir: string) => {
 
 function row(c, now: number) {
   const name = projName(c.state);
-  return html`<a class="prow" href="${cardHref(c)}" data-dir="${c.state}" data-id="${c.id}"><span class="si ${stateOf(c)}"></span><span class="pmain"><b>${titleOf(c)}</b><small>${logo(c.state, name, railData().projects)}${name}</small><code>${subline(c, now)}</code></span></a>`;
+  return html`<a class="prow" href="${cardHref(c)}" data-dir="${c.state}" data-id="${rowKey(c)}"><span class="si ${stateOf(c)}"></span><span class="pmain"><b>${titleOf(c)}</b><small>${logo(c.state, name, railData().projects)}${name}</small><code>${subline(c, now)}</code></span></a>`;
 }
 
 function home() {
@@ -47,7 +50,8 @@ function device() {
   const active = all.filter((c) => !wait.includes(c) && !done.includes(c));
   const group = (title: string, cs: any[], shut = false) =>
     cs.length ? html`<details class="pgrp"${raw(shut ? "" : " open")}><summary>${title}<span>${cs.length}</span></summary><div class="plist2">${cs.map((c) => row(c, now))}</div></details>` : "";
-  return html`${group("Waiting on you", wait)}${group("Active", active)}${group("Done", done, true)}${all.length ? "" : html`<p class="pnote">No runs yet.</p>`}`;
+  const idle = ideas().sort((a, b) => (b.moved ?? b.added ?? 0) - (a.moved ?? a.added ?? 0));
+  return html`${group("Waiting on you", wait)}${group("Active", active)}${group("Ideas", idle)}${group("Done", done, true)}${all.length || idle.length ? "" : html`<p class="pnote">No runs yet.</p>`}`;
 }
 
 function draw() {
@@ -75,8 +79,27 @@ export function openPhone(m: "home" | "device" | null) {
   if (m === "home") void fetchNet();
 }
 
+// A light tick on every tap of something pressable. Android has vibrate; iOS (18+) has none,
+// but Safari ticks when a switch checkbox toggles, so a hidden one is toggled through its label.
+let tick: HTMLLabelElement | null = null;
+function haptic() {
+  if (navigator.vibrate) return void navigator.vibrate(8);
+  if (!tick) {
+    tick = document.createElement("label");
+    tick.hidden = true;
+    tick.innerHTML = `<input type="checkbox" switch>`;
+    document.body.append(tick);
+  }
+  tick.click();
+}
+
 export function initPhone(go: (v: string, push?: boolean) => void, openRun: (c) => void) {
   addEventListener("kz-cards", draw);
+  addEventListener(
+    "click",
+    (e) => isPhone() && e.isTrusted && (e.target as HTMLElement).closest?.("button,a,summary,label,select,[role=button],input[type=checkbox]") && haptic(),
+    true,
+  );
   $("phome")?.addEventListener("click", (e) => {
     if ((e as MouseEvent).ctrlKey || (e as MouseEvent).metaKey) return;
     const a = (e.target as HTMLElement).closest<HTMLAnchorElement>("a");
@@ -84,7 +107,7 @@ export function initPhone(go: (v: string, push?: boolean) => void, openRun: (c) 
     if (a.dataset.dev) return (e.preventDefault(), go("device", true));
     if (a.getAttribute("aria-disabled")) return e.preventDefault();
     if (a.classList.contains("prow")) {
-      const c = runs().find((x) => x.state === a.dataset.dir && x.id === a.dataset.id);
+      const c = [...runs(), ...ideas()].find((x) => x.state === a.dataset.dir && rowKey(x) === a.dataset.id);
       if (c) (e.preventDefault(), openRun(c));
     }
   });

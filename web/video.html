@@ -121,7 +121,7 @@ body .rail a.upd::after{left:calc(50% + 6px);top:4px}body .toast{left:16px;botto
 .rail a.it:is([data-view=board],[data-view=ideas],[data-view=sources]),#foot,#ctx-open,body .rail .rbot .rib{display:none!important}
 .rail a.it.ponly{display:flex}
 .rail a.it[data-view=home]{order:1}.rail a.it[data-view=chat]{order:2}.rail a.it[data-view=device]{order:3}.rail a.it[data-view=settings]{order:4}
-.rail,[data-rail=min] .rail{padding:6px 8px calc(6px + env(safe-area-inset-bottom));border-top:1px solid color-mix(in srgb,var(--line) 70%,transparent)}
+.rail,[data-rail=min] .rail{padding:6px 8px max(4px,calc(env(safe-area-inset-bottom) - 10px));border-top:1px solid color-mix(in srgb,var(--line) 70%,transparent)}
 .rail a.it,[data-rail=min] .rail a.it{min-height:50px;gap:3px;font-size:10.5px;letter-spacing:.01em}
 .rail a.it svg{width:44px;height:26px;padding:4px 12px;box-sizing:border-box;border-radius:13px;transition:background .15s}
 .rail a.it[aria-current=page] svg{background:color-mix(in srgb,var(--accent) 16%,transparent)}

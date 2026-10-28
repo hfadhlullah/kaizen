@@ -27,6 +27,8 @@
 body{margin:0;background:var(--canvas);color:var(--ink);font:13px/1.5 var(--font);-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;height:100vh;height:100dvh;overflow:hidden;display:flex}
 html{background:var(--canvas);touch-action:manipulation}
 @media(display-mode:standalone){body{position:fixed;inset:0;height:auto;overscroll-behavior:none;touch-action:pan-x pan-y;-webkit-text-size-adjust:100%}}
+/* iOS 26 stops a fixed inset:0 body short of the screen bottom on phones, leaving a strip under the tab bar */
+@media(display-mode:standalone) and (max-width:640px){body{bottom:auto;height:100lvh}}
 @media(max-width:640px),(display-mode:standalone){body{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}}
 /* iOS 26 blurs the page under the status bar unless a fixed bar touches the top edge: give it one in the page colour */
 @media(display-mode:standalone){body::before{content:"";position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top);background:inherit;z-index:100;pointer-events:none}}
@@ -125,7 +127,7 @@ body .rail a.upd::after{left:calc(50% + 6px);top:4px}body .toast{left:16px;botto
 .rail a.it:is([data-view=board],[data-view=ideas],[data-view=sources]),#foot,#ctx-open,body .rail .rbot .rib{display:none!important}
 .rail a.it.ponly{display:flex}
 .rail a.it[data-view=home]{order:1}.rail a.it[data-view=chat]{order:2}.rail a.it[data-view=device]{order:3}.rail a.it[data-view=settings]{order:4}
-.rail,[data-rail=min] .rail{padding:6px 8px calc(6px + env(safe-area-inset-bottom));border-top:1px solid color-mix(in srgb,var(--line) 70%,transparent)}
+.rail,[data-rail=min] .rail{padding:6px 8px max(4px,calc(env(safe-area-inset-bottom) - 10px));border-top:1px solid color-mix(in srgb,var(--line) 70%,transparent)}
 .rail a.it,[data-rail=min] .rail a.it{min-height:50px;gap:3px;font-size:10.5px;letter-spacing:.01em}
 .rail a.it svg{width:44px;height:26px;padding:4px 12px;box-sizing:border-box;border-radius:13px;transition:background .15s}
 .rail a.it[aria-current=page] svg{background:color-mix(in srgb,var(--accent) 16%,transparent)}
@@ -133,13 +135,16 @@ body .rail a.upd::after{left:calc(50% + 6px);top:4px}body .toast{left:16px;botto
 }
 /* end side menu */
 @media(max-width:640px){
-body .hdr{padding:12px 16px 10px;gap:8px;border-bottom:0}
+body .hdr{padding:28px 16px 12px;gap:8px;border-bottom:0}
 body.paged:is(.phomev,.homev) .hdr{display:flex!important;flex-wrap:nowrap}
-body .hdr h1{flex:1 1 auto;font-size:19px;letter-spacing:-.01em}
-body.homev #hnewtop{border-radius:19px}
+body .hdr h1{flex:1 1 auto;min-width:0;font-size:20px;line-height:30px;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* one round + on every phone page; -4px keeps the header as tall as Settings' */
+body.homev #hsidetop{margin:-4px 0}body.homev #hnewtop,body.phomev #newtop{display:inline-grid;place-items:center;flex:none;width:38px;height:38px;margin:-4px 0;padding:0;border-radius:19px;box-shadow:var(--shadow-2)}
+body.homev #hnewtop svg,body.phomev #newtop svg{display:block;width:18px;height:18px}body.phomev #newtop span{display:none}
+/* the run workspace: a page header with the run's title, the Runs tab lit; a lone pane drops its own header */
+html body.runv .app{grid-template-rows:auto minmax(0,1fr)}html body.runv .hdr{display:flex!important;grid-area:1/1}html body.runv .hdr>:not(h1){display:none!important}html body.runv #runv{grid-area:2/1}
+html body.runv #rtabs{padding:0 10px 6px}body.runv .rpane:not(.split)>.ph{display:none}
 body.phomev .hdr>:not(h1):not(#newtop),body.phomev #board{display:none!important}
-body.phomev #newtop{display:inline-grid;place-items:center;width:38px;height:38px;padding:0;font-size:0;border-radius:19px}
-body.phomev #newtop::before{content:"+";display:block;height:38px;font-size:24px;font-weight:300;line-height:36px}
 body.pdevv #newtop{display:none!important}
 body.phomev #phome{display:block;flex:1;min-height:0;overflow:auto;padding:4px 16px 24px;animation:fi .2s}
 }
@@ -795,7 +800,7 @@ body.ideav.paged .hdr{display:flex}body.ideav.paged #bq{display:block}body.ideav
 @media(min-width:641px){.app .hdr,#ideasv .hdr.ihdr,#rtabs,#panel.docked>header{height:52px;min-height:52px;box-sizing:border-box;padding-top:0;padding-bottom:0;border-bottom:1px solid var(--line);align-items:center;flex-wrap:nowrap}.itable th{border-bottom-color:var(--line)}}
 
 /* Ideas header on a small laptop: one row, nothing wraps; the search box gives way first. */
-#newtop{white-space:nowrap}@media(min-width:641px) and (max-width:1440px){body.ideav .app .hdr{gap:8px;padding:8px 12px 8px 20px;height:auto;flex-wrap:wrap}body.ideav #bq{flex:1 1 120px;width:auto;min-width:90px}body.ideav #hx{gap:6px;min-width:0}body.ideav #hx .iseg{gap:2px}body.ideav #hx .pill{padding:4px 8px}body.ideav #hx .ipop .sel{max-width:130px}}
+#newtop{white-space:nowrap}#newtop svg{display:none}@media(min-width:641px) and (max-width:1440px){body.ideav .app .hdr{gap:8px;padding:8px 12px 8px 20px;height:auto;flex-wrap:wrap}body.ideav #bq{flex:1 1 120px;width:auto;min-width:90px}body.ideav #hx{gap:6px;min-width:0}body.ideav #hx .iseg{gap:2px}body.ideav #hx .pill{padding:4px 8px}body.ideav #hx .ipop .sel{max-width:130px}}
 </style>
 </head>
 <body>
@@ -937,7 +942,7 @@ body.ideav.paged .hdr{display:flex}body.ideav.paged #bq{display:block}body.ideav
   <span class="hx" id="hx"></span>
   <span class="sp"></span>
   <span class="bar" id="tmodes" role="group" aria-label="Layout"></span>
-  <button class="btn pri" id="newtop">New idea</button>
+  <button class="btn pri" id="newtop"><svg><use href="#i-plus"/></svg><span>New idea</span></button>
   <button class="ib" id="ctx-open" aria-label="Open side panel" title="Notes, files and terminals"><svg><use href="#i-side"/></svg></button>
   <button class="ib" id="hpop" title="Pop out chat" aria-label="Pop out chat"><svg><use href="#i-popout"/></svg></button>
   <button class="btn pri" id="hnewtop" aria-label="New chat"><svg><use href="#i-plus"/></svg><span>New chat</span></button>

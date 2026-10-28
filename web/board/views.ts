@@ -14,10 +14,12 @@ export let view = "board";
 // The board's own area, not the docked panel.
 const AREA = ["board", "terminal", "home", "ideas", "run", "chat", "device"];
 export const markView = (v) => {
+  // A phone's run workspace belongs to its Runs tab.
+  const lit = v === "run" && isPhone() ? "device" : v;
   document
     .querySelectorAll(".rail a.it")
     .forEach((a) =>
-      a.dataset.view === v ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current"),
+      a.dataset.view === lit ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current"),
     );
   // The Icebox is titled in the header, top left, like the board.
   document.querySelector(".hdr h1").textContent = v === "sources" ? "Icebox" : v === "ideas" ? "Ideas" : v === "run" ? "Run" : v === "terminal" ? "Terminal" : v === "home" ? (isPhone() ? "kaizen" : "Home") : v === "chat" ? "Chat" : v === "device" ? "Runs" : "Board";

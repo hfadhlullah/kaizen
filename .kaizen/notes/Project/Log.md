@@ -183,3 +183,4 @@ updated: 2026-10-28
 
 - 2026-10-29 run-view-adopts-board-terminal: a run whose Claude session runs in a board terminal shows that terminal in its run view instead of "running in another terminal" (`shellHosts`, cli/web.ts).
 - 2026-10-29 run-view-board-terminal (revise): the Board drawer no longer shows the agent terminal; it lives only in the run view.
+- 2026-10-29 phone-ui-tidy: phone headers match Settings, one round + component, haptic taps, lower tab bar, Ideas on the Runs page, run workspace titled on phones.

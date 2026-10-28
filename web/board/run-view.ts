@@ -13,7 +13,7 @@ import { termLoad } from "./agent-term.ts";
 import { load, post } from "./api.ts";
 import { attach, md, preview } from "./markdown.ts";
 import { layout } from "./terms.ts";
-import { cardHref, markCurrent, railData } from "./workspace.ts";
+import { cardHref, markCurrent, railData, titleOf } from "./workspace.ts";
 import { go } from "./views.ts";
 
 type Tab = { id: string; kind: "agent" | "shell" | "local" | "preview" | "note" | "wait"; title: string; key?: string; note?: string; agent?: string };
@@ -133,6 +133,8 @@ export async function showRunView() {
   // Each run has its own centre: switching runs unmounts this one's panes (its shells keep running on the server).
   if (fresh) stopPanes();
   card = c;
+  // A phone titles the workspace with the run, in the page header.
+  document.querySelector(".hdr h1")!.textContent = titleOf(c);
   if (fresh || store.openKey !== key(c)) open(c);
   try {
     const r = await fetch("/shells?dir=" + encodeURIComponent(c.state));
