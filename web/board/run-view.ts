@@ -13,7 +13,7 @@ import { termLoad } from "./agent-term.ts";
 import { load, post } from "./api.ts";
 import { attach, md, preview } from "./markdown.ts";
 import { layout } from "./terms.ts";
-import { cardHref, railData } from "./workspace.ts";
+import { cardHref, markCurrent, railData } from "./workspace.ts";
 import { go } from "./views.ts";
 
 type Tab = { id: string; kind: "agent" | "shell" | "local" | "preview" | "note" | "wait"; title: string; key?: string; note?: string; agent?: string };
@@ -120,6 +120,7 @@ export async function showRunView() {
   const run = pk && store.S.cards.find((x) => x.kind === "run" && x.state === dir && (x.pty?.key === pk || x.pty?.all?.includes(pk)));
   if (run) {
     history.replaceState(null, "", cardHref(run));
+    markCurrent();
     return showRunView();
   }
   if (!c) {
@@ -694,5 +695,6 @@ export function initRunView() {
 export function openWorkspace(c) {
   const u = cardHref(c);
   if (location.pathname + location.search !== u) history.pushState(null, "", u);
+  markCurrent();
   go("run");
 }

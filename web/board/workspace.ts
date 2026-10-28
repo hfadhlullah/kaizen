@@ -122,6 +122,17 @@ function drawList() {
     if (d) (e.preventDefault(), fold(d));
   };
 }
+// Moves the side menu's highlight to the card the address names: opening a card in place
+// changes the address without redrawing the list.
+export function markCurrent() {
+  const cur = new URLSearchParams(location.search);
+  for (const a of document.querySelectorAll<HTMLElement>("#plist a.row")) {
+    const on = cur.get("dir") === a.dataset.dir && (cur.get("id") === a.dataset.id || (!!a.dataset.text && cur.get("idea") === a.dataset.text));
+    if (on) a.setAttribute("aria-current", "true");
+    else a.removeAttribute("aria-current");
+  }
+}
+addEventListener("popstate", markCurrent);
 // The pages that can open a card in place (the board) answer this event and cancel it.
 const ask = (name, detail) => !dispatchEvent(new CustomEvent(name, { cancelable: true, detail }));
 

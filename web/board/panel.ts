@@ -173,7 +173,8 @@ export async function openRun(c, refresh, again) {
     store.wantTerm = null;
     store.tab = "term";
   }
-  if (store.tab === "term" && !c.pty) store.tab = store.lastTab;
+  // In the run workspace the agent is a centre tab, so the panel never shows a terminal.
+  if (store.tab === "term" && (!c.pty || view === "run")) store.tab = store.lastTab;
   // In the run workspace Preview is a centre tab, so the panel never shows it.
   if (view === "run" && store.tab === "preview") store.tab = "review";
   // A tab not written yet falls back to the latest one that is.
@@ -182,7 +183,7 @@ export async function openRun(c, refresh, again) {
   if (store.tab !== "term") store.lastTab = store.tab;
   $("panel").classList.toggle("wide", store.tab === "term");
   const pt = $("pterm");
-  pt.hidden = !c.pty;
+  pt.hidden = !c.pty || view === "run";
   pt.classList.toggle("on", store.tab === "term");
   pt.setAttribute("aria-pressed", store.tab === "term");
   pt.title = pt.ariaLabel = store.tab === "term" ? "Close terminal" : "Terminal";
