@@ -3,6 +3,7 @@
 // code lives in the worktree. Every git call is an argv array, never a shell string.
 import { existsSync, readFileSync, writeFileSync, rmSync, realpathSync } from "node:fs";
 import { join, dirname, resolve, sep } from "node:path";
+import { branchesOf } from "./add-project.ts";
 
 export type Out = { ok: boolean; out: string; why: string };
 export type Run = (cmd: string[], cwd: string) => Out;
@@ -208,14 +209,15 @@ export function adoptWorkspace(project: string, id: string, here: string): { ok:
   return { ok: true, path: w.path };
 }
 
-/** A new worktree for `branch` under <project>/.kaizen/wt/, the branch made off HEAD. */
-export function addWorktree(project: string, branch: string, sh: Run = run): { ok: true; path: string } | { ok: false; why: string } {
+/** A new worktree for `branch` under <project>/.kaizen/wt/, the branch made off `base` (one of branchesOf's) or HEAD. */
+export function addWorktree(project: string, branch: string, sh: Run = run, base?: string): { ok: true; path: string } | { ok: false; why: string } {
   if (!branch || branch.startsWith("-") || branch.length > 200) return { ok: false, why: "not a branch name" };
   if (!sh(["git", "rev-parse", "--is-inside-work-tree"], project).ok) return { ok: false, why: "not a git repository" };
   if (!sh(["git", "check-ref-format", "--branch", branch], project).ok) return { ok: false, why: `"${branch}" is not a valid branch name` };
+  if (base !== undefined && (base.startsWith("-") || !branchesOf(project, sh).branches.includes(base))) return { ok: false, why: `"${base}" is not a branch of this project` };
   const path = join(project, ".kaizen", "wt", branch.replace(/[^\w.-]+/g, "-").replace(/^\.+/, ""));
   if (existsSync(path)) return { ok: false, why: "that worktree folder already exists" };
-  const add = sh(["git", "worktree", "add", "-b", branch, path], project);
+  const add = sh(["git", "worktree", "add", ...(base ? ["--no-track"] : []), "-b", branch, "--", path, ...(base ? [base] : [])], project);
   forgetWorkspaces(project);
   return add.ok ? { ok: true, path: real(path) } : { ok: false, why: add.why };
 }

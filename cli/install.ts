@@ -6,6 +6,7 @@ import {
 } from "node:fs";
 import { join, dirname, basename, resolve } from "node:path";
 import { homedir, tmpdir } from "node:os";
+import { ignoreKaizen } from "./add-project.ts";
 import { applyPreset, detectPreset, PRESETS, type PresetName } from "./settings.ts";
 
 // The real path: process.cwd() is always physical, so a raw $HOME that crosses a
@@ -1157,13 +1158,7 @@ function initProject() {
   // Nothing to ignore where there is no git, so a plain folder gets no .gitignore.
   let ignored = false;
   if (existsSync(join(process.cwd(), ".git"))) {
-    const rules = ".kaizen/*\n!.kaizen/spec*.md\n!.kaizen/config.yml\n!.kaizen/notes/\n.kaizen/notes/*\n!.kaizen/notes/Project/\n";
-    const gi = join(process.cwd(), ".gitignore");
-    const current = existsSync(gi) ? readFileSync(gi, "utf8") : "";
-    if (!current.includes(".kaizen/*")) {
-      appendFileSync(gi, (current && !current.endsWith("\n") ? "\n" : "") + "\n# kaizen run state\n" + rules);
-      ignored = true;
-    }
+    ignored = ignoreKaizen(process.cwd());
   }
   step(ignored ? "wrote .kaizen/ and the gitignore entry" : "wrote .kaizen/");
   writePointer();

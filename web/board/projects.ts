@@ -2,9 +2,10 @@ import { store } from "./store.ts";
 import { startDir } from "./labels.ts";
 import { load, post } from "./api.ts";
 import { newIdea, render } from "./cards.ts";
-import { $, html, ico, modal } from "./dom.ts";
+import { $, html, ico } from "./dom.ts";
 import { openSources, srcOpen } from "./icebox.ts";
 import { toast } from "./toast.ts";
+import { openAdd } from "./add-project.ts";
 import { view } from "./views.ts";
 
 // The picked project outlives a reload. Saved only where the user changes it, so a
@@ -55,90 +56,10 @@ export async function pick(v) {
     toast("Searching…");
     const j = await post("/find", {});
     if (j.ok) toast(j.added ? `Found ${j.added} new project${j.added === 1 ? "" : "s"}` : "No new projects found");
-  } else if (v === "__new") {
-    // A name, and where it goes: the projects folder unless typed or picked.
-    const dl = modal(
-      `<b>New project</b><input name="name" placeholder="Project name" aria-label="Project name" spellcheck="false" autocomplete="off"><div class="row"><input name="to" placeholder="Folder to create" aria-label="Create in" spellcheck="false" autocomplete="off"><button type="button" class="btn ghost" data-a="pick">Pick…</button></div><div class="row"><button type="button" class="btn ghost" data-a="x">Cancel</button><button class="btn pri">Create</button></div>`,
-    );
-    const f = dl.querySelector("form"),
-      name = f.querySelector("[name=name]"),
-      to = f.querySelector("[name=to]");
-    let auto = ""; // the folder this form filled in; one the user typed is left alone
-    name.oninput = async () => {
-      const n = name.value.trim();
-      if (!n || /[\\/:*?"<>|]/.test(n) || (to.value.trim() && to.value !== auto)) return; // a bad name is reported once, at Create
-      const d = await post("/new-project", { name: n, check: true });
-      if (d.ok && name.value.trim() === n) to.value = auto = d.to;
-    };
-    f.querySelector("[data-a=x]").onclick = () => dl.close();
-    f.querySelector("[data-a=pick]").onclick = async () => {
-      const p = await post("/pick-folder", {});
-      if (p.path)
-        to.value = p.path.replace(/[\\/]+$/, "") + (p.path.includes("\\") ? "\\" : "/") + (name.value.trim() || "");
-    };
-    name.focus();
-    const dir = await new Promise((done) => {
-      dl.addEventListener("close", () => done(null));
-      f.onsubmit = async (e) => {
-        e.preventDefault();
-        if (!name.value.trim()) return name.focus();
-        const j = await post("/new-project", { name: name.value.trim(), to: to.value.trim() || undefined });
-        if (!j.ok) return;
-        done(j.dir);
-        dl.close();
-      };
-    });
-    if (!dir) return;
-    await post("/cd", { dir });
-    store.all = false;
-    store.dir = dir;
-    keep(dir);
-    toast("Project created");
-  } else if (v === "__clone") {
-    // One form: the link, then where it goes. The folder fills in once the link names a repo.
-    const dl = modal(
-      `<b>Clone from GitHub</b><input name="url" placeholder="https://github.com/owner/repo" aria-label="GitHub link (https or ssh)" spellcheck="false" autocomplete="off"><div class="row"><input name="to" placeholder="Folder to clone into" aria-label="Clone into" spellcheck="false" autocomplete="off"><button type="button" class="btn ghost" data-a="pick">Pick…</button></div><div class="row"><button type="button" class="btn ghost" data-a="x">Cancel</button><button class="btn pri">Clone</button></div>`,
-    );
-    const f = dl.querySelector("form"),
-      url = f.querySelector("[name=url]"),
-      to = f.querySelector("[name=to]");
-    let name = "",
-      auto = ""; // the folder this form filled in; one the user typed is left alone
-    const check = async () => {
-      const u = url.value.trim();
-      if (!u) return null;
-      const d = await post("/clone", { url: u, check: true });
-      if (!d.ok) return null;
-      name = d.name;
-      if (!to.value.trim() || to.value === auto) to.value = auto = d.to;
-      return d;
-    };
-    url.onchange = check;
-    f.querySelector("[data-a=x]").onclick = () => dl.close();
-    f.querySelector("[data-a=pick]").onclick = async () => {
-      if (!(await check())) return url.focus();
-      const p = await post("/pick-folder", {});
-      if (p.path) to.value = p.path.replace(/[\\/]+$/, "") + (p.path.includes("\\") ? "\\" : "/") + name;
-    };
-    url.focus();
-    const dir = await new Promise((done) => {
-      dl.addEventListener("close", () => done(null));
-      f.onsubmit = async (e) => {
-        e.preventDefault();
-        if (!(await check())) return url.focus();
-        toast("Cloning…");
-        const j = await post("/clone", { url: url.value.trim(), to: to.value.trim() || undefined });
-        if (!j.ok) return;
-        done(j.dir);
-        dl.close();
-      };
-    });
-    if (!dir) return;
-    await post("/cd", { dir });
-    store.all = false;
-    store.dir = dir;
-    keep(dir);
-    toast("Cloned");
+  } else if (v === "__new" || v === "__clone") {
+    // The same sheet as the side menu's +; it adds the project and reloads onto it.
+    openAdd({ start: v === "__new" ? "create" : "clone" });
+    return;
   } else if (v === "all") {
     store.all = true;
     keep();

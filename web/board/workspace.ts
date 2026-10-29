@@ -6,6 +6,7 @@ import { onBoardCards } from "./badge.ts";
 import { store } from "./store.ts";
 import { $, html, modal, raw } from "./dom.ts";
 import { age, need } from "./labels.ts";
+import { openAdd } from "./add-project.ts";
 
 const DAY = 864e5;
 const STAGE = ["idea", "planning", "building", "reviewing", "done"];
@@ -69,6 +70,9 @@ const kindOf = (c) => {
   return st === "done" || st === "aband" ? "done" : "active";
 };
 let last: { cards: any[]; projects?: any[] } = { cards: [] };
+// Projects that are git repositories (the main checkout has a branch): where a workspace can be made.
+export const gitProjects = () =>
+  (last.projects ?? []).filter((p) => p.workspaces?.some((w) => w.branch)).map((p) => ({ dir: p.dir as string, name: projName(p.dir, last.projects) }));
 // Project groups folded shut in the side menu, kept per browser.
 const folded: Set<string> = (() => {
   try {
@@ -134,7 +138,7 @@ function drawList() {
         const n = rows.reduce((a, r) => a + r.cs.length, 0);
         // A + for a new worktree on git projects (the main checkout has a branch).
         const git = p.workspaces.some((w) => w.branch);
-        return html`<div class="pgrp"><button type="button" class="proj${shut ? " shut" : ""}" data-fold="${dir}" title="${dir}" aria-expanded="${String(!shut)}"><svg class="fchev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>${logo(dir, name, last.projects)}<span>${name}</span><span class="c">${n || ""}</span></button>${git ? html`<button type="button" class="wadd" data-wadd="${dir}" title="New worktree in ${name}" aria-label="New worktree in ${name}"><svg aria-hidden="true"><use href="#i-plus"/></svg></button>` : ""}</div>${shut ? "" : rows.map(({ w, cs }) => {
+        return html`<div class="pgrp"><button type="button" class="proj${shut ? " shut" : ""}" data-fold="${dir}" title="${dir}" aria-expanded="${String(!shut)}"><svg class="fchev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>${logo(dir, name, last.projects)}<span>${name}</span><span class="c">${n || ""}</span></button>${git ? html`<button type="button" class="wadd" data-wadd="${dir}" title="New workspace in ${name}" aria-label="New workspace in ${name}"><svg aria-hidden="true"><use href="#i-plus"/></svg></button>` : ""}</div>${shut ? "" : rows.map(({ w, cs }) => {
           // The dot: the most urgent run there. The count: runs waiting on you or finished in the last day.
           const st = cs.length ? stateOf([...cs].sort((a, b) => RANK[stateOf(a)] - RANK[stateOf(b)])[0]) : "";
           const k = cs.filter((c) => ["wait", "done", "aband"].includes(stateOf(c))).length;
@@ -146,28 +150,9 @@ function drawList() {
   box.onclick = (e) => {
     const t = e.target as HTMLElement;
     const add = t.closest<HTMLElement>("[data-wadd]")?.dataset.wadd;
-    if (add) return void (e.preventDefault(), newWorktree(add));
+    if (add) return void (e.preventDefault(), openAdd({ dir: add, start: "ws" }));
     const d = t.closest<HTMLElement>("[data-fold]")?.dataset.fold;
     if (d) (e.preventDefault(), fold(d));
-  };
-}
-// The project row's +: a branch name, then POST /worktree; the row shows on the next /state.
-function newWorktree(dir: string) {
-  const dl = modal(
-    html`<b>New worktree</b><input name="branch" placeholder="Branch name, e.g. feat/login" aria-label="Branch name" required autocomplete="off" spellcheck="false"><small class="att">A new branch off the current one, in ${projName(dir, last.projects)}/.kaizen/wt/</small><small class="att err" role="alert"></small><div class="row"><button type="button" class="btn ghost" data-a="x">Cancel</button><button class="btn pri">Create</button></div>`,
-  );
-  const form = dl.querySelector("form")!,
-    err = dl.querySelector<HTMLElement>(".err")!;
-  dl.querySelector<HTMLElement>("[data-a=x]")!.onclick = () => dl.close();
-  (form.elements.namedItem("branch") as HTMLInputElement).focus();
-  form.onsubmit = async (e) => {
-    e.preventDefault();
-    const branch = (form.elements.namedItem("branch") as HTMLInputElement).value.trim();
-    const r = await fetch("/worktree", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ dir, branch }) }).catch(() => null);
-    const d = r ? await r.json().catch(() => ({})) : { error: "the board is offline" };
-    if (!r?.ok) return void (err.textContent = d.error || "could not create it");
-    dl.close();
-    location.href = wsHref(dir, d.path);
   };
 }
 // Moves the side menu's highlight to the card the address names: opening a card in place
@@ -307,11 +292,10 @@ export function initRail() {
       $("pfilter").focus();
     }
   });
+  // The sheet: add a folder, clone, create, or start a workspace; the current project is preselected.
   $("padd").onclick = () => {
-    // The page's own project when it has one: the run workspace's, or the one project the filter shows.
     const p = new URLSearchParams(location.search);
-    const dir = ["run", "ws"].includes(p.get("view")) ? p.get("dir") : filt.dirs.length === 1 ? filt.dirs[0] : null;
-    if (!ask("kz-new-idea", { dir })) location.href = "/?view=board";
+    openAdd({ dir: ["run", "ws"].includes(p.get("view")) ? p.get("dir") : filt.dirs.length === 1 ? filt.dirs[0] : null });
   };
   $("plist").addEventListener("click", (e) => {
     const a = (e.target as Element).closest?.("a.row") as HTMLAnchorElement;

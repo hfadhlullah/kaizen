@@ -130,6 +130,60 @@ test.skipIf(process.platform === "win32")("/shell: foreign origin, unknown proje
     expect((await wt({ dir: st, branch: "x" }, "http://localhost:3000")).status).toBe(403);
     expect((await wt({ dir: join(homeDir, ".kaizen"), branch: "x" })).status).toBe(404);
     expect((await wt({ dir: st, branch: "x" })).status).toBe(400);
+    // The rail's + sheet: /add-project, /new-project and /clone start git or make folders, so /worktree's guards and validated input.
+    const sheet = (route: string, body: object, origin?: string, type = "application/json") => fetch(at + route, { method: "POST", headers: { "content-type": type, ...(origin ? { origin } : {}) }, body: JSON.stringify(body) });
+    const bodies: [string, object][] = [["/add-project", { path: join(homeDir, "z") }], ["/new-project", { name: "z" }], ["/clone", { url: "https://127.0.0.1:1/z.git" }]];
+    for (const [route, b] of bodies) {
+      expect((await sheet(route, b, "http://localhost:3000")).status).toBe(403);
+      expect((await sheet(route, b, "https://evil.example")).status).toBe(403);
+      expect((await sheet(route, b, at, "text/plain")).status).toBe(415);
+      expect((await sheet(route, b, at, "application/x-www-form-urlencoded")).status).toBe(415);
+    }
+    expect(existsSync(join(homeDir, "z"))).toBe(false);
+    // Bad paths: root, home, ~/.kaizen, .., kaizen's own folders, below an existing project.
+    for (const path of ["/", homeDir, "~", "~/.kaizen/x", homeDir + "/../etc", "/tmp/a/../../etc", join(proj, "sub"), join(proj, ".kaizen", "wt", "x"), "", "x\0y"]) {
+      expect((await sheet("/add-project", { path })).status, path).toBe(400);
+      if (!path) continue; // no `to` means the default folder, for these two
+      expect((await sheet("/new-project", { name: "n", to: path })).status, path).toBe(400);
+      expect((await sheet("/clone", { url: "https://127.0.0.1:1/z.git", to: path })).status, path).toBe(400);
+    }
+    expect((await sheet("/add-project", { path: join(homeDir, "missing") })).status).toBe(400); // not a folder
+    expect((await sheet("/add-project", { path: 5 })).status).toBe(400);
+    expect((await sheet("/new-project", { name: "con" })).status).toBe(400);
+    // Bad clone URLs: nothing runs, nothing is made.
+    for (const url of ["--upload-pack=touch /tmp/kz-pwn", "ext::sh -c id", "file:///etc", "http://example.com/o/r.git", "/etc", "https://example.com/o/r with space", 7, undefined]) {
+      expect((await sheet("/clone", { url, to: join(homeDir, "c1") })).status, String(url)).toBe(400);
+    }
+    expect(existsSync(join(homeDir, "c1")) || existsSync("/tmp/kz-pwn")).toBe(false);
+    // Bad branch, base, project.
+    expect((await wt({ dir: st, branch: "-x" })).status).toBe(400);
+    expect((await wt({ dir: st, branch: "a..b" })).status).toBe(400);
+    expect((await wt({ dir: st, branch: "x y", base: "main" })).status).toBe(400);
+    expect((await wt({ dir: st, branch: "x", base: "-x" })).status).toBe(400);
+    expect((await wt({ dir: join(root, "elsewhere", ".kaizen"), branch: "x", base: "main" })).status).toBe(404);
+    expect((await fetch(`${at}/branches?dir=${encodeURIComponent(join(root, "elsewhere", ".kaizen"))}`)).status).toBe(404);
+    expect((await fetch(`${at}/branches?dir=${encodeURIComponent(join(homeDir, ".kaizen"))}`)).status).toBe(404);
+    expect(await (await fetch(`${at}/branches?dir=${encodeURIComponent(st)}`)).json()).toEqual({ current: "", def: "", branches: [] }); // not a repository
+    // Happy paths in the scratch home: an existing folder registers once; a new project gets .kaizen and git.
+    const reg = () => readFileSync(join(homeDir, ".kaizen", "projects"), "utf8").split("\n").filter(Boolean);
+    mkdirSync(join(homeDir, "b"));
+    const add1 = await (await sheet("/add-project", { path: join(homeDir, "b") })).json() as any;
+    expect(add1).toMatchObject({ ok: true, dir: join(homeDir, "b", ".kaizen"), already: false });
+    expect(existsSync(join(homeDir, "b", ".kaizen"))).toBe(true);
+    expect(reg().filter((l) => l === join(homeDir, "b"))).toHaveLength(1);
+    expect(((await (await sheet("/add-project", { path: join(homeDir, "b") })).json()) as any).already).toBe(true);
+    expect(reg().filter((l) => l === join(homeDir, "b"))).toHaveLength(1);
+    const newp = await (await sheet("/new-project", { name: "d", to: join(homeDir, "d") })).json() as any;
+    expect(newp).toMatchObject({ ok: true, dir: join(homeDir, "d", ".kaizen"), git: true });
+    expect(existsSync(join(homeDir, "d", ".git")) && existsSync(join(homeDir, "d", ".kaizen"))).toBe(true);
+    expect((await sheet("/new-project", { name: "d", to: join(homeDir, "d") })).status).toBe(409);
+    const plain = await (await sheet("/new-project", { name: "e", to: join(homeDir, "e"), git: false })).json() as any;
+    expect(existsSync(join(homeDir, "e", ".git"))).toBe(false);
+    expect(plain.git).toBeUndefined();
+    // A clone that cannot connect (nothing listens on port 1): 500, and no folder left behind.
+    expect((await sheet("/clone", { url: "https://127.0.0.1:1/z.git", to: join(homeDir, "f") })).status).toBe(500);
+    expect(existsSync(join(homeDir, "f"))).toBe(false);
+    expect(await (await sheet("/clone", { url: "git@github.com:o/r.git", check: true })).json()).toMatchObject({ ok: true, name: "r" });
     // /state: each card's workspace; a run whose worktree is gone falls back to the main checkout.
     mkdirSync(join(st, "runs", "r2"), { recursive: true });
     writeFileSync(join(st, "runs", "r2", "state.json"), JSON.stringify({ id: "r2", stage: "plan", awaiting: "approvals.plan", worktree: join(proj, ".kaizen", "wt", "gone") }));

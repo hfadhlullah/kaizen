@@ -17,7 +17,6 @@ import { initContext } from "./context.ts";
 import { cardHref, initFooter, initRail, markCurrent, wsHref } from "./workspace.ts";
 import { go } from "./views.ts";
 import { openWorkspace } from "./run-view.ts";
-import { newIdea } from "./cards.ts";
 
 initPanel();
 initViews();
@@ -61,11 +60,6 @@ addEventListener("kz-open-ws", (e: any) => {
   history.pushState(null, "", wsHref(e.detail.dir, e.detail.ws));
   markCurrent();
   go("ws");
-});
-addEventListener("kz-new-idea", (e) => {
-  // A modal over whatever page is showing: the idea appears in the menu and Ideas by the usual refresh.
-  e.preventDefault();
-  newIdea({ dir: e.detail?.dir ?? null });
 });
 
 // One popup at a time: a press anywhere first shuts every open popup it is not inside,

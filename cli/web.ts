@@ -11,7 +11,7 @@ import {
 } from "./state.ts";
 import { attachPty, writePty, resizePty, exitPty, ptyState, ptyKeys, adoptLoginEnv, startPty, ptySupported, detachPty, ptyTail, ptyTmux, tmuxAlive, RESUMED } from "./pty.ts";
 import { claudeUsage, codexUsage, phonePeers, type Usage } from "./usage.ts";
-import { readSources, addSource, removeSource, moveSource, setCategory, setWriteback, setPaused, readIcebox, promote, dismiss, restore, addItem, githubRepo, markDone, markReplied, gatherSource, freshImages, gatherAll, gatherDirs, due, socialUrl, socialOf } from "./sources.ts";
+import { readSources, addSource, removeSource, moveSource, setCategory, setWriteback, setPaused, readIcebox, promote, dismiss, restore, addItem, markDone, markReplied, gatherSource, freshImages, gatherAll, gatherDirs, due, socialUrl, socialOf } from "./sources.ts";
 import { projectLogo, LOGO_TYPES } from "./logo.ts";
 import * as chatgpt from "./chatgpt.ts";
 import * as google from "./google.ts";
@@ -22,7 +22,8 @@ import * as video from "./video.ts";
 import * as localsend from "./localsend.ts";
 import * as hermes from "./hermes.ts";
 import { listChats, readChat, sendChat, stopChat, deleteChat, okId as okChatId, busy as chatBusy, type Event as ChatEvent, type Upload as ChatUpload } from "./chat.ts";
-import { workspaces, workspacesNow, forgetWorkspaces, workspacesAge, addWorktree } from "./worktree.ts";
+import { workspaces, workspacesNow, forgetWorkspaces, workspacesAge, addWorktree, run } from "./worktree.ts";
+import { gitUrl, destDir, winBad, cloneInto, branchesOf, ignoreKaizen } from "./add-project.ts";
 
 const PAGE = join(dirname(import.meta.dir), "web", "board.html");
 // The board's script: web/board/*.ts, bundled into one file by `bun run build:web`.
@@ -177,27 +178,28 @@ export async function web(repoDir: string, opts: Opts = {}) {
   };
 
   // New project…: a folder in the Projects folder setting (else ~/Projects) or at `to`,
-  // empty or new, with .kaizen, registered. check: only say where it would go.
-  async function makeProject(name: string, t = "", check = false): Promise<{ dir: string } | { to: string } | { error: string; status?: number }> {
-    // Windows' rules on every platform, so a project made here also opens there:
-    // no reserved device names (CON, NUL, COM1…), no trailing dot or space.
-    const winBad = (n: string) => !n || /[\\/:*?"<>|\x00-\x1f]/.test(n) || /[. ]$/.test(n)
-      || /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i.test(n);
-    const to = t ? resolve(home, nativePath(t.startsWith("~") ? home + t.slice(1) : t))
-      : join((await projectsRoot()) || join(home, "Projects"), name);
+  // empty or new, with .kaizen (and a git repository when asked), registered.
+  // check: only say where it would go.
+  async function makeProject(name: string, t = "", check = false, git = false): Promise<{ dir: string; git?: boolean } | { to: string } | { error: string; status?: number }> {
+    const dflt = join((await projectsRoot()) || join(home, "Projects"), name);
     // The page asks while the name is typed: "con" on the way to "config" is no error yet.
-    if (check) return { to };
+    if (check) return { to: t ? resolve(home, nativePath(t.startsWith("~") ? home + t.slice(1) : t)) : dflt };
     if (winBad(name)) return { error: "name the project: a folder name, without / \\ : * ? \" < > |, not ending in a dot or space, and not CON, NUL, COM1 or the like" };
-    if (winBad(basename(to))) return { error: `${basename(to)} cannot be a folder name on Windows` };
+    const d = destDir(t || dflt, home, knownProjects(), await projectsRoot());
+    if ("error" in d) return { error: d.error };
+    const to = d.dir;
     let used = false;
     try { used = readdirSync(to).length > 0; } catch (e) { used = existsSync(to); }
     if (used) return { error: `${to} already exists and is not empty`, status: 409 };
     // A drive that is not there, a read-only folder, a path too long: said in a toast, not a crash.
     try { mkdirSync(join(to, ".kaizen"), { recursive: true }); }
     catch (e) { return { error: `could not create ${to}: ${(e as Error).message}` }; }
+    // A failed git init leaves a project without a repository: said, not rolled back.
+    const inited = git ? run(["git", "init", "-q", "--", to], to).ok : undefined;
+    if (inited) try { ignoreKaizen(to); } catch { /* the project still works */ }
     remember(to);
     changed();
-    return { dir: join(to, ".kaizen") };
+    return { dir: join(to, ".kaizen"), ...(git ? { git: inited } : {}) };
   }
 
   // Settings' scope, named by a project's state dir or "all": the project folder, null
@@ -770,10 +772,61 @@ export async function web(repoDir: string, opts: Opts = {}) {
         try { body = await req.json(); } catch { return bad("json body expected"); }
         const dir = canonState(String(body.dir ?? ""));
         if (!states(true).includes(dir) || dir === join(home, ".kaizen")) return bad("choose a project", 404);
-        const r = addWorktree(projectOf(dir), String(body.branch ?? "").trim());
+        const r = addWorktree(projectOf(dir), String(body.branch ?? "").trim(), undefined, typeof body.base === "string" && body.base.trim() ? body.base.trim() : undefined);
         if (!r.ok) return bad(r.why);
         changed();
         return json(r);
+      }
+      // The rail's + sheet. Each of these starts git, makes a folder or registers one, so
+      // they take /worktree's guards and read their paths from the raw body (the generic
+      // POST block below would normalise a `..` away before destDir sees it).
+      if (req.method === "POST" && (path === "/new-project" || path === "/clone" || path === "/add-project")) {
+        const refused = strict(req);
+        if (refused) return refused;
+        let body: any;
+        try { body = await req.json(); } catch { return bad("json body expected"); }
+        if (!body || typeof body !== "object") return bad("json body expected");
+        const text = (k: string) => typeof body[k] === "string" ? body[k].trim() : "";
+        if (path === "/new-project") {
+          const r = await makeProject(text("name"), text("to"), !!body.check, body.git !== false);
+          return "error" in r ? bad(r.error, r.status) : json({ ok: true, ...r });
+        }
+        if (path === "/add-project") {
+          const d = destDir(text("path"), home, knownProjects(), await projectsRoot());
+          if ("error" in d) return bad(d.error);
+          let isDir = false;
+          try { isDir = statSync(d.dir).isDirectory(); } catch { /* absent */ }
+          if (!isDir) return bad(`${d.dir} is not a folder`);
+          const already = knownProjects().includes(d.dir);
+          try { mkdirSync(join(d.dir, ".kaizen"), { recursive: true }); }
+          catch (e) { return bad(`could not set up ${d.dir}: ${(e as Error).message}`); }
+          remember(d.dir);
+          changed();
+          return json({ ok: true, dir: join(d.dir, ".kaizen"), already });
+        }
+        // /clone: any https or ssh git URL, into a folder that is new or empty.
+        const g = gitUrl(body.url);
+        if ("error" in g) return bad(g.error);
+        const root = (await projectsRoot()) || join(home, "Projects");
+        const d = destDir(text("to") || join(root, g.name), home, knownProjects(), root);
+        if ("error" in d) return bad(d.error);
+        const to = d.dir;
+        if (body.check) return json({ ok: true, to, name: g.name });
+        let used = false;
+        try { used = readdirSync(to).length > 0; } catch (e) { used = existsSync(to); }
+        if (used) return bad(`${to} already exists and is not empty`, 409);
+        const c = await cloneInto(g.url, to);
+        if (!c.ok) return bad(c.why, 500);
+        mkdirSync(join(to, ".kaizen"), { recursive: true });
+        remember(to);
+        changed();
+        return json({ ok: true, dir: join(to, ".kaizen") });
+      }
+      // The branches a new workspace can start from, for a project the board knows.
+      if (req.method === "GET" && path === "/branches") {
+        const dir = canonState(url.searchParams.get("dir") ?? "");
+        if (!states(true).includes(dir) || dir === join(home, ".kaizen")) return bad("choose a project", 404);
+        return json(branchesOf(projectOf(dir)));
       }
       if (req.method === "GET" && path === "/shells") {
         const dir = qdir();
@@ -1366,42 +1419,6 @@ export async function web(repoDir: string, opts: Opts = {}) {
           for (const d of new Set(roots.flatMap((r) => findProjects(r)))) remember(d);
           changed();
           return json({ ok: true, added: knownProjects().length - before });
-        }
-
-        // A new, empty project: a folder in the projects folder (else ~/Projects), or
-        // where the page names, set up at once. /find only sees folders that already
-        // have a .kaizen, so a folder made by hand never shows there.
-        if (path === "/new-project") {
-          const r = await makeProject(typeof body.name === "string" ? body.name.trim() : "", typeof body.to === "string" ? body.to.trim() : "", !!body.check);
-          return "error" in r ? bad(r.error, r.status) : json({ ok: true, ...r });
-        }
-
-        // Clone a GitHub repository into the projects folder (else ~/Projects) and
-        // set it up as a project. Arguments go to git as an array: no shell.
-        if (path === "/clone") {
-          const link = typeof body.url === "string" ? body.url.trim() : "";
-          const name = githubRepo(link);
-          if (!name) return bad("paste a GitHub link: https://github.com/owner/repo or git@github.com:owner/repo.git");
-          const root = (await projectsRoot()) || join(home, "Projects");
-          // The page may name the folder: typed (~ allowed, relative to home) or picked.
-          // A new one is made, parents too; an empty one is used; anything else refused.
-          let to = join(root, name);
-          if (typeof body.to === "string" && body.to.trim()) {
-            const t = body.to.trim();
-            to = resolve(home, nativePath(t.startsWith("~") ? home + t.slice(1) : t));
-          }
-          if (body.check) return json({ ok: true, to, name });
-          let used = false;
-          try { used = readdirSync(to).length > 0; } catch (e) { used = existsSync(to); }
-          if (used) return bad(`${to} already exists and is not empty`, 409);
-          mkdirSync(to, { recursive: true });
-          const p = Bun.spawn(["git", "clone", "--", link, to], { stdin: "ignore", stdout: "ignore", stderr: "pipe", env: { ...process.env, GIT_TERMINAL_PROMPT: "0", GIT_SSH_COMMAND: process.env.GIT_SSH_COMMAND ?? "ssh -o BatchMode=yes" }, windowsHide: true });
-          const [err, code] = await Promise.all([new Response(p.stderr).text(), p.exited]);
-          if (code !== 0) return bad(err.trim().split("\n").filter(Boolean).pop() || "git clone failed", 500);
-          mkdirSync(join(to, ".kaizen"), { recursive: true });
-          remember(to);
-          changed();
-          return json({ ok: true, dir: join(to, ".kaizen") });
         }
 
         // No project here means the global inbox, which is where the TUI puts ideas too.
