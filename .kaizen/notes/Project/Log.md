@@ -190,3 +190,4 @@ updated: 2026-10-28
 - 2026-10-29 run 2026-10-29-fix-all-agent-and-run-project-select (revise) — Workflow, CLI, Web board: final-approval gate
 - 2026-10-29 ideas-revision: Ideas rows get a delete icon and click highlight, header reordered, idea panel never shows a run or terminal; run view drags by tab, lone pane has no header, panel toggle slides.
 - 2026-10-29 ideas-revision-fixes: inline delete confirm on Ideas rows; run panel content keeps its width while sliding.
+- 2026-10-29 Settings scope picker: All projects or one project; project values read over global, reset per key (run 2026-10-29-settings-scope)

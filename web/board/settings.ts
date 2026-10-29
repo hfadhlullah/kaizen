@@ -26,6 +26,7 @@ export async function openSettings() {
   if (!$("panel").classList.contains("open") || $("ptitle").textContent !== "Settings") {
     $("pbody").innerHTML = SKEL;
     $("psub").textContent = "";
+    store.setScope = store.all ? "all" : store.dir || store.S.dir || "all";
   }
   termStop();
   store.openKey = null;
@@ -37,9 +38,14 @@ export async function openSettings() {
   $("ptabs").innerHTML = "";
   $("pfoot").innerHTML = "";
   const cur = document.documentElement.dataset.theme || "system";
-  const cfg = await fetch("/settings")
-    .then((r) => r.json())
+  let cfg = await fetch("/settings?scope=" + encodeURIComponent(store.setScope))
+    .then((r) => (r.ok ? r.json() : null))
     .catch(() => null);
+  // A project the board no longer knows: fall back to All projects.
+  if (!cfg && store.setScope !== "all") {
+    store.setScope = "all";
+    return openSettings();
+  }
   const gg = await fetch("/google")
     .then((r) => r.json())
     .catch(() => ({}));
@@ -65,20 +71,40 @@ export async function openSettings() {
     return html`<span class="step" id="${id}" role="group" aria-labelledby="${id}-l"><button id="${id}-prev" aria-label="Previous">‹</button><output aria-live="polite">${on === "" ? "—" : on}</output><button id="${id}-next" aria-label="Next">›</button></span>`;
   };
   // `off`: the row has no effect while another setting stands as it is; dimmed, still editable.
+  const onOff = (v) => (v === "true" ? "on" : v === "false" ? "off" : v === "" ? "—" : v);
+  const scoped = cfg && cfg.scope !== "all";
+  // What else a row says about its scope: projects that set it otherwise, or a Reset
+  // for a value this project sets itself.
+  const scopeNote = (r, id) =>
+    r.own
+        ? html`Set for this project · <button class="sreset" id="${id}-reset" type="button">Reset</button>`
+        : r.overrides?.length
+          ? r.overrides.map((o) => `${o.label}: ${onOff(o.value)}`).join(", ")
+          : "";
   const row = (label, control, hint, id, q, off = false) =>
     html`<div class="srow${off ? " off" : ""}" data-q="${q.toLowerCase()}"><label for="${id}" id="${id}-l">${label}</label>${control}${hint ? html`<p class="hint">${hint}</p>` : ""}</div>`;
   const hadFocus = document.activeElement?.id === "sq";
   const np = typeof Notification === "undefined" ? null : Notification.permission;
   const nton = notifyOn();
   const ntHelp = !nton ? "Off in this browser" : np === "granted" ? "" : np === "denied" ? "Pop-ups blocked by this browser; the sound still plays" : np ? "Pop-ups wait for the browser to ask; the sound still plays" : "Pop-ups not supported here; the sound still plays";
+  const scopeRow = cfg
+    ? html`<div class="sgrp">${row(
+        "Settings for",
+        html`<select class="sel" id="s-scope">${[{ dir: "all", label: "All projects" }, ...cfg.projects].map((p) => html`<option value="${p.dir}"${p.dir === cfg.scope ? " selected" : ""}>${p.label}</option>`)}</select>`,
+        scoped ? "This project's own .kaizen/config.yml; anything it does not set comes from All projects." : "~/.kaizen/config.yml; a project's own config wins where it sets a value.",
+        "s-scope",
+        "settings for scope project all projects",
+      )}</div>`
+    : "";
   $("pbody").innerHTML = html`<div class="sq"><input class="sel" id="sq" type="search" placeholder="Search settings" aria-label="Search settings" spellcheck="false" autocomplete="off" value="${store.setQ}"></div>
+  ${scopeRow}
   <h3 class="sg">Phone</h3><div class="sgrp">${row("Phone address", cfg?.phoneUrls?.length ? html`<span class="phoneurls">${cfg.phoneUrls.map((url) => html`<a href="${url}" target="_blank" rel="noopener">${url}</a>`)}</span>` : html`<span>Not set</span>`, cfg?.phoneUrls?.length ? "Configured address; Tailscale must be running on both devices." : "Run kaizen setup on this PC to connect your phone.", "phone-url", "phone address url tailscale setup")}</div>
   ${
     cfg
       ? groups(cfg.rows)
           .map(
             ([g, rows]) =>
-              html`<h3 class="sg">${g}</h3><div class="sgrp">${rows
+              html`<h3 class="sg">${g}${scoped && g === "Board" ? " · all projects" : ""}</h3><div class="sgrp">${rows
                 .map((r) => {
                   const id = "s-" + r.key.replace(/\./g, "-");
                   return row(
@@ -88,7 +114,7 @@ export async function openSettings() {
                         ? html`<span class="fpick"><input class="sel" id="${id}" value="${r.value}" placeholder="not set" spellcheck="false"><button class="btn" id="${id}-pick" type="button">Browse…</button></span>`
                         : html`<input class="sel" id="${id}" value="${r.value}" placeholder="not set" spellcheck="false">`
                       : ctl(id, r.values, r.value),
-                    [r.help, r.idle].filter(Boolean).join(" · "),
+                    ((t, n) => (t && n ? html`${t} · ${n}` : n || t))([r.help, r.idle].filter(Boolean).join(" · "), scopeNote(r, id)),
                     id,
                     [r.label, r.help, r.key, g, ...r.values].join(" "),
                     !!r.idle,
@@ -204,11 +230,22 @@ export async function openSettings() {
     playSound(v);
   });
   if (cfg)
+    $("s-scope").onchange = (e) => {
+      store.setScope = e.target.value;
+      openSettings();
+    };
+  if (cfg)
     cfg.rows.forEach((r) => {
       const el = $("s-" + r.key.replace(/\./g, "-"));
+      if (r.own)
+        $(el.id + "-reset").onclick = async () => {
+          const j = await post("/settings", { key: r.key, scope: cfg.scope, reset: true });
+          toast(j.ok ? "Reset to All projects" : j.error || "Could not reset");
+          openSettings();
+        };
       const save = async (v) => {
         const f = document.activeElement?.id;
-        const j = await post("/settings", { key: r.key, value: v });
+        const j = await post("/settings", { key: r.key, value: v, scope: cfg.scope });
         if (j.ok) toast("Saved");
         await refocus(f);
       };

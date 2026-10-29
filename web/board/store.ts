@@ -2,7 +2,7 @@
 // panel's tab and doc, and the page filters. Everything else lives in the module that
 // owns it.
 export const store = {
-  S: { project: null, projects: [], cards: [], now: Date.now(), all: false },
+  S: { project: null, projects: [], cards: [], now: Date.now(), all: false, dir: null as string | null },
   all: new URLSearchParams(location.search).get("all") !== "0",
   // The project this page picked; null is wherever the board started.
   dir: null,
@@ -23,6 +23,8 @@ export const store = {
   shells: [] as { key: string; dir: string; title: string; agent: string }[],
   // The settings search survives the re-render each save does; the gear button starts it empty.
   setQ: "",
+  // Settings' scope: "all" or a project's state dir. Set on opening; never moves the board.
+  setScope: "all",
   // Settings and the Icebox fill the same panel after a fetch: a fill only lands if no other view
   // or fill started since, or a slow answer paints one page under the other's title.
   pageGen: 0,

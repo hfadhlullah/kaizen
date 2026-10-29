@@ -188,6 +188,12 @@ export async function web(repoDir: string, opts: Opts = {}) {
     return { dir: join(to, ".kaizen") };
   }
 
+  // Settings' scope, named by a project's state dir or "all": the project folder, null
+  // for All projects (~/.kaizen/config.yml), false for a folder the board does not know.
+  // No scope at all keeps the old resolution from the board's cwd, for older callers.
+  const settingsScope = (s: string | null) =>
+    !s ? undefined : s === "all" ? null : s !== join(home, ".kaizen") && states(true).includes(s) ? dirname(s) : false as const;
+
   const states = (all: boolean, cur = boardState) => (all || !cur
     ? [...knownProjects().map((d) => join(d, ".kaizen")), join(home, ".kaizen")]
     : [cur]
@@ -915,7 +921,13 @@ export async function web(repoDir: string, opts: Opts = {}) {
 
       if (req.method === "GET" && path === "/settings") {
         const { listSettings } = await import("./settings.ts");
-        const cfg = listSettings(repoDir);
+        const scope = settingsScope(url.searchParams.get("scope"));
+        if (scope === false) return bad("unknown project", 404);
+        const cfg = listSettings(repoDir, scope);
+        Object.assign(cfg, {
+          scope: scope ? join(scope, ".kaizen") : "all",
+          projects: states(true).filter((d) => d !== join(home, ".kaizen")).map((d) => ({ dir: d, label: label(d) })),
+        });
         Object.assign(cfg, { phoneUrls: [...webHosts()].filter((h) => /^[a-z0-9-]+(?:\.[a-z0-9-]+)*\.ts\.net$/.test(h)).map((h) => `https://${h}`) });
         // Connected, the model is chosen from what the plan offers rather than typed.
         const m = cfg.rows.find((r) => r.key === "sources.model");
@@ -1029,8 +1041,13 @@ export async function web(repoDir: string, opts: Opts = {}) {
         if (!local(req)) return bad("cross-origin write refused", 403);
         let body: any;
         try { body = await req.json(); } catch { return bad("json body expected"); }
-        const { setSetting } = await import("./settings.ts");
-        const r = setSetting(repoDir, String(body.key ?? ""), String(body.value ?? ""));
+        const { setSetting, resetSetting } = await import("./settings.ts");
+        const scope = settingsScope(body.scope == null ? null : String(body.scope));
+        if (body.reset && typeof scope !== "string") return bad("only a project's own value can be reset");
+        if (scope === false) return bad("unknown project", 404);
+        const r = body.reset
+          ? resetSetting(repoDir, String(body.key ?? ""), scope as string)
+          : setSetting(repoDir, String(body.key ?? ""), String(body.value ?? ""), scope);
         return "error" in r ? bad(r.error) : json(r);
       }
 

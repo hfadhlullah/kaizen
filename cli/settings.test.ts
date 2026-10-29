@@ -96,3 +96,38 @@ test("a low-preset config saved before review.executor existed still reads as lo
   expect(old).not.toContain("executor: inline\n  # Let");
   expect(detectPreset(old, text)).toBe("low");
 });
+
+test("a project scope reads over All projects, starts its own file empty, and resets a key back", () => {
+  const other = join(home, "Projects", "other");
+  mkdirSync(join(other, ".kaizen"), { recursive: true });
+  writeFileSync(join(home, ".kaizen", "projects"), `${project}\n${other}\n`);
+  const r = inProject(`
+    const at = (p, k) => listSettings(repo, p).rows.find((r) => r.key === k);
+    const other = ${JSON.stringify(other)};
+    setSetting(repo, "git.auto_commit", "true", null);
+    const before = at(other, "git.auto_commit");
+    setSetting(repo, "git.auto_commit", "false", other);
+    const file = (await Bun.file(other + "/.kaizen/config.yml").text());
+    const own = at(other, "git.auto_commit");
+    const global = at(null, "git.auto_commit");
+    const board = setSetting(repo, "board.open", "app", other) && at(null, "board.open").value;
+    const { resetSetting } = await import(${JSON.stringify(join(repo, "cli/settings.ts"))});
+    resetSetting(repo, "git.auto_commit", other);
+    const after = at(other, "git.auto_commit"), left = await Bun.file(other + "/.kaizen/config.yml").text();
+    await Bun.write(other + "/.kaizen/config.yml", "# my team's git rules\\ngit:\\n  # mine\\n  auto_commit: true\\n");
+    resetSetting(repo, "git.auto_commit", other);
+    const kept = await Bun.file(other + "/.kaizen/config.yml").text();
+    return { kept, before, file, own, global, board, after, left };
+  `);
+  expect(r.before).toMatchObject({ value: "true" });
+  expect(r.before.own).toBeUndefined();
+  expect(r.file).not.toContain("runner:");
+  expect(r.file).not.toContain("preset:");
+  expect(r.own).toMatchObject({ value: "false", own: true });
+  expect(r.global.value).toBe("true");
+  expect(r.global.overrides).toContainEqual({ label: "other", value: "false" });
+  expect(r.board).toBe("app");
+  expect(r.after).toMatchObject({ value: "true" });
+  expect(r.left).not.toContain("auto_commit");
+  expect(r.kept).toBe("# my team's git rules\ngit:\n  # mine\n");
+});

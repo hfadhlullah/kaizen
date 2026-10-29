@@ -1,9 +1,9 @@
 // Full-screen settings browser for .kaizen/config.yml.
 // Arrow keys move and change; every change is written straight to the file.
 import { existsSync, writeFileSync, copyFileSync, mkdirSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { join, dirname, basename } from "node:path";
 import { homedir } from "node:os";
-import { readText } from "./state.ts";
+import { readText, knownProjects } from "./state.ts";
 
 // `text` is a value typed rather than chosen: a path. It has no values to cycle.
 // `when`: the row only has an effect while that other key holds that value; both
@@ -72,12 +72,14 @@ export const PRESETS: Record<PresetName, {
   },
 };
 
-export function detectPreset(text: string, defaults?: string): PresetName | "custom" {
+// `fallbacks`: where a key the text does not set comes from, first match wins.
+export function detectPreset(text: string, ...fallbacks: (string | undefined)[]): PresetName | "custom" {
   for (const name of ["low", "medium", "ultra"] as const) {
     const p = PRESETS[name];
     let match = true;
     for (const [k, expected] of Object.entries(p.settings)) {
-      const actual = read(text, k) ?? (defaults ? read(defaults, k) : null);
+      let actual = read(text, k);
+      for (const f of fallbacks) if (actual === null && f) actual = read(f, k);
       if (actual !== expected) {
         match = false;
         break;
@@ -134,16 +136,31 @@ const SETTINGS: Setting[] = [
 
 // The same rows and the same write the TUI uses, for `kaizen web`'s settings panel:
 // one place decides what a setting is called, what it may be, and how it is saved.
-export function listSettings(repoRoot: string) {
-  const file = locate();
+// `project`: undefined resolves from the cwd as the TUI does; null is All projects
+// (~/.kaizen/config.yml); a folder is that project's own .kaizen/config.yml, read over
+// the global file. Board rows are global in every scope.
+export function listSettings(repoRoot: string, project?: string | null) {
+  const file = scopeFile(project);
   const defaults = readText(join(repoRoot, "skills/kaizen/config.default.yml"));
   const load = (f: string) => existsSync(f) ? readText(f) : "";
   const text = load(file), board = load(globalFile());
-  const preset = detectPreset(text, defaults);
-  const rows = SETTINGS.map((s) => ({
-    ...s,
-    value: s.key === "preset" ? preset : (read(s.group === "Board" ? board : text, s.key) || read(defaults, s.key)) ?? s.values[0] ?? "",
-  }));
+  const scoped = typeof project === "string";
+  const base = scoped ? board : "";
+  const preset = detectPreset(text, base, defaults);
+  // All projects: the projects whose own config sets a key to something else, since
+  // that value, not the one shown, is what their runs use.
+  const others = project === null
+    ? knownProjects().map((d) => ({ label: basename(d), text: load(join(d, ".kaizen", "config.yml")) })).filter((o) => o.text)
+    : [];
+  const rows = SETTINGS.map((s) => {
+    const value = s.key === "preset" ? preset : (read(s.group === "Board" ? board : text, s.key) ?? (s.group === "Board" ? null : read(base, s.key)) ?? read(defaults, s.key)) ?? s.values[0] ?? "";
+    const local = s.group !== "Board" && s.key !== "preset";
+    return {
+      ...s, value,
+      ...(scoped && local && read(text, s.key) !== null ? { own: true } : {}),
+      ...(others.length && local ? { overrides: others.flatMap((o) => { const v = read(o.text, s.key); return v !== null && v !== value ? [{ label: o.label, value: v }] : []; }) } : {}),
+    };
+  });
   const valueOf = (k: string) => rows.find((r) => r.key === k)?.value ?? null;
   return { file: tilde(file), rows: rows.map((r) => ({ ...r, idle: idle(r, valueOf) })) };
 }
@@ -154,12 +171,15 @@ function idle(s: Setting, valueOf: (key: string) => string | null) {
   return `No effect unless ${SETTINGS.find((x) => x.key === s.when![0])!.label} is ${s.when[1] === "true" ? "on" : s.when[1]}`;
 }
 
-export function setSetting(repoRoot: string, key: string, value: string) {
+export function setSetting(repoRoot: string, key: string, value: string, project?: string | null) {
   const s = SETTINGS.find((x) => x.key === key);
   if (!s || !(s.text || s.values.includes(value))) return { error: "unknown setting or value" };
-  const file = fileFor(s);
+  const file = fileFor(s, project);
   const defaultsPath = join(repoRoot, "skills/kaizen/config.default.yml");
-  if (!existsSync(file)) { mkdirSync(dirname(file), { recursive: true }); copyFileSync(defaultsPath, file); }
+  // A project's own file starts empty: a copy of the defaults would pin every key in
+  // it, and later global changes would stop reaching that project.
+  const sparse = typeof project === "string" && file !== globalFile();
+  if (!existsSync(file)) { mkdirSync(dirname(file), { recursive: true }); sparse ? writeFileSync(file, "") : copyFileSync(defaultsPath, file); }
   const defaults = readText(defaultsPath);
   const text = readText(file);
   let updated: string;
@@ -168,12 +188,37 @@ export function setSetting(repoRoot: string, key: string, value: string) {
     updated = applyPreset(text, value as PresetName, defaults);
   } else {
     updated = write(text, key, value, defaults);
-    updated = write(updated, "preset", detectPreset(updated, defaults), defaults);
+    // A project that never chose a preset does not get one written for it.
+    if (!sparse || read(updated, "preset") !== null) {
+      const g = existsSync(globalFile()) ? readText(globalFile()) : "";
+      updated = write(updated, "preset", detectPreset(updated, sparse ? g : "", defaults), defaults);
+    }
     if (read(updated, key) !== value) return { error: `${key} did not save; edit ${tilde(file)} by hand` };
   }
   if (key === "board.chat_hotkey" && !HOTKEY.test(value)) return { error: "keys are words joined by +, e.g. SUPER + ALT + SPACE" };
   writeFileSync(file, updated);
   if (key === "board.chat_hotkey") bindChatHotkey(value);
+  return { ok: true };
+}
+
+// Takes a key out of a project's own config, so the global value applies again. The
+// comment lines right above it go too, but only those the defaults carry for this key
+// (what insert() wrote with it): a section comment of the user's own stays.
+export function resetSetting(repoRoot: string, key: string, project: string) {
+  const s = SETTINGS.find((x) => x.key === key);
+  if (!s || s.group === "Board") return { error: "unknown setting or a board setting" };
+  const file = scopeFile(project);
+  if (!existsSync(file)) return { ok: true };
+  const { lines, index } = lineOf(readText(file), key);
+  if (index < 0) return { ok: true };
+  const defaults = readText(join(repoRoot, "skills/kaizen/config.default.yml")).split("\n");
+  const { index: at } = lineOf(defaults.join("\n"), key);
+  const own = new Set<string>();
+  for (let i = at - 1; at >= 0 && i >= 0 && /^\s*#/.test(defaults[i]!); i--) own.add(defaults[i]!.trim());
+  let from = index;
+  while (from > 0 && /^\s*#/.test(lines[from - 1]!) && own.has(lines[from - 1]!.trim())) from--;
+  lines.splice(from, index - from + 1);
+  writeFileSync(file, lines.join("\n"));
   return { ok: true };
 }
 
@@ -412,8 +457,12 @@ function globalFile() {
 // how often it gathers), not a project. They always live in the global config:
 // a project's own config.yml, often committed to its repo, would otherwise hide
 // them the moment the board moves into that project.
-function fileFor(s: Setting) {
-  return s.group === "Board" ? globalFile() : locate();
+function fileFor(s: Setting, project?: string | null) {
+  return s.group === "Board" ? globalFile() : scopeFile(project);
+}
+
+function scopeFile(project?: string | null) {
+  return project === undefined ? locate() : project === null ? globalFile() : join(project, ".kaizen", "config.yml");
 }
 
 // Read and write a dotted key by walking indentation, so the comment above every
