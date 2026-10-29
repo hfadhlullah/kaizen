@@ -7,6 +7,7 @@ import { store } from "./store.ts";
 import { $, html, modal, raw } from "./dom.ts";
 import { age, need } from "./labels.ts";
 import { openAdd } from "./add-project.ts";
+import { initSearch } from "./search.ts";
 import { agentsHtml, dueWord, forgetAgents, gitDue, settleIn, toggleOpen, wsAgents, type Agent } from "./ws-tabs.ts";
 
 const DAY = 864e5;
@@ -285,6 +286,7 @@ const syncSpin = () =>
     if (a.animationName?.startsWith("si-") && a.startTime !== 0) a.startTime = 0;
   });
 export function initRail() {
+  initSearch();
   let queued = false;
   const hasSi = (n: any) => n.nodeType === 1 && (n.classList.contains("si") || n.querySelector(".si"));
   new MutationObserver((rs) => {

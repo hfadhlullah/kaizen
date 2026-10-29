@@ -43,7 +43,18 @@ export function initWsBoard(render: () => void) {
   rerender = render;
   addEventListener("kz-view", () => (syncMode(), drawToggle()));
   addEventListener("kz-state", drawToggle);
-  addEventListener("kz-rail", () => boardMode() === "ws" && !document.body.classList.contains("paged") && render());
+  // A render publishes the cards, which raises kz-rail at once: that one is its own echo, not
+  // news, and answering it rendered again forever. Fresh rail data (a fetch) still redraws.
+  let drawing = false;
+  addEventListener("kz-rail", () => {
+    if (drawing || boardMode() !== "ws" || document.body.classList.contains("paged")) return;
+    drawing = true;
+    try {
+      render();
+    } finally {
+      drawing = false;
+    }
+  });
   $("board").addEventListener("click", (e: MouseEvent) => {
     const a = (e.target as Element).closest?.("a.wcard") as HTMLAnchorElement;
     if (!a || e.ctrlKey || e.metaKey || e.shiftKey || e.button) return;
