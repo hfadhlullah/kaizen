@@ -1,5 +1,5 @@
 // The search palette's matcher, apart from the page so a test can load it.
-export type Item = { group: string; title: string; sub?: string; hay: string; at?: number; dot?: string; ico: string; act: () => void };
+export type Item = { group: string; title: string; sub?: string; when?: string; hay: string; at?: number; dot?: string; ico: string; act: () => void };
 
 // Every word of the query in the item; a title that starts with it ranks first, then a title
 // holding it, then the rest by recency.

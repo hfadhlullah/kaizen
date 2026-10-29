@@ -836,6 +836,19 @@ export function initRunView() {
     markCurrent();
     go("ws");
   });
+  // Search's Tabs group: open the workspace on the screen holding that tab.
+  addEventListener("kz-open-tab", (e: any) => {
+    e.preventDefault();
+    const { dir, ws, id } = e.detail;
+    const k = wsKey(dir, ws),
+      s = ALL[k],
+      sc = s?.screens?.find((x) => leaves(x.tree).includes(id));
+    if (sc) (s.on = sc.id), save();
+    if (ctx?.k === k && document.body.classList.contains("runv")) return void draw();
+    history.pushState(null, "", wsHref(dir, ws));
+    markCurrent();
+    go("ws");
+  });
   addEventListener("kz-run-preview", openPreview);
   $("pnotes").onclick = () => void projectNotes();
   $("pnlist").onclick = (e) => {
