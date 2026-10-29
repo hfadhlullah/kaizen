@@ -178,7 +178,7 @@ function draw() {
       const ids = leaves(sc.tree),
         first = item(ids[0]),
         title = ids.map((id) => item(id).title).join(" + ");
-      return html`<button class="rtab${sc.id === s.on ? " on" : ""}" data-t="${sc.id}" title="${title}">${icon(first)}<span>${title}</span><i data-xs="${sc.id}" role="button" aria-label="Close ${title}" title="Close tab">×</i></button>`;
+      return html`<button class="rtab${sc.id === s.on ? " on" : ""}" data-t="${sc.id}" draggable="true" title="${title}">${icon(first)}<span>${title}</span><i data-xs="${sc.id}" role="button" aria-label="Close ${title}" title="Close tab">×</i></button>`;
     })}<details class="radd" data-mode="tab"><summary class="rbtn" title="New tab" aria-label="New tab">${ico("plus")}</summary>${menu}</details><span class="sp"></span>${cur ? html`<details class="radd rsplit" data-mode="cols"><summary class="rbtn" title="Split right: add to this tab" aria-label="Split right">${ico("lcols")}</summary>${menu}</details><details class="radd rsplit" data-mode="rows"><summary class="rbtn" title="Split down: add to this tab" aria-label="Split down">${ico("lrows")}</summary>${menu}</details>` : ""}<button class="rbtn" id="rside" title="Show or hide the run panel" aria-label="Show or hide the run panel" aria-pressed="${String(document.body.classList.contains("rflip"))}">${ico("open")}</button>`,
   );
   $("rtabs").querySelector(".rtab.on")?.scrollIntoView({ block: "nearest", inline: "nearest" });
@@ -586,6 +586,14 @@ function wire() {
     if (!id) return;
     dragging = id;
     e.dataTransfer!.setData("text/plain", id);
+    e.dataTransfer!.effectAllowed = "move";
+  };
+  // A tab is the handle too: dragging it moves its focused pane (the only one, unsplit).
+  bar.ondragstart = (e) => {
+    const sc = saved().screens.find((x) => x.id === (e.target as HTMLElement).closest<HTMLElement>(".rtab")?.dataset.t);
+    if (!sc) return;
+    dragging = leaves(sc.tree).includes(sc.focus) ? sc.focus : leaves(sc.tree)[0];
+    e.dataTransfer!.setData("text/plain", dragging);
     e.dataTransfer!.effectAllowed = "move";
   };
   box.ondragend = bar.ondragend = () => {

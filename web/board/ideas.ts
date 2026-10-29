@@ -6,6 +6,8 @@ import { store } from "./store.ts";
 import { $, html, ico, raw } from "./dom.ts";
 import { age, NAMES } from "./labels.ts";
 import { key, runPopup } from "./cards.ts";
+import { load, post } from "./api.ts";
+import { toast } from "./toast.ts";
 import { openWorkspace } from "./run-view.ts";
 import { open } from "./panel.ts";
 import { refreshBoardBadge } from "./badge.ts";
@@ -86,12 +88,13 @@ function draw() {
           html`${[["ideas", "Ideas first"], ["runs", "Running first"]].map(([v, l]) => html`<button type="button" role="menuitemradio" data-sort="${v}" aria-checked="${String(f.sort === v)}"><span>${l}</span>${ck}</button>`)}`,
         )
       : "";
-  const extra = html`<span class="iseg">${seg("open", "Open")}${seg("running", "Running")}${seg("done", "Done")}</span>${sortPop}${sources}<button class="ib" id="ideas-ref" title="Refresh" aria-label="Refresh">${ico("refresh")}</button>`;
+  // Scope and filters first; search, refresh and New idea sit at the right (CSS order).
+  const extra = html`${sources}<span class="iseg">${seg("open", "Open")}${seg("running", "Running")}${seg("done", "Done")}</span>${sortPop}<button class="ib" id="ideas-ref" title="Refresh" aria-label="Refresh">${ico("refresh")}</button>`;
   const table = html`<table class="itable"><thead><tr><th></th><th>Title / context</th><th>Status</th><th>Updated</th><th></th></tr></thead><tbody>${rows.map((c, i) => {
     const name = nameOf(c.state, projects),
       st = stateOf(c),
       agent = (c.tags ?? []).find((t) => AGENTS.includes(t));
-    return html`<tr><td>${logo(c.state, name, projects)}</td><td><b>${titleOf(c)}</b><div class="ctx">${name}${agent ? html`<span class="tag">${NAMES[agent]}</span>` : ""}</div></td><td><span class="stc"><span class="si ${st}"></span>${WORDS[st]}</span></td><td class="d">${c.moved || c.added ? age(c.moved || c.added, now) + " ago" : ""}</td><td><button class="go" data-i="${i}">${c.kind === "idea" ? "Start" : "Open"} ${ico("arrow")}</button></td></tr>`;
+    return html`<tr><td>${logo(c.state, name, projects)}</td><td><b>${titleOf(c)}</b><div class="ctx">${name}${agent ? html`<span class="tag">${NAMES[agent]}</span>` : ""}</div></td><td><span class="stc"><span class="si ${st}"></span>${WORDS[st]}</span></td><td class="d">${c.moved || c.added ? age(c.moved || c.added, now) + " ago" : ""}</td><td><div class="acts">${asking === key(c) ? html`<span class="q">Delete?</span><button class="btn ghost" data-keep="1">Keep</button><button class="btn danger" data-yes="${i}">Delete</button>` : html`${c.kind === "idea" ? html`<button class="del" data-i="${i}" title="Delete idea" aria-label="Delete idea">${ico("trash")}</button>` : ""}<button class="go" data-i="${i}">${c.kind === "idea" ? "Start" : "Open"} ${ico("arrow")}</button>`}</div></td></tr>`;
   })}</tbody></table>${rows.length ? "" : html`<p class="none">Nothing matches.</p>`}`;
   const hx = $("hx");
   // Not while a pop-up in it is open: redrawing would close it under the pointer.
@@ -113,7 +116,12 @@ function draw() {
   hx.querySelectorAll<HTMLElement>("[data-show]").forEach((b) => (b.onclick = () => ((f.show = b.dataset.show!), (hx.innerHTML = ""), draw())));
   $("ideas-ref").onclick = () => (void drawSources(true), void refreshBoardBadge());
   box.querySelectorAll<HTMLElement>("button.go").forEach((b) => (b.onclick = () => act(rows[+b.dataset.i!])));
-  box.querySelectorAll<HTMLElement>("tbody tr").forEach((tr, i) => (tr.onclick = (e) => !(e.target as Element).closest("button") && detail(rows[i])));
+  // The trash icon asks in its own row, as the board's card menu does; a redraw keeps the question.
+  box.querySelectorAll<HTMLElement>("button.del").forEach((b) => (b.onclick = () => ((asking = key(rows[+b.dataset.i!])), draw())));
+  box.querySelectorAll<HTMLElement>("[data-keep]").forEach((b) => (b.onclick = () => ((asking = null), draw())));
+  box.querySelectorAll<HTMLElement>("[data-yes]").forEach((b) => (b.onclick = () => del(rows[+b.dataset.yes!])));
+  // A click moves the highlight to its row too: it marks the keyboard's row, not the panel's.
+  box.querySelectorAll<HTMLElement>("tbody tr").forEach((tr, i) => (tr.onclick = (e) => !(e.target as Element).closest("button") && ((sel = i), mark(), detail(rows[i]))));
   shownRows = rows;
   sel = Math.max(0, Math.min(sel, rows.length - 1));
   mark();
@@ -129,6 +137,15 @@ function act(c) {
   }
   if (c.kind === "run") return openWorkspace(here);
   runPopup(here);
+}
+
+// An idea is deleted as the board's card menu does it, not recorded anywhere.
+let asking: string | null = null;
+async function del(c) {
+  asking = null;
+  const r = await post("/inbox", { op: "delete", dir: c.state, text: c.text });
+  if (r.ok) toast("Deleted");
+  load();
 }
 
 // A row's own click: the card's detail panel over this page. Another project's card goes

@@ -95,7 +95,7 @@ export async function load(quiet) {
       if (was && was.kind === "idea") follow(was);
       return;
     }
-    if (store.runDoc) openRun(c, true, true);
+    if (store.runDoc && c.kind === "run") openRun(c, true, true);
     else if (c.kind === "idea") ideaBody(c);
   }
 }

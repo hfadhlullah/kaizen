@@ -136,7 +136,8 @@ function meta(c) {
 }
 // An idea's panel: its terminal while the run it started is being born there, else its notes.
 export function ideaBody(c) {
-  if (c.pty && view !== "run") showTerm(c); // in the run workspace the agent is a centre tab
+  // In the run workspace the agent is a centre tab; on the Ideas page an idea shows its notes only.
+  if (c.pty && view !== "run" && view !== "ideas") showTerm(c);
   else {
     termStop();
     chat(c, c.notes, c.archived || c.status !== "idea");
@@ -145,6 +146,8 @@ export function ideaBody(c) {
 export async function openRun(c, refresh, again) {
   if (!refresh || !store.runDoc || store.runDoc.id !== c.id || again) {
     const d = await fetch(`/run/${encodeURIComponent(c.id)}?dir=${encodeURIComponent(c.state)}`).then((r) => r.json());
+    // Another card opened while this was fetched: its doc would redraw that card as this run.
+    if (store.openKey !== key(c)) return;
     // A file list being confirmed, or a push under way, keeps the doc it was drawn from.
     if (refresh && $("pfoot").querySelector(".inl,[data-busy],.more[open]")) return;
     store.runDoc = d;
