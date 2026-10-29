@@ -1,12 +1,26 @@
 // Preloaded by `bun test`: every scratch dir a test (or a program it spawns) makes under the
 // temp dir lands in one folder for this run, removed when the run exits. Tests that never
 // clean up after themselves used to leave tens of thousands of folders in /tmp.
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll } from "bun:test";
 
-const dir = mkdtempSync(join(tmpdir(), "kz-test-"));
+const root = tmpdir();
+// A run killed mid-way (ctrl-c, crash) never reaches afterAll: the next run removes its folder,
+// named after its pid, once that process is gone.
+const alive = (pid: number) => {
+  try {
+    return process.kill(pid, 0), true;
+  } catch (e: any) {
+    return e.code === "EPERM";
+  }
+};
+for (const f of readdirSync(root)) {
+  const pid = Number(/^kz-test-(\d+)-/.exec(f)?.[1]);
+  if (pid && !alive(pid)) rmSync(join(root, f), { recursive: true, force: true });
+}
+const dir = mkdtempSync(join(root, `kz-test-${process.pid}-`));
 process.env.TMPDIR = process.env.TMP = process.env.TEMP = dir;
 // A preload's afterAll runs once, after every file; bun test does not fire "exit" for it.
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
