@@ -199,7 +199,14 @@ export async function showRunView(nav = false) {
       void openAgent(want, false, false);
     }
   }
-  draw();
+  if (!showTerm()) draw();
+}
+// The terminal the sidebar asked for, selected once the workspace's tabs are known.
+let wantTerm: string | null = null;
+function showTerm() {
+  const t = wantTerm && tabs().find((x) => x.key === wantTerm);
+  wantTerm = null;
+  return !!t && (show(t.id), true);
 }
 const autoShell = new Set<string>();
 
@@ -826,6 +833,16 @@ export function initRunView() {
     pickOpen = true;
     document.body.classList.toggle("rflip", isPhone());
     if (ctx?.k === wsKey(dir, ws) && document.body.classList.contains("runv")) return draw();
+    history.pushState(null, "", wsHref(dir, ws));
+    markCurrent();
+    go("ws");
+  });
+  // The sidebar's agent mark: open that workspace with the agent's terminal tab selected.
+  addEventListener("kz-open-term", (e: any) => {
+    e.preventDefault();
+    const { dir, ws, key } = e.detail;
+    wantTerm = key;
+    if (ctx?.k === wsKey(dir, ws) && document.body.classList.contains("runv")) return void showTerm();
     history.pushState(null, "", wsHref(dir, ws));
     markCurrent();
     go("ws");

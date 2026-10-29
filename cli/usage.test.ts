@@ -247,6 +247,17 @@ test.skipIf(process.platform === "win32")("/shell: foreign origin, unknown proje
     for (let i = 0; i < 100; i++) { if (!((await (await fetch(`${at}/shells`)).json()) as any[]).length) break; await Bun.sleep(50); }
     expect(await (await fetch(`${at}/shells`)).json()).toEqual([]);
 
+    // /state lists the open agents once (not plain shells); an ended one drops out.
+    writeFileSync(join(bin, "gemini"), '#!/bin/sh\necho "Reading the parser source"\nread x\n', { mode: 0o755 });
+    const ag = (await (await post({ dir: st, agent: "gemini" }, at)).json()) as any, pl = (await (await post({ dir: st }, at)).json()) as any;
+    let A: any[] = [];
+    for (let i = 0; i < 60 && !A[0]?.last; i++) { await Bun.sleep(100); A = ((await (await fetch(at + "/state?all=1")).json()) as any).agents; }
+    expect(A.map((x) => x.key)).toEqual([ag.key]);
+    expect(A[0]).toMatchObject({ dir: st, agent: "gemini", name: "Gemini", asking: false, last: "Reading the parser source" });
+    for (const k of [ag.key, pl.key]) await fetch(at + "/pty/exit", { method: "POST", body: JSON.stringify({ key: k }) });
+    for (let i = 0; i < 100; i++) { if (!((await (await fetch(`${at}/shells`)).json()) as any[]).length) break; await Bun.sleep(50); }
+    expect(((await (await fetch(at + "/state?all=1")).json()) as any).agents).toEqual([]);
+
     // At most 8 live terminals per project.
     const keys: string[] = [];
     for (let i = 0; i < 8; i++) { const x = await post({ dir: st }, at); expect(x.status).toBe(200); keys.push(((await x.json()) as any).key); }

@@ -951,7 +951,7 @@ export function render() {
   // The tab says how many runs wait on you, or agents wait on input, so a background tab still tells you.
   const nw = waitingCount(store.S.cards);
   document.title = nw ? `(${nw}) kaizen` : "kaizen";
-  if (store.all) boardBadge(store.S.cards, [...store.S.projects, ...(store.S.rail ?? [])]);
+  if (store.all) boardBadge(store.S.cards, [...store.S.projects, ...(store.S.rail ?? [])], store.S.agents);
   termsBadge();
   stopDictation(false); // forms were just rebuilt; a listener whose field is gone would write into nothing
   if (fk && document.activeElement === document.body) cardEl(fk)?.focus({ preventScroll: true });

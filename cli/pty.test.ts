@@ -5,7 +5,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, realpa
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { launchMode, closeSessions, readSessions, sweepSessions } from "./state.ts";
-import { loginEnv, startPty, writePty, attachPty, ptyState, exitPty } from "./pty.ts";
+import { loginEnv, startPty, writePty, attachPty, ptyState, exitPty, lastLine } from "./pty.ts";
 import { conptyHost, innerCommand, resizeSeq } from "./conpty.ts";
 
 const root = realpathSync(mkdtempSync(join(tmpdir(), "kaizen-pty-")));
@@ -39,7 +39,7 @@ test.skipIf(process.platform === "win32")("the board runs the agent in the card:
   const proc = Bun.spawn([process.execPath, join(repo, "cli", "install.ts"), "web", "--port", String(port), "--no-open", "--foreground"], {
     cwd: proj, stdout: "ignore", stderr: "ignore",
     env: { ...process.env, HOME: homeDir, USERPROFILE: homeDir, KAIZEN_HOME: repo, CLAUDE_CONFIG_DIR: join(homeDir, ".claude"),
-      PATH: "/usr/bin:/bin", SHELL: sh, DISPLAY: "", WAYLAND_DISPLAY: "", TERMINAL: "", TMUX: "" },
+      PATH: "/usr/bin:/bin", KAIZEN_WEB_HOSTS: "remote.ts.net", SHELL: sh, DISPLAY: "", WAYLAND_DISPLAY: "", TERMINAL: "", TMUX: "" },
   });
   try {
     const at = `http://127.0.0.1:${port}`;
@@ -51,6 +51,18 @@ test.skipIf(process.platform === "win32")("the board runs the agent in the card:
     expect(r.pty).toMatch(/^[\w-]+$/);
     const card = ((await (await fetch(at + "/state")).json()) as any).cards.find((c: any) => c.text === "say hello");
     expect(card.pty).toMatchObject({ key: r.pty, alive: true, asking: false, all: [r.pty] });
+
+    // The agent's output line goes to a viewer on this machine only, never a tailnet host; nothing typed is in it.
+    const agentsOf = async (h?: string) => ((await (await fetch(at + "/state", { headers: h ? { host: h } : {} })).json()) as any).agents;
+    expect((await agentsOf())[0].last).toMatch(/^args:/);
+    const far = (await agentsOf("remote.ts.net"))[0];
+    expect(far.key).toBe(r.pty);
+    expect(far.last).toBeUndefined();
+    // Host 127.0.0.1 behind a proxy (tailscale serve adds these headers) gets no line either.
+    for (const h of ["x-forwarded-for", "tailscale-user-login"]) {
+      const via = ((await (await fetch(at + "/state", { headers: { [h]: "100.64.0.9" } })).json()) as any).agents[0];
+      expect(via.last).toBeUndefined();
+    }
 
     // G-01: no Origin, a foreign one, and another local port are all refused.
     const url = `${at}/pty?key=${r.pty}`, up = { upgrade: "websocket", connection: "Upgrade", "sec-websocket-version": "13", "sec-websocket-key": "dGhlIHNhbXBsZSBub25jZQ==" };
@@ -228,4 +240,50 @@ test("busy: on while the agent prints, off once its output goes quiet", async ()
   await Bun.sleep(1800);
   expect(ptyState(key)).toMatchObject({ alive: true, busy: false });
   exitPty(key);
+});
+
+test("lastLine: the latest readable line, without escapes, spinners, boxes or the TUI footer", () => {
+  expect(lastLine("\x1b[2K\x1b[1;32mDone: fixed the bug\x1b[0m\r\n╭────╮\r\n│ ✻ │\r\n⠋ \r\n? for shortcuts\r\n✻ Thinking… (12s · esc to interrupt)")).toBe("Done: fixed the bug");
+  expect(lastLine("│ > hey there │")).toBe("");
+  // The input box never yields what sits in it, wherever it is drawn.
+  expect(lastLine("Done: fixed it\r\n╭──────╮\r\n│ > pasted-token-9 │\r\n│ more-token-9 │\r\n╰──────╯\r\n? for shortcuts")).toBe("Done: fixed it");
+  expect(lastLine("Done: fixed it\r\n❯ pasted-token-9")).toBe("Done: fixed it");
+  expect(lastLine("╰───╯ ⠙ ✻")).toBe("");
+  expect(lastLine("x".repeat(200)).length).toBe(80);
+});
+
+test("last: only the agent's output, never what was typed or echoed right after a keystroke", async () => {
+  const key = "last-" + Date.now();
+  startPty(key, ["sh", "-c", "echo agent-said-this; stty echo; read a; sleep 2; echo later-agent-line; sleep 5"], root);
+  await Bun.sleep(1000);
+  expect(ptyState(key)!.last).toBe("agent-said-this");
+  writePty(key, "hunter2-secret\r"); // the tty echoes it back at once
+  await Bun.sleep(1200);
+  expect(JSON.stringify(ptyState(key))).not.toContain("hunter2");
+  expect(ptyState(key)!.last).toBe("agent-said-this");
+  await Bun.sleep(2200);
+  expect(ptyState(key)!.last).toBe("later-agent-line");
+  expect(JSON.stringify(ptyState(key))).not.toContain("hunter2");
+  exitPty(key, 100);
+});
+
+test("last: a pasted token in the input box is never the last line, redraw or quiet read", async () => {
+  const key = "box-" + Date.now();
+  startPty(key, ["sh", "-c", "echo agent-said-this; sleep 2; printf '╭────╮\\n│ > pasted-token-9 │\\n╰────╯\\n'; sleep 3; printf '\\r│ > pasted-token-9 │\\n'; sleep 5"], root);
+  await Bun.sleep(2600);
+  expect(ptyState(key)!.last).toBe("agent-said-this");
+  await Bun.sleep(2400);
+  expect(JSON.stringify(ptyState(key))).not.toContain("pasted-token");
+  exitPty(key, 100);
+}, 15000);
+
+test("last: nothing is read while the terminal is asking", async () => {
+  const key = "ask-" + Date.now();
+  startPty(key, ["sh", "-c", "echo 'Do you want to proceed? (y/n)'; read a; echo ok-done-now; read b; sleep 5"], root);
+  for (let i = 0; i < 40 && !ptyState(key)!.asking; i++) await Bun.sleep(100);
+  expect(ptyState(key)!.asking).toBe(true);
+  writePty(key, "hunter2\r");
+  await Bun.sleep(1200);
+  expect(JSON.stringify(ptyState(key))).not.toContain("hunter2");
+  exitPty(key, 100);
 });

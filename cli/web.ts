@@ -1000,6 +1000,22 @@ export async function web(repoDir: string, opts: Opts = {}) {
         // Open findings the panel's Fix findings form would offer, on the same runs.
         const openFindings = (c: Card) => c.kind === "run" && !c.archived && (c.status === "done" || c.awaiting === "findings" || c.awaiting === "approvals.review") && c.state !== join(home, ".kaizen")
           ? reviewFindings(c.state, c.id!).filter((f) => !f.done).length || undefined : undefined;
+        // The agents open now, for the sidebar cards: one list per tick, from the cards' sessions and the board's agent
+        // shells. ws is as the card or shell has it; the page resolves it to a listed workspace. Ended agents are left out.
+        // What an agent printed goes only to a viewer on this machine, not to a tailnet host or a phone.
+        const ip = srv.requestIP(req)?.address ?? "";
+        const loopback = (hostname === "127.0.0.1" || hostname === "localhost") && /^(127\.|::1$|::ffff:127\.)/.test(ip)
+          && !["x-forwarded-for", "x-forwarded-host", "forwarded", "tailscale-user-login", "tailscale-user-name"].some((h) => req.headers.has(h));
+        const agents: any[] = [], seenKey = new Set<string>(), ptys = cards.map(pty);
+        const addAgent = (key: string, dir: string, ws: string | undefined, cmd: string | undefined, run?: string) => {
+          const st = seenKey.has(key) ? null : ptyState(key);
+          if (!st?.alive) return;
+          seenKey.add(key);
+          const name = KNOWN_AGENTS.find((k) => k.cmd === cmd)?.name.split(" ")[0] ?? "Agent";
+          agents.push({ key, dir, ws, agent: cmd, name, run, asking: st.asking, busy: st.busy, born: st.born, ...(loopback ? { last: st.last || undefined, at: st.at || undefined } : {}) });
+        };
+        for (const x of shells.values()) if (x.agent) addAgent(x.key, x.dir, x.ws, x.agent, x.run);
+        cards.forEach((c, i) => { for (const k of ptys[i]?.all ?? []) addAgent(k, c.state, c.ws, KNOWN_AGENTS.find((a) => c.tags?.includes(a.cmd))?.cmd, c.kind === "run" ? c.id : undefined); });
         const entry = (d: string) => ({ dir: d, label: label(d), logo: !!projectLogo(d),
           workspaces: d === join(home, ".kaizen") ? [{ path: d, branch: "", main: true }] : workspacesNow(projectOf(d)) });
         return json({
@@ -1010,7 +1026,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
           // Projects folder): the rail still needs their workspaces so a waiting run shows.
           rail: [...new Set(cards.map((c) => c.state))].filter((d) => !picker.includes(d)).map(entry),
           fresh: unset.map((d) => ({ dir: join(d, ".kaizen"), label: tilde(d) })),
-          cards: cards.map((c) => ({ ...c, notice: notice(c), git: markable(c) ? marks.get(c.state)?.[c.id!] : undefined, gitDue: markable(c) ? dues.get(c.state)?.[c.id!] : undefined, open: openFindings(c), pty: pty(c) })),
+          agents,
+          cards: cards.map((c, i) => ({ ...c, notice: notice(c), git: markable(c) ? marks.get(c.state)?.[c.id!] : undefined, gitDue: markable(c) ? dues.get(c.state)?.[c.id!] : undefined, open: openFindings(c), pty: ptys[i] })),
           backlog: backlogCards(dirs).map((b) => ({ ...b, starting: backlogLaunched.has(`${b.state}\0${b.source}#${b.n}`) || undefined })),
           now: Date.now(),
         });

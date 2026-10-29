@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { awaiting, dueWord, chosen, loopbackUrl, toOpen, stageKeys, stageTabs, finished, historyOf, liveIn, migrate, pickable, wsKey } from "./ws-tabs.ts";
+import { agentStatus, agentsHtml, forgetAgents, lineOf, settleIn, toggleOpen, wsAgents, SETTLE_MS, awaiting, dueWord, chosen, loopbackUrl, toOpen, stageKeys, stageTabs, finished, historyOf, liveIn, migrate, pickable, wsKey } from "./ws-tabs.ts";
 
 const run = (id: string, status: string, o: any = {}) => ({ kind: "run", state: "/p/.kaizen", id, status, moved: 1, ws: "/p", ...o });
 const wsOf = (c) => c.ws;
@@ -117,4 +117,55 @@ test("a done, approved run with a commit or push still to do stays pickable (wai
   expect(dueWord({ ...cs[0], gitDue: "push" })).toBe("push");
   expect(awaiting(cs[0])).toBe(true);
   expect(awaiting(cs[1])).toBe(false);
+});
+
+const ag = (key: string, o: any = {}) => ({ key, dir: "/p/.kaizen", ws: "/p", agent: "claude", name: "Claude", asking: false, busy: false, ...o });
+
+test("agent status: working at once, done only after 3 s quiet, asking first and immediate", () => {
+  const seen = new Map<string, number>();
+  expect(agentStatus(ag("a", { busy: true }), 0, seen)).toBe("working");
+  expect(agentStatus({ ...ag("a"), born: 5 }, 100, seen)).toBe("done"); // the same key, started again: not the old one
+  expect(agentStatus(ag("a"), 1000, seen)).toBe("working"); // a burst, then 1 s of silence
+  expect(settleIn([ag("a")], 1000, seen)).toBe(SETTLE_MS - 1000);
+  expect(agentStatus(ag("a"), SETTLE_MS - 1, seen)).toBe("working");
+  expect(agentStatus(ag("a"), SETTLE_MS, seen)).toBe("done");
+  expect(settleIn([ag("a")], SETTLE_MS, seen)).toBe(Infinity);
+  expect(agentStatus(ag("a", { busy: true }), 5000, seen)).toBe("working");
+  expect(agentStatus(ag("a", { asking: true, busy: true }), 5001, seen)).toBe("asking");
+  expect(agentStatus(ag("never"), 1, seen)).toBe("done"); // an idle agent never seen busy
+  forgetAgents([ag("never")], seen);
+  expect([...seen.keys()]).toEqual([]);
+});
+
+test("a workspace's agents: its own only, asking then working then done; a lost worktree falls back to the main row", () => {
+  const seen = new Map<string, number>(),
+    wsOf = (c) => (c.ws === "/gone" ? "/p" : c.ws);
+  const list = [ag("d1"), ag("w1", { busy: true }), ag("q1", { asking: true }), ag("x", { ws: "/p/wt" }), ag("y", { dir: "/o/.kaizen" }), ag("g", { ws: "/gone" })];
+  expect(wsAgents(list, "/p/.kaizen", "/p", wsOf, 0, seen).map((r) => r.a.key + ":" + r.st)).toEqual(["q1:asking", "w1:working", "d1:done", "g:done"]);
+  expect(wsAgents(list, "/p/.kaizen", "/p/wt", wsOf, 0, seen).map((r) => r.a.key)).toEqual(["x"]);
+});
+
+test("expanded state toggles per workspace", () => {
+  const m: Record<string, true> = {};
+  expect(Object.keys(toggleOpen(m, "/p/.kaizen", "/p"))).toEqual(["/p/.kaizen\0/p"]);
+  expect(toggleOpen(m, "/p/.kaizen", "/p")).toEqual({});
+});
+
+test("card html: one agent has no chevron; several group chips; expanded lists rows; the typed or agent line is escaped", () => {
+  const rows = (...a: any[]) => wsAgents(a, "/p/.kaizen", "/p", (c) => c.ws, 0, new Map());
+  const one = String(agentsHtml(rows(ag("a", { at: 1 })), 1e5, false, "/p/.kaizen", "/p"));
+  expect(one).toContain("Done - Claude");
+  expect(one).not.toContain("wchev");
+  const many = String(agentsHtml(rows(ag("a"), ag("b", { busy: true }), ag("c", { agent: "x", name: "Other" })), 0, false, "/p/.kaizen", "/p"));
+  expect(many.match(/class="chip"/g)!.length).toBe(2); // working, done
+  expect(many.indexOf("si build")).toBeLessThan(many.indexOf("si done"));
+  expect(many.match(/data-term=/g)!.length).toBe(3);
+  expect(many).toContain('aria-expanded="false"');
+  const evil = '<img src=x onerror="alert(1)"> & <b>x</b>';
+  const open = String(agentsHtml(rows(ag("a", { last: evil }), ag("b")), 0, true, "/p/.kaizen", "/p"));
+  expect(open).toContain("2 agents");
+  expect(open).toContain("&lt;img src=x onerror=&quot;alert(1)&quot;&gt; &amp; &lt;b&gt;x&lt;/b&gt;");
+  expect(open).not.toContain("<img");
+  expect(open).not.toContain("<b>");
+  expect(lineOf(rows(ag("z"))[0])).toBe("Done - Claude");
 });

@@ -7,7 +7,7 @@ import { store } from "./store.ts";
 import { $, html, modal, raw } from "./dom.ts";
 import { age, need } from "./labels.ts";
 import { openAdd } from "./add-project.ts";
-import { dueWord, gitDue, pickable } from "./ws-tabs.ts";
+import { agentsHtml, dueWord, forgetAgents, gitDue, pickable, settleIn, toggleOpen, wsAgents, type Agent } from "./ws-tabs.ts";
 
 const DAY = 864e5;
 const STAGE = ["idea", "planning", "building", "reviewing", "done"];
@@ -71,7 +71,7 @@ const kindOf = (c) => {
   const st = stateOf(c);
   return st === "done" || st === "aband" ? "done" : "active";
 };
-let last: { cards: any[]; projects?: any[] } = { cards: [] };
+let last: { cards: any[]; projects?: any[]; agents?: Agent[] } = { cards: [] };
 // Projects that are git repositories (the main checkout has a branch): where a workspace can be made.
 export const gitProjects = () =>
   (last.projects ?? []).filter((p) => p.workspaces?.some((w) => w.branch)).map((p) => ({ dir: p.dir as string, name: projName(p.dir, last.projects) }));
@@ -83,6 +83,21 @@ const folded: Set<string> = (() => {
     return new Set();
   }
 })();
+// Workspace cards with their agent list open (dir\0ws -> true), kept per browser.
+const wsOpen: Record<string, true> = (() => {
+  try {
+    return JSON.parse(localStorage.getItem("kz-wsopen") || "{}");
+  } catch {
+    return {};
+  }
+})();
+function toggleList(dir: string, ws: string) {
+  toggleOpen(wsOpen, dir, ws);
+  try {
+    localStorage.setItem("kz-wsopen", JSON.stringify(wsOpen));
+  } catch {}
+  drawList();
+}
 function fold(dir: string) {
   folded.has(dir) ? folded.delete(dir) : folded.add(dir);
   try {
@@ -98,6 +113,11 @@ export function wsOfCard(c, projects = last.projects) {
 }
 export const wsHref = (dir, ws) => `/?view=ws&dir=${encodeURIComponent(dir)}&ws=${encodeURIComponent(ws)}`;
 export const RANK = { wait: 0, plan: 1, build: 2, review: 3, stalled: 4, idle: 5, done: 6, aband: 7 };
+export const folderOf = (w) => w.path.split(/[\\/]/).pop() || w.path;
+// A worktree's mark on line 2 of its card.
+const WT = html`<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="8" r="2"/><path d="M6 8v8M18 10c0 4-6 3-12 6"/></g></svg>`;
+let settleT: ReturnType<typeof setTimeout> | undefined;
+let drawn = "";
 export const wsLabel = (w) => w.branch || (w.main ? "workspace" : w.path.split(/[\\/]/).pop());
 function drawList() {
   const box = $("plist");
@@ -131,7 +151,12 @@ function drawList() {
   f.setAttribute("aria-pressed", String(on));
   f.title = on ? "Filter on: choose projects and kinds" : "Filter projects and kinds";
   if ($("pfpop")) drawPop(all);
-  box.innerHTML =
+  // Agents are read from this tick's payload; one held at "working" through the 3 s settle redraws when it ends.
+  forgetAgents(last.agents ?? []);
+  clearTimeout(settleT);
+  const wait = settleIn(last.agents ?? [], now);
+  if (wait < Infinity) settleT = setTimeout(drawList, wait + 20);
+  const out =
     groups
       .map(({ p, rows }) => {
         const dir = p.dir,
@@ -141,23 +166,35 @@ function drawList() {
         // A + for a new worktree on git projects (the main checkout has a branch).
         const git = p.workspaces.some((w) => w.branch);
         return html`<div class="pgrp"><button type="button" class="proj${shut ? " shut" : ""}" data-fold="${dir}" title="${dir}" aria-expanded="${String(!shut)}">${logo(dir, name, last.projects)}<span class="pname">${name}</span><span class="c">${n || ""}</span><svg class="fchev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>${git ? html`<button type="button" class="wadd" data-wadd="${dir}" title="New workspace in ${name}" aria-label="New workspace in ${name}"><svg aria-hidden="true"><use href="#i-plus"/></svg></button>` : ""}</div>${shut ? "" : rows.map(({ w, cs }) => {
-          // The dot: the most urgent run there. The count: the runs the panel's picker lists; it opens the picker.
-          const st = cs.length ? stateOf([...cs].sort((a, b) => RANK[stateOf(a)] - RANK[stateOf(b)])[0]) : "";
+          // The dot: the most urgent run there, or an agent asking (amber) or working (spinner). The count: the runs the panel's picker lists; it opens the picker.
+          const rows = wsAgents(last.agents ?? [], dir, w.path, wsOfCard, now);
+          const st0 = cs.length ? stateOf([...cs].sort((a, b) => RANK[stateOf(a)] - RANK[stateOf(b)])[0]) : "";
+          const st = st0 === "wait" || rows[0]?.st === "asking" ? "wait" : rows.some((r) => r.st === "working") ? "build" : st0 || (rows.length ? "done" : "");
           const k = pickable(cs, dir, w.path, wsOfCard).length;
-          // The count is a sibling of the link (a button inside a link is invalid), laid over its right end.
-          return html`<div class="wsr"><a class="row ws" href="${wsHref(dir, w.path)}" data-dir="${dir}" data-ws="${w.path}" title="${w.path}"><span class="si ${st || "none"}"></span><div><b>${wsLabel(w)}</b></div></a>${k ? html`<button type="button" class="wcount" data-pick data-dir="${dir}" data-ws="${w.path}" title="${k} run${k > 1 ? "s" : ""}: choose one" aria-label="${k} run${k > 1 ? "s" : ""} in ${wsLabel(w)}: choose one">${String(k)}</button>` : ""}</div>`;
+          // The count and the agent buttons are siblings of the link (a button inside a link is invalid).
+          return html`<div class="wsr wsc"><a class="row ws" href="${wsHref(dir, w.path)}" data-dir="${dir}" data-ws="${w.path}" title="${w.path}"><span class="si ${st || "none"}"></span><div class="wl"><span class="l1"><b>${wsLabel(w)}</b>${w.main ? html`<i class="pri">primary</i>` : ""}</span><span class="l2"><span>${folderOf(w)}</span>${w.main ? "" : WT}</span></div></a>${k ? html`<button type="button" class="wcount" data-pick data-dir="${dir}" data-ws="${w.path}" title="${k} run${k > 1 ? "s" : ""}: choose one" aria-label="${k} run${k > 1 ? "s" : ""} in ${wsLabel(w)}: choose one">${String(k)}</button>` : ""}${agentsHtml(rows, now, !!wsOpen[dir + "\0" + w.path], dir, w.path)}</div>`;
         })}`;
       })
       .join("") || `<div class="none">No projects</div>`;
+  // The same markup is not written again: hover and focus stay, and a tick that changed nothing costs no layout.
+  if (out !== drawn) box.innerHTML = drawn = out;
   markCurrent();
   box.onclick = (e) => {
     const t = e.target as HTMLElement;
+    const term = t.closest<HTMLElement>("[data-term]");
+    if (term) return void (e.preventDefault(), openTerm(term.dataset.dir!, term.dataset.ws!, term.dataset.term!));
+    const tog = t.closest<HTMLElement>("[data-wopen]");
+    if (tog) return void (e.preventDefault(), toggleList(tog.dataset.dir!, tog.dataset.ws!));
     const add = t.closest<HTMLElement>("[data-wadd]")?.dataset.wadd;
     if (add) return void (e.preventDefault(), openAdd({ dir: add, start: "ws" }));
     const d = t.closest<HTMLElement>("[data-fold]")?.dataset.fold;
     if (d) (e.preventDefault(), fold(d));
   };
 }
+// An agent's mark: the board opens that terminal tab in its workspace; the notebook and video pages open the workspace.
+const openTerm = (dir: string, ws: string, key: string) => {
+  if (!ask("kz-open-term", { dir, ws, key })) location.href = wsHref(dir, ws);
+};
 // Moves the side menu's highlight to the card the address names: opening a card in place
 // changes the address without redrawing the list.
 export function markCurrent() {
@@ -261,8 +298,8 @@ export function initRail() {
     });
   }).observe(document.body, { childList: true, subtree: true });
   if (!$("plist")) return;
-  onBoardCards((cards, projects) => {
-    last = { cards, projects: projects ?? last.projects };
+  onBoardCards((cards, projects, agents) => {
+    last = { cards, projects: projects ?? last.projects, agents: agents ?? [] };
     drawList();
     void drawSources();
     onCount?.(cards);

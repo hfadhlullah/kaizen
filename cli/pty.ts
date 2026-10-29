@@ -11,7 +11,7 @@ const WIN = process.platform === "win32";
 // Windows PowerShell, which every Windows has, both hosts the console and runs the agent in it.
 const winPs = () => join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
 
-type Pty = { proc: Bun.Subprocess; out: string[]; size: number; listeners: Set<(d: string | null) => void>; exit: number | null; asking: boolean; busy: boolean; quiet?: Timer; total: number; since: number; onChange?: () => void; tmux?: string };
+type Pty = { proc: Bun.Subprocess; out: string[]; size: number; listeners: Set<(d: string | null) => void>; exit: number | null; asking: boolean; busy: boolean; quiet?: Timer; total: number; since: number; onChange?: () => void; tmux?: string; last: string; lastAt: number; typedAt: number; born: number };
 
 // What a page attaching late gets replayed. A full-screen tool redraws often, so the
 // tail of its output is enough to rebuild the screen.
@@ -20,6 +20,17 @@ const CAP = 512 * 1024;
 const KEEP_MS = 10 * 60_000;
 
 const ptys = new Map<string, Pty>();
+
+// What the sidebar shows for an agent: the latest line the agent printed. Keystrokes are never kept,
+// and nothing is read while a question is open or within ECHO_MS of a keystroke: a terminal echoes
+// what is typed, so that line could be a password. Memory only.
+const ECHO_MS = 1500;
+const grab = (p: Pty, text: string, every: number) => {
+  const now = Date.now();
+  if (p.asking || now - p.typedAt < ECHO_MS || now - p.lastAt < every) return;
+  const l = lastLine(text);
+  if (l) { p.last = l; p.lastAt = now; }
+};
 
 // A question the agent stopped on: Claude Code's and Codex's approval and choice prompts.
 // ponytail: screen-text heuristic, misses a prompt worded otherwise; read agent hooks if that bites.
@@ -38,7 +49,26 @@ export const asking = (screen: string) => {
   return q >= 0 && q > lastAt(WORK, t);
 };
 // How long output stays still before the screen is read for a question.
-const QUIET_MS = 700;
+export const QUIET_MS = 700;
+// The latest meaningful line of some terminal output, for the sidebar card: escape sequences, box
+// drawing, spinners and the TUI's own footer lines out. "" when nothing readable is left.
+// ponytail: screen-text heuristic over raw chunks; a TUI that repaints oddly shows an older line.
+const CHROME = new RegExp(WORK.source + "|\\? for shortcuts|shift\\+tab|ctrl\\+[a-z]|\\besc to\\b|tokens\\)|bypass permissions", "i");
+// Never the input: a line led by a prompt marker (also inside box-drawn rows) and everything in the
+// input box (╰ … ╭, read bottom-up) is skipped, so typed or pasted text is not shown.
+export const lastLine = (t: string) => {
+  const s = t.replace(/\x1b\[[0-9;?]*[A-Za-z]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[()][0-9A-Za-z]/g, " ");
+  let box = false;
+  for (const raw of s.split(/[\r\n]+/).reverse()) {
+    const t = raw.trim();
+    if (box) { if (t.startsWith("╭")) box = false; continue; }
+    if (t.startsWith("╰") && !/[\p{L}\p{N}]/u.test(t)) { box = true; continue; }
+    const l = raw.replace(/[\u2500-\u259f\u2800-\u28ff✻✶✳✢✽✺●○◐◑◒◓⏺⎿⏵▪▫■□]|[\x00-\x1f\x7f]/g, " ").replace(/\s+/g, " ").trim();
+    if (/^[❯›>$#](\s|$)/.test(l)) continue;
+    if (/[\p{L}\p{N}].*[\p{L}\p{N}].*[\p{L}\p{N}]/u.test(l) && !CHROME.test(l)) return l.slice(0, 80);
+  }
+  return "";
+};
 // Bun gained pseudo-terminals in 1.3.5; an older one spawns without a tty, so it
 // keeps opening terminal windows.
 export const ptySupported = WIN || typeof (Bun as any).Terminal === "function";
@@ -51,7 +81,7 @@ export const ptySupported = WIN || typeof (Bun as any).Terminal === "function";
 // outlives the board; null where tmux cannot be used, and the agent runs plainly.
 export function startPty(key: string, cmd: string[], cwd: string, pidFile?: string, onChange?: () => void, opts: { seed?: string; tmux?: string; attach?: boolean } = {}): number {
   const dec = new TextDecoder();
-  const p: Pty = { proc: null as unknown as Bun.Subprocess, out: opts.seed ? [opts.seed] : [], size: opts.seed?.length ?? 0, listeners: new Set(), exit: null, asking: false, busy: false, total: 0, since: 0, onChange };
+  const p: Pty = { proc: null as unknown as Bun.Subprocess, out: opts.seed ? [opts.seed] : [], size: opts.seed?.length ?? 0, listeners: new Set(), exit: null, asking: false, busy: false, total: 0, since: 0, onChange, last: "", lastAt: 0, typedAt: 0, born: Date.now() };
   // attach: the session already runs (kept from a board before this one); only a client is started.
   if (opts.tmux && tmuxOk()) cmd = opts.attach ? attachCmd(opts.tmux) : tmuxCmd(opts.tmux, cmd);
   const flag = (v: boolean) => { if (p.asking !== v) { p.asking = v; onChange?.(); } };
@@ -65,9 +95,12 @@ export function startPty(key: string, cmd: string[], cwd: string, pidFile?: stri
     while (p.size > CAP && p.out.length > 1) p.size -= p.out.shift()!.length;
     for (const f of p.listeners) f(d);
     work(p.exit === null);
+    grab(p, d, 1000);
     clearTimeout(p.quiet);
     p.quiet = setTimeout(() => {
       work(false);
+      const tail = p.out.slice(-8).join("").slice(-4096);
+      grab(p, tail, 0);
       // Only what came after the user's last keystroke: a question already answered may still be in the tail.
       const n = Math.min(4096, p.total - p.since);
       flag(p.exit === null && n > 0 && asking(p.out.join("").slice(-n)));
@@ -148,6 +181,7 @@ export function writePty(key: string, d: string) {
   if (!p || p.exit !== null) return;
   if (d.replace(REPORT, "")) {
     p.since = p.total;
+    p.typedAt = Date.now();
     if (p.asking) { p.asking = false; p.onChange?.(); }
   }
   send(p, d);
@@ -227,7 +261,7 @@ export const ptyKeys = () => [...ptys.keys()];
 
 export const ptyState = (key: string) => {
   const p = ptys.get(key);
-  return p ? { alive: p.exit === null, exit: p.exit, asking: p.asking, busy: p.busy, total: p.total } : null;
+  return p ? { alive: p.exit === null, exit: p.exit, asking: p.asking, busy: p.busy, total: p.total, last: p.last, at: p.lastAt, born: p.born } : null;
 };
 
 // The environment the user's login shell builds: PATH and anything exported in their
