@@ -6,13 +6,13 @@ import { Database } from "bun:sqlite";
 import { join, dirname, sep, win32, posix } from "node:path";
 import { homedir, arch, cpus, release, totalmem, version as osVersion } from "node:os";
 import { startPty, ptySupported, killTmux, tmuxName } from "./pty.ts";
-import { codeDir, projectFromWorktree } from "./worktree.ts";
+import { codeDir, projectFromWorktree, wsOf } from "./worktree.ts";
 
 // The real path: process.cwd() is always physical, so a raw $HOME that crosses a
 // symlink (/home -> var/home) would never compare equal to it.
 export const home = (() => { try { return realpathSync(homedir()); } catch { return homedir(); } })();
 
-export type Run = { id: string; stage: string; awaiting: string | null; moved: number; runner?: string; agent?: string; branch?: string };
+export type Run = { id: string; stage: string; awaiting: string | null; moved: number; runner?: string; agent?: string; branch?: string; worktree?: string };
 
 export const KNOWN_AGENTS = [
   { name: "Claude Code", dir: ".claude", cmd: "claude" },
@@ -414,7 +414,7 @@ export function readRuns(state: string): Run[] {
       let moved = 0;
       try { moved = statSync(file).mtimeMs; } catch { /* vanished mid-read */ }
       try { moved = Math.max(moved, statSync(join(dir, id, "progress.md")).mtimeMs); } catch { /* no progress kept */ }
-      const run = { id, stage: s.stage ?? "?", awaiting: s.awaiting ?? null, moved, runner: s.runner, agent: s.agent, branch: typeof s.branch === "string" ? s.branch : undefined };
+      const run = { id, stage: s.stage ?? "?", awaiting: s.awaiting ?? null, moved, runner: s.runner, agent: s.agent, branch: typeof s.branch === "string" ? s.branch : undefined, worktree: typeof s.worktree === "string" ? s.worktree : undefined };
       lastRun.set(runDir, run);
       return [run];
     } catch { return existsSync(join(runDir, "state.json")) ? [lastRun.get(runDir)].filter((r): r is Run => !!r) : []; }
@@ -751,6 +751,7 @@ export type Card = {
   title?: string;                                  // runs only: first line of the request
   archived: boolean;                               // hidden from the board unless asked for
   branch?: string;                                 // runs only: the run's own branch while it has a worktree
+  ws?: string;                                     // runs only: its workspace folder (worktree, else the project)
   tags?: string[];                                 // runs only: runner, agent, "yolo", "unrechecked"
   notes?: string;                                  // inbox notes, or runs/<id>/notes.md
   parent?: string;                                 // the run this card was filed from
@@ -1244,6 +1245,8 @@ export function boardCards(states: string[], now: number): Card[] {
         dim: r.stage === "abandoned",
         archived: archive.has(r.id),
         branch: r.branch,
+        // The workspace it is in: its worktree while that exists, else the main checkout.
+        ws: st === join(home, ".kaizen") ? st : wsOf(projectOf(st), r),
         tags: [r.runner, r.agent, yolos.has(r.id) ? "yolo" : undefined, unrechecked(st, r.id) ? "unrechecked" : undefined].filter((t): t is string => !!t),
         notes: readNotes(st, r.id) || undefined,
         parent: parentOf(body(st, r.id)),

@@ -27,6 +27,8 @@ export const markView = (v) => {
 export function go(v, push) {
   store.pageGen++;
   if (v === "icebox") v = "sources";
+  // A workspace address shows in the run view, which resolves it to a card.
+  if (v === "ws") v = "run";
   if (!["settings", "sources", "terminal", "board", "ideas", "run", "chat", "device"].includes(v)) v = "home";
   // A phone has Home, Chat, Runs and Settings: the board, Ideas and the Icebox are set up on a computer,
   // whose Home is the chat.

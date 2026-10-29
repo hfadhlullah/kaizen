@@ -1,7 +1,7 @@
 // The footer's usage and phone readers, and the run workspace's /shell route on a real
 // board: guarded like /pty, an agent only from the known list, a pwd in the project.
 import { test, expect } from "bun:test";
-import { mkdtempSync, mkdirSync, writeFileSync, realpathSync, utimesSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, realpathSync, utimesSync, rmSync, readFileSync, symlinkSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { codexUsage, claudeUsage, phonePeers } from "./usage.ts";
@@ -64,6 +64,7 @@ test.skipIf(process.platform === "win32")("/shell: foreign origin, unknown proje
   writeFileSync(sh, '#!/bin/sh\necho "pwd:$(pwd)"\nwhile read x; do echo "got:$x"; done\n', { mode: 0o755 });
   // Some agent must exist for the board to start; not claude or codex, so /usage has none.
   writeFileSync(join(bin, "gemini"), "#!/bin/sh\n", { mode: 0o755 });
+  symlinkSync(Bun.which("git")!, join(bin, "git"));
   const port = 20000 + Math.floor(Math.random() * 20000);
   const repo = join(import.meta.dir, "..");
   // PATH without tailscale, claude or codex: /phone and /usage must still answer.
@@ -109,6 +110,57 @@ test.skipIf(process.platform === "win32")("/shell: foreign origin, unknown proje
     expect((await fetch(`${at}/frameable?url=${encodeURIComponent(at + "/")}`, { headers: { origin: "https://evil.example" } })).status).toBe(403);
     expect((await fetch(`${at}/frameable?url=${encodeURIComponent("file:///etc/passwd")}`)).status).toBe(400);
     expect(await (await fetch(`${at}/frameable?url=${encodeURIComponent(at + "/")}`)).json()).toEqual({ frameable: true });
+
+    // A workspace folder only from the project's own list (no git on this PATH: the project folder alone).
+    expect((await post({ dir: st, ws: root }, at)).status).toBe(400);
+    expect((await post({ dir: st, ws: join(proj, "..", "a", "..") }, at)).status).toBe(400);
+    expect((await post({ dir: st, ws: ["x"] }, at)).status).toBe(400);
+    // /worktree: the same guards; a folder that is not a repository gets none.
+    const wt = (body: object, origin?: string) => fetch(at + "/worktree", { method: "POST", headers: { "content-type": "application/json", ...(origin ? { origin } : {}) }, body: JSON.stringify(body) });
+    expect((await wt({ dir: st, branch: "x" }, "http://localhost:3000")).status).toBe(403);
+    expect((await wt({ dir: join(homeDir, ".kaizen"), branch: "x" })).status).toBe(404);
+    expect((await wt({ dir: st, branch: "x" })).status).toBe(400);
+    // /state: each card's workspace; a run whose worktree is gone falls back to the main checkout.
+    mkdirSync(join(st, "runs", "r2"), { recursive: true });
+    writeFileSync(join(st, "runs", "r2", "state.json"), JSON.stringify({ id: "r2", stage: "plan", awaiting: "approvals.plan", worktree: join(proj, ".kaizen", "wt", "gone") }));
+    const S = await (await fetch(at + "/state?all=1")).json() as any;
+    expect(S.cards.find((c: any) => c.id === "r2")?.ws).toBe(proj);
+    expect(S.projects.find((p: any) => p.dir === st)?.workspaces).toEqual([{ path: proj, branch: "", main: true }]);
+    rmSync(join(st, "runs", "r2"), { recursive: true });
+    // Projects folder set: the global queue is not in the picker, yet its waiting run still gets a rail row.
+    const g = join(homeDir, ".kaizen");
+    writeFileSync(join(g, "config.yml"), readFileSync(join(repo, "skills", "kaizen", "config.default.yml"), "utf8").replace('projects_dir: ""', "projects_dir: ~/Projects"));
+    mkdirSync(join(g, "runs", "g1"), { recursive: true });
+    writeFileSync(join(g, "runs", "g1", "state.json"), JSON.stringify({ id: "g1", stage: "plan", awaiting: "approvals.plan" }));
+    const G = await (await fetch(at + "/state?all=1")).json() as any;
+    expect(G.cards.find((c: any) => c.id === "g1")?.ws).toBe(g);
+    expect(G.projects.some((p: any) => p.dir === g)).toBe(false);
+    expect(G.rail.find((p: any) => p.dir === g)?.workspaces).toEqual([{ path: g, branch: "", main: true }]);
+    rmSync(join(g, "runs"), { recursive: true });
+    rmSync(join(g, "config.yml"));
+
+    const inWs = await post({ dir: st, ws: proj }, at);
+    expect(inWs.status).toBe(200);
+    await fetch(at + "/pty/exit", { method: "POST", body: JSON.stringify({ key: ((await inWs.json()) as any).key }) });
+    for (let i = 0; i < 100; i++) { if (!((await (await fetch(`${at}/shells`)).json()) as any[]).length) break; await Bun.sleep(50); }
+    // A worktree made after the board cached the list (above) is let in, not refused for 10 s.
+    const g0 = (...a: string[]) => Bun.spawnSync(["git", "-c", "user.name=t", "-c", "user.email=t@t", ...a], { cwd: proj });
+    g0("init", "-q", "-b", "main"); g0("commit", "-q", "--allow-empty", "-m", "x");
+    const fresh = join(proj, ".kaizen", "wt", "late");
+    expect(g0("worktree", "add", "-q", "-b", "late", fresh).exitCode).toBe(0);
+    await Bun.sleep(1100); // the recheck waits for a cache older than 1 s
+    const late = await post({ dir: st, ws: fresh }, at);
+    expect(late.status).toBe(200);
+    await fetch(at + "/pty/exit", { method: "POST", body: JSON.stringify({ key: ((await late.json()) as any).key }) });
+    for (let i = 0; i < 100; i++) { if (!((await (await fetch(`${at}/shells`)).json()) as any[]).length) break; await Bun.sleep(50); }
+    // A burst of bad workspace paths runs git at most once.
+    const log = join(root, "git.log");
+    rmSync(join(bin, "git")); writeFileSync(join(bin, "git"), `#!/bin/sh\necho "$*" >> ${log}\nexec ${Bun.which("git")} "$@"\n`, { mode: 0o755 });
+    await Bun.sleep(1100);
+    for (let i = 0; i < 10; i++) expect((await post({ dir: st, ws: join(proj, "nope" + i) }, at)).status).toBe(400);
+    expect((existsSync(log) ? readFileSync(log, "utf8") : "").split("\n").filter((l) => l.startsWith("worktree list")).length).toBeLessThanOrEqual(1);
+    rmSync(join(bin, "git")); symlinkSync(Bun.which("git")!, join(bin, "git"));
+    rmSync(join(proj, ".git"), { recursive: true, force: true }); rmSync(join(proj, ".kaizen", "wt"), { recursive: true, force: true });
 
     const r = await post({ dir: st }, at);
     expect(r.status).toBe(200);

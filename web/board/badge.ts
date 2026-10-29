@@ -25,8 +25,8 @@ export async function refreshBoardBadge() {
     try {
       const r = await fetch("/state?all=1");
       if (!r.ok) continue;
-      const { cards, projects } = await r.json();
-      if (!again && current === generation) boardBadge(cards, projects);
+      const { cards, projects, rail } = await r.json();
+      if (!again && current === generation) boardBadge(cards, [...projects, ...(rail ?? [])]);
     } catch { /* keep the last count while the board is offline */ }
   } while (again);
   loading = false;

@@ -33,7 +33,7 @@ function listen() {
 // Back to the project picked last time, unless the URL says which view it wants. A
 // plain fetch: a project that is gone should fall back to all, not raise a toast.
 // A page named in the address shows from the first paint; it is filled once the board has loaded.
-const v0 = ((v) => (v === "icebox" ? "sources" : v))(new URLSearchParams(location.search).get("view"));
+const v0 = ((v) => (v === "icebox" ? "sources" : v === "ws" ? "run" : v))(new URLSearchParams(location.search).get("view"));
 
 export function initLive() {
   addEventListener("kz-view", () => { if (pendingReload && !document.body.classList.contains("homev")) location.reload(); });

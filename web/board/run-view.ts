@@ -14,7 +14,7 @@ import { termLoad } from "./agent-term.ts";
 import { load, post } from "./api.ts";
 import { attach, md, preview } from "./markdown.ts";
 import { layout } from "./terms.ts";
-import { cardHref, markCurrent, railData, titleOf } from "./workspace.ts";
+import { cardHref, markCurrent, railData, titleOf, wsCard } from "./workspace.ts";
 import { go } from "./views.ts";
 
 type Tab = { id: string; kind: "agent" | "shell" | "local" | "preview" | "note" | "wait"; title: string; key?: string; note?: string; agent?: string };
@@ -115,6 +115,22 @@ export async function showRunView() {
     dir = p.get("dir"),
     id = p.get("id"),
     idea = p.get("idea");
+  // A workspace (?view=ws&dir=&ws=): its most urgent run's view, the ws kept in the address.
+  if (p.get("view") === "ws") {
+    const w = wsCard(dir, p.get("ws"), store.S.cards);
+    if (w) {
+      history.replaceState(null, "", cardHref(w) + "&ws=" + encodeURIComponent(p.get("ws") ?? ""));
+      return showRunView();
+    }
+    if (!store.all && dir && dir !== store.dir && dir !== switched) {
+      switched = dir;
+      await pick(dir).catch(() => {});
+      return showRunView();
+    }
+    if (card) (stopPanes(), (card = null));
+    $("rtabs").innerHTML = String(html`<span class="rnone">No runs in this workspace yet.</span>`);
+    return;
+  }
   const find = (cs) => cs.find((x) => x.state === dir && (id ? x.kind === "run" && x.id === id : x.kind === "idea" && x.text === idea));
   const c = find(store.S.cards);
   // A launched idea becomes a run: its agent session moves to the run's card, and the view follows.

@@ -3,7 +3,7 @@ import { test, expect, beforeEach } from "bun:test";
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { startWorktree, landWorktree, codeDir, projectFromWorktree, run, type Run } from "./worktree.ts";
+import { startWorktree, landWorktree, codeDir, projectFromWorktree, run, workspaces, workspacesNow, addWorktree, wsOf, type Run } from "./worktree.ts";
 
 const ID = "2026-10-17-demo";
 // CI runners have no git identity, and landWorktree's rebase writes commits.
@@ -112,4 +112,35 @@ test("G-05 a run with no worktree has none to land and codeDir is the project", 
 test("projectFromWorktree finds the project from inside a run's folder", () => {
   expect(projectFromWorktree("/p/.kaizen/wt/2026-10-17-x/cli")).toBe("/p");
   expect(projectFromWorktree("/p/cli")).toBe("/p/cli");
+});
+
+test("workspaces: the main checkout, then each worktree; a folder that is not git is one workspace", () => {
+  expect(addWorktree(project, "-x", idRun).ok).toBe(false);
+  expect(addWorktree(project, "bad..name", idRun)).toMatchObject({ ok: false });
+  const r = addWorktree(project, "feat/two", idRun);
+  expect(r.ok).toBe(true);
+  expect(existsSync(join(project, ".kaizen/wt/feat-two"))).toBe(true);
+  expect(addWorktree(project, "feat/two", idRun).ok).toBe(false); // folder exists
+  const ws = workspaces(project, idRun);
+  expect(ws[0]).toEqual({ path: project, branch: "main", main: true });
+  expect(ws.slice(1)).toEqual([{ path: (r as any).path, branch: "feat/two", main: false }]);
+  const plain = mkdtempSync(join(tmpdir(), "nogit-"));
+  expect(workspaces(plain, idRun)).toEqual([{ path: plain, branch: "", main: true }]);
+  // A run's workspace: its worktree while on disk, else the main checkout.
+  expect(wsOf(project, { worktree: (r as any).path })).toBe((r as any).path);
+  expect(wsOf(project, { worktree: join(project, ".kaizen/wt/gone") })).toBe(project);
+  expect(wsOf(project, {})).toBe(project);
+});
+
+test("workspacesNow: answers at once, refreshes git in the background, one call at a time", async () => {
+  const p = mkdtempSync(join(tmpdir(), "wsnow-"));
+  let calls = 0, done!: (o: { ok: boolean; out: string; why: string }) => void;
+  const slow = () => { calls++; return new Promise<any>((r) => (done = r)); };
+  expect(workspacesNow(p, slow)).toEqual([{ path: p, branch: "", main: true }]); // git still running
+  expect(workspacesNow(p, slow)).toEqual([{ path: p, branch: "", main: true }]);
+  expect(calls).toBe(1);
+  done({ ok: true, out: `worktree ${p}\nHEAD abc\nbranch refs/heads/dev`, why: "" });
+  await Bun.sleep(0);
+  expect(workspacesNow(p, slow)).toEqual([{ path: p, branch: "dev", main: true }]);
+  expect(calls).toBe(1);
 });

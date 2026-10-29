@@ -193,3 +193,4 @@ updated: 2026-10-28
 - 2026-10-29 Settings scope picker: All projects or one project; project values read over global, reset per key (run 2026-10-29-settings-scope)
 - 2026-10-29 run 2026-10-29-agents-survive-board-restart — Web board: card agents resume after any board stop or crash (once), keep their last screen, take their process group with them; optional `agent.keep_alive: tmux`
 - 2026-10-29 run 2026-10-29-board-orca-sizing — Web board: Orca size tokens (28px rows, 36px tab bar, 24/32px buttons, 14px icons, 280px rail) in board/notes/video.html; radii unchanged
+- 2026-10-29 run 2026-10-29-board-workspace-sidebar — Web board: Projects list shows project → workspace (git worktrees / one folder) with dot + count, no run rows; `?view=ws`; `/shell` `ws`; `POST /worktree` + New worktree dialog

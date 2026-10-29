@@ -22,6 +22,7 @@ import * as video from "./video.ts";
 import * as localsend from "./localsend.ts";
 import * as hermes from "./hermes.ts";
 import { listChats, readChat, sendChat, stopChat, deleteChat, okId as okChatId, busy as chatBusy, type Event as ChatEvent, type Upload as ChatUpload } from "./chat.ts";
+import { workspaces, workspacesNow, forgetWorkspaces, workspacesAge, addWorktree } from "./worktree.ts";
 
 const PAGE = join(dirname(import.meta.dir), "web", "board.html");
 // The board's script: web/board/*.ts, bundled into one file by `bun run build:web`.
@@ -721,15 +722,39 @@ export async function web(repoDir: string, opts: Opts = {}) {
           agent = a.cmd;
           cmd = [a.cmd];
         } else cmd = process.platform === "win32" ? [powershellExe()] : [process.env.SHELL || "sh", "-l"];
+        // A workspace folder: only an exact path from this project's own `git worktree list`.
+        let cwd = projectOf(dir);
+        if (body.ws != null) {
+          // A miss rechecks past a cache older than 1 s: a worktree made since is real, and a
+          // burst of bad paths runs git at most once a second.
+          const known = () => workspaces(cwd).some((w) => w.path === body.ws);
+          if (typeof body.ws !== "string" || !(known() || (workspacesAge(cwd) > 1000 && (forgetWorkspaces(cwd), known())))) return bad("not a workspace of this project", 400);
+          cwd = body.ws;
+        }
         for (const k of shells.keys()) if (!ptyState(k)?.alive) shells.delete(k);
         if ([...shells.values()].filter((x) => x.dir === dir).length >= SHELL_CAP) return bad(`at most ${SHELL_CAP} terminals per project: close one first`, 429);
         const key = "sh-" + crypto.randomUUID().slice(0, 8);
         const title = agent ? KNOWN_AGENTS.find((k) => k.cmd === agent)!.name : "shell";
-        const pid = startPty(key, cmd, projectOf(dir), undefined, changed);
+        const pid = startPty(key, cmd, cwd, undefined, changed);
         // The run workspace that opened it (its card key), so each run keeps its own centre.
         shells.set(key, { key, dir, title, agent, run: runKey, pid });
         changed();
         return json(shells.get(key));
+      }
+      // The rail's + on a project: a new worktree and branch under <project>/.kaizen/wt/.
+      // Runs git, so /shell's guards; the branch name is checked by git check-ref-format
+      // and every call is an argv array.
+      if (req.method === "POST" && path === "/worktree") {
+        const refused = strict(req);
+        if (refused) return refused;
+        let body: any;
+        try { body = await req.json(); } catch { return bad("json body expected"); }
+        const dir = String(body.dir ?? "");
+        if (!states(true).includes(dir) || dir === join(home, ".kaizen")) return bad("choose a project", 404);
+        const r = addWorktree(projectOf(dir), String(body.branch ?? "").trim());
+        if (!r.ok) return bad(r.why);
+        changed();
+        return json(r);
       }
       if (req.method === "GET" && path === "/shells") {
         const dir = url.searchParams.get("dir");
@@ -899,9 +924,15 @@ export async function web(repoDir: string, opts: Opts = {}) {
         // Open findings the panel's Fix findings form would offer, on the same runs.
         const openFindings = (c: Card) => c.kind === "run" && !c.archived && (c.status === "done" || c.awaiting === "findings" || c.awaiting === "approvals.review") && c.state !== join(home, ".kaizen")
           ? reviewFindings(c.state, c.id!).filter((f) => !f.done).length || undefined : undefined;
+        const entry = (d: string) => ({ dir: d, label: label(d), logo: !!projectLogo(d),
+          workspaces: d === join(home, ".kaizen") ? [{ path: d, branch: "", main: true }] : workspacesNow(projectOf(d)) });
         return json({
           project, all, dir: state,
-          projects: picker.map((d) => ({ dir: d, label: label(d), logo: !!projectLogo(d) })),
+          // Each project's workspaces (git worktrees, or the one folder); the global queue is its own one.
+          projects: picker.map(entry),
+          // Dirs with a card the picker leaves out (the global queue, a project outside the
+          // Projects folder): the rail still needs their workspaces so a waiting run shows.
+          rail: [...new Set(cards.map((c) => c.state))].filter((d) => !picker.includes(d)).map(entry),
           fresh: unset.map((d) => ({ dir: join(d, ".kaizen"), label: tilde(d) })),
           cards: cards.map((c) => ({ ...c, notice: notice(c), git: markable(c) ? marks.get(c.state)?.[c.id!] : undefined, open: openFindings(c), pty: pty(c) })),
           backlog: backlogCards(dirs).map((b) => ({ ...b, starting: backlogLaunched.has(`${b.state}\0${b.source}#${b.n}`) || undefined })),

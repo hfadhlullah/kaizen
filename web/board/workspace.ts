@@ -4,7 +4,7 @@
 // bundles can carry it without the board.
 import { onBoardCards } from "./badge.ts";
 import { store } from "./store.ts";
-import { $, html, raw } from "./dom.ts";
+import { $, html, modal, raw } from "./dom.ts";
 import { age, need } from "./labels.ts";
 
 const DAY = 864e5;
@@ -84,55 +84,109 @@ function fold(dir: string) {
   } catch {}
   drawList();
 }
+// A card's workspace row: its own (a run's worktree) when the project lists it, else the
+// main checkout's, so a run whose worktree is gone, an idea or an old run never vanishes.
+export function wsOfCard(c, projects = last.projects) {
+  const ws = projects?.find((p) => p.dir === c.state)?.workspaces ?? [];
+  return ws.find((w) => w.path === c.ws)?.path ?? ws.find((w) => w.main)?.path ?? c.ws ?? "";
+}
+export const wsHref = (dir, ws) => `/?view=ws&dir=${encodeURIComponent(dir)}&ws=${encodeURIComponent(ws)}`;
+const RANK = { wait: 0, plan: 1, build: 2, review: 3, stalled: 4, idle: 5, done: 6, aband: 7 };
+// The card a workspace address shows until Run 3's workspace centre: its most urgent listed
+// card, else its newest run.
+export function wsCard(dir, ws, cards = last.cards) {
+  const now = Date.now(),
+    here = cards.filter((c) => c.state === dir && c.kind === "run" && !c.archived && wsOfCard(c) === ws);
+  const live = here.filter((c) => listed(c, now)).sort((a, b) => RANK[stateOf(a)] - RANK[stateOf(b)] || (b.moved ?? 0) - (a.moved ?? 0));
+  return live[0] ?? here.sort((a, b) => (b.moved ?? 0) - (a.moved ?? 0))[0];
+}
+const wsLabel = (w) => w.branch || (w.main ? "workspace" : w.path.split(/[\\/]/).pop());
 function drawList() {
   const box = $("plist");
   if (!box) return;
   const now = Date.now();
-  const groups = new Map<string, any[]>();
-  const all = new Set(last.cards.filter((c) => listed(c, now)).map((c) => c.state));
-  for (const c of last.cards.filter((c) => listed(c, now) && filt[kindOf(c)] && (!filt.dirs.length || filt.dirs.includes(c.state)))) {
-    if (!groups.has(c.state)) groups.set(c.state, []);
-    groups.get(c.state)!.push(c);
+  const projects = (last.projects ?? []).filter((p) => p.workspaces?.length);
+  const all = new Set(projects.map((p) => p.dir));
+  // Cards by project and workspace: each lands on a row, the main checkout when its own is not listed.
+  const by = new Map<string, any[]>();
+  for (const c of last.cards.filter((c) => listed(c, now))) {
+    const k = c.state + "\0" + wsOfCard(c);
+    if (!by.has(k)) by.set(k, []);
+    by.get(k)!.push(c);
   }
-  // Within a project: waiting, planning, building, reviewing, stalled, ideas, done; newest first in each.
-  const RANK = { wait: 0, plan: 1, build: 2, review: 3, stalled: 4, idle: 5, done: 6, aband: 7 };
-  const when = (c) => c.moved ?? c.added ?? 0;
-  for (const cs of groups.values()) cs.sort((a, b) => RANK[stateOf(a)] - RANK[stateOf(b)] || when(b) - when(a));
-  // Projects by their most urgent card: one waiting on you before one only planning, before one with only ideas.
-  const top = (cs) => Math.min(...cs.map((c) => RANK[stateOf(c)]));
-  const ordered = new Map([...groups].sort((a, b) => top(a[1]) - top(b[1])));
-  groups.clear();
-  for (const [k, v] of ordered) groups.set(k, v);
+  const top = (cs) => (cs.length ? Math.min(...cs.map((c) => RANK[stateOf(c)])) : 9);
+  const groups = projects
+    .filter((p) => !filt.dirs.length || filt.dirs.includes(p.dir))
+    .map((p) => {
+      const rows = p.workspaces
+        .map((w) => ({ w, cs: by.get(p.dir + "\0" + w.path) ?? [] }))
+        // An empty workspace or one with a run going is active; one holding only finished runs is done.
+        .filter(({ cs }) => filt[cs.length && cs.every((c) => kindOf(c) === "done") ? "done" : "active"]);
+      return { p, rows, top: Math.min(9, ...rows.map((r) => top(r.cs))) };
+    })
+    .filter((g) => g.rows.length)
+    // Projects by their most urgent card; the picker's order otherwise.
+    .sort((a, b) => a.top - b.top);
 
   const f = $("pfilter");
   const on = filt.dirs.some((d) => all.has(d)) || !filt.active || !filt.done;
   f.setAttribute("aria-pressed", String(on));
   f.title = on ? "Filter on: choose projects and kinds" : "Filter projects and kinds";
   if ($("pfpop")) drawPop(all);
-  const cur = new URLSearchParams(location.search);
   box.innerHTML =
-    [...groups]
-      .map(([dir, cs]) => {
-        const name = projName(dir, last.projects);
-        const shut = folded.has(dir);
-        return html`<button type="button" class="proj${shut ? " shut" : ""}" data-fold="${dir}" title="${dir}" aria-expanded="${String(!shut)}"><svg class="fchev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>${logo(dir, name, last.projects)}<span>${name}</span><span class="c">${cs.length}</span></button>${shut ? "" : cs.map(
-          (c) =>
-            html`<a class="row" href="${cardHref(c)}" data-dir="${c.state}" data-id="${c.id ?? ""}" data-text="${c.kind === "idea" ? c.text : ""}" title="${titleOf(c)}"${raw(cur.get("dir") === c.state && (cur.get("id") === c.id || cur.get("idea") === c.text) ? ' aria-current="true"' : "")}><span class="si ${stateOf(c)}"></span><div><b>${titleOf(c)}</b><small>${subline(c, now)}</small></div></a>`,
-        )}`;
+    groups
+      .map(({ p, rows }) => {
+        const dir = p.dir,
+          name = projName(dir, last.projects),
+          shut = folded.has(dir);
+        const n = rows.reduce((a, r) => a + r.cs.length, 0);
+        // A + for a new worktree on git projects (the main checkout has a branch).
+        const git = p.workspaces.some((w) => w.branch);
+        return html`<div class="pgrp"><button type="button" class="proj${shut ? " shut" : ""}" data-fold="${dir}" title="${dir}" aria-expanded="${String(!shut)}"><svg class="fchev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>${logo(dir, name, last.projects)}<span>${name}</span><span class="c">${n || ""}</span></button>${git ? html`<button type="button" class="wadd" data-wadd="${dir}" title="New worktree in ${name}" aria-label="New worktree in ${name}"><svg aria-hidden="true"><use href="#i-plus"/></svg></button>` : ""}</div>${shut ? "" : rows.map(({ w, cs }) => {
+          // The dot: the most urgent run there. The count: runs waiting on you or finished in the last day.
+          const st = cs.length ? stateOf([...cs].sort((a, b) => RANK[stateOf(a)] - RANK[stateOf(b)])[0]) : "";
+          const k = cs.filter((c) => ["wait", "done", "aband"].includes(stateOf(c))).length;
+          return html`<a class="row ws" href="${wsHref(dir, w.path)}" data-dir="${dir}" data-ws="${w.path}" title="${w.path}"><span class="si ${st || "none"}"></span><div><b>${wsLabel(w)}</b><small>${k ? String(k) : ""}</small></div></a>`;
+        })}`;
       })
-      .join("") || `<div class="none">No runs</div>`;
+      .join("") || `<div class="none">No projects</div>`;
+  markCurrent();
   box.onclick = (e) => {
-    const d = (e.target as HTMLElement).closest<HTMLElement>("[data-fold]")?.dataset.fold;
+    const t = e.target as HTMLElement;
+    const add = t.closest<HTMLElement>("[data-wadd]")?.dataset.wadd;
+    if (add) return void (e.preventDefault(), newWorktree(add));
+    const d = t.closest<HTMLElement>("[data-fold]")?.dataset.fold;
     if (d) (e.preventDefault(), fold(d));
+  };
+}
+// The project row's +: a branch name, then POST /worktree; the row shows on the next /state.
+function newWorktree(dir: string) {
+  const dl = modal(
+    html`<b>New worktree</b><input name="branch" placeholder="Branch name, e.g. feat/login" aria-label="Branch name" required autocomplete="off" spellcheck="false"><small class="att">A new branch off the current one, in ${projName(dir, last.projects)}/.kaizen/wt/</small><small class="att err" role="alert"></small><div class="row"><button type="button" class="btn ghost" data-a="x">Cancel</button><button class="btn pri">Create</button></div>`,
+  );
+  const form = dl.querySelector("form")!,
+    err = dl.querySelector<HTMLElement>(".err")!;
+  dl.querySelector<HTMLElement>("[data-a=x]")!.onclick = () => dl.close();
+  (form.elements.namedItem("branch") as HTMLInputElement).focus();
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const branch = (form.elements.namedItem("branch") as HTMLInputElement).value.trim();
+    const r = await fetch("/worktree", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ dir, branch }) }).catch(() => null);
+    const d = r ? await r.json().catch(() => ({})) : { error: "the board is offline" };
+    if (!r?.ok) return void (err.textContent = d.error || "could not create it");
+    dl.close();
+    location.href = wsHref(dir, d.path);
   };
 }
 // Moves the side menu's highlight to the card the address names: opening a card in place
 // changes the address without redrawing the list.
 export function markCurrent() {
   const cur = new URLSearchParams(location.search);
+  // A run's address (old links, notifications) lights its workspace.
+  const c = cur.get("id") && last.cards.find((x) => x.kind === "run" && x.state === cur.get("dir") && x.id === cur.get("id"));
+  const ws = cur.get("ws") ?? (c ? wsOfCard(c) : null);
   for (const a of document.querySelectorAll<HTMLElement>("#plist a.row")) {
-    const on = cur.get("dir") === a.dataset.dir && (cur.get("id") === a.dataset.id || (!!a.dataset.text && cur.get("idea") === a.dataset.text));
-    if (on) a.setAttribute("aria-current", "true");
+    if (cur.get("dir") === a.dataset.dir && ws === a.dataset.ws) a.setAttribute("aria-current", "true");
     else a.removeAttribute("aria-current");
   }
 }
@@ -264,13 +318,13 @@ export function initRail() {
   $("padd").onclick = () => {
     // The page's own project when it has one: the run workspace's, or the one project the filter shows.
     const p = new URLSearchParams(location.search);
-    const dir = p.get("view") === "run" ? p.get("dir") : filt.dirs.length === 1 ? filt.dirs[0] : null;
+    const dir = ["run", "ws"].includes(p.get("view")) ? p.get("dir") : filt.dirs.length === 1 ? filt.dirs[0] : null;
     if (!ask("kz-new-idea", { dir })) location.href = "/?view=board";
   };
   $("plist").addEventListener("click", (e) => {
     const a = (e.target as Element).closest?.("a.row") as HTMLAnchorElement;
     if (!a || e.ctrlKey || e.metaKey || e.shiftKey || (e as MouseEvent).button) return;
-    if (ask("kz-open-card", { dir: a.dataset.dir, id: a.dataset.id, text: a.dataset.text })) e.preventDefault();
+    if (ask("kz-open-ws", { dir: a.dataset.dir, ws: a.dataset.ws })) e.preventDefault();
   });
 }
 

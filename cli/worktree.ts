@@ -1,8 +1,8 @@
 // One branch and one git worktree per run, so agents building at the same time never
 // share a working folder. Run notes stay in the project's .kaizen/runs/<id>/; only the
 // code lives in the worktree. Every git call is an argv array, never a shell string.
-import { existsSync, readFileSync, writeFileSync, rmSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { existsSync, readFileSync, writeFileSync, rmSync, realpathSync } from "node:fs";
+import { join, dirname, resolve, sep } from "node:path";
 
 export type Out = { ok: boolean; out: string; why: string };
 export type Run = (cmd: string[], cwd: string) => Out;
@@ -125,4 +125,82 @@ export function landWorktree(project: string, id: string, sh: Run = run,
     if (sh(["git", "push", "origin", `HEAD:${base}`], dir).ok) return finish("push");
   }
   return { ok: false, why: `${base} kept moving; push rejected twice. Worktree kept` };
+}
+
+export type Workspace = { path: string; branch: string; main: boolean };
+const listed = new Map<string, { at: number; ws: Workspace[] }>();
+const inside = (p: string, root: string) => p === root || p.startsWith(root + sep);
+// One spelling per folder: git prints real paths, a tmp or 8.3 path may not be one.
+const real = (p: string) => { try { return realpathSync.native(p); } catch { return resolve(p); } };
+
+/**
+ * A project's workspaces: its main checkout first, then every other git worktree, from
+ * `git worktree list --porcelain`. A folder that is not a repository is one workspace.
+ * Prunable entries, and detached ones outside the project, are left out. Cached 10 s:
+ * /state asks for every known project on each tick.
+ */
+export function workspaces(project: string, sh: Run = run): Workspace[] {
+  const hit = listed.get(project);
+  if (hit && Date.now() - hit.at < 10_000) return hit.ws;
+  const ws = parseWorkspaces(project, existsSync(project) ? sh(["git", "worktree", "list", "--porcelain"], project) : null);
+  listed.set(project, { at: Date.now(), ws });
+  return ws;
+}
+
+/** git off the event loop, with the same 120 s ceiling as run(). */
+export const runAsync = async (cmd: string[], cwd: string): Promise<Out> => {
+  try {
+    const p = Bun.spawn(cmd, { cwd, env, stdin: "ignore", stdout: "pipe", stderr: "pipe", timeout: 120_000, windowsHide: true });
+    const [out, err] = await Promise.all([new Response(p.stdout).text(), new Response(p.stderr).text()]);
+    return { ok: (await p.exited) === 0, out: out.trimEnd(), why: err.trim() || `${cmd[0]} did not finish` };
+  } catch { return { ok: false, out: "", why: `${cmd[0]} is not installed` }; }
+};
+
+/**
+ * workspaces() for /state: never waits on git. A fresh cache answers; a stale one answers
+ * and refreshes in the background; none yet answers the one folder until git replies.
+ */
+const refreshing = new Set<string>();
+export function workspacesNow(project: string, sh = runAsync): Workspace[] {
+  const hit = listed.get(project);
+  if (hit && Date.now() - hit.at < 10_000) return hit.ws;
+  if (!refreshing.has(project) && existsSync(project)) {
+    refreshing.add(project);
+    void sh(["git", "worktree", "list", "--porcelain"], project)
+      .then((r) => listed.set(project, { at: Date.now(), ws: parseWorkspaces(project, r) }))
+      .finally(() => refreshing.delete(project));
+  }
+  return hit?.ws ?? [{ path: project, branch: "", main: true }];
+}
+
+function parseWorkspaces(project: string, r: Out | null): Workspace[] {
+  const main = { path: project, branch: "", main: true };
+  if (!r?.ok) return [main];
+  const all = r.out.split(/\n\s*\n/).map((b) => {
+    const l = b.split("\n"), v = (k: string) => l.find((x) => x === k || x.startsWith(k + " "))?.slice(k.length + 1);
+    return { path: real(v("worktree") ?? ""), branch: (v("branch") ?? "").replace(/^refs\/heads\//, ""), prunable: v("prunable") !== undefined, bare: v("bare") !== undefined };
+  });
+  // The first entry is the main checkout; the registered folder stands for it (it may sit below the root).
+  main.branch = all[0]?.branch ?? "";
+  return [main, ...all.slice(1).filter((w) => !w.prunable && !w.bare && w.path !== real(project) && existsSync(w.path) && (w.branch || inside(w.path, real(project))))
+    .map((w) => ({ path: w.path, branch: w.branch, main: false }))];
+}
+export const forgetWorkspaces = (project: string) => listed.delete(project);
+/** How old the cached list is, in ms; Infinity when none. */
+export const workspacesAge = (project: string) => { const hit = listed.get(project); return hit ? Date.now() - hit.at : Infinity; };
+
+/** The workspace a run belongs to: its recorded worktree while that is still on disk, else the main checkout. */
+export const wsOf = (project: string, state: { worktree?: unknown }) =>
+  typeof state.worktree === "string" && existsSync(state.worktree) ? real(state.worktree) : project;
+
+/** A new worktree for `branch` under <project>/.kaizen/wt/, the branch made off HEAD. */
+export function addWorktree(project: string, branch: string, sh: Run = run): { ok: true; path: string } | { ok: false; why: string } {
+  if (!branch || branch.startsWith("-") || branch.length > 200) return { ok: false, why: "not a branch name" };
+  if (!sh(["git", "rev-parse", "--is-inside-work-tree"], project).ok) return { ok: false, why: "not a git repository" };
+  if (!sh(["git", "check-ref-format", "--branch", branch], project).ok) return { ok: false, why: `"${branch}" is not a valid branch name` };
+  const path = join(project, ".kaizen", "wt", branch.replace(/[^\w.-]+/g, "-").replace(/^\.+/, ""));
+  if (existsSync(path)) return { ok: false, why: "that worktree folder already exists" };
+  const add = sh(["git", "worktree", "add", "-b", branch, path], project);
+  forgetWorkspaces(project);
+  return add.ok ? { ok: true, path: real(path) } : { ok: false, why: add.why };
 }

@@ -14,7 +14,7 @@ import { initLive } from "./live.ts";
 import { store } from "./store.ts";
 import { initViewer } from "./viewer.ts";
 import { initContext } from "./context.ts";
-import { cardHref, initFooter, initRail } from "./workspace.ts";
+import { cardHref, initFooter, initRail, markCurrent, wsHref } from "./workspace.ts";
 import { go } from "./views.ts";
 import { openWorkspace } from "./run-view.ts";
 import { newIdea } from "./cards.ts";
@@ -54,6 +54,13 @@ addEventListener("kz-open-card", (e: any) => {
       else location.href = href;
     })
     .catch(() => (location.href = href));
+});
+// A workspace row opens in place: the run view resolves it (showRunView).
+addEventListener("kz-open-ws", (e: any) => {
+  e.preventDefault();
+  history.pushState(null, "", wsHref(e.detail.dir, e.detail.ws));
+  markCurrent();
+  go("ws");
 });
 addEventListener("kz-new-idea", (e) => {
   // A modal over whatever page is showing: the idea appears in the menu and Ideas by the usual refresh.
