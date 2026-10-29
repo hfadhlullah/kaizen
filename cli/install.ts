@@ -458,11 +458,12 @@ if (wantSettings) {
 if (args.has("worktree")) {
   const [, verb = "", id = ""] = Bun.argv.slice(2).filter((a) => !a.startsWith("-"));
   const { locate } = await import("./state.ts");
-  const { startWorktree, landWorktree } = await import("./worktree.ts");
+  const { startWorktree, landWorktree, adoptWorkspace } = await import("./worktree.ts");
   const state = locate();
   if (!state || (verb !== "start" && verb !== "land")) { console.log("\n  usage: kaizen worktree start|land <run-id>, in a project with .kaizen\n"); process.exit(1); }
   const project = dirname(state);
-  const r = verb === "start" ? startWorktree(project, id) : landWorktree(project, id);
+  // Started inside another workspace of the project (a board worktree): the run is placed there.
+  const r = verb === "start" ? adoptWorkspace(project, id, process.cwd()) ?? startWorktree(project, id) : landWorktree(project, id);
   console.log(r.ok ? `\n  ${verb === "start" ? `worktree ready: ${(r as { path: string }).path}` : `landed by ${(r as { how: string }).how}`}\n` : `\n  ${r.why}\n`);
   process.exit(r.ok ? 0 : 1);
 }

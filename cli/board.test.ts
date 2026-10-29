@@ -350,3 +350,18 @@ test("new-idea picker never swaps a preset project for another when a choice is 
   expect(startDir(["/a", "/b"], "/gone", false)).toBe("/a");
   expect(startDir([], null, false)).toBeNull();
 });
+
+test("markStage records a stage terminal only inside an existing runs/<id>", async () => {
+  const { markStage, stagesOf } = await import("./web.ts");
+  const { mkdtempSync, mkdirSync, existsSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const dir = join(mkdtempSync(join(tmpdir(), "kz-stage-")), ".kaizen");
+  mkdirSync(join(dir, "runs", "r1"), { recursive: true });
+  markStage(dir, "r1", "plan", "k1");
+  markStage(dir, "r1", "impl", "k2");
+  expect(stagesOf(dir, "r1")).toEqual({ plan: "k1", impl: "k2" });
+  for (const id of [".", "..", "nope"]) markStage(dir, id, "plan", "x");
+  expect(existsSync(join(dir, "terminals.json"))).toBe(false);
+  expect(existsSync(join(dir, "runs", "terminals.json"))).toBe(false);
+  expect(existsSync(join(dir, "runs", "nope"))).toBe(false);
+});

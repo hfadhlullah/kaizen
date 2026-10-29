@@ -189,9 +189,24 @@ export const forgetWorkspaces = (project: string) => listed.delete(project);
 /** How old the cached list is, in ms; Infinity when none. */
 export const workspacesAge = (project: string) => { const hit = listed.get(project); return hit ? Date.now() - hit.at : Infinity; };
 
-/** The workspace a run belongs to: its recorded worktree while that is still on disk, else the main checkout. */
-export const wsOf = (project: string, state: { worktree?: unknown }) =>
-  typeof state.worktree === "string" && existsSync(state.worktree) ? real(state.worktree) : project;
+/** The workspace a run belongs to: its recorded worktree (or the workspace it was started in) while that is still on disk, else the main checkout. */
+export const wsOf = (project: string, state: { worktree?: unknown; workspace?: unknown }) => {
+  const w = [state.worktree, state.workspace].find((x) => typeof x === "string" && existsSync(x));
+  return typeof w === "string" ? real(w) : project;
+};
+
+/**
+ * `kaizen worktree start` run from inside one of the project's other workspaces: the run is
+ * placed there (`workspace` in state.json) and no second worktree is made. It is not recorded
+ * as the run's `worktree`: land would then remove a folder and branch the user made.
+ */
+export function adoptWorkspace(project: string, id: string, here: string): { ok: true; path: string } | null {
+  if (!SLUG.test(id) || !existsSync(file(project, id))) return null;
+  const at = real(here), w = workspaces(project).find((x) => !x.main && x.path !== real(worktreeOf(project, id)) && inside(at, x.path));
+  if (!w) return null;
+  patchState(project, id, { workspace: w.path });
+  return { ok: true, path: w.path };
+}
 
 /** A new worktree for `branch` under <project>/.kaizen/wt/, the branch made off HEAD. */
 export function addWorktree(project: string, branch: string, sh: Run = run): { ok: true; path: string } | { ok: false; why: string } {

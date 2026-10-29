@@ -61,6 +61,14 @@ const served = (f: string) => installed() === VERSION && existsSync(f) ? readTex
 
 // A board answers at url and runs the installed version. A board from before the
 // version header sends none, so it counts as stale too.
+// Which terminal the board launched for which stage of a run (plan, impl, review): runs/<id>/terminals.json.
+export const stagesOf = (dir: string, id: string): Record<string, string> => { try { return JSON.parse(readText(join(dir, "runs", id, "terminals.json"))) ?? {}; } catch { return {}; } };
+export const markStage = (dir: string, id: string, stage: string, key?: string) => {
+  if (!stage || !key || !id || /^\.+$/.test(id)) return;
+  try { if (!statSync(join(dir, "runs", id)).isDirectory()) return; } catch { return; }   // only an existing runs/<id>
+  try { writeFileSync(join(dir, "runs", id, "terminals.json"), JSON.stringify({ ...stagesOf(dir, id), [stage]: key })); } catch { /* the run dir is gone */ }
+};
+
 export async function current(url: string) {
   const r = await fetch(url, { signal: AbortSignal.timeout(1500) }).catch(() => null);
   return !!r?.ok && r.headers.get("x-kaizen-version") === VERSION;
@@ -233,7 +241,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
   // works and a slow poll where it does not.
   const clients = new Set<ReadableStreamDefaultController>();
   // Shells the board started (POST /shell), by /pty key; dead ones drop on the next /shells.
-  const shells = new Map<string, { key: string; dir: string; title: string; agent: string; run: string; pid?: number }>();
+  const shells = new Map<string, { key: string; dir: string; title: string; agent: string; run: string; ws?: string; pid?: number }>();
   const SHELL_CAP = 8;
   let usageCache: Usage[] = [];
   let usageAt = 0;
@@ -346,11 +354,15 @@ export async function web(repoDir: string, opts: Opts = {}) {
     const live = new Set(ptyKeys());
     if (!live.size) return () => undefined;
     const runs = new Map<string, string[]>();
+    const planKeys = new Set(ideaPty.values());
     for (const d of new Set(cards.filter((c) => c.kind === "run").map((c) => c.state))) {
       const ids = runIndex(d);
       for (const s of readSessions(d))
         if (live.has(s.key)) {
-          const k = `${d}\0${ownerOf(d, s, ids)}`;
+          const owner = ownerOf(d, s, ids);
+          const k = `${d}\0${owner}`;
+          // The idea's agent that began this run is its plan terminal: recorded once the run exists.
+          if (owner && planKeys.has(s.key) && !stagesOf(d, owner).plan) markStage(d, owner, "plan", s.key);
           runs.set(k, [...(runs.get(k) ?? []), s.key]); // oldest first: the newest is the card's
         }
     }
@@ -363,7 +375,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
       if (!st.alive && (c.status === "done" || c.status === "abandoned")) return undefined;
       // Every agent session the run has had on this board, for the workspace's Agent tabs.
       const all = keys.filter((k) => ptyState(k)?.alive || k === key);
-      return { key, alive: st.alive, asking: st.asking, busy: st.busy, all };
+      return { key, alive: st.alive, asking: st.asking, busy: st.busy, all, stages: c.kind === "run" ? stagesOf(c.state, c.id!) : undefined };
     };
   };
   const watchers: FSWatcher[] = [];
@@ -737,7 +749,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         const title = agent ? KNOWN_AGENTS.find((k) => k.cmd === agent)!.name : "shell";
         const pid = startPty(key, cmd, cwd, undefined, changed);
         // The run workspace that opened it (its card key), so each run keeps its own centre.
-        shells.set(key, { key, dir, title, agent, run: runKey, pid });
+        shells.set(key, { key, dir, title, agent, run: runKey, ws: cwd, pid });
         changed();
         return json(shells.get(key));
       }
@@ -1687,6 +1699,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           const live = readSessions(dir).find((s) => ptyState(s.key)?.alive && ownerOf(dir, s) === id);
           if (live) {
             writePty(live.key, text + "\r");
+            markStage(dir, id, "review", live.key);
             changed();
             return json({ ok: true, pty: live.key, reused: true });
           }
@@ -1694,7 +1707,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           // waiting one ends. A failed launch leaves it: the decision has nowhere else.
           const before = Date.now();
           const r = launchRun({ severity: null, where: null, text, raw: text }, dir, id, inCard(dir));
-          if (r.ok) closeSessions(dir, id, { before });
+          if (r.ok) (closeSessions(dir, id, { before }), markStage(dir, id, "review", r.pty));
           changed();
           return json(r.ok
             ? { ok: true, agent: r.agent, pty: r.pty }
@@ -1722,6 +1735,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
           const before = Date.now();
           const r = launchRun({ severity: null, where: null, text, raw: text }, dir, id, inCard(dir));
           if (r.ok) closeSessions(dir, id, { before });
+          // The plan's approval starts the build; fixing open findings is the review stage again.
+          if (r.ok) markStage(dir, id, run.awaiting === "approvals.plan" ? "impl" : run.awaiting === "findings" ? "review" : "", r.pty);
           // Approving the review as-is is the user's acceptance, on record before the
           // agent marks the run done; a revise is not.
           if (r.ok && body.why === undefined && (run.awaiting === "approvals.review" || run.awaiting === "findings")) recordAcceptance(dir, id, "board");

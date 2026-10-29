@@ -141,7 +141,9 @@ test.skipIf(process.platform === "win32")("/shell: foreign origin, unknown proje
 
     const inWs = await post({ dir: st, ws: proj }, at);
     expect(inWs.status).toBe(200);
-    await fetch(at + "/pty/exit", { method: "POST", body: JSON.stringify({ key: ((await inWs.json()) as any).key }) });
+    const made = (await inWs.json()) as any;
+    expect(made.ws).toBe(proj); // the tab lists a workspace's shells by it
+    await fetch(at + "/pty/exit", { method: "POST", body: JSON.stringify({ key: made.key }) });
     for (let i = 0; i < 100; i++) { if (!((await (await fetch(`${at}/shells`)).json()) as any[]).length) break; await Bun.sleep(50); }
     // A worktree made after the board cached the list (above) is let in, not refused for 10 s.
     const g0 = (...a: string[]) => Bun.spawnSync(["git", "-c", "user.name=t", "-c", "user.email=t@t", ...a], { cwd: proj });

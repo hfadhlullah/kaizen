@@ -92,14 +92,6 @@ export function wsOfCard(c, projects = last.projects) {
 }
 export const wsHref = (dir, ws) => `/?view=ws&dir=${encodeURIComponent(dir)}&ws=${encodeURIComponent(ws)}`;
 const RANK = { wait: 0, plan: 1, build: 2, review: 3, stalled: 4, idle: 5, done: 6, aband: 7 };
-// The card a workspace address shows until Run 3's workspace centre: its most urgent listed
-// card, else its newest run.
-export function wsCard(dir, ws, cards = last.cards) {
-  const now = Date.now(),
-    here = cards.filter((c) => c.state === dir && c.kind === "run" && !c.archived && wsOfCard(c) === ws);
-  const live = here.filter((c) => listed(c, now)).sort((a, b) => RANK[stateOf(a)] - RANK[stateOf(b)] || (b.moved ?? 0) - (a.moved ?? 0));
-  return live[0] ?? here.sort((a, b) => (b.moved ?? 0) - (a.moved ?? 0))[0];
-}
 const wsLabel = (w) => w.branch || (w.main ? "workspace" : w.path.split(/[\\/]/).pop());
 function drawList() {
   const box = $("plist");

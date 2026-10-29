@@ -12,7 +12,7 @@ import { codeDir, projectFromWorktree, wsOf } from "./worktree.ts";
 // symlink (/home -> var/home) would never compare equal to it.
 export const home = (() => { try { return realpathSync(homedir()); } catch { return homedir(); } })();
 
-export type Run = { id: string; stage: string; awaiting: string | null; moved: number; runner?: string; agent?: string; branch?: string; worktree?: string };
+export type Run = { id: string; stage: string; awaiting: string | null; moved: number; runner?: string; agent?: string; branch?: string; worktree?: string; workspace?: string };
 
 export const KNOWN_AGENTS = [
   { name: "Claude Code", dir: ".claude", cmd: "claude" },
@@ -414,7 +414,7 @@ export function readRuns(state: string): Run[] {
       let moved = 0;
       try { moved = statSync(file).mtimeMs; } catch { /* vanished mid-read */ }
       try { moved = Math.max(moved, statSync(join(dir, id, "progress.md")).mtimeMs); } catch { /* no progress kept */ }
-      const run = { id, stage: s.stage ?? "?", awaiting: s.awaiting ?? null, moved, runner: s.runner, agent: s.agent, branch: typeof s.branch === "string" ? s.branch : undefined, worktree: typeof s.worktree === "string" ? s.worktree : undefined };
+      const run = { id, stage: s.stage ?? "?", awaiting: s.awaiting ?? null, moved, runner: s.runner, agent: s.agent, branch: typeof s.branch === "string" ? s.branch : undefined, worktree: typeof s.worktree === "string" ? s.worktree : undefined, workspace: typeof s.workspace === "string" ? s.workspace : undefined };
       lastRun.set(runDir, run);
       return [run];
     } catch { return existsSync(join(runDir, "state.json")) ? [lastRun.get(runDir)].filter((r): r is Run => !!r) : []; }

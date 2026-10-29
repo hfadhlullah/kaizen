@@ -1,41 +1,32 @@
-// The run workspace (?view=run&dir=&id=, or &idea=<text> for an idea): the card's panel
-// docked at the right as an icon strip (panel.ts draws it; open() fills it), and a tabbed
-// centre: the run's agent, shells started with POST /shell, the project's localhost, the
-// run's Preview and project notes. Terminal tabs are kzTerm mounts on /pty that live as
-// long as their tab, so a tab switch or a /state tick never reconnects them. Split right
-// or down shows a second tab beside the first, sized with the Terminal page's handles.
+// The workspace centre (?view=ws&dir=&ws=; a run's or idea's old address resolves to its
+// workspace and selects its tab): a tab bar over one folder. Each live run there is a tab
+// holding the run panel (panel.ts draws it into #panel, moved in here) under Plan · Build ·
+// Review; beside them the agents, shells started with POST /shell {ws}, the project's
+// localhost, the Preview, project notes and History (finished runs, read-only). A workspace
+// with no tab opens the default agent in its folder. Terminal tabs are kzTerm mounts on /pty
+// that live as long as their tab, so a tab switch or a /state tick never reconnects them.
+// Split right or down shows a second tab beside the first, sized with the Terminal page's handles.
 import { pick } from "./projects.ts";
 import { store } from "./store.ts";
 import { toast } from "./toast.ts";
 import { $, html, ico, raw } from "./dom.ts";
 import { key } from "./cards.ts";
-import { open } from "./panel.ts";
+import { open, openRun } from "./panel.ts";
 import { termLoad } from "./agent-term.ts";
 import { load, post } from "./api.ts";
 import { attach, md, preview } from "./markdown.ts";
 import { layout } from "./terms.ts";
-import { cardHref, markCurrent, railData, titleOf, wsCard } from "./workspace.ts";
+import { cardHref, markCurrent, railData, stateOf, titleOf, wsOfCard } from "./workspace.ts";
+import { type Node, awaiting, finished, hiddenRuns, historyOf, leaves, liveIn, migrate, prune, stageKeys, wsKey } from "./ws-tabs.ts";
+import { age } from "./labels.ts";
 import { go } from "./views.ts";
 
-type Tab = { id: string; kind: "agent" | "shell" | "local" | "preview" | "note" | "wait"; title: string; key?: string; note?: string; agent?: string };
-// Per run: the extra items opened (localhost, preview, notes), agent items closed, and the
-// screens. A screen is one tab of the bar: one or more items side by side or stacked.
-// A screen's layout is a tmux-style tree: a leaf is an item id; a split holds two or more
-// children side by side ("cols") or stacked ("rows"), with their relative sizes.
-type Node = string | { dir: "cols" | "rows"; kids: Node[]; sizes: number[] };
+// "run" holds a card's panel (ck = the card's key; ro = a finished run, read-only).
+type Tab = { id: string; kind: "agent" | "shell" | "local" | "preview" | "note" | "wait" | "run" | "history"; title: string; key?: string; note?: string; agent?: string; ck?: string; ro?: boolean };
+// Per workspace: the extra items opened (localhost, preview, notes, History, a finished run),
+// tabs closed, and the screens. A screen is one tab of the bar: one or more items side by
+// side or stacked.
 type Screen = { id: string; tree: Node; focus: string };
-const leaves = (n: Node): string[] => (typeof n === "string" ? [n] : n.kids.flatMap(leaves));
-// Drops ids no longer open; a split left with one child becomes that child.
-function prune(n: Node, keep: (id: string) => boolean): Node | null {
-  if (typeof n === "string") return keep(n) ? n : null;
-  const kids: Node[] = [],
-    sizes: number[] = [];
-  n.kids.forEach((k, i) => {
-    const p = prune(k, keep);
-    if (p) (kids.push(p), sizes.push(n.sizes[i] ?? 1));
-  });
-  return !kids.length ? null : kids.length === 1 ? kids[0] : { dir: n.dir, kids, sizes };
-}
 // tmux: the focused pane splits in two, the new item right of or under it.
 function splitAt(n: Node, at: string, add: string, dir: "cols" | "rows", before = false): Node {
   if (typeof n === "string") return n === at ? { dir, kids: before ? [add, n] : [n, add], sizes: [1, 1] } : n;
@@ -54,18 +45,21 @@ const save = () => {
     localStorage.setItem("kz-runtabs", JSON.stringify(ALL));
   } catch {}
 };
+// The workspace shown, and the card whose panel is up (the focused run tab's).
+let ctx: { dir: string; ws: string; k: string } | null = null;
 let card: any = null;
 let shells: any[] = [];
 let noPty = false;
 // Every agent installed for this project (from /agents), each offered as a bare session.
 let agents: { name: string; cmd: string }[] = [];
+let defAgent = "";
 // The agents with their own mark in the sprite; the rest show the generic one.
 const MARKS = ["claude", "codex", "gemini"];
 // Tab id -> its pane, and for a terminal the function that unmounts it.
 const panes = new Map<string, { el: HTMLElement; off: (() => void) | null }>();
-const runKey = (c) => key(c);
+const byKey = (k: string) => store.S.cards.find((x) => key(x) === k);
 const saved = (): Saved => {
-  const s = (ALL[runKey(card)] ||= { tabs: [], hidden: [], screens: [], on: null });
+  const s = (ALL[ctx!.k] ||= { tabs: [], hidden: [], screens: [], on: null });
   if (!Array.isArray(s.screens) || s.screens.some((sc: any) => !sc.tree)) (s.screens = []), delete (s as any).split; // older saves
   return s;
 };
@@ -91,91 +85,130 @@ function screens(): Screen[] {
 }
 const loopback = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
 
+const AGENTS = ["claude", "codex", "gemini", "agy", "opencode", "cursor"];
+const wsCards = () => (ctx ? liveIn(store.S.cards, ctx.dir, ctx.ws, wsOfCard) : []);
+const subLabel = (c) => (c.kind === "run" ? titleOf(c) : "Idea: " + titleOf(c));
+
 function tabs(): Tab[] {
   const s = saved(),
     out: Tab[] = [];
-  // Every agent session the run has on this board, each its own tab.
-  const keys: string[] = card.pty ? card.pty.all ?? [card.pty.key] : [];
-  const runAgent = ["claude", "codex", "gemini", "agy", "opencode", "cursor"].find((a) => card.tags?.includes(a)) ?? undefined;
   const named = (a?: string) => agents.find((x) => x.cmd === a)?.name ?? "Agent";
-  keys.forEach((k, i) => out.push({ id: "agent:" + k, kind: "agent", agent: runAgent, title: named(runAgent) + (keys.length > 1 ? " " + (i + 1) : ""), key: k }));
-  for (const sh of shells.filter((x) => x.run === runKey(card))) out.push({ id: "sh:" + sh.key, kind: sh.agent ? "agent" : "shell", agent: sh.agent || undefined, title: sh.title, key: sh.key });
-  // The run's own session is running in another terminal: a tab that says so.
-  if (elsewhere.has(runKey(card))) out.push({ id: "wait", kind: "wait", agent: "claude", title: named("claude") });
-  return [...out.filter((t) => !s.hidden.includes(t.id)), ...s.tabs];
+  const live = wsCards(),
+    liveKeys = new Set(live.map(key));
+  // Each live run is a tab, then its agent sessions on this board.
+  for (const c of live) {
+    const k = key(c),
+      emb = Object.values(stageKeys(c)), // shown inside the run's tab, on its stage
+      keys: string[] = (c.pty ? c.pty.all ?? [c.pty.key] : []).filter((x) => !emb.includes(x)),
+      runAgent = AGENTS.find((a) => c.tags?.includes(a)) ?? undefined;
+    out.push({ id: "rn:" + k, kind: "run", title: subLabel(c), ck: k });
+    keys.forEach((pk, i) => out.push({ id: "agent:" + pk, kind: "agent", agent: runAgent, title: named(runAgent) + (keys.length > 1 ? " " + (i + 1) : ""), key: pk }));
+    for (const sh of shells.filter((x) => x.run === k)) out.push({ id: "sh:" + sh.key, kind: sh.agent ? "agent" : "shell", agent: sh.agent || undefined, title: sh.title, key: sh.key });
+    // The run's own session is running in another terminal: a tab that says so.
+    if (elsewhere.has(k)) out.push({ id: "wait:" + k, kind: "wait", agent: "claude", title: named("claude") });
+  }
+  // The workspace's own shells and agents, and those of its finished runs.
+  const owned = new Set(store.S.cards.filter((c) => c.state === ctx!.dir && wsOfCard(c) === ctx!.ws).map(key));
+  for (const sh of shells.filter((x) => x.run === ctx!.k || (owned.has(x.run) && !liveKeys.has(x.run))))
+    out.push({ id: "sh:" + sh.key, kind: sh.agent ? "agent" : "shell", agent: sh.agent || undefined, title: sh.title, key: sh.key });
+  // Opened by hand: a finished run (read-only), History, localhost, Preview, notes. A run's tab whose card left the board goes.
+  const mine = s.tabs.flatMap((t) => {
+    if (t.kind !== "run") return [t];
+    const c = byKey(t.ck!);
+    return c ? [{ ...t, title: subLabel(c), ro: finished(c) }] : [];
+  });
+  const all = [...out.filter((t) => !s.hidden.includes(t.id)), ...mine];
+  return all.filter((t, i) => all.findIndex((x) => x.id === t.id) === i);
 }
 // An agent's tab shows the agent's own mark when the sprite has one.
-const icon = (t: Tab) => (t.agent && MARKS.includes(t.agent) ? raw(`<svg><use href="#i-${t.agent}"/></svg>`) : ico({ agent: "ai", shell: "term", local: "link", preview: "eye", note: "note", wait: "ai" }[t.kind]));
+const icon = (t: Tab) => {
+  if (t.kind === "run") {
+    const c = byKey(t.ck!);
+    return c ? raw(`<span class="si ${stateOf(c)}"></span>`) : ico("ai");
+  }
+  return t.agent && MARKS.includes(t.agent) ? raw(`<svg><use href="#i-${t.agent}"/></svg>`) : ico({ agent: "ai", shell: "term", local: "link", preview: "eye", note: "note", wait: "ai", history: "note" }[t.kind]);
+};
 const elsewhere = new Set<string>();
 
 let switched: string | null = null; // the project a deep link last switched the board to
+const none = (t: string) => void ($("rtabs").innerHTML = String(html`<span class="rnone">${t}</span>`));
 // Called by go("run") and on every /state: draws the tab strip and keeps the panes.
-export async function showRunView() {
+export async function showRunView(nav = false) {
   const p = new URLSearchParams(location.search),
     dir = p.get("dir"),
     id = p.get("id"),
     idea = p.get("idea");
-  // A workspace (?view=ws&dir=&ws=): its most urgent run's view, the ws kept in the address.
-  if (p.get("view") === "ws") {
-    const w = wsCard(dir, p.get("ws"), store.S.cards);
-    if (w) {
-      history.replaceState(null, "", cardHref(w) + "&ws=" + encodeURIComponent(p.get("ws") ?? ""));
-      return showRunView();
+  let ws = p.get("ws"),
+    want: any = null; // the card the address names, whose tab is selected
+  // A project this board is not showing: a deep link names its project, switched to once, as a rail click does.
+  const away = async () => {
+    if (store.all || !dir || dir === store.dir || dir === switched) return false;
+    switched = dir;
+    await pick(dir).catch(() => {});
+    return true;
+  };
+  if (p.get("view") === "ws" && ws) {
+    if (await away()) return showRunView(nav);
+  } else {
+    const find = (cs) => cs.find((x) => x.state === dir && (id ? x.kind === "run" && x.id === id : x.kind === "idea" && x.text === idea));
+    const c = find(store.S.cards);
+    // A launched idea becomes a run: its agent session moves to the run's card, and the view follows.
+    const pk = idea && (c ?? card)?.kind === "idea" && (c ?? card)?.pty?.key;
+    const run = pk && store.S.cards.find((x) => x.kind === "run" && x.state === dir && (x.pty?.key === pk || x.pty?.all?.includes(pk)));
+    if (run) {
+      history.replaceState(null, "", cardHref(run));
+      markCurrent();
+      return showRunView(nav);
     }
-    if (!store.all && dir && dir !== store.dir && dir !== switched) {
-      switched = dir;
-      await pick(dir).catch(() => {});
-      return showRunView();
+    if (!c) {
+      if (await away()) return showRunView(nav);
+      if (!store.all && find(railData().cards)) location.href = "/?all=1&" + p.toString();
+      else (stopPanes(), (ctx = card = null), none(`That ${id ? "run" : "idea"} is not on this board.`));
+      return;
     }
-    if (card) (stopPanes(), (card = null));
-    $("rtabs").innerHTML = String(html`<span class="rnone">No runs in this workspace yet.</span>`);
-    return;
+    want = c;
+    ws = wsOfCard(c);
   }
-  const find = (cs) => cs.find((x) => x.state === dir && (id ? x.kind === "run" && x.id === id : x.kind === "idea" && x.text === idea));
-  const c = find(store.S.cards);
-  // A launched idea becomes a run: its agent session moves to the run's card, and the view follows.
-  const pk = idea && (c ?? card)?.kind === "idea" && (c ?? card)?.pty?.key;
-  const run = pk && store.S.cards.find((x) => x.kind === "run" && x.state === dir && (x.pty?.key === pk || x.pty?.all?.includes(pk)));
-  if (run) {
-    history.replaceState(null, "", cardHref(run));
-    markCurrent();
-    return showRunView();
-  }
-  if (!c) {
-    // A project this board is not showing: the all-projects board has it.
-    // A deep link names its project: switch to it once, the way a rail click does.
-    if (!store.all && dir && dir !== store.dir && dir !== switched) {
-      switched = dir;
-      await pick(dir).catch(() => {});
-      return showRunView();
-    }
-    if (!store.all && find(railData().cards)) location.href = "/?all=1&" + p.toString();
-    else $("rtabs").innerHTML = String(html`<span class="rnone">That ${id ? "run" : "idea"} is not on this board.</span>`);
-    return;
-  }
-  const fresh = !card || runKey(card) !== runKey(c);
-  // Each run has its own centre: switching runs unmounts this one's panes (its shells keep running on the server).
-  if (fresh) stopPanes();
-  card = c;
-  // A phone titles the workspace with the run, in the page header.
-  document.querySelector(".hdr h1")!.textContent = titleOf(c);
-  if (fresh || store.openKey !== key(c)) open(c);
+  if (!dir || !ws) return void (stopPanes(), (ctx = card = null), none("That workspace is not on this board."));
+  const k = wsKey(dir, ws);
+  const fresh = ctx?.k !== k;
+  // Each workspace has its own centre: switching unmounts this one's panes (its shells keep running on the server).
+  if (fresh) (stopPanes(), (card = null), (ctx = { dir, ws, k }));
+  // The header titles a phone's workspace: the run, else the branch.
+  const w = railData().projects?.find((x) => x.dir === dir)?.workspaces?.find((x) => x.path === ws);
+  document.querySelector(".hdr h1")!.textContent = want ? titleOf(want) : w?.branch || ws.split(/[\\/]/).pop() || "Workspace";
+  // Layouts saved per run before workspaces move to their workspace; keys no card owns stay.
+  if (migrate(ALL, store.S.cards, key, wsOfCard)) save();
   try {
-    const r = await fetch("/shells?dir=" + encodeURIComponent(c.state));
+    const r = await fetch("/shells?dir=" + encodeURIComponent(dir));
     shells = r.ok ? await r.json() : [];
   } catch {}
   if (fresh) {
     try {
-      agents = (await (await fetch("/agents?dir=" + encodeURIComponent(c.state))).json()).agents ?? [];
+      const d = await (await fetch("/agents?dir=" + encodeURIComponent(dir))).json();
+      agents = d.agents ?? [];
+      defAgent = d.default ?? "";
     } catch {}
   }
-  if (card !== c) return;
-  // Nothing to show (no board-launched agent, no shell, no tab saved): the run's own Claude
-  // session resumed here, else a shell in the project, once per run per visit, so the centre
-  // is never blank. Only the run's recorded session is ever resumed; nothing new is started.
-  if (!tabs().length && !noPty && !autoShell.has(runKey(c))) {
-    autoShell.add(runKey(c));
-    return void (c.kind === "run" ? openAgent() : newPty());
+  if (ctx?.k !== k) return;
+  if (want && nav) {
+    // Every navigation (a notification, a Board card, a link) selects the card's tab, even for an address already open: a finished run opens read-only, a hidden one comes back.
+    const tid = "rn:" + key(want),
+      s = saved();
+    s.hidden = s.hidden.filter((h) => h !== tid);
+    if (!tabs().some((t) => t.id === tid)) s.tabs.push({ id: tid, kind: "run", title: subLabel(want), ck: key(want) });
+    s.on = screens().find((sc) => leaves(sc.tree).includes(tid))?.id ?? s.on;
+    save();
+  }
+  // A workspace with nothing open starts the default agent in its folder: no run is made;
+  // the agent's kaizen skill makes one when you ask for work. A live run whose own Claude
+  // session is not open anywhere on the board is resumed here, once per visit, beside its tab.
+  if (!noPty) {
+    if (!tabs().length && !autoShell.has(k)) return void (autoShell.add(k), newPty(defAgent || undefined));
+    if (want && want.kind === "run" && !finished(want) && !want.pty && !shells.some((x) => x.run === key(want)) && !autoShell.has(key(want))) {
+      autoShell.add(key(want));
+      void openAgent(want, false, false);
+    }
   }
   draw();
 }
@@ -188,13 +221,18 @@ function draw() {
     cur = scs.find((sc) => sc.id === s.on);
   const item = (id: string) => ts.find((t) => t.id === id)!;
   const PTY = !noPty;
-  const menu = html`<div class="menu-pop">${PTY ? html`<button data-n="shell">${ico("term")}<span>Shell<small>a terminal in the project folder</small></span></button>` : ""}<button data-n="local">${ico("link")}<span>Localhost<small>the project's dev server</small></span></button><button data-n="preview">${ico("eye")}<span>Preview<small>the run's Preview</small></span></button>${PTY ? agents.map((a) => html`<button data-n="agent:${a.cmd}">${MARKS.includes(a.cmd) ? raw(`<svg><use href="#i-${a.cmd}"/></svg>`) : ico("ai")}<span>${a.name} session<small>the agent alone, no run</small></span></button>`) : ""}</div>`;
+  const mark = (a) => (MARKS.includes(a.cmd) ? raw(`<svg><use href="#i-${a.cmd}"/></svg>`) : ico("ai"));
+  const dflt = agents.find((a) => a.cmd === defAgent);
+  // A tab holding a run that waits on you has no ×.
+  const stuck = (ids: string[]) => ids.some((id) => item(id).kind === "run" && awaiting(byKey(item(id).ck!)));
+  const back = hiddenRuns(wsCards(), s.hidden, key);
+  const menu = html`<div class="menu-pop">${PTY && dflt ? html`<button data-n="agent:${dflt.cmd}">${mark(dflt)}<span>New agent here<small>${dflt.name} in this folder</small></span></button>` : ""}${PTY ? html`<button data-n="shell">${ico("term")}<span>Shell<small>a terminal in this folder</small></span></button>` : ""}<button data-n="local">${ico("link")}<span>Localhost<small>the project's dev server</small></span></button><button data-n="preview">${ico("eye")}<span>Preview<small>the run's Preview</small></span></button><button data-n="history">${ico("note")}<span>History<small>finished runs in this workspace</small></span></button>${back.length ? html`<b class="mh">Reopen</b>${back.map((c) => html`<button data-n="reopen:${key(c)}">${ico("arrow")}<span>${subLabel(c)}<small>a run whose tab was closed</small></span></button>`)}` : ""}${PTY ? agents.filter((a) => a !== dflt).map((a) => html`<button data-n="agent:${a.cmd}">${mark(a)}<span>${a.name} session<small>the agent alone, no run</small></span></button>`) : ""}</div>`;
   $("rtabs").innerHTML = String(
     html`${scs.map((sc) => {
       const ids = leaves(sc.tree),
         first = item(ids[0]),
         title = ids.map((id) => item(id).title).join(" + ");
-      return html`<button class="rtab${sc.id === s.on ? " on" : ""}" data-t="${sc.id}" draggable="true" title="${title}">${icon(first)}<span>${title}</span><i data-xs="${sc.id}" role="button" aria-label="Close ${title}" title="Close tab">×</i></button>`;
+      return html`<button class="rtab${sc.id === s.on ? " on" : ""}" data-t="${sc.id}" draggable="true" title="${title}">${icon(first)}<span>${title}</span>${stuck(ids) ? "" : html`<i data-xs="${sc.id}" role="button" aria-label="Close ${title}" title="Close tab">×</i>`}</button>`;
     })}<details class="radd" data-mode="tab"><summary class="rbtn" title="New tab" aria-label="New tab">${ico("plus")}</summary>${menu}</details><span class="sp"></span>${cur ? html`<details class="radd rsplit" data-mode="cols"><summary class="rbtn" title="Split right: add to this tab" aria-label="Split right">${ico("lcols")}</summary>${menu}</details><details class="radd rsplit" data-mode="rows"><summary class="rbtn" title="Split down: add to this tab" aria-label="Split down">${ico("lrows")}</summary>${menu}</details>` : ""}<button class="rbtn" id="rside" title="Show or hide the run panel" aria-label="Show or hide the run panel" aria-pressed="${String(document.body.classList.contains("rflip"))}">${ico("open")}</button>`,
   );
   $("rtabs").querySelector(".rtab.on")?.scrollIntoView({ block: "nearest", inline: "nearest" });
@@ -203,6 +241,9 @@ function draw() {
   for (const [id, p] of panes)
     if (!ts.some((t) => t.id === id)) {
       p.off?.();
+      stageTerm.get(id)?.off?.();
+      stageTerm.delete(id);
+      parkPanel(p.el);
       p.el.remove();
       panes.delete(id);
     }
@@ -212,7 +253,9 @@ function draw() {
     p.el.hidden = !shown.includes(id);
     p.el.classList.toggle("split", shown.length > 1);
     p.el.classList.toggle("focus", shown.length > 1 && id === cur?.focus);
+    p.el.classList.toggle("ro", !!item(id)?.ro);
     p.el.querySelector(".ph span")!.textContent = item(id)?.title ?? "";
+    if (item(id)?.kind === "history") fillHistory(p.el);
   }
   // The tree is rebuilt only when it changes: moving a pane in the DOM reloads its frame.
   const sig = cur ? cur.id + JSON.stringify(cur.tree) : "";
@@ -224,8 +267,77 @@ function draw() {
   }
   // One empty note at most: every draw used to append another.
   box.querySelector(".rempty")?.remove();
-  if (!scs.length) box.insertAdjacentHTML("beforeend", String(html`<div class="empty rempty"><b>No tabs open</b><p>Open a shell, the project's localhost or the Preview with +.</p></div>`));
+  if (!scs.length) box.insertAdjacentHTML("beforeend", String(html`<div class="empty rempty"><b>No tabs open</b><p>Open an agent, a shell, the project's localhost or the Preview with +.</p></div>`));
+  mountPanel(ts, cur);
   wire();
+}
+
+// The run panel (#panel) is one element: it moves into the focused run tab, under that tab's
+// Plan · Build · Review, and is filled by open() as it is anywhere else.
+const appHome = () => document.querySelector(".app")!;
+function parkPanel(inside: HTMLElement) {
+  if (!inside.contains($("panel"))) return;
+  appHome().append($("panel"));
+  $("panel").classList.add("parked"); // no run tab to show: hidden, not docked
+}
+function mountPanel(ts: Tab[], cur?: Screen) {
+  const t = ts.find((x) => x.id === cur?.focus);
+  const c = t?.kind === "run" && byKey(t.ck!);
+  if (!t || !c) return void $("panel").classList.toggle("parked", !$("panel").closest(".rslot")); // docked nowhere: hidden
+  const slot = panes.get(t.id)!.el.querySelector<HTMLElement>(".rslot")!;
+  const moved = $("panel").parentElement !== slot;
+  if (moved) (slot.append($("panel")), $("panel").classList.remove("parked"));
+  card = c;
+  if (moved || store.openKey !== key(c)) void Promise.resolve(open(c)).then(() => subs(t));
+  subs(t);
+}
+// The sub-tabs: the one the panel shows is lit, one whose file is not written yet is dimmed.
+const SUBS = [["Plan", "plan"], ["Build", "impl"], ["Review", "review"]];
+// The terminal the board launched for the shown stage sits beside the stage's file; a stage
+// without one shows the file alone. One live xterm per pty: the key has no tab of its own.
+const stageTerm = new Map<string, { key: string; off: null | (() => void) }>();
+function stageTermFor(t: Tab) {
+  const c = byKey(t.ck!),
+    el = panes.get(t.id)?.el.querySelector<HTMLElement>(".rstage");
+  if (!c || !el) return;
+  const k = stageKeys(c)[store.tab] ?? "",
+    cur = stageTerm.get(t.id);
+  if (cur?.key === k) return;
+  cur?.off?.();
+  stageTerm.delete(t.id);
+  el.hidden = !k;
+  el.replaceChildren();
+  if (!k) return;
+  const term = document.createElement("div");
+  term.className = "term";
+  el.append(term);
+  const rec = { key: k, off: null as null | (() => void) };
+  stageTerm.set(t.id, rec);
+  termLoad()
+    .then((m) => {
+      if (stageTerm.get(t.id) === rec) rec.off = m(term, k, () => load(true));
+    })
+    .catch(() => (term.textContent = "The terminal could not load."));
+}
+function subs(t: Tab) {
+  const el = panes.get(t.id)?.el;
+  const doc = store.runDoc && store.runDoc.id === byKey(t.ck!)?.id ? store.runDoc : null;
+  el?.querySelectorAll<HTMLButtonElement>("[data-sub]").forEach((b) => {
+    b.classList.toggle("on", store.tab === b.dataset.sub);
+    b.disabled = !doc?.[b.dataset.sub!];
+  });
+  stageTermFor(t);
+}
+// History: the workspace's finished runs, newest first; one opens read-only.
+function fillHistory(el: HTMLElement) {
+  const list = historyOf(store.S.cards, ctx!.dir, ctx!.ws, wsOfCard),
+    now = Date.now();
+  const box = el.querySelector(".rhist")!;
+  box.innerHTML = String(
+    list.length
+      ? html`${list.map((c) => html`<button class="rrow" data-hist="${key(c)}"><span class="si ${stateOf(c)}"></span><b>${titleOf(c)}</b><small>${c.status} · ${age(c.moved ?? now, now)} ago</small></button>`)}`
+      : html`<p class="rnone">No finished runs in this workspace yet.</p>`,
+  );
 }
 
 let shownSig = "";
@@ -308,7 +420,13 @@ function makePane(t: Tab) {
   const p = { el, off: null as null | (() => void) };
   panes.set(t.id, p);
   $("rpanes").append(el);
-  if (t.kind === "agent" || t.kind === "shell") {
+  if (t.kind === "run") {
+    const isRun = byKey(t.ck!)?.kind === "run";
+    el.insertAdjacentHTML("beforeend", String(html`${isRun ? html`<nav class="rsub" aria-label="Run stages">${SUBS.map(([n, k]) => html`<button type="button" data-sub="${k}">${n}</button>`)}<span class="rro">Read-only</span></nav>` : ""}<div class="rwrap"><div class="rslot"></div><div class="rstage" hidden></div></div>`));
+  } else if (t.kind === "history") {
+    el.insertAdjacentHTML("beforeend", String(html`<div class="rhist md"></div>`));
+    fillHistory(el);
+  } else if (t.kind === "agent" || t.kind === "shell") {
     const term = document.createElement("div");
     term.className = "term";
     el.append(term);
@@ -320,16 +438,16 @@ function makePane(t: Tab) {
   } else if (t.kind === "wait")
     el.insertAdjacentHTML(
       "beforeend",
-      String(html`<div class="empty rwait"><b>This run's agent is running in another terminal</b><p>One conversation cannot run in two places. Close it there, then open it here.</p><button type="button" class="rwin" data-b="recheck">${ico("refresh")}<span>Open here</span></button></div>`),
+      String(html`<div class="empty rwait"><b>This run's agent is running in another terminal</b><p>One conversation cannot run in two places. Close it there, then open it here.</p><button type="button" class="rwin" data-b="recheck" data-k="${t.id.slice(5)}">${ico("refresh")}<span>Open here</span></button></div>`),
     );
   else if (t.kind === "local") browser(el);
-  else if (t.kind === "note") el.insertAdjacentHTML("beforeend", String(html`<iframe class="rframe" title="${t.title}" src="/notebook?dir=${encodeURIComponent(card.state)}&note=${encodeURIComponent(t.note!)}&embed=1"></iframe>`));
+  else if (t.kind === "note") el.insertAdjacentHTML("beforeend", String(html`<iframe class="rframe" title="${t.title}" src="/notebook?dir=${encodeURIComponent(ctx!.dir)}&note=${encodeURIComponent(t.note!)}&embed=1"></iframe>`));
   else void previewPane(el);
 }
 
 // The localhost tab: a URL bar over an iframe. The URL is kept per project.
 function browser(el: HTMLElement) {
-  const k = "kz-browse:" + card.state;
+  const k = "kz-browse:" + ctx!.dir;
   let url = "http://localhost:3000";
   try {
     url = localStorage.getItem(k) || url;
@@ -412,8 +530,8 @@ async function openWindow(u: string) {
 // app link when it names a localhost address. The address is framed only when the Preview
 // has no images: the dev server a run used is often gone, and a dead frame hides the proof.
 async function previewPane(el: HTMLElement) {
-  let doc = store.runDoc && store.runDoc.id === card.id ? store.runDoc : null;
-  if (!doc && card.kind === "run")
+  let doc = store.runDoc && store.runDoc.id === card?.id ? store.runDoc : null;
+  if (!doc && card?.kind === "run")
     try {
       doc = await (await fetch(`/run/${encodeURIComponent(card.id)}?dir=${encodeURIComponent(card.state)}`)).json();
     } catch {}
@@ -462,14 +580,14 @@ const openPreview = () => addTab({ id: "preview", kind: "preview", title: "Previ
 
 // The run's recorded session, resumed in a board terminal tied to it. While it still runs in
 // another terminal the server says so (409 live) and a tab explains; with no session, a shell.
-async function openAgent(again = false) {
-  const k = runKey(card);
-  const r = await fetch("/shell", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ dir: card.state, run: k, resume: true }) }).catch(() => null);
+async function openAgent(c, again = false, focus = true) {
+  const k = key(c);
+  const r = await fetch("/shell", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ dir: c.state, ws: ctx!.ws, run: k, resume: true }) }).catch(() => null);
   if (r?.ok) {
     elsewhere.delete(k);
     const sh = await r.json();
     shells.push(sh);
-    return show("sh:" + sh.key);
+    return focus ? show("sh:" + sh.key) : draw();
   }
   const j: any = r ? await r.json().catch(() => ({})) : {};
   if (r?.status === 409 && j.live) {
@@ -479,12 +597,11 @@ async function openAgent(again = false) {
   }
   elsewhere.delete(k);
   if (again) toast(j.error || "Could not resume the session");
-  else if (!tabs().length) void newPty();
   else draw();
 }
 
 async function newPty(agent?: string) {
-  const r = await fetch("/shell", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ dir: card.state, run: runKey(card), ...(agent ? { agent } : {}) }) });
+  const r = await fetch("/shell", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ dir: ctx!.dir, ws: ctx!.ws, run: ctx!.k, ...(agent ? { agent } : {}) }) });
   if (r.status === 501) {
     noPty = true;
     return draw();
@@ -505,12 +622,17 @@ async function newPty(agent?: string) {
 
 async function closeTab(id: string) {
   const s = saved();
+  if (id.startsWith("rn:") && awaiting(byKey(id.slice(3)))) return; // a run waiting on you stays open
   if (id.startsWith("sh:")) {
     await post("/pty/exit", { key: id.slice(3) });
     shells = shells.filter((x) => "sh:" + x.key !== id);
   } else if (id.startsWith("agent:")) s.hidden.push(id);
-  else if (id === "wait") elsewhere.delete(runKey(card));
-  else s.tabs = s.tabs.filter((t) => t.id !== id);
+  else if (id.startsWith("wait:")) elsewhere.delete(id.slice(5));
+  else {
+    // A run's tab: a live one is hidden (it comes back when its address is opened), a finished one goes.
+    if (id.startsWith("rn:")) (parkPanel(panes.get(id)!.el), s.hidden.push(id));
+    s.tabs = s.tabs.filter((t) => t.id !== id);
+  }
   save();
   draw();
 }
@@ -560,6 +682,10 @@ function wire() {
       if (n === "shell") void newPty();
       else if (n.startsWith("agent:")) void newPty(n.slice(6));
       else if (n === "local") addTab({ id: "local", kind: "local", title: "localhost" });
+      else if (n.startsWith("reopen:")) {
+        s.hidden = s.hidden.filter((h) => h !== "rn:" + n.slice(7));
+        show("rn:" + n.slice(7));
+      } else if (n === "history") addTab({ id: "history", kind: "history", title: "History" });
       else openPreview();
       return;
     }
@@ -584,7 +710,25 @@ function wire() {
   $("rpanes").onclick = (e) => {
     const x = (e.target as HTMLElement).closest<HTMLElement>(".ph [data-x]")?.dataset.x;
     if (x) return void closeTab(x);
-    if ((e.target as HTMLElement).closest("[data-b=recheck]")) return void openAgent(true);
+    const rk = (e.target as HTMLElement).closest<HTMLElement>("[data-b=recheck]")?.dataset.k;
+    if (rk && byKey(rk)) return void openAgent(byKey(rk), true);
+    // The panel's own strip (the only stage switch on a phone) changes the stage too: its terminal follows.
+    if (card && e.composedPath().some((n) => (n as HTMLElement).id === "ptabs")) {
+      const t = tabs().find((x) => x.id === "rn:" + key(card));
+      if (t) subs(t);
+    }
+    const sub = (e.target as HTMLElement).closest<HTMLElement>("[data-sub]");
+    if (sub && card) {
+      $("panel").classList.remove("pn");
+      store.tab = sub.dataset.sub!;
+      const t = tabs().find((x) => x.id === "rn:" + key(card));
+      return void openRun(card, true).then(() => t && subs(t));
+    }
+    const hist = (e.target as HTMLElement).closest<HTMLElement>("[data-hist]")?.dataset.hist;
+    if (hist && byKey(hist)) {
+      const c = byKey(hist);
+      return addTab({ id: "rn:" + hist, kind: "run", title: subLabel(c), ck: hist });
+    }
     const mv = (e.target as HTMLElement).closest<HTMLElement>("[data-mv]");
     if (mv) {
       const id = mv.closest<HTMLElement>(".rpane")!.dataset.t!;
@@ -668,13 +812,14 @@ function wire() {
 
 // Leaving the workspace: its terminals unmount; the shells keep running on the server.
 function stopPanes() {
+  parkPanel($("rpanes"));
   for (const p of panes.values()) p.off?.();
   panes.clear();
   $("rpanes").innerHTML = "";
 }
 export function runStop() {
   stopPanes();
-  card = null;
+  card = ctx = null;
   $("panel").classList.remove("pn");
 }
 
@@ -685,7 +830,7 @@ async function projectNotes() {
   const box = $("pnlist");
   box.innerHTML = "";
   try {
-    const d = await (await fetch("/vault?dir=" + encodeURIComponent(card.state))).json();
+    const d = await (await fetch("/vault?dir=" + encodeURIComponent(ctx!.dir))).json();
     const names: string[] = (d.notes ?? []).map((n) => n.name).sort();
     // Folders first-level as headings, notes under them: "Project/Web board" shows under Project.
     const groups = new Map<string, string[]>();
@@ -704,16 +849,6 @@ async function projectNotes() {
 }
 
 export function initRunView() {
-  // A phone's sheet closes with the panel's ×, which here hides the sheet rather than closing the card.
-  document.addEventListener(
-    "click",
-    (e) => {
-      if (!document.body.classList.contains("runv") || !(e.target as Element).closest?.("#pclose")) return;
-      e.stopPropagation();
-      document.body.classList.remove("rflip");
-    },
-    true,
-  );
   addEventListener("kz-run-preview", openPreview);
   $("pnotes").onclick = () => void projectNotes();
   $("pnlist").onclick = (e) => {
@@ -722,7 +857,7 @@ export function initRunView() {
   };
   // A /state change: new or ended sessions, the card's own state. Panes stay mounted.
   addEventListener("kz-state", () => {
-    if (card && document.body.classList.contains("runv")) void showRunView();
+    if (ctx && document.body.classList.contains("runv")) void showRunView();
   });
 }
 // Opens a card's workspace, its address in the history.

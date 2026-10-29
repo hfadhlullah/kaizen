@@ -3,7 +3,7 @@ import { test, expect, beforeEach } from "bun:test";
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { startWorktree, landWorktree, codeDir, projectFromWorktree, run, workspaces, workspacesNow, addWorktree, wsOf, type Run } from "./worktree.ts";
+import { startWorktree, landWorktree, codeDir, projectFromWorktree, run, workspaces, workspacesNow, addWorktree, wsOf, adoptWorkspace, type Run } from "./worktree.ts";
 
 const ID = "2026-10-17-demo";
 // CI runners have no git identity, and landWorktree's rebase writes commits.
@@ -130,6 +130,17 @@ test("workspaces: the main checkout, then each worktree; a folder that is not gi
   expect(wsOf(project, { worktree: (r as any).path })).toBe((r as any).path);
   expect(wsOf(project, { worktree: join(project, ".kaizen/wt/gone") })).toBe(project);
   expect(wsOf(project, {})).toBe(project);
+});
+
+test("adoptWorkspace: a run started inside another workspace is placed there, with no worktree of its own", () => {
+  const r = addWorktree(project, "feat/two", idRun) as { path: string };
+  expect(adoptWorkspace(project, ID, project)).toBeNull(); // the main checkout: a normal start
+  mkdirSync(join(r.path, "sub"));
+  expect(adoptWorkspace(project, ID, join(r.path, "sub"))).toEqual({ ok: true, path: r.path });
+  expect(state().workspace).toBe(r.path);
+  expect(state().worktree).toBeUndefined(); // land must never remove a folder the user made
+  expect(wsOf(project, state())).toBe(r.path);
+  expect(codeDir(project, ID)).toBe(project);
 });
 
 test("workspacesNow: answers at once, refreshes git in the background, one call at a time", async () => {

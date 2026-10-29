@@ -63,7 +63,7 @@ export function go(v, push) {
   openPhone(ph ? "home" : v === "device" ? "device" : null);
   if (v === "ideas") openIdeas();
   // After the panel handling below, which closes the board's panel on the way in.
-  if (v === "run") queueMicrotask(() => void showRunView());
+  if (v === "run") queueMicrotask(() => void showRunView(true));
   // The Terminal page is the board's own area, not the docked panel: the panel closes as on the board.
   if (AREA.includes(v)) {
     if (AREA.includes(was)) {

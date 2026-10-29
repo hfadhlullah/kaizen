@@ -87,7 +87,7 @@ export function open(c, keepTab) {
   if (!keepTab)
     store.lastTab = store.tab =
       c.status === "abandoned" ? "plan" : { 1: "plan", 2: "backlog", 3: "review", 4: "preview" }[c.column] || "request";
-  openRun(c, false);
+  return openRun(c, false);
 }
 // A building run's Backlog tab opens with its progress, above the deferred items. The
 // first draw of a run animates nothing; later ones animate what moved, the bar included.
