@@ -7,6 +7,7 @@ import { store } from "./store.ts";
 import { $, html, modal, raw } from "./dom.ts";
 import { age, need } from "./labels.ts";
 import { openAdd } from "./add-project.ts";
+import { dueWord, gitDue, pickable } from "./ws-tabs.ts";
 
 const DAY = 864e5;
 const STAGE = ["idea", "planning", "building", "reviewing", "done"];
@@ -15,7 +16,7 @@ export function stateOf(c) {
   // An idea whose agent is working is a run being born: show it as planning.
   if (c.kind === "idea") return !c.pty?.alive ? "idle" : c.pty.asking ? "wait" : c.pty.busy ? "plan" : "idle";
   if (c.status === "waiting" || (c.pty?.alive && c.pty.asking)) return "wait";
-  if (c.status === "done") return c.accept === "needs" ? "wait" : "done";
+  if (c.status === "done") return c.accept === "needs" || gitDue(c) ? "wait" : "done";
   if (c.status === "abandoned") return "aband";
   if (c.status === "stalled") return "stalled";
   return c.column >= 3 ? "review" : c.column === 2 ? "build" : "plan";
@@ -26,6 +27,7 @@ export function subline(c, now) {
   const t = c.moved ?? now;
   if (c.status === "waiting") return c.awaiting ? `${STAGE[c.column] ?? "waiting"} · ${need(c.awaiting)}` : "waiting on you";
   if (c.accept === "needs") return "done, not approved";
+  if (gitDue(c)) return `waiting on you · ${dueWord(c)}`;
   if (c.accept === "auto") return `auto-accepted · ${age(t, now)} ago`;
   if (c.status === "done" || c.status === "abandoned") return `${c.status} · ${age(t, now)} ago`;
   if (c.status === "stalled") return `stalled · ${age(t, now)}`;
@@ -138,11 +140,12 @@ function drawList() {
         const n = rows.reduce((a, r) => a + r.cs.length, 0);
         // A + for a new worktree on git projects (the main checkout has a branch).
         const git = p.workspaces.some((w) => w.branch);
-        return html`<div class="pgrp"><button type="button" class="proj${shut ? " shut" : ""}" data-fold="${dir}" title="${dir}" aria-expanded="${String(!shut)}"><svg class="fchev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>${logo(dir, name, last.projects)}<span>${name}</span><span class="c">${n || ""}</span></button>${git ? html`<button type="button" class="wadd" data-wadd="${dir}" title="New workspace in ${name}" aria-label="New workspace in ${name}"><svg aria-hidden="true"><use href="#i-plus"/></svg></button>` : ""}</div>${shut ? "" : rows.map(({ w, cs }) => {
-          // The dot: the most urgent run there. The count: runs waiting on you or finished in the last day.
+        return html`<div class="pgrp"><button type="button" class="proj${shut ? " shut" : ""}" data-fold="${dir}" title="${dir}" aria-expanded="${String(!shut)}">${logo(dir, name, last.projects)}<span class="pname">${name}</span><span class="c">${n || ""}</span><svg class="fchev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>${git ? html`<button type="button" class="wadd" data-wadd="${dir}" title="New workspace in ${name}" aria-label="New workspace in ${name}"><svg aria-hidden="true"><use href="#i-plus"/></svg></button>` : ""}</div>${shut ? "" : rows.map(({ w, cs }) => {
+          // The dot: the most urgent run there. The count: the runs the panel's picker lists; it opens the picker.
           const st = cs.length ? stateOf([...cs].sort((a, b) => RANK[stateOf(a)] - RANK[stateOf(b)])[0]) : "";
-          const k = cs.filter((c) => ["wait", "done", "aband"].includes(stateOf(c))).length;
-          return html`<a class="row ws" href="${wsHref(dir, w.path)}" data-dir="${dir}" data-ws="${w.path}" title="${w.path}"><span class="si ${st || "none"}"></span><div><b>${wsLabel(w)}</b><small>${k ? String(k) : ""}</small></div></a>`;
+          const k = pickable(cs, dir, w.path, wsOfCard).length;
+          // The count is a sibling of the link (a button inside a link is invalid), laid over its right end.
+          return html`<div class="wsr"><a class="row ws" href="${wsHref(dir, w.path)}" data-dir="${dir}" data-ws="${w.path}" title="${w.path}"><span class="si ${st || "none"}"></span><div><b>${wsLabel(w)}</b></div></a>${k ? html`<button type="button" class="wcount" data-pick data-dir="${dir}" data-ws="${w.path}" title="${k} run${k > 1 ? "s" : ""}: choose one" aria-label="${k} run${k > 1 ? "s" : ""} in ${wsLabel(w)}: choose one">${String(k)}</button>` : ""}</div>`;
         })}`;
       })
       .join("") || `<div class="none">No projects</div>`;
@@ -299,6 +302,12 @@ export function initRail() {
   };
   $("plist").addEventListener("click", (e) => {
     const a = (e.target as Element).closest?.("a.row") as HTMLAnchorElement;
+    const n = (e.target as Element).closest?.("button.wcount") as HTMLElement | null;
+    if (n) {
+      e.preventDefault();
+      // The board answers and cancels the event; the notebook and video pages just open the workspace.
+      return void (ask("kz-pick-run", { dir: n.dataset.dir, ws: n.dataset.ws }) || (location.href = wsHref(n.dataset.dir!, n.dataset.ws!)));
+    }
     if (!a || e.ctrlKey || e.metaKey || e.shiftKey || (e as MouseEvent).button) return;
     if (ask("kz-open-ws", { dir: a.dataset.dir, ws: a.dataset.ws })) e.preventDefault();
   });

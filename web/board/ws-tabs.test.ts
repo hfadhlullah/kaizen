@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { centreKey, embedded, stageShown, loopbackUrl, toOpen, stageKeys, finished, historyOf, liveIn, migrate, wsKey } from "./ws-tabs.ts";
+import { awaiting, dueWord, chosen, loopbackUrl, toOpen, stageKeys, stageTabs, finished, historyOf, liveIn, migrate, pickable, wsKey } from "./ws-tabs.ts";
 
 const run = (id: string, status: string, o: any = {}) => ({ kind: "run", state: "/p/.kaizen", id, status, moved: 1, ws: "/p", ...o });
 const wsOf = (c) => c.ws;
@@ -15,7 +15,7 @@ const cards = [
   { kind: "idea", state: "/p/.kaizen", text: "no agent", ws: "/p" },
 ];
 
-test("live runs get a tab; an idea only with its agent; a run waiting on approval stays", () => {
+test("live runs get terminals; an idea only with its agent; a run waiting on approval stays", () => {
   expect(liveIn(cards, "/p/.kaizen", "/p", wsOf).map((c) => c.id ?? c.text)).toEqual(["a", "b", "e", "t"]);
   expect(liveIn(cards, "/p/.kaizen", "/p/.kaizen/wt/x", wsOf).map((c) => c.id)).toEqual(["f"]);
   expect(finished(cards[4])).toBe(false);
@@ -45,7 +45,6 @@ test("migrate: a run's saved layout moves to its workspace; unknown keys stay; n
   expect(migrate(all, cards, key, wsOf)).toBe(false); // once
 });
 
-import { awaiting, hiddenRuns } from "./ws-tabs.ts";
 test("awaiting: waiting, accept-needed and asking runs are not closable; a building run is", () => {
   expect(awaiting(run("a", "waiting"))).toBe(true);
   expect(awaiting(run("e", "done", { accept: "needs" }))).toBe(true);
@@ -53,14 +52,14 @@ test("awaiting: waiting, accept-needed and asking runs are not closable; a build
   expect(awaiting(run("b", "building"))).toBe(false);
   expect(awaiting(run("c", "done"))).toBe(false);
 });
-test("hiddenRuns: live runs whose tab is hidden come back in the + menu", () => {
-  const live = liveIn(cards, "/p/.kaizen", "/p", wsOf);
-  expect(hiddenRuns(live, ["rn:b", "agent:x"], (c) => c.id).map((c) => c.id)).toEqual(["b"]);
-  expect(hiddenRuns(live, [], (c) => c.id)).toEqual([]);
-});
-
 test("stageKeys: recorded impl/review terminals; plan is the unclaimed first agent until a stage is launched", () => {
-  expect(stageKeys({ kind: "run", pty: { all: ["a"] } })).toEqual({ plan: "a" });
+  expect(stageKeys({ kind: "run", column: 1, pty: { all: ["a"] } })).toEqual({ plan: "a" });
+  // A lone unrecorded session is named by the run's current stage, never a wrong one; plain when that is unknown.
+  expect(stageKeys({ kind: "run", column: 2, pty: { all: ["a"] } })).toEqual({ impl: "a" });
+  expect(stageKeys({ kind: "run", column: 3, pty: { all: ["a"] } })).toEqual({ review: "a" });
+  expect(stageKeys({ kind: "run", column: 4, pty: { all: ["a"] } })).toEqual({});
+  expect(stageTabs({ kind: "run", column: 2, pty: { all: ["a"] } }, "Claude Code")).toEqual([{ key: "a", title: "Build · Claude Code" }]);
+  expect(stageTabs({ kind: "run", column: 4, pty: { all: ["a"] } }, "Claude Code")).toEqual([{ key: "a", title: "Claude Code" }]);
   expect(stageKeys({ kind: "run", pty: { all: ["a", "b"], stages: { impl: "b" } } })).toEqual({ impl: "b" });
   expect(stageKeys({ kind: "run", pty: { all: ["b", "c"], stages: { impl: "b", review: "c" } } })).toEqual({ impl: "b", review: "c" });
   expect(stageKeys({ kind: "run", pty: { all: ["x"], stages: { impl: "gone" } } })).toEqual({});
@@ -85,32 +84,37 @@ test("toOpen: a run that moves into review or done opens the Browser once; other
   expect(toOpen(cs, new Set(), ["c"], key).map(key)).toEqual(["b"]); // c already opened once
 });
 
-test("liveIn keeps a finished run only while kept; centreKey: stage terminal, else the unclaimed live session, else the file", () => {
-  expect(liveIn(cards, "/p/.kaizen", "/p", wsOf, (c) => c.id === "c").map((c) => c.id ?? c.text)).toEqual(["a", "b", "c", "e", "t"]);
-  const c = { kind: "run", pty: { key: "live", all: ["p", "live"], stages: { plan: "p" } } };
-  expect(centreKey(c, "plan")).toBe("p");
-  expect(centreKey(c, "impl")).toBeNull(); // a stage terminal exists: the live session is an Agent tab, not the centre
-  expect(centreKey({ kind: "run", pty: { key: "p", all: ["p"], stages: { plan: "p" } } }, "impl")).toBeNull();
-  expect(centreKey({ kind: "run" }, "plan")).toBeNull();
+test("pickable: waiting first, then newest; done+approved, abandoned, archived and ideas are not listed", () => {
+  const cs = [run("old", "building", { moved: 1 }), run("new", "building", { moved: 9 }), run("w", "waiting", { moved: 2 }), run("e", "done", { accept: "needs", moved: 3 }), ...cards.slice(2, 4), cards[6], cards[7], cards[5]];
+  expect(pickable(cs, "/p/.kaizen", "/p", wsOf).map((c) => c.id)).toEqual(["e", "w", "new", "old"]);
+  expect(pickable(cs, "/p/.kaizen", "/p/.kaizen/wt/x", wsOf).map((c) => c.id)).toEqual(["f"]);
 });
 
-test("an unclaimed live session is always reachable: in the centre when no stage has a terminal, else an Agent tab", () => {
-  const solo = { kind: "run", pty: { key: "live", all: ["live"], stages: {} } };
-  expect(stageKeys(solo)).toEqual({ plan: "live" }); // claimed as the plan
-  const all3 = { kind: "run", pty: { key: "x", all: ["p", "b", "r", "x"], stages: { plan: "p", impl: "b", review: "r" } } };
-  for (const s of ["plan", "impl", "review"]) expect(centreKey(all3, s)).not.toBe("x");
-  expect(embedded(all3).sort()).toEqual(["b", "p", "r"]); // x is not embedded: tabs() gives it an Agent tab
-  const two = { kind: "run", pty: { key: "x", all: ["a", "x"] } };
-  expect(embedded(two)).toEqual(["a"]);
-  expect(embedded({ kind: "run", pty: { key: "x", all: ["x"], stages: { impl: "gone" } } }).includes("x")).toBe(true);
-  expect(centreKey({ kind: "run", pty: { key: "x", all: ["x"], stages: { impl: "gone" } } }, "impl")).toBe("x");
+test("chosen: the pick stays while pickable or History, else the first, else none", () => {
+  const live = [run("w", "waiting"), run("b", "building")],
+    hist = [run("d", "done")];
+  expect(chosen(live, hist, "b")?.id).toBe("b"); // sticky: a waiting run does not replace it
+  expect(chosen(live, hist, "d")?.id).toBe("d"); // History pick, read-only
+  expect(chosen(live, hist, "gone")?.id).toBe("w");
+  expect(chosen(live, hist)?.id).toBe("w"); // a fresh visit drops the pick: back to waiting first
+  expect(chosen([], hist, "x")).toBeNull();
+  expect(chosen([], [], null)).toBeNull();
 });
 
-test("stageShown: each run tab keeps its own stage; the panel's choice counts only for the run it shows", () => {
-  const m = new Map<string, string>();
-  expect(stageShown(m, "rn:a", "impl", true)).toBe("impl");
-  expect(stageShown(m, "rn:b", "impl", false)).toBe("plan"); // panel still shows a: b is not touched
-  expect(stageShown(m, "rn:b", "review", true)).toBe("review");
-  expect(stageShown(m, "rn:a", "review", false)).toBe("impl"); // back on a: its own stage
-  expect(stageShown(m, "rn:a", "backlog", true)).toBe("impl"); // not a stage: unchanged
+test("stageTabs: stage terminals are named by stage, the rest numbered by the agent", () => {
+  const c = { kind: "run", pty: { all: ["p", "b", "x", "y"], stages: { plan: "p", impl: "b" } } };
+  expect(stageTabs(c, "Claude")).toEqual([{ key: "p", title: "Plan · Claude" }, { key: "b", title: "Build · Claude" }, { key: "x", title: "Claude 1" }, { key: "y", title: "Claude 2" }]);
+  expect(stageTabs({ kind: "run", pty: { all: ["r", "z"], stages: { impl: "z", review: "r" } } }, "Codex").map((t) => t.title)).toEqual(["Review · Codex", "Build · Codex"]);
+  expect(stageTabs({ kind: "idea", pty: { key: "k" } }, "Claude")).toEqual([{ key: "k", title: "Claude" }]);
+  expect(stageTabs({ kind: "run" }, "Claude")).toEqual([]);
+});
+
+test("a done, approved run with a commit or push still to do stays pickable (waiting); once pushed it is History", () => {
+  const cs = [run("u", "done", { git: "pending", moved: 1 }), run("p", "done", { git: "pushed" }), run("n", "done", { accept: "needs", moved: 0 }), run("x", "done", { git: "pending", archived: true })];
+  expect(pickable(cs, "/p/.kaizen", "/p", wsOf).map((c) => c.id)).toEqual(["u", "n"]);
+  expect(historyOf(cs, "/p/.kaizen", "/p", wsOf).map((c) => c.id)).toEqual(["p", "x"]);
+  expect(dueWord(cs[0])).toBe("commit");
+  expect(dueWord({ ...cs[0], gitDue: "push" })).toBe("push");
+  expect(awaiting(cs[0])).toBe(true);
+  expect(awaiting(cs[1])).toBe(false);
 });

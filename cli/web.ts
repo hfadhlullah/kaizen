@@ -4,7 +4,7 @@ import { existsSync, readdirSync, statSync, lstatSync, realpathSync, readFileSyn
 import { join, dirname, resolve, sep, basename } from "node:path";
 import {
   home, type Item, type Card, boardCards, knownProjects, remember, canonPath, locate, label, tilde, searchRoots, findProjects,
-  readInbox, writeInbox, replaceIdea, moveIdea, abandonRun, runToIdea, launchRun, parseItem, agentChoices, onPath, projectOf, KNOWN_AGENTS, plainModel, short, setArchived, setKept, writeNotes,
+  readInbox, writeInbox, replaceIdea, moveIdea, abandonRun, runToIdea, launchRun, parseItem, agentChoices, onPath, projectOf, KNOWN_AGENTS, plainModel, short, setArchived, writeNotes,
   appendNote, saveAttachment, pidOnPort, readText, cmdExe, sysExe, powershellExe, runGit, cardsGit, readCommit, commitPush, notice, notifier, LOGO,
   reviewFindings, pickFindings, backlogCards, backlogItem, startedBacklog, closeBacklog, markBacklogDone, fixPrompt, approvalPrompt, canApproveAwaiting, gateOf, recordAcceptance, nativePath, closeSessions, sweepSessions, issueUrl,
   launchMode, readSessions, ownerOf, runIndex, resumePrompt, runAgent, firstSession, webHosts,
@@ -993,10 +993,10 @@ export async function web(repoDir: string, opts: Opts = {}) {
         });
         const cards = boardCards(dirs, Date.now()), pty = ptyOf(cards);
         // The git mark, for the cards whose panel offers commit and push: one status per project.
-        const marks = new Map<string, Record<string, string>>();
+        const marks = new Map<string, Record<string, string>>(), dues = new Map<string, Record<string, "commit" | "push">>();
         const markable = (c: Card) => c.kind === "run" && !c.archived && (c.status === "done" || c.awaiting === "approvals.review") && c.state !== join(home, ".kaizen");
         for (const d of new Set(cards.filter(markable).map((c) => c.state)))
-          marks.set(d, cardsGit(d, cards.filter((c) => markable(c) && c.state === d).map((c) => c.id!)));
+          marks.set(d, cardsGit(d, cards.filter((c) => markable(c) && c.state === d).map((c) => c.id!), dues.set(d, {}).get(d)));
         // Open findings the panel's Fix findings form would offer, on the same runs.
         const openFindings = (c: Card) => c.kind === "run" && !c.archived && (c.status === "done" || c.awaiting === "findings" || c.awaiting === "approvals.review") && c.state !== join(home, ".kaizen")
           ? reviewFindings(c.state, c.id!).filter((f) => !f.done).length || undefined : undefined;
@@ -1010,7 +1010,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           // Projects folder): the rail still needs their workspaces so a waiting run shows.
           rail: [...new Set(cards.map((c) => c.state))].filter((d) => !picker.includes(d)).map(entry),
           fresh: unset.map((d) => ({ dir: join(d, ".kaizen"), label: tilde(d) })),
-          cards: cards.map((c) => ({ ...c, notice: notice(c), git: markable(c) ? marks.get(c.state)?.[c.id!] : undefined, open: openFindings(c), pty: pty(c) })),
+          cards: cards.map((c) => ({ ...c, notice: notice(c), git: markable(c) ? marks.get(c.state)?.[c.id!] : undefined, gitDue: markable(c) ? dues.get(c.state)?.[c.id!] : undefined, open: openFindings(c), pty: pty(c) })),
           backlog: backlogCards(dirs).map((b) => ({ ...b, starting: backlogLaunched.has(`${b.state}\0${b.source}#${b.n}`) || undefined })),
           now: Date.now(),
         });
@@ -1632,14 +1632,6 @@ export async function web(repoDir: string, opts: Opts = {}) {
           return json(r.ok
             ? { ok: true, agent: r.agent, project: tilde(r.projectDir), pty: r.pty }
             : { ok: false, why: r.why, manual: r.manual, agent: r.agent }, r.ok ? 200 : 500);
-        }
-
-        // The run view's "keep a finished run open", shared by every device (kept.json).
-        if (path === "/kept") {
-          if (typeof body.id !== "string" || !/^[\w.-]+$/.test(body.id)) return bad("bad run id");
-          setKept(dir, body.id, body.kept !== false);
-          changed();
-          return json({ ok: true });
         }
 
         // Archive is a list beside the runs, never a move: a run keeps its directory

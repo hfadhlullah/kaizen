@@ -1,6 +1,6 @@
 // The workspace centre's logic without the DOM, so it is tested alone (ws-tabs.test.ts):
-// which runs have a tab, which are History, and how the old per-run tab layouts move to
-// their workspace.
+// which runs the panel's picker lists, which are History, how stage terminals are named, and
+// how the old per-run tab layouts move to their workspace.
 // A screen's layout is a tmux-style tree: a leaf is an item id; a split holds two or more
 // children side by side ("cols") or stacked ("rows"), with their relative sizes.
 export type Node = string | { dir: "cols" | "rows"; kids: Node[]; sizes: number[] };
@@ -19,13 +19,15 @@ export function prune(n: Node, keep: (id: string) => boolean): Node | null {
 
 // A workspace's key in the saved tab layouts (localStorage kz-runtabs).
 export const wsKey = (dir: string, ws: string) => `ws:${dir}:${ws}`;
-// A run that is over: done and not waiting on an approval, or abandoned. It is History.
-export const finished = (c) => c.kind === "run" && (c.status === "abandoned" || (c.status === "done" && c.accept !== "needs"));
+// A done, approved run whose commit or push is still to do (the card's git mark): it stays in the picker.
+export const gitDue = (c) => c.kind === "run" && c.status === "done" && c.accept !== "needs" && !c.archived && c.git === "pending";
+export const dueWord = (c) => (c.gitDue === "push" ? "push" : "commit");
+// A run that is over: abandoned, or done and neither waiting on an approval nor on its commit. It is History.
+export const finished = (c) => c.kind === "run" && (c.status === "abandoned" || (c.status === "done" && c.accept !== "needs" && !gitDue(c)));
 const here = (c, dir: string, ws: string, wsOfCard) => c.state === dir && wsOfCard(c) === ws;
-// The cards that get a tab in a workspace: runs not over, ideas whose agent is open, and a
-// finished run kept (`kept(c)`: it was live while the board knew it) until its tab is closed.
-export const liveIn = (cards: any[], dir: string, ws: string, wsOfCard, kept: (c) => boolean = () => false) =>
-  cards.filter((c) => !c.archived && here(c, dir, ws, wsOfCard) && (c.kind === "idea" ? !!c.pty : c.kind === "run" && (!finished(c) || kept(c))));
+// The cards whose agent terminals get tabs in a workspace: runs not over, and ideas whose agent is open.
+export const liveIn = (cards: any[], dir: string, ws: string, wsOfCard) =>
+  cards.filter((c) => !c.archived && here(c, dir, ws, wsOfCard) && (c.kind === "idea" ? !!c.pty : c.kind === "run" && !finished(c)));
 // History: the workspace's finished runs, newest first.
 export const historyOf = (cards: any[], dir: string, ws: string, wsOfCard) =>
   cards.filter((c) => finished(c) && here(c, dir, ws, wsOfCard)).sort((a, b) => (b.moved ?? 0) - (a.moved ?? 0));
@@ -57,10 +59,18 @@ export function migrate(all: Record<string, Saved>, cards: any[], keyOf: (c) => 
   return moved;
 }
 
-// A run that waits on the user (an approval, a question, a done run to accept): its tab is not closed.
-export const awaiting = (c) => c.kind === "run" && (c.status === "waiting" || (c.status === "done" && c.accept === "needs") || !!(c.pty?.alive && c.pty.asking));
-// Live runs whose tab was closed with ×: the + menu offers them back.
-export const hiddenRuns = (live: any[], hidden: string[], keyOf: (c) => string) => live.filter((c) => c.kind === "run" && hidden.includes("rn:" + keyOf(c)));
+// A run that waits on the user (an approval, a question, a done run to accept).
+export const awaiting = (c) => c.kind === "run" && (c.status === "waiting" || (c.status === "done" && c.accept === "needs") || gitDue(c) || !!(c.pty?.alive && c.pty.asking));
+// The panel's picker: the workspace's runs not over (waiting on you first, then the newest), as the
+// sidebar count shows them.
+export const pickable = (cards: any[], dir: string, ws: string, wsOfCard) =>
+  liveIn(cards, dir, ws, wsOfCard)
+    .filter((c) => c.kind === "run")
+    .sort((a, b) => +awaiting(b) - +awaiting(a) || (b.moved ?? 0) - (a.moved ?? 0));
+// The run the panel shows: the one picked while it is still pickable or History, else the first
+// waiting/newest, else none.
+export const chosen = (live: any[], hist: any[], picked?: string | null, keyOf: (c) => string = (c) => c.id) =>
+  [...live, ...hist].find((c) => keyOf(c) === picked) ?? live[0] ?? null;
 
 // The terminal the board launched for each stage of a run: plan/impl/review sub-tab -> pty key.
 // plan, impl and review are recorded when the board launches them (the idea's agent once its run
@@ -73,32 +83,22 @@ export function stageKeys(c): Record<string, string> {
     out: Record<string, string> = {};
   for (const s of ["impl", "review"]) if (st[s] && all.includes(st[s])) out[s] = st[s];
   if (st.plan && all.includes(st.plan)) out.plan = st.plan;
-  // Fallback for a plan the board did not record (a run it did not start): the unclaimed first agent.
-  const first = all.find((k) => !Object.values(st).includes(k));
-  if (!st.plan && first && !Object.keys(st).length) out.plan = first;
+  // Fallback for a terminal the board did not record (a run it did not start): the lone unclaimed agent
+  // is named by the run's current stage (column 1 plan, 2 build, 3 review); at any other point it stays plain.
+  const first = all.find((k) => !Object.values(st).includes(k)),
+    now = { 1: "plan", 2: "impl", 3: "review" }[c.column as number];
+  if (first && now && !Object.keys(st).length) out[now] = first;
   return out;
 }
 
-// The terminal in the centre of a run's tab for the shown stage: that stage's recorded one, else
-// the run's live session when no stage has a terminal at all; null = show the stage file. With a
-// stage terminal recorded, an unclaimed live session is not in the centre: it is an Agent tab.
-export function centreKey(c, stage: string): string | null {
-  const st = stageKeys(c);
-  return st[stage] ?? (c?.kind === "run" && !Object.keys(st).length ? c.pty?.key ?? null : null);
-}
-// The pty keys shown in a run's centre, so they get no Agent tab of their own.
-export const embedded = (c): string[] => {
-  const st = Object.values(stageKeys(c));
-  return st.length || !c?.pty?.key ? st : [c.pty.key];
-};
-
-// The stages the panel's Plan / Work / Review strip chooses between, and the one shown in each run
-// tab's centre (`shown`: tab id -> stage). `tab` is the panel's choice; it is this run's only while
-// the panel shows this run (`panelHas`), so switching run tabs never carries a stage across.
-export const STAGES = ["plan", "impl", "review"];
-export function stageShown(shown: Map<string, string>, id: string, tab: string, panelHas: boolean): string {
-  if (panelHas && STAGES.includes(tab)) shown.set(id, tab);
-  return shown.get(id) ?? "plan";
+// A run's terminals as centre tabs: those a stage claimed are named "Plan · Claude", "Build · Claude",
+// "Review · Claude"; the rest keep the agent's name, numbered when there are several.
+export function stageTabs(c, agent: string): { key: string; title: string }[] {
+  const word = { plan: "Plan", impl: "Build", review: "Review" },
+    all: string[] = c?.pty ? c.pty.all ?? [c.pty.key] : [],
+    by = new Map(Object.entries(stageKeys(c)).map(([s, k]) => [k, word[s]])),
+    free = all.filter((k) => !by.has(k));
+  return all.map((key) => ({ key, title: by.has(key) ? `${by.get(key)} · ${agent}` : agent + (free.length > 1 ? " " + (free.indexOf(key) + 1) : "") }));
 }
 
 // A run at review or done: its localhost Preview may open the Browser.

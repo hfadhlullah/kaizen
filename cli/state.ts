@@ -759,7 +759,6 @@ export type Card = {
   inboxIndex?: number;                             // ideas only: line in the project's inbox
   title?: string;                                  // runs only: first line of the request
   archived: boolean;                               // hidden from the board unless asked for
-  kept?: boolean;                                  // runs only: the run view keeps its tab open after it finishes
   branch?: string;                                 // runs only: the run's own branch while it has a worktree
   ws?: string;                                     // runs only: its workspace folder (worktree, else the project)
   tags?: string[];                                 // runs only: runner, agent, "yolo", "unrechecked"
@@ -1148,24 +1147,6 @@ export function setArchived(state: string, id: string, archived: boolean) {
   writeArchive(state, ids);
 }
 
-// Runs the board keeps open as a tab after they finish (the run view's "kept"): a run seen live
-// on any device stays open on every device until its tab is closed. A JSON list of ids in
-// <state>/kept.json, written through POST /kept. Ids whose run is gone, archived or abandoned
-// are dropped on read, and so from the file at its next write.
-export function readKept(state: string): Set<string> {
-  try {
-    const l = JSON.parse(readText(join(state, "kept.json"))), arch = readArchive(state);
-    return new Set(Array.isArray(l) ? l.filter((x) => typeof x === "string" && existsSync(join(state, "runs", x)) && !arch.has(x) && !abandoned(join(state, "runs", x))) : []);
-  } catch { return new Set(); }
-}
-
-export function setKept(state: string, id: string, kept: boolean) {
-  const ids = readKept(state);
-  if (kept) ids.add(id); else ids.delete(id);
-  mkdirSync(state, { recursive: true });
-  writeFileSync(join(state, "kept.json"), JSON.stringify([...ids].sort()) + "\n");
-}
-
 // The request's first real line: not a heading, not a label ending in a colon,
 // quote marker dropped. Long enough to recognise the run, short enough for a card.
 export function requestTitle(text: string) {
@@ -1240,7 +1221,7 @@ export function boardCards(states: string[], now: number): Card[] {
   const launchedInto = (st: string, t: string) => readSessions(st).some((s) => !s.run && normalise(s.text.replace(/^(lite|full|auto|plan)\s+/i, "")) === t.replace(/^(lite|full|auto|plan)\s+/i, "") && ownerOf(st, s, indexOf(st)) !== null);
   for (const st of states) {
     const where = label(st);
-    const archive = readArchive(st), kept = readKept(st);
+    const archive = readArchive(st);
     for (const [inboxIndex, it] of readInbox(st).entries()) {
       if (it.status !== "open" && it.status !== "started" && it.status !== "archived") continue;
       // Retired once any run's request contains this text -- whoever started it.
@@ -1272,7 +1253,6 @@ export function boardCards(states: string[], now: number): Card[] {
         awaiting: r.stage === "abandoned" ? null : r.awaiting,
         dim: r.stage === "abandoned",
         archived: archive.has(r.id),
-        kept: kept.has(r.id),
         branch: r.branch,
         // The workspace it is in: its worktree while that exists, else the main checkout.
         ws: st === join(home, ".kaizen") ? st : wsOf(projectOf(st), r),
@@ -1998,16 +1978,17 @@ export function readCommit(state: string, id: string): { sha: string; pushed: bo
 // The card's git mark for each run asked about, by the rules of the panel's button
 // (`gitBtn` in web/board/git.ts): one project status and one read of the reports for
 // the lot. A run with nothing to say either way gets no entry.
-export function cardsGit(state: string, ids: string[]): Record<string, "pending" | "pushed"> {
+// `due`, when given, is filled with what a pending run still needs: "commit" (changed files) or "push" (committed, ahead).
+export function cardsGit(state: string, ids: string[], due: Record<string, "commit" | "push"> = {}): Record<string, "pending" | "pushed"> {
   const dir = dirname(state), s = gitStatus(dir), out: Record<string, "pending" | "pushed"> = {};
   if (!s.repo) return out;
   const all = runReports(state), ahead = aheadBy(s, all);
   for (const id of ids) {
     const mine = all.find((r) => r.id === id) ?? { id, text: "", at: 0 }, k = readCommit(state, id);
     const files = runFiles(dir, s.files, mine, all.filter((o) => o.id !== id)).length;
-    if (files) out[id] = "pending";
+    if (files) out[id] = "pending", due[id] = "commit";
     else if (k?.pushed) out[id] = "pushed";
-    else if (ahead(id) > 0) out[id] = "pending";
+    else if (ahead(id) > 0) out[id] = "pending", due[id] = "push";
     else if (k || mine.text) out[id] = "pushed";
   }
   return out;

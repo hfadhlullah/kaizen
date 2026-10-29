@@ -8,7 +8,7 @@ import { issueUrl, systemInfo, scrubHome, REPO_URL, home as realHome, trustFolde
 import * as stateModule from "./state.ts";
 import {
   readRuns, readInbox, writeInbox, replaceIdea, moveIdea, abandonRun, runToIdea, allBacklog, backlog,
-  requestTitle, statusOf, columnOf, parseItem, startedRuns, boardCards, parentOf, addCard, readArchive, setArchived, readKept, setKept,
+  requestTitle, statusOf, columnOf, parseItem, startedRuns, boardCards, parentOf, addCard, readArchive, setArchived,
   requestOf, agentFlags, plainModel, readNotes, writeNotes, manualCommand, parseNotes, formatNote, appendNote, saveAttachment,
   reviewFindings, pickFindings, fixPrompt, approvalPrompt, sessionLaunch, closeSessions, sweepSessions, readSessions, ownerOf, gitStatus, runGit, cardsGit, commitPush, readCommit, findTerminal, nativePath, pruneRuns, unrechecked, notice, notifier, notifyArgs, winToastArgs, LOGO, type Card,
 } from "./state.ts";
@@ -314,30 +314,6 @@ test("archive: a run is listed, hidden by flag, never moved", () => {
   expect(boardCards([state], Date.now()).find((k) => k.id === "2026-09-02-done")!.archived).toBe(false);
 });
 
-test("kept: a run kept open is listed in kept.json and flagged on its card", () => {
-  const id = "2026-09-02-done",
-    flag = () => boardCards([state], Date.now()).find((k) => k.id === id)!.kept;
-  expect(flag()).toBe(false);
-  setKept(state, id, true);
-  setKept(state, id, true);
-  expect([...readKept(state)]).toEqual([id]);
-  expect(flag()).toBe(true);
-  setKept(state, id, false);
-  expect(readKept(state).size).toBe(0);
-  expect(flag()).toBe(false);
-});
-
-test("kept: ids with no run, or an archived one, are dropped when read and at the next write", () => {
-  writeFileSync(join(state, "kept.json"), JSON.stringify(["gone-run", "2026-09-02-done"]));
-  expect([...readKept(state)]).toEqual(["2026-09-02-done"]);
-  setArchived(state, "2026-09-02-done", true);
-  expect(readKept(state).size).toBe(0);
-  setArchived(state, "2026-09-02-done", false);
-  setKept(state, "2026-09-02-done", true);
-  expect(JSON.parse(readFileSync(join(state, "kept.json"), "utf8"))).toEqual(["2026-09-02-done"]);
-  setKept(state, "2026-09-02-done", false);
-});
-
 test("archive: an idea keeps its line with status archived", () => {
   writeInbox(state, [{ status: "open", text: "park this", notes: "kept" }, { status: "archived", text: "parked zq7" }]);
   const ideas = boardCards([state], Date.now()).filter((k) => k.kind === "idea");
@@ -540,7 +516,9 @@ test("commitPush: commits the run's files only, pushes, and records it; the mess
   const files = () => (runGit(st, "r1") as any).files as string[];
   expect(files()).toEqual(["?? .gitignore", "?? a.txt"]);
   // The card's mark: the run with changed files is pending; one with none and no record says nothing.
-  expect(cardsGit(st, ["r1", "nope"])).toEqual({ r1: "pending" });
+  const due1: Record<string, "commit" | "push"> = {};
+  expect(cardsGit(st, ["r1", "nope"], due1)).toEqual({ r1: "pending" });
+  expect(due1).toEqual({ r1: "commit" });
   // An earlier run that named the same file is not offered it: the later report has it.
   mkdirSync(join(st, "runs", "r0"));
   writeFileSync(join(st, "runs", "r0", "03-impl.md"), "- `a.txt`: z\n");
@@ -588,7 +566,9 @@ test("commitPush: commits the run's files only, pushes, and records it; the mess
   expect(readCommit(st, "r1")!.pushed).toBe(false);
   expect(sh(proj, "show", "--name-only", "--format=", "HEAD")).toBe("b*.txt");
   expect(runGit(st, "r1")).toMatchObject({ files: [], ahead: 1, others: 2 });
-  expect(cardsGit(st, ["r1"])).toEqual({ r1: "pending" });   // committed, not pushed
+  const due2: Record<string, "commit" | "push"> = {};
+  expect(cardsGit(st, ["r1"], due2)).toEqual({ r1: "pending" });   // committed, not pushed
+  expect(due2).toEqual({ r1: "push" });
   expect(cardsGit(join(root, ".kaizen"), ["r1"])).toEqual({});   // not a repo
 }, 60_000);   // dozens of git calls, ~250ms each on Windows
 
