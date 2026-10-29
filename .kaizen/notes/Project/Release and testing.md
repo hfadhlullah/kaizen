@@ -1,13 +1,13 @@
 ---
 description: How to test, build the web bundles, and publish a release
 tags: [project, release]
-sources: [package.json, cli/release.sh, cli/publish-gh.sh, .github/workflows/test.yml, cli/build-web.ts]
+sources: [package.json, cli/release.sh, cli/publish-gh.sh, .github/workflows/test.yml, cli/build-web.ts, test/tmp.ts, bunfig.toml, bot/bunfig.toml]
 updated: 2026-10-23
 ---
 # Release and testing
 
 ## What it does
-Tests are `bun test` (all `*.test.ts`, `cli/` and `bot/`), run in CI on Ubuntu and Windows (`.github/workflows/test.yml`). The package is `kaizen-agent` on npm (version 1.59.2 in this checkout); `bun run release [patch|minor|major] [summary]` (`cli/release.ts`) bumps the version — minor when a `feat` commit landed since the last tag, else patch — commits `Release x.y.z: <summary>`, publishes to npm (tests first), pushes, then GitHub Packages.
+Tests are `bun test` (all `*.test.ts`, `cli/` and `bot/`), run in CI on Ubuntu and Windows (`.github/workflows/test.yml`). The package is `kaizen-agent` on npm (version 1.59.2 in this checkout); `bun run release [patch|minor|major] [summary]` (`cli/release.ts`) bumps the version — minor when a `feat` commit landed since the last tag, else patch — commits `Release x.y.z: <summary>`, publishes to npm (tests first), pushes, then GitHub Packages. `bunfig.toml` (and `bot/bunfig.toml`) preloads `test/tmp.ts`: each run points `TMPDIR`/`TMP`/`TEMP` at one `kz-test-*` folder and removes it in a preload `afterAll` (bun test never fires `exit` for a preload), so tests that skip cleanup no longer fill tmpfs `/tmp`.
 
 ## Where it lives
 - `package.json` — `test`, `build:web`, `format` / `format:check` (Prettier over the frontend TypeScript: `web/*.ts`, `web/board/`, `bot/web/app/`), `release`, `prepublishOnly` (tests), `postpublish` (`cli/release.sh`: tag + GitHub release).
