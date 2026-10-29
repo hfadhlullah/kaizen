@@ -13,6 +13,7 @@ import { answer, decided, resumable, resume } from "./approvals.ts";
 import { termsBadge } from "./terms.ts";
 import { boardBadge, waitingCount } from "./badge.ts";
 import { openWorkspace } from "./run-view.ts";
+import { boardMode, drawWsBoard, initWsBoard, syncMode } from "./ws-board-ui.ts";
 
 let filter = null;
 let query = ""; // the header filter box, matched against a card's title and request
@@ -675,6 +676,7 @@ export function render() {
   const fk = focusedKey();
   // All projects: only the ones ticked in the filter, or every one when none is.
   const only = store.all && store.shown.size && showable().some((p) => store.shown.has(p.dir));
+  syncMode();
   const cs = store.S.cards.filter((c) => c.archived === archive && (!only || store.shown.has(c.state))),
     b = $("board");
   b.innerHTML = "";
@@ -738,14 +740,17 @@ export function render() {
     ns = sp.filter((p) => store.shown.has(p.dir)).length;
   $("show").textContent = ns ? `Showing ${ns} of ${sp.length}` : "Showing all";
   if (!$("showpop").hidden) showList();
-  if (!cs.length && store.mode !== "new") {
+  // Workspaces mode: the same page, a different body.
+  const wsm = boardMode() === "ws";
+  if (wsm) drawWsBoard((dir) => (!only || store.shown.has(dir)) && (store.all || !store.S.dir || dir === store.S.dir));
+  if (!wsm && !cs.length && store.mode !== "new") {
     b.innerHTML = archive
       ? '<div class="empty"><div class="mascot"></div><b>Nothing archived</b></div>'
       : '<div class="empty"><div class="mascot"></div><b>Nothing here yet</b><p>Add an idea and kaizen will plan it, build it, and check the result.</p><button class="btn pri" id="newempty">New idea</button></div>';
     if (!archive)
       $("newempty").onclick = newIdea;
   }
-  COLS.forEach((name, ci) => {
+  (wsm ? [] : COLS).forEach((name, ci) => {
     const s = document.createElement("section");
     const q = query.trim().toLowerCase();
     const bl = ci === 0 && !archive && ideasTab === "backlog";
@@ -960,6 +965,7 @@ export function filterBox() {
     query = el.value;
     render();
   });
+  initWsBoard(render);
   el.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       e.stopPropagation();

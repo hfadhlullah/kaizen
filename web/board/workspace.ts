@@ -35,7 +35,7 @@ export const titleOf = (c) => (c.title || c.text || "").split("\n")[0];
 // live on the Ideas page; one whose agent is starting (it has a terminal) shows here.
 export const listed = (c, now) =>
   !c.archived && (c.kind === "idea" ? !!c.pty : !["done", "abandoned"].includes(c.status) || now - (c.moved ?? 0) < DAY);
-const projName = (dir, projects) => {
+export const projName = (dir, projects) => {
   const l = projects?.find((p) => p.dir === dir)?.label || dir.replace(/[\\/]\.kaizen$/, "");
   return l.split(/[\\/]/).pop() || l;
 };
@@ -91,8 +91,8 @@ export function wsOfCard(c, projects = last.projects) {
   return ws.find((w) => w.path === c.ws)?.path ?? ws.find((w) => w.main)?.path ?? c.ws ?? "";
 }
 export const wsHref = (dir, ws) => `/?view=ws&dir=${encodeURIComponent(dir)}&ws=${encodeURIComponent(ws)}`;
-const RANK = { wait: 0, plan: 1, build: 2, review: 3, stalled: 4, idle: 5, done: 6, aband: 7 };
-const wsLabel = (w) => w.branch || (w.main ? "workspace" : w.path.split(/[\\/]/).pop());
+export const RANK = { wait: 0, plan: 1, build: 2, review: 3, stalled: 4, idle: 5, done: 6, aband: 7 };
+export const wsLabel = (w) => w.branch || (w.main ? "workspace" : w.path.split(/[\\/]/).pop());
 function drawList() {
   const box = $("plist");
   if (!box) return;

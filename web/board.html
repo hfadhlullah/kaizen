@@ -817,6 +817,20 @@ body.ideav.paged .hdr{display:flex}body.ideav.paged #bq{display:block}body.ideav
 
 /* Ideas header on a small laptop: one row, nothing wraps; the search box gives way first. */
 #newtop{white-space:nowrap}#newtop svg{display:none}@media(min-width:641px) and (max-width:1440px){body.ideav .app .hdr{gap:8px;padding:8px 12px 8px 20px;height:auto;flex-wrap:wrap}body.ideav #bq{flex:1 1 120px;width:auto;min-width:90px}body.ideav #hx{gap:6px;min-width:0}body.ideav #hx .iseg{gap:2px}body.ideav #hx .pill{padding:4px 8px}body.ideav #hx .ipop .sel{max-width:130px}}
+/* Board, Workspaces mode: the Workspaces | Runs switch in the header, four columns of workspace cards. */
+body:not(.paged) #hx{display:flex}
+body.wsb:not(.paged) #strip,body.wsb:not(.paged) #fbtn{display:none}
+html body.wsb:not(.paged) #board{grid-template-columns:repeat(4,minmax(200px,1fr))}
+#board .wlist{display:flex;flex-direction:column;gap:var(--gap)}
+.wcard{display:flex;align-items:flex-start;gap:var(--padx);padding:var(--padx) 10px;min-height:var(--row-h);border:1px solid var(--line);border-radius:var(--r);background:var(--bg);color:var(--ink);text-decoration:none}
+.wcard:hover{background:var(--hover)}.wcard:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.wcard .si{margin-top:3px}.wmain{display:flex;flex-direction:column;gap:2px;min-width:0}
+.wmain b{font-size:var(--fs);font-weight:500;display:flex;align-items:center;gap:var(--gap);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wmain small{display:flex;align-items:center;gap:var(--gap);font-size:var(--fs-s);color:var(--dim)}
+.wmain code{font:inherit;font-size:var(--fs-s);color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wtag{font-style:normal;font-weight:400;font-size:var(--fs-xs);color:var(--dim);border:1px solid var(--line);border-radius:var(--r-s);padding:0 var(--gap)}
+#bmode button{padding:0 10px}
+.wempty{margin:0;padding:var(--padx) 2px;font-size:var(--fs-s);color:var(--dim)}
 </style>
 </head>
 <body>
