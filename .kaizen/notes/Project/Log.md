@@ -208,3 +208,4 @@ updated: 2026-10-28
 - 2026-10-29 run 2026-10-29-ws-board-rail-loop — Web board: Workspaces mode no longer recurses on load (re-entry guard on the `kz-rail` listener in `ws-board-ui.ts`)
 - 2026-10-29 run 2026-10-29-search-open-tabs — Search: Tabs group (run-view tabs from `kz-runtabs`, `kz-open-tab`), cleaner palette (short groups, no footer, short ages), chat ages no longer NaN
 - 2026-10-30 Web board: split-pane resize holds (stable layout nodes in `prune`/`screens`, frames ignore the pointer while dragging); History pane imports `stateOf`
+- 2026-10-30 run 2026-10-30-run-git-tab — Web board: Git tab in the run panel (commit, push, PR status/create/merge, remove worktree), `/pr` route, async PR lookup; footer git buttons removed

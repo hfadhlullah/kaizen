@@ -7,7 +7,7 @@ import { chat } from "./chat.ts";
 import { stopDictation } from "./dictation.ts";
 import { $, html, raw } from "./dom.ts";
 import { fixForm, fixOff } from "./fixes.ts";
-import { commitPush, confirmCommit, gitBtn } from "./git.ts";
+import { gitPending, gitShown, gitTab } from "./git.ts";
 import { ICON, WORD, need } from "./labels.ts";
 import { attach, brief, md, planQuestions, preview, progress } from "./markdown.ts";
 import { toast } from "./toast.ts";
@@ -24,6 +24,7 @@ const TABS = [
   ["Backlog", "backlog"],
   ["Work", "impl"],
   ["Review", "review"],
+  ["Git", "git"],
   ["Preview", "preview"],
 ];
 // keepTab: a link already chose the tab.
@@ -169,9 +170,11 @@ export async function openRun(c, refresh, again) {
     (t) =>
       t[1] === "request" ||
       t[1] === "notes" ||
-      (t[1] === "preview"
-        ? preview(store.runDoc.impl)
-        : store.runDoc[t[1]] || (t[1] === "backlog" && c.column === 2 && store.runDoc.progress)),
+      (t[1] === "git"
+        ? gitShown(c)
+        : t[1] === "preview"
+          ? preview(store.runDoc.impl)
+          : store.runDoc[t[1]] || (t[1] === "backlog" && c.column === 2 && store.runDoc.progress)),
   );
   if (store.wantTerm === key(c)) store.wantTerm = null;
   // The agent is a centre tab of the run workspace only: the panel never shows a terminal.
@@ -180,7 +183,7 @@ export async function openRun(c, refresh, again) {
   if (view === "run" && store.tab === "preview") store.tab = "review";
   // A tab not written yet falls back to the latest one that is.
   if (store.tab !== "term" && !tabs.some((t) => t[1] === store.tab))
-    store.tab = [...tabs].reverse().find((t) => t[1] !== "notes" && !(view === "run" && t[1] === "preview"))[1];
+    store.tab = [...tabs].reverse().find((t) => t[1] !== "notes" && t[1] !== "git" && !(view === "run" && t[1] === "preview"))[1];
   if (store.tab !== "term") store.lastTab = store.tab;
   $("panel").classList.toggle("wide", store.tab === "term");
   const pt = $("pterm");
@@ -212,7 +215,8 @@ export async function openRun(c, refresh, again) {
   else if (k === "notes") {
     const ro = c.archived || c.status === "done" || c.status === "abandoned";
     chat(c, doc, ro);
-  } else
+  } else if (k === "git") gitTab(c, refresh);
+  else
     $("pbody").innerHTML = doc
       ? raw(md(doc, k === "backlog"))
       : html`<p style="color:var(--dim)">No ${{ request: "request", plan: "plan", impl: "work report", preview: "preview", review: "review", backlog: "backlog" }[k]} yet.</p>`;
@@ -232,8 +236,9 @@ export async function openRun(c, refresh, again) {
   const foot = $("pfoot");
   // A refresh while the commit is being confirmed would wipe the message.
   if (refresh && foot.querySelector(".inl,[data-busy],.more[open]")) return;
+  // Git work left on a finished run: the footer points at the Git tab, which holds it.
   const arch =
-    gitBtn(c) +
+    (k !== "git" && gitPending(c) ? `<button class="btn" data-a="gittab">Git…</button>` : "") +
     (c.archived
       ? `<button class="btn pri" data-a="restore">Restore</button>`
       : `<button class="btn ghost" data-a="archive">Archive</button>`);
@@ -253,9 +258,7 @@ export async function openRun(c, refresh, again) {
         : qs.length
           ? ` Approve first asks you ${qs.length === 1 ? "its question" : "its " + qs.length + " questions"}.`
           : "";
-    // gitBtn's buttons restyled as menu rows.
     const more =
-      gitBtn(c).replace(/class="btn( pri)?"/g, "") +
       `<button data-a="archive">Archive</button><hr><button data-a="ab" class="danger">Abandon</button>`;
     foot.innerHTML = html`<span class="note">${sent ? "Sent to your agent." : APPROVAL[c.awaiting] + asks}</span><details class="more"><summary class="btn ghost">More</summary><div class="menu-pop">${raw(more)}</div></details>${raw(rs)}<span class="dec"><button class="btn" data-a="revise"${sent ? " disabled" : ""}>Revise</button><button class="btn pri" data-a="approve"${sent ? " disabled" : ""}>${c.awaiting === "findings" ? "Approve as-is" : "Approve"}</button></span>`;
   } else if (c.status === "waiting")
@@ -274,12 +277,9 @@ export async function openRun(c, refresh, again) {
           toggleArchive(c, a === "archive");
           return;
         }
-        if (a === "push") {
-          commitPush(c, "", b);
-          return;
-        }
-        if (a === "commit") {
-          confirmCommit(c);
+        if (a === "gittab") {
+          store.tab = "git";
+          openRun(c, true);
           return;
         }
         if (a === "accept") {

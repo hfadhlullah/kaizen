@@ -74,8 +74,11 @@ export type Landed = { ok: true; how: "pr" | "push"; url?: string } | { ok: fals
 
 // Whether every commit of the branch is on the base, by patch: a rebase-merge rewrites
 // the hashes, so "is an ancestor" would say not landed for work that is.
-const landed = (dir: string, base: string, branch: string) =>
-  git(dir, "cherry", `origin/${base}`, branch).out.split("\n").every((l) => !l.startsWith("+"));
+// A cherry that fails (no origin, no origin/<base>) proves nothing: not landed.
+const landed = (dir: string, base: string, branch: string, sh: Run = run) => {
+  const r = sh(["git", "cherry", `origin/${base}`, branch], dir);
+  return r.ok && r.out.split("\n").every((l) => !l.startsWith("+"));
+};
 
 /**
  * Pushes the run's branch and lands it on the base: a pull request rebase-merged when
@@ -126,6 +129,118 @@ export function landWorktree(project: string, id: string, sh: Run = run,
     if (sh(["git", "push", "origin", `HEAD:${base}`], dir).ok) return finish("push");
   }
   return { ok: false, why: `${base} kept moving; push rejected twice. Worktree kept` };
+}
+
+// ---- the Git tab: a run's branch, its pull request and its cleanup, one step at a time
+
+export type Pr = { number: number; url: string; state: "OPEN" | "MERGED" | "CLOSED"; draft: boolean };
+export type Branch = { branch: string; base: string; upstream: boolean; landed: boolean; gh: boolean; pr: Pr | null; checking: boolean };
+// The calls that wait on a network (push, fetch, gh): never on the board server's thread.
+export type AsyncRun = (cmd: string[], cwd: string) => Promise<Out>;
+
+// gh only knows GitHub. Asked once per project: the remote does not change under a board.
+const githubs = new Map<string, boolean>();
+const onGithub = (project: string) => {
+  let v = githubs.get(project);
+  if (v === undefined) githubs.set(project, (v = !!Bun.which("gh") && /github\.com/.test(git(project, "remote", "get-url", "origin").out)));
+  return v;
+};
+// One look at GitHub per run every 30 s, in the background; the panel shows the last answer.
+const prs = new Map<string, { at: number; pr: Pr | null }>();
+const looking = new Set<string>();
+const prKey = (project: string, id: string) => `${project}\0${id}`;
+const PR_JSON = ["--json", "number,url,state,isDraft"];
+const parsePr = (r: Out): Pr | null => {
+  if (!r.ok) return null; // no pull request for the branch yet
+  try {
+    const j = JSON.parse(r.out);
+    return { number: j.number, url: j.url, state: j.state, draft: !!j.isDraft };
+  } catch { return null; }
+};
+
+/**
+ * What the Git tab shows for a run on its own branch: the branch against the base, and its
+ * pull request as last seen. A stale or missing answer starts one background `gh` look and
+ * calls `changed` when it lands, so the panel refreshes; the request never waits on GitHub.
+ */
+export function branchState(project: string, id: string, changed: () => void = () => {}, sh: Run = run, ash: AsyncRun = runAsync, hasGh = onGithub(project)): Branch | null {
+  if (!SLUG.test(id)) return null;
+  const dir = codeDir(project, id);
+  if (dir === project) return null; // committed in the project's own checkout: no branch of its own
+  const branch = branchOf(id), base = baseOf(project);
+  const upstream = sh(["git", "rev-parse", "--abbrev-ref", `${branch}@{u}`], dir).ok;
+  const k = prKey(project, id), hit = prs.get(k);
+  if (hasGh && (!hit || Date.now() - hit.at >= 30_000) && !looking.has(k)) {
+    looking.add(k);
+    void ash(["gh", "pr", "view", branch, ...PR_JSON], dir).then((r) => {
+      looking.delete(k);
+      const pr = parsePr(r);
+      const was = prs.get(k);
+      prs.set(k, { at: Date.now(), pr });
+      if (JSON.stringify(was?.pr ?? null) !== JSON.stringify(pr) || !was) changed();
+    });
+  }
+  const pr = hit?.pr ?? null;
+  // Landed counts only work that is on the base: a branch with no commits of its own is not "merged".
+  const own = sh(["git", "rev-list", "--count", `origin/${base}..${branch}`], dir);
+  const landedNow = pr?.state === "MERGED" || (own.ok && Number(own.out) > 0 && landed(dir, base, branch, sh));
+  return { branch, base, upstream, landed: landedNow, gh: hasGh, pr, checking: hasGh && !hit };
+}
+
+/** Pushes the branch, then opens its pull request against the base. */
+export async function openPr(project: string, id: string, title: string, body: string, draft: boolean, sh: Run = run, ash: AsyncRun = runAsync, hasGh = onGithub(project)): Promise<{ ok: true; pr: Pr } | { ok: false; why: string }> {
+  if (!SLUG.test(id)) return { ok: false, why: `"${id}" is not a run id` };
+  const dir = codeDir(project, id), branch = branchOf(id);
+  if (dir === project) return { ok: false, why: "This run has no branch of its own." };
+  if (!hasGh) return { ok: false, why: "Pull requests need the GitHub CLI (gh) and a GitHub remote." };
+  if (!title.trim()) return { ok: false, why: "A pull request needs a title." };
+  if (sh(["git", "status", "--porcelain"], dir).out) return { ok: false, why: "Commit the changes first." };
+  const push = await ash(["git", "push", "-u", "origin", branch], dir);
+  if (!push.ok) return { ok: false, why: `Push of ${branch} failed: ${push.why}` };
+  const r = await ash(["gh", "pr", "create", "--base", baseOf(project), "--head", branch, "--title", title.trim(), "--body", body, ...(draft ? ["--draft"] : [])], dir);
+  // An existing pull request for the branch is fine: show that one.
+  if (!r.ok && !/already exists/i.test(r.why)) return { ok: false, why: `Pull request failed: ${r.why}` };
+  const pr = parsePr(await ash(["gh", "pr", "view", branch, ...PR_JSON], dir));
+  prs.set(prKey(project, id), { at: Date.now(), pr });
+  return pr ? { ok: true, pr } : { ok: false, why: "The pull request was made, but gh cannot find it yet. Look again in a moment." };
+}
+
+/** Merges the run's pull request by rebase, as `kaizen land` does. The worktree stays. */
+export async function mergePr(project: string, id: string, sh: Run = run, ash: AsyncRun = runAsync, hasGh = onGithub(project)): Promise<{ ok: true } | { ok: false; why: string }> {
+  if (!SLUG.test(id)) return { ok: false, why: `"${id}" is not a run id` };
+  const dir = codeDir(project, id), branch = branchOf(id);
+  if (dir === project) return { ok: false, why: "This run has no branch of its own." };
+  if (!hasGh) return { ok: false, why: "Merging needs the GitHub CLI (gh) and a GitHub remote." };
+  const r = await ash(["gh", "pr", "merge", branch, "--rebase"], dir);
+  prs.delete(prKey(project, id));
+  if (!r.ok) return { ok: false, why: `Not merged: ${r.why}` };
+  await ash(["git", "fetch", "origin"], project); // so "landed" sees the merge at once
+  return { ok: true };
+}
+
+/**
+ * Removes the run's worktree and branch once its work is on the base. Refused while the
+ * worktree has changes or any commit of the branch is not on the base, so nothing is lost.
+ */
+export async function removeWorktree(project: string, id: string, sh: Run = run, ash: AsyncRun = runAsync): Promise<{ ok: true } | { ok: false; why: string }> {
+  if (!SLUG.test(id)) return { ok: false, why: `"${id}" is not a run id` };
+  const dir = codeDir(project, id), branch = branchOf(id);
+  if (dir === project) return { ok: false, why: "This run has no worktree." };
+  if (sh(["git", "status", "--porcelain"], dir).out) return { ok: false, why: "The worktree has uncommitted changes. Commit or discard them first." };
+  const f = await ash(["git", "fetch", "origin"], project);
+  if (!f.ok) return { ok: false, why: `Could not fetch origin, so nothing proves the work is on the base: ${f.why}` };
+  const base = baseOf(project);
+  if (!sh(["git", "rev-parse", "--verify", "--quiet", `origin/${base}`], project).ok) return { ok: false, why: `origin/${base} does not exist, so nothing proves the work is on it.` };
+  if (!landed(dir, base, branch, sh)) return { ok: false, why: `${branch} has commits that are not on ${base} yet. Merge its pull request first.` };
+  // Clean (checked above); --force is only for the untracked node_modules link.
+  const rm = sh(["git", "worktree", "remove", "--force", dir], project);
+  if (!rm.ok) return { ok: false, why: rm.why };
+  // Every commit is on the base by patch, so -D loses nothing a rebase-merge rewrote.
+  sh(["git", "branch", "-D", "--", branch], project);
+  await ash(["git", "push", "origin", "--delete", branch], project); // best effort: GitHub may have deleted it
+  prs.delete(prKey(project, id));
+  patchState(project, id, { worktree: null, branch: null });
+  return { ok: true };
 }
 
 export type Workspace = { path: string; branch: string; main: boolean };

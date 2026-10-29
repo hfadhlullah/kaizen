@@ -22,7 +22,7 @@ import * as video from "./video.ts";
 import * as localsend from "./localsend.ts";
 import * as hermes from "./hermes.ts";
 import { listChats, readChat, sendChat, stopChat, deleteChat, okId as okChatId, busy as chatBusy, type Event as ChatEvent, type Upload as ChatUpload } from "./chat.ts";
-import { workspaces, workspacesNow, forgetWorkspaces, workspacesAge, addWorktree, run } from "./worktree.ts";
+import { workspaces, workspacesNow, forgetWorkspaces, workspacesAge, addWorktree, run, branchState, openPr, mergePr, removeWorktree } from "./worktree.ts";
 import { gitUrl, destDir, winBad, cloneInto, branchesOf, ignoreKaizen } from "./add-project.ts";
 
 const PAGE = join(dirname(import.meta.dir), "web", "board.html");
@@ -253,6 +253,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
   let usageCache: Usage[] = [];
   let usageAt = 0;
   let pending: ReturnType<typeof setTimeout> | null = null;
+  const prBusy = new Set<string>();
   const changed = () => {
     if (pending) return;
     pending = setTimeout(() => {
@@ -1052,6 +1053,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
           findings: dir === join(home, ".kaizen") ? [] : reviewFindings(dir, id),
           // The global state dir sits in $HOME, which is not a project to commit.
           commit: readCommit(dir, id), git: dir === join(home, ".kaizen") ? { repo: false } : runGit(dir, id),
+          // The run's own branch and pull request, for the Git tab; null when it has no worktree.
+          branch: dir === join(home, ".kaizen") ? null : branchState(dirname(dir), id, changed),
         });
       }
 
@@ -1725,6 +1728,32 @@ export async function web(repoDir: string, opts: Opts = {}) {
           try { run = JSON.parse(readText(join(dir, "runs", id, "state.json"))); } catch { return bad("no such run", 404); }
           if (run.stage !== "done" && run.awaiting !== "approvals.review") return bad("this run is not finished", 409);
           const r = await commitPush(dir, id, String(body.message ?? ""), Array.isArray(body.files) ? body.files.map(String) : []);
+          changed();
+          return json(r, r.ok ? 200 : 409);
+        }
+
+        // The Git tab's later steps, on the same runs /commit takes: open the branch's pull
+        // request, merge it, then remove the worktree once its work is on the base.
+        if (path === "/pr") {
+          const id = String(body.id ?? "");
+          if (!/^[\w.-]+$/.test(id)) return bad("bad run id");
+          // One step per run at a time: a second tab's Merge or Remove waits its turn.
+          const lock = `${dir}\0${id}`;
+          if (prBusy.has(lock)) return bad("Another git step is running on this run. Try again when it finishes.", 409);
+          if (dir === join(home, ".kaizen")) return bad("no project", 409);
+          let run: any;
+          try { run = JSON.parse(readText(join(dir, "runs", id, "state.json"))); } catch { return bad("no such run", 404); }
+          if (run.stage !== "done" && run.awaiting !== "approvals.review") return bad("this run is not finished", 409);
+          const project = dirname(dir);
+          if (body.op !== "remove" && gateOf(dir, id) === "needs") return bad("This run is not approved yet. Approve it first.", 409);
+          prBusy.add(lock);
+          let r: { ok: boolean };
+          try {
+            r = body.op === "create" ? await openPr(project, id, String(body.title ?? ""), String(body.body ?? ""), body.draft === true)
+            : body.op === "merge" ? await mergePr(project, id)
+            : body.op === "remove" ? await removeWorktree(project, id)
+            : { ok: false as const, why: "unknown op" };
+          } finally { prBusy.delete(lock); }
           changed();
           return json(r, r.ok ? 200 : 409);
         }
