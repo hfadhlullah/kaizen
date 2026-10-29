@@ -232,14 +232,19 @@ test.skipIf(process.platform !== "win32")("on Windows a card agent runs in a pse
   expect(ptyState(key)?.alive).toBe(false);
 }, 60_000);
 
-test("busy: on while the agent prints, off once its output goes quiet", async () => {
+test("busy: on while the agent draws its working line, off once it goes quiet; other output is not work", async () => {
   const key = "busy-" + Date.now();
-  startPty(key, ["sh", "-c", "for i in 1 2 3 4 5 6; do echo tick; sleep 0.1; done; read l"], root);
+  startPty(key, ["sh", "-c", "for i in 1 2 3 4 5 6; do echo 'Thinking (3s · esc to interrupt)'; sleep 0.1; done; read l"], root);
   await Bun.sleep(250);
   expect(ptyState(key)!.busy).toBe(true);
   await Bun.sleep(1800);
   expect(ptyState(key)).toMatchObject({ alive: true, busy: false });
   exitPty(key);
+  const idle = "idle-" + Date.now();
+  startPty(idle, ["sh", "-c", "for i in 1 2 3 4 5 6; do echo statusline; sleep 0.1; done; read l"], root);
+  await Bun.sleep(250);
+  expect(ptyState(idle)!.busy).toBe(false);
+  exitPty(idle);
 });
 
 test("lastLine: only the agent's own marked reply lines, never input", () => {

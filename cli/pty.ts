@@ -42,6 +42,7 @@ const ASK = /Would you like to|Do you want to|[❯›>] ?1\. |Type something|\(y
 // redraw of the answered prompt or prompt-like words in its output would otherwise keep it "asking".
 // Not a bare "Esc to cancel": Claude Code's own question footer says that.
 const WORK = /\(\d+m? ?\d*s [·•]|esc to interrupt|\(esc to cancel, \d|esc interrupt/gi;
+const WORKING = new RegExp(WORK.source, "i");
 const lastAt = (re: RegExp, t: string) => { let i = -1; for (const m of t.matchAll(re)) i = m.index!; return i; };
 export const asking = (screen: string) => {
   const t = screen.replace(/\x1b\[[0-9;?]*[A-Za-z]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[()][0-9A-Za-z]/g, " ");
@@ -96,8 +97,8 @@ export function startPty(key: string, cmd: string[], cwd: string, pidFile?: stri
   // attach: the session already runs (kept from a board before this one); only a client is started.
   if (opts.tmux && tmuxOk()) cmd = opts.attach ? attachCmd(opts.tmux) : tmuxCmd(opts.tmux, cmd);
   const flag = (v: boolean) => { if (p.asking !== v) { p.asking = v; onChange?.(); } };
-  // busy: output in the last QUIET_MS. A working agent redraws its spinner many times a second,
-  // so a quiet terminal is one waiting at its prompt.
+  // busy: the agent's working line (WORK) drawn in the last QUIET_MS. A working agent redraws it many
+  // times a second; other output (a status-line refresh, a repaint on resize or focus) is not work.
   const work = (v: boolean) => { if (p.busy !== v) { p.busy = v; onChange?.(); } };
   const push = (d: string) => {
     p.out.push(d);
@@ -105,7 +106,7 @@ export function startPty(key: string, cmd: string[], cwd: string, pidFile?: stri
     p.total += d.length;
     while (p.size > CAP && p.out.length > 1) p.size -= p.out.shift()!.length;
     for (const f of p.listeners) f(d);
-    work(p.exit === null);
+    if (WORKING.test(d)) work(p.exit === null);
     grab(p, d, 1000);
     clearTimeout(p.quiet);
     p.quiet = setTimeout(() => {
