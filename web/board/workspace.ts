@@ -7,7 +7,7 @@ import { store } from "./store.ts";
 import { $, html, modal, raw } from "./dom.ts";
 import { age, need } from "./labels.ts";
 import { openAdd } from "./add-project.ts";
-import { agentsHtml, dueWord, forgetAgents, gitDue, pickable, settleIn, toggleOpen, wsAgents, type Agent } from "./ws-tabs.ts";
+import { agentsHtml, dueWord, forgetAgents, gitDue, settleIn, toggleOpen, wsAgents, type Agent } from "./ws-tabs.ts";
 
 const DAY = 864e5;
 const STAGE = ["idea", "planning", "building", "reviewing", "done"];
@@ -165,13 +165,12 @@ function drawList() {
         // A + for a new worktree on git projects (the main checkout has a branch).
         const git = p.workspaces.some((w) => w.branch);
         return html`<div class="pgrp"><button type="button" class="proj${shut ? " shut" : ""}" data-fold="${dir}" title="${dir}" aria-expanded="${String(!shut)}">${logo(dir, name, last.projects)}<span class="pname">${name}</span><svg class="fchev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>${git ? html`<button type="button" class="wadd" data-wadd="${dir}" title="New workspace in ${name}" aria-label="New workspace in ${name}"><svg aria-hidden="true"><use href="#i-plus"/></svg></button>` : ""}</div>${shut ? "" : rows.map(({ w, cs }) => {
-          // The dot: the most urgent run there, or an agent asking (amber) or working (spinner). The count: the runs the panel's picker lists; it opens the picker.
+          // The dot: the most urgent run there, or an agent asking (amber) or working (spinner).
           const rows = wsAgents(last.agents ?? [], dir, w.path, wsOfCard, now);
           const st0 = cs.length ? stateOf([...cs].sort((a, b) => RANK[stateOf(a)] - RANK[stateOf(b)])[0]) : "";
           const st = st0 === "wait" || rows[0]?.st === "asking" ? "wait" : rows.some((r) => r.st === "working") ? "build" : st0 || (rows.length ? "done" : "");
-          const k = pickable(cs, dir, w.path, wsOfCard).length;
-          // The count and the agent buttons are siblings of the link (a button inside a link is invalid).
-          return html`<div class="wsr wsc"><a class="row ws" href="${wsHref(dir, w.path)}" data-dir="${dir}" data-ws="${w.path}" title="${w.path}"><span class="si ${st || "none"}"></span><div class="wl"><span class="l1"><b>${wsLabel(w)}</b></span><span class="l2"><span>${folderOf(w)}</span>${w.main ? "" : WT}</span></div></a>${k ? html`<button type="button" class="wcount" data-pick data-dir="${dir}" data-ws="${w.path}" title="${k} run${k > 1 ? "s" : ""}: choose one" aria-label="${k} run${k > 1 ? "s" : ""} in ${wsLabel(w)}: choose one">${String(k)}</button>` : ""}${agentsHtml(rows, now, !!wsOpen[dir + "\0" + w.path], dir, w.path)}</div>`;
+          // The agent buttons are siblings of the link (a button inside a link is invalid).
+          return html`<div class="wsr wsc"><a class="row ws" href="${wsHref(dir, w.path)}" data-dir="${dir}" data-ws="${w.path}" title="${w.path}"><span class="si ${st || "none"}"></span><div class="wl"><span class="l1"><b>${wsLabel(w)}</b></span><span class="l2"><span>${folderOf(w)}</span>${w.main ? "" : WT}</span></div></a>${agentsHtml(rows, now, !!wsOpen[dir + "\0" + w.path], dir, w.path)}</div>`;
         })}`;
       })
       .join("") || `<div class="none">No projects</div>`;
@@ -338,12 +337,6 @@ export function initRail() {
   };
   $("plist").addEventListener("click", (e) => {
     const a = (e.target as Element).closest?.("a.row") as HTMLAnchorElement;
-    const n = (e.target as Element).closest?.("button.wcount") as HTMLElement | null;
-    if (n) {
-      e.preventDefault();
-      // The board answers and cancels the event; the notebook and video pages just open the workspace.
-      return void (ask("kz-pick-run", { dir: n.dataset.dir, ws: n.dataset.ws }) || (location.href = wsHref(n.dataset.dir!, n.dataset.ws!)));
-    }
     if (!a || e.ctrlKey || e.metaKey || e.shiftKey || (e as MouseEvent).button) return;
     if (ask("kz-open-ws", { dir: a.dataset.dir, ws: a.dataset.ws })) e.preventDefault();
   });

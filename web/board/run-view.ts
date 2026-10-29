@@ -826,17 +826,6 @@ export function initRunView() {
     true,
   );
   initPick(pickRun);
-  // The sidebar's run count: open this workspace with the panel up and the picker dropped down.
-  addEventListener("kz-pick-run", (e: any) => {
-    e.preventDefault();
-    const { dir, ws } = e.detail;
-    pickOpen = true;
-    document.body.classList.toggle("rflip", isPhone());
-    if (ctx?.k === wsKey(dir, ws) && document.body.classList.contains("runv")) return draw();
-    history.pushState(null, "", wsHref(dir, ws));
-    markCurrent();
-    go("ws");
-  });
   // The sidebar's agent mark: open that workspace with the agent's terminal tab selected.
   addEventListener("kz-open-term", (e: any) => {
     e.preventDefault();
