@@ -406,6 +406,7 @@ body.runv .app{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-templa
 body.runv #runv{grid-area:1/1;display:flex;flex-direction:column;min-width:0;min-height:0}
 #rtabs{display:flex;align-items:center;gap:2px;height:var(--tabbar);min-height:var(--tabbar);padding:0 6px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0}#rtabs .sp{flex:1}#rbar{display:flex;align-items:center;flex:none;border-bottom:1px solid var(--line);padding-right:6px}
 .rtab{display:flex;gap:var(--gap);align-items:center;height:var(--row);padding:0 12px;border-radius:4px;color:var(--dim);white-space:nowrap}.rtab:hover{color:var(--ink)}.rtab svg{width:var(--ico);height:var(--ico)}.rtab.on{color:var(--ink);background:var(--hover)}.rtab.sec{color:var(--ink);box-shadow:inset 0 -2px var(--line)}
+#rtabs .rtab span:not(.si){max-width:180px;overflow:hidden;text-overflow:ellipsis}
 .rtab i{font-style:normal;opacity:.5;padding:0 3px;margin-left:2px}.rtab i:hover{opacity:1}
 .rbtn{display:grid;place-items:center;flex:none;width:var(--btn-xs);height:var(--btn-xs);border-radius:4px;color:var(--dim);cursor:pointer}.rbtn:hover{background:var(--hover);color:var(--ink)}.rbtn svg{width:var(--ico);height:var(--ico)}
 .radd{position:relative}.radd summary{list-style:none}.radd summary::-webkit-details-marker{display:none}
@@ -938,7 +939,7 @@ html body.wsb:not(.paged) #board{grid-template-columns:repeat(4,minmax(200px,1fr
   <a class="it" href="/?view=board" data-view="board" title="Board"><svg><use href="#i-board"/></svg><span class="lbl">Board</span></a>
   <div class="psec"><span class="lbl">Projects</span><button id="pfilter" title="Show one project" aria-label="Show one project"><svg><use href="#r-filter"/></svg></button><button id="padd" title="New idea" aria-label="New idea"><svg><use href="#r-plus"/></svg></button></div>
   <div class="plist" id="plist" aria-label="Ideas and runs by project"></div>
-  <div class="rbot"><a class="it fold" href="/?view=settings" data-view="settings" title="Settings"><svg><use href="#i-gear"/></svg><span class="lbl">Settings</span></a><a class="rib" href="/issue" target="_blank" rel="noopener" title="Report an issue" aria-label="Report an issue"><svg><use href="#r-bug"/></svg></a><button class="rib" id="kbd" title="Keyboard shortcuts" aria-label="Keyboard shortcuts"><svg><use href="#r-kbd"/></svg></button><button class="rib th" id="themet" title="Theme" aria-label="Theme"><svg class="sun"><use href="#i-sun"/></svg><svg class="moon"><use href="#i-moon"/></svg></button></div>
+  <div class="rbot"><a class="it fold" href="/?view=settings" data-view="settings" title="Settings" aria-label="Settings"><svg><use href="#i-gear"/></svg></a><a class="rib" href="/issue" target="_blank" rel="noopener" title="Report an issue" aria-label="Report an issue"><svg><use href="#r-bug"/></svg></a><button class="rib" id="kbd" title="Keyboard shortcuts" aria-label="Keyboard shortcuts"><svg><use href="#r-kbd"/></svg></button><button class="rib th" id="themet" title="Theme" aria-label="Theme"><svg class="sun"><use href="#i-sun"/></svg><svg class="moon"><use href="#i-moon"/></svg></button></div>
 </nav>
 <script>
 // Side menu: theme and collapse, the same lines in board.html and notes.html. Runs before

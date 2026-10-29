@@ -131,7 +131,10 @@ function tabs(): Tab[] {
     const c = byKey(t.ck!);
     return c ? [{ ...t, title: subLabel(c), ro: finished(c) }] : [];
   });
-  const all = [...out.filter((t) => !s.hidden.includes(t.id)), ...mine];
+  // The workspace shell lives in the centre of run tabs that have no terminal, not in a tab of its own.
+  const ws = wsShell(),
+    runTabs = out.some((t) => t.kind === "run") || mine.some((t) => t.kind === "run");
+  const all = [...out.filter((t) => !s.hidden.includes(t.id)), ...mine].filter((t) => !(runTabs && ws && t.id === "sh:" + ws.key));
   return all.filter((t, i) => all.findIndex((x) => x.id === t.id) === i);
 }
 // An agent's tab shows the agent's own mark when the sprite has one.
@@ -215,11 +218,10 @@ export async function showRunView(nav = false) {
     s.on = screens().find((sc) => leaves(sc.tree).includes(tid))?.id ?? s.on;
     save();
   }
-  // A workspace with nothing open starts the default agent in its folder: no run is made;
-  // the agent's kaizen skill makes one when you ask for work. A live run whose own Claude
+  // A workspace with nothing open starts a shell in its folder (no agent, no run). A live run whose own Claude
   // session is not open anywhere on the board is resumed here, once per visit, beside its tab.
   if (!noPty) {
-    if (!tabs().length && !autoShell.has(k)) return void (autoShell.add(k), newPty(defAgent || undefined));
+    if (!tabs().length && !autoShell.has(k)) return void (autoShell.add(k), newPty());
     if (want && want.kind === "run" && !finished(want) && !want.pty && !shells.some((x) => x.run === key(want)) && !autoShell.has(key(want))) {
       autoShell.add(key(want));
       void openAgent(want, false, false);
@@ -309,14 +311,17 @@ function mountPanel(ts: Tab[], cur?: Screen) {
   centre(t);
 }
 // The centre of a run tab: the shown stage's terminal, else the run's live session, else the
-// stage file. One live xterm per tab; a pty has no tab of its own while it is shown here.
+// workspace shell (one per workspace, started on first need). One live xterm per pty: showing it
+// here unmounts it from any other run tab's centre; a pty has no tab of its own while shown here.
+const wsShell = () => shells.find((x) => x.run === ctx?.k && !x.agent);
+let wsShellAsked = "";
 const stageTerm = new Map<string, { key: string; off: null | (() => void) }>();
 function centre(t: Tab) {
   const c = byKey(t.ck!),
     el = panes.get(t.id)?.el.querySelector<HTMLElement>(".rstage");
   if (!c || !el) return;
   const stage = stageShown(stageOf, t.id, store.tab, store.openKey === key(c)),
-    k = centreKey(c, stage),
+    k = centreKey(c, stage) ?? wsShell()?.key ?? null,
     doc = !k && store.runDoc?.id === c.id ? store.runDoc[stage] ?? "" : "",
     sig = k ? "t:" + k : "d:" + stage + doc,
     cur = stageTerm.get(t.id);
@@ -325,6 +330,19 @@ function centre(t: Tab) {
   const rec = { key: sig, off: null as null | (() => void) };
   stageTerm.set(t.id, rec);
   el.replaceChildren();
+  if (k) for (const [id, o] of stageTerm) if (id !== t.id && o.key === sig) (o.off?.(), (o.off = null), (o.key = ""), panes.get(id)?.el.querySelector(".rstage")?.replaceChildren());
+  // No terminal for this run: start the workspace shell once, then show it here.
+  if (!k && !noPty && wsShellAsked !== ctx!.k) {
+    wsShellAsked = ctx!.k;
+    const at = ctx!.k;
+    void fetch("/shell", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ dir: ctx!.dir, ws: ctx!.ws, run: at }) })
+      .then(async (r) => {
+        if (!r.ok || ctx?.k !== at) return;
+        shells.push(await r.json());
+        (rec.key = ""), centre(t);
+      })
+      .catch(() => {});
+  }
   if (!k) return void (el.innerHTML = String(doc ? html`<div class="rdoc md">${raw(md(attach(doc, c)))}</div>` : html`<p class="rnone">Nothing written for this stage yet.</p>`));
   const term = document.createElement("div");
   term.className = "term";
