@@ -54,23 +54,28 @@ export const QUIET_MS = 700;
 // drawing, spinners and the TUI's own footer lines out. "" when nothing readable is left.
 // ponytail: screen-text heuristic over raw chunks; a TUI that repaints oddly shows an older line.
 const CHROME = new RegExp(WORK.source + "|\\? for shortcuts|shift\\+tab|ctrl\\+[a-z]|\\besc to\\b|tokens\\)|bypass permissions", "i");
-// Never the input: the latest prompt line and everything after it (what is typed there, its wrapped
-// continuation lines) and everything in the input box (╰ … ╭, read bottom-up) are skipped, so typed
-// or pasted text is not shown. A prompt line is led by a marker, also after a short prefix such as
-// "rzr@host:~$", "kaizen main ❯" or "(venv) dir %", and also inside box-drawn rows.
-// ponytail: an output line shaped like a prompt ("I like C# code") hides the lines after it; the card
-// then shows an older line, never the input.
-const PROMPT = /^(?:\S+\s+){0,3}(?:\S*[$%#❯›]|>)(\s|$)/;
+// Only the agent's own reply lines, never a guess about what is input: a line counts only when it
+// starts with a reply marker the agent draws itself (Claude Code "⏺", Codex "•", Gemini "✦").
+// Typed or pasted text never starts with one, so nothing typed can be shown; a plain shell or an
+// unknown agent gives "" and its card shows status only. Lines inside an input box (╰ … ╭, read
+// bottom-up) or between two horizontal rules are skipped as well; a tool call shows its name only.
+// ponytail: the marker list is per agent; an agent that changes its marker shows status only.
+const REPLY = /^[⏺•✦]\s+(.*)$/;
 export const lastLine = (t: string) => {
   const s = t.replace(/\x1b\[[0-9;?]*[A-Za-z]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[()][0-9A-Za-z]/g, " ");
-  const lines = s.split(/[\r\n]+/).map((raw) => ({ raw: raw.trim(), l: raw.replace(/[\u2500-\u259f\u2800-\u28ff✻✶✳✢✽✺●○◐◑◒◓⏺⎿⏵▪▫■□]|[\x00-\x1f\x7f]/g, " ").replace(/\s+/g, " ").trim() }));
-  let end = lines.length;
-  for (let i = lines.length - 1; i >= 0; i--) if (PROMPT.test(lines[i].l)) { end = i; break; }
-  let box = false;
-  for (let i = end - 1; i >= 0; i--) {
-    const { raw, l } = lines[i];
+  let box = false,
+    rule = false;
+  for (const line of s.split(/[\r\n]+/).reverse()) {
+    const raw = line.replace(/[\x00-\x1f\x7f]/g, " ").trim();
     if (box) { if (raw.startsWith("╭")) box = false; continue; }
     if (raw.startsWith("╰") && !/[\p{L}\p{N}]/u.test(raw)) { box = true; continue; }
+    // An input area drawn between two horizontal rules (newer Claude Code, no box): skip up to the rule above.
+    if (/^─{3,}$/.test(raw.replace(/\s/g, ""))) { rule = !rule; continue; }
+    if (rule) continue;
+    const m = REPLY.exec(raw);
+    if (!m) continue;
+    // A tool call shows only its name: "Bash(curl … Bearer sk-…)" -> "Bash", never its arguments.
+    const l = m[1].replace(/^([\w .-]{1,40})\(.*$/, "$1").replace(/[\u2500-\u259f\u2800-\u28ff✻✶✳✢✽✺●○◐◑◒◓⏺⎿⏵▪▫■□]/g, " ").replace(/\s+/g, " ").trim();
     if (/[\p{L}\p{N}].*[\p{L}\p{N}].*[\p{L}\p{N}]/u.test(l) && !CHROME.test(l)) return l.slice(0, 80);
   }
   return "";

@@ -29,7 +29,7 @@ test.skipIf(process.platform === "win32")("the board runs the agent in the card:
   writeFileSync(join(st, "config.yml"), "agent:\n  default: claude\n  launch: card\n");
   writeFileSync(join(st, "inbox.md"), "# Inbox\n\n- open: say hello\n");
   // A stand-in for Claude Code: says how it was called, then echoes each line it is sent.
-  writeFileSync(join(bin, "claude"), '#!/bin/sh\necho "args:$*"\nwhile read x; do echo "got:$x"; done\n', { mode: 0o755 });
+  writeFileSync(join(bin, "claude"), '#!/bin/sh\necho "args:$*"; echo "⏺ reply ready"\nwhile read x; do echo "got:$x"; done\n', { mode: 0o755 });
   // Started as a launcher starts it: a bare PATH, the agent reachable only through
   // the PATH the user's login shell builds.
   const sh = join(root, "loginsh");
@@ -54,7 +54,7 @@ test.skipIf(process.platform === "win32")("the board runs the agent in the card:
 
     // The agent's output line goes to a viewer on this machine only, never a tailnet host; nothing typed is in it.
     const agentsOf = async (h?: string) => ((await (await fetch(at + "/state", { headers: h ? { host: h } : {} })).json()) as any).agents;
-    expect((await agentsOf())[0].last).toMatch(/^args:/);
+    expect((await agentsOf())[0].last).toBe("reply ready");
     const far = (await agentsOf("remote.ts.net"))[0];
     expect(far.key).toBe(r.pty);
     expect(far.last).toBeUndefined();
@@ -242,26 +242,40 @@ test("busy: on while the agent prints, off once its output goes quiet", async ()
   exitPty(key);
 });
 
-test("lastLine: the latest readable line, without escapes, spinners, boxes or the TUI footer", () => {
-  expect(lastLine("\x1b[2K\x1b[1;32mDone: fixed the bug\x1b[0m\r\n╭────╮\r\n│ ✻ │\r\n⠋ \r\n? for shortcuts\r\n✻ Thinking… (12s · esc to interrupt)")).toBe("Done: fixed the bug");
-  expect(lastLine("│ > hey there │")).toBe("");
-  // The input box never yields what sits in it, wherever it is drawn.
-  expect(lastLine("Done: fixed it\r\n╭──────╮\r\n│ > pasted-token-9 │\r\n│ more-token-9 │\r\n╰──────╯\r\n? for shortcuts")).toBe("Done: fixed it");
-  expect(lastLine("Done: fixed it\r\n❯ pasted-token-9")).toBe("Done: fixed it");
-  // A prompt with a prefix, and the wrapped lines typed after it, are input too.
-  expect(lastLine("Build passed\r\nrzr@host:~$ export KEY=sk-secret-9")).toBe("Build passed");
-  expect(lastLine("Build passed\r\nkaizen main ❯ export KEY=sk-secret-9")).toBe("Build passed");
-  expect(lastLine("Build passed\r\n(venv) rzr dir % echo sk-secret-9")).toBe("Build passed");
-  expect(lastLine("Build passed\r\n› first part of a long pasted token\r\n  sk-secret-9 continued here")).toBe("Build passed");
-  // Output after a finished command, above the next prompt, is still read.
-  expect(lastLine("$ bun test\r\n12 pass 0 fail\r\nrzr@host:~$ ")).toBe("12 pass 0 fail");
+test("lastLine: only the agent's own marked reply lines, never input", () => {
+  expect(lastLine("\x1b[2K\x1b[1;32m⏺ Done: fixed the bug\x1b[0m\r\n╭────╮\r\n│ ✻ │\r\n⠋ \r\n? for shortcuts\r\n✻ Thinking… (12s · esc to interrupt)")).toBe("Done: fixed the bug");
+  expect(lastLine("• Ran the tests, 12 pass")).toBe("Ran the tests, 12 pass");
+  expect(lastLine("✦ Updated the parser")).toBe("Updated the parser");
+  // Unmarked output (a plain shell, an unknown agent) gives nothing: the card shows status only.
+  expect(lastLine("Build passed\r\n12 pass 0 fail")).toBe("");
+  // Typed or pasted text is never shown, whatever the prompt looks like.
+  const leaks = [
+    "│ > hey there │",
+    "⏺ Done: fixed it\r\n╭──────╮\r\n│ > pasted-token-9 │\r\n│ ⏺ fake-token-9 │\r\n╰──────╯",
+    "❯ pasted-token-9",
+    "rzr@host:~$ export KEY=sk-secret-9",
+    "user@host ~/a b/c (main) $ export KEY=sk-secret-9",
+    "user@host ~/proj> sk-secret-9",
+    "PS C:\\Users\\me> sk-secret-9",
+    ">>> sk-secret-9",
+    "▌ sk-secret-9",
+    "  ~/proj  main  sk-secret-9",
+    "sk-secret-9 continued in a later chunk",
+  ];
+  leaks.push("──────\r\n❯ please fix\r\n  • sk-secret-9 token\r\n⏺ token-9 pasted\r\n──────\r\n");
+  for (const t of leaks) expect(lastLine(t)).not.toContain("secret-9"), expect(lastLine(t)).not.toContain("token-9");
+  // The newest marked line wins over older ones; a marked line with an unmarked line below it still counts.
+  expect(lastLine("⏺ Fixed issue # 42 in parser\r\nrzr@host:~$ sk-secret-9")).toBe("Fixed issue # 42 in parser");
+  // Output above the input rules is still read; a tool call shows its name, not its arguments.
+  expect(lastLine("⏺ Fixed the parser\r\n──────\r\n❯ next\r\n──────")).toBe("Fixed the parser");
+  expect(lastLine("⏺ Bash(curl -H 'Authorization: Bearer sk-secret-9')")).toBe("Bash");
   expect(lastLine("╰───╯ ⠙ ✻")).toBe("");
-  expect(lastLine("x".repeat(200)).length).toBe(80);
+  expect(lastLine("⏺ " + "x".repeat(200)).length).toBe(80);
 });
 
 test("last: only the agent's output, never what was typed or echoed right after a keystroke", async () => {
   const key = "last-" + Date.now();
-  startPty(key, ["sh", "-c", "echo agent-said-this; stty echo; read a; sleep 2; echo later-agent-line; sleep 5"], root);
+  startPty(key, ["sh", "-c", "echo '⏺ agent-said-this'; stty echo; read a; sleep 2; echo '⏺ later-agent-line'; sleep 5"], root);
   await Bun.sleep(1000);
   expect(ptyState(key)!.last).toBe("agent-said-this");
   writePty(key, "hunter2-secret\r"); // the tty echoes it back at once
@@ -276,7 +290,7 @@ test("last: only the agent's output, never what was typed or echoed right after 
 
 test("last: a pasted token in the input box is never the last line, redraw or quiet read", async () => {
   const key = "box-" + Date.now();
-  startPty(key, ["sh", "-c", "echo agent-said-this; sleep 2; printf '╭────╮\\n│ > pasted-token-9 │\\n╰────╯\\n'; sleep 3; printf '\\r│ > pasted-token-9 │\\n'; sleep 5"], root);
+  startPty(key, ["sh", "-c", "echo '⏺ agent-said-this'; sleep 2; printf '╭────╮\\n│ > pasted-token-9 │\\n╰────╯\\n'; sleep 3; printf '\\r│ > pasted-token-9 │\\n'; sleep 5"], root);
   await Bun.sleep(2600);
   expect(ptyState(key)!.last).toBe("agent-said-this");
   await Bun.sleep(2400);

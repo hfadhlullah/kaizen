@@ -248,7 +248,7 @@ test.skipIf(process.platform === "win32")("/shell: foreign origin, unknown proje
     expect(await (await fetch(`${at}/shells`)).json()).toEqual([]);
 
     // /state lists the open agents once (not plain shells); an ended one drops out.
-    writeFileSync(join(bin, "gemini"), '#!/bin/sh\necho "Reading the parser source"\nread x\n', { mode: 0o755 });
+    writeFileSync(join(bin, "gemini"), '#!/bin/sh\necho "✦ Reading the parser source"\nread x\n', { mode: 0o755 });
     const ag = (await (await post({ dir: st, agent: "gemini" }, at)).json()) as any, pl = (await (await post({ dir: st }, at)).json()) as any;
     let A: any[] = [];
     for (let i = 0; i < 60 && !A[0]?.last; i++) { await Bun.sleep(100); A = ((await (await fetch(at + "/state?all=1")).json()) as any).agents; }
