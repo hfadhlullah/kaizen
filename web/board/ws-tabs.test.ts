@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { agentStatus, agentsHtml, forgetAgents, lineOf, settleIn, toggleOpen, wsAgents, SETTLE_MS, awaiting, dueWord, chosen, loopbackUrl, toOpen, stageKeys, stageTabs, finished, historyOf, liveIn, migrate, pickable, wsKey } from "./ws-tabs.ts";
+import { agentStatus, agentsHtml, forgetAgents, lineOf, settleIn, toggleOpen, wsAgents, SETTLE_MS, awaiting, dueWord, chosen, loopbackUrl, toOpen, stageKeys, stageTabs, finished, historyOf, liveIn, migrate, pickable, prune, wsKey } from "./ws-tabs.ts";
 
 const run = (id: string, status: string, o: any = {}) => ({ kind: "run", state: "/p/.kaizen", id, status, moved: 1, ws: "/p", ...o });
 const wsOf = (c) => c.ws;
@@ -168,4 +168,14 @@ test("card html: one agent has no chevron; several group chips; expanded lists r
   expect(open).not.toContain("<img");
   expect(open).not.toContain("<b>");
   expect(lineOf(rows(ag("z"))[0])).toBe("Done - Claude");
+});
+
+test("prune keeps a split node it drops nothing from, so a gutter drag writes to the live layout", () => {
+  const inner = { dir: "rows" as const, kids: ["b", "c"], sizes: [1, 1] };
+  const tree = { dir: "cols" as const, kids: ["a", inner], sizes: [2, 1] };
+  expect(prune(tree, () => true)).toBe(tree);
+  const cut = prune(tree, (id) => id !== "c") as any;
+  expect(cut).not.toBe(tree);
+  expect(cut.kids).toEqual(["a", "b"]);
+  expect(cut.sizes).toEqual([2, 1]);
 });

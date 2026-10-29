@@ -16,7 +16,10 @@ export function prune(n: Node, keep: (id: string) => boolean): Node | null {
     const p = prune(k, keep);
     if (p) (kids.push(p), sizes.push(n.sizes[i] ?? 1));
   });
-  return !kids.length ? null : kids.length === 1 ? kids[0] : { dir: n.dir, kids, sizes };
+  if (!kids.length) return null;
+  if (kids.length === 1) return kids[0];
+  // Nothing dropped: the same node, so a drag holding it keeps writing to the live layout.
+  return kids.length === n.kids.length && kids.every((k, i) => k === n.kids[i]) ? n : { dir: n.dir, kids, sizes };
 }
 
 // A workspace's key in the saved tab layouts (localStorage kz-runtabs).

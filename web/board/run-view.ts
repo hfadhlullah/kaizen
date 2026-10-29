@@ -18,7 +18,7 @@ import { termLoad } from "./agent-term.ts";
 import { load, post } from "./api.ts";
 import { attach, md, preview } from "./markdown.ts";
 import { layout } from "./terms.ts";
-import { cardHref, markCurrent, railData, titleOf, wsHref, wsOfCard } from "./workspace.ts";
+import { cardHref, markCurrent, railData, stateOf, titleOf, wsHref, wsOfCard } from "./workspace.ts";
 import { type Node, awaiting, chosen, finished, historyOf, leaves, liveIn, loopbackUrl, migrate, pickable, prune, reviewing, stageTabs, toOpen, wsKey } from "./ws-tabs.ts";
 import { drawPick, hidePick, initPick, setOpen } from "./run-pick.ts";
 import { age } from "./labels.ts";
@@ -76,9 +76,13 @@ let target: { screen: string; dir: "cols" | "rows" } | null = null;
 function screens(): Screen[] {
   const s = saved(),
     ids = tabs().map((t) => t.id);
-  s.screens = s.screens.flatMap((sc) => {
+  // In place: the panes on screen hold these objects, and a gutter drag writes its sizes into them.
+  s.screens = s.screens.filter((sc) => {
     const tree = prune(sc.tree, (id) => ids.includes(id));
-    return tree ? [{ ...sc, tree, focus: leaves(tree).includes(sc.focus) ? sc.focus : leaves(tree)[0] }] : [];
+    if (!tree) return false;
+    sc.tree = tree;
+    if (!leaves(tree).includes(sc.focus)) sc.focus = leaves(tree)[0];
+    return true;
   });
   for (const id of ids)
     if (!s.screens.some((sc) => leaves(sc.tree).includes(id))) {
@@ -346,6 +350,8 @@ function build(n: Node, sc: Screen): HTMLElement {
           sum = n.sizes[i - 1] + n.sizes[i],
           start = horiz ? ra.left : ra.top;
         g.setPointerCapture(e.pointerId);
+        // A frame under the pointer (the Browser, Preview) takes the moves for itself: frames ignore it while dragging.
+        document.body.classList.add("rdrag");
         g.onpointermove = (m) => {
           const f = Math.min(0.9, Math.max(0.1, ((horiz ? m.clientX : m.clientY) - start) / total));
           n.sizes[i - 1] = sum * f;
@@ -353,8 +359,10 @@ function build(n: Node, sc: Screen): HTMLElement {
           a.style.flexGrow = String(n.sizes[i - 1]);
           b.style.flexGrow = String(n.sizes[i]);
         };
-        g.onpointerup = () => {
-          g.onpointermove = g.onpointerup = null;
+        g.onpointerup = g.onlostpointercapture = () => {
+          if (!g.onpointermove) return;
+          document.body.classList.remove("rdrag");
+          g.onpointermove = g.onpointerup = g.onlostpointercapture = null;
           shownSig = sc.id + JSON.stringify(sc.tree);
           save();
         };

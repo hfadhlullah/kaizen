@@ -207,3 +207,4 @@ updated: 2026-10-28
 - 2026-10-29 run 2026-10-29-global-search — Web board: global search palette (Orca "Jump to..."): Search above Home in the menu of board/notebook/video, Ctrl/Cmd+K; workspaces, runs, ideas, chats, agent terminals, projects, pages, actions; `web/board/search.ts`, `search-match.ts` + test
 - 2026-10-29 run 2026-10-29-ws-board-rail-loop — Web board: Workspaces mode no longer recurses on load (re-entry guard on the `kz-rail` listener in `ws-board-ui.ts`)
 - 2026-10-29 run 2026-10-29-search-open-tabs — Search: Tabs group (run-view tabs from `kz-runtabs`, `kz-open-tab`), cleaner palette (short groups, no footer, short ages), chat ages no longer NaN
+- 2026-10-30 Web board: split-pane resize holds (stable layout nodes in `prune`/`screens`, frames ignore the pointer while dragging); History pane imports `stateOf`
