@@ -87,6 +87,8 @@ const actionOf = (c) =>
     ? "Sent to agent"
     : c.status !== "waiting"
     ? "Open"
+    : c.healed
+    ? "Approve"
     : { "approvals.plan": "Review plan", findings: "See findings", "approvals.review": "Review work" }[c.awaiting] || "Open";
 
 function card(c) {

@@ -38,5 +38,7 @@ updated: 2026-10-29
 - The Windows launcher `kaizen.cmd` calls bun by full path (`process.execPath`): cmd.exe on some machines fails to find bun on PATH even when PowerShell can. POSIX keeps bare `bun` because version managers put bun under versioned paths. `kaizen web --shortcut` asks Windows for the Desktop (`GetFolderPath('Desktop')`), since OneDrive moves it (2026-10-27-windows-bun-not-recognized).
 - `auto_accept` (top-level in `config.default.yml`, column 0 for `lineOf`): settings row shown only in `auto` mode; not part of the presets, so it reads from the defaults (false).
 
+- `kaizen done <run id> [--user-approved]`: finishes a run via `finishRun`; exits 1 with an ask-the-user message while the review gate waits (see [[Workflow]]).
+
 ## Notes
 <!-- yours: /kaizen docs never rewrites this section -->

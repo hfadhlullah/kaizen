@@ -6,7 +6,7 @@ import {
   home, type Item, type Card, boardCards, knownProjects, remember, canonPath, locate, label, tilde, searchRoots, findProjects,
   readInbox, writeInbox, replaceIdea, moveIdea, abandonRun, runToIdea, launchRun, parseItem, agentChoices, onPath, projectOf, KNOWN_AGENTS, plainModel, short, setArchived, writeNotes,
   appendNote, saveAttachment, pidOnPort, readText, cmdExe, sysExe, powershellExe, runGit, cardsGit, readCommit, commitPush, notice, notifier, LOGO,
-  reviewFindings, pickFindings, backlogCards, backlogItem, startedBacklog, closeBacklog, markBacklogDone, fixPrompt, approvalPrompt, canApproveAwaiting, gateOf, recordAcceptance, nativePath, closeSessions, sweepSessions, issueUrl,
+  reviewFindings, pickFindings, backlogCards, backlogItem, startedBacklog, closeBacklog, markBacklogDone, fixPrompt, approvalPrompt, canApproveAwaiting, gateOf, recordAcceptance, healRuns, finishRun, nativePath, closeSessions, sweepSessions, issueUrl,
   launchMode, readSessions, ownerOf, runIndex, resumePrompt, runAgent, firstSession, webHosts,
 } from "./state.ts";
 import { attachPty, writePty, resizePty, exitPty, ptyState, ptyKeys, adoptLoginEnv, startPty, ptySupported, detachPty, ptyTail, ptyTmux, tmuxAlive, RESUMED } from "./pty.ts";
@@ -991,6 +991,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           return !root || d === state || (fold(p).startsWith(inside)
             && (!isGroup(p) || filled(d) || fold(dirname(p)) !== fold(root)));
         });
+        for (const d of dirs) healRuns(d);
         const cards = boardCards(dirs, Date.now()), pty = ptyOf(cards);
         // The git mark, for the cards whose panel offers commit and push: one status per project.
         const marks = new Map<string, Record<string, string>>(), dues = new Map<string, Record<string, "commit" | "push">>();
@@ -1769,6 +1770,16 @@ export async function web(repoDir: string, opts: Opts = {}) {
           if (dir === join(home, ".kaizen")) return bad("no project to run in", 409);
           let run: any;
           try { run = JSON.parse(readText(join(dir, "runs", id, "state.json"))); } catch { return bad("no such run", 404); }
+          // A healed run (done by its agent, never approved) has no agent to continue: approving
+          // it is /accept's record + finish, for any caller; a revise has nothing to send back to.
+          if (run.healed === true && body.awaiting === "approvals.review") {
+            if (body.why !== undefined) return bad("this run is already finished: approve or archive it", 409);
+            const why = recordAcceptance(dir, id, "board");
+            if (why) return bad(why, 409);
+            finishRun(dir, id);
+            changed();
+            return json({ ok: true });
+          }
           if (!canApproveAwaiting(run.awaiting) || run.awaiting !== body.awaiting) return bad("this run is not waiting on that approval", 409);
           if (run.awaiting === "findings" && body.why !== undefined) return bad("open findings can only be approved as-is or fixed individually", 409);
           if (body.why !== undefined && !String(body.why).trim()) return bad("a revise needs a comment");
@@ -1793,14 +1804,19 @@ export async function web(repoDir: string, opts: Opts = {}) {
             : { ok: false, why: r.why, manual: r.manual, agent: r.agent }, r.ok ? 200 : 500);
         }
 
-        // Approve a run an agent marked done without the user's acceptance: the line
+        // Approve a run an agent marked done without the user's acceptance (healed): the line
         // only, no agent is started.
         if (path === "/accept") {
           const id = String(body.id ?? "");
           if (!/^[\w.-]+$/.test(id)) return bad("bad run id");
           if (gateOf(dir, id) !== "needs") return bad("this run is not waiting on your approval", 409);
+          // Only a finished-but-unapproved run: a genuine review goes through /decide.
+          let st: any = {};
+          try { st = JSON.parse(readText(join(dir, "runs", id, "state.json"))); } catch {}
+          if (st.stage !== "done" && st.healed !== true) return bad("this run is in review: approve it with the review's Approve", 409);
           const why = recordAcceptance(dir, id, "board");
           if (why) return bad(why, 409);
+          finishRun(dir, id);
           changed();
           return json({ ok: true });
         }

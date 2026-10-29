@@ -12,7 +12,7 @@ import { codeDir, projectFromWorktree, wsOf } from "./worktree.ts";
 // symlink (/home -> var/home) would never compare equal to it.
 export const home = (() => { try { return realpathSync(homedir()); } catch { return homedir(); } })();
 
-export type Run = { id: string; stage: string; awaiting: string | null; moved: number; runner?: string; agent?: string; branch?: string; worktree?: string; workspace?: string };
+export type Run = { id: string; stage: string; awaiting: string | null; moved: number; runner?: string; agent?: string; branch?: string; worktree?: string; workspace?: string; healed?: boolean };
 
 export const KNOWN_AGENTS = [
   { name: "Claude Code", dir: ".claude", cmd: "claude" },
@@ -423,7 +423,9 @@ export function readRuns(state: string): Run[] {
       let moved = 0;
       try { moved = statSync(file).mtimeMs; } catch { /* vanished mid-read */ }
       try { moved = Math.max(moved, statSync(join(dir, id, "progress.md")).mtimeMs); } catch { /* no progress kept */ }
-      const run = { id, stage: s.stage ?? "?", awaiting: s.awaiting ?? null, moved, runner: s.runner, agent: s.agent, branch: typeof s.branch === "string" ? s.branch : undefined, worktree: typeof s.worktree === "string" ? s.worktree : undefined, workspace: typeof s.workspace === "string" ? s.workspace : undefined };
+      // Done without the user's acceptance is not done: every reader sees it waiting on approval.
+      const unapproved = s.stage === "done" && accepted(state, id).accept === "needs";
+      const run = { id, stage: unapproved ? "review" : s.stage ?? "?", awaiting: unapproved ? "approvals.review" : s.awaiting ?? null, moved, runner: s.runner, agent: s.agent, branch: typeof s.branch === "string" ? s.branch : undefined, worktree: typeof s.worktree === "string" ? s.worktree : undefined, workspace: typeof s.workspace === "string" ? s.workspace : undefined, healed: unapproved || (s.healed === true && s.awaiting === "approvals.review") || undefined };
       lastRun.set(runDir, run);
       return [run];
     } catch { return existsSync(join(runDir, "state.json")) ? [lastRun.get(runDir)].filter((r): r is Run => !!r) : []; }
@@ -765,6 +767,7 @@ export type Card = {
   notes?: string;                                  // inbox notes, or runs/<id>/notes.md
   parent?: string;                                 // the run this card was filed from
   children?: string[];                             // runs only: runs that name this one as parent
+  healed?: boolean;                                // runs only: finished by an agent, never approved; Approve finishes it, no agent
   accept?: "needs" | "auto";                       // done runs only: changed files with no acceptance, or auto-accepted
 };
 
@@ -1259,6 +1262,7 @@ export function boardCards(states: string[], now: number): Card[] {
         tags: [r.runner, r.agent, yolos.has(r.id) ? "yolo" : undefined, unrechecked(st, r.id) ? "unrechecked" : undefined].filter((t): t is string => !!t),
         notes: readNotes(st, r.id) || undefined,
         parent: parentOf(body(st, r.id)),
+        ...(r.healed ? { healed: true } : {}),
         ...(r.stage === "done" ? accepted(st, r.id) : {}),
       });
     }
@@ -1892,6 +1896,49 @@ export function gateOf(state: string, id: string): "needs" | "user" | "auto" | n
   const a = acceptance(state, id);
   if (a) return a;
   return reviewGateOn(projectDir) ? "needs" : null;
+}
+// Atomic state.json edit (tmp + rename); skipped if the file changed since it was read.
+// Limit: a write landing between the mtime check and the rename is lost, and two writes
+// inside one mtime tick look like none; heal is idempotent, so a lost write is rare and re-done.
+function setStage(file: string, change: (s: any) => boolean): boolean {
+  try {
+    const before = statSync(file).mtimeMs, s = JSON.parse(readText(file));
+    if (!change(s)) return false;
+    s.updated = new Date().toISOString();
+    const tmp = file + `.${process.pid}.tmp`;
+    writeFileSync(tmp, JSON.stringify(s, null, 2) + "\n");
+    if (statSync(file).mtimeMs !== before) { rmSync(tmp, { force: true }); return false; }   // an agent wrote meanwhile
+    renameSync(tmp, file);
+    return true;
+  } catch { return false; }
+}
+// Rewrites runs an agent marked done without acceptance (gate on) to review /
+// approvals.review; returns the ids. Not part of readRuns: reads stay pure (mtime is liveness).
+export function healRuns(state: string): string[] {
+  const dir = join(state, "runs");
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir).filter((id) => {
+    const file = join(dir, id, "state.json");
+    try { if (!/"stage":\s*"done"/.test(readText(file))) return false; } catch { return false; }   // cheap: skip runs not done
+    return accepted(state, id).accept === "needs" && setStage(file, (s) => {
+      if (s.stage !== "done") return false;
+      s.stage = "review"; s.awaiting = "approvals.review"; s.healed = true;
+      return true;
+    });
+  });
+}
+// The one way to finish a run. Refuses while the gate says the user has not approved;
+// userApproved records the acceptance first. An agent can still forge the flag: this stops shortcuts, not malice.
+export function finishRun(state: string, id: string, userApproved = false): string | null {
+  const file = join(state, "runs", id, "state.json");
+  if (!existsSync(file)) return `No run ${id}.`;
+  if (gateOf(state, id) === "needs") {
+    if (!userApproved) return `Run ${id} changed files and the user has not approved it. Ask the user; on a clear yes run: kaizen done ${id} --user-approved`;
+    const why = recordAcceptance(state, id, "chat");
+    if (why) return why;
+  }
+  setStage(file, (s) => { s.stage = "done"; s.awaiting = null; delete s.healed; return true; });
+  return null;
 }
 const names = (report: string, path: string) => report.includes("`" + path + "`") || report.includes("`" + path + ":");
 

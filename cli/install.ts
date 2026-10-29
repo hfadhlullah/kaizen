@@ -117,6 +117,19 @@ if (Bun.argv[2] === "card") {
   process.exit(0);
 }
 
+// `kaizen done <run id> [--user-approved]`: how an agent finishes a run. Refuses while
+// the review gate waits on the user; --user-approved is for a clear yes in chat.
+if (Bun.argv[2] === "done") {
+  const { locate, finishRun } = await import("./state.ts");
+  const id = Bun.argv[3], flag = Bun.argv[4];
+  if (!id || (flag && flag !== "--user-approved")) { console.log(`\n  kaizen done <run id> [--user-approved]\n`); process.exit(1); }
+  const state = locate() ?? join(home, ".kaizen");
+  const why = finishRun(state, id, flag === "--user-approved");
+  if (why) { console.log(`\n  ${why}\n`); process.exit(1); }
+  console.log(`\n  ${c.green("done")}  ${id}\n`);
+  process.exit(0);
+}
+
 // `kaizen remember …` / `kaizen recall …`: global knowledge, see cli/knowledge.ts.
 if (Bun.argv[2] === "remember" || Bun.argv[2] === "recall") {
   const { cli } = await import("./knowledge.ts");

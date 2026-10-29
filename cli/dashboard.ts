@@ -6,7 +6,7 @@ import {
   home, type Run, type Item, type Card, type InboxLine, type Status,
   KNOWN_AGENTS, detectDefaultAgent, findTerminal,
   searchRoots, knownProjects, remember, findProjects, locate,
-  readRuns, backlog, version, label, tilde, section, readFindings, parseItem, tidy, readBacklog, allBacklog,
+  readRuns, healRuns, backlog, version, label, tilde, section, readFindings, parseItem, tidy, readBacklog, allBacklog,
   startedRuns, normalise, statusOf, columnOf, readInbox, writeInbox, notify, notice, notifier, short,
   abandonRun, replaceIdea, boardCards, launchRun, appendNote, parseNotes,
   gateOf,
@@ -361,6 +361,7 @@ export async function dashboard(
   async function runsView(from?: string) {
     for (;;) {
       const here = from ?? state!;
+      healRuns(here);
       const runs = readRuns(here);
       const now = Date.now();
       // The dot the board already uses, a four-letter word for anyone not reading
@@ -373,7 +374,7 @@ export async function dashboard(
         const mark = status === "waiting" ? c.amber(word.padEnd(4)) : c.dim(word.padEnd(4));
         // The mark already says done or dropped; repeating the stage beside it is noise.
         const gate = r.stage === "done" ? gateOf(here, r.id) : null;
-        const tail = gate === "needs" ? "not approved: approve in the board or /kaizen approve" : gate === "auto" ? "auto-accepted"
+        const tail = r.awaiting === "approvals.review" ? "needs your approval: board, or kaizen done <id> --user-approved" : gate === "auto" ? "auto-accepted"
           : r.stage === "done" || r.stage === "abandoned" ? "" : (r.awaiting ?? r.stage);
         return `${dot} ${mark}  ${short(r.id).padEnd(width)}  ${c.dim(tail)}`;
       });

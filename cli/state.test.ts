@@ -1375,7 +1375,7 @@ test("final-approval gate: changed files need an accepted: line once approvals.r
   expect(gateOf(st, "2026-10-29-build")).toBeNull();
   expect(gateOf(st, "2026-10-29-needs")).toBe("needs");                // a prose line does not count
   expect(gateOf(st, "2026-10-29-auto")).toBe("auto");
-  expect(boardCards([st], Date.now()).find((c) => c.id === "2026-10-29-needs")).toMatchObject({ accept: "needs" });
+  expect(boardCards([st], Date.now()).find((c) => c.id === "2026-10-29-needs")).toMatchObject({ status: "waiting", awaiting: "approvals.review" });
   expect(notice({ kind: "run", text: "x", where: "p", status: "done", accept: "needs" } as Card)).toContain("done, not approved");
   expect(recordAcceptance(st, "2026-10-29-needs", "board")).toBeNull();
   expect(acceptance(st, "2026-10-29-needs")).toBe("user");
@@ -1397,4 +1397,47 @@ test("final-approval gate: changed files need an accepted: line once approvals.r
   expect(gateOf(st, "2026-10-29-off")).toBeNull();
   writeFileSync(join(st, "config.yml"), "approvals:\n  review: true\n");
   expect(await commitPush(st, "2026-10-29-off", "fix: x", [])).toMatchObject({ ok: false });
+});
+
+test("gate: a run marked done without acceptance reads, heals and finishes as review", () => {
+  const { readRuns, healRuns, finishRun, gateOf } = stateModule;
+  const proj = mkdtempSync(join(tmpdir(), "kz-heal-")), st = join(proj, ".kaizen");
+  mkdirSync(join(proj, "cli"), { recursive: true });
+  writeFileSync(join(proj, "cli", "a.ts"), "");
+  const impl = "## Changed\n- `cli/a.ts`\n";
+  const mk = (id: string, approval?: string, i = impl) => {
+    const d = join(st, "runs", id);
+    mkdirSync(d, { recursive: true });
+    writeFileSync(join(d, "state.json"), JSON.stringify({ stage: "done" }));
+    writeFileSync(join(d, "03-impl.md"), i);
+    if (approval) writeFileSync(join(d, "02-approval.md"), approval);
+  };
+  const stageOf = (id: string) => JSON.parse(readFileSync(join(st, "runs", id, "state.json"), "utf8"));
+  mkdirSync(st, { recursive: true });
+  writeFileSync(join(st, "config.yml"), "approvals:\n  review: true\n");
+  mk("2026-10-29-needs"); mk("2026-10-29-ok", "accepted: 2026-10-29T10:00:00Z by user via board\n");
+  mk("2026-10-29-none", undefined, "nothing\n"); mk("2026-10-28-old");
+  const row = (id: string) => readRuns(st).find((r) => r.id === id)!;
+  expect(row("2026-10-29-needs")).toMatchObject({ stage: "review", awaiting: "approvals.review" });
+  for (const id of ["2026-10-29-ok", "2026-10-29-none", "2026-10-28-old"]) expect(row(id).stage).toBe("done");
+  expect(stageOf("2026-10-29-needs").stage).toBe("done");   // reads stay pure
+  expect(healRuns(st)).toEqual(["2026-10-29-needs"]);
+  expect(stageOf("2026-10-29-needs")).toMatchObject({ stage: "review", awaiting: "approvals.review" });
+  expect(healRuns(st)).toEqual([]);                          // idempotent
+  expect(stageOf("2026-10-29-needs").healed).toBe(true);
+  expect(row("2026-10-29-needs").healed).toBe(true);
+  expect(gateOf(st, "2026-10-29-needs")).toBe("needs");
+  expect(finishRun(st, "2026-10-29-needs")).toContain("--user-approved");
+  expect(stageOf("2026-10-29-needs").stage).toBe("review");
+  expect(finishRun(st, "2026-10-29-needs", true)).toBeNull();
+  expect(readFileSync(join(st, "runs", "2026-10-29-needs", "02-approval.md"), "utf8")).toContain("by user via chat");
+  expect(stageOf("2026-10-29-needs")).toMatchObject({ stage: "done", awaiting: null });
+  expect(stageOf("2026-10-29-needs").healed).toBeUndefined();
+  expect(row("2026-10-29-needs").stage).toBe("done");
+  expect(finishRun(st, "2026-10-29-none")).toBeNull();       // nothing changed: free to finish
+  // Gate off: a done run stays done.
+  writeFileSync(join(st, "config.yml"), "approvals:\n  review: false\n");
+  mk("2026-10-29-off");
+  expect(row("2026-10-29-off").stage).toBe("done");
+  rmSync(proj, { recursive: true, force: true });
 });

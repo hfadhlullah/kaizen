@@ -217,7 +217,7 @@ export async function openRun(c, refresh, again) {
       ? raw(md(doc, k === "backlog"))
       : html`<p style="color:var(--dim)">No ${{ request: "request", plan: "plan", impl: "work report", preview: "preview", review: "review", backlog: "backlog" }[k]} yet.</p>`;
   if (k === "backlog") showProgress(c);
-  if (k === "review") fixForm(c);
+  if (k === "review" && !c.healed) fixForm(c);
   // The notebook's notes that link here, each opening that note: above the run's own notes.
   if (k === "notes" && store.runDoc.linkedFrom && store.runDoc.linkedFrom.length)
     $("pbody").insertAdjacentHTML(
@@ -244,6 +244,8 @@ export async function openRun(c, refresh, again) {
   // Its in-card agent ended on a waiting or done run: reopen that conversation, nothing sent.
   const rs = c.pty && !c.pty.alive ? `<button class="btn" data-a="resume">Resume session</button>` : "";
   if (c.archived) foot.innerHTML = raw(arch);
+  else if (c.healed && c.awaiting === "approvals.review")
+    foot.innerHTML = html`<span class="note">Finished by its agent without your approval. Nothing is committed until you approve.</span>${raw(arch + rs)}<button class="btn pri" data-a="accept">Approve</button>`;
   else if ((c.status === "waiting" || c.awaiting === "findings") && APPROVAL[c.awaiting]) {
     const sent = decided.has(answer(c)),
       asks = !pq
