@@ -255,6 +255,8 @@ export async function openRun(c, refresh, again) {
     foot.innerHTML = html`<span class="note">${sent ? "Sent to your agent." : APPROVAL[c.awaiting] + asks}</span><details class="more"><summary class="btn ghost">More</summary><div class="menu-pop">${raw(more)}</div></details>${raw(rs)}<span class="dec"><button class="btn" data-a="revise"${sent ? " disabled" : ""}>Revise</button><button class="btn pri" data-a="approve"${sent ? " disabled" : ""}>${c.awaiting === "findings" ? "Approve as-is" : "Approve"}</button></span>`;
   } else if (c.status === "waiting")
     foot.innerHTML = html`<span class="note">Waiting on you: ${need(c.awaiting)}. Answer in the ${c.pty && c.pty.alive ? "terminal (button at the top)" : "terminal running this run"}.</span>${raw(arch)}<button class="btn ghost" data-a="ab">Abandon</button>${raw(rs)}`;
+  else if (c.status === "done" && c.accept === "needs")
+    foot.innerHTML = html`<span class="note">Done, not approved: its agent finished without your approval. Nothing is committed until you approve.</span>${raw(arch + rs)}<button class="btn pri" data-a="accept">Approve</button>`;
   else if (c.status === "done") foot.innerHTML = raw(arch + rs);
   else if (c.status === "abandoned") foot.innerHTML = raw(arch);
   else
@@ -273,6 +275,14 @@ export async function openRun(c, refresh, again) {
         }
         if (a === "commit") {
           confirmCommit(c);
+          return;
+        }
+        if (a === "accept") {
+          b.disabled = true;
+          post("/accept", { dir: c.state, id: c.id }).then((r) => {
+            if (r.ok) toast("Approved");
+            else b.disabled = false;
+          });
           return;
         }
         if (a === "approve") {

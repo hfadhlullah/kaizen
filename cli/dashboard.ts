@@ -9,6 +9,7 @@ import {
   readRuns, backlog, version, label, tilde, section, readFindings, parseItem, tidy, readBacklog, allBacklog,
   startedRuns, normalise, statusOf, columnOf, readInbox, writeInbox, notify, notice, notifier, short,
   abandonRun, replaceIdea, boardCards, launchRun, appendNote, parseNotes,
+  gateOf,
 } from "./state.ts";
 const rgb = (r: number, g: number, b: number, s: string) =>
   `\x1b[38;2;${r};${g};${b}m${s}\x1b[0m`;
@@ -371,7 +372,9 @@ export async function dashboard(
         const word = { waiting: "wait", running: "run", stalled: "idle", done: "done", abandoned: "drop" }[status] ?? status;
         const mark = status === "waiting" ? c.amber(word.padEnd(4)) : c.dim(word.padEnd(4));
         // The mark already says done or dropped; repeating the stage beside it is noise.
-        const tail = r.stage === "done" || r.stage === "abandoned" ? "" : (r.awaiting ?? r.stage);
+        const gate = r.stage === "done" ? gateOf(here, r.id) : null;
+        const tail = gate === "needs" ? "not approved: approve in the board or /kaizen approve" : gate === "auto" ? "auto-accepted"
+          : r.stage === "done" || r.stage === "abandoned" ? "" : (r.awaiting ?? r.stage);
         return `${dot} ${mark}  ${short(r.id).padEnd(width)}  ${c.dim(tail)}`;
       });
       const { index } = await pick(from ? `Runs — ${label(from)}` : "Runs", rows);

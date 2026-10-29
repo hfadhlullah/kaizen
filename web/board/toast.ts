@@ -44,7 +44,10 @@ let actx;
 export function playSound(name = soundPick()) {
   try {
     if (SAMPLES.includes(name)) {
-      new Audio(`/sounds/${name}.mp3`).play().catch(() => {});
+      const a = new Audio(`/sounds/${name}.mp3`);
+      // The samples peak at 0 dBFS and clip on desktop speakers at full volume; about -9 dB.
+      a.volume = 0.35;
+      a.play().catch(() => {});
       return;
     }
     if (!NOTES[name]) return;

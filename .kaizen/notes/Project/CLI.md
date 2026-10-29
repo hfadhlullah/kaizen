@@ -2,7 +2,7 @@
 description: The kaizen command: installer, upgrade, uninstall, settings, prune, sources
 tags: [project, cli]
 sources: [cli/install.ts, cli/docs.ts, cli/docs.test.ts, cli/knowledge.ts, cli/setup.ts, cli/qr.ts, cli/settings.ts, cli/settings.test.ts, cli/worktree.ts, package.json]
-updated: 2026-10-28
+updated: 2026-10-29
 ---
 # CLI
 
@@ -36,5 +36,7 @@ updated: 2026-10-28
 
 - `kaizen setup` is dispatched before the no-agent guard: it installs nothing, and CI runners have no agent (2026-10-25-ci-checks-fail).
 - The Windows launcher `kaizen.cmd` calls bun by full path (`process.execPath`): cmd.exe on some machines fails to find bun on PATH even when PowerShell can. POSIX keeps bare `bun` because version managers put bun under versioned paths. `kaizen web --shortcut` asks Windows for the Desktop (`GetFolderPath('Desktop')`), since OneDrive moves it (2026-10-27-windows-bun-not-recognized).
+- `auto_accept` (top-level in `config.default.yml`, column 0 for `lineOf`): settings row shown only in `auto` mode; not part of the presets, so it reads from the defaults (false).
+
 ## Notes
 <!-- yours: /kaizen docs never rewrites this section -->

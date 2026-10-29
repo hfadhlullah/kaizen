@@ -11,6 +11,10 @@ preset: medium
 # plan-only | approve | auto | review-only
 mode: approve
 
+# With approvals.review on, a run that changed files waits for your approval at the
+# end even in auto mode. true lets auto runs finish without it, marked auto-accepted.
+auto_accept: false
+
 approvals:
   # Stop after the plan, before any code is written.
   plan: true

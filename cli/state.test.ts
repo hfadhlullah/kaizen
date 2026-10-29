@@ -1325,3 +1325,53 @@ test("winShim swaps an npm .cmd shim for the .ps1 beside it, so a multi-line pro
   expect(winShim("C:\\npm\\codex.CMD", () => false)).toBe("C:\\npm\\codex.CMD");
   expect(winShim("C:\\bin\\claude.exe", () => true)).toBe("C:\\bin\\claude.exe");
 });
+
+test("final-approval gate: changed files need an accepted: line once approvals.review is on", async () => {
+  const { gateOf, acceptance, recordAcceptance, changedPaths } = stateModule;
+  const proj = mkdtempSync(join(tmpdir(), "kz-gate-")), st = join(proj, ".kaizen");
+  mkdirSync(join(proj, "cli"), { recursive: true });
+  writeFileSync(join(proj, "cli", "a.ts"), "");
+  const mk = (id: string, s: object, impl?: string, approval?: string) => {
+    const d = join(st, "runs", id);
+    mkdirSync(d, { recursive: true });
+    writeFileSync(join(d, "state.json"), JSON.stringify(s));
+    if (impl) writeFileSync(join(d, "03-impl.md"), impl);
+    if (approval) writeFileSync(join(d, "02-approval.md"), approval);
+  };
+  const impl = "## Changed\n- `cli/a.ts:12` — the fix\n- ran `bun test`, see `missing/file.ts`\n";
+  expect(changedPaths(impl, proj)).toEqual(["cli/a.ts"]);   // only paths that exist; commands ignored
+  mkdirSync(st, { recursive: true });
+  writeFileSync(join(st, "config.yml"), "approvals:\n  plan: true\n  review: true\n");
+  mk("2026-10-28-old", { stage: "done" }, impl);                       // before the gate: never flagged
+  mk("2026-10-29-none", { stage: "done" }, "## Changed\nnothing\n");   // no files: free to finish
+  mk("2026-10-29-needs", { stage: "done" }, impl, "plan approved\naccepted: soon, the user said\n");
+  mk("2026-10-29-auto", { stage: "done" }, impl, "accepted: 2026-10-29T10:00:00Z auto (auto_accept)\n");
+  mk("2026-10-29-build", { stage: "build" }, impl);
+  expect(gateOf(st, "2026-10-28-old")).toBeNull();
+  expect(gateOf(st, "2026-10-29-none")).toBeNull();
+  expect(gateOf(st, "2026-10-29-build")).toBeNull();
+  expect(gateOf(st, "2026-10-29-needs")).toBe("needs");                // a prose line does not count
+  expect(gateOf(st, "2026-10-29-auto")).toBe("auto");
+  expect(boardCards([st], Date.now()).find((c) => c.id === "2026-10-29-needs")).toMatchObject({ accept: "needs" });
+  expect(notice({ kind: "run", text: "x", where: "p", status: "done", accept: "needs" } as Card)).toContain("done, not approved");
+  expect(recordAcceptance(st, "2026-10-29-needs", "board")).toBeNull();
+  expect(acceptance(st, "2026-10-29-needs")).toBe("user");
+  expect(recordAcceptance(st, "2026-10-29-needs", "chat")).toBe("That run is already approved.");
+  expect(gateOf(st, "2026-10-29-needs")).toBe("user");
+  // Hand-edited shapes still read as on: a column-0 comment, CRLF, quotes, a trailing comment.
+  mk("2026-10-29-shapes", { stage: "done" }, impl);
+  writeFileSync(join(st, "config.yml"), 'approvals: # stops\r\n# the final one\r\n  plan: true\r\n\r\n  review: "true" # yes\r\n');
+  expect(gateOf(st, "2026-10-29-shapes")).toBe("needs");
+  writeFileSync(join(st, "config.yml"), "approvals: {plan: true, review: false}\n");
+  expect(gateOf(st, "2026-10-29-shapes")).toBeNull();
+  // A file only mentioned outside the change list does not count; a name with spaces does.
+  mkdirSync(join(proj, "notes"), { recursive: true });
+  writeFileSync(join(proj, "notes", "Release and testing.md"), "");
+  expect(changedPaths("## Changed\n- `notes/Release and testing.md`\n\n## Verification\nread `cli/a.ts`\n", proj)).toEqual(["notes/Release and testing.md"]);
+  // The user's pick: with approvals.review off, nothing is gated.
+  mk("2026-10-29-off", { stage: "done" }, impl);
+  writeFileSync(join(st, "config.yml"), "approvals:\n  review: false\n");
+  expect(gateOf(st, "2026-10-29-off")).toBeNull();
+  writeFileSync(join(st, "config.yml"), "approvals:\n  review: true\n");
+  expect(await commitPush(st, "2026-10-29-off", "fix: x", [])).toMatchObject({ ok: false });
+});

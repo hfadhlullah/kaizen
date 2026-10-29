@@ -11,6 +11,8 @@ import { toast } from "./toast.ts";
 export function gitBtn(c) {
   const g = store.runDoc.git,
     k = store.runDoc.commit;
+  // Done without the user's acceptance: nothing commits until it is approved.
+  if (c.accept === "needs") return "";
   if (c.archived || !g || !g.repo || !(c.status === "done" || c.awaiting === "approvals.review")) return "";
   // A run already pushed keeps saying so; work changed since is offered beside it.
   if (k && k.pushed)

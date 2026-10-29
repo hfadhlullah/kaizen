@@ -140,6 +140,10 @@ an explicit `/kaizen approve` or a clear approval in conversation.
 - `approvals.plan` — after the plan, before any code is written. On by default.
 - `approvals.review` — after the review passes, before the work is called done. Off by
   default: with `auto_fix` on, it mostly asks for approval of a report being read anyway.
+  When on, a run that changed files is done only once `02-approval.md` holds an
+  `accepted:` line (format in `spec-main.md`); `auto` stops here too unless
+  `auto_accept` is `true`. The board flags a run marked done without it and refuses
+  its commit.
 - `approvals.each_file` — confirm each file edit individually. Off by default; slow.
 
 A rejected approval is not a failure, and it is not always the same action. Two shapes:

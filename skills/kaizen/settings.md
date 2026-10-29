@@ -18,6 +18,7 @@ nearest first, so a change lands globally unless this project keeps its own conf
 | `review.executor` | `inline`, `subagent`, `ask` | Who reviews a lite run: this session, a cold reviewer agent, or ask before the review |
 | `approvals.plan` | `true`, `false` | Stop and show the plan before anything is built |
 | `approvals.review` | `true`, `false` | Stop after the review, before the run is called done |
+| `auto_accept` | `false`, `true` | In `auto` mode, finish a run that changed files without the final approval (marked auto-accepted) |
 | `approvals.each_file` | `true`, `false` | Confirm every individual edit |
 | `auto_fix.enabled` | `true`, `false` | Fix findings without asking, or hand every one over |
 | `auto_fix.min_severity` | `critical`, `high`, `medium`, `low` | How bad a finding must be to be fixed automatically |

@@ -14,7 +14,7 @@ export function stateOf(c) {
   // An idea whose agent is working is a run being born: show it as planning.
   if (c.kind === "idea") return !c.pty?.alive ? "idle" : c.pty.asking ? "wait" : c.pty.busy ? "plan" : "idle";
   if (c.status === "waiting" || (c.pty?.alive && c.pty.asking)) return "wait";
-  if (c.status === "done") return "done";
+  if (c.status === "done") return c.accept === "needs" ? "wait" : "done";
   if (c.status === "abandoned") return "aband";
   if (c.status === "stalled") return "stalled";
   return c.column >= 3 ? "review" : c.column === 2 ? "build" : "plan";
@@ -24,6 +24,8 @@ export function subline(c, now) {
   if (c.kind === "idea") return !c.pty?.alive ? "idea" : c.pty.asking ? "waiting on you" : c.pty.busy ? "planning · starting" : "agent · open";
   const t = c.moved ?? now;
   if (c.status === "waiting") return c.awaiting ? `${STAGE[c.column] ?? "waiting"} · ${need(c.awaiting)}` : "waiting on you";
+  if (c.accept === "needs") return "done, not approved";
+  if (c.accept === "auto") return `auto-accepted · ${age(t, now)} ago`;
   if (c.status === "done" || c.status === "abandoned") return `${c.status} · ${age(t, now)} ago`;
   if (c.status === "stalled") return `stalled · ${age(t, now)}`;
   return `${STAGE[c.column] ?? c.status} · ${age(t, now)}`;
@@ -206,7 +208,24 @@ function closePop() {
   $("pfilter").setAttribute("aria-expanded", "false");
 }
 
+// Rows are redrawn on every refresh, which restarts a CSS animation from 0deg: the state
+// icons jumped back mid-turn. Pinning each to the page clock's origin keeps them in phase
+// (the si-* animations have no delay for this to cancel).
+const syncSpin = () =>
+  document.getAnimations().forEach((a: any) => {
+    if (a.animationName?.startsWith("si-") && a.startTime !== 0) a.startTime = 0;
+  });
 export function initRail() {
+  let queued = false;
+  const hasSi = (n: any) => n.nodeType === 1 && (n.classList.contains("si") || n.querySelector(".si"));
+  new MutationObserver((rs) => {
+    if (queued || !rs.some((r) => [...r.addedNodes].some(hasSi))) return;
+    queued = true;
+    requestAnimationFrame(() => {
+      queued = false;
+      syncSpin();
+    });
+  }).observe(document.body, { childList: true, subtree: true });
   if (!$("plist")) return;
   onBoardCards((cards, projects) => {
     last = { cards, projects: projects ?? last.projects };

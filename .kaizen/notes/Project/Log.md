@@ -185,3 +185,6 @@ updated: 2026-10-28
 - 2026-10-29 run-view-board-terminal (revise): the Board drawer no longer shows the agent terminal; it lives only in the run view.
 - 2026-10-29 phone-ui-tidy: phone headers match Settings, one round + component, haptic taps, lower tab bar, Ideas on the Runs page, run workspace titled on phones.
 - 2026-10-29 test-tmp-leak: bun test keeps every scratch dir in one per-run folder, removed at the end.
+- 2026-10-29 test-tmp-leak (fix 1): a killed bun test's folder is removed by the next run.
+- 2026-10-29 run 2026-10-29-fix-all-agent-and-run-project-select — Web board
+- 2026-10-29 run 2026-10-29-fix-all-agent-and-run-project-select (revise) — Workflow, CLI, Web board: final-approval gate

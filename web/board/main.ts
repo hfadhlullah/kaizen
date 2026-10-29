@@ -6,7 +6,7 @@
 // tick that reloads the board. See design.md for the visual rules.
 import { initPanel } from "./panel.ts";
 import { initViews } from "./views.ts";
-import { initProjects } from "./projects.ts";
+import { initProjects, pick } from "./projects.ts";
 import { initUpdate } from "./update.ts";
 import { initKeys } from "./keys.ts";
 import { filterBox, statusSheet } from "./cards.ts";
@@ -14,7 +14,7 @@ import { initLive } from "./live.ts";
 import { store } from "./store.ts";
 import { initViewer } from "./viewer.ts";
 import { initContext } from "./context.ts";
-import { initFooter, initRail } from "./workspace.ts";
+import { cardHref, initFooter, initRail } from "./workspace.ts";
 import { go } from "./views.ts";
 import { openWorkspace } from "./run-view.ts";
 import { newIdea } from "./cards.ts";
@@ -32,12 +32,28 @@ statusSheet();
 initRail();
 initFooter(() => go("terminal", true));
 // The rail's rows and + open a card or the new-idea form here, on the board, when it has them.
+// A row of another project than the one picked switches the board to that project first.
 addEventListener("kz-open-card", (e: any) => {
   const { dir, id, text } = e.detail;
-  const c = store.S.cards.find((x) => x.state === dir && (id ? x.kind === "run" && x.id === id : x.kind === "idea" && x.text === text));
-  if (!c) return;
+  const find = () =>
+    store.S.cards.find(
+      (x) => x.state === dir && (id ? x.kind === "run" && x.id === id : x.kind === "idea" && x.text === text),
+    );
+  const c = find();
+  if (c) {
+    e.preventDefault();
+    return openWorkspace(c);
+  }
+  if (!dir || dir === store.dir) return;
   e.preventDefault();
-  openWorkspace(c);
+  const href = cardHref({ state: dir, kind: id ? "run" : "idea", id, text });
+  pick(dir)
+    .then(() => {
+      const c = find();
+      if (c) openWorkspace(c);
+      else location.href = href;
+    })
+    .catch(() => (location.href = href));
 });
 addEventListener("kz-new-idea", (e) => {
   // A modal over whatever page is showing: the idea appears in the menu and Ideas by the usual refresh.

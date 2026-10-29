@@ -2,7 +2,7 @@
 description: What a kaizen run is, which files define it, and where its state lives
 tags: [project, workflow]
 sources: [skills/kaizen, skills/kaizen-help, skills/media, agents, commands, cli/worktree.ts, docs/guide.md]
-updated: 2026-10-28
+updated: 2026-10-29
 ---
 # Workflow
 
@@ -35,6 +35,7 @@ The product itself: a staged workflow (plan, approval, build, independent review
 - Roadmap mode is for more than one module; a single screen or feature stays one run, and outside roadmap mode the foundation questions stay one round.
 - `stage` must be one of `plan`, `build`, `review`, `done`, `abandoned` — `columnOf()` in `cli/state.ts`; any other word shows as planning (`.kaizen/memory.md`).
 - Global skill links on this machine point at `~/kaizen`, a separate clone: a skill change is live elsewhere only once `~/kaizen` has it (`.kaizen/memory.md`).
+- Final-approval gate (`gateOf` in `cli/state.ts`): with `approvals.review` on, a run id from 2026-10-29 on (`GATE_FROM`) whose `03-impl.md`/fix reports name existing files in backticks under a heading with "chang" or "files" (`changedPaths`; whole report when none) is accepted only by a line `accepted: <ISO> by user via board|chat` or `accepted: <ISO> auto (auto_accept)` in `02-approval.md` (`acceptance`, `recordAcceptance`). The board's `/decide` approve-as-is at review and `POST /accept` write it; the main thread writes the chat line. Without it a done run is "done, not approved" and `commitPush` refuses. `auto_accept` (top-level, default false) lets `auto` runs write the auto line. The rule text is in `spec-main.md` *Final approval*. `reviewGateOn` ignores comments, CRLF and quotes; `boardCards` caches the gate per run by the mtimes of the files it reads. The `approvals.review` setting row shows in every mode. Agents can still write `stage: done`; the gate flags it, it does not undo it.
 
 ## Notes
 <!-- yours: /kaizen docs never rewrites this section -->

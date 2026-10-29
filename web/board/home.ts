@@ -279,10 +279,14 @@ async function show(id) {
   if (c.error) return toast(c.error);
   if (cur?.id !== c.id) attachments = [];
   const same = cur?.id === c.id && cur.messages.length === c.messages.length && !!$("hlog");
+  // The list's busy dot is from the last /chats: a turn that ended since redraws it.
+  const listed = chats.find((x) => x.id === c.id);
+  const ended = listed && listed.busy && !c.busy;
+  if (listed) listed.busy = !!c.busy;
   cur = c;
   remoteBusy = !!c.busy;
   remember(c.id);
-  if (same) { updateReply(c.messages.at(-1)); syncSendButton(); }
+  if (same && !ended) { updateReply(c.messages.at(-1)); syncSendButton(); }
   else draw();
   follow(c.project);
   // A turn started from another tab, or before a reload, is still running: follow it until it saves.
@@ -389,6 +393,8 @@ export async function openHome() {
       if (pending) id = chats.find((c) => c.updated >= pending)?.id;
     } catch (e) {}
   }
+  // A new tab has no chat of its own yet: a chat still working is the one to follow.
+  if (!id) id = chats.find((c) => c.busy)?.id;
   if (id && chats.some((c) => c.id === id)) await show(id);
   else { remember(null); draw(); }
 }

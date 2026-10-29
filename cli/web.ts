@@ -6,7 +6,7 @@ import {
   home, type Item, type Card, boardCards, knownProjects, remember, locate, label, tilde, searchRoots, findProjects,
   readInbox, writeInbox, replaceIdea, moveIdea, abandonRun, runToIdea, launchRun, parseItem, agentChoices, onPath, projectOf, KNOWN_AGENTS, plainModel, short, setArchived, writeNotes,
   appendNote, saveAttachment, pidOnPort, readText, cmdExe, sysExe, powershellExe, runGit, cardsGit, readCommit, commitPush, notice, notifier, LOGO,
-  reviewFindings, pickFindings, backlogCards, backlogItem, startedBacklog, closeBacklog, markBacklogDone, fixPrompt, approvalPrompt, canApproveAwaiting, nativePath, closeSessions, sweepSessions, issueUrl,
+  reviewFindings, pickFindings, backlogCards, backlogItem, startedBacklog, closeBacklog, markBacklogDone, fixPrompt, approvalPrompt, canApproveAwaiting, gateOf, recordAcceptance, nativePath, closeSessions, sweepSessions, issueUrl,
   launchMode, readSessions, ownerOf, runIndex, resumePrompt, runAgent, firstSession, webHosts,
 } from "./state.ts";
 import { attachPty, writePty, resizePty, exitPty, ptyState, ptyKeys, adoptLoginEnv, startPty, ptySupported } from "./pty.ts";
@@ -1587,6 +1587,14 @@ export async function web(repoDir: string, opts: Opts = {}) {
           const nums = pickFindings(dir, id, body.nums);
           if (!nums) return bad("pick open findings of this review");
           const text = fixPrompt(id, nums);
+          // An agent already open in this run's card takes the fix there, busy or not:
+          // the text queues in it, and no second agent opens beside it.
+          const live = readSessions(dir).find((s) => ptyState(s.key)?.alive && ownerOf(dir, s) === id);
+          if (live) {
+            writePty(live.key, text + "\r");
+            changed();
+            return json({ ok: true, pty: live.key, reused: true });
+          }
           // The run's conversation picks the fix up, and once that window is open the
           // waiting one ends. A failed launch leaves it: the decision has nowhere else.
           const before = Date.now();
@@ -1619,10 +1627,25 @@ export async function web(repoDir: string, opts: Opts = {}) {
           const before = Date.now();
           const r = launchRun({ severity: null, where: null, text, raw: text }, dir, id, inCard(dir));
           if (r.ok) closeSessions(dir, id, { before });
+          // Approving the review as-is is the user's acceptance, on record before the
+          // agent marks the run done; a revise is not.
+          if (r.ok && body.why === undefined && (run.awaiting === "approvals.review" || run.awaiting === "findings")) recordAcceptance(dir, id, "board");
           changed();
           return json(r.ok
             ? { ok: true, agent: r.agent, pty: r.pty }
             : { ok: false, why: r.why, manual: r.manual, agent: r.agent }, r.ok ? 200 : 500);
+        }
+
+        // Approve a run an agent marked done without the user's acceptance: the line
+        // only, no agent is started.
+        if (path === "/accept") {
+          const id = String(body.id ?? "");
+          if (!/^[\w.-]+$/.test(id)) return bad("bad run id");
+          if (gateOf(dir, id) !== "needs") return bad("this run is not waiting on your approval", 409);
+          const why = recordAcceptance(dir, id, "board");
+          if (why) return bad(why, 409);
+          changed();
+          return json({ ok: true });
         }
 
         // Start a run's agent again after it ended mid-stage (resumeRun).

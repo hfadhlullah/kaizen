@@ -4,6 +4,7 @@
 // run's Preview and project notes. Terminal tabs are kzTerm mounts on /pty that live as
 // long as their tab, so a tab switch or a /state tick never reconnects them. Split right
 // or down shows a second tab beside the first, sized with the Terminal page's handles.
+import { pick } from "./projects.ts";
 import { store } from "./store.ts";
 import { toast } from "./toast.ts";
 import { $, html, ico, raw } from "./dom.ts";
@@ -107,6 +108,7 @@ function tabs(): Tab[] {
 const icon = (t: Tab) => (t.agent && MARKS.includes(t.agent) ? raw(`<svg><use href="#i-${t.agent}"/></svg>`) : ico({ agent: "ai", shell: "term", local: "link", preview: "eye", note: "note", wait: "ai" }[t.kind]));
 const elsewhere = new Set<string>();
 
+let switched: string | null = null; // the project a deep link last switched the board to
 // Called by go("run") and on every /state: draws the tab strip and keeps the panes.
 export async function showRunView() {
   const p = new URLSearchParams(location.search),
@@ -125,6 +127,12 @@ export async function showRunView() {
   }
   if (!c) {
     // A project this board is not showing: the all-projects board has it.
+    // A deep link names its project: switch to it once, the way a rail click does.
+    if (!store.all && dir && dir !== store.dir && dir !== switched) {
+      switched = dir;
+      await pick(dir).catch(() => {});
+      return showRunView();
+    }
     if (!store.all && find(railData().cards)) location.href = "/?all=1&" + p.toString();
     else $("rtabs").innerHTML = String(html`<span class="rnone">That ${id ? "run" : "idea"} is not on this board.</span>`);
     return;

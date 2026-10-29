@@ -131,7 +131,29 @@ whose changes leave every note true touches nothing and says so in one line.
 
 ## Final approval
 
-Controlled by `approvals.review`, skipped in `auto`.
+Controlled by `approvals.review`. `auto` skips every stop before it, not this one, unless `auto_accept` is on.
+
+**The gate is a stop, in every runner.** With `approvals.review` on, a run whose
+`03-impl.md` names changed files is not done until `02-approval.md` holds an
+acceptance line, exactly one of:
+
+```
+accepted: <ISO 8601 time> by user via board
+accepted: <ISO 8601 time> by user via chat
+accepted: <ISO 8601 time> auto (auto_accept)
+```
+
+The review ends by writing `stage: "review"`, `awaiting: "approvals.review"` and
+stopping; never write `stage: "done"` in the same step as the review, and never from
+`plan` or `build`. The board's Approve writes the `via board` line itself. On
+`/kaizen approve` or a clear approval of this run in conversation ("approve", "looks
+good, ship it"), append the `via chat` line before setting `done`. A request that only
+names a later step, such as "commit and push", is not one: ask once whether it
+approves the run. In `auto` mode the run stops there too ("finished, waiting for your
+approval"), unless `auto_accept` is `true`: then append the `auto (auto_accept)` line
+and set `done`. A run that changed no files, or runs with `approvals.review` off, may
+go `done` without the line. A run marked `done` without it shows on the board as
+"done, not approved", and its commit is refused until it is approved.
 
 Report: what was built (for a code run, show its Preview proof), verification results, findings fixed, findings still open,
 every criterion the reviewer answered `CANNOT VERIFY` with the check it says a human

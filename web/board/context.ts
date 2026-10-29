@@ -54,6 +54,7 @@ async function notes() {
 async function files(path = folder) {
   folder = path;
   const gen = ++generation;
+  if (!selectedDir()) return message("Pick a project to see its files.");
   message("Loading files…");
   try {
     const data = await request(

@@ -35,7 +35,7 @@ export function fixForm(c) {
     return;
   const el = document.createElement("div");
   el.className = "inl fix";
-  el.innerHTML = html`<div class="q">Fix findings</div><div class="q dim">Opens your agent in this project, told to fix the ticked findings and recheck them.</div>${c.status === "waiting" ? html`<div class="q dim">A session is already waiting on this run in a terminal; this opens another one.</div>` : ""}${
+  el.innerHTML = html`<div class="q">Fix findings</div><div class="q dim">Opens your agent in this project, told to fix the ticked findings and recheck them.</div>${c.status === "waiting" ? html`<div class="q dim">An agent is already open on this run; the fix is sent to it when it runs in its card, else another one opens.</div>` : ""}${
     fs
       .map((f) => {
         const x = f.done ? " (closed)" : sent(f) ? " (sent)" : "";
@@ -73,7 +73,8 @@ export function fixForm(c) {
     // Sent findings lock as sent, so a second press cannot open a second agent on them.
     if (r.ok) {
       toast(
-        "Fixing " + nums.length + " finding" + (nums.length === 1 ? "" : "s") + ", " + where(r) + ": " + via(r.agent),
+        "Fixing " + nums.length + " finding" + (nums.length === 1 ? "" : "s") + ", " +
+          (r.reused ? "sent to the agent already open in its card" : where(r) + ": " + via(r.agent)),
       );
       if (r.pty) store.wantTerm = key(c);
       nums.forEach((n) => fixSent.add(k(n)));

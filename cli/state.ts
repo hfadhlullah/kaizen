@@ -755,6 +755,7 @@ export type Card = {
   notes?: string;                                  // inbox notes, or runs/<id>/notes.md
   parent?: string;                                 // the run this card was filed from
   children?: string[];                             // runs only: runs that name this one as parent
+  accept?: "needs" | "auto";                       // done runs only: changed files with no acceptance, or auto-accepted
 };
 
 // A `Parent: <run id>` line (or the older `Follow-up of: <run id>`) in a request or
@@ -979,7 +980,7 @@ const NEED: Record<string, string> = {
 };
 export function notice(c: Card): string | null {
   if (c.kind !== "run") return null;
-  const what = c.awaiting ? NEED[c.awaiting] ?? `waiting on ${c.awaiting}` : c.status === "done" ? "done" : null;
+  const what = c.awaiting ? NEED[c.awaiting] ?? `waiting on ${c.awaiting}` : c.status === "done" ? (c.accept === "needs" ? "done, not approved" : "done") : null;
   return what && `${c.text} — ${what}\n${c.where}`;
 }
 
@@ -1158,6 +1159,24 @@ export function requestTitle(text: string) {
 // Every card on the board, for the state dirs asked for. Retirement of an idea is
 // checked against every known project's runs, not just these: an idea in the global
 // inbox becomes a run in whichever project the agent was started in.
+// The gate reads a done run's reports on every refresh: kept per run until one of the
+// files it reads changes (stat only), so a project of many done runs costs no reads.
+const gates = new Map<string, { at: string; g: ReturnType<typeof gateOf> }>();
+const accepted = (st: string, id: string): { accept?: "needs" | "auto" } => {
+  if (id.slice(0, 10) < GATE_FROM) return {};
+  const base = join(st, "runs", id), project = projectOf(st);
+  const its = join(base, "05-iterations");
+  let fixes: string[] = [];
+  try { fixes = readdirSync(its).map((n) => join(its, n)); } catch {}
+  // ponytail: a listed file deleted or created later is not in the key; it is seen at the
+  // next write to any file here.
+  const at = [join(base, "state.json"), join(base, "02-approval.md"), join(base, "03-impl.md"), ...fixes,
+    join(project, ".kaizen", "config.yml"), join(home, ".kaizen", "config.yml")]
+    .map((f) => { try { return statSync(f).mtimeMs; } catch { return 0; } }).join();
+  let hit = gates.get(base);
+  if (!hit || hit.at !== at) gates.set(base, (hit = { at, g: gateOf(st, id) }));
+  return hit.g === "needs" || hit.g === "auto" ? { accept: hit.g } : {};
+};
 export function boardCards(states: string[], now: number): Card[] {
   const next: Card[] = [];
   // One read per request file; both the retirement check and the card title come
@@ -1228,6 +1247,7 @@ export function boardCards(states: string[], now: number): Card[] {
         tags: [r.runner, r.agent, yolos.has(r.id) ? "yolo" : undefined, unrechecked(st, r.id) ? "unrechecked" : undefined].filter((t): t is string => !!t),
         notes: readNotes(st, r.id) || undefined,
         parent: parentOf(body(st, r.id)),
+        ...(r.stage === "done" ? accepted(st, r.id) : {}),
       });
     }
   }
@@ -1784,6 +1804,68 @@ function runReport(state: string, id: string) {
   for (const f of [join(base, "03-impl.md"), ...fixes]) try { text += readText(f) + "\n"; at = Math.max(at, statSync(f).mtimeMs); } catch {}
   return { text, at };
 }
+// The final-approval gate. A run that changed files is only accepted by an
+// `accepted:` line in its 02-approval.md, written by the board's Approve, by the main
+// thread on an approval in chat, or by an auto run under auto_accept. Agents can still
+// write `stage: done` themselves; the gate makes that visible and refuses the commit.
+// Runs started before GATE_FROM are never flagged.
+export const GATE_FROM = "2026-10-29";
+const ACCEPTED = /^accepted: \S+ (by user via (board|chat)|auto \(auto_accept\))\s*$/m;
+// The files a report names in backticks that exist in the project: the same
+// convention the board commits by.
+// Only the sections that list changes ("## Changed", "### What changed", "## Files"),
+// so a file a report merely mentions elsewhere does not count; a report with no such
+// heading is read whole.
+const changeSections = (report: string) => {
+  const parts = report.split(/^(?=#{2,3} )/m).filter((p) => /^#{2,3} .*(chang|files)/i.test(p));
+  return parts.length ? parts.join("\n") : report;
+};
+export function changedPaths(report: string, projectDir: string): string[] {
+  const out = new Set<string>();
+  for (const m of changeSections(report).matchAll(/`([^`\n]+)`/g)) {
+    const p = m[1].replace(/:\d+(-\d+)?$/, "");
+    if (/[/.]/.test(p) && !p.startsWith("/") && !p.includes("..") && !/^https?:/.test(p) && existsSync(join(projectDir, p))) out.add(p);
+  }
+  return [...out];
+}
+export function acceptance(state: string, id: string): "user" | "auto" | null {
+  try {
+    const m = ACCEPTED.exec(readText(join(state, "runs", id, "02-approval.md")));
+    return m ? (m[1].startsWith("auto") ? "auto" : "user") : null;
+  } catch { return null; }
+}
+export function recordAcceptance(state: string, id: string, via: "board" | "chat" | "auto"): string | null {
+  if (acceptance(state, id)) return "That run is already approved.";
+  const who = via === "auto" ? "auto (auto_accept)" : `by user via ${via}`;
+  appendFileSync(join(state, "runs", id, "02-approval.md"), `\naccepted: ${new Date().toISOString()} ${who}\n`);
+  return null;
+}
+// The first config.yml in the chain that sets approvals.review; off when none does,
+// as in config.default.yml.
+function reviewGateOn(projectDir: string): boolean {
+  for (const t of configTexts(projectDir)) {
+    // Comments, CRLF and quotes are what a hand-edited file holds; none may switch the gate off.
+    const clean = t.replace(/\r/g, "").split("\n").map((l) => l.replace(/(^|\s)#.*$/, "").trimEnd()).filter(Boolean).join("\n") + "\n";
+    const m = /^approvals:\n(?:[ \t]+.*\n)*?[ \t]+review:[ \t]*["']?(true|false)["']?$/m.exec(clean);
+    if (m) return m[1] === "true";
+    const flow = /^approvals:[ \t]*\{[^}]*\breview:[ \t]*["']?(true|false)/m.exec(clean);
+    if (flow) return flow[1] === "true";
+  }
+  return false;
+}
+// "needs": changed files, no acceptance, and the gate is on. Null where the gate does
+// not apply: an older run, a run not marked done, one that changed nothing.
+export function gateOf(state: string, id: string): "needs" | "user" | "auto" | null {
+  if (id.slice(0, 10) < GATE_FROM) return null;
+  let run: any;
+  try { run = JSON.parse(readText(join(state, "runs", id, "state.json"))); } catch { return null; }
+  if (run.stage !== "done" && run.awaiting !== "approvals.review") return null;
+  const projectDir = projectOf(state);
+  if (!changedPaths(runReport(state, id).text, codeDir(projectDir, id)).length) return null;
+  const a = acceptance(state, id);
+  if (a) return a;
+  return reviewGateOn(projectDir) ? "needs" : null;
+}
 const names = (report: string, path: string) => report.includes("`" + path + "`") || report.includes("`" + path + ":");
 
 type Report = { id: string; text: string; at: number; sha?: string };
@@ -1896,6 +1978,7 @@ export async function commitPush(state: string, id: string, message: string, sho
   const dir = codeDir(dirname(state), id);
   const s = runGit(state, id);
   if (!s.repo) return { ok: false, why: "This project has no git remote." };
+  if (gateOf(state, id) === "needs") return { ok: false, why: "This run is not approved yet. Approve it first." };
   if (s.files.join("\n") !== shown.join("\n")) return { ok: false, why: "The changed files are no longer the ones shown. Look at the list again." };
   if (s.files.length) {
     if (!message.trim()) return { ok: false, why: "A commit message is required." };
