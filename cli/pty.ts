@@ -54,17 +54,23 @@ export const QUIET_MS = 700;
 // drawing, spinners and the TUI's own footer lines out. "" when nothing readable is left.
 // ponytail: screen-text heuristic over raw chunks; a TUI that repaints oddly shows an older line.
 const CHROME = new RegExp(WORK.source + "|\\? for shortcuts|shift\\+tab|ctrl\\+[a-z]|\\besc to\\b|tokens\\)|bypass permissions", "i");
-// Never the input: a line led by a prompt marker (also inside box-drawn rows) and everything in the
-// input box (╰ … ╭, read bottom-up) is skipped, so typed or pasted text is not shown.
+// Never the input: the latest prompt line and everything after it (what is typed there, its wrapped
+// continuation lines) and everything in the input box (╰ … ╭, read bottom-up) are skipped, so typed
+// or pasted text is not shown. A prompt line is led by a marker, also after a short prefix such as
+// "rzr@host:~$", "kaizen main ❯" or "(venv) dir %", and also inside box-drawn rows.
+// ponytail: an output line shaped like a prompt ("I like C# code") hides the lines after it; the card
+// then shows an older line, never the input.
+const PROMPT = /^(?:\S+\s+){0,3}(?:\S*[$%#❯›]|>)(\s|$)/;
 export const lastLine = (t: string) => {
   const s = t.replace(/\x1b\[[0-9;?]*[A-Za-z]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[()][0-9A-Za-z]/g, " ");
+  const lines = s.split(/[\r\n]+/).map((raw) => ({ raw: raw.trim(), l: raw.replace(/[\u2500-\u259f\u2800-\u28ff✻✶✳✢✽✺●○◐◑◒◓⏺⎿⏵▪▫■□]|[\x00-\x1f\x7f]/g, " ").replace(/\s+/g, " ").trim() }));
+  let end = lines.length;
+  for (let i = lines.length - 1; i >= 0; i--) if (PROMPT.test(lines[i].l)) { end = i; break; }
   let box = false;
-  for (const raw of s.split(/[\r\n]+/).reverse()) {
-    const t = raw.trim();
-    if (box) { if (t.startsWith("╭")) box = false; continue; }
-    if (t.startsWith("╰") && !/[\p{L}\p{N}]/u.test(t)) { box = true; continue; }
-    const l = raw.replace(/[\u2500-\u259f\u2800-\u28ff✻✶✳✢✽✺●○◐◑◒◓⏺⎿⏵▪▫■□]|[\x00-\x1f\x7f]/g, " ").replace(/\s+/g, " ").trim();
-    if (/^[❯›>$#](\s|$)/.test(l)) continue;
+  for (let i = end - 1; i >= 0; i--) {
+    const { raw, l } = lines[i];
+    if (box) { if (raw.startsWith("╭")) box = false; continue; }
+    if (raw.startsWith("╰") && !/[\p{L}\p{N}]/u.test(raw)) { box = true; continue; }
     if (/[\p{L}\p{N}].*[\p{L}\p{N}].*[\p{L}\p{N}]/u.test(l) && !CHROME.test(l)) return l.slice(0, 80);
   }
   return "";

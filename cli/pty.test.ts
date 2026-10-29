@@ -248,6 +248,13 @@ test("lastLine: the latest readable line, without escapes, spinners, boxes or th
   // The input box never yields what sits in it, wherever it is drawn.
   expect(lastLine("Done: fixed it\r\n╭──────╮\r\n│ > pasted-token-9 │\r\n│ more-token-9 │\r\n╰──────╯\r\n? for shortcuts")).toBe("Done: fixed it");
   expect(lastLine("Done: fixed it\r\n❯ pasted-token-9")).toBe("Done: fixed it");
+  // A prompt with a prefix, and the wrapped lines typed after it, are input too.
+  expect(lastLine("Build passed\r\nrzr@host:~$ export KEY=sk-secret-9")).toBe("Build passed");
+  expect(lastLine("Build passed\r\nkaizen main ❯ export KEY=sk-secret-9")).toBe("Build passed");
+  expect(lastLine("Build passed\r\n(venv) rzr dir % echo sk-secret-9")).toBe("Build passed");
+  expect(lastLine("Build passed\r\n› first part of a long pasted token\r\n  sk-secret-9 continued here")).toBe("Build passed");
+  // Output after a finished command, above the next prompt, is still read.
+  expect(lastLine("$ bun test\r\n12 pass 0 fail\r\nrzr@host:~$ ")).toBe("12 pass 0 fail");
   expect(lastLine("╰───╯ ⠙ ✻")).toBe("");
   expect(lastLine("x".repeat(200)).length).toBe(80);
 });
