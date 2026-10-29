@@ -9,7 +9,7 @@ import {
   reviewFindings, pickFindings, backlogCards, backlogItem, startedBacklog, closeBacklog, markBacklogDone, fixPrompt, approvalPrompt, canApproveAwaiting, gateOf, recordAcceptance, nativePath, closeSessions, sweepSessions, issueUrl,
   launchMode, readSessions, ownerOf, runIndex, resumePrompt, runAgent, firstSession, webHosts,
 } from "./state.ts";
-import { attachPty, writePty, resizePty, exitPty, ptyState, ptyKeys, adoptLoginEnv, startPty, ptySupported } from "./pty.ts";
+import { attachPty, writePty, resizePty, exitPty, ptyState, ptyKeys, adoptLoginEnv, startPty, ptySupported, detachPty, ptyTail, ptyTmux, tmuxAlive, RESUMED } from "./pty.ts";
 import { claudeUsage, codexUsage, phonePeers, type Usage } from "./usage.ts";
 import { readSources, addSource, removeSource, moveSource, setCategory, setWriteback, setPaused, readIcebox, promote, dismiss, restore, addItem, githubRepo, markDone, markReplied, gatherSource, freshImages, gatherAll, gatherDirs, due, socialUrl, socialOf } from "./sources.ts";
 import { projectLogo, LOGO_TYPES } from "./logo.ts";
@@ -262,29 +262,76 @@ export async function web(repoDir: string, opts: Opts = {}) {
     if (quiet && !(own && firstSession(dir, id, own.cmd, projectOf(dir)))) return { error: "no conversation of this run to resume", status: 409 };
     const text = quiet ? "" : resumePrompt(id);
     const before = Date.now();
-    const r = launchRun({ severity: null, where: null, text, raw: text }, dir, id, inCard(dir));
+    // What the card showed before the board went away (saveLive), then a line saying so.
+    const idx = runIndex(dir);
+    const prev = readSessions(dir).filter((s) => ownerOf(dir, s, idx) === id && existsSync(tailOf(s.key))).pop();
+    let seed: string | undefined;
+    try { if (prev) seed = readText(tailOf(prev.key)) + RESUMED; } catch { /* shown without it */ }
+    const r = launchRun({ severity: null, where: null, text, raw: text }, dir, id, { ...inCard(dir), seed });
     if (r.ok) closeSessions(dir, id, { before });
+    if (r.ok && prev) rmSync(tailOf(prev.key), { force: true });
     changed();
     return r;
   };
 
-  // Runs whose in-card agent was live when Settings' Update restarted the board: the
-  // agents end with the old board, so the new one starts them again (resumeRun). Each
-  // entry keeps its session key, so an idea whose run had not written state.json yet is
-  // matched to its run by the new board, once that run exists. The agents are ended here,
-  // not left to the board's exit, so none outlives it beside its resumed self.
+  // Runs whose in-card agent was live when the board stopped (Settings' Update, Ctrl-C,
+  // systemd) or died: the agents end with the old board, so the new one starts them
+  // again (resumeRun). Each entry keeps its session key, so an idea whose run had not
+  // written state.json yet is matched to its run by the new board, once that run exists.
+  // On a stop the agents are ended here, not left to the board's exit, so none outlives
+  // it beside its resumed self; a tmux-kept one is only detached and is attached again.
+  // While the board runs the list is kept current (crash: true), so a board that died
+  // without stopping leaves it too. Each card's last screen goes beside it (tailOf).
   const RESUME_LIST = join(home, ".kaizen", "resume-after-upgrade.json");
-  const saveLive = () => {
+  const TAILS = join(home, ".kaizen", "pty");
+  const tailOf = (key: string) => join(TAILS, `${key}.log`);
+  type Live = { dir: string; key: string; run: string | null; tmux?: string; resumed?: number };
+  // Sessions this board started again after a crash, and when: written into the list so
+  // a board that dies again within CRASH_AGAIN_MS does not start them a third time.
+  const autoResumed = new Map<string, number>();
+  const CRASH_AGAIN_MS = 120_000;
+  const written = new Map<string, number>();
+  const owners = new Map<string, { dir: string; run: string | null }>(), unrecorded = new Set<string>();
+  let stopping = false, lastList = "";
+  const saveLive = (crash = false) => {
+    if (stopping) return;
     const live = new Set(ptyKeys().filter((k) => ptyState(k)?.alive));
-    if (!live.size) return;
-    const list: { dir: string; key: string; run: string | null }[] = [];
-    for (const d of states(true)) {
-      const idx = runIndex(d);
-      for (const s of readSessions(d)) if (live.has(s.key)) list.push({ dir: d, key: s.key, run: ownerOf(d, s, idx) });
+    if (!live.size) {
+      if (crash && lastList) { rmSync(RESUME_LIST, { force: true }); lastList = ""; }
+      return;
     }
-    try { writeFileSync(RESUME_LIST, JSON.stringify({ at: Date.now(), list })); } catch { /* nothing resumes; the card offers Resume */ }
-    for (const k of live) exitPty(k, 200);
+    // Which project and run each session belongs to, found once: a run owns its session
+    // for good, so only new sessions and ideas' ones send the walk through every project.
+    // A key no project records (a Terminal page shell) is looked for once.
+    for (const m of [owners, written, autoResumed]) for (const k of m.keys()) if (!live.has(k)) m.delete(k);
+    for (const k of unrecorded) if (!live.has(k)) unrecorded.delete(k);
+    if ([...live].some((k) => !unrecorded.has(k) && !owners.get(k)?.run)) {
+      for (const d of states(true)) {
+        const idx = runIndex(d);
+        for (const s of readSessions(d)) if (live.has(s.key) && !owners.get(s.key)?.run) owners.set(s.key, { dir: d, run: ownerOf(d, s, idx) });
+      }
+      for (const k of live) if (!owners.has(k)) unrecorded.add(k);
+    }
+    const list: Live[] = [...live].flatMap((key) => {
+      const o = owners.get(key);
+      return o ? [{ dir: o.dir, key, run: o.run, ...(ptyTmux(key) ? { tmux: ptyTmux(key)! } : {}), ...(autoResumed.has(key) ? { resumed: autoResumed.get(key) } : {}) }] : [];
+    });
+    try {
+      mkdirSync(TAILS, { recursive: true });
+      for (const { key } of list) {
+        const total = ptyState(key)!.total, t = written.get(key) === total ? null : ptyTail(key);
+        if (t) { writeFileSync(tailOf(key), t); written.set(key, total); }
+      }
+      const body = JSON.stringify(list);
+      if (!crash || body !== lastList) writeFileSync(RESUME_LIST, JSON.stringify({ at: Date.now(), crash, list }));
+      lastList = body;
+    } catch { /* nothing resumes; the card offers Resume */ }
+    if (crash) return;
+    stopping = true;
+    for (const k of live) if (!detachPty(k)) exitPty(k, 200);
   };
+  // ponytail: a 3s tick, so a crash loses up to 3s of screen; hook push() if that matters.
+  const keepList = setInterval(() => saveLive(true), 3000);
   // An idea's session, until its run exists and owns it (ownerOf).
   const ideaPty = new Map<string, string>();
   // Backlog items this board launched whose run has not written its state.json yet:
@@ -1060,7 +1107,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         if (!cmd) return bad("No folder dialog found: install zenity or kdialog, or type the path");
         picking = true;
         try {
-          const p = Bun.spawn(cmd, { stdin: "ignore", stdout: "pipe", stderr: "pipe" });
+          const p = Bun.spawn(cmd, { stdin: "ignore", stdout: "pipe", stderr: "pipe", windowsHide: true });
           const [out, err, code] = await Promise.all([new Response(p.stdout).text(), new Response(p.stderr).text(), p.exited]);
           // osascript ends a folder with "/"; a bare root (/, C:\) keeps its own.
           const picked = /^([A-Za-z]:)?[\\/]$/.test(out.trim()) ? out.trim() : out.trim().replace(/[\\/]+$/, "");
@@ -1700,22 +1747,38 @@ export async function web(repoDir: string, opts: Opts = {}) {
   }); }
 
   // Read once and removed first, so a board that fails to start one does not retry it
-  // forever. A list older than an hour is from an upgrade whose board never came back
-  // (a failed Windows hand-off): too late to pick its runs up unasked.
+  // forever. A stop's list older than an hour is from an upgrade whose board never came
+  // back (a failed Windows hand-off): too late to pick its runs up unasked. A crash's
+  // list is current to the last few seconds of the board that wrote it, however old.
+  // Every agent starts again in its card, never in a window: a board set to open
+  // terminals leaves those runs on their Resume button.
   if (existsSync(RESUME_LIST)) {
-    let saved: { at?: number; list?: { dir: string; key: string; run: string | null }[] } = {};
+    let saved: { at?: number; crash?: boolean; list?: Live[] } = {};
     try { saved = JSON.parse(readText(RESUME_LIST)); } catch { /* unreadable: nothing to resume */ }
     rmSync(RESUME_LIST, { force: true });
     const done = new Set<string>();
-    for (const { dir, key, run } of Date.now() - (saved.at ?? 0) < 3600_000 ? saved.list ?? [] : []) {
+    for (const { dir, key, run, tmux, resumed } of saved.crash || Date.now() - (saved.at ?? 0) < 3600_000 ? saved.list ?? [] : []) {
+      // Kept in tmux and still there: the same agent, mid-step, shown in its card again.
+      if (tmux && tmuxAlive(tmux)) {
+        try {
+          startPty(key, [], projectOf(dir), join(dir, "sessions", `${key}.pid`), changed, { tmux, attach: true });
+          console.log(`  reattached ${run ?? key}`);
+          continue;
+        } catch { /* started again below */ }
+      }
       const s = run ? null : readSessions(dir).find((x) => x.key === key);
       const id = run ?? (s ? ownerOf(dir, s) : null);
       if (!id || done.has(`${dir}\0${id}`)) continue;
       done.add(`${dir}\0${id}`);
+      if (saved.crash && resumed && Date.now() - resumed < CRASH_AGAIN_MS) { console.log(`  not resuming ${id}: the board died again right after resuming it`); continue; }
+      if (launchMode(projectOf(dir)) !== "card") continue;
       const r = resumeRun(dir, id);
+      if (saved.crash && "pty" in r && r.pty) autoResumed.set(r.pty, Date.now());
       console.log(`  ${"error" in r || !r.ok ? "could not resume" : "resumed"} ${id}${"error" in r ? ` (${r.error})` : !r.ok ? ` (${r.why})` : ""}`);
     }
   }
+  // Last screens nothing picked up: a run left on its Resume button keeps its own a day.
+  try { for (const f of readdirSync(TAILS)) if (Date.now() - statSync(join(TAILS, f)).mtimeMs > 86_400_000) rmSync(join(TAILS, f), { force: true }); } catch { /* no folder yet */ }
 
   const url = `http://127.0.0.1:${server.port}/`;
   console.log(`\n  kaizen web  ${url}`);
@@ -1724,7 +1787,15 @@ export async function web(repoDir: string, opts: Opts = {}) {
   if (opts.open !== false) await openApp(url);
 
   await new Promise<void>((resolve) => {
-    const stop = () => { clearInterval(poll); clearInterval(ping); clearInterval(gather); clearInterval(loop); for (const w of watchers) { try { w.close(); } catch { /* gone */ } } server.stop(true); resolve(); };
+    // The card agents are listed for the next board and ended (saveLive); the short wait
+    // lets each take its /exit, or be ended with what it started, before this process goes.
+    const stop = () => {
+      const live = ptyKeys().some((k) => ptyState(k)?.alive);
+      saveLive();
+      clearInterval(poll); clearInterval(ping); clearInterval(gather); clearInterval(loop); clearInterval(keepList);
+      for (const w of watchers) { try { w.close(); } catch { /* gone */ } }
+      setTimeout(() => { server.stop(true); resolve(); }, live ? 400 : 0);
+    };
     process.on("SIGINT", stop);
     process.on("SIGTERM", stop);
   });

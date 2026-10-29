@@ -139,11 +139,20 @@ agent:
   # Where the web board runs the agent it launches.
   #   card     - inside the board: the card's Terminal tab shows the agent live and
   #              takes your typing. The agent lives in the board's process, so
-  #              stopping or upgrading the board ends it. On Windows it runs in
-  #              a ConPTY console that Windows PowerShell hosts.
+  #              stopping, upgrading or a crash of the board ends it; the next
+  #              board starts it again in its card, in the same conversation, with
+  #              its last screen and a line saying the step it was on was cut off.
+  #              On Windows it runs in a ConPTY console that Windows PowerShell hosts.
   #   terminal - a new terminal window (or tmux/herdr tab) per launch.
   # The terminal dashboard always opens terminal windows.
   launch: card
+  # Card agents only: what happens to them when the board stops.
+  #   off  - they end and the next board starts them again (above).
+  #   tmux - they run inside a hidden tmux session on kaizen's own tmux server
+  #          (tmux -L kaizen, your own sessions untouched) and keep working through
+  #          a board restart or crash; the next board shows them again mid-step.
+  #          Linux and macOS with tmux installed; elsewhere it acts as off.
+  keep_alive: off
   # Per-tool model and effort for the session the board launches, passed as that
   # tool's own flags (claude --model/--effort, agy --model/--effort, codex -m and
   # model_reasoning_effort, gemini -m, opencode -m). Model names are the tool's own:

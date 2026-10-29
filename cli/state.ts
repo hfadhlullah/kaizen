@@ -5,7 +5,7 @@ import { existsSync, readFileSync, readdirSync, appendFileSync, writeFileSync, m
 import { Database } from "bun:sqlite";
 import { join, dirname, sep, win32, posix } from "node:path";
 import { homedir, arch, cpus, release, totalmem, version as osVersion } from "node:os";
-import { startPty, ptySupported } from "./pty.ts";
+import { startPty, ptySupported, killTmux, tmuxName } from "./pty.ts";
 import { codeDir, projectFromWorktree } from "./worktree.ts";
 
 // The real path: process.cwd() is always physical, so a raw $HOME that crosses a
@@ -1480,6 +1480,15 @@ export function closeEnabled(projectDir: string) {
 }
 
 // agent.launch in the config chain: where the web board runs what it launches.
+// agent.keep_alive: tmux keeps a card's agent in a tmux session that outlives the board.
+export function keepAlive(projectDir: string): "off" | "tmux" {
+  for (const t of configTexts(projectDir)) {
+    const m = /^agent:\n(?:[ \t]+.*\n)*?[ \t]+keep_alive:[ \t]*["']?([^"'\s]+)/m.exec(t) || /^agent\.keep_alive:[ \t]*["']?([^"'\s]+)/m.exec(t);
+    if (m) return m[1] === "tmux" ? "tmux" : "off";
+  }
+  return "off";
+}
+
 export function launchMode(projectDir: string): "card" | "terminal" {
   for (const t of configTexts(projectDir)) {
     const m = /^agent:\n(?:[ \t]+.*\n)*?[ \t]+launch:[ \t]*["']?([^"'\s]+)/m.exec(t) || /^agent\.launch:[ \t]*["']?([^"'\s]+)/m.exec(t);
@@ -1529,7 +1538,13 @@ function closeOne(st: string, s: Session): boolean {
         const kids = Bun.spawnSync([powershellExe(), "-NoProfile", "-NonInteractive", "-Command", `(Get-CimInstance Win32_Process -Filter 'ParentProcessId=${pid}').ProcessId`], { stdin: "ignore", stderr: "ignore", timeout: 10000, windowsHide: true }).stdout.toString().match(/\d+/g) ?? [];
         // No children (a launch from before this): the PowerShell itself, as before.
         for (const k of kids.length ? kids : [String(pid)]) Bun.spawnSync([sysExe("taskkill.exe"), "/T", "/F", "/PID", k], { stdin: "ignore", stdout: "ignore", stderr: "ignore", timeout: 5000, windowsHide: true });
-      } else process.kill(pid, "SIGTERM");
+      } else {
+        // The whole group: an agent in a card or terminal leads its own, and what it
+        // started (a test run, a dev server) would otherwise outlive it.
+        try { process.kill(-pid, "SIGTERM"); } catch { process.kill(pid, "SIGTERM"); }
+        // A tmux-kept agent: the PID is only its client.
+        killTmux(tmuxName(s.key));
+      }
       closed = true;
     }
   } catch { /* already gone */ }
@@ -1658,7 +1673,7 @@ export const CHILD_ENV = /^(CLAUDECODE|CLAUDE_PID|CLAUDE_CODE_(SESSION_ID|CHILD_
 // skill: start that skill instead of /kaizen (the Video page starts kaizen-video), in cwd:
 // a work folder that may not be a project, so it is not remembered as one. A session record is
 // written only where that folder has a .kaizen (a project place does; the library usually not).
-export function launchRun(it: Item, from: string, run?: string, pick: { agent?: string; model?: string; yolo?: boolean; card?: boolean; onChange?: () => void; skill?: "kaizen-video"; cwd?: string } = {}): Launch {
+export function launchRun(it: Item, from: string, run?: string, pick: { agent?: string; model?: string; yolo?: boolean; card?: boolean; onChange?: () => void; skill?: "kaizen-video"; cwd?: string; seed?: string } = {}): Launch {
   const projectDir = pick.cwd ?? projectOf(from);
   // The run will be born here; the board must know the dir or the idea never retires.
   if (!pick.cwd) remember(projectDir);
@@ -1692,7 +1707,7 @@ export function launchRun(it: Item, from: string, run?: string, pick: { agent?: 
   if (pick.card && ptySupported) {
     const key = s.key ?? `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     try {
-      startPty(key, s.fullCmd, projectDir, s.pidFile, pick.onChange);
+      startPty(key, s.fullCmd, projectDir, s.pidFile, pick.onChange, { seed: pick.seed, tmux: keepAlive(projectDir) === "tmux" ? tmuxName(key) : undefined });
       return { ok: true, agent, prompt, projectDir, cmd: s.fullCmd, pty: key };
     } catch (err: any) {
       drop();

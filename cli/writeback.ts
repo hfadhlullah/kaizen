@@ -9,7 +9,7 @@ import * as google from "./google.ts";
 type Gh = (args: string[]) => Promise<{ code: number; err: string }>;
 const runGh: Gh = async (args) => {
   try {
-    const p = Bun.spawn(["gh", ...args], { stdout: "ignore", stderr: "pipe" });
+    const p = Bun.spawn(["gh", ...args], { stdout: "ignore", stderr: "pipe", windowsHide: true });
     const err = await new Response(p.stderr).text();
     return { code: await p.exited, err };
   } catch { return { code: 127, err: "The gh command was not found. Install GitHub's CLI and run `gh auth login`." }; }

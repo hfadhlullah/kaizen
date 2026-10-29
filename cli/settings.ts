@@ -112,6 +112,7 @@ const SETTINGS: Setting[] = [
   { key: "review.executor", label: "Reviewer", group: "Agents", values: ["inline", "subagent", "ask"], help: "subagent: its own cold agent · inline: this session · ask: pick before review", when: ["runner", "lite"] },
   { key: "agent.default", label: "Tool the board launches", group: "Agents", values: ["auto", "claude", "codex", "agy", "opencode", "gemini"], help: "" },
   { key: "agent.launch", label: "Where the board runs agents", group: "Agents", values: ["card", "terminal"], help: "" },
+  { key: "agent.keep_alive", label: "Keep agents through a board restart", group: "Agents", values: ["off", "tmux"], help: "tmux: Linux and macOS with tmux installed", when: ["agent.launch", "card"] },
   { key: "subagents.model", label: "Model for subagents", group: "Agents", values: ["inherit", "opus", "sonnet", "haiku"], help: "Planner, builder, reviewer", when: ["runner", "full"] },
   { key: "subagents.effort", label: "Effort for subagents", group: "Agents", values: ["inherit", "low", "medium", "high"], help: "Planner, builder, reviewer", when: ["runner", "full"] },
   { key: "auto_fix.enabled", label: "Fix findings automatically", group: "Auto-fix", values: ["true", "false"], help: "" },

@@ -220,7 +220,7 @@ export function sendChat(base: string, id: string | null, text: string, project:
   const argv = [bin, "exec", "--json", "--skip-git-repo-check", "-s", "workspace-write", ...dirs,
     "-m", "gpt-6-luna", "-c", "model_reasoning_effort=medium", ...(chat.thread ? ["resume", chat.thread] : []), ...images, "-"];
   let p;
-  try { p = Bun.spawn(argv, { cwd, env, stdin: "pipe", stdout: "pipe", stderr: "pipe" }); }
+  try { p = Bun.spawn(argv, { cwd, env, stdin: "pipe", stdout: "pipe", stderr: "pipe", windowsHide: true }); }
   catch (err: any) {
     reply.error = `Could not start codex: ${err?.message ?? err}`;
     delete reply.activity;

@@ -11,7 +11,7 @@ const WIN = process.platform === "win32";
 // Windows PowerShell, which every Windows has, both hosts the console and runs the agent in it.
 const winPs = () => join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
 
-type Pty = { proc: Bun.Subprocess; out: string[]; size: number; listeners: Set<(d: string | null) => void>; exit: number | null; asking: boolean; busy: boolean; quiet?: Timer; total: number; since: number; onChange?: () => void };
+type Pty = { proc: Bun.Subprocess; out: string[]; size: number; listeners: Set<(d: string | null) => void>; exit: number | null; asking: boolean; busy: boolean; quiet?: Timer; total: number; since: number; onChange?: () => void; tmux?: string };
 
 // What a page attaching late gets replayed. A full-screen tool redraws often, so the
 // tail of its output is enough to rebuild the screen.
@@ -46,9 +46,14 @@ export const ptySupported = WIN || typeof (Bun as any).Terminal === "function";
 // Starts cmd in a new pseudo-terminal under `key` and returns its PID. pidFile gets
 // that PID, the agent's own, so closeSessions can end it like any launched session.
 // onChange: called when the agent ends or starts or stops asking, so the board can redraw.
-export function startPty(key: string, cmd: string[], cwd: string, pidFile?: string, onChange?: () => void): number {
+// seed: what the card showed before the board restarted, replayed ahead of the new output.
+// tmux: run cmd inside a tmux session of that name on kaizen's own server (tmuxCmd), which
+// outlives the board; null where tmux cannot be used, and the agent runs plainly.
+export function startPty(key: string, cmd: string[], cwd: string, pidFile?: string, onChange?: () => void, opts: { seed?: string; tmux?: string; attach?: boolean } = {}): number {
   const dec = new TextDecoder();
-  const p: Pty = { proc: null as unknown as Bun.Subprocess, out: [], size: 0, listeners: new Set(), exit: null, asking: false, busy: false, total: 0, since: 0, onChange };
+  const p: Pty = { proc: null as unknown as Bun.Subprocess, out: opts.seed ? [opts.seed] : [], size: opts.seed?.length ?? 0, listeners: new Set(), exit: null, asking: false, busy: false, total: 0, since: 0, onChange };
+  // attach: the session already runs (kept from a board before this one); only a client is started.
+  if (opts.tmux && tmuxOk()) cmd = opts.attach ? attachCmd(opts.tmux) : tmuxCmd(opts.tmux, cmd);
   const flag = (v: boolean) => { if (p.asking !== v) { p.asking = v; onChange?.(); } };
   // busy: output in the last QUIET_MS. A working agent redraws its spinner many times a second,
   // so a quiet terminal is one waiting at its prompt.
@@ -87,8 +92,22 @@ export function startPty(key: string, cmd: string[], cwd: string, pidFile?: stri
     env: { ...process.env, TERM: "xterm-256color", COLORTERM: "truecolor" },
     terminal: { cols: 120, rows: 32, data: (_t, d) => push(dec.decode(d, { stream: true })) },
   });
+  if (opts.tmux && cmd[0] === tmuxBin()) p.tmux = opts.tmux;
   ptys.set(key, p);
   if (pidFile) writeFileSync(pidFile, String(p.proc.pid));
+  // A tmux-kept agent's PID is the pane's, not the client's: the client is gone after a
+  // board restart, and its arguments never name the agent, so closeSessions would not
+  // know an attached client for the run's agent and could not end it.
+  if (pidFile && p.tmux) {
+    const name = p.tmux;
+    (async () => {
+      for (let i = 0; i < 40 && p.exit === null; i++) {
+        const pane = panePid(name);
+        if (pane) { try { writeFileSync(pidFile, String(pane)); } catch { /* record gone */ } return; }
+        await Bun.sleep(50);
+      }
+    })();
+  }
   p.proc.exited.then((code) => {
     p.exit = code;
     clearTimeout(p.quiet);
@@ -97,6 +116,10 @@ export function startPty(key: string, cmd: string[], cwd: string, pidFile?: stri
     for (const f of p.listeners) f(null);
     p.listeners.clear();
     try { p.proc.terminal?.close(); } catch { /* already closed */ }
+    // What the agent started and left behind (a test run, a dev server) goes with it. The
+    // pty made it a session and group leader, so its group id is its PID; a tmux client's
+    // group holds only the client, never the tmux server the agent runs under.
+    if (!WIN) { try { process.kill(-p.proc.pid, "SIGTERM"); } catch { /* group already empty */ } }
     // Dropped: pages showing it (the Terminal page) refresh, or its tile lingers until some other change.
     setTimeout(() => { if (ptys.get(key) === p) { ptys.delete(key); onChange?.(); } }, KEEP_MS).unref();
     onChange?.();
@@ -142,9 +165,57 @@ export function exitPty(key: string, grace = 5000): boolean {
   if (!p || p.exit !== null) return false;
   send(p, "\x1b");
   setTimeout(() => send(p, "/exit\r"), 100);
-  setTimeout(() => { if (p.exit === null) p.proc.kill(); }, grace).unref();
+  setTimeout(() => {
+    if (p.exit === null) { if (WIN) p.proc.kill(); else { try { process.kill(-p.proc.pid, "SIGKILL"); } catch { p.proc.kill(); } } }
+    if (p.tmux) killTmux(p.tmux);
+  }, grace).unref();
   return true;
 }
+
+// The board stopping with a tmux-kept agent: only its client ends, the agent keeps running
+// in kaizen's tmux server, and the next board attaches to it (attachCmd).
+export function detachPty(key: string): boolean {
+  const p = ptys.get(key);
+  if (!p || p.exit !== null || !p.tmux) return false;
+  p.proc.kill();
+  return true;
+}
+
+// The last n characters the session printed, from a line start, for the next board to show.
+export function ptyTail(key: string, n = 64 * 1024): string | null {
+  const p = ptys.get(key);
+  if (!p || !p.out.length) return null;
+  const t = p.out.join("").slice(-n);
+  return t.length < n ? t : t.slice(t.indexOf("\n") + 1);
+}
+export const ptyTmux = (key: string) => ptys.get(key)?.tmux ?? null;
+
+// The line a resumed card shows below what the agent printed before the board restarted.
+export const RESUMED = "\r\n\x1b[0m\x1b[2m— board restarted · agent resumed · the step it was on was cut off —\x1b[0m\r\n";
+
+// tmux keep-alive (agent.keep_alive: tmux). A server of kaizen's own (-L kaizen) with no
+// user config (-f /dev/null), so the user's sessions and key bindings are never touched:
+// no status bar, no prefix key, Escape passed at once. Not on Windows, which has no tmux.
+const TMUX = ["-L", "kaizen", "-f", "/dev/null"];
+const tmuxBin = () => (WIN ? null : Bun.which("tmux"));
+export const tmuxOk = () => !!tmuxBin();
+export const tmuxName = (key: string) => `kz-${key.replace(/[^\w-]/g, "_")}`;
+// PATH from this board, not the tmux server's own: the server keeps the environment of
+// whichever board started it.
+export const tmuxCmd = (name: string, cmd: string[]) => [tmuxBin()!, ...TMUX, "new-session", "-A", "-s", name, "-x", "120", "-y", "32", "-e", `PATH=${process.env.PATH ?? ""}`, ...cmd,
+  ";", "set", "-g", "status", "off", ";", "set", "-g", "prefix", "None", ";", "set", "-g", "escape-time", "0",
+  ";", "set", "-as", "terminal-features", ",xterm-256color:RGB"];
+export const attachCmd = (name: string) => [tmuxBin()!, ...TMUX, "attach-session", "-t", name];
+const tmux = (...a: string[]) => {
+  const bin = tmuxBin();
+  try { return !!bin && Bun.spawnSync([bin, ...TMUX, ...a], { stdin: "ignore", stdout: "ignore", stderr: "ignore", timeout: 3000 }).exitCode === 0; } catch { return false; }
+};
+export const tmuxAlive = (name: string) => tmux("has-session", "-t", `=${name}`);
+export const panePid = (name: string): number | null => {
+  const bin = tmuxBin();
+  try { return bin ? Number(Bun.spawnSync([bin, ...TMUX, "display-message", "-p", "-t", `=${name}:`, "#{pane_pid}"], { stdin: "ignore", stderr: "ignore", timeout: 3000 }).stdout.toString().trim()) || null : null; } catch { return null; }
+};
+export const killTmux = (name: string) => tmux("kill-session", "-t", `=${name}`);
 
 export function resizePty(key: string, cols: number, rows: number) {
   const p = ptys.get(key);
@@ -156,7 +227,7 @@ export const ptyKeys = () => [...ptys.keys()];
 
 export const ptyState = (key: string) => {
   const p = ptys.get(key);
-  return p ? { alive: p.exit === null, exit: p.exit, asking: p.asking, busy: p.busy } : null;
+  return p ? { alive: p.exit === null, exit: p.exit, asking: p.asking, busy: p.busy, total: p.total } : null;
 };
 
 // The environment the user's login shell builds: PATH and anything exported in their
