@@ -121,8 +121,10 @@ note covers.
    area, write a note for it as step 4 of *Update* in [`docs.md`](docs.md) says and
    list it in `Index.md`. A path that is not part of the project's material — a lock
    file, a generated bundle — needs no note.
-4. **Lint** the notes touched, as *Lint* in [`docs.md`](docs.md) lists, and fix what
-   this run broke.
+4. **Lint:** run `kaizen docs lint` from the project or worktree. It checks the whole
+   vault and exits nonzero on findings. Fix findings this run introduced before the
+   final report, and report any pre-existing findings with the command output. Run it
+   again after any later fix round before setting `stage: "done"`.
 
 Name the notes touched in the final report; the commit at done includes them. A run
 whose changes leave every note true touches nothing and says so in one line.
@@ -147,7 +149,11 @@ The review ends by writing `stage: "review"`, `awaiting: "approvals.review"` and
 stopping; never write `stage: "done"` in the same step as the review, and never from
 `plan` or `build`. The board's Approve writes the `via board` line itself. On
 `/kaizen approve` or a clear approval of this run in conversation ("approve", "looks
-good, ship it"), append the `via chat` line before setting `done`. A request that only
+good, ship it"), finish with `kaizen done <id> --user-approved`, which appends the `via chat`
+line and sets `done`. Without the user's yes run plain `kaizen done <id>`: it refuses and
+tells you to ask. kaizen reads and rewrites a gate-on run marked `done` without the
+`accepted:` line back to `review` / `approvals.review`, so setting `done` early only gets
+it undone. The flag stops forgetting and shortcuts, not forgery. A request that only
 names a later step, such as "commit and push", is not one: ask once whether it
 approves the run. In `auto` mode the run stops there too ("finished, waiting for your
 approval"), unless `auto_accept` is `true`: then append the `auto (auto_accept)` line
@@ -187,7 +193,7 @@ in *Backlog* above. Check existing entries and do not append a duplicate. Builde
 notes outside the approved scope are reported, but are not filed without an explicit
 request.
 
-Set `stage: "done"` in `state.json` once the user accepts.
+Finish with `kaizen done <id>` once the user accepts (`--user-approved` for a yes given in chat); do not hand-write `stage: "done"`.
 
 **Commit at done, when `git.auto_commit` is `true`.** Setting `stage: "done"` — the
 user approving at review, or an `auto` run finishing — is then the ask to commit, under
