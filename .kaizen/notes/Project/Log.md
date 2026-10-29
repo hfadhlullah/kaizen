@@ -205,3 +205,4 @@ updated: 2026-10-28
 - 2026-10-29 run 2026-10-29-enforce-final-approval — Final-approval gate enforced: done-without-acceptance reads and heals as review/approvals.review; `kaizen done <id> [--user-approved]`; spec wording
 - 2026-10-29 run 2026-10-29-enforce-final-approval fix 1 — healed runs carry `healed: true`; board Approve is `/accept` (no agent), no Revise/Fix; cheap stage check in `healRuns`; `cli/web-accept.test.ts`
 - 2026-10-29 run 2026-10-29-global-search — Web board: global search palette (Orca "Jump to..."): Search above Home in the menu of board/notebook/video, Ctrl/Cmd+K; workspaces, runs, ideas, chats, agent terminals, projects, pages, actions; `web/board/search.ts`, `search-match.ts` + test
+- 2026-10-29 run 2026-10-29-ws-board-rail-loop — Web board: Workspaces mode no longer recurses on load (re-entry guard on the `kz-rail` listener in `ws-board-ui.ts`)
