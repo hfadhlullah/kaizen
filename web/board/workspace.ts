@@ -162,10 +162,9 @@ function drawList() {
         const dir = p.dir,
           name = projName(dir, last.projects),
           shut = folded.has(dir);
-        const n = rows.reduce((a, r) => a + r.cs.length, 0);
         // A + for a new worktree on git projects (the main checkout has a branch).
         const git = p.workspaces.some((w) => w.branch);
-        return html`<div class="pgrp"><button type="button" class="proj${shut ? " shut" : ""}" data-fold="${dir}" title="${dir}" aria-expanded="${String(!shut)}">${logo(dir, name, last.projects)}<span class="pname">${name}</span><span class="c">${n || ""}</span><svg class="fchev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>${git ? html`<button type="button" class="wadd" data-wadd="${dir}" title="New workspace in ${name}" aria-label="New workspace in ${name}"><svg aria-hidden="true"><use href="#i-plus"/></svg></button>` : ""}</div>${shut ? "" : rows.map(({ w, cs }) => {
+        return html`<div class="pgrp"><button type="button" class="proj${shut ? " shut" : ""}" data-fold="${dir}" title="${dir}" aria-expanded="${String(!shut)}">${logo(dir, name, last.projects)}<span class="pname">${name}</span><svg class="fchev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>${git ? html`<button type="button" class="wadd" data-wadd="${dir}" title="New workspace in ${name}" aria-label="New workspace in ${name}"><svg aria-hidden="true"><use href="#i-plus"/></svg></button>` : ""}</div>${shut ? "" : rows.map(({ w, cs }) => {
           // The dot: the most urgent run there, or an agent asking (amber) or working (spinner). The count: the runs the panel's picker lists; it opens the picker.
           const rows = wsAgents(last.agents ?? [], dir, w.path, wsOfCard, now);
           const st0 = cs.length ? stateOf([...cs].sort((a, b) => RANK[stateOf(a)] - RANK[stateOf(b)])[0]) : "";
