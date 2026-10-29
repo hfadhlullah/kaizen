@@ -324,7 +324,7 @@ export function knownProjects(): string[] {
   return readText(REGISTRY).split("\n")
     .map((l) => l.trim())
     .filter((l) => l && !l.startsWith("#"))
-    .map(nativePath)
+    .map(canonPath)
     .filter((d, i, all) => all.indexOf(d) === i);
 }
 
@@ -337,11 +337,20 @@ export function nativePath(p: string) {
   return win32.resolve(p.replace(/^\/([a-zA-Z])(?=\/|$)/, "$1:/")).replace(/^[a-z]:/, (d) => d.toUpperCase());
 }
 
+// One spelling per folder: no trailing slash, symlinks resolved when the folder exists
+// (Windows keeps nativePath's spelling), so a project never lists twice.
+export function canonPath(p: string) {
+  p = nativePath(p);
+  if (process.platform === "win32") return p;
+  if (p.length > 1) p = p.replace(/\/+$/, "") || "/";
+  try { return realpathSync(p); } catch { return p; }
+}
+
 // Never fails the command that triggered it: a read-only home is not a reason for a
 // dashboard to stop opening.
 export function remember(projectDir: string) {
   try {
-    projectDir = nativePath(projectDir);
+    projectDir = canonPath(projectDir);
     if (knownProjects().includes(projectDir)) return;
     mkdirSync(dirname(REGISTRY), { recursive: true });
     appendFileSync(REGISTRY, projectDir + "\n");
@@ -750,6 +759,7 @@ export type Card = {
   inboxIndex?: number;                             // ideas only: line in the project's inbox
   title?: string;                                  // runs only: first line of the request
   archived: boolean;                               // hidden from the board unless asked for
+  kept?: boolean;                                  // runs only: the run view keeps its tab open after it finishes
   branch?: string;                                 // runs only: the run's own branch while it has a worktree
   ws?: string;                                     // runs only: its workspace folder (worktree, else the project)
   tags?: string[];                                 // runs only: runner, agent, "yolo", "unrechecked"
@@ -1138,6 +1148,24 @@ export function setArchived(state: string, id: string, archived: boolean) {
   writeArchive(state, ids);
 }
 
+// Runs the board keeps open as a tab after they finish (the run view's "kept"): a run seen live
+// on any device stays open on every device until its tab is closed. A JSON list of ids in
+// <state>/kept.json, written through POST /kept. Ids whose run is gone, archived or abandoned
+// are dropped on read, and so from the file at its next write.
+export function readKept(state: string): Set<string> {
+  try {
+    const l = JSON.parse(readText(join(state, "kept.json"))), arch = readArchive(state);
+    return new Set(Array.isArray(l) ? l.filter((x) => typeof x === "string" && existsSync(join(state, "runs", x)) && !arch.has(x) && !abandoned(join(state, "runs", x))) : []);
+  } catch { return new Set(); }
+}
+
+export function setKept(state: string, id: string, kept: boolean) {
+  const ids = readKept(state);
+  if (kept) ids.add(id); else ids.delete(id);
+  mkdirSync(state, { recursive: true });
+  writeFileSync(join(state, "kept.json"), JSON.stringify([...ids].sort()) + "\n");
+}
+
 // The request's first real line: not a heading, not a label ending in a colon,
 // quote marker dropped. Long enough to recognise the run, short enough for a card.
 export function requestTitle(text: string) {
@@ -1212,7 +1240,7 @@ export function boardCards(states: string[], now: number): Card[] {
   const launchedInto = (st: string, t: string) => readSessions(st).some((s) => !s.run && normalise(s.text.replace(/^(lite|full|auto|plan)\s+/i, "")) === t.replace(/^(lite|full|auto|plan)\s+/i, "") && ownerOf(st, s, indexOf(st)) !== null);
   for (const st of states) {
     const where = label(st);
-    const archive = readArchive(st);
+    const archive = readArchive(st), kept = readKept(st);
     for (const [inboxIndex, it] of readInbox(st).entries()) {
       if (it.status !== "open" && it.status !== "started" && it.status !== "archived") continue;
       // Retired once any run's request contains this text -- whoever started it.
@@ -1244,6 +1272,7 @@ export function boardCards(states: string[], now: number): Card[] {
         awaiting: r.stage === "abandoned" ? null : r.awaiting,
         dim: r.stage === "abandoned",
         archived: archive.has(r.id),
+        kept: kept.has(r.id),
         branch: r.branch,
         // The workspace it is in: its worktree while that exists, else the main checkout.
         ws: st === join(home, ".kaizen") ? st : wsOf(projectOf(st), r),

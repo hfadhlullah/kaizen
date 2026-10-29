@@ -404,7 +404,7 @@ body.ideav .app .hdr>*{order:8}body.ideav #hsidetop,body.ideav .app .hdr>h1{orde
 body.runv .hdr,body.runv #board,body.runv .ftr,body.runv #terms,body.runv #home,body.runv #ideasv,body.runv .scrim,body.runv #context{display:none!important}
 body.runv .app{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:minmax(0,1fr);margin-right:8px!important}body.runv #pfoot{min-width:0;flex-wrap:wrap}body.runv #pfoot .note{flex:1 1 100%;white-space:normal;min-width:0}
 body.runv #runv{grid-area:1/1;display:flex;flex-direction:column;min-width:0;min-height:0}
-#rtabs{display:flex;align-items:center;gap:2px;height:var(--tabbar);min-height:var(--tabbar);padding:0 6px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none;flex:none}#rtabs .sp{flex:1}
+#rtabs{display:flex;align-items:center;gap:2px;height:var(--tabbar);min-height:var(--tabbar);padding:0 6px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0}#rtabs .sp{flex:1}#rbar{display:flex;align-items:center;flex:none;border-bottom:1px solid var(--line);padding-right:6px}
 .rtab{display:flex;gap:var(--gap);align-items:center;height:var(--row);padding:0 12px;border-radius:4px;color:var(--dim);white-space:nowrap}.rtab:hover{color:var(--ink)}.rtab svg{width:var(--ico);height:var(--ico)}.rtab.on{color:var(--ink);background:var(--hover)}.rtab.sec{color:var(--ink);box-shadow:inset 0 -2px var(--line)}
 .rtab i{font-style:normal;opacity:.5;padding:0 3px;margin-left:2px}.rtab i:hover{opacity:1}
 .rbtn{display:grid;place-items:center;flex:none;width:var(--btn-xs);height:var(--btn-xs);border-radius:4px;color:var(--dim);cursor:pointer}.rbtn:hover{background:var(--hover);color:var(--ink)}.rbtn svg{width:var(--ico);height:var(--ico)}
@@ -435,31 +435,19 @@ body.runv #pnotes{display:grid;place-items:center;width:32px;height:32px;margin:
 body.runv #pnotes:hover,body.runv #panel.pn #pnotes{background:var(--hover);color:var(--ink)}body.runv #pnotes svg{width:17px;height:17px}
 body.runv #panel.pn #pbody,body.runv #panel.pn #pfoot{display:none}body.runv #panel.pn #pnlist{display:block;grid-area:2/1/4/2;overflow:auto;padding:12px 14px}
 #pnlist h3{margin:0 0 8px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)}#pnlist .tf{display:flex;gap:8px;align-items:center;width:100%;text-align:left;padding:4px 6px;border-radius:4px;font-size:12.5px;color:var(--ink)}#pnlist button.tf:hover{background:var(--hover)}#pnlist .tf svg{width:14px;height:14px;color:var(--dim)}#pnlist .tree{padding-left:14px}#pnlist .dir{color:var(--dim)}
-/* The run panel inside its tab (Run 3): fills the tab under the Plan · Build · Review sub-tabs; the tab bar replaces the old show/hide button. */
-.rsub{display:flex;gap:2px;align-items:center;padding:6px 18px 0;flex:none}.rsub button{height:var(--row);padding:0 12px;border-radius:4px;color:var(--dim)}.rsub button:hover:not(:disabled){color:var(--ink)}.rsub button.on{color:var(--ink);background:var(--hover)}.rsub button:disabled{opacity:.4;cursor:default}.rsub .rro{display:none;margin-left:auto;font-size:11px;color:var(--dim)}.rpane.ro .rsub .rro{display:inline}.rpane.ro #pfoot{display:none}
-.rslot{flex:1;min-height:0;display:flex;min-width:0}body.runv .rslot #panel{transition:none;flex:1;min-width:0;width:auto!important;height:auto;grid-area:auto;grid-template-columns:minmax(0,1fr) 44px;background:var(--bg)}body.runv.rflip .rslot #panel{width:auto!important}body.runv .rslot #panel>header{padding:10px 12px 12px 18px}
+/* A run tab: the agent terminal (or the stage file) fills the centre; the panel stays docked on the right (Run 3b). */
+#panel.ro #pfoot{display:none}
+#pfoot .inl{min-width:0}#pfoot .inl .q{white-space:normal;overflow-wrap:anywhere}#pfoot .inl pre.files{overflow:auto}
+.rstage{flex:1;min-height:0;min-width:0;display:flex;flex-direction:column}.rstage .term{flex:1;min-width:0;min-height:0;padding:6px 0 0 8px}.rdoc{flex:1;overflow:auto;padding:16px 24px}
 .rhist{padding:12px 18px;overflow:auto;flex:1}.rrow{display:grid;grid-template-columns:18px 1fr auto;gap:10px;align-items:center;width:100%;text-align:left;padding:7px 9px;border-radius:4px}.rrow:hover{background:var(--hover)}.rrow small{color:var(--dim);font-size:11.5px}.rrow b{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rtab .si{flex:none}
-body.runv #panel.parked{display:none}
-/* The panel inside a run's tab: a column under Plan · Build · Review, its icon strip a row, no close button; a stage's terminal sits beside the file */
-.rwrap{flex:1;min-height:0;display:flex;min-width:0}.rstage{flex:0 0 46%;min-width:0;display:flex;border-left:1px solid var(--line)}.rstage[hidden]{display:none}.rstage .term{flex:1;min-width:0;min-height:0;padding:6px 0 0 8px}
-body.runv .rslot #pclose,body.runv .rslot #pterm{display:none}
-body.runv .rslot .pstrip{order:0;flex:none;display:flex;flex-direction:row;align-items:center;gap:2px;padding:0 12px 6px 18px;border-bottom:1px solid var(--line)}
-body.runv .rslot #ptabs,body.runv .rslot #ptabs:empty{display:flex;flex-direction:row;align-items:center;gap:2px;flex-wrap:wrap}
-body.runv .rslot #ptabs button{width:auto;height:var(--row,28px);padding:0 10px;gap:6px;display:inline-flex;align-items:center;justify-content:center}
-body.runv .rslot #ptabs span{position:static;width:auto;height:auto;clip-path:none;overflow:visible}body.runv .rslot #ptabs svg{width:15px;height:15px}
-body.runv .rslot #pnotes{margin:0 0 0 auto}body.runv .rslot #pnotes::before{display:none}
-body.runv .rslot #pbody,body.runv .rslot #pnlist{flex:1;min-height:0;overflow:auto}body.runv .rslot #pfoot{flex:none}
-@media(max-width:640px){.rwrap{flex-direction:column}.rstage{flex:0 0 42%;border-left:0;border-top:1px solid var(--line)}body.runv .rslot #ptabs button{min-height:44px}}
-@media(min-width:641px){#rside{display:none}}
-@media(max-width:640px){.rsub{display:none}}
+body.runv #panel.parked,body.runv.rflip #panel.parked{display:none}
+#rside[hidden]{display:none}
 /* hidden by width, not display, so it slides like the rail */
 @media(min-width:641px){body.runv.rflip #panel{width:0!important}body.runv #panel{grid-template-columns:296px 44px}}
 @media(max-width:640px){body.runv .app{grid-template-columns:minmax(0,1fr)}.rsplit{display:none}body.runv #panel{display:none}body.runv.rflip #pclose{display:grid}body.runv.rflip #panel{display:grid;position:fixed!important;inset:auto 0 0 0!important;height:72%;width:auto!important;z-index:15!important;background:var(--bg-2);box-shadow:var(--shadow-2);border-radius:12px 12px 0 0}#rtabs .rtab span{max-width:110px;overflow:hidden;text-overflow:ellipsis}}
-/* A phone shows the run tabs too: the panel sits in the run's tab, 44px touch targets */
-@media(max-width:640px){body.runv .rslot #panel,body.runv.rflip .rslot #panel{display:grid;position:relative!important;inset:auto!important;height:auto;width:auto!important;border-radius:0;box-shadow:none;z-index:auto!important}body.runv .rslot #panel.parked{display:none}body.runv #rside{display:none}body.runv #rtabs{height:52px;min-height:52px}body.runv #rtabs .rtab,body.runv #rtabs .rbtn{min-height:44px;height:44px}body.runv #rtabs .rbtn{min-width:44px}body.runv #rtabs .rtab i{padding:12px 10px}}
-body.runv .rslot #panel,body.runv.rflip .rslot #panel{display:flex;flex-direction:column}
-body.runv .rslot #panel.parked{display:none}
+/* A phone: the panel is a sheet opened from the run tab (#rside); 44px touch targets */
+@media(max-width:640px){body.runv #rtabs{height:52px;min-height:52px}body.runv #rtabs .rtab,body.runv #rtabs .rbtn{min-height:44px;height:44px}body.runv #rtabs .rbtn{min-width:44px}body.runv #rtabs .rtab i{padding:12px 10px}body.runv #rbar{height:52px}body.runv #ptabs button{width:44px;height:44px}body.runv #pclose{width:44px;height:44px}body.runv #pfoot .btn{min-height:44px}}
 
 /* revise 5: the mockup's plain chrome for terminals, in the workspace and on the Terminal page */
 body.termv #tmodes{background:none;padding:0;gap:2px}body.termv #tmodes button{color:var(--dim);background:none;box-shadow:none;border-radius:4px;font-weight:400}body.termv #tmodes button:hover{background:var(--hover);color:var(--ink)}body.termv #tmodes button.on{color:var(--ink);background:var(--hover);box-shadow:none}
@@ -981,7 +969,7 @@ body.ideav.paged .hdr{display:flex}body.ideav.paged #bq{display:block}body.ideav
 <div id="home" aria-label="Chat"></div>
 <div id="phome" aria-label="Devices and runs"></div>
 <div id="ideasv" aria-label="Ideas"></div>
-<div id="runv" aria-label="Run workspace"><nav id="rtabs" aria-label="Workspace tabs"></nav><div id="rpanes"></div></div>
+<div id="runv" aria-label="Run workspace"><div id="rbar"><nav id="rtabs" aria-label="Workspace tabs"></nav><button class="rbtn" id="rside" title="Show or hide the run panel" aria-label="Show or hide the run panel" aria-pressed="false"><svg><use href="#i-open"/></svg></button></div><div id="rpanes"></div></div>
 
 <div class="ftr"><span class="strip" id="strip"></span></div>
 

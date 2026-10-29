@@ -3,8 +3,8 @@
 import { existsSync, readdirSync, statSync, lstatSync, realpathSync, readFileSync, watch, appendFileSync, mkdirSync, cpSync, rmSync, writeFileSync, type FSWatcher } from "node:fs";
 import { join, dirname, resolve, sep, basename } from "node:path";
 import {
-  home, type Item, type Card, boardCards, knownProjects, remember, locate, label, tilde, searchRoots, findProjects,
-  readInbox, writeInbox, replaceIdea, moveIdea, abandonRun, runToIdea, launchRun, parseItem, agentChoices, onPath, projectOf, KNOWN_AGENTS, plainModel, short, setArchived, writeNotes,
+  home, type Item, type Card, boardCards, knownProjects, remember, canonPath, locate, label, tilde, searchRoots, findProjects,
+  readInbox, writeInbox, replaceIdea, moveIdea, abandonRun, runToIdea, launchRun, parseItem, agentChoices, onPath, projectOf, KNOWN_AGENTS, plainModel, short, setArchived, setKept, writeNotes,
   appendNote, saveAttachment, pidOnPort, readText, cmdExe, sysExe, powershellExe, runGit, cardsGit, readCommit, commitPush, notice, notifier, LOGO,
   reviewFindings, pickFindings, backlogCards, backlogItem, startedBacklog, closeBacklog, markBacklogDone, fixPrompt, approvalPrompt, canApproveAwaiting, gateOf, recordAcceptance, nativePath, closeSessions, sweepSessions, issueUrl,
   launchMode, readSessions, ownerOf, runIndex, resumePrompt, runAgent, firstSession, webHosts,
@@ -204,8 +204,10 @@ export async function web(repoDir: string, opts: Opts = {}) {
   // for All projects (~/.kaizen/config.yml), false for a folder the board does not know.
   // No scope at all keeps the old resolution from the board's cwd, for older callers.
   const settingsScope = (s: string | null) =>
-    !s ? undefined : s === "all" ? null : s !== join(home, ".kaizen") && states(true).includes(s) ? dirname(s) : false as const;
+    !s ? undefined : s === "all" ? null : s !== join(home, ".kaizen") && states(true).includes(canonState(s)) ? dirname(canonState(s)) : false as const;
 
+  // An incoming state dir in the registry's spelling (symlinks resolved), so a symlinked project still matches.
+  const canonState = (d: string) => { const c = join(canonPath(dirname(d)), basename(d)); return c !== d && states(true).includes(c) ? c : d; };
   const states = (all: boolean, cur = boardState) => (all || !cur
     ? [...knownProjects().map((d) => join(d, ".kaizen")), join(home, ".kaizen")]
     : [cur]
@@ -520,7 +522,9 @@ export async function web(repoDir: string, opts: Opts = {}) {
       if (hostname !== "127.0.0.1" && hostname !== "localhost" && !extraHosts.has(hostname)) return new Response("forbidden", { status: 403 });
       const url = new URL(req.url);
       const path = url.pathname;
-      const asked = req.headers.get("x-kz-dir");
+      const qdir = () => { const v = url.searchParams.get("dir"); return v == null ? v : canonState(v); };
+      const asked0 = req.headers.get("x-kz-dir");
+      const asked = asked0 && canonState(asked0);
       const state = asked && states(true).includes(asked) ? asked : boardState;
       const project = state ? label(state) : null;
 
@@ -699,7 +703,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         if (!ptySupported) return bad("terminals need a newer Bun", 501);
         let body: any;
         try { body = await req.json(); } catch { return bad("json body expected"); }
-        const dir = String(body.dir ?? "");
+        const dir = canonState(String(body.dir ?? ""));
         if (!states(true).includes(dir) || dir === join(home, ".kaizen")) return bad("choose a project", 404);
         let cmd: string[];
         let agent = "";
@@ -764,7 +768,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         if (refused) return refused;
         let body: any;
         try { body = await req.json(); } catch { return bad("json body expected"); }
-        const dir = String(body.dir ?? "");
+        const dir = canonState(String(body.dir ?? ""));
         if (!states(true).includes(dir) || dir === join(home, ".kaizen")) return bad("choose a project", 404);
         const r = addWorktree(projectOf(dir), String(body.branch ?? "").trim());
         if (!r.ok) return bad(r.why);
@@ -772,7 +776,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         return json(r);
       }
       if (req.method === "GET" && path === "/shells") {
-        const dir = url.searchParams.get("dir");
+        const dir = qdir();
         for (const k of shells.keys()) if (!ptyState(k)?.alive) shells.delete(k);
         return json([...shells.values()].filter((s) => !dir || s.dir === dir));
       }
@@ -839,13 +843,13 @@ export async function web(repoDir: string, opts: Opts = {}) {
 
       // Every note of one project, text included: search, tags and backlinks are the page's.
       if (req.method === "GET" && path === "/vault") {
-        const dir = url.searchParams.get("dir") ?? state ?? join(home, ".kaizen");
+        const dir = qdir() ?? state ?? join(home, ".kaizen");
         if (!states(true).includes(dir)) return bad("unknown state dir", 404);
         return json({ dir, notes: listNotes(dir) });
       }
 
       if (req.method === "GET" && (path === "/project-tree" || path === "/project-text")) {
-        const treeState = url.searchParams.get("dir") ?? state;
+        const treeState = qdir() ?? state;
         if (!treeState || !states(true).includes(treeState) || treeState === join(home, ".kaizen")) return bad("choose a project", 404);
         const rel = url.searchParams.get("path") ?? "";
         const parts = rel ? rel.split("/") : [];
@@ -877,7 +881,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
 
       // What a note can link to on this project's board: runs, findings, backlog, ideas.
       if (req.method === "GET" && path === "/links") {
-        const dir = url.searchParams.get("dir") ?? state ?? join(home, ".kaizen");
+        const dir = qdir() ?? state ?? join(home, ".kaizen");
         if (!states(true).includes(dir)) return bad("unknown state dir", 404);
         return json(boardIndex(dir));
       }
@@ -897,7 +901,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
       // A project's own logo, for the project pickers: only a known project, only the fixed
       // names in LOGOS, sandboxed so an SVG opened directly runs nothing on this origin.
       if (req.method === "GET" && path === "/project-logo") {
-        const dir = url.searchParams.get("dir") ?? "";
+        const dir = qdir() ?? "";
         const f = states(true).includes(dir) ? projectLogo(dir) : null;
         if (!f) return bad("no logo", 404);
         const ext = f.slice(f.lastIndexOf(".") + 1).toLowerCase();
@@ -961,7 +965,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
 
       if (req.method === "GET" && path.startsWith("/run/")) {
         const id = decodeURIComponent(path.slice(5));
-        const dir = url.searchParams.get("dir") ?? state;
+        const dir = qdir() ?? state;
         if (!dir || !states(true).includes(dir) || !/^[\w.-]+$/.test(id)) return bad("no such run", 404);
         const base = join(dir, "runs", id);
         if (!existsSync(base)) return bad("no such run", 404);
@@ -983,7 +987,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
       if (req.method === "GET" && path === "/sources") {
         // One project's sources, or with no dir every known project's: each entry
         // says which project it belongs to. Nothing is assumed from where the board started.
-        const dir = url.searchParams.get("dir");
+        const dir = qdir();
         if (dir && !states(true).includes(dir)) return bad("unknown state dir", 404);
         const sources = [], icebox = [], dismissed = [], failed = [];
         for (const d of dir ? [dir] : states(true)) {
@@ -1011,7 +1015,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
       }
 
       if (req.method === "GET" && path === "/agents") {
-        const dir = url.searchParams.get("dir");
+        const dir = qdir();
         if (!dir || !states(true).includes(dir)) return bad("unknown state dir", 404);
         return json(agentChoices(projectOf(dir)));
       }
@@ -1173,7 +1177,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
       // Attachments only, never a run's own files: the path must sit under an
       // attachments/ directory of a known state dir, with no way back up.
       if (req.method === "GET" && path === "/file") {
-        const dir = url.searchParams.get("dir") ?? state;
+        const dir = qdir() ?? state;
         const p = url.searchParams.get("p") ?? "";
         if (!dir || !states(true).includes(dir)) return bad("unknown state dir", 404);
         if (!/^(runs\/[\w.-]+\/)?attachments\/[\w.-]+$/.test(p)) return bad("bad path");
@@ -1186,7 +1190,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
       // An icebox image, sent on to a link read fresh from its source: the one kept
       // since the gather may have expired. Only an https link the item holds is followed.
       if (req.method === "GET" && path === "/ice-image") {
-        const dir = url.searchParams.get("dir") ?? "";
+        const dir = qdir() ?? "";
         if (!states(true).includes(dir)) return bad("unknown state dir", 404);
         const u = (await freshImages(dir, url.searchParams.get("id") ?? ""))[Number(url.searchParams.get("i"))];
         if (!u || !/^https:\/\//.test(u)) return bad("no such image", 404);
@@ -1276,6 +1280,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         if (!local(req)) return bad("cross-origin write refused", 403);
         let body: any;
         try { body = await req.json(); } catch { return bad("json body expected"); }
+        for (const k of ["dir", "to"]) if (typeof body?.[k] === "string" && body[k]) body[k] = canonState(body[k]);
 
         // The Video page: a place by index, a video folder by name, both checked in video.ts.
         if (path.startsWith("/video/")) {
@@ -1400,12 +1405,13 @@ export async function web(repoDir: string, opts: Opts = {}) {
         }
 
         // No project here means the global inbox, which is where the TUI puts ideas too.
-        const dir: string = body.dir ?? state ?? join(home, ".kaizen");
+        let dir: string = body.dir ?? state ?? join(home, ".kaizen");
         // Choosing a folder from the projects folder is what sets it up: an empty
         // .kaizen, which the first run fills in. Only folders the board offered.
         if (path === "/cd" && dir === join(dirname(dir), ".kaizen") && (await fresh()).includes(dirname(dir))) {
           mkdirSync(dir, { recursive: true });
           remember(dirname(dir));
+          dir = canonState(dir);
         }
         if (!dir || !states(true).includes(dir)) return bad("unknown state dir", 404);
 
@@ -1609,6 +1615,14 @@ export async function web(repoDir: string, opts: Opts = {}) {
           return json(r.ok
             ? { ok: true, agent: r.agent, project: tilde(r.projectDir), pty: r.pty }
             : { ok: false, why: r.why, manual: r.manual, agent: r.agent }, r.ok ? 200 : 500);
+        }
+
+        // The run view's "keep a finished run open", shared by every device (kept.json).
+        if (path === "/kept") {
+          if (typeof body.id !== "string" || !/^[\w.-]+$/.test(body.id)) return bad("bad run id");
+          setKept(dir, body.id, body.kept !== false);
+          changed();
+          return json({ ok: true });
         }
 
         // Archive is a list beside the runs, never a move: a run keeps its directory

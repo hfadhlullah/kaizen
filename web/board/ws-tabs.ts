@@ -22,9 +22,10 @@ export const wsKey = (dir: string, ws: string) => `ws:${dir}:${ws}`;
 // A run that is over: done and not waiting on an approval, or abandoned. It is History.
 export const finished = (c) => c.kind === "run" && (c.status === "abandoned" || (c.status === "done" && c.accept !== "needs"));
 const here = (c, dir: string, ws: string, wsOfCard) => c.state === dir && wsOfCard(c) === ws;
-// The cards that get a tab in a workspace: runs not over, and ideas whose agent is open.
-export const liveIn = (cards: any[], dir: string, ws: string, wsOfCard) =>
-  cards.filter((c) => !c.archived && here(c, dir, ws, wsOfCard) && (c.kind === "idea" ? !!c.pty : c.kind === "run" && !finished(c)));
+// The cards that get a tab in a workspace: runs not over, ideas whose agent is open, and a
+// finished run kept (`kept(c)`: it was live while the board knew it) until its tab is closed.
+export const liveIn = (cards: any[], dir: string, ws: string, wsOfCard, kept: (c) => boolean = () => false) =>
+  cards.filter((c) => !c.archived && here(c, dir, ws, wsOfCard) && (c.kind === "idea" ? !!c.pty : c.kind === "run" && (!finished(c) || kept(c))));
 // History: the workspace's finished runs, newest first.
 export const historyOf = (cards: any[], dir: string, ws: string, wsOfCard) =>
   cards.filter((c) => finished(c) && here(c, dir, ws, wsOfCard)).sort((a, b) => (b.moved ?? 0) - (a.moved ?? 0));
@@ -76,6 +77,28 @@ export function stageKeys(c): Record<string, string> {
   const first = all.find((k) => !Object.values(st).includes(k));
   if (!st.plan && first && !Object.keys(st).length) out.plan = first;
   return out;
+}
+
+// The terminal in the centre of a run's tab for the shown stage: that stage's recorded one, else
+// the run's live session when no stage has a terminal at all; null = show the stage file. With a
+// stage terminal recorded, an unclaimed live session is not in the centre: it is an Agent tab.
+export function centreKey(c, stage: string): string | null {
+  const st = stageKeys(c);
+  return st[stage] ?? (c?.kind === "run" && !Object.keys(st).length ? c.pty?.key ?? null : null);
+}
+// The pty keys shown in a run's centre, so they get no Agent tab of their own.
+export const embedded = (c): string[] => {
+  const st = Object.values(stageKeys(c));
+  return st.length || !c?.pty?.key ? st : [c.pty.key];
+};
+
+// The stages the panel's Plan / Work / Review strip chooses between, and the one shown in each run
+// tab's centre (`shown`: tab id -> stage). `tab` is the panel's choice; it is this run's only while
+// the panel shows this run (`panelHas`), so switching run tabs never carries a stage across.
+export const STAGES = ["plan", "impl", "review"];
+export function stageShown(shown: Map<string, string>, id: string, tab: string, panelHas: boolean): string {
+  if (panelHas && STAGES.includes(tab)) shown.set(id, tab);
+  return shown.get(id) ?? "plan";
 }
 
 // A run at review or done: its localhost Preview may open the Browser.

@@ -1,7 +1,9 @@
 // The workspace centre (?view=ws&dir=&ws=; a run's or idea's old address resolves to its
 // workspace and selects its tab): a tab bar over one folder. Each live run there is a tab
-// holding the run panel (panel.ts draws it into #panel, moved in here) under Plan · Build ·
-// Review; beside them the agents, shells started with POST /shell {ws}, the project's
+// whose centre is the run's agent terminal (the shown stage's, else its live session, else the
+// stage file); the run panel (#panel, drawn by panel.ts) docks on the right while a run tab is
+// shown, and its Plan · Build · Review choice switches that terminal. A finished run's tab stays
+// until it is closed. Beside the run tabs the agents, shells started with POST /shell {ws}, the project's
 // localhost, the Preview, project notes and History (finished runs, read-only). A workspace
 // with no tab opens the default agent in its folder. Terminal tabs are kzTerm mounts on /pty
 // that live as long as their tab, so a tab switch or a /state tick never reconnects them.
@@ -17,7 +19,7 @@ import { load, post } from "./api.ts";
 import { attach, md, preview } from "./markdown.ts";
 import { layout } from "./terms.ts";
 import { cardHref, markCurrent, railData, stateOf, titleOf, wsOfCard } from "./workspace.ts";
-import { type Node, awaiting, finished, hiddenRuns, historyOf, leaves, liveIn, loopbackUrl, migrate, prune, reviewing, stageKeys, toOpen, wsKey } from "./ws-tabs.ts";
+import { type Node, awaiting, centreKey, embedded, finished, hiddenRuns, historyOf, leaves, liveIn, loopbackUrl, migrate, prune, reviewing, stageKeys, stageShown, toOpen, wsKey } from "./ws-tabs.ts";
 import { age } from "./labels.ts";
 import { go } from "./views.ts";
 
@@ -87,7 +89,17 @@ function screens(): Screen[] {
 const loopback = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
 
 const AGENTS = ["claude", "codex", "gemini", "agy", "opencode", "cursor"];
-const wsCards = () => (ctx ? liveIn(store.S.cards, ctx.dir, ctx.ws, wsOfCard) : []);
+// A run that finishes keeps its tab until the tab is closed: the server remembers which runs
+// (card.kept, POST /kept), so every device sees the same.
+const wsCards = () => (ctx ? liveIn(store.S.cards, ctx.dir, ctx.ws, wsOfCard, (c) => !!c.kept) : []);
+const keeping = new Set<string>();
+function keepLive() {
+  for (const c of mineNow())
+    if (c.kind === "run" && !c.archived && !finished(c) && !c.kept && !keeping.has(key(c))) {
+      keeping.add(key(c));
+      void post("/kept", { dir: c.state, id: c.id }).finally(() => keeping.delete(key(c)));
+    }
+}
 const subLabel = (c) => (c.kind === "run" ? titleOf(c) : "Idea: " + titleOf(c));
 
 function tabs(): Tab[] {
@@ -99,7 +111,7 @@ function tabs(): Tab[] {
   // Each live run is a tab, then its agent sessions on this board.
   for (const c of live) {
     const k = key(c),
-      emb = Object.values(stageKeys(c)), // shown inside the run's tab, on its stage
+      emb = embedded(c), // shown in the centre of the run's tab
       keys: string[] = (c.pty ? c.pty.all ?? [c.pty.key] : []).filter((x) => !emb.includes(x)),
       runAgent = AGENTS.find((a) => c.tags?.includes(a)) ?? undefined;
     out.push({ id: "rn:" + k, kind: "run", title: subLabel(c), ck: k });
@@ -218,6 +230,7 @@ export async function showRunView(nav = false) {
 const autoShell = new Set<string>();
 
 function draw() {
+  keepLive();
   const s = saved(),
     ts = tabs(),
     scs = screens(),
@@ -236,8 +249,9 @@ function draw() {
         first = item(ids[0]),
         title = ids.map((id) => item(id).title).join(" + ");
       return html`<button class="rtab${sc.id === s.on ? " on" : ""}" data-t="${sc.id}" draggable="true" title="${title}">${icon(first)}<span>${title}</span>${stuck(ids) ? "" : html`<i data-xs="${sc.id}" role="button" aria-label="Close ${title}" title="Close tab">×</i>`}</button>`;
-    })}<details class="radd" data-mode="tab"><summary class="rbtn" title="New tab" aria-label="New tab">${ico("plus")}</summary>${menu}</details><span class="sp"></span>${cur ? html`<details class="radd rsplit" data-mode="cols"><summary class="rbtn" title="Split right: add to this tab" aria-label="Split right">${ico("lcols")}</summary>${menu}</details><details class="radd rsplit" data-mode="rows"><summary class="rbtn" title="Split down: add to this tab" aria-label="Split down">${ico("lrows")}</summary>${menu}</details>` : ""}<button class="rbtn" id="rside" title="Show or hide the run panel" aria-label="Show or hide the run panel" aria-pressed="${String(document.body.classList.contains("rflip"))}">${ico("open")}</button>`,
+    })}<details class="radd" data-mode="tab"><summary class="rbtn" title="New tab" aria-label="New tab">${ico("plus")}</summary>${menu}</details><span class="sp"></span>${cur ? html`<details class="radd rsplit" data-mode="cols"><summary class="rbtn" title="Split right: add to this tab" aria-label="Split right">${ico("lcols")}</summary>${menu}</details><details class="radd rsplit" data-mode="rows"><summary class="rbtn" title="Split down: add to this tab" aria-label="Split down">${ico("lrows")}</summary>${menu}</details>` : ""}`,
   );
+  $("rside").setAttribute("aria-pressed", String(document.body.classList.contains("rflip")));
   $("rtabs").querySelector(".rtab.on")?.scrollIntoView({ block: "nearest", inline: "nearest" });
   // Panes: made once per item, kept (hidden) while it is open, so terminals never reconnect.
   const box = $("rpanes");
@@ -246,7 +260,6 @@ function draw() {
       p.off?.();
       stageTerm.get(id)?.off?.();
       stageTerm.delete(id);
-      parkPanel(p.el);
       p.el.remove();
       panes.delete(id);
     }
@@ -256,7 +269,6 @@ function draw() {
     p.el.hidden = !shown.includes(id);
     p.el.classList.toggle("split", shown.length > 1);
     p.el.classList.toggle("focus", shown.length > 1 && id === cur?.focus);
-    p.el.classList.toggle("ro", !!item(id)?.ro);
     p.el.querySelector(".ph span")!.textContent = item(id)?.title ?? "";
     if (item(id)?.kind === "history") fillHistory(p.el);
   }
@@ -275,61 +287,53 @@ function draw() {
   wire();
 }
 
-// The run panel (#panel) is one element: it moves into the focused run tab, under that tab's
-// Plan · Build · Review, and is filled by open() as it is anywhere else.
-const appHome = () => document.querySelector(".app")!;
-function parkPanel(inside: HTMLElement) {
-  if (!inside.contains($("panel"))) return;
-  appHome().append($("panel"));
-  $("panel").classList.add("parked"); // no run tab to show: hidden, not docked
-}
+// The run panel (#panel) stays docked on the right of the centre; it shows while a run tab is
+// the shown tab (open() fills it as anywhere else) and is parked otherwise.
+// The stage shown in each run tab's centre (tab id -> stage), so two run tabs keep their own.
+const stageOf = new Map<string, string>();
 function mountPanel(ts: Tab[], cur?: Screen) {
   const t = ts.find((x) => x.id === cur?.focus);
   const c = t?.kind === "run" && byKey(t.ck!);
-  if (!t || !c) return void $("panel").classList.toggle("parked", !$("panel").closest(".rslot")); // docked nowhere: hidden
-  const slot = panes.get(t.id)!.el.querySelector<HTMLElement>(".rslot")!;
-  const moved = $("panel").parentElement !== slot;
-  if (moved) (slot.append($("panel")), $("panel").classList.remove("parked"));
+  $("panel").classList.toggle("parked", !c);
+  $("rside").hidden = !c;
+  if (!t || !c) return;
+  $("panel").classList.toggle("ro", !!t.ro); // a run opened from History: no footer
   card = c;
-  if (moved || store.openKey !== key(c)) void Promise.resolve(open(c)).then(() => subs(t));
-  subs(t);
+  // The panel's Plan / Work / Review choice (store.tab) is this run's only once the panel shows it.
+  // Coming back to a run tab restores the stage it had.
+  if (store.openKey !== key(c)) {
+    const was = stageOf.get(t.id);
+    if (was) store.tab = was;
+    return void Promise.resolve(open(c, !!was)).then(() => centre(t));
+  }
+  centre(t);
 }
-// The sub-tabs: the one the panel shows is lit, one whose file is not written yet is dimmed.
-const SUBS = [["Plan", "plan"], ["Build", "impl"], ["Review", "review"]];
-// The terminal the board launched for the shown stage sits beside the stage's file; a stage
-// without one shows the file alone. One live xterm per pty: the key has no tab of its own.
+// The centre of a run tab: the shown stage's terminal, else the run's live session, else the
+// stage file. One live xterm per tab; a pty has no tab of its own while it is shown here.
 const stageTerm = new Map<string, { key: string; off: null | (() => void) }>();
-function stageTermFor(t: Tab) {
+function centre(t: Tab) {
   const c = byKey(t.ck!),
     el = panes.get(t.id)?.el.querySelector<HTMLElement>(".rstage");
   if (!c || !el) return;
-  const k = stageKeys(c)[store.tab] ?? "",
+  const stage = stageShown(stageOf, t.id, store.tab, store.openKey === key(c)),
+    k = centreKey(c, stage),
+    doc = !k && store.runDoc?.id === c.id ? store.runDoc[stage] ?? "" : "",
+    sig = k ? "t:" + k : "d:" + stage + doc,
     cur = stageTerm.get(t.id);
-  if (cur?.key === k) return;
+  if (cur?.key === sig) return;
   cur?.off?.();
-  stageTerm.delete(t.id);
-  el.hidden = !k;
+  const rec = { key: sig, off: null as null | (() => void) };
+  stageTerm.set(t.id, rec);
   el.replaceChildren();
-  if (!k) return;
+  if (!k) return void (el.innerHTML = String(doc ? html`<div class="rdoc md">${raw(md(attach(doc, c)))}</div>` : html`<p class="rnone">Nothing written for this stage yet.</p>`));
   const term = document.createElement("div");
   term.className = "term";
   el.append(term);
-  const rec = { key: k, off: null as null | (() => void) };
-  stageTerm.set(t.id, rec);
   termLoad()
     .then((m) => {
       if (stageTerm.get(t.id) === rec) rec.off = m(term, k, () => load(true));
     })
     .catch(() => (term.textContent = "The terminal could not load."));
-}
-function subs(t: Tab) {
-  const el = panes.get(t.id)?.el;
-  const doc = store.runDoc && store.runDoc.id === byKey(t.ck!)?.id ? store.runDoc : null;
-  el?.querySelectorAll<HTMLButtonElement>("[data-sub]").forEach((b) => {
-    b.classList.toggle("on", store.tab === b.dataset.sub);
-    b.disabled = !doc?.[b.dataset.sub!];
-  });
-  stageTermFor(t);
 }
 // History: the workspace's finished runs, newest first; one opens read-only.
 function fillHistory(el: HTMLElement) {
@@ -424,8 +428,7 @@ function makePane(t: Tab) {
   panes.set(t.id, p);
   $("rpanes").append(el);
   if (t.kind === "run") {
-    const isRun = byKey(t.ck!)?.kind === "run";
-    el.insertAdjacentHTML("beforeend", String(html`${isRun ? html`<nav class="rsub" aria-label="Run stages">${SUBS.map(([n, k]) => html`<button type="button" data-sub="${k}">${n}</button>`)}<span class="rro">Read-only</span></nav>` : ""}<div class="rwrap"><div class="rslot"></div><div class="rstage" hidden></div></div>`));
+    el.insertAdjacentHTML("beforeend", '<div class="rstage"></div>');
   } else if (t.kind === "history") {
     el.insertAdjacentHTML("beforeend", String(html`<div class="rhist md"></div>`));
     fillHistory(el);
@@ -637,8 +640,12 @@ async function closeTab(id: string) {
   } else if (id.startsWith("agent:")) s.hidden.push(id);
   else if (id.startsWith("wait:")) elsewhere.delete(id.slice(5));
   else {
-    // A run's tab: a live one is hidden (it comes back when its address is opened), a finished one goes.
-    if (id.startsWith("rn:")) (parkPanel(panes.get(id)!.el), s.hidden.push(id));
+    // A run's tab: a live one is hidden (it comes back when its address is opened), a finished one goes for good (History).
+    if (id.startsWith("rn:")) {
+      const c = byKey(id.slice(3));
+      if (c && !finished(c)) s.hidden.push(id);
+      else if (c) (c.kept = false), void post("/kept", { dir: c.state, id: c.id, kept: false });
+    }
     s.tabs = s.tabs.filter((t) => t.id !== id);
   }
   save();
@@ -697,10 +704,10 @@ function wire() {
       else openPreview();
       return;
     }
-    if (t.closest("#rside")) {
-      document.body.classList.toggle("rflip");
-      draw();
-    }
+  };
+  $("rside").onclick = () => {
+    document.body.classList.toggle("rflip");
+    draw();
   };
   // The +, split right and split down menus open under their button, kept inside the
   // centre panel; one open at a time. A pane's own × closes just that item.
@@ -720,18 +727,6 @@ function wire() {
     if (x) return void closeTab(x);
     const rk = (e.target as HTMLElement).closest<HTMLElement>("[data-b=recheck]")?.dataset.k;
     if (rk && byKey(rk)) return void openAgent(byKey(rk), true);
-    // The panel's own strip (the only stage switch on a phone) changes the stage too: its terminal follows.
-    if (card && e.composedPath().some((n) => (n as HTMLElement).id === "ptabs")) {
-      const t = tabs().find((x) => x.id === "rn:" + key(card));
-      if (t) subs(t);
-    }
-    const sub = (e.target as HTMLElement).closest<HTMLElement>("[data-sub]");
-    if (sub && card) {
-      $("panel").classList.remove("pn");
-      store.tab = sub.dataset.sub!;
-      const t = tabs().find((x) => x.id === "rn:" + key(card));
-      return void openRun(card, true).then(() => t && subs(t));
-    }
     const hist = (e.target as HTMLElement).closest<HTMLElement>("[data-hist]")?.dataset.hist;
     if (hist && byKey(hist)) {
       const c = byKey(hist);
@@ -820,7 +815,7 @@ function wire() {
 
 // Leaving the workspace: its terminals unmount; the shells keep running on the server.
 function stopPanes() {
-  parkPanel($("rpanes"));
+  $("panel").classList.add("parked");
   for (const p of panes.values()) p.off?.();
   panes.clear();
   $("rpanes").innerHTML = "";
@@ -885,6 +880,22 @@ async function autoBrowse() {
 }
 
 export function initRunView() {
+  // A phone's sheet closes with the panel's ×, which here hides the sheet rather than closing the card.
+  document.addEventListener(
+    "click",
+    (e) => {
+      if (!document.body.classList.contains("runv") || !(e.target as Element).closest?.("#pclose")) return;
+      e.stopPropagation();
+      document.body.classList.remove("rflip");
+    },
+    true,
+  );
+  // The panel's own Plan / Work / Review strip switches the stage, so the centre terminal follows.
+  $("panel").addEventListener("click", (e) => {
+    if (!card || !e.composedPath().some((n) => (n as HTMLElement).id === "ptabs")) return;
+    const t = tabs().find((x) => x.id === "rn:" + key(card));
+    if (t) centre(t);
+  });
   addEventListener("kz-run-preview", openPreview);
   $("pnotes").onclick = () => void projectNotes();
   $("pnlist").onclick = (e) => {

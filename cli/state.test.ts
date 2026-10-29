@@ -1,14 +1,14 @@
 // State module against a throwaway .kaizen/. Nothing here spawns a terminal: the
 // launch path is covered only up to the command it would run.
 import { test, expect, beforeAll, afterAll } from "bun:test";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, utimesSync, existsSync, readdirSync, realpathSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, utimesSync, existsSync, readdirSync, realpathSync, symlinkSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
 import { issueUrl, systemInfo, scrubHome, REPO_URL, home as realHome, trustFolder } from "./state.ts";
 import * as stateModule from "./state.ts";
 import {
   readRuns, readInbox, writeInbox, replaceIdea, moveIdea, abandonRun, runToIdea, allBacklog, backlog,
-  requestTitle, statusOf, columnOf, parseItem, startedRuns, boardCards, parentOf, addCard, readArchive, setArchived,
+  requestTitle, statusOf, columnOf, parseItem, startedRuns, boardCards, parentOf, addCard, readArchive, setArchived, readKept, setKept,
   requestOf, agentFlags, plainModel, readNotes, writeNotes, manualCommand, parseNotes, formatNote, appendNote, saveAttachment,
   reviewFindings, pickFindings, fixPrompt, approvalPrompt, sessionLaunch, closeSessions, sweepSessions, readSessions, ownerOf, gitStatus, runGit, cardsGit, commitPush, readCommit, findTerminal, nativePath, pruneRuns, unrechecked, notice, notifier, notifyArgs, winToastArgs, LOGO, type Card,
 } from "./state.ts";
@@ -312,6 +312,30 @@ test("archive: a run is listed, hidden by flag, never moved", () => {
   setArchived(state, "2026-09-02-done", false);
   expect(readArchive(state).size).toBe(0);
   expect(boardCards([state], Date.now()).find((k) => k.id === "2026-09-02-done")!.archived).toBe(false);
+});
+
+test("kept: a run kept open is listed in kept.json and flagged on its card", () => {
+  const id = "2026-09-02-done",
+    flag = () => boardCards([state], Date.now()).find((k) => k.id === id)!.kept;
+  expect(flag()).toBe(false);
+  setKept(state, id, true);
+  setKept(state, id, true);
+  expect([...readKept(state)]).toEqual([id]);
+  expect(flag()).toBe(true);
+  setKept(state, id, false);
+  expect(readKept(state).size).toBe(0);
+  expect(flag()).toBe(false);
+});
+
+test("kept: ids with no run, or an archived one, are dropped when read and at the next write", () => {
+  writeFileSync(join(state, "kept.json"), JSON.stringify(["gone-run", "2026-09-02-done"]));
+  expect([...readKept(state)]).toEqual(["2026-09-02-done"]);
+  setArchived(state, "2026-09-02-done", true);
+  expect(readKept(state).size).toBe(0);
+  setArchived(state, "2026-09-02-done", false);
+  setKept(state, "2026-09-02-done", true);
+  expect(JSON.parse(readFileSync(join(state, "kept.json"), "utf8"))).toEqual(["2026-09-02-done"]);
+  setKept(state, "2026-09-02-done", false);
 });
 
 test("archive: an idea keeps its line with status archived", () => {
@@ -824,6 +848,25 @@ console.log(JSON.stringify([require("node:fs").readFileSync(REGISTRY, "utf8"), k
     const p = Bun.spawnSync(["bun", "-e", script], { cwd: home, env: { ...process.env, HOME: home, USERPROFILE: home } });
     if (p.exitCode !== 0) throw new Error(p.stderr.toString());
     expect(JSON.parse(p.stdout.toString())).toEqual(["C:\\p\n", ["C:\\p"]]);
+  } finally { rmSync(home, { recursive: true, force: true }); }
+});
+
+test("the project registry lists one folder once: trailing slash and symlink spellings collapse, the file is not rewritten", () => {
+  const home = mkdtempSync(join(tmpdir(), "kz-home-")), proj = join(home, "shop");
+  mkdirSync(proj);
+  symlinkSync(proj, join(home, "link"));
+  mkdirSync(join(home, ".kaizen"));
+  const dup = `${proj}\n${proj}/\n${join(home, "link")}\n`;
+  writeFileSync(join(home, ".kaizen", "projects"), dup);
+  const script = `const { remember, knownProjects, REGISTRY } = await import(${JSON.stringify(join(dirname(import.meta.path), "state.ts"))});
+remember(${JSON.stringify(join(home, "link") + "/")});
+console.log(JSON.stringify([knownProjects(), require("node:fs").readFileSync(REGISTRY, "utf8")]));`;
+  try {
+    const p = Bun.spawnSync(["bun", "-e", script], { cwd: home, env: { ...process.env, HOME: home, USERPROFILE: home } });
+    if (p.exitCode !== 0) throw new Error(p.stderr.toString());
+    const [list, file] = JSON.parse(p.stdout.toString());
+    expect(list).toEqual([realpathSync(proj)]);
+    expect(file).toBe(dup); // already known: nothing appended, nothing rewritten
   } finally { rmSync(home, { recursive: true, force: true }); }
 });
 

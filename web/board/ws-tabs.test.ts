@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { loopbackUrl, toOpen, stageKeys, finished, historyOf, liveIn, migrate, wsKey } from "./ws-tabs.ts";
+import { centreKey, embedded, stageShown, loopbackUrl, toOpen, stageKeys, finished, historyOf, liveIn, migrate, wsKey } from "./ws-tabs.ts";
 
 const run = (id: string, status: string, o: any = {}) => ({ kind: "run", state: "/p/.kaizen", id, status, moved: 1, ws: "/p", ...o });
 const wsOf = (c) => c.ws;
@@ -83,4 +83,34 @@ test("toOpen: a run that moves into review or done opens the Browser once; other
   expect(toOpen(cs, new Set(), [], key).map(key)).toEqual(["b", "c"]);
   expect(toOpen(cs, new Set(["b"]), [], key).map(key)).toEqual(["c"]); // b was already reviewing
   expect(toOpen(cs, new Set(), ["c"], key).map(key)).toEqual(["b"]); // c already opened once
+});
+
+test("liveIn keeps a finished run only while kept; centreKey: stage terminal, else the unclaimed live session, else the file", () => {
+  expect(liveIn(cards, "/p/.kaizen", "/p", wsOf, (c) => c.id === "c").map((c) => c.id ?? c.text)).toEqual(["a", "b", "c", "e", "t"]);
+  const c = { kind: "run", pty: { key: "live", all: ["p", "live"], stages: { plan: "p" } } };
+  expect(centreKey(c, "plan")).toBe("p");
+  expect(centreKey(c, "impl")).toBeNull(); // a stage terminal exists: the live session is an Agent tab, not the centre
+  expect(centreKey({ kind: "run", pty: { key: "p", all: ["p"], stages: { plan: "p" } } }, "impl")).toBeNull();
+  expect(centreKey({ kind: "run" }, "plan")).toBeNull();
+});
+
+test("an unclaimed live session is always reachable: in the centre when no stage has a terminal, else an Agent tab", () => {
+  const solo = { kind: "run", pty: { key: "live", all: ["live"], stages: {} } };
+  expect(stageKeys(solo)).toEqual({ plan: "live" }); // claimed as the plan
+  const all3 = { kind: "run", pty: { key: "x", all: ["p", "b", "r", "x"], stages: { plan: "p", impl: "b", review: "r" } } };
+  for (const s of ["plan", "impl", "review"]) expect(centreKey(all3, s)).not.toBe("x");
+  expect(embedded(all3).sort()).toEqual(["b", "p", "r"]); // x is not embedded: tabs() gives it an Agent tab
+  const two = { kind: "run", pty: { key: "x", all: ["a", "x"] } };
+  expect(embedded(two)).toEqual(["a"]);
+  expect(embedded({ kind: "run", pty: { key: "x", all: ["x"], stages: { impl: "gone" } } }).includes("x")).toBe(true);
+  expect(centreKey({ kind: "run", pty: { key: "x", all: ["x"], stages: { impl: "gone" } } }, "impl")).toBe("x");
+});
+
+test("stageShown: each run tab keeps its own stage; the panel's choice counts only for the run it shows", () => {
+  const m = new Map<string, string>();
+  expect(stageShown(m, "rn:a", "impl", true)).toBe("impl");
+  expect(stageShown(m, "rn:b", "impl", false)).toBe("plan"); // panel still shows a: b is not touched
+  expect(stageShown(m, "rn:b", "review", true)).toBe("review");
+  expect(stageShown(m, "rn:a", "review", false)).toBe("impl"); // back on a: its own stage
+  expect(stageShown(m, "rn:a", "backlog", true)).toBe("impl"); // not a stage: unchanged
 });
