@@ -198,3 +198,4 @@ updated: 2026-10-28
 - 2026-10-29 run 2026-10-29-board-browser-preview — Web board: localhost tab is now Browser (per-workspace address, New tab, fallback card), opens on a run's `## Preview` localhost URL once per run; `/open-url` loopback only
 - 2026-10-29 run 2026-10-29-board-run-panel-right — Web board: run tab centre is the agent terminal, run panel docked right again (collapsible, parked for non-run tabs, sheet on phones), finished run keeps its tab until closed (`kept`)
 - 2026-10-29 run 2026-10-29-board-workspace-kanban — Web board: Workspaces | Runs switch; Workspaces board of four columns (Todo / In progress / In review / Done) placed from each workspace's runs (`ws-board.ts`)
+- 2026-10-29 run 2026-10-29-board-tabs-shell-settings — Web board: run tabs capped with ellipsis; empty workspaces and terminal-less run tabs show a plain workspace shell (no agent); Settings icon only
