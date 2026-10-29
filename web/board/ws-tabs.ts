@@ -77,3 +77,11 @@ export function stageKeys(c): Record<string, string> {
   if (!st.plan && first && !Object.keys(st).length) out.plan = first;
   return out;
 }
+
+// A run at review or done: its localhost Preview may open the Browser.
+export const reviewing = (c) => c.kind === "run" && (c.column === 3 || c.status === "done");
+// The first localhost address in a run's ## Preview.
+export const loopbackUrl = (pv?: string | null) => (pv ? /https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?[^\s)`'"<>]*/.exec(pv)?.[0] : undefined);
+// Runs that moved into review or done since the last tick (`was` = the keys reviewing then) and have not
+// yet opened the Browser: once per run id (`seen`).
+export const toOpen = (cards: any[], was: Set<string>, seen: string[], keyOf: (c) => string) => cards.filter((c) => reviewing(c) && !was.has(keyOf(c)) && !seen.includes(keyOf(c)));

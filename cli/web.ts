@@ -62,6 +62,9 @@ const served = (f: string) => installed() === VERSION && existsSync(f) ? readTex
 // A board answers at url and runs the installed version. A board from before the
 // version header sends none, so it counts as stale too.
 // Which terminal the board launched for which stage of a run (plan, impl, review): runs/<id>/terminals.json.
+// Loopback hosts only; shared by /open-url and /frameable so the board is never a way to reach other sites.
+const isLoopback = (u: URL) => ["localhost", "127.0.0.1", "[::1]"].includes(u.hostname);
+
 export const stagesOf = (dir: string, id: string): Record<string, string> => { try { return JSON.parse(readText(join(dir, "runs", id, "terminals.json"))) ?? {}; } catch { return {}; } };
 export const markStage = (dir: string, id: string, stage: string, key?: string) => {
   if (!stage || !key || !id || /^\.+$/.test(id)) return;
@@ -774,8 +777,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
         return json([...shells.values()].filter((s) => !dir || s.dir === dir));
       }
       // The localhost tab's "Open in browser": a Chromium app window on this computer, for
-      // sites that refuse to be framed. Launches a process, so /shell's guards, and only an
-      // http(s) address, passed as one --app= argument, never a shell string.
+      // localhost pages that refuse to be framed. Launches a process, so /shell's guards, and only a
+      // loopback http(s) address, passed as one --app= argument, never a shell string.
       if (req.method === "POST" && path === "/open-url") {
         const refused = strict(req);
         if (refused) return refused;
@@ -784,6 +787,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
         let u: URL;
         try { u = new URL(String(body.url ?? "")); } catch { return bad("not a url"); }
         if (!/^https?:$/.test(u.protocol)) return bad("only an http(s) address", 400);
+        // Loopback only: the board must not be a way to open arbitrary sites on this computer.
+        if (!isLoopback(u)) return bad("only a localhost address", 400);
         return json({ ok: await openApp(u.href, join(home, ".kaizen", "app-window")) });
       }
       // Whether a page may be framed: X-Frame-Options or a CSP frame-ancestors that is not
@@ -795,8 +800,10 @@ export async function web(repoDir: string, opts: Opts = {}) {
         let u: URL;
         try { u = new URL(url.searchParams.get("url") ?? ""); } catch { return bad("not a url"); }
         if (!/^https?:$/.test(u.protocol)) return bad("only an http(s) address", 400);
+        if (!isLoopback(u)) return bad("only a localhost address", 400);
         try {
-          const r = await fetch(u.href, { redirect: "follow", signal: AbortSignal.timeout(4000) });
+          const r = await fetch(u.href, { redirect: "manual", signal: AbortSignal.timeout(4000) });
+          if (r.status >= 300 && r.status < 400) return json({ frameable: null }); // never follow: a redirect could lead off localhost
           r.body?.cancel().catch(() => {});
           const xfo = (r.headers.get("x-frame-options") ?? "").trim();
           const fa = /frame-ancestors([^;]*)/i.exec(r.headers.get("content-security-policy") ?? "")?.[1].trim() ?? "";

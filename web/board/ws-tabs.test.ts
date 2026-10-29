@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { stageKeys, finished, historyOf, liveIn, migrate, wsKey } from "./ws-tabs.ts";
+import { loopbackUrl, toOpen, stageKeys, finished, historyOf, liveIn, migrate, wsKey } from "./ws-tabs.ts";
 
 const run = (id: string, status: string, o: any = {}) => ({ kind: "run", state: "/p/.kaizen", id, status, moved: 1, ws: "/p", ...o });
 const wsOf = (c) => c.ws;
@@ -67,4 +67,20 @@ test("stageKeys: recorded impl/review terminals; plan is the unclaimed first age
   expect(stageKeys({ kind: "run", pty: { all: ["p", "b"], stages: { plan: "p", impl: "b" } } })).toEqual({ plan: "p", impl: "b" });
   expect(stageKeys({ kind: "run", pty: { all: ["p", "x"], stages: { plan: "p" } } })).toEqual({ plan: "p" });
   expect(stageKeys({ kind: "idea", pty: { all: ["a"] } })).toEqual({});
+});
+
+test("loopbackUrl: the first localhost address in a Preview; other hosts and none give undefined", () => {
+  expect(loopbackUrl("Run `bun dev`, open http://localhost:5173/app) now")).toBe("http://localhost:5173/app");
+  expect(loopbackUrl("see [x](http://127.0.0.1:8080)")).toBe("http://127.0.0.1:8080");
+  expect(loopbackUrl("http://[::1]:3000/")).toBe("http://[::1]:3000/");
+  expect(loopbackUrl("https://example.com/ and ![shot](a.png)")).toBeUndefined();
+  expect(loopbackUrl(null)).toBeUndefined();
+});
+
+test("toOpen: a run that moves into review or done opens the Browser once; others do not", () => {
+  const cs = [run("a", "running", { column: 2 }), run("b", "waiting", { column: 3 }), run("c", "done", { column: 4 }), run("e", "abandoned", { column: 4 })];
+  const key = (c) => c.id;
+  expect(toOpen(cs, new Set(), [], key).map(key)).toEqual(["b", "c"]);
+  expect(toOpen(cs, new Set(["b"]), [], key).map(key)).toEqual(["c"]); // b was already reviewing
+  expect(toOpen(cs, new Set(), ["c"], key).map(key)).toEqual(["b"]); // c already opened once
 });

@@ -106,10 +106,20 @@ test.skipIf(process.platform === "win32")("/shell: foreign origin, unknown proje
     expect((await open({ url: "http://localhost:3000/" }, at, "text/plain")).status).toBe(415);
     expect((await open({ url: "file:///etc/passwd" }, at)).status).toBe(400);
     expect((await open({ url: "javascript:alert(1)" }, at)).status).toBe(400);
+    expect((await open({ url: "https://example.com/" }, at)).status).toBe(400); // loopback only
+    expect((await open({ url: "http://localhost.evil.test/" }, at)).status).toBe(400);
     // /frameable: board pages only, http(s) only; the answer is a boolean (or null when unreachable).
     expect((await fetch(`${at}/frameable?url=${encodeURIComponent(at + "/")}`, { headers: { origin: "https://evil.example" } })).status).toBe(403);
     expect((await fetch(`${at}/frameable?url=${encodeURIComponent("file:///etc/passwd")}`)).status).toBe(400);
+    expect((await fetch(`${at}/frameable?url=${encodeURIComponent("http://example.com/")}`)).status).toBe(400);
     expect(await (await fetch(`${at}/frameable?url=${encodeURIComponent(at + "/")}`)).json()).toEqual({ frameable: true });
+    // A loopback page that redirects elsewhere is unknown, and the target is never fetched.
+    let hit = 0;
+    const far = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: () => { hit++; return new Response("x"); } });
+    const hop = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: () => Response.redirect(`http://127.0.0.1:${far.port}/`, 302) });
+    expect(await (await fetch(`${at}/frameable?url=${encodeURIComponent(`http://127.0.0.1:${hop.port}/`)}`)).json()).toEqual({ frameable: null });
+    expect(hit).toBe(0);
+    far.stop(true); hop.stop(true);
 
     // A workspace folder only from the project's own list (no git on this PATH: the project folder alone).
     expect((await post({ dir: st, ws: root }, at)).status).toBe(400);

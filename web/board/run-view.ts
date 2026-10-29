@@ -17,7 +17,7 @@ import { load, post } from "./api.ts";
 import { attach, md, preview } from "./markdown.ts";
 import { layout } from "./terms.ts";
 import { cardHref, markCurrent, railData, stateOf, titleOf, wsOfCard } from "./workspace.ts";
-import { type Node, awaiting, finished, hiddenRuns, historyOf, leaves, liveIn, migrate, prune, stageKeys, wsKey } from "./ws-tabs.ts";
+import { type Node, awaiting, finished, hiddenRuns, historyOf, leaves, liveIn, loopbackUrl, migrate, prune, reviewing, stageKeys, toOpen, wsKey } from "./ws-tabs.ts";
 import { age } from "./labels.ts";
 import { go } from "./views.ts";
 
@@ -32,7 +32,8 @@ function splitAt(n: Node, at: string, add: string, dir: "cols" | "rows", before 
   if (typeof n === "string") return n === at ? { dir, kids: before ? [add, n] : [n, add], sizes: [1, 1] } : n;
   return { ...n, kids: n.kids.map((k) => splitAt(k, at, add, dir, before)) };
 }
-type Saved = { tabs: Tab[]; hidden: string[]; screens: Screen[]; on: string | null };
+// seen: the runs that already opened the Browser on their Preview, so a run does it once.
+type Saved = { tabs: Tab[]; hidden: string[]; screens: Screen[]; on: string | null; seen?: string[] };
 const ALL: Record<string, Saved> = (() => {
   try {
     return JSON.parse(localStorage.getItem("kz-runtabs") || "{}");
@@ -113,6 +114,7 @@ function tabs(): Tab[] {
     out.push({ id: "sh:" + sh.key, kind: sh.agent ? "agent" : "shell", agent: sh.agent || undefined, title: sh.title, key: sh.key });
   // Opened by hand: a finished run (read-only), History, localhost, Preview, notes. A run's tab whose card left the board goes.
   const mine = s.tabs.flatMap((t) => {
+    if (t.kind === "local") return [{ ...t, title: "Browser" }]; // saved before the rename
     if (t.kind !== "run") return [t];
     const c = byKey(t.ck!);
     return c ? [{ ...t, title: subLabel(c), ro: finished(c) }] : [];
@@ -174,6 +176,7 @@ export async function showRunView(nav = false) {
   const fresh = ctx?.k !== k;
   // Each workspace has its own centre: switching unmounts this one's panes (its shells keep running on the server).
   if (fresh) (stopPanes(), (card = null), (ctx = { dir, ws, k }));
+  if (fresh && !was.has(k)) was.set(k, new Set(mineNow().filter(reviewing).map(key))); // what is already in review does not open the Browser
   // The header titles a phone's workspace: the run, else the branch.
   const w = railData().projects?.find((x) => x.dir === dir)?.workspaces?.find((x) => x.path === ws);
   document.querySelector(".hdr h1")!.textContent = want ? titleOf(want) : w?.branch || ws.split(/[\\/]/).pop() || "Workspace";
@@ -226,7 +229,7 @@ function draw() {
   // A tab holding a run that waits on you has no ×.
   const stuck = (ids: string[]) => ids.some((id) => item(id).kind === "run" && awaiting(byKey(item(id).ck!)));
   const back = hiddenRuns(wsCards(), s.hidden, key);
-  const menu = html`<div class="menu-pop">${PTY && dflt ? html`<button data-n="agent:${dflt.cmd}">${mark(dflt)}<span>New agent here<small>${dflt.name} in this folder</small></span></button>` : ""}${PTY ? html`<button data-n="shell">${ico("term")}<span>Shell<small>a terminal in this folder</small></span></button>` : ""}<button data-n="local">${ico("link")}<span>Localhost<small>the project's dev server</small></span></button><button data-n="preview">${ico("eye")}<span>Preview<small>the run's Preview</small></span></button><button data-n="history">${ico("note")}<span>History<small>finished runs in this workspace</small></span></button>${back.length ? html`<b class="mh">Reopen</b>${back.map((c) => html`<button data-n="reopen:${key(c)}">${ico("arrow")}<span>${subLabel(c)}<small>a run whose tab was closed</small></span></button>`)}` : ""}${PTY ? agents.filter((a) => a !== dflt).map((a) => html`<button data-n="agent:${a.cmd}">${mark(a)}<span>${a.name} session<small>the agent alone, no run</small></span></button>`) : ""}</div>`;
+  const menu = html`<div class="menu-pop">${PTY && dflt ? html`<button data-n="agent:${dflt.cmd}">${mark(dflt)}<span>New agent here<small>${dflt.name} in this folder</small></span></button>` : ""}${PTY ? html`<button data-n="shell">${ico("term")}<span>Shell<small>a terminal in this folder</small></span></button>` : ""}<button data-n="local">${ico("link")}<span>Browser<small>localhost pages, e.g. the dev server</small></span></button><button data-n="preview">${ico("eye")}<span>Preview<small>the run's Preview</small></span></button><button data-n="history">${ico("note")}<span>History<small>finished runs in this workspace</small></span></button>${back.length ? html`<b class="mh">Reopen</b>${back.map((c) => html`<button data-n="reopen:${key(c)}">${ico("arrow")}<span>${subLabel(c)}<small>a run whose tab was closed</small></span></button>`)}` : ""}${PTY ? agents.filter((a) => a !== dflt).map((a) => html`<button data-n="agent:${a.cmd}">${mark(a)}<span>${a.name} session<small>the agent alone, no run</small></span></button>`) : ""}</div>`;
   $("rtabs").innerHTML = String(
     html`${scs.map((sc) => {
       const ids = leaves(sc.tree),
@@ -445,9 +448,10 @@ function makePane(t: Tab) {
   else void previewPane(el);
 }
 
-// The localhost tab: a URL bar over an iframe. The URL is kept per project.
+// The Browser tab: a URL bar over an iframe. The address is kept per workspace; a run's
+// Preview sets it when the run reaches review (autoBrowse).
 function browser(el: HTMLElement) {
-  const k = "kz-browse:" + ctx!.dir;
+  const k = "kz-browse:" + ctx!.k;
   let url = "http://localhost:3000";
   try {
     url = localStorage.getItem(k) || url;
@@ -456,16 +460,19 @@ function browser(el: HTMLElement) {
     fwd: string[] = [];
   el.insertAdjacentHTML(
     "beforeend",
-    String(html`<form class="urlbar"><button type="button" data-b="back" title="Back" aria-label="Back">‹</button><button type="button" data-b="fwd" title="Forward" aria-label="Forward">›</button><button type="button" data-b="reload" title="Reload" aria-label="Reload">${ico("refresh")}</button><input class="sel" aria-label="Address" spellcheck="false" value="${url}">${winBtn(url)}</form>`),
+    String(html`<form class="urlbar"><button type="button" data-b="back" title="Back" aria-label="Back">‹</button><button type="button" data-b="fwd" title="Forward" aria-label="Forward">›</button><button type="button" data-b="reload" title="Reload" aria-label="Reload">${ico("refresh")}</button><input class="sel" aria-label="Address" spellcheck="false" value="${url}"><a class="rwin" data-b="tab" target="_blank" rel="noopener" href="${url}" title="Open in a new browser tab">${ico("popout")}<span>New tab</span></a></form>`),
   );
   const f = el.querySelector("form")!,
     inp = f.querySelector("input")!,
     ext = f.querySelector<HTMLAnchorElement>("a.rwin");
+  (el as any).browseTo = (u: string) => go(u);
   // On a phone over the tailnet, localhost is the phone itself: framing it shows nothing useful.
   const local = (u) => /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/.test(u);
   const frame = document.createElement("iframe");
   frame.className = "rframe";
-  frame.title = "localhost";
+  frame.title = "Browser";
+  // Dev apps run; a framed page cannot navigate the board itself (no allow-top-navigation).
+  frame.setAttribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads");
   const note = document.createElement("p");
   note.className = "rnote";
   const far = "This page is on the computer running the board; from this device localhost is the device itself. Use Open in browser on that computer.";
@@ -493,8 +500,9 @@ function browser(el: HTMLElement) {
         frame.hidden = true;
         frame.removeAttribute("src");
         note.hidden = false;
-        note.textContent = `${new URL(u).host} does not allow being shown inside another page. `;
-        note.insertAdjacentHTML("beforeend", String(winBtn(u)));
+        // The fallback card: the page refuses to be framed, so offer it outside the board.
+        note.textContent = "";
+        note.insertAdjacentHTML("beforeend", String(html`<b>This page refuses to be shown inside the board</b>${new URL(u).host} sends a header that forbids framing. <a class="rwin" target="_blank" rel="noopener" href="${u}">${ico("popout")}<span>Open in new tab</span></a>${winBtn(u)}`));
       })
       .catch(() => {});
   };
@@ -516,11 +524,11 @@ function browser(el: HTMLElement) {
 
 // A Chromium app window on the board's computer (POST /open-url): for dev servers that
 // refuse to be framed. Only offered when the page itself is on that computer.
-// One labelled button: on the board's computer a Chromium app window, elsewhere a new tab.
+// One labelled button: a Chromium app window on the board's computer, for loopback pages only.
 const winBtn = (u: string) =>
-  loopback
-    ? html`<button type="button" class="rwin" data-b="win" title="Open in a browser window">${ico("popout")}<span>Open in browser</span></button>`
-    : html`<a class="rwin" target="_blank" rel="noopener" href="${u}">${ico("popout")}<span>Open in browser</span></a>`;
+  loopback && loopbackUrl(u)
+    ? html`<button type="button" class="rwin" data-b="win" title="Open in an app window">${ico("popout")}<span>Open in app window</span></button>`
+    : "";
 async function openWindow(u: string) {
   const r = await fetch("/open-url", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ url: u }) }).catch(() => null);
   if (!r?.ok) toast("Could not open a browser window" + (r ? ": " + ((await r.json().catch(() => ({}))) as any).error : ""));
@@ -536,7 +544,7 @@ async function previewPane(el: HTMLElement) {
       doc = await (await fetch(`/run/${encodeURIComponent(card.id)}?dir=${encodeURIComponent(card.state)}`)).json();
     } catch {}
   const pv = doc && preview(doc.impl);
-  const url = pv && /https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?[^\s)`'"<>]*/.exec(pv)?.[0];
+  const url = loopbackUrl(pv);
   const shots = pv && /!\[[^\]]*\]\(/.test(pv);
   if (url && loopback && !shots) return void el.insertAdjacentHTML("beforeend", String(html`<iframe class="rframe" title="Preview" src="${url}"></iframe>`));
   const bar = url ? html`<div class="urlbar"><span class="sel">${url}</span>${winBtn(url)}</div>` : "";
@@ -681,7 +689,7 @@ function wire() {
       target = mode === "tab" || !s.on ? null : { screen: s.on, dir: mode as "cols" | "rows" };
       if (n === "shell") void newPty();
       else if (n.startsWith("agent:")) void newPty(n.slice(6));
-      else if (n === "local") addTab({ id: "local", kind: "local", title: "localhost" });
+      else if (n === "local") addTab({ id: "local", kind: "local", title: "Browser" });
       else if (n.startsWith("reopen:")) {
         s.hidden = s.hidden.filter((h) => h !== "rn:" + n.slice(7));
         show("rn:" + n.slice(7));
@@ -848,6 +856,34 @@ async function projectNotes() {
   }
 }
 
+// The keys of the workspace's runs that were at review/done on the last tick, per workspace.
+const was = new Map<string, Set<string>>();
+// A run in the open workspace moves into review or done with a localhost address in its ## Preview:
+// the Browser opens on it, once per run. The first tick of a workspace only records.
+const mineNow = () => store.S.cards.filter((c) => c.state === ctx!.dir && wsOfCard(c) === ctx!.ws);
+async function autoBrowse() {
+  if (!ctx) return;
+  const k = ctx.k,
+    mine = mineNow(),
+    prev = was.get(k);
+  was.set(k, new Set(mine.filter(reviewing).map(key)));
+  if (!prev) return;
+  for (const c of toOpen(mine, prev, saved().seen ?? [], key)) {
+    let u: string | undefined;
+    try {
+      const doc = await (await fetch(`/run/${encodeURIComponent(c.id)}?dir=${encodeURIComponent(c.state)}`)).json();
+      u = loopbackUrl(preview(doc.impl));
+    } catch {}
+    if (!u || ctx?.k !== k || saved().seen?.includes(key(c))) continue;
+    (saved().seen ||= []).push(key(c));
+    try {
+      localStorage.setItem("kz-browse:" + k, u);
+    } catch {}
+    addTab({ id: "local", kind: "local", title: "Browser" });
+    (panes.get("local")?.el as any)?.browseTo?.(u);
+  }
+}
+
 export function initRunView() {
   addEventListener("kz-run-preview", openPreview);
   $("pnotes").onclick = () => void projectNotes();
@@ -857,6 +893,7 @@ export function initRunView() {
   };
   // A /state change: new or ended sessions, the card's own state. Panes stay mounted.
   addEventListener("kz-state", () => {
+    void autoBrowse();
     if (ctx && document.body.classList.contains("runv")) void showRunView();
   });
 }
