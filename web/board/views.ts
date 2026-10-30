@@ -23,6 +23,7 @@ export const markView = (v) => {
     );
   // The Icebox is titled in the header, top left, like the board.
   document.querySelector(".hdr h1").textContent = v === "sources" ? "Icebox" : v === "ideas" ? "Ideas" : v === "run" ? "Run" : v === "terminal" ? "Terminal" : v === "home" ? (isPhone() ? "kaizen" : "Home") : v === "chat" ? "Chat" : v === "device" ? "Runs" : "Board";
+  if (v === "home" && isPhone()) document.querySelector(".hdr h1").innerHTML = '<pre class="mark" role="img" aria-label="kaizen">' + document.querySelector(".rail pre.mark").innerHTML + "</pre>";
 };
 export function go(v, push) {
   store.pageGen++;

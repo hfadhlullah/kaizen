@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<script>if(matchMedia("(display-mode:standalone)").matches||navigator.standalone){document.querySelector("meta[name=viewport]").content+=",maximum-scale=1,user-scalable=no";addEventListener("gesturestart",e=>e.preventDefault());if(navigator.standalone){const s=()=>{document.documentElement.style.setProperty("--sh",(innerWidth>innerHeight?Math.min:Math.max)(screen.width,screen.height)+"px");scrollTo(0,0)},r=()=>{s();setTimeout(s,400)};s();addEventListener("resize",r);addEventListener("orientationchange",r)}}</script>
+<script>if(matchMedia("(display-mode:standalone)").matches||navigator.standalone){document.querySelector("meta[name=viewport]").content+=",maximum-scale=1,user-scalable=no";addEventListener("gesturestart",e=>e.preventDefault());if(navigator.standalone)addEventListener("resize",()=>scrollTo(0,0))}</script>
 <title>kaizen video</title>
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="icon" type="image/png" href="/logo.png">
@@ -24,11 +24,13 @@
 :root[data-theme=dark]{--shade:rgb(0 0 0/.45);--canvas:color-mix(in srgb,var(--bg) 70%,black)}
 body{margin:0;background:var(--canvas);color:var(--ink);font:14px/1.5 var(--font);-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;height:100vh;height:100dvh;overflow:hidden;display:flex}
 html{background:var(--canvas);touch-action:manipulation}
-@media(display-mode:standalone){body{position:fixed;inset:0;height:auto;overscroll-behavior:none;touch-action:pan-x pan-y;-webkit-text-size-adjust:100%}}
-@media(display-mode:standalone) and (max-width:640px){body{bottom:auto;height:var(--sh,100lvh)}}
+/* the window, not the screen: a height taken from the screen can run past what iOS shows and crop the tab bar */
+@media(display-mode:standalone){html{overflow:hidden;overscroll-behavior:none}body{position:fixed;inset:0 0 auto;height:100dvh;overscroll-behavior:none;touch-action:pan-x pan-y;-webkit-text-size-adjust:100%}}
 @media(max-width:640px),(display-mode:standalone){body{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}}
 /* iOS 26 blurs the page under the status bar unless a fixed bar touches the top edge: give it one in the page colour */
 @media(display-mode:standalone){body::before{content:"";position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top);background:inherit;z-index:100;pointer-events:none}}
+/* the same at the bottom edge, in the tab bar colour; the root matches it so no band shows if iOS stops the window short. The header sits under the status bar inset, so it drops its own top gap */
+@media(display-mode:standalone) and (max-width:640px){html:root{background:var(--bg-2)}body::after{content:"";position:fixed;left:0;right:0;bottom:0;height:env(safe-area-inset-bottom);background:var(--bg-2);z-index:1;pointer-events:none}body .hdr,body aside.docked>header{padding-top:10px}}
 button,input,select{font:inherit;color:inherit;background:none;border:0;padding:0}
 button{cursor:pointer}
 a{color:inherit;text-decoration:none}

@@ -238,3 +238,12 @@ test("web/notebook.js, web/term.js, web/board.js, web/video.js and bot/web/app.j
   expect(readFileSync(BOT_OUT, "utf8").split("\n", 1)[0]!).toContain(`kaizen bot page ${sourceHash()} `);
   expect(readFileSync(VIDEO_OUT, "utf8").split("\n", 1)[0]!).toContain(`kaizen video page ${sourceHash()} `);
 });
+
+test("an installed app fits the window, not the screen", () => {
+  for (const f of ["board.html", "notes.html", "video.html"]) {
+    const s = readFileSync(join(root, "web", f), "utf8");
+    expect(s).not.toMatch(/--sh\b(?!a)/);
+    expect(s).toContain("inset:0 0 auto;height:100dvh");
+    expect(s).toContain("body::after{content");
+  }
+});

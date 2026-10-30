@@ -238,3 +238,5 @@ updated: 2026-10-28
 - 2026-10-30 update — Web board: phone Home can start a new agent or shell in any workspace from the Agents header.
 - 2026-10-30 update — Web board: the phone's New idea + button shows on Runs only, not Home.
 - 2026-10-30 update — Web board: long project paths no longer lose a terminal's tab (run key limit raised to 2000).
+- 2026-10-30 ios-pwa-edge-to-edge: installed app uses 100dvh instead of the screen height, bottom edge strip, html no longer scrolls.
+- 2026-10-30 update — Web board: the phone Home header shows the ASCII kaizen logo.
