@@ -232,3 +232,9 @@ updated: 2026-10-28
 - 2026-10-30 update — Web board: an idea panel's Run opens the run popup over the current page.
 - 2026-10-30 update — Web board: Ideas and Icebox page their lists (5, 25, 50, 100; default 25); the Ideas row accent line is gone.
 - 2026-10-30 update — Web board: Icebox swipe redesigned: centred card, labelled action bar with key hints, no emoji.
+- 2026-10-30 update — Web board: a board tab cannot stop its own board; ctrl-c always ends the board; a tab whose retries run out says the session ended.
+- 2026-10-30 update — Web board: a board restarted by Update waits for the old one to free the port, so the phone can reach it again.
+- 2026-10-30 update — Web board: phone Home shows a two-row Agents slider of workspaces with agents, and Devices shows two with Show more.
+- 2026-10-30 update — Web board: phone Home can start a new agent or shell in any workspace from the Agents header.
+- 2026-10-30 update — Web board: the phone's New idea + button shows on Runs only, not Home.
+- 2026-10-30 update — Web board: long project paths no longer lose a terminal's tab (run key limit raised to 2000).

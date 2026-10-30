@@ -513,9 +513,17 @@ export async function web(repoDir: string, opts: Opts = {}) {
       // older kaizen serves 404 for whatever came since; both are ours to stop.
       const pid = await pidOnPort(port);
       if (pid && pid !== process.pid) {
+        // This shell is a tab of that board: stopping it would end the shell running this.
+        if (process.env.KAIZEN_BOARD_PID === String(pid)) { console.log(`\n  the board on ${port} hosts this terminal; restart it from a terminal outside the board\n`); process.exit(1); }
         try { process.kill(pid, "SIGTERM"); console.log(`  stopped a ${up ? "stale" : "hung"} board on ${port} (pid ${pid})`); } catch { /* not ours to kill */ }
-        await Bun.sleep(300);
-        try { server = serve(port); continue; } catch { /* still held */ }
+        // A stopping board saves its agents first and can hold the port for seconds. Walking
+        // up now would strand this one on a port the phone's tailscale serve does not proxy.
+        for (let waited = 0; waited < 8000 && !server; waited += 200) {
+          await Bun.sleep(200);
+          if (waited === 5000) try { process.kill(pid, "SIGKILL"); } catch { /* already gone */ }
+          try { server = serve(port); } catch { /* still held */ }
+        }
+        if (server) continue;
       }
       console.log(`  port ${port} refused by the OS and nothing answers there; trying ${port + 1}`);
     }
@@ -742,7 +750,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         // id is read from that run's state.json, never taken from the page). Claude only: it is
         // the agent whose session id runs record. Refused while that session is still running
         // elsewhere, since two copies of one conversation overwrite each other's history.
-        const runKey = typeof body.run === "string" && body.run.length <= 300 ? body.run : "";
+        const runKey = typeof body.run === "string" && body.run.length <= 2000 ? body.run : "";
         if (body.resume === true) {
           const id = runKey.startsWith("run:" + dir + ":") ? runKey.slice(dir.length + 5) : "";
           let st: any = {};
@@ -2022,7 +2030,12 @@ export async function web(repoDir: string, opts: Opts = {}) {
   await new Promise<void>((resolve) => {
     // The card agents are listed for the next board and ended (saveLive); the short wait
     // lets each take its /exit, or be ended with what it started, before this process goes.
+    let stopping = false;
     const stop = () => {
+      // A second ctrl-c, or a shutdown that hangs, still ends the process.
+      if (stopping) process.exit(0);
+      stopping = true;
+      setTimeout(() => process.exit(0), 3000).unref();
       const live = ptyKeys().some((k) => ptyState(k)?.alive);
       saveLive();
       clearInterval(poll); clearInterval(ping); clearInterval(gather); clearInterval(loop); clearInterval(keepList);

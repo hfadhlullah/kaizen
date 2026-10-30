@@ -125,7 +125,7 @@ export function startPty(key: string, cmd: string[], cwd: string, pidFile?: stri
     const ps = winPs();
     p.proc = Bun.spawn([ps, "-NoProfile", "-NonInteractive", "-EncodedCommand", conptyHost()], {
       cwd,
-      env: { ...colorEnv(), KZ_PTY_CMD: innerCommand(ps, cmd), KZ_PTY_CWD: cwd, KZ_PTY_COLS: "120", KZ_PTY_ROWS: "32" },
+      env: { ...colorEnv(), KAIZEN_BOARD_PID: String(process.pid), KZ_PTY_CMD: innerCommand(ps, cmd), KZ_PTY_CWD: cwd, KZ_PTY_COLS: "120", KZ_PTY_ROWS: "32" },
       stdin: "pipe", stdout: "pipe", stderr: "pipe", windowsHide: true,
     });
     const read = async (s: ReadableStream<Uint8Array>) => {
@@ -137,7 +137,7 @@ export function startPty(key: string, cmd: string[], cwd: string, pidFile?: stri
     read(p.proc.stderr as ReadableStream<Uint8Array>).catch(() => {});
   } else p.proc = Bun.spawn(cmd, {
     cwd,
-    env: { ...colorEnv(), TERM: "xterm-256color", COLORTERM: "truecolor" },
+    env: { ...colorEnv(), TERM: "xterm-256color", COLORTERM: "truecolor", KAIZEN_BOARD_PID: String(process.pid) },
     terminal: { cols: 120, rows: 32, data: (_t, d) => push(dec.decode(d, { stream: true })) },
   });
   if (opts.tmux && cmd[0] === tmuxBin()) p.tmux = opts.tmux;
@@ -298,7 +298,8 @@ export function loginEnv(shell = process.env.SHELL): Record<string, string> | nu
   if (!shell || process.platform === "win32") return null;
   const MARK = "__kaizen_env__";
   try {
-    const r = Bun.spawnSync([shell, "-l", "-i", "-c", `echo ${MARK}; env -0`], { stdin: "ignore", stderr: "ignore", timeout: 5000, killSignal: "SIGKILL" });
+    // detached: an interactive shell takes the terminal foreground and never hands it back, which left ctrl-c reaching nothing.
+    const r = Bun.spawnSync([shell, "-l", "-i", "-c", `echo ${MARK}; env -0`], { stdin: "ignore", stderr: "ignore", timeout: 5000, killSignal: "SIGKILL", detached: true });
     const out = r.stdout.toString(), at = out.indexOf(MARK + "\n");
     if (r.exitCode !== 0 || at < 0) return null;
     const env: Record<string, string> = {};

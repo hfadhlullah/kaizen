@@ -167,3 +167,28 @@ test.skipIf(!posix)("a stopped or crashed board resumes its card agents, once af
     Bun.spawnSync(["pkill", "-f", `${bin}/claude`]);
   }
 }, 40_000);
+
+// A phone reaches the board through a proxy pinned to its port, so the board an update
+// starts has to outwait the old one instead of walking to the next port.
+test.skipIf(!posix || !Bun.which("lsof"))("a new board takes over the port of a board slow to stop", async () => {
+  const port = 20000 + Math.floor(Math.random() * 20000);
+  const home = join(root, "takeover");
+  mkdirSync(home, { recursive: true });
+  const script = join(home, "old.ts");
+  writeFileSync(script, `Bun.serve({ hostname: "127.0.0.1", port: ${port}, fetch: () => new Response("old", { headers: { "x-kaizen-version": "0.0.0" } }) });
+process.on("SIGTERM", () => setTimeout(() => process.exit(0), 1500));
+console.log("up");`);
+  const old = Bun.spawn([process.execPath, script], { stdout: "pipe" });
+  await new Response(old.stdout).body!.getReader().read();
+  const fresh = Bun.spawn([process.execPath, join(import.meta.dir, "install.ts"), "web", "--port", String(port), "--no-open", "--foreground"], {
+    cwd: home, env: { ...process.env, HOME: home, USERPROFILE: home }, stdin: "ignore", stdout: "ignore", stderr: "ignore",
+  });
+  try {
+    let version: string | null = null;
+    for (let i = 0; i < 60 && (!version || version === "0.0.0"); i++) {
+      await Bun.sleep(200);
+      version = await fetch(`http://127.0.0.1:${port}/`).then((r) => r.headers.get("x-kaizen-version"), () => null);
+    }
+    expect(version).toBe(JSON.parse(readFileSync(join(import.meta.dir, "..", "package.json"), "utf8")).version);
+  } finally { fresh.kill("SIGKILL"); old.kill("SIGKILL"); }
+}, 20000);

@@ -87,6 +87,7 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
         lost = true;
         reBtn.hidden = false;
         if (tries < WAIT.length) retry = setTimeout(connect, WAIT[tries++] * 1000);
+        else term.write("\r\n\x1b[2m[session ended: open a new tab, or press Reconnect if the board is back]\x1b[0m\r\n");
       }
       onEnd?.();
     };
