@@ -50,10 +50,15 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
   const send = (m: object) => {
     if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(m));
   };
-  const size = () => {
+  const size = (nudge = false) => {
     if (!el.offsetWidth) return;
     fit.fit();
-    send({ t: "r", c: term.cols, r: term.rows });
+    // The replay was drawn at whatever size the agent had before; a resize to the same size
+    // sends it no signal, so a full-screen agent never repaints it. One row short, then back, does.
+    if (nudge && term.rows > 5) {
+      send({ t: "r", c: term.cols, r: term.rows - 1 });
+      setTimeout(() => send({ t: "r", c: term.cols, r: term.rows }), 80);
+    } else send({ t: "r", c: term.cols, r: term.rows });
   };
   const connect = () => {
     clearTimeout(retry);
@@ -67,7 +72,7 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
       lost = false;
       tries = 0;
       reBtn.hidden = true;
-      size();
+      size(true);
     };
     ws.onmessage = (e) => term.write(String(e.data));
     // The board closes with "ended" when the agent exits; anything else is the board gone.
