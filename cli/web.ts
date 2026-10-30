@@ -254,7 +254,16 @@ export async function web(repoDir: string, opts: Opts = {}) {
   let usageAt = 0;
   let pending: ReturnType<typeof setTimeout> | null = null;
   const prBusy = new Set<string>();
+  // /state costs ~250 ms of this one thread on a big board (git status per project), and
+  // every open tab asks at once on each change, stalling terminal output for all of them.
+  // A reply is shared until something changes; a git mark for a few seconds, since
+  // nothing watches the working trees anyway. Any write request drops both.
+  let stateGen = 0;
+  const stateCache = new Map<string, { gen: string; at: number; body: string }>();
+  const gitCache = new Map<string, { at: number; ids: string; marks: Record<string, string>; dues: Record<string, "commit" | "push"> }>();
+  const STATE_MS = 1000, GIT_MS = 5000;
   const changed = () => {
+    stateGen++;
     if (pending) return;
     pending = setTimeout(() => {
       pending = null;
@@ -526,6 +535,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
       // arrives with that hostname in Host, and gets nothing.
       const hostname = (req.headers.get("host") ?? "").toLowerCase().replace(/:\d+$/, "");
       if (hostname !== "127.0.0.1" && hostname !== "localhost" && !extraHosts.has(hostname)) return new Response("forbidden", { status: 403 });
+      if (req.method !== "GET") { stateGen++; gitCache.clear(); }
       const url = new URL(req.url);
       const path = url.pathname;
       const qdir = () => { const v = url.searchParams.get("dir"); return v == null ? v : canonState(v); };
@@ -1016,22 +1026,31 @@ export async function web(repoDir: string, opts: Opts = {}) {
           return !root || d === state || (fold(p).startsWith(inside)
             && (!isGroup(p) || filled(d) || fold(dirname(p)) !== fold(root)));
         });
+        // What an agent printed goes only to a viewer on this machine, not to a tailnet host or a phone.
+        const ip = srv.requestIP(req)?.address ?? "";
+        const loopback = (hostname === "127.0.0.1" || hostname === "localhost") && /^(127\.|::1$|::ffff:127\.)/.test(ip)
+          && !["x-forwarded-for", "x-forwarded-host", "forwarded", "tailscale-user-login", "tailscale-user-name"].some((h) => req.headers.has(h));
+        // Agents' status and last line change without an event, so they are part of what a reply is valid for.
+        const gen = `${stateGen} ${ptyKeys().map((k) => { const s = ptyState(k)!; return `${k}:${s.alive}:${s.asking}:${s.busy}:${s.at}`; }).join()}`;
+        const cacheKey = `${all}\0${state}\0${loopback}`, hit = stateCache.get(cacheKey);
+        if (hit?.gen === gen && Date.now() - hit.at < STATE_MS) return new Response(hit.body, { headers: { "content-type": "application/json" } });
         for (const d of dirs) healRuns(d);
         const cards = boardCards(dirs, Date.now()), pty = ptyOf(cards);
         // The git mark, for the cards whose panel offers commit and push: one status per project.
         const marks = new Map<string, Record<string, string>>(), dues = new Map<string, Record<string, "commit" | "push">>();
         const markable = (c: Card) => c.kind === "run" && !c.archived && (c.status === "done" || c.awaiting === "approvals.review") && c.state !== join(home, ".kaizen");
-        for (const d of new Set(cards.filter(markable).map((c) => c.state)))
-          marks.set(d, cardsGit(d, cards.filter((c) => markable(c) && c.state === d).map((c) => c.id!), dues.set(d, {}).get(d)));
+        for (const d of new Set(cards.filter(markable).map((c) => c.state))) {
+          const ids = cards.filter((c) => markable(c) && c.state === d).map((c) => c.id!), idKey = ids.join("\n"), had = gitCache.get(d);
+          if (had?.ids === idKey && Date.now() - had.at < GIT_MS) { marks.set(d, had.marks); dues.set(d, had.dues); continue; }
+          const due: Record<string, "commit" | "push"> = {}, mark = cardsGit(d, ids, due);
+          marks.set(d, mark); dues.set(d, due);
+          gitCache.set(d, { at: Date.now(), ids: idKey, marks: mark, dues: due });
+        }
         // Open findings the panel's Fix findings form would offer, on the same runs.
         const openFindings = (c: Card) => c.kind === "run" && !c.archived && (c.status === "done" || c.awaiting === "findings" || c.awaiting === "approvals.review") && c.state !== join(home, ".kaizen")
           ? reviewFindings(c.state, c.id!).filter((f) => !f.done).length || undefined : undefined;
         // The agents open now, for the sidebar cards: one list per tick, from the cards' sessions and the board's agent
         // shells. ws is as the card or shell has it; the page resolves it to a listed workspace. Ended agents are left out.
-        // What an agent printed goes only to a viewer on this machine, not to a tailnet host or a phone.
-        const ip = srv.requestIP(req)?.address ?? "";
-        const loopback = (hostname === "127.0.0.1" || hostname === "localhost") && /^(127\.|::1$|::ffff:127\.)/.test(ip)
-          && !["x-forwarded-for", "x-forwarded-host", "forwarded", "tailscale-user-login", "tailscale-user-name"].some((h) => req.headers.has(h));
         const agents: any[] = [], seenKey = new Set<string>(), ptys = cards.map(pty);
         const addAgent = (key: string, dir: string, ws: string | undefined, cmd: string | undefined, run?: string) => {
           const st = seenKey.has(key) ? null : ptyState(key);
@@ -1044,7 +1063,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         cards.forEach((c, i) => { for (const k of ptys[i]?.all ?? []) addAgent(k, c.state, c.ws, pty.cmd(k) ?? KNOWN_AGENTS.find((a) => c.tags?.includes(a.cmd))?.cmd, c.kind === "run" ? c.id : undefined); });
         const entry = (d: string) => ({ dir: d, label: label(d), logo: !!projectLogo(d),
           workspaces: d === join(home, ".kaizen") ? [{ path: d, branch: "", main: true }] : workspacesNow(projectOf(d)) });
-        return json({
+        const body = JSON.stringify({
           project, all, dir: state,
           // Each project's workspaces (git worktrees, or the one folder); the global queue is its own one.
           projects: picker.map(entry),
@@ -1057,6 +1076,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
           backlog: backlogCards(dirs).map((b) => ({ ...b, starting: backlogLaunched.has(`${b.state}\0${b.source}#${b.n}`) || undefined })),
           now: Date.now(),
         });
+        stateCache.set(cacheKey, { gen, at: Date.now(), body });
+        return new Response(body, { headers: { "content-type": "application/json" } });
       }
 
       if (req.method === "GET" && path.startsWith("/run/")) {

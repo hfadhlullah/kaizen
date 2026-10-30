@@ -115,7 +115,7 @@ export function startPty(key: string, cmd: string[], cwd: string, pidFile?: stri
       grab(p, tail, 0);
       // Only what came after the user's last keystroke: a question already answered may still be in the tail.
       const n = Math.min(4096, p.total - p.since);
-      flag(p.exit === null && n > 0 && asking(p.out.join("").slice(-n)));
+      flag(p.exit === null && n > 0 && asking(tail.slice(-n)));
     }, QUIET_MS);
   };
   if (WIN) {

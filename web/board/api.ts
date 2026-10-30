@@ -21,8 +21,31 @@ let before: Map<string, [number, boolean]> | null = null;
 // tab or a phone picking a project never moves this one.
 export const dirHeader = () => (store.dir ? { "x-kz-dir": store.dir } : {});
 let latestLoad = 0;
+// A change event can come several times a second while agents work, and a full read and
+// redraw blocks this thread (and any terminal in it). One quiet load per QUIET_GAP, the
+// last change always covered; a hidden tab only watches for agents asking.
+const QUIET_GAP = 500, HIDDEN_GAP = 5000;
+// The last reply without its clock, and when it was last drawn: an identical reply skips
+// the redraw, but ages and repeat notices still need one now and then.
+const REDRAW_MS = 30_000;
+let lastBody = "", drawnAt = 0;
+let lastQuiet = 0;
+let quietTimer: ReturnType<typeof setTimeout> | 0 = 0;
+const runQuiet = () => {
+  quietTimer = 0;
+  lastQuiet = Date.now();
+  return read(true);
+};
 // quiet: the server said something changed, nobody asked for a redraw.
-export async function load(quiet) {
+export function load(quiet?: boolean) {
+  if (!quiet) return read(false);
+  if (!quietTimer) quietTimer = setTimeout(runQuiet, Math.max(0, lastQuiet + (document.hidden ? HIDDEN_GAP : QUIET_GAP) - Date.now()));
+}
+// Back on a hidden tab: what it put off is shown now.
+export function flushLoad() {
+  if (!document.hidden && quietTimer) { clearTimeout(quietTimer); void runQuiet(); }
+}
+async function read(quiet: boolean) {
   const current = ++latestLoad;
   let r;
   try {
@@ -31,8 +54,17 @@ export async function load(quiet) {
     toast(GONE);
     return;
   }
-  const next = await r.json();
+  const text = await r.text();
   if (current !== latestLoad) return;
+  const body = text.replace(/"now":\d+\}$/, "");
+  const same = quiet && body === lastBody && Date.now() - drawnAt < REDRAW_MS;
+  lastBody = body;
+  if (same) {
+    if (!store.all) void refreshBoardBadge();
+    return;
+  }
+  drawnAt = Date.now();
+  const next = JSON.parse(text);
   const was = store.openKey && store.S.cards.find((x) => key(x) === store.openKey);
   store.S = next;
   if (!store.all) void refreshBoardBadge();

@@ -1,5 +1,5 @@
 import { store } from "./store.ts";
-import { load } from "./api.ts";
+import { flushLoad, load } from "./api.ts";
 import { $ } from "./dom.ts";
 import { iceBusy, openSources, srcOpen } from "./icebox.ts";
 import { deep } from "./panel.ts";
@@ -39,6 +39,7 @@ export function initLive() {
   addEventListener("kz-view", () => { if (pendingReload && !document.body.classList.contains("homev")) location.reload(); });
   // Back from a terminal: what was committed or pushed there touched nothing the server watches.
   addEventListener("focus", () => load(true));
+  addEventListener("visibilitychange", flushLoad);
   // No view in the address is Home.
   const first = ["settings", "sources", "terminal", "board", "ideas", "run"].includes(v0) ? v0 : "home";
   markView(first);

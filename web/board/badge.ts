@@ -14,6 +14,7 @@ export function boardBadge(cards: BadgeCard[], projects?: unknown[], agents?: un
 }
 
 let generation = 0;
+let lastAll = "";
 let loading = false;
 let again = false;
 export async function refreshBoardBadge() {
@@ -25,8 +26,11 @@ export async function refreshBoardBadge() {
     try {
       const r = await fetch("/state?all=1");
       if (!r.ok) continue;
-      const { cards, projects, rail, agents } = await r.json();
-      if (!again && current === generation) boardBadge(cards, [...projects, ...(rail ?? [])], agents);
+      const text = await r.text();
+      const body = text.replace(/"now":\d+\}$/, "");
+      if (body === lastAll) continue;
+      const { cards, projects, rail, agents } = JSON.parse(text);
+      if (!again && current === generation) { lastAll = body; boardBadge(cards, [...projects, ...(rail ?? [])], agents); }
     } catch { /* keep the last count while the board is offline */ }
   } while (again);
   loading = false;
