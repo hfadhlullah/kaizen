@@ -436,6 +436,7 @@ dialog.onb-ask{border:1px solid var(--line);background:var(--bg);color:var(--ink
 dialog.onb-ask h3{margin:0 0 4px;font-size:16px;color:var(--ink-hi)}dialog.onb-ask p{margin:0 0 16px;font-size:var(--fs);color:var(--dim)}
 @media(max-width:640px){dialog.onb{width:100vw;height:100dvh;max-width:none;max-height:none;border-radius:0}dialog.onb[open]{padding:18px 18px 12px}.onb-grid,.onb-themes{grid-template-columns:1fr 1fr}.onb-main h2{font-size:24px}.onb-ft kbd{display:none}}
 @media(prefers-reduced-motion:reduce){.onb-prog button{transition:none}}
+dialog.kz.wsnew{width:min(576px,calc(100vw - 32px))}dialog.wsnew .inl{gap:12px;max-height:85dvh;overflow-y:auto}dialog.wsnew .wsfrom{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:-6px}dialog.wsnew .wsfrom i{font-style:normal;opacity:.7}dialog.wsnew .wsbase{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--dim);min-width:0}dialog.wsnew .wsbase select{width:auto;max-width:200px;border:0;background:none;color:var(--ink);font-size:12px;padding:2px}dialog.wsnew .wsadv summary{cursor:pointer;font-size:12px;color:var(--dim);padding:2px 0}dialog.wsnew .wsadv[open] summary{margin-bottom:8px}dialog.wsnew .err:empty{display:none}dialog.wsnew .err:not(:empty){color:var(--danger);border:1px solid color-mix(in srgb,var(--danger) 30%,transparent);background:color-mix(in srgb,var(--danger) 10%,transparent);border-radius:var(--r-s);padding:8px 12px}dialog.wsnew .row{justify-content:flex-end;align-items:center}dialog.wsnew .wskey{order:-1;margin-right:auto;font:11px var(--mono);color:var(--dim)}
 dialog.kz{border:0;padding:0;background:none;width:min(480px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:visible;color:var(--ink)}dialog.kz::backdrop{background:rgb(0 0 0/.45)}dialog.kz>.inl{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:16px;gap:10px}dialog.kz .inl input,dialog.kz .inl textarea{background:var(--canvas);border-color:var(--line)}dialog.kz .row input{flex:1;min-width:0}dialog.kz #ndc{align-self:flex-start}dialog.kz .btn.opt{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:8px 12px;text-align:left}dialog.kz .btn.opt small{color:var(--dim)}dialog.kz label.att{display:flex;flex-direction:column;gap:4px}dialog.kz label.att:has(input[type=checkbox]){flex-direction:row;align-items:center}dialog.kz select{background:var(--canvas);border:1px solid var(--line);border-radius:var(--r-s);color:var(--ink);padding:6px 8px;font:inherit}dialog.viewer{width:min(1100px,calc(100vw - 32px));height:calc(100dvh - 32px);background:var(--bg);border-radius:var(--r);display:none;flex-direction:column;overflow:hidden}dialog.viewer[open]{display:flex}.viewer-hd{display:flex;gap:12px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line)}.viewer-hd span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}dialog.viewer img{flex:1;min-height:0;width:100%;object-fit:contain}dialog.viewer iframe{flex:1;border:0;width:100%;background:#fff}
 .inl .run-actions{display:grid;gap:8px}.inl .run-actions .row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.inl .run-actions .pri{grid-column:1/-1}
 .notes{display:flex;flex-direction:column;gap:8px}
@@ -736,6 +737,40 @@ aside .foot .more .menu-pop{left:0;right:auto;top:auto;bottom:calc(100% + 4px)}.
 .sq{position:sticky;top:-24px;z-index:1;background:var(--bg);padding:24px 0 12px;margin:-24px 0 4px;border-bottom:1px solid var(--line)}.sq input{width:100%;max-width:none}.sq+.sg{margin-top:16px}
 .sjump{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.sjump button{padding:3px 10px;border:1px solid var(--line);border-radius:var(--r-pill);font-size:12px;color:var(--dim)}.sjump button:hover{background:var(--hover);color:var(--ink)}
 .snone{color:var(--dim);margin-top:20px}
+/* settings, laid out as Orca's: its own sidebar in place of the rail, one page per item, rows in one card */
+@media(min-width:641px){body.setv .rail{display:none}body.setv #panel>header{display:none}body.setv #panel>.body{padding:0}}
+.sset{display:grid;grid-template-columns:280px minmax(0,1fr);height:100%}
+.snav{min-height:0;display:flex;flex-direction:column;background:var(--bg-2);border-right:1px solid var(--line)}
+.sback{display:flex;align-items:center;gap:8px;padding:0 var(--padx);margin:12px;height:var(--btn-s);border-radius:var(--r-s);font-size:13px;color:var(--dim);text-align:left}.sback:hover,.sup:hover{color:var(--ink)}
+.sback svg,.sup svg{width:var(--ico);height:var(--ico);transform:rotate(90deg)}
+.snav .sq{position:static;background:none;margin:0;padding:12px;border-block:1px solid var(--line)}
+.snavs{flex:1;min-height:0;overflow-y:auto;padding:16px 12px}
+.snavg{display:grid;gap:2px;margin-bottom:20px}.snavg[hidden],.snavg button[hidden],.spage[hidden]{display:none}
+.snavg p{margin:0 0 6px;padding:0 12px;font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.18em;color:var(--dim)}
+.snavg button{display:flex;align-items:center;gap:8px;height:32px;padding:0 12px;border-radius:var(--r-s);font-size:13px;color:var(--dim);text-align:left;white-space:nowrap;overflow:hidden}
+.snavg button span{overflow:hidden;text-overflow:ellipsis}
+.snavg button svg{flex:none;width:var(--ico);height:var(--ico)}
+.snavg button:hover{background:var(--hover);color:var(--ink)}.snavg button[aria-current]{background:var(--hover);color:var(--ink-hi);font-weight:500}
+.smain{min-width:0;overflow-y:auto;padding:40px 72px 64px}
+.spage{max-width:832px;margin:0 auto}.sup{display:none}
+.spage>header{display:block;padding:0 0 20px;margin-bottom:24px;border-bottom:1px solid var(--line)}
+.spage>header h2{margin:0 0 6px;padding:0;border:0;font-size:24px;font-weight:600;line-height:1.2;color:var(--ink-hi)}
+.spage>header p{margin:0;font-size:14px;line-height:1.7;color:var(--dim)}
+.scard{padding:24px 28px;background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r)}
+.sset .sg{margin:24px 0 4px;padding-top:24px;border-top:1px solid var(--line);font-size:14px;font-weight:600;text-transform:none;letter-spacing:0;color:var(--ink-hi)}
+.sset .sg:first-child,.sset .sg[hidden]:first-child+.sgrp+.sg{margin-top:0;padding-top:0;border-top:0}
+.sset .sgrp{background:none;border:0;border-radius:0;overflow:visible}
+.sset .srow,.sset .srow:not([hidden])~.srow:not([hidden]){margin:0;padding:12px 0;border:0;min-height:0;gap:2px 24px}
+.sset .srow label{align-self:end;font-size:13px;font-weight:500;color:var(--ink-hi)}
+.sset .srow>:nth-child(2){grid-row:1/3}
+.sset .srow .hint{grid-column:1;max-width:none;line-height:1.5}
+.sset .srow input.sel,.sset .srow select.sel{width:240px;height:var(--btn-s);padding:0 10px;border:1px solid var(--line);border-radius:var(--r-s);background-color:var(--bg);color:var(--ink);text-align:left;text-align-last:left}
+.sset .bar{gap:0;padding:0;background:none;border:1px solid var(--line);border-radius:var(--r-s);overflow:hidden}
+.sset .bar button{height:30px;padding:0 12px;border-radius:0;font-size:12px;color:var(--dim)}.sset .bar button+button{border-left:1px solid var(--line)}
+.sset .bar button.on,.sset .bar button.on:hover{background:var(--hover);box-shadow:none;color:var(--ink-hi)}
+.sset .step{background:none;border:1px solid var(--line)}
+#supd:not(:empty){margin-bottom:16px}
+@media(max-width:640px){.sset{display:block;height:auto}.snav{background:none;border:0}.sback{display:none}.snav .sq{border-top:0;padding-inline:16px}.snavs{overflow:visible;padding-inline:4px}.sset:not(.pick) .snav{display:none}.sset.pick .smain>.spage{display:none}.smain{overflow:visible;padding:12px 16px 24px}.sup{display:flex;align-items:center;gap:6px;margin-bottom:12px;font-size:13px;color:var(--dim)}.scard{padding:8px 16px 16px}.sset .srow{grid-template-columns:minmax(0,1fr)}.sset .srow>:nth-child(2){grid-column:1;grid-row:auto;justify-self:start;margin-top:6px;max-width:100%}.sset .srow .hint{grid-row:auto}.sset .srow input.sel,.sset .fpick{width:100%}.sset .fpick input.sel{flex:1;min-width:0}.sset .bar{flex-wrap:wrap}}
 /* a switch: the same <button role="switch"> the save wiring binds to, drawn as a track and a thumb */
 .chk{width:51px;height:31px;flex-shrink:0;border-radius:var(--r-pill);background:color-mix(in srgb,var(--dim) 40%,transparent);position:relative;transition:background .12s}
 .chk::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:var(--on-accent);box-shadow:0 2px 4px rgb(0 0 0/.25);transition:transform .12s}

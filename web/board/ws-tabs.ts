@@ -171,3 +171,8 @@ export function agentsHtml(rows: ARow[], now: number, open: boolean, dir: string
   const chips = (["asking", "working", "done"] as Status[]).map((st) => ({ st, rs: rows.filter((r) => r.st === st) })).filter((g) => g.rs.length);
   return html`<div class="wag"><span class="chips">${chips.map((g) => html`<span class="chip">${dot(g.st)}${g.rs.map((r) => html`<button type="button" class="amark" data-term="${r.a.key}" ${at} title="${r.a.name} - ${WORD[g.st]}: open its terminal" aria-label="${r.a.name} - ${WORD[g.st]}: open its terminal">${mark(r.a)}</button>`)}</span>`)}</span>${chev}</div>`;
 }
+
+/** A branch name from plain words; empty when nothing usable is left (the caller picks a name). */
+export function branchSlug(text: string): string {
+  return text.toLowerCase().trim().replace(/[^a-z0-9/._-]+/g, "-").replace(/\.{2,}/g, ".").replace(/\/{2,}/g, "/").replace(/(^|\/)[-.]+/g, "$1").slice(0, 60).replace(/[-./]+(\/|$)/g, "$1").replace(/\/$/, "").replace(/\.lock(\/|$)/g, "-lock$1");
+}

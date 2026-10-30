@@ -3,6 +3,7 @@
 // Every call is a JSON POST to the board; the server validates paths, URLs and refs again.
 import { html, modal } from "./dom.ts";
 import { gitProjects, wsHref } from "./workspace.ts";
+import { branchSlug } from "./ws-tabs.ts";
 
 type Start = "folder" | "clone" | "create" | "ws";
 const SEP = (p: string) => (p.includes("\\") ? "\\" : "/");
@@ -44,6 +45,7 @@ export function openAdd(opts: { dir?: string | null; start?: Start } = {}) {
 
   const draw = (v: Start | "menu") => {
     const ws = gitProjects();
+    dl.classList.toggle("wsnew", v === "ws");
     if (v === "menu") {
       form.innerHTML = html`<b>Add a project</b><small class="att">Add a project to get started with kaizen.</small><button type="button" class="btn opt" data-go="folder"><b>Existing folder</b><small>A project, a Git repo, or any folder</small></button><small class="att">Other ways to add</small><button type="button" class="btn opt" data-go="clone"><b>Clone from URL</b><small>Clone a remote Git repository</small></button><button type="button" class="btn opt" data-go="create"><b>Create new project</b><small>Start from an empty folder</small></button>${ws.length ? html`<button type="button" class="btn opt" data-go="ws"><b>New workspace</b><small>A branch in its own folder, in a project you have</small></button>` : ""}<div class="row"><button type="button" class="btn ghost" data-a="x">Cancel</button></div>`.toString();
       form.querySelectorAll<HTMLElement>("[data-go]").forEach((b) => (b.onclick = () => draw(b.dataset.go as Start)));
@@ -106,11 +108,13 @@ export function openAdd(opts: { dir?: string | null; start?: Start } = {}) {
         landed(r.d.dir, r.d.git === false ? "Project created, but git init failed" : "Project created");
       };
     } else {
-      // New workspace: a project (git ones), a branch name and the branch it starts from.
+      // New workspace, after Orca's composer: one name box, the start branch on its label row, Advanced for an exact branch.
       const cur = ws.some((p) => p.dir === opts.dir) ? opts.dir : ws[0]?.dir;
-      form.innerHTML = html`<b>New workspace</b><small class="att">A new branch in its own folder under .kaizen/wt/.</small><label class="att">Project<select name="project" aria-label="Project">${ws.map((p) => html`<option value="${p.dir}"${p.dir === cur ? " selected" : ""}>${p.name}</option>`)}</select></label><label class="att">Branch name<input name="branch" placeholder="feature/my-branch" aria-label="Branch name" autocomplete="off" spellcheck="false" required></label><label class="att">Base branch<select name="base" aria-label="Base branch"></select></label>${foot("Create workspace")}`.toString();
-      field("branch").focus();
+      const mod = /Mac/.test(navigator.platform) ? "⌘" : "Ctrl";
+      form.innerHTML = html`<b>New workspace</b><label class="att">Project<select name="project" aria-label="Project">${ws.map((p) => html`<option value="${p.dir}"${p.dir === cur ? " selected" : ""}>${p.name}</option>`)}</select></label><div class="wsfrom"><span class="att" id="wsfl">Create from <i>[Optional]</i></span><label class="wsbase">from <select name="base" aria-label="Start from branch"></select></label></div><input name="name" placeholder="What is this workspace for?" aria-labelledby="wsfl" autocomplete="off" spellcheck="false"><details class="wsadv"><summary>Advanced</summary><label class="att">Branch name<input name="branch" placeholder="feature/my-branch" aria-label="Branch name" autocomplete="off" spellcheck="false"></label></details><small class="att err" role="alert"></small><div class="row">${back}<button type="button" class="btn ghost" data-a="x">Cancel</button><button class="btn pri" data-a="go">Create workspace</button><kbd class="wskey" aria-hidden="true">${mod} ↵</kbd></div>`.toString();
+      field("name").focus();
       const sel = form.elements.namedItem("base") as HTMLSelectElement;
+      field("name").oninput = () => (field("branch").placeholder = branchSlug(field("name").value) || "feature/my-branch");
       const bases = async () => {
         const r = await call("/branches?dir=" + encodeURIComponent(field("project").value));
         const { def = "", branches = [] } = r.ok ? r.d : {};
@@ -118,12 +122,18 @@ export function openAdd(opts: { dir?: string | null; start?: Start } = {}) {
       };
       (form.elements.namedItem("project") as HTMLSelectElement).onchange = bases;
       bases();
+      form.onkeydown = (e) => {
+        if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) e.preventDefault(), form.requestSubmit();
+      };
       form.onsubmit = async (e) => {
         e.preventDefault();
         const dir = field("project").value;
         const b = form.querySelector<HTMLButtonElement>("[data-a=go]")!;
+        if (b.disabled) return;
+        say("");
+        const branch = field("branch").value.trim() || branchSlug(field("name").value) || "workspace-" + Math.random().toString(36).slice(2, 6);
         busy(b, true, "Creating...", "Create workspace");
-        const r = await call("/worktree", { dir, branch: field("branch").value.trim(), base: sel.value || undefined });
+        const r = await call("/worktree", { dir, branch, base: sel.value || undefined });
         busy(b, false, "", "Create workspace");
         r.ok ? (dl.close(), (location.href = wsHref(dir, r.d.path))) : say(r.d.error);
       };

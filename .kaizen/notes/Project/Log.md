@@ -215,3 +215,6 @@ updated: 2026-10-28
 - 2026-10-30 run 2026-10-30-phone-layout-tidy — Web board
 - 2026-10-30 run 2026-10-30-web-onboarding — Web board: first-run onboarding (agent, appearance, notifications, add a project), skip confirm, Setup row and Continue popup; state in `~/.kaizen/onboarding.json`; `agentConfig` regex no longer backtracks
 - 2026-10-30 run 2026-10-30-board-approve-reaches-chat — Web board: approval goes to the open agent tab.
+- 2026-10-30 Web board: board decisions submit in the open agent; Enter is sent apart from the text (`submitPty`).
+- 2026-10-30 create-workspace-orca: New workspace form rebuilt after Orca's composer; updated Web board.
+- 2026-10-30 Web board: Settings moved to Orca's sidebar and page layout (run 2026-10-30-settings-orca-layout).
