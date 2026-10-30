@@ -47,6 +47,7 @@ export function updBar() {
       return;
     }
     gotVer(v);
+    updPop();
     d.remove();
     updBar();
     if (upd) $("upd-go").focus();
@@ -57,26 +58,66 @@ export function updBar() {
   };
   if (!upd) return;
   const b = $("upd-go");
-  b.onclick = async () => {
-    if (!confirm(`Update kaizen to ${upd.latest}? The board restarts, and agents running inside cards stop.`)) return;
-    b.disabled = true;
-    b.textContent = "Updating…";
-    const r = await post("/upgrade", {});
-    if (!r.ok) {
-      b.disabled = false;
-      b.textContent = "Update kaizen";
-      return;
-    }
-    b.textContent = "Restarting…";
-    setTimeout(() => location.reload(), 20000);
-  };
+  b.onclick = () => upgrade(b);
 }
 
-export function initUpdate() {
+async function upgrade(b) {
+  if (!confirm(`Update kaizen to ${upd.latest}? The board restarts, and agents running inside cards stop.`)) return;
+  const label = b.textContent;
+  b.disabled = true;
+  b.textContent = "Updating…";
+  const r = await post("/upgrade", {});
+  if (!r.ok) {
+    b.disabled = false;
+    b.textContent = label;
+    return;
+  }
+  b.textContent = "Restarting…";
+  setTimeout(() => location.reload(), 20000);
+}
+
+// The bottom-right popup for a new release. Later silences that version in this browser;
+// the next release asks again.
+function updPop() {
+  let later = null;
+  try {
+    later = localStorage.getItem("kz-upd-later");
+  } catch {}
+  const open = $("updcard");
+  if (!upd || later === upd.latest) return open?.remove();
+  const msg = html`kaizen <b>${upd.latest}</b> is available. You are running ${upd.version}.`;
+  if (open) {
+    open.firstElementChild.innerHTML = msg;
+    return;
+  }
+  const d = document.createElement("div");
+  d.id = "updcard";
+  d.setAttribute("role", "status");
+  d.innerHTML = html`<span>${msg}</span><span class="updact"><button class="btn" id="updcard-later">Later</button><button class="btn pri" id="updcard-go">Update now</button></span>`;
+  document.body.append(d);
+  $("updcard-later").onclick = () => {
+    try {
+      localStorage.setItem("kz-upd-later", upd.latest);
+    } catch {}
+    d.remove();
+  };
+  const go = $("updcard-go");
+  go.onclick = () => upgrade(go);
+}
+
+function checkUpdate() {
+  const had = !!upd;
   fetch("/version")
     .then((r) => r.json())
     .then((v) => {
-      if (gotVer(v) && view === "settings") openSettings();
+      if (gotVer(v) && !had && view === "settings") openSettings();
+      updPop();
     })
     .catch(() => {});
+}
+
+// Hourly so a tab left open still hears of a release; the server's cache limits npm to every 6 h.
+export function initUpdate() {
+  checkUpdate();
+  setInterval(checkUpdate, 3600_000);
 }

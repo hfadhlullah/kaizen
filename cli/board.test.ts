@@ -60,19 +60,26 @@ test("Settings rechecks an existing update alert and clears or refreshes it", as
   const previousFetch = globalThis.fetch;
   const elements = new Map<string, any>();
   const body = { row: null as any, prepend(row: any) { this.row = row; row.isConnected = true; } };
+  let card: any = null;
   (globalThis as any).location = { search: "" };
   (globalThis as any).document = {
     querySelector: () => link,
-    getElementById: (id: string) => id === "pbody" ? body : elements.get(id),
+    getElementById: (id: string) => id === "pbody" ? body : id === "updcard" ? card : elements.get(id),
+    body: { append(el: any) { card = el; } },
     createElement: () => ({
       isConnected: false,
+      firstElementChild: { innerHTML: "" },
+      setAttribute() {},
       set innerHTML(v: unknown) {
         const html = String(v);
         this.html = html;
         elements.clear();
         for (const [, id] of html.matchAll(/id="([^"]+)"/g)) elements.set(id, { textContent: "", disabled: false, focus() {} });
       },
-      remove() { this.isConnected = false; },
+      remove() {
+        this.isConnected = false;
+        if (card === this) card = null;
+      },
     }),
   };
   try {
@@ -96,6 +103,14 @@ test("Settings rechecks an existing update alert and clears or refreshes it", as
     await elements.get("upd-chk").onclick();
     expect(classes.has("upd")).toBe(true);
     expect(body.row.html).toContain("1.40.0");
+    // The popup follows the same checks: a newer release rewrites it, none left closes it.
+    expect(card.html).toContain("1.40.0");
+    globalThis.fetch = (async () => ({ json: async () => ({ version: "1.39.0", latest: "1.41.0", update: true }) })) as any;
+    await elements.get("upd-chk").onclick();
+    expect(String(card.firstElementChild.innerHTML)).toContain("1.41.0");
+    globalThis.fetch = (async () => ({ json: async () => ({ version: "1.41.0", latest: "1.41.0", update: false }) })) as any;
+    await elements.get("upd-chk").onclick();
+    expect(card).toBe(null);
   } finally {
     globalThis.document = previous;
     globalThis.location = previousLocation;
