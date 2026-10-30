@@ -19,7 +19,7 @@ import { load, post } from "./api.ts";
 import { attach, md, preview } from "./markdown.ts";
 import { layout } from "./terms.ts";
 import { cardHref, markCurrent, railData, stateOf, titleOf, wsHref, wsOfCard } from "./workspace.ts";
-import { type Node, awaiting, chosen, finished, historyOf, leaves, liveIn, loopbackUrl, migrate, pickable, prune, reviewing, stageTabs, toOpen, wsKey } from "./ws-tabs.ts";
+import { type Node, awaiting, chosen, finished, historyOf, leaves, liveIn, loopbackUrl, migrate, newRun, pickable, prune, reviewing, stageTabs, toOpen, wsKey } from "./ws-tabs.ts";
 import { drawPick, hidePick, initPick, setOpen } from "./run-pick.ts";
 import { age } from "./labels.ts";
 import { go } from "./views.ts";
@@ -173,6 +173,7 @@ export async function showRunView(nav = false) {
   // Each workspace has its own centre: switching unmounts this one's panes (its shells keep running on the server).
   if (fresh) (stopPanes(), (card = null), (ctx = { dir, ws, k }));
   if (fresh && !was.has(k)) was.set(k, new Set(mineNow().filter(reviewing).map(key))); // what is already in review does not open the Browser
+  if (fresh) seenRuns.set(k, new Set(mineNow().map(key))); // what is here on arrival is not new
   // The header titles a phone's workspace: the run, else the branch.
   const w = railData().projects?.find((x) => x.dir === dir)?.workspaces?.find((x) => x.path === ws);
   document.querySelector(".hdr h1")!.textContent = want ? titleOf(want) : w?.branch || ws.split(/[\\/]/).pop() || "Workspace";
@@ -277,8 +278,19 @@ function draw() {
 // The run panel (#panel) stays docked on the right of the centre and shows one run: the one picked
 // in its header (run-pick.ts), first the run waiting on you, else the newest. A pick is sticky; a
 // run that starts waiting later does not replace it: the picker's trigger and, with the panel
-// collapsed, the panel button show a dot. With no run the panel is parked.
+// collapsed, the panel button show a dot. Only a run created during the visit takes the pick
+// (followNew). With no run the panel is parked.
 const picked = new Map<string, string>();
+// Every card seen in the workspace this visit. It only grows, so a restored run or a /state tick
+// missing cards never reads as new.
+const seenRuns = new Map<string, Set<string>>();
+function followNew() {
+  const seen = ctx && seenRuns.get(ctx.k);
+  if (!seen) return;
+  const c = newRun(pickable(store.S.cards, ctx!.dir, ctx!.ws, wsOfCard), seen, key);
+  for (const m of mineNow()) seen.add(key(m));
+  if (c) picked.set(ctx!.k, key(c));
+}
 let pickOpen = false;
 // Shows a run in the panel (a picker row, a History row); the centre stays as it is.
 const pickRun = (k: string) => (picked.set(ctx!.k, k), draw()); // the sidebar count asked for the picker dropped down
@@ -930,6 +942,7 @@ export function initRunView() {
   // A /state change: new or ended sessions, the card's own state. Panes stay mounted.
   addEventListener("kz-state", () => {
     void autoBrowse();
+    followNew();
     if (ctx && document.body.classList.contains("runv")) void showRunView();
   });
 }

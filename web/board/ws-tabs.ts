@@ -76,6 +76,8 @@ export const pickable = (cards: any[], dir: string, ws: string, wsOfCard) =>
 // waiting/newest, else none.
 export const chosen = (live: any[], hist: any[], picked?: string | null, keyOf: (c) => string = (c) => c.id) =>
   [...live, ...hist].find((c) => keyOf(c) === picked) ?? live[0] ?? null;
+// A run the picker lists that this visit has not seen yet: it was just created.
+export const newRun = (live: any[], seen: Set<string>, keyOf: (c) => string = (c) => c.id) => live.find((c) => !seen.has(keyOf(c)));
 
 // The terminal the board launched for each stage of a run: plan/impl/review sub-tab -> pty key.
 // plan, impl and review are recorded when the board launches them (the idea's agent once its run

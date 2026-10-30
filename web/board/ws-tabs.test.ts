@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { agentStatus, agentsHtml, forgetAgents, lineOf, settleIn, toggleOpen, wsAgents, SETTLE_MS, awaiting, dueWord, chosen, loopbackUrl, toOpen, stageKeys, stageTabs, finished, historyOf, liveIn, migrate, pickable, prune, wsKey } from "./ws-tabs.ts";
+import { agentStatus, agentsHtml, forgetAgents, lineOf, settleIn, toggleOpen, wsAgents, SETTLE_MS, awaiting, dueWord, chosen, newRun, loopbackUrl, toOpen, stageKeys, stageTabs, finished, historyOf, liveIn, migrate, pickable, prune, wsKey } from "./ws-tabs.ts";
 
 const run = (id: string, status: string, o: any = {}) => ({ kind: "run", state: "/p/.kaizen", id, status, moved: 1, ws: "/p", ...o });
 const wsOf = (c) => c.ws;
@@ -88,6 +88,13 @@ test("pickable: waiting first, then newest; done+approved, abandoned, archived a
   const cs = [run("old", "building", { moved: 1 }), run("new", "building", { moved: 9 }), run("w", "waiting", { moved: 2 }), run("e", "done", { accept: "needs", moved: 3 }), ...cards.slice(2, 4), cards[6], cards[7], cards[5]];
   expect(pickable(cs, "/p/.kaizen", "/p", wsOf).map((c) => c.id)).toEqual(["e", "w", "new", "old"]);
   expect(pickable(cs, "/p/.kaizen", "/p/.kaizen/wt/x", wsOf).map((c) => c.id)).toEqual(["f"]);
+});
+
+test("newRun: only a listed run not seen yet, first in picker order", () => {
+  const live = [run("w", "waiting"), run("b", "building")];
+  expect(newRun(live, new Set(["w", "b"]))).toBeUndefined();
+  expect(newRun(live, new Set(["w"]))?.id).toBe("b");
+  expect(newRun(live, new Set())?.id).toBe("w");
 });
 
 test("chosen: the pick stays while pickable or History, else the first, else none", () => {
