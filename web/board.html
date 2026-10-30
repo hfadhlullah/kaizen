@@ -386,7 +386,7 @@ section li.hint{display:block;padding:14px;border:1px dashed var(--line);border-
 .gdis .row{display:flex;justify-content:flex-end;gap:var(--gap)}.gdis .btn.danger{background:var(--danger);border-color:var(--danger);color:#fff}.gdis .btn.danger:hover{filter:brightness(1.08)}.gdis .btn{display:inline-flex;align-items:center;gap:var(--gap)}
 .inl .row .mic{margin-right:0}.inl .row #newpick{margin-right:auto}.inl .row .btn{white-space:nowrap}.inl .att{font-size:12px;color:var(--dim)}.inl .att{font-size:12px;color:var(--dim)}.inl .att:empty{display:none}
 /* first-run onboarding: one panel, three steps (see web/board/onboarding.ts) */
-dialog.onb{border:1px solid var(--line);padding:0;background:var(--bg);color:var(--ink);width:min(720px,calc(100vw - 32px));height:min(660px,calc(100dvh - 32px));border-radius:14px;box-shadow:var(--shadow-2);overflow:hidden}
+dialog.onb{border:1px solid var(--line);padding:0;background:var(--bg);color:var(--ink);width:min(720px,calc(100vw - 32px));height:min(740px,calc(100dvh - 32px));border-radius:14px;box-shadow:var(--shadow-2);overflow:hidden}
 dialog.onb[open]{display:flex;flex-direction:column;padding:26px 32px 18px}
 dialog.onb::backdrop,dialog.onb-ask::backdrop{background:rgb(0 0 0/.55);backdrop-filter:blur(2px)}
 .onb pre.mark{font-size:6px}
@@ -425,6 +425,8 @@ dialog.onb::backdrop,dialog.onb-ask::backdrop{background:rgb(0 0 0/.55);backdrop
 .onb-panel{border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:12px}.onb-panel p{margin:0;font-size:var(--fs);color:var(--dim)}
 .onb-row{display:flex;gap:var(--gap);justify-content:flex-end;flex-wrap:wrap}
 .onb-panel .onb-row{justify-content:flex-start}
+.onb-cmd{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--canvas)}.onb-cmd code{flex:1;min-width:0;overflow-x:auto;white-space:nowrap;font:var(--fs-s) var(--mono);color:var(--ink)}
+.onb-panel .onb-lnk{align-self:flex-start;text-decoration:underline;text-underline-offset:2px}
 .onb-ft{display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:10px;padding-top:14px;border-top:1px solid var(--line)}
 .onb-lnk{padding:6px 2px;font-size:var(--fs);color:var(--dim);align-self:flex-start}.onb-lnk:hover{color:var(--ink)}
 .onb-ft .onb-lnk{align-self:center}
@@ -558,7 +560,7 @@ body.runv #panel.parked,body.runv.rflip #panel.parked{display:none}
 @media(min-width:641px){body.runv.rflip #panel{width:0!important}body.runv #panel{grid-template-columns:296px 44px}}
 @media(max-width:640px){body.runv .app{grid-template-columns:minmax(0,1fr)}.rsplit{display:none}body.runv #panel{display:none}body.runv.rflip #pclose{display:grid}body.runv.rflip #panel{display:grid;position:fixed!important;inset:auto 0 0 0!important;height:80%;width:auto!important;z-index:15!important;padding:18px 0 env(safe-area-inset-bottom);background:var(--bg-2);box-shadow:0 0 0 100vmax rgb(0 0 0/.4);border-radius:14px 14px 0 0;transition:translate .18s;animation:sheet .2s}
 /* the grab handle: the sheet follows a finger down and closes (run-view.ts) */
-body.runv.rflip #panel::before{content:"";position:absolute;top:7px;left:50%;width:36px;height:4px;margin-left:-18px;border-radius:2px;background:var(--line)}body.runv.rflip #panel>.body{overscroll-behavior:contain}body.runv.rflip #panel>header{padding-top:8px}body.runv.rflip .rmeta{max-width:84px}
+body.runv.rflip #panel::before{content:"";position:absolute;top:7px;left:50%;width:36px;height:4px;margin-left:-18px;border-radius:2px;background:var(--line)}body.runv.rflip #panel>.body{overscroll-behavior:contain;scrollbar-width:none}body.runv.rflip #panel>.body::-webkit-scrollbar{display:none}body .prog .ph{display:flex;justify-content:space-between;gap:8px}body.runv.rflip #panel>header{padding-top:8px}body.runv.rflip .rmeta{max-width:64px}
 #rtabs .rtab span{max-width:110px;overflow:hidden;text-overflow:ellipsis}}
 /* A phone: the panel is a sheet opened from the run tab (#rside); 44px touch targets */
 @media(max-width:640px){body.runv #rtabs{height:52px;min-height:52px}body.runv #rtabs .rtab,body.runv #rtabs .rbtn{min-height:44px;height:44px}body.runv #rtabs .rbtn{min-width:44px}body.runv #rtabs .rtab i{padding:12px 10px}body.runv #rbar{height:52px}body.runv #ptabs button{width:44px;height:44px}body.runv #pclose{width:44px;height:44px}body.runv #pfoot .btn{min-height:44px}}
