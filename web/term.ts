@@ -52,6 +52,7 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
   };
   const size = (nudge = false) => {
     if (!el.offsetWidth) return;
+    if (!ws) return connect(); // its onopen comes back here to fit and nudge
     fit.fit();
     // The replay was drawn at whatever size the agent had before; a resize to the same size
     // sends it no signal, so a full-screen agent never repaints it. One row short, then back, does.
@@ -254,7 +255,9 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
   reBtn.hidden = true;
   tools.prepend(reBtn);
   el.append(tools);
-  connect();
+  // A pane in a background tab has no size yet. The replay is cursor moves for the agent's real
+  // width, and xterm's default 80 columns would clamp them for good, so attach once it is shown.
+  size();
   // xterm keeps one custom key handler: add further shortcuts here, not in a second call.
   term.attachCustomKeyEventHandler((e) => {
     if (e.type === "keydown" && (e.ctrlKey || e.metaKey) && e.shiftKey && e.code === "KeyF") {
@@ -280,8 +283,7 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
     bar?.remove();
     tools.remove();
     clearTimeout(retry);
-    ws.onclose = null;
-    ws.close();
+    if (ws) { ws.onclose = null; ws.close(); }
     removeEventListener("kz-theme", retheme);
     os.removeEventListener("change", retheme);
     term.dispose();
