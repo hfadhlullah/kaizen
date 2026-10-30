@@ -41,7 +41,7 @@
 </details>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/hfadhlullah/kaizen/main/assets/hero.gif" alt="Animated walkthrough of the kaizen board, from a gathered request to a reviewed, fixed run" width="100%">
+  <img src="https://raw.githubusercontent.com/hfadhlullah/kaizen/main/site/media/workspace.gif" alt="Animated walkthrough of a kaizen run in the workspace: plan, approval, build, a fresh review and the finished app" width="100%">
 </p>
 
 ## The problem
@@ -65,7 +65,7 @@ None of this is a lack of intelligence. It is a missing workflow. Many assistant
 3. **Open the board** with `kaizen web`, or type `/kaizen <request>` in your agent.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/hfadhlullah/kaizen/main/assets/board-v2.png" alt="The kaizen board: icebox, ideas, plan, build, review and done columns" width="100%">
+  <img src="https://raw.githubusercontent.com/hfadhlullah/kaizen/main/site/media/workspace.png" alt="The kaizen workspace: agent tabs, the app in a browser pane, and the plan waiting for review" width="100%">
 </p>
 
 ## Requirements
