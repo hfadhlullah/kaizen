@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<script>if(matchMedia("(display-mode:standalone)").matches||navigator.standalone){document.querySelector("meta[name=viewport]").content+=",maximum-scale=1,user-scalable=no";addEventListener("gesturestart",e=>e.preventDefault());if(navigator.standalone){const s=()=>document.documentElement.style.setProperty("--sh",(screen.orientation?.type.startsWith("landscape")?Math.min:Math.max)(screen.width,screen.height)+"px");s();addEventListener("resize",s)}}</script>
+<script>if(matchMedia("(display-mode:standalone)").matches||navigator.standalone){document.querySelector("meta[name=viewport]").content+=",maximum-scale=1,user-scalable=no";addEventListener("gesturestart",e=>e.preventDefault());if(navigator.standalone){const s=()=>{document.documentElement.style.setProperty("--sh",(innerWidth>innerHeight?Math.min:Math.max)(screen.width,screen.height)+"px");scrollTo(0,0)},r=()=>{s();setTimeout(s,400)};s();addEventListener("resize",r);addEventListener("orientationchange",r)}}</script>
 <title>kaizen video</title>
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="icon" type="image/png" href="/logo.png">

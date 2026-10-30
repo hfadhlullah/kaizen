@@ -862,7 +862,8 @@ function initSheet() {
       if (y0 === null) return;
       if (scrolled(e.target)) return void (y0 = null);
       dy = e.touches[0].clientY - y0;
-      if (dy <= 0) return void (p.style.translate = "");
+      // A finger drifts a few pixels in a tap; taking those as a drag would cancel its click.
+      if (dy <= 10) return void (p.style.translate = "");
       e.preventDefault();
       p.style.transition = "none";
       p.style.translate = `0 ${dy}px`;
