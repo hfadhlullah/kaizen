@@ -179,3 +179,9 @@ test("prune keeps a split node it drops nothing from, so a gutter drag writes to
   expect(cut.kids).toEqual(["a", "b"]);
   expect(cut.sizes).toEqual([2, 1]);
 });
+
+test("a terminal that carried plan and build is named for the run's stage", () => {
+  const c = { kind: "run", column: 2, pty: { all: ["a"], stages: { plan: "a", impl: "a" } } };
+  expect(stageTabs(c, "Claude")).toEqual([{ key: "a", title: "Build · Claude" }]);
+  expect(stageTabs({ ...c, column: 3 }, "Claude")[0].title).toBe("Review · Claude");
+});

@@ -102,7 +102,11 @@ export function stageTabs(c, agent: string): { key: string; title: string }[] {
   const word = { plan: "Plan", impl: "Build", review: "Review" },
     all: string[] = c?.pty ? c.pty.all ?? [c.pty.key] : [],
     by = new Map(Object.entries(stageKeys(c)).map(([s, k]) => [k, word[s]])),
-    free = all.filter((k) => !by.has(k));
+    free = all.filter((k) => !by.has(k)),
+    now = word[{ 1: "plan", 2: "impl", 3: "review" }[c?.column as number] ?? ""],
+    last = all.at(-1);
+  // One terminal can carry several stages: the newest staged one is named for where the run is now.
+  if (now && last && by.has(last)) by.set(last, now);
   return all.map((key) => ({ key, title: by.has(key) ? `${by.get(key)} · ${agent}` : agent + (free.length > 1 ? " " + (free.indexOf(key) + 1) : "") }));
 }
 
