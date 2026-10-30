@@ -108,7 +108,7 @@ function tabs(): Tab[] {
   // Each live run's terminals: its stage terminals ("Build · Claude"), other sessions, shells, the waiting note.
   for (const c of live) {
     const k = key(c),
-      runAgent = AGENTS.find((a) => c.tags?.includes(a)) ?? undefined;
+      runAgent = AGENTS.find((a) => a === c.pty?.agent) ?? AGENTS.find((a) => c.tags?.includes(a)) ?? undefined;
     for (const t of stageTabs(c, named(runAgent))) out.push({ id: "agent:" + t.key, kind: "agent", agent: runAgent, title: t.title, key: t.key });
     for (const sh of shells.filter((x) => x.run === k)) out.push({ id: "sh:" + sh.key, kind: sh.agent ? "agent" : "shell", agent: sh.agent || undefined, title: sh.title, key: sh.key });
     // The run's own session is running in another terminal: a tab that says so.
@@ -198,7 +198,10 @@ export async function showRunView(nav = false) {
   // session is not open anywhere on the board is resumed here, once per visit.
   if (!noPty) {
     if (!tabs().length && !autoShell.has(k)) return void (autoShell.add(k), newPty());
-    if (want && want.kind === "run" && !finished(want) && !want.pty && !shells.some((x) => x.run === key(want)) && !autoShell.has(key(want))) {
+    // Not while a launch from the board is coming up: its terminal is not tied to the new run card yet, and
+    // resuming the run here would open a second agent on the same session beside it (the stray "Agent" tab).
+    const launching = !!store.wantPty && Date.now() - store.wantPty.at < 20_000;
+    if (want && want.kind === "run" && !finished(want) && !want.pty && !launching && !shells.some((x) => x.run === key(want)) && !autoShell.has(key(want))) {
       autoShell.add(key(want));
       void openAgent(want, false, false);
     }
@@ -208,8 +211,13 @@ export async function showRunView(nav = false) {
 // The terminal the sidebar asked for, selected once the workspace's tabs are known.
 let wantTerm: string | null = null;
 function showTerm() {
-  const t = wantTerm && tabs().find((x) => x.key === wantTerm);
+  // A launch from the board names its terminal (store.wantPty): it is selected once its tab exists,
+  // and the ask lapses after a while so a launch that never came up cannot pull focus later.
+  const w = store.wantPty && Date.now() - store.wantPty.at < 20_000 ? store.wantPty.key : null;
+  if (store.wantPty && !w) store.wantPty = null;
+  const t = tabs().find((x) => x.key === (wantTerm || w));
   wantTerm = null;
+  if (t && store.wantPty?.key === t.key) store.wantPty = null;
   return !!t && (show(t.id), true);
 }
 const autoShell = new Set<string>();

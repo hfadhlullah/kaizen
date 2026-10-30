@@ -512,7 +512,7 @@ async function startRun(c, kind) {
   if (r.ok) {
     toast((kind === "full" ? "Full" : kind === "lite" ? "Lite" : "Started") + (yolo ? " yolo" : "") + " run " + where(r) + ": " + via(r.agent));
     // A backlog card has no terminal of its own; the run's card gets it once the run exists.
-    if (r.pty && !backlog) store.wantTerm = key(c);
+    if (r.pty && !backlog) (store.wantTerm = key(c)), (store.wantPty = { key: r.pty, at: Date.now() });
     // An idea's run opens in its workspace; the view follows it once the run card exists.
     if (!backlog) openWorkspace(c);
   }

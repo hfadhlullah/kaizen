@@ -18,7 +18,7 @@ export async function resume(c, b) {
     return;
   }
   toast("Resumed, " + where(r) + ": " + via(r.agent));
-  if (r.pty) store.wantTerm = key(c);
+  if (r.pty) (store.wantTerm = key(c)), (store.wantPty = { key: r.pty, at: Date.now() });
   if (store.openKey === key(c)) {
     $("pfoot").innerHTML = "";
     openRun(c, true);
@@ -48,7 +48,7 @@ export async function decide(c, b, why, answers) {
   }
   decided.add(answer(c));
   toast((why === undefined ? "Approved" : "Sent back") + ", " + where(r) + ": " + via(r.agent));
-  if (r.pty) store.wantTerm = key(c);
+  if (r.pty) (store.wantTerm = key(c)), (store.wantPty = { key: r.pty, at: Date.now() });
   if (store.openKey === key(c)) {
     $("pfoot").innerHTML = "";
     openRun(c, true);

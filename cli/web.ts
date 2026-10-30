@@ -22,7 +22,7 @@ import * as video from "./video.ts";
 import * as localsend from "./localsend.ts";
 import * as hermes from "./hermes.ts";
 import { listChats, readChat, sendChat, stopChat, deleteChat, okId as okChatId, busy as chatBusy, type Event as ChatEvent, type Upload as ChatUpload } from "./chat.ts";
-import { workspaces, workspacesNow, forgetWorkspaces, workspacesAge, addWorktree, run, branchState, openPr, mergePr, removeWorktree } from "./worktree.ts";
+import { workspaces, workspacesNow, forgetWorkspaces, workspacesAge, addWorktree, runAsync, run, branchState, openPr, mergePr, removeWorktree } from "./worktree.ts";
 import { gitUrl, destDir, winBad, cloneInto, branchesOf, ignoreKaizen } from "./add-project.ts";
 
 const PAGE = join(dirname(import.meta.dir), "web", "board.html");
@@ -360,7 +360,10 @@ export async function web(repoDir: string, opts: Opts = {}) {
   // run's state.json, about a second on a board of 400 runs.
   const ptyOf = (cards: Card[]) => {
     const live = new Set(ptyKeys());
-    if (!live.size) return () => undefined;
+    if (!live.size) return Object.assign(() => undefined, { cmd: (_k: string) => undefined as string | undefined });
+    // Which agent each live terminal runs, from the session records: a run being born has no tag for it yet.
+    const cmdOf = new Map<string, string>();
+    for (const d of new Set(cards.map((c) => c.state))) for (const s of readSessions(d)) if (live.has(s.key) && s.cmd) cmdOf.set(s.key, s.cmd);
     const runs = new Map<string, string[]>();
     const planKeys = new Set(ideaPty.values());
     for (const d of new Set(cards.filter((c) => c.kind === "run").map((c) => c.state))) {
@@ -374,7 +377,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           runs.set(k, [...(runs.get(k) ?? []), s.key]); // oldest first: the newest is the card's
         }
     }
-    return (c: Card) => {
+    return Object.assign((c: Card) => {
       const keys = c.kind === "run" ? runs.get(`${c.state}\0${c.id}`) ?? [] : [ideaPty.get(`${c.state}\0${c.text}`)].filter((k): k is string => !!k && live.has(k));
       const key = keys.at(-1);
       if (!key) return undefined;
@@ -383,8 +386,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
       if (!st.alive && (c.status === "done" || c.status === "abandoned")) return undefined;
       // Every agent session the run has had on this board, for the workspace's Agent tabs.
       const all = keys.filter((k) => ptyState(k)?.alive || k === key);
-      return { key, alive: st.alive, asking: st.asking, busy: st.busy, all, stages: c.kind === "run" ? stagesOf(c.state, c.id!) : undefined };
-    };
+      return { key, alive: st.alive, asking: st.asking, busy: st.busy, all, agent: cmdOf.get(key), stages: c.kind === "run" ? stagesOf(c.state, c.id!) : undefined };
+    }, { cmd: (k: string) => cmdOf.get(k) });
   };
   const watchers: FSWatcher[] = [];
   const watchAll = () => {
@@ -1017,7 +1020,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           agents.push({ key, dir, ws, agent: cmd, name, run, asking: st.asking, busy: st.busy, born: st.born, ...(loopback ? { last: st.last || undefined, at: st.at || undefined } : {}) });
         };
         for (const x of shells.values()) if (x.agent) addAgent(x.key, x.dir, x.ws, x.agent, x.run);
-        cards.forEach((c, i) => { for (const k of ptys[i]?.all ?? []) addAgent(k, c.state, c.ws, KNOWN_AGENTS.find((a) => c.tags?.includes(a.cmd))?.cmd, c.kind === "run" ? c.id : undefined); });
+        cards.forEach((c, i) => { for (const k of ptys[i]?.all ?? []) addAgent(k, c.state, c.ws, pty.cmd(k) ?? KNOWN_AGENTS.find((a) => c.tags?.includes(a.cmd))?.cmd, c.kind === "run" ? c.id : undefined); });
         const entry = (d: string) => ({ dir: d, label: label(d), logo: !!projectLogo(d),
           workspaces: d === join(home, ".kaizen") ? [{ path: d, branch: "", main: true }] : workspacesNow(projectOf(d)) });
         return json({
