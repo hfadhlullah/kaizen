@@ -1,0 +1,44 @@
+// Settings' sidebar, grouped as Orca's is. Only the page knows this: a setting's `group`
+// in cli/settings.ts still decides its scope and the TUI's headings.
+export type SettingsPage = { id: string; title: string; desc: string; ico: string };
+export const SETTINGS_NAV: [string, SettingsPage[]][] = [
+  ["AI Capabilities", [
+    { id: "agents", title: "Agents", desc: "Which tool runs, and who does each stage.", ico: "ai" },
+    { id: "voice", title: "Voice", desc: "Speech-to-text dictation, run in the browser.", ico: "mic" },
+  ]],
+  ["Set Up", [
+    { id: "general", title: "General", desc: "Which settings you are editing, folders, and maintenance.", ico: "gear" },
+    { id: "integrations", title: "Integrations", desc: "Request sources and your Google account.", ico: "link" },
+    { id: "mobile", title: "Mobile", desc: "Open this board from your phone.", ico: "send" },
+  ]],
+  ["Workflows", [
+    { id: "approvals", title: "Approvals", desc: "Where a run stops and waits for you.", ico: "check" },
+    { id: "autofix", title: "Auto-fix", desc: "What happens to review findings.", ico: "bug" },
+    { id: "git", title: "Git & Source Control", desc: "Branches and commits for each run.", ico: "pen" },
+    { id: "terminal", title: "Terminal", desc: "The terminal dashboard.", ico: "term" },
+  ]],
+  ["Interface", [
+    { id: "appearance", title: "Appearance", desc: "Theme and motion in this browser.", ico: "note" },
+    { id: "notifications", title: "Notifications", desc: "Notices and sounds in this browser.", ico: "clock" },
+    { id: "shortcuts", title: "Shortcuts", desc: "Keyboard shortcuts for common actions.", ico: "kbd" },
+  ]],
+];
+// First match wins: [key pattern, page, subsection].
+const PLACES: [RegExp, string, string][] = [
+  [/^preset$/, "agents", "Defaults"],
+  [/^(runner|build\.|review\.executor|agent\.|subagents\.)/, "agents", "Agents"],
+  [/^dictation\./, "voice", "Dictation"],
+  [/^sources\./, "integrations", "Request sources"],
+  [/^(mode|approvals\.|auto_accept)/, "approvals", "Approvals"],
+  [/^auto_fix\./, "autofix", "Auto-fix"],
+  [/^git\./, "git", "Git"],
+  [/^ui\./, "terminal", "Terminal"],
+  [/^board\.chat_hotkey$/, "shortcuts", "Shortcuts"],
+  [/^board\./, "general", "Board"],
+  [/^(review\.|state\.)/, "general", "Project"],
+];
+// A setting nobody has placed yet still shows, on General.
+export const placeOf = (key: string): [string, string] => {
+  const p = PLACES.find(([re]) => re.test(key));
+  return p ? [p[1], p[2]] : ["general", "Other"];
+};

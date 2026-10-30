@@ -2,22 +2,22 @@ import { store } from "./store.ts";
 import { termStop } from "./agent-term.ts";
 import { load, post } from "./api.ts";
 import { stopDictation } from "./dictation.ts";
-import { $, html, SKEL } from "./dom.ts";
+import { $, html, ico, SKEL } from "./dom.ts";
 import { close } from "./panel.ts";
+import { placeOf, SETTINGS_NAV } from "./settings-pages.ts";
 import { askNotify, notifyOn, playSound, soundPick, SOUNDS, toast } from "./toast.ts";
 import { updBar } from "./update.ts";
-import { view } from "./views.ts";
+import { go, view } from "./views.ts";
 
 // ---- settings
-// Rows in config order, grouped as the TUI groups them.
-const groups = (rows) => {
-  const m = new Map();
-  for (const r of rows) {
-    if (!m.has(r.group)) m.set(r.group, []);
-    m.get(r.group).push(r);
-  }
-  return [...m];
-};
+const PAGES = SETTINGS_NAV.flatMap(([, ps]) => ps);
+const narrow = () => matchMedia("(max-width:640px)").matches;
+// Ctrl+F searches settings, as in Orca. Only while the page shows: elsewhere it stays the browser's.
+addEventListener("keydown", (e) => {
+  if (view !== "settings" || !(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== "f") return;
+  e.preventDefault();
+  $("sq")?.focus();
+});
 export async function openSettings() {
   if (view !== "settings") return;
   const gen = ++store.pageGen;
@@ -63,10 +63,11 @@ export async function openSettings() {
         .map((v) => html`<button id="${id}-${v}" data-v="${v}" class="${v === on ? "on" : ""}" aria-pressed="${String(v === on)}">${v}</button>`)}</span>`;
     if (vals.length === 2 && vals.includes("true") && vals.includes("false")) {
       const yes = on === "true";
-      return html`<button class="chk${yes ? " on" : ""}" id="${id}" data-v="${yes ? "false" : "true"}" role="switch" aria-checked="${String(yes)}" title="${yes ? "On" : "Off"}"></button>`;
+      return html`<button class="chk sm${yes ? " on" : ""}" id="${id}" data-v="${yes ? "false" : "true"}" role="switch" aria-checked="${String(yes)}" title="${yes ? "On" : "Off"}"></button>`;
     }
-    if (vals.every((v) => /^\d+$/.test(v)))
-      return html`<span class="bar" id="${id}" role="group">${vals.map((v) => html`<button data-v="${v}" class="${v === on ? "on" : ""}" aria-pressed="${String(v === on)}">${v}</button>`)}</span>`;
+    // Short choices sit side by side, joined, as Orca's do; a long list keeps the stepper.
+    if (vals.every((v) => /^\d+$/.test(v)) || (vals.length <= 5 && vals.every((v) => v) && vals.join("").length <= 32))
+      return html`<span class="bar" id="${id}" role="group" aria-labelledby="${id}-l">${vals.map((v) => html`<button id="${id}-${v}" data-v="${v}" class="${v === on ? "on" : ""}" aria-pressed="${String(v === on)}">${v}</button>`)}</span>`;
     // Wired by stepper() below; the group takes its name from the row's label.
     return html`<span class="step" id="${id}" role="group" aria-labelledby="${id}-l"><button id="${id}-prev" aria-label="Previous">‹</button><output aria-live="polite">${on === "" ? "—" : on}</output><button id="${id}-next" aria-label="Next">›</button></span>`;
   };
@@ -87,51 +88,70 @@ export async function openSettings() {
   const np = typeof Notification === "undefined" ? null : Notification.permission;
   const nton = notifyOn();
   const ntHelp = !nton ? "Off in this browser" : np === "granted" ? "" : np === "denied" ? "Pop-ups blocked by this browser; the sound still plays" : np ? "Pop-ups wait for the browser to ask; the sound still plays" : "Pop-ups not supported here; the sound still plays";
-  const scopeRow = cfg
-    ? html`<div class="sgrp">${row(
-        "Settings for",
-        html`<select class="sel" id="s-scope">${[{ dir: "all", label: "All projects" }, ...cfg.projects].map((p) => html`<option value="${p.dir}"${p.dir === cfg.scope ? " selected" : ""}>${p.label}</option>`)}</select>`,
-        scoped ? "This project's own .kaizen/config.yml; anything it does not set comes from All projects." : "~/.kaizen/config.yml; a project's own config wins where it sets a value.",
-        "s-scope",
-        "settings for scope project all projects",
-      )}</div>`
-    : "";
-  $("pbody").innerHTML = html`<div class="sq"><input class="sel" id="sq" type="search" placeholder="Search settings" aria-label="Search settings" spellcheck="false" autocomplete="off" value="${store.setQ}"></div>
-  ${scopeRow}
-  <h3 class="sg">Phone</h3><div class="sgrp">${row("Phone address", cfg?.phoneUrls?.length ? html`<span class="phoneurls">${cfg.phoneUrls.map((url) => html`<a href="${url}" target="_blank" rel="noopener">${url}</a>`)}</span>` : html`<span>Not set</span>`, cfg?.phoneUrls?.length ? "Configured address; Tailscale must be running on both devices." : "Run kaizen setup on this PC to connect your phone.", "phone-url", "phone address url tailscale setup")}</div>
-  ${
-    cfg
-      ? groups(cfg.rows)
-          .map(
-            ([g, rows]) =>
-              html`<h3 class="sg">${g}${scoped && g === "Board" ? " · all projects" : ""}</h3><div class="sgrp">${rows
-                .map((r) => {
-                  const id = "s-" + r.key.replace(/\./g, "-");
-                  return row(
-                    r.label,
-                    r.text
-                      ? r.folder
-                        ? html`<span class="fpick"><input class="sel" id="${id}" value="${r.value}" placeholder="not set" spellcheck="false"><button class="btn" id="${id}-pick" type="button">Browse…</button></span>`
-                        : html`<input class="sel" id="${id}" value="${r.value}" placeholder="not set" spellcheck="false">`
-                      : ctl(id, r.values, r.value),
-                    ((t, n) => (t && n ? html`${t} · ${n}` : n || t))([r.help, r.idle].filter(Boolean).join(" · "), scopeNote(r, id)),
-                    id,
-                    [r.label, r.help, r.key, g, ...r.values].join(" "),
-                    !!r.idle,
-                  );
-                })}</div>`,
-          )
-      : html`<p class="snone">Settings could not be read. Run <code>kaizen settings</code>.</p>`
+  // Each page's subsections, in the order they first appear.
+  const pageRows = new Map<string, Map<string, unknown[]>>(PAGES.map((p) => [p.id, new Map()]));
+  const put = (page, sub, r) => {
+    const m = pageRows.get(page);
+    if (!m.has(sub)) m.set(sub, []);
+    m.get(sub).push(r);
+  };
+  if (cfg) {
+    put("general", "Scope", row(
+      "Settings for",
+      html`<select class="sel" id="s-scope">${[{ dir: "all", label: "All projects" }, ...cfg.projects].map((p) => html`<option value="${p.dir}"${p.dir === cfg.scope ? " selected" : ""}>${p.label}</option>`)}</select>`,
+      scoped ? "This project's own .kaizen/config.yml; anything it does not set comes from All projects." : "~/.kaizen/config.yml; a project's own config wins where it sets a value.",
+      "s-scope",
+      "settings for scope project all projects",
+    ));
+    for (const r of cfg.rows) {
+      const id = "s-" + r.key.replace(/\./g, "-");
+      const [page, sub] = placeOf(r.key);
+      put(page, sub + (scoped && r.group === "Board" ? " · all projects" : ""), row(
+        r.label,
+        r.text
+          ? r.folder
+            ? html`<span class="fpick"><input class="sel" id="${id}" value="${r.value}" placeholder="not set" spellcheck="false"><button class="btn" id="${id}-pick" type="button">Browse…</button></span>`
+            : html`<input class="sel" id="${id}" value="${r.value}" placeholder="not set" spellcheck="false">`
+          : ctl(id, r.values, r.value),
+        ((t, n) => (t && n ? html`${t} · ${n}` : n || t))([r.help, r.idle].filter(Boolean).join(" · "), scopeNote(r, id)),
+        id,
+        [r.label, r.help, r.key, r.group, ...r.values].join(" "),
+        !!r.idle,
+      ));
+    }
   }
-  <h3 class="sg">Google</h3><div class="sgrp">${row("OAuth client id", html`<input class="sel" id="gg-id" placeholder="${gg.hasClient ? "Saved. Paste a new one to replace it" : "Desktop app client id from Google Cloud"}" spellcheck="false" autocomplete="off">`, "", "gg-id", "google oauth client id sheets write back")}
-  ${row("OAuth client secret", html`<span class="fpick"><input class="sel" id="gg-secret" type="password" placeholder="${gg.hasClient ? "Saved. Paste a new one to replace it" : ""}" spellcheck="false" autocomplete="off"><button class="btn" id="gg-save" type="button">Save</button></span>`, "", "gg-secret", "google oauth client secret")}
-  ${row("Google account", html`<button class="btn${gg.connected ? "" : " pri"}" id="gg-conn" type="button"${gg.hasClient || gg.connected ? "" : " disabled"}>${gg.connected ? "Disconnect" : "Connect"}</button>`, "", "gg-conn", "google account connect sheets write back")}</div>
-  <h3 class="sg">Browser</h3><div class="sgrp">${row("Theme", ctl("th", ["system", "light", "dark"], cur), "", "th", "theme light dark system browser")}
-  ${row("Motion", ctl("mo", ["system", "full", "reduce"], document.documentElement.dataset.motion || "system"), "Animations on the board and notes. System follows the device's reduce-motion setting.", "mo", "motion animation reduce reduced browser")}
-  ${row("Notifications", html`<button class="chk${nton ? " on" : ""}" id="nt" role="switch" aria-checked="${String(nton)}"></button>`, ntHelp, "nt", "notifications " + ntHelp + " browser")}
-  ${row("Notification sound", ctl("ns", SOUNDS, soundPick()), "Plays with each notice. Changing it plays it.", "ns", "notification sound audio browser " + SOUNDS.join(" "), !nton)}</div>
-  <p class="snone" id="snone" hidden></p>`;
-  // Hides rows that do not match, then any group (and its chip) left with none.
+  put("mobile", "Phone", row("Phone address", cfg?.phoneUrls?.length ? html`<span class="phoneurls">${cfg.phoneUrls.map((url) => html`<a href="${url}" target="_blank" rel="noopener">${url}</a>`)}</span>` : html`<span>Not set</span>`, cfg?.phoneUrls?.length ? "Configured address; Tailscale must be running on both devices." : "Run kaizen setup on this PC to connect your phone.", "phone-url", "phone address url tailscale setup"));
+  put("integrations", "Google", row("OAuth client id", html`<input class="sel" id="gg-id" placeholder="${gg.hasClient ? "Saved. Paste a new one to replace it" : "Desktop app client id from Google Cloud"}" spellcheck="false" autocomplete="off">`, "", "gg-id", "google oauth client id sheets write back"));
+  put("integrations", "Google", row("OAuth client secret", html`<span class="fpick"><input class="sel" id="gg-secret" type="password" placeholder="${gg.hasClient ? "Saved. Paste a new one to replace it" : ""}" spellcheck="false" autocomplete="off"><button class="btn" id="gg-save" type="button">Save</button></span>`, "", "gg-secret", "google oauth client secret"));
+  put("integrations", "Google", row("Google account", html`<button class="btn${gg.connected ? "" : " pri"}" id="gg-conn" type="button"${gg.hasClient || gg.connected ? "" : " disabled"}>${gg.connected ? "Disconnect" : "Connect"}</button>`, "", "gg-conn", "google account connect sheets write back"));
+  put("appearance", "Browser", row("Theme", ctl("th", ["system", "light", "dark"], cur), "", "th", "theme light dark system browser"));
+  put("appearance", "Browser", row("Motion", ctl("mo", ["system", "full", "reduce"], document.documentElement.dataset.motion || "system"), "Animations on the board and notes. System follows the device's reduce-motion setting.", "mo", "motion animation reduce reduced browser"));
+  put("notifications", "Browser", row("Notifications", html`<button class="chk sm${nton ? " on" : ""}" id="nt" role="switch" aria-checked="${String(nton)}"></button>`, ntHelp, "nt", "notifications " + ntHelp + " browser"));
+  put("notifications", "Browser", row("Notification sound", ctl("ns", SOUNDS, soundPick()), "Plays with each notice. Changing it plays it.", "ns", "notification sound audio browser " + SOUNDS.join(" "), !nton));
+  // A narrow screen starts on the list of pages, a wide one on the first page.
+  store.setPage ??= new URLSearchParams(location.search).get("page") || "";
+  const scopeName = scoped ? cfg.projects.find((p) => p.dir === cfg.scope)?.label : "";
+  // A save redraws the page: the rows stay where they were scrolled to.
+  const top = $("smain")?.scrollTop || 0;
+  $("pbody").innerHTML = html`<div class="sset" id="sset">
+    <nav class="snav" aria-label="Settings">
+      <button class="sback" id="sback" type="button">${ico("chev")}Back to app</button>
+      <div class="sq"><input class="sel" id="sq" type="search" placeholder="Search settings" aria-label="Search settings" spellcheck="false" autocomplete="off" value="${store.setQ}"></div>
+      <div class="snavs">${SETTINGS_NAV.map(([g, ps]) => html`<div class="snavg"><p>${g}</p>${ps.map((p) => html`<button type="button" data-page="${p.id}">${ico(p.ico)}<span>${p.title}</span></button>`)}</div>`)}</div>
+    </nav>
+    <div class="smain" id="smain">
+      ${PAGES.map((p) => html`<div class="spage" data-page="${p.id}">
+        <button class="sup" type="button">${ico("chev")}Settings</button>
+        <header><h2>${p.title}</h2><p>${p.desc}${scopeName ? ` Editing ${scopeName}.` : ""}</p></header>
+        ${p.id === "general" ? html`<div id="supd"></div>` : ""}
+        <div class="scard">${[...pageRows.get(p.id)].map(([sub, rows]) => html`<h3 class="sg">${sub}</h3><div class="sgrp">${rows}</div>`)}</div>
+      </div>`)}
+      ${cfg ? "" : html`<p class="snone">Settings could not be read. Run <code>kaizen settings</code>.</p>`}
+      <p class="snone" id="snone" hidden></p>
+    </div>
+  </div>`;
+  // Hides rows that do not match, then any subsection and page left with none. The page
+  // shown is the one picked, or while searching the first that still has a match.
   updBar();
   const heads = [...$("pbody").querySelectorAll(".sg")];
   const filter = () => {
@@ -148,7 +168,31 @@ export async function openSettings() {
     });
     $("snone").hidden = any;
     $("snone").textContent = `No setting matches “${store.setQ.trim()}”.`;
+    const has = (s) => !!s.querySelector(".sg:not([hidden])");
+    const secs = [...$("pbody").querySelectorAll<HTMLElement>(".spage")];
+    const hits = secs.filter(has);
+    const picked = store.setPage && secs.find((s) => s.dataset.page === store.setPage);
+    const cur = (picked && has(picked) ? picked : null) || (q || !narrow() ? hits[0] : null);
+    secs.forEach((s) => (s.hidden = s !== cur));
+    $("sset").classList.toggle("pick", !cur);
+    $("pbody").querySelectorAll<HTMLElement>(".snavg button").forEach((b) => {
+      const on = b.dataset.page === cur?.dataset.page;
+      b.hidden = !hits.some((s) => s.dataset.page === b.dataset.page);
+      on ? b.setAttribute("aria-current", "page") : b.removeAttribute("aria-current");
+    });
+    $("pbody").querySelectorAll<HTMLElement>(".snavg").forEach((g) => (g.hidden = !g.querySelector("button:not([hidden])")));
   };
+  // The page goes in the address, without a history step per page: Back to app leaves in one.
+  const pick = (id) => {
+    store.setPage = id;
+    history.replaceState(null, "", "?view=settings" + (id ? "&page=" + id : ""));
+    filter();
+    $("pbody").scrollTop = $("smain").scrollTop = 0;
+  };
+  $("pbody").querySelectorAll<HTMLElement>(".snavg button").forEach((b) => (b.onclick = () => pick(b.dataset.page)));
+  $("pbody").querySelectorAll<HTMLElement>(".sup").forEach((b) => (b.onclick = () => pick("")));
+  // Back where Settings was opened from; arriving by address, Home.
+  $("sback").onclick = () => (store.setBack ? history.back() : go("home", true));
   $("sq").oninput = (e) => {
     store.setQ = e.target.value;
     filter();
@@ -164,6 +208,7 @@ export async function openSettings() {
     } else close();
   };
   filter();
+  $("smain").scrollTop = top;
   if (hadFocus) {
     const f = $("sq");
     f.focus();
@@ -211,10 +256,18 @@ export async function openSettings() {
   // Re-rendering replaces the arrows, so the one pressed gets focus back.
   const refocus = async (f) => {
     await openSettings();
-    if (f && /^s-preset-|-(prev|next)$/.test(f)) $(f)?.focus();
+    if (f && /^s-/.test(f)) $(f)?.focus();
   };
-  stepper($("th"), ["system", "light", "dark"], cur, setTheme);
-  stepper($("mo"), ["system", "full", "reduce"], document.documentElement.dataset.motion || "system", setMotion);
+  // A browser choice drawn as joined segments applies on click; a long list steps.
+  const choice = (el, vals, on, apply) => {
+    if (el.matches(".step")) return stepper(el, vals, on, apply);
+    el.querySelectorAll("[data-v]").forEach((b) => (b.onclick = () => {
+      apply(b.dataset.v);
+      openSettings();
+    }));
+  };
+  choice($("th"), ["system", "light", "dark"], cur, setTheme);
+  choice($("mo"), ["system", "full", "reduce"], document.documentElement.dataset.motion || "system", setMotion);
   $("nt").onclick = () => {
     const on = !notifyOn();
     try {
@@ -223,7 +276,7 @@ export async function openSettings() {
     if (on) askNotify();
     setTimeout(openSettings, 300);
   };
-  stepper($("ns"), SOUNDS, soundPick(), (v) => {
+  choice($("ns"), SOUNDS, soundPick(), (v) => {
     try {
       localStorage.setItem("kz-sound", v);
     } catch (e) {}

@@ -27,6 +27,8 @@ export const store = {
   setQ: "",
   // Settings' scope: "all" or a project's state dir. Set on opening; never moves the board.
   setScope: "all",
+  setPage: null as string | null,
+  setBack: false,
   // Settings and the Icebox fill the same panel after a fetch: a fill only lands if no other view
   // or fill started since, or a slow answer paints one page under the other's title.
   pageGen: 0,

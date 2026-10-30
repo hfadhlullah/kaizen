@@ -31,7 +31,7 @@ export function updBar() {
     d.innerHTML = html`<span>kaizen <b>${upd.latest}</b> is available. You are running ${upd.version}.</span><span class="updact">${news}<button class="btn" id="upd-chk">Check for updates</button><button class="btn pri" id="upd-go">Update kaizen</button></span>`;
   }
   if (ver && ver.failed) d.insertAdjacentHTML("afterbegin", html`<span class="updfail" role="alert">Last update failed: ${ver.failed}</span>`);
-  $("pbody").prepend(d);
+  ($("supd") || $("pbody")).prepend(d);
   const check = $("upd-chk");
   check.onclick = async () => {
     check.disabled = true;

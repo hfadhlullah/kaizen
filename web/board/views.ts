@@ -38,6 +38,7 @@ export function go(v, push) {
   markView(v);
   document.body.classList.toggle("paged", v !== "board");
   document.body.classList.toggle("ice", v === "sources");
+  document.body.classList.toggle("setv", v === "settings");
   document.body.classList.toggle("termv", v === "terminal");
   const ph = isPhone() && v === "home";
   document.body.classList.toggle("homev", (v === "home" && !ph) || v === "chat");
@@ -98,7 +99,10 @@ export function initViews() {
     a.onclick = (e) => {
       if (e.ctrlKey || e.metaKey || e.shiftKey || e.button) return;
       e.preventDefault();
-      if (a.dataset.view === "settings") store.setQ = "";
+      if (a.dataset.view === "settings") {
+        store.setQ = "";
+        store.setBack = view !== "settings";
+      }
       vt(() => go(a.dataset.view, true));
     };
   });
