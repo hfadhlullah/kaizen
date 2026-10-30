@@ -61,10 +61,10 @@ Rules:
 
 ## 2. Colour
 
-Dark is the default; light follows `prefers-color-scheme` or the Theme setting
+Monochrome is the default palette; green, amber and red stay for state. Blue is the alternative, picked under Settings, Appearance, Color (`data-color=blue`, `kz-color`). Dark is the default; light follows `prefers-color-scheme` or the Theme setting
 (system / light / dark) stored in `localStorage`. Every colour is a custom property; no hex appears in component CSS.
 Two helper tokens sit beside the table on the web: `--on-accent` (white, text on an
-`--accent` fill) and `--shade` (the one shadow colour: navy at 10 % in light, black at
+`--accent` fill) and `--shade` (the one shadow colour: black at 8 % in light, black at
 45 % in dark).
 
 | Token | Dark | Light | Job |

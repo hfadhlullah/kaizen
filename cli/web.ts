@@ -1007,7 +1007,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
       if (req.method === "GET" && path === "/manifest.webmanifest") {
         return new Response(JSON.stringify({
           name: "kaizen", short_name: "kaizen", start_url: "/", scope: "/", display: "standalone",
-          background_color: "#0c162f", theme_color: "#0c162f",
+          background_color: "#121212", theme_color: "#121212",
           icons: [{ src: "/logo.png", sizes: "1024x1024", type: "image/png", purpose: "any" }],
         }), { headers: { "content-type": "application/manifest+json" } });
       }

@@ -1186,6 +1186,7 @@ addEventListener("pagehide", () => {
   try {
     const th = localStorage.getItem("kz-theme");
     if (th) document.documentElement.dataset.theme = th;
+    if (localStorage.getItem("kz-color") === "blue") document.documentElement.dataset.color = "blue";
   } catch {
     /* no storage */
   }

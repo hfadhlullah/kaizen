@@ -204,10 +204,11 @@ test("the notebook's design tokens are the board's, line for line", () => {
   const block = (f: string) => {
     const s = readFileSync(join(root, "web", f), "utf8").split("\n");
     const at = s.findIndex((l) => l.startsWith(":root{--bg:"));
-    return s.slice(at, at + 8).join("\n");
+    return s.slice(at, at + 11).join("\n");
   };
   expect(block("notes.html")).toBe(block("board.html"));
   expect(block("board.html")).toContain("data-theme=dark]{--shade");
+  expect(block("board.html")).toContain(":root[data-color=blue][data-theme=dark]{");
   const syms = (f: string) => readFileSync(join(root, "web", f), "utf8").split("\n").filter((l) => l.startsWith('<symbol id="s-')).join("\n");
   expect(syms("notes.html")).toBe(syms("board.html"));
   expect(syms("board.html").split("\n").length).toBe(7);

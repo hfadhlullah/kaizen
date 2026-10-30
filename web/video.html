@@ -10,12 +10,16 @@
 <link rel="apple-touch-icon" href="/logo.png">
 <style>
 /* Tokens: copied from web/board.html, line for line; cli/notes.test.ts holds them equal. */
-:root{--bg:#f6f8fc;--bg-2:#fff;--line:#d9e0ee;--ink:#0c162f;--ink-hi:#0c162f;--dim:#5b6b8c;--accent:#2d50a5;--run:#0f8fa3;--ok:#1f9d55;--warn:#a8720a;--danger:#c8322f;color-scheme:light}
-@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0c162f;--bg-2:#121e3c;--line:#22305a;--ink:#eef2fa;--ink-hi:#deeeff;--dim:#96aacd;--accent:#486ed9;--run:#4fd6e6;--ok:#5fd28a;--warn:#e6b450;--danger:#e85050;color-scheme:dark}}
-:root[data-theme=dark]{--bg:#0c162f;--bg-2:#121e3c;--line:#22305a;--ink:#eef2fa;--ink-hi:#deeeff;--dim:#96aacd;--accent:#486ed9;--run:#4fd6e6;--ok:#5fd28a;--warn:#e6b450;--danger:#e85050;color-scheme:dark}
+/* Colour: monochrome by default; ok, warn and danger keep their hue because they carry meaning. data-color=blue is the navy palette (kz-color). */
+:root{--bg:#f7f7f7;--bg-2:#fff;--line:#dedede;--ink:#171717;--ink-hi:#171717;--dim:#666;--accent:#171717;--run:#525252;--ok:#1f9d55;--warn:#a8720a;--danger:#c8322f;--on-accent:#fff;color-scheme:light}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#121212;--bg-2:#1a1a1a;--line:#2e2e2e;--ink:#ededed;--ink-hi:#fafafa;--dim:#a0a0a0;--accent:#ededed;--run:#c4c4c4;--ok:#5fd28a;--warn:#e6b450;--danger:#e85050;--on-accent:#121212;color-scheme:dark}}
+:root[data-theme=dark]{--bg:#121212;--bg-2:#1a1a1a;--line:#2e2e2e;--ink:#ededed;--ink-hi:#fafafa;--dim:#a0a0a0;--accent:#ededed;--run:#c4c4c4;--ok:#5fd28a;--warn:#e6b450;--danger:#e85050;--on-accent:#121212;color-scheme:dark}
+:root[data-color=blue]{--bg:#f6f8fc;--bg-2:#fff;--line:#d9e0ee;--ink:#0c162f;--ink-hi:#0c162f;--dim:#5b6b8c;--accent:#2d50a5;--run:#0f8fa3;--on-accent:#fff;color-scheme:light}
+@media(prefers-color-scheme:dark){:root[data-color=blue]:not([data-theme=light]){--bg:#0c162f;--bg-2:#121e3c;--line:#22305a;--ink:#eef2fa;--ink-hi:#deeeff;--dim:#96aacd;--accent:#486ed9;--run:#4fd6e6;--on-accent:#fff;color-scheme:dark}}
+:root[data-color=blue][data-theme=dark]{--bg:#0c162f;--bg-2:#121e3c;--line:#22305a;--ink:#eef2fa;--ink-hi:#deeeff;--dim:#96aacd;--accent:#486ed9;--run:#4fd6e6;--on-accent:#fff;color-scheme:dark}
 *{box-sizing:border-box}
 /* Shape, type and depth. --shade is the one shadow colour, themed like the rest. */
-:root{--r:4px;--r-s:4px;--r-pill:999px;--font:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;--mono:ui-monospace,"JetBrains Mono","Cascadia Code","SF Mono",Menlo,Consolas,monospace;--on-accent:#fff;--hover:color-mix(in srgb,var(--dim) 12%,transparent);--shade:rgb(12 22 47/.08);--shadow-1:0 1px 2px var(--shade);--shadow-2:0 0 0 1px var(--shade),0 8px 24px -6px var(--shade);--canvas:color-mix(in srgb,var(--bg) 95.5%,var(--ink));--row:28px;--row-h:32px;--ico:14px;--ico-s:12px;--btn-xs:24px;--btn-s:32px;--btn:36px;--tabbar:36px;--pane-h:24px;--fs-xs:11px;--fs-s:12px;--fs:13px;--fs-l:14px;--gap:6px;--padx:8px}
+:root{--r:4px;--r-s:4px;--r-pill:999px;--font:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;--mono:ui-monospace,"JetBrains Mono","Cascadia Code","SF Mono",Menlo,Consolas,monospace;--hover:color-mix(in srgb,var(--dim) 12%,transparent);--shade:rgb(0 0 0/.08);--shadow-1:0 1px 2px var(--shade);--shadow-2:0 0 0 1px var(--shade),0 8px 24px -6px var(--shade);--canvas:color-mix(in srgb,var(--bg) 95.5%,var(--ink));--row:28px;--row-h:32px;--ico:14px;--ico-s:12px;--btn-xs:24px;--btn-s:32px;--btn:36px;--tabbar:36px;--pane-h:24px;--fs-xs:11px;--fs-s:12px;--fs:13px;--fs-l:14px;--gap:6px;--padx:8px}
 @media(prefers-color-scheme:dark){:root:not([data-theme=light]){--shade:rgb(0 0 0/.45);--canvas:color-mix(in srgb,var(--bg) 70%,black)}}
 :root[data-theme=dark]{--shade:rgb(0 0 0/.45);--canvas:color-mix(in srgb,var(--bg) 70%,black)}
 body{margin:0;background:var(--canvas);color:var(--ink);font:14px/1.5 var(--font);-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;height:100vh;height:100dvh;overflow:hidden;display:flex}
@@ -394,6 +398,9 @@ pre.mark span:nth-child(1){color:var(--ink-hi)}pre.mark span:nth-child(2){color:
  document.getElementById("fold").onclick=()=>{fold=r.dataset.rail==="min"?"full":"min";try{localStorage.setItem("kz-rail",fold)}catch(e){}rail()};
  // Theme: light, dark, or unset for system, in kz-theme. The toggle shows what is on screen and flips it.
  const paint=()=>{const d=r.dataset.theme?r.dataset.theme==="dark":os.matches;const b=document.getElementById("themet");if(b){b.dataset.dark=d;b.title=d?"Dark theme: switch to light":"Light theme: switch to dark";b.setAttribute("aria-label",b.title)}};
+ // Colour: unset for monochrome, or blue, in kz-color. kz-theme repaints the terminals and Settings.
+ window.setColor=c=>{if(c==="blue")r.dataset.color=c;else delete r.dataset.color;try{c==="blue"?localStorage.setItem("kz-color",c):localStorage.removeItem("kz-color")}catch(e){}dispatchEvent(new Event("kz-theme"))};
+ try{if(localStorage.getItem("kz-color")==="blue")r.dataset.color="blue"}catch(e){}
  window.setTheme=t=>{if(t==="system")delete r.dataset.theme;else r.dataset.theme=t;try{t==="system"?localStorage.removeItem("kz-theme"):localStorage.setItem("kz-theme",t)}catch(e){}paint();dispatchEvent(new Event("kz-theme"))};
  try{const t=localStorage.getItem("kz-theme");if(t)r.dataset.theme=t}catch(e){}
  // Motion: full, reduce, or unset to follow the system's reduced-motion, in kz-motion.

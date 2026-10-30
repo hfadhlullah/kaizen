@@ -18,7 +18,7 @@ export const SETTINGS_NAV: [string, SettingsPage[]][] = [
     { id: "terminal", title: "Terminal", desc: "The terminal dashboard.", ico: "term" },
   ]],
   ["Interface", [
-    { id: "appearance", title: "Appearance", desc: "Theme and motion in this browser.", ico: "note" },
+    { id: "appearance", title: "Appearance", desc: "Theme, color and motion in this browser.", ico: "note" },
     { id: "notifications", title: "Notifications", desc: "Notices and sounds in this browser.", ico: "clock" },
     { id: "shortcuts", title: "Shortcuts", desc: "Keyboard shortcuts for common actions.", ico: "kbd" },
   ]],
