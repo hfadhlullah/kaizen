@@ -396,6 +396,15 @@ test("notes log: append to a run and to an idea; attachments saved and made abso
   expect(saveAttachment(state, "2026-09-01-waiting", "b.txt", new Uint8Array([2]))).toMatch(/^runs\/2026-09-01-waiting\/attachments\//);
 });
 
+test("agentFlags reads a long, commented agent block with no entry for the tool in milliseconds", () => {
+  // The block-skipping pattern once backtracked for seconds per call here, and a board that listed its
+  // agents on every page load stopped answering.
+  const cfg = "agent:\n  default: claude\n" + "  # a long comment about what this setting does and when\n".repeat(150) + "  close: on\n";
+  const t = performance.now();
+  for (const cmd of ["claude", "codex", "agy", "gemini", "opencode"]) expect(agentFlags("/p", cmd, cfg)).toEqual([]);
+  expect(performance.now() - t).toBeLessThan(500);
+});
+
 test("agentFlags: per-tool model and effort from the agent block, inline or nested", () => {
   const cfg = `agent:\n  default: auto\n  codex: { model: gpt-5, effort: low }\n  claude:\n    model: sonnet\n    effort: low\n  gemini:\n    model: "gemini-2.5-pro"\n`;
   expect(agentFlags("/p", "codex", cfg)).toEqual(["-m", "gpt-5", "-c", "model_reasoning_effort=low"]);

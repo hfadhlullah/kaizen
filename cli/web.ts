@@ -1112,6 +1112,22 @@ export async function web(repoDir: string, opts: Opts = {}) {
         return Response.redirect(issueUrl({ title: url.searchParams.get("title") ?? "", what: url.searchParams.get("what") ?? "" }), 302);
       }
 
+      // First-run onboarding: where this machine's user got to, and what the page offers to pick from.
+      // Only the board's own file is written; the choices themselves go through /settings.
+      if (path === "/onboarding" && (req.method === "GET" || req.method === "POST")) {
+        const { onboardingView, writeOnboarding, installHelp } = await import("./onboarding.ts");
+        if (req.method === "POST") {
+          if (!local(req)) return bad("cross-origin write refused", 403);
+          let body: any;
+          try { body = await req.json(); } catch { return bad("json body expected"); }
+          const r = writeOnboarding(home, body);
+          return "error" in r ? bad(r.error) : json(r);
+        }
+        const projects = states(true).filter((d) => d !== join(home, ".kaizen")).length;
+        const ch = agentChoices(repoDir);
+        return json({ ...onboardingView(home, projects), default: ch.default, installed: ch.agents.map((a) => a.cmd), agents: KNOWN_AGENTS.map((a) => ({ cmd: a.cmd, name: a.name })), install: installHelp(process.platform === "win32") });
+      }
+
       if (req.method === "GET" && path === "/agents") {
         const dir = qdir();
         if (!dir || !states(true).includes(dir)) return bad("unknown state dir", 404);
@@ -1867,12 +1883,15 @@ export async function web(repoDir: string, opts: Opts = {}) {
           if (answers !== undefined && (run.awaiting !== "approvals.plan" || body.why !== undefined || !Array.isArray(answers)
             || !answers.length || answers.length > 20 || answers.some((a: unknown) => typeof a !== "string" || !a.trim()))) return bad("bad answers");
           const text = approvalPrompt(id, run.awaiting, body.why === undefined ? undefined : String(body.why), answers);
-          // The run is stopped at this approval, so its window is idle: the same
-          // conversation continues in one new window, and then the idle one ends. A
-          // failed launch leaves it open, since the decision went nowhere.
+          // The agent already open in this run's card takes the decision there, as it takes
+          // a fix: no second tab of the same conversation. With none, the run's conversation
+          // continues in one new window, and then the idle one ends. A failed launch leaves
+          // it open, since the decision went nowhere.
+          const live = readSessions(dir).find((s) => ptyState(s.key)?.alive && ownerOf(dir, s) === id);
           const before = Date.now();
-          const r = launchRun({ severity: null, where: null, text, raw: text }, dir, id, inCard(dir));
-          if (r.ok) closeSessions(dir, id, { before });
+          const r = live ? { ok: true as const, pty: live.key, agent: live.cmd } : launchRun({ severity: null, where: null, text, raw: text }, dir, id, inCard(dir));
+          if (live) writePty(live.key, text + "\r");
+          else if (r.ok) closeSessions(dir, id, { before });
           // The plan's approval starts the build; fixing open findings is the review stage again.
           if (r.ok) markStage(dir, id, run.awaiting === "approvals.plan" ? "impl" : run.awaiting === "findings" ? "review" : "", r.pty);
           // Approving the review as-is is the user's acceptance, on record before the

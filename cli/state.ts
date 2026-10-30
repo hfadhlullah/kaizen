@@ -34,7 +34,7 @@ const configTexts = (projectDir: string) =>
 // wanted tool that is not installed is swapped for the auto choice, and said so.
 export function detectDefaultAgent(projectDir: string, want?: string): Agent {
   if (!want) for (const t of configTexts(projectDir)) {
-    const m = /^agent:\n(?:[ \t]+.*\n)*?[ \t]+default:[ \t]*["']?([^"'\s]+)/m.exec(t) || /^agent\.default:[ \t]*["']?([^"'\s]+)/m.exec(t);
+    const m = /^agent:\n(?:[ \t][^\n]*\n)*?[ \t]+default:[ \t]*["']?([^"'\s]+)/m.exec(t) || /^agent\.default:[ \t]*["']?([^"'\s]+)/m.exec(t);
     if (m) { want = m[1]; break; }
   }
   if (!want || want === "auto") return autoAgent(projectDir);
@@ -88,7 +88,7 @@ export const plainModel = (m: string) => /^[A-Za-z0-9][\w.:\/@-]{0,79}$/.test(m)
 // The tool's own block in the first config.yml of the chain that has one.
 function agentConfig(projectDir: string, cmd: string, configText?: string) {
   // ponytail: regex over the yaml, like detectDefaultAgent; a parser when a third key needs it
-  const re = new RegExp(`^agent:\\n(?:[ \\t]+.*\\n)*?[ \\t]+${cmd}:[ \\t]*(\\{[^}]*\\}|\\n(?:[ \\t]+[a-z]+:.*\\n?)+)`, "m");
+  const re = new RegExp(`^agent:\\n(?:[ \\t][^\\n]*\\n)*?[ \\t]+${cmd}:[ \\t]*(\\{[^}]*\\}|\\n(?:[ \\t]+[a-z]+:.*\\n?)+)`, "m");
   let block: RegExpExecArray | null = null;
   for (const t of configText === undefined ? configTexts(projectDir) : [configText]) if ((block = re.exec(t))) break;
   const get = (k: string) => block && new RegExp(`\\b${k}:[ \\t]*["']?([^"',}\\s]+)`).exec(block[1])?.[1];
@@ -1488,7 +1488,7 @@ export function ownerOf(st: string, s: Session, idx?: RunIndex): string | null {
 export function closeEnabled(projectDir: string) {
   for (const f of [join(projectDir, ".kaizen", "config.yml"), join(home, ".kaizen", "config.yml")]) {
     try {
-      const m = /^agent:\n(?:[ \t]+.*\n)*?[ \t]+close:[ \t]*(\S+)/m.exec(readText(f));
+      const m = /^agent:\n(?:[ \t][^\n]*\n)*?[ \t]+close:[ \t]*(\S+)/m.exec(readText(f));
       if (m) return !/^(off|false|no)$/i.test(m[1]);
     } catch { /* absent */ }
   }
@@ -1499,7 +1499,7 @@ export function closeEnabled(projectDir: string) {
 // agent.keep_alive: tmux keeps a card's agent in a tmux session that outlives the board.
 export function keepAlive(projectDir: string): "off" | "tmux" {
   for (const t of configTexts(projectDir)) {
-    const m = /^agent:\n(?:[ \t]+.*\n)*?[ \t]+keep_alive:[ \t]*["']?([^"'\s]+)/m.exec(t) || /^agent\.keep_alive:[ \t]*["']?([^"'\s]+)/m.exec(t);
+    const m = /^agent:\n(?:[ \t][^\n]*\n)*?[ \t]+keep_alive:[ \t]*["']?([^"'\s]+)/m.exec(t) || /^agent\.keep_alive:[ \t]*["']?([^"'\s]+)/m.exec(t);
     if (m) return m[1] === "tmux" ? "tmux" : "off";
   }
   return "off";
@@ -1507,7 +1507,7 @@ export function keepAlive(projectDir: string): "off" | "tmux" {
 
 export function launchMode(projectDir: string): "card" | "terminal" {
   for (const t of configTexts(projectDir)) {
-    const m = /^agent:\n(?:[ \t]+.*\n)*?[ \t]+launch:[ \t]*["']?([^"'\s]+)/m.exec(t) || /^agent\.launch:[ \t]*["']?([^"'\s]+)/m.exec(t);
+    const m = /^agent:\n(?:[ \t][^\n]*\n)*?[ \t]+launch:[ \t]*["']?([^"'\s]+)/m.exec(t) || /^agent\.launch:[ \t]*["']?([^"'\s]+)/m.exec(t);
     if (m) return m[1] === "terminal" ? "terminal" : "card";
   }
   return "card";
@@ -1888,7 +1888,7 @@ function reviewGateOn(projectDir: string): boolean {
   for (const t of configTexts(projectDir)) {
     // Comments, CRLF and quotes are what a hand-edited file holds; none may switch the gate off.
     const clean = t.replace(/\r/g, "").split("\n").map((l) => l.replace(/(^|\s)#.*$/, "").trimEnd()).filter(Boolean).join("\n") + "\n";
-    const m = /^approvals:\n(?:[ \t]+.*\n)*?[ \t]+review:[ \t]*["']?(true|false)["']?$/m.exec(clean);
+    const m = /^approvals:\n(?:[ \t][^\n]*\n)*?[ \t]+review:[ \t]*["']?(true|false)["']?$/m.exec(clean);
     if (m) return m[1] === "true";
     const flow = /^approvals:[ \t]*\{[^}]*\breview:[ \t]*["']?(true|false)/m.exec(clean);
     if (flow) return flow[1] === "true";

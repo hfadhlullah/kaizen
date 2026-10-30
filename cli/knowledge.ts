@@ -45,7 +45,7 @@ export function secretReason(text: string): string {
 export function globalAllowed(projectDir: string): boolean {
   for (const f of [join(projectDir, ".kaizen", "config.yml"), join(homedir(), ".kaizen", "config.yml")]) {
     const t = read(f);
-    const m = /^knowledge:\n(?:[ \t]+.*\n|[ \t]*#.*\n)*?[ \t]+global:[ \t]*["']?(\w+)/m.exec(t) || /^knowledge\.global:[ \t]*["']?(\w+)/m.exec(t);
+    const m = /^knowledge:\n(?:[ \t][^\n]*\n|[ \t]*#.*\n)*?[ \t]+global:[ \t]*["']?(\w+)/m.exec(t) || /^knowledge\.global:[ \t]*["']?(\w+)/m.exec(t);
     if (m) return m[1] !== "false";
   }
   return true;

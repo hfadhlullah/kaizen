@@ -17,6 +17,7 @@ import { initContext } from "./context.ts";
 import { cardHref, initFooter, initRail, markCurrent, wsHref } from "./workspace.ts";
 import { go } from "./views.ts";
 import { openWorkspace } from "./run-view.ts";
+import { initOnboarding } from "./onboarding.ts";
 
 initPanel();
 initViews();
@@ -88,3 +89,4 @@ document.addEventListener(
   },
   true,
 );
+void initOnboarding();
