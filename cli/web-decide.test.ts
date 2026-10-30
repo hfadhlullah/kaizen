@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -35,6 +35,18 @@ test.skipIf(process.platform === "win32")("board /decide reuses the run's open a
     for (let i = 0; i < 30 && !typed.includes("2026-10-30-r"); i++) { await Bun.sleep(100); try { typed = readFileSync(join(home, "typed"), "utf8"); } catch { /* not yet */ } }
     expect(typed).toContain("2026-10-30-r");
     expect(readFileSync(join(d, "terminals.json"), "utf8").split(first.pty).length).toBeGreaterThan(1);
+    // A plain tab has no session record: the run's Claude session finds it, a wrong one does not.
+    const sessions = join(st, "sessions"), pid = readFileSync(join(sessions, `${first.pty}.pid`), "utf8").trim();
+    rmSync(join(sessions, `${first.pty}.json`));
+    mkdirSync(join(home, ".claude", "sessions"), { recursive: true });
+    writeFileSync(join(home, ".claude", "sessions", `${pid}.json`), JSON.stringify({ pid: Number(pid), sessionId: "sess-plain-tab" }));
+    const session = (s: string) => writeFileSync(join(d, "state.json"), JSON.stringify({ id: "2026-10-30-r", agent: "claude", stage: "plan", awaiting: "approvals.plan", session: s }));
+    session("sess-plain-tab");
+    expect(await decide("approvals.plan")).toMatchObject({ ok: true, pty: first.pty, reused: true });
+    session("sess-another-one");
+    const fresh = await decide("approvals.plan");
+    expect(fresh.reused).toBeUndefined();
+    expect(fresh.pty).not.toBe(first.pty);
   } finally {
     p.kill();
   }

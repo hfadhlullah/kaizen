@@ -284,7 +284,7 @@ export const ptyKeys = () => [...ptys.keys()];
 
 export const ptyState = (key: string) => {
   const p = ptys.get(key);
-  return p ? { alive: p.exit === null, exit: p.exit, asking: p.asking, busy: p.busy, total: p.total, last: p.last, at: p.lastAt, born: p.born } : null;
+  return p ? { pid: p.proc.pid, alive: p.exit === null, exit: p.exit, asking: p.asking, busy: p.busy, total: p.total, last: p.last, at: p.lastAt, born: p.born } : null;
 };
 
 // The environment the user's login shell builds: PATH and anything exported in their

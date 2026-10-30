@@ -277,7 +277,13 @@ export async function web(repoDir: string, opts: Opts = {}) {
   // working. Everything sent to a run goes here before any new agent is started.
   const liveAgent = (dir: string, id: string) => {
     const idx = runIndex(dir);
-    return readSessions(dir).filter((s) => ptyState(s.key)?.alive && ownerOf(dir, s, idx) === id).sort((a, b) => a.started - b.started).pop();
+    const own = readSessions(dir).filter((s) => ptyState(s.key)?.alive && ownerOf(dir, s, idx) === id).sort((a, b) => a.started - b.started).pop();
+    if (own) return own;
+    // A run started by typing /kaizen in a plain tab has no record, only its Claude session.
+    let run: any;
+    try { run = JSON.parse(readText(join(dir, "runs", id, "state.json"))); } catch { return undefined; }
+    const key = run.agent && run.agent !== "claude" ? null : sessionPty(String(run.session ?? ""));
+    return key ? { key, cmd: "claude" } : undefined;
   };
 
   // Start a run's agent again after it ended mid-stage (crashed, closed, a stalled run, or
@@ -2042,6 +2048,32 @@ export async function web(repoDir: string, opts: Opts = {}) {
 // which is as close to a desktop app as a web page gets. Anything else gets a tab.
 // A profile folder gives the window a browser instance of its own (Kaizen Bot's app);
 // on macOS that takes -n, as `open` otherwise hands the args to a running browser.
+// The live pty running a Claude Code session: Claude keeps ~/.claude/sessions/<pid>.json
+// (an internal file, so anything unexpected just means no match), and the pid or one of
+// its parents is the pty's. procStart tells a reused pid from the session's. Linux only.
+export function sessionPty(id: string): string | null {
+  if (!/^[\w-]{8,80}$/.test(id)) return null;
+  const root = join(home, ".claude", "sessions");
+  const started = (pid: number) => readFileSync(`/proc/${pid}/stat`, "utf8").replace(/^.*\) /s, "").split(" ")[19];
+  try {
+    for (const f of readdirSync(root)) {
+      if (!/^\d+\.json$/.test(f)) continue;
+      try {
+        const rec = JSON.parse(readFileSync(join(root, f), "utf8"));
+        if (rec.sessionId !== id) continue;
+        let pid = Number(rec.pid);
+        if (rec.procStart && String(rec.procStart) !== started(pid)) continue;
+        for (let i = 0; i < 32 && pid > 1; i++) {
+          const key = ptyKeys().find((k) => ptyState(k)?.alive && ptyState(k)?.pid === pid);
+          if (key) return key;
+          pid = Number(/^PPid:\s*(\d+)/m.exec(readFileSync(`/proc/${pid}/status`, "utf8"))?.[1]);
+        }
+      } catch { /* gone or unreadable */ }
+    }
+  } catch { /* no such folder, or no /proc */ }
+  return null;
+}
+
 // Whether a Claude Code session is running somewhere: a process whose command line names
 // it (Linux /proc), or its transcript written in the last 90 s (every platform).
 export function sessionLive(id: string): boolean {
