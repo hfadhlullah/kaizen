@@ -21,6 +21,9 @@ const KEEP_MS = 10 * 60_000;
 
 const ptys = new Map<string, Pty>();
 
+// A board started from a colourless place (an agent's shell, CI) carries NO_COLOR; its terminals show colour anyway.
+export const colorEnv = (env: Record<string, string | undefined> = process.env) => { const { NO_COLOR: _, ...rest } = env; return rest; };
+
 // What the sidebar shows for an agent: the latest line the agent printed. Keystrokes are never kept,
 // and nothing is read while a question is open or within ECHO_MS of a keystroke: a terminal echoes
 // what is typed, so that line could be a password. Memory only.
@@ -122,7 +125,7 @@ export function startPty(key: string, cmd: string[], cwd: string, pidFile?: stri
     const ps = winPs();
     p.proc = Bun.spawn([ps, "-NoProfile", "-NonInteractive", "-EncodedCommand", conptyHost()], {
       cwd,
-      env: { ...process.env, KZ_PTY_CMD: innerCommand(ps, cmd), KZ_PTY_CWD: cwd, KZ_PTY_COLS: "120", KZ_PTY_ROWS: "32" },
+      env: { ...colorEnv(), KZ_PTY_CMD: innerCommand(ps, cmd), KZ_PTY_CWD: cwd, KZ_PTY_COLS: "120", KZ_PTY_ROWS: "32" },
       stdin: "pipe", stdout: "pipe", stderr: "pipe", windowsHide: true,
     });
     const read = async (s: ReadableStream<Uint8Array>) => {
@@ -134,7 +137,7 @@ export function startPty(key: string, cmd: string[], cwd: string, pidFile?: stri
     read(p.proc.stderr as ReadableStream<Uint8Array>).catch(() => {});
   } else p.proc = Bun.spawn(cmd, {
     cwd,
-    env: { ...process.env, TERM: "xterm-256color", COLORTERM: "truecolor" },
+    env: { ...colorEnv(), TERM: "xterm-256color", COLORTERM: "truecolor" },
     terminal: { cols: 120, rows: 32, data: (_t, d) => push(dec.decode(d, { stream: true })) },
   });
   if (opts.tmux && cmd[0] === tmuxBin()) p.tmux = opts.tmux;

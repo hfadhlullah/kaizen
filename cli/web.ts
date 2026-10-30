@@ -1066,7 +1066,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
           const name = KNOWN_AGENTS.find((k) => k.cmd === cmd)?.name.split(" ")[0] ?? "Agent";
           agents.push({ key, dir, ws, agent: cmd, name, run, asking: st.asking, busy: st.busy, born: st.born, ...(loopback ? { last: st.last || undefined, at: st.at || undefined } : {}) });
         };
-        for (const x of shells.values()) if (x.agent) addAgent(x.key, x.dir, x.ws, x.agent, x.run);
+        // A plain shell counts too while an agent typed into it runs there.
+        for (const x of shells.values()) { const cmd = x.agent || (x.pid ? shellAgent(x.pid, KNOWN_AGENTS.map((k) => k.cmd)) : undefined); if (cmd) addAgent(x.key, x.dir, x.ws, cmd, x.run); }
         cards.forEach((c, i) => { for (const k of ptys[i]?.all ?? []) addAgent(k, c.state, c.ws, pty.cmd(k) ?? KNOWN_AGENTS.find((a) => c.tags?.includes(a.cmd))?.cmd, c.kind === "run" ? c.id : undefined); });
         const entry = (d: string) => ({ dir: d, label: label(d), logo: !!projectLogo(d),
           workspaces: d === join(home, ".kaizen") ? [{ path: d, branch: "", main: true }] : workspacesNow(projectOf(d)) });
@@ -2058,6 +2059,25 @@ export function sessionLive(id: string): boolean {
     }
   } catch {}
   return false;
+}
+
+// The known agent running below a board shell, by walking its child processes. A wrapper script
+// shows as `bash <path>/claude`, so the first two arguments are checked. Linux only; elsewhere undefined.
+const procRead = (path: string) => readFileSync(path, "utf8");
+export function shellAgent(root: number, known: string[], read: (path: string) => string = procRead): string | undefined {
+  const todo = [root];
+  for (let n = 0; todo.length && n < 200; n++) {
+    const pid = todo.shift()!;
+    try {
+      if (pid !== root) {
+        const argv = read(`/proc/${pid}/cmdline`).split("\0").slice(0, 2).map((a) => a.split("/").pop() ?? "");
+        const hit = known.find((k) => argv.includes(k));
+        if (hit) return hit;
+      }
+      todo.push(...read(`/proc/${pid}/task/${pid}/children`).split(" ").filter(Boolean).map(Number));
+    } catch { /* it ended, or no /proc */ }
+  }
+  return undefined;
 }
 
 // Whether Claude Code session `id` runs as process `root` or under it: Claude Code records
