@@ -138,3 +138,5 @@ The Projects rail keeps the last valid run state during a transient `state.json`
 - `--sh` on an iPhone app comes from the viewport shape, not `screen.orientation` (it can lag a rotation and leave portrait short), and is set again 400 ms after each resize or rotation.
 
 `liveAgent` also finds a run started in a plain Claude tab, which has no session record: `sessionPty` looks up the run's `session` in `~/.claude/sessions/<pid>.json` (Claude Code's internal file, checked against `procStart`) and walks `/proc` parents to a live pty. `/decide`, `/fix` and `resumeRun` all route through it; no match opens a new tab as before. Linux only; a tmux-kept card is not matched. Tested in `cli/web-decide.test.ts`.
+- Phone Runs/Home rows: an idea not started opens the run form as a bottom sheet (`dialog.kz.sheet`, `runPopup()`), not an empty workspace; other rows open the workspace.
+- Ideas and Icebox lists page through `pager()` in `dom.ts`, size saved per browser (`kz-page:<id>`). Icebox keyboard and bulk actions cover the current page only; Swipe covers every filtered request.

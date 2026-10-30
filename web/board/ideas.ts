@@ -3,7 +3,7 @@
 // signal it came from (its `idea` text or `run` id); one typed by hand is "Manual".
 // The data is the rail's (workspace.ts): no fetch of its own.
 import { store } from "./store.ts";
-import { $, html, ico, raw } from "./dom.ts";
+import { $, html, ico, pageOf, pager, pagerHtml, raw, wirePager } from "./dom.ts";
 import { age, NAMES } from "./labels.ts";
 import { key, runPopup } from "./cards.ts";
 import { load, post } from "./api.ts";
@@ -41,6 +41,7 @@ function sourcesOf(cards, d) {
 
 // Keyboard: the row picked with the arrow keys (from the search box or the page), Enter acts on it.
 let sel = 0;
+const pg = pager("ideas");
 let shownRows: any[] = [];
 // Orca's Tasks shape: a toolbar over a list. The search box, the page's filters and New idea
 // live in the shared header elsewhere, so they move in here and go back on leaving.
@@ -78,7 +79,7 @@ function draw() {
   const proj = store.all ? "" : store.S?.dir ?? "";
   const q = (($("bq") as HTMLInputElement | null)?.value ?? "").trim().toLowerCase();
   const fin = (c) => c.status === "done" || c.status === "abandoned";
-  const rows = cards
+  const matched = cards
     .filter((c) => f.src === "all" || src.get(c) === f.src)
     .filter((c) => (proj ? c.state === proj : !shownDirs.length || shownDirs.includes(c.state)))
     // Open: ideas not started yet and runs in flight. Running: runs in flight only. Done: finished runs.
@@ -86,6 +87,7 @@ function draw() {
     .filter((c) => !q || (titleOf(c) + " " + nameOf(c.state, projects)).toLowerCase().includes(q))
     // On Open, ideas above runs or runs above ideas, as chosen; newest first within each.
     .sort((a, b) => (f.show === "open" ? (a.kind === b.kind ? 0 : (a.kind === "idea") === (f.sort === "ideas") ? -1 : 1) : 0) || (b.moved ?? b.added ?? 0) - (a.moved ?? a.added ?? 0));
+  const rows = pageOf(pg, matched);
   const now = Date.now();
   const seg = (v, l) => html`<button class="tk-chip${f.show === v ? " on" : ""}" data-show="${v}">${l}</button>`;
   const srcName = (u) => (u === "all" ? "All sources" : u === "" ? "Manual" : known.get(u) ? srcLabel(known.get(u)) : srcLabel({ url: u }));
@@ -121,7 +123,8 @@ function draw() {
   // Not while a pop-up in it is open: redrawing would close it under the pointer.
   if (!hx.querySelector("details[open]")) hx.innerHTML = String(extra);
   $("tk-chips").innerHTML = String(chips);
-  $("tk-list").innerHTML = String(table);
+  $("tk-list").innerHTML = String(html`${table}${pagerHtml(pg)}`);
+  wirePager(pg, () => ((sel = 0), draw()));
 
   hx.querySelectorAll<HTMLElement>("[data-src]").forEach((b) => (b.onclick = () => ((f.src = b.dataset.src!), (hx.innerHTML = ""), draw())));
   hx.querySelectorAll<HTMLElement>("[data-sort]").forEach(

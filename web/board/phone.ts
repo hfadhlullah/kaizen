@@ -1,6 +1,7 @@
 // ---- Phones: their own Home (devices, recent runs, usage) and the Runs page (this
 // machine's runs grouped waiting / active / done). The board, Ideas and Icebox are set up
 // on a computer; a phone has Home, Chat, Runs and Settings.
+import { runPopup } from "./cards.ts";
 import { $, html, raw } from "./dom.ts";
 import { cardHref, logo, railData, stateOf, subline, titleOf, usageChips } from "./workspace.ts";
 
@@ -108,7 +109,11 @@ export function initPhone(go: (v: string, push?: boolean) => void, openRun: (c) 
     if (a.getAttribute("aria-disabled")) return e.preventDefault();
     if (a.classList.contains("prow")) {
       const c = [...runs(), ...ideas()].find((x) => x.state === a.dataset.dir && rowKey(x) === a.dataset.id);
-      if (c) (e.preventDefault(), openRun(c));
+      if (!c) return;
+      e.preventDefault();
+      // An idea not started has nothing in a workspace yet: pick its agent and mode instead.
+      if (c.kind === "idea" && c.status === "idea") runPopup(c);
+      else openRun(c);
     }
   });
 }

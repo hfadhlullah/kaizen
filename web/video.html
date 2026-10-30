@@ -130,7 +130,7 @@ body .rail a.upd::after{left:calc(50% + 6px);top:4px}body .toast{left:16px;botto
 [data-rail=min] .plist .proj{justify-content:center;margin:10px 0 4px;padding:0}[data-rail=min] .plist .row{grid-template-columns:14px;justify-content:center;padding:0}
 @media(max-width:640px){.rail .psec,.rail .plist,.rail .rib{display:none}.rail .rbot,[data-rail=min] .rail .rbot{display:contents}.rail a.it[data-view=ideas]{order:3}.rail a.it[data-view=board]{order:4}.rail a.it .n,.rail a.it .srcs{display:none}}
 /* phones: Home, Chat, Runs, Settings. The board, Ideas and the Icebox are set up on a computer (web/board/phone.ts) */
-@media(min-width:641px){.rail .rbot .lbl{display:none}}
+@media(min-width:641px){.rail .rbot .lbl{display:none}.rail .rbot a.it{flex:none;width:var(--btn-xs);height:var(--btn-xs);padding:0;justify-content:center;margin-right:auto}[data-rail=min] .rail .rbot a.it{width:var(--btn-s);height:var(--btn-s);margin-right:0}}
 .rail a.it.ponly,#phome{display:none}
 @media(max-width:640px){
 .rail a.it:is([data-view=board],[data-view=ideas],[data-view=sources]),#foot,#ctx-open,body .rail .rbot .rib{display:none!important}

@@ -77,3 +77,46 @@ export const motion = () => {
 // fn as a view transition where the browser has them and motion is on; resolves once the DOM is updated.
 export const vt = (fn: () => void): Promise<void> =>
   motion() && document.startViewTransition ? document.startViewTransition(fn).updateCallbackDone : (fn(), Promise.resolve());
+
+// Paging for a long list: one state per list, its size remembered per browser.
+const PAGE_SIZES = [5, 25, 50, 100];
+export function pager(id: string) {
+  let size = 25;
+  try {
+    const n = Number(localStorage.getItem("kz-page:" + id));
+    if (PAGE_SIZES.includes(n)) size = n;
+  } catch {}
+  return { id, size, at: 0, total: 0 };
+}
+type Pager = ReturnType<typeof pager>;
+// The page of items showing; a list that shrank pulls the page back into range.
+export function pageOf<T>(p: Pager, items: T[]): T[] {
+  p.total = items.length;
+  p.at = Math.max(0, Math.min(p.at, Math.ceil(items.length / p.size) - 1));
+  return items.slice(p.at * p.size, (p.at + 1) * p.size);
+}
+export function pagerHtml(p: Pager) {
+  if (p.total <= PAGE_SIZES[0]) return "";
+  const from = p.at * p.size + 1,
+    to = Math.min(p.total, from + p.size - 1);
+  return html`<div class="kpager" id="pg-${p.id}"><label>Rows<select class="sel" aria-label="Rows per page">${PAGE_SIZES.map((n) => html`<option${n === p.size ? raw(" selected") : ""}>${n}</option>`)}</select></label><span>${from}–${to} of ${p.total}</span><button class="btn sm" type="button" data-to="-1"${p.at ? "" : raw(" disabled")}>Prev</button><button class="btn sm" type="button" data-to="1"${to < p.total ? "" : raw(" disabled")}>Next</button></div>`;
+}
+export function wirePager(p: Pager, redraw: () => void) {
+  const box = $("pg-" + p.id);
+  if (!box) return;
+  box.querySelector("select").onchange = (e) => {
+    p.size = +(e.target as HTMLSelectElement).value;
+    p.at = 0;
+    try {
+      localStorage.setItem("kz-page:" + p.id, String(p.size));
+    } catch {}
+    redraw();
+  };
+  box.querySelectorAll<HTMLElement>("[data-to]").forEach(
+    (b) =>
+      (b.onclick = () => {
+        p.at += +b.dataset.to!;
+        redraw();
+      }),
+  );
+}

@@ -433,6 +433,7 @@ const runHtml = (c) =>
 export function runPopup(c) {
   const dl = modal(runHtml(c)),
     f = dl.querySelector("form");
+  dl.classList.toggle("sheet", isPhone());
   const go = (kind) => {
     // startRun reads the Yolo switch, so the dialog closes after it has.
     void startRun(c, kind);

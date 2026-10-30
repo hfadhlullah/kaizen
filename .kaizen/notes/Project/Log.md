@@ -228,3 +228,7 @@ updated: 2026-10-28
 - 2026-10-30 update — Web board: wide Settings sidebar now sits outside the rounded box with the side menu's look (web/board.html, design.md).
 - 2026-10-30 run 2026-10-30-kaizen-landing-page — Release and testing
 - 2026-10-30 update — Web board: a run with a recorded commit stops claiming later edits; cardsGit judges worktree runs in their worktree.
+- 2026-10-30 update — Web board: a phone opens a not-started idea as the run form in a bottom sheet (`runPopup`) instead of an empty workspace.
+- 2026-10-30 update — Web board: an idea panel's Run opens the run popup over the current page.
+- 2026-10-30 update — Web board: Ideas and Icebox page their lists (5, 25, 50, 100; default 25); the Ideas row accent line is gone.
+- 2026-10-30 update — Web board: Icebox swipe redesigned: centred card, labelled action bar with key hints, no emoji.

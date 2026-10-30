@@ -3,7 +3,7 @@ import { termStop } from "./agent-term.ts";
 import { load, post } from "./api.ts";
 import { via } from "./cards.ts";
 import { mic, stopDictation } from "./dictation.ts";
-import { $, dataUrls, html, ico, modal, motion, raw, SKEL } from "./dom.ts";
+import { $, dataUrls, html, ico, modal, motion, pageOf, pager, pagerHtml, raw, SKEL, wirePager } from "./dom.ts";
 import { ideaCombo, newDir, plogo, setShown, short, showable } from "./projects.ts";
 import { playSound, soundPick, toast } from "./toast.ts";
 import { go, view } from "./views.ts";
@@ -22,6 +22,7 @@ const SRC = "Icebox";
 // The reply style is per project: a promo voice in one need not leak into another's drafts.
 let iceReply = null;
 const iceStyle = {};
+const icePg = pager("icebox");
 const rStyle = (dir) => {
   if (!iceStyle[dir])
     try {
@@ -289,7 +290,10 @@ export async function openSources() {
     groups.get(k).push(i);
   });
   // Rows in the order they are drawn, which is the order j and k walk.
-  const order = [...groups.values()].flat();
+  const filtered = [...groups.values()].flat();
+  // Only the page: j and k, select-all and bulk actions stay on what shows.
+  const order = pageOf(icePg, filtered);
+  const onPage = new Set(order);
   const isWaiting = (it) => !["promoted", "dismissed", "done"].includes(it.status);
   // A checked request a filter hides is unchecked: a bulk action only ever acts on what shows.
   {
@@ -375,12 +379,12 @@ export async function openSources() {
     waiting && !order.length
       ? html`<div class="ice-zero"><h4>No matches</h4><p style="margin-top:10px"><button class="btn sm" id="ice-unf">Clear filters</button></p></div>`
       : order.length
-        ? html`<div class="tk-list ice-list">${[...groups].map(([g, ix]) => html`<div class="ice-cat">${g}<i>${ix.length}</i></div>${ix.map(row)}`)}</div>`
+        ? html`<div class="tk-list ice-list">${[...groups].map(([g, ix]) => (ix.some((i) => onPage.has(i)) ? html`<div class="ice-cat">${g}<i>${ix.length}</i></div>${ix.filter((i) => onPage.has(i)).map(row)}` : ""))}${pagerHtml(icePg)}</div>`
         : html`<div class="ice-zero"><h4>Nothing waiting</h4><p>Requests gathered from your sources wait here until you turn them into ideas.</p>${list.length ? "" : html`<p style="margin-top:10px"><button class="btn sm pri" id="ice-addsrc">${ico("plus")} Add a source</button></p>`}</div>`;
   // Swipe: the waiting requests the filters show, least skipped first; a restored one
   // comes back on top. Nothing is written by a skip.
   const deck = iceSwipe
-    ? order.filter((i) => isWaiting(ice[i])).sort((a, b) => (iceSwipe.skip.get(iceKey(ice[a])) || 0) - (iceSwipe.skip.get(iceKey(ice[b])) || 0))
+    ? filtered.filter((i) => isWaiting(ice[i])).sort((a, b) => (iceSwipe.skip.get(iceKey(ice[a])) || 0) - (iceSwipe.skip.get(iceKey(ice[b])) || 0))
     : [];
   // The card always names its project: a swipe decides for that project's Ideas.
   const pName = (it) => it.project || store.S.projects.find((p) => p.dir === it.dir)?.label || "";
@@ -409,17 +413,17 @@ export async function openSources() {
     const s = Math.round((Date.now() - S.t0) / 1000),
       took = s < 60 ? s + " s" : Math.floor(s / 60) + " min " + (s % 60) + " s";
     const bits = motion() ? html`<div class="sw-confetti" aria-hidden="true">${Array.from({ length: 14 }, (_, n) => raw(`<i style="--x:${(n * 37) % 100}%;--d:${(n % 5) * 0.08}s;--h:${(n * 53) % 360}"></i>`))}</div>` : "";
-    return html`<div class="sw-zero">${S.n ? bits : ""}<h4>✨ Icebox zero ✨</h4><p>${S.n ? `${S.n} sorted · ${S.pro} promoted · ${S.dis} dismissed · in ${took}` : "Nothing waiting here."}</p>${S.days ? html`<p>🗓 ${S.days}-day streak${S.days > 1 ? " — cleared every day" : ""}</p>` : ""}<p style="margin-top:14px"><button class="btn pri sm" id="sw-back">Back to list</button></p></div>`;
+    return html`<div class="sw-zero">${S.n ? bits : ""}<h4>Icebox zero</h4><p>${S.n ? `${S.n} sorted · ${S.pro} promoted · ${S.dis} dismissed · in ${took}` : "Nothing waiting here."}</p>${S.days ? html`<p>${S.days}-day streak${S.days > 1 ? " — cleared every day" : ""}</p>` : ""}<p style="margin-top:14px"><button class="btn pri sm" id="sw-back">Back to list</button></p></div>`;
   };
   const swipe = () => {
     const S = iceSwipe,
       total = S.n + deck.length,
       pop = S.pop;
     S.pop = false;
-    const top = html`<div class="sw-top"><button class="btn ghost sm" id="sw-x" title="Back to the list (Esc)">← List</button><div class="sw-prog" role="progressbar" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${S.n}"><i style="width:${total ? Math.round((S.n / total) * 100) : 100}%"></i></div><span class="sw-of">${deck.length ? `${S.n + 1} of ${total}` : `${total} of ${total}`}</span><span class="sw-streak" title="Sorted this session">🔥 ${S.n}${pop ? html`<b class="sw-plus">+1</b>` : ""}</span></div>`;
+    const top = html`<div class="sw-top"><button class="btn ghost sm" id="sw-x" title="Back to the list (Esc)">← List</button><div class="sw-prog" role="progressbar" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${S.n}"><i style="width:${total ? Math.round((S.n / total) * 100) : 100}%"></i></div><span class="sw-of">${deck.length ? `${S.n + 1} of ${total}` : `${total} of ${total}`}</span><span class="sw-streak" title="Sorted this session">${S.n} sorted${pop ? html`<b class="sw-plus">+1</b>` : ""}</span></div>`;
     if (!deck.length) return html`<div class="sw" id="sw">${top}${swZero()}</div>`;
     const b = (id, cls, icon, label, key, off = false) =>
-      html`<button class="sw-b ${cls}" id="${id}" aria-label="${label} (${key})" title="${label} (${key})"${off ? " disabled" : ""}><span>${icon}</span><small>${label}</small></button>`;
+      html`<button class="sw-b ${cls}" id="${id}" aria-label="${label} (${key})" title="${label} (${key})"${off ? " disabled" : ""}><span>${icon}</span><small>${label}</small><kbd>${key}</kbd></button>`;
     return html`<div class="sw" id="sw">${top}<div class="sw-stack">${deck[1] !== undefined ? swCard(deck[1], true) : ""}${swCard(deck[0], false)}</div><div class="sw-acts">${b("sw-d", "dis", ico("x"), "Dismiss", "←")}${b("sw-s", "", "↓", "Skip", "↓", deck.length < 2)}${b("sw-u", "", ico("restore"), "Undo", "z", !S.last)}${b("sw-p", "pro", ico("check"), "Promote", "→")}</div></div>`;
   };
   // The sources, in the right-hand drawer: shut until asked for. Slid in only when opened;
@@ -708,6 +712,7 @@ export async function openSources() {
       openSources();
     };
   }
+  wirePager(icePg, openSources);
   if ($("ice-all"))
     $("ice-all").onchange = () => {
       const k = order.map((i) => iceKey(ice[i]));

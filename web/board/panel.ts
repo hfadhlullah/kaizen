@@ -2,7 +2,7 @@ import { store } from "./store.ts";
 import { showTerm, termStop } from "./agent-term.ts";
 import { load, post } from "./api.ts";
 import { APPROVAL, answer, confirmAnswers, confirmRevise, decide, decided, resumable, resume } from "./approvals.ts";
-import { cardEl, key, render } from "./cards.ts";
+import { cardEl, key, render, runPopup } from "./cards.ts";
 import { chat } from "./chat.ts";
 import { stopDictation } from "./dictation.ts";
 import { $, html, raw } from "./dom.ts";
@@ -74,6 +74,8 @@ export function open(c, keepTab) {
             toggleArchive(c, a === "archive");
             return;
           }
+          // Over the page it is on, as Start does: no trip to the board.
+          if (a === "run") return runPopup(c);
           const k = key(c);
           // The form lives on the board: the run workspace hands over to it.
           if (view === "run") go("board", true);
