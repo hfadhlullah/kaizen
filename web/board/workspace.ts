@@ -84,6 +84,73 @@ const folded: Set<string> = (() => {
     return new Set();
   }
 })();
+// Pinned worktrees (dir\0ws), kept per browser.
+const pins: Set<string> = (() => {
+  try {
+    return new Set(JSON.parse(localStorage.getItem("kz-ws-pins") || "[]"));
+  } catch {
+    return new Set();
+  }
+})();
+// The right-click menu on a worktree row: update, copy path, copy name, pin, delete.
+function wsMenu(e: MouseEvent, a: HTMLElement) {
+  e.preventDefault();
+  document.getElementById("wsmenu")?.remove();
+  const dir = a.dataset.dir!, ws = a.dataset.ws!, key = dir + "\0" + ws;
+  const w = last.projects?.find((p) => p.dir === dir)?.workspaces?.find((x) => x.path === ws);
+  if (!w) return;
+  const name = wsLabel(w);
+  const say = (m: string) => {
+    const t = $("toast");
+    t.textContent = m;
+    t.classList.add("on");
+    setTimeout(() => t.classList.remove("on"), 4000);
+  };
+  const copy = (text: string) => navigator.clipboard.writeText(text).then(() => say("Copied"), () => say("Could not copy"));
+  const op = async (o: string) => {
+    say(o === "update" ? "Updating…" : "Deleting…");
+    const r = await fetch("/workspace", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ dir, ws, op: o }) }).catch(() => null);
+    const j = await r?.json().catch(() => ({}));
+    say(r?.ok ? (o === "update" ? j.out || "Updated" : "Deleted") : j?.error || j?.why || "Failed");
+  };
+  const items: [string, () => void][] = [
+    ...(w.main ? [] : ([["Update", () => op("update")]] as [string, () => void][])),
+    ["Copy path", () => copy(ws)],
+    ["Copy worktree name", () => copy(name)],
+    [pins.has(key) ? "Unpin" : "Pin", () => {
+      pins.has(key) ? pins.delete(key) : pins.add(key);
+      try {
+        localStorage.setItem("kz-ws-pins", JSON.stringify([...pins]));
+      } catch {}
+      drawList();
+    }],
+    ...(w.main ? [] : ([["Delete", async () => {
+      const dl = modal(html`<div class="gdis" style="display:flex;flex-direction:column;gap:12px">
+        <b>Delete worktree "${name}"?</b>
+        <p>Removes the folder. Refused while it has uncommitted changes. The branch stays.</p>
+        <div class="gpath" style="font:12px monospace;overflow-wrap:anywhere">${ws}</div>
+        <div class="row"><button class="btn" value="no">Cancel</button><button class="btn danger" value="yes">Delete</button></div>
+      </div>`);
+      dl.addEventListener("close", () => dl.returnValue === "yes" && op("delete"));
+    }]] as [string, () => void][])),
+  ];
+  const m = document.createElement("div");
+  m.id = "wsmenu";
+  m.style.cssText = `position:fixed;left:${Math.min(e.clientX, innerWidth - 190)}px;top:${Math.min(e.clientY, innerHeight - items.length * 34 - 16)}px;z-index:50;min-width:170px;padding:6px;background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r);box-shadow:0 8px 24px #0004;display:flex;flex-direction:column`;
+  for (const [label, fn] of items) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = label;
+    b.style.cssText = "text-align:left;padding:7px 10px;font-size:13px;color:var(--ink);border-radius:var(--r-s)";
+    b.onmouseenter = () => (b.style.background = "var(--hover)");
+    b.onmouseleave = () => (b.style.background = "");
+    b.onclick = () => (m.remove(), fn());
+    m.append(b);
+  }
+  document.body.append(m);
+  const off = () => (m.remove(), removeEventListener("click", off), removeEventListener("keydown", off));
+  setTimeout(() => (addEventListener("click", off), addEventListener("keydown", off)));
+}
 // Workspace cards with their agent list open (dir\0ws -> true), kept per browser.
 const wsOpen: Record<string, true> = (() => {
   try {
@@ -126,6 +193,7 @@ export const wsHref = (dir, ws) => `/?view=ws&dir=${encodeURIComponent(dir)}&ws=
 export const RANK = { wait: 0, plan: 1, build: 2, review: 3, stalled: 4, idle: 5, done: 6, aband: 7 };
 export const folderOf = (w) => w.path.split(/[\\/]/).pop() || w.path;
 // A worktree's mark on line 2 of its card.
+const PIN = html`<svg viewBox="0 0 24 24" aria-label="Pinned" style="width:12px;height:12px;flex:none;margin-left:4px;color:var(--accent)"><path d="M12 17v5M9 3h6l-1 6 3 3v2H7v-2l3-3z" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
 const WT = html`<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="8" r="2"/><path d="M6 8v8M18 10c0 4-6 3-12 6"/></g></svg>`;
 let settleT: ReturnType<typeof setTimeout> | undefined;
 let drawn = "";
@@ -150,7 +218,9 @@ function drawList() {
       const rows = p.workspaces
         .map((w) => ({ w, cs: by.get(p.dir + "\0" + w.path) ?? [] }))
         // An empty workspace or one with a run going is active; one holding only finished runs is done.
-        .filter(({ cs }) => filt[cs.length && cs.every((c) => kindOf(c) === "done") ? "done" : "active"]);
+        .filter(({ cs }) => filt[cs.length && cs.every((c) => kindOf(c) === "done") ? "done" : "active"])
+        // Pinned worktrees first (a stable sort keeps the rest in git's order).
+        .sort((a, b) => +pins.has(p.dir + "\0" + b.w.path) - +pins.has(p.dir + "\0" + a.w.path));
       return { p, rows, top: Math.min(9, ...rows.map((r) => top(r.cs))) };
     })
     .filter((g) => g.rows.length)
@@ -181,13 +251,17 @@ function drawList() {
           const st0 = cs.length ? stateOf([...cs].sort((a, b) => RANK[stateOf(a)] - RANK[stateOf(b)])[0]) : "";
           const st = st0 === "wait" || rows[0]?.st === "asking" ? "wait" : rows.some((r) => r.st === "working") ? "build" : st0 || (rows.length ? "done" : "");
           // The agent buttons are siblings of the link (a button inside a link is invalid).
-          return html`<div class="wsr wsc"><a class="row ws" href="${wsHref(dir, w.path)}" data-dir="${dir}" data-ws="${w.path}" title="${w.path}"><span class="si ${st || "none"}"></span><div class="wl"><span class="l1"><b>${wsLabel(w)}</b></span><span class="l2"><span>${folderOf(w)}</span>${w.main ? "" : WT}</span></div></a>${agentsHtml(rows, now, !!wsOpen[dir + "\0" + w.path], dir, w.path)}</div>`;
+          return html`<div class="wsr wsc"><a class="row ws" href="${wsHref(dir, w.path)}" data-dir="${dir}" data-ws="${w.path}" title="${w.path}"><span class="si ${st || "none"}"></span><div class="wl"><span class="l1"><b>${wsLabel(w)}</b>${pins.has(dir + "\0" + w.path) ? PIN : ""}</span><span class="l2"><span>${folderOf(w)}</span>${w.main ? "" : WT}</span></div></a>${agentsHtml(rows, now, !!wsOpen[dir + "\0" + w.path], dir, w.path)}</div>`;
         })}`;
       })
       .join("") || `<div class="none">No projects</div>`;
   // The same markup is not written again: hover and focus stay, and a tick that changed nothing costs no layout.
   if (out !== drawn) box.innerHTML = drawn = out;
   markCurrent();
+  box.oncontextmenu = (e) => {
+    const a = (e.target as HTMLElement).closest<HTMLElement>("a.row.ws");
+    if (a) wsMenu(e, a);
+  };
   box.onclick = (e) => {
     const t = e.target as HTMLElement;
     const term = t.closest<HTMLElement>("[data-term]");

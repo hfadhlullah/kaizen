@@ -781,6 +781,27 @@ export async function web(repoDir: string, opts: Opts = {}) {
         changed();
         return json(r);
       }
+      // The rail's right-click menu on a worktree: update (fast-forward pull) or delete it.
+      // Only an exact non-main path from this project's own worktree list; argv arrays.
+      if (req.method === "POST" && path === "/workspace") {
+        const refused = strict(req);
+        if (refused) return refused;
+        let body: any;
+        try { body = await req.json(); } catch { return bad("json body expected"); }
+        const dir = canonState(String(body.dir ?? ""));
+        if (!states(true).includes(dir) || dir === join(home, ".kaizen")) return bad("choose a project", 404);
+        const project = projectOf(dir);
+        forgetWorkspaces(project);
+        const w = workspaces(project).find((x) => x.path === body.ws);
+        if (!w || w.main) return bad("not a worktree of this project", 400);
+        const r = body.op === "update" ? await runAsync(["git", "pull", "--ff-only"], w.path)
+          : body.op === "delete" ? await runAsync(["git", "worktree", "remove", "--", w.path], project)
+          : null;
+        if (!r) return bad("unknown op", 400);
+        forgetWorkspaces(project);
+        changed();
+        return r.ok ? json({ ok: true, out: r.out }) : bad(r.why, 409);
+      }
       // The rail's + sheet. Each of these starts git, makes a folder or registers one, so
       // they take /worktree's guards and read their paths from the raw body (the generic
       // POST block below would normalise a `..` away before destDir sees it).
