@@ -32,7 +32,7 @@ mm.add("(prefers-reduced-motion: no-preference)", () => {
     .from(".kanji", { autoAlpha: 0, duration: 0.8 }, 0)
     .from("h1 span", { yPercent: 40, autoAlpha: 0, duration: 1.1, stagger: 0.12 }, 0.1)
     .from(".sub", { y: 24, autoAlpha: 0, duration: 0.9 }, 0.5)
-    .from(".hero .pill", { y: 18, autoAlpha: 0, duration: 0.8 }, 0.65);
+    .from(".hero .pill", { y: 18, autoAlpha: 0, duration: 0.8, clearProps: "all" }, 0.65);
 
   gsap.to(".ascii", { yPercent: 18, ease: "none", scrollTrigger: { trigger: ".hero", start: "top top", end: "bottom top", scrub: true } });
 

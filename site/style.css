@@ -83,17 +83,15 @@ h1 span { display: block; }
 .meta a { display: inline-block; padding: 10px 8px; }
 .meta a:hover { color: var(--ink); }
 
-/* Buttons stutter like the hero wordmark: bands tear sideways, then settle. */
+/* Buttons jitter once on hover. Keep it to 1-2px and no clip-path: both change the hit area under the pointer. */
 @keyframes stutter {
-  0%, 100% { transform: none; clip-path: inset(0); }
-  12% { transform: translateX(-3px); clip-path: inset(0 0 58% 0); }
-  24% { transform: translateX(3px); clip-path: inset(42% 0 0 0); }
-  36% { transform: translateX(-2px); clip-path: inset(18% 0 30% 0); }
-  48% { transform: translateX(2px); clip-path: inset(0); }
-  60% { transform: translateX(-1px); clip-path: inset(0 0 22% 0); }
-  72% { transform: none; clip-path: inset(0); }
+  0%, 100% { transform: none; opacity: 1; }
+  20% { transform: translateX(-2px); opacity: .75; }
+  40% { transform: translateX(2px); opacity: 1; }
+  60% { transform: translateX(-1px); opacity: .88; }
+  80% { transform: translateX(1px); opacity: 1; }
 }
-.pill:hover, .os button:hover, .cmd button:hover, .pill:focus-visible, .os button:focus-visible, .cmd button:focus-visible { animation: stutter .42s steps(1) 1; }
+.pill:hover, .os button:hover, .cmd button:hover, .pill:focus-visible, .os button:focus-visible, .cmd button:focus-visible { animation: stutter .3s steps(1) 1; }
 
 .w { display: inline-block; }
 .armed .w { opacity: 0; }

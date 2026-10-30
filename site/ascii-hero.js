@@ -63,6 +63,7 @@
   }
   hero.addEventListener("pointermove", (e) => {
     if (still.matches) return;
+    if (e.target.closest(".pill")) return (until = 0);
     const box = canvas.getBoundingClientRect();
     py = (e.clientY - box.top) * (devicePixelRatio || 1);
     until = performance.now() + SETTLE_MS;
