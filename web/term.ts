@@ -13,7 +13,8 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
   const theme = () => ({ background: tok("--bg"), foreground: tok("--ink-hi"), cursor: tok("--accent"), selectionBackground: tok("--line") });
   const term = new Terminal({
     cursorBlink: true,
-    fontFamily: tok("--mono"),
+    // Nerd Font first: shell prompts print private-use glyphs that plain monospace fonts lack.
+    fontFamily: `"JetBrainsMono Nerd Font",${tok("--mono")}`,
     fontSize: 12,
     scrollback: 5000,
     allowProposedApi: true, // search match decorations
