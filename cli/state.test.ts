@@ -1526,3 +1526,22 @@ test("stageFiles, commitStaged, suggestMessage: only the run's files are staged,
   expect(readFileSync(join(proj, "a.txt"), "utf8")).toBe("junk\n");
   rmSync(root, { recursive: true, force: true });
 });
+
+test("runGit: a run owns the files its report lists as changed, not ones it only mentions", () => {
+  const proj = mkdtempSync(join(tmpdir(), "kaizen-own-")), st = join(proj, ".kaizen"), g = (...a: string[]) => Bun.spawnSync(["git", "-C", proj, ...a]);
+  g("init", "-q"); g("config", "user.email", "t@t"); g("config", "user.name", "t"); g("remote", "add", "origin", "https://example.invalid/r.git");
+  for (const f of ["listed.txt", "mentioned.txt", "fixed.txt", "whole.txt", "script.txt", "kept.txt"]) writeFileSync(join(proj, f), "1\n");
+  g("add", "."); g("commit", "-qm", "base", "--date=2000-01-01T00:00:00");
+  Bun.spawnSync(["git", "-C", proj, "commit", "-q", "--amend", "--no-edit"], { env: { ...process.env, GIT_COMMITTER_DATE: "2000-01-01T00:00:00" } });
+  for (const f of ["listed.txt", "mentioned.txt", "fixed.txt", "whole.txt", "script.txt", "kept.txt"]) writeFileSync(join(proj, f), "2\n");
+  const a = join(st, "runs", "a"), b = join(st, "runs", "b");
+  mkdirSync(join(a, "05-iterations"), { recursive: true }); mkdirSync(b, { recursive: true });
+  writeFileSync(join(a, "state.json"), "{}"); writeFileSync(join(b, "state.json"), "{}");
+  writeFileSync(join(a, "03-impl.md"), "## Changed\n- `listed.txt`\n\n## Scripts\n- `script.txt`\n\n## Left unchanged\n`kept.txt`\n\n## Deviations\n`mentioned.txt` is another session's.\n");
+  writeFileSync(join(a, "05-iterations", "01-fix.md"), "# Fix\n- `fixed.txt`\n");
+  writeFileSync(join(b, "03-impl.md"), "No headings here: `whole.txt`\n");
+  const files = (id: string) => (runGit(st, id) as any).files.map((l: string) => l.slice(3));
+  expect(files("a")).toEqual(["fixed.txt", "listed.txt", "script.txt"]);
+  expect(files("b")).toEqual(["whole.txt"]);
+  rmSync(proj, { recursive: true, force: true });
+});

@@ -1830,13 +1830,14 @@ export function gitStatus(projectDir: string): GitStatus {
 // a quote, a backslash) never matches a report; read `status -z` if that comes up.
 const statusPath = (line: string) => line.slice(3).split(" -> ").pop()!.replace(/^"|"$/g, "");
 
-// What a run reported changing: 03-impl.md and its fix rounds, and when the newest
-// of them was written.
+// What a run reported changing: 03-impl.md and its fix rounds, the parts of them that
+// list changes (`named`), and when the newest of them was written.
 function runReport(state: string, id: string) {
   const base = join(state, "runs", id), its = join(base, "05-iterations");
   const fixes = existsSync(its) ? readdirSync(its).filter((n) => n.endsWith("-fix.md")).map((n) => join(its, n)) : [];
-  let text = "", at = 0;
-  for (const f of [join(base, "03-impl.md"), ...fixes]) try { text += readText(f) + "\n"; at = Math.max(at, statSync(f).mtimeMs); } catch {}
+  let text = "", named = "", at = 0;
+  // Sections are cut per file, so one report's headings never decide for another.
+  for (const f of [join(base, "03-impl.md"), ...fixes]) try { const t = readText(f); text += t + "\n"; named += ownSections(t) + "\n"; at = Math.max(at, statSync(f).mtimeMs); } catch {}
   // A finished run did no work after it was done: a report touched later (a rewrite, a
   // docs pass) would otherwise read as newer than the commit holding its work, and the
   // run would be offered the next run's changes.
@@ -1844,7 +1845,7 @@ function runReport(state: string, id: string) {
     const st = JSON.parse(readText(join(base, "state.json"))), done = Date.parse(st.updated);
     if (st.stage === "done" && done) at = Math.min(at, done);
   } catch {}
-  return { text, at };
+  return { text, named, at };
 }
 // The final-approval gate. A run that changed files is only accepted by an
 // `accepted:` line in its 02-approval.md, written by the board's Approve, by the main
@@ -1862,6 +1863,11 @@ const changeSections = (report: string) => {
   const parts = report.split(/^(?=#{2,3} )/m).filter((p) => /^#{2,3} .*(chang|files)/i.test(p));
   return parts.length ? parts.join("\n") : report;
 };
+// What may name a run's own files: the report without the sections known to talk about
+// other things. Dropping known headings, not keeping known ones: a section with an
+// unusual name stays in, since hiding real work is the worse mistake.
+const NOT_CHANGES = /deviat|verif|preview|how to test|commit|gate|unchanged|not changed|no change|not done|undone|skipped|out of scope|notes/i;
+const ownSections = (report: string) => report.split(/^(?=#{2,3} )/m).filter((p) => !(/^#{2,3} /.test(p) && NOT_CHANGES.test(p.split("\n")[0]))).join("");
 export function changedPaths(report: string, projectDir: string): string[] {
   const out = new Set<string>();
   for (const m of changeSections(report).matchAll(/`([^`\n]+)`/g)) {
@@ -1953,7 +1959,7 @@ export function finishRun(state: string, id: string, userApproved = false): stri
 }
 const names = (report: string, path: string) => report.includes("`" + path + "`") || report.includes("`" + path + ":");
 
-type Report = { id: string; text: string; at: number; sha?: string };
+type Report = { id: string; text: string; named: string; at: number; sha?: string };
 function runReports(state: string): Report[] {
   let ids: string[] = [];
   try { ids = readdirSync(join(state, "runs")); } catch {}
@@ -1962,7 +1968,7 @@ function runReports(state: string): Report[] {
 // A run holds a path at time `t` when its report names it, was written by then, and no
 // other run naming it reported in between.
 const owns = (mine: Report, rest: Report[], p: string, t: number) =>
-  names(mine.text, p) && mine.at <= t && !rest.some((r) => r.at > mine.at && r.at <= t && names(r.text, p));
+  names(mine.named, p) && mine.at <= t && !rest.some((r) => r.at > mine.at && r.at <= t && names(r.named, p));
 const lastCommit = (dir: string, p: string) => Number(git(dir, "--literal-pathspecs", "log", "-1", "--format=%ct", "--", p).out) * 1000;
 // A changed file is the run's unless it was committed after the report: then the run's
 // work in it is in, and what changed since is someone else's. A commit in the same
@@ -1991,7 +1997,7 @@ function aheadBy(s: GitStatus & { repo: true }, all: Report[]): (id: string) => 
       let most = -1;
       for (const r of all) {
         if (!r.text || r.at > c.at + 999) continue;
-        const k = c.files.filter((p) => names(r.text, p)).length;
+        const k = c.files.filter((p) => names(r.named, p)).length;
         if (k > most || (k === most && r.at > best!.at)) { best = r; most = k; }
       }
     }
@@ -2011,13 +2017,13 @@ function aheadBy(s: GitStatus & { repo: true }, all: Report[]): (id: string) => 
 export function runGit(state: string, id: string): GitStatus {
   const dir = codeDir(dirname(state), id), s = gitStatus(dir);
   if (!s.repo) return s;
-  const all = runReports(state), mine = all.find((r) => r.id === id) ?? { id, text: "", at: 0 };
+  const all = runReports(state), mine = all.find((r) => r.id === id) ?? { id, text: "", named: "", at: 0 };
   const rest = all.filter((o) => o.id !== id);
   const files = runFiles(dir, s.files, mine, rest);
   const shared = files.flatMap((l) => {
     const p = statusPath(l);
     const since = lastCommit(dir, p);
-    const who = rest.filter((r) => r.at > since && names(r.text, p)).map((r) => short(r.id));
+    const who = rest.filter((r) => r.at > since && names(r.named, p)).map((r) => short(r.id));
     return who.length ? [`${p}: ${who.join(", ")}`] : [];
   });
   const { unpushed, ...base } = s;
@@ -2163,7 +2169,7 @@ export function cardsGit(state: string, ids: string[], due: Record<string, "comm
   if (!s.repo) return out;
   const all = runReports(state), ahead = aheadBy(s, all);
   for (const id of ids) {
-    const mine = all.find((r) => r.id === id) ?? { id, text: "", at: 0 }, k = readCommit(state, id);
+    const mine = all.find((r) => r.id === id) ?? { id, text: "", named: "", at: 0 }, k = readCommit(state, id);
     const files = runFiles(dir, s.files, mine, all.filter((o) => o.id !== id)).length;
     if (files) out[id] = "pending", due[id] = "commit";
     else if (k?.pushed) out[id] = "pushed";

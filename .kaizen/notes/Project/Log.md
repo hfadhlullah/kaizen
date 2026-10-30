@@ -220,3 +220,4 @@ updated: 2026-10-28
 - 2026-10-30 Web board: Settings moved to Orca's sidebar and page layout (run 2026-10-30-settings-orca-layout).
 - 2026-10-30 run 2026-10-30-picker-follows-new-run — Web board
 - 2026-10-30 run 2026-10-30-monochrome-theme — Web board
+- 2026-10-30 run 2026-10-30-board-run-own-files — Web board
