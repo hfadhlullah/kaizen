@@ -89,8 +89,9 @@ export async function load(quiet) {
   }
   if (store.openKey) {
     const c = store.S.cards.find((x) => key(x) === store.openKey),
-      ta = $("pbody").querySelector(".notes textarea");
-    if (ta && document.activeElement === ta) return;
+      nb = $("pbody").querySelector(".notes");
+    // The textarea is hidden under the rich editor: focus anywhere in the notes counts.
+    if (nb?.contains(document.activeElement)) return;
     if (!c) {
       if (was && was.kind === "idea") follow(was);
       return;

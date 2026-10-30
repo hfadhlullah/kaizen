@@ -601,7 +601,15 @@ async function closeTab(id: string) {
   if (id.startsWith("sh:")) {
     await post("/pty/exit", { key: id.slice(3) });
     shells = shells.filter((x) => "sh:" + x.key !== id);
-  } else if (id.startsWith("agent:")) s.hidden.push(id);
+  } else if (id.startsWith("agent:")) {
+    // Closing the tab ends the agent, so the sidebar stops listing it; one mid-turn asks first.
+    const k = id.slice(6),
+      a = store.S.agents?.find((x) => x.key === k);
+    if (a?.busy && !confirm("This agent is still working. End it?")) return;
+    s.hidden.push(id);
+    await post("/pty/exit", { key: k });
+    load(true);
+  }
   else if (id.startsWith("wait:")) elsewhere.delete(id.slice(5));
   else s.tabs = s.tabs.filter((t) => t.id !== id);
   save();
