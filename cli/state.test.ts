@@ -1545,3 +1545,23 @@ test("runGit: a run owns the files its report lists as changed, not ones it only
   expect(files("b")).toEqual(["whole.txt"]);
   rmSync(proj, { recursive: true, force: true });
 });
+
+test("a committed run does not claim a file edited after its commit", () => {
+  const root = mkdtempSync(join(tmpdir(), "kz-seal-")), st = join(root, ".kaizen"), run = join(st, "runs", "r1");
+  mkdirSync(run, { recursive: true });
+  const ago = (s: number) => Math.floor(Date.now() / 1000) - s;
+  const sh = (at: number, ...a: string[]) => Bun.spawnSync(["git", "-c", "user.name=t", "-c", "user.email=t@t", ...a], { cwd: root, env: { ...process.env, GIT_AUTHOR_DATE: `${at} +0000`, GIT_COMMITTER_DATE: `${at} +0000` } }).stdout.toString().trim();
+  sh(ago(300), "init", "-q"); sh(ago(300), "remote", "add", "origin", "https://example.com/x.git");
+  writeFileSync(join(root, "a.txt"), "1"); sh(ago(300), "add", "a.txt"); sh(ago(300), "commit", "-qm", "init");
+  writeFileSync(join(run, "03-impl.md"), "## Changed\n- `a.txt`: edit\n");
+  utimesSync(join(run, "03-impl.md"), ago(200), ago(200));
+  writeFileSync(join(root, "b.txt"), "1"); sh(ago(100), "add", "b.txt"); sh(ago(100), "commit", "-qm", "the run");
+  writeFileSync(join(root, "a.txt"), "2");
+  const before: Record<string, string> = {}, after: Record<string, string> = {};
+  cardsGit(st, ["r1"], before as any);
+  expect(before.r1).toBe("commit");   // no commit recorded: still the run's
+  writeFileSync(join(run, "07-commit.md"), `commit: ${sh(ago(0), "rev-parse", "--short", "HEAD")}\npushed: no\n`);
+  cardsGit(st, ["r1"], after as any);
+  expect(after.r1).not.toBe("commit");
+  rmSync(root, { recursive: true, force: true });
+});

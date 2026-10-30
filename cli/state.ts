@@ -1973,10 +1973,19 @@ const lastCommit = (dir: string, p: string) => Number(git(dir, "--literal-pathsp
 // A changed file is the run's unless it was committed after the report: then the run's
 // work in it is in, and what changed since is someone else's. A commit in the same
 // second as the report keeps the file offered; hiding real work is the worse mistake.
-const runFiles = (dir: string, changed: string[], mine: Report, rest: Report[]) => changed.filter((l) => {
-  const p = statusPath(l);
-  return owns(mine, rest, p, Infinity) && !(lastCommit(dir, p) > mine.at);
-});
+// A run with a recorded commit is closed: a file edited after that commit is someone
+// else's, even when the commit left it out, unless a later report (a fix) reopened the run.
+const commitTime = (dir: string, sha?: string) => (sha && /^[0-9a-f]{4,40}$/i.test(sha) ? Number(git(dir, "show", "-s", "--format=%ct", sha).out) * 1000 || 0 : 0);
+const editedAfter = (dir: string, p: string, t: number) => {
+  try { return statSync(join(dir, p)).mtimeMs >= t + 1000; } catch { return false; }
+};
+const runFiles = (dir: string, changed: string[], mine: Report, rest: Report[]) => {
+  const sealed = commitTime(dir, mine.sha);
+  return changed.filter((l) => {
+    const p = statusPath(l);
+    return owns(mine, rest, p, Infinity) && !(lastCommit(dir, p) > mine.at) && !(sealed >= mine.at - 1000 && sealed > 0 && editedAfter(dir, p, sealed));
+  });
+};
 // How many unpushed commits each run has, worked out once for every run. A commit is
 // one run's, so a wide commit is not pinned on every old run that once touched a file
 // in it: the run whose record holds its SHA, then the report holding its subject, else, of
@@ -2170,10 +2179,13 @@ export function cardsGit(state: string, ids: string[], due: Record<string, "comm
   const all = runReports(state), ahead = aheadBy(s, all);
   for (const id of ids) {
     const mine = all.find((r) => r.id === id) ?? { id, text: "", named: "", at: 0 }, k = readCommit(state, id);
-    const files = runFiles(dir, s.files, mine, all.filter((o) => o.id !== id)).length;
+    // A run in its own worktree is judged there: the project folder's changes are not its.
+    const wt = codeDir(dir, id), st = wt === dir ? s : gitStatus(wt);
+    if (!st.repo) continue;
+    const files = runFiles(wt, st.files, mine, all.filter((o) => o.id !== id)).length;
     if (files) out[id] = "pending", due[id] = "commit";
     else if (k?.pushed) out[id] = "pushed";
-    else if (ahead(id) > 0) out[id] = "pending", due[id] = "push";
+    else if ((wt === dir ? ahead : aheadBy(st, all))(id) > 0) out[id] = "pending", due[id] = "push";
     else if (k || mine.text) out[id] = "pushed";
   }
   return out;

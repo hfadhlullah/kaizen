@@ -225,3 +225,6 @@ updated: 2026-10-28
 - 2026-10-30 run 2026-10-30-update-popup — Web board
 - 2026-10-30 run 2026-10-30-decide-reuse-session — Web board: decisions reach a plain Claude tab running the run's session instead of opening a new tab.
 - 2026-10-30: `/state` rebuild moved to a Worker so it no longer stalls terminal typing — Web board
+- 2026-10-30 update — Web board: wide Settings sidebar now sits outside the rounded box with the side menu's look (web/board.html, design.md).
+- 2026-10-30 run 2026-10-30-kaizen-landing-page — Release and testing
+- 2026-10-30 update — Web board: a run with a recorded commit stops claiming later edits; cardsGit judges worktree runs in their worktree.

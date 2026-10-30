@@ -309,6 +309,9 @@ side menu, no scrim, no close button, its title at `20px` and its content in a c
 `760px` column. Each has its own address (`/?view=settings`, `/?view=sources`), so Back
 and reload return to it. Opening a card from anywhere goes back to the board first.
 
+On a wide screen Settings' sidebar takes the side menu's place and its look: on the page
+ground outside the rounded box, same width, row height, type and current-row accent.
+
 Settings follows the phone settings grammar. Each group is a heading (`13px`, uppercase,
 weight 400, `--dim`) over an inset rounded group (`--r`, a `--dim` 9 % fill on `--bg-2`).
 A row is one setting: its name (`15px`, weight 400) with its one-sentence help always
