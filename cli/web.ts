@@ -3,13 +3,14 @@
 import { existsSync, readdirSync, statSync, lstatSync, realpathSync, readFileSync, watch, appendFileSync, mkdirSync, cpSync, rmSync, writeFileSync, type FSWatcher } from "node:fs";
 import { join, dirname, resolve, sep, basename } from "node:path";
 import {
-  home, type Item, type Card, boardCards, knownProjects, remember, canonPath, locate, label, tilde, searchRoots, findProjects,
+  home, type Item, type Card, knownProjects, remember, canonPath, locate, label, tilde, searchRoots, findProjects,
   readInbox, writeInbox, replaceIdea, moveIdea, abandonRun, runToIdea, launchRun, parseItem, agentChoices, onPath, projectOf, KNOWN_AGENTS, plainModel, short, setArchived, writeNotes,
-  appendNote, saveAttachment, pidOnPort, readText, cmdExe, sysExe, powershellExe, runGit, cardsGit, readCommit, commitPush, commitStaged, stageFiles, suggestMessage, notice, notifier, LOGO,
-  reviewFindings, pickFindings, backlogCards, backlogItem, startedBacklog, closeBacklog, markBacklogDone, fixPrompt, approvalPrompt, canApproveAwaiting, gateOf, recordAcceptance, healRuns, finishRun, nativePath, closeSessions, sweepSessions, issueUrl,
+  appendNote, saveAttachment, pidOnPort, readText, cmdExe, sysExe, powershellExe, runGit, readCommit, commitPush, commitStaged, stageFiles, suggestMessage, notice, notifier, LOGO,
+  reviewFindings, pickFindings, backlogItem, startedBacklog, closeBacklog, markBacklogDone, fixPrompt, approvalPrompt, canApproveAwaiting, gateOf, recordAcceptance, healRuns, finishRun, nativePath, closeSessions, sweepSessions, issueUrl,
   launchMode, readSessions, ownerOf, runIndex, resumePrompt, runAgent, firstSession, webHosts,
 } from "./state.ts";
 import { attachPty, writePty, submitPty, resizePty, exitPty, ptyState, ptyKeys, adoptLoginEnv, startPty, ptySupported, detachPty, ptyTail, ptyTmux, tmuxAlive, RESUMED } from "./pty.ts";
+import { snapshot, snapWorker } from "./state-snap.ts";
 import { claudeUsage, codexUsage, phonePeers, type Usage } from "./usage.ts";
 import { readSources, addSource, removeSource, moveSource, setCategory, setWriteback, setPaused, readIcebox, promote, dismiss, restore, addItem, markDone, markReplied, gatherSource, freshImages, gatherAll, gatherDirs, due, socialUrl, socialOf } from "./sources.ts";
 import { projectLogo, LOGO_TYPES } from "./logo.ts";
@@ -260,8 +261,9 @@ export async function web(repoDir: string, opts: Opts = {}) {
   // nothing watches the working trees anyway. Any write request drops both.
   let stateGen = 0;
   const stateCache = new Map<string, { gen: string; at: number; body: string }>();
-  const gitCache = new Map<string, { at: number; ids: string; marks: Record<string, string>; dues: Record<string, "commit" | "push"> }>();
-  const STATE_MS = 1000, GIT_MS = 5000;
+  const buildSnap = snapWorker();
+  let gitGen = 0;
+  const STATE_MS = 1000;
   const changed = () => {
     stateGen++;
     if (pending) return;
@@ -548,7 +550,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
       // arrives with that hostname in Host, and gets nothing.
       const hostname = (req.headers.get("host") ?? "").toLowerCase().replace(/:\d+$/, "");
       if (hostname !== "127.0.0.1" && hostname !== "localhost" && !extraHosts.has(hostname)) return new Response("forbidden", { status: 403 });
-      if (req.method !== "GET") { stateGen++; gitCache.clear(); }
+      if (req.method !== "GET") { stateGen++; gitGen++; }
       const url = new URL(req.url);
       const path = url.pathname;
       const qdir = () => { const v = url.searchParams.get("dir"); return v == null ? v : canonState(v); };
@@ -1047,21 +1049,9 @@ export async function web(repoDir: string, opts: Opts = {}) {
         const gen = `${stateGen} ${ptyKeys().map((k) => { const s = ptyState(k)!; return `${k}:${s.alive}:${s.asking}:${s.busy}:${s.at}`; }).join()}`;
         const cacheKey = `${all}\0${state}\0${loopback}`, hit = stateCache.get(cacheKey);
         if (hit?.gen === gen && Date.now() - hit.at < STATE_MS) return new Response(hit.body, { headers: { "content-type": "application/json" } });
-        for (const d of dirs) healRuns(d);
-        const cards = boardCards(dirs, Date.now()), pty = ptyOf(cards);
-        // The git mark, for the cards whose panel offers commit and push: one status per project.
-        const marks = new Map<string, Record<string, string>>(), dues = new Map<string, Record<string, "commit" | "push">>();
-        const markable = (c: Card) => c.kind === "run" && !c.archived && (c.status === "done" || c.awaiting === "approvals.review") && c.state !== join(home, ".kaizen");
-        for (const d of new Set(cards.filter(markable).map((c) => c.state))) {
-          const ids = cards.filter((c) => markable(c) && c.state === d).map((c) => c.id!), idKey = ids.join("\n"), had = gitCache.get(d);
-          if (had?.ids === idKey && Date.now() - had.at < GIT_MS) { marks.set(d, had.marks); dues.set(d, had.dues); continue; }
-          const due: Record<string, "commit" | "push"> = {}, mark = cardsGit(d, ids, due);
-          marks.set(d, mark); dues.set(d, due);
-          gitCache.set(d, { at: Date.now(), ids: idKey, marks: mark, dues: due });
-        }
-        // Open findings the panel's Fix findings form would offer, on the same runs.
-        const openFindings = (c: Card) => c.kind === "run" && !c.archived && (c.status === "done" || c.awaiting === "findings" || c.awaiting === "approvals.review") && c.state !== join(home, ".kaizen")
-          ? reviewFindings(c.state, c.id!).filter((f) => !f.done).length || undefined : undefined;
+        // Off this thread: it also relays every terminal, and a rebuild here froze their typing.
+        const { cards, extra, backlog } = await buildSnap(dirs, gitGen).catch(() => snapshot(dirs, gitGen));
+        const pty = ptyOf(cards);
         // The agents open now, for the sidebar cards: one list per tick, from the cards' sessions and the board's agent
         // shells. ws is as the card or shell has it; the page resolves it to a listed workspace. Ended agents are left out.
         const agents: any[] = [], seenKey = new Set<string>(), ptys = cards.map(pty);
@@ -1086,8 +1076,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
           rail: [...new Set(cards.map((c) => c.state))].filter((d) => !picker.includes(d)).map(entry),
           fresh: unset.map((d) => ({ dir: join(d, ".kaizen"), label: tilde(d) })),
           agents,
-          cards: cards.map((c, i) => ({ ...c, notice: notice(c), git: markable(c) ? marks.get(c.state)?.[c.id!] : undefined, gitDue: markable(c) ? dues.get(c.state)?.[c.id!] : undefined, open: openFindings(c), pty: ptys[i] })),
-          backlog: backlogCards(dirs).map((b) => ({ ...b, starting: backlogLaunched.has(`${b.state}\0${b.source}#${b.n}`) || undefined })),
+          cards: cards.map((c, i) => ({ ...c, notice: notice(c), ...extra[i], pty: ptys[i] })),
+          backlog: backlog.map((b) => ({ ...b, starting: backlogLaunched.has(`${b.state}\0${b.source}#${b.n}`) || undefined })),
           now: Date.now(),
         });
         stateCache.set(cacheKey, { gen, at: Date.now(), body });

@@ -224,3 +224,4 @@ updated: 2026-10-28
 - 2026-10-30: run 2026-10-30-ideas-icebox-orca-tasks: Ideas and Icebox moved to Orca's Tasks layout; Web board updated.
 - 2026-10-30 run 2026-10-30-update-popup — Web board
 - 2026-10-30 run 2026-10-30-decide-reuse-session — Web board: decisions reach a plain Claude tab running the run's session instead of opening a new tab.
+- 2026-10-30: `/state` rebuild moved to a Worker so it no longer stalls terminal typing — Web board
