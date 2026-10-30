@@ -199,6 +199,14 @@ export function writePty(key: string, d: string) {
   send(p, d);
 }
 
+// Text and Enter sent as one burst read as a paste to Claude Code and other TUIs: the Enter
+// lands in the input as a newline and nothing submits. Enter follows on its own, after the
+// paste window has closed.
+export function submitPty(key: string, text: string, gap = 300) {
+  writePty(key, text);
+  setTimeout(() => writePty(key, "\r"), gap);
+}
+
 const send = (p: Pty, d: string) => {
   if (!WIN) return p.proc.terminal?.write(d);
   try { (p.proc.stdin as Bun.FileSink).write(d); (p.proc.stdin as Bun.FileSink).flush(); } catch { /* host gone */ }

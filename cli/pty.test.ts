@@ -5,7 +5,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, realpa
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { launchMode, closeSessions, readSessions, sweepSessions } from "./state.ts";
-import { loginEnv, startPty, writePty, attachPty, ptyState, exitPty, lastLine } from "./pty.ts";
+import { loginEnv, startPty, writePty, submitPty, attachPty, ptyState, exitPty, lastLine } from "./pty.ts";
 import { conptyHost, innerCommand, resizeSeq } from "./conpty.ts";
 
 const root = realpathSync(mkdtempSync(join(tmpdir(), "kaizen-pty-")));
@@ -231,6 +231,20 @@ test.skipIf(process.platform !== "win32")("on Windows a card agent runs in a pse
   for (let i = 0; i < 100 && ptyState(key)?.alive; i++) await Bun.sleep(100);
   expect(ptyState(key)?.alive).toBe(false);
 }, 60_000);
+
+test.skipIf(process.platform === "win32")("submit: Enter reaches the agent on its own, not in the text's burst", async () => {
+  const key = "submit-" + Date.now(), log = join(root, "chunks-" + key), script = join(root, "chunks.js");
+  writeFileSync(script, `process.stdin.setRawMode(true); process.stdin.on("data", (d) => require("fs").appendFileSync(${JSON.stringify(log)}, JSON.stringify(d.toString()) + "\\n")); console.log("ready");`);
+  const out: string[] = [];
+  startPty(key, [process.execPath, script], root);
+  attachPty(key, (d) => { if (d) out.push(d); });
+  for (let i = 0; i < 100 && !out.join("").includes("ready"); i++) await Bun.sleep(50);
+  submitPty(key, "hello", 100);
+  let chunks = "";
+  for (let i = 0; i < 40 && !chunks.includes("\\r"); i++) { await Bun.sleep(50); try { chunks = readFileSync(log, "utf8"); } catch { /* not yet */ } }
+  expect(chunks.trim().split("\n").map((l) => JSON.parse(l))).toEqual(["hello", "\r"]);
+  exitPty(key, 100);
+});
 
 test("busy: on while the agent draws its working line, off once it goes quiet; other output is not work", async () => {
   const key = "busy-" + Date.now();

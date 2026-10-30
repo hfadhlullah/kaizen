@@ -9,7 +9,7 @@ import {
   reviewFindings, pickFindings, backlogCards, backlogItem, startedBacklog, closeBacklog, markBacklogDone, fixPrompt, approvalPrompt, canApproveAwaiting, gateOf, recordAcceptance, healRuns, finishRun, nativePath, closeSessions, sweepSessions, issueUrl,
   launchMode, readSessions, ownerOf, runIndex, resumePrompt, runAgent, firstSession, webHosts,
 } from "./state.ts";
-import { attachPty, writePty, resizePty, exitPty, ptyState, ptyKeys, adoptLoginEnv, startPty, ptySupported, detachPty, ptyTail, ptyTmux, tmuxAlive, RESUMED } from "./pty.ts";
+import { attachPty, writePty, submitPty, resizePty, exitPty, ptyState, ptyKeys, adoptLoginEnv, startPty, ptySupported, detachPty, ptyTail, ptyTmux, tmuxAlive, RESUMED } from "./pty.ts";
 import { claudeUsage, codexUsage, phonePeers, type Usage } from "./usage.ts";
 import { readSources, addSource, removeSource, moveSource, setCategory, setWriteback, setPaused, readIcebox, promote, dismiss, restore, addItem, markDone, markReplied, gatherSource, freshImages, gatherAll, gatherDirs, due, socialUrl, socialOf } from "./sources.ts";
 import { projectLogo, LOGO_TYPES } from "./logo.ts";
@@ -1870,7 +1870,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           // the text queues in it, and no second agent opens beside it.
           const live = liveAgent(dir, id);
           if (live) {
-            writePty(live.key, text + "\r");
+            submitPty(live.key, text);
             markStage(dir, id, "review", live.key);
             changed();
             return json({ ok: true, pty: live.key, reused: true });
@@ -1918,7 +1918,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           const live = liveAgent(dir, id);
           const before = Date.now();
           const r = live ? { ok: true as const, pty: live.key, agent: live.cmd, reused: true } : launchRun({ severity: null, where: null, text, raw: text }, dir, id, inCard(dir));
-          if (live) writePty(live.key, text + "\r");
+          if (live) submitPty(live.key, text);
           else if (r.ok) closeSessions(dir, id, { before });
           // The plan's approval starts the build; fixing open findings is the review stage again.
           if (r.ok) markStage(dir, id, run.awaiting === "approvals.plan" ? "impl" : run.awaiting === "findings" ? "review" : "", r.pty);
