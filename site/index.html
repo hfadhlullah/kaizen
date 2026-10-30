@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>kaizen</title>
+<meta name="description" content="Your AI agent plans it, you approve, it builds, and a reviewer that never saw the work checks it.">
+<meta name="color-scheme" content="dark light">
+<link rel="icon" href="media/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!-- Section: Nav -->
+<nav class="nav" aria-label="Main">
+  <a class="brand" href="#top" aria-label="kaizen"><pre class="mark" aria-hidden="true">█ █  ▄▀█  █  ▀▀█  █▀▀  █▄ █
+█▀▄  █▀█  █   ▄▀  ██▄  █ ▀█
+█ █  █ █  █  █▄▄  █▄▄  █  █</pre></a>
+  <div class="links">
+    <a href="https://github.com/hfadhlullah/kaizen">GitHub</a>
+    <a class="pill" href="#install">Install</a>
+  </div>
+</nav>
+
+<main id="top">
+<!-- Section: Hero -->
+<header class="hero">
+  <canvas class="ascii" aria-hidden="true"></canvas>
+  <p class="kanji" lang="ja">改善</p>
+  <h1><span>Build what you</span> <span>have in mind.</span></h1>
+  <p class="sub">Your agent plans it. You approve. A reviewer that never saw the work checks it.</p>
+  <a class="pill big" href="#install">Install kaizen</a>
+</header>
+
+<!-- Section: Pinned board -->
+<section class="stage" aria-label="The kaizen board">
+  <div class="frame"><img src="media/workspace.gif" width="1100" height="657" alt="A workspace: an agent is asked for a revenue dashboard, the plan is approved, a second agent reviews, the dashboard opens in the Browser tab, and the run is approved and done"></div>
+</section>
+
+<!-- Section: Bento -->
+<section class="bento" aria-label="What kaizen does">
+  <article class="tile cold">
+    <h2>A reviewer that starts cold.</h2>
+    <p>It never saw the work, so it has nothing to defend.</p>
+    <img src="media/workspace.png" width="1440" height="860" loading="lazy" alt="">
+  </article>
+  <article class="tile phone">
+    <h2>On your phone.</h2>
+    <div class="iphone"><img src="media/phone.gif" width="360" height="738" loading="lazy" alt="The same run on the kaizen phone app, waiting for approval"></div>
+  </article>
+  <article class="tile plan">
+    <h2>Plan first.</h2>
+    <span class="approve" aria-hidden="true">Approve</span>
+  </article>
+  <article class="tile loop">
+    <h2>A fix loop that ends.</h2>
+    <svg viewBox="0 0 120 120" aria-hidden="true"><circle class="track" cx="60" cy="60" r="50"/><circle class="ring" cx="60" cy="60" r="50" pathLength="1"/></svg>
+  </article>
+  <article class="tile work">
+    <h2 class="words"><span>Apps.</span> <span>Documents.</span> <span>Videos.</span> <span>Games.</span></h2>
+  </article>
+  <article class="tile agents">
+    <h2>Your agent.</h2>
+    <ul class="chips"><li>Claude Code</li><li>Codex</li><li>Antigravity</li><li>Gemini CLI</li></ul>
+    <p>Claude Code reviews with a separate agent. The others run every stage in one session.</p>
+  </article>
+  <article class="tile notes">
+    <h2>Notes agents read first.</h2>
+    <p>Every stage reads your project notes before it plans or builds.</p>
+  </article>
+  <article class="tile open">
+    <h2>For business, call us.</h2>
+    <p>Free and open for everyone. Talk to us about your team.</p>
+    <a class="pill" href="https://wa.me/6285155159094" target="_blank" rel="noopener">Call us on WhatsApp</a>
+  </article>
+</section>
+
+<!-- Section: Flow -->
+<section class="flow" aria-label="How a run goes">
+  <p><span>Plan.</span> <span>Approve.</span> <span>Build.</span> <span>Review.</span></p>
+</section>
+
+<!-- Section: Install -->
+<section class="install" id="install">
+  <h2>Start with one line.</h2>
+  <div class="os" role="group" aria-label="Operating system">
+    <button type="button" aria-pressed="true" data-cmd="curl -fsSL https://bun.sh/install | bash &amp;&amp; ~/.bun/bin/bunx kaizen-agent">macOS and Linux</button>
+    <button type="button" aria-pressed="false" data-cmd="irm bun.sh/install.ps1 | iex; &amp; &quot;$env:USERPROFILE\.bun\bin\bunx.exe&quot; kaizen-agent">Windows</button>
+  </div>
+  <div class="cmd">
+    <code id="cmd">curl -fsSL https://bun.sh/install | bash &amp;&amp; ~/.bun/bin/bunx kaizen-agent</code>
+    <button type="button" id="copy">Copy</button>
+  </div>
+  <p class="hint" role="status" id="copied">Then run <code>kaizen setup</code>.</p>
+</section>
+</main>
+
+<!-- Section: Footer -->
+<footer class="foot">
+  <i class="tanuki" role="img" aria-label="The kaizen tanuki"></i>
+  <a href="#top" aria-label="kaizen"><pre class="mark" aria-hidden="true">█ █  ▄▀█  █  ▀▀█  █▀▀  █▄ █
+█▀▄  █▀█  █   ▄▀  ██▄  █ ▀█
+█ █  █ █  █  █▄▄  █▄▄  █  █</pre></a>
+  <p>The one who looks at it afterwards.</p>
+  <p class="meta"><a href="https://github.com/hfadhlullah/kaizen">GitHub</a> <a href="https://www.npmjs.com/package/kaizen-agent">npm</a></p>
+</footer>
+<script src="vendor/gsap.min.js"></script>
+<script src="vendor/ScrollTrigger.min.js"></script>
+<script src="ascii-hero.js"></script>
+<script src="main.js"></script>
+</body>
+</html>

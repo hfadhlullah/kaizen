@@ -1,8 +1,8 @@
 ---
 description: How to test, build the web bundles, and publish a release
 tags: [project, release]
-sources: [package.json, cli/release.sh, cli/publish-gh.sh, .github/workflows/test.yml, cli/build-web.ts, test/tmp.ts, bunfig.toml, bot/bunfig.toml]
-updated: 2026-10-23
+sources: [site/, package.json, cli/release.sh, cli/publish-gh.sh, .github/workflows/test.yml, cli/build-web.ts, test/tmp.ts, bunfig.toml, bot/bunfig.toml]
+updated: 2026-10-30
 ---
 # Release and testing
 
@@ -11,6 +11,7 @@ Tests are `bun test` (all `*.test.ts`, `cli/` and `bot/`), run in CI on Ubuntu a
 
 ## Where it lives
 - `package.json` — `test`, `build:web`, `format` / `format:check` (Prettier over the frontend TypeScript: `web/*.ts`, `web/board/`, `bot/web/app/`), `release`, `prepublishOnly` (tests), `postpublish` (`cli/release.sh`: tag + GitHub release).
+- `site/` — the static landing page: plain HTML, CSS and JS with GSAP vendored in `site/vendor/`. No build step, not in the npm package, not hosted yet. Screenshots in `site/media/` come from a scratch board; never from a real one, whose phone view lists real device names.
 - `cli/publish-gh.sh` — same tarball as `@hfadhlullah/kaizen-agent` on GitHub Packages.
 - `cli/build-web.ts` — bundles `web/notebook.js`, `web/term.js`, `web/board.js` and `bot/web/app.js`, committed; `cli/notes.test.ts` fails when one is older than its sources.
 

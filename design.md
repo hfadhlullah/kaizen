@@ -52,7 +52,7 @@ Rules:
   - Web and images: the alpha mask from `kaizen.jpg`. Export once to `assets/tanuki.svg`
     (traced outline) before the web board ships; PNG at 460 px is the fallback
     (`kaizen-avatar.png`).
-- Placement: empty states only (no ideas, no runs) at 120 px centred with one line of
+- Placement: empty states only (no ideas, no runs) and the landing page footer, at 120 px centred with one line of
   copy under it, and at 36 px as the logo of the collapsed side menu (section 6), where
   the wordmark does not fit. Not in the header. It is not a loading spinner and not a favicon at 16 px, where the lines
   collapse; the favicon is the wordmark `K` block.

@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# Stand-in for `claude` in the landing page recording. Only ever first on the PATH of
+# capture-workspace.ts's scratch board. The first launch plays the builder, the second
+# the reviewer; both read what is typed so the talk in the terminal is real input.
+run=.kaizen/runs/2026-10-30-revenue-dashboard
+say() { printf '%b\n' "$1"; sleep "${2:-0.4}"; }
+dim='\033[2m'; b='\033[1m'; g='\033[32m'; c='\033[36m'; o='\033[0m'
+state() { printf '{"id":"2026-10-30-revenue-dashboard","mode":"approve","runner":"full","agent":"claude","track":"code","stage":"%s","awaiting":%s,"iteration":0,"updated":"%s"}' "$1" "$2" "$(date -Iseconds)" > "$run/state.json"; }
+ask() { printf '%b' "${b}>${o} "; read -r line; }
+# The board hands an approval to a new launch in the card: this terminal carries the run on.
+case "$*" in *revenue-dashboard*)
+  clear; say "${c}✻${o} ${b}Claude Code${o}  ${dim}northstar${o}" 0.4
+  if grep -q approvals.review "$run/state.json"; then
+    say "${dim}⏺ Approved. Committing.${o}" 0.8
+    say "  ${g}Bash${o}(git commit)  ${g}4f2a91c${o} feat(dashboard): revenue and payment alerts" 0.8
+    printf 'accepted: %s by user via board\n' "$(date -Iseconds)" >> "$run/02-approval.md"; state done null
+    say "${b}⏺${o} Run done." 90
+  else
+  echo "- plan approved" > "$run/02-approval.md"; state build null
+  say "${dim}⏺ Plan approved. Building.${o}" 0.7
+  say "  ${g}Write${o}(app/dashboard/page.tsx)  ${dim}+186${o}" 0.7
+  say "  ${g}Write${o}(app/dashboard/revenue-chart.tsx)  ${dim}+94${o}" 0.7
+  say "  ${g}Update${o}(server/billing/events.ts)  ${dim}+41 −6${o}" 0.7
+  say "  ${g}Bash${o}(bun test)  ${g}✓ 48 pass${o}" 0.8
+  printf '# Implementation\n\nChanged `app/dashboard/page.tsx`.\n\n## Preview\n\nOpen http://localhost:5199/ to see the dashboard.\n\n### How to test\n1. Open the dashboard: revenue and alerts match billing.\n' > "$run/03-impl.md"
+  say "${b}⏺${o} Built. Ready for a reviewer that never saw this." 0.1
+  read -r -t 90 line
+  clear; say "${c}✻${o} ${b}Claude Code${o}  ${dim}northstar${o}" 0.3
+  say "${dim}⏺ Approved. Committing.${o}" 0.8
+  say "  ${g}Bash${o}(git commit)  ${g}4f2a91c${o} feat(dashboard): revenue and payment alerts" 0.8
+  printf 'accepted: %s by user via board\n' "$(date -Iseconds)" >> "$run/02-approval.md"; state done null
+  say "${b}⏺${o} ${g}Run done.${o}" 90
+  fi
+  exit 0 ;;
+esac
+n=$(cat .agent-count 2>/dev/null || echo 0); echo $((n + 1)) > .agent-count
+clear
+say "${c}✻${o} ${b}Claude Code${o}  ${dim}northstar${o}" 0.5
+if [ "$n" = 0 ]; then
+  ask; mkdir -p "$run"; printf '%s\n' "$line" > "$run/00-request.md"
+  say "${dim}⏺ Reading the billing service and the Stripe events…${o}" 1
+  say "${b}⏺${o} Alert on every failed payment, or only above \$500?" 0.3
+  ask
+  printf '# Plan: revenue dashboard\n\n**Done means:** finance sees revenue and failed payments live.\n**Wrong means:** a number on the page disagrees with billing.\n\n## Work list\n- Revenue chart from billing events\n- MRR, churn and failed payment cards\n- Alert feed for failures above $500\n- Tests against sample invoices\n\n## Open questions\nNone.\n' > "$run/01-plan.md"
+  state plan '"approvals.plan"'
+  say "${b}⏺${o} Plan written. Waiting for your approval." 0.2
+  say "${b}⏺${o} Approve it in the panel." 90
+else
+  ask
+  say "${dim}⏺ Reading the request, the plan and the diff…${o}" 1
+  say "  ${g}✓${o} Totals match billing  ${g}✓${o} Alerts over \$500 only" 0.7
+  say "  ${g}✓${o} 48 tests pass" 0.7
+  say "${b}⏺${o} No findings. Ready for your approval." 0.4
+  printf '# Review\n\nNo findings.\n' > "$run/04-review.md"
+  state review '"approvals.review"'
+  sleep 120
+fi
