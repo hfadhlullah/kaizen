@@ -15,6 +15,7 @@ import { cardHref, drawSources, logo, railData, srcIcon, stateOf, titleOf } from
 
 const WORDS = { idle: "Idea", plan: "Planning", build: "Building", review: "Reviewing", wait: "Waiting on you", done: "Done", aband: "Abandoned", stalled: "Stalled" };
 const PLAT = { x: "X", tiktok: "TikTok", instagram: "Instagram", threads: "Threads" };
+const SEARCH = raw('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>');
 const AGENTS = ["claude", "codex", "agy", "opencode", "gemini", "cursor"];
 // sort: on Open, ideas first or running first (kept per browser).
 const f = { src: "all", proj: "", show: "open", q: "", sort: (() => { try { return localStorage.getItem("kz-ideas-sort") || "runs"; } catch { return "runs"; } })() };
@@ -41,9 +42,28 @@ function sourcesOf(cards, d) {
 // Keyboard: the row picked with the arrow keys (from the search box or the page), Enter acts on it.
 let sel = 0;
 let shownRows: any[] = [];
+// Orca's Tasks shape: a toolbar over a list. The search box, the page's filters and New idea
+// live in the shared header elsewhere, so they move in here and go back on leaving.
+let docked: [Comment, HTMLElement][] = [];
+function dock() {
+  if (!$("tk-bar")) $("ideasv").innerHTML = String(html`<div class="tk-bar" id="tk-bar"><div class="tk-row" id="tk-chips"></div><div class="tk-row"><label class="tk-q" id="tk-q">${SEARCH}</label><span id="tk-tools"></span></div></div><div class="tk-list" id="tk-list"></div>`);
+  if (docked.length) return;
+  for (const [id, to] of [["bq", "tk-q"], ["hx", "tk-tools"], ["newtop", "tk-tools"]]) {
+    const el = $(id),
+      mark = new Comment();
+    el.before(mark);
+    docked.push([mark, el]);
+    $(to).append(el);
+  }
+}
+function undock() {
+  docked.forEach(([mark, el]) => mark.replaceWith(el));
+  docked = [];
+}
 function draw() {
   const box = $("ideasv");
   if (!document.body.classList.contains("ideav")) return;
+  dock();
   const { cards: all, projects, srcs } = railData();
   const cards = all.filter((c) => !c.archived);
   const src = sourcesOf(cards, srcs);
@@ -67,7 +87,7 @@ function draw() {
     // On Open, ideas above runs or runs above ideas, as chosen; newest first within each.
     .sort((a, b) => (f.show === "open" ? (a.kind === b.kind ? 0 : (a.kind === "idea") === (f.sort === "ideas") ? -1 : 1) : 0) || (b.moved ?? b.added ?? 0) - (a.moved ?? a.added ?? 0));
   const now = Date.now();
-  const seg = (v, l) => html`<button class="pill${f.show === v ? " on" : ""}" data-show="${v}">${l}</button>`;
+  const seg = (v, l) => html`<button class="tk-chip${f.show === v ? " on" : ""}" data-show="${v}">${l}</button>`;
   const srcName = (u) => (u === "all" ? "All sources" : u === "" ? "Manual" : known.get(u) ? srcLabel(known.get(u)) : srcLabel({ url: u }));
   const srcMark = (u) => (u === "all" ? raw('<svg><use href="#r-bulb"/></svg>') : u === "" ? ico("pen") : srcIcon(known.get(u) ?? { url: u }));
   const srcList = ["all", ...present.filter(Boolean), ...(present.includes("") ? [""] : [])];
@@ -89,17 +109,19 @@ function draw() {
         )
       : "";
   // Scope and filters first; search, refresh and New idea sit at the right (CSS order).
-  const extra = html`${sources}<span class="iseg">${seg("open", "Open")}${seg("running", "Running")}${seg("done", "Done")}</span>${sortPop}<button class="ib" id="ideas-ref" title="Refresh" aria-label="Refresh">${ico("refresh")}</button>`;
-  const table = html`<table class="itable"><thead><tr><th></th><th>Title / context</th><th>Status</th><th>Updated</th><th></th></tr></thead><tbody>${rows.map((c, i) => {
+  const chips = html`${seg("open", "Open")}${seg("running", "Running")}${seg("done", "Done")}`;
+  const extra = html`${sources}${sortPop}<button class="ib" id="ideas-ref" title="Refresh" aria-label="Refresh">${ico("refresh")}</button>`;
+  const table = !rows.length ? html`<div class="tk-empty">${raw('<svg><use href="#r-bulb"/></svg>')}<p>Nothing matches.</p><span>Try a different search or filter.</span></div>` : html`<table class="itable"><thead><tr><th></th><th>Title / context</th><th>Status</th><th>Updated</th><th></th></tr></thead><tbody>${rows.map((c, i) => {
     const name = nameOf(c.state, projects),
       st = stateOf(c),
       agent = (c.tags ?? []).find((t) => AGENTS.includes(t));
     return html`<tr><td>${logo(c.state, name, projects)}</td><td><b>${titleOf(c)}</b><div class="ctx">${name}${agent ? html`<span class="tag">${NAMES[agent]}</span>` : ""}</div></td><td><span class="stc"><span class="si ${st}"></span>${WORDS[st]}</span></td><td class="d">${c.moved || c.added ? age(c.moved || c.added, now) + " ago" : ""}</td><td><div class="acts">${asking === key(c) ? html`<span class="q">Delete?</span><button class="btn ghost" data-keep="1">Keep</button><button class="btn danger" data-yes="${i}">Delete</button>` : html`${c.kind === "idea" ? html`<button class="del" data-i="${i}" title="Delete idea" aria-label="Delete idea">${ico("trash")}</button>` : ""}<button class="go" data-i="${i}">${c.kind === "idea" ? "Start" : "Open"} ${ico("arrow")}</button>`}</div></td></tr>`;
-  })}</tbody></table>${rows.length ? "" : html`<p class="none">Nothing matches.</p>`}`;
+  })}</tbody></table>`;
   const hx = $("hx");
   // Not while a pop-up in it is open: redrawing would close it under the pointer.
   if (!hx.querySelector("details[open]")) hx.innerHTML = String(extra);
-  box.innerHTML = String(html`<div class="ibox"><div class="iscroll">${table}</div></div>`);
+  $("tk-chips").innerHTML = String(chips);
+  $("tk-list").innerHTML = String(table);
 
   hx.querySelectorAll<HTMLElement>("[data-src]").forEach((b) => (b.onclick = () => ((f.src = b.dataset.src!), (hx.innerHTML = ""), draw())));
   hx.querySelectorAll<HTMLElement>("[data-sort]").forEach(
@@ -113,7 +135,7 @@ function draw() {
         draw();
       }),
   );
-  hx.querySelectorAll<HTMLElement>("[data-show]").forEach((b) => (b.onclick = () => ((f.show = b.dataset.show!), (hx.innerHTML = ""), draw())));
+  box.querySelectorAll<HTMLElement>("[data-show]").forEach((b) => (b.onclick = () => ((f.show = b.dataset.show!), (hx.innerHTML = ""), draw())));
   $("ideas-ref").onclick = () => (void drawSources(true), void refreshBoardBadge());
   box.querySelectorAll<HTMLElement>("button.go").forEach((b) => (b.onclick = () => act(rows[+b.dataset.i!])));
   // The trash icon asks in its own row, as the board's card menu does; a redraw keeps the question.
@@ -178,7 +200,7 @@ addEventListener("keydown", (e) => {
 });
 export function openIdeas() {
   $("bq").placeholder = "Search ideas (press /)";
-  addEventListener("kz-view", () => ($("bq").placeholder = "Filter cards (press /)"), { once: true });
+  addEventListener("kz-view", () => (undock(), ($("bq").placeholder = "Filter cards (press /)")), { once: true });
   void drawSources(true);
   draw();
 }

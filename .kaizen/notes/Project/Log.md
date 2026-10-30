@@ -221,4 +221,6 @@ updated: 2026-10-28
 - 2026-10-30 run 2026-10-30-picker-follows-new-run — Web board
 - 2026-10-30 run 2026-10-30-monochrome-theme — Web board
 - 2026-10-30 run 2026-10-30-board-run-own-files — Web board
+- 2026-10-30: run 2026-10-30-ideas-icebox-orca-tasks: Ideas and Icebox moved to Orca's Tasks layout; Web board updated.
+- 2026-10-30 run 2026-10-30-update-popup — Web board
 - 2026-10-30 run 2026-10-30-decide-reuse-session — Web board: decisions reach a plain Claude tab running the run's session instead of opening a new tab.
