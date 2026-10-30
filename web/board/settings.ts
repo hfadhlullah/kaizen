@@ -271,7 +271,11 @@ export async function openSettings() {
     if (el.matches(".step")) return stepper(el, vals, on, apply);
     el.querySelectorAll("[data-v]").forEach((b) => (b.onclick = () => {
       apply(b.dataset.v);
-      openSettings();
+      // These live in this browser: nothing to read back, so the row answers at once, with no redraw.
+      el.querySelectorAll("[data-v]").forEach((x) => {
+        x.classList.toggle("on", x === b);
+        if (x.hasAttribute("aria-pressed")) x.setAttribute("aria-pressed", String(x === b));
+      });
     }));
   };
   choice($("th"), ["system", "light", "dark"], cur, setTheme);
@@ -308,7 +312,7 @@ export async function openSettings() {
       const save = async (v) => {
         const f = document.activeElement?.id;
         const j = await post("/settings", { key: r.key, value: v, scope: cfg.scope });
-        if (j.ok) toast("Saved");
+        toast(j.ok ? "Saved" : j.error || "Could not save");
         await refocus(f);
       };
       if (el.tagName === "INPUT")
@@ -316,8 +320,20 @@ export async function openSettings() {
           await save(el.value.trim());
           load();
         };
-      else el.querySelectorAll("[data-v]").forEach((b) => (b.onclick = () => save(b.dataset.v)));
-      if (el.matches(".chk")) el.onclick = () => save(el.dataset.v);
+      else
+        el.querySelectorAll("[data-v]").forEach(
+          (b) =>
+            (b.onclick = () => {
+              // The row answers now; the redraw after the save shows what the server kept.
+              el.querySelectorAll("[data-v]").forEach((x) => x.classList.toggle("on", x === b));
+              save(b.dataset.v);
+            }),
+        );
+      if (el.matches(".chk"))
+        el.onclick = () => {
+          el.setAttribute("aria-checked", String(el.classList.toggle("on")));
+          save(el.dataset.v);
+        };
       // Clicks in quick succession save once, the value they settle on.
       let t;
       if (el.matches(".step"))

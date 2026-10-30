@@ -406,6 +406,8 @@ pre.mark span:nth-child(1){color:var(--ink-hi)}pre.mark span:nth-child(2){color:
  // Motion: full, reduce, or unset to follow the system's reduced-motion, in kz-motion.
  window.setMotion=m=>{if(m==="system")delete r.dataset.motion;else r.dataset.motion=m;try{m==="system"?localStorage.removeItem("kz-motion"):localStorage.setItem("kz-motion",m)}catch(e){}};
  try{const m=localStorage.getItem("kz-motion");if(m)r.dataset.motion=m}catch(e){}
+ // Settings changed in another window or tab apply here at once, not on the next reload.
+ addEventListener("storage",e=>{const m={"kz-theme":"theme","kz-color":"color","kz-motion":"motion"}[e.key];if(!m)return;if(e.newValue)r.dataset[m]=e.newValue;else delete r.dataset[m];dispatchEvent(new Event("kz-theme"))});
  os.addEventListener("change",paint);paint();
  document.getElementById("themet").onclick=e=>setTheme(e.currentTarget.dataset.dark==="true"?"light":"dark");
  // Setup: while first-run onboarding is skipped or unfinished, a row that continues it; the board redraws it as it saves.
