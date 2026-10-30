@@ -837,6 +837,52 @@ async function autoBrowse() {
   }
 }
 
+// A phone's run sheet: drag it down from anywhere its content is at the top, or tap outside it.
+function initSheet() {
+  const p = $("panel"),
+    b = document.body;
+  const on = () => isPhone() && b.classList.contains("runv") && b.classList.contains("rflip");
+  const shut = () => $("pclose").click();
+  let y0: number | null = null,
+    t0 = 0,
+    dy = 0;
+  const scrolled = (t: EventTarget | null) => ((t as Element).closest?.(".body")?.scrollTop ?? 0) > 0;
+  p.addEventListener(
+    "touchstart",
+    (e) => {
+      y0 = on() && e.touches.length === 1 && !scrolled(e.target) ? e.touches[0].clientY : null;
+      t0 = Date.now();
+      dy = 0;
+    },
+    { passive: true },
+  );
+  p.addEventListener(
+    "touchmove",
+    (e) => {
+      if (y0 === null) return;
+      if (scrolled(e.target)) return void (y0 = null);
+      dy = e.touches[0].clientY - y0;
+      if (dy <= 0) return void (p.style.translate = "");
+      e.preventDefault();
+      p.style.transition = "none";
+      p.style.translate = `0 ${dy}px`;
+    },
+    { passive: false },
+  );
+  const end = () => {
+    if (y0 === null) return;
+    y0 = null;
+    p.style.transition = "";
+    if (dy > 100 || (dy > 30 && Date.now() - t0 < 250)) {
+      p.style.translate = "0 100%";
+      setTimeout(() => (shut(), (p.style.translate = "")), 180);
+    } else p.style.translate = "";
+  };
+  p.addEventListener("touchend", end);
+  p.addEventListener("touchcancel", end);
+  addEventListener("click", (e) => on() && !(e.target as Element).closest?.("#panel,#rside,dialog,.toast") && shut());
+}
+
 export function initRunView() {
   // A phone's sheet closes with the panel's ×, which here hides the sheet rather than closing the card.
   document.addEventListener(
@@ -849,6 +895,7 @@ export function initRunView() {
     },
     true,
   );
+  initSheet();
   initPick(pickRun);
   // The sidebar's agent mark: open that workspace with the agent's terminal tab selected.
   addEventListener("kz-open-term", (e: any) => {

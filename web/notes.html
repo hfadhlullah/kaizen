@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<script>if(matchMedia("(display-mode:standalone)").matches||navigator.standalone){document.querySelector("meta[name=viewport]").content+=",maximum-scale=1,user-scalable=no";addEventListener("gesturestart",e=>e.preventDefault())}</script>
+<script>if(matchMedia("(display-mode:standalone)").matches||navigator.standalone){document.querySelector("meta[name=viewport]").content+=",maximum-scale=1,user-scalable=no";addEventListener("gesturestart",e=>e.preventDefault());if(navigator.standalone){const s=()=>document.documentElement.style.setProperty("--sh",(screen.orientation?.type.startsWith("landscape")?Math.min:Math.max)(screen.width,screen.height)+"px");s();addEventListener("resize",s)}}</script>
 <title>kaizen notebook</title>
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="icon" type="image/png" href="/logo.png">
@@ -21,6 +21,7 @@
 body{margin:0;background:var(--canvas);color:var(--ink);font:14px/1.5 var(--font);-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;height:100vh;height:100dvh;overflow:hidden;display:flex}
 html{background:var(--canvas);touch-action:manipulation}
 @media(display-mode:standalone){body{position:fixed;inset:0;height:auto;overscroll-behavior:none;touch-action:pan-x pan-y;-webkit-text-size-adjust:100%}}
+@media(display-mode:standalone) and (max-width:640px){body{bottom:auto;height:var(--sh,100lvh)}}
 @media(max-width:640px),(display-mode:standalone){body{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}}
 /* iOS 26 blurs the page under the status bar unless a fixed bar touches the top edge: give it one in the page colour */
 @media(display-mode:standalone){body::before{content:"";position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top);background:inherit;z-index:100;pointer-events:none}}
@@ -42,6 +43,9 @@ svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6;stroke
 .rail a.it[aria-current=page]{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--ink)}
 .rail a.it[aria-current=page] svg{color:var(--accent)}
 .rail .end{flex:1}
+.rail a.it[hidden]{display:none}
+.rail .ring{width:var(--ico,18px);height:var(--ico,18px);flex:none;border-radius:50%;background:conic-gradient(var(--accent) var(--p,0%),var(--line) 0);-webkit-mask:radial-gradient(circle,transparent 5px,#000 5.5px);mask:radial-gradient(circle,transparent 5px,#000 5.5px)}
+@media(max-width:640px){.rail a.it#rsetup{display:none}}
 .theme{display:flex;gap:2px;padding:3px;border-radius:var(--r-s);background:var(--hover)}
 .theme button{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;height:var(--btn-xs);border-radius:4px;font-size:var(--fs-s);font-weight:500;color:var(--dim);transition:background .12s,color .12s}
 .theme button svg{width:var(--ico);height:var(--ico)}
@@ -122,13 +126,14 @@ body .rail a.upd::after{left:calc(50% + 6px);top:4px}body .toast{left:16px;botto
 [data-rail=min] .plist .proj{justify-content:center;margin:10px 0 4px;padding:0}[data-rail=min] .plist .row{grid-template-columns:14px;justify-content:center;padding:0}
 @media(max-width:640px){.rail .psec,.rail .plist,.rail .rib{display:none}.rail .rbot,[data-rail=min] .rail .rbot{display:contents}.rail a.it[data-view=ideas]{order:3}.rail a.it[data-view=board]{order:4}.rail a.it .n,.rail a.it .srcs{display:none}}
 /* phones: Home, Chat, Runs, Settings. The board, Ideas and the Icebox are set up on a computer (web/board/phone.ts) */
+@media(min-width:641px){.rail .rbot .lbl{display:none}}
 .rail a.it.ponly,#phome{display:none}
 @media(max-width:640px){
 .rail a.it:is([data-view=board],[data-view=ideas],[data-view=sources]),#foot,#ctx-open,body .rail .rbot .rib{display:none!important}
 .rail a.it.ponly{display:flex}
 .rail a.it[data-view=home]{order:1}.rail a.it[data-view=chat]{order:2}.rail a.it[data-view=device]{order:3}.rail a.it[data-view=settings]{order:4}
-.rail,[data-rail=min] .rail{padding:6px 8px max(4px,calc(env(safe-area-inset-bottom) - 10px));border-top:1px solid color-mix(in srgb,var(--line) 70%,transparent)}
-.rail a.it,[data-rail=min] .rail a.it{min-height:50px;gap:3px;font-size:10.5px;letter-spacing:.01em}
+.rail,[data-rail=min] .rail{padding:6px 8px max(4px,env(safe-area-inset-bottom));border-top:1px solid color-mix(in srgb,var(--line) 70%,transparent)}
+.rail a.it,[data-rail=min] .rail a.it{min-height:46px;gap:3px;font-size:10.5px;letter-spacing:.01em}
 .rail a.it svg{width:44px;height:26px;padding:4px 12px;box-sizing:border-box;border-radius:13px;transition:background .15s}
 .rail a.it[aria-current=page] svg{background:color-mix(in srgb,var(--accent) 16%,transparent)}
 .rail a.it[aria-current=page]{font-weight:600}
@@ -335,9 +340,10 @@ select.sel{cursor:pointer;appearance:none;padding-right:30px;max-width:min(320px
   <a class="it fold" href="/?view=icebox" data-view="sources" title="Icebox: requests gathered from your sources"><svg><use href="#r-tray"/></svg><span class="lbl">Icebox</span><span class="srcs" id="rail-srcs"></span><span class="n" id="ice-n"></span></a>
   <a class="it" href="/?view=ideas" data-view="ideas" title="Ideas: every idea and run, filtered"><svg><use href="#r-bulb"/></svg><span class="lbl">Ideas</span></a>
   <a class="it" href="/?view=board" data-view="board" title="Board"><svg><use href="#i-board"/></svg><span class="lbl">Board</span></a>
+  <a class="it" href="/?setup=1" id="rsetup" hidden title="Continue setup"><span class="ring"></span><span class="lbl">Setup</span></a>
   <div class="psec"><span class="lbl">Projects</span><button id="pfilter" title="Show one project" aria-label="Show one project"><svg><use href="#r-filter"/></svg></button><button id="padd" title="Add project or workspace" aria-label="Add project or workspace"><svg><use href="#r-plus"/></svg></button></div>
   <div class="plist" id="plist" aria-label="Ideas and runs by project"></div>
-  <div class="rbot"><a class="it fold" href="/?view=settings" data-view="settings" title="Settings" aria-label="Settings"><svg><use href="#i-gear"/></svg></a><a class="rib" href="/issue" target="_blank" rel="noopener" title="Report an issue" aria-label="Report an issue"><svg><use href="#r-bug"/></svg></a><button class="rib" id="kbd" title="Keyboard shortcuts" aria-label="Keyboard shortcuts"><svg><use href="#r-kbd"/></svg></button><button class="rib th" id="themet" title="Theme" aria-label="Theme"><svg class="sun"><use href="#i-sun"/></svg><svg class="moon"><use href="#i-moon"/></svg></button></div>
+  <div class="rbot"><a class="it fold" href="/?view=settings" data-view="settings" title="Settings" aria-label="Settings"><svg><use href="#i-gear"/></svg><span class="lbl">Settings</span></a><a class="rib" href="/issue" target="_blank" rel="noopener" title="Report an issue" aria-label="Report an issue"><svg><use href="#r-bug"/></svg></a><button class="rib" id="kbd" title="Keyboard shortcuts" aria-label="Keyboard shortcuts"><svg><use href="#r-kbd"/></svg></button><button class="rib th" id="themet" title="Theme" aria-label="Theme"><svg class="sun"><use href="#i-sun"/></svg><svg class="moon"><use href="#i-moon"/></svg></button></div>
 </nav>
 <script>
 // Side menu: theme and collapse, the same lines in board.html and notes.html. Runs before
@@ -357,6 +363,9 @@ select.sel{cursor:pointer;appearance:none;padding-right:30px;max-width:min(320px
  try{const m=localStorage.getItem("kz-motion");if(m)r.dataset.motion=m}catch(e){}
  os.addEventListener("change",paint);paint();
  document.getElementById("themet").onclick=e=>setTheme(e.currentTarget.dataset.dark==="true"?"light":"dark");
+ // Setup: while first-run onboarding is skipped or unfinished, a row that continues it; the board redraws it as it saves.
+ window.kzSetupRow=o=>{const a=document.getElementById("rsetup");if(!a)return;a.hidden=!(o&&o.resume);if(o&&o.resume){a.querySelector(".ring").style.setProperty("--p",Math.round(o.step/o.total*100)+"%");a.title="Continue setup: step "+(o.step+1)+" of "+o.total}};
+ fetch("/onboarding").then(r=>r.ok?r.json():null).then(window.kzSetupRow).catch(()=>{});
  // Phones: More holds the tabs that do not fit; a pick or a tap elsewhere closes it.
  const more=document.querySelector(".mtab");if(more){more.querySelectorAll("a").forEach(a=>a.addEventListener("click",()=>more.open=false));addEventListener("pointerdown",e=>{if(more.open&&!more.contains(e.target))more.open=false},true)}})();
 </script>

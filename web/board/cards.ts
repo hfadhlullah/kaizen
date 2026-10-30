@@ -7,6 +7,7 @@ import { draft, undraft } from "./drafts.ts";
 import { COLS, ICON, MARKS, NAMES, WORD, age, d, need } from "./labels.ts";
 import { brief } from "./markdown.ts";
 import { open, openAt, toggleArchive } from "./panel.ts";
+import { isPhone } from "./phone.ts";
 import { ideaCombo, list, newDir, plogo, setNewDir, short, showList, showable } from "./projects.ts";
 import { askNotify, toast } from "./toast.ts";
 import { answer, decided, resumable, resume } from "./approvals.ts";
@@ -529,7 +530,8 @@ let newFiles = [];
 // preset to that page's project or empty so one is chosen. The Board keeps its own rule.
 let formPick: { dir: string | null } | null = null;
 function ideaForm(f, shut) {
-  const picking = store.all || !!formPick;
+  // A phone has no project picker in its header: the form is the only place to choose.
+  const picking = store.all || !!formPick || isPhone();
   const close = () => {
     newFiles = [];
     shut();

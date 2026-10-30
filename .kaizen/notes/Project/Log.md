@@ -212,3 +212,5 @@ updated: 2026-10-28
 - 2026-10-30 cleaner-run-panel: run panel header shows project only; footer and approval notes shortened.
 - 2026-10-30 cleaner-run-panel: finished runs no longer claim later changes after a report rewrite; run header shows project beside picker and a single stage bar.
 - 2026-10-30 cleaner-run-panel: Git tab became Source control in Orca's layout (stage, unstage, discard, plain commit, commits list).
+- 2026-10-30 run 2026-10-30-phone-layout-tidy — Web board
+- 2026-10-30 run 2026-10-30-web-onboarding — Web board: first-run onboarding (agent, appearance, notifications, add a project), skip confirm, Setup row and Continue popup; state in `~/.kaizen/onboarding.json`; `agentConfig` regex no longer backtracks
