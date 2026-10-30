@@ -5,7 +5,7 @@ import { join, dirname, resolve, sep, basename } from "node:path";
 import {
   home, type Item, type Card, boardCards, knownProjects, remember, canonPath, locate, label, tilde, searchRoots, findProjects,
   readInbox, writeInbox, replaceIdea, moveIdea, abandonRun, runToIdea, launchRun, parseItem, agentChoices, onPath, projectOf, KNOWN_AGENTS, plainModel, short, setArchived, writeNotes,
-  appendNote, saveAttachment, pidOnPort, readText, cmdExe, sysExe, powershellExe, runGit, cardsGit, readCommit, commitPush, notice, notifier, LOGO,
+  appendNote, saveAttachment, pidOnPort, readText, cmdExe, sysExe, powershellExe, runGit, cardsGit, readCommit, commitPush, commitStaged, stageFiles, suggestMessage, notice, notifier, LOGO,
   reviewFindings, pickFindings, backlogCards, backlogItem, startedBacklog, closeBacklog, markBacklogDone, fixPrompt, approvalPrompt, canApproveAwaiting, gateOf, recordAcceptance, healRuns, finishRun, nativePath, closeSessions, sweepSessions, issueUrl,
   launchMode, readSessions, ownerOf, runIndex, resumePrompt, runAgent, firstSession, webHosts,
 } from "./state.ts";
@@ -1727,9 +1727,36 @@ export async function web(repoDir: string, opts: Opts = {}) {
           let run: any;
           try { run = JSON.parse(readText(join(dir, "runs", id, "state.json"))); } catch { return bad("no such run", 404); }
           if (run.stage !== "done" && run.awaiting !== "approvals.review") return bad("this run is not finished", 409);
-          const r = await commitPush(dir, id, String(body.message ?? ""), Array.isArray(body.files) ? body.files.map(String) : []);
+          const files = Array.isArray(body.files) ? body.files.map(String) : [];
+          // `push: false` is the tab's plain Commit: what is staged, nothing pushed.
+          const r = body.push === false ? commitStaged(dir, id, String(body.message ?? ""), files) : await commitPush(dir, id, String(body.message ?? ""), files);
           changed();
           return json(r, r.ok ? 200 : 409);
+        }
+
+        // The Source control tab's stage, unstage and discard, on the same runs /commit
+        // takes and only on the run's own files (stageFiles refuses any other path).
+        if (path === "/stage") {
+          const id = String(body.id ?? "");
+          if (!/^[\w.-]+$/.test(id)) return bad("bad run id");
+          if (dir === join(home, ".kaizen")) return bad("no project", 409);
+          let run: any;
+          try { run = JSON.parse(readText(join(dir, "runs", id, "state.json"))); } catch { return bad("no such run", 404); }
+          if (run.stage !== "done" && run.awaiting !== "approvals.review") return bad("this run is not finished", 409);
+          const op = body.op;
+          if (op !== "stage" && op !== "unstage" && op !== "discard") return bad("unknown op");
+          const why = stageFiles(dir, id, op, Array.isArray(body.paths) ? body.paths.map(String) : []);
+          changed();
+          return why ? bad(why, 409) : json({ ok: true });
+        }
+
+        // The sparkle button: a commit message for the run's files, written from their diff.
+        if (path === "/commit-message") {
+          const id = String(body.id ?? "");
+          if (!/^[\w.-]+$/.test(id)) return bad("bad run id");
+          if (dir === join(home, ".kaizen")) return bad("no project", 409);
+          const r = await suggestMessage(dir, id);
+          return r.ok ? json(r) : bad(r.why, 409);
         }
 
         // The Git tab's later steps, on the same runs /commit takes: open the branch's pull

@@ -10,7 +10,7 @@ import {
   readRuns, readInbox, writeInbox, replaceIdea, moveIdea, abandonRun, runToIdea, allBacklog, backlog,
   requestTitle, statusOf, columnOf, parseItem, startedRuns, boardCards, parentOf, addCard, readArchive, setArchived,
   requestOf, agentFlags, plainModel, readNotes, writeNotes, manualCommand, parseNotes, formatNote, appendNote, saveAttachment,
-  reviewFindings, pickFindings, fixPrompt, approvalPrompt, sessionLaunch, closeSessions, sweepSessions, readSessions, ownerOf, gitStatus, runGit, cardsGit, commitPush, readCommit, findTerminal, nativePath, pruneRuns, unrechecked, notice, notifier, notifyArgs, winToastArgs, LOGO, type Card,
+  reviewFindings, pickFindings, fixPrompt, approvalPrompt, sessionLaunch, closeSessions, sweepSessions, readSessions, ownerOf, gitStatus, runGit, cardsGit, commitPush, commitStaged, stageFiles, suggestMessage, readCommit, findTerminal, nativePath, pruneRuns, unrechecked, notice, notifier, notifyArgs, winToastArgs, LOGO, type Card,
 } from "./state.ts";
 
 let state: string;
@@ -549,6 +549,13 @@ test("commitPush: commits the run's files only, pushes, and records it; the mess
   expect(Bun.spawnSync(["git", "-C", proj, "status", "--porcelain"]).stdout.toString()).toBe("A  c.txt\n");
   expect(readCommit(st, "r1")).toEqual({ sha: r.sha, pushed: true });
   expect(cardsGit(st, ["r1", "r0", "nope"])).toEqual({ r1: "pushed", r0: "pushed" });   // r0: no record, but its file is in; c.txt still changed is not its business
+  // A done run whose report is touched after its commit is not offered later changes to its files.
+  writeFileSync(join(st, "runs", "r1", "state.json"), JSON.stringify({ stage: "done", updated: "2000-01-01T00:00:00Z" }));
+  utimesSync(join(st, "runs", "r1", "03-impl.md"), new Date(Date.now() + 60000), new Date(Date.now() + 60000));
+  writeFileSync(join(proj, "a.txt"), "a2");
+  expect(runGit(st, "r1")).toMatchObject({ files: [] });
+  writeFileSync(join(proj, "a.txt"), "a");
+  rmSync(join(st, "runs", "r1", "state.json"));
 
   // Windows has no file named b*.txt, so the rest is for everywhere else.
   if (process.platform === "win32") return;
@@ -1440,4 +1447,73 @@ test("gate: a run marked done without acceptance reads, heals and finishes as re
   mk("2026-10-29-off");
   expect(row("2026-10-29-off").stage).toBe("done");
   rmSync(proj, { recursive: true, force: true });
+});
+
+test("stageFiles, commitStaged, suggestMessage: only the run's files are staged, discarded or committed, and nothing is pushed", async () => {
+  const root = mkdtempSync(join(tmpdir(), "kz-stage-"));
+  const sh = (cwd: string, ...a: string[]) => Bun.spawnSync(["git", "-C", cwd, ...a]).stdout.toString().trim();
+  const bare = join(root, "remote.git"), proj = join(root, "proj"), st = join(proj, ".kaizen");
+  mkdirSync(join(st, "runs", "r1"), { recursive: true });
+  Bun.spawnSync(["git", "init", "-q", "--bare", bare]);
+  Bun.spawnSync(["git", "init", "-q", proj]);
+  for (const kv of [["user.name", "t"], ["user.email", "t@t"], ["commit.gpgsign", "false"], ["core.hooksPath", "/dev/null"]]) sh(proj, "config", ...kv);
+  sh(proj, "remote", "add", "origin", bare);
+  writeFileSync(join(proj, ".gitignore"), ".kaizen/\n");
+  writeFileSync(join(proj, "a.txt"), "one\ntwo\n");
+  writeFileSync(join(proj, "other.txt"), "o\n");
+  sh(proj, "add", ".");
+  Bun.spawnSync(["git", "-C", proj, "commit", "-qm", "init"], { env: { ...process.env, GIT_COMMITTER_DATE: "2000-01-01T00:00:00Z", GIT_AUTHOR_DATE: "2000-01-01T00:00:00Z" } });
+  writeFileSync(join(proj, "a.txt"), "one\nTWO\nthree\n");
+  writeFileSync(join(proj, "new.txt"), "n\n");
+  writeFileSync(join(proj, "other.txt"), "changed\n");
+  writeFileSync(join(st, "runs", "r1", "03-impl.md"), "- `a.txt`\n- `new.txt`\n");
+  // Reported a minute ago: after the init commit, before the run's own commit below
+  // (a commit in the report's own second keeps the file offered).
+  utimesSync(join(st, "runs", "r1", "03-impl.md"), new Date(Date.now() - 60000), new Date(Date.now() - 60000));
+  const g = () => runGit(st, "r1") as any;
+  expect(g().rows).toEqual([
+    { path: "a.txt", staged: false, code: "M", add: 2, del: 1 },
+    { path: "new.txt", staged: false, code: "U", add: 1, del: 0 },
+  ]);
+  expect(g().log).toEqual([{ sha: expect.any(String), subject: "init", refs: expect.stringContaining("HEAD"), unpushed: true }]);
+  // Another run's file is refused whole, and nothing is staged.
+  expect(stageFiles(st, "r1", "stage", ["a.txt", "other.txt"])).toBe("Not this run's: other.txt");
+  expect(g().staged).toEqual([]);
+  expect(stageFiles(st, "r1", "stage", ["a.txt"])).toBeNull();
+  expect(g().staged).toEqual(["a.txt"]);
+  expect(g().rows[0]).toEqual({ path: "a.txt", staged: true, code: "M", add: 2, del: 1 });
+  expect(stageFiles(st, "r1", "unstage", ["a.txt"])).toBeNull();
+  expect(g().staged).toEqual([]);
+  // Discard: an untracked file is deleted, a tracked one goes back to the index.
+  expect(stageFiles(st, "r1", "discard", ["new.txt"])).toBeNull();
+  expect(existsSync(join(proj, "new.txt"))).toBe(false);
+  expect(stageFiles(st, "r1", "discard", ["a.txt"])).toBeNull();
+  expect(readFileSync(join(proj, "a.txt"), "utf8")).toBe("one\ntwo\n");
+  expect(readFileSync(join(proj, "other.txt"), "utf8")).toBe("changed\n");   // not the run's, untouched
+  writeFileSync(join(proj, "a.txt"), "one\nTWO\nthree\n");
+  // Plain Commit: nothing staged, a stale list, another file staged by hand, all refused.
+  expect(commitStaged(st, "r1", "fix: x", [])).toEqual({ ok: false, why: "Nothing is staged." });
+  stageFiles(st, "r1", "stage", ["a.txt"]);
+  expect(commitStaged(st, "r1", "fix: x", [])).toMatchObject({ ok: false });
+  sh(proj, "add", "other.txt");
+  expect((commitStaged(st, "r1", "fix: x", ["a.txt"]) as any).why).toContain("Other files are staged too: other.txt");
+  sh(proj, "reset", "-q", "--", "other.txt");
+  expect((commitStaged(st, "r1", "no type", ["a.txt"]) as any).why).toContain("Start the message with a type");
+  // The sparkle: with no claude on PATH the message is built from the file names, and it passes the type check.
+  const path = process.env.PATH;
+  process.env.PATH = "";
+  try {
+    const m = await suggestMessage(st, "r1");
+    expect(m).toEqual({ ok: true, message: "chore: update a.txt", ai: false });
+  } finally { process.env.PATH = path; }
+  const r = commitStaged(st, "r1", "fix: a", ["a.txt"]) as { ok: true; sha: string };
+  expect(r.ok).toBe(true);
+  expect(sh(proj, "show", "--name-only", "--format=%s", "HEAD")).toBe("fix: a\n\na.txt");
+  expect(sh(bare, "rev-list", "--all", "--count")).toBe("0");   // not pushed
+  expect(readCommit(st, "r1")).toEqual({ sha: r.sha, pushed: false });
+  // Edits made after the run's commit are not the run's: discarding them is refused.
+  writeFileSync(join(proj, "a.txt"), "junk\n");
+  expect(stageFiles(st, "r1", "discard", ["a.txt"])).toBe("Not this run's: a.txt");
+  expect(readFileSync(join(proj, "a.txt"), "utf8")).toBe("junk\n");
+  rmSync(root, { recursive: true, force: true });
 });

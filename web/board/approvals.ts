@@ -25,9 +25,9 @@ export async function resume(c, b) {
   }
 }
 export const APPROVAL = {
-    "approvals.plan": "Read the plan, then: Approve starts the build; Revise sends it back with what to change.",
-    "approvals.review": "The work is ready to check. Approve finishes it; Revise sends it back with what to change.",
-    findings: "The review has open findings. Approve as-is to accept them and finish, or fix selected findings first.",
+    "approvals.plan": "Plan ready.",
+    "approvals.review": "Ready to check.",
+    findings: "Open findings.",
   },
   decided = new Set(),
   answer = (c) => key(c) + ":" + c.awaiting + ":" + c.moved;

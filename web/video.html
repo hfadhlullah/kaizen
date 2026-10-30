@@ -132,6 +132,7 @@ body .rail a.upd::after{left:calc(50% + 6px);top:4px}body .toast{left:16px;botto
 .rail a.it[aria-current=page] svg{background:color-mix(in srgb,var(--accent) 16%,transparent)}
 .rail a.it[aria-current=page]{font-weight:600}
 }
+[data-hide="1"] .rail{width:calc(var(--btn-s) + 12px);padding-inline:6px;align-items:center}[data-hide="1"] .rail>:not(.top){display:none}[data-hide="1"] .rail .top{padding:0}[data-hide="1"] .rail .top>:not(#fold){display:none}
 /* end side menu */
 #kbd{display:none}
 /* the work area: an inset rounded panel on the canvas the side menu sits on */
@@ -381,7 +382,7 @@ pre.mark span:nth-child(1){color:var(--ink-hi)}pre.mark span:nth-child(2){color:
 (()=>{const r=document.documentElement,wide=matchMedia("(max-width:1100px)"),phone=matchMedia("(max-width:640px)"),os=matchMedia("(prefers-color-scheme: dark)");
  // The toggle's choice is kept per browser; with none, the width decides. A phone always gets icons.
  let fold=null;try{fold=localStorage.getItem("kz-rail")}catch(e){}
- const rail=()=>{const m=phone.matches||(fold?fold==="min":wide.matches),b=document.getElementById("fold");r.dataset.rail=m?"min":"full";b.title=m?"Expand menu":"Collapse menu";b.setAttribute("aria-label",b.title);b.setAttribute("aria-expanded",!m)};
+ const rail=()=>{const m=phone.matches||(fold?fold==="min":wide.matches),b=document.getElementById("fold");r.dataset.rail=m?"min":"full";r.dataset.hide=!phone.matches&&fold==="min"?"1":"0";b.title=m?"Expand menu":"Collapse menu";b.setAttribute("aria-label",b.title);b.setAttribute("aria-expanded",!m)};
  wide.addEventListener("change",rail);phone.addEventListener("change",rail);rail();
  document.getElementById("fold").onclick=()=>{fold=r.dataset.rail==="min"?"full":"min";try{localStorage.setItem("kz-rail",fold)}catch(e){}rail()};
  // Theme: light, dark, or unset for system, in kz-theme. The toggle shows what is on screen and flips it.

@@ -24,7 +24,7 @@ const TABS = [
   ["Backlog", "backlog"],
   ["Work", "impl"],
   ["Review", "review"],
-  ["Git", "git"],
+  ["Source control", "git"],
   ["Preview", "preview"],
 ];
 // keepTab: a link already chose the tab.
@@ -121,19 +121,29 @@ function steps(c) {
     STEPS.map((n, i) => `<span class="${i < at ? "ok" : i === at ? "now" : ""}"><i></i>${n}</span>`).join(""),
   )}</span>`;
 }
-// The run workspace's header, as in its mockup: project · runner · agent · mode, then
-// five bars (request, plan, build, review, done): done green, the current one amber.
+// The run workspace's header: the project beside the picker (runner, agent, mode in its
+// tooltip), then the stage the run is in as one word and a bar that slides to it.
+let lastAt = { id: "", w: 0 };
 function meta(c) {
   let st: any = {};
   try {
     st = JSON.parse(store.runDoc?.state || "{}");
   } catch {}
   const proj = String(c.where || "").split(/[\\/]/).filter(Boolean).pop() || "";
-  const parts = [proj, st.runner, st.agent, st.mode].filter(Boolean);
-  const at = c.status === "done" ? 5 : Math.max(1, c.column || 1);
-  return html`<div class="rmeta">${parts.join(" · ")}</div><div class="rbars" title="${cap(WORD[c.status] || c.status)}">${raw(
-    [0, 1, 2, 3, 4].map((i) => `<i class="${i < at ? "ok" : i === at ? "now" : ""}"></i>`).join(""),
-  )}</div>`;
+  const at = c.status === "done" ? 3 : Math.min(3, Math.max(0, (c.column || 1) - 1)),
+    word = STEPS[at] + (c.status === "waiting" ? ", needs you" : c.status === "stalled" ? ", stalled" : ""),
+    w = c.status === "done" ? 100 : ((at + 0.5) / 4) * 100;
+  const from = lastAt.id === c.id ? lastAt.w : 0;
+  lastAt = { id: c.id, w };
+  if (from !== w)
+    requestAnimationFrame(() => {
+      const i = $("psub").querySelector(".rprog i") as HTMLElement;
+      if (!i) return;
+      i.style.width = from + "%";
+      i.offsetWidth;
+      i.style.width = w + "%";
+    });
+  return html`<div class="rmeta" title="${[st.runner, st.agent, st.mode].filter(Boolean).join(", ")}">${proj}</div><div class="rprog s-${c.status}" title="${cap(WORD[c.status] || c.status) + (c.awaiting ? `: ${need(c.awaiting)}` : "")}"><span>${word}</span><b><i style="width:${w}%"></i></b></div>`;
 }
 // An idea's panel: its terminal while the run it started is being born there, else its notes.
 export function ideaBody(c) {
@@ -236,9 +246,9 @@ export async function openRun(c, refresh, again) {
   const foot = $("pfoot");
   // A refresh while the commit is being confirmed would wipe the message.
   if (refresh && foot.querySelector(".inl,[data-busy],.more[open]")) return;
-  // Git work left on a finished run: the footer points at the Git tab, which holds it.
+  // Git work left on a finished run: the footer points at the Source control tab, which holds it.
   const arch =
-    (k !== "git" && gitPending(c) ? `<button class="btn" data-a="gittab">Git…</button>` : "") +
+    (k !== "git" && gitPending(c) ? `<button class="btn" data-a="gittab">Source control</button>` : "") +
     (c.archived
       ? `<button class="btn pri" data-a="restore">Restore</button>`
       : `<button class="btn ghost" data-a="archive">Archive</button>`);
@@ -254,21 +264,21 @@ export async function openRun(c, refresh, again) {
   else if ((c.status === "waiting" || c.awaiting === "findings") && APPROVAL[c.awaiting]) {
     const sent = decided.has(answer(c)),
       asks = !pq
-        ? " It has open questions the board cannot show: answer them in the terminal running this run, or approve and your agent asks them."
+        ? " Has questions: answer in its terminal."
         : qs.length
-          ? ` Approve first asks you ${qs.length === 1 ? "its question" : "its " + qs.length + " questions"}.`
+          ? ` ${qs.length === 1 ? "1 question" : qs.length + " questions"}.`
           : "";
     const more =
       `<button data-a="archive">Archive</button><hr><button data-a="ab" class="danger">Abandon</button>`;
     foot.innerHTML = html`<span class="note">${sent ? "Sent to your agent." : APPROVAL[c.awaiting] + asks}</span><details class="more"><summary class="btn ghost">More</summary><div class="menu-pop">${raw(more)}</div></details>${raw(rs)}<span class="dec"><button class="btn" data-a="revise"${sent ? " disabled" : ""}>Revise</button><button class="btn pri" data-a="approve"${sent ? " disabled" : ""}>${c.awaiting === "findings" ? "Approve as-is" : "Approve"}</button></span>`;
   } else if (c.status === "waiting")
-    foot.innerHTML = html`<span class="note">Waiting on you: ${need(c.awaiting)}. Answer in the ${c.pty && c.pty.alive ? "terminal (button at the top)" : "terminal running this run"}.</span>${raw(arch)}<button class="btn ghost" data-a="ab">Abandon</button>${raw(rs)}`;
+    foot.innerHTML = html`<span class="note">Waiting: ${need(c.awaiting)}.</span>${raw(arch)}<button class="btn ghost" data-a="ab">Abandon</button>${raw(rs)}`;
   else if (c.status === "done" && c.accept === "needs")
     foot.innerHTML = html`<span class="note">Done, not approved: its agent finished without your approval. Nothing is committed until you approve.</span>${raw(arch + rs)}<button class="btn pri" data-a="accept">Approve</button>`;
   else if (c.status === "done") foot.innerHTML = raw(arch + rs);
   else if (c.status === "abandoned") foot.innerHTML = raw(arch);
   else
-    foot.innerHTML = html`<span class="note">${c.pty && !c.pty.alive ? "Its agent ended before the stage finished. Resume continues it here." : c.status === "stalled" ? "No progress for a while. Resume it, or abandon it." : c.pty ? "" : "Running in your agent."}</span>${raw(arch)}<button class="btn ghost" data-a="ab">Abandon run</button>${resumable(c) ? html`<button class="btn pri" data-a="resume">Resume</button>` : ""}`;
+    foot.innerHTML = html`<span class="note">${c.pty && !c.pty.alive ? "Agent ended early." : c.status === "stalled" ? "Stalled." : ""}</span>${raw(arch)}<button class="btn ghost" data-a="ab">Abandon</button>${resumable(c) ? html`<button class="btn pri" data-a="resume">Resume</button>` : ""}`;
   foot.querySelectorAll("[data-a]").forEach(
     (b) =>
       (b.onclick = () => {

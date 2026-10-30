@@ -106,6 +106,16 @@ function fold(dir: string) {
   } catch {}
   drawList();
 }
+const svg = (d: string) => `<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg>`;
+const FA_OPEN = svg("M4 3l4 3 4-3M4 13l4-3 4 3");
+const FA_SHUT = svg("M4 6l4-3 4 3M4 10l4 3 4-3");
+const foldAll = (shut: boolean) => {
+  for (const d of last.projects?.map((p) => p.dir) ?? []) shut ? folded.add(d) : folded.delete(d);
+  try {
+    localStorage.setItem("kz-rail-folded", JSON.stringify([...folded]));
+  } catch {}
+  drawList();
+};
 // A card's workspace row: its own (a run's worktree) when the project lists it, else the
 // main checkout's, so a run whose worktree is gone, an idea or an old run never vanishes.
 export function wsOfCard(c, projects = last.projects) {
@@ -252,15 +262,20 @@ function drawPop(all: Set<string>) {
   const dirs = [...all];
   const shown = dirs.filter((d) => projName(d, last.projects).toLowerCase().includes(pq.toLowerCase()));
   const box = (on: boolean, attrs: string, label) => html`<label class="pfrow"><input type="checkbox" ${raw(attrs)}${on ? raw(" checked") : ""}>${label}</label>`;
+  const allShut = dirs.length > 0 && dirs.every((d) => folded.has(d));
   const had = document.activeElement?.id;
   p.innerHTML = String(
-    html`${dirs.length > 6 ? html`<input class="sel" id="pfq" placeholder="Search projects…" aria-label="Search projects" value="${pq}" autocomplete="off" spellcheck="false">` : ""}${box(!filt.dirs.length, 'data-all="1"', "All projects")}${shown.map((d) => box(filt.dirs.includes(d), `data-dir="${encodeURIComponent(d)}"`, html`${logo(d, projName(d, last.projects), last.projects)}<span>${projName(d, last.projects)}</span>`))}<div class="pfh">Show</div>${(["active", "done"] as const).map((k) => box(filt[k], `data-k="${k}"`, { active: "Active runs", done: "Done (last day)" }[k]))}`,
+    html`${dirs.length > 6 ? html`<input class="sel" id="pfq" placeholder="Search projects…" aria-label="Search projects" value="${pq}" autocomplete="off" spellcheck="false">` : ""}<div class="pfall">${box(!filt.dirs.length, 'data-all="1"', "All projects")}<button type="button" class="pfb" data-fa="${allShut ? "0" : "1"}" title="${allShut ? "Expand all" : "Collapse all"}" aria-label="${allShut ? "Expand all projects" : "Collapse all projects"}">${raw(allShut ? FA_OPEN : FA_SHUT)}</button></div>${shown.map((d) => box(filt.dirs.includes(d), `data-dir="${encodeURIComponent(d)}"`, html`${logo(d, projName(d, last.projects), last.projects)}<span>${projName(d, last.projects)}</span>`))}<div class="pfh">Show</div>${(["active", "done"] as const).map((k) => box(filt[k], `data-k="${k}"`, { active: "Active runs", done: "Done (last day)" }[k]))}`,
   );
   if (had === "pfq") {
     const q = $("pfq") as HTMLInputElement;
     q.focus();
     q.setSelectionRange(pq.length, pq.length);
   }
+  p.onclick = (e) => {
+    const b = (e.target as HTMLElement).closest("[data-fa]") as HTMLElement | null;
+    if (b) foldAll(b.dataset.fa === "1");
+  };
   p.oninput = (e) => {
     const t = e.target as HTMLInputElement;
     if (t.id === "pfq") pq = t.value;

@@ -209,3 +209,6 @@ updated: 2026-10-28
 - 2026-10-29 run 2026-10-29-search-open-tabs — Search: Tabs group (run-view tabs from `kz-runtabs`, `kz-open-tab`), cleaner palette (short groups, no footer, short ages), chat ages no longer NaN
 - 2026-10-30 Web board: split-pane resize holds (stable layout nodes in `prune`/`screens`, frames ignore the pointer while dragging); History pane imports `stateOf`
 - 2026-10-30 run 2026-10-30-run-git-tab — Web board: Git tab in the run panel (commit, push, PR status/create/merge, remove worktree), `/pr` route, async PR lookup; footer git buttons removed
+- 2026-10-30 cleaner-run-panel: run panel header shows project only; footer and approval notes shortened.
+- 2026-10-30 cleaner-run-panel: finished runs no longer claim later changes after a report rewrite; run header shows project beside picker and a single stage bar.
+- 2026-10-30 cleaner-run-panel: Git tab became Source control in Orca's layout (stage, unstage, discard, plain commit, commits list).
