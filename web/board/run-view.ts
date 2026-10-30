@@ -105,8 +105,10 @@ function tabs(): Tab[] {
   const named = (a?: string) => agents.find((x) => x.cmd === a)?.name ?? "Agent";
   const live = wsCards(),
     liveKeys = new Set(live.map(key));
+  // A finished run's agent that is still open keeps its tab, as the sidebar keeps it.
+  const open = store.S.cards.filter((c) => c.state === ctx!.dir && wsOfCard(c) === ctx!.ws && !liveKeys.has(key(c)) && c.pty?.alive);
   // Each live run's terminals: its stage terminals ("Build · Claude"), other sessions, shells, the waiting note.
-  for (const c of live) {
+  for (const c of [...live, ...open]) {
     const k = key(c),
       runAgent = AGENTS.find((a) => a === c.pty?.agent) ?? AGENTS.find((a) => c.tags?.includes(a)) ?? undefined;
     for (const t of stageTabs(c, named(runAgent))) out.push({ id: "agent:" + t.key, kind: "agent", agent: runAgent, title: t.title, key: t.key });
