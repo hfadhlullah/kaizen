@@ -47,7 +47,7 @@ export async function decide(c, b, why, answers) {
     return;
   }
   decided.add(answer(c));
-  toast((why === undefined ? "Approved" : "Sent back") + ", " + where(r) + ": " + via(r.agent));
+  toast((why === undefined ? "Approved" : "Sent back") + ", " + (r.reused ? "sent to the agent already open in its card" : where(r) + ": " + via(r.agent)));
   if (r.pty) (store.wantTerm = key(c)), (store.wantPty = { key: r.pty, at: Date.now() });
   if (store.openKey === key(c)) {
     $("pfoot").innerHTML = "";

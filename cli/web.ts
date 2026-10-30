@@ -273,6 +273,13 @@ export async function web(repoDir: string, opts: Opts = {}) {
   // agent.launch: card runs what this board launches inside the board, shown on the card.
   const inCard = (dir: string) => ({ card: launchMode(projectOf(dir)) === "card", onChange: changed });
 
+  // The agent open in a run's card, the newest when there are several: what the user sees
+  // working. Everything sent to a run goes here before any new agent is started.
+  const liveAgent = (dir: string, id: string) => {
+    const idx = runIndex(dir);
+    return readSessions(dir).filter((s) => ptyState(s.key)?.alive && ownerOf(dir, s, idx) === id).sort((a, b) => a.started - b.started).pop();
+  };
+
   // Start a run's agent again after it ended mid-stage (crashed, closed, a stalled run, or
   // the board restarting for an upgrade), in the conversation it had where the tool can
   // resume one. A run waiting for a decision, or done, gets its conversation back with
@@ -282,7 +289,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
     let run: any;
     try { run = JSON.parse(readText(join(dir, "runs", id, "state.json"))); } catch { return { error: "no such run", status: 404 }; }
     if (run.stage === "abandoned") return { error: "this run was abandoned", status: 409 };
-    if (readSessions(dir).some((s) => ptyState(s.key)?.alive && ownerOf(dir, s) === id)) return { error: "its agent is still running in its card", status: 409 };
+    if (liveAgent(dir, id)) return { error: "its agent is still running in its card", status: 409 };
     const quiet = run.stage === "done" || !!run.awaiting;
     const own = quiet ? runAgent(dir, id) : null;
     if (quiet && !(own && firstSession(dir, id, own.cmd, projectOf(dir)))) return { error: "no conversation of this run to resume", status: 409 };
@@ -1861,7 +1868,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           const text = fixPrompt(id, nums);
           // An agent already open in this run's card takes the fix there, busy or not:
           // the text queues in it, and no second agent opens beside it.
-          const live = readSessions(dir).find((s) => ptyState(s.key)?.alive && ownerOf(dir, s) === id);
+          const live = liveAgent(dir, id);
           if (live) {
             writePty(live.key, text + "\r");
             markStage(dir, id, "review", live.key);
@@ -1908,9 +1915,9 @@ export async function web(repoDir: string, opts: Opts = {}) {
           // a fix: no second tab of the same conversation. With none, the run's conversation
           // continues in one new window, and then the idle one ends. A failed launch leaves
           // it open, since the decision went nowhere.
-          const live = readSessions(dir).find((s) => ptyState(s.key)?.alive && ownerOf(dir, s) === id);
+          const live = liveAgent(dir, id);
           const before = Date.now();
-          const r = live ? { ok: true as const, pty: live.key, agent: live.cmd } : launchRun({ severity: null, where: null, text, raw: text }, dir, id, inCard(dir));
+          const r = live ? { ok: true as const, pty: live.key, agent: live.cmd, reused: true } : launchRun({ severity: null, where: null, text, raw: text }, dir, id, inCard(dir));
           if (live) writePty(live.key, text + "\r");
           else if (r.ok) closeSessions(dir, id, { before });
           // The plan's approval starts the build; fixing open findings is the review stage again.
@@ -1920,7 +1927,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           if (r.ok && body.why === undefined && (run.awaiting === "approvals.review" || run.awaiting === "findings")) recordAcceptance(dir, id, "board");
           changed();
           return json(r.ok
-            ? { ok: true, agent: r.agent, pty: r.pty }
+            ? { ok: true, agent: r.agent, pty: r.pty, ...(live ? { reused: true } : {}) }
             : { ok: false, why: r.why, manual: r.manual, agent: r.agent }, r.ok ? 200 : 500);
         }
 
