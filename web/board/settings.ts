@@ -2,7 +2,7 @@ import { store } from "./store.ts";
 import { termStop } from "./agent-term.ts";
 import { load, post } from "./api.ts";
 import { stopDictation } from "./dictation.ts";
-import { $, html, ico, SKEL } from "./dom.ts";
+import { $, html, ico, raw } from "./dom.ts";
 import { close } from "./panel.ts";
 import { placeOf, SETTINGS_NAV } from "./settings-pages.ts";
 import { askNotify, notifyOn, playSound, soundPick, SOUNDS, toast } from "./toast.ts";
@@ -18,13 +18,19 @@ addEventListener("keydown", (e) => {
   e.preventDefault();
   $("sq")?.focus();
 });
+// The Settings page while it loads: its sidebar and a card of rows, so nothing jumps when it arrives.
+const bar = (w: string, h = 14, m = "0") => `<span class="skel" style="width:${w};height:${h}px;margin:${m}"></span>`;
+const SET_SKEL = raw(
+  `<div class="sset" aria-busy="true" aria-label="Loading"><nav class="snav"><div class="snavs">${bar("60%", 32, "0 0 24px")}${bar("100%", 32, "0 0 24px")}${[4, 3, 4].map((n) => bar("40%", 11, "0 12px 12px") + bar("100%", 32, "0 0 2px").repeat(n) + bar("0", 0, "0 0 20px")).join("")}</div></nav>` +
+    `<div class="smain"><div class="spage"><header>${bar("30%", 28, "0 0 8px")}${bar("55%")}</header><div class="scard">${(bar("70%", 13, "12px 0 6px") + bar("45%", 11, "0 0 12px")).repeat(6)}</div></div></div></div>`,
+);
 export async function openSettings() {
   if (view !== "settings") return;
   const gen = ++store.pageGen;
   stopDictation(true);
   // Coming from another page or a card, its body goes now, not when the fetch answers.
   if (!$("panel").classList.contains("open") || $("ptitle").textContent !== "Settings") {
-    $("pbody").innerHTML = SKEL;
+    $("pbody").innerHTML = SET_SKEL;
     $("psub").textContent = "";
     store.setScope = store.all ? "all" : store.dir || store.S.dir || "all";
   }

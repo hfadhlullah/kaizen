@@ -742,10 +742,10 @@ aside .foot .more .menu-pop{left:0;right:auto;top:auto;bottom:calc(100% + 4px)}.
 .sjump{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.sjump button{padding:3px 10px;border:1px solid var(--line);border-radius:var(--r-pill);font-size:12px;color:var(--dim)}.sjump button:hover{background:var(--hover);color:var(--ink)}
 .snone{color:var(--dim);margin-top:20px}
 /* settings, laid out as Orca's: its own sidebar in place of the rail, one page per item, rows in one card */
-@media(min-width:641px){body.setv .rail{display:none}body.setv #panel>header{display:none}body.setv #panel>.body{padding:0}}
+@media(min-width:641px){body.setv .rail{display:none}body.setv #panel>header{display:none}body.setv #panel>.body{padding:0!important;overflow:hidden}body.setv #panel{background:none;border-color:transparent;box-shadow:none}.sset .snav{background:none;border-right:0}.sset .snav .sq{border-block:0;padding-block:0 8px}.sset .smain{margin:0 0 0 0;background:var(--bg);border:1px solid var(--line);border-radius:var(--r)}}
 .sset{display:grid;grid-template-columns:280px minmax(0,1fr);height:100%}
 .snav{min-height:0;display:flex;flex-direction:column;background:var(--bg-2);border-right:1px solid var(--line)}
-.sback{display:flex;align-items:center;gap:8px;padding:0 var(--padx);margin:12px;height:var(--btn-s);border-radius:var(--r-s);font-size:13px;color:var(--dim);text-align:left}.sback:hover,.sup:hover{color:var(--ink)}
+.sback{flex:none;display:flex;align-items:center;gap:8px;padding:0 12px;margin:12px;height:var(--btn-s);border-radius:var(--r-s);font-size:13px;color:var(--dim);text-align:left}.sback:hover,.sup:hover{color:var(--ink)}
 .sback svg,.sup svg{width:var(--ico);height:var(--ico);transform:rotate(90deg)}
 .snav .sq{position:static;background:none;margin:0;padding:12px;border-block:1px solid var(--line)}
 .snavs{flex:1;min-height:0;overflow-y:auto;padding:16px 12px}
