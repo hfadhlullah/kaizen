@@ -142,7 +142,7 @@ body .rail a.upd::after{left:calc(50% + 6px);top:4px}body .toast{left:16px;botto
 .rail a.it:is([data-view=board],[data-view=ideas],[data-view=sources]),#foot,#ctx-open,body .rail .rbot .rib{display:none!important}
 .rail a.it.ponly{display:flex}
 .rail a.it[data-view=home]{order:1}.rail a.it[data-view=chat]{order:2}.rail a.it[data-view=device]{order:3}.rail a.it[data-view=settings]{order:4}
-.rail,[data-rail=min] .rail{padding:6px 8px max(4px,env(safe-area-inset-bottom));border-top:1px solid color-mix(in srgb,var(--line) 70%,transparent)}
+.rail,[data-rail=min] .rail{padding:8px 8px max(2px,calc(env(safe-area-inset-bottom) - 8px));border-top:1px solid color-mix(in srgb,var(--line) 70%,transparent)}
 .rail a.it,[data-rail=min] .rail a.it{min-height:46px;gap:3px;font-size:10.5px;letter-spacing:.01em}
 .rail a.it svg{width:44px;height:26px;padding:4px 12px;box-sizing:border-box;border-radius:13px;transition:background .15s}
 .rail a.it[aria-current=page] svg{background:color-mix(in srgb,var(--accent) 16%,transparent)}
@@ -586,7 +586,7 @@ body.runv #panel.parked,body.runv.rflip #panel.parked{display:none}
 body.runv.rflip #panel::before{content:"";position:absolute;top:7px;left:50%;width:36px;height:4px;margin-left:-18px;border-radius:2px;background:var(--line)}body.runv.rflip #panel>.body{overscroll-behavior:contain;scrollbar-width:none}body.runv.rflip #panel>.body::-webkit-scrollbar{display:none}body .prog .ph{display:flex;justify-content:space-between;gap:8px}body.runv.rflip #panel>header{padding-top:8px}body.runv.rflip .rmeta{max-width:64px}
 #rtabs .rtab span{max-width:110px;overflow:hidden;text-overflow:ellipsis}}
 /* A phone: the panel is a sheet opened from the run tab (#rside); 44px touch targets */
-@media(max-width:640px){body.runv #rtabs{height:52px;min-height:52px}body.runv #rtabs .rtab,body.runv #rtabs .rbtn{min-height:44px;height:44px}body.runv #rtabs .rbtn{min-width:44px}body.runv #rtabs .rtab i{padding:12px 10px}body.runv #rbar{height:52px}body.runv #ptabs button{width:44px;height:44px}body.runv #pclose{width:44px;height:44px}body.runv #pfoot .btn{min-height:44px}}
+@media(max-width:640px){body.runv #rtabs{height:52px;min-height:52px}body.runv #rtabs .rtab,body.runv #rbar .rbtn{min-height:44px;height:44px;min-width:44px}body.runv #rtabs .rtab i{padding:12px 14px}body.runv #pnotes{width:44px;height:44px}body.runv #pfoot details button{min-height:44px}body .termtools button{min-width:40px;min-height:40px}body.runv #rbar{height:52px}body.runv #ptabs button{width:44px;height:44px}body.runv #pclose{width:44px;height:44px}body.runv #pfoot .btn{min-height:44px}}
 
 /* revise 5: the mockup's plain chrome for terminals, in the workspace and on the Terminal page */
 body.termv #tmodes{background:none;padding:0;gap:2px}body.termv #tmodes button{color:var(--dim);background:none;box-shadow:none;border-radius:4px;font-weight:400}body.termv #tmodes button:hover{background:var(--hover);color:var(--ink)}body.termv #tmodes button.on{color:var(--ink);background:var(--hover);box-shadow:none}

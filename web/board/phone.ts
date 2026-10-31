@@ -168,6 +168,9 @@ export function openPhone(m: "home" | "device" | null) {
 // but Safari ticks when a switch checkbox toggles, so a hidden one is toggled through its label.
 let tick: HTMLLabelElement | null = null;
 function haptic() {
+  try {
+    if (localStorage.getItem("kz-haptic") === "off") return;
+  } catch (e) {}
   if (navigator.vibrate) return void navigator.vibrate(8);
   if (!tick) {
     tick = document.createElement("label");

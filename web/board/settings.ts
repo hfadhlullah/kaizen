@@ -147,11 +147,16 @@ export async function openSettings() {
   put("mobile", "Phone", row("Phone address", cfg?.phoneUrls?.length ? html`<span class="phoneurls">${cfg.phoneUrls.map((url) => html`<a href="${url}" target="_blank" rel="noopener">${url}</a>`)}</span>` : html`<span>Not set</span>`, cfg?.phoneUrls?.length ? "Configured address; Tailscale must be running on both devices." : "Run kaizen setup on this PC to connect your phone.", "phone-url", "phone address url tailscale setup"));
   put("integrations", "Google", row("OAuth client id", html`<input class="sel" id="gg-id" placeholder="${gg.hasClient ? "Saved. Paste a new one to replace it" : "Desktop app client id from Google Cloud"}" spellcheck="false" autocomplete="off">`, "", "gg-id", "google oauth client id sheets write back"));
   put("integrations", "Google", row("OAuth client secret", html`<span class="fpick"><input class="sel" id="gg-secret" type="password" placeholder="${gg.hasClient ? "Saved. Paste a new one to replace it" : ""}" spellcheck="false" autocomplete="off"><button class="btn" id="gg-save" type="button">Save</button></span>`, "", "gg-secret", "google oauth client secret"));
+  let hapton = true;
+  try {
+    hapton = localStorage.getItem("kz-haptic") !== "off";
+  } catch (e) {}
   put("integrations", "Google", row("Google account", html`<button class="btn${gg.connected ? "" : " pri"}" id="gg-conn" type="button"${gg.hasClient || gg.connected ? "" : " disabled"}>${gg.connected ? "Disconnect" : "Connect"}</button>`, "", "gg-conn", "google account connect sheets write back"));
   put("appearance", "Browser", row("Theme", ctl("th", ["system", "light", "dark"], cur), "", "th", "theme light dark system browser"));
   put("appearance", "Browser", row("Color", ctl("co", ["monochrome", "blue"], colour), "", "co", "color colour palette monochrome blue theme browser"));
   put("appearance", "Browser", row("Motion", ctl("mo", ["system", "full", "reduce"], document.documentElement.dataset.motion || "system"), "Animations across kaizen. System follows the device's reduce-motion setting.", "mo", "motion animation reduce reduced browser"));
   put("notifications", "Browser", row("Notifications", html`<button class="chk sm${nton ? " on" : ""}" id="nt" role="switch" aria-checked="${String(nton)}"></button>`, ntHelp, "nt", "notifications " + ntHelp + " browser"));
+  put("notifications", "Browser", row("Haptic feedback", html`<button class="chk sm${hapton ? " on" : ""}" id="hp" role="switch" aria-checked="${String(hapton)}"></button>`, "A light tick when you tap something on a phone.", "hp", "haptic feedback vibrate vibration touch tap phone browser"));
   put("notifications", "Browser", row("Notification sound", ctl("ns", SOUNDS, soundPick()), "Plays with each notice. Changing it plays it.", "ns", "notification sound audio browser " + SOUNDS.join(" "), !nton));
   // A narrow screen starts on the list of pages, a wide one on the first page.
   store.setPage ??= new URLSearchParams(location.search).get("page") || "";
@@ -309,6 +314,12 @@ export async function openSettings() {
     } catch (e) {}
     if (on) askNotify();
     setTimeout(openSettings, 300);
+  };
+  $("hp").onclick = () => {
+    try {
+      localStorage.setItem("kz-haptic", hapton ? "off" : "on");
+    } catch (e) {}
+    openSettings();
   };
   choice($("ns"), SOUNDS, soundPick(), (v) => {
     try {

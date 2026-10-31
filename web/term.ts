@@ -106,7 +106,29 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
   let bar: HTMLElement | null = null;
   if (matchMedia("(pointer: coarse)").matches) {
     const arrow = (c: string) => () => `\x1b${term.modes.applicationCursorKeysMode ? "O" : "["}${c}`;
-    const paste = () => navigator.clipboard?.readText().then((t) => t && term.paste(t), () => {});
+    // A terminal carries no pictures: an image is saved on the board's computer and its path
+    // typed in, which is how Claude Code and Codex take one.
+    const sendImage = async (b: Blob) => {
+      const r = await fetch("/term-image", { method: "POST", headers: { "content-type": b.type || "image/png" }, body: b }).catch(() => null);
+      const path = r?.ok ? (await r.json()).path : "";
+      if (path) term.paste(/\s/.test(path) ? `"${path}" ` : `${path} `);
+    };
+    const paste = async () => {
+      const items = await navigator.clipboard?.read?.().catch(() => []) ?? [];
+      for (const it of items) {
+        const type = it.types.find((t) => t.startsWith("image/"));
+        if (type) return sendImage(await it.getType(type));
+      }
+      navigator.clipboard?.readText().then((t) => t && term.paste(t), () => {});
+    };
+    const picker = document.createElement("input");
+    picker.type = "file";
+    picker.accept = "image/*";
+    picker.hidden = true;
+    picker.onchange = () => {
+      if (picker.files?.[0]) void sendImage(picker.files[0]);
+      picker.value = "";
+    };
     // 1-3 answer the agent's numbered prompts; the rest are the keys it asks for most.
     const keys: [string, string | (() => unknown) | "alt" | "ctrl" | "more"][] = [
       ["1", "1"], ["2", "2"], ["3", "3"], ["Esc", "\x1b"], ["^C", "\x03"], ["↑", arrow("A")], ["↓", arrow("B")],
@@ -154,7 +176,7 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
       ta.inputMode = on ? "text" : "none";
       ta.blur(); // inputmode is read on focus; the key's term.focus() reopens it
     });
-    more.append(key("Search", () => { more.hidden = true; openSearch(); }), key("Paste", () => { more.hidden = true; paste(); }), raw);
+    more.append(key("Search", () => { more.hidden = true; openSearch(); }), key("Paste", () => { more.hidden = true; void paste(); }), key("Pick image", () => { more.hidden = true; picker.click(); }), raw);
     for (const [label, v] of keys) {
       const b = key(label, () => {
         if (v === "alt") b.classList.toggle("on", (mods.alt = !mods.alt));
@@ -184,7 +206,7 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
       msg.value = "";
       setTimeout(() => send({ t: "i", d: "\r" }), 60);
     });
-    bar.append(pad, more, chips, form);
+    bar.append(pad, more, chips, form, picker);
     el.after(bar);
   }
   // xterm.js has no touch scrolling, so on a phone a swipe did nothing. Each line's

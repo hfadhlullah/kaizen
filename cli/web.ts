@@ -13,6 +13,7 @@ import {
 } from "./state.ts";
 import { ACCOUNT_VAR, accountDir, addAccount, readAccounts, renameAccount, signedIn, removeAccount, resolveAccount, setDefaultAccount } from "./accounts.ts";
 import { readReport, signalOf } from "./report.ts";
+import { MAX_IMAGE, saveImage } from "./term-image.ts";
 import { bundledSkills, setSkill, skillsOff, skillStatus } from "./skills.ts";
 import { accountEnv, accountForRun, agentUsable, heartbeatMinutes, keepAwake, launchPreview, YOLO_FLAGS } from "./state.ts";
 import { attachPty, writePty, submitPty, resizePty, exitPty, ptyState, ptyKeys, adoptLoginEnv, startPty, ptySupported, detachPty, ptyTail, ptyTmux, tmuxAlive, RESUMED } from "./pty.ts";
@@ -242,11 +243,14 @@ export async function web(repoDir: string, opts: Opts = {}) {
   // Stricter than local(), for routes that start a process: another local server's page
   // (the dev server a localhost tab frames) shares the hostname, so the port must match
   // too, and a JSON content type forces a preflight that a foreign page cannot pass.
-  const strict = (req: Request) => {
+  const sameOrigin = (req: Request) => {
     const origin = req.headers.get("origin");
     let same = !origin;
     try { if (origin) { const o = new URL(origin); same = o.host === req.headers.get("host") || extraHosts.has(o.hostname); } } catch { /* bad origin */ }
-    if (!same) return bad("cross-origin request refused", 403);
+    return same;
+  };
+  const strict = (req: Request) => {
+    if (!sameOrigin(req)) return bad("cross-origin request refused", 403);
     if (!/^application\/json\b/i.test(req.headers.get("content-type") ?? "")) return bad("json body expected", 415);
     return null;
   };
@@ -752,6 +756,15 @@ export async function web(repoDir: string, opts: Opts = {}) {
       // workspace's + menu. Code execution, so local() as for every write, a registered
       // project, and an agent only from KNOWN_AGENTS: no argv ever comes from the page.
       // Its keys (sh-…) are /pty keys, so /pty's exact-origin check covers the socket.
+      // An image pasted into a terminal: saved here so its path can be typed into the agent.
+      // Raw bytes, so not strict()'s JSON, but an image content type still forces a preflight.
+      if (req.method === "POST" && path === "/term-image") {
+        if (!sameOrigin(req)) return bad("cross-origin request refused", 403);
+        if (!/^image\//i.test(req.headers.get("content-type") ?? "")) return bad("image body expected", 415);
+        if (Number(req.headers.get("content-length") ?? 0) > MAX_IMAGE) return bad("image too large", 413);
+        const saved = saveImage(new Uint8Array(await req.arrayBuffer()));
+        return saved ? json({ path: saved }) : bad("not an image", 415);
+      }
       if (req.method === "POST" && path === "/shell") {
         const refused = strict(req);
         if (refused) return refused;
