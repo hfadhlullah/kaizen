@@ -581,6 +581,8 @@ the project and run it came from. Each line reads:
 
 ## Settings
 
+**Agents.** Settings → Agents sets the default agent and shows every agent kaizen supports. For each one you can turn it on or off and set its permissions, command, arguments and environment. These apply to all your projects and are saved in `~/.kaizen/agents.json`; with nothing set, agents start as before. Environment values are plain text, so don't store secrets there. A turned-off agent is not offered or started. **Keep computer awake** stops idle sleep while the board runs agents (auto) or while it's open (on), on Linux and macOS.
+
 `~/.kaizen/config.yml` — one file, every project. The three worth knowing:
 
 | Setting | Default | Meaning |

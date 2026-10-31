@@ -153,6 +153,9 @@ agent:
   #          a board restart or crash; the next board shows them again mid-step.
   #          Linux and macOS with tmux installed; elsewhere it acts as off.
   keep_alive: off
+  # Stops idle sleep from the board. off | auto (while the board runs agents) | on
+  # (while the board is open). Linux and macOS; agents in an outside terminal don't count.
+  keep_awake: off
   # Per-tool model and effort for the session the board launches, passed as that
   # tool's own flags (claude --model/--effort, agy --model/--effort, codex -m and
   # model_reasoning_effort, gemini -m, opencode -m). Model names are the tool's own:

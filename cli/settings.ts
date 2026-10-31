@@ -113,6 +113,7 @@ const SETTINGS: Setting[] = [
   { key: "agent.default", label: "Tool the board launches", group: "Agents", values: ["auto", "claude", "codex", "agy", "opencode", "gemini"], help: "" },
   { key: "agent.launch", label: "Where the board runs agents", group: "Agents", values: ["card", "terminal"], help: "" },
   { key: "agent.keep_alive", label: "Keep agents through a board restart", group: "Agents", values: ["off", "tmux"], help: "tmux: Linux and macOS with tmux installed", when: ["agent.launch", "card"] },
+  { key: "agent.keep_awake", label: "Keep computer awake", group: "Board", values: ["off", "auto", "on"], help: "auto: while the board runs agents · on: while the board is open. Linux and macOS" },
   { key: "subagents.model", label: "Model for subagents", group: "Agents", values: ["inherit", "opus", "sonnet", "haiku"], help: "Planner, builder, reviewer", when: ["runner", "full"] },
   { key: "subagents.effort", label: "Effort for subagents", group: "Agents", values: ["inherit", "low", "medium", "high"], help: "Planner, builder, reviewer", when: ["runner", "full"] },
   { key: "auto_fix.enabled", label: "Fix findings automatically", group: "Auto-fix", values: ["true", "false"], help: "" },
