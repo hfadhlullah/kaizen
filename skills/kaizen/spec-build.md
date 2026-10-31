@@ -55,6 +55,25 @@ code in the same folder. If `kaizen worktree start` fails, say why and stop; do 
 back to the project folder unasked. A run whose `state.json` has no `worktree` builds in
 place, exactly as before.
 
+**Workers, only when the run has them.** When `01-plan.md` has a `## Workers` section and
+`02-approval.md` says `workers: approved`, the build agent is the coordinator. Run
+`kaizen worker init`: if it refuses, say why in `03-impl.md` and build the whole plan
+yourself as usual. Otherwise run `kaizen worker start <wid>` for each worker whose
+`after:` workers have succeeded (it asks the board to open the worker's own terminal, in
+its own branch and folder; no board running means it says so and nothing starts), and
+watch `kaizen worker status`. A worker owns only its paths, commits, and hands back with
+`kaizen worker report done`. You never edit a worker's paths yourself. On any worker
+that fails, blocks or ends unverified, stop and report it with the worker's id: do not
+merge, and do not start the rest. When every worker has succeeded, run
+`kaizen worker merge` in place of building the halves: it merges in plan order, and a
+conflict undoes the whole merge and stops you with a blocker, so tell the user and wait.
+Then the baseline, the gate and `03-impl.md` run on the merged branch as for any build.
+A worker's terminal never starts in bypass unless Settings > Orchestration says so; the
+setting is frozen in `workers.json` at init, which any local process can edit, so bypass
+is visible (tab title and card) rather than guarded. A worker with `after:` branches off
+the worker it follows; `merge` refuses a branch that changed paths outside its `owns:`,
+and reports any worker folder or branch it could not remove.
+
 **Keep `progress.md` while you work.** Before the first change, write
 `runs/<id>/progress.md` with one line per bullet of the plan's Work list, in order:
 `- todo: <bullet text>`. Change a line's prefix to `- doing:` when you start that item

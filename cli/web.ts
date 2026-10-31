@@ -15,7 +15,8 @@ import { ACCOUNT_VAR, accountDir, addAccount, readAccounts, renameAccount, signe
 import { readReport, signalOf } from "./report.ts";
 import { MAX_IMAGE, saveImage } from "./term-image.ts";
 import { bundledSkills, setSkill, skillsOff, skillStatus } from "./skills.ts";
-import { accountEnv, accountForRun, agentUsable, heartbeatMinutes, keepAwake, launchPreview, YOLO_FLAGS } from "./state.ts";
+import { accountEnv, accountForRun, agentUsable, CHILD_ENV, heartbeatMinutes, keepAwake, launchPreview, trustFolder, YOLO_FLAGS } from "./state.ts";
+import { failStart, markRunning, readWorkers, requested, startWorker, sweep, workerStale } from "./workers.ts";
 import { attachPty, writePty, submitPty, resizePty, exitPty, ptyState, ptyKeys, adoptLoginEnv, startPty, ptySupported, detachPty, ptyTail, ptyTmux, tmuxAlive, RESUMED } from "./pty.ts";
 import { snapshot, snapWorker } from "./state-snap.ts";
 import { claudeUsage, claudeUsageAt, codexUsage, codexUsageAt, phonePeers, type Usage } from "./usage.ts";
@@ -431,6 +432,35 @@ export async function web(repoDir: string, opts: Opts = {}) {
       return { key, alive: st.alive, asking: st.asking, busy: st.busy, lastOut: st.lastOut, all, agent: cmdOf.get(key), stages: c.kind === "run" ? stagesOf(c.state, c.id!) : undefined };
     }, { cmd: (k: string) => cmdOf.get(k) });
   };
+  // Orchestration: the only place a worker's terminal starts. A worker asks for it in workers.json
+  // (`kaizen worker start`); with the mode off no such file exists, so this finds nothing.
+  // startWorker re-checks the stage, the frozen settings, the count and the plan before anything runs.
+  let workersAt = 0;
+  const spawnWorkers = () => {
+    if (process.platform === "win32" || !ptySupported || Date.now() - workersAt < 300) return;
+    workersAt = Date.now();
+    for (const dir of states(true)) {
+      if (dir === join(home, ".kaizen")) continue;
+      const project = projectOf(dir);
+      for (const { id, wid } of requested(project)) {
+        const r = startWorker(project, id, wid);
+        if (!r.ok) { failStart(project, id, wid, r.why); continue; }
+        const l = r.launch, key = "sh-" + crypto.randomUUID().slice(0, 8);
+        for (const k of Object.keys(process.env)) if (CHILD_ENV.test(k)) delete process.env[k];
+        if (l.agent === "claude") trustFolder(l.cwd, l.trust);
+        try {
+          const pid = startPty(key, l.argv, l.cwd, undefined, changed, { env: { ...l.env, KAIZEN_TERM: key } });
+          shells.set(key, { key, dir, title: l.title, agent: l.agent, run: `run:${dir}:${id}`, ws: l.cwd, pid });
+          markRunning(project, id, wid, key, l);
+        } catch (err: any) { failStart(project, id, wid, err?.message ?? String(err)); }
+        changed();
+      }
+      try {
+        const runs = join(dir, "runs");
+        for (const id of existsSync(runs) ? readdirSync(runs) : []) if (sweep(project, id, (k) => !!ptyState(k)?.alive)) changed();
+      } catch { /* the next tick tries again */ }
+    }
+  };
   const watchers: FSWatcher[] = [];
   const watchAll = () => {
     for (const w of watchers) { try { w.close(); } catch { /* gone */ } }
@@ -438,7 +468,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
     for (const dir of states(true)) {
       // An unhandled 'error' on a watcher (Windows: a watched dir renamed, EPERM on
       // a locked file) would end the process; the poll covers what the watch misses.
-      try { watchers.push(watch(dir, { recursive: true }, changed).on("error", () => {})); } catch { /* poll covers it */ }
+      try { watchers.push(watch(dir, { recursive: true }, () => { changed(); spawnWorkers(); }).on("error", () => {})); } catch { /* poll covers it */ }
     }
   };
   watchAll();
@@ -465,6 +495,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
     // A project registered since start (a run launched into a fresh dir) gets a watcher too.
     const now = states(true).join("\n"); if (now !== seen) { seen = now; watchAll(); }
     const fp = fingerprint(); if (fp !== last) { last = fp; changed(); }
+    spawnWorkers();
   }, 2000);
 
   // The schedule: once a minute, gather every request source that is due. It writes
@@ -1125,7 +1156,9 @@ export async function web(repoDir: string, opts: Opts = {}) {
           cards: cards.map((c, i) => {
             const rep = c.kind === "run" && c.id && c.status !== "done" && c.status !== "abandoned" ? readReport(c.state, c.id) : null;
             const signal = signalOf(c, rep, ptys[i] as any, Date.now(), beat);
-            return { ...c, notice: notice(c), ...extra[i], pty: ptys[i], signal, ...(rep?.phase ? { phase: rep.phase } : {}), ...(signal === "blocked" ? { blocked: rep!.blocked } : {}) };
+            // Only a run that has workers.json carries `workers`: any other card is as it was.
+            const ws = c.kind === "run" && c.id ? readWorkers(projectOf(c.state), c.id) : null;
+            return { ...c, notice: notice(c), ...extra[i], pty: ptys[i], signal, ...(ws ? { workers: ws.workers.map((x) => ({ id: x.id, title: x.title, status: workerStale(x, x.key ? ptyState(x.key) : null, Date.now(), beat) ? "stale" : x.status, bypass: x.bypass })), ...(ws.merge && ws.merge.status !== "merged" ? { workersMerge: ws.merge.status } : {}) } : {}), ...(rep?.phase ? { phase: rep.phase } : {}), ...(signal === "blocked" ? { blocked: rep!.blocked } : {}) };
           }),
           backlog: backlog.map((b) => ({ ...b, starting: backlogLaunched.has(`${b.state}\0${b.source}#${b.n}`) || undefined })),
           now: Date.now(),
@@ -1286,6 +1319,10 @@ export async function web(repoDir: string, opts: Opts = {}) {
           scope: scope ? join(scope, ".kaizen") : "all",
           projects: states(true).filter((d) => d !== join(home, ".kaizen")).map((d) => ({ dir: d, label: label(d) })),
         });
+        Object.assign(cfg, { windows: process.platform === "win32" });
+        // A worker model row per installed tool that takes a model flag; the others have nothing to set.
+        const prefs = readPrefs();
+        cfg.rows = cfg.rows.filter((r) => { const t = /^orchestration\.worker_model\.(\w+)$/.exec(r.key)?.[1]; return !t || !!onPath(commandOf(t, prefs)); });
         Object.assign(cfg, { phoneUrls: [...webHosts()].filter((h) => /^[a-z0-9-]+(?:\.[a-z0-9-]+)*\.ts\.net$/.test(h)).map((h) => `https://${h}`) });
         // Connected, the model is chosen from what the plan offers rather than typed.
         const m = cfg.rows.find((r) => r.key === "sources.model");

@@ -1566,3 +1566,11 @@ test("a committed run does not claim a file edited after its commit", () => {
   expect(after.r1).not.toBe("commit");
   rmSync(root, { recursive: true, force: true });
 });
+
+test("a recheck closes a finding with \"closed\" or \"PASS\", never with FAIL", () => {
+  const st = mkdtempSync(join(tmpdir(), "kz-find-")), d = join(st, "runs", "r");
+  mkdirSync(join(d, "05-iterations"), { recursive: true });
+  writeFileSync(join(d, "04-review.md"), "1. a: low: one\n2. b: low: two\n3. c: low: three\n");
+  writeFileSync(join(d, "05-iterations", "01-recheck.md"), "Finding 1 PASS: ok\nFinding 2 closed\nFinding 3 FAIL: no\n");
+  expect(reviewFindings(st, "r").map((f) => f.done)).toEqual([true, true, false]);
+});

@@ -19,6 +19,7 @@ copy, a runbook, or a memo, and everything below applies the same way to each.
 
 ## Rules
 
+- **Workers.** A plan with an approved `## Workers` section makes you the coordinator: `kaizen worker init`, `start`, `status`, then `merge`, and stop on any failed, blocked or unverified worker, as the build stage describes. Without one, build as usual.
 - **Stay inside the plan's scope.** The plan's *Not included* list is binding.
   Something out of scope that clearly needs doing goes into `03-impl.md` as a note
   for the user, and stays unproduced.

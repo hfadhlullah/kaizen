@@ -17,3 +17,8 @@ test("every setting lands on a real page, under a named subsection", () => {
 test("a setting not placed yet falls back to General", () => {
   expect(placeOf("new.thing")).toEqual(["general", "Other"]);
 });
+
+test("the Orchestration page exists and holds its three settings", () => {
+  expect(pages.has("orchestration")).toBe(true);
+  for (const k of ["enabled", "max_workers", "permissions", "worker_model.claude"]) expect(placeOf(`orchestration.${k}`)).toEqual(["orchestration", "Workers"]);
+});

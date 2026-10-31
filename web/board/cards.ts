@@ -130,6 +130,9 @@ function card(c) {
       marks.push(html`<span class="mk warn" title="Started in Yolo: the agent runs commands without asking">yolo</span>`);
     else chips.push(html`<span class="chip">${NAMES[t] || t}</span>`);
   }
+  // Orchestration: only a run that has workers carries them, so any other card is unchanged.
+  const wk: { id: string; status: string; bypass: boolean }[] = c.workers || [];
+  if (wk.length) chips.push(html`<span class="chip" title="${wk.map((x) => `${x.id} ${x.status}${x.bypass ? " (bypass)" : ""}`).join(", ")}">${wk.length} workers</span>`);
   if (c.signal === "blocked") marks.push(mk("i-ask", `Waiting on you: ${c.blocked?.question ?? ""}`, " warn ask"));
   else if (c.signal === "stale") marks.push(html`<span class="mk warn" title="The agent has gone quiet: no report and no terminal activity">stale</span>`);
   else if (c.signal === "unverified") marks.push(html`<span class="mk warn" title="The agent ended without finishing this stage properly">unverified</span>`);
@@ -180,7 +183,7 @@ function card(c) {
   el.innerHTML =
     (pick ? html`<input type="checkbox" class="pick" ${raw(picked.has(k) ? "checked" : "")} aria-label="Select">` : "") +
     html`<div class="c-id"><span class="st d-${st}" role="img" title="${sttl}" aria-label="${sttl}"><svg><use href="#s-${st}"/></svg></span><span class="idt"${c.kind === "run" && c.title ? html` title="${c.title}"` : ""}>${idt}</span><span class="age">${c.kind === "run" ? age(c.moved || store.S.now, store.S.now) : ""}</span><button class="ib sm more" data-a="menu" title="Actions" aria-label="Actions" aria-haspopup="menu" aria-expanded="${String(k === store.menuKey)}">${ico("more")}</button></div>
-  ${c.signal === "blocked" ? html`<div class="c-block">${c.blocked?.question ?? ""}</div>` : c.phase && c.status === "running" ? html`<div class="c-phase">${c.phase}</div>` : ""}<div class="c-title"${c.kind === "idea" && brief(c.text).parts.length ? html` title="${c.text}"` : ""}>${c.kind === "idea" ? brief(c.text).head : c.title || c.id}</div>
+  ${c.signal === "blocked" ? html`<div class="c-block">${c.blocked?.question ?? ""}</div>` : c.phase && c.status === "running" ? html`<div class="c-phase">${c.phase}</div>` : ""}<div class="c-title"${c.kind === "idea" && brief(c.text).parts.length ? html` title="${c.text}"` : ""}>${c.kind === "idea" ? brief(c.text).head : c.title || c.id}</div>${wk.length ? html`<div class="c-phase">${wk.map((x) => `${x.id} ${x.status}${x.bypass ? " · bypass" : ""}`).join(" · ")}${c.workersMerge ? ` · merge ${c.workersMerge}` : ""}</div>` : ""}
   ${act}
   ${chips.length || marks.length ? html`<div class="c-foot"><span class="c-chips">${chips}</span><span class="c-marks">${marks}</span></div>` : ""}`;
   const kids = kidsOf(c);

@@ -5,6 +5,7 @@ export const SETTINGS_NAV: [string, SettingsPage[]][] = [
   ["AI Capabilities", [
     { id: "agents", title: "Agents", desc: "Manage AI agents, set a default, and customize commands.", ico: "ai" },
     { id: "accounts", title: "AI Provider Accounts", desc: "Optional. Your normal logins keep working; add accounts only to switch between them.", ico: "link" },
+    { id: "orchestration", title: "Orchestration", desc: "Split a run into workers, each in its own terminal. Off by default.", ico: "ai" },
     { id: "skills", title: "Skills", desc: "What your agents can do. Changes apply to new sessions.", ico: "note" },
     { id: "voice", title: "Voice", desc: "Speech-to-text dictation, run in the browser.", ico: "mic" },
   ]],
@@ -31,6 +32,7 @@ const PLACES: [RegExp, string, string][] = [
   [/^subagents\./, "agents", "Subagents"],
   [/^agent\.default$/, "agents", "Default agent"],
   [/^agent\./, "agents", "Running agents"],
+  [/^orchestration\./, "orchestration", "Workers"],
   [/^dictation\./, "voice", "Dictation"],
   [/^sources\./, "integrations", "Request sources"],
   [/^(mode|approvals\.|auto_accept)/, "approvals", "Approvals"],

@@ -6,6 +6,7 @@ import { $, html, ico, raw } from "./dom.ts";
 import { close } from "./panel.ts";
 import { accountRows, wireAccounts } from "./settings-accounts.ts";
 import { agentRows, wireAgents } from "./settings-agents.ts";
+import { modelInput, modelLabel, orchestrationRows } from "./settings-orchestration.ts";
 import { skillRows, wireSkills } from "./settings-skills.ts";
 import { fillMics, micRow } from "./settings-voice.ts";
 import { placeOf, SETTINGS_NAV } from "./settings-pages.ts";
@@ -129,10 +130,13 @@ export async function openSettings() {
     for (const r of cfg.rows) {
       const id = "s-" + r.key.replace(/\./g, "-");
       const [page, sub] = placeOf(r.key);
+      const wm = r.key.startsWith("orchestration.worker_model.");
       put(page, sub + (scoped && r.group === "Board" ? " · all projects" : ""), row(
-        r.label,
+        wm ? modelLabel(r) : r.label,
         r.text
-          ? r.folder
+          ? wm
+            ? modelInput(r, id)
+            : r.folder
             ? html`<span class="fpick"><input class="sel" id="${id}" value="${r.value}" placeholder="not set" spellcheck="false"><button class="btn" id="${id}-pick" type="button">Browse…</button></span>`
             : html`<input class="sel" id="${id}" value="${r.value}" placeholder="not set" spellcheck="false">`
           : ctl(id, r.values, r.value),
@@ -174,7 +178,7 @@ export async function openSettings() {
         <button class="sup" type="button">${ico("chev")}Settings</button>
         <header><h2>${p.title}</h2><p>${p.desc}${scopeName ? ` Editing ${scopeName}.` : ""}</p></header>
         ${p.id === "general" ? html`<div id="supd"></div>` : ""}
-        <div class="scard">${p.id === "agents" && ap ? agentRows(ap, defaultAgent, scopeName) : ""}${p.id === "accounts" && ac ? accountRows(ac) : ""}${p.id === "skills" && sk ? skillRows(sk.skills) : ""}${[...pageRows.get(p.id)].map(([sub, rows]) => html`<h3 class="sg">${sub}</h3><div class="sgrp">${rows}</div>`)}</div>
+        <div class="scard">${p.id === "agents" && ap ? agentRows(ap, defaultAgent, scopeName) : ""}${p.id === "accounts" && ac ? accountRows(ac) : ""}${p.id === "orchestration" && cfg ? orchestrationRows({ windows: !!cfg.windows, bypass: cfg.rows.some((r) => r.key === "orchestration.permissions" && r.value === "bypass") }) : ""}${p.id === "skills" && sk ? skillRows(sk.skills) : ""}${[...pageRows.get(p.id)].map(([sub, rows]) => html`<h3 class="sg">${sub}</h3><div class="sgrp">${rows}</div>`)}</div>
       </div>`)}
       ${cfg ? "" : html`<p class="snone">Settings could not be read. Run <code>kaizen settings</code>.</p>`}
       <p class="snone" id="snone" hidden></p>

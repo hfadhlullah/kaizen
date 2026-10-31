@@ -1,7 +1,7 @@
 ---
 description: Append-only history of builds and updates to this vault
 tags: [project, log]
-updated: 2026-10-28
+updated: 2026-10-31
 ---
 # Log
 
@@ -247,3 +247,5 @@ updated: 2026-10-28
 - 2026-10-31 update — Web board: run actions stay in the workspace; app-wide messages say kaizen, not board.
 - 2026-10-31 run 2026-10-31-provider-accounts — Web board
 - 2026-10-31 run 2026-10-31-orchestration-voice — Web board
+- 2026-10-31 run 2026-10-31-orchestration — CLI, Web board, Workflow
+- 2026-10-31 run 2026-10-31-orchestration — CLI (worker model setting)

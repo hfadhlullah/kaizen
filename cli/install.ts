@@ -139,6 +139,35 @@ if (Bun.argv[2] === "report") {
   process.exit(0);
 }
 
+// `kaizen worker`: a run split into workers, off by default. See cli/workers.ts.
+if (Bun.argv[2] === "worker") {
+  const { locate } = await import("./state.ts");
+  const { stateOf } = await import("./report.ts");
+  const w = await import("./workers.ts");
+  const a = Bun.argv.slice(3), flag = (n: string) => { const i = a.indexOf(n); return i < 0 ? undefined : a.splice(i, 2)[1]; };
+  const usage = "kaizen worker init [run] | start <wid> | status | config | report phase <text> | blocked <q> [--options a,b] | unblock | done --outcome succeeded|failed --summary <text> [--files a,b] | merge | set <run> on|off|clear  [--run id] [--worker wid]";
+  const state = stateOf(process.cwd(), locate()) ?? join(home, ".kaizen"), project = dirname(state);
+  const runId = flag("--run"), worker = flag("--worker") ?? process.env.KAIZEN_WORKER, options = flag("--options"), outcome = flag("--outcome"), summary = flag("--summary"), files = flag("--files");
+  const [verb, ...rest] = a;
+  const id = (verb === "init" || verb === "set" ? rest[0] : undefined) ?? runId ?? process.env.KAIZEN_RUN_ID;
+  const fail = (why: string) => { console.log(`\n  ${why}\n`); process.exit(1); };
+  const say = (text: string) => { console.log(`\n  ${text.replace(/\n/g, "\n  ")}\n`); process.exit(0); };
+  if (!verb) fail(usage);
+  if (!id) fail(`${usage}\n  no run: pass --run <id>`);
+  if (verb === "init") { const r = w.init(project, id!); r.ok ? say(`${r.n} workers planned. Next: kaizen worker start <wid>`) : fail(r.why); }
+  else if (verb === "start") { const r = w.requestStart(project, id!, rest[0] ?? ""); r.ok ? say(r.why) : fail(r.why); }
+  else if (verb === "status") say(w.statusText(project, id!));
+  else if (verb === "config") { const r = w.resolve(project, id!); say(r.on ? `on · max ${r.max} · permissions ${r.permissions} · model ${r.model}` : `off · ${r.why}`); }
+  else if (verb === "merge") { const r = w.merge(project, id!); r.ok ? say(`merged ${r.shas.length} workers into the run's branch. Next: the usual checks, then 03-impl.md${r.left.length ? `\nleft behind (remove by hand):\n${r.left.join("\n")}` : ""}`) : fail(r.why); }
+  else if (verb === "set") { const why = w.setRun(project, id!, rest[1] ?? ""); why ? fail(why) : say(`${id}: orchestration ${rest[1]}`); }
+  else if (verb === "report") {
+    const [kind, ...t] = rest;
+    if (!worker) fail("report: which worker? run it from the worker's terminal, or pass --worker <wid>");
+    const why = w.report(project, id!, worker!, kind ?? "", { text: t.join(" "), options: options?.split(","), outcome, summary, files: files?.split(",") });
+    why ? fail(why) : say("reported");
+  } else fail(usage);
+}
+
 // `kaizen done <run id> [--user-approved]`: how an agent finishes a run. Refuses while
 // the review gate waits on the user; --user-approved is for a clear yes in chat.
 if (Bun.argv[2] === "done") {

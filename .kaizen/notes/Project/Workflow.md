@@ -1,7 +1,7 @@
 ---
 description: What a kaizen run is, which files define it, and where its state lives
 tags: [project, workflow]
-sources: [skills/kaizen, skills/kaizen-help, skills/media, agents, commands, cli/worktree.ts, docs/guide.md]
+sources: [cli/workers.ts, skills/kaizen, skills/kaizen-help, skills/media, agents, commands, cli/worktree.ts, docs/guide.md]
 updated: 2026-10-31
 ---
 # Workflow
@@ -10,6 +10,7 @@ updated: 2026-10-31
 The product itself: a staged workflow (plan, approval, build, independent review, bounded fix loop) that an agent follows from markdown instructions. Nothing here is code; the agent reads it and does the stages. How a run goes for a user is in `docs/guide.md` ("How a run goes"); the full behaviour is in `skills/kaizen/SKILL.md`. The guide also covers Video page sends: large MP4s go to WhatsApp as documents.
 
 ## Where it lives
+- Orchestration (optional, `skills/kaizen/spec-plan.md`, `spec-build.md`, `spec-review.md`, `spec-main.md`): a plan may carry a `## Workers` split approved with `workers: approved` in `02-approval.md`; the build agent coordinates, the review reads `workers.json`. Off by default and ignored in lite.
 - `skills/kaizen/SKILL.md` — entry point: commands, modes, runner, state layout. Under `runner: lite`, `review.executor` (`inline` default, `subagent`, `ask`) decides whether the review still goes to a cold `kaizen-reviewer`; the `low` preset sets `inline`.
 - Review findings at every severity enter the bounded fix loop by default, including short lite runs; the reviewer says `PASS` only with zero findings. The backlog records only what the user asked to backlog in their own words: open findings, unverified checks and out-of-scope ideas are offered by number at the approval and filed only when named, and in `auto` mode nothing is filed.
 - `skills/kaizen/spec.md` + `spec-plan.md` / `spec-build.md` / `spec-review.md` / `spec-main.md` — the stage contracts; each reader takes core plus its own stage.

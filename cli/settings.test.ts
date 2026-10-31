@@ -6,7 +6,7 @@ import { test, expect, beforeAll, afterAll } from "bun:test";
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, copyFileSync, rmSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
-import { applyPreset, detectPreset } from "./settings.ts";
+import { applyPreset, detectPreset, read } from "./settings.ts";
 
 const repo = join(dirname(import.meta.path), "..");
 const defaults = join(repo, "skills/kaizen/config.default.yml");
@@ -130,4 +130,24 @@ test("a project scope reads over All projects, starts its own file empty, and re
   expect(r.after).toMatchObject({ value: "true" });
   expect(r.left).not.toContain("auto_commit");
   expect(r.kept).toBe("# my team's git rules\ngit:\n  # mine\n");
+});
+
+test("the orchestration keys read at their exact nesting, off by default, comments between lines allowed", () => {
+  const d = readFileSync(defaults, "utf8");
+  expect(["enabled", "max_workers", "permissions", "worker_model.claude", "worker_model.codex"].map((k) => read(d, `orchestration.${k}`))).toEqual(["false", "3", "own", "", ""]);
+  const mine = "orchestration:\n  # why\n  enabled: true  # on\n\n  # a comment\n  max_workers: 2\n";
+  expect([read(mine, "orchestration.enabled"), read(mine, "orchestration.max_workers"), read(mine, "orchestration.permissions")]).toEqual(["true", "2", null]);
+  expect(read("git:\n  enabled: true\n", "orchestration.enabled")).toBeNull();
+});
+
+test("a worker model written into a config that has no such block lands under orchestration, not a second header", () => {
+  const file = join(project, ".kaizen", "config.yml"), keep = readFileSync(file, "utf8");
+  try {
+    writeFileSync(file, "orchestration:\n  enabled: true\n");
+    expect(inProject(`return setSetting(repo, "orchestration.worker_model.claude", "haiku")`)).toEqual({ ok: true });
+    const text = readFileSync(file, "utf8");
+    expect((text.match(/^orchestration:/gm) ?? []).length).toBe(1);
+    expect(read(text, "orchestration.worker_model.claude")).toBe("haiku");
+    expect(read(text, "orchestration.enabled")).toBe("true");
+  } finally { writeFileSync(file, keep); }
 });
