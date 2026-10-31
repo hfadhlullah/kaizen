@@ -16,8 +16,11 @@ test("no accounts: normal login, no env", () => {
 });
 test("default, pick and normal login resolve; modes are private", () => {
   const id = add();
-  expect(statSync(accountDir(id)).mode & 0o777).toBe(0o700);
-  expect(statSync(join(t, "accounts.json")).mode & 0o777).toBe(0o600);
+  setDefaultAccount("claude", "");
+  if (process.platform !== "win32") { // no POSIX modes there
+    expect(statSync(accountDir(id)).mode & 0o777).toBe(0o700);
+    expect(statSync(join(t, "accounts.json")).mode & 0o777).toBe(0o600);
+  }
   expect(resolveAccount("claude", undefined, false)).toEqual({});
   setDefaultAccount("claude", id);
   expect(resolveAccount("claude", undefined, false)).toMatchObject({ dir: accountDir(id), envVar: "CLAUDE_CONFIG_DIR" });
@@ -58,7 +61,7 @@ test("kaizen's links follow into an account folder", () => {
   symlinkSync(target, join(from, "skills", "kaizen"));
   symlinkSync(target, join(from, "skills", "other"));
   linkKaizen(join(t, "acct"), "claude", from);
-  expect(readlinkSync(join(t, "acct/skills/kaizen"))).toBe(target);
+  expect(readlinkSync(join(t, "acct/skills/kaizen"))).toBe(realpathSync(target));
   expect(existsSync(join(t, "acct/skills/other"))).toBe(false);
 });
 test("usage reads the account folder; a 401 says sign in, with no token in the answer", async () => {
@@ -73,7 +76,7 @@ test("usage reads the account folder; a 401 says sign in, with no token in the a
   expect(await claudeUsageAt(join(t, "none"))).toBeNull();
 });
 
-test("a run resumes on its own account and finds its conversation there, in a child with a fake claude", async () => {
+test.skipIf(process.platform === "win32")("a run resumes on its own account and finds its conversation there, in a child with a fake claude", async () => {
   const dir = join(t, "proj"), id = add();
   mkdirSync(join(dir, ".kaizen", "runs", "r1"), { recursive: true });
   writeFileSync(join(dir, ".kaizen", "runs", "r1", "state.json"), "{}");
@@ -88,9 +91,12 @@ test("a run resumes on its own account and finds its conversation there, in a ch
   const first = go(`{ account: ${JSON.stringify(id)} }`);
   if (!first.ok) return; // no pseudo-terminal here
   const sid = first.cmd[first.cmd.indexOf("--session-id") + 1];
-  const convo = join(accountDir(id), "projects", realpathSync(dir).replace(/[^A-Za-z0-9]/g, "-"));
-  mkdirSync(convo, { recursive: true });
-  writeFileSync(join(convo, `${sid}.jsonl`), "{}\n");
+  // macOS's temp path has two spellings; the launch keeps the one it was given.
+  for (const d of [dir, realpathSync(dir)]) {
+    const convo = join(accountDir(id), "projects", d.replace(/[^A-Za-z0-9]/g, "-"));
+    mkdirSync(convo, { recursive: true });
+    writeFileSync(join(convo, `${sid}.jsonl`), "{}\n");
+  }
   // Every caller of firstSession, the board's Resume among them, with no env set here.
   const { firstSession, manualCommand } = await import("./state.ts");
   expect(firstSession(join(dir, ".kaizen"), "r1", "claude", realpathSync(dir))?.sessionId).toBe(sid);

@@ -30,7 +30,7 @@ test("no file: defaults, and launch parts stay as they were", () => {
 
 test("the file is private, and env values never reach the page's view", () => {
   expect(savePrefs({ agent: "claude", envName: "TOKEN", envValue: "s3cret" }, known, file)).toEqual({ ok: true });
-  expect(statSync(file).mode & 0o777).toBe(0o600);
+  if (process.platform !== "win32") expect(statSync(file).mode & 0o777).toBe(0o600); // no POSIX modes there
   expect(JSON.stringify(publicPref("claude", readPrefs(file)))).not.toContain("s3cret");
   expect(publicPref("claude", readPrefs(file)).env).toEqual(["TOKEN"]);
   expect(launchPreview(dir, "claude", readPrefs(file))).not.toContain("s3cret");
