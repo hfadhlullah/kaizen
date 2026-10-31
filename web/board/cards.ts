@@ -495,6 +495,23 @@ async function runForm(li, c) {
         html`<button type="button" class="agent" role="radio" aria-checked="${String(a.cmd === runPick.agent)}" data-cmd="${a.cmd}"><svg><use href="#c-${a.cmd}"/></svg>${a.name}</button>`,
     )
     .join("");
+  // The picked tool's accounts, when it has any: its default first chosen, the normal login beside it.
+  const showAccounts = () => {
+    li.querySelector("#run-acct")?.remove();
+    const a = d.agents.find((x) => x.cmd === runPick.agent);
+    runPick.account = undefined;
+    if (!a?.accounts?.length) return;
+    const sel = document.createElement("select");
+    sel.id = "run-acct";
+    sel.className = "sel";
+    sel.setAttribute("aria-label", "Account");
+    sel.innerHTML = html`<option value="">Normal login</option>${a.accounts.map((x) => html`<option value="${x.id}">${x.name}</option>`)}`.s;
+    sel.value = a.defaultAccount ?? "";
+    runPick.account = sel.value;
+    sel.onchange = () => (runPick.account = sel.value);
+    box.after(sel);
+  };
+  showAccounts();
   const yb = li.querySelector("#run-yolo");
   // Yolo only where the picked tool has a skip-permissions mode; Basic otherwise.
   const sw = yb.querySelector(".chk");
@@ -533,7 +550,7 @@ async function startRun(c, kind) {
   runPick = null;
   const yolo = !!(p && p.yolo && !$("run-yolo")?.hidden);
   const backlog = c.kind === "backlog" ? { source: c.source, n: c.n } : undefined;
-  const r = await post("/run", { dir: c.state, text: c.text, backlog, kind, agent: p ? p.agent : undefined, yolo });
+  const r = await post("/run", { dir: c.state, text: c.text, backlog, kind, agent: p ? p.agent : undefined, account: p?.account, yolo });
   if (r.ok) {
     toast((kind === "full" ? "Full" : kind === "lite" ? "Lite" : "Started") + (yolo ? " yolo" : "") + " run " + where(r) + ": " + via(r.agent));
     // A backlog card has no terminal of its own; the run's card gets it once the run exists.

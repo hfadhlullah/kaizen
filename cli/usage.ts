@@ -6,14 +6,15 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 export type Window = { pct: number; resetsAt: number | null };
-export type Usage = { agent: string; five: Window | null; week: Window | null } | { agent: string; error: string };
+export type Usage = { agent: string; five: Window | null; week: Window | null } | { agent: string; error: string; expired?: boolean };
 
 const win = (pct: unknown, resets: unknown): Window | null =>
   typeof pct === "number" ? { pct: Math.round(pct), resetsAt: typeof resets === "number" ? resets * 1000 : typeof resets === "string" ? Date.parse(resets) || null : null } : null;
 
 // The last rate_limits in the newest ~/.codex/sessions/**/rollout-*.jsonl that has one, or null.
-export function codexUsage(home: string): Usage | null {
-  const root = join(home, ".codex", "sessions");
+export const codexUsage = (home: string) => codexUsageAt(join(home, ".codex"));
+export function codexUsageAt(dir: string): Usage | null {
+  const root = join(dir, "sessions");
   if (!existsSync(root)) return null;
   // Newest first: a session that has only just started has no rate_limits line yet.
   const files = [...new Bun.Glob("**/rollout-*.jsonl").scanSync({ cwd: root })]
@@ -41,13 +42,14 @@ export function codexUsage(home: string): Usage | null {
 
 // Claude's plan usage, or null when there is no Claude login. A failure is an error
 // entry, so the footer says "usage unavailable" instead of showing 0%.
-export async function claudeUsage(home: string, get: typeof fetch = fetch): Promise<Usage | null> {
+export const claudeUsage = (home: string, get: typeof fetch = fetch) => claudeUsageAt(join(home, ".claude"), get);
+export async function claudeUsageAt(dir: string, get: typeof fetch = fetch): Promise<Usage | null> {
   let token = "";
-  try { token = JSON.parse(readFileSync(join(home, ".claude", ".credentials.json"), "utf8"))?.claudeAiOauth?.accessToken ?? ""; } catch { return null; }
+  try { token = JSON.parse(readFileSync(join(dir, ".credentials.json"), "utf8"))?.claudeAiOauth?.accessToken ?? ""; } catch { return null; }
   if (!token) return null;
   try {
     const r = await get("https://api.anthropic.com/api/oauth/usage", { headers: { authorization: `Bearer ${token}`, "anthropic-beta": "oauth-2025-04-20" }, signal: AbortSignal.timeout(8000) });
-    if (!r.ok) return { agent: "claude", error: `HTTP ${r.status}` };
+    if (!r.ok) return { agent: "claude", error: `HTTP ${r.status}`, ...(r.status === 401 ? { expired: true } : {}) };
     const d: any = await r.json();
     return { agent: "claude", five: win(d?.five_hour?.utilization, d?.five_hour?.resets_at), week: win(d?.seven_day?.utilization, d?.seven_day?.resets_at) };
   } catch (e) {

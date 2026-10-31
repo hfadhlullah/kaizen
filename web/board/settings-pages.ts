@@ -4,6 +4,7 @@ export type SettingsPage = { id: string; title: string; desc: string; ico: strin
 export const SETTINGS_NAV: [string, SettingsPage[]][] = [
   ["AI Capabilities", [
     { id: "agents", title: "Agents", desc: "Manage AI agents, set a default, and customize commands.", ico: "ai" },
+    { id: "accounts", title: "AI Provider Accounts", desc: "Optional. Your normal logins keep working; add accounts only to switch between them.", ico: "link" },
     { id: "skills", title: "Skills", desc: "What your agents can do. Changes apply to new sessions.", ico: "note" },
     { id: "voice", title: "Voice", desc: "Speech-to-text dictation, run in the browser.", ico: "mic" },
   ]],
