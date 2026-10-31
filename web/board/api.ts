@@ -157,7 +157,7 @@ async function follow(idea) {
   if (store.openKey === k) close();
 }
 // A tab outliving its server would otherwise swallow every click: say so.
-const GONE = "The board server is not running — start it with kaizen web (or the shortcut), then reload.";
+const GONE = "The kaizen server is not running — start it with kaizen web (or the shortcut), then reload.";
 export async function post(path, body) {
   let r;
   try {

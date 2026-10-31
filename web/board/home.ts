@@ -93,7 +93,7 @@ function bindReply(root) {
     (b) =>
       (b.onclick = () => {
         const c = store.S.cards.find((x) => x.kind === "run" && x.id === b.dataset.run);
-        if (c) open(c); // open() moves to the board
+        if (c) open(c);
       }),
   );
 }

@@ -62,7 +62,7 @@ const backlogList = () =>
 const show = (c) => {
   if (c.kind !== "backlog") return open(c);
   const r = store.S.cards.find((x) => x.kind === "run" && x.id === c.source && x.state === c.state);
-  if (!r) return toast(c.source === "orphan" ? "Kept from a run that was pruned" : "That run is not on this board");
+  if (!r) return toast(c.source === "orphan" ? "Kept from a run that was pruned" : "That run was not found");
   openAt(r, "backlog", c.n);
 };
 // Clear on Done: menu, then cherry-pick mode.
@@ -136,7 +136,7 @@ function card(c) {
   if (c.pty && c.pty.alive && c.pty.asking)
     marks.push(mk("i-ask", "The agent is asking you something: open it, terminal button at the top", " warn ask"));
   else if (c.pty && c.pty.alive)
-    marks.push(mk("i-term", "The agent is running in this card: open it, terminal button at the top", " run"));
+    marks.push(mk("i-term", "The agent is running in this run's workspace: open it", " run"));
   // A gathered idea's notes open with the stamp promote() writes (ingest() wrote it before
   // the icebox); its chip names the source.
   const g = c.notes && /^\[[^\]]*\] (?:Gathered from|Promoted from the icebox:) (.+?)\. Outside text/.exec(c.notes);
@@ -249,9 +249,6 @@ function card(c) {
       items.push(["open", actionOf(c), ico("open")]);
       items.push(["archive", "Archive", ico("archive")]);
       if (c.column === 1 && c.status !== "abandoned") items.push(["toidea", "Back to idea", ico("restore")]);
-      if (c.status === "waiting" || c.status === "running" || c.status === "stalled") {
-        items.push(null, ["reject", "Abandon", ico("x"), "danger"]);
-      }
     }
     el.innerHTML += html`<div class="menu-pop" role="menu">${items.map((i) => (i ? html`<button role="menuitem" data-a="${i[0]}" class="${i[3] || ""}">${i[2]}${i[1]}</button>` : raw("<hr>")))}</div>`;
   }
@@ -315,8 +312,28 @@ function card(c) {
   return el;
 }
 
+// Edit, Abandon or Reject over the page it was asked from: a workspace never leaves for the Board.
+export function formPopup(c, mode) {
+  const dl = modal(""),
+    f = dl.querySelector("form");
+  f.onsubmit = (e) => e.preventDefault();
+  dl.classList.toggle("sheet", isPhone());
+  dl.addEventListener("close", () => stopDictation(false));
+  const [m, k] = [store.mode, store.modeKey];
+  store.mode = mode;
+  store.modeKey = key(c);
+  const li = inlineForm(c);
+  [store.mode, store.modeKey] = [m, k]; // the form is built; the Board draws none of its own
+  li.className = "";
+  li.style.display = "block";
+  li.querySelectorAll<HTMLButtonElement>("button:not([type])").forEach((b) => (b.type = "button"));
+  f.append(li);
+  li.querySelector<HTMLElement>("input,textarea")?.focus();
+}
+
 function inlineForm(c) {
   const li = document.createElement("li");
+  const done = () => li.closest("dialog")?.close();
   li.className = "inl";
   const dir = c.state;
   if (store.mode === "edit") {
@@ -354,6 +371,7 @@ function inlineForm(c) {
       }
       editFiles = { k: "", files: [] };
       store.mode = null;
+      done();
       load();
     };
   }
@@ -367,6 +385,7 @@ function inlineForm(c) {
         return;
       }
       store.mode = null;
+      done();
       const r =
         c.kind === "backlog"
           ? await post("/backlog", { op: "reject", dir, source: c.source, n: c.n, reason: why })
@@ -408,6 +427,7 @@ function inlineForm(c) {
   li.querySelector("[data-a=c]").onclick = () => {
     if (store.mode === "edit") editFiles = { k: "", files: [] };
     store.mode = null;
+    done();
     render();
   };
   // Edit and reject take dictation; the run prompt has no field.

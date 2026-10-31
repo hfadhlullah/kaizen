@@ -2,7 +2,7 @@ import { store } from "./store.ts";
 import { showTerm, termStop } from "./agent-term.ts";
 import { load, post } from "./api.ts";
 import { APPROVAL, answer, confirmAnswers, confirmRevise, decide, decided, resumable, resume } from "./approvals.ts";
-import { cardEl, key, render, runPopup } from "./cards.ts";
+import { cardEl, formPopup, key, render, runPopup } from "./cards.ts";
 import { chat } from "./chat.ts";
 import { stopDictation } from "./dictation.ts";
 import { $, html, raw } from "./dom.ts";
@@ -11,7 +11,7 @@ import { gitPending, gitShown, gitTab } from "./git.ts";
 import { ICON, WORD, need } from "./labels.ts";
 import { attach, brief, md, planQuestions, preview, progress } from "./markdown.ts";
 import { toast } from "./toast.ts";
-import { go, view } from "./views.ts";
+import { view } from "./views.ts";
 import { isPhone } from "./phone.ts";
 import { openWorkspace } from "./run-view.ts";
 
@@ -40,11 +40,18 @@ const readable = (t) =>
           .map((w) => (/^(ui|ux|api|cli|ai|ci|id|url|pr|tui|ios|pwa)$/i.test(w) ? w.toUpperCase() : w))
           .join(" "),
       );
+// Set while a card waits for its workspace to mount this panel: the tab it asked for survives.
+let keepNext = false;
 export function open(c, keepTab) {
-  // A phone has no board: a card opens as its run workspace, which docks this panel.
-  if (isPhone() && view !== "run") return void openWorkspace(c);
-  // The run workspace docks this panel at its right: it stays there.
-  if (view !== "board" && view !== "run" && view !== "ideas") go("board", true);
+  // A run is worked on in its workspace, which docks this panel; so is everything on a phone.
+  // Ideas keep the panel on the Board and Ideas pages. An archived run has no workspace row: it stays here to be restored.
+  const here = view === "board" || view === "ideas";
+  if (view !== "run" && (isPhone() || !here || (c.kind === "run" && !c.archived))) {
+    keepNext = !!keepTab;
+    return void openWorkspace(c);
+  }
+  keepTab ||= keepNext;
+  keepNext = false;
   stopDictation(true); // the panel body is about to be replaced
   fixOff.clear();
   store.openKey = key(c);
@@ -76,13 +83,7 @@ export function open(c, keepTab) {
           }
           // Over the page it is on, as Start does: no trip to the board.
           if (a === "run") return runPopup(c);
-          const k = key(c);
-          // The form lives on the board: the run workspace hands over to it.
-          if (view === "run") go("board", true);
-          close();
-          store.mode = a;
-          store.modeKey = k;
-          render();
+          formPopup(c, a);
         }),
     );
     return;
@@ -271,7 +272,7 @@ export async function openRun(c, refresh, again) {
           ? ` ${qs.length === 1 ? "1 question" : qs.length + " questions"}.`
           : "";
     const more =
-      `<button data-a="archive">Archive</button><hr><button data-a="ab" class="danger">Abandon</button>`;
+      `<button data-a="archive">Archive</button>${c.column === 1 ? `<button data-a="toidea">Back to idea</button>` : ""}<hr><button data-a="ab" class="danger">Abandon</button>`;
     foot.innerHTML = html`<span class="note">${sent ? "Sent to your agent." : APPROVAL[c.awaiting] + asks}</span><details class="more"><summary class="btn ghost">More</summary><div class="menu-pop">${raw(more)}</div></details>${raw(rs)}<span class="dec"><button class="btn" data-a="revise"${sent ? " disabled" : ""}>Revise</button><button class="btn pri" data-a="approve"${sent ? " disabled" : ""}>${c.awaiting === "findings" ? "Approve as-is" : "Approve"}</button></span>`;
   } else if (c.status === "waiting")
     foot.innerHTML = html`<span class="note">Waiting: ${need(c.awaiting)}.</span>${raw(arch)}<button class="btn ghost" data-a="ab">Abandon</button>${raw(rs)}`;
@@ -315,11 +316,14 @@ export async function openRun(c, refresh, again) {
           resume(c, b);
           return;
         }
-        if (view === "run") go("board", true);
-        close();
-        store.mode = "reject";
-        store.modeKey = key(c);
-        render();
+        if (a === "toidea") {
+          post("/to-idea", { dir: c.state, id: c.id }).then((r) => {
+            if (r.ok) toast("Back in Ideas");
+            load();
+          });
+          return;
+        }
+        formPopup(c, "reject");
       }),
   );
 }
@@ -339,7 +343,7 @@ export function deep() {
     (x) => x.state === d && (id ? x.kind === "run" && x.id === id : x.kind === "idea" && x.text === idea),
   );
   if (!c) {
-    toast(id ? "That run is not on this board" : "That idea is not on this board");
+    toast(id ? "That run was not found" : "That idea was not found");
     return;
   }
   const m = /^(finding|backlog)-(\d+)$/.exec(p.get("item") || "");

@@ -309,7 +309,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
     let run: any;
     try { run = JSON.parse(readText(join(dir, "runs", id, "state.json"))); } catch { return { error: "no such run", status: 404 }; }
     if (run.stage === "abandoned") return { error: "this run was abandoned", status: 409 };
-    if (liveAgent(dir, id)) return { error: "its agent is still running in its card", status: 409 };
+    if (liveAgent(dir, id)) return { error: "its agent is still running in its workspace", status: 409 };
     const quiet = run.stage === "done" || !!run.awaiting;
     const own = quiet ? runAgent(dir, id) : null;
     if (quiet && !(own && firstSession(dir, id, own.cmd, projectOf(dir)))) return { error: "no conversation of this run to resume", status: 409 };
@@ -2032,7 +2032,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
 
         if (path === "/abort") {
           const id = String(body.id ?? "");
-          const why = String(body.why ?? "").trim() || "abandoned from the web board";
+          const why = String(body.why ?? "").trim() || "abandoned from the web";
           if (!/^[\w.-]+$/.test(id)) return bad("bad run id");
           const failed = abandonRun(dir, id, why);
           changed();

@@ -163,13 +163,13 @@ export async function showRunView(nav = false) {
     if (!c) {
       if (await away()) return showRunView(nav);
       if (!store.all && find(railData().cards)) location.href = "/?all=1&" + p.toString();
-      else (stopPanes(), (ctx = card = null), none(`That ${id ? "run" : "idea"} is not on this board.`));
+      else (stopPanes(), (ctx = card = null), none(`That ${id ? "run" : "idea"} was not found.`));
       return;
     }
     want = c;
     ws = wsOfCard(c);
   }
-  if (!dir || !ws) return void (stopPanes(), (ctx = card = null), none("That workspace is not on this board."));
+  if (!dir || !ws) return void (stopPanes(), (ctx = card = null), none("That workspace was not found."));
   const k = wsKey(dir, ws);
   const fresh = ctx?.k !== k;
   // Each workspace has its own centre: switching unmounts this one's panes (its shells keep running on the server).
@@ -457,7 +457,7 @@ function browser(el: HTMLElement) {
   frame.setAttribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads");
   const note = document.createElement("p");
   note.className = "rnote";
-  const far = "This page is on the computer running the board; from this device localhost is the device itself. Use Open in browser on that computer.";
+  const far = "This page is on the computer running kaizen; from this device localhost is the device itself. Use Open in browser on that computer.";
   el.append(frame, note);
   const go = (u, push = true) => {
     if (push && url !== u) back.push(url), (fwd.length = 0);
@@ -484,7 +484,7 @@ function browser(el: HTMLElement) {
         note.hidden = false;
         // The fallback card: the page refuses to be framed, so offer it outside the board.
         note.textContent = "";
-        note.insertAdjacentHTML("beforeend", String(html`<b>This page refuses to be shown inside the board</b>${new URL(u).host} sends a header that forbids framing. <a class="rwin" target="_blank" rel="noopener" href="${u}">${ico("popout")}<span>Open in new tab</span></a>${winBtn(u)}`));
+        note.insertAdjacentHTML("beforeend", String(html`<b>This page refuses to be shown inside kaizen</b>${new URL(u).host} sends a header that forbids framing. <a class="rwin" target="_blank" rel="noopener" href="${u}">${ico("popout")}<span>Open in new tab</span></a>${winBtn(u)}`));
       })
       .catch(() => {});
   };

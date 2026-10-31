@@ -144,7 +144,7 @@ export async function openSettings() {
   put("integrations", "Google", row("Google account", html`<button class="btn${gg.connected ? "" : " pri"}" id="gg-conn" type="button"${gg.hasClient || gg.connected ? "" : " disabled"}>${gg.connected ? "Disconnect" : "Connect"}</button>`, "", "gg-conn", "google account connect sheets write back"));
   put("appearance", "Browser", row("Theme", ctl("th", ["system", "light", "dark"], cur), "", "th", "theme light dark system browser"));
   put("appearance", "Browser", row("Color", ctl("co", ["monochrome", "blue"], colour), "", "co", "color colour palette monochrome blue theme browser"));
-  put("appearance", "Browser", row("Motion", ctl("mo", ["system", "full", "reduce"], document.documentElement.dataset.motion || "system"), "Animations on the board and notes. System follows the device's reduce-motion setting.", "mo", "motion animation reduce reduced browser"));
+  put("appearance", "Browser", row("Motion", ctl("mo", ["system", "full", "reduce"], document.documentElement.dataset.motion || "system"), "Animations across kaizen. System follows the device's reduce-motion setting.", "mo", "motion animation reduce reduced browser"));
   put("notifications", "Browser", row("Notifications", html`<button class="chk sm${nton ? " on" : ""}" id="nt" role="switch" aria-checked="${String(nton)}"></button>`, ntHelp, "nt", "notifications " + ntHelp + " browser"));
   put("notifications", "Browser", row("Notification sound", ctl("ns", SOUNDS, soundPick()), "Plays with each notice. Changing it plays it.", "ns", "notification sound audio browser " + SOUNDS.join(" "), !nton));
   // A narrow screen starts on the list of pages, a wide one on the first page.

@@ -10,7 +10,7 @@ export const SETTINGS_NAV: [string, SettingsPage[]][] = [
   ["Set Up", [
     { id: "general", title: "General", desc: "Which settings you are editing, folders, and maintenance.", ico: "gear" },
     { id: "integrations", title: "Integrations", desc: "Request sources and your Google account.", ico: "link" },
-    { id: "mobile", title: "Mobile", desc: "Open this board from your phone.", ico: "send" },
+    { id: "mobile", title: "Mobile", desc: "Open kaizen from your phone.", ico: "send" },
   ]],
   ["Workflows", [
     { id: "approvals", title: "Approvals", desc: "Where a run stops and waits for you.", ico: "check" },

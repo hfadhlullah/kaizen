@@ -14,7 +14,7 @@ async function call(path: string, body?: object): Promise<{ ok: boolean; d: any 
     const d = await r.json().catch(() => ({}));
     return { ok: r.ok, d: r.ok ? d : { error: d.error || d.why || "that did not work" } };
   } catch {
-    return { ok: false, d: { error: "the board is offline" } };
+    return { ok: false, d: { error: "kaizen is offline" } };
   }
 }
 
@@ -29,13 +29,13 @@ export function openAdd(opts: { dir?: string | null; start?: Start } = {}) {
   const back = fixed ? "" : html`<button type="button" class="btn ghost" data-a="back">Back to add options</button>`;
   const foot = (go: string) => html`<small class="att err" role="alert"></small><div class="row">${back}<button type="button" class="btn ghost" data-a="x">Cancel</button><button class="btn pri" data-a="go">${go}</button></div>`;
   const say = (t: string) => ((form.querySelector(".err") as HTMLElement).textContent = t);
-  // A project was added: the sheet says so, then the board shows it (the saved project is what the pages read).
+  // A project was added: the sheet says so, then Home shows it (the saved project is what the pages read).
   const landed = (stateDir: string, msg: string) => {
     say(msg);
     try {
       localStorage.setItem("kz-proj", stateDir);
     } catch {}
-    setTimeout(() => (location.href = "/?view=board"), 900);
+    setTimeout(() => (location.href = "/"), 900);
   };
   // The folder dialog; with `name`, the picked folder is a parent and the project's name is appended.
   const pick = async (into: HTMLInputElement, name?: () => string) => {

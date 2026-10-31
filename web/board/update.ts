@@ -62,7 +62,7 @@ export function updBar() {
 }
 
 async function upgrade(b) {
-  if (!confirm(`Update kaizen to ${upd.latest}? The board restarts, and agents running inside cards stop.`)) return;
+  if (!confirm(`Update kaizen to ${upd.latest}? kaizen restarts, and agents it runs stop.`)) return;
   const label = b.textContent;
   b.disabled = true;
   b.textContent = "Updating…";

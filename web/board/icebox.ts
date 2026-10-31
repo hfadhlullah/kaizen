@@ -911,7 +911,7 @@ export async function openSources() {
       // Only a dismiss can be undone here: a promote has already made an idea card.
       S.last = op === "dismiss" ? it : null;
       S.pop = true;
-    } else toast(`Could not ${op}: ${j.error || "the board did not answer"}`);
+    } else toast(`Could not ${op}: ${j.error || "kaizen did not answer"}`);
     load();
     if (srcOpen()) openSources();
   };

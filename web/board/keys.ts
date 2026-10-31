@@ -1,11 +1,11 @@
 import { store } from "./store.ts";
 import { load } from "./api.ts";
-import { focusedKey, key, nav, newIdea, render } from "./cards.ts";
+import { focusedKey, formPopup, key, nav, newIdea, render, runPopup } from "./cards.ts";
 import { $ } from "./dom.ts";
 import { iceNav, srcOpen } from "./icebox.ts";
 import { close, openRun } from "./panel.ts";
 import { keep } from "./projects.ts";
-import { go, view } from "./views.ts";
+import { view } from "./views.ts";
 
 export function initKeys() {
   $("kbd").onclick = () => $("help").classList.add("on");
@@ -54,7 +54,6 @@ export function initKeys() {
     // The Terminal page has no cards to move between; its keys are the terminals'.
     if (view === "terminal") return;
     if (e.key === "n" && !document.querySelector("dialog[open]")) {
-      if (view !== "board") go("board", true);
       newIdea();
     }
     if (e.key === "a") {
@@ -110,22 +109,13 @@ export function initKeys() {
       oc = ok && store.S.cards.find((c) => key(c) === ok);
     if (!oc) return;
     if (e.key === "e" && oc.kind === "idea") {
-      close();
-      store.mode = "edit";
-      store.modeKey = key(oc);
-      render();
+      formPopup(oc, "edit");
     }
     if (e.key === "x" && !["done", "abandoned", "starting"].includes(oc.status)) {
-      close();
-      store.mode = "reject";
-      store.modeKey = key(oc);
-      render();
+      formPopup(oc, "reject");
     }
     if (e.key === "r" && oc.kind === "idea") {
-      close();
-      store.mode = "run";
-      store.modeKey = key(oc);
-      render();
+      runPopup(oc);
     }
   };
 }

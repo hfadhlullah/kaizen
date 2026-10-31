@@ -10,7 +10,7 @@ import { $ } from "./dom.ts";
 let termKey = null,
   termOff = null,
   termLib = null;
-export const where = (r) => (r.pty ? "running in its card" : "opened in your terminal");
+export const where = (r) => (r.pty ? "running in its workspace" : "opened in your terminal");
 export const termLoad = () =>
   (termLib ||= new Promise((ok, no) => {
     const l = document.createElement("link");

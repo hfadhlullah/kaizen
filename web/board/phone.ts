@@ -98,7 +98,7 @@ async function newSheet(dir?: string, ws?: string) {
     const r = await fetch("/shell", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ dir: at.dir, ws: at.ws, run: wsKey(at.dir, at.ws), ...(cmd ? { agent: cmd } : {}) }) }).catch(() => null);
     const sh = r?.ok ? await r.json() : null;
     if (sh) openTerm({ dir: at.dir, ws: at.ws, key: sh.key } as Agent);
-    else toast("No new terminal: " + ((await r?.json().catch(() => null))?.error || "the board did not answer"));
+    else toast("No new terminal: " + ((await r?.json().catch(() => null))?.error || "kaizen did not answer"));
   });
   d.addEventListener("close", () => d.remove());
   document.body.append(d);

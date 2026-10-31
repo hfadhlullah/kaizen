@@ -77,7 +77,7 @@ function looks() {
 function alerts() {
   const s = notif();
   const msg = {
-    na: "Notifications are not available at this address. Open the board at localhost or over HTTPS to turn them on.",
+    na: "Notifications are not available at this address. Open kaizen at localhost or over HTTPS to turn them on.",
     default: "Allow notifications so a run that needs you, or an agent that finishes, reaches you in another window.",
     granted: "Notifications are on. kaizen will tell you when a run needs you or an agent is done.",
     denied: "Notifications are blocked for this site. Allow them in your browser's site settings, then come back.",

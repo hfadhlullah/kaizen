@@ -59,7 +59,7 @@ export function termsBadge() {
   if (!a) return;
   if (n) a.dataset.n = String(n);
   else delete a.dataset.n;
-  a.title = "Terminal: every agent running in its card" + (n ? ` (${n} hidden)` : "");
+  a.title = "Terminal: every agent kaizen runs" + (n ? ` (${n} hidden)` : "");
 }
 
 export function termsStop() {
@@ -178,7 +178,7 @@ export function openTerms() {
     grid.querySelectorAll(".tsplit").forEach((s) => s.remove());
     grid.insertAdjacentHTML(
       "beforeend",
-      html`<div class="empty tempty"><div class="mascot"></div><b>${hid.length ? "Every terminal is hidden" : "No terminals running"}</b><p>Runs started with the agent in its card show here, from Ideas to Done.</p></div>`.s,
+      html`<div class="empty tempty"><div class="mascot"></div><b>${hid.length ? "Every terminal is hidden" : "No terminals running"}</b><p>Runs with an agent open in kaizen show here, from Ideas to Done.</p></div>`.s,
     );
     return;
   }

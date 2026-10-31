@@ -74,7 +74,7 @@ export function fixForm(c) {
     if (r.ok) {
       toast(
         "Fixing " + nums.length + " finding" + (nums.length === 1 ? "" : "s") + ", " +
-          (r.reused ? "sent to the agent already open in its card" : where(r) + ": " + via(r.agent)),
+          (r.reused ? "sent to the agent already open in its workspace" : where(r) + ": " + via(r.agent)),
       );
       if (r.pty) (store.wantTerm = key(c)), (store.wantPty = { key: r.pty, at: Date.now() });
       nums.forEach((n) => fixSent.add(k(n)));

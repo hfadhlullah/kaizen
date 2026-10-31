@@ -245,26 +245,25 @@ test("card menu items: appropriate actions and distinct icons across phases", ()
   // Phase 1: Planning (run waiting for plan approval)
   const planWaiting = { kind: "run", status: "waiting", awaiting: "approvals.plan", column: 1 };
   const planItems = getItems(planWaiting, false);
-  expect(planItems.map((i: any) => i ? i[1] : null)).toEqual(["Review plan", "Archive", "Back to idea", null, "Abandon"]);
+  expect(planItems.map((i: any) => i ? i[1] : null)).toEqual(["Review plan", "Archive", "Back to idea"]);
   expect(planItems[0][2]).toBe(ico("open"));
   expect(planItems[1][2]).toBe(ico("archive"));
   expect(planItems[2][2]).toBe(ico("restore"));
-  expect(planItems[4][2]).toBe(ico("x"));
 
   // Phase 2: Building (running run)
   const buildingRun = { kind: "run", status: "running", column: 2 };
   const buildItems = getItems(buildingRun, false);
-  expect(buildItems.map((i: any) => i ? i[1] : null)).toEqual(["Open", "Archive", null, "Abandon"]);
+  expect(buildItems.map((i: any) => i ? i[1] : null)).toEqual(["Open", "Archive"]);
 
   // Phase 3: Review (run waiting for review approval)
   const reviewWaiting = { kind: "run", status: "waiting", awaiting: "approvals.review", column: 3 };
   const reviewItems = getItems(reviewWaiting, false);
-  expect(reviewItems.map((i: any) => i ? i[1] : null)).toEqual(["Review work", "Archive", null, "Abandon"]);
+  expect(reviewItems.map((i: any) => i ? i[1] : null)).toEqual(["Review work", "Archive"]);
 
   // Phase 3: Review (run waiting on findings)
   const findingsWaiting = { kind: "run", status: "waiting", awaiting: "findings", column: 3 };
   const findingsItems = getItems(findingsWaiting, false);
-  expect(findingsItems.map((i: any) => i ? i[1] : null)).toEqual(["See findings", "Archive", null, "Abandon"]);
+  expect(findingsItems.map((i: any) => i ? i[1] : null)).toEqual(["See findings", "Archive"]);
 
   // Phase 4: Done (done run - no Abandon)
   const doneRun = { kind: "run", status: "done", column: 4 };
