@@ -39,7 +39,7 @@ test("kaizen setup without a terminal prints the manual steps and writes nothing
     expect(await p.exited).toBe(0);
     expect(out).toContain("tailscale serve --bg 127.0.0.1:7420");
     // Bun's cache (~/.bun) and macOS's ~/Library land in HOME; only what kaizen writes counts.
-    expect(readdirSync(homeDir).filter((n) => n !== ".bun" && n !== "Library")).toEqual([]);
+    expect(readdirSync(homeDir).filter((n) => n !== ".bun" && !(process.platform === "darwin" && n === "Library"))).toEqual([]);
     expect(existsSync(join(homeDir, ".kaizen"))).toBe(false);
   } finally { rmSync(homeDir, { recursive: true, force: true }); }
 });
