@@ -196,7 +196,13 @@ test.skipIf(process.platform === "win32")("/shell: foreign origin, unknown proje
     writeFileSync(join(g, "config.yml"), readFileSync(join(repo, "skills", "kaizen", "config.default.yml"), "utf8").replace('projects_dir: ""', "projects_dir: ~/Projects"));
     mkdirSync(join(g, "runs", "g1"), { recursive: true });
     writeFileSync(join(g, "runs", "g1", "state.json"), JSON.stringify({ id: "g1", stage: "plan", awaiting: "approvals.plan" }));
-    const G = await (await fetch(at + "/state?all=1")).json() as any;
+    // The board's snapshot refreshes behind the request: wait for the run to appear.
+    let G: any;
+    for (let i = 0; i < 50; i++) {
+      G = await (await fetch(at + "/state?all=1")).json();
+      if (G.cards.some((c: any) => c.id === "g1")) break;
+      await Bun.sleep(100);
+    }
     expect(G.cards.find((c: any) => c.id === "g1")?.ws).toBe(g);
     expect(G.projects.some((p: any) => p.dir === g)).toBe(false);
     expect(G.rail.find((p: any) => p.dir === g)?.workspaces).toEqual([{ path: g, branch: "", main: true }]);
