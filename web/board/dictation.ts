@@ -1,3 +1,4 @@
+import { openMic, savedMic } from "./settings-voice.ts";
 import { ico } from "./dom.ts";
 import { toast } from "./toast.ts";
 
@@ -102,6 +103,49 @@ async function loadAsr() {
 export function stopDictation(all) {
   if (active && (all || !active.field.isConnected)) active.stop();
 }
+// Ctrl+Alt+D in a focused terminal. xterm's hidden textarea takes pastes, not typed values, so
+// a stand-in field hands each chunk to that one terminal; mic() runs as for any field.
+let hot: HTMLElement | null = null;
+function termField(box: HTMLTextAreaElement) {
+  let first = true;
+  return {
+    value: "", selectionStart: 0, selectionEnd: 0,
+    get isConnected() { return box.isConnected; },
+    addEventListener() {}, focus() {},
+    onStart() { toast("Listening. Ctrl+Alt+D to stop"); },
+    dispatchEvent() {
+      const data = new DataTransfer();
+      data.setData("text/plain", (first ? "" : " ") + this.value);
+      first = false;
+      this.value = "";
+      box.dispatchEvent(new ClipboardEvent("paste", { clipboardData: data, bubbles: true, cancelable: true }));
+      return true;
+    },
+  };
+}
+addEventListener("keydown", (e) => {
+  if (!e.ctrlKey || !e.altKey || e.key.toLowerCase() !== "d") return;
+  e.preventDefault();
+  e.stopPropagation();
+  // A session that ended another way (mic refused, terminal closed) leaves nothing to stop.
+  if (hot) {
+    if (starting) return;
+    const live = !!active;
+    if (live) hot.click();
+    hot.remove();
+    hot = null;
+    if (live) return;
+  }
+  const box = document.activeElement as HTMLTextAreaElement | null;
+  if (!box?.classList.contains("xterm-helper-textarea")) return toast("Click into a terminal first");
+  const b = mic([termField(box)]);
+  if (!b) return toast("Dictation isn't available in this browser");
+  b.hidden = true;
+  document.body.append(b);
+  hot = b;
+  b.click();
+}, true);
+
 // mic(fields): a button that dictates into the last-focused of `fields` at its caret.
 export function mic(fields) {
   if (!HAS_MIC) return null;
@@ -150,9 +194,7 @@ export function mic(fields) {
     }
     let stream;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        audio: { channelCount: 1, noiseSuppression: true, echoCancellation: true },
-      });
+      stream = await openMic((audio) => navigator.mediaDevices.getUserMedia({ audio }), savedMic(), toast);
     } catch (err) {
       idle();
       starting = false;
@@ -168,6 +210,7 @@ export function mic(fields) {
     // Text lands where the caret is when each chunk arrives (or after the last insertion when the
     // field is not focused), so typing while the mic is on is kept.
     const f = target;
+    f.onStart?.();
     let at = f.selectionStart ?? f.value.length;
     const vu = document.createElement("span");
     vu.className = "vu";
