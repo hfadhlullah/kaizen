@@ -26,4 +26,6 @@ const dir = mkdtempSync(join(root, `kz-test-${process.pid}-`));
 process.env.TMPDIR = process.env.TMP = process.env.TEMP = dir;
 // A preload's afterAll runs once, after every file; bun test does not fire "exit" for it.
 // Windows can hold a file a moment after its process ends; a leftover folder is swept by the next run.
-afterAll(() => { try { rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }); } catch { /* next run */ } });
+afterAll(() => {
+  try { rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }); } catch (e) { if (process.platform !== "win32") throw e; }
+});

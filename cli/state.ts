@@ -364,10 +364,10 @@ export function nativePath(p: string) {
 }
 
 // One spelling per folder: no trailing slash, symlinks resolved when the folder exists
-// (Windows keeps nativePath's spelling), so a project never lists twice.
+// on every platform, so a project never lists twice.
 export function canonPath(p: string) {
   p = nativePath(p);
-  if (process.platform === "win32") return p;
+  if (process.platform === "win32") { try { return nativePath(realpathSync.native(p)); } catch { return p; } }
   if (p.length > 1) p = p.replace(/\/+$/, "") || "/";
   try { return realpathSync(p); } catch { return p; }
 }
