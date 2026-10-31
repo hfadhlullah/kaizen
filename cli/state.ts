@@ -1868,16 +1868,20 @@ async function gitAsync(dir: string, ...args: string[]) {
   } catch { return NO_GIT; }
 }
 
-export type GitStatus = { repo: false } | { repo: true; branch: string; remote: string; files: string[]; ahead: number; others?: number; shared?: string[]; unpushed?: Unpushed[]; rows?: GitRow[]; staged?: string[]; log?: LogLine[] };
+export type GitStatus = { repo: false; failed?: boolean } | { repo: true; branch: string; remote: string; files: string[]; ahead: number; others?: number; shared?: string[]; unpushed?: Unpushed[]; rows?: GitRow[]; staged?: string[]; log?: LogLine[] };
 // One of a run's changed files as the Source control tab lists it. A file with changes
 // both staged and not is listed in both groups, as git shows it.
 export type GitRow = { path: string; staged: boolean; code: string; add: number; del: number };
 export type LogLine = { sha: string; subject: string; refs: string; unpushed: boolean };
 type Unpushed = { sha: string; at: number; subject: string; files: string[] };
 
+const noRemote = (s: { failed?: boolean }) => (s.failed ? "git did not answer. Try again." : "This project has no git remote.");
+
 // A project the board can commit for: a git work tree with somewhere to push.
 export function gitStatus(projectDir: string): GitStatus {
-  if (!git(projectDir, "rev-parse", "--is-inside-work-tree").ok) return { repo: false };
+  // Only git's own answer means no repo: a killed or missing git says nothing about the folder.
+  const inside = git(projectDir, "rev-parse", "--is-inside-work-tree");
+  if (!inside.ok) return /not a git repository/i.test(inside.why) ? { repo: false } : { repo: false, failed: true };
   const remote = git(projectDir, "remote").out.split("\n")[0] ?? "";
   if (!remote) return { repo: false };
   // Every untracked file on its own line: a new directory is never committed whole.
@@ -2166,7 +2170,7 @@ export function branchLog(dir: string, n: number, ahead = 0): LogLine[] {
 // Discard reverts the work tree side only, as Orca's does; an untracked file is deleted.
 export function stageFiles(state: string, id: string, op: "stage" | "unstage" | "discard", paths: string[]): string | null {
   const s = runGit(state, id);
-  if (!s.repo) return "This project has no git remote.";
+  if (!s.repo) return noRemote(s);
   if (!paths.length) return "No files named.";
   const mine = new Map(s.files.map((l) => [statusPath(l), l]));
   const stray = paths.filter((p) => !mine.has(p));
@@ -2196,7 +2200,7 @@ export function stageFiles(state: string, id: string, op: "stage" | "unstage" | 
 const HEADLESS_ENV = () => Object.fromEntries(Object.entries(process.env).filter(([k, v]) => v !== undefined && !CHILD_ENV.test(k))) as Record<string, string>;
 export async function suggestMessage(state: string, id: string): Promise<{ ok: true; message: string; ai: boolean } | { ok: false; why: string }> {
   const s = runGit(state, id);
-  if (!s.repo) return { ok: false, why: "This project has no git remote." };
+  if (!s.repo) return { ok: false, why: noRemote(s) };
   if (!s.files.length) return { ok: false, why: "No changes to describe." };
   const dir = codeDir(dirname(state), id), rows = s.rows ?? [];
   const use = (s.staged?.length ? s.staged : [...new Set(rows.map((r) => r.path))]);
@@ -2225,7 +2229,7 @@ export async function suggestMessage(state: string, id: string): Promise<{ ok: t
 // for another run) is refused rather than swept into this run's commit.
 export function commitStaged(state: string, id: string, message: string, shown: string[]): { ok: true; sha: string } | { ok: false; why: string } {
   const dir = codeDir(dirname(state), id), s = runGit(state, id);
-  if (!s.repo) return { ok: false, why: "This project has no git remote." };
+  if (!s.repo) return { ok: false, why: noRemote(s) };
   if (gateOf(state, id) === "needs") return { ok: false, why: "This run is not approved yet. Approve it first." };
   const staged = s.staged ?? [];
   if (!staged.length) return { ok: false, why: "Nothing is staged." };
@@ -2284,7 +2288,7 @@ const COMMIT_TYPE = new RegExp(`^(${COMMIT_TYPES.join("|")})(\\([^)\\n]+\\))?!?:
 export async function commitPush(state: string, id: string, message: string, shown: string[]): Promise<{ ok: true; sha: string } | { ok: false; why: string }> {
   const dir = codeDir(dirname(state), id);
   const s = runGit(state, id);
-  if (!s.repo) return { ok: false, why: "This project has no git remote." };
+  if (!s.repo) return { ok: false, why: noRemote(s) };
   if (gateOf(state, id) === "needs") return { ok: false, why: "This run is not approved yet. Approve it first." };
   if (s.files.join("\n") !== shown.join("\n")) return { ok: false, why: "The changed files are no longer the ones shown. Look at the list again." };
   if (s.files.length) {
