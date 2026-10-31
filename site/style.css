@@ -78,7 +78,7 @@ h1 span { display: block; }
 .hint code { font-family: var(--mono); color: var(--ink); }
 
 .foot { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 0 16px 56px; color: var(--dim); font-size: 15px; text-align: center; }
-.tanuki { width: 120px; aspect-ratio: 428 / 400; background: var(--ink); -webkit-mask: url(media/tanuki.svg) center / contain no-repeat; mask: url(media/tanuki.svg) center / contain no-repeat; }
+.tanuki { width: 120px; aspect-ratio: 2 / 3; background: var(--ink); -webkit-mask: url(media/tanuki.svg) center / contain no-repeat; mask: url(media/tanuki.svg) center / contain no-repeat; }
 .meta { display: flex; gap: 8px; }
 .meta a { display: inline-block; padding: 10px 8px; }
 .meta a:hover { color: var(--ink); }
