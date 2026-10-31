@@ -10,7 +10,7 @@ import {
   readRuns, readInbox, writeInbox, replaceIdea, moveIdea, abandonRun, runToIdea, allBacklog, backlog,
   requestTitle, statusOf, columnOf, parseItem, startedRuns, boardCards, parentOf, addCard, readArchive, setArchived,
   requestOf, agentFlags, plainModel, readNotes, writeNotes, manualCommand, parseNotes, formatNote, appendNote, saveAttachment,
-  reviewFindings, pickFindings, fixPrompt, approvalPrompt, sessionLaunch, closeSessions, sweepSessions, readSessions, ownerOf, gitStatus, runGit, cardsGit, commitPush, commitStaged, stageFiles, suggestMessage, readCommit, findTerminal, nativePath, pruneRuns, unrechecked, notice, notifier, notifyArgs, winToastArgs, LOGO, type Card,
+  gitStatus, reviewFindings, pickFindings, fixPrompt, approvalPrompt, sessionLaunch, closeSessions, sweepSessions, readSessions, ownerOf, gitStatus, runGit, cardsGit, commitPush, commitStaged, stageFiles, suggestMessage, readCommit, findTerminal, nativePath, pruneRuns, unrechecked, notice, notifier, notifyArgs, winToastArgs, LOGO, type Card,
 } from "./state.ts";
 
 let state: string;
@@ -1549,7 +1549,7 @@ test("stageFiles, commitStaged, suggestMessage: only the run's files are staged,
   expect(stageFiles(st, "r1", "discard", ["a.txt"])).toBe("Not this run's: a.txt");
   expect(readFileSync(join(proj, "a.txt"), "utf8")).toBe("junk\n");
   rmSync(root, { recursive: true, force: true });
-});
+}, 30_000); // real git, many calls: Windows CI takes 6-8 s, and a timed-out test has its children killed
 
 test("runGit: a run owns the files its report lists as changed, not ones it only mentions", () => {
   const proj = mkdtempSync(join(tmpdir(), "kaizen-own-")), st = join(proj, ".kaizen"), g = (...a: string[]) => Bun.spawnSync(["git", "-C", proj, ...a]);
@@ -1596,4 +1596,14 @@ test("a recheck closes a finding with \"closed\" or \"PASS\", never with FAIL", 
   writeFileSync(join(d, "04-review.md"), "1. a: low: one\n2. b: low: two\n3. c: low: three\n");
   writeFileSync(join(d, "05-iterations", "01-recheck.md"), "Finding 1 PASS: ok\nFinding 2 closed\nFinding 3 FAIL: no\n");
   expect(reviewFindings(st, "r").map((f) => f.done)).toEqual([true, true, false]);
+});
+
+test("a git that can't answer is not reported as no repo", () => {
+  const dir = mkdtempSync(join(tmpdir(), "kz-nogit-")), path = process.env.PATH;
+  expect(gitStatus(dir)).toEqual({ repo: false });
+  // A stand-in git that dies with no answer, as a killed one does.
+  writeFileSync(join(dir, "git"), "#!/bin/sh\nexit 137\n", { mode: 0o755 });
+  writeFileSync(join(dir, "git.cmd"), "@exit /b 137\n");
+  process.env.PATH = `${dir}${process.platform === "win32" ? ";" : ":"}${path}`;
+  try { expect(gitStatus(dir)).toEqual({ repo: false, failed: true }); } finally { process.env.PATH = path; }
 });

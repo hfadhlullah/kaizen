@@ -115,7 +115,8 @@ export function landWorktree(project: string, id: string, sh: Run = run,
     const pr = sh(["gh", "pr", "create", "--base", base, "--head", branch, "--title", subject, "--body", `Run ${id}.`], dir);
     // An existing pull request for the branch is fine: merge that one.
     const url = pr.ok ? pr.out.split("\n").pop() : undefined;
-    if (!pr.ok && !/already exists/i.test(pr.why)) return { ok: false, why: `pull request failed: ${pr.why}; ${branch} is pushed` };
+    // gh prints the "already exists" line, then the URL, and `why` holds only the last line.
+    if (!pr.ok && !/already exists|\/pull\/\d+$/i.test(pr.why)) return { ok: false, why: `pull request failed: ${pr.why}; ${branch} is pushed` };
     const merge = sh(["gh", "pr", "merge", branch, "--rebase"], dir);
     if (!merge.ok) return { ok: false, why: `pull request not merged (${merge.why}); left open, worktree kept` };
     return finish("pr", url);

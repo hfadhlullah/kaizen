@@ -143,7 +143,7 @@ test("the row's check never throws, and Wayland shows its note", () => {
 
 // The real helper, run by hand with no on-list: it must refuse by itself, not rely on computer.ts.
 test.skipIf(!py)("the helper refuses on its own while the skill is off, and a corrupt on-list counts as off", () => {
-  const run = (verb: string[]) => JSON.parse(Bun.spawnSync([py!, "-I", join(repo, "cli", "computer-helper.py"), ...verb], { env: { ...process.env, HOME: home }, stdout: "pipe", stderr: "ignore" }).stdout.toString());
+  const run = (verb: string[]) => JSON.parse(Bun.spawnSync([py!, "-I", join(repo, "cli", "computer-helper.py"), ...verb], { env: { ...process.env, HOME: home, USERPROFILE: home }, stdout: "pipe", stderr: "ignore" }).stdout.toString());
   for (const v of [["apps"], ["state", "a"], ["click", "a", "0"], ["set-value", "a", "0", "x"], ["type", "a", "0", "x"]]) expect(run(v)).toMatchObject({ ok: false, code: "disabled" });
   mkdirSync(join(home, ".kaizen"), { recursive: true });
   writeFileSync(join(home, ".kaizen", "skills-on.json"), "{not json");
