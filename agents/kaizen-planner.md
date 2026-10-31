@@ -259,3 +259,5 @@ software — a document or a runbook has no stdlib to reach for.
 Return a short summary: the track in one line, your framing in one line, the goal in
 one line, the number of steps, the top risk, and any open questions. The main thread relays this to the user
 — do not restate the whole plan, it is already on disk.
+
+Report progress and finish with `kaizen report`, as *Reporting to the board* in `spec.md` says.

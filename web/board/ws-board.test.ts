@@ -69,3 +69,9 @@ test("cardLine: waiting on you says so with what it waits for", () => {
   expect(cardLine(run("a", "building"), "build", "building · 5m")).toBe("building · 5m");
   expect(cardLine(undefined, "", "")).toBe("no runs");
 });
+
+test("a card's agent signal leads its line", () => {
+  expect(cardLine({ signal: "blocked", blocked: { question: "Which?" } }, "running", "building")).toBe("waiting on you · Which?");
+  expect(cardLine({ signal: "stale" }, "running", "building")).toBe("stale");
+  expect(cardLine({ signal: "unverified" }, "running", "building")).toBe("unverified");
+});

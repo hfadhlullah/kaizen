@@ -13,7 +13,7 @@ import { codeDir, projectFromWorktree, wsOf } from "./worktree.ts";
 // symlink (/home -> var/home) would never compare equal to it.
 export const home = (() => { try { return realpathSync(homedir()); } catch { return homedir(); } })();
 
-export type Run = { id: string; stage: string; awaiting: string | null; moved: number; runner?: string; agent?: string; branch?: string; worktree?: string; workspace?: string; healed?: boolean };
+export type Run = { id: string; iteration?: number; stage: string; awaiting: string | null; moved: number; runner?: string; agent?: string; branch?: string; worktree?: string; workspace?: string; healed?: boolean };
 
 export const KNOWN_AGENTS = [
   { name: "Claude Code", dir: ".claude", cmd: "claude" },
@@ -435,7 +435,7 @@ export function readRuns(state: string): Run[] {
       try { moved = Math.max(moved, statSync(join(dir, id, "progress.md")).mtimeMs); } catch { /* no progress kept */ }
       // Done without the user's acceptance is not done: every reader sees it waiting on approval.
       const unapproved = s.stage === "done" && accepted(state, id).accept === "needs";
-      const run = { id, stage: unapproved ? "review" : s.stage ?? "?", awaiting: unapproved ? "approvals.review" : s.awaiting ?? null, moved, runner: s.runner, agent: s.agent, branch: typeof s.branch === "string" ? s.branch : undefined, worktree: typeof s.worktree === "string" ? s.worktree : undefined, workspace: typeof s.workspace === "string" ? s.workspace : undefined, healed: unapproved || (s.healed === true && s.awaiting === "approvals.review") || undefined };
+      const run = { id, iteration: Number(s.iteration) || 0, stage: unapproved ? "review" : s.stage ?? "?", awaiting: unapproved ? "approvals.review" : s.awaiting ?? null, moved, runner: s.runner, agent: s.agent, branch: typeof s.branch === "string" ? s.branch : undefined, worktree: typeof s.worktree === "string" ? s.worktree : undefined, workspace: typeof s.workspace === "string" ? s.workspace : undefined, healed: unapproved || (s.healed === true && s.awaiting === "approvals.review") || undefined };
       lastRun.set(runDir, run);
       return [run];
     } catch { return existsSync(join(runDir, "state.json")) ? [lastRun.get(runDir)].filter((r): r is Run => !!r) : []; }
@@ -759,6 +759,8 @@ export function markBacklogDone(state: string) {
 export type Card = {
   kind: "idea" | "run";
   id?: string;                                     // runs only: the directory name
+  stage?: string;                                  // runs only: the stage word
+  iteration?: number;                              // runs only: the fix round
   status: string;                                  // what the legend calls this card
   text: string;
   state: string;
@@ -1261,7 +1263,7 @@ export function boardCards(states: string[], now: number): Card[] {
     const yolos = new Set(yoloRecs.length ? yoloRecs.map((s) => ownerOf(st, s, indexOf(st))) : []);
     for (const r of readRuns(st)) {
       next.push({
-        kind: "run", id: r.id, status: statusOf(r, now), text: short(r.id), state: st, where, column: columnOf(r.stage, r.awaiting), moved: r.moved,
+        kind: "run", id: r.id, stage: r.stage, iteration: r.iteration, status: statusOf(r, now), text: short(r.id), state: st, where, column: columnOf(r.stage, r.awaiting), moved: r.moved,
         title: requestTitle(body(st, r.id)),
         awaiting: r.stage === "abandoned" ? null : r.awaiting,
         dim: r.stage === "abandoned",
@@ -1515,6 +1517,16 @@ export function keepAlive(projectDir: string): "off" | "tmux" {
   return "off";
 }
 
+const stageEnv = (projectDir: string, run: string) => {
+  try { const s = JSON.parse(readText(join(projectDir, ".kaizen", "runs", run, "state.json"))).stage; return /^\w+$/.test(s) ? [`KAIZEN_STAGE=${s}`] : []; } catch { return []; }
+};
+
+// agent.heartbeat_minutes: how long a quiet agent has, in intervals of it, before its card says stale.
+export function heartbeatMinutes(text = existsSync(join(home, ".kaizen", "config.yml")) ? readText(join(home, ".kaizen", "config.yml")) : "") {
+  const m = /^agent:\n(?:[ \t][^\n]*\n)*?[ \t]+heartbeat_minutes:[ \t]*["']?(\d+)/m.exec(text) || /^agent\.heartbeat_minutes:[ \t]*["']?(\d+)/m.exec(text);
+  return Math.min(Math.max(Number(m?.[1] ?? 5), 1), 60);
+}
+
 // agent.keep_awake: machine-wide, so only the global config. Same forms as keepAlive.
 export function keepAwake(text = existsSync(join(home, ".kaizen", "config.yml")) ? readText(join(home, ".kaizen", "config.yml")) : "") {
   return (/^agent:\n(?:[ \t][^\n]*\n)*?[ \t]+keep_awake:[ \t]*["']?([^"'\s]+)/m.exec(text) || /^agent\.keep_awake:[ \t]*["']?([^"'\s]+)/m.exec(text))?.[1] ?? "off";
@@ -1739,7 +1751,9 @@ export function launchRun(it: Item, from: string, run?: string, pick: { agent?: 
   const s = sessionLaunch(projectDir, agent.cmd, [agentBin, ...flags], prompt, it.text.replace(/^(lite|full|auto|plan)\s+/i, ""), run, model, yolo);
   const manual = manualCommand(projectDir, commandOf(agent.cmd, prefs), prompt, flags);
   // Only what is started carries env: the returned `cmd` reaches the page.
-  const started = withEnv(s.fullCmd, agent.cmd, prefs);
+  // A run the board knows hears which one it is; a new run has no id yet and passes --run.
+  const identity = run && process.platform !== "win32" ? ["env", `KAIZEN_RUN_ID=${run}`, ...stageEnv(projectDir, run)] : [];
+  const started = [...identity, ...withEnv(s.fullCmd, agent.cmd, prefs)];
   const drop = () => { if (s.record) rmSync(s.record, { force: true }); };
 
   if (pick.card && ptySupported) {

@@ -39,6 +39,8 @@ export function groupWs(cards: any[], projects: any[], wsOfCard) {
 // The words under a workspace card: a run waiting on the user says so, with what it waits for
 // ("waiting on you · plan approval"); otherwise the run's own line.
 export function cardLine(lead: any, leadState: string, sub: string) {
+  if (lead?.signal === "blocked") return `waiting on you · ${lead.blocked?.question ?? ""}`;
+  if (lead?.signal === "stale" || lead?.signal === "unverified") return lead.signal;
   if (!lead) return "no runs";
   if (leadState !== "wait" || lead.kind !== "run") return sub;
   return lead.status === "waiting" && sub.includes(" · ") ? `waiting on you · ${sub.split(" · ").slice(1).join(" · ")}` : "waiting on you";

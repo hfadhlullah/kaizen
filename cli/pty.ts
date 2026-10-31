@@ -11,7 +11,7 @@ const WIN = process.platform === "win32";
 // Windows PowerShell, which every Windows has, both hosts the console and runs the agent in it.
 const winPs = () => join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
 
-type Pty = { proc: Bun.Subprocess; out: string[]; size: number; listeners: Set<(d: string | null) => void>; exit: number | null; asking: boolean; busy: boolean; quiet?: Timer; total: number; since: number; onChange?: () => void; tmux?: string; last: string; lastAt: number; typedAt: number; born: number };
+type Pty = { lastOut?: number; proc: Bun.Subprocess; out: string[]; size: number; listeners: Set<(d: string | null) => void>; exit: number | null; asking: boolean; busy: boolean; quiet?: Timer; total: number; since: number; onChange?: () => void; tmux?: string; last: string; lastAt: number; typedAt: number; born: number };
 
 // What a page attaching late gets replayed. A full-screen tool redraws often, so the
 // tail of its output is enough to rebuild the screen.
@@ -105,6 +105,7 @@ export function startPty(key: string, cmd: string[], cwd: string, pidFile?: stri
   const work = (v: boolean) => { if (p.busy !== v) { p.busy = v; onChange?.(); } };
   const push = (d: string) => {
     p.out.push(d);
+    p.lastOut = Date.now();
     p.size += d.length;
     p.total += d.length;
     while (p.size > CAP && p.out.length > 1) p.size -= p.out.shift()!.length;
@@ -284,7 +285,7 @@ export const ptyKeys = () => [...ptys.keys()];
 
 export const ptyState = (key: string) => {
   const p = ptys.get(key);
-  return p ? { pid: p.proc.pid, alive: p.exit === null, exit: p.exit, asking: p.asking, busy: p.busy, total: p.total, last: p.last, at: p.lastAt, born: p.born } : null;
+  return p ? { pid: p.proc.pid, alive: p.exit === null, exit: p.exit, asking: p.asking, busy: p.busy, total: p.total, last: p.last, at: p.lastAt, born: p.born, lastOut: p.lastOut } : null;
 };
 
 // The environment the user's login shell builds: PATH and anything exported in their

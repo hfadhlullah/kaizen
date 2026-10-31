@@ -117,6 +117,25 @@ if (Bun.argv[2] === "card") {
   process.exit(0);
 }
 
+// `kaizen report`: how an agent tells the board about its run. See cli/report.ts.
+if (Bun.argv[2] === "report") {
+  const { locate } = await import("./state.ts");
+  const r = await import("./report.ts");
+  const a = Bun.argv.slice(3), flag = (n: string) => { const i = a.indexOf(n); return i < 0 ? undefined : a.splice(i, 2)[1]; };
+  const usage = "kaizen report phase <text> | blocked <question> [--options a,b] | unblock | done --outcome succeeded|failed --summary <text> [--files a,b] [--stage s]  [--run id]";
+  const id = flag("--run") ?? process.env.KAIZEN_RUN_ID, options = flag("--options"), outcome = flag("--outcome"), summary = flag("--summary"), files = flag("--files"), stage = flag("--stage") ?? process.env.KAIZEN_STAGE;
+  const state = r.stateOf(process.cwd(), locate()) ?? join(home, ".kaizen");
+  const [verb, ...rest] = a, text = rest.join(" ");
+  if (!id) { console.log(`\n  ${usage}\n  no run: pass --run <id>\n`); process.exit(1); }
+  const why = verb === "phase" && text ? r.reportPhase(state, id, text)
+    : verb === "blocked" && text ? r.reportBlocked(state, id, text, options?.split(",") ?? [])
+    : verb === "unblock" ? r.reportUnblock(state, id)
+    : verb === "done" && outcome && summary && stage ? r.reportDone(state, id, stage, outcome, summary, files?.split(",") ?? [])
+    : usage;
+  if (why) { console.log(`\n  ${why}\n`); process.exit(1); }
+  process.exit(0);
+}
+
 // `kaizen done <run id> [--user-approved]`: how an agent finishes a run. Refuses while
 // the review gate waits on the user; --user-approved is for a clear yes in chat.
 if (Bun.argv[2] === "done") {
