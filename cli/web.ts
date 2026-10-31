@@ -11,12 +11,13 @@ import {
   reviewFindings, pickFindings, backlogItem, startedBacklog, closeBacklog, markBacklogDone, fixPrompt, approvalPrompt, canApproveAwaiting, gateOf, recordAcceptance, healRuns, finishRun, nativePath, closeSessions, sweepSessions, issueUrl,
   launchMode, readSessions, ownerOf, runIndex, resumePrompt, runAgent, firstSession, webHosts,
 } from "./state.ts";
+import { ACCOUNT_VAR, accountDir, addAccount, readAccounts, renameAccount, signedIn, removeAccount, resolveAccount, setDefaultAccount } from "./accounts.ts";
 import { readReport, signalOf } from "./report.ts";
 import { bundledSkills, setSkill, skillsOff, skillStatus } from "./skills.ts";
-import { agentUsable, heartbeatMinutes, keepAwake, launchPreview, YOLO_FLAGS } from "./state.ts";
+import { accountEnv, accountForRun, agentUsable, heartbeatMinutes, keepAwake, launchPreview, YOLO_FLAGS } from "./state.ts";
 import { attachPty, writePty, submitPty, resizePty, exitPty, ptyState, ptyKeys, adoptLoginEnv, startPty, ptySupported, detachPty, ptyTail, ptyTmux, tmuxAlive, RESUMED } from "./pty.ts";
 import { snapshot, snapWorker } from "./state-snap.ts";
-import { claudeUsage, codexUsage, phonePeers, type Usage } from "./usage.ts";
+import { claudeUsage, claudeUsageAt, codexUsage, codexUsageAt, phonePeers, type Usage } from "./usage.ts";
 import { readSources, addSource, removeSource, moveSource, setCategory, setWriteback, setPaused, readIcebox, promote, dismiss, restore, addItem, markDone, markReplied, gatherSource, freshImages, gatherAll, gatherDirs, due, socialUrl, socialOf } from "./sources.ts";
 import { projectLogo, LOGO_TYPES } from "./logo.ts";
 import * as chatgpt from "./chatgpt.ts";
@@ -265,6 +266,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
   };
   let usageCache: Usage[] = [];
   let usageAt = 0;
+  const acctUsage = new Map<string, { at: number; usage: Usage | null }>();
   let pending: ReturnType<typeof setTimeout> | null = null;
   const prBusy = new Set<string>();
   // /state costs ~250 ms of this one thread on a big board (git status per project), and
@@ -788,13 +790,20 @@ export async function web(repoDir: string, opts: Opts = {}) {
           }
           if (sessionLive(sid)) return json({ live: true }, 409);
           agent = "claude";
-          cmd = ["claude", "--resume", sid];
+          const acct = accountForRun(projectOf(dir), id, "claude");
+          if (acct.error) return bad(acct.error, 400);
+          cmd = acct.dir ? ["env", ...accountEnv(acct), "claude", "--resume", sid] : ["claude", "--resume", sid];
         } else if (body.agent != null) {
           const a = KNOWN_AGENTS.find((k) => k.cmd === body.agent);
           if (!a || !agentUsable(a.cmd)) return bad("unknown agent", 400);
           agent = a.cmd;
-          bypass = prefersBypass(a.cmd) && !!YOLO_FLAGS[a.cmd];
-          cmd = withEnv([commandOf(a.cmd), ...(bypass ? YOLO_FLAGS[a.cmd]! : []), ...argsOf(a.cmd)], a.cmd);
+          // A sign-in names its account and runs plain: no bypass, no arguments.
+          const signIn = typeof body.account === "string" && body.account !== "";
+          const acct = resolveAccount(a.cmd, signIn ? body.account : undefined);
+          if (acct.error) return bad(acct.error, 400);
+          bypass = !signIn && prefersBypass(a.cmd) && !!YOLO_FLAGS[a.cmd];
+          const line = signIn ? [commandOf(a.cmd), ...(a.cmd === "codex" ? ["login"] : [])] : withEnv([commandOf(a.cmd), ...(bypass ? YOLO_FLAGS[a.cmd]! : []), ...argsOf(a.cmd)], a.cmd);
+          cmd = acct.dir ? ["env", ...accountEnv(acct), ...line] : line;
         } else cmd = process.platform === "win32" ? [powershellExe()] : [process.env.SHELL || "sh", "-l"];
         // A workspace folder: only an exact path from this project's own `git worktree list`.
         let cwd = projectOf(dir);
@@ -1179,6 +1188,38 @@ export async function web(repoDir: string, opts: Opts = {}) {
         const projects = states(true).filter((d) => d !== join(home, ".kaizen")).length;
         const ch = agentChoices(repoDir);
         return json({ ...onboardingView(home, projects), default: ch.default, installed: ch.agents.map((a) => a.cmd), agents: KNOWN_AGENTS.map((a) => ({ cmd: a.cmd, name: a.name })), install: installHelp(process.platform === "win32") });
+      }
+
+      // Names, folders' sign-in lines and usage only: tokens stay in the tools' own files.
+      if (path === "/accounts" && (req.method === "GET" || req.method === "POST")) {
+        let added: string | undefined;
+        if (req.method === "POST") {
+          const refused = strict(req);
+          if (refused) return refused;
+          let body: any;
+          try { body = await req.json(); } catch { return bad("json body expected"); }
+          const r: any = body?.op === "add" ? addAccount(body.tool, body.name)
+            : body?.op === "rename" ? renameAccount(String(body.id ?? ""), body.name)
+            : body?.op === "remove" ? removeAccount(String(body.id ?? ""), body.deleteFolder === true)
+            : body?.op === "default" ? setDefaultAccount(body.tool, String(body.id ?? ""))
+            : "unknown op";
+          const why = typeof r === "string" ? r : r?.error;
+          if (why) return bad(why);
+          added = r?.id;
+          acctUsage.clear();
+          changed();
+        }
+        const a = readAccounts();
+        const rows = await Promise.all(a.accounts.map(async (x) => {
+          const dir = accountDir(x.id);
+          let hit = acctUsage.get(x.id);
+          if (!hit || Date.now() - hit.at > 60_000) {
+            hit = { at: Date.now(), usage: x.tool === "claude" ? await claudeUsageAt(dir) : codexUsageAt(dir) };
+            acctUsage.set(x.id, hit);
+          }
+          return { ...x, isDefault: a.default[x.tool] === x.id, signedIn: signedIn(dir, x.tool), usage: hit.usage, signIn: `${ACCOUNT_VAR[x.tool]}=${dir} ${x.tool}${x.tool === "codex" ? " login" : ""}` };
+        }));
+        return json({ accounts: rows, windows: process.platform === "win32", ...(added ? { added } : {}) });
       }
 
       if (path === "/skills" && (req.method === "GET" || req.method === "POST")) {
@@ -1762,7 +1803,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
             const p = parseItem(line.text);
             const it: Item = { ...p, text: kind ? `${kind} ${p.text}` : p.text };
             it.notes = [source !== "orphan" ? `Parent: ${source}` : "", `Backlog: ${source}#${n}`, p.text !== line.text ? `Backlog item: ${line.text}` : ""].filter(Boolean).join("\n");
-            const r = launchRun(it, dir, undefined, { agent, model: model || undefined, yolo: body.yolo === true, ...inCard(dir) });
+            const r = launchRun(it, dir, undefined, { agent, account: typeof body.account === "string" ? body.account : undefined, model: model || undefined, yolo: body.yolo === true, ...inCard(dir) });
             if (r.ok) backlogLaunched.add(`${dir}\0${source}#${n}`);
             changed();
             return json(r.ok
@@ -1773,7 +1814,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           // A `started` idea may be run again: the terminal the first launch opened
           // can come up empty, and nothing else tells the board a run never began.
           it.notes = readInbox(dir).find((l) => (l.status === "open" || l.status === "started") && l.text === text)?.notes;
-          const r = launchRun(it, dir, undefined, { agent, model: model || undefined, yolo: body.yolo === true, ...inCard(dir) });
+          const r = launchRun(it, dir, undefined, { agent, account: typeof body.account === "string" ? body.account : undefined, model: model || undefined, yolo: body.yolo === true, ...inCard(dir) });
           if (r.ok) replaceIdea(dir, text, { status: "started", text });
           if (r.ok && r.pty) {
             for (const [k, v] of ideaPty) if (!ptyState(v)) ideaPty.delete(k);   // sessions already dropped

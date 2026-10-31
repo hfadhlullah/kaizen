@@ -245,3 +245,4 @@ updated: 2026-10-28
 - 2026-10-31 run 2026-10-31-settings-skills-page — Web board
 - 2026-10-31 run 2026-10-31-worktree-ask-agent-placement — Web board, Workflow: `git.worktree_per_run: ask`; an agent follows its run to the worktree.
 - 2026-10-31 update — Web board: run actions stay in the workspace; app-wide messages say kaizen, not board.
+- 2026-10-31 run 2026-10-31-provider-accounts — Web board

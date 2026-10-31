@@ -39,7 +39,7 @@ test("claudeUsage: maps the windows; a failure is an error that never carries th
   const e = await claudeUsage(h, fail);
   expect(e).toHaveProperty("error");
   expect(JSON.stringify(e)).not.toContain("SECRET");
-  expect(await claudeUsage(h, (async () => new Response("", { status: 401 })) as any)).toEqual({ agent: "claude", error: "HTTP 401" });
+  expect(await claudeUsage(h, (async () => new Response("", { status: 401 })) as any)).toEqual({ agent: "claude", error: "HTTP 401", expired: true });
 });
 
 test("phonePeers: online, offline, no phone, not running", () => {

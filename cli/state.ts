@@ -1,6 +1,7 @@
 // Everything kaizen knows about a project's state, read from and written to the
 // `.kaizen/` directory. No terminal, no HTTP: the TUI (`dashboard.ts`) and the web
 // board (`web.ts`) both import this and draw it their own way.
+import { readAccounts, resolveAccount, type Resolved } from "./accounts.ts";
 import { agentEnabled, argsOf, commandOf, prefersBypass, readPrefs, withEnv } from "./agent-prefs.ts";
 import { existsSync, readFileSync, readdirSync, appendFileSync, writeFileSync, mkdirSync, statSync, realpathSync, rmSync, renameSync, copyFileSync, openSync, readSync, closeSync } from "node:fs";
 import { Database } from "bun:sqlite";
@@ -25,6 +26,21 @@ export const KNOWN_AGENTS = [
 ];
 
 // Installed under its own or an overridden command, and not turned off in Settings.
+// The account of a run's latest session of this tool, undefined when it has none. A run started
+// on the normal login stays there ("") even after a default is set: its conversation lives there.
+const runAccount = (st: string, run: string, cmd: string) => {
+  const idx = runIndex(st), recs = readSessions(st).filter((s) => s.cmd === cmd && ownerOf(st, s, idx) === run);
+  return recs.length ? recs[recs.length - 1]!.account ?? "" : undefined;
+};
+export const accountForRun = (projectDir: string, run: string | undefined, cmd: string, picked?: string) =>
+  resolveAccount(cmd, picked ?? (run ? runAccount(join(projectDir, ".kaizen"), run, cmd) : undefined));
+
+// Only for a tool with accounts, so with none the Run form's data is as it always was.
+const accountChoices = (cmd: string) => {
+  const a = readAccounts(), mine = a.accounts.filter((x) => x.tool === cmd);
+  return mine.length ? { accounts: mine.map((x) => ({ id: x.id, name: x.name })), defaultAccount: (a.default as Record<string, string>)[cmd] ?? "" } : {};
+};
+
 export const agentUsable = (cmd: string) => agentEnabled(cmd) && !!onPath(commandOf(cmd));
 
 export type Agent = { name: string; cmd: string; note?: string };
@@ -115,7 +131,7 @@ export function agentChoices(projectDir: string) {
   return {
     default: detectDefaultAgent(projectDir).cmd,
     agents: KNOWN_AGENTS.filter((a) => agentUsable(a.cmd)).map((a) => ({
-      name: a.name, cmd: a.cmd, model: agentConfig(projectDir, a.cmd).model ?? "", models: !!MODEL_FLAGS[a.cmd], yolo: !!YOLO_FLAGS[a.cmd],
+      ...accountChoices(a.cmd), name: a.name, cmd: a.cmd, model: agentConfig(projectDir, a.cmd).model ?? "", models: !!MODEL_FLAGS[a.cmd], yolo: !!YOLO_FLAGS[a.cmd],
     })),
   };
 }
@@ -1308,8 +1324,8 @@ export function projectOf(from: string) {
     : (from.endsWith(".kaizen") ? dirname(from) : from);
 }
 
-export function manualCommand(projectDir: string, agentCmd: string, prompt: string, flags: string[] = []) {
-  const bin = [agentCmd, ...flags, ...(prompt ? PROMPT_FLAGS[agentCmd] ?? [] : [])].join(" ");
+export function manualCommand(projectDir: string, agentCmd: string, prompt: string, flags: string[] = [], env = "") {
+  const bin = [...(env ? [env] : []), agentCmd, ...flags, ...(prompt ? PROMPT_FLAGS[agentCmd] ?? [] : [])].join(" ");
   // Pasted into whatever shell the user has. fish reads \' and \\ inside single
   // quotes as escapes, so ' and \ each go in double quotes, which sh and fish read alike.
   const q = (a: string) => `'${a.replace(/['\\]/g, (ch) => (ch === "'" ? `'"'"'` : `'"\\\\"'`))}'`;
@@ -1322,7 +1338,7 @@ export function manualCommand(projectDir: string, agentCmd: string, prompt: stri
 // project's state dir ({run, text, cmd, model, sessionId, started}) and `<key>.pid`, which
 // the agent writes itself. Only these are ever closed or resumed: a session the user
 // opened by hand has no record.
-export type Session = { key: string; run: string | null; text: string; cmd: string; model?: string | null; yolo?: boolean; resumed?: boolean; sessionId: string | null; started: number };
+export type Session = { account?: string; key: string; run: string | null; text: string; cmd: string; model?: string | null; yolo?: boolean; resumed?: boolean; sessionId: string | null; started: number };
 
 // How each tool resumes a conversation by id. `start`: the tool takes an id kaizen
 // picks at launch. Without it the tool picks its own, and `find` reads it from the
@@ -1517,6 +1533,7 @@ export function keepAlive(projectDir: string): "off" | "tmux" {
   return "off";
 }
 
+export const accountEnv = (r: Resolved) => (r.dir ? [`${r.envVar}=${r.dir}`] : []);
 const stageEnv = (projectDir: string, run: string) => {
   try { const s = JSON.parse(readText(join(projectDir, ".kaizen", "runs", run, "state.json"))).stage; return /^\w+$/.test(s) ? [`KAIZEN_STAGE=${s}`] : []; } catch { return []; }
 };
@@ -1632,6 +1649,16 @@ export function sweepSessions(st: string) {
 // up here, once, and written back so no later record can claim it. None means a fresh
 // session, never a guess.
 // ponytail: a conversation that begins only after the tool's next launch here is given up (a fresh session), never handed to the wrong run; record a launch marker in the prompt if that bites
+// Session lookups read the tool's folder from the environment. A record made under an
+// account is looked up in that account's folder, for every caller.
+function inAccount<T>(cmd: string, account: string | undefined, fn: () => T): T {
+  const r = account ? resolveAccount(cmd, account) : {};
+  if (!r.envVar) return fn();
+  const prior = process.env[r.envVar];
+  process.env[r.envVar] = r.dir;
+  try { return fn(); } finally { if (prior === undefined) delete process.env[r.envVar!]; else process.env[r.envVar!] = prior; }
+}
+
 export function firstSession(st: string, id: string, cmd: string, cwd: string): Session | null {
   const f = SESSION_FLAGS[cmd];
   if (!f) return null;
@@ -1645,14 +1672,14 @@ export function firstSession(st: string, id: string, cmd: string, cwd: string): 
     if (!s.sessionId && f.find) {
       // Before the tool's next launch here, any run's: from then on a conversation may be that launch's.
       const next = all.find((o) => o.cmd === cmd && o.started > s.started)?.started ?? Infinity;
-      const found = f.find(cwd, s.started, Math.min(next, s.started + FIND_WINDOW_MS), taken);
+      const found = inAccount(cmd, s.account, () => f.find!(cwd, s.started, Math.min(next, s.started + FIND_WINDOW_MS), taken));
       if (!found) continue;
       taken.add(found);
       s.sessionId = found;
       const { key, ...rec } = s;
       try { writeFileSync(join(sessionsDir(st), key + ".json"), JSON.stringify(rec) + "\n"); } catch { /* found again next time */ }
     }
-    if (s.sessionId && f.has(cwd, s.sessionId)) return s;
+    if (s.sessionId && inAccount(cmd, s.account, () => f.has(cwd, s.sessionId!))) return s;
   }
   return null;
 }
@@ -1672,7 +1699,7 @@ export function runAgent(st: string, id: string): { cmd: string; model: string |
 // The agent's argv for a launch, and its record. With a run, a decision: it resumes
 // the run's conversation when there is one. A project without a state dir gets no
 // record; making one here would shadow the user's.
-export function sessionLaunch(projectDir: string, cmd: string, base: string[], prompt: string, text: string, run?: string, model?: string, yolo?: boolean) {
+export function sessionLaunch(projectDir: string, cmd: string, base: string[], prompt: string, text: string, run?: string, model?: string, yolo?: boolean, account?: string) {
   const st = join(projectDir, ".kaizen");
   if (!existsSync(st)) return { fullCmd: [...base, ...promptArgs(cmd, prompt)], key: undefined, pidFile: undefined, record: undefined };
   const f = SESSION_FLAGS[cmd];
@@ -1684,7 +1711,7 @@ export function sessionLaunch(projectDir: string, cmd: string, base: string[], p
   const key = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   mkdirSync(sessionsDir(st), { recursive: true });
   const record = join(sessionsDir(st), key + ".json");
-  writeFileSync(record, JSON.stringify({ run: run ?? null, text, cmd, model: model ?? null, ...(yolo ? { yolo: true } : {}), ...(prev ? { resumed: true } : {}), sessionId, started: Date.now() }) + "\n");
+  writeFileSync(record, JSON.stringify({ run: run ?? null, text, cmd, model: model ?? null, ...(yolo ? { yolo: true } : {}), ...(account ? { account } : {}), ...(prev ? { resumed: true } : {}), sessionId, started: Date.now() }) + "\n");
   return { fullCmd, key, pidFile: join(sessionsDir(st), key + ".pid"), record };
 }
 
@@ -1716,7 +1743,7 @@ export const CHILD_ENV = /^(CLAUDECODE|CLAUDE_PID|CLAUDE_CODE_(SESSION_ID|CHILD_
 // skill: start that skill instead of /kaizen (the Video page starts kaizen-video), in cwd:
 // a work folder that may not be a project, so it is not remembered as one. A session record is
 // written only where that folder has a .kaizen (a project place does; the library usually not).
-export function launchRun(it: Item, from: string, run?: string, pick: { agent?: string; model?: string; yolo?: boolean; card?: boolean; onChange?: () => void; skill?: "kaizen-video"; cwd?: string; seed?: string } = {}): Launch {
+export function launchRun(it: Item, from: string, run?: string, pick: { agent?: string; account?: string; model?: string; yolo?: boolean; card?: boolean; onChange?: () => void; skill?: "kaizen-video"; cwd?: string; seed?: string } = {}): Launch {
   const projectDir = pick.cwd ?? projectOf(from);
   // The run will be born here; the board must know the dir or the idea never retires.
   if (!pick.cwd) remember(projectDir);
@@ -1726,7 +1753,9 @@ export function launchRun(it: Item, from: string, run?: string, pick: { agent?: 
   if (!agentEnabled(agent.cmd)) return { ok: false, agent, prompt: "", projectDir, manual: "", why: `${agent.name} is turned off in Settings → Agents.` };
   if (pick.agent && agent.cmd !== pick.agent && !agentEnabled(pick.agent)) return { ok: false, agent, prompt: "", projectDir, manual: "", why: "That agent is turned off in Settings → Agents." };
   const prefs = readPrefs();
-  if (agent.cmd === "claude") trustFolder(projectDir);
+  const acct = accountForRun(projectDir, run, agent.cmd, pick.account);
+  if (acct.error) return { ok: false, agent, prompt: "", projectDir, manual: "", why: acct.error };
+  if (agent.cmd === "claude") trustFolder(projectDir, acct.dir ? join(acct.dir, ".claude.json") : undefined);
   // A board started inside a Claude Code session carries that session's identity. An
   // agent inheriting it runs as its child and keeps no transcript, so nothing to resume.
   for (const k of Object.keys(process.env)) if (CHILD_ENV.test(k)) delete process.env[k];
@@ -1748,11 +1777,16 @@ export function launchRun(it: Item, from: string, run?: string, pick: { agent?: 
   const yolo = (wasYolo || (!!pick.yolo && agent.cmd === pick.agent) || prefersBypass(agent.cmd, prefs)) && !!YOLO_FLAGS[agent.cmd];
   const flags = [...agentFlags(projectDir, agent.cmd, undefined, model), ...(yolo ? YOLO_FLAGS[agent.cmd] : []), ...argsOf(agent.cmd, prefs)];
   // The idea as its run's request will hold it: without the runner word in front.
-  const s = sessionLaunch(projectDir, agent.cmd, [agentBin, ...flags], prompt, it.text.replace(/^(lite|full|auto|plan)\s+/i, ""), run, model, yolo);
-  const manual = manualCommand(projectDir, commandOf(agent.cmd, prefs), prompt, flags);
+  // Session lookups read the tool's folder from the environment; for this launch it's the account's.
+  const prior = acct.envVar ? process.env[acct.envVar] : undefined;
+  if (acct.envVar) process.env[acct.envVar] = acct.dir;
+  let s: ReturnType<typeof sessionLaunch>;
+  try { s = sessionLaunch(projectDir, agent.cmd, [agentBin, ...flags], prompt, it.text.replace(/^(lite|full|auto|plan)\s+/i, ""), run, model, yolo, acct.account?.id); }
+  finally { if (acct.envVar) { if (prior === undefined) delete process.env[acct.envVar]; else process.env[acct.envVar] = prior; } }
+  const manual = manualCommand(projectDir, commandOf(agent.cmd, prefs), prompt, flags, acct.dir ? `${acct.envVar}=${shq(acct.dir)}` : "");
   // Only what is started carries env: the returned `cmd` reaches the page.
   // A run the board knows hears which one it is; a new run has no id yet and passes --run.
-  const identity = run && process.platform !== "win32" ? ["env", `KAIZEN_RUN_ID=${run}`, ...stageEnv(projectDir, run)] : [];
+  const identity = (run || acct.dir) && process.platform !== "win32" ? ["env", ...(run ? [`KAIZEN_RUN_ID=${run}`, ...stageEnv(projectDir, run)] : []), ...accountEnv(acct)] : [];
   const started = [...identity, ...withEnv(s.fullCmd, agent.cmd, prefs)];
   const drop = () => { if (s.record) rmSync(s.record, { force: true }); };
 

@@ -4,6 +4,7 @@ import { load, post } from "./api.ts";
 import { stopDictation } from "./dictation.ts";
 import { $, html, ico, raw } from "./dom.ts";
 import { close } from "./panel.ts";
+import { accountRows, wireAccounts } from "./settings-accounts.ts";
 import { agentRows, wireAgents } from "./settings-agents.ts";
 import { skillRows, wireSkills } from "./settings-skills.ts";
 import { placeOf, SETTINGS_NAV } from "./settings-pages.ts";
@@ -59,6 +60,9 @@ export async function openSettings() {
     .then((r) => r.json())
     .catch(() => ({}));
   const ap = await fetch("/agent-prefs")
+    .then((r) => (r.ok ? r.json() : null))
+    .catch(() => null);
+  const ac = await fetch("/accounts")
     .then((r) => (r.ok ? r.json() : null))
     .catch(() => null);
   const sk = await fetch("/skills")
@@ -163,7 +167,7 @@ export async function openSettings() {
         <button class="sup" type="button">${ico("chev")}Settings</button>
         <header><h2>${p.title}</h2><p>${p.desc}${scopeName ? ` Editing ${scopeName}.` : ""}</p></header>
         ${p.id === "general" ? html`<div id="supd"></div>` : ""}
-        <div class="scard">${p.id === "agents" && ap ? agentRows(ap, defaultAgent, scopeName) : ""}${p.id === "skills" && sk ? skillRows(sk.skills) : ""}${[...pageRows.get(p.id)].map(([sub, rows]) => html`<h3 class="sg">${sub}</h3><div class="sgrp">${rows}</div>`)}</div>
+        <div class="scard">${p.id === "agents" && ap ? agentRows(ap, defaultAgent, scopeName) : ""}${p.id === "accounts" && ac ? accountRows(ac) : ""}${p.id === "skills" && sk ? skillRows(sk.skills) : ""}${[...pageRows.get(p.id)].map(([sub, rows]) => html`<h3 class="sg">${sub}</h3><div class="sgrp">${rows}</div>`)}</div>
       </div>`)}
       ${cfg ? "" : html`<p class="snone">Settings could not be read. Run <code>kaizen settings</code>.</p>`}
       <p class="snone" id="snone" hidden></p>
@@ -228,6 +232,7 @@ export async function openSettings() {
   };
   if (ap) wireAgents(openSettings, cfg?.scope ?? null);
   if (sk) wireSkills(openSettings);
+  if (ac) wireAccounts(openSettings);
   filter();
   $("smain").scrollTop = top;
   if (hadFocus) {
