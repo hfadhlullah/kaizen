@@ -2,7 +2,7 @@
 // create a folder, branch off a base. Everything here is a pure check or an argv call,
 // so each refusal can be tested without a board. No shell string anywhere.
 import { appendFileSync, existsSync, lstatSync, readdirSync, readFileSync, rmSync } from "node:fs";
-import { basename, dirname, join, parse, resolve, sep } from "node:path";
+import { isAbsolute, basename, dirname, join, parse, resolve, sep } from "node:path";
 import { canonPath, nativePath } from "./state.ts";
 import { run, type Run } from "./worktree.ts";
 
@@ -50,7 +50,9 @@ export function destDir(raw: unknown, home: string, known: string[] = [], projec
   const t = typeof raw === "string" ? raw.trim() : "";
   if (!t || t.length > 1000 || t.includes("\0")) return { error: "name a folder" };
   if (t.split(/[\\/]/).includes("..")) return { error: "a folder path cannot contain .." };
-  const p = resolve(home, nativePath(t.startsWith("~") ? home + t.slice(1) : t));
+  // A relative name is under home: nativePath alone would resolve it against the working folder.
+  const full = t.startsWith("~") ? home + t.slice(1) : t;
+  const p = resolve(home, isAbsolute(full) || /^\/[a-zA-Z](\/|$)/.test(full) ? nativePath(full) : full);
   try { if (lstatSync(p).isSymbolicLink()) return { error: "that folder is a symbolic link; name the real folder" }; } catch { /* absent */ }
   const dir = existsSync(p) ? canonPath(p) : join(canonPath(dirname(p)), basename(p)), h = canonPath(home);
   if (parse(dir).root === dir || dir === h) return { error: "choose a folder of its own, not the root or your home" };
