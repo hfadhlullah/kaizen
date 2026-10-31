@@ -29,7 +29,7 @@ test("a new folder appears by itself, with its description; real skills all pars
   const s = bundledSkills(repo).find((x) => x.id === "new-one")!;
   expect([s.group, s.description]).toEqual(["media", "Does a thing."]);
   const real = bundledSkills(join(import.meta.dir, ".."));
-  expect(real.map((x) => x.id).sort()).toEqual(["kaizen", "kaizen-book", "kaizen-deck", "kaizen-help", "kaizen-video"]);
+  expect(real.map((x) => x.id).sort()).toEqual(["kaizen", "kaizen-book", "kaizen-computer", "kaizen-deck", "kaizen-help", "kaizen-video"]);
   expect(real.filter((x) => x.group === "core").length).toBe(2);
   for (const x of real) expect(x.description.length).toBeGreaterThan(10);
 });

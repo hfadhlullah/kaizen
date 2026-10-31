@@ -1,11 +1,11 @@
 // The skills kaizen ships: each folder under skills/ with a SKILL.md, plus an optional
-// skill.json ({ title, group, needs }), so a new folder needs no change elsewhere.
+// skill.json ({ title, group, needs, off_by_default }), so a new folder needs no change elsewhere.
 // Turning one off removes kaizen's own links for this user; a real folder, or a link to
 // anything else, under the same name stays. ~/.kaizen/skills-off.json keeps the choice.
 import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, readlinkSync, renameSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path";
 
-export type Skill = { id: string; rel: string; title: string; description: string; group: "core" | "media" | "optional"; needs: string[] };
+export type Skill = { id: string; rel: string; title: string; description: string; group: "core" | "media" | "optional"; needs: string[]; offByDefault: boolean };
 export const SKILL_HOMES = [
   { name: "Claude Code", dir: ".claude" }, { name: "Codex", dir: ".codex" }, { name: "Antigravity", dir: ".agents" },
   { name: "OpenCode", dir: ".opencode" }, { name: "Cursor", dir: ".cursor" }, { name: "Gemini CLI", dir: ".gemini" },
@@ -24,12 +24,13 @@ function frontMatter(text: string) {
 
 export function bundledSkills(repo: string): Skill[] {
   const root = join(repo, "skills");
-  const rels = [...readdirSync(root), ...(existsSync(join(root, "media")) ? readdirSync(join(root, "media")).map((n) => `media/${n}`) : [])];
+  const sub = (d: string) => (existsSync(join(root, d)) ? readdirSync(join(root, d)).map((n) => `${d}/${n}`) : []);
+  const rels = [...readdirSync(root), ...sub("media"), ...sub("optional")];
   return rels.filter((rel) => existsSync(join(root, rel, "SKILL.md"))).map((rel) => {
     let m: any = {};
     try { m = JSON.parse(readFileSync(join(root, rel, "skill.json"), "utf8")); } catch { /* a folder alone is enough */ }
     const group = CORE.includes(basename(rel)) ? "core" : m.group === "media" || rel.startsWith("media/") ? "media" : "optional";
-    return { id: basename(rel), rel, title: String(m.title ?? basename(rel)), description: frontMatter(readFileSync(join(root, rel, "SKILL.md"), "utf8")), group, needs: Array.isArray(m.needs) ? m.needs.map(String) : [] };
+    return { id: basename(rel), rel, title: String(m.title ?? basename(rel)), description: frontMatter(readFileSync(join(root, rel, "SKILL.md"), "utf8")), group, needs: Array.isArray(m.needs) ? m.needs.map(String) : [], offByDefault: group !== "core" && m.off_by_default === true };
   });
 }
 
@@ -38,10 +39,21 @@ export function skillsOff(home: string): string[] {
   try { const v = JSON.parse(readFileSync(offFile(home), "utf8")); return Array.isArray(v) ? v.filter((x) => typeof x === "string") : []; } catch { return []; }
 }
 
+// A skill with off_by_default stays out until the user turns it on; ~/.kaizen/skills-on.json
+// keeps that choice. `held` is the ones still waiting, whoever installs.
+const onFile = (home: string) => join(home, ".kaizen", "skills-on.json");
+export function skillsOn(home: string): string[] {
+  try { const v = JSON.parse(readFileSync(onFile(home), "utf8")); return Array.isArray(v) ? v.filter((x) => typeof x === "string") : []; } catch { return []; }
+}
+export const skillsHeld = (repo: string, home: string) => {
+  const on = skillsOn(home);
+  return bundledSkills(repo).filter((s) => s.offByDefault && !on.includes(s.id)).map((s) => s.id);
+};
+
 // What an install links. The off-list is the user's global choice: a project install is
-// its own decision, and core is never off.
-export const skillsToLink = (rels: string[], off: string[], global: boolean) =>
-  rels.filter((r) => !global || CORE.includes(basename(r)) || !off.includes(basename(r)));
+// its own decision, and core is never off. `held` binds every install.
+export const skillsToLink = (rels: string[], off: string[], global: boolean, held: string[] = []) =>
+  rels.filter((r) => CORE.includes(basename(r)) || (!held.includes(basename(r)) && (!global || !off.includes(basename(r)))));
 
 const isLink = (p: string) => { try { return lstatSync(p).isSymbolicLink(); } catch { return false; } };
 // Ours: a link into some kaizen clone's skills/<rel>, this one or the installed one.
@@ -72,10 +84,12 @@ function installedClone(home: string, repo: string) {
 }
 
 // Returns an error, or null. Global links only: a project's own install is left alone.
-export function setSkill(repo: string, home: string, id: string, on: boolean): string | null {
+// A skill off by default is turned on only with confirm, which the page sends after its warning.
+export function setSkill(repo: string, home: string, id: string, on: boolean, confirm = false): string | null {
   const skill = bundledSkills(repo).find((s) => s.id === id);
   if (!skill) return "unknown skill";
   if (skill.group === "core") return "Core skills can't be turned off";
+  if (on && skill.offByDefault && !confirm) return "confirm required";
   const clone = installedClone(home, repo);
   for (const h of SKILL_HOMES) {
     if (!existsSync(join(home, h.dir))) continue;
@@ -85,11 +99,14 @@ export function setSkill(repo: string, home: string, id: string, on: boolean): s
     mkdirSync(dir, { recursive: true });
     symlinkSync(join(clone, "skills", skill.rel), p, process.platform === "win32" ? "junction" : undefined);
   }
+  const save = (file: string, list: Set<string>) => {
+    mkdirSync(join(home, ".kaizen"), { recursive: true });
+    writeFileSync(`${file}.tmp`, JSON.stringify([...list], null, 2));
+    renameSync(`${file}.tmp`, file);
+  };
   const off = new Set(skillsOff(home));
   on ? off.delete(id) : off.add(id);
-  mkdirSync(join(home, ".kaizen"), { recursive: true });
-  const tmp = `${offFile(home)}.tmp`;
-  writeFileSync(tmp, JSON.stringify([...off], null, 2));
-  renameSync(tmp, offFile(home));
+  save(offFile(home), off);
+  if (skill.offByDefault) { const list = new Set(skillsOn(home)); on ? list.add(id) : list.delete(id); save(onFile(home), list); }
   return null;
 }

@@ -242,7 +242,7 @@ export async function openSettings() {
     } else close();
   };
   if (ap) wireAgents(openSettings, cfg?.scope ?? null);
-  if (sk) wireSkills(openSettings);
+  if (sk) wireSkills(openSettings, sk.token);
   fillMics();
   if (ac) wireAccounts(openSettings);
   filter();

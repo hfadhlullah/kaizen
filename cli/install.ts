@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { bundledSkills, skillsOff, skillsToLink } from "./skills.ts";
+import { bundledSkills, skillsHeld, skillsOff, skillsToLink } from "./skills.ts";
 import {
   symlinkSync, mkdirSync, readdirSync, lstatSync, unlinkSync,
   existsSync, copyFileSync, readFileSync, appendFileSync, rmSync, writeFileSync, renameSync,
@@ -52,7 +52,9 @@ const c = {
 // path segment: media/kaizen-deck is linked as skills/kaizen-deck.
 const SKILLS = bundledSkills(dirname(import.meta.dir)).map((s) => s.rel);
 // What an install links and checks: a skill turned off in Settings stays off through upgrades.
-const ON_SKILLS = skillsToLink(SKILLS, skillsOff(homedir()), true);
+// A skill that ships off by default (desktop control) stays unlinked until it is turned on.
+const HELD = skillsHeld(dirname(import.meta.dir), homedir());
+const ON_SKILLS = skillsToLink(SKILLS, skillsOff(homedir()), true, HELD);
 // Skill names an older release linked; uninstall drops them and install
 // clears them when they are still our links.
 const RENAMED_SKILLS = ["story-deck", "story-video", "kaizen-motion"];
@@ -118,6 +120,15 @@ if (Bun.argv[2] === "card") {
   if (typeof r === "string") { console.log(`\n  ${r}\n`); process.exit(1); }
   console.log(`\n  ${c.green("added")}  ${args.join(" ")}\n  ${c.dim(`parent ${r.parent}  ·  project ${label(state)}`)}\n`);
   process.exit(0);
+}
+
+// `kaizen computer <verb> ...`: desktop control through the accessibility tree, only while
+// the kaizen-computer skill is on. One JSON line out. See cli/computer.ts.
+if (Bun.argv[2] === "computer") {
+  const { computer } = await import("./computer.ts");
+  const { out, code } = await computer(Bun.argv.slice(3), { home: homedir() });
+  console.log(JSON.stringify(out));
+  process.exit(code);
 }
 
 // `kaizen report`: how an agent tells the board about its run. See cli/report.ts.
@@ -1002,7 +1013,7 @@ function dirEntries(sub: string) {
 }
 
 const links = targets.flatMap((a) => [
-  ...skillsToLink(SKILLS, skillsOff(homedir()), resolve(a.dir) === resolve(home, basename(a.dir))).map((n) => [join(repo, "skills", n), join(a.dir, "skills")] as const),
+  ...skillsToLink(SKILLS, skillsOff(homedir()), resolve(a.dir) === resolve(home, basename(a.dir)), HELD).map((n) => [join(repo, "skills", n), join(a.dir, "skills")] as const),
   ...(a.full ? [
     ...dirEntries("agents").map((f) => [f, join(a.dir, "agents")] as const),
     ...dirEntries("commands").map((f) => [f, join(a.dir, "commands")] as const),
