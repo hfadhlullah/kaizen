@@ -51,9 +51,28 @@ Run `scripts/check.sh` first on a new machine.
    For anything the helpers do not cover (triptych, recap timeline, stat rows) use
    `d.slide()`, `d.kicker()`, `d.headline()`, `d.body()` and see build.js / build-features.js
    in the reference project.
-7. **QA:** `./qa.sh build-<name>.js`, look at every printed sheet (or send them to the user), fix, repeat. Clean `qa/` after.
-8. **Report:** file path, the story in one line per slide, every placeholder left, every
+7. **Motion (when asked for animation or transitions):** copy in `scripts/motion.py` and run
+   `python3 motion.py Deck.pptx Deck-motion.pptx`, then QA the result. See "Brand theme and motion" below.
+8. **QA:** `./qa.sh build-<name>.js`, look at every printed sheet (or send them to the user), fix, repeat. Clean `qa/` after.
+9. **Report:** file path, the story in one line per slide, every placeholder left, every
    claim the user must verify, and what was deliberately left out.
+
+## Brand theme and motion
+
+**Follow the user's brand when they name one.** Asked to match a landing page or site, read its CSS and
+markup first, and use its colors, type, shapes and exact words instead of ink and gold. Pass them through the
+`makeDeck` branding options, or build with `d.slide()`. Write new copy only for what the source lacks
+(a researched problem, a contact slide), and say which lines are yours. Sales decks end on contact: name,
+company, site, and a QR code. Do not put decks in the project repo.
+
+**Transitions and animation:** `motion.py` adds fade and push transitions and automatic entrance fades. Name
+shapes `a<N>-...` with `objectName` so the same N appears together; unnamed shapes appear one by one.
+
+**Product footage is MP4, never GIF.** GIFs may not play in presentation apps. Render clips from real footage
+with the `hyperframes` skill, then embed with
+`slide.addMedia({ type: "video", path, cover: "data:image/png;base64,...", x, y, w, h })`.
+`cover` must be base64. `motion.py` makes the first video on each slide autoplay, muted and looping. Renders
+and QA sheets cannot show motion, so report it as unplayed until someone runs the slideshow.
 
 ## Agent notes (Claude Code, Codex, Gemini CLI, OpenCode, Cursor…)
 Steps name capabilities, not tools. Where your agent lacks one:
