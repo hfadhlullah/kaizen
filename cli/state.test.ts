@@ -861,7 +861,8 @@ console.log(JSON.stringify([knownProjects(), require("node:fs").readFileSync(REG
     const p = Bun.spawnSync(["bun", "-e", script], { cwd: home, env: { ...process.env, HOME: home, USERPROFILE: home } });
     if (p.exitCode !== 0) throw new Error(p.stderr.toString());
     const [list, file] = JSON.parse(p.stdout.toString());
-    expect(list).toEqual([realpathSync(proj)]);
+    // Windows keeps each spelling (canonPath), so a link stays listed there; slashes still collapse.
+    expect(list).toEqual(process.platform === "win32" ? [proj, join(home, "link")] : [realpathSync(proj)]);
     expect(file).toBe(dup); // already known: nothing appended, nothing rewritten
   } finally { rmSync(home, { recursive: true, force: true }); }
 });
@@ -1510,7 +1511,8 @@ test("stageFiles, commitStaged, suggestMessage: only the run's files are staged,
   expect((commitStaged(st, "r1", "no type", ["a.txt"]) as any).why).toContain("Start the message with a type");
   // The sparkle: with no claude on PATH the message is built from the file names, and it passes the type check.
   const path = process.env.PATH;
-  process.env.PATH = "";
+  // On Windows git needs its full PATH, so only folders holding claude go.
+  process.env.PATH = process.platform === "win32" ? path!.split(";").filter((d) => !["claude.exe", "claude.cmd"].some((n) => existsSync(join(d, n)))).join(";") : "";
   try {
     const m = await suggestMessage(st, "r1");
     expect(m).toEqual({ ok: true, message: "chore: update a.txt", ai: false });

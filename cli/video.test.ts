@@ -144,7 +144,7 @@ test("jobs run the skill's scripts as argv, in the background, one at a time", a
   expect(readFileSync(calls, "utf8").trim().split("\n").map((l) => JSON.parse(l))).toEqual([
     [join("videos", "demo"), "--format", "9x16", "--render"], [join("videos", "demo"), "--format", "4x5", "--render"],
   ]);
-  expect(JSON.parse(readFileSync(join(lib, "videos", "talk", "calls.txt"), "utf8"))).toEqual(["videos/talk"]);
+  expect(JSON.parse(readFileSync(join(lib, "videos", "talk", "calls.txt"), "utf8"))).toEqual([join("videos", "talk")]);
   expect(typeof b).toBe("object");
   delete process.env.FAKE_SLEEP;
 });
