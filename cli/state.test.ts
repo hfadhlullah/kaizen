@@ -1607,3 +1607,10 @@ test("a git that can't answer is not reported as no repo", () => {
   process.env.PATH = `${dir}${process.platform === "win32" ? ";" : ":"}${path}`;
   try { expect(gitStatus(dir)).toEqual({ repo: false, failed: true }); } finally { process.env.PATH = path; }
 });
+
+test("a tool's Settings model reaches its launch flag, ahead of a hand-written block", () => {
+  expect(agentFlags("/x", "codex", 'agent:\n  default: auto\n  model:\n    agy: ""\n    codex: gpt-x\n')).toEqual(["-m", "gpt-x"]);
+  expect(agentFlags("/x", "agy", 'agent:\n  model:\n    agy: ""\n    codex: gpt-x\n')).toEqual([]);
+  expect(agentFlags("/x", "codex", "agent:\n  codex: { model: old, effort: low }\n  model:\n    codex: new\n")).toEqual(["-m", "new", "-c", "model_reasoning_effort=low"]);
+  expect(agentFlags("/x", "codex", "agent:\n  codex: { model: old }\n")).toEqual(["-m", "old"]);
+});

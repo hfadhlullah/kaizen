@@ -581,6 +581,8 @@ the project and run it came from. Each line reads:
 
 ## Settings
 
+**Models.** Settings → Agents → Models has a row per installed agent. Claude Code's row sets its stage subagents. Other tools run every stage in one session, so their row sets the model they launch with, using the tool's own model name.
+
 **Voice.** Settings → Voice picks the microphone for this browser. Ctrl+Alt+D starts and stops dictation into the terminal you're in, while the board has focus.
 
 **AI Provider Accounts.** Optional: your normal Claude and Codex logins keep working. Add an account in Settings to keep a second login in its own folder, press Sign in, and pick it as the default or on the Run form. A run stays on its account when resumed, and a run whose account has gone refuses to start rather than using another. Not on Windows yet.

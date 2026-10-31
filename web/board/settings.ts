@@ -127,10 +127,12 @@ export async function openSettings() {
     ));
     // Drawn as chips with the agent list, above the rest of the page.
     cfg.rows = cfg.rows.filter((r) => !(r.key === "agent.default" && ap));
+    // A model row only for a tool on this machine.
+    if (ap) cfg.rows = cfg.rows.filter((r) => !r.key.startsWith("agent.model.") || ap.agents.some((a) => a.installed && r.key.endsWith("." + a.cmd)));
     for (const r of cfg.rows) {
       const id = "s-" + r.key.replace(/\./g, "-");
       const [page, sub] = placeOf(r.key);
-      const wm = r.key.startsWith("orchestration.worker_model.");
+      const wm = /^(orchestration\.worker_model|agent\.model)\./.test(r.key);
       put(page, sub + (scoped && r.group === "Board" ? " · all projects" : ""), row(
         wm ? modelLabel(r) : r.label,
         r.text

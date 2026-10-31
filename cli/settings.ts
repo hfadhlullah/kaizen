@@ -115,8 +115,8 @@ const SETTINGS: Setting[] = [
   { key: "agent.keep_alive", label: "Keep agents through a board restart", group: "Agents", values: ["off", "tmux"], help: "tmux: Linux and macOS with tmux installed", when: ["agent.launch", "card"] },
   { key: "agent.keep_awake", label: "Keep computer awake", group: "Board", values: ["off", "auto", "on"], help: "auto: while the board runs agents · on: while the board is open. Linux and macOS" },
   { key: "agent.heartbeat_minutes", label: "Agent heartbeat", group: "Board", values: ["2", "5", "10", "30"], help: "Minutes. A card says stale after two quiet intervals" },
-  { key: "subagents.model", label: "Model for subagents", group: "Agents", values: ["inherit", "opus", "sonnet", "haiku"], help: "Planner, builder, reviewer", when: ["runner", "full"] },
-  { key: "subagents.effort", label: "Effort for subagents", group: "Agents", values: ["inherit", "low", "medium", "high"], help: "Planner, builder, reviewer", when: ["runner", "full"] },
+  { key: "subagents.model", label: "Claude Code", group: "Agents", values: ["inherit", "opus", "sonnet", "haiku"], help: "Its stage subagents: planner, builder, reviewer", when: ["runner", "full"] },
+  { key: "subagents.effort", label: "Claude Code effort", group: "Agents", values: ["inherit", "low", "medium", "high"], help: "Planner, builder, reviewer", when: ["runner", "full"] },
   { key: "auto_fix.enabled", label: "Fix findings automatically", group: "Auto-fix", values: ["true", "false"], help: "" },
   { key: "auto_fix.min_severity", label: "Lowest severity to fix", group: "Auto-fix", values: ["critical", "high", "medium", "low"], help: "", when: ["auto_fix.enabled", "true"] },
   { key: "auto_fix.max_iterations", label: "Max fix rounds", group: "Auto-fix", values: ["1", "2", "3", "4", "5"], help: "", when: ["auto_fix.enabled", "true"] },
@@ -126,6 +126,7 @@ const SETTINGS: Setting[] = [
   { key: "orchestration.max_workers", label: "Max workers per run", group: "Orchestration", values: ["1", "2", "3", "4", "5", "6"], help: "Total per run", when: ["orchestration.enabled", "true"] },
   { key: "orchestration.permissions", label: "Worker permissions", group: "Orchestration", values: ["own", "bypass"], help: "own: each agent's own prompts. Bypass skips every prompt in every worker", when: ["orchestration.enabled", "true"] },
   // One per tool that takes a model flag; a run freezes its own agent's. Empty: the run's own model.
+  ...KNOWN_AGENTS.filter((a) => MODEL_FLAGS[a.cmd] && a.cmd !== "claude").map((a): Setting => ({ key: `agent.model.${a.cmd}`, label: `Model: ${a.name}`, group: "Agents", values: [], text: true, help: "The tool's own model name, for every stage: it runs them in one session. Empty: its own default" })),
   ...KNOWN_AGENTS.filter((a) => MODEL_FLAGS[a.cmd]).map((a): Setting => ({ key: `orchestration.worker_model.${a.cmd}`, label: `Worker model: ${a.name}`, group: "Orchestration", values: [], text: true, help: "The tool's own model name. Empty: the run's own model", when: ["orchestration.enabled", "true"] })),
   { key: "review.write_memory", label: "Remember lessons", group: "Project", values: ["true", "false"], help: "" },
   { key: "review.memory_max_lines", label: "Memory size cap", group: "Project", values: ["50", "100", "200", "400"], help: "" },
