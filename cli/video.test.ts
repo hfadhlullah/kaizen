@@ -2,7 +2,7 @@
 // paths a page may ask for, and the job queue the skill's scripts run in.
 import { test, expect } from "bun:test";
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, symlinkSync, readdirSync, cpSync, rmSync, truncateSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { basename, join, dirname } from "node:path";
 import { tmpdir } from "node:os";
 
 const repo = dirname(import.meta.dir);
@@ -52,7 +52,7 @@ test("the library lists films and footage, with each rendered shape and the word
   const proj = mkdtempSync(join(tmpdir(), "kaizen-video-proj-"));
   mkdirSync(join(proj, "videos"));
   const all = video.places(lib, [proj, lib, mkdtempSync(join(tmpdir(), "kaizen-novideo-"))]);
-  expect(all.map((p) => p.label)).toEqual(["library", proj.split("/").pop()!]);
+  expect(all.map((p) => p.label)).toEqual(["library", basename(proj)]);
   const list = video.listVideos(all);
   const demo = list.find((v) => v.name === "demo")!;
   expect(demo.mode).toBe("film");
@@ -142,7 +142,7 @@ test("jobs run the skill's scripts as argv, in the background, one at a time", a
   await until(() => video.jobOf(lib, "talk")?.state === "done");
   expect(video.jobOf(lib, "demo")).toMatchObject({ state: "done", step: 2, total: 2 });
   expect(readFileSync(calls, "utf8").trim().split("\n").map((l) => JSON.parse(l))).toEqual([
-    ["videos/demo", "--format", "9x16", "--render"], ["videos/demo", "--format", "4x5", "--render"],
+    [join("videos", "demo"), "--format", "9x16", "--render"], [join("videos", "demo"), "--format", "4x5", "--render"],
   ]);
   expect(JSON.parse(readFileSync(join(lib, "videos", "talk", "calls.txt"), "utf8"))).toEqual(["videos/talk"]);
   expect(typeof b).toBe("object");
@@ -212,7 +212,7 @@ test("the board serves sound assets and the Video page, and refuses unsafe paths
     const calls = join(homeDir, ".kaizen", "videos", "demo", "calls.txt");
     await until(() => existsSync(calls) && readFileSync(calls, "utf8").trim().split("\n").length === 2);
     expect(readFileSync(calls, "utf8").trim().split("\n").map((l) => JSON.parse(l))).toEqual([
-      ["videos/demo", "--format", "9x16", "--render"], ["videos/demo", "--format", "16x9", "--render"],
+      [join("videos", "demo"), "--format", "9x16", "--render"], [join("videos", "demo"), "--format", "16x9", "--render"],
     ]);
   } finally { proc.kill(); await proc.exited; }
 }, 30000);

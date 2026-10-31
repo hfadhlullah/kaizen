@@ -249,7 +249,8 @@ test.skipIf(process.platform === "win32")("submit: Enter reaches the agent on it
 test("busy: on while the agent draws its working line, off once it goes quiet; other output is not work", async () => {
   const key = "busy-" + Date.now();
   startPty(key, ["sh", "-c", "for i in 1 2 3 4 5 6; do echo 'Thinking (3s · esc to interrupt)'; sleep 0.1; done; read l"], root);
-  await Bun.sleep(250);
+  // ConPTY delivers the first line later than a Unix pty.
+  for (let i = 0; i < 30 && !ptyState(key)!.busy; i++) await Bun.sleep(50);
   expect(ptyState(key)!.busy).toBe(true);
   await Bun.sleep(1800);
   expect(ptyState(key)).toMatchObject({ alive: true, busy: false });
