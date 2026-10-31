@@ -1601,6 +1601,9 @@ test("a recheck closes a finding with \"closed\" or \"PASS\", never with FAIL", 
 test("a git that can't answer is not reported as no repo", () => {
   const dir = mkdtempSync(join(tmpdir(), "kz-nogit-")), path = process.env.PATH;
   expect(gitStatus(dir)).toEqual({ repo: false });
-  process.env.PATH = "";
+  // A stand-in git that dies with no answer, as a killed one does.
+  writeFileSync(join(dir, "git"), "#!/bin/sh\nexit 137\n", { mode: 0o755 });
+  writeFileSync(join(dir, "git.cmd"), "@exit /b 137\n");
+  process.env.PATH = `${dir}${process.platform === "win32" ? ";" : ":"}${path}`;
   try { expect(gitStatus(dir)).toEqual({ repo: false, failed: true }); } finally { process.env.PATH = path; }
 });
