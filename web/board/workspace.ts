@@ -454,7 +454,11 @@ export function usageChips(list) {
 async function usage(refresh = false) {
   try {
     const r = await fetch("/usage" + (refresh ? "?refresh=1" : ""));
-    if (r.ok) $("usage").innerHTML = usageChips(await r.json());
+    if (!r.ok) return;
+    const list = await r.json();
+    $("usage").innerHTML = usageChips(list);
+    // Nothing to refresh: only Claude and Codex report usage.
+    $("usage-r").style.display = list.length ? "" : "none";
   } catch {}
 }
 async function phone() {
