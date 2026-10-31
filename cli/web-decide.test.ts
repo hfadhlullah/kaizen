@@ -18,6 +18,7 @@ test.skipIf(process.platform === "win32")("board /decide reuses the run's open a
   const waiting = (awaiting: string) => writeFileSync(join(d, "state.json"), JSON.stringify({ id: "2026-10-30-r", agent: "claude", stage: "plan", awaiting }));
   waiting("approvals.plan");
   const port = 20000 + Math.floor(Math.random() * 20000);
+  mkdirSync(join(home, ".claude"), { recursive: true }); // an agent, or `kaizen web` stops at its no-agent notice
   const p = Bun.spawn([process.execPath, join(import.meta.dir, "install.ts"), "web", "--foreground", "--no-open", "--port", String(port)],
     { env: { ...process.env, HOME: home, USERPROFILE: home, KAIZEN_HOME: join(home, "kz"), PATH: `${bin}:${process.env.PATH}` }, stdout: "ignore", stderr: "ignore" });
   try {

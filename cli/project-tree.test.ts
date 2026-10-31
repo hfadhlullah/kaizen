@@ -17,6 +17,7 @@ test("project tree and text preview stay inside a registered project", async () 
   symlinkSync(join(home, ".kaizen", "projects"), join(project, "link"));
   const port = 20000 + Math.floor(Math.random() * 20000);
   const repo = join(import.meta.dir, "..");
+  mkdirSync(join(home, ".claude"), { recursive: true }); // an agent, or `kaizen web` stops at its no-agent notice
   const proc = Bun.spawn([process.execPath, join(repo, "cli", "install.ts"), "web", "--port", String(port), "--no-open", "--foreground"], {
     cwd: project, env: { ...process.env, HOME: home, USERPROFILE: home, KAIZEN_HOME: repo }, stdout: "ignore", stderr: "ignore",
   });
