@@ -208,7 +208,7 @@ On Windows `kaizen web` starts in the background unless `--foreground` is given;
 
 **No agent yet?** When the installer finds no AI coding agent it asks which one you want. Claude Code, Codex, Gemini CLI and OpenCode are installed with their official command (shown first, run only after you choose Yes; Codex and Gemini CLI need Node.js for npm). kaizen then offers to start the agent once so you can sign in, and carries on installing in the same run. Cursor and Antigravity have no command-line installer, so their download page opens instead, as it does when an install fails.
 
-**After you install: `kaizen setup`.** The installer ends by asking "Run setup now?"; `kaizen setup` runs the same walk any time. It asks for your project folder when you are not in one (Enter skips), offers a settings preset (or keeps yours), starts the board, and, when Tailscale is running, offers to put the board on your phone. Every step can be skipped and nothing changes without an answer.
+**After you install: `kaizen setup`.** The installer ends by offering to set up now; `kaizen setup` runs the same walk any time. It shows `Step n of m`, offers the repository you are in as your project (or asks for a folder from your home directory, Enter skips), offers a settings preset with your current one first, offers to open the Kaizen App, and offers it on your phone. Without Tailscale it gives the download link for this computer and the phone, then checks again when you are ready. Setup ends by making the Kaizen App shortcut (`kaizen web --shortcut`). Enter takes the first choice at every step, and nothing changes without an answer.
 
 **From your phone (Tailscale).** The board stays on loopback; `tailscale serve` puts it on
 your tailnet over HTTPS. `kaizen setup` does all of this and prints a QR code to scan; by hand:
@@ -435,7 +435,7 @@ The full path is there because the shell that just installed Bun does not have i
 
 </details>
 
-The installer walks you through where to install, prompts for your workflow preset (`medium`, `low`, or `ultra`), then tells you what to type next. Restart your editor afterwards.
+The installer asks one thing, Enter to install, then offers `kaizen setup`, which covers your project and workflow preset. Restart your editor afterwards.
 
 Run from inside a project it asks whether to install globally or for that project
 alone; anywhere else — your home directory, a plain folder, a script — it installs
@@ -662,8 +662,8 @@ with a comment on each key, if you would rather edit the file.
 
 | Flag | Effect |
 |---|---|
-| *(none)* | Ask when standing in a project, otherwise install globally |
-| `--global` | Globally, no question asked |
+| *(none)* | Install globally |
+| `--global` | Globally (the default) |
 | `--project` | Into the current directory only |
 | `--check` | Report what is linked, exit non-zero if anything is missing |
 | `--force` | Replace a real file sitting where a link belongs |

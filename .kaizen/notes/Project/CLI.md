@@ -1,8 +1,8 @@
 ---
 description: The kaizen command: installer, upgrade, uninstall, settings, prune, sources
 tags: [project, cli]
-sources: [cli/automations.ts, cli/automations.test.ts, cli/computer.ts, cli/workers.ts, cli/workers.test.ts, cli/install.ts, cli/docs.ts, cli/docs.test.ts, cli/knowledge.ts, cli/setup.ts, cli/qr.ts, cli/settings.ts, cli/settings.test.ts, cli/worktree.ts, package.json]
-updated: 2026-10-31
+sources: [cli/automations.ts, cli/automations.test.ts, cli/computer.ts, cli/workers.ts, cli/workers.test.ts, cli/install.ts, cli/docs.ts, cli/docs.test.ts, cli/knowledge.ts, cli/setup.ts, cli/look.ts, cli/qr.ts, cli/settings.ts, cli/settings.test.ts, cli/worktree.ts, package.json]
+updated: 2026-11-01
 ---
 # CLI
 
@@ -14,7 +14,8 @@ updated: 2026-10-31
 - `cli/automations.ts` — schedules that start a run: rules in `<state>/automations.json`, history in `automation-runs.json`, claims in `automation-claims/`. Five-field cron (no names), minute-walk `nextRun`/`dueSince`. A fire goes through `launchRun` as `auto <request> [automation <name> fire <id>]`: auto mode, every stage, never yolo. Claimed by an atomic `mkdir` per due minute so two boards fire once; skipped with a stored status for precheck, overlap (one open run per rule; a run is open while its stage is not done, while its terminal lives, and a launch whose run never shows the marker stays open for a day), 24/day cap, missed beyond grace (default 720 min), unavailable agent. The run is found later by the `fire <id>` marker in its request. Fires only while a board runs. `shellArgv` picks `cmd /c` or `sh -c` for the precheck (unit-tested; a real Windows run is not).
 - `cli/install.ts` — everything above; `initProject()` writes a project's `.kaizen/`, its gitignore block and the `## Kaizen workflow` block in `CLAUDE.md` (`writePointer()`).
 - No agent found: `noAgent()` shows a picker; an agent with an `install` command in `AGENTS` (Claude Code, Codex, Gemini CLI, OpenCode) is installed after a Yes, `addInstallerBins()` puts `~/.local/bin`, `~/.opencode/bin` and npm's global bin on PATH, `detect()` re-reads it, the agent is offered once for sign-in, and the install continues. Cursor, Antigravity, a failed install or a missing npm fall back to the docs link. `Bun.which` needs `{ PATH: process.env.PATH }` to see a PATH changed at runtime.
-- `cli/setup.ts` — `kaizen setup`: project folder, preset, board, phone over Tailscale (writes `~/.kaizen/web-hosts`, prints a QR from `cli/qr.ts`); install offers it at the end. `install.ts` passes it `select`, so it stays testable.
+- `cli/setup.ts` — `kaizen setup`: numbered steps for project (`projectStep()`), preset, board, and phone, which links Tailscale and rechecks when it is missing (writes `~/.kaizen/web-hosts`, prints a QR from `cli/qr.ts`); install asks only Enter, then offers it. `install.ts` passes it `select`, so it stays testable.
+- `cli/look.ts` — banner, `c` and next steps: monochrome, emphasis is bold so it follows the terminal theme. Upgrade output filters on the `+ ` of `step()`; keep that prefix.
 - `cli/qr.ts` — dependency-free QR encoder (byte mode, ECC L, versions 1-6), half-block output.
 - `cli/docs.ts` — read-only Project vault lint; reports broken links, metadata, coverage and staleness with a nonzero exit on findings. `cli/docs.test.ts` exercises small temporary projects.
 - `cli/settings.ts` — the full-screen settings browser over `config.yml`; the medium preset now fixes all review severities within its two-round limit.

@@ -252,3 +252,4 @@ updated: 2026-10-31
 - 2026-10-31 run 2026-10-31-computer-use — Web board, CLI
 - 2026-10-31 run 2026-10-31-agent-models — Web board
 - 2026-10-31 run 2026-10-31-automation-module — CLI, Web board
+- 2026-11-01 simpler install and setup in the monochrome theme — CLI

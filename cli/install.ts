@@ -9,6 +9,7 @@ import { join, dirname, basename, resolve } from "node:path";
 import { homedir, tmpdir } from "node:os";
 import { ignoreKaizen } from "./add-project.ts";
 import { applyPreset, detectPreset, PRESETS, type PresetName } from "./settings.ts";
+import { banner, c, nextSteps } from "./look.ts";
 
 // The real path: process.cwd() is always physical, so a raw $HOME that crosses a
 // symlink (/home -> var/home) would never compare equal to it, and the home
@@ -40,13 +41,6 @@ function parsePresetArg(): PresetName | null {
   return null;
 }
 const presetArg = parsePresetArg();
-
-const c = {
-  dim: (s: string) => `\x1b[2m${s}\x1b[0m`,
-  bold: (s: string) => `\x1b[1m${s}\x1b[0m`,
-  cyan: (s: string) => `\x1b[36m${s}\x1b[0m`,
-  green: (s: string) => `\x1b[32m${s}\x1b[0m`,
-};
 
 // Skill folders shipped in skills/ and linked into every agent, by their last
 // path segment: media/kaizen-deck is linked as skills/kaizen-deck.
@@ -321,7 +315,7 @@ if (Bun.argv[2] === "issue") {
   if (args.has("--env")) { console.log(systemInfo()); process.exit(0); }
   const what = Bun.argv.slice(3).join(" ");
   const url = issueUrl({ title: what.split("\n")[0], what });
-  console.log(`\n  ${c.cyan(url)}\n`);
+  console.log(`\n  ${c.accent(url)}\n`);
   console.log(await openUrl(url)
     ? `  ${c.dim("Opened in your browser. Check it, then submit it on GitHub.")}\n`
     : `  ${c.dim("Open that link to file the issue.")}\n`);
@@ -369,6 +363,8 @@ async function removeEverything() {
   // projects live on other drives entirely. Every project kaizen knows about is
   // checked, plus whatever a drive-wide scan turns up.
   const { knownProjects, searchRoots, findProjects } = await import("./state.ts");
+  // Loaded now: the launcher runs this file from ~/kaizen, which is deleted below.
+  const { removeSessionHook } = await import("./knowledge.ts");
   step("looking for project installs");
   const roots = [home, process.cwd(), ...knownProjects(),
     ...searchRoots([process.cwd()]).flatMap((r) => findProjects(r))]
@@ -413,7 +409,6 @@ async function removeEverything() {
   drop(join(process.env.BUN_INSTALL ?? join(home, ".bun"), "bin", "kaizen.cmd"));
   drop(join(home, ".local", "bin", "kaizen"));
   {
-    const { removeSessionHook } = await import("./knowledge.ts");
     if (removeSessionHook(join(home, ".claude", "settings.json"))) gone.push("the kaizen recall hook in ~/.claude/settings.json");
   }
   await clearBunxCache();
@@ -433,7 +428,7 @@ async function removeEverything() {
   }
   console.log(purge
     ? `\n  ${c.dim("Runs and settings deleted too.")}\n`
-    : `\n  ${c.dim("Runs and settings kept in")} ${c.cyan(tilde(join(home, ".kaizen")))}${c.dim(" — add --purge to delete them.")}\n`);
+    : `\n  ${c.dim("Runs and settings kept in")} ${c.accent(tilde(join(home, ".kaizen")))}${c.dim(" — add --purge to delete them.")}\n`);
   console.log(`  ${c.dim("The CLAUDE.md / AGENTS.md line in each project is left for you to remove.")}\n`);
 }
 
@@ -483,11 +478,11 @@ async function noAgent(): Promise<boolean> {
   const docs = async (why = "") => {
     if (why) console.log(`  ${why}`);
     console.log(`  ${c.bold(pick.name)}`);
-    console.log(`  ${c.cyan(pick.docs)}\n`);
+    console.log(`  ${c.accent(pick.docs)}\n`);
     const opened = await openUrl(pick.docs);
     console.log(opened
-      ? `  ${c.dim("Opened in your browser. Install it, then run")} ${c.cyan("kaizen")} ${c.dim("again.")}`
-      : `  ${c.dim("Open that page to install it, then run")} ${c.cyan("kaizen")} ${c.dim("again.")}`);
+      ? `  ${c.dim("Opened in your browser. Install it, then run")} ${c.accent("kaizen")} ${c.dim("again.")}`
+      : `  ${c.dim("Open that page to install it, then run")} ${c.accent("kaizen")} ${c.dim("again.")}`);
     return false;
   };
 
@@ -496,7 +491,7 @@ async function noAgent(): Promise<boolean> {
   if (!cmd) return docs();
   if (cmd.startsWith("npm ") && !Bun.which("npm")) return docs(c.dim(`${pick.name} installs with npm, which needs Node.js: https://nodejs.org`));
 
-  console.log(`\n  ${c.dim("Official installer:")} ${c.cyan(cmd)}`);
+  console.log(`\n  ${c.dim("Official installer:")} ${c.accent(cmd)}`);
   if (!(await select(`Install ${pick.name} now?`, [
     { label: "Yes", hint: "run the command above", value: true },
     { label: "No", hint: "open the docs page instead", value: false },
@@ -511,7 +506,7 @@ async function noAgent(): Promise<boolean> {
   if (code !== 0 || !bin) {
     return docs(code !== 0
       ? `${c.bold("The install did not finish")} ${c.dim(`(exit ${code}).`)}`
-      : `${c.bold(`${pick.name} installed, but`)} ${c.cyan(pick.cmd)} ${c.bold("is not on PATH yet.")} ${c.dim("Open a new terminal and run kaizen again.")}`);
+      : `${c.bold(`${pick.name} installed, but`)} ${c.accent(pick.cmd)} ${c.bold("is not on PATH yet.")} ${c.dim("Open a new terminal and run kaizen again.")}`);
   }
   step(`installed ${pick.name}`);
 
@@ -589,7 +584,7 @@ if (args.has("prune")) {
   const apply = args.has("--yes");
   const gone = pruneRuns(state, keep, apply);
   console.log(gone.length
-    ? `\n  ${apply ? "pruned" : "would prune"} ${gone.length} finished run(s), keeping the newest ${keep}:\n${gone.map((g) => `    ${g.id}${g.rescued ? c.dim(`  ${g.rescued} open item(s) ${apply ? "moved" : "to move"} to backlog.md`) : ""}`).join("\n")}\n${apply ? "" : `\n  ${c.dim("nothing deleted — run:")} ${c.cyan("kaizen prune --yes")}\n`}`
+    ? `\n  ${apply ? "pruned" : "would prune"} ${gone.length} finished run(s), keeping the newest ${keep}:\n${gone.map((g) => `    ${g.id}${g.rescued ? c.dim(`  ${g.rescued} open item(s) ${apply ? "moved" : "to move"} to backlog.md`) : ""}`).join("\n")}\n${apply ? "" : `\n  ${c.dim("nothing deleted — run:")} ${c.accent("kaizen prune --yes")}\n`}`
     : `\n  nothing to prune ${c.dim(`(${keep} finished runs are kept)`)}\n`);
   process.exit(0);
 }
@@ -800,7 +795,7 @@ if (upgrade) {
   if (after !== latest) {
     console.log(`\n  ${c.bold(`could not install kaizen ${latest}`)}`);
     // npm names a new version before it serves it (its review takes minutes).
-    console.log(`  ${c.dim("npm may still be publishing it: try again in a few minutes, or run")} ${c.cyan(`bunx kaizen-agent@${latest}`)}\n`);
+    console.log(`  ${c.dim("npm may still be publishing it: try again in a few minutes, or run")} ${c.accent(`bunx kaizen-agent@${latest}`)}\n`);
     finish(1);
   }
   console.log(`\n  ${c.bold("Upgraded")}  ${c.dim(now)} → ${c.green(after)}\n  ${c.dim("Restart Claude Code to pick up any new slash commands.")}\n`);
@@ -809,107 +804,15 @@ if (upgrade) {
 if (!check && !upgrade) await welcome();
 
 async function welcome() {
-  const rgb = (r: number, g: number, b: number, s: string) =>
-    `\x1b[38;2;${r};${g};${b}m${s}\x1b[0m`;
-
-  // Fuji: snow on the peak, deepening blue down the slope.
-  const WORD = [
-    "██╗  ██╗ █████╗ ██╗███████╗███████╗███╗   ██╗",
-    "██║ ██╔╝██╔══██╗██║╚══███╔╝██╔════╝████╗  ██║",
-    "█████╔╝ ███████║██║  ███╔╝ █████╗  ██╔██╗ ██║",
-    "██╔═██╗ ██╔══██║██║ ███╔╝  ██╔══╝  ██║╚██╗██║",
-    "██║  ██╗██║  ██║██║███████╗███████╗██║ ╚████║",
-    "╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚══════╝╚══════╝╚═╝  ╚═══╝",
-  ];
-  const W = 69, C = 34, SNOW = 3;
-  // One constant slope, three columns per row, all the way down. The rows behind
-  // the wordmark keep the same rate, so the edge that goes in above the letters
-  // comes out below them on the same line -- vary it and the cone reads broken.
-  const H = [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34];
-
-  // Anything that would wrap is worse than the smaller thing that fits: the
-  // mountain needs the full width, the wordmark needs 47, below that use words.
-  const cols = process.stdout.columns || 80;
-  const wide = cols >= W + 4;
-  if (cols < 49) {
-    console.log(`\n  ${c.bold("kaizen")}`);
-  } else {
-
-  const cell: string[][] = H.map(() => Array(W).fill(" "));
-  const isWord: boolean[][] = H.map(() => Array(W).fill(false));
-
-  if (wide) {
-    for (const [i, h] of H.entries()) {
-      const l = C - h, r = C + h;
-      if (i < SNOW) {                       // solid cap
-        cell[i]![l] = "▄"; cell[i]![r] = "▄";
-        for (let x = l + 1; x < r; x++) cell[i]![x] = "█";
-      } else {                              // slope, drawn as two edges
-        // Below the wordmark's top row the letters own the middle, so draw an
-        // edge only where all three of its characters clear them.
-        const band = i >= H.length - WORD.length;
-        const gap = Math.floor((W - 45) / 2) - 2;
-        if (!band || l + 2 < gap) {
-          cell[i]![l] = "▄"; cell[i]![l + 1] = "█"; cell[i]![l + 2] = "▀";
-          cell[i]![r - 2] = "▀"; cell[i]![r - 1] = "█"; cell[i]![r] = "▄";
-        }
-      }
-    }
-  }
-
-  const top = H.length - WORD.length, left = Math.floor((W - 45) / 2);
-  for (let r = top; r < H.length; r++)      // air around the letters
-    for (let x = left - 2; x < left + 47; x++) if (x >= 0 && x < W) cell[r]![x] = " ";
-  for (const [r, line] of WORD.entries())
-    for (const [x, ch] of [...line].entries())
-      if (ch !== " ") { cell[top + r]![left + x] = ch; isWord[top + r]![left + x] = true; }
-
-  console.log();
-  for (const [i, row] of cell.entries()) {
-    if (!wide && i < top) continue;          // no mountain to draw, no blank rows
-    const slope = Math.max(0, i - SNOW) / (H.length - SNOW);
-    const mountain: [number, number, number] = i < SNOW
-      ? [255 - i * 8, 255 - i * 5, 255]
-      : [Math.round(150 - slope * 105), Math.round(190 - slope * 110), Math.round(245 - slope * 80)];
-
-    // With no mountain there is nothing to sit under, so drop its left margin.
-    const off = wide ? 0 : left;
-    const chars = row.slice(off), flags = isWord[i]!.slice(off);
-
-    let out = "  ", run = "", runWord = flags[0]!;
-    const flush = () => {
-      if (!run) return;
-      const t = (i - top) / (WORD.length - 1);
-      const col: [number, number, number] = runWord
-        ? [Math.round(214 - t * 150), Math.round(232 - t * 130), Math.round(255 - t * 45)]
-        : mountain;
-      out += rgb(col[0], col[1], col[2], run);
-      run = "";
-    };
-    for (const [x, ch] of chars.entries()) {
-      if (flags[x] !== runWord) { flush(); runWord = flags[x]!; }
-      run += ch;
-    }
-    flush();
-    console.log(out.replace(/\s+$/, ""));
-  }
-  if (wide) console.log("  " + rgb(38, 66, 130, "▀".repeat(W)));
-  }
-
-  console.log(`
-  ${c.bold("改善")}  ${c.dim("kaizen — continuous improvement")}
-
-  ${c.dim("A staged workflow for AI agents — code, writing, research, operations:")}
-  ${c.dim("plan  ->  you approve  ->  build  ->  independent review  ->  bounded fix loop")}
-`);
-
+  console.log(banner());
+  console.log(`  ${c.dim("A staged workflow for AI agents: plan, you approve, build, independent review.")}\n`);
   if (interactive) await anyKey();
 }
 
 // A pause before anything touches the filesystem, and the place to back out.
 async function anyKey() {
   const { stdin, stdout } = process;
-  stdout.write(`  ${c.dim("press")} ${c.cyan("enter")} ${c.dim("to install, or")} ${c.cyan("ctrl-c")} ${c.dim("to leave")}`);
+  stdout.write(`  ${c.dim("Press")} ${c.accent("Enter")} ${c.dim("to install, or")} ${c.accent("Ctrl-C")} ${c.dim("to leave")}`);
   stdin.setRawMode(true);
   stdin.resume();
   await new Promise<void>((resolve) => {
@@ -926,34 +829,11 @@ async function anyKey() {
 }
 
 const repo = await resolveRepo();
-const root = await chooseRoot();
-const presetChoice = await choosePreset();
+// Global unless asked otherwise; the project and the preset are `kaizen setup`'s questions.
+const root = args.has("--project") ? process.cwd() : home;
+// null means "leave the config alone": answering for the user would overwrite their preset.
+const presetChoice: PresetName | null = presetArg;
 const targets = found(root);
-
-// null means "leave the config alone": an upgrade or a --yes run never asked, and
-// answering "medium" for the user overwrote whatever preset they had chosen.
-async function choosePreset(): Promise<PresetName | null> {
-  if (presetArg) return presetArg;
-  if (!interactive) return null;
-
-  return select("Choose workflow preset", [
-    {
-      label: "Medium (Recommended)",
-      hint: "balanced — subagents, plan approval, auto-fix high/critical",
-      value: "medium",
-    },
-    {
-      label: "Low",
-      hint: "inline & manual — lite runner, inline builder, manual approvals, no auto-fix",
-      value: "low",
-    },
-    {
-      label: "Ultra",
-      hint: "autonomous — subagents, auto mode, auto-fix all findings (up to 4 rounds)",
-      value: "ultra",
-    },
-  ]);
-}
 
 // ---------------------------------------------------------------- repo
 
@@ -1019,22 +899,6 @@ async function resolveRepo() {
     filter: (src) => basename(src) !== "node_modules",
   });
   return dest;
-}
-
-async function chooseRoot() {
-  if (args.has("--project")) return process.cwd();
-  if (args.has("--global") || !interactive) return home;
-  // A project install only means something in a project. Standing in the home
-  // directory it is the global install under another name; any other folder is
-  // a project worth installing into, git repository or not.
-  const cwd = process.cwd();
-  if (cwd === home) return home;
-
-  const names = (r: string) => found(r).map((a) => a.name).join(", ");
-  return select("Install kaizen for", [
-    { label: "Globally", hint: `every project \u2014 ${names(home)}`, value: home },
-    { label: "This project only", hint: `${basename(cwd)}/ \u2014 ${names(cwd)}`, value: cwd },
-  ]);
 }
 
 // ---------------------------------------------------------------- linking
@@ -1140,10 +1004,6 @@ step(
   : wrote ? `linked ${wrote} files into ${into}`
   : `already installed for ${into} ${c.dim("(nothing to change)")}`,
 );
-if (targets.length === 1) {
-  console.log(`    ${c.dim("Codex, Antigravity, OpenCode, Cursor and Gemini CLI get it too,")}`);
-  console.log(`    ${c.dim("if their directory exists when you install.")}`);
-}
 
 // Global knowledge reaches plain Claude Code sessions through a SessionStart hook
 // that prints only the lessons matching the project's stack (cli/knowledge.ts).
@@ -1185,7 +1045,7 @@ function installLauncher() {
     const onPath = (process.env.PATH ?? "").split(win ? ";" : ":")
       .some((p) => p.replace(/[\\/]+$/, "").toLowerCase() === binDir.replace(/[\\/]+$/, "").toLowerCase());
     step(onPath
-      ? `${c.cyan("kaizen upgrade")} is now on your PATH`
+      ? `${c.accent("kaizen upgrade")} is now on your PATH`
       : `wrote ${tilde(bin)} ${c.dim(`— add ${tilde(binDir)} to PATH to use it`)}`);
   } catch {
     /* a read-only home is not worth failing the install over */
@@ -1235,17 +1095,7 @@ function kaizenAbove() {
 }
 
 if (inProject && !kaizenAbove()) {
-  const now = root === process.cwd() || args.has("--init-project")
-    ? true
-    : interactive
-      ? await select(`Set up ${basename(process.cwd())}/ for kaizen now`, [
-          // "Not now" leads: the offer now appears in any folder outside home, so the
-          // safe answer is the one under the cursor.
-          { label: "Not now", hint: "the first /kaizen run will do it", value: false },
-          { label: "Yes", hint: "writes .kaizen/ and a CLAUDE.md line so it runs by default", value: true },
-        ])
-      : false;
-  if (now) initProject();
+  if (root === process.cwd() || args.has("--init-project")) initProject();
 } else if (existsSync(kaizenDir)) {
   const drift = specDrift();
   for (const f of drift) copyFileSync(join(repo, "skills/kaizen", f), join(kaizenDir, f));
@@ -1292,20 +1142,12 @@ function writePointer() {
 
 // ---------------------------------------------------------------- done
 
-{
-  console.log(`
-  ${c.bold("Next")}
-    1  restart Claude Code ${c.dim("— skills load live, slash commands only at session start")}
-    2  ${c.cyan("/kaizen <what you want done>")} ${c.dim("in any project — it sets itself up on first run")}
-    3  ${c.cyan("kaizen setup")} ${c.dim("— settings, the board, and the phone app, any time")}
-
-  ${c.dim("/kaizen-help lists every command.  kaizen upgrade updates all of this.")}
-`);
-  if (interactive && !blocked && await select("Run setup now?", [
-    { label: "Not now", hint: "kaizen setup runs it later", value: false },
-    { label: "Yes", hint: "a project folder, settings, the board, the phone", value: true },
-  ])) await runSetup();
-}
+// Setup ends by printing the next steps itself.
+if (interactive && !blocked && await select("Set up kaizen now? It takes about a minute.", [
+  { label: "Yes", hint: "your project, how much kaizen asks you, the Kaizen App", value: true },
+  { label: "Later", hint: "run kaizen setup any time", value: false },
+])) await runSetup();
+else console.log(nextSteps());
 if (blocked) process.exit(1);
 
 // ---------------------------------------------------------------- helpers
@@ -1440,14 +1282,17 @@ async function select<T>(question: string, options: { label: string; hint: strin
     if (!first) stdout.write(`\x1b[${options.length}A`);
     for (const [i, o] of options.entries()) {
       const on = i === active;
+      // A wrapped row would break the redraw, which moves up one line per option.
+      const room = Math.max(0, (stdout.columns || 80) - o.label.length - 9);
+      const hint = o.hint.length > room ? `${o.hint.slice(0, Math.max(0, room - 1))}…` : o.hint;
       stdout.write(
-        `\x1b[2K    ${on ? c.cyan(">") : " "} ${on ? c.bold(o.label) : c.dim(o.label)}` +
-          `  ${c.dim(o.hint)}\n`,
+        `\x1b[2K    ${on ? c.bold(">") : " "} ${on ? c.bold(o.label) : c.dim(o.label)}` +
+          `  ${c.dim(hint)}\n`,
       );
     }
   };
 
-  stdout.write(`\n  ${c.bold(question)}  ${c.dim("(arrows, enter)")}\n`);
+  stdout.write(`\n  ${c.bold(question)}\n  ${c.dim("Up and down to move, Enter to choose")}\n`);
   stdout.write("\x1b[?25l");
   draw(true);
   stdin.setRawMode(true);
@@ -1463,7 +1308,7 @@ async function select<T>(question: string, options: { label: string; hint: strin
       const keys = chunk.toString();
       for (let i = 0; i < keys.length; i++) {
         const rest = keys.slice(i);
-        if (rest.startsWith("\x03")) { stdout.write("\ncancelled\n"); process.exit(130); }
+        if (rest.startsWith("\x03")) { stdout.write("\x1b[?25h\ncancelled\n"); process.exit(130); }
         if (rest.startsWith("\r") || rest.startsWith("\n")) {
           stdin.off("data", onData);
           return resolve();

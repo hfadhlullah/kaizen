@@ -24,7 +24,8 @@ surface, it says so; a rule that does not say applies to both.
 Block-glyph ASCII art, the same one the installer prints. Two sizes exist:
 
 - Large, 6 rows (`assets/make-images.py`, `WORD`) for images.
-- Compact, 3 rows (`cli/dashboard.ts`, `WORDMARK`) for the terminal header.
+- Compact, 3 rows (`cli/look.ts`, `WORDMARK`) for the terminal header. The installer and
+  `kaizen setup` print only the pixel K, in the terminal's own text colour.
 
 On the web, use the compact one inside a `<pre>` in `--mono`, at the top of the side menu, never an image, so it
 stays crisp at any DPI and inherits the theme colour. Vertical gradient from `--ink-hi`

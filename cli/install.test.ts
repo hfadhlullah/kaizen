@@ -219,3 +219,19 @@ it("no agent, no terminal: the list is printed and nothing is installed", () => 
   expect(p.stdout.toString()).toContain("Install one, then run this again.");
   expect(ran).toBe(false);
 });
+
+it("uninstall finishes when it runs from the ~/kaizen it deletes, as the launcher does", () => {
+  const root = mkdtempSync(join(tmpdir(), "kz-uninstall-"));
+  const home = join(root, "home"), k = join(home, "kaizen");
+  mkdirSync(home);
+  for (const d of ["cli", "skills", "web"]) cpSync(join(dirname(script), "..", d), join(k, d), { recursive: true });
+  cpSync(join(dirname(script), "..", "package.json"), join(k, "package.json"));
+  const p = Bun.spawnSync([process.execPath, join(k, "cli", "install.ts"), "uninstall", "--yes"], {
+    cwd: home, env: { PATH: process.env.PATH ?? "", HOME: home, USERPROFILE: home, TMPDIR: root },
+  });
+  const left = existsSync(k), out = p.stdout.toString(), code = p.exitCode;
+  rmSync(root, { recursive: true, force: true });
+  expect(code).toBe(0);
+  expect(left).toBe(false);
+  expect(out).toContain("Uninstalled");
+});

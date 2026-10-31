@@ -11,6 +11,7 @@ import {
   abandonRun, replaceIdea, boardCards, launchRun, appendNote, parseNotes,
   gateOf,
 } from "./state.ts";
+import { WORDMARK } from "./look.ts";
 const rgb = (r: number, g: number, b: number, s: string) =>
   `\x1b[38;2;${r};${g};${b}m${s}\x1b[0m`;
 
@@ -37,13 +38,6 @@ const MARK = [
   "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
   "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
   "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
-];
-
-// Compact block wordmark (28 columns x 3 rows).
-const WORDMARK = [
-  "█ █  ▄▀█  █  ▀▀█  █▀▀  █▄ █",
-  "█▀▄  █▀█  █   ▄▀  ██▄  █ ▀█",
-  "█ █  █ █  █  █▄▄  █▄▄  █  █",
 ];
 
 // ---------------------------------------------------------------- mouse

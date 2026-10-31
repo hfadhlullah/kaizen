@@ -1,9 +1,10 @@
 import { test, expect } from "bun:test";
-import { mkdtempSync, rmSync, existsSync, readdirSync } from "node:fs";
+import { mkdtempSync, mkdirSync, rmSync, existsSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { qrMatrix, qr } from "./qr.ts";
-import { tailnetName } from "./setup.ts";
+import { projectStep, tailnetName } from "./setup.ts";
+import { banner } from "./look.ts";
 
 test("qr: right size per version, finder squares in three corners, deterministic", () => {
   const a = qrMatrix("https://pc.tail1234.ts.net");        // 26 bytes: version 2, 25 modules
@@ -55,4 +56,23 @@ test("web-hosts: names are normalized, deduped and merged with the env var", asy
     });
     expect(JSON.parse(await new Response(p.stdout).text())).toEqual(["env.ts.net", "pc.tail1.ts.net"]);
   } finally { rmSync(homeDir, { recursive: true, force: true }); }
+});
+
+test("projectStep: home asks, a repository offers its root, an owned folder is left alone", () => {
+  const h = mkdtempSync(join(tmpdir(), "kaizen-step-"));
+  try {
+    const sub = join(h, "app", "src"), plain = join(h, "plain");
+    mkdirSync(join(h, "app", ".git"), { recursive: true }); mkdirSync(sub); mkdirSync(plain);
+    expect(projectStep(h, h)).toBeNull();
+    expect(projectStep(sub, h)).toEqual({ offer: join(h, "app"), git: true });
+    expect(projectStep(plain, h)).toEqual({ offer: plain, git: false });
+    mkdirSync(join(h, "app", ".kaizen"));
+    expect(projectStep(sub, h)).toEqual({ ready: true });
+  } finally { rmSync(h, { recursive: true, force: true }); }
+});
+
+test("banner: the K alone, and no hard-coded colour", () => {
+  const plain = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, "");
+  expect(plain(banner())).not.toContain("█▀▄  █▀█");
+  expect(banner()).not.toContain("38;2");
 });
