@@ -7,6 +7,7 @@ import { close } from "./panel.ts";
 import { accountRows, wireAccounts } from "./settings-accounts.ts";
 import { agentRows, wireAgents } from "./settings-agents.ts";
 import { skillRows, wireSkills } from "./settings-skills.ts";
+import { fillMics, micRow } from "./settings-voice.ts";
 import { placeOf, SETTINGS_NAV } from "./settings-pages.ts";
 import { askNotify, notifyOn, playSound, soundPick, SOUNDS, toast } from "./toast.ts";
 import { updBar } from "./update.ts";
@@ -142,6 +143,7 @@ export async function openSettings() {
       ));
     }
   }
+  put("voice", "Dictation", row("Microphone", micRow(), "Used by this browser. Names appear after you first allow the microphone. Ctrl+Alt+D dictates into the focused terminal.", "v-mic", "microphone input device mic dictation shortcut"));
   put("mobile", "Phone", row("Phone address", cfg?.phoneUrls?.length ? html`<span class="phoneurls">${cfg.phoneUrls.map((url) => html`<a href="${url}" target="_blank" rel="noopener">${url}</a>`)}</span>` : html`<span>Not set</span>`, cfg?.phoneUrls?.length ? "Configured address; Tailscale must be running on both devices." : "Run kaizen setup on this PC to connect your phone.", "phone-url", "phone address url tailscale setup"));
   put("integrations", "Google", row("OAuth client id", html`<input class="sel" id="gg-id" placeholder="${gg.hasClient ? "Saved. Paste a new one to replace it" : "Desktop app client id from Google Cloud"}" spellcheck="false" autocomplete="off">`, "", "gg-id", "google oauth client id sheets write back"));
   put("integrations", "Google", row("OAuth client secret", html`<span class="fpick"><input class="sel" id="gg-secret" type="password" placeholder="${gg.hasClient ? "Saved. Paste a new one to replace it" : ""}" spellcheck="false" autocomplete="off"><button class="btn" id="gg-save" type="button">Save</button></span>`, "", "gg-secret", "google oauth client secret"));
@@ -232,6 +234,7 @@ export async function openSettings() {
   };
   if (ap) wireAgents(openSettings, cfg?.scope ?? null);
   if (sk) wireSkills(openSettings);
+  fillMics();
   if (ac) wireAccounts(openSettings);
   filter();
   $("smain").scrollTop = top;
