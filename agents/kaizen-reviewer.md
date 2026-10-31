@@ -161,3 +161,5 @@ evidenced, new — recall before saving), generalized, with `--applies` naming t
 
 Return the verdict line, the critical and high findings, and every `CANNOT VERIFY`
 line. The full list is on disk.
+
+Report progress and finish with `kaizen report`, as *Reporting to the board* in `spec.md` says.

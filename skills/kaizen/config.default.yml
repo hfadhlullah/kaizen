@@ -156,6 +156,9 @@ agent:
   # Stops idle sleep from the board. off | auto (while the board runs agents) | on
   # (while the board is open). Linux and macOS; agents in an outside terminal don't count.
   keep_awake: off
+  # Minutes between an agent's reports. Quiet for two of these with no terminal
+  # activity, its card says stale.
+  heartbeat_minutes: 5
   # Per-tool model and effort for the session the board launches, passed as that
   # tool's own flags (claude --model/--effort, agy --model/--effort, codex -m and
   # model_reasoning_effort, gemini -m, opencode -m). Model names are the tool's own:

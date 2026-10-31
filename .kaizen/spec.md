@@ -150,6 +150,21 @@ round of questions here is cheaper than a rejected plan.
 
 ---
 
+## Reporting to the board
+
+Every stage reports with `kaizen report`, under every runner. From the moment the run
+id exists, pass `--run <id>` unless `KAIZEN_RUN_ID` is set. A failed report never stops
+the work. Windows has no `KAIZEN_RUN_ID`, and a new run gets one only once resumed.
+
+- `kaizen report phase "<what you are doing>"` at the start of the stage and at each
+  Work list step. These are the run's heartbeat.
+- `kaizen report blocked "<question>" --options a,b` when only the user can answer,
+  instead of stalling or guessing. Then stop and ask; `kaizen report unblock` once answered.
+- `kaizen report done --stage <plan|build|review> --outcome succeeded|failed --summary "<3 sentences>" --files a,b`
+  as the stage's last act. A build or review that ends without it shows as unverified.
+
+---
+
 ## Stage files
 
 Read core (this file) plus the one file for the stage being run. Nothing else.

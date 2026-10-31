@@ -11,7 +11,8 @@ import {
   reviewFindings, pickFindings, backlogItem, startedBacklog, closeBacklog, markBacklogDone, fixPrompt, approvalPrompt, canApproveAwaiting, gateOf, recordAcceptance, healRuns, finishRun, nativePath, closeSessions, sweepSessions, issueUrl,
   launchMode, readSessions, ownerOf, runIndex, resumePrompt, runAgent, firstSession, webHosts,
 } from "./state.ts";
-import { agentUsable, keepAwake, launchPreview, YOLO_FLAGS } from "./state.ts";
+import { readReport, signalOf } from "./report.ts";
+import { agentUsable, heartbeatMinutes, keepAwake, launchPreview, YOLO_FLAGS } from "./state.ts";
 import { attachPty, writePty, submitPty, resizePty, exitPty, ptyState, ptyKeys, adoptLoginEnv, startPty, ptySupported, detachPty, ptyTail, ptyTmux, tmuxAlive, RESUMED } from "./pty.ts";
 import { snapshot, snapWorker } from "./state-snap.ts";
 import { claudeUsage, codexUsage, phonePeers, type Usage } from "./usage.ts";
@@ -413,7 +414,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
       if (!st.alive && (c.status === "done" || c.status === "abandoned")) return undefined;
       // Every agent session the run has had on this board, for the workspace's Agent tabs.
       const all = keys.filter((k) => ptyState(k)?.alive || k === key);
-      return { key, alive: st.alive, asking: st.asking, busy: st.busy, all, agent: cmdOf.get(key), stages: c.kind === "run" ? stagesOf(c.state, c.id!) : undefined };
+      return { key, alive: st.alive, asking: st.asking, busy: st.busy, lastOut: st.lastOut, all, agent: cmdOf.get(key), stages: c.kind === "run" ? stagesOf(c.state, c.id!) : undefined };
     }, { cmd: (k: string) => cmdOf.get(k) });
   };
   const watchers: FSWatcher[] = [];
@@ -1066,7 +1067,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         if (hit?.gen === gen && Date.now() - hit.at < STATE_MS) return new Response(hit.body, { headers: { "content-type": "application/json" } });
         // Off this thread: it also relays every terminal, and a rebuild here froze their typing.
         const { cards, extra, backlog } = await buildSnap(dirs, gitGen).catch(() => snapshot(dirs, gitGen));
-        const pty = ptyOf(cards);
+        const pty = ptyOf(cards), beat = heartbeatMinutes();
         // The agents open now, for the sidebar cards: one list per tick, from the cards' sessions and the board's agent
         // shells. ws is as the card or shell has it; the page resolves it to a listed workspace. Ended agents are left out.
         const agents: any[] = [], seenKey = new Set<string>(), ptys = cards.map(pty);
@@ -1091,7 +1092,11 @@ export async function web(repoDir: string, opts: Opts = {}) {
           rail: [...new Set(cards.map((c) => c.state))].filter((d) => !picker.includes(d)).map(entry),
           fresh: unset.map((d) => ({ dir: join(d, ".kaizen"), label: tilde(d) })),
           agents,
-          cards: cards.map((c, i) => ({ ...c, notice: notice(c), ...extra[i], pty: ptys[i] })),
+          cards: cards.map((c, i) => {
+            const rep = c.kind === "run" && c.id && c.status !== "done" && c.status !== "abandoned" ? readReport(c.state, c.id) : null;
+            const signal = signalOf(c, rep, ptys[i] as any, Date.now(), beat);
+            return { ...c, notice: notice(c), ...extra[i], pty: ptys[i], signal, ...(rep?.phase ? { phase: rep.phase } : {}), ...(signal === "blocked" ? { blocked: rep!.blocked } : {}) };
+          }),
           backlog: backlog.map((b) => ({ ...b, starting: backlogLaunched.has(`${b.state}\0${b.source}#${b.n}`) || undefined })),
           now: Date.now(),
         });

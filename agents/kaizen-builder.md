@@ -87,3 +87,5 @@ change — do not refactor around it. Write what you changed to
 Return: what you produced or touched, whether verification passed, and any deviation
 or blocker.
 Keep it short — the detail is on disk, and the reviewer reads it there.
+
+Report progress and finish with `kaizen report`, as *Reporting to the board* in `spec.md` says.
