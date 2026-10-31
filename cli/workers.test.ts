@@ -2,7 +2,7 @@
 import { afterAll, expect, test } from "bun:test";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { delimiter, dirname, join } from "node:path";
 import { readReport, signalOf } from "./report.ts";
 import { workerStale, init, launchOf, merge, readWorkers, report, requested, requestStart, resolve, setRun, startWorker, statusText, type Status } from "./workers.ts";
 
@@ -250,7 +250,14 @@ t("fix 1: a worker with after: branches off the worker it follows and sees its c
   writeFileSync(join(a.worktree, "src", "left"), "L"); g(a.worktree, "add", "."); g(a.worktree, "commit", "-qm", "w1");
   a.status = "succeeded"; b.status = "requested"; b.requestedAt = Date.now();
   writeFileSync(join(f.dir, "workers.json"), JSON.stringify(w));
-  const r = startWorker(f.project, f.id, "w2");
+  // CI has no agent installed: a stand-in on PATH, so the start gets as far as the branch.
+  const bin = join(f.project, "bin"), path = process.env.PATH;
+  mkdirSync(bin);
+  writeFileSync(join(bin, "claude"), "#!/bin/sh\n", { mode: 0o755 });
+  writeFileSync(join(bin, "claude.cmd"), "@echo off\n");
+  process.env.PATH = `${bin}${delimiter}${path}`;
+  let r: ReturnType<typeof startWorker>;
+  try { r = startWorker(f.project, f.id, "w2"); } finally { process.env.PATH = path; }
   expect(r.ok).toBe(true);
   expect(readFileSync(join(b.worktree, "src", "left"), "utf8")).toBe("L");
   // its own commit on top merges cleanly, and w1's code is not counted as w2's stray paths
