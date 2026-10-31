@@ -176,6 +176,8 @@ function haptic() {
     tick = document.createElement("label");
     tick.hidden = true;
     tick.innerHTML = `<input type="checkbox" switch>`;
+    // This click is not the user's: a window listener would read it as a tap outside a sheet.
+    tick.onclick = (e) => e.stopPropagation();
     document.body.append(tick);
   }
   tick.click();
