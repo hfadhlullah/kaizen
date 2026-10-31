@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { bundledSkills, skillsOff, skillsToLink } from "./skills.ts";
 import {
   symlinkSync, mkdirSync, readdirSync, lstatSync, unlinkSync,
   existsSync, copyFileSync, readFileSync, appendFileSync, rmSync, writeFileSync, renameSync,
@@ -49,7 +50,9 @@ const c = {
 
 // Skill folders shipped in skills/ and linked into every agent, by their last
 // path segment: media/kaizen-deck is linked as skills/kaizen-deck.
-const SKILLS = ["kaizen", "kaizen-help", "media/kaizen-deck", "media/kaizen-video", "media/kaizen-book"];
+const SKILLS = bundledSkills(dirname(import.meta.dir)).map((s) => s.rel);
+// What an install links and checks: a skill turned off in Settings stays off through upgrades.
+const ON_SKILLS = skillsToLink(SKILLS, skillsOff(homedir()), true);
 // Skill names an older release linked; uninstall drops them and install
 // clears them when they are still our links.
 const RENAMED_SKILLS = ["story-deck", "story-video", "kaizen-motion"];
@@ -658,7 +661,7 @@ if (interactive && !upgrade && Bun.argv.length === 2) {
   if (!stale) {
     const here = found(home);
     const linked = here.length > 0 && here.every((a) =>
-      SKILLS.every((n) => existsSync(join(home, a.dir, "skills", basename(n)))));
+      ON_SKILLS.every((n) => existsSync(join(home, a.dir, "skills", basename(n)))));
     if (linked) {
       const { dashboard } = await import("./dashboard.ts");
       await dashboard(repoDir, here.map((a) => a.name), async (action) => {
@@ -969,7 +972,7 @@ function dirEntries(sub: string) {
 }
 
 const links = targets.flatMap((a) => [
-  ...SKILLS.map((n) => [join(repo, "skills", n), join(a.dir, "skills")] as const),
+  ...skillsToLink(SKILLS, skillsOff(homedir()), resolve(a.dir) === resolve(home, basename(a.dir))).map((n) => [join(repo, "skills", n), join(a.dir, "skills")] as const),
   ...(a.full ? [
     ...dirEntries("agents").map((f) => [f, join(a.dir, "agents")] as const),
     ...dirEntries("commands").map((f) => [f, join(a.dir, "commands")] as const),

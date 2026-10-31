@@ -12,6 +12,7 @@ import {
   launchMode, readSessions, ownerOf, runIndex, resumePrompt, runAgent, firstSession, webHosts,
 } from "./state.ts";
 import { readReport, signalOf } from "./report.ts";
+import { bundledSkills, setSkill, skillsOff, skillStatus } from "./skills.ts";
 import { agentUsable, heartbeatMinutes, keepAwake, launchPreview, YOLO_FLAGS } from "./state.ts";
 import { attachPty, writePty, submitPty, resizePty, exitPty, ptyState, ptyKeys, adoptLoginEnv, startPty, ptySupported, detachPty, ptyTail, ptyTmux, tmuxAlive, RESUMED } from "./pty.ts";
 import { snapshot, snapWorker } from "./state-snap.ts";
@@ -1171,6 +1172,19 @@ export async function web(repoDir: string, opts: Opts = {}) {
         const projects = states(true).filter((d) => d !== join(home, ".kaizen")).length;
         const ch = agentChoices(repoDir);
         return json({ ...onboardingView(home, projects), default: ch.default, installed: ch.agents.map((a) => a.cmd), agents: KNOWN_AGENTS.map((a) => ({ cmd: a.cmd, name: a.name })), install: installHelp(process.platform === "win32") });
+      }
+
+      if (path === "/skills" && (req.method === "GET" || req.method === "POST")) {
+        if (req.method === "POST") {
+          const refused = strict(req);
+          if (refused) return refused;
+          let body: any;
+          try { body = await req.json(); } catch { return bad("json body expected"); }
+          const why = setSkill(repoDir, home, String(body?.id ?? ""), body?.on === true);
+          if (why) return bad(why);
+        }
+        const off = skillsOff(home);
+        return json({ skills: bundledSkills(repoDir).map((s) => ({ ...s, off: off.includes(s.id), agents: skillStatus(s, home), needs: s.needs.map((n) => ({ name: n, found: !!onPath(n) })) })) });
       }
 
       // Per user, so no scope. A saved environment value is never in either answer.
