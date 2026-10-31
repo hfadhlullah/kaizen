@@ -2006,7 +2006,14 @@ export function healRuns(state: string): string[] {
   if (!existsSync(dir)) return [];
   return readdirSync(dir).filter((id) => {
     const file = join(dir, id, "state.json");
-    try { if (!/"stage":\s*"done"/.test(readText(file))) return false; } catch { return false; }   // cheap: skip runs not done
+    let text = "";
+    try { text = readText(file); } catch { return false; }
+    // Accepted after it was healed (the line was written just after `done`): it is done, nothing is waiting.
+    if (/"healed":\s*true/.test(text) && gateOf(state, id) === "user") {
+      setStage(file, (s) => { s.stage = "done"; s.awaiting = null; delete s.healed; return true; });
+      return false;
+    }
+    if (!/"stage":\s*"done"/.test(text)) return false;   // cheap: skip runs not done
     return accepted(state, id).accept === "needs" && setStage(file, (s) => {
       if (s.stage !== "done") return false;
       s.stage = "review"; s.awaiting = "approvals.review"; s.healed = true;
@@ -2029,11 +2036,15 @@ export function finishRun(state: string, id: string, userApproved = false): stri
 }
 const names = (report: string, path: string) => report.includes("`" + path + "`") || report.includes("`" + path + ":");
 
-type Report = { id: string; text: string; named: string; at: number; sha?: string };
+type Report = { id: string; text: string; named: string; at: number; sha?: string; closed?: number };
 function runReports(state: string): Report[] {
   let ids: string[] = [];
   try { ids = readdirSync(join(state, "runs")); } catch {}
-  return ids.map((id) => ({ id, ...runReport(state, id), sha: readCommit(state, id)?.sha }));
+  return ids.map((id) => {
+    let closed = 0;
+    try { closed = statSync(join(state, "runs", id, "07-commit.md")).mtimeMs; } catch { /* no record */ }
+    return { id, ...runReport(state, id), sha: readCommit(state, id)?.sha, closed };
+  });
 }
 // A run holds a path at time `t` when its report names it, was written by then, and no
 // other run naming it reported in between.
@@ -2050,7 +2061,8 @@ const editedAfter = (dir: string, p: string, t: number) => {
   try { return statSync(join(dir, p)).mtimeMs >= t + 1000; } catch { return false; }
 };
 const runFiles = (dir: string, changed: string[], mine: Report, rest: Report[]) => {
-  const sealed = commitTime(dir, mine.sha);
+  // A rebased or landed commit has a new SHA, so the recorded one is unknown here: the record's own time stands in.
+  const sealed = commitTime(dir, mine.sha) || (mine.sha && mine.closed) || 0;
   return changed.filter((l) => {
     const p = statusPath(l);
     return owns(mine, rest, p, Infinity) && !(lastCommit(dir, p) > mine.at) && !(sealed >= mine.at - 1000 && sealed > 0 && editedAfter(dir, p, sealed));

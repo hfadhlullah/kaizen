@@ -588,6 +588,29 @@ test("commitPush: commits the run's files only, pushes, and records it; the mess
   expect(cardsGit(join(root, ".kaizen"), ["r1"])).toEqual({});   // not a repo
 }, 60_000);   // dozens of git calls, ~250ms each on Windows
 
+test("runGit: a recorded commit rebased away still closes the run", () => {
+  const proj = mkdtempSync(join(tmpdir(), "kz-git-")), st = join(proj, ".kaizen"), run = join(st, "runs", "gone");
+  const sh = (...a: string[]) => Bun.spawnSync(["git", "-C", proj, ...a], { env: { ...process.env, GIT_COMMITTER_DATE: "2001-01-01T00:00:00Z" } });
+  const bare = proj + "-remote.git";
+  Bun.spawnSync(["git", "init", "-q", "--bare", bare]);
+  sh("init", "-q");
+  sh("remote", "add", "origin", bare);
+  for (const kv of [["user.name", "t"], ["user.email", "t@t"], ["commit.gpgsign", "false"], ["core.hooksPath", "/dev/null"]]) sh("config", ...kv);
+  mkdirSync(run, { recursive: true });
+  writeFileSync(join(proj, ".gitignore"), ".kaizen/\n");
+  writeFileSync(join(proj, "z.txt"), "1");
+  sh("add", "-A");
+  sh("commit", "-qm", "chore: z");
+  sh("push", "-qu", "origin", "HEAD");
+  writeFileSync(join(run, "03-impl.md"), "- `z.txt`: z\n");
+  writeFileSync(join(proj, "z.txt"), "2");
+  utimesSync(join(run, "03-impl.md"), new Date(Date.now() - 60_000), new Date(Date.now() - 60_000));
+  expect(runGit(st, "gone").files).toEqual([" M z.txt"]);
+  writeFileSync(join(run, "07-commit.md"), "commit: abc1234\npushed: no\n");
+  utimesSync(join(run, "07-commit.md"), new Date(Date.now() - 30_000), new Date(Date.now() - 30_000));
+  expect(runGit(st, "gone").files).toEqual([]);
+});
+
 test("runGit, cardsGit: a run committed elsewhere is not offered the edits made since, nor another run's unpushed commit", () => {
   const root = mkdtempSync(join(tmpdir(), "kz-git-"));
   const bare = join(root, "remote.git"), proj = join(root, "proj"), st = join(proj, ".kaizen");
