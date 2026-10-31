@@ -584,6 +584,10 @@ the project and run it came from. Each line reads:
 
 **Models.** Settings → Agents → Models has a row per installed agent. Claude Code's row sets its stage subagents. Other tools run every stage in one session, so their row sets the model they launch with, using the tool's own model name.
 
+**Terminal keys.** In a workspace, Ctrl+Space puts focus in the current pane. Within 2 seconds, one more key moves it, as in tmux: arrows or h j k l between panes, 1-9 for a tab by number, n and p for the next and previous tab. c opens the new-tab menu, r split right and d split down: arrows or j k choose, Enter opens, Escape closes. x closes the current pane, like its × button. ? lists these keys.
+
+Ctrl+Shift+Space opens Search anywhere on the board, also from a terminal.
+
 **Voice.** Settings → Voice picks the microphone for this browser. Ctrl+Alt+D starts and stops dictation into the terminal you're in, while the board has focus.
 
 **AI Provider Accounts.** Optional: your normal Claude and Codex logins keep working. Add an account in Settings to keep a second login in its own folder, press Sign in, and pick it as the default or on the Run form. A run stays on its account when resumed, and a run whose account has gone refuses to start rather than using another. Not on Windows yet.

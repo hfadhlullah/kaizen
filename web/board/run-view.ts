@@ -19,7 +19,7 @@ import { load, post } from "./api.ts";
 import { attach, md, preview } from "./markdown.ts";
 import { layout } from "./terms.ts";
 import { cardHref, markCurrent, railData, stateOf, titleOf, wsHref, wsOfCard } from "./workspace.ts";
-import { type Node, awaiting, chosen, finished, historyOf, leaves, liveIn, loopbackUrl, migrate, newRun, pickable, prune, reviewing, stageTabs, toOpen, wsKey } from "./ws-tabs.ts";
+import { type Node, type Box, awaiting, chosen, finished, historyOf, leaves, liveIn, loopbackUrl, migrate, nearestPane, newRun, pickable, prune, reviewing, stageTabs, toOpen, wsKey } from "./ws-tabs.ts";
 import { drawPick, hidePick, initPick, setOpen } from "./run-pick.ts";
 import { age } from "./labels.ts";
 import { go } from "./views.ts";
@@ -903,7 +903,113 @@ function initSheet() {
   addEventListener("click", (e) => on() && !e.composedPath().some((n) => (n as Element).matches?.("#panel,#rside,dialog,.toast")) && shut());
 }
 
+// The keyboard, tmux style: Ctrl+Space puts focus in the current pane, then one more key
+// moves it: arrows or hjkl between panes, 1-9, n, p between tabs.
+const focusPane = (id?: string) => {
+  const el = id ? panes.get(id)?.el : null;
+  requestAnimationFrame(() => el?.querySelector<HTMLElement>("textarea,input,iframe")?.focus());
+};
+const setPane = (sc: Screen, id: string) => {
+  sc.focus = id;
+  save();
+  draw();
+  focusPane(id);
+};
+const DIRS = { ArrowLeft: "l", h: "l", ArrowRight: "r", l: "r", ArrowUp: "u", k: "u", ArrowDown: "d", j: "d" } as const;
+function paneKey(k: string) {
+  if (k === "?") {
+    (document.activeElement as HTMLElement)?.blur(); // Escape closes it only from outside the terminal
+    return void $("help").classList.add("on");
+  }
+  if (k === "x") {
+    const sc = screens().find((x) => x.id === saved().on);
+    if (sc) void closeTab(sc.focus).then(() => focusPane(screens().find((x) => x.id === saved().on)?.focus));
+    return;
+  }
+  const mode = { c: "tab", r: "cols", d: "rows" }[k];
+  if (mode) {
+    const add = $("rtabs").querySelector<HTMLDetailsElement>(`.radd[data-mode=${mode}]`);
+    if (add) add.open = true;
+    requestAnimationFrame(() => add?.querySelector<HTMLElement>(".menu-pop button")?.focus());
+    return;
+  }
+  const s = saved(),
+    scs = screens(),
+    at = scs.findIndex((x) => x.id === s.on),
+    sc = scs[at];
+  if (!sc) return;
+  if (DIRS[k]) {
+    const boxes: Record<string, Box> = {};
+    for (const id of leaves(sc.tree)) {
+      const el = panes.get(id)?.el;
+      if (el) boxes[id] = el.getBoundingClientRect();
+    }
+    const to = nearestPane(boxes, sc.focus, DIRS[k]);
+    if (to) setPane(sc, to);
+    return;
+  }
+  const i = k === "n" ? (at + 1) % scs.length : k === "p" ? (at - 1 + scs.length) % scs.length : /^[1-9]$/.test(k) ? +k - 1 : -1;
+  const to = scs[i];
+  if (!to) return;
+  s.on = to.id;
+  save();
+  draw();
+  focusPane(to.focus);
+}
+// While the prefix waits for its key, a chip says so and lists the keys.
+function keyHint(on: boolean) {
+  document.getElementById("keyhint")?.remove();
+  if (!on) return;
+  const h = document.createElement("div");
+  h.id = "keyhint";
+  h.setAttribute("role", "status");
+  const keys = [["←↓↑→", "pane"], ["1-9", "tab"], ["n p", "next, prev"], ["c", "new tab"], ["r", "split right"], ["d", "split down"], ["x", "close pane"], ["?", "all keys"]];
+  h.innerHTML = String(html`${keys.map(([k, t]) => html`<span><kbd>${k}</kbd>${t}</span>`)}`);
+  document.body.append(h);
+}
+function initPaneKeys() {
+  let armed: Timer | undefined;
+  // Capture: xterm must not see these. Ctrl+B would reach an agent or a tmux inside the pane.
+  addEventListener(
+    "keydown",
+    (e) => {
+      if (!ctx || !document.body.classList.contains("runv") || document.querySelector("dialog[open]")) return;
+      if (e.ctrlKey && !e.shiftKey && e.code === "Space") {
+        e.preventDefault();
+        e.stopPropagation();
+        focusPane(screens().find((x) => x.id === saved().on)?.focus);
+        clearTimeout(armed);
+        keyHint(true);
+        armed = setTimeout(() => ((armed = undefined), keyHint(false)), 2000);
+        return;
+      }
+      // The open +, split right or split down menu: arrows or j k walk it, Enter picks, Escape closes.
+      const add = $("rtabs").querySelector<HTMLDetailsElement>(".radd[open]");
+      if (add) {
+        const step = { ArrowDown: 1, j: 1, ArrowUp: -1, k: -1 }[e.key];
+        if (step || e.key === "Escape") {
+          e.preventDefault();
+          e.stopPropagation();
+          if (!step) return void ((add.open = false), focusPane(screens().find((x) => x.id === saved().on)?.focus));
+          const items = [...add.querySelectorAll<HTMLElement>(".menu-pop button")];
+          items[(items.indexOf(document.activeElement as HTMLElement) + step + items.length) % items.length]?.focus();
+          return;
+        }
+      }
+      if (!armed || ["Control", "Shift", "Alt", "Meta"].includes(e.key)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      clearTimeout(armed);
+      armed = undefined;
+      keyHint(false);
+      paneKey(e.key);
+    },
+    true,
+  );
+}
+
 export function initRunView() {
+  initPaneKeys();
   // A phone's sheet closes with the panel's ×, which here hides the sheet rather than closing the card.
   document.addEventListener(
     "click",

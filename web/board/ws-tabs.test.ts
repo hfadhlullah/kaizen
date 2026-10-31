@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { agentStatus, agentsHtml, forgetAgents, lineOf, settleIn, toggleOpen, wsAgents, SETTLE_MS, awaiting, dueWord, chosen, newRun, loopbackUrl, toOpen, stageKeys, stageTabs, finished, historyOf, liveIn, migrate, pickable, prune, wsKey } from "./ws-tabs.ts";
+import { nearestPane, agentStatus, agentsHtml, forgetAgents, lineOf, settleIn, toggleOpen, wsAgents, SETTLE_MS, awaiting, dueWord, chosen, newRun, loopbackUrl, toOpen, stageKeys, stageTabs, finished, historyOf, liveIn, migrate, pickable, prune, wsKey } from "./ws-tabs.ts";
 
 const run = (id: string, status: string, o: any = {}) => ({ kind: "run", state: "/p/.kaizen", id, status, moved: 1, ws: "/p", ...o });
 const wsOf = (c) => c.ws;
@@ -191,4 +191,15 @@ test("a terminal that carried plan and build is named for the run's stage", () =
   const c = { kind: "run", column: 2, pty: { all: ["a"], stages: { plan: "a", impl: "a" } } };
   expect(stageTabs(c, "Claude")).toEqual([{ key: "a", title: "Build · Claude" }]);
   expect(stageTabs({ ...c, column: 3 }, "Claude")[0].title).toBe("Review · Claude");
+});
+
+test("nearestPane walks a split like tmux", () => {
+  const box = (left: number, top: number, right: number, bottom: number) => ({ left, top, right, bottom });
+  const b = { a: box(0, 0, 50, 100), b: box(50, 0, 100, 50), c: box(50, 50, 100, 100) };
+  expect(nearestPane(b, "b", "d")).toBe("c");
+  expect(nearestPane(b, "c", "l")).toBe("a");
+  expect(nearestPane(b, "a", "l")).toBeNull();
+  expect(nearestPane(b, "a", "u")).toBeNull();
+  expect(nearestPane(b, "a", "r")).toBe("b");
+  expect(nearestPane(b, "gone", "r")).toBeNull();
 });

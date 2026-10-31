@@ -6,6 +6,24 @@
 import { html } from "./dom.ts";
 import { age } from "./labels.ts";
 export type Node = string | { dir: "cols" | "rows"; kids: Node[]; sizes: number[] };
+export type Box = { left: number; top: number; right: number; bottom: number };
+// The pane next to `from` in a direction: it must lie past that edge and share some of the
+// other axis; the closest wins, then the one lined up best.
+export function nearestPane(boxes: Record<string, Box>, from: string, dir: "l" | "r" | "u" | "d"): string | null {
+  const a = boxes[from];
+  if (!a) return null;
+  const across = dir === "l" || dir === "r";
+  const gap = (b: Box) => (dir === "l" ? a.left - b.right : dir === "r" ? b.left - a.right : dir === "u" ? a.top - b.bottom : b.top - a.bottom);
+  const lap = (b: Box) => (across ? Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) : Math.min(a.right, b.right) - Math.max(a.left, b.left));
+  let best: string | null = null;
+  for (const [id, b] of Object.entries(boxes)) {
+    if (id === from || gap(b) < -1 || lap(b) <= 0) continue;
+    const cur = best && boxes[best];
+    if (!cur || gap(b) < gap(cur) - 1 || (Math.abs(gap(b) - gap(cur)) <= 1 && lap(b) > lap(cur))) best = id;
+  }
+  return best;
+}
+
 export const leaves = (n: Node): string[] => (typeof n === "string" ? [n] : n.kids.flatMap(leaves));
 // Drops ids no longer open; a split left with one child becomes that child.
 export function prune(n: Node, keep: (id: string) => boolean): Node | null {

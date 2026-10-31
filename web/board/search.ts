@@ -309,6 +309,12 @@ export function initSearch() {
   addEventListener(
     "keydown",
     (e) => {
+      // Ctrl+Shift+Space works in a terminal too: no shell or agent needs it.
+      if (e.ctrlKey && e.shiftKey && e.code === "Space") {
+        e.preventDefault();
+        e.stopPropagation();
+        return void (dl ? dl.close() : openSearch());
+      }
       // A terminal keeps its keys: Ctrl+K there is the shell's kill-line.
       if ((e.target as Element)?.closest?.(".xterm")) return;
       const mod = mac ? e.metaKey : e.ctrlKey;
