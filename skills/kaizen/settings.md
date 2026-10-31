@@ -27,6 +27,7 @@ nearest first, so a change lands globally unless this project keeps its own conf
 | `git.auto_commit` | `true`, `false` | Commit the work when a run finishes |
 | `git.worktree_per_run` | `ask`, `true`, `false` | Build each run on its own branch in its own worktree and land it by pull request; `ask` offers the choice at the plan approval |
 | `ui.mouse` | `false`, `true` | Click to select, click again to act; while on, the terminal cannot select text |
+| `agent.model.<tool>` | the tool's own model name, or empty | Launch model for agy, codex, gemini, opencode, for every stage |
 | `subagents.model` | `inherit`, `opus`, `sonnet`, `haiku` | Model the stage subagents run on (Claude Code only) |
 | `subagents.effort` | `inherit`, `low`, `medium`, `high` | Reasoning effort for the stage subagents (Claude Code only) |
 | `sources.every` | `off`, `1h`, `6h`, `24h` | How often the web board checks request sources for new requests, into the icebox, while it runs |

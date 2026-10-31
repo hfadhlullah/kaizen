@@ -182,6 +182,13 @@ agent:
   # Stops idle sleep from the board. off | auto (while the board runs agents) | on
   # (while the board is open). Linux and macOS; agents in an outside terminal don't count.
   keep_awake: off
+  # The model each tool launches with, the tool's own name. Empty: its default.
+  # Claude Code's stage subagents use subagents.model instead.
+  model:
+    agy: ""
+    codex: ""
+    gemini: ""
+    opencode: ""
   # Minutes between an agent's reports. Quiet for two of these with no terminal
   # activity, its card says stale.
   heartbeat_minutes: 5

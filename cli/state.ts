@@ -112,7 +112,11 @@ function agentConfig(projectDir: string, cmd: string, configText?: string) {
   let block: RegExpExecArray | null = null;
   for (const t of configText === undefined ? configTexts(projectDir) : [configText]) if ((block = re.exec(t))) break;
   const get = (k: string) => block && new RegExp(`\\b${k}:[ \\t]*["']?([^"',}\\s]+)`).exec(block[1])?.[1];
-  return { model: get("model") || undefined, effort: get("effort") || undefined };
+  // Settings' row (agent.model.<tool>) wins over a hand-written block.
+  const row = new RegExp(`^agent:\\n(?:[ \\t#][^\\n]*\\n|\\n)*?[ \\t]+model:[ \\t]*\\n(?:[ \\t]{3,}[^\\n]*\\n)*?[ \\t]{3,}${cmd}:[ \\t]*["']?([^"'\\s#]+)`, "m");
+  let set: string | undefined;
+  for (const t of configText === undefined ? configTexts(projectDir) : [configText]) if ((set = row.exec(t)?.[1])) break;
+  return { model: set || get("model") || undefined, effort: get("effort") || undefined };
 }
 
 // `model`: a per-run pick, in place of the configured one. Effort stays configured.
