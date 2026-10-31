@@ -1850,7 +1850,7 @@ export async function pidOnPort(port: number): Promise<number | null> {
 const gitOpts = () => ({ env: { ...process.env, GIT_TERMINAL_PROMPT: "0" }, stdin: "ignore" as const, timeout: 60_000, windowsHide: true });
 const gitDone = (code: number | null, stdout: string, stderr: string) => {
   const out = stdout.trimEnd(), err = stderr.trim();
-  return { ok: code === 0, out, why: (err || out).split("\n").pop() || "git did not finish" };
+  return { ok: code === 0, code, out, why: (err || out).split("\n").pop() || "git did not finish" };
 };
 const NO_GIT = { ok: false, out: "", why: "git is not installed" };
 function git(dir: string, ...args: string[]) {
@@ -1879,9 +1879,9 @@ const noRemote = (s: { failed?: boolean }) => (s.failed ? "git did not answer. T
 
 // A project the board can commit for: a git work tree with somewhere to push.
 export function gitStatus(projectDir: string): GitStatus {
-  // Only git's own answer means no repo: a killed or missing git says nothing about the folder.
+  // Only git's own answer (exit 128) means no repo: a killed or missing git says nothing about the folder.
   const inside = git(projectDir, "rev-parse", "--is-inside-work-tree");
-  if (!inside.ok) return /not a git repository/i.test(inside.why) ? { repo: false } : { repo: false, failed: true };
+  if (!inside.ok) return (inside as { code?: number | null }).code === 128 ? { repo: false } : { repo: false, failed: true };
   const remote = git(projectDir, "remote").out.split("\n")[0] ?? "";
   if (!remote) return { repo: false };
   // Every untracked file on its own line: a new directory is never committed whole.
