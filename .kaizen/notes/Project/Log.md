@@ -240,3 +240,4 @@ updated: 2026-10-28
 - 2026-10-30 update — Web board: long project paths no longer lose a terminal's tab (run key limit raised to 2000).
 - 2026-10-30 ios-pwa-edge-to-edge: installed app uses 100dvh instead of the screen height, bottom edge strip, html no longer scrolls.
 - 2026-10-30 update — Web board: the phone Home header shows the ASCII kaizen logo.
+- 2026-10-31 run 2026-10-31-settings-agents-page — Web board

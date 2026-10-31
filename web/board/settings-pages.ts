@@ -3,7 +3,7 @@
 export type SettingsPage = { id: string; title: string; desc: string; ico: string };
 export const SETTINGS_NAV: [string, SettingsPage[]][] = [
   ["AI Capabilities", [
-    { id: "agents", title: "Agents", desc: "Which tool runs, and who does each stage.", ico: "ai" },
+    { id: "agents", title: "Agents", desc: "Manage AI agents, set a default, and customize commands.", ico: "ai" },
     { id: "voice", title: "Voice", desc: "Speech-to-text dictation, run in the browser.", ico: "mic" },
   ]],
   ["Set Up", [
@@ -25,8 +25,10 @@ export const SETTINGS_NAV: [string, SettingsPage[]][] = [
 ];
 // First match wins: [key pattern, page, subsection].
 const PLACES: [RegExp, string, string][] = [
-  [/^preset$/, "agents", "Defaults"],
-  [/^(runner|build\.|review\.executor|agent\.|subagents\.)/, "agents", "Agents"],
+  [/^(preset|runner|build\.|review\.executor)/, "agents", "Workflow"],
+  [/^subagents\./, "agents", "Subagents"],
+  [/^agent\.default$/, "agents", "Default agent"],
+  [/^agent\./, "agents", "Running agents"],
   [/^dictation\./, "voice", "Dictation"],
   [/^sources\./, "integrations", "Request sources"],
   [/^(mode|approvals\.|auto_accept)/, "approvals", "Approvals"],

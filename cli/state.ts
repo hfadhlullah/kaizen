@@ -1,6 +1,7 @@
 // Everything kaizen knows about a project's state, read from and written to the
 // `.kaizen/` directory. No terminal, no HTTP: the TUI (`dashboard.ts`) and the web
 // board (`web.ts`) both import this and draw it their own way.
+import { agentEnabled, argsOf, commandOf, prefersBypass, readPrefs, withEnv } from "./agent-prefs.ts";
 import { existsSync, readFileSync, readdirSync, appendFileSync, writeFileSync, mkdirSync, statSync, realpathSync, rmSync, renameSync, copyFileSync, openSync, readSync, closeSync } from "node:fs";
 import { Database } from "bun:sqlite";
 import { join, dirname, sep, win32, posix } from "node:path";
@@ -23,6 +24,9 @@ export const KNOWN_AGENTS = [
   { name: "Cursor", dir: ".cursor", cmd: "cursor" },
 ];
 
+// Installed under its own or an overridden command, and not turned off in Settings.
+export const agentUsable = (cmd: string) => agentEnabled(cmd) && !!onPath(commandOf(cmd));
+
 export type Agent = { name: string; cmd: string; note?: string };
 
 // Each config.yml in the chain, project first: the first one that sets a key decides
@@ -39,18 +43,18 @@ export function detectDefaultAgent(projectDir: string, want?: string): Agent {
   }
   if (!want || want === "auto") return autoAgent(projectDir);
   const found = KNOWN_AGENTS.find((a) => a.cmd === want || a.name.toLowerCase() === want!.toLowerCase());
-  if (found && onPath(found.cmd)) return found;
+  if (found && agentUsable(found.cmd)) return found;
   const a = autoAgent(projectDir);
-  return { ...a, note: `${found?.name ?? want} is not installed; opened ${a.name} instead` };
+  return { ...a, note: `${found?.name ?? want} is ${found && !agentEnabled(found.cmd) ? "turned off" : "not installed"}; opened ${a.name} instead` };
 }
 
 function autoAgent(projectDir: string): Agent {
   for (const a of KNOWN_AGENTS) {
-    if (existsSync(join(projectDir, a.dir)) && onPath(a.cmd)) return a;
+    if (existsSync(join(projectDir, a.dir)) && agentUsable(a.cmd)) return a;
   }
-  if (onPath("claude")) return { name: "Claude Code", cmd: "claude" };
+  if (agentUsable("claude")) return { name: "Claude Code", cmd: "claude" };
   for (const a of KNOWN_AGENTS) {
-    if (onPath(a.cmd)) return a;
+    if (agentUsable(a.cmd)) return a;
   }
   return { name: "Claude Code", cmd: "claude" };
 }
@@ -110,10 +114,16 @@ export function agentFlags(projectDir: string, cmd: string, configText?: string,
 export function agentChoices(projectDir: string) {
   return {
     default: detectDefaultAgent(projectDir).cmd,
-    agents: KNOWN_AGENTS.filter((a) => onPath(a.cmd)).map((a) => ({
+    agents: KNOWN_AGENTS.filter((a) => agentUsable(a.cmd)).map((a) => ({
       name: a.name, cmd: a.cmd, model: agentConfig(projectDir, a.cmd).model ?? "", models: !!MODEL_FLAGS[a.cmd], yolo: !!YOLO_FLAGS[a.cmd],
     })),
   };
+}
+
+// The start of the line Settings previews: what a launch runs before its session and prompt.
+export function launchPreview(projectDir: string, cmd: string, p = readPrefs()) {
+  const env = Object.keys(p.agents[cmd]?.env ?? {}).map((k) => `${k}=•••`);
+  return [...env, commandOf(cmd, p), ...agentFlags(projectDir, cmd), ...(prefersBypass(cmd, p) ? YOLO_FLAGS[cmd] ?? [] : []), ...argsOf(cmd, p)].join(" ");
 }
 
 // One argument as a POSIX shell reads it literally: a prompt carries quotes, `$`,
@@ -1505,6 +1515,11 @@ export function keepAlive(projectDir: string): "off" | "tmux" {
   return "off";
 }
 
+// agent.keep_awake: machine-wide, so only the global config. Same forms as keepAlive.
+export function keepAwake(text = existsSync(join(home, ".kaizen", "config.yml")) ? readText(join(home, ".kaizen", "config.yml")) : "") {
+  return (/^agent:\n(?:[ \t][^\n]*\n)*?[ \t]+keep_awake:[ \t]*["']?([^"'\s]+)/m.exec(text) || /^agent\.keep_awake:[ \t]*["']?([^"'\s]+)/m.exec(text))?.[1] ?? "off";
+}
+
 export function launchMode(projectDir: string): "card" | "terminal" {
   for (const t of configTexts(projectDir)) {
     const m = /^agent:\n(?:[ \t][^\n]*\n)*?[ \t]+launch:[ \t]*["']?([^"'\s]+)/m.exec(t) || /^agent\.launch:[ \t]*["']?([^"'\s]+)/m.exec(t);
@@ -1695,12 +1710,16 @@ export function launchRun(it: Item, from: string, run?: string, pick: { agent?: 
   if (!pick.cwd) remember(projectDir);
   const own = run && !pick.agent ? runAgent(join(projectDir, ".kaizen"), run) : null;
   const agent = detectDefaultAgent(projectDir, pick.agent ?? own?.cmd);
+  // Every agent is off, or the last resort is: nothing may start.
+  if (!agentEnabled(agent.cmd)) return { ok: false, agent, prompt: "", projectDir, manual: "", why: `${agent.name} is turned off in Settings → Agents.` };
+  if (pick.agent && agent.cmd !== pick.agent && !agentEnabled(pick.agent)) return { ok: false, agent, prompt: "", projectDir, manual: "", why: "That agent is turned off in Settings → Agents." };
+  const prefs = readPrefs();
   if (agent.cmd === "claude") trustFolder(projectDir);
   // A board started inside a Claude Code session carries that session's identity. An
   // agent inheriting it runs as its child and keeps no transcript, so nothing to resume.
   for (const k of Object.keys(process.env)) if (CHILD_ENV.test(k)) delete process.env[k];
   // onPath, not Bun.which: the board may have taken a login shell's PATH after it started.
-  const agentBin = winShim(onPath(agent.cmd) ?? agent.cmd);
+  const agentBin = winShim(onPath(commandOf(agent.cmd, prefs)) ?? commandOf(agent.cmd, prefs));
   // No text: a run's conversation reopened as it was, with nothing sent to it.
   // A skill other than kaizen: Claude Code takes it as a slash command; other agents are told to use it.
   const lead = !pick.skill ? "/kaizen" : agent.cmd === "claude" ? `/${pick.skill}` : `Use the ${pick.skill} skill.`;
@@ -1713,24 +1732,27 @@ export function launchRun(it: Item, from: string, run?: string, pick: { agent?: 
   const yoloRecs = run && !pick.agent ? readSessions(st).filter((s) => s.yolo && s.cmd === agent.cmd) : [];
   const idx = yoloRecs.length ? runIndex(st) : undefined;
   const wasYolo = yoloRecs.some((s) => ownerOf(st, s, idx) === run);
-  const yolo = (wasYolo || (!!pick.yolo && agent.cmd === pick.agent)) && !!YOLO_FLAGS[agent.cmd];
-  const flags = [...agentFlags(projectDir, agent.cmd, undefined, model), ...(yolo ? YOLO_FLAGS[agent.cmd] : [])];
+  // Settings' bypass takes the same road, so the session record and the card's mark follow.
+  const yolo = (wasYolo || (!!pick.yolo && agent.cmd === pick.agent) || prefersBypass(agent.cmd, prefs)) && !!YOLO_FLAGS[agent.cmd];
+  const flags = [...agentFlags(projectDir, agent.cmd, undefined, model), ...(yolo ? YOLO_FLAGS[agent.cmd] : []), ...argsOf(agent.cmd, prefs)];
   // The idea as its run's request will hold it: without the runner word in front.
   const s = sessionLaunch(projectDir, agent.cmd, [agentBin, ...flags], prompt, it.text.replace(/^(lite|full|auto|plan)\s+/i, ""), run, model, yolo);
-  const manual = manualCommand(projectDir, agent.cmd, prompt, flags);
+  const manual = manualCommand(projectDir, commandOf(agent.cmd, prefs), prompt, flags);
+  // Only what is started carries env: the returned `cmd` reaches the page.
+  const started = withEnv(s.fullCmd, agent.cmd, prefs);
   const drop = () => { if (s.record) rmSync(s.record, { force: true }); };
 
   if (pick.card && ptySupported) {
     const key = s.key ?? `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     try {
-      startPty(key, s.fullCmd, projectDir, s.pidFile, pick.onChange, { seed: pick.seed, tmux: keepAlive(projectDir) === "tmux" ? tmuxName(key) : undefined });
+      startPty(key, started, projectDir, s.pidFile, pick.onChange, { seed: pick.seed, tmux: keepAlive(projectDir) === "tmux" ? tmuxName(key) : undefined });
       return { ok: true, agent, prompt, projectDir, cmd: s.fullCmd, pty: key };
     } catch (err: any) {
       drop();
       return { ok: false, agent, prompt, projectDir, manual, why: err?.message ?? String(err) };
     }
   }
-  const term = findTerminal(projectDir, s.fullCmd, s.pidFile);
+  const term = findTerminal(projectDir, started, s.pidFile);
   if (!term) {
     drop();
     return {

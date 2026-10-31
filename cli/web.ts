@@ -1,5 +1,7 @@
 // `kaizen web`: the board in a browser. A loopback HTTP server over state.ts and
 // one HTML page; the page never sees the filesystem, only JSON.
+import { agentEnabled, argsOf, commandOf, prefersBypass, publicPref, readPrefs, savePrefs, withEnv } from "./agent-prefs.ts";
+import { awakeHolder, wantAwake } from "./keep-awake.ts";
 import { existsSync, readdirSync, statSync, lstatSync, realpathSync, readFileSync, watch, appendFileSync, mkdirSync, cpSync, rmSync, writeFileSync, type FSWatcher } from "node:fs";
 import { join, dirname, resolve, sep, basename } from "node:path";
 import {
@@ -9,6 +11,7 @@ import {
   reviewFindings, pickFindings, backlogItem, startedBacklog, closeBacklog, markBacklogDone, fixPrompt, approvalPrompt, canApproveAwaiting, gateOf, recordAcceptance, healRuns, finishRun, nativePath, closeSessions, sweepSessions, issueUrl,
   launchMode, readSessions, ownerOf, runIndex, resumePrompt, runAgent, firstSession, webHosts,
 } from "./state.ts";
+import { agentUsable, keepAwake, launchPreview, YOLO_FLAGS } from "./state.ts";
 import { attachPty, writePty, submitPty, resizePty, exitPty, ptyState, ptyKeys, adoptLoginEnv, startPty, ptySupported, detachPty, ptyTail, ptyTmux, tmuxAlive, RESUMED } from "./pty.ts";
 import { snapshot, snapWorker } from "./state-snap.ts";
 import { claudeUsage, codexUsage, phonePeers, type Usage } from "./usage.ts";
@@ -439,7 +442,9 @@ export async function web(repoDir: string, opts: Opts = {}) {
   let last = fingerprint();
   let seen = states(true).join("\n");
   let ticks = 0;
+  const awake = awakeHolder();
   const poll = setInterval(() => {
+    awake.sync(wantAwake(keepAwake(), ptyKeys().some((k) => ptyState(k)?.alive && !(shells.has(k) && !shells.get(k)!.agent))));
     // Once a minute: windows of runs finished or abandoned past the grace are closed.
     if (++ticks % 30 === 0) for (const dir of states(true)) sweepSessions(dir);
     // A project registered since start (a run launched into a fresh dir) gets a watcher too.
@@ -746,6 +751,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         if (!states(true).includes(dir) || dir === join(home, ".kaizen")) return bad("choose a project", 404);
         let cmd: string[];
         let agent = "";
+        let bypass = false;
         // The run's own agent session, resumed here ("run:<dir>:<id>" names the run; the session
         // id is read from that run's state.json, never taken from the page). Claude only: it is
         // the agent whose session id runs record. Refused while that session is still running
@@ -776,9 +782,10 @@ export async function web(repoDir: string, opts: Opts = {}) {
           cmd = ["claude", "--resume", sid];
         } else if (body.agent != null) {
           const a = KNOWN_AGENTS.find((k) => k.cmd === body.agent);
-          if (!a || !onPath(a.cmd)) return bad("unknown agent", 400);
+          if (!a || !agentUsable(a.cmd)) return bad("unknown agent", 400);
           agent = a.cmd;
-          cmd = [a.cmd];
+          bypass = prefersBypass(a.cmd) && !!YOLO_FLAGS[a.cmd];
+          cmd = withEnv([commandOf(a.cmd), ...(bypass ? YOLO_FLAGS[a.cmd]! : []), ...argsOf(a.cmd)], a.cmd);
         } else cmd = process.platform === "win32" ? [powershellExe()] : [process.env.SHELL || "sh", "-l"];
         // A workspace folder: only an exact path from this project's own `git worktree list`.
         let cwd = projectOf(dir);
@@ -792,7 +799,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         for (const k of shells.keys()) if (!ptyState(k)?.alive) shells.delete(k);
         if ([...shells.values()].filter((x) => x.dir === dir).length >= SHELL_CAP) return bad(`at most ${SHELL_CAP} terminals per project: close one first`, 429);
         const key = "sh-" + crypto.randomUUID().slice(0, 8);
-        const title = agent ? KNOWN_AGENTS.find((k) => k.cmd === agent)!.name : "shell";
+        const title = agent ? KNOWN_AGENTS.find((k) => k.cmd === agent)!.name + (bypass ? " · bypass" : "") : "shell";
         const pid = startPty(key, cmd, cwd, undefined, changed);
         // The run workspace that opened it (its card key), so each run keeps its own centre.
         shells.set(key, { key, dir, title, agent, run: runKey, ws: cwd, pid });
@@ -1161,6 +1168,29 @@ export async function web(repoDir: string, opts: Opts = {}) {
         return json({ ...onboardingView(home, projects), default: ch.default, installed: ch.agents.map((a) => a.cmd), agents: KNOWN_AGENTS.map((a) => ({ cmd: a.cmd, name: a.name })), install: installHelp(process.platform === "win32") });
       }
 
+      // Per user, so no scope. A saved environment value is never in either answer.
+      if (path === "/agent-prefs" && (req.method === "GET" || req.method === "POST")) {
+        if (req.method === "POST") {
+          const refused = strict(req);
+          if (refused) return refused;
+          let body: any;
+          try { body = await req.json(); } catch { return bad("json body expected"); }
+          const r = savePrefs(body ?? {}, KNOWN_AGENTS.map((a) => a.cmd));
+          if ("error" in r) return bad(r.error);
+          // The default may not name an agent turned off; the global one moves to Auto.
+          if (body.enabled === false) {
+            const { listSettings, setSetting } = await import("./settings.ts");
+            if (listSettings(repoDir, null).rows.find((x) => x.key === "agent.default")?.value === String(body.agent)) setSetting(repoDir, "agent.default", "auto", null);
+          }
+          changed();
+        }
+        const prefs = readPrefs();
+        return json({
+          permissions: prefs.permissions, envWorks: process.platform !== "win32",
+          agents: KNOWN_AGENTS.map((a) => ({ cmd: a.cmd, name: a.name, installed: !!onPath(commandOf(a.cmd, prefs)), bypass: !!YOLO_FLAGS[a.cmd], ...publicPref(a.cmd, prefs), preview: launchPreview(repoDir, a.cmd, prefs) })),
+        });
+      }
+
       if (req.method === "GET" && path === "/agents") {
         const dir = qdir();
         if (!dir || !states(true).includes(dir)) return bad("unknown state dir", 404);
@@ -1290,6 +1320,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         let body: any;
         try { body = await req.json(); } catch { return bad("json body expected"); }
         const { setSetting, resetSetting } = await import("./settings.ts");
+        if (body.key === "agent.default" && body.value !== "auto" && !agentEnabled(String(body.value))) return bad("That agent is turned off");
         const scope = settingsScope(body.scope == null ? null : String(body.scope));
         if (body.reset && typeof scope !== "string") return bad("only a project's own value can be reset");
         if (scope === false) return bad("unknown project", 404);
@@ -1393,7 +1424,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
             const r = await makeProject(name);
             return "error" in r ? { error: r.error } : { dir: (r as { dir: string }).dir };
           },
-          agents: KNOWN_AGENTS.filter((a) => onPath(a.cmd)).map((a) => a.cmd),
+          agents: KNOWN_AGENTS.filter((a) => agentUsable(a.cmd)).map((a) => a.cmd),
           // As POST /run starts an idea, without one on the inbox.
           run: async (d: string, runner: "lite" | "full", agent: string, text: string) => {
             const r = launchRun(parseItem(`${runner} ${text}`), d, undefined, { agent, ...inCard(d) });
@@ -2038,6 +2069,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
       setTimeout(() => process.exit(0), 3000).unref();
       const live = ptyKeys().some((k) => ptyState(k)?.alive);
       saveLive();
+      awake.stop();
       clearInterval(poll); clearInterval(ping); clearInterval(gather); clearInterval(loop); clearInterval(keepList);
       for (const w of watchers) { try { w.close(); } catch { /* gone */ } }
       setTimeout(() => { server.stop(true); resolve(); }, live ? 400 : 0);

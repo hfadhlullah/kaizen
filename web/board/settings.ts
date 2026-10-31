@@ -4,6 +4,7 @@ import { load, post } from "./api.ts";
 import { stopDictation } from "./dictation.ts";
 import { $, html, ico, raw } from "./dom.ts";
 import { close } from "./panel.ts";
+import { agentRows, wireAgents } from "./settings-agents.ts";
 import { placeOf, SETTINGS_NAV } from "./settings-pages.ts";
 import { askNotify, notifyOn, playSound, soundPick, SOUNDS, toast } from "./toast.ts";
 import { updBar } from "./update.ts";
@@ -56,6 +57,9 @@ export async function openSettings() {
   const gg = await fetch("/google")
     .then((r) => r.json())
     .catch(() => ({}));
+  const ap = await fetch("/agent-prefs")
+    .then((r) => (r.ok ? r.json() : null))
+    .catch(() => null);
   if (gen !== store.pageGen) return;
   $("psub").textContent = "";
   $("psub").title = "";
@@ -102,6 +106,7 @@ export async function openSettings() {
     if (!m.has(sub)) m.set(sub, []);
     m.get(sub).push(r);
   };
+  const defaultAgent = cfg?.rows.find((r) => r.key === "agent.default")?.value ?? "auto";
   if (cfg) {
     put("general", "Scope", row(
       "Settings for",
@@ -110,6 +115,8 @@ export async function openSettings() {
       "s-scope",
       "settings for scope project all projects",
     ));
+    // Drawn as chips with the agent list, above the rest of the page.
+    cfg.rows = cfg.rows.filter((r) => !(r.key === "agent.default" && ap));
     for (const r of cfg.rows) {
       const id = "s-" + r.key.replace(/\./g, "-");
       const [page, sub] = placeOf(r.key);
@@ -152,7 +159,7 @@ export async function openSettings() {
         <button class="sup" type="button">${ico("chev")}Settings</button>
         <header><h2>${p.title}</h2><p>${p.desc}${scopeName ? ` Editing ${scopeName}.` : ""}</p></header>
         ${p.id === "general" ? html`<div id="supd"></div>` : ""}
-        <div class="scard">${[...pageRows.get(p.id)].map(([sub, rows]) => html`<h3 class="sg">${sub}</h3><div class="sgrp">${rows}</div>`)}</div>
+        <div class="scard">${p.id === "agents" && ap ? agentRows(ap, defaultAgent, scopeName) : ""}${[...pageRows.get(p.id)].map(([sub, rows]) => html`<h3 class="sg">${sub}</h3><div class="sgrp">${rows}</div>`)}</div>
       </div>`)}
       ${cfg ? "" : html`<p class="snone">Settings could not be read. Run <code>kaizen settings</code>.</p>`}
       <p class="snone" id="snone" hidden></p>
@@ -215,6 +222,7 @@ export async function openSettings() {
       filter();
     } else close();
   };
+  if (ap) wireAgents(openSettings, cfg?.scope ?? null);
   filter();
   $("smain").scrollTop = top;
   if (hadFocus) {
