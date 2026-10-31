@@ -1497,7 +1497,7 @@ test("stageFiles, commitStaged, suggestMessage: only the run's files are staged,
   expect(stageFiles(st, "r1", "discard", ["new.txt"])).toBeNull();
   expect(existsSync(join(proj, "new.txt"))).toBe(false);
   expect(stageFiles(st, "r1", "discard", ["a.txt"])).toBeNull();
-  expect(readFileSync(join(proj, "a.txt"), "utf8")).toBe("one\ntwo\n");
+  expect(readFileSync(join(proj, "a.txt"), "utf8").replace(/\r/g, "")).toBe("one\ntwo\n"); // git may check out CRLF on Windows
   expect(readFileSync(join(proj, "other.txt"), "utf8")).toBe("changed\n");   // not the run's, untouched
   writeFileSync(join(proj, "a.txt"), "one\nTWO\nthree\n");
   // Plain Commit: nothing staged, a stale list, another file staged by hand, all refused.
