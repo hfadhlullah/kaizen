@@ -1,0 +1,1 @@
+{"title": "Desktop control", "group": "optional", "off_by_default": true, "needs": ["python3"]}

@@ -249,3 +249,4 @@ updated: 2026-10-31
 - 2026-10-31 run 2026-10-31-orchestration-voice — Web board
 - 2026-10-31 run 2026-10-31-orchestration — CLI, Web board, Workflow
 - 2026-10-31 run 2026-10-31-orchestration — CLI (worker model setting)
+- 2026-10-31 run 2026-10-31-computer-use — Web board, CLI

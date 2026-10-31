@@ -14,7 +14,7 @@ import {
 import { ACCOUNT_VAR, accountDir, addAccount, readAccounts, renameAccount, signedIn, removeAccount, resolveAccount, setDefaultAccount } from "./accounts.ts";
 import { readReport, signalOf } from "./report.ts";
 import { MAX_IMAGE, saveImage } from "./term-image.ts";
-import { bundledSkills, setSkill, skillsOff, skillStatus } from "./skills.ts";
+import { bundledSkills, setSkill, skillsHeld, skillsOff, skillStatus } from "./skills.ts";
 import { accountEnv, accountForRun, agentUsable, CHILD_ENV, heartbeatMinutes, keepAwake, launchPreview, trustFolder, YOLO_FLAGS } from "./state.ts";
 import { failStart, markRunning, readWorkers, requested, startWorker, sweep, workerStale } from "./workers.ts";
 import { attachPty, writePty, submitPty, resizePty, exitPty, ptyState, ptyKeys, adoptLoginEnv, startPty, ptySupported, detachPty, ptyTail, ptyTmux, tmuxAlive, RESUMED } from "./pty.ts";
@@ -250,6 +250,9 @@ export async function web(repoDir: string, opts: Opts = {}) {
     try { if (origin) { const o = new URL(origin); same = o.host === req.headers.get("host") || extraHosts.has(o.hostname); } } catch { /* bad origin */ }
     return same;
   };
+  // One-time token for turning an off-by-default skill on; each GET /skills mints a new one. It stops
+  // an agent switching itself on by accident, not a local process that reads the board's own page.
+  let skillToken = "";
   const strict = (req: Request) => {
     if (!sameOrigin(req)) return bad("cross-origin request refused", 403);
     if (!/^application\/json\b/i.test(req.headers.get("content-type") ?? "")) return bad("json body expected", 415);
@@ -1274,11 +1277,18 @@ export async function web(repoDir: string, opts: Opts = {}) {
           if (refused) return refused;
           let body: any;
           try { body = await req.json(); } catch { return bad("json body expected"); }
-          const why = setSkill(repoDir, home, String(body?.id ?? ""), body?.on === true);
+          // Turning an off-by-default skill on needs the one-time token the page got with its last
+          // GET: the warning is a step a person takes, not a flag a caller can send.
+          const tokenOk = !!skillToken && body?.token === skillToken;
+          skillToken = "";
+          const why = setSkill(repoDir, home, String(body?.id ?? ""), body?.on === true, body?.confirm === true && tokenOk);
           if (why) return bad(why);
         }
-        const off = skillsOff(home);
-        return json({ skills: bundledSkills(repoDir).map((s) => ({ ...s, off: off.includes(s.id), agents: skillStatus(s, home), needs: s.needs.map((n) => ({ name: n, found: !!onPath(n) })) })) });
+        const off = [...skillsOff(home), ...skillsHeld(repoDir, home)];
+        skillToken = crypto.randomUUID();
+        // The desktop-control skill shows what this machine lacks, from the helper's own check.
+        const check = bundledSkills(repoDir).some((s) => s.id === "kaizen-computer") ? (await import("./computer.ts")).computerCheck() : null;
+        return json({ token: skillToken, skills: bundledSkills(repoDir).map((s) => ({ ...s, off: off.includes(s.id), agents: skillStatus(s, home), needs: [...s.needs.map((n) => ({ name: n, found: !!onPath(n) })), ...(s.id === "kaizen-computer" && check ? check.needs : [])], ...(s.id === "kaizen-computer" && check ? { note: check.note } : {}) })) });
       }
 
       // Per user, so no scope. A saved environment value is never in either answer.

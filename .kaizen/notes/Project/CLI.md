@@ -1,13 +1,13 @@
 ---
 description: The kaizen command: installer, upgrade, uninstall, settings, prune, sources
 tags: [project, cli]
-sources: [cli/workers.ts, cli/workers.test.ts, cli/install.ts, cli/docs.ts, cli/docs.test.ts, cli/knowledge.ts, cli/setup.ts, cli/qr.ts, cli/settings.ts, cli/settings.test.ts, cli/worktree.ts, package.json]
+sources: [cli/computer.ts, cli/workers.ts, cli/workers.test.ts, cli/install.ts, cli/docs.ts, cli/docs.test.ts, cli/knowledge.ts, cli/setup.ts, cli/qr.ts, cli/settings.ts, cli/settings.test.ts, cli/worktree.ts, package.json]
 updated: 2026-10-31
 ---
 # CLI
 
 ## What it does
-`kaizen` / `kaizen-agent` (both `cli/install.ts`, see `package.json` `bin`) is one top-level script that installs the workflow as links into the agent's folders, and dispatches subcommands: `setup`, `web`, `settings`/`config`, `upgrade`, `uninstall`, `prune`, `sources`/`gather`/`icebox`, `browser login`, `issue`, `remember`/`recall` (global knowledge, `cli/knowledge.ts`), and `docs lint` (`cli/docs.ts`). With no subcommand in an installed setup it opens the [[Terminal board]]. Flags and behaviour for users: `docs/guide.md` ("Install", "Under the hood").
+`kaizen` / `kaizen-agent` (both `cli/install.ts`, see `package.json` `bin`) is one top-level script that installs the workflow as links into the agent's folders, and dispatches subcommands: `setup`, `web`, `settings`/`config`, `upgrade`, `uninstall`, `prune`, `sources`/`gather`/`icebox`, `browser login`, `issue`, `computer` (desktop control, only while its skill is on; `cli/computer.ts`), `remember`/`recall` (global knowledge, `cli/knowledge.ts`), and `docs lint` (`cli/docs.ts`). With no subcommand in an installed setup it opens the [[Terminal board]]. Flags and behaviour for users: `docs/guide.md` ("Install", "Under the hood").
 
 ## Where it lives
 - `cli/workers.ts` — `kaizen worker init|start|status|config|report|merge|set` (dispatch in `cli/install.ts`): orchestration, off by default. All state is `runs/<id>/workers.json`; `start` only writes a request and waits up to 30 s for the board. Settings (`orchestration.enabled|max_workers|permissions|worker_model.<tool>`) are frozen into the file at `init`. `merge` refuses unless every worker succeeded, and a conflict resets the run's branch to its saved sha and sets the run's blocker. A worker with `after:` branches off the worker it follows; `merge` also refuses a branch that changed paths outside its `owns:` and lists any folder or branch it could not remove. A request older than 60 s is stale: the board ignores it. Never uses `prefersBypass`.
