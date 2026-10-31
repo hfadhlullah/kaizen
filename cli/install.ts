@@ -124,6 +124,39 @@ if (Bun.argv[2] === "card") {
 
 // `kaizen computer <verb> ...`: desktop control through the accessibility tree, only while
 // the kaizen-computer skill is on. One JSON line out. See cli/computer.ts.
+// `kaizen automation list | add | run | pause | resume | rm | runs`: schedules that start a run in this
+// project. Fires happen while a board runs; `run` starts one now, in a terminal, without the precheck.
+if (Bun.argv[2] === "automation") {
+  const A = await import("./automations.ts");
+  const { locate } = await import("./state.ts");
+  const state = locate() ?? join(home, ".kaizen");
+  const [verb, ...rest] = Bun.argv.slice(3);
+  const flag = (n: string) => { const i = rest.indexOf("--" + n); return i >= 0 ? rest.splice(i, 2)[1] : undefined; };
+  const fail = (m: string): never => { console.log(`\n  ${m}\n`); process.exit(1); };
+  const rules = () => { try { return A.readRules(state); } catch (e: any) { return fail(e.message); } };
+  const find = (id?: string) => rules().find((r) => r.id === id) ?? fail("No such automation. See: kaizen automation list");
+  if (verb === "add") {
+    const input = { text: flag("text"), kind: flag("every"), time: flag("time"), day: flag("day"), cron: flag("cron"), precheck: flag("precheck"), grace_minutes: flag("grace"), agent: flag("agent"), name: rest.join(" ") };
+    if (input.cron && !input.kind) input.kind = "cron";
+    const r = A.addRule(state, input);
+    if (typeof r === "string") fail(`${r}\n  kaizen automation add "<name>" --text "<request>" --every hourly|daily|weekdays|weekly [--time HH:MM] [--day mon] | --cron "<5 fields>" [--precheck "<cmd>"] [--grace N] [--agent <tool>]`);
+    else console.log(`\n  ${c.green("added")}  ${r.name}  ${c.dim(`${r.id} · ${r.cron}`)}\n  ${c.dim("Runs unattended in auto mode: it changes code and spends tokens with nobody watching.")}\n${r.precheck ? `  ${c.dim("precheck, runs on this computer every time it fires:")} ${r.precheck}\n` : ""}`);
+  } else if (verb === "list" || !verb) {
+    for (const r of rules()) { const n = A.nextRun(r.cron, Date.now()); console.log(`  ${r.id}  ${r.enabled ? "on " : "off"}  ${r.cron.padEnd(14)} next ${n ? new Date(n).toLocaleString() : "never"}  ${r.name}`); }
+  } else if (verb === "pause" || verb === "resume") {
+    const r = A.setEnabled(state, find(rest[0]).id, verb === "resume"); if (typeof r === "string") fail(r); console.log(`\n  ${verb}d ${rest[0]}\n`);
+  } else if (verb === "rm") {
+    const r = A.removeRule(state, find(rest[0]).id); if (r) fail(r); console.log(`\n  removed ${rest[0]}\n`);
+  } else if (verb === "run") {
+    const h = await A.fire(state, find(rest[0]), "manual", Date.now());
+    console.log(`\n  ${h?.status}${h?.reason ? `: ${h.reason}` : ""}\n`); process.exit(h?.status === "launched" ? 0 : 1);
+  } else if (verb === "runs") {
+    const id = find(rest[0]).id;
+    for (const h of A.readHistory(state).filter((x) => x.rule === id).sort((a, b) => b.at - a.at)) { const v = A.shown(state, h); console.log(`  ${new Date(h.at).toLocaleString()}  ${h.kind.padEnd(9)} ${v.status}${v.run ? "  " + v.run : ""}${h.reason ? "  " + h.reason : ""}`); }
+  } else fail("kaizen automation list | add | run <id> | pause <id> | resume <id> | rm <id> | runs <id>");
+  process.exit(0);
+}
+
 if (Bun.argv[2] === "computer") {
   const { computer } = await import("./computer.ts");
   const { out, code } = await computer(Bun.argv.slice(3), { home: homedir() });

@@ -17,6 +17,7 @@ export const SETTINGS_NAV: [string, SettingsPage[]][] = [
   ["Workflows", [
     { id: "approvals", title: "Approvals", desc: "Where a run stops and waits for you.", ico: "check" },
     { id: "autofix", title: "Auto-fix", desc: "What happens to review findings.", ico: "bug" },
+    { id: "automations", title: "Automations", desc: "Schedules that start a run in this project.", ico: "clock" },
     { id: "git", title: "Git & Source Control", desc: "Branches and commits for each run.", ico: "pen" },
     { id: "terminal", title: "Terminal", desc: "The terminal dashboard.", ico: "term" },
   ]],

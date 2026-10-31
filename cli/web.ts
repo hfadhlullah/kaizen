@@ -28,6 +28,7 @@ import { writeBacks } from "./writeback.ts";
 import { postLink, sendReply } from "./browser.ts";
 import { listNotes, saveNote, renameNote, deleteNote, boardIndex, linksTo } from "./notes.ts";
 import * as video from "./video.ts";
+import * as auto from "./automations.ts";
 import * as localsend from "./localsend.ts";
 import * as hermes from "./hermes.ts";
 import { listChats, readChat, sendChat, stopChat, deleteChat, okId as okChatId, busy as chatBusy, type Event as ChatEvent, type Upload as ChatUpload } from "./chat.ts";
@@ -75,6 +76,8 @@ const served = (f: string) => installed() === VERSION && existsSync(f) ? readTex
 // Loopback hosts only; shared by /open-url and /frameable so the board is never a way to reach other sites.
 const isLoopback = (u: URL) => ["localhost", "127.0.0.1", "[::1]"].includes(u.hostname);
 
+// A run whose launched terminal is still alive (automations treat it as open).
+const runLive = (dir: string, id: string) => Object.values(stagesOf(dir, id)).some((k) => !!ptyState(k)?.alive);
 export const stagesOf = (dir: string, id: string): Record<string, string> => { try { return JSON.parse(readText(join(dir, "runs", id, "terminals.json"))) ?? {}; } catch { return {}; } };
 export const markStage = (dir: string, id: string, stage: string, key?: string) => {
   if (!stage || !key || !id || /^\.+$/.test(id)) return;
@@ -540,6 +543,15 @@ export async function web(repoDir: string, opts: Opts = {}) {
       }
     } catch { /* the next tick tries again */ }
     busy = false;
+  }, 60_000);
+
+  // Automations: a due rule starts a run in its own project. Own busy flag; a fire may wait on a precheck.
+  let autoBusy = false;
+  const automate = setInterval(async () => {
+    if (autoBusy) return;
+    autoBusy = true;
+    try { if (await auto.tickAutomations(states(true).filter((d) => d !== join(home, ".kaizen")), { pick: inCard, live: runLive })) changed(); } catch { /* the next tick tries again */ }
+    autoBusy = false;
   }, 60_000);
 
   // Done requests are reported back to their sources here, on the board's own clock: a
@@ -1269,6 +1281,41 @@ export async function web(repoDir: string, opts: Opts = {}) {
           return { ...x, isDefault: a.default[x.tool] === x.id, signedIn: signedIn(dir, x.tool), usage: hit.usage, signIn: `${ACCOUNT_VAR[x.tool]}=${dir} ${x.tool}${x.tool === "codex" ? " login" : ""}` };
         }));
         return json({ accounts: rows, windows: process.platform === "win32", ...(added ? { added } : {}) });
+      }
+
+      if (path === "/automations" && (req.method === "GET" || req.method === "POST")) {
+        if (!state || state === join(home, ".kaizen")) return json({ error: "Open a project first." }, 404);
+        let rules: auto.Rule[];
+        try { rules = auto.readRules(state); } catch (e: any) { return bad(e.message, 500); }
+        if (req.method === "POST") {
+          const refused = strict(req);
+          if (refused) return refused;
+          let body: any;
+          try { body = await req.json(); } catch { return bad("json body expected"); }
+          const id = String(body.id ?? "");
+          let r: unknown = null;
+          if (body.op === "create") r = auto.addRule(state, body);
+          else if (body.op === "update") r = auto.updateRule(state, id, body);
+          else if (body.op === "pause" || body.op === "resume") r = auto.setEnabled(state, id, body.op === "resume");
+          else if (body.op === "delete") r = auto.removeRule(state, id);
+          else if (body.op === "run") {
+            const rule = rules.find((x) => x.id === id);
+            if (!rule) return bad("No such automation.", 404);
+            const h = await auto.fire(state, rule, "manual", Date.now(), { pick: inCard, live: runLive });
+            changed();
+            return json({ ok: h?.status === "launched", status: h?.status, why: h?.reason }, 200);
+          } else return bad("unknown op");
+          if (typeof r === "string") return bad(r);
+          changed();
+          rules = auto.readRules(state);
+        }
+        const hist = auto.readHistory(state);
+        const now = Date.now();
+        return json({
+          zone: Intl.DateTimeFormat().resolvedOptions().timeZone, cap: auto.DAILY_CAP, project: label(state),
+          agents: KNOWN_AGENTS.filter((a) => agentEnabled(a.cmd)).map((a) => ({ cmd: a.cmd, name: a.name })),
+          rules: rules.map((r) => ({ ...r, next: auto.nextRun(r.cron, now), history: hist.filter((h) => h.rule === r.id).sort((a, b) => b.at - a.at).slice(0, 20).map((h) => ({ ...h, ...auto.shown(state, h, now) })) })),
+        });
       }
 
       if (path === "/skills" && (req.method === "GET" || req.method === "POST")) {
@@ -2197,7 +2244,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
       const live = ptyKeys().some((k) => ptyState(k)?.alive);
       saveLive();
       awake.stop();
-      clearInterval(poll); clearInterval(ping); clearInterval(gather); clearInterval(loop); clearInterval(keepList);
+      clearInterval(poll); clearInterval(ping); clearInterval(gather); clearInterval(automate); clearInterval(loop); clearInterval(keepList);
       for (const w of watchers) { try { w.close(); } catch { /* gone */ } }
       setTimeout(() => { server.stop(true); resolve(); }, live ? 400 : 0);
     };

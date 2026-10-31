@@ -11,6 +11,7 @@ install details, settings, and the installer's flags.
 - [What it writes](#what-it-writes)
 - [Settings](#settings)
 - [Under the hood](#under-the-hood)
+- [Automations](#automations)
 - [Reporting a bug](#reporting-a-bug)
 
 ## How a run goes
@@ -706,6 +707,10 @@ for f in ~/kaizen/commands/kaizen-*.md; do ln -s "$f" ~/.claude/commands/"$(base
 ```
 
 </details>
+
+## Automations
+
+Settings → Workflows → Automations (or `kaizen automation add "<name>" --text "<request>" --every weekly --time 09:00 --day mon`) schedules a run in one project: hourly, daily, weekdays, weekly, or a 5-field cron. A fire starts a real run in auto mode: it plans, builds and reviews with nobody watching, so it changes code and spends tokens (`approvals.review` still holds unless `auto_accept` is on). An optional precheck, a shell command you write, runs on this computer before each scheduled fire; non-zero skips it. Fires happen only while a board is running; a missed fire starts once if within the grace time (720 minutes by default), else is recorded as skipped. One open run per automation, at most 24 starts a day, each with a history line. `kaizen automation list | run <id> | pause <id> | resume <id> | rm <id> | runs <id>`.
 
 ## Reporting a bug
 

@@ -135,7 +135,7 @@ const isCommand = (t: string) => COMMANDS.has((/[a-z][a-z-]*/i.exec(t.split(" ")
 // drops a `<where> - <severity> -` or `<severity>:` lead and every backtick. The
 // check is on that final text, whatever parseItem did to get there; the kind the
 // user chose, when it is still in front, is theirs and set aside.
-const obeyed = (t: string) => isCommand(t) || ["", "full ", "lite "].some((kind) => {
+export const obeyed = (t: string) => isCommand(t) || ["", "full ", "lite "].some((kind) => {
   const sent = parseItem(kind + t).text;
   return isCommand(kind && sent.startsWith(kind) ? sent.slice(kind.length) : sent);
 });

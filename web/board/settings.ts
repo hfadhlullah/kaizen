@@ -1,12 +1,13 @@
 import { store } from "./store.ts";
 import { termStop } from "./agent-term.ts";
-import { load, post } from "./api.ts";
+import { dirHeader, load, post } from "./api.ts";
 import { stopDictation } from "./dictation.ts";
 import { $, html, ico, raw } from "./dom.ts";
 import { close } from "./panel.ts";
 import { accountRows, wireAccounts } from "./settings-accounts.ts";
 import { agentRows, wireAgents } from "./settings-agents.ts";
 import { modelInput, modelLabel, orchestrationRows } from "./settings-orchestration.ts";
+import { automationRows, wireAutomations } from "./settings-automations.ts";
 import { skillRows, wireSkills } from "./settings-skills.ts";
 import { fillMics, micRow } from "./settings-voice.ts";
 import { placeOf, SETTINGS_NAV } from "./settings-pages.ts";
@@ -68,6 +69,9 @@ export async function openSettings() {
     .then((r) => (r.ok ? r.json() : null))
     .catch(() => null);
   const sk = await fetch("/skills")
+    .then((r) => (r.ok ? r.json() : null))
+    .catch(() => null);
+  const au = await fetch("/automations", { headers: dirHeader() })
     .then((r) => (r.ok ? r.json() : null))
     .catch(() => null);
   if (gen !== store.pageGen) return;
@@ -180,7 +184,7 @@ export async function openSettings() {
         <button class="sup" type="button">${ico("chev")}Settings</button>
         <header><h2>${p.title}</h2><p>${p.desc}${scopeName ? ` Editing ${scopeName}.` : ""}</p></header>
         ${p.id === "general" ? html`<div id="supd"></div>` : ""}
-        <div class="scard">${p.id === "agents" && ap ? agentRows(ap, defaultAgent, scopeName) : ""}${p.id === "accounts" && ac ? accountRows(ac) : ""}${p.id === "orchestration" && cfg ? orchestrationRows({ windows: !!cfg.windows, bypass: cfg.rows.some((r) => r.key === "orchestration.permissions" && r.value === "bypass") }) : ""}${p.id === "skills" && sk ? skillRows(sk.skills) : ""}${[...pageRows.get(p.id)].map(([sub, rows]) => html`<h3 class="sg">${sub}</h3><div class="sgrp">${rows}</div>`)}</div>
+        <div class="scard">${p.id === "agents" && ap ? agentRows(ap, defaultAgent, scopeName) : ""}${p.id === "accounts" && ac ? accountRows(ac) : ""}${p.id === "orchestration" && cfg ? orchestrationRows({ windows: !!cfg.windows, bypass: cfg.rows.some((r) => r.key === "orchestration.permissions" && r.value === "bypass") }) : ""}${p.id === "skills" && sk ? skillRows(sk.skills) : ""}${p.id === "automations" ? (au ? automationRows(au) : html`<h3 class="sg">Automations</h3><div class="sgrp"><div class="sk" data-q="automation">Open a project to add automations. They belong to one project each.</div></div>`) : ""}${[...pageRows.get(p.id)].map(([sub, rows]) => html`<h3 class="sg">${sub}</h3><div class="sgrp">${rows}</div>`)}</div>
       </div>`)}
       ${cfg ? "" : html`<p class="snone">Settings could not be read. Run <code>kaizen settings</code>.</p>`}
       <p class="snone" id="snone" hidden></p>
@@ -245,6 +249,7 @@ export async function openSettings() {
   };
   if (ap) wireAgents(openSettings, cfg?.scope ?? null);
   if (sk) wireSkills(openSettings, sk.token);
+  if (au) wireAutomations(au, openSettings);
   fillMics();
   if (ac) wireAccounts(openSettings);
   filter();

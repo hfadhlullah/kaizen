@@ -22,3 +22,7 @@ test("the Orchestration page exists and holds its three settings", () => {
   expect(pages.has("orchestration")).toBe(true);
   for (const k of ["enabled", "max_workers", "permissions", "worker_model.claude"]) expect(placeOf(`orchestration.${k}`)).toEqual(["orchestration", "Workers"]);
 });
+
+test("the Automations page sits under Workflows", () => {
+  expect(SETTINGS_NAV.find(([g]) => g === "Workflows")![1].some((p) => p.id === "automations")).toBe(true);
+});
