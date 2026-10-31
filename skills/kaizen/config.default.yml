@@ -110,6 +110,30 @@ git:
   # a new worktree. true always makes one, false never does.
   worktree_per_run: ask
 
+orchestration:
+  # true: a plan may split into workers (a `## Workers` section you approve with the plan).
+  # Each worker is a real agent terminal on the board, in its own branch and folder; the
+  # run's build agent merges them when every one has succeeded. Off by default, and with it
+  # off nothing behaves differently. Needs the board running, a run worktree, a full (not
+  # lite) run, and Linux or macOS. A run's own `kaizen worker set <run> on|off` wins.
+  enabled: false
+  # Most workers one run may be split into (1-6). A run already building keeps the value it started with.
+  max_workers: 3
+  # own: each worker uses its agent's own permission prompts (your global bypass is NOT inherited).
+  # bypass: every worker skips every prompt; its tab and the run's card say so.
+  permissions: own
+  # Model each worker runs on, per tool, in that tool's own spelling (haiku for Claude Code,
+  # a gpt name for Codex). Empty: the run's own model, exactly as before. Only the run's own
+  # agent's value is used, frozen into the run when its build starts. Any name is accepted;
+  # the tool itself reports one it does not know. A tool with no model flag ignores it, and
+  # the worker's record in workers.json says so.
+  worker_model:
+    claude: ""
+    agy: ""
+    codex: ""
+    gemini: ""
+    opencode: ""
+
 ui:
   # Mouse in the TUI: click a row or card to select it, click it again to open or
   # run it, wheel to scroll. Off by default, and the reason is a real trade: while

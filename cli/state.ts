@@ -79,7 +79,7 @@ function autoAgent(projectDir: string): Agent {
 //   agent:
 //     codex: { model: gpt-5, effort: low }
 // Each tool spells the flag its own way; a tool not listed here takes none.
-const MODEL_FLAGS: Record<string, (m: string) => string[]> = {
+export const MODEL_FLAGS: Record<string, (m: string) => string[]> = {
   claude: (m) => ["--model", m], agy: (m) => ["--model", m], codex: (m) => ["-m", m],
   gemini: (m) => ["-m", m], opencode: (m) => ["-m", m],
 };
@@ -549,7 +549,7 @@ export function reviewFindings(state: string, id: string) {
   const closed = read("06-backlog.md").flatMap((l) => /^-\s*(?:done|rejected):\s*(.*)$/.exec(l)?.[1] ?? []);
   const iter = join(base, "05-iterations");
   const rechecked = new Set((existsSync(iter) ? readdirSync(iter) : []).filter((f) => f.endsWith("-recheck.md"))
-    .flatMap((f) => [...readText(join(iter, f)).matchAll(/finding\s+(\d+)\W{1,8}closed/gi)].map((m) => Number(m[1]))));
+    .flatMap((f) => [...readText(join(iter, f)).matchAll(/finding\s+(\d+)\W{1,8}(?:closed|pass)\b/gi)].map((m) => Number(m[1]))));
   return lines.flatMap((l) => {
     const m = /^(\d+)\.\s+(.+)$/.exec(l);
     if (!m) return [];

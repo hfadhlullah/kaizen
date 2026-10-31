@@ -3,7 +3,7 @@
 import { existsSync, writeFileSync, copyFileSync, mkdirSync } from "node:fs";
 import { join, dirname, basename } from "node:path";
 import { homedir } from "node:os";
-import { readText, knownProjects } from "./state.ts";
+import { readText, knownProjects, KNOWN_AGENTS, MODEL_FLAGS } from "./state.ts";
 
 // `text` is a value typed rather than chosen: a path. It has no values to cycle.
 // `when`: the row only has an effect while that other key holds that value; both
@@ -122,6 +122,11 @@ const SETTINGS: Setting[] = [
   { key: "auto_fix.max_iterations", label: "Max fix rounds", group: "Auto-fix", values: ["1", "2", "3", "4", "5"], help: "", when: ["auto_fix.enabled", "true"] },
   { key: "git.auto_commit", label: "Commit when done", group: "Git", values: ["false", "true"], help: "Never pushes" },
   { key: "git.worktree_per_run", label: "Branch and folder per run", group: "Git", values: ["ask", "true", "false"], help: "" },
+  { key: "orchestration.enabled", label: "Build with workers", group: "Orchestration", values: ["false", "true"], help: "Off by default. A plan may split into workers, each in its own terminal and folder. Linux and macOS only" },
+  { key: "orchestration.max_workers", label: "Max workers per run", group: "Orchestration", values: ["1", "2", "3", "4", "5", "6"], help: "Total per run", when: ["orchestration.enabled", "true"] },
+  { key: "orchestration.permissions", label: "Worker permissions", group: "Orchestration", values: ["own", "bypass"], help: "own: each agent's own prompts. Bypass skips every prompt in every worker", when: ["orchestration.enabled", "true"] },
+  // One per tool that takes a model flag; a run freezes its own agent's. Empty: the run's own model.
+  ...KNOWN_AGENTS.filter((a) => MODEL_FLAGS[a.cmd]).map((a): Setting => ({ key: `orchestration.worker_model.${a.cmd}`, label: `Worker model: ${a.name}`, group: "Orchestration", values: [], text: true, help: "The tool's own model name. Empty: the run's own model", when: ["orchestration.enabled", "true"] })),
   { key: "review.write_memory", label: "Remember lessons", group: "Project", values: ["true", "false"], help: "" },
   { key: "review.memory_max_lines", label: "Memory size cap", group: "Project", values: ["50", "100", "200", "400"], help: "" },
   { key: "state.keep_runs", label: "Runs to keep", group: "Project", values: ["5", "10", "20", "50"], help: "" },
@@ -487,7 +492,7 @@ function lineOf(text: string, key: string) {
   return { lines, index: from - 1, indent: depth - 2 };
 }
 
-function read(text: string, key: string) {
+export function read(text: string, key: string) {
   const { lines, index } = lineOf(text, key);
   if (index < 0) return null;
   const v = lines[index]!.split(":").slice(1).join(":").split("#")[0]!.trim();
@@ -532,16 +537,17 @@ function insert(text: string, key: string, shown: string, defaults: string) {
     return [...lines, "", ...block, ""].join("\n");
   }
 
-  // Nested: put it under its parent if the parent is there, else write the parent too.
-  const parent = parts.slice(0, -1).join(".");
-  const { index: pi } = lineOf(text, parent);
-  if (pi < 0) {
+  // Nested: put it under the deepest parent that is there, writing the missing ones too.
+  let k = parts.length - 1;
+  while (k > 0 && lineOf(text, parts.slice(0, k).join(".")).index < 0) k--;
+  const add = [...parts.slice(k, -1).map((p, i) => `${" ".repeat((k + i) * 2)}${p}:`), ...block];
+  if (k === 0) {
     while (lines.length && !lines[lines.length - 1]!.trim()) lines.pop();
-    return [...lines, "", `${parts[0]}:`, ...block, ""].join("\n");
+    return [...lines, "", ...add, ""].join("\n");
   }
-  let end = pi + 1;
+  let end = lineOf(text, parts.slice(0, k).join(".")).index + 1;
   while (end < lines.length && (/^\s+\S/.test(lines[end]!) || !lines[end]!.trim())) end++;
-  lines.splice(end, 0, ...block);
+  lines.splice(end, 0, ...add);
   return lines.join("\n");
 }
 

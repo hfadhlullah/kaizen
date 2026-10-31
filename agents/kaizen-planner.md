@@ -250,6 +250,7 @@ software — a document or a runbook has no stdlib to reach for.
   large refactor, say so in Risks and offer the narrow version as an alternative.
 - Match the repo's existing conventions; do not introduce a new pattern, library, or
   dependency without justifying it in the plan.
+- Only when `kaizen worker config <run id>` prints `on` and the work has two or more independent halves, add a `## Workers` section as the planning stage describes; otherwise plan no workers.
 - If the request cannot be planned without an answer from the user, ask — and if the
   answer is not available, put it in Open questions rather than picking a default and
   burying it in a step.

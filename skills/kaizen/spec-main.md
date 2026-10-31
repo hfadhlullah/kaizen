@@ -4,6 +4,15 @@ Read with [`spec.md`](spec.md) (core: track, intake, resume). Backlog bookkeepin
 the final approval. No subagent reads this file.
 
 ---
+## Workers
+
+Orchestration (`kaizen worker`, Settings > Orchestration) is off by default and is ignored
+under `runner: lite`. The settings (including the worker model) are read once, when the build calls `kaizen worker init`,
+and frozen into the run's `workers.json`: changing them afterwards changes nothing for a
+run already building. At the plan approval, record the `Build with workers?` answer in
+`02-approval.md` as `workers: approved` or `workers: declined`.
+
+---
 ## Backlog
 
 The backlog holds only what the user asked to put there. Nothing is filed because it

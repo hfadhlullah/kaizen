@@ -244,6 +244,20 @@ code, it is in the wrong section.
 A plan whose framing is longer than its steps is a plan that spent the run's budget
 explaining itself.
 
+**Workers, only when on.** Run `kaizen worker config <run id>`. It prints `on`, or `off`
+with the reason (off by default; also off for a lite run, a run with no worktree, and on
+Windows). While it says off, the plan has no workers and nothing here applies. While it
+says on, and the work really has two or more independent halves that touch different
+files, add a `## Workers` section: one line per worker, in order,
+`w1 — <title> — owns: <path>, <path> — after: w0` (`after:` only where one must wait for
+another, and only on an earlier worker). Rules: at most the `max` that `config` prints;
+every path is owned by exactly one worker (a folder owns what is under it, and two
+workers never own the same path); each owns a whole piece it can finish and test alone.
+Fewer than two independent halves is not a split: leave the section out. The approval
+asks `Q: Build with workers?` with `yes` (recommended while the halves are clear) and
+`no`; the main thread records the answer in `02-approval.md` as a line
+`workers: approved` or `workers: declined`. Nothing is split without that line.
+
 ---
 
 ## Plan approval

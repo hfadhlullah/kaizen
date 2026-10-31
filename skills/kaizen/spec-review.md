@@ -11,6 +11,10 @@ reviewer's contract. The planner and builder do not read it.
 read), `03-impl.md`, and the work produced.
 **Output:** `04-review.md`.
 
+**Where the run has a `workers.json`** in its folder, read it too. The code under review
+is the merged branch. Any worker whose status is not `merged`, or a `merge` that is not
+`merged`, is a finding at high severity: say which worker and what its status is.
+
 The track's third answer — *what would make it wrong* — is the reviewer's primary
 brief. It reads that first and hunts for it specifically.
 

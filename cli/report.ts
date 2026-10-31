@@ -8,8 +8,8 @@ export type Handback = { stage: string; iteration?: number; outcome: "succeeded"
 export type Report = { phase?: string; at: number; blocked?: { question: string; options: string[] }; handback?: Handback };
 export type Signal = "blocked" | "stale" | "unverified" | null;
 
-const clip = (s: unknown, n: number) => String(s ?? "").replace(/[\0-\x1f\x7f]+/g, " ").trim().slice(0, n);
-const validId = (id: string) => /^[A-Za-z0-9][\w.-]{0,127}$/.test(id) && !id.includes("..");
+export const clip = (s: unknown, n: number) => String(s ?? "").replace(/[\0-\x1f\x7f]+/g, " ").trim().slice(0, n);
+export const validId = (id: string) => /^[A-Za-z0-9][\w.-]{0,127}$/.test(id) && !id.includes("..");
 
 // A worktree carries its own committed .kaizen with no runs: the project's holds them.
 export const stateOf = (cwd: string, found: string | null) => /^(.*[\\/]\.kaizen)[\\/]wt[\\/]/.exec(cwd)?.[1] ?? found;
