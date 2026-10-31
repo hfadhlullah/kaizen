@@ -205,7 +205,10 @@ The planner reads code but writes none. Its plan must contain:
 
 8. **Risks** — what could break, what is irreversible, what needs a migration or a
    backup taken first.
-9. **Open questions** — assumptions that survived the interview. If this list is
+9. **Open questions** — where `git.worktree_per_run` is `ask`, the mode is not `auto` and
+   the work is in a git repository with a remote, always `Q: Where should this run build?`
+   with `- New worktree (recommended) — its own branch` and `- Current folder — no branch`;
+   the answer goes in `02-approval.md`. Then the assumptions that survived the interview. If this list is
    non-empty, the approval must ask the user about it rather than defaulting. The
    board shows a waiting plan's questions as a pick list and sends the answers with
    its approval, so keep this shape: each question on its own line as

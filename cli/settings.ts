@@ -50,7 +50,7 @@ export const PRESETS: Record<PresetName, {
       "auto_fix.min_severity": "low",
       "auto_fix.max_iterations": "2",
       "git.auto_commit": "false",
-      "git.worktree_per_run": "true",
+      "git.worktree_per_run": "ask",
     },
   },
   ultra: {
@@ -121,7 +121,7 @@ const SETTINGS: Setting[] = [
   { key: "auto_fix.min_severity", label: "Lowest severity to fix", group: "Auto-fix", values: ["critical", "high", "medium", "low"], help: "", when: ["auto_fix.enabled", "true"] },
   { key: "auto_fix.max_iterations", label: "Max fix rounds", group: "Auto-fix", values: ["1", "2", "3", "4", "5"], help: "", when: ["auto_fix.enabled", "true"] },
   { key: "git.auto_commit", label: "Commit when done", group: "Git", values: ["false", "true"], help: "Never pushes" },
-  { key: "git.worktree_per_run", label: "Branch and folder per run", group: "Git", values: ["true", "false"], help: "" },
+  { key: "git.worktree_per_run", label: "Branch and folder per run", group: "Git", values: ["ask", "true", "false"], help: "" },
   { key: "review.write_memory", label: "Remember lessons", group: "Project", values: ["true", "false"], help: "" },
   { key: "review.memory_max_lines", label: "Memory size cap", group: "Project", values: ["50", "100", "200", "400"], help: "" },
   { key: "state.keep_runs", label: "Runs to keep", group: "Project", values: ["5", "10", "20", "50"], help: "" },

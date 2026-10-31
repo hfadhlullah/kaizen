@@ -106,7 +106,9 @@ git:
   # .kaizen/wt/, so runs and people working at the same time never share a folder. Done
   # lands the branch by pull request (gh) or a rebase and push. Ignored when the
   # project is not a git repository with a remote.
-  worktree_per_run: true
+  # ask: the plan approval offers a new worktree or the current folder; auto mode takes
+  # a new worktree. true always makes one, false never does.
+  worktree_per_run: ask
 
 ui:
   # Mouse in the TUI: click a row or card to select it, click it again to open or

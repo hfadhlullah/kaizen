@@ -1,7 +1,7 @@
 // One branch and one git worktree per run, so agents building at the same time never
 // share a working folder. Run notes stay in the project's .kaizen/runs/<id>/; only the
 // code lives in the worktree. Every git call is an argv array, never a shell string.
-import { existsSync, readFileSync, writeFileSync, rmSync, realpathSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync, realpathSync } from "node:fs";
 import { join, dirname, resolve, sep } from "node:path";
 import { branchesOf } from "./add-project.ts";
 
@@ -310,6 +310,24 @@ export const wsOf = (project: string, state: { worktree?: unknown; workspace?: u
   const w = [state.worktree, state.workspace].find((x) => typeof x === "string" && existsSync(x));
   return typeof w === "string" ? real(w) : project;
 };
+
+/** A board terminal's link to the run it started a worktree for: <state>/sessions/<key>.run holds the run id. */
+const termFile = (state: string, key: string) => join(state, "sessions", `${key}.run`);
+export const linkTerm = (state: string, key: string | undefined, id: string) => {
+  if (!key || !/^sh-[0-9a-f]{8}$/.test(key)) return;
+  mkdirSync(join(state, "sessions"), { recursive: true });
+  writeFileSync(termFile(state, key), id);
+};
+/** The worktree a linked terminal's live run is in; null when it has no link, the run ended, or the worktree is gone. */
+export function linkedWs(state: string, key: string): string | null {
+  try {
+    const id = readFileSync(termFile(state, key), "utf8").trim();
+    const s = JSON.parse(readFileSync(join(state, "runs", id, "state.json"), "utf8"));
+    if (s.stage === "done" || s.stage === "abandoned") return null;
+    const project = dirname(state), w = wsOf(project, s);
+    return w === project ? null : w;
+  } catch { return null; }
+}
 
 /**
  * `kaizen worktree start` run from inside one of the project's other workspaces: the run is

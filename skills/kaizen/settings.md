@@ -25,7 +25,7 @@ nearest first, so a change lands globally unless this project keeps its own conf
 | `auto_fix.max_iterations` | `1`–`5` | Fix and recheck rounds before what is left is escalated |
 | `review.write_memory` | `true`, `false` | Let the reviewer append lessons to `memory.md` |
 | `git.auto_commit` | `true`, `false` | Commit the work when a run finishes |
-| `git.worktree_per_run` | `true`, `false` | Build each run on its own branch in its own worktree and land it by pull request |
+| `git.worktree_per_run` | `ask`, `true`, `false` | Build each run on its own branch in its own worktree and land it by pull request; `ask` offers the choice at the plan approval |
 | `ui.mouse` | `false`, `true` | Click to select, click again to act; while on, the terminal cannot select text |
 | `subagents.model` | `inherit`, `opus`, `sonnet`, `haiku` | Model the stage subagents run on (Claude Code only) |
 | `subagents.effort` | `inherit`, `low`, `medium`, `high` | Reasoning effort for the stage subagents (Claude Code only) |

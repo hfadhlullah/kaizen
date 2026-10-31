@@ -39,8 +39,9 @@ Rules:
   folder there is no branch to make and no commit to skip, and that absence is not a
   finding.
 
-**Build on the run's own branch, where `git.worktree_per_run` is on** (the default, in a
-git repository with a remote). Right after `stage: "build"` is written and before the
+**Build on the run's own branch, where `git.worktree_per_run` is `true`, or `ask` and the
+plan approval chose a new worktree or the mode is `auto`** (in a git repository with a remote;
+a chosen current folder skips this and builds in place). Right after `stage: "build"` is written and before the
 first edit, run `kaizen worktree start` with the run id from the project folder. It
 makes `.kaizen/wt/<id>` on the branch `kaizen/<id>`, cut from the remote default branch,
 and records `worktree` and `branch` in `state.json`. From then on every edit, test run

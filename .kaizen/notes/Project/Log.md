@@ -243,3 +243,4 @@ updated: 2026-10-28
 - 2026-10-31 run 2026-10-31-settings-agents-page — Web board
 - 2026-10-31 run 2026-10-31-agent-reporting — Web board
 - 2026-10-31 run 2026-10-31-settings-skills-page — Web board
+- 2026-10-31 run 2026-10-31-worktree-ask-agent-placement — Web board, Workflow: `git.worktree_per_run: ask`; an agent follows its run to the worktree.

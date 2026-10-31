@@ -29,7 +29,7 @@ at the same time never touch each other's files. When you approve the finished r
 kaizen pushes the branch, opens a pull request and merges it if GitHub says it is
 clean (without the `gh` tool it rebases and pushes to the default branch instead). A
 conflict leaves the pull request and the folder in place and tells you. Turn it off
-with the `git.worktree_per_run` setting.
+with the `git.worktree_per_run` setting. Set to `ask`, the default, the plan approval asks whether to use a new worktree or the current folder. While a run started from a board terminal builds in a worktree, the board lists that agent and its tab under the worktree, and returns them when the run ends.
 
 Asking for a whole app — web, mobile, PWA, anything with more than one module — gets a
 roadmap instead of one big run. The planner reads what you brought, offers to study an

@@ -1,9 +1,9 @@
 // A real bare remote, two clones and real git: the landing is only as good as git says.
 import { test, expect, beforeEach } from "bun:test";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, realpathSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { startWorktree, landWorktree, codeDir, projectFromWorktree, run, runAsync, workspaces, workspacesNow, addWorktree, wsOf, adoptWorkspace, branchState, openPr, mergePr, removeWorktree, type Run, type AsyncRun } from "./worktree.ts";
+import { linkTerm, linkedWs, startWorktree, landWorktree, codeDir, projectFromWorktree, run, runAsync, workspaces, workspacesNow, addWorktree, wsOf, adoptWorkspace, branchState, openPr, mergePr, removeWorktree, type Run, type AsyncRun } from "./worktree.ts";
 
 const ID = "2026-10-17-demo";
 // CI runners have no git identity, and landWorktree's rebase writes commits.
@@ -257,4 +257,23 @@ test("G-04 removeWorktree keeps unmerged work when nothing can prove it landed (
   expect(r.ok).toBe(false);
   expect(existsSync(w)).toBe(true);
   expect(g(project, "branch", "--list", `kaizen/${ID}`)).toContain(ID);
+});
+
+test("a linked terminal shows its live run's worktree, then falls back", () => {
+  const p = realpathSync(mkdtempSync(join(tmpdir(), "kz-link-"))), state = join(p, ".kaizen"), id = "r1", wt = join(p, "wt");
+  mkdirSync(join(state, "runs", id), { recursive: true }); mkdirSync(wt);
+  const put = (s: object) => writeFileSync(join(state, "runs", id, "state.json"), JSON.stringify(s));
+  put({ stage: "build", worktree: wt });
+  linkTerm(state, "bad key", id);
+  linkTerm(state, "sh-0123abcd", id);
+  expect(linkedWs(state, "sh-0123abcd")).toBe(wt);
+  expect(linkedWs(state, "sh-ffffffff")).toBeNull();     // an unlinked terminal stays put
+  put({ stage: "done", worktree: wt });
+  expect(linkedWs(state, "sh-0123abcd")).toBeNull();
+  put({ stage: "abandoned", worktree: wt });
+  expect(linkedWs(state, "sh-0123abcd")).toBeNull();
+  put({ stage: "build", worktree: join(p, "gone") });
+  expect(linkedWs(state, "sh-0123abcd")).toBeNull();
+  put({ stage: "build" });                               // a current-folder run has no worktree
+  expect(linkedWs(state, "sh-0123abcd")).toBeNull();
 });

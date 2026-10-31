@@ -94,7 +94,7 @@ export const ptySupported = WIN || typeof (Bun as any).Terminal === "function";
 // seed: what the card showed before the board restarted, replayed ahead of the new output.
 // tmux: run cmd inside a tmux session of that name on kaizen's own server (tmuxCmd), which
 // outlives the board; null where tmux cannot be used, and the agent runs plainly.
-export function startPty(key: string, cmd: string[], cwd: string, pidFile?: string, onChange?: () => void, opts: { seed?: string; tmux?: string; attach?: boolean } = {}): number {
+export function startPty(key: string, cmd: string[], cwd: string, pidFile?: string, onChange?: () => void, opts: { seed?: string; tmux?: string; attach?: boolean; env?: Record<string, string> } = {}): number {
   const dec = new TextDecoder();
   const p: Pty = { proc: null as unknown as Bun.Subprocess, out: opts.seed ? [opts.seed] : [], size: opts.seed?.length ?? 0, listeners: new Set(), exit: null, asking: false, busy: false, total: 0, since: 0, onChange, last: "", lastAt: 0, typedAt: 0, born: Date.now() };
   // attach: the session already runs (kept from a board before this one); only a client is started.
@@ -126,7 +126,7 @@ export function startPty(key: string, cmd: string[], cwd: string, pidFile?: stri
     const ps = winPs();
     p.proc = Bun.spawn([ps, "-NoProfile", "-NonInteractive", "-EncodedCommand", conptyHost()], {
       cwd,
-      env: { ...colorEnv(), KAIZEN_BOARD_PID: String(process.pid), KZ_PTY_CMD: innerCommand(ps, cmd), KZ_PTY_CWD: cwd, KZ_PTY_COLS: "120", KZ_PTY_ROWS: "32" },
+      env: { ...colorEnv(), ...opts.env, KAIZEN_BOARD_PID: String(process.pid), KZ_PTY_CMD: innerCommand(ps, cmd), KZ_PTY_CWD: cwd, KZ_PTY_COLS: "120", KZ_PTY_ROWS: "32" },
       stdin: "pipe", stdout: "pipe", stderr: "pipe", windowsHide: true,
     });
     const read = async (s: ReadableStream<Uint8Array>) => {
@@ -138,7 +138,7 @@ export function startPty(key: string, cmd: string[], cwd: string, pidFile?: stri
     read(p.proc.stderr as ReadableStream<Uint8Array>).catch(() => {});
   } else p.proc = Bun.spawn(cmd, {
     cwd,
-    env: { ...colorEnv(), TERM: "xterm-256color", COLORTERM: "truecolor", KAIZEN_BOARD_PID: String(process.pid) },
+    env: { ...colorEnv(), ...opts.env, TERM: "xterm-256color", COLORTERM: "truecolor", KAIZEN_BOARD_PID: String(process.pid) },
     terminal: { cols: 120, rows: 32, data: (_t, d) => push(dec.decode(d, { stream: true })) },
   });
   if (opts.tmux && cmd[0] === tmuxBin()) p.tmux = opts.tmux;

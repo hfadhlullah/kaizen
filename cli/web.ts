@@ -28,7 +28,7 @@ import * as video from "./video.ts";
 import * as localsend from "./localsend.ts";
 import * as hermes from "./hermes.ts";
 import { listChats, readChat, sendChat, stopChat, deleteChat, okId as okChatId, busy as chatBusy, type Event as ChatEvent, type Upload as ChatUpload } from "./chat.ts";
-import { workspaces, workspacesNow, forgetWorkspaces, workspacesAge, addWorktree, runAsync, run, branchState, openPr, mergePr, removeWorktree } from "./worktree.ts";
+import { workspaces, workspacesNow, forgetWorkspaces, workspacesAge, addWorktree, linkedWs, runAsync, run, branchState, openPr, mergePr, removeWorktree } from "./worktree.ts";
 import { gitUrl, destDir, winBad, cloneInto, branchesOf, ignoreKaizen } from "./add-project.ts";
 
 const PAGE = join(dirname(import.meta.dir), "web", "board.html");
@@ -256,6 +256,13 @@ export async function web(repoDir: string, opts: Opts = {}) {
   // Shells the board started (POST /shell), by /pty key; dead ones drop on the next /shells.
   const shells = new Map<string, { key: string; dir: string; title: string; agent: string; run: string; ws?: string; pid?: number }>();
   const SHELL_CAP = 8;
+  // A terminal shows where its live run builds, not where it launched: tabs follow `run`, the rail `ws`.
+  const shown = <S extends { key: string; dir: string; run: string; ws?: string }>(x: S): S => {
+    const w = linkedWs(x.dir, x.key), project = projectOf(x.dir);
+    // A worktree the run just made: refresh the list now, or the rail has no row to put it under.
+    if (w && !workspaces(project).some((p) => p.path === w) && workspacesAge(project) > 1000) { forgetWorkspaces(project); workspaces(project); }
+    return w ? { ...x, ws: w, run: `ws:${x.dir}:${w}` } : x;
+  };
   let usageCache: Usage[] = [];
   let usageAt = 0;
   let pending: ReturnType<typeof setTimeout> | null = null;
@@ -802,7 +809,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         if ([...shells.values()].filter((x) => x.dir === dir).length >= SHELL_CAP) return bad(`at most ${SHELL_CAP} terminals per project: close one first`, 429);
         const key = "sh-" + crypto.randomUUID().slice(0, 8);
         const title = agent ? KNOWN_AGENTS.find((k) => k.cmd === agent)!.name + (bypass ? " · bypass" : "") : "shell";
-        const pid = startPty(key, cmd, cwd, undefined, changed);
+        const pid = startPty(key, cmd, cwd, undefined, changed, { env: { KAIZEN_TERM: key } });
         // The run workspace that opened it (its card key), so each run keeps its own centre.
         shells.set(key, { key, dir, title, agent, run: runKey, ws: cwd, pid });
         changed();
@@ -898,7 +905,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
       if (req.method === "GET" && path === "/shells") {
         const dir = qdir();
         for (const k of shells.keys()) if (!ptyState(k)?.alive) shells.delete(k);
-        return json([...shells.values()].filter((s) => !dir || s.dir === dir));
+        return json([...shells.values()].filter((s) => !dir || s.dir === dir).map(shown));
       }
       // The localhost tab's "Open in browser": a Chromium app window on this computer, for
       // localhost pages that refuse to be framed. Launches a process, so /shell's guards, and only a
@@ -1080,7 +1087,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           agents.push({ key, dir, ws, agent: cmd, name, run, asking: st.asking, busy: st.busy, born: st.born, ...(loopback ? { last: st.last || undefined, at: st.at || undefined } : {}) });
         };
         // A plain shell counts too while an agent typed into it runs there.
-        for (const x of shells.values()) { const cmd = x.agent || (x.pid ? shellAgent(x.pid, KNOWN_AGENTS.map((k) => k.cmd)) : undefined); if (cmd) addAgent(x.key, x.dir, x.ws, cmd, x.run); }
+        for (const raw of shells.values()) { const x = shown(raw), cmd = x.agent || (x.pid ? shellAgent(x.pid, KNOWN_AGENTS.map((k) => k.cmd)) : undefined); if (cmd) addAgent(x.key, x.dir, x.ws, cmd, x.run); }
         cards.forEach((c, i) => { for (const k of ptys[i]?.all ?? []) addAgent(k, c.state, c.ws, pty.cmd(k) ?? KNOWN_AGENTS.find((a) => c.tags?.includes(a.cmd))?.cmd, c.kind === "run" ? c.id : undefined); });
         const entry = (d: string) => ({ dir: d, label: label(d), logo: !!projectLogo(d),
           workspaces: d === join(home, ".kaizen") ? [{ path: d, branch: "", main: true }] : workspacesNow(projectOf(d)) });
