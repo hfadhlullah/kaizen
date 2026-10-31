@@ -566,7 +566,10 @@ function show(id: string) {
   draw();
 }
 export const openNoteTab = (name: string) => addTab({ id: "note:" + name, kind: "note", title: name.slice(name.lastIndexOf("/") + 1), note: name });
-const openPreview = () => addTab({ id: "preview", kind: "preview", title: "Preview" });
+const openPreview = () => {
+  addTab({ id: "preview", kind: "preview", title: "Preview" });
+  if (isPhone()) $("pclose").click(); // Preview is a centre tab: the sheet would sit over it
+};
 
 // The run's recorded session, resumed in a board terminal tied to it. While it still runs in
 // another terminal the server says so (409 live) and a tab explains; with no session, a shell.
@@ -895,7 +898,9 @@ function initSheet() {
   };
   p.addEventListener("touchend", end);
   p.addEventListener("touchcancel", end);
-  addEventListener("click", (e) => on() && !(e.target as Element).closest?.("#panel,#rside,dialog,.toast") && shut());
+  // composedPath, not target: a strip button redraws #ptabs in its own click, so by here
+  // the target is detached and closest() would call a tap inside the sheet an outside one.
+  addEventListener("click", (e) => on() && !e.composedPath().some((n) => (n as Element).matches?.("#panel,#rside,dialog,.toast")) && shut());
 }
 
 export function initRunView() {
