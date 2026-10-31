@@ -28,6 +28,7 @@ test.skipIf(process.platform === "win32")("board /accept finishes a healed run w
   const run = (id: string) => JSON.parse(readFileSync(join(st, "runs", id, "state.json"), "utf8"));
   expect(run("2026-10-29-healed").healed).toBe(true);
   const port = 20000 + Math.floor(Math.random() * 20000);
+  mkdirSync(join(home, ".claude"), { recursive: true }); // an agent, or `kaizen web` stops at its no-agent notice
   const p = Bun.spawn([process.execPath, join(import.meta.dir, "install.ts"), "web", "--foreground", "--no-open", "--port", String(port)],
     { env: { ...process.env, HOME: home, USERPROFILE: home, KAIZEN_HOME: join(home, "kz") }, stdout: "ignore", stderr: "ignore" });
   try {

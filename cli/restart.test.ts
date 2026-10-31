@@ -180,6 +180,7 @@ process.on("SIGTERM", () => setTimeout(() => process.exit(0), 1500));
 console.log("up");`);
   const old = Bun.spawn([process.execPath, script], { stdout: "pipe" });
   await new Response(old.stdout).body!.getReader().read();
+  mkdirSync(join(home, ".claude"), { recursive: true }); // an agent, or `kaizen web` stops at its no-agent notice
   const fresh = Bun.spawn([process.execPath, join(import.meta.dir, "install.ts"), "web", "--port", String(port), "--no-open", "--foreground"], {
     cwd: home, env: { ...process.env, HOME: home, USERPROFILE: home }, stdin: "ignore", stdout: "ignore", stderr: "ignore",
   });
