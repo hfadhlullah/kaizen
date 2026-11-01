@@ -599,16 +599,19 @@ if (args.has("handoff")) {
 // Deleting runs is a job for code with a test, not for an agent with `rm`. Lists by
 // default; --yes is what deletes.
 if (args.has("prune")) {
-  const { locate, pruneRuns } = await import("./state.ts");
+  const { locate, pruneRuns, pruneSessions } = await import("./state.ts");
   const { listSettings } = await import("./settings.ts");
   const state = locate();
   if (!state) { console.log("\n  no .kaizen here\n"); process.exit(1); }
   const keep = Number(listSettings(await resolveRepoQuietly()).rows.find((r) => r.key === "state.keep_runs")?.value) || 20;
   const apply = args.has("--yes");
+  // Records first: run deletion would orphan more of them, and the listing must match what --yes deletes.
+  const records = pruneSessions(state, apply).length;
   const gone = pruneRuns(state, keep, apply);
   console.log(gone.length
     ? `\n  ${apply ? "pruned" : "would prune"} ${gone.length} finished run(s), keeping the newest ${keep}:\n${gone.map((g) => `    ${g.id}${g.rescued ? c.dim(`  ${g.rescued} open item(s) ${apply ? "moved" : "to move"} to backlog.md`) : ""}`).join("\n")}\n${apply ? "" : `\n  ${c.dim("nothing deleted — run:")} ${c.accent("kaizen prune --yes")}\n`}`
     : `\n  nothing to prune ${c.dim(`(${keep} finished runs are kept)`)}\n`);
+  if (records) console.log(`  ${apply ? "pruned" : "would prune"} ${records} dead launch record(s) older than a week${apply ? "" : ` ${c.dim("— run:")} ${c.accent("kaizen prune --yes")}`}\n`);
   process.exit(0);
 }
 

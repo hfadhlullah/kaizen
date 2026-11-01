@@ -8,6 +8,7 @@ import { close } from "./panel.ts";
 import { accountRows, wireAccounts } from "./settings-accounts.ts";
 import { agentRows, wireAgents } from "./settings-agents.ts";
 import { modelInput, modelLabel, orchestrationRows } from "./settings-orchestration.ts";
+import { cleanupRows, wireCleanup } from "./settings-cleanup.ts";
 import { automationRows, wireAutomations } from "./settings-automations.ts";
 import { skillRows, wireSkills } from "./settings-skills.ts";
 import { fillMics, micRow } from "./settings-voice.ts";
@@ -75,6 +76,9 @@ export async function openSettings() {
   const au = await fetch("/automations", { headers: dirHeader() })
     .then((r) => (r.ok ? r.json() : null))
     .catch(() => null);
+  const cl = await fetch("/cleanup", { headers: dirHeader() })
+    .then((r) => (r.ok ? r.json() : null))
+    .catch(() => null);
   if (gen !== store.pageGen) return;
   $("psub").textContent = "";
   $("psub").title = "";
@@ -122,6 +126,7 @@ export async function openSettings() {
     m.get(sub).push(r);
   };
   const defaultAgent = cfg?.rows.find((r) => r.key === "agent.default")?.value ?? "auto";
+  if (cl) for (const r of cleanupRows(cl)) put("general", "Cleanup", row(r.label, r.control, r.hint, r.id, r.q));
   if (cfg) {
     put("general", "Scope", row(
       "Settings for",
@@ -252,6 +257,7 @@ export async function openSettings() {
   if (ap) wireAgents(openSettings, cfg?.scope ?? null);
   if (sk) wireSkills(openSettings, sk.token);
   if (au) wireAutomations(au, openSettings);
+  if (cl) wireCleanup(cl, openSettings);
   fillMics();
   if (ac) wireAccounts(openSettings);
   filter();

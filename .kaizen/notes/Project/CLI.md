@@ -1,12 +1,13 @@
 ---
 description: The kaizen command: installer, upgrade, uninstall, settings, prune, sources
 tags: [project, cli]
-sources: [cli/automations.ts, cli/automations.test.ts, cli/computer.ts, cli/workers.ts, cli/workers.test.ts, cli/install.ts, cli/docs.ts, cli/docs.test.ts, cli/knowledge.ts, cli/setup.ts, cli/look.ts, cli/qr.ts, cli/settings.ts, cli/settings.test.ts, cli/worktree.ts, package.json]
+sources: [cli/automations.ts, cli/automations.test.ts, cli/computer.ts, cli/workers.ts, cli/workers.test.ts, cli/install.ts, cli/docs.ts, cli/docs.test.ts, cli/knowledge.ts, cli/setup.ts, cli/look.ts, cli/qr.ts, cli/settings.ts, cli/settings.test.ts, cli/worktree.ts, cli/state.ts, package.json]
 updated: 2026-11-01
 ---
 # CLI
 
 ## What it does
+- `kaizen prune` also removes launch records (`sessions/<key>.json` with `.pid`/`.run`) older than a week whose run is abandoned, gone, or never existed (`pruneSessions` in `cli/state.ts`). It skips live agents, runs in flight, and done runs, whose records a follow-up resumes. Lists unless `--yes`. Settings → General → Cleanup does each kind separately through `/cleanup` in `cli/web.ts`.
 `kaizen` / `kaizen-agent` (both `cli/install.ts`, see `package.json` `bin`) is one top-level script that installs the workflow as links into the agent's folders, and dispatches subcommands: `setup`, `web`, `settings`/`config`, `upgrade`, `uninstall`, `prune`, `sources`/`gather`/`icebox`, `browser login`, `issue`, `computer` (desktop control, only while its skill is on; `cli/computer.ts`), `remember`/`recall` (global knowledge, `cli/knowledge.ts`), and `automation list|add|run|pause|resume|rm|runs` (`cli/automations.ts`), and `docs lint` (`cli/docs.ts`). With no subcommand in an installed setup it opens the [[Terminal board]]. Flags and behaviour for users: `docs/guide.md` ("Install", "Under the hood").
 
 ## Where it lives

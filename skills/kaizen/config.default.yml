@@ -92,7 +92,7 @@ backlog:
 state:
   dir: .kaizen
   # Keep this many completed runs before pruning the oldest. `kaizen prune` lists
-  # what would go and `kaizen prune --yes` deletes it, after rescuing open backlog
+  # what would go (with launch records of dead runs past a week) and `kaizen prune --yes` deletes it, after rescuing open backlog
   # items into backlog.md beside memory.md, so it never destroys open work.
   keep_runs: 20
 

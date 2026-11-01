@@ -10,7 +10,7 @@ import {
   readRuns, readInbox, writeInbox, replaceIdea, moveIdea, abandonRun, runToIdea, allBacklog, backlog,
   requestTitle, statusOf, columnOf, parseItem, startedRuns, boardCards, parentOf, addCard, readArchive, setArchived,
   requestOf, agentFlags, plainModel, readNotes, writeNotes, manualCommand, parseNotes, formatNote, appendNote, saveAttachment,
-  gitStatus, reviewFindings, pickFindings, fixPrompt, approvalPrompt, sessionLaunch, closeSessions, sweepSessions, readSessions, ownerOf, gitStatus, runGit, cardsGit, commitPush, commitStaged, stageFiles, suggestMessage, readCommit, findTerminal, nativePath, pruneRuns, unrechecked, notice, notifier, notifyArgs, winToastArgs, LOGO, type Card,
+  gitStatus, reviewFindings, pickFindings, fixPrompt, approvalPrompt, sessionLaunch, closeSessions, sweepSessions, readSessions, ownerOf, gitStatus, runGit, cardsGit, commitPush, commitStaged, stageFiles, suggestMessage, readCommit, findTerminal, nativePath, pruneRuns, pruneSessions, unrechecked, notice, notifier, notifyArgs, winToastArgs, LOGO, type Card,
 } from "./state.ts";
 
 let state: string;
@@ -1613,4 +1613,27 @@ test("a tool's Settings model reaches its launch flag, ahead of a hand-written b
   expect(agentFlags("/x", "agy", 'agent:\n  model:\n    agy: ""\n    codex: gpt-x\n')).toEqual([]);
   expect(agentFlags("/x", "codex", "agent:\n  codex: { model: old, effort: low }\n  model:\n    codex: new\n")).toEqual(["-m", "new", "-c", "model_reasoning_effort=low"]);
   expect(agentFlags("/x", "codex", "agent:\n  codex: { model: old }\n")).toEqual(["-m", "old"]);
+});
+
+test("pruneSessions drops only old records nothing can use, with their files", () => {
+  const st = join(mkdtempSync(join(tmpdir(), "kz-prunes-")), ".kaizen");
+  const now = Date.now(), old = now - 8 * 864e5, sessions = join(st, "sessions");
+  mkdirSync(sessions, { recursive: true });
+  const run = (id: string, state: string) => { mkdirSync(join(st, "runs", id), { recursive: true }); writeFileSync(join(st, "runs", id, "state.json"), state); };
+  run("gave-up", '{"stage":"abandoned"}'); run("finished", '{"stage":"done"}'); run("going", '{"stage":"build"}'); run("garbled", "{");
+  const rec = (key: string, r: string | null, started = old) => writeFileSync(join(sessions, key + ".json"), JSON.stringify({ run: r, text: key, cmd: "claude", sessionId: null, started }));
+  rec("abandoned", "gave-up"); rec("unowned", null); rec("missing", "pruned-away");
+  writeFileSync(join(sessions, "abandoned.run"), "gave-up");
+  rec("done", "finished"); rec("flight", "going"); rec("unreadable", "garbled"); rec("young", null, now - 6 * 864e5); rec("live", null);
+  writeFileSync(join(sessions, "live.pid"), String(process.pid));
+  const dead = ["abandoned", "missing", "unowned"];
+  // This test process stands in for the agent: its record names bun, or the PID reads as a stranger's.
+  writeFileSync(join(sessions, "live.json"), JSON.stringify({ run: null, text: "live", cmd: "bun", sessionId: null, started: old }));
+
+  expect(pruneSessions(st, false, now).map((g) => g.key + ":" + g.reason).sort()).toEqual(["abandoned:abandoned", "missing:gone", "unowned:unowned"]);
+  expect(readdirSync(sessions)).toContain("abandoned.json");
+  expect(pruneSessions(st, true, now).map((g) => g.key).sort()).toEqual(dead);
+  expect(readdirSync(sessions).filter((f) => f.endsWith(".json")).sort()).toEqual(["done.json", "flight.json", "live.json", "unreadable.json", "young.json"]);
+  expect(readdirSync(sessions)).not.toContain("abandoned.run");
+  rmSync(dirname(st), { recursive: true, force: true });
 });

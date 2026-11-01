@@ -1637,6 +1637,27 @@ const openSessions = (st: string) => readSessions(st).filter((s) => {
   return true;
 });
 
+// Launch records nothing can use again, oldest first; with `apply`, deleted with their
+// PID and link files. Past a week and with no live agent, a record goes when no run
+// owns it, its run is abandoned, or its run no longer exists. A done run's records stay:
+// a follow-up resumes its conversation from them. An unreadable state.json keeps them too.
+const SESSION_KEEP_MS = 7 * 24 * 3600_000;
+export function pruneSessions(state: string, apply = false, now = Date.now()): { key: string; reason: "abandoned" | "unowned" | "gone" }[] {
+  const idx = runIndex(state), live = new Set(openSessions(state).map((s) => s.key));
+  const why = (run: string | null) => {
+    if (!run) return "unowned" as const;
+    const dir = join(state, "runs", run);
+    if (!existsSync(dir)) return "gone" as const;
+    try { return JSON.parse(readText(join(dir, "state.json"))).stage === "abandoned" ? "abandoned" as const : null; } catch { return null; }
+  };
+  const gone = readSessions(state).filter((s) => now - s.started > SESSION_KEEP_MS && !live.has(s.key)).flatMap((s) => {
+    const reason = why(ownerOf(state, s, idx));
+    return reason ? [{ key: s.key, reason }] : [];
+  });
+  if (apply) for (const { key } of gone) for (const ext of [".json", ".pid", ".run"]) rmSync(join(sessionsDir(state), key + ext), { force: true });
+  return gone;
+}
+
 // Close every session kaizen opened for a run, those launched before `before` only,
 // so a decision's own successor is never caught. The record stays: it holds the
 // conversation id the next decision resumes. Never throws.

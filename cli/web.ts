@@ -9,7 +9,7 @@ import {
   readInbox, writeInbox, replaceIdea, moveIdea, abandonRun, runToIdea, launchRun, parseItem, agentChoices, onPath, projectOf, KNOWN_AGENTS, plainModel, short, setArchived, writeNotes,
   appendNote, saveAttachment, pidOnPort, readText, cmdExe, sysExe, powershellExe, runGit, readCommit, commitPush, commitStaged, stageFiles, suggestMessage, notice, notifier, LOGO,
   reviewFindings, pickFindings, backlogItem, startedBacklog, closeBacklog, markBacklogDone, fixPrompt, approvalPrompt, canApproveAwaiting, gateOf, recordAcceptance, healRuns, finishRun, nativePath, closeSessions, sweepSessions, issueUrl,
-  launchMode, readSessions, ownerOf, runIndex, resumePrompt, runAgent, firstSession, webHosts,
+  launchMode, pruneRuns, pruneSessions, readSessions, ownerOf, runIndex, resumePrompt, runAgent, firstSession, webHosts,
 } from "./state.ts";
 import { ACCOUNT_VAR, accountDir, addAccount, readAccounts, renameAccount, signedIn, removeAccount, resolveAccount, setDefaultAccount } from "./accounts.ts";
 import { readReport, signalOf } from "./report.ts";
@@ -1362,6 +1362,26 @@ export async function web(repoDir: string, opts: Opts = {}) {
           return { ...x, isDefault: a.default[x.tool] === x.id, signedIn: signedIn(dir, x.tool), usage: hit.usage, signIn: `${ACCOUNT_VAR[x.tool]}=${dir} ${x.tool}${x.tool === "codex" ? " login" : ""}` };
         }));
         return json({ accounts: rows, windows: process.platform === "win32", ...(added ? { added } : {}) });
+      }
+
+      // Settings → General → Cleanup: what `kaizen prune` would remove from this page's project,
+      // one kind at a time. Deletion is decided here, on the current files, not on the page's counts.
+      if (path === "/cleanup" && (req.method === "GET" || req.method === "POST")) {
+        if (!state) return bad("no project", 404);
+        const { listSettings } = await import("./settings.ts");
+        const keep = Number(listSettings(repoDir, dirname(state)).rows.find((r) => r.key === "state.keep_runs")?.value) || 20;
+        if (req.method === "POST") {
+          if (!local(req)) return bad("cross-origin write refused", 403);
+          let body: any;
+          try { body = await req.json(); } catch { return bad("json body expected"); }
+          if (body.what === "records") return json({ removed: pruneSessions(state, true).length });
+          if (body.what === "runs") return json({ removed: pruneRuns(state, keep, true).length });
+          return bad("unknown cleanup");
+        }
+        const records = { abandoned: 0, unowned: 0, gone: 0 };
+        for (const r of pruneSessions(state)) records[r.reason]++;
+        const runs = pruneRuns(state, keep);
+        return json({ project, keep, records, runs: runs.length, rescued: runs.reduce((n, r) => n + r.rescued, 0) });
       }
 
       if (path === "/automations" && (req.method === "GET" || req.method === "POST")) {
