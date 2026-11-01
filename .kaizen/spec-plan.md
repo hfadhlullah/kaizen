@@ -76,12 +76,19 @@ materially different builds — put to the user as an *Open question* with optio
 all in one round, before anything is built. Three quick questions and a default for
 the rest is how a run ends up writing the second app instead of the first.
 
-**A whole application is a roadmap, not a run.** When the track is a new product or
-app — web, mobile, PWA, desktop, anything — and it covers more than one independent
-module, one run cannot hold it: the plan, the diff and the review all outgrow what a
-reader can check. A single screen or a single feature stays one run. The Framing says
-in one line that the plan is a roadmap, so the user can refuse it. A roadmap plan adds
-three sections right after the Goal, each written for a person, and the
+**One run is the default. A project too big for one run is a roadmap.** This holds in
+every track: an app, a book, a house move, a course, a business launch. Propose a
+roadmap only when one run cannot safely hold the work: later parts depend on earlier
+parts being finished and used first, each part needs its own review because a reader
+cannot check the whole at once, or the user asks for phases. Many files, many tasks or
+hard work are never a reason alone. A single screen, feature, chapter, email or errand
+stays one run, and so does big work that is delivered together. In `auto` mode, keep
+one run unless the request asks for phases. The Framing says in one line that the plan
+is a roadmap, so the user can refuse it and keep one run. A roadmap plan adds three
+sections right after the Goal, each written for a person, in the track's own terms; for
+an app they take the detail below, and for other work `## Foundation` holds the
+decisions every phase must respect (voice and audience for a book, budget and dates
+for a move) and `## Discovery` asks only what the work needs. The
 foundation round above becomes up to three rounds:
 
 - **`## Discovery`** — the planner goes deep before it designs. It reads everything the
@@ -112,8 +119,9 @@ foundation round above becomes up to three rounds:
   relations, how migrations are done); auth and access; repo layout and conventions.
   Every increment builds on it.
 - **`## Roadmap`** — the increments, numbered, one line each:
-  `N. <title> — <what it delivers> — after: #a, #b` (or `any time`), with
-  `— blocked: <reason>` when something outside the work holds it. Increment 1 is always
+  `N. <title> — <what it delivers> — verify: <how> — after: #a, #b` (or `any time`), with
+  `— blocked: <reason>` when something outside the work holds it. Each is sized to one
+  ordinary run and can be checked on its own. For an app, increment 1 is always
   the skeleton: the scaffold, the stack wired, the database schema and migration setup,
   an auth stub, and a deploy of the empty app the way the Foundation ships (in its
   Docker image, through its pipeline, as a store test build). Every feature increment
@@ -127,12 +135,14 @@ foundation round above becomes up to three rounds:
   time.
 
 The rest of a roadmap plan — Work list, Steps, File manifest, gate — covers increment 1
-only; it is this run's build. The others become child cards at the approval (see
-*Child cards* in `spec-main.md`).
+only; it is this run's build. Later increments get their detailed plan in their own run.
+The others become child cards at the approval (see *Child cards* in `spec-main.md`).
 
 **An increment run builds inside its parent's decisions.** A request with a `Parent:`
 line whose parent run's `01-plan.md` has a `## Roadmap` is an increment. Its planner
-reads that plan's Discovery, Foundation and its own Roadmap line before anything else.
+reads that plan's Discovery, Foundation and its own Roadmap line before anything else,
+then `.kaizen/roadmaps/<name>.md` when the request has a `Roadmap: <name>` line, for the
+decisions made since and the previous run's report.
 They bind it: a deviation from the Foundation is an *Open question* to the user, and a
 change to the roadmap is an *Out of scope suggestion*, never a silent edit of the
 parent's plan.

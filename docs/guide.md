@@ -740,3 +740,5 @@ Landing rebases the branch onto its base first, in every land path: a conflict o
 `git.land_check` and `git.rebuild_on_land` run as shell commands on every land. If a project commits `.kaizen/config.yml`, review changes to them as you would code. `git.generated` needs `git.rebuild_on_land`: without it a conflict stops the land.
 
 This repo's own values live in `.kaizen/config.yml`, which is not committed.
+
+**Roadmaps.** A project too big for one run, of any kind, can become a roadmap: an app, a book, a house move. One run stays the default, and the planner only proposes a split, which you can refuse at the plan approval. An approved roadmap lives in `.kaizen/roadmaps/<name>.md` with its phases, status and decisions, and each phase is a normal run. `/kaizen roadmap` lists them, `/kaizen roadmap next [name]` starts or resumes the next phase, and `/kaizen roadmap run [name]` runs the rest back to back, stopping at an open finding or question. Nothing starts by itself.
