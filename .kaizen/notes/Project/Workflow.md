@@ -1,7 +1,7 @@
 ---
 description: What a kaizen run is, which files define it, and where its state lives
 tags: [project, workflow]
-sources: [cli/workers.ts, skills/kaizen, skills/kaizen-help, skills/media, agents, commands, cli/worktree.ts, docs/guide.md]
+sources: [cli/roadmap.ts, cli/workers.ts, skills/kaizen, skills/kaizen-help, skills/media, agents, commands, cli/worktree.ts, docs/guide.md]
 updated: 2026-11-01
 ---
 # Workflow
@@ -21,6 +21,7 @@ The product itself: a staged workflow (plan, approval, build, independent review
 - `skills/kaizen/adapters.md` — running it under Codex or Antigravity.
 - `agents/kaizen-*.md` — the planner, builder and reviewer subagents.
 - `commands/kaizen-*.md` — Claude Code slash commands, each a one-line hand-off to the skill.
+- Roadmaps: a project too big for one run, of any kind, gets `.kaizen/roadmaps/<name>.md` (phases, status, decisions) on top of child cards. `cli/roadmap.ts` reads it; `skills/kaizen/roadmap.md` holds `/kaizen roadmap`, `next` and `run`. One run stays the default.
 - `skills/kaizen-help/` — the help card; `skills/media/` — `kaizen-deck/`, `kaizen-video/` (footage editing and from-scratch films on HyperFrames; any preset works for either start, `make_tiktok.py`/`make_film.py` bridge to the other engine; a style.json with `"engine": "canvas"` builds with `canvas.html`, a camera over one large canvas, see `references/canvas.md`; a template preset (`preset.json`, e.g. `app-promo`) films the user's product with `record.mjs` and builds with `make_promo.py`, see `references/promo.md`; presets with a `.hidden` file stay off the New video wizard): separate skills shipped in the same package.
 
 ## How it connects

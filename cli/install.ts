@@ -116,6 +116,15 @@ if (Bun.argv[2] === "card") {
   process.exit(0);
 }
 
+// `kaizen roadmap [list] | next [name]`: read a project too big for one run. See cli/roadmap.ts.
+if (Bun.argv[2] === "roadmap") {
+  const { locate } = await import("./state.ts");
+  const { roadmapCommand } = await import("./roadmap.ts");
+  const r = roadmapCommand(locate() ?? join(home, ".kaizen"), Bun.argv[3] ?? "list", Bun.argv[4]);
+  console.log(r.out);
+  process.exit(r.code);
+}
+
 // `kaizen computer <verb> ...`: desktop control through the accessibility tree, only while
 // the kaizen-computer skill is on. One JSON line out. See cli/computer.ts.
 // `kaizen automation list | add | run | pause | resume | rm | runs`: schedules that start a run in this

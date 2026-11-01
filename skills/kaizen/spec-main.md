@@ -256,6 +256,33 @@ by itself: the user starts an increment from its card when they choose, and the 
 card lists its children with their status. An increment cut at the approval is not
 filed; it goes to the backlog only when the user explicitly defers it.
 
+**The roadmap file.** Before filing those cards, write `.kaizen/roadmaps/<name>.md`
+(`<name>` a short kebab slug):
+
+```
+# <title>
+
+Goal: <one line>
+Track: <track>
+Parent: <run id>
+
+## Phases
+1. [doing] <title> — <what it delivers> — verify: <how> — run: <this run id>
+2. [todo] <title> — <what it delivers> — verify: <how> — after: #1
+
+## Decisions
+- <a decision later phases must respect>
+```
+
+Status is `todo`, `doing`, `done` or `blocked`. Each child card's notes carry a line
+`Roadmap: <name>` (`--notes`). A phase's run copies that line into `00-request.md`
+beside `Parent:` and records `roadmap`, `prev` and `next` in `state.json` (run ids or
+phase titles; empty when there is none). Starting a phase marks it `doing` with its
+`run:`. Before `stage: "done"`, mark it `done` and append what later phases must
+respect to `## Decisions`. Status and decisions need no approval. Adding, removing or
+reordering phases does: ask the user first. `kaizen roadmap` and `kaizen roadmap next`
+read this file; the commands are in `roadmap.md`.
+
 ## Discovery rounds
 
 A roadmap plan's Discovery and any run's REA offer reach the user through the main
