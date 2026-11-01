@@ -92,14 +92,14 @@ setting, its legal values, and the rules for writing `config.yml`.
 
 ## What is worth a run
 
-A run costs several times what the same change costs in one session, because every
+A `full` run costs several times what the same change costs in one session, because every
 stage starts cold and the reviewer is deliberately kept ignorant of how the work was
 done. That price buys one thing: an agent with nothing to defend, which is the only
 kind that finds the bug in the fix.
 
 Spend it where being wrong is expensive — money, data loss, a migration, anything a
 customer sees, anything hard to undo, anything touching a part of the system nobody
-has read in a year. Do not spend it on work where being wrong is cheap and obvious.
+has read in a year. Do not spend cold agents on work where being wrong is cheap and obvious.
 A tool that charges the same for a typo and a payroll change gets turned off for both.
 
 **Small changes take the short path.** Where the approved plan touches roughly two

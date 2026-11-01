@@ -50,6 +50,10 @@ the runner for one run.
 
 Rules for writing the file:
 
+- **`preset` is the exception to the rules below.** It sets a bundle of other keys, so
+  editing its line changes only the label. Run `kaizen settings preset <low|medium|ultra>`
+  from the project folder. Before applying `ultra`, tell the user it turns on auto mode
+  with no approval stops, a worktree per run and auto-commit, and get a clear yes.
 - **Change the value in place.** `config.yml` ships with a comment above every key
   explaining it; rewriting the file from a parsed object throws all of them away.
   Edit the one line.

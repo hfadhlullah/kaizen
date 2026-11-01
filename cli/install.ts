@@ -552,7 +552,15 @@ async function runSetup() {
 }
 
 if (wantSettings) {
-  const { settings } = await import("./settings.ts");
+  const { settings, setSetting } = await import("./settings.ts");
+  // `kaizen settings preset <name>` applies the whole bundle, for agents; no screen.
+  const [, sub, value] = Bun.argv.slice(2).filter((a) => !a.startsWith("-"));
+  if (sub === "preset") {
+    const r = setSetting(await resolveRepoQuietly(), "preset", value ?? "");
+    if ("error" in r) { console.error(r.error); process.exit(1); }
+    console.log(`preset: ${value}`);
+    process.exit(0);
+  }
   await settings(await resolveRepoQuietly());
   process.exit(0);
 }

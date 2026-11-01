@@ -1,1 +1,1 @@
-{"title": "Write book", "group": "media", "needs": []}
+{"title": "Write book", "group": "media", "needs": ["python3", "node", "pdfinfo"]}
