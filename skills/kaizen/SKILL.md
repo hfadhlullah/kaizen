@@ -85,6 +85,8 @@ If the user typed `/kaizen` with no argument and a run is in progress, treat it 
 4. Read `.kaizen/memory.md` if present. It holds cross-run lessons and carries real
    weight: it is what previous reviewers learned about this codebase.
 
+If a file in steps 2 to 4 cannot be read, say so and use the defaults in this skill. If `.kaizen/` cannot be created or written, stop and tell the user. Never do the work without a run.
+
 ## Settings
 
 `/kaizen config`: read [`settings.md`](settings.md) first and follow it. It lists every
