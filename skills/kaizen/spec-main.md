@@ -90,6 +90,17 @@ subagents at all.
 
 ---
 
+## After a handoff
+
+Woken by the line `kaizen run <id>: the worktree agent ended (...)`, or asked about the run,
+read `state.json`, `handoff.json`, `03-impl.md` and `04-review.md`, whatever the line says:
+it is a pointer, not a result. `done`: report what changed, the checks and open findings,
+then take the final approval and land as usual; in `auto` carry on without stopping.
+`blocked`, `failed` or `quiet`: say why and what is left, and keep the worktree. `quiet` means the second agent went silent and may still report; `kaizen handoff start <id>` opens a new one on the same worktree. A run with
+`base_branch` lands by a local merge into that branch, with no push; if the project folder
+is on another branch or the merge conflicts, `kaizen worktree land` says so and keeps the
+worktree, so tell the user.
+
 ## Preview gate
 
 Before setting `stage: "review"` after a build, in either runner, open `03-impl.md` and

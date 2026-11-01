@@ -43,5 +43,7 @@ updated: 2026-11-01
 
 - `kaizen done <run id> [--user-approved]`: finishes a run via `finishRun`; exits 1 with an ask-the-user message while the review gate waits (see [[Workflow]]).
 
+- `kaizen handoff start <run>|done|blocked "<reason>"` — hands a worktree run to a second agent; `start` exits 3 for "build here". See [[Workflow]].
+
 ## Notes
 <!-- yours: /kaizen docs never rewrites this section -->

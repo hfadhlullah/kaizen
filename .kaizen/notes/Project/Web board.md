@@ -129,6 +129,8 @@ The visible menu is Search, Home, Icebox, Ideas and Board, then the Projects lis
 WhatsApp MP4s over 64 MiB use Hermes' `[[as_document]]` directive, preserving the MP4 bytes and filename; smaller MP4s remain inline videos. `cli/hermes.ts` rejects files over WhatsApp's 2 GB document limit before spawning Hermes. The route's existing output-file and listed-chat checks still apply.
 - A regex that skips a block with `(?:[ \t]+.*\n)*?` backtracks for seconds on a long commented config when the key is absent (`agentConfig`); write it `(?:[ \t][^\n]*\n)*?`. `agentChoices` runs it once per installed agent, so on a slow pattern every `/onboarding` read stalled the whole board.
 
+- `tendHandoff` in `cli/web.ts` opens the second agent of a handed-off run, watches it, and wakes the first when idle with no draft; `handoff.json` moves only through `move()`.
+
 ## Notes
 The Projects rail keeps the last valid run state during a transient `state.json` read failure, and board loads discard out-of-order `/state` responses. This prevents a run from briefly disappearing while its agent updates state or refreshes overlap.
 <!-- yours: /kaizen docs never rewrites this section -->

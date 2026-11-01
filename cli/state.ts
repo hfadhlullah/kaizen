@@ -779,6 +779,7 @@ export function markBacklogDone(state: string) {
 export type Card = {
   kind: "idea" | "run";
   id?: string;                                     // runs only: the directory name
+  handoff?: string;                                // runs only: how a handoff ended, when its first agent is gone
   stage?: string;                                  // runs only: the stage word
   iteration?: number;                              // runs only: the fix round
   status: string;                                  // what the legend calls this card
@@ -1025,7 +1026,7 @@ const NEED: Record<string, string> = {
 };
 export function notice(c: Card): string | null {
   if (c.kind !== "run") return null;
-  const what = c.awaiting ? NEED[c.awaiting] ?? `waiting on ${c.awaiting}` : c.status === "done" ? (c.accept === "needs" ? "done, not approved" : "done") : null;
+  const what = c.handoff ? `the worktree agent ended (${c.handoff}): tell the first agent, or review it here` : c.awaiting ? NEED[c.awaiting] ?? `waiting on ${c.awaiting}` : c.status === "done" ? (c.accept === "needs" ? "done, not approved" : "done") : null;
   return what && `${c.text} — ${what}\n${c.where}`;
 }
 

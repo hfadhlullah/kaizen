@@ -277,3 +277,64 @@ test("a linked terminal shows its live run's worktree, then falls back", () => {
   put({ stage: "build" });                               // a current-folder run has no worktree
   expect(linkedWs(state, "sh-0123abcd")).toBeNull();
 });
+
+const feature = () => { g(project, "switch", "-qc", "feature-x"); commit(project, "f.txt", "unpushed"); };
+
+test("G-02 on a feature branch the worktree holds unpushed commits and lands by a local merge", () => {
+  feature();
+  const r = startWorktree(project, ID);
+  expect(r.ok).toBe(true);
+  expect(state().base_branch).toBe("feature-x");
+  expect(existsSync(join(state().worktree, "f.txt"))).toBe(true);
+  commit(state().worktree, "b.txt", "b");
+  const dir = state().worktree;
+  expect(landWorktree(project, ID, idRun)).toMatchObject({ ok: true, how: "merge" });
+  expect(existsSync(join(project, "b.txt"))).toBe(true);
+  expect(existsSync(dir)).toBe(false);
+  expect(run(["git", "rev-parse", "--verify", "--quiet", "refs/remotes/origin/feature-x"], project).ok).toBe(false);
+});
+
+test("G-03 a conflict, or the project on another branch, keeps the worktree and branch", () => {
+  feature();
+  startWorktree(project, ID);
+  const dir = state().worktree;
+  commit(dir, "f.txt", "theirs"); commit(project, "f.txt", "ours");
+  const c = landWorktree(project, ID, idRun);
+  expect(c.ok).toBe(false);
+  expect(g(project, "status", "--porcelain").includes("U")).toBe(false);
+  g(project, "switch", "-q", "main");
+  const o = landWorktree(project, ID, idRun);
+  expect(!o.ok && o.why).toContain("feature-x");
+  expect(existsSync(dir)).toBe(true);
+  expect(run(["git", "rev-parse", "--verify", "--quiet", "refs/heads/kaizen/" + ID], project).ok).toBe(true);
+});
+
+test("G-02 uncommitted changes on the feature branch are warned about", () => {
+  feature(); writeFileSync(join(project, "wip.txt"), "wip");
+  const r = startWorktree(project, ID);
+  expect(r.ok && r.warn).toContain("wip.txt");
+});
+
+test("G-01 on the default branch no base_branch is recorded", () => {
+  startWorktree(project, ID);
+  expect(state().base_branch).toBeUndefined();
+});
+
+test("land again after a merge whose cleanup failed only cleans up", () => {
+  feature(); startWorktree(project, ID);
+  commit(state().worktree, "b.txt", "b");
+  g(project, "merge", "--no-edit", "kaizen/" + ID);
+  const head = g(project, "rev-parse", "HEAD");
+  expect(landWorktree(project, ID, idRun)).toMatchObject({ ok: true, how: "merge" });
+  expect(g(project, "rev-parse", "HEAD")).toBe(head);
+});
+
+test("cold 6: a run with no commits is not landed, and a feature base offers no pull request", async () => {
+  feature(); startWorktree(project, ID);
+  const r = landWorktree(project, ID, idRun);
+  expect(!r.ok && r.why).toContain("no commits");
+  expect(existsSync(state().worktree)).toBe(true);
+  const b = branchState(project, ID, () => {}, idRun, runAsync, true)!;
+  expect(b).toMatchObject({ base: "feature-x", local: true, gh: false });
+  expect((await openPr(project, ID, "t", "b", false, idRun, runAsync, true)).ok).toBe(false);
+});

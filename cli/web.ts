@@ -16,7 +16,8 @@ import { readReport, signalOf } from "./report.ts";
 import { MAX_IMAGE, saveImage } from "./term-image.ts";
 import { bundledSkills, setSkill, skillsHeld, skillsOff, skillStatus } from "./skills.ts";
 import { accountEnv, accountForRun, agentUsable, CHILD_ENV, heartbeatMinutes, keepAwake, launchPreview, trustFolder, YOLO_FLAGS } from "./state.ts";
-import { failStart, markRunning, readWorkers, requested, startWorker, sweep, workerStale } from "./workers.ts";
+import { agentLine, failStart, markRunning, readWorkers, requested, startWorker, sweep, workerStale } from "./workers.ts";
+import { childDied, childQuiet, markWoken, move, requestOpen, readHandoff, refused, started, wakeAction, wakeLine, type Handoff } from "./handoff.ts";
 import { processTable, storage, systemMemory, treeRss, type Root } from "./resources.ts";
 import { attachPty, writePty, submitPty, resizePty, exitPty, killPty, panePid, ptyState, ptyKeys, adoptLoginEnv, startPty, ptySupported, detachPty, ptyTail, ptyTmux, tmuxAlive, RESUMED } from "./pty.ts";
 import { snapshot, snapWorker } from "./state-snap.ts";
@@ -33,7 +34,7 @@ import * as auto from "./automations.ts";
 import * as localsend from "./localsend.ts";
 import * as hermes from "./hermes.ts";
 import { listChats, readChat, sendChat, stopChat, deleteChat, okId as okChatId, busy as chatBusy, type Event as ChatEvent, type Upload as ChatUpload } from "./chat.ts";
-import { workspaces, workspacesNow, forgetWorkspaces, workspacesAge, addWorktree, linkedWs, runAsync, run, branchState, openPr, mergePr, removeWorktree } from "./worktree.ts";
+import { workspaces, workspacesNow, forgetWorkspaces, workspacesAge, addWorktree, linkedWs, unlinkTerm, codeDir, runAsync, run, branchState, openPr, mergePr, removeWorktree } from "./worktree.ts";
 import { gitUrl, destDir, winBad, cloneInto, branchesOf, ignoreKaizen } from "./add-project.ts";
 
 const PAGE = join(dirname(import.meta.dir), "web", "board.html");
@@ -439,6 +440,40 @@ export async function web(repoDir: string, opts: Opts = {}) {
       return { key, alive: st.alive, asking: st.asking, busy: st.busy, lastOut: st.lastOut, all, agent: cmdOf.get(key), stages: c.kind === "run" ? stagesOf(c.state, c.id!) : undefined };
     }, { cmd: (k: string) => cmdOf.get(k) });
   };
+  // A worktree run's second agent: opened on request, watched, and its end told to the first.
+  const tendHandoff = (dir: string, project: string, id: string) => {
+    const h = readHandoff(dir, id);
+    if (!h) return;
+    // Its own catch: a fault here must read as a fault, not as "no board".
+    try { tendOne(dir, project, id, h); } catch (err: any) {
+      console.error(`handoff ${id}: ${err?.stack ?? err}`);
+      if (h.status === "requested") refused(dir, id, `the board failed: ${err?.message ?? err}`);
+    }
+  };
+  const tendOne = (dir: string, project: string, id: string, h: Handoff) => {
+    if (requestOpen(h, Date.now())) {
+      const cwd = codeDir(project, id), key = "sh-" + crypto.randomUUID().slice(0, 8);
+      const prompt = `/kaizen run ${id}. You are the worktree agent of this run: the project is ${project}, its run files are in ${join(dir, "runs", id)}, and you work in ${cwd}. ` +
+        `Build, review and run the fix loop as the spec says. Do not run kaizen done or land. When finished run: kaizen handoff done. If you cannot go on run: kaizen handoff blocked "<reason>".`;
+      const l = cwd === project ? "the run has no worktree" : agentLine(project, id, prompt, "own");
+      if (typeof l === "string") { refused(dir, id, l); changed(); return; }
+      if (!started(dir, id, key)) return; // declined meanwhile: the first agent is building
+      for (const k of Object.keys(process.env)) if (CHILD_ENV.test(k)) delete process.env[k];
+      if (l.agent === "claude") trustFolder(cwd, l.trust);
+      try {
+        const pid = startPty(key, l.argv, cwd, undefined, changed, { env: { KAIZEN_RUN_ID: id, KAIZEN_TERM: key } });
+        shells.set(key, { key, dir, title: `Build ${id}`, agent: l.agent, run: `run:${dir}:${id}`, ws: cwd, pid });
+        unlinkTerm(dir, h.parent_terminal);
+      } catch (err: any) { move(dir, id, ["running"], { status: "failed", reason: err?.message ?? String(err) }); }
+      changed();
+      return;
+    }
+    const child = ptyState(h.child_terminal ?? "");
+    if (childDied(h, !!child?.alive)) { move(dir, id, ["running", "quiet"], { status: "failed", reason: child ? "the worktree agent's terminal ended without a report" : "the board restarted and the worktree agent stopped; run kaizen handoff start again to continue" }); changed(); return; }
+    if (childQuiet(h, child, Date.now())) { move(dir, id, ["running"], { status: "quiet", reason: "the worktree agent has gone quiet without a report" }); changed(); return; }
+    const now = readHandoff(dir, id), parent = ptyState(h.parent_terminal);
+    if (wakeAction(now, parent ? { ...parent, typedAt: parent.typedAt ?? 0 } : null, Date.now()) === "send") { markWoken(dir, id); submitPty(h.parent_terminal, wakeLine(id, now!)); changed(); }
+  };
   // Orchestration: the only place a worker's terminal starts. A worker asks for it in workers.json
   // (`kaizen worker start`); with the mode off no such file exists, so this finds nothing.
   // startWorker re-checks the stage, the frozen settings, the count and the plan before anything runs.
@@ -464,7 +499,10 @@ export async function web(repoDir: string, opts: Opts = {}) {
       }
       try {
         const runs = join(dir, "runs");
-        for (const id of existsSync(runs) ? readdirSync(runs) : []) if (sweep(project, id, (k) => !!ptyState(k)?.alive)) changed();
+        for (const id of existsSync(runs) ? readdirSync(runs) : []) {
+          if (sweep(project, id, (k) => !!ptyState(k)?.alive)) changed();
+          tendHandoff(dir, project, id);
+        }
       } catch { /* the next tick tries again */ }
     }
   };
@@ -1211,7 +1249,10 @@ export async function web(repoDir: string, opts: Opts = {}) {
             const signal = signalOf(c, rep, ptys[i] as any, Date.now(), beat);
             // Only a run that has workers.json carries `workers`: any other card is as it was.
             const ws = c.kind === "run" && c.id ? readWorkers(projectOf(c.state), c.id) : null;
-            return { ...c, notice: notice(c), ...extra[i], pty: ptys[i], signal, ...(ws ? { workers: ws.workers.map((x) => ({ id: x.id, title: x.title, status: workerStale(x, x.key ? ptyState(x.key) : null, Date.now(), beat) ? "stale" : x.status, bypass: x.bypass })), ...(ws.merge && ws.merge.status !== "merged" ? { workersMerge: ws.merge.status } : {}) } : {}), ...(rep?.phase ? { phase: rep.phase } : {}), ...(signal === "blocked" ? { blocked: rep!.blocked } : {}) };
+            // No terminal left to wake: the card says so, and approval works here as for any run.
+            const hand = c.kind === "run" && c.id ? readHandoff(c.state, c.id) : null, parentPty = hand ? ptyState(hand.parent_terminal) : null;
+            const unwoken = wakeAction(hand, parentPty ? { ...parentPty, typedAt: parentPty.typedAt ?? 0 } : null, Date.now()), orphan = unwoken === "gone" || unwoken === "held";
+            return { ...c, notice: notice(orphan ? { ...c, handoff: hand!.status } : c), ...extra[i], pty: ptys[i], signal, ...(ws ? { workers: ws.workers.map((x) => ({ id: x.id, title: x.title, status: workerStale(x, x.key ? ptyState(x.key) : null, Date.now(), beat) ? "stale" : x.status, bypass: x.bypass })), ...(ws.merge && ws.merge.status !== "merged" ? { workersMerge: ws.merge.status } : {}) } : {}), ...(rep?.phase ? { phase: rep.phase } : {}), ...(signal === "blocked" ? { blocked: rep!.blocked } : {}) };
           }),
           backlog: backlog.map((b) => ({ ...b, starting: backlogLaunched.has(`${b.state}\0${b.source}#${b.n}`) || undefined })),
           now: Date.now(),

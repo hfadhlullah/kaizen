@@ -61,14 +61,14 @@ function steps(c) {
       why: files
         ? "Commit changes first"
         : b && !b.upstream
-          ? "Not published yet: Create PR pushes it"
+          ? b.local ? "Lands by local merge: kaizen worktree land" : "Not published yet: Create PR pushes it"
           : g.ahead > 0
             ? ""
             : "Nothing to push",
     },
   ];
   if (!b) return s;
-  const noGh = b.gh ? "" : "Needs the GitHub CLI (gh) and a GitHub remote";
+  const noGh = b.local ? "Lands by local merge: kaizen worktree land" : b.gh ? "" : "Needs the GitHub CLI (gh) and a GitHub remote";
   const prWhy =
     noGh ||
     (files
@@ -134,7 +134,7 @@ export function gitTab(c, refresh) {
     rows = g.rows || [],
     staged = rows.filter((r) => r.staged),
     unstaged = rows.filter((r) => !r.staged),
-    target = b ? `origin/${b.base}` : `${g.remote}/${g.branch || "HEAD"}`;
+    target = b ? (b.local ? b.base : `origin/${b.base}`) : `${g.remote}/${g.branch || "HEAD"}`;
   if (u.msg === undefined) u.msg = commitMsg(store.runDoc.impl) || c.title || c.text || "";
   u.shut = u.shut || {};
   // The main button: Stage all while nothing is staged, Commit once something is, else the
@@ -223,7 +223,7 @@ export function gitTab(c, refresh) {
         : u.ask === "remove"
           ? html`<div class="gsec gform">
               <div class="ghd">Remove the worktree and delete ${b.branch}?</div>
-              <div class="dim">Its work is on ${b.base}. The branch is deleted here and on GitHub.</div>
+              <div class="dim">Its work is on ${b.base}. The branch is deleted here${b.local ? "" : " and on GitHub"}.</div>
               <div class="row"><button class="btn ghost" data-a="cancel">Cancel</button><button class="btn danger" data-a="go-remove">Remove workspace</button></div>
             </div>`
           : "";

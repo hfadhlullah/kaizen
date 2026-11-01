@@ -52,8 +52,20 @@ const baseOf = (project: string) => {
   return head.ok ? head.out.replace(/^origin\//, "") : "main";
 };
 
-/** Makes the run's worktree and branch off the remote default branch and records both. */
-export function startWorktree(project: string, id: string): { ok: true; path: string; branch: string } | { ok: false; why: string } {
+/** The feature branch a run was cut from and lands on, or null for the remote default branch. */
+const localBase = (project: string, id: string): string | null => {
+  try { const b = JSON.parse(readFileSync(file(project, id), "utf8")).base_branch; return typeof b === "string" && b ? b : null; } catch { return null; }
+};
+const baseOfRun = (project: string, id: string) => localBase(project, id) ?? baseOf(project);
+// The ref that proves a run's work is on its base: local for a feature branch, which may never be pushed.
+const baseRef = (project: string, id: string) => localBase(project, id) ?? `origin/${baseOf(project)}`;
+
+/**
+ * Makes the run's worktree and branch and records both. Off the remote default branch, or,
+ * when the project is on another branch, off that local branch, unpushed commits included,
+ * recorded as `base_branch`. `warn` names uncommitted changes, which a worktree never carries.
+ */
+export function startWorktree(project: string, id: string): { ok: true; path: string; branch: string; warn?: string } | { ok: false; why: string } {
   if (!SLUG.test(id)) return { ok: false, why: `"${id}" is not a run id` };
   if (!existsSync(file(project, id))) return { ok: false, why: "no such run" };
   if (!git(project, "rev-parse", "--is-inside-work-tree").ok) return { ok: false, why: "not a git repository" };
@@ -62,21 +74,23 @@ export function startWorktree(project: string, id: string): { ok: true; path: st
   if (!git(project, "remote").out) return { ok: false, why: "no git remote to branch from" };
   const f = git(project, "fetch", "origin");
   if (!f.ok) return { ok: false, why: `fetch failed: ${f.why}` };
-  const base = `origin/${baseOf(project)}`;
+  const here = git(project, "symbolic-ref", "--short", "-q", "HEAD"), feature = here.ok && here.out && here.out !== baseOf(project) ? here.out : null;
+  const base = feature ?? `origin/${baseOf(project)}`;
   const exists = git(project, "rev-parse", "--verify", "--quiet", `refs/heads/${branch}`).ok;
   const add = git(project, "worktree", "add", ...(exists ? [path, branch] : [path, "--no-track", "-b", branch, base]));
   if (!add.ok) return { ok: false, why: add.why };
-  patchState(project, id, { worktree: path, branch });
-  return { ok: true, path, branch };
+  patchState(project, id, { worktree: path, branch, ...(feature ? { base_branch: feature, base_sha: git(project, "rev-parse", "HEAD").out } : {}) });
+  const dirty = feature ? git(project, "status", "--porcelain").out : "";
+  return { ok: true, path, branch, ...(dirty ? { warn: `uncommitted changes in ${feature} are not in the worktree:\n${dirty}` } : {}) };
 }
 
-export type Landed = { ok: true; how: "pr" | "push"; url?: string } | { ok: false; why: string };
+export type Landed = { ok: true; how: "pr" | "push" | "merge"; url?: string } | { ok: false; why: string };
 
 // Whether every commit of the branch is on the base, by patch: a rebase-merge rewrites
 // the hashes, so "is an ancestor" would say not landed for work that is.
 // A cherry that fails (no origin, no origin/<base>) proves nothing: not landed.
-const landed = (dir: string, base: string, branch: string, sh: Run = run) => {
-  const r = sh(["git", "cherry", `origin/${base}`, branch], dir);
+const landed = (dir: string, ref: string, branch: string, sh: Run = run) => {
+  const r = sh(["git", "cherry", ref, branch], dir);
   return r.ok && r.out.split("\n").every((l) => !l.startsWith("+"));
 };
 
@@ -94,10 +108,27 @@ export function landWorktree(project: string, id: string, sh: Run = run,
   if (dir === project) return { ok: false, why: "this run has no worktree" };
   const clean = (d: string) => !sh(["git", "status", "--porcelain"], d).out;
   if (!clean(dir)) return { ok: false, why: "the worktree has uncommitted changes; commit them first" };
+  const feature = localBase(project, id);
+  if (feature) {
+    // Never push, stash or switch: the project folder may be in use. Anything but a clean merge stops here.
+    const on = sh(["git", "symbolic-ref", "--short", "-q", "HEAD"], project).out;
+    if (on !== feature) return { ok: false, why: `the project folder is on ${on || "a detached HEAD"}, not ${feature}; switch to it and land again. Worktree kept` };
+    // Nothing was built: keep the branch rather than call that landed.
+    const tip = sh(["git", "rev-parse", branch], project).out, from = JSON.parse(readFileSync(file(project, id), "utf8")).base_sha;
+    if (tip && tip === from) return { ok: false, why: `${branch} has no commits of its own; worktree kept` };
+    // Already merged (a retry after the worktree would not go): only the cleanup is left.
+    const m = sh(["git", "merge-base", "--is-ancestor", branch, "HEAD"], project).ok ? { ok: true, why: "" } : sh(["git", "merge", "--no-edit", branch], project);
+    if (!m.ok) { sh(["git", "merge", "--abort"], project); return { ok: false, why: `merge into ${feature} failed: ${m.why}; worktree kept` }; }
+    const rm = git(project, "worktree", "remove", "--force", dir);
+    if (!rm.ok) return { ok: false, why: `merged, but the worktree stays: ${rm.why}` };
+    git(project, "branch", "-D", branch);
+    patchState(project, id, { worktree: null, branch: null });
+    return { ok: true, how: "merge" };
+  }
   const base = baseOf(project);
   const finish = (how: "pr" | "push", url?: string): Landed => {
     git(project, "fetch", "origin");
-    if (!landed(dir, base, branch)) return { ok: false, why: `${how === "pr" ? "the pull request" : "the push"} went through but ${branch} is not on ${base} yet; worktree kept` };
+    if (!landed(dir, `origin/${base}`, branch)) return { ok: false, why: `${how === "pr" ? "the pull request" : "the push"} went through but ${branch} is not on ${base} yet; worktree kept` };
     // The worktree is clean (checked above); --force is only for the untracked node_modules link.
     const rm = git(project, "worktree", "remove", "--force", dir);
     if (!rm.ok) return { ok: false, why: `landed, but the worktree stays: ${rm.why}` };
@@ -135,7 +166,7 @@ export function landWorktree(project: string, id: string, sh: Run = run,
 // ---- the Git tab: a run's branch, its pull request and its cleanup, one step at a time
 
 export type Pr = { number: number; url: string; state: "OPEN" | "MERGED" | "CLOSED"; draft: boolean };
-export type Branch = { branch: string; base: string; upstream: boolean; landed: boolean; gh: boolean; pr: Pr | null; checking: boolean };
+export type Branch = { branch: string; base: string; local?: boolean; upstream: boolean; landed: boolean; gh: boolean; pr: Pr | null; checking: boolean };
 // The calls that wait on a network (push, fetch, gh): never on the board server's thread.
 export type AsyncRun = (cmd: string[], cwd: string) => Promise<Out>;
 
@@ -168,10 +199,12 @@ export function branchState(project: string, id: string, changed: () => void = (
   if (!SLUG.test(id)) return null;
   const dir = codeDir(project, id);
   if (dir === project) return null; // committed in the project's own checkout: no branch of its own
-  const branch = branchOf(id), base = baseOf(project);
+  const branch = branchOf(id), base = baseOfRun(project, id), ref = baseRef(project, id);
+  // A feature base may never have been pushed: it lands by local merge, with no pull request.
+  const gh = hasGh && !localBase(project, id);
   const upstream = sh(["git", "rev-parse", "--abbrev-ref", `${branch}@{u}`], dir).ok;
   const k = prKey(project, id), hit = prs.get(k);
-  if (hasGh && (!hit || Date.now() - hit.at >= 30_000) && !looking.has(k)) {
+  if (gh && (!hit || Date.now() - hit.at >= 30_000) && !looking.has(k)) {
     looking.add(k);
     void ash(["gh", "pr", "view", branch, ...PR_JSON], dir).then((r) => {
       looking.delete(k);
@@ -183,9 +216,9 @@ export function branchState(project: string, id: string, changed: () => void = (
   }
   const pr = hit?.pr ?? null;
   // Landed counts only work that is on the base: a branch with no commits of its own is not "merged".
-  const own = sh(["git", "rev-list", "--count", `origin/${base}..${branch}`], dir);
-  const landedNow = pr?.state === "MERGED" || (own.ok && Number(own.out) > 0 && landed(dir, base, branch, sh));
-  return { branch, base, upstream, landed: landedNow, gh: hasGh, pr, checking: hasGh && !hit };
+  const own = sh(["git", "rev-list", "--count", `${ref}..${branch}`], dir);
+  const landedNow = pr?.state === "MERGED" || (own.ok && Number(own.out) > 0 && landed(dir, ref, branch, sh));
+  return { branch, base, local: !!localBase(project, id), upstream, landed: landedNow, gh: gh, pr, checking: gh && !hit };
 }
 
 /** Pushes the branch, then opens its pull request against the base. */
@@ -193,12 +226,13 @@ export async function openPr(project: string, id: string, title: string, body: s
   if (!SLUG.test(id)) return { ok: false, why: `"${id}" is not a run id` };
   const dir = codeDir(project, id), branch = branchOf(id);
   if (dir === project) return { ok: false, why: "This run has no branch of its own." };
+  if (localBase(project, id)) return { ok: false, why: "This run lands by a local merge into its branch, with no pull request." };
   if (!hasGh) return { ok: false, why: "Pull requests need the GitHub CLI (gh) and a GitHub remote." };
   if (!title.trim()) return { ok: false, why: "A pull request needs a title." };
   if (sh(["git", "status", "--porcelain"], dir).out) return { ok: false, why: "Commit the changes first." };
   const push = await ash(["git", "push", "-u", "origin", branch], dir);
   if (!push.ok) return { ok: false, why: `Push of ${branch} failed: ${push.why}` };
-  const r = await ash(["gh", "pr", "create", "--base", baseOf(project), "--head", branch, "--title", title.trim(), "--body", body, ...(draft ? ["--draft"] : [])], dir);
+  const r = await ash(["gh", "pr", "create", "--base", baseOfRun(project, id), "--head", branch, "--title", title.trim(), "--body", body, ...(draft ? ["--draft"] : [])], dir);
   // An existing pull request for the branch is fine: show that one.
   if (!r.ok && !/already exists/i.test(r.why)) return { ok: false, why: `Pull request failed: ${r.why}` };
   const pr = parsePr(await ash(["gh", "pr", "view", branch, ...PR_JSON], dir));
@@ -211,6 +245,7 @@ export async function mergePr(project: string, id: string, sh: Run = run, ash: A
   if (!SLUG.test(id)) return { ok: false, why: `"${id}" is not a run id` };
   const dir = codeDir(project, id), branch = branchOf(id);
   if (dir === project) return { ok: false, why: "This run has no branch of its own." };
+  if (localBase(project, id)) return { ok: false, why: "This run lands by a local merge: run kaizen worktree land." };
   if (!hasGh) return { ok: false, why: "Merging needs the GitHub CLI (gh) and a GitHub remote." };
   const r = await ash(["gh", "pr", "merge", branch, "--rebase"], dir);
   prs.delete(prKey(project, id));
@@ -228,17 +263,19 @@ export async function removeWorktree(project: string, id: string, sh: Run = run,
   const dir = codeDir(project, id), branch = branchOf(id);
   if (dir === project) return { ok: false, why: "This run has no worktree." };
   if (sh(["git", "status", "--porcelain"], dir).out) return { ok: false, why: "The worktree has uncommitted changes. Commit or discard them first." };
-  const f = await ash(["git", "fetch", "origin"], project);
-  if (!f.ok) return { ok: false, why: `Could not fetch origin, so nothing proves the work is on the base: ${f.why}` };
-  const base = baseOf(project);
-  if (!sh(["git", "rev-parse", "--verify", "--quiet", `origin/${base}`], project).ok) return { ok: false, why: `origin/${base} does not exist, so nothing proves the work is on it.` };
-  if (!landed(dir, base, branch, sh)) return { ok: false, why: `${branch} has commits that are not on ${base} yet. Merge its pull request first.` };
+  const feature = localBase(project, id), base = feature ?? baseOf(project), ref = baseRef(project, id);
+  if (!feature) {
+    const f = await ash(["git", "fetch", "origin"], project);
+    if (!f.ok) return { ok: false, why: `Could not fetch origin, so nothing proves the work is on the base: ${f.why}` };
+  }
+  if (!sh(["git", "rev-parse", "--verify", "--quiet", ref], project).ok) return { ok: false, why: `${ref} does not exist, so nothing proves the work is on it.` };
+  if (!landed(dir, ref, branch, sh)) return { ok: false, why: `${branch} has commits that are not on ${base} yet. Merge its pull request first.` };
   // Clean (checked above); --force is only for the untracked node_modules link.
   const rm = sh(["git", "worktree", "remove", "--force", dir], project);
   if (!rm.ok) return { ok: false, why: rm.why };
   // Every commit is on the base by patch, so -D loses nothing a rebase-merge rewrote.
   sh(["git", "branch", "-D", "--", branch], project);
-  await ash(["git", "push", "origin", "--delete", branch], project); // best effort: GitHub may have deleted it
+  if (!feature) await ash(["git", "push", "origin", "--delete", branch], project); // best effort: GitHub may have deleted it
   prs.delete(prKey(project, id));
   patchState(project, id, { worktree: null, branch: null });
   return { ok: true };
@@ -319,6 +356,8 @@ export const linkTerm = (state: string, key: string | undefined, id: string) => 
   mkdirSync(join(state, "sessions"), { recursive: true });
   writeFileSync(termFile(state, key), id);
 };
+/** The first agent of a handed-off run stays where it is: its tab does not follow the worktree. */
+export const unlinkTerm = (state: string, key: string) => { rmSync(termFile(state, key), { force: true }); };
 /** The worktree a linked terminal's live run is in; null when it has no link, the run ended, or the worktree is gone. */
 export function linkedWs(state: string, key: string): string | null {
   try {
