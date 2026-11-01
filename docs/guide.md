@@ -101,12 +101,12 @@ tells you what it concluded, so you correct a sentence instead of filling in a f
 | `/kaizen-backlog` | Work you asked to backlog, across all runs |
 | `/kaizen-abort` | Abandon the current run |
 | `/kaizen-gather` | Read the request sources kaizen cannot read by itself into the icebox |
-| `/kaizen-discover` | An agent groups what is in the icebox, proposes ideas, and promotes the ones you pick |
+| `/kaizen-discover` | An agent groups what is in the icebox, proposes tasks, and promotes the ones you pick |
 | `/kaizen-docs [lint]` | Write or refresh this project's docs in Notes → `Project/`, which agents read before they build; `lint` runs the CLI check below |
 | `kaizen docs lint` | Check the Project vault without changing it; print broken links, missing or uncovered sources and stale notes, and exit 1 on findings |
 | `kaizen sources [add\|rm <link>]` | In a terminal: list, add or remove request sources |
 | `kaizen gather` | In a terminal: check every source now and add new requests to the icebox |
-| `kaizen icebox [promote\|dismiss <ids>]` | In a terminal: list what waits in the icebox, promote it to Ideas, or dismiss it |
+| `kaizen icebox [promote\|dismiss <ids>]` | In a terminal: list what waits in the icebox, promote it to Tasks, or dismiss it |
 | `kaizen recall [--track t] [--tags a,b] [--query "<words>"]` | Lessons learned in other projects that match; see *Global knowledge* |
 | `kaizen remember --track t --tags a,b --applies "<where>" --run <id> "<lesson>"` | Save a lesson that holds beyond this project; the reviewer calls it at the end of a run |
 | `/kaizen-config` | Show this project's settings and change them |
@@ -117,7 +117,7 @@ tells you what it concluded, so you correct a sentence instead of filling in a f
 
 ## The board
 
-`kaizen` opens a dashboard; **Board** is the screen where your work lives. Ideas you have
+`kaizen` opens a dashboard; **Board** is the screen where your work lives. Tasks you have
 not started sit on the left, runs sit under the stage they are actually in, and it redraws
 itself as your agents write to disk — a run that moves while you are looking at it moves on
 screen.
@@ -134,16 +134,16 @@ screen.
       script, two minutes
 
   ↑↓←→ move     n new  e edit  x reject  d delete  r run     a all projects  q back
-  ● running    ◐ stalled    ◌ starting    ● waiting on you    ○ done    · idea
+  ● running    ◐ stalled    ◌ starting    ● waiting on you    ○ done    · task
 ```
 
-**Throw an idea in with `n`** and it lands in `<state.dir>/inbox.md`, one line each, in the
+**Throw a task in with `n`** and it lands in `<state.dir>/inbox.md`, one line each, in the
 same format a run's backlog already uses. `e` edits, `x` rejects with a reason, `d` deletes.
 
-**`r` starts a run from an idea** — it asks `full` or `lite`, then opens your configured
-agent with the request already typed. The idea retires from the board once a run exists
+**`r` starts a run from a task** — it asks `full` or `lite`, then opens your configured
+agent with the request already typed. The task retires from the board once a run exists
 that was started from its text, whoever started it, so the same work never appears twice.
-That check spans every project you have opened, because an idea thrown into the global
+That check spans every project you have opened, because a task thrown into the global
 inbox becomes a run inside whichever project you launched the agent in.
 
 **The dot is what the run is doing.** `●` cyan is running and `◐` is stalled — kaizen
@@ -173,26 +173,26 @@ opens it in a tab of your default browser. Set **Open kaizen in** to `app` in
 
 **Home** is the page it opens on: a chat with kaizen's agent, like ChatGPT or Claude. New chat is at the top right. A new chat starts in the current project, or in none when kaizen shows all projects. Attach files with the paperclip, paste an image or file into the message box, or paste text normally; the limit is 20 files, 100 MB each and 300 MB total. While the agent works, Home shows the Kaizen mascot with its current tool or a thinking label. The agent keeps working when you leave Home; returning or refreshing restores the conversation and latest activity. Talk about any project: when you mention another one the agent asks whether to move the chat there, and when what you describe fits no project it offers to create one (in your Projects folder, by the same rules as New project). Tell it "switch to D" or "make a new project called shop" and it does. kaizen follows the chat and the agent continues the pending request in the new project without making you repeat it. A chat with no project can talk and plan but not edit files. For bigger work the agent starts a kaizen run, which shows on the Board. Chats are kept in `~/.kaizen/chats/`. The Board itself is at `/?view=board`. Home needs `codex` on the PATH and signed in.
 
-The left menu has Home, Icebox (with the number of new items), Ideas (with the icons of your first sources), then **Projects**, whose header holds a Board icon left of the filter (click to open the board, click again to go back): every open idea and run grouped by project, each with a small state icon (ring for an idea, an arc while planning or building, an orbiting dot in review, a ripple while it waits on you, a check when done, a pause when stalled; still when motion is reduced) and a line saying its stage and age. Done and abandoned runs stay listed for a day. The filter button steps through one project at a time and back to all; + adds an idea; a row opens that card's workspace. Settings, Report an issue and Keyboard shortcuts sit at the bottom. On a phone these become bottom tabs (Home, Icebox, Ideas, Board, Settings).
+The left menu has Home, Icebox (with the number of new items), Tasks (with the icons of your first sources), then **Projects**, whose header holds a Board icon left of the filter (click to open the board, click again to go back): every open task and run grouped by project, each with a small state icon (ring for a task, an arc while planning or building, an orbiting dot in review, a ripple while it waits on you, a check when done, a pause when stalled; still when motion is reduced) and a line saying its stage and age. Done and abandoned runs stay listed for a day. The filter button steps through one project at a time and back to all; + adds a task; a row opens that card's workspace. Settings, Report an issue and Keyboard shortcuts sit at the bottom. On a phone these become bottom tabs (Home, Icebox, Tasks, Board, Settings).
 
-**Ideas** is a table of every idea and run across your projects: Open, Running or Done, a search over titles and projects, a project picker, and a chip per source the ideas actually came from (an idea is matched to the Icebox item it was promoted from; one you typed is "Manual"). Start on an idea opens the same run form its card has; Open on a run opens its workspace.
+**Tasks** is a table of every task and run across your projects: Open, Running or Done, a search over titles and projects, a project picker, and a chip per source the tasks actually came from (a task is matched to the Icebox item it was promoted from; one you typed is "Manual"). Start on a task opens the same run form its card has; Open on a run opens its workspace.
 
 **Resources** is the memory button in the footer, left of the terminal count. It shows system memory with a recent graph and a split between kaizen, other apps and free, then kaizen's storage with a split by project; the arrow beside Storage opens the list (Rescan measures again). Every live terminal is listed by workspace with Open and Kill. Kill ends the terminal at once, after you confirm in its row.
 
-**A run's workspace** is where an idea or run is worked on. The run's own tabs (Request, Notes, Plan, Backlog, Work, Review) are an icon strip on the right, under the run's title and its Plan → Build → Review → Done bar, with Approve, Revise and the rest below them as on the card. The book icon at the bottom lists the project's notes; a note opens as a tab in the middle. The middle holds tabs: the run's agent, shells, the project's localhost, the run's Preview and opened notes. **+** opens a new shell in the project folder, your localhost (the address is remembered per project; from a phone over the tailnet, localhost is the phone, so it offers Open in a new tab instead), the Preview (a localhost address it names, else its screenshots), or a bare Claude or Codex session in the project (no run, only for agents you have installed). Split right and split down put a second tab beside or below the shown one, with a border you can drag. × on a shell ends it; × on the agent only hides its tab. The panel button at the top right hides the strip; on a phone it opens it as a sheet. Shells keep running when you leave the workspace and show as tiles on the Terminal page, which the footer's terminal count opens. Anyone who can reach the board can open a shell here, the same reach that can already run your agents: keep `web-hosts` to your own devices.
+**A run's workspace** is where a task or run is worked on. The run's own tabs (Request, Notes, Plan, Backlog, Work, Review) are an icon strip on the right, under the run's title and its Plan → Build → Review → Done bar, with Approve, Revise and the rest below them as on the card. The book icon at the bottom lists the project's notes; a note opens as a tab in the middle. The middle holds tabs: the run's agent, shells, the project's localhost, the run's Preview and opened notes. **+** opens a new shell in the project folder, your localhost (the address is remembered per project; from a phone over the tailnet, localhost is the phone, so it offers Open in a new tab instead), the Preview (a localhost address it names, else its screenshots), or a bare Claude or Codex session in the project (no run, only for agents you have installed). Split right and split down put a second tab beside or below the shown one, with a border you can drag. × on a shell ends it; × on the agent only hides its tab. The panel button at the top right hides the strip; on a phone it opens it as a sheet. Shells keep running when you leave the workspace and show as tiles on the Terminal page, which the footer's terminal count opens. Anyone who can reach the board can open a shell here, the same reach that can already run your agents: keep `web-hosts` to your own devices.
 
-A flat bar along the bottom shows your Claude and Codex plan usage, the 5-hour and weekly windows with when each resets in the tooltip, and a refresh button. Codex's numbers come from its own session logs; Claude's come from Anthropic's usage endpoint, asked by the board with the login Claude Code saved (the token stays on your computer's board server and is never sent to the page). An agent that is not installed, or has no data, has no chip; a Claude check that fails says "usage unavailable". On the right: the number of live terminals (it opens the Terminal page with all of them) and whether your phone is on your tailnet ("Phone connected", "Phone offline" or "Tailscale off"). On a desktop, the left menu and slim right project pane sit outside the rounded center workspace. The right pane opens on the read-only project file tree, with Notes and Terminal sessions beside it. Selecting a note opens it in the existing notebook editor. Selecting a text file previews it without editing; hidden files, generated folders, symlinks, binary files and large files are unavailable there. The Terminal tab can open the existing multi-terminal workspace in the center. Selecting a card replaces the right pane with its details and actions. At smaller widths, the side-panel button opens these tools as a sheet. The new-idea form has a larger field for planning context.
+A flat bar along the bottom shows your Claude and Codex plan usage, the 5-hour and weekly windows with when each resets in the tooltip, and a refresh button. Codex's numbers come from its own session logs; Claude's come from Anthropic's usage endpoint, asked by the board with the login Claude Code saved (the token stays on your computer's board server and is never sent to the page). An agent that is not installed, or has no data, has no chip; a Claude check that fails says "usage unavailable". On the right: the number of live terminals (it opens the Terminal page with all of them) and whether your phone is on your tailnet ("Phone connected", "Phone offline" or "Tailscale off"). On a desktop, the left menu and slim right project pane sit outside the rounded center workspace. The right pane opens on the read-only project file tree, with Notes and Terminal sessions beside it. Selecting a note opens it in the existing notebook editor. Selecting a text file previews it without editing; hidden files, generated folders, symlinks, binary files and large files are unavailable there. The Terminal tab can open the existing multi-terminal workspace in the center. Selecting a card replaces the right pane with its details and actions. At smaller widths, the side-panel button opens these tools as a sheet. The new-task form has a larger field for planning context.
 
 <img src="https://raw.githubusercontent.com/hfadhlullah/kaizen/main/assets/board-v2.png" alt="kaizen web board" width="760">
 
-Same columns, same files: an idea added here lands in `inbox.md`, a run
+Same columns, same files: a task added here lands in `inbox.md`, a run
 started here opens your agent in a new terminal exactly as `r` does (a new herdr tab
 or tmux window when one of those is running; otherwise `$TERMINAL`, which on macOS
 may name an app such as `Ghostty` or `iTerm`), and the board
 redraws as your agents write to disk. Mouse first; the TUI's keys still work. Click a card for its plan, review and
-backlog; `⋯` on a card runs, edits, rejects, abandons or archives. The Ideas column has two
-tabs, shown as icons at its top: **Ideas**, and **Backlog**, which lists what finished runs left open, most severe first,
-with a filter icon for severity. A backlog card runs like an idea (the new run names the run it came
+backlog; `⋯` on a card runs, edits, rejects, abandons or archives. The Tasks column has two
+tabs, shown as icons at its top: **Tasks**, and **Backlog**, which lists what finished runs left open, most severe first,
+with a filter icon for severity. A backlog card runs like a task (the new run names the run it came
 from, and when it is done the item reads `done` in that run's backlog), opens its run's Backlog
 tab when clicked, and Reject marks it `rejected` with your reason. `Clear` on Done sends
 every finished run to the archive (`.kaizen/archive.md`, a list, nothing moves), and
@@ -266,7 +266,7 @@ arrived or what went wrong, and lists the video's recent sends. MP4s over 64 MiB
 WhatsApp documents with their original quality; smaller MP4s appear as video messages.
 WhatsApp documents over 2 GB are refused before upload.
 
-**Dictate instead of type.** Every text field in kaizen — a new idea, its notes, an
+**Dictate instead of type.** Every text field in kaizen — a new task, its notes, an
 edit, a reject reason, a note on a run — has a mic. Press it, talk, press it again; the
 words land at the caret next to whatever you had typed. Recognition is Whisper running
 inside the page, so audio never leaves your machine. The first press downloads the model
@@ -286,7 +286,7 @@ a category if you like (*Feedback*, *Bugs*), and kaizen reads it at once and put
 every request it has not seen before in the icebox; the page says what came back, or
 why the link could not be read. In a sheet, the header
 is looked for in the first five rows that hold anything, and a column headed `Request`,
-`Idea`, `Title`, `Task`, `PBI`, `Summary`, `Name`, `Detail`, `Details`, `Description`,
+`Task`, `Title`, `Task`, `PBI`, `Summary`, `Name`, `Detail`, `Details`, `Description`,
 `Deskripsi`, `Feedback`, `Issue`, `Permintaan` or `Judul` is the request; the other
 cells become its notes. Without such
 a header the request is one column for the whole sheet, the one holding the most text. A row whose `Status` column says `Done`,
@@ -330,10 +330,10 @@ The icebox reads like an inbox: one row per request as the source wrote it, grou
 by category, with dropdowns beside the count to narrow it by category and by source.
 In *All projects* a project dropdown narrows it too; it is the board's own *Showing*
 picker, so the board and the icebox show the same projects. Open a row to see the row's
-other cells and promote it under a title of your own; **Promote** makes it an idea in
-Ideas, with a note saying where it came from and a *gathered* chip; **Dismiss** sets it
+other cells and promote it under a title of your own; **Promote** makes it a task in
+Tasks, with a note saying where it came from and a *gathered* chip; **Dismiss** sets it
 aside. Check several rows to promote or dismiss them together (each promoted row
-becomes its own idea, titled as gathered). Keys: `j`/`k` move, `o` opens, `x` checks,
+becomes its own task, titled as gathered). Keys: `j`/`k` move, `o` opens, `x` checks,
 `p` promotes, `d` dismisses, `Esc` closes.
 
 **Swipe** in the Icebox bar sorts the waiting requests one card at a time, each card naming its project. Drag the card
@@ -345,7 +345,7 @@ browser). On a desktop the card fills the Icebox's width and the window's height
 sound is off.
 
 Run `/kaizen discover` in your agent and it reads the icebox for you: it groups
-requests that ask for the same thing, drafts one idea per need, and promotes only the
+requests that ask for the same thing, drafts one task per need, and promotes only the
 ones you pick (`kaizen icebox promote <ids>` underneath).
 
 A gathered social post can also be answered from its open row. Pick a style, then
@@ -358,9 +358,9 @@ nothing is posted until you press **Send reply**, which posts exactly that text 
 the post from the account kaizen's browser is signed in to (`kaizen browser login`).
 A post is answered once: the row then shows *replied*.
 
-Nothing starts on its own: requests wait in the icebox until promoted, and ideas wait
-in Ideas until you press Run. Gathering twice adds nothing, and a request you
-promoted or dismissed, or an idea you deleted, edited or rejected, does not come
+Nothing starts on its own: requests wait in the icebox until promoted, and tasks wait
+in Tasks until you press Run. Gathering twice adds nothing, and a request you
+promoted or dismissed, or a task you deleted, edited or rejected, does not come
 back. Rewording a row in the source makes it a new request. At most 50 arrive per
 gather; the rest come with the next one.
 

@@ -32,8 +32,8 @@
 | **Plan first** | The agent writes what it will do, and what *wrong* would look like, then waits for your approve or change. |
 | **A reviewer that starts cold** | A second agent reviews from the request, the plan and the diff only. It never saw the work, so it has nothing to defend. |
 | **A fix loop that ends** | Serious findings are fixed and re-checked, at most twice. The rest come to you; what is left goes to a backlog. |
-| **One workspace** | `kaizen web`: each run builds in its own worktree, with icebox, ideas, plan, build, review, fix, commit and push in one place, in the browser or the terminal. |
-| **Requests from where they live** | Sheets, docs and social posts are gathered into an icebox, grouped, and promoted to ideas when you pick them. |
+| **One workspace** | `kaizen web`: each run builds in its own worktree, with icebox, tasks, plan, build, review, fix, commit and push in one place, in the browser or the terminal. |
+| **Requests from where they live** | Sheets, docs and social posts are gathered into an icebox, grouped, and promoted to tasks when you pick them. |
 | **A notebook agents read first** | An Obsidian-compatible vault under `.kaizen/notes/` that every stage reads before it plans or builds. |
 | **On your phone** | kaizen installs as a PWA over Tailscale. `kaizen setup` prints the QR code. |
 | **Any agent, any session** | Every stage is a file in `.kaizen/runs/<id>/`, so another session or another tool can pick a run up. |
@@ -93,7 +93,7 @@ flowchart LR
 ```
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/hfadhlullah/kaizen/main/assets/readme/architecture.png" alt="From idea to finished work: your idea, plan, build, a review in a separate context, a refine loop, and the finished app, document, video or game" width="100%">
+  <img src="https://raw.githubusercontent.com/hfadhlullah/kaizen/main/assets/readme/architecture.png" alt="From task to finished work: your task, plan, build, a review in a separate context, a refine loop, and the finished app, document, video or game" width="100%">
 </p>
 
 Each stage is its own agent with a clean context: planner, builder, reviewer. They never share a context window. The main thread owns the run's state in `.kaizen/runs/<id>/state.json`; the plan, the build notes, the review and every fix round are files beside it. Small changes take a short path in one session, so a typo does not cost a payroll change.

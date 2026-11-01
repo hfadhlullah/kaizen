@@ -8,7 +8,7 @@ import { COLS, ICON, MARKS, NAMES, WORD, age, d, need } from "./labels.ts";
 import { brief } from "./markdown.ts";
 import { open, openAt, toggleArchive } from "./panel.ts";
 import { isPhone } from "./phone.ts";
-import { ideaCombo, list, newDir, plogo, setNewDir, short, showList, showable } from "./projects.ts";
+import { taskCombo, list, newDir, plogo, setNewDir, short, showList, showable } from "./projects.ts";
 import { askNotify, toast } from "./toast.ts";
 import { answer, decided, resumable, resume } from "./approvals.ts";
 import { termsBadge } from "./terms.ts";
@@ -30,8 +30,8 @@ let order = (() => {
   }
 })();
 let archive = false; // showing the archive instead of the board
-// The Ideas column shows ideas or the runs' open backlog, never both; kept per browser.
-let ideasTab = (() => {
+// The Tasks column shows tasks or the runs' open backlog, never both; kept per browser.
+let tasksTab = (() => {
   try {
     return localStorage.getItem("kz-ideas-tab") === "backlog" ? "backlog" : "ideas";
   } catch (e) {
@@ -46,7 +46,7 @@ const SEVS = [
   ["low", "Low", (s) => s === "low"],
   ["none", "No severity", (s) => !s],
 ];
-// Open backlog items as cards for the Ideas column. A card's key names its line by
+// Open backlog items as cards for the Tasks column. A card's key names its line by
 // source and number, which is what Start and Reject send back.
 const backlogList = () =>
   (store.S.backlog || []).map((b) => ({
@@ -69,7 +69,7 @@ const show = (c) => {
 let picking = false;
 const picked = new Set();
 
-// Two ideas may carry the same text; load() numbers the repeats so a key names one card.
+// Two tasks may carry the same text; load() numbers the repeats so a key names one card.
 export const key = (c) =>
   c._k || (c.kind === "idea" ? "idea:" + c.state + ":" + c.text : "run:" + c.state + ":" + c.id);
 
@@ -141,7 +141,7 @@ function card(c) {
     marks.push(mk("i-ask", "The agent is asking you something: open it, terminal button at the top", " warn ask"));
   else if (c.pty && c.pty.alive)
     marks.push(mk("i-term", "The agent is running in this run's workspace: open it", " run"));
-  // A gathered idea's notes open with the stamp promote() writes (ingest() wrote it before
+  // A gathered task's notes open with the stamp promote() writes (ingest() wrote it before
   // the icebox); its chip names the source.
   const g = c.notes && /^\[[^\]]*\] (?:Gathered from|Promoted from the icebox:) (.+?)\. Outside text/.exec(c.notes);
   // A card filed by a run names that run; the parent itself shows nothing.
@@ -252,7 +252,7 @@ function card(c) {
     } else {
       items.push(["open", actionOf(c), ico("open")]);
       items.push(["archive", "Archive", ico("archive")]);
-      if (c.column === 1 && c.status !== "abandoned") items.push(["toidea", "Back to idea", ico("restore")]);
+      if (c.column === 1 && c.status !== "abandoned") items.push(["toidea", "Back to task", ico("restore")]);
     }
     el.innerHTML += html`<div class="menu-pop" role="menu">${items.map((i) => (i ? html`<button role="menuitem" data-a="${i[0]}" class="${i[3] || ""}">${i[2]}${i[1]}</button>` : raw("<hr>")))}</div>`;
   }
@@ -281,8 +281,8 @@ function card(c) {
           return;
         }
         if (a === "toidea") {
-          const r = await post("/to-idea", { dir: c.state, id: c.id });
-          if (r.ok) toast("Back in Ideas");
+          const r = await post("/to-task", { dir: c.state, id: c.id });
+          if (r.ok) toast("Back in Tasks");
           load();
           return;
         }
@@ -371,7 +371,7 @@ function inlineForm(c) {
       }
       if (files.length) {
         const r = await post("/note", { dir, for: next, text: "", files: await dataUrls(files) });
-        if (!r.ok) toast("Idea saved, files not attached");
+        if (!r.ok) toast("Task saved, files not attached");
       }
       editFiles = { k: "", files: [] };
       store.mode = null;
@@ -380,8 +380,8 @@ function inlineForm(c) {
     };
   }
   if (store.mode === "reject") {
-    const idea = c.kind !== "run";
-    li.innerHTML = html`<div class="q">${c.kind === "backlog" ? "Not doing this backlog item?" : idea ? "Reject this idea?" : "Abandon this run?"} The reason is recorded.</div><input placeholder="Why not?"><div class="row"><button class="btn ghost" data-a="c">Keep it</button><button class="btn warn" data-a="s">${idea ? "Reject" : "Abandon"}</button></div>`;
+    const task = c.kind !== "run";
+    li.innerHTML = html`<div class="q">${c.kind === "backlog" ? "Not doing this backlog item?" : task ? "Reject this task?" : "Abandon this run?"} The reason is recorded.</div><input placeholder="Why not?"><div class="row"><button class="btn ghost" data-a="c">Keep it</button><button class="btn warn" data-a="s">${task ? "Reject" : "Abandon"}</button></div>`;
     li.querySelector("[data-a=s]").onclick = async () => {
       const why = li.querySelector("input").value.trim();
       if (!why) {
@@ -393,10 +393,10 @@ function inlineForm(c) {
       const r =
         c.kind === "backlog"
           ? await post("/backlog", { op: "reject", dir, source: c.source, n: c.n, reason: why })
-          : idea
+          : task
             ? await post("/inbox", { op: "reject", dir, text: c.text, reason: why })
             : await post("/abort", { dir, id: c.id, why });
-      if (r.ok) toast(idea ? "Rejected" : "Abandoned, reason recorded");
+      if (r.ok) toast(task ? "Rejected" : "Abandoned, reason recorded");
       load();
     };
   }
@@ -456,7 +456,7 @@ function inlineForm(c) {
 
 const runHtml = (c) =>
   html`<div class="q">Run "${c.text}"</div><div class="q dim">Opens your agent with this request in a terminal.</div><div class="q dim">Full plans, builds, and checks with a separate reviewer. Lite does it in one session.</div><div id="run-pick" style="display:grid;gap:6px"><div id="run-agent" class="agents" role="radiogroup" aria-label="Agent"></div></div><div class="run-actions"><label class="yolo" id="run-yolo" title="Yolo: the agent runs every command and edit without asking" hidden><button type="button" class="chk" role="switch" aria-checked="false"></button>Yolo</label><div class="row"><button type="button" class="btn ghost" data-a="c">Cancel</button><button type="button" class="btn" data-a="l">Lite</button><button type="button" class="btn pri" data-a="s">Full run</button></div></div>`;
-// The run form as a popup over any page: Start in the new-idea form and on Ideas.
+// The run form as a popup over any page: Start in the new-task form and on Tasks.
 export function runPopup(c) {
   const dl = modal(runHtml(c)),
     f = dl.querySelector("form");
@@ -559,53 +559,53 @@ async function startRun(c, kind) {
     toast((kind === "full" ? "Full" : kind === "lite" ? "Lite" : "Started") + (yolo ? " yolo" : "") + " run " + where(r) + ": " + via(r.agent));
     // A backlog card has no terminal of its own; the run's card gets it once the run exists.
     if (r.pty && !backlog) (store.wantTerm = key(c)), (store.wantPty = { key: r.pty, at: Date.now() });
-    // An idea's run opens in its workspace; the view follows it once the run card exists.
+    // A task's run opens in its workspace; the view follows it once the run card exists.
     if (!backlog) openWorkspace(c);
   }
   load();
 }
 
-const HINT = { 0: "Add an idea to start a run", 1: "Ideas you run are planned here", 2: "Approved plans are built here", 3: "Finished builds are checked here" };
+const HINT = { 0: "Add a task to start a run", 1: "Tasks you run are planned here", 2: "Approved plans are built here", 3: "Finished builds are checked here" };
 
-// Files picked in the new-idea form. Held here, not in the form, because the board
+// Files picked in the new-task form. Held here, not in the form, because the board
 // redraws the inline form on every change and a redraw would drop them.
 let newFiles = [];
-// The new-idea form, wired into f: inline at the top of Ideas, or in a modal.
-// Opened from another page (Ideas, a workspace, the side menu): always the project picker,
+// The new-task form, wired into f: inline at the top of Tasks, or in a modal.
+// Opened from another page (Tasks, a workspace, the side menu): always the project picker,
 // preset to that page's project or empty so one is chosen. The Board keeps its own rule.
 let formPick: { dir: string | null } | null = null;
-function ideaForm(f, shut) {
+function taskForm(f, shut) {
   // A phone has no project picker in its header: the form is the only place to choose.
   const picking = store.all || !!formPick || isPhone();
   const close = () => {
     newFiles = [];
     shut();
   };
-  f.innerHTML = html`${picking ? html`<div class="combo" id="ndc"><button type="button" class="sel" id="newdir" aria-label="Project for this idea" aria-haspopup="listbox" aria-expanded="false"></button><div class="menu-pop" hidden><input class="sel" aria-label="Search projects" placeholder="Search projects…" spellcheck="false" autocomplete="off"><div id="nds" role="listbox"></div></div></div>` : ""}<input id="newidea" placeholder="What do you want to build?"><label for="newnotes">Anything the planner should know <span class="dim">(optional)</span></label><textarea id="newnotes" placeholder="Context, constraints, examples, and what a good result looks like"></textarea><div class="att" id="newatt"></div><input type="file" id="newfile" multiple hidden><div class="row"><button type="button" class="ib" id="newpick" aria-label="Attach files" title="Attach files">${ico("clip")}</button><button type="button" class="btn ghost" id="nc">Cancel</button><div class="split"><button type="button" class="btn pri" id="ns">Add</button><button type="button" class="btn pri" id="nm" aria-label="More ways to add" aria-haspopup="menu" aria-expanded="false">${ico("chev")}</button><div class="menu-pop" role="menu" hidden><button type="button" role="menuitem" id="nr" title="Add the idea and run it now">${ico("play")}Start run</button></div></div></div>`;
+  f.innerHTML = html`${picking ? html`<div class="combo" id="ndc"><button type="button" class="sel" id="newdir" aria-label="Project for this task" aria-haspopup="listbox" aria-expanded="false"></button><div class="menu-pop" hidden><input class="sel" aria-label="Search projects" placeholder="Search projects…" spellcheck="false" autocomplete="off"><div id="nds" role="listbox"></div></div></div>` : ""}<input id="newidea" placeholder="What do you want to build?"><label for="newnotes">Anything the planner should know <span class="dim">(optional)</span></label><textarea id="newnotes" placeholder="Context, constraints, examples, and what a good result looks like"></textarea><div class="att" id="newatt"></div><input type="file" id="newfile" multiple hidden><div class="row"><button type="button" class="ib" id="newpick" aria-label="Attach files" title="Attach files">${ico("clip")}</button><button type="button" class="btn ghost" id="nc">Cancel</button><div class="split"><button type="button" class="btn pri" id="ns">Add</button><button type="button" class="btn pri" id="nm" aria-label="More ways to add" aria-haspopup="menu" aria-expanded="false">${ico("chev")}</button><div class="menu-pop" role="menu" hidden><button type="button" role="menuitem" id="nr" title="Add the task and run it now">${ico("play")}Start run</button></div></div></div>`;
   const inp = f.querySelector("#newidea"),
     files = newFiles;
   draft(inp, "f:new:0");
   draft(f.querySelector("textarea"), "f:new:1");
-  // run: add the idea, then launch it at once with the project's runner and agent.
+  // run: add the task, then launch it at once with the project's runner and agent.
   const save = async (run) => {
     const text = inp.value.trim();
     if (!text) return;
     const notes = f.querySelector("textarea").value.trim();
     const dir = picking ? newDir : null;
     if (picking && !dir) {
-      toast("Choose a project for this idea");
+      toast("Choose a project for this task");
       f.querySelector<HTMLElement>("#newdir")?.click();
       return;
     }
     close();
     const r = await post("/inbox", dir ? { op: "add", dir, text, notes } : { op: "add", text, notes });
     if (r.ok) {
-      toast("Idea added");
-      // The idea exists first: a failed upload leaves it as plain text.
+      toast("Task added");
+      // The task exists first: a failed upload leaves it as plain text.
       if (files.length) {
         const enc = await dataUrls(files);
         const n = await post("/note", { dir, for: text, text: "", files: enc });
-        if (!n.ok) toast("Idea added, files not attached");
+        if (!n.ok) toast("Task added, files not attached");
       }
       if (run) {
         await load();
@@ -638,7 +638,7 @@ function ideaForm(f, shut) {
   if (picking) {
     if (formPick) setNewDir(formPick.dir);
     // From another page a choice is always required: a preset project the picker does not offer is not swapped for another.
-    ideaCombo(f, !!formPick);
+    taskCombo(f, !!formPick);
   }
   f.querySelector("#ns").onclick = () => save(false);
   f.querySelector("#nr").onclick = () => save(true);
@@ -689,8 +689,8 @@ function ideaForm(f, shut) {
   setTimeout(() => inp.focus());
 }
 
-// New idea from the top bar, the empty board or n: the same form, in a modal.
-export function newIdea(from?: { dir: string | null }) {
+// New task from the top bar, the empty board or n: the same form, in a modal.
+export function newTask(from?: { dir: string | null }) {
   // The header button passes its click event: only an explicit { dir } is another page's call.
   formPick = from && "dir" in from ? from : null;
   if (store.mode === "new") {
@@ -702,7 +702,7 @@ export function newIdea(from?: { dir: string | null }) {
   const f = dl.querySelector("form");
   f.onsubmit = (e) => e.preventDefault();
   dl.addEventListener("close", () => stopDictation(false));
-  ideaForm(f, () => dl.close());
+  taskForm(f, () => dl.close());
 }
 
 export function render() {
@@ -746,7 +746,7 @@ export function render() {
     );
   }
   strip.push(
-    `<button class="${archive ? "on" : ""}" data-f="__archive" title="${cs.filter((c) => c.kind === "idea").length} ideas · ${cs.filter((c) => c.kind === "run").length} runs on the board">${archive ? "Back to board" : "Archive " + nArch}</button>`,
+    `<button class="${archive ? "on" : ""}" data-f="__archive" title="${cs.filter((c) => c.kind === "idea").length} tasks · ${cs.filter((c) => c.kind === "run").length} runs on the board">${archive ? "Back to board" : "Archive " + nArch}</button>`,
   );
   $("strip").innerHTML = strip.join("");
   // The phone's status button: amber dot while a run waits, accent while a filter or the archive is on.
@@ -795,14 +795,14 @@ export function render() {
   if (!wsm && !cs.length && store.mode !== "new") {
     b.innerHTML = archive
       ? '<div class="empty"><div class="mascot"></div><b>Nothing archived</b></div>'
-      : '<div class="empty"><div class="mascot"></div><b>Nothing here yet</b><p>Add an idea and kaizen will plan it, build it, and check the result.</p><button class="btn pri" id="newempty">New idea</button></div>';
+      : '<div class="empty"><div class="mascot"></div><b>Nothing here yet</b><p>Add a task and kaizen will plan it, build it, and check the result.</p><button class="btn pri" id="newempty">New task</button></div>';
     if (!archive)
-      $("newempty").onclick = newIdea;
+      $("newempty").onclick = newTask;
   }
   (wsm ? [] : COLS).forEach((name, ci) => {
     const s = document.createElement("section");
     const q = query.trim().toLowerCase();
-    const bl = ci === 0 && !archive && ideasTab === "backlog";
+    const bl = ci === 0 && !archive && tasksTab === "backlog";
     const all = bl ? backlogList().filter((c) => !only || store.shown.has(c.state)) : cs;
     const list = all.filter(
       (c) =>
@@ -812,8 +812,8 @@ export function render() {
         (archive || !nested(c)) &&
         (!q || `${c.title || ""} ${c.text || ""} ${c.id || ""}`.toLowerCase().includes(q)),
     );
-    // Runs age by their last move, ideas by when they were added, across every project;
-    // an idea from before the stamp falls back to its inbox position.
+    // Runs age by their last move, tasks by when they were added, across every project;
+    // a task from before the stamp falls back to its inbox position.
     if (ci < 4 && !bl) {
       const at = (c) => (c.kind === "run" ? c.moved || 0 : c.added || 0),
         old = order[ci] === "old",
@@ -824,18 +824,18 @@ export function render() {
     }
     const clearable = ci === 4 && !archive && list.length;
     const olderThan = (days) => list.filter((c) => store.S.now - (c.moved || store.S.now) > days * d);
-    // The Ideas column is titled by its two tabs, icons without counts: ideas, or the
+    // The Tasks column is titled by its two tabs, icons without counts: tasks, or the
     // runs' leftovers. On Backlog a filter icon narrows it to one severity.
     const tabbed = ci === 0 && !archive,
       nb = tabbed ? backlogList().filter((c) => !only || store.shown.has(c.state)) : [];
     const title = tabbed
-      ? `<span class="itabs" role="tablist" aria-label="Ideas column">${[
-          ["ideas", "Ideas", `<svg><use href="#s-idea"/></svg>`],
+      ? `<span class="itabs" role="tablist" aria-label="To do column">${[
+          ["ideas", "To do", `<svg><use href="#s-idea"/></svg>`],
           ["backlog", "Backlog: what finished runs left undone", ico("clock")],
         ]
           .map(
             ([v, l, svg]) =>
-              `<button role="tab" aria-selected="${String(ideasTab === v)}" data-t="${v}" title="${l}" aria-label="${l}">${svg}${ideasTab === v ? `<b>${l.split(":")[0]}</b>` : ""}</button>`,
+              `<button role="tab" aria-selected="${String(tasksTab === v)}" data-t="${v}" title="${l}" aria-label="${l}">${svg}${tasksTab === v ? `<b>${l.split(":")[0]}</b>` : ""}</button>`,
           )
           .join("")}</span>`
       : `${name}<i>${list.length || ""}</i>`;
@@ -848,7 +848,7 @@ export function render() {
             ).join("")}</div>`
           : "")
       : "";
-    let head = `<h2>${title}${ci < 4 && !bl && list.length > 1 ? `<button class="btn sm ghost ord" title="Sort order">${order[ci] === "old" ? "Oldest" : "Newest"}</button>` : ""}${sevBtn}${tabbed ? `<button class="ib sm newi" title="New idea" aria-label="New idea">${ico("plus")}</button>` : ""}`;
+    let head = `<h2>${title}${ci < 4 && !bl && list.length > 1 ? `<button class="btn sm ghost ord" title="Sort order">${order[ci] === "old" ? "Oldest" : "Newest"}</button>` : ""}${sevBtn}${tabbed ? `<button class="ib sm newi" title="New task" aria-label="New task">${ico("plus")}</button>` : ""}`;
     if (clearable && picking)
       head += `<span class="pickbar"><button class="btn sm ghost" data-p="cancel">Cancel</button><button class="btn sm pri" data-p="go" ${picked.size ? "" : "disabled"}>Archive ${picked.size || ""}</button></span>`;
     else if (clearable) head += `<button class="btn sm ghost clear" title="Archive finished runs">Clear ▾</button>`;
@@ -859,10 +859,10 @@ export function render() {
       s.querySelectorAll("[data-t]").forEach(
         (bt) =>
           (bt.onclick = () => {
-            ideasTab = bt.dataset.t;
+            tasksTab = bt.dataset.t;
             store.sevMenu = false;
             try {
-              localStorage.setItem("kz-ideas-tab", ideasTab);
+              localStorage.setItem("kz-ideas-tab", tasksTab);
             } catch (e) {}
             render();
           }),
@@ -899,7 +899,7 @@ export function render() {
     if (tabbed)
       s.querySelector(".newi").onclick = () => {
         store.mode = "new";
-        ideasTab = "ideas";
+        tasksTab = "ideas";
         render();
       };
     if (clearable) {
@@ -957,7 +957,7 @@ export function render() {
       const f = document.createElement("li");
       f.className = "inl";
       ul.appendChild(f);
-      ideaForm(f, () => {
+      taskForm(f, () => {
         store.mode = null;
         render();
       });

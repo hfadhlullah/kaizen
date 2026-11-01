@@ -4,13 +4,13 @@ A chat front end for your kaizen board, with AI teammates for every division.
 
 Ask **Chief** what's waiting on you, what's running, and what a plan or review says.
 Give division agents (Sales, Marketing, Customer Service, Account Manager) their team's
-asks; they turn them into board ideas and runs in their own project. The board still does
+asks; they turn them into board tasks and runs in their own project. The board still does
 the real work: kaizen's plan → approval → build → review loop.
 
 Every action an agent takes shows up in the chat as a **card** with a status:
 Action needed, Working, Done, Declined or Failed.
 
-- **On its own word** an agent may read the board, add an idea, add a note, remember a fact
+- **On its own word** an agent may read the board, add a task, add a note, remember a fact
   and draft a message. Each one leaves a card.
 - **Only after you click Approve on its card** does anything start a run, approve or revise
   a plan, fix findings or abandon a run. The card shows exactly what will happen. Kaizen Bot

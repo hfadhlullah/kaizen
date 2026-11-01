@@ -6,7 +6,7 @@ import { existsSync, readdirSync, statSync, lstatSync, realpathSync, readFileSyn
 import { join, dirname, resolve, sep, basename } from "node:path";
 import {
   home, type Item, type Card, knownProjects, remember, canonPath, locate, label, tilde, searchRoots, findProjects,
-  readInbox, writeInbox, replaceIdea, moveIdea, abandonRun, runToIdea, launchRun, parseItem, agentChoices, onPath, projectOf, KNOWN_AGENTS, plainModel, short, setArchived, writeNotes,
+  readInbox, writeInbox, replaceTask, moveTask, abandonRun, runToTask, launchRun, parseItem, agentChoices, onPath, projectOf, KNOWN_AGENTS, plainModel, short, setArchived, writeNotes,
   appendNote, saveAttachment, pidOnPort, readText, cmdExe, sysExe, powershellExe, runGit, readCommit, commitPush, commitStaged, stageFiles, suggestMessage, notice, notifier, LOGO,
   reviewFindings, pickFindings, backlogItem, startedBacklog, closeBacklog, markBacklogDone, fixPrompt, approvalPrompt, canApproveAwaiting, gateOf, recordAcceptance, healRuns, finishRun, nativePath, closeSessions, sweepSessions, issueUrl,
   launchMode, pruneRuns, pruneSessions, readSessions, ownerOf, runIndex, resumePrompt, runAgent, firstSession, webHosts,
@@ -344,7 +344,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
 
   // Runs whose in-card agent was live when the board stopped (Settings' Update, Ctrl-C,
   // systemd) or died: the agents end with the old board, so the new one starts them
-  // again (resumeRun). Each entry keeps its session key, so an idea whose run had not
+  // again (resumeRun). Each entry keeps its session key, so a task whose run had not
   // written state.json yet is matched to its run by the new board, once that run exists.
   // On a stop the agents are ended here, not left to the board's exit, so none outlives
   // it beside its resumed self; a tmux-kept one is only detached and is attached again.
@@ -369,7 +369,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
       return;
     }
     // Which project and run each session belongs to, found once: a run owns its session
-    // for good, so only new sessions and ideas' ones send the walk through every project.
+    // for good, so only new sessions and tasks' ones send the walk through every project.
     // A key no project records (a Terminal page shell) is looked for once.
     for (const m of [owners, written, autoResumed]) for (const k of m.keys()) if (!live.has(k)) m.delete(k);
     for (const k of unrecorded) if (!live.has(k)) unrecorded.delete(k);
@@ -400,10 +400,10 @@ export async function web(repoDir: string, opts: Opts = {}) {
   };
   // ponytail: a 3s tick, so a crash loses up to 3s of screen; hook push() if that matters.
   const keepList = setInterval(() => saveLive(true), 3000);
-  // An idea's session, until its run exists and owns it (ownerOf).
-  const ideaPty = new Map<string, string>();
+  // A task's session, until its run exists and owns it (ownerOf).
+  const taskPty = new Map<string, string>();
   // Backlog items this board launched whose run has not written its state.json yet:
-  // shown as starting, like a started idea. Forgotten on restart; the card then offers Run again.
+  // shown as starting, like a started task. Forgotten on restart; the card then offers Run again.
   const backlogLaunched = new Set<string>();
   // The card's newest in-card session, live or recently ended. Sessions are only read
   // while this board has any, so /state costs nothing more for terminal launches.
@@ -416,20 +416,20 @@ export async function web(repoDir: string, opts: Opts = {}) {
     const cmdOf = new Map<string, string>();
     for (const d of new Set(cards.map((c) => c.state))) for (const s of readSessions(d)) if (live.has(s.key) && s.cmd) cmdOf.set(s.key, s.cmd);
     const runs = new Map<string, string[]>();
-    const planKeys = new Set(ideaPty.values());
+    const planKeys = new Set(taskPty.values());
     for (const d of new Set(cards.filter((c) => c.kind === "run").map((c) => c.state))) {
       const ids = runIndex(d);
       for (const s of readSessions(d))
         if (live.has(s.key)) {
           const owner = ownerOf(d, s, ids);
           const k = `${d}\0${owner}`;
-          // The idea's agent that began this run is its plan terminal: recorded once the run exists.
+          // The task's agent that began this run is its plan terminal: recorded once the run exists.
           if (owner && planKeys.has(s.key) && !stagesOf(d, owner).plan) markStage(d, owner, "plan", s.key);
           runs.set(k, [...(runs.get(k) ?? []), s.key]); // oldest first: the newest is the card's
         }
     }
     return Object.assign((c: Card) => {
-      const keys = c.kind === "run" ? runs.get(`${c.state}\0${c.id}`) ?? [] : [ideaPty.get(`${c.state}\0${c.text}`)].filter((k): k is string => !!k && live.has(k));
+      const keys = c.kind === "run" ? runs.get(`${c.state}\0${c.id}`) ?? [] : [taskPty.get(`${c.state}\0${c.text}`)].filter((k): k is string => !!k && live.has(k));
       const key = keys.at(-1);
       if (!key) return undefined;
       const st = ptyState(key)!;
@@ -1150,7 +1150,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         } catch { return bad("file not found", 404); }
       }
 
-      // What a note can link to on this project's board: runs, findings, backlog, ideas.
+      // What a note can link to on this project's board: runs, findings, backlog, tasks.
       if (req.method === "GET" && path === "/links") {
         const dir = qdir() ?? state ?? join(home, ".kaizen");
         if (!states(true).includes(dir)) return bad("unknown state dir", 404);
@@ -1700,7 +1700,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
             return "error" in r ? { error: r.error } : { dir: (r as { dir: string }).dir };
           },
           agents: KNOWN_AGENTS.filter((a) => agentUsable(a.cmd)).map((a) => a.cmd),
-          // As POST /run starts an idea, without one on the inbox.
+          // As POST /run starts a task, without one on the inbox.
           run: async (d: string, runner: "lite" | "full", agent: string, text: string) => {
             const r = launchRun(parseItem(`${runner} ${text}`), d, undefined, { agent, ...inCard(d) });
             changed();
@@ -1821,7 +1821,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           return json({ ok: true, added: knownProjects().length - before });
         }
 
-        // No project here means the global inbox, which is where the TUI puts ideas too.
+        // No project here means the global inbox, which is where the TUI puts tasks too.
         let dir: string = body.dir ?? state ?? join(home, ".kaizen");
         // Choosing a folder from the projects folder is what sets it up: an empty
         // .kaizen, which the first run fills in. Only folders the board offered.
@@ -1852,32 +1852,32 @@ export async function web(repoDir: string, opts: Opts = {}) {
 
         if (path === "/inbox") {
           const text = String(body.text ?? "").trim();
-          // Absent means untouched; an empty string clears. replaceIdea keeps the
+          // Absent means untouched; an empty string clears. replaceTask keeps the
           // old notes for any op that does not send them.
           const notes = typeof body.notes === "string" ? body.notes.trim() : undefined;
           if (body.op === "add") {
-            if (!text) return bad("empty idea");
+            if (!text) return bad("empty task");
             writeInbox(dir, [...readInbox(dir), { status: "open", text, notes }]);
           } else if (body.op === "edit") {
             const next = String(body.next ?? "").trim();
-            if (!text || !next) return bad("empty idea");
-            replaceIdea(dir, text, notes === undefined ? { status: "open", text: next } : { status: "open", text: next, notes });
+            if (!text || !next) return bad("empty task");
+            replaceTask(dir, text, notes === undefined ? { status: "open", text: next } : { status: "open", text: next, notes });
           } else if (body.op === "reject") {
             const why = String(body.reason ?? "").trim();
             if (!why) return bad("a rejection needs a reason");
-            replaceIdea(dir, text, { status: "rejected", text: `${text} | ${why}` });
+            replaceTask(dir, text, { status: "rejected", text: `${text} | ${why}` });
           } else if (body.op === "delete") {
-            replaceIdea(dir, text, null);
+            replaceTask(dir, text, null);
           } else if (body.op === "move") {
             if (typeof body.to !== "string" || !states(true).includes(body.to)) return bad("unknown state dir", 404);
-            const why = moveIdea(dir, body.to, text);
-            if (why) return bad(why, why === "no such idea" ? 404 : 409);
+            const why = moveTask(dir, body.to, text);
+            if (why) return bad(why, why === "no such task" ? 404 : 409);
           } else return bad("unknown op");
           changed();
           return json({ ok: true });
         }
 
-        // Request sources. Gathering fills the icebox and nothing else: no idea is
+        // Request sources. Gathering fills the icebox and nothing else: no task is
         // made and no run starts here.
         if (path === "/sources") {
           // A social source arrives as a platform and what to follow; the link is built here.
@@ -1945,8 +1945,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
             return (/\.(png|jpe?g|gif|webp|svg)$/i.test(rel) ? "!" : "") + `[${String(f.name ?? "file")}](${rel})`;
           });
         };
-        // The icebox: the only way gathered text becomes an idea, one explicit click
-        // (or agent call) at a time. An idea is made; no run starts.
+        // The icebox: the only way gathered text becomes a task, one explicit click
+        // (or agent call) at a time. A task is made; no run starts.
         if (path === "/icebox") {
           if (typeof body.dir !== "string" || !states(true).includes(body.dir)) return bad("say which project's icebox this is");
           const ids = Array.isArray(body.ids) ? body.ids.filter((i: unknown) => typeof i === "string") : [];
@@ -1994,12 +1994,12 @@ export async function web(repoDir: string, opts: Opts = {}) {
         if (path === "/run") {
           const text = String(body.text ?? "").trim();
           const kind = body.kind === "full" || body.kind === "lite" ? body.kind : "";
-          if (!text && !body.backlog) return bad("empty idea");
+          if (!text && !body.backlog) return bad("empty task");
           const agent = typeof body.agent === "string" && body.agent ? body.agent : undefined;
           if (agent && !KNOWN_AGENTS.some((a) => a.cmd === agent)) return bad("unknown agent");
           const model = typeof body.model === "string" ? body.model.trim() : "";
           if (model && !plainModel(model)) return bad("A model name is letters, digits and . : / @ _ - only");
-          // A backlog item runs as an idea would, its text read here from the file, never
+          // A backlog item runs as a task would, its text read here from the file, never
           // from the page. The request names its source, which is how the board finds the
           // line again: to hide the card while the run lives, and to close it when done.
           if (body.backlog) {
@@ -2019,14 +2019,14 @@ export async function web(repoDir: string, opts: Opts = {}) {
               : { ok: false, why: r.why, manual: r.manual, agent: r.agent }, r.ok ? 200 : 500);
           }
           const it: Item = parseItem(`${kind} ${text}`.trim());
-          // A `started` idea may be run again: the terminal the first launch opened
+          // A `started` task may be run again: the terminal the first launch opened
           // can come up empty, and nothing else tells the board a run never began.
           it.notes = readInbox(dir).find((l) => (l.status === "open" || l.status === "started") && l.text === text)?.notes;
           const r = launchRun(it, dir, undefined, { agent, account: typeof body.account === "string" ? body.account : undefined, model: model || undefined, yolo: body.yolo === true, ...inCard(dir) });
-          if (r.ok) replaceIdea(dir, text, { status: "started", text });
+          if (r.ok) replaceTask(dir, text, { status: "started", text });
           if (r.ok && r.pty) {
-            for (const [k, v] of ideaPty) if (!ptyState(v)) ideaPty.delete(k);   // sessions already dropped
-            ideaPty.set(`${dir}\0${text}`, r.pty);
+            for (const [k, v] of taskPty) if (!ptyState(v)) taskPty.delete(k);   // sessions already dropped
+            taskPty.set(`${dir}\0${text}`, r.pty);
           }
           changed();
           return json(r.ok
@@ -2045,7 +2045,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
             const text = body.text.trim();
             const lines = readInbox(dir);
             const at = lines.findIndex((l) => l.text === text && (archived ? l.status === "open" : l.status === "archived"));
-            if (at < 0) return bad("no such idea", 404);
+            if (at < 0) return bad("no such task", 404);
             lines[at] = { ...lines[at]!, status: archived ? "archived" : "open" };
             writeInbox(dir, lines);
           } else return bad("id or text required");
@@ -2271,10 +2271,10 @@ export async function web(repoDir: string, opts: Opts = {}) {
             : { ok: false, why: r.why, manual: r.manual, agent: r.agent }, r.ok ? 200 : 500);
         }
 
-        if (path === "/to-idea") {
+        if (path === "/to-task" || path === "/to-idea") { // /to-idea: the old name, kept for open tabs
           const id = String(body.id ?? "");
           if (!/^[\w.-]+$/.test(id)) return bad("bad run id");
-          const failed = runToIdea(dir, id);
+          const failed = runToTask(dir, id);
           changed();
           return failed ? bad(failed, 409) : json({ ok: true });
         }

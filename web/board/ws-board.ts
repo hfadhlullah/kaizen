@@ -3,7 +3,7 @@
 import { finished } from "./ws-tabs.ts";
 
 export const WS_COLS = ["Todo", "In progress", "In review", "Done"];
-// A workspace's column from its runs (ideas never move it). Archived runs still count as
+// A workspace's column from its runs (tasks never move it). Archived runs still count as
 // finished ones, so a workspace whose newest run is done stays Done until a new run starts.
 // Returns the open runs (not finished, not archived) and the newest finished run, for the card.
 export function columnOf(cards: any[], dir: string, ws: string, wsOfCard, stateOf) {

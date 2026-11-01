@@ -628,7 +628,7 @@ export function parseItem(raw: string): Item {
   // and a severity tag in brackets ("Finding 1 (medium) — …", "(review 2, low)",
   // "[low] …"). A severity loose in prose ("too low") is not one.
   const at = /^(.{1,160}?)\s*[:—-]\s*(critical|high|medium|low)\s*[:—-]\s*(.+)$/i.exec(raw);
-  // Only a real place counts as one (a path, or a line number): an idea's own words
+  // Only a real place counts as one (a path, or a line number): a task's own words
   // before a severity stay its words.
   if (at && /\/|:\d/.test(at[1]!)) return { severity: at[2]!.toLowerCase(), where: at[1]!.replace(/`/g, "").trim().split("/").pop()!, text: tidy(at[3]!), raw };
   const num = /^\d+\.\s*(critical|high|medium|low)\s*[:—-]\s*(.+)$/i.exec(raw);
@@ -720,7 +720,7 @@ export type BacklogCard = { state: string; where: string; source: string; n: num
 const SEVERITY_RANK: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
 
 // The open backlog items of every non-abandoned run and the orphanage, as cards for the
-// board's Ideas column: most severe first, then newest run first, then file order. An
+// board's Tasks column: most severe first, then newest run first, then file order. An
 // item a live run was started from is not shown; an abandoned one gives it back.
 export function backlogCards(states: string[]): BacklogCard[] {
   const out: BacklogCard[] = [];
@@ -795,8 +795,8 @@ export type Card = {
   awaiting: string | null;
   dim: boolean;
   moved?: number;                                  // runs only: state.json mtime
-  added?: number;                                  // ideas only: when the inbox line first appeared (ms)
-  inboxIndex?: number;                             // ideas only: line in the project's inbox
+  added?: number;                                  // tasks only: when the inbox line first appeared (ms)
+  inboxIndex?: number;                             // tasks only: line in the project's inbox
   title?: string;                                  // runs only: first line of the request
   archived: boolean;                               // hidden from the board unless asked for
   branch?: string;                                 // runs only: the run's own branch while it has a worktree
@@ -810,7 +810,7 @@ export type Card = {
 };
 
 // A `Parent: <run id>` line (or the older `Follow-up of: <run id>`) in a request or
-// an idea's notes is what links a card to the run it came from.
+// a task's notes is what links a card to the run it came from.
 export function parentOf(text?: string) {
   return /^\s*(?:\[[^\]]*\]\s*)?(?:Parent|Follow-up of):\s*(\S+)/im.exec(text ?? "")?.[1]?.replace(/[.,]$/, "");
 }
@@ -819,7 +819,7 @@ export function parentOf(text?: string) {
 // to ask. Anything in flight and older than this is stalled, not running -- the
 // difference the board exists to show.
 
-// The verbatim request of every run, normalised, so an idea that has become a run
+// The verbatim request of every run, normalised, so a task that has become a run
 // can be retired from the board.
 // ponytail: reads each run's 00-request.md on every refresh; fine at tens of runs,
 // cache by mtime if a project ever has hundreds.
@@ -869,7 +869,7 @@ export function columnOf(stage: string, awaiting: string | null = null) {
 // `added` is when the line first appeared (ms), kept as a hidden comment on its bullet.
 export type InboxLine = { status: string; text: string; notes?: string; added?: number };
 
-// Ideas with no run yet. Deliberately not backlog.md, which the spec defines as
+// Tasks with no run yet. Deliberately not backlog.md, which the spec defines as
 // an orphanage for items rescued from pruned runs, and not a run stub each.
 export function readInbox(state: string): InboxLine[] {
   const f = join(state, "inbox.md");
@@ -882,7 +882,7 @@ export function readInbox(state: string): InboxLine[] {
       out.push(a ? { status: m[1]!, text: m[2]!.slice(0, a.index).trim(), added: +a[1]! } : { status: m[1]!, text: m[2]!.trim() });
       continue;
     }
-    // A bullet typed by hand, without a status, is an open idea.
+    // A bullet typed by hand, without a status, is an open task.
     const b = /^[-*]\s+(?:\[ \]\s+)?(.+)$/.exec(raw);
     if (b) {
       out.push({ status: "open", text: b[1]!.trim() });
@@ -903,7 +903,7 @@ export function writeInbox(state: string, lines: InboxLine[]) {
   // A line already in the file keeps its stamp; a text the file never had is new now.
   // Lines from before stamps existed stay unstamped rather than looking new.
   // Stamps queue per text and each is used once: re-adding words the file already
-  // holds (a done or rejected line, or an open duplicate) is a new idea, not the old
+  // holds (a done or rejected line, or an open duplicate) is a new task, not the old
   // one's stamp, which an older run with those words would retire.
   const had = new Map<string, (number | undefined)[]>();
   for (const l of readInbox(state)) had.set(l.text, [...(had.get(l.text) ?? []), l.added]);
@@ -934,7 +934,7 @@ export function requestOf(text: string, notes?: string, state?: string) {
   return n ? `${text}\n\n${n}` : text;
 }
 
-// Free text beside a run -- what the user learned after the idea became a run.
+// Free text beside a run -- what the user learned after the task became a run.
 // Its own file, never state.json: that shape is the resume contract.
 export function readNotes(state: string, id: string) {
   try { return readText(join(state, "runs", id, "notes.md")); } catch { return ""; }
@@ -973,7 +973,7 @@ export function formatNote(text: string, at = stamp()) {
   return `[${at}] ${text.trim().replace(/\n/g, "\n  ")}`;
 }
 
-// Append one entry: to runs/<id>/notes.md for a run, or under the idea's inbox
+// Append one entry: to runs/<id>/notes.md for a run, or under the task's inbox
 // bullet. Attachments arrive as markdown links already written into text.
 export function appendNote(state: string, target: { id: string } | { text: string; index?: number }, text: string): string | null {
   if (!text.trim()) return "empty note";
@@ -984,16 +984,16 @@ export function appendNote(state: string, target: { id: string } | { text: strin
   }
   const lines = readInbox(state);
   const at = target.index === undefined ? lines.findIndex((l) => l.status === "open" && l.text === target.text) : target.index;
-  if (lines[at]?.status !== "open" || lines[at]?.text !== target.text) return "no such idea";
+  if (lines[at]?.status !== "open" || lines[at]?.text !== target.text) return "no such task";
   const prev = lines[at]!.notes;
   lines[at] = { ...lines[at]!, notes: (prev ? prev + "\n" : "") + formatNote(text) };
   writeInbox(state, lines);
   return null;
 }
 
-// A card filed by a run: an open idea whose note names the run as its parent. The
+// A card filed by a run: an open task whose note names the run as its parent. The
 // parent is the one named, else the newest run still in flight. `details` go in the
-// idea's notes below the Parent line, so the title stays a title.
+// task's notes below the Parent line, so the title stays a title.
 export function addCard(state: string, text: string, parent?: string, details?: string): { parent: string } | string {
   text = text.trim().replace(/\s+/g, " ");
   if (!text) return "empty card";
@@ -1007,7 +1007,7 @@ export function addCard(state: string, text: string, parent?: string, details?: 
 }
 
 // A file beside the notes it belongs to: runs/<id>/attachments/ for a run,
-// <state>/attachments/ for an idea. Returns the path relative to the state dir,
+// <state>/attachments/ for a task. Returns the path relative to the state dir,
 // which is what the note links and what /file serves.
 // ponytail: no dedupe, no size accounting beyond the request cap in web.ts.
 export function saveAttachment(state: string, id: string | null, name: string, bytes: Uint8Array) {
@@ -1106,33 +1106,33 @@ export function abandonRun(st: string, id: string, why: string): string | null {
   }
 }
 
-// A run still planning, back to the idea it came from: abandoned and archived (the
-// record stays), and the idea open again. Its fresh stamp is newer than the run's
+// A run still planning, back to the task it came from: abandoned and archived (the
+// record stays), and the task open again. Its fresh stamp is newer than the run's
 // request, so the old run no longer retires it.
-export function runToIdea(st: string, id: string): string | null {
+export function runToTask(st: string, id: string): string | null {
   let stage = "";
   try { stage = JSON.parse(readText(join(st, "runs", id, "state.json"))).stage; } catch {}
-  if (stage !== "plan") return "Only a run still in planning goes back to an idea.";
+  if (stage !== "plan") return "Only a run still in planning goes back to a task.";
   let req = "";
   try { req = readText(join(st, "runs", id, "00-request.md")).trim(); } catch {}
   const lines = readInbox(st);
-  // The longest started idea the request holds: "test" must not stand in for "test login".
+  // The longest started task the request holds: "test" must not stand in for "test login".
   let at = -1;
   lines.forEach((l, i) => { if (l.status === "started" && normalise(req).includes(normalise(l.text)) && (at < 0 || l.text.length > lines[at]!.text.length)) at = i; });
   const [first = "", ...rest] = req.split("\n");
-  const idea: InboxLine = at >= 0
+  const task: InboxLine = at >= 0
     ? { ...lines[at]!, status: "open", added: Date.now() }
     : { status: "open", text: first.replace(/^\/kaizen(?:-\w+)?\s+(?:(?:lite|full|auto|plan)\s+)?/i, "").trim(), notes: rest.join("\n").trim() || undefined, added: Date.now() };
-  if (!idea.text) return "That run has no request to make an idea of.";
-  const failed = abandonRun(st, id, "Sent back to ideas from the board.");
+  if (!task.text) return "That run has no request to make a task of.";
+  const failed = abandonRun(st, id, "Sent back to tasks from the board.");
   if (failed) return failed;
   setArchived(st, id, true);
   if (at >= 0) lines.splice(at, 1);
-  writeInbox(st, [...lines, idea]);
+  writeInbox(st, [...lines, task]);
   return null;
 }
 
-export function replaceIdea(state: string, text: string, next: InboxLine | null, index?: number) {
+export function replaceTask(state: string, text: string, next: InboxLine | null, index?: number) {
   const lines = readInbox(state);
   const at = index === undefined ? lines.findIndex((l) => (l.status === "open" || l.status === "started") && l.text === text) : index;
   if (!lines[at] || !["open", "started"].includes(lines[at]!.status) || lines[at]!.text !== text) return false;
@@ -1141,24 +1141,24 @@ export function replaceIdea(state: string, text: string, next: InboxLine | null,
   return true;
 }
 
-// An open idea, notes and all, from one project's inbox to another's. Files its notes
+// An open task, notes and all, from one project's inbox to another's. Files its notes
 // link (attachments/...) are copied along, so the links resolve from the new state dir.
 // Written to the new project first and taken back out if the old one cannot be
 // written, like moveSource: a crash between the two leaves it listed twice, never lost.
-export function moveIdea(from: string, to: string, text: string): string | null {
+export function moveTask(from: string, to: string, text: string): string | null {
   if (from === to) return "already in that project";
   const src = readInbox(from);
   const at = src.findIndex((l) => l.status === "open" && l.text === text);
-  if (at < 0) return "no such idea";
+  if (at < 0) return "no such task";
   const dest = readInbox(to);
-  if (dest.some((l) => l.status === "open" && l.text === text)) return "that project already has this idea";
-  const idea = src[at]!;
-  for (const m of (idea.notes ?? "").matchAll(/\]\((attachments\/[^)\/]+)\)/g)) {
+  if (dest.some((l) => l.status === "open" && l.text === text)) return "that project already has this task";
+  const task = src[at]!;
+  for (const m of (task.notes ?? "").matchAll(/\]\((attachments\/[^)\/]+)\)/g)) {
     if (!existsSync(join(from, m[1]!)) || !statSync(join(from, m[1]!)).isFile()) continue;
     mkdirSync(join(to, "attachments"), { recursive: true });
     copyFileSync(join(from, m[1]!), join(to, m[1]!));
   }
-  writeInbox(to, [...dest, idea]);
+  writeInbox(to, [...dest, task]);
   try { writeInbox(from, src.filter((_, i) => i !== at)); }
   catch (e) { writeInbox(to, dest); throw e; }
   return null;
@@ -1207,8 +1207,8 @@ export function requestTitle(text: string) {
   return first.length > 90 ? first.slice(0, 89).trimEnd() + "…" : first;
 }
 
-// Every card on the board, for the state dirs asked for. Retirement of an idea is
-// checked against every known project's runs, not just these: an idea in the global
+// Every card on the board, for the state dirs asked for. Retirement of a task is
+// checked against every known project's runs, not just these: a task in the global
 // inbox becomes a run in whichever project the agent was started in.
 // The gate reads a done run's reports on every refresh: kept per run until one of the
 // files it reads changes (stat only), so a project of many done runs costs no reads.
@@ -1240,14 +1240,14 @@ export function boardCards(states: string[], now: number): Card[] {
     if (!bodies.has(f)) { try { bodies.set(f, readText(f)); } catch { bodies.set(f, ""); } }
     return bodies.get(f)!;
   };
-  // Each request with when it was written, so a run older than an idea cannot retire it.
+  // Each request with when it was written, so a run older than a task cannot retire it.
   const requests: { at: number; text: string }[] = [];
-  // Each request line on its own, quote and list markers stripped: what an idea
+  // Each request line on its own, quote and list markers stripped: what a task
   // nobody launched from the board is matched against.
   const lines: { at: number; text: string }[] = [];
   for (const st of [...states, ...knownProjects().map((d) => join(d, ".kaizen")), join(home, ".kaizen")]
     .filter((d, i, all) => all.indexOf(d) === i && existsSync(join(d, "runs")))) {
-    // A run with no state.json yet has no card either: retiring the idea against it
+    // A run with no state.json yet has no card either: retiring the task against it
     // leaves the board showing neither until the agent writes one.
     for (const id of readdirSync(join(st, "runs"))) { const b = body(st, id); if (!b || !existsSync(join(st, "runs", id, "state.json"))) continue;
       let at = 0;
@@ -1256,7 +1256,7 @@ export function boardCards(states: string[], now: number): Card[] {
       for (const l of b.split("\n")) lines.push({ at, text: normalise(l.replace(/^[\s>*"'`-]+|[\s"'`.]+$/g, "")) });
     }
   }
-  // A launched idea whose run reworded the request: the board's own launch record,
+  // A launched task whose run reworded the request: the board's own launch record,
   // owned by a run (session id in its state.json, see ownerOf), retires it all the same.
   const indexes = new Map<string, RunIndex>(), indexOf = (st: string) => indexes.get(st) ?? indexes.set(st, runIndex(st)).get(st)!;
   const launchedInto = (st: string, t: string) => readSessions(st).some((s) => !s.run && normalise(s.text.replace(/^(lite|full|auto|plan)\s+/i, "")) === t.replace(/^(lite|full|auto|plan)\s+/i, "") && ownerOf(st, s, indexOf(st)) !== null);
@@ -1266,16 +1266,16 @@ export function boardCards(states: string[], now: number): Card[] {
     for (const [inboxIndex, it] of readInbox(st).entries()) {
       if (it.status !== "open" && it.status !== "started" && it.status !== "archived") continue;
       // Retired once any run's request contains this text -- whoever started it.
-      // Checking `started` items only would leave every idea acted on outside the
+      // Checking `started` items only would leave every task acted on outside the
       // board sitting in IDEA forever, and typing `/kaizen ...` in a terminal is
       // the common way a run begins.
-      // An idea that was launched only has to appear somewhere in a request. One
+      // A task that was launched only has to appear somewhere in a request. One
       // that was not must be what a request line says (after any `/kaizen lite`
-      // prefix): a short idea like "test" is a substring of half the requests
+      // prefix): a short task like "test" is a substring of half the requests
       // ever written, and would vanish the moment it was added.
       const t = normalise(it.text);
-      // A run written before the idea existed is not this idea's run: an old request
-      // titled "fix this bugs" must not swallow a new idea with the same words.
+      // A run written before the task existed is not this task's run: an old request
+      // titled "fix this bugs" must not swallow a new task with the same words.
       // ponytail: 2s slack for coarse filesystem clocks.
       const after = (r: { at: number }) => !it.added || r.at >= it.added - 2000;
       if (it.status === "started" ? requests.some((r) => after(r) && r.text.includes(t)) || launchedInto(st, t) : lines.some((l) => after(l) && (l.text === t || l.text.endsWith(" " + t)))) continue;
@@ -1497,9 +1497,9 @@ export function runIndex(st: string): RunIndex {
   return { bySession, requests };
 }
 
-// Whose session a record is. A decision's launch names its run. An idea's launch came
+// Whose session a record is. A decision's launch names its run. A task's launch came
 // before its run existed, so it belongs to the first run created after it whose
-// request holds the idea's text: one run per record, never every run that mentions it.
+// request holds the task's text: one run per record, never every run that mentions it.
 // A caller asking about many sessions passes runIndex(st) once: built per call, it
 // reads every run's state.json and request each time.
 export function ownerOf(st: string, s: Session, idx?: RunIndex): string | null {
@@ -1766,7 +1766,7 @@ export function trustFolder(dir: string, cfg = join(process.env.CLAUDE_CONFIG_DI
   } catch { /* Claude asks as before */ }
 }
 
-// run: the run a decision is for. Without it, an idea starting a new run.
+// run: the run a decision is for. Without it, a task starting a new run.
 // pick: the tool, model and yolo chosen for a new run; a decision takes the run's own
 // tool and model, and stays in Yolo when the run was started in it. card: run it inside the board (agent.launch: card),
 // where a pseudo-terminal exists; onChange is told when that agent ends.
@@ -1777,7 +1777,7 @@ export const CHILD_ENV = /^(CLAUDECODE|CLAUDE_PID|CLAUDE_CODE_(SESSION_ID|CHILD_
 // written only where that folder has a .kaizen (a project place does; the library usually not).
 export function launchRun(it: Item, from: string, run?: string, pick: { agent?: string; account?: string; model?: string; yolo?: boolean; card?: boolean; onChange?: () => void; skill?: "kaizen-video"; cwd?: string; seed?: string } = {}): Launch {
   const projectDir = pick.cwd ?? projectOf(from);
-  // The run will be born here; the board must know the dir or the idea never retires.
+  // The run will be born here; the board must know the dir or the task never retires.
   if (!pick.cwd) remember(projectDir);
   const own = run && !pick.agent ? runAgent(join(projectDir, ".kaizen"), run) : null;
   const agent = detectDefaultAgent(projectDir, pick.agent ?? own?.cmd);
@@ -1808,7 +1808,7 @@ export function launchRun(it: Item, from: string, run?: string, pick: { agent?: 
   // Settings' bypass takes the same road, so the session record and the card's mark follow.
   const yolo = (wasYolo || (!!pick.yolo && agent.cmd === pick.agent) || prefersBypass(agent.cmd, prefs)) && !!YOLO_FLAGS[agent.cmd];
   const flags = [...agentFlags(projectDir, agent.cmd, undefined, model), ...(yolo ? YOLO_FLAGS[agent.cmd] : []), ...argsOf(agent.cmd, prefs)];
-  // The idea as its run's request will hold it: without the runner word in front.
+  // The task as its run's request will hold it: without the runner word in front.
   // Session lookups read the tool's folder from the environment; for this launch it's the account's.
   const prior = acct.envVar ? process.env[acct.envVar] : undefined;
   if (acct.envVar) process.env[acct.envVar] = acct.dir;

@@ -16,7 +16,7 @@ export const store = {
   lastTab: "request",
   runDoc: null,
   clearMenu: false,
-  // The Ideas column's severity menu, on its Backlog tab.
+  // The Tasks column's severity menu, on its Backlog tab.
   sevMenu: false,
   wantTerm: null,
   // The terminal a launch just opened (its pty key), selected in the run workspace once its tab exists.

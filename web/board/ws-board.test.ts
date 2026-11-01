@@ -13,7 +13,7 @@ const stateOf = (c) =>
   : c.column >= 3 ? "review" : c.column === 2 ? "build" : "plan";
 const col = (cs: any[], ws = "/p") => columnOf(cs, D, ws, wsOf, stateOf).col;
 
-test("no runs, only ideas, an asking idea: Todo", () => {
+test("no runs, only tasks, an asking idea: Todo", () => {
   expect(col([])).toBe(0);
   expect(col([{ kind: "idea", state: D, text: "t", ws: "/p" }])).toBe(0);
   expect(col([{ kind: "idea", state: D, text: "t", ws: "/p", pty: { alive: true, asking: true } }])).toBe(0);

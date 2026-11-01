@@ -48,7 +48,7 @@ export const dueWord = (c) => (c.gitDue === "push" ? "push" : "commit");
 // A run that is over: abandoned, or done and neither waiting on an approval nor on its commit. It is History.
 export const finished = (c) => c.kind === "run" && (c.status === "abandoned" || (c.status === "done" && c.accept !== "needs" && !gitDue(c)));
 const here = (c, dir: string, ws: string, wsOfCard) => c.state === dir && wsOfCard(c) === ws;
-// The cards whose agent terminals get tabs in a workspace: runs not over, and ideas whose agent is open.
+// The cards whose agent terminals get tabs in a workspace: runs not over, and tasks whose agent is open.
 export const liveIn = (cards: any[], dir: string, ws: string, wsOfCard) =>
   cards.filter((c) => !c.archived && here(c, dir, ws, wsOfCard) && (c.kind === "idea" ? !!c.pty : c.kind === "run" && !finished(c)));
 // History: the workspace's finished runs, newest first.
@@ -98,7 +98,7 @@ export const chosen = (live: any[], hist: any[], picked?: string | null, keyOf: 
 export const newRun = (live: any[], seen: Set<string>, keyOf: (c) => string = (c) => c.id) => live.find((c) => !seen.has(keyOf(c)));
 
 // The terminal the board launched for each stage of a run: plan/impl/review sub-tab -> pty key.
-// plan, impl and review are recorded when the board launches them (the idea's agent once its run
+// plan, impl and review are recorded when the board launches them (the task's agent once its run
 // exists, /decide, /fix). A plan that was not recorded falls back to the session no stage claims,
 // and only until a later stage has been launched.
 export function stageKeys(c): Record<string, string> {

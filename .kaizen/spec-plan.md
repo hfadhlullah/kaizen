@@ -234,7 +234,7 @@ a case against it.
 
 **Write the parts a person reads for a person.** Framing, the Work list, Goal, Scope,
 Discovery, Foundation, Roadmap, Risks and Out of scope suggestions are read by someone deciding whether to approve,
-often on a narrow panel. Write them in everyday words: short sentences, one idea per
+often on a narrow panel. Write them in everyday words: short sentences, one task per
 bullet, things named by what the user sees ("the chat bubble", "the Plan tab") rather
 than by function, file, CSS value or gate id. Code names, `path:line` and gate ids
 belong in Reuse, the File manifest, Steps and Verification, where the builder and

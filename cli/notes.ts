@@ -109,7 +109,7 @@ function prune(state: string, dir: string) {
 // What a note can link to on the board, for the notebook's chips and completion: the
 // project's runs, each with its review findings and its backlog items numbered from 1
 // in file order (items are never deleted, so a number keeps pointing at its item),
-// and its ideas. Archived and abandoned ones too: a link outlives the card.
+// and its tasks. Archived and abandoned ones too: a link outlives the card.
 // ponytail: every run's review and backlog read per request; cache by mtime if a
 // project keeps hundreds of runs.
 export function boardIndex(state: string) {

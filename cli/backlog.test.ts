@@ -1,4 +1,4 @@
-// Backlog items as cards in the board's Ideas column: numbering, hiding while a run
+// Backlog items as cards in the board's Tasks column: numbering, hiding while a run
 // started from one lives, closing in place, and the board routes that drive them.
 import { test, expect } from "bun:test";
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, statSync } from "node:fs";

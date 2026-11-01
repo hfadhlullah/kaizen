@@ -5,7 +5,7 @@ import { close } from "./panel.ts";
 import { openSettings } from "./settings.ts";
 import { openTerms, termsStop } from "./terms.ts";
 import { openHome } from "./home.ts";
-import { initIdeas, openIdeas } from "./ideas.ts";
+import { initTasks, openTasks } from "./tasks.ts";
 import { initRunView, openWorkspace, runStop, showRunView } from "./run-view.ts";
 import { initPhone, isPhone, openPhone } from "./phone.ts";
 
@@ -13,7 +13,7 @@ import { initPhone, isPhone, openPhone } from "./phone.ts";
 export let view = "board";
 let boardBack = false;
 // The board's own area, not the docked panel.
-const AREA = ["board", "terminal", "home", "ideas", "run", "chat", "device"];
+const AREA = ["board", "terminal", "home", "tasks", "run", "chat", "device"];
 export const markView = (v) => {
   // A phone's run workspace belongs to its Runs tab.
   const lit = v === "run" && isPhone() ? "device" : v;
@@ -23,7 +23,7 @@ export const markView = (v) => {
       a.dataset.view === lit ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current"),
     );
   // The Icebox is titled in the header, top left, like the board.
-  document.querySelector(".hdr h1").textContent = v === "sources" ? "Icebox" : v === "ideas" ? "Ideas" : v === "run" ? "Run" : v === "terminal" ? "Terminal" : v === "home" ? (isPhone() ? "kaizen" : "Home") : v === "chat" ? "Chat" : v === "device" ? "Runs" : "Board";
+  document.querySelector(".hdr h1").textContent = v === "sources" ? "Icebox" : v === "tasks" ? "Tasks" : v === "run" ? "Run" : v === "terminal" ? "Terminal" : v === "home" ? (isPhone() ? "kaizen" : "Home") : v === "chat" ? "Chat" : v === "device" ? "Runs" : "Board";
   if (v === "home" && isPhone()) document.querySelector(".hdr h1").innerHTML = '<pre class="mark" role="img" aria-label="kaizen">' + document.querySelector(".rail pre.mark").innerHTML + "</pre>";
 };
 export function go(v, push) {
@@ -31,10 +31,10 @@ export function go(v, push) {
   if (v === "icebox") v = "sources";
   // A workspace address shows in the run view, which resolves it to a card.
   if (v === "ws") v = "run";
-  if (!["settings", "sources", "terminal", "board", "ideas", "run", "chat", "device"].includes(v)) v = "home";
-  // A phone has Home, Chat, Runs and Settings: the board, Ideas and the Icebox are set up on a computer,
+  if (!["settings", "sources", "terminal", "board", "tasks", "run", "chat", "device"].includes(v)) v = "home";
+  // A phone has Home, Chat, Runs and Settings: the board, Tasks and the Icebox are set up on a computer,
   // whose Home is the chat.
-  if (isPhone() ? ["board", "ideas", "sources"].includes(v) : v === "chat" || v === "device") v = "home";
+  if (isPhone() ? ["board", "tasks", "sources"].includes(v) : v === "chat" || v === "device") v = "home";
   const was = view;
   view = v;
   markView(v);
@@ -46,7 +46,7 @@ export function go(v, push) {
   document.body.classList.toggle("homev", (v === "home" && !ph) || v === "chat");
   document.body.classList.toggle("phomev", ph || v === "device");
   document.body.classList.toggle("pdevv", v === "device");
-  document.body.classList.toggle("ideav", v === "ideas");
+  document.body.classList.toggle("taskv", v === "tasks");
   document.body.classList.toggle("runv", v === "run");
   // Leaving a workspace: its panel closes as the board's would, its terminals unmount.
   if (was === "run" && v !== "run") {
@@ -64,13 +64,13 @@ export function go(v, push) {
   else termsStop();
   if ((v === "home" && !ph) || v === "chat") openHome();
   openPhone(ph ? "home" : v === "device" ? "device" : null);
-  if (v === "ideas") openIdeas();
+  if (v === "tasks") openTasks();
   // After the panel handling below, which closes the board's panel on the way in.
   if (v === "run") queueMicrotask(() => void showRunView(true));
   // The Terminal page is the board's own area, not the docked panel: the panel closes as on the board.
   if (AREA.includes(v)) {
     if (AREA.includes(was)) {
-      if (v !== "board" && (was === "board" || was === "ideas")) {
+      if (v !== "board" && (was === "board" || was === "tasks")) {
         view = "board";
         close();
         view = v;
@@ -93,7 +93,7 @@ export function go(v, push) {
 }
 
 export function initViews() {
-  initIdeas(go);
+  initTasks(go);
   initRunView();
   initPhone(go, openWorkspace);
   document.querySelectorAll(".rail a[data-view]").forEach((a) => {

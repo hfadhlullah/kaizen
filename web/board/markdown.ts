@@ -57,7 +57,7 @@ export function planQuestions(src) {
   const qs = out.filter((x) => x.options.length);
   return qs.length || !said ? qs : null;
 }
-// An idea is one inbox line, so a structured request arrives as one wall:
+// A task is one inbox line, so a structured request arrives as one wall:
 // "Fix x Problem: … Scope: … Acceptance criteria: (1) … (2) …". Split it, for display
 // only, into the text before the first label and one part per label; inline (1) (2)
 // become a numbered list. Fewer than two labels is plain text and is left whole.

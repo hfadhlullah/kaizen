@@ -1,7 +1,7 @@
 import { store } from "./store.ts";
 import { startDir } from "./labels.ts";
 import { load, post } from "./api.ts";
-import { newIdea, render } from "./cards.ts";
+import { newTask, render } from "./cards.ts";
 import { $, html, ico } from "./dom.ts";
 import { openSources, srcOpen } from "./icebox.ts";
 import { toast } from "./toast.ts";
@@ -75,11 +75,11 @@ export async function pick(v) {
   if (view === "sources") openSources();
 }
 // Known projects, plus any folder a card comes from that is not one (the global inbox).
-// New idea in All projects: the projects being shown, else every one.
+// New task in All projects: the projects being shown, else every one.
 export let newDir = null;
 // Same combo as the header's project picker: a button, then a searchable list.
-export function ideaCombo(f, choose = false) {
-  const ps = ideaDirs(),
+export function taskCombo(f, choose = false) {
+  const ps = taskDirs(),
     btn = f.querySelector("#newdir"),
     pp = f.querySelector("#ndc .menu-pop"),
     q = pp.querySelector("input"),
@@ -174,7 +174,7 @@ export function projectPicker(host: HTMLElement, ps: { dir: string; label: strin
     if (e.key === "Enter") box.querySelector<HTMLElement>("button")?.click();
   };
 }
-function ideaDirs() {
+function taskDirs() {
   const sp = showable(),
     pick = sp.filter((p) => store.shown.has(p.dir));
   return pick.length ? pick : sp;
@@ -273,5 +273,5 @@ export function initProjects() {
       $("show").setAttribute("aria-expanded", false);
     }
   });
-  $("newtop").onclick = newIdea;
+  $("newtop").onclick = newTask;
 }

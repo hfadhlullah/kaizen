@@ -67,8 +67,8 @@ export function boardClient(base: string, f: Fetch = fetch) {
     // web.ts:379 — the change stream. Returns the raw response for the watcher to read.
     events: (signal: AbortSignal) => f(`${base}/events`, { signal }),
     // web.ts:429
-    addIdea: (dir: string, text: string, notes?: string) => post("/inbox", { dir, op: "add", text, ...(notes ? { notes } : {}) }),
-    // web.ts:527 — to a run by id, or to an idea by its text.
+    addTask: (dir: string, text: string, notes?: string) => post("/inbox", { dir, op: "add", text, ...(notes ? { notes } : {}) }),
+    // web.ts:527 — to a run by id, or to a task by its text.
     addNote: (dir: string, to: { id: string } | { for: string }, text: string) => post("/note", { dir, ...to, text }),
     // web.ts:486 — never Yolo; agent and model are the board's defaults.
     launch: (dir: string, text: string, kind: "full" | "lite" | "") => post("/run", { dir, text, kind, yolo: false }),

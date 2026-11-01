@@ -5,7 +5,7 @@ import { termLoad } from "./agent-term.ts";
 import { open } from "./panel.ts";
 import { resume } from "./approvals.ts";
 
-// ---- the Terminal page: every in-card agent session the board knows, Ideas to Done, tiled.
+// ---- the Terminal page: every in-card agent session the board knows, Tasks to Done, tiled.
 // A tile is one more kzTerm mount on /pty beside the card panel's (attachPty takes many
 // listeners). Mounts outlive redraws: a /state tick moves tiles around, it never reconnects.
 // Layout is per browser in kz-terms: tile order, hidden tiles, the maximised one, and the
@@ -178,7 +178,7 @@ export function openTerms() {
     grid.querySelectorAll(".tsplit").forEach((s) => s.remove());
     grid.insertAdjacentHTML(
       "beforeend",
-      html`<div class="empty tempty"><div class="mascot"></div><b>${hid.length ? "Every terminal is hidden" : "No terminals running"}</b><p>Runs with an agent open in kaizen show here, from Ideas to Done.</p></div>`.s,
+      html`<div class="empty tempty"><div class="mascot"></div><b>${hid.length ? "Every terminal is hidden" : "No terminals running"}</b><p>Runs with an agent open in kaizen show here, from Tasks to Done.</p></div>`.s,
     );
     return;
   }
@@ -201,7 +201,7 @@ export function openTerms() {
       off = st === "ended";
     const hd = t.el.querySelector("header")!;
     hd.title = (c.kind === "run" ? c.id : c.text) + " · " + c.where + (i < 9 ? ` · Alt+${i + 1}` : "");
-    // An ended run can be resumed from here; an idea whose agent ended has no run to resume.
+    // An ended run can be resumed from here; a task whose agent ended has no run to resume.
     hd.innerHTML = html`<span class="tdot ${st}" role="img" title="${st}" aria-label="${st}"></span><b>${nameOf(c)} - ${projOf(c)}</b>${off ? html`<span class="tend">ended</span>` : ""}<span class="sp"></span>${off && c.kind === "run" ? html`<button class="btn sm" data-a="resume" title="Continue this run's agent">Resume</button>` : ""}${c.kind === "shell" ? "" : html`<button class="ib sm" data-a="card" title="Open card" aria-label="Open card">${ico("open")}</button>`}<button class="ib sm" data-a="max" title="${lay.max === k ? "Restore" : "Maximise"} (Ctrl+Shift+M)" aria-label="${lay.max === k ? "Restore" : "Maximise"}">${ico(lay.max === k ? "min" : "max")}</button>${off ? "" : html`<button class="ib sm" data-a="hide" title="Hide" aria-label="Hide">${ico("dash")}</button>`}<button class="ib sm" data-a="${off ? "hide" : "exit"}" title="${off ? "Close" : "Exit session"}" aria-label="${off ? "Close" : "Exit session"}">${ico("close")}</button>`.s;
     t.el.classList.toggle("ended", off);
     t.el.classList.toggle("asking", st === "asking");

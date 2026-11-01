@@ -49,7 +49,7 @@ Porting the workflow to Codex or Antigravity is covered in [`adapters.md`](adapt
 | `/kaizen status` | List every run grouped waiting-on-you / in flight / done / abandoned, plus the open backlog count |
 | `/kaizen backlog` | Print the open backlog items across all runs, grouped by source run, with rescued items last under `Orphaned` |
 | `/kaizen gather` | Read the request sources kaizen cannot read by itself and hand their requests over to the icebox |
-| `/kaizen discover` | Read the icebox, group what was gathered, propose ideas, and promote the ones the user picks |
+| `/kaizen discover` | Read the icebox, group what was gathered, propose tasks, and promote the ones the user picks |
 | `/kaizen docs` | Write this project's documentation into the notebook as a vault agents read first, or bring it up to date |
 | `/kaizen docs lint` | Run the read-only `kaizen docs lint` CLI command; report broken links, missing sources and stale notes |
 | `/kaizen approve` | Approve whatever the current run is waiting on |
@@ -72,7 +72,7 @@ If the user typed `/kaizen` with no argument and a run is in progress, treat it 
    work, run `/kaizen init` first: it creates `.kaizen/` with a copy of the `spec*.md`
    files and — where the folder is a git repository — the gitignore entry
    (see [`adapters.md`](adapters.md)). Also append the project folder's absolute path
-   to `~/.kaizen/projects` if not already listed: the board only retires an idea when
+   to `~/.kaizen/projects` if not already listed: the board only retires a task when
    it can see the run, and it only looks in projects it knows.
 2. Read the config in this order, each file filling in the keys the one before it
    does not set: `.kaizen/config.yml`, then `~/.kaizen/config.yml`, then

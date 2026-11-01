@@ -15,7 +15,7 @@ const cards = [
   { kind: "idea", state: "/p/.kaizen", text: "no agent", ws: "/p" },
 ];
 
-test("live runs get terminals; an idea only with its agent; a run waiting on approval stays", () => {
+test("live runs get terminals; a task only with its agent; a run waiting on approval stays", () => {
   expect(liveIn(cards, "/p/.kaizen", "/p", wsOf).map((c) => c.id ?? c.text)).toEqual(["a", "b", "e", "t"]);
   expect(liveIn(cards, "/p/.kaizen", "/p/.kaizen/wt/x", wsOf).map((c) => c.id)).toEqual(["f"]);
   expect(finished(cards[4])).toBe(false);
@@ -84,7 +84,7 @@ test("toOpen: a run that moves into review or done opens the Browser once; other
   expect(toOpen(cs, new Set(), ["c"], key).map(key)).toEqual(["b"]); // c already opened once
 });
 
-test("pickable: waiting first, then newest; done+approved, abandoned, archived and ideas are not listed", () => {
+test("pickable: waiting first, then newest; done+approved, abandoned, archived and tasks are not listed", () => {
   const cs = [run("old", "building", { moved: 1 }), run("new", "building", { moved: 9 }), run("w", "waiting", { moved: 2 }), run("e", "done", { accept: "needs", moved: 3 }), ...cards.slice(2, 4), cards[6], cards[7], cards[5]];
   expect(pickable(cs, "/p/.kaizen", "/p", wsOf).map((c) => c.id)).toEqual(["e", "w", "new", "old"]);
   expect(pickable(cs, "/p/.kaizen", "/p/.kaizen/wt/x", wsOf).map((c) => c.id)).toEqual(["f"]);

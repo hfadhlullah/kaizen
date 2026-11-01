@@ -1,5 +1,5 @@
 // Global search: the "Search" entry on top of the side menu, and Ctrl/Cmd+K anywhere, open
-// one palette over workspaces, runs and ideas, chats, agent terminals, projects, pages and
+// one palette over workspaces, runs and tasks, chats, agent terminals, projects, pages and
 // actions (modelled on Orca's "Jump to..." palette). Nothing is fetched but /chats; the rest
 // is what the side menu already holds. Stands alone like workspace.ts, so the notebook and
 // video pages carry it too: a pick the page cannot do in place navigates instead.
@@ -107,11 +107,11 @@ function items(): Item[] {
       main ? openWs(p.dir, main.path) : page("board", "/?view=board")();
     } });
   }
-  // Runs and ideas, not archived.
+  // Runs and tasks, not archived.
   for (const c of cards.filter((c) => !c.archived)) {
     const st = stateOf(c);
     out.push({
-      group: c.kind === "run" ? "Runs" : "Ideas",
+      group: c.kind === "run" ? "Runs" : "Tasks",
       title: titleOf(c) || c.id,
       sub: projName(c.state, projects),
       when: c.moved ? age(c.moved, now) : undefined,
@@ -162,11 +162,11 @@ function items(): Item[] {
   const acts: [string, string, () => void, string?][] = [
     ["Home", "page", page("home", "/"), "chat"],
     ["Icebox", "page", page("sources", "/?view=icebox"), "requests sources gathered"],
-    ["Ideas", "page", page("ideas", "/?view=ideas"), "backlog"],
+    ["Tasks", "page", page("tasks", "/?view=tasks"), "backlog"],
     ["Board", "page", page("board", "/?view=board"), "kanban runs"],
     ["Notes", "page", () => (location.href = "/notebook"), "notebook docs"],
     ["Settings", "page", page("settings", "/?view=settings"), "preferences config"],
-    ["New idea", "act", () => ($("newtop") ? $("newtop").click() : (location.href = "/?view=board")), "create add run"],
+    ["New task", "act", () => ($("newtop") ? $("newtop").click() : (location.href = "/?view=board")), "create add run"],
     ["Add a project", "act", () => openAdd({ dir: null }), "clone folder create workspace"],
     ["Toggle theme", "act", click("themet"), "dark light"],
     ["Collapse or expand menu", "act", click("fold"), "sidebar rail"],
@@ -177,9 +177,9 @@ function items(): Item[] {
   return out;
 }
 
-const ORDER = ["Current", "Workspaces", "Tabs", "Chats & terminals", "Runs", "Ideas", "Projects", "Actions"];
+const ORDER = ["Current", "Workspaces", "Tabs", "Chats & terminals", "Runs", "Tasks", "Projects", "Actions"];
 // With nothing typed each group shows its most recent few, as Orca's does.
-const CAP = { Workspaces: 5, Tabs: 4, "Chats & terminals": 5, Runs: 5, Ideas: 3, Projects: 5 };
+const CAP = { Workspaces: 5, Tabs: 4, "Chats & terminals": 5, Runs: 5, Tasks: 3, Projects: 5 };
 
 let dl: HTMLDialogElement | null = null;
 let shown: Item[] = [];
@@ -195,9 +195,9 @@ function draw() {
     const rows = hit.filter((i) => i.group === g);
     shown.push(...rows.slice(0, q.trim() ? 8 : CAP[g] ?? rows.length));
   }
-  // Orca offers to create what was typed; here that is a new idea.
+  // Orca offers to create what was typed; here that is a new task.
   if (q.trim())
-    shown.push({ group: "Create", title: `New idea "${q.trim()}"`, hay: "", ico: "plus", act: () => newIdeaWith(q.trim()) });
+    shown.push({ group: "Create", title: `New task "${q.trim()}"`, hay: "", ico: "plus", act: () => newTaskWith(q.trim()) });
   sel = Math.min(sel, shown.length - 1);
   const list = dl!.querySelector(".gs-list")!;
   let g = "";
@@ -219,7 +219,7 @@ function mark(n: number) {
   dl!.querySelector("input")!.setAttribute("aria-activedescendant", "gs-" + n);
   r?.scrollIntoView({ block: "nearest" });
 }
-function newIdeaWith(text: string) {
+function newTaskWith(text: string) {
   if (!$("newtop")) return void (location.href = "/?view=board");
   $("newtop").click();
   const t = document.querySelector<HTMLTextAreaElement>("dialog[open] textarea");

@@ -92,10 +92,10 @@ svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6;stroke
 body .rail a.upd::after{left:calc(50% + 6px);top:4px}body .toast{left:16px;bottom:calc(68px + env(safe-area-inset-bottom))}}
 .rail a.it[data-n]{position:relative}.rail a.it[data-n]::after{content:attr(data-n);position:absolute;left:24px;top:3px;min-width:16px;height:16px;padding:0 4px;box-sizing:border-box;border-radius:8px;background:var(--dim);color:var(--bg);font:600 10px/16px var(--font);text-align:center;box-shadow:0 0 0 2px var(--bg)}
 @media(max-width:640px){body .rail a.it[data-n]::after{left:calc(50% + 4px);top:2px}}
-.rail a.it:is([data-view=board],[data-view=ideas])[data-n]::after{left:auto;right:8px;top:6px;background:var(--warn)}
-[data-rail=min] .rail a.it:is([data-view=board],[data-view=ideas])[data-n]::after{left:24px;right:auto;top:3px}
-@media(max-width:640px){[data-rail=min] .rail a.it:is([data-view=board],[data-view=ideas])[data-n]::after{left:calc(50% + 4px);top:2px}}
-/* the rail's Projects list: ideas and runs grouped by project, each with its state icon */
+.rail a.it:is([data-view=board],[data-view=tasks])[data-n]::after{left:auto;right:8px;top:6px;background:var(--warn)}
+[data-rail=min] .rail a.it:is([data-view=board],[data-view=tasks])[data-n]::after{left:24px;right:auto;top:3px}
+@media(max-width:640px){[data-rail=min] .rail a.it:is([data-view=board],[data-view=tasks])[data-n]::after{left:calc(50% + 4px);top:2px}}
+/* the rail's Projects list: tasks and runs grouped by project, each with its state icon */
 .rail a.it .n{margin-left:auto;font-size:var(--fs-xs);font-weight:400;color:var(--dim)}
 .rail a.it .srcs+.n{margin-left:8px}.rail a.it .srcs{margin-left:auto;display:flex;gap:4px;opacity:.75}.rail a.it .srcs svg,.rail a.it .srcs img{width:13px;height:13px}
 .rail a.it,.rail .theme,.rail .theme button{border-radius:4px}
@@ -136,12 +136,12 @@ body .rail a.upd::after{left:calc(50% + 6px);top:4px}body .toast{left:16px;botto
 [data-rail=min] .rail a.it .n,[data-rail=min] .rail a.it .srcs,[data-rail=min] .rail .rib:not(.th),[data-rail=min] .plist .proj :not(.plogo),[data-rail=min] .plist .row div,[data-rail=min] .plist .wcount{display:none}
 [data-rail=min] .rail .psec{padding:0;margin:12px 0 2px;flex-direction:column}[data-rail=min] .rail .rbot{flex-direction:column}
 [data-rail=min] .plist .proj{justify-content:center;margin:10px 0 4px;padding:0}[data-rail=min] .plist .row{grid-template-columns:14px;justify-content:center;padding:0}
-@media(max-width:640px){.rail .psec,.rail .plist,.rail .rib{display:none}.rail .rbot,[data-rail=min] .rail .rbot{display:contents}.rail a.it[data-view=ideas]{order:3}.rail a.it[data-view=board]{order:4}.rail a.it .n,.rail a.it .srcs{display:none}}
-/* phones: Home, Chat, Runs, Settings. The board, Ideas and the Icebox are set up on a computer (web/board/phone.ts) */
+@media(max-width:640px){.rail .psec,.rail .plist,.rail .rib{display:none}.rail .rbot,[data-rail=min] .rail .rbot{display:contents}.rail a.it[data-view=tasks]{order:3}.rail a.it[data-view=board]{order:4}.rail a.it .n,.rail a.it .srcs{display:none}}
+/* phones: Home, Chat, Runs, Settings. The board, Tasks and the Icebox are set up on a computer (web/board/phone.ts) */
 @media(min-width:641px){.rail .rbot .lbl{display:none}.rail .rbot a.it{flex:none;width:var(--btn-xs);height:var(--btn-xs);padding:0;justify-content:center;margin-right:auto}[data-rail=min] .rail .rbot a.it{width:var(--btn-s);height:var(--btn-s);margin-right:0}}
 .rail a.it.ponly,#phome{display:none}
 @media(max-width:640px){
-.rail a.it:is([data-view=board],[data-view=ideas],[data-view=sources]),#foot,#ctx-open,body .rail .rbot .rib{display:none!important}
+.rail a.it:is([data-view=board],[data-view=tasks],[data-view=sources]),#foot,#ctx-open,body .rail .rbot .rib{display:none!important}
 .rail a.it.ponly{display:flex}
 .rail a.it[data-view=home]{order:1}.rail a.it[data-view=chat]{order:2}.rail a.it[data-view=device]{order:3}.rail a.it[data-view=settings]{order:4}
 .rail,[data-rail=min] .rail{padding:8px 8px max(2px,calc(env(safe-area-inset-bottom) - 8px));border-top:1px solid color-mix(in srgb,var(--line) 70%,transparent)}
@@ -271,7 +271,7 @@ section h2{margin:0;font-size:13px;color:var(--ink);font-weight:500;display:flex
 section h2 i{font-style:normal;font-weight:400;font-size:12px;color:var(--dim)}
 section h2 i:empty{display:none}
 section h2 .ib{margin-left:auto}
-/* Ideas column: its title is two icon tabs, Ideas | Backlog; on Backlog a severity filter icon */
+/* Tasks column: its title is two icon tabs, Tasks | Backlog; on Backlog a severity filter icon */
 .itabs{display:flex;align-items:center;gap:2px}
 .itabs [role=tab]{min-height:26px;padding:0 8px;border:0;border-radius:13px;background:none;color:var(--dim);font:inherit;font-size:12px;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
 .itabs [role=tab] svg{width:14px;height:14px;stroke-width:1.7}
@@ -510,17 +510,17 @@ aside.wide{width:100%;border-left:0}@media(min-width:901px){aside.wide{width:62%
 @media(max-width:640px){.foot{order:1;gap:10px;padding:4px 10px;border-top:1px solid var(--line)}.foot .umtr,.foot .wk,.foot .ptxt{display:none}}
 @media(max-width:640px){.foot #res{display:none}}
 
-/* the Ideas page: source chips and project, then Open/Running/Done, search and the table */
-#ideasv{display:none}
-body.ideav #ideasv{flex:1;min-height:0;display:flex;flex-direction:column;gap:0;padding:6px 32px 20px}body #ideasv .hdr.ihdr{display:flex}#hx .iseg{display:flex;gap:4px}#hx .pill{display:flex;gap:6px;align-items:center;padding:4px 10px;font-size:12px;border-radius:4px;border:1px solid var(--line);color:var(--dim);background:none;cursor:pointer;white-space:nowrap}#hx .pill:hover{color:var(--ink)}#hx .pill.on{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent);border-color:color-mix(in srgb,var(--accent) 55%,transparent)}#hx .ipop>summary{list-style:none;display:flex;align-items:center;gap:8px;cursor:pointer}#hx .ipop>summary::-webkit-details-marker{display:none}#hx .ipop>summary::after{content:"";width:0;height:0;border:4px solid transparent;border-top:5px solid currentColor;margin:4px 0 0 2px}#hx .ipop>summary svg,#hx .ipop>summary img{width:15px;height:15px}#hx .ipop .menu-pop{position:absolute;padding:6px;display:flex;flex-direction:column;gap:1px;max-height:360px;overflow:auto;width:280px}#hx .ipop button{padding:6px 8px;border-radius:4px;background:none;border:0;color:var(--dim);text-align:left;cursor:pointer;font:inherit}#hx .ipop button:hover{background:var(--hover);color:var(--ink)}#hx .ipop button svg:not(.ck),#hx .ipop button img{width:15px;height:15px}#hx .ipop .ck{width:14px;height:14px;color:var(--accent);visibility:hidden;margin-left:auto}#hx .ipop [aria-checked=true]{color:var(--ink);font-weight:500}#hx .ipop [aria-checked=true] .ck{visibility:visible}#hx .ipop .pop-ft{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--line);margin-top:4px;padding:6px 4px 0;font-size:12px;color:var(--dim)}#hx .ipop .pop-ft button{color:var(--accent);padding:2px 6px}#ideasv .ihdr .pill{padding:4px 10px;font-size:12px}#ideasv .ibox{padding:0}#ideasv .itable{border-left:0;margin-left:0}#ideasv .itable th:first-child,#ideasv .itable td:first-child{padding-left:28px}#ideasv .itable th:last-child,#ideasv .itable td:last-child{padding-right:16px}
-#ideasv .ibar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-#ideasv .pill{display:flex;gap:6px;align-items:center;padding:5px 11px;border-radius:4px;border:1px solid var(--line);color:var(--dim);white-space:nowrap}#ideasv .pill:hover{color:var(--ink)}#ideasv .pill.on{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent);border-color:color-mix(in srgb,var(--accent) 55%,transparent)}
-#ideasv .pill svg,#ideasv .pill img{width:15px;height:15px}#ideasv .pill .fav{display:contents}
-#ideasv .ibox{flex:1;min-height:0;display:flex;flex-direction:column}#ideasv .ibox>.ibar{padding:0 0 10px}
-#ideasv #ideas-q{flex:0 1 240px;min-width:140px;border-radius:4px;padding:6px 10px;font-family:var(--mono);font-size:12px}
-#ideasv .iscroll{flex:1;min-height:0;overflow:auto}
+/* the Tasks page: source chips and project, then Open/Running/Done, search and the table */
+#tasksv{display:none}
+body.taskv #tasksv{flex:1;min-height:0;display:flex;flex-direction:column;gap:0;padding:6px 32px 20px}body #tasksv .hdr.ihdr{display:flex}#hx .iseg{display:flex;gap:4px}#hx .pill{display:flex;gap:6px;align-items:center;padding:4px 10px;font-size:12px;border-radius:4px;border:1px solid var(--line);color:var(--dim);background:none;cursor:pointer;white-space:nowrap}#hx .pill:hover{color:var(--ink)}#hx .pill.on{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent);border-color:color-mix(in srgb,var(--accent) 55%,transparent)}#hx .ipop>summary{list-style:none;display:flex;align-items:center;gap:8px;cursor:pointer}#hx .ipop>summary::-webkit-details-marker{display:none}#hx .ipop>summary::after{content:"";width:0;height:0;border:4px solid transparent;border-top:5px solid currentColor;margin:4px 0 0 2px}#hx .ipop>summary svg,#hx .ipop>summary img{width:15px;height:15px}#hx .ipop .menu-pop{position:absolute;padding:6px;display:flex;flex-direction:column;gap:1px;max-height:360px;overflow:auto;width:280px}#hx .ipop button{padding:6px 8px;border-radius:4px;background:none;border:0;color:var(--dim);text-align:left;cursor:pointer;font:inherit}#hx .ipop button:hover{background:var(--hover);color:var(--ink)}#hx .ipop button svg:not(.ck),#hx .ipop button img{width:15px;height:15px}#hx .ipop .ck{width:14px;height:14px;color:var(--accent);visibility:hidden;margin-left:auto}#hx .ipop [aria-checked=true]{color:var(--ink);font-weight:500}#hx .ipop [aria-checked=true] .ck{visibility:visible}#hx .ipop .pop-ft{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--line);margin-top:4px;padding:6px 4px 0;font-size:12px;color:var(--dim)}#hx .ipop .pop-ft button{color:var(--accent);padding:2px 6px}#tasksv .ihdr .pill{padding:4px 10px;font-size:12px}#tasksv .ibox{padding:0}#tasksv .itable{border-left:0;margin-left:0}#tasksv .itable th:first-child,#tasksv .itable td:first-child{padding-left:28px}#tasksv .itable th:last-child,#tasksv .itable td:last-child{padding-right:16px}
+#tasksv .ibar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#tasksv .pill{display:flex;gap:6px;align-items:center;padding:5px 11px;border-radius:4px;border:1px solid var(--line);color:var(--dim);white-space:nowrap}#tasksv .pill:hover{color:var(--ink)}#tasksv .pill.on{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent);border-color:color-mix(in srgb,var(--accent) 55%,transparent)}
+#tasksv .pill svg,#tasksv .pill img{width:15px;height:15px}#tasksv .pill .fav{display:contents}
+#tasksv .ibox{flex:1;min-height:0;display:flex;flex-direction:column}#tasksv .ibox>.ibar{padding:0 0 10px}
+#tasksv #ideas-q{flex:0 1 240px;min-width:140px;border-radius:4px;padding:6px 10px;font-family:var(--mono);font-size:12px}
+#tasksv .iscroll{flex:1;min-height:0;overflow:auto}
 .itable{width:100%;border-collapse:collapse}.itable th{text-align:left;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);font-weight:600;padding:8px 12px;border-bottom:1px solid var(--line)}
-.itable td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:middle}.itable tr:hover td{background:var(--hover)}#ideasv tbody tr{cursor:pointer}.itable tr.kb td{background:var(--hover)}.itable td:first-child{width:28px;padding-right:0}.itable td.d{color:var(--dim);white-space:nowrap}
+.itable td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:middle}.itable tr:hover td{background:var(--hover)}#tasksv tbody tr{cursor:pointer}.itable tr.kb td{background:var(--hover)}.itable td:first-child{width:28px;padding-right:0}.itable td.d{color:var(--dim);white-space:nowrap}
 .itable .ctx{display:flex;gap:6px;align-items:center;color:var(--dim);font-size:12px;margin-top:3px}.itable .tag{font-size:10.5px;border:1px solid var(--line);border-radius:4px;padding:0 7px}
 .itable .stc{display:flex;gap:8px;align-items:center;font-size:12px;white-space:nowrap}
 .itable .go{display:flex;gap:6px;align-items:center;padding:4px 10px;border:1px solid var(--line);border-radius:4px;white-space:nowrap}.itable .go:hover{background:var(--hover)}.itable .go svg{width:13px;height:13px}.itable .acts{display:flex;gap:6px;justify-content:flex-end;align-items:center}.itable .del{display:grid;place-items:center;width:28px;height:28px;border:1px solid transparent;border-radius:4px;background:none;color:var(--dim);cursor:pointer}.itable .del:hover{color:var(--danger);border-color:var(--line)}.itable .del svg{width:15px;height:15px}.itable .acts .q{color:var(--dim);font-size:12px}.itable .acts .btn{padding:4px 10px;font-size:12px}
@@ -534,7 +534,7 @@ body.ideav #ideasv{flex:1;min-height:0;display:flex;flex-direction:column;gap:0;
 .kpager{position:sticky;bottom:0;z-index:1;display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:8px 12px;border-top:1px solid var(--line);background:var(--bg);font-size:var(--fs-s);color:var(--dim)}.kpager label{display:flex;align-items:center;gap:6px;margin-right:auto}.kpager select{width:auto}
 .tk-empty{display:flex;flex-direction:column;align-items:center;gap:4px;padding:56px 24px;text-align:center;font-size:14px;color:var(--dim)}.tk-empty svg{width:32px;height:32px;margin-bottom:12px;opacity:.6}.tk-empty p{margin:0;font-size:16px;font-weight:500;color:var(--ink)}
 .itable th{position:sticky;top:0;z-index:1;height:32px;box-sizing:border-box;padding:0 12px;font-size:11px;font-weight:500;background:color-mix(in srgb,var(--hover) 25%,var(--bg))}.itable td{height:48px;box-sizing:border-box;padding:8px 12px;border-bottom:1px solid color-mix(in srgb,var(--line) 30%,transparent)}.itable tr:last-child td{border-bottom:0}.itable b{font-weight:500}
-@media(max-width:640px){body.ideav #ideasv{padding:10px}.itable th:nth-child(4),.itable td:nth-child(4){display:none}.itable td,.itable th{padding:8px 6px}}
+@media(max-width:640px){body.taskv #tasksv{padding:10px}.itable th:nth-child(4),.itable td:nth-child(4){display:none}.itable td,.itable th{padding:8px 6px}}
 
 /* the mockup has no right-hand project pane: the Files/Notes/Terminal pane (#context, context.ts) is not shown on desktop widths; the run workspace has its own strip */
 @media(min-width:641px){#context,#ctx-open{display:none!important}}
@@ -542,7 +542,7 @@ body.ideav #ideasv{flex:1;min-height:0;display:flex;flex-direction:column;gap:0;
 @media(min-width:1201px){html body:not(.paged) #board{grid-template-columns:repeat(5,minmax(200px,1fr))}}
 /* the run workspace (?view=run): a tabbed centre, and the card's panel docked right as an icon strip */
 #runv,#pnotes,#pnlist{display:none}.pstrip{display:contents}#ptabs svg{display:none}
-body.runv .hdr,body.runv #board,body.runv .ftr,body.runv #terms,body.runv #home,body.runv #ideasv,body.runv .scrim,body.runv #context{display:none!important}
+body.runv .hdr,body.runv #board,body.runv .ftr,body.runv #terms,body.runv #home,body.runv #tasksv,body.runv .scrim,body.runv #context{display:none!important}
 body.runv .app{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:minmax(0,1fr);margin-right:8px!important}body.runv #pfoot{min-width:0;flex-wrap:wrap}body.runv #pfoot .note{flex:1 1 100%;white-space:normal;min-width:0}
 body.runv #runv{grid-area:1/1;display:flex;flex-direction:column;min-width:0;min-height:0}
 #rtabs{display:flex;align-items:center;gap:2px;height:var(--tabbar);min-height:var(--tabbar);padding:0 6px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0}#rtabs .sp{flex:1}#rbar{display:flex;align-items:center;flex:none;border-bottom:1px solid var(--line);padding-right:6px}
@@ -632,7 +632,7 @@ aside{position:fixed;top:0;right:0;bottom:0;z-index:11;width:520px;max-width:100
 aside.open{transform:none;visibility:visible}
 /* Settings and the Icebox are pages: the same panel, docked into the app column, full width like the board */
 body.paged #board,body.paged .ftr,body.paged .scrim,body.paged #bq{display:none}
-/* The Icebox keeps the project bar with its own title, without New idea or the panel's header; Settings has none */
+/* The Icebox keeps the project bar with its own title, without New task or the panel's header; Settings has none */
 body.paged:not(.ice) .hdr,body.ice aside.docked>header{display:none}body.ice #newtop{visibility:hidden}
 /* The Terminal page: the project bar stays (it picks whose terminals show), the board gives way to the tiles */
 #home{display:none}#hnewtop,#hpop,#hsidetop{display:none}body.homev.paged .hdr{display:flex}body.homev #combo,body.homev #showc,body.homev #bq,body.homev #newtop,body.homev #fbtn,body.homev #tmodes{display:none!important}body.homev #hnewtop{display:inline-flex;align-items:center;gap:6px}@media(min-width:641px){body.homev #hpop{display:inline-grid}}#hnewtop svg{width:16px;height:16px}
@@ -1014,12 +1014,12 @@ a.schip:hover{color:var(--ink);border-color:color-mix(in srgb,var(--line) 60%,va
 ::view-transition-group(*){animation-duration:.2s}
 @media(prefers-reduced-motion:reduce){:root:not([data-motion=full]) *,:root:not([data-motion=full]) *::before,:root:not([data-motion=full]) *::after,:root:not([data-motion=full])::view-transition-group(*),:root:not([data-motion=full])::view-transition-old(*),:root:not([data-motion=full])::view-transition-new(*){transition:none!important;animation:none!important}}
 :root[data-motion=reduce] *,:root[data-motion=reduce] *::before,:root[data-motion=reduce] *::after,:root[data-motion=reduce]::view-transition-group(*),:root[data-motion=reduce]::view-transition-old(*),:root[data-motion=reduce]::view-transition-new(*){transition:none!important;animation:none!important}
-/* Every page's top bar (Board, Ideas, Icebox, Terminal, Settings, a run's tabs): one height, one divider. */
-/* Ideas uses the Board's own header, as the Icebox does; its extra filters go in #hx. */
-body.ideav.paged .hdr{display:flex}body.ideav.paged #bq{display:block}body.ideav #fbtn,body.ideav #tmodes{display:none}body:not(.ideav) #hx{display:none}#hx{display:flex;gap:8px;align-items:center}
-@media(min-width:641px){.app .hdr,#ideasv .hdr.ihdr,#panel.docked>header{height:52px;min-height:52px;box-sizing:border-box;padding-top:0;padding-bottom:0;border-bottom:1px solid var(--line);align-items:center;flex-wrap:nowrap}.itable th{border-bottom-color:var(--line)}}
+/* Every page's top bar (Board, Tasks, Icebox, Terminal, Settings, a run's tabs): one height, one divider. */
+/* Tasks uses the Board's own header, as the Icebox does; its extra filters go in #hx. */
+body.taskv.paged .hdr{display:flex}body.taskv.paged #bq{display:block}body.taskv #fbtn,body.taskv #tmodes{display:none}body:not(.taskv) #hx{display:none}#hx{display:flex;gap:8px;align-items:center}
+@media(min-width:641px){.app .hdr,#tasksv .hdr.ihdr,#panel.docked>header{height:52px;min-height:52px;box-sizing:border-box;padding-top:0;padding-bottom:0;border-bottom:1px solid var(--line);align-items:center;flex-wrap:nowrap}.itable th{border-bottom-color:var(--line)}}
 
-/* Ideas header on a small laptop: one row, nothing wraps; the search box gives way first. */
+/* Tasks header on a small laptop: one row, nothing wraps; the search box gives way first. */
 #newtop{white-space:nowrap}#newtop svg{display:none}
 /* Board, Workspaces mode: the Workspaces | Runs switch in the header, four columns of workspace cards. */
 body:not(.paged) #hx{display:flex}
@@ -1141,10 +1141,10 @@ html body.wsb:not(.paged) #board{grid-template-columns:repeat(4,minmax(200px,1fr
   <a class="it ponly" href="/?view=chat" data-view="chat" title="Chat with kaizen's agent"><svg><use href="#r-chat"/></svg><span class="lbl">Chat</span></a>
   <a class="it ponly" href="/?view=device" data-view="device" title="This computer's runs"><svg><use href="#r-runs"/></svg><span class="lbl">Runs</span></a>
   <a class="it fold" href="/?view=icebox" data-view="sources" title="Icebox: requests gathered from your sources"><svg><use href="#r-tray"/></svg><span class="lbl">Icebox</span><span class="srcs" id="rail-srcs"></span><span class="n" id="ice-n"></span></a>
-  <a class="it" href="/?view=ideas" data-view="ideas" title="Ideas: every idea and run, filtered"><svg><use href="#r-bulb"/></svg><span class="lbl">Ideas</span></a>
+  <a class="it" href="/?view=tasks" data-view="tasks" title="Tasks: every task and run, filtered"><svg><use href="#r-bulb"/></svg><span class="lbl">Tasks</span></a>
   <a class="it" href="/?setup=1" id="rsetup" hidden title="Continue setup"><span class="ring"></span><span class="lbl">Setup</span></a>
   <div class="psec"><span class="lbl">Projects</span><a class="pbd" href="/?view=board" data-view="board" title="Board" aria-label="Board"><svg><use href="#i-board"/></svg></a><button id="pfilter" title="Show one project" aria-label="Show one project"><svg><use href="#r-filter"/></svg></button><button id="padd" title="Add project or workspace" aria-label="Add project or workspace"><svg><use href="#r-plus"/></svg></button></div>
-  <div class="plist" id="plist" aria-label="Ideas and runs by project"></div>
+  <div class="plist" id="plist" aria-label="Tasks and runs by project"></div>
   <div class="rbot"><a class="it fold" href="/?view=settings" data-view="settings" title="Settings" aria-label="Settings"><svg><use href="#i-gear"/></svg><span class="lbl">Settings</span></a><a class="rib" href="/issue" target="_blank" rel="noopener" title="Report an issue" aria-label="Report an issue"><svg><use href="#r-bug"/></svg></a><button class="rib" id="kbd" title="Keyboard shortcuts" aria-label="Keyboard shortcuts"><svg><use href="#r-kbd"/></svg></button><button class="rib th" id="themet" title="Theme" aria-label="Theme"><svg class="sun"><use href="#i-sun"/></svg><svg class="moon"><use href="#i-moon"/></svg></button></div>
 </nav>
 <script>
@@ -1187,7 +1187,7 @@ html body.wsb:not(.paged) #board{grid-template-columns:repeat(4,minmax(200px,1fr
   <span class="hx" id="hx"></span>
   <span class="sp"></span>
   <span class="bar" id="tmodes" role="group" aria-label="Layout"></span>
-  <button class="btn pri" id="newtop"><svg><use href="#i-plus"/></svg><span>New idea</span></button>
+  <button class="btn pri" id="newtop"><svg><use href="#i-plus"/></svg><span>New task</span></button>
   <button class="ib" id="ctx-open" aria-label="Open side panel" title="Notes, files and terminals"><svg><use href="#i-side"/></svg></button>
   <button class="ib" id="hpop" title="Pop out chat" aria-label="Pop out chat"><svg><use href="#i-popout"/></svg></button>
   <button class="btn pri" id="hnewtop" aria-label="New chat"><svg><use href="#i-plus"/></svg><span>New chat</span></button>
@@ -1197,7 +1197,7 @@ html body.wsb:not(.paged) #board{grid-template-columns:repeat(4,minmax(200px,1fr
 <div id="terms" aria-label="Terminals"></div>
 <div id="home" aria-label="Chat"></div>
 <div id="phome" aria-label="Devices and runs"></div>
-<div id="ideasv" aria-label="Ideas"></div>
+<div id="tasksv" aria-label="Tasks"></div>
 <div id="runv" aria-label="Run workspace"><div id="rbar"><nav id="rtabs" aria-label="Workspace tabs"></nav><button class="rbtn" id="rside" title="Show or hide the run panel" aria-label="Show or hide the run panel" aria-pressed="false"><svg><use href="#i-open"/></svg></button></div><div id="rpanes"></div></div>
 
 <div class="ftr"><span class="strip" id="strip"></span></div>
@@ -1216,7 +1216,7 @@ html body.wsb:not(.paged) #board{grid-template-columns:repeat(4,minmax(200px,1fr
 <div class="toast" id="toast" role="status"></div>
 <div class="help" id="help"><div>
 <p>Optional. Everything here is also a button.</p>
-<dl><dt><kbd>←↓↑→</kbd><kbd>hjkl</kbd></dt><dd>move between cards</dd><dt><kbd>Enter</kbd></dt><dd>open</dd><dt><kbd>←→</kbd><kbd>hl</kbd></dt><dd>tabs, in an open run</dd><dt><kbd>↑↓</kbd><kbd>jk</kbd></dt><dd>scroll, in an open run</dd><dt><kbd>n</kbd></dt><dd>new idea</dd><dt><kbd>e</kbd></dt><dd>edit</dd><dt><kbd>x</kbd></dt><dd>reject / abandon</dd><dt><kbd>r</kbd></dt><dd>run</dd><dt><kbd>a</kbd></dt><dd>all projects</dd><dt><kbd>Esc</kbd></dt><dd>close</dd><dt><kbd>?</kbd></dt><dd>this list</dd></dl><dl style="margin-top:16px"><dt><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>Space</kbd></dt><dd>search, also from a terminal</dd></dl><h3>In a workspace</h3><p>Press <kbd>Ctrl</kbd> <kbd>Space</kbd> to focus the current pane, then one key:</p><dl><dt><kbd>←↓↑→</kbd><kbd>hjkl</kbd></dt><dd>move between panes</dd><dt><kbd>1-9</kbd></dt><dd>go to tab</dd><dt><kbd>n</kbd><kbd>p</kbd></dt><dd>next, previous tab</dd><dt><kbd>c</kbd></dt><dd>new tab menu</dd><dt><kbd>r</kbd></dt><dd>split right menu</dd><dt><kbd>d</kbd></dt><dd>split down menu</dd><dt><kbd>x</kbd></dt><dd>close pane</dd><dt><kbd>?</kbd></dt><dd>this list</dd></dl></div></div>
+<dl><dt><kbd>←↓↑→</kbd><kbd>hjkl</kbd></dt><dd>move between cards</dd><dt><kbd>Enter</kbd></dt><dd>open</dd><dt><kbd>←→</kbd><kbd>hl</kbd></dt><dd>tabs, in an open run</dd><dt><kbd>↑↓</kbd><kbd>jk</kbd></dt><dd>scroll, in an open run</dd><dt><kbd>n</kbd></dt><dd>new task</dd><dt><kbd>e</kbd></dt><dd>edit</dd><dt><kbd>x</kbd></dt><dd>reject / abandon</dd><dt><kbd>r</kbd></dt><dd>run</dd><dt><kbd>a</kbd></dt><dd>all projects</dd><dt><kbd>Esc</kbd></dt><dd>close</dd><dt><kbd>?</kbd></dt><dd>this list</dd></dl><dl style="margin-top:16px"><dt><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>Space</kbd></dt><dd>search, also from a terminal</dd></dl><h3>In a workspace</h3><p>Press <kbd>Ctrl</kbd> <kbd>Space</kbd> to focus the current pane, then one key:</p><dl><dt><kbd>←↓↑→</kbd><kbd>hjkl</kbd></dt><dd>move between panes</dd><dt><kbd>1-9</kbd></dt><dd>go to tab</dd><dt><kbd>n</kbd><kbd>p</kbd></dt><dd>next, previous tab</dd><dt><kbd>c</kbd></dt><dd>new tab menu</dd><dt><kbd>r</kbd></dt><dd>split right menu</dd><dt><kbd>d</kbd></dt><dd>split down menu</dd><dt><kbd>x</kbd></dt><dd>close pane</dd><dt><kbd>?</kbd></dt><dd>this list</dd></dl></div></div>
 
 <script>
 // The server writes notifier() from state.ts over the marker: one rule for both UIs.

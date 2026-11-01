@@ -88,10 +88,10 @@ svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6;stroke
 body .rail a.upd::after{left:calc(50% + 6px);top:4px}body .toast{left:16px;bottom:calc(68px + env(safe-area-inset-bottom))}}
 .rail a.it[data-n]{position:relative}.rail a.it[data-n]::after{content:attr(data-n);position:absolute;left:24px;top:3px;min-width:16px;height:16px;padding:0 4px;box-sizing:border-box;border-radius:8px;background:var(--dim);color:var(--bg);font:600 10px/16px var(--font);text-align:center;box-shadow:0 0 0 2px var(--bg)}
 @media(max-width:640px){body .rail a.it[data-n]::after{left:calc(50% + 4px);top:2px}}
-.rail a.it:is([data-view=board],[data-view=ideas])[data-n]::after{left:auto;right:8px;top:6px;background:var(--warn)}
-[data-rail=min] .rail a.it:is([data-view=board],[data-view=ideas])[data-n]::after{left:24px;right:auto;top:3px}
-@media(max-width:640px){[data-rail=min] .rail a.it:is([data-view=board],[data-view=ideas])[data-n]::after{left:calc(50% + 4px);top:2px}}
-/* the rail's Projects list: ideas and runs grouped by project, each with its state icon */
+.rail a.it:is([data-view=board],[data-view=tasks])[data-n]::after{left:auto;right:8px;top:6px;background:var(--warn)}
+[data-rail=min] .rail a.it:is([data-view=board],[data-view=tasks])[data-n]::after{left:24px;right:auto;top:3px}
+@media(max-width:640px){[data-rail=min] .rail a.it:is([data-view=board],[data-view=tasks])[data-n]::after{left:calc(50% + 4px);top:2px}}
+/* the rail's Projects list: tasks and runs grouped by project, each with its state icon */
 .rail a.it .n{margin-left:auto;font-size:var(--fs-xs);font-weight:400;color:var(--dim)}
 .rail a.it .srcs+.n{margin-left:8px}.rail a.it .srcs{margin-left:auto;display:flex;gap:4px;opacity:.75}.rail a.it .srcs svg,.rail a.it .srcs img{width:13px;height:13px}
 .rail a.it,.rail .theme,.rail .theme button{border-radius:4px}
@@ -132,12 +132,12 @@ body .rail a.upd::after{left:calc(50% + 6px);top:4px}body .toast{left:16px;botto
 [data-rail=min] .rail a.it .n,[data-rail=min] .rail a.it .srcs,[data-rail=min] .rail .rib:not(.th),[data-rail=min] .plist .proj :not(.plogo),[data-rail=min] .plist .row div,[data-rail=min] .plist .wcount{display:none}
 [data-rail=min] .rail .psec{padding:0;margin:12px 0 2px;flex-direction:column}[data-rail=min] .rail .rbot{flex-direction:column}
 [data-rail=min] .plist .proj{justify-content:center;margin:10px 0 4px;padding:0}[data-rail=min] .plist .row{grid-template-columns:14px;justify-content:center;padding:0}
-@media(max-width:640px){.rail .psec,.rail .plist,.rail .rib{display:none}.rail .rbot,[data-rail=min] .rail .rbot{display:contents}.rail a.it[data-view=ideas]{order:3}.rail a.it[data-view=board]{order:4}.rail a.it .n,.rail a.it .srcs{display:none}}
-/* phones: Home, Chat, Runs, Settings. The board, Ideas and the Icebox are set up on a computer (web/board/phone.ts) */
+@media(max-width:640px){.rail .psec,.rail .plist,.rail .rib{display:none}.rail .rbot,[data-rail=min] .rail .rbot{display:contents}.rail a.it[data-view=tasks]{order:3}.rail a.it[data-view=board]{order:4}.rail a.it .n,.rail a.it .srcs{display:none}}
+/* phones: Home, Chat, Runs, Settings. The board, Tasks and the Icebox are set up on a computer (web/board/phone.ts) */
 @media(min-width:641px){.rail .rbot .lbl{display:none}.rail .rbot a.it{flex:none;width:var(--btn-xs);height:var(--btn-xs);padding:0;justify-content:center;margin-right:auto}[data-rail=min] .rail .rbot a.it{width:var(--btn-s);height:var(--btn-s);margin-right:0}}
 .rail a.it.ponly,#phome{display:none}
 @media(max-width:640px){
-.rail a.it:is([data-view=board],[data-view=ideas],[data-view=sources]),#foot,#ctx-open,body .rail .rbot .rib{display:none!important}
+.rail a.it:is([data-view=board],[data-view=tasks],[data-view=sources]),#foot,#ctx-open,body .rail .rbot .rib{display:none!important}
 .rail a.it.ponly{display:flex}
 .rail a.it[data-view=home]{order:1}.rail a.it[data-view=chat]{order:2}.rail a.it[data-view=device]{order:3}.rail a.it[data-view=settings]{order:4}
 .rail,[data-rail=min] .rail{padding:8px 8px max(2px,calc(env(safe-area-inset-bottom) - 8px));border-top:1px solid color-mix(in srgb,var(--line) 70%,transparent)}
@@ -346,10 +346,10 @@ select.sel{cursor:pointer;appearance:none;padding-right:30px;max-width:min(320px
   <a class="it ponly" href="/?view=chat" data-view="chat" title="Chat with kaizen's agent"><svg><use href="#r-chat"/></svg><span class="lbl">Chat</span></a>
   <a class="it ponly" href="/?view=device" data-view="device" title="This computer's runs"><svg><use href="#r-runs"/></svg><span class="lbl">Runs</span></a>
   <a class="it fold" href="/?view=icebox" data-view="sources" title="Icebox: requests gathered from your sources"><svg><use href="#r-tray"/></svg><span class="lbl">Icebox</span><span class="srcs" id="rail-srcs"></span><span class="n" id="ice-n"></span></a>
-  <a class="it" href="/?view=ideas" data-view="ideas" title="Ideas: every idea and run, filtered"><svg><use href="#r-bulb"/></svg><span class="lbl">Ideas</span></a>
+  <a class="it" href="/?view=tasks" data-view="tasks" title="Tasks: every task and run, filtered"><svg><use href="#r-bulb"/></svg><span class="lbl">Tasks</span></a>
   <a class="it" href="/?setup=1" id="rsetup" hidden title="Continue setup"><span class="ring"></span><span class="lbl">Setup</span></a>
   <div class="psec"><span class="lbl">Projects</span><a class="pbd" href="/?view=board" data-view="board" title="Board" aria-label="Board"><svg><use href="#i-board"/></svg></a><button id="pfilter" title="Show one project" aria-label="Show one project"><svg><use href="#r-filter"/></svg></button><button id="padd" title="Add project or workspace" aria-label="Add project or workspace"><svg><use href="#r-plus"/></svg></button></div>
-  <div class="plist" id="plist" aria-label="Ideas and runs by project"></div>
+  <div class="plist" id="plist" aria-label="Tasks and runs by project"></div>
   <div class="rbot"><a class="it fold" href="/?view=settings" data-view="settings" title="Settings" aria-label="Settings"><svg><use href="#i-gear"/></svg><span class="lbl">Settings</span></a><a class="rib" href="/issue" target="_blank" rel="noopener" title="Report an issue" aria-label="Report an issue"><svg><use href="#r-bug"/></svg></a><button class="rib" id="kbd" title="Keyboard shortcuts" aria-label="Keyboard shortcuts"><svg><use href="#r-kbd"/></svg></button><button class="rib th" id="themet" title="Theme" aria-label="Theme"><svg class="sun"><use href="#i-sun"/></svg><svg class="moon"><use href="#i-moon"/></svg></button></div>
 </nav>
 <script>

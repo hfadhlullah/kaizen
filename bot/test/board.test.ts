@@ -86,13 +86,13 @@ test("G-33/G-24: every acting tool leaves exactly one card, reads leave receipts
     ["board_status", {}], ["read_run", { project: "kaizen", run: "r-plan" }],
     ["add_idea", { project: "kaizen", text: "invoice export" }], ["add_note", { project: "kaizen", run: "r-live", text: "fyi" }],
     ["propose_start_run", { project: "kaizen", idea: "invoice export" }], ["propose_decision", { project: "kaizen", run: "r-plan", approve: true, answers: ["base"] }],
-    ["propose_fix", { project: "kaizen", run: "r-done", findings: [1, 2] }], ["propose_abort", { project: "kaizen", run: "r-live", reason: "wrong idea" }],
+    ["propose_fix", { project: "kaizen", run: "r-done", findings: [1, 2] }], ["propose_abort", { project: "kaizen", run: "r-live", reason: "wrong task" }],
   ));
   // board_status, read_run and add_note fall in the first 8 model steps; the rest in a second turn.
-  await say(chief.id, model(["propose_abort", { project: "kaizen", run: "r-live", reason: "wrong idea" }], ["remember", { fact: "kaizen is the main project" }], ["draft_message", { channel: "email", to: "a@b.c", body: "hi" }]));
+  await say(chief.id, model(["propose_abort", { project: "kaizen", run: "r-live", reason: "wrong task" }], ["remember", { fact: "kaizen is the main project" }], ["draft_message", { channel: "email", to: "a@b.c", body: "hi" }]));
   const kinds = cards(store, chief.id).map((a) => a.kind).sort();
   expect(kinds).toEqual(["abort", "abort", "decision", "draft", "fix", "idea", "memory", "note", "start_run"].sort());
-  expect(store.messages(chief.id).filter((m) => m.kind === "receipt").map((m) => m.text)).toEqual(["Board → 1 waiting on you · 1 in flight · 0 ideas", "Run → read r-plan"]);
+  expect(store.messages(chief.id).filter((m) => m.kind === "receipt").map((m) => m.text)).toEqual(["Board → 1 waiting on you · 1 in flight · 0 tasks", "Run → read r-plan"]);
   // Only the two direct board tools wrote; no proposal reached the board.
   expect(board.writes.map((w) => w.path)).toEqual(["/inbox", "/note"]);
   const gated = cards(store, chief.id).filter((a) => a.gated);
@@ -351,7 +351,7 @@ test("G-26 (finding 1): a run waiting on you is answered once from its card; a n
   expect(board.writes.filter((w) => w.path === "/decide")).toHaveLength(2);
 });
 
-test("finding 2: a card whose run, review or idea changed since it was made is refused without a board call", async () => {
+test("finding 2: a card whose run, review or task changed since it was made is refused without a board call", async () => {
   const { store, board, chief, say, req } = setup();
   board.setRun(P, "r-plan", { stage: "plan", awaiting: "approvals.plan", updated: "v1" }, { request: "p" });
   board.setRun(P, "r-done", { stage: "done", updated: "d1" }, { request: "d", review: "review v1", findings: [{ n: 1, text: "x", done: false }] });
@@ -363,7 +363,7 @@ test("finding 2: a card whose run, review or idea changed since it was made is r
   board.setRun(P, "r-plan", { stage: "plan", awaiting: "approvals.plan", updated: "v2" });
   // A newer review renumbered the findings.
   board.setRun(P, "r-done", { stage: "done", updated: "d2" }, { review: "review v2" });
-  // The idea was started from the board itself.
+  // The task was started from the board itself.
   board.state.cards.find((c) => c.kind === "idea")!.status = "starting";
   for (const [a, why] of [[dec, "changed since"], [fix, "review of r-done changed"], [start, "already started"]] as const) {
     const res = await req(`/actions/${a!.id}`, { op: "approve" });
@@ -372,7 +372,7 @@ test("finding 2: a card whose run, review or idea changed since it was made is r
     expect(store.action(a!.id)!.status).toBe("failed");
   }
   expect(board.writes).toEqual([]);
-  // Proposing a run for an idea already started is refused up front.
+  // Proposing a run for a task already started is refused up front.
   await say(chief.id, model(["propose_start_run", { project: "kaizen", idea: "invoice export" }]));
   expect(cards(store, chief.id).filter((a) => a.kind === "start_run")).toHaveLength(1);
 });

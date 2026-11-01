@@ -14,7 +14,7 @@ const root = dirname(import.meta.dir);
 
 test("safeName: folders allowed, nothing that leaves notes/", () => {
   expect(safeName("Work/Standup")).toBe("Work/Standup");
-  expect(safeName("  Idea.md ")).toBe("Idea");
+  expect(safeName("  Task.md ")).toBe("Task");
   expect(safeName(" a / b ")).toBe("a/b");
   for (const bad of ["", "../x", "a/../../b", ".hidden", "a/.b", "/etc/passwd", "a\\b", "C:x", "a//b", "a/", "x\ny", "1/2/3/4/5/6/7", "x".repeat(121), 7, null])
     expect(safeName(bad as string)).toBeNull();
@@ -177,13 +177,13 @@ test("boardIndex and linksTo: runs with findings and every backlog line numbered
     "06-backlog.md": "# Backlog\n\n- done: one | x\n- open: two | y\n- rejected: three | z\n",
   });
   run("2026-10-02-other", {});
-  writeFileSync(join(state, "inbox.md"), "- open: an idea here\n");
+  writeFileSync(join(state, "inbox.md"), "- open: a task here\n");
   const ix = boardIndex(state);
   const r = ix.runs.find((x) => x.id === "2026-10-01-notes")!;
   expect(r.short).toBe("notes");
   expect(r.findings.map((f) => f.n)).toEqual([1, 2]);
   expect(r.backlog).toEqual([{ n: 1, status: "done", text: "one | x" }, { n: 2, status: "open", text: "two | y" }, { n: 3, status: "rejected", text: "three | z" }]);
-  expect(ix.ideas.map((i) => i.text)).toEqual(["an idea here"]);
+  expect(ix.ideas.map((i) => i.text)).toEqual(["a task here"]);
   saveNote(state, "A", "see [[run:notes#finding-1]]", 0);
   saveNote(state, "B", "see [[run:2026-10-02-other]] and [[notes]]", 0);
   saveNote(state, "C", "`[[run:notes]]` in code", 0);

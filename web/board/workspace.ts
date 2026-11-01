@@ -1,5 +1,5 @@
 // The side menu's live parts on every page (board, notebook, video): the Icebox count,
-// the Ideas entry's source icons and the Projects list; and the board's flat footer
+// the Tasks entry's source icons and the Projects list; and the board's flat footer
 // (agent usage, terminal count, phone). Stands alone, so the notebook and video
 // bundles can carry it without the board.
 import { onBoardCards } from "./badge.ts";
@@ -15,7 +15,7 @@ const DAY = 864e5;
 const STAGE = ["idea", "planning", "building", "reviewing", "done"];
 // A card's state icon (.si) and the word under its title.
 export function stateOf(c) {
-  // An idea whose agent is working is a run being born: show it as planning.
+  // A task whose agent is working is a run being born: show it as planning.
   if (c.kind === "idea") return !c.pty?.alive ? "idle" : c.pty.asking ? "wait" : c.pty.busy ? "plan" : "idle";
   if (c.status === "waiting" || (c.pty?.alive && c.pty.asking)) return "wait";
   if (c.status === "done") return c.accept === "needs" || gitDue(c) ? "wait" : "done";
@@ -36,8 +36,8 @@ export function subline(c, now) {
   return `${STAGE[c.column] ?? c.status} · ${age(t, now)}`;
 }
 export const titleOf = (c) => (c.title || c.text || "").split("\n")[0];
-// Shown in the list: runs not archived, a finished one only for a day. Ideas not started yet
-// live on the Ideas page; one whose agent is starting (it has a terminal) shows here.
+// Shown in the list: runs not archived, a finished one only for a day. Tasks not started yet
+// live on the Tasks page; one whose agent is starting (it has a terminal) shows here.
 export const listed = (c, now) =>
   !c.archived && (c.kind === "idea" ? !!c.pty : !["done", "abandoned"].includes(c.status) || now - (c.moved ?? 0) < DAY);
 export const projName = (dir, projects) => {
@@ -50,7 +50,7 @@ export const logo = (dir, name, projects) => {
     ? html`<img class="plogo" src="/project-logo?dir=${encodeURIComponent(dir)}" alt="" loading="lazy" onerror="this.outerHTML=this.dataset.f" data-f="${String(ini)}">`
     : ini;
 };
-// A card's address: its run workspace (?view=run&dir=&id=, or &idea= for an idea).
+// A card's address: its run workspace (?view=run&dir=&id=, or &idea= for a task).
 export const cardHref = (c) =>
   `/?view=run&dir=${encodeURIComponent(c.state)}&` + (c.kind === "run" ? "id=" + encodeURIComponent(c.id) : "idea=" + encodeURIComponent(c.text));
 
@@ -185,7 +185,7 @@ const foldAll = (shut: boolean) => {
   drawList();
 };
 // A card's workspace row: its own (a run's worktree) when the project lists it, else the
-// main checkout's, so a run whose worktree is gone, an idea or an old run never vanishes.
+// main checkout's, so a run whose worktree is gone, a task or an old run never vanishes.
 export function wsOfCard(c, projects = last.projects) {
   const ws = projects?.find((p) => p.dir === c.state)?.workspaces ?? [];
   return ws.find((w) => w.path === c.ws)?.path ?? ws.find((w) => w.main)?.path ?? c.ws ?? "";
@@ -295,7 +295,7 @@ addEventListener("popstate", markCurrent);
 // The pages that can open a card in place (the board) answer this event and cancel it.
 const ask = (name, detail) => !dispatchEvent(new CustomEvent(name, { cancelable: true, detail }));
 
-// What the Ideas page reads too: the cards, and /sources (sources plus every icebox signal).
+// What the Tasks page reads too: the cards, and /sources (sources plus every icebox signal).
 let srcs: any = null;
 export const railData = () => ({ ...last, srcs });
 const told = () => dispatchEvent(new Event("kz-rail"));
