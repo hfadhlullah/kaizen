@@ -256,3 +256,4 @@ updated: 2026-10-31
 - 2026-11-01 run 2026-11-01-resource-monitor — Web board
 - 2026-11-01 run 2026-11-01-agent-handoff — Workflow: second agent for worktree runs, `base_branch` landing
 - 2026-11-01 run 2026-11-01-land-conflicts — Workflow, Web board
+- 2026-11-01 run 2026-11-01-terminal-font-size — Web board
