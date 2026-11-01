@@ -16,7 +16,9 @@
     "assets/kaizen-logo.png",
     "assets/kaizen.ico",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "!**/__pycache__",
+    "!**/*.test.ts"
   ],
   "scripts": {
     "install-links": "bun run cli/install.ts",
