@@ -234,7 +234,9 @@ function draw() {
   const PTY = !noPty;
   const mark = (a) => (MARKS.includes(a.cmd) ? raw(`<svg><use href="#i-${a.cmd}"/></svg>`) : ico("ai"));
   const dflt = agents.find((a) => a.cmd === defAgent);
-  const menu = html`<div class="menu-pop">${PTY && dflt ? html`<button data-n="agent:${dflt.cmd}">${mark(dflt)}<span>New agent here<small>${dflt.name} in this folder</small></span></button>` : ""}${PTY ? html`<button data-n="shell">${ico("term")}<span>Shell<small>a terminal in this folder</small></span></button>` : ""}<button data-n="local">${ico("link")}<span>Browser<small>localhost pages, e.g. the dev server</small></span></button><button data-n="preview">${ico("eye")}<span>Preview<small>the run's Preview</small></span></button><button data-n="history">${ico("note")}<span>History<small>finished runs in this workspace</small></span></button>${PTY ? agents.filter((a) => a !== dflt).map((a) => html`<button data-n="agent:${a.cmd}">${mark(a)}<span>${a.name} session<small>the agent alone, no run</small></span></button>`) : ""}</div>`;
+  // Agents first, the default on top, then the tools.
+  const agentRow = (a) => html`<button data-n="agent:${a.cmd}">${mark(a)}<span>${a.name}<small>${a === dflt ? "default agent, in this folder" : "the agent alone, no run"}</small></span></button>`;
+  const menu = html`<div class="menu-pop">${PTY && agents.length ? html`${agentRow(dflt ?? agents[0])}${agents.filter((a) => a !== (dflt ?? agents[0])).map(agentRow)}<hr>` : ""}${PTY ? html`<button data-n="shell">${ico("term")}<span>Shell<small>a terminal in this folder</small></span></button>` : ""}<button data-n="local">${ico("link")}<span>Browser<small>localhost pages, e.g. the dev server</small></span></button><button data-n="preview">${ico("eye")}<span>Preview<small>the run's Preview</small></span></button><button data-n="history">${ico("note")}<span>History<small>finished runs in this workspace</small></span></button></div>`;
   $("rtabs").innerHTML = String(
     html`${scs.map((sc) => {
       const ids = leaves(sc.tree),

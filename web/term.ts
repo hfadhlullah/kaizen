@@ -23,7 +23,12 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
   });
   // The board's theme toggle, or the system's scheme when none is set: the terminal follows live.
   // getComputedStyle is live, so the same tokens read the new values.
-  const retheme = () => requestAnimationFrame(() => (term.options.theme = theme()));
+  // An agent that asked for theme updates (mode 2031) is told too, so its own auto theme follows.
+  // The dataset is the toggle's choice; unset means the system's scheme.
+  const retheme = () => requestAnimationFrame(() => {
+    term.options.theme = theme();
+    reportScheme();
+  });
   const os = matchMedia("(prefers-color-scheme: dark)");
   addEventListener("kz-theme", retheme);
   os.addEventListener("change", retheme);
@@ -52,6 +57,28 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
   const send = (m: object) => {
     if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(m));
   };
+  // Only to a program that asked: a plain shell would print the reply as text.
+  let schemeNotify = false;
+  const reportScheme = () => {
+    if (!schemeNotify) return;
+    const t = document.documentElement.dataset.theme;
+    send({ t: "i", d: `\x1b[?997;${(t ? t === "dark" : os.matches) ? 1 : 2}n` });
+  };
+  // Returning false lets xterm.js handle the sequence as usual. A replayed session repeats
+  // the request on attach, which also corrects a theme changed while this view was closed.
+  const schemeMode = (on: boolean) => (params: (number | number[])[]) => {
+    if (params.includes(2031)) {
+      schemeNotify = on;
+      if (on) reportScheme();
+    }
+    return false;
+  };
+  term.parser.registerCsiHandler({ prefix: "?", final: "h" }, schemeMode(true));
+  term.parser.registerCsiHandler({ prefix: "?", final: "l" }, schemeMode(false));
+  term.parser.registerCsiHandler({ prefix: "?", final: "n" }, (params) => {
+    if (params[0] === 996) reportScheme();
+    return false;
+  });
   const size = (nudge = false) => {
     if (!el.offsetWidth) return;
     if (!ws) return connect(); // its onopen comes back here to fit and nudge
@@ -71,7 +98,7 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
       `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/pty?key=${encodeURIComponent(key)}`,
     );
     ws.onopen = () => {
-      if (lost) term.reset();
+      if (lost) { term.reset(); schemeNotify = false; }
       lost = false;
       tries = 0;
       reBtn.hidden = true;
