@@ -11,6 +11,7 @@ kaizen is a staged workflow for AI agents (plan, approval, build, independent re
 - Never run `kaizen uninstall` against the real install or this checkout: it deletes `$KAIZEN_HOME`. Scratch copies only. → [[CLI]]
 - Other sessions edit this checkout at the same time: no `git stash` / `git checkout` on shared paths. → [[Conventions and gotchas]]
 - `skills/kaizen/` is the source of the workflow; `.kaizen/spec*.md` are copies. → [[Workflow]]
+- "Task" is the word users see; stored data keeps `idea` (`inbox.md`, `kind: "idea"`, icebox `idea`, bot DB), and `view=ideas` and `/to-idea` stay as aliases. → [[Web board]]
 - Run stages are exactly `plan`, `build`, `review`, `done`, `abandoned`. → [[Workflow]]
 - Global skill links point at `~/kaizen`, not this checkout. → [[Workflow]]
 - Lessons from past runs: `.kaizen/memory.md`.

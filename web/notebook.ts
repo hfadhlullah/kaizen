@@ -249,14 +249,14 @@ function boardTarget(l: BoardLink) {
   const q = (o: Record<string, string>) => "/?" + new URLSearchParams({ all: "1", dir, ...o }).toString();
   if (l.kind === "idea") {
     const t = l.text.toLowerCase();
-    const idea =
+    const task =
       board.ideas.find((i) => i.text.toLowerCase() === t) ??
       board.ideas.find((i) => i.text.toLowerCase().startsWith(t));
     return {
-      name: idea?.text ?? l.text,
+      name: task?.text ?? l.text,
       sub: "idea",
-      status: idea?.status ?? "",
-      href: idea ? q({ idea: idea.text }) : null,
+      status: task?.status ?? "",
+      href: task ? q({ idea: task.text }) : null,
     };
   }
   const id = resolveRun(
@@ -626,7 +626,7 @@ function slash(cx: CompletionContext) {
   };
 }
 
-// `[[` offers notes, runs and ideas; `#` after a run offers its tabs, findings and
+// `[[` offers notes, runs and tasks; `#` after a run offers its tabs, findings and
 // backlog items. Picking one closes the link unless it is a run, which leaves the
 // cursor before `]]` so a `#` can follow.
 function links(cx: CompletionContext) {

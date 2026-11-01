@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { issueUrl, systemInfo, scrubHome, REPO_URL, home as realHome, trustFolder } from "./state.ts";
 import * as stateModule from "./state.ts";
 import {
-  readRuns, readInbox, writeInbox, replaceIdea, moveIdea, abandonRun, runToIdea, allBacklog, backlog,
+  readRuns, readInbox, writeInbox, replaceTask, moveTask, abandonRun, runToTask, allBacklog, backlog,
   requestTitle, statusOf, columnOf, parseItem, startedRuns, boardCards, parentOf, addCard, readArchive, setArchived,
   requestOf, agentFlags, plainModel, readNotes, writeNotes, manualCommand, parseNotes, formatNote, appendNote, saveAttachment,
   gitStatus, reviewFindings, pickFindings, fixPrompt, approvalPrompt, sessionLaunch, closeSessions, sweepSessions, readSessions, ownerOf, gitStatus, runGit, cardsGit, commitPush, commitStaged, stageFiles, suggestMessage, readCommit, findTerminal, nativePath, pruneRuns, pruneSessions, unrechecked, notice, notifier, notifyArgs, winToastArgs, LOGO, type Card,
@@ -91,9 +91,9 @@ test("inbox round-trips and ignores malformed lines", () => {
   expect(readInbox(state).map((l) => l.status)).toEqual(["open", "open", "started", "rejected"]);
 });
 
-test("inbox reads a bullet typed by hand as an open idea", () => {
+test("inbox reads a bullet typed by hand as an open task", () => {
   const dir = mkdtempSync(join(tmpdir(), "kz-inbox-"));
-  writeFileSync(join(dir, "inbox.md"), "# Ideas\n- Add dark mode\n* [ ] Faster search\n- done: shipped\n  a note\n");
+  writeFileSync(join(dir, "inbox.md"), "# Tasks\n- Add dark mode\n* [ ] Faster search\n- done: shipped\n  a note\n");
   expect(readInbox(dir).map((l) => [l.status, l.text, l.notes])).toEqual([
     ["open", "Add dark mode", undefined],
     ["open", "Faster search", undefined],
@@ -102,15 +102,15 @@ test("inbox reads a bullet typed by hand as an open idea", () => {
   rmSync(dir, { recursive: true, force: true });
 });
 
-test("boardCards: idea retired once a run's request contains it; started idea sits in planning", () => {
+test("boardCards: task retired once a run's request contains it; started task sits in planning", () => {
   const cards = boardCards([state], Date.now());
-  const ideas = cards.filter((k) => k.kind === "idea").map((k) => [k.text, k.column, k.status]);
-  expect(ideas).toEqual([["retry failed webhooks", 0, "idea"], ["nightly digest", 1, "starting"]]);
+  const tasks = cards.filter((k) => k.kind === "idea").map((k) => [k.text, k.column, k.status]);
+  expect(tasks).toEqual([["retry failed webhooks", 0, "idea"], ["nightly digest", 1, "starting"]]);
   const runs = cards.filter((k) => k.kind === "run").map((k) => [k.id, k.column, k.status]);
   expect(runs).toEqual([["2026-09-03-stale", 2, "stalled"], ["2026-09-02-done", 4, "done"], ["2026-09-01-waiting", 1, "waiting"]]);
 });
 
-test("boardCards: a started idea stays until its run has a state.json", () => {
+test("boardCards: a started task stays until its run has a state.json", () => {
   const dir = join(mkdtempSync(join(tmpdir(), "kaizen-")), ".kaizen");
   const r = join(dir, "runs", "2026-01-01-new");
   mkdirSync(r, { recursive: true });
@@ -123,7 +123,7 @@ test("boardCards: a started idea stays until its run has a state.json", () => {
   rmSync(join(dir, ".."), { recursive: true, force: true });
 });
 
-test("boardCards: a started idea retires into the run its launch's session wrote, however reworded", () => {
+test("boardCards: a started task retires into the run its launch's session wrote, however reworded", () => {
   const dir = join(mkdtempSync(join(tmpdir(), "kaizen-")), ".kaizen");
   const r = join(dir, "runs", "2026-01-01-reworded");
   mkdirSync(r, { recursive: true });
@@ -139,7 +139,7 @@ test("boardCards: a started idea retires into the run its launch's session wrote
   rmSync(join(dir, ".."), { recursive: true, force: true });
 });
 
-test("boardCards: a run older than the idea does not retire it", () => {
+test("boardCards: a run older than the task does not retire it", () => {
   const dir = join(mkdtempSync(join(tmpdir(), "kaizen-")), ".kaizen");
   const r = join(dir, "runs", "2026-01-01-old");
   mkdirSync(r, { recursive: true });
@@ -150,29 +150,29 @@ test("boardCards: a run older than the idea does not retire it", () => {
   writeInbox(dir, [{ status: "open", text: "fix this bugs" }]);
   expect(readFileSync(join(dir, "inbox.md"), "utf8")).toMatch(/- open: fix this bugs <!-- added:\d+ -->/);
   expect(readInbox(dir)[0]!.text).toBe("fix this bugs");
-  const ideas = () => boardCards([dir], Date.now()).filter((k) => k.kind === "idea").map((k) => k.text);
-  expect(ideas()).toEqual(["fix this bugs"]);
+  const tasks = () => boardCards([dir], Date.now()).filter((k) => k.kind === "idea").map((k) => k.text);
+  expect(tasks()).toEqual(["fix this bugs"]);
   // Rewriting keeps the stamp, so an edit to notes does not make it vanish.
   writeInbox(dir, readInbox(dir).map((l) => ({ status: l.status, text: l.text, notes: "n" })));
-  expect(ideas()).toEqual(["fix this bugs"]);
+  expect(tasks()).toEqual(["fix this bugs"]);
   // A run started after it retires it as before.
   utimesSync(join(r, "00-request.md"), new Date(), new Date(Date.now() + 5000));
-  expect(ideas()).toEqual([]);
-  // Re-adding the same words while an old line holds them is a new idea with its
+  expect(tasks()).toEqual([]);
+  // Re-adding the same words while an old line holds them is a new task with its
   // own stamp, not the old line's (or no) stamp.
   writeFileSync(join(dir, "inbox.md"), "- done: fix this bugs\n");
   writeInbox(dir, [...readInbox(dir), { status: "open", text: "fix this bugs" }]);
   utimesSync(join(r, "00-request.md"), then, then);
-  expect(ideas()).toEqual(["fix this bugs"]);
+  expect(tasks()).toEqual(["fix this bugs"]);
 
   rmSync(join(dir, ".."), { recursive: true, force: true });
 });
 
-test("replaceIdea edits, rejects, deletes by text", () => {
-  replaceIdea(state, "retry failed webhooks", { status: "open", text: "retry failed webhooks twice" });
+test("replaceTask edits, rejects, deletes by text", () => {
+  replaceTask(state, "retry failed webhooks", { status: "open", text: "retry failed webhooks twice" });
   expect(readInbox(state).some((l) => l.text === "retry failed webhooks twice")).toBe(true);
-  replaceIdea(state, "retry failed webhooks twice", { status: "rejected", text: "retry failed webhooks twice | no" });
-  replaceIdea(state, "nightly digest", null);
+  replaceTask(state, "retry failed webhooks twice", { status: "rejected", text: "retry failed webhooks twice | no" });
+  replaceTask(state, "nightly digest", null);
   expect(readInbox(state).map((l) => l.status)).toEqual(["open", "rejected", "rejected"]);
 });
 
@@ -201,7 +201,7 @@ test("backlog: an abandoned run's items are neither listed nor counted", () => {
   rmSync(dir, { recursive: true });
 });
 
-test("runToIdea: a planning run goes back to its idea, newer than the run", () => {
+test("runToTask: a planning run goes back to its task, newer than the run", () => {
   const id = "2026-09-04-planning", dir = join(state, "runs", id);
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, "state.json"), JSON.stringify({ id, stage: "plan", awaiting: "approvals.plan" }));
@@ -209,18 +209,18 @@ test("runToIdea: a planning run goes back to its idea, newer than the run", () =
   const then = new Date(Date.now() - 30_000);
   utimesSync(join(dir, "00-request.md"), then, then);
   writeInbox(state, [...readInbox(state), { status: "started", text: "export invoices", added: Date.now() - 60_000 }, { status: "started", text: "export invoices as csv", notes: "see #12", added: Date.now() - 60_000 }]);
-  expect(runToIdea(state, id)).toBeNull();
+  expect(runToTask(state, id)).toBeNull();
   expect(JSON.parse(readFileSync(join(dir, "state.json"), "utf8")).stage).toBe("abandoned");
   const cards = boardCards([state], Date.now());
   expect(cards.find((c) => c.kind === "idea" && c.text === "export invoices as csv")).toMatchObject({ status: "idea", notes: "see #12" });
   expect(cards.find((c) => c.kind === "run" && c.id === id)?.archived).toBe(true);
   expect(readInbox(state).filter((l) => l.text === "export invoices as csv").length).toBe(1);
   expect(readInbox(state).find((l) => l.text === "export invoices")?.status).toBe("started");
-  expect(runToIdea(state, id)).toMatch(/planning/);
+  expect(runToTask(state, id)).toMatch(/planning/);
   writeFileSync(join(dir, "state.json"), JSON.stringify({ id, stage: "plan" }));
   rmSync(join(dir, "00-request.md"));
-  expect(runToIdea(state, id)).toMatch(/no request/);
-  replaceIdea(state, "export invoices", null);
+  expect(runToTask(state, id)).toMatch(/no request/);
+  replaceTask(state, "export invoices", null);
   setArchived(state, id, false);
   rmSync(dir, { recursive: true });
 });
@@ -314,10 +314,10 @@ test("archive: a run is listed, hidden by flag, never moved", () => {
   expect(boardCards([state], Date.now()).find((k) => k.id === "2026-09-02-done")!.archived).toBe(false);
 });
 
-test("archive: an idea keeps its line with status archived", () => {
+test("archive: a task keeps its line with status archived", () => {
   writeInbox(state, [{ status: "open", text: "park this", notes: "kept" }, { status: "archived", text: "parked zq7" }]);
-  const ideas = boardCards([state], Date.now()).filter((k) => k.kind === "idea");
-  expect(ideas.map((k) => [k.text, k.archived])).toEqual([["park this", false], ["parked zq7", true]]);
+  const tasks = boardCards([state], Date.now()).filter((k) => k.kind === "idea");
+  expect(tasks.map((k) => [k.text, k.archived])).toEqual([["park this", false], ["parked zq7", true]]);
 });
 
 test("notes: indented lines under a bullet round-trip; a legacy file is untouched", () => {
@@ -332,11 +332,11 @@ test("notes: indented lines under a bullet round-trip; a legacy file is untouche
 });
 
 test("notes: survive reject and started; edit can replace or clear them", () => {
-  replaceIdea(state, "with notes", { status: "started", text: "with notes" });
+  replaceTask(state, "with notes", { status: "started", text: "with notes" });
   expect(readInbox(state)[0]!.notes).toContain("https://x.y/z");
-  replaceIdea(state, "with notes", { status: "rejected", text: "with notes | no" });
+  replaceTask(state, "with notes", { status: "rejected", text: "with notes | no" });
   expect(readInbox(state)[0]!.notes).toContain("https://x.y/z");
-  replaceIdea(state, "plain zq8", { status: "open", text: "plain zq8", notes: "" });
+  replaceTask(state, "plain zq8", { status: "open", text: "plain zq8", notes: "" });
   expect(readInbox(state)[1]!.notes).toBeUndefined();
   expect(boardCards([state], Date.now()).find((k) => k.text === "plain zq8")!.notes).toBeUndefined();
 });
@@ -378,18 +378,18 @@ test("notes log: stamped entries, continuation lines, unstamped preamble", () =>
   expect(formatNote("a\nb", "2026-09-14 10:00")).toBe("[2026-09-14 10:00] a\n  b");
 });
 
-test("notes log: append to a run and to an idea; attachments saved and made absolute in the prompt", () => {
+test("notes log: append to a run and to a task; attachments saved and made absolute in the prompt", () => {
   expect(appendNote(state, { id: "2026-09-01-waiting" }, "run note")).toBeNull();
   expect(parseNotes(readNotes(state, "2026-09-01-waiting")).map((n) => n.text)).toEqual(["run note"]);
   writeInbox(state, [{ status: "open", text: "chatty zq6" }]);
   expect(appendNote(state, { text: "chatty zq6" }, "one")).toBeNull();
   expect(appendNote(state, { text: "chatty zq6" }, "two\nlines")).toBeNull();
-  expect(appendNote(state, { text: "nope zq6" }, "x")).toBe("no such idea");
+  expect(appendNote(state, { text: "nope zq6" }, "x")).toBe("no such task");
   expect(parseNotes(readInbox(state)[0]!.notes!).map((n) => n.text)).toEqual(["one", "two\nlines"]);
   const rel = saveAttachment(state, null, "../evil name.png", new Uint8Array([1]));
   expect(rel).toMatch(/^attachments\/\w+-_evil_name\.png$/);
   expect(requestOf("x", `![s](${rel})`, state)).toBe(`x\n\n![s](${join(state, rel)})`);
-  // The New idea form's path: idea first, then its files as a note; a plain file reaches the run by absolute path.
+  // The New task form's path: task first, then its files as a note; a plain file reaches the run by absolute path.
   const doc = saveAttachment(state, null, "spec.pdf", new Uint8Array([3]));
   expect(appendNote(state, { text: "chatty zq6" }, `[spec.pdf](${doc})`)).toBeNull();
   expect(requestOf("/kaizen chatty zq6", readInbox(state)[0]!.notes, state)).toContain(`[spec.pdf](${join(state, doc)})`);
@@ -446,9 +446,9 @@ out.missing = S.detectDefaultAgent(P, "gemini");
 out.pick = [S.detectDefaultAgent(P, "codex").cmd, S.agentFlags(P, "codex", undefined, "gpt-5.1")];
 out.choices = S.agentChoices(P);
 // No terminal on PATH or display in env: the launch fails and hands back its manual line.
-const idea = { severity: null, where: null, text: "x", raw: "x" };
+const task = { severity: null, where: null, text: "x", raw: "x" };
 // macOS always drives Terminal.app, which would open a real window: Linux only.
-if (process.platform === "linux") out.yolo = [S.launchRun(idea, P, undefined, { agent: "codex", yolo: true }), S.launchRun(idea, P, undefined, { agent: "codex" }), S.launchRun(idea, P, undefined, { agent: "gemini", yolo: true })].map((r) => [r.ok, r.agent.cmd, /--dangerously-bypass|--dangerously-skip|--yolo/.test(r.manual)]);
+if (process.platform === "linux") out.yolo = [S.launchRun(task, P, undefined, { agent: "codex", yolo: true }), S.launchRun(task, P, undefined, { agent: "codex" }), S.launchRun(task, P, undefined, { agent: "gemini", yolo: true })].map((r) => [r.ok, r.agent.cmd, /--dangerously-bypass|--dangerously-skip|--yolo/.test(r.manual)]);
 fs.writeFileSync(join(st, "runs", "r1", "state.json"), JSON.stringify({ agent: "codex" }));
 out.fromState = S.runAgent(st, "r1");
 S.sessionLaunch(P, "codex", ["codex"], "/kaizen x", "x", "r1", "gpt-5.1");
@@ -479,7 +479,7 @@ console.log(JSON.stringify(out));`;
   } finally { rmSync(home, { recursive: true, force: true }); rmSync(bin, { recursive: true, force: true }); }
 });
 
-test("boardCards: a short idea is not retired by a request that merely contains the word", () => {
+test("boardCards: a short task is not retired by a request that merely contains the word", () => {
   const dir = join(mkdtempSync(join(tmpdir(), "kz-")), ".kaizen");
   mkdirSync(join(dir, "runs", "2026-09-01-a"), { recursive: true });
   writeFileSync(join(dir, "runs", "2026-09-01-a", "state.json"), JSON.stringify({ id: "2026-09-01-a", stage: "plan", awaiting: null }));
@@ -847,13 +847,13 @@ test("notifier: only a run seen before, saying something new, and not a done the
   expect(readFileSync(join(import.meta.dir, "..", "web", "board.html"), "utf8")).toContain("(/*notifier*/)()");
 });
 
-test("files written by Windows PowerShell, with a byte order mark, still read: the run shows, the first idea is an idea", () => {
+test("files written by Windows PowerShell, with a byte order mark, still read: the run shows, the first task is a task", () => {
   const st = join(mkdtempSync(join(tmpdir(), "kaizen-bom-")), ".kaizen");
   mkdirSync(join(st, "runs", "r1"), { recursive: true });
   writeFileSync(join(st, "runs", "r1", "state.json"), "﻿" + JSON.stringify({ id: "r1", stage: "plan", awaiting: "approvals.plan" }));
-  writeFileSync(join(st, "inbox.md"), "﻿- open: first idea\n");
+  writeFileSync(join(st, "inbox.md"), "﻿- open: first task\n");
   expect(readRuns(st).map((r) => [r.id, r.stage])).toEqual([["r1", "plan"]]);
-  expect(readInbox(st)).toEqual([{ status: "open", text: "first idea" }]);
+  expect(readInbox(st)).toEqual([{ status: "open", text: "first task" }]);
 });
 
 test("remember on Windows stores one spelling per folder, the one knownProjects returns", () => {
@@ -926,11 +926,11 @@ test("sessionLaunch: claude gets a conversation id, a decision resumes it while 
   const saved = process.env.CLAUDE_CONFIG_DIR;
   process.env.CLAUDE_CONFIG_DIR = mkdtempSync(join(tmpdir(), "kz-claude-"));
   try {
-    const idea = sessionLaunch(p, "claude", ["/bin/claude", "--model", "opus"], "/kaizen tidy logs", "tidy logs");
+    const task = sessionLaunch(p, "claude", ["/bin/claude", "--model", "opus"], "/kaizen tidy logs", "tidy logs");
     const [rec] = readSessions(st);
     expect(rec.sessionId).toMatch(/^[0-9a-f-]{36}$/);
-    expect(idea.fullCmd).toEqual(["/bin/claude", "--session-id", rec.sessionId!, "--model", "opus", "/kaizen tidy logs"]);
-    expect(idea.pidFile).toBe(join(st, "sessions", rec.key + ".pid"));
+    expect(task.fullCmd).toEqual(["/bin/claude", "--session-id", rec.sessionId!, "--model", "opus", "/kaizen tidy logs"]);
+    expect(task.pidFile).toBe(join(st, "sessions", rec.key + ".pid"));
     newRun(p, "2026-10-01-tidy-logs", "/kaizen tidy logs");
     expect(ownerOf(st, rec)).toBe("2026-10-01-tidy-logs");
 
@@ -957,7 +957,7 @@ test("sessionLaunch: claude gets a conversation id, a decision resumes it while 
   expect(existsSync(join(bare, ".kaizen"))).toBe(false);
 });
 
-test("ownerOf: an idea's session belongs to the first run created after it, not an older one with the same words", () => {
+test("ownerOf: a task's session belongs to the first run created after it, not an older one with the same words", () => {
   const p = sessionProject(), st = join(p, ".kaizen");
   newRun(p, "2026-09-01-old", "/kaizen fix the login page");
   const rec = { key: "k", run: null, text: "fix the login page", cmd: "claude", sessionId: null, started: Date.now() + 5000 };
@@ -1269,20 +1269,20 @@ test("trustFolder: marks the repo root trusted in a temp config, keeps the rest,
   rmSync(t, { recursive: true, force: true });
 });
 
-test("moveIdea carries notes and linked attachments, leaves the old inbox without it", () => {
+test("moveTask carries notes and linked attachments, leaves the old inbox without it", () => {
   const root = mkdtempSync(join(tmpdir(), "kaizen-mv-"));
   const a = join(root, "a", ".kaizen"), b = join(root, "b", ".kaizen");
   mkdirSync(join(a, "attachments"), { recursive: true });
   writeFileSync(join(a, "attachments", "x-shot.png"), "png");
   writeInbox(a, [{ status: "open", text: "keep" }, { status: "open", text: "go", notes: "see [shot](attachments/x-shot.png)" }]);
-  expect(moveIdea(a, a, "go")).toBe("already in that project");
-  expect(moveIdea(a, b, "nope")).toBe("no such idea");
-  expect(moveIdea(a, b, "go")).toBeNull();
+  expect(moveTask(a, a, "go")).toBe("already in that project");
+  expect(moveTask(a, b, "nope")).toBe("no such task");
+  expect(moveTask(a, b, "go")).toBeNull();
   expect(readInbox(a).map((l) => l.text)).toEqual(["keep"]);
   expect(readInbox(b)).toMatchObject([{ status: "open", text: "go", notes: "see [shot](attachments/x-shot.png)" }]);
   expect(readFileSync(join(b, "attachments", "x-shot.png"), "utf8")).toBe("png");
   writeInbox(a, [{ status: "open", text: "go" }]);
-  expect(moveIdea(a, b, "go")).toBe("that project already has this idea");
+  expect(moveTask(a, b, "go")).toBe("that project already has this task");
   rmSync(root, { recursive: true, force: true });
 });
 
@@ -1350,7 +1350,7 @@ test("requestTitle: a follow-up opened from an approval question titles from its
   expect(requestTitle(q + "Roadmap line: 2. Accounts & access — OTP\n")).toBe("Accounts & access — OTP");
 });
 
-test("parent/child: a Parent line links a run and an idea to the run that filed them", () => {
+test("parent/child: a Parent line links a run and a task to the run that filed them", () => {
   expect(parentOf("do x\nFollow-up of: 2026-01-01-a.")).toBe("2026-01-01-a");
   expect(parentOf("  [2026-10-18 20:57] Parent: 2026-01-01-a")).toBe("2026-01-01-a");
   expect(parentOf("no parent here")).toBeUndefined();
@@ -1360,7 +1360,7 @@ test("parent/child: a Parent line links a run and an idea to the run that filed 
     writeFileSync(join(st, "runs", id, "00-request.md"), req + "\n");
     writeFileSync(join(st, "runs", id, "state.json"), JSON.stringify({ stage: "done", awaiting: null }));
   }
-  writeFileSync(join(st, "inbox.md"), "# Inbox\n\n- open: follow-on idea\n  Parent: 2026-01-01-a\n");
+  writeFileSync(join(st, "inbox.md"), "# Inbox\n\n- open: follow-on task\n  Parent: 2026-01-01-a\n");
   const cards = boardCards([st], Date.now());
   expect(cards.find((k) => k.id === "2026-01-01-a")!.children).toEqual(["2026-01-02-b"]);
   expect(cards.find((k) => k.id === "2026-01-02-b")!.parent).toBe("2026-01-01-a");

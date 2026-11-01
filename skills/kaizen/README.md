@@ -99,7 +99,7 @@ remember.
 
 Every item is `open`, `done`, or `rejected`. **Rejected is a real answer**: most
 suggestions are not worth doing, and without a way to decline one it stays on the list
-forever. Rejecting takes a reason, which is what stops the same idea coming back three
+forever. Rejecting takes a reason, which is what stops the same task coming back three
 runs later. Closed items stay in their run's file as record and are never printed
 again.
 
@@ -226,7 +226,7 @@ even in `auto`.
   memory.md                     # cross-run lessons, appended by the reviewer
   backlog.md                    # orphanage only: open items rescued before pruning
   sources.json                  # request sources: the links, and what was already gathered
-  icebox.json                   # gathered requests, waiting to be promoted to ideas or dismissed
+  icebox.json                   # gathered requests, waiting to be promoted to tasks or dismissed
   runs/
     2026-09-02-add-oauth/
       00-request.md             # the original request, verbatim

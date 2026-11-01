@@ -18,7 +18,7 @@ const RUN = { type: "string", description: "Run id, e.g. 2026-10-02-add-oauth" }
 const TOOLS: Record<ToolName, ToolDef> = {
   board_status: {
     name: "board_status",
-    description: "Read the kaizen board: projects, runs waiting on the user, runs in flight, open ideas. Read-only.",
+    description: "Read the kaizen board: projects, runs waiting on the user, runs in flight, open tasks. Read-only.",
     schema: obj({ project: { ...PROJECT, description: "Limit to one project; empty for all" } }),
   },
   read_run: {
@@ -28,18 +28,18 @@ const TOOLS: Record<ToolName, ToolDef> = {
   },
   add_idea: {
     name: "add_idea",
-    description: "Add an idea to a project's board inbox. Happens immediately; it starts nothing.",
-    schema: obj({ project: PROJECT, text: { type: "string", description: "The idea, one clear line" }, notes: { type: "string", description: "Optional background" } }, ["text"]),
+    description: "Add a task to a project's board inbox. Happens immediately; it starts nothing.",
+    schema: obj({ project: PROJECT, text: { type: "string", description: "The task, one clear line" }, notes: { type: "string", description: "Optional background" } }, ["text"]),
   },
   add_note: {
     name: "add_note",
-    description: "Append a note to a run (by run id) or to an idea (by its exact text). Happens immediately.",
+    description: "Append a note to a run (by run id) or to a task (by its exact text). Happens immediately.",
     schema: obj({ project: PROJECT, run: RUN, idea: { type: "string" }, text: { type: "string" } }, ["text"]),
   },
   propose_start_run: {
     name: "propose_start_run",
-    description: "Prepare starting a kaizen run for an idea. Creates a card; nothing starts until the user clicks Approve.",
-    schema: obj({ project: PROJECT, idea: { type: "string", description: "The idea text to run" }, mode: { type: "string", enum: ["full", "lite", ""], description: "full: separate agents; lite: one session; empty: project default" } }, ["idea"]),
+    description: "Prepare starting a kaizen run for a task. Creates a card; nothing starts until the user clicks Approve.",
+    schema: obj({ project: PROJECT, idea: { type: "string", description: "The task text to run" }, mode: { type: "string", enum: ["full", "lite", ""], description: "full: separate agents; lite: one session; empty: project default" } }, ["idea"]),
   },
   propose_decision: {
     name: "propose_decision",
@@ -109,7 +109,7 @@ const TOOLS: Record<ToolName, ToolDef> = {
 };
 
 const VERB: Record<string, string> = {
-  board_status: "Reading the board", read_run: "Reading the run", add_idea: "Adding the idea", add_note: "Adding the note",
+  board_status: "Reading the board", read_run: "Reading the run", add_idea: "Adding the task", add_note: "Adding the note",
   propose_start_run: "Preparing the run", propose_decision: "Preparing the decision", propose_fix: "Preparing the fix",
   propose_abort: "Preparing the abort", draft_message: "Drafting", remember: "Remembering", note: "Writing",
   create_routine: "Saving the routine", delete_routine: "Deleting the routine", ask_teammate: "Asking a teammate",
@@ -132,10 +132,10 @@ export function systemPrompt(store: Store, botId: number, board?: string) {
   return [
     `Your name is ${bot.name}.${bot.title ? ` Your title: ${bot.title}.` : ""} ${r.prompt}`,
     bot.description && bot.description !== r.blurb ? `How the user describes your job: ${bot.description}` : "",
-    "You are an AI teammate in Kaizen Bot, working on top of the user's kaizen board, where work becomes ideas and runs (plan, approval, build, review).",
+    "You are an AI teammate in Kaizen Bot, working on top of the user's kaizen board, where work becomes tasks and runs (plan, approval, build, review).",
     bot.project ? `Your default project is ${bot.project}.` : "You have no default project; use board_status to see projects, and ask if it is unclear.",
     `You never, without the user's yes: ${r.never.join("; ")}.`,
-    "A question gets an answer, not board work: when the user only asks something, answer it in chat (read the board first if the answer is there) and add no idea, note or card. Add an idea only when the user asks for something to be done, or asks you to file it.",
+    "A question gets an answer, not board work: when the user only asks something, answer it in chat (read the board first if the answer is there) and add no task, note or card. Add a task only when the user asks for something to be done, or asks you to file it.",
     "A propose_* tool only creates a card. Nothing on the board changes until the user clicks Approve, so never say a run started, a plan was approved, a fix began or a run was abandoned; say the card is waiting for them.",
     "Anything meant for someone outside goes through draft_message. You can never send anything.",
     computerBot(store) === botId ? `You have a pilot computer: a throwaway sandbox with a real browser, which overrides anything above saying you have no browser or computer access. When the user asks you to open, check, research or screenshot a web page "on your computer", call propose_computer_task in that same turn, without asking first. Its card appears right here in this chat (not on the kaizen board); the user clicks Approve on it here, and then watches your screen live on the card while you type the URL, load the page, read it and take the screenshot. The files appear on the card when it finishes. It can only read these test sites: ${[...COMPUTER_HOSTS].join(", ")}. For any other site, say it is outside the pilot allowlist and make no card.` : "",
@@ -281,14 +281,14 @@ async function runTool(ctx: Ctx, botId: number, emit: Emit, name: string, input:
     const line = (c: (typeof cards)[number]) => `- [${label(c.state)}] ${c.kind === "run" ? `${c.id}: ${c.title ?? c.text}` : c.text}${c.awaiting ? ` (waiting on ${c.awaiting})` : ""}`;
     const waiting = cards.filter((c) => c.kind === "run" && c.awaiting);
     const flight = cards.filter((c) => c.kind === "run" && !c.awaiting && (c.status === "running" || c.status === "stalled"));
-    const ideas = cards.filter((c) => c.kind === "idea" && c.status === "idea"); // board ideas not yet started (kaizen state.ts:893)
-    say("receipt", `Board → ${waiting.length} waiting on you · ${flight.length} in flight · ${ideas.length} ideas`);
+    const tasks = cards.filter((c) => c.kind === "idea" && c.status === "idea"); // board tasks not yet started (kaizen state.ts:893)
+    say("receipt", `Board → ${waiting.length} waiting on you · ${flight.length} in flight · ${tasks.length} tasks`);
     return {
       result: [
         `Projects: ${(only ? [only] : st.projects).map((p) => p.label).join(", ")}`,
         `Waiting on the user (${waiting.length}):`, ...waiting.slice(0, 30).map(line),
         `In flight (${flight.length}):`, ...flight.slice(0, 30).map((c) => `${line(c)} [${c.status}]`),
-        `Open ideas (${ideas.length}):`, ...ideas.slice(0, 30).map(line),
+        `Open tasks (${tasks.length}):`, ...tasks.slice(0, 30).map(line),
       ].join("\n"),
     };
   }
@@ -313,17 +313,17 @@ async function runTool(ctx: Ctx, botId: number, emit: Emit, name: string, input:
   if (name === "add_idea" || name === "add_note") {
     const text = str(input.text);
     if (!text) return { result: "Error: empty text." };
-    const idea = str(input.idea);
-    if (name === "add_note" && !runId && !idea) return { result: "Error: name a run or an idea to note on." };
+    const task = str(input.idea);
+    if (name === "add_note" && !runId && !task) return { result: "Error: name a run or a task to note on." };
     const a = card(store.addAction(botId, {
       kind: name === "add_idea" ? "idea" : "note", project_dir: p.dir, run_id: runId || null,
-      body: name === "add_idea" ? { text, notes: str(input.notes) } : { to: runId ? { id: runId } : { for: idea }, text },
-      summary: name === "add_idea" ? `Idea in ${p.label}: ${text}` : `Note on ${runId || `"${idea}"`} in ${p.label}: ${text}`,
+      body: name === "add_idea" ? { text, notes: str(input.notes) } : { to: runId ? { id: runId } : { for: task }, text },
+      summary: name === "add_idea" ? `Task in ${p.label}: ${text}` : `Note on ${runId || `"${task}"`} in ${p.label}: ${text}`,
     }))!;
     let r;
     try {
-      r = name === "add_idea" ? await board.addIdea(p.dir, text, str(input.notes) || undefined)
-        : await board.addNote(p.dir, runId ? { id: runId } : { for: idea }, text);
+      r = name === "add_idea" ? await board.addTask(p.dir, text, str(input.notes) || undefined)
+        : await board.addNote(p.dir, runId ? { id: runId } : { for: task }, text);
     } catch (e) { r = { ok: false, why: (e as Error).message }; }
     card(store.updateAction(a.id, { status: r.ok ? "done" : "failed", result: r.ok ? "ok" : (r.why ?? "failed") }));
     return { result: r.ok ? "Done." : `Failed: ${r.why}` };
@@ -336,12 +336,12 @@ async function runTool(ctx: Ctx, botId: number, emit: Emit, name: string, input:
   };
 
   if (name === "propose_start_run") {
-    const idea = str(input.idea);
-    if (!idea) return { result: "Error: empty idea." };
+    const task = str(input.idea);
+    if (!task) return { result: "Error: empty task." };
     const mode = input.mode === "full" || input.mode === "lite" ? input.mode : "";
-    const known = st.cards.find((c) => c.kind === "idea" && c.state === p.dir && normalise(c.text) === normalise(idea));
-    if (known?.status === "starting") return { result: `Error: "${idea}" was already started on the board; check board_status.` };
-    return propose("start_run", null, { text: idea, kind: mode, idea: known ? "idea" : null }, `Start ${mode ? `a ${mode} ` : "a "}run in ${p.label}: ${idea}`);
+    const known = st.cards.find((c) => c.kind === "idea" && c.state === p.dir && normalise(c.text) === normalise(task));
+    if (known?.status === "starting") return { result: `Error: "${task}" was already started on the board; check board_status.` };
+    return propose("start_run", null, { text: task, kind: mode, idea: known ? "idea" : null }, `Start ${mode ? `a ${mode} ` : "a "}run in ${p.label}: ${task}`);
   }
 
   const c = runCard(p.dir, runId);

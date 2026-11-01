@@ -208,8 +208,8 @@ export function createApp(deps: { store: Store; env: Env; fetch?: Fetch; boardFe
       if (a.kind === "fix" && b.seen !== undefined && reviewMark(r) !== b.seen) return stale(`the review of ${a.run_id} changed since this card was made`);
     }
     if (a.kind === "start_run") {
-      const idea = st.cards.find((c) => c.kind === "idea" && c.state === a.project_dir && normalise(c.text) === normalise(b.text ?? ""));
-      if (idea?.status === "starting" || (b.idea === "idea" && !idea)) return stale(`"${b.text}" was already started on the board`);
+      const task = st.cards.find((c) => c.kind === "idea" && c.state === a.project_dir && normalise(c.text) === normalise(b.text ?? ""));
+      if (task?.status === "starting" || (b.idea === "idea" && !task)) return stale(`"${b.text}" was already started on the board`);
     }
     // One answer per wait: a decision already sent for this run and this wait refuses the
     // next. No await between this check and the claim below, so two clicks cannot both pass.
@@ -260,7 +260,7 @@ export function createApp(deps: { store: Store; env: Env; fetch?: Fetch; boardFe
       let cur: Action = a;
       const b = parse(a.body) ?? {};
       if (!cur.run_id) {
-        // Link to the first run that is new since the launch, unclaimed, and whose request holds the idea.
+        // Link to the first run that is new since the launch, unclaimed, and whose request holds the task.
         const known = new Set<string>(parse(a.known_runs) ?? []);
         const ids = st.cards.filter((c) => c.kind === "run" && c.state === a.project_dir && !known.has(c.id!) && !claimed.has(c.id!)).map((c) => c.id!).sort();
         for (const runId of ids) {

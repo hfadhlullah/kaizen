@@ -78,7 +78,7 @@ The input will not be tidy, and it is not supposed to be. Expect thinking out lo
 half-formed sentences, a topic picked up and dropped, a correction three messages
 later, a request that contradicts something said earlier, an "oh and also" that
 turns out to be the most important constraint in the whole thing. This is how people
-actually work when the idea is still forming, and a workflow that only functions on
+actually work when the task is still forming, and a workflow that only functions on
 well-specified input is a workflow that only functions after the person has already
 done the hard part themselves.
 
@@ -216,7 +216,7 @@ Write `01-plan.md` with exactly these sections:
 
 Write Track, Framing, Work list, Goal, Scope, Risks and Out of scope suggestions for a
 person deciding whether to approve, often on a narrow panel: everyday words, short
-sentences, one idea per bullet, things named by what the user sees rather than by
+sentences, one task per bullet, things named by what the user sees rather than by
 function, file, CSS value or gate id. Code names, `path:line` and gate ids belong in
 Reuse, Steps and Verification, where the builder and reviewer need them exact. If a
 sentence only makes sense to someone who has read the code, it is in the wrong section.

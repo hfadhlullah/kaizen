@@ -21,7 +21,7 @@ test("Board badge counts each card needing input once and clears at zero", () =>
       { kind: "run", status: "running", pty: { alive: false, asking: true } },
     ];
     expect(waitingCount(cards)).toBe(2);
-    // The Ideas link carries no count.
+    // The Tasks link carries no count.
     boardBadge(cards);
     expect(link.dataset.n).toBeUndefined();
   } finally {
@@ -219,33 +219,33 @@ test("card menu items: appropriate actions and distinct icons across phases", ()
   const actionOf = cards.slice(a0, cards.indexOf("\n\n", a0));
   const getItems = new Function("c", "archive", "S", `const ico = ${ico.toString()};\nconst decided = new Set(), answer = () => "";\n${actionOf}\nconst store = { S, menuKey: 1 };\nlet k = 1, items = [];\n${menuSnippet}\nreturn items;`);
 
-  // Phase 0: Ideas (idea card)
-  const idea = { kind: "idea", status: "idea", column: 0 };
-  const ideaItems = getItems(idea, false, { projects: [] });
-  expect(ideaItems.map((i: any) => i ? i[1] : null)).toEqual(["Run", "Edit", "Archive", null, "Reject", "Delete"]);
+  // Phase 0: Tasks (task card)
+  const task = { kind: "idea", status: "idea", column: 0 };
+  const taskItems = getItems(task, false, { projects: [] });
+  expect(taskItems.map((i: any) => i ? i[1] : null)).toEqual(["Run", "Edit", "Archive", null, "Reject", "Delete"]);
   // Move only when there is another project to move to.
-  const moveItems = getItems({ ...idea, state: "/a" }, false, { projects: [{ dir: "/a" }, { dir: "/b" }] });
+  const moveItems = getItems({ ...task, state: "/a" }, false, { projects: [{ dir: "/a" }, { dir: "/b" }] });
   expect(moveItems.map((i: any) => i ? i[1] : null)).toEqual(["Run", "Edit", "Move to project", "Archive", null, "Reject", "Delete"]);
   expect(moveItems[2][2]).toBe(ico("ext"));
-  expect(ideaItems[0][2]).toBe(ico("play"));
-  expect(ideaItems[1][2]).toBe(ico("pen"));
-  expect(ideaItems[2][2]).toBe(ico("archive"));
-  expect(ideaItems[4][2]).toBe(ico("x"));
-  expect(ideaItems[5][2]).toBe(ico("trash"));
+  expect(taskItems[0][2]).toBe(ico("play"));
+  expect(taskItems[1][2]).toBe(ico("pen"));
+  expect(taskItems[2][2]).toBe(ico("archive"));
+  expect(taskItems[4][2]).toBe(ico("x"));
+  expect(taskItems[5][2]).toBe(ico("trash"));
 
-  // Phase 1: Planning (starting idea)
-  const startingIdea = { kind: "idea", status: "starting", column: 1 };
-  const startItems = getItems(startingIdea, false);
+  // Phase 1: Planning (starting task)
+  const startingTask = { kind: "idea", status: "starting", column: 1 };
+  const startItems = getItems(startingTask, false);
   expect(startItems.map((i: any) => i ? i[1] : null)).toEqual(["Open", "Run again", "Archive", null, "Remove"]);
 
-  // Ideas column, Backlog tab: a run's leftover, run like an idea, rejected with a reason.
+  // Tasks column, Backlog tab: a run's leftover, run like a task, rejected with a reason.
   expect(getItems({ kind: "backlog", status: "idea", column: 0 }, false).map((i: any) => i ? i[1] : null)).toEqual(["Run", "Open its run", null, "Reject"]);
   expect(getItems({ kind: "backlog", status: "starting", column: 0 }, false)[0][1]).toBe("Run again");
 
   // Phase 1: Planning (run waiting for plan approval)
   const planWaiting = { kind: "run", status: "waiting", awaiting: "approvals.plan", column: 1 };
   const planItems = getItems(planWaiting, false);
-  expect(planItems.map((i: any) => i ? i[1] : null)).toEqual(["Review plan", "Archive", "Back to idea"]);
+  expect(planItems.map((i: any) => i ? i[1] : null)).toEqual(["Review plan", "Archive", "Back to task"]);
   expect(planItems[0][2]).toBe(ico("open"));
   expect(planItems[1][2]).toBe(ico("archive"));
   expect(planItems[2][2]).toBe(ico("restore"));
@@ -281,13 +281,13 @@ test("card menu items: appropriate actions and distinct icons across phases", ()
   expect(archRun[0][2]).toBe(ico("restore"));
   expect(archRun[1][2]).toBe(ico("open"));
 
-  const archIdea = getItems(idea, true);
-  expect(archIdea.map((i: any) => i ? i[1] : null)).toEqual(["Restore", "Open", null, "Delete"]);
+  const archTask = getItems(task, true);
+  expect(archTask.map((i: any) => i ? i[1] : null)).toEqual(["Restore", "Open", null, "Delete"]);
 });
 
-// brief(): a one-line structured idea split for display only.
+// brief(): a one-line structured task split for display only.
 
-test("a labelled idea splits into a head and one part per label", () => {
+test("a labelled task splits into a head and one part per label", () => {
   const b = brief("Improve previews Problem: one dense block. Non-goals: no rewrites. Acceptance criteria: (1) scannable. (2) full text kept.");
   expect(b.head).toBe("Improve previews");
   expect(b.parts.map(p => p.label)).toEqual(["Problem", "Non-goals", "Acceptance criteria"]);
@@ -295,11 +295,11 @@ test("a labelled idea splits into a head and one part per label", () => {
   expect(md(`### ${b.parts[2].label}\n${b.parts[2].body}`)).toBe("<h3>Acceptance criteria</h3><ol><li>scannable.</li><li>full text kept.</li></ol>");
 });
 
-test("plain ideas, and a single label, are left whole", () => {
+test("plain tasks, and a single label, are left whole", () => {
   for (const t of ["fix the typo in README", "Bug: clicking twice opens two panels"]) expect(brief(t)).toEqual({ head: t, parts: [] });
 });
 
-test("an idea that opens with a label heads with its first part", () => {
+test("a task that opens with a label heads with its first part", () => {
   expect(brief("Goal: faster board. Scope: cards only.").head).toBe("Goal: faster board.");
 });
 
@@ -313,7 +313,7 @@ test("criteria not numbered from 1 keep their own numbers", () => {
   expect(brief("X Goal: g. Criteria: (2) two. (3) three.").parts[1].body).toBe("- (2) two.\n- (3) three.");
 });
 
-// pretty(): a one-line idea note splits into one paragraph per label.
+// pretty(): a one-line task note splits into one paragraph per label.
 test("pretty splits a labelled plain line in a note by its labels", async () => {
   const { pretty } = await import("../web/board/chat.ts");
   const t = "Parent: run-x add a timezone. OPEN QUESTION (waiting on Johan): recalc old rows? Context: PR #452.";

@@ -1,4 +1,4 @@
-// The Ideas page (?view=ideas): every idea and run across projects as one table, with
+// The Ideas page (?view=tasks): every idea and run across projects as one table, with
 // source, project, Open/Running/Done and text filters. A card's source is the icebox
 // signal it came from (its `idea` text or `run` id); one typed by hand is "Manual".
 // The data is the rail's (workspace.ts): no fetch of its own.
@@ -13,11 +13,11 @@ import { open } from "./panel.ts";
 import { refreshBoardBadge } from "./badge.ts";
 import { cardHref, drawSources, logo, railData, srcIcon, stateOf, titleOf } from "./workspace.ts";
 
-const WORDS = { idle: "Idea", plan: "Planning", build: "Building", review: "Reviewing", wait: "Waiting on you", done: "Done", aband: "Abandoned", stalled: "Stalled" };
+const WORDS = { idle: "Task", plan: "Planning", build: "Building", review: "Reviewing", wait: "Waiting on you", done: "Done", aband: "Abandoned", stalled: "Stalled" };
 const PLAT = { x: "X", tiktok: "TikTok", instagram: "Instagram", threads: "Threads" };
 const SEARCH = raw('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>');
 const AGENTS = ["claude", "codex", "agy", "opencode", "gemini", "cursor"];
-// sort: on Open, ideas first or running first (kept per browser).
+// sort: on Open, tasks first or running first (kept per browser).
 const f = { src: "all", proj: "", show: "open", q: "", sort: (() => { try { return localStorage.getItem("kz-ideas-sort") || "runs"; } catch { return "runs"; } })() };
 let go: (v: string, push?: boolean) => void = () => {};
 
@@ -43,11 +43,11 @@ function sourcesOf(cards, d) {
 let sel = 0;
 const pg = pager("ideas");
 let shownRows: any[] = [];
-// Orca's Tasks shape: a toolbar over a list. The search box, the page's filters and New idea
+// Orca's Tasks shape: a toolbar over a list. The search box, the page's filters and New task
 // live in the shared header elsewhere, so they move in here and go back on leaving.
 let docked: [Comment, HTMLElement][] = [];
 function dock() {
-  if (!$("tk-bar")) $("ideasv").innerHTML = String(html`<div class="tk-bar" id="tk-bar"><div class="tk-row" id="tk-chips"></div><div class="tk-row"><label class="tk-q" id="tk-q">${SEARCH}</label><span id="tk-tools"></span></div></div><div class="tk-list" id="tk-list"></div>`);
+  if (!$("tk-bar")) $("tasksv").innerHTML = String(html`<div class="tk-bar" id="tk-bar"><div class="tk-row" id="tk-chips"></div><div class="tk-row"><label class="tk-q" id="tk-q">${SEARCH}</label><span id="tk-tools"></span></div></div><div class="tk-list" id="tk-list"></div>`);
   if (docked.length) return;
   for (const [id, to] of [["bq", "tk-q"], ["hx", "tk-tools"], ["newtop", "tk-tools"]]) {
     const el = $(id),
@@ -62,8 +62,8 @@ function undock() {
   docked = [];
 }
 function draw() {
-  const box = $("ideasv");
-  if (!document.body.classList.contains("ideav")) return;
+  const box = $("tasksv");
+  if (!document.body.classList.contains("taskv")) return;
   dock();
   const { cards: all, projects, srcs } = railData();
   const cards = all.filter((c) => !c.archived);
@@ -74,7 +74,7 @@ function draw() {
   const dirs = [...new Set(cards.map((c) => c.state))];
   // "Showing": the same projects-shown set as the Board and the Icebox (store.shown).
   const shownDirs = dirs.filter((d) => store.shown.has(d));
-  // The Board's header is the Ideas header too (as on the Icebox): its project picker, its
+  // The Board's header is the Tasks header too (as on the Icebox): its project picker, its
   // Showing list and its search box drive this table.
   const proj = store.all ? "" : store.S?.dir ?? "";
   const q = (($("bq") as HTMLInputElement | null)?.value ?? "").trim().toLowerCase();
@@ -82,10 +82,10 @@ function draw() {
   const matched = cards
     .filter((c) => f.src === "all" || src.get(c) === f.src)
     .filter((c) => (proj ? c.state === proj : !shownDirs.length || shownDirs.includes(c.state)))
-    // Open: ideas not started yet and runs in flight. Running: runs in flight only. Done: finished runs.
+    // Open: tasks not started yet and runs in flight. Running: runs in flight only. Done: finished runs.
     .filter((c) => (f.show === "done" ? fin(c) : f.show === "running" ? c.kind === "run" && !fin(c) : !fin(c)))
     .filter((c) => !q || (titleOf(c) + " " + nameOf(c.state, projects)).toLowerCase().includes(q))
-    // On Open, ideas above runs or runs above ideas, as chosen; newest first within each.
+    // On Open, tasks above runs or runs above tasks, as chosen; newest first within each.
     .sort((a, b) => (f.show === "open" ? (a.kind === b.kind ? 0 : (a.kind === "idea") === (f.sort === "ideas") ? -1 : 1) : 0) || (b.moved ?? b.added ?? 0) - (a.moved ?? a.added ?? 0));
   const rows = pageOf(pg, matched);
   const now = Date.now();
@@ -101,23 +101,23 @@ function draw() {
     html`${srcMark(f.src)}<span>${srcName(f.src)}</span>`,
     html`${srcList.map((u) => html`<button type="button" role="menuitemradio" data-src="${u}" aria-checked="${String(f.src === u)}">${srcMark(u)}<span>${srcName(u)}</span>${ck}</button>`)}`,
   );
-  // Ideas' own filters, placed in the shared header after its search box.
+  // Tasks' own filters, placed in the shared header after its search box.
   const sortPop =
     f.show === "open"
       ? pop(
           "ideas-sort",
-          html`<span>${f.sort === "ideas" ? "Ideas first" : "Running first"}</span>`,
-          html`${[["ideas", "Ideas first"], ["runs", "Running first"]].map(([v, l]) => html`<button type="button" role="menuitemradio" data-sort="${v}" aria-checked="${String(f.sort === v)}"><span>${l}</span>${ck}</button>`)}`,
+          html`<span>${f.sort === "ideas" ? "Tasks first" : "Running first"}</span>`,
+          html`${[["ideas", "Tasks first"], ["runs", "Running first"]].map(([v, l]) => html`<button type="button" role="menuitemradio" data-sort="${v}" aria-checked="${String(f.sort === v)}"><span>${l}</span>${ck}</button>`)}`,
         )
       : "";
-  // Scope and filters first; search, refresh and New idea sit at the right (CSS order).
+  // Scope and filters first; search, refresh and New task sit at the right (CSS order).
   const chips = html`${seg("open", "Open")}${seg("running", "Running")}${seg("done", "Done")}`;
   const extra = html`${sources}${sortPop}<button class="ib" id="ideas-ref" title="Refresh" aria-label="Refresh">${ico("refresh")}</button>`;
   const table = !rows.length ? html`<div class="tk-empty">${raw('<svg><use href="#r-bulb"/></svg>')}<p>Nothing matches.</p><span>Try a different search or filter.</span></div>` : html`<table class="itable"><thead><tr><th></th><th>Title / context</th><th>Status</th><th>Updated</th><th></th></tr></thead><tbody>${rows.map((c, i) => {
     const name = nameOf(c.state, projects),
       st = stateOf(c),
       agent = (c.tags ?? []).find((t) => AGENTS.includes(t));
-    return html`<tr><td>${logo(c.state, name, projects)}</td><td><b>${titleOf(c)}</b><div class="ctx">${name}${agent ? html`<span class="tag">${NAMES[agent]}</span>` : ""}</div></td><td><span class="stc"><span class="si ${st}"></span>${WORDS[st]}</span></td><td class="d">${c.moved || c.added ? age(c.moved || c.added, now) + " ago" : ""}</td><td><div class="acts">${asking === key(c) ? html`<span class="q">Delete?</span><button class="btn ghost" data-keep="1">Keep</button><button class="btn danger" data-yes="${i}">Delete</button>` : html`${c.kind === "idea" ? html`<button class="del" data-i="${i}" title="Delete idea" aria-label="Delete idea">${ico("trash")}</button>` : ""}<button class="go" data-i="${i}">${c.kind === "idea" ? "Start" : "Open"} ${ico("arrow")}</button>`}</div></td></tr>`;
+    return html`<tr><td>${logo(c.state, name, projects)}</td><td><b>${titleOf(c)}</b><div class="ctx">${name}${agent ? html`<span class="tag">${NAMES[agent]}</span>` : ""}</div></td><td><span class="stc"><span class="si ${st}"></span>${WORDS[st]}</span></td><td class="d">${c.moved || c.added ? age(c.moved || c.added, now) + " ago" : ""}</td><td><div class="acts">${asking === key(c) ? html`<span class="q">Delete?</span><button class="btn ghost" data-keep="1">Keep</button><button class="btn danger" data-yes="${i}">Delete</button>` : html`${c.kind === "idea" ? html`<button class="del" data-i="${i}" title="Delete task" aria-label="Delete task">${ico("trash")}</button>` : ""}<button class="go" data-i="${i}">${c.kind === "idea" ? "Start" : "Open"} ${ico("arrow")}</button>`}</div></td></tr>`;
   })}</tbody></table>`;
   const hx = $("hx");
   // Not while a pop-up in it is open: redrawing would close it under the pointer.
@@ -164,7 +164,7 @@ function act(c) {
   runPopup(here);
 }
 
-// An idea is deleted as the board's card menu does it, not recorded anywhere.
+// A task is deleted as the board's card menu does it, not recorded anywhere.
 let asking: string | null = null;
 async function del(c) {
   asking = null;
@@ -183,12 +183,12 @@ function detail(c) {
 }
 
 function mark() {
-  const trs = [...document.querySelectorAll<HTMLElement>("#ideasv tbody tr")];
+  const trs = [...document.querySelectorAll<HTMLElement>("#tasksv tbody tr")];
   trs.forEach((tr, i) => tr.classList.toggle("kb", i === sel));
   trs[sel]?.scrollIntoView({ block: "nearest" });
 }
 addEventListener("keydown", (e) => {
-  if (!document.body.classList.contains("ideav") || !shownRows.length) return;
+  if (!document.body.classList.contains("taskv") || !shownRows.length) return;
   const t = e.target as HTMLElement;
   // From the search box, or anywhere on the page that is not another field or a menu.
   if (t.id !== "bq" && (t.closest("input,textarea,select,[contenteditable],details,dialog") || t.isContentEditable)) return;
@@ -201,13 +201,13 @@ addEventListener("keydown", (e) => {
     act(shownRows[sel]);
   }
 });
-export function openIdeas() {
-  $("bq").placeholder = "Search ideas (press /)";
+export function openTasks() {
+  $("bq").placeholder = "Search tasks (press /)";
   addEventListener("kz-view", () => (undock(), ($("bq").placeholder = "Filter cards (press /)")), { once: true });
   void drawSources(true);
   draw();
 }
-export function initIdeas(goTo: typeof go) {
+export function initTasks(goTo: typeof go) {
   go = goTo;
   addEventListener("kz-rail", draw);
   // The shared header's search box, project picker and Showing list.
@@ -216,7 +216,7 @@ export function initIdeas(goTo: typeof go) {
   $("shows")?.addEventListener("click", () => queueMicrotask(draw));
 }
 
-// A click outside the Ideas header's pop-ups closes them.
+// A click outside the Tasks header's pop-ups closes them.
 addEventListener(
   "pointerdown",
   (e) => {

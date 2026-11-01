@@ -33,7 +33,7 @@ function listen() {
 // Back to the project picked last time, unless the URL says which view it wants. A
 // plain fetch: a project that is gone should fall back to all, not raise a toast.
 // A page named in the address shows from the first paint; it is filled once the board has loaded.
-const v0 = ((v) => (v === "icebox" ? "sources" : v === "ws" ? "run" : v))(new URLSearchParams(location.search).get("view"));
+const v0 = ((v) => (v === "icebox" ? "sources" : v === "ws" ? "run" : v === "ideas" ? "tasks" : v))(new URLSearchParams(location.search).get("view"));
 
 export function initLive() {
   addEventListener("kz-view", () => { if (pendingReload && !document.body.classList.contains("homev")) location.reload(); });
@@ -41,13 +41,13 @@ export function initLive() {
   addEventListener("focus", () => load(true));
   addEventListener("visibilitychange", flushLoad);
   // No view in the address is Home.
-  const first = ["settings", "sources", "terminal", "board", "ideas", "run"].includes(v0) ? v0 : "home";
+  const first = ["settings", "sources", "terminal", "board", "tasks", "run"].includes(v0) ? v0 : "home";
   markView(first);
   document.body.classList.toggle("paged", first !== "board");
   document.body.classList.toggle("ice", v0 === "sources");
   document.body.classList.toggle("termv", v0 === "terminal");
   document.body.classList.toggle("homev", first === "home");
-  document.body.classList.toggle("ideav", first === "ideas");
+  document.body.classList.toggle("taskv", first === "tasks");
   document.body.classList.toggle("runv", first === "run");
   (async () => {
     let d;

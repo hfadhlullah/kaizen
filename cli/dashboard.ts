@@ -8,7 +8,7 @@ import {
   searchRoots, knownProjects, remember, findProjects, locate,
   readRuns, healRuns, backlog, version, label, tilde, section, readFindings, parseItem, tidy, readBacklog, allBacklog,
   startedRuns, normalise, statusOf, columnOf, readInbox, writeInbox, notify, notice, notifier, short,
-  abandonRun, replaceIdea, boardCards, launchRun, appendNote, parseNotes,
+  abandonRun, replaceTask, boardCards, launchRun, appendNote, parseNotes,
   gateOf,
 } from "./state.ts";
 import { WORDMARK } from "./look.ts";
@@ -128,7 +128,7 @@ export async function dashboard(
       { key: "projects", label: "All projects", hint: "every project kaizen knows about" },
     ] : []),
     ...(state ? [
-      { key: "board", label: "Board", hint: "ideas and runs, by stage" },
+      { key: "board", label: "Board", hint: "tasks and runs, by stage" },
       { key: "runs", label: "Runs", hint: "every run, and what each is waiting on" },
       { key: "backlog", label: "Backlog", hint: "things to do later" },
     ] : []),
@@ -471,7 +471,7 @@ export async function dashboard(
 
   // ------------------------------------------------------------------ board
 
-  // Ideas and runs on one screen, in stage columns. A run's stage belongs to
+  // Tasks and runs on one screen, in stage columns. A run's stage belongs to
   // kaizen and cannot be edited here -- a board that could drag one backwards
   // would be lying about what happened. The one exception is abandoning a run,
   // which is the user's decision either way.
@@ -588,7 +588,7 @@ export async function dashboard(
     const footer = (k?: Card) => {
       const acts = k?.kind === "idea"
         ? "n new  e edit  t note  x reject  d delete  r run"
-        : k ? "n new idea  t note  x abandon this run" : "n new idea";
+        : k ? "n new task  t note  x abandon this run" : "n new task";
       const scope = allProjects ? "a this project" : "a all projects";
       return `  ${c.dim("↑↓←→ move")}     ${c.dim(acts)}     ${c.dim(scope)}  ${c.dim("q back")}\n`;
     };
@@ -604,7 +604,7 @@ export async function dashboard(
         ["waiting", `${c.amber("●")} ${c.red("waiting on you")}`],
         ["done", c.dim("○ done")],
         ["abandoned", c.dim("○ abandoned")],
-        ["idea", c.dim("· idea")],
+        ["idea", c.dim("· task")],
       ];
       const parts = all.filter(([key]) => present.has(key)).map(([, text]) => text);
       return parts.length ? "\n  " + parts.join("    ") + "\n" : "\n";
@@ -692,7 +692,7 @@ export async function dashboard(
 
         const target = current();
         if (key === "n") {
-          const text = await promptLine("New idea", "");
+          const text = await promptLine("New task", "");
           if (text) {
             const st = target?.state ?? state!;
             writeInbox(st, [...readInbox(st), { status: "open", text }]);
@@ -720,17 +720,17 @@ export async function dashboard(
           draw(); continue;
         }
         if (key === "e") {
-          const text = await promptLine("Edit idea", target.text);
-          if (text) replaceIdea(target.state, target.text, { status: "open", text });
+          const text = await promptLine("Edit task", target.text);
+          if (text) replaceTask(target.state, target.text, { status: "open", text });
         } else if (key === "t" && target.status === "idea") {
           const line = await promptLine("Add a note", "");
           if (line) appendNote(target.state, { text: target.text }, line);
         } else if (key === "x") {
           const why = await promptLine(`Reject: ${target.text}`, "");
           // The spec requires a reason on a rejected item; no reason, no rejection.
-          if (why) replaceIdea(target.state, target.text, { status: "rejected", text: `${target.text} | ${why}` });
+          if (why) replaceTask(target.state, target.text, { status: "rejected", text: `${target.text} | ${why}` });
         } else if (key === "d") {
-          if (await confirm(`Delete "${cut(target.text, 40)}"?`)) replaceIdea(target.state, target.text, null);
+          if (await confirm(`Delete "${cut(target.text, 40)}"?`)) replaceTask(target.state, target.text, null);
         } else if (key === "r") {
           const mode = await pickMode();
           // "" is the default-mode choice, and must not leave a double space in
@@ -738,9 +738,9 @@ export async function dashboard(
           if (mode !== null) {
             const request = `${mode} ${target.text}`.trim();
             await outside(() => startBacklogItem({ ...parseItem(request), notes: target.notes }, target.state));
-            // Without this the idea stays open forever and the board shows the
-            // same work twice: once as an idea, once as the run it became.
-            replaceIdea(target.state, target.text, { status: "started", text: target.text });
+            // Without this the task stays open forever and the board shows the
+            // same work twice: once as a task, once as the run it became.
+            replaceTask(target.state, target.text, { status: "started", text: target.text });
           }
         }
         refresh(); clamp(); draw();
@@ -789,7 +789,7 @@ export async function dashboard(
               if (!isClick(ev)) continue;
               const target = cardAt(ev.x, ev.y);
               if (!target) continue;
-              // Click to select; click the selected card to act, which on an idea
+              // Click to select; click the selected card to act, which on a task
               // means the same thing r does.
               if (target.col === col && target.row === row) return done("r");
               col = target.col; row = target.row;
@@ -1111,7 +1111,7 @@ export async function dashboard(
 }
 
 const COLUMNS = [
-  { key: "idea", title: "IDEA" },
+  { key: "idea", title: "TO DO" },
   { key: "plan", title: "PLANNING" },
   { key: "build", title: "BUILDING" },
   { key: "review", title: "REVIEW" },

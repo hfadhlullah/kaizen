@@ -1,5 +1,5 @@
 // ---- Phones: their own Home (devices, recent runs, usage) and the Runs page (this
-// machine's runs grouped waiting / active / done). The board, Ideas and Icebox are set up
+// machine's runs grouped waiting / active / done). The board, Tasks and Icebox are set up
 // on a computer; a phone has Home, Chat, Runs and Settings.
 import { runPopup } from "./cards.ts";
 import { $, html, raw } from "./dom.ts";
@@ -17,8 +17,8 @@ let allDevices = false;
 
 const chev = raw(`<svg class="pchev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>`);
 const runs = () => railData().cards.filter((c) => c.kind === "run" && !c.archived);
-// Ideas not started yet: a phone has no Ideas page, so the Runs page lists them.
-const ideas = () => railData().cards.filter((c) => c.kind === "idea" && !c.archived);
+// Tasks not started yet: a phone has no Tasks page, so the Runs page lists them.
+const tasks = () => railData().cards.filter((c) => c.kind === "idea" && !c.archived);
 const rowKey = (c) => (c.kind === "run" ? c.id : c.text);
 const projName = (dir: string) => {
   const l = railData().projects?.find((p) => p.dir === dir)?.label || dir.replace(/[\\/]\.kaizen$/, "");
@@ -130,8 +130,8 @@ function device() {
   const active = all.filter((c) => !wait.includes(c) && !done.includes(c));
   const group = (title: string, cs: any[], shut = false) =>
     cs.length ? html`<details class="pgrp"${raw(shut ? "" : " open")}><summary>${title}<span>${cs.length}</span></summary><div class="plist2">${cs.map((c) => row(c, now))}</div></details>` : "";
-  const idle = ideas().sort((a, b) => (b.moved ?? b.added ?? 0) - (a.moved ?? a.added ?? 0));
-  return html`${group("Waiting on you", wait)}${group("Active", active)}${group("Ideas", idle)}${group("Done", done, true)}${all.length || idle.length ? "" : html`<p class="pnote">No runs yet.</p>`}`;
+  const idle = tasks().sort((a, b) => (b.moved ?? b.added ?? 0) - (a.moved ?? a.added ?? 0));
+  return html`${group("Waiting on you", wait)}${group("Active", active)}${group("Tasks", idle)}${group("Done", done, true)}${all.length || idle.length ? "" : html`<p class="pnote">No runs yet.</p>`}`;
 }
 
 function draw() {
@@ -204,10 +204,10 @@ export function initPhone(go: (v: string, push?: boolean) => void, openRun: (c) 
     if (a.dataset.dev) return (e.preventDefault(), go("device", true));
     if (a.getAttribute("aria-disabled")) return e.preventDefault();
     if (a.classList.contains("prow")) {
-      const c = [...runs(), ...ideas()].find((x) => x.state === a.dataset.dir && rowKey(x) === a.dataset.id);
+      const c = [...runs(), ...tasks()].find((x) => x.state === a.dataset.dir && rowKey(x) === a.dataset.id);
       if (!c) return;
       e.preventDefault();
-      // An idea not started has nothing in a workspace yet: pick its agent and mode instead.
+      // A task not started has nothing in a workspace yet: pick its agent and mode instead.
       if (c.kind === "idea" && c.status === "idea") runPopup(c);
       else openRun(c);
     }

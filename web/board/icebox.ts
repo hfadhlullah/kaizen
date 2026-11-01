@@ -4,12 +4,12 @@ import { load, post } from "./api.ts";
 import { via } from "./cards.ts";
 import { mic, stopDictation } from "./dictation.ts";
 import { $, dataUrls, html, ico, modal, motion, pageOf, pager, pagerHtml, raw, SKEL, wirePager } from "./dom.ts";
-import { ideaCombo, newDir, plogo, setShown, short, showable } from "./projects.ts";
+import { taskCombo, newDir, plogo, setShown, short, showable } from "./projects.ts";
 import { playSound, soundPick, toast } from "./toast.ts";
 import { go, view } from "./views.ts";
 
 // ---- the icebox: requests gathered from request sources, read like an inbox, until
-// someone promotes them to ideas or dismisses them. The sources themselves sit in a
+// someone promotes them to tasks or dismisses them. The sources themselves sit in a
 // section below, folded. Same panel as settings.
 const SRC = "Icebox";
 // What the page keeps across the rebuild every server change brings: the item whose
@@ -344,10 +344,10 @@ export async function openSources() {
   const bulk = iceSel.size
     ? html`<div class="ice-bulk" role="toolbar" aria-label="Selected requests"><span>${iceSel.size} selected</span><span class="end"></span><button class="btn sm" id="ice-bp" title="Promote (p)">${ico("plus")} Promote</button><button class="btn ghost sm" id="ice-bd" title="Dismiss (d)">${ico("x")} Dismiss</button><button class="btn ghost sm" id="ice-bc" title="Clear selection (Esc)">Clear</button></div>`
     : "";
-  // The open item's form: a clean title for the idea's card and the person's own details;
-  // what was gathered is added to the idea's notes by the server.
+  // The open item's form: a clean title for the task's card and the person's own details;
+  // what was gathered is added to the task's notes by the server.
   const form = (it) =>
-    html`<div class="ice-form"><label for="ice-title" class="hint" style="margin:0">Idea title</label><input class="sel" id="ice-title" data-k="${iceKey(it)}" maxlength="200" value="${it.text}" aria-label="Idea title"><label for="ice-details" class="hint" style="margin:0">Details</label><textarea class="sel" id="ice-details" rows="3" aria-label="Details"></textarea><div class="ice-form-acts"><span class="end"></span><button class="btn ghost sm" id="ice-cancel">Cancel</button><button class="btn pri sm" id="ice-ok">Promote</button></div></div>`;
+    html`<div class="ice-form"><label for="ice-title" class="hint" style="margin:0">Task title</label><input class="sel" id="ice-title" data-k="${iceKey(it)}" maxlength="200" value="${it.text}" aria-label="Task title"><label for="ice-details" class="hint" style="margin:0">Details</label><textarea class="sel" id="ice-details" rows="3" aria-label="Details"></textarea><div class="ice-form-acts"><span class="end"></span><button class="btn ghost sm" id="ice-cancel">Cancel</button><button class="btn pri sm" id="ice-ok">Promote</button></div></div>`;
   // A gathered post can be answered: Reply drafts, the box is the approval, Send reply posts that text.
   const replyBox = (it) => {
     if (!it.post) return "";
@@ -369,7 +369,7 @@ export async function openSources() {
     const it = ice[i],
       k = iceKey(it),
       open = iceForm === k;
-    const head = html`<div class="ice-row${iceCur === k ? " cur" : ""}${iceSel.has(k) ? " sel" : ""}" data-i="${i}" data-k="${k}"><input type="checkbox" id="ice-ck-${i}" data-ck="${i}"${iceSel.has(k) ? " checked" : ""} aria-label="Select: ${it.text}"><span class="ice-src" title="${srcName(it)}">${fav(it.source, "link", list.find((x) => x.dir === it.dir && x.url === it.source)?.social)}</span><button class="ice-t" id="ice-o-${i}" data-o="${i}" aria-expanded="${String(open)}" title="${it.text}">${it.text}</button><span class="ice-meta">${many ? html`<span class="nm" title="${it.project || ""}">${plogo(it.dir, it.project || "")}${short(it.project || "")}</span>` : ""}${it.status === "done" && it.written ? html`<span title="Written back ${ago(it.written)}">written back</span>` : ""}${it.status === "done" && it.writeError ? html`<span title="${it.writeError}">write-back failed</span>` : ""}${it.status === "promoted" ? html`<span title="Promoted to Ideas: ${it.idea || ""}">promoted</span>` : ""}${it.replied ? html`<span title="Replied ${ago(it.replied)}">replied</span>` : ""}<span class="ice-age">${ago(it.at)}</span><span class="ice-ra">${it.status === "promoted" || it.status === "done" ? "" : html`<button class="btn ghost sm" id="ice-pr-${i}" data-pr="${i}" title="Promote to Ideas (p)" aria-label="Promote to Ideas: ${it.text}">${ico("plus")}</button>`}${it.status === "promoted" || it.status === "done" ? "" : it.status === "dismissed" ? html`<button class="btn ghost sm" id="ice-rs-${i}" data-rs="${i}" title="Restore to waiting" aria-label="Restore: ${it.text}">Restore</button>` : html`<button class="btn ghost sm" id="ice-ds-${i}" data-ds="${i}" title="Dismiss (d)" aria-label="Dismiss: ${it.text}">${ico("x")}</button>`}</span></span></div>`;
+    const head = html`<div class="ice-row${iceCur === k ? " cur" : ""}${iceSel.has(k) ? " sel" : ""}" data-i="${i}" data-k="${k}"><input type="checkbox" id="ice-ck-${i}" data-ck="${i}"${iceSel.has(k) ? " checked" : ""} aria-label="Select: ${it.text}"><span class="ice-src" title="${srcName(it)}">${fav(it.source, "link", list.find((x) => x.dir === it.dir && x.url === it.source)?.social)}</span><button class="ice-t" id="ice-o-${i}" data-o="${i}" aria-expanded="${String(open)}" title="${it.text}">${it.text}</button><span class="ice-meta">${many ? html`<span class="nm" title="${it.project || ""}">${plogo(it.dir, it.project || "")}${short(it.project || "")}</span>` : ""}${it.status === "done" && it.written ? html`<span title="Written back ${ago(it.written)}">written back</span>` : ""}${it.status === "done" && it.writeError ? html`<span title="${it.writeError}">write-back failed</span>` : ""}${it.status === "promoted" ? html`<span title="Promoted to Tasks: ${it.idea || ""}">promoted</span>` : ""}${it.replied ? html`<span title="Replied ${ago(it.replied)}">replied</span>` : ""}<span class="ice-age">${ago(it.at)}</span><span class="ice-ra">${it.status === "promoted" || it.status === "done" ? "" : html`<button class="btn ghost sm" id="ice-pr-${i}" data-pr="${i}" title="Promote to Tasks (p)" aria-label="Promote to Tasks: ${it.text}">${ico("plus")}</button>`}${it.status === "promoted" || it.status === "done" ? "" : it.status === "dismissed" ? html`<button class="btn ghost sm" id="ice-rs-${i}" data-rs="${i}" title="Restore to waiting" aria-label="Restore: ${it.text}">Restore</button>` : html`<button class="btn ghost sm" id="ice-ds-${i}" data-ds="${i}" title="Dismiss (d)" aria-label="Dismiss: ${it.text}">${ico("x")}</button>`}</span></span></div>`;
     const more = open
       ? html`<div class="ice-open">${it.notes ? html`<div class="ice-notes">${it.notes}</div>` : ""}${imgs(it)}<span class="hint" style="margin:0">From ${srcName(it)} · ${ago(it.at)}${it.post ? html` · <a href="${it.post}" target="_blank" rel="noopener">open post</a>` : ""}</span>${replyBox(it)}${icePro === k ? form(it) : ""}</div>`
       : "";
@@ -380,13 +380,13 @@ export async function openSources() {
       ? html`<div class="ice-zero"><h4>No matches</h4><p style="margin-top:10px"><button class="btn sm" id="ice-unf">Clear filters</button></p></div>`
       : order.length
         ? html`<div class="tk-list ice-list">${[...groups].map(([g, ix]) => (ix.some((i) => onPage.has(i)) ? html`<div class="ice-cat">${g}<i>${ix.length}</i></div>${ix.filter((i) => onPage.has(i)).map(row)}` : ""))}${pagerHtml(icePg)}</div>`
-        : html`<div class="ice-zero"><h4>Nothing waiting</h4><p>Requests gathered from your sources wait here until you turn them into ideas.</p>${list.length ? "" : html`<p style="margin-top:10px"><button class="btn sm pri" id="ice-addsrc">${ico("plus")} Add a source</button></p>`}</div>`;
+        : html`<div class="ice-zero"><h4>Nothing waiting</h4><p>Requests gathered from your sources wait here until you turn them into tasks.</p>${list.length ? "" : html`<p style="margin-top:10px"><button class="btn sm pri" id="ice-addsrc">${ico("plus")} Add a source</button></p>`}</div>`;
   // Swipe: the waiting requests the filters show, least skipped first; a restored one
   // comes back on top. Nothing is written by a skip.
   const deck = iceSwipe
     ? filtered.filter((i) => isWaiting(ice[i])).sort((a, b) => (iceSwipe.skip.get(iceKey(ice[a])) || 0) - (iceSwipe.skip.get(iceKey(ice[b])) || 0))
     : [];
-  // The card always names its project: a swipe decides for that project's Ideas.
+  // The card always names its project: a swipe decides for that project's Tasks.
   const pName = (it) => it.project || store.S.projects.find((p) => p.dir === it.dir)?.label || "";
   const swCard = (i, back) => {
     const it = ice[i];
@@ -677,7 +677,7 @@ export async function openSources() {
       }
       if (srcOpen()) openSources().then(focusCur);
     })();
-  // Bulk: one dismiss per project; promote one request at a time, each its own idea
+  // Bulk: one dismiss per project; promote one request at a time, each its own task
   // titled as gathered (one promote call with several ids would merge them into one).
   const bulkDo = async (op) => {
     const its = ice.filter((it) => iceSel.has(iceKey(it)));
@@ -699,7 +699,7 @@ export async function openSources() {
     iceSel.clear();
     if (ok)
       toast(
-        `${ok} ${op === "promote" ? "promoted to Ideas" : "dismissed"}${ok < its.length ? `, ${its.length - ok} not` : ""}`,
+        `${ok} ${op === "promote" ? "promoted to Tasks" : "dismissed"}${ok < its.length ? `, ${its.length - ok} not` : ""}`,
       );
     load();
     if (srcOpen()) openSources().then(focusCur);
@@ -861,7 +861,7 @@ export async function openSources() {
         return;
       }
       $("ice-ok").disabled = true;
-      iceAct("promote", open1, "Promoted to Ideas", { text: title, details: $("ice-details").value });
+      iceAct("promote", open1, "Promoted to Tasks", { text: title, details: $("ice-details").value });
     };
     $("ice-ok").onclick = ok;
     $("ice-cancel").onclick = () => {
@@ -908,7 +908,7 @@ export async function openSources() {
     if (j.ok) {
       S.n++;
       op === "promote" ? S.pro++ : S.dis++;
-      // Only a dismiss can be undone here: a promote has already made an idea card.
+      // Only a dismiss can be undone here: a promote has already made a task card.
       S.last = op === "dismiss" ? it : null;
       S.pop = true;
     } else toast(`Could not ${op}: ${j.error || "kaizen did not answer"}`);
@@ -1181,7 +1181,7 @@ export async function openSources() {
     $("ice-new").onclick = () => {
       const all = !dir;
       if (!dir && !showable().length) return toast("Pick a project first");
-      // The new-idea form, cut down: the request, files, dictation and, in All projects, the project.
+      // The new-task form, cut down: the request, files, dictation and, in All projects, the project.
       const dl = modal(
         `${all ? `<div class="combo" id="ndc"><button type="button" class="sel" id="newdir" aria-label="Project for this request" aria-haspopup="listbox" aria-expanded="false"></button><div class="menu-pop" hidden><input class="sel" aria-label="Search projects" placeholder="Search projects…" spellcheck="false" autocomplete="off"><div id="nds" role="listbox"></div></div></div>` : ""}<textarea id="newidea" placeholder="What did someone ask for?" aria-label="Request"></textarea><div class="att"></div><input type="file" multiple hidden><div class="row"><button type="button" class="ib" id="newpick" aria-label="Attach files" title="Attach files">${ico("clip")}</button><button type="button" class="btn ghost" value="">Cancel</button><button class="btn pri">Add</button></div>`,
       );
@@ -1206,7 +1206,7 @@ export async function openSources() {
           }
       };
       f.querySelector(".btn.ghost").onclick = () => dl.close();
-      if (all) ideaCombo(f);
+      if (all) taskCombo(f);
       const m = mic([inp]);
       if (m) f.querySelector(".row").prepend(m);
       dl.addEventListener("close", () => stopDictation(false));

@@ -7,7 +7,7 @@ updated: 2026-10-15
 # Kaizen bot
 
 ## What it does
-A separate app (`bot/`, its own `package.json`, private) that puts a chat in front of the board: Chief answers what is waiting, division agents turn their team's asks into ideas and runs. Every action is a card; anything that starts or approves a run waits for your Approve. Full description: `bot/README.md`.
+A separate app (`bot/`, its own `package.json`, private) that puts a chat in front of the board: Chief answers what is waiting, division agents turn their team's asks into tasks and runs. Every action is a card; anything that starts or approves a run waits for your Approve. Full description: `bot/README.md`.
 
 ## Where it lives
 - `bot/src/server.ts` — the server (`bun run src/server.ts`).

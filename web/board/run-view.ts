@@ -1,4 +1,4 @@
-// The workspace centre (?view=ws&dir=&ws=; a run's or idea's old address resolves to its
+// The workspace centre (?view=ws&dir=&ws=; a run's or task's old address resolves to its
 // workspace and picks that run in the panel): a tab bar over one folder holding terminals and the
 // Browser, never runs. Agent terminals are tabs, named by stage for a run's ("Build · Claude"),
 // beside shells started with POST /shell {ws}, the project's localhost, the Preview, project
@@ -137,7 +137,7 @@ export async function showRunView(nav = false) {
   const p = new URLSearchParams(location.search),
     dir = p.get("dir"),
     id = p.get("id"),
-    idea = p.get("idea");
+    task = p.get("idea");
   let ws = p.get("ws"),
     want: any = null; // the card the address names, whose tab is selected
   // A project this board is not showing: a deep link names its project, switched to once, as a rail click does.
@@ -150,10 +150,10 @@ export async function showRunView(nav = false) {
   if (p.get("view") === "ws" && ws) {
     if (await away()) return showRunView(nav);
   } else {
-    const find = (cs) => cs.find((x) => x.state === dir && (id ? x.kind === "run" && x.id === id : x.kind === "idea" && x.text === idea));
+    const find = (cs) => cs.find((x) => x.state === dir && (id ? x.kind === "run" && x.id === id : x.kind === "idea" && x.text === task));
     const c = find(store.S.cards);
-    // A launched idea becomes a run: its agent session moves to the run's card, and the view follows.
-    const pk = idea && (c ?? card)?.kind === "idea" && (c ?? card)?.pty?.key;
+    // A launched task becomes a run: its agent session moves to the run's card, and the view follows.
+    const pk = task && (c ?? card)?.kind === "idea" && (c ?? card)?.pty?.key;
     const run = pk && store.S.cards.find((x) => x.kind === "run" && x.state === dir && (x.pty?.key === pk || x.pty?.all?.includes(pk)));
     if (run) {
       history.replaceState(null, "", cardHref(run));

@@ -80,7 +80,7 @@ export function drawWsBoard(inScope: (dir: string) => boolean) {
     if (col !== 2 && !inScope(dir)) continue;
     if (q && col !== 2 && !`${wsLabel(w)} ${name} ${cs.map(titleOf).join(" ")}`.toLowerCase().includes(q)) continue;
     const lead = [...open].sort((x, y) => RANK[stateOf(x)] - RANK[stateOf(y)])[0] ?? last;
-    // An idea whose agent asks adds the waiting dot; its column never changes.
+    // A task whose agent asks adds the waiting dot; its column never changes.
     const asks = cs.some((c) => c.kind === "idea" && stateOf(c) === "wait");
     const st = asks ? "wait" : lead ? stateOf(lead) : "idle";
     cols[col].push(

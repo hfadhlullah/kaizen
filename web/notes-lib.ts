@@ -47,8 +47,8 @@ export type BoardLink =
   | { kind: "run"; id: string; tab?: (typeof TABS)[number]; item?: { type: "finding" | "backlog"; n: number } }
   | { kind: "idea"; text: string };
 export function boardLink(w: Pick<Wikilink, "name" | "anchor" | "target">): BoardLink | null {
-  const idea = /^idea:\s*(.+)$/i.exec(w.target);
-  if (idea) return { kind: "idea", text: idea[1]!.trim() };
+  const task = /^idea:\s*(.+)$/i.exec(w.target);
+  if (task) return { kind: "idea", text: task[1]!.trim() };
   const run = /^run:\s*([\w.-]+)$/i.exec(w.name);
   if (!run) return null;
   const a = w.anchor.toLowerCase(),

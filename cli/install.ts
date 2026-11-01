@@ -249,7 +249,7 @@ if (Bun.argv[2] === "sources" || Bun.argv[2] === "gather" || Bun.argv[2] === "ic
   const waiting = c.dim("  new requests wait in the icebox — kaizen icebox");
   try {
     if (cmd === "icebox" && (op === "promote" || op === "dismiss")) {
-      // Ids only on the command line. The idea's text, which an agent may have written
+      // Ids only on the command line. The task's text, which an agent may have written
       // from outside text, comes from a file and never through a shell.
       const ids = url.split(",").map((i) => i.trim()).filter(Boolean);
       const at = rest.indexOf("--text-file");
@@ -257,7 +257,7 @@ if (Bun.argv[2] === "sources" || Bun.argv[2] === "gather" || Bun.argv[2] === "ic
       const text = at >= 0 ? readFileSync(rest[at + 1]!, "utf8") : undefined;
       const why = op === "promote" ? src.promote(state, ids, text) : src.dismiss(state, ids);
       if (why) { console.log(`\n  ${why}\n`); process.exit(1); }
-      console.log(`\n  ${op === "promote" ? "promoted to Ideas" : "dismissed"}: ${ids.join(", ")}\n  ${where}\n`);
+      console.log(`\n  ${op === "promote" ? "promoted to Tasks" : "dismissed"}: ${ids.join(", ")}\n  ${where}\n`);
     } else if (cmd === "icebox") {
       const all = src.readIcebox(state);
       const fresh = all.filter((s) => s.status === "new");

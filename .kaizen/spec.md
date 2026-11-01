@@ -86,7 +86,7 @@ Record the track in `state.json` as `track`, with the three answers written into
 Create the run id as `YYYY-MM-DD-<short-kebab-slug>`. Write the request verbatim —
 do not summarize it, since later stages read this instead of the conversation and a
 summary is where requirements quietly disappear. The board also finds a run's card by
-this text: a request that does not contain the user's words leaves their idea as a
+this text: a request that does not contain the user's words leaves their task as a
 second card. Context you add goes below the verbatim text, never in place of it.
 
 Verbatim includes the mess. Requests arrive as thinking out loud: half-formed,

@@ -44,8 +44,8 @@ const readable = (t) =>
 let keepNext = false;
 export function open(c, keepTab) {
   // A run is worked on in its workspace, which docks this panel; so is everything on a phone.
-  // Ideas keep the panel on the Board and Ideas pages. An archived run has no workspace row: it stays here to be restored.
-  const here = view === "board" || view === "ideas";
+  // Tasks keep the panel on the Board and Tasks pages. An archived run has no workspace row: it stays here to be restored.
+  const here = view === "board" || view === "tasks";
   if (view !== "run" && (isPhone() || !here || (c.kind === "run" && !c.archived))) {
     keepNext = !!keepTab;
     return void openWorkspace(c);
@@ -64,15 +64,15 @@ export function open(c, keepTab) {
   $("pterm").hidden = true;
   if (c.kind === "idea") {
     store.runDoc = null;
-    $("psub").innerHTML = c.status === "starting" && !c.archived ? steps(c) : html`<span class="pst"><span class="st d-idea"><svg><use href="#s-idea"/></svg></span>Idea</span><span class="pst dim">${c.where.split(/[\\/]/).pop() || c.where}</span>`;
+    $("psub").innerHTML = c.status === "starting" && !c.archived ? steps(c) : html`<span class="pst"><span class="st d-idea"><svg><use href="#s-idea"/></svg></span>Task</span><span class="pst dim">${c.where.split(/[\\/]/).pop() || c.where}</span>`;
     $("ptabs").innerHTML = "";
-    ideaBody(c);
+    taskBody(c);
     const foot = $("pfoot");
     foot.innerHTML = c.archived
       ? `<button class="btn pri" data-a="restore">Restore</button>`
       : c.status === "idea"
         ? `<button class="btn ghost danger" data-a="delete">Delete</button><button class="btn ghost" data-a="archive">Archive</button><span class="dec"><button class="btn" data-a="reject">Reject</button><button class="btn" data-a="edit">Edit</button><button class="btn pri" data-a="run">Run</button></span>`
-        : `<span class="note">${c.pty ? "Starting: the agent runs below." : "Starting: a run was launched for this idea. No terminal with your agent? Run it again."}</span><span class="dec"><button class="btn" data-a="run">Run again</button></span>`;
+        : `<span class="note">${c.pty ? "Starting: the agent runs below." : "Starting: a run was launched for this task. No terminal with your agent? Run it again."}</span><span class="dec"><button class="btn" data-a="run">Run again</button></span>`;
     foot.querySelectorAll("[data-a]").forEach(
       (b) =>
         (b.onclick = () => {
@@ -148,10 +148,10 @@ function meta(c) {
     });
   return html`<div class="rmeta" title="${[st.runner, st.agent, st.mode].filter(Boolean).join(", ")}">${proj}</div><div class="rprog s-${c.status}" title="${cap(WORD[c.status] || c.status) + (c.awaiting ? `: ${need(c.awaiting)}` : "")}"><span>${word}</span><b><i style="width:${w}%"></i></b></div>`;
 }
-// An idea's panel: its terminal while the run it started is being born there, else its notes.
-export function ideaBody(c) {
-  // In the run workspace the agent is a centre tab; on the Ideas page an idea shows its notes only.
-  if (c.pty && view !== "run" && view !== "ideas") showTerm(c);
+// A task's panel: its terminal while the run it started is being born there, else its notes.
+export function taskBody(c) {
+  // In the run workspace the agent is a centre tab; on the Tasks page a task shows its notes only.
+  if (c.pty && view !== "run" && view !== "tasks") showTerm(c);
   else {
     termStop();
     chat(c, c.notes, c.archived || c.status !== "idea");
@@ -272,7 +272,7 @@ export async function openRun(c, refresh, again) {
           ? ` ${qs.length === 1 ? "1 question" : qs.length + " questions"}.`
           : "";
     const more =
-      `<button data-a="archive">Archive</button>${c.column === 1 ? `<button data-a="toidea">Back to idea</button>` : ""}<hr><button data-a="ab" class="danger">Abandon</button>`;
+      `<button data-a="archive">Archive</button>${c.column === 1 ? `<button data-a="toidea">Back to task</button>` : ""}<hr><button data-a="ab" class="danger">Abandon</button>`;
     foot.innerHTML = html`<span class="note">${sent ? "Sent to your agent." : APPROVAL[c.awaiting] + asks}</span><details class="more"><summary class="btn ghost">More</summary><div class="menu-pop">${raw(more)}</div></details>${raw(rs)}<span class="dec"><button class="btn" data-a="revise"${sent ? " disabled" : ""}>Revise</button><button class="btn pri" data-a="approve"${sent ? " disabled" : ""}>${c.awaiting === "findings" ? "Approve as-is" : "Approve"}</button></span>`;
   } else if (c.status === "waiting")
     foot.innerHTML = html`<span class="note">Waiting: ${need(c.awaiting)}.</span>${raw(arch)}<button class="btn ghost" data-a="ab">Abandon</button>${raw(rs)}`;
@@ -317,8 +317,8 @@ export async function openRun(c, refresh, again) {
           return;
         }
         if (a === "toidea") {
-          post("/to-idea", { dir: c.state, id: c.id }).then((r) => {
-            if (r.ok) toast("Back in Ideas");
+          post("/to-task", { dir: c.state, id: c.id }).then((r) => {
+            if (r.ok) toast("Back in Tasks");
             load();
           });
           return;
@@ -335,15 +335,15 @@ export function deep() {
   const p = new URLSearchParams(location.search),
     d = p.get("dir"),
     id = p.get("run"),
-    idea = p.get("idea");
+    task = p.get("idea");
   // A workspace address (?view=run&idea=) is the run view's own, not a note's deep link.
-  if ((!id && idea === null) || p.get("view") === "run") return;
+  if ((!id && task === null) || p.get("view") === "run") return;
   history.replaceState(null, "", location.pathname + "?all=1");
   const c = store.S.cards.find(
-    (x) => x.state === d && (id ? x.kind === "run" && x.id === id : x.kind === "idea" && x.text === idea),
+    (x) => x.state === d && (id ? x.kind === "run" && x.id === id : x.kind === "idea" && x.text === task),
   );
   if (!c) {
-    toast(id ? "That run was not found" : "That idea was not found");
+    toast(id ? "That run was not found" : "That task was not found");
     return;
   }
   const m = /^(finding|backlog)-(\d+)$/.exec(p.get("item") || "");
@@ -394,7 +394,7 @@ export async function toggleArchive(c, archived) {
   load();
 }
 export function close() {
-  if (view !== "board" && view !== "run" && view !== "ideas") return;
+  if (view !== "board" && view !== "run" && view !== "tasks") return;
   const k = store.openKey;
   stopDictation(true);
   termStop();

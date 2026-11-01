@@ -53,7 +53,7 @@ Rules:
   - Web and images: the alpha mask from `kaizen.jpg`. Export once to `assets/tanuki.svg`
     (traced outline) before the web board ships; PNG at 460 px is the fallback
     (`kaizen-avatar.png`).
-- Placement: empty states only (no ideas, no runs) and the landing page footer, at 120 px centred with one line of
+- Placement: empty states only (no tasks, no runs) and the landing page footer, at 120 px centred with one line of
   copy under it, and at 36 px as the logo of the collapsed side menu (section 6), where
   the wordmark does not fit. Not in the header. It is not a loading spinner and not a favicon at 16 px, where the lines
   collapse; the favicon is the wordmark `K` block.
@@ -150,7 +150,7 @@ TUI (as glyphs) and on the web (as SVG symbols `#s-<state>`).
 
 | State | Web icon | TUI glyph | Colour | Meaning |
 |---|---|---|---|---|
-| idea | dashed circle | `·` | `--dim` | in `inbox.md`, no run yet |
+| task | dashed circle | `·` | `--dim` | in `inbox.md`, no run yet |
 | starting | empty circle | `◌` | `--dim` | run launched, no `state.json` yet |
 | running | half-filled, pulsing | `●` | `--run` | `state.json` changed in the last 30 min |
 | stalled | half-filled, faded | `◐` | `--dim` | no change for 30 min, not finished |
@@ -162,7 +162,7 @@ Red (`--danger`) is no longer used on the board at all. A waiting run is amber t
 times: icon, chip, and the summary strip count. Red remains for the one destructive
 confirm button (Delete) and for high-severity findings in the review panel.
 
-Columns, left to right: **Ideas · Planning · Building · Review · Done**. A run's column
+Columns, left to right: **Tasks · Planning · Building · Review · Done**. A run's column
 is derived from its stage by `columnOf` in the shared state module. The UI never decides
 a stage and never lets a user drag a card across columns. The only user transition is
 abandon, which is `/kaizen abort`.
@@ -176,14 +176,14 @@ listed behind a `Keyboard shortcuts` link in the footer, never the only way.
 
 ```
 ┌ side menu 220 ─┬ header ───────────────────────────────────────────────┐
-│ KAIZEN     [▯] │ Board  [~/code/acme-api ▾]                 [New idea] │
+│ KAIZEN     [▯] │ Board  [~/code/acme-api ▾]                 [New task] │
 │                ├ columns ──────────────────────────────────────────────┤
-│ ▥ Board        │ Ideas 3  +   Planning 1   Building 2   Review   Done 2 │
+│ ▥ Board        │ Tasks 3  +   Planning 1   Building 2   Review   Done 2 │
 │ ▤ Notes        │ ┌────────┐   ┌────────┐   ┌────────┐            ┌────┐ │
 │ ⛓ Sources      │ │ card   │   │ card   │   │ card   │            │card│ │
 │ ⚙ Settings     │                                                       │
 │                ├ footer ───────────────────────────────────────────────┤
-│ [☀ Light|☾ Dark]│ ◌ idea ◔ running   ! 2 waiting · 3 ideas  Keyboard … │
+│ [☀ Light|☾ Dark]│ ◌ task ◔ running   ! 2 waiting · 3 tasks  Keyboard … │
 └────────────────┴───────────────────────────────────────────────────────┘
 ```
 
@@ -202,14 +202,14 @@ listed behind a `Keyboard shortcuts` link in the footer, never the only way.
   `1100px`, and on a phone (under `640px`) always, with no button.
 - Header: the top of the work-area panel, over a soft 1 px `--line` (60 %), the page name at
   `14px` weight 600, project `<select>` (at most `320px` wide, borderless until hovered
-  or focused), then right-aligned the `New idea` primary text button.
+  or focused), then right-aligned the `New task` primary text button.
 - Strip: one line of counts. Each count is a pill with a 1 px `--line` ring and its
   status icon, and is a filter toggle; hover and the active filter get a `--dim` 12 % fill.
   `waiting on you` is `--warn` with a `--warn` ring.
 - Columns: CSS grid, five `minmax(200px, 1fr)`, `gap: 12px`, cards `6px` apart, gutter `28px` (`16px`
   under 900 px). Under 900 px the grid is one column, headers sticky.
 - Column header: `13px` weight 500, count after it as a plain `--dim` `12px` number, no
-  pill, no underline. The Ideas header carries a `+` icon that opens the new-idea form in place.
+  pill, no underline. The Tasks header carries a `+` icon that opens the new-task form in place.
 - Card ground is `--bg-2`; column ground is `--bg`. That contrast is the board.
 - A column shows six cards, then one borderless pill `Show N more` line in `--dim` that unfolds
   it, and `Show less` folds it back. Per column, per page load.
@@ -218,10 +218,10 @@ listed behind a `Keyboard shortcuts` link in the footer, never the only way.
   every Done card and swaps the button for `Cancel` / `Archive N`.
   Any card's `⋯` menu has `Archive`; the strip's `Archive N` toggles the archive view,
   same columns, cards at 70 % opacity, `⋯` offers `Restore`. Archiving never moves a
-  run directory: it is a list in `<state>/archive.md`, ideas take inbox status
+  run directory: it is a list in `<state>/archive.md`, tasks take inbox status
   `archived`, and the TUI hides both.
 - Empty board: tanuki at 120 px, `Nothing here yet` in `16px` weight 600, one `--dim`
-  line saying what kaizen does with an idea, a `New idea` button.
+  line saying what kaizen does with a task, a `New task` button.
 
 ### Card
 
@@ -233,7 +233,7 @@ web board from design.md
 [kaizen]                           ◉ ✳ >_
 ```
 
-- Line 1 `.c-id`: status icon, run id in `--dim` (date prefix stripped; ideas read
+- Line 1 `.c-id`: status icon, run id in `--dim` (date prefix stripped; tasks read
   `idea`), age right in tabular digits. On hover the age is replaced by a `⋯` button.
 - Line 2 `.c-title`: `13px` weight 500 `--ink`, wraps to two lines then clips.
 - Line 3 `.c-foot`, the footer. No chips and no marks, no line.
@@ -277,14 +277,14 @@ id, subject to that vendor's brand terms; no other change.
 
 `⋯` opens a popover under it: `--bg-2`, `--r`, 1 px `--line`, `--shadow-2`, items
 `13px` with an icon, `--r-s` hover fill, a rule before the destructive item, which is `--danger`.
-Ideas: Run · Edit · Reject · Delete. Waiting run: Review plan / See findings · Abandon.
+Tasks: Run · Edit · Reject · Delete. Waiting run: Review plan / See findings · Abandon.
 Running or stalled: Open · Abandon. Done: Open. Click anywhere else closes it.
 
 ### Inline forms
 
 A form replaces the card it acts on, in place, `--accent` border, `--shadow-2`. New
-idea appears at the top of Ideas. Every form ends with a `Cancel` ghost button and one
-primary: `Add idea`, `Save`, `Reject` (`--warn`), `Delete` (`--danger`), or
+task appears at the top of Tasks. Every form ends with a `Cancel` ghost button and one
+primary: `Add task`, `Save`, `Reject` (`--warn`), `Delete` (`--danger`), or
 `Full run` with a secondary `Lite`. `--dim` copy says what happens (`Opens your agent
 in a new terminal with the request typed in.`), and the run form adds one line saying
 what Full and Lite each mean. A focused field has an `--accent` border and a 3 px
@@ -408,7 +408,7 @@ back; the notebook has the same side menu as the board.
   in `--dim`. One that no longer resolves is `--dim` with a dashed underline and does
   nothing. A click leaves for the board (`/?all=1&dir=…&run=…&tab=…&item=…`), which opens
   that panel on that tab and marks the item with a 2 px `--accent` ring for 2 s.
-  `[[` completes notes, runs and ideas; `#` after a run completes its tabs, findings
+  `[[` completes notes, runs and tasks; `#` after a run completes its tabs, findings
   and backlog items. A run's Notes tab starts with `Linked from notes`, one link per note, above its own notes.
 - `/` at the start of a line opens the block menu (section 6 card menu shape: `--bg-2`,
   `--r`, 1 px `--line`, `--shadow-2`, `13px` items with a `--dim` hint, `--hover` on the
@@ -429,7 +429,7 @@ back; the notebook has the same side menu as the board.
 
 ## 7. Keyboard and motion
 
-Keys mirror the TUI and work as a second option: `n` new idea, `e` edit, `x` reject or
+Keys mirror the TUI and work as a second option: `n` new task, `e` edit, `x` reject or
 abandon, `r` run, `a` all projects, `Esc` close, `?` this list. Inert while an input has
 focus.
 

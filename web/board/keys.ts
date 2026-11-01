@@ -1,6 +1,6 @@
 import { store } from "./store.ts";
 import { load } from "./api.ts";
-import { focusedKey, formPopup, key, nav, newIdea, render, runPopup } from "./cards.ts";
+import { focusedKey, formPopup, key, nav, newTask, render, runPopup } from "./cards.ts";
 import { $ } from "./dom.ts";
 import { iceNav, srcOpen } from "./icebox.ts";
 import { close, openRun } from "./panel.ts";
@@ -38,7 +38,7 @@ export function initKeys() {
       $("sq").focus();
       return;
     }
-    if (e.key === "/" && (view === "board" || view === "ideas") && $("bq")) {
+    if (e.key === "/" && (view === "board" || view === "tasks") && $("bq")) {
       e.preventDefault();
       $("bq").focus();
       return;
@@ -54,7 +54,7 @@ export function initKeys() {
     // The Terminal page has no cards to move between; its keys are the terminals'.
     if (view === "terminal") return;
     if (e.key === "n" && !document.querySelector("dialog[open]")) {
-      newIdea();
+      newTask();
     }
     if (e.key === "a") {
       store.all = !store.all;

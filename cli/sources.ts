@@ -1,5 +1,5 @@
 // Request sources: shared links kaizen reads for requests, each landing in the
-// project's icebox until someone promotes it to an idea. Everything fetched is
+// project's icebox until someone promotes it to a task. Everything fetched is
 // outside text: it becomes item text and notes, never a status, a command, or a run.
 // Nothing in this file launches anything.
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
@@ -131,7 +131,7 @@ export function moveSource(from: string, to: string, url: string): string | null
 
 const COMMANDS = new Set("plan auto lite full run review status backlog approve reject abort config init install gather".split(" "));
 const isCommand = (t: string) => COMMANDS.has((/[a-z][a-z-]*/i.exec(t.split(" ")[0]!)?.[0] ?? "").toLowerCase());
-// Run sends an idea through parseItem, alone or behind the chosen kind, and that
+// Run sends a task through parseItem, alone or behind the chosen kind, and that
 // drops a `<where> - <severity> -` or `<severity>:` lead and every backtick. The
 // check is on that final text, whatever parseItem did to get there; the kind the
 // user chose, when it is still in front, is theirs and set aside.
@@ -152,7 +152,7 @@ function clean(raw: string, extra = ""): { text: string; lines: string[] } | nul
 }
 
 // The icebox: everything gathered, held per project until a person or an agent
-// promotes it to an idea or dismisses it. Promoted and dismissed items stay, so the
+// promotes it to a task or dismisses it. Promoted and dismissed items stay, so the
 // same request never comes back.
 export type Signal = { id: string; text: string; notes?: string; source: string; category?: string; at: string; status: "new" | "promoted" | "dismissed" | "done"; idea?: string; replied?: string; images?: string[]; row?: number; run?: string; written?: string; writeError?: string };
 
@@ -178,10 +178,10 @@ const idOf = (key: string) => createHash("sha1").update(key).digest("hex").slice
 // A row with no other cells keys as its text alone, as every seen key did before.
 const rowKey = (text: string, notes?: string) => normalise(notes ? text + "\n" + notes : text);
 
-// What an idea already in the inbox rules out. A gathered one (the stamp ingest()
+// What a task already in the inbox rules out. A gathered one (the stamp ingest()
 // wrote before the icebox) rules out its own row; a promoted one nothing, its items
 // are still in the icebox; one typed by hand, any row reading the same.
-function ideaKey(l: { text: string; notes?: string }): string | null {
+function taskKey(l: { text: string; notes?: string }): string | null {
   const [first = "", ...rest] = (l.notes ?? "").split("\n");
   if (/^\[[^\]]*\] Promoted from the icebox:/.test(first)) return null;
   if (/^\[[^\]]*\] Gathered from /.test(first)) return rowKey(l.text, rest.join("\n"));
@@ -200,7 +200,7 @@ export function takeImages(notes = ""): { notes: string; images: string[] } {
   return { notes, images: pics(images) };
 }
 
-// The single place outside text enters kaizen, and it enters the icebox, never Ideas.
+// The single place outside text enters kaizen, and it enters the icebox, never Tasks.
 // Synchronous on purpose: nothing may run between reading the files and writing them.
 // A gathered item as the icebox keeps it, keyed the way dedup sees it.
 function shape(it: Item) {
@@ -216,7 +216,7 @@ export function ingest(state: string, url: string, items: Item[]): { added: numb
   const src = sources.find((s) => s.url === url);
   if (!src) throw new Error("not a listed source");
   const ice = readIcebox(state);
-  const known = new Set([...src.seen, ...readInbox(state).map(ideaKey).filter((k) => k !== null), ...ice.map((s) => rowKey(s.text, s.notes))]);
+  const known = new Set([...src.seen, ...readInbox(state).map(taskKey).filter((k) => k !== null), ...ice.map((s) => rowKey(s.text, s.notes))]);
   const fresh: Signal[] = [];
   const seen: string[] = [];
   let held = 0, refreshed = false;
@@ -267,10 +267,10 @@ export function githubRepo(raw: string): string | null {
   return m && m[1] !== "." && m[1] !== ".." ? m[1] : null;
 }
 
-// The only way icebox text becomes an idea. Several items may become one idea (the
-// same need said twice); the idea's text is the caller's, or the first item's, and
+// The only way icebox text becomes a task. Several items may become one task (the
+// same need said twice); the task's text is the caller's, or the first item's, and
 // `details` are the caller's own words for it. The notes hold those details first,
-// then every item as it was gathered. It lands as an open idea and starts nothing.
+// then every item as it was gathered. It lands as an open task and starts nothing.
 // Returns why not, or null.
 export function promote(state: string, ids: string[], text?: string, details?: string): string | null {
   const ice = readIcebox(state);
@@ -280,12 +280,12 @@ export function promote(state: string, ids: string[], text?: string, details?: s
   if (picked.some((s) => s!.status === "promoted")) return "already promoted";
   const own = !!text?.trim();
   const c = clean(own ? text! : picked[0]!.text);
-  if (!c) return "the idea text is too short";
-  // The board runs an idea as `/kaizen <text>`: a first word that is a command
+  if (!c) return "the task text is too short";
+  // The board runs a task as `/kaizen <text>`: a first word that is a command
   // would be obeyed as one.
   while (obeyed(c.text)) c.text = "Request: " + c.text;   // twice at most: `Request: high: auto x` still parses
   const inbox = readInbox(state);
-  if (inbox.some((l) => normalise(l.text) === normalise(c.text))) return "already an idea";
+  if (inbox.some((l) => normalise(l.text) === normalise(c.text))) return "already a task";
   const sources = readSources(state);
   const from = [...new Set(picked.map((s) => { const src = sources.find((x) => x.url === s!.source); return [src?.label || s!.source, s!.category].filter(Boolean).join(" · "); }))].join("; ");
   const original = picked.flatMap((s) => [s!.text, ...(s!.notes ?? "").split("\n")]).map((n) => oneLine(n).replace(/^[\s-]+/, "")).filter(Boolean);
@@ -297,9 +297,9 @@ export function promote(state: string, ids: string[], text?: string, details?: s
   return null;
 }
 
-// A promoted item stays in the icebox until the run its idea became is done; then it
+// A promoted item stays in the icebox until the run its task became is done; then it
 // is marked done. Matched the way the board retires an idea: some line of the run's
-// request is the idea (after any `/kaizen lite` prefix), never merely contains it.
+// request is the task (after any `/kaizen lite` prefix), never merely contains it.
 export function markDone(state: string): void {
   const ice = readIcebox(state);
   const waiting = ice.filter((s) => s.status === "promoted" && s.idea);

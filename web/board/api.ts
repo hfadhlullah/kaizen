@@ -1,7 +1,7 @@
 import { store } from "./store.ts";
 import { key, render } from "./cards.ts";
 import { $, vt } from "./dom.ts";
-import { close, ideaBody, open, openRun } from "./panel.ts";
+import { close, taskBody, open, openRun } from "./panel.ts";
 import { notifyUser, toast } from "./toast.ts";
 import { openTerms, termsShowing } from "./terms.ts";
 import { refreshBoardBadge } from "./badge.ts";
@@ -110,7 +110,7 @@ async function read(quiet: boolean) {
     store.flash.clear();
   } else store.flash.clear(); // no redraw now: a flash at some later one would be stale
   if (termsShowing()) openTerms();
-  // Run on an idea closed the panel: open the card on its agent once the board knows the session.
+  // Run on a task closed the panel: open the card on its agent once the board knows the session.
   if (store.wantTerm && !store.openKey && !store.mode) {
     const n = store.S.cards.find((x) => key(x) === store.wantTerm && x.pty);
     if (n) {
@@ -129,20 +129,20 @@ async function read(quiet: boolean) {
       return;
     }
     if (store.runDoc && c.kind === "run") openRun(c, true, true);
-    else if (c.kind === "idea") ideaBody(c);
+    else if (c.kind === "idea") taskBody(c);
   }
 }
-// An idea's card goes when its run starts. Follow it to that run rather than keep
-// offering "Run again": the newest run in its project whose request holds the idea's
+// A task's card goes when its run starts. Follow it to that run rather than keep
+// offering "Run again": the newest run in its project whose request holds the task's
 // text, the rule boardCards() retires it by. No such run: close the panel.
-// ponytail: checks the five newest runs, one /run fetch each; a run that took the idea
+// ponytail: checks the five newest runs, one /run fetch each; a run that took the task
 // further back than that closes the panel instead.
-async function follow(idea) {
-  const k = key(idea),
+async function follow(task) {
+  const k = key(task),
     norm = (s) => s.toLowerCase().replace(/\s+/g, " ").trim(),
-    t = norm(idea.text);
+    t = norm(task.text);
   for (const r of store.S.cards
-    .filter((x) => x.kind === "run" && x.state === idea.state)
+    .filter((x) => x.kind === "run" && x.state === task.state)
     .sort((a, b) => (b.moved ?? 0) - (a.moved ?? 0))
     .slice(0, 5)) {
     const d = await fetch(`/run/${encodeURIComponent(r.id)}?dir=${encodeURIComponent(r.state)}`)

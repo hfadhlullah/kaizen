@@ -31,7 +31,7 @@ filterBox();
 statusSheet();
 initRail();
 initFooter(() => go("terminal", true));
-// The rail's rows and + open a card or the new-idea form here, on the board, when it has them.
+// The rail's rows and + open a card or the new-task form here, on the board, when it has them.
 // A row of another project than the one picked switches the board to that project first.
 addEventListener("kz-open-card", (e: any) => {
   const { dir, id, text } = e.detail;

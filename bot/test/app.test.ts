@@ -268,7 +268,7 @@ test("markdown: unsafe links and HTML stay text; stray and unclosed syntax is ke
 });
 
 test("markdown: no words lost or reordered in a stored-reply shape", () => {
-  const s = "**Talent Scout introduced themselves:**\n\nHi! I'm **Talent Scout** — your teammate.\n\n**What I do**\n- Turn a need into an idea (plan → approval)\n- Draft `job` posts, one *per* role\n\n1. First\n2. Second\nstill second";
+  const s = "**Talent Scout introduced themselves:**\n\nHi! I'm **Talent Scout** — your teammate.\n\n**What I do**\n- Turn a need into a task (plan → approval)\n- Draft `job` posts, one *per* role\n\n1. First\n2. Second\nstill second";
   const want = s.replace(/[*`]|^\s*(-|\d+\.)\s/gm, " ").split(/\s+/).filter(Boolean);
   const got = mdTree(s).flatMap(texts).join(" ").split(/\s+/).filter(Boolean);
   expect(got).toEqual(want);

@@ -31,7 +31,7 @@ anything.
 | `kaizen done <id> [--user-approved]` | Finish a run; refused while the review gate waits on the user, `--user-approved` after a clear yes in chat |
 | `/kaizen backlog` | Print open backlog items across all runs, grouped by source run, rescued items last under `Orphaned` |
 | `/kaizen gather` | Read request sources kaizen cannot read by itself; their requests land in the icebox, nothing starts |
-| `/kaizen discover` | Group what is in the icebox and promote the ideas you pick; nothing starts |
+| `/kaizen discover` | Group what is in the icebox and promote the tasks you pick; nothing starts |
 | `/kaizen docs [lint]` | Write or refresh the project's docs vault in the notebook, which agents read first; `lint` only reports what is stale, broken or uncovered |
 | `kaizen automation list\|add\|run <id>\|pause <id>\|resume <id>\|rm <id>\|runs <id>` | Schedules that start an unattended auto-mode run in this project (hourly, daily, weekdays, weekly or cron; optional precheck). Fires only while a board runs |
 | `kaizen worker init\|start <wid>\|status\|config\|merge\|set <run> on\|off` | Orchestration (off by default): split a run into workers, each in its own board terminal and folder. `kaizen worker report` is for the workers themselves |
@@ -101,7 +101,7 @@ Each iteration is written to `runs/<id>/05-iterations/`.
 | `git.auto_commit` | `false` | `true`: commit the run's changed files when it is done; never pushes |
 | `subagents.model` | `inherit` | Model the stage subagents run on (opus/sonnet/haiku, Claude Code only) |
 | `subagents.effort` | `inherit` | Reasoning effort for the stage subagents (low/medium/high, Claude Code only) |
-| `sources.every` | `24h` | How often the web board checks request sources for new ideas (`off\|1h\|6h\|24h`) |
+| `sources.every` | `24h` | How often the web board checks request sources for new tasks (`off\|1h\|6h\|24h`) |
 | `agent.default` | `auto` | Coding agent to launch from dashboard backlog |
 | `agent.<cmd>.model`, `.effort` | — | Model/effort flags for the launched session, per tool (`claude`, `codex`, `agy`, `opencode`, `gemini`); model names are the tool's own |
 
