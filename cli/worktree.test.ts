@@ -432,3 +432,21 @@ test("L-08 land.json holds what stopped the land, and the board card reads it", 
   expect(l).toMatchObject({ kind: "conflict", paths: ["a.txt"], term: "sh-12345678" });
   expect(notice({ kind: "run", text: "x", where: "p", status: "done", land: l } as any)).toBe("x — conflict: a.txt\np");
 });
+
+test("L-09 generated conflict with no rebuild command stops the land", () => {
+  cfg('git:\n  generated: "*.js"\n  land_check: off\n');
+  commit(project, "app.js", "0"); g(project, "push", "-q", "origin", "HEAD:main"); g(other, "pull", "-q", "origin", "main");
+  startWorktree(project, ID); commit(wt(), "app.js", "mine"); const tip = g(wt(), "rev-parse", "HEAD"); upstream("app.js", "theirs");
+  expect(land()).toMatchObject({ ok: false, kind: "conflict", paths: ["app.js"] });
+  expect(g(wt(), "rev-parse", "HEAD")).toBe(tip);
+});
+
+test("L-10 a failure with no kind replaces an old Conflict; a run with no worktree records nothing", () => {
+  const f = join(project, ".kaizen/runs", ID, "land.json");
+  expect(landRun(project, ID).ok).toBe(false);
+  expect(existsSync(f)).toBe(false);
+  startWorktree(project, ID); writeFileSync(f, JSON.stringify({ kind: "conflict", why: "old" }));
+  writeFileSync(join(wt(), "dirty.txt"), "x");
+  expect(landRun(project, ID).ok).toBe(false);
+  expect(JSON.parse(readFileSync(f, "utf8")).kind).toBe("merge");
+});

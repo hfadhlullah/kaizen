@@ -111,7 +111,8 @@ git:
   worktree_per_run: ask
   # Landing rebases the branch onto its base first. Path patterns, space-separated, of
   # files safe to take from the base on a conflict; any other conflict stops the land.
-  # Empty: nothing is resolved automatically.
+  # Empty: nothing is resolved automatically. Needs rebuild_on_land: without it a
+  # conflict stops the land, since nothing would remake the file.
   generated: ""
   # Command that remakes the generated files, run once when any was resolved.
   rebuild_on_land: ""
