@@ -5,6 +5,7 @@
 import { onBoardCards } from "./badge.ts";
 import { store } from "./store.ts";
 import { $, html, modal, raw } from "./dom.ts";
+import { initResources } from "./resources.ts";
 import { age, need } from "./labels.ts";
 import { openAdd } from "./add-project.ts";
 import { initSearch } from "./search.ts";
@@ -497,6 +498,7 @@ export function initFooter(goTerminal: () => void) {
   const fh = () => document.documentElement.style.setProperty("--foot-h", $("foot").offsetHeight + "px");
   new ResizeObserver(fh).observe($("foot"));
   fh();
+  initResources();
   void usage();
   void phone();
   setInterval(() => void usage(), 5 * 60_000);

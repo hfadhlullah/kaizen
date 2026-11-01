@@ -5,8 +5,9 @@ import { test, expect } from "bun:test";
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { startPty, exitPty, ptyState, tmuxOk, tmuxName, tmuxAlive, killTmux, detachPty, attachPty, panePid } from "./pty.ts";
+import { startPty, exitPty, killPty, ptyState, tmuxOk, tmuxName, tmuxAlive, killTmux, detachPty, attachPty, panePid } from "./pty.ts";
 import { keepAlive } from "./state.ts";
+import { processTable, treeRss } from "./resources.ts";
 
 const root = realpathSync(mkdtempSync(join(tmpdir(), "kaizen-restart-")));
 const posix = process.platform !== "win32";
@@ -193,3 +194,29 @@ console.log("up");`);
     expect(version).toBe(JSON.parse(readFileSync(join(import.meta.dir, "..", "package.json"), "utf8")).version);
   } finally { fresh.kill("SIGKILL"); old.kill("SIGKILL"); }
 }, 20000);
+
+test("killPty ends the terminal's whole group at once, and only that terminal", async () => {
+  if (!posix) return;
+  const file = (n: string) => join(root, n + ".pid");
+  for (const k of ["kill-a", "kill-b"]) startPty(k, ["sh", "-c", `sleep 300 & echo $! > ${file(k)}; wait`], root);
+  for (let i = 0; i < 100 && !(existsSync(file("kill-a")) && existsSync(file("kill-b"))); i++) await Bun.sleep(20);
+  const a = Number(readFileSync(file("kill-a"), "utf8")), b = Number(readFileSync(file("kill-b"), "utf8"));
+  expect(killPty("kill-a")).toBe(true);
+  expect(await gone(a)).toBe(true);
+  expect(() => process.kill(b, 0)).not.toThrow();
+  expect(killPty("no-such")).toBe(false);
+  killPty("kill-b");
+  expect(await gone(b)).toBe(true);
+});
+
+test.skipIf(!posix || !tmuxOk())("a tmux-kept terminal is measured from its pane and killed with its session", async () => {
+  const name = tmuxName("res-" + process.pid);
+  startPty("res-tmux", ["sleep", "60"], root, undefined, undefined, { tmux: name });
+  let pane: number | null = null;
+  for (let i = 0; i < 100 && !(pane = panePid(name)); i++) await Bun.sleep(30);
+  expect(pane).toBeGreaterThan(0);
+  expect(treeRss((await processTable())!, [pane!])).toBeGreaterThan(0);
+  expect(killPty("res-tmux")).toBe(true);
+  for (let i = 0; i < 100 && tmuxAlive(name); i++) await Bun.sleep(30);
+  expect(tmuxAlive(name)).toBe(false);
+});

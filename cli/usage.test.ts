@@ -82,6 +82,17 @@ test.skipIf(process.platform === "win32")("/shell: foreign origin, unknown proje
     expect((await post({ dir: st }, "http://localhost:3000")).status).toBe(403);
     // A simple (no-preflight) POST body type.
     expect((await post({ dir: st }, at, "text/plain")).status).toBe(415);
+    const kill = (body: object, origin?: string, type = "application/json") => fetch(at + "/pty/kill", { method: "POST", headers: { "content-type": type, ...(origin ? { origin } : {}) }, body: JSON.stringify(body) });
+    expect((await kill({ key: "x" }, "https://evil.example")).status).toBe(403);
+    expect((await kill({ key: "x" }, at, "text/plain")).status).toBe(415);
+    expect((await kill({ key: "no-such" }, at)).status).toBe(404);
+    expect((await kill({ key: "../x" }, at)).status).toBe(404);
+    const res = await (await fetch(at + "/resources")).json();
+    expect(res.system.total).toBeGreaterThan(0);
+    expect(res.kaizen).toBeGreaterThan(0);
+    const disk = await fetch(at + "/resources/storage");
+    expect(disk.status).toBe(200);
+    expect(typeof (await disk.json()).scanning).toBe("boolean");
     expect((await post({ dir: join(root, "elsewhere", ".kaizen") })).status).toBe(404);
     expect((await post({ dir: join(homeDir, ".kaizen") })).status).toBe(404);
     expect((await post({ dir: st, agent: "rm -rf /" })).status).toBe(400);
