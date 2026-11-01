@@ -151,3 +151,18 @@ test("a worker model written into a config that has no such block lands under or
     expect(read(text, "orchestration.enabled")).toBe("true");
   } finally { writeFileSync(file, keep); }
 });
+
+test("kaizen settings preset applies the whole bundle, and refuses an unknown name", () => {
+  const home = mkdtempSync(join(tmpdir(), "kaizen-preset-"));
+  const run = (name: string) => Bun.spawnSync(["bun", "run", join(repo, "cli/install.ts"), "settings", "preset", name], { cwd: home, env: { ...process.env, HOME: home, USERPROFILE: home } });
+  try {
+    expect(run("ultra").exitCode).toBe(0);
+    const text = readFileSync(join(home, ".kaizen/config.yml"), "utf8");
+    expect(read(text, "preset")).toBe("ultra");
+    expect(read(text, "mode")).toBe("auto");
+    expect(read(text, "git.auto_commit")).toBe("true");
+    expect(run("bogus").exitCode).toBe(1);
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
