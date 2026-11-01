@@ -132,11 +132,13 @@ function rebaseOnto(project: string, dir: string, ref: string, sh: Run): Failed 
     sh(["git", "rebase", "--abort"], dir);
     return { ok: false, kind: "conflict", why: `${why}; worktree kept`, ...(paths ? { paths } : {}) };
   };
+  const rebuild = gitSetting(project, "rebuild_on_land", "");
   let resolved = false, rb = sh(["git", "rebase", ref], dir);
   while (!rb.ok) {
     const paths = sh(["git", "diff", "--name-only", "--diff-filter=U"], dir).out.split("\n").filter(Boolean);
     if (!paths.length) return giveUp(`rebase onto ${ref} stopped: ${rb.why}`);
-    const real = paths.filter((p) => !generated(p));
+    // With nothing to rebuild it, taking the base's side would drop the branch's change.
+    const real = rebuild ? paths.filter((p) => !generated(p)) : paths;
     if (real.length) return giveUp(`rebase onto ${ref} conflicts in ${real.join(", ")}`, real);
     // In a rebase "ours" is the base. A file deleted on the base has no such side: not routine.
     if (!sh(["git", "checkout", "--ours", "--", ...paths], dir).ok || !sh(["git", "add", "--", ...paths], dir).ok) return giveUp(`could not resolve ${paths.join(", ")}`, paths);
@@ -146,7 +148,6 @@ function rebaseOnto(project: string, dir: string, ref: string, sh: Run): Failed 
     rb = sh(empty ? ["git", "rebase", "--skip"] : ["git", "-c", "core.editor=true", "rebase", "--continue"], dir);
   }
   const back = (why: string): Failed => { sh(["git", "reset", "--hard", before], dir); return { ok: false, kind: "check", why: `${why}; branch put back, worktree kept` }; };
-  const rebuild = gitSetting(project, "rebuild_on_land", "");
   if (resolved && rebuild) {
     const b = sh(shell(rebuild), dir, LONG);
     if (!b.ok) return back(`rebuild failed: ${b.why}`);
@@ -181,9 +182,9 @@ const clearLand = (project: string, id: string) => rmSync(landFile(project, id),
 export function landRun(project: string, id: string, term?: string): Landed {
   const r = landWorktree(project, id);
   if (r.ok) clearLand(project, id);
-  else if (r.kind) {
+  else if (SLUG.test(id) && codeDir(project, id) !== project) { // no worktree: nothing is mid-land
     const f = landFile(project, id), tmp = `${f}.${process.pid}.tmp`;
-    writeFileSync(tmp, JSON.stringify({ kind: r.kind, why: r.why, ...(r.paths ? { paths: r.paths } : {}), ...(term ? { term } : {}), at: Date.now() }));
+    writeFileSync(tmp, JSON.stringify({ kind: r.kind ?? "merge", why: r.why, ...(r.paths ? { paths: r.paths } : {}), ...(term ? { term } : {}), at: Date.now() }));
     renameSync(tmp, f);
   }
   return r;
@@ -246,7 +247,7 @@ export function landWorktree(project: string, id: string, sh: Run = run,
   };
 
   const ref = `origin/${base}`;
-  const fetched = sh(["git", "fetch", "origin"], dir);
+  const fetched = sh(["git", "fetch", "--prune", "origin"], dir);
   if (!fetched.ok) return { ok: false, kind: "merge", why: `fetch failed: ${fetched.why}` };
   // A retry after the merge went through: only the cleanup is left, and a rebase would empty the branch.
   if (Number(sh(["git", "rev-list", "--count", `${ref}..${branch}`], dir).out) > 0 && landed(dir, ref, branch, sh)) return finish("push");
@@ -268,7 +269,7 @@ export function landWorktree(project: string, id: string, sh: Run = run,
   }
 
   for (let i = 0; i < 2; i++) {
-    const f = sh(["git", "fetch", "origin"], dir);
+    const f = sh(["git", "fetch", "--prune", "origin"], dir);
     if (!f.ok) return { ok: false, kind: "merge", why: `fetch failed: ${f.why}` };
     const stop = rebaseOnto(project, dir, ref, sh);
     if (stop) return stop;
