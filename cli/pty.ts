@@ -230,6 +230,17 @@ export function exitPty(key: string, grace = 5000): boolean {
   return true;
 }
 
+// The resource monitor's Kill: at once, with no /exit first, which a plain shell would only
+// print an error for. The whole group goes (see the note above); a tmux agent with its session.
+export function killPty(key: string): boolean {
+  const p = ptys.get(key);
+  if (!p || p.exit !== null) return false;
+  if (p.tmux) killTmux(p.tmux);
+  if (WIN) p.proc.kill();
+  else { try { process.kill(-p.proc.pid, "SIGKILL"); } catch { p.proc.kill(); } }
+  return true;
+}
+
 // The board stopping with a tmux-kept agent: only its client ends, the agent keeps running
 // in kaizen's tmux server, and the next board attaches to it (attachCmd).
 export function detachPty(key: string): boolean {

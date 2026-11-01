@@ -17,7 +17,8 @@ import { MAX_IMAGE, saveImage } from "./term-image.ts";
 import { bundledSkills, setSkill, skillsHeld, skillsOff, skillStatus } from "./skills.ts";
 import { accountEnv, accountForRun, agentUsable, CHILD_ENV, heartbeatMinutes, keepAwake, launchPreview, trustFolder, YOLO_FLAGS } from "./state.ts";
 import { failStart, markRunning, readWorkers, requested, startWorker, sweep, workerStale } from "./workers.ts";
-import { attachPty, writePty, submitPty, resizePty, exitPty, ptyState, ptyKeys, adoptLoginEnv, startPty, ptySupported, detachPty, ptyTail, ptyTmux, tmuxAlive, RESUMED } from "./pty.ts";
+import { processTable, storage, systemMemory, treeRss, type Root } from "./resources.ts";
+import { attachPty, writePty, submitPty, resizePty, exitPty, killPty, panePid, ptyState, ptyKeys, adoptLoginEnv, startPty, ptySupported, detachPty, ptyTail, ptyTmux, tmuxAlive, RESUMED } from "./pty.ts";
 import { snapshot, snapWorker } from "./state-snap.ts";
 import { claudeUsage, claudeUsageAt, codexUsage, codexUsageAt, phonePeers, type Usage } from "./usage.ts";
 import { readSources, addSource, removeSource, moveSource, setCategory, setWriteback, setPaused, readIcebox, promote, dismiss, restore, addItem, markDone, markReplied, gatherSource, freshImages, gatherAll, gatherDirs, due, socialUrl, socialOf } from "./sources.ts";
@@ -797,6 +798,19 @@ export async function web(repoDir: string, opts: Opts = {}) {
         if (!/^[\w-]+$/.test(key) || !ptyState(key)) return bad("no such terminal", 404);
         return json({ ok: exitPty(key) });
       }
+      // The resource monitor's Kill: ends the process at once, so /shell's guards, and only
+      // a live terminal this board holds. A pid never comes from the page.
+      if (req.method === "POST" && path === "/pty/kill") {
+        const refused = strict(req);
+        if (refused) return refused;
+        let body: any;
+        try { body = await req.json(); } catch { return bad("json body expected"); }
+        const key = String(body.key ?? "");
+        if (!/^[\w-]+$/.test(key) || !ptyState(key)?.alive) return bad("no such terminal", 404);
+        const ok = killPty(key);
+        changed();
+        return json({ ok });
+      }
 
       // A plain shell, or a bare Claude/Codex session, in a project folder: the run
       // workspace's + menu. Code execution, so local() as for every write, a registered
@@ -974,6 +988,30 @@ export async function web(repoDir: string, opts: Opts = {}) {
         const dir = qdir();
         for (const k of shells.keys()) if (!ptyState(k)?.alive) shells.delete(k);
         return json([...shells.values()].filter((s) => !dir || s.dir === dir).map(shown));
+      }
+      // The footer's resource monitor. Storage answers at once from the last scan; see storage().
+      if (req.method === "GET" && path === "/resources") {
+        const table = await processTable(), sessions = states(true).flatMap((st) => readSessions(st).map((s) => ({ ...s, st })));
+        const roots: number[] = [process.pid];
+        const terminals = ptyKeys().filter((k) => ptyState(k)?.alive).map((key) => {
+          const sh = shells.get(key), s = sessions.find((x) => x.key === key);
+          const cmd = sh?.agent || s?.cmd || "", st = sh?.dir ?? s?.st ?? "";
+          const t = shown({ key, dir: st, run: sh?.run ?? "", ws: sh?.ws ?? (st ? projectOf(st) : undefined) });
+          // A tmux-kept agent lives under kaizen's tmux server, not under the board.
+          const tmux = ptyTmux(key), pid = (tmux ? panePid(tmux) : null) ?? ptyState(key)!.pid;
+          roots.push(pid);
+          return { key, title: sh?.title ?? (KNOWN_AGENTS.find((a) => a.cmd === cmd)?.name ?? (cmd || "terminal")), agent: cmd, dir: st, ws: t.ws ?? "", project: st ? basename(projectOf(st)) : "", rss: table ? treeRss(table, [pid]) : null };
+        });
+        return json({ system: systemMemory(), kaizen: table ? treeRss(table, roots) : process.memoryUsage().rss, terminals });
+      }
+      if (req.method === "GET" && path === "/resources/storage") {
+        const data = join(home, ".kaizen");
+        const roots = (): Root[] => [
+          { name: "Kaizen data", dir: "", path: data, kind: "home" },
+          { name: "Kaizen install", dir: "", path: resolve(import.meta.dir, ".."), kind: "install" },
+          ...knownProjects().map((d) => ({ name: basename(d), dir: join(d, ".kaizen"), path: join(d, ".kaizen"), kind: "project" as const })),
+        ];
+        return json(storage(roots, url.searchParams.has("refresh")));
       }
       // The localhost tab's "Open in browser": a Chromium app window on this computer, for
       // localhost pages that refuse to be framed. Launches a process, so /shell's guards, and only a
