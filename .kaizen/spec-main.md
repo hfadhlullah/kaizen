@@ -99,6 +99,8 @@ then take the final approval and land as usual; in `auto` carry on without stopp
 `blocked`, `failed` or `quiet`: say why and what is left, and keep the worktree. `quiet` means the second agent went silent and may still report; `kaizen handoff start <id>` opens a new one on the same worktree. A run with
 `base_branch` lands by a local merge into that branch, with no push; if the project folder
 is on another branch or the merge conflicts, `kaizen worktree land` says so and keeps the
+
+Landing rebases the branch onto its base first, in every land path: a conflict only in `git.generated` paths takes the base's side and runs `git.rebuild_on_land`, any other conflict aborts and keeps the worktree, and a rebase that pulled commits runs `git.land_check`. A branch already pushed is replaced with `--force-with-lease`, on `kaizen/<id>` only. A failure is written to `runs/<id>/land.json` and cleared on success; the board shows it as `Conflict` or `Land failed` with a red `!`.
 worktree, so tell the user.
 
 ## Preview gate

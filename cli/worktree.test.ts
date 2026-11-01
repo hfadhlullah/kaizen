@@ -3,7 +3,8 @@ import { test, expect, beforeEach } from "bun:test";
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, realpathSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { linkTerm, linkedWs, startWorktree, landWorktree, codeDir, projectFromWorktree, run, runAsync, workspaces, workspacesNow, addWorktree, wsOf, adoptWorkspace, branchState, openPr, mergePr, removeWorktree, type Run, type AsyncRun } from "./worktree.ts";
+import { notice } from "./state.ts";
+import { linkTerm, linkedWs, startWorktree, landWorktree, landRun, codeDir, projectFromWorktree, run, runAsync, workspaces, workspacesNow, addWorktree, wsOf, adoptWorkspace, branchState, openPr, mergePr, removeWorktree, type Run, type AsyncRun } from "./worktree.ts";
 
 const ID = "2026-10-17-demo";
 // CI runners have no git identity, and landWorktree's rebase writes commits.
@@ -337,4 +338,97 @@ test("cold 6: a run with no commits is not landed, and a feature base offers no 
   const b = branchState(project, ID, () => {}, idRun, runAsync, true)!;
   expect(b).toMatchObject({ base: "feature-x", local: true, gh: false });
   expect((await openPr(project, ID, "t", "b", false, idRun, runAsync, true)).ok).toBe(false);
+});
+
+// ---- land: rebase first, resolve only what is generated, record what stops it
+const land = () => landWorktree(project, ID, idRun, false);
+const cfg = (t: string) => writeFileSync(join(project, ".kaizen/config.yml"), t);
+const upstream = (f: string, t: string) => { commit(other, f, t); g(other, "pull", "-q", "--rebase", "origin", "main"); g(other, "push", "-q", "origin", "HEAD:main"); };
+const wt = () => state().worktree as string;
+
+test("L-01 a stale branch that was never pushed lands with no force", () => {
+  startWorktree(project, ID); commit(wt(), "b.txt", "b"); upstream("c.txt", "c");
+  const seen: string[][] = [];
+  const r = landWorktree(project, ID, (c, d, m) => (seen.push(c), idRun(c, d, m)), false);
+  expect(r.ok).toBe(true);
+  expect(seen.flat().join(" ")).not.toContain("force");
+  expect(g(other, "ls-remote", "origin", "main")).toBeTruthy();
+});
+
+test("L-02 conflicts only in generated files land, rebuilt in one commit", () => {
+  cfg('git:\n  generated: "*.js"\n  rebuild_on_land: "echo rebuilt > app.js"\n  land_check: off\n');
+  commit(project, "app.js", "0"); g(project, "push", "-q", "origin", "HEAD:main"); g(other, "pull", "-q", "origin", "main");
+  startWorktree(project, ID); writeFileSync(join(wt(), "app.js"), "mine"); writeFileSync(join(wt(), "b.txt"), "b"); g(wt(), "add", "."); g(wt(), "commit", "-qm", "feat: b");
+  upstream("app.js", "theirs");
+  expect(land().ok).toBe(true);
+  g(other, "pull", "-q", "origin", "main");
+  expect(readFileSync(join(other, "app.js"), "utf8").trim()).toBe("rebuilt");
+  expect(g(other, "log", "--format=%s", "-3")).toContain("chore: rebuild generated files");
+  expect(readFileSync(join(other, "b.txt"), "utf8")).toBe("b");
+});
+
+test("L-03 any other conflict aborts with branch, worktree and commits intact; default settings resolve nothing", () => {
+  startWorktree(project, ID); commit(wt(), "a.txt", "mine"); const tip = g(wt(), "rev-parse", "HEAD");
+  upstream("a.txt", "theirs");
+  const r = land();
+  expect(r).toMatchObject({ ok: false, kind: "conflict", paths: ["a.txt"] });
+  expect(g(wt(), "rev-parse", "HEAD")).toBe(tip);
+  expect(g(wt(), "status", "--porcelain")).toBe("");
+  expect(existsSync(wt())).toBe(true);
+});
+
+test("L-04 a failing check stops the land and puts the branch back; off and no pulled commits skip it", () => {
+  cfg('git:\n  land_check: "exit 3"\n');
+  startWorktree(project, ID); commit(wt(), "b.txt", "b"); const tip = g(wt(), "rev-parse", "HEAD");
+  upstream("c.txt", "c");
+  expect(land()).toMatchObject({ ok: false, kind: "check" });
+  expect(g(wt(), "rev-parse", "HEAD")).toBe(tip);
+  cfg('git:\n  land_check: off\n');
+  expect(land().ok).toBe(true);
+});
+
+test("L-04b no pulled commits skip the check", () => {
+  cfg('git:\n  land_check: "exit 3"\n');
+  startWorktree(project, ID); commit(wt(), "b.txt", "b");
+  expect(land().ok).toBe(true);
+});
+
+test("L-05 merge=union keeps both lines of the log", () => {
+  commit(project, ".gitattributes", "Log.md merge=union\n"); commit(project, "Log.md", "0\n"); g(project, "push", "-q", "origin", "HEAD:main"); g(other, "pull", "-q", "origin", "main");
+  startWorktree(project, ID); commit(wt(), "Log.md", "0\nmine\n"); upstream("Log.md", "0\ntheirs\n");
+  expect(land().ok).toBe(true);
+  g(other, "pull", "-q", "origin", "main");
+  const log = readFileSync(join(other, "Log.md"), "utf8");
+  expect(log).toContain("mine"); expect(log).toContain("theirs");
+});
+
+test("L-06 a rebased pushed branch force pushes under a lease, on its own branch only", () => {
+  startWorktree(project, ID); commit(wt(), "b.txt", "b"); g(wt(), "push", "-q", "origin", `HEAD:refs/heads/kaizen/${ID}`); upstream("c.txt", "c");
+  const pushes: string[][] = [];
+  const r = landWorktree(project, ID, (c, d, m) => { if (c.includes("push")) pushes.push(c); return c.includes("gh") ? { ok: true, out: "", why: "" } : idRun(c, d, m); }, true);
+  const forced = pushes.filter((p) => p.some((a) => a.includes("force")));
+  expect(forced.length).toBe(1);
+  expect(forced[0]!.some((a) => a.startsWith(`--force-with-lease=refs/heads/kaizen/${ID}:`))).toBe(true);
+  expect(forced[0]!.at(-1)).toBe(`HEAD:refs/heads/kaizen/${ID}`);
+  expect(r.ok).toBe(false); // the stub gh merged nothing
+});
+
+test("L-07 land.json records a failure and clears on success", () => {
+  startWorktree(project, ID); commit(wt(), "a.txt", "mine");
+  const f = join(project, ".kaizen/runs", ID, "land.json");
+  writeFileSync(f, JSON.stringify({ kind: "conflict", why: "old" }));
+  const r = landRun(project, ID);
+  // No git identity in CI matters only for a rebase; nothing was pulled here.
+  expect(r.ok).toBe(true);
+  expect(existsSync(f)).toBe(false);
+});
+
+test("L-08 land.json holds what stopped the land, and the board card reads it", () => {
+  // landRun uses the plain runner: give this repo the identity CI lacks.
+  g(project, "config", "user.email", "a@b.c"); g(project, "config", "user.name", "t");
+  startWorktree(project, ID); commit(wt(), "a.txt", "mine"); upstream("a.txt", "theirs");
+  expect(landRun(project, ID, "sh-12345678").ok).toBe(false);
+  const l = JSON.parse(readFileSync(join(project, ".kaizen/runs", ID, "land.json"), "utf8"));
+  expect(l).toMatchObject({ kind: "conflict", paths: ["a.txt"], term: "sh-12345678" });
+  expect(notice({ kind: "run", text: "x", where: "p", status: "done", land: l } as any)).toBe("x — conflict: a.txt\np");
 });

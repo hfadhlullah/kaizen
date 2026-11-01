@@ -776,10 +776,15 @@ export function markBacklogDone(state: string) {
 
 // ---------------------------------------------------------------- board data
 
+export type Land = { kind: "conflict" | "check" | "merge"; why: string; paths?: string[]; term?: string; at?: number };
+const readLand = (st: string, id: string): Land | undefined => {
+  try { const l = JSON.parse(readFileSync(join(st, "runs", id, "land.json"), "utf8")); return typeof l?.kind === "string" ? l : undefined; } catch { return undefined; }
+};
 export type Card = {
   kind: "idea" | "run";
   id?: string;                                     // runs only: the directory name
   handoff?: string;                                // runs only: how a handoff ended, when its first agent is gone
+  land?: Land;                                     // runs only: what stopped the last land (land.json)
   stage?: string;                                  // runs only: the stage word
   iteration?: number;                              // runs only: the fix round
   status: string;                                  // what the legend calls this card
@@ -1026,7 +1031,7 @@ const NEED: Record<string, string> = {
 };
 export function notice(c: Card): string | null {
   if (c.kind !== "run") return null;
-  const what = c.handoff ? `the worktree agent ended (${c.handoff}): tell the first agent, or review it here` : c.awaiting ? NEED[c.awaiting] ?? `waiting on ${c.awaiting}` : c.status === "done" ? (c.accept === "needs" ? "done, not approved" : "done") : null;
+  const what = c.land ? (c.land.kind === "conflict" ? `conflict: ${c.land.paths?.join(", ") || c.land.why}` : `land failed: ${c.land.why}`) : c.handoff ? `the worktree agent ended (${c.handoff}): tell the first agent, or review it here` : c.awaiting ? NEED[c.awaiting] ?? `waiting on ${c.awaiting}` : c.status === "done" ? (c.accept === "needs" ? "done, not approved" : "done") : null;
   return what && `${c.text} — ${what}\n${c.where}`;
 }
 
@@ -1296,6 +1301,7 @@ export function boardCards(states: string[], now: number): Card[] {
         notes: readNotes(st, r.id) || undefined,
         parent: parentOf(body(st, r.id)),
         ...(r.healed ? { healed: true } : {}),
+        ...((land) => land ? { land } : {})(readLand(st, r.id)),
         ...(r.stage === "done" ? accepted(st, r.id) : {}),
       });
     }

@@ -731,3 +731,8 @@ form. Your home folder is written as `~`; no hostname or username is included. N
 is sent until you read it and press Submit on GitHub. `kaizen issue --env` only prints
 the details.
 
+## Landing a worktree run
+
+Landing rebases the branch onto its base first, in every land path: a conflict only in `git.generated` paths takes the base's side and runs `git.rebuild_on_land`, any other conflict aborts and keeps the worktree, and a rebase that pulled commits runs `git.land_check`. A branch already pushed is replaced with `--force-with-lease`, on `kaizen/<id>` only. A failure is written to `runs/<id>/land.json` and cleared on success; the board shows it as `Conflict` or `Land failed` with a red `!`.
+
+This repo's own values live in `.kaizen/config.yml`, which is not committed.

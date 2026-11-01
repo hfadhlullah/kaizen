@@ -26,6 +26,9 @@ nearest first, so a change lands globally unless this project keeps its own conf
 | `review.write_memory` | `true`, `false` | Let the reviewer append lessons to `memory.md` |
 | `git.auto_commit` | `true`, `false` | Commit the work when a run finishes |
 | `git.worktree_per_run` | `ask`, `true`, `false` | Build each run on its own branch in its own worktree and land it by pull request; `ask` offers the choice at the plan approval |
+| `git.generated` | text | Space-separated path patterns a land may take from the base on a conflict; empty resolves nothing |
+| `git.rebuild_on_land` | text | Command that remakes generated files after they were resolved |
+| `git.land_check` | `auto`, `off`, or a command | Runs after a rebase that pulled commits; a failure stops the land |
 | `ui.mouse` | `false`, `true` | Click to select, click again to act; while on, the terminal cannot select text |
 | `agent.model.<tool>` | the tool's own model name, or empty | Launch model for agy, codex, gemini, opencode, for every stage |
 | `subagents.model` | `inherit`, `opus`, `sonnet`, `haiku` | Model the stage subagents run on (Claude Code only) |
