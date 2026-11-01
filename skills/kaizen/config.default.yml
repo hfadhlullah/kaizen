@@ -109,6 +109,15 @@ git:
   # ask: the plan approval offers a new worktree or the current folder; auto mode takes
   # a new worktree. true always makes one, false never does.
   worktree_per_run: ask
+  # Landing rebases the branch onto its base first. Path patterns, space-separated, of
+  # files safe to take from the base on a conflict; any other conflict stops the land.
+  # Empty: nothing is resolved automatically.
+  generated: ""
+  # Command that remakes the generated files, run once when any was resolved.
+  rebuild_on_land: ""
+  # Runs after a rebase that pulled commits; failing stops the land.
+  # auto: the test script in package.json, if any. off: none. Anything else: a command.
+  land_check: auto
 
 orchestration:
   # true: a plan may split into workers (a `## Workers` section you approve with the plan).

@@ -139,17 +139,18 @@ export const loopbackUrl = (pv?: string | null) => (pv ? /https?:\/\/(?:localhos
 export const toOpen = (cards: any[], was: Set<string>, seen: string[], keyOf: (c) => string) => cards.filter((c) => reviewing(c) && !was.has(keyOf(c)) && !seen.includes(keyOf(c)));
 
 // ---- the sidebar card's agents (/state `agents`, one entry per open agent terminal)
-export type Agent = { key: string; dir: string; ws?: string; agent?: string; name: string; run?: string; asking: boolean; busy: boolean; last?: string; at?: number; born?: number };
-export type Status = "asking" | "working" | "done";
+export type Agent = { key: string; dir: string; ws?: string; agent?: string; name: string; run?: string; asking: boolean; busy: boolean; last?: string; at?: number; born?: number; land?: string };
+export type Status = "conflict" | "failed" | "asking" | "working" | "done";
 // Output flickers: entering "working" is immediate, leaving it for "done" waits this long after the last busy tick.
 export const SETTLE_MS = 3000;
 const seenBusy = new Map<string, number>(); // pty key + start time -> when it was last seen busy
 const id = (a: Agent) => a.key + "@" + (a.born ?? 0); // a restarted pty under the same key is a new agent
-const ORDER: Record<Status, number> = { asking: 0, working: 1, done: 2 };
-const WORD: Record<Status, string> = { asking: "Asking", working: "Working", done: "Done" };
-const DOT: Record<Status, string> = { asking: "wait", working: "build", done: "done" }; // the .si icons
+const ORDER: Record<Status, number> = { conflict: 0, failed: 0, asking: 0, working: 1, done: 2 };
+export const WORD: Record<Status, string> = { conflict: "Conflict", failed: "Land failed", asking: "Asking", working: "Working", done: "Done" };
+export const DOT: Record<Status, string> = { conflict: "fail", failed: "fail", asking: "wait", working: "build", done: "done" }; // the .si icons
 // asking comes first and is immediate both ways (the server already waits for the screen to settle).
 export function agentStatus(a: Agent, now: number, seen = seenBusy): Status {
+  if (a.land) return a.land === "conflict" ? "conflict" : "failed";
   if (a.asking) return "asking";
   if (a.busy) return (seen.set(id(a), now), "working");
   return now - (seen.get(id(a)) ?? -Infinity) < SETTLE_MS ? "working" : "done";
@@ -166,7 +167,7 @@ export const wsAgents = (as: Agent[], dir: string, ws: string, wsOf, now: number
     .map((a) => ({ a, st: agentStatus(a, now, seen) }))
     .sort((x, y) => ORDER[x.st] - ORDER[y.st]);
 // An expanded card's row text: the agent's latest output line, else the status and the agent.
-export const lineOf = ({ a, st }: ARow) => a.last || `${WORD[st]} - ${a.name}`;
+export const lineOf = ({ a, st }: ARow) => (a.land ? "" : a.last) || `${WORD[st]} - ${a.name}`;
 const ago = (t: number | undefined, now: number) => (!t ? "" : now - t < 60e3 ? "now" : age(t, now));
 // Expanded cards, remembered per workspace (localStorage kz-wsopen): the map of dir\0ws to true.
 export const openKey = (dir: string, ws: string) => dir + "\0" + ws;
@@ -192,7 +193,7 @@ export function agentsHtml(rows: ARow[], now: number, open: boolean, dir: string
   const chev = html`<button type="button" class="wchev${open ? " on" : ""}" data-wopen ${at} aria-expanded="${String(open)}" aria-label="${String(rows.length)} agents: ${open ? "hide" : "show"} the list">${CHEV}</button>`;
   if (open)
     return html`<div class="wag"><span class="aht">${String(rows.length)} agents</span>${chev}</div><div class="alist">${rows.map((r) => html`<button type="button" class="arow" data-term="${r.a.key}" ${at} title="${lineOf(r)}">${dot(r.st)}${mark(r.a)}<span class="atx">${lineOf(r)}</span><small>${ago(r.a.at, now)}</small></button>`)}</div>`;
-  const chips = (["asking", "working", "done"] as Status[]).map((st) => ({ st, rs: rows.filter((r) => r.st === st) })).filter((g) => g.rs.length);
+  const chips = (["conflict", "failed", "asking", "working", "done"] as Status[]).map((st) => ({ st, rs: rows.filter((r) => r.st === st) })).filter((g) => g.rs.length);
   return html`<div class="wag"><span class="chips">${chips.map((g) => html`<span class="chip">${dot(g.st)}${g.rs.map((r) => html`<button type="button" class="amark" data-term="${r.a.key}" ${at} title="${r.a.name} - ${WORD[g.st]}: open its terminal" aria-label="${r.a.name} - ${WORD[g.st]}: open its terminal">${mark(r.a)}</button>`)}</span>`)}</span>${chev}</div>`;
 }
 

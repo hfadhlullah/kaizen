@@ -203,3 +203,11 @@ test("nearestPane walks a split like tmux", () => {
   expect(nearestPane(b, "a", "r")).toBe("b");
   expect(nearestPane(b, "gone", "r")).toBeNull();
 });
+
+test("a failed land outranks every other agent status", () => {
+  const a = { key: "k", dir: "d", name: "Claude", asking: true, busy: true };
+  expect(agentStatus({ ...a, land: "conflict" }, 0, new Map())).toBe("conflict");
+  expect(agentStatus({ ...a, land: "check" }, 0, new Map())).toBe("failed");
+  expect(lineOf({ a: { ...a, land: "conflict", last: "x" }, st: "conflict" })).toBe("Conflict - Claude");
+  expect(agentStatus(a, 0, new Map())).toBe("asking");
+});

@@ -1,19 +1,20 @@
 // One branch and one git worktree per run, so agents building at the same time never
 // share a working folder. Run notes stay in the project's .kaizen/runs/<id>/; only the
 // code lives in the worktree. Every git call is an argv array, never a shell string.
-import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync, realpathSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync, renameSync, realpathSync } from "node:fs";
 import { join, dirname, resolve, sep } from "node:path";
+import { homedir } from "node:os";
 import { branchesOf } from "./add-project.ts";
 
 export type Out = { ok: boolean; out: string; why: string };
-export type Run = (cmd: string[], cwd: string) => Out;
+export type Run = (cmd: string[], cwd: string, ms?: number) => Out;
 
 const SLUG = /^\d{4}-\d{2}-\d{2}-[a-z0-9][a-z0-9-]*$/;
 const env = { ...process.env, GIT_TERMINAL_PROMPT: "0" };
 
-export const run: Run = (cmd, cwd) => {
+export const run: Run = (cmd, cwd, ms = 120_000) => {
   try {
-    const r = Bun.spawnSync(cmd, { cwd, env, stdin: "ignore", timeout: 120_000, windowsHide: true });
+    const r = Bun.spawnSync(cmd, { cwd, env, stdin: "ignore", timeout: ms, windowsHide: true });
     const out = r.stdout.toString().trimEnd(), err = r.stderr.toString().trim();
     return { ok: r.exitCode === 0, out, why: (err || out).split("\n").pop() || `${cmd[0]} did not finish` };
   } catch { return { ok: false, out: "", why: `${cmd[0]} is not installed` }; }
@@ -84,7 +85,109 @@ export function startWorktree(project: string, id: string): { ok: true; path: st
   return { ok: true, path, branch, ...(dirty ? { warn: `uncommitted changes in ${feature} are not in the worktree:\n${dirty}` } : {}) };
 }
 
-export type Landed = { ok: true; how: "pr" | "push" | "merge"; url?: string } | { ok: false; why: string };
+export type LandKind = "conflict" | "check" | "merge";
+export type Landed = { ok: true; how: "pr" | "push" | "merge"; url?: string } | { ok: false; why: string; kind?: LandKind; paths?: string[] };
+type Failed = Extract<Landed, { ok: false }>;
+
+// The project's own config over the global one; the defaults are safe: nothing auto-resolves.
+// Read here because settings.ts loads state.ts, which loads this file.
+const readGit = (text: string, key: string) => {
+  const m = new RegExp(`^git:[^\\n]*\\n(?:(?:[ \\t]+[^\\n]*|)\\n)*?[ \\t]+${key}:[ \\t]*([^\\n]*)`, "m").exec(text.replace(/\r\n/g, "\n"));
+  return m ? m[1]!.split(" #")[0]!.trim().replace(/^["']|["']$/g, "") : null;
+};
+const gitSetting = (project: string, key: string, fallback: string) => {
+  for (const f of [join(project, ".kaizen", "config.yml"), join(homedir(), ".kaizen", "config.yml")]) {
+    try { const v = readGit(readFileSync(f, "utf8"), key); if (v !== null) return v; } catch { /* no such file */ }
+  }
+  return fallback;
+};
+const LONG = 30 * 60_000; // a project's check or rebuild may outlast a git call
+const shell = (cmd: string) => ["sh", "-c", cmd];
+
+/** The command `git.land_check` stands for in `dir`, or null for none. */
+function landCheck(project: string, dir: string): string | null {
+  const v = gitSetting(project, "land_check", "auto");
+  if (v === "off" || v === "") return null;
+  if (v !== "auto") return v;
+  try {
+    const t = JSON.parse(readFileSync(join(dir, "package.json"), "utf8")).scripts?.test;
+    if (typeof t !== "string" || /no test specified/.test(t)) return null;
+    return existsSync(join(dir, "bun.lock")) || existsSync(join(dir, "bun.lockb")) ? "bun run test" : "npm test";
+  } catch { return null; }
+}
+
+/**
+ * Rebases the worktree onto `ref`. Conflicts only in `git.generated` paths take the base's
+ * side and are rebuilt in one commit; anything else aborts, leaving the branch as it was.
+ * A failed rebuild or check puts the branch back too, so a retry runs the check again.
+ */
+function rebaseOnto(project: string, dir: string, ref: string, sh: Run): Failed | null {
+  const before = sh(["git", "rev-parse", "HEAD"], dir).out;
+  const behind = sh(["git", "rev-list", "--count", `HEAD..${ref}`], dir);
+  if (!behind.ok) return { ok: false, kind: "merge", why: `cannot compare with ${ref}: ${behind.why}` };
+  if (Number(behind.out) === 0) return null;
+  const globs = gitSetting(project, "generated", "").split(/[\s,]+/).filter(Boolean).map((p) => new Bun.Glob(p));
+  const generated = (p: string) => globs.some((g) => g.match(p));
+  const giveUp = (why: string, paths?: string[]): Failed => {
+    sh(["git", "rebase", "--abort"], dir);
+    return { ok: false, kind: "conflict", why: `${why}; worktree kept`, ...(paths ? { paths } : {}) };
+  };
+  let resolved = false, rb = sh(["git", "rebase", ref], dir);
+  while (!rb.ok) {
+    const paths = sh(["git", "diff", "--name-only", "--diff-filter=U"], dir).out.split("\n").filter(Boolean);
+    if (!paths.length) return giveUp(`rebase onto ${ref} stopped: ${rb.why}`);
+    const real = paths.filter((p) => !generated(p));
+    if (real.length) return giveUp(`rebase onto ${ref} conflicts in ${real.join(", ")}`, real);
+    // In a rebase "ours" is the base. A file deleted on the base has no such side: not routine.
+    if (!sh(["git", "checkout", "--ours", "--", ...paths], dir).ok || !sh(["git", "add", "--", ...paths], dir).ok) return giveUp(`could not resolve ${paths.join(", ")}`, paths);
+    resolved = true;
+    // A commit that changed only generated files has nothing left.
+    const empty = sh(["git", "diff", "--cached", "--quiet"], dir).ok;
+    rb = sh(empty ? ["git", "rebase", "--skip"] : ["git", "-c", "core.editor=true", "rebase", "--continue"], dir);
+  }
+  const back = (why: string): Failed => { sh(["git", "reset", "--hard", before], dir); return { ok: false, kind: "check", why: `${why}; branch put back, worktree kept` }; };
+  const rebuild = gitSetting(project, "rebuild_on_land", "");
+  if (resolved && rebuild) {
+    const b = sh(shell(rebuild), dir, LONG);
+    if (!b.ok) return back(`rebuild failed: ${b.why}`);
+    const made = sh(["git", "ls-files", "-m", "-o", "--exclude-standard"], dir).out.split("\n").filter(generated);
+    if (made.length) {
+      sh(["git", "add", "--", ...made], dir);
+      const c = sh(["git", "commit", "-qm", "chore: rebuild generated files"], dir);
+      if (!c.ok) return back(`rebuild commit failed: ${c.why}`);
+    }
+    sh(["git", "reset", "--hard", "HEAD"], dir);
+  }
+  const check = landCheck(project, dir);
+  if (check) {
+    const c = sh(shell(check), dir, LONG);
+    if (!c.ok) return back(`check failed (${check}): ${c.why}`);
+    sh(["git", "reset", "--hard", "HEAD"], dir); // a check that rewrites tracked files is not the work
+  }
+  return null;
+}
+
+/** Pushes the run's own branch; a rebased one replaces its pushed self under a lease. Never the base. */
+function pushBranch(dir: string, branch: string, sh: Run) {
+  const old = sh(["git", "rev-parse", "--verify", "--quiet", `refs/remotes/origin/${branch}`], dir);
+  const rewrote = old.ok && old.out && !sh(["git", "merge-base", "--is-ancestor", old.out, "HEAD"], dir).ok;
+  return sh(["git", "push", ...(rewrote ? [`--force-with-lease=refs/heads/${branch}:${old.out}`] : []), "-u", "origin", `HEAD:refs/heads/${branch}`], dir);
+}
+
+const landFile = (project: string, id: string) => join(project, ".kaizen", "runs", id, "land.json");
+const clearLand = (project: string, id: string) => rmSync(landFile(project, id), { force: true });
+
+/** `kaizen worktree land`: lands, then leaves what stopped it on the run for the board. */
+export function landRun(project: string, id: string, term?: string): Landed {
+  const r = landWorktree(project, id);
+  if (r.ok) clearLand(project, id);
+  else if (r.kind) {
+    const f = landFile(project, id), tmp = `${f}.${process.pid}.tmp`;
+    writeFileSync(tmp, JSON.stringify({ kind: r.kind, why: r.why, ...(r.paths ? { paths: r.paths } : {}), ...(term ? { term } : {}), at: Date.now() }));
+    renameSync(tmp, f);
+  }
+  return r;
+}
 
 // Whether every commit of the branch is on the base, by patch: a rebase-merge rewrites
 // the hashes, so "is an ancestor" would say not landed for work that is.
@@ -117,8 +220,12 @@ export function landWorktree(project: string, id: string, sh: Run = run,
     const tip = sh(["git", "rev-parse", branch], project).out, from = JSON.parse(readFileSync(file(project, id), "utf8")).base_sha;
     if (tip && tip === from) return { ok: false, why: `${branch} has no commits of its own; worktree kept` };
     // Already merged (a retry after the worktree would not go): only the cleanup is left.
-    const m = sh(["git", "merge-base", "--is-ancestor", branch, "HEAD"], project).ok ? { ok: true, why: "" } : sh(["git", "merge", "--no-edit", branch], project);
-    if (!m.ok) { sh(["git", "merge", "--abort"], project); return { ok: false, why: `merge into ${feature} failed: ${m.why}; worktree kept` }; }
+    if (!sh(["git", "merge-base", "--is-ancestor", branch, "HEAD"], project).ok) {
+      const stop = rebaseOnto(project, dir, feature, sh);
+      if (stop) return stop;
+      const m = sh(["git", "merge", "--no-edit", branch], project);
+      if (!m.ok) { sh(["git", "merge", "--abort"], project); return { ok: false, kind: "conflict", why: `merge into ${feature} failed: ${m.why}; worktree kept` }; }
+    }
     const rm = git(project, "worktree", "remove", "--force", dir);
     if (!rm.ok) return { ok: false, why: `merged, but the worktree stays: ${rm.why}` };
     git(project, "branch", "-D", branch);
@@ -138,29 +245,36 @@ export function landWorktree(project: string, id: string, sh: Run = run,
     return { ok: true, how, url };
   };
 
-  const push = sh(["git", "push", "-u", "origin", branch], dir);
-  if (!push.ok) return { ok: false, why: `push of ${branch} failed: ${push.why}` };
+  const ref = `origin/${base}`;
+  const fetched = sh(["git", "fetch", "origin"], dir);
+  if (!fetched.ok) return { ok: false, kind: "merge", why: `fetch failed: ${fetched.why}` };
+  // A retry after the merge went through: only the cleanup is left, and a rebase would empty the branch.
+  if (Number(sh(["git", "rev-list", "--count", `${ref}..${branch}`], dir).out) > 0 && landed(dir, ref, branch, sh)) return finish("push");
 
   if (hasGh) {
+    const stop = rebaseOnto(project, dir, ref, sh);
+    if (stop) return stop;
+    const push = pushBranch(dir, branch, sh);
+    if (!push.ok) return { ok: false, kind: "merge", why: `push of ${branch} failed: ${push.why}` };
     const subject = git(dir, "log", "-1", "--format=%s").out;
     const pr = sh(["gh", "pr", "create", "--base", base, "--head", branch, "--title", subject, "--body", `Run ${id}.`], dir);
     // An existing pull request for the branch is fine: merge that one.
     const url = pr.ok ? pr.out.split("\n").pop() : undefined;
     // gh prints the "already exists" line, then the URL, and `why` holds only the last line.
-    if (!pr.ok && !/already exists|\/pull\/\d+$/i.test(pr.why)) return { ok: false, why: `pull request failed: ${pr.why}; ${branch} is pushed` };
+    if (!pr.ok && !/already exists|\/pull\/\d+$/i.test(pr.why)) return { ok: false, kind: "merge", why: `pull request failed: ${pr.why}; ${branch} is pushed` };
     const merge = sh(["gh", "pr", "merge", branch, "--rebase"], dir);
-    if (!merge.ok) return { ok: false, why: `pull request not merged (${merge.why}); left open, worktree kept` };
+    if (!merge.ok) return { ok: false, kind: "merge", why: `pull request not merged (${merge.why}); left open, worktree kept` };
     return finish("pr", url);
   }
 
   for (let i = 0; i < 2; i++) {
     const f = sh(["git", "fetch", "origin"], dir);
-    if (!f.ok) return { ok: false, why: `fetch failed: ${f.why}` };
-    const rb = sh(["git", "rebase", `origin/${base}`], dir);
-    if (!rb.ok) { sh(["git", "rebase", "--abort"], dir); return { ok: false, why: `rebase onto ${base} conflicts: ${rb.why}; worktree kept` }; }
+    if (!f.ok) return { ok: false, kind: "merge", why: `fetch failed: ${f.why}` };
+    const stop = rebaseOnto(project, dir, ref, sh);
+    if (stop) return stop;
     if (sh(["git", "push", "origin", `HEAD:${base}`], dir).ok) return finish("push");
   }
-  return { ok: false, why: `${base} kept moving; push rejected twice. Worktree kept` };
+  return { ok: false, kind: "merge", why: `${base} kept moving; push rejected twice. Worktree kept` };
 }
 
 // ---- the Git tab: a run's branch, its pull request and its cleanup, one step at a time
@@ -278,6 +392,7 @@ export async function removeWorktree(project: string, id: string, sh: Run = run,
   if (!feature) await ash(["git", "push", "origin", "--delete", branch], project); // best effort: GitHub may have deleted it
   prs.delete(prKey(project, id));
   patchState(project, id, { worktree: null, branch: null });
+  clearLand(project, id);
   return { ok: true };
 }
 

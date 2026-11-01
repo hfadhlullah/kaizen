@@ -133,6 +133,7 @@ function card(c) {
   // Orchestration: only a run that has workers carries them, so any other card is unchanged.
   const wk: { id: string; status: string; bypass: boolean }[] = c.workers || [];
   if (wk.length) chips.push(html`<span class="chip" title="${wk.map((x) => `${x.id} ${x.status}${x.bypass ? " (bypass)" : ""}`).join(", ")}">${wk.length} workers</span>`);
+  if (c.land) marks.push(html`<span class="mk bad" title="${c.land.why}">! ${c.land.kind === "conflict" ? "Conflict" : "Land failed"}</span>`);
   if (c.signal === "blocked") marks.push(mk("i-ask", `Waiting on you: ${c.blocked?.question ?? ""}`, " warn ask"));
   else if (c.signal === "stale") marks.push(html`<span class="mk warn" title="The agent has gone quiet: no report and no terminal activity">stale</span>`);
   else if (c.signal === "unverified") marks.push(html`<span class="mk warn" title="The agent ended without finishing this stage properly">unverified</span>`);

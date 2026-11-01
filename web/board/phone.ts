@@ -5,7 +5,7 @@ import { runPopup } from "./cards.ts";
 import { $, html, raw } from "./dom.ts";
 import { cardHref, logo, railData, stateOf, subline, titleOf, usageChips, wsHref } from "./workspace.ts";
 import { toast } from "./toast.ts";
-import { agentStatus, wsKey, type Agent, type Status } from "./ws-tabs.ts";
+import { agentStatus, wsKey, WORD, DOT, type Agent, type Status } from "./ws-tabs.ts";
 
 export const isPhone = () => matchMedia("(max-width:640px)").matches;
 
@@ -31,9 +31,7 @@ function row(c, now: number) {
 }
 
 // Home's slider: one card per workspace with an agent open, those asking first.
-const WORD: Record<Status, string> = { asking: "Asking", working: "Working", done: "Done" };
-const DOT: Record<Status, string> = { asking: "wait", working: "build", done: "done" };
-const RANK: Record<Status, number> = { asking: 0, working: 1, done: 2 };
+const RANK: Record<Status, number> = { conflict: 0, failed: 0, asking: 1, working: 2, done: 3 };
 const agentIco = (a: Agent) => {
   const id = "i-" + (a.agent || "").toLowerCase();
   return raw(`<svg class="pag-ico" aria-hidden="true"><use href="#${document.getElementById(id) ? id : "i-ai"}"/></svg>`);
@@ -54,7 +52,7 @@ function agentCards(now: number) {
   const asking = groups.filter((g) => g.rows[0].st === "asking").length;
   const cards = groups.map(({ k, rows }) => {
     const { a, st } = rows[0];
-    return html`<button type="button" class="pag${st === "asking" ? " ask" : ""}" data-group="${k}"><span class="pag-st"><i class="si ${DOT[st]}"></i>${rows.length > 1 ? rows.length + " agents" : WORD[st]}<span class="pag-icos">${rows.map((r) => agentIco(r.a))}</span></span><span class="pag-ws">${wsName(a)}</span><small>${projName(a.dir)}</small></button>`;
+    return html`<button type="button" class="pag${st === "asking" || DOT[st] === "fail" ? " ask" : ""}" data-group="${k}"><span class="pag-st"><i class="si ${DOT[st]}"></i>${rows.length > 1 ? rows.length + " agents" : WORD[st]}<span class="pag-icos">${rows.map((r) => agentIco(r.a))}</span></span><span class="pag-ws">${wsName(a)}</span><small>${projName(a.dir)}</small></button>`;
   });
   return html`<section class="psec2"><div class="pag-h"><h3>Agents${asking ? html`<span class="pag-n">${asking} asking</span>` : ""}</h3><button type="button" class="pag-new">New</button></div>${groups.length ? html`<div class="pslide">${cards}</div>` : html`<p class="pnote">No agents running.</p>`}</section>`;
 }

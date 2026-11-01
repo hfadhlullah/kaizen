@@ -1233,6 +1233,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
         // A plain shell counts too while an agent typed into it runs there.
         for (const raw of shells.values()) { const x = shown(raw), cmd = x.agent || (x.pid ? shellAgent(x.pid, KNOWN_AGENTS.map((k) => k.cmd)) : undefined); if (cmd) addAgent(x.key, x.dir, x.ws, cmd, x.run); }
         cards.forEach((c, i) => { for (const k of ptys[i]?.all ?? []) addAgent(k, c.state, c.ws, pty.cmd(k) ?? KNOWN_AGENTS.find((a) => c.tags?.includes(a.cmd))?.cmd, c.kind === "run" ? c.id : undefined); });
+        // A failed land marks the run's agents, and the terminal that ran it (often the first agent, in another workspace).
+        for (const c of cards) if (c.land) for (const a of agents) if ((a.dir === c.state && a.run === c.id) || a.key === c.land.term) a.land = c.land.kind;
         const entry = (d: string) => ({ dir: d, label: label(d), logo: !!projectLogo(d),
           workspaces: d === join(home, ".kaizen") ? [{ path: d, branch: "", main: true }] : workspacesNow(projectOf(d)) });
         const body = JSON.stringify({

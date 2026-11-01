@@ -131,6 +131,9 @@ WhatsApp MP4s over 64 MiB use Hermes' `[[as_document]]` directive, preserving th
 
 - `tendHandoff` in `cli/web.ts` opens the second agent of a handed-off run, watches it, and wakes the first when idle with no draft; `handoff.json` moves only through `move()`.
 
+## Landing
+A land rebases first, resolves only `git.generated` paths, runs `git.land_check` after pulled commits, and records a failure in `runs/<id>/land.json`. The board reads it as the card's `land` and each agent's `land`, showing `Conflict` or `Land failed` with a red `!`.
+
 ## Notes
 The Projects rail keeps the last valid run state during a transient `state.json` read failure, and board loads discard out-of-order `/state` responses. This prevents a run from briefly disappearing while its agent updates state or refreshes overlap.
 <!-- yours: /kaizen docs never rewrites this section -->

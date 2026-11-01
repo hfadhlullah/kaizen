@@ -1,3 +1,6 @@
 # Checked out with LF everywhere: tests and the board slice files on "\n\n",
 # and Git for Windows would otherwise turn every text file CRLF.
 * text=auto eol=lf
+
+# Two runs each add a line here; a rebase keeps both.
+.kaizen/notes/Project/Log.md merge=union
