@@ -253,4 +253,5 @@ updated: 2026-10-31
 - 2026-10-31 run 2026-10-31-agent-models — Web board
 - 2026-10-31 run 2026-10-31-automation-module — CLI, Web board
 - 2026-11-01 simpler install and setup in the monochrome theme — CLI
+- 2026-11-01 run 2026-11-01-resource-monitor — Web board
 - 2026-11-01 run 2026-11-01-agent-handoff — Workflow: second agent for worktree runs, `base_branch` landing
