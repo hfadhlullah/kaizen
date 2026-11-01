@@ -301,7 +301,7 @@ test("a template preset starts from a brief and its request names the promo buil
   writeFileSync(join(fake, "presets", "app-promo", "preset.json"), "{}");
   const lib = library();
   expect(video.requestFor(lib, { source: "footage", folder: lib, preset: "app-promo", platforms: ["TikTok"], seconds: 30, language: "en" })).toEqual({ error: "app-promo starts from a brief about the product" });
-  const r = video.requestFor(lib, { source: "brief", brief: "Notula, record and summarize meetings", preset: "app-promo", platforms: ["TikTok", "YouTube"], seconds: 30, language: "en" }) as { text: string; name: string };
+  const r = video.requestFor(lib, { source: "brief", brief: "Minutely, record and summarize meetings", preset: "app-promo", platforms: ["TikTok", "YouTube"], seconds: 30, language: "en" }) as { text: string; name: string };
   expect(r.text).toContain(`Preset: app-promo, a template that films the user's product. Follow references/promo.md: write videos/${r.name}/promo.json`);
   expect(r.text).toContain("then build with make_promo.py.");
   expect(r.text).toContain("so the shapes are 9x16.");

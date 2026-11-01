@@ -32,8 +32,8 @@ Then write `videos/<name>/promo.json`:
 
 ```json
 {
-  "product": "Notula", "url": "notula.huseinf.my.id",
-  "tagline": "Record & Summarize", "cta": "notula.huseinf.my.id",
+  "product": "Minutely", "url": "minutely.example.com",
+  "tagline": "Record & Summarize", "cta": "minutely.example.com",
   "hook": ["You talked", "for an hour.", "Now what?"],
   "brand": { "logo": "logo.png", "bg": "#f4f3ff", "ink": "#16133a", "accent": "#4b44cf", "font": "Inter" },
   "music": "sunny",

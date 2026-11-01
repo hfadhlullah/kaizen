@@ -1,9 +1,9 @@
 {
  "preset": "app-promo",
- "product": "Notula",
- "url": "notula.huseinf.my.id",
+ "product": "Minutely",
+ "url": "minutely.example.com",
  "tagline": "Record & Summarize",
- "cta": "notula.huseinf.my.id",
+ "cta": "minutely.example.com",
  "hook": [
   "You talked",
   "for an hour.",

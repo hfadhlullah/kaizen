@@ -47,7 +47,7 @@ build:
   #              same contract. You watch it happen and can interrupt mid-step, at
   #              the cost of main-thread context.
   #   ask      - offer the choice at the plan approval.
-  # The reviewer is a separate agent in every case; that is not configurable, because
+  # Under runner: full the reviewer is a separate agent whichever you pick here, because
   # an agent reviewing work it just did will defend it.
   executor: subagent
 
@@ -236,7 +236,7 @@ sources:
   # How often kaizen checks your request sources (links added in kaizen's
   # Sources panel or with `kaizen sources add`) for new requests, while it is
   # running: off | 1h | 6h | 24h. off means only when you press Gather now or run
-  # `kaizen gather`. What is found lands in Ideas; nothing starts on its own.
+  # `kaizen gather`. What is found lands in Tasks; nothing starts on its own.
   every: 24h
   # Who picks the posts that fit the project from a social source (X, TikTok,
   # Instagram, Threads) when you press Gather. Kaizen's own browser reads the posts;

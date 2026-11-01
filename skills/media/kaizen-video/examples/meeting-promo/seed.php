@@ -1,5 +1,5 @@
 <?php
-// Seeds the scratch Notula database (never the real one) with the two sample meetings.
+// Seeds the scratch Minutely database (never the real one) with the two sample meetings.
 use App\Models\Recording;
 use Illuminate\Support\Facades\Storage;
 $m = json_decode(file_get_contents(getenv('SEED') . '/meetings.json'), true);

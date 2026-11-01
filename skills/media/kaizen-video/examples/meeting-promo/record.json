@@ -1,6 +1,6 @@
 {
  "url": "http://127.0.0.1:8031/",
- "note": "A local copy of Notula with its own empty database and two sample meetings spoken by synthetic voices.",
+ "note": "A local copy of Minutely with its own empty database and two sample meetings spoken by synthetic voices.",
  "clips": [
   {
    "name": "list",

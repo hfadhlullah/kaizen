@@ -1,4 +1,4 @@
-# Two sample meetings spoken by two synthetic voices, for filming Notula. Writes audio + segments json.
+# Two sample meetings spoken by two synthetic voices, for filming Minutely. Writes audio + segments json.
 import asyncio, json, subprocess, edge_tts
 V = {"A": "en-US-AndrewNeural", "B": "en-US-AvaNeural"}
 MEET = {

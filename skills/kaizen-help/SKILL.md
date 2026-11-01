@@ -1,9 +1,8 @@
 ---
 name: kaizen-help
 description: >
-  Quick-reference card for the kaizen workflow: commands, modes, approvals,
-  fix loop, config knobs, state layout, backlog/status rules. One-shot
-  display, not a persistent mode. Trigger: /kaizen-help, "kaizen help",
+  Quick-reference card for the kaizen commands, with pointers to the
+  full docs. One-shot display, not a persistent mode. Trigger: /kaizen-help, "kaizen help",
   "what kaizen commands", "kaizen cheat sheet".
 ---
 
@@ -39,98 +38,22 @@ anything.
 | `/kaizen reject <reason>` | Reject it; the reason decides revise (back to planner) vs kill (abandon) |
 | `/kaizen abort` | Mark the current run abandoned |
 | `/kaizen config` | Show this project's settings and change them, one picker per setting |
-| `/kaizen init` | Set up this project folder: `.kaizen/` with `spec.md`, config, and — in a git repo — the gitignore entry |
+| `/kaizen init` | Set up this project folder: `.kaizen/` with the `spec*.md` files, config, and — in a git repo — the gitignore entry |
 | `/kaizen install` | Install the workflow itself globally or per-project |
 | `kaizen recall [--track t] [--tags a,b] [--query "<words>"]` | Lessons from other projects that match (global knowledge, `~/.kaizen/knowledge/`) |
 | `kaizen remember --track t --tags a,b --applies "<where>" --run <id> "<lesson>"` | Save a lesson that holds beyond this project; the reviewer calls it |
 
 `/kaizen` with no argument: `status` if a run is in progress, else ask what to build.
 
-## Modes
-
-Set by `mode` in config, overridable per invocation.
-
-| Mode | What it does |
-|---|---|
-| `plan-only` | Produce the plan, write it, stop. No code touched. |
-| `approve` (default) | Stop at every enabled approval, wait for an explicit decision. |
-| `auto` | Run every stage back to back, no approval, report at the end. Fix loop still respects `max_iterations`. |
-| `review-only` | Skip plan and implementation, run the reviewer against existing code or a diff. |
-
-Mode never overrides a refusal: destructive/irreversible actions still confirm even in `auto`.
-
-## Approvals
-
-- `approvals.plan` — after the plan, before any code is written.
-- `approvals.review` — after the review passes, before the work is called done.
-- `approvals.each_file` — confirm each file edit individually. Off by default; slow.
-
-A rejection is written to the run directory, and is one of two things — the reason
-says which. **Revise** ("do it differently") goes back to the planner, which produces
-a new plan and returns to the same approval. **Kill** ("not doing this") means the
-request itself was wrong: set `stage: "abandoned"` and stop, nothing to revise toward.
-
-## Fix loop
-
-- `auto_fix.enabled: false` — every finding stops the run, becomes a user decision.
-- `auto_fix.enabled: true` — builder fixes findings at or above `auto_fix.min_severity`
-  (default `low`, all findings), reviewer re-checks, up to `auto_fix.max_iterations`
-  rounds. Anything still open when iterations run out is reported to the user.
-
-Each iteration is written to `runs/<id>/05-iterations/`.
-
-## Config knobs (`config.default.yml` defaults)
-
-| Key | Default | Meaning |
-|---|---|---|
-| `preset` | `medium` | Quick preset (`low`, `medium`, `ultra`, `custom`) |
-| `mode` | `approve` | Default run mode |
-| `runner` | `full` | `full`: each stage a cold subagent. `lite`: this session runs every stage |
-| `approvals.plan` | `true` | Stop after the plan |
-| `approvals.review` | `false` | Stop after the review |
-| `approvals.each_file` | `false` | Confirm every file edit |
-| `build.executor` | `subagent` | Who builds: `subagent`, `inline` (main thread), or `ask` at the approval |
-| `review.executor` | `inline` | Lite only — who reviews: `inline` (this session), `subagent` (cold agent), or `ask` |
-| `auto_fix.enabled` | `true` | Auto-fix findings vs. escalate everything |
-| `auto_fix.min_severity` | `low` | Threshold for auto-fix (`critical\|high\|medium\|low`) |
-| `auto_fix.max_iterations` | `2` | Fix/recheck rounds before escalating remaining findings |
-| `review.write_memory` | `true` | Let the reviewer append lessons to `.kaizen/memory.md` |
-| `backlog.enabled` | `true` | Capture what a run deliberately did not do |
-| `state.dir` | `.kaizen` | State directory |
-| `state.keep_runs` | `20` | Completed runs kept before pruning oldest (rescues open backlog first) |
-| `git.auto_commit` | `false` | `true`: commit the run's changed files when it is done; never pushes |
-| `subagents.model` | `inherit` | Model the stage subagents run on (opus/sonnet/haiku, Claude Code only) |
-| `subagents.effort` | `inherit` | Reasoning effort for the stage subagents (low/medium/high, Claude Code only) |
-| `sources.every` | `24h` | How often the web board checks request sources for new tasks (`off\|1h\|6h\|24h`) |
-| `agent.default` | `auto` | Coding agent to launch from dashboard backlog |
-| `agent.<cmd>.model`, `.effort` | — | Model/effort flags for the launched session, per tool (`claude`, `codex`, `agy`, `opencode`, `gemini`); model names are the tool's own |
-
-`.kaizen/config.yml` overrides only the keys it sets; everything else falls back to
-this skill's `config.default.yml`.
-
-## State layout
-
-```
-.kaizen/{spec.md, config.yml, memory.md, backlog.md (orphanage)}
-.kaizen/runs/<id>/{00-request,01-plan,02-approval,03-impl,04-review}.md,
-  05-iterations/, 06-backlog.md, state.json (id, mode, stage, awaiting, iteration, updated)
-```
-
-## Backlog and status
-
-Backlog records only what the user asked to backlog at an approval; open findings and
-suggestions are offered, not filed by themselves. Items: `- <status>: <item text>`, `<status>` one of `open`, `done`, `rejected`
-(`rejected` carries a reason after `|`). `/kaizen backlog`/`status` are **read-only** —
-never edit `06-backlog.md` or `state.json`, even to fix a spotted inconsistency; report
-it and ask.
-
-`/kaizen status` groups every run by `state.json` at read time: **Waiting on you**
-(awaiting non-null, not abandoned), **In flight** (awaiting null, not done/abandoned),
-**Done**, **Abandoned**, plus `Backlog: <n> open` (all runs + orphanage; abandoned
-runs' items excluded).
-
 ## More
 
-Full walkthrough and rationale: `~/.claude/skills/kaizen/README.md`. Full stage
-contract: `~/.claude/skills/kaizen/spec.md`. Codex/Antigravity porting:
-`~/.claude/skills/kaizen/adapters.md`.
+Read these from the `kaizen` skill folder, which sits beside this one:
+
+- Modes, approvals, fix loop, state layout: `SKILL.md`
+- Every setting and its default: `config.default.yml`
+- Settings you can pick from: `settings.md`
+- Full walkthrough: `README.md`
+- Stage contract: `spec.md`
+- Porting to other tools: `adapters.md`
+
+`kaizen settings` opens every setting in a terminal.

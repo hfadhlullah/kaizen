@@ -3,7 +3,7 @@ name: kaizen-deck
 description: Build a cinematic, minimalist storytelling pitch deck (A5 landscape .pptx) in the style of a senior agency — story first, problem, a single "what if" question, then the product reveal and feature scenes, ending in a demo CTA. Dark ink + gold, Playfair Display + Inter, full-bleed graded photos. Use when the user asks for a pitch deck / sales deck / product showcase deck "that tells a story", "cinematic", or a new deck for a product or audience in that style. Do NOT use for editing an existing .pptx, plain bullet decks, or data reports — use the pptx skill for those.
 ---
 
-# Story deck
+# Kaizen deck
 
 A deck that tells a story before it sells. Worked example: [`examples/build-example.js`](examples/build-example.js)
 (every helper on a fictional product, no images needed).
@@ -49,8 +49,7 @@ Run `scripts/check.sh` first on a new machine.
    (hex, no `#`), `SERIF, SANS` (font names), `logo` (light-on-dark PNG path; none = no logo),
    `logoRatio` (height/width). Defaults are the neutral ink + gold look with no logo.
    For anything the helpers do not cover (triptych, recap timeline, stat rows) use
-   `d.slide()`, `d.kicker()`, `d.headline()`, `d.body()` and see build.js / build-features.js
-   in the reference project.
+   `d.slide()`, `d.kicker()`, `d.headline()`, `d.body()`; `scripts/kit.js` shows how they work.
 7. **Motion (when asked for animation or transitions):** copy in `scripts/motion.py` and run
    `python3 motion.py Deck.pptx Deck-motion.pptx`, then QA the result. See "Brand theme and motion" below.
 8. **QA:** `./qa.sh build-<name>.js`, look at every printed sheet (or send them to the user), fix, repeat. Clean `qa/` after.

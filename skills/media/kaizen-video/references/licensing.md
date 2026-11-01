@@ -1,6 +1,6 @@
 # Licensing — read before publishing
 
-- **Voice provider is the user's choice** (SKILL.md step 0). Edge-tts voices: Microsoft service terms apply; treat as draft quality.
+- **Voice provider is the user's choice** (SKILL.md, From scratch, step 1). Edge-tts voices: Microsoft service terms apply; treat as draft quality.
 - **ElevenLabs voice and sound effects**: the free plan does NOT allow commercial use and requires
   attribution. Anything published for a business (ads, booth, client) needs a paid plan
   (Starter or above) active when the audio is generated — regenerate after upgrading.
