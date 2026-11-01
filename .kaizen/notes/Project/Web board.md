@@ -2,7 +2,7 @@
 description: `kaizen web`: the browser board, its HTTP routes, the shared state layer, and the Video page
 tags: [project, web-board]
 sources: [cli/automations.ts, web/board/settings-automations.ts, cli/computer.ts, cli/computer.test.ts, cli/computer-helper.py, cli/workers.ts, web/board/settings-orchestration.ts, web/board/settings-voice.ts, cli/accounts.ts, cli/accounts.test.ts, web/board/settings-accounts.ts, cli/skills.ts, cli/skills.test.ts, web/board/settings-skills.ts, cli/report.ts, cli/report.test.ts, cli/agent-prefs.ts, cli/agent-prefs.test.ts, cli/keep-awake.ts, web/board/settings-agents.ts, cli/onboarding.ts, cli/onboarding.test.ts, web/board/onboarding.ts, web/board/search.ts, web/board/search-match.ts, web/board/search.test.ts, web/board/run-view.ts, web/board/badge.ts, web/board/ws-tabs.ts, web/board/ws-name.test.ts, web/board/run-pick.ts, web/board/workspace.ts, web/board/ws-board.ts, web/board/ws-board-ui.ts, cli/worktree.ts, cli/add-project.ts, cli/add-project.test.ts, web/board/phone.ts, cli/web.ts, cli/state-snap.ts, cli/usage.ts, cli/usage.test.ts, cli/project-tree.test.ts, cli/chat.ts, web/board/home.ts, cli/versions.ts, cli/logo.ts, cli/state.ts, cli/state.test.ts, cli/pty.ts, cli/restart.test.ts, cli/conpty.ts, cli/video.ts, cli/video.test.ts, cli/localsend.ts, cli/hermes.ts, web/board.html, web/board, web/sounds, web/term.ts, web/video.html, web/video.ts, web/popup.html, cli/chat-window.py, cli/install.ts, cli/settings.ts, design.md]
-updated: 2026-10-31
+updated: 2026-11-01
 ---
 # Web board
 
@@ -127,6 +127,8 @@ The visible menu is Search, Home, Icebox, Ideas and Board, then the Projects lis
 
 WhatsApp MP4s over 64 MiB use Hermes' `[[as_document]]` directive, preserving the MP4 bytes and filename; smaller MP4s remain inline videos. `cli/hermes.ts` rejects files over WhatsApp's 2 GB document limit before spawning Hermes. The route's existing output-file and listed-chat checks still apply.
 - A regex that skips a block with `(?:[ \t]+.*\n)*?` backtracks for seconds on a long commented config when the key is absent (`agentConfig`); write it `(?:[ \t][^\n]*\n)*?`. `agentChoices` runs it once per installed agent, so on a slow pattern every `/onboarding` read stalled the whole board.
+
+- `tendHandoff` in `cli/web.ts` opens the second agent of a handed-off run, watches it, and wakes the first when idle with no draft; `handoff.json` moves only through `move()`.
 
 ## Notes
 The Projects rail keeps the last valid run state during a transient `state.json` read failure, and board loads discard out-of-order `/state` responses. This prevents a run from briefly disappearing while its agent updates state or refreshes overlap.

@@ -55,6 +55,19 @@ code in the same folder. If `kaizen worktree start` fails, say why and stop; do 
 back to the project folder unasked. A run whose `state.json` has no `worktree` builds in
 place, exactly as before.
 
+**Hand the build to a second agent, when the run gets a worktree.** The agent the user is
+talking to stays with them. Before `kaizen worktree start`, it writes into `02-approval.md`
+every decision made in chat that the plan lacks: the second agent never sees the chat. After
+it, it runs `kaizen handoff start <id>`. Exit 0: say the worktree agent is building, and end
+the turn; the board types a one-line pointer into this terminal when that agent ends. Exit
+3: no board terminal or none answered, so build here in the worktree as above. The second
+agent reads the run's files, runs build, review and the fix loop in the worktree, under the
+same rules (it is the coordinator if the plan has approved workers), and ends with
+`kaizen handoff done` or `kaizen handoff blocked "<reason>"`. It never runs `kaizen done`
+or `kaizen worktree land`. It takes no bypass from Orchestration. `runs/<id>/handoff.json`
+is written only by these commands and the board. A worktree cut while the project is on a
+branch other than the default is cut from that local branch and records `base_branch`.
+
 **Workers, only when the run has them.** When `01-plan.md` has a `## Workers` section and
 `02-approval.md` says `workers: approved`, the build agent is the coordinator. Run
 `kaizen worker init`: if it refuses, say why in `03-impl.md` and build the whole plan

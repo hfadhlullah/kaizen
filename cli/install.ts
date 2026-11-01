@@ -569,8 +569,31 @@ if (args.has("worktree")) {
   // Started inside another workspace of the project (a board worktree): the run is placed there.
   const r = verb === "start" ? adoptWorkspace(project, id, process.cwd()) ?? startWorktree(project, id) : landWorktree(project, id);
   if (r.ok && verb === "start") linkTerm(state, process.env.KAIZEN_TERM, id);
+  if ("warn" in r && r.warn) console.log(`\n  warning: ${r.warn}`);
   console.log(r.ok ? `\n  ${verb === "start" ? `worktree ready: ${(r as { path: string }).path}` : `landed by ${(r as { how: string }).how}`}\n` : `\n  ${r.why}\n`);
   process.exit(r.ok ? 0 : 1);
+}
+
+// A worktree run's second agent. `start` exits 3 for "build here": no board, or none answered.
+if (args.has("handoff")) {
+  const [, verb = "", first = ""] = Bun.argv.slice(2).filter((a) => !a.startsWith("-"));
+  const { projectFromWorktree } = await import("./worktree.ts");
+  const h = await import("./handoff.ts");
+  // A worktree holds committed .kaizen spec copies, never the run: always the project's own.
+  const state = join(projectFromWorktree(process.cwd()), ".kaizen");
+  const usage = () => { console.log('\n  usage: kaizen handoff start <run-id> | done | blocked "<reason>"\n'); process.exit(1); };
+  if (verb === "start") {
+    if (!first) usage();
+    const asked = h.request(state, first, process.env.KAIZEN_TERM);
+    if (!asked || !(await h.awaitBoard(state, first))) { console.log("\n  no board terminal to hand to: build here, in the worktree\n"); process.exit(3); }
+    console.log("\n  handed off: end your turn, the board wakes you when it ends\n");
+    process.exit(0);
+  }
+  const id = process.env.KAIZEN_RUN_ID;
+  if ((verb !== "done" && verb !== "blocked") || !id) usage();
+  const why = h.finish(state, id!, verb as "done" | "blocked", verb === "blocked" ? first : undefined);
+  console.log(why ? `\n  ${why}\n` : `\n  handoff ${verb}\n`);
+  process.exit(why ? 1 : 0);
 }
 
 // Deleting runs is a job for code with a test, not for an agent with `rm`. Lists by

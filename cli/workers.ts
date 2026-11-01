@@ -195,6 +195,13 @@ const brief = (project: string, id: string, x: Worker) =>
  * when this run's frozen Orchestration permissions say so, and its tab says so too.
  */
 export function launchOf(project: string, id: string, x: Worker, permissions: "own" | "bypass", prefs: Prefs = readPrefs(), pick = ""): Launch | string {
+  const l = agentLine(project, id, brief(project, id, x), permissions, prefs, pick);
+  if (typeof l === "string") return l;
+  return { ...l, title: `Worker ${x.id}${l.bypass ? " · bypass" : ""}`, cwd: x.worktree, env: { KAIZEN_RUN_ID: id, KAIZEN_WORKER: x.id } };
+}
+
+/** The run's agent as a command line with `prompt`. Shared with the handoff; the caller names the terminal. */
+export function agentLine(project: string, id: string, prompt: string, permissions: "own" | "bypass", prefs: Prefs = readPrefs(), pick = ""): Omit<Launch, "title" | "cwd" | "env"> | string {
   const own = runAgent(join(project, ".kaizen"), id), st = stateOf(project, id);
   const agent = detectDefaultAgent(project, own?.cmd ?? st?.agent);
   if (!agentUsable(agent.cmd)) return `${agent.name} is not available: see Settings > Agents`;
@@ -205,12 +212,12 @@ export function launchOf(project: string, id: string, x: Worker, permissions: "o
   if (acct.error) return acct.error;
   const bypass = permissions === "bypass" && !!YOLO_FLAGS[agent.cmd];
   const flags = [...agentFlags(project, agent.cmd, undefined, model), ...(bypass ? YOLO_FLAGS[agent.cmd]! : []), ...argsOf(agent.cmd, prefs)];
-  const line = withEnv([commandOf(agent.cmd, prefs), ...flags, ...promptArgs(agent.cmd, brief(project, id, x))], agent.cmd, prefs);
+  const line = withEnv([commandOf(agent.cmd, prefs), ...flags, ...promptArgs(agent.cmd, prompt)], agent.cmd, prefs);
   return {
-    argv: acct.dir ? ["env", ...accountEnv(acct), ...line] : line, title: `Worker ${x.id}${bypass ? " · bypass" : ""}`, bypass, agent: agent.cmd,
-    model: picked ? (MODEL_FLAGS[agent.cmd] ? picked : undefined) : model ?? agentFlags(project, agent.cmd).join(" ").match(/\S+$/)?.[0], cwd: x.worktree,
+    argv: acct.dir ? ["env", ...accountEnv(acct), ...line] : line, bypass, agent: agent.cmd,
+    model: picked ? (MODEL_FLAGS[agent.cmd] ? picked : undefined) : model ?? agentFlags(project, agent.cmd).join(" ").match(/\S+$/)?.[0],
     modelNote: picked && !MODEL_FLAGS[agent.cmd] ? `${agent.name} takes no model flag: "${picked}" was ignored` : undefined,
-    env: { KAIZEN_RUN_ID: id, KAIZEN_WORKER: x.id }, trust: acct.dir ? join(acct.dir, ".claude.json") : undefined,
+    trust: acct.dir ? join(acct.dir, ".claude.json") : undefined,
   };
 }
 

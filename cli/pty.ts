@@ -11,7 +11,7 @@ const WIN = process.platform === "win32";
 // Windows PowerShell, which every Windows has, both hosts the console and runs the agent in it.
 const winPs = () => join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
 
-type Pty = { lastOut?: number; proc: Bun.Subprocess; out: string[]; size: number; listeners: Set<(d: string | null) => void>; exit: number | null; asking: boolean; busy: boolean; quiet?: Timer; total: number; since: number; onChange?: () => void; tmux?: string; last: string; lastAt: number; typedAt: number; born: number };
+type Pty = { lastOut?: number; proc: Bun.Subprocess; out: string[]; size: number; listeners: Set<(d: string | null) => void>; exit: number | null; asking: boolean; busy: boolean; quiet?: Timer; total: number; since: number; onChange?: () => void; tmux?: string; last: string; lastAt: number; typedAt: number; born: number; draft?: boolean };
 
 // What a page attaching late gets replayed. A full-screen tool redraws often, so the
 // tail of its output is enough to rebuild the screen.
@@ -198,6 +198,9 @@ export function writePty(key: string, d: string) {
   if (d.replace(REPORT, "")) {
     p.since = p.total;
     p.typedAt = Date.now();
+    // Text typed and not yet submitted. Keys and escape sequences leave no text; Enter, Esc and Ctrl-C end it.
+    if (/[\r\n\x03]/.test(d) || d === "\x1b") p.draft = false;
+    else if (!d.startsWith("\x1b") && /[^\x00-\x1f\x7f]/.test(d)) p.draft = true;
     if (p.asking) { p.asking = false; p.onChange?.(); }
   }
   send(p, d);
@@ -285,7 +288,7 @@ export const ptyKeys = () => [...ptys.keys()];
 
 export const ptyState = (key: string) => {
   const p = ptys.get(key);
-  return p ? { pid: p.proc.pid, alive: p.exit === null, exit: p.exit, asking: p.asking, busy: p.busy, total: p.total, last: p.last, at: p.lastAt, born: p.born, lastOut: p.lastOut } : null;
+  return p ? { pid: p.proc.pid, alive: p.exit === null, exit: p.exit, asking: p.asking, busy: p.busy, total: p.total, last: p.last, at: p.lastAt, born: p.born, lastOut: p.lastOut, typedAt: p.typedAt, draft: !!p.draft } : null;
 };
 
 // The environment the user's login shell builds: PATH and anything exported in their

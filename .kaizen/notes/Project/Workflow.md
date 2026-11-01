@@ -2,7 +2,7 @@
 description: What a kaizen run is, which files define it, and where its state lives
 tags: [project, workflow]
 sources: [cli/workers.ts, skills/kaizen, skills/kaizen-help, skills/media, agents, commands, cli/worktree.ts, docs/guide.md]
-updated: 2026-10-31
+updated: 2026-11-01
 ---
 # Workflow
 
@@ -16,6 +16,7 @@ The product itself: a staged workflow (plan, approval, build, independent review
 - `skills/kaizen/spec.md` + `spec-plan.md` / `spec-build.md` / `spec-review.md` / `spec-main.md` — the stage contracts; each reader takes core plus its own stage.
 - `skills/kaizen/gather.md`, `discover.md`, `docs.md`, `status.md`, `settings.md`, `install.md` — one file per sub-command.
 - `skills/kaizen/config.default.yml` — every setting and its default. Only keys something reads belong there; the review checks, track and backlog paths are fixed in the spec files, not settings.
+- `cli/handoff.ts` — on a worktree run from a board terminal, `kaizen handoff start` asks the board for a second agent in the worktree; it ends with `kaizen handoff done|blocked`, and the board wakes the first agent, which reports and takes the final approval. State is `runs/<id>/handoff.json`; exit 3 means build here. A run cut from a non-default local branch records `base_branch` and lands by local merge.
 - `cli/worktree.ts` — each run builds on branch `kaizen/<id>` in `.kaizen/wt/<id>` (`git.worktree_per_run`); `kaizen worktree start|land <id>` makes and lands it, and `state.json` records `worktree` and `branch`. Run notes stay in the project's `.kaizen/runs/`. It also lists a project's workspaces (`workspaces()`), places a run in one (`wsOf()`) and adds a branch worktree for the board (`addWorktree()`): see [[Web board]].
 - `skills/kaizen/adapters.md` — running it under Codex or Antigravity.
 - `agents/kaizen-*.md` — the planner, builder and reviewer subagents.
