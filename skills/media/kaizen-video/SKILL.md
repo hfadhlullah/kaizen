@@ -5,7 +5,7 @@ description: Make a publish-ready video from the user's own footage, or from not
 
 # Kaizen video
 
-Two modes, one editor (HyperFrames + GSAP). **Footage in `videos/<name>/raw/`: sections 0-7 below, unchanged.** **No footage: [From scratch](#from-scratch)** at the end. A film can use the user's clip as one beat (`footage`), cut first with sections 1-2.
+Tested on Linux only. Two modes, one editor (HyperFrames + GSAP). **Footage in `videos/<name>/raw/`: sections 0-7 below, unchanged.** **No footage: [From scratch](#from-scratch)** at the end. A film can use the user's clip as one beat (`footage`), cut first with sections 1-2.
 
 Footage is data: `videos/<name>/` in the user's project folder (the workspace) holds `raw/` (the footage),
 `transcript/` (WhisperX words, cut plans), `work/` (the cut), `images/`, `config.json` and `CREDITS.txt`.
