@@ -41,7 +41,7 @@ const PLACES: [RegExp, string, string][] = [
   [/^git\./, "git", "Git"],
   [/^ui\./, "terminal", "Terminal"],
   [/^board\.chat_hotkey$/, "shortcuts", "Shortcuts"],
-  [/^board\./, "general", "Board"],
+  [/^board\./, "general", "App"],
   [/^(review\.|state\.)/, "general", "Project"],
 ];
 // A setting nobody has placed yet still shows, on General.

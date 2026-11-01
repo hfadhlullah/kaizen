@@ -110,7 +110,7 @@ tells you what it concluded, so you correct a sentence instead of filling in a f
 | `kaizen recall [--track t] [--tags a,b] [--query "<words>"]` | Lessons learned in other projects that match; see *Global knowledge* |
 | `kaizen remember --track t --tags a,b --applies "<where>" --run <id> "<lesson>"` | Save a lesson that holds beyond this project; the reviewer calls it at the end of a run |
 | `/kaizen-config` | Show this project's settings and change them |
-| `kaizen setup` | Guided first run after install: project, settings, board, phone (QR) |
+| `kaizen setup` | Guided first run after install: project, settings, `kaizen web`, phone (QR) |
 | `/kaizen-init` | Set up the current project — optional, the first run does it |
 | `/kaizen-install` | Install the workflow itself, globally or per-project |
 | `/kaizen-help` | The full card |
@@ -168,12 +168,12 @@ kaizen web
 ```
 
 serves the same board on `http://127.0.0.1:7420/` — loopback only, no account — and
-opens it in a tab of your default browser. Set **Open the board in** to `app` in
+opens it in a tab of your default browser. Set **Open kaizen in** to `app` in
 `kaizen settings` for a Chromium-family app window instead (no tabs or address bar).
 
-**Home** is the page it opens on: a chat with kaizen's agent, like ChatGPT or Claude. New chat is at the top right. A new chat starts in the current Board project, or in none when the board shows all projects. Attach files with the paperclip, paste an image or file into the message box, or paste text normally; the limit is 20 files, 100 MB each and 300 MB total. While the agent works, Home shows the Kaizen mascot with its current tool or a thinking label. The agent keeps working when you leave Home; returning or refreshing restores the conversation and latest activity. Talk about any project: when you mention another one the agent asks whether to move the chat there, and when what you describe fits no project it offers to create one (in your Projects folder, by the same rules as New project). Tell it "switch to D" or "make a new project called shop" and it does. The board follows the chat and the agent continues the pending request in the new project without making you repeat it. A chat with no project can talk and plan but not edit files. For bigger work the agent starts a kaizen run, which shows on the Board. Chats are kept in `~/.kaizen/chats/`. The Board itself is at `/?view=board`. Home needs `codex` on the PATH and signed in.
+**Home** is the page it opens on: a chat with kaizen's agent, like ChatGPT or Claude. New chat is at the top right. A new chat starts in the current project, or in none when kaizen shows all projects. Attach files with the paperclip, paste an image or file into the message box, or paste text normally; the limit is 20 files, 100 MB each and 300 MB total. While the agent works, Home shows the Kaizen mascot with its current tool or a thinking label. The agent keeps working when you leave Home; returning or refreshing restores the conversation and latest activity. Talk about any project: when you mention another one the agent asks whether to move the chat there, and when what you describe fits no project it offers to create one (in your Projects folder, by the same rules as New project). Tell it "switch to D" or "make a new project called shop" and it does. kaizen follows the chat and the agent continues the pending request in the new project without making you repeat it. A chat with no project can talk and plan but not edit files. For bigger work the agent starts a kaizen run, which shows on the Board. Chats are kept in `~/.kaizen/chats/`. The Board itself is at `/?view=board`. Home needs `codex` on the PATH and signed in.
 
-The left menu has Home, Icebox (with the number of new items), Ideas (with the icons of your first sources) and Board, then **Projects**: every open idea and run grouped by project, each with a small state icon (ring for an idea, an arc while planning or building, an orbiting dot in review, a ripple while it waits on you, a check when done, a pause when stalled; still when motion is reduced) and a line saying its stage and age. Done and abandoned runs stay listed for a day. The filter button steps through one project at a time and back to all; + adds an idea; a row opens that card's workspace. Settings, Report an issue and Keyboard shortcuts sit at the bottom. On a phone these become bottom tabs (Home, Icebox, Ideas, Board, Settings).
+The left menu has Home, Icebox (with the number of new items), Ideas (with the icons of your first sources), then **Projects**, whose header holds a Board icon left of the filter (click to open the board, click again to go back): every open idea and run grouped by project, each with a small state icon (ring for an idea, an arc while planning or building, an orbiting dot in review, a ripple while it waits on you, a check when done, a pause when stalled; still when motion is reduced) and a line saying its stage and age. Done and abandoned runs stay listed for a day. The filter button steps through one project at a time and back to all; + adds an idea; a row opens that card's workspace. Settings, Report an issue and Keyboard shortcuts sit at the bottom. On a phone these become bottom tabs (Home, Icebox, Ideas, Board, Settings).
 
 **Ideas** is a table of every idea and run across your projects: Open, Running or Done, a search over titles and projects, a project picker, and a chip per source the ideas actually came from (an idea is matched to the Icebox item it was promoted from; one you typed is "Manual"). Start on an idea opens the same run form its card has; Open on a run opens its workspace.
 
@@ -199,40 +199,40 @@ every finished run to the archive (`.kaizen/archive.md`, a list, nothing moves),
 `Archive` in the strip shows what is there, with `Restore` on each card. A finished run in a project with a git remote gets a **Source control** tab (the branch icon in its panel strip; the footer's `Source control` opens it while something is left to do). At the top it shows the branch and where it goes (`→ origin/main`), and, for a run built on its own branch, its pull request as a chip (`#12 Open`, `Draft`, `Merged`, linking to GitHub). Below: the changed files that run's report names, and the commit message the builder wrote (the `## Commit` section of its report; a message must start with a type such as `feat:` or `fix:`). One full-width button does the next step: `Commit & push` (those files and no others), then `Push`, and for a run on its own branch `Create PR` (it pushes first), `Merge PR` (by rebase, as `kaizen land` does) and, once its work is on the base, `Remove workspace`, which deletes the worktree and the branch here and on GitHub. The arrow beside it lists every step, each one that is not available saying why ("Commit changes first", "Merge the pull request first"). Merge and Remove ask once before they act; Remove is refused while the worktree has changes or any commit is not on the base yet. Pull requests need the GitHub CLI (`gh`) and a GitHub remote; the tab asks GitHub at most every 30 seconds, in the background. The `Review` tab of such a run, or of one waiting on you at the review, lists the findings with a checkbox each: `Fix all` or `Fix N selected` opens your agent in the project to fix exactly those and recheck them. The gear at the top right holds the browser's theme, its color (monochrome by default, or blue), its motion (`system` follows the device's reduce-motion setting, `full` keeps
 animations on, `reduce` turns them off: cards sliding between columns, the flash when a card needs you, page fades)
 and every `kaizen settings` knob, same rows, same `config.yml`. `--port N` picks a port, `--no-open` just
-serves, the board opens on every project, or on the one picked last time in that browser; `?all=0` in the URL narrows it to the one it was started in. `--daemon` starts the server
+serves, kaizen opens on every project, or on the one picked last time in that browser; `?all=0` in the URL narrows it to the one it was started in. `--daemon` starts the server
 detached so it outlives the terminal (pid kept in `~/.kaizen/web.pid`); `--stop` ends it. `kaizen web --shortcut` adds a launcher
-the OS can find — Spotlight on macOS, the app menu on Linux, a Desktop shortcut on Windows. Each one starts the board in the background (`--daemon`) and opens it; `kaizen web --stop` ends it.
+the OS can find — Spotlight on macOS, the app menu on Linux, a Desktop shortcut on Windows. Each one starts kaizen in the background (`--daemon`) and opens it; `kaizen web --stop` ends it.
 On Windows `kaizen web` starts in the background unless `--foreground` is given; `kaizen web --stop` ends it.
 
 `kaizen chat` opens Home's chat in a small window that floats over your desktop: a minimal popup that uses the same chats and the same agent. On Hyprland it is pinned in the bottom-right corner. Bind it to a hotkey, for example `bind = SUPER, K, exec, kaizen chat`; running it again closes the window. The window has no background of its own: only the chat bubbles, the input and a few buttons float over the desktop (when python3 has GTK 3 and WebKit2GTK 4.1; otherwise it opens in Chromium, which paints a background). On the board's Home page, the pop-out icon beside New chat opens the popup on the chat you are in and hides the board's window; the back-arrow icon in the popup brings the board back, focused, on the chat you were having in the popup, and closes the popup. Plain `kaizen chat` (or the hotkey) toggles the popup and leaves the board where it is. Drag the dotted handle at the top of that column to move the window; it reopens where you left it when you close it with the hotkey. Beside the chat sits a column of icon buttons: show or hide the browser window with the kaizen board, start a new chat, and stop a reply. The hotkey is the **Popup chat hotkey** setting (`board.chat_hotkey`, default `SUPER + ALT + SPACE`): kaizen writes it into your Hyprland config (`bindings.lua` or `hyprland.conf`) as a marked block, taking the key from whatever held it — on Omarchy that is the Apps menu. Clear the setting to remove it. Other desktops get no hotkey yet.
 
-**The first time you open the board.** With no project added yet, the board opens a short welcome: pick your default agent, pick light, dark or system, turn on notifications, then add your first project. Press Esc, or "Skip to project setup", to skip it (it asks first). If you skip it or stop halfway, a Setup row appears in the side menu and a "Continue setup?" prompt shows once per browser session; "Don't ask again" ends it. Pick an agent that is not installed and the step shows how to install it (the official command, with a Copy button). Someone who already has a project never sees it. Progress is kept in `~/.kaizen/onboarding.json`; open `/?setup=1` to run it again.
+**The first time you open kaizen.** With no project added yet, kaizen opens a short welcome: pick your default agent, pick light, dark or system, turn on notifications, then add your first project. Press Esc, or "Skip to project setup", to skip it (it asks first). If you skip it or stop halfway, a Setup row appears in the side menu and a "Continue setup?" prompt shows once per browser session; "Don't ask again" ends it. Pick an agent that is not installed and the step shows how to install it (the official command, with a Copy button). Someone who already has a project never sees it. Progress is kept in `~/.kaizen/onboarding.json`; open `/?setup=1` to run it again.
 
 **No agent yet?** When the installer finds no AI coding agent it asks which one you want. Claude Code, Codex, Gemini CLI and OpenCode are installed with their official command (shown first, run only after you choose Yes; Codex and Gemini CLI need Node.js for npm). kaizen then offers to start the agent once so you can sign in, and carries on installing in the same run. Cursor and Antigravity have no command-line installer, so their download page opens instead, as it does when an install fails.
 
 **After you install: `kaizen setup`.** The installer ends by offering to set up now; `kaizen setup` runs the same walk any time. It shows `Step n of m`, offers the repository you are in as your project (or asks for a folder from your home directory, Enter skips), offers a settings preset with your current one first, offers to open the Kaizen App, and offers it on your phone. Without Tailscale it gives the download link for this computer and the phone, then checks again when you are ready. Setup ends by making the Kaizen App shortcut (`kaizen web --shortcut`). Enter takes the first choice at every step, and nothing changes without an answer.
 
-**From your phone (Tailscale).** The board stays on loopback; `tailscale serve` puts it on
+**From your phone (Tailscale).** kaizen stays on loopback; `tailscale serve` puts it on
 your tailnet over HTTPS. `kaizen setup` does all of this and prints a QR code to scan; by hand:
 
-1. Start the board as usual: `kaizen web`.
+1. Start kaizen as usual: `kaizen web`.
 2. `tailscale serve --bg 127.0.0.1:7420` (the port `kaizen web` printed).
 3. Add `<pc>.<tailnet>.ts.net` to `~/.kaizen/web-hosts` (one name per line), or set
    `KAIZEN_WEB_HOSTS=<pc>.<tailnet>.ts.net` (comma-separated for more than one) in the
-   environment that starts the board. Only the names you list are let in; every other
+   environment that starts kaizen. Only the names you list are let in; every other
    host still gets 403. The file is read on every request, so no restart is needed.
 4. On the phone open `https://<pc>.<tailnet>.ts.net` and choose Add to Home screen: it opens
    full screen with the kaizen icon.
 
-The board's gear → Settings → Phone shows each configured phone address as a link. If
+kaizen's gear → Settings → Phone shows each configured phone address as a link. If
 none is configured, it points you to `kaizen setup`. A saved address does not confirm
 that Tailscale Serve is currently running.
 
-Never use `tailscale funnel`: it publishes the board to the internet. Anyone on your
+Never use `tailscale funnel`: it publishes kaizen to the internet. Anyone on your
 tailnet who can reach this PC can drive your agents, terminals included; restrict it with
 Tailscale ACLs.
 
-**A notebook beside the board.** Selecting a note in the right panel opens
+**A notebook beside kaizen.** Selecting a note in the right panel opens
 `/notebook`: markdown notes for the project, kept as plain files in `.kaizen/notes/`
 (folders included, so Obsidian can open the same folder). Notes are edited in place —
 the line you are on shows its markdown, the rest reads typeset, and `/` at the start of a line offers checkboxes, dividers, headings and the other blocks. `[[Other note]]` links
@@ -246,7 +246,7 @@ bundled into the package, so the notebook works offline.
 kaizen-video skill has made, as a wall of tiles drawn at each video's real shape (9:16, 16:9,
 4:5), one tile per shape it was rendered in. Search finds a video by its title, the words
 said in it, its preset, platform or folder; the chips filter Draft, Rendering and Ready.
-Videos live in a library folder, `~/.kaizen` unless Settings → Board → Video library folder
+Videos live in a library folder, `~/.kaizen` unless Settings → General → App → Video library folder
 says otherwise (`videos/<name>/` for the work, `output/<name>/` for the finished files), and
 in any known project that has a `videos/` folder; each tile says which. Open a film to see
 its built preview play in the page, jump to a beat from the coloured strip, and change the
@@ -266,7 +266,7 @@ arrived or what went wrong, and lists the video's recent sends. MP4s over 64 MiB
 WhatsApp documents with their original quality; smaller MP4s appear as video messages.
 WhatsApp documents over 2 GB are refused before upload.
 
-**Dictate instead of type.** Every text field on the board — a new idea, its notes, an
+**Dictate instead of type.** Every text field in kaizen — a new idea, its notes, an
 edit, a reject reason, a note on a run — has a mic. Press it, talk, press it again; the
 words land at the caret next to whatever you had typed. Recognition is Whisper running
 inside the page, so audio never leaves your machine. The first press downloads the model
@@ -341,7 +341,7 @@ right (or press `→`) to promote it under its gathered title, left (`←`) to d
 `↓` skips to the next card without deciding, `z` undoes the last dismiss, `Esc` goes back
 to the list. A bar counts how far through you are, and an emptied stack ends on *Icebox
 zero* with what you sorted and a streak of days in a row you cleared it (kept in this
-browser). On a desktop the card fills the Icebox's width and the window's height; on a phone the view fills the screen. Each swipe clicks unless the board's
+browser). On a desktop the card fills the Icebox's width and the window's height; on a phone the view fills the screen. Each swipe clicks unless kaizen's
 sound is off.
 
 Run `/kaizen discover` in your agent and it reads the icebox for you: it groups
@@ -364,9 +364,9 @@ promoted or dismissed, or an idea you deleted, edited or rejected, does not come
 back. Rewording a row in the source makes it a new request. At most 50 arrive per
 gather; the rest come with the next one.
 
-While the board is running it checks each source every 24 hours — `kaizen settings` →
+While `kaizen web` is running it checks each source every 24 hours — `kaizen settings` →
 *Gather requests*, or the gear, sets `off`, `1h`, `6h` or `24h` — and **Gather now**
-does it on demand. With the board stopped nothing is gathered. From a terminal:
+does it on demand. With kaizen stopped nothing is gathered. From a terminal:
 
 ```
 kaizen sources add <link> [label] [--category <c>]     kaizen sources     kaizen sources rm <link>
@@ -590,9 +590,9 @@ the project and run it came from. Each line reads:
 
 Ctrl+= makes the text of every terminal bigger, Ctrl+- smaller, and Ctrl+0 puts it back to 12px; Settings → Terminal → Terminal font size does the same. The size is kept per browser.
 
-Ctrl+Shift+Space opens Search anywhere on the board, also from a terminal.
+Ctrl+Shift+Space opens Search anywhere in kaizen, also from a terminal.
 
-**Voice.** Settings → Voice picks the microphone for this browser. Ctrl+Alt+D starts and stops dictation into the terminal you're in, while the board has focus.
+**Voice.** Settings → Voice picks the microphone for this browser. Ctrl+Alt+D starts and stops dictation into the terminal you're in, while kaizen has focus.
 
 **AI Provider Accounts.** Optional: your normal Claude and Codex logins keep working. Add an account in Settings to keep a second login in its own folder, press Sign in, and pick it as the default or on the Run form. A run stays on its account when resumed, and a run whose account has gone refuses to start rather than using another. Not on Windows yet.
 
@@ -600,7 +600,7 @@ Ctrl+Shift+Space opens Search anywhere on the board, also from a terminal.
 
 **Desktop control.** An optional skill, off after every install and upgrade, in Settings → Skills → Optional. Turning it on asks first, because it lets agents read and operate your desktop apps. It then links like any skill, and `kaizen computer apps | windows | state | click | set-value | type` works for agents (it refuses while the skill is off, in the command and in the helper itself). It reads the Linux accessibility tree: no screenshots, no keyboard shortcuts, no launching apps; Linux only, and it needs python3 with PyGObject and AT-SPI. Password managers are blocked by app name only (one inside a browser or under another name is not), and password fields are never read or filled. On Wayland, shortcuts are out of reach; values, accessibility actions and typing into fields work where the app exposes them, and an app with accessibility off shows up empty. The off switch, the on-warning (the page sends a one-time token from the board) and the blocklist stop accidents, not a determined process on your machine.
 
-**Agent reports.** Agents tell the board how a run is going with `kaizen report`. A card then shows **stale** when its agent has gone quiet, the question when it's waiting on you, and **unverified** when it ended without finishing its stage. Stale and unverified need an agent running in the board. On Windows, and for a brand new run, agents pass the run id themselves. Agent heartbeat in Settings → Agents sets how long quiet counts.
+**Agent reports.** Agents tell kaizen how a run is going with `kaizen report`. A card then shows **stale** when its agent has gone quiet, the question when it's waiting on you, and **unverified** when it ended without finishing its stage. Stale and unverified need an agent running in kaizen. On Windows, and for a brand new run, agents pass the run id themselves. Agent heartbeat in Settings → Agents sets how long quiet counts.
 
 **Orchestration.** Off by default. Settings → Orchestration (or `kaizen worker set <run> on` for one run) lets a plan split into up to *max workers* pieces, each owning different files. You approve the split with the plan ("Build with workers?"). At build, the run's agent asks the board to open one real terminal per worker, each in its own branch and folder under the run's card; each reports its phase and hands back when it has committed. When every worker has succeeded, `kaizen worker merge` merges them into the run's branch in plan order. A failed, blocked or unverified worker stops the merge, and a conflict undoes it and shows as a blocker on the card; nothing is resolved for you. Workers use each agent's own permission prompts, never your global bypass, unless Orchestration permissions says bypass (their tabs then say so). Worker model has one field per installed tool that takes a model flag (type the tool's own model name, e.g. `haiku` for Claude Code; empty means the run's own model). A run uses its own agent's value, and a tool with no model flag ignores it and says so in `workers.json`. Worker model (inherit, haiku, sonnet or opus) sets the model each worker runs on, for tools that take a model flag; inherit is the run's own model. Settings are frozen when the build starts. Needs the board running, a run worktree and a full run; Linux and macOS only.
 
@@ -618,7 +618,7 @@ Ctrl+Shift+Space opens Search anywhere on the board, also from a terminal.
 | `approvals.plan` | `true` | Stop and show the plan before anything is built |
 | `ui.mouse` | `false` | Click to select, click again to act; while on, the terminal cannot select text |
 | `subagents.model` | `inherit` | Model the stage subagents run on: `inherit`, `opus`, `sonnet`, `haiku` (Claude Code only) |
-| `agent.<cmd>.model`, `agent.<cmd>.effort` | — | Model/effort the board launches a session with, per tool: `claude`, `codex`, `agy`, `opencode`, `gemini`. Model names are the tool's own (`agy models`) |
+| `agent.<cmd>.model`, `agent.<cmd>.effort` | — | Model/effort kaizen launches a session with, per tool: `claude`, `codex`, `agy`, `opencode`, `gemini`. Model names are the tool's own (`agy models`) |
 | `subagents.effort` | `inherit` | Reasoning effort for the stage subagents: `inherit`, `low`, `medium`, `high` (Claude Code only) |
 
 ```bash
@@ -727,7 +727,7 @@ kaizen issue [what happened]
 ```
 
 Opens kaizen's GitHub bug form with your machine filled in: kaizen version, OS, arch,
-CPU, RAM, bun version, terminal. The board does the same from *Report an issue* at the
+CPU, RAM, bun version, terminal. kaizen does the same from *Report an issue* at the
 bottom of its side menu, and every error it shows carries a *Report* link with the error already in the
 form. Your home folder is written as `~`; no hostname or username is included. Nothing
 is sent until you read it and press Submit on GitHub. `kaizen issue --env` only prints

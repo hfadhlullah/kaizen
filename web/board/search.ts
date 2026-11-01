@@ -14,7 +14,7 @@ import { leaves, wsKey } from "./ws-tabs.ts";
 const ask = (name: string, detail: any) => !dispatchEvent(new CustomEvent(name, { cancelable: true, detail }));
 // A menu entry's own click: in place on the board, a page load elsewhere.
 const page = (v: string, href: string) => () => {
-  const a = document.querySelector<HTMLElement>(`.rail a.it[data-view="${v}"]`);
+  const a = document.querySelector<HTMLElement>(`.rail a[data-view="${v}"]`);
   a ? a.click() : (location.href = href);
 };
 const openWs = (dir: string, ws: string) => {

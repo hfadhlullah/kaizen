@@ -6,6 +6,8 @@ updated: 2026-11-01
 ---
 # Web board
 
+- Board is reached by a toggle in the Projects header (`.pbd`, left of the filter): a second click goes back (`boardBack` in `web/board/views.ts`). Keep it equal on board, notes and video pages.
+
 ## What it does
 `kaizen web` runs a loopback HTTP server over `cli/state.ts` and serves one HTML page that only ever sees JSON (header of `cli/web.ts`). From it you start runs, approve or revise plans, pick findings to fix, commit, push and open or merge a run's pull request (the Source control tab), and open Notes, the icebox and settings. User-facing tour: `docs/guide.md` ("In a browser"). Look and feel: `design.md`.
 

@@ -32,10 +32,10 @@
 | **Plan first** | The agent writes what it will do, and what *wrong* would look like, then waits for your approve or change. |
 | **A reviewer that starts cold** | A second agent reviews from the request, the plan and the diff only. It never saw the work, so it has nothing to defend. |
 | **A fix loop that ends** | Serious findings are fixed and re-checked, at most twice. The rest come to you; what is left goes to a backlog. |
-| **One board** | `kaizen web`: icebox, ideas, plan, build, review, fix, commit and push, in the browser or the terminal. |
+| **One workspace** | `kaizen web`: each run builds in its own worktree, with icebox, ideas, plan, build, review, fix, commit and push in one place, in the browser or the terminal. |
 | **Requests from where they live** | Sheets, docs and social posts are gathered into an icebox, grouped, and promoted to ideas when you pick them. |
 | **A notebook agents read first** | An Obsidian-compatible vault under `.kaizen/notes/` that every stage reads before it plans or builds. |
-| **On your phone** | The board installs as a PWA over Tailscale. `kaizen setup` prints the QR code. |
+| **On your phone** | kaizen installs as a PWA over Tailscale. `kaizen setup` prints the QR code. |
 | **Any agent, any session** | Every stage is a file in `.kaizen/runs/<id>/`, so another session or another tool can pick a run up. |
 
 </details>
@@ -61,8 +61,8 @@ None of this is a lack of intelligence. It is a missing workflow. Many assistant
    irm bun.sh/install.ps1 | iex; & "$env:USERPROFILE\.bun\bin\bunx.exe" kaizen-agent
    ```
    Already have Bun? `bunx kaizen-agent`.
-2. **Run `kaizen setup`.** It walks you through your project, settings, the board and the phone app.
-3. **Open the board** with `kaizen web`, or type `/kaizen <request>` in your agent.
+2. **Run `kaizen setup`.** It walks you through your project, settings, `kaizen web` and the phone app.
+3. **Open kaizen** with `kaizen web`, or type `/kaizen <request>` in your agent.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/hfadhlullah/kaizen/main/site/media/workspace.png" alt="The kaizen workspace: agent tabs, the app in a browser pane, and the plan waiting for review" width="100%">
@@ -74,7 +74,7 @@ None of this is a lack of intelligence. It is a missing workflow. Many assistant
 |---|---|
 | Runtime | [Bun](https://bun.sh) 1.1 or newer. The installer above gets it. |
 | Agent | Claude Code, Codex, Antigravity or Gemini CLI. Claude Code gets the full flow with separate subagents; the others run every stage in one session. |
-| Git | Needed for the board's commit and push. Optional otherwise. |
+| Git | Needed for kaizen's commit and push. Optional otherwise. |
 | OS | macOS, Linux, Windows. |
 | Phone app | [Tailscale](https://tailscale.com/download) on the PC and the phone, same account. |
 
@@ -103,7 +103,7 @@ Each stage is its own agent with a clean context: planner, builder, reviewer. Th
 - Installs itself to `~/kaizen`, and keeps settings and the project list in `~/.kaizen/`.
 - Links its skills, agents and `/kaizen-*` commands into each agent it finds: `~/.claude`, `~/.codex`, `~/.agents`, `~/.gemini`. Re-running is safe.
 - Per project, `kaizen init` writes `.kaizen/` and, in a git repo, a `.gitignore` entry that keeps run state out of commits but keeps the `spec*.md` files and `config.yml`.
-- `kaizen web` serves the board on `127.0.0.1:7420`. After `kaizen setup` it is also reachable from your own Tailscale network, nothing wider; never use `tailscale funnel`.
+- `kaizen web` serves kaizen on `127.0.0.1:7420`. After `kaizen setup` it is also reachable from your own Tailscale network, nothing wider; never use `tailscale funnel`.
 - `kaizen uninstall` removes the app and its links, and asks whether to keep your runs and settings (`--purge` deletes them too).
 
 ## Who it is for
@@ -114,10 +114,10 @@ Each stage is its own agent with a clean context: planner, builder, reviewer. Th
 
 ## Phone app
 
-The board is a PWA: installed from the browser, it opens full screen with the kaizen icon. It needs [Tailscale](https://tailscale.com/download) on this PC and on your phone, both signed in to the same account.
+kaizen is a PWA: installed from the browser, it opens full screen with the kaizen icon. It needs [Tailscale](https://tailscale.com/download) on this PC and on your phone, both signed in to the same account.
 
 ```bash
-kaizen setup        # guided: starts the board, runs tailscale serve, prints a QR code
+kaizen setup        # guided: starts `kaizen web`, runs tailscale serve, prints a QR code
 ```
 
 Scan the QR code with your phone camera, then **Add to Home screen** (iOS: Share menu; Android: browser menu, *Install app*).

@@ -11,13 +11,14 @@ import { initPhone, isPhone, openPhone } from "./phone.ts";
 
 // ---- views: Home (the chat, at /), the board, Settings and the Icebox as pages in the docked panel, or the Terminal page; each with its own address
 export let view = "board";
+let boardBack = false;
 // The board's own area, not the docked panel.
 const AREA = ["board", "terminal", "home", "ideas", "run", "chat", "device"];
 export const markView = (v) => {
   // A phone's run workspace belongs to its Runs tab.
   const lit = v === "run" && isPhone() ? "device" : v;
   document
-    .querySelectorAll(".rail a.it")
+    .querySelectorAll(".rail a[data-view]")
     .forEach((a) =>
       a.dataset.view === lit ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current"),
     );
@@ -104,7 +105,17 @@ export function initViews() {
         store.setQ = "";
         store.setBack = view !== "settings";
       }
-      vt(() => go(a.dataset.view, true));
+      // Board is a toggle: a second click goes back to where the first one came from.
+      if (a.dataset.view === "board" && view === "board") {
+        const back = boardBack;
+        boardBack = false;
+        return void (back ? history.back() : vt(() => go("home", true)));
+      }
+      const opening = a.dataset.view === "board";
+      vt(() => {
+        go(a.dataset.view, true);
+        boardBack = opening;
+      });
     };
   });
   document.querySelector(".rail .home").onclick = (e) => {

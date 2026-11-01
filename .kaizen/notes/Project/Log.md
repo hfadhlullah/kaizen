@@ -258,3 +258,4 @@ updated: 2026-10-31
 - 2026-11-01 run 2026-11-01-land-conflicts — Workflow, Web board
 - 2026-11-01 run 2026-11-01-terminal-font-size — Web board
 - 2026-11-01 run 2026-11-01-prune-session-records — CLI: `kaizen prune` removes dead launch records
+- 2026-11-01 run 2026-11-01-worktree-first-labels — Web board: Board moved from the side menu to a toggle in the Projects header

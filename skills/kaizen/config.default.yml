@@ -122,9 +122,9 @@ git:
 
 orchestration:
   # true: a plan may split into workers (a `## Workers` section you approve with the plan).
-  # Each worker is a real agent terminal on the board, in its own branch and folder; the
+  # Each worker is a real agent terminal on kaizen, in its own branch and folder; the
   # run's build agent merges them when every one has succeeded. Off by default, and with it
-  # off nothing behaves differently. Needs the board running, a run worktree, a full (not
+  # off nothing behaves differently. Needs kaizen running, a run worktree, a full (not
   # lite) run, and Linux or macOS. A run's own `kaizen worker set <run> on|off` wins.
   enabled: false
   # Most workers one run may be split into (1-6). A run already building keeps the value it started with.
@@ -167,30 +167,30 @@ agent:
   # Default coding agent to launch from dashboard backlog (auto | claude | codex | agy | opencode | gemini).
   # auto picks Claude Code if installed, otherwise the first agent found on PATH.
   default: auto
-  # on: a board decision ends the run's waiting session once the new one continuing
+  # on: a decision on a card ends the run's waiting session once the new one continuing
   # its conversation is open, and abandoning a run ends its session. A done run's
-  # session is left open. Only sessions the board or dashboard launched are touched.
+  # session is left open. Only sessions kaizen or its dashboard launched are touched.
   # off: nothing is ended, and a resumed conversation opens beside the window still waiting.
   close: on
-  # Where the web board runs the agent it launches.
-  #   card     - inside the board: the card's Terminal tab shows the agent live and
-  #              takes your typing. The agent lives in the board's process, so
-  #              stopping, upgrading or a crash of the board ends it; the next
-  #              board starts it again in its card, in the same conversation, with
+  # Where kaizen runs the agents it launches.
+  #   card     - inside kaizen: the card's Terminal tab shows the agent live and
+  #              takes your typing. The agent lives in kaizen's process, so
+  #              stopping, upgrading or a crash of kaizen ends it; the next
+  #              kaizen starts it again in its card, in the same conversation, with
   #              its last screen and a line saying the step it was on was cut off.
   #              On Windows it runs in a ConPTY console that Windows PowerShell hosts.
   #   terminal - a new terminal window (or tmux/herdr tab) per launch.
   # The terminal dashboard always opens terminal windows.
   launch: card
-  # Card agents only: what happens to them when the board stops.
-  #   off  - they end and the next board starts them again (above).
+  # Card agents only: what happens to them when kaizen stops.
+  #   off  - they end and the next kaizen starts them again (above).
   #   tmux - they run inside a hidden tmux session on kaizen's own tmux server
   #          (tmux -L kaizen, your own sessions untouched) and keep working through
-  #          a board restart or crash; the next board shows them again mid-step.
+  #          a kaizen restart or crash; the next kaizen shows them again mid-step.
   #          Linux and macOS with tmux installed; elsewhere it acts as off.
   keep_alive: off
-  # Stops idle sleep from the board. off | auto (while the board runs agents) | on
-  # (while the board is open). Linux and macOS; agents in an outside terminal don't count.
+  # Stops idle sleep from kaizen. off | auto (while kaizen runs agents) | on
+  # (while kaizen is open). Linux and macOS; agents in an outside terminal don't count.
   keep_awake: off
   # The model each tool launches with, the tool's own name. Empty: its default.
   # Claude Code's stage subagents use subagents.model instead.
@@ -202,7 +202,7 @@ agent:
   # Minutes between an agent's reports. Quiet for two of these with no terminal
   # activity, its card says stale.
   heartbeat_minutes: 5
-  # Per-tool model and effort for the session the board launches, passed as that
+  # Per-tool model and effort for the session kaizen launches, passed as that
   # tool's own flags (claude --model/--effort, agy --model/--effort, codex -m and
   # model_reasoning_effort, gemini -m, opencode -m). Model names are the tool's own:
   # `agy models`, `opencode models`, Claude's opus|sonnet|haiku. Absent = tool default.
@@ -215,8 +215,8 @@ agent:
 
 board:
   # A folder your projects live in, e.g. ~/Projects, or C:\Users\you\Projects on
-  # Windows. Every folder inside it is offered in the web board's project list;
-  # choosing one creates its .kaizen and moves the board there. A folder that is
+  # Windows. Every folder inside it is offered in kaizen's project list;
+  # choosing one creates its .kaizen and moves kaizen there. A folder that is
   # not itself a project (no .git, no package.json) is read as a group, and the
   # folders inside it are offered too.
   projects_dir: ""
@@ -224,7 +224,7 @@ board:
   # renders to <folder>/output/<name>/. Empty means ~/.kaizen. Known projects that
   # have a videos/ folder are listed on the Video page too.
   video_dir: ""
-  # Where `kaizen web` opens the board: browser (a tab in your default browser) or
+  # Where `kaizen web` opens kaizen: browser (a tab in your default browser) or
   # app (a Chrome, Edge or Brave window with no tabs or address bar).
   open: browser
   # The key that opens and closes `kaizen chat`, the popup chat window. kaizen
@@ -233,7 +233,7 @@ board:
   chat_hotkey: "SUPER + ALT + SPACE"
 
 sources:
-  # How often the web board checks your request sources (links added in the board's
+  # How often kaizen checks your request sources (links added in kaizen's
   # Sources panel or with `kaizen sources add`) for new requests, while it is
   # running: off | 1h | 6h | 24h. off means only when you press Gather now or run
   # `kaizen gather`. What is found lands in Ideas; nothing starts on its own.
@@ -241,7 +241,7 @@ sources:
   # Who picks the posts that fit the project from a social source (X, TikTok,
   # Instagram, Threads) when you press Gather. Kaizen's own browser reads the posts;
   # sign it in once with `kaizen browser login`. ask | chatgpt | agent. chatgpt: your
-  # ChatGPT plan, signed in from the Icebox, picks them in the board. agent: your coding
+  # ChatGPT plan, signed in from the Icebox, picks them in kaizen. agent: your coding
   # tool opens on /kaizen gather. ask: the Icebox offers to connect ChatGPT the first
   # time. Not connected, Gather uses your agent.
   agent: ask
@@ -251,7 +251,7 @@ sources:
   effort: low
 
 dictation:
-  # Whisper model the web board dictates with. Runs in the browser; downloaded once
+  # Whisper model kaizen dictates with. Runs in the browser; downloaded once
   # from Hugging Face and cached. Bigger is more accurate and better with languages
   # other than English, at the cost of the first-use download and GPU memory:
   #   tiny             ~ 60 MB   fast, rough
