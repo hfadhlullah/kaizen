@@ -6,6 +6,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { SearchAddon } from "@xterm/addon-search";
+import { fontRead, fontSet, fontStep } from "./term-font.ts";
 
 function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void {
   const css = getComputedStyle(el);
@@ -15,7 +16,7 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
     cursorBlink: true,
     // Nerd Font first: shell prompts print private-use glyphs that plain monospace fonts lack.
     fontFamily: `"JetBrainsMono Nerd Font",${tok("--mono")}`,
-    fontSize: 12,
+    fontSize: fontRead(),
     scrollback: 5000,
     allowProposedApi: true, // search match decorations
     theme: theme(),
@@ -289,8 +290,17 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
       openSearch();
       return false;
     }
-    return true;
+    const next = fontStep(term.options.fontSize!, e);
+    if (next === null) return true;
+    e.preventDefault(); // the browser would zoom the page
+    if (e.type === "keydown") fontSet(next);
+    return false;
   });
+  const refont = (e: Event) => {
+    term.options.fontSize = (e as CustomEvent<number>).detail;
+    size();
+  };
+  addEventListener("kz-term-font", refont);
   // Each resize makes the agent redraw its whole screen, so a panel animating or a
   // soft keyboard opening sends one, not dozens.
   let resizing: Timer | undefined;
@@ -309,6 +319,7 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
     clearTimeout(retry);
     if (ws) { ws.onclose = null; ws.close(); }
     removeEventListener("kz-theme", retheme);
+    removeEventListener("kz-term-font", refont);
     os.removeEventListener("change", retheme);
     term.dispose();
   };

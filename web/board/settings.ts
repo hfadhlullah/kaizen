@@ -2,6 +2,7 @@ import { store } from "./store.ts";
 import { termStop } from "./agent-term.ts";
 import { dirHeader, load, post } from "./api.ts";
 import { stopDictation } from "./dictation.ts";
+import { FONT_MAX, FONT_MIN, fontRead, fontSet } from "../term-font.ts";
 import { $, html, ico, raw } from "./dom.ts";
 import { close } from "./panel.ts";
 import { accountRows, wireAccounts } from "./settings-accounts.ts";
@@ -165,6 +166,7 @@ export async function openSettings() {
   put("appearance", "Browser", row("Theme", ctl("th", ["system", "light", "dark"], cur), "", "th", "theme light dark system browser"));
   put("appearance", "Browser", row("Color", ctl("co", ["monochrome", "blue"], colour), "", "co", "color colour palette monochrome blue theme browser"));
   put("appearance", "Browser", row("Motion", ctl("mo", ["system", "full", "reduce"], document.documentElement.dataset.motion || "system"), "Animations across kaizen. System follows the device's reduce-motion setting.", "mo", "motion animation reduce reduced browser"));
+  put("terminal", "Browser", row("Terminal font size", html`<input id="tf" class="sel" style="width:80px" type="number" min="${String(FONT_MIN)}" max="${String(FONT_MAX)}" value="${String(fontRead())}" aria-label="Terminal font size in pixels">`, "In every board terminal. Ctrl+= and Ctrl+- change it from a terminal, Ctrl+0 resets it.", "tf", "terminal font size text zoom browser"));
   put("notifications", "Browser", row("Notifications", html`<button class="chk sm${nton ? " on" : ""}" id="nt" role="switch" aria-checked="${String(nton)}"></button>`, ntHelp, "nt", "notifications " + ntHelp + " browser"));
   put("notifications", "Browser", row("Haptic feedback", html`<button class="chk sm${hapton ? " on" : ""}" id="hp" role="switch" aria-checked="${String(hapton)}"></button>`, "A light tick when you tap something on a phone.", "hp", "haptic feedback vibrate vibration touch tap phone browser"));
   put("notifications", "Browser", row("Notification sound", ctl("ns", SOUNDS, soundPick()), "Plays with each notice. Changing it plays it.", "ns", "notification sound audio browser " + SOUNDS.join(" "), !nton));
@@ -318,6 +320,11 @@ export async function openSettings() {
   choice($("th"), ["system", "light", "dark"], cur, setTheme);
   choice($("co"), ["monochrome", "blue"], colour, setColor);
   choice($("mo"), ["system", "full", "reduce"], document.documentElement.dataset.motion || "system", setMotion);
+  $("tf").onchange = (e) => {
+    const n = Math.round(Math.min(FONT_MAX, Math.max(FONT_MIN, +e.target.value || fontRead())));
+    e.target.value = n;
+    fontSet(n);
+  };
   $("nt").onclick = () => {
     const on = !notifyOn();
     try {
