@@ -5,7 +5,7 @@
 import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, readlinkSync, renameSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path";
 
-export type Skill = { id: string; rel: string; title: string; description: string; group: "core" | "media" | "optional"; needs: string[]; offByDefault: boolean };
+export type Skill = { id: string; rel: string; title: string; description: string; group: "core" | "media" | "optional"; needs: string[]; offByDefault: boolean; status: string };
 export const SKILL_HOMES = [
   { name: "Claude Code", dir: ".claude" }, { name: "Codex", dir: ".codex" }, { name: "Antigravity", dir: ".agents" },
   { name: "OpenCode", dir: ".opencode" }, { name: "Cursor", dir: ".cursor" }, { name: "Gemini CLI", dir: ".gemini" },
@@ -30,7 +30,7 @@ export function bundledSkills(repo: string): Skill[] {
     let m: any = {};
     try { m = JSON.parse(readFileSync(join(root, rel, "skill.json"), "utf8")); } catch { /* a folder alone is enough */ }
     const group = CORE.includes(basename(rel)) ? "core" : m.group === "media" || rel.startsWith("media/") ? "media" : "optional";
-    return { id: basename(rel), rel, title: String(m.title ?? basename(rel)), description: frontMatter(readFileSync(join(root, rel, "SKILL.md"), "utf8")), group, needs: Array.isArray(m.needs) ? m.needs.map(String) : [], offByDefault: group !== "core" && m.off_by_default === true };
+    return { id: basename(rel), rel, title: String(m.title ?? basename(rel)), description: frontMatter(readFileSync(join(root, rel, "SKILL.md"), "utf8")), group, needs: Array.isArray(m.needs) ? m.needs.map(String) : [], offByDefault: group !== "core" && m.off_by_default === true, status: m.status === "beta" || m.status === "experimental" ? m.status : "stable" };
   });
 }
 

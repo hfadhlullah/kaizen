@@ -5,7 +5,7 @@ import { toast } from "./toast.ts";
 
 // Settings → Skills: one row per bundled skill, grouped. /skills scans the folders, so
 // a new skill shows here with no change to this file.
-type Row = { id: string; title: string; description: string; group: string; off: boolean; agents: { agent: string; state: string }[]; needs: { name: string; found: boolean }[]; offByDefault?: boolean; note?: string };
+type Row = { id: string; title: string; description: string; group: string; off: boolean; agents: { agent: string; state: string }[]; needs: { name: string; found: boolean }[]; offByDefault?: boolean; note?: string; status?: string };
 const GROUPS: [string, string][] = [["core", "Core"], ["media", "Media"], ["optional", "Optional"]];
 const WORD: Record<string, string> = { installed: "installed", missing: "missing", other: "your own copy" };
 
@@ -24,7 +24,7 @@ const skillIcon = (id: string) => raw(`<svg class="sk-i" viewBox="0 0 24 24" ari
 
 const row = (s: Row) =>
   html`<div class="sk" data-q="${[s.title, s.id, s.description, s.group, "skill"].join(" ").toLowerCase()}">
-    <div class="sk-h">${skillIcon(s.id)}<span class="sk-n"><b>${s.title}</b><span>${s.description}</span></span>
+    <div class="sk-h">${skillIcon(s.id)}<span class="sk-n"><b>${s.title}${s.status && s.status !== "stable" ? html` <em class="sk-st">${s.status === "beta" ? "Beta" : "Experimental"}</em>` : ""}</b><span>${s.description}</span></span>
       ${s.group === "core" ? html`<span class="hint">Always on</span>` : html`${!s.off && s.agents.some((a) => a.state === "missing") ? html`<button type="button" class="btn" data-skill="${s.id}" data-on="true">Install</button>` : ""}<button type="button" class="chk sm${s.off ? "" : " on"}" data-skill="${s.id}" data-on="${String(s.off)}" data-warn="${String(!!s.offByDefault)}" role="switch" aria-checked="${String(!s.off)}" aria-label="${s.title}" title="${s.off ? "Off" : "On"}"></button>`}</div>
     <div class="sk-a">${s.agents.map((a) => html`<img class="sk-ag${a.state === "installed" ? "" : " off"}" src="${AGENT_FAVICONS[AGENT_CMD[a.agent] ?? ""] ?? ""}" width="18" height="18" alt="${a.agent}: ${WORD[a.state] ?? a.state}" title="${a.agent}: ${WORD[a.state] ?? a.state}">`)}${s.needs.map((n) => html`<span class="${n.found ? "" : "miss"}">Needs ${n.name}${n.found ? "" : " (not found)"}</span>`)}${s.note ? html`<span>${s.note}</span>` : ""}</div>
   </div>`;

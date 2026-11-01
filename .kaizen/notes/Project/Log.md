@@ -262,3 +262,4 @@ updated: 2026-10-31
 - 2026-11-01 run 2026-11-01-rename-ideas-to-tasks — Web board, Workspace-wide: Ideas renamed to Tasks in UI, docs and code; stored data keeps `idea`; old view and route kept as aliases.
 - 2026-11-01 update — Workflow: skill audit safe batch; help card cut to commands and pointers, video example renamed `meeting-promo` with a fictional product, stale wording fixed.
 - 2026-11-01 update — Workflow, CLI: `kaizen settings preset <name>` applies a preset bundle for agents; small-work rule made consistent; skill.json lists real requirements.
+- 2026-11-01 update — Web board: Settings → Skills labels beta and experimental skills from `status` in skill.json.

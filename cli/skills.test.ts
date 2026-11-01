@@ -87,3 +87,9 @@ test("core holds with no manifest; a whole description is read; a restore follow
   setSkill(repo, home, "kaizen-deck", true);
   expect(readlinkSync(link())).toBe(join(other, "skills/media/kaizen-deck"));
 });
+
+test("only unproven skills carry a status label", () => {
+  const real = bundledSkills(join(import.meta.dir, ".."));
+  const status = Object.fromEntries(real.map((s) => [s.id, s.status]));
+  expect(status).toEqual({ kaizen: "stable", "kaizen-help": "stable", "kaizen-book": "stable", "kaizen-deck": "stable", "kaizen-video": "stable", "kaizen-computer": "experimental" });
+});
