@@ -91,6 +91,7 @@ tells you what it concluded, so you correct a sentence instead of filling in a f
 | `/kaizen <request>` | Start a run |
 | `/kaizen-plan <request>` | Plan only — stop before anything is built |
 | `/kaizen-auto <request>` | No approval stops; report at the end |
+| `/kaizen-concept [number] <brief>` | New product: make concepts as clickable prototypes (default 3) and approve one before any build |
 | `/kaizen-lite <request>` | Every stage in this session — cheap, and the reviewer has seen the work unless `review.executor` is `subagent` |
 | `/kaizen-full <request>` | Every stage its own cold agent — the independent review |
 | `/kaizen-review [target]` | Review something that already exists |

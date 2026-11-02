@@ -19,7 +19,7 @@ import { load, post } from "./api.ts";
 import { attach, md, preview } from "./markdown.ts";
 import { layout } from "./terms.ts";
 import { cardHref, markCurrent, railData, stateOf, titleOf, wsHref, wsOfCard } from "./workspace.ts";
-import { type Node, type Box, awaiting, chosen, finished, historyOf, leaves, liveIn, loopbackUrl, migrate, nearestPane, newRun, pickable, prune, reviewing, stageTabs, toOpen, wsKey } from "./ws-tabs.ts";
+import { type Node, type Box, awaiting, chosen, devUrl, finished, historyOf, leaves, liveIn, loopbackUrl, migrate, nearestPane, newRun, pickable, prune, reviewing, stageTabs, toOpen, wsKey } from "./ws-tabs.ts";
 import { drawPick, hidePick, initPick, setOpen } from "./run-pick.ts";
 import { age } from "./labels.ts";
 import { go } from "./views.ts";
@@ -473,7 +473,7 @@ function browser(el: HTMLElement) {
     frame.hidden = hide;
     note.hidden = !hide;
     note.textContent = far;
-    if (hide) return;
+    if (hide) return void expose(u);
     frame.src = u;
     // Most public sites refuse to be framed (X-Frame-Options / frame-ancestors), and the
     // browser only shows its own error page. The board asks the site first and says so.
@@ -489,6 +489,21 @@ function browser(el: HTMLElement) {
         note.insertAdjacentHTML("beforeend", String(html`<b>This page refuses to be shown inside kaizen</b>${new URL(u).host} sends a header that forbids framing. <a class="rwin" target="_blank" rel="noopener" href="${u}">${ico("popout")}<span>Open in new tab</span></a>${winBtn(u)}`));
       })
       .catch(() => {});
+  };
+  // On a phone: the board serves that port to the tailnet and the frame opens its tailnet address.
+  const expose = (u: string) => {
+    note.textContent = "Opening this page for this device…";
+    void fetch("/expose", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ url: u }) })
+      .then((r) => r.json())
+      .then((j) => {
+        if (url !== u) return;
+        if (!j.ok) return void (note.textContent = `${far} (${j.error})`);
+        note.hidden = true;
+        frame.hidden = false;
+        frame.src = j.url;
+        if (ext) ext.href = j.url;
+      })
+      .catch(() => url === u && (note.textContent = far));
   };
   f.onsubmit = (e) => {
     e.preventDefault();
@@ -844,7 +859,7 @@ async function autoBrowse() {
     let u: string | undefined;
     try {
       const doc = await (await fetch(`/run/${encodeURIComponent(c.id)}?dir=${encodeURIComponent(c.state)}`)).json();
-      u = loopbackUrl(preview(doc.impl));
+      u = devUrl(preview(doc.impl), await (await fetch("/devports?ws=" + encodeURIComponent(ctx.ws))).json());
     } catch {}
     if (!u || ctx?.k !== k || saved().seen?.includes(key(c))) continue;
     (saved().seen ||= []).push(key(c));

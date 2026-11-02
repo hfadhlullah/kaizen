@@ -134,6 +134,15 @@ export function stageTabs(c, agent: string): { key: string; title: string }[] {
 export const reviewing = (c) => c.kind === "run" && (c.column === 3 || c.status === "done");
 // The first localhost address in a run's ## Preview.
 export const loopbackUrl = (pv?: string | null) => (pv ? /https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?[^\s)`'"<>]*/.exec(pv)?.[0] : undefined);
+// The address the Browser opens for a run: the Preview's first localhost address on a port the
+// workspace's own processes listen on (`ports`, from /devports), else the first such port, else
+// the Preview's first address. Another project on the Preview's port never wins.
+// ponytail: with no Preview match the lowest port wins, which may be an asset server (Vite) over the app.
+export function devUrl(pv: string | null | undefined, ports: number[]): string | undefined {
+  const all = pv ? [...pv.matchAll(/https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?[^\s)`'"<>]*/g)].map((m) => m[0]) : [];
+  const portOf = (u: string) => Number(new URL(u).port || 80);
+  return all.find((u) => ports.includes(portOf(u))) ?? (ports.length ? `http://localhost:${ports[0]}` : all[0]);
+}
 // Runs that moved into review or done since the last tick (`was` = the keys reviewing then) and have not
 // yet opened the Browser: once per run id (`seen`).
 export const toOpen = (cards: any[], was: Set<string>, seen: string[], keyOf: (c) => string) => cards.filter((c) => reviewing(c) && !was.has(keyOf(c)) && !seen.includes(keyOf(c)));

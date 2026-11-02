@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { nearestPane, agentStatus, agentsHtml, forgetAgents, lineOf, settleIn, toggleOpen, wsAgents, SETTLE_MS, awaiting, dueWord, chosen, newRun, loopbackUrl, toOpen, stageKeys, stageTabs, finished, historyOf, liveIn, migrate, pickable, prune, wsKey } from "./ws-tabs.ts";
+import { nearestPane, agentStatus, agentsHtml, forgetAgents, lineOf, settleIn, toggleOpen, wsAgents, SETTLE_MS, awaiting, dueWord, chosen, newRun, loopbackUrl, devUrl, toOpen, stageKeys, stageTabs, finished, historyOf, liveIn, migrate, pickable, prune, wsKey } from "./ws-tabs.ts";
 
 const run = (id: string, status: string, o: any = {}) => ({ kind: "run", state: "/p/.kaizen", id, status, moved: 1, ws: "/p", ...o });
 const wsOf = (c) => c.ws;
@@ -210,4 +210,12 @@ test("a failed land outranks every other agent status", () => {
   expect(agentStatus({ ...a, land: "check" }, 0, new Map())).toBe("failed");
   expect(lineOf({ a: { ...a, land: "conflict", last: "x" }, st: "conflict" })).toBe("Conflict - Claude");
   expect(agentStatus(a, 0, new Map())).toBe("asking");
+});
+
+test("devUrl: the Preview address on a port this workspace listens on, else its port, else the Preview", () => {
+  const pv = "composer dev # http://localhost:8000\nor open `http://127.0.0.1:8123/_test/login/1`";
+  expect(devUrl(pv, [5173, 8123])).toBe("http://127.0.0.1:8123/_test/login/1");
+  expect(devUrl(pv, [3001])).toBe("http://localhost:3001");
+  expect(devUrl(pv, [])).toBe("http://localhost:8000");
+  expect(devUrl(null, [])).toBeUndefined();
 });
