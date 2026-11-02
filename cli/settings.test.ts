@@ -159,7 +159,9 @@ test("kaizen settings preset applies the whole bundle, and refuses an unknown na
   mkdirSync(join(home, ".kaizen"));
   copyFileSync(join(repo, "skills/kaizen/config.default.yml"), join(home, ".kaizen/config.yml"));
   try {
-    expect(run("ultra").exitCode).toBe(0);
+    const r = run("ultra");
+    expect(r.stdout.toString() + r.stderr.toString()).toContain("preset: ultra");
+    expect(r.exitCode).toBe(0);
     const text = readFileSync(join(home, ".kaizen/config.yml"), "utf8");
     expect(read(text, "preset")).toBe("ultra");
     expect(read(text, "mode")).toBe("auto");

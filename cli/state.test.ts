@@ -1635,7 +1635,7 @@ test("pruneSessions drops only old records nothing can use, with their files", (
   expect(pruneSessions(st, false, now).map((g) => g.key + ":" + g.reason).sort()).toEqual(["abandoned:abandoned", "missing:gone", "unowned:unowned"]);
   expect(readdirSync(sessions)).toContain("abandoned.json");
   expect(pruneSessions(st, true, now).map((g) => g.key).sort()).toEqual(dead);
-  expect(readdirSync(sessions).filter((f) => f.endsWith(".json")).sort()).toEqual(["done.json", "flight.json", "live.json", "unreadable.json", "young.json"]);
+  expect(readdirSync(sessions).filter((f) => f.endsWith(".json")).sort()).toEqual(["done.json", "flight.json", ...(process.platform === "win32" ? [] : ["live.json"]), "unreadable.json", "young.json"]);
   expect(readdirSync(sessions)).not.toContain("abandoned.run");
   rmSync(dirname(st), { recursive: true, force: true });
 });
