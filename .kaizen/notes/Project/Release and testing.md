@@ -1,7 +1,7 @@
 ---
 description: How to test, build the web bundles, and publish a release
 tags: [project, release]
-sources: [site/, package.json, cli/release.sh, cli/publish-gh.sh, .github/workflows/test.yml, cli/build-web.ts, test/tmp.ts, bunfig.toml, bot/bunfig.toml]
+sources: [site/, package.json, cli/release.sh, cli/publish-gh.sh, .github/workflows/test.yml, cli/build-web.ts, test/tmp.ts, bunfig.toml, bot/bunfig.toml, cli/release.ts, assets, cli/add-project.test.ts, cli/backlog.test.ts, cli/board.test.ts, cli/browser.test.ts, cli/chat.test.ts, cli/chatgpt.test.ts, cli/docs.test.ts, cli/html.test.ts, cli/install.test.ts, cli/knowledge.test.ts, cli/localsend.test.ts, cli/logo.test.ts, cli/notes.test.ts, cli/onboarding.test.ts, cli/project-tree.test.ts, cli/pty.test.ts, cli/release.test.ts, cli/restart.test.ts, cli/settings.test.ts, cli/setup.test.ts, cli/shell-agent.test.ts, cli/sources.test.ts, cli/state.test.ts, cli/usage.test.ts, cli/versions.test.ts, cli/video.test.ts, cli/web-accept.test.ts, cli/web-decide.test.ts, cli/web-pr.test.ts, cli/web-symlink.test.ts, cli/worktree.test.ts, cli/writeback.test.ts]
 updated: 2026-10-30
 ---
 # Release and testing
@@ -14,6 +14,8 @@ Tests are `bun test` (all `*.test.ts`, `cli/` and `bot/`), run in CI on Ubuntu a
 - `site/` — the static landing page: plain HTML, CSS and JS with GSAP vendored in `site/vendor/`. No build step, not in the npm package, not hosted yet. Screenshots in `site/media/` come from a scratch board; never from a real one, whose phone view lists real device names.
 - `cli/publish-gh.sh` — same tarball as `@hfadhlullah/kaizen-agent` on GitHub Packages.
 - `cli/build-web.ts` — bundles `web/notebook.js`, `web/term.js`, `web/board.js` and `bot/web/app.js`, committed; `cli/notes.test.ts` fails when one is older than its sources.
+- `cli/release.ts` — the `release` script: bump, commit, publish, push. Its `git push origin HEAD` pushes the current branch, so from a worktree branch push `HEAD:main` yourself.
+- `cli/*.test.ts` — tests beside the code. `assets/` — README art and the hero capture.
 
 ## How it connects
 - Bundles feed the [[Notebook]], the [[Web board]] and its terminal, and [[Kaizen bot]]'s page.

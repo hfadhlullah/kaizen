@@ -1,8 +1,8 @@
 ---
 description: How work is done in this repo, and the traps that have bitten before
 tags: [project, conventions]
-sources: [.kaizen/memory.md, design.md]
-updated: 2026-10-27
+sources: [.kaizen/memory.md, design.md, .claude/skills, .github, .gitattributes, .gitignore, .prettierrc, AGENTS.md, CLAUDE.md, CONTRIBUTING.md, LICENSE, README.md, docs/README.md]
+updated: 2026-10-30
 ---
 # Conventions and gotchas
 
@@ -23,6 +23,8 @@ The rules that are not visible in any one file. The full list of lessons is `.ka
 - Tests are plain `bun:test` files in `cli/*.test.ts` and `bot/test/`; not every module has its own (`cli/dashboard.ts` and `cli/web.ts` do not).
 - Optional tools (git) are shelled out to with a catch: `Bun.spawnSync` throws when the binary is missing (`.kaizen/memory.md`).
 - Every `Bun.spawn`/`spawnSync` of a console program from the board passes `windowsHide: true`: a board started from the Windows shortcut has no console, so each child otherwise flashes a new console window (#16, the 60 s `/phone` poll).
+- `design.md` now has monochrome as the default palette, with blue as the alternative (`data-color=blue`, `kz-color`). Green, amber and red stay for state.
+- Root docs and repo metadata (`README.md`, `CONTRIBUTING.md`, `AGENTS.md`, `CLAUDE.md`, `.github/`, ignore and format files) and the vendored `.claude/skills` are listed here for coverage.
 
 ## How it connects
 - Every area note's "Watch out" cites its own lessons: [[CLI]], [[Web board]], [[Notebook]], [[Terminal board]], [[Sources and icebox]].

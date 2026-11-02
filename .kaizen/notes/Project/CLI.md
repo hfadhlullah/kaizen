@@ -21,6 +21,7 @@ updated: 2026-11-01
 - `cli/docs.ts` — read-only Project vault lint; reports broken links, metadata, coverage and staleness with a nonzero exit on findings. `cli/docs.test.ts` exercises small temporary projects.
 - `cli/settings.ts` — the full-screen settings browser over `config.yml`; the medium preset now fixes all review severities within its two-round limit.
 - `cli/install.test.ts`, `cli/settings.test.ts`.
+- `cli/worktree.ts` also backs the board's Git tab: branch against base, pull request (`gh`, GitHub remotes only, one background look per run every 30 s, so a request never waits on GitHub). A failed `git cherry` counts as not landed.
 
 ## How it connects
 - `cli/knowledge.ts` owns `~/.kaizen/knowledge/<track>.md`: `remember` (secret check, opt-out via `knowledge.global` in the config chain, append or explicit `--replace`), `recall` (tag + word scoring), and the Claude Code SessionStart hook that install merges into `~/.claude/settings.json` and uninstall removes. It imports nothing from `state.ts` so the hook stays fast. Its flags and line format are the stable interface; the ranking may change.
