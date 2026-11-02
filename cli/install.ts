@@ -461,8 +461,8 @@ if (args.has("setup")) {
 
 // Nothing to install into. kaizen is a workflow an agent runs; on its own it does
 // nothing, so send them to the agent first rather than laying out files no reader
-// will ever load.
-if (!found(home).length && !args.has("--force")) {
+// will ever load. Settings need no agent, and an agent script must not get this and exit 0.
+if (!found(home).length && !args.has("--force") && !wantSettings) {
   if (!(await noAgent())) process.exit(0);
 }
 
