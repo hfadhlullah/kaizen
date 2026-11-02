@@ -2,7 +2,7 @@
 description: The TUI dashboard that `kaizen` opens in a terminal
 tags: [project, tui]
 sources: [cli/dashboard.ts]
-updated: 2026-10-15
+updated: 2026-10-30
 ---
 # Terminal board
 
@@ -12,6 +12,7 @@ What `kaizen` shows once installed: the project's runs as a board in the termina
 ## Where it lives
 - `cli/dashboard.ts` — drawing, keys, mouse.
 - State comes from `cli/state.ts` (`boardCards()`, `readRuns()`).
+- `cli/dashboard.ts` runs `healRuns` on its project, and a run row's tail shows the final-approval state from `gateOf`: `needs your approval: board, or kaizen done <id> --user-approved`, or `auto-accepted`.
 
 ## How it connects
 - Same data as the [[Web board]], drawn differently; both import `cli/state.ts`.

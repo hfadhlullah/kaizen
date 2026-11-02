@@ -2,7 +2,7 @@
 description: Request sources, gather, the icebox, kaizen's browser for social posts, and ChatGPT judging them
 tags: [project, sources]
 sources: [cli/sources.ts, cli/writeback.ts, cli/google.ts, cli/chatgpt.ts, cli/browser.ts, skills/kaizen/gather.md, skills/kaizen/discover.md]
-updated: 2026-10-27
+updated: 2026-10-30
 ---
 # Sources and icebox
 

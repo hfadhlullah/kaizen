@@ -2,7 +2,7 @@
 description: Kaizen Bot: a chat front end with division agents over the board
 tags: [project, bot]
 sources: [bot, docs/bot-computer-discovery.md, docs/bot-computer-pilot-report.md]
-updated: 2026-10-15
+updated: 2026-10-30
 ---
 # Kaizen bot
 
