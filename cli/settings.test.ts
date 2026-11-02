@@ -155,6 +155,9 @@ test("a worker model written into a config that has no such block lands under or
 test("kaizen settings preset applies the whole bundle, and refuses an unknown name", () => {
   const home = mkdtempSync(join(tmpdir(), "kaizen-preset-"));
   const run = (name: string) => Bun.spawnSync(["bun", "run", join(repo, "cli/install.ts"), "settings", "preset", name], { cwd: home, env: { ...process.env, HOME: home, USERPROFILE: home } });
+  // The folder's own config, so a config found above the temp folder cannot take the write.
+  mkdirSync(join(home, ".kaizen"));
+  copyFileSync(join(repo, "skills/kaizen/config.default.yml"), join(home, ".kaizen/config.yml"));
   try {
     expect(run("ultra").exitCode).toBe(0);
     const text = readFileSync(join(home, ".kaizen/config.yml"), "utf8");
