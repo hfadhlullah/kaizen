@@ -77,11 +77,18 @@ h1 span { display: block; }
 .hint { margin-top: 16px; color: var(--dim); font-size: 15px; }
 .hint code { font-family: var(--mono); color: var(--ink); }
 
-.foot { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 0 16px 56px; color: var(--dim); font-size: 15px; text-align: center; }
+.foot { max-width: 960px; margin: 0 auto; padding: 0 24px 40px; color: var(--dim); font-size: 15px; }
+.foot-top { display: grid; grid-template-columns: 1fr auto auto; gap: 64px; align-items: start; padding-bottom: 32px; }
+.foot-brand { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+.foot .tanuki { width: 48px; }
+.foot-brand p, .foot-legal { margin: 0; }
+.foot-col { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.foot-col h2 { margin: 0 0 8px; font-size: 13px; font-weight: 500; letter-spacing: 0; color: var(--ink); }
+.foot-col > a:not(.pill) { padding: 10px 0; transition: color .2s; }
+.foot-col > a:not(.pill):hover { color: var(--ink); }
+.foot-legal { padding-top: 20px; border-top: 1px solid rgba(255,255,255,.1); font-size: 13px; }
+@media (max-width: 640px) { .foot-top { grid-template-columns: 1fr; gap: 32px; } }
 .tanuki { width: 120px; aspect-ratio: 2 / 3; background: var(--ink); -webkit-mask: url(media/tanuki.svg) center / contain no-repeat; mask: url(media/tanuki.svg) center / contain no-repeat; }
-.meta { display: flex; gap: 8px; }
-.meta a { display: inline-block; padding: 10px 8px; }
-.meta a:hover { color: var(--ink); }
 
 /* Buttons jitter once on hover. Keep it to 1-2px and no clip-path: both change the hit area under the pointer. */
 @keyframes stutter {
