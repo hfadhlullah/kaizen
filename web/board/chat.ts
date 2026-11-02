@@ -65,8 +65,9 @@ export function chat(c, src, ro) {
     files = pend.get(key(c));
   draft(ta, "n:" + key(c));
   const ed = rich(ta);
-  // Enter leaves focus in the box, and a focused box blocks the redraw: send blurs it
-  // so the note shows, and the new box takes focus back for the next note.
+  // Enter leaves focus in the box, a click on Send leaves it on the button, and focus
+  // anywhere in the notes blocks the redraw: send blurs it so the note shows, and the
+  // new box takes focus back for the next note.
   if (nfocus === key(c)) {
     nfocus = null;
     ed.focus();
@@ -112,7 +113,7 @@ export function chat(c, src, ro) {
       } catch (e) {}
       toast("Noted");
       nfocus = key(c);
-      ed.blur();
+      (document.activeElement as HTMLElement)?.blur();
       load();
     }
   };

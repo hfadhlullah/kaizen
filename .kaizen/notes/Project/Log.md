@@ -265,3 +265,4 @@ updated: 2026-10-31
 - 2026-11-01 update — Web board: Settings → Skills labels beta and experimental skills from `status` in skill.json.
 - 2026-11-01 run 2026-11-01-roadmaps-test-baseline — Workflow: roadmaps widened to any project, with a roadmap file and `/kaizen roadmap`.
 - 2026-10-30 update — CLI, Workflow, Terminal board, Notebook, Conventions and gotchas, Release and testing, Web board, Kaizen bot, Sources and icebox
+- 2026-11-02 update — Web board: a note sent with the Send button shows at once; the button kept focus and blocked the redraw.
