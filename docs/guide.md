@@ -741,4 +741,6 @@ Landing rebases the branch onto its base first, in every land path: a conflict o
 
 This repo's own values live in `.kaizen/config.yml`, which is not committed.
 
+**Concepts.** Say you want a design or concept first, or run `/kaizen concept [number] <brief>`, and kaizen makes that many truly different clickable prototypes on one review page, with votes. Nothing real is built until you approve one. For a new product it runs inside the plan, and a roadmap's phases build on the chosen concept.
+
 **Roadmaps.** A project too big for one run, of any kind, can become a roadmap: an app, a book, a house move. One run stays the default, and the planner only proposes a split, which you can refuse at the plan approval. An approved roadmap lives in `.kaizen/roadmaps/<name>.md` with its phases, status and decisions, and each phase is a normal run. `/kaizen roadmap` lists them, `/kaizen roadmap next [name]` starts or resumes the next phase, and `/kaizen roadmap run [name]` runs the rest back to back, stopping at an open finding or question. Nothing starts by itself.

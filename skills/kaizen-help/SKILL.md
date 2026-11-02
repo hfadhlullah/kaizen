@@ -34,6 +34,7 @@ anything.
 | `/kaizen docs [lint]` | Write or refresh the project's docs vault in the notebook, which agents read first; `lint` only reports what is stale, broken or uncovered |
 | `kaizen automation list\|add\|run <id>\|pause <id>\|resume <id>\|rm <id>\|runs <id>` | Schedules that start an unattended auto-mode run in this project (hourly, daily, weekdays, weekly or cron; optional precheck). Fires only while a board runs |
 | `kaizen worker init\|start <wid>\|status\|config\|merge\|set <run> on\|off` | Orchestration (off by default): split a run into workers, each in its own board terminal and folder. `kaizen worker report` is for the workers themselves |
+| `/kaizen concept [number] <brief>` | Make product concepts as clickable prototypes and get one approved before any build |
 | `/kaizen roadmap [next [name] \| run [name]]` | List roadmaps, start or resume the next phase, or run the remaining phases; a project too big for one run, of any kind |
 | `/kaizen approve` | Approve whatever the current run is waiting on |
 | `/kaizen reject <reason>` | Reject it; the reason decides revise (back to planner) vs kill (abandon) |
