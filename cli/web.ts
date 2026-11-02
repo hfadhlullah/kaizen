@@ -86,7 +86,7 @@ export function devPorts(ss: string, cwdOf: (pid: string) => string, ws: string)
     const port = /:(\d+)\s+\S+:\*/.exec(line)?.[1];
     for (const [, pid] of line.matchAll(/pid=(\d+)/g)) {
       const cwd = cwdOf(pid);
-      if (port && cwd && (cwd === ws || cwd.startsWith(ws + sep))) ports.add(Number(port));
+      if (port && cwd && (cwd === ws || cwd.startsWith(ws + "/"))) ports.add(Number(port));
     }
   }
   return [...ports].sort((a, b) => a - b);
