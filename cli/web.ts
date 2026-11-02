@@ -2,7 +2,7 @@
 // one HTML page; the page never sees the filesystem, only JSON.
 import { agentEnabled, argsOf, commandOf, prefersBypass, publicPref, readPrefs, savePrefs, withEnv } from "./agent-prefs.ts";
 import { awakeHolder, wantAwake } from "./keep-awake.ts";
-import { existsSync, readdirSync, statSync, lstatSync, realpathSync, readFileSync, watch, appendFileSync, mkdirSync, cpSync, rmSync, writeFileSync, type FSWatcher } from "node:fs";
+import { existsSync, readdirSync, readlinkSync, statSync, lstatSync, realpathSync, readFileSync, watch, appendFileSync, mkdirSync, cpSync, rmSync, writeFileSync, type FSWatcher } from "node:fs";
 import { join, dirname, resolve, sep, basename } from "node:path";
 import {
   home, type Item, type Card, knownProjects, remember, canonPath, locate, label, tilde, searchRoots, findProjects,
@@ -28,6 +28,7 @@ import * as chatgpt from "./chatgpt.ts";
 import * as google from "./google.ts";
 import { writeBacks } from "./writeback.ts";
 import { postLink, sendReply } from "./browser.ts";
+import { tailnetName } from "./setup.ts";
 import { listNotes, saveNote, renameNote, deleteNote, boardIndex, linksTo } from "./notes.ts";
 import * as video from "./video.ts";
 import * as auto from "./automations.ts";
@@ -77,6 +78,19 @@ const served = (f: string) => installed() === VERSION && existsSync(f) ? readTex
 // Which terminal the board launched for which stage of a run (plan, impl, review): runs/<id>/terminals.json.
 // Loopback hosts only; shared by /open-url and /frameable so the board is never a way to reach other sites.
 const isLoopback = (u: URL) => ["localhost", "127.0.0.1", "[::1]"].includes(u.hostname);
+
+// From `ss -ltnpH`: the ports listened on by a process whose working folder is inside ws.
+export function devPorts(ss: string, cwdOf: (pid: string) => string, ws: string): number[] {
+  const ports = new Set<number>();
+  for (const line of ss.split("\n")) {
+    const port = /:(\d+)\s+\S+:\*/.exec(line)?.[1];
+    for (const [, pid] of line.matchAll(/pid=(\d+)/g)) {
+      const cwd = cwdOf(pid);
+      if (port && cwd && (cwd === ws || cwd.startsWith(ws + sep))) ports.add(Number(port));
+    }
+  }
+  return [...ports].sort((a, b) => a - b);
+}
 
 // A run whose launched terminal is still alive (automations treat it as open).
 const runLive = (dir: string, id: string) => Object.values(stagesOf(dir, id)).some((k) => !!ptyState(k)?.alive);
@@ -1065,6 +1079,46 @@ export async function web(repoDir: string, opts: Opts = {}) {
         // Loopback only: the board must not be a way to open arbitrary sites on this computer.
         if (!isLoopback(u)) return bad("only a localhost address", 400);
         return json({ ok: await openApp(u.href, join(home, ".kaizen", "app-window")) });
+      }
+      // The loopback ports this workspace's own processes listen on (its dev server), so the
+      // Browser opens the run's app and not another project's on the Preview's port. Linux only
+      // (ss + /proc); elsewhere the answer is empty and the Preview's address is used.
+      if (req.method === "GET" && path === "/devports") {
+        if (!local(req)) return bad("cross-origin request refused", 403);
+        const ws = resolve(url.searchParams.get("ws") ?? "");
+        if (process.platform !== "linux" || !ws || ws === "/") return json([]);
+        let out = "";
+        try {
+          const p = Bun.spawn(["ss", "-ltnpH"], { stdout: "pipe", stderr: "ignore", timeout: 3000 });
+          out = await new Response(p.stdout).text();
+        } catch { return json([]); }
+        return json(devPorts(out, (pid) => { try { return readlinkSync(`/proc/${pid}/cwd`); } catch { return ""; } }, ws));
+      }
+      // A phone on the tailnet cannot reach this computer's localhost. Serves that loopback port
+      // to the tailnet (`tailscale serve --https=<port>`, never funnel) and answers the address
+      // the phone opens instead. Loopback http only, one argv, never a shell string.
+      if (req.method === "POST" && path === "/expose") {
+        const refused = strict(req);
+        if (refused) return refused;
+        let body: any;
+        try { body = await req.json(); } catch { return bad("json body expected"); }
+        let u: URL;
+        try { u = new URL(String(body.url ?? "")); } catch { return bad("not a url"); }
+        if (!/^https?:$/.test(u.protocol) || !isLoopback(u)) return bad("only a localhost address", 400);
+        const port = Number(u.port || (u.protocol === "https:" ? 443 : 80));
+        if (port === 443 || port < 1 || port > 65535) return bad("that port is the board's own", 400);
+        const run = async (argv: string[]) => {
+          try {
+            const p = Bun.spawn(argv, { stdout: "pipe", stderr: "pipe", timeout: 10_000, windowsHide: true });
+            const [out, err] = [await new Response(p.stdout).text(), await new Response(p.stderr).text()];
+            return { ok: (await p.exited) === 0, out, err };
+          } catch { return { ok: false, out: "", err: "tailscale is not installed" }; }
+        };
+        const name = tailnetName((await run(["tailscale", "status", "--json"])).out);
+        if (!name) return json({ ok: false, error: "Tailscale is not running on this computer" });
+        const s = await run(["tailscale", "serve", "--bg", `--https=${port}`, `${u.protocol}//127.0.0.1:${port}`]);
+        if (!s.ok) return json({ ok: false, error: /operator|root/i.test(s.err + s.out) ? "Tailscale needs permission once: run  sudo tailscale set --operator=$USER  on the computer running kaizen" : (s.err || s.out).trim().split("\n")[0] });
+        return json({ ok: true, url: `https://${name}:${port}${u.pathname}${u.search}${u.hash}` });
       }
       // Whether a page may be framed: X-Frame-Options or a CSP frame-ancestors that is not
       // "*" says no. The browser hides that behind its own error page, so the localhost tab
