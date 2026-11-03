@@ -4,7 +4,7 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-export const STEPS = 3; // default agent, appearance, notifications; adding a project is the last button, not a step
+export const STEPS = 4; // default agent, appearance, notifications, phone; adding a project is the last button, not a step
 export type Outcome = "done" | "skipped" | "dismissed" | null;
 export type Saved = { step: number; outcome: Outcome };
 

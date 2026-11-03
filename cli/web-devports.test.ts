@@ -11,3 +11,21 @@ test("devPorts keeps only ports whose process works inside the workspace", () =>
   const cwd = { "1": "/p/other/public", "2": "/p/app/public", "3": "/p/app", "4": "/p/app-old" };
   expect(devPorts(ss, (pid) => cwd[pid], "/p/app")).toEqual([5173, 8123]);
 });
+
+test("devCommand runs the folder's dev script, else start, with the lockfile's package manager", async () => {
+  const { devCommand } = await import("./web.ts");
+  const { mkdtempSync, writeFileSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const d = mkdtempSync(join(tmpdir(), "kz-dev-"));
+  expect(devCommand(d)).toBeNull();
+  writeFileSync(join(d, "package.json"), JSON.stringify({ scripts: { build: "x" } }));
+  expect(devCommand(d)).toBeNull();
+  writeFileSync(join(d, "package.json"), JSON.stringify({ scripts: { start: "node s", dev: "vite" } }));
+  expect(devCommand(d)).toEqual(["npm", "run", "dev"]);
+  writeFileSync(join(d, "pnpm-lock.yaml"), "");
+  expect(devCommand(d)).toEqual(["pnpm", "run", "dev"]);
+  writeFileSync(join(d, "bun.lock"), "");
+  writeFileSync(join(d, "package.json"), JSON.stringify({ scripts: { start: "node s" } }));
+  expect(devCommand(d)).toEqual(["bun", "run", "start"]);
+});
