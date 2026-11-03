@@ -461,9 +461,10 @@ if (args.has("setup")) {
 
 // Nothing to install into. kaizen is a workflow an agent runs; on its own it does
 // nothing, so send them to the agent first rather than laying out files no reader
-// will ever load. The board is exempt: it starts with no agent and its own setup
-// helps pick one (the desktop app on a fresh machine runs exactly this).
-if (!found(home).length && !args.has("--force") && !wantWeb) {
+// will ever load. Settings need no agent, and an agent script must not get this and exit 0.
+// The board is exempt too: it starts with no agent and its own setup helps pick one
+// (the desktop app on a fresh machine runs exactly this).
+if (!found(home).length && !args.has("--force") && !wantSettings && !wantWeb) {
   if (!(await noAgent())) process.exit(0);
 }
 

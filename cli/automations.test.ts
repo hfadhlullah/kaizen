@@ -69,7 +69,9 @@ test("G-05 overlap until the previous run is done", async () => {
 
 test("G-06 precheck gates scheduled fires only, and a timeout kills the child", async () => {
   const st = proj(), s = spy(), due = at(2026, 1, 5, 9, 5);
-  const ok = mk(st, { precheck: "exit 0" }), no = mk(st, { precheck: "echo nope; exit 1" }), slow = mk(st, { precheck: "sleep 30", precheck_timeout: 1 });
+  const ok = mk(st, { precheck: "exit 0" }), win = process.platform === "win32",
+    no = mk(st, { precheck: win ? "echo nope&exit 1" : "echo nope; exit 1" }), // cmd on Windows, sh elsewhere
+    slow = mk(st, { precheck: win ? "ping -n 30 127.0.0.1 >nul" : "sleep 30", precheck_timeout: 1 });
   expect((await fire(st, ok, "scheduled", due, { launch: s.launch }))!.status).toBe("launched");
   const h = (await fire(st, no, "scheduled", due, { launch: s.launch }))!;
   expect([h.status, h.reason]).toEqual(["skipped_precheck", "exit 1: nope"]);

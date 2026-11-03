@@ -62,7 +62,7 @@ test("G-02 lands by pull request when gh is there", () => {
   commit(w, "run.txt", "mine");
   const calls: string[][] = [];
   const sh: Run = (cmd, cwd) => {
-    if (cmd[0] !== "gh") return run(cmd, cwd);
+    if (cmd[0] !== "gh") return idRun(cmd, cwd);
     calls.push(cmd);
     if (cmd[2] === "create") return { ok: true, out: "https://github.com/x/y/pull/1", why: "" };
     // gh's rebase-merge, done by hand: the work reaches main under new hashes
