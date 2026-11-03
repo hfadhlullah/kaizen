@@ -207,6 +207,13 @@ The planner reads code but writes none. Its plan must contain:
      Reviewer severity `medium`.
    - **lock** — consistency with what is already there. Reviewer severity `low`.
 
+   End every item with `— proof: <how>`: the test or command to run, the screenshot to
+   take, the source to check a claim against, the person who reads it. The builder
+   produces that proof and the reviewer re-runs it, so a check nobody can run is found
+   at the approval rather than as `CANNOT VERIFY` after the build. Where the only proof
+   needs something no agent has (a live account, a real device, taste), say so in the
+   proof: it is a human check from the start.
+
    Phrase every item so the answer is yes or no. "Handles errors well" is not a gate
    item; "every new query path has a covering test" is. A tier fixes the severity
    before the reviewer has an opinion, which is what stops the same class of problem

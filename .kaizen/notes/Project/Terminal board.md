@@ -2,7 +2,7 @@
 description: The TUI dashboard that `kaizen` opens in a terminal
 tags: [project, tui]
 sources: [cli/dashboard.ts]
-updated: 2026-10-30
+updated: 2026-11-03
 ---
 # Terminal board
 
@@ -22,6 +22,10 @@ What `kaizen` shows once installed: the project's runs as a board in the termina
 - Selection is by row index into a column; reordering cards shifts the cursor, and `boardCards()` order is pinned by a test (`.kaizen/memory.md`).
 - A mouse click is press + release; a screen opened on press must swallow the release (`.kaizen/memory.md`).
 - Driving the `r` path in a test opens a real agent terminal; stop at the mode prompt (`.kaizen/memory.md`).
+- `cli/dashboard.ts` and `cli/settings.ts` both resolve state by walking up from cwd and taking the nearest `.kaizen/`; anything that can create a second `.kaizen/` below an existing one silently shadows the user's runs.
+- The dashboard's home panel and the board both draw coloured `●` dots. When checking dot colour in captured output, scope to the frame you mean — a naive grep reads the home panel and reports the wrong state.
+- Driving the board's `r` path to completion in a test spawns a real terminal running the configured agent. Stop the test at the mode prompt, or point `agent.default` at something inert first; two live Claude sessions were opened and killed during the mouse run.
+- `cli/install.ts` lazy-imports helpers from `./dashboard.ts` inside `removeEverything()`; anything moved out of `dashboard.ts` must be re-pointed there too, or `kaizen uninstall` crashes while `--check` still passes.
 
 ## Notes
 <!-- yours: /kaizen docs never rewrites this section -->

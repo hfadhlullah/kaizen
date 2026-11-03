@@ -28,6 +28,7 @@ anything.
 | `/kaizen review [target]` | Review-only: audit existing code, no plan, no implementation |
 | `/kaizen status` | List every run grouped waiting-on-you / in flight / done / abandoned, plus open backlog count |
 | `kaizen done <id> [--user-approved]` | Finish a run; refused while the review gate waits on the user, `--user-approved` after a clear yes in chat |
+| `kaizen state <id> key=value ...` | (1.69.0+) Set a run's `stage`, `awaiting` or `iteration` in `state.json`; refuses words no board knows (`done` goes through `kaizen done`) |
 | `/kaizen backlog` | Print open backlog items across all runs, grouped by source run, rescued items last under `Orphaned` |
 | `/kaizen gather` | Read request sources kaizen cannot read by itself; their requests land in the icebox, nothing starts |
 | `/kaizen discover` | Group what is in the icebox and promote the tasks you pick; nothing starts |

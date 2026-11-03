@@ -228,6 +228,18 @@ if (Bun.argv[2] === "done") {
   process.exit(0);
 }
 
+// `kaizen state <run id> key=value ...`: set stage, awaiting, iteration (or any other key)
+// in a run's state.json in one atomic write, refusing words no board understands.
+if (Bun.argv[2] === "state") {
+  const { locate, setRunState } = await import("./state.ts");
+  const [id, ...pairs] = Bun.argv.slice(3);
+  if (!id) { console.log(`\n  kaizen state <run id> key=value [key=value ...]\n`); process.exit(1); }
+  const why = setRunState(locate() ?? join(home, ".kaizen"), id, pairs);
+  if (why) { console.log(`\n  ${why}\n`); process.exit(1); }
+  console.log(`\n  ${id}: ${pairs.join(" ")}\n`);
+  process.exit(0);
+}
+
 // `kaizen remember …` / `kaizen recall …`: global knowledge, see cli/knowledge.ts.
 if (Bun.argv[2] === "remember" || Bun.argv[2] === "recall") {
   const { cli } = await import("./knowledge.ts");

@@ -111,6 +111,10 @@ G-02 FAIL: see finding 3
 R-01 CANNOT VERIFY: needs a live Stripe account; the test-mode fixture skips webhooks. Human: refund one real charge and confirm the ledger row.
 ```
 
+A `G-nn` item's `— proof:` is the first check to run. `CANNOT VERIFY` on an item
+whose proof the reviewer could run is not an answer: run it. Where the plan already
+marked the proof a human check, `CANNOT VERIFY` is expected and names that check.
+
 `CANNOT VERIFY` is for a check that needs something the reviewer does not have —
 taste, a live account or device, a real reader, production data, a person's decision.
 It states what was tried, why that does not settle it, and exactly what a human must
@@ -132,7 +136,10 @@ human check never reads as a clean pass.
 Where `review.write_memory` is true (the default), the reviewer also appends any
 durable lesson about this material to `memory.md` —
 a recurring bug pattern, a non-obvious constraint, a convention worth keeping. Not
-run-specific detail; only what the next run would want to know.
+run-specific detail; only what the next run would want to know. Where the state
+directory has `notes/Project/Index.md`, a lesson about one area's files goes to that
+area's note under `## Watch out` instead, since planners open only the notes for the
+areas they touch; `memory.md` keeps the lessons that hold across the project.
 
 `memory.md` is read by every stage of every future run, so its size is a tax on all of
 them. Keep it under `review.memory_max_lines` (default 100): before appending, drop

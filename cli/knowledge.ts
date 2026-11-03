@@ -17,6 +17,20 @@ import { homedir } from "node:os";
 export const TRACKS = ["code", "writing", "communication", "operations", "research", "preferences"];
 // preferences.md is the user's to write by hand in v1: taste is never inferred from work.
 const WRITABLE = TRACKS.filter((t) => t !== "preferences");
+// Planners describe a track in their own words (spec.md: no fixed taxonomy), so the
+// stored label drifts: `software` and `code` name the same work. Map the label, never
+// the inference. A mix ("code+writing") takes its first known part.
+const ALIAS: Record<string, string> = {
+  software: "code", app: "code", web: "code", cli: "code", feature: "code", bugfix: "code",
+  docs: "writing", documentation: "writing", book: "writing",
+  marketing: "communication", copy: "communication",
+  ops: "operations", devops: "operations", release: "operations",
+  analysis: "research",
+};
+export function trackOf(t: string): string {
+  const parts = t.toLowerCase().split(/[+,/&\s]+/).filter(Boolean).map((p) => ALIAS[p] ?? p);
+  return parts.find((p) => TRACKS.includes(p)) ?? t.toLowerCase().trim();
+}
 export const SESSION_HEADER = "Past experience from other projects (kaizen recall) — verify before applying, project rules win:";
 // A session hook only injects lines that share at least one tool with the project.
 const SESSION_MIN_SCORE = 2;
@@ -75,6 +89,7 @@ export type Remembered = { ok: true; line: string; n: number; similar: string[] 
 // Appends by default; replaces a line only when told which one. It never judges two
 // lessons the same itself: it hands back the same-tag lines for the caller to decide.
 export function remember(o: { track: string; tags: string; text: string; applies: string; source: string; replace?: number; projectDir: string }): Remembered {
+  o = { ...o, track: trackOf(o.track) };
   if (!WRITABLE.includes(o.track)) return { ok: false, why: o.track === "preferences" ? "preferences are written by hand, not by remember" : `unknown track "${o.track}" (${WRITABLE.join(", ")})` };
   if (!globalAllowed(o.projectDir)) return { ok: false, why: "knowledge.global is false for this project; nothing written" };
   const tags = tagsOf(o.tags);
@@ -112,7 +127,7 @@ export function remember(o: { track: string; tags: string; text: string; applies
 export function recall(o: { track?: string; tags?: string; query?: string; limit?: number; min?: number }): string[] {
   const want = tagsOf(o.tags ?? "");
   const words = (o.query ?? "").toLowerCase().split(/\W+/).filter((w) => w.length > 2);
-  const tracks = o.track ? [o.track] : TRACKS;
+  const tracks = o.track ? [trackOf(o.track)] : TRACKS;
   const scored = tracks.flatMap((t) => lines(t)).map((l) => {
     const bare = l.tags.map((t) => t.split("@")[0]);
     // An exact tag (bun@1.2) outranks the same tool at another version (bun@1.1).
@@ -193,7 +208,7 @@ export function cli(argv: string[], cwd = process.cwd()): number {
     if (rest.includes("--session")) { process.stdout.write(sessionText(cwd)); return 0; }
     const track = flag("--track"), tags = flag("--tags"), query = flag("--query"), limit = Number(flag("--limit") ?? 20);
     if (!Number.isInteger(limit) || limit < 1) { console.log("--limit must be a whole number above 0"); return 1; }
-    if (track && !TRACKS.includes(track)) { console.log(`unknown track "${track}"`); return 1; }
+    if (track && !TRACKS.includes(trackOf(track))) { console.log(`unknown track "${track}"`); return 1; }
     const out = recall({ track, tags, query: query ?? rest.join(" "), limit });
     console.log(out.length ? out.join("\n") : "Recalled: none");
     return 0;

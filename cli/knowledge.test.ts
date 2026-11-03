@@ -5,7 +5,7 @@ import { test, expect, afterAll } from "bun:test";
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, statSync, rmSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { tmpdir, homedir } from "node:os";
-import { secretReason, addSessionHook, removeSessionHook, SESSION_HEADER } from "./knowledge.ts";
+import { secretReason, addSessionHook, removeSessionHook, SESSION_HEADER, trackOf } from "./knowledge.ts";
 
 const script = join(dirname(import.meta.path), "install.ts");
 const realKnowledge = join(homedir(), ".kaizen", "knowledge");
@@ -176,4 +176,22 @@ test("acceptance: saved in A, recalled and injected in B, opt-out A' writes noth
   expect(s.kz(on, "remember", "--track", "code", "--tags", "bun", "--applies", "bun", "--run", "r3", "project overrides global").code).toBe(0);
 
   expect(existsSync(realKnowledge) ? statSync(realKnowledge).mtimeMs : -1).toBe(realMtime);
+});
+
+test("track labels a planner wrote in its own words map to the stored tracks", () => {
+  expect(trackOf("software")).toBe("code");
+  expect(trackOf("Software")).toBe("code");
+  expect(trackOf("docs")).toBe("writing");
+  expect(trackOf("code+writing")).toBe("code");
+  expect(trackOf("software, operations")).toBe("code");
+  expect(trackOf("media")).toBe("media");
+});
+
+test("recall and remember under an alias reach the same lessons as the stored track", () => {
+  const s = scratch(), a = s.project("a");
+  expect(s.kz(a, "remember", "--track", "software", "--tags", "bun", "--applies", "bun>=1.1", "--run", "r1", "bun test --bail stops at the first failing file").code).toBe(0);
+  expect(s.file("code")).toContain("--bail");
+  const viaCode = s.kz(a, "recall", "--track", "code", "--tags", "bun").out;
+  expect(viaCode).toContain("--bail");
+  expect(s.kz(a, "recall", "--track", "software", "--tags", "bun").out).toBe(viaCode);
 });

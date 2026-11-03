@@ -138,6 +138,20 @@ The rest of a roadmap plan — Work list, Steps, File manifest, gate — covers 
 only; it is this run's build. Later increments get their detailed plan in their own run.
 The others become child cards at the approval (see *Child cards* in `spec-main.md`).
 
+**Concept stage.** A run needs one before the plan approval when the user asks for a
+design or concept first, in any words, or when the work is a new product with a screen
+and no approved design. Offer it in the second case: `Q: See concepts before building?`,
+with `yes` (recommended) and `no`. On a yes, the main thread runs the `kaizen-concept`
+skill during the `plan` stage, for a roadmap after Discovery and before the Foundation
+is final. It reports `kaizen report blocked` while waiting on the user's concept choice.
+A subagent cannot run it, because it needs the user. The plan then gains `## Concept`
+right after the Goal: the chosen concept, what was merged, the prototype path, and what
+is sample or simulated. That concept replaces the *Design direction* question and binds
+the plan's flows. For a roadmap, the Foundation follows it, its choice is recorded under
+decisions in `.kaizen/roadmaps/<name>.md`, and each phase builds inside it. An
+`auto` run skips the concept stage unless the request asks for one. A concept makes no
+production code and does not count as a build.
+
 **An increment run builds inside its parent's decisions.** A request with a `Parent:`
 line whose parent run's `01-plan.md` has a `## Roadmap` is an increment. Its planner
 reads that plan's Discovery, Foundation and its own Roadmap line before anything else,
@@ -193,6 +207,13 @@ The planner reads code but writes none. Its plan must contain:
      Reviewer severity `medium`.
    - **lock** — consistency with what is already there. Reviewer severity `low`.
 
+   End every item with `— proof: <how>`: the test or command to run, the screenshot to
+   take, the source to check a claim against, the person who reads it. The builder
+   produces that proof and the reviewer re-runs it, so a check nobody can run is found
+   at the approval rather than as `CANNOT VERIFY` after the build. Where the only proof
+   needs something no agent has (a live account, a real device, taste), say so in the
+   proof: it is a human check from the start.
+
    Phrase every item so the answer is yes or no. "Handles errors well" is not a gate
    item; "every new query path has a covering test" is. A tier fixes the severity
    before the reviewer has an opinion, which is what stops the same class of problem
@@ -205,6 +226,8 @@ The planner reads code but writes none. Its plan must contain:
    Look for it in the material first — a `design.md`, a design system, a brand or style
    guide, an existing stylesheet with established tokens. Where one exists, the plan
    names it and follows it, and asks nothing; the answer is already in the repository.
+
+   Where a run has an approved concept, the plan follows it and asks nothing.
 
    Where none exists, the direction is an *Open question* with 3-4 concrete options,
    each named for what it signals rather than for its palette, so the user chooses a

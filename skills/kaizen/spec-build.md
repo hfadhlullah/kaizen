@@ -209,6 +209,12 @@ be run, opened, or read by someone, doing so is part of building it: the suite r
 the page opened and clicked, the runbook walked start to finish, the copy read aloud.
 A gate item whose evidence is an argument that the code should work is a `FAIL`.
 
+Then check the request itself, as the reviewer will: each requirement in the verbatim
+request and its *done* and *wrong* lines in `00-request.md` that no `G-nn` covers gets a
+line `R PASS: <what was tried and what came back>` or `R FAIL: <what>`. The reviewer
+writes its own criteria cold and trusts none of these; they exist so a gap the plan
+missed is found here instead of costing a fix round.
+
 The stage does not hand off with a `FAIL` standing. Fix it and re-run the gate, or —
 if it cannot be fixed inside the plan's scope — stop and report, exactly as with an
 impossible step. A `FAIL` carried into review wastes the reviewer's pass on something

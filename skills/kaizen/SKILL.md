@@ -110,9 +110,8 @@ A tool that charges the same for a typo and a payroll change gets turned off for
 files or fifty lines, run the stages in this session (`runner: lite`, below)
 rather than dispatching them. Keep the plan and review brief, then apply the same
 bounded fix loop to review findings. Small size does not leave a finding for a later
-run when it can be fixed within this one.
-
-**Short work still gets a run.** A one-line change is not skipped past the stages: the card on the board moves through plan, build and review like any other. Run it with `runner: lite` and the short path above — a brief plan, the build, a short review — so the cost stays small and the run stays visible.
+run when it can be fixed within this one. Even a one-line change gets a run this way,
+so its card still moves through plan, build and review.
 
 This is a judgement, not a threshold to enforce: fifty lines that change how money is
 rounded are not a small change. Say which path you took (short or full) and why, in one line, when the
@@ -247,19 +246,13 @@ final report, so nobody reads a same-session review as an independent one.
 
 ## Running a stage
 
-**If the tool you are running in has no subagents** — Codex, and anything else that
-runs one session at a time — do not try to fake them. Run the stages sequentially in
-the one session, following [`adapters.md`](adapters.md): start each stage by reading
-only its declared inputs, write its artifact before moving on, and when reviewing,
-judge the work on its own terms rather than defending the reasoning you used writing
-it. Everything else in this file holds unchanged.
+**Check `runner` first.** A tool with no subagents (Codex, anything that runs one
+session at a time) runs as `lite` whatever the setting, following
+[`adapters.md`](adapters.md); do not fake subagents.
 
-**Check `runner` first.**
-
-- `runner: lite` — do not call the Agent tool, except for the review as below. You run plan, build and review
-  yourself, in that order, reading only each stage's declared inputs and writing its
-  artifact before starting the next. The stage table below still applies; you are the
-  agent for every row.
+- `runner: lite` — do not call the Agent tool, except for the review as below. You run
+  plan, build and review yourself, as *Who runs the stages* says; the stage table below
+  still applies, and you are the agent for every row.
   Read `spec-build.md` before building and `spec-main.md` before moving the run to
   `review`: being the main thread does not excuse a stage its contract. Its *Preview
   gate* holds in full — a result that shows on a screen needs a real screenshot under
@@ -296,7 +289,7 @@ knob: when it is not `inherit`, make sure the frontmatter of the agent's definit
 carries `effort: <value>` — edit or add that one line, nothing else — before the
 first dispatch of the run. `inherit` means leave the file alone.
 
-After a subagent returns, update `state.json` yourself in the main thread. Subagents
+After a subagent returns, update `state.json` yourself in the main thread, with `kaizen state` from 1.69.0, by hand before that (`spec.md`, Stage 0). Subagents
 report; the main thread owns the state machine.
 Before moving any run from `build` to `review`, under either runner, apply the
 *Preview gate* in [`spec-main.md`](spec-main.md): no `## Preview` with a screenshot
@@ -351,28 +344,10 @@ shown automatically.
       state.json
 ```
 
-`state.json` is the resume point, and records the runner and the agent the run started with, so a
-run picked up later keeps the shape it was reviewed under rather than silently
-changing because a setting moved:
-
-```json
-{
-  "id": "2026-09-02-add-oauth",
-  "mode": "approve",
-  "runner": "full",
-  "agent": "claude",
-  "stage": "review",
-  "awaiting": "approvals.review",
-  "iteration": 1,
-  "updated": "2026-09-02T14:31:00+07:00"
-}
-```
-
-Every run writes all nine keys, from intake on: `id`, `mode`, `runner`, `agent`,
-`track`, `stage`, `awaiting`, `iteration` (0 until the fix loop runs), `updated`. Where
-the environment has `CLAUDE_CODE_SESSION_ID`, also `session` with its value: without it
-a card launched from the board can stay stuck in planning beside its own run. The
-legal values of `stage` and `awaiting` are in [`spec.md`](spec.md).
+`state.json` is the resume point. Its keys (all nine from intake on, plus `session`
+where `CLAUDE_CODE_SESSION_ID` is set, and `review_executor` on a lite run), their legal
+values, and why `runner` and `agent` are frozen at intake are in *Stage 0* of
+[`spec.md`](spec.md), with when to write it through `kaizen state` (1.69.0 and later) and when by hand.
 
 In a git repository, `init` also adds a gitignore entry that ignores run state but
 keeps the workflow: it ignores `.kaizen/*` and un-ignores `.kaizen/spec*.md` and

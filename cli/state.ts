@@ -2035,6 +2035,30 @@ function setStage(file: string, change: (s: any) => boolean): boolean {
     return true;
   } catch { return false; }
 }
+// `kaizen state <id> key=value ...`: the one writer agents use for a run's state.json,
+// so stage and awaiting can only take the words every reader knows (spec.md, Stage 0).
+// `done` is refused: finishing goes through finishRun, which checks the review gate.
+const STAGES = ["plan", "build", "review", "abandoned"];
+const AWAITING = [null, "approvals.plan", "approvals.review", "approvals.each_file", "findings"];
+export function setRunState(state: string, id: string, pairs: string[]): string | null {
+  const file = join(state, "runs", id, "state.json");
+  if (!existsSync(file)) return `no run ${id} under ${state}`;
+  if (!pairs.length) return "nothing to set: pass key=value";
+  const set: Record<string, unknown> = {};
+  for (const p of pairs) {
+    const i = p.indexOf("=");
+    if (i < 1) return `not key=value: ${p}`;
+    const k = p.slice(0, i), raw = p.slice(i + 1);
+    const v = raw === "null" ? null : raw;
+    if (k === "id" || k === "updated") return `${k} is not set by hand`;
+    if (k === "stage" && v === "done") return "stage done: use kaizen done <id>, which checks the final approval";
+    if (k === "stage" && !STAGES.includes(String(v))) return `stage must be one of ${STAGES.join(", ")} (done: kaizen done)`;
+    if (k === "awaiting" && !AWAITING.includes(v as any)) return `awaiting must be null or one of ${AWAITING.slice(1).join(", ")}`;
+    if (k === "iteration") { if (!/^\d+$/.test(raw)) return "iteration must be a whole number"; set[k] = Number(raw); continue; }
+    set[k] = v;
+  }
+  return setStage(file, (s) => { Object.assign(s, set); return true; }) ? null : `state.json for ${id} changed while writing or is not valid JSON; read it and retry`;
+}
 // Rewrites runs an agent marked done without acceptance (gate on) to review /
 // approvals.review; returns the ids. Not part of readRuns: reads stay pure (mtime is liveness).
 export function healRuns(state: string): string[] {

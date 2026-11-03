@@ -279,3 +279,4 @@ updated: 2026-10-31
 - 2026-11-03 update — Web board: Preview icon starts the workspace's dev server and opens it, phone included; /expose handles [::1] and Vite's host check. Workflow: spec-build leaves the dev server running.
 - 2026-11-03 update — Web board: tmux keep-alive server in its own systemd scope (survives a unit stop); terminal uses Unicode 11 widths.
 - 2026-11-03 update — Web board: terminal copy (Ctrl+C over a selection, Ctrl+Shift+C), a visible selection in the dark theme, and a right-click menu in the desktop app.
+- 2026-11-03 run 2026-11-03-kaizen-improve — CLI, Workflow, Web board, Terminal board, Sources and icebox, Release and testing, Notebook, Kaizen bot (65 area lessons moved in from memory.md)

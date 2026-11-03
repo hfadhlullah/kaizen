@@ -25,6 +25,8 @@ Tests are `bun test` (all `*.test.ts`, `cli/` and `bot/`), run in CI on Ubuntu a
 - npm serves a new version only after its automated review finishes — minutes after `bun publish` says success; a re-publish answers 409 (`.kaizen/memory.md`).
 - Tests that touch install/uninstall must use scratch `HOME` and `KAIZEN_HOME` ([[CLI]]).
 - To exercise the board without real state: copy `.kaizen/` to scratch, `kaizen web --port N --no-open` with a scratch `HOME`; stop it with `fuser -k N/tcp` (`.kaizen/memory.md`).
+- `bun publish` prints success about a minute before the npm registry serves the new version: `npm view` and the version URL answer with the old one or 404 meanwhile. Recheck after a minute before calling a publish failed. From 1.11.0 (2026-10-01) npm runs an automated review on a new version (status `Validating` on the package page) and serves nothing until it finishes: `bun publish` reports success and postpublish tags and releases on GitHub, but npm serves the old version for many minutes; nothing to approve, wait; a re-publish answers `409 Cannot publish over previously staged version`.
+- To run `cli/install.ts` as if on Windows from Linux, use a wrapper file that does `Object.defineProperty(process, "platform", { value: "win32" })` and then `await import(<install.ts>)`. `bun --preload` with the same line does not take effect for it. Run it with `env -i HOME=<scratch> PATH=<dir with only bun>` so no real git or home is reached.
 
 ## Notes
 <!-- yours: /kaizen docs never rewrites this section -->

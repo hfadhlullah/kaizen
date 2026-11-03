@@ -2,15 +2,15 @@
 description: How work is done in this repo, and the traps that have bitten before
 tags: [project, conventions]
 sources: [.kaizen/memory.md, design.md, .claude/skills, .github, .gitattributes, .gitignore, .prettierrc, AGENTS.md, CLAUDE.md, CONTRIBUTING.md, LICENSE, README.md, docs/README.md]
-updated: 2026-10-30
+updated: 2026-11-03
 ---
 # Conventions and gotchas
 
 ## What it does
-The rules that are not visible in any one file. The full list of lessons is `.kaizen/memory.md`, kept by kaizen's reviewer; area notes link the ones that belong to them. This note groups the ones that apply everywhere.
+The rules that are not visible in any one file. Cross-area lessons are in `.kaizen/memory.md`, kept by kaizen's reviewer; lessons about one area sit in that area's note under *Watch out* (moved there 2026-11-03). This note groups the ones that apply everywhere.
 
 ## Where it lives
-- `.kaizen/memory.md` — cross-run lessons (not committed in this repo).
+- `.kaizen/memory.md` — cross-area lessons (not committed in this repo); area lessons are in the area notes.
 - `design.md` — visual system for every surface; check contrast by calculation, not by its claim (`.kaizen/memory.md`).
 
 ## Shared tree

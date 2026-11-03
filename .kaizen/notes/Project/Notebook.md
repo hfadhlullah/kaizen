@@ -2,7 +2,7 @@
 description: The Notes tab: an Obsidian-compatible markdown folder under .kaizen/notes/
 tags: [project, notebook]
 sources: [cli/notes.ts, web/notebook.ts, web/notes-lib.ts, web/notes.html, cli/build-web.ts]
-updated: 2026-10-30
+updated: 2026-11-03
 ---
 # Notebook
 
@@ -30,6 +30,9 @@ Plain markdown files under `<state>/notes/`, folders allowed, so Obsidian can op
 - Backlog links count lines by position; reordering a `06-backlog.md` repoints them (`.kaizen/memory.md`).
 - Every autosave fires `changed`, so every open board refetches `/state` (`.kaizen/memory.md`).
 - Frontmatter shows as plain text in the editor.
+- `web/notebook.ts` imports CodeMirror's `history` (undo); inside that file the browser's is `window.history`. A bare `history.replaceState` builds fine and throws at runtime.
+- The notebook saves while you type, and every save under a state dir fires `changed`, so each open board tab refetches `/state` (and `cardsGit` shells out to git) on every autosave. Anything making `/state` heavier multiplies by typing speed.
+- Notebook links name backlog items by position (`[[run:<id>#backlog-3]]` is the third `- open|done|rejected:` line of that run's `06-backlog.md`, in `boardIndex()` and the board's `mark()` alike). Anything that reorders, removes or reformats backlog lines silently repoints those links.
 
 ## Notes
 <!-- yours: /kaizen docs never rewrites this section -->

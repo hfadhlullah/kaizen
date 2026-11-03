@@ -73,7 +73,9 @@ connected in the session: cite what it returns, limitations included. When they 
 not connected, say the claim is unverified rather than guess at internals.
 
 Record the track in `state.json` as `track`, with the three answers written into
-`00-request.md`. Every subsequent stage reads them before starting, and the words
+`00-request.md`. The description stays free; the stored `track` word is the nearest of
+`code`, `writing`, `communication`, `operations`, `research`, or a new word where none
+fits (a mix joined with `+`), because `kaizen recall --track` looks lessons up by it. Every subsequent stage reads them before starting, and the words
 *build*, *verify*, and *finding* below are always to be read in the track's terms.
 
 ---
@@ -123,6 +125,12 @@ is building and a recheck is reviewing, whoever runs them and whether the loop o
 user picked the findings: `build` with `iteration` raised and `awaiting: null` before
 each iteration's first edit, `review` before its recheck reads. Any other word
 (`implement`, `fix`, `building`) is unknown to every reader and shows as still planning.
+After intake, where `kaizen --version` prints 1.69.0 or later, write these keys with
+`kaizen state <id> stage=build awaiting=null` (`iteration=<n>` likewise): one atomic
+write that refuses unknown words and stamps `updated`. An older `kaizen` reads `state`
+as a plain `kaizen` call and starts the installer, so there, and where no `kaizen` is
+installed, edit `state.json` by hand in its two-space JSON layout. Finish with
+`kaizen done <id>` either way.
 
 `awaiting` is `null` or the config key of the approval being waited on —
 `approvals.plan`, `approvals.review`, `approvals.each_file` — or `findings` when the
