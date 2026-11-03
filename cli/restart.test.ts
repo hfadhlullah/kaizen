@@ -5,7 +5,7 @@ import { test, expect } from "bun:test";
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { startPty, exitPty, killPty, ptyState, tmuxOk, tmuxName, tmuxAlive, killTmux, detachPty, attachPty, panePid, scopeCmd } from "./pty.ts";
+import { startPty, exitPty, killPty, ptyState, tmuxOk, tmuxName, tmuxAlive, killTmux, detachPty, attachPty, panePid, scopeCmd, writePty } from "./pty.ts";
 import { keepAlive } from "./state.ts";
 import { processTable, treeRss } from "./resources.ts";
 
@@ -233,4 +233,20 @@ test.skipIf(!posix || !tmuxOk() || !scopeCmd().length)("a tmux-kept agent starts
     expect(cg(pid)).not.toBe(cg("self"));
     expect(cg(pid)).toMatch(/run-[^/]*\.scope$/);
   } finally { killPty("scope-tmux"); }
+});
+
+// The alternate screen tmux draws on has no scrollback: the wheel (or a phone swipe, sent
+// as one) has to scroll tmux's own history, which keeps a burst of output whole.
+test.skipIf(!posix || !tmuxOk())("a wheel in a tmux-kept card scrolls tmux's history", async () => {
+  const name = tmuxName("wheel-" + process.pid);
+  const show = (f: string) => Bun.spawnSync(["tmux", "-L", "kaizen", "-f", "/dev/null", "display-message", "-p", "-t", `=${name}:`, f]).stdout.toString().trim();
+  startPty("wheel-tmux", ["sh", "-c", "seq 1 3000; sleep 60"], root, undefined, undefined, { tmux: name });
+  try {
+    for (let i = 0; i < 100 && Number(show("#{history_size}")) < 2900; i++) await Bun.sleep(30);
+    expect(Number(show("#{history_size}"))).toBeGreaterThan(2900);   // above tmux's default 2000
+    expect(show("#{mouse}")).toBe("1");
+    writePty("wheel-tmux", "\x1b[<64;10;10M");                       // SGR wheel up
+    for (let i = 0; i < 100 && show("#{pane_in_mode}") !== "1"; i++) await Bun.sleep(30);
+    expect(show("#{pane_in_mode}")).toBe("1");
+  } finally { killPty("wheel-tmux"); }
 });

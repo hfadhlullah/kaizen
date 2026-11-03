@@ -191,6 +191,7 @@ agent:
   #          On Linux with systemd the server gets a scope of its own, so it also
   #          outlives a stop or restart of a systemd unit that runs kaizen. Through
   #          a logout only with lingering on: loginctl enable-linger.
+  #          The wheel scrolls tmux's history; Shift+drag selects text to copy.
   keep_alive: off
   # Stops idle sleep from kaizen. off | auto (while kaizen runs agents) | on
   # (while kaizen is open). Linux and macOS; agents in an outside terminal don't count.

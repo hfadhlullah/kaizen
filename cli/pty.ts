@@ -288,8 +288,16 @@ export const scopeCmd = () => {
   try { scoped = run && Bun.spawnSync([...cmd, "true"], { stdin: "ignore", stdout: "ignore", stderr: "ignore", timeout: 3000 }).exitCode === 0 ? cmd : []; } catch { scoped = []; }
   return scoped;
 };
-export const tmuxCmd = (name: string, cmd: string[]) => [...scopeCmd(), tmuxBin()!, ...TMUX, "new-session", "-A", "-s", name, "-x", "120", "-y", "32", "-e", `PATH=${process.env.PATH ?? ""}`, ...cmd,
+// tmux draws on the alternate screen, which has no scrollback, so the card could not scroll
+// back and a wheel reached the agent as arrow keys. mouse on: the wheel scrolls tmux's own
+// history (copy-mode) instead, and a plain drag selects into tmux's buffer, so copying to
+// the clipboard takes Shift+drag. Without the alternate screen (smcup@) a burst of output
+// is redrawn as one screen and the lines between were lost, so that was not used.
+// history-limit before new-session: a pane takes the limit it was created with.
+export const tmuxCmd = (name: string, cmd: string[]) => [...scopeCmd(), tmuxBin()!, ...TMUX, "start-server", ";", "set", "-g", "history-limit", "10000",
+  ";", "new-session", "-A", "-s", name, "-x", "120", "-y", "32", "-e", `PATH=${process.env.PATH ?? ""}`, ...cmd,
   ";", "set", "-g", "status", "off", ";", "set", "-g", "prefix", "None", ";", "set", "-g", "escape-time", "0",
+  ";", "set", "-g", "mouse", "on", ";", "unbind", "-n", "MouseDown3Pane", ";", "unbind", "-n", "M-MouseDown3Pane",
   ";", "set", "-as", "terminal-features", ",xterm-256color:RGB"];
 export const attachCmd = (name: string) => [tmuxBin()!, ...TMUX, "attach-session", "-t", name];
 const tmux = (...a: string[]) => {
