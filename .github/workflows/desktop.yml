@@ -1,0 +1,151 @@
+name: desktop
+# Builds the desktop app on all three systems, smoke-launches each build, and on a
+# version tag attaches the installers and update feeds to that tag's GitHub release.
+on:
+  push:
+    tags: ["v*"]
+  pull_request:
+    paths: ["desktop/**", ".github/workflows/desktop.yml"]
+  workflow_dispatch:
+
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # One runner per OS builds both arches, so each update feed (latest*.yml)
+          # is written once, complete.
+          - os: ubuntu-latest
+            archs: x64,arm64
+            builder: --linux --x64 --arm64
+            smoke: release/linux-unpacked/kaizen-desktop --no-sandbox
+          - os: macos-14
+            archs: x64,arm64
+            builder: --mac --x64 --arm64
+            smoke: release/mac-arm64/Kaizen.app/Contents/MacOS/Kaizen
+          - os: windows-latest
+            archs: x64
+            builder: --win --x64
+            smoke: release/win-unpacked/kaizen-desktop.exe
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y xvfb rpm libarchive-tools
+      - run: bun install --frozen-lockfile
+      - run: bun test
+      - run: bun run scripts/stage.ts
+      - run: bun run scripts/fetch-bun.ts
+        env: { KAIZEN_BUN_ARCHS: "${{ matrix.archs }}" }
+      - run: bun run compile
+      - run: node_modules/.bin/electron-builder --config electron-builder.config.cjs --publish never ${{ matrix.builder }}
+        env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+      # The built app starts the board in a scratch HOME, waits for it to answer,
+      # and quits; exit 0 only if the board came up.
+      - name: smoke launch
+        run: |
+          export HOME="$RUNNER_TEMP/home" USERPROFILE="$RUNNER_TEMP/home" KAIZEN_DESKTOP_SMOKE=1
+          mkdir -p "$HOME"
+          # macOS has no coreutils timeout; perl's alarm does the same job.
+          case "$RUNNER_OS" in
+            Linux) xvfb-run -a timeout 120 ${{ matrix.smoke }} ;;
+            macOS) perl -e 'alarm 120; exec @ARGV' ${{ matrix.smoke }} ;;
+            *) timeout 120 ${{ matrix.smoke }} ;;
+          esac
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ runner.os }}
+          path: |
+            desktop/release/*.exe
+            desktop/release/*.dmg
+            desktop/release/*.zip
+            desktop/release/*.AppImage
+            desktop/release/*.deb
+            desktop/release/*.rpm
+            desktop/release/*.pacman
+            desktop/release/*.blockmap
+            desktop/release/latest*.yml
+          if-no-files-found: error
+
+  # N to N+1: build 0.0.1 and 0.0.2 against a local feed, start 0.0.1, and check it
+  # updates itself (desktop/scripts/update-test.ts). macOS is left out: an unsigned
+  # build cannot self-update there.
+  update-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y xvfb libfuse2t64
+      - run: bun install --frozen-lockfile
+      - run: bun run stage && bun run compile
+      - if: runner.os == 'Linux'
+        run: xvfb-run -a bun run scripts/update-test.ts
+      - if: runner.os == 'Windows'
+        run: bun run scripts/update-test.ts
+
+  # Windows signing through SignPath (approved decision 1). Skipped until the
+  # SIGNPATH_* variables and token exist; the unsigned installer ships meanwhile.
+  sign-windows:
+    needs: build
+    if: vars.SIGNPATH_ORGANIZATION_ID != ''
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/download-artifact@v4
+        with: { name: desktop-Windows, path: unsigned }
+      - uses: actions/upload-artifact@v4
+        id: exe
+        with: { name: signing-input, path: unsigned/*.exe }
+      - uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_POLICY_SLUG }}
+          github-artifact-id: ${{ steps.exe.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signed
+      - shell: bash
+        run: cp signed/*.exe unsigned/ && bun run desktop/scripts/rehash-win.ts unsigned
+      - uses: actions/upload-artifact@v4
+        with: { name: desktop-Windows, path: unsigned/*, overwrite: true }
+
+  release:
+    needs: [build, update-test, sign-windows]
+    # Runs when signing ran or was skipped, never after a failure.
+    if: startsWith(github.ref, 'refs/tags/v') && !failure() && !cancelled()
+    runs-on: ubuntu-latest
+    permissions: { contents: write }
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: out, pattern: "desktop-*", merge-multiple: true }
+      # Attaches to the tag's release, made as a draft when the npm release has not
+      # made one yet; publishing a draft stays a person's decision.
+      - env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}", TAG: "${{ github.ref_name }}" }
+        run: |
+          gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create "$TAG" -R "$GITHUB_REPOSITORY" --draft --title "$TAG" --notes "Desktop builds for $TAG"
+          gh release upload "$TAG" out/* -R "$GITHUB_REPOSITORY" --clobber

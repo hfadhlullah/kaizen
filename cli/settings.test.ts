@@ -156,7 +156,9 @@ test("kaizen settings preset applies the whole bundle, and refuses an unknown na
   const home = mkdtempSync(join(tmpdir(), "kaizen-preset-"));
   const run = (name: string) => Bun.spawnSync(["bun", "run", join(repo, "cli/install.ts"), "settings", "preset", name], { cwd: home, env: { ...process.env, HOME: home, USERPROFILE: home } });
   try {
-    expect(run("ultra").exitCode).toBe(0);
+    const r = run("ultra");
+    expect(r.stdout.toString() + r.stderr.toString()).toContain("preset: ultra");
+    expect(r.exitCode).toBe(0);
     const text = readFileSync(join(home, ".kaizen/config.yml"), "utf8");
     expect(read(text, "preset")).toBe("ultra");
     expect(read(text, "mode")).toBe("auto");

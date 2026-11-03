@@ -20,6 +20,52 @@ copy.addEventListener("click", async () => {
   setTimeout(() => (copy.textContent = "Copy"), 1600);
 });
 
+// Desktop app: links come straight from the latest GitHub release, so a card only
+// appears for a file that exists. No desktop files there (or no network): the section
+// stays hidden and the install line above is the whole offer.
+const ASSET = {
+  "mac-arm64": /-mac-arm64\.dmg$/,
+  "mac-x64": /-mac-x64\.dmg$/,
+  "win-x64": /-win-x64\.exe$/,
+  "linux-appimage": /-linux-x86_64\.AppImage$/,
+  "linux-deb": /-linux-amd64\.deb$/,
+  "linux-rpm": /-linux-x86_64\.rpm$/,
+  "linux-pacman": /-linux-x64\.pacman$/,
+  "linux-arm64": /-linux-arm64\.AppImage$/,
+};
+const NOTE = {
+  mac: "macOS: not signed by Apple yet, so the first time, right-click the app and choose Open.",
+  win: "Windows may show a SmartScreen warning: choose More info, then Run anyway.",
+  linux: "Linux: make the AppImage executable and open it. On Arch: sudo pacman -U the .pacman file.",
+};
+// Phones and tablets first: iOS says "like Mac OS X" and Android says "Linux".
+const ua = navigator.userAgent;
+const myOs = /iPhone|iPad|iPod|Android|Mobile/.test(ua) ? null : /Win/.test(ua) ? "win" : /Mac/.test(ua) ? "mac" : /Linux|X11|CrOS/.test(ua) ? "linux" : null;
+fetch("https://api.github.com/repos/hfadhlullah/kaizen/releases/latest", { headers: { accept: "application/vnd.github+json" } })
+  .then((r) => (r.ok ? r.json() : null))
+  .then((rel) => {
+    let any = false;
+    for (const el of document.querySelectorAll("#desktop [data-asset]")) {
+      const a = rel?.assets?.find((x) => ASSET[el.dataset.asset].test(x.name));
+      if (!a) continue;
+      (el.matches("a") ? el : el.querySelector("a")).href = a.browser_download_url;
+      el.hidden = false;
+      any = true;
+    }
+    if (!any) return;
+    // The card for this computer is marked; Apple silicon stands for "a Mac", since
+    // a browser cannot tell an Intel Mac apart.
+    const mine = { mac: "mac-arm64", win: "win-x64", linux: "linux-appimage" }[myOs];
+    document.querySelector(`.dl[data-asset="${mine}"]:not([hidden])`)?.classList.add("mine");
+    document.getElementById("desk-more").hidden = !document.querySelector("#desk-more a:not([hidden])");
+    document.getElementById("desk-ver").textContent = `Latest: ${rel.tag_name}.`;
+    document.getElementById("desk-note").textContent = myOs ? NOTE[myOs] : `${NOTE.mac} ${NOTE.win}`;
+    document.getElementById("desktop").hidden = false;
+    // The nav's Download goes to the builds once there are some; until then, to Install.
+    document.getElementById("nav-dl").href = "#desktop";
+  })
+  .catch(() => {});
+
 // Motion only ever starts from a visible page: without JS, or with reduced motion, nothing is hidden.
 const mm = gsap.matchMedia();
 mm.add("(prefers-reduced-motion: no-preference)", () => {

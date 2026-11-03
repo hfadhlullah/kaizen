@@ -1,0 +1,28 @@
+{
+  "name": "kaizen-desktop",
+  "productName": "Kaizen",
+  "version": "0.0.0",
+  "description": "The kaizen board in its own window.",
+  "author": "Husein Fadhlullah",
+  "homepage": "https://kaizen.sarahdigital.id",
+  "license": "MIT",
+  "private": true,
+  "main": "dist/main.js",
+  "scripts": {
+    "compile": "bun build src/main.ts --outdir dist --target node --format cjs --external electron --external electron-updater",
+    "stage": "bun run scripts/stage.ts && bun run scripts/fetch-bun.ts",
+    "start": "bun run compile && electron .",
+    "dist": "bun run stage && bun run compile && electron-builder --config electron-builder.config.cjs --publish never",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "electron-updater": "6.8.11"
+  },
+  "devDependencies": {
+    "electron": "45.2.1",
+    "electron-builder": "26.18.0"
+  },
+  "trustedDependencies": [
+    "electron"
+  ]
+}

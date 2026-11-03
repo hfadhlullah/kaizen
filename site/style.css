@@ -76,6 +76,27 @@ h1 span { display: block; }
 .cmd button { flex: none; min-height: 44px; padding: 0 18px; border: 1px solid var(--line); border-radius: 12px; background: none; }
 .hint { margin-top: 16px; color: var(--dim); font-size: 15px; }
 .hint code { font-family: var(--mono); color: var(--ink); }
+.desktop { max-width: 1120px; margin: 0 auto; padding: 40px 16px 80px; scroll-margin-top: 56px; }
+.install { scroll-margin-top: 56px; }
+.osi { width: 30px; height: 30px; margin-bottom: 18px; fill: currentColor; }
+.desktop[hidden], .desktop [hidden] { display: none; }
+.dhead { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 28px; }
+.dhead h2 { font-size: clamp(34px, 5vw, 56px); letter-spacing: -.04em; line-height: 1.05; font-weight: 700; }
+.dhead p { margin-top: 10px; color: var(--dim); font-size: 17px; }
+.allrel { line-height: 44px; color: var(--dim); font-size: 15px; transition: color .2s; }
+.allrel:hover { color: var(--ink); }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); }
+.dl { display: flex; flex-direction: column; align-items: flex-start; padding: 34px; background: var(--tile); border-radius: var(--r); }
+.dl b { font-size: clamp(24px, 2.6vw, 32px); line-height: 1.1; letter-spacing: -.03em; font-weight: 650; }
+.dl small { margin-top: 8px; color: var(--dim); font-size: 17px; }
+.dl.mine small::after { content: " · this computer"; color: var(--ink); }
+.dl .pill { margin-top: 24px; min-height: 44px; }
+.ic { flex: none; width: 18px; height: 18px; margin-right: 8px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.more { margin-top: 18px; color: var(--dim); font-size: 15px; }
+.more a { padding: 8px 6px; color: var(--dim); text-decoration: underline; text-underline-offset: 3px; }
+.more a:hover { color: var(--ink); }
+.desktop .hint { margin-top: 6px; }
+@media (max-width: 640px) { .grid { grid-template-columns: 1fr; } .dl { padding: 26px; } }
 
 .foot { max-width: 960px; margin: 0 auto; padding: 0 24px 40px; color: var(--dim); font-size: 15px; }
 .foot-top { display: grid; grid-template-columns: 1fr auto auto; gap: 64px; align-items: start; padding-bottom: 32px; }
