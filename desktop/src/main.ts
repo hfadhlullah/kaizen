@@ -1,5 +1,5 @@
 // Kaizen desktop: one window on the kaizen board, which this process starts and stops.
-import { app, BrowserWindow, dialog, ipcMain, screen, shell, crashReporter } from "electron";
+import { app, BrowserWindow, Menu, dialog, ipcMain, screen, shell, crashReporter } from "electron";
 import { appendFileSync, existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -116,6 +116,16 @@ function createWindow() {
     webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, preload: join(app.getAppPath(), "dist", "preload.js") },
   });
   const wc = win.webContents;
+  // A browser has a right-click menu with Copy and Paste; Electron has none, so the board's
+  // terminals and text could not be copied with the mouse.
+  wc.on("context-menu", (_e, p) => {
+    const items = [
+      ...(p.isEditable ? [{ role: "cut" as const, enabled: p.editFlags.canCut }] : []),
+      { role: "copy" as const, enabled: p.editFlags.canCopy },
+      ...(p.isEditable ? [{ role: "paste" as const, enabled: p.editFlags.canPaste }] : []),
+    ];
+    Menu.buildFromTemplate(items).popup({ window: win! });
+  });
   const ours = (url: string) => !!board && url.startsWith(board.url);
   // Error-page buttons, and links that leave the board, never navigate this window.
   wc.on("will-navigate", (e, url) => {
