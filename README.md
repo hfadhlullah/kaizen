@@ -52,6 +52,8 @@ None of this is a lack of intelligence. It is a missing workflow. Many assistant
 
 ## Install
 
+Prefer a window of its own? [Download the desktop app](https://kaizen.sarahdigital.id/#desktop) for macOS, Windows or Linux.
+
 1. **Install** on macOS or Linux:
    ```bash
    curl -fsSL https://bun.sh/install | bash && ~/.bun/bin/bunx kaizen-agent
