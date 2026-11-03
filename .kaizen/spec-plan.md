@@ -14,7 +14,10 @@ notes it lists for areas the request touches — the output of
 `kaizen recall --track <track> --tags <stack tags> --query "<words from the request>"`
 — past experience from other projects, to verify against this one, never binding
 like project rules; the Framing ends with `Recalled: <n> lessons; used: <the lines it
-relied on>` or `Recalled: none` — and the existing material —
+relied on>` or `Recalled: none` — the output of `kaizen related <the File manifest's
+paths>` (1.69.0 and later): earlier runs that changed those files, whose plans, findings
+and open backlog may bear on this one; the Framing adds `Related: <ids it used>` or
+`Related: none` — and the existing material —
 the codebase, the manuscript, the current campaign, whatever this run builds on.
 **Output:** `01-plan.md`.
 

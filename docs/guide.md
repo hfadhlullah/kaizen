@@ -109,6 +109,9 @@ tells you what it concluded, so you correct a sentence instead of filling in a f
 | `kaizen gather` | In a terminal: check every source now and add new requests to the icebox |
 | `kaizen icebox [promote\|dismiss <ids>]` | In a terminal: list what waits in the icebox, promote it to Tasks, or dismiss it |
 | `kaizen recall [--track t] [--tags a,b] [--query "<words>"]` | Lessons learned in other projects that match; see *Global knowledge* |
+| `kaizen stats [<run id>] [--json]` | How runs go: counts by stage, track and runner, fix-round and CANNOT VERIFY rates, median time per stage (runs that logged it); one run adds its tokens (Claude runs) |
+| `kaizen related <path> ...` | Earlier runs that changed these files, newest first, with their open backlog; the planner runs it |
+| `kaizen state <run id> key=value ...` | Set a run's `stage`, `awaiting` or `iteration`; each change is logged to the run's `stages.log` for `kaizen stats` |
 | `kaizen remember --track t --tags a,b --applies "<where>" --run <id> "<lesson>"` | Save a lesson that holds beyond this project; the reviewer calls it at the end of a run |
 | `/kaizen-config` | Show this project's settings and change them |
 | `kaizen setup` | Guided first run after install: project, settings, `kaizen web`, phone (QR) |
@@ -611,11 +614,12 @@ Ctrl+Shift+Space opens Search anywhere in kaizen, also from a terminal.
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `mode` | `approve` | `approve` stops for you; `auto` never does; `plan-only` stops after the plan |
+| `mode` | `approve` | `approve` stops for you; `auto` never does, except where `auto_guard` fires; `plan-only` stops after the plan |
 | `runner` | `full` | `full` gives each stage its own agent, so the reviewer never saw the work — several times the cost. `lite` runs every stage here, at about the cost of doing it by hand |
 | `build.executor` | `subagent` | Who does the work: a separate agent, `inline` in the current one, or `ask` each time |
 | `review.executor` | `inline` | Lite runs only — who reviews: `inline` in the current session, a cold `subagent` that never saw the work, or `ask` before each review |
 | `auto_fix.min_severity` | `low` | All review findings enter the bounded fix loop by default |
+| `auto_guard.max_files`, `auto_guard.stop_on` | `25`, `high` | Auto mode only: stop at the final approval when the build changed more files than this, or a finding at this severity or above is still open (`0` / `off` turn each off) |
 | `approvals.plan` | `true` | Stop and show the plan before anything is built |
 | `ui.mouse` | `false` | Click to select, click again to act; while on, the terminal cannot select text |
 | `subagents.model` | `inherit` | Model the stage subagents run on: `inherit`, `opus`, `sonnet`, `haiku` (Claude Code only) |

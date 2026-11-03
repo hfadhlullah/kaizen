@@ -62,6 +62,16 @@ auto_fix:
   # knob in the file. A third round rarely closes what two could not.
   max_iterations: 2
 
+# Stops for auto mode only (mode: auto); approve mode already stops at every approval.
+# Auto runs every stage back to back, so these are what bring a runaway run back to you:
+# the run stops at the final approval with the reason instead of finishing.
+auto_guard:
+  # Stop when the build changed more files than this. 0 turns this check off.
+  max_files: 25
+  # Stop when a finding at or above this severity is still open after the fix loop.
+  #   critical | high | medium | low | off
+  stop_on: high
+
 review:
   # Who reviews a lite run. Only read when runner is lite; under full the reviewer is
   # always its own agent.

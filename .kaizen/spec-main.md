@@ -153,6 +153,18 @@ whose changes leave every note true touches nothing and says so in one line.
 
 ---
 
+## Auto guard
+
+Only in `auto` mode. After the fix loop ends and before the final approval, check
+`auto_guard` from config: the build changed more files than `max_files` (count the
+changed paths `03-impl.md` names; `0` turns this off), or a finding at or above
+`stop_on` is still open (`off` turns this off). Either way, stop: `kaizen state <id>
+awaiting=approvals.review` (by hand before 1.69.0), and tell the user in one line which
+check fired. The run then waits for an explicit accept as in *Final approval*, even with
+`auto_accept` on. Neither check fires in `approve` mode, which already stops.
+
+---
+
 ## Final approval
 
 Controlled by `approvals.review`. `auto` skips every stop before it, not this one, unless `auto_accept` is on.

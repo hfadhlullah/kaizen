@@ -185,6 +185,9 @@ test("track labels a planner wrote in its own words map to the stored tracks", (
   expect(trackOf("code+writing")).toBe("code");
   expect(trackOf("software, operations")).toBe("code");
   expect(trackOf("media")).toBe("media");
+  expect(trackOf("code: ci flake")).toBe("code");
+  expect(trackOf("software-enhancement")).toBe("code");
+  expect(trackOf("research: agent-assisted video editing")).toBe("research");
 });
 
 test("recall and remember under an alias reach the same lessons as the stored track", () => {

@@ -25,10 +25,11 @@ const ALIAS: Record<string, string> = {
   docs: "writing", documentation: "writing", book: "writing",
   marketing: "communication", copy: "communication",
   ops: "operations", devops: "operations", release: "operations",
-  analysis: "research",
+  analysis: "research", operational: "operations",
 };
 export function trackOf(t: string): string {
-  const parts = t.toLowerCase().split(/[+,/&\s]+/).filter(Boolean).map((p) => ALIAS[p] ?? p);
+  // Free-form labels ("code: ci flake", "software-enhancement") lead with their kind.
+  const parts = t.toLowerCase().split(/[^a-z]+/).filter(Boolean).map((p) => ALIAS[p] ?? p);
   return parts.find((p) => TRACKS.includes(p)) ?? t.toLowerCase().trim();
 }
 export const SESSION_HEADER = "Past experience from other projects (kaizen recall) — verify before applying, project rules win:";

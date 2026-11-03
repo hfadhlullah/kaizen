@@ -2057,7 +2057,16 @@ export function setRunState(state: string, id: string, pairs: string[]): string 
     if (k === "iteration") { if (!/^\d+$/.test(raw)) return "iteration must be a whole number"; set[k] = Number(raw); continue; }
     set[k] = v;
   }
-  return setStage(file, (s) => { Object.assign(s, set); return true; }) ? null : `state.json for ${id} changed while writing or is not valid JSON; read it and retry`;
+  let now: any = null;
+  if (!setStage(file, (s) => { Object.assign(s, set); now = s; return true; })) return `state.json for ${id} changed while writing or is not valid JSON; read it and retry`;
+  if ("stage" in set || "awaiting" in set) logStage(state, id, now.stage, now.awaiting);
+  return null;
+}
+// runs/<id>/stages.log: one line per stage or awaiting change, `<iso> <stage> <awaiting|->`.
+// File mtimes cannot time stages (02-approval.md gains its accepted line at done), so
+// `kaizen stats` reads this. Only writes through kaizen state / kaizen done are logged.
+export function logStage(state: string, id: string, stage: string, awaiting: string | null) {
+  try { appendFileSync(join(state, "runs", id, "stages.log"), `${new Date().toISOString()} ${stage} ${awaiting ?? "-"}\n`); } catch { /* timing is best effort */ }
 }
 // Rewrites runs an agent marked done without acceptance (gate on) to review /
 // approvals.review; returns the ids. Not part of readRuns: reads stay pure (mtime is liveness).
@@ -2091,7 +2100,7 @@ export function finishRun(state: string, id: string, userApproved = false): stri
     const why = recordAcceptance(state, id, "chat");
     if (why) return why;
   }
-  setStage(file, (s) => { s.stage = "done"; s.awaiting = null; delete s.healed; return true; });
+  if (setStage(file, (s) => { s.stage = "done"; s.awaiting = null; delete s.healed; return true; })) logStage(state, id, "done", null);
   return null;
 }
 const names = (report: string, path: string) => report.includes("`" + path + "`") || report.includes("`" + path + ":");

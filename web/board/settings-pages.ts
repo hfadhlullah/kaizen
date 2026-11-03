@@ -38,6 +38,7 @@ const PLACES: [RegExp, string, string][] = [
   [/^sources\./, "integrations", "Request sources"],
   [/^(mode|approvals\.|auto_accept)/, "approvals", "Approvals"],
   [/^auto_fix\./, "autofix", "Auto-fix"],
+  [/^auto_guard\./, "autofix", "Auto mode guard"],
   [/^git\./, "git", "Git"],
   [/^ui\./, "terminal", "Terminal"],
   [/^board\.chat_hotkey$/, "shortcuts", "Shortcuts"],

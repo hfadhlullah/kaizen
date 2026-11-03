@@ -44,6 +44,7 @@ The product itself: a staged workflow (plan, approval, build, independent review
 - Agents set `stage`, `awaiting` and `iteration` with `kaizen state <id> key=value` (spec.md, Stage 0); `done` still goes through `kaizen done`. The stored `track` word is the nearest standard one (`code`, `writing`, …), mapped again by `trackOf()` in `cli/knowledge.ts`, while the free description lives in `00-request.md`.
 - Every gate item in a plan ends with `— proof: <how>`; the builder also answers the request's own requirements as `R PASS`/`R FAIL` lines before handing over (spec-plan.md item 6, spec-build.md gate block).
 - Area lessons go in each area note's `## Watch out`, not `.kaizen/memory.md` (spec-review.md); memory.md keeps cross-project lessons.
+- `auto_guard` (`max_files`, `stop_on`) stops an auto run at the final approval (spec-main.md *Auto guard*); planners run `kaizen related` on their manifest and add `Related:` to the Framing (spec-plan.md). Stage times exist only for runs with a `stages.log`: file mtimes move when `02-approval.md` gets its accepted line.
 
 ## Landing
 A land rebases first, resolves only `git.generated` paths, runs `git.land_check` after pulled commits, and records a failure in `runs/<id>/land.json`. The board reads it as the card's `land` and each agent's `land`, showing `Conflict` or `Land failed` with a red `!`.

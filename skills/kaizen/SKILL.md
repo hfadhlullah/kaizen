@@ -127,7 +127,8 @@ Set by `mode` in config, overridable per invocation.
 - **`approve`** (default) — stop at every approval enabled in config and wait for an
   explicit human decision.
 - **`auto`** — run every stage back to back with no approval, report at the end. The fix
-  loop still respects `max_iterations`.
+  loop still respects `max_iterations`, and `auto_guard` stops a run that changed too
+  many files or kept a serious finding (*Auto guard* in `spec-main.md`).
 - **`review-only`** — skip plan and implementation, run the reviewer against existing
   code or a diff.
 

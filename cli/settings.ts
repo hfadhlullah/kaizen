@@ -120,6 +120,8 @@ const SETTINGS: Setting[] = [
   { key: "auto_fix.enabled", label: "Fix findings automatically", group: "Auto-fix", values: ["true", "false"], help: "" },
   { key: "auto_fix.min_severity", label: "Lowest severity to fix", group: "Auto-fix", values: ["critical", "high", "medium", "low"], help: "", when: ["auto_fix.enabled", "true"] },
   { key: "auto_fix.max_iterations", label: "Max fix rounds", group: "Auto-fix", values: ["1", "2", "3", "4", "5"], help: "", when: ["auto_fix.enabled", "true"] },
+  { key: "auto_guard.max_files", label: "Auto mode: stop above this many changed files", group: "Auto-fix", values: ["10", "25", "50", "0"], help: "0 turns the check off" },
+  { key: "auto_guard.stop_on", label: "Auto mode: stop on an open finding at", group: "Auto-fix", values: ["critical", "high", "medium", "low", "off"], help: "" },
   { key: "git.auto_commit", label: "Commit when done", group: "Git", values: ["false", "true"], help: "Never pushes" },
   { key: "git.worktree_per_run", label: "Branch and folder per run", group: "Git", values: ["ask", "true", "false"], help: "" },
   { key: "git.generated", label: "Generated files", group: "Git", values: [], text: true, help: "Path patterns, space-separated. A land takes the base's side on conflict. Empty: none" },

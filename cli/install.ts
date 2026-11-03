@@ -240,6 +240,23 @@ if (Bun.argv[2] === "state") {
   process.exit(0);
 }
 
+// `kaizen stats [<run id>] [--json]` and `kaizen related <path...>`: read-only, cli/stats.ts.
+if (Bun.argv[2] === "stats" || Bun.argv[2] === "related") {
+  const { locate } = await import("./state.ts");
+  const { statsText, related } = await import("./stats.ts");
+  const state = locate() ?? join(home, ".kaizen");
+  const rest = Bun.argv.slice(3), json = rest.includes("--json"), words = rest.filter((a) => a !== "--json");
+  if (Bun.argv[2] === "stats") {
+    const out = statsText(state, words[0], json);
+    console.log(out);
+    process.exit(out.startsWith("no run ") ? 1 : 0);
+  }
+  if (!words.length) { console.log(`\n  kaizen related <path> [<path> ...]\n`); process.exit(1); }
+  const r = related(state, words);
+  console.log(json ? JSON.stringify(r, null, 2) : r.length ? r.map((x) => `${x.id} — ${x.title}${x.open ? ` — ${x.open} open backlog` : ""}`).join("\n") : "Related: none");
+  process.exit(0);
+}
+
 // `kaizen remember …` / `kaizen recall …`: global knowledge, see cli/knowledge.ts.
 if (Bun.argv[2] === "remember" || Bun.argv[2] === "recall") {
   const { cli } = await import("./knowledge.ts");
