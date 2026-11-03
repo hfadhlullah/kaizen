@@ -267,3 +267,5 @@ updated: 2026-10-31
 - 2026-10-30 update — CLI, Workflow, Terminal board, Notebook, Conventions and gotchas, Release and testing, Web board, Kaizen bot, Sources and icebox
 - 2026-11-02 update — Web board: a note sent with the Send button shows at once; the button kept focus and blocked the redraw.
 - 2026-11-02 update — Workflow: the guide lists /kaizen-concept.
+- 2026-11-03 update — Workflow: kaizen-concept starts from product type and the promise, adds a craft pass, a decision-document review page, and DESIGN.md handoff.
+- 2026-11-03 update — Workflow: kaizen-concept gains UX and platform rules (ux-rules.md), a frame per platform, a word budget, and a menu-plus-detail review page.
