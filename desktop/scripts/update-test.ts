@@ -51,8 +51,11 @@ const n1 = build("0.0.2");
 // so the differential download (blockmap) is what gets tested, not a fallback.
 let ranged = 0;
 const server = Bun.serve({ port, hostname: "127.0.0.1", fetch: async (req) => {
-  const f = join(n1, decodeURIComponent(new URL(req.url).pathname).replace(/^\/+/, ""));
-  if (!existsSync(f)) return new Response("not found", { status: 404 });
+  // The new release first, then the old one: a Windows (NSIS) differential update
+  // also fetches the old installer's blockmap, as it would from the old GitHub release.
+  const name = decodeURIComponent(new URL(req.url).pathname).replace(/^\/+/, "");
+  const f = [join(n1, name), join(n, name)].find((x) => existsSync(x));
+  if (!f) return new Response("not found", { status: 404 });
   const r = await rangeResponse(Bun.file(f), req.headers.get("range"));
   if (r.status === 206) ranged++;
   if (process.env.KZ_DEBUG) console.log(`[feed] ${req.headers.get("range")?.split(",").length ?? 0} ranges -> ${r.status} ${r.headers.get("content-type")}`);
