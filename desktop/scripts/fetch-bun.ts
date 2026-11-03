@@ -25,8 +25,11 @@ for (const arch of (process.env.KAIZEN_BUN_ARCHS ?? process.arch).split(",")) {
   rmSync(tmp, { recursive: true, force: true });
   mkdirSync(tmp, { recursive: true });
   await Bun.write(join(tmp, "bun.zip"), zip);
-  // unzip on Linux (GNU tar cannot read zip); bsdtar on macOS and Windows reads it.
-  const x = process.platform === "linux" ? ["unzip", "-q", "bun.zip"] : ["tar", "-xf", "bun.zip"];
+  // unzip on Linux (GNU tar cannot read zip), bsdtar on macOS, and on Windows the
+  // system tar.exe by full path: Git Bash puts its GNU tar first on PATH.
+  const x = process.platform === "linux" ? ["unzip", "-q", "bun.zip"]
+    : process.platform === "win32" ? [join(process.env.SystemRoot ?? "C:\\Windows", "System32", "tar.exe"), "-xf", "bun.zip"]
+    : ["tar", "-xf", "bun.zip"];
   if (Bun.spawnSync(x, { cwd: tmp }).exitCode !== 0) throw new Error(`could not extract ${name}.zip with ${x[0]}`);
   const dir = readdirSync(tmp).find((d) => d.startsWith("bun-"))!;
   rmSync(out, { recursive: true, force: true });
