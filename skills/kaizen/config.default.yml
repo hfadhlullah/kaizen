@@ -188,6 +188,9 @@ agent:
   #          (tmux -L kaizen, your own sessions untouched) and keep working through
   #          a kaizen restart or crash; the next kaizen shows them again mid-step.
   #          Linux and macOS with tmux installed; elsewhere it acts as off.
+  #          On Linux with systemd the server gets a scope of its own, so it also
+  #          outlives a stop or restart of a systemd unit that runs kaizen. Through
+  #          a logout only with lingering on: loginctl enable-linger.
   keep_alive: off
   # Stops idle sleep from kaizen. off | auto (while kaizen runs agents) | on
   # (while kaizen is open). Linux and macOS; agents in an outside terminal don't count.

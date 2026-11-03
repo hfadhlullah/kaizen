@@ -6,6 +6,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { SearchAddon } from "@xterm/addon-search";
+import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { fontRead, fontSet, fontStep } from "./term-font.ts";
 
 function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void {
@@ -37,6 +38,10 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
   term.loadAddon(new WebLinksAddon((_e, url) => window.open(url, "_blank", "noopener")));
   const search = new SearchAddon();
   term.loadAddon(search);
+  // Unicode 11 widths: emoji and CJK take two cells, as agents and tmux count them, so
+  // the cursor and borders line up after them (xterm.js defaults to Unicode 6).
+  term.loadAddon(new Unicode11Addon());
+  term.unicode.activeVersion = "11";
   term.open(el);
   // The DOM renderer lags on a full-screen agent's constant redraws; WebGL keeps up.
   // No WebGL, or the context lost: xterm.js falls back to the DOM renderer by itself.

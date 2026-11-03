@@ -5,7 +5,7 @@ import { test, expect } from "bun:test";
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { startPty, exitPty, killPty, ptyState, tmuxOk, tmuxName, tmuxAlive, killTmux, detachPty, attachPty, panePid } from "./pty.ts";
+import { startPty, exitPty, killPty, ptyState, tmuxOk, tmuxName, tmuxAlive, killTmux, detachPty, attachPty, panePid, scopeCmd } from "./pty.ts";
 import { keepAlive } from "./state.ts";
 import { processTable, treeRss } from "./resources.ts";
 
@@ -219,4 +219,18 @@ test.skipIf(!posix || !tmuxOk())("a tmux-kept terminal is measured from its pane
   expect(killPty("res-tmux")).toBe(true);
   for (let i = 0; i < 100 && tmuxAlive(name); i++) await Bun.sleep(30);
   expect(tmuxAlive(name)).toBe(false);
+});
+
+// Under a systemd unit the board's cgroup is the unit's, and stopping the unit killed the
+// tmux server it had started. The client starts in a scope of its own, so a server it
+// starts lands there too, outside the board's unit.
+test.skipIf(!posix || !tmuxOk() || !scopeCmd().length)("a tmux-kept agent starts outside the board's cgroup", async () => {
+  const name = tmuxName("scope-" + process.pid);
+  const pid = startPty("scope-tmux", ["sleep", "60"], root, undefined, undefined, { tmux: name });
+  const cg = (p: number | string) => readFileSync(`/proc/${p}/cgroup`, "utf8").trim();
+  try {
+    for (let i = 0; i < 100 && !panePid(name); i++) await Bun.sleep(30);
+    expect(cg(pid)).not.toBe(cg("self"));
+    expect(cg(pid)).toMatch(/run-[^/]*\.scope$/);
+  } finally { killPty("scope-tmux"); }
 });
