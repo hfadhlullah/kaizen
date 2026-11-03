@@ -9,41 +9,66 @@ import { view } from "./views.ts";
 // is a quiet row whose Check for updates asks npm now instead of the server's 6 h cache.
 let upd = null,
   ver = null;
+// Inside the desktop app (desktop/src/preload.ts) the version and the update are the
+// app's own, from GitHub Releases; anywhere else, kaizen's npm package.
+const desk = globalThis.kaizenDesktop;
+const name = desk ? "Kaizen" : "kaizen";
+const getVer = (fresh) => (desk ? desk.check() : fetch(fresh ? "/version?fresh=1" : "/version").then((r) => r.json()));
 export function gotVer(v) {
   ver = v;
   upd = v.update ? v : null;
   const a = document.querySelector('.rail a[data-view="settings"]');
   a.classList.toggle("upd", !!upd);
-  a.title = upd ? `Settings: kaizen ${v.latest} is available` : "Settings";
+  a.title = upd ? `Settings: ${name} ${v.latest} is available` : "Settings";
   return !!upd;
 }
 export function updBar() {
   const d = document.createElement("div");
   d.className = `updbar${upd ? "" : " quiet"}`;
   if (!upd) {
-    d.innerHTML = html`<span id="upd-msg" aria-live="polite">${ver ? `kaizen ${ver.version}` : "kaizen"}</span><button class="btn" id="upd-chk">Check for updates</button>`;
+    d.innerHTML = html`<span id="upd-msg" aria-live="polite">${ver ? `${name} ${ver.version}` : name}</span
+      ><button class="btn" id="upd-chk">Check for updates</button>`;
   } else {
     // What's new: each newer release's one-line title, shown on hover, focus or click.
     const notes = (upd.notes || []).map((n) => html`<li><b>${n.v}</b> ${n.text}</li>`);
     const news = notes.length
-      ? html`<span class="updnew"><button class="btn" aria-describedby="upd-notes">What's new</button><span class="updpop" id="upd-notes" role="tooltip"><ul>${notes}</ul><a href="https://github.com/hfadhlullah/kaizen/releases" target="_blank" rel="noopener">All release notes</a></span></span>`
+      ? html`<span class="updnew"
+          ><button class="btn" aria-describedby="upd-notes">What's new</button
+          ><span class="updpop" id="upd-notes" role="tooltip"
+            ><ul>
+              ${notes}
+            </ul>
+            <a href="https://github.com/hfadhlullah/kaizen/releases" target="_blank" rel="noopener"
+              >All release notes</a
+            ></span
+          ></span
+        >`
       : "";
-    d.innerHTML = html`<span>kaizen <b>${upd.latest}</b> is available. You are running ${upd.version}.</span><span class="updact">${news}<button class="btn" id="upd-chk">Check for updates</button><button class="btn pri" id="upd-go">Update kaizen</button></span>`;
+    d.innerHTML = html`<span>${name} <b>${upd.latest}</b> is available. You are running ${upd.version}.</span
+      ><span class="updact"
+        >${news}<button class="btn" id="upd-chk">Check for updates</button
+        ><button class="btn pri" id="upd-go">Update ${name}</button></span
+      >`;
   }
-  if (ver && ver.failed) d.insertAdjacentHTML("afterbegin", html`<span class="updfail" role="alert">Last update failed: ${ver.failed}</span>`);
+  if (ver && ver.failed)
+    d.insertAdjacentHTML(
+      "afterbegin",
+      html`<span class="updfail" role="alert">Last update failed: ${ver.failed}</span>`,
+    );
   ($("supd") || $("pbody")).prepend(d);
   const check = $("upd-chk");
   check.onclick = async () => {
     check.disabled = true;
     check.textContent = "Checking…";
-    const v = await fetch("/version?fresh=1")
-      .then((r) => r.json())
-      .catch(() => null);
+    const v = await getVer(true).catch(() => null);
     if (!d.isConnected) return;
     check.disabled = false;
     if (!v || !v.latest) {
       if (upd) check.textContent = "Could not check. Try again";
-      else $("upd-msg").textContent = "Could not reach npm. Try again later.";
+      else
+        $("upd-msg").textContent = desk
+          ? "Could not reach GitHub Releases. Try again later."
+          : "Could not reach npm. Try again later.";
       return;
     }
     gotVer(v);
@@ -52,7 +77,7 @@ export function updBar() {
     updBar();
     if (upd) $("upd-go").focus();
     else {
-      $("upd-msg").textContent = `kaizen ${v.version} is up to date.`;
+      $("upd-msg").textContent = `${name} ${v.version} is up to date.`;
       $("upd-chk").focus();
     }
   };
@@ -62,6 +87,7 @@ export function updBar() {
 }
 
 async function upgrade(b) {
+  if (desk) return installApp(b);
   if (!confirm(`Update kaizen to ${upd.latest}? kaizen restarts, and agents it runs stop.`)) return;
   const label = b.textContent;
   b.disabled = true;
@@ -76,6 +102,23 @@ async function upgrade(b) {
   setTimeout(() => location.reload(), 20000);
 }
 
+// The desktop app installs its newest build and restarts into it; an unsigned macOS
+// build cannot replace itself, so there the app opens the download page instead.
+async function installApp(b) {
+  if (!confirm(`Install Kaizen ${upd.latest}? The app restarts, and agents it runs stop.`)) return;
+  const label = b.textContent;
+  b.disabled = true;
+  b.textContent = "Downloading…";
+  const r = await desk.install().catch((e) => ({ ok: false, error: String(e) }));
+  if (r && r.ok && !r.opened) {
+    b.textContent = "Restarting…";
+    return;
+  }
+  b.disabled = false;
+  b.textContent = r && r.opened ? "Opened the download page" : label;
+  if (r && !r.ok) alert(`Could not install the update: ${r.error}`);
+}
+
 // The bottom-right popup for a new release. Later silences that version in this browser;
 // the next release asks again.
 function updPop() {
@@ -85,7 +128,7 @@ function updPop() {
   } catch {}
   const open = $("updcard");
   if (!upd || later === upd.latest) return open?.remove();
-  const msg = html`kaizen <b>${upd.latest}</b> is available. You are running ${upd.version}.`;
+  const msg = html`${name} <b>${upd.latest}</b> is available. You are running ${upd.version}.`;
   if (open) {
     open.firstElementChild.innerHTML = msg;
     return;
@@ -93,7 +136,11 @@ function updPop() {
   const d = document.createElement("div");
   d.id = "updcard";
   d.setAttribute("role", "status");
-  d.innerHTML = html`<span>${msg}</span><span class="updact"><button class="btn" id="updcard-later">Later</button><button class="btn pri" id="updcard-go">Update now</button></span>`;
+  d.innerHTML = html`<span>${msg}</span
+    ><span class="updact"
+      ><button class="btn" id="updcard-later">Later</button
+      ><button class="btn pri" id="updcard-go">Update now</button></span
+    >`;
   document.body.append(d);
   $("updcard-later").onclick = () => {
     try {
@@ -107,8 +154,7 @@ function updPop() {
 
 function checkUpdate() {
   const had = !!upd;
-  fetch("/version")
-    .then((r) => r.json())
+  getVer(false)
     .then((v) => {
       if (gotVer(v) && !had && view === "settings") openSettings();
       updPop();

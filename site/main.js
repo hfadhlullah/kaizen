@@ -36,7 +36,7 @@ const ASSET = {
 const NOTE = {
   mac: "macOS: not signed by Apple yet, so the first time, right-click the app and choose Open.",
   win: "Windows may show a SmartScreen warning: choose More info, then Run anyway.",
-  linux: "Linux: make the AppImage executable and open it. On Arch: sudo pacman -U the .pacman file.",
+  linux: "Linux: make the AppImage executable and open it. It adds itself to your app menu and updates itself. The .deb, .rpm and .pacman packages update by hand.",
 };
 // Phones and tablets first: iOS says "like Mac OS X" and Android says "Linux".
 const ua = navigator.userAgent;
