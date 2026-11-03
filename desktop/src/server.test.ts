@@ -77,3 +77,11 @@ test("boardPort takes the preferred port when free, and another when it is taken
   expect(got).not.toBe(want);
   expect(got).toBeGreaterThan(0);
 });
+
+test("the board does not inherit the AppImage runtime's ARGV0 (zsh would hand it to every command)", async () => {
+  const body = `Bun.serve({ hostname: "127.0.0.1", port: Number(Bun.argv[Bun.argv.indexOf("--port") + 1]), fetch: () => new Response(String(process.env.ARGV0 ?? "none")) });`;
+  const b = startBoard({ bun: process.execPath, dir: fakeKaizen("1.0.0", body), port: await freePort(), bundled: true, cwd: tmpdir(), env: { ARGV0: "kaizen-desktop.AppImage" } });
+  await waitReady(b, 10000);
+  expect(await (await fetch(b.url)).text()).toBe("none");
+  await stopBoard(b.child);
+});
