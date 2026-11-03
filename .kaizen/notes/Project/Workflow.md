@@ -1,8 +1,8 @@
 ---
 description: What a kaizen run is, which files define it, and where its state lives
 tags: [project, workflow]
-sources: [cli/roadmap.ts, cli/workers.ts, skills/kaizen, skills/kaizen-help, skills/media, agents, commands, cli/worktree.ts, docs/guide.md]
-updated: 2026-11-01
+sources: [cli/roadmap.ts, cli/workers.ts, skills/kaizen, skills/kaizen-help, skills/kaizen-concept, skills/media, agents, commands, cli/worktree.ts, docs/guide.md]
+updated: 2026-11-03
 ---
 # Workflow
 
@@ -22,6 +22,7 @@ The product itself: a staged workflow (plan, approval, build, independent review
 - `agents/kaizen-*.md` — the planner, builder and reviewer subagents.
 - `commands/kaizen-*.md` — Claude Code slash commands, each a one-line hand-off to the skill.
 - Roadmaps: a project too big for one run, of any kind, gets `.kaizen/roadmaps/<name>.md` (phases, status, decisions) on top of child cards. `cli/roadmap.ts` reads it; `skills/kaizen/roadmap.md` holds `/kaizen roadmap`, `next` and `run`. One run stays the default.
+- `skills/kaizen-concept/SKILL.md` — `/kaizen concept`: product type first (its table sets what concepts differ on and what gets prototyped), then market and the users' medium; concepts differ by promise, image medium, type and signature mechanic; a craft pass; UX and platform rules with a 30-item checklist in `skills/kaizen-concept/ux-rules.md` (sourced: HIG, Material, Fluent, WCAG, NN/g), a frame per platform (phone, browser window, desktop window, landing page); a word budget of about 10 words of prose per app screen; sample labels and screen jumpers outside the app; the review page as a menu of concept tiles with a detail view per concept (preview, votes and comments by name); the approved concept ends in an extracted `DESIGN.md`, tokens and a handoff note.
 - `skills/kaizen-help/` — the help card; `skills/media/` — `kaizen-deck/`, `kaizen-video/` (footage editing and from-scratch films on HyperFrames; any preset works for either start, `make_tiktok.py`/`make_film.py` bridge to the other engine; a style.json with `"engine": "canvas"` builds with `canvas.html`, a camera over one large canvas, see `references/canvas.md`; a template preset (`preset.json`, e.g. `app-promo`) films the user's product with `record.mjs` and builds with `make_promo.py`, see `references/promo.md`; presets with a `.hidden` file stay off the New video wizard): separate skills shipped in the same package.
 - `docs/guide.md` documents the board's Source control tab and the first-run welcome; `cli/worktree.ts` supplies that tab's branch and pull request state ([[CLI]]).
 

@@ -269,3 +269,5 @@ updated: 2026-10-31
 - 2026-11-02 update — Workflow: the guide lists /kaizen-concept.
 - 2026-11-03 run 2026-11-03-desktop-app — Release and testing: desktop app (`desktop/`, `desktop.yml`).
 - 2026-11-03 run 2026-11-03-desktop-app (revise) — Web board: /version and /upgrade stand down under KAIZEN_DESKTOP_BUNDLED; Release and testing: desktop update-test.
+- 2026-11-03 update — Workflow: kaizen-concept starts from product type and the promise, adds a craft pass, a decision-document review page, and DESIGN.md handoff.
+- 2026-11-03 update — Workflow: kaizen-concept gains UX and platform rules (ux-rules.md), a frame per platform, a word budget, and a menu-plus-detail review page.
