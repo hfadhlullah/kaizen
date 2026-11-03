@@ -59,6 +59,9 @@ export function startBoard(o: { bun: string; dir: string; port: number; bundled:
   if (o.bundled) { env.KAIZEN_HOME = o.dir; env.KAIZEN_DESKTOP_BUNDLED = "1"; } else delete env.KAIZEN_DESKTOP_BUNDLED;
   // The board is Bun; Electron's own variables must not leak into it.
   delete env.ELECTRON_RUN_AS_NODE;
+  // Nor the AppImage runtime's: zsh uses an exported ARGV0 as argv[0] of every command, so
+  // each terminal's mise saw "kaizen-desktop-….AppImage" and failed as "not a valid shim".
+  for (const k of ["ARGV0", "APPDIR", "OWD"]) delete env[k];
   const child = spawn(o.bun, [join(o.dir, "cli", "install.ts"), "web", "--port", String(o.port), "--no-open", "--foreground"], {
     cwd: o.cwd,
     env,
