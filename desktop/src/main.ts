@@ -1,10 +1,12 @@
 // Kaizen desktop: one window on the kaizen board, which this process starts and stops.
-import { app, BrowserWindow, dialog, screen, shell, crashReporter } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, screen, shell, crashReporter } from "electron";
 import { appendFileSync, existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { forgetBoard, freePort, pickKaizen, reapStale, rememberBoard, startBoard, stopBoard, waitReady, type Board } from "./server";
-import { startUpdates } from "./updater";
+import { boardPort, forgetBoard, pickKaizen, reapStale, rememberBoard, startBoard, stopBoard, waitReady, type Board } from "./server";
+import { checkNow, installNow, startUpdates } from "./updater";
+import { desktopEntry } from "./appimage";
+import { autoUpdater } from "electron-updater";
 
 const smoke = process.env.KAIZEN_DESKTOP_SMOKE === "1";
 // CI's update test (scripts/update-test.ts): a hidden window, updates from this feed.
@@ -23,13 +25,22 @@ export function report(line: string) {
 // Crash dumps stay on this machine (as Orca does); nothing is uploaded.
 crashReporter.start({ uploadToServer: false });
 
-if (!app.requestSingleInstanceLock()) app.exit(0);
+// The updater starts the new AppImage while this one is still quitting
+// (APPIMAGE_SILENT_INSTALL), so that launch waits up to 15 s for the lock instead of
+// exiting at once; a plain second launch still just focuses the first.
+let locked = app.requestSingleInstanceLock();
+for (let i = 0; !locked && process.env.APPIMAGE_SILENT_INSTALL && i < 30; i++) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 500);
+  locked = app.requestSingleInstanceLock();
+}
+if (!locked) app.exit(0);
 
 let win: BrowserWindow | null = null;
 let board: Board | null = null;
 let quitting = false;
 
-const res = app.isPackaged ? process.resourcesPath : join(__dirname, "..", "build");
+// app.getAppPath(), not __dirname: bun build bakes __dirname in as the source folder.
+const res = app.isPackaged ? process.resourcesPath : join(app.getAppPath(), "build");
 const bunPath = join(res, app.isPackaged ? "bun" : `bun-${process.arch}`, process.platform === "win32" ? "bun.exe" : "bun");
 const logFile = join(homedir(), ".kaizen", "web.log");
 const stateFile = () => join(app.getPath("userData"), "window.json");
@@ -68,7 +79,7 @@ async function boot() {
   win.loadURL(page("Starting kaizen…", "<p>Starting the board.</p>"));
   if (!existsSync(bunPath)) return fail(`The bundled Bun is missing at ${bunPath}.`);
   const pick = pickKaizen(join(res, "kaizen"), process.env.KAIZEN_HOME ?? join(homedir(), "kaizen"));
-  const port = await freePort();
+  const port = await boardPort();
   if (quitting || !win) return;
   const b = startBoard({ bun: bunPath, dir: pick.dir, bundled: pick.bundled, port, cwd: homedir() });
   board = b;
@@ -102,7 +113,7 @@ function createWindow() {
     backgroundColor: "#111111",
     show: !smoke && !testFeed,
     autoHideMenuBar: true,
-    webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false },
+    webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, preload: join(app.getAppPath(), "dist", "preload.js") },
   });
   const wc = win.webContents;
   const ours = (url: string) => !!board && url.startsWith(board.url);
@@ -137,6 +148,11 @@ async function restart() {
   await boot();
 }
 
+// The board page's update buttons (preload.ts). Only the board itself may ask.
+const fromBoard = (e: Electron.IpcMainInvokeEvent) => !!board && (e.senderFrame?.url ?? "").startsWith(board.url);
+ipcMain.handle("kz-update-check", (e) => (fromBoard(e) ? checkNow() : null));
+ipcMain.handle("kz-update-install", (e) => (fromBoard(e) ? installNow() : { ok: false, error: "not the board" }));
+
 app.on("second-instance", () => {
   if (!win) return;
   if (win.isMinimized()) win.restore();
@@ -155,6 +171,16 @@ app.on("before-quit", (e) => {
   e.preventDefault();
   void Promise.allSettled([...stops]).then(() => app.quit());
 });
+
+// Run as an AppImage: keep the app menu entry pointing at this file, and at the new
+// one when an update renames it.
+function menuEntry(file: string) {
+  try { desktopEntry(file, join(process.resourcesPath, "icon.png")); } catch (e) { console.error("[menu entry]", e); }
+}
+if (process.platform === "linux" && process.env.APPIMAGE && !smoke) {
+  menuEntry(process.env.APPIMAGE);
+  autoUpdater.on("appimage-filename-updated", (f: string) => menuEntry(f));
+}
 
 app.whenReady().then(async () => {
   // A board a crashed or killed launch left behind (review finding 3).

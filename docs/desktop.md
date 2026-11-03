@@ -10,14 +10,14 @@ Download your system's file from the [GitHub release](https://github.com/hfadhlu
 |---|---|
 | Windows | `kaizen-desktop-<version>-win-x64.exe` |
 | macOS (Apple silicon / Intel) | `kaizen-desktop-<version>-mac-arm64.dmg` / `-mac-x64.dmg` |
-| Arch, CachyOS, Manjaro | `kaizen-desktop-<version>-linux-x64.pacman`, then `sudo pacman -U <file>` |
+| Any Linux (recommended) | `kaizen-desktop-<version>-linux-x86_64.AppImage`: `chmod +x`, run. It adds itself to the app menu and updates itself. |
+| Arch, CachyOS, Manjaro | `kaizen-desktop-<version>-linux-x64.pacman`, then `sudo pacman -U <file>`. Update by hand: install the next `.pacman` the same way. |
 | Debian, Ubuntu | `kaizen-desktop-<version>-linux-amd64.deb` |
 | Fedora, openSUSE | `kaizen-desktop-<version>-linux-x86_64.rpm` |
-| Any Linux | `kaizen-desktop-<version>-linux-x86_64.AppImage` (`chmod +x`, run) |
 
 There are arm64 builds for Linux too.
 
-The macOS build is not signed yet. The first time, right-click the app and choose **Open**. On macOS the app tells you when a new version is out, and you download it yourself. Windows and Linux (AppImage, deb, rpm, pacman) update on their own when you quit the app.
+The macOS build is not signed yet. The first time, right-click the app and choose **Open**. On macOS the app tells you when a new version is out, and you download it yourself. Windows and the Linux AppImage update on their own (on quit, or with Settings → General → Update Kaizen); the deb, rpm and pacman packages update by hand.
 
 ## Which kaizen it runs
 
@@ -25,9 +25,9 @@ The app carries its own copy of kaizen and of Bun, so it works with nothing else
 
 ## How it works
 
-- `desktop/src/server.ts` finds a free port, starts `bun cli/install.ts web --port N --no-open --foreground`, waits for it to answer, and stops the process and everything it started when you quit (SIGTERM on Linux and macOS, `taskkill /T` on Windows).
+- `desktop/src/server.ts` takes port 7420 (what `kaizen web` and the phone's `tailscale serve` use) when it is free, else any free port, starts `bun cli/install.ts web --port N --no-open --foreground`, waits for it to answer, and stops the process and everything it started when you quit (SIGTERM on Linux and macOS, `taskkill /T` on Windows).
 - `desktop/src/main.ts` owns the window. Only one copy runs; opening it again focuses the open window. Links that leave the board open in your browser. If the board stops, the window shows an error page with the log and a **Restart** button. If the page itself crashes, it reloads.
-- `desktop/src/updater.ts` checks GitHub Releases at start and every 4 hours.
+- `desktop/src/updater.ts` checks GitHub Releases at start and every 4 hours. In the app, Settings → General's **Check for updates** asks the same feed, and **Update Kaizen** downloads the newest build and restarts into it (on macOS, unsigned for now, it opens the download page). `desktop/src/preload.ts` gives the board page only those two calls.
 
 The design follows Orca (an Electron app that ships the same installer set). The packaged binary turns off Electron's run-as-Node, `NODE_OPTIONS` and inspector switches, which Orca leaves on.
 

@@ -14,6 +14,8 @@ module.exports = {
   extraResources: [
     { from: "build/kaizen", to: "kaizen" },
     { from: "build/bun-${arch}", to: "bun" },
+    // The AppImage copies it into the icon theme for its own menu entry (src/appimage.ts).
+    { from: "../assets/kaizen-logo.png", to: "icon.png" },
   ],
   icon: "../assets/kaizen-logo.png",
   // Orca ships Electron's default fuses; these close the "run this binary as plain

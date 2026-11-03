@@ -5,13 +5,22 @@ import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { join } from "node:path";
 
-/** Ask the OS for a port nothing listens on. */
-export function freePort(): Promise<number> {
+/** The port `kaizen web` uses, and the one `tailscale serve` for the phone points at. */
+export const BOARD_PORT = 7420;
+
+/** BOARD_PORT when nothing holds it (so the phone and bookmarks keep working), else
+ *  any free port the OS hands out. */
+export async function boardPort(preferred = BOARD_PORT): Promise<number> {
+  return freePort(preferred).catch(() => freePort());
+}
+
+/** Ask the OS for a port nothing listens on: `want`, or any when 0. */
+export function freePort(want = 0): Promise<number> {
   return new Promise((resolve, reject) => {
     const srv = createServer();
     srv.unref();
     srv.on("error", reject);
-    srv.listen(0, "127.0.0.1", () => {
+    srv.listen(want, "127.0.0.1", () => {
       const { port } = srv.address() as { port: number };
       srv.close(() => resolve(port));
     });

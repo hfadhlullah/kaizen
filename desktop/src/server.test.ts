@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { freePort, newer, pickKaizen, reapStale, rememberBoard, startBoard, stopBoard, waitReady } from "./server.ts";
+import { boardPort, freePort, newer, pickKaizen, reapStale, rememberBoard, startBoard, stopBoard, waitReady } from "./server.ts";
 
 // A stand-in for cli/install.ts: answers on --port like the board does.
 function fakeKaizen(version: string, body = `Bun.serve({ hostname: "127.0.0.1", port: Number(Bun.argv[Bun.argv.indexOf("--port") + 1]), fetch: () => new Response("board") });`) {
@@ -65,4 +65,15 @@ test("reapStale ends a board a crashed launch left, and spares a dead record", a
   await gone;
   writeFileSync(file, JSON.stringify({ pid: b.child.pid, port: b.port }));
   expect(await reapStale(file)).toBe(false);
+});
+
+test("boardPort takes the preferred port when free, and another when it is taken", async () => {
+  const want = await freePort();
+  expect(await boardPort(want)).toBe(want);
+  const srv = createServer();
+  await new Promise<void>((r) => srv.listen(want, "127.0.0.1", () => r()));
+  const got = await boardPort(want);
+  srv.close();
+  expect(got).not.toBe(want);
+  expect(got).toBeGreaterThan(0);
 });

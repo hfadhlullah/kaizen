@@ -272,3 +272,5 @@ updated: 2026-10-31
 - 2026-11-03 update — Workflow: kaizen-concept starts from product type and the promise, adds a craft pass, a decision-document review page, and DESIGN.md handoff.
 - 2026-11-03 update — Workflow: kaizen-concept gains UX and platform rules (ux-rules.md), a frame per platform, a word budget, and a menu-plus-detail review page.
 - 2026-11-03 run 2026-11-03-desktop-landing — Release and testing: landing page desktop download section.
+- 2026-11-03 run 2026-11-03-desktop-update-button — Web board: Check for updates / Update use the desktop app's updater inside the app.
+- 2026-11-03 run 2026-11-03-desktop-update-button (revise) — Release and testing: AppImage menu entry and self-update, board port 7420.
