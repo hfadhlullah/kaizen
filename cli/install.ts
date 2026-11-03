@@ -26,6 +26,23 @@ const force = args.has("--force");
 const verbose = args.has("--verbose");
 const interactive = process.stdin.isTTY && !check && !upgrade && !args.has("--yes");
 
+// Every top-level word kaizen dispatches on. Anything else used to fall through to the
+// installer, so a typo or a command from a newer kaizen reinstalled instead of failing.
+// cli/install-unknown.test.ts fails if a dispatched word is missing here.
+const COMMANDS = ["automation", "help", "init", "browser", "card", "chat", "computer", "config", "docs", "done", "gather", "handoff",
+  "icebox", "issue", "prune", "recall", "related", "remember", "report", "roadmap", "settings", "setup", "sources",
+  "state", "stats", "uninstall", "upgrade", "version", "web", "worker", "worktree"];
+const first = Bun.argv[2];
+const commandList = `  commands: ${COMMANDS.join(", ")}\n  plain \`kaizen\` opens the board; \`kaizen --yes\` installs; \`kaizen init\` sets up this folder\n`;
+if (first && !first.startsWith("-") && !COMMANDS.includes(first)) {
+  console.log(`\n  unknown command "${first}"\n\n${commandList}`);
+  process.exit(1);
+}
+if (first === "help") { console.log(`\n${commandList}`); process.exit(0); }
+// `kaizen init` (README) has always run the installer, which sets up the project folder;
+// keep that, and set up this folder even when it is not a git root.
+if (first === "init") args.add("--init-project");
+
 function parsePresetArg(): PresetName | null {
   for (const a of Bun.argv.slice(2)) {
     if (a.startsWith("--preset=")) {
