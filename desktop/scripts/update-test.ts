@@ -33,7 +33,10 @@ function build(version: string) {
 }
 
 async function run(exe: string, env: Record<string, string>, timeoutMs = 180000) {
-  const p = Bun.spawn(win ? [exe] : [exe, "--no-sandbox"], { env: { ...process.env, HOME: home, USERPROFILE: home, XDG_CONFIG_HOME: join(home, ".config"), XDG_CACHE_HOME: join(home, ".cache"), KAIZEN_DESKTOP_OUT: out, ...env }, stdout: "inherit", stderr: "inherit" });
+  // On Windows, start the GUI app the way Explorer does (cmd start /wait) and keep
+  // the runner's own profile: spawned straight from Bun with USERPROFILE moved, its
+  // crash handler failed with "--database is required". CI's runner is throwaway.
+  const p = Bun.spawn(win ? ["cmd", "/c", "start", "/wait", '""', exe] : [exe, "--no-sandbox"], { env: { ...process.env, ...(win ? {} : { HOME: home, XDG_CONFIG_HOME: join(home, ".config"), XDG_CACHE_HOME: join(home, ".cache") }), KAIZEN_DESKTOP_OUT: out, ...env }, stdout: "inherit", stderr: "inherit" });
   const t = setTimeout(() => p.kill(), timeoutMs);
   await p.exited;
   clearTimeout(t);
