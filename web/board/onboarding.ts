@@ -1,15 +1,16 @@
-// First-run onboarding: one panel over the board with three steps (default agent, look,
-// notifications), then "Add your first project". Where a user got to is kept by the board in
+// First-run onboarding: one panel over the board with four steps (default agent, look,
+// notifications, phone), then "Add your first project". Where a user got to is kept by the board in
 // ~/.kaizen/onboarding.json (/onboarding), so a skipped or half-done flow can be continued from the
 // side menu's Setup row or the "Continue setup?" popup. Existing users, who have a project, never see it.
 import { html, raw } from "./dom.ts";
 import { openAdd } from "./add-project.ts";
+import { mountPhone } from "./phone-setup.ts";
 
 type Cfg = { show: boolean; resume: boolean; step: number; total: number; default: string; installed: string[]; agents: { cmd: string; name: string }[]; install: Record<string, { command?: string; docs: string }> };
 // The tools agent.default accepts.
 const PICKABLE = ["claude", "codex", "agy", "opencode", "gemini"];
 const MOD = /Mac|iP(hone|ad)/.test(navigator.platform) ? "⌘" : "Ctrl";
-const NAMES = ["Default agent", "Appearance", "Notifications"];
+const NAMES = ["Default agent", "Appearance", "Notifications", "Phone"];
 const ASKED = "kz-onb-asked";
 
 async function call(path: string, body?: object) {
@@ -30,7 +31,7 @@ let more = false;
 
 // The side menu's Setup row follows what is saved.
 const row = (s: number, outcome: string | null) =>
-  (window as any).kzSetupRow?.({ resume: outcome === "skipped" || (outcome === null && s > 0), step: s, total: cfg?.total ?? 3 });
+  (window as any).kzSetupRow?.({ resume: outcome === "skipped" || (outcome === null && s > 0), step: s, total: cfg?.total ?? 4 });
 
 const save = (patch: { step?: number; outcome?: string | null }) => {
   row(patch.step ?? step, patch.outcome ?? null);
@@ -89,6 +90,7 @@ const COPY = [
   { title: "Pick your default agent", sub: "kaizen works with every CLI agent. Choose the one you will reach for most. You can change it any time in Settings.", body: agents },
   { title: "Choose your look", sub: "Follow your system, or pick light or dark. You can change it any time.", body: looks },
   { title: "Set up notifications", sub: "kaizen can tell you when a run needs you or an agent is done.", body: alerts },
+  { title: "Use kaizen on your phone", sub: "Optional. Check runs and answer agents from your phone. Continue to skip; it is also in Settings → Mobile.", body: () => html`<div class="onb-panel" id="onb-phone"></div>` },
 ];
 
 function draw() {
@@ -102,6 +104,8 @@ function draw() {
     <div class="onb-prog">${COPY.map((_, i) => html`<button type="button" class="${i === step ? "on" : i < step ? "was" : ""}" data-s="${i}" aria-label="Go to step ${i + 1}: ${NAMES[i]}" title="${NAMES[i]}"></button>`)}<span>${step + 1} of ${c.total}</span></div>
     <div class="onb-main">${step === 0 ? html`<small class="onb-eb">Welcome to kaizen</small>` : ""}<h2>${s.title}</h2><p class="onb-sub">${s.sub}</p>${s.body()}</div>
     <div class="onb-ft"><button type="button" class="onb-lnk" data-a="skip">Skip to project setup</button><span></span>${step > 0 ? html`<button type="button" class="btn" data-a="back">‹ Back</button>` : ""}<button type="button" class="btn pri" data-a="next">${last ? "Add your first project" : "Continue"}<kbd>${MOD} ↵</kbd></button></div>`);
+  const ph = dlg!.querySelector<HTMLElement>("#onb-phone");
+  if (ph) void mountPhone(ph);
   dlg!.querySelector<HTMLElement>(step === 0 ? ".onb-card[aria-checked=true]" : "[data-a=next]")?.focus();
 }
 

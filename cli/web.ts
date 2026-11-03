@@ -29,6 +29,7 @@ import * as google from "./google.ts";
 import { writeBacks } from "./writeback.ts";
 import { postLink, sendReply } from "./browser.ts";
 import { tailnetName } from "./setup.ts";
+import { connectPhone, loginUrl, readPhone } from "./phone-setup.ts";
 import { listNotes, saveNote, renameNote, deleteNote, boardIndex, linksTo } from "./notes.ts";
 import * as video from "./video.ts";
 import * as auto from "./automations.ts";
@@ -83,6 +84,19 @@ const served = (f: string) => installed() === VERSION && existsSync(f) ? readTex
 // Which terminal the board launched for which stage of a run (plan, impl, review): runs/<id>/terminals.json.
 // Loopback hosts only; shared by /open-url and /frameable so the board is never a way to reach other sites.
 const isLoopback = (u: URL) => ["localhost", "127.0.0.1", "[::1]"].includes(u.hostname);
+
+// The Preview button: the workspace's own `dev` (or `start`) script from package.json, run with
+// the package manager its lockfile names. Never a command from the page or a run's text.
+export function devCommand(dir: string): string[] | null {
+  let scripts: Record<string, unknown> = {};
+  try { scripts = JSON.parse(readFileSync(join(dir, "package.json"), "utf8")).scripts ?? {}; } catch { return null; }
+  const name = ["dev", "start"].find((n) => typeof scripts[n] === "string");
+  if (!name) return null;
+  const pm = existsSync(join(dir, "bun.lock")) || existsSync(join(dir, "bun.lockb")) ? "bun"
+    : existsSync(join(dir, "pnpm-lock.yaml")) ? "pnpm"
+    : existsSync(join(dir, "yarn.lock")) ? "yarn" : "npm";
+  return [pm, "run", name];
+}
 
 // From `ss -ltnpH`: the ports listened on by a process whose working folder is inside ws.
 export function devPorts(ss: string, cwdOf: (pid: string) => string, ws: string): number[] {
@@ -944,11 +958,24 @@ export async function web(repoDir: string, opts: Opts = {}) {
           if (typeof body.ws !== "string" || !(known() || (workspacesAge(cwd) > 1000 && (forgetWorkspaces(cwd), known())))) return bad("not a workspace of this project", 400);
           cwd = body.ws;
         }
+        let dev = false;
+        if (body.dev === true) {
+          const d = devCommand(cwd);
+          if (!d) return bad("no dev or start script in this folder's package.json", 404);
+          // Already running from this board in this folder: that terminal, not a second server.
+          const up = [...shells.values()].find((x) => x.ws === cwd && x.title === "dev server" && ptyState(x.key)?.alive);
+          if (up) return json(up);
+          // Through a login shell, so nvm/asdf/bun on the user's PATH resolve as in their terminal.
+          // Every word comes from the fixed lists in devCommand(), never from the request.
+          cmd = process.platform === "win32" ? ["cmd.exe", "/c", ...d] : [process.env.SHELL || "sh", "-lc", d.join(" ")];
+          dev = true;
+        }
         for (const k of shells.keys()) if (!ptyState(k)?.alive) shells.delete(k);
         if ([...shells.values()].filter((x) => x.dir === dir).length >= SHELL_CAP) return bad(`at most ${SHELL_CAP} terminals per project: close one first`, 429);
         const key = "sh-" + crypto.randomUUID().slice(0, 8);
-        const title = agent ? KNOWN_AGENTS.find((k) => k.cmd === agent)!.name + (bypass ? " · bypass" : "") : "shell";
-        const pid = startPty(key, cmd, cwd, undefined, changed, { env: { KAIZEN_TERM: key } });
+        const title = dev ? "dev server" : agent ? KNOWN_AGENTS.find((k) => k.cmd === agent)!.name + (bypass ? " · bypass" : "") : "shell";
+        // A dev server it starts lets a phone in: Vite refuses a host it does not know (the tailnet name).
+        const pid = startPty(key, cmd, cwd, undefined, changed, { env: { KAIZEN_TERM: key, ...(dev ? { __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS: ".ts.net" } : {}) } });
         // The run workspace that opened it (its card key), so each run keeps its own centre.
         shells.set(key, { key, dir, title, agent, run: runKey, ws: cwd, pid });
         changed();
@@ -1097,7 +1124,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
           const p = Bun.spawn(["ss", "-ltnpH"], { stdout: "pipe", stderr: "ignore", timeout: 3000 });
           out = await new Response(p.stdout).text();
         } catch { return json([]); }
-        return json(devPorts(out, (pid) => { try { return readlinkSync(`/proc/${pid}/cwd`); } catch { return ""; } }, ws));
+        // Never the board itself: `kaizen web` started inside the workspace listens there too.
+        return json(devPorts(out, (pid) => { try { return readlinkSync(`/proc/${pid}/cwd`); } catch { return ""; } }, ws).filter((p) => p !== port));
       }
       // A phone on the tailnet cannot reach this computer's localhost. Serves that loopback port
       // to the tailnet (`tailscale serve --https=<port>`, never funnel) and answers the address
@@ -1121,9 +1149,18 @@ export async function web(repoDir: string, opts: Opts = {}) {
         };
         const name = tailnetName((await run(["tailscale", "status", "--json"])).out);
         if (!name) return json({ ok: false, error: "Tailscale is not running on this computer" });
-        const s = await run(["tailscale", "serve", "--bg", `--https=${port}`, `${u.protocol}//127.0.0.1:${port}`]);
+        // Vite and others listen on [::1] only: serve the loopback address that answers.
+        const answers = async (h: string) => { try { await fetch(`${u.protocol}//${h}:${port}/`, { redirect: "manual", signal: AbortSignal.timeout(1500) }); return true; } catch { return false; } };
+        const target = (await answers("127.0.0.1")) ? "127.0.0.1" : (await answers("[::1]")) ? "[::1]" : "127.0.0.1";
+        const s = await run(["tailscale", "serve", "--bg", `--https=${port}`, `${u.protocol}//${target}:${port}`]);
         if (!s.ok) return json({ ok: false, error: /operator|root/i.test(s.err + s.out) ? "Tailscale needs permission once: run  sudo tailscale set --operator=$USER  on the computer running kaizen" : (s.err || s.out).trim().split("\n")[0] });
-        return json({ ok: true, url: `https://${name}:${port}${u.pathname}${u.search}${u.hash}` });
+        // A dev server the agent started itself may still refuse the tailnet name: say how to allow it.
+        let hint = "";
+        try {
+          const r = await fetch(`${u.protocol}//${target}:${port}/`, { headers: { host: `${name}:${port}` }, redirect: "manual", signal: AbortSignal.timeout(3000) });
+          if (r.status === 403 && /allowedHosts|not allowed/i.test(await r.text())) hint = "The dev server refuses this address. Add  allowedHosts: [\".ts.net\"]  under server in vite.config, or stop it and tap Preview: kaizen starts it allowed.";
+        } catch {}
+        return json({ ok: true, url: `https://${name}:${port}${u.pathname}${u.search}${u.hash}`, hint });
       }
       // Whether a page may be framed: X-Frame-Options or a CSP frame-ancestors that is not
       // "*" says no. The browser hides that behind its own error page, so the localhost tab
@@ -1158,6 +1195,19 @@ export async function web(repoDir: string, opts: Opts = {}) {
           usageAt = Date.now();
         }
         return json(usageCache);
+      }
+      // Settings → Mobile and the onboarding phone step: where Tailscale stands, connect, log in.
+      if (path === "/phone/setup") {
+        if (!local(req)) return bad("cross-origin request refused", 403);
+        if (req.method === "GET") return json(await readPhone());
+        if (req.method !== "POST") return bad("method not allowed", 405);
+        const refused = strict(req);
+        if (refused) return refused;
+        let body: any;
+        try { body = await req.json(); } catch { return bad("json body expected"); }
+        if (body?.do === "connect") return json(await connectPhone(port));
+        if (body?.do === "login") return json(await loginUrl());
+        return bad("do: connect or login");
       }
       if (req.method === "GET" && path === "/phone") {
         // Async: a hung tailscale must not stall every terminal socket on this event loop.

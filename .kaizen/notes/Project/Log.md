@@ -274,3 +274,6 @@ updated: 2026-10-31
 - 2026-11-03 run 2026-11-03-desktop-landing — Release and testing: landing page desktop download section.
 - 2026-11-03 run 2026-11-03-desktop-update-button — Web board: Check for updates / Update use the desktop app's updater inside the app.
 - 2026-11-03 run 2026-11-03-desktop-update-button (revise) — Release and testing: AppImage menu entry and self-update, board port 7420.
+- 2026-11-03 update — Web board: phone setup from Settings → Mobile and an onboarding Phone step; settings rows stack in a narrow window.
+- 2026-11-03 update — Web board: tmux keep-alive server in its own systemd scope (survives a unit stop); terminal uses Unicode 11 widths.
+- 2026-11-03 update — Web board: Preview icon starts the workspace's dev server and opens it, phone included; /expose handles [::1] and Vite's host check. Workflow: spec-build leaves the dev server running.
