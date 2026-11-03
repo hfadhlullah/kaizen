@@ -23,7 +23,9 @@ mkdirSync(home);
 
 function build(version: string) {
   const dir = join(work, `v${version}`);
-  const builder = join(here, "node_modules", ".bin", win ? "electron-builder.cmd" : "electron-builder");
+  // bun links .exe shims on Windows, npm .cmd ones; take whichever is there.
+  const bin = join(here, "node_modules", ".bin", "electron-builder");
+  const builder = win ? [".exe", ".cmd"].map((e) => bin + e).find((f) => existsSync(f)) ?? bin + ".exe" : bin;
   const r = Bun.spawnSync([builder, "--config", "electron-builder.config.cjs", "--publish", "never", win ? "--win" : "--linux", win ? "nsis" : "AppImage", "--x64",
     `-c.extraMetadata.version=${version}`, "-c.extraMetadata.kaizenUpdateTest=true", `-c.directories.output=${dir}`], { cwd: here, env: { ...process.env, KAIZEN_UPDATE_TEST_FEED: feed }, stdout: "inherit", stderr: "inherit" });
   if (r.exitCode !== 0) throw new Error(`build ${version} failed`);
