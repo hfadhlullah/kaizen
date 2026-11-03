@@ -792,7 +792,7 @@ aside .foot .more .menu-pop{left:0;right:auto;top:auto;bottom:calc(100% + 4px)}.
 .snone{color:var(--dim);margin-top:20px}
 /* settings, laid out as Orca's: its own sidebar in place of the rail, one page per item, rows in one card */
 @media(min-width:641px){body.setv .rail{display:none}body.setv #panel>header{display:none}body.setv #panel>.body{padding:0!important;overflow:hidden}body.setv #panel{background:none;border-color:transparent;box-shadow:none}body.setv .app{margin:0;background:none;border:0;border-radius:0}.sset .snav{background:none;border-right:0;padding:18px 12px 14px}.sset .sback{margin:0 0 6px;padding:0 var(--padx);height:var(--row);gap:var(--gap);font-size:var(--fs);font-weight:500}.sset .snav .sq{border-block:0;padding:0 0 8px}.sset .snavs{padding:6px 0 0}.sset .snavg{margin-bottom:14px}.sset .snavg p{margin:0 0 2px;padding:0 var(--padx);font-size:var(--fs-xs);font-weight:600;text-transform:none;letter-spacing:0}.sset .snavg button{height:var(--row);padding:0 var(--padx);gap:var(--gap);font-size:var(--fs);font-weight:500}.sset .snavg button[aria-current]{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--ink);font-weight:500}.sset .snavg button[aria-current] svg{color:var(--accent)}.sset .smain{margin:8px 8px 0 0;background:var(--bg);border:1px solid var(--line);border-radius:12px}}
-.sset{display:grid;grid-template-columns:280px minmax(0,1fr);height:100%}
+.sset{display:grid;grid-template-columns:clamp(200px,26vw,280px) minmax(0,1fr);height:100%}
 .snav{min-height:0;display:flex;flex-direction:column;background:var(--bg-2);border-right:1px solid var(--line)}
 .sback{flex:none;display:flex;align-items:center;gap:8px;padding:0 12px;margin:12px;height:var(--btn-s);border-radius:var(--r-s);font-size:13px;color:var(--dim);text-align:left}.sback:hover,.sup:hover{color:var(--ink)}
 .sback svg,.sup svg{width:var(--ico);height:var(--ico);transform:rotate(90deg)}
@@ -804,7 +804,7 @@ aside .foot .more .menu-pop{left:0;right:auto;top:auto;bottom:calc(100% + 4px)}.
 .snavg button span{overflow:hidden;text-overflow:ellipsis}
 .snavg button svg{flex:none;width:var(--ico);height:var(--ico)}
 .snavg button:hover{background:var(--hover);color:var(--ink)}.snavg button[aria-current]{background:var(--hover);color:var(--ink-hi);font-weight:500}
-.smain{min-width:0;overflow-y:auto;padding:40px 72px 64px}
+.smain{min-width:0;overflow-y:auto;padding:40px clamp(16px,6vw,72px) 64px}
 .spage{max-width:832px;margin:0 auto}.sup{display:none}
 .spage>header{display:block;padding:0 0 20px;margin-bottom:24px;border-bottom:1px solid var(--line)}
 .spage>header h2{margin:0 0 6px;padding:0;border:0;font-size:24px;font-weight:600;line-height:1.2;color:var(--ink-hi)}
@@ -822,6 +822,19 @@ aside .foot .more .menu-pop{left:0;right:auto;top:auto;bottom:calc(100% + 4px)}.
 .sset .bar button{height:30px;padding:0 12px;border-radius:0;font-size:12px;color:var(--dim)}.sset .bar button+button{border-left:1px solid var(--line)}
 .sset .bar button.on,.sset .bar button.on:hover{background:var(--hover);box-shadow:none;color:var(--ink-hi)}
 .sset .step{background:none;border:1px solid var(--line)}
+/* The phone card (Settings → Mobile, onboarding): steps, then the QR beside what to do on the phone. */
+.sset .srow.ph-card{display:block}
+#phset,#onb-phone{display:flex;flex-direction:column;gap:12px;font-size:13px;line-height:1.5;color:var(--ink)}
+#phset p,#onb-phone p{margin:0}
+.ph-steps{margin:0;padding-left:20px;display:grid;gap:4px;color:var(--ink)}.ph-steps a,.ph-st,.ph-note{color:var(--dim)}.ph-steps a{color:var(--accent)}
+.ph-row{display:flex;flex-wrap:wrap;gap:8px}.ph-row a.btn{text-decoration:none;display:inline-flex;align-items:center}
+.ph-on{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start}.ph-on>div:last-child{flex:1 1 220px;min-width:0;display:grid;gap:8px}.ph-h{font-weight:600;color:var(--ink-hi)}
+.ph-qr{width:168px;flex:none;border-radius:8px;overflow:hidden}.ph-qr svg{display:block;width:100%;height:auto;stroke:none}.ph-qr svg *{stroke:none}
+.ph-st{display:flex;align-items:center;gap:6px;font-size:12px}.ph-dot{width:7px;height:7px;border-radius:50%;flex:none;background:var(--dim)}.ph-dot.on{background:var(--ok)}
+.ph-note{font-size:12px}.ph-err{color:var(--danger);font-size:12px}.ph-wait{color:var(--dim)}
+/* A narrow card (small desktop window, split screen) stacks each row: label and hint on top, control below. */
+.scard{container-type:inline-size}
+@container (max-width:520px){.sset .srow{grid-template-columns:minmax(0,1fr)}.sset .srow>:nth-child(2){grid-column:1;grid-row:auto;justify-self:start;margin-top:6px;max-width:100%}.sset .srow .hint{grid-row:auto}.sset .srow input.sel,.sset .srow select.sel,.sset .fpick{width:100%}.sset .bar{flex-wrap:wrap}}
 #supd:not(:empty){margin-bottom:16px}
 @media(max-width:640px){.sset{display:block;height:auto}.snav{background:none;border:0}.sback{display:none}.snav .sq{border-top:0;padding-inline:16px}.snavs{overflow:visible;padding-inline:4px}.sset:not(.pick) .snav{display:none}.sset.pick .smain>.spage{display:none}.smain{overflow:visible;padding:12px 16px 24px}.sup{display:flex;align-items:center;gap:6px;margin-bottom:12px;font-size:13px;color:var(--dim)}.scard{padding:8px 16px 16px}.sset .srow{grid-template-columns:minmax(0,1fr)}.sset .srow>:nth-child(2){grid-column:1;grid-row:auto;justify-self:start;margin-top:6px;max-width:100%}.sset .srow .hint{grid-row:auto}.sset .srow input.sel,.sset .fpick{width:100%}.sset .fpick input.sel{flex:1;min-width:0}.sset .bar{flex-wrap:wrap}}
 /* a switch: the same <button role="switch"> the save wiring binds to, drawn as a track and a thumb */

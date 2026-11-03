@@ -6,12 +6,15 @@ import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { SearchAddon } from "@xterm/addon-search";
+import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { fontRead, fontSet, fontStep } from "./term-font.ts";
 
 function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void {
   const css = getComputedStyle(el);
   const tok = (n: string) => css.getPropertyValue(n).trim() || undefined;
-  const theme = () => ({ background: tok("--bg"), foreground: tok("--ink-hi"), cursor: tok("--accent"), selectionBackground: tok("--line") });
+  const theme = () => ({ background: tok("--bg"), foreground: tok("--ink-hi"), cursor: tok("--accent"), // --line on --bg was near invisible in the dark theme (#2e2e2e on #121212), so a drag
+  // looked like it selected nothing; --dim at 35% shows in both themes.
+  selectionBackground: (tok("--dim") ?? "#808080") + "59" });
   const term = new Terminal({
     cursorBlink: true,
     // Nerd Font first: shell prompts print private-use glyphs that plain monospace fonts lack.
@@ -37,6 +40,10 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
   term.loadAddon(new WebLinksAddon((_e, url) => window.open(url, "_blank", "noopener")));
   const search = new SearchAddon();
   term.loadAddon(search);
+  // Unicode 11 widths: emoji and CJK take two cells, as agents and tmux count them, so
+  // the cursor and borders line up after them (xterm.js defaults to Unicode 6).
+  term.loadAddon(new Unicode11Addon());
+  term.unicode.activeVersion = "11";
   term.open(el);
   // The DOM renderer lags on a full-screen agent's constant redraws; WebGL keeps up.
   // No WebGL, or the context lost: xterm.js falls back to the DOM renderer by itself.
@@ -312,6 +319,15 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
   size();
   // xterm keeps one custom key handler: add further shortcuts here, not in a second call.
   term.attachCustomKeyEventHandler((e) => {
+    // Copy: Ctrl/Cmd+Shift+C, or Ctrl+C while text is selected, as VS Code and Windows Terminal
+    // do. With nothing selected Ctrl+C stays the agent's interrupt. xterm.js sent ^C even over a
+    // selection, and the desktop app has no context menu, so there was no way to copy.
+    if (e.type === "keydown" && (e.ctrlKey || e.metaKey) && !e.altKey && e.code === "KeyC" && (e.shiftKey || term.hasSelection())) {
+      if (term.hasSelection()) navigator.clipboard?.writeText(term.getSelection()).catch(() => {});
+      term.clearSelection();
+      e.preventDefault();
+      return false;
+    }
     if (e.type === "keydown" && (e.ctrlKey || e.metaKey) && e.shiftKey && e.code === "KeyF") {
       e.preventDefault();
       openSearch();

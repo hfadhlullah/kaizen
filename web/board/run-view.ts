@@ -243,7 +243,7 @@ function draw() {
         first = item(ids[0]),
         title = ids.map((id) => item(id).title).join(" + ");
       return html`<button class="rtab${sc.id === s.on ? " on" : ""}" data-t="${sc.id}" draggable="true" title="${title}">${icon(first)}<span>${title}</span><i data-xs="${sc.id}" role="button" aria-label="Close ${title}" title="Close tab">×</i></button>`;
-    })}<details class="radd" data-mode="tab"><summary class="rbtn" title="New tab" aria-label="New tab">${ico("plus")}</summary>${menu}</details><span class="sp"></span>${cur ? html`<details class="radd rsplit" data-mode="cols"><summary class="rbtn" title="Split right: add to this tab" aria-label="Split right">${ico("lcols")}</summary>${menu}</details><details class="radd rsplit" data-mode="rows"><summary class="rbtn" title="Split down: add to this tab" aria-label="Split down">${ico("lrows")}</summary>${menu}</details>` : ""}`,
+    })}<details class="radd" data-mode="tab"><summary class="rbtn" title="New tab" aria-label="New tab">${ico("plus")}</summary>${menu}</details><button type="button" class="rbtn" data-pv title="Preview: open the app, starting its dev server if it is off" aria-label="Preview">${ico("eye")}</button><span class="sp"></span>${cur ? html`<details class="radd rsplit" data-mode="cols"><summary class="rbtn" title="Split right: add to this tab" aria-label="Split right">${ico("lcols")}</summary>${menu}</details><details class="radd rsplit" data-mode="rows"><summary class="rbtn" title="Split down: add to this tab" aria-label="Split down">${ico("lrows")}</summary>${menu}</details>` : ""}`,
   );
   $("rside").setAttribute("aria-pressed", String(document.body.classList.contains("rflip")));
   $("rtabs").querySelector(".rtab.on")?.scrollIntoView({ block: "nearest", inline: "nearest" });
@@ -498,7 +498,8 @@ function browser(el: HTMLElement) {
       .then((j) => {
         if (url !== u) return;
         if (!j.ok) return void (note.textContent = `${far} (${j.error})`);
-        note.hidden = true;
+        note.hidden = !j.hint;
+        note.textContent = j.hint || "";
         frame.hidden = false;
         frame.src = j.url;
         if (ext) ext.href = j.url;
@@ -630,6 +631,64 @@ async function newPty(agent?: string) {
   show("sh:" + sh.key);
 }
 
+// The Preview button: the workspace's app in the Browser tab. A dev server already listening
+// opens at once; otherwise the board starts the folder's dev script in a terminal here, waits
+// for its port, then opens it. No dev script: the run's Preview (report and screenshots).
+let starting = false;
+async function previewApp() {
+  if (!ctx || starting) return;
+  const c = ctx;
+  const ports = async (): Promise<number[]> => {
+    try {
+      return await (await fetch("/devports?ws=" + encodeURIComponent(c.ws))).json();
+    } catch {
+      return [];
+    }
+  };
+  // The newest run here names the page to open (its ## Preview), when it has one.
+  const card = store.S.cards.filter((x) => x.state === c.dir && wsOfCard(x) === c.ws && x.id).sort((a, b) => String(b.id).localeCompare(String(a.id)))[0];
+  let pv = "";
+  try {
+    if (card) pv = preview((await (await fetch(`/run/${encodeURIComponent(card.id)}?dir=${encodeURIComponent(c.dir)}`)).json()).impl) ?? "";
+  } catch {}
+  const openAt = (u: string) => {
+    try {
+      localStorage.setItem("kz-browse:" + c.k, u);
+    } catch {}
+    addTab({ id: "local", kind: "local", title: "Browser" });
+    (panes.get("local")?.el as any)?.browseTo?.(u);
+  };
+  const now = await ports();
+  if (now.length) return openAt(devUrl(pv, now)!);
+  const u = devUrl(pv, []);
+  const r = await fetch("/shell", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ dir: c.dir, ws: c.ws, run: c.k, dev: true }) }).catch(() => null);
+  if (!r?.ok) {
+    let why = "";
+    try {
+      why = (await r!.json()).error;
+    } catch {}
+    toast(why ? `Preview: ${why}` : "Preview: the dev server did not start");
+    return openPreview();
+  }
+  const sh = await r.json();
+  if (!shells.some((x) => x.key === sh.key)) shells.push(sh);
+  draw();
+  starting = true;
+  toast("Starting the app…");
+  try {
+    // Up to a minute for the first port; Linux only reads ports, elsewhere the run's address after a pause.
+    for (let i = 0; i < 40 && ctx?.k === c.k; i++) {
+      await new Promise((ok) => setTimeout(ok, 1500));
+      const p = await ports();
+      if (p.length) return openAt(devUrl(pv, p)!);
+      if (i === 5 && u && !navigator.platform.startsWith("Linux")) return openAt(u);
+    }
+    if (ctx?.k === c.k) toast("The app did not open a port. Its terminal tab shows why.");
+  } finally {
+    starting = false;
+  }
+}
+
 async function closeTab(id: string) {
   const s = saved();
   if (id.startsWith("sh:")) {
@@ -685,6 +744,7 @@ function wire() {
       save();
       return draw();
     }
+    if (t.closest("[data-pv]")) return void previewApp();
     const n = t.closest<HTMLElement>("[data-n]")?.dataset.n;
     if (n) {
       const d = t.closest<HTMLDetailsElement>(".radd")!;
