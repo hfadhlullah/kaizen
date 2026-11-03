@@ -267,3 +267,5 @@ updated: 2026-10-31
 - 2026-10-30 update — CLI, Workflow, Terminal board, Notebook, Conventions and gotchas, Release and testing, Web board, Kaizen bot, Sources and icebox
 - 2026-11-02 update — Web board: a note sent with the Send button shows at once; the button kept focus and blocked the redraw.
 - 2026-11-02 update — Workflow: the guide lists /kaizen-concept.
+- 2026-11-03 run 2026-11-03-desktop-app — Release and testing: desktop app (`desktop/`, `desktop.yml`).
+- 2026-11-03 run 2026-11-03-desktop-app (revise) — Web board: /version and /upgrade stand down under KAIZEN_DESKTOP_BUNDLED; Release and testing: desktop update-test.

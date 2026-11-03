@@ -2,7 +2,7 @@
 description: `kaizen web`: the browser board, its HTTP routes, the shared state layer, and the Video page
 tags: [project, web-board]
 sources: [web/term-font.ts, web/term-font.test.ts, cli/resources.ts, cli/resources.test.ts, web/board/resources.ts, cli/automations.ts, web/board/settings-automations.ts, cli/computer.ts, cli/computer.test.ts, cli/computer-helper.py, cli/workers.ts, web/board/settings-orchestration.ts, web/board/settings-voice.ts, cli/accounts.ts, cli/accounts.test.ts, web/board/settings-accounts.ts, cli/skills.ts, cli/skills.test.ts, web/board/settings-skills.ts, cli/report.ts, cli/report.test.ts, cli/agent-prefs.ts, cli/agent-prefs.test.ts, cli/keep-awake.ts, web/board/settings-agents.ts, cli/onboarding.ts, cli/onboarding.test.ts, web/board/onboarding.ts, web/board/search.ts, web/board/search-match.ts, web/board/search.test.ts, web/board/run-view.ts, web/board/badge.ts, web/board/ws-tabs.ts, web/board/ws-name.test.ts, web/board/run-pick.ts, web/board/workspace.ts, web/board/ws-board.ts, web/board/ws-board-ui.ts, cli/worktree.ts, cli/add-project.ts, cli/add-project.test.ts, web/board/phone.ts, cli/web.ts, cli/state-snap.ts, cli/usage.ts, cli/usage.test.ts, cli/project-tree.test.ts, cli/chat.ts, web/board/home.ts, cli/versions.ts, cli/logo.ts, cli/state.ts, cli/state.test.ts, cli/pty.ts, cli/restart.test.ts, cli/conpty.ts, cli/video.ts, cli/video.test.ts, cli/localsend.ts, cli/hermes.ts, web/board.html, web/board, web/sounds, web/term.ts, web/video.html, web/video.ts, web/popup.html, cli/chat-window.py, cli/install.ts, cli/settings.ts, design.md, web/term.css, docs/mockups]
-updated: 2026-11-01
+updated: 2026-11-03
 ---
 # Web board
 
@@ -83,6 +83,7 @@ The visible menu is Search, Home, Icebox, Tasks and Board, then the Projects lis
 
 - Automations: a 60 s tick in `cli/web.ts` (own busy flag, `automate`, cleared at shutdown) calls `tickAutomations`; `/automations` (GET, POST ops create|update|pause|resume|delete|run, same-origin + JSON checks, project from `x-kz-dir`, never the home state) feeds Settings → Workflows → Automations (`web/board/settings-automations.ts`; the form draft is kept across redraws). The create form carries a warning that runs are unattended.
 
+- Update: `GET /version` reports `update` when npm has a newer kaizen and `POST /upgrade` runs `kaizen upgrade`; both stand down when `KAIZEN_DESKTOP_BUNDLED=1` (set by the desktop app when it runs its own read-only copy, see `docs/desktop.md`): no Update button, and `/upgrade` answers 409.
 ## How it connects
 - [[Notebook]] is served from the same server (`/notebook`, `/vault`).
 - [[Sources and icebox]] routes: `/sources`, `/icebox`, `/reply`, `/chatgpt`.

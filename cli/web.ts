@@ -66,6 +66,11 @@ const installed = () => {
   catch { return "unknown"; }
 };
 const VERSION = installed();
+// Set by the desktop app when this board is its own read-only copy, which updates
+// with the app. Read once and removed, so terminals and agents this board starts
+// (and any board started from them) do not inherit it.
+const DESKTOP_BUNDLED = process.env.KAIZEN_DESKTOP_BUNDLED === "1";
+delete process.env.KAIZEN_DESKTOP_BUNDLED;
 // An upgrade replaces the page files under a running board but not its code, and a
 // page newer than its server sends ops the server does not know ("unknown op").
 // So the pages are kept as they were at start, and read live (dev edits) only while
@@ -1570,7 +1575,9 @@ export async function web(repoDir: string, opts: Opts = {}) {
       // What this board runs and what npm has: the page shows an Update button on a newer one.
       if (req.method === "GET" && path === "/version") {
         const v = await npmLatest(url.searchParams.has("fresh"));
-        const update = !!v && newer(v, VERSION);
+        // The desktop app's own copy is read-only and updates with the app, so no
+        // Update button there (DESKTOP_BUNDLED, above).
+        const update = !!v && newer(v, VERSION) && !DESKTOP_BUNDLED;
         const notes = update ? await releaseNotes(VERSION, url.searchParams.has("fresh")) : [];
         return json({ version: VERSION, latest: v, update, notes, failed: upgradeFailed });
       }
@@ -1582,6 +1589,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
       if (req.method === "POST" && path === "/upgrade") {
         if (!local(req)) return bad("cross-origin write refused", 403);
         if (upgrading) return bad("an upgrade is already running", 409);
+        if (DESKTOP_BUNDLED) return bad("this board is the desktop app's copy; the app updates itself", 409);
         // Windows will not rename ~/kaizen while this board holds files in it, so the
         // upgrade waits in its own process for this one to exit, then starts the board
         // again; ~/.kaizen/upgrade.log keeps what it said. It runs from a copy of cli/,
