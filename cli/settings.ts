@@ -112,7 +112,7 @@ const SETTINGS: Setting[] = [
   { key: "review.executor", label: "Reviewer", group: "Agents", values: ["inline", "subagent", "ask"], help: "subagent: its own cold agent · inline: this session · ask: pick before review", when: ["runner", "lite"] },
   { key: "agent.default", label: "Default agent", group: "Agents", values: ["auto", "claude", "codex", "agy", "opencode", "gemini"], help: "" },
   { key: "agent.launch", label: "Where agents run", group: "Agents", values: ["card", "terminal"], help: "" },
-  { key: "agent.keep_alive", label: "Keep agents through a kaizen restart", group: "Agents", values: ["off", "tmux"], help: "tmux: Linux and macOS with tmux installed", when: ["agent.launch", "card"] },
+  { key: "agent.keep_alive", label: "Keep agents through a kaizen restart", group: "Agents", values: ["off", "tmux"], help: "tmux: Linux and macOS with tmux installed. The wheel scrolls tmux history; Shift+drag copies", when: ["agent.launch", "card"] },
   { key: "agent.keep_awake", label: "Keep computer awake", group: "Board", values: ["off", "auto", "on"], help: "auto: while kaizen runs agents · on: while kaizen is open. Linux and macOS" },
   { key: "agent.heartbeat_minutes", label: "Agent heartbeat", group: "Board", values: ["2", "5", "10", "30"], help: "Minutes. A card says stale after two quiet intervals" },
   { key: "subagents.model", label: "Claude Code", group: "Agents", values: ["inherit", "opus", "sonnet", "haiku"], help: "Its stage subagents: planner, builder, reviewer", when: ["runner", "full"] },

@@ -141,7 +141,7 @@ export function startPty(key: string, cmd: string[], cwd: string, pidFile?: stri
     env: { ...colorEnv(), ...opts.env, TERM: "xterm-256color", COLORTERM: "truecolor", KAIZEN_BOARD_PID: String(process.pid) },
     terminal: { cols: 120, rows: 32, data: (_t, d) => push(dec.decode(d, { stream: true })) },
   });
-  if (opts.tmux && cmd[0] === tmuxBin()) p.tmux = opts.tmux;
+  if (opts.tmux && tmuxOk()) p.tmux = opts.tmux;
   ptys.set(key, p);
   if (pidFile) writeFileSync(pidFile, String(p.proc.pid));
   // A tmux-kept agent's PID is the pane's, not the client's: the client is gone after a
@@ -274,8 +274,30 @@ export const tmuxOk = () => !!tmuxBin();
 export const tmuxName = (key: string) => `kz-${key.replace(/[^\w-]/g, "_")}`;
 // PATH from this board, not the tmux server's own: the server keeps the environment of
 // whichever board started it.
-export const tmuxCmd = (name: string, cmd: string[]) => [tmuxBin()!, ...TMUX, "new-session", "-A", "-s", name, "-x", "120", "-y", "32", "-e", `PATH=${process.env.PATH ?? ""}`, ...cmd,
+// Its own systemd scope where there is a user manager: a board run as a unit (kaizen-web.service)
+// shares that unit's cgroup, and stopping or restarting the unit killed the whole cgroup,
+// tmux server included, so the agents kept for the next board went with it. Probed once;
+// no systemd-run, or no user bus (a container, a bare SSH login), runs tmux as before.
+// It does not outlive logout without lingering (`loginctl enable-linger`): the user
+// manager and all its scopes stop then.
+let scoped: string[] | undefined;
+export const scopeCmd = () => {
+  if (scoped) return scoped;
+  const run = process.platform === "linux" ? Bun.which("systemd-run") : null;
+  const cmd = run ? [run, "--user", "--scope", "--quiet", "--collect"] : [];
+  try { scoped = run && Bun.spawnSync([...cmd, "true"], { stdin: "ignore", stdout: "ignore", stderr: "ignore", timeout: 3000 }).exitCode === 0 ? cmd : []; } catch { scoped = []; }
+  return scoped;
+};
+// tmux draws on the alternate screen, which has no scrollback, so the card could not scroll
+// back and a wheel reached the agent as arrow keys. mouse on: the wheel scrolls tmux's own
+// history (copy-mode) instead, and a plain drag selects into tmux's buffer, so copying to
+// the clipboard takes Shift+drag. Without the alternate screen (smcup@) a burst of output
+// is redrawn as one screen and the lines between were lost, so that was not used.
+// history-limit before new-session: a pane takes the limit it was created with.
+export const tmuxCmd = (name: string, cmd: string[]) => [...scopeCmd(), tmuxBin()!, ...TMUX, "start-server", ";", "set", "-g", "history-limit", "10000",
+  ";", "new-session", "-A", "-s", name, "-x", "120", "-y", "32", "-e", `PATH=${process.env.PATH ?? ""}`, ...cmd,
   ";", "set", "-g", "status", "off", ";", "set", "-g", "prefix", "None", ";", "set", "-g", "escape-time", "0",
+  ";", "set", "-g", "mouse", "on", ";", "unbind", "-n", "MouseDown3Pane", ";", "unbind", "-n", "M-MouseDown3Pane",
   ";", "set", "-as", "terminal-features", ",xterm-256color:RGB"];
 export const attachCmd = (name: string) => [tmuxBin()!, ...TMUX, "attach-session", "-t", name];
 const tmux = (...a: string[]) => {

@@ -277,3 +277,4 @@ updated: 2026-10-31
 - 2026-11-03 update — Web board: phone setup from Settings → Mobile and an onboarding Phone step; settings rows stack in a narrow window.
 - 2026-11-03 update — Web board: tmux keep-alive server in its own systemd scope (survives a unit stop); terminal uses Unicode 11 widths.
 - 2026-11-03 update — Web board: Preview icon starts the workspace's dev server and opens it, phone included; /expose handles [::1] and Vite's host check. Workflow: spec-build leaves the dev server running.
+- 2026-11-03 update — Web board: tmux keep-alive server in its own systemd scope (survives a unit stop); terminal uses Unicode 11 widths.
