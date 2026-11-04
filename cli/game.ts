@@ -174,6 +174,8 @@ export type Dungeon = {
   id: string; title: string; project: string; guild: string; skill: string; outcome: Outcome;
   stages: { name: string; monsters: number; ms: number | null }[];
   waves: number; monsters: number; boss: boolean; files: number; length: number; xp: number; pending: number;
+  stage: string;                           // the run's own stage: plan, build, review, done, abandoned
+  work: { done: number; items: number } | null; // Work-list items ticked in progress.md; null when the run kept none
 };
 export const LIVE_MS = 2 * 3600_000; // a run in plan, build or review that moved within this is live, else stalled
 
@@ -187,6 +189,12 @@ function planSteps(plan: string): number {
   const sect = (h: RegExp) => { const m = plan.split(/^## /m).find((p) => h.test(p.split("\n")[0]!)); return m ? m.split("\n").slice(1) : []; };
   const work = sect(/^work list/i).filter((l) => /^\s*[-*]\s+\S/.test(l)).length;
   return work || sect(/^steps/i).filter((l) => /^\s*\d+\.\s+\S/.test(l)).length;
+}
+
+// progress.md has one line per Work-list item: `- done: ...`, `- doing: ...` or `- todo: ...`.
+export function workOf(progress: string): { done: number; items: number } | null {
+  const lines = progress.split("\n").map((l) => /^\s*[-*]\s+(done|doing|todo)\s*:/i.exec(l)?.[1]?.toLowerCase()).filter(Boolean);
+  return lines.length ? { done: lines.filter((x) => x === "done").length, items: lines.length } : null;
 }
 
 export function dungeonOf(state: string, project: string, id: string, game: GameFile = defaultGame(), now = Date.now()): Dungeon | null {
@@ -218,6 +226,7 @@ export function dungeonOf(state: string, project: string, id: string, game: Game
   const xp = dungeonXp(monsters, waves, files.length);
   return {
     id, title, project, guild, skill, outcome, stages, waves, monsters, boss: reviewed, files: files.length,
+    stage, work: workOf(read(join(dir, "progress.md"))),
     length: Math.round(3 + 2 * Math.log2(1 + files.length)),
     xp: outcome === "cleared" ? xp : 0, pending: outcome === "live" ? xp : 0,
   };

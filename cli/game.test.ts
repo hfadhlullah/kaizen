@@ -145,11 +145,14 @@ test("gameState reads run folders and never writes them; only game.json is creat
   const home = scratch(), p = scratch();
   run(p, "r1", { request: "Fix the TypeScript parser", files: ["a.ts"], review: "## Findings\n1. x: low: y. z.\n", fixes: 1 });
   run(p, "r2", { request: "Write the docs", track: "writing", stage: "build" });
+  writeFileSync(join(p, ".kaizen", "runs", "r2", "progress.md"), "- done: a\n- doing: b\n- todo: c\n");
   const before = hashTree(p);
   expect(existsSync(gameFile(home))).toBe(false);
-  gameState({ home, projects: [p] });
+  const out = gameState({ home, projects: [p] });
   gameState({ home, projects: [p] });
   expect(hashTree(p)).toBe(before);
+  expect(out.dungeons.find((d) => d.id === "r2")).toMatchObject({ stage: "build", work: { done: 1, items: 3 } });
+  expect(out.dungeons.find((d) => d.id === "r1")!.work).toBeNull();
   expect(existsSync(gameFile(home))).toBe(true);
   expect(readGame(home)).toEqual(defaultGame());
   rmSync(home, { recursive: true }); rmSync(p, { recursive: true });

@@ -8,6 +8,7 @@ type Stage = { name: string; monsters: number; ms: number | null };
 type Dungeon = {
   id: string; title: string; project: string; guild: string; skill: string; outcome: "cleared" | "retreat" | "live" | "stalled";
   stages: Stage[]; waves: number; monsters: number; boss: boolean; files: number; xp: number; pending: number;
+  stage: string; work: { done: number; items: number } | null;
 };
 type Look = { hair: string; skinColor: string; hairColor: string; eyeColor: string; facialHairColor: string; height: number };
 type State = {
@@ -23,6 +24,7 @@ const n = (x: number) => x.toLocaleString("en-US");
 const pct = (b: Bar) => Math.min(100, Math.round((b.into / b.need) * 100));
 const bar = (b: Bar) => `<div class="xp" role="progressbar" aria-valuemin="0" aria-valuemax="${b.need}" aria-valuenow="${b.into}"><i style="width:${pct(b)}%"></i></div>`;
 const root = document.getElementById("root")!;
+let last: State | null = null;
 
 // Art you put in assets/game/ (served as /game/art/<file>): hero, backdrop, guild-<id>. A missing
 // piece keeps the drawn placeholder.
@@ -48,9 +50,10 @@ const OUTCOME = { cleared: "Cleared", retreat: "Retreat", live: "In the dungeon"
 function dungeon(d: Dungeon) {
   const xp = d.outcome === "live" ? `+${n(d.pending)} XP at the end` : d.outcome === "cleared" ? `+${n(d.xp)} XP` : "no XP";
   const waves = d.waves ? `, ${d.waves} wave${d.waves > 1 ? "s" : ""}` : "";
-  return `<div class="row"><span class="badge ${d.outcome}">${OUTCOME[d.outcome]}</span>
+  const watch = d.outcome === "live" ? " · ▶ Watch live" : " · ▶ Replay";
+  return `<div class="row" role="button" tabindex="0" data-open="${esc(d.id)}" aria-label="${d.outcome === "live" ? "Watch" : "Replay"}: ${esc(d.title)}"><span class="badge ${d.outcome}">${OUTCOME[d.outcome]}</span>
   <span class="t" title="${esc(d.title)}">${esc(d.title)}</span>
-  <span class="m">${esc(d.project)} · ${esc(d.skill)} · ${d.stages.length} stages, ${d.monsters} monsters${waves}${d.boss ? ", boss" : ""}</span>
+  <span class="m">${esc(d.project)} · ${esc(d.skill)} · ${d.stages.length} stages, ${d.monsters} monsters${waves}${d.boss ? ", boss" : ""}${watch}</span>
   <span class="x">${xp}</span></div>`;
 }
 
@@ -67,6 +70,7 @@ function guild(g: Guild) {
 }
 
 function draw(s: State) {
+  last = s;
   artFiles = Array.isArray(s.art) ? s.art : [];
   const back = art("backdrop"), veil = "color-mix(in srgb,var(--bg) 78%,transparent)";
   document.body.style.background = back ? `linear-gradient(${veil},${veil}),url("${back}") center/cover fixed` : "";
@@ -82,7 +86,59 @@ function draw(s: State) {
   <section><h2>Guilds</h2><div class="guilds">${s.guilds.map(guild).join("")}</div></section>
   <section><div class="panel"><h2>Dungeon log</h2><div class="log">${past.length ? past.map(dungeon).join("") : `<p class="empty">No runs yet. Start one and it becomes your first dungeon.</p>`}</div></div></section>`;
   root.removeAttribute("aria-busy");
+  sync();
 }
+
+// ---- the dungeon panel: web/dungeon.ts (three.js) is fetched the first time one is opened ----
+type Mount = { update(d: Dungeon): boolean; replay(): void; pause(on: boolean): boolean; destroy(): void };
+type Kz = { mount(host: HTMLElement, d: Dungeon, paused?: boolean): Mount | null };
+const panel = document.getElementById("dungeon")!, dgBody = document.getElementById("dg-body")!, dgTitle = document.getElementById("dg-title")!;
+const dgPause = document.getElementById("dg-pause") as HTMLButtonElement, dgReplay = document.getElementById("dg-replay") as HTMLButtonElement;
+let openId = "", wantPause = false, handle: Mount | null = null, loading: Promise<Kz> | null = null;
+const kz = () => (window as unknown as { KzDungeon?: Kz }).KzDungeon;
+const loadScene = () => loading ??= new Promise<Kz>((ok, no) => {
+  if (kz()) return ok(kz()!);
+  const el = document.createElement("script");
+  el.src = "/dungeon.js"; el.onload = () => (kz() ? ok(kz()!) : no(new Error("scene missing"))); el.onerror = () => { loading = null; no(new Error("scene failed to load")); };
+  document.head.append(el);
+});
+const text = (d: Dungeon, why: string) => `<p class="empty">${esc(why)}</p><ul class="dg-text">${d.stages.map((x) => `<li>${esc(x.name)}: ${x.monsters} monster${x.monsters === 1 ? "" : "s"}</li>`).join("")}</ul>`;
+function stop() { handle?.destroy(); handle = null; }
+async function show(d: Dungeon) {
+  stop(); dgBody.innerHTML = "";
+  dgTitle.textContent = d.title;
+  dgReplay.hidden = d.outcome === "live";
+  dgPause.textContent = "Pause";
+  try {
+    const k = await loadScene();
+    if (openId !== d.id) return;
+    handle = k.mount(dgBody, d, wantPause);
+    if (!handle) dgBody.innerHTML = text(d, "This browser cannot draw the dungeon (no WebGL). Here is its shape instead.");
+    else if (wantPause || matchMedia("(prefers-reduced-motion: reduce)").matches) { wantPause = true; dgPause.textContent = "Play"; } // a rebuild keeps your Pause
+  } catch (e) { dgBody.innerHTML = text(d, `The dungeon scene could not load (${e instanceof Error ? e.message : e}).`); }
+}
+function open(id: string) {
+  const d = last?.dungeons.find((x) => x.id === id);
+  if (!d) return;
+  if (id !== openId) wantPause = false;
+  openId = id; panel.hidden = false; panel.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+  void show(d);
+}
+function close() { openId = ""; wantPause = false; stop(); panel.hidden = true; }
+// A refresh keeps the scene running: the same run moves it, a run that grew a stage rebuilds it.
+function sync() {
+  if (!openId) return;
+  const d = last?.dungeons.find((x) => x.id === openId);
+  if (!d) return close();
+  dgTitle.textContent = d.title; dgReplay.hidden = d.outcome === "live";
+  if (handle && !handle.update(d)) void show(d);
+}
+root.addEventListener("click", (e) => { const r = (e.target as HTMLElement).closest<HTMLElement>("[data-open]"); if (r) open(r.dataset.open!); });
+root.addEventListener("keydown", (e) => { const r = (e.target as HTMLElement).closest<HTMLElement>("[data-open]"); if (r && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); open(r.dataset.open!); } });
+document.getElementById("dg-close")!.onclick = close;
+dgPause.onclick = () => { if (handle) { wantPause = handle.pause(dgPause.textContent === "Pause"); dgPause.textContent = wantPause ? "Play" : "Pause"; } };
+dgReplay.onclick = () => { handle?.replay(); wantPause = false; dgPause.textContent = "Pause"; };
+addEventListener("keydown", (e) => { if (e.key === "Escape" && openId) close(); });
 
 let busy = false;
 async function load() {

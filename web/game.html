@@ -66,6 +66,16 @@ section{margin-top:22px}
 .badge.live::before{content:"";display:inline-block;width:6px;height:6px;margin-right:5px;border-radius:50%;background:currentColor;animation:pulse 1.4s ease-in-out infinite}
 @keyframes pulse{50%{opacity:.25}}
 @media(prefers-reduced-motion:reduce){.badge.live::before{animation:none}}
+.row[data-open]{cursor:pointer;border-radius:4px}.row[data-open]:hover,.row[data-open]:focus-visible{background:var(--panel-2)}
+.dg{margin-bottom:22px}
+.dg-bar{display:flex;align-items:center;gap:8px;margin-bottom:10px}.dg-bar h2{flex:1;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dg-bar button{min-height:34px;padding:0 12px;border:1px solid var(--line);border-radius:6px;background:var(--panel);font:600 13px var(--sans);color:var(--ink)}.dg-bar button:hover{background:var(--panel-2)}
+.dg-hud{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.dg-chip{font:600 12px var(--sans);padding:3px 10px;border:1px solid var(--line);border-radius:999px;color:var(--dim);background:var(--panel)}.dg-chip b{color:var(--ink)}
+.dg-chip.now{border-color:var(--gold);color:var(--gold);background:var(--panel-2)}.dg-chip.done{color:var(--ok);border-color:var(--ok)}
+.dg-stage{border:2px solid var(--line);border-radius:4px;overflow:hidden;background:linear-gradient(var(--panel-2),color-mix(in srgb,var(--panel-2) 55%,var(--bg)))}.dg-stage canvas{display:block}
+.dg-loot{margin-top:8px;padding:8px 12px;border:1px solid var(--line);border-radius:4px;background:var(--panel-2);font:13px var(--sans);color:var(--ink)}.dg-loot b{color:var(--gold)}
+.dg-text{margin:8px 0 0;padding-left:20px;font:13px var(--sans);color:var(--dim)}
 .empty{color:var(--dim);font-style:italic;margin:0}
 @media(max-width:640px){
  .hero{grid-template-columns:96px 1fr;gap:14px}.portrait{width:96px;height:122px}.name{font-size:22px}
@@ -82,6 +92,11 @@ section{margin-top:22px}
     <h1>Kaizen Realm</h1>
     <button id="theme" title="Switch between day and night" aria-label="Switch between day and night">☾</button>
   </div>
+  <section id="dungeon" class="panel dg" hidden aria-label="Dungeon">
+    <div class="dg-bar"><h2 id="dg-title"></h2>
+      <button id="dg-pause" type="button">Pause</button><button id="dg-replay" type="button">Replay</button><button id="dg-close" type="button" aria-label="Close the dungeon">✕</button></div>
+    <div id="dg-body"></div>
+  </section>
   <main id="root" aria-busy="true"><p class="empty">Gathering the tales of your runs…</p></main>
 </div>
 <script src="/game.js"></script>
