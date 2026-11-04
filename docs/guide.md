@@ -591,7 +591,7 @@ the project and run it came from. Each line reads:
 
 **Models.** Settings → Agents → Models has a row per installed agent. Claude Code's row sets its stage subagents. Other tools run every stage in one session, so their row sets the model they launch with, using the tool's own model name.
 
-**Terminal keys.** In a workspace, Ctrl+Space puts focus in the current pane. Within 2 seconds, one more key moves it, as in tmux: arrows or h j k l between panes, 1-9 for a tab by number, n and p for the next and previous tab. c opens the new-tab menu, r split right and d split down: arrows or j k choose, Enter opens, Escape closes. x closes the current pane, like its × button. ? lists these keys.
+**Terminal keys.** In a workspace, Ctrl+Space puts focus in the current pane. Within 2 seconds, one more key moves it, as in tmux: arrows or h j k l between panes, 1-9 for a tab by number, n and p for the next and previous tab. c opens the new-tab menu: arrows or j k choose, Enter opens, Escape closes. r splits right and d splits down with a new terminal like the focused one (the same agent, or a shell) straight away; on a Browser, Preview or note pane they open the split menu to pick from, as do the split buttons at the top right. x closes the current pane, like its × button. ? lists these keys.
 
 Ctrl+= makes the text of every terminal bigger, Ctrl+- smaller, and Ctrl+0 puts it back to 12px; Settings → Terminal → Terminal font size does the same. The size is kept per browser.
 

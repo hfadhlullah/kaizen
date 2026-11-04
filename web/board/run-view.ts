@@ -742,6 +742,25 @@ function onMoveMenu(e: Event) {
   m.style.left = Math.max(8, r.right - m.offsetWidth) + "px";
 }
 
+// + makes a new tab; split right/down adds to the tab shown. `n` is a menu item's data-n.
+function openNew(n: string, mode: string) {
+  const s = saved();
+  target = mode === "tab" || !s.on ? null : { screen: s.on, dir: mode as "cols" | "rows" };
+  if (n === "shell") void newPty();
+  else if (n.startsWith("agent:")) void newPty(n.slice(6));
+  else if (n === "local") addTab({ id: "local", kind: "local", title: "Browser" });
+  else if (n === "history") addTab({ id: "history", kind: "history", title: "History" });
+  else openPreview();
+}
+// Ctrl+Space r / d: a second terminal like the focused one (same agent, or a shell), split right or down.
+// Anything else (Browser, Preview, notes) has no copy to make, so the menu opens to pick from.
+function likeFocused(): string | null {
+  const sc = screens().find((x) => x.id === saved().on);
+  const t = sc && tabs().find((x) => x.id === sc.focus);
+  if (t?.kind === "shell") return "shell";
+  if (t?.kind === "agent") return "agent:" + (t.agent ?? (defAgent || agents[0]?.cmd || ""));
+  return null;
+}
 function wire() {
   const bar = $("rtabs"),
     s = saved();
@@ -759,15 +778,8 @@ function wire() {
     const n = t.closest<HTMLElement>("[data-n]")?.dataset.n;
     if (n) {
       const d = t.closest<HTMLDetailsElement>(".radd")!;
-      const mode = d.dataset.mode;
       d.open = false;
-      // + makes a new tab; split right/down adds to the tab shown.
-      target = mode === "tab" || !s.on ? null : { screen: s.on, dir: mode as "cols" | "rows" };
-      if (n === "shell") void newPty();
-      else if (n.startsWith("agent:")) void newPty(n.slice(6));
-      else if (n === "local") addTab({ id: "local", kind: "local", title: "Browser" });
-      else if (n === "history") addTab({ id: "history", kind: "history", title: "History" });
-      else openPreview();
+      openNew(n, d.dataset.mode as string);
       return;
     }
   };
@@ -1051,6 +1063,8 @@ function paneKey(k: string) {
     return;
   }
   const mode = { c: "tab", r: "cols", d: "rows" }[k];
+  const same = mode && mode !== "tab" && !noPty ? likeFocused() : null;
+  if (same) return void openNew(same, mode!);
   if (mode) {
     const add = $("rtabs").querySelector<HTMLDetailsElement>(`.radd[data-mode=${mode}]`);
     if (add) add.open = true;
@@ -1087,7 +1101,7 @@ function keyHint(on: boolean) {
   const h = document.createElement("div");
   h.id = "keyhint";
   h.setAttribute("role", "status");
-  const keys = [["←↓↑→", "pane"], ["1-9", "tab"], ["n p", "next, prev"], ["c", "new tab"], ["r", "split right"], ["d", "split down"], ["x", "close pane"], ["?", "all keys"]];
+  const keys = [["←↓↑→", "pane"], ["1-9", "tab"], ["n p", "next, prev"], ["c", "new tab"], ["r", "split right, same as this pane"], ["d", "split down, same as this pane"], ["x", "close pane"], ["?", "all keys"]];
   h.innerHTML = String(html`${keys.map(([k, t]) => html`<span><kbd>${k}</kbd>${t}</span>`)}`);
   document.body.append(h);
 }
