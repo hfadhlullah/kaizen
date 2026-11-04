@@ -30,7 +30,7 @@ const interactive = process.stdin.isTTY && !check && !upgrade && !args.has("--ye
 // installer, so a typo or a command from a newer kaizen reinstalled instead of failing.
 // cli/install-unknown.test.ts fails if a dispatched word is missing here.
 const COMMANDS = ["automation", "help", "init", "browser", "card", "chat", "computer", "config", "docs", "done", "gather", "handoff",
-  "icebox", "issue", "preview", "prune", "recall", "related", "remember", "report", "roadmap", "settings", "setup", "sources",
+  "game", "icebox", "issue", "preview", "prune", "recall", "related", "remember", "report", "roadmap", "settings", "setup", "sources",
   "state", "stats", "uninstall", "upgrade", "version", "web", "worker", "worktree"];
 const first = Bun.argv[2];
 const commandList = `  commands: ${COMMANDS.join(", ")}\n  plain \`kaizen\` opens the board; \`kaizen --yes\` installs; \`kaizen init\` sets up this folder\n`;
@@ -271,6 +271,17 @@ if (Bun.argv[2] === "stats" || Bun.argv[2] === "related") {
   if (!words.length) { console.log(`\n  kaizen related <path> [<path> ...]\n`); process.exit(1); }
   const r = related(state, words);
   console.log(json ? JSON.stringify(r, null, 2) : r.length ? r.map((x) => `${x.id} — ${x.title}${x.open ? ` — ${x.open} open backlog` : ""}`).join("\n") : "Related: none");
+  process.exit(0);
+}
+
+// `kaizen game skills [--json]`: every guild and skill id the game knows, for the planner's
+// `Skill:` and `Guild:` lines. Read-only: a missing game.json is not created.
+if (Bun.argv[2] === "game") {
+  const { peekGame, skillList } = await import("./game.ts");
+  const rest = Bun.argv.slice(3), json = rest.includes("--json");
+  if (rest.filter((a) => a !== "--json")[0] !== "skills") { console.log(`\n  kaizen game skills [--json]\n`); process.exit(1); }
+  const list = skillList(peekGame());
+  console.log(json ? JSON.stringify(list, null, 2) : list.map((g) => `${g.id}  ${g.name}\n${g.skills.map((s) => `  ${s.id}  ${s.name}`).join("\n")}`).join("\n"));
   process.exit(0);
 }
 

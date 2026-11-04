@@ -21,6 +21,8 @@ and open backlog may bear on this one; the Framing adds `Related: <ids it used>`
 the codebase, the manuscript, the current campaign, whatever this run builds on.
 **Output:** `01-plan.md`.
 
+**Tag the run for the game.** Run `kaizen game skills`: it lists the guilds and skills of the RPG on the Game page. End the Framing, after the `Recalled:` and `Related:` lines, with `Skill: <id>`, the skill the run mostly trains, and `Guild: <id>`, the guild it sits in, both taken from that list. The plan approval shows them with the rest of the Framing, so the user can correct them. Where the command is missing, leave the two lines out.
+
 The request is usually one sentence. The planner's first job is to expand it — but by
 proposing, not by interrogating. It restates the problem, brings the nearest good
 solution, and names the assumptions it took, so the user reacts to something concrete

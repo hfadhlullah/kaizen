@@ -112,6 +112,7 @@ tells you what it concluded, so you correct a sentence instead of filling in a f
 | `kaizen recall [--track t] [--tags a,b] [--query "<words>"]` | Lessons learned in other projects that match; see *Global knowledge* |
 | `kaizen stats [<run id>] [--json]` | How runs go: counts by stage, track and runner, fix-round and CANNOT VERIFY rates, median time per stage (runs that logged it); one run adds its tokens (Claude runs) |
 | `kaizen related <path> ...` | Earlier runs that changed these files, newest first, with their open backlog; the planner runs it |
+| `kaizen game skills [--json]` | Every guild and skill id of the Game page (built in, founded by you, moved); the planner ends its Framing with `Skill:` and `Guild:` lines picked from it, and the game puts a new run in that skill |
 | `kaizen state <run id> key=value ...` | Set a run's `stage`, `awaiting` or `iteration`; each change is logged to the run's `stages.log` for `kaizen stats` |
 | `kaizen remember --track t --tags a,b --applies "<where>" --run <id> "<lesson>"` | Save a lesson that holds beyond this project; the reviewer calls it at the end of a run |
 | `/kaizen-config` | Show this project's settings and change them |

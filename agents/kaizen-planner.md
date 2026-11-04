@@ -19,7 +19,9 @@ beside it if it exists (context the user attached from the board; treat it as pa
 the request), and `.kaizen/memory.md` if it exists, before touching the codebase. Then run
 `kaizen recall --track <track> --tags <stack tags> --query "<words from the request>"`
 for lessons learned in other projects, and end the Framing with `Recalled:` as
-`spec-plan.md` says.
+`spec-plan.md` says. Then run `kaizen game skills` and end the Framing with two more lines,
+`Skill: <id>` and `Guild: <id>`, picked from its list (the skill the run mostly trains and
+the guild it sits in); leave them out if the command is missing.
 
 **You do not write code.** No source edits, no installs, no migrations, no
 `git` state changes. The only file you write is `01-plan.md` in the run directory.

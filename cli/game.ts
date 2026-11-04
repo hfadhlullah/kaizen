@@ -110,11 +110,11 @@ export const defaultGame = (): GameFile => ({
 export const gameFile = (home = homedir()) => join(home, ".kaizen", "game.json");
 // Reads game.json; a missing one is created with the defaults, a broken one is read as the
 // defaults and left alone for the user to fix.
-export function readGame(home = homedir()): GameFile {
+export function readGame(home = homedir(), create = true): GameFile {
   const f = gameFile(home), text = read(f);
   const d = defaultGame();
   if (!text) {
-    try { mkdirSync(dirname(f), { recursive: true }); writeFileSync(f, JSON.stringify(d, null, 2) + "\n"); } catch { /* read-only home: the defaults still serve */ }
+    if (create) try { mkdirSync(dirname(f), { recursive: true }); writeFileSync(f, JSON.stringify(d, null, 2) + "\n"); } catch { /* read-only home: the defaults still serve */ }
     return d;
   }
   try {
@@ -122,6 +122,12 @@ export function readGame(home = homedir()): GameFile {
     return { ...d, ...g, look: { ...d.look, ...(g.look ?? {}) }, guilds: Array.isArray(g.guilds) ? g.guilds : [], moves: g.moves ?? {}, runs: g.runs ?? {} };
   } catch { return d; }
 }
+
+// Like readGame, but a missing game.json is not created: for commands that only look.
+export const peekGame = (home = homedir()) => readGame(home, false);
+
+// Every guild and skill id in play, for the planner (`kaizen game skills`).
+export const skillList = (game: GameFile) => guildsOf(game).map((g) => ({ id: g.id, name: g.name, skills: g.skills.map((s) => ({ id: s.id, name: s.name })) }));
 
 // ---- skill sorting ---------------------------------------------------------------------
 export type RunText = { title: string; text: string; track: string; exts: string[] };
@@ -224,11 +230,35 @@ export function moveSkill(skill: unknown, guild: unknown, home = homedir()): Wro
   return { ok: true, from: from.id, to: dest.id };
 }
 
+// The planner's tags: `Skill: <id>` and `Guild: <id>` lines in the plan's Framing (the first of each
+// wins). Only that section is read, and not inside a code fence, so text elsewhere in a plan cannot
+// move a run into another skill. An id that is not lowercase letters, digits and dashes is no tag.
+export type Tags = { skill?: string; guild?: string };
+export function planTags(plan: string): Tags {
+  const sect = plan.split(/^## /m).find((p) => /^framing\b/i.test(p.split("\n")[0]!));
+  const tags: Tags = {};
+  let fenced = false;
+  for (const line of (sect ?? "").split("\n").slice(1)) {
+    if (/^\s*(```|~~~)/.test(line)) { fenced = !fenced; continue; }
+    if (fenced) continue;
+    const m = /^\s*(?:[-*]\s+)?(?:\*\*)?(skill|guild)(?:\*\*)?\s*:\s*(?:\*\*)?\s*`?([a-z0-9-]+)`?\s*$/i.exec(line);
+    if (!m) continue;
+    const key = m[1]!.toLowerCase() as "skill" | "guild";
+    if (m[2] !== m[2]!.toLowerCase()) continue; // an upper-case id is not an id
+    tags[key] ??= m[2];
+  }
+  return tags;
+}
+
 // The skill a run trained: the player's own sort first, then keywords in the title (x3) and
 // text (x1) and changed-file extensions (x2 each), then the track's general skill.
-export function skillOf(run: RunText, guilds: Guild[] = CATALOG, runId = "", sorted: Record<string, string> = {}): { guild: string; skill: string } {
+export function skillOf(run: RunText, guilds: Guild[] = CATALOG, runId = "", sorted: Record<string, string> = {}, tags: Tags = {}): { guild: string; skill: string } {
   const by = sorted[runId];
   if (by) for (const g of guilds) if (g.skills.some((s) => s.id === by)) return { guild: g.id, skill: by };
+  // The planner's tag next: a real skill (in whichever guild it sits now), else a real guild's general skill.
+  if (tags.skill) for (const g of guilds) if (g.skills.some((s) => s.id === tags.skill)) return { guild: g.id, skill: tags.skill };
+  const tg = tags.guild ? guilds.find((g) => g.id === tags.guild) : undefined;
+  if (tg && tg.skills.length) return { guild: tg.id, skill: (tg.skills.find((s) => s.id.endsWith("-general")) ?? tg.skills[0]!).id };
   const title = words(run.title), text = words(run.text);
   let best: { guild: string; skill: string; score: number } | null = null;
   for (const g of guilds) for (const s of g.skills) {
@@ -280,7 +310,7 @@ export function dungeonOf(state: string, project: string, id: string, game: Game
   const title = (request.split("\n").find((l) => l.trim()) ?? id).replace(/^#+\s*/, "").slice(0, 90);
   const files = changedPaths(read(join(dir, "03-impl.md")), project);
   const track = st?.track ?? "";
-  const { guild, skill } = skillOf({ title, text: request.slice(0, 2500), track, exts: files.map((f) => extname(f).toLowerCase()) }, guildsOf(game), id, game.runs);
+  const { guild, skill } = skillOf({ title, text: request.slice(0, 2500), track, exts: files.map((f) => extname(f).toLowerCase()) }, guildsOf(game), id, game.runs, planTags(read(join(dir, "01-plan.md"))));
 
   let iters: string[] = [];
   try { iters = readdirSync(join(dir, "05-iterations")); } catch { /* no fix rounds */ }

@@ -2,7 +2,7 @@
 description: What a kaizen run is, which files define it, and where its state lives
 tags: [project, workflow]
 sources: [cli/roadmap.ts, cli/workers.ts, skills/kaizen, skills/kaizen-help, skills/kaizen-concept, skills/media, agents, commands, cli/worktree.ts, docs/guide.md]
-updated: 2026-11-03
+updated: 2026-11-04
 ---
 # Workflow
 
@@ -44,6 +44,7 @@ The product itself: a staged workflow (plan, approval, build, independent review
 - Agents set `stage`, `awaiting` and `iteration` with `kaizen state <id> key=value` (spec.md, Stage 0); `done` still goes through `kaizen done`. The stored `track` word is the nearest standard one (`code`, `writing`, …), mapped again by `trackOf()` in `cli/knowledge.ts`, while the free description lives in `00-request.md`.
 - Every gate item in a plan ends with `— proof: <how>`; the builder also answers the request's own requirements as `R PASS`/`R FAIL` lines before handing over (spec-plan.md item 6, spec-build.md gate block).
 - Area lessons go in each area note's `## Watch out`, not `.kaizen/memory.md` (spec-review.md); memory.md keeps cross-project lessons.
+- The planner ends its Framing with `Skill: <id>` and `Guild: <id>` (ids from `kaizen game skills`; `skills/kaizen/spec-plan.md` and its tracked copy `.kaizen/spec-plan.md` must stay identical, and `agents/kaizen-planner.md` says the same). The Game page's engine reads them from the plan's Framing only (`planTags` in `cli/game.ts`), after the player's own sort in `game.json` and before its keyword guess; a wrong id is ignored. Runs planned before this have no tags and keep the keyword guess.
 - `auto_guard` (`max_files`, `stop_on`) stops an auto run at the final approval (spec-main.md *Auto guard*); planners run `kaizen related` on their manifest and add `Related:` to the Framing (spec-plan.md). Stage times exist only for runs with a `stages.log`: file mtimes move when `02-approval.md` gets its accepted line.
 
 ## Landing
