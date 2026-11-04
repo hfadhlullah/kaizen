@@ -1,6 +1,6 @@
 // ---- Phones: their own Home (devices, recent runs, usage) and the Runs page (this
 // machine's runs grouped waiting / active / done). The board, Tasks and Icebox are set up
-// on a computer; a phone has Home, Chat, Runs and Settings.
+// on a computer; a phone has Home, Chat, Runs and Search (Settings is found through it).
 import { runPopup } from "./cards.ts";
 import { $, html, raw } from "./dom.ts";
 import { cardHref, logo, railData, stateOf, subline, titleOf, usageChips, wsHref } from "./workspace.ts";
