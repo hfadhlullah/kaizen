@@ -32,7 +32,7 @@ import { tailnetName } from "./setup.ts";
 import { connectPhone, loginUrl, readPhone } from "./phone-setup.ts";
 import { listNotes, saveNote, renameNote, deleteNote, boardIndex, linksTo } from "./notes.ts";
 import * as video from "./video.ts";
-import { cachedGameState } from "./game.ts";
+import { cachedGameState, foundGuild, moveSkill } from "./game.ts";
 import * as auto from "./automations.ts";
 import * as localsend from "./localsend.ts";
 import * as hermes from "./hermes.ts";
@@ -60,7 +60,7 @@ const VIDEO_JS = join(dirname(import.meta.dir), "web", "video.js");
 // The Game page (your runs as an RPG: cli/game.ts) and its bundle.
 const GAME_PAGE = join(dirname(import.meta.dir), "web", "game.html");
 const GAME_JS = join(dirname(import.meta.dir), "web", "game.js");
-const DUNGEON_JS = join(dirname(import.meta.dir), "web", "dungeon.js"); // the three.js scene, fetched when a dungeon is first opened
+const SCENES_JS = join(dirname(import.meta.dir), "web", "scenes.js"); // the three.js scenes (dungeon, town), fetched when one is first opened
 // Art you drop in assets/game/ (hero.png, backdrop.jpg, guild-<id>.png); not shipped in the npm package.
 const GAME_ART = join(dirname(import.meta.dir), "assets", "game");
 const ART_NAME = /^[a-z0-9-]+\.(png|webp|jpg|svg)$/;
@@ -86,7 +86,7 @@ delete process.env.KAIZEN_DESKTOP_BUNDLED;
 // page newer than its server sends ops the server does not know ("unknown op").
 // So the pages are kept as they were at start, and read live (dev edits) only while
 // the installed version is still the one this board runs.
-const AT_START = new Map([PAGE, BOARD_JS, NOTES_PAGE, NOTES_JS, TERM_JS, TERM_CSS, VIDEO_PAGE, VIDEO_JS, GAME_PAGE, GAME_JS, DUNGEON_JS].map((f) => [f, existsSync(f) ? readText(f) : null]));
+const AT_START = new Map([PAGE, BOARD_JS, NOTES_PAGE, NOTES_JS, TERM_JS, TERM_CSS, VIDEO_PAGE, VIDEO_JS, GAME_PAGE, GAME_JS, SCENES_JS].map((f) => [f, existsSync(f) ? readText(f) : null]));
 const served = (f: string) => installed() === VERSION && existsSync(f) ? readText(f) : AT_START.get(f) ?? null;
 
 // A board answers at url and runs the installed version. A board from before the
@@ -801,13 +801,24 @@ export async function web(repoDir: string, opts: Opts = {}) {
         return Response.json({ id });
       }
 
-      if (req.method === "GET" && (path === "/game" || path === "/game.js" || path === "/dungeon.js")) {
-        const [f, type] = path === "/game" ? [GAME_PAGE, "text/html; charset=utf-8"] : [path === "/game.js" ? GAME_JS : DUNGEON_JS, "application/javascript; charset=utf-8"];
+      if (req.method === "GET" && (path === "/game" || path === "/game.js" || path === "/scenes.js")) {
+        const [f, type] = path === "/game" ? [GAME_PAGE, "text/html; charset=utf-8"] : [path === "/game.js" ? GAME_JS : SCENES_JS, "application/javascript; charset=utf-8"];
         const body = served(f);
         if (body === null) return new Response(`${path} missing; run bun run build:web`, { status: 500 });
         return new Response(body, { headers: { "content-type": type, "cache-control": "no-store" } });
       }
       if (req.method === "GET" && path === "/game/state") return json({ ...cachedGameState(), art: gameArt() });
+      // The game's two writes (found a guild, move a skill): game.json only, see cli/game.ts.
+      if (req.method === "POST" && (path === "/game/found" || path === "/game/move")) {
+        const refused = strict(req);
+        if (refused) return refused;
+        let body: any;
+        try { body = await req.json(); } catch { return bad("json body expected"); }
+        const r = path === "/game/found" ? foundGuild(body?.name, body?.skills) : moveSkill(body?.skill, body?.guild);
+        if (!r.ok) return bad(r.error);
+        changed();
+        return json(r);
+      }
       if (req.method === "GET" && path.startsWith("/game/art/")) {
         const name = path.slice("/game/art/".length);
         if (!ART_NAME.test(name) || !gameArt().includes(name)) return new Response("not found", { status: 404 });

@@ -4,7 +4,7 @@
 // the runs. Nothing here writes under any project's .kaizen/runs/; the only file written is
 // ~/.kaizen/game.json, which holds what the player chose (looks, hand-founded guilds, skill
 // moves) and is created with defaults on first read.
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { dirname, extname, join } from "node:path";
 import { homedir } from "node:os";
 import { changedPaths, knownProjects, reviewFindings } from "./state.ts";
@@ -150,6 +150,80 @@ export function guildsOf(game: GameFile): Guild[] {
   return all;
 }
 
+// ---- the game's own writes -------------------------------------------------------------
+// The two things the player does: found a guild and move a skill. Both change game.json and
+// nothing else; the previous file is kept as game.json.bak, the new one is renamed into place,
+// every key already in the file survives, and a file that does not parse is never replaced.
+export const MAX_HAND_GUILDS = 12, MAX_START_SKILLS = 8, MAX_NAME = 40;
+export type Wrote<T = object> = ({ ok: true } & T) | { ok: false; error: string };
+
+export const slug = (s: string) => s.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40).replace(/-+$/, "");
+function cleanName(v: unknown): string | null {
+  if (typeof v !== "string" || /[\u0000-\u001f\u007f]/.test(v)) return null;
+  const t = v.replace(/\s+/g, " ").trim();
+  return t && t.length <= MAX_NAME ? t : null;
+}
+
+function loadStrict(home: string): { raw: Record<string, any>; game: GameFile } | string {
+  const text = read(gameFile(home));
+  if (!text) { const d = defaultGame(); return { raw: { ...d }, game: d }; }
+  let raw: any;
+  try { raw = JSON.parse(text); } catch { return "game.json cannot be read as JSON; fix or remove it first (nothing was written)"; }
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return "game.json is not an object; fix or remove it first (nothing was written)";
+  const d = defaultGame();
+  return { raw, game: { ...d, ...raw, look: { ...d.look, ...(raw.look ?? {}) }, guilds: Array.isArray(raw.guilds) ? raw.guilds : [], moves: raw.moves ?? {}, runs: raw.runs ?? {} } };
+}
+function writeGame(home: string, raw: Record<string, any>) {
+  const f = gameFile(home);
+  mkdirSync(dirname(f), { recursive: true });
+  if (existsSync(f)) copyFileSync(f, f + ".bak");
+  const tmp = f + ".tmp";
+  writeFileSync(tmp, JSON.stringify(raw, null, 2) + "\n");
+  renameSync(tmp, f);
+  resetGameCache();
+}
+
+export function foundGuild(name: unknown, skillNames: unknown = [], home = homedir()): Wrote<{ id: string; skills: string[] }> {
+  const l = loadStrict(home);
+  if (typeof l === "string") return { ok: false, error: l };
+  const title = cleanName(name);
+  if (!title) return { ok: false, error: `a guild needs a name of 1 to ${MAX_NAME} characters with no control characters` };
+  const id = slug(title);
+  if (!id) return { ok: false, error: "the name needs at least one letter or digit" };
+  const all = guildsOf(l.game), hand = Array.isArray(l.raw.guilds) ? l.raw.guilds : [];
+  if (all.some((g) => g.id === id || g.name.toLowerCase() === title.toLowerCase()) || hand.some((g: any) => g?.id === id)) return { ok: false, error: `a guild called "${title}" already exists` };
+  // A guild id that is also a skill id would make "testing" mean two things.
+  if (all.some((g) => g.skills.some((x) => x.id === id))) return { ok: false, error: `"${title}" is the name of a skill; pick another name` };
+  if (hand.length >= MAX_HAND_GUILDS) return { ok: false, error: `you can found at most ${MAX_HAND_GUILDS} guilds by hand` };
+  const names = Array.isArray(skillNames) ? skillNames : [];
+  if (names.length > MAX_START_SKILLS) return { ok: false, error: `a new guild starts with at most ${MAX_START_SKILLS} skills` };
+  const taken = new Set(all.flatMap((g) => g.skills.map((x) => x.id))), guildIds = new Set([...all.map((g) => g.id), id]), skills: { id: string; name: string }[] = [];
+  for (const n of names) {
+    const t = cleanName(n), sid = t ? slug(t) : "";
+    if (!t || !sid) return { ok: false, error: `a skill needs a name of 1 to ${MAX_NAME} characters with a letter or digit, no control characters` };
+    if (taken.has(sid) || guildIds.has(sid)) return { ok: false, error: `the skill "${t}" already exists, or is the name of a guild` };
+    taken.add(sid); skills.push({ id: sid, name: t });
+  }
+  writeGame(home, { ...l.raw, guilds: [...hand, { id, name: title, skills }] });
+  return { ok: true, id, skills: skills.map((x) => x.id) };
+}
+
+export function moveSkill(skill: unknown, guild: unknown, home = homedir()): Wrote<{ from: string; to: string; noop?: boolean }> {
+  const l = loadStrict(home);
+  if (typeof l === "string") return { ok: false, error: l };
+  if (typeof skill !== "string" || typeof guild !== "string") return { ok: false, error: "a skill and a guild are needed" };
+  const all = guildsOf(l.game), from = all.find((g) => g.skills.some((x) => x.id === skill)), dest = all.find((g) => g.id === guild);
+  if (!from) return { ok: false, error: "no such skill" };
+  if (!dest) return { ok: false, error: "no such guild" };
+  if (from === dest) return { ok: true, from: from.id, to: dest.id, noop: true };
+  // Back to where the skill started: the move is forgotten instead of recorded.
+  const start = guildsOf({ ...l.game, moves: {} }).find((g) => g.skills.some((x) => x.id === skill))?.id;
+  const moves: Record<string, string> = { ...(l.raw.moves && typeof l.raw.moves === "object" ? l.raw.moves : {}) };
+  if (dest.id === start) delete moves[skill]; else moves[skill] = dest.id;
+  writeGame(home, { ...l.raw, moves });
+  return { ok: true, from: from.id, to: dest.id };
+}
+
 // The skill a run trained: the player's own sort first, then keywords in the title (x3) and
 // text (x1) and changed-file extensions (x2 each), then the track's general skill.
 export function skillOf(run: RunText, guilds: Guild[] = CATALOG, runId = "", sorted: Record<string, string> = {}): { guild: string; skill: string } {
@@ -287,6 +361,7 @@ export function gameState(opts: { home?: string; projects?: string[]; now?: numb
 const RUN_FILES = ["state.json", "progress.md", "00-request.md", "01-plan.md", "03-impl.md", "04-review.md", "stages.log", "05-iterations"];
 export const CACHE_MS = 60_000;
 let cache: { key: string; at: number; value: ReturnType<typeof gameState> } | null = null;
+export const resetGameCache = () => { cache = null; }; // after a write: the file's time may not have moved yet
 
 export function stateKey(home: string, projects: string[]) {
   const parts = [String(mtime(gameFile(home)))];

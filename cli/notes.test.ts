@@ -6,7 +6,7 @@ import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
 import { safeName, listNotes, saveNote, renameNote, deleteNote, boardIndex, linksTo } from "./notes.ts";
 import { wikilinks, tags, resolve, safeUrl, tree, uncode, freshName, parseTable, boardLink, resolveRun, anchorWords } from "../web/notes-lib.ts";
-import { sourceHash, OUT, TERM_OUT, BOARD_OUT, BOT_OUT, VIDEO_OUT, GAME_OUT, DUNGEON_OUT } from "./build-web.ts";
+import { sourceHash, OUT, TERM_OUT, BOARD_OUT, BOT_OUT, VIDEO_OUT, GAME_OUT, SCENES_OUT } from "./build-web.ts";
 
 let state = "";
 beforeEach(() => { state = join(mkdtempSync(join(tmpdir(), "kaizen-notes-")), ".kaizen"); mkdirSync(state); });
@@ -238,7 +238,7 @@ test("web/notebook.js, web/term.js, web/board.js, web/video.js, web/game.js and 
   expect(readFileSync(BOT_OUT, "utf8").split("\n", 1)[0]!).toContain(`kaizen bot page ${sourceHash()} `);
   expect(readFileSync(VIDEO_OUT, "utf8").split("\n", 1)[0]!).toContain(`kaizen video page ${sourceHash()} `);
   expect(readFileSync(GAME_OUT, "utf8").split("\n", 1)[0]!).toContain(`kaizen game page ${sourceHash()} `);
-  expect(readFileSync(DUNGEON_OUT, "utf8").split("\n", 1)[0]!).toContain(`kaizen dungeon scene ${sourceHash()} `);
+  expect(readFileSync(SCENES_OUT, "utf8").split("\n", 1)[0]!).toContain(`kaizen scenes ${sourceHash()} `);
 });
 
 test("an installed app fits the window, not the screen", () => {

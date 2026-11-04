@@ -284,3 +284,4 @@ updated: 2026-10-31
 - 2026-11-03 run 2026-11-03-unknown-command-guard — CLI
 - 2026-11-04 run 2026-11-04-kaizen-rpg — Web board, Release and testing
 - 2026-11-04 run 2026-11-04-kaizen-rpg-idle-dungeon — Web board, Release and testing
+- 2026-11-04 run 2026-11-04-kaizen-rpg-guild-town — Web board, Release and testing

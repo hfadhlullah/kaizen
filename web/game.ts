@@ -58,14 +58,16 @@ function dungeon(d: Dungeon) {
 }
 
 const emblem = (g: Guild) => { const u = art(`guild-${g.id}`); return u ? `<img class="emblem" src="${u}" alt="">` : ""; };
+// Move a learned skill to another guild: the keyboard way (the town has dragging).
+const mover = (s: Skill, g: Guild) => `<label class="mv"><span class="sr">Move ${esc(s.name)} to another guild</span><select data-move="${esc(s.id)}"><option value="">Move to…</option>${(last?.guilds ?? []).filter((x) => x.id !== g.id).map((x) => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join("")}</select></label>`;
 function guild(g: Guild) {
   const learned = g.skills.filter((s) => s.learned), left = g.skills.length - learned.length;
   if (!g.founded)
-    return `<article class="panel guild locked"><header>${emblem(g)}<h3>${esc(g.name)}</h3><span>Not founded</span></header>
+    return `<article class="panel guild locked" id="g-${esc(g.id)}"><header>${emblem(g)}<h3>${esc(g.name)}</h3><span>Not founded</span></header>
     <p class="blurb">${esc(g.blurb)}</p><p class="more">Clear a dungeon in this field to found it. ${g.skills.length} skills to learn.</p></article>`;
-  return `<article class="panel guild"><header>${emblem(g)}<h3>${esc(g.name)}</h3><span>Level ${n(g.level)}</span></header>
+  return `<article class="panel guild" id="g-${esc(g.id)}"><header>${emblem(g)}<h3>${esc(g.name)}</h3><span>Level ${n(g.level)}</span></header>
   <p class="blurb">${esc(g.blurb)}</p>${bar(g)}<p class="xpn">${n(g.into)} / ${n(g.need)} XP to level ${n(g.level + 1)}</p>
-  <ul class="skills">${learned.map((s) => `<li><span>${esc(s.name)} <small>· ${n(s.runs)} run${s.runs === 1 ? "" : "s"}</small></span><b>Lv ${n(s.level)}</b>${bar(s)}</li>`).join("")}</ul>
+  <ul class="skills">${learned.map((s) => `<li><span>${esc(s.name)} <small>· ${n(s.runs)} run${s.runs === 1 ? "" : "s"}</small></span><b>Lv ${n(s.level)}</b>${bar(s)}${mover(s, g)}</li>`).join("")}</ul>
   ${left ? `<p class="more">${left} more skill${left === 1 ? "" : "s"} to learn.</p>` : ""}</article>`;
 }
 
@@ -81,6 +83,7 @@ function draw(s: State) {
     <p class="lvl">Level<b>${n(c.level)}</b></p>${bar(c)}
     <p class="xpn">${n(c.into)} / ${n(c.need)} XP to level ${n(c.level + 1)} · ${n(c.xp)} XP in all</p>
     <div class="stats"><span><b>${n(t.cleared)}</b>dungeons cleared</span><span><b>${n(t.retreat)}</b>retreats</span><span><b>${n(t.live)}</b>in the dungeon now</span></div>
+    <button class="visit" type="button" data-town>Visit the town</button>
   </div></div>
   ${live.length ? `<section><div class="panel"><h2>In the dungeon now</h2><div class="log">${live.map(dungeon).join("")}</div></div></section>` : ""}
   <section><h2>Guilds</h2><div class="guilds">${s.guilds.map(guild).join("")}</div></section>
@@ -92,14 +95,18 @@ function draw(s: State) {
 // ---- the dungeon panel: web/dungeon.ts (three.js) is fetched the first time one is opened ----
 type Mount = { update(d: Dungeon): boolean; replay(): void; pause(on: boolean): boolean; destroy(): void };
 type Kz = { mount(host: HTMLElement, d: Dungeon, paused?: boolean): Mount | null };
+type TownMount = { update(g: Guild[]): void; select(id: string | null): void; hover(id: string | null): void; idAt(x: number, y: number): string | null; destroy(): void };
+type KzT = { mount(host: HTMLElement, g: Guild[], o: { onPick(id: string): void }): TownMount | null };
 const panel = document.getElementById("dungeon")!, dgBody = document.getElementById("dg-body")!, dgTitle = document.getElementById("dg-title")!;
 const dgPause = document.getElementById("dg-pause") as HTMLButtonElement, dgReplay = document.getElementById("dg-replay") as HTMLButtonElement;
 let openId = "", wantPause = false, handle: Mount | null = null, loading: Promise<Kz> | null = null;
 const kz = () => (window as unknown as { KzDungeon?: Kz }).KzDungeon;
+const kzt = () => (window as unknown as { KzTown?: KzT }).KzTown;
+// /scenes.js holds both scenes and one copy of three.js; it is fetched the first time either opens.
 const loadScene = () => loading ??= new Promise<Kz>((ok, no) => {
   if (kz()) return ok(kz()!);
   const el = document.createElement("script");
-  el.src = "/dungeon.js"; el.onload = () => (kz() ? ok(kz()!) : no(new Error("scene missing"))); el.onerror = () => { loading = null; no(new Error("scene failed to load")); };
+  el.src = "/scenes.js"; el.onload = () => (kz() ? ok(kz()!) : no(new Error("scene missing"))); el.onerror = () => { loading = null; no(new Error("scene failed to load")); };
   document.head.append(el);
 });
 const text = (d: Dungeon, why: string) => `<p class="empty">${esc(why)}</p><ul class="dg-text">${d.stages.map((x) => `<li>${esc(x.name)}: ${x.monsters} monster${x.monsters === 1 ? "" : "s"}</li>`).join("")}</ul>`;
@@ -121,12 +128,14 @@ function open(id: string) {
   const d = last?.dungeons.find((x) => x.id === id);
   if (!d) return;
   if (id !== openId) wantPause = false;
+  closeTown();
   openId = id; panel.hidden = false; panel.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
   void show(d);
 }
 function close() { openId = ""; wantPause = false; stop(); panel.hidden = true; }
 // A refresh keeps the scene running: the same run moves it, a run that grew a stage rebuilds it.
 function sync() {
+  syncTown();
   if (!openId) return;
   const d = last?.dungeons.find((x) => x.id === openId);
   if (!d) return close();
@@ -140,18 +149,131 @@ dgPause.onclick = () => { if (handle) { wantPause = handle.pause(dgPause.textCon
 dgReplay.onclick = () => { handle?.replay(); wantPause = false; dgPause.textContent = "Pause"; };
 addEventListener("keydown", (e) => { if (e.key === "Escape" && openId) close(); });
 
+// ---- the guild town: web/town.ts; moving and founding are the game's only writes -------------
+const townPanel = document.getElementById("town")!, twBody = document.getElementById("tw-body")!, twInfo = document.getElementById("tw-info")!, toast = document.getElementById("toast")!;
+let town: TownMount | null = null, townOpen = false, picked: string | null = null;
+function say(html: string) { toast.innerHTML = html; toast.hidden = !html; }
+async function post(path: string, body: unknown): Promise<{ ok: boolean; error?: string; [k: string]: unknown }> {
+  try {
+    const r = await fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    return (await r.json().catch(() => ({ error: `${r.status}` }))) as { ok: boolean; error?: string };
+  } catch (e) { return { ok: false, error: e instanceof Error ? e.message : String(e) }; }
+}
+const guildName = (id: string) => last?.guilds.find((g) => g.id === id)?.name ?? id;
+const skillName = (id: string) => last?.guilds.flatMap((g) => g.skills).find((s) => s.id === id)?.name ?? id;
+async function moveTo(skill: string, to: string) {
+  const r = await post("/game/move", { skill, guild: to });
+  if (!r.ok) return say(esc(r.error ?? "could not move it"));
+  const from = String(r.from ?? ""), noop = r.noop === true;
+  await fresh();
+  say(noop ? `${esc(skillName(skill))} is already in ${esc(guildName(to))}.` : `Moved ${esc(skillName(skill))} to ${esc(guildName(to))}. <button type="button" data-undo="${esc(skill)}|${esc(from)}">Undo</button>`);
+}
+let infoHtml = "";
+function info() {
+  if (drag) return; // a refresh must not replace the chip being dragged
+  const g = last?.guilds.find((x) => x.id === picked);
+  const learned = g ? g.skills.filter((s) => s.learned) : [];
+  const html = !g ? `<p>Click a building to see its skills. Drag a skill chip onto another building to move it there.</p>` : `<h3>${esc(g.name)}</h3><p>${g.founded ? `Level ${n(g.level)}, ${learned.length} skill${learned.length === 1 ? "" : "s"} learned.` : "Not founded yet. Drag a learned skill here to found it, or clear a dungeon in this field."}
+    <button class="link" type="button" data-card="${esc(g.id)}">Show its guild card</button></p>
+    ${learned.length ? `<div class="chips">${learned.map((s) => `<span class="chip" data-skill="${esc(s.id)}" data-from="${esc(g.id)}">${esc(s.name)}</span>`).join("")}</div><p>Drag a skill onto another building to move it. The guild cards have a Move menu for the keyboard.</p>` : ""}`;
+  if (html !== infoHtml) { infoHtml = html; twInfo.innerHTML = html; }
+}
+function fallbackList() {
+  twBody.innerHTML = `<p class="empty">This browser cannot draw the town (no WebGL). Here are your guilds instead.</p><ul class="tw-list">${(last?.guilds ?? []).map((g) => `<li>${esc(g.name)}: ${g.founded ? `level ${n(g.level)}` : "not founded"}</li>`).join("")}</ul>`;
+}
+async function openTown() {
+  close();
+  townOpen = true; townPanel.hidden = false;
+  townPanel.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+  info();
+  try {
+    await loadScene();
+    if (!townOpen || town) return;
+    town = kzt()?.mount(twBody, last?.guilds ?? [], { onPick: (id) => { picked = id; town?.select(id); info(); } }) ?? null;
+    if (!town) fallbackList(); else town.select(picked);
+  } catch (e) { twBody.innerHTML = `<p class="empty">The town scene could not load (${esc(e instanceof Error ? e.message : e)}).</p>`; }
+}
+function closeTown() { townOpen = false; town?.destroy(); town = null; townPanel.hidden = true; twBody.innerHTML = ""; }
+function syncTown() { if (!townOpen) return; if (town) town.update(last?.guilds ?? []); else if (twBody.querySelector(".tw-list")) fallbackList(); info(); }
+
+// Dragging a skill chip onto a building (pointer events, so a finger works too). The listeners
+// sit on the window while a drag lasts, so a redraw under the pointer cannot cut it short.
+let drag: { skill: string; from: string; ghost: HTMLElement } | null = null;
+function endDrag() {
+  drag?.ghost.remove(); drag = null; town?.hover(null);
+  removeEventListener("pointermove", dragMove); removeEventListener("pointerup", dragUp); removeEventListener("pointercancel", endDrag);
+}
+function dragMove(e: PointerEvent) {
+  if (!drag) return;
+  drag.ghost.style.left = e.clientX + "px"; drag.ghost.style.top = e.clientY + "px";
+  const over = town?.idAt(e.clientX, e.clientY) ?? null;
+  town?.hover(over && over !== drag.from ? over : null);
+}
+function dragUp(e: PointerEvent) {
+  if (!drag) return;
+  const { skill, from } = drag, over = town?.idAt(e.clientX, e.clientY) ?? null;
+  endDrag();
+  if (over && over !== from) void moveTo(skill, over);
+}
+twInfo.addEventListener("pointerdown", (e) => {
+  const c = (e.target as HTMLElement).closest<HTMLElement>(".chip[data-skill]");
+  if (!c || !town || e.button > 0 || drag) return;
+  e.preventDefault();
+  const ghost = document.createElement("div");
+  ghost.className = "chip ghost"; ghost.textContent = c.textContent; ghost.style.left = e.clientX + "px"; ghost.style.top = e.clientY + "px";
+  document.body.append(ghost);
+  drag = { skill: c.dataset.skill!, from: c.dataset.from!, ghost };
+  addEventListener("pointermove", dragMove); addEventListener("pointerup", dragUp); addEventListener("pointercancel", endDrag);
+});
+addEventListener("keydown", (e) => { if (e.key === "Escape" && drag) endDrag(); });
+
+document.getElementById("tw-close")!.onclick = closeTown;
+document.getElementById("found")!.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const f = e.target as HTMLFormElement, name = (f.elements.namedItem("name") as HTMLInputElement).value, skills = (f.elements.namedItem("skills") as HTMLInputElement).value.split(",").map((x) => x.trim()).filter(Boolean);
+  const r = await post("/game/found", { name, skills });
+  if (!r.ok) return say(esc(r.error ?? "could not found it"));
+  f.reset();
+  picked = String(r.id ?? "");
+  await fresh();
+  say(`Founded ${esc(guildName(picked))}${skills.length ? ` with ${skills.length} skill${skills.length === 1 ? "" : "s"}` : ""}.`);
+});
+toast.addEventListener("click", (e) => {
+  const u = (e.target as HTMLElement).closest<HTMLElement>("[data-undo]");
+  if (u) { const [skill, from] = u.dataset.undo!.split("|"); if (skill && from) void moveTo(skill, from); }
+});
+twInfo.addEventListener("click", (e) => {
+  const c = (e.target as HTMLElement).closest<HTMLElement>("[data-card]");
+  if (c) document.getElementById("g-" + c.dataset.card)?.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+});
+root.addEventListener("change", (e) => {
+  const sel = (e.target as HTMLElement).closest<HTMLSelectElement>("select[data-move]");
+  if (sel && sel.value) { const skill = sel.dataset.move!, to = sel.value; sel.blur(); void moveTo(skill, to); }
+});
+// A menu left without a choice: the page catches up with what it skipped meanwhile.
+root.addEventListener("focusout", (e) => { if (e.target instanceof HTMLSelectElement) setTimeout(() => void load(), 50); });
+root.addEventListener("click", (e) => { if ((e.target as HTMLElement).closest("[data-town]")) void openTown(); });
+
 let busy = false;
-async function load() {
-  if (busy) return;
+// True when this call did the fetch; false when one was already under way.
+async function load(): Promise<boolean> {
+  if (busy) return false;
   busy = true;
   try {
     const r = await fetch("/game/state");
     if (!r.ok) throw new Error(`${r.status}`);
-    draw((await r.json()) as State);
+    const next = (await r.json()) as State;
+    // A menu that is open stays: the page is redrawn when the choice is made or the menu closes.
+    if (last && document.activeElement instanceof HTMLSelectElement && root.contains(document.activeElement)) { last = next; sync(); return true; }
+    draw(next);
   } catch (e) {
     if (root.getAttribute("aria-busy")) root.innerHTML = `<p class="empty">The realm is out of reach (${esc(e instanceof Error ? e.message : e)}). Is kaizen web running?</p>`;
   } finally { busy = false; }
+  return true;
 }
+// After a write: a fetch that starts after it. A refresh already under way may have asked before the
+// write, so wait for it to end and then ask again.
+async function fresh() { while (!(await load())) await new Promise((ok) => setTimeout(ok, 40)); }
 
 // Theme: the board's own choice (kz-theme) is followed; the button flips it.
 const doc = document.documentElement, dark = matchMedia("(prefers-color-scheme: dark)");

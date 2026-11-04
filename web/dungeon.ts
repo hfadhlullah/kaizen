@@ -1,11 +1,9 @@
 // The dungeon scene: a flat side view drawn with three.js from primitives (placeholders until
 // the Blender art of phases 4 to 6). It draws what web/dungeon-script.ts says and nothing else.
-// Loaded on demand by the Game page as /dungeon.js, which sets window.KzDungeon; bundled by
-// `bun run build:web`.
-import {
-  AmbientLight, BoxGeometry, Color, ConeGeometry, DirectionalLight, Group, Mesh, MeshLambertMaterial,
-  OrthographicCamera, Scene, SphereGeometry, WebGLRenderer, type BufferGeometry, type Material,
-} from "three";
+// Loaded on demand by the Game page inside /scenes.js (web/scenes.ts), which sets window.KzDungeon;
+// bundled by `bun run build:web`.
+import { AmbientLight, DirectionalLight, Group, Mesh, OrthographicCamera, Scene } from "three";
+import { makeKit } from "./scene-kit.ts";
 import { dungeonScript, liveFrame, replay, type DungeonIn, type Frame, type Script } from "./dungeon-script.ts";
 
 export type Mounted = DungeonIn & { id: string; title: string; waves: number };
@@ -16,21 +14,17 @@ const VIEW_H = 7, CAM_LEAD = 2.6;
 const esc = (s: unknown) => String(s ?? "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const n = (x: number) => x.toLocaleString("en-US");
 
-function mount(host: HTMLElement, first: Mounted, startPaused = false): Handle | null {
-  let renderer: WebGLRenderer;
-  try { renderer = new WebGLRenderer({ antialias: true, alpha: true }); } catch { return null; }
+export function mount(host: HTMLElement, first: Mounted, startPaused = false): Handle | null {
   let d = first, script: Script = dungeonScript(d);
   let paused = startPaused || matchMedia("(prefers-reduced-motion: reduce)").matches, t = 0, last = performance.now(), raf = 0, dead = false;
-  let ready = false; // set once the scene exists; recolor() runs earlier, while it is built
   let minionT = 0;
   let heroX = d.outcome === "live" ? liveFrame(d).x : 0, shownDefeated = -1, swing = 0; // a live hero starts where the run is, not at the door
 
   host.innerHTML = `<div class="dg-hud" aria-live="polite"></div><div class="dg-stage"></div><div class="dg-loot" hidden></div>`;
   const hud = host.querySelector<HTMLElement>(".dg-hud")!, stage = host.querySelector<HTMLElement>(".dg-stage")!, loot = host.querySelector<HTMLElement>(".dg-loot")!;
-  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
-  renderer.domElement.setAttribute("role", "img");
-  renderer.domElement.setAttribute("aria-label", "The dungeon: your hero walking left to right through the stages");
-  stage.append(renderer.domElement);
+  const kit = makeKit(host, stage, "The dungeon: your hero walking left to right through the stages");
+  if (!kit) { host.innerHTML = ""; return null; }
+  const { renderer, mat, box, cone, ball } = kit;
 
   const scene = new Scene();
   scene.add(new AmbientLight(0xffffff, 0.6));
@@ -38,25 +32,6 @@ function mount(host: HTMLElement, first: Mounted, startPaused = false): Handle |
   const cam = new OrthographicCamera(-5, 5, VIEW_H / 2, -VIEW_H / 2, 0.1, 50);
   cam.position.set(0, 2.6, 12);
 
-  // Colours come from the page's own tokens, read again when the theme flips.
-  const css = (name: string, fallback: string) => { try { return new Color(getComputedStyle(host).getPropertyValue(name).trim() || fallback); } catch { return new Color(fallback); } };
-  const tracked: { mat: MeshLambertMaterial; token: string; fallback: string; mix?: [string, number] }[] = [];
-  const geos: BufferGeometry[] = [];
-  const mats: Material[] = [];
-  const mat = (token: string, fallback: string, mix?: [string, number]) => {
-    const m = new MeshLambertMaterial(); tracked.push({ mat: m, token, fallback, mix }); mats.push(m); return m;
-  };
-  const box = (w: number, h: number, dd: number) => { const g = new BoxGeometry(w, h, dd); geos.push(g); return g; };
-  const cone = (r: number, h: number) => { const g = new ConeGeometry(r, h, 5); geos.push(g); return g; };
-  const ball = (r: number) => { const g = new SphereGeometry(r, 14, 10); geos.push(g); return g; };
-  const recolor = () => {
-    for (const t of tracked) {
-      const c = css(t.token, t.fallback);
-      if (t.mix) c.lerp(t.mix[0].startsWith("#") ? new Color(t.mix[0]) : css(t.mix[0], "#000000"), t.mix[1]);
-      t.mat.color.copy(c);
-    }
-    if (ready) kick();
-  };
   const mGround = mat("--line", "#7a5a2c"), mFar = mat("--panel-2", "#eadcb8", ["--line", 0.25]), mGold = mat("--gold-fill", "#d9a62e");
   const mHero = mat("--ink", "#2c1d0e", ["--gold", 0.15]), mSkin = mat("--panel", "#f4ead2", ["--gold-fill", 0.35]), mCape = mat("--gold", "#7a5100");
   const mMon = mat("--danger", "#8f2323"), mBoss = mat("--danger", "#8f2323", ["#1a0505", 0.45]), mDown = mat("--dim", "#5e4729");
@@ -84,18 +59,16 @@ function mount(host: HTMLElement, first: Mounted, startPaused = false): Handle |
     if (m.boss) for (const sx of [-0.55, 0.55]) { const h = new Mesh(cone(0.18, 0.7), mGold); h.position.set(sx * 0.4, 2.85, 0); h.rotation.z = -sx * 0.7; g.add(h); }
     g.position.set(m.x, 0, 0); scene.add(g); foes.push({ g, boss: m.boss, at: m.x, life: 1 });
   });
-  recolor();
+  kit.recolor();
 
   // The loop runs while the scene moves; paused, it draws once per change and stops.
   const kick = () => { if (!raf && !dead) { last = performance.now(); raf = requestAnimationFrame(draw); } };
-  const size = () => {
-    const w = Math.max(280, stage.clientWidth), h = Math.round(Math.max(200, Math.min(380, w * 0.42)));
+  const VIEW_W = (w: number, h: number) => (VIEW_H * (w / h)) / 2;
+  kit.watch(stage, (cw) => {
+    const w = Math.max(280, cw), h = Math.round(Math.max(200, Math.min(380, w * 0.42)));
     renderer.setSize(w, h, false); renderer.domElement.style.width = "100%"; renderer.domElement.style.height = h + "px";
-    const half = (VIEW_H * (w / h)) / 2; cam.left = -half; cam.right = half; cam.updateProjectionMatrix(); kick();
-  };
-  const ro = new ResizeObserver(size); ro.observe(stage); size();
-  const mo = new MutationObserver(recolor); mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-  const mq = matchMedia("(prefers-color-scheme: dark)"); mq.addEventListener("change", recolor);
+    const half = VIEW_W(w, h); cam.left = -half; cam.right = half; cam.updateProjectionMatrix(); kick();
+  }, () => kick());
 
   const live = () => d.outcome === "live";
   const frameAt = (): Frame => (live() ? liveFrame(d) : replay(d, t));
@@ -153,7 +126,7 @@ function mount(host: HTMLElement, first: Mounted, startPaused = false): Handle |
     renderer.render(scene, cam);
     if (!paused) raf = requestAnimationFrame(draw);
   }
-  ready = true; kick();
+  kick();
   if (!live() && paused) t = 10 ** 8; // paused at the start (reduced motion, or a rebuild while you paused): the end of a finished run, not its first frame
 
   return {
@@ -170,9 +143,6 @@ function mount(host: HTMLElement, first: Mounted, startPaused = false): Handle |
   };
 
   function destroy() {
-    dead = true; cancelAnimationFrame(raf); ro.disconnect(); mo.disconnect(); mq.removeEventListener("change", recolor);
-    geos.forEach((g) => g.dispose()); mats.forEach((m) => m.dispose()); renderer.dispose(); renderer.forceContextLoss(); renderer.domElement.remove();
+    dead = true; cancelAnimationFrame(raf); kit!.destroy();
   }
 }
-
-(window as unknown as { KzDungeon: unknown }).KzDungeon = { mount };

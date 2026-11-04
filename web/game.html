@@ -67,7 +67,25 @@ section{margin-top:22px}
 @keyframes pulse{50%{opacity:.25}}
 @media(prefers-reduced-motion:reduce){.badge.live::before{animation:none}}
 .row[data-open]{cursor:pointer;border-radius:4px}.row[data-open]:hover,.row[data-open]:focus-visible{background:var(--panel-2)}
-.dg{margin-bottom:22px}
+.dg,.tw{margin-bottom:22px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.visit{margin-top:14px;min-height:36px;padding:0 14px;border:1px solid var(--gold);border-radius:6px;background:var(--panel-2);font:700 13px var(--sans);color:var(--gold)}.visit:hover{background:var(--panel)}
+.toast{margin:0 0 14px;padding:9px 14px;border:1px solid var(--gold);border-radius:6px;background:var(--panel-2);font:14px var(--sans);color:var(--ink)}
+.toast button{margin-left:10px;padding:2px 10px;border:1px solid var(--line);border-radius:5px;background:var(--panel);font:600 12px var(--sans);color:var(--ink)}
+.tw-stage{position:relative;border:2px solid var(--line);border-radius:4px;overflow:hidden;background:linear-gradient(var(--panel-2),color-mix(in srgb,var(--panel-2) 55%,var(--bg)))}.tw-stage canvas{display:block}
+.tw-label{position:absolute;left:0;top:0;pointer-events:none;white-space:nowrap;padding:1px 7px;border:1px solid var(--line);border-radius:999px;background:color-mix(in srgb,var(--panel) 88%,transparent);font:600 11px var(--sans);color:var(--dim)}.tw-label b{color:var(--ink);margin-right:3px}
+.tw-info{margin-top:10px;font:14px var(--sans);color:var(--dim)}.tw-info h3{font-size:16px;color:var(--ink);margin-bottom:4px}.tw-info p{margin:4px 0}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.chip{display:inline-block;padding:4px 11px;border:1px solid var(--gold);border-radius:999px;background:var(--panel-2);font:600 13px var(--sans);color:var(--ink);cursor:grab;touch-action:none;user-select:none}
+.chip:active{cursor:grabbing}
+.ghost{position:fixed;z-index:50;pointer-events:none;transform:translate(-50%,-130%);box-shadow:0 6px 14px -6px var(--shade)}
+.tw-info button.link{padding:0;border:0;background:none;color:var(--gold);font:600 13px var(--sans);text-decoration:underline;cursor:pointer}
+.tw-found{margin-top:12px;font:14px var(--sans)}.tw-found summary{cursor:pointer;font-weight:700;color:var(--gold)}
+.tw-found form{display:grid;gap:10px;margin-top:10px;max-width:460px}.tw-found label{display:grid;gap:3px;font-size:13px;color:var(--dim)}
+.tw-found input{min-height:36px;padding:0 10px;border:1px solid var(--line);border-radius:6px;background:var(--panel);font:15px var(--sans);color:var(--ink)}
+.tw-found button{justify-self:start;min-height:36px;padding:0 16px;border:1px solid var(--gold);border-radius:6px;background:var(--panel-2);font:700 13px var(--sans);color:var(--gold)}
+.mv{grid-column:1/3;display:block}.mv select{max-width:100%;min-height:28px;padding:0 6px;border:1px solid var(--line);border-radius:5px;background:var(--panel);font:12px var(--sans);color:var(--dim)}
+.tw-list{margin:8px 0 0;padding-left:20px;font:14px var(--sans);color:var(--dim)}
 .dg-bar{display:flex;align-items:center;gap:8px;margin-bottom:10px}.dg-bar h2{flex:1;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dg-bar button{min-height:34px;padding:0 12px;border:1px solid var(--line);border-radius:6px;background:var(--panel);font:600 13px var(--sans);color:var(--ink)}.dg-bar button:hover{background:var(--panel-2)}
 .dg-hud{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
@@ -92,6 +110,19 @@ section{margin-top:22px}
     <h1>Kaizen Realm</h1>
     <button id="theme" title="Switch between day and night" aria-label="Switch between day and night">☾</button>
   </div>
+  <p id="toast" class="toast" role="status" aria-live="polite" hidden></p>
+  <section id="town" class="panel tw" hidden aria-label="Guild town">
+    <div class="dg-bar"><h2>The guild town</h2><button id="tw-close" type="button" aria-label="Close the town">✕</button></div>
+    <div id="tw-body"></div>
+    <div id="tw-info" class="tw-info"></div>
+    <details class="tw-found"><summary>Found a guild</summary>
+      <form id="found" autocomplete="off">
+        <label>Name<input name="name" maxlength="40" required></label>
+        <label>Starting skills, separated by commas (up to 8)<input name="skills"></label>
+        <button type="submit">Found it</button>
+      </form>
+    </details>
+  </section>
   <section id="dungeon" class="panel dg" hidden aria-label="Dungeon">
     <div class="dg-bar"><h2 id="dg-title"></h2>
       <button id="dg-pause" type="button">Pause</button><button id="dg-replay" type="button">Replay</button><button id="dg-close" type="button" aria-label="Close the dungeon">✕</button></div>
