@@ -68,7 +68,7 @@ function msg(m, i) {
   const runs = runsIn(m.text + " " + (m.steps || []).map((s) => s.text).join(" "));
   // Nothing yet: the typing dots stand in for the reply.
   if (!steps.length && !m.text && !m.error && !active) return "";
-  return html`<div class="hm a${anim}">${m.text ? html`<div class="hb md">${raw(md(m.text))}</div>` : ""}${steps.length ? html`<details class="hsteps"><summary>${steps.length} step${steps.length > 1 ? "s" : ""}</summary><ul>${steps}</ul></details>` : ""}${m.error ? html`<div class="herr">${m.error}</div>` : ""}${moved.map((s) => html`<div class="hmove${s.ok === false ? " bad" : ""}">${ico("board")}${s.text}</div>`)}${runs.map((id) => html`<button class="btn ghost sm hrun" data-run="${id}">${ico("board")}Open ${id}</button>`)}${active ? html`<div class="hactivity" role="status"><span class="hmascot" aria-hidden="true"><i class="mascot"></i><i class="hlaptop"></i></span><span class="hactivity-copy"><span>${m.activity || "Thinking…"}</span><span class="hdots" aria-hidden="true"><i></i><i></i><i></i></span></span></div>` : ""}</div>`;
+  return html`<div class="hm a${anim}">${m.text ? html`<div class="hb md">${raw(md(m.text))}</div>` : ""}${steps.length ? html`<details class="hsteps"><summary>${steps.length} step${steps.length > 1 ? "s" : ""}</summary><ul>${steps}</ul></details>` : ""}${m.error ? html`<div class="herr">${m.error}</div>` : ""}${moved.map((s) => html`<div class="hmove${s.ok === false ? " bad" : ""}">${ico("board")}${s.text}</div>`)}${runs.map((id) => html`<button class="btn ghost sm hrun" data-run="${id}">${ico("board")}Open ${id}</button>`)}${active ? html`<div class="hactivity" role="status"><span class="hmascot" aria-hidden="true"><i class="hlaptop"></i></span><span class="hactivity-copy"><span>${m.activity || "Thinking…"}</span><span class="hdots" aria-hidden="true"><i></i><i></i><i></i></span></span></div>` : ""}</div>`;
 }
 
 function hero() {
@@ -200,7 +200,7 @@ function draw() {
   grow(q);
   q.oninput = () => grow(q);
   q.onkeydown = (e) => {
-    if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
+    if (e.key === "Enter" && !e.shiftKey && !e.isComposing && !phone()) { // no Shift on a phone: Enter is a new line, the Send button sends
       e.preventDefault();
       $("hbox").requestSubmit();
     }

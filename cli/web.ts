@@ -1112,6 +1112,13 @@ export async function web(repoDir: string, opts: Opts = {}) {
         if (!isLoopback(u)) return bad("only a localhost address", 400);
         return json({ ok: await openApp(u.href, join(home, ".kaizen", "app-window")) });
       }
+      // What `kaizen preview` last wrote for this state dir (cli/preview.ts); the board's Browser tab polls it.
+      if (req.method === "GET" && path === "/preview") {
+        if (!local(req)) return bad("cross-origin request refused", 403);
+        const dir = qdir() ?? state;
+        if (!dir || !states(true).includes(dir)) return bad("unknown state dir", 404);
+        try { return json(JSON.parse(readFileSync(join(dir, "preview.json"), "utf8"))); } catch { return json({}); }
+      }
       // The loopback ports this workspace's own processes listen on (its dev server), so the
       // Browser opens the run's app and not another project's on the Preview's port. Linux only
       // (ss + /proc); elsewhere the answer is empty and the Preview's address is used.

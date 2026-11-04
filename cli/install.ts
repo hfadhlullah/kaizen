@@ -30,7 +30,7 @@ const interactive = process.stdin.isTTY && !check && !upgrade && !args.has("--ye
 // installer, so a typo or a command from a newer kaizen reinstalled instead of failing.
 // cli/install-unknown.test.ts fails if a dispatched word is missing here.
 const COMMANDS = ["automation", "help", "init", "browser", "card", "chat", "computer", "config", "docs", "done", "gather", "handoff",
-  "icebox", "issue", "prune", "recall", "related", "remember", "report", "roadmap", "settings", "setup", "sources",
+  "icebox", "issue", "preview", "prune", "recall", "related", "remember", "report", "roadmap", "settings", "setup", "sources",
   "state", "stats", "uninstall", "upgrade", "version", "web", "worker", "worktree"];
 const first = Bun.argv[2];
 const commandList = `  commands: ${COMMANDS.join(", ")}\n  plain \`kaizen\` opens the board; \`kaizen --yes\` installs; \`kaizen init\` sets up this folder\n`;
@@ -272,6 +272,17 @@ if (Bun.argv[2] === "stats" || Bun.argv[2] === "related") {
   const r = related(state, words);
   console.log(json ? JSON.stringify(r, null, 2) : r.length ? r.map((x) => `${x.id} — ${x.title}${x.open ? ` — ${x.open} open backlog` : ""}`).join("\n") : "Related: none");
   process.exit(0);
+}
+
+// `kaizen preview <url|image>`: shows what an agent changed in the board's Browser tab, see cli/preview.ts.
+if (Bun.argv[2] === "preview") {
+  const { locate } = await import("./state.ts");
+  const { setPreview } = await import("./preview.ts");
+  const state = locate();
+  const arg = Bun.argv[3] ?? "";
+  const why = !arg ? "kaizen preview <localhost url | screenshot.png>" : !state ? "no kaizen project here" : setPreview(state, arg, process.cwd());
+  console.log(why ? `\n  ${why}\n` : `\n  ${c.green("ok")}  the open kaizen board shows it: a page in Browser, a screenshot in Preview\n`);
+  process.exit(why ? 1 : 0);
 }
 
 // `kaizen remember …` / `kaizen recall …`: global knowledge, see cli/knowledge.ts.
@@ -1218,12 +1229,20 @@ function initProject() {
 // ("add a discount cap") does not reach kaizen unless the project says it should.
 // One line in the agent instructions is what makes it the default here.
 function writePointer() {
-  const block = `\n## Kaizen workflow\n\nNon-trivial work in this repository follows the staged workflow in\n\`.kaizen/spec.md\`: plan, human approval, build, independent review, bounded fix\nloop. Invoke the \`kaizen\` skill for it — do not carry the stages out inline.\n\nA run costs several times what the same change costs in one session, so spend it\nwhere being wrong is expensive: money, data loss, a migration or anything else hard\nto undo, work a customer sees, or a part of the system nobody has read in a year.\n\nWork where being wrong is cheap and obvious does not start a run. Answering a\nquestion, reading code, a one-line fix, a rename the compiler checks — do those\ndirectly. When it is genuinely unclear, ask rather than assuming the expensive path.\n\nBefore non-trivial work, run \`kaizen recall --track <track> --query "<topic>"\` and\ntreat what it returns as past experience from other projects to verify, not as rules.\n\nRun state lives in \`.kaizen/runs/<id>/\`. Read \`state.json\` first and continue from\nthe stage it names; never advance a run whose \`awaiting\` field is non-null without a\nrecorded human decision.\n`;
+  const block = `\n## Kaizen workflow\n\nNon-trivial work in this repository follows the staged workflow in\n\`.kaizen/spec.md\`: plan, human approval, build, independent review, bounded fix\nloop. Invoke the \`kaizen\` skill for it — do not carry the stages out inline.\n\nA run costs several times what the same change costs in one session, so spend it\nwhere being wrong is expensive: money, data loss, a migration or anything else hard\nto undo, work a customer sees, or a part of the system nobody has read in a year.\n\nWork where being wrong is cheap and obvious does not start a run. Answering a\nquestion, reading code, a one-line fix, a rename the compiler checks — do those\ndirectly. When it is genuinely unclear, ask rather than assuming the expensive path.\n\nBefore non-trivial work, run \`kaizen recall --track <track> --query "<topic>"\` and\ntreat what it returns as past experience from other projects to verify, not as rules.\n\nAfter you change something a person can look at (a page, an app screen, a UI), show it\nbefore saying done: start the app\'s dev server if it is not running, then run\n\`kaizen preview <localhost url>\` (or \`kaizen preview <screenshot.png>\` for a static result).\nA page opens in the kaizen board\'s Browser tab and a screenshot in its Preview tab, never a new browser window.\n\nRun state lives in \`.kaizen/runs/<id>/\`. Read \`state.json\` first and continue from\nthe stage it names; never advance a run whose \`awaiting\` field is non-null without a\nrecorded human decision.\n`;
 
   for (const name of ["CLAUDE.md", "AGENTS.md"]) {
     const f = join(process.cwd(), name);
     const current = existsSync(f) ? readFileSync(f, "utf8") : "";
-    if (current.includes("## Kaizen workflow")) continue;
+    if (current.includes("## Kaizen workflow")) {
+      // Projects set up before `kaizen preview` get its paragraph on the next init.
+      if (!current.includes("kaizen preview")) {
+        const para = block.slice(block.indexOf("After you change something"), block.indexOf("Run state lives"));
+        writeFileSync(f, current.replace("\nRun state lives in", "\n" + para + "Run state lives in"));
+        step(`added the preview line to ${name}`);
+      }
+      continue;
+    }
     if (!current && name === "AGENTS.md") continue;   // do not create one that was never there
     const text = current ? (current.endsWith("\n") ? "" : "\n") + block : block.slice(1);
     appendFileSync(f, text);

@@ -294,7 +294,7 @@ dialog.gs::backdrop{background:rgb(0 0 0/.35)}
 .gs-w{margin-left:auto;padding-left:8px;color:var(--dim);font-size:var(--fs-xs,11px);flex:none}
 .gs-none{padding:14px 8px;text-align:center;color:var(--dim);font-size:var(--fs-s,12px)}
 .gs-live{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
-@media(max-width:640px){.rail a.it.gs-it{display:none}}`;
+@media(max-width:640px){.rail a.it.gs-it{order:4}}`;
 
 export function initSearch() {
   const st = document.createElement("style");
