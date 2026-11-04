@@ -28,6 +28,8 @@ import * as chatgpt from "./chatgpt.ts";
 import * as google from "./google.ts";
 import { writeBacks } from "./writeback.ts";
 import { postLink, sendReply } from "./browser.ts";
+import { openProxy, closeAllProxies } from "./annotate-proxy.ts";
+import { parseNotes, line as annLine, markdown as annMarkdown, saveCrops, LEVELS, type Level } from "./annotate.ts";
 import { tailnetName } from "./setup.ts";
 import { connectPhone, loginUrl, readPhone } from "./phone-setup.ts";
 import { listNotes, saveNote, renameNote, deleteNote, boardIndex, linksTo } from "./notes.ts";
@@ -1188,6 +1190,41 @@ export async function web(repoDir: string, opts: Opts = {}) {
           const fa = /frame-ancestors([^;]*)/i.exec(r.headers.get("content-security-policy") ?? "")?.[1].trim() ?? "";
           return json({ frameable: !xfo && (!fa || fa.split(/\s+/).includes("*")) });
         } catch { return json({ frameable: null }); }
+      }
+
+      // The annotator (cli/annotate.ts, cli/annotate-proxy.ts): open a loopback page through the proxy that adds
+      // the annotator script, turn notes into text for Copy, or type them into the run's agent.
+      if (req.method === "POST" && path === "/annotate/open") {
+        const refused = strict(req);
+        if (refused) return refused;
+        let body: any;
+        try { body = await req.json(); } catch { return bad("json body expected"); }
+        let u: URL;
+        try { u = new URL(String(body.url ?? "")); } catch { return bad("not a url"); }
+        if (!/^https?:$/.test(u.protocol) || !isLoopback(u)) return bad("only a localhost address", 400);
+        try {
+          const px = openProxy(u);
+          return json({ ok: true, origin: px.origin, token: px.token, url: px.origin + u.pathname + u.search + u.hash });
+        } catch (e) { return bad((e as Error).message, 500); }
+      }
+      if (req.method === "POST" && (path === "/annotate/format" || path === "/annotate/send")) {
+        const refused = strict(req);
+        if (refused) return refused;
+        let body: any;
+        try { body = await req.json(); } catch { return bad("json body expected"); }
+        const level = (LEVELS as readonly string[]).includes(body.level) ? (body.level as Level) : "standard";
+        const comps = body.components !== false;
+        const notes = parseNotes(body.notes);
+        if (!notes.length) return bad("no notes to use", 400);
+        if (path === "/annotate/format") return json({ ok: true, text: annMarkdown(notes, level, comps) });
+        const dir = canonState(String(body.dir ?? ""));
+        const id = String(body.id ?? "");
+        if (!states(true).includes(dir) || dir === join(home, ".kaizen") || !/^[\w.-]+$/.test(id)) return bad("choose a run", 404);
+        const live = liveAgent(dir, id);
+        if (!live) return bad("this run has no agent open to send to", 409);
+        const crops = saveCrops(dir, id, notes);
+        submitPty(live.key, annLine(notes, level, comps, crops));
+        return json({ ok: true, sent: notes.length, crops: crops.filter(Boolean).length });
       }
 
       // The footer: each installed agent's plan usage (cached a minute, ?refresh=1 asks
@@ -2465,6 +2502,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
       const live = ptyKeys().some((k) => ptyState(k)?.alive);
       saveLive();
       awake.stop();
+      closeAllProxies();
       clearInterval(poll); clearInterval(ping); clearInterval(gather); clearInterval(automate); clearInterval(loop); clearInterval(keepList);
       for (const w of watchers) { try { w.close(); } catch { /* gone */ } }
       setTimeout(() => { server.stop(true); resolve(); }, live ? 400 : 0);
