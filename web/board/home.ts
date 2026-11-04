@@ -200,7 +200,7 @@ function draw() {
   grow(q);
   q.oninput = () => grow(q);
   q.onkeydown = (e) => {
-    if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
+    if (e.key === "Enter" && !e.shiftKey && !e.isComposing && !phone()) { // no Shift on a phone: Enter is a new line, the Send button sends
       e.preventDefault();
       $("hbox").requestSubmit();
     }
