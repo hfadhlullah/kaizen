@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>kaizen game</title>
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" href="/logo.png">
+<style>
+/* The Game page has its own look, parchment by day and a night variant: tokens only, nothing hard-coded below. */
+:root{--bg:#e6d6b2;--panel:#f4ead2;--panel-2:#eadcb8;--line:#7a5a2c;--ink:#2c1d0e;--dim:#5e4729;--gold:#7a5100;--gold-fill:#d9a62e;--ok:#2f6b2d;--danger:#8f2323;--on-gold:#2c1d0e;--shade:rgb(60 40 10/.25);color-scheme:light}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0d1020;--panel:#181b33;--panel-2:#232748;--line:#9a7b3c;--ink:#f0e7d0;--dim:#b8ad92;--gold:#e8bd55;--gold-fill:#c9962c;--ok:#74c46f;--danger:#ef7a7a;--on-gold:#1a1204;--shade:rgb(0 0 0/.5);color-scheme:dark}}
+:root[data-theme=dark]{--bg:#0d1020;--panel:#181b33;--panel-2:#232748;--line:#9a7b3c;--ink:#f0e7d0;--dim:#b8ad92;--gold:#e8bd55;--gold-fill:#c9962c;--on-gold:#1a1204;--ok:#74c46f;--danger:#ef7a7a;--shade:rgb(0 0 0/.5);color-scheme:dark}
+*{box-sizing:border-box}
+:root{--serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;--sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+html{background:var(--bg)}
+body{margin:0;min-height:100vh;background:radial-gradient(ellipse at top,color-mix(in srgb,var(--panel) 55%,var(--bg)),var(--bg) 70%);color:var(--ink);font:15px/1.5 var(--serif);-webkit-font-smoothing:antialiased}
+@media(max-width:640px){body{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}}
+button,a{font:inherit;color:inherit}button{background:none;border:0;cursor:pointer;padding:0}a{text-decoration:none}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+[hidden]{display:none!important}
+.wrap{max-width:1080px;margin:0 auto;padding:18px 16px 48px}
+.bar{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.bar a.back,.bar button{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 12px;border:1px solid var(--line);border-radius:6px;background:var(--panel);font:600 13px var(--sans);color:var(--ink)}
+.bar a.back:hover,.bar button:hover{background:var(--panel-2)}
+.bar h1{flex:1;margin:0;font:700 22px/1.2 var(--serif);letter-spacing:.04em;color:var(--gold);text-align:center;text-transform:uppercase}
+/* a framed parchment panel: a double rule with a diamond at each corner */
+.panel{position:relative;background:var(--panel);border:2px solid var(--line);border-radius:4px;box-shadow:inset 0 0 0 4px var(--panel),inset 0 0 0 5px var(--line),0 6px 18px -8px var(--shade);padding:20px}
+.panel::before,.panel::after{content:"";position:absolute;width:9px;height:9px;background:var(--gold-fill);border:1px solid var(--line);transform:rotate(45deg);top:-6px;left:-6px}
+.panel::after{left:auto;right:-6px}
+h2{margin:0 0 12px;font:700 16px var(--serif);letter-spacing:.08em;text-transform:uppercase;color:var(--gold)}
+h3{margin:0;font:700 17px var(--serif)}
+.hero{display:grid;grid-template-columns:150px 1fr;gap:22px;align-items:center}
+.portrait{width:150px;height:190px;border:2px solid var(--line);border-radius:4px;background:linear-gradient(var(--panel-2),var(--panel));display:block}
+.name{font:700 28px/1.1 var(--serif);margin:0}
+.lvl{font:600 13px var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin:2px 0 10px}
+.lvl b{font:700 22px var(--serif);color:var(--gold);letter-spacing:0;margin-left:6px}
+.xp{height:14px;border:1px solid var(--line);border-radius:7px;background:var(--panel-2);overflow:hidden}
+.xp i{display:block;height:100%;background:linear-gradient(90deg,var(--gold-fill),color-mix(in srgb,var(--gold-fill) 70%,#fff));border-radius:7px 0 0 7px}
+.xpn{margin:5px 0 0;font:13px var(--sans);color:var(--dim)}
+.stats{display:flex;flex-wrap:wrap;gap:8px 22px;margin-top:14px;font:13px var(--sans);color:var(--dim)}
+.stats b{font:700 18px var(--serif);color:var(--ink);margin-right:4px}
+section{margin-top:22px}
+.guilds{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.guild{padding:16px 18px}
+.guild.locked{opacity:.78}
+.guild header{display:flex;align-items:baseline;gap:10px;margin-bottom:2px}
+.guild header span{margin-left:auto;font:700 13px var(--sans);color:var(--gold);white-space:nowrap}
+.blurb{margin:0 0 10px;font-size:14px;color:var(--dim);font-style:italic}
+.skills{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:7px}
+.skills li{display:grid;grid-template-columns:1fr auto;gap:2px 10px;font:14px var(--sans)}
+.skills li .xp{grid-column:1/3;height:6px;border-radius:3px}
+.skills li .xp i{border-radius:3px 0 0 3px}
+.skills small{color:var(--dim)}
+.more{margin:8px 0 0;font:12px var(--sans);color:var(--dim)}
+.log{display:grid;gap:0}
+.row{display:grid;grid-template-columns:92px 1fr auto;gap:4px 14px;align-items:center;padding:10px 4px;border-top:1px solid color-mix(in srgb,var(--line) 40%,transparent)}
+.row:first-child{border-top:0}
+.row .t{font:600 15px var(--serif);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .m{grid-column:2;font:12px var(--sans);color:var(--dim)}
+.row .x{grid-column:3;grid-row:1/3;font:700 15px var(--sans);color:var(--gold);text-align:right;white-space:nowrap}
+.badge{font:700 11px var(--sans);letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border:1px solid currentColor;border-radius:999px;text-align:center}
+.badge.cleared{color:var(--ok)}.badge.retreat,.badge.stalled{color:var(--danger)}.badge.live{color:var(--gold)}
+.badge.live::before{content:"";display:inline-block;width:6px;height:6px;margin-right:5px;border-radius:50%;background:currentColor;animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.25}}
+@media(prefers-reduced-motion:reduce){.badge.live::before{animation:none}}
+.empty{color:var(--dim);font-style:italic;margin:0}
+@media(max-width:640px){
+ .hero{grid-template-columns:96px 1fr;gap:14px}.portrait{width:96px;height:122px}.name{font-size:22px}
+ .bar h1{font-size:16px}.bar .lbl{display:none}
+ .row{grid-template-columns:78px 1fr}.row .x{grid-column:2;grid-row:auto;text-align:left}
+ .guilds{grid-template-columns:1fr}.panel{padding:16px 14px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar">
+    <a class="back" href="/" title="Back to the board">← <span class="lbl">Board</span></a>
+    <h1>Kaizen Realm</h1>
+    <button id="theme" title="Switch between day and night" aria-label="Switch between day and night">☾</button>
+  </div>
+  <main id="root" aria-busy="true"><p class="empty">Gathering the tales of your runs…</p></main>
+</div>
+<script src="/game.js"></script>
+</body>
+</html>

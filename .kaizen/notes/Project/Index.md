@@ -20,7 +20,7 @@ kaizen is a staged workflow for AI agents (plan, approval, build, independent re
 - [[Workflow]] — What a kaizen run is, which files define it, and where its state lives
 - [[CLI]] — The kaizen command: installer, upgrade, uninstall, settings, prune, sources
 - [[Terminal board]] — The TUI dashboard that `kaizen` opens in a terminal
-- [[Web board]] — `kaizen web`: the browser board, its HTTP routes, the shared state layer, and the Video page
+- [[Web board]] — `kaizen web`: the browser board, its HTTP routes, the shared state layer, the Video page and the Game page
 - [[Notebook]] — The Notes tab: an Obsidian-compatible markdown folder under .kaizen/notes/
 - [[Sources and icebox]] — Request sources, gather, the icebox, kaizen's browser for social posts, and ChatGPT judging them
 - [[Kaizen bot]] — Kaizen Bot: a chat front end with division agents over the board

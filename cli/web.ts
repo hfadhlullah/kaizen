@@ -32,6 +32,7 @@ import { tailnetName } from "./setup.ts";
 import { connectPhone, loginUrl, readPhone } from "./phone-setup.ts";
 import { listNotes, saveNote, renameNote, deleteNote, boardIndex, linksTo } from "./notes.ts";
 import * as video from "./video.ts";
+import { cachedGameState } from "./game.ts";
 import * as auto from "./automations.ts";
 import * as localsend from "./localsend.ts";
 import * as hermes from "./hermes.ts";
@@ -56,6 +57,9 @@ const POPUP_PAGE = join(dirname(import.meta.dir), "web", "popup.html");
 // The chat the popup was on when its Back button was pressed, until Home takes it.
 let popupChat: string | null = null;
 const VIDEO_JS = join(dirname(import.meta.dir), "web", "video.js");
+// The Game page (your runs as an RPG: cli/game.ts) and its bundle.
+const GAME_PAGE = join(dirname(import.meta.dir), "web", "game.html");
+const GAME_JS = join(dirname(import.meta.dir), "web", "game.js");
 const DEFAULT_PORT = 7420;
 // Gathered posts a reply is going out to right now: one send per item at a time.
 const replying = new Set<string>();
@@ -76,7 +80,7 @@ delete process.env.KAIZEN_DESKTOP_BUNDLED;
 // page newer than its server sends ops the server does not know ("unknown op").
 // So the pages are kept as they were at start, and read live (dev edits) only while
 // the installed version is still the one this board runs.
-const AT_START = new Map([PAGE, BOARD_JS, NOTES_PAGE, NOTES_JS, TERM_JS, TERM_CSS, VIDEO_PAGE, VIDEO_JS].map((f) => [f, existsSync(f) ? readText(f) : null]));
+const AT_START = new Map([PAGE, BOARD_JS, NOTES_PAGE, NOTES_JS, TERM_JS, TERM_CSS, VIDEO_PAGE, VIDEO_JS, GAME_PAGE, GAME_JS].map((f) => [f, existsSync(f) ? readText(f) : null]));
 const served = (f: string) => installed() === VERSION && existsSync(f) ? readText(f) : AT_START.get(f) ?? null;
 
 // A board answers at url and runs the installed version. A board from before the
@@ -790,6 +794,14 @@ export async function web(repoDir: string, opts: Opts = {}) {
         popupChat = null;
         return Response.json({ id });
       }
+
+      if (req.method === "GET" && (path === "/game" || path === "/game.js")) {
+        const [f, type] = path === "/game" ? [GAME_PAGE, "text/html; charset=utf-8"] : [GAME_JS, "application/javascript; charset=utf-8"];
+        const body = served(f);
+        if (body === null) return new Response(`${path} missing; run bun run build:web`, { status: 500 });
+        return new Response(body, { headers: { "content-type": type, "cache-control": "no-store" } });
+      }
+      if (req.method === "GET" && path === "/game/state") return json(cachedGameState());
 
       if (req.method === "GET" && (path === "/video" || path === "/video.js")) {
         const [f, type] = path === "/video" ? [VIDEO_PAGE, "text/html; charset=utf-8"] : [VIDEO_JS, "application/javascript; charset=utf-8"];

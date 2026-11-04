@@ -97,7 +97,7 @@ export function initViews() {
   initRunView();
   initPhone(go, openWorkspace);
   document.querySelectorAll(".rail a[data-view]").forEach((a) => {
-    if (a.dataset.view === "notes" || a.dataset.view === "video") return;
+    if (a.dataset.view === "notes" || a.dataset.view === "video" || a.dataset.view === "game") return;
     a.onclick = (e) => {
       if (e.ctrlKey || e.metaKey || e.shiftKey || e.button) return;
       e.preventDefault();
