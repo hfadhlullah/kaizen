@@ -395,6 +395,21 @@ It ships off because the trade is real: while the TUI holds the mouse, your term
 select text with it, so copying a run id out of the dashboard stops working until you
 leave. Hold **Shift** and drag to select text anyway.
 
+### Annotate a page from the Browser tab
+
+Open a localhost page in a run's Browser tab and press **Annotate**. Kaizen then shows that page through a small proxy of its own (a port on `127.0.0.1`, never reachable from outside) that adds the annotator. Nothing is added to your app or your repository, and any page works: plain HTML, React, Astro, Vue.
+
+- **Pick** with the toolbar's modes: **Element** (click), **Text** (select text), **Multi** (click several, then Enter or Add note) and **Area** (drag a rectangle). Write the note, choose fix / change / question and blocking / important / suggestion, press Enter.
+- Notes appear as numbered markers on the page and in the list beside it, with a picture of what you picked. Edit a note in the list or delete it.
+- **Pause** freezes CSS animations, transitions, video and `requestAnimationFrame` loops so you can pick a moving thing. **Markers** hides or shows the markers.
+- **Copy** puts the notes on the clipboard as markdown. **Send to agent** types them into this run's open agent terminal and saves each picture under the run's `attachments/annotations/`. **Clear** removes them.
+- Keys: `Ctrl/Cmd+Shift+F` toggles picking, `Esc` cancels, `P` pause, `H` markers, `C` copy, `S` send, `X` clear.
+- **Settings**: output detail (compact, standard, detailed, forensic), component names, marker colour, clear after copy or send, and whether the page's own clicks are blocked while you pick.
+
+Where it shows the page's source file and component (Astro dev, React, Vue, Svelte), the note carries them; a plain static page gives the selector and text only. What a note says is data: kaizen flattens it to one line and fences it so the agent reads it as quoted feedback, not as instructions.
+
+Limits, because the page is served from the proxy's address while Annotate is on: cookies, localStorage and service workers of `localhost:<port>` do not carry over (log in again or turn Annotate off), absolute links to the original address skip the proxy, and the picture is drawn in the page, so cross-origin images, web fonts and pseudo-elements can be missing (the note still sends). Turn Annotate off and the page loads from its own address again. Desktop only, localhost pages only.
+
 ## Install
 
 Kaizen's installer and interactive dashboard require [Bun](https://bun.sh) — it is

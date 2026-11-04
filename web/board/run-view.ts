@@ -24,6 +24,7 @@ import { drawPick, hidePick, initPick, setOpen } from "./run-pick.ts";
 import { age } from "./labels.ts";
 import { go } from "./views.ts";
 import { isPhone } from "./phone.ts";
+import { annotator } from "./annotate.ts";
 
 type Tab = { id: string; kind: "agent" | "shell" | "local" | "preview" | "note" | "wait" | "history"; title: string; key?: string; note?: string; agent?: string };
 // Per workspace: the extra items opened (localhost, preview, notes, History),
@@ -444,7 +445,7 @@ function browser(el: HTMLElement) {
     fwd: string[] = [];
   el.insertAdjacentHTML(
     "beforeend",
-    String(html`<form class="urlbar"><button type="button" data-b="back" title="Back" aria-label="Back">‹</button><button type="button" data-b="fwd" title="Forward" aria-label="Forward">›</button><button type="button" data-b="reload" title="Reload" aria-label="Reload">${ico("refresh")}</button><input class="sel" aria-label="Address" spellcheck="false" value="${url}"><a class="rwin" data-b="tab" target="_blank" rel="noopener" href="${url}" title="Open in a new browser tab">${ico("popout")}<span>New tab</span></a></form>`),
+    String(html`<form class="urlbar"><button type="button" data-b="back" title="Back" aria-label="Back">‹</button><button type="button" data-b="fwd" title="Forward" aria-label="Forward">›</button><button type="button" data-b="reload" title="Reload" aria-label="Reload">${ico("refresh")}</button><input class="sel" aria-label="Address" spellcheck="false" value="${url}"><button type="button" class="rwin" data-b="ann" title="Pick elements on this page and send notes to the agent (localhost pages)">${ico("eye")}<span>Annotate</span></button><a class="rwin" data-b="tab" target="_blank" rel="noopener" href="${url}" title="Open in a new browser tab">${ico("popout")}<span>New tab</span></a></form>`),
   );
   const f = el.querySelector("form")!,
     inp = f.querySelector("input")!,
@@ -460,7 +461,27 @@ function browser(el: HTMLElement) {
   const note = document.createElement("p");
   note.className = "rnote";
   const far = "This page is on the computer running kaizen; from this device localhost is the device itself. Use Open in browser on that computer.";
-  el.append(frame, note);
+  // The annotator (annotate.ts): its toolbar sits above this row, its notes list beside the frame.
+  const row = document.createElement("div");
+  row.className = "annrow";
+  row.append(frame);
+  el.append(row, note);
+  const annBtn = f.querySelector<HTMLButtonElement>("[data-b=ann]")!;
+  annBtn.hidden = !loopback; // from a phone, localhost is the phone itself
+  const ann = annotator({
+    host: el, frame, wsKey: ctx!.k, button: annBtn,
+    run: () => (card?.id ? { dir: card.state, id: card.id } : null),
+    reload: () => go(url, false),
+    // The framed page navigated on its own: show its address, do not load it again.
+    onLocation: (u) => {
+      if (u === url) return;
+      back.push(url), (fwd.length = 0);
+      url = u;
+      inp.value = u;
+      if (ext) ext.href = u;
+      try { localStorage.setItem(k, u); } catch {}
+    },
+  });
   const go = (u, push = true) => {
     if (push && url !== u) back.push(url), (fwd.length = 0);
     url = u;
@@ -474,7 +495,17 @@ function browser(el: HTMLElement) {
     note.hidden = !hide;
     note.textContent = far;
     if (hide) return void expose(u);
-    frame.src = u;
+    // Annotate on: a loopback page is framed through the board's proxy (annotate-proxy.ts), which adds the picker.
+    const seq = ++nav;
+    void ann.open(u).then((via) => {
+      if (seq !== nav) return;
+      frame.src = via ?? u;
+      if (via) return;
+      frameCheck(u);
+    });
+  };
+  let nav = 0;
+  const frameCheck = (u: string) => {
     // Most public sites refuse to be framed (X-Frame-Options / frame-ancestors), and the
     // browser only shows its own error page. The board asks the site first and says so.
     void fetch("/frameable?url=" + encodeURIComponent(u))
@@ -515,6 +546,7 @@ function browser(el: HTMLElement) {
   el.onclick = (e) => {
     const b = (e.target as Element).closest<HTMLElement>("[data-b]")?.dataset.b;
     if (b === "win") void openWindow(url);
+    else if (b === "ann") ann.toggle();
     else if (b === "reload") go(url, false);
     else if (b === "back" && back.length) fwd.push(url), go(back.pop()!, false);
     else if (b === "fwd" && fwd.length) back.push(url), go(fwd.pop()!, false);
