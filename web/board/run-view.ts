@@ -37,7 +37,7 @@ function splitAt(n: Node, at: string, add: string, dir: "cols" | "rows", before 
   return { ...n, kids: n.kids.map((k) => splitAt(k, at, add, dir, before)) };
 }
 // seen: the runs that already opened the Browser on their Preview, so a run does it once.
-type Saved = { tabs: Tab[]; hidden: string[]; screens: Screen[]; on: string | null; seen?: string[] };
+type Saved = { tabs: Tab[]; hidden: string[]; hb?: Record<string, number>; screens: Screen[]; on: string | null; seen?: string[] };
 const ALL: Record<string, Saved> = (() => {
   try {
     return JSON.parse(localStorage.getItem("kz-runtabs") || "{}");
@@ -123,6 +123,12 @@ function tabs(): Tab[] {
     out.push({ id: "sh:" + sh.key, kind: sh.agent ? "agent" : "shell", agent: sh.agent || undefined, title: sh.title, key: sh.key });
   // Opened by hand: History, localhost, Preview, notes.
   const mine = s.tabs.map((t) => (t.kind === "local" ? { ...t, title: "Browser" } : t)); // "local" was saved before the rename
+  // A closed agent tab stays hidden only for that agent: one started again under the same key (a resume) is a new
+  // agent (born differs) and the sidebar lists it, so its tab comes back.
+  for (const a of store.S.agents ?? []) {
+    const id = "agent:" + a.key;
+    if (s.hb && id in s.hb && s.hb[id] !== (a.born ?? 0)) (s.hidden = s.hidden.filter((h) => h !== id)), delete s.hb[id], save();
+  }
   const all = [...out.filter((t) => !s.hidden.includes(t.id)), ...mine];
   return all.filter((t, i) => all.findIndex((x) => x.id === t.id) === i);
 }
@@ -219,7 +225,10 @@ function showTerm() {
   // and the ask lapses after a while so a launch that never came up cannot pull focus later.
   const w = store.wantPty && Date.now() - store.wantPty.at < 20_000 ? store.wantPty.key : null;
   if (store.wantPty && !w) store.wantPty = null;
-  const t = tabs().find((x) => x.key === (wantTerm || w));
+  // Asked for by name (the sidebar's mark, a launch): shown even if its tab was closed before.
+  const want = wantTerm || w, s = saved();
+  if (want) s.hidden = s.hidden.filter((h) => h !== "agent:" + want && h !== "sh:" + want);
+  const t = tabs().find((x) => x.key === want);
   wantTerm = null;
   if (t && store.wantPty?.key === t.key) store.wantPty = null;
   return !!t && (show(t.id), true);
@@ -746,6 +755,7 @@ async function closeTab(id: string) {
       a = store.S.agents?.find((x) => x.key === k);
     if (a?.busy && !confirm("This agent is still working. End it?")) return;
     s.hidden.push(id);
+    (s.hb ||= {})[id] = a?.born ?? 0;
     await post("/pty/exit", { key: k });
     load(true);
   }

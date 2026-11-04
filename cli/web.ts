@@ -305,6 +305,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
   // Shells the board started (POST /shell), by /pty key; dead ones drop on the next /shells.
   const shells = new Map<string, { key: string; dir: string; title: string; agent: string; run: string; ws?: string; pid?: number }>();
   const SHELL_CAP = 8;
+  // The argv each of those started with, kept off the page's copy: saveLive writes it so the next board can start them again.
+  const shellCmd = new Map<string, string[]>();
   // A terminal shows where its live run builds, not where it launched: tabs follow `run`, the rail `ws`.
   const shown = <S extends { key: string; dir: string; run: string; ws?: string }>(x: S): S => {
     const w = linkedWs(x.dir, x.key), project = projectOf(x.dir);
@@ -396,9 +398,11 @@ export async function web(repoDir: string, opts: Opts = {}) {
   const written = new Map<string, number>();
   const owners = new Map<string, { dir: string; run: string | null }>(), unrecorded = new Set<string>();
   let stopping = false, lastList = "";
+  const sidOf = new Map<string, string>();
   const saveLive = (crash = false) => {
     if (stopping) return;
     const live = new Set(ptyKeys().filter((k) => ptyState(k)?.alive));
+    for (const k of sidOf.keys()) if (!live.has(k)) sidOf.delete(k);
     if (!live.size) {
       if (crash && lastList) { rmSync(RESUME_LIST, { force: true }); lastList = ""; }
       return;
@@ -419,14 +423,22 @@ export async function web(repoDir: string, opts: Opts = {}) {
       const o = owners.get(key);
       return o ? [{ dir: o.dir, key, run: o.run, ...(ptyTmux(key) ? { tmux: ptyTmux(key)! } : {}), ...(autoResumed.has(key) ? { resumed: autoResumed.get(key) } : {}) }] : [];
     });
+    // Terminals and agents the board's own + menu started (no run owns them): started again by their argv, a Claude
+    // agent with its conversation (--resume). The session id is kept per key, as Claude drops its file on /exit.
+    const shellList = [...shells.values()].flatMap((x) => {
+      const cmd = shellCmd.get(x.key), st = ptyState(x.key);
+      if (!cmd || !st?.alive || !x.ws) return [];
+      if (x.agent === "claude" && st.pid && !sidOf.has(x.key)) { const sid = claudeSid(st.pid); if (sid) sidOf.set(x.key, sid); }
+      return [{ dir: x.dir, title: x.title, agent: x.agent, run: x.run, ws: x.ws, cmd, sid: sidOf.get(x.key), key: x.key }];
+    });
     try {
       mkdirSync(TAILS, { recursive: true });
       for (const { key } of list) {
         const total = ptyState(key)!.total, t = written.get(key) === total ? null : ptyTail(key);
         if (t) { writeFileSync(tailOf(key), t); written.set(key, total); }
       }
-      const body = JSON.stringify(list);
-      if (!crash || body !== lastList) writeFileSync(RESUME_LIST, JSON.stringify({ at: Date.now(), crash, list }));
+      const body = JSON.stringify([list, shellList]);
+      if (!crash || body !== lastList) writeFileSync(RESUME_LIST, JSON.stringify({ at: Date.now(), crash, list, shells: shellList }));
       lastList = body;
     } catch { /* nothing resumes; the card offers Resume */ }
     if (crash) return;
@@ -981,6 +993,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         const pid = startPty(key, cmd, cwd, undefined, changed, { env: { KAIZEN_TERM: key, ...(dev ? { __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS: ".ts.net" } : {}) } });
         // The run workspace that opened it (its card key), so each run keeps its own centre.
         shells.set(key, { key, dir, title, agent, run: runKey, ws: cwd, pid });
+        shellCmd.set(key, cmd);
         changed();
         return json(shells.get(key));
       }
@@ -2457,11 +2470,12 @@ export async function web(repoDir: string, opts: Opts = {}) {
   // Every agent starts again in its card, never in a window: a board set to open
   // terminals leaves those runs on their Resume button.
   if (existsSync(RESUME_LIST)) {
-    let saved: { at?: number; crash?: boolean; list?: Live[] } = {};
+    let saved: { at?: number; crash?: boolean; list?: Live[]; shells?: { dir: string; title: string; agent: string; run: string; ws: string; cmd: string[]; sid?: string; key: string }[] } = {};
     try { saved = JSON.parse(readText(RESUME_LIST)); } catch { /* unreadable: nothing to resume */ }
     rmSync(RESUME_LIST, { force: true });
-    const done = new Set<string>();
-    for (const { dir, key, run, tmux, resumed } of saved.crash || Date.now() - (saved.at ?? 0) < 3600_000 ? saved.list ?? [] : []) {
+    const done = new Set<string>(), viaRun = new Set<string>();
+    const fresh = saved.crash || Date.now() - (saved.at ?? 0) < 3600_000;
+    for (const { dir, key, run, tmux, resumed } of fresh ? saved.list ?? [] : []) {
       // Kept in tmux and still there: the same agent, mid-step, shown in its card again.
       if (tmux && tmuxAlive(tmux)) {
         try {
@@ -2474,11 +2488,24 @@ export async function web(repoDir: string, opts: Opts = {}) {
       const id = run ?? (s ? ownerOf(dir, s) : null);
       if (!id || done.has(`${dir}\0${id}`)) continue;
       done.add(`${dir}\0${id}`);
+      viaRun.add(key);
       if (saved.crash && resumed && Date.now() - resumed < CRASH_AGAIN_MS) { console.log(`  not resuming ${id}: the board died again right after resuming it`); continue; }
       if (launchMode(projectOf(dir)) !== "card") continue;
       const r = resumeRun(dir, id);
       if (saved.crash && "pty" in r && r.pty) autoResumed.set(r.pty, Date.now());
       console.log(`  ${"error" in r || !r.ok ? "could not resume" : "resumed"} ${id}${"error" in r ? ` (${r.error})` : !r.ok ? ` (${r.why})` : ""}`);
+    }
+    // The + menu's terminals and agents, unless a run's own resume above already brought that agent back.
+    for (const x of fresh ? saved.shells ?? [] : []) {
+      try {
+        if (viaRun.has(x.key) || !states(true).includes(x.dir) || !existsSync(x.ws) || !Array.isArray(x.cmd) || !x.cmd.every((a) => typeof a === "string")) continue;
+        const key = "sh-" + crypto.randomUUID().slice(0, 8);
+        const cmd = x.sid && /^[\w-]{8,80}$/.test(x.sid) && !x.cmd.includes("--resume") ? [...x.cmd, "--resume", x.sid] : x.cmd;
+        const pid = startPty(key, cmd, x.ws, undefined, changed, { env: { KAIZEN_TERM: key } });
+        shells.set(key, { key, dir: x.dir, title: x.title, agent: x.agent, run: x.run, ws: x.ws, pid });
+        shellCmd.set(key, x.cmd);
+        console.log(`  resumed ${x.title}${x.sid ? " (conversation)" : ""}`);
+      } catch (err: any) { console.log(`  could not resume ${x.title}: ${err?.message ?? err}`); }
     }
   }
   // Last screens nothing picked up: a run left on its Resume button keeps its own a day.
@@ -2534,6 +2561,26 @@ export function sessionPty(id: string): string | null {
         for (let i = 0; i < 32 && pid > 1; i++) {
           const key = ptyKeys().find((k) => ptyState(k)?.alive && ptyState(k)?.pid === pid);
           if (key) return key;
+          pid = Number(/^PPid:\s*(\d+)/m.exec(readFileSync(`/proc/${pid}/status`, "utf8"))?.[1]);
+        }
+      } catch { /* gone or unreadable */ }
+    }
+  } catch { /* no such folder, or no /proc */ }
+  return null;
+}
+
+// The Claude session running under a pty (its pid, or a child of it): the reverse of sessionPty. Linux only.
+export function claudeSid(ptyPid: number): string | null {
+  const root = join(home, ".claude", "sessions");
+  try {
+    for (const f of readdirSync(root)) {
+      if (!/^\d+\.json$/.test(f)) continue;
+      try {
+        const rec = JSON.parse(readFileSync(join(root, f), "utf8"));
+        if (typeof rec.sessionId !== "string" || !/^[\w-]{8,80}$/.test(rec.sessionId)) continue;
+        let pid = Number(rec.pid);
+        for (let i = 0; i < 32 && pid > 1; i++) {
+          if (pid === ptyPid) return rec.sessionId;
           pid = Number(/^PPid:\s*(\d+)/m.exec(readFileSync(`/proc/${pid}/status`, "utf8"))?.[1]);
         }
       } catch { /* gone or unreadable */ }
