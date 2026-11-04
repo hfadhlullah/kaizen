@@ -60,6 +60,11 @@ const VIDEO_JS = join(dirname(import.meta.dir), "web", "video.js");
 // The Game page (your runs as an RPG: cli/game.ts) and its bundle.
 const GAME_PAGE = join(dirname(import.meta.dir), "web", "game.html");
 const GAME_JS = join(dirname(import.meta.dir), "web", "game.js");
+// Art you drop in assets/game/ (hero.png, backdrop.jpg, guild-<id>.png); not shipped in the npm package.
+const GAME_ART = join(dirname(import.meta.dir), "assets", "game");
+const ART_NAME = /^[a-z0-9-]+\.(png|webp|jpg|svg)$/;
+const ART_TYPE: Record<string, string> = { png: "image/png", webp: "image/webp", jpg: "image/jpeg", svg: "image/svg+xml" };
+const gameArt = () => { try { return readdirSync(GAME_ART).filter((f) => ART_NAME.test(f)).sort(); } catch { return []; } };
 const DEFAULT_PORT = 7420;
 // Gathered posts a reply is going out to right now: one send per item at a time.
 const replying = new Set<string>();
@@ -801,7 +806,12 @@ export async function web(repoDir: string, opts: Opts = {}) {
         if (body === null) return new Response(`${path} missing; run bun run build:web`, { status: 500 });
         return new Response(body, { headers: { "content-type": type, "cache-control": "no-store" } });
       }
-      if (req.method === "GET" && path === "/game/state") return json(cachedGameState());
+      if (req.method === "GET" && path === "/game/state") return json({ ...cachedGameState(), art: gameArt() });
+      if (req.method === "GET" && path.startsWith("/game/art/")) {
+        const name = path.slice("/game/art/".length);
+        if (!ART_NAME.test(name) || !gameArt().includes(name)) return new Response("not found", { status: 404 });
+        return new Response(Bun.file(join(GAME_ART, name)), { headers: { "content-type": ART_TYPE[name.split(".").pop()!], "cache-control": "no-cache", "x-content-type-options": "nosniff" } });
+      }
 
       if (req.method === "GET" && (path === "/video" || path === "/video.js")) {
         const [f, type] = path === "/video" ? [VIDEO_PAGE, "text/html; charset=utf-8"] : [VIDEO_JS, "application/javascript; charset=utf-8"];

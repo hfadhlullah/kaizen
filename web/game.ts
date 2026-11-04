@@ -11,6 +11,7 @@ type Dungeon = {
 };
 type Look = { hair: string; skinColor: string; hairColor: string; eyeColor: string; facialHairColor: string; height: number };
 type State = {
+  art: string[];
   game: { name: string; look: Look }; character: Bar & { name: string }; guilds: Guild[]; dungeons: Dungeon[];
   totals: { runs: number; cleared: number; retreat: number; live: number; stalled: number };
 };
@@ -23,8 +24,15 @@ const pct = (b: Bar) => Math.min(100, Math.round((b.into / b.need) * 100));
 const bar = (b: Bar) => `<div class="xp" role="progressbar" aria-valuemin="0" aria-valuemax="${b.need}" aria-valuenow="${b.into}"><i style="width:${pct(b)}%"></i></div>`;
 const root = document.getElementById("root")!;
 
-// A placeholder portrait in the player's colours; the realistic 3D character replaces it later.
+// Art you put in assets/game/ (served as /game/art/<file>): hero, backdrop, guild-<id>. A missing
+// piece keeps the drawn placeholder.
+let artFiles: string[] = [];
+const art = (base: string) => { const f = artFiles.find((x) => x.replace(/\.\w+$/, "") === base); return f ? `/game/art/${encodeURIComponent(f)}` : ""; };
+
+// A placeholder portrait in the player's colours, unless hero.* is in assets/game/.
 function portrait(l: Look) {
+  const img = art("hero");
+  if (img) return `<img class="portrait art" src="${img}" alt="Your character">`;
   const skin = hex(l.skinColor, "#e0ac8a"), hair = hex(l.hairColor, "#4a2f1b"), eye = hex(l.eyeColor, "#3b6b8f");
   return `<svg class="portrait" viewBox="0 0 150 190" role="img" aria-label="Your character">
   <path d="M20 190c0-34 24-52 55-52s55 18 55 52z" fill="var(--panel-2)" stroke="var(--line)" stroke-width="2"/>
@@ -46,18 +54,22 @@ function dungeon(d: Dungeon) {
   <span class="x">${xp}</span></div>`;
 }
 
+const emblem = (g: Guild) => { const u = art(`guild-${g.id}`); return u ? `<img class="emblem" src="${u}" alt="">` : ""; };
 function guild(g: Guild) {
   const learned = g.skills.filter((s) => s.learned), left = g.skills.length - learned.length;
   if (!g.founded)
-    return `<article class="panel guild locked"><header><h3>${esc(g.name)}</h3><span>Not founded</span></header>
+    return `<article class="panel guild locked"><header>${emblem(g)}<h3>${esc(g.name)}</h3><span>Not founded</span></header>
     <p class="blurb">${esc(g.blurb)}</p><p class="more">Clear a dungeon in this field to found it. ${g.skills.length} skills to learn.</p></article>`;
-  return `<article class="panel guild"><header><h3>${esc(g.name)}</h3><span>Level ${n(g.level)}</span></header>
+  return `<article class="panel guild"><header>${emblem(g)}<h3>${esc(g.name)}</h3><span>Level ${n(g.level)}</span></header>
   <p class="blurb">${esc(g.blurb)}</p>${bar(g)}<p class="xpn">${n(g.into)} / ${n(g.need)} XP to level ${n(g.level + 1)}</p>
   <ul class="skills">${learned.map((s) => `<li><span>${esc(s.name)} <small>· ${n(s.runs)} run${s.runs === 1 ? "" : "s"}</small></span><b>Lv ${n(s.level)}</b>${bar(s)}</li>`).join("")}</ul>
   ${left ? `<p class="more">${left} more skill${left === 1 ? "" : "s"} to learn.</p>` : ""}</article>`;
 }
 
 function draw(s: State) {
+  artFiles = Array.isArray(s.art) ? s.art : [];
+  const back = art("backdrop"), veil = "color-mix(in srgb,var(--bg) 78%,transparent)";
+  document.body.style.background = back ? `linear-gradient(${veil},${veil}),url("${back}") center/cover fixed` : "";
   const c = s.character, t = s.totals, live = s.dungeons.filter((d) => d.outcome === "live"), past = s.dungeons.filter((d) => d.outcome !== "live");
   root.innerHTML = `
   <div class="panel hero">${portrait(s.game.look)}<div>
