@@ -587,6 +587,9 @@ function addTab(t: Tab) {
   else if (target) for (const sc of s.screens) sc.tree = prune(sc.tree, (id) => id !== t.id) ?? sc.tree;
   show(t.id);
 }
+// Automatic opens (a run's Preview, `kaizen preview`) bring a tab forward only when it is not open yet;
+// an open one just navigates, so the user can leave it.
+const autoTab = (t: Tab) => { if (!saved().tabs.some((x) => x.id === t.id)) addTab(t); };
 // After an item is added: run screens() (which places it) and show the screen holding it.
 function show(id: string) {
   const s = saved();
@@ -949,7 +952,7 @@ async function autoBrowse() {
     try {
       localStorage.setItem("kz-browse:" + k, u);
     } catch {}
-    addTab({ id: "local", kind: "local", title: "Browser" });
+    autoTab({ id: "local", kind: "local", title: "Browser" });
     (panes.get("local")?.el as any)?.browseTo?.(u);
   }
 }
@@ -978,14 +981,14 @@ async function pollPreview() {
   if (first && Date.now() - p.at! > 120_000) return;
   if (p.image) {
     // A screenshot belongs in Preview; a live page in the Browser.
-    addTab({ id: "preview", kind: "preview", title: "Preview" });
+    autoTab({ id: "preview", kind: "preview", title: "Preview" });
     (panes.get("preview")?.el as any)?.refresh?.();
     return;
   }
   try {
     localStorage.setItem("kz-browse:" + k, p.url!);
   } catch {}
-  addTab({ id: "local", kind: "local", title: "Browser" });
+  autoTab({ id: "local", kind: "local", title: "Browser" });
   (panes.get("local")?.el as any)?.browseTo?.(p.url!);
 }
 setInterval(() => void pollPreview(), 3000);
