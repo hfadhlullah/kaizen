@@ -45,6 +45,7 @@ anything.
 | `/kaizen config` | Show this project's settings and change them, one picker per setting |
 | `/kaizen init` | Set up this project folder: `.kaizen/` with the `spec*.md` files, config, and — in a git repo — the gitignore entry |
 | `/kaizen install` | Install the workflow itself globally or per-project |
+| `kaizen preview <localhost url \| image>` | Show a change in the board (page → Browser tab, screenshot → Preview tab), not a new browser window |
 | `kaizen recall [--track t] [--tags a,b] [--query "<words>"]` | Lessons from other projects that match (global knowledge, `~/.kaizen/knowledge/`) |
 | `kaizen remember --track t --tags a,b --applies "<where>" --run <id> "<lesson>"` | Save a lesson that holds beyond this project; the reviewer calls it |
 

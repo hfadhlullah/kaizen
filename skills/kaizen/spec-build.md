@@ -137,7 +137,7 @@ files its report names, so a changed path written any other way is left out of t
 commit, and a backticked path the run did not change is taken into it. Report failures honestly; a false claim of
 success poisons the review stage, which trusts this report.
 
-**A `## Preview` section says how to see the result.** For an app or service: the
+**A `## Preview` section says how to see the result.** Where the result shows on a screen, also run `kaizen preview <localhost url | screenshot.png>` so the board shows it (a page in Browser, a screenshot in Preview) (never a new browser window). For an app or service: the
 commands to start it locally and the URL to open, copied from the material's own README
 where one exists. An app with a dev server: leave it running when the build ends
 (started in the background, its log in a file), and write its full `http://localhost:<port>`

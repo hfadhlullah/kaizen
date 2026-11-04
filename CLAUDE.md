@@ -36,6 +36,12 @@ fails when the bundle is stale).
 - The full command card — `skills/kaizen-help/SKILL.md`
 - Kaizen Bot — `bot/README.md`
 
+## Showing a change
+
+After a direct change that shows on screen, run `kaizen preview <localhost url | screenshot.png>`
+(`bun run cli/install.ts web --port 7431 --no-open` gives a page to point it at) so a page opens in
+the board's Browser tab and a screenshot in its Preview tab. Never open a separate browser window.
+
 ## Development
 
 ```bash

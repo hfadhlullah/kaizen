@@ -108,6 +108,7 @@ tells you what it concluded, so you correct a sentence instead of filling in a f
 | `kaizen sources [add\|rm <link>]` | In a terminal: list, add or remove request sources |
 | `kaizen gather` | In a terminal: check every source now and add new requests to the icebox |
 | `kaizen icebox [promote\|dismiss <ids>]` | In a terminal: list what waits in the icebox, promote it to Tasks, or dismiss it |
+| `kaizen preview <localhost url \| image>` | Shows a page in the open board's Browser tab, or a screenshot in its Preview tab, with or without a run (never a separate browser window); agents run it after a change you can look at |
 | `kaizen recall [--track t] [--tags a,b] [--query "<words>"]` | Lessons learned in other projects that match; see *Global knowledge* |
 | `kaizen stats [<run id>] [--json]` | How runs go: counts by stage, track and runner, fix-round and CANNOT VERIFY rates, median time per stage (runs that logged it); one run adds its tokens (Claude runs) |
 | `kaizen related <path> ...` | Earlier runs that changed these files, newest first, with their open backlog; the planner runs it |

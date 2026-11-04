@@ -537,6 +537,15 @@ async function openWindow(u: string) {
 // The run's Preview: its screenshots (each opens the image viewer on click), with an Open
 // app link when it names a localhost address. The address is framed only when the Preview
 // has no images: the dev server a run used is often gone, and a dead frame hides the proof.
+// No run, no `## Preview`: what an agent last showed with `kaizen preview <image|url>` in this workspace.
+async function directPreview(el: HTMLElement) {
+  if (!ctx) return false;
+  const p = await fetchPreview(ctx.dir, ctx.ws);
+  if (!p) return false;
+  const u = p.image ? fileUrl(ctx.dir, p.image) : p.url!;
+  el.insertAdjacentHTML("beforeend", String(p.image ? html`<div class="rprev"><figure><img src="${u}" alt="Latest change" style="max-width:100%"><figcaption>${p.image.split("/").pop()}</figcaption></figure></div>` : html`<iframe class="rframe" title="Preview" src="${u}"></iframe>`));
+  return true;
+}
 async function previewPane(el: HTMLElement) {
   let doc = store.runDoc && store.runDoc.id === card?.id ? store.runDoc : null;
   if (!doc && card?.kind === "run")
@@ -544,6 +553,8 @@ async function previewPane(el: HTMLElement) {
       doc = await (await fetch(`/run/${encodeURIComponent(card.id)}?dir=${encodeURIComponent(card.state)}`)).json();
     } catch {}
   const pv = doc && preview(doc.impl);
+  (el as any).refresh = () => (el.replaceChildren(), void previewPane(el));
+  if (!pv && (await directPreview(el))) return;
   const url = loopbackUrl(pv);
   const shots = pv && /!\[[^\]]*\]\(/.test(pv);
   if (url && loopback && !shots) return void el.insertAdjacentHTML("beforeend", String(html`<iframe class="rframe" title="Preview" src="${url}"></iframe>`));
@@ -930,6 +941,42 @@ async function autoBrowse() {
     (panes.get("local")?.el as any)?.browseTo?.(u);
   }
 }
+
+// `kaizen preview <url|image>` (cli/preview.ts) wrote what an agent changed: the Browser tab opens
+// on it, inside the board. Never an outside window. The newest one per workspace opens once; one
+// older than two minutes at first sight is stale and is only recorded.
+const previewAt = new Map<string, number>();
+const fileUrl = (dir: string, image: string) => `${location.origin}/file?dir=${encodeURIComponent(dir)}&p=${encodeURIComponent(image)}`;
+// The latest preview written for this workspace, or null.
+async function fetchPreview(dir: string, ws: string) {
+  let p: { url?: string; image?: string; ws?: string; at?: number } = {};
+  try {
+    p = await (await fetch("/preview?dir=" + encodeURIComponent(dir))).json();
+  } catch {}
+  const same = p.ws && (p.ws === ws || p.ws.startsWith(ws + "/") || ws.startsWith(p.ws + "/"));
+  return p.at && same && (p.url || p.image) ? p : null;
+}
+async function pollPreview() {
+  if (!ctx) return;
+  const k = ctx.k, dir = ctx.dir;
+  const p = await fetchPreview(dir, ctx.ws);
+  if (!p || ctx?.k !== k || (previewAt.get(k) ?? 0) >= p.at!) return;
+  const first = !previewAt.has(k);
+  previewAt.set(k, p.at!);
+  if (first && Date.now() - p.at! > 120_000) return;
+  if (p.image) {
+    // A screenshot belongs in Preview; a live page in the Browser.
+    addTab({ id: "preview", kind: "preview", title: "Preview" });
+    (panes.get("preview")?.el as any)?.refresh?.();
+    return;
+  }
+  try {
+    localStorage.setItem("kz-browse:" + k, p.url!);
+  } catch {}
+  addTab({ id: "local", kind: "local", title: "Browser" });
+  (panes.get("local")?.el as any)?.browseTo?.(p.url!);
+}
+setInterval(() => void pollPreview(), 3000);
 
 // A phone's run sheet: drag it down from anywhere its content is at the top, or tap outside it.
 function initSheet() {
