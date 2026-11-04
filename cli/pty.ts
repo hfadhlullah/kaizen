@@ -187,6 +187,27 @@ export function attachPty(key: string, fn: (d: string | null) => void): (() => v
   return () => p.listeners.delete(fn);
 }
 
+// One message per `ms` for a socket, not one per pty chunk: a redrawing agent prints many
+// small chunks a second, and each is a page wake-up. The first chunk after quiet goes out
+// at once, so typing echo is not delayed; what follows within `ms` goes out together.
+export function frames(send: (d: string) => void, ms = 16) {
+  let buf = "", t: Timer | undefined;
+  const end = () => {
+    t = undefined;
+    if (!buf) return;
+    const d = buf;
+    buf = "";
+    send(d);
+    t = setTimeout(end, ms);
+  };
+  return {
+    push(d: string) { if (t) buf += d; else { send(d); t = setTimeout(end, ms); } },
+    // Pending output now, in order, before the socket closes.
+    flush() { clearTimeout(t); end(); clearTimeout(t); t = undefined; },
+    stop() { clearTimeout(t); t = undefined; buf = ""; },
+  };
+}
+
 // What the page's terminal sends by itself: focus in/out (Claude Code turns focus
 // reporting on), mouse and wheel reports, and answers to the agent's queries (cursor,
 // device, mode, colour, version). None of it is the user typing.

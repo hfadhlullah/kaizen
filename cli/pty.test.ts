@@ -5,7 +5,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, realpa
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { launchMode, closeSessions, readSessions, sweepSessions } from "./state.ts";
-import { loginEnv, startPty, writePty, submitPty, attachPty, ptyState, exitPty, lastLine } from "./pty.ts";
+import { loginEnv, startPty, writePty, submitPty, attachPty, ptyState, exitPty, lastLine, frames } from "./pty.ts";
 import { conptyHost, innerCommand, resizeSeq } from "./conpty.ts";
 
 const root = realpathSync(mkdtempSync(join(tmpdir(), "kaizen-pty-")));
@@ -327,4 +327,24 @@ test("last: nothing is read while the terminal is asking", async () => {
   await Bun.sleep(1200);
   expect(JSON.stringify(ptyState(key))).not.toContain("hunter2");
   exitPty(key, 100);
+});
+
+test("frames: first chunk at once, a burst in one message, order kept, flush and stop", async () => {
+  const sent: string[] = [];
+  const f = frames((d) => sent.push(d), 20);
+  f.push("a");
+  expect(sent).toEqual(["a"]); // typing echo is not delayed
+  f.push("b"); f.push("c"); f.push("d");
+  expect(sent).toEqual(["a"]);
+  await Bun.sleep(30);
+  expect(sent).toEqual(["a", "bcd"]); // the burst is one message
+  await Bun.sleep(60); // quiet again: the next chunk is immediate
+  f.push("e"); f.push("f");
+  expect(sent).toEqual(["a", "bcd", "e"]);
+  f.flush(); // before a close: pending output goes out first
+  expect(sent).toEqual(["a", "bcd", "e", "f"]);
+  f.push("g"); f.push("h");
+  f.stop(); // socket gone: nothing is sent after
+  await Bun.sleep(60);
+  expect(sent.join("")).toBe("abcdefg"); // g went out at once; h was dropped
 });

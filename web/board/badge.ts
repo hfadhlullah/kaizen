@@ -17,8 +17,20 @@ let generation = 0;
 let lastAll = "";
 let loading = false;
 let again = false;
+// The badge reads every project's state (hundreds of KB), and a busy agent triggers a
+// board refresh a couple of times a second: at most one badge read per BADGE_GAP, the
+// last request still served when the gap ends.
+const BADGE_GAP = 2000;
+let lastRun = 0;
+let waiting: ReturnType<typeof setTimeout> | undefined;
 export async function refreshBoardBadge() {
   if (loading) { again = true; return; }
+  const gap = lastRun + BADGE_GAP - Date.now();
+  if (gap > 0) {
+    waiting ??= setTimeout(() => { waiting = undefined; void refreshBoardBadge(); }, gap);
+    return;
+  }
+  lastRun = Date.now();
   loading = true;
   do {
     again = false;

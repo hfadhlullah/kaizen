@@ -19,7 +19,7 @@ import { accountEnv, accountForRun, agentUsable, CHILD_ENV, heartbeatMinutes, ke
 import { agentLine, failStart, markRunning, readWorkers, requested, startWorker, sweep, workerStale } from "./workers.ts";
 import { childDied, childQuiet, markWoken, move, requestOpen, readHandoff, refused, started, wakeAction, wakeLine, type Handoff } from "./handoff.ts";
 import { processTable, storage, systemMemory, treeRss, type Root } from "./resources.ts";
-import { attachPty, writePty, submitPty, resizePty, exitPty, killPty, panePid, ptyState, ptyKeys, adoptLoginEnv, startPty, ptySupported, detachPty, ptyTail, ptyTmux, tmuxAlive, RESUMED } from "./pty.ts";
+import { attachPty, frames, writePty, submitPty, resizePty, exitPty, killPty, panePid, ptyState, ptyKeys, adoptLoginEnv, startPty, ptySupported, detachPty, ptyTail, ptyTmux, tmuxAlive, RESUMED } from "./pty.ts";
 import { snapshot, snapWorker } from "./state-snap.ts";
 import { claudeUsage, claudeUsageAt, codexUsage, codexUsageAt, phonePeers, type Usage } from "./usage.ts";
 import { readSources, addSource, removeSource, moveSource, setCategory, setWriteback, setPaused, readIcebox, promote, dismiss, restore, addItem, markDone, markReplied, gatherSource, freshImages, gatherAll, gatherDirs, due, socialUrl, socialOf } from "./sources.ts";
@@ -59,7 +59,7 @@ const VIDEO_JS = join(dirname(import.meta.dir), "web", "video.js");
 const DEFAULT_PORT = 7420;
 // Gathered posts a reply is going out to right now: one send per item at a time.
 const replying = new Set<string>();
-type PtySock = { key: string; detach: (() => void) | null };
+type PtySock = { key: string; detach: (() => void) | null; out?: ReturnType<typeof frames> };
 // Read once at start: a board keeps the code it started with, so this is what it
 // runs, not what is installed now. `/` sends it; `current()` compares the two.
 const installed = () => {
@@ -681,7 +681,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
     // {t:"i",d} and {t:"r",c,r}. A null from the session means the agent ended.
     websocket: {
       open(ws: Bun.ServerWebSocket<PtySock>) {
-        ws.data.detach = attachPty(ws.data.key, (d) => { if (d === null) ws.close(1000, "ended"); else ws.send(d); });
+        const out = (ws.data.out = frames((d) => ws.send(d)));
+        ws.data.detach = attachPty(ws.data.key, (d) => { if (d === null) { out.flush(); ws.close(1000, "ended"); } else out.push(d); });
       },
       message(ws: Bun.ServerWebSocket<PtySock>, raw) {
         let m: any;
@@ -689,7 +690,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         if (m?.t === "i" && typeof m.d === "string") writePty(ws.data.key, m.d);
         else if (m?.t === "r") resizePty(ws.data.key, Number(m.c), Number(m.r));
       },
-      close(ws: Bun.ServerWebSocket<PtySock>) { ws.data.detach?.(); },
+      close(ws: Bun.ServerWebSocket<PtySock>) { ws.data.detach?.(); ws.data.out?.stop(); },
     },
     async fetch(req, srv) {
       // Host first: a hostname rebound to 127.0.0.1 by an attacker's DNS still

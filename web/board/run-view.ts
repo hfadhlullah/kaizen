@@ -1204,3 +1204,32 @@ export function openWorkspace(c) {
   markCurrent();
   go("run");
 }
+
+// The run view's right panel: drag its left edge to resize it; the width is kept for next
+// time and a double-click puts it back to the default.
+const GRIP_KEY = "kz-rpanel-w", GRIP_MIN = 260;
+function initGrip() {
+  const grip = document.getElementById("rgrip"), panel = document.getElementById("panel"), root = document.documentElement;
+  if (!grip || !panel) return;
+  const set = (w: number) => root.style.setProperty("--rpanel-w", `${Math.round(Math.min(Math.max(GRIP_MIN, innerWidth * 0.6), Math.max(GRIP_MIN, w)))}px`);
+  try { const w = Number(localStorage.getItem(GRIP_KEY)); if (w) set(w); } catch { /* private window: default width */ }
+  grip.onpointerdown = (e) => {
+    e.preventDefault();
+    grip.setPointerCapture(e.pointerId);
+    document.body.classList.add("rdrag");
+    const move = (m: PointerEvent) => set(panel.getBoundingClientRect().right - m.clientX);
+    const up = () => {
+      grip.removeEventListener("pointermove", move);
+      document.body.classList.remove("rdrag");
+      try { localStorage.setItem(GRIP_KEY, String(Math.round(panel.getBoundingClientRect().width))); } catch { /* not kept */ }
+    };
+    grip.addEventListener("pointermove", move);
+    grip.addEventListener("pointerup", up, { once: true });
+    grip.addEventListener("pointercancel", up, { once: true });
+  };
+  grip.ondblclick = () => {
+    root.style.removeProperty("--rpanel-w");
+    try { localStorage.removeItem(GRIP_KEY); } catch { /* nothing kept */ }
+  };
+}
+if (typeof document !== "undefined") initGrip();
