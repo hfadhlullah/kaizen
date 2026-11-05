@@ -17,6 +17,7 @@ const SKILL_ICONS: Record<string, string> = {
   "kaizen-book": '<path d="M12 6c-2-1.5-5-2-8-2v15c3 0 6 .5 8 2 2-1.5 5-2 8-2V4c-3 0-6 .5-8 2Z"/><path d="M12 6v15"/>',
   "kaizen-deck": '<rect x="3" y="4" width="18" height="12" rx="1"/><path d="M12 16v4M8 20h8M8 12l3-3 2 2 3-3"/>',
   "kaizen-computer": '<rect x="3" y="4" width="18" height="12" rx="1"/><path d="M8 20h8M12 16v4M9 8l5 3-2 .8-.8 2Z"/>',
+  "kaizen-game": '<rect x="2" y="7" width="20" height="11" rx="5"/><path d="M7 10.5v4M5 12.5h4"/><circle cx="16" cy="11.5" r=".6"/><circle cx="18" cy="13.5" r=".6"/>',
   "kaizen-video": '<rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3"/>',
 };
 const PUZZLE = '<path d="M10 4a2 2 0 1 1 4 0v2h5v5h-2a2 2 0 1 0 0 4h2v5H5v-5h2a2 2 0 1 0 0-4H5V6h5Z"/>';
