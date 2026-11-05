@@ -280,7 +280,7 @@ if (Bun.argv[2] === "game") {
   const { peekGame, skillList } = await import("./game.ts");
   const rest = Bun.argv.slice(3), json = rest.includes("--json");
   const sub = rest.filter((a, i) => !a.startsWith("--") && rest[i - 1] !== "--from")[0];
-  // `kaizen game assets [--check]`: download the 3D scenes of the Game page (about 14 MB) into ~/.kaizen/game/assets/.
+  // `kaizen game assets [--check]`: download the 3D scenes of the Game page (about 17 MB) into ~/.kaizen/game/assets/.
   if (sub === "assets") {
     const { assetState, assetsDir, fetchAssets } = await import("./game-assets.ts");
     const from = rest.indexOf("--from") >= 0 ? rest[rest.indexOf("--from") + 1] : undefined;   // a folder made by game-assets/pack.ts

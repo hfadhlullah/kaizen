@@ -1,0 +1,31 @@
+{
+  "models": {
+    "spikyblob": "Blob/GreenSpikyBlob", "alien": "Big/Alien",
+    "glub": "Flying/Glub", "dragonevo": "Flying/Dragon_Evolved",
+    "wizard": "Blob/Wizard", "mushroomking": "Big/MushroomKing",
+    "yetiblob": "Blob/Yeti", "yeti": "Big/Yeti",
+    "ninjablob": "Blob/Ninja", "ninja": "Big/Ninja",
+    "pigeon": "Blob/Pigeon", "birb": "Big/Birb",
+    "orcblob": "Blob/Orc", "orc": "Big/Orc",
+    "goleling": "Flying/Goleling", "golelingevo": "Flying/Goleling_Evolved",
+    "greenblob": "Blob/GreenBlob", "dino": "Big/Dino"
+  },
+  "families": {
+    "code": { "minion": "spikyblob", "boss": "alien" },
+    "arts": { "minion": "glub", "boss": "dragonevo" },
+    "writing": { "minion": "wizard", "boss": "mushroomking" },
+    "research": { "minion": "yetiblob", "boss": "yeti" },
+    "operations": { "minion": "ninjablob", "boss": "ninja" },
+    "media": { "minion": "pigeon", "boss": "birb" },
+    "commerce": { "minion": "orcblob", "boss": "orc" },
+    "craft": { "minion": "goleling", "boss": "golelingevo" }
+  },
+  "generic": { "minion": "greenblob", "boss": "dino" },
+  "clips": {
+    "Big": { "idle": "Idle", "attack": "Punch", "hit": "HitReact", "die": "Death" },
+    "Blob": { "idle": "Idle", "attack": "Bite_Front", "hit": "HitRecieve", "die": "Death" },
+    "Flying": { "idle": "Flying_Idle", "attack": "Headbutt", "hit": "HitReact", "die": "Death" }
+  },
+  "height": { "minion": 1.25, "boss": 2.7 },
+  "hover": { "Flying": 0.9 }
+}

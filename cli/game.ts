@@ -307,6 +307,7 @@ export type Dungeon = {
   waves: number; monsters: number; boss: boolean; files: number; length: number; xp: number; pending: number;
   stage: string;                           // the run's own stage: plan, build, review, done, abandoned
   work: { done: number; items: number } | null; // Work-list items ticked in progress.md; null when the run kept none
+  waited: number | null;                   // a live run: milliseconds since its state.json or progress.md last changed (how long it has been on the current item); else null
 };
 export const LIVE_MS = 2 * 3600_000; // a run in plan, build or review that moved within this is live, else stalled
 
@@ -357,7 +358,7 @@ export function dungeonOf(state: string, project: string, id: string, game: Game
   const xp = dungeonXp(monsters, waves, files.length);
   return {
     id, title, project, guild, skill, outcome, stages, waves, monsters, boss: reviewed, files: files.length,
-    stage, work: workOf(read(join(dir, "progress.md"))),
+    stage, work: workOf(read(join(dir, "progress.md"))), waited: outcome === "live" ? Math.max(0, now - moved) : null,
     length: Math.round(3 + 2 * Math.log2(1 + files.length)),
     xp: outcome === "cleared" ? xp : 0, pending: outcome === "live" ? xp : 0,
   };

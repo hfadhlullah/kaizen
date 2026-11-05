@@ -167,7 +167,7 @@ function syncScenes() {
   if (downloading) return;
   const show = (last?.scenes?.missing.length ?? 0) > 0 && (openId !== "" || townOpen || creatorOpen);
   scenesBar.hidden = !show;
-  if (show && !scenesBar.querySelector("#get-scenes")) scenesBar.innerHTML = `The realistic 3D scenes are not downloaded (about 14 MB, from the kaizen release). <button type="button" id="get-scenes">Download</button>`;
+  if (show && !scenesBar.querySelector("#get-scenes")) scenesBar.innerHTML = `The realistic 3D scenes are not downloaded (about 17 MB, from the kaizen release). <button type="button" id="get-scenes">Download</button>`;
 }
 scenesBar.addEventListener("click", async (e) => {
   if (!(e.target as HTMLElement).closest("#get-scenes") || downloading) return;

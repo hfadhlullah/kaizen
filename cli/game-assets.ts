@@ -7,9 +7,9 @@ import { isAbsolute } from "node:path";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-// SCENES are the files a complete download has; hair-<id>.glb and beard-<id>.glb are optional parts of the hero.
+// SCENES are the files a complete download has; hair-<id>.glb and beard-<id>.glb are optional parts of the hero, monster-<id>.glb the dungeon monsters.
 export const SCENES = ["forest", "dungeon", "town", "hero"] as const;
-export const SCENE_FILE = /^(forest|dungeon|town|hero|(?:hair|beard)-[a-z0-9]{1,16})\.glb$/;
+export const SCENE_FILE = /^(forest|dungeon|town|hero|(?:hair|beard|monster)-[a-z0-9]{1,16})\.glb$/;
 export const MAX_SCENE_BYTES = 15 * 1024 * 1024;
 export const ASSETS_URL = "https://github.com/hfadhlullah/kaizen/releases/download/game-assets-v1";
 

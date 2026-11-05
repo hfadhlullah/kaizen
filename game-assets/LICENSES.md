@@ -45,3 +45,31 @@ Tools (not shipped): Blender 5.2 (GPL), `@gltf-transform/cli` 4.5.1 (MIT) for me
 | cortu_shaggy_green_hair | hair (Hair 01) | cortu | CC0 | same |
 
 The pack pages list every asset of a CC0 pack as CC0; the pack zips are checked with their file lists before unpacking. Mixamo is not used.
+
+## The monsters
+
+Quaternius, Ultimate Monsters (https://quaternius.com/packs/ultimatemonsters.html), read from the zip the user downloaded on 2026-11-05. Its `License.txt`, verbatim from the licence heading:
+
+> License:
+> CC0 1.0 Universal (CC0 1.0)
+> Public Domain Dedication
+> https://creativecommons.org/publicdomain/zero/1.0/
+
+The file's first line names a different pack ("Ultimate Platformer Pack by @Quaternius"), an apparent copy slip; the licence text itself is CC0, and the pack's page says "free to use in personal and commercial projects". The newer Quaternius Asset License (QAL v1.0), which forbids redistributing the assets as files, applies to later packs such as the Bestiary kit and is **not** used here.
+
+| Model | Pack folder | Used as | License |
+|---|---|---|---|
+| GreenSpikyBlob | Blob | code minion | CC0 |
+| Alien | Big | code boss | CC0 |
+| Glub | Flying | arts minion | CC0 |
+| Dragon_Evolved | Flying | arts boss | CC0 |
+| Wizard | Blob | writing minion | CC0 |
+| MushroomKing | Big | writing boss | CC0 |
+| Yeti | Blob and Big | research minion and boss | CC0 |
+| Ninja | Blob and Big | operations minion and boss | CC0 |
+| Pigeon | Blob | media minion | CC0 |
+| Birb | Big | media boss | CC0 |
+| Orc | Blob and Big | commerce minion and boss | CC0 |
+| Goleling and Goleling_Evolved | Flying | craft minion and boss | CC0 |
+| GreenBlob | Blob | minion for guilds founded by hand | CC0 |
+| Dino | Big | boss for guilds founded by hand | CC0 |

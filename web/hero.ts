@@ -63,7 +63,7 @@ export async function loadHero(kit: Kit, art: string[], first: Partial<HeroLook>
       const next = actions.get(c);
       if (!next || c === cur) return;
       const prev = cur ? actions.get(cur) : null;
-      next.reset().fadeIn(0.18).play();
+      next.reset().setEffectiveTimeScale(c === "walk" ? 1.7 : 1).fadeIn(0.18).play();   // the dungeon walks him fast, so the walk cycle runs faster too
       prev?.fadeOut(0.18);
       cur = c;
     },

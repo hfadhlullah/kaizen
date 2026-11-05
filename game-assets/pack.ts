@@ -7,8 +7,8 @@ import { join } from "node:path";
 
 const raw = process.argv[2] ?? join(homedir(), ".cache", "kaizen-game");
 const dist = join(import.meta.dir, "dist");
-// the scenes and the hero, plus every hair-<id>.glb and beard-<id>.glb the Blender scripts left in the raw folder
-const SCENES = ["forest", "dungeon", "town", "hero", ...readdirSync(raw).filter((f) => /^(hair|beard)-[a-z0-9]{1,16}\.glb$/.test(f)).map((f) => f.slice(0, -4))];
+// the scenes and the hero, plus every hair-, beard- and monster-<id>.glb the Blender scripts left in the raw folder
+const SCENES = ["forest", "dungeon", "town", "hero", ...readdirSync(raw).filter((f) => /^(hair|beard|monster)-[a-z0-9]{1,16}\.glb$/.test(f)).map((f) => f.slice(0, -4))];
 const MAX = 15 * 1024 * 1024;
 mkdirSync(dist, { recursive: true });
 const run = (cmd: string[]) => { const p = Bun.spawnSync(cmd, { stdout: "inherit", stderr: "inherit" }); if (p.exitCode) throw new Error(cmd.join(" ")); };
