@@ -18,3 +18,5 @@ bot/dist/
 # Python bytecode.
 __pycache__/
 game-assets/dist/
+assets/game/*
+!assets/game/PROMPTS.md
