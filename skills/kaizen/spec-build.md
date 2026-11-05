@@ -55,7 +55,8 @@ code in the same folder. If `kaizen worktree start` fails, say why and stop; do 
 back to the project folder unasked. A run whose `state.json` has no `worktree` builds in
 place, exactly as before.
 
-**Hand the build to a second agent, when the run gets a worktree.** The agent the user is
+**Hand the build to a second agent, when the run gets a worktree.** This applies under every
+runner, `lite` included: the second agent is a board terminal, not a subagent. The agent the user is
 talking to stays with them. Before `kaizen worktree start`, it writes into `02-approval.md`
 every decision made in chat that the plan lacks: the second agent never sees the chat. After
 it, it runs `kaizen handoff start <id>`. Exit 0: say the worktree agent is building, and end
@@ -66,7 +67,17 @@ same rules (it is the coordinator if the plan has approved workers), and ends wi
 `kaizen handoff done` or `kaizen handoff blocked "<reason>"`. It never runs `kaizen done`
 or `kaizen worktree land`. It takes no bypass from Orchestration. `runs/<id>/handoff.json`
 is written only by these commands and the board. A worktree cut while the project is on a
-branch other than the default is cut from that local branch and records `base_branch`.
+branch other than the default is cut from that local branch and records `base_branch`,
+except with `--default`.
+
+**A side run** (opened while another run is in flight, `SKILL.md` *Follow-ups are runs
+too*) starts its worktree with `kaizen worktree start <id> --default`, so its branch comes
+off the remote default branch and it never builds in the other run's folder. When the user
+picked a second agent: exit 0 from `kaizen handoff start` means say the worktree agent is
+building the side run, then go back to the run in flight instead of ending the turn; its
+files, worktree and stage are untouched. Exit 3: ask the user whether to build the side run
+here, in its own worktree, or leave it at its approved plan; never build it in the other
+run's worktree. A side run without a remote to branch from stops and says so.
 
 **Workers, only when the run has them.** When `01-plan.md` has a `## Workers` section and
 `02-approval.md` says `workers: approved`, the build agent is the coordinator. Run
