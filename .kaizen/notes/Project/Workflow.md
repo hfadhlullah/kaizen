@@ -2,7 +2,7 @@
 description: What a kaizen run is, which files define it, and where its state lives
 tags: [project, workflow]
 sources: [cli/roadmap.ts, cli/workers.ts, skills/kaizen, skills/kaizen-help, skills/kaizen-concept, skills/media, agents, commands, cli/worktree.ts, docs/guide.md]
-updated: 2026-11-03
+updated: 2026-11-05
 ---
 # Workflow
 
@@ -17,7 +17,7 @@ The product itself: a staged workflow (plan, approval, build, independent review
 - `skills/kaizen/gather.md`, `discover.md`, `docs.md`, `status.md`, `settings.md`, `install.md` — one file per sub-command.
 - `skills/kaizen/config.default.yml` — every setting and its default. Only keys something reads belong there; the review checks, track and backlog paths are fixed in the spec files, not settings.
 - `cli/handoff.ts` — on a worktree run from a board terminal, `kaizen handoff start` asks the board for a second agent in the worktree; it ends with `kaizen handoff done|blocked`, and the board wakes the first agent, which reports and takes the final approval. State is `runs/<id>/handoff.json`; exit 3 means build here. A run cut from a non-default local branch records `base_branch` and lands by local merge.
-- `cli/worktree.ts` — each run builds on branch `kaizen/<id>` in `.kaizen/wt/<id>` (`git.worktree_per_run`); `kaizen worktree start|land <id>` makes and lands it, and `state.json` records `worktree` and `branch`. Run notes stay in the project's `.kaizen/runs/`. It also lists a project's workspaces (`workspaces()`), places a run in one (`wsOf()`) and adds a branch worktree for the board (`addWorktree()`): see [[Web board]].
+- `cli/worktree.ts` — each run builds on branch `kaizen/<id>` in `.kaizen/wt/<id>` (`git.worktree_per_run`); a run set up by hand (a roadmap on one feature branch) records its real branch in `state.json` `branch`, and `branchFor(project, id)` returns that when it is a safe branch name, else `kaizen/<id>`: the Git tab, push, PR, merge, land and cleanup all go through it, never the base it lands on (remote default, feature base, HEAD). Land and cleanup keep the worktree and branch while another run's `state.json` still records the same worktree or branch (`sharer`), and cleanup says which run. Workers read the run's branch through `branchFor` too; creating a worktree and worker branches still use `branchOf`; `kaizen worktree start|land <id>` makes and lands it, and `state.json` records `worktree` and `branch`. Run notes stay in the project's `.kaizen/runs/`. It also lists a project's workspaces (`workspaces()`), places a run in one (`wsOf()`) and adds a branch worktree for the board (`addWorktree()`): see [[Web board]].
 - `skills/kaizen/adapters.md` — running it under Codex or Antigravity.
 - `agents/kaizen-*.md` — the planner, builder and reviewer subagents.
 - `commands/kaizen-*.md` — Claude Code slash commands, each a one-line hand-off to the skill.

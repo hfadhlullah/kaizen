@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, realpa
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { notice } from "./state.ts";
-import { linkTerm, linkedWs, startWorktree, landWorktree, landRun, codeDir, projectFromWorktree, run, runAsync, workspaces, workspacesNow, addWorktree, wsOf, adoptWorkspace, branchState, openPr, mergePr, removeWorktree, type Run, type AsyncRun } from "./worktree.ts";
+import { linkTerm, linkedWs, startWorktree, landWorktree, landRun, codeDir, projectFromWorktree, run, runAsync, workspaces, workspacesNow, addWorktree, wsOf, adoptWorkspace, branchState, branchFor, openPr, mergePr, removeWorktree, type Run, type AsyncRun } from "./worktree.ts";
 
 const ID = "2026-10-17-demo";
 // CI runners have no git identity, and landWorktree's rebase writes commits.
@@ -449,4 +449,106 @@ test("L-10 a failure with no kind replaces an old Conflict; a run with no worktr
   writeFileSync(join(wt(), "dirty.txt"), "x");
   expect(landRun(project, ID).ok).toBe(false);
   expect(JSON.parse(readFileSync(f, "utf8")).kind).toBe("merge");
+});
+
+// ---- a run made by hand records its real branch in state.json; every git action names that one
+const setState = (set: Record<string, unknown>) => writeFileSync(join(project, ".kaizen/runs", ID, "state.json"), JSON.stringify({ ...state(), ...set }));
+function handMade(name: string) {
+  const path = join(project, ".kaizen", "wt", ID);
+  g(project, "worktree", "add", "-q", path, "--no-track", "-b", name, "origin/main");
+  setState({ worktree: path, branch: name });
+  commit(path, "hand.txt", "h");
+  return path;
+}
+
+// G-01
+test("R-01 the recorded branch is the run's branch in the panel, the push, the PR and the merge", async () => {
+  handMade("feat/hand-made");
+  const b = branchState(project, ID, () => {}, idRun, runAsync, true)!;
+  expect(b.branch).toBe("feat/hand-made");
+  const seen: string[][] = [];
+  const ash: AsyncRun = async (cmd, cwd) => { seen.push(cmd); return cmd[0] === "gh" && cmd[1] === "pr" && cmd[2] === "view" ? { ok: true, out: JSON.stringify({ number: 3, url: "u", state: "OPEN", isDraft: false, mergeable: "MERGEABLE", statusCheckRollup: [] }), why: "" } : { ok: true, out: "", why: "" }; };
+  await openPr(project, ID, "t", "b", false, idRun, ash, true);
+  expect(seen.find((c) => c[0] === "git" && c[1] === "push")).toEqual(["git", "push", "-u", "origin", "feat/hand-made"]);
+  expect(seen.find((c) => c[1] === "pr" && c[2] === "create")).toContain("feat/hand-made");
+  seen.length = 0;
+  await mergePr(project, ID, idRun, ash, true);
+  expect(seen.find((c) => c[1] === "pr" && c[2] === "merge")![3]).toBe("feat/hand-made");
+  expect(seen.flat().join(" ")).not.toContain("kaizen/");
+});
+
+test("R-02 landing and cleanup act on the recorded branch, and leave kaizen/<id> alone", () => {
+  const path = handMade("feat/hand-made");
+  const r = landWorktree(project, ID, idRun, false);
+  expect(r.ok).toBe(true);
+  expect(g(project, "ls-remote", "--heads", "origin", "feat/hand-made")).toBe("");  // landed by rebase and push to the base, no stray branch pushed
+  expect(g(project, "ls-remote", "--heads", "origin", `kaizen/${ID}`)).toBe("");
+  expect(existsSync(path)).toBe(false);
+  expect(g(project, "branch", "--list", "feat/hand-made")).toBe("");                  // cleanup removed the real branch
+});
+
+// G-02
+test("R-03 a run without a recorded branch, or with an unsafe one, keeps kaizen/<id>", () => {
+  expect(branchFor(project, ID)).toBe(`kaizen/${ID}`);
+  for (const bad of ["-x", "--upload-pack=x", "a..b", "a b", "x/", "x.", "x.lock", "a//b", "", "/abs", 42, null, ["feat/x"], "x".repeat(201), "a;b", "a\nb"]) {
+    setState({ branch: bad });
+    expect(branchFor(project, ID)).toBe(`kaizen/${ID}`);
+  }
+  for (const ok of ["feat/kaizen-rpg", "main2", "release-1.70", "a/b/c"]) { setState({ branch: ok }); expect(branchFor(project, ID)).toBe(ok); }
+  expect(branchFor(project, "no-such-run")).toBe("kaizen/no-such-run");
+});
+
+// G-03
+test("R-04 a worktree made by kaizen still records and uses kaizen/<id>", () => {
+  startWorktree(project, ID);
+  expect(state().branch).toBe(`kaizen/${ID}`);
+  expect(branchFor(project, ID)).toBe(`kaizen/${ID}`);
+});
+
+// ---- the base is never the run's branch; runs that share a branch do not remove it under each other
+// G-02
+test("R-05 a recorded branch equal to the base, the feature base or HEAD falls back to kaizen/<id>", () => {
+  for (const b of ["main", "HEAD"]) { setState({ branch: b }); expect(branchFor(project, ID)).toBe(`kaizen/${ID}`); }
+  setState({ branch: "feature-x", base_branch: "feature-x" });
+  expect(branchFor(project, ID)).toBe(`kaizen/${ID}`);
+  setState({ branch: "feature-y", base_branch: "feature-x" });
+  expect(branchFor(project, ID)).toBe("feature-y");
+});
+
+test("R-06 cleanup with the base recorded as the branch never deletes the base", async () => {
+  feature();                                                                     // the project is on feature-x, which a run lands on
+  const path = join(project, ".kaizen", "wt", ID);
+  g(project, "worktree", "add", "-q", path, "--no-track", "-b", "feat/real", "feature-x");
+  setState({ worktree: path, branch: "feature-x", base_branch: "feature-x" });   // a bad record: the base as the branch
+  g(project, "switch", "-q", "main");                                            // so feature-x is not checked out and git would delete it
+  const tip = g(project, "rev-parse", "feature-x");
+  await removeWorktree(project, ID, idRun, runAsync);
+  expect(g(project, "rev-parse", "feature-x")).toBe(tip);
+});
+
+const ID2 = "2026-10-17-second";
+const second = (path: string) => { mkdirSync(join(project, ".kaizen/runs", ID2), { recursive: true }); writeFileSync(join(project, ".kaizen/runs", ID2, "state.json"), JSON.stringify({ id: ID2, stage: "done", worktree: path, branch: "feat/shared" })); };
+const state2 = () => JSON.parse(readFileSync(join(project, ".kaizen/runs", ID2, "state.json"), "utf8"));
+
+test("R-07 two runs on one branch: landing or cleaning up one keeps the worktree and the branch for the other", async () => {
+  const path = handMade("feat/shared"); second(path);
+  const r = landWorktree(project, ID, idRun, false);
+  expect(r.ok).toBe(true);
+  expect(existsSync(path)).toBe(true);
+  expect(g(project, "branch", "--list", "feat/shared")).toContain("feat/shared");
+  const rm = await removeWorktree(project, ID, idRun, runAsync);
+  expect(!rm.ok && rm.why).toContain(ID2);
+  expect(existsSync(path)).toBe(true);
+  // The other run is done with it: now the last run can remove both.
+  writeFileSync(join(project, ".kaizen/runs", ID2, "state.json"), JSON.stringify({ ...state2(), worktree: null, branch: null }));
+  expect((await removeWorktree(project, ID, idRun, runAsync)).ok).toBe(true);
+  expect(existsSync(path)).toBe(false);
+  expect(g(project, "branch", "--list", "feat/shared")).toBe("");
+});
+
+test("R-08 a recorded branch that does not exist is shown as recorded, without an error", () => {
+  const path = join(project, ".kaizen", "wt", ID); mkdirSync(path, { recursive: true });
+  g(project, "worktree", "add", "-q", "-f", path + "-x", "--no-track", "-b", "feat/other", "origin/main");
+  setState({ worktree: path + "-x", branch: "feat/gone" });
+  expect(branchState(project, ID, () => {}, idRun, runAsync, false)!.branch).toBe("feat/gone");
 });
