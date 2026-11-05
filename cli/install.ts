@@ -640,11 +640,14 @@ if (args.has("worktree")) {
   const { locate } = await import("./state.ts");
   const { startWorktree, landRun, adoptWorkspace, linkTerm } = await import("./worktree.ts");
   const state = locate();
-  if (!state || (verb !== "start" && verb !== "land")) { console.log("\n  usage: kaizen worktree start|land <run-id>, in a project with .kaizen\n"); process.exit(1); }
+  if (!state || (verb !== "start" && verb !== "land")) { console.log("\n  usage: kaizen worktree start [--default] | land <run-id>, in a project with .kaizen\n"); process.exit(1); }
   const project = dirname(state);
   // Started inside another workspace of the project (a board worktree): the run is placed there.
-  const r = verb === "start" ? adoptWorkspace(project, id, process.cwd()) ?? startWorktree(project, id) : landRun(project, id, process.env.KAIZEN_TERM);
-  if (r.ok && verb === "start") linkTerm(state, process.env.KAIZEN_TERM, id);
+  // --default is a side run: its own worktree off the default branch, never another run's folder.
+  const side = args.has("--default");
+  const r = verb === "start" ? (side ? null : adoptWorkspace(project, id, process.cwd())) ?? startWorktree(project, id, side) : landRun(project, id, process.env.KAIZEN_TERM);
+  // A side run never relinks the asking terminal: it stays with the run it was on.
+  if (r.ok && verb === "start" && !side) linkTerm(state, process.env.KAIZEN_TERM, id);
   if ("warn" in r && r.warn) console.log(`\n  warning: ${r.warn}`);
   console.log(r.ok ? `\n  ${verb === "start" ? `worktree ready: ${(r as { path: string }).path}` : `landed by ${(r as { how: string }).how}`}\n` : `\n  ${r.why}\n`);
   process.exit(r.ok ? 0 : 1);

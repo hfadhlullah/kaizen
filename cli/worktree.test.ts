@@ -316,6 +316,37 @@ test("G-02 uncommitted changes on the feature branch are warned about", () => {
   expect(r.ok && r.warn).toContain("wip.txt");
 });
 
+test("G-07 a side run cuts from the remote default branch even while the project is on a feature branch", () => {
+  feature();
+  const r = startWorktree(project, ID, true);
+  expect(r.ok).toBe(true);
+  expect(state().base_branch).toBeUndefined();
+  expect(existsSync(join(state().worktree, "f.txt"))).toBe(false); // the feature's commit is not in it
+  expect(g(state().worktree, "rev-parse", "HEAD")).toBe(g(project, "rev-parse", "origin/main"));
+  expect(g(project, "branch", "--show-current")).toBe("feature-x");
+});
+
+test("G-07 kaizen worktree start --default from inside another worktree makes the run its own, off main", () => {
+  const w = addWorktree(project, "feat/two", idRun) as { path: string };
+  commit(w.path, "two.txt", "two");
+  const cli = join(import.meta.dir, "install.ts");
+  const p = Bun.spawnSync(["bun", cli, "worktree", "start", ID, "--default"], { cwd: w.path, env: { ...process.env, KAIZEN_TERM: "" } });
+  expect(p.exitCode).toBe(0);
+  expect(state().workspace).toBeUndefined(); // never placed in feat/two
+  expect(realpathSync(state().worktree)).not.toBe(realpathSync(w.path));
+  expect(state().branch).toBe(`kaizen/${ID}`);
+  expect(state().base_branch).toBeUndefined();
+  expect(existsSync(join(state().worktree, "two.txt"))).toBe(false);
+});
+
+test("G-07 a side run leaves the asking terminal linked to the run it was on", () => {
+  const st = join(project, ".kaizen"), key = "sh-0123abcd";
+  linkTerm(st, key, "other-run");
+  const p = Bun.spawnSync(["bun", join(import.meta.dir, "install.ts"), "worktree", "start", ID, "--default"], { cwd: project, env: { ...process.env, KAIZEN_TERM: key } });
+  expect(p.exitCode).toBe(0);
+  expect(readFileSync(join(st, "sessions", `${key}.run`), "utf8")).toBe("other-run");
+});
+
 test("G-01 on the default branch no base_branch is recorded", () => {
   startWorktree(project, ID);
   expect(state().base_branch).toBeUndefined();
@@ -551,4 +582,13 @@ test("R-08 a recorded branch that does not exist is shown as recorded, without a
   g(project, "worktree", "add", "-q", "-f", path + "-x", "--no-track", "-b", "feat/other", "origin/main");
   setState({ worktree: path + "-x", branch: "feat/gone" });
   expect(branchState(project, ID, () => {}, idRun, runAsync, false)!.branch).toBe("feat/gone");
+});
+
+test("G-07 the spec offers a side run off the default branch to every runner, and the .kaizen copies match", () => {
+  const root = join(import.meta.dir, ".."), read = (f: string) => readFileSync(join(root, f), "utf8");
+  const skill = read("skills/kaizen/SKILL.md"), build = read("skills/kaizen/spec-build.md");
+  for (const s of ["Side run: new worktree off the default branch, built by a second agent", "never copy another run's `state.json`", "kaizen worktree start <id> --default"]) expect(skill).toContain(s);
+  expect(build).toContain("under every\nrunner, `lite` included");
+  expect(build).toContain("kaizen worktree start <id> --default");
+  for (const f of ["spec.md", "spec-plan.md", "spec-main.md"]) expect(read(`.kaizen/${f}`)).toBe(read(`skills/kaizen/${f}`));
 });

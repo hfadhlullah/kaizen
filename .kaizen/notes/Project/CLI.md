@@ -2,7 +2,7 @@
 description: The kaizen command: installer, upgrade, uninstall, settings, prune, sources
 tags: [project, cli]
 sources: [cli/automations.ts, cli/automations.test.ts, cli/computer.ts, cli/workers.ts, cli/workers.test.ts, cli/install.ts, cli/docs.ts, cli/docs.test.ts, cli/knowledge.ts, cli/stats.ts, cli/stats.test.ts, cli/state-set.test.ts, cli/install-unknown.test.ts, cli/setup.ts, cli/look.ts, cli/qr.ts, cli/settings.ts, cli/settings.test.ts, cli/worktree.ts, cli/state.ts, package.json]
-updated: 2026-11-03
+updated: 2026-11-05
 ---
 # CLI
 
@@ -30,7 +30,7 @@ updated: 2026-11-03
 
 ## Watch out
 - **Never run `kaizen uninstall` against the real install or this checkout** — it deletes `$KAIZEN_HOME`; test in a scratch copy with scratch `HOME` (`.kaizen/memory.md`, header of `cli/install.test.ts`).
-- `kaizen worktree start|land <id>` must run from the project folder; `locate()` maps a run worktree back to its project, because the worktree holds a partial `.kaizen` (the committed notes) but none of the runs.
+- `kaizen worktree start [--default] | land <id>`: `--default` (a side run) cuts from the remote default branch and skips `adoptWorkspace`, so it is safe from inside another worktree. Otherwise it must run from the project folder; `locate()` maps a run worktree back to its project, because the worktree holds a partial `.kaizen` (the committed notes) but none of the runs.
 - `install.ts` has no exports, so its logic is tested by running it, or by reading a literal from source (the gitignore test).
 - Never run `bun cli/install.ts --yes` from this checkout to "fix" `--check`: it repoints the global links (`.kaizen/memory.md`).
 - `settings.ts` reads config keys by indentation; keep a key's nesting depth exact (`.kaizen/memory.md`).

@@ -92,9 +92,10 @@ const baseRef = (project: string, id: string) => localBase(project, id) ?? `orig
 /**
  * Makes the run's worktree and branch and records both. Off the remote default branch, or,
  * when the project is on another branch, off that local branch, unpushed commits included,
- * recorded as `base_branch`. `warn` names uncommitted changes, which a worktree never carries.
+ * recorded as `base_branch`. `fromDefault` (a side run) always cuts from the remote default
+ * branch, whatever the project is on. `warn` names uncommitted changes, which a worktree never carries.
  */
-export function startWorktree(project: string, id: string): { ok: true; path: string; branch: string; warn?: string } | { ok: false; why: string } {
+export function startWorktree(project: string, id: string, fromDefault = false): { ok: true; path: string; branch: string; warn?: string } | { ok: false; why: string } {
   if (!SLUG.test(id)) return { ok: false, why: `"${id}" is not a run id` };
   if (!existsSync(file(project, id))) return { ok: false, why: "no such run" };
   if (!git(project, "rev-parse", "--is-inside-work-tree").ok) return { ok: false, why: "not a git repository" };
@@ -103,7 +104,7 @@ export function startWorktree(project: string, id: string): { ok: true; path: st
   if (!git(project, "remote").out) return { ok: false, why: "no git remote to branch from" };
   const f = git(project, "fetch", "origin");
   if (!f.ok) return { ok: false, why: `fetch failed: ${f.why}` };
-  const here = git(project, "symbolic-ref", "--short", "-q", "HEAD"), feature = here.ok && here.out && here.out !== baseOf(project) ? here.out : null;
+  const here = git(project, "symbolic-ref", "--short", "-q", "HEAD"), feature = !fromDefault && here.ok && here.out && here.out !== baseOf(project) ? here.out : null;
   const base = feature ?? `origin/${baseOf(project)}`;
   const exists = git(project, "rev-parse", "--verify", "--quiet", `refs/heads/${branch}`).ok;
   const add = git(project, "worktree", "add", ...(exists ? [path, branch] : [path, "--no-track", "-b", branch, base]));
