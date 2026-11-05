@@ -94,3 +94,11 @@ export function liveFrame(d: DungeonIn): Frame {
   if (next && next.stage <= s.reached) return { x: Math.max(0, next.x - 0.7), defeated, fighting: next.i, done: false };
   return { x: seg ? seg.gate - 0.3 : 0, defeated, fighting: null, done: false }; // every monster up to here is down
 }
+
+// Which Blender scene a run's dungeon is drawn in: a stable pick per run, one run in three walks a forest path and
+// the rest go underground. Only a choice of backdrop: it changes nothing the engine counts.
+export const sceneOf = (id: string): "dungeon" | "forest" => {
+  let h = 0;
+  for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return h % 3 === 0 ? "forest" : "dungeon";
+};

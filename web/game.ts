@@ -12,7 +12,7 @@ type Dungeon = {
 };
 type Look = { hair: string; skinColor: string; hairColor: string; eyeColor: string; facialHairColor: string; height: number };
 type State = {
-  art: string[];
+  art: string[]; scenes?: { installed: string[]; missing: string[] };
   game: { name: string; look: Look }; character: Bar & { name: string }; guilds: Guild[]; dungeons: Dungeon[];
   totals: { runs: number; cleared: number; retreat: number; live: number; stalled: number };
 };
@@ -94,9 +94,9 @@ function draw(s: State) {
 
 // ---- the dungeon panel: web/dungeon.ts (three.js) is fetched the first time one is opened ----
 type Mount = { update(d: Dungeon): boolean; replay(): void; pause(on: boolean): boolean; destroy(): void };
-type Kz = { mount(host: HTMLElement, d: Dungeon, paused?: boolean): Mount | null };
+type Kz = { mount(host: HTMLElement, d: Dungeon, paused?: boolean, art?: string[]): Mount | null };
 type TownMount = { update(g: Guild[]): void; select(id: string | null): void; hover(id: string | null): void; idAt(x: number, y: number): string | null; destroy(): void };
-type KzT = { mount(host: HTMLElement, g: Guild[], o: { onPick(id: string): void }): TownMount | null };
+type KzT = { mount(host: HTMLElement, g: Guild[], o: { onPick(id: string): void; art?: string[] }): TownMount | null };
 const panel = document.getElementById("dungeon")!, dgBody = document.getElementById("dg-body")!, dgTitle = document.getElementById("dg-title")!;
 const dgPause = document.getElementById("dg-pause") as HTMLButtonElement, dgReplay = document.getElementById("dg-replay") as HTMLButtonElement;
 let openId = "", wantPause = false, handle: Mount | null = null, loading: Promise<Kz> | null = null;
@@ -119,7 +119,7 @@ async function show(d: Dungeon) {
   try {
     const k = await loadScene();
     if (openId !== d.id) return;
-    handle = k.mount(dgBody, d, wantPause);
+    handle = k.mount(dgBody, d, wantPause, last?.scenes?.installed);
     if (!handle) dgBody.innerHTML = text(d, "This browser cannot draw the dungeon (no WebGL). Here is its shape instead.");
     else if (wantPause || matchMedia("(prefers-reduced-motion: reduce)").matches) { wantPause = true; dgPause.textContent = "Play"; } // a rebuild keeps your Pause
   } catch (e) { dgBody.innerHTML = text(d, `The dungeon scene could not load (${e instanceof Error ? e.message : e}).`); }
@@ -131,10 +131,33 @@ function open(id: string) {
   closeTown();
   openId = id; panel.hidden = false; panel.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
   void show(d);
+  syncScenes();
 }
-function close() { openId = ""; wantPause = false; stop(); panel.hidden = true; }
+function close() { openId = ""; wantPause = false; stop(); panel.hidden = true; syncScenes(); }
+// The realistic scenes are a download the user asks for: a bar offers it while a scene is open and any is missing.
+const scenesBar = document.getElementById("scenes")!;
+let downloading = false;
+function syncScenes() {
+  if (downloading) return;
+  const show = (last?.scenes?.missing.length ?? 0) > 0 && (openId !== "" || townOpen);
+  scenesBar.hidden = !show;
+  if (show && !scenesBar.querySelector("#get-scenes")) scenesBar.innerHTML = `The realistic 3D scenes are not downloaded (about 10 MB, from the kaizen release). <button type="button" id="get-scenes">Download</button>`;
+}
+scenesBar.addEventListener("click", async (e) => {
+  if (!(e.target as HTMLElement).closest("#get-scenes") || downloading) return;
+  downloading = true; scenesBar.textContent = "Downloading the scenes…";
+  const r = await post("/game/assets", {});
+  downloading = false;
+  if (!r.ok) { scenesBar.innerHTML = `Could not download the scenes: ${esc(r.error ?? "unknown error")}. <button type="button" id="get-scenes">Try again</button>`; return; }
+  scenesBar.hidden = true; scenesBar.innerHTML = "";
+  await fresh();
+  const d = last?.dungeons.find((x) => x.id === openId);
+  if (d) void show(d);
+  if (townOpen) { town?.destroy(); town = null; twBody.innerHTML = ""; void mountTownNow(); }
+});
 // A refresh keeps the scene running: the same run moves it, a run that grew a stage rebuilds it.
 function sync() {
+  syncScenes();
   syncTown();
   if (!openId) return;
   const d = last?.dungeons.find((x) => x.id === openId);
@@ -187,13 +210,17 @@ async function openTown() {
   townPanel.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
   info();
   try {
-    await loadScene();
-    if (!townOpen || town) return;
-    town = kzt()?.mount(twBody, last?.guilds ?? [], { onPick: (id) => { picked = id; town?.select(id); info(); } }) ?? null;
-    if (!town) fallbackList(); else town.select(picked);
+    await mountTownNow();
   } catch (e) { twBody.innerHTML = `<p class="empty">The town scene could not load (${esc(e instanceof Error ? e.message : e)}).</p>`; }
+  syncScenes();
 }
-function closeTown() { townOpen = false; town?.destroy(); town = null; townPanel.hidden = true; twBody.innerHTML = ""; }
+async function mountTownNow() {
+  await loadScene();
+  if (!townOpen || town) return;
+  town = kzt()?.mount(twBody, last?.guilds ?? [], { onPick: (id) => { picked = id; town?.select(id); info(); }, art: last?.scenes?.installed }) ?? null;
+  if (!town) fallbackList(); else town.select(picked);
+}
+function closeTown() { townOpen = false; town?.destroy(); town = null; townPanel.hidden = true; twBody.innerHTML = ""; syncScenes(); }
 function syncTown() { if (!townOpen) return; if (town) town.update(last?.guilds ?? []); else if (twBody.querySelector(".tw-list")) fallbackList(); info(); }
 
 // Dragging a skill chip onto a building (pointer events, so a finger works too). The listeners

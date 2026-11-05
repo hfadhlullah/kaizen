@@ -30,3 +30,4 @@ Tests are `bun test` (all `*.test.ts`, `cli/` and `bot/`), run in CI on Ubuntu a
 
 ## Notes
 <!-- yours: /kaizen docs never rewrites this section -->
+- Game scenes (`game-assets/`): Blender scripts, licenses and `pack.ts` (needs `bunx @gltf-transform/cli@4.5.1` and python3) build `game-assets/dist/{forest,dungeon,town}.glb` + `manifest.json`; upload them to a GitHub release tagged `game-assets-v1` (not done until landing). `web/scenes.js` grew by the glTF loader (about 100 KB). `npm pack --dry-run` must list no `game-assets/` and no `.glb`. `cli/game-assets.test.ts` and `cli/game-http.test.ts` cover the fetch (hash, size, bad manifest, traversal, guarded POST, no download unasked) against a local release server.

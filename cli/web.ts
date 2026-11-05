@@ -33,6 +33,7 @@ import { connectPhone, loginUrl, readPhone } from "./phone-setup.ts";
 import { listNotes, saveNote, renameNote, deleteNote, boardIndex, linksTo } from "./notes.ts";
 import * as video from "./video.ts";
 import { cachedGameState, foundGuild, moveSkill } from "./game.ts";
+import { assetFile, assetState, fetchAssets } from "./game-assets.ts";
 import * as auto from "./automations.ts";
 import * as localsend from "./localsend.ts";
 import * as hermes from "./hermes.ts";
@@ -807,7 +808,18 @@ export async function web(repoDir: string, opts: Opts = {}) {
         if (body === null) return new Response(`${path} missing; run bun run build:web`, { status: 500 });
         return new Response(body, { headers: { "content-type": type, "cache-control": "no-store" } });
       }
-      if (req.method === "GET" && path === "/game/state") return json({ ...cachedGameState(), art: gameArt() });
+      if (req.method === "GET" && path === "/game/state") return json({ ...cachedGameState(), art: gameArt(), scenes: assetState() });
+      // The 3D scenes: served from ~/.kaizen/game/assets/ once downloaded; the download happens only when asked for.
+      if (req.method === "GET" && path.startsWith("/game/assets/")) {
+        const f = assetFile(path.slice("/game/assets/".length));
+        return f ? new Response(Bun.file(f), { headers: { "content-type": "model/gltf-binary", "cache-control": "no-cache", "x-content-type-options": "nosniff" } }) : new Response("not found", { status: 404 });
+      }
+      if (req.method === "POST" && path === "/game/assets") {
+        const refused = strict(req);
+        if (refused) return refused;
+        const r = await fetchAssets();
+        return r.ok ? json({ ok: true, ...assetState() }) : bad(r.error, 502);
+      }
       // The game's two writes (found a guild, move a skill): game.json only, see cli/game.ts.
       if (req.method === "POST" && (path === "/game/found" || path === "/game/move")) {
         const refused = strict(req);

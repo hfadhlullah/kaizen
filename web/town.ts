@@ -1,7 +1,7 @@
 // The guild town: one building per guild on a grid, drawn with three.js from primitives
 // (placeholders until the Blender art of phases 4 to 6). It draws what web/town-script.ts says.
 // Inside /scenes.js (web/scenes.ts), which sets window.KzTown; bundled by `bun run build:web`.
-import { AmbientLight, DirectionalLight, Group, Mesh, PerspectiveCamera, Raycaster, Scene, Vector2, Vector3, type BoxGeometry, type ConeGeometry } from "three";
+import { AmbientLight, Color, DirectionalLight, Fog, Group, HemisphereLight, Mesh, PerspectiveCamera, Raycaster, Scene, Vector2, Vector3, type BoxGeometry, type ConeGeometry } from "three";
 import { makeKit } from "./scene-kit.ts";
 import { GAP, ROW_GAP, townScript, type Building, type TownGuild } from "./town-script.ts";
 
@@ -16,7 +16,8 @@ export type TownHandle = {
 const FLOOR = 1.15, FOV = 38, ELEV = (42 * Math.PI) / 180;
 const esc = (s: unknown) => String(s ?? "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
-export function mountTown(host: HTMLElement, first: TownGuild[], opts: { onPick(id: string): void }): TownHandle | null {
+// `art` lists the Blender scenes that are downloaded; with "town" in it the square, houses and forest surround the guild buildings.
+export function mountTown(host: HTMLElement, first: TownGuild[], opts: { onPick(id: string): void; art?: string[] }): TownHandle | null {
   host.innerHTML = `<div class="tw-stage"></div>`;
   const stage = host.querySelector<HTMLElement>(".tw-stage")!;
   const kit = makeKit(host, stage, "The guild town: one building for each guild; a taller building is a guild of higher level");
@@ -31,6 +32,13 @@ export function mountTown(host: HTMLElement, first: TownGuild[], opts: { onPick(
   const sun = new DirectionalLight(0xffffff, 0.55); sun.position.set(-6, 14, 10); scene.add(sun);
   const cam = new PerspectiveCamera(FOV, 2, 0.1, 400);
   const town = new Group(); scene.add(town);
+  // The Blender surroundings sit around the middle of the guild grid; the grid itself stays the page's own.
+  const env = new Group(); scene.add(env);
+  if (opts.art?.includes("town")) void kit.glb("town").then((root) => {
+    if (!root || dead) return;
+    env.add(root); scene.background = new Color("#5d6b73"); scene.fog = new Fog("#5d6b73", 60, 150);
+    scene.add(new HemisphereLight(0xcfd8e0, 0x4a3a2a, 0.55)); kick();
+  });
 
   const walls = [0.08, 0.16, 0.24, 0.32].map((k) => mat("--panel-2", "#eadcb8", ["--gold-fill", k]));
   const mRoof = mat("--danger", "#8f2323", ["#1a0505", 0.3]), mDoor = mat("--ink", "#2c1d0e"), mGold = mat("--gold-fill", "#d9a62e");
@@ -75,7 +83,8 @@ export function mountTown(host: HTMLElement, first: TownGuild[], opts: { onPick(
     });
     const spanX = (script.cols - 1) * GAP, spanZ = (script.rows - 1) * ROW_GAP;
     if (lawn) town.remove(lawn);
-    lawn = new Mesh(bx(spanX + 14, 0.4, spanZ + 14), mLawn); lawn.position.set(spanX / 2, -0.2, -spanZ / 2); town.add(lawn);
+    lawn = new Mesh(bx(spanX + 14, 0.4, spanZ + 14), mLawn); lawn.position.set(spanX / 2, -0.19, -spanZ / 2); town.add(lawn);
+    env.position.set(spanX / 2, 0, -spanZ / 2);
     mark();
   }
   function mark() { for (const p of placed) { p.ring.visible = p.b.id === selected; p.g.scale.setScalar(p.b.id === hovered ? 1.05 : 1); } }

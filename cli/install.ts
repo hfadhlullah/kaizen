@@ -279,7 +279,17 @@ if (Bun.argv[2] === "stats" || Bun.argv[2] === "related") {
 if (Bun.argv[2] === "game") {
   const { peekGame, skillList } = await import("./game.ts");
   const rest = Bun.argv.slice(3), json = rest.includes("--json");
-  if (rest.filter((a) => a !== "--json")[0] !== "skills") { console.log(`\n  kaizen game skills [--json]\n`); process.exit(1); }
+  const sub = rest.filter((a) => !a.startsWith("--"))[0];
+  // `kaizen game assets [--check]`: download the 3D scenes of the Game page (about 10 MB) into ~/.kaizen/game/assets/.
+  if (sub === "assets") {
+    const { assetState, assetsDir, fetchAssets } = await import("./game-assets.ts");
+    if (rest.includes("--check")) { const st = assetState(); console.log(`\n  scenes: ${st.installed.join(", ") || "none"}${st.missing.length ? `  (missing: ${st.missing.join(", ")})` : ""}\n  folder: ${assetsDir()}\n`); process.exit(0); }
+    console.log("\n  downloading the game scenes…");
+    const r = await fetchAssets();
+    console.log(r.ok ? `  ${c.green("ok")}  ${r.installed.join(", ")} in ${assetsDir()}\n` : `  failed  ${r.error}\n`);
+    process.exit(r.ok ? 0 : 1);
+  }
+  if (sub !== "skills") { console.log(`\n  kaizen game skills [--json]\n  kaizen game assets [--check]\n`); process.exit(1); }
   const list = skillList(peekGame());
   console.log(json ? JSON.stringify(list, null, 2) : list.map((g) => `${g.id}  ${g.name}\n${g.skills.map((s) => `  ${s.id}  ${s.name}`).join("\n")}`).join("\n"));
   process.exit(0);

@@ -107,3 +107,12 @@ test.skipIf(!roots.length)("script matches the engine on this checkout's real ru
   }
   expect(seen).toBeGreaterThan(0);
 });
+
+test("sceneOf: stable per run, both scenes occur, about one run in three is a forest", async () => {
+  const { sceneOf } = await import("../web/dungeon-script.ts");
+  const ids = Array.from({ length: 300 }, (_, i) => `2026-11-04-run-${i}`);
+  expect(ids.map(sceneOf)).toEqual(ids.map(sceneOf));
+  const forests = ids.filter((i) => sceneOf(i) === "forest").length;
+  expect(forests).toBeGreaterThan(60); expect(forests).toBeLessThan(140);
+  expect(["dungeon", "forest"]).toContain(sceneOf(""));
+});

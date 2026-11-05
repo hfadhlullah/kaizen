@@ -41,3 +41,44 @@ test("game writes: guarded, and visible at once", async () => {
     expect((await fetch(base + "/game/found")).status).not.toBe(200); // GET does not write
   } finally { p.kill(); await p.exited; }
 }, 30_000);
+
+// The 3D scenes over HTTP: nothing downloads until the page asks (POST), the POST is guarded like the other
+// writes, and only the three allow-listed files are served from the assets folder.
+test("game scenes: no download unasked, guarded POST, allow-listed files only", async () => {
+  const { createHash } = await import("node:crypto");
+  const files: Record<string, Uint8Array> = { "forest.glb": new Uint8Array([1, 2, 3]), "dungeon.glb": new Uint8Array([4, 5]), "town.glb": new Uint8Array([6]) };
+  const man = JSON.stringify({ version: 1, files: Object.fromEntries(Object.entries(files).map(([n, b]) => [n, { sha256: createHash("sha256").update(b).digest("hex"), size: b.length }])) });
+  const hits: string[] = [];
+  const rel = Bun.serve({ port: 0, fetch(req) { const n = new URL(req.url).pathname.slice(1); hits.push(n); return n === "manifest.json" ? new Response(man) : files[n] ? new Response(files[n]) : new Response("no", { status: 404 }); } });
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "kz-gs-")));
+  mkdirSync(join(home, ".claude"), { recursive: true });
+  mkdirSync(join(home, ".kaizen"), { recursive: true });
+  const port = 20000 + Math.floor(Math.random() * 20000);
+  const p = Bun.spawn([process.execPath, join(import.meta.dir, "install.ts"), "web", "--foreground", "--no-open", "--port", String(port)],
+    { env: { ...process.env, HOME: home, USERPROFILE: home, KAIZEN_HOME: join(home, "kz"), KAIZEN_ASSETS_URL: `http://localhost:${rel.port}` }, stdout: "ignore", stderr: "ignore" });
+  try {
+    const base = `http://127.0.0.1:${port}`;
+    for (let i = 0; i < 100; i++) { try { if ((await fetch(base + "/")).ok) break; } catch { /* not up yet */ } await Bun.sleep(100); }
+    const post = (h: Record<string, string> = {}) => fetch(base + "/game/assets", { method: "POST", headers: { origin: base, "content-type": "application/json", ...h }, body: "{}" });
+    const scenes = async () => ((await (await fetch(base + "/game/state")).json()) as { scenes: { installed: string[]; missing: string[] } }).scenes;
+
+    expect(await scenes()).toEqual({ installed: [], missing: ["forest", "dungeon", "town"] });
+    expect((await fetch(base + "/game/assets/forest.glb")).status).toBe(404);
+    await fetch(base + "/game"); await fetch(base + "/scenes.js");
+    expect(hits).toEqual([]);                                                       // opening the page downloads nothing
+
+    expect((await post({ "content-type": "text/plain" })).status).toBe(415);
+    expect((await post({ origin: "http://evil.example" })).status).toBe(403);
+    expect(hits).toEqual([]);
+
+    const ok = await post();
+    expect(ok.status).toBe(200);
+    expect(await ok.json()).toMatchObject({ ok: true, installed: ["forest", "dungeon", "town"] });
+    const g = await fetch(base + "/game/assets/forest.glb");
+    expect(g.status).toBe(200);
+    expect(g.headers.get("content-type")).toBe("model/gltf-binary");
+    expect(new Uint8Array(await g.arrayBuffer())).toEqual(files["forest.glb"]!);
+    for (const bad of ["manifest.json", "..%2Fmanifest.json", "%2e%2e/game.json", "forest.glb%00", "x.glb", "forest.gltf", "town.glb/x"]) expect((await fetch(`${base}/game/assets/${bad}`)).status).toBe(404);
+    expect((await fetch(base + "/game/assets/forest.glb", { method: "DELETE" })).status).not.toBe(200);
+  } finally { p.kill(); await p.exited; rel.stop(true); }
+}, 30_000);

@@ -2,9 +2,9 @@
 // the Blender art of phases 4 to 6). It draws what web/dungeon-script.ts says and nothing else.
 // Loaded on demand by the Game page inside /scenes.js (web/scenes.ts), which sets window.KzDungeon;
 // bundled by `bun run build:web`.
-import { AmbientLight, DirectionalLight, Group, Mesh, OrthographicCamera, Scene } from "three";
-import { makeKit } from "./scene-kit.ts";
-import { dungeonScript, liveFrame, replay, type DungeonIn, type Frame, type Script } from "./dungeon-script.ts";
+import { AmbientLight, Color, DirectionalLight, Fog, Group, HemisphereLight, Mesh, OrthographicCamera, Scene } from "three";
+import { cullInstances, makeKit } from "./scene-kit.ts";
+import { dungeonScript, liveFrame, replay, sceneOf, type DungeonIn, type Frame, type Script } from "./dungeon-script.ts";
 
 export type Mounted = DungeonIn & { id: string; title: string; waves: number };
 // update() answers false when the run grew a stage or a finding: the caller destroys and mounts again.
@@ -14,7 +14,8 @@ const VIEW_H = 7, CAM_LEAD = 2.6;
 const esc = (s: unknown) => String(s ?? "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const n = (x: number) => x.toLocaleString("en-US");
 
-export function mount(host: HTMLElement, first: Mounted, startPaused = false): Handle | null {
+// `art` lists the Blender scenes that are downloaded ("dungeon", "forest"); without them the placeholders show.
+export function mount(host: HTMLElement, first: Mounted, startPaused = false, art: string[] = []): Handle | null {
   let d = first, script: Script = dungeonScript(d);
   let paused = startPaused || matchMedia("(prefers-reduced-motion: reduce)").matches, t = 0, last = performance.now(), raf = 0, dead = false;
   let minionT = 0;
@@ -60,6 +61,23 @@ export function mount(host: HTMLElement, first: Mounted, startPaused = false): H
     g.position.set(m.x, 0, 0); scene.add(g); foes.push({ g, boss: m.boss, at: m.x, life: 1 });
   });
   kit.recolor();
+
+  // The downloaded Blender scene replaces the placeholder ground and pillars once it has loaded; the hero, the
+  // monsters and the gates stay. Dungeon: a 20 m segment repeated along the track. Forest: a 90 m trail, with
+  // the trees that stand between the camera and the hero left out.
+  const want = sceneOf(first.id);
+  if (art.includes(want)) void kit.glb(want).then((root) => {
+    if (!root || dead) return;
+    const forest = want === "forest", len = forest ? 90 : 20, from = forest ? -45 : 0;
+    if (forest) cullInstances(root, (p) => p.z < -2.5 || p.z > 60);
+    const art3 = new Group();
+    for (let x = from - len; x < script.width + 70; x += len) { const t = root.clone(true); t.position.x = x - from; art3.add(t); }
+    scene.add(art3); ground.visible = false; far.visible = false;
+    scene.background = new Color(forest ? "#4c5a60" : "#17120e");
+    if (forest) scene.fog = new Fog("#4c5a60", 18, 70);
+    scene.add(new HemisphereLight(0xcfd8e0, 0x4a3a2a, forest ? 0.9 : 0.5));
+    kick();
+  });
 
   // The loop runs while the scene moves; paused, it draws once per change and stops.
   const kick = () => { if (!raf && !dead) { last = performance.now(); raf = requestAnimationFrame(draw); } };
