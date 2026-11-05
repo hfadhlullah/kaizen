@@ -1,7 +1,7 @@
 // One branch and one git worktree per run, so agents building at the same time never
 // share a working folder. Run notes stay in the project's .kaizen/runs/<id>/; only the
 // code lives in the worktree. Every git call is an argv array, never a shell string.
-import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync, renameSync, realpathSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, rmSync, renameSync, realpathSync } from "node:fs";
 import { join, dirname, resolve, sep } from "node:path";
 import { homedir } from "node:os";
 import { branchesOf } from "./add-project.ts";
@@ -23,6 +23,34 @@ export const run: Run = (cmd, cwd, ms = 120_000) => {
 const git = (cwd: string, ...a: string[]) => run(["git", ...a], cwd);
 
 export const branchOf = (id: string) => `kaizen/${id}`;
+// A branch name that is safe as a git argument and a refs/heads path: no leading dash, no "..", no "//", no spaces.
+const SAFE_BRANCH = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$/;
+const safeBranch = (b: unknown): b is string => typeof b === "string" && SAFE_BRANCH.test(b) && !b.includes("..") && !b.includes("//") && !/[/.]$/.test(b) && !b.endsWith(".lock");
+/** The branch a run really has: the one its state.json records (a run made by hand, on a feature branch), else kaizen/<id>.
+ *  Never the base it lands on (the remote default, the feature base, HEAD): landing and cleanup delete this branch. */
+export function branchFor(project: string, id: string): string {
+  try {
+    const b = JSON.parse(readFileSync(join(project, ".kaizen", "runs", id, "state.json"), "utf8")).branch;
+    if (safeBranch(b) && b !== "HEAD" && b !== localBase(project, id) && b !== baseOf(project)) return b;
+  } catch { /* no state: the default */ }
+  return branchOf(id);
+}
+
+/** Another run that still uses this run's branch or worktree (runs made by hand on one feature branch share both):
+ *  neither is ours to remove while it does. */
+function sharer(project: string, id: string, branch: string, dir: string): string | null {
+  const runs = join(project, ".kaizen", "runs");
+  let names: string[] = [];
+  try { names = readdirSync(runs); } catch { return null; }
+  for (const n of names) {
+    if (n === id) continue;
+    try {
+      const o = JSON.parse(readFileSync(join(runs, n, "state.json"), "utf8"));
+      if (typeof o.worktree === "string" && o.worktree && existsSync(o.worktree) && (o.worktree === dir || o.branch === branch)) return n;
+    } catch { /* not a run */ }
+  }
+  return null;
+}
 export const worktreeOf = (project: string, id: string) => join(project, ".kaizen", "wt", id);
 
 const file = (project: string, id: string) => join(project, ".kaizen", "runs", id, "state.json");
@@ -208,7 +236,7 @@ export function landWorktree(project: string, id: string, sh: Run = run,
   // gh only knows GitHub: any other remote lands by rebase and push.
   hasGh = !!Bun.which("gh") && /github\.com/.test(git(project, "remote", "get-url", "origin").out)): Landed {
   if (!SLUG.test(id)) return { ok: false, why: `"${id}" is not a run id` };
-  const dir = codeDir(project, id), branch = branchOf(id);
+  const dir = codeDir(project, id), branch = branchFor(project, id);
   if (dir === project) return { ok: false, why: "this run has no worktree" };
   const clean = (d: string) => !sh(["git", "status", "--porcelain"], d).out;
   if (!clean(dir)) return { ok: false, why: "the worktree has uncommitted changes; commit them first" };
@@ -227,9 +255,10 @@ export function landWorktree(project: string, id: string, sh: Run = run,
       const m = sh(["git", "merge", "--no-edit", branch], project);
       if (!m.ok) { sh(["git", "merge", "--abort"], project); return { ok: false, kind: "conflict", why: `merge into ${feature} failed: ${m.why}; worktree kept` }; }
     }
+    if (sharer(project, id, branch, dir)) return { ok: true, how: "merge" }; // merged; another run still uses the worktree and branch
     const rm = git(project, "worktree", "remove", "--force", dir);
     if (!rm.ok) return { ok: false, why: `merged, but the worktree stays: ${rm.why}` };
-    git(project, "branch", "-D", branch);
+    git(project, "branch", "-D", "--", branch);
     patchState(project, id, { worktree: null, branch: null });
     return { ok: true, how: "merge" };
   }
@@ -237,11 +266,12 @@ export function landWorktree(project: string, id: string, sh: Run = run,
   const finish = (how: "pr" | "push", url?: string): Landed => {
     git(project, "fetch", "origin");
     if (!landed(dir, `origin/${base}`, branch)) return { ok: false, why: `${how === "pr" ? "the pull request" : "the push"} went through but ${branch} is not on ${base} yet; worktree kept` };
+    if (sharer(project, id, branch, dir)) return { ok: true, how, url }; // landed; another run still uses the worktree and branch
     // The worktree is clean (checked above); --force is only for the untracked node_modules link.
     const rm = git(project, "worktree", "remove", "--force", dir);
     if (!rm.ok) return { ok: false, why: `landed, but the worktree stays: ${rm.why}` };
-    git(project, "branch", "-D", branch);
-    git(project, "push", "origin", "--delete", branch);
+    git(project, "branch", "-D", "--", branch);
+    git(project, "push", "origin", "--delete", "--", branch);
     patchState(project, id, { worktree: null, branch: null });
     return { ok: true, how, url };
   };
@@ -314,7 +344,7 @@ export function branchState(project: string, id: string, changed: () => void = (
   if (!SLUG.test(id)) return null;
   const dir = codeDir(project, id);
   if (dir === project) return null; // committed in the project's own checkout: no branch of its own
-  const branch = branchOf(id), base = baseOfRun(project, id), ref = baseRef(project, id);
+  const branch = branchFor(project, id), base = baseOfRun(project, id), ref = baseRef(project, id);
   // A feature base may never have been pushed: it lands by local merge, with no pull request.
   const gh = hasGh && !localBase(project, id);
   const upstream = sh(["git", "rev-parse", "--abbrev-ref", `${branch}@{u}`], dir).ok;
@@ -339,7 +369,7 @@ export function branchState(project: string, id: string, changed: () => void = (
 /** Pushes the branch, then opens its pull request against the base. */
 export async function openPr(project: string, id: string, title: string, body: string, draft: boolean, sh: Run = run, ash: AsyncRun = runAsync, hasGh = onGithub(project)): Promise<{ ok: true; pr: Pr } | { ok: false; why: string }> {
   if (!SLUG.test(id)) return { ok: false, why: `"${id}" is not a run id` };
-  const dir = codeDir(project, id), branch = branchOf(id);
+  const dir = codeDir(project, id), branch = branchFor(project, id);
   if (dir === project) return { ok: false, why: "This run has no branch of its own." };
   if (localBase(project, id)) return { ok: false, why: "This run lands by a local merge into its branch, with no pull request." };
   if (!hasGh) return { ok: false, why: "Pull requests need the GitHub CLI (gh) and a GitHub remote." };
@@ -358,7 +388,7 @@ export async function openPr(project: string, id: string, title: string, body: s
 /** Merges the run's pull request by rebase, as `kaizen land` does. The worktree stays. */
 export async function mergePr(project: string, id: string, sh: Run = run, ash: AsyncRun = runAsync, hasGh = onGithub(project)): Promise<{ ok: true } | { ok: false; why: string }> {
   if (!SLUG.test(id)) return { ok: false, why: `"${id}" is not a run id` };
-  const dir = codeDir(project, id), branch = branchOf(id);
+  const dir = codeDir(project, id), branch = branchFor(project, id);
   if (dir === project) return { ok: false, why: "This run has no branch of its own." };
   if (localBase(project, id)) return { ok: false, why: "This run lands by a local merge: run kaizen worktree land." };
   if (!hasGh) return { ok: false, why: "Merging needs the GitHub CLI (gh) and a GitHub remote." };
@@ -375,8 +405,10 @@ export async function mergePr(project: string, id: string, sh: Run = run, ash: A
  */
 export async function removeWorktree(project: string, id: string, sh: Run = run, ash: AsyncRun = runAsync): Promise<{ ok: true } | { ok: false; why: string }> {
   if (!SLUG.test(id)) return { ok: false, why: `"${id}" is not a run id` };
-  const dir = codeDir(project, id), branch = branchOf(id);
+  const dir = codeDir(project, id), branch = branchFor(project, id);
   if (dir === project) return { ok: false, why: "This run has no worktree." };
+  const other = sharer(project, id, branch, dir);
+  if (other) return { ok: false, why: `The run ${other} still uses this worktree and branch. Remove them from the last run that uses them.` };
   if (sh(["git", "status", "--porcelain"], dir).out) return { ok: false, why: "The worktree has uncommitted changes. Commit or discard them first." };
   const feature = localBase(project, id), base = feature ?? baseOf(project), ref = baseRef(project, id);
   if (!feature) {
@@ -390,7 +422,7 @@ export async function removeWorktree(project: string, id: string, sh: Run = run,
   if (!rm.ok) return { ok: false, why: rm.why };
   // Every commit is on the base by patch, so -D loses nothing a rebase-merge rewrote.
   sh(["git", "branch", "-D", "--", branch], project);
-  if (!feature) await ash(["git", "push", "origin", "--delete", branch], project); // best effort: GitHub may have deleted it
+  if (!feature) await ash(["git", "push", "origin", "--delete", "--", branch], project); // best effort: GitHub may have deleted it
   prs.delete(prKey(project, id));
   patchState(project, id, { worktree: null, branch: null });
   clearLand(project, id);

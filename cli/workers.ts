@@ -10,7 +10,7 @@ import { argsOf, commandOf, readPrefs, withEnv, type Prefs } from "./agent-prefs
 import { clip, reportBlocked, reportUnblock, validId } from "./report.ts";
 import { read } from "./settings.ts";
 import { accountEnv, accountForRun, agentFlags, agentUsable, detectDefaultAgent, MODEL_FLAGS, plainModel, promptArgs, readText, runAgent, YOLO_FLAGS } from "./state.ts";
-import { branchOf, run as sh } from "./worktree.ts";
+import { branchFor, branchOf, run as sh } from "./worktree.ts";
 
 export type Status = "planned" | "requested" | "running" | "blocked" | "succeeded" | "failed" | "unverified" | "conflict" | "merged" | "stopped";
 export type Worker = {
@@ -238,7 +238,7 @@ export function startWorker(project: string, id: string, wid: string, prefs?: Pr
     const have = git(project, "rev-parse", "--verify", "--quiet", `refs/heads/${x.branch}`).ok;
     // A dependent worker starts from the worker it follows, so it sees that code; any further `after` workers are merged in.
     const dep = x.after.map((a) => w.workers.find((o) => o.id === a)!.branch);
-    const add = git(project, "worktree", "add", ...(have ? [x.worktree, x.branch] : ["--no-track", "-b", x.branch, x.worktree, dep[0] ?? st.branch]));
+    const add = git(project, "worktree", "add", ...(have ? [x.worktree, x.branch] : ["--no-track", "-b", x.branch, x.worktree, dep[0] ?? branchFor(project, id)]));
     if (!add.ok) return { ok: false, why: add.why };
     if (!have) for (const b of dep.slice(1)) {
       const m = git(x.worktree, "merge", "--no-edit", b);
@@ -326,12 +326,12 @@ export function merge(project: string, id: string): { ok: true; shas: string[]; 
   if (not) return { ok: false, why: `${not.id} is ${not.status}, so nothing is merged: ${NEXT[not.status]?.replace("<wid>", not.id)}` };
   const cwd = st.worktree as string;
   if (!cwd || !existsSync(cwd)) return { ok: false, why: "the run has no worktree to merge into" };
-  if (git(cwd, "rev-parse", "--abbrev-ref", "HEAD").out !== st.branch) return { ok: false, why: `the run's worktree is not on ${st.branch}: check it out there first` };
+  if (git(cwd, "rev-parse", "--abbrev-ref", "HEAD").out !== branchFor(project, id)) return { ok: false, why: `the run's worktree is not on ${branchFor(project, id)}: check it out there first` };
   if (git(cwd, "status", "--porcelain").out) return { ok: false, why: "the run's worktree has uncommitted changes: commit them first, then merge" };
   // A branch may change only what its worker owns. Commits it took from the workers it follows are theirs, not its own.
   for (const x of w.workers) {
     const skip = x.after.flatMap((a) => ["^" + w.workers.find((o) => o.id === a)!.branch]);
-    const out = git(cwd, "log", "--no-merges", "--name-only", "--format=", x.branch, "^" + st.branch, ...skip).out.split("\n").filter(Boolean);
+    const out = git(cwd, "log", "--no-merges", "--name-only", "--format=", x.branch, "^" + branchFor(project, id), ...skip).out.split("\n").filter(Boolean);
     const stray = [...new Set(out)].filter((p) => !x.owns.some((o) => p === o || p.startsWith(o + "/")));
     if (stray.length) return { ok: false, why: `${x.id} changed paths it does not own (${stray.slice(0, 5).join(", ")}): nothing is merged. Move those changes out of its branch, or tell the user` };
   }

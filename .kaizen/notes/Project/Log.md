@@ -284,3 +284,4 @@ updated: 2026-10-31
 - 2026-11-03 run 2026-11-03-unknown-command-guard — CLI
 - 2026-11-04 update — Web board: terminal output sent in 16 ms frames, badge read throttled to 2 s, resizable run-view right panel.
 - 2026-11-04 update — Web board: native annotator in the Browser tab, replacing the Agentation strip (runs 2026-11-04-native-annotator, 2026-11-04-agentation-browser)
+- 2026-11-05 run 2026-11-05-branch-from-state — Workflow
