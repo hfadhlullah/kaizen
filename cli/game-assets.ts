@@ -1,13 +1,15 @@
-// The 3D scenes of the Game page (forest, dungeon, town) are not in the package. They are release files
+// The 3D files of the Game page (the forest, dungeon and town scenes, the hero, and hair and beard parts) are not in the package. They are release files
 // fetched into ~/.kaizen/game/assets/ when the user asks, checked against a manifest of sha256 and size.
 // Nothing here runs by itself: `kaizen game assets` and the page's Download button are the only callers.
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { isAbsolute } from "node:path";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-export const SCENES = ["forest", "dungeon", "town"] as const;
-export const SCENE_FILE = /^(forest|dungeon|town)\.glb$/;
+// SCENES are the files a complete download has; hair-<id>.glb and beard-<id>.glb are optional parts of the hero.
+export const SCENES = ["forest", "dungeon", "town", "hero"] as const;
+export const SCENE_FILE = /^(forest|dungeon|town|hero|(?:hair|beard)-[a-z0-9]{1,16})\.glb$/;
 export const MAX_SCENE_BYTES = 15 * 1024 * 1024;
 export const ASSETS_URL = "https://github.com/hfadhlullah/kaizen/releases/download/game-assets-v1";
 
@@ -33,11 +35,10 @@ export function assetState(home = homedir()): { installed: string[]; missing: st
   const dir = assetsDir(home);
   let m: Manifest | null = null;
   try { m = parseManifest(readFileSync(join(dir, "manifest.json"), "utf8")); } catch { /* none yet */ }
-  const installed = SCENES.filter((s) => {
-    const f = m?.files[`${s}.glb`];
-    try { return !!f && statSync(join(dir, `${s}.glb`)).size === f.size; } catch { return false; }
-  });
-  return { installed: [...installed], missing: SCENES.filter((s) => !installed.includes(s)) };
+  const installed = Object.entries(m?.files ?? {}).filter(([name, f]) => {
+    try { return statSync(join(dir, name)).size === f.size; } catch { return false; }
+  }).map(([name]) => name.slice(0, -4));
+  return { installed, missing: SCENES.filter((s) => !installed.includes(s)) };
 }
 
 export type FetchResult = { ok: true; installed: string[] } | { ok: false; error: string };
@@ -73,22 +74,41 @@ export function fetchAssets(home = homedir(), base = process.env.KAIZEN_ASSETS_U
   return p;
 }
 
+// A folder instead of a URL (`kaizen game assets --from <folder>`, or KAIZEN_ASSETS_URL set to a path): the same manifest, the same
+// size and hash checks, the files read from disk. For the folder `bun game-assets/pack.ts` writes, and for a machine with no release yet.
+const isLocal = (base: string) => base.startsWith("file://") || isAbsolute(base);
+const localPath = (base: string, name: string) => join(base.replace(/^file:\/\//, ""), name);
+type Piece = { ok: true; bytes: Uint8Array } | { ok: false; error: string };
+
 async function download(home: string, base: string, get: typeof fetch): Promise<FetchResult> {
   const dir = assetsDir(home), url = (n: string) => `${base.replace(/\/$/, "")}/${n}`;
   const staged: string[] = [];
+  // One piece (the manifest or a scene) of at most `max` bytes, from the URL or the folder.
+  const piece = async (name: string, max: number, timeout: number): Promise<Piece> => {
+    if (isLocal(base)) {
+      try {
+        const f = localPath(base, name);
+        if (statSync(f).size > max) return { ok: false, error: `${name}: larger than the ${max} bytes it may be` };
+        return { ok: true, bytes: new Uint8Array(readFileSync(f)) };
+      } catch { return { ok: false, error: `${name}: not found in ${base}` }; }
+    }
+    const r = await get(url(name), { signal: AbortSignal.timeout(timeout) });
+    if (!r.ok) return { ok: false, error: `${name}: HTTP ${r.status}` };
+    const b = await readCapped(r, max);
+    return b ? { ok: true, bytes: b } : { ok: false, error: `${name}: size is not the ${max} bytes the manifest says` };
+  };
   try {
-    const mr = await get(url("manifest.json"), { signal: AbortSignal.timeout(20000) });
-    if (!mr.ok) return { ok: false, error: `manifest.json: HTTP ${mr.status}` };
-    const mb = await readCapped(mr, 64 * 1024);
-    const text = mb ? new TextDecoder().decode(mb) : "";
+    const mr = await piece("manifest.json", 64 * 1024, 20000);
+    if (!mr.ok) return mr;
+    const text = new TextDecoder().decode(mr.bytes);
     const m = parseManifest(text);
     if (!m || !Object.keys(m.files).length) return { ok: false, error: "manifest.json is not a valid asset manifest" };
     mkdirSync(dir, { recursive: true });
     for (const [name, f] of Object.entries(m.files)) {
-      const r = await get(url(name), { signal: AbortSignal.timeout(120000) });
-      if (!r.ok) return { ok: false, error: `${name}: HTTP ${r.status}` };
-      const buf = await readCapped(r, f.size);
-      if (!buf || buf.length !== f.size) return { ok: false, error: `${name}: size is not the ${f.size} bytes the manifest says` };
+      const got = await piece(name, f.size, 120000);
+      if (!got.ok) return got;
+      const buf = got.bytes;
+      if (buf.length !== f.size) return { ok: false, error: `${name}: size is not the ${f.size} bytes the manifest says` };
       if (createHash("sha256").update(buf).digest("hex") !== f.sha256) return { ok: false, error: `${name}: sha256 does not match the manifest` };
       const tmp = join(dir, `.${name}.part`);
       writeFileSync(tmp, buf); staged.push(tmp);

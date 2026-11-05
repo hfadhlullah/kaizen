@@ -1,7 +1,7 @@
 // What the dungeon and the town scenes share: the WebGL renderer, page-token colours that follow
 // the theme, tracked geometry and materials, size and theme watching, and clean-up. One three.js
 // copy serves both scenes (web/scenes.ts is the single entry).
-import { BoxGeometry, Color, ConeGeometry, InstancedMesh, Matrix4, Mesh, MeshLambertMaterial, SphereGeometry, Vector3, WebGLRenderer, type BufferGeometry, type Group, type Material, type Object3D, type Texture } from "three";
+import { BoxGeometry, type AnimationClip, Color, ConeGeometry, InstancedMesh, Matrix4, Mesh, MeshLambertMaterial, SphereGeometry, Vector3, WebGLRenderer, type BufferGeometry, type Group, type Material, type Object3D, type Texture } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 
@@ -16,6 +16,8 @@ export type Kit = {
   // A scene from the downloaded Blender art (GET /game/assets/<name>.glb); null when it cannot be loaded.
   // The kit disposes what it returns when it is destroyed.
   glb(name: string): Promise<Group | null>;
+  // The same, with the file's animation clips (the hero).
+  gltf(name: string): Promise<{ scene: Group; animations: AnimationClip[] } | null>;
   // Calls onSize(width) when `stage` is resized and onChange() after a theme flip.
   watch(stage: HTMLElement, onSize: (width: number) => void, onChange: () => void): void;
   destroy(): void;
@@ -46,14 +48,15 @@ export function makeKit(host: HTMLElement, stage: HTMLElement, label: string): K
   let ro: ResizeObserver | null = null, mo: MutationObserver | null = null, mq: MediaQueryList | null = null, flip: (() => void) | null = null;
   return {
     renderer, css, recolor,
-    async glb(name) {
+    async gltf(name) {
       try {
         const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
-        const g = (await loader.loadAsync(`/game/assets/${name}.glb`)).scene;
-        if (gone) { disposeTree(g); return null; }
-        loaded.push(g); return g;
+        const g = await loader.loadAsync(`/game/assets/${name}.glb`);
+        if (gone) { disposeTree(g.scene); return null; }
+        loaded.push(g.scene); return { scene: g.scene, animations: g.animations };
       } catch { return null; }
     },
+    async glb(name) { return (await this.gltf(name))?.scene ?? null; },
     mat(token, fallback, mix) { const m = new MeshLambertMaterial(); tracked.push({ mat: m, token, fallback, mix }); mats.push(m); return m; },
     box: (w, h, d) => keep(new BoxGeometry(w, h, d)),
     cone: (r, h, sides = 5) => keep(new ConeGeometry(r, h, sides)),

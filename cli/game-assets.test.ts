@@ -1,13 +1,13 @@
 import { expect, test } from "bun:test";
 import { createHash } from "node:crypto";
-import { existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { assetFile, assetState, assetsDir, fetchAssets, parseManifest } from "./game-assets.ts";
 
 const scratch = () => mkdtempSync(join(tmpdir(), "kz-ga-"));
 const sha = (b: Uint8Array | string) => createHash("sha256").update(b).digest("hex");
-const files = { "forest.glb": new Uint8Array([1, 2, 3, 4]), "dungeon.glb": new Uint8Array([5, 6, 7]), "town.glb": new Uint8Array([8, 9]) };
+const files = { "forest.glb": new Uint8Array([1, 2, 3, 4]), "dungeon.glb": new Uint8Array([5, 6, 7]), "town.glb": new Uint8Array([8, 9]), "hero.glb": new Uint8Array([7, 7, 7]) };
 const manifest = (over: Record<string, { sha256?: string; size?: number }> = {}) =>
   JSON.stringify({ version: 1, files: Object.fromEntries(Object.entries(files).map(([n, b]) => [n, { sha256: sha(b), size: b.length, ...over[n] }])) });
 // A local release: serves manifest.json and the files, counting requests.
@@ -26,10 +26,10 @@ test("fetch installs every scene and the state shows them", async () => {
   const home = scratch(), r = serve(manifest());
   try {
     expect(assetState(home).installed).toEqual([]);
-    expect(await fetchAssets(home, r.base)).toEqual({ ok: true, installed: ["forest", "dungeon", "town"] });
+    expect(await fetchAssets(home, r.base)).toEqual({ ok: true, installed: ["forest", "dungeon", "town", "hero"] });
     expect(readFileSync(join(assetsDir(home), "forest.glb"))).toEqual(Buffer.from(files["forest.glb"]));
     expect(assetFile("dungeon.glb", home)).toBe(join(assetsDir(home), "dungeon.glb"));
-    expect(readdirSync(assetsDir(home)).sort()).toEqual(["dungeon.glb", "forest.glb", "manifest.json", "town.glb"]);
+    expect(readdirSync(assetsDir(home)).sort()).toEqual(["dungeon.glb", "forest.glb", "hero.glb", "manifest.json", "town.glb"]);
   } finally { r.stop(); }
 });
 
@@ -86,7 +86,7 @@ test("a failed update keeps the scenes that were installed", async () => {
   const bad = serve(man2, { ...v2, "town.glb": undefined as never });     // forest.glb is fine, town.glb 404s
   try {
     expect((await fetchAssets(home, bad.base)).ok).toBe(false);
-    expect(assetState(home).installed).toEqual(["forest", "dungeon", "town"]);          // old manifest and old files, all still match
+    expect(assetState(home).installed).toEqual(["forest", "dungeon", "town", "hero"]);          // old manifest and old files, all still match
     expect(readFileSync(join(assetsDir(home), "forest.glb"))).toEqual(Buffer.from(files["forest.glb"]));
     expect(readdirSync(assetsDir(home)).filter((n) => n.endsWith(".part"))).toEqual([]);
   } finally { bad.stop(); }
@@ -140,4 +140,46 @@ test("every Poly Haven asset the scripts use is in LICENSES.md, and the other wa
     .filter((n) => /^(fir_sapling|tree_small|tree_stump|dead_tree|forrest|wood|stone|rock|cobble|plaster|roof|medieval|dark_)/.test(n));
   expect(names.length).toBeGreaterThan(8);
   for (const n of names) expect(ids.some((id) => n.startsWith(id)), n).toBe(true);
+});
+
+test("hair and beard parts are allowed by name, anything else is dropped", () => {
+  const h = "a".repeat(64);
+  const m = parseManifest(JSON.stringify({ version: 1, files: { "hair-bob.glb": { sha256: h, size: 9 }, "beard-full2.glb": { sha256: h, size: 9 }, "hair-.glb": { sha256: h, size: 9 }, "hair-Bob.glb": { sha256: h, size: 9 }, "hair-a.b.glb": { sha256: h, size: 9 }, ["hair-" + "x".repeat(17) + ".glb"]: { sha256: h, size: 9 }, "hero.glb": { sha256: h, size: 9 } } }));
+  expect(Object.keys(m!.files)).toEqual(["hair-bob.glb", "beard-full2.glb", "hero.glb"]);
+});
+
+test("every MakeHuman asset the hero script wears is listed in LICENSES.md", () => {
+  const dir = join(import.meta.dir, "..", "game-assets");
+  const lic = readFileSync(join(dir, "LICENSES.md"), "utf8");
+  const code = readFileSync(join(dir, "build", "human.py"), "utf8") + readFileSync(join(dir, "build", "hair.json"), "utf8");
+  const files = [...code.matchAll(/"((?:clothes|eyebrows|hair)\/[a-z0-9_-]+\/([a-z0-9_-]+)\.mhclo)"/g)].map((m) => m[2]!);
+  expect(files.length).toBeGreaterThanOrEqual(8);
+  for (const f of files) expect(lic.includes(f), f).toBe(true);
+});
+
+test("a folder works as the source: the same checks, nothing from the network", async () => {
+  const src = scratch(), home = scratch();
+  writeFileSync(join(src, "manifest.json"), manifest());
+  for (const [n, b] of Object.entries(files)) writeFileSync(join(src, n), b);
+  expect(await fetchAssets(home, src)).toEqual({ ok: true, installed: ["forest", "dungeon", "town", "hero"] });
+  expect(readFileSync(join(assetsDir(home), "hero.glb"))).toEqual(Buffer.from(files["hero.glb"]));
+  // a tampered file, a missing file and a bad manifest are refused as over the network
+  const home2 = scratch();
+  writeFileSync(join(src, "town.glb"), new Uint8Array([8, 8]));
+  const r = await fetchAssets(home2, src);
+  expect(r.ok).toBe(false); expect((r as { error: string }).error).toContain("sha256");
+  expect(existsSync(join(assetsDir(home2), "manifest.json"))).toBe(false);
+  writeFileSync(join(src, "town.glb"), new Uint8Array(files["town.glb"]));
+  rmSync(join(src, "hero.glb"));
+  expect((await fetchAssets(scratch(), src)).ok).toBe(false);
+  expect((await fetchAssets(scratch(), join(src, "nope"))).ok).toBe(false);
+});
+
+test("kaizen game assets: --from needs a folder name, and never combines with --check", () => {
+  const home = scratch();
+  const run = (...a: string[]) => Bun.spawnSync([process.execPath, join(import.meta.dir, "install.ts"), "game", "assets", ...a], { env: { ...process.env, HOME: home, USERPROFILE: home, KAIZEN_HOME: join(home, "kz") }, stdout: "pipe", stderr: "pipe" });
+  for (const a of [["--from"], ["--from", "--json"], ["--from", "--check"], ["--check", "--from", "/nowhere"]]) expect(run(...a).exitCode, a.join(" ")).toBe(1);
+  expect(run("--from", join(home, "nope")).exitCode).toBe(1);      // a folder that does not exist: refused, nothing installed
+  expect(existsSync(join(home, ".kaizen"))).toBe(false);
+  expect(run("--check").exitCode).toBe(0);
 });

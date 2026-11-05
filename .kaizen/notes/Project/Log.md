@@ -287,3 +287,4 @@ updated: 2026-10-31
 - 2026-11-04 run 2026-11-04-kaizen-rpg-guild-town — Web board, Release and testing
 - 2026-11-04 run 2026-11-04-kaizen-rpg-skill-tags — CLI, Workflow, Web board
 - 2026-11-05 run 2026-11-04-kaizen-rpg-blender-pipeline — CLI, Web board, Release and testing
+- 2026-11-05 run 2026-11-05-kaizen-rpg-character-creator — Web board, Release and testing

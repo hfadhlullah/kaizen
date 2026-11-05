@@ -1,6 +1,6 @@
 # Licenses of the game scenes
 
-Every asset below is from [Poly Haven](https://polyhaven.com) and is CC0 (public domain, no credit needed; credited here anyway).
+Every asset below is CC0 (public domain, no credit needed; credited here anyway). The scenes use [Poly Haven](https://polyhaven.com) assets; the hero uses the MPFB2 base human, MakeHuman community asset packs and Quaternius animations (second table).
 Nothing else is used: the houses, doors, roofs, corridor and torches are modelled in `build/*.py` from boxes and these textures.
 
 | Asset | Kind | By | Used in | URL |
@@ -24,3 +24,24 @@ Nothing else is used: the houses, doors, roofs, corridor and torches are modelle
 | sunset_forest | HDRI, lighting for preview renders only, not shipped | Andreas Mischok | none | https://polyhaven.com/a/sunset_forest |
 
 Tools (not shipped): Blender 5.2 (GPL), `@gltf-transform/cli` 4.5.1 (MIT) for meshopt and WebP compression.
+
+## The hero
+
+| Asset | Kind | By | License | Source |
+|---|---|---|---|---|
+| MPFB2 human base mesh, targets and rigs (`game_engine`) | model data | MakeHuman community (MPFB2 add-on code is GPL-3.0-or-later; its assets CC0) | CC0 | https://extensions.blender.org/add-ons/mpfb/ |
+| Universal Animation Library [Standard]: Idle_Loop, Walk_Loop, Sword_Idle, Sword_Attack, Hit_Chest, Death01 | animation clips (retargeted onto the legs and spine; the arms are scripted) | Quaternius | CC0 (`License.txt` in the zip) | https://quaternius.itch.io/universal-animation-library |
+| toigo_fisherman_sweater | clothes (asset pack Shirts 01) | toigo | CC0 | http://static.makehumancommunity.org/assets/assetpacks/shirts01.html |
+| toigo_wool_pants | clothes (asset pack Pants 01) | toigo | CC0 | http://static.makehumancommunity.org/assets/assetpacks/pants01.html |
+| mindfront_eyebrows_03 | eyebrows (asset pack Eyebrows 01) | mindfront | CC0 | http://static.makehumancommunity.org/assets/assetpacks/eyebrows01.html |
+| wdg_scruffy_beard | beard (asset pack Bodyparts 05) | wdg | CC0 | http://static.makehumancommunity.org/assets/assetpacks/bodyparts05.html |
+| culturalibre_faun_beard | beard (Bodyparts 05) | culturalibre | CC0 | same |
+| grinsegold_beard_sigmund_wip | beard (Bodyparts 05) | grinsegold | CC0 | same |
+| rehmanpolanski_beard_viking | beard (Bodyparts 05) | rehmanpolanski | CC0 | same |
+| rehmanpolanski_moustache_viking | moustache (Bodyparts 05) | rehmanpolanski | CC0 | same |
+| cortu_short_messy_hair | hair (asset pack Hair 01) | cortu | CC0 | http://static.makehumancommunity.org/assets/assetpacks/hair01.html |
+| o4saken_long01 | hair (Hair 01) | o4saken | CC0 | same |
+| toigo_blunt_bob | hair (Hair 01) | toigo | CC0 | same |
+| cortu_shaggy_green_hair | hair (Hair 01) | cortu | CC0 | same |
+
+The pack pages list every asset of a CC0 pack as CC0; the pack zips are checked with their file lists before unpacking. Mixamo is not used.

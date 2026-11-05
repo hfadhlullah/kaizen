@@ -32,7 +32,7 @@ import { tailnetName } from "./setup.ts";
 import { connectPhone, loginUrl, readPhone } from "./phone-setup.ts";
 import { listNotes, saveNote, renameNote, deleteNote, boardIndex, linksTo } from "./notes.ts";
 import * as video from "./video.ts";
-import { cachedGameState, foundGuild, moveSkill } from "./game.ts";
+import { cachedGameState, foundGuild, moveSkill, setLook } from "./game.ts";
 import { assetFile, assetState, fetchAssets } from "./game-assets.ts";
 import * as auto from "./automations.ts";
 import * as localsend from "./localsend.ts";
@@ -821,12 +821,12 @@ export async function web(repoDir: string, opts: Opts = {}) {
         return r.ok ? json({ ok: true, ...assetState() }) : bad(r.error, 502);
       }
       // The game's two writes (found a guild, move a skill): game.json only, see cli/game.ts.
-      if (req.method === "POST" && (path === "/game/found" || path === "/game/move")) {
+      if (req.method === "POST" && (path === "/game/found" || path === "/game/move" || path === "/game/look")) {
         const refused = strict(req);
         if (refused) return refused;
         let body: any;
         try { body = await req.json(); } catch { return bad("json body expected"); }
-        const r = path === "/game/found" ? foundGuild(body?.name, body?.skills) : moveSkill(body?.skill, body?.guild);
+        const r = path === "/game/found" ? foundGuild(body?.name, body?.skills) : path === "/game/look" ? setLook(body?.look) : moveSkill(body?.skill, body?.guild);
         if (!r.ok) return bad(r.error);
         changed();
         return json(r);

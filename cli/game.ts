@@ -9,6 +9,7 @@ import { dirname, extname, join } from "node:path";
 import { homedir } from "node:os";
 import { changedPaths, knownProjects, reviewFindings } from "./state.ts";
 import { runStat } from "./stats.ts";
+import { LOOK_KEYS, checkLook } from "../web/hero-look.ts";
 
 const read = (f: string) => { try { return readFileSync(f, "utf8"); } catch { return ""; } };
 const mtime = (f: string) => { try { return statSync(f).mtimeMs; } catch { return 0; } };
@@ -90,7 +91,8 @@ export const CATALOG: Guild[] = [
 const TRACK_GUILD: Record<string, string> = { code: "code", writing: "writing", communication: "commerce", research: "research", operations: "operations" };
 
 // ---- what the player chose (the one file the game owns) --------------------------------
-export type Look = { hair: string; eyes: string; mouth: string; body: string; height: number; hairColor: string; facialHairColor: string; skinColor: string; eyeColor: string };
+// The first five are the drawn portrait's; beard, gender, tall, build and muscle come with the 3D hero (web/hero-look.ts says what is valid).
+export type Look = { hair: string; eyes: string; mouth: string; body: string; height: number; hairColor: string; facialHairColor: string; skinColor: string; eyeColor: string; beard: string; gender: number; tall: number; build: number; muscle: number };
 export type GameFile = {
   version: 1;
   name: string;
@@ -104,9 +106,21 @@ export type GameFile = {
 };
 export const defaultGame = (): GameFile => ({
   version: 1, name: "Adventurer",
-  look: { hair: "short", eyes: "round", mouth: "smile", body: "average", height: 1, hairColor: "#4a2f1b", facialHairColor: "#4a2f1b", skinColor: "#e0ac8a", eyeColor: "#3b6b8f" },
+  look: { hair: "short", eyes: "round", mouth: "smile", body: "average", height: 1, hairColor: "#4a2f1b", facialHairColor: "#4a2f1b", skinColor: "#e0ac8a", eyeColor: "#3b6b8f", beard: "none", gender: 0, tall: 0, build: 0, muscle: 0 },
   guilds: [], moves: {}, runs: {},
 });
+// The look as read from a file a person may have edited by hand: every hero value (web/hero-look.ts) that is not valid falls back
+// to its default on its own, so the page and the 3D hero never see it; the drawn portrait's older keys pass through as they were.
+function cleanLook(defaults: Look, found: unknown): Look {
+  const out: Record<string, unknown> = { ...defaults };
+  if (!found || typeof found !== "object" || Array.isArray(found)) return out as Look;
+  for (const [k, v] of Object.entries(found as Record<string, unknown>)) {
+    if (k === "__proto__") continue;
+    if ((LOOK_KEYS as readonly string[]).includes(k)) { if (checkLook({ [k]: v }).ok) out[k] = v; }
+    else out[k] = v;
+  }
+  return out as Look;
+}
 export const gameFile = (home = homedir()) => join(home, ".kaizen", "game.json");
 // Reads game.json; a missing one is created with the defaults, a broken one is read as the
 // defaults and left alone for the user to fix.
@@ -119,7 +133,7 @@ export function readGame(home = homedir(), create = true): GameFile {
   }
   try {
     const g = JSON.parse(text);
-    return { ...d, ...g, look: { ...d.look, ...(g.look ?? {}) }, guilds: Array.isArray(g.guilds) ? g.guilds : [], moves: g.moves ?? {}, runs: g.runs ?? {} };
+    return { ...d, ...g, look: cleanLook(d.look, g.look), guilds: Array.isArray(g.guilds) ? g.guilds : [], moves: g.moves ?? {}, runs: g.runs ?? {} };
   } catch { return d; }
 }
 
@@ -177,7 +191,7 @@ function loadStrict(home: string): { raw: Record<string, any>; game: GameFile } 
   try { raw = JSON.parse(text); } catch { return "game.json cannot be read as JSON; fix or remove it first (nothing was written)"; }
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return "game.json is not an object; fix or remove it first (nothing was written)";
   const d = defaultGame();
-  return { raw, game: { ...d, ...raw, look: { ...d.look, ...(raw.look ?? {}) }, guilds: Array.isArray(raw.guilds) ? raw.guilds : [], moves: raw.moves ?? {}, runs: raw.runs ?? {} } };
+  return { raw, game: { ...d, ...raw, look: cleanLook(d.look, raw.look), guilds: Array.isArray(raw.guilds) ? raw.guilds : [], moves: raw.moves ?? {}, runs: raw.runs ?? {} } };
 }
 function writeGame(home: string, raw: Record<string, any>) {
   const f = gameFile(home);
@@ -212,6 +226,19 @@ export function foundGuild(name: unknown, skillNames: unknown = [], home = homed
   }
   writeGame(home, { ...l.raw, guilds: [...hand, { id, name: title, skills }] });
   return { ok: true, id, skills: skills.map((x) => x.id) };
+}
+
+// Saves the hero's look: a patch of the values in web/hero-look.ts, checked as a whole. Only the look keys of
+// game.json change; every other key (guilds, moves, runs, anything a later version adds) is kept.
+export function setLook(patch: unknown, home = homedir()): Wrote<{ look: Look }> {
+  const l = loadStrict(home);
+  if (typeof l === "string") return { ok: false, error: l };
+  const c = checkLook(patch);
+  if (!c.ok) return { ok: false, error: c.error };
+  if (!Object.keys(c.look).length) return { ok: false, error: "nothing to change" };
+  const look = { ...l.game.look, ...c.look };
+  writeGame(home, { ...l.raw, look: { ...(l.raw.look && typeof l.raw.look === "object" ? l.raw.look : {}), ...c.look } });
+  return { ok: true, look };
 }
 
 export function moveSkill(skill: unknown, guild: unknown, home = homedir()): Wrote<{ from: string; to: string; noop?: boolean }> {

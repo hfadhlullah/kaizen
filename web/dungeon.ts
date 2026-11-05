@@ -4,6 +4,8 @@
 // bundled by `bun run build:web`.
 import { AmbientLight, Color, DirectionalLight, Fog, Group, HemisphereLight, Mesh, OrthographicCamera, Scene } from "three";
 import { cullInstances, makeKit } from "./scene-kit.ts";
+import { loadHero, type Hero } from "./hero.ts";
+import type { HeroLook } from "./hero-look.ts";
 import { dungeonScript, liveFrame, replay, sceneOf, type DungeonIn, type Frame, type Script } from "./dungeon-script.ts";
 
 export type Mounted = DungeonIn & { id: string; title: string; waves: number };
@@ -15,7 +17,7 @@ const esc = (s: unknown) => String(s ?? "").replace(/[&<>"']/g, (c) => `&#${c.ch
 const n = (x: number) => x.toLocaleString("en-US");
 
 // `art` lists the Blender scenes that are downloaded ("dungeon", "forest"); without them the placeholders show.
-export function mount(host: HTMLElement, first: Mounted, startPaused = false, art: string[] = []): Handle | null {
+export function mount(host: HTMLElement, first: Mounted, startPaused = false, art: string[] = [], look: Partial<HeroLook> = {}): Handle | null {
   let d = first, script: Script = dungeonScript(d);
   let paused = startPaused || matchMedia("(prefers-reduced-motion: reduce)").matches, t = 0, last = performance.now(), raf = 0, dead = false;
   let minionT = 0;
@@ -51,6 +53,14 @@ export function mount(host: HTMLElement, first: Mounted, startPaused = false, ar
   body.position.y = 0.9; head.position.y = 1.72; cape.position.set(-0.4, 0.95, 0);
   const blade = new Mesh(box(0.1, 0.9, 0.08), mGold); blade.position.y = 0.45; sword.add(blade); sword.position.set(0.42, 1.0, 0.3);
   hero.add(body, head, cape, sword); scene.add(hero);
+  // The downloaded hero (web/hero.ts) replaces the placeholder's parts: same group, so the walking and fighting logic below is unchanged.
+  let real: Hero | null = null;
+  if (art.includes("hero")) void loadHero(kit, art, look).then((h) => {
+    if (!h || dead) return;
+    real = h; for (const c of [...hero.children]) hero.remove(c);
+    h.root.scale.setScalar(1.2); h.root.rotation.y = Math.PI / 2; hero.add(h.root);   // faces the way the track runs
+    scene.add(new HemisphereLight(0xdfe8f0, 0x5a4634, 0.9)); h.play("idle"); kick();
+  });
 
   const minion = new Group(); { const b = new Mesh(cone(0.3, 0.7), mDown); b.position.y = 0.35; minion.add(b); } minion.visible = false; scene.add(minion);
   const foes: { g: Group; boss: boolean; at: number; life: number }[] = [];
@@ -127,6 +137,7 @@ export function mount(host: HTMLElement, first: Mounted, startPaused = false, ar
     const walking = !paused && (live() ? Math.abs(tx - heroX) > 0.05 : !f.done && f.fighting === null);
     hero.position.y = walking ? Math.abs(Math.sin(now / 130)) * 0.12 : 0;
     const fighting = f.fighting !== null && !paused;
+    if (real) { real.play(fighting ? "attack" : walking ? "walk" : "idle"); real.tick(paused ? 0 : dt); hero.position.y = 0; }
     sword.rotation.z = fighting ? -0.4 - Math.abs(Math.sin(swing / 140)) * 1.5 : -0.2;
     foes.forEach((o, i) => {
       const down = i < f.defeated;

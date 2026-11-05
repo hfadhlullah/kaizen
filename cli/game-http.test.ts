@@ -39,6 +39,20 @@ test("game writes: guarded, and visible at once", async () => {
     expect((await post("/game/move", { skill: "baking", guild: "guild-of-cooks" })).status).toBe(200);
     expect(JSON.parse(readFileSync(file, "utf8")).moves).toEqual({});
     expect((await fetch(base + "/game/found")).status).not.toBe(200); // GET does not write
+
+    // the hero's look: same guard, only whitelisted values, and the next state shows it
+    const lookNow = async () => ((await (await fetch(base + "/game/state")).json()) as { game: { look: Record<string, unknown> } }).game.look;
+    expect((await post("/game/look", { look: { hair: "bob" } }, { "content-type": "text/plain" })).status).toBe(415);
+    expect((await post("/game/look", { look: { hair: "bob" } }, { origin: "http://evil.example" })).status).toBe(403);
+    expect((await post("/game/look", { look: { hair: "mohawk" } })).status).toBe(400);
+    expect((await post("/game/look", { look: { skinColor: "red" } })).status).toBe(400);
+    expect((await post("/game/look", { nope: 1 })).status).toBe(400);
+    expect((await lookNow()).hair).not.toBe("bob");
+    const lk = await post("/game/look", { look: { hair: "bob", beard: "viking", tall: 0.4, skinColor: "#112233" } });
+    expect(lk.status).toBe(200);
+    expect(await lk.json()).toMatchObject({ ok: true, look: { hair: "bob", beard: "viking", tall: 0.4 } });
+    expect(await lookNow()).toMatchObject({ hair: "bob", beard: "viking", tall: 0.4, skinColor: "#112233" });
+    expect(JSON.parse(readFileSync(file, "utf8")).guilds.length).toBeGreaterThan(0); // the other keys are still there
   } finally { p.kill(); await p.exited; }
 }, 30_000);
 
@@ -46,7 +60,7 @@ test("game writes: guarded, and visible at once", async () => {
 // writes, and only the three allow-listed files are served from the assets folder.
 test("game scenes: no download unasked, guarded POST, allow-listed files only", async () => {
   const { createHash } = await import("node:crypto");
-  const files: Record<string, Uint8Array> = { "forest.glb": new Uint8Array([1, 2, 3]), "dungeon.glb": new Uint8Array([4, 5]), "town.glb": new Uint8Array([6]) };
+  const files: Record<string, Uint8Array> = { "forest.glb": new Uint8Array([1, 2, 3]), "dungeon.glb": new Uint8Array([4, 5]), "town.glb": new Uint8Array([6]), "hero.glb": new Uint8Array([8, 8]) };
   const man = JSON.stringify({ version: 1, files: Object.fromEntries(Object.entries(files).map(([n, b]) => [n, { sha256: createHash("sha256").update(b).digest("hex"), size: b.length }])) });
   const hits: string[] = [];
   const rel = Bun.serve({ port: 0, fetch(req) { const n = new URL(req.url).pathname.slice(1); hits.push(n); return n === "manifest.json" ? new Response(man) : files[n] ? new Response(files[n]) : new Response("no", { status: 404 }); } });
@@ -62,7 +76,7 @@ test("game scenes: no download unasked, guarded POST, allow-listed files only", 
     const post = (h: Record<string, string> = {}) => fetch(base + "/game/assets", { method: "POST", headers: { origin: base, "content-type": "application/json", ...h }, body: "{}" });
     const scenes = async () => ((await (await fetch(base + "/game/state")).json()) as { scenes: { installed: string[]; missing: string[] } }).scenes;
 
-    expect(await scenes()).toEqual({ installed: [], missing: ["forest", "dungeon", "town"] });
+    expect(await scenes()).toEqual({ installed: [], missing: ["forest", "dungeon", "town", "hero"] });
     expect((await fetch(base + "/game/assets/forest.glb")).status).toBe(404);
     await fetch(base + "/game"); await fetch(base + "/scenes.js");
     expect(hits).toEqual([]);                                                       // opening the page downloads nothing
@@ -73,7 +87,7 @@ test("game scenes: no download unasked, guarded POST, allow-listed files only", 
 
     const ok = await post();
     expect(ok.status).toBe(200);
-    expect(await ok.json()).toMatchObject({ ok: true, installed: ["forest", "dungeon", "town"] });
+    expect(await ok.json()).toMatchObject({ ok: true, installed: ["forest", "dungeon", "town", "hero"] });
     const g = await fetch(base + "/game/assets/forest.glb");
     expect(g.status).toBe(200);
     expect(g.headers.get("content-type")).toBe("model/gltf-binary");

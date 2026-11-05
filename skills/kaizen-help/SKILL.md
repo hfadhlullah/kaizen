@@ -31,7 +31,7 @@ anything.
 | `kaizen state <id> key=value ...` | (1.69.0+) Set a run's `stage`, `awaiting` or `iteration` in `state.json`; refuses words no board knows (`done` goes through `kaizen done`) |
 | `kaizen stats [<id>] [--json]` | (1.69.0+) Fix-round and CANNOT VERIFY rates, stage times, tokens for one run |
 | `kaizen related <path> ...` | (1.69.0+) Earlier runs that changed these files |
-| `kaizen game assets [--check]` | Download the Game page's 3D scenes (forest, dungeon, town; about 10 MB) into `~/.kaizen/game/assets/`; `--check` lists what is there |
+| `kaizen game assets [--check]` | Download the Game page's 3D scenes (forest, dungeon, town; about 14 MB) into `~/.kaizen/game/assets/`; `--check` lists what is there |
 | `kaizen game skills [--json]` | The guild and skill ids of the game; the planner picks its `Skill:` and `Guild:` lines from it |
 | `/kaizen backlog` | Print open backlog items across all runs, grouped by source run, rescued items last under `Orphaned` |
 | `/kaizen gather` | Read request sources kaizen cannot read by itself; their requests land in the icebox, nothing starts |

@@ -83,7 +83,7 @@ function draw(s: State) {
     <p class="lvl">Level<b>${n(c.level)}</b></p>${bar(c)}
     <p class="xpn">${n(c.into)} / ${n(c.need)} XP to level ${n(c.level + 1)} · ${n(c.xp)} XP in all</p>
     <div class="stats"><span><b>${n(t.cleared)}</b>dungeons cleared</span><span><b>${n(t.retreat)}</b>retreats</span><span><b>${n(t.live)}</b>in the dungeon now</span></div>
-    <button class="visit" type="button" data-town>Visit the town</button>
+    <button class="visit" type="button" data-town>Visit the town</button> <button class="visit" type="button" data-hero>Make your hero</button>
   </div></div>
   ${live.length ? `<section><div class="panel"><h2>In the dungeon now</h2><div class="log">${live.map(dungeon).join("")}</div></div></section>` : ""}
   <section><h2>Guilds</h2><div class="guilds">${s.guilds.map(guild).join("")}</div></section>
@@ -94,7 +94,7 @@ function draw(s: State) {
 
 // ---- the dungeon panel: web/dungeon.ts (three.js) is fetched the first time one is opened ----
 type Mount = { update(d: Dungeon): boolean; replay(): void; pause(on: boolean): boolean; destroy(): void };
-type Kz = { mount(host: HTMLElement, d: Dungeon, paused?: boolean, art?: string[]): Mount | null };
+type Kz = { mount(host: HTMLElement, d: Dungeon, paused?: boolean, art?: string[], look?: Record<string, unknown>): Mount | null };
 type TownMount = { update(g: Guild[]): void; select(id: string | null): void; hover(id: string | null): void; idAt(x: number, y: number): string | null; destroy(): void };
 type KzT = { mount(host: HTMLElement, g: Guild[], o: { onPick(id: string): void; art?: string[] }): TownMount | null };
 const panel = document.getElementById("dungeon")!, dgBody = document.getElementById("dg-body")!, dgTitle = document.getElementById("dg-title")!;
@@ -119,7 +119,7 @@ async function show(d: Dungeon) {
   try {
     const k = await loadScene();
     if (openId !== d.id) return;
-    handle = k.mount(dgBody, d, wantPause, last?.scenes?.installed);
+    handle = k.mount(dgBody, d, wantPause, last?.scenes?.installed, last?.game.look as unknown as Record<string, unknown>);
     if (!handle) dgBody.innerHTML = text(d, "This browser cannot draw the dungeon (no WebGL). Here is its shape instead.");
     else if (wantPause || matchMedia("(prefers-reduced-motion: reduce)").matches) { wantPause = true; dgPause.textContent = "Play"; } // a rebuild keeps your Pause
   } catch (e) { dgBody.innerHTML = text(d, `The dungeon scene could not load (${e instanceof Error ? e.message : e}).`); }
@@ -128,20 +128,46 @@ function open(id: string) {
   const d = last?.dungeons.find((x) => x.id === id);
   if (!d) return;
   if (id !== openId) wantPause = false;
-  closeTown();
+  closeTown(); closeCreator();
   openId = id; panel.hidden = false; panel.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
   void show(d);
   syncScenes();
 }
 function close() { openId = ""; wantPause = false; stop(); panel.hidden = true; syncScenes(); }
+// ---- the hero creator (web/creator.ts, in /scenes.js)
+type CreatorMount = { update(look: Record<string, unknown>): void; destroy(): void };
+type KzC = { mount(host: HTMLElement, o: { look: Record<string, unknown>; art: string[]; onSave(look: Record<string, unknown>): Promise<string | null> }): CreatorMount | null };
+const kzc = () => (window as unknown as { KzCreator?: KzC }).KzCreator;
+const crPanel = document.getElementById("creator")!, crBody = document.getElementById("cr-body")!;
+let creator: CreatorMount | null = null, creatorOpen = false;
+async function mountCreatorNow() {
+  await loadScene();
+  if (!creatorOpen || creator) return;
+  creator = kzc()?.mount(crBody, {
+    look: (last?.game.look ?? {}) as unknown as Record<string, unknown>, art: last?.scenes?.installed ?? [],
+    onSave: async (look) => { const r = await post("/game/look", { look }); if (!r.ok) return String(r.error ?? "could not save"); await fresh(); return null; },
+  }) ?? null;
+  if (!creator) crBody.innerHTML = `<p class="empty">This browser cannot draw the hero (no WebGL).</p>`;
+}
+async function openCreator() {
+  close(); closeTown();
+  creatorOpen = true; crPanel.hidden = false;
+  crPanel.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+  try { await mountCreatorNow(); } catch (e) { crBody.innerHTML = `<p class="empty">The hero creator could not load (${esc(e instanceof Error ? e.message : e)}).</p>`; }
+  syncScenes();
+}
+function closeCreator() { creatorOpen = false; creator?.destroy(); creator = null; crPanel.hidden = true; crBody.innerHTML = ""; syncScenes(); }
+document.getElementById("cr-close")!.onclick = closeCreator;
+root.addEventListener("click", (e) => { if ((e.target as HTMLElement).closest("[data-hero]")) void openCreator(); });
+
 // The realistic scenes are a download the user asks for: a bar offers it while a scene is open and any is missing.
 const scenesBar = document.getElementById("scenes")!;
 let downloading = false;
 function syncScenes() {
   if (downloading) return;
-  const show = (last?.scenes?.missing.length ?? 0) > 0 && (openId !== "" || townOpen);
+  const show = (last?.scenes?.missing.length ?? 0) > 0 && (openId !== "" || townOpen || creatorOpen);
   scenesBar.hidden = !show;
-  if (show && !scenesBar.querySelector("#get-scenes")) scenesBar.innerHTML = `The realistic 3D scenes are not downloaded (about 10 MB, from the kaizen release). <button type="button" id="get-scenes">Download</button>`;
+  if (show && !scenesBar.querySelector("#get-scenes")) scenesBar.innerHTML = `The realistic 3D scenes are not downloaded (about 14 MB, from the kaizen release). <button type="button" id="get-scenes">Download</button>`;
 }
 scenesBar.addEventListener("click", async (e) => {
   if (!(e.target as HTMLElement).closest("#get-scenes") || downloading) return;
@@ -154,6 +180,7 @@ scenesBar.addEventListener("click", async (e) => {
   const d = last?.dungeons.find((x) => x.id === openId);
   if (d) void show(d);
   if (townOpen) { town?.destroy(); town = null; twBody.innerHTML = ""; void mountTownNow(); }
+  if (creatorOpen) { creator?.destroy(); creator = null; crBody.innerHTML = ""; void mountCreatorNow(); }
 });
 // A refresh keeps the scene running: the same run moves it, a run that grew a stage rebuilds it.
 function sync() {
@@ -205,7 +232,7 @@ function fallbackList() {
   twBody.innerHTML = `<p class="empty">This browser cannot draw the town (no WebGL). Here are your guilds instead.</p><ul class="tw-list">${(last?.guilds ?? []).map((g) => `<li>${esc(g.name)}: ${g.founded ? `level ${n(g.level)}` : "not founded"}</li>`).join("")}</ul>`;
 }
 async function openTown() {
-  close();
+  close(); closeCreator();
   townOpen = true; townPanel.hidden = false;
   townPanel.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
   info();

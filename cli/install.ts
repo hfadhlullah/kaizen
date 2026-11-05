@@ -279,17 +279,19 @@ if (Bun.argv[2] === "stats" || Bun.argv[2] === "related") {
 if (Bun.argv[2] === "game") {
   const { peekGame, skillList } = await import("./game.ts");
   const rest = Bun.argv.slice(3), json = rest.includes("--json");
-  const sub = rest.filter((a) => !a.startsWith("--"))[0];
-  // `kaizen game assets [--check]`: download the 3D scenes of the Game page (about 10 MB) into ~/.kaizen/game/assets/.
+  const sub = rest.filter((a, i) => !a.startsWith("--") && rest[i - 1] !== "--from")[0];
+  // `kaizen game assets [--check]`: download the 3D scenes of the Game page (about 14 MB) into ~/.kaizen/game/assets/.
   if (sub === "assets") {
     const { assetState, assetsDir, fetchAssets } = await import("./game-assets.ts");
+    const from = rest.indexOf("--from") >= 0 ? rest[rest.indexOf("--from") + 1] : undefined;   // a folder made by game-assets/pack.ts
+    if (rest.includes("--from") && (!from || from.startsWith("--") || rest.includes("--check"))) { console.log("\n  kaizen game assets --from <folder>   (a folder name, not combined with --check)\n"); process.exit(1); }
     if (rest.includes("--check")) { const st = assetState(); console.log(`\n  scenes: ${st.installed.join(", ") || "none"}${st.missing.length ? `  (missing: ${st.missing.join(", ")})` : ""}\n  folder: ${assetsDir()}\n`); process.exit(0); }
-    console.log("\n  downloading the game scenes…");
-    const r = await fetchAssets();
+    console.log(from ? `\n  installing the game scenes from ${from}…` : "\n  downloading the game scenes…");
+    const r = await fetchAssets(undefined, from ? (await import("node:path")).resolve(from) : undefined);
     console.log(r.ok ? `  ${c.green("ok")}  ${r.installed.join(", ")} in ${assetsDir()}\n` : `  failed  ${r.error}\n`);
     process.exit(r.ok ? 0 : 1);
   }
-  if (sub !== "skills") { console.log(`\n  kaizen game skills [--json]\n  kaizen game assets [--check]\n`); process.exit(1); }
+  if (sub !== "skills") { console.log(`\n  kaizen game skills [--json]\n  kaizen game assets [--check | --from <folder>]\n`); process.exit(1); }
   const list = skillList(peekGame());
   console.log(json ? JSON.stringify(list, null, 2) : list.map((g) => `${g.id}  ${g.name}\n${g.skills.map((s) => `  ${s.id}  ${s.name}`).join("\n")}`).join("\n"));
   process.exit(0);
