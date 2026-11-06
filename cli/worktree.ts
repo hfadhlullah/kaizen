@@ -77,16 +77,16 @@ export const projectFromWorktree = (dir: string) => {
   return m ? m[1]! : dir;
 };
 
-const baseOf = (project: string) => {
+export const baseOf = (project: string) => {
   const head = git(project, "symbolic-ref", "--short", "refs/remotes/origin/HEAD");
   return head.ok ? head.out.replace(/^origin\//, "") : "main";
 };
 
 /** The feature branch a run was cut from and lands on, or null for the remote default branch. */
-const localBase = (project: string, id: string): string | null => {
+export const localBase = (project: string, id: string): string | null => {
   try { const b = JSON.parse(readFileSync(file(project, id), "utf8")).base_branch; return typeof b === "string" && b ? b : null; } catch { return null; }
 };
-const baseOfRun = (project: string, id: string) => localBase(project, id) ?? baseOf(project);
+export const baseOfRun = (project: string, id: string) => localBase(project, id) ?? baseOf(project);
 // The ref that proves a run's work is on its base: local for a feature branch, which may never be pushed.
 const baseRef = (project: string, id: string) => localBase(project, id) ?? `origin/${baseOf(project)}`;
 
@@ -137,6 +137,11 @@ const gitSetting = (project: string, key: string, fallback: string) => {
   }
   return fallback;
 };
+/** `git.generated`: the paths a land may take from the base and rebuild (the web bundles here). */
+export function generatedOf(project: string) {
+  const globs = gitSetting(project, "generated", "").split(/[\s,]+/).filter(Boolean).map((p) => new Bun.Glob(p));
+  return (p: string) => globs.some((g) => g.match(p));
+}
 const LONG = 30 * 60_000; // a project's check or rebuild may outlast a git call
 const shell = (cmd: string) => ["sh", "-c", cmd];
 
@@ -162,8 +167,7 @@ function rebaseOnto(project: string, dir: string, ref: string, sh: Run): Failed 
   const behind = sh(["git", "rev-list", "--count", `HEAD..${ref}`], dir);
   if (!behind.ok) return { ok: false, kind: "merge", why: `cannot compare with ${ref}: ${behind.why}` };
   if (Number(behind.out) === 0) return null;
-  const globs = gitSetting(project, "generated", "").split(/[\s,]+/).filter(Boolean).map((p) => new Bun.Glob(p));
-  const generated = (p: string) => globs.some((g) => g.match(p));
+  const generated = generatedOf(project);
   const giveUp = (why: string, paths?: string[]): Failed => {
     sh(["git", "rebase", "--abort"], dir);
     return { ok: false, kind: "conflict", why: `${why}; worktree kept`, ...(paths ? { paths } : {}) };
@@ -325,7 +329,7 @@ export type AsyncRun = (cmd: string[], cwd: string) => Promise<Out>;
 
 // gh only knows GitHub. Asked once per project: the remote does not change under a board.
 const githubs = new Map<string, boolean>();
-const onGithub = (project: string) => {
+export const onGithub = (project: string) => {
   let v = githubs.get(project);
   if (v === undefined) githubs.set(project, (v = !!Bun.which("gh") && /github\.com/.test(git(project, "remote", "get-url", "origin").out)));
   return v;

@@ -30,7 +30,7 @@ const interactive = process.stdin.isTTY && !check && !upgrade && !args.has("--ye
 // installer, so a typo or a command from a newer kaizen reinstalled instead of failing.
 // cli/install-unknown.test.ts fails if a dispatched word is missing here.
 const COMMANDS = ["automation", "help", "init", "browser", "card", "chat", "computer", "config", "docs", "done", "gather", "handoff",
-  "icebox", "issue", "model", "preview", "prune", "recall", "related", "remember", "report", "roadmap", "settings", "setup", "sources",
+  "icebox", "issue", "model", "preflight", "preview", "prune", "recall", "related", "remember", "report", "roadmap", "settings", "setup", "sources",
   "state", "stats", "uninstall", "upgrade", "version", "web", "worker", "worktree"];
 const first = Bun.argv[2];
 const commandList = `  commands: ${COMMANDS.join(", ")}\n  plain \`kaizen\` opens the board; \`kaizen --yes\` installs; \`kaizen init\` sets up this folder\n`;
@@ -300,6 +300,20 @@ if (Bun.argv[2] === "model") {
   if (stage && !STAGES.includes(stage)) { console.log(`\n  usage: kaizen model [${STAGES.join(" | ")}]\n`); process.exit(1); }
   console.log(subagentModel(projectFromWorktree(process.cwd()), stage) ?? "inherit");
   process.exit(0);
+}
+
+// `kaizen preflight <run-id>`: the look at the repo before a push or merge (cli/preflight.ts).
+// Exit 0 clean, 2 stopped: an agent then asks the user before landing.
+if (Bun.argv[2] === "preflight") {
+  const id = Bun.argv[3] ?? "";
+  const { locate } = await import("./state.ts");
+  const state = locate();
+  if (!state || !id) { console.log("\n  usage: kaizen preflight <run-id>, in a project with .kaizen\n"); process.exit(1); }
+  const { preflight, report, writePreflight } = await import("./preflight.ts");
+  const p = await preflight(dirname(state), id);
+  writePreflight(dirname(state), id, p, p.clean ? "clean" : "stopped");
+  console.log(`\n${report(p)}\n${p.clean ? "" : "\n  Stopped: ask the user what to do (rebase first, wait for CI, land the other one first, go ahead anyway).\n  Only after go ahead: kaizen worktree land " + id + " --checked\n"}`);
+  process.exit(p.clean ? 0 : 2);
 }
 
 if (Bun.argv[2] === "docs") {
@@ -642,11 +656,21 @@ if (args.has("worktree")) {
   const { locate } = await import("./state.ts");
   const { startWorktree, landRun, adoptWorkspace, linkTerm } = await import("./worktree.ts");
   const state = locate();
-  if (!state || (verb !== "start" && verb !== "land")) { console.log("\n  usage: kaizen worktree start [--default] | land <run-id>, in a project with .kaizen\n"); process.exit(1); }
+  if (!state || (verb !== "start" && verb !== "land")) { console.log("\n  usage: kaizen worktree start [--default] | land [--checked] <run-id>, in a project with .kaizen\n"); process.exit(1); }
   const project = dirname(state);
   // Started inside another workspace of the project (a board worktree): the run is placed there.
   // --default is a side run: its own worktree off the default branch, never another run's folder.
   const side = args.has("--default");
+  // Landing looks at the rest of the repo first; --checked is the user's go-ahead after a stop.
+  if (verb === "land") {
+    const { preflight, report, writePreflight } = await import("./preflight.ts");
+    const p = await preflight(project, id);
+    writePreflight(project, id, p, p.clean ? "clean" : args.has("--checked") ? "go ahead (user)" : "stopped");
+    if (!p.clean && !args.has("--checked")) {
+      console.log(`\n${report(p)}\n\n  Stopped before landing; nothing was pushed or merged. Ask the user, then after a go-ahead: kaizen worktree land ${id} --checked\n`);
+      process.exit(2);
+    }
+  }
   const r = verb === "start" ? (side ? null : adoptWorkspace(project, id, process.cwd())) ?? startWorktree(project, id, side) : landRun(project, id, process.env.KAIZEN_TERM);
   // A side run never relinks the asking terminal: it stays with the run it was on.
   if (r.ok && verb === "start" && !side) linkTerm(state, process.env.KAIZEN_TERM, id);

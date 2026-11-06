@@ -1,7 +1,7 @@
 ---
 description: The kaizen command: installer, upgrade, uninstall, settings, prune, sources
 tags: [project, cli]
-sources: [cli/subagent-model.test.ts, cli/automations.ts, cli/automations.test.ts, cli/computer.ts, cli/workers.ts, cli/workers.test.ts, cli/install.ts, cli/docs.ts, cli/docs.test.ts, cli/knowledge.ts, cli/stats.ts, cli/stats.test.ts, cli/state-set.test.ts, cli/install-unknown.test.ts, cli/setup.ts, cli/look.ts, cli/qr.ts, cli/settings.ts, cli/settings.test.ts, cli/worktree.ts, cli/state.ts, package.json]
+sources: [cli/preflight.ts, cli/preflight.test.ts, cli/subagent-model.test.ts, cli/automations.ts, cli/automations.test.ts, cli/computer.ts, cli/workers.ts, cli/workers.test.ts, cli/install.ts, cli/docs.ts, cli/docs.test.ts, cli/knowledge.ts, cli/stats.ts, cli/stats.test.ts, cli/state-set.test.ts, cli/install-unknown.test.ts, cli/setup.ts, cli/look.ts, cli/qr.ts, cli/settings.ts, cli/settings.test.ts, cli/worktree.ts, cli/state.ts, package.json]
 updated: 2026-11-06
 ---
 # CLI
@@ -29,6 +29,7 @@ updated: 2026-11-06
 - `web` starts the [[Web board]]; `sources`/`gather`/`icebox` and `browser login` drive [[Sources and icebox]].
 
 ## Watch out
+- `kaizen preflight <id>` (`cli/preflight.ts`) runs before every land: behind the base, this PR's or the base's CI (gh), other open PRs into the base and unmerged branches / in-flight run branches sharing files. Exit 0 clean, 2 stopped. It only reads (fetch, rev-list, diff, cherry, `gh pr view|list`, `gh run list`); no remote, no gh or offline are notes, never a stop, and `git.generated` overlaps are notes. A run with no worktree counts its uncommitted changed files too (`runGit` rows), or a Commit & push on the base would compare nothing. `kaizen worktree land` runs it first and exits 2 on a stop; `--checked` is the user's go-ahead. Each check appends to `runs/<id>/preflight.md`. Not to be confused with `git.land_check`, the test command after a rebase.
 - The "No AI coding agent found" check in `cli/install.ts` guards only the install and the bare dashboard; it sits right above the bare-`kaizen` block. A subcommand dispatched below it would print that and exit 0 having done nothing, on any machine without an agent, CI included; a test spawning `install.ts` passes on a dev machine with `claude` on PATH all the same (G-07 failed on CI from fd58af0 for this). Reproduce CI with `env -i PATH=<bun, git, sh, /usr/bin> HOME=<scratch>`.
 - `kaizen model [planner|builder|reviewer]` prints the stage's subagent model (`subagentModel`, `cli/state.ts`), `inherit` when none is pinned; `inherit`/`default`/empty in a project config fall through to the global one. Its tests (`cli/subagent-model.test.ts`) run in a child with a scratch HOME, since `home` is fixed at import.
 - **Never run `kaizen uninstall` against the real install or this checkout** — it deletes `$KAIZEN_HOME`; test in a scratch copy with scratch `HOME` (`.kaizen/memory.md`, header of `cli/install.test.ts`).
