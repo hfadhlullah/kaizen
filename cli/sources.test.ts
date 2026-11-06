@@ -616,7 +616,7 @@ test("the board refuses to add a source without a project, and moves one between
   });
   try {
     const at = `http://127.0.0.1:${port}`;
-    const post = async (body: object) => { const r = await fetch(at + "/sources", { method: "POST", body: JSON.stringify(body) }); return { status: r.status, ...(await r.json() as any) }; };
+    const post = async (body: object) => { const r = await fetch(at + "/sources", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }); return { status: r.status, ...(await r.json() as any) }; };
     for (let i = 0; ; i++) { try { await fetch(at + "/state"); break; } catch { if (i > 100) throw new Error("board did not start"); await Bun.sleep(50); } }
 
     // Started inside project a: a missing dir must not quietly mean a.
@@ -642,7 +642,7 @@ test("the board refuses to add a source without a project, and moves one between
     // The icebox: a project is required, an unknown item is 404, a second promote 409.
     ingest(a, SHEET, [{ text: "Dark mode" }, { text: "Export" }]);
     const [x, y] = readIcebox(a);
-    const ice = async (body: object) => { const r = await fetch(at + "/icebox", { method: "POST", body: JSON.stringify(body) }); return { status: r.status, ...(await r.json() as any) }; };
+    const ice = async (body: object) => { const r = await fetch(at + "/icebox", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }); return { status: r.status, ...(await r.json() as any) }; };
     expect(await ice({ op: "promote", ids: [x!.id] })).toMatchObject({ status: 400 });
     expect(await ice({ op: "promote", dir: a, ids: ["nope0000"] })).toMatchObject({ status: 404 });
     expect(await ice({ op: "explode", dir: a, ids: [x!.id] })).toMatchObject({ status: 400 });

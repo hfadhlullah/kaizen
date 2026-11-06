@@ -200,6 +200,11 @@ export function sendChat(base: string, id: string | null, text: string, project:
   let files: Attachment[] = [];
   try { if (uploads.length) files = saveUploads(base, chat.id, uploads); }
   catch (err: any) { return `Could not save attachment: ${err?.message ?? err}`; }
+  // A run starts only after the agent offered the lite/full choice in an earlier reply and the user
+  // answered it: a directive written in the same turn that read a file or issue cannot start one alone.
+  const before = reuseReply ? chat.messages.slice(0, -1) : chat.messages;
+  const offer = [...before].reverse().find((m) => m.role === "agent");
+  const offered = !!offer && /\blite\b/i.test(offer.text) && /\bfull\b/i.test(offer.text);
   if (!reuseReply) chat.messages.push({ role: "user", text, ...(files.length ? { files } : {}), at: now });
   const reply: Msg = reuseReply ? chat.messages.at(-1)! : { role: "agent", text: "", steps: [], at: now };
   if (!reuseReply) chat.messages.push(reply);
@@ -275,7 +280,10 @@ export function sendChat(base: string, id: string | null, text: string, project:
         reply.error = err || `codex exited with code ${code}`;
         emit({ t: "error", error: reply.error });
       }
-      if (run && !stopped) await startRun(reply, run, board, emit);
+      if (run && !stopped) {
+        if (offered) await startRun(reply, run, board, emit);
+        else { const s: Step = { kind: "project", text: "Not started: ask me to pick lite or full first", ok: false }; reply.steps!.push(s); emit({ t: "step", step: s }); }
+      }
       if (move && !stopped) await moveChat(chat, reply, move, board, emit);
     } finally {
       delete reply.activity;

@@ -296,7 +296,7 @@ async function runTool(ctx: Ctx, botId: number, emit: Emit, name: string, input:
   const p = pick();
   if (typeof p === "string") return { result: p };
   const runId = str(input.run);
-  if (runId && !/^[\w.-]+$/.test(runId)) return { result: "Error: bad run id." };
+  if (runId && !/^(?!\.+$)[\w.-]+$/.test(runId)) return { result: "Error: bad run id." };
 
   if (name === "read_run") {
     let r;
@@ -417,12 +417,17 @@ export async function runTurn(ctx: Ctx, botId: number, userText: string, emit: E
     for (let step = 0; step < MAX_STEPS; step++) {
       emit("status", { text: "Thinking…" });
       const reply = await chat(cfg, systemPrompt(store, botId, boardNote), turns, tools, ctx.fetch);
+      reply.toolCalls = reply.toolCalls.slice(0, 8);   // every call kept needs a result back
       turns.push({ role: "assistant", text: reply.text, toolCalls: reply.toolCalls });
       if (reply.text) said = save("bot", reply.text);
       if (!reply.toolCalls.length) return said;
       const results = [];
+      // Board text (run docs, tasks) is writable by anyone: after reading it this turn, a standing rule or routine needs the user's own message.
+      let readBoard = false;
       for (const c of reply.toolCalls) {
         emit("status", { text: `${VERB[c.name] ?? "Working"}…` });
+        if (readBoard && (c.name === "remember" || c.name === "create_routine")) { results.push({ id: c.id, content: "Error: not saved. This turn read board text; ask the user to confirm, then do it in their next message." }); continue; }
+        if (c.name === "read_run" || c.name === "board_status") readBoard = true;
         const r = allowed.has(c.name as ToolName) ? await runTool(ctx, botId, emit, c.name, c.input) : { result: `Error: tool ${c.name} is not allowed.` };
         results.push({ id: c.id, content: r.result });
       }

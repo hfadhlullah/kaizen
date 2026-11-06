@@ -63,7 +63,7 @@ function seconds(f: string): number | null {
   let key: string;
   try { key = `${f}:${statSync(f).mtimeMs}`; } catch { return null; }
   if (!probed.has(key)) {
-    const r = spawnSync("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", f], { encoding: "utf8" });
+    const r = spawnSync("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", f], { encoding: "utf8", windowsHide: true });
     const n = parseFloat(r.stdout ?? "");
     probed.set(key, Number.isFinite(n) ? Math.round(n) : null);
   }

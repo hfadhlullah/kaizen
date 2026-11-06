@@ -29,7 +29,7 @@ function locked<T>(state: string, id: string, fn: () => T): T {
   const lock = `${file(state, id)}.lock`;
   for (let i = 0; ; i++) {
     try { closeSync(openSync(lock, "wx")); break; } catch (err) {
-      try { if (Date.now() - statSync(lock).mtimeMs > 5000) { rmSync(lock, { force: true }); continue; } } catch { /* just released */ }
+      try { if (Date.now() - statSync(lock).mtimeMs > 5000) { const aside = `${lock}.${process.pid}.${i}.stale`; renameSync(lock, aside); rmSync(aside, { force: true }); continue; } } catch { /* just released */ }
       if (i > 500) throw err;
       Bun.sleepSync(2);
     }

@@ -224,7 +224,7 @@ test.skipIf(process.platform === "win32")("/shell: foreign origin, unknown proje
     expect(inWs.status).toBe(200);
     const made = (await inWs.json()) as any;
     expect(made.ws).toBe(proj); // the tab lists a workspace's shells by it
-    await fetch(at + "/pty/exit", { method: "POST", body: JSON.stringify({ key: made.key }) });
+    await fetch(at + "/pty/exit", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ key: made.key }) });
     for (let i = 0; i < 100; i++) { if (!((await (await fetch(`${at}/shells`)).json()) as any[]).length) break; await Bun.sleep(50); }
     // A worktree made after the board cached the list (above) is let in, not refused for 10 s.
     const g0 = (...a: string[]) => Bun.spawnSync(["git", "-c", "user.name=t", "-c", "user.email=t@t", ...a], { cwd: proj });
@@ -234,7 +234,7 @@ test.skipIf(process.platform === "win32")("/shell: foreign origin, unknown proje
     await Bun.sleep(1100); // the recheck waits for a cache older than 1 s
     const late = await post({ dir: st, ws: fresh }, at);
     expect(late.status).toBe(200);
-    await fetch(at + "/pty/exit", { method: "POST", body: JSON.stringify({ key: ((await late.json()) as any).key }) });
+    await fetch(at + "/pty/exit", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ key: ((await late.json()) as any).key }) });
     for (let i = 0; i < 100; i++) { if (!((await (await fetch(`${at}/shells`)).json()) as any[]).length) break; await Bun.sleep(50); }
     // A burst of bad workspace paths runs git at most once.
     const log = join(root, "git.log");
@@ -260,7 +260,7 @@ test.skipIf(process.platform === "win32")("/shell: foreign origin, unknown proje
     expect(seen).toContain(`pwd:${proj}`);
     ws.close();
     expect(((await (await fetch(`${at}/shells?dir=${encodeURIComponent(st)}`)).json()) as any[]).map((s) => s.key)).toEqual([sh1.key]);
-    expect((await fetch(at + "/pty/exit", { method: "POST", body: JSON.stringify({ key: sh1.key }) })).status).toBe(200);
+    expect((await fetch(at + "/pty/exit", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ key: sh1.key }) })).status).toBe(200);
     for (let i = 0; i < 100; i++) { if (!((await (await fetch(`${at}/shells`)).json()) as any[]).length) break; await Bun.sleep(50); }
     expect(await (await fetch(`${at}/shells`)).json()).toEqual([]);
 
@@ -271,7 +271,7 @@ test.skipIf(process.platform === "win32")("/shell: foreign origin, unknown proje
     for (let i = 0; i < 60 && !A[0]?.last; i++) { await Bun.sleep(100); A = ((await (await fetch(at + "/state?all=1")).json()) as any).agents; }
     expect(A.map((x) => x.key)).toEqual([ag.key]);
     expect(A[0]).toMatchObject({ dir: st, agent: "gemini", name: "Gemini", asking: false, last: "Reading the parser source" });
-    for (const k of [ag.key, pl.key]) await fetch(at + "/pty/exit", { method: "POST", body: JSON.stringify({ key: k }) });
+    for (const k of [ag.key, pl.key]) await fetch(at + "/pty/exit", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ key: k }) });
     for (let i = 0; i < 100; i++) { if (!((await (await fetch(`${at}/shells`)).json()) as any[]).length) break; await Bun.sleep(50); }
     expect(((await (await fetch(at + "/state?all=1")).json()) as any).agents).toEqual([]);
 
@@ -279,7 +279,7 @@ test.skipIf(process.platform === "win32")("/shell: foreign origin, unknown proje
     const keys: string[] = [];
     for (let i = 0; i < 8; i++) { const x = await post({ dir: st }, at); expect(x.status).toBe(200); keys.push(((await x.json()) as any).key); }
     expect((await post({ dir: st }, at)).status).toBe(429);
-    for (const k of keys) await fetch(at + "/pty/exit", { method: "POST", body: JSON.stringify({ key: k }) });
+    for (const k of keys) await fetch(at + "/pty/exit", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ key: k }) });
 
     const u = await fetch(at + "/usage");
     expect(u.status).toBe(200);

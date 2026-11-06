@@ -110,7 +110,7 @@ test.skipIf(!posix)("a stopped or crashed board resumes its card agents, once af
   let b = board();
   try {
     await up();
-    const r = await (await fetch(at + "/run", { method: "POST", body: JSON.stringify({ dir: st, text: "say hello" }) })).json() as any;
+    const r = await (await fetch(at + "/run", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ dir: st, text: "say hello" }) })).json() as any;
     expect(r.ok).toBe(true);
     // The run that launch became, in its build stage, with its conversation on disk.
     mkdirSync(join(st, "runs", "r1"), { recursive: true });

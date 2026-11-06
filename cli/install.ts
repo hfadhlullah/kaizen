@@ -307,7 +307,7 @@ if (Bun.argv[2] === "docs") {
   const { locate } = await import("./state.ts");
   const { lintDocs } = await import("./docs.ts");
   const state = locate();
-  const gitRoot = Bun.which("git") ? Bun.spawnSync(["git", "rev-parse", "--show-toplevel"], { cwd: process.cwd() }) : null;
+  const gitRoot = Bun.which("git") ? Bun.spawnSync(["git", "rev-parse", "--show-toplevel"], { cwd: process.cwd(), windowsHide: true }) : null;
   const repo = gitRoot?.exitCode === 0 ? gitRoot.stdout.toString().trim() : "";
   const root = repo && existsSync(join(repo, ".kaizen")) ? repo : state ? dirname(state) : null;
   const problems = root ? lintDocs(root) : ["no kaizen project found"];
@@ -470,7 +470,7 @@ async function removeEverything() {
   // as written, so a KAIZEN_HOME that reaches ~/kaizen through a link is refused too.
   // A clone holds no ignored files unless someone used it (.kaizen/ is ignored), and
   // no commits that are not on a remote.
-  const install = process.env.KAIZEN_HOME ?? join(home, "kaizen");
+  const install = process.env.KAIZEN_HOME || join(home, "kaizen");
   const git = async (...a: string[]) => {
     try { return (await Bun.$`git -C ${install} ${a}`.quiet().text()).trim(); } catch { return null; }
   };
@@ -957,7 +957,7 @@ const targets = found(root);
 async function resolveRepoQuietly() {
   const here = dirname(import.meta.dir);
   if (existsSync(join(here, ".git"))) return here;
-  return process.env.KAIZEN_HOME ?? join(home, "kaizen");
+  return process.env.KAIZEN_HOME || join(home, "kaizen");
 }
 
 async function resolveRepo() {
@@ -1320,7 +1320,7 @@ async function runUpgrade(repoDir: string) {
   return lines;
 }
 
-function installDir() { return process.env.KAIZEN_HOME ?? join(home, "kaizen"); }
+function installDir() { return process.env.KAIZEN_HOME || join(home, "kaizen"); }
 
 // A folder someone develops kaizen in must never be replaced by a release: a git
 // checkout KAIZEN_HOME points at, or any checkout holding commits on no remote.

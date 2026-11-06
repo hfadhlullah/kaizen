@@ -287,7 +287,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
   const sameOrigin = (req: Request) => {
     const origin = req.headers.get("origin");
     let same = !origin;
-    try { if (origin) { const o = new URL(origin); same = o.host === req.headers.get("host") || extraHosts.has(o.hostname); } } catch { /* bad origin */ }
+    try { if (origin) { const o = new URL(origin); same = o.host === req.headers.get("host"); } } catch { /* bad origin */ }
     return same;
   };
   // One-time token for turning an off-by-default skill on; each GET /skills mints a new one. It stops
@@ -711,6 +711,9 @@ export async function web(repoDir: string, opts: Opts = {}) {
       // arrives with that hostname in Host, and gets nothing.
       const hostname = (req.headers.get("host") ?? "").toLowerCase().replace(/:\d+$/, "");
       if (hostname !== "127.0.0.1" && hostname !== "localhost" && !extraHosts.has(hostname)) return new Response("forbidden", { status: 403 });
+      // `tailscale serve` stamps every tailnet request with the caller's login; `tailscale funnel` (the
+      // public internet) does not. A tailnet name reached without it is not a tailnet peer.
+      if (hostname.endsWith(".ts.net") && !req.headers.get("tailscale-user-login")) return new Response("forbidden", { status: 403 });
       if (req.method !== "GET") { stateGen++; gitGen++; }
       const url = new URL(req.url);
       const path = url.pathname;
@@ -762,7 +765,10 @@ export async function web(repoDir: string, opts: Opts = {}) {
       // board when no window shows it) and close the popup. Hyprland moves windows;
       // elsewhere only the popup opens and closes.
       if (req.method === "POST" && (path === "/popup/open" || path === "/popup/board")) {
+        const refused = strict(req);
+        if (refused) return refused;
         const body = await req.json().catch(() => ({}));
+        if (body?.id != null && !/^(?!\.+$)[\w.-]+$/.test(String(body.id))) return bad("bad id");
         const chat = (...a: string[]) => Bun.spawn([process.execPath, join(import.meta.dir, "install.ts"), "chat", "--port", String(new URL(req.url).port || DEFAULT_PORT), ...a], { stdout: "ignore", stderr: "ignore", windowsHide: true }).exited;
         const hypr = !!process.env.HYPRLAND_INSTANCE_SIGNATURE && !!Bun.which("hyprctl");
         const json = async (cmd: string) => await Bun.$`hyprctl ${cmd} -j`.quiet().nothrow().json().catch(() => null);
@@ -779,7 +785,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           if ((await Bun.$`hyprctl dispatch ${lua}`.quiet().nothrow().text()).trim() !== "ok") await Bun.$`hyprctl dispatch ${legacy}`.quiet().nothrow();
         };
         if (path === "/popup/open") {
-          const id = typeof body.id === "string" && /^[\w.-]+$/.test(body.id) ? body.id : "";
+          const id = typeof body.id === "string" && /^(?!\.+$)[\w.-]+$/.test(body.id) ? body.id : "";
           await chat("--show", ...(id ? ["--chat", id] : []));
           if (w) await dispatch(`hl.dsp.window.move({ workspace = "special:kaizen", follow = false, window = "${w}" })`, ["movetoworkspacesilent", `special:kaizen,${w}`]);
           // Typing goes to the popup, not to whatever was under the hidden board.
@@ -908,7 +914,9 @@ export async function web(repoDir: string, opts: Opts = {}) {
         if (!sameOrigin(req)) return bad("cross-origin request refused", 403);
         if (!/^image\//i.test(req.headers.get("content-type") ?? "")) return bad("image body expected", 415);
         if (Number(req.headers.get("content-length") ?? 0) > MAX_IMAGE) return bad("image too large", 413);
-        const saved = saveImage(new Uint8Array(await req.arrayBuffer()));
+        const bytes = new Uint8Array(await req.arrayBuffer());
+        if (bytes.length > MAX_IMAGE) return bad("image too large", 413);   // a chunked body has no content-length
+        const saved = saveImage(bytes);
         return saved ? json({ path: saved }) : bad("not an image", 415);
       }
       if (req.method === "POST" && path === "/shell") {
@@ -1215,6 +1223,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
         let u: URL;
         try { u = new URL(String(body.url ?? "")); } catch { return bad("not a url"); }
         if (!/^https?:$/.test(u.protocol) || !isLoopback(u)) return bad("only a localhost address", 400);
+        // Not the board itself: a proxy to it would forward /pty with an Origin rewritten to the board's own.
+        if (u.port === (new URL(req.url).port || "80")) return bad("that is the board's own port", 400);
         try {
           const px = openProxy(u);
           return json({ ok: true, origin: px.origin, token: px.token, url: px.origin + u.pathname + u.search + u.hash });
@@ -1232,7 +1242,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         if (path === "/annotate/format") return json({ ok: true, text: annMarkdown(notes, level, comps) });
         const dir = canonState(String(body.dir ?? ""));
         const id = String(body.id ?? "");
-        if (!states(true).includes(dir) || dir === join(home, ".kaizen") || !/^[\w.-]+$/.test(id)) return bad("choose a run", 404);
+        if (!states(true).includes(dir) || dir === join(home, ".kaizen") || !/^(?!\.+$)[\w.-]+$/.test(id)) return bad("choose a run", 404);
         const live = liveAgent(dir, id);
         if (!live) return bad("this run has no agent open to send to", 409);
         const crops = saveCrops(dir, id, notes);
@@ -1433,7 +1443,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
       if (req.method === "GET" && path.startsWith("/run/")) {
         const id = decodeURIComponent(path.slice(5));
         const dir = qdir() ?? state;
-        if (!dir || !states(true).includes(dir) || !/^[\w.-]+$/.test(id)) return bad("no such run", 404);
+        if (!dir || !states(true).includes(dir) || !/^(?!\.+$)[\w.-]+$/.test(id)) return bad("no such run", 404);
         const base = join(dir, "runs", id);
         if (!existsSync(base)) return bad("no such run", 404);
         const read = (f: string) => existsSync(join(base, f)) ? readText(join(base, f)) : null;
@@ -1803,11 +1813,12 @@ export async function web(repoDir: string, opts: Opts = {}) {
         const dir = qdir() ?? state;
         const p = url.searchParams.get("p") ?? "";
         if (!dir || !states(true).includes(dir)) return bad("unknown state dir", 404);
-        if (!/^(runs\/[\w.-]+\/)?attachments\/[\w.-]+$/.test(p)) return bad("bad path");
+        if (!/^(runs\/[\w.-]+\/)?attachments\/(?!\.+$)[\w.-]+$/.test(p)) return bad("bad path");
         const f = join(dir, p);
         if (!existsSync(f)) return bad("no such file", 404);
         // no-cache: a revise retakes a screenshot under the same name, and the browser must ask again.
-        return new Response(Bun.file(f), { headers: { "cache-control": "private, no-cache" } });
+        // sandbox + nosniff: an attached .html/.svg opened directly must run nothing on the board origin.
+        return new Response(Bun.file(f), { headers: { "cache-control": "private, no-cache", "content-security-policy": "sandbox", "x-content-type-options": "nosniff" } });
       }
 
       // An icebox image, sent on to a link read fresh from its source: the one kept
@@ -1844,13 +1855,14 @@ export async function web(repoDir: string, opts: Opts = {}) {
           return c ? json({ ...c, busy: chatBusy(base, c.id) }) : bad("no such chat", 404);
         }
         if (req.method !== "POST") return bad("method not allowed", 405);
-        if (!local(req)) return bad("cross-origin write refused", 403);
+        // sameOrigin, not local(): a multipart form is a simple request any page can send, and a chat starts an agent.
+        if (!sameOrigin(req)) return bad("cross-origin write refused", 403);
         let body: any;
         let uploads: ChatUpload[] = [];
         if (path === "/chat" && req.headers.get("content-type")?.startsWith("multipart/form-data")) {
           if (Number(req.headers.get("content-length")) > 320 * 1024 * 1024) return bad("attachments too large", 413);
           let form: FormData;
-          try { form = await req.formData(); } catch { return bad("form data expected"); }
+          try { form = await req.formData(); } catch { return bad("form data expected"); }   // the per-file and total caps below also cover a chunked body
           const files = form.getAll("files");
           if (files.length > 20 || files.some((f) => !(f instanceof File) || f.size > 100 * 1024 * 1024) || files.reduce((n, f) => n + (f instanceof File ? f.size : 0), 0) > 300 * 1024 * 1024) return bad("up to 20 files, 100 MB each and 300 MB total", 413);
           body = { id: form.get("id"), text: form.get("text") ?? "", project: form.get("project") };
@@ -1900,7 +1912,10 @@ export async function web(repoDir: string, opts: Opts = {}) {
       }
 
       if (req.method === "POST") {
-        if (!local(req)) return bad("cross-origin write refused", 403);
+        // strict, not local(): this block starts agents (/run yolo, /fix, /shell-like ops), so a
+        // page on another local port or a text/plain no-cors POST must not reach it.
+        const refused = strict(req);
+        if (refused) return refused;
         let body: any;
         try { body = await req.json(); } catch { return bad("json body expected"); }
         for (const k of ["dir", "to"]) if (typeof body?.[k] === "string" && body[k]) body[k] = canonState(body[k]);
@@ -2209,7 +2224,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         if (path === "/archive") {
           const archived = body.archived !== false;
           if (typeof body.id === "string") {
-            if (!/^[\w.-]+$/.test(body.id)) return bad("bad run id");
+            if (!/^(?!\.+$)[\w.-]+$/.test(body.id)) return bad("bad run id");
             setArchived(dir, body.id, archived);
           } else if (typeof body.text === "string") {
             const text = body.text.trim();
@@ -2227,7 +2242,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
         // from the message so the note carries its own attachments.
         if (path === "/note") {
           const id = typeof body.id === "string" ? body.id : null;
-          if (id !== null && !/^[\w.-]+$/.test(id)) return bad("bad run id");
+          if (id !== null && !/^(?!\.+$)[\w.-]+$/.test(id)) return bad("bad run id");
+          if (id !== null && !existsSync(join(dir, "runs", id, "state.json"))) return bad("no such run", 404);   // no attachments folder for a run that is not there
           const text = typeof body.text === "string" ? body.text.trim() : "";
           const files: { name: string; data: string }[] = Array.isArray(body.files) ? body.files : [];
           let total = 0;
@@ -2246,7 +2262,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
 
         if (path === "/notes") {
           const id = String(body.id ?? "");
-          if (!/^[\w.-]+$/.test(id)) return bad("bad run id");
+          if (!/^(?!\.+$)[\w.-]+$/.test(id)) return bad("bad run id");
           const failed = writeNotes(dir, id, String(body.text ?? ""));
           changed();
           return failed ? bad(failed, 404) : json({ ok: true });
@@ -2271,7 +2287,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         // global state dir: $HOME may be a repository, and it is not the run's project.
         if (path === "/commit") {
           const id = String(body.id ?? "");
-          if (!/^[\w.-]+$/.test(id)) return bad("bad run id");
+          if (!/^(?!\.+$)[\w.-]+$/.test(id)) return bad("bad run id");
           if (dir === join(home, ".kaizen")) return bad("no project to commit", 409);
           let run: any;
           try { run = JSON.parse(readText(join(dir, "runs", id, "state.json"))); } catch { return bad("no such run", 404); }
@@ -2287,7 +2303,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         // takes and only on the run's own files (stageFiles refuses any other path).
         if (path === "/stage") {
           const id = String(body.id ?? "");
-          if (!/^[\w.-]+$/.test(id)) return bad("bad run id");
+          if (!/^(?!\.+$)[\w.-]+$/.test(id)) return bad("bad run id");
           if (dir === join(home, ".kaizen")) return bad("no project", 409);
           let run: any;
           try { run = JSON.parse(readText(join(dir, "runs", id, "state.json"))); } catch { return bad("no such run", 404); }
@@ -2302,7 +2318,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         // The sparkle button: a commit message for the run's files, written from their diff.
         if (path === "/commit-message") {
           const id = String(body.id ?? "");
-          if (!/^[\w.-]+$/.test(id)) return bad("bad run id");
+          if (!/^(?!\.+$)[\w.-]+$/.test(id)) return bad("bad run id");
           if (dir === join(home, ".kaizen")) return bad("no project", 409);
           const r = await suggestMessage(dir, id);
           return r.ok ? json(r) : bad(r.why, 409);
@@ -2312,7 +2328,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         // request, merge it, then remove the worktree once its work is on the base.
         if (path === "/pr") {
           const id = String(body.id ?? "");
-          if (!/^[\w.-]+$/.test(id)) return bad("bad run id");
+          if (!/^(?!\.+$)[\w.-]+$/.test(id)) return bad("bad run id");
           // One step per run at a time: a second tab's Merge or Remove waits its turn.
           const lock = `${dir}\0${id}`;
           if (prBusy.has(lock)) return bad("Another git step is running on this run. Try again when it finishes.", 409);
@@ -2339,7 +2355,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         // not there. Only numbers the review itself holds reach the prompt.
         if (path === "/fix") {
           const id = String(body.id ?? "");
-          if (!/^[\w.-]+$/.test(id)) return bad("bad run id");
+          if (!/^(?!\.+$)[\w.-]+$/.test(id)) return bad("bad run id");
           if (dir === join(home, ".kaizen")) return bad("no project to fix in", 409);
           let run: any;
           try { run = JSON.parse(readText(join(dir, "runs", id, "state.json"))); } catch { return bad("no such run", 404); }
@@ -2371,7 +2387,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         // the approval it saw: one already answered elsewhere is not answered twice.
         if (path === "/decide") {
           const id = String(body.id ?? "");
-          if (!/^[\w.-]+$/.test(id)) return bad("bad run id");
+          if (!/^(?!\.+$)[\w.-]+$/.test(id)) return bad("bad run id");
           if (dir === join(home, ".kaizen")) return bad("no project to run in", 409);
           let run: any;
           try { run = JSON.parse(readText(join(dir, "runs", id, "state.json"))); } catch { return bad("no such run", 404); }
@@ -2416,7 +2432,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         // only, no agent is started.
         if (path === "/accept") {
           const id = String(body.id ?? "");
-          if (!/^[\w.-]+$/.test(id)) return bad("bad run id");
+          if (!/^(?!\.+$)[\w.-]+$/.test(id)) return bad("bad run id");
           if (gateOf(dir, id) !== "needs") return bad("this run is not waiting on your approval", 409);
           // Only a finished-but-unapproved run: a genuine review goes through /decide.
           let st: any = {};
@@ -2432,7 +2448,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         // Start a run's agent again after it ended mid-stage (resumeRun).
         if (path === "/resume") {
           const id = String(body.id ?? "");
-          if (!/^[\w.-]+$/.test(id)) return bad("bad run id");
+          if (!/^(?!\.+$)[\w.-]+$/.test(id)) return bad("bad run id");
           if (dir === join(home, ".kaizen")) return bad("no project to run in", 409);
           const r = resumeRun(dir, id);
           if ("error" in r) return bad(r.error, r.status);
@@ -2443,7 +2459,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
 
         if (path === "/to-task" || path === "/to-idea") { // /to-idea: the old name, kept for open tabs
           const id = String(body.id ?? "");
-          if (!/^[\w.-]+$/.test(id)) return bad("bad run id");
+          if (!/^(?!\.+$)[\w.-]+$/.test(id)) return bad("bad run id");
           const failed = runToTask(dir, id);
           changed();
           return failed ? bad(failed, 409) : json({ ok: true });
@@ -2452,7 +2468,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         if (path === "/abort") {
           const id = String(body.id ?? "");
           const why = String(body.why ?? "").trim() || "abandoned from the web";
-          if (!/^[\w.-]+$/.test(id)) return bad("bad run id");
+          if (!/^(?!\.+$)[\w.-]+$/.test(id)) return bad("bad run id");
           const failed = abandonRun(dir, id, why);
           changed();
           return failed ? bad(failed, 409) : json({ ok: true });
@@ -2676,9 +2692,9 @@ export async function openApp(url: string, profile?: string) {
 }
 
 async function openDefault(url: string) {
-  // `start` is a cmd builtin, not a program, so it has to go through cmd.
+  // Not `cmd /c start`: cmd splits a URL at `&`, `|` or `^` and would run what follows.
   if (process.platform === "win32") {
-    try { await Bun.$`${cmdExe()} /c start "" ${url}`.quiet(); return true; } catch { return false; }
+    try { await Bun.spawn(["rundll32", "url.dll,FileProtocolHandler", url], { stdout: "ignore", stderr: "ignore", windowsHide: true }).exited; return true; } catch { return false; }
   }
   const opener = process.platform === "darwin" ? "open" : "xdg-open";
   if (!Bun.which(opener)) return false;

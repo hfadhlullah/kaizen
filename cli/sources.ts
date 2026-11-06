@@ -361,10 +361,11 @@ function isPrivate(addr: string): boolean {
   if (isIP(a) === 4) {
     const [x, y] = a.split(".").map(Number) as [number, number];
     return x === 0 || x === 10 || x === 127 || (x === 172 && y >= 16 && y <= 31) || (x === 192 && y === 168)
-      || (x === 169 && y === 254) || (x === 100 && y >= 64 && y <= 127);
+      || (x === 169 && y === 254) || (x === 100 && y >= 64 && y <= 127)
+      || (x === 192 && y === 0 && a.startsWith("192.0.0.")) || (x === 198 && (y === 18 || y === 19)) || x >= 224;   // protocol block, benchmarking, multicast, reserved, broadcast
   }
   if (isIP(a) !== 6) return true;                               // not an address at all
-  return a === "::1" || a === "::" || /^fe[89ab]/.test(a) || /^f[cd]/.test(a);
+  return a === "::1" || a === "::" || /^fe[89ab]/.test(a) || /^f[cd]/.test(a) || /^ff/.test(a) || a.startsWith("64:ff9b:");
 }
 
 type Lookup = (host: string, opts: { all: true }) => Promise<{ address: string }[]>;

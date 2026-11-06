@@ -201,7 +201,7 @@ test("the board serves sound assets and the Video page, and refuses unsafe paths
     expect((await fetch(at + "/video/f/0/demo/v/../../../.kaizen/projects")).status).toBe(404);
 
     const post = (path: string, body: object, origin?: string) =>
-      fetch(at + path, { method: "POST", body: JSON.stringify(body), headers: origin ? { origin } : {} });
+      fetch(at + path, { method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json", ...(origin ? { origin } : {}) } });
     expect((await post("/video/save", { p: 0, name: "demo", edits: [] }, "https://evil.example")).status).toBe(403);
     expect((await post("/video/job", { p: 0, name: "demo", kind: "render", platforms: ["TikTok"] }, "https://evil.example")).status).toBe(403);
     expect((await post("/video/job", { p: 7, name: "demo", kind: "render" })).status).toBe(404);
@@ -399,7 +399,7 @@ test("New video starts kaizen-video in a board terminal in the place's folder, t
   try {
     const at = `http://127.0.0.1:${port}`;
     for (let i = 0; ; i++) { try { await fetch(at + "/state"); break; } catch { if (i > 100) throw new Error("board did not start"); await Bun.sleep(50); } }
-    const post = (path: string, body: object, origin?: string) => fetch(at + path, { method: "POST", body: JSON.stringify(body), headers: origin ? { origin } : {} });
+    const post = (path: string, body: object, origin?: string) => fetch(at + path, { method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json", ...(origin ? { origin } : {}) } });
     const brief = "Promo; $(touch PWNED) `touch PWNED2`";
     const body = { p: 0, source: "brief", brief, preset: "film-promo-booth", platforms: ["TikTok"], seconds: 60, language: "id" };
     expect((await post("/video/new", body, "https://evil.example")).status).toBe(403);
@@ -489,7 +489,7 @@ echo '{"success":true}'
   try {
     const at = `http://127.0.0.1:${port}`;
     for (let i = 0; ; i++) { try { await fetch(at + "/state"); break; } catch { if (i > 100) throw new Error("board did not start"); await Bun.sleep(50); } }
-    const post = (body: object, origin?: string) => fetch(at + "/video/send", { method: "POST", body: JSON.stringify(body), headers: origin ? { origin } : {} });
+    const post = (body: object, origin?: string) => fetch(at + "/video/send", { method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json", ...(origin ? { origin } : {}) } });
     const file = "o/film-promo-booth/demo-9x16.mp4";
     const send = { p: 0, name: "demo", file, via: "whatsapp", to: "whatsapp:123@lid", text: `Cek ya"; rm -rf ~ $(touch PWNED) \`touch PWNED2\`\n-x` };
     expect((await post(send, "https://evil.example")).status).toBe(403);

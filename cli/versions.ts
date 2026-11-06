@@ -42,7 +42,7 @@ function writeStore(place: string, name: string, s: Store) {
 // Returns { value } when it ran, null when another holder had the lock.
 function locked<T>(place: string, name: string, fn: () => T): { value: T } | null {
   const lock = join(place, "videos", name, ".versions.lock");
-  try { if (Date.now() - statSync(lock).mtimeMs > 60_000) unlinkSync(lock); } catch { /* none */ }
+  try { if (Date.now() - statSync(lock).mtimeMs > 60_000) { const aside = `${lock}.${process.pid}.stale`; renameSync(lock, aside); unlinkSync(aside); } } catch { /* none */ }
   let fd: number;
   try { fd = openSync(lock, "wx"); } catch { return null; }
   try { return { value: fn() }; } finally { closeSync(fd); try { unlinkSync(lock); } catch { /* gone */ } }

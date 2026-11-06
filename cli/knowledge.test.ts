@@ -5,7 +5,7 @@ import { test, expect, afterAll } from "bun:test";
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, statSync, rmSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { tmpdir, homedir } from "node:os";
-import { secretReason, addSessionHook, removeSessionHook, SESSION_HEADER, trackOf } from "./knowledge.ts";
+import { globalAllowed, secretReason, addSessionHook, removeSessionHook, SESSION_HEADER, trackOf } from "./knowledge.ts";
 
 const script = join(dirname(import.meta.path), "install.ts");
 const realKnowledge = join(homedir(), ".kaizen", "knowledge");
@@ -197,4 +197,14 @@ test("recall and remember under an alias reach the same lessons as the stored tr
   const viaCode = s.kz(a, "recall", "--track", "code", "--tags", "bun").out;
   expect(viaCode).toContain("--bail");
   expect(s.kz(a, "recall", "--track", "software", "--tags", "bun").out).toBe(viaCode);
+});
+
+test("globalAllowed does not hang on a config full of indented comments", () => {
+  const d = mkdtempSync(join(tmpdir(), "kz-redos-"));
+  mkdirSync(join(d, ".kaizen"));
+  writeFileSync(join(d, ".kaizen", "config.yml"), "knowledge:\n" + "  # c\n".repeat(60) + "x: 1\n");
+  const t = Date.now();
+  expect(typeof globalAllowed(d)).toBe("boolean");
+  expect(Date.now() - t).toBeLessThan(500);
+  rmSync(d, { recursive: true, force: true });
 });
