@@ -527,15 +527,6 @@ if (args.has("setup")) {
   process.exit(0);
 }
 
-// Nothing to install into. kaizen is a workflow an agent runs; on its own it does
-// nothing, so send them to the agent first rather than laying out files no reader
-// will ever load. Settings need no agent, and an agent script must not get this and exit 0.
-// The board is exempt too: it starts with no agent and its own setup helps pick one
-// (the desktop app on a fresh machine runs exactly this).
-if (!found(home).length && !args.has("--force") && !wantSettings && !wantWeb) {
-  if (!(await noAgent())) process.exit(0);
-}
-
 // Returns true once an agent is installed and found, so the kaizen install goes on.
 async function noAgent(): Promise<boolean> {
   console.log(`  ${c.bold("No AI coding agent found on this machine.")}\n`);
@@ -830,6 +821,17 @@ if (wantWeb) {
   const { web } = await import("./web.ts");
   await web(await resolveRepoQuietly(), { port, open: !args.has("--no-open") });
   process.exit(0);
+}
+
+// Nothing to install into. kaizen is a workflow an agent runs; on its own it does
+// nothing, so send them to the agent first rather than laying out files no reader
+// will ever load. Only the install and the bare dashboard below are guarded: every
+// subcommand above (worktree, handoff, prune, chat…) runs without an agent, since an agent
+// script must never get this and exit 0 having done nothing (CI has none). The board is
+// exempt too: it starts with no agent and its own setup helps pick one (the desktop app
+// on a fresh machine runs exactly this).
+if (!found(home).length && !args.has("--force") && !wantSettings && !wantWeb) {
+  if (!(await noAgent())) process.exit(0);
 }
 
 // Bare `kaizen` on a machine where it is already installed is not an install --

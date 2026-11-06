@@ -29,6 +29,7 @@ updated: 2026-11-06
 - `web` starts the [[Web board]]; `sources`/`gather`/`icebox` and `browser login` drive [[Sources and icebox]].
 
 ## Watch out
+- The "No AI coding agent found" check in `cli/install.ts` guards only the install and the bare dashboard; it sits right above the bare-`kaizen` block. A subcommand dispatched below it would print that and exit 0 having done nothing, on any machine without an agent, CI included; a test spawning `install.ts` passes on a dev machine with `claude` on PATH all the same (G-07 failed on CI from fd58af0 for this). Reproduce CI with `env -i PATH=<bun, git, sh, /usr/bin> HOME=<scratch>`.
 - `kaizen model [planner|builder|reviewer]` prints the stage's subagent model (`subagentModel`, `cli/state.ts`), `inherit` when none is pinned; `inherit`/`default`/empty in a project config fall through to the global one. Its tests (`cli/subagent-model.test.ts`) run in a child with a scratch HOME, since `home` is fixed at import.
 - **Never run `kaizen uninstall` against the real install or this checkout** — it deletes `$KAIZEN_HOME`; test in a scratch copy with scratch `HOME` (`.kaizen/memory.md`, header of `cli/install.test.ts`).
 - `kaizen worktree start [--default] | land <id>`: `--default` (a side run) cuts from the remote default branch and skips `adoptWorkspace`, so it is safe from inside another worktree. Otherwise it must run from the project folder; `locate()` maps a run worktree back to its project, because the worktree holds a partial `.kaizen` (the committed notes) but none of the runs.
