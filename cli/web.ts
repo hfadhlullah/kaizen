@@ -72,7 +72,10 @@ const installed = () => {
 const VERSION = installed();
 // Set by the desktop app when this board is its own read-only copy, which updates
 // with the app. Read once and removed, so terminals and agents this board starts
-// (and any board started from them) do not inherit it.
+// (and any board started from them) do not inherit it. The app's KAIZEN_HOME (that
+// copy's folder) is removed too, both again in web() after adoptLoginEnv, which would
+// put them back: inherited, it sent `kaizen upgrade` in a board terminal at the
+// read-only AppImage (EROFS).
 const DESKTOP_BUNDLED = process.env.KAIZEN_DESKTOP_BUNDLED === "1";
 delete process.env.KAIZEN_DESKTOP_BUNDLED;
 // An upgrade replaces the page files under a running board but not its code, and a
@@ -186,6 +189,13 @@ export async function web(repoDir: string, opts: Opts = {}) {
   // Before anything looks for an agent on PATH: the board starts agents itself, and
   // from a launcher it would otherwise have none of the user's shell setup.
   adoptLoginEnv();
+  // After the login shell's variables: Bun runs that probe with the board's original
+  // environment, so it hands back what was removed at load and adoptLoginEnv put it back.
+  // The desktop app's flag never leaves this board, and nor does its KAIZEN_HOME (the
+  // bundled copy's folder, which the board has as repoDir and reads no more): its
+  // terminals and agents get the user's own install. A KAIZEN_HOME the user set is kept.
+  delete process.env.KAIZEN_DESKTOP_BUNDLED;
+  if (DESKTOP_BUNDLED && process.env.KAIZEN_HOME && resolve(process.env.KAIZEN_HOME) === resolve(repoDir)) delete process.env.KAIZEN_HOME;
   // Where the board started. Each page picks its own project and names it in the
   // x-kz-dir header, so a phone choosing another project never moves this tab.
   const boardState = locate();

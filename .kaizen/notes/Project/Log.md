@@ -290,3 +290,4 @@ updated: 2026-10-31
 - 2026-11-06 run 2026-11-06-g07-worktree-default-ci — CLI: the no-agent check guards only the install, so worktree/handoff/prune/chat work on CI
 - 2026-11-06 run 2026-11-06-rea-skill-toggle — Web board, Workflow: REA switch in Settings → Skills (dry run, confirm, pinned setup, Update, uninstall), planner points to it
 - 2026-11-06 run 2026-11-06-land-gate — CLI, Web board, Workflow: `kaizen preflight` before every push or merge (worktree land, Git tab Push / Create PR / Merge PR, spec rule); danger buttons readable in the run view
+- 2026-11-06 run 2026-11-06-desktop-kaizen-home — Web board: the desktop app's KAIZEN_HOME and flag no longer reach board terminals (removed after adoptLoginEnv)
