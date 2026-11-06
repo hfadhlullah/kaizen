@@ -30,8 +30,10 @@ nearest first, so a change lands globally unless this project keeps its own conf
 | `git.rebuild_on_land` | text | Command that remakes generated files after they were resolved |
 | `git.land_check` | `auto`, `off`, or a command | Runs after a rebase that pulled commits; a failure stops the land |
 | `ui.mouse` | `false`, `true` | Click to select, click again to act; while on, the terminal cannot select text |
-| `agent.model.<tool>` | the tool's own model name, or empty | Launch model for agy, codex, gemini, opencode, for every stage |
+| `agent.model.<tool>` | the tool's own model name, or empty | Launch model per tool. agy, codex, gemini, opencode run every stage on it; for claude it is the main session, which stage subagents on `inherit` follow |
+| `agent.handoff_model.<tool>` | the tool's own model name, or empty | Model of the second agent a worktree run hands build, review and the fix loop to; empty is the run's own model |
 | `subagents.model` | `inherit`, `opus`, `sonnet`, `haiku` | Model the stage subagents run on (Claude Code only) |
+| `subagents.planner`, `subagents.builder`, `subagents.reviewer` | `default`, `opus`, `sonnet`, `haiku` | One stage on its own model, ahead of `subagents.model`; the builder also runs the fix rounds, the reviewer the rechecks (Claude Code only) |
 | `subagents.effort` | `inherit`, `low`, `medium`, `high` | Reasoning effort for the stage subagents (Claude Code only) |
 | `sources.every` | `off`, `1h`, `6h`, `24h` | How often the web board checks request sources for new requests, into the icebox, while it runs |
 | `sources.agent` | `ask`, `chatgpt`, `agent` | Who picks the posts that fit from social sources when Gather is pressed: the ChatGPT plan signed in from the Icebox, or your agent on `/kaizen gather` |

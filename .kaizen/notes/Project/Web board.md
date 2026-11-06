@@ -39,7 +39,7 @@ The visible menu is Search, Home, Icebox, Tasks and Board, then the Projects lis
 
 **Voice.** `kz-mic` in localStorage holds the microphone (`web/board/settings-voice.ts`); an unplugged one falls back to the default with a notice. Ctrl+Alt+D (a capture listener in `dictation.ts`, run `2026-10-31-orchestration-voice`) runs `mic()` on a stand-in field that pastes each chunk into xterm's hidden textarea. It works only while the page has focus.
 
-**Models.** `agent.model.<tool>` (Settings → Agents → Models, installed tools only) feeds `agentConfig`, ahead of a hand-written `agent.<tool>` block; Claude keeps `subagents.model`.
+**Models.** `agent.model.<tool>` (Settings → Agents → Models, installed tools only) feeds `agentConfig`, ahead of a hand-written `agent.<tool>` block; Claude has a row too (the main session) beside `subagents.model` and the per-stage `subagents.planner|builder|reviewer` rows. `agent.handoff_model.<tool>` rows sit in Agents → Handoff session (`web/board/settings-pages.ts`).
 
 ## Where it lives
 - Orchestration: `spawnWorkers` in `cli/web.ts` (on the file watcher and the 2 s poll) is the only caller of `startWorker`/`startPty` for workers; a worker is a `shells` entry nested under the run's card, and a running worker with no live terminal and no hand-back is swept to `unverified`. Cards of runs with a `workers.json` carry `workers`; Settings > Orchestration is `web/board/settings-orchestration.ts` above the generic rows.

@@ -30,7 +30,7 @@ const interactive = process.stdin.isTTY && !check && !upgrade && !args.has("--ye
 // installer, so a typo or a command from a newer kaizen reinstalled instead of failing.
 // cli/install-unknown.test.ts fails if a dispatched word is missing here.
 const COMMANDS = ["automation", "help", "init", "browser", "card", "chat", "computer", "config", "docs", "done", "gather", "handoff",
-  "icebox", "issue", "preview", "prune", "recall", "related", "remember", "report", "roadmap", "settings", "setup", "sources",
+  "icebox", "issue", "model", "preview", "prune", "recall", "related", "remember", "report", "roadmap", "settings", "setup", "sources",
   "state", "stats", "uninstall", "upgrade", "version", "web", "worker", "worktree"];
 const first = Bun.argv[2];
 const commandList = `  commands: ${COMMANDS.join(", ")}\n  plain \`kaizen\` opens the board; \`kaizen --yes\` installs; \`kaizen init\` sets up this folder\n`;
@@ -289,6 +289,17 @@ if (Bun.argv[2] === "preview") {
 if (Bun.argv[2] === "remember" || Bun.argv[2] === "recall") {
   const { cli } = await import("./knowledge.ts");
   process.exit(cli(Bun.argv.slice(2)));
+}
+
+// `kaizen model <stage>`: the model to pass on the Agent call for that stage's subagent,
+// resolved from subagents.<stage> then subagents.model. `inherit`: pass none.
+if (Bun.argv[2] === "model") {
+  const { SUBAGENT_STAGES: STAGES, subagentModel } = await import("./state.ts");
+  const { projectFromWorktree } = await import("./worktree.ts");
+  const stage = Bun.argv[3] as (typeof STAGES)[number] | undefined;
+  if (stage && !STAGES.includes(stage)) { console.log(`\n  usage: kaizen model [${STAGES.join(" | ")}]\n`); process.exit(1); }
+  console.log(subagentModel(projectFromWorktree(process.cwd()), stage) ?? "inherit");
+  process.exit(0);
 }
 
 if (Bun.argv[2] === "docs") {
@@ -1037,6 +1048,8 @@ function sameFile(a: string, b: string) {
   try { return readFileSync(a).equals(readFileSync(b)); } catch { return false; }
 }
 
+const sansEffort = (p: string) => { try { return readFileSync(p, "utf8").replace(/^effort:.*\r?\n/m, ""); } catch { return null; } };
+
 function linkState(src: string, dest: string) {
   try {
     const st = lstatSync(dest);
@@ -1044,6 +1057,10 @@ function linkState(src: string, dest: string) {
       // A copied link on Windows is a real file; it is ours as long as it still
       // matches the source, and stale once the source changes.
       if (isWindows && st.isFile()) return sameFile(src, dest) ? "linked" : "stale";
+      // An older workflow told the agent to write `effort:` into its agent file, which
+      // turned the link into a copy. Still ours when that line is the only difference.
+      const mine = st.isFile() ? sansEffort(src) : null;
+      if (mine !== null && mine === sansEffort(dest)) return "stale";
       return "occupied";
     }
     // Compared by where they lead, not by spelling: a junction reads back with a

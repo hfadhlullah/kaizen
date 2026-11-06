@@ -7,7 +7,7 @@ const SUGGEST: Record<string, string[]> = { claude: ["haiku", "sonnet", "opus"] 
 
 // The worker model row's label (the tool's icon and name) and its input with that tool's suggestions.
 export const modelLabel = (r: { key: string; label: string }) =>
-  html`<img class="ag-i" src="${AGENT_FAVICONS[r.key.split(".").pop()!] ?? ""}" alt="" width="16" height="16" style="width:16px;height:16px;vertical-align:-3px;margin-right:6px;border-radius:3px">${r.label.replace("Worker model: ", "")}`;
+  html`<img class="ag-i" src="${AGENT_FAVICONS[r.key.split(".").pop()!] ?? ""}" alt="" width="16" height="16" style="width:16px;height:16px;vertical-align:-3px;margin-right:6px;border-radius:3px">${r.label.replace(/^(Worker|Handoff) model: /, "")}`;
 export const modelInput = (r: { key: string; value: string }, id: string) => {
   const tool = r.key.split(".").pop()!;
   return html`<span><input class="sel" id="${id}" value="${r.value}" placeholder="inherit" list="${id}-dl" spellcheck="false" autocomplete="off">${SUGGEST[tool] ? html`<datalist id="${id}-dl">${SUGGEST[tool]!.map((m) => html`<option value="${m}"></option>`)}</datalist>` : ""}</span>`;

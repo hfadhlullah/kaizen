@@ -112,6 +112,7 @@ tells you what it concluded, so you correct a sentence instead of filling in a f
 | `kaizen recall [--track t] [--tags a,b] [--query "<words>"]` | Lessons learned in other projects that match; see *Global knowledge* |
 | `kaizen stats [<run id>] [--json]` | How runs go: counts by stage, track and runner, fix-round and CANNOT VERIFY rates, median time per stage (runs that logged it); one run adds its tokens (Claude runs) |
 | `kaizen related <path> ...` | Earlier runs that changed these files, newest first, with their open backlog; the planner runs it |
+| `kaizen model [planner\|builder\|reviewer]` | The model the main agent passes on that stage subagent's Agent call: `subagents.<stage>`, else `subagents.model`; prints `inherit` when neither is pinned |
 | `kaizen state <run id> key=value ...` | Set a run's `stage`, `awaiting` or `iteration`; each change is logged to the run's `stages.log` for `kaizen stats` |
 | `kaizen remember --track t --tags a,b --applies "<where>" --run <id> "<lesson>"` | Save a lesson that holds beyond this project; the reviewer calls it at the end of a run |
 | `/kaizen-config` | Show this project's settings and change them |
@@ -640,7 +641,9 @@ Ctrl+Shift+Space opens Search anywhere in kaizen, also from a terminal.
 | `ui.mouse` | `false` | Click to select, click again to act; while on, the terminal cannot select text |
 | `subagents.model` | `inherit` | Model the stage subagents run on: `inherit`, `opus`, `sonnet`, `haiku` (Claude Code only) |
 | `agent.<cmd>.model`, `agent.<cmd>.effort` | — | Model/effort kaizen launches a session with, per tool: `claude`, `codex`, `agy`, `opencode`, `gemini`. Model names are the tool's own (`agy models`) |
-| `subagents.effort` | `inherit` | Reasoning effort for the stage subagents: `inherit`, `low`, `medium`, `high` (Claude Code only) |
+| `subagents.planner`, `subagents.builder`, `subagents.reviewer` | `default` | One stage on its own model, ahead of `subagents.model`: `default`, `opus`, `sonnet`, `haiku`. The builder also runs the fix rounds, the reviewer the rechecks. The main agent reads it with `kaizen model <stage>` (Claude Code only) |
+| `agent.handoff_model.<tool>` | — | Model of the second agent a worktree run hands build, review and the fix loop to (`kaizen handoff start`), per tool. Empty: the run's own model. Claude's handoff agent still runs its stage subagents on `subagents.*` |
+| `subagents.effort` | `inherit` | Reasoning effort for the stage subagents: `inherit`, `low`, `medium`, `high`. A session kaizen launches carries it and `subagents.model` as `CLAUDE_CODE_SUBAGENT_EFFORT` / `CLAUDE_CODE_SUBAGENT_MODEL` (Claude Code only) |
 
 ```bash
 kaizen settings

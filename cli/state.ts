@@ -129,6 +129,39 @@ export function agentFlags(projectDir: string, cmd: string, configText?: string,
   ];
 }
 
+// subagents.<key> through the config chain, project first. inherit, default and empty
+// count as unset, so they fall through to the next file.
+function subagentSetting(projectDir: string, key: string): string | null {
+  const re = new RegExp(`^subagents:\\n(?:[ \\t#][^\\n]*\\n|\\n)*?[ \\t]+${key}:[ \\t]*["']?([^"'\\s#]*)`, "m");
+  for (const t of configTexts(projectDir)) {
+    const v = re.exec(t)?.[1];
+    if (v && v !== "inherit" && v !== "default") return v;
+  }
+  return null;
+}
+
+export type SubagentStage = "planner" | "builder" | "reviewer";
+export const SUBAGENT_STAGES: SubagentStage[] = ["planner", "builder", "reviewer"];
+
+// The model a Claude Code stage subagent runs on: its own subagents.<stage>, else
+// subagents.model. Null: inherit the session's.
+export function subagentModel(projectDir: string, stage?: SubagentStage): string | null {
+  const v = (stage && subagentSetting(projectDir, stage)) || subagentSetting(projectDir, "model");
+  return v && plainModel(v) ? v : null;
+}
+
+// What a Claude Code launch carries so its subagents get subagents.model and .effort
+// even when the agent forgets to pass them. Claude Code reads these as defaults: a model
+// on the Agent call, or a model:/effort: line in the agent file, still wins.
+export function subagentEnv(projectDir: string, cmd: string): string[] {
+  if (cmd !== "claude") return [];
+  const m = subagentModel(projectDir), e = subagentSetting(projectDir, "effort");
+  return [
+    ...(m ? [`CLAUDE_CODE_SUBAGENT_MODEL=${m}`] : []),
+    ...(e && /^(low|medium|high|xhigh|max)$/.test(e) ? [`CLAUDE_CODE_SUBAGENT_EFFORT=${e}`] : []),
+  ];
+}
+
 // What the board's Run form offers: the installed tools, the one it would pick, and
 // each one's configured model to start the field from.
 export function agentChoices(projectDir: string) {
@@ -1821,7 +1854,8 @@ export function launchRun(it: Item, from: string, run?: string, pick: { agent?: 
   const manual = manualCommand(projectDir, commandOf(agent.cmd, prefs), prompt, flags, acct.dir ? `${acct.envVar}=${shq(acct.dir)}` : "");
   // Only what is started carries env: the returned `cmd` reaches the page.
   // A run the board knows hears which one it is; a new run has no id yet and passes --run.
-  const identity = (run || acct.dir) && process.platform !== "win32" ? ["env", ...(run ? [`KAIZEN_RUN_ID=${run}`, ...stageEnv(projectDir, run)] : []), ...accountEnv(acct)] : [];
+  const vars = [...(run ? [`KAIZEN_RUN_ID=${run}`, ...stageEnv(projectDir, run)] : []), ...subagentEnv(projectDir, agent.cmd), ...accountEnv(acct)];
+  const identity = vars.length && process.platform !== "win32" ? ["env", ...vars] : [];
   const started = [...identity, ...withEnv(s.fullCmd, agent.cmd, prefs)];
   const drop = () => { if (s.record) rmSync(s.record, { force: true }); };
 

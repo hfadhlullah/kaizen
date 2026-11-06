@@ -31,6 +31,7 @@ export const SETTINGS_NAV: [string, SettingsPage[]][] = [
 const PLACES: [RegExp, string, string][] = [
   [/^(preset|runner|build\.|review\.executor)/, "agents", "Workflow"],
   [/^(subagents\.|agent\.model\.)/, "agents", "Models"],
+  [/^agent\.handoff_model\./, "agents", "Handoff session"],
   [/^agent\.default$/, "agents", "Default agent"],
   [/^agent\./, "agents", "Running agents"],
   [/^orchestration\./, "orchestration", "Workers"],
