@@ -598,7 +598,7 @@ async function previewPane(el: HTMLElement) {
   if (!pv && (await directPreview(el))) return;
   const url = loopbackUrl(pv);
   const shots = pv && /!\[[^\]]*\]\(/.test(pv);
-  if (url && loopback && !shots) return void el.insertAdjacentHTML("beforeend", String(html`<iframe class="rframe" title="Preview" src="${url}"></iframe>`));
+  if (url && loopback && !shots) return void el.insertAdjacentHTML("beforeend", String(html`<iframe class="rframe" title="Preview" src="${/^https?:\/\//i.test(String(url)) ? url : "about:blank"}"></iframe>`));
   const bar = url ? html`<div class="urlbar"><span class="sel">${url}</span>${winBtn(url)}</div>` : "";
   el.insertAdjacentHTML("beforeend", String(html`${bar}<div class="rprev md">${pv ? raw(md(attach(pv, card))) : html`<p class="rnone">This run has no Preview yet.</p>`}</div>`));
   el.querySelector<HTMLElement>(".urlbar [data-b=win]")?.addEventListener("click", () => void openWindow(url!));

@@ -42,7 +42,7 @@ function locked<T>(project: string, id: string, fn: () => T): T {
   const lock = fileOf(project, id) + ".lock";
   for (let i = 0; ; i++) {
     try { mkdirSync(lock); break; } catch {
-      try { if (Date.now() - statSync(lock).mtimeMs > 10_000) rmSync(lock, { recursive: true }); } catch { /* gone */ }
+      try { if (Date.now() - statSync(lock).mtimeMs > 10_000) { const aside = `${lock}.${process.pid}.${i}.stale`; renameSync(lock, aside); rmSync(aside, { recursive: true, force: true }); } } catch { /* gone */ }
       if (i > 60) throw new Error("workers.json is locked: try again");
       Bun.sleepSync(50);
     }

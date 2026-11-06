@@ -65,7 +65,8 @@ function patchState(project: string, id: string, set: Record<string, unknown>) {
 export function codeDir(project: string, id: string): string {
   try {
     const w = JSON.parse(readFileSync(file(project, id), "utf8")).worktree;
-    if (typeof w === "string" && existsSync(w)) return w;
+    // Only a folder under <project>/.kaizen/wt/: a hand-written state.json must not aim land or cleanup at another checkout.
+    if (typeof w === "string" && existsSync(w) && resolve(w).startsWith(join(resolve(project), ".kaizen", "wt") + sep)) return w;
   } catch { /* no state, no worktree */ }
   return project;
 }
@@ -121,11 +122,17 @@ type Failed = Extract<Landed, { ok: false }>;
 // The project's own config over the global one; the defaults are safe: nothing auto-resolves.
 // Read here because settings.ts loads state.ts, which loads this file.
 const readGit = (text: string, key: string) => {
-  const m = new RegExp(`^git:[^\\n]*\\n(?:(?:[ \\t]+[^\\n]*|)\\n)*?[ \\t]+${key}:[ \\t]*([^\\n]*)`, "m").exec(text.replace(/\r\n/g, "\n"));
+  const m = new RegExp(`^git:[^\\n]*\\n(?:(?:[ \\t][^\\n]*)?\\n)*?[ \\t]+${key}:[ \\t]*([^\\n]*)`, "m").exec(text.replace(/\r\n/g, "\n"));
   return m ? m[1]!.split(" #")[0]!.trim().replace(/^["']|["']$/g, "") : null;
+};
+// A command run through `sh -c`: a project's config.yml that git tracks came with a clone, so it may not set one.
+const COMMAND_KEYS = new Set(["land_check", "rebuild_on_land"]);
+const tracked = (project: string, f: string) => {
+  try { return Bun.spawnSync(["git", "-C", project, "ls-files", "--error-unmatch", f], { stdout: "ignore", stderr: "ignore", windowsHide: true }).exitCode === 0; } catch { return false; }
 };
 const gitSetting = (project: string, key: string, fallback: string) => {
   for (const f of [join(project, ".kaizen", "config.yml"), join(homedir(), ".kaizen", "config.yml")]) {
+    if (COMMAND_KEYS.has(key) && f.startsWith(project) && tracked(project, f)) continue;
     try { const v = readGit(readFileSync(f, "utf8"), key); if (v !== null) return v; } catch { /* no such file */ }
   }
   return fallback;

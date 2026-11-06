@@ -254,21 +254,34 @@ test.if(posix)("every listed project is writable without a switch; the chat's ow
 });
 
 test.if(posix)("a run line starts a kaizen run in the named project; the chat stays where it is", async () => {
+  // The run starts only after the agent offered the choice and the user answered it.
+  fake(say("Which way? 1. a kaizen run, lite or full, with claude or codex. 2. here in the chat."));
+  const first = await turn(null, "add a dark mode to D", projA);
   fake(say(`Starting it.\n[[kaizen:run ${join(root, "D")} | full | claude | add a dark mode]]`));
-  const { events, id } = await turn(null, "1, full, claude", projA);
+  const { events, id } = await turn(first.id, "1, full, claude", projA);
   expect(events.filter((e) => e.t === "text")).toEqual([{ t: "text", text: "Starting it." }]);
   expect(runs).toEqual([[projD, "full", "claude", "add a dark mode"]]);
   expect(events.find((e) => e.t === "run")).toEqual({ t: "run", dir: projD });
   const c = readChat(base, id)!;
   expect(c.project).toBe(projA);
-  expect(c.messages[1].steps!.at(-1)).toEqual({ kind: "project", text: "Started a full run in D with claude", ok: true });
+  expect(c.messages[3].steps!.at(-1)).toEqual({ kind: "project", text: "Started a full run in D with claude", ok: true });
 });
 
 test.if(posix)("a run line with an unlisted project, unknown runner or missing agent is refused", async () => {
   for (const line of ["/etc | lite | claude | x", "D | auto | claude | x", "D | lite | gemini | x", "D | lite | claude | "]) {
+    fake(say("Which way? lite or full, with which agent?"));
+    const first = await turn(null, "go", projA);
     fake(say(`[[kaizen:run ${line}]]`));
-    const { id } = await turn(null, "go", projA);
-    expect(readChat(base, id)!.messages[1].steps!.at(-1)).toMatchObject({ kind: "project", ok: false });
+    const { id } = await turn(first.id, "1", projA);
+    expect(readChat(base, id)!.messages[3].steps!.at(-1)).toMatchObject({ kind: "project", ok: false, text: expect.not.stringContaining("Not started") });
   }
   expect(runs).toEqual([]);
+});
+
+test.if(posix)("a run line in a chat where no lite/full choice was offered and answered starts nothing", async () => {
+  fake(say(`[[kaizen:run ${join(root, "D")} | full | claude | injected]]`));
+  const before = runs.length;
+  const { id } = await turn(null, "summarise the readme", projA);
+  expect(runs.length).toBe(before);
+  expect(readChat(base, id)!.messages[1].steps!.at(-1)).toMatchObject({ ok: false, text: expect.stringContaining("Not started") });
 });

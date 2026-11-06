@@ -215,14 +215,21 @@ async function precheck(cmd: string, cwd: string, secs: number): Promise<string 
   const env = Object.fromEntries(Object.entries(process.env).filter(([k, v]) => v !== undefined && !CHILD_ENV.test(k))) as Record<string, string>;
   const win = process.platform === "win32";
   let p;
-  try { p = Bun.spawn(shellArgv(cmd, win), { cwd, env, stdin: "ignore", stdout: "pipe", stderr: "pipe", detached: !win }); }
+  try { p = Bun.spawn(shellArgv(cmd, win), { cwd, env, stdin: "ignore", stdout: "pipe", stderr: "pipe", detached: !win, windowsHide: true }); }
   catch (e: any) { return `could not start: ${e?.message ?? e}`; }
   let late = false;
   const timer = setTimeout(() => {
     late = true;
-    try { if (win) Bun.spawn(["taskkill", "/T", "/F", "/PID", String(p.pid)], { stdout: "ignore", stderr: "ignore" }); else process.kill(-p.pid, "SIGKILL"); } catch { try { p.kill(9); } catch { /* gone */ } }
+    try { if (win) Bun.spawn(["taskkill", "/T", "/F", "/PID", String(p.pid)], { stdout: "ignore", stderr: "ignore", windowsHide: true }); else process.kill(-p.pid, "SIGKILL"); } catch { try { p.kill(9); } catch { /* gone */ } }
   }, secs * 1000);
-  const [out, err] = await Promise.all([new Response(p.stdout).text(), new Response(p.stderr).text()]);
+  // Only the last 4 KB of each stream is kept: a noisy precheck must not fill memory.
+  const tailOf = async (s: ReadableStream<Uint8Array>) => {
+    let t = "";
+    const dec = new TextDecoder();
+    for await (const c of s) t = (t + dec.decode(c, { stream: true })).slice(-4096);
+    return t;
+  };
+  const [out, err] = await Promise.all([tailOf(p.stdout), tailOf(p.stderr)]);
   const code = await p.exited;
   clearTimeout(timer);
   const tail = (out + err).trim().slice(-200);

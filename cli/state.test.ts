@@ -1324,13 +1324,16 @@ test("the board answers only the hosts listed in KAIZEN_WEB_HOSTS or web-hosts",
     const at = `http://127.0.0.1:${port}`;
     for (let i = 0; ; i++) { try { await fetch(at + "/state"); break; } catch { if (i > 100) throw new Error("board did not start"); await Bun.sleep(50); } }
     expect((await (await fetch(at + "/settings")).json()).phoneUrls).toEqual(["https://pc.tail1234.ts.net"]);
-    expect((await fetch(at + "/state", { headers: { host: "pc.tail1234.ts.net" } })).status).toBe(200);
+    const tail = (host: string) => ({ host, "tailscale-user-login": "me@example.com" });
+    expect((await fetch(at + "/state", { headers: tail("pc.tail1234.ts.net") })).status).toBe(200);
+    // `tailscale funnel` traffic carries no login: a listed name reached without one is refused.
+    expect((await fetch(at + "/state", { headers: { host: "pc.tail1234.ts.net" } })).status).toBe(403);
     expect((await fetch(at + "/state", { headers: { host: "evil.example" } })).status).toBe(403);
     expect((await fetch(at + "/state", { headers: { host: "other.tail1234.ts.net" } })).status).toBe(403);
     // ~/.kaizen/web-hosts (written by `kaizen setup`) is read per request: no restart.
     writeFileSync(join(homeDir, ".kaizen", "web-hosts"), "# phone\nOther.tail1234.ts.net\n");
     expect((await (await fetch(at + "/settings")).json()).phoneUrls).toEqual(["https://pc.tail1234.ts.net", "https://other.tail1234.ts.net"]);
-    expect((await fetch(at + "/state", { headers: { host: "other.tail1234.ts.net" } })).status).toBe(200);
+    expect((await fetch(at + "/state", { headers: tail("other.tail1234.ts.net") })).status).toBe(200);
     expect((await fetch(at + "/state", { headers: { host: "evil.example" } })).status).toBe(403);
     expect((await fetch(at + "/upgrade", { method: "POST", headers: { origin: "https://evil.example" } })).status).toBe(403);
     const m = await fetch(at + "/manifest.webmanifest");

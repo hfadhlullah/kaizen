@@ -247,3 +247,13 @@ test("an installed app fits the window, not the screen", () => {
     expect(s).toContain("body::after{content");
   }
 });
+
+test("a symlinked folder cannot carry a save out of notes/", () => {
+  const { mkdtempSync, symlinkSync, existsSync: ex, mkdirSync: mk } = require("node:fs");
+  const { tmpdir } = require("node:os");
+  const st = mkdtempSync(join(tmpdir(), "kz-sym-")), out = mkdtempSync(join(tmpdir(), "kz-out-"));
+  mk(join(st, "notes"));
+  symlinkSync(out, join(st, "notes", "Project"));
+  expect(saveNote(st, "Project/CLAUDE", "x", 0).ok).toBe(false);
+  expect(ex(join(out, "CLAUDE.md"))).toBe(false);
+});

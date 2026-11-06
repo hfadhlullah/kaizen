@@ -29,7 +29,16 @@ function fileOf(state: string, name: unknown) {
   if (!n) return null;
   const root = resolve(notesDir(state));
   const f = resolve(root, n + ".md");
-  return f.startsWith(root + sep) ? { name: n, file: f } : null;
+  if (!f.startsWith(root + sep)) return null;
+  // A symlinked folder (tracked in git, so a cloned repo can ship one) must not carry a
+  // write out of notes/: the nearest existing ancestor has to resolve inside it.
+  if (existsSync(root)) try {
+    let a = dirname(f);
+    while (!existsSync(a)) a = dirname(a);
+    const real = realpathSync(a), realRoot = realpathSync(root);
+    if (real !== realRoot && !real.startsWith(realRoot + sep)) return null;
+  } catch { return null; }
+  return { name: n, file: f };
 }
 
 // ponytail: the whole vault is read on every list; fine for hundreds of notes, send

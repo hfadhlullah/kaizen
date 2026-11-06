@@ -1,4 +1,5 @@
 import { esc } from "./dom.ts";
+import { safeUrl } from "../notes-lib.ts";
 
 // The builder's "## Preview" section of 03-impl.md: how to run the app, or the result itself,
 // and its "### How to test" steps.
@@ -101,8 +102,12 @@ export function md(src, tick) {
       .replace(/`([^`]+)`/g, "<code>$1</code>")
       .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
       .replace(/(^|[^*])\*([^*\s<][^*<]*?)\*(?!\*)/g, "$1<i>$2</i>")
-      .replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, '<a href="$2" target="_blank"><img src="$2" alt="$1"></a>')
-      .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+      .replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (m, a, u) =>
+        safeUrl(u) ? `<a href="${u}" target="_blank" rel="noopener noreferrer"><img src="${u}" alt="${a}"></a>` : m,
+      )
+      .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (m, t, u) =>
+        safeUrl(u) ? `<a href="${u}" target="_blank" rel="noopener noreferrer">${t}</a>` : m,
+      );
   const endList = () => {
     if (list) {
       out.push(`</${list}>`);

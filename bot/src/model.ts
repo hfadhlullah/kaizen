@@ -40,7 +40,7 @@ async function post(cfg: ModelConfig, url: string, headers: Record<string, strin
   const res = await f(url, { method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify(body) });
   if (!res.ok) {
     let why = "";
-    try { const j: any = await res.json(); why = j?.error?.message ?? ""; } catch {}
+    try { const j: any = await res.json(); why = String(j?.error?.message ?? "").replace(/sk-[\w-]{4,}/g, "sk-…"); } catch {}   // redacted: some providers echo a key fragment
     throw new Error(`${cfg.provider} returned ${res.status}${why ? `: ${why}` : ""}`);
   }
   return res.json() as Promise<any>;
@@ -85,6 +85,7 @@ async function openaiCompatible(cfg: ModelConfig, system: string, turns: Turn[],
     toolCalls: (m.tool_calls ?? []).map((c: any) => {
       let input = {};
       try { input = JSON.parse(c.function?.arguments || "{}"); } catch {}
+      if (!input || typeof input !== "object" || Array.isArray(input)) input = {};   // "null" or a list would crash every handler
       return { id: c.id, name: c.function?.name, input };
     }),
   };

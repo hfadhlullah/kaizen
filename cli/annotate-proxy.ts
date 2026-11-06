@@ -59,6 +59,11 @@ export function openProxy(target: URL): Proxy {
       }
       const path = url.pathname + url.search;
 
+      // The Origin below is rewritten to the target's, so a foreign page could pass for the dev
+      // server's own page; only a page this proxy served (or no Origin at all) gets through.
+      const inbound = req.headers.get("origin");
+      if (inbound) { let same = false; try { same = new URL(inbound).host === req.headers.get("host"); } catch { /* bad origin */ } if (!same) return new Response("cross-origin request refused", { status: 403 }); }
+
       if (req.headers.get("upgrade")?.toLowerCase() === "websocket") {
         const protocols = (req.headers.get("sec-websocket-protocol") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
         const wsUrl = upstream(good, path);

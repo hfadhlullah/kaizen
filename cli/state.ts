@@ -1580,7 +1580,7 @@ function isSession(pid: number, s: Session): boolean | null {
     }
     const ps = onPath("ps");
     if (!ps) return null;
-    const m = /^\s*(\S+)\s+(.*)$/.exec(Bun.spawnSync([ps, "-o", "etime=,args=", "-p", String(pid)], { stdin: "ignore", timeout: 5000 }).stdout.toString().trim());
+    const m = /^\s*(\S+)\s+(.*)$/.exec(Bun.spawnSync([ps, "-o", "etime=,args=", "-p", String(pid)], { stdin: "ignore", timeout: 5000, windowsHide: true }).stdout.toString().trim());
     if (!m) return null;
     // etime is [[dd-]hh:]mm:ss
     const [d, rest] = m[1].includes("-") ? m[1].split("-") : ["0", m[1]];
@@ -1753,15 +1753,18 @@ export function sessionLaunch(projectDir: string, cmd: string, base: string[], p
 // time, in Claude's own config. Best effort: any failure just means Claude asks.
 export function trustFolder(dir: string, cfg = join(process.env.CLAUDE_CONFIG_DIR ?? homedir(), ".claude.json")) {
   try {
-    const top = Bun.spawnSync(["git", "-C", dir, "rev-parse", "--show-toplevel"], { stderr: "ignore" });
+    const top = Bun.spawnSync(["git", "-C", dir, "rev-parse", "--show-toplevel"], { stderr: "ignore", windowsHide: true });
     // Claude Code keys its projects with forward slashes on Windows, as git prints them.
     const found = top.success ? top.stdout.toString().trim() || dir : dir;
     const root = process.platform === "win32" ? found.replace(/\\/g, "/") : found;
     const d = JSON.parse(readFileSync(cfg, "utf8"));
     if (d.projects?.[root]?.hasTrustDialogAccepted) return;
+    // A repo that brings its own hooks, MCP servers or settings is the case the dialog is for: let Claude ask.
+    if ([".mcp.json", join(".claude", "settings.json"), join(".claude", "settings.local.json")].some((x) => existsSync(join(root, x)))) return;
     d.projects ??= {};
     d.projects[root] = { ...d.projects[root], hasTrustDialogAccepted: true };
-    writeFileSync(cfg + ".tmp", JSON.stringify(d, null, 2));
+    // Keep the file's own mode: it holds account data, and a fresh .tmp would take the umask's.
+    writeFileSync(cfg + ".tmp", JSON.stringify(d, null, 2), { mode: statSync(cfg).mode & 0o777 });
     renameSync(cfg + ".tmp", cfg);
   } catch { /* Claude asks as before */ }
 }
@@ -1934,7 +1937,8 @@ export function gitStatus(projectDir: string): GitStatus {
 // The path of a `git status --porcelain` line; for a rename, the new one.
 // ponytail: only the surrounding quotes are undone, so a name git escapes (non-ASCII,
 // a quote, a backslash) never matches a report; read `status -z` if that comes up.
-const statusPath = (line: string) => line.slice(3).split(" -> ").pop()!.replace(/^"|"$/g, "");
+// " -> " separates a rename or copy only; an untracked file may be named `a -> b`.
+const statusPath = (line: string) => (/[RC]/.test(line.slice(0, 2)) ? line.slice(3).split(" -> ").pop()! : line.slice(3)).replace(/^"|"$/g, "");
 
 // What a run reported changing: 03-impl.md and its fix rounds, the parts of them that
 // list changes (`named`), and when the newest of them was written.

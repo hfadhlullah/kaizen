@@ -2,7 +2,7 @@
 // gathered from. The user brings their own OAuth client (Desktop app type, Sheets API
 // on): a client secret shipped in an open-source app would be shared by every install.
 // Tokens stay in ~/.kaizen/google.json, owner-only, and go to Google hosts only.
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { home } from "./state.ts";
 
@@ -19,6 +19,7 @@ function save(c: Creds) {
   mkdirSync(join(home, ".kaizen"), { recursive: true });
   const tmp = FILE() + ".tmp";
   writeFileSync(tmp, JSON.stringify(c, null, 2) + "\n", { mode: 0o600 });
+  chmodSync(tmp, 0o600); // a stale .tmp keeps its old mode otherwise
   renameSync(tmp, FILE());
 }
 

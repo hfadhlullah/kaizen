@@ -168,6 +168,7 @@ WhatsApp MP4s over 64 MiB use Hermes' `[[as_document]]` directive, preserving th
 ## Landing
 A land rebases first, resolves only `git.generated` paths, runs `git.land_check` after pulled commits, and records a failure in `runs/<id>/land.json`. The board reads it as the card's `land` and each agent's `land`, showing `Conflict` or `Land failed` with a red `!`.
 
+- The generic `POST` block in `cli/web.ts` (run, fix, decide, commit, pr, icebox…) and `/popup/*` use `strict()`: same host:port Origin plus a JSON content type. Tests that POST must send `content-type: application/json`. `sameOrigin()` no longer accepts any port on a tailnet name. `/file` answers with `content-security-policy: sandbox`; `md()` links pass `safeUrl()` (2026-11-06 security pass).
 ## Notes
 The Projects rail keeps the last valid run state during a transient `state.json` read failure, and board loads discard out-of-order `/state` responses. This prevents a run from briefly disappearing while its agent updates state or refreshes overlap.
 <!-- yours: /kaizen docs never rewrites this section -->

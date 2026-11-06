@@ -102,7 +102,7 @@ test.skipIf(process.platform !== "linux")("board routes: /state lists backlog ca
   try {
     const at = `http://127.0.0.1:${port}`;
     for (let i = 0; ; i++) { try { await fetch(at + "/state"); break; } catch { if (i > 100) throw new Error("board did not start"); await Bun.sleep(50); } }
-    const post = async (path: string, body: object) => { const r = await fetch(at + path, { method: "POST", body: JSON.stringify({ dir: state, ...body }) }); return { status: r.status, ...(await r.json() as any) }; };
+    const post = async (path: string, body: object) => { const r = await fetch(at + path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ dir: state, ...body }) }); return { status: r.status, ...(await r.json() as any) }; };
     const listed = async () => ((await (await fetch(at + "/state?all=1")).json()) as any).backlog.map((b: any) => [b.source, b.n]);
     expect(await listed()).toEqual([["2026-10-01-src", 3], ["2026-10-01-src", 1], ["2026-10-01-src", 5]]);
 

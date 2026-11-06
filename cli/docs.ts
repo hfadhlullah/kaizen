@@ -3,7 +3,7 @@ import { join, relative, resolve, sep } from "node:path";
 import { wikilinks, boardLink, resolve as resolveNote } from "../web/notes-lib.ts";
 
 const git = (root: string, args: string[]) => {
-  const p = Bun.spawnSync(["git", ...args], { cwd: root });
+  const p = Bun.spawnSync(["git", ...args], { cwd: root, windowsHide: true });
   return p.exitCode === 0 ? p.stdout.toString() : null;
 };
 

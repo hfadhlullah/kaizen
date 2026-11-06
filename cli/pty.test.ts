@@ -46,14 +46,14 @@ test.skipIf(process.platform === "win32")("the board runs the agent in the card:
     for (let i = 0; ; i++) { try { await fetch(at + "/state"); break; } catch { if (i > 100) throw new Error("board did not start"); await Bun.sleep(50); } }
 
     // G-02: no terminal window anywhere (none could be found), yet the launch worked.
-    const r = await (await fetch(at + "/run", { method: "POST", body: JSON.stringify({ dir: st, text: "say hello" }) })).json() as any;
+    const r = await (await fetch(at + "/run", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ dir: st, text: "say hello" }) })).json() as any;
     expect(r.ok).toBe(true);
     expect(r.pty).toMatch(/^[\w-]+$/);
     const card = ((await (await fetch(at + "/state")).json()) as any).cards.find((c: any) => c.text === "say hello");
     expect(card.pty).toMatchObject({ key: r.pty, alive: true, asking: false, all: [r.pty] });
 
     // The agent's output line goes to a viewer on this machine only, never a tailnet host; nothing typed is in it.
-    const agentsOf = async (h?: string) => ((await (await fetch(at + "/state", { headers: h ? { host: h } : {} })).json()) as any).agents;
+    const agentsOf = async (h?: string) => ((await (await fetch(at + "/state", { headers: h ? { host: h, "tailscale-user-login": "me@example.com" } : {} })).json()) as any).agents;
     expect((await agentsOf())[0].last).toBe("reply ready");
     const far = (await agentsOf("remote.ts.net"))[0];
     expect(far.key).toBe(r.pty);
@@ -101,7 +101,7 @@ test.skipIf(process.platform === "win32")("the board runs the agent in the card:
 
     // Resume: refused while the run waits on a decision, then the run's own conversation
     // continues in a new in-card session, and a second press is refused while it lives.
-    const resume = async () => { const x = await fetch(at + "/resume", { method: "POST", body: JSON.stringify({ dir: st, id: "r1" }) }); return { status: x.status, ...(await x.json() as any) }; };
+    const resume = async () => { const x = await fetch(at + "/resume", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ dir: st, id: "r1" }) }); return { status: x.status, ...(await x.json() as any) }; };
     writeFileSync(join(st, "runs", "r1", "state.json"), JSON.stringify({ id: "r1", stage: "plan", awaiting: "approvals.plan" }));
     expect((await resume()).status).toBe(409);
     writeFileSync(join(st, "runs", "r1", "state.json"), JSON.stringify({ id: "r1", stage: "build", awaiting: null }));

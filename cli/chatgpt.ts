@@ -2,7 +2,7 @@
 // so Gather needs no agent. Kaizen is a locally hosted open-source app, which OpenAI
 // lets register itself on the first sign-in: no client secret, no API key.
 // https://developers.openai.com/siwc/token-sharing-open-source
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { home } from "./state.ts";
 import { ingest, record, setLast, type Result } from "./sources.ts";
@@ -29,6 +29,7 @@ function save(c: Creds) {
   mkdirSync(join(home, ".kaizen"), { recursive: true });
   const tmp = FILE() + ".tmp";
   writeFileSync(tmp, JSON.stringify(c, null, 2) + "\n", { mode: 0o600 });
+  chmodSync(tmp, 0o600); // a stale .tmp keeps its old mode otherwise
   renameSync(tmp, FILE());
 }
 
