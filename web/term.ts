@@ -86,10 +86,15 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
     if (params[0] === 996) reportScheme();
     return false;
   });
+  // Each message makes the agent repaint its whole screen, so a size already sent on this
+  // socket (a few pixels of drag that move no cell) is not sent again.
+  let sentOn: WebSocket | null = null, sentC = 0, sentR = 0;
   const size = (nudge = false) => {
     if (!el.offsetWidth) return;
     if (!ws) return connect(); // its onopen comes back here to fit and nudge
     fit.fit();
+    if (!nudge && sentOn === ws && sentC === term.cols && sentR === term.rows) return;
+    sentOn = ws; sentC = term.cols; sentR = term.rows;
     // The replay was drawn at whatever size the agent had before; a resize to the same size
     // sends it no signal, so a full-screen agent never repaints it. One row short, then back, does.
     if (nudge && term.rows > 5) {
@@ -344,10 +349,17 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
     size();
   };
   addEventListener("kz-term-font", refont);
-  // Each resize makes the agent redraw its whole screen, so a panel animating or a
-  // soft keyboard opening sends one, not dozens.
-  let resizing: Timer | undefined;
-  const ro = new ResizeObserver(() => { clearTimeout(resizing); resizing = setTimeout(size, 100); });
+  // Fit and tell the agent in the same tick. If xterm narrows first, the agent keeps drawing
+  // at the old width until the message lands, its long lines wrap, and the frame ends up
+  // shifted with junk rows above it. Each resize still makes the agent redraw its screen, so
+  // a drag is throttled (first one at once, then one trailing) rather than sent per frame.
+  let resizing: Timer | undefined, last = 0;
+  const ro = new ResizeObserver(() => {
+    clearTimeout(resizing);
+    const wait = 60 - (Date.now() - last);
+    if (wait <= 0) { last = Date.now(); size(); }
+    else resizing = setTimeout(() => { last = Date.now(); size(); }, wait);
+  });
   ro.observe(el);
   term.focus();
 
