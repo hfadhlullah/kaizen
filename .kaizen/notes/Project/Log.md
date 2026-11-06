@@ -288,3 +288,4 @@ updated: 2026-10-31
 - 2026-11-05 update — Workflow, CLI: side runs off the default branch (`worktree start --default`), handoff under lite (run 2026-11-05-side-fix-new-agent)
 - 2026-11-06 update — Workflow, Web board: per-stage subagent models (`subagents.planner|builder|reviewer`, `kaizen model <stage>`), subagent model/effort carried as Claude Code env on every launch, a Claude row in Settings → Models, installer relinks agent files an older SKILL.md wrote `effort:` into, and `agent.handoff_model.<tool>` for the worktree run's second agent
 - 2026-11-06 run 2026-11-06-g07-worktree-default-ci — CLI: the no-agent check guards only the install, so worktree/handoff/prune/chat work on CI
+- 2026-11-06 run 2026-11-06-rea-skill-toggle — Web board, Workflow: REA switch in Settings → Skills (dry run, confirm, pinned setup, Update, uninstall), planner points to it

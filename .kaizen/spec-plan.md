@@ -50,7 +50,10 @@ returns is cited with its limitations, as *the track* in `spec.md` already requi
 REA not connected: ask instead
 `Q: REA isn't installed — set it up first?`, with `help me install it` (recommended
 where how it works inside decides the design), `I'll install it myself` and `skip
-REA`. On *help me install it* the main thread follows REA's own setup: it runs
+REA`. *I'll install it myself* first names the kaizen board's switch: Settings → Skills →
+*Reverse engineering (REA)*, which runs the same dry run, setup and pin for every
+installed agent after the user confirms, and later updates or removes it. On *help me
+install it* the main thread follows REA's own setup: it runs
 `npx -y rea-agents@<version> doctor --client <client> --json` — the version pinned,
 as REA's own guide pins it, taken from `npm view rea-agents version` and shown to the
 user; the client from the run's `agent` (`claude` → `claude_code`, `codex` → `codex`,
