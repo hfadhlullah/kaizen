@@ -24,7 +24,7 @@ jobs:
             archs: x64,arm64
             builder: --linux --x64 --arm64
             smoke: release/linux-unpacked/kaizen-desktop --no-sandbox
-          - os: macos-14
+          - os: macos-15
             archs: x64,arm64
             builder: --mac --x64 --arm64
             smoke: release/mac-arm64/Kaizen.app/Contents/MacOS/Kaizen
