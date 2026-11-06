@@ -4,6 +4,8 @@
 import { html, modal } from "./dom.ts";
 import { gitProjects, wsHref } from "./workspace.ts";
 import { branchSlug } from "./ws-tabs.ts";
+import { toast } from "./toast.ts";
+import { pick as pickProject } from "./projects.ts";
 
 type Start = "folder" | "clone" | "create" | "ws";
 const SEP = (p: string) => (p.includes("\\") ? "\\" : "/");
@@ -29,13 +31,12 @@ export function openAdd(opts: { dir?: string | null; start?: Start } = {}) {
   const back = fixed ? "" : html`<button type="button" class="btn ghost" data-a="back">Back to add options</button>`;
   const foot = (go: string) => html`<small class="att err" role="alert"></small><div class="row">${back}<button type="button" class="btn ghost" data-a="x">Cancel</button><button class="btn pri" data-a="go">${go}</button></div>`;
   const say = (t: string) => ((form.querySelector(".err") as HTMLElement).textContent = t);
-  // A project was added: the sheet says so, then Home shows it (the saved project is what the pages read).
+  // A project was added: the sheet closes, a toast says so, and the project list picks it up.
+  // No reload: the board switches to it in place.
   const landed = (stateDir: string, msg: string) => {
-    say(msg);
-    try {
-      localStorage.setItem("kz-proj", stateDir);
-    } catch {}
-    setTimeout(() => (location.href = "/"), 900);
+    dl.close();
+    toast(msg);
+    void pickProject(stateDir);
   };
   // The folder dialog; with `name`, the picked folder is a parent and the project's name is appended.
   const pick = async (into: HTMLInputElement, name?: () => string) => {
