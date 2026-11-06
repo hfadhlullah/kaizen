@@ -9,7 +9,7 @@ import { join } from "node:path";
 import { argsOf, commandOf, readPrefs, withEnv, type Prefs } from "./agent-prefs.ts";
 import { clip, reportBlocked, reportUnblock, validId } from "./report.ts";
 import { read } from "./settings.ts";
-import { accountEnv, accountForRun, agentFlags, agentUsable, detectDefaultAgent, MODEL_FLAGS, plainModel, promptArgs, readText, runAgent, YOLO_FLAGS } from "./state.ts";
+import { accountEnv, accountForRun, agentFlags, agentUsable, detectDefaultAgent, MODEL_FLAGS, plainModel, promptArgs, readText, runAgent, subagentEnv, YOLO_FLAGS } from "./state.ts";
 import { branchFor, branchOf, run as sh } from "./worktree.ts";
 
 export type Status = "planned" | "requested" | "running" | "blocked" | "succeeded" | "failed" | "unverified" | "conflict" | "merged" | "stopped";
@@ -200,6 +200,17 @@ export function launchOf(project: string, id: string, x: Worker, permissions: "o
   return { ...l, title: `Worker ${x.id}${l.bypass ? " · bypass" : ""}`, cwd: x.worktree, env: { KAIZEN_RUN_ID: id, KAIZEN_WORKER: x.id } };
 }
 
+/** The model for this run's handoff agent: agent.handoff_model.<the run's tool>, project first. "": the run's own. */
+export function handoffModel(project: string, id: string): string {
+  const cmd = runAgent(join(project, ".kaizen"), id)?.cmd ?? stateOf(project, id)?.agent;
+  if (typeof cmd !== "string" || !/^\w+$/.test(cmd)) return "";
+  for (const f of [join(project, ".kaizen", "config.yml"), join(homedir(), ".kaizen", "config.yml")]) {
+    const v = existsSync(f) ? read(readText(f), `agent.handoff_model.${cmd}`) : null;
+    if (v) return plainModel(v) ? v : "";
+  }
+  return "";
+}
+
 /** The run's agent as a command line with `prompt`. Shared with the handoff; the caller names the terminal. */
 export function agentLine(project: string, id: string, prompt: string, permissions: "own" | "bypass", prefs: Prefs = readPrefs(), pick = ""): Omit<Launch, "title" | "cwd" | "env"> | string {
   const own = runAgent(join(project, ".kaizen"), id), st = stateOf(project, id);
@@ -213,8 +224,10 @@ export function agentLine(project: string, id: string, prompt: string, permissio
   const bypass = permissions === "bypass" && !!YOLO_FLAGS[agent.cmd];
   const flags = [...agentFlags(project, agent.cmd, undefined, model), ...(bypass ? YOLO_FLAGS[agent.cmd]! : []), ...argsOf(agent.cmd, prefs)];
   const line = withEnv([commandOf(agent.cmd, prefs), ...flags, ...promptArgs(agent.cmd, prompt)], agent.cmd, prefs);
+  // Windows has no env command: there only an account, as before, gets one.
+  const vars = [...(process.platform !== "win32" ? subagentEnv(project, agent.cmd) : []), ...accountEnv(acct)];
   return {
-    argv: acct.dir ? ["env", ...accountEnv(acct), ...line] : line, bypass, agent: agent.cmd,
+    argv: vars.length ? ["env", ...vars, ...line] : line, bypass, agent: agent.cmd,
     model: picked ? (MODEL_FLAGS[agent.cmd] ? picked : undefined) : model ?? agentFlags(project, agent.cmd).join(" ").match(/\S+$/)?.[0],
     modelNote: picked && !MODEL_FLAGS[agent.cmd] ? `${agent.name} takes no model flag: "${picked}" was ignored` : undefined,
     trust: acct.dir ? join(acct.dir, ".claude.json") : undefined,

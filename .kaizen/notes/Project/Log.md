@@ -286,3 +286,4 @@ updated: 2026-10-31
 - 2026-11-04 update — Web board: native annotator in the Browser tab, replacing the Agentation strip (runs 2026-11-04-native-annotator, 2026-11-04-agentation-browser)
 - 2026-11-05 run 2026-11-05-branch-from-state — Workflow
 - 2026-11-05 update — Workflow, CLI: side runs off the default branch (`worktree start --default`), handoff under lite (run 2026-11-05-side-fix-new-agent)
+- 2026-11-06 update — Workflow, Web board: per-stage subagent models (`subagents.planner|builder|reviewer`, `kaizen model <stage>`), subagent model/effort carried as Claude Code env on every launch, a Claude row in Settings → Models, installer relinks agent files an older SKILL.md wrote `effort:` into, and `agent.handoff_model.<tool>` for the worktree run's second agent

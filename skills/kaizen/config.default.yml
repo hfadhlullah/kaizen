@@ -169,8 +169,14 @@ subagents:
   #   opus | sonnet | haiku - pin it. A cheaper model for the builder is the usual
   #   reason to touch this; the reviewer on a cheaper model finds less.
   model: inherit
+  # One stage on its own model, ahead of `model` above: default | opus | sonnet | haiku.
+  # The builder also runs the fix rounds, the reviewer the rechecks.
+  planner: default
+  builder: default
+  reviewer: default
   # Reasoning effort for the stage subagents: inherit | low | medium | high.
-  # Set through the agent definition's frontmatter.
+  # A Claude Code session kaizen launches carries model and effort as the defaults its
+  # subagents start from (CLAUDE_CODE_SUBAGENT_MODEL, CLAUDE_CODE_SUBAGENT_EFFORT).
   effort: inherit
 
 agent:
@@ -207,8 +213,18 @@ agent:
   # (while kaizen is open). Linux and macOS; agents in an outside terminal don't count.
   keep_awake: off
   # The model each tool launches with, the tool's own name. Empty: its default.
-  # Claude Code's stage subagents use subagents.model instead.
+  # Claude Code's stage subagents use subagents.model, and inherit this when it is inherit.
   model:
+    claude: ""
+    agy: ""
+    codex: ""
+    gemini: ""
+    opencode: ""
+  # The model of the second agent a worktree run hands its build, review and fix loop to
+  # (`kaizen handoff start`), per tool, in the tool's own spelling. Empty: the run's own
+  # model. Claude's handoff agent still runs its stage subagents on subagents.*.
+  handoff_model:
+    claude: ""
     agy: ""
     codex: ""
     gemini: ""
