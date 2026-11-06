@@ -15,6 +15,7 @@ import { ACCOUNT_VAR, accountDir, addAccount, readAccounts, renameAccount, signe
 import { readReport, signalOf } from "./report.ts";
 import { MAX_IMAGE, saveImage } from "./term-image.ts";
 import { bundledSkills, setSkill, skillsHeld, skillsOff, skillStatus } from "./skills.ts";
+import * as rea from "./rea.ts";
 import { accountEnv, accountForRun, agentUsable, CHILD_ENV, heartbeatMinutes, keepAwake, launchPreview, trustFolder, YOLO_FLAGS } from "./state.ts";
 import { agentLine, failStart, handoffModel, markRunning, readWorkers, requested, startWorker, sweep, workerStale } from "./workers.ts";
 import { childDied, childQuiet, markWoken, move, requestOpen, readHandoff, refused, started, wakeAction, wakeLine, type Handoff } from "./handoff.ts";
@@ -293,6 +294,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
   // One-time token for turning an off-by-default skill on; each GET /skills mints a new one. It stops
   // an agent switching itself on by accident, not a local process that reads the board's own page.
   let skillToken = "";
+  // REA: a plan the page showed, bound to its one-time token. Only that plan is ever applied.
+  let reaPending: { token: string; version: string; clients: string[] } | null = null;
   const strict = (req: Request) => {
     if (!sameOrigin(req)) return bad("cross-origin request refused", 403);
     if (!/^application\/json\b/i.test(req.headers.get("content-type") ?? "")) return bad("json body expected", 415);
@@ -1613,7 +1616,41 @@ export async function web(repoDir: string, opts: Opts = {}) {
         skillToken = crypto.randomUUID();
         // The desktop-control skill shows what this machine lacks, from the helper's own check.
         const check = bundledSkills(repoDir).some((s) => s.id === "kaizen-computer") ? (await import("./computer.ts")).computerCheck() : null;
-        return json({ token: skillToken, skills: bundledSkills(repoDir).map((s) => ({ ...s, off: off.includes(s.id), agents: skillStatus(s, home), needs: [...s.needs.map((n) => ({ name: n, found: !!onPath(n) })), ...(s.id === "kaizen-computer" && check ? check.needs : [])], ...(s.id === "kaizen-computer" && check ? { note: check.note } : {}) })) });
+        return json({ token: skillToken, skills: [...bundledSkills(repoDir).map((s) => ({ ...s, off: off.includes(s.id), agents: skillStatus(s, home), needs: [...s.needs.map((n) => ({ name: n, found: !!onPath(n) })), ...(s.id === "kaizen-computer" && check ? check.needs : [])], ...(s.id === "kaizen-computer" && check ? { note: check.note } : {}) })), rea.reaRow(home)] });
+      }
+
+      // REA's switch. `plan` runs REA's dry run and hands back a token; `apply` sets up exactly
+      // that plan and only with that token; `off` runs REA's uninstall. Kaizen writes no agent config.
+      if (path === "/rea" && req.method === "POST") {
+        const refused = strict(req);
+        if (refused) return refused;
+        let body: any;
+        try { body = await req.json(); } catch { return bad("json body expected"); }
+        if (body?.step === "plan") {
+          reaPending = null;
+          const version = await rea.reaLatest();
+          if (!version) return bad("can't reach npm to find REA's version");
+          const want = body?.update === true ? rea.reaSaved(home)?.clients ?? rea.reaRegistered(home).map((r) => r.client) : rea.reaClients(home).map((c) => c.client);
+          const p = await rea.reaPlan(home, version, want);
+          if (!p.ok) return bad(p.why);
+          reaPending = { token: crypto.randomUUID(), version: p.version, clients: p.clients };
+          return json({ token: reaPending.token, version: p.version, clients: p.clients, files: p.files });
+        }
+        if (body?.step === "apply") {
+          const plan = reaPending;
+          reaPending = null;
+          if (!plan || body?.confirm !== true || body?.token !== plan.token) return bad("confirm required");
+          const r = await rea.reaApply(home, plan.version, plan.clients);
+          rea.forgetDoctor(); rea.forgetLatest();
+          return r.ok ? json({ ok: true, version: r.version }) : bad(r.why);
+        }
+        if (body?.step === "off") {
+          reaPending = null;
+          const r = await rea.reaRemove(home);
+          rea.forgetDoctor(); rea.forgetLatest();
+          return r.ok ? json(r) : bad(r.why);
+        }
+        return bad("step: plan, apply or off");
       }
 
       // Per user, so no scope. A saved environment value is never in either answer.
