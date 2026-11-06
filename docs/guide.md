@@ -112,6 +112,7 @@ tells you what it concluded, so you correct a sentence instead of filling in a f
 | `kaizen recall [--track t] [--tags a,b] [--query "<words>"]` | Lessons learned in other projects that match; see *Global knowledge* |
 | `kaizen stats [<run id>] [--json]` | How runs go: counts by stage, track and runner, fix-round and CANNOT VERIFY rates, median time per stage (runs that logged it); one run adds its tokens (Claude runs) |
 | `kaizen related <path> ...` | Earlier runs that changed these files, newest first, with their open backlog; the planner runs it |
+| `kaizen preflight <run id>` | The check before anything lands: behind the base, CI failed or still running (this PR and the base), another open pull request, unmerged branch or run in flight changing the same files. Exit 0 clean, 2 stopped; `kaizen worktree land` runs it too and goes on past a stop only with `--checked`. The board's Push, Create PR and Merge PR show a stop in a dialog with *Go ahead anyway*. Each check is appended to `runs/<id>/preflight.md` |
 | `kaizen model [planner\|builder\|reviewer]` | The model the main agent passes on that stage subagent's Agent call: `subagents.<stage>`, else `subagents.model`; prints `inherit` when neither is pinned |
 | `kaizen state <run id> key=value ...` | Set a run's `stage`, `awaiting` or `iteration`; each change is logged to the run's `stages.log` for `kaizen stats` |
 | `kaizen remember --track t --tags a,b --applies "<where>" --run <id> "<lesson>"` | Save a lesson that holds beyond this project; the reviewer calls it at the end of a run |

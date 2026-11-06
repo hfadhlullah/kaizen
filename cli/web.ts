@@ -294,6 +294,25 @@ export async function web(repoDir: string, opts: Opts = {}) {
   // One-time token for turning an off-by-default skill on; each GET /skills mints a new one. It stops
   // an agent switching itself on by accident, not a local process that reads the board's own page.
   let skillToken = "";
+  // A preflight that stopped a land: its one-time go-ahead, per run and step, and what it found.
+  const preflights = new Map<string, { token: string; p: import("./preflight.ts").Preflight }>();
+  // Runs the preflight before a push or merge. null: go on. Otherwise the 409 to send back.
+  const gatePreflight = async (dir: string, id: string, op: string, override: unknown, extraFiles: string[] = []) => {
+    const { preflight, writePreflight } = await import("./preflight.ts");
+    const project = dirname(dir), k = `${dir}\0${id}\0${op}`, held = preflights.get(k);
+    if (held && typeof override === "string" && override === held.token) {
+      preflights.delete(k);
+      writePreflight(project, id, held.p, "go ahead (user)");
+      return null;
+    }
+    preflights.delete(k);
+    const p = await preflight(project, id, { extraFiles });
+    writePreflight(project, id, p, p.clean ? "clean" : "stopped");
+    if (p.clean) return null;
+    const token = crypto.randomUUID();
+    preflights.set(k, { token, p });
+    return json({ ok: false, why: "Stopped before landing: other work needs a look first.", preflight: { issues: p.issues, notes: p.notes, base: p.base, branch: p.branch }, token }, 409);
+  };
   // REA: a plan the page showed, bound to its one-time token. Only that plan is ever applied.
   let reaPending: { token: string; version: string; clients: string[] } | null = null;
   const strict = (req: Request) => {
@@ -2330,6 +2349,11 @@ export async function web(repoDir: string, opts: Opts = {}) {
           try { run = JSON.parse(readText(join(dir, "runs", id, "state.json"))); } catch { return bad("no such run", 404); }
           if (run.stage !== "done" && run.awaiting !== "approvals.review") return bad("this run is not finished", 409);
           const files = Array.isArray(body.files) ? body.files.map(String) : [];
+          // A run with no worktree pushes the project's own branch, the base itself: that push is a land.
+          if (body.push !== false && codeDir(dirname(dir), id) === dirname(dir)) {
+            const stop = await gatePreflight(dir, id, "push", body.override, files);
+            if (stop) return stop;
+          }
           // `push: false` is the tab's plain Commit: what is staged, nothing pushed.
           const r = body.push === false ? commitStaged(dir, id, String(body.message ?? ""), files) : await commitPush(dir, id, String(body.message ?? ""), files);
           changed();
@@ -2375,6 +2399,12 @@ export async function web(repoDir: string, opts: Opts = {}) {
           if (run.stage !== "done" && run.awaiting !== "approvals.review") return bad("this run is not finished", 409);
           const project = dirname(dir);
           if (body.op !== "remove" && gateOf(dir, id) === "needs") return bad("This run is not approved yet. Approve it first.", 409);
+          if (body.op === "create" || body.op === "merge") {
+            prBusy.add(lock);
+            let stop: Response | null;
+            try { stop = await gatePreflight(dir, id, body.op, body.override); } finally { prBusy.delete(lock); }
+            if (stop) return stop;
+          }
           prBusy.add(lock);
           let r: { ok: boolean };
           try {

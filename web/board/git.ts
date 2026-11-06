@@ -278,6 +278,20 @@ function confirmDiscard(path, untracked, many = 0) {
   });
 }
 
+// The preflight stopped a land: what it found, then Cancel or Go ahead anyway. True on go ahead.
+function confirmPreflight(pf) {
+  return new Promise((res) => {
+    const dl = modal(html`<div class="gdis">
+      <b>${pf.branch === pf.base ? `Stopped before pushing to ${pf.base}` : `Stopped before landing ${pf.branch || "this run"} on ${pf.base}`}</b>
+      <p>Other work needs a look first. Rebase, wait for CI or land the other work first, or go ahead anyway.</p>
+      <div class="gpath">${pf.issues.map((i) => html`<div>${i.what}${i.files?.length ? html`: ${i.files.slice(0, 6).join(", ")}${i.files.length > 6 ? ` +${i.files.length - 6} more` : ""}` : ""}</div>`)}</div>
+      ${pf.notes.length ? html`<p>${pf.notes.map((n) => html`<span>${n}. </span>`)}</p>` : ""}
+      <div class="row"><button class="btn" value="no">Cancel</button><button class="btn danger" value="yes">Go ahead anyway</button></div>
+    </div>`);
+    dl.addEventListener("close", () => res(dl.returnValue === "yes"));
+  });
+}
+
 function wire(c, el) {
   const u = st(c),
     inp = el.querySelector("#gmsg");
@@ -365,20 +379,23 @@ async function act(c, a, b) {
   b.dataset.busy = 1;
   b.textContent = BUSY[a] || "Working…";
   const base = { dir: c.state, id: c.id };
-  const r =
+  const [path, payload] =
     a === "commit"
-      ? await post("/commit", { ...base, message: u.msg, files: g.staged || [], push: false })
+      ? ["/commit", { ...base, message: u.msg, files: g.staged || [], push: false }]
       : a === "commitpush" || a === "push"
-      ? await post("/commit", { ...base, message: a === "commitpush" ? u.msg : "", files: g.files })
+      ? ["/commit", { ...base, message: a === "commitpush" ? u.msg : "", files: g.files }]
       : a === "go-pr" || a === "go-draft"
-        ? await post("/pr", {
+        ? ["/pr", {
             ...base,
             op: "create",
             title: u.title ?? $("gtitle").value,
             body: u.body ?? $("gbody").value,
             draft: a === "go-draft",
-          })
-        : await post("/pr", { ...base, op: a === "go-merge" ? "merge" : "remove" });
+          }]
+        : ["/pr", { ...base, op: a === "go-merge" ? "merge" : "remove" }];
+  let r = await post(path, payload);
+  // The preflight stopped it: show what it found; a go-ahead resends with its one-time token.
+  if (r.preflight && (await confirmPreflight(r.preflight))) r = await post(path, { ...payload, override: r.token });
   if (r.ok) {
     toast(
       a === "commit"

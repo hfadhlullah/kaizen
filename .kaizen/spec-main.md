@@ -216,6 +216,19 @@ once the default branch holds the work. A conflict or an unmerged pull request l
 everything in place: report its message as printed and let the user decide. The run is
 `done` once approved; whether the work landed is reported, not hidden.
 
+**Preflight before anything lands.** Before any push to a base branch (`git push` of the
+default branch, the board's Commit & push of a run with no worktree), any `gh pr merge`,
+and any `kaizen worktree land`, run `kaizen preflight <id>` from the project folder (1.72.0
+and later; `kaizen worktree land` also runs it itself). It compares the repo with the
+remote and never changes anything: is the branch behind its base, is this landing's CI or
+the base's CI failed or still running, does another open pull request, unmerged branch or
+run in flight change the same files. Exit 0: land as above. Exit 2: nothing is pushed or
+merged; show the user what it printed as a pick list — *rebase first*, *wait for CI*,
+*land the other one first*, *go ahead anyway*, *stop* — and act only on the answer. Only
+after *go ahead anyway* run `kaizen worktree land <id> --checked` (or the push or merge the
+user asked for). What it could not check (no remote, no `gh`, offline) prints as a note
+and does not stop it. The report and the decision are appended to `runs/<id>/preflight.md`.
+
 **Open findings are offered by number.** List them with the reviewer's numbering
 intact, with `CANNOT VERIFY` criteria after them, and let the user name what to fix and
 what to backlog — "fix 2, backlog 5". A number not named is not touched and not filed;
