@@ -14,7 +14,7 @@ import {
 import { ACCOUNT_VAR, accountDir, addAccount, readAccounts, renameAccount, signedIn, removeAccount, resolveAccount, setDefaultAccount } from "./accounts.ts";
 import { readReport, signalOf } from "./report.ts";
 import { MAX_IMAGE, saveImage } from "./term-image.ts";
-import { bundledSkills, setSkill, skillsHeld, skillsOff, skillStatus } from "./skills.ts";
+import { bundledSkills, repairSkill, setSkill, skillsHeld, skillsOff, skillStatus } from "./skills.ts";
 import * as rea from "./rea.ts";
 import { accountEnv, accountForRun, agentUsable, CHILD_ENV, heartbeatMinutes, keepAwake, launchPreview, trustFolder, YOLO_FLAGS } from "./state.ts";
 import { agentLine, failStart, handoffModel, markRunning, readWorkers, requested, startWorker, sweep, workerStale } from "./workers.ts";
@@ -1638,7 +1638,9 @@ export async function web(repoDir: string, opts: Opts = {}) {
           // GET: the warning is a step a person takes, not a flag a caller can send.
           const tokenOk = !!skillToken && body?.token === skillToken;
           skillToken = "";
-          const why = setSkill(repoDir, home, String(body?.id ?? ""), body?.on === true, body?.confirm === true && tokenOk);
+          const why = body?.repair === true
+            ? repairSkill(repoDir, home, String(body?.id ?? ""), body?.replace === true && tokenOk)
+            : setSkill(repoDir, home, String(body?.id ?? ""), body?.on === true, body?.confirm === true && tokenOk);
           if (why) return bad(why);
         }
         const off = [...skillsOff(home), ...skillsHeld(repoDir, home)];

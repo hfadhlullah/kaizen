@@ -2,7 +2,7 @@
 // skill.json ({ title, group, needs, off_by_default }), so a new folder needs no change elsewhere.
 // Turning one off removes kaizen's own links for this user; a real folder, or a link to
 // anything else, under the same name stays. ~/.kaizen/skills-off.json keeps the choice.
-import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, readlinkSync, renameSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, readlinkSync, renameSync, rmSync, rmdirSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path";
 
 export type Skill = { id: string; rel: string; title: string; description: string; group: "core" | "media" | "optional"; needs: string[]; offByDefault: boolean; status: string };
@@ -81,6 +81,26 @@ function installedClone(home: string, repo: string) {
     return dirname(dirname(resolve(isAbsolute(raw) ? raw : dirname(p), raw)));
   }
   return repo;
+}
+
+// A core skill that is not kaizen's link for some agent: link it again from the installed clone.
+// A stale or foreign link just goes; a real folder in the way goes only with `replace`, which the
+// page sends after asking. Returns an error, "replace required", or null.
+export function repairSkill(repo: string, home: string, id: string, replace = false): string | null {
+  const skill = bundledSkills(repo).find((s) => s.id === id);
+  if (!skill) return "unknown skill";
+  const clone = installedClone(home, repo), src = join(clone, "skills", skill.rel);
+  if (!existsSync(join(src, "SKILL.md"))) return `The kaizen install in ${clone} is older than this skill. Run kaizen upgrade, then Re-check`;
+  const todo = SKILL_HOMES.filter((h) => existsSync(join(home, h.dir))).map((h) => join(home, h.dir, "skills", id)).filter((p) => !ours(p, skill.rel));
+  if (!replace && todo.some((p) => existsSync(p) && !isLink(p))) return "replace required";
+  for (const p of todo) {
+    // A link goes as a link (a junction is a directory to rmdir), never what it points at.
+    if (isLink(p)) { try { unlinkSync(p); } catch { rmdirSync(p); } }
+    else if (existsSync(p)) rmSync(p, { recursive: true, force: true });
+    mkdirSync(dirname(p), { recursive: true });
+    symlinkSync(src, p, process.platform === "win32" ? "junction" : undefined);
+  }
+  return null;
 }
 
 // Returns an error, or null. Global links only: a project's own install is left alone.

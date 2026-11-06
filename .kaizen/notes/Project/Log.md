@@ -291,3 +291,4 @@ updated: 2026-10-31
 - 2026-11-06 run 2026-11-06-rea-skill-toggle — Web board, Workflow: REA switch in Settings → Skills (dry run, confirm, pinned setup, Update, uninstall), planner points to it
 - 2026-11-06 run 2026-11-06-land-gate — CLI, Web board, Workflow: `kaizen preflight` before every push or merge (worktree land, Git tab Push / Create PR / Merge PR, spec rule); danger buttons readable in the run view
 - 2026-11-06 run 2026-11-06-desktop-kaizen-home — Web board: the desktop app's KAIZEN_HOME and flag no longer reach board terminals (removed after adoptLoginEnv)
+- 2026-11-06 update — Web board: Repair button for core skills not linked for an agent (Settings → Skills); adding, creating or cloning a project no longer reloads the page; the Git repository checkbox row in Create project lines up

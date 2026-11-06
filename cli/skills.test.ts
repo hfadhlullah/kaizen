@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, test } from "bun:test";
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { bundledSkills, setSkill, skillsOff, skillStatus, skillsToLink, SKILL_HOMES } from "./skills.ts";
+import { bundledSkills, repairSkill, setSkill, skillsOff, skillStatus, skillsToLink, SKILL_HOMES } from "./skills.ts";
 
 let t: string, repo: string, home: string;
 const skill = (rel: string, json?: object) => {
@@ -92,4 +92,28 @@ test("only unproven skills carry a status label", () => {
   const real = bundledSkills(join(import.meta.dir, ".."));
   const status = Object.fromEntries(real.map((s) => [s.id, s.status]));
   expect(status).toEqual({ kaizen: "stable", "kaizen-concept": "stable", "kaizen-help": "stable", "kaizen-book": "stable", "kaizen-deck": "stable", "kaizen-game": "beta", "kaizen-video": "stable", "kaizen-computer": "experimental" });
+});
+test("repair relinks a missing core skill, asks before a real folder, and says when the clone is too old", () => {
+  skill("kaizen-help", { group: "core" });
+  const help = join(home, ".claude/skills/kaizen-help");
+  expect(repairSkill(repo, home, "kaizen-help")).toBeNull();
+  expect(readlinkSync(help)).toBe(join(repo, "skills/kaizen-help"));
+  rmSync(help);
+  mkdirSync(help);
+  writeFileSync(join(help, "SKILL.md"), "mine");
+  expect(repairSkill(repo, home, "kaizen-help")).toBe("replace required");
+  expect(readFileSync(join(help, "SKILL.md"), "utf8")).toBe("mine");
+  expect(repairSkill(repo, home, "kaizen-help", true)).toBeNull();
+  expect(lstatSync(help).isSymbolicLink()).toBe(true);
+  expect(skillStatus(bundledSkills(repo).find((s) => s.id === "kaizen-help")!, home)[0]!.state).toBe("installed");
+  // The board's copy has a skill the installed clone (the core link's target) lacks.
+  const old = join(t, "old");
+  mkdirSync(join(old, "cli"), { recursive: true });
+  writeFileSync(join(old, "cli", "install.ts"), "");
+  mkdirSync(join(old, "skills", "kaizen"), { recursive: true });
+  rmSync(join(home, ".claude/skills/kaizen"));
+  symlinkSync(join(old, "skills/kaizen"), join(home, ".claude/skills/kaizen"));
+  skill("kaizen-concept", { group: "core" });
+  expect(repairSkill(repo, home, "kaizen-concept")).toMatch(/kaizen upgrade/);
+  expect(existsSync(join(home, ".claude/skills/kaizen-concept"))).toBe(false);
 });
