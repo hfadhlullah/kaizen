@@ -2,7 +2,7 @@
 description: What a kaizen run is, which files define it, and where its state lives
 tags: [project, workflow]
 sources: [cli/roadmap.ts, cli/workers.ts, skills/kaizen, skills/kaizen-help, skills/kaizen-concept, skills/media, agents, commands, cli/worktree.ts, docs/guide.md]
-updated: 2026-11-05
+updated: 2026-11-06
 ---
 # Workflow
 
@@ -20,6 +20,7 @@ The product itself: a staged workflow (plan, approval, build, independent review
 - `cli/worktree.ts` — each run builds on branch `kaizen/<id>` in `.kaizen/wt/<id>` (`git.worktree_per_run`); a run set up by hand (a roadmap on one feature branch) records its real branch in `state.json` `branch`, and `branchFor(project, id)` returns that when it is a safe branch name, else `kaizen/<id>`: the Git tab, push, PR, merge, land and cleanup all go through it, never the base it lands on (remote default, feature base, HEAD). Land and cleanup keep the worktree and branch while another run's `state.json` still records the same worktree or branch (`sharer`), and cleanup says which run. Workers read the run's branch through `branchFor` too; creating a worktree and worker branches still use `branchOf`; `kaizen worktree start|land <id>` makes and lands it, and `state.json` records `worktree` and `branch`. Run notes stay in the project's `.kaizen/runs/`. It also lists a project's workspaces (`workspaces()`), places a run in one (`wsOf()`) and adds a branch worktree for the board (`addWorktree()`): see [[Web board]].
 - `skills/kaizen/adapters.md` — running it under Codex or Antigravity.
 - `agents/kaizen-*.md` — the planner, builder and reviewer subagents.
+- Stage subagent models (Claude Code): `subagents.<stage>` (`planner`, `builder`, `reviewer`; the builder also runs fix rounds, the reviewer rechecks), else `subagents.model`. The main agent reads it with `kaizen model <stage>` (`subagentModel` in `cli/state.ts`) and passes it on the Agent call. `launchRun` and `agentLine` (`cli/workers.ts`, so the handoff agent and workers too) add `subagentEnv`: `CLAUDE_CODE_SUBAGENT_MODEL` / `CLAUDE_CODE_SUBAGENT_EFFORT` from `subagents.model` / `.effort`, the defaults Claude Code falls back to when the call names no model. The handoff agent's own model is `agent.handoff_model.<run's tool>` (`handoffModel` in `cli/workers.ts`, passed by `tendOne` in `cli/web.ts` as `agentLine`'s pick), else the run's model.
 - `commands/kaizen-*.md` — Claude Code slash commands, each a one-line hand-off to the skill.
 - Roadmaps: a project too big for one run, of any kind, gets `.kaizen/roadmaps/<name>.md` (phases, status, decisions) on top of child cards. `cli/roadmap.ts` reads it; `skills/kaizen/roadmap.md` holds `/kaizen roadmap`, `next` and `run`. One run stays the default.
 - `skills/kaizen-concept/SKILL.md` — `/kaizen concept`: product type first (its table sets what concepts differ on and what gets prototyped), then market and the users' medium; concepts differ by promise, image medium, type and signature mechanic; a craft pass; UX and platform rules with a 30-item checklist in `skills/kaizen-concept/ux-rules.md` (sourced: HIG, Material, Fluent, WCAG, NN/g), a frame per platform (phone, browser window, desktop window, landing page); a word budget of about 10 words of prose per app screen; sample labels and screen jumpers outside the app; the review page as a menu of concept tiles with a detail view per concept (preview, votes and comments by name); the approved concept ends in an extracted `DESIGN.md`, tokens and a handoff note.
@@ -36,6 +37,7 @@ The product itself: a staged workflow (plan, approval, build, independent review
 - `/kaizen docs` writes this vault. During a run the builder updates the notes whose `sources` it changed, and the *Docs gate* in `spec-main.md` makes the main thread finish the job before the final report and before `stage: "done"`, in every runner and mode: fix-iteration changes, and changed files no note covers (added to a note's `sources`, or a new note). The gate runs `kaizen docs lint` after those updates; see [[CLI]].
 
 ## Watch out
+- Never write `model:` or `effort:` into `agents/kaizen-*.md`: the installed files are links shared by every project, and a frontmatter line beats the env defaults. An older SKILL.md did write `effort:`, which turned the links into copies; the installer (`linkState` in `cli/install.ts`) relinks a copy that differs only by that line.
 - `skills/kaizen/` is the source; `.kaizen/spec*.md` in a project are copies (`kaizen --check` reports drift). In this repo the copies are not committed (`.gitignore`).
 - Roadmap mode is for more than one module; a single screen or feature stays one run, and outside roadmap mode the foundation questions stay one round.
 - `stage` must be one of `plan`, `build`, `review`, `done`, `abandoned` — `columnOf()` in `cli/state.ts`; any other word shows as planning (`.kaizen/memory.md`).

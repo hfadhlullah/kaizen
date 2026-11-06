@@ -285,12 +285,14 @@ the choice at the plan approval. Building inline does not make the review less
 independent: the reviewer is a separate agent in every case, and never sees the
 conversation the work happened in.
 
-`subagents.model` and `subagents.effort` apply to every stage dispatched this way, including a lite run's reviewer under `review.executor: subagent`.
-Pass `model` on the Agent call when it is not `inherit`. Effort has no call-time
-knob: when it is not `inherit`, make sure the frontmatter of the agent's definition
-(`~/.claude/agents/kaizen-<stage>.md`, or the project's `.claude/agents/` copy)
-carries `effort: <value>` — edit or add that one line, nothing else — before the
-first dispatch of the run. `inherit` means leave the file alone.
+Each stage subagent's model comes from `subagents.<stage>` (`planner`, `builder`,
+`reviewer`), else `subagents.model`; the builder's value covers the fix rounds and the
+reviewer's the rechecks. This holds for every stage dispatched this way, a lite run's
+reviewer under `review.executor: subagent` included. Before each dispatch run
+`kaizen model <stage>` and pass what it prints as `model` on the Agent call; `inherit`
+means pass none. `subagents.effort` has no call-time knob: a session kaizen launches
+already carries it, and the stage's model, in its environment. Never write `model:` or
+`effort:` into an agent definition file: those files are shared by every project.
 
 After a subagent returns, update `state.json` yourself in the main thread, with `kaizen state` from 1.69.0, by hand before that (`spec.md`, Stage 0). Subagents
 report; the main thread owns the state machine.

@@ -28,6 +28,7 @@ anything.
 | `/kaizen review [target]` | Review-only: audit existing code, no plan, no implementation |
 | `/kaizen status` | List every run grouped waiting-on-you / in flight / done / abandoned, plus open backlog count |
 | `kaizen done <id> [--user-approved]` | Finish a run; refused while the review gate waits on the user, `--user-approved` after a clear yes in chat |
+| `kaizen model [planner\|builder\|reviewer]` | The model to pass on that stage subagent's Agent call, from `subagents.<stage>` then `subagents.model`; `inherit` means pass none |
 | `kaizen state <id> key=value ...` | (1.69.0+) Set a run's `stage`, `awaiting` or `iteration` in `state.json`; refuses words no board knows (`done` goes through `kaizen done`) |
 | `kaizen stats [<id>] [--json]` | (1.69.0+) Fix-round and CANNOT VERIFY rates, stage times, tokens for one run |
 | `kaizen related <path> ...` | (1.69.0+) Earlier runs that changed these files |

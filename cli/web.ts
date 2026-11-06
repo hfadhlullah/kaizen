@@ -16,7 +16,7 @@ import { readReport, signalOf } from "./report.ts";
 import { MAX_IMAGE, saveImage } from "./term-image.ts";
 import { bundledSkills, setSkill, skillsHeld, skillsOff, skillStatus } from "./skills.ts";
 import { accountEnv, accountForRun, agentUsable, CHILD_ENV, heartbeatMinutes, keepAwake, launchPreview, trustFolder, YOLO_FLAGS } from "./state.ts";
-import { agentLine, failStart, markRunning, readWorkers, requested, startWorker, sweep, workerStale } from "./workers.ts";
+import { agentLine, failStart, handoffModel, markRunning, readWorkers, requested, startWorker, sweep, workerStale } from "./workers.ts";
 import { childDied, childQuiet, markWoken, move, requestOpen, readHandoff, refused, started, wakeAction, wakeLine, type Handoff } from "./handoff.ts";
 import { processTable, storage, systemMemory, treeRss, type Root } from "./resources.ts";
 import { attachPty, frames, writePty, submitPty, resizePty, exitPty, killPty, panePid, ptyState, ptyKeys, adoptLoginEnv, startPty, ptySupported, detachPty, ptyTail, ptyTmux, tmuxAlive, RESUMED } from "./pty.ts";
@@ -502,7 +502,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
       const cwd = codeDir(project, id), key = "sh-" + crypto.randomUUID().slice(0, 8);
       const prompt = `/kaizen run ${id}. You are the worktree agent of this run: the project is ${project}, its run files are in ${join(dir, "runs", id)}, and you work in ${cwd}. ` +
         `Build, review and run the fix loop as the spec says. Do not run kaizen done or land. When finished run: kaizen handoff done. If you cannot go on run: kaizen handoff blocked "<reason>".`;
-      const l = cwd === project ? "the run has no worktree" : agentLine(project, id, prompt, "own");
+      const l = cwd === project ? "the run has no worktree" : agentLine(project, id, prompt, "own", undefined, handoffModel(project, id));
       if (typeof l === "string") { refused(dir, id, l); changed(); return; }
       if (!started(dir, id, key)) return; // declined meanwhile: the first agent is building
       for (const k of Object.keys(process.env)) if (CHILD_ENV.test(k)) delete process.env[k];
