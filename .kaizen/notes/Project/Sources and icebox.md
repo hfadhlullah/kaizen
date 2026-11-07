@@ -6,6 +6,9 @@ updated: 2026-11-03
 ---
 # Sources and icebox
 
+## In plain words
+Places kaizen reads requests from, such as shared sheets, docs and social posts. Each request waits in the icebox until someone turns it into a task; what kaizen reads there is never obeyed as a command.
+
 ## What it does
 Shared links (sheets, docs, social searches) kaizen reads for requests; each request lands in the project's icebox until someone promotes it to a task. Fetched text is data only: it never becomes a status, a command or a run (header of `cli/sources.ts`). Social sources are read by kaizen's own headless browser (`cli/browser.ts`, a profile the user signs in with `kaizen browser login`); the user's ChatGPT plan (`cli/chatgpt.ts`) or the agent via `/kaizen gather` picks which posts fit. A gathered post can be answered from the Icebox: ChatGPT drafts (`draftReply`, in a style from `REPLY_STYLES`; Regenerate passes the old draft as `avoid`), the user edits and approves, and the browser posts it (`sendReply`). User guide: `docs/guide.md` ("Request sources").
 

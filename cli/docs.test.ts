@@ -2,7 +2,7 @@ import { test, expect } from "bun:test";
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, utimesSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { lintDocs } from "./docs.ts";
+import { lintDocs, docsCost } from "./docs.ts";
 
 const fixture = (updated = "2026-10-28") => {
   const root = mkdtempSync(join(tmpdir(), "kz-docs-lint-"));
@@ -10,7 +10,7 @@ const fixture = (updated = "2026-10-28") => {
   mkdirSync(vault, { recursive: true });
   writeFileSync(join(root, "app.ts"), "export const app = 1;\n");
   writeFileSync(join(vault, "Index.md"), `---\ndescription: Index\ntags: [project, index]\nupdated: ${updated}\n---\n# Index\n[[App]]\n`);
-  writeFileSync(join(vault, "App.md"), `---\ndescription: App\ntags: [project, app]\nsources: [app.ts]\nupdated: ${updated}\n---\n# App\n`);
+  writeFileSync(join(vault, "App.md"), `---\ndescription: App\ntags: [project, app]\nsources: [app.ts]\nupdated: ${updated}\n---\n# App\n## In plain words\nThe app people open.\n`);
   return { root, vault, cleanup: () => rmSync(root, { recursive: true, force: true }) };
 };
 
@@ -91,4 +91,45 @@ test("missing vault and unsupported CLI arguments fail clearly", () => {
     expect(p.exitCode).toBe(1);
     expect(p.stdout.toString()).toContain("kaizen docs lint");
   } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("note budget, plain words, dead paths, hubs listing their sub-notes, and cost", () => {
+  const f = fixture("2020-01-01");
+  try {
+    const old = new Date("2020-01-01T10:00:00");
+    const note = (name: string, body: string) => {
+      mkdirSync(join(f.vault, name, ".."), { recursive: true });
+      writeFileSync(join(f.vault, `${name}.md`), `---\ndescription: ${name}\ntags: [project]\nsources: [app.ts]\nupdated: 2020-01-01\n---\n# ${name}\n${body}`);
+    };
+    utimesSync(join(f.root, "app.ts"), old, old);
+    mkdirSync(join(f.root, "src"));
+    writeFileSync(join(f.root, "src", "here.ts"), "x\n");
+    utimesSync(join(f.root, "src", "here.ts"), old, old);
+    writeFileSync(join(f.vault, "Index.md"), "---\ndescription: Index\ntags: [project, index]\nupdated: 2020-01-01\n---\n# Index\n[[App]] [[Big]] [[Hub]] [[Plain]] [[Paths]]\n");
+    note("Big", `## In plain words\nBig.\n## What it does\n${"x".repeat(17 * 1024)}\n`);
+    note("Hub", "## In plain words\nA hub.\n## Topics\n- [[Hub/Topic]] — one part\n");
+    note("Hub/Topic", `## In plain words\nOne part.\n## What it does\n${"y".repeat(2048)}\n`);
+    note("Hub/Orphan", "## In plain words\nNobody links me.\n");
+    note("Plain", "## In plain words\n`a` `b` `c`\n## What it does\nok\n");
+    note("Paths", "## In plain words\nPaths.\n## Where it lives\n- `src/here.ts` `src/gone.ts` `./x.ts` `other/y.ts` `src/<name>.ts`\n");
+    const found = lintDocs(f.root);
+    expect(found).toContain("Project/Big.md: over budget (17 KB > 16 KB): split into a hub and sub-notes");
+    expect(found).toContain("Project/Hub/Orphan.md: not listed in Index.md or its hub");
+    expect(found).toContain("Project/Plain.md: In plain words not plain (over 2 code spans)");
+    expect(found).toContain("Project/Paths.md: dead path src/gone.ts");
+    expect(found.filter((x) => /Hub\/Topic|Hub\.md|App\.md/.test(x))).toEqual([]);
+    expect(found.filter((x) => x.includes("dead path"))).toEqual(["Project/Paths.md: dead path src/gone.ts"]);
+    // A bare name that only the board can resolve into a folder is a finding; the path form is not.
+    note("Paths", "## In plain words\nPaths.\nSee [[Topic]] and [[Hub/Topic]].\n");
+    expect(lintDocs(f.root).filter((x) => x.includes("in a folder"))).toEqual(["Project/Paths.md: link [[Topic]] is in a folder: write [[Hub/Topic]]"]);
+    note("Plain", `## In plain words\n${"line\n".repeat(9)}`);
+    expect(lintDocs(f.root)).toContain("Project/Plain.md: In plain words too long (over 8 lines)");
+    note("Plain", "## What it does\nno top\n");
+    expect(lintDocs(f.root)).toContain("Project/Plain.md: In plain words missing");
+    const cost = docsCost(f.root);
+    expect(cost.largest.name).toBe("Big");
+    expect(cost.index).toBeGreaterThan(0);
+    const p = Bun.spawnSync([process.execPath, join(import.meta.dir, "install.ts"), "docs", "lint"], { cwd: f.root });
+    expect(p.stdout.toString()).toMatch(/cost: Index ~\d+ tokens every session; largest note Big ~\d+ tokens/);
+  } finally { f.cleanup(); }
 });

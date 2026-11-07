@@ -6,6 +6,9 @@ updated: 2026-11-03
 ---
 # Kaizen bot
 
+## In plain words
+A separate chat app in front of the board. You talk to a chief and to team agents; they turn requests into tasks and runs, and anything that starts or approves work waits for your yes.
+
 ## What it does
 A separate app (`bot/`, its own `package.json`, private) that puts a chat in front of the board: Chief answers what is waiting, division agents turn their team's asks into tasks and runs. Every action is a card; anything that starts or approves a run waits for your Approve. Full description: `bot/README.md`.
 

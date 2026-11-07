@@ -103,8 +103,8 @@ tells you what it concluded, so you correct a sentence instead of filling in a f
 | `/kaizen-abort` | Abandon the current run |
 | `/kaizen-gather` | Read the request sources kaizen cannot read by itself into the icebox |
 | `/kaizen-discover` | An agent groups what is in the icebox, proposes tasks, and promotes the ones you pick |
-| `/kaizen-docs [lint]` | Write or refresh this project's docs in Notes → `Project/`, which agents read before they build; `lint` runs the CLI check below |
-| `kaizen docs lint` | Check the Project vault without changing it; print broken links, missing or uncovered sources and stale notes, and exit 1 on findings |
+| `/kaizen-docs [lint]` | Write or refresh this project's docs in Notes → `Project/`. Each note opens with a few plain lines for a person, then the exact detail agents read before they build; the Index has an Ask table pointing each common question at its note, and an area too big for one note becomes a hub with topic notes. `lint` runs the CLI check below |
+| `kaizen docs lint` | Check the Project vault without changing it; print broken links, missing or uncovered sources, stale notes, notes over 16 KB, a missing or code-heavy plain-words top, and paths a note names that no longer exist; exit 1 on findings. Ends with what the Index and the largest note cost in tokens |
 | `kaizen sources [add\|rm <link>]` | In a terminal: list, add or remove request sources |
 | `kaizen gather` | In a terminal: check every source now and add new requests to the icebox |
 | `kaizen icebox [promote\|dismiss <ids>]` | In a terminal: list what waits in the icebox, promote it to Tasks, or dismiss it |

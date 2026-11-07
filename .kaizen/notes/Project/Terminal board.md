@@ -6,6 +6,9 @@ updated: 2026-11-03
 ---
 # Terminal board
 
+## In plain words
+The board you see when you type kaizen in a terminal: your project's runs in columns, with keys and the mouse for the few actions you would otherwise do by hand.
+
 ## What it does
 What `kaizen` shows once installed: the project's runs as a board in the terminal, plus the few actions you would otherwise open a terminal for (header of `cli/dashboard.ts`). Keys and mouse are described in `docs/guide.md` ("The board", "Mouse").
 

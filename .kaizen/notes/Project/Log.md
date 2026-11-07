@@ -292,3 +292,6 @@ updated: 2026-10-31
 - 2026-11-06 run 2026-11-06-land-gate — CLI, Web board, Workflow: `kaizen preflight` before every push or merge (worktree land, Git tab Push / Create PR / Merge PR, spec rule); danger buttons readable in the run view
 - 2026-11-06 run 2026-11-06-desktop-kaizen-home — Web board: the desktop app's KAIZEN_HOME and flag no longer reach board terminals (removed after adoptLoginEnv)
 - 2026-11-06 update — Web board: Repair button for core skills not linked for an agent (Settings → Skills); adding, creating or cloning a project no longer reloads the page; the Git repository checkbox row in Create project lines up
+- 2026-11-07 run 2026-11-07-docs-vault-stronger — Index (Ask table), Web board split into a hub and 11 topic notes (Web board/), In plain words added to every note, CLI, Workflow
+- 2026-11-07 run 2026-11-07-docs-vault-stronger fix 1 — CLI split into a hub and 4 topic notes (CLI/), Index Ask line for docs lint
+- 2026-11-07 run 2026-11-07-docs-vault-stronger fix 2 — folder-link check in lint; all vault links to sub-notes written as paths (Index, Web board, CLI hubs)

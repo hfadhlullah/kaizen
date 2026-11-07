@@ -6,6 +6,9 @@ updated: 2026-11-03
 ---
 # Conventions and gotchas
 
+## In plain words
+The house rules that apply everywhere in this project and are not obvious from any one file: how several agents share one folder safely, what never to run, and the traps that have bitten before.
+
 ## What it does
 The rules that are not visible in any one file. Cross-area lessons are in `.kaizen/memory.md`, kept by kaizen's reviewer; lessons about one area sit in that area's note under *Watch out* (moved there 2026-11-03). This note groups the ones that apply everywhere.
 

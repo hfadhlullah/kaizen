@@ -6,6 +6,9 @@ updated: 2026-11-03
 ---
 # Notebook
 
+## In plain words
+The Notes tab: a folder of plain notes you can also open in Obsidian. Notes can link to each other and to runs on the board, and this project's own documentation lives here too.
+
 ## What it does
 Plain markdown files under `<state>/notes/`, folders allowed, so Obsidian can open the same folder (header of `cli/notes.ts`). Supports `[[wikilinks]]` resolved by last segment like Obsidian, `#tags`, and board links like `[[run:<id>]]` and `[[run:<id>#backlog-3]]`. Deleted notes move to `notes/.trash/`. This vault lives in it under `Project/`.
 

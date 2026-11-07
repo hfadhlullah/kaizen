@@ -2,9 +2,12 @@
 description: What a kaizen run is, which files define it, and where its state lives
 tags: [project, workflow]
 sources: [cli/roadmap.ts, cli/workers.ts, skills/kaizen, skills/kaizen-help, skills/kaizen-concept, skills/media, agents, commands, cli/worktree.ts, docs/guide.md]
-updated: 2026-11-06
+updated: 2026-11-07
 ---
 # Workflow
+
+## In plain words
+The heart of kaizen: the steps an agent follows for any piece of work. It plans, waits for your approval, builds, has the work reviewed by a fresh agent, and fixes what the review found.
 
 ## What it does
 The product itself: a staged workflow (plan, approval, build, independent review, bounded fix loop) that an agent follows from markdown instructions. Nothing here is code; the agent reads it and does the stages. How a run goes for a user is in `docs/guide.md` ("How a run goes"); the full behaviour is in `skills/kaizen/SKILL.md`. The guide also covers Video page sends: large MP4s go to WhatsApp as documents.
@@ -38,6 +41,7 @@ The product itself: a staged workflow (plan, approval, build, independent review
 - `/kaizen docs` writes this vault. During a run the builder updates the notes whose `sources` it changed, and the *Docs gate* in `spec-main.md` makes the main thread finish the job before the final report and before `stage: "done"`, in every runner and mode: fix-iteration changes, and changed files no note covers (added to a note's `sources`, or a new note). The gate runs `kaizen docs lint` after those updates; see [[CLI]].
 
 ## Watch out
+- `/kaizen docs` (`skills/kaizen/docs.md`) writes notes for two readers: `## In plain words` on top for a person, exact sections below for an agent; 16 KB per note, an area too big becomes a hub with sub-notes (`Area/<Topic>.md`); optional `kind: reference` (every count names its command) and `kind: rules` (every rule names the code enforcing it), `external:` with a `Neighbours` note, and an `## Ask` table in the Index. `spec-plan.md` tells the planner a note lint reports stale is a lead to check, not a fact. Lint enforces the size, plain-words and dead-path rules ([[CLI]]).
 - Never write `model:` or `effort:` into `agents/kaizen-*.md`: the installed files are links shared by every project, and a frontmatter line beats the env defaults. An older SKILL.md did write `effort:`, which turned the links into copies; the installer (`linkState` in `cli/install.ts`) relinks a copy that differs only by that line.
 - `skills/kaizen/` is the source; `.kaizen/spec*.md` in a project are copies (`kaizen --check` reports drift). In this repo the copies are not committed (`.gitignore`).
 - Roadmap mode is for more than one module; a single screen or feature stays one run, and outside roadmap mode the foundation questions stay one round.

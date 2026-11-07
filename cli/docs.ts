@@ -23,6 +23,35 @@ const sourceFile = (root: string, path: string) => {
   return true;
 };
 
+const BUDGET = 16 * 1024;
+const PATHLIKE = /^[A-Za-z0-9_.@-]+(\/[A-Za-z0-9_.@-]+)+\.[A-Za-z0-9]{1,5}$/;
+const split = (text: string) => {
+  const m = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(text);
+  return { front: m?.[1] ?? "", body: m ? text.slice(m[0].length) : text };
+};
+const inside = (root: string, path: string) => {
+  const f = resolve(root, path);
+  return f.startsWith(resolve(root) + sep) ? f : null;
+};
+// `## In plain words` up to the next `## ` heading, or null when the note has none.
+const plainWords = (body: string) => {
+  const m = /^## In plain words[ \t]*\r?\n([\s\S]*?)(?=^## |(?![\s\S]))/m.exec(body);
+  return m ? m[1] : null;
+};
+
+// What the vault costs an agent: the Index is loaded into every session, a note when opened.
+export function docsCost(root: string) {
+  const vault = join(root, ".kaizen", "notes", "Project");
+  const tokens = (file: string) => Math.round(Buffer.byteLength(readFileSync(file, "utf8")) / 4);
+  const index = existsSync(join(vault, "Index.md")) ? tokens(join(vault, "Index.md")) : 0;
+  let largest = { name: "", tokens: 0 };
+  for (const p of walk(vault).filter((p) => p.endsWith(".md") && !p.startsWith("Archive/") && p !== "Index.md" && p !== "Log.md")) {
+    const t = tokens(join(vault, p));
+    if (t > largest.tokens) largest = { name: p.slice(0, -3), tokens: t };
+  }
+  return { index, largest };
+}
+
 export function lintDocs(root: string): string[] {
   const vault = join(root, ".kaizen", "notes", "Project");
   if (!existsSync(join(vault, "Index.md"))) return ["missing Project/Index.md (run /kaizen docs first)"];
@@ -30,20 +59,46 @@ export function lintDocs(root: string): string[] {
   const names = walk(vault).filter((p) => p.endsWith(".md")).map((p) => p.slice(0, -3));
   const index = readFileSync(join(vault, "Index.md"), "utf8");
   if (index.split(/\r?\n/).length - Number(index.endsWith("\n")) >= 60) errors.push("Project/Index.md: must be under 60 lines");
-  const listed = new Set(wikilinks(index).filter((w) => !boardLink(w)).map((w) => resolveNote(w.name, names)).filter(Boolean));
+  const linksOf = (text: string) => wikilinks(text).filter((w) => !boardLink(w)).map((w) => resolveNote(w.name, names)).filter(Boolean);
+  const listed = new Set(linksOf(index));
+  // A sub-note `A/B` is listed by its hub `A` as well as by the Index.
+  const listedBy = (name: string) => {
+    const hub = name.includes("/") ? name.slice(0, name.lastIndexOf("/")) : null;
+    return listed.has(name) || (!!hub && names.includes(hub) && linksOf(readFileSync(join(vault, `${hub}.md`), "utf8")).includes(name));
+  };
   const covered: { path: string; directory: boolean }[] = [];
   const inGit = !!Bun.which("git") && git(root, ["rev-parse", "--show-toplevel"]) !== null;
   for (const name of names) {
     const file = join(vault, `${name}.md`);
     const text = readFileSync(file, "utf8");
-    const front = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(text)?.[1] ?? "";
+    const { front, body } = split(text);
     const field = (key: string) => new RegExp(`^${key}:[ \\t]*(.*)$`, "m").exec(front)?.[1]?.trim();
-    for (const w of wikilinks(text)) if (!boardLink(w) && !resolveNote(w.name, names)) errors.push(`Project/${name}.md: broken link [[${w.target}]]`);
+    for (const w of wikilinks(text)) {
+      if (boardLink(w)) continue;
+      const to = resolveNote(w.name, names);
+      if (!to) errors.push(`Project/${name}.md: broken link [[${w.target}]]`);
+      // The board resolves a bare name into a folder; an agent reading raw files cannot.
+      else if (name !== "Log" && !w.name.includes("/") && to.includes("/") && !name.startsWith("Archive/")) errors.push(`Project/${name}.md: link [[${w.target}]] is in a folder: write [[${to}]]`);
+    }
     if (name.startsWith("Archive/")) continue;
-    if (name !== "Index" && name !== "Log" && !listed.has(name)) errors.push(`Project/${name}.md: not listed in Index.md`);
+    if (name !== "Index" && name !== "Log" && !listedBy(name)) errors.push(`Project/${name}.md: not listed in Index.md${name.includes("/") ? " or its hub" : ""}`);
+    if (name !== "Log") for (const m of body.matchAll(/`([^`\n]+)`/g)) {
+      const p = m[1]!;
+      if (!PATHLIKE.test(p)) continue;
+      const top = inside(root, p.split("/")[0]!);
+      if (!top || !existsSync(top) || !statSync(top).isDirectory()) continue;
+      const f = inside(root, p);
+      if (f && !existsSync(f)) errors.push(`Project/${name}.md: dead path ${p}`);
+    }
     for (const key of ["description", "tags", "updated", ...((name === "Index" || name === "Log") ? [] : ["sources"])])
       if (!field(key)) errors.push(`Project/${name}.md: missing ${key}`);
     if (name === "Index" || name === "Log") continue;
+    const size = Buffer.byteLength(body);
+    if (size > BUDGET) errors.push(`Project/${name}.md: over budget (${Math.round(size / 1024)} KB > 16 KB): split into a hub and sub-notes`);
+    const plain = plainWords(body);
+    if (plain === null) errors.push(`Project/${name}.md: In plain words missing`);
+    else if (plain.split(/\r?\n/).filter((l) => l.trim()).length > 8) errors.push(`Project/${name}.md: In plain words too long (over 8 lines)`);
+    else if ((plain.match(/`[^`\n]+`/g) ?? []).length > 2) errors.push(`Project/${name}.md: In plain words not plain (over 2 code spans)`);
     const date = field("updated");
     if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) errors.push(`Project/${name}.md: invalid updated date`);
     const raw = field("sources");

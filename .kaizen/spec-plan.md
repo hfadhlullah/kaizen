@@ -10,7 +10,9 @@ planner's and the plan approval's contract. The builder and reviewer do not read
 the run directory when present — links, paths, and background the user attached from
 the board, binding like the request itself — `memory.md`, `notes/Project/Index.md` in the state
 directory when present — the project's map, written by `/kaizen docs`; open only the
-notes it lists for areas the request touches — the output of
+notes it lists for areas the request touches. A note `kaizen docs lint` reports stale is
+a lead to check against the code, not a fact, and the Framing names any stale note it
+relied on — the output of
 `kaizen recall --track <track> --tags <stack tags> --query "<words from the request>"`
 — past experience from other projects, to verify against this one, never binding
 like project rules; the Framing ends with `Recalled: <n> lessons; used: <the lines it

@@ -319,13 +319,15 @@ if (Bun.argv[2] === "preflight") {
 if (Bun.argv[2] === "docs") {
   if (Bun.argv.length !== 4 || Bun.argv[3] !== "lint") { console.log("\n  kaizen docs lint\n"); process.exit(1); }
   const { locate } = await import("./state.ts");
-  const { lintDocs } = await import("./docs.ts");
+  const { lintDocs, docsCost } = await import("./docs.ts");
   const state = locate();
   const gitRoot = Bun.which("git") ? Bun.spawnSync(["git", "rev-parse", "--show-toplevel"], { cwd: process.cwd(), windowsHide: true }) : null;
   const repo = gitRoot?.exitCode === 0 ? gitRoot.stdout.toString().trim() : "";
   const root = repo && existsSync(join(repo, ".kaizen")) ? repo : state ? dirname(state) : null;
   const problems = root ? lintDocs(root) : ["no kaizen project found"];
   console.log(problems.length ? `\n${problems.map((p) => `  ${p}`).join("\n")}\n\n  ${problems.length} docs lint finding(s)\n` : "\n  docs lint: clean\n");
+  const cost = root && existsSync(join(root, ".kaizen", "notes", "Project", "Index.md")) ? docsCost(root) : null;
+  if (cost) console.log(`  cost: Index ~${cost.index} tokens every session${cost.largest.name ? `; largest note ${cost.largest.name} ~${cost.largest.tokens} tokens` : ""}\n`);
   process.exit(problems.length ? 1 : 0);
 }
 
