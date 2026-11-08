@@ -226,7 +226,7 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
     // pair as a paste and keeps the newline in its input instead of submitting.
     const form = document.createElement("form");
     form.className = "compose";
-    msg.placeholder = "Message the agent…";
+    msg.placeholder = "Paste text here...";
     msg.enterKeyHint = "send";
     msg.autocomplete = "off";
     msg.setAttribute("aria-label", "Message the agent");
@@ -266,32 +266,52 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
     const grid = document.createElement("div");
     grid.className = "termgrid";
     grid.hidden = true;
-    const extras: [string, string | (() => string)][] = [
-      ["⇧ Tab", "\x1b[Z"], ["?", "?"], ["/", "/"],
-      ["Esc", "\x1b"], ["Tab", "\t"],
-      ["^C", "\x03"], ["^D", "\x04"], ["^Z", "\x1a"],
-      ["↑", arrow("A")], ["↓", arrow("B")], ["←", arrow("D")], ["→", arrow("C")],
-      ["Home", "\x1b[H"], ["PgUp", "\x1b[5~"], ["PgDn", "\x1b[6~"], ["End", "\x1b[F"],
-      ..."= : ; ! * $ % ^ < > ( ) { } [ ] | ~ - @".split(" ").map((c): [string, string] => [c, c]),
-      ["Del", "\x1b[3~"], ["Ins", "\x1b[2~"], ["↵", "\r"],
-      ...Array.from({ length: 12 }, (_, i): [string, string] => [
-        `F${i + 1}`, i < 4 ? `\x1bO${"PQRS"[i]}` : `\x1b[${[15, 17, 18, 19, 20, 21, 23, 24][i - 4]}~`,
-      ]),
-    ];
-    for (const [label, value] of extras) grid.append(key(label, () => {
+    const press = (value: string | (() => string)) => {
       send({ t: "i", d: (mods.alt ? "\x1b" : "") + (typeof value === "function" ? value() : value) });
       mods.alt = false;
       bar?.querySelectorAll(".alt").forEach((b) => b.classList.remove("on"));
-    }));
-    grid.insertBefore(key("Image", () => picker.click()), grid.children[3]);
-    grid.insertBefore(key("Ctrl", () => { pad.hidden = !pad.hidden; }), grid.children[6]);
+    };
+    const group = (name: string) => {
+      const section = document.createElement("div");
+      section.className = "termkeygroup " + name;
+      grid.append(section);
+      return section;
+    };
+    const add = (parent: HTMLElement, label: string, value: string | (() => string), position?: string) => {
+      const b = key(label, () => press(value));
+      if (position) b.style.gridArea = position;
+      parent.append(b);
+      return b;
+    };
+    const primary = group("primary");
+    add(primary, "Esc", "\x1b", "1 / 1");
+    add(primary, "Tab", "\t", "1 / 2");
+    add(primary, "⇧ Tab", "\x1b[Z", "1 / 3");
+    primary.append(key("Ctrl", () => { pad.hidden = !pad.hidden; }));
+    add(primary, "^C", "\x03", "2 / 1");
+    add(primary, "^D", "\x04", "2 / 2");
+    add(primary, "^Z", "\x1a", "2 / 3");
     const alt = key("Alt", () => {
       mods.alt = !mods.alt;
       bar?.querySelectorAll(".alt").forEach((b) => b.classList.toggle("on", mods.alt));
     });
     alt.className = "alt";
-    grid.insertBefore(alt, grid.children[7]);
-    grid.append(key("Paste", () => { void paste(); }));
+    alt.style.gridArea = "2 / 4";
+    primary.append(alt);
+    add(primary, "↑", arrow("A"), "1 / 6");
+    add(primary, "←", arrow("D"), "2 / 5");
+    add(primary, "↓", arrow("B"), "2 / 6");
+    add(primary, "→", arrow("C"), "2 / 7");
+    const enter = add(primary, "↵", "\r", "1 / 8 / span 2 / 9");
+    enter.setAttribute("aria-label", "Enter");
+    enter.className = "enter";
+    const navigation = group("navigation");
+    for (const [label, value] of [["Home", "\x1b[H"], ["End", "\x1b[F"], ["PgUp", "\x1b[5~"], ["PgDn", "\x1b[6~"], ["Ins", "\x1b[2~"], ["Del", "\x1b[3~"]]) add(navigation, label, value);
+    navigation.append(key("Paste", () => { void paste(); }), key("Image", () => picker.click()));
+    const symbols = group("symbols");
+    for (const c of "? / = : ; ! * $ % ^ < > ( ) { } [ ] | ~ - @".split(" ")) add(symbols, c, c);
+    const functions = group("functions");
+    for (let i = 0; i < 12; i++) add(functions, `F${i + 1}`, i < 4 ? `\x1bO${"PQRS"[i]}` : `\x1b[${[15, 17, 18, 19, 20, 21, 23, 24][i - 4]}~`);
     const history = document.createElement("div");
     history.className = "termhistory";
     history.hidden = true;
@@ -306,9 +326,24 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
         return Array.isArray(value) ? value.filter((s): s is string => typeof s === "string").slice(0, 100) : [];
       } catch { return []; }
     };
+    let savedHistory: string[] = [];
+    let historyStatus = "";
+    const loadHistory = async () => {
+      historyStatus = "Loading shell history…";
+      drawHistory();
+      try {
+        const response = await fetch("/pty/history", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ key }) });
+        if (!response.ok) throw new Error("history unavailable");
+        const data = await response.json();
+        savedHistory = Array.isArray(data.history) ? data.history.filter((s: unknown): s is string => typeof s === "string") : [];
+        historyStatus = "";
+      } catch { historyStatus = "Could not load shell history. Reopen History to retry."; }
+      drawHistory();
+    };
     const drawHistory = () => {
       list.replaceChildren();
-      for (const text of readHistory().filter((s) => s.toLowerCase().includes(filter.value.toLowerCase()))) {
+      const entries = [...new Set([...readHistory(), ...savedHistory])];
+      for (const text of entries.filter((s) => s.toLowerCase().includes(filter.value.toLowerCase()))) {
         const use = document.createElement("button");
         use.type = "button";
         use.textContent = text;
@@ -316,7 +351,11 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
         use.onclick = () => { msg.value = text; showPanel(""); msg.focus(); };
         list.append(use);
       }
-      if (!list.childElementCount) list.textContent = "No messages in history.";
+      if (historyStatus) {
+        const status = document.createElement("p");
+        status.textContent = historyStatus;
+        list.append(status);
+      } else if (!list.childElementCount) list.textContent = filter.value ? "No matching commands." : "No saved shell commands or messages yet.";
     };
     filter.oninput = drawHistory;
     history.append(filter, list);
@@ -354,7 +393,7 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
         msg.blur();
         ta?.blur();
       }
-      if (next === "history") drawHistory();
+      if (next === "history") void loadHistory();
     };
     for (const [label, name, svg] of [["Keyboard", "keys", keyboardIcon], ["History", "history", historyIcon]]) {
       const b = key("", () => showPanel(name), false);

@@ -14,6 +14,7 @@ import {
 import { ACCOUNT_VAR, accountDir, addAccount, readAccounts, renameAccount, signedIn, removeAccount, resolveAccount, setDefaultAccount } from "./accounts.ts";
 import { readReport, signalOf } from "./report.ts";
 import { MAX_IMAGE, saveImage } from "./term-image.ts";
+import { shellHistory } from "./term-history.ts";
 import { bundledSkills, repairSkill, setSkill, skillsHeld, skillsOff, skillStatus } from "./skills.ts";
 import * as rea from "./rea.ts";
 import { accountEnv, accountForRun, agentUsable, CHILD_ENV, heartbeatMinutes, keepAwake, launchPreview, trustFolder, YOLO_FLAGS } from "./state.ts";
@@ -911,6 +912,16 @@ export async function web(repoDir: string, opts: Opts = {}) {
         if (!/^[\w-]+$/.test(key) || !ptyState(key)) return bad("no such terminal", 404);
         if (srv.upgrade(req, { data: { key, detach: null } })) return undefined as unknown as Response;
         return bad("websocket expected", 426);
+      }
+
+      if (req.method === "POST" && path === "/pty/history") {
+        const refused = strict(req);
+        if (refused) return refused;
+        let body: any;
+        try { body = await req.json(); } catch { return bad("json body expected"); }
+        const key = String(body.key ?? "");
+        if (!/^[\w-]+$/.test(key) || !ptyState(key)) return bad("no such terminal", 404);
+        return new Response(JSON.stringify({ history: await shellHistory() }), { headers: { "content-type": "application/json", "cache-control": "no-store" } });
       }
 
       // The Terminal page's ×: the agent is asked to /exit, and ended if it will not.
