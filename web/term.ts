@@ -180,12 +180,12 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
     // pointerdown + preventDefault: a tap must not move focus off the terminal, nor
     // close the soft keyboard while the message box is being typed in. The key itself
     // fires on click, which the browser drops when the touch becomes a swipe of the row.
-    const key = (label: string, fn: () => void) => {
+    const key = (label: string, fn: () => void, focus = true) => {
       const b = document.createElement("button");
       b.type = "button";
       b.textContent = label;
       b.addEventListener("pointerdown", (e) => e.preventDefault());
-      b.addEventListener("click", () => { fn(); if (document.activeElement !== msg) term.focus(); });
+      b.addEventListener("click", () => { fn(); if (focus && document.activeElement !== msg) term.focus(); });
       return b;
     };
     const chips = document.createElement("div");
@@ -242,11 +242,118 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
     form.append(msg, go);
     form.addEventListener("submit", (e) => {
       e.preventDefault();
-      if (msg.value) send({ t: "i", d: msg.value });
+      if (msg.value) {
+        const text = msg.value;
+        try { localStorage.setItem("kz-term-history", JSON.stringify([text, ...readHistory().filter((s) => s !== text)].slice(0, 100))); } catch { /* typing works without storage */ }
+        send({ t: "i", d: text });
+      }
       msg.value = "";
       setTimeout(() => send({ t: "i", d: "\r" }), 60);
     });
-    bar.append(pad, more, chips, form, picker);
+    // The rightmost composer toggle replaces the native keyboard with a compact
+    // accessory panel. History only loads the composer; it never executes a command.
+    const grid = document.createElement("div");
+    grid.className = "termgrid";
+    grid.hidden = true;
+    const extras: [string, string | (() => string)][] = [
+      ["⇧ Tab", "\x1b[Z"], ["?", "?"], ["/", "/"],
+      ["Esc", "\x1b"], ["Tab", "\t"],
+      ["^C", "\x03"], ["^D", "\x04"], ["^Z", "\x1a"],
+      ["↑", arrow("A")], ["↓", arrow("B")], ["←", arrow("D")], ["→", arrow("C")],
+      ["Home", "\x1b[H"], ["PgUp", "\x1b[5~"], ["PgDn", "\x1b[6~"], ["End", "\x1b[F"],
+      ..."= : ; ! * $ % ^ < > ( ) { } [ ] | ~ - @".split(" ").map((c): [string, string] => [c, c]),
+      ["Del", "\x1b[3~"], ["Ins", "\x1b[2~"], ["↵", "\r"],
+      ...Array.from({ length: 12 }, (_, i): [string, string] => [
+        `F${i + 1}`, i < 4 ? `\x1bO${"PQRS"[i]}` : `\x1b[${[15, 17, 18, 19, 20, 21, 23, 24][i - 4]}~`,
+      ]),
+    ];
+    for (const [label, value] of extras) grid.append(key(label, () => {
+      send({ t: "i", d: (mods.alt ? "\x1b" : "") + (typeof value === "function" ? value() : value) });
+      mods.alt = false;
+      bar?.querySelectorAll(".alt").forEach((b) => b.classList.remove("on"));
+    }));
+    grid.insertBefore(key("Image", () => picker.click()), grid.children[3]);
+    grid.insertBefore(key("Ctrl", () => { pad.hidden = !pad.hidden; }), grid.children[6]);
+    const alt = key("Alt", () => {
+      mods.alt = !mods.alt;
+      bar?.querySelectorAll(".alt").forEach((b) => b.classList.toggle("on", mods.alt));
+    });
+    alt.className = "alt";
+    grid.insertBefore(alt, grid.children[7]);
+    grid.append(key("Paste", () => { void paste(); }));
+    const history = document.createElement("div");
+    history.className = "termhistory";
+    history.hidden = true;
+    const filter = document.createElement("input");
+    filter.type = "search";
+    filter.placeholder = "Search history";
+    filter.setAttribute("aria-label", "Search terminal message history");
+    const list = document.createElement("div");
+    const readHistory = (): string[] => {
+      try {
+        const value = JSON.parse(localStorage.getItem("kz-term-history") ?? "[]");
+        return Array.isArray(value) ? value.filter((s): s is string => typeof s === "string").slice(0, 100) : [];
+      } catch { return []; }
+    };
+    const drawHistory = () => {
+      list.replaceChildren();
+      for (const text of readHistory().filter((s) => s.toLowerCase().includes(filter.value.toLowerCase()))) {
+        const use = document.createElement("button");
+        use.type = "button";
+        use.textContent = text;
+        use.title = "Load into message field";
+        use.onclick = () => { msg.value = text; showPanel(""); msg.focus(); };
+        list.append(use);
+      }
+      if (!list.childElementCount) list.textContent = "No messages in history.";
+    };
+    filter.oninput = drawHistory;
+    history.append(filter, list);
+    const dock = document.createElement("nav");
+    dock.className = "termdock";
+    dock.hidden = true;
+    dock.setAttribute("aria-label", "Terminal accessory panel");
+    const icon = (paths: string) => `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+    const keyboardIcon = icon('<rect x="3" y="4" width="7" height="7" rx="1"/><rect x="14" y="4" width="7" height="7" rx="1"/><rect x="3" y="15" width="7" height="7" rx="1"/><rect x="14" y="15" width="7" height="7" rx="1"/>');
+    const historyIcon = icon('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>');
+    const toggle = key("", () => showPanel(panel ? "" : "keys"), false);
+    toggle.className = "termtoggle";
+    toggle.innerHTML = keyboardIcon;
+    toggle.setAttribute("aria-label", "Show keyboard and history");
+    toggle.setAttribute("aria-expanded", "false");
+    form.append(toggle);
+    let panel = "";
+    const showPanel = (next: string) => {
+      panel = next;
+      grid.hidden = next !== "keys";
+      history.hidden = next !== "history";
+      dock.hidden = !next;
+      chips.hidden = !!next;
+      pad.hidden = more.hidden = true;
+      toggle.classList.toggle("on", !!next);
+      toggle.setAttribute("aria-expanded", String(!!next));
+      for (const b of dock.querySelectorAll<HTMLButtonElement>("[data-panel]")) {
+        const active = b.dataset.panel === next;
+        b.classList.toggle("on", active);
+        b.setAttribute("aria-pressed", String(active));
+      }
+      if (next) {
+        if (ta) ta.inputMode = "none";
+        msg.blur();
+        ta?.blur();
+      }
+      if (next === "history") drawHistory();
+    };
+    for (const [label, name, svg] of [["Keyboard", "keys", keyboardIcon], ["History", "history", historyIcon]]) {
+      const b = key("", () => showPanel(name), false);
+      b.innerHTML = svg;
+      b.dataset.panel = name;
+      b.setAttribute("aria-label", label);
+      b.title = label;
+      dock.append(b);
+    }
+    msg.addEventListener("focus", () => showPanel(""));
+    bar.append(form, pad, more, chips, grid, history, dock, picker);
     el.after(bar);
   }
   // xterm.js has no touch scrolling, so on a phone a swipe did nothing. Each line's

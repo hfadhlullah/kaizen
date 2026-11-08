@@ -2,7 +2,7 @@
 description: In-card agent terminals: the PTY, typing into agents, terminal page, font, theme, resources
 tags: [project, web-board]
 sources: [web/term-font.ts, cli/resources.ts, web/board/resources.ts, cli/state-snap.ts, cli/state.ts, cli/pty.ts, cli/conpty.ts, web/board, web/term.ts]
-updated: 2026-11-07
+updated: 2026-11-08
 ---
 # Terminals
 
@@ -34,3 +34,7 @@ The agent terminals inside the board: how typing reaches the agent, the terminal
 - The run panel's tab names live twice: `TABS` in `web/board.html` (label + doc key, order = button order) and `TABS` in `web/notes-lib.ts` (link names for `[[run:x#tab]]`, `work` meaning the `impl` doc). Change both together.
 
 - A card terminal's tty also receives what the page's xterm sends by itself (focus `ESC[I`/`ESC[O` — Claude Code enables `ESC[?1004h` — mouse reports, query answers). Anything judging "the user typed" for a board-owned session uses `ptyState().typed` (`REPORT` filter in `cli/pty.ts`), never tty atime. (2026-10-24-done-run-terminal-close)
+
+## Phone dock (2026-11-08)
+
+The coarse-pointer controls in `web/term.ts` use a compact composer with an accessory toggle at its far right. Opening it dismisses native input and replaces the quick-key row with an eight-column key grid; the panel footer has only Keyboard and History icon tabs. The grid includes Ctrl letter pad, sticky Alt, navigation, symbols, F1–F12, paste and image upload. History is the last 100 distinct messages submitted through the composer, newest first, stored per browser in `kz-term-history`; raw terminal keystrokes are not recorded. Selecting a history entry fills the composer without sending. Focusing the composer closes the accessory panel. Styling and safe-area spacing live in `web/board.html`.

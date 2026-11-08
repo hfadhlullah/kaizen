@@ -710,6 +710,26 @@ body.termv #terms{flex:1;min-height:0;display:flex;flex-direction:column;gap:0;p
 .tile.max{position:fixed;inset:8px;z-index:10;box-shadow:var(--shadow-1)}body.tmax .tsplit{display:none}
 body.tdrag{user-select:none}body.tdrag .tile{pointer-events:none}
 @media(max-width:900px){body.termv #terms{padding-inline:0}}
+/* Termius-sized phone accessories: composer toggle, eight columns, two panel tabs. */
+.termkeys{flex:none;padding-bottom:env(safe-area-inset-bottom);border-radius:16px 16px 0 0;overflow:hidden}
+.termkeys .compose{padding:8px 10px;gap:8px;align-items:center}
+.termkeys .compose input{height:34px;padding:0 12px;border-radius:10px}
+.termkeys .compose button{height:34px;width:34px;border-radius:10px;font-size:14px;flex:none}
+.termkeys .compose .termtoggle{display:grid;place-items:center;background:var(--hover);color:var(--ink-hi)}
+.termkeys .compose .termtoggle.on{background:var(--hover);color:var(--ink-hi)}
+.termkeys .chips{padding:0 10px 6px;gap:4px}
+.termkeys .chips button{height:32px;min-width:32px;padding:0 8px;border:0;border-radius:7px;background:transparent;font-size:12px}
+.termdock{display:flex;justify-content:center;gap:30px;padding:9px 12px;border-top:1px solid var(--line)}
+.termkeys .termdock button{display:grid;place-items:center;width:40px;min-width:40px;height:38px;padding:0;border:0;border-radius:10px;color:var(--dim)}
+.termkeys .termdock button.on{background:var(--hover);color:var(--ink-hi)}
+.termgrid{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:9px;padding:12px 10px;max-height:38dvh;overflow-y:auto;overscroll-behavior:contain}
+.termkeys .termgrid button{min-width:0;height:32px;padding:0 1px;border:0;border-radius:7px;background:var(--hover);font:11px var(--mono)}
+.termhistory{padding:12px;min-height:230px;max-height:38dvh;overflow-y:auto;overscroll-behavior:contain}
+.termhistory input{width:100%;height:34px;padding:0 12px;margin-bottom:12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink-hi);font:16px var(--font)}
+.termhistory>div{font:13px var(--font);color:var(--dim)}
+.termkeys .termhistory button{display:block;width:100%;height:44px;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:0;border-radius:8px;font:12px var(--mono);margin-bottom:6px}
+.termkeys button:focus-visible,.termkeys input:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.termkeys [hidden]{display:none!important}
 /* A phone has no room for a grid or a stack: one terminal fills the page, and tabs above pick which */
 .ttabs{display:none}
 @media(max-width:640px){body.termv #tmodes,.tile [data-a=max],.tsplit{display:none}.ttabs{display:flex;order:-1;flex:1 0 100%;min-width:0;gap:6px;overflow-x:auto;scrollbar-width:none}.ttabs button{flex:none;display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px;border:1px solid var(--line);border-radius:var(--r-pill);background:none;color:var(--dim);font:inherit;font-size:12px;white-space:nowrap}.ttabs button.on{color:var(--ink);background:var(--hover);border-color:var(--accent)}.tgrid{display:flex;flex-direction:column}.tile{flex:1}.tile.off{display:none}}
