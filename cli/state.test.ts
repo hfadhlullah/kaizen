@@ -467,8 +467,8 @@ console.log(JSON.stringify(out));`;
       missing: { name: "Claude Code", cmd: "claude", note: "Gemini CLI is not installed; opened Claude Code instead" },
       pick: ["codex", ["-m", "gpt-5.1"]],
       choices: { default: "claude", agents: [
-        { name: "Claude Code", cmd: "claude", model: "", models: true, yolo: true },
-        { name: "Codex", cmd: "codex", model: "o3", models: true, yolo: true },
+        { name: "Claude Code", cmd: "claude", model: "", models: true, yolo: true, bypassDefault: false },
+        { name: "Codex", cmd: "codex", model: "o3", models: true, yolo: true, bypassDefault: false },
       ] },
       // Yolo adds the tool's bypass flag only when asked for, and not to a fallback tool.
       ...(process.platform === "linux" ? { yolo: [[false, "codex", true], [false, "codex", false], [false, "claude", false]] } : {}),

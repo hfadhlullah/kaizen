@@ -109,6 +109,11 @@ it("handoff_model sonnet puts --model sonnet on the handoff agent's command; age
 it("every tool: agent.model on the own session, agent.handoff_model on the handoff agent, each in its own flag", () => {
   const s = scratch();
   try {
+    // Build command lines against installed stubs, independent of this machine's agents.
+    const bin = join(s.root, "bin");
+    mkdirSync(bin);
+    for (const tool of ["claude", "codex", "agy", "gemini", "opencode"]) writeFileSync(join(bin, tool), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+    s.env.PATH = bin + ":" + s.env.PATH;
     const own: Record<string, string> = { claude: "opus", codex: "gpt-5", agy: "gemini-3.1-pro", gemini: "gemini-2.5-pro", opencode: "anthropic/claude-opus" };
     const hand: Record<string, string> = { claude: "sonnet", codex: "gpt-5-mini", agy: "gemini-3.1-flash", gemini: "gemini-2.5-flash", opencode: "anthropic/claude-sonnet" };
     const block = (m: Record<string, string>) => Object.entries(m).map(([t, v]) => `    ${t}: ${v}\n`).join("");
