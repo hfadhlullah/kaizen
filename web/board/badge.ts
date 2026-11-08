@@ -5,11 +5,15 @@ export function waitingCount(cards: BadgeCard[]) {
 }
 
 // The rail's Projects list draws from the same cards: one fetch feeds both.
+export let allBoardCards: any[] | null = null;
+
 let onCards: ((cards: any[], projects?: any[], agents?: any[]) => void) | null = null;
 export const onBoardCards = (f: typeof onCards) => { onCards = f; };
 
 export function boardBadge(cards: BadgeCard[], projects?: unknown[], agents?: unknown[]) {
   generation++;
+  allBoardCards = cards;
+  if (typeof window !== "undefined") dispatchEvent(new Event("kz-all-cards"));
   onCards?.(cards, projects, agents);
 }
 

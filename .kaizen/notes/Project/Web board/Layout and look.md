@@ -2,7 +2,7 @@
 description: Side menu, sizes, colour, theme, motion and the phone layout of the board
 tags: [project, web-board]
 sources: [web/board/run-view.ts, web/board/badge.ts, web/board/workspace.ts, web/board/phone.ts, cli/usage.ts, web/board, web/video.html, web/popup.html]
-updated: 2026-11-07
+updated: 2026-11-08
 ---
 # Layout and look
 
@@ -55,3 +55,7 @@ The visible menu is Search, Home, Icebox, Tasks and Board, then the Projects lis
 - A `disabled` checkbox ignores `accent-color` and draws grey in both themes. A read-only tick that must keep the accent uses `tabindex="-1" onclick="return false"` instead (backlog items in `md()`), and needs `aria-disabled` said separately.
 
 - README/guide board screenshot URL is pinned to a commit SHA (raw.githubusercontent.com/.../<sha>/assets/board.png) because the `main/` URL kept serving cached old images or a cached 404 after renames. Refreshing the screenshot means: commit the png, then repoint both README.md and docs/guide.md at that commit.
+
+## Phone navigation (2026-11-08)
+
+Phone bottom navigation now orders Runs, Search, Home, Chat, Terminal. Shared rail markup/CSS stay identical in board, notes and video. On the board, a visible terminal in the workspace or Terminal page hides the phone rail; the header Menu button reveals it without unmounting sessions. Navigation to another view resets that reveal. Desktop rail is unchanged.

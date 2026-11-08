@@ -28,6 +28,8 @@ export const markView = (v) => {
 };
 export function go(v, push) {
   store.pageGen++;
+  document.body.classList.remove("phone-menu-open");
+  $("phone-menu")?.setAttribute("aria-expanded", "false");
   if (v === "icebox") v = "sources";
   // A workspace address shows in the run view, which resolves it to a card.
   if (v === "ws") v = "run";
@@ -93,6 +95,11 @@ export function go(v, push) {
 }
 
 export function initViews() {
+  $("phone-menu").onclick = () => {
+    const on = document.body.classList.toggle("phone-menu-open");
+    $("phone-menu").setAttribute("aria-expanded", String(on));
+    $("phone-menu").setAttribute("aria-label", on ? "Hide navigation menu" : "Show navigation menu");
+  };
   initTasks(go);
   initRunView();
   initPhone(go, openWorkspace);

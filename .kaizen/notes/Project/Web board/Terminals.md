@@ -38,3 +38,7 @@ The agent terminals inside the board: how typing reaches the agent, the terminal
 ## Phone dock (2026-11-08)
 
 The coarse-pointer controls in `web/term.ts` use a compact composer with an accessory toggle at its far right. Opening it dismisses native input and replaces the quick-key row with an eight-column key grid; the panel footer has only Keyboard and History icon tabs. The grid includes Ctrl letter pad, sticky Alt, navigation, symbols, F1–F12, paste and image upload. History is the last 100 distinct messages submitted through the composer, newest first, stored per browser in `kz-term-history`; raw terminal keystrokes are not recorded. Selecting a history entry fills the composer without sending. Focusing the composer closes the accessory panel. Styling and safe-area spacing live in `web/board.html`.
+
+## Phone navigation (2026-11-08)
+
+The phone Terminal menu opens the terminal page across every project, independent of the project picker. `badge.ts` exposes the shared all-project cards and dispatches `kz-all-cards`; `terms.ts` uses that snapshot, including each `pty.all` session, plus the existing global shell list. Existing mounts survive refreshes.

@@ -1,3 +1,5 @@
+import { terminalSessions } from "./term-sessions.ts";
+import { allBoardCards, refreshBoardBadge } from "./badge.ts";
 import { store } from "./store.ts";
 import { $, html, ico } from "./dom.ts";
 import { load, post } from "./api.ts";
@@ -44,11 +46,7 @@ const tst = (c) => (!c.pty.alive ? "ended" : c.pty.asking ? "asking" : "running"
 const projOf = (c) => String(c.where || "").split(/[\\/]/).filter(Boolean).pop() || c.where || "";
 // One card per session; the newest card wins a shared key.
 function sessions() {
-  const m = new Map();
-  for (const c of store.S.cards) if (c.pty && !c.archived) m.set(c.pty.key, c);
-  // Shells and bare agent sessions a run workspace opened (POST /shell): a tile each too.
-  for (const s of store.shells) m.set(s.key, { kind: "shell", text: s.title, where: s.dir.replace(/[\\/]\.kaizen$/, ""), state: s.dir, pty: { key: s.key, alive: true, asking: false } });
-  return m;
+  return terminalSessions(allBoardCards ?? store.S.cards, store.shells);
 }
 
 // The side menu's Terminal entry counts the tiles hidden here (the Hidden bar's chips), on every page.
@@ -75,7 +73,10 @@ const focusTerm = (k: string) => tiles.get(k)?.el.querySelector<HTMLElement>(".x
 // Ctrl+Shift+M maximises or restores the tile being typed in. Escape belongs to the agent,
 // so the key is read in capture, before xterm sends it on.
 // The footer's /shells read changed the shell list.
-if (typeof window !== "undefined") addEventListener("kz-shells", () => showing && openTerms());
+if (typeof window !== "undefined") {
+  addEventListener("kz-shells", () => showing && openTerms());
+  addEventListener("kz-all-cards", () => showing && openTerms());
+}
 if (typeof window !== "undefined") addEventListener(
   "keydown",
   (e) => {
@@ -114,6 +115,7 @@ if (typeof window !== "undefined") addEventListener(
 );
 
 export function openTerms() {
+  if (!showing) void refreshBoardBadge();
   showing = true;
   if (!phone) (phone = matchMedia("(max-width:640px)")).onchange = () => showing && openTerms();
   // A /state tick mid-drag would rebuild the handle being dragged.

@@ -145,7 +145,7 @@ body .rail a.upd::after{left:calc(50% + 6px);top:4px}body .toast{left:16px;botto
 @media(max-width:640px){
 .rail a.it:is([data-view=board],[data-view=tasks],[data-view=sources]),#foot,#ctx-open,body .rail .rbot .rib{display:none!important}
 .rail a.it.ponly{display:flex}
-.rail a.it[data-view=home]{order:1}.rail a.it[data-view=chat]{order:2}.rail a.it[data-view=device]{order:3}.rail a.it[data-view=settings]{display:none}
+.rail a.it[data-view=device]{order:1}.rail a.it.gs-it{order:2}.rail a.it[data-view=home]{order:3}.rail a.it[data-view=chat]{order:4}.rail a.it[data-view=terminal]{order:5}.rail a.it[data-view=settings]{display:none}
 .rail,[data-rail=min] .rail{padding:8px 8px max(2px,calc(env(safe-area-inset-bottom) - 8px));border-top:1px solid color-mix(in srgb,var(--line) 70%,transparent)}
 .rail a.it,[data-rail=min] .rail a.it{min-height:46px;gap:3px;font-size:10.5px;letter-spacing:.01em}
 .rail a.it svg{width:44px;height:26px;padding:4px 12px;box-sizing:border-box;border-radius:13px;transition:background .15s}
@@ -730,6 +730,12 @@ body.tdrag{user-select:none}body.tdrag .tile{pointer-events:none}
 .termkeys .termhistory button{display:block;width:100%;height:44px;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:0;border-radius:8px;font:12px var(--mono);margin-bottom:6px}
 .termkeys button:focus-visible,.termkeys input:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
 .termkeys [hidden]{display:none!important}
+/* A visible terminal owns the phone screen; the header keeps navigation reachable. */
+#phone-menu{display:none}
+@media(max-width:640px){
+html body:is(.runv:has(#rpanes .rpane:not([hidden]) .term),.termv:has(.tile:not(.off) .term)) .hdr>#phone-menu{display:flex!important}
+body:is(.runv:has(#rpanes .rpane:not([hidden]) .term),.termv:has(.tile:not(.off) .term)):not(.phone-menu-open) .rail{display:none}
+}
 /* A phone has no room for a grid or a stack: one terminal fills the page, and tabs above pick which */
 .ttabs{display:none}
 @media(max-width:640px){body.termv #tmodes,.tile [data-a=max],.tsplit{display:none}.ttabs{display:flex;order:-1;flex:1 0 100%;min-width:0;gap:6px;overflow-x:auto;scrollbar-width:none}.ttabs button{flex:none;display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px;border:1px solid var(--line);border-radius:var(--r-pill);background:none;color:var(--dim);font:inherit;font-size:12px;white-space:nowrap}.ttabs button.on{color:var(--ink);background:var(--hover);border-color:var(--accent)}.tgrid{display:flex;flex-direction:column}.tile{flex:1}.tile.off{display:none}}
@@ -1172,11 +1178,13 @@ html body.wsb:not(.paged) #board{grid-template-columns:repeat(4,minmax(200px,1fr
   <symbol id="r-desk" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></symbol>
   <symbol id="r-chat" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></symbol>
   <symbol id="r-runs" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1.2"/><circle cx="4.5" cy="12" r="1.2"/><circle cx="4.5" cy="18" r="1.2"/></symbol>
+  <symbol id="r-term" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3M13 15h4"/></symbol>
   </defs></svg>
   <a class="it gs-it" href="#" id="gsearch" title="Search everything"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span class="lbl">Search</span></a>
   <a class="it" href="/" data-view="home" title="Home: chat with the project's agent"><svg><use href="#i-home"/></svg><span class="lbl">Home</span></a>
   <a class="it ponly" href="/?view=chat" data-view="chat" title="Chat with kaizen's agent"><svg><use href="#r-chat"/></svg><span class="lbl">Chat</span></a>
   <a class="it ponly" href="/?view=device" data-view="device" title="This computer's runs"><svg><use href="#r-runs"/></svg><span class="lbl">Runs</span></a>
+  <a class="it ponly" href="/?view=terminal" data-view="terminal" title="Open terminals across all projects"><svg><use href="#r-term"/></svg><span class="lbl">Terminal</span></a>
   <a class="it fold" href="/?view=icebox" data-view="sources" title="Icebox: requests gathered from your sources"><svg><use href="#r-tray"/></svg><span class="lbl">Icebox</span><span class="srcs" id="rail-srcs"></span><span class="n" id="ice-n"></span></a>
   <a class="it" href="/?view=tasks" data-view="tasks" title="Tasks: every task and run, filtered"><svg><use href="#r-bulb"/></svg><span class="lbl">Tasks</span></a>
   <a class="it" href="/?setup=1" id="rsetup" hidden title="Continue setup"><span class="ring"></span><span class="lbl">Setup</span></a>
@@ -1215,6 +1223,7 @@ html body.wsb:not(.paged) #board{grid-template-columns:repeat(4,minmax(200px,1fr
 </script>
 <div class="app">
 <div class="hdr">
+<button type="button" class="ib" id="phone-menu" aria-label="Show navigation menu" aria-expanded="false" title="Show navigation menu"><svg><use href="#i-more"/></svg></button>
   <button class="ib" id="hsidetop" aria-label="Chats" title="Chats"><svg><use href="#i-side"/></svg></button>
   <h1>Board</h1>
   <div class="combo" id="combo"><button class="sel" id="proj" aria-label="project" aria-haspopup="listbox" aria-expanded="false"></button><div class="menu-pop" id="projpop" hidden><input class="sel" id="projq" aria-label="Search projects" placeholder="Search projects…" spellcheck="false" autocomplete="off"><div id="projs" role="listbox"></div></div></div>
