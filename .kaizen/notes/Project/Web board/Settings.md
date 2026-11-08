@@ -2,7 +2,7 @@
 description: The Settings page: agents, models, skills, REA, desktop control, accounts, voice
 tags: [project, web-board]
 sources: [cli/rea.ts, cli/computer.ts, cli/computer-helper.py, web/board/settings-voice.ts, cli/accounts.ts, cli/skills.ts, web/board/settings-skills.ts, cli/agent-prefs.ts, cli/keep-awake.ts, web/board/settings-agents.ts, cli/state.ts, web/board, cli/settings.ts]
-updated: 2026-11-07
+updated: 2026-11-08
 ---
 # Settings
 
@@ -40,3 +40,7 @@ The Settings page: choosing agents and models, turning skills on and off or repa
 - Since 2026-10-14-board-sidebar, Settings and Sources are the run panel docked as a page (`go(view)` in `web/board.html`, `body.paged`, `aside.docked`, `?view=`): `close()` is a no-op while `view!=="board"` and `open()` returns to the board first. Any new way of opening a card must go through `open()`, or the run renders inside the Settings page. The side menu block (CSS, markup, inline script with the global `setTheme`) is held equal on `board.html` and `notes.html` by a test: edit both.
 
 - A regex that skips a block with `(?:[ \t]+.*\n)*?` backtracks for seconds on a long commented config when the key is absent (`agentConfig`); write it `(?:[ \t][^\n]*\n)*?`. `agentChoices` runs it once per installed agent, so on a slow pattern every `/onboarding` read stalled the whole board.
+
+## Agent launch and phone keyboard (2026-11-08)
+
+New agent launches expose a per-launch Yolo / bypass permissions switch on phones and in the workspace +/split flows (`new-agent.ts`). Initial state follows the saved default, and explicit false overrides a global bypass setting for that launch. Unsupported agents and account sign-in never receive bypass flags. Settings defaults are unchanged.

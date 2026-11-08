@@ -83,17 +83,17 @@ async function newSheet(dir?: string, ws?: string) {
   const on = spots.find((x) => x.dir === (dir ?? first?.dir) && x.ws === (ws ?? first?.ws)) ?? spots[0];
   if (!on) return toast("Add a project on a computer first");
   const list = await fetch("/agents?dir=" + encodeURIComponent(on.dir)).then((r) => r.json(), () => null);
-  const kinds: { cmd: string; name: string }[] = [...(list?.agents ?? []), { cmd: "", name: "Shell" }];
+  const kinds: { cmd: string; name: string; yolo?: boolean; bypassDefault?: boolean }[] = [...(list?.agents ?? []), { cmd: "", name: "Shell" }];
   const d = document.createElement("dialog");
   d.className = "pagsheet";
-  d.innerHTML = String(html`<h4>New in</h4><select aria-label="Workspace">${spots.map((x, i) => html`<option value="${String(i)}"${raw(x === on ? " selected" : "")}>${projName(x.dir)} ${x.name}</option>`)}</select>${kinds.map((k, i) => html`<button type="button" data-i="${String(i)}">${k.cmd ? agentIco({ agent: k.cmd } as Agent) : raw(`<svg class="pag-ico" aria-hidden="true"><use href="#i-term"/></svg>`)}${k.name}</button>`)}`);
+  d.innerHTML = String(html`<h4>New in</h4><select aria-label="Workspace">${spots.map((x, i) => html`<option value="${String(i)}"${raw(x === on ? " selected" : "")}>${projName(x.dir)} ${x.name}</option>`)}</select><label class="agent-yolo"><span>Yolo / bypass permissions<small>Run commands without permission prompts</small></span><input type="checkbox" role="switch" aria-label="Yolo / bypass permissions"${raw(list?.agents?.find((a) => a.cmd === list.default)?.bypassDefault ? " checked" : "")}></label>${kinds.map((k, i) => html`<button type="button" data-i="${String(i)}">${k.cmd ? agentIco({ agent: k.cmd } as Agent) : raw(`<svg class="pag-ico" aria-hidden="true"><use href="#i-term"/></svg>`)}${k.name}</button>`)}`);
   d.addEventListener("click", async (e) => {
     const b = (e.target as HTMLElement).closest<HTMLButtonElement>("button");
     if (e.target === d) return d.close();
     if (!b) return;
     const at = spots[Number(d.querySelector("select")!.value)], cmd = kinds[Number(b.dataset.i)].cmd;
     d.close();
-    const r = await fetch("/shell", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ dir: at.dir, ws: at.ws, run: wsKey(at.dir, at.ws), ...(cmd ? { agent: cmd } : {}) }) }).catch(() => null);
+    const r = await fetch("/shell", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ dir: at.dir, ws: at.ws, run: wsKey(at.dir, at.ws), ...(cmd ? { agent: cmd, yolo: !!kinds[Number(b.dataset.i)].yolo && d.querySelector<HTMLInputElement>('input[type="checkbox"]')!.checked } : {}) }) }).catch(() => null);
     const sh = r?.ok ? await r.json() : null;
     if (sh) openTerm({ dir: at.dir, ws: at.ws, key: sh.key } as Agent);
     else toast("No new terminal: " + ((await r?.json().catch(() => null))?.error || "kaizen did not answer"));

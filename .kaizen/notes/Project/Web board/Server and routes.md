@@ -2,7 +2,7 @@
 description: The board server: routes, host guard, updates, automations and other server-side behaviour
 tags: [project, web-board]
 sources: [cli/desktop-env.test.ts, cli/automations.ts, web/board/settings-automations.ts, web/board/settings-orchestration.ts, cli/project-tree.test.ts, cli/logo.ts, cli/state.ts, cli/restart.test.ts, cli/hermes.ts, web/board, cli/install.ts, cli/settings.ts, web/term.css, docs/mockups]
-updated: 2026-11-07
+updated: 2026-11-08
 ---
 # Server and routes
 
@@ -56,3 +56,7 @@ The program behind the board: what it serves, which computers may reach it, how 
 WhatsApp MP4s over 64 MiB use Hermes' `[[as_document]]` directive, preserving the MP4 bytes and filename; smaller MP4s remain inline videos. `cli/hermes.ts` rejects files over WhatsApp's 2 GB document limit before spawning Hermes. The route's existing output-file and listed-chat checks still apply.
 
 - The Notes project picker shows folder names like the board, full path as the tooltip (`web/notebook.ts`).
+
+## Agent launch and phone keyboard (2026-11-08)
+
+`POST /shell` accepts optional boolean `yolo` for a new agent. `bypassForLaunch` in `cli/agent-prefs.ts` resolves the explicit launch choice ahead of preferences and gates it by supported flags. Omitted values preserve saved defaults; account sign-in remains plain. `/agents` includes `bypassDefault` alongside `yolo` capability.

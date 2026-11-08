@@ -42,3 +42,7 @@ The coarse-pointer controls in `web/term.ts` use a compact composer with an acce
 ## Phone navigation (2026-11-08)
 
 The phone Terminal menu opens the terminal page across every project, independent of the project picker. `badge.ts` exposes the shared all-project cards and dispatches `kz-all-cards`; `terms.ts` uses that snapshot, including each `pty.all` session, plus the existing global shell list. Existing mounts survive refreshes.
+
+## Agent launch and phone keyboard (2026-11-08)
+
+The composer now has an icon-only Raw keyboard button where Send was; the phone Enter key submits composer text. Raw input focuses xterm directly. `web/board/terminal-viewport.ts` fits the phone app to `visualViewport.height` while the terminal or composer is focused and the keyboard reduces the visible area; it ignores pinch zoom and cleans up listeners when the last terminal unmounts. Actual iOS keyboard behavior still needs device verification.

@@ -710,11 +710,16 @@ body.termv #terms{flex:1;min-height:0;display:flex;flex-direction:column;gap:0;p
 .tile.max{position:fixed;inset:8px;z-index:10;box-shadow:var(--shadow-1)}body.tmax .tsplit{display:none}
 body.tdrag{user-select:none}body.tdrag .tile{pointer-events:none}
 @media(max-width:900px){body.termv #terms{padding-inline:0}}
+.agent-yolo{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 8px;border-block:1px solid var(--line);margin:8px 0;font-size:14px}.agent-yolo small{display:block;font-size:12px;color:var(--dim);margin-top:3px}.agent-yolo input{appearance:none;position:relative;flex:none;width:44px;height:26px;border:0;border-radius:13px;background:color-mix(in srgb,var(--dim) 40%,transparent);cursor:pointer}.agent-yolo input::after{content:"";position:absolute;left:2px;top:2px;width:22px;height:22px;border-radius:50%;background:#fff;transition:transform .12s}.agent-yolo input:checked{background:var(--accent)}.agent-yolo input:checked::after{transform:translateX(18px)}.agent-yolo input:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+@media(min-width:641px){dialog.agent-create{inset:0;margin:auto;width:min(420px,calc(100vw - 32px));height:fit-content;border:1px solid var(--line);border-radius:16px;padding:20px}}
+@media(max-width:640px){html body.term-keyboard{height:var(--term-viewport-height)!important;max-height:var(--term-viewport-height)!important;min-height:0!important;padding-bottom:0}.term-keyboard .termkeys{padding-bottom:0}}
 /* Termius-sized phone accessories: composer toggle, eight columns, two panel tabs. */
 .termkeys{flex:none;padding-bottom:env(safe-area-inset-bottom);border-radius:16px 16px 0 0;overflow:hidden}
 .termkeys .compose{padding:8px 10px;gap:8px;align-items:center}
 .termkeys .compose input{height:34px;padding:0 12px;border-radius:10px}
 .termkeys .compose button{height:34px;width:34px;border-radius:10px;font-size:14px;flex:none}
+.termkeys .compose .rawkeyboard{display:grid;place-items:center;background:var(--hover);color:var(--ink-hi)}
+.termkeys .compose .rawkeyboard[aria-pressed=true]{background:var(--accent);color:var(--on-accent)}
 .termkeys .compose .termtoggle{display:grid;place-items:center;background:var(--hover);color:var(--ink-hi)}
 .termkeys .compose .termtoggle.on{background:var(--hover);color:var(--ink-hi)}
 .termkeys .chips{padding:0 10px 6px;gap:4px}

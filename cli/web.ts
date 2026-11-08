@@ -1,6 +1,6 @@
 // `kaizen web`: the board in a browser. A loopback HTTP server over state.ts and
 // one HTML page; the page never sees the filesystem, only JSON.
-import { agentEnabled, argsOf, commandOf, prefersBypass, publicPref, readPrefs, savePrefs, withEnv } from "./agent-prefs.ts";
+import { bypassForLaunch, agentEnabled, argsOf, commandOf, prefersBypass, publicPref, readPrefs, savePrefs, withEnv } from "./agent-prefs.ts";
 import { awakeHolder, wantAwake } from "./keep-awake.ts";
 import { existsSync, readdirSync, readlinkSync, statSync, lstatSync, realpathSync, readFileSync, watch, appendFileSync, mkdirSync, cpSync, rmSync, writeFileSync, type FSWatcher } from "node:fs";
 import { join, dirname, resolve, sep, basename } from "node:path";
@@ -1000,7 +1000,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           const signIn = typeof body.account === "string" && body.account !== "";
           const acct = resolveAccount(a.cmd, signIn ? body.account : undefined);
           if (acct.error) return bad(acct.error, 400);
-          bypass = !signIn && prefersBypass(a.cmd) && !!YOLO_FLAGS[a.cmd];
+          bypass = !signIn && bypassForLaunch(a.cmd, body.yolo, !!YOLO_FLAGS[a.cmd]);
           const line = signIn ? [commandOf(a.cmd), ...(a.cmd === "codex" ? ["login"] : [])] : withEnv([commandOf(a.cmd), ...(bypass ? YOLO_FLAGS[a.cmd]! : []), ...argsOf(a.cmd)], a.cmd);
           cmd = acct.dir ? ["env", ...accountEnv(acct), ...line] : line;
         } else cmd = process.platform === "win32" ? [powershellExe()] : [process.env.SHELL || "sh", "-l"];

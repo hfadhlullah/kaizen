@@ -2,7 +2,7 @@
 description: The run workspace: tabs, Browser and Preview, annotator, split panes, restart resume, agent reports
 tags: [project, web-board]
 sources: [cli/annotate.ts, cli/annotate-proxy.ts, web/annotate.js, web/board/annotate.ts, web/board/annotate-lib.ts, cli/report.ts, web/board/run-view.ts, web/board/badge.ts, web/board/ws-tabs.ts, cli/pty.ts, web/board]
-updated: 2026-11-07
+updated: 2026-11-08
 ---
 # Run workspace
 
@@ -33,3 +33,7 @@ The page a run opens into: its plan, review and backlog tabs, the browser and pr
 - On a building run the Backlog tab draws progress.md (`showProgress` in web/board.html) above the backlog, so anything that finds backlog rows by DOM order or text in `#pbody` must skip `.prog`.
 
 - The board's plan-approval answer form is driven by `planQuestions()` in `web/board.html`, which reads the Open questions shape pinned in `spec-plan.md` item 9 (`Q:` line, `- label (recommended) — why` options). Changing that shape in the spec, or the heading name, silently drops the board back to a plain Approve that sends no answers.
+
+## Agent launch and phone keyboard (2026-11-08)
+
+Creating a workspace agent (including split menus) now opens the per-launch Yolo permission switch before starting it. Cancel starts no terminal; if the workspace changes while the dialog is open, the pending launch is discarded.

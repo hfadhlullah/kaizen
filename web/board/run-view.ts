@@ -8,6 +8,7 @@
 // kzTerm mounts on /pty that live as long as their tab, so a tab switch or a /state tick never
 // reconnects them. Split right or down shows a second tab beside the first, sized with the
 // Terminal page's handles.
+import { chooseAgentPermissions } from "./new-agent.ts";
 import { pick } from "./projects.ts";
 import { store } from "./store.ts";
 import { toast } from "./toast.ts";
@@ -56,7 +57,7 @@ let card: any = null;
 let shells: any[] = [];
 let noPty = false;
 // Every agent installed for this project (from /agents), each offered as a bare session.
-let agents: { name: string; cmd: string }[] = [];
+let agents: { name: string; cmd: string; yolo?: boolean; bypassDefault?: boolean }[] = [];
 let defAgent = "";
 // The agents with their own mark in the sprite; the rest show the generic one.
 const MARKS = ["claude", "codex", "gemini"];
@@ -667,7 +668,10 @@ async function openAgent(c, again = false, focus = true) {
 }
 
 async function newPty(agent?: string) {
-  const r = await fetch("/shell", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ dir: ctx!.dir, ws: ctx!.ws, run: ctx!.k, ...(agent ? { agent } : {}) }) });
+  const target = ctx;
+  const choice = agent ? await chooseAgentPermissions(agents.find((a) => a.cmd === agent) ?? { cmd: agent, name: agent }) : undefined;
+  if (choice === null || ctx !== target) return;
+  const r = await fetch("/shell", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ dir: ctx!.dir, ws: ctx!.ws, run: ctx!.k, ...(agent ? { agent, yolo: choice } : {}) }) });
   if (r.status === 501) {
     noPty = true;
     return draw();

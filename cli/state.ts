@@ -168,7 +168,7 @@ export function agentChoices(projectDir: string) {
   return {
     default: detectDefaultAgent(projectDir).cmd,
     agents: KNOWN_AGENTS.filter((a) => agentUsable(a.cmd)).map((a) => ({
-      ...accountChoices(a.cmd), name: a.name, cmd: a.cmd, model: agentConfig(projectDir, a.cmd).model ?? "", models: !!MODEL_FLAGS[a.cmd], yolo: !!YOLO_FLAGS[a.cmd],
+      ...accountChoices(a.cmd), name: a.name, cmd: a.cmd, model: agentConfig(projectDir, a.cmd).model ?? "", models: !!MODEL_FLAGS[a.cmd], yolo: !!YOLO_FLAGS[a.cmd], bypassDefault: prefersBypass(a.cmd) && !!YOLO_FLAGS[a.cmd],
     })),
   };
 }

@@ -1,6 +1,7 @@
 // The in-card terminal: xterm.js on the board's /pty WebSocket. Bundled into
 // web/term.js by `bun run build:web`; the board loads it (`termLoad` in web/board/agent-term.ts) the first time a card's
 // Terminal tab opens and calls window.kzTerm(el, key).
+import { trackTerminalViewport } from "./board/terminal-viewport.ts";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
@@ -144,6 +145,7 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
     send({ t: "i", d });
   });
   let bar: HTMLElement | null = null;
+  let stopViewport = () => {};
   if (matchMedia("(pointer: coarse)").matches) {
     const arrow = (c: string) => () => `\x1b${term.modes.applicationCursorKeysMode ? "O" : "["}${c}`;
     // A terminal carries no pictures: an image is saved on the board's computer and its path
@@ -209,14 +211,7 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
     const more = document.createElement("div");
     more.className = "tmore";
     more.hidden = true;
-    const raw = key("Raw keyboard", () => {
-      more.hidden = true;
-      if (!ta) return;
-      const on = raw.classList.toggle("on");
-      ta.inputMode = on ? "text" : "none";
-      ta.blur(); // inputmode is read on focus; the key's term.focus() reopens it
-    });
-    more.append(key("Search", () => { more.hidden = true; openSearch(); }), key("Paste", () => { more.hidden = true; void paste(); }), key("Pick image", () => { more.hidden = true; picker.click(); }), raw);
+    more.append(key("Search", () => { more.hidden = true; openSearch(); }), key("Paste", () => { more.hidden = true; void paste(); }), key("Pick image", () => { more.hidden = true; picker.click(); }));
     for (const [label, v] of keys) {
       const b = key(label, () => {
         if (v === "alt") b.classList.toggle("on", (mods.alt = !mods.alt));
@@ -235,11 +230,27 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
     msg.enterKeyHint = "send";
     msg.autocomplete = "off";
     msg.setAttribute("aria-label", "Message the agent");
-    const go = document.createElement("button");
-    go.textContent = "➤";
-    go.setAttribute("aria-label", "Send");
-    go.addEventListener("pointerdown", (e) => e.preventDefault()); // keep the keyboard up
-    form.append(msg, go);
+    const rawKeyboard = document.createElement("button");
+    rawKeyboard.type = "button";
+    rawKeyboard.className = "rawkeyboard";
+    rawKeyboard.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><rect x="2" y="5" width="20" height="13" rx="2"/><path d="M6 9h.01M10 9h.01M14 9h.01M18 9h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M7 15h10"/></svg>';
+    rawKeyboard.setAttribute("aria-label", "Type directly in terminal");
+    rawKeyboard.title = "Raw keyboard";
+    rawKeyboard.setAttribute("aria-pressed", "false");
+    rawKeyboard.onclick = () => {
+      showPanel("");
+      if (!ta) return;
+      const on = ta.inputMode !== "text";
+      ta.inputMode = on ? "text" : "none";
+      ta.blur();
+      rawKeyboard.setAttribute("aria-pressed", String(on));
+      if (on) term.focus();
+    };
+    rawKeyboard.addEventListener("pointerdown", (e) => e.preventDefault()); // keep the keyboard up
+    form.append(msg, rawKeyboard);
+    msg.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); form.requestSubmit(); }
+    });
     form.addEventListener("submit", (e) => {
       e.preventDefault();
       if (msg.value) {
@@ -339,6 +350,7 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
       }
       if (next) {
         if (ta) ta.inputMode = "none";
+        rawKeyboard.setAttribute("aria-pressed", "false");
         msg.blur();
         ta?.blur();
       }
@@ -352,9 +364,14 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
       b.title = label;
       dock.append(b);
     }
-    msg.addEventListener("focus", () => showPanel(""));
+    msg.addEventListener("focus", () => {
+      showPanel("");
+      if (ta) ta.inputMode = "none";
+      rawKeyboard.setAttribute("aria-pressed", "false");
+    });
     bar.append(form, pad, more, chips, grid, history, dock, picker);
     el.after(bar);
+    stopViewport = trackTerminalViewport();
   }
   // xterm.js has no touch scrolling, so on a phone a swipe did nothing. Each line's
   // worth of swipe scrolls the buffer, or — when the agent tracks the mouse, as a
@@ -476,6 +493,7 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
     el.removeEventListener("touchstart", touchStart);
     el.removeEventListener("touchmove", touchMove);
     typed.dispose();
+    stopViewport();
     bar?.remove();
     tools.remove();
     clearTimeout(retry);

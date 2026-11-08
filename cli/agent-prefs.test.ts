@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { agentEnabled, argsOf, commandOf, prefersBypass, publicPref, readPrefs, savePrefs, withEnv } from "./agent-prefs.ts";
+import { bypassForLaunch, agentEnabled, argsOf, commandOf, prefersBypass, publicPref, readPrefs, savePrefs, withEnv } from "./agent-prefs.ts";
 import { awakeHolder, inhibitArgv, wantAwake } from "./keep-awake.ts";
 import { agentChoices, detectDefaultAgent, launchPreview, launchRun, keepAwake } from "./state.ts";
 
@@ -124,4 +124,15 @@ test("a blank value keeps a saved one; bypass flags are refused as arguments", (
   for (const args of ["--dangerously-skip-permissions", "--yolo", "-y", "--auto"]) expect("error" in savePrefs({ agent: "claude", args }, known, file)).toBe(true);
   writeFileSync(file, JSON.stringify({ agents: { claude: { args: ["--yolo", "--ok"] } } }));
   expect(argsOf("claude", readPrefs(file))).toEqual(["--ok"]);
+});
+
+test("per-launch bypass overrides saved defaults, and unsupported agents stay normal", () => {
+  const own = { permissions: "own" as const, agents: {} };
+  const bypass = { permissions: "bypass" as const, agents: {} };
+  expect(bypassForLaunch("codex", true, true, own)).toBe(true);
+  expect(bypassForLaunch("codex", false, true, bypass)).toBe(false);
+  expect(bypassForLaunch("codex", undefined, true, bypass)).toBe(true);
+  expect(bypassForLaunch("codex", "true", true, own)).toBe(false);
+  expect(bypassForLaunch("cursor", true, false, bypass)).toBe(false);
+  expect(own.permissions).toBe("own");
 });

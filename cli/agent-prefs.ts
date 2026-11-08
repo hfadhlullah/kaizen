@@ -50,6 +50,10 @@ export const prefersBypass = (cmd: string, p = readPrefs()) => {
   const own = p.agents[cmd]?.permissions;
   return own === "bypass" || (own !== "own" && p.permissions === "bypass");
 };
+// Explicit per-launch choices override defaults; unsupported agents never receive bypass.
+export const bypassForLaunch = (cmd: string, requested: unknown, supported: boolean, p = readPrefs()) =>
+  supported && (typeof requested === "boolean" ? requested : prefersBypass(cmd, p));
+
 // Through env, so a value is never read by a shell. Windows has no env(1): the page says so.
 export const withEnv = (argv: string[], cmd: string, p = readPrefs(), win = process.platform === "win32") => {
   const e = Object.entries(p.agents[cmd]?.env ?? {});
