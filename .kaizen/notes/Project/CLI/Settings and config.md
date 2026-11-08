@@ -1,8 +1,8 @@
 ---
 description: The terminal settings browser and how config.yml keys are read
 tags: [project, cli]
-sources: [cli/settings.ts, cli/settings.test.ts, cli/state.ts]
-updated: 2026-11-07
+sources: [cli/config-values.ts, cli/settings.ts, cli/settings.test.ts, cli/state.ts]
+updated: 2026-11-08
 ---
 # Settings and config
 
@@ -21,3 +21,7 @@ The settings screen in the terminal and the settings file behind it: how each ch
 - `cli/settings.ts` `lineOf()` reads config.yml by regex on indentation, so any new key must keep its exact nesting depth; comments at any indent are safe, a re-indented key silently reads as absent.
 - `agent.*` keys are read through `configTexts()` in `cli/state.ts` (project then global, first file that sets the key wins). A new `agent.*` key that reads only one file brings back the bug where a silent project `config.yml` hides the global setting. Config regexes must also allow comment lines between `agent:` and the key: the shipped config has them.
 - Some config keys have no code reader because only a prompt reads them (`spec*.md`, `agents/*.md`, `SKILL.md`): before calling a key dead, grep the prompts too. Every `SETTINGS` row in `cli/settings.ts` must be a key in `config.default.yml` (test in `cli/settings.test.ts`). (2026-10-23-settings-cleanup)
+
+## Explore integration (2026-11-08)
+
+`explore.enabled` is a project/global boolean defaulting false. Scalar reads and the comment-preserving writer share `cli/config-values.ts`; the run form gets the resolved default from `agentChoices`.

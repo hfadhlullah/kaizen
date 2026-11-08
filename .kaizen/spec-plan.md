@@ -23,6 +23,12 @@ and open backlog may bear on this one; the Framing adds `Related: <ids it used>`
 the codebase, the manuscript, the current campaign, whatever this run builds on.
 **Output:** `01-plan.md`.
 
+Before framing, read `00-explore.md` when present. Carry confirmed decisions,
+supporting sources and uncertainty into the plan; do not repeat settled interview
+questions. A skipped Explore may contain partial evidence, not approved conclusions.
+If state.json still says `stage: "explore"`, return control to the main thread for
+Explore completion or skip before planning. Build remains behind its normal approval.
+
 The request is usually one sentence. The planner's first job is to expand it — but by
 proposing, not by interrogating. It restates the problem, brings the nearest good
 solution, and names the assumptions it took, so the user reacts to something concrete

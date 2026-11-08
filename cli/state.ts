@@ -1,6 +1,7 @@
 // Everything kaizen knows about a project's state, read from and written to the
 // `.kaizen/` directory. No terminal, no HTTP: the TUI (`dashboard.ts`) and the web
 // board (`web.ts`) both import this and draw it their own way.
+import { read as readSetting } from "./config-values.ts";
 import { readAccounts, resolveAccount, type Resolved } from "./accounts.ts";
 import { agentEnabled, argsOf, commandOf, prefersBypass, readPrefs, withEnv } from "./agent-prefs.ts";
 import { existsSync, readFileSync, readdirSync, appendFileSync, writeFileSync, mkdirSync, statSync, realpathSync, rmSync, renameSync, copyFileSync, openSync, readSync, closeSync } from "node:fs";
@@ -167,6 +168,7 @@ export function subagentEnv(projectDir: string, cmd: string): string[] {
 export function agentChoices(projectDir: string) {
   return {
     default: detectDefaultAgent(projectDir).cmd,
+    explore: configTexts(projectDir).map((t) => readSetting(t, "explore.enabled")).find((v) => v !== null) === "true",
     agents: KNOWN_AGENTS.filter((a) => agentUsable(a.cmd)).map((a) => ({
       ...accountChoices(a.cmd), name: a.name, cmd: a.cmd, model: agentConfig(projectDir, a.cmd).model ?? "", models: !!MODEL_FLAGS[a.cmd], yolo: !!YOLO_FLAGS[a.cmd], bypassDefault: prefersBypass(a.cmd) && !!YOLO_FLAGS[a.cmd],
     })),
@@ -615,8 +617,8 @@ export function resumePrompt(id: string) {
   return `run ${id}: continue it from its state.json; its last agent session ended before the stage finished.`;
 }
 
-export function canApproveAwaiting(awaiting: unknown): awaiting is "approvals.plan" | "approvals.review" | "findings" {
-  return awaiting === "approvals.plan" || awaiting === "approvals.review" || awaiting === "findings";
+export function canApproveAwaiting(awaiting: unknown): awaiting is "explore" | "approvals.plan" | "approvals.review" | "findings" {
+  return awaiting === "explore" || awaiting === "approvals.plan" || awaiting === "approvals.review" || awaiting === "findings";
 }
 
 // The board's answer to an approval the run is waiting on. The comment is collapsed to
@@ -629,6 +631,9 @@ const COMMIT_PUSH = " Then commit and push this run's changed files only, with t
   + " If state.json names a `worktree`, commit there instead and then run `kaizen worktree land` with this run's id from the project folder in place of the push; report its result as it prints it.";
 
 export function approvalPrompt(id: string, awaiting: string, why?: string, answers?: string[]) {
+  if (awaiting === "explore") return `run ${id}: ` + (why === undefined
+    ? "the user confirmed the Explore brief. Record the decision in 00-explore.md, preserve its evidence and open questions, unblock its report, set explore_status=completed stage=plan awaiting=null with kaizen state, and prepare 01-plan.md from that brief. This approves exploration only; keep the normal plan approval before building."
+    : `continue Explore with the user feedback: ${why.replace(/\s+/g, " ").trim()}. Update 00-explore.md; do not begin building.`);
   const plan = awaiting === "approvals.plan";
   const one = (t: string) => t.replace(/\s+/g, " ").trim();
   const note = why === undefined ? undefined : one(why);
@@ -1057,6 +1062,7 @@ export function saveAttachment(state: string, id: string | null, name: string, b
 // that wants a decision, or one that finished. Null for everything else. The second
 // line is the project, since a notification outlives the board that raised it.
 const NEED: Record<string, string> = {
+  explore: "exploration needs your decision",
   "approvals.plan": "plan needs your approval",
   "approvals.review": "review needs your approval",
   "approvals.each_file": "an edit needs your approval",
@@ -1811,7 +1817,7 @@ export const CHILD_ENV = /^(CLAUDECODE|CLAUDE_PID|CLAUDE_CODE_(SESSION_ID|CHILD_
 // skill: start that skill instead of /kaizen (the Video page starts kaizen-video), in cwd:
 // a work folder that may not be a project, so it is not remembered as one. A session record is
 // written only where that folder has a .kaizen (a project place does; the library usually not).
-export function launchRun(it: Item, from: string, run?: string, pick: { agent?: string; account?: string; model?: string; yolo?: boolean; card?: boolean; onChange?: () => void; skill?: "kaizen-video"; cwd?: string; seed?: string } = {}): Launch {
+export function launchRun(it: Item, from: string, run?: string, pick: { agent?: string; account?: string; model?: string; explore?: boolean; yolo?: boolean; card?: boolean; onChange?: () => void; skill?: "kaizen-video"; cwd?: string; seed?: string } = {}): Launch {
   const projectDir = pick.cwd ?? projectOf(from);
   // The run will be born here; the board must know the dir or the task never retires.
   if (!pick.cwd) remember(projectDir);
@@ -1832,7 +1838,8 @@ export function launchRun(it: Item, from: string, run?: string, pick: { agent?: 
   // No text: a run's conversation reopened as it was, with nothing sent to it.
   // A skill other than kaizen: Claude Code takes it as a slash command; other agents are told to use it.
   const lead = !pick.skill ? "/kaizen" : agent.cmd === "claude" ? `/${pick.skill}` : `Use the ${pick.skill} skill.`;
-  const prompt = !it.text ? "" : requestOf(it.where ? `${lead} ${it.text} (${it.where})` : `${lead} ${it.text}`, it.notes, from);
+  const exploreChoice = !run && !pick.skill && typeof pick.explore === "boolean" ? `\n\n[Kaizen launch option: explore=${pick.explore ? "on" : "off"}. Freeze this per-run override at intake; it does not change the saved setting.]` : "";
+  const prompt = !it.text ? "" : requestOf(it.where ? `${lead} ${it.text} (${it.where})` : `${lead} ${it.text}`, it.notes, from) + exploreChoice;
   const wanted = pick.model ?? (own?.cmd === agent.cmd ? own.model : null) ?? undefined;
   const model = wanted && plainModel(wanted) ? wanted : undefined;
   // Yolo was picked for one tool; a fallback to another opens in its normal mode.
@@ -2076,8 +2083,8 @@ function setStage(file: string, change: (s: any) => boolean): boolean {
 // `kaizen state <id> key=value ...`: the one writer agents use for a run's state.json,
 // so stage and awaiting can only take the words every reader knows (spec.md, Stage 0).
 // `done` is refused: finishing goes through finishRun, which checks the review gate.
-const STAGES = ["plan", "build", "review", "abandoned"];
-const AWAITING = [null, "approvals.plan", "approvals.review", "approvals.each_file", "findings"];
+const STAGES = ["explore", "plan", "build", "review", "abandoned"];
+const AWAITING = [null, "explore", "approvals.plan", "approvals.review", "approvals.each_file", "findings"];
 export function setRunState(state: string, id: string, pairs: string[]): string | null {
   const file = join(state, "runs", id, "state.json");
   if (!existsSync(file)) return `no run ${id} under ${state}`;
@@ -2092,6 +2099,7 @@ export function setRunState(state: string, id: string, pairs: string[]): string 
     if (k === "stage" && v === "done") return "stage done: use kaizen done <id>, which checks the final approval";
     if (k === "stage" && !STAGES.includes(String(v))) return `stage must be one of ${STAGES.join(", ")} (done: kaizen done)`;
     if (k === "awaiting" && !AWAITING.includes(v as any)) return `awaiting must be null or one of ${AWAITING.slice(1).join(", ")}`;
+    if (k === "explore_status" && !["active", "completed", "skipped"].includes(raw)) return "explore_status must be active, completed or skipped";
     if (k === "iteration") { if (!/^\d+$/.test(raw)) return "iteration must be a whole number"; set[k] = Number(raw); continue; }
     set[k] = v;
   }

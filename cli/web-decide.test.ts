@@ -32,6 +32,19 @@ test.skipIf(process.platform === "win32")("board /decide reuses the run's open a
     waiting("approvals.plan");
     const second = await decide("approvals.plan");
     expect(second).toMatchObject({ ok: true, pty: first.pty, reused: true });
+    // Explore uses the same live conversation, with an independent confirmation
+    // and a per-run skip that leaves the saved default intact.
+    writeFileSync(join(st, "config.yml"), "agent:\n  launch: card\nexplore:\n  enabled: true\n");
+    writeFileSync(join(d, "state.json"), JSON.stringify({ id: "2026-10-30-r", agent: "claude", stage: "explore", awaiting: "explore", explore_status: "active" }));
+    writeFileSync(join(d, "00-explore.md"), "Evidence and decisions for booking");
+    expect(await decide("explore")).toMatchObject({ ok: true, pty: first.pty, reused: true });
+    const doc: any = await (await fetch(base + "/run/2026-10-30-r?dir=" + encodeURIComponent(st))).json();
+    expect(doc.explore).toBe("Evidence and decisions for booking");
+    const skip = () => fetch(base + "/explore/skip", { method: "POST", headers: { origin: base, "content-type": "application/json" }, body: JSON.stringify({ dir: st, id: "2026-10-30-r" }) });
+    expect(await (await skip()).json()).toMatchObject({ ok: true, pty: first.pty });
+    expect(readFileSync(join(st, "config.yml"), "utf8")).toContain("enabled: true");
+    waiting("approvals.plan");
+    expect((await skip()).status).toBe(409);
     let typed = "";
     for (let i = 0; i < 30 && !typed.includes("2026-10-30-r"); i++) { await Bun.sleep(100); try { typed = readFileSync(join(home, "typed"), "utf8"); } catch { /* not yet */ } }
     expect(typed).toContain("2026-10-30-r");

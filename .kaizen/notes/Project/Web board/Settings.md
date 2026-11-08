@@ -1,7 +1,7 @@
 ---
 description: The Settings page: agents, models, skills, REA, desktop control, accounts, voice
 tags: [project, web-board]
-sources: [cli/rea.ts, cli/computer.ts, cli/computer-helper.py, web/board/settings-voice.ts, cli/accounts.ts, cli/skills.ts, web/board/settings-skills.ts, cli/agent-prefs.ts, cli/keep-awake.ts, web/board/settings-agents.ts, cli/state.ts, web/board, cli/settings.ts]
+sources: [cli/config-values.ts, cli/rea.ts, cli/computer.ts, cli/computer-helper.py, web/board/settings-voice.ts, cli/accounts.ts, cli/skills.ts, web/board/settings-skills.ts, cli/agent-prefs.ts, cli/keep-awake.ts, web/board/settings-agents.ts, cli/state.ts, web/board, cli/settings.ts]
 updated: 2026-11-08
 ---
 # Settings
@@ -44,3 +44,7 @@ The Settings page: choosing agents and models, turning skills on and off or repa
 ## Agent launch and phone keyboard (2026-11-08)
 
 New agent launches expose a per-launch Yolo / bypass permissions switch on phones and in the workspace +/split flows (`new-agent.ts`). Initial state follows the saved default, and explicit false overrides a global bypass setting for that launch. Unsupported agents and account sign-in never receive bypass flags. Settings defaults are unchanged.
+
+## Explore workflow option (2026-11-08)
+
+Settings → Agents → Workflow has `explore.enabled` (false by default), a project/global switch independent of the installed core skill. `cli/config-values.ts` supplies scalar lookup shared by Settings and the launch defaults without a state/settings import cycle. `/agents` returns the resolved Explore default; the Run form can override it for one launch.

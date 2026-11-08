@@ -4,6 +4,7 @@ import { test, expect, beforeEach, afterEach } from "bun:test";
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, chmodSync } from "node:fs";
 import { join, delimiter } from "node:path";
 import { tmpdir } from "node:os";
+import { hostname, platform } from "node:os";
 import { sendChat, readChat, listChats, deleteChat, stopChat, parseLine, takeMoves, type Event, type Board, type Upload } from "./chat.ts";
 
 let root = "", base = "", bin = "", projA = "", projD = "", board: Board, created: string[] = [], runs: string[][] = [];
@@ -79,6 +80,8 @@ test.if(posix)("a message streams the reply, saves both sides, runs in the chat'
   expect(stdin).toContain(`- D — ${join(root, "D")}`);
   expect(stdin.endsWith("say hi")).toBe(true);
   expect(argv()).toContain("workspace-write");
+  expect(argv()).toContain('web_search="live"');
+  expect(argv()).toContain("sandbox_workspace_write.network_access=true");
   expect(argv().slice(argv().indexOf("-m"), argv().indexOf("-m") + 4)).toEqual(["-m", "gpt-6-luna", "-c", "model_reasoning_effort=medium"]);
   expect(argv()).not.toContain("resume");
   expect(listChats(base).map((x) => [x.id, x.project])).toEqual([[id, projA]]);
@@ -90,7 +93,7 @@ test.if(posix)("a message streams the reply, saves both sides, runs in the chat'
   expect(readChat(base, id)!.messages).toHaveLength(4);
 });
 
-test.if(posix)("no project: a read-only scratch folder outside every project", async () => {
+test.if(posix)("no project: scratch chat receives machine context and tools without a project switch", async () => {
   fake(say("Which project?"));
   const { id } = await turn(null, "hello");
   expect(readChat(base, id)!.project).toBeUndefined();
@@ -98,6 +101,12 @@ test.if(posix)("no project: a read-only scratch folder outside every project", a
   expect(argv()).toContain("workspace-write");
   expect(argv().join(" ")).toContain(`--add-dir ${join(root, "A")} --add-dir ${join(root, "D")}`);
   expect(readFileSync(join(bin, "stdin"), "utf8")).toContain("Project of this chat: none");
+  const prompt = readFileSync(join(bin, "stdin"), "utf8");
+  expect(prompt).toContain(`hostname ${hostname()}, OS ${platform()}`);
+  expect(prompt).toContain("A scratch folder is only your working directory, not a separate machine");
+  expect(prompt).toContain("Do not claim you cannot inspect the machine without trying");
+  expect(argv()).toContain('web_search="live"');
+  expect(argv()).toContain("sandbox_workspace_write.network_access=true");
   // A project the page names that the board does not list is not taken.
   const r = await turn(null, "hi", join(root, "elsewhere", ".kaizen"));
   expect(readChat(base, r.id)!.project).toBeUndefined();

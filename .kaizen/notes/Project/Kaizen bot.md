@@ -2,7 +2,7 @@
 description: Kaizen Bot: a chat front end with division agents over the board
 tags: [project, bot]
 sources: [bot, docs/bot-computer-discovery.md, docs/bot-computer-pilot-report.md]
-updated: 2026-11-03
+updated: 2026-11-08
 ---
 # Kaizen bot
 
@@ -37,3 +37,5 @@ A separate app (`bot/`, its own `package.json`, private) that puts a chat in fro
 
 ## Notes
 <!-- yours: /kaizen docs never rewrites this section -->
+
+- 2026-11-08 The shared web bundle build refreshed `bot/web/app.js` alongside the Explore board changes; no bot source behavior was added for Explore. Its board integration still uses the shared board routes.

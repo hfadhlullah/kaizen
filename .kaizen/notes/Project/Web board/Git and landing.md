@@ -2,7 +2,7 @@
 description: Source control tab: commit, push, PRs, which files are a run's, and landing
 tags: [project, web-board]
 sources: [cli/worktree.ts, cli/state.ts, web/board]
-updated: 2026-11-07
+updated: 2026-11-08
 ---
 # Git and landing
 
@@ -30,3 +30,7 @@ How the board commits, pushes and opens pull requests for a run, which files cou
 - Board git marks are per run (`runGit`/`cardsGit`): a file committed after the run's report is no longer the run's, and `ahead` counts only the unpushed commits `aheadBy` gives the run (subject line in its report, else most files named). A test that checks Push/pending must pin commit times (`GIT_COMMITTER_DATE`) and report mtimes, since the rule compares them.
 
 A land rebases first, resolves only `git.generated` paths, runs `git.land_check` after pulled commits, and records a failure in `runs/<id>/land.json`. The board reads it as the card's `land` and each agent's `land`, showing `Conflict` or `Land failed` with a red `!`.
+
+## Explore integration (2026-11-08)
+
+Explore confirmation prepares Plan and never enters final acceptance or commit/push. The existing plan and final review gates still apply; see [[Workflow]].

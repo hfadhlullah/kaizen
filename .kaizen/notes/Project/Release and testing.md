@@ -1,7 +1,7 @@
 ---
 description: How to test, build the web bundles, and publish a release
 tags: [project, release]
-sources: [site/, desktop/, .github/workflows/desktop.yml, package.json, cli/release.sh, cli/publish-gh.sh, .github/workflows/test.yml, cli/build-web.ts, test/tmp.ts, bunfig.toml, bot/bunfig.toml, cli/release.ts, assets, cli/add-project.test.ts, cli/backlog.test.ts, cli/board.test.ts, cli/browser.test.ts, cli/chat.test.ts, cli/chatgpt.test.ts, cli/docs.test.ts, cli/html.test.ts, cli/install.test.ts, cli/knowledge.test.ts, cli/localsend.test.ts, cli/logo.test.ts, cli/notes.test.ts, cli/onboarding.test.ts, cli/project-tree.test.ts, cli/pty.test.ts, cli/release.test.ts, cli/restart.test.ts, cli/settings.test.ts, cli/setup.test.ts, cli/shell-agent.test.ts, cli/sources.test.ts, cli/state.test.ts, cli/subagent-model.test.ts, cli/usage.test.ts, cli/versions.test.ts, cli/video.test.ts, cli/web-accept.test.ts, cli/web-decide.test.ts, cli/web-pr.test.ts, cli/web-symlink.test.ts, cli/worktree.test.ts, cli/writeback.test.ts]
+sources: [cli/explore.test.ts, cli/stats.test.ts, cli/web-decide.test.ts, site/, desktop/, .github/workflows/desktop.yml, package.json, cli/release.sh, cli/publish-gh.sh, .github/workflows/test.yml, cli/build-web.ts, test/tmp.ts, bunfig.toml, bot/bunfig.toml, cli/release.ts, assets, cli/add-project.test.ts, cli/backlog.test.ts, cli/board.test.ts, cli/browser.test.ts, cli/chat.test.ts, cli/chatgpt.test.ts, cli/docs.test.ts, cli/html.test.ts, cli/install.test.ts, cli/knowledge.test.ts, cli/localsend.test.ts, cli/logo.test.ts, cli/notes.test.ts, cli/onboarding.test.ts, cli/project-tree.test.ts, cli/pty.test.ts, cli/release.test.ts, cli/restart.test.ts, cli/settings.test.ts, cli/setup.test.ts, cli/shell-agent.test.ts, cli/sources.test.ts, cli/state.test.ts, cli/subagent-model.test.ts, cli/usage.test.ts, cli/versions.test.ts, cli/video.test.ts, cli/web-accept.test.ts, cli/web-pr.test.ts, cli/web-symlink.test.ts, cli/worktree.test.ts, cli/writeback.test.ts]
 updated: 2026-11-08
 ---
 # Release and testing
@@ -35,3 +35,9 @@ Tests are `bun test` (all `*.test.ts`, `cli/` and `bot/`), run in CI on Ubuntu a
 <!-- yours: /kaizen docs never rewrites this section -->
 
 - Release 1.75.0: mobile terminal keyboard/history, phone navigation, per-launch agent bypass and keyboard viewport sizing. Agent choice tests cover the default bypass metadata; the all-tool handoff model test installs scratch command stubs so missing local agents cannot silently exercise a fallback tool.
+
+## Explore validation (2026-11-08)
+
+`cli/explore.test.ts` covers state persistence, skipped evidence preservation, normal plan approval after Explore and separate timing. Settings tests cover default off and project override; web-decide tests exercise Explore confirmation, document delivery and per-run skip using a live stand-in agent. Rebuild all web bundles after board changes.
+
+- Release 1.76.0: optional default-off Explore before Plan, per-run include/skip, saved research and decision brief, compass tab icon, and Chat machine context plus live web/network tools. Chat-started runs use the saved Explore setting; explicit Chat Explore overrides are not included.

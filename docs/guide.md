@@ -771,3 +771,21 @@ This repo's own values live in `.kaizen/config.yml`, which is not committed.
 **Concepts.** Say you want a design or concept first, or run `/kaizen concept [number] <brief>`, and kaizen makes that many truly different clickable prototypes on one review page, with votes. Nothing real is built until you approve one. For a new product it runs inside the plan, and a roadmap's phases build on the chosen concept.
 
 **Roadmaps.** A project too big for one run, of any kind, can become a roadmap: an app, a book, a house move. One run stays the default, and the planner only proposes a split, which you can refuse at the plan approval. An approved roadmap lives in `.kaizen/roadmaps/<name>.md` with its phases, status and decisions, and each phase is a normal run. `/kaizen roadmap` lists them, `/kaizen roadmap next [name]` starts or resumes the next phase, and `/kaizen roadmap run [name]` runs the rest back to back, stopping at an open finding or question. Nothing starts by itself.
+
+## Explore before planning
+
+Explore is optional and off by default. Turn on **Explore before planning** under
+Settings → Agents → Workflow, globally or for one project. The normal flow remains
+Plan → Build → Review → Done. With Explore included it becomes Explore → Plan →
+Build → Review → Done. Clear fixes and already agreed changes go straight to Plan.
+
+The Run form's **Explore first** checkbox overrides the default for that run. In
+chat use `/kaizen explore <request>` to include it or `/kaizen skip-explore <request>`
+to start directly at Plan. During Explore, **Skip Explore** moves to Plan without
+changing the setting. Existing runs keep their original choice.
+
+Explore questions assumptions, researches factual gaps with sources, and saves
+`00-explore.md`: the problem, decisions, evidence, options and open questions.
+Confirm **Continue to Plan**, explore further, stop, or skip. The planner reads
+that brief; confirming it does not approve implementation. Research uses available
+agent tools; no additional research service is required.

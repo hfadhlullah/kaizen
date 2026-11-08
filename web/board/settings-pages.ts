@@ -29,7 +29,7 @@ export const SETTINGS_NAV: [string, SettingsPage[]][] = [
 ];
 // First match wins: [key pattern, page, subsection].
 const PLACES: [RegExp, string, string][] = [
-  [/^(preset|runner|build\.|review\.executor)/, "agents", "Workflow"],
+  [/^(preset|runner|explore\.|build\.|review\.executor)/, "agents", "Workflow"],
   [/^(subagents\.|agent\.model\.)/, "agents", "Models"],
   [/^agent\.handoff_model\./, "agents", "Handoff session"],
   [/^agent\.default$/, "agents", "Default agent"],

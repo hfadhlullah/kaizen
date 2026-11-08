@@ -1,8 +1,8 @@
 ---
 description: What a kaizen run is, which files define it, and where its state lives
 tags: [project, workflow]
-sources: [cli/roadmap.ts, cli/workers.ts, skills/kaizen, skills/kaizen-help, skills/kaizen-concept, skills/media, agents, commands, cli/worktree.ts, docs/guide.md]
-updated: 2026-11-07
+sources: [skills/kaizen-explore, cli/roadmap.ts, cli/workers.ts, skills/kaizen, skills/kaizen-help, skills/kaizen-concept, skills/media, agents, commands, cli/worktree.ts, docs/guide.md]
+updated: 2026-11-08
 ---
 # Workflow
 
@@ -45,7 +45,7 @@ The product itself: a staged workflow (plan, approval, build, independent review
 - Never write `model:` or `effort:` into `agents/kaizen-*.md`: the installed files are links shared by every project, and a frontmatter line beats the env defaults. An older SKILL.md did write `effort:`, which turned the links into copies; the installer (`linkState` in `cli/install.ts`) relinks a copy that differs only by that line.
 - `skills/kaizen/` is the source; `.kaizen/spec*.md` in a project are copies (`kaizen --check` reports drift). In this repo the copies are not committed (`.gitignore`).
 - Roadmap mode is for more than one module; a single screen or feature stays one run, and outside roadmap mode the foundation questions stay one round.
-- `stage` must be one of `plan`, `build`, `review`, `done`, `abandoned` — `columnOf()` in `cli/state.ts`; any other word shows as planning (`.kaizen/memory.md`).
+- `stage` must be one of `explore`, `plan`, `build`, `review`, `done`, `abandoned` — `columnOf()` in `cli/state.ts`; any other word shows as planning (`.kaizen/memory.md`).
 - Global skill links on this machine point at `~/kaizen`, a separate clone: a skill change is live elsewhere only once `~/kaizen` has it (`.kaizen/memory.md`).
 - Final-approval gate (`gateOf` in `cli/state.ts`): with `approvals.review` on, a run id from 2026-10-29 on (`GATE_FROM`) whose `03-impl.md`/fix reports name existing files in backticks under a heading with "chang" or "files" (`changedPaths`; whole report when none) is accepted only by a line `accepted: <ISO> by user via board|chat` or `accepted: <ISO> auto (auto_accept)` in `02-approval.md` (`acceptance`, `recordAcceptance`). The board's `/decide` approve-as-is at review and `POST /accept` write it; the main thread writes the chat line. Without it a done run is "done, not approved" and `commitPush` refuses. `auto_accept` (top-level, default false) lets `auto` runs write the auto line. The rule text is in `spec-main.md` *Final approval*. `reviewGateOn` ignores comments, CRLF and quotes; `boardCards` caches the gate per run by the mtimes of the files it reads. The `approvals.review` setting row shows in every mode. Agents can still write `stage: done`, but `readRuns` reports a gate-`needs` done run as `review` / `approvals.review` (via the cached `accepted()`), and `healRuns` (called from `/state` and the terminal board, never from `readRuns`) rewrites its state.json that way (atomic, skipped if the file changed; checks `"stage": "done"` cheaply before parsing) and sets `healed: true`, which `readRuns` and the card carry (`finishRun` clears it). A healed card's panel (`web/board/panel.ts`) shows only Approve, which posts `/accept` (acceptance line + `finishRun`, no agent launch; `/accept` refuses a genuine review), and no findings/Fix form; Commit & push stays for the finished run. Genuine reviews keep `/decide`. `finishRun` / `kaizen done <id> [--user-approved]` is the sanctioned finish: refused while the gate says `needs`, the flag records the `via chat` line first. The card's `accept: needs` now only appears if the file still says done, so the board's Approve for a healed run is the normal review Approve (`/decide`, which records the line and resumes the agent to run `kaizen done`). Runs before `GATE_FROM` (e.g. all of Zen-Landing) stay done.
 - Agents set `stage`, `awaiting` and `iteration` with `kaizen state <id> key=value` (spec.md, Stage 0); `done` still goes through `kaizen done`. The stored `track` word is the nearest standard one (`code`, `writing`, …), mapped again by `trackOf()` in `cli/knowledge.ts`, while the free description lives in `00-request.md`.
@@ -61,3 +61,7 @@ A land rebases first, resolves only `git.generated` paths, runs `git.land_check`
 - Follow-up titles: a `00-request.md` opening with `Question asked at …` (a follow-up started from an approval question) is titled by `requestTitle` from its `Roadmap line:`, else its `Answer:`; spec tells such follow-ups to put one line naming the work first.
 
 Every stage reports with `kaizen report`; see *Reporting to the board* in `spec.md` and the Web board note.
+
+## Optional Explore (2026-11-08)
+
+`explore.enabled` defaults false. New or unclear work can use Explore → Plan → Build → Review → Done; clear fixes skip Explore. The per-run checkbox and `/kaizen explore` or `/kaizen skip-explore` override the setting without changing it. `skills/kaizen-explore/` is core and uses prerequisite-aware interviews plus source-tracked iterative research. It saves `00-explore.md`, decisions and evidence limits. `stage: explore`, `explore_status: active|completed|skipped`; `awaiting: explore` is confirmation of a ready brief, not an interview round. The main thread handles dialogue under both runners. Completing or skipping enters Plan and keeps plan approval. Resume honors saved state.

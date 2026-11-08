@@ -60,3 +60,7 @@ WhatsApp MP4s over 64 MiB use Hermes' `[[as_document]]` directive, preserving th
 ## Agent launch and phone keyboard (2026-11-08)
 
 `POST /shell` accepts optional boolean `yolo` for a new agent. `bypassForLaunch` in `cli/agent-prefs.ts` resolves the explicit launch choice ahead of preferences and gates it by supported flags. Omitted values preserve saved defaults; account sign-in remains plain. `/agents` includes `bypassDefault` alongside `yolo` capability.
+
+## Explore routes (2026-11-08)
+
+`GET /run/<id>` includes `explore` (`00-explore.md`). `/run` accepts an optional boolean `explore` launch override, ignored for resumed runs. `POST /explore/skip` validates the project, run id and `stage: explore`, then submits a skip to the live agent or resumes its conversation. It changes no config or stage itself; the agent saves partial work and enters Plan. `/decide` accepts `awaiting: explore` for a ready brief and keeps normal plan approval.

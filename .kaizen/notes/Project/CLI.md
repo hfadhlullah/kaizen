@@ -2,7 +2,7 @@
 description: The kaizen command — a hub; its topics are the sub-notes below
 tags: [project, cli]
 sources: [cli/preflight.test.ts, cli/automations.test.ts, cli/computer.ts, cli/workers.test.ts, cli/install.ts, cli/stats.ts, cli/stats.test.ts, cli/state-set.test.ts, cli/install-unknown.test.ts, package.json]
-updated: 2026-11-07
+updated: 2026-11-08
 ---
 # CLI
 
@@ -23,3 +23,7 @@ The kaizen command you type in a terminal: it installs kaizen for your coding ag
 
 ## Notes
 <!-- yours: /kaizen docs never rewrites this section -->
+
+## Explore state (2026-11-08)
+
+`kaizen state` accepts `stage=explore`, `awaiting=explore` and validates `explore_status=active|completed|skipped`. `kaizen stats` reports Explore time separately from Plan. The installed core `kaizen-explore` skill is discovered by the existing bundle scanner. `/kaizen explore` and `/kaizen skip-explore` are agent skill commands, not standalone shell subcommands.

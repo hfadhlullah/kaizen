@@ -31,7 +31,7 @@ export const ICON = {
   done: "done",
   abandoned: "aband",
 };
-export const NEED = { "approvals.plan": "plan needs your approval", "approvals.review": "review needs your approval" },
+export const NEED = { explore: "exploration needs your decision", "approvals.plan": "plan needs your approval", "approvals.review": "review needs your approval" },
   need = (a) => NEED[a] || a;
 export const WORD = {
   idea: "idea",

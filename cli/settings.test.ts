@@ -168,3 +168,14 @@ test("kaizen settings preset applies the whole bundle, and refuses an unknown na
     rmSync(home, { recursive: true, force: true });
   }
 });
+
+ test("Explore defaults off and can be overridden per project without changing the global toggle", () => {
+  expect(read(readFileSync(defaults, "utf8"), "explore.enabled")).toBe("false");
+  const value = inProject(`
+    const global = setSetting(repo, "explore.enabled", "true", null);
+    const own = setSetting(repo, "explore.enabled", "false", ${JSON.stringify(project)});
+    return [global.ok, own.ok, value("explore.enabled")];
+  `);
+  expect(value).toEqual([true, true, "false"]);
+  expect(read(readFileSync(join(home, ".kaizen", "config.yml"), "utf8"), "explore.enabled")).toBe("true");
+});

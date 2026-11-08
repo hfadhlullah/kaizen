@@ -20,6 +20,7 @@ import { openWorkspace } from "./run-view.ts";
 const TABS = [
   ["Request", "request"],
   ["Notes", "notes"],
+  ["Explore", "explore"],
   ["Plan", "plan"],
   ["Backlog", "backlog"],
   ["Work", "impl"],
@@ -90,7 +91,7 @@ export function open(c, keepTab) {
   }
   if (!keepTab)
     store.lastTab = store.tab =
-      c.status === "abandoned" ? "plan" : { 1: "plan", 2: "backlog", 3: "review", 4: "preview" }[c.column] || "request";
+      c.stage === "explore" ? "explore" : c.status === "abandoned" ? "plan" : { 1: "plan", 2: "backlog", 3: "review", 4: "preview" }[c.column] || "request";
   return openRun(c, false);
 }
 // A building run's Backlog tab opens with its progress, above the deferred items. The
@@ -117,11 +118,17 @@ function showProgress(c) {
 // The header's Plan → Build → Review → Done bar: steps before the card's column are done,
 // its own is ringed in the run's status colour (waiting amber, stalled red), the rest wait.
 const STEPS = ["Plan", "Build", "Review", "Done"];
+function runSteps(c) {
+  let st: any = {};
+  try { st = JSON.parse(store.runDoc?.state || "{}"); } catch {}
+  return c.stage === "explore" || st.explore_status === "completed" || st.explore_status === "active" ? ["Explore", ...STEPS] : STEPS;
+}
 function steps(c) {
-  const at = c.status === "done" ? 4 : Math.max(0, (c.column || 0) - 1),
+  const phases = runSteps(c), offset = phases.length - 4;
+  const at = c.status === "done" ? phases.length : c.stage === "explore" ? 0 : Math.max(0, (c.column || 0) - 1) + offset,
     tip = cap(WORD[c.status] || c.status) + (c.awaiting ? `: ${need(c.awaiting)}` : "");
   return html`<span class="steps s-${c.status}" title="${tip}" aria-label="${tip}">${raw(
-    STEPS.map((n, i) => `<span class="${i < at ? "ok" : i === at ? "now" : ""}"><i></i>${n}</span>`).join(""),
+    phases.map((n, i) => `<span class="${i < at ? "ok" : i === at ? "now" : ""}"><i></i>${n}</span>`).join(""),
   )}</span>`;
 }
 // The run workspace's header: the project beside the picker (runner, agent, mode in its
@@ -133,9 +140,10 @@ function meta(c) {
     st = JSON.parse(store.runDoc?.state || "{}");
   } catch {}
   const proj = String(c.where || "").split(/[\\/]/).filter(Boolean).pop() || "";
-  const at = c.status === "done" ? 3 : Math.min(3, Math.max(0, (c.column || 1) - 1)),
-    word = STEPS[at] + (c.status === "waiting" ? ", needs you" : c.status === "stalled" ? ", stalled" : ""),
-    w = c.status === "done" ? 100 : ((at + 0.5) / 4) * 100;
+  const phases = runSteps(c), offset = phases.length - 4;
+  const at = c.status === "done" ? phases.length - 1 : c.stage === "explore" ? 0 : Math.min(3, Math.max(0, (c.column || 1) - 1)) + offset,
+    word = phases[at] + (c.status === "waiting" ? ", needs you" : c.status === "stalled" ? ", stalled" : ""),
+    w = c.status === "done" ? 100 : ((at + 0.5) / phases.length) * 100;
   const from = lastAt.id === c.id ? lastAt.w : 0;
   lastAt = { id: c.id, w };
   if (from !== w)
@@ -232,7 +240,7 @@ export async function openRun(c, refresh, again) {
   else
     $("pbody").innerHTML = doc
       ? raw(md(doc, k === "backlog"))
-      : html`<p style="color:var(--dim)">No ${{ request: "request", plan: "plan", impl: "work report", preview: "preview", review: "review", backlog: "backlog" }[k]} yet.</p>`;
+      : html`<p style="color:var(--dim)">No ${{ request: "request", explore: "exploration brief", plan: "plan", impl: "work report", preview: "preview", review: "review", backlog: "backlog" }[k]} yet.</p>`;
   if (k === "backlog") showProgress(c);
   if (k === "review" && !c.healed) fixForm(c);
   // The notebook's notes that link here, each opening that note: above the run's own notes.
@@ -273,7 +281,7 @@ export async function openRun(c, refresh, again) {
           : "";
     const more =
       `<button data-a="archive">Archive</button>${c.column === 1 ? `<button data-a="toidea">Back to task</button>` : ""}<hr><button data-a="ab" class="danger">Abandon</button>`;
-    foot.innerHTML = html`<span class="note">${sent ? "Sent to your agent." : APPROVAL[c.awaiting] + asks}</span><details class="more"><summary class="btn ghost">More</summary><div class="menu-pop">${raw(more)}</div></details>${raw(rs)}<span class="dec"><button class="btn" data-a="revise"${sent ? " disabled" : ""}>Revise</button><button class="btn pri" data-a="approve"${sent ? " disabled" : ""}>${c.awaiting === "findings" ? "Approve as-is" : "Approve"}</button></span>`;
+    foot.innerHTML = html`<span class="note">${sent ? "Sent to your agent." : APPROVAL[c.awaiting] + asks}</span><details class="more"><summary class="btn ghost">More</summary><div class="menu-pop">${raw(more)}</div></details>${raw(rs)}<span class="dec"><button class="btn" data-a="revise"${sent ? " disabled" : ""}>Revise</button><button class="btn pri" data-a="approve"${sent ? " disabled" : ""}>${c.awaiting === "explore" ? "Continue to Plan" : c.awaiting === "findings" ? "Approve as-is" : "Approve"}</button></span>`;
   } else if (c.status === "waiting")
     foot.innerHTML = html`<span class="note">Waiting: ${need(c.awaiting)}.</span>${raw(arch)}<button class="btn ghost" data-a="ab">Abandon</button>${raw(rs)}`;
   else if (c.status === "done" && c.accept === "needs")
@@ -282,10 +290,19 @@ export async function openRun(c, refresh, again) {
   else if (c.status === "abandoned") foot.innerHTML = raw(arch);
   else
     foot.innerHTML = html`<span class="note">${c.pty && !c.pty.alive ? "Agent ended early." : c.status === "stalled" ? "Stalled." : ""}</span>${raw(arch)}<button class="btn ghost" data-a="ab">Abandon</button>${resumable(c) ? html`<button class="btn pri" data-a="resume">Resume</button>` : ""}`;
+  if (c.stage === "explore") foot.insertAdjacentHTML("beforeend", '<button class="btn" data-a="skip-explore">Skip Explore</button>');
   foot.querySelectorAll("[data-a]").forEach(
     (b) =>
       (b.onclick = () => {
         const a = b.dataset.a;
+        if (a === "skip-explore") {
+          b.disabled = true;
+          post("/explore/skip", { dir: c.state, id: c.id }).then((r) => {
+            if (r.ok) toast("Skip Explore sent to the agent");
+            else b.disabled = false;
+          });
+          return;
+        }
         if (a === "archive" || a === "restore") {
           toggleArchive(c, a === "archive");
           return;

@@ -106,12 +106,12 @@ export function stageKeys(c): Record<string, string> {
   const all: string[] = c?.pty?.all ?? [],
     st = c?.pty?.stages ?? {},
     out: Record<string, string> = {};
-  for (const s of ["impl", "review"]) if (st[s] && all.includes(st[s])) out[s] = st[s];
+  for (const s of ["explore", "impl", "review"]) if (st[s] && all.includes(st[s])) out[s] = st[s];
   if (st.plan && all.includes(st.plan)) out.plan = st.plan;
   // Fallback for a terminal the board did not record (a run it did not start): the lone unclaimed agent
   // is named by the run's current stage (column 1 plan, 2 build, 3 review); at any other point it stays plain.
   const first = all.find((k) => !Object.values(st).includes(k)),
-    now = { 1: "plan", 2: "impl", 3: "review" }[c.column as number];
+    now = c.stage === "explore" ? "explore" : { 1: "plan", 2: "impl", 3: "review" }[c.column as number];
   if (first && now && !Object.keys(st).length) out[now] = first;
   return out;
 }
@@ -119,11 +119,11 @@ export function stageKeys(c): Record<string, string> {
 // A run's terminals as centre tabs: those a stage claimed are named "Plan · Claude", "Build · Claude",
 // "Review · Claude"; the rest keep the agent's name, numbered when there are several.
 export function stageTabs(c, agent: string): { key: string; title: string }[] {
-  const word = { plan: "Plan", impl: "Build", review: "Review" },
+  const word = { explore: "Explore", plan: "Plan", impl: "Build", review: "Review" },
     all: string[] = c?.pty ? c.pty.all ?? [c.pty.key] : [],
     by = new Map(Object.entries(stageKeys(c)).map(([s, k]) => [k, word[s]])),
     free = all.filter((k) => !by.has(k)),
-    now = word[{ 1: "plan", 2: "impl", 3: "review" }[c?.column as number] ?? ""],
+    now = c?.stage === "explore" ? "Explore" : word[{ 1: "plan", 2: "impl", 3: "review" }[c?.column as number] ?? ""],
     last = all.at(-1);
   // One terminal can carry several stages: the newest staged one is named for where the run is now.
   if (now && last && by.has(last)) by.set(last, now);

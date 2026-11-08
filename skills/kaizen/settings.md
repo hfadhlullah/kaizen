@@ -74,3 +74,10 @@ picker with thirty options.
 `kaizen settings` in a terminal opens the same settings as a full-screen browser, for
 someone who would rather see the whole file at once. Mention it when the user is
 changing several at a time.
+
+## Explore
+
+`explore.enabled` is a project/global boolean, default false. It offers an optional
+Explore phase before Plan for new or unclear work. Routine fixes skip it. A per-run
+Explore checkbox or `/kaizen explore` includes it; `/kaizen skip-explore` skips it.
+Choices are frozen per run, and changing this setting does not move existing runs.

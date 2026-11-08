@@ -466,7 +466,7 @@ console.log(JSON.stringify(out));`;
       project: ["claude", ["-m", "o3"]],
       missing: { name: "Claude Code", cmd: "claude", note: "Gemini CLI is not installed; opened Claude Code instead" },
       pick: ["codex", ["-m", "gpt-5.1"]],
-      choices: { default: "claude", agents: [
+      choices: { default: "claude", explore: false, agents: [
         { name: "Claude Code", cmd: "claude", model: "", models: true, yolo: true, bypassDefault: false },
         { name: "Codex", cmd: "codex", model: "o3", models: true, yolo: true, bypassDefault: false },
       ] },

@@ -15,7 +15,7 @@ const mtime = (f: string) => { try { return statSync(f).mtimeMs; } catch { retur
 export type RunStat = {
   id: string; stage: string; track: string; runner: string; mode: string;
   reviewed: boolean; fixed: boolean; unverified: boolean;
-  plan: number | null; wait: number | null; build: number | null; review: number | null;
+  explore: number | null; plan: number | null; wait: number | null; build: number | null; review: number | null;
 };
 
 export function runStat(state: string, id: string): RunStat | null {
@@ -39,7 +39,7 @@ export function runStat(state: string, id: string): RunStat | null {
 // awaiting is set, else the stage. The interval before the first line is planning,
 // from the request's write (00-request.md is written once, at intake).
 export function stageTimes(log: string, start: number) {
-  const out = { plan: null as number | null, wait: null as number | null, build: null as number | null, review: null as number | null };
+  const out = { explore: null as number | null, plan: null as number | null, wait: null as number | null, build: null as number | null, review: null as number | null };
   const rows = log.split("\n").map((l) => l.trim().split(/\s+/)).filter((r) => r.length >= 3 && !isNaN(Date.parse(r[0]!)))
     .map(([at, stage, awaiting]) => ({ at: Date.parse(at!), stage: stage!, waiting: awaiting !== "-" }));
   if (!rows.length) return out;
@@ -71,15 +71,15 @@ const count = (rs: RunStat[], k: keyof RunStat) => rs.reduce((o, r) => { const v
 
 export function summary(rs: RunStat[]) {
   const reviewed = rs.filter((r) => r.reviewed);
-  const med = (k: "plan" | "wait" | "build" | "review") => median(rs.map((r) => r[k]).filter((v): v is number => v !== null));
+  const med = (k: "explore" | "plan" | "wait" | "build" | "review") => median(rs.map((r) => r[k]).filter((v): v is number => v !== null));
   return {
     runs: rs.length,
     stage: count(rs, "stage"), track: count(rs, "track"), runner: count(rs, "runner"), mode: count(rs, "mode"),
     reviewed: reviewed.length,
     fixed: rs.filter((r) => r.fixed).length,
     unverified: rs.filter((r) => r.unverified).length,
-    timed: rs.filter((r) => r.plan !== null || r.build !== null).length,
-    median: { plan: med("plan"), wait: med("wait"), build: med("build"), review: med("review") },
+    timed: rs.filter((r) => r.explore !== null || r.plan !== null || r.build !== null).length,
+    median: { explore: med("explore"), plan: med("plan"), wait: med("wait"), build: med("build"), review: med("review") },
   };
 }
 
@@ -159,7 +159,7 @@ export function statsText(state: string, id?: string, json = false): string {
     if (json) return JSON.stringify({ ...r, tokens: t }, null, 2);
     const tok = t ? `${t.input + t.cacheWrite + t.cacheRead} in (${t.cacheRead} from cache), ${t.output} out, ${t.turns} turns` : "n/a";
     return [`${r.id}  ${r.stage} · ${r.track} · ${r.runner} · ${r.mode}`,
-      `plan ${dur(r.plan)} · waiting for approval ${dur(r.wait)} · build ${dur(r.build)} · review ${dur(r.review)} (from stages.log)`,
+      `explore ${dur(r.explore)} · plan ${dur(r.plan)} · waiting for approval ${dur(r.wait)} · build ${dur(r.build)} · review ${dur(r.review)} (from stages.log)`,
       `fix round: ${r.fixed ? "yes" : "no"} · CANNOT VERIFY: ${r.unverified ? "yes" : "no"}`,
       `tokens: ${tok}`].join("\n");
   }
@@ -168,5 +168,5 @@ export function statsText(state: string, id?: string, json = false): string {
   return [`${s.runs} runs — ${kv(s.stage)}`,
     `track: ${kv(s.track)}`, `runner: ${kv(s.runner)} · mode: ${kv(s.mode)}`,
     `fix round: ${s.fixed} of ${s.reviewed} reviewed (${pct(s.fixed, s.reviewed)}) · CANNOT VERIFY in ${s.unverified} reviews (${pct(s.unverified, s.reviewed)})`,
-    `median: plan ${dur(s.median.plan)} · waiting for approval ${dur(s.median.wait)} · build ${dur(s.median.build)} · review ${dur(s.median.review)} (runs with a stages.log: ${s.timed})`].join("\n");
+    `median: explore ${dur(s.median.explore)} · plan ${dur(s.median.plan)} · waiting for approval ${dur(s.median.wait)} · build ${dur(s.median.build)} · review ${dur(s.median.review)} (runs with a stages.log: ${s.timed})`].join("\n");
 }

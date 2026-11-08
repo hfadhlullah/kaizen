@@ -5,6 +5,7 @@
 import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { basename, dirname, join } from "node:path";
+import { hostname, platform, release, arch } from "node:os";
 import { CHILD_ENV, readRuns, readText } from "./state.ts";
 
 export type Step = { kind: "cmd" | "edit" | "tool" | "project"; text: string; ok?: boolean };
@@ -70,6 +71,10 @@ export function brief(c: Chat, board: Board) {
     .map((r) => `- ${p.label}: ${r.id} (${r.stage}, waiting on ${r.awaiting})`)).join("\n");
   return `[kaizen board context, not written by the user]
 You are kaizen's main agent, talking with the user from the kaizen board's Home page.
+Board server machine: hostname ${hostname()}, OS ${platform()} ${release()}, architecture ${arch()}. This is the machine hosting the board, not necessarily the user's phone or browser. A scratch folder is only your working directory, not a separate machine.
+Use your available tools to investigate and finish the user's request: shell commands, file reads and edits, web search, and any configured MCP tools. Inspect the tools actually available in this session; do not assume every integration is connected. Use installed skills when relevant, reading their SKILL.md before following them.
+For questions about this machine, run appropriate read-only checks (for example hostname and uname on Unix, or PowerShell equivalents on Windows). Do not claim you cannot inspect the machine without trying an appropriate available tool. If a check fails, report the actual limitation and what you could verify. Do not infer the hosting provider or physical host from a hostname alone.
+Read-only investigation does not need a project selection or the development choice below. Use web search for current information and cite sources. Tool access does not authorize unrelated changes or sending messages to others.
 Project of this chat: ${here ? `${here.label} (${dirname(here.dir)})` : "none — you are in a scratch folder"}.
 Projects on the board:
 ${list || "(none)"}
@@ -223,7 +228,9 @@ export function sendChat(base: string, id: string | null, text: string, project:
   // Every listed project is writable, so the agent works on any of them without a switch.
   const dirs = roots(board).filter((d) => d !== cwd).flatMap((d) => ["--add-dir", d]);
   const argv = [bin, "exec", "--json", "--skip-git-repo-check", "-s", "workspace-write", ...dirs,
-    "-m", "gpt-6-luna", "-c", "model_reasoning_effort=medium", ...(chat.thread ? ["resume", chat.thread] : []), ...images, "-"];
+    "-m", "gpt-6-luna", "-c", "model_reasoning_effort=medium",
+    "-c", 'web_search="live"', "-c", "sandbox_workspace_write.network_access=true",
+    ...(chat.thread ? ["resume", chat.thread] : []), ...images, "-"];
   let p;
   try { p = Bun.spawn(argv, { cwd, env, stdin: "pipe", stdout: "pipe", stderr: "pipe", windowsHide: true }); }
   catch (err: any) {

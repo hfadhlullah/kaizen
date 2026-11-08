@@ -2,7 +2,7 @@
 description: worktree, handoff, done, worker, automations, preflight, model and other agent-called commands
 tags: [project, cli]
 sources: [cli/preflight.ts, cli/subagent-model.test.ts, cli/automations.ts, cli/workers.ts, cli/knowledge.ts, cli/worktree.ts, cli/state.ts]
-updated: 2026-11-07
+updated: 2026-11-08
 ---
 # Run commands
 
@@ -37,3 +37,7 @@ The small commands agents call while they work: starting a run's own branch, han
 - Agent-invoked CLI commands (remember, card, …) run with cwd anywhere inside the project, often the run dir; resolve the project by walking up to `.kaizen/` (`locate()`), never `cwd/.kaizen` or `basename(cwd)`. (2026-10-27-global-knowledge)
 - `runReport()` in `cli/state.ts` dates a run by its report mtimes, capped at `state.json` `updated` once the run is done. Without the cap, any rewrite of a finished run's `03-impl.md` made it claim later runs' uncommitted changes to the files it names (2026-10-30, git-tab run).
 - Automations (cli/automations.ts) link a fire to its run by a `fire <id>` marker in 00-request.md; changing how a run's request is written breaks overlap protection.
+
+## Explore integration (2026-11-08)
+
+`kaizen state` accepts the optional Explore phase and its confirmation wait. Stats report Explore time separately. See [[Workflow]].

@@ -38,6 +38,11 @@ approvals:
 # Override for one run with `/kaizen lite <request>` or `/kaizen full <request>`.
 runner: full
 
+explore:
+  # Optional questioning and evidence gathering before Plan. Clear fixes skip it.
+  # A run may override this with /kaizen explore or /kaizen skip-explore.
+  enabled: false
+
 build:
   # Who carries out the approved plan.
   #   subagent - dispatch the builder as its own agent. The main thread keeps its

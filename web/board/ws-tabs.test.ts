@@ -219,3 +219,12 @@ test("devUrl: the Preview address on a port this workspace listens on, else its 
   expect(devUrl(pv, [])).toBe("http://localhost:8000");
   expect(devUrl(null, [])).toBeUndefined();
 });
+
+test("Explore terminals use their phase name, including an existing plan terminal", () => {
+  expect(stageTabs({ kind: "run", stage: "explore", column: 1, pty: { all: ["a"] } }, "Codex")).toEqual([
+    { key: "a", title: "Explore · Codex" },
+  ]);
+  expect(
+    stageTabs({ kind: "run", stage: "explore", column: 1, pty: { all: ["a"], stages: { plan: "a" } } }, "Codex"),
+  ).toEqual([{ key: "a", title: "Explore · Codex" }]);
+});

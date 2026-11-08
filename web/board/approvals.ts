@@ -25,6 +25,7 @@ export async function resume(c, b) {
   }
 }
 export const APPROVAL = {
+    explore: "Explore brief ready.",
     "approvals.plan": "Plan ready.",
     "approvals.review": "Ready to check.",
     findings: "Open findings.",
@@ -57,6 +58,14 @@ export async function decide(c, b, why, answers) {
 export function confirmRevise(c) {
   const foot = $("pfoot"),
     plan = c.awaiting === "approvals.plan";
+  if (c.awaiting === "explore") {
+    foot.innerHTML = html`<div class="inl" style="flex:1"><label>What should we explore further?<textarea aria-label="Explore feedback"></textarea></label><button class="btn pri">Continue Explore</button></div>`;
+    foot.querySelector("button").onclick = (e) => {
+      const why = foot.querySelector("textarea").value.trim();
+      if (why) decide(c, e.target, why);
+    };
+    return;
+  }
   foot.innerHTML = html`<div class="inl" style="flex:1"><div class="q">${plan ? "What should the plan do differently?" : "What should change in the work?"}</div><div class="q dim">Opens your agent on this run with your comment.${plan ? " It revises the plan and comes back here for approval." : " It changes the work, rechecks it and comes back here."}</div><textarea aria-label="Revise comment"></textarea><div class="row"><button class="btn ghost" data-a="c">Cancel</button><button class="btn pri" data-a="s">Send back</button></div></div>`;
   const inp = foot.querySelector("textarea");
   inp.focus();

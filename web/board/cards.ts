@@ -90,7 +90,7 @@ const actionOf = (c) =>
     ? "Open"
     : c.healed
     ? "Approve"
-    : { "approvals.plan": "Review plan", findings: "See findings", "approvals.review": "Review work" }[c.awaiting] || "Open";
+    : { explore: "Review exploration", "approvals.plan": "Review plan", findings: "See findings", "approvals.review": "Review work" }[c.awaiting] || "Open";
 
 function card(c) {
   const k = key(c),
@@ -455,7 +455,7 @@ function inlineForm(c) {
 }
 
 const runHtml = (c) =>
-  html`<div class="q">Run "${c.text}"</div><div class="q dim">Opens your agent with this request in a terminal.</div><div class="q dim">Full plans, builds, and checks with a separate reviewer. Lite does it in one session.</div><div id="run-pick" style="display:grid;gap:6px"><div id="run-agent" class="agents" role="radiogroup" aria-label="Agent"></div></div><div class="run-actions"><label class="yolo" id="run-yolo" title="Yolo: the agent runs every command and edit without asking" hidden><button type="button" class="chk" role="switch" aria-checked="false"></button>Yolo</label><div class="row"><button type="button" class="btn ghost" data-a="c">Cancel</button><button type="button" class="btn" data-a="l">Lite</button><button type="button" class="btn pri" data-a="s">Full run</button></div></div>`;
+  html`<div class="q">Run "${c.text}"</div><div class="q dim">Opens your agent with this request in a terminal.</div><div class="q dim">Full plans, builds, and checks with a separate reviewer. Lite does it in one session.</div><div id="run-pick" style="display:grid;gap:6px"><div id="run-agent" class="agents" role="radiogroup" aria-label="Agent"></div></div><label class="yolo"><input type="checkbox" id="run-explore"> Explore first</label><div class="run-actions"><label class="yolo" id="run-yolo" title="Yolo: the agent runs every command and edit without asking" hidden><button type="button" class="chk" role="switch" aria-checked="false"></button>Yolo</label><div class="row"><button type="button" class="btn ghost" data-a="c">Cancel</button><button type="button" class="btn" data-a="l">Lite</button><button type="button" class="btn pri" data-a="s">Full run</button></div></div>`;
 // The run form as a popup over any page: Start in the new-task form and on Tasks.
 export function runPopup(c) {
   const dl = modal(runHtml(c)),
@@ -492,7 +492,7 @@ async function runForm(li, c) {
   // Antigravity and Gemini CLI are both Google's agent on Gemini; offer one of them.
   if (d.agents.some((a) => a.cmd === "agy")) d.agents = d.agents.filter((a) => a.cmd !== "gemini");
   if (!runPick || runPick.k !== k)
-    runPick = { k, agent: d.agents.some((a) => a.cmd === d.default) ? d.default : d.agents[0].cmd };
+    runPick = { k, explore: d.explore === true, agent: d.agents.some((a) => a.cmd === d.default) ? d.default : d.agents[0].cmd };
   box.innerHTML = d.agents
     .map(
       (a) =>
@@ -516,6 +516,12 @@ async function runForm(li, c) {
     box.after(sel);
   };
   showAccounts();
+  const ex = li.querySelector("#run-explore");
+  ex.checked = runPick.explore;
+  ex.onchange = () => {
+    runPick.explore = ex.checked;
+    runPick.exploreOverride = ex.checked;
+  };
   const yb = li.querySelector("#run-yolo");
   // Yolo only where the picked tool has a skip-permissions mode; Basic otherwise.
   const sw = yb.querySelector(".chk");
@@ -554,7 +560,7 @@ async function startRun(c, kind) {
   runPick = null;
   const yolo = !!(p && p.yolo && !$("run-yolo")?.hidden);
   const backlog = c.kind === "backlog" ? { source: c.source, n: c.n } : undefined;
-  const r = await post("/run", { dir: c.state, text: c.text, backlog, kind, agent: p ? p.agent : undefined, account: p?.account, yolo });
+  const r = await post("/run", { dir: c.state, text: c.text, backlog, kind, agent: p ? p.agent : undefined, account: p?.account, explore: p?.exploreOverride, yolo });
   if (r.ok) {
     toast((kind === "full" ? "Full" : kind === "lite" ? "Lite" : "Started") + (yolo ? " yolo" : "") + " run " + where(r) + ": " + via(r.agent));
     // A backlog card has no terminal of its own; the run's card gets it once the run exists.

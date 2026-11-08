@@ -2,7 +2,7 @@
 description: `kaizen web`: the browser board — a hub; its topics are the sub-notes below
 tags: [project, web-board]
 sources: [cli/preflight.ts, cli/rea.test.ts, cli/annotate.test.ts, cli/annotate-proxy.test.ts, cli/web-annotate.test.ts, web/board/annotate-lib.test.ts, desktop/src/preload.ts, desktop/src/updater.ts, web/term-font.test.ts, cli/resources.test.ts, cli/computer.test.ts, cli/workers.ts, cli/accounts.test.ts, web/board/settings-accounts.ts, cli/skills.test.ts, cli/report.test.ts, cli/agent-prefs.test.ts, cli/onboarding.test.ts, cli/phone-setup.test.ts, web/board/search.test.ts, web/board/ws-name.test.ts, cli/web.ts, cli/state.test.ts, cli/video.test.ts, web/board.html, design.md]
-updated: 2026-11-07
+updated: 2026-11-08
 ---
 # Web board
 
@@ -63,3 +63,7 @@ The Projects rail keeps the last valid run state during a transient `state.json`
 
 - Workspace pane keys live in `initPaneKeys` (`web/board/run-view.ts`): Ctrl+Space focuses the current pane, then one key within 2 seconds moves between panes (arrows, hjkl) or tabs (1-9, n, p); c, r and d open the new-tab, split-right and split-down menus; x closes the pane. They run in the capture phase so xterm never sees them.
 
+
+## Explore integration (2026-11-08)
+
+Optional Explore is part of Workflow settings and run details; see [[Web board/Settings]] and [[Web board/Cards]].

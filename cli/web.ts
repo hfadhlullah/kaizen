@@ -1492,7 +1492,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         const read = (f: string) => existsSync(join(base, f)) ? readText(join(base, f)) : null;
         return json({
           id, short: short(id), state: read("state.json"),
-          request: read("00-request.md"), plan: read("01-plan.md"), approval: read("02-approval.md"),
+          request: read("00-request.md"), explore: read("00-explore.md"), plan: read("01-plan.md"), approval: read("02-approval.md"),
           impl: read("03-impl.md"), review: read("04-review.md"), backlog: read("06-backlog.md"),
           notes: read("notes.md"), progress: read("progress.md"),
           // Notebook notes whose [[run:…]] links name this run.
@@ -2275,7 +2275,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
             const p = parseItem(line.text);
             const it: Item = { ...p, text: kind ? `${kind} ${p.text}` : p.text };
             it.notes = [source !== "orphan" ? `Parent: ${source}` : "", `Backlog: ${source}#${n}`, p.text !== line.text ? `Backlog item: ${line.text}` : ""].filter(Boolean).join("\n");
-            const r = launchRun(it, dir, undefined, { agent, account: typeof body.account === "string" ? body.account : undefined, model: model || undefined, yolo: body.yolo === true, ...inCard(dir) });
+            const r = launchRun(it, dir, undefined, { agent, account: typeof body.account === "string" ? body.account : undefined, model: model || undefined, explore: typeof body.explore === "boolean" ? body.explore : undefined, yolo: body.yolo === true, ...inCard(dir) });
             if (r.ok) backlogLaunched.add(`${dir}\0${source}#${n}`);
             changed();
             return json(r.ok
@@ -2286,7 +2286,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           // A `started` task may be run again: the terminal the first launch opened
           // can come up empty, and nothing else tells the board a run never began.
           it.notes = readInbox(dir).find((l) => (l.status === "open" || l.status === "started") && l.text === text)?.notes;
-          const r = launchRun(it, dir, undefined, { agent, account: typeof body.account === "string" ? body.account : undefined, model: model || undefined, yolo: body.yolo === true, ...inCard(dir) });
+          const r = launchRun(it, dir, undefined, { agent, account: typeof body.account === "string" ? body.account : undefined, model: model || undefined, explore: typeof body.explore === "boolean" ? body.explore : undefined, yolo: body.yolo === true, ...inCard(dir) });
           if (r.ok) replaceTask(dir, text, { status: "started", text });
           if (r.ok && r.pty) {
             for (const [k, v] of taskPty) if (!ptyState(v)) taskPty.delete(k);   // sessions already dropped
@@ -2471,6 +2471,26 @@ export async function web(repoDir: string, opts: Opts = {}) {
           return json(r.ok
             ? { ok: true, agent: r.agent, pty: r.pty }
             : { ok: false, why: r.why, manual: r.manual, agent: r.agent }, r.ok ? 200 : 500);
+        }
+
+        // Skipping changes only this run. The agent records the partial brief and
+        // transition, so an in-flight research write cannot race a server-side edit.
+        if (path === "/explore/skip") {
+          const id = String(body.id ?? "");
+          if (!/^(?!\.+$)[\w.-]+$/.test(id)) return bad("bad run id");
+          if (dir === join(home, ".kaizen")) return bad("no project to run in", 409);
+          let run: any;
+          try { run = JSON.parse(readText(join(dir, "runs", id, "state.json"))); } catch { return bad("no such run", 404); }
+          if (run.stage !== "explore") return bad("this run is not exploring", 409);
+          const text = `run ${id}: the user chose Skip Explore for this run only. Stop exploration, preserve partial findings and unanswered questions in 00-explore.md, record that the user skipped it, run kaizen report unblock --run ${id}, set explore_status=skipped stage=plan awaiting=null with kaizen state, and prepare the plan. Do not change explore.enabled or skip the plan approval.`;
+          const live = liveAgent(dir, id), before = Date.now();
+          const r = live ? { ok: true as const, agent: live.agent, pty: live.key }
+            : launchRun({ severity: null, where: null, text, raw: text }, dir, id, inCard(dir));
+          if (live) submitPty(live.key, text);
+          else if (r.ok) closeSessions(dir, id, { before });
+          changed();
+          return json(r.ok ? { ok: true, agent: r.agent, pty: r.pty }
+            : { ok: false, why: r.why, manual: r.manual }, r.ok ? 200 : 500);
         }
 
         // Approve or send back what a run is waiting on, from its panel. The page names

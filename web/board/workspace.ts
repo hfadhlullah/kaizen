@@ -27,6 +27,7 @@ export function subline(c, now) {
   // An idle agent and no run yet: it answered, or waits for the user.
   if (c.kind === "idea") return !c.pty?.alive ? "idea" : c.pty.asking ? "waiting on you" : c.pty.busy ? "planning · starting" : "agent · open";
   const t = c.moved ?? now;
+  if (c.stage === "explore") return c.awaiting ? `exploring · ${need(c.awaiting)}` : `exploring · ${age(c.moved ?? now, now)}`;
   if (c.status === "waiting") return c.awaiting ? `${STAGE[c.column] ?? "waiting"} · ${need(c.awaiting)}` : "waiting on you";
   if (c.accept === "needs") return "done, not approved";
   if (gitDue(c)) return `waiting on you · ${dueWord(c)}`;

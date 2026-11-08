@@ -111,14 +111,14 @@ categorize their own request up front.
 
 Write into `00-request.md`: the verbatim request, the deliverable, what done means,
 and what wrong means. Record in `state.json`: `id`, `mode`, `runner`, `agent`, `track`,
-`stage: "plan"`, `awaiting: null`, `iteration: 0`, and `updated` — the time of this
+`stage: "explore"` when included (otherwise `"plan"`; `review-only` starts at `"review"`), `explore_status` (`active` or `skipped`), `awaiting: null`, `iteration: 0`, and `updated` — the time of this
 write, refreshed on every later one.
 A `lite` run also records `review_executor` (`inline` or `subagent`, from `review.executor`, `ask` resolved) once it is known, and a resumed run keeps it.
 Where the environment has `CLAUDE_CODE_SESSION_ID`, also record it as `session`: the
 board keeps the run on the card it was launched from by that id.
 
-`stage` takes exactly one of five words, and boards key their columns on them:
-`plan`, `build`, `review`, `done`, `abandoned`. Set it when the stage starts —
+`stage` takes exactly one of six words, and boards key their columns on them:
+`explore`, `plan`, `build`, `review`, `done`, `abandoned`. Set it when the stage starts —
 `build` before the builder touches anything, `review` before the reviewer reads — as
 its own write, not tacked onto a longer command that may not finish. Fixing findings
 is building and a recheck is reviewing, whoever runs them and whether the loop or the
@@ -134,7 +134,7 @@ installed, edit `state.json` by hand in its two-space JSON layout. Finish with
 
 `awaiting` is `null` or the config key of the approval being waited on —
 `approvals.plan`, `approvals.review`, `approvals.each_file` — or `findings` when the
-run has stopped for the user to pick which review findings to fix. Boards read it to
+run has stopped for the user to pick which review findings to fix. `explore` means the Explore brief is ready for the user to confirm; interview rounds use `kaizen report blocked` with `awaiting: null`. Boards read it to
 say what a run is waiting for and where it sits; a word outside this list is shown but
 not understood.
 
@@ -158,6 +158,16 @@ round of questions here is cheaper than a rejected plan.
 
 ---
 
+## Before Plan — optional Explore
+
+Read the intake rules in the kaizen skill. `explore.enabled: false` is the default;
+explicit per-run choices take precedence. Clear fixes skip this phase. If included,
+run the kaizen-explore skill in the main thread and save `00-explore.md` before Plan.
+On confirmation set `explore_status=completed stage=plan awaiting=null`; on skip
+preserve partial work and set `explore_status=skipped stage=plan awaiting=null`.
+Unblock any interview report. A stop abandons the run. Neither exit bypasses normal
+plan approval. Legacy runs and resumed runs never gain Explore automatically.
+
 ## Reporting to the board
 
 Every stage reports with `kaizen report`, under every runner. From the moment the run
@@ -168,7 +178,7 @@ the work. Windows has no `KAIZEN_RUN_ID`, and a new run gets one only once resum
   Work list step. These are the run's heartbeat.
 - `kaizen report blocked "<question>" --options a,b` when only the user can answer,
   instead of stalling or guessing. Then stop and ask; `kaizen report unblock` once answered.
-- `kaizen report done --stage <plan|build|review> --outcome succeeded|failed --summary "<3 sentences>" --files a,b`
+- `kaizen report done --stage <explore|plan|build|review> --outcome succeeded|failed --summary "<3 sentences>" --files a,b`
   as the stage's last act. A build or review that ends without it shows as unverified.
 
 ---

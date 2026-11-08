@@ -1,5 +1,7 @@
 // Full-screen settings browser for .kaizen/config.yml.
 // Arrow keys move and change; every change is written straight to the file.
+import { lineOf, read } from "./config-values.ts";
+export { read } from "./config-values.ts";
 import { existsSync, writeFileSync, copyFileSync, mkdirSync } from "node:fs";
 import { join, dirname, basename } from "node:path";
 import { homedir } from "node:os";
@@ -107,6 +109,7 @@ const SETTINGS: Setting[] = [
   { key: "approvals.review", label: "Approve after review", group: "Approvals", values: ["true", "false"], help: "In auto mode too: a run that changed files waits for your approval unless auto_accept is on" },
   { key: "auto_accept", label: "Auto runs skip final approval", group: "Approvals", values: ["false", "true"], help: "true: an auto run that changed files finishes without waiting, marked auto-accepted", when: ["mode", "auto"] },
   { key: "approvals.each_file", label: "Confirm every file edit", group: "Approvals", values: ["true", "false"], help: "", when: ["mode", "approve"] },
+  { key: "explore.enabled", label: "Explore before planning", group: "Agents", values: ["false", "true"], help: "Question the idea and research uncertainties before Plan. Clear fixes skip it; each run can skip Explore." },
   { key: "runner", label: "Stage isolation", group: "Agents", values: ["full", "lite"], help: "full: separate agent per stage. lite: one session" },
   { key: "build.executor", label: "Who builds", group: "Agents", values: ["subagent", "inline", "ask"], help: "subagent: its own agent · inline: this session · ask: pick at plan approval", when: ["runner", "full"] },
   { key: "review.executor", label: "Reviewer", group: "Agents", values: ["inline", "subagent", "ask"], help: "subagent: its own cold agent · inline: this session · ask: pick before review", when: ["runner", "lite"] },
@@ -481,32 +484,6 @@ function fileFor(s: Setting, project?: string | null) {
 
 function scopeFile(project?: string | null) {
   return project === undefined ? locate() : project === null ? globalFile() : join(project, ".kaizen", "config.yml");
-}
-
-// Read and write a dotted key by walking indentation, so the comment above every
-// key survives. Parsing to an object and dumping it back would delete all of them.
-function lineOf(text: string, key: string) {
-  const parts = key.split(".");
-  const lines = text.split("\n");
-  let depth = 0, from = 0;
-  for (const [pi, part] of parts.entries()) {
-    const want = new RegExp(`^ {${depth}}${part}:`);
-    let found = -1;
-    for (let i = from; i < lines.length; i++) {
-      if (want.test(lines[i]!)) { found = i; break; }
-      if (pi > 0 && /^\S/.test(lines[i]!) && i > from) break;   // left the parent block
-    }
-    if (found < 0) return { lines, index: -1, indent: depth };
-    from = found + 1; depth += 2;
-  }
-  return { lines, index: from - 1, indent: depth - 2 };
-}
-
-export function read(text: string, key: string) {
-  const { lines, index } = lineOf(text, key);
-  if (index < 0) return null;
-  const v = lines[index]!.split(":").slice(1).join(":").split("#")[0]!.trim();
-  return v.replace(/^["']|["']$/g, "");
 }
 
 function write(text: string, key: string, value: string, defaults: string) {

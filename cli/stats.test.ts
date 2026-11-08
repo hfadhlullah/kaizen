@@ -44,10 +44,10 @@ test("stage times charge each interval to the state at its start; no log means n
   const log = ["2026-11-03T10:05:00Z plan approvals.plan", "2026-11-03T10:20:00Z build -", "2026-11-03T10:50:00Z review -",
     "2026-11-03T10:55:00Z build -", "2026-11-03T11:00:00Z review approvals.review", "2026-11-03T11:30:00Z done -"].join("\n");
   const m = 60_000;
-  expect(stageTimes(log, t0)).toEqual({ plan: 5 * m, wait: 45 * m, build: 35 * m, review: 5 * m });
-  expect(stageTimes("", t0)).toEqual({ plan: null, wait: null, build: null, review: null });
+  expect(stageTimes(log, t0)).toEqual({ explore: null, plan: 5 * m, wait: 45 * m, build: 35 * m, review: 5 * m });
+  expect(stageTimes("", t0)).toEqual({ explore: null, plan: null, wait: null, build: null, review: null });
   // A log that starts at review: the gap before it is unknown, not planning.
-  expect(stageTimes("2026-11-03T10:50:00Z review -\n2026-11-03T11:00:00Z done -", t0)).toEqual({ plan: null, wait: null, build: null, review: 10 * m });
+  expect(stageTimes("2026-11-03T10:50:00Z review -\n2026-11-03T11:00:00Z done -", t0)).toEqual({ explore: null, plan: null, wait: null, build: null, review: 10 * m });
 });
 
 test("kaizen state and kaizen done append to stages.log", () => {

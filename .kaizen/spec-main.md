@@ -327,3 +327,15 @@ write what it found to the run's `notes.md`, and dispatch the planner with it. W
 REA has to be installed first, the install in *Offer REA* (`spec-plan.md`) is the main
 thread's too: doctor, the dry-run shown to the user, setup only on their approval,
 then the restart, after which the run resumes at `stage: "plan"` from `state.json`.
+
+## Explore before planning
+
+Before dispatching the planner, honor the run's saved Explore choice and phase.
+Read the kaizen-explore skill for `stage: explore`. The main thread conducts its
+interview and confirmation under both runners. It saves `00-explore.md`, keeps
+interview questions in the blocked report, and uses `awaiting: explore` only for a
+ready brief. Confirming or skipping enters Plan, never Build. Skip is per-run and
+preserves partial evidence. A resumed run never restarts Explore from a changed
+setting. On a board confirmation record the decision, unblock and prepare the plan;
+normal plan approval remains required. An Explore revise returns to questioning,
+not implementation. Stop abandons the run.

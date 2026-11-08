@@ -2,7 +2,7 @@
 description: Board cards and columns: order, compact done cards, the action button, search and add sheets
 tags: [project, web-board]
 sources: [web/board/search.ts, web/board/search-match.ts, web/board/run-view.ts, web/board/badge.ts, web/board/ws-tabs.ts, web/board/workspace.ts, web/board/ws-board.ts, web/board/ws-board-ui.ts, cli/add-project.ts, cli/add-project.test.ts, cli/usage.test.ts, cli/chat.ts, cli/state.ts, web/board, web/video.html]
-updated: 2026-11-07
+updated: 2026-11-08
 ---
 # Cards
 
@@ -50,3 +50,9 @@ The cards on the board: how they sort, what each shows, the one button that says
 - A run's `moved` (the running-vs-stalled signal) is the newer of `state.json` and `progress.md`, so a builder ticking its Work list stays running. Session owner lookups read every run once per call through `runIndex` (`ownerOf`'s third argument); `openSessions` drops `.pid` files whose process is gone or whose number another process now holds (`isSession` false; `null` when the system cannot say keeps it).
 
 - Card fields needing git go in `cardsGit` (`/state`), not `boardCards()` (`.kaizen/memory.md`).
+
+## Explore runs (2026-11-08)
+
+The Run form includes Explore first, initialized from `/agents` project/global config and sent as a per-run boolean to `/run`. Explore is a persisted stage before Plan; it shares the planning board column but has its own run progress step and Explore document tab (`00-explore.md` via `/run/<id>`). A ready brief has Continue to Plan and Revise; active Explore has Skip Explore. `POST /explore/skip` checks the run is exploring and sends the skip to its live agent (or resumes it), preserving partial notes and the saved setting. The agent records the transition, avoiding a server/agent write race. Confirmation via `/decide` prepares the plan, never starts Build.
+
+- Explore uses its own compass SVG symbol (`t-explore`) in the run detail tabs, inheriting the same stroke and theme colour as other tab icons.

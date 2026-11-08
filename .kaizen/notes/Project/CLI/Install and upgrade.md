@@ -2,7 +2,7 @@
 description: Installer, setup, links, upgrade and uninstall, the Windows launcher
 tags: [project, cli]
 sources: [cli/setup.ts, cli/look.ts, cli/qr.ts, cli/settings.test.ts]
-updated: 2026-11-07
+updated: 2026-11-08
 ---
 # Install and upgrade
 
@@ -35,3 +35,7 @@ How kaizen gets onto a computer: installing it for each coding agent, the setup 
 - On this machine the global skill links (`~/.claude/skills/kaizen`) point at `~/kaizen`, a separate clone from the development checkout in `~/Projects/Husein/kaizen`. `bun cli/install.ts --check` from the checkout therefore reports every link missing, and a skill change is live only after `~/kaizen` has it. Never run `bun cli/install.ts --yes` from the checkout to "fix" that: it repoints the global links.
 - `cli/install.ts` is a top-level script with no exports; its logic cannot be unit-tested. Exercise it in a scratch folder with `HOME` set to a scratch home and `KAIZEN_HOME` set to a disposable copy of the checkout — never the checkout itself: `kaizen uninstall` recursively deletes `$KAIZEN_HOME`, and on 2026-10-01 that wiped this checkout (.git, .kaizen, every session's uncommitted work).
 - `removeEverything()` on win32 walks every drive (`searchRoots` + `findProjects`) and strips kaizen links from each project found; a test that runs `install.ts uninstall` mutates real projects on Windows whatever HOME it sets, so such tests must skip win32.
+
+## Explore integration (2026-11-08)
+
+Settings now offers an optional Explore phase, off by default; see [[CLI/Settings and config]].

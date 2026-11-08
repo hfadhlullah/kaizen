@@ -44,6 +44,8 @@ Porting the workflow to Codex or Antigravity is covered in [`adapters.md`](adapt
 | `/kaizen auto <request>` | Start a run in `auto` mode: every stage back to back, no approval stops |
 | `/kaizen lite <request>` | Run every stage in this session — cheap, and the reviewer has seen the work unless `review.executor` is `subagent` |
 | `/kaizen full <request>` | Dispatch every stage as its own agent — the reviewer starts cold |
+| `/kaizen explore <request>` | Explore an idea before Plan for this run, even when Explore is off |
+| `/kaizen skip-explore [request]` | Skip Explore in the current run, or start the request directly at Plan |
 | `/kaizen run` | Resume the current run and execute the approved plan |
 | `/kaizen review [target]` | Review-only: audit existing code, no plan, no implementation (`review-only`) |
 | `/kaizen status` | List every run grouped waiting-on-you / in flight / done / abandoned, plus the open backlog count |
@@ -118,6 +120,35 @@ rounded are not a small change. Say which path you took (short or full) and why,
 run starts.
 
 **Follow-ups are runs too.** Both runners record the same artifacts: `01-plan.md`, `03-impl.md`, `04-review.md`, and a final `state.json` — `lite` and `full` differ only in who executes the stages. A message the user sends later in the same session is judged by what it asks: a question, explanation or chat is answered, no run; a request to change or produce something is building, so it goes through the flow. While the previous run has not reached `done` (including awaiting its final approval), a change to that run's own work is a revise of it, recorded in `02-approval.md` ("make the new panel narrower" while that panel is being built). A request for something else while a run is in flight (a bug in another area found mid-feature, an unrelated fix) asks first, AskUserQuestion: *Side run: new worktree off the default branch, built by a second agent* (recommended), *Side run: new worktree off the default branch, built in this session* (in the side run's own worktree, never the other run's folder), *Revise the current run*, *Answer without a run*; create nothing under `runs/` until a side run is picked. **A side run** is a new run, started like any other with its own fresh `state.json`: never copy another run's `state.json`, and never carry over its `worktree`, `branch`, `workspace`, `session`, `base_branch` or `base_sha`. Its `00-request.md` ends with `Follow-up of: <the run in flight>`. Plan it and take its plan approval as usual, then run `kaizen worktree start <id> --default` from the project folder or any worktree: it cuts `kaizen/<id>` from the remote default branch and never places the run in the folder you are in. For the second agent, run `kaizen handoff start <id>` as `spec-build.md` says. This works under `lite` and `full` alike. Either way, go back to the run in flight; the side run never changes it. After `done` or `abandoned`, ask the user before opening a new run — AskUserQuestion with *open a follow-up run*, *answer without a run*, *cancel* — and create nothing under `runs/` until they pick the first. An explicit `/kaizen <request>` is that answer already. The new run's `00-request.md` is the user's words verbatim, then a line `Follow-up of: <previous run id>`; where those words only answer a question ("Plan 2b next"), put one line naming the work first — the board titles the card from it. Never reopen a finished run. When unsure whether a message asks for a change, ask once.
+
+## Optional Explore before Plan
+
+`explore.enabled` defaults to `false`: Plan → Build → Review → Done stays the
+normal workflow. When enabled, new or unclear directions can take Explore → Plan
+→ Build → Review → Done. Offer Skip Explore when entering it. Clear bug fixes,
+small edits, dependency updates and already agreed work go straight to Plan;
+finding an unknown bug cause is ordinary debugging, not a reason to require Explore.
+
+`/kaizen explore <request>` explicitly includes Explore for one run; a launch
+option `explore=on` has the same effect. `/kaizen skip-explore <request>` or
+`explore=off` explicitly skips it. These override the setting for this run only.
+A bare `/kaizen skip-explore`, or a clear request to skip during Explore, preserves
+partial notes and moves the current run to Plan. Never change the global toggle.
+
+At intake record `explore_status` as `active` or `skipped`, and the reason in
+`00-request.md`. Enter `stage: "explore"` only when included; otherwise `plan`.
+`review-only` always starts at Review. Freeze this choice: resume by the saved stage
+and status, not today's configuration. Legacy runs with no Explore fields continue
+normally. For an active Explore use the **kaizen-explore** skill before dispatching
+the planner. The main thread handles its user dialogue under both runners; delegated
+research, where supported, does not take the user's decisions. Its saved artifact is
+`00-explore.md`, and `awaiting: "explore"` means the brief needs confirmation.
+
+Explore can end by confirming the brief, skipping it, or abandoning the run. Both
+confirmation and skip enter Plan; neither approves the plan or authorizes Build.
+Read `00-explore.md` during planning, preserving confirmed choices and evidence
+limits instead of repeating the interview. A `plan-only` run may explore first,
+then stops after its plan as usual. `auto` never supplies invented human decisions.
 
 ## Modes
 
@@ -275,6 +306,7 @@ file, never the whole set.
 
 | Stage | Agent type | Writes |
 |---|---|---|
+| Explore (optional) | Main thread using `kaizen-explore` | `00-explore.md` |
 | Plan | `kaizen-planner` | `01-plan.md` |
 | Implement (`stage: "build"`) | `kaizen-builder`, or the main thread when `build.executor` is `inline` | `03-impl.md` + the actual changes |
 | Review | `kaizen-reviewer` | `04-review.md` |
@@ -336,6 +368,7 @@ shown automatically.
   runs/
     2026-09-02-add-oauth/
       00-request.md             # the original request, verbatim
+      00-explore.md             # optional: evidence, decisions, open questions
       01-plan.md
       02-approval.md            # decisions, with reasons and timestamps
       03-impl.md                # what changed, which files, what was skipped

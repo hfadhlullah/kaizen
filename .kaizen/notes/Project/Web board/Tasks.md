@@ -2,7 +2,7 @@
 description: The Tasks page, the task forms, inbox stamps and when a task retires
 tags: [project, web-board]
 sources: [cli/state.ts, web/board]
-updated: 2026-11-07
+updated: 2026-11-08
 ---
 # Tasks
 
@@ -32,3 +32,7 @@ The Tasks page and the task forms: writing a task, attaching files, sending a pl
 - A started task also retires when its board launch record (`sessions/<key>.json`, same text) is owned by a run per `ownerOf` — the run's `state.json` `session` matching the launch's id — so a run that reworded the request does not leave the task stuck in planning beside it.
 
 - Icebox "Add" opens a `modal()` form like the new-idea one (text, attach, mic, project combo in All projects); `/icebox` `add` takes `files`, saved to `<state>/attachments/` and linked in the item notes. Done cards (column 4, not the archive) are `compact`: one line, no footer. Empty Planning/Building/Review show a dashed hint (`li.hint`).
+
+## Explore integration (2026-11-08)
+
+The Run form offers Explore first and preserves a user change as a per-run launch override; an untouched default leaves routine-fix routing to intake. See [[Web board/Cards]].

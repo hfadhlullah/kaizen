@@ -24,6 +24,8 @@ anything.
 | `/kaizen auto <request>` | Start a run in `auto` mode: every stage back to back, no approval stops |
 | `/kaizen lite <request>` | Run the stages in this session — cheap, reviewer has seen the work (unless `review.executor: subagent`) |
 | `/kaizen full <request>` | Dispatch each stage as its own cold agent |
+| `/kaizen explore <request>` | Question the idea and research uncertainties before Plan, for one run |
+| `/kaizen skip-explore [request]` | Skip Explore for this run; keep the saved toggle |
 | `/kaizen run` | Resume the current run and execute the approved plan |
 | `/kaizen review [target]` | Review-only: audit existing code, no plan, no implementation |
 | `/kaizen status` | List every run grouped waiting-on-you / in flight / done / abandoned, plus open backlog count |
