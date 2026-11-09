@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, test } from "bun:test";
-import { existsSync, mkdirSync, mkdtempSync, readlinkSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { accountDir, addAccount, signedIn, renameAccount, linkKaizen, readAccounts, removeAccount, resolveAccount, setDefaultAccount } from "./accounts.ts";
@@ -123,4 +123,38 @@ test("signed in follows the tool's login file", () => {
   expect(signedIn(accountDir(id), "codex")).toBe(false);
   writeFileSync(join(accountDir(id), "auth.json"), "{}");
   expect(signedIn(accountDir(id), "codex")).toBe(true);
+});
+
+// Who is signed in comes from the tool's own status command, pointed at the account folder or
+// the normal login; kaizen never opens the login files for it.
+test("loginStatus asks the tool, per folder; hangs and missing tools fall back to the file check", async () => {
+  const { loginStatus } = await import("./accounts.ts");
+  const root = mkdtempSync(join(tmpdir(), "kz-login-")), bin = join(root, "bin"), home = join(root, "home");
+  mkdirSync(bin, { recursive: true });
+  mkdirSync(join(home, ".claude"), { recursive: true });
+  // claude: signed in for the normal login, signed out when CLAUDE_CONFIG_DIR names an account.
+  writeFileSync(join(bin, "claude"), `#!/bin/sh
+echo "$*" >> "${join(root, "claude.args")}"
+if [ -n "$CLAUDE_CONFIG_DIR" ]; then echo '{"loggedIn":false}'; else echo '{"loggedIn":true,"email":"me@example.com","subscriptionType":"max","authMethod":"claude.ai"}'; fi
+`, { mode: 0o755 });
+  writeFileSync(join(bin, "codex"), `#!/bin/sh
+if [ -n "$CODEX_HOME" ]; then echo "Not logged in" >&2; exit 1; fi
+echo "Logged in using an API key - sk-proj-abc***xyz"
+`, { mode: 0o755 });
+  const env = { PATH: `${bin}:/usr/bin:/bin`, HOME: home };
+  expect(await loginStatus("claude", undefined, env)).toEqual({ signedIn: true, who: "me@example.com", plan: "max", via: "claude.ai", checked: "cli" });
+  expect(await loginStatus("claude", join(root, "acct"), env)).toEqual({ signedIn: false, who: undefined, plan: undefined, via: undefined, checked: "cli" });
+  expect(readFileSync(join(root, "claude.args"), "utf8").trim().split("\n")).toEqual(["auth status --json", "auth status --json"]);
+  const codex = await loginStatus("codex", undefined, env);
+  expect(codex).toEqual({ signedIn: true, via: "an API key", checked: "cli" });
+  expect(JSON.stringify(codex)).not.toContain("sk-");
+  expect(await loginStatus("codex", join(root, "acct2"), env)).toEqual({ signedIn: false, checked: "cli" });
+  // A tool that hangs is cut off and the file check answers.
+  writeFileSync(join(bin, "claude"), "#!/bin/sh\nsleep 30\n", { mode: 0o755 });
+  const t0 = Date.now();
+  expect(await loginStatus("claude", undefined, env, 300)).toEqual({ signedIn: false, checked: "file" });
+  expect(Date.now() - t0).toBeLessThan(3000);
+  // No tool on PATH: the file check.
+  writeFileSync(join(home, ".claude", ".credentials.json"), "{}");
+  expect(await loginStatus("claude", undefined, { PATH: "/nonexistent", HOME: home })).toEqual({ signedIn: true, checked: "file" });
 });

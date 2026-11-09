@@ -82,6 +82,44 @@ export function addAccount(tool: unknown, name: unknown): { id: string } | { err
 // Whether the tool has saved a login here. The file is only looked at, never read.
 export const signedIn = (dir: string, tool: Tool) => existsSync(join(dir, tool === "claude" ? ".credentials.json" : "auth.json"));
 
+// Who is signed in, as the tool itself says: `claude auth status --json` / `codex login status`,
+// pointed at an account folder (`dir`) or at the normal login. kaizen never opens the login
+// files; without the CLI (or when it hangs past 5 s) it falls back to whether the file exists.
+export type Login = { signedIn: boolean; who?: string; plan?: string; via?: string; checked: "cli" | "file" };
+export async function loginStatus(tool: Tool, dir?: string, env: NodeJS.ProcessEnv = process.env, timeoutMs = 5000): Promise<Login> {
+  const home = env.HOME || homedir();
+  const fallback = (): Login => ({ signedIn: signedIn(dir ?? join(home, tool === "claude" ? ".claude" : ".codex"), tool), checked: "file" });
+  const bin = Bun.which(tool, { PATH: env.PATH ?? "" });
+  if (!bin) return fallback();
+  const e: Record<string, string> = {};
+  for (const [k, v] of Object.entries(env)) if (typeof v === "string") e[k] = v;
+  if (dir) e[ACCOUNT_VAR[tool]] = dir; else delete e[ACCOUNT_VAR[tool]];
+  let p: ReturnType<typeof Bun.spawn> | null = null, timer: ReturnType<typeof setTimeout> | undefined;
+  // Raced against the clock: a killed CLI's own children can keep its output open, so the
+  // answer never waits on the pipes past the timeout.
+  const late = new Promise<Login>((done) => { timer = setTimeout(() => { try { p?.kill(); } catch { /* gone */ } done(fallback()); }, timeoutMs); });
+  const ask = (async (): Promise<Login> => {
+    p = Bun.spawn(tool === "claude" ? [bin, "auth", "status", "--json"] : [bin, "login", "status"], { env: e, stdin: "ignore", stdout: "pipe", stderr: "pipe" });
+    const [out, err] = await Promise.all([new Response(p.stdout as ReadableStream).text(), new Response(p.stderr as ReadableStream).text()]);
+    await p.exited;
+    return read(out, err);
+  })().catch(fallback);
+  try { return await Promise.race([ask, late]); } finally { clearTimeout(timer); }
+  function read(out: string, err: string): Login {
+    if (tool === "claude") {
+      const j = JSON.parse(out);
+      const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim().slice(0, 120) : undefined);
+      return { signedIn: j?.loggedIn === true, who: str(j?.email), plan: str(j?.subscriptionType) ?? str(j?.planTier), via: str(j?.authMethod), checked: "cli" };
+    }
+    const txt = (out + "\n" + err).trim();
+    const m = /^Logged in using (.+)$/im.exec(txt);
+    // "an API key - sk-…": only the method, never a piece of the key.
+    if (m) return { signedIn: true, via: m[1]!.split(" - ")[0]!.trim().slice(0, 60), checked: "cli" };
+    if (/not logged in/i.test(txt)) return { signedIn: false, checked: "cli" };
+    return fallback();
+  }
+}
+
 export function removeAccount(id: string, deleteFolder = false): string | null {
   const a = readAccounts();
   if (!validId(id) || !a.accounts.some((x) => x.id === id)) return "unknown account";
