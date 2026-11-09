@@ -787,5 +787,12 @@ changing the setting. Existing runs keep their original choice.
 Explore questions assumptions, researches factual gaps with sources, and saves
 `00-explore.md`: the problem, decisions, evidence, options and open questions.
 Confirm **Continue to Plan**, explore further, stop, or skip. The planner reads
-that brief; confirming it does not approve implementation. Research uses available
-agent tools; no additional research service is required.
+that brief; confirming it does not approve implementation.
+
+Before its first question, Explore runs two or three web searches on what is new
+and relevant, so the discussion starts from current facts. It searches with
+`kaizen search` and reads pages with `kaizen scrape` when you have added a
+Firecrawl API key under Settings → Integrations → Research (your own key from
+firecrawl.dev, kept in `~/.kaizen/firecrawl.json`; `FIRECRAWL_API_KEY` wins when
+set). Without a key it uses the agent's own web tools, and with none it says so
+and works from local material. No research service is required.

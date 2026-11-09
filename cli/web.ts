@@ -1821,6 +1821,29 @@ export async function web(repoDir: string, opts: Opts = {}) {
         } finally { upgrading = false; }
       }
 
+      // The user's Firecrawl key for `kaizen search` / `kaizen scrape` (cli/research.ts).
+      // Per user, so no scope; the key goes in and never comes back out, only its last four.
+      if (path === "/research-key" && (req.method === "GET" || req.method === "POST")) {
+        const research = await import("./research.ts");
+        if (req.method === "POST") {
+          const refused = strict(req);
+          if (refused) return refused;
+          if (!local(req)) return bad("cross-origin write refused", 403);
+          let body: any;
+          try { body = await req.json(); } catch { return bad("json body expected"); }
+          if (body?.op === "save") {
+            const r = research.setKey(typeof body.key === "string" ? body.key : "");
+            if ("error" in r) return bad(r.error);
+          } else if (body?.op === "remove") research.removeKey();
+          else if (body?.op === "test") {
+            const r = await research.testKey(typeof body.key === "string" ? body.key.trim() : undefined);
+            if ("error" in r) return json({ ...research.keyStatus(), error: r.error });
+            return json({ ...research.keyStatus(), tested: true });
+          } else return bad("unknown op");
+        }
+        return json(research.keyStatus());
+      }
+
       if (req.method === "GET" && path === "/google") return json(google.status());
 
       // The Google client the user created, and connecting or disconnecting Google.

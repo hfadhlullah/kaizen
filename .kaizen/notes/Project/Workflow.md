@@ -2,7 +2,7 @@
 description: What a kaizen run is, which files define it, and where its state lives
 tags: [project, workflow]
 sources: [skills/kaizen-explore, cli/roadmap.ts, cli/workers.ts, skills/kaizen, skills/kaizen-help, skills/kaizen-concept, skills/media, agents, commands, cli/worktree.ts, docs/guide.md]
-updated: 2026-11-08
+updated: 2026-11-09
 ---
 # Workflow
 
@@ -65,3 +65,7 @@ Every stage reports with `kaizen report`; see *Reporting to the board* in `spec.
 ## Optional Explore (2026-11-08)
 
 `explore.enabled` defaults false. New or unclear work can use Explore → Plan → Build → Review → Done; clear fixes skip Explore. The per-run checkbox and `/kaizen explore` or `/kaizen skip-explore` override the setting without changing it. `skills/kaizen-explore/` is core and uses prerequisite-aware interviews plus source-tracked iterative research. It saves `00-explore.md`, decisions and evidence limits. `stage: explore`, `explore_status: active|completed|skipped`; `awaiting: explore` is confirmation of a ready brief, not an interview round. The main thread handles dialogue under both runners. Completing or skipping enters Plan and keeps plan approval. Resume honors saved state.
+
+## Explore looks around first (2026-11-09)
+
+`skills/kaizen-explore/SKILL.md` has Explore run 2–3 web searches on what is new, what exists and hard limits after reading local material and before its first question, recording links and dates in `00-explore.md`. Web tools in order: `kaizen search` / `kaizen scrape` (Firecrawl, the user's key; exit 2 means none), then the host's own web tools, then local material only, said in the brief.

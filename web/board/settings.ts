@@ -65,6 +65,9 @@ export async function openSettings() {
   const gg = await fetch("/google")
     .then((r) => r.json())
     .catch(() => ({}));
+  const rk = await fetch("/research-key")
+    .then((r) => (r.ok ? r.json() : null))
+    .catch(() => null);
   const ap = await fetch("/agent-prefs")
     .then((r) => (r.ok ? r.json() : null))
     .catch(() => null);
@@ -164,6 +167,26 @@ export async function openSettings() {
   put("mobile", "Phone", html`<div class="srow ph-card" data-q="phone mobile tailscale qr connect address setup"><div id="phset"></div></div>`);
   put("integrations", "Google", row("OAuth client id", html`<input class="sel" id="gg-id" placeholder="${gg.hasClient ? "Saved. Paste a new one to replace it" : "Desktop app client id from Google Cloud"}" spellcheck="false" autocomplete="off">`, "", "gg-id", "google oauth client id sheets write back"));
   put("integrations", "Google", row("OAuth client secret", html`<span class="fpick"><input class="sel" id="gg-secret" type="password" placeholder="${gg.hasClient ? "Saved. Paste a new one to replace it" : ""}" spellcheck="false" autocomplete="off"><button class="btn" id="gg-save" type="button">Save</button></span>`, "", "gg-secret", "google oauth client secret"));
+  // Firecrawl for `kaizen search` / `kaizen scrape`: the key goes in, only its last four come back.
+  if (rk) {
+    const fromEnv = rk.source === "env";
+    put("integrations", "Research", row(
+      "Firecrawl API key",
+      html`<span class="fpick"><input class="sel" id="fc-key" type="password" placeholder="${rk.set ? "Paste a new key to replace it" : "fc-…"}" spellcheck="false" autocomplete="off"${fromEnv ? " disabled" : ""}><button class="btn" id="fc-save" type="button"${fromEnv ? " disabled" : ""}>Save</button></span>`,
+      fromEnv
+        ? html`Set by FIRECRAWL_API_KEY in the board's environment (${rk.hint}); that one wins.`
+        : html`Your own key from <a href="https://www.firecrawl.dev/app/api-keys" target="_blank" rel="noopener">firecrawl.dev</a>. Agents search the web with <code>kaizen search</code> and read pages with <code>kaizen scrape</code>; Explore uses it first. Kept in ~/.kaizen/firecrawl.json, on this machine only.`,
+      "fc-key",
+      "firecrawl api key research web search scrape explore internet",
+    ));
+    put("integrations", "Research", row(
+      "Status",
+      html`<span class="fpick"><button class="btn" id="fc-test" type="button"${rk.set ? "" : " disabled"}>Test</button>${rk.set && !fromEnv ? html`<button class="btn" id="fc-del" type="button">Remove</button>` : ""}</span>`,
+      rk.set ? `Key saved (${rk.hint}). Test spends one search credit.` : "Not set. Without it, agents use their own web tools.",
+      "fc-test",
+      "firecrawl status test remove research web search",
+    ));
+  }
   let hapton = true;
   try {
     hapton = localStorage.getItem("kz-haptic") !== "off";
@@ -268,6 +291,30 @@ export async function openSettings() {
     const f = $("sq");
     f.focus();
     f.setSelectionRange(f.value.length, f.value.length);
+  }
+  if (rk) {
+    const save = $("fc-save"), test = $("fc-test"), del = $("fc-del");
+    if (save) save.onclick = async () => {
+      const key = $("fc-key").value.trim();
+      if (!key) return toast("Paste your Firecrawl API key first");
+      const j = await post("/research-key", { op: "save", key });
+      if (j.set) toast("Saved. kaizen search now uses Firecrawl");
+      openSettings();
+    };
+    if (test) test.onclick = async () => {
+      test.disabled = true;
+      test.textContent = "Testing…";
+      const j = await post("/research-key", { op: "test" });
+      test.disabled = false;
+      test.textContent = "Test";
+      if (j.tested) toast("Firecrawl answered. The key works");
+      else if (j.error) toast(j.error);
+    };
+    if (del) del.onclick = async () => {
+      if (!confirm("Remove the saved Firecrawl key? Agents fall back to their own web tools.")) return;
+      await post("/research-key", { op: "remove" });
+      openSettings();
+    };
   }
   $("gg-save").onclick = async () => {
     const j = await post("/google", { op: "client", id: $("gg-id").value, secret: $("gg-secret").value });

@@ -1,8 +1,8 @@
 ---
 description: The Settings page: agents, models, skills, REA, desktop control, accounts, voice
 tags: [project, web-board]
-sources: [cli/config-values.ts, cli/rea.ts, cli/computer.ts, cli/computer-helper.py, web/board/settings-voice.ts, cli/accounts.ts, cli/skills.ts, web/board/settings-skills.ts, cli/agent-prefs.ts, cli/keep-awake.ts, web/board/settings-agents.ts, cli/state.ts, web/board, cli/settings.ts]
-updated: 2026-11-08
+sources: [cli/research.ts, cli/config-values.ts, cli/rea.ts, cli/computer.ts, cli/computer-helper.py, web/board/settings-voice.ts, cli/accounts.ts, cli/skills.ts, web/board/settings-skills.ts, cli/agent-prefs.ts, cli/keep-awake.ts, web/board/settings-agents.ts, cli/state.ts, web/board, cli/settings.ts]
+updated: 2026-11-09
 ---
 # Settings
 
@@ -48,3 +48,7 @@ New agent launches expose a per-launch Yolo / bypass permissions switch on phone
 ## Explore workflow option (2026-11-08)
 
 Settings → Agents → Workflow has `explore.enabled` (false by default), a project/global switch independent of the installed core skill. `cli/config-values.ts` supplies scalar lookup shared by Settings and the launch defaults without a state/settings import cycle. `/agents` returns the resolved Explore default; the Run form can override it for one launch.
+
+## Research key (2026-11-09)
+
+Settings → Integrations → Research holds the Firecrawl key for `kaizen search` / `kaizen scrape`: a password field with Save, then Test (one search credit) and Remove. `GET /research-key` answers `{set, source, hint}` only, the last four characters, never the key; with `FIRECRAWL_API_KEY` in the board's environment the field is disabled and that key wins. Per user, so no scope.

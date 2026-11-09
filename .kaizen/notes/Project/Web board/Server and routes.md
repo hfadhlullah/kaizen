@@ -1,8 +1,8 @@
 ---
 description: The board server: routes, host guard, updates, automations and other server-side behaviour
 tags: [project, web-board]
-sources: [cli/desktop-env.test.ts, cli/automations.ts, web/board/settings-automations.ts, web/board/settings-orchestration.ts, cli/project-tree.test.ts, cli/logo.ts, cli/state.ts, cli/restart.test.ts, cli/hermes.ts, web/board, cli/install.ts, cli/settings.ts, web/term.css, docs/mockups]
-updated: 2026-11-08
+sources: [cli/research.ts, cli/desktop-env.test.ts, cli/automations.ts, web/board/settings-automations.ts, web/board/settings-orchestration.ts, cli/project-tree.test.ts, cli/logo.ts, cli/state.ts, cli/restart.test.ts, cli/hermes.ts, web/board, cli/install.ts, cli/settings.ts, web/term.css, docs/mockups]
+updated: 2026-11-09
 ---
 # Server and routes
 
@@ -64,3 +64,7 @@ WhatsApp MP4s over 64 MiB use Hermes' `[[as_document]]` directive, preserving th
 ## Explore routes (2026-11-08)
 
 `GET /run/<id>` includes `explore` (`00-explore.md`). `/run` accepts an optional boolean `explore` launch override, ignored for resumed runs. `POST /explore/skip` validates the project, run id and `stage: explore`, then submits a skip to the live agent or resumes its conversation. It changes no config or stage itself; the agent saves partial work and enters Plan. `/decide` accepts `awaiting: explore` for a ready brief and keeps normal plan approval.
+
+## Research key route (2026-11-09)
+
+`GET`/`POST /research-key` (`cli/research.ts`): POST `{op: "save", key}`, `{op: "remove"}` or `{op: "test", key?}` goes through `strict()` and `local()`; every answer is `keyStatus()` (`set`, `source`, `hint`), never the key. A failed test answers 200 with `error`, so the page shows Firecrawl's reason.

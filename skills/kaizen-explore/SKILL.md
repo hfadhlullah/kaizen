@@ -23,6 +23,26 @@ For an active exploration record `explore_status=active`, `stage=explore`, and
 Create `00-explore.md` immediately and save progress after meaningful exchanges
 or research findings, so another session can resume without repeating questions.
 
+## Look around before you talk
+
+After reading the local material and before the first question, check what is
+current, so the discussion starts from today's facts rather than from memory.
+Run 2–3 web searches on the topic: what is new (recent releases, changes, current
+versions), what already exists that solves it, and hard limits (pricing, quotas,
+deprecations). Open the one or two most relevant results instead of trusting
+snippets. Record each finding with its link and date in `00-explore.md`, then use
+them in your questions and recommendations. Stop at three searches unless the
+topic is still unclear; deep research comes after the decisions. Skip this only
+for work internal to the project (its own bugs, refactors).
+
+Web tools, in this order:
+
+1. `kaizen search "<query>" --recent m` (add `--read` for page text, `--limit N`)
+   and `kaizen scrape <url>` use the user's Firecrawl key. Exit code 2 means no
+   key is set up: go to the next option, and do not ask the user for a key.
+2. Otherwise the host's own web search and fetch tools.
+3. With neither, say so in one line in the brief and continue from local material.
+
 ## Question the idea
 
 Use Matt Pocock's decision-tree approach, adapted for Kaizen (see
@@ -53,7 +73,8 @@ dependency on GPT Researcher's service, Python runtime, API keys or MCP server.
 
 1. Turn the decisions' factual gaps into a short research checklist. State the
    search boundary and a proportionate effort budget before an open-ended study.
-2. Search and open relevant sources; use primary documentation, source code,
+2. Search and open relevant sources, with the same web tools in the same order
+   as above; use primary documentation, source code,
    datasets and first-party evidence where available. Search snippets are leads,
    not sufficient evidence. Prefer current evidence for changing claims and
    record publication or retrieval dates when freshness matters.

@@ -11,7 +11,7 @@ export const SETTINGS_NAV: [string, SettingsPage[]][] = [
   ]],
   ["Set Up", [
     { id: "general", title: "General", desc: "Which settings you are editing, folders, and maintenance.", ico: "gear" },
-    { id: "integrations", title: "Integrations", desc: "Request sources and your Google account.", ico: "link" },
+    { id: "integrations", title: "Integrations", desc: "Request sources, your Google account, and web research.", ico: "link" },
     { id: "mobile", title: "Mobile", desc: "Open kaizen from your phone.", ico: "send" },
   ]],
   ["Workflows", [
