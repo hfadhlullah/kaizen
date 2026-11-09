@@ -24,6 +24,7 @@
     "install-links": "bun run cli/install.ts",
     "check": "bun run cli/install.ts --check",
     "build:web": "bun run cli/build-web.ts",
+    "audit:ui": "bun run cli/ui-audit.ts",
     "format": "prettier --write web/*.ts web/board bot/web/app",
     "format:check": "prettier --check web/*.ts web/board bot/web/app",
     "test": "bun test",

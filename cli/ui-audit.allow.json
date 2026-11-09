@@ -1,0 +1,6 @@
+[
+  {"screen": "*", "path": "div#phome>section.psec2", "rule": "column", "reason": "Phone Home's section headings are inset 4px from the cards under them (#phome h3 margin), as grouped lists on a phone are."},
+  {"variant": ".ice-cap-row :is(.ib,.sel,.btn), .ice-cap-row .ice-combo>.sel", "reason": "The Icebox capture row is a compact row: attach, mic, the project and board pickers and save are all 30px, below the page's 32px controls."},
+  {"screen": "*", "path": "button.ib.hgo", "rule": "size", "reason": "The composer's round send button is drawn 34px on purpose, a size step above the 32px icon buttons."},
+  {"screen": "notes", "path": "li>details>ul>li", "rule": "column", "reason": "A folder row starts with its chevron's box, 2px left of its sibling note names; the chevron drawn inside that box starts level with them."}
+]

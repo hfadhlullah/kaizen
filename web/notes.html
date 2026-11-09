@@ -39,8 +39,8 @@ svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6;stroke
 [hidden]{display:none!important}
 
 /* side menu: the same lines in board.html and notes.html (a test holds them equal) */
-.rail{width:280px;flex:none;display:flex;flex-direction:column;gap:2px;padding:18px 12px 14px;overflow:hidden auto;transition:width .18s}
-.rail .top{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 0 18px 10px}
+.rail{width:280px;flex:none;display:flex;flex-direction:column;gap:2px;padding:19px 12px 14px;overflow:hidden auto;transition:width .18s}
+.rail .top{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 0 18px 8px}
 .rail .home{display:block;color:inherit;text-decoration:none}
 .rail .top .mascot{display:none;width:28px;height:26px}
 .rail a.it{display:flex;align-items:center;gap:var(--gap);height:var(--row);padding:0 var(--padx);border-radius:var(--r-s);font-size:var(--fs);font-weight:500;color:var(--dim);text-decoration:none;white-space:nowrap;transition:background .12s,color .12s}
@@ -165,7 +165,7 @@ html.desk .hdr{padding-right:calc(16px + var(--wco))}
 html.desk #rbar{padding-right:calc(6px + var(--wco));-webkit-app-region:drag}
 html.desk #rbar :is(button,summary,details,a,input,select,.rtab,[role=button]){-webkit-app-region:no-drag}
 html.desk body.runv #panel>header{padding-right:calc(12px + var(--wco))}
-html.desk body.runv .pstrip{padding-top:calc(7px + var(--wch))}
+html.desk body.runv .pstrip{padding-top:calc(10px + var(--wch))}
 html.desk.mac .rail>.top{padding-top:22px}
 /* end side menu */
 #kbd{display:none}
@@ -175,9 +175,13 @@ body.embed .rail,body.embed .hdr{display:none}body.embed .app{margin:0;border:0;
 @media(max-width:640px){.app{margin:0;border:0;border-radius:0}html,body{background:var(--bg)}}
 /* header: the board's */
 .hdr{display:flex;align-items:center;gap:12px;padding:10px 20px 10px 28px;border-bottom:1px solid color-mix(in srgb,var(--line) 60%,transparent);flex-wrap:wrap}
+/* The board's header height on a computer, so the three pages share one top line. */
+@media(min-width:641px){body .hdr{height:52px;min-height:52px;box-sizing:border-box;padding-top:0;padding-bottom:0;flex-wrap:nowrap}}
 pre.mark{margin:0;font:700 5px/1 var(--mono)}
 pre.mark span:nth-child(1){color:var(--ink-hi)}pre.mark span:nth-child(2){color:color-mix(in srgb,var(--ink-hi),var(--accent))}pre.mark span:nth-child(3){color:var(--accent)}
 .sel{border:1px solid var(--line);border-radius:var(--r-s);padding:4px 10px;background-color:var(--bg-2);color:var(--ink);font-size:13px}
+/* One line, one height: a select, a field and a picker button stand as tall as .ib and .btn. */
+:is(input,select,button,summary).sel{height:var(--btn-s)}
 select.sel{cursor:pointer;appearance:none;padding-right:30px;max-width:min(320px,100%);text-overflow:ellipsis;background-image:linear-gradient(45deg,transparent 50%,var(--dim) 50%),linear-gradient(135deg,var(--dim) 50%,transparent 50%);background-position:calc(100% - 16px) 50%,calc(100% - 11px) 50%;background-size:5px 5px;background-repeat:no-repeat}
 .sel:hover{border-color:var(--dim)}
 .hdr h1{display:none;margin:0;font-weight:600}
@@ -202,7 +206,7 @@ select.sel{cursor:pointer;appearance:none;padding-right:30px;max-width:min(320px
 
 /* sidebar: search, tags, the folder tree */
 .wrap{flex:1;min-height:0;display:grid;grid-template-columns:260px 1fr}
-.side{background:var(--bg);border-right:1px solid var(--line);overflow:auto;padding:16px 12px 32px;display:flex;flex-direction:column;gap:10px}
+.side{background:var(--bg);border-right:1px solid var(--line);overflow:auto;padding:16px 12px 32px;display:flex;flex-direction:column;gap:10px}.side>#q{flex:none}
 .side input.sel{width:100%}
 .side h3,.links h3{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin:10px 8px 0}
 .tags{display:flex;flex-wrap:wrap;gap:6px;padding:0 4px}
