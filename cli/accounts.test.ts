@@ -127,7 +127,7 @@ test("signed in follows the tool's login file", () => {
 
 // Who is signed in comes from the tool's own status command, pointed at the account folder or
 // the normal login; kaizen never opens the login files for it.
-test("loginStatus asks the tool, per folder; hangs and missing tools fall back to the file check", async () => {
+test.skipIf(process.platform === "win32")("loginStatus asks the tool, per folder; hangs and missing tools fall back to the file check", async () => {
   const { loginStatus } = await import("./accounts.ts");
   const root = mkdtempSync(join(tmpdir(), "kz-login-")), bin = join(root, "bin"), home = join(root, "home");
   mkdirSync(bin, { recursive: true });
