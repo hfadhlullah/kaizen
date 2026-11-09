@@ -949,7 +949,8 @@ aside .foot .more .menu-pop{left:0;right:auto;top:auto;bottom:calc(100% + 4px)}.
 .ice-cap-t::placeholder{color:var(--dim)}.ice-cap-t:read-only{opacity:.6}
 .ice-cap-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.ice-cap-row .end{flex:1}.ice-cap-row .btn{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
 .ice-cap-row>.ib{border:1px solid var(--line)}.ice-cap-row .ice-combo>.sel{height:28px;border-radius:var(--r-pill);padding:0 28px 0 10px}.ice-cap-row .ice-combo>.sel svg{width:12px;height:12px}
-.ice-cap-hint{margin:0;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:0 1 auto}
+/* One size for the capture row: attach, mic and the two pickers are all 30 px pills. */
+.ice-cap-row>.ib,.ice-cap-row>.ib.sm{width:30px;height:30px;border:1px solid var(--line);border-radius:var(--r-pill)}.ice-cap-row>.ib svg{width:15px;height:15px}.ice-cap-row .ice-combo>.sel{height:30px}#ice-save{height:30px;min-height:30px;border-radius:var(--r-pill);padding:0 14px}
 .ice-att{display:flex;flex-wrap:wrap;gap:6px}.ice-file{display:inline-flex;align-items:center;gap:5px;max-width:260px;padding:0 2px 0 8px;border:1px solid var(--line);border-radius:var(--r-pill);font-size:12px;color:var(--dim)}.ice-file>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ice-file>svg{width:12px;height:12px;flex:none}
 .ice-boards{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin:0 0 10px}
 .ice-chips{display:flex;flex-wrap:wrap;gap:6px;min-width:0}
@@ -958,9 +959,8 @@ aside .foot .more .menu-pop{left:0;right:auto;top:auto;bottom:calc(100% + 4px)}.
 .ice-chip.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}.ice-chip.on i{color:inherit;opacity:.75}
 .ice-chip[class*=k-]{color:var(--k)}.ice-chip[class*=k-].on{background:var(--k);border-color:var(--k);color:var(--bg-2)}
 .ice-chip.add{color:var(--dim);border-style:dashed}
-.tk-bar.ice-bar{padding:0;margin:0 0 10px;border:0;background:none}.ice-bar .ice-sub{font-size:12px;color:var(--dim)}.ice-bar .ice-sub::before{content:"· "}
+.tk-bar.ice-bar{padding:0;margin:0 0 10px;border:0;background:none}
 .ice-view{display:inline-flex;border:1px solid var(--line);border-radius:var(--r-s);overflow:hidden;background:var(--bg-2)}.ice-view button{height:28px;padding:0 12px;border:0;background:none;color:var(--dim);font:inherit;font-size:12px;cursor:pointer}.ice-view button[aria-pressed=true]{background:var(--accent);color:var(--on-accent)}
-.ice-keys{margin:-4px 0 8px;font-size:12px;color:var(--dim)}.ice-keys kbd{font:11px/1 var(--mono);padding:2px 5px;border:1px solid var(--line);border-bottom-width:2px;border-radius:var(--r-xs);background:var(--bg-2);color:var(--ink)}
 .ice-bulk{border-top:1px solid color-mix(in srgb,var(--line) 50%,transparent);border-radius:var(--r) var(--r) 0 0}.tk-list.ice-list{border-top:1px solid color-mix(in srgb,var(--line) 50%,transparent);border-radius:var(--r)}.ice-bulk+.tk-list.ice-list{border-top:0;border-radius:0 0 var(--r) var(--r)}
 .ice-row{grid-template-columns:auto 86px auto minmax(0,1fr) auto;position:relative}
 .ice-kb,.ice-bo{display:inline-flex;align-items:center;max-width:140px;padding:2px 4px;margin:-2px -4px;border:0;border-radius:var(--r-xs);background:none;font:inherit;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -985,7 +985,7 @@ aside .foot .more .menu-pop{left:0;right:auto;top:auto;bottom:calc(100% + 4px)}.
 .ice-date{display:flex;gap:6px;padding:6px 4px 2px;border-top:1px solid var(--line);margin-top:4px}.ice-date input{flex:1;min-width:0;height:28px;font-size:12px}
 .ice-card:has(.ice-mpop),.ice-row:has(.ice-mpop){z-index:5}
 .ice-undo{margin:0;padding:0;border:0;background:none;color:inherit;font:inherit;font-weight:600;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
-@media(max-width:640px){.ice-boards{flex-direction:column;gap:6px}.ice-chips{flex-wrap:nowrap;overflow-x:auto;max-width:100%;scrollbar-width:none}.ice-cap-hint{display:none}.ice-row{grid-template-columns:auto auto minmax(0,1fr) auto}.ice-row .ice-src{display:none}.ice-row .ice-kb,.ice-row>.ice-k{font-size:10px;letter-spacing:.02em}.ice-keys{display:none}.ice-row .ice-meta .ice-bo,.ice-row .ice-meta>span:not(.ice-age):not(.ice-ra){display:none}.ice-bar .ice-sub{display:none}}
+@media(max-width:640px){.ice-boards{flex-direction:column;gap:6px}.ice-chips{flex-wrap:nowrap;overflow-x:auto;max-width:100%;scrollbar-width:none}.ice-row{grid-template-columns:auto auto minmax(0,1fr) auto}.ice-row .ice-src{display:none}.ice-row .ice-kb,.ice-row>.ice-k{font-size:10px;letter-spacing:.02em}.ice-row .ice-meta .ice-bo,.ice-row .ice-meta>span:not(.ice-age):not(.ice-ra){display:none}.ice-bar .ice-sub{display:none}}
 /* Swipe view: one request at a time. On a phone it takes the whole screen. */
 .sw{display:flex;flex-direction:column;justify-content:center;gap:16px;width:100%;max-width:680px;margin-inline:auto;height:calc(100dvh - var(--sw-top,130px));min-height:420px}
 .sw-top{display:flex;align-items:center;gap:10px}.sw-top .btn{flex-shrink:0}
