@@ -9,7 +9,7 @@ the need actually is, and which are worth a task. The user decides; you propose.
 
 1. Run `kaizen icebox`. It prints one item per line: an id; in brackets the kind
    (Client, Finding or People say; a `?` after it means no one sorted it yet), the
-   board and `#tags`; the category in brackets; the text; the source (`manual` is the
+   collection and `#tags`; the category in brackets; the text; the source (`manual` is the
    user's own capture); and the item's link title and other cells beneath. Snoozed items
    are listed apart and are not proposed. If it says the icebox is empty, say so and stop.
 2. **Sort what is unsorted.** For each item whose kind has a `?`, pick its kind from

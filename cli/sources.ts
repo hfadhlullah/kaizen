@@ -306,7 +306,7 @@ const writeBoards = (state: string, list: Board[]) => { mkdirSync(state, { recur
 // A board name as stored, or why not.
 function boardName(raw: string): { name: string } | { why: string } {
   const name = oneLine(raw);
-  return name && name.length <= 40 ? { name } : { why: "a board name is 1 to 40 characters" };
+  return name && name.length <= 40 ? { name } : { why: "a collection name is 1 to 40 characters" };
 }
 // Makes the board when it is new; `client` marks it a client's (never unmarks). The name
 // as the board already spells it.
@@ -328,8 +328,8 @@ export function saveBoard(state: string, raw: string, client = false): string | 
 export function removeBoard(state: string, raw: string): string | null {
   const list = readBoards(state);
   const b = list.find((x) => same(x.name, oneLine(raw)));
-  if (!b) return "no such board";
-  if (readIcebox(state).some((s) => s.board && same(s.board, b.name))) return "the board still has items";
+  if (!b) return "no such collection";
+  if (readIcebox(state).some((s) => s.board && same(s.board, b.name))) return "the collection still has items";
   writeBoards(state, list.filter((x) => x !== b));
   return null;
 }

@@ -96,3 +96,27 @@ test.skipIf(process.platform === "win32")("the board sorts a capture after answe
     fake.stop(true);
   }
 }, 30_000);
+
+// "Collection" is the word people see; "board" (what is stored, and the first name) still works.
+test("kaizen icebox: --collection and collection(s) work beside --board and board(s)", () => {
+  const homeDir = scratch(), proj = join(homeDir, "p");
+  mkdirSync(join(proj, ".kaizen"), { recursive: true });
+  const kz = (...a: string[]) => {
+    const p = Bun.spawnSync([process.execPath, join(import.meta.dir, "install.ts"), "icebox", ...a], { cwd: proj, env: { ...process.env, HOME: homeDir, USERPROFILE: homeDir, CLAUDECODE: "", KAIZEN_RUN_ID: "", FIRECRAWL_API_KEY: "" }, stdin: "ignore" });
+    return { code: p.exitCode, out: p.stdout.toString() + p.stderr.toString() };
+  };
+  expect(kz("collections").out).toContain("no collections yet");
+  expect(kz("collections", "add", "Arupadatu", "--client").code).toBe(0);
+  const a = kz("add", "Weekly Excel export", "--collection", "Arupadatu");
+  expect(a.code).toBe(0);
+  expect(a.out).toContain("· Arupadatu]");
+  const b = kz("add", "Old flag still works", "--board", "Pricing");
+  expect(b.out).toContain("· Pricing]");
+  const id = /icebox: (\w+)/.exec(b.out)![1]!;
+  expect(kz("collection", id, "Arupadatu").out).toContain(`collection: ${id}`);
+  expect(kz("board", id, "-").code).toBe(0);
+  expect(kz("boards").out).toContain("Arupadatu");
+  expect(kz("add", "x thing", "--collection", "A", "--client", "B").out).toContain("--collection or --client, not both");
+  const st = join(proj, ".kaizen");
+  expect(readIcebox(st).find((s) => s.text === "Weekly Excel export")).toMatchObject({ board: "Arupadatu", kind: "client" });
+});

@@ -2,7 +2,7 @@
 description: How work is done in this repo, and the traps that have bitten before
 tags: [project, conventions]
 sources: [.kaizen/memory.md, design.md, .claude/skills, .github, .gitattributes, .gitignore, .prettierrc, AGENTS.md, CLAUDE.md, CONTRIBUTING.md, LICENSE, README.md, docs/README.md]
-updated: 2026-11-03
+updated: 2026-11-09
 ---
 # Conventions and gotchas
 
@@ -31,6 +31,7 @@ The rules that are not visible in any one file. Cross-area lessons are in `.kaiz
 
 ## How it connects
 - Every area note's "Watch out" cites its own lessons: [[CLI]], [[Web board]], [[Notebook]], [[Terminal board]], [[Sources and icebox]].
+- The desktop app (Electron) has no `window.prompt()`: it returns nothing and shows nothing. Ask for text in a `modal()` dialog (`web/board/dom.ts`), as `askCollection()` in `web/board/icebox.ts` does. `confirm()` and `alert()` do work there. (2026-11-09-icebox-collections)
 
 ## Notes
 <!-- yours: /kaizen docs never rewrites this section -->

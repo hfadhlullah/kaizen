@@ -52,7 +52,7 @@ Porting the workflow to Codex or Antigravity is covered in [`adapters.md`](adapt
 | `/kaizen backlog` | Print the open backlog items across all runs, grouped by source run, with rescued items last under `Orphaned` |
 | `/kaizen gather` | Read the request sources kaizen cannot read by itself and hand their requests over to the icebox |
 | `/kaizen discover` | Read the icebox, group what was gathered, propose tasks, and promote the ones the user picks |
-| "put this in the icebox" (any words) | Not a run: write the text to a temporary file with your file tool (first line the item, the rest notes), then `kaizen icebox add --file <path>`, adding `--kind client\|finding\|people` and `--board <name>` or `--client <name>` when the user made them clear. Never put the text on the command line |
+| "put this in the icebox" (any words) | Not a run: write the text to a temporary file with your file tool (first line the item, the rest notes), then `kaizen icebox add --file <path>`, adding `--kind client\|finding\|people` and `--collection <name>` or `--client <name>` when the user made them clear. Never put the text on the command line |
 | `/kaizen docs` | Write this project's documentation into the notebook as a vault agents read first, or bring it up to date |
 | `/kaizen docs lint` | Run the read-only `kaizen docs lint` CLI command; report broken links, missing sources and stale notes |
 | `/kaizen concept [number] <brief>` | Make product concepts as clickable prototypes and get one approved before any build |

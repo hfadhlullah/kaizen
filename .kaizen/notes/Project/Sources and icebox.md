@@ -25,7 +25,7 @@ Shared links (sheets, docs, social searches) kaizen reads for requests; each req
 
 ## How it connects
 - Panels and routes in the [[Web board]] (`/sources`, `/icebox`, `/reply`, `/chatgpt`).
-- Promoted items become tasks on the board, and tasks start [[Workflow]] runs. A promoted item stays in the Icebox list (tagged `promoted`); `markDone()` (run on each `GET /sources` and by the write-back timer) sets it `done` once a done run has a request line equal to its task, and done items sit under the Done category beside Dismissed.
+- Promoted items become tasks on the board, and tasks start [[Workflow]] runs. A promoted item leaves the Icebox list and shows under the Promoted category (like Dismissed and Done; the page's count is `status === "new"` only); `markDone()` (run on each `GET /sources` and by the write-back timer) sets it `done` once a done run has a request line equal to its task, and done items sit under the Done category beside Dismissed.
 
 ## Watch out
 - Icebox ids are hashes of the item's text (`idOf`), made once. Anything that changes an item's text (`editItem`) leaves its id behind, so `addRow` salts the key until the id is unused; and write-back matches a gathered item to its sheet row by text, so a gathered item's text is not to be changed.

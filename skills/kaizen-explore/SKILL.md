@@ -114,8 +114,8 @@ Maintain `00-explore.md` with:
 findings (one line each, with its link) as a multi-select question: "Add any of these
 to the icebox?". Add only the ones the user ticks: for each, write its line and link
 to a new temporary file outside the project with the file tool, then run
-`kaizen icebox add --file <path> --kind finding` (add `--board <name>` when the run
-names a board). Nothing ticked, nothing added; never add without the question, and
+`kaizen icebox add --file <path> --kind finding` (add `--collection <name>` when the run
+names one). Nothing ticked, nothing added; never add without the question, and
 never put the finding's text on the command line.
 
 When the material questions are resolved or explicitly deferred, show the short
