@@ -3,8 +3,8 @@ import { termStop } from "./agent-term.ts";
 import { load, post } from "./api.ts";
 import { via } from "./cards.ts";
 import { mic, stopDictation } from "./dictation.ts";
-import { $, dataUrls, html, ico, modal, motion, pageOf, pager, pagerHtml, raw, SKEL, wirePager } from "./dom.ts";
-import { taskCombo, newDir, plogo, setShown, short, showable } from "./projects.ts";
+import { $, dataUrls, html, ico, motion, pageOf, pager, pagerHtml, raw, SKEL, wirePager } from "./dom.ts";
+import { plogo, setShown, short, showable } from "./projects.ts";
 import { playSound, soundPick, toast } from "./toast.ts";
 import { go, view } from "./views.ts";
 
@@ -54,6 +54,48 @@ let iceSwipe = null;
 let swHeld = false,
   swLate = false;
 const PLAT = { x: "X", tiktok: "TikTok", instagram: "Instagram", threads: "Threads" };
+// What an item is: a client asked for it, you found it, or people say it (the server's KINDS).
+const KIND = { client: "Client", finding: "Finding", people: "People say" };
+// The capture box outlives every rebuild: its field and mic are kept nodes, so the text, the caret
+// and a dictation in progress survive a server change. Files and the picked board wait with it.
+const cap = { ta: null, mic: null, files: [], board: "", dir: null, busy: false };
+// Cards or Sort, per browser; the board and kind filters; the item menu that is open ("<item key> <menu>").
+let iceView = "cards";
+try {
+  iceView = localStorage.getItem("kz-ice-view") === "sort" ? "sort" : "cards";
+} catch (e) {}
+let iceBoard = "",
+  iceMenu = "";
+const iceKinds = new Set();
+// Wired on the first open, not at import: tests load this module with no window.
+let narrowQ = null;
+function wireOnce() {
+  if (narrowQ) return;
+  narrowQ = matchMedia("(max-width:640px)");
+  // A window crossing 640 px swaps cards for the list.
+  narrowQ.addEventListener("change", () => view === "sources" && srcOpen() && openSources());
+  // A click anywhere but a menu or its button shuts the open item menu.
+  document.addEventListener("click", (e) => {
+    if (!iceMenu || (e.target as Element).closest?.(".ice-mpop,[data-m]")) return;
+    iceMenu = "";
+    if (view === "sources" && srcOpen()) openSources();
+  });
+}
+// A person mark for a client's board.
+const PERSON = raw(
+  '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="5.2" r="2.6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M3 13.6c.7-2.5 2.6-3.8 5-3.8s4.3 1.3 5 3.8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+);
+const sameName = (a, b) => String(a || "").toLowerCase() === String(b || "").toLowerCase();
+// The day a snooze lands on, said as the server works it out (1d, 1w, 1m or a date).
+const wakeDay = (until) => {
+  const d = new Date();
+  if (until === "1d") d.setDate(d.getDate() + 1);
+  else if (until === "1w") d.setDate(d.getDate() + 7);
+  else if (until === "1m") d.setMonth(d.getMonth() + 1);
+  else return new Date(until + "T00:00:00");
+  return d;
+};
+const ymd = (d) => d.toLocaleDateString("sv");
 export const srcOpen = () => $("panel").classList.contains("open") && $("ptitle").textContent === SRC;
 const ago = (at) => {
   const m = Math.round((Date.now() - Date.parse(at)) / 60000);
@@ -125,8 +167,10 @@ export async function openSources() {
     return;
   }
   if (view !== "sources") return;
+  wireOnce();
   const gen = ++store.pageGen;
-  stopDictation(true);
+  // A dictation into the capture box keeps going: its field is carried over, not rebuilt.
+  stopDictation(!$("ice-cap"));
   // What is half typed survives a refresh from the server.
   const typed = srcOpen()
     ? [
@@ -145,7 +189,7 @@ export async function openSources() {
   );
   // And a promote form half filled, for the item it was typed on.
   // And which control of which inbox row had focus, by item key: row indices shift when a row goes.
-  const fRow = srcOpen() && document.activeElement?.closest?.(".ice-row"),
+  const fRow = srcOpen() && document.activeElement?.closest?.(".ice-row,.ice-card"),
     fPick = fRow ? [fRow.dataset.k, document.activeElement.id.replace(/-\d+$/, "")] : null;
   const iceDraft =
     srcOpen() && $("ice-title") ? [$("ice-title").dataset.k, $("ice-title").value, $("ice-details").value] : null;
@@ -279,27 +323,31 @@ export async function openSources() {
       }
   const inProj = (it) => dir || !store.shown.size || store.shown.has(it.dir),
     pv = ice.filter(inProj);
-  const byCat = count(pv, catOf);
+  const isWaiting = (it) => !["promoted", "dismissed", "done"].includes(it.status);
+  // Boards, then kinds, narrow before category and source. A board is its name: two projects'
+  // boards of one name are one chip in All projects.
+  const boards = [...new Map(((d && d.boards) || []).filter(inProj).map((b) => [b.name.toLowerCase(), b])).values()];
+  if (iceBoard && !boards.some((b) => sameName(b.name, iceBoard))) iceBoard = "";
+  const onBoard = (it) => !iceBoard || sameName(it.board, iceBoard),
+    ofKind = (it) => !iceKinds.size || iceKinds.has(it.kind);
+  const byCat = count(pv.filter((it) => onBoard(it) && ofKind(it)), catOf);
   if (iceCat && !byCat.has(iceCat)) iceCat = "";
-  const cv = pv.filter((it) => !iceCat || catOf(it) === iceCat);
+  const cv = pv.filter((it) => onBoard(it) && ofKind(it) && (!iceCat || catOf(it) === iceCat));
   const bySrc = count(cv, srcKey);
   if (iceSrc && !bySrc.has(iceSrc)) iceSrc = "";
   const keys = new Set(ice.map(iceKey));
   if (iceForm && !keys.has(iceForm)) iceForm = null;
   if (icePro !== iceForm) icePro = null;
-  const groups = new Map();
-  ice.forEach((it, i) => {
-    if (!inProj(it) || (iceCat ? catOf(it) !== iceCat : it.status === "dismissed" || it.status === "done") || (iceSrc && srcKey(it) !== iceSrc)) return;
-    const k = catOf(it);
-    groups.has(k) || groups.set(k, []);
-    groups.get(k).push(i);
-  });
-  // Rows in the order they are drawn, which is the order j and k walk.
-  const filtered = [...groups.values()].flat();
+  // Newest first, in the order they are drawn, which is the order j and k walk. Category is a filter.
+  const filtered = ice
+    .map((_, i) => i)
+    .filter((i) => {
+      const it = ice[i];
+      return inProj(it) && onBoard(it) && ofKind(it) && (iceCat ? catOf(it) === iceCat : it.status !== "dismissed" && it.status !== "done") && (!iceSrc || srcKey(it) === iceSrc);
+    })
+    .sort((a, b) => (Date.parse(ice[b].at) || 0) - (Date.parse(ice[a].at) || 0));
   // Only the page: j and k, select-all and bulk actions stay on what shows.
   const order = pageOf(icePg, filtered);
-  const onPage = new Set(order);
-  const isWaiting = (it) => !["promoted", "dismissed", "done"].includes(it.status);
   // A checked request a filter hides is unchecked: a bulk action only ever acts on what shows.
   {
     const vis = new Set(order.map((i) => iceKey(ice[i])));
@@ -345,9 +393,24 @@ export async function openSources() {
           )}`,
         )
       : ""}`;
-  const bar = html`<div class="tk-bar ice-bar">${order.length ? html`<input type="checkbox" id="ice-all" aria-label="Select every request shown"${nSel && nSel === order.length ? " checked" : ""}>` : ""}<span class="count">${iceCat === "Dismissed" || iceCat === "Done" ? `${order.length} ${iceCat.toLowerCase()}` : `${order.length < waiting ? `${order.length} of ${waiting}` : waiting} waiting`}</span><span class="end"></span>${String(chips) ? html`<details class="ice-filt"><summary class="ib${iceCat || iceSrc ? " on" : ""}" aria-label="Filter requests" title="Filter requests">${ico("filter")}</summary><div class="ice-fpop">${chips}</div></details>` : ""}${order.some((i) => isWaiting(ice[i])) ? html`<button class="btn ghost sm" id="ice-sw" title="Sort one at a time: swipe right to promote, left to dismiss"><span aria-hidden="true">⇆</span> Swipe</button>` : ""}<button class="btn ghost sm" id="ice-new" title="Add a request by hand">${ico("plus")} Add</button><button class="btn sm" id="src-go"${list.length ? "" : " disabled"}>${ico("refresh")} Gather all</button><button class="btn ghost sm" id="src-tog" aria-expanded="${String(!!srcShow)}" aria-controls="src-sec">${ico("link")} Sources · ${list.length}</button></div>`;
+  // Under 640 px there are no cards: the list shows, and the switch goes.
+  const narrow = narrowQ.matches,
+    cardsOn = iceView === "cards" && !narrow;
+  // The boards bar: All, each board with what waits on it, + Board; the kind filters on the right.
+  const nOn = (b) => pv.filter((it) => isWaiting(it) && sameName(it.board, b.name)).length;
+  const boardsBar = html`<div class="ice-boards"><div class="ice-chips" role="group" aria-label="Boards"><button class="ice-chip${iceBoard ? "" : " on"}" data-bd="" aria-pressed="${String(!iceBoard)}">All</button>${boards.map((b) => html`<button class="ice-chip${sameName(iceBoard, b.name) ? " on" : ""}" data-bd="${b.name}" aria-pressed="${String(sameName(iceBoard, b.name))}"${b.client ? raw(' title="A client\'s board: its items are Client"') : ""}>${b.client ? PERSON : ""}<span>${b.name}</span><i>${nOn(b)}</i></button>`)}<button class="ice-chip add" id="ice-nb" title="Make a board for a client or a topic">${ico("plus")}Board</button></div><div class="ice-chips" role="group" aria-label="Kinds">${Object.entries(KIND).map(([k, l]) => html`<button class="ice-chip k-${k}${iceKinds.has(k) ? " on" : ""}" data-kf="${k}" aria-pressed="${String(iceKinds.has(k))}">${l}</button>`)}</div></div>`;
+  const bar = html`<div class="tk-bar ice-bar">${!cardsOn && order.length ? html`<input type="checkbox" id="ice-all" aria-label="Select every request shown"${nSel && nSel === order.length ? " checked" : ""}>` : ""}${narrow ? "" : html`<div class="ice-view" role="group" aria-label="View"><button data-view="cards" aria-pressed="${String(cardsOn)}">Cards</button><button data-view="sort" aria-pressed="${String(!cardsOn)}">Sort</button></div>`}<span class="count">${iceCat === "Dismissed" || iceCat === "Done" ? `${order.length} ${iceCat.toLowerCase()}` : `${order.length < waiting ? `${order.length} of ${waiting}` : waiting} waiting`}</span><span class="ice-sub">newest first</span><span class="end"></span>${String(chips) ? html`<details class="ice-filt"><summary class="ib${iceCat || iceSrc ? " on" : ""}" aria-label="Filter requests" title="Filter by category or source">${ico("filter")}</summary><div class="ice-fpop">${chips}</div></details>` : ""}${order.some((i) => isWaiting(ice[i])) ? html`<button class="btn ghost sm" id="ice-sw" title="Sort one at a time: swipe right to promote, left to dismiss"><span aria-hidden="true">⇆</span> Swipe</button>` : ""}<button class="btn sm" id="src-tog" aria-expanded="${String(!!srcShow)}" aria-controls="src-sec" title="Sources, and Gather all">${ico("link")} Sources · ${list.length}</button></div>${cardsOn || !order.length ? "" : html`<div class="ice-keys">Sort: one pass to clear. <kbd>j</kbd> <kbd>k</kbd> move · <kbd>p</kbd> task · <kbd>h</kbd> snooze a week · <kbd>d</kbd> dismiss · <kbd>x</kbd> select</div>`}`;
+  // The capture box: what is typed, pasted, attached or dictated lands in the icebox on the picked
+  // board. In All projects it names the project, as the Add pop-up did. Field and mic are slotted in.
+  const capPs = dir ? [] : showable();
+  if (!dir && !capPs.some((p) => p.dir === cap.dir))
+    cap.dir = (store.shown.size === 1 ? [...store.shown][0] : null) || capPs[0]?.dir || null;
+  const capTo = dir || cap.dir,
+    capP = capPs.find((p) => p.dir === cap.dir);
+  const capBoards = ((d && d.boards) || []).filter((b) => b.dir === capTo);
+  const capBox = html`<div class="ice-cap" id="ice-cap"><span id="ice-cap-slot"></span>${cap.files.length ? html`<div class="ice-att">${cap.files.map((f, n) => html`<span class="ice-file">${ico("clip")}<span>${f.name}</span><button type="button" class="ib sm" data-rf="${n}" aria-label="Remove ${f.name}" title="Remove">${ico("x")}</button></span>`)}</div>` : ""}<div class="ice-cap-row"><button type="button" class="ib" id="ice-pick" aria-label="Attach files" title="Attach files">${ico("clip")}</button><span id="ice-mic-slot"></span><input type="file" id="ice-file" multiple hidden>${dir ? "" : pick("ice-cp", "Project", capP ? html`${plogo(capP.dir, capP.label)}<span>${short(capP.label)}</span>` : html`<span>Choose project</span>`, html`${capPs.map((p) => opt(p.dir, p.dir === cap.dir, html`${plogo(p.dir, p.label)}<span>${p.label}</span>`, p.label))}`)}${pick("ice-cb", "Board", html`<span>Board: ${cap.board || "Inbox"}</span>`, html`${opt("", !cap.board, html`<span>Inbox</span>`, "inbox")}${capBoards.map((b) => opt(b.name, sameName(cap.board, b.name), html`${b.client ? PERSON : ""}<span>${b.name}</span>`, b.name))}${cap.board && !capBoards.some((b) => sameName(b.name, cap.board)) ? opt(cap.board, true, html`<span>${cap.board}</span><i>new</i>`, cap.board) : ""}${opt("\n", false, html`${ico("plus")}<span>New board…</span>`, "new board")}`)}<span class="hint ice-cap-hint">Enter saves · the kind is guessed; change it on the card</span><span class="end"></span><button type="button" class="btn pri sm" id="ice-save"${cap.busy ? " disabled" : ""}>${cap.busy ? "Saving…" : "Save ↵"}</button></div></div>`;
   const bulk = iceSel.size
-    ? html`<div class="ice-bulk" role="toolbar" aria-label="Selected requests"><span>${iceSel.size} selected</span><span class="end"></span><button class="btn sm" id="ice-bp" title="Promote (p)">${ico("plus")} Promote</button><button class="btn ghost sm" id="ice-bd" title="Dismiss (d)">${ico("x")} Dismiss</button><button class="btn ghost sm" id="ice-bc" title="Clear selection (Esc)">Clear</button></div>`
+    ? html`<div class="ice-bulk" role="toolbar" aria-label="Selected requests"><span>${iceSel.size} selected</span><span class="end"></span><button class="btn sm" id="ice-bp" title="Promote (p)">${ico("plus")} Promote</button><button class="btn ghost sm" id="ice-bz" title="Snooze a week (h)">${ico("clock")} Snooze</button><button class="btn ghost sm" id="ice-bd" title="Dismiss (d)">${ico("x")} Dismiss</button><button class="btn ghost sm" id="ice-bc" title="Clear selection (Esc)">Clear</button></div>`
     : "";
   // The open item's form: a clean title for the task's card and the person's own details;
   // what was gathered is added to the task's notes by the server.
@@ -368,24 +431,60 @@ export async function openSources() {
     if (r.wait) return html`<div class="ice-form-acts"><span class="hint">Drafting…</span></div>`;
     return html`<div class="ice-form"><label for="ice-reply" class="hint" style="margin:0">Your reply${r.note ? ` · ${r.note}` : ""}</label><textarea class="sel" id="ice-reply" rows="3" maxlength="2000" aria-label="Your reply"${r.busy || r.again ? " disabled" : ""}>${r.text}</textarea><span class="hint" id="ice-rn" style="margin:0">${r.again ? "Writing another…" : `${r.text.length} chars`}</span><div class="ice-form-acts"><span class="end"></span>${G.connected ? html`${style(r.busy || r.again)}<button class="btn ghost sm" id="ice-rg"${r.busy || r.again ? " disabled" : ""}>Regenerate</button>` : ""}<button class="btn ghost sm" id="ice-rc"${r.busy ? " disabled" : ""}>Cancel</button><button class="btn pri sm" id="ice-rs"${r.busy || r.again || !r.text.trim() ? " disabled" : ""}>${r.busy ? "Sending…" : "Send reply"}</button></div></div>`;
   };
-  const imgs = (it) =>
-    (it.images || []).filter((u) => /^https:\/\//.test(u)).length ? html`<details class="ice-imgs"><summary>Show images (${it.images.filter((u) => /^https:\/\//.test(u)).length}) — loads them from the source's site</summary>${it.images.filter((u) => /^https:\/\//.test(u)).map((u, n) => { const src = `/ice-image?dir=${encodeURIComponent(it.dir)}&id=${encodeURIComponent(it.id)}&i=${n}`; return html`<a href="${src}" target="_blank" rel="noopener noreferrer"><img data-src="${src}" alt="" referrerpolicy="no-referrer"></a>`; })}</details>` : "";
+  const imgs = (it, card = false) =>
+    (it.images || []).filter((u) => /^https:\/\//.test(u)).length ? html`<details class="ice-imgs"><summary${card ? raw(' title="Loads them from the source\'s site"') : ""}>${card ? `${it.images.filter((u) => /^https:\/\//.test(u)).length} pictures · show` : `Show images (${it.images.filter((u) => /^https:\/\//.test(u)).length}) — loads them from the source's site`}</summary>${it.images.filter((u) => /^https:\/\//.test(u)).map((u, n) => { const src = `/ice-image?dir=${encodeURIComponent(it.dir)}&id=${encodeURIComponent(it.id)}&i=${n}`; return html`<a href="${src}" target="_blank" rel="noopener noreferrer"><img data-src="${src}" alt="" referrerpolicy="no-referrer"></a>`; })}</details>` : "";
+  // The pieces rows and cards share. Only a waiting item has menus; Snooze needs one too.
+  const live = (it) => it.status === "new";
+  const kindOf = (it) => html`<span class="ice-k k-${it.kind || "none"}">${KIND[it.kind] || "Unsorted"}</span>`;
+  const menuBtn = (i, it, m, inner, cls, label) =>
+    html`<button type="button" class="${cls}" id="ice-m${m[0]}-${i}" data-m="${m}" data-mi="${i}" aria-haspopup="menu" aria-expanded="${String(iceMenu === iceKey(it) + " " + m)}" title="${label}" aria-label="${label}: ${it.text}">${inner}</button>`;
+  // The open item menu, drawn inside its row or card: Snooze, Kind or Board.
+  const menu = (i, it) => {
+    const k = iceKey(it),
+      m = iceMenu.startsWith(k + " ") ? iceMenu.slice(k.length + 1) : "";
+    if (!m) return "";
+    const b = (attr, v, label, on = false) => html`<button type="button" role="menuitem" ${raw(attr)}="${v}"${on ? raw(' class="on" aria-current="true"') : ""}>${label}</button>`;
+    const day = (n) => ymd(new Date(Date.now() + n * 864e5));
+    const inner =
+      m === "snooze"
+        ? html`${b("data-sz", "1d", "Tomorrow")}${b("data-sz", "1w", "Next week")}${b("data-sz", "1m", "Next month")}<div class="ice-date"><input type="date" class="sel" id="ice-sd" min="${day(1)}" max="${day(365)}" aria-label="Snooze until"><button type="button" class="btn sm" data-sz="">Snooze</button></div>`
+        : m === "kind"
+          ? html`${Object.entries(KIND).map(([v, l]) => b("data-kd", v, l, it.kind === v && it.sorted !== "rules"))}`
+          : html`${b("data-bo", "", "Inbox", !it.board)}${((d && d.boards) || []).filter((x) => x.dir === it.dir).map((x) => b("data-bo", x.name, html`${x.client ? PERSON : ""}${x.name}`, sameName(it.board, x.name)))}<button type="button" role="menuitem" data-bo-new="1">${ico("plus")}New board…</button>`;
+    return html`<div class="menu-pop ice-mpop" role="menu" data-mi="${i}" aria-label="${m === "snooze" ? "Snooze until" : m === "kind" ? "Kind" : "Board"}">${inner}</div>`;
+  };
+  const badges = (it) =>
+    html`${it.status === "done" && it.written ? html`<span title="Written back ${ago(it.written)}">written back</span>` : ""}${it.status === "done" && it.writeError ? html`<span title="${it.writeError}">write-back failed</span>` : ""}${it.status === "promoted" ? html`<span title="Promoted to Tasks: ${it.idea || ""}">promoted</span>` : ""}${it.replied ? html`<span title="Replied ${ago(it.replied)}">replied</span>` : ""}`;
+  const proj = (it) => (many ? html`<span class="nm" title="${it.project || ""}">${plogo(it.dir, it.project || "")}${short(it.project || "")}</span>` : "");
   const row = (i) => {
     const it = ice[i],
       k = iceKey(it),
       open = iceForm === k;
-    const head = html`<div class="ice-row${iceCur === k ? " cur" : ""}${iceSel.has(k) ? " sel" : ""}" data-i="${i}" data-k="${k}"><input type="checkbox" id="ice-ck-${i}" data-ck="${i}"${iceSel.has(k) ? " checked" : ""} aria-label="Select: ${it.text}"><span class="ice-src" title="${srcName(it)}">${fav(it.source, "link", list.find((x) => x.dir === it.dir && x.url === it.source)?.social)}</span><button class="ice-t" id="ice-o-${i}" data-o="${i}" aria-expanded="${String(open)}" title="${it.text}">${it.text}</button><span class="ice-meta">${many ? html`<span class="nm" title="${it.project || ""}">${plogo(it.dir, it.project || "")}${short(it.project || "")}</span>` : ""}${it.status === "done" && it.written ? html`<span title="Written back ${ago(it.written)}">written back</span>` : ""}${it.status === "done" && it.writeError ? html`<span title="${it.writeError}">write-back failed</span>` : ""}${it.status === "promoted" ? html`<span title="Promoted to Tasks: ${it.idea || ""}">promoted</span>` : ""}${it.replied ? html`<span title="Replied ${ago(it.replied)}">replied</span>` : ""}<span class="ice-age">${ago(it.at)}</span><span class="ice-ra">${it.status === "promoted" || it.status === "done" ? "" : html`<button class="btn ghost sm" id="ice-pr-${i}" data-pr="${i}" title="Promote to Tasks (p)" aria-label="Promote to Tasks: ${it.text}">${ico("plus")}</button>`}${it.status === "promoted" || it.status === "done" ? "" : it.status === "dismissed" ? html`<button class="btn ghost sm" id="ice-rs-${i}" data-rs="${i}" title="Restore to waiting" aria-label="Restore: ${it.text}">Restore</button>` : html`<button class="btn ghost sm" id="ice-ds-${i}" data-ds="${i}" title="Dismiss (d)" aria-label="Dismiss: ${it.text}">${ico("x")}</button>`}</span></span></div>`;
+    const head = html`<div class="ice-row${iceCur === k ? " cur" : ""}${iceSel.has(k) ? " sel" : ""}" data-i="${i}" data-k="${k}"><input type="checkbox" id="ice-ck-${i}" data-ck="${i}"${iceSel.has(k) ? " checked" : ""} aria-label="Select: ${it.text}">${live(it) ? menuBtn(i, it, "kind", kindOf(it), "ice-kb", "Kind") : kindOf(it)}<span class="ice-src" title="${srcName(it)}">${fav(it.source, "link", srcOf(it)?.social)}</span><button class="ice-t" id="ice-o-${i}" data-o="${i}" aria-expanded="${String(open)}" title="${it.text}">${it.text}</button><span class="ice-meta">${proj(it)}${badges(it)}${live(it) ? menuBtn(i, it, "board", it.board || "Inbox", "ice-bo" + (it.board ? "" : " none"), "Board") : it.board ? html`<span>${it.board}</span>` : ""}<span class="ice-age">${ago(it.at)}</span><span class="ice-ra">${it.status === "promoted" || it.status === "done" ? "" : html`<button class="btn ghost sm" id="ice-pr-${i}" data-pr="${i}" title="Promote to Tasks (p)" aria-label="Promote to Tasks: ${it.text}">${ico("plus")}</button>`}${live(it) ? menuBtn(i, it, "snooze", ico("clock"), "btn ghost sm", "Snooze (h: a week)") : ""}${it.status === "promoted" || it.status === "done" ? "" : it.status === "dismissed" ? html`<button class="btn ghost sm" id="ice-rs-${i}" data-rs="${i}" title="Restore to waiting" aria-label="Restore: ${it.text}">Restore</button>` : html`<button class="btn ghost sm" id="ice-ds-${i}" data-ds="${i}" title="Dismiss (d)" aria-label="Dismiss: ${it.text}">${ico("x")}</button>`}</span></span>${menu(i, it)}</div>`;
     const more = open
       ? html`<div class="ice-open">${it.notes ? html`<div class="ice-notes">${it.notes}</div>` : ""}${imgs(it)}<span class="hint" style="margin:0">From ${srcName(it)} · ${ago(it.at)}${it.post ? html` · <a href="${web(it.post)}" target="_blank" rel="noopener">open post</a>` : ""}</span>${replyBox(it)}${icePro === k ? form(it) : ""}</div>`
       : "";
     return html`${head}${more}`;
   };
+  // A card: what it is, the words, where it sits, how old. A link leads with its title and summary,
+  // coloured from the site's name; nothing is fetched from the site to draw it.
+  const hue = (t) => [...t].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 7);
+  const cardOf = (i) => {
+    const it = ice[i],
+      k = iceKey(it),
+      lk = it.link && /^https?:\/\//i.test(it.link.url) ? it.link : null,
+      site = lk ? host(lk.url).replace(/^www\./, "") : "";
+    const acts = html`${it.status === "promoted" || it.status === "done" ? "" : html`<button class="btn ghost sm" id="ice-pr-${i}" data-pr="${i}" title="Promote to Tasks (p)" aria-label="Promote to Tasks: ${it.text}">${ico("arrow")}Task</button>`}${live(it) ? html`${menuBtn(i, it, "snooze", html`${ico("clock")}Snooze`, "btn ghost sm", "Snooze")}${menuBtn(i, it, "kind", "Kind", "btn ghost sm", "Kind")}${menuBtn(i, it, "board", "Board", "btn ghost sm", "Board")}` : ""}<span class="end"></span>${it.status === "promoted" || it.status === "done" ? "" : it.status === "dismissed" ? html`<button class="btn ghost sm" id="ice-rs-${i}" data-rs="${i}" title="Restore to waiting" aria-label="Restore: ${it.text}">Restore</button>` : html`<button class="btn ghost sm" id="ice-ds-${i}" data-ds="${i}" title="Dismiss (d)" aria-label="Dismiss: ${it.text}">${ico("x")}</button>`}`;
+    return html`<article class="ice-card${iceCur === k ? " cur" : ""}" data-i="${i}" data-k="${k}">${lk ? html`<a class="ice-lk" href="${web(lk.url)}" target="_blank" rel="noopener noreferrer" style="--h:${hue(site)}"><b>${lk.title || site}</b>${lk.summary ? html`<span>${lk.summary}</span>` : ""}<small>${site}</small></a>` : ""}<div class="ice-cb"><div class="ice-ch">${kindOf(it)}${it.sorted === "rules" && live(it) ? html`<span class="ice-uns" title="Kind set by a rule: pick one with Kind">unsorted</span>` : ""}<span class="ice-meta">${badges(it)}</span></div><button class="ice-ct" id="ice-o-${i}" data-o="${i}" title="Open in the Sort list">${it.text}</button>${imgs(it, true)}<div class="ice-cf">${it.board ? html`<span class="ice-cbd">${it.board}</span>` : ""}${(it.tags || []).map((t) => html`<span class="ice-tag">#${t}</span>`)}${proj(it)}<span class="end"></span><span class="ice-when">${it.source !== "manual" ? `${srcName(it)} · ` : ""}${ago(it.at)}</span></div></div><div class="ice-ca">${acts}</div>${menu(i, it)}</article>`;
+  };
   const inbox =
     waiting && !order.length
       ? html`<div class="ice-zero"><h4>No matches</h4><p style="margin-top:10px"><button class="btn sm" id="ice-unf">Clear filters</button></p></div>`
       : order.length
-        ? html`<div class="tk-list ice-list">${[...groups].map(([g, ix]) => (ix.some((i) => onPage.has(i)) ? html`<div class="ice-cat">${g}<i>${ix.length}</i></div>${ix.filter((i) => onPage.has(i)).map(row)}` : ""))}${pagerHtml(icePg)}</div>`
-        : html`<div class="ice-zero"><h4>Nothing waiting</h4><p>Requests gathered from your sources wait here until you turn them into tasks.</p>${list.length ? "" : html`<p style="margin-top:10px"><button class="btn sm pri" id="ice-addsrc">${ico("plus")} Add a source</button></p>`}</div>`;
+        ? cardsOn
+          ? html`<div class="ice-cards">${order.map(cardOf)}</div><div class="ice-cpg">${pagerHtml(icePg)}</div>`
+          : html`<div class="tk-list ice-list">${order.map(row)}${pagerHtml(icePg)}</div>`
+        : html`<div class="ice-zero"><h4>Nothing waiting</h4><p>Drop anything above: what a client asked for, something you found, what people say.</p>${list.length ? "" : html`<p style="margin-top:10px"><button class="btn sm pri" id="ice-addsrc">${ico("plus")} Add a source</button></p>`}</div>`;
   // Swipe: the waiting requests the filters show, least skipped first; a restored one
   // comes back on top. Nothing is written by a skip.
   const deck = iceSwipe
@@ -435,7 +534,7 @@ export async function openSources() {
   // a rebuild while open shows it in place.
   const drawer = !!srcShow,
     slide = drawer && !$("src-sec")?.classList.contains("open");
-  const sec = html`<div class="src-scrim${drawer && !slide ? " on" : ""}" id="src-scrim"></div><aside class="src-sec${drawer && !slide ? " open" : ""}" id="src-sec" aria-label="Sources"${drawer ? "" : " inert"}><header><div class="t"><b>Sources</b><div class="src-chips"><a id="src-to-settings" class="schip" role="button" tabindex="0" title="${d && d.every && d.every !== "off" ? `Checked every ${d.every}` : "Auto-check off"}: change in Settings">${ico("clock")}${d && d.every && d.every !== "off" ? (d.every) : "Off"}</a>${G.connected ? html`<span class="schip on" title="ChatGPT${G.email ? ": " + (G.email) : ""}">${ico("ai")}ChatGPT<a id="cg-out" role="button" tabindex="0" aria-label="Disconnect ChatGPT" title="Disconnect">${ico("x")}</a></span>` : html`<a id="cg-in" class="schip" role="button" tabindex="0" title="Connect ChatGPT">${ico("ai")}ChatGPT</a>`}${(d.google || {}).connected ? html`<span class="schip on" title="Google connected">${ico("google")}Google<a id="gg-out" role="button" tabindex="0" aria-label="Disconnect Google" title="Disconnect">${ico("x")}</a></span>` : html`<a id="gg-in" class="schip" role="button" tabindex="0" title="Connect Google">${ico("google")}Google</a>`}</div></div><div class="src-hda">${list.length ? html`<button class="btn sm" id="src-new" aria-expanded="${String(addOn)}" aria-controls="src-addbox">${ico("plus")} Add</button>` : ""}<button class="ib" id="src-x" aria-label="Close sources" title="Close">${ico("close")}</button></div></header><div class="body">${addBox}${list.length ? html`<div class="src-list">${cards}</div>` : emptyState}</div></aside>`;
+  const sec = html`<div class="src-scrim${drawer && !slide ? " on" : ""}" id="src-scrim"></div><aside class="src-sec${drawer && !slide ? " open" : ""}" id="src-sec" aria-label="Sources"${drawer ? "" : " inert"}><header><div class="t"><b>Sources</b><div class="src-chips"><a id="src-to-settings" class="schip" role="button" tabindex="0" title="${d && d.every && d.every !== "off" ? `Checked every ${d.every}` : "Auto-check off"}: change in Settings">${ico("clock")}${d && d.every && d.every !== "off" ? (d.every) : "Off"}</a>${G.connected ? html`<span class="schip on" title="ChatGPT${G.email ? ": " + (G.email) : ""}">${ico("ai")}ChatGPT<a id="cg-out" role="button" tabindex="0" aria-label="Disconnect ChatGPT" title="Disconnect">${ico("x")}</a></span>` : html`<a id="cg-in" class="schip" role="button" tabindex="0" title="Connect ChatGPT">${ico("ai")}ChatGPT</a>`}${(d.google || {}).connected ? html`<span class="schip on" title="Google connected">${ico("google")}Google<a id="gg-out" role="button" tabindex="0" aria-label="Disconnect Google" title="Disconnect">${ico("x")}</a></span>` : html`<a id="gg-in" class="schip" role="button" tabindex="0" title="Connect Google">${ico("google")}Google</a>`}</div></div><div class="src-hda">${list.length ? html`<button class="btn sm" id="src-go">${ico("refresh")} Gather all</button><button class="btn sm" id="src-new" aria-expanded="${String(addOn)}" aria-controls="src-addbox">${ico("plus")} Add</button>` : ""}<button class="ib" id="src-x" aria-label="Close sources" title="Close">${ico("close")}</button></div></header><div class="body">${addBox}${list.length ? html`<div class="src-list">${cards}</div>` : emptyState}</div></aside>`;
   // First visit: offer the ChatGPT plan for social sources, or keep the agent.
   const onb =
     G.use === "ask" && !G.connected
@@ -443,6 +542,7 @@ export async function openSources() {
       : "";
   // A rebuild replaces the drawer: keep where it was scrolled to.
   const at = $("src-sec")?.querySelector(".body")?.scrollTop ?? 0;
+  const capFocus = cap.ta && document.activeElement === cap.ta ? [cap.ta.selectionStart, cap.ta.selectionEnd] : null;
   $("pbody").innerHTML =
     d && d.error
       ? html`<p style="color:var(--dim)">${d.error}</p>`
@@ -450,10 +550,149 @@ export async function openSources() {
         ? html`<p style="color:var(--dim)">The icebox could not be read.</p>`
         : iceSwipe
           ? html`${swipe()}${sec}`
-          : html`${onb}${bar}${bulk}${fails}${inbox}${sec}`;
+          : html`${capBox}${onb}${boardsBar}${bar}${bulk}${fails}${inbox}${sec}`;
   if (!d || d.error) return;
   const body = $("src-sec")?.querySelector(".body");
   if (body) body.scrollTop = at;
+  if ($("ice-cap")) {
+    if (!cap.ta) {
+      const ta = document.createElement("textarea");
+      ta.id = "ice-cap-t";
+      ta.className = "ice-cap-t";
+      ta.rows = 2;
+      ta.placeholder = "Drop anything: a note, a link, a picture — or dictate";
+      ta.setAttribute("aria-label", "Drop anything into the icebox");
+      cap.ta = ta;
+      cap.mic = mic([ta]);
+    }
+    $("ice-cap-slot").replaceWith(cap.ta);
+    if (cap.mic) $("ice-mic-slot").replaceWith(cap.mic);
+    else $("ice-mic-slot").remove();
+    if (capFocus) {
+      cap.ta.focus();
+      cap.ta.setSelectionRange(capFocus[0], capFocus[1]);
+    }
+    const addFile = (f) => {
+      cap.files.push(f);
+      openSources().then(() => cap.ta.focus());
+    };
+    $("ice-pick").onclick = () => $("ice-file").click();
+    $("ice-file").onchange = (e) => {
+      const fs = [...e.target.files];
+      e.target.value = "";
+      cap.files.push(...fs);
+      openSources().then(() => cap.ta.focus());
+    };
+    $("pbody")
+      .querySelectorAll("[data-rf]")
+      .forEach((b) => (b.onclick = () => {
+        cap.files.splice(+b.dataset.rf, 1);
+        openSources().then(() => cap.ta.focus());
+      }));
+    // A pasted picture is a file; pasted text stays text.
+    cap.ta.onpaste = (e) => {
+      for (const it of e.clipboardData.items)
+        if (it.kind === "file") {
+          const x = it.getAsFile();
+          e.preventDefault();
+          addFile(new File([x], x.name === "image.png" ? `paste-${Date.now()}.png` : x.name, { type: x.type }));
+        }
+    };
+    // Saved with the text it had: the field is read-only until the server answers.
+    const save = async () => {
+      const text = cap.ta.value.trim(),
+        to = dir || cap.dir;
+      if (cap.busy) return;
+      if (!text) {
+        if (cap.files.length) toast("Write a line about it first");
+        return cap.ta.focus();
+      }
+      if (!to) return toast("Pick a project first");
+      cap.busy = cap.ta.readOnly = true;
+      $("ice-save").disabled = true;
+      $("ice-save").textContent = "Saving…";
+      let j = { ok: false };
+      try {
+        j = await post("/icebox", { op: "add", dir: to, text, board: cap.board || undefined, files: await dataUrls(cap.files) });
+      } finally {
+        cap.busy = cap.ta.readOnly = false;
+      }
+      if (j.ok) {
+        cap.ta.value = "";
+        cap.files = [];
+        iceCur = null;
+        toast(`Added to the icebox${cap.board ? " · " + cap.board : ""}`);
+        load();
+      }
+      if (srcOpen()) await openSources();
+      cap.ta.focus();
+    };
+    cap.ta.onkeydown = (e) => {
+      if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
+        e.preventDefault();
+        save();
+      }
+    };
+    $("ice-save").onclick = save;
+    wirePick("ice-cp", (v) => {
+      cap.dir = v;
+      openSources().then(() => cap.ta.focus());
+    });
+    wirePick("ice-cb", (v) => {
+      if (v === "\n") {
+        const n = (prompt("New board: a client or a topic") || "").trim();
+        if (!n) return cap.ta.focus();
+        if (n.length > 40) return toast("A board name is 1 to 40 characters");
+        v = n;
+      }
+      cap.board = v;
+      openSources().then(() => cap.ta.focus());
+    });
+  }
+  $("pbody").onscroll = () => {
+    if (!iceMenu) return;
+    iceMenu = "";
+    $("pbody").querySelector(".ice-mpop")?.remove();
+    $("pbody").querySelector('[data-m][aria-expanded="true"]')?.setAttribute("aria-expanded", "false");
+  };
+  // The boards bar and the kind filters; the view switch.
+  $("pbody")
+    .querySelectorAll("[data-bd]")
+    .forEach((b) => (b.onclick = () => {
+      iceBoard = b.dataset.bd;
+      if (iceBoard) cap.board = boards.find((x) => sameName(x.name, iceBoard))?.name || cap.board;
+      openSources();
+    }));
+  $("pbody")
+    .querySelectorAll("[data-kf]")
+    .forEach((b) => (b.onclick = () => {
+      iceKinds.has(b.dataset.kf) ? iceKinds.delete(b.dataset.kf) : iceKinds.add(b.dataset.kf);
+      openSources();
+    }));
+  $("pbody")
+    .querySelectorAll("[data-view]")
+    .forEach((b) => (b.onclick = () => {
+      iceView = b.dataset.view;
+      try {
+        localStorage.setItem("kz-ice-view", iceView);
+      } catch (e) {}
+      openSources();
+    }));
+  // + Board: a name, and whether it is a client's (its items then count as Client).
+  if ($("ice-nb"))
+    $("ice-nb").onclick = async () => {
+      const to = dir || cap.dir;
+      if (!to) return toast("Pick a project first");
+      const name = (prompt(dir ? "New board: a client or a topic" : `New board in ${capP?.label || "this project"}: a client or a topic`) || "").trim();
+      if (!name) return;
+      const client = confirm(`Is ${name} a client? Its items then count as Client.`);
+      const j = await post("/icebox", { op: "boards", act: "add", dir: to, name, client });
+      if (j.ok) {
+        toast(`Board ${name} made`);
+        load();
+      }
+      if (srcOpen()) openSources();
+    };
   if (iceDraft && iceDraft[0] === iceForm && $("ice-title")) {
     $("ice-title").value = iceDraft[1];
     $("ice-details").value = iceDraft[2];
@@ -568,7 +807,8 @@ export async function openSources() {
   });
   if ($("ice-unf"))
     $("ice-unf").onclick = () => {
-      iceCat = iceSrc = "";
+      iceCat = iceSrc = iceBoard = "";
+      iceKinds.clear();
       if (!dir) store.shown.clear();
       setShown();
       openSources();
@@ -661,7 +901,7 @@ export async function openSources() {
   // The acting button is disabled as it is pressed, which drops focus to the page; it goes back to the cursor row.
   const focusCur = () => {
     if (!document.activeElement || document.activeElement === document.body)
-      $("pbody").querySelector(".ice-row.cur .ice-t")?.focus();
+      $("pbody").querySelector(".ice-row.cur .ice-t,.ice-card.cur .ice-ct")?.focus();
   };
   // Before rows go, the cursor steps to the next row that stays, else the one before.
   const stepPast = (gone) => {
@@ -682,6 +922,106 @@ export async function openSources() {
       }
       if (srcOpen()) openSources().then(focusCur);
     })();
+  // Snooze: the items leave the page until their day, with Undo on the toast.
+  const snoozeAll = async (its, until) => {
+    if (!its.length) return;
+    stepPast(new Set(its.map(iceKey)));
+    iceMenu = "";
+    iceBusy = true;
+    const done = [];
+    try {
+      for (const dd of new Set(its.map((it) => it.dir))) {
+        const xs = its.filter((it) => it.dir === dd);
+        if ((await post("/icebox", { op: "snooze", dir: dd, ids: xs.map((it) => it.id), until })).ok) done.push(...xs);
+      }
+    } finally {
+      iceBusy = false;
+    }
+    if (done.length) {
+      done.forEach((it) => iceSel.delete(iceKey(it)));
+      toast(`${done.length > 1 ? done.length + " snoozed" : "Snoozed"} until ${wakeDay(until).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}`);
+      const t = $("toast"),
+        u = document.createElement("button");
+      u.type = "button";
+      u.className = "ice-undo";
+      u.textContent = "Undo";
+      u.onclick = async () => {
+        t.classList.remove("on");
+        let back = 0;
+        for (const dd of new Set(done.map((it) => it.dir)))
+          if ((await post("/icebox", { op: "unsnooze", dir: dd, ids: done.filter((it) => it.dir === dd).map((it) => it.id) })).ok) back++;
+        if (back) {
+          iceCur = iceKey(done[0]);
+          toast("Back in the icebox");
+        }
+        load();
+        if (srcOpen()) openSources();
+      };
+      t.classList.add("rep");
+      t.append(" · ", u);
+    }
+    load();
+    if (srcOpen()) openSources().then(focusCur);
+  };
+  // Kind and board: the item stays, changed.
+  const setOne = async (it, body, msg) => {
+    iceMenu = "";
+    const j = await post("/icebox", { dir: it.dir, ids: [it.id], ...body });
+    if (j.ok) {
+      toast(msg);
+      load();
+    }
+    if (srcOpen()) openSources().then(() => $("pbody").querySelector(`[data-k="${CSS.escape(iceKey(it))}"] [data-m]`)?.focus());
+  };
+  $("pbody")
+    .querySelectorAll("[data-m]")
+    .forEach((b) => (b.onclick = (e) => {
+      e.stopPropagation();
+      const it = ice[+b.dataset.mi],
+        m = iceKey(it) + " " + b.dataset.m;
+      iceCur = iceKey(it);
+      iceMenu = iceMenu === m ? "" : m;
+      openSources().then(() => iceMenu && $("pbody").querySelector(".ice-mpop button")?.focus());
+    }));
+  // The open menu sits fixed under its button: inside the cards' columns an absolute one is split
+  // between columns. Scrolling the page shuts it.
+  $("pbody")
+    .querySelectorAll(".ice-mpop")
+    .forEach((pp) => {
+      const it = ice[+pp.dataset.mi],
+        btn = pp.parentElement.querySelector(`[data-m="${iceMenu.slice(iceKey(it).length + 1)}"]`);
+      if (btn) {
+        const r = btn.getBoundingClientRect(),
+          h = pp.offsetHeight,
+          w = pp.offsetWidth;
+        pp.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + "px";
+        pp.style.top = (r.bottom + 4 + h > innerHeight - 8 ? Math.max(8, r.top - 4 - h) : r.bottom + 4) + "px";
+      }
+      pp.onclick = (e) => e.stopPropagation();
+      pp.onkeydown = (e) => {
+        const bs = [...pp.querySelectorAll("button,input")],
+          n = bs.indexOf(document.activeElement);
+        if (e.key === "Escape") {
+          e.stopPropagation();
+          iceMenu = "";
+          openSources().then(focusCur);
+        } else if ((e.key === "ArrowDown" || e.key === "ArrowUp") && document.activeElement?.type !== "date") {
+          e.preventDefault();
+          bs[(n + (e.key === "ArrowDown" ? 1 : bs.length - 1)) % bs.length]?.focus();
+        }
+      };
+      pp.querySelectorAll("[data-sz]").forEach((b) => (b.onclick = () => {
+        const v = b.dataset.sz || $("ice-sd").value;
+        if (!v) return $("ice-sd").focus();
+        snoozeAll([it], v);
+      }));
+      pp.querySelectorAll("[data-kd]").forEach((b) => (b.onclick = () => setOne(it, { op: "kind", kind: b.dataset.kd }, `Kind: ${KIND[b.dataset.kd]}`)));
+      pp.querySelectorAll("[data-bo]").forEach((b) => (b.onclick = () => setOne(it, { op: "board", board: b.dataset.bo }, b.dataset.bo ? `Moved to ${b.dataset.bo}` : "Moved to the Inbox")));
+      pp.querySelectorAll("[data-bo-new]").forEach((b) => (b.onclick = () => {
+        const n = (prompt("New board: a client or a topic") || "").trim();
+        if (n) setOne(it, { op: "board", board: n }, `Moved to ${n}`);
+      }));
+    });
   // Bulk: one dismiss per project; promote one request at a time, each its own task
   // titled as gathered (one promote call with several ids would merge them into one).
   const bulkDo = async (op) => {
@@ -689,7 +1029,7 @@ export async function openSources() {
     if (!its.length) return;
     stepPast(new Set(its.map(iceKey)));
     iceBusy = true;
-    $("ice-bp").disabled = $("ice-bd").disabled = true;
+    $("ice-bp").disabled = $("ice-bd").disabled = $("ice-bz").disabled = true;
     let ok = 0;
     try {
       if (op === "dismiss")
@@ -710,6 +1050,7 @@ export async function openSources() {
     if (srcOpen()) openSources().then(focusCur);
   };
   if (bulk) {
+    $("ice-bz").onclick = () => snoozeAll(ice.filter((it) => iceSel.has(iceKey(it)) && live(it)), "1w");
     $("ice-bp").onclick = () => bulkDo("promote");
     $("ice-bd").onclick = () => bulkDo("dismiss");
     $("ice-bc").onclick = () => {
@@ -738,10 +1079,12 @@ export async function openSources() {
         }),
     );
   // A row opens on its title or anywhere not a control; open shows what was gathered and the promote form.
+  // A card opens in the Sort list (for this visit; the saved view stays), where notes, reply and promote are.
   const toggle = (i) => {
     const k = iceKey(ice[i]);
     iceCur = k;
-    iceForm = iceForm === k ? null : k;
+    iceForm = iceForm === k && !cardsOn ? null : k;
+    iceView = "sort";
     icePro = null;
     openSources().then(() => $("ice-o-" + i)?.focus());
   };
@@ -750,7 +1093,7 @@ export async function openSources() {
     .forEach(
       (r) =>
         (r.onclick = (e) => {
-          if (!e.target.closest("input,button")) toggle(+r.dataset.i);
+          if (!e.target.closest("input,button,.ice-mpop")) toggle(+r.dataset.i);
         }),
     );
   $("pbody")
@@ -767,6 +1110,7 @@ export async function openSources() {
         (b.onclick = () => {
           const k = iceKey(ice[+b.dataset.pr]);
           iceCur = iceForm = icePro = k;
+          iceView = "sort";
           openSources().then(() => {
             $("ice-title")?.focus();
             $("ice-title")?.select();
@@ -1025,6 +1369,11 @@ export async function openSources() {
         srcShut();
         return true;
       }
+      if (iceMenu) {
+        iceMenu = "";
+        openSources().then(focusCur);
+        return true;
+      }
       if (iceForm) {
         if (icePro) icePro = null;
         else iceForm = null;
@@ -1044,9 +1393,17 @@ export async function openSources() {
       const n = order[Math.max(0, Math.min(order.length - 1, at + (k === "j" ? 1 : -1)))];
       iceCur = iceKey(ice[n]);
       $("pbody")
-        .querySelectorAll(".ice-row")
+        .querySelectorAll(".ice-row,.ice-card")
         .forEach((r) => r.classList.toggle("cur", +r.dataset.i === n));
-      $("pbody").querySelector(`.ice-row[data-i="${n}"]`)?.scrollIntoView({ block: "nearest" });
+      $("pbody").querySelector(`:is(.ice-row,.ice-card)[data-i="${n}"]`)?.scrollIntoView({ block: "nearest" });
+      return true;
+    }
+    // h: snooze for a week, the selection when there is one.
+    if (k === "h") {
+      const its = iceSel.size ? ice.filter((it) => iceSel.has(iceKey(it)) && live(it)) : live(ice[i]) ? [ice[i]] : [];
+      if (!its.length) return false;
+      e.preventDefault();
+      snoozeAll(its, "1w");
       return true;
     }
     const b =
@@ -1182,59 +1539,6 @@ export async function openSources() {
           if (e.key === "Enter") $("src-add").click();
         };
   }
-  if ($("ice-new"))
-    $("ice-new").onclick = () => {
-      const all = !dir;
-      if (!dir && !showable().length) return toast("Pick a project first");
-      // The new-task form, cut down: the request, files, dictation and, in All projects, the project.
-      const dl = modal(
-        `${all ? `<div class="combo" id="ndc"><button type="button" class="sel" id="newdir" aria-label="Project for this request" aria-haspopup="listbox" aria-expanded="false"></button><div class="menu-pop" hidden><input class="sel" aria-label="Search projects" placeholder="Search projects…" spellcheck="false" autocomplete="off"><div id="nds" role="listbox"></div></div></div>` : ""}<textarea id="newidea" placeholder="What did someone ask for?" aria-label="Request"></textarea><div class="att"></div><input type="file" multiple hidden><div class="row"><button type="button" class="ib" id="newpick" aria-label="Attach files" title="Attach files">${ico("clip")}</button><button type="button" class="btn ghost" value="">Cancel</button><button class="btn pri">Add</button></div>`,
-      );
-      const f = dl.querySelector("form"),
-        inp = f.querySelector("textarea"),
-        files = [];
-      const add = (x) => {
-        files.push(x);
-        f.querySelector(".att").textContent = files.map((y) => y.name).join(" · ");
-      };
-      f.querySelector("#newpick").onclick = () => f.querySelector("input[type=file]").click();
-      f.querySelector("input[type=file]").onchange = (e) => {
-        [...e.target.files].forEach(add);
-        e.target.value = "";
-      };
-      inp.onpaste = (e) => {
-        for (const it of e.clipboardData.items)
-          if (it.kind === "file") {
-            const x = it.getAsFile();
-            add(new File([x], x.name === "image.png" ? `paste-${Date.now()}.png` : x.name, { type: x.type }));
-            e.preventDefault();
-          }
-      };
-      f.querySelector(".btn.ghost").onclick = () => dl.close();
-      if (all) taskCombo(f);
-      const m = mic([inp]);
-      if (m) f.querySelector(".row").prepend(m);
-      dl.addEventListener("close", () => stopDictation(false));
-      inp.onkeydown = (e) => {
-        if (e.key === "Enter" && !e.shiftKey) {
-          e.preventDefault();
-          f.requestSubmit();
-        }
-      };
-      f.onsubmit = async (e) => {
-        e.preventDefault();
-        const text = inp.value.trim(),
-          to = dir || newDir;
-        if (!text) return inp.focus();
-        if (!to) return toast("Pick a project first");
-        const j = await post("/icebox", { op: "add", dir: to, text, files: await dataUrls(files) });
-        if (j.ok) {
-          toast("Added to the icebox");
-          dl.close();
-        }
-      };
-      inp.focus();
-    };
   if ($("src-go"))
     $("src-go").onclick = () => {
       $("src-go").disabled = true;

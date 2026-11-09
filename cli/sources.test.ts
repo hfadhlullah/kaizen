@@ -677,15 +677,25 @@ test("the board refuses to add a source without a project, and moves one between
     expect(await ice({ op: "unsnooze", dir: a, ids: [mine.id] })).toMatchObject({ status: 200 });
     got = ((await (await fetch(at + "/sources")).json()) as any);
     expect(got.icebox.find((s: any) => s.id === mine.id).asleep).toBe(false);
+    // A board on its own: made, marked a client's, refused when too long or still holding items, removed when empty.
+    expect(await ice({ op: "boards", dir: a, act: "add", name: "Site" })).toMatchObject({ status: 200 });
+    expect(await ice({ op: "boards", dir: a, act: "client", name: "site" })).toMatchObject({ status: 200 });
+    expect(await ice({ op: "boards", dir: a, act: "add", name: "x".repeat(41) })).toMatchObject({ status: 409, error: "a board name is 1 to 40 characters" });
+    expect(await ice({ op: "boards", dir: a, act: "remove", name: "Kaizen" })).toMatchObject({ status: 409, error: "the board still has items" });
+    expect(await ice({ op: "boards", dir: a, act: "rename", name: "Site" })).toMatchObject({ status: 409 });
+    expect(readBoards(a)).toEqual([{ name: "Arupadatu", client: true }, { name: "Kaizen" }, { name: "Site", client: true }]);
+    expect(await ice({ op: "boards", dir: a, act: "remove", name: "Site" })).toMatchObject({ status: 200 });
+    expect(readBoards(a).map((b) => b.name)).toEqual(["Arupadatu", "Kaizen"]);
     // The route's guard holds for every new op: another origin, or a body that is not JSON, writes nothing.
     const before = readFileSync(join(a, "icebox.json"), "utf8");
-    for (const op of [{ op: "add", text: "from a stranger" }, { op: "kind", ids: [mine.id], kind: "people" }, { op: "snooze", ids: [mine.id], until: "1d" }]) {
+    for (const op of [{ op: "add", text: "from a stranger" }, { op: "kind", ids: [mine.id], kind: "people" }, { op: "snooze", ids: [mine.id], until: "1d" }, { op: "boards", act: "add", name: "Stranger" }]) {
       const foreign = await fetch(at + "/icebox", { method: "POST", headers: { "content-type": "application/json", origin: "https://evil.example" }, body: JSON.stringify({ ...op, dir: a }) });
       expect(foreign.status).toBe(403);
       const plain = await fetch(at + "/icebox", { method: "POST", headers: { "content-type": "text/plain" }, body: JSON.stringify({ ...op, dir: a }) });
       expect(plain.status).toBe(415);
     }
     expect(readFileSync(join(a, "icebox.json"), "utf8")).toBe(before);
+    expect(readBoards(a).map((b) => b.name)).toEqual(["Arupadatu", "Kaizen"]);
   } finally { proc.kill(); await proc.exited; }
 }, 30_000);   // a cold board start is slow on Windows
 
