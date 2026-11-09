@@ -30,7 +30,7 @@ const interactive = process.stdin.isTTY && !check && !upgrade && !args.has("--ye
 // installer, so a typo or a command from a newer kaizen reinstalled instead of failing.
 // cli/install-unknown.test.ts fails if a dispatched word is missing here.
 const COMMANDS = ["automation", "help", "init", "browser", "card", "chat", "computer", "config", "docs", "done", "gather", "handoff",
-  "icebox", "issue", "model", "preflight", "preview", "prune", "recall", "related", "remember", "report", "roadmap", "settings", "setup", "sources",
+  "icebox", "issue", "model", "preflight", "preview", "prune", "recall", "related", "remember", "report", "roadmap", "scrape", "search", "settings", "setup", "sources",
   "state", "stats", "uninstall", "upgrade", "version", "web", "worker", "worktree"];
 const first = Bun.argv[2];
 const commandList = `  commands: ${COMMANDS.join(", ")}\n  plain \`kaizen\` opens the board; \`kaizen --yes\` installs; \`kaizen init\` sets up this folder\n`;
@@ -283,6 +283,12 @@ if (Bun.argv[2] === "preview") {
   const why = !arg ? "kaizen preview <localhost url | screenshot.png>" : !state ? "no kaizen project here" : setPreview(state, arg, process.cwd());
   console.log(why ? `\n  ${why}\n` : `\n  ${c.green("ok")}  the open kaizen board shows it: a page in Browser, a screenshot in Preview\n`);
   process.exit(why ? 1 : 0);
+}
+
+// `kaizen search …` / `kaizen scrape …`: web research through Firecrawl, see cli/research.ts.
+if (Bun.argv[2] === "search" || Bun.argv[2] === "scrape") {
+  const { cli } = await import("./research.ts");
+  process.exit(await cli(Bun.argv.slice(2)));
 }
 
 // `kaizen remember …` / `kaizen recall …`: global knowledge, see cli/knowledge.ts.

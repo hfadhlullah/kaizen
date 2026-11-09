@@ -1,8 +1,8 @@
 ---
 description: worktree, handoff, done, worker, automations, preflight, model and other agent-called commands
 tags: [project, cli]
-sources: [cli/preflight.ts, cli/subagent-model.test.ts, cli/automations.ts, cli/workers.ts, cli/knowledge.ts, cli/worktree.ts, cli/state.ts]
-updated: 2026-11-08
+sources: [cli/research.ts, cli/preflight.ts, cli/subagent-model.test.ts, cli/automations.ts, cli/workers.ts, cli/knowledge.ts, cli/worktree.ts, cli/state.ts]
+updated: 2026-11-09
 ---
 # Run commands
 
@@ -41,3 +41,7 @@ The small commands agents call while they work: starting a run's own branch, han
 ## Explore integration (2026-11-08)
 
 `kaizen state` accepts the optional Explore phase and its confirmation wait. Stats report Explore time separately. See [[Workflow]].
+
+## Web research (2026-11-09)
+
+`kaizen search "<query>" [--limit N] [--recent h|d|w|m|y] [--read]` and `kaizen scrape <url> [--max N]` (`cli/research.ts`) call Firecrawl v2 (`/v2/search`, `/v2/scrape`) with the user's own key: `FIRECRAWL_API_KEY`, else `~/.kaizen/firecrawl.json` (0600; `KAIZEN_FIRECRAWL_FILE` overrides the path, `KAIZEN_FIRECRAWL_URL` the host, for tests). Exit 2 with a setup line when no key is set, so an agent falls back to its own web tools; 1 for usage or a Firecrawl error (401 refused key, 402 credits, 429 rate limit). Output starts with a line marking web text as data, not instructions; page text is capped (6000 characters per `--read` result, `--max` for scrape, 20000 by default).

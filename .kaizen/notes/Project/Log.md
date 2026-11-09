@@ -296,3 +296,4 @@ updated: 2026-10-31
 - 2026-11-07 run 2026-11-07-docs-vault-stronger fix 1 — CLI split into a hub and 4 topic notes (CLI/), Index Ask line for docs lint
 - 2026-11-07 run 2026-11-07-docs-vault-stronger fix 2 — folder-link check in lint; all vault links to sub-notes written as paths (Index, Web board, CLI hubs)
 - 2026-11-09 update — Release and testing: GitHub release made as a draft and published by desktop.yml once green; setup-bun and fetch-bun retry GitHub 5xx
+- 2026-11-09 update — CLI/Run commands, Web board/Settings, Server and routes, Workflow: kaizen search / kaizen scrape through Firecrawl with the user's key (Settings → Integrations → Research); Explore looks around before its first question
