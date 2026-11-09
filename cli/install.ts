@@ -357,14 +357,71 @@ if (Bun.argv[2] === "sources" || Bun.argv[2] === "gather" || Bun.argv[2] === "ic
       const why = op === "promote" ? src.promote(state, ids, text) : src.dismiss(state, ids);
       if (why) { console.log(`\n  ${why}\n`); process.exit(1); }
       console.log(`\n  ${op === "promote" ? "promoted to Tasks" : "dismissed"}: ${ids.join(", ")}\n  ${where}\n`);
+    } else if (cmd === "icebox" && (op === "add" || op === "edit")) {
+      // The text arrives from a file or stdin, never as a shell word an agent built from
+      // what it read. The first line is the item, the rest its notes.
+      const a = Bun.argv.slice(4), flags = new Map<string, string[]>(), words: string[] = [];
+      for (let i = 0; i < a.length; i++) {
+        const f = /^--(file|kind|board|client|tag)$/.exec(a[i]!)?.[1];
+        if (!f) { words.push(a[i]!); continue; }
+        if (a[i + 1] === undefined) { console.log(`\n  --${f} needs a value\n`); process.exit(1); }
+        flags.set(f, [...(flags.get(f) ?? []), a[++i]!]);
+      }
+      const one = (f: string) => flags.get(f)?.at(-1);
+      const id = op === "edit" ? words.shift() : undefined;
+      if (op === "edit" && (!id || words.length)) { console.log("\n  kaizen icebox edit <id> --file <path>   (or the new text on stdin)\n"); process.exit(1); }
+      if (one("board") && one("client")) { console.log("\n  --board or --client, not both\n"); process.exit(1); }
+      const raw = words.length ? words.join(" ") : one("file") ? readFileSync(one("file")!, "utf8") : process.stdin.isTTY ? "" : await Bun.stdin.text();
+      const [first = "", ...more] = raw.replace(/\r\n/g, "\n").trim().split("\n");
+      if (!first.trim()) { console.log("\n  kaizen icebox add [text] [--file <path>] [--kind client|finding|people] [--board <name> | --client <name>] [--tag <tag>]...\n  the text as words, from --file, or on stdin\n"); process.exit(1); }
+      if (op === "edit") {
+        const why = src.editItem(state, id!, first, more.join("\n"));
+        if (why) { console.log(`\n  ${why}\n`); process.exit(1); }
+        console.log(`\n  edited: ${id}\n  ${where}\n`);
+      } else {
+        // A kind given from an agent's shell (Claude Code sets CLAUDECODE, a kaizen run KAIZEN_RUN_ID)
+        // is the agent's call, not yours. Other agents' kinds read as yours.
+        const agent = !!(process.env.CLAUDECODE || process.env.KAIZEN_RUN_ID);
+        const r = await src.capture(state, { text: first, notes: more.join("\n"), kind: one("kind"), board: one("client") ?? one("board"), client: !!one("client"), tags: flags.get("tag") ?? [], by: agent ? "agent" : "me" });
+        if ("why" in r) { console.log(`\n  ${r.why}\n`); process.exit(1); }
+        const it = src.readIcebox(state).find((s) => s.id === r.id)!;
+        console.log(`\n  added to the icebox: ${it.id}  [${src.KINDS[src.kindOf(it, src.readBoards(state))]}${it.board ? ` · ${it.board}` : ""}]  ${it.text}${it.link?.title ? `\n  ${c.dim(it.link.title)}` : ""}\n  ${where}\n`);
+      }
+    } else if (cmd === "icebox" && ["kind", "tag", "board", "snooze", "unsnooze"].includes(op ?? "")) {
+      const ids = url.split(",").map((i) => i.trim()).filter(Boolean);
+      const val = rest.join(" ");
+      const why = op === "kind" ? src.setKind(state, ids, val.trim().toLowerCase())
+        : op === "tag" ? src.setTags(state, ids, rest)
+        : op === "board" ? src.setBoard(state, ids, val.trim() === "-" ? "" : val)
+        : op === "snooze" ? src.snooze(state, ids, val)
+        : src.unsnooze(state, ids);
+      if (why) { console.log(`\n  ${why}\n  kaizen icebox kind <ids> client|finding|people · tag <ids> <tags> · board <ids> <name | -> · snooze <ids> <1d|1w|1m|YYYY-MM-DD> · unsnooze <ids>\n`); process.exit(1); }
+      console.log(`\n  ${op}: ${ids.join(", ")}\n  ${where}\n`);
+    } else if (cmd === "icebox" && op === "boards") {
+      // kaizen icebox boards [add <name> [--client] | rm <name>]
+      const [verb, ...nm] = Bun.argv.slice(4);
+      if (verb === "add" || verb === "rm") {
+        const client = nm.includes("--client"), name = nm.filter((w) => w !== "--client").join(" ");
+        const why = verb === "add" ? src.saveBoard(state, name, client) : src.removeBoard(state, name);
+        if (why) { console.log(`\n  ${why}\n`); process.exit(1); }
+      } else if (verb) { console.log("\n  kaizen icebox boards [add <name> [--client] | rm <name>]\n"); process.exit(1); }
+      const all = src.readIcebox(state), boards = src.readBoards(state);
+      console.log(`\n  ${where}`);
+      console.log(boards.length
+        ? "\n" + boards.map((b) => `  ${b.name}${b.client ? c.dim("  client") : ""}  ${c.dim(`${all.filter((s) => s.status === "new" && s.board === b.name).length} waiting`)}`).join("\n") + "\n"
+        : `\n  no boards yet ${c.dim("— kaizen icebox boards add <name> [--client]")}\n`);
     } else if (cmd === "icebox") {
-      const all = src.readIcebox(state);
-      const fresh = all.filter((s) => s.status === "new");
+      const all = src.readIcebox(state), boards = src.readBoards(state), now = Date.now();
+      const fresh = all.filter((s) => s.status === "new" && !src.isSnoozed(s, now));
+      const asleep = all.filter((s) => src.isSnoozed(s, now));
       const names = new Map(src.readSources(state).map((s) => [s.url, s.label || s.url]));
-      console.log(`\n  ${where}  ${c.dim(`${fresh.length} waiting, ${all.length - fresh.length} promoted or dismissed`)}`);
+      // The id, then [Kind · board · #tags], then the source's category, the text and where it came from.
+      const row = (s: (typeof all)[number]) => `  ${s.id}  [${[src.KINDS[src.kindOf(s, boards)] + (s.sorted && s.sorted !== "rules" ? "" : "?"), s.board, ...(s.tags ?? []).map((t) => "#" + t)].filter(Boolean).join(" · ")}]  [${s.category || "Uncategorised"}]  ${s.text}  ${c.dim(`(${names.get(s.source) ?? s.source})`)}${s.link?.title || s.link?.summary ? "\n            " + c.dim([s.link.title, s.link.summary && (s.link.summary.length > 160 ? s.link.summary.slice(0, 160) + "…" : s.link.summary)].filter(Boolean).join(" — ")) : ""}${s.notes ? "\n            " + c.dim(s.notes.replace(/\n/g, " · ")) : ""}`;
+      console.log(`\n  ${where}  ${c.dim(`${fresh.length} waiting, ${asleep.length} snoozed, ${all.length - fresh.length - asleep.length} promoted or dismissed`)}`);
       console.log(fresh.length
-        ? "\n" + fresh.map((s) => `  ${s.id}  [${s.category || "Uncategorised"}]  ${s.text}  ${c.dim(`(${names.get(s.source) ?? s.source})`)}${s.notes ? "\n            " + c.dim(s.notes.replace(/\n/g, " · ")) : ""}`).join("\n") + "\n"
-        : `\n  the icebox is empty ${c.dim("— kaizen gather")}\n`);
+        ? "\n" + fresh.map(row).join("\n") + "\n"
+        : `\n  the icebox is empty ${c.dim("— kaizen icebox add, or kaizen gather")}\n`);
+      if (asleep.length) console.log(c.dim("  snoozed:\n") + asleep.map((s) => c.dim(`  ${s.id}  until ${s.snoozed}  ${s.text}`)).join("\n") + "\n");
     } else if (cmd === "gather" && op === "--stdin") {
       // What an agent read from a link kaizen could not: one request per line, an
       // optional tab, then notes. Only for a link already listed.

@@ -38,6 +38,8 @@ anything.
 | `/kaizen backlog` | Print open backlog items across all runs, grouped by source run, rescued items last under `Orphaned` |
 | `/kaizen gather` | Read request sources kaizen cannot read by itself; their requests land in the icebox, nothing starts |
 | `/kaizen discover` | Group what is in the icebox and promote the tasks you pick; nothing starts |
+| `kaizen icebox add [--file <f>] [--kind client\|finding\|people] [--board <b> \| --client <name>] [--tag <t>]` | "Put this in the icebox": a note, link or file, text from the file or stdin (never a shell word); a link's title is read |
+| `kaizen icebox edit\|kind\|tag\|board\|snooze\|unsnooze <ids> ...`, `kaizen icebox boards` | Reword an item, set its kind, tags or board, hide it until `1d`/`1w`/`1m`/a date; list or add boards |
 | `/kaizen docs [lint]` | Write or refresh the project's docs vault in the notebook, which agents read first; `lint` only reports what is stale, broken or uncovered |
 | `kaizen automation list\|add\|run <id>\|pause <id>\|resume <id>\|rm <id>\|runs <id>` | Schedules that start an unattended auto-mode run in this project (hourly, daily, weekdays, weekly or cron; optional precheck). Fires only while a board runs |
 | `kaizen worker init\|start <wid>\|status\|config\|merge\|set <run> on\|off` | Orchestration (off by default): split a run into workers, each in its own board terminal and folder. `kaizen worker report` is for the workers themselves |

@@ -309,7 +309,7 @@ export async function drawSources(force = false) {
     if (!r.ok) return;
     const d = (srcs = await r.json());
     told();
-    const n = (d.icebox ?? []).filter((s) => s.status === "new").length;
+    const n = (d.icebox ?? []).filter((s) => s.status === "new" && !s.asleep).length;
     $("ice-n").textContent = n ? String(n) : "";
     $("rail-srcs").innerHTML = (d.sources ?? [])
       .slice(0, 3)

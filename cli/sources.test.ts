@@ -9,6 +9,7 @@ import {
   readSources, addSource, removeSource, ingest, checkUrl, resolvesPublic, exportUrl, fetchText, split, sift,
   gatherSource, freshImages, gatherAll, due, takeImages, sheetImages, docImages, imagesUrl, SIGN_IN, UNREADABLE, CAP, moveSource, gatherDirs, writeSources,
   readIcebox, writeIcebox, promote, markDone, addItem, githubRepo, dismiss, markReplied, setCategory, setPaused, socialUrl, socialOf, AGENT_ONLY, PLATFORMS,
+  capture, kindOf, readBoards, saveBoard, removeBoard, setKind, setBoard, setTags, editItem, snooze, unsnooze, snoozeUntil, isSnoozed,
 } from "./sources.ts";
 
 const root = realpathSync(mkdtempSync(join(tmpdir(), "kaizen-src-")));   // macOS: tmpdir is a symlink into /private
@@ -657,6 +658,34 @@ test("the board refuses to add a source without a project, and moves one between
     expect(await ice({ op: "dismiss", dir: a, ids: [y!.id] })).toMatchObject({ status: 200 });
     const listedIce = ((await (await fetch(at + "/sources")).json()) as any).icebox;
     expect(listedIce.map((s: any) => s.status)).toEqual(["promoted"]);   // promoted stays; dismissed comes apart
+
+    // Your own captures: add with fields, change them, snooze; /sources says kind and asleep.
+    expect(await ice({ op: "add", dir: a, text: "Client wants calendar sync", kind: "client", board: "Arupadatu", client: true, tags: ["planning"] })).toMatchObject({ status: 200 });
+    expect(await ice({ op: "add", dir: a, text: "x thing", kind: "bug" })).toMatchObject({ status: 409, error: "kind is one of: client, finding, people" });
+    const mine = readIcebox(a).at(-1)!;
+    expect(mine).toMatchObject({ kind: "client", sorted: "me", board: "Arupadatu", tags: ["planning"] });
+    expect(await ice({ op: "edit", dir: a, id: mine.id, text: "Calendar sync for planners" })).toMatchObject({ status: 200 });
+    expect(await ice({ op: "kind", dir: a, ids: [mine.id], kind: "finding" })).toMatchObject({ status: 200 });
+    expect(await ice({ op: "tag", dir: a, ids: [mine.id], tags: ["ux", "sync"] })).toMatchObject({ status: 200 });
+    expect(await ice({ op: "board", dir: a, ids: [mine.id], board: "Kaizen" })).toMatchObject({ status: 200 });
+    expect(await ice({ op: "snooze", dir: a, ids: [mine.id], until: "2001-01-01" })).toMatchObject({ status: 409 });
+    expect(await ice({ op: "snooze", dir: a, ids: [mine.id], until: "1w" })).toMatchObject({ status: 200 });
+    let got = ((await (await fetch(at + "/sources")).json()) as any);
+    expect(got.icebox.find((s: any) => s.id === mine.id)).toMatchObject({ text: "Calendar sync for planners", kind: "finding", sorted: "me", tags: ["ux", "sync"], board: "Kaizen", asleep: true });
+    expect(got.icebox.find((s: any) => s.id === x!.id)).toMatchObject({ kind: "client", sorted: "rules", asleep: false });
+    expect(got.boards.map((b: any) => [b.name, !!b.client, b.dir])).toEqual([["Arupadatu", true, a], ["Kaizen", false, a]]);
+    expect(await ice({ op: "unsnooze", dir: a, ids: [mine.id] })).toMatchObject({ status: 200 });
+    got = ((await (await fetch(at + "/sources")).json()) as any);
+    expect(got.icebox.find((s: any) => s.id === mine.id).asleep).toBe(false);
+    // The route's guard holds for every new op: another origin, or a body that is not JSON, writes nothing.
+    const before = readFileSync(join(a, "icebox.json"), "utf8");
+    for (const op of [{ op: "add", text: "from a stranger" }, { op: "kind", ids: [mine.id], kind: "people" }, { op: "snooze", ids: [mine.id], until: "1d" }]) {
+      const foreign = await fetch(at + "/icebox", { method: "POST", headers: { "content-type": "application/json", origin: "https://evil.example" }, body: JSON.stringify({ ...op, dir: a }) });
+      expect(foreign.status).toBe(403);
+      const plain = await fetch(at + "/icebox", { method: "POST", headers: { "content-type": "text/plain" }, body: JSON.stringify({ ...op, dir: a }) });
+      expect(plain.status).toBe(415);
+    }
+    expect(readFileSync(join(a, "icebox.json"), "utf8")).toBe(before);
   } finally { proc.kill(); await proc.exited; }
 }, 30_000);   // a cold board start is slow on Windows
 
@@ -848,4 +877,230 @@ test("githubRepo: https and ssh GitHub links only, named by the repository", () 
   expect(githubRepo("ssh://git@github.com/acme/app.git")).toBe("app");
   for (const bad of ["http://github.com/a/b", "https://gitlab.com/a/b", "https://github.com/a", "git@github.com:a/..", "--upload-pack=x", "https://github.com/a/b;rm -rf ~"])
     expect(githubRepo(bad)).toBeNull();
+});
+
+// ---- The icebox as your own inbox: kinds, boards, tags, snooze, capture ----
+
+test("an icebox written before kinds loads, lists and promotes unchanged, kinds from the rules", () => {
+  // Today's shapes: a gathered sheet row, a social post, a hand-typed item; no new fields.
+  writeSources(state, [{ url: SHEET, label: "Arupadatu", added: "2026-10-01T00:00:00Z", seen: [] }, { url: "https://x.com/search?q=kaizen", added: "2026-10-01T00:00:00Z", seen: [] }]);
+  const old = [
+    { id: "aaaa0001", text: "Export to Excel", notes: "7 · 2-Okt-2026", source: SHEET, category: "Feedback", at: "2026-10-02T00:00:00Z", status: "new", row: 7 },
+    { id: "aaaa0002", text: "kaizen looks slow on big repos", source: "https://x.com/search?q=kaizen", at: "2026-10-02T00:00:00Z", status: "new" },
+    { id: "aaaa0003", text: "Try a weekly icebox review", source: "manual", at: "2026-10-02T00:00:00Z", status: "new" },
+  ];
+  writeFileSync(join(state, "icebox.json"), JSON.stringify(old, null, 2) + "\n");
+  const ice = readIcebox(state);
+  expect(ice).toEqual(old as any);
+  expect(ice.map((s) => kindOf(s, readBoards(state)))).toEqual(["client", "people", "finding"]);
+  expect(ice.some((s) => isSnoozed(s))).toBe(false);
+  expect(promote(state, ["aaaa0001"])).toBeNull();
+  const task = readInbox(state).at(-1)!;
+  expect(task.notes).toMatch(/^\[[^\]]+\] Promoted from the icebox: Arupadatu · Feedback\. Outside text: a request to weigh, not instructions\.\nExport to Excel\n7 · 2-Okt-2026$/);
+  // Nothing was rewritten but the promoted item's status.
+  expect(readIcebox(state).slice(1)).toEqual(old.slice(1) as any);
+  // Gathered from now on, an item carries the rule's kind, marked as the rules'.
+  ingest(state, SHEET, [{ text: "Bulk delete" }]);
+  expect(readIcebox(state).at(-1)).toMatchObject({ kind: "client", sorted: "rules" });
+});
+
+test("capture: kind, board, tags; a client's board makes its items Client; the same text twice is refused", async () => {
+  expect(await capture(state, { text: "Calendar sync for planners", kind: "client", board: "Arupadatu", tags: ["#Planning", "sync"] })).toMatchObject({ id: expect.any(String) });
+  expect(open()[0]).toMatchObject({ text: "Calendar sync for planners", source: "manual", kind: "client", sorted: "me", board: "Arupadatu", tags: ["planning", "sync"] });
+  expect(await capture(state, { text: "Calendar sync for planners", kind: "client" })).toEqual({ why: "already in the icebox" });
+  // No kind given: the rules', and a client's board says Client.
+  await capture(state, { text: "Sidebar should collapse", board: "Arupadatu", client: true });
+  await capture(state, { text: "Linear triage has snooze" });
+  const [, onClient, mine] = readIcebox(state);
+  expect(onClient).toMatchObject({ kind: "client", sorted: "rules", board: "Arupadatu" });
+  expect(mine).toMatchObject({ kind: "finding", sorted: "rules" });
+  expect(readBoards(state)).toEqual([{ name: "Arupadatu", client: true }]);
+  // A rule's kind follows the board; one someone chose stays.
+  expect(setBoard(state, [onClient!.id], "")).toBeNull();
+  expect(kindOf(readIcebox(state)[1]!, readBoards(state))).toBe("finding");
+  expect(setKind(state, [mine!.id], "people")).toBeNull();
+  expect(setBoard(state, [mine!.id], "arupadatu")).toBeNull();   // the board's own spelling is kept
+  const m = readIcebox(state)[2]!;
+  expect(m).toMatchObject({ kind: "people", sorted: "me", board: "Arupadatu" });
+  expect(kindOf(m, readBoards(state))).toBe("people");
+  expect(capture(state, { text: "by an agent", kind: "finding", by: "agent" }).then(() => readIcebox(state).at(-1)!.sorted)).resolves.toBe("agent");
+  // Boards: an empty one goes, one with items stays.
+  expect(saveBoard(state, "Kaizen site")).toBeNull();
+  expect(removeBoard(state, "Arupadatu")).toBe("the board still has items");
+  expect(removeBoard(state, "kaizen site")).toBeNull();
+  expect(removeBoard(state, "nope")).toBe("no such board");
+});
+
+test("capture and changes refuse bad input before writing anything", async () => {
+  expect(await capture(state, { text: "x thing", kind: "bug" })).toEqual({ why: "kind is one of: client, finding, people" });
+  expect(await capture(state, { text: "x thing", board: "b".repeat(41) })).toEqual({ why: "a board name is 1 to 40 characters" });
+  expect(await capture(state, { text: "x thing", tags: ["a".repeat(25)] })).toMatchObject({ why: expect.stringContaining("tag") });
+  expect(await capture(state, { text: "x thing", tags: ["../etc"] })).toMatchObject({ why: expect.stringContaining("tag") });
+  expect(await capture(state, { text: "x thing", tags: ["a;b"] })).toMatchObject({ why: expect.stringContaining("tag") });
+  expect(await capture(state, { text: "x thing", tags: "a b c d e f g h i".split(" ") })).toEqual({ why: "at most 8 tags" });
+  expect(await capture(state, { text: "  " })).toEqual({ why: "write the request first" });
+  expect(existsSync(join(state, "icebox.json"))).toBe(false);
+  expect(existsSync(join(state, "boards.json"))).toBe(false);
+  await capture(state, { text: "Real item", read: false });
+  const id = readIcebox(state)[0]!.id;
+  expect(setKind(state, [id], "bug")).toMatch(/^kind is one of/);
+  expect(setKind(state, ["nope0000"], "client")).toBe("no such item");
+  expect(setKind(state, [], "client")).toBe("no items named");
+  expect(setBoard(state, [id], "b".repeat(41))).toBe("a board name is 1 to 40 characters");
+  expect(setBoard(state, ["nope0000"], "New board")).toBe("no such item");
+  expect(existsSync(join(state, "boards.json"))).toBe(false);   // an unknown id makes no board
+  expect(setTags(state, [id], ["ok", "not ok!"])).toMatch(/tag/);
+  expect(snooze(state, [id], "2020-01-01")).toBe("the snooze date must be in the future");
+  expect(snooze(state, [id], "tomorrow")).toMatch(/^snooze until/);
+  expect(snooze(state, [id], "2026-02-30")).toMatch(/^snooze until/);
+  expect(snooze(state, [id], "13m")).toBe("snooze for a year at most");
+  expect(readIcebox(state)[0]).toEqual({ id, text: "Real item", source: "manual", at: expect.any(String), status: "new", kind: "finding", sorted: "rules" });
+});
+
+test("edit: new wording, same id; refuses a duplicate and a promoted item", async () => {
+  await capture(state, { text: "First idea", read: false });
+  await capture(state, { text: "Second idea", read: false });
+  const [a, b] = readIcebox(state);
+  expect(editItem(state, a!.id, "First idea, sharper", "with a note")).toBeNull();
+  expect(readIcebox(state)[0]).toMatchObject({ id: a!.id, text: "First idea, sharper", notes: "with a note" });
+  expect(editItem(state, a!.id, "Second idea")).toBe("already in the icebox");
+  expect(editItem(state, "nope0000", "x y z")).toBe("no such item");
+  expect(setTags(state, [a!.id, b!.id], ["ux"])).toBeNull();
+  expect(setTags(state, [b!.id], [])).toBeNull();
+  expect(readIcebox(state).map((s) => s.tags)).toEqual([["ux"], undefined]);
+  promote(state, [b!.id]);
+  expect(editItem(state, b!.id, "changed after")).toBe("already a task");
+});
+
+test("snooze: hidden until its date, then waiting again with no write; only waiting items", async () => {
+  const now = new Date(2026, 10, 9, 15, 0);   // 9 Nov 2026, 15:00 local
+  await capture(state, { text: "Look at this next week", read: false });
+  await capture(state, { text: "Already dismissed one", read: false });
+  const [a, b] = readIcebox(state);
+  dismiss(state, [b!.id]);
+  expect(snooze(state, [a!.id, b!.id], "1w", now)).toBe("only waiting items can be snoozed");
+  expect(readIcebox(state)[0]!.snoozed).toBeUndefined();
+  expect(snooze(state, [a!.id], "1w", now)).toBeNull();
+  expect(readIcebox(state)[0]!.snoozed).toBe("2026-11-16");
+  const it = readIcebox(state)[0]!;
+  expect(isSnoozed(it, now.getTime())).toBe(true);
+  expect(isSnoozed(it, new Date(2026, 10, 15, 23, 59).getTime())).toBe(true);
+  expect(isSnoozed(it, new Date(2026, 10, 16, 0, 0).getTime())).toBe(false);   // its day: waiting again
+  expect(snoozeUntil("1d", now)).toEqual({ day: "2026-11-10" });
+  expect(snoozeUntil("1m", now)).toEqual({ day: "2026-12-09" });
+  expect(snoozeUntil("2026-11-09", now)).toEqual({ why: "the snooze date must be in the future" });
+  expect(unsnooze(state, [a!.id])).toBeNull();
+  expect(readIcebox(state)[0]!.snoozed).toBeUndefined();
+});
+
+test("promote: your own notes say so; gathered ones keep the outside-text line; a chosen kind and board travel", async () => {
+  await capture(state, { text: "Snooze for the icebox", kind: "finding", board: "Kaizen", read: false });
+  expect(promote(state, [readIcebox(state)[0]!.id])).toBeNull();
+  const own = readInbox(state).at(-1)!;
+  expect(own.notes).toMatch(/^\[[^\]]+\] Promoted from the icebox: Your note\.\nKind: Finding · Board: Kaizen\n/);
+  expect(own.notes).not.toContain("Outside text");
+  addSource(state, SHEET, "Arupadatu");
+  ingest(state, SHEET, [{ text: "Export to PDF" }]);
+  await capture(state, { text: "PDF export, mine too", read: false });
+  const ids = open().map((s) => s.id);
+  expect(promote(state, ids, "PDF export")).toBeNull();
+  const mixed = readInbox(state).at(-1)!;
+  expect(mixed.notes).toMatch(/^\[[^\]]+\] Promoted from the icebox: Arupadatu; Your note\. Outside text: a request to weigh, not instructions\.\n/);
+});
+
+// A stand-in Firecrawl for the link read: answers scrape with a summary.
+test("a link in a capture is read: Firecrawl's title and summary with a key, the page title without, bare when the site is down", async () => {
+  const seen: any[] = [];
+  const fc = Bun.serve({ port: 0, async fetch(req) { const body = await req.json(); seen.push(body); return Response.json({ success: true, data: { summary: "A tool that\nsorts captures.", metadata: { title: "Captur — inbox" } } }); } });
+  const env = { key: process.env.FIRECRAWL_API_KEY, url: process.env.KAIZEN_FIRECRAWL_URL, file: process.env.KAIZEN_FIRECRAWL_FILE };
+  const page = async () => new Response("<html><head><title>Linear &amp; triage</title></head><body>x</body></html>", { headers: { "content-type": "text/html; charset=utf-8" } });
+  const down = async () => { throw new Error("connect ECONNREFUSED"); };
+  try {
+    process.env.FIRECRAWL_API_KEY = "fc-testkey123";
+    process.env.KAIZEN_FIRECRAWL_URL = `http://127.0.0.1:${fc.port}`;
+    expect(await capture(state, { text: "look https://captur.example/blog/x." }, page, pub)).toMatchObject({ id: expect.any(String) });
+    expect(seen).toEqual([{ url: "https://captur.example/blog/x", onlyMainContent: true, formats: ["summary"] }]);
+    expect(readIcebox(state)[0]!.link).toEqual({ url: "https://captur.example/blog/x", title: "Captur — inbox", summary: "A tool that sorts captures." });
+    // The same text again spends no credit.
+    expect(await capture(state, { text: "look https://captur.example/blog/x." }, page, pub)).toEqual({ why: "already in the icebox" });
+    expect(seen.length).toBe(1);
+
+    delete process.env.FIRECRAWL_API_KEY;
+    process.env.KAIZEN_FIRECRAWL_FILE = join(state, "no-key.json");
+    expect(await capture(state, { text: "https://linear.app/docs/triage" }, page, pub)).toMatchObject({ id: expect.any(String) });
+    expect(readIcebox(state)[1]!.link).toEqual({ url: "https://linear.app/docs/triage", title: "Linear & triage" });
+    expect(await capture(state, { text: "down https://gone.example/" }, down, pub)).toMatchObject({ id: expect.any(String) });
+    expect(readIcebox(state)[2]!.link).toEqual({ url: "https://gone.example/" });
+    // A private address is never fetched; the item still lands.
+    let fetched = false;
+    expect(await capture(state, { text: "inside https://intranet.example/" }, async () => { fetched = true; return page(); }, async () => [{ address: "10.0.0.5" }])).toMatchObject({ id: expect.any(String) });
+    expect(fetched).toBe(false);
+    expect(readIcebox(state)[3]!.link).toEqual({ url: "https://intranet.example/" });
+    expect(seen.length).toBe(1);
+  } finally {
+    fc.stop(true);
+    for (const [k, v] of [["FIRECRAWL_API_KEY", env.key], ["KAIZEN_FIRECRAWL_URL", env.url], ["KAIZEN_FIRECRAWL_FILE", env.file]] as const) if (v === undefined) delete process.env[k]; else process.env[k] = v;
+  }
+});
+
+// The CLI in a scratch project: text on stdin, flags validated, nothing through a shell.
+test("kaizen icebox add reads stdin or --file, lists kind, board and tags, and snoozes", async () => {
+  const proj = join(root, "cli" + n), home = join(root, "clihome" + n);
+  mkdirSync(join(proj, ".kaizen"), { recursive: true });
+  mkdirSync(home, { recursive: true });
+  const env: Record<string, string> = { ...process.env, HOME: home, USERPROFILE: home, KAIZEN_FIRECRAWL_FILE: join(home, "none.json") } as any;
+  delete env.FIRECRAWL_API_KEY; delete env.CLAUDECODE; delete env.KAIZEN_RUN_ID; delete env.KAIZEN_STATE;
+  const kz = async (args: string[], stdin?: string) => {
+    const p = Bun.spawn([process.execPath, join(import.meta.dir, "install.ts"), "icebox", ...args], { cwd: proj, env, stdin: stdin === undefined ? "ignore" : new Blob([stdin]), stdout: "pipe", stderr: "pipe" });
+    const [code, out, err] = await Promise.all([p.exited, new Response(p.stdout).text(), new Response(p.stderr).text()]);
+    return { code, out: (out + err).replace(/\x1b\[[0-9;]*m/g, "") };
+  };
+  const ice = join(proj, ".kaizen");
+  const a = await kz(["add", "--kind", "client", "--client", "Arupadatu", "--tag", "planning"], "Calendar $(touch pwned) sync\nasked on the call");
+  expect(a.code).toBe(0);
+  expect(a.out).toContain("added to the icebox");
+  expect(readIcebox(ice)[0]).toMatchObject({ text: "Calendar $(touch pwned) sync", notes: "asked on the call", kind: "client", sorted: "me", board: "Arupadatu", tags: ["planning"] });
+  expect(existsSync(join(proj, "pwned"))).toBe(false);
+  expect((await kz(["add", "--kind", "client"], "Calendar $(touch pwned) sync\nasked on the call")).out).toContain("already in the icebox");
+  writeFileSync(join(home, "note.txt"), "Weekly icebox review\n");
+  expect((await kz(["add", "--file", join(home, "note.txt")])).code).toBe(0);
+  expect((await kz(["add", "--kind", "bug"], "x thing")).out).toContain("kind is one of");
+  expect((await kz(["add", "--board", "b".repeat(41)], "x thing")).out).toContain("1 to 40 characters");
+  expect((await kz(["add", "--board", "A", "--client", "B"], "x thing")).code).toBe(1);
+  expect((await kz(["add"])).out).toContain("kaizen icebox add [text]");
+  const [x, y] = readIcebox(ice);
+  expect((await kz(["snooze", y!.id, "2001-01-01"])).out).toContain("must be in the future");
+  expect((await kz(["snooze", y!.id, "1w"])).code).toBe(0);
+  const list = await kz([]);
+  expect(list.out).toContain("1 waiting, 1 snoozed, 0 promoted or dismissed");
+  expect(list.out).toContain(`${x!.id}  [Client · Arupadatu · #planning]`);
+  expect(list.out).toMatch(new RegExp(`snoozed:\\n\\s+${y!.id}  until \\d{4}-\\d\\d-\\d\\d  Weekly icebox review`));
+  expect((await kz(["kind", y!.id, "people"])).code).toBe(0);
+  expect((await kz(["tag", y!.id, "ritual,gtd"])).code).toBe(0);
+  expect((await kz(["board", y!.id, "Kaizen"])).code).toBe(0);
+  expect((await kz(["unsnooze", y!.id])).code).toBe(0);
+  expect((await kz(["edit", y!.id], "Weekly icebox review, Fridays")).code).toBe(0);
+  expect(readIcebox(ice)[1]).toMatchObject({ text: "Weekly icebox review, Fridays", kind: "people", tags: ["ritual", "gtd"], board: "Kaizen" });
+  expect(readIcebox(ice)[1]!.snoozed).toBeUndefined();
+  expect((await kz(["boards"])).out).toMatch(/Arupadatu\s+client\s+1 waiting[\s\S]*Kaizen\s+1 waiting/);
+  // An agent's kind is the agent's.
+  env.CLAUDECODE = "1";
+  await kz(["add", "--kind", "finding"], "Agent found this");
+  expect(readIcebox(ice).at(-1)!.sorted).toBe("agent");
+}, 30_000);
+
+test("edit: a new item with an edited item's old text gets its own id; a gathered item is not edited", async () => {
+  await capture(state, { text: "Alpha idea", read: false });
+  const a = readIcebox(state)[0]!;
+  expect(editItem(state, a.id, "Beta idea")).toBeNull();
+  expect(await capture(state, { text: "Alpha idea", read: false })).toMatchObject({ id: expect.any(String) });
+  const ids = readIcebox(state).map((s) => s.id);
+  expect(new Set(ids).size).toBe(2);
+  expect(setKind(state, [ids[1]!], "people")).toBeNull();
+  expect(readIcebox(state).map((s) => [s.text, s.kind])).toEqual([["Beta idea", "finding"], ["Alpha idea", "people"]]);
+  addSource(state, SHEET, "Arupadatu");
+  ingest(state, SHEET, [{ text: "Export to PDF" }]);
+  const g = readIcebox(state).at(-1)!;
+  expect(editItem(state, g.id, "PDF export, reworded")).toBe("only your own items can be edited; promote it with your own wording instead");
+  expect(readIcebox(state).at(-1)!.text).toBe("Export to PDF");
 });
