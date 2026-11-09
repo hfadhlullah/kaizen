@@ -9,7 +9,19 @@ const VERSION = "1.4.4";
 const os = { linux: "linux", darwin: "darwin", win32: "windows" }[process.platform as string];
 const base = `https://github.com/oven-sh/bun/releases/download/bun-v${VERSION}`;
 const exe = os === "windows" ? "bun.exe" : "bun";
-const sums = await (await fetch(`${base}/SHASUMS256.txt`)).text();
+// GitHub's release downloads answer 5xx now and then; an error page must never be
+// hashed as the zip (v1.76.0 failed that way), so a non-2xx answer is retried, then thrown.
+async function get(url: string): Promise<Response> {
+  for (let i = 1; ; i++) {
+    const r = await fetch(url).catch((e) => e as Error);
+    if (r instanceof Response && r.ok) return r;
+    const why = r instanceof Response ? `HTTP ${r.status}` : r.message;
+    if (i === 5) throw new Error(`could not download ${url}: ${why}`);
+    console.log(`${url}: ${why}, retrying in ${15 * i}s`);
+    await Bun.sleep(15_000 * i);
+  }
+}
+const sums = await (await get(`${base}/SHASUMS256.txt`)).text();
 
 for (const arch of (process.env.KAIZEN_BUN_ARCHS ?? process.arch).split(",")) {
   const name = `bun-${os}-${{ x64: "x64", arm64: "aarch64" }[arch]}`;
@@ -17,7 +29,7 @@ for (const arch of (process.env.KAIZEN_BUN_ARCHS ?? process.arch).split(",")) {
   const target = `${os}-${arch}`;
   const want = sums.split("\n").find((l) => l.endsWith(` ${name}.zip`))?.split(" ")[0];
   if (!want) throw new Error(`no checksum for ${name}.zip in bun ${VERSION}`);
-  const zip = new Uint8Array(await (await fetch(`${base}/${name}.zip`)).arrayBuffer());
+  const zip = new Uint8Array(await (await get(`${base}/${name}.zip`)).arrayBuffer());
   const got = createHash("sha256").update(zip).digest("hex");
   if (got !== want) throw new Error(`checksum mismatch for ${name}.zip: ${got} != ${want}`);
   

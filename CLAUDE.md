@@ -46,7 +46,7 @@ the board's Browser tab and a screenshot in its Preview tab. Never open a separa
 
 ```bash
 bun install               # dev dependencies only
-bun test                  # the suite; what CI runs (Ubuntu + Windows)
+bun test                  # the suite; what CI runs (Ubuntu, macOS, Windows)
 bun run cli/install.ts    # install from this checkout — the links point at it
 bun run build:web         # rebuild web/notebook.js
 ```
