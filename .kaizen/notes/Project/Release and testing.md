@@ -1,8 +1,8 @@
 ---
 description: How to test, build the web bundles, and publish a release
 tags: [project, release]
-sources: [cli/explore.test.ts, cli/stats.test.ts, cli/web-decide.test.ts, site/, desktop/, .github/workflows/desktop.yml, package.json, cli/release.sh, cli/publish-gh.sh, .github/workflows/test.yml, cli/build-web.ts, test/tmp.ts, bunfig.toml, bot/bunfig.toml, cli/release.ts, assets, cli/add-project.test.ts, cli/backlog.test.ts, cli/board.test.ts, cli/browser.test.ts, cli/chat.test.ts, cli/chatgpt.test.ts, cli/docs.test.ts, cli/html.test.ts, cli/install.test.ts, cli/knowledge.test.ts, cli/localsend.test.ts, cli/logo.test.ts, cli/notes.test.ts, cli/onboarding.test.ts, cli/project-tree.test.ts, cli/pty.test.ts, cli/release.test.ts, cli/restart.test.ts, cli/settings.test.ts, cli/setup.test.ts, cli/shell-agent.test.ts, cli/sources.test.ts, cli/state.test.ts, cli/subagent-model.test.ts, cli/usage.test.ts, cli/versions.test.ts, cli/video.test.ts, cli/web-accept.test.ts, cli/web-pr.test.ts, cli/web-symlink.test.ts, cli/worktree.test.ts, cli/writeback.test.ts]
-updated: 2026-11-09
+sources: [cli/ui-audit.ts, cli/ui-audit.test.ts, cli/ui-audit.allow.json, cli/explore.test.ts, cli/stats.test.ts, cli/web-decide.test.ts, site/, desktop/, .github/workflows/desktop.yml, package.json, cli/release.sh, cli/publish-gh.sh, .github/workflows/test.yml, cli/build-web.ts, test/tmp.ts, bunfig.toml, bot/bunfig.toml, cli/release.ts, assets, cli/add-project.test.ts, cli/backlog.test.ts, cli/board.test.ts, cli/browser.test.ts, cli/chat.test.ts, cli/chatgpt.test.ts, cli/docs.test.ts, cli/html.test.ts, cli/install.test.ts, cli/knowledge.test.ts, cli/localsend.test.ts, cli/logo.test.ts, cli/notes.test.ts, cli/onboarding.test.ts, cli/project-tree.test.ts, cli/pty.test.ts, cli/release.test.ts, cli/restart.test.ts, cli/settings.test.ts, cli/setup.test.ts, cli/shell-agent.test.ts, cli/sources.test.ts, cli/state.test.ts, cli/subagent-model.test.ts, cli/usage.test.ts, cli/versions.test.ts, cli/video.test.ts, cli/web-accept.test.ts, cli/web-pr.test.ts, cli/web-symlink.test.ts, cli/worktree.test.ts, cli/writeback.test.ts]
+updated: 2026-11-10
 ---
 # Release and testing
 
@@ -19,6 +19,7 @@ Tests are `bun test` (all `*.test.ts`, `cli/` and `bot/`), run in CI on Ubuntu, 
 - `cli/publish-gh.sh` — same tarball as `@hfadhlullah/kaizen-agent` on GitHub Packages.
 - `cli/build-web.ts` — bundles `web/notebook.js`, `web/term.js`, `web/board.js` and `bot/web/app.js`, committed; `cli/notes.test.ts` fails when one is older than its sources.
 - `cli/release.ts` — the `release` script: bump, commit, publish, push. Its `git push origin HEAD` pushes the current branch, so from a worktree branch push `HEAD:main` yourself.
+- `cli/ui-audit.ts` — `bun run audit:ui`, a dev tool (not a `kaizen` command, not in CI): starts a scratch board (the newest 40 runs copied from the project, worktree and session fields removed, its own `HOME`, a git repo with one commit, port 7459 or `--port`) and headless Chrome, opens every screen and open state (board, run workspace and its menus, dialogs, all 16 Settings pages, Notes, Video, the phone pages) in light and dark at 1400 and 400px, and measures with `getBoundingClientRect`: row centres, column left edges off by 1–4px, one component class at two heights, and the side-by-side top bars' first rows. It writes `report.md` (and with `--shots` a screenshot per state, flagged boxes outlined) to `$TMPDIR/ui-audit` or `--out`; `--only name,settings-*` narrows it. Exits 1 on any flag outside `cli/ui-audit.allow.json`. About three minutes. `cli/ui-audit.test.ts` runs its measuring code on a fixture page where Chrome is found.
 - `cli/*.test.ts` — tests beside the code. `assets/` — README art and the hero capture.
 
 ## How it connects

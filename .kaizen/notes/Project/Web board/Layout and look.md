@@ -1,8 +1,8 @@
 ---
 description: Side menu, sizes, the shared controls (button, icon button, switch, select), colour, theme, motion and the phone layout of the board
 tags: [project, web-board]
-sources: [web/board/run-view.ts, web/board/badge.ts, web/board/workspace.ts, web/board/phone.ts, cli/usage.ts, web/board, web/video.html, web/popup.html]
-updated: 2026-11-09
+sources: [cli/ui-audit.ts, cli/ui-audit.allow.json, web/notes.html, web/board/run-view.ts, web/board/badge.ts, web/board/workspace.ts, web/board/phone.ts, cli/usage.ts, web/board, web/video.html, web/popup.html]
+updated: 2026-11-10
 ---
 # Layout and look
 
@@ -35,8 +35,9 @@ One set of controls on every page; a new control uses these instead of drawing i
 - **Button** `.btn` (`sm`, `ghost`, `pri`, `danger`).
 - **Icon button** `.ib` (32px, `--btn-s`), `.ib.sm` 26px, `.ib.xs` 24px (`--btn-xs`, `--ico` icon): the workspace tab bar (`+`, Run app, splits, `#rside`) and the rail's Report an issue, Keyboard shortcuts and theme buttons. The old `.rbtn` and `.rib` are gone. Notes and video carry the same `.ib`/`.ib.xs` rules.
 - **Switch** `.chk` (51x31, `.sm` 34x20), written by `toggleSwitch(on, { sm, box, attrs })` in `web/board/dom.ts`. A `<button role="switch">` whose owner flips `.on` and `aria-checked` (Settings, Automations, Skills, Icebox sources, the run form's Yolo); with `box` a checkbox whose `checked` draws the same, for code that reads `.checked` (the + menu's Bypass permissions, the phone New-in sheet). `.agent-yolo` is only the label-left, switch-right row.
-- **Select** `.sel` on every `<select>` (board, notes, video). Per-place rules keep only width or height (`.pagsheet .sel`, `dialog.wsnew .wsbase .sel`, `.card .sel`); fields inside a `dialog.kz` form take `--canvas` like the inputs beside them. The annotator's own settings select (`web/board/annotate.ts`) is drawn inside the framed app and keeps its own look.
-- **Run panel**: in the run view `#panel.open:not(.docked)>header` (8px 12px) wins over `body.runv #panel>header`, so the strip `.pstrip` starts 7px down (its first icon's centre on the run picker's) and `#pbody` pads 12px on the left like the header and footer. With no run tabs the strip drops `#pnotes`' divider.
+- **Select** `.sel` on every `<select>` (board, notes, video). A one-line `.sel` (input, select, button, summary) is 32px (`--btn-s`), as tall as `.ib` and `.btn`, so a field, a picker and a button in one toolbar line up; a textarea keeps its own height. Per-place rules keep only width or height (`.pagsheet .sel`, `dialog.wsnew .wsbase .sel`, `.card .sel`); fields inside a `dialog.kz` form take `--canvas` like the inputs beside them. The annotator's own settings select (`web/board/annotate.ts`) is drawn inside the framed app and keeps its own look.
+- **One top line** (run 2026-11-10-measured-alignment-audit): the side menu's first row (logo and collapse button, `.rail` 19px from the top) and every page's first row share one centre, 35px down on a computer: the board, Notes and Video headers are 52px (`.hdr`), the run view's bar `#rbar` is 52px, the run panel's header starts 11px down (`body.runv #panel.open:not(.docked)>header`) and its icon strip `.pstrip` 10px down. The logo starts at the menu items' left edge (`.rail .top` 8px). `#pbody` pads 12px on the left like the header and footer. With no run tabs the strip drops `#pnotes`' divider.
+- **Measured, not eyeballed**: `bun run audit:ui` (`cli/ui-audit.ts`, see [[Release and testing]]) checks row centres, column edges, control heights and the top line on every screen in light and dark at 1400 and 400px. Deliberate exceptions are in `cli/ui-audit.allow.json` with their reasons. Run it after a layout change.
 
 ## Watch out
 - Installed as a phone app (`display-mode:standalone`) the body is fixed to the top at `100dvh`; fixed strips at the top and, on phones, bottom edge stop the iOS 26 edge blur, and the root takes the tab bar colour so no band shows if the window stops short; both pages use `viewport-fit=cover` plus safe-area padding on phones and in standalone at any width; on phones the page background is `--bg` so the inset strips show no dark band.
