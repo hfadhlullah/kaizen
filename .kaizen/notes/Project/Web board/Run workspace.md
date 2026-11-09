@@ -2,7 +2,7 @@
 description: The run workspace: tabs, Browser and Preview, annotator, split panes, restart resume, agent reports
 tags: [project, web-board]
 sources: [cli/annotate.ts, cli/annotate-proxy.ts, web/annotate.js, web/board/annotate.ts, web/board/annotate-lib.ts, cli/report.ts, web/board/run-view.ts, web/board/badge.ts, web/board/ws-tabs.ts, cli/pty.ts, web/board]
-updated: 2026-11-08
+updated: 2026-11-09
 ---
 # Run workspace
 
@@ -16,7 +16,7 @@ The page a run opens into: its plan, review and backlog tabs, the browser and pr
 
 - **Restart resume.** `saveLive` (`cli/web.ts`) also writes the + menu's terminals and agents (`shells`, argv in `shellCmd`, Claude's conversation id via `claudeSid`, Linux `/proc` only) into `resume-after-upgrade.json`; the next board starts them again, Claude with `--resume`. A shell whose run's own resume already brought the agent back (`viaRun`) is skipped. Closing an agent tab hides it per agent (`hb` born in the saved layout in `run-view.ts`): the same key started again shows its tab.
 
-**Preview button (run view).** The eye icon beside + (phone too) opens the workspace's app in the Browser tab: a port from `/devports` (never the board's own port) opens at once; else `POST /shell {dev:true}` runs the folder's `dev`/`start` script from package.json (`devCommand()`, lockfile picks bun/pnpm/yarn/npm, through a login shell, never a command from the page), reuses a live one, sets `__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS=.ts.net` so Vite accepts the tailnet name, then polls `/devports`. No script: the run's Preview tab and a toast. `/expose` serves whichever loopback answers (Vite listens on `[::1]` only) and returns a `hint` when the dev server still refuses the tailnet host.
+**Run app button (run view).** The play icon beside + (phone too; named Preview with an eye icon before 2026-11-09-board-ui-consistency, which looked like the + menu's Preview item, the run's Preview tab) opens the workspace's app in the Browser tab: a port from `/devports` (never the board's own port) opens at once; else `POST /shell {dev:true}` runs the folder's `dev`/`start` script from package.json (`devCommand()`, lockfile picks bun/pnpm/yarn/npm, through a login shell, never a command from the page), reuses a live one, sets `__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS=.ts.net` so Vite accepts the tailnet name, then polls `/devports`. No script: the run's Preview tab and a toast. `/expose` serves whichever loopback answers (Vite listens on `[::1]` only) and returns a `hint` when the dev server still refuses the tailnet host.
 
 **Agent reports.** `kaizen report` (`cli/report.ts`, run `2026-10-31-agent-reporting`) writes `runs/<id>/report.json`, a file so it needs no board or secret; from a worktree it goes to the project's state dir. `signalOf` gives a card `blocked`, `stale` (a live board terminal silent, with no report, for two `agent.heartbeat_minutes`) or `unverified` (the board's terminal ended in a build or review with no hand-back for that stage and fix round, report file or not). A card with no board terminal gets no stale or unverified, since quiet and dead look alike from outside. Agents can't run on a timer: they report at each step. The running phase shows on the Runs board. `KAIZEN_RUN_ID` and `KAIZEN_STAGE` reach an agent resumed on a known run (not on Windows); a new run passes `--run`.
 

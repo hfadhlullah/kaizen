@@ -14,6 +14,16 @@ const part = (v): string => (v instanceof Safe ? v.s : Array.isArray(v) ? v.map(
 // Escape-by-default template: html`<b>${title}</b>` cannot inject markup. Keep attributes double-quoted.
 export const html = (strs: TemplateStringsArray, ...vals) => raw(strs.reduce((a, s, i) => a + part(vals[i - 1]) + s));
 export const ico = (n) => raw(`<svg><use href="#i-${n}"/></svg>`);
+// The board's one switch (.chk in board.html). A <button role="switch"> whose owner flips `.on`
+// and aria-checked; with `box`, a checkbox whose `checked` is the state, for code that reads it.
+// `sm` is the compact size; `attrs` are further attributes, escaped.
+export const toggleSwitch = (on: boolean, o: { sm?: boolean; box?: boolean; attrs?: Record<string, string> } = {}) => {
+  const cls = "chk" + (o.sm ? " sm" : ""),
+    at = raw(Object.entries(o.attrs ?? {}).map(([k, v]) => ` ${k}="${esc(v)}"`).join(""));
+  return o.box
+    ? html`<input type="checkbox" class="${cls}" role="switch"${at}${raw(on ? " checked" : "")}>`
+    : html`<button type="button" class="${cls}${on ? " on" : ""}" role="switch" aria-checked="${String(on)}"${at}></button>`;
+};
 // Placeholder rows for a panel whose body is still being fetched.
 export const SKEL = raw(
   '<div aria-busy="true" aria-label="Loading">' +

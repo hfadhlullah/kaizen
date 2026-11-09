@@ -11,7 +11,7 @@
 import { pick } from "./projects.ts";
 import { store } from "./store.ts";
 import { toast } from "./toast.ts";
-import { $, html, ico, raw } from "./dom.ts";
+import { $, html, ico, raw, toggleSwitch } from "./dom.ts";
 import { key } from "./cards.ts";
 import { open } from "./panel.ts";
 import { termLoad } from "./agent-term.ts";
@@ -247,7 +247,7 @@ function draw() {
   // Agents first, the default on top, then the tools.
   const agentRow = (a) => html`<button data-n="agent:${a.cmd}">${mark(a)}<span>${a.name}<small>${a === dflt ? "default agent, in this folder" : "the agent alone, no run"}</small></span></button>`;
   // Bypass for this launch, on top of the agents. It starts from Settings → Agents → Permissions (the default agent's) and resets each time the menu opens.
-  const yolo = agents.some((a) => a.yolo) ? html`<label class="agent-yolo"><span>Bypass permissions<small>run commands without asking</small></span><input type="checkbox" role="switch" aria-label="Bypass permissions"${raw((dflt ?? agents[0]).bypassDefault ? " checked" : "")}></label>` : "";
+  const yolo = agents.some((a) => a.yolo) ? html`<label class="agent-yolo"><span>Bypass permissions<small>run commands without asking</small></span>${toggleSwitch(!!(dflt ?? agents[0]).bypassDefault, { sm: true, box: true, attrs: { "aria-label": "Bypass permissions" } })}</label>` : "";
   const menu = html`<div class="menu-pop">${PTY && agents.length ? html`${yolo}${agentRow(dflt ?? agents[0])}${agents.filter((a) => a !== (dflt ?? agents[0])).map(agentRow)}<hr>` : ""}${PTY ? html`<button data-n="shell">${ico("term")}<span>Shell<small>a terminal in this folder</small></span></button>` : ""}<button data-n="local">${ico("link")}<span>Browser<small>localhost pages, e.g. the dev server</small></span></button><button data-n="preview">${ico("eye")}<span>Preview<small>the run's Preview</small></span></button><button data-n="history">${ico("note")}<span>History<small>finished runs in this workspace</small></span></button></div>`;
   $("rtabs").innerHTML = String(
     html`${scs.map((sc) => {
@@ -255,7 +255,7 @@ function draw() {
         first = item(ids[0]),
         title = ids.map((id) => item(id).title).join(" + ");
       return html`<button class="rtab${sc.id === s.on ? " on" : ""}" data-t="${sc.id}" draggable="true" title="${title}">${icon(first)}<span>${title}</span><i data-xs="${sc.id}" role="button" aria-label="Close ${title}" title="Close tab">×</i></button>`;
-    })}<details class="radd" data-mode="tab"><summary class="rbtn" title="New tab" aria-label="New tab">${ico("plus")}</summary>${menu}</details><button type="button" class="rbtn" data-pv title="Preview: open the app, starting its dev server if it is off" aria-label="Preview">${ico("eye")}</button><span class="sp"></span>${cur ? html`<details class="radd rsplit" data-mode="cols"><summary class="rbtn" title="Split right: add to this tab" aria-label="Split right">${ico("lcols")}</summary>${menu}</details><details class="radd rsplit" data-mode="rows"><summary class="rbtn" title="Split down: add to this tab" aria-label="Split down">${ico("lrows")}</summary>${menu}</details>` : ""}`,
+    })}<details class="radd" data-mode="tab"><summary class="ib xs" title="New tab" aria-label="New tab">${ico("plus")}</summary>${menu}</details><button type="button" class="ib xs" data-pv title="Run app: start the dev server if it is off and open the app" aria-label="Run app">${ico("play")}</button><span class="sp"></span>${cur ? html`<details class="radd rsplit" data-mode="cols"><summary class="ib xs" title="Split right: add to this tab" aria-label="Split right">${ico("lcols")}</summary>${menu}</details><details class="radd rsplit" data-mode="rows"><summary class="ib xs" title="Split down: add to this tab" aria-label="Split down">${ico("lrows")}</summary>${menu}</details>` : ""}`,
   );
   $("rside").setAttribute("aria-pressed", String(document.body.classList.contains("rflip")));
   $("rtabs").querySelector(".rtab.on")?.scrollIntoView({ block: "nearest", inline: "nearest" });
@@ -689,7 +689,7 @@ async function newPty(agent?: string, yolo?: boolean) {
   show("sh:" + sh.key);
 }
 
-// The Preview button: the workspace's app in the Browser tab. A dev server already listening
+// The Run app button (play icon; the + menu's Preview is the run's Preview tab): the workspace's app in the Browser tab. A dev server already listening
 // opens at once; otherwise the board starts the folder's dev script in a terminal here, waits
 // for its port, then opens it. No dev script: the run's Preview (report and screenshots).
 let starting = false;

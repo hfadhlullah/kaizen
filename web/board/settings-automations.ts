@@ -1,5 +1,5 @@
 import { post } from "./api.ts";
-import { $, html, raw } from "./dom.ts";
+import { $, html, raw, toggleSwitch } from "./dom.ts";
 import { toast } from "./toast.ts";
 
 // Settings → Workflows → Automations: schedules that start a run in this project. /automations
@@ -22,7 +22,7 @@ const row = (r: Rule) => html`<div class="sk" data-q="${["automation", r.name, r
     <button type="button" class="btn" data-auto="run" data-id="${r.id}">Run now</button>
     <button type="button" class="btn" data-auto="edit" data-id="${r.id}">Edit</button>
     <button type="button" class="btn" data-auto="delete" data-id="${r.id}">Delete</button>
-    <button type="button" class="chk sm${r.enabled ? " on" : ""}" data-auto="${r.enabled ? "pause" : "resume"}" data-id="${r.id}" role="switch" aria-checked="${String(r.enabled)}" aria-label="${r.name}" title="${r.enabled ? "On" : "Paused"}"></button></div>
+    ${toggleSwitch(r.enabled, { sm: true, attrs: { "data-auto": r.enabled ? "pause" : "resume", "data-id": r.id, "aria-label": r.name, title: r.enabled ? "On" : "Paused" } })}</div>
   <div class="sk-a"><span>${r.text.length > 140 ? r.text.slice(0, 140) + "…" : r.text}</span></div>
   ${r.history.length ? html`<details class="sk-a"><summary>History (${r.history.length})</summary><ul>${r.history.map(hist)}</ul></details>` : ""}
 </div>`;

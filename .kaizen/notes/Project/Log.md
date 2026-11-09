@@ -308,3 +308,4 @@ updated: 2026-10-31
 - 2026-11-09 run 2026-11-09-accounts-normal-login — Web board/Settings: AI Provider Accounts shows the normal login and who is signed in, from the tools' own status commands
 - 2026-11-09 run 2026-11-09-desktop-feel — Layout and look, Release and testing: hover-only scrollbars, native app chrome and no system title bar in the desktop app
 - 2026-11-09 run 2026-11-09-desktop-titlebar-room — Layout and look: the window buttons no longer cover the workspace bar or the run panel
+- 2026-11-09 run 2026-11-09-board-ui-consistency — Layout and look, Run workspace: one switch, icon button and select on every page; the run panel strip and body line up with its header; the tab bar's eye button is now Run app

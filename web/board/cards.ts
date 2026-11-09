@@ -2,7 +2,7 @@ import { store } from "./store.ts";
 import { where } from "./agent-term.ts";
 import { load, post } from "./api.ts";
 import { mic, stopDictation } from "./dictation.ts";
-import { $, dataUrls, html, ico, modal, raw } from "./dom.ts";
+import { $, dataUrls, html, ico, modal, raw, toggleSwitch } from "./dom.ts";
 import { draft, undraft } from "./drafts.ts";
 import { COLS, ICON, MARKS, NAMES, WORD, age, d, need } from "./labels.ts";
 import { brief } from "./markdown.ts";
@@ -455,7 +455,7 @@ function inlineForm(c) {
 }
 
 const runHtml = (c) =>
-  html`<div class="q">Run "${c.text}"</div><div class="q dim">Opens your agent with this request in a terminal.</div><div class="q dim">Full plans, builds, and checks with a separate reviewer. Lite does it in one session.</div><div id="run-pick" style="display:grid;gap:6px"><div id="run-agent" class="agents" role="radiogroup" aria-label="Agent"></div></div><label class="yolo"><input type="checkbox" id="run-explore"> Explore first</label><div class="run-actions"><label class="yolo" id="run-yolo" title="Yolo: the agent runs every command and edit without asking" hidden><button type="button" class="chk" role="switch" aria-checked="false"></button>Yolo</label><div class="row"><button type="button" class="btn ghost" data-a="c">Cancel</button><button type="button" class="btn" data-a="l">Lite</button><button type="button" class="btn pri" data-a="s">Full run</button></div></div>`;
+  html`<div class="q">Run "${c.text}"</div><div class="q dim">Opens your agent with this request in a terminal.</div><div class="q dim">Full plans, builds, and checks with a separate reviewer. Lite does it in one session.</div><div id="run-pick" style="display:grid;gap:6px"><div id="run-agent" class="agents" role="radiogroup" aria-label="Agent"></div></div><label class="yolo"><input type="checkbox" id="run-explore"> Explore first</label><div class="run-actions"><label class="yolo" id="run-yolo" title="Yolo: the agent runs every command and edit without asking" hidden>${toggleSwitch(false)}Yolo</label><div class="row"><button type="button" class="btn ghost" data-a="c">Cancel</button><button type="button" class="btn" data-a="l">Lite</button><button type="button" class="btn pri" data-a="s">Full run</button></div></div>`;
 // The run form as a popup over any page: Start in the new-task form and on Tasks.
 export function runPopup(c) {
   const dl = modal(runHtml(c)),
