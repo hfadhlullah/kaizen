@@ -1448,7 +1448,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         const dir = qdir() ?? state ?? join(home, ".kaizen");
         if (!states(true).includes(dir)) return bad("unknown state dir", 404);
         try {
-          if (path === "/tasks") return json({ tasks: taskService.taskList(url.searchParams.get("all") === "1" ? states(true) : [dir]), projects: taskProjects(), defaults: taskService.taskDefaults(dir) });
+          if (path === "/tasks") return json({ tasks: taskService.taskList(url.searchParams.get("all") === "1" ? states(true) : [dir], taskHooks), projects: taskProjects(), defaults: taskService.taskDefaults(dir) });
           const found = tasks.resolveTask(dir, url.searchParams.get("id") ?? url.searchParams.get("task") ?? "");
           if (!found || !states(true).includes(found.state)) return bad("unknown task", 404);
           if (path === "/task-artifact") return taskArtifactResponse(found.state, found.task.id, url.searchParams.get("result") ?? "", url.searchParams.get("artifact") ?? "", req, url.searchParams.get("download") === "1");
