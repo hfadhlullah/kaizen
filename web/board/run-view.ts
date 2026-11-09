@@ -8,7 +8,6 @@
 // kzTerm mounts on /pty that live as long as their tab, so a tab switch or a /state tick never
 // reconnects them. Split right or down shows a second tab beside the first, sized with the
 // Terminal page's handles.
-import { chooseAgentPermissions } from "./new-agent.ts";
 import { pick } from "./projects.ts";
 import { store } from "./store.ts";
 import { toast } from "./toast.ts";
@@ -247,7 +246,9 @@ function draw() {
   const dflt = agents.find((a) => a.cmd === defAgent);
   // Agents first, the default on top, then the tools.
   const agentRow = (a) => html`<button data-n="agent:${a.cmd}">${mark(a)}<span>${a.name}<small>${a === dflt ? "default agent, in this folder" : "the agent alone, no run"}</small></span></button>`;
-  const menu = html`<div class="menu-pop">${PTY && agents.length ? html`${agentRow(dflt ?? agents[0])}${agents.filter((a) => a !== (dflt ?? agents[0])).map(agentRow)}<hr>` : ""}${PTY ? html`<button data-n="shell">${ico("term")}<span>Shell<small>a terminal in this folder</small></span></button>` : ""}<button data-n="local">${ico("link")}<span>Browser<small>localhost pages, e.g. the dev server</small></span></button><button data-n="preview">${ico("eye")}<span>Preview<small>the run's Preview</small></span></button><button data-n="history">${ico("note")}<span>History<small>finished runs in this workspace</small></span></button></div>`;
+  // Bypass for this launch, on top of the agents. It starts from Settings → Agents → Permissions (the default agent's) and resets each time the menu opens.
+  const yolo = agents.some((a) => a.yolo) ? html`<label class="agent-yolo"><span>Bypass permissions<small>run commands without asking</small></span><input type="checkbox" role="switch" aria-label="Bypass permissions"${raw((dflt ?? agents[0]).bypassDefault ? " checked" : "")}></label>` : "";
+  const menu = html`<div class="menu-pop">${PTY && agents.length ? html`${yolo}${agentRow(dflt ?? agents[0])}${agents.filter((a) => a !== (dflt ?? agents[0])).map(agentRow)}<hr>` : ""}${PTY ? html`<button data-n="shell">${ico("term")}<span>Shell<small>a terminal in this folder</small></span></button>` : ""}<button data-n="local">${ico("link")}<span>Browser<small>localhost pages, e.g. the dev server</small></span></button><button data-n="preview">${ico("eye")}<span>Preview<small>the run's Preview</small></span></button><button data-n="history">${ico("note")}<span>History<small>finished runs in this workspace</small></span></button></div>`;
   $("rtabs").innerHTML = String(
     html`${scs.map((sc) => {
       const ids = leaves(sc.tree),
@@ -667,11 +668,9 @@ async function openAgent(c, again = false, focus = true) {
   else draw();
 }
 
-async function newPty(agent?: string) {
-  const target = ctx;
-  const choice = agent ? await chooseAgentPermissions(agents.find((a) => a.cmd === agent) ?? { cmd: agent, name: agent }) : undefined;
-  if (choice === null || ctx !== target) return;
-  const r = await fetch("/shell", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ dir: ctx!.dir, ws: ctx!.ws, run: ctx!.k, ...(agent ? { agent, yolo: choice } : {}) }) });
+// `yolo` only when the + menu's switch was flipped; otherwise the server applies that agent's saved setting.
+async function newPty(agent?: string, yolo?: boolean) {
+  const r = await fetch("/shell", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ dir: ctx!.dir, ws: ctx!.ws, run: ctx!.k, ...(agent ? { agent, yolo } : {}) }) });
   if (r.status === 501) {
     noPty = true;
     return draw();
@@ -792,11 +791,11 @@ function onMoveMenu(e: Event) {
 }
 
 // + makes a new tab; split right/down adds to the tab shown. `n` is a menu item's data-n.
-function openNew(n: string, mode: string) {
+function openNew(n: string, mode: string, yolo?: boolean) {
   const s = saved();
   target = mode === "tab" || !s.on ? null : { screen: s.on, dir: mode as "cols" | "rows" };
   if (n === "shell") void newPty();
-  else if (n.startsWith("agent:")) void newPty(n.slice(6));
+  else if (n.startsWith("agent:")) void newPty(n.slice(6), yolo);
   else if (n === "local") addTab({ id: "local", kind: "local", title: "Browser" });
   else if (n === "history") addTab({ id: "history", kind: "history", title: "History" });
   else openPreview();
@@ -826,9 +825,10 @@ function wire() {
     if (t.closest("[data-pv]")) return void previewApp();
     const n = t.closest<HTMLElement>("[data-n]")?.dataset.n;
     if (n) {
-      const d = t.closest<HTMLDetailsElement>(".radd")!;
+      const d = t.closest<HTMLDetailsElement>(".radd")!,
+        sw = d.querySelector<HTMLInputElement>(".agent-yolo input");
       d.open = false;
-      openNew(n, d.dataset.mode as string);
+      openNew(n, d.dataset.mode as string, sw && sw.checked !== sw.defaultChecked ? sw.checked : undefined);
       return;
     }
   };
@@ -843,6 +843,8 @@ function wire() {
     add.ontoggle = () => {
       if (!add.open) return;
       for (const o of adds) if (o !== add) o.open = false;
+      const sw = add.querySelector<HTMLInputElement>(".agent-yolo input");
+      if (sw) sw.checked = sw.defaultChecked;
       const m = add.querySelector<HTMLElement>(".menu-pop")!,
         r = add.querySelector("summary")!.getBoundingClientRect(),
         box = $("runv").getBoundingClientRect();

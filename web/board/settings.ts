@@ -106,16 +106,9 @@ export async function openSettings() {
     return html`<span class="step" id="${id}" role="group" aria-labelledby="${id}-l"><button id="${id}-prev" aria-label="Previous">‹</button><output aria-live="polite">${on === "" ? "—" : on}</output><button id="${id}-next" aria-label="Next">›</button></span>`;
   };
   // `off`: the row has no effect while another setting stands as it is; dimmed, still editable.
-  const onOff = (v) => (v === "true" ? "on" : v === "false" ? "off" : v === "" ? "—" : v);
   const scoped = cfg && cfg.scope !== "all";
-  // What else a row says about its scope: projects that set it otherwise, or a Reset
-  // for a value this project sets itself.
-  const scopeNote = (r, id) =>
-    r.own
-        ? html`Set for this project · <button class="sreset" id="${id}-reset" type="button">Reset</button>`
-        : r.overrides?.length
-          ? r.overrides.map((o) => `${o.label}: ${onOff(o.value)}`).join(", ")
-          : "";
+  // A Reset for a value this project sets itself.
+  const scopeNote = (r, id) => (r.own ? html`Set for this project · <button class="sreset" id="${id}-reset" type="button">Reset</button>` : "");
   const row = (label, control, hint, id, q, off = false) =>
     html`<div class="srow${off ? " off" : ""}" data-q="${q.toLowerCase()}"><label for="${id}" id="${id}-l">${label}</label>${control}${hint ? html`<p class="hint">${hint}</p>` : ""}</div>`;
   const hadFocus = document.activeElement?.id === "sq";

@@ -3,9 +3,9 @@
 import { lineOf, read } from "./config-values.ts";
 export { read } from "./config-values.ts";
 import { existsSync, writeFileSync, copyFileSync, mkdirSync } from "node:fs";
-import { join, dirname, basename } from "node:path";
+import { join, dirname } from "node:path";
 import { homedir } from "node:os";
-import { readText, knownProjects, KNOWN_AGENTS, MODEL_FLAGS } from "./state.ts";
+import { readText, KNOWN_AGENTS, MODEL_FLAGS } from "./state.ts";
 
 // `text` is a value typed rather than chosen: a path. It has no values to cycle.
 // `when`: the row only has an effect while that other key holds that value; both
@@ -168,18 +168,12 @@ export function listSettings(repoRoot: string, project?: string | null) {
   const scoped = typeof project === "string";
   const base = scoped ? board : "";
   const preset = detectPreset(text, base, defaults);
-  // All projects: the projects whose own config sets a key to something else, since
-  // that value, not the one shown, is what their runs use.
-  const others = project === null
-    ? knownProjects().map((d) => ({ label: basename(d), text: load(join(d, ".kaizen", "config.yml")) })).filter((o) => o.text)
-    : [];
   const rows = SETTINGS.map((s) => {
     const value = s.key === "preset" ? preset : (read(s.group === "Board" ? board : text, s.key) ?? (s.group === "Board" ? null : read(base, s.key)) ?? read(defaults, s.key)) ?? s.values[0] ?? "";
     const local = s.group !== "Board" && s.key !== "preset";
     return {
       ...s, value,
       ...(scoped && local && read(text, s.key) !== null ? { own: true } : {}),
-      ...(others.length && local ? { overrides: others.flatMap((o) => { const v = read(o.text, s.key); return v !== null && v !== value ? [{ label: o.label, value: v }] : []; }) } : {}),
     };
   });
   const valueOf = (k: string) => rows.find((r) => r.key === k)?.value ?? null;

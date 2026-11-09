@@ -125,7 +125,7 @@ test("a project scope reads over All projects, starts its own file empty, and re
   expect(r.file).not.toContain("preset:");
   expect(r.own).toMatchObject({ value: "false", own: true });
   expect(r.global.value).toBe("true");
-  expect(r.global.overrides).toContainEqual({ label: "other", value: "false" });
+  expect(r.global.overrides).toBeUndefined();
   expect(r.board).toBe("app");
   expect(r.after).toMatchObject({ value: "true" });
   expect(r.left).not.toContain("auto_commit");
