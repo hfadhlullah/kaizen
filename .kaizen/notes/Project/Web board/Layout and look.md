@@ -58,6 +58,6 @@ The visible menu is Search, Home, Icebox, Tasks and Board, then the Projects lis
 
 ## Phone navigation (2026-11-08)
 
-Phone bottom navigation now orders Runs, Search, Home, Chat, Terminal. Shared rail markup/CSS stay identical in board, notes and video. On the board, a visible terminal in the workspace or Terminal page hides the phone rail; the header Menu button reveals it without unmounting sessions. Navigation to another view resets that reveal. Desktop rail is unchanged.
+Phone bottom navigation now orders Runs, Search, Home, Icebox, Chat, Terminal (Icebox since 2026-11-09-icebox-phone). Shared rail markup/CSS stay identical in board, notes and video. On the board, a visible terminal in the workspace or Terminal page hides the phone rail; the header Menu button reveals it without unmounting sessions. Navigation to another view resets that reveal. Desktop rail is unchanged.
 
 - Explore uses its own compass SVG symbol (`t-explore`) in the run detail tabs, inheriting the same stroke and theme colour as other tab icons.

@@ -299,3 +299,4 @@ updated: 2026-10-31
 - 2026-11-09 update — CLI/Run commands, Web board/Settings, Server and routes, Workflow: kaizen search / kaizen scrape through Firecrawl with the user's key (Settings → Integrations → Research); Explore looks around before its first question
 - 2026-11-09 run 2026-11-09-icebox-personal-inbox — Sources and icebox (kinds, boards, tags, snooze, link reading, kaizen icebox add and friends), CLI, CLI/Run commands, Web board, Web board/Server and routes
 - 2026-11-09 run 2026-11-09-icebox-desktop — new Sources and icebox/Icebox page (capture box, boards bar, Cards | Sort, item menus), Sources and icebox (capture box, link to it), Web board/Tasks, Web board/Server and routes (`boards` op)
+- 2026-11-09 run 2026-11-09-icebox-phone — Sources and icebox/Icebox page (phone list, swipe, hold), Home, chat and phone (phone bar)

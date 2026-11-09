@@ -134,14 +134,14 @@ body .rail a.upd::after{left:calc(50% + 6px);top:4px}body .toast{left:16px;botto
 [data-rail=min] .rail a.it .n,[data-rail=min] .rail a.it .srcs,[data-rail=min] .rail .rib:not(.th),[data-rail=min] .plist .proj :not(.plogo),[data-rail=min] .plist .row div,[data-rail=min] .plist .wcount{display:none}
 [data-rail=min] .rail .psec{padding:0;margin:12px 0 2px;flex-direction:column}[data-rail=min] .rail .rbot{flex-direction:column}
 [data-rail=min] .plist .proj{justify-content:center;margin:10px 0 4px;padding:0}[data-rail=min] .plist .row{grid-template-columns:14px;justify-content:center;padding:0}
-@media(max-width:640px){.rail .psec,.rail .plist,.rail .rib{display:none}.rail .rbot,[data-rail=min] .rail .rbot{display:contents}.rail a.it[data-view=tasks]{order:3}.rail a.it[data-view=board]{order:4}.rail a.it .n,.rail a.it .srcs{display:none}}
-/* phones: Home, Chat, Runs, Search (Settings is a Search result). The board, Tasks and the Icebox are set up on a computer (web/board/phone.ts) */
+@media(max-width:640px){.rail .psec,.rail .plist,.rail .rib{display:none}.rail .rbot,[data-rail=min] .rail .rbot{display:contents}.rail a.it[data-view=tasks]{order:3}.rail a.it[data-view=board]{order:4}.rail a.it .n,.rail a.it .srcs{display:none}.rail a.it[data-view=sources] .n:not(:empty){display:block;position:absolute;top:4px;left:calc(50% + 6px);margin:0;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--ink);color:var(--bg);font-size:10px;line-height:16px;text-align:center;font-weight:600}}
+/* phones: Runs, Search, Home, Icebox, Chat, Terminal (Settings is a Search result). The board and Tasks are set up on a computer (web/board/phone.ts) */
 @media(min-width:641px){.rail .rbot .lbl{display:none}.rail .rbot a.it{flex:none;width:var(--btn-xs);height:var(--btn-xs);padding:0;justify-content:center;margin-right:auto}[data-rail=min] .rail .rbot a.it{width:var(--btn-s);height:var(--btn-s);margin-right:0}}
 .rail a.it.ponly,#phome{display:none}
 @media(max-width:640px){
-.rail a.it:is([data-view=board],[data-view=tasks],[data-view=sources]),#foot,#ctx-open,body .rail .rbot .rib{display:none!important}
+.rail a.it:is([data-view=board],[data-view=tasks]),#foot,#ctx-open,body .rail .rbot .rib{display:none!important}
 .rail a.it.ponly{display:flex}
-.rail a.it[data-view=device]{order:1}.rail a.it.gs-it{order:2}.rail a.it[data-view=home]{order:3}.rail a.it[data-view=chat]{order:4}.rail a.it[data-view=terminal]{order:5}.rail a.it[data-view=settings]{display:none}
+.rail a.it[data-view=device]{order:1}.rail a.it.gs-it{order:2}.rail a.it[data-view=home]{order:3}.rail a.it[data-view=sources]{order:4;position:relative}.rail a.it[data-view=chat]{order:5}.rail a.it[data-view=terminal]{order:6}.rail a.it[data-view=settings]{display:none}
 .rail,[data-rail=min] .rail{padding:8px 8px max(2px,calc(env(safe-area-inset-bottom) - 8px));border-top:1px solid color-mix(in srgb,var(--line) 70%,transparent)}
 .rail a.it,[data-rail=min] .rail a.it{min-height:46px;gap:3px;font-size:10.5px;letter-spacing:.01em}
 .rail a.it svg{width:44px;height:26px;padding:4px 12px;box-sizing:border-box;border-radius:13px;transition:background .15s}
