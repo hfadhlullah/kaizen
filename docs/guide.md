@@ -446,6 +446,19 @@ credits; without one, the page's title. A link that cannot be read is kept as it
 year out); on that day it waits again. **Dismiss** stays for never. Promoting your own
 item notes it as *Your note*; a gathered one keeps the outside-text line.
 
+**With ChatGPT connected** (the Icebox's Sources drawer), what you drop into the board's
+capture box is sorted a few seconds later: ChatGPT picks its kind and up to three tags,
+and the *unsorted* mark goes. A kind you or an agent set is never changed, and if
+ChatGPT is busy or not connected the item simply stays unsorted. `/kaizen discover`
+sorts whatever is still unsorted before it proposes tasks. **Promote** opens with a task
+drafted by ChatGPT — a title, two to six lines of details and a first step — for you to
+edit; **Redraft** asks again, and anything you have already typed is kept. Without
+ChatGPT the form opens with the item's text as before. Settings → Integrations → *ChatGPT
+model for the icebox* and *effort* choose the model for gathering, sorting and drafts.
+
+When an Explore run ends, it lists what it found and asks which findings to add to the
+icebox; only the ones you tick are added, as *Finding*.
+
 ```
 kaizen icebox add [text] [--file <f>] [--kind client|finding|people] [--board <b> | --client <name>] [--tag <t>]...
 kaizen icebox edit <id> --file <f>   (your own items)      kaizen icebox kind <ids> <kind>      kaizen icebox tag <ids> <tags>

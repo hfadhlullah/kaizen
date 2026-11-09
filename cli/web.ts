@@ -24,7 +24,7 @@ import { processTable, storage, systemMemory, treeRss, type Root } from "./resou
 import { attachPty, frames, writePty, submitPty, resizePty, exitPty, killPty, panePid, ptyState, ptyKeys, adoptLoginEnv, startPty, ptySupported, detachPty, ptyTail, ptyTmux, tmuxAlive, RESUMED } from "./pty.ts";
 import { snapshot, snapWorker } from "./state-snap.ts";
 import { claudeUsage, claudeUsageAt, codexUsage, codexUsageAt, phonePeers, type Usage } from "./usage.ts";
-import { readSources, addSource, removeSource, moveSource, setCategory, setWriteback, setPaused, readIcebox, promote, dismiss, restore, capture, editItem, setKind, setTags, setBoard, saveBoard, removeBoard, snooze, unsnooze, readBoards, kindOf, isSnoozed, markDone, markReplied, gatherSource, freshImages, gatherAll, gatherDirs, due, socialUrl, socialOf } from "./sources.ts";
+import { readSources, addSource, removeSource, moveSource, setCategory, setWriteback, setPaused, readIcebox, applySort, promote, dismiss, restore, capture, editItem, setKind, setTags, setBoard, saveBoard, removeBoard, snooze, unsnooze, readBoards, kindOf, isSnoozed, markDone, markReplied, gatherSource, freshImages, gatherAll, gatherDirs, due, socialUrl, socialOf } from "./sources.ts";
 import { projectLogo, LOGO_TYPES } from "./logo.ts";
 import * as chatgpt from "./chatgpt.ts";
 import * as google from "./google.ts";
@@ -626,6 +626,20 @@ export async function web(repoDir: string, opts: Opts = {}) {
   // The schedule: once a minute, gather every request source that is due. It writes
   // icebox.json and sources.json only, never a state.json, and starts nothing. All of
   // it sits in a try: an uncaught error here would end the board.
+  // Board captures sorted by ChatGPT, one at a time per project, after the capture has answered.
+  // A failure leaves the item sorted by the rules ("unsorted"), for /kaizen discover.
+  const sorting = new Map<string, Promise<void>>();
+  const sortLater = (dir: string, id: string) => {
+    const run = async () => {
+      const it = readIcebox(dir).find((x) => x.id === id);
+      if (!it || (it.sorted ?? "rules") !== "rules") return;
+      const r = await chatgpt.sortItem(dir, it, await setting("sources.model"), (await setting("sources.effort")) || "low");
+      if (r.ok && applySort(dir, id, r.kind, r.tags)) changed();
+      else if (!r.ok) console.error(`[icebox] sort ${id}: ${r.note}`);
+    };
+    const next = (sorting.get(dir) ?? Promise.resolve()).then(run, run).catch((e) => console.error("[icebox] sort", e));
+    sorting.set(dir, next);
+  };
   const setting = async (key: string) => {
     const { listSettings } = await import("./settings.ts");
     return listSettings(repoDir).rows.find((r) => r.key === key)?.value ?? "";
@@ -2242,6 +2256,15 @@ export async function web(repoDir: string, opts: Opts = {}) {
           const ids = Array.isArray(body.ids) ? body.ids.filter((i: unknown) => typeof i === "string") : [];
           const str = (v: unknown) => typeof v === "string" ? v : "";
           const tags = Array.isArray(body.tags) ? body.tags.filter((t: unknown) => typeof t === "string") : str(body.tags) ? [body.tags] : [];
+          // A drafted task for the promote form: ChatGPT's words for the person to edit, nothing written.
+          if (body.op === "task-draft") {
+            if (!chatgpt.status().connected) return bad("Connect ChatGPT to draft tasks", 409);
+            const ice = readIcebox(body.dir), its = ids.map((id: string) => ice.find((x) => x.id === id));
+            if (!its.length || its.some((x) => !x)) return bad("no such item", 404);
+            const d = await chatgpt.draftTask(body.dir, its as any[], await setting("sources.model"), (await setting("sources.effort")) || "low");
+            return d.ok ? json(d) : bad(d.note, 409);
+          }
+          let addedId = "";
           try {
             // add reads a link in the text before it writes (Firecrawl or the page title); a failed read still adds.
             const added = body.op === "add" ? await capture(body.dir, { text: str(body.text), notes: [str(body.details), ...iceFiles(body.dir, body.files)].filter(Boolean).join("\n"), kind: str(body.kind) || undefined, board: str(body.board) || undefined, client: body.client === true, tags }) : null;
@@ -2257,9 +2280,12 @@ export async function web(repoDir: string, opts: Opts = {}) {
               : body.op === "boards" ? (body.act === "add" ? saveBoard(body.dir, str(body.name), body.client === true) : body.act === "client" ? saveBoard(body.dir, str(body.name), true) : body.act === "remove" ? removeBoard(body.dir, str(body.name)) : "act is one of: add, client, remove")
               : body.op === "dismiss" ? dismiss(body.dir, ids) : body.op === "restore" ? restore(body.dir, ids) : "unknown op";
             if (why) return bad(why, why === "no such item" ? 404 : why === "unknown op" ? 400 : 409);
+            // A capture with no kind of its own is sorted by ChatGPT after this answer, never before it.
+            if (added && "id" in added) addedId = added.id;
+            if (addedId && !str(body.kind) && chatgpt.status().connected) sortLater(body.dir, addedId);
           } catch (e) { return bad((e as Error).message, 500); }
           changed();
-          return json({ ok: true });
+          return json({ ok: true, ...(addedId ? { id: addedId } : {}) });
         }
 
         // A reply to a gathered post. `draft` only writes text for the user to read; only

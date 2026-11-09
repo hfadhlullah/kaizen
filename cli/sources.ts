@@ -342,6 +342,22 @@ export function cleanTags(raw: string[]): { tags: string[] } | { why: string } {
   return { tags };
 }
 
+// An AI's kind and tags, written only while the item is still sorted by the rules: a kind a
+// person or an agent picked is never overwritten. Re-reads the file, so a change made while
+// the AI was thinking wins. Returns whether it wrote.
+export function applySort(state: string, id: string, kind: string, tags: string[] = []): boolean {
+  if (!(kind in KINDS)) return false;
+  const ice = readIcebox(state);
+  const s = ice.find((x) => x.id === id);
+  if (!s || (s.sorted ?? "rules") !== "rules") return false;
+  const t = cleanTags([...(s.tags ?? []), ...tags]);
+  s.kind = kind as IceKind;
+  s.sorted = "ai";
+  if (!("why" in t) && t.tags.length) s.tags = t.tags.slice(0, 8);
+  writeIcebox(state, ice);
+  return true;
+}
+
 // Picks items by id for a change: every id must be there. Returns the items, or why not.
 function pick(ice: Signal[], ids: string[]): Signal[] | string {
   if (!ids.length) return "no items named";

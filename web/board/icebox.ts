@@ -24,6 +24,9 @@ const SRC = "Icebox";
 // The reply being written to a gathered post: its item, the text, and whether it is out.
 // The reply style is per project: a promo voice in one need not leak into another's drafts.
 let iceReply = null;
+// The task ChatGPT drafted for the open promote form: its item key, whether it is still coming,
+// the title and details, or why there is none. The person's own typing always wins.
+let iceTask = null;
 const iceStyle = {};
 const icePg = pager("icebox");
 const rStyle = (dir) => {
@@ -417,14 +420,17 @@ export async function openSources() {
   const capTo = capTo0,
     capP = capPs.find((p) => p.dir === cap.dir);
   const capBoards = ((d && d.boards) || []).filter((b) => b.dir === capTo);
-  const capBox = html`<div class="ice-cap" id="ice-cap"><span id="ice-cap-slot"></span>${cap.files.length ? html`<div class="ice-att">${cap.files.map((f, n) => html`<span class="ice-file">${ico("clip")}<span>${f.name}</span><button type="button" class="ib sm" data-rf="${n}" aria-label="Remove ${f.name}" title="Remove">${ico("x")}</button></span>`)}</div>` : ""}<div class="ice-cap-row"><button type="button" class="ib" id="ice-pick" aria-label="Attach files" title="Attach files">${ico("clip")}</button><span id="ice-mic-slot"></span><input type="file" id="ice-file" multiple hidden>${dir ? "" : pick("ice-cp", "Project", capP ? html`${plogo(capP.dir, capP.label)}<span>${short(capP.label)}</span>` : html`<span>Choose project</span>`, html`${capPs.map((p) => opt(p.dir, p.dir === cap.dir, html`${plogo(p.dir, p.label)}<span>${p.label}</span>`, p.label))}`)}${pick("ice-cb", "Board", html`<span>Board: ${cap.board || "Inbox"}</span>`, html`${opt("", !cap.board, html`<span>Inbox</span>`, "inbox")}${capBoards.map((b) => opt(b.name, sameName(cap.board, b.name), html`${b.client ? PERSON : ""}<span>${b.name}</span>`, b.name))}${cap.board && !capBoards.some((b) => sameName(b.name, cap.board)) ? opt(cap.board, true, html`<span>${cap.board}</span><i>new</i>`, cap.board) : ""}${opt("\n", false, html`${ico("plus")}<span>New board…</span>`, "new board")}`)}<span class="hint ice-cap-hint">Enter saves · the kind is guessed; change it on the card</span><span class="end"></span><button type="button" class="btn pri sm" id="ice-save" aria-label="Save to the icebox"${cap.busy ? " disabled" : ""}>${ico("send")}<span>${cap.busy ? "Saving…" : "Save ↵"}</span></button></div></div>`;
+  const capBox = html`<div class="ice-cap" id="ice-cap"><span id="ice-cap-slot"></span>${cap.files.length ? html`<div class="ice-att">${cap.files.map((f, n) => html`<span class="ice-file">${ico("clip")}<span>${f.name}</span><button type="button" class="ib sm" data-rf="${n}" aria-label="Remove ${f.name}" title="Remove">${ico("x")}</button></span>`)}</div>` : ""}<div class="ice-cap-row"><button type="button" class="ib" id="ice-pick" aria-label="Attach files" title="Attach files">${ico("clip")}</button><span id="ice-mic-slot"></span><input type="file" id="ice-file" multiple hidden>${dir ? "" : pick("ice-cp", "Project", capP ? html`${plogo(capP.dir, capP.label)}<span>${short(capP.label)}</span>` : html`<span>Choose project</span>`, html`${capPs.map((p) => opt(p.dir, p.dir === cap.dir, html`${plogo(p.dir, p.label)}<span>${p.label}</span>`, p.label))}`)}${pick("ice-cb", "Board", html`<span>Board: ${cap.board || "Inbox"}</span>`, html`${opt("", !cap.board, html`<span>Inbox</span>`, "inbox")}${capBoards.map((b) => opt(b.name, sameName(cap.board, b.name), html`${b.client ? PERSON : ""}<span>${b.name}</span>`, b.name))}${cap.board && !capBoards.some((b) => sameName(b.name, cap.board)) ? opt(cap.board, true, html`<span>${cap.board}</span><i>new</i>`, cap.board) : ""}${opt("\n", false, html`${ico("plus")}<span>New board…</span>`, "new board")}`)}<span class="hint ice-cap-hint">${G.connected ? "Enter saves · ChatGPT sorts it in a moment; change it on the card" : "Enter saves · the kind is guessed; change it on the card"}</span><span class="end"></span><button type="button" class="btn pri sm" id="ice-save" aria-label="Save to the icebox"${cap.busy ? " disabled" : ""}>${ico("send")}<span>${cap.busy ? "Saving…" : "Save ↵"}</span></button></div></div>`;
   const bulk = iceSel.size
     ? html`<div class="ice-bulk" role="toolbar" aria-label="Selected requests"><span>${iceSel.size} selected</span><span class="end"></span><button class="btn sm" id="ice-bp" title="Promote (p)">${ico("plus")} Promote</button><button class="btn ghost sm" id="ice-bz" title="Snooze a week (h)">${ico("clock")} Snooze</button><button class="btn ghost sm" id="ice-bd" title="Dismiss (d)">${ico("x")} Dismiss</button><button class="btn ghost sm" id="ice-bc" title="Clear selection (Esc)">Clear</button></div>`
     : "";
   // The open item's form: a clean title for the task's card and the person's own details;
   // what was gathered is added to the task's notes by the server.
-  const form = (it) =>
-    html`<div class="ice-form"><label for="ice-title" class="hint" style="margin:0">Task title</label><input class="sel" id="ice-title" data-k="${iceKey(it)}" maxlength="200" value="${it.text}" aria-label="Task title"><label for="ice-details" class="hint" style="margin:0">Details</label><textarea class="sel" id="ice-details" rows="3" aria-label="Details"></textarea><div class="ice-form-acts"><span class="end"></span><button class="btn ghost sm" id="ice-cancel">Cancel</button><button class="btn pri sm" id="ice-ok">Promote</button></div></div>`;
+  const form = (it) => {
+    const t = iceTask && iceTask.k === iceKey(it) ? iceTask : null,
+      say = t?.wait ? "Drafting a task with ChatGPT…" : t?.kept ? "ChatGPT's draft came after you started typing, so your words stay. Redraft to use it." : t?.note ? `No draft: ${t.note}` : t?.title ? "Drafted by ChatGPT. Edit it before promoting." : "";
+    return html`<div class="ice-form"><label for="ice-title" class="hint" style="margin:0">Task title</label><input class="sel" id="ice-title" data-k="${iceKey(it)}" maxlength="200" value="${t?.title || it.text}" aria-label="Task title"><label for="ice-details" class="hint" style="margin:0">Details</label><textarea class="sel" id="ice-details" rows="${t?.details ? 5 : 3}" aria-label="Details">${t?.details || ""}</textarea>${say ? html`<span class="hint ice-tdraft" id="ice-tdn" role="status" style="margin:0">${say}</span>` : ""}<div class="ice-form-acts">${G.connected ? html`<button class="btn ghost sm" id="ice-td"${t?.wait ? " disabled" : ""} title="Ask ChatGPT for another draft">${ico("ai")}${t?.title ? "Redraft" : "Draft with ChatGPT"}</button>` : ""}<span class="end"></span><button class="btn ghost sm" id="ice-cancel">Cancel</button><button class="btn pri sm" id="ice-ok">Promote</button></div></div>`;
+  };
   // A gathered post can be answered: Reply drafts, the box is the approval, Send reply posts that text.
   const replyBox = (it) => {
     if (!it.post) return "";
@@ -1158,9 +1164,11 @@ export async function openSources() {
     .forEach(
       (b) =>
         (b.onclick = () => {
-          const k = iceKey(ice[+b.dataset.pr]);
+          const it = ice[+b.dataset.pr],
+            k = iceKey(it);
           iceCur = iceForm = icePro = k;
           iceView = "sort";
+          if (G.connected && !(iceTask && iceTask.k === k)) taskDraft(it);
           openSources().then(() => {
             $("ice-title")?.focus();
             $("ice-title")?.select();
@@ -1252,6 +1260,32 @@ export async function openSources() {
     };
   }
 
+  // Ask for a draft; when it comes, fill the form only where the person has not typed.
+  async function taskDraft(it) {
+    const k = iceKey(it),
+      before = { title: $("ice-title")?.dataset.k === k ? $("ice-title").value : it.text, details: $("ice-title")?.dataset.k === k ? $("ice-details").value : "" };
+    iceTask = { k, wait: true, title: iceTask?.k === k ? iceTask.title : "", details: iceTask?.k === k ? iceTask.details : "" };
+    const r = await fetch("/icebox", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ op: "task-draft", dir: it.dir, ids: [it.id] }) })
+      .then((x) => x.json())
+      .catch(() => ({ error: "kaizen did not answer" }));
+    if (!iceTask || iceTask.k !== k) return;
+    if (r.ok && r.title) {
+      const ti = $("ice-title"), de = $("ice-details");
+      const untouched = !ti || ti.dataset.k !== k || (ti.value === before.title && de.value === before.details);
+      iceTask = { k, wait: false, title: r.title, details: r.details || "" };
+      if (ti && ti.dataset.k === k && untouched) {
+        ti.value = r.title;
+        de.value = r.details || "";
+      } else if (ti && ti.dataset.k === k) iceTask = { k, wait: false, title: ti.value, details: de.value, kept: true };
+    } else iceTask = { k, wait: false, title: "", details: "", note: r.error || r.note || "ChatGPT did not answer" };
+    if (srcOpen() && iceForm === k) openSources();
+  }
+  if ($("ice-td") && open1)
+    $("ice-td").onclick = () => {
+      iceTask = null;
+      taskDraft(open1);
+      openSources();
+    };
   if ($("ice-ok")) {
     const ok = () => {
       const title = $("ice-title").value.trim();

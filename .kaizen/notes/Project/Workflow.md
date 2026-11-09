@@ -69,3 +69,7 @@ Every stage reports with `kaizen report`; see *Reporting to the board* in `spec.
 ## Explore looks around first (2026-11-09)
 
 `skills/kaizen-explore/SKILL.md` has Explore run 2–3 web searches on what is new, what exists and hard limits after reading local material and before its first question, recording links and dates in `00-explore.md`. Web tools in order: `kaizen search` / `kaizen scrape` (Firecrawl, the user's key; exit 2 means none), then the host's own web tools, then local material only, said in the brief.
+
+## Explore offers its findings (2026-11-09)
+
+Before its exit choice, Explore lists the brief's sourced findings as a multi-select and adds only the ticked ones to the icebox (`kaizen icebox add --file … --kind finding`). See [[Sources and icebox/AI sorting]].

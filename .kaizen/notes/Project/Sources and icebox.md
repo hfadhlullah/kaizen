@@ -63,3 +63,6 @@ Shared links (sheets, docs, social searches) kaizen reads for requests; each req
 
 ## Notes
 <!-- yours: /kaizen docs never rewrites this section -->
+
+## AI sorting and drafts
+ChatGPT sorting of captures, promote drafts, discover sorting and Explore's hand-off: see [[Sources and icebox/AI sorting]].
