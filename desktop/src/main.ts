@@ -10,6 +10,11 @@ import { desktopEntry } from "./appimage";
 import { autoUpdater } from "electron-updater";
 
 const smoke = process.env.KAIZEN_DESKTOP_SMOKE === "1";
+// The window buttons' strip, in the board's own background and ink (web/board.html :root tokens).
+const TITLE_BAR = {
+  light: { color: "#f7f7f7", symbolColor: "#171717", height: 44 },
+  dark: { color: "#121212", symbolColor: "#e5e5e5", height: 44 },
+} as const;
 // CI's update test (scripts/update-test.ts): a hidden window, updates from this feed.
 // Only a build made by that script honours it (its package.json carries
 // kaizenUpdateTest), so a release build can never be pointed at another feed.
@@ -145,9 +150,15 @@ function createWindow() {
     backgroundColor: "#111111",
     show: !smoke && !testFeed,
     autoHideMenuBar: true,
+    // No system title bar: the board's own top bar is it (web/*.html, html.desk). macOS keeps
+    // its traffic lights inset; Windows and Linux draw their buttons over the page's top right.
+    titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "hidden",
+    ...(process.platform === "darwin" ? {} : { titleBarOverlay: TITLE_BAR.dark }),
     webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, preload: join(app.getAppPath(), "dist", "preload.js") },
   });
   const wc = win.webContents;
+  // A desktop app does not pinch-zoom its own window.
+  wc.on("did-finish-load", () => { wc.setVisualZoomLevelLimits(1, 1).catch(() => {}); });
   // A browser has a right-click menu with Copy and Paste; Electron has none, so the board's
   // terminals and text could not be copied with the mouse.
   wc.on("context-menu", (_e, p) => {
@@ -192,6 +203,11 @@ async function restart() {
 
 // The board page's update buttons (preload.ts). Only the board itself may ask.
 const fromBoard = (e: Electron.IpcMainInvokeEvent) => !!board && (e.senderFrame?.url ?? "").startsWith(board.url);
+// The page says when its theme is dark or light; the window buttons follow (not on macOS).
+ipcMain.handle("kz-titlebar", (e, dark) => {
+  if (!fromBoard(e) || !win || process.platform === "darwin") return;
+  try { win.setTitleBarOverlay(dark ? TITLE_BAR.dark : TITLE_BAR.light); } catch { /* no overlay on this window */ }
+});
 ipcMain.handle("kz-update-check", (e) => (fromBoard(e) ? checkNow() : null));
 ipcMain.handle("kz-update-install", (e) => (fromBoard(e) ? installNow() : { ok: false, error: "not the board" }));
 

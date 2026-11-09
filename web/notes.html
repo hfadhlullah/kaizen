@@ -149,6 +149,19 @@ body .rail a.upd::after{left:calc(50% + 6px);top:4px}body .toast{left:16px;botto
 .rail a.it[aria-current=page]{font-weight:600}
 }
 [data-hide="1"] .rail{width:calc(var(--btn-s) + 12px);padding-inline:6px;align-items:center}[data-hide="1"] .rail>:not(.top){display:none}[data-hide="1"] .rail .top{padding:0}[data-hide="1"] .rail .top>:not(#fold){display:none}
+/* Desktop feel (2026-11-09-desktop-feel). With a mouse, scrollbars show only while the pointer is
+   over the area. In the desktop app (html.desk): chrome is not text (content stays selectable),
+   buttons use the arrow, nothing bounces, and the side menu's top row and each page's header are
+   the window's title bar, with room for the window buttons. */
+@media (hover:hover) and (pointer:fine){*{scrollbar-width:thin;scrollbar-color:transparent transparent}*:hover{scrollbar-color:color-mix(in srgb,var(--ink) 28%,transparent) transparent}}
+html.desk,html.desk body{overscroll-behavior:none}
+html.desk :is(button,.btn,.ib,.rail,.hdr,nav,label,summary,[role=tab],[role=tablist],[role=menu],[role=menuitem],[role=option],.chip,.ice-chip,.tk-bar,.sg,.pstrip){-webkit-user-select:none;user-select:none}
+html.desk :is(input,textarea,select,[contenteditable],pre,code,.xterm,.md,.ice-notes,.ice-t,.ice-ct){-webkit-user-select:text;user-select:text}
+html.desk :is(button,.btn,.ib,a.it,[role=tab],[role=option],[role=menuitem],summary,.chip,.ice-chip){cursor:default}
+html.desk :is(.hdr,.rail>.top){-webkit-app-region:drag}
+html.desk :is(.hdr,.rail>.top) :is(button,a,input,select,textarea,.combo,.sel,.bar,[role=button],[role=group],[contenteditable],label,summary,details){-webkit-app-region:no-drag}
+html.desk .hdr{padding-right:max(16px,calc(100vw - env(titlebar-area-x,0px) - env(titlebar-area-width,100vw) + 8px))}
+html.desk.mac .rail>.top{padding-top:22px}
 /* end side menu */
 #kbd{display:none}
 body.embed .rail,body.embed .hdr{display:none}body.embed .app{margin:0;border:0;border-radius:0}
@@ -366,7 +379,9 @@ select.sel{cursor:pointer;appearance:none;padding-right:30px;max-width:min(320px
  wide.addEventListener("change",rail);phone.addEventListener("change",rail);rail();
  document.getElementById("fold").onclick=()=>{fold=r.dataset.rail==="min"?"full":"min";try{localStorage.setItem("kz-rail",fold)}catch(e){}rail()};
  // Theme: light, dark, or unset for system, in kz-theme. The toggle shows what is on screen and flips it.
- const paint=()=>{const d=r.dataset.theme?r.dataset.theme==="dark":os.matches;const b=document.getElementById("themet");if(b){b.dataset.dark=d;b.title=d?"Dark theme: switch to light":"Light theme: switch to dark";b.setAttribute("aria-label",b.title)}};
+ // The desktop app: its own rules (html.desk, html.mac) and window buttons that follow the theme.
+ const desk=window.kaizenDesktop;if(desk){r.classList.add("desk");if(desk.platform==="darwin")r.classList.add("mac")}
+ const paint=()=>{const d=r.dataset.theme?r.dataset.theme==="dark":os.matches;desk&&desk.titleBar&&desk.titleBar(d);const b=document.getElementById("themet");if(b){b.dataset.dark=d;b.title=d?"Dark theme: switch to light":"Light theme: switch to dark";b.setAttribute("aria-label",b.title)}};
  // Colour: unset for monochrome, or blue, in kz-color. kz-theme repaints the terminals and Settings.
  window.setColor=c=>{if(c==="blue")r.dataset.color=c;else delete r.dataset.color;try{c==="blue"?localStorage.setItem("kz-color",c):localStorage.removeItem("kz-color")}catch(e){}dispatchEvent(new Event("kz-theme"))};
  try{if(localStorage.getItem("kz-color")==="blue")r.dataset.color="blue"}catch(e){}

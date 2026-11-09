@@ -29,6 +29,13 @@ it runs `kaizen upgrade` on it in the background, once per app version, and says
 (or where the log is: `~/.kaizen/upgrade.log`). It leaves `~/kaizen` alone when there is none
 (desktop only), when it is a git checkout, or when it is already as new.
 
+**Looks like an app.** There is no system title bar: you move the window by the board's top bar
+(and the side menu's top row), and the window buttons sit in it (on macOS the traffic lights
+are inset). Labels and buttons are not text you can select, buttons use the arrow pointer, and
+the window does not bounce or pinch-zoom. Text you might copy — tasks, notes, run documents,
+terminals, fields — still selects as before. With a mouse, scrollbars stay hidden until the
+pointer is over the area that scrolls (in the browser board too).
+
 ## How it works
 
 - `desktop/src/server.ts` takes port 7420 (what `kaizen web` and the phone's `tailscale serve` use) when it is free, else any free port, starts `bun cli/install.ts web --port N --no-open --foreground`, waits for it to answer, and stops the process and everything it started when you quit (SIGTERM on Linux and macOS, `taskkill /T` on Windows).
