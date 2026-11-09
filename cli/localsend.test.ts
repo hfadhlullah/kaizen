@@ -5,7 +5,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { randomBytes, X509Certificate, createPrivateKey } from "node:crypto";
-import { identity, sendFile, type Device } from "./localsend.ts";
+import { cli, identity, reach, sendFile, sendFiles, type Device } from "./localsend.ts";
 
 // prepare: what prepare-upload answers (a status, or "hang" to never answer).
 function fakeDevice(prepare: number | "hang") {
@@ -81,4 +81,64 @@ test("we carry a self-signed certificate whose SHA-256 is our fingerprint", () =
   expect(x.fingerprint256.replace(/:/g, "")).toBe(me.fingerprint);
   expect(new Date(x.validTo).getTime()).toBeGreaterThan(Date.now() + 365 * 86_400_000);
   expect(identity()).toBe(me);
+});
+
+// A fake device that takes every file it is offered (or only `take`) and answers /info.
+function fakePhone(take?: string[]) {
+  const got: { offered?: string[]; uploads: Record<string, number> } = { uploads: {} };
+  const srv = Bun.serve({ port: 0, hostname: "127.0.0.1", async fetch(req) {
+    const u = new URL(req.url);
+    if (u.pathname === "/api/localsend/v2/info") return Response.json({ alias: "Phone", fingerprint: "ph", deviceType: "mobile" });
+    if (u.pathname === "/api/localsend/v2/prepare-upload") {
+      const files = (await req.json()).files as Record<string, { fileName: string }>;
+      got.offered = Object.values(files).map((f) => f.fileName);
+      const ids = Object.keys(files).filter((id) => !take || take.includes(files[id]!.fileName));
+      return Response.json({ sessionId: "s", files: Object.fromEntries(ids.map((id) => [id, `t-${id}`])) });
+    }
+    if (u.pathname === "/api/localsend/v2/upload") {
+      const q = Object.fromEntries(u.searchParams);
+      if (q.token !== `t-${q.fileId}`) return new Response(null, { status: 403 });
+      got.uploads[q.fileId!] = (await req.arrayBuffer()).byteLength;
+      return new Response(null, { status: 200 });
+    }
+    return new Response(null, { status: 404 });
+  } });
+  return { addr: `127.0.0.1:${srv.port}`, got, stop: () => srv.stop(true) };
+}
+
+test("several files go in one session, and a file the device declines is named", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "kaizen-ls-"));
+  const a = join(dir, "a.pdf"), b = join(dir, "b.txt");
+  writeFileSync(a, randomBytes(1000)); writeFileSync(b, "hi");
+  const p = fakePhone(["a.pdf"]);
+  try {
+    const dev = (await reach(p.addr))!;
+    expect(dev).toMatchObject({ alias: "Phone", ip: "127.0.0.1", protocol: "http" });
+    expect(await sendFiles(dev, [a, b])).toEqual({ ok: true, skipped: ["b.txt"] });
+    expect(p.got.offered).toEqual(["a.pdf", "b.txt"]);
+    expect(p.got.uploads).toEqual({ f1: 1000 });
+  } finally { p.stop(); }
+  expect(await reach("127.0.0.1:1", 500)).toBeNull();
+});
+
+test("kaizen send: sends to --to, saves a default, and refuses folders and missing files", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "kaizen-ls-"));
+  process.env.KAIZEN_LOCALSEND_FILE = join(dir, "localsend.json");
+  const f = join(dir, "report.pdf");
+  writeFileSync(f, randomBytes(500));
+  const p = fakePhone(), out: string[] = [];
+  const log = (s: string) => out.push(s);
+  try {
+    expect(await cli([f, "--to", p.addr], log)).toBe(0);
+    expect(out.at(-1)).toContain("sent to Phone: report.pdf");
+    expect(await cli(["--default", p.addr], log)).toBe(0);
+    p.got.uploads = {};
+    expect(await cli([f], log)).toBe(0);
+    expect(p.got.uploads).toEqual({ f1: 500 });
+    expect(await cli([dir], log)).toBe(1);
+    expect(out.at(-1)).toContain("is a folder");
+    expect(await cli([join(dir, "nope.pdf")], log)).toBe(1);
+    expect(await cli([f, "--to", "127.0.0.1:1"], log)).toBe(1);
+    expect(out.at(-1)).toContain("no LocalSend at 127.0.0.1:1");
+  } finally { p.stop(); delete process.env.KAIZEN_LOCALSEND_FILE; }
 });
