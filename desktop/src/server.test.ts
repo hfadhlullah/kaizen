@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { boardPort, freePort, needsUpgrade, newer, pickKaizen, reapStale, rememberBoard, startBoard, stopBoard, upgradeCmd, waitReady } from "./server.ts";
+import { boardPort, freePort, needsUpgrade, windowButtons, newer, pickKaizen, reapStale, rememberBoard, startBoard, stopBoard, upgradeCmd, waitReady } from "./server.ts";
 
 // A stand-in for cli/install.ts: answers on --port like the board does.
 function fakeKaizen(version: string, body = `Bun.serve({ hostname: "127.0.0.1", port: Number(Bun.argv[Bun.argv.indexOf("--port") + 1]), fetch: () => new Response("board") });`) {
@@ -110,4 +110,13 @@ test("upgradeCmd runs the installed copy's own upgrade, aimed at it, without the
   const { argv, env } = upgradeCmd("/app/bun", "/home/u/kaizen", { PATH: "/usr/bin", KAIZEN_HOME: "/app/resources/kaizen", KAIZEN_DESKTOP_BUNDLED: "1", ELECTRON_RUN_AS_NODE: "1", ARGV0: "x.AppImage", APPDIR: "/tmp/.mount", OWD: "/home/u" });
   expect(argv).toEqual(["/app/bun", join("/home/u/kaizen", "cli", "install.ts"), "upgrade"]);
   expect(env).toEqual({ PATH: "/usr/bin", KAIZEN_HOME: "/home/u/kaizen" });
+});
+
+test("windowButtons: Windows and other Linux desktops draw them; macOS and Hyprland do not", () => {
+  expect(windowButtons("win32", {})).toBe(true);
+  expect(windowButtons("linux", { XDG_CURRENT_DESKTOP: "GNOME" })).toBe(true);
+  expect(windowButtons("linux", { XDG_CURRENT_DESKTOP: "KDE" })).toBe(true);
+  expect(windowButtons("darwin", {})).toBe(false);
+  expect(windowButtons("linux", { XDG_CURRENT_DESKTOP: "Hyprland" })).toBe(false);
+  expect(windowButtons("linux", { HYPRLAND_INSTANCE_SIGNATURE: "abc" })).toBe(false);
 });

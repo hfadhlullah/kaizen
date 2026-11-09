@@ -67,6 +67,14 @@ export function upgradeCmd(bun: string, installed: string, env: NodeJS.ProcessEn
   return { argv: [bun, join(installed, "cli", "install.ts"), "upgrade"], env: e };
 }
 
+/** Whether the app draws its own window buttons. Not on macOS (its traffic lights are native) and
+ *  not on Hyprland, where windows have no title bars and are closed with a keybind. */
+export function windowButtons(platform: string, env: NodeJS.ProcessEnv): boolean {
+  if (platform === "darwin") return false;
+  if (platform === "linux" && (env.HYPRLAND_INSTANCE_SIGNATURE || /hyprland/i.test(env.XDG_CURRENT_DESKTOP ?? ""))) return false;
+  return true;
+}
+
 export type Board = { child: ChildProcess; port: number; url: string; log: string[] };
 
 /** Spawn `<bun> <dir>/cli/install.ts web --port N --no-open --foreground`. */

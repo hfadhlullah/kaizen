@@ -164,7 +164,12 @@ html.desk :is(input,textarea,select,[contenteditable],pre,code,.xterm,.md,.ice-n
 html.desk :is(button,.btn,.ib,a.it,[role=tab],[role=option],[role=menuitem],summary,.chip,.ice-chip){cursor:default}
 html.desk :is(.hdr,.rail>.top){-webkit-app-region:drag}
 html.desk :is(.hdr,.rail>.top) :is(button,a,input,select,textarea,.combo,.sel,.bar,[role=button],[role=group],[contenteditable],label,summary,details){-webkit-app-region:no-drag}
-html.desk .hdr{padding-right:max(16px,calc(100vw - env(titlebar-area-x,0px) - env(titlebar-area-width,100vw) + 8px))}
+html.desk{--wco:max(0px,calc(100vw - env(titlebar-area-x,0px) - env(titlebar-area-width,100vw)));--wch:env(titlebar-area-height,0px)}
+html.desk .hdr{padding-right:calc(16px + var(--wco))}
+html.desk #rbar{padding-right:calc(6px + var(--wco));-webkit-app-region:drag}
+html.desk #rbar :is(button,summary,details,a,input,select,.rtab,[role=button]){-webkit-app-region:no-drag}
+html.desk body.runv #panel>header{padding-right:calc(12px + var(--wco))}
+html.desk body.runv .pstrip{padding-top:calc(14px + var(--wch))}
 html.desk.mac .rail>.top{padding-top:22px}
 /* end side menu */
 @media(max-width:640px){

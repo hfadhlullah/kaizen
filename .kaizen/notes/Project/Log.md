@@ -307,3 +307,4 @@ updated: 2026-10-31
 - 2026-11-09 run 2026-11-09-desktop-update-runs-upgrade — Release and testing: the desktop app runs kaizen upgrade on ~/kaizen after it updates
 - 2026-11-09 run 2026-11-09-accounts-normal-login — Web board/Settings: AI Provider Accounts shows the normal login and who is signed in, from the tools' own status commands
 - 2026-11-09 run 2026-11-09-desktop-feel — Layout and look, Release and testing: hover-only scrollbars, native app chrome and no system title bar in the desktop app
+- 2026-11-09 run 2026-11-09-desktop-titlebar-room — Layout and look: the window buttons no longer cover the workspace bar or the run panel
