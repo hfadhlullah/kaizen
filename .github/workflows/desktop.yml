@@ -39,7 +39,15 @@ jobs:
         working-directory: desktop
     steps:
       - uses: actions/checkout@v4
+      # GitHub's release downloads answer 5xx at times (v1.76.0 failed on it): one
+      # more try after a pause.
       - uses: oven-sh/setup-bun@v2
+        id: bun
+        continue-on-error: true
+      - if: steps.bun.outcome == 'failure'
+        run: sleep 60
+      - if: steps.bun.outcome == 'failure'
+        uses: oven-sh/setup-bun@v2
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       - if: runner.os == 'Linux'
@@ -94,7 +102,15 @@ jobs:
         working-directory: desktop
     steps:
       - uses: actions/checkout@v4
+      # GitHub's release downloads answer 5xx at times (v1.76.0 failed on it): one
+      # more try after a pause.
       - uses: oven-sh/setup-bun@v2
+        id: bun
+        continue-on-error: true
+      - if: steps.bun.outcome == 'failure'
+        run: sleep 60
+      - if: steps.bun.outcome == 'failure'
+        uses: oven-sh/setup-bun@v2
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       - if: runner.os == 'Linux'
@@ -114,7 +130,15 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+      # GitHub's release downloads answer 5xx at times (v1.76.0 failed on it): one
+      # more try after a pause.
       - uses: oven-sh/setup-bun@v2
+        id: bun
+        continue-on-error: true
+      - if: steps.bun.outcome == 'failure'
+        run: sleep 60
+      - if: steps.bun.outcome == 'failure'
+        uses: oven-sh/setup-bun@v2
       - uses: actions/download-artifact@v4
         with: { name: desktop-Windows, path: unsigned }
       - uses: actions/upload-artifact@v4
@@ -143,9 +167,23 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with: { path: out, pattern: "desktop-*", merge-multiple: true }
-      # Attaches to the tag's release, made as a draft when the npm release has not
-      # made one yet; publishing a draft stays a person's decision.
+      # cli/release.sh makes the tag's release as a draft, so the desktop app's updater
+      # and the site never see a version without its installers. This job attaches them
+      # and only then publishes it: a failed build leaves the draft, and re-running the
+      # failed jobs publishes it once green. When the npm release has made none after
+      # 10 minutes, a placeholder draft is made and left for a person to finish.
       - env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}", TAG: "${{ github.ref_name }}" }
         run: |
-          gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create "$TAG" -R "$GITHUB_REPOSITORY" --draft --title "$TAG" --notes "Desktop builds for $TAG"
+          placeholder="Desktop builds for $TAG"
+          found=""
+          for i in $(seq 20); do
+            body="$(gh release view "$TAG" -R "$GITHUB_REPOSITORY" --json body -q .body 2>/dev/null)" && { found=1; break; }
+            sleep 30
+          done
+          [ -n "$found" ] || { gh release create "$TAG" -R "$GITHUB_REPOSITORY" --draft --title "$TAG" --notes "$placeholder"; body="$placeholder"; }
           gh release upload "$TAG" out/* -R "$GITHUB_REPOSITORY" --clobber
+          if [ "$body" = "$placeholder" ]; then
+            echo "::warning::cli/release.sh made no release for $TAG; a placeholder draft holds the installers. Write its notes and publish it by hand."
+          else
+            gh release edit "$TAG" -R "$GITHUB_REPOSITORY" --draft=false --latest
+          fi

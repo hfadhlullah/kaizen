@@ -41,7 +41,7 @@ bun run dist             # stage kaizen + Bun, compile, build this OS's installe
 KAIZEN_DESKTOP_SMOKE=1 release/linux-unpacked/kaizen-desktop   # starts the board, prints "ready", quits
 ```
 
-`.github/workflows/desktop.yml` builds on Ubuntu (Linux x64 and arm64), macOS 14 (x64 and arm64) and Windows. It smoke-launches each build, and on a `v*` tag attaches everything to that tag's release. If the release doesn't exist yet, the job creates it as a draft.
+`.github/workflows/desktop.yml` builds on Ubuntu (Linux x64 and arm64), macOS 14 (x64 and arm64) and Windows. It smoke-launches each build, and on a `v*` tag attaches everything to that tag's release and publishes it. `cli/release.sh` makes that release as a draft, so the app's updater and the site never see a version without its installers: when a build fails, the release stays a draft (users stay on the last good one), and re-running the failed jobs publishes it once they pass. If no release exists after 10 minutes, the job makes a placeholder draft and leaves it for you to write and publish.
 
 The `update-test` job builds 0.0.1 and 0.0.2 against a local feed, starts 0.0.1, and checks that it updates itself to 0.0.2, on Linux (AppImage) and Windows (NSIS). You can run the same test locally with `bun run scripts/update-test.ts` after `bun run stage && bun run compile`. Only a build made by that script, whose `package.json` has `kaizenUpdateTest`, honours its test feed. macOS is left out until the app is signed.
 
