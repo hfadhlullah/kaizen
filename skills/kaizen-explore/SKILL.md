@@ -110,6 +110,14 @@ Maintain `00-explore.md` with:
 - Open questions, assumptions, contradictions and explicitly deferred topics.
 - Status: active, ready, completed, or skipped; next action and user decision.
 
+**Offer the findings to the icebox.** Before the exit choice, list the brief's sourced
+findings (one line each, with its link) as a multi-select question: "Add any of these
+to the icebox?". Add only the ones the user ticks: for each, write its line and link
+to a new temporary file outside the project with the file tool, then run
+`kaizen icebox add --file <path> --kind finding` (add `--board <name>` when the run
+names a board). Nothing ticked, nothing added; never add without the question, and
+never put the finding's text on the command line.
+
 When the material questions are resolved or explicitly deferred, show the short
 brief and offer **Continue to Plan**, **Explore further**, or **Stop**. Record
 `awaiting=explore` while this choice is pending. Continuing approves the direction

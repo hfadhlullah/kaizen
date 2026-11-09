@@ -301,3 +301,4 @@ updated: 2026-10-31
 - 2026-11-09 run 2026-11-09-icebox-desktop — new Sources and icebox/Icebox page (capture box, boards bar, Cards | Sort, item menus), Sources and icebox (capture box, link to it), Web board/Tasks, Web board/Server and routes (`boards` op)
 - 2026-11-09 run 2026-11-09-icebox-phone — Sources and icebox/Icebox page (phone list, swipe, hold), Home, chat and phone (phone bar)
 - 2026-11-09 run 2026-11-09-phone-icebox-tab-off — Icebox page, Home chat and phone, Notebook, Video, Layout and look: Icebox out of the phone bottom bar, reached via Search
+- 2026-11-09 run 2026-11-09-icebox-ai — Sources and icebox, Icebox page, Settings: ChatGPT sorts board captures, AI promote drafts, discover sorts unsorted items, Explore offers findings to the icebox

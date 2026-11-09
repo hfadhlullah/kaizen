@@ -52,3 +52,7 @@ Settings → Agents → Workflow has `explore.enabled` (false by default), a pro
 ## Research key (2026-11-09)
 
 Settings → Integrations → Research holds the Firecrawl key for `kaizen search` / `kaizen scrape`: a password field with Save, then Test (one search credit) and Remove. `GET /research-key` answers `{set, source, hint}` only, the last four characters, never the key; with `FIRECRAWL_API_KEY` in the board's environment the field is disabled and that key wins. Per user, so no scope.
+
+## ChatGPT rows (2026-11-09-icebox-ai)
+
+`sources.model` / `sources.effort` are "ChatGPT model/effort for the icebox" (gathering social posts, sorting captures, drafting tasks) and no longer carry a `when`, so they are never shown idle.
