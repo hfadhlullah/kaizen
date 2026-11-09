@@ -446,7 +446,7 @@ function drawSend() {
   const kind = (d: Dev) => d.deviceModel || d.deviceType || "";
   const local = sp.via === "localsend";
   el.innerHTML = `<div class="sendp"><div class="row"><h3>Send</h3>
-      <label class="sr" for="sfile">File</label><select id="sfile">${v.outputs.flatMap((o) => [o.file, o.srt, o.thumb]).filter(Boolean).map((f) => `<option value="${esc(f)}"${f === sp!.file ? " selected" : ""}>${esc(f!.split("/").pop())}</option>`).join("")}</select>
+      <label class="sr" for="sfile">File</label><select class="sel" id="sfile">${v.outputs.flatMap((o) => [o.file, o.srt, o.thumb]).filter(Boolean).map((f) => `<option value="${esc(f)}"${f === sp!.file ? " selected" : ""}>${esc(f!.split("/").pop())}</option>`).join("")}</select>
       <span class="sp"></span><button class="ib" data-sclose aria-label="Close send">✕</button></div>
     <div class="chips" role="tablist"><button class="chip${local ? " on" : ""}" role="tab" aria-selected="${local}" data-via="localsend">LocalSend</button><button class="chip${local ? "" : " on"}" role="tab" aria-selected="${!local}" data-via="whatsapp">WhatsApp <small>via Hermes</small></button></div>
     ${local ? `<div class="sendbox">
@@ -455,7 +455,7 @@ function drawSend() {
         <div class="row"><button class="btn" data-search ${sp.searching ? "disabled" : ""}>Search again</button><span class="sp"></span><button class="btn pri" data-sgo ${sp.dev && !sp.searching ? "" : "disabled"}>Send to device</button></div>
         <span class="note">The device asks to accept; it has 2 minutes.</span></div>`
     : `<div class="sendbox">
-        ${sp.chatErr ? `<span class="note">${esc(sp.chatErr)}</span>` : sp.chats ? `<label>Chat<select id="schat">${sp.chats.map((c) => `<option value="${esc(c.id)}"${c.id === sp!.chat ? " selected" : ""}>${esc(c.name)}${c.type ? ` (${esc(c.type)})` : ""}</option>`).join("")}</select></label>` : `<span class="note">Asking Hermes for its chats…</span>`}
+        ${sp.chatErr ? `<span class="note">${esc(sp.chatErr)}</span>` : sp.chats ? `<label>Chat<select class="sel" id="schat">${sp.chats.map((c) => `<option value="${esc(c.id)}"${c.id === sp!.chat ? " selected" : ""}>${esc(c.name)}${c.type ? ` (${esc(c.type)})` : ""}</option>`).join("")}</select></label>` : `<span class="note">Asking Hermes for its chats…</span>`}
         <label>Message<textarea id="stext" maxlength="1000">${esc(sp.text)}</textarea></label>
         <div class="row"><span class="sp"></span><button class="btn pri" data-sgo ${sp.chat ? "" : "disabled"}>Send on WhatsApp</button></div></div>`}
     <div id="sendst"></div></div>`;
@@ -754,8 +754,8 @@ async function drawWizard() {
         <div class="ticks"><span style="left:0">0:15</span><span class="m-hide" style="left:${tick(60)}">1:00</span><span style="left:${tick(120)}">2:00</span><span style="left:${tick(180)}">3:00</span><span style="left:100%">5:00</span></div>
         <p class="note" id="wlennote"></p></div>
       <div class="two">
-        <label>Language<select id="wlang">${Object.entries(LANG_NAMES).map(([k, n]) => `<option value="${k}"${k === wiz.language ? " selected" : ""}>${n}</option>`).join("")}</select></label>
-        <label>Save in<select id="wplace">${places.map((p) => `<option value="${p.i}"${p.i === wiz.place ? " selected" : ""}>${esc(p.label === "library" ? `Video library (${p.dir})` : `${p.label} (${p.dir})`)}</option>`).join("")}</select></label>
+        <label>Language<select class="sel" id="wlang">${Object.entries(LANG_NAMES).map(([k, n]) => `<option value="${k}"${k === wiz.language ? " selected" : ""}>${n}</option>`).join("")}</select></label>
+        <label>Save in<select class="sel" id="wplace">${places.map((p) => `<option value="${p.i}"${p.i === wiz.place ? " selected" : ""}>${esc(p.label === "library" ? `Video library (${p.dir})` : `${p.label} (${p.dir})`)}</option>`).join("")}</select></label>
       </div>
       <div class="foot"><button type="button" class="btn" data-back>Cancel</button><button type="submit" class="btn pri" id="wgo">Generate draft</button></div>
     </form>`;

@@ -13,7 +13,7 @@ The board is kaizen in a browser: you see every project's tasks and runs as card
 `kaizen web` runs a loopback HTTP server over `cli/state.ts` and serves one HTML page that only ever sees JSON (header of `cli/web.ts`). From it you start runs, approve or revise plans, pick findings to fix, commit, push and open or merge a run's pull request (the Source control tab), and open Notes, the icebox and settings. User-facing tour: `docs/guide.md` ("In a browser"). Look and feel: `design.md`.
 
 ## Topics
-- [[Web board/Layout and look]] — Side menu, sizes, colour, theme, motion and the phone layout of the board
+- [[Web board/Layout and look]] — Side menu, sizes, the shared controls (button, icon button, switch, select), colour, theme, motion and the phone layout of the board
 - [[Web board/Home, chat and phone]] — Home and its chat, first-run onboarding, phone setup and the phone Home
 - [[Web board/Settings]] — The Settings page: agents, models, skills, REA, desktop control, accounts, voice
 - [[Web board/Cards]] — Board cards and columns: order, compact done cards, the action button, search and add sheets

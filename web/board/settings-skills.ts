@@ -1,6 +1,6 @@
 import { AGENT_FAVICONS } from "./agent-favicons.ts";
 import { post } from "./api.ts";
-import { $, html, raw } from "./dom.ts";
+import { $, html, raw, toggleSwitch } from "./dom.ts";
 import { toast } from "./toast.ts";
 
 // Settings → Skills: one row per bundled skill, grouped. /skills scans the folders, so
@@ -27,7 +27,7 @@ const skillIcon = (id: string) => raw(`<svg class="sk-i" viewBox="0 0 24 24" ari
 const row = (s: Row) =>
   html`<div class="sk" data-q="${[s.title, s.id, s.description, s.group, "skill"].join(" ").toLowerCase()}">
     <div class="sk-h">${skillIcon(s.id)}<span class="sk-n"><b>${s.title}${s.status && s.status !== "stable" ? html` <em class="sk-st">${s.status === "beta" ? "Beta" : "Experimental"}</em>` : ""}</b><span>${s.description}</span></span>
-      ${s.group === "core" ? (s.agents.some((a) => a.state !== "installed") ? html`<button type="button" class="btn" data-repair="${s.id}" data-own="${String(s.agents.some((a) => a.state === "other"))}">Repair</button>` : html`<span class="hint">Always on</span>`) : html`${s.rea?.update ? html`<button type="button" class="btn" data-rea-update="1">Update to ${s.rea.latest}</button>` : ""}${!s.rea && !s.off && s.agents.some((a) => a.state === "missing") ? html`<button type="button" class="btn" data-skill="${s.id}" data-on="true">Install</button>` : ""}<button type="button" class="chk sm${s.off ? "" : " on"}" data-skill="${s.id}" data-on="${String(s.off)}" data-warn="${String(!!s.offByDefault)}" role="switch" aria-checked="${String(!s.off)}" aria-label="${s.title}" title="${s.off ? "Off" : "On"}"></button>`}</div>
+      ${s.group === "core" ? (s.agents.some((a) => a.state !== "installed") ? html`<button type="button" class="btn" data-repair="${s.id}" data-own="${String(s.agents.some((a) => a.state === "other"))}">Repair</button>` : html`<span class="hint">Always on</span>`) : html`${s.rea?.update ? html`<button type="button" class="btn" data-rea-update="1">Update to ${s.rea.latest}</button>` : ""}${!s.rea && !s.off && s.agents.some((a) => a.state === "missing") ? html`<button type="button" class="btn" data-skill="${s.id}" data-on="true">Install</button>` : ""}${toggleSwitch(!s.off, { sm: true, attrs: { "data-skill": s.id, "data-on": String(s.off), "data-warn": String(!!s.offByDefault), "aria-label": s.title, title: s.off ? "Off" : "On" } })}`}</div>
     <div class="sk-a">${s.agents.map((a) => html`<img class="sk-ag${a.state === "installed" ? "" : " off"}" src="${AGENT_FAVICONS[AGENT_CMD[a.agent] ?? ""] ?? ""}" width="18" height="18" alt="${a.agent}: ${WORD[a.state] ?? a.state}" title="${a.agent}: ${WORD[a.state] ?? a.state}">`)}${s.needs.map((n) => html`<span class="${n.found ? "" : "miss"}">Needs ${n.name}${n.found ? "" : " (not found)"}</span>`)}${s.note ? html`<span>${s.note}</span>` : ""}</div>
   </div>`;
 

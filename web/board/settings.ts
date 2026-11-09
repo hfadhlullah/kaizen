@@ -3,7 +3,7 @@ import { termStop } from "./agent-term.ts";
 import { dirHeader, load, post } from "./api.ts";
 import { stopDictation } from "./dictation.ts";
 import { FONT_MAX, FONT_MIN, fontRead, fontSet } from "../term-font.ts";
-import { $, html, ico, raw } from "./dom.ts";
+import { $, html, ico, raw, toggleSwitch } from "./dom.ts";
 import { close } from "./panel.ts";
 import { accountRows, wireAccounts } from "./settings-accounts.ts";
 import { agentRows, wireAgents } from "./settings-agents.ts";
@@ -97,7 +97,7 @@ export async function openSettings() {
         .map((v) => html`<button id="${id}-${v}" data-v="${v}" class="${v === on ? "on" : ""}" aria-pressed="${String(v === on)}">${v}</button>`)}</span>`;
     if (vals.length === 2 && vals.includes("true") && vals.includes("false")) {
       const yes = on === "true";
-      return html`<button class="chk sm${yes ? " on" : ""}" id="${id}" data-v="${yes ? "false" : "true"}" role="switch" aria-checked="${String(yes)}" title="${yes ? "On" : "Off"}"></button>`;
+      return toggleSwitch(yes, { sm: true, attrs: { id, "data-v": yes ? "false" : "true", title: yes ? "On" : "Off" } });
     }
     // Short choices sit side by side, joined, as Orca's do; a long list keeps the stepper.
     if (vals.every((v) => /^\d+$/.test(v)) || (vals.length <= 5 && vals.every((v) => v) && vals.join("").length <= 32))
@@ -189,8 +189,8 @@ export async function openSettings() {
   put("appearance", "Browser", row("Color", ctl("co", ["monochrome", "blue"], colour), "", "co", "color colour palette monochrome blue theme browser"));
   put("appearance", "Browser", row("Motion", ctl("mo", ["system", "full", "reduce"], document.documentElement.dataset.motion || "system"), "Animations across kaizen. System follows the device's reduce-motion setting.", "mo", "motion animation reduce reduced browser"));
   put("terminal", "Browser", row("Terminal font size", html`<input id="tf" class="sel" style="width:80px" type="number" min="${String(FONT_MIN)}" max="${String(FONT_MAX)}" value="${String(fontRead())}" aria-label="Terminal font size in pixels">`, "In every board terminal. Ctrl+= and Ctrl+- change it from a terminal, Ctrl+0 resets it.", "tf", "terminal font size text zoom browser"));
-  put("notifications", "Browser", row("Notifications", html`<button class="chk sm${nton ? " on" : ""}" id="nt" role="switch" aria-checked="${String(nton)}"></button>`, ntHelp, "nt", "notifications " + ntHelp + " browser"));
-  put("notifications", "Browser", row("Haptic feedback", html`<button class="chk sm${hapton ? " on" : ""}" id="hp" role="switch" aria-checked="${String(hapton)}"></button>`, "A light tick when you tap something on a phone.", "hp", "haptic feedback vibrate vibration touch tap phone browser"));
+  put("notifications", "Browser", row("Notifications", toggleSwitch(nton, { sm: true, attrs: { id: "nt" } }), ntHelp, "nt", "notifications " + ntHelp + " browser"));
+  put("notifications", "Browser", row("Haptic feedback", toggleSwitch(hapton, { sm: true, attrs: { id: "hp" } }), "A light tick when you tap something on a phone.", "hp", "haptic feedback vibrate vibration touch tap phone browser"));
   put("notifications", "Browser", row("Notification sound", ctl("ns", SOUNDS, soundPick()), "Plays with each notice. Changing it plays it.", "ns", "notification sound audio browser " + SOUNDS.join(" "), !nton));
   // A narrow screen starts on the list of pages, a wide one on the first page.
   store.setPage ??= new URLSearchParams(location.search).get("page") || "";

@@ -2,7 +2,7 @@
 // machine's runs grouped waiting / active / done). The board, Tasks and Icebox are set up
 // on a computer; a phone has Home, Chat, Runs and Search (Settings is found through it).
 import { runPopup } from "./cards.ts";
-import { $, html, raw } from "./dom.ts";
+import { $, html, raw, toggleSwitch } from "./dom.ts";
 import { cardHref, logo, railData, stateOf, subline, titleOf, usageChips, wsHref } from "./workspace.ts";
 import { toast } from "./toast.ts";
 import { agentStatus, wsKey, WORD, DOT, type Agent, type Status } from "./ws-tabs.ts";
@@ -86,7 +86,7 @@ async function newSheet(dir?: string, ws?: string) {
   const kinds: { cmd: string; name: string; yolo?: boolean; bypassDefault?: boolean }[] = [...(list?.agents ?? []), { cmd: "", name: "Shell" }];
   const d = document.createElement("dialog");
   d.className = "pagsheet";
-  d.innerHTML = String(html`<h4>New in</h4><select aria-label="Workspace">${spots.map((x, i) => html`<option value="${String(i)}"${raw(x === on ? " selected" : "")}>${projName(x.dir)} ${x.name}</option>`)}</select><label class="agent-yolo"><span>Yolo / bypass permissions<small>Run commands without permission prompts</small></span><input type="checkbox" role="switch" aria-label="Yolo / bypass permissions"${raw(list?.agents?.find((a) => a.cmd === list.default)?.bypassDefault ? " checked" : "")}></label>${kinds.map((k, i) => html`<button type="button" data-i="${String(i)}">${k.cmd ? agentIco({ agent: k.cmd } as Agent) : raw(`<svg class="pag-ico" aria-hidden="true"><use href="#i-term"/></svg>`)}${k.name}</button>`)}`);
+  d.innerHTML = String(html`<h4>New in</h4><select class="sel" aria-label="Workspace">${spots.map((x, i) => html`<option value="${String(i)}"${raw(x === on ? " selected" : "")}>${projName(x.dir)} ${x.name}</option>`)}</select><label class="agent-yolo"><span>Yolo / bypass permissions<small>Run commands without permission prompts</small></span>${toggleSwitch(!!list?.agents?.find((a) => a.cmd === list.default)?.bypassDefault, { box: true, attrs: { "aria-label": "Yolo / bypass permissions" } })}</label>${kinds.map((k, i) => html`<button type="button" data-i="${String(i)}">${k.cmd ? agentIco({ agent: k.cmd } as Agent) : raw(`<svg class="pag-ico" aria-hidden="true"><use href="#i-term"/></svg>`)}${k.name}</button>`)}`);
   d.addEventListener("click", async (e) => {
     const b = (e.target as HTMLElement).closest<HTMLButtonElement>("button");
     if (e.target === d) return d.close();

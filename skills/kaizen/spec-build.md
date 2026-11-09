@@ -153,7 +153,7 @@ commands to start it locally and the URL to open, copied from the material's own
 where one exists. An app with a dev server: leave it running when the build ends
 (started in the background, its log in a file), and write its full `http://localhost:<port>`
 address here; the board's Browser opens that address on its own, a phone included, and
-its Preview button starts the folder's `dev` script when the server has stopped. For anything else — a document, copy, a runbook, a memo — the path
+its Run app button starts the folder's `dev` script when the server has stopped. For anything else — a document, copy, a runbook, a memo — the path
 to open, or the result itself when it fits in a screen. The board shows this section on
 the run's card, so a person can try the work without reading the rest of the report.
 Every run whose result shows on a screen must put at least one screenshot of it here,
