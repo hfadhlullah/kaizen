@@ -289,7 +289,8 @@ slower CPU path); a browser without a microphone API or WebAssembly shows no mic
 
 Requests that already live somewhere else — a team's Google Sheet, a Doc, a shared
 note — do not have to be retyped. **Icebox** in the side menu opens the project's
-icebox; its **Sources** button unfolds the links it reads. Paste a link there, give it
+icebox; its **Sources** button opens the links it reads, with **Gather all** in that
+drawer's header. Paste a link there, give it
 a category if you like (*Feedback*, *Bugs*), and kaizen reads it at once and puts
 every request it has not seen before in the icebox; the page says what came back, or
 why the link could not be read. In a sheet, the header
@@ -334,15 +335,34 @@ no relevance check: every request in them lands in the icebox. A public GitHub
 repository's issues link (`github.com/<owner>/<repo>/issues`) gathers its open issues, titles
 only, pull requests left out.
 
-The icebox reads like an inbox: one row per request as the source wrote it, grouped
-by category, with dropdowns beside the count to narrow it by category and by source.
-In *All projects* a project dropdown narrows it too; it is the board's own *Showing*
-picker, so the board and the icebox show the same projects. Open a row to see the row's
-other cells and promote it under a title of your own; **Promote** makes it a task in
+The Icebox page opens on a **capture box**: type a note, paste a link or a picture,
+attach a file or dictate, pick a board (*Inbox* is none; *New board…* names one), and
+press Enter (Shift+Enter is a new line). The item lands on top and the box is empty and
+ready again; what is half typed survives the page refreshing under it. In *All
+projects* the box names the project it saves to.
+
+Below it, the **boards bar**: *All*, each board with the number waiting on it (a
+client's board carries a person mark), and **+ Board**, which asks a name and whether it
+is a client's. Picking a board narrows the page to it and points the capture box at it.
+*Client*, *Finding* and *People say* on the right narrow by kind. The filter button
+beside the count narrows by category and by source; in *All projects* the board's own
+*Showing* picker narrows the projects, so the board and the icebox show the same ones.
+
+**Cards | Sort** switches the view (remembered in this browser). **Cards** shows every
+item newest first as a card: its kind (*unsorted* when a rule chose it), its words, its
+board, tags, source and age. A link leads with its title and summary, coloured from the
+site's name; pictures stay behind *N pictures · show*, since loading them tells their
+site. Hovering a card shows **→ Task**, **Snooze**, **Kind**, **Board** and dismiss.
+Clicking a card's words opens it in the Sort list, expanded. **Sort** is the fast list,
+newest first, with each row's kind and board (click either to change it): open a row to
+see its notes and promote it under a title of your own; **Promote** makes it a task in
 Tasks, with a note saying where it came from and a *gathered* chip; **Dismiss** sets it
-aside. Check several rows to promote or dismiss them together (each promoted row
+aside. Check several rows to promote, snooze or dismiss them together (each promoted row
 becomes its own task, titled as gathered). Keys: `j`/`k` move, `o` opens, `x` checks,
-`p` promotes, `d` dismisses, `Esc` closes.
+`p` promotes, `h` snoozes for a week, `d` dismisses, `Esc` closes. **Snooze** offers
+tomorrow, next week, next month or a date; the item leaves the page and the toast's
+**Undo** brings it back. A window narrower than 640 px shows the capture box and the Sort
+list, no cards.
 
 **Swipe** in the Icebox bar sorts the waiting requests one card at a time, each card naming its project. Drag the card
 right (or press `→`) to promote it under its gathered title, left (`←`) to dismiss it;
@@ -423,8 +443,9 @@ kaizen icebox board <ids> <name | ->    kaizen icebox snooze <ids> <when>    kai
 kaizen icebox boards [add <name> [--client] | rm <name>]
 ```
 
-On the board, snoozed items leave the list, the count and Swipe until their date; the
-new capture box, boards bar and phone Icebox tab are on the way.
+On the board, snoozed items leave the list, the count and Swipe until their date, and
+everything above is on the Icebox page (tag editing stays here). The phone Icebox tab is
+on the way.
 
 ### Mouse
 

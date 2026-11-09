@@ -2,7 +2,7 @@
 description: The Tasks page, the task forms, inbox stamps and when a task retires
 tags: [project, web-board]
 sources: [cli/state.ts, web/board]
-updated: 2026-11-08
+updated: 2026-11-09
 ---
 # Tasks
 
@@ -16,7 +16,7 @@ The Tasks page and the task forms: writing a task, attaching files, sending a pl
 
 - "Back to idea" on a run card still in Planning (card menu, `web/board/cards.ts`) posts `/to-idea {id}`: `runToIdea()` (`cli/state.ts`) refuses unless `stage` is `plan`, then `abandonRun` + `setArchived`, and writes the task back open with a fresh `added` stamp (the `started` inbox line the request contains, notes kept; else the request's first line minus `/kaizen [mode]`). The fresh stamp is what stops the old run retiring it again; a run whose request is under 2 s old still would (`after()` slack in `boardCards`).
 
-- Orca Tasks layout (run 2026-10-30-ideas-icebox-orca-tasks, values read from Orca 1.4.244 `TaskPage`): Tasks and Icebox share `.tk-bar` (tinted toolbar) joined to `.tk-list` (bordered list), CSS in `board.html`. On Tasks, `dock()` in `tasks.ts` moves `#bq`, `#hx` and `#newtop` into the toolbar, leaving a comment node as each one's place; `undock()` on `kz-view` puts them back in the shared header, so Board keeps them. Only `#tk-list` and `#tk-chips` redraw. Open/Running/Done are `.tk-chip`s. Empty states: `.tk-empty`, Icebox's `.ice-zero`.
+- Orca Tasks layout (run 2026-10-30-ideas-icebox-orca-tasks, values read from Orca 1.4.244 `TaskPage`): Tasks and Icebox share `.tk-bar` (tinted toolbar) joined to `.tk-list` (bordered list), CSS in `board.html`; since 2026-11-09-icebox-desktop the Icebox's `.tk-bar.ice-bar` is a plain row (no tint or border) and its `.ice-list` is a box of its own. On Tasks, `dock()` in `tasks.ts` moves `#bq`, `#hx` and `#newtop` into the toolbar, leaving a comment node as each one's place; `undock()` on `kz-view` puts them back in the shared header, so Board keeps them. Only `#tk-list` and `#tk-chips` redraw. Open/Running/Done are `.tk-chip`s. Empty states: `.tk-empty`, Icebox's `.ice-zero`.
 
 - Tasks page (`?view=tasks`, `web/board/tasks.ts`, `#tasksv`, `body.taskv`): the rail's cards and `/sources` as a table. Source of a card = the icebox signal (`icebox` + `dismissed` of `/sources`) whose `run` is the run id or whose `idea` is the card's text/title; a non-URL source (`manual`) or none is "Manual". No ID column, no topic tags, no pagination (the data has no stable short id or tags). Start = the run form in a popup (`runPopup()` in `cards.ts`), Open = `open(c)`; a card the board is not showing goes through the deep link. Task rows carry a trash icon that asks in its row (Delete? Keep / Delete), then `/inbox` `op:delete`. A row click moves the `tr.kb` highlight to that row (`sel`). The header holds title, project and Showing; everything else sits in the `.tk-bar` toolbar. On the Tasks page a task's panel shows its notes only, never its agent terminal (`taskBody()`); `openRun()` drops a `/run` fetch that finishes after another card opened, and `load()` only refreshes a run doc for a run card (a stale doc used to redraw a task as a run with its terminal).
 
@@ -31,7 +31,7 @@ The Tasks page and the task forms: writing a task, attaching files, sending a pl
 
 - A started task also retires when its board launch record (`sessions/<key>.json`, same text) is owned by a run per `ownerOf` — the run's `state.json` `session` matching the launch's id — so a run that reworded the request does not leave the task stuck in planning beside it.
 
-- Icebox "Add" opens a `modal()` form like the new-idea one (text, attach, mic, project combo in All projects); `/icebox` `add` takes `files`, saved to `<state>/attachments/` and linked in the item notes. Done cards (column 4, not the archive) are `compact`: one line, no footer. Empty Planning/Building/Review show a dashed hint (`li.hint`).
+- The Icebox's Add pop-up is gone (2026-11-09-icebox-desktop): its inline capture box (`#ice-cap`, see [[Sources and icebox]]) takes text, pasted pictures, files, dictation and a board; `/icebox` `add` takes `files`, saved to `<state>/attachments/` and linked in the item notes. Done cards (column 4, not the archive) are `compact`: one line, no footer. Empty Planning/Building/Review show a dashed hint (`li.hint`).
 
 ## Explore integration (2026-11-08)
 

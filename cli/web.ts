@@ -24,7 +24,7 @@ import { processTable, storage, systemMemory, treeRss, type Root } from "./resou
 import { attachPty, frames, writePty, submitPty, resizePty, exitPty, killPty, panePid, ptyState, ptyKeys, adoptLoginEnv, startPty, ptySupported, detachPty, ptyTail, ptyTmux, tmuxAlive, RESUMED } from "./pty.ts";
 import { snapshot, snapWorker } from "./state-snap.ts";
 import { claudeUsage, claudeUsageAt, codexUsage, codexUsageAt, phonePeers, type Usage } from "./usage.ts";
-import { readSources, addSource, removeSource, moveSource, setCategory, setWriteback, setPaused, readIcebox, promote, dismiss, restore, capture, editItem, setKind, setTags, setBoard, snooze, unsnooze, readBoards, kindOf, isSnoozed, markDone, markReplied, gatherSource, freshImages, gatherAll, gatherDirs, due, socialUrl, socialOf } from "./sources.ts";
+import { readSources, addSource, removeSource, moveSource, setCategory, setWriteback, setPaused, readIcebox, promote, dismiss, restore, capture, editItem, setKind, setTags, setBoard, saveBoard, removeBoard, snooze, unsnooze, readBoards, kindOf, isSnoozed, markDone, markReplied, gatherSource, freshImages, gatherAll, gatherDirs, due, socialUrl, socialOf } from "./sources.ts";
 import { projectLogo, LOGO_TYPES } from "./logo.ts";
 import * as chatgpt from "./chatgpt.ts";
 import * as google from "./google.ts";
@@ -2253,6 +2253,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
               : body.op === "board" ? setBoard(body.dir, ids, str(body.board))
               : body.op === "snooze" ? snooze(body.dir, ids, str(body.until))
               : body.op === "unsnooze" ? unsnooze(body.dir, ids)
+              // A board on its own, for the page's "+ Board": make it (a client's or not), mark it a client's, or remove an empty one.
+              : body.op === "boards" ? (body.act === "add" ? saveBoard(body.dir, str(body.name), body.client === true) : body.act === "client" ? saveBoard(body.dir, str(body.name), true) : body.act === "remove" ? removeBoard(body.dir, str(body.name)) : "act is one of: add, client, remove")
               : body.op === "dismiss" ? dismiss(body.dir, ids) : body.op === "restore" ? restore(body.dir, ids) : "unknown op";
             if (why) return bad(why, why === "no such item" ? 404 : why === "unknown op" ? 400 : 409);
           } catch (e) { return bad((e as Error).message, 500); }
