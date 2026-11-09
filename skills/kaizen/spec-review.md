@@ -228,3 +228,7 @@ The exception is the regression check, which runs every iteration whatever the f
 touched. It is cheap, and it is the one that catches a fix breaking something nobody
 thought to connect it to.
 
+
+## Task-linked runs
+
+For a task-linked run, distinguish observed checks from functional limits and user acceptance. Publish completed typed outputs with checks and limitations through the Persistent Task protocol in spec.md; preserve immutable files and specialized Video ids. Never claim a rendered form proves its backend works.

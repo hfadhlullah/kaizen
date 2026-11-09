@@ -339,3 +339,7 @@ preserves partial evidence. A resumed run never restarts Explore from a changed
 setting. On a board confirmation record the decision, unblock and prepare the plan;
 normal plan approval remains required. An Explore revise returns to questioning,
 not implementation. Stop abandons the run.
+
+## Task-linked runs
+
+For a task-linked run, persisted task_policy takes precedence over global auto/approval defaults under both runners. The task page confirms the exact proposal/run/iteration/result. Preserve task id across linked follow-ups explicitly authorized by task feedback. Finish workflow checks without interpreting technical completion as task acceptance or publication. Follow the Persistent Task protocol in spec.md.

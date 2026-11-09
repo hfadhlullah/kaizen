@@ -56,3 +56,7 @@ The cards on the board: how they sort, what each shows, the one button that says
 The Run form includes Explore first, initialized from `/agents` project/global config and sent as a per-run boolean to `/run`. Explore is a persisted stage before Plan; it shares the planning board column but has its own run progress step and Explore document tab (`00-explore.md` via `/run/<id>`). A ready brief has Continue to Plan and Revise; active Explore has Skip Explore. `POST /explore/skip` checks the run is exploring and sends the skip to its live agent (or resumes it), preserving partial notes and the saved setting. The agent records the transition, avoiding a server/agent write race. Confirmation via `/decide` prepares the plan, never starts Build.
 
 - Explore uses its own compass SVG symbol (`t-explore`) in the run detail tabs, inheriting the same stroke and theme colour as other tab icons.
+
+## Persistent Tasks (2026-11-08)
+
+New task on Tasks opens the goal-first form with optional references and configured defaults; the task page resolves missing project context conversationally. Existing Board cards/run controls remain available. Legacy inbox/run rows are adopted by stable stamp/index or run id when opened, never merged by equal titles.

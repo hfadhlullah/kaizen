@@ -1817,7 +1817,7 @@ export const CHILD_ENV = /^(CLAUDECODE|CLAUDE_PID|CLAUDE_CODE_(SESSION_ID|CHILD_
 // skill: start that skill instead of /kaizen (the Video page starts kaizen-video), in cwd:
 // a work folder that may not be a project, so it is not remembered as one. A session record is
 // written only where that folder has a .kaizen (a project place does; the library usually not).
-export function launchRun(it: Item, from: string, run?: string, pick: { agent?: string; account?: string; model?: string; explore?: boolean; yolo?: boolean; card?: boolean; onChange?: () => void; skill?: "kaizen-video"; cwd?: string; seed?: string } = {}): Launch {
+export function launchRun(it: Item, from: string, run?: string, pick: { agent?: string; account?: string; model?: string; explore?: boolean; yolo?: boolean; card?: boolean; onChange?: () => void; skill?: "kaizen-video"; cwd?: string; seed?: string; task?: { id: string; requirePlanConfirmation: boolean } } = {}): Launch {
   const projectDir = pick.cwd ?? projectOf(from);
   // The run will be born here; the board must know the dir or the task never retires.
   if (!pick.cwd) remember(projectDir);
@@ -1839,7 +1839,9 @@ export function launchRun(it: Item, from: string, run?: string, pick: { agent?: 
   // A skill other than kaizen: Claude Code takes it as a slash command; other agents are told to use it.
   const lead = !pick.skill ? "/kaizen" : agent.cmd === "claude" ? `/${pick.skill}` : `Use the ${pick.skill} skill.`;
   const exploreChoice = !run && !pick.skill && typeof pick.explore === "boolean" ? `\n\n[Kaizen launch option: explore=${pick.explore ? "on" : "off"}. Freeze this per-run override at intake; it does not change the saved setting.]` : "";
-  const prompt = !it.text ? "" : requestOf(it.where ? `${lead} ${it.text} (${it.where})` : `${lead} ${it.text}`, it.notes, from) + exploreChoice;
+  const prompt = !it.text ? "" : requestOf(it.where ? `${lead} ${it.text} (${it.where})` : `${lead} ${it.text}`, it.notes, from) + exploreChoice + (pick.task ? `
+
+[Task context: task=${pick.task.id}; run=${run ?? "new"}; initial proposal confirmation=${pick.task.requirePlanConfirmation ? "required" : "already confirmed"}. Read task.json in .kaizen/tasks/${pick.task.id}/. Preserve task identity and frozen task_policy. Use kaizen task events for replies/questions/proposals/work receipts/results; questions do not authorize production. Do not produce until the current proposal is explicitly confirmed. Keep real tool permissions unchanged.]` : "");
   const wanted = pick.model ?? (own?.cmd === agent.cmd ? own.model : null) ?? undefined;
   const model = wanted && plainModel(wanted) ? wanted : undefined;
   // Yolo was picked for one tool; a fallback to another opens in its normal mode.
@@ -1858,10 +1860,14 @@ export function launchRun(it: Item, from: string, run?: string, pick: { agent?: 
   let s: ReturnType<typeof sessionLaunch>;
   try { s = sessionLaunch(projectDir, agent.cmd, [agentBin, ...flags], prompt, it.text.replace(/^(lite|full|auto|plan)\s+/i, ""), run, model, yolo, acct.account?.id); }
   finally { if (acct.envVar) { if (prior === undefined) delete process.env[acct.envVar]; else process.env[acct.envVar] = prior; } }
+  if (pick.task && s.record) {
+    try { const rec = JSON.parse(readText(s.record)); rec.task_id = pick.task.id; rec.task_policy = { requirePlanConfirmation: pick.task.requirePlanConfirmation }; writeFileSync(s.record, JSON.stringify(rec)); }
+    catch { return { ok: false, agent, prompt, projectDir, manual: "", why: "Could not preserve task launch identity. The goal remains saved." }; }
+  }
   const manual = manualCommand(projectDir, commandOf(agent.cmd, prefs), prompt, flags, acct.dir ? `${acct.envVar}=${shq(acct.dir)}` : "");
   // Only what is started carries env: the returned `cmd` reaches the page.
   // A run the board knows hears which one it is; a new run has no id yet and passes --run.
-  const vars = [...(run ? [`KAIZEN_RUN_ID=${run}`, ...stageEnv(projectDir, run)] : []), ...subagentEnv(projectDir, agent.cmd), ...accountEnv(acct)];
+  const vars = [...(pick.task ? [`KAIZEN_TASK_ID=${pick.task.id}`] : []), ...(run ? [`KAIZEN_RUN_ID=${run}`, ...stageEnv(projectDir, run)] : []), ...subagentEnv(projectDir, agent.cmd), ...accountEnv(acct)];
   const identity = vars.length && process.platform !== "win32" ? ["env", ...vars] : [];
   const started = [...identity, ...withEnv(s.fullCmd, agent.cmd, prefs)];
   const drop = () => { if (s.record) rmSync(s.record, { force: true }); };
@@ -2103,6 +2109,13 @@ export function setRunState(state: string, id: string, pairs: string[]): string 
     if (k === "iteration") { if (!/^\d+$/.test(raw)) return "iteration must be a whole number"; set[k] = Number(raw); continue; }
     set[k] = v;
   }
+  let existing: any;
+  try { existing = JSON.parse(readText(file)); } catch { return "invalid state.json"; }
+  if (existing.task_policy) {
+    if (["task_policy", "task_id", "task_confirmed"].some((k) => k in set)) return "task policy is frozen; confirm the current proposal in Tasks";
+    if ((set.stage === "build" || set.stage === "review") && existing.task_policy.requirePlanConfirmation && !existing.task_confirmed)
+      return "task production needs explicit confirmation of the current proposal in Tasks";
+  }
   let now: any = null;
   if (!setStage(file, (s) => { Object.assign(s, set); now = s; return true; })) return `state.json for ${id} changed while writing or is not valid JSON; read it and retry`;
   if ("stage" in set || "awaiting" in set) logStage(state, id, now.stage, now.awaiting);
@@ -2141,6 +2154,9 @@ export function healRuns(state: string): string[] {
 export function finishRun(state: string, id: string, userApproved = false): string | null {
   const file = join(state, "runs", id, "state.json");
   if (!existsSync(file)) return `No run ${id}.`;
+  let taskRun: any = {};
+  try { taskRun = JSON.parse(readText(file)); } catch {}
+  if (taskRun.task_policy?.requirePlanConfirmation && !taskRun.task_confirmed) return "task proposal has not been confirmed";
   if (gateOf(state, id) === "needs") {
     if (!userApproved) return `Run ${id} changed files and the user has not approved it. Ask the user; on a clear yes run: kaizen done ${id} --user-approved`;
     const why = recordAcceptance(state, id, "chat");

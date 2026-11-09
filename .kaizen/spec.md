@@ -202,3 +202,55 @@ Any tool picking up a run reads `state.json` and continues from `stage`, honorin
 `awaiting`. A run whose `awaiting` is non-null must not be advanced without a
 recorded decision in `02-approval.md`. This is what makes a run safe to hand between
 Claude Code, Codex, and Antigravity mid-flight.
+
+## Persistent Task protocol
+
+A board Task has a durable UUID independent of its title and linked workflow runs.
+The launch prompt supplies the task id, frozen policy, current result, input ids,
+current CLI command and this source contract. Use that command when a global
+installation is older. Never replace task identity, broaden permissions, or silently
+switch agents. Both full and lite runners honor the persisted task policy before
+reading global auto/approval defaults.
+
+Task intake/planning may ask questions and propose an outcome, but must not produce
+until the current proposal is explicitly confirmed. Use the sanctioned state command;
+it rejects build/review/done before that confirmation. Do not overwrite task_policy,
+task_id or task_confirmed by hand. The task page owns the versioned decision.
+
+Read context with `kaizen task show --task <uuid>`. Publish structured events with
+`kaizen task event --task <uuid> --run <run-id> --operation <stable-event-id> --json '<event>'`.
+Use a stable operation id on retries. The launcher gives the launch id and dispatched
+input ids; acknowledge the launch before doing anything else:
+
+- `{"type":"ack","launchId":"<launch-id>"}` acknowledges delivery, not completion.
+- `{"type":"reply","text":"..."}` is a user-facing explanation.
+- `{"type":"question","text":"...","options":["..."]}` requests material input.
+- `{"type":"proposal","text":"outcome, constraints and checks","details":"full plan"}`
+  requests explicit confirmation of this run/iteration/result. Stop production here.
+- `{"type":"work","text":"..."}` reports genuine production after confirmation.
+- `{"type":"receipt","inputIds":["..."],"outcome":"applied"}` acknowledges only
+  dispatched input ids. Use `failed` and `error` for requests not applied.
+- `{"type":"boundary","text":"..."}` promises no active writes and no dispatched
+  input awaiting acknowledgement. Only this acknowledged safe boundary or a completed
+  result enables the next queued batch. Do not infer safety from terminal quiet.
+- `{"type":"result","title":"...","summary":"...","artifacts":[{"path":"output.md"},
+  {"url":"http://localhost:3000","name":"Live preview"}],"checks":["what actually passed"],
+  "limitations":["what remains unverified"]}` preserves settled deliverable files and
+  publishes a typed version. Paths must be regular files inside the project/worktree.
+  Do not snapshot source trees or databases. HTML/SVG files download only. Include
+  specialized Video identity as `video:{name,letter,revision}` when relevant, without
+  changing its recipes. A copy/disk failure retains earlier versions and needs recovery.
+
+A question/status reply never authorizes production. Queued change requests are not
+already applied: keep their ids and report receipts. Stop requests cancellation and
+never rollback. Reconcile ambiguous launches/edits on explicit resume; do not replay
+unacknowledged work blindly. Material scope changes publish a new proposal; routine
+revisions reuse the accepted direction. Feedback sent from the task page explicitly
+authorizes a linked follow-up after done/abandoned, so do not ask the user to manage
+run types or reopen a finished run. Preserve `Follow-up of:` and task id. This is the
+Task-specific exception to the general follow-up confirmation rule.
+
+Task acceptance (Looks good) is distinct from workflow completion, technical git
+housekeeping and publication. Finish genuine checks and workflow decisions, publish
+checks/limitations honestly, then leave the completed result for user acceptance.
+A rendered event form is not evidence of registration storage or delivery.

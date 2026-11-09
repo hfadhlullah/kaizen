@@ -397,3 +397,7 @@ gitignore.
 ## Install
 
 `/kaizen install`: read [`install.md`](install.md) first and follow it.
+
+## Task-linked runs
+
+Task launch context identifies a persistent task. Read the Persistent Task protocol in spec.md before intake. Preserve its UUID and input receipts; use its frozen proposal policy and the supplied current CLI command. Task feedback explicitly authorizes linked follow-ups without reopening completed runs.

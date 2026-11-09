@@ -30,6 +30,10 @@ The board is kaizen in a browser: you see every project's tasks and runs as card
 - [[Sources and icebox]] routes: `/sources`, `/icebox`, `/reply`, `/chatgpt`. Snoozed icebox items (`asleep` in `/sources`) are left out of the Icebox list, its count, Swipe and the side-menu number.
 - Kaizen Bot calls these routes ([[Kaizen bot]], `bot/src/board.ts`).
 
+## Persistent Tasks (2026-11-08)
+
+The shared Tasks list/page is now separate from Board columns. It keeps the goal, material questions, proposal confirmation, queued changes, mixed saved outputs and acceptance under one task UUID. See [[Web board/Tasks]] for persistence and lifecycle contracts; Technical details retains existing workspaces.
+
 ## Notes
 The Projects rail keeps the last valid run state during a transient `state.json` read failure, and board loads discard out-of-order `/state` responses. This prevents a run from briefly disappearing while its agent updates state or refreshes overlap.
 <!-- yours: /kaizen docs never rewrites this section -->

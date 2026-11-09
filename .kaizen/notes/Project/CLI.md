@@ -21,6 +21,10 @@ The kaizen command you type in a terminal: it installs kaizen for your coding ag
 ## How it connects
 - `web` starts the [[Web board]]; `sources`/`gather`/`icebox` (with `icebox add|edit|kind|tag|board|snooze|unsnooze|boards`, text from `--file` or stdin) and `browser login` drive [[Sources and icebox]].
 
+## Persistent Tasks (2026-11-08)
+
+The task subcommand exposes task show and validated structured task event publication. cli/task-service.ts coordinates the Task protocol; launch prompts supply the absolute current CLI for older installations. Task-linked state changes honor frozen proposal confirmation before build/review/done.
+
 ## Notes
 <!-- yours: /kaizen docs never rewrites this section -->
 

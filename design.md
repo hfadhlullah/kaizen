@@ -501,3 +501,14 @@ board show a state the TUI cannot.
 - `web/notes.html` the notebook page, its tokens copied line for line from the board's
   (a test holds them equal); `web/notebook.ts` its script, bundled with CodeMirror into
   the committed `web/notebook.js` by `bun run build:web`; `cli/notes.ts` its files
+
+## Persistent Tasks
+
+Tasks is an explicit exception to the historical five-column rule: its attention-first
+list uses All, Needs you, In progress and Completed. Board retains workflow columns.
+The shared task page uses existing tokens, system fonts, focus and motion rules: a
+result/history area beside conversation, stacked on phones, with one persistent
+composer. Confirmation and Looks good belong to their current proposal/result.
+Technical workspace tools remain available in expandable details; there is no mode
+switch. Status always includes words and a next action. Live previews and preserved
+files have distinct labels; limits and validation never imply user acceptance.

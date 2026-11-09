@@ -1,226 +1,240 @@
-// The Ideas page (?view=tasks): every idea and run across projects as one table, with
-// source, project, Open/Running/Done and text filters. A card's source is the icebox
-// signal it came from (its `idea` text or `run` id); one typed by hand is "Manual".
-// The data is the rail's (workspace.ts): no fetch of its own.
+// An attention-first list of durable tasks. Legacy entries are adapted by the server
+// and acquire their stable identity on open, so identical titles stay separate.
 import { store } from "./store.ts";
-import { $, html, ico, pageOf, pager, pagerHtml, raw, wirePager } from "./dom.ts";
-import { age, NAMES } from "./labels.ts";
-import { key, runPopup } from "./cards.ts";
-import { load, post } from "./api.ts";
-import { toast } from "./toast.ts";
-import { openWorkspace } from "./run-view.ts";
-import { open } from "./panel.ts";
-import { refreshBoardBadge } from "./badge.ts";
-import { cardHref, drawSources, logo, railData, srcIcon, stateOf, titleOf } from "./workspace.ts";
+import { $, html, ico, pageOf, pager, pagerHtml, wirePager } from "./dom.ts";
+import { age } from "./labels.ts";
+import { setTaskAttention } from "./badge.ts";
+import { openTaskRecord, taskStatus, type TaskView } from "./task-page.ts";
 
-const WORDS = { idle: "Task", plan: "Planning", build: "Building", review: "Reviewing", wait: "Waiting on you", done: "Done", aband: "Abandoned", stalled: "Stalled" };
-const PLAT = { x: "X", tiktok: "TikTok", instagram: "Instagram", threads: "Threads" };
-const SEARCH = raw('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>');
-const AGENTS = ["claude", "codex", "agy", "opencode", "gemini", "cursor"];
-// sort: on Open, tasks first or running first (kept per browser).
-const f = { src: "all", proj: "", show: "open", q: "", sort: (() => { try { return localStorage.getItem("kz-ideas-sort") || "runs"; } catch { return "runs"; } })() };
-let go: (v: string, push?: boolean) => void = () => {};
-
-const nameOf = (dir, projects) => {
-  const l = projects?.find((p) => p.dir === dir)?.label || dir.replace(/[\\/]\.kaizen$/, "");
-  return l.split(/[\\/]/).pop() || l;
-};
-const srcLabel = (s) => s.label || PLAT[s.social] || (() => { try { return new URL(s.url).hostname.replace(/^www\./, ""); } catch { return s.url; } })();
-
-// Each card's source url, or "" for a hand-typed one.
-function sourcesOf(cards, d) {
-  const sigs = [...(d?.icebox ?? []), ...(d?.dismissed ?? [])];
-  const of = new Map<any, string>();
-  for (const c of cards) {
-    const s = sigs.find((s) => s.dir === c.state && ((c.kind === "run" && s.run === c.id) || (s.idea && (s.idea === c.text || s.idea === c.title))));
-    // A hand-added icebox item ("manual") is no outside source either.
-    of.set(c, /^https?:\/\//.test(s?.source ?? "") ? s.source : "");
-  }
-  return of;
+export const TASK_FILTERS = [
+  ["all", "All"],
+  ["needs-you", "Needs you"],
+  ["in-progress", "In progress"],
+  ["completed", "Completed"],
+] as const;
+export function filteredTasks(tasks: TaskView[], filter = "all", query = "", dir = "") {
+  const q = query.trim().toLocaleLowerCase();
+  const rank = { "needs-you": 0, "in-progress": 1, completed: 2 };
+  return tasks
+    .filter(
+      (t) =>
+        (!dir || t.dir === dir) &&
+        (filter === "all" || t.attention.category === filter) &&
+        (!q ||
+          [t.title, t.goal, t.projectName, t.attention.reason, t.attention.action]
+            .filter(Boolean)
+            .join(" ")
+            .toLocaleLowerCase()
+            .includes(q)),
+    )
+    .sort(
+      (a, b) =>
+        rank[a.attention.category] - rank[b.attention.category] ||
+        Number(new Date(b.updatedAt ?? 0)) - Number(new Date(a.updatedAt ?? 0)) ||
+        a.id.localeCompare(b.id),
+    );
 }
-
-// Keyboard: the row picked with the arrow keys (from the search box or the page), Enter acts on it.
-let sel = 0;
-const pg = pager("ideas");
-let shownRows: any[] = [];
-// Orca's Tasks shape: a toolbar over a list. The search box, the page's filters and New task
-// live in the shared header elsewhere, so they move in here and go back on leaving.
+let items: TaskView[] = [],
+  filter = "all",
+  sel = 0,
+  shown: TaskView[] = [],
+  loading = false,
+  again = false;
+let sequence = 0,
+  loaded = false,
+  error = "",
+  active = false;
+const pg = pager("tasks");
 let docked: [Comment, HTMLElement][] = [];
 function dock() {
-  if (!$("tk-bar")) $("tasksv").innerHTML = String(html`<div class="tk-bar" id="tk-bar"><div class="tk-row" id="tk-chips"></div><div class="tk-row"><label class="tk-q" id="tk-q">${SEARCH}</label><span id="tk-tools"></span></div></div><div class="tk-list" id="tk-list"></div>`);
+  if (!$("tk-bar"))
+    $("tasksv").innerHTML = String(
+      html`<div class="tk-bar" id="tk-bar">
+          <div class="tk-row" id="tk-chips" role="group" aria-label="Task filters"></div>
+          <div class="tk-row"><label class="tk-q" id="tk-q">${ico("search")}</label><span id="tk-tools"></span></div>
+        </div>
+        <div class="tk-list" id="tk-list"></div>`,
+    );
   if (docked.length) return;
-  for (const [id, to] of [["bq", "tk-q"], ["hx", "tk-tools"], ["newtop", "tk-tools"]]) {
-    const el = $(id),
-      mark = new Comment();
+  for (const [id, to] of [
+    ["bq", "tk-q"],
+    ["hx", "tk-tools"],
+    ["newtop", "tk-tools"],
+  ]) {
+    const el = $(id);
+    if (!el) continue;
+    const mark = new Comment();
     el.before(mark);
     docked.push([mark, el]);
     $(to).append(el);
   }
+  $("hx").innerHTML = String(
+    html`<button class="ib" id="tasks-refresh" title="Refresh tasks" aria-label="Refresh tasks">
+      ${ico("refresh")}
+    </button>`,
+  );
+  $("tasks-refresh").onclick = () => void refreshTasks();
 }
 function undock() {
   docked.forEach(([mark, el]) => mark.replaceWith(el));
   docked = [];
 }
-function draw() {
-  const box = $("tasksv");
-  if (!document.body.classList.contains("taskv")) return;
-  dock();
-  const { cards: all, projects, srcs } = railData();
-  const cards = all.filter((c) => !c.archived);
-  const src = sourcesOf(cards, srcs);
-  const known = new Map<string, any>((srcs?.sources ?? []).map((s) => [s.url, s]));
-  const present = [...new Set(cards.map((c) => src.get(c)!))];
-  if (f.src !== "all" && !present.includes(f.src)) f.src = "all";
-  const dirs = [...new Set(cards.map((c) => c.state))];
-  // "Showing": the same projects-shown set as the Board and the Icebox (store.shown).
-  const shownDirs = dirs.filter((d) => store.shown.has(d));
-  // The Board's header is the Tasks header too (as on the Icebox): its project picker, its
-  // Showing list and its search box drive this table.
-  const proj = store.all ? "" : store.S?.dir ?? "";
-  const q = (($("bq") as HTMLInputElement | null)?.value ?? "").trim().toLowerCase();
-  const fin = (c) => c.status === "done" || c.status === "abandoned";
-  const matched = cards
-    .filter((c) => f.src === "all" || src.get(c) === f.src)
-    .filter((c) => (proj ? c.state === proj : !shownDirs.length || shownDirs.includes(c.state)))
-    // Open: tasks not started yet and runs in flight. Running: runs in flight only. Done: finished runs.
-    .filter((c) => (f.show === "done" ? fin(c) : f.show === "running" ? c.kind === "run" && !fin(c) : !fin(c)))
-    .filter((c) => !q || (titleOf(c) + " " + nameOf(c.state, projects)).toLowerCase().includes(q))
-    // On Open, tasks above runs or runs above tasks, as chosen; newest first within each.
-    .sort((a, b) => (f.show === "open" ? (a.kind === b.kind ? 0 : (a.kind === "idea") === (f.sort === "ideas") ? -1 : 1) : 0) || (b.moved ?? b.added ?? 0) - (a.moved ?? a.added ?? 0));
-  const rows = pageOf(pg, matched);
-  const now = Date.now();
-  const seg = (v, l) => html`<button class="tk-chip${f.show === v ? " on" : ""}" data-show="${v}">${l}</button>`;
-  const srcName = (u) => (u === "all" ? "All sources" : u === "" ? "Manual" : known.get(u) ? srcLabel(known.get(u)) : srcLabel({ url: u }));
-  const srcMark = (u) => (u === "all" ? raw('<svg><use href="#r-bulb"/></svg>') : u === "" ? ico("pen") : srcIcon(known.get(u) ?? { url: u }));
-  const srcList = ["all", ...present.filter(Boolean), ...(present.includes("") ? [""] : [])];
-  // A pop-up picker: a button that opens a short list.
-  const pop = (id, label, rows) => html`<details class="combo ipop" id="${id}"><summary class="sel">${label}</summary><div class="menu-pop pick-list">${rows}</div></details>`;
-  const ck = raw('<svg class="ck"><use href="#i-check"/></svg>');
-  const sources = pop(
-    "ideas-src",
-    html`${srcMark(f.src)}<span>${srcName(f.src)}</span>`,
-    html`${srcList.map((u) => html`<button type="button" role="menuitemradio" data-src="${u}" aria-checked="${String(f.src === u)}">${srcMark(u)}<span>${srcName(u)}</span>${ck}</button>`)}`,
-  );
-  // Tasks' own filters, placed in the shared header after its search box.
-  const sortPop =
-    f.show === "open"
-      ? pop(
-          "ideas-sort",
-          html`<span>${f.sort === "ideas" ? "Tasks first" : "Running first"}</span>`,
-          html`${[["ideas", "Tasks first"], ["runs", "Running first"]].map(([v, l]) => html`<button type="button" role="menuitemradio" data-sort="${v}" aria-checked="${String(f.sort === v)}"><span>${l}</span>${ck}</button>`)}`,
-        )
-      : "";
-  // Scope and filters first; search, refresh and New task sit at the right (CSS order).
-  const chips = html`${seg("open", "Open")}${seg("running", "Running")}${seg("done", "Done")}`;
-  const extra = html`${sources}${sortPop}<button class="ib" id="ideas-ref" title="Refresh" aria-label="Refresh">${ico("refresh")}</button>`;
-  const table = !rows.length ? html`<div class="tk-empty">${raw('<svg><use href="#r-bulb"/></svg>')}<p>Nothing matches.</p><span>Try a different search or filter.</span></div>` : html`<table class="itable"><thead><tr><th></th><th>Title / context</th><th>Status</th><th>Updated</th><th></th></tr></thead><tbody>${rows.map((c, i) => {
-    const name = nameOf(c.state, projects),
-      st = stateOf(c),
-      agent = (c.tags ?? []).find((t) => AGENTS.includes(t));
-    return html`<tr><td>${logo(c.state, name, projects)}</td><td><b>${titleOf(c)}</b><div class="ctx">${name}${agent ? html`<span class="tag">${NAMES[agent]}</span>` : ""}</div></td><td><span class="stc"><span class="si ${st}"></span>${WORDS[st]}</span></td><td class="d">${c.moved || c.added ? age(c.moved || c.added, now) + " ago" : ""}</td><td><div class="acts">${asking === key(c) ? html`<span class="q">Delete?</span><button class="btn ghost" data-keep="1">Keep</button><button class="btn danger" data-yes="${i}">Delete</button>` : html`${c.kind === "idea" ? html`<button class="del" data-i="${i}" title="Delete task" aria-label="Delete task">${ico("trash")}</button>` : ""}<button class="go" data-i="${i}">${c.kind === "idea" ? "Start" : "Open"} ${ico("arrow")}</button>`}</div></td></tr>`;
-  })}</tbody></table>`;
-  const hx = $("hx");
-  // Not while a pop-up in it is open: redrawing would close it under the pointer.
-  if (!hx.querySelector("details[open]")) hx.innerHTML = String(extra);
-  $("tk-chips").innerHTML = String(chips);
-  $("tk-list").innerHTML = String(html`${table}${pagerHtml(pg)}`);
-  wirePager(pg, () => ((sel = 0), draw()));
-
-  hx.querySelectorAll<HTMLElement>("[data-src]").forEach((b) => (b.onclick = () => ((f.src = b.dataset.src!), (hx.innerHTML = ""), draw())));
-  hx.querySelectorAll<HTMLElement>("[data-sort]").forEach(
-    (b) =>
-      (b.onclick = () => {
-        f.sort = b.dataset.sort!;
-        try {
-          localStorage.setItem("kz-ideas-sort", f.sort);
-        } catch {}
-        hx.innerHTML = "";
-        draw();
-      }),
-  );
-  box.querySelectorAll<HTMLElement>("[data-show]").forEach((b) => (b.onclick = () => ((f.show = b.dataset.show!), (hx.innerHTML = ""), draw())));
-  $("ideas-ref").onclick = () => (void drawSources(true), void refreshBoardBadge());
-  box.querySelectorAll<HTMLElement>("button.go").forEach((b) => (b.onclick = () => act(rows[+b.dataset.i!])));
-  // The trash icon asks in its own row, as the board's card menu does; a redraw keeps the question.
-  box.querySelectorAll<HTMLElement>("button.del").forEach((b) => (b.onclick = () => ((asking = key(rows[+b.dataset.i!])), draw())));
-  box.querySelectorAll<HTMLElement>("[data-keep]").forEach((b) => (b.onclick = () => ((asking = null), draw())));
-  box.querySelectorAll<HTMLElement>("[data-yes]").forEach((b) => (b.onclick = () => del(rows[+b.dataset.yes!])));
-  // A click moves the highlight to its row too: it marks the keyboard's row, not the panel's.
-  box.querySelectorAll<HTMLElement>("tbody tr").forEach((tr, i) => (tr.onclick = (e) => !(e.target as Element).closest("button") && ((sel = i), mark(), detail(rows[i]))));
-  shownRows = rows;
-  sel = Math.max(0, Math.min(sel, rows.length - 1));
-  mark();
-}
-
-// Start: the run form in a popup (agent pick, then go), then the run workspace. Open: the card.
-// Cards of a project this board is not showing go through the board's deep link.
-function act(c) {
-  const here = store.S.cards.find((x) => key(x) === key(c));
-  if (!here) {
-    location.href = c.kind === "run" ? cardHref(c) + "&all=1" : `/?all=1&dir=${encodeURIComponent(c.state)}&idea=${encodeURIComponent(c.text)}`;
+export async function refreshTasks() {
+  if (!active) return;
+  if (loading) {
+    again = true;
     return;
   }
-  if (c.kind === "run") return openWorkspace(here);
-  runPopup(here);
+  loading = true;
+  do {
+    again = false;
+    const gen = ++sequence;
+    try {
+      const r = await fetch("/tasks?all=1"),
+        body = await r.json();
+      if (gen !== sequence || !active) continue;
+      if (!r.ok) throw new Error(body.why || body.error || "Tasks could not be loaded");
+      items = body.tasks ?? [];
+      loaded = true;
+      error = "";
+      setTaskAttention(items);
+      dispatchEvent(new CustomEvent("kz-task-list", { detail: items }));
+      draw();
+    } catch (e) {
+      if (active) {
+        error = e instanceof Error ? e.message : "Tasks could not be loaded";
+        draw();
+      }
+    }
+  } while (again);
+  loading = false;
 }
-
-// A task is deleted as the board's card menu does it, not recorded anywhere.
-let asking: string | null = null;
-async function del(c) {
-  asking = null;
-  const r = await post("/inbox", { op: "delete", dir: c.state, text: c.text });
-  if (r.ok) toast("Deleted");
-  load();
+function draw() {
+  if (!document.body.classList.contains("taskv")) return;
+  dock();
+  if ($("tk-list").contains(document.activeElement) && document.activeElement !== document.body) return;
+  const q = $("bq").value || "",
+    dir = !store.all ? (store.S.dir ?? "") : "";
+  const scoped = items.filter((t) => !dir || t.dir === dir);
+  const matched = filteredTasks(scoped, filter, q);
+  const rows = pageOf(pg, matched);
+  $("tk-chips").innerHTML = String(
+    html`${TASK_FILTERS.map(([id, label]) => html`<button type="button" class="tk-chip${filter === id ? " on" : ""}" data-task-filter="${id}" aria-pressed="${String(filter === id)}">${label}<span class="tp-filter-count">${id === "all" ? scoped.length : scoped.filter((t) => t.attention.category === id).length}</span></button>`)}`,
+  );
+  const empty = error
+    ? html`<p>${error}</p>
+        <button class="btn" type="button" id="tasks-retry">Try again</button>`
+    : !loaded
+      ? html`<p role="status">Loading tasks…</p>`
+      : scoped.length
+        ? html`<p>No tasks match</p>
+            <span>Try another search or show all tasks.</span
+            ><button class="btn" type="button" id="tasks-reset">Clear search and filters</button>`
+        : html`<p>What would you like to make?</p>
+            <span>Describe a goal. Keep the decisions, results and later changes together.</span
+            ><button class="btn pri" type="button" id="tasks-first">New task</button>`;
+  const list = rows.length
+    ? html`<div class="tp-task-list" aria-label="Tasks">
+        ${rows.map(
+          (t, i) =>
+            html`<button type="button" class="tp-task-row${sel === i ? " kb" : ""}" data-task-row="${String(i)}">
+              <span class="tp-task-main"
+                ><strong>${t.title}</strong
+                ><small
+                  >${
+                    t.projectName ||
+                    (t.dir
+                      ? t.dir
+                          .replace(/[\\/]\.kaizen$/, "")
+                          .split(/[\\/]/)
+                          .pop()
+                      : "Project needed")
+                  }${t.currentResultId ? " · Result available" : ""}</small
+                ></span
+              ><span class="tp-task-attention ${t.attention.category}"
+                ><span>${taskStatus(t)}</span><small>${t.attention.action}</small></span
+              ><span class="tp-task-age"
+                >${t.updatedAt ? age(Number(new Date(t.updatedAt)), Date.now()) + " ago" : ""}</span
+              >${ico("arrow")}
+            </button>`,
+        )}
+      </div>`
+    : html`<div class="tk-empty">${ico("plus")}${empty}</div>`;
+  // List changes never replace a focused row during a background state tick.
+  if (!$("tk-list").contains(document.activeElement) || document.activeElement === document.body)
+    $("tk-list").innerHTML = String(html`${list}${pagerHtml(pg)}`);
+  wirePager(pg, () => {
+    sel = 0;
+    draw();
+  });
+  $("tasksv")
+    .querySelectorAll<HTMLElement>("[data-task-filter]")
+    .forEach(
+      (b) =>
+        (b.onclick = () => {
+          filter = b.dataset.taskFilter!;
+          sel = 0;
+          pg.at = 0;
+          draw();
+        }),
+    );
+  $("tasksv")
+    .querySelectorAll<HTMLElement>("[data-task-row]")
+    .forEach((b) => (b.onclick = () => void openTaskRecord(rows[Number(b.dataset.taskRow)])));
+  $("tasks-first") &&
+    ($("tasks-first").onclick = () => dispatchEvent(new CustomEvent("kz-new-task", { cancelable: true })));
+  $("tasks-reset") &&
+    ($("tasks-reset").onclick = () => {
+      filter = "all";
+      $("bq").value = "";
+      sel = 0;
+      draw();
+      $("bq").focus();
+    });
+  $("tasks-retry") && ($("tasks-retry").onclick = () => void refreshTasks());
+  shown = rows;
+  sel = Math.max(0, Math.min(sel, shown.length - 1));
 }
-
-// A row's own click: the card's detail panel over this page. Another project's card goes
-// through the board's deep link, which opens the same panel there.
-function detail(c) {
-  const here = store.S.cards.find((x) => key(x) === key(c));
-  if (here) return open(here);
-  const e = encodeURIComponent;
-  location.href = `/?all=1&dir=${e(c.state)}&${c.kind === "run" ? "run=" + e(c.id) : "idea=" + e(c.text)}`;
-}
-
-function mark() {
-  const trs = [...document.querySelectorAll<HTMLElement>("#tasksv tbody tr")];
-  trs.forEach((tr, i) => tr.classList.toggle("kb", i === sel));
-  trs[sel]?.scrollIntoView({ block: "nearest" });
-}
-addEventListener("keydown", (e) => {
-  if (!document.body.classList.contains("taskv") || !shownRows.length) return;
-  const t = e.target as HTMLElement;
-  // From the search box, or anywhere on the page that is not another field or a menu.
-  if (t.id !== "bq" && (t.closest("input,textarea,select,[contenteditable],details,dialog") || t.isContentEditable)) return;
-  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-    e.preventDefault();
-    sel = Math.max(0, Math.min(shownRows.length - 1, sel + (e.key === "ArrowDown" ? 1 : -1)));
-    mark();
-  } else if (e.key === "Enter" && !e.isComposing) {
-    e.preventDefault();
-    act(shownRows[sel]);
-  }
-});
 export function openTasks() {
+  active = true;
   $("bq").placeholder = "Search tasks (press /)";
-  addEventListener("kz-view", () => (undock(), ($("bq").placeholder = "Filter cards (press /)")), { once: true });
-  void drawSources(true);
+  addEventListener(
+    "kz-view",
+    () => {
+      active = false;
+      sequence++;
+      undock();
+      $("bq").placeholder = "Filter cards (press /)";
+    },
+    { once: true },
+  );
   draw();
+  void refreshTasks();
 }
-export function initTasks(goTo: typeof go) {
-  go = goTo;
-  addEventListener("kz-rail", draw);
-  // The shared header's search box, project picker and Showing list.
-  addEventListener("kz-state", draw);
-  $("bq")?.addEventListener("input", () => ((sel = 0), draw()));
-  $("shows")?.addEventListener("click", () => queueMicrotask(draw));
+export function initTasks(_goTo) {
+  addEventListener("kz-state", () => {
+    if (active) void refreshTasks();
+  });
+  $("tasksv")?.addEventListener("focusout", () => setTimeout(draw, 0));
+  $("bq")?.addEventListener("input", () => {
+    sel = 0;
+    pg.at = 0;
+    draw();
+  });
+  addEventListener("keydown", (e) => {
+    if (!active || !shown.length || e.defaultPrevented) return;
+    const t = e.target as HTMLElement;
+    if (t.id !== "bq" && t.closest("input,textarea,select,[contenteditable],details,dialog")) return;
+    if (["ArrowDown", "ArrowUp"].includes(e.key)) {
+      e.preventDefault();
+      sel = Math.max(0, Math.min(shown.length - 1, sel + (e.key === "ArrowDown" ? 1 : -1)));
+      $("tasksv")
+        .querySelectorAll<HTMLElement>("[data-task-row]")
+        .forEach((b, i) => b.classList.toggle("kb", i === sel));
+      $("tasksv").querySelector(`[data-task-row="${sel}"]`)?.scrollIntoView({ block: "nearest" });
+    } else if (e.key === "Enter" && t.id === "bq" && !e.isComposing) {
+      e.preventDefault();
+      void openTaskRecord(shown[sel]);
+    }
+  });
 }
-
-// A click outside the Tasks header's pop-ups closes them.
-addEventListener(
-  "pointerdown",
-  (e) => {
-    if (!(e.target as Element).closest?.("details.ipop")) document.querySelectorAll<HTMLDetailsElement>("details.ipop[open]").forEach((d) => (d.open = false));
-  },
-  true,
-);

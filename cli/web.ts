@@ -41,6 +41,9 @@ import * as localsend from "./localsend.ts";
 import * as hermes from "./hermes.ts";
 import { listChats, readChat, sendChat, stopChat, deleteChat, okId as okChatId, busy as chatBusy, type Event as ChatEvent, type Upload as ChatUpload } from "./chat.ts";
 import { workspaces, workspacesNow, forgetWorkspaces, workspacesAge, addWorktree, linkedWs, unlinkTerm, codeDir, runAsync, run, branchState, openPr, mergePr, removeWorktree } from "./worktree.ts";
+import * as tasks from "./tasks.ts";
+import * as taskService from "./task-service.ts";
+import { artifactResponse as taskArtifactResponse } from "./task-results.ts";
 import { gitUrl, destDir, winBad, cloneInto, branchesOf, ignoreKaizen } from "./add-project.ts";
 
 const PAGE = join(dirname(import.meta.dir), "web", "board.html");
@@ -276,6 +279,23 @@ export async function web(repoDir: string, opts: Opts = {}) {
     : [cur]
   ).filter((d, i, arr) => arr.indexOf(d) === i && existsSync(d));
 
+  const taskHooks = {
+    launch: (dir: string, id: string, text: string, task: tasks.Task) => {
+      const live = liveAgent(dir, id);
+      if (live) { submitPty(live.key, text); return { ok: true, pty: live.key }; }
+      return launchRun({ severity: null, where: null, text, raw: text }, dir, id, { ...inCard(dir), task: { id: task.id, requirePlanConfirmation: !task.initialConfirmed } });
+    },
+    alive: (key: string) => ptyState(key)?.alive === true,
+    stop: (key: string) => killPty(key),
+  };
+  const taskPump = setInterval(() => {
+    for (const dir of states(true)) for (const task of tasks.listTasks(dir)) {
+      if (!task.safe || task.queuePaused || task.pendingDecision || !task.inputs.some(i => i.state === "queued")) continue;
+      try { taskService.dispatchReady(dir, task.id, taskHooks); changed(); } catch { /* CAS conflict: next pass reads the new state */ }
+    }
+  }, 1000);
+  taskPump.unref();
+  const taskProjects = () => states(true).filter(d => d !== join(home, ".kaizen")).map(dir => ({ dir, name: label(dir) }));
   // Hostnames the user opted into (KAIZEN_WEB_HOSTS or ~/.kaizen/web-hosts, e.g. a
   // `tailscale serve` name): matched exactly, empty when neither is set.
   const extraHosts = { has: (h: string) => webHosts().has(h) };
@@ -1424,6 +1444,20 @@ export async function web(repoDir: string, opts: Opts = {}) {
         }), { headers: { "content-type": "application/manifest+json" } });
       }
 
+      if (req.method === "GET" && ["/tasks", "/task", "/task-artifact"].includes(path)) {
+        const dir = qdir() ?? state ?? join(home, ".kaizen");
+        if (!states(true).includes(dir)) return bad("unknown state dir", 404);
+        try {
+          if (path === "/tasks") return json({ tasks: taskService.taskList(url.searchParams.get("all") === "1" ? states(true) : [dir]), projects: taskProjects(), defaults: taskService.taskDefaults(dir) });
+          const found = tasks.resolveTask(dir, url.searchParams.get("id") ?? url.searchParams.get("task") ?? "");
+          if (!found || !states(true).includes(found.state)) return bad("unknown task", 404);
+          if (path === "/task-artifact") return taskArtifactResponse(found.state, found.task.id, url.searchParams.get("result") ?? "", url.searchParams.get("artifact") ?? "", req, url.searchParams.get("download") === "1");
+          let task = taskService.reconcile(found.state, found.task, taskHooks);
+          if (task.safe && !task.queuePaused && !task.pendingDecision && task.inputs.some(i => i.state === "queued")) task = taskService.dispatchReady(found.state, task.id, taskHooks);
+          return json({ task: taskService.taskView(found.state, task), results: taskService.resultViews(found.state, task.id), projects: taskProjects(), defaults: taskService.taskDefaults(found.state) });
+        } catch (e) { return bad((e as Error).message, e instanceof tasks.TaskError ? e.status : 400); }
+      }
+
       if (req.method === "GET" && path === "/state") {
         const all = url.searchParams.get("all") === "1";
         // Before the project list: it registers folders that turn out to be set up.
@@ -2150,7 +2184,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         }
 
         // No project here means the global inbox, which is where the TUI puts tasks too.
-        let dir: string = body.dir ?? state ?? join(home, ".kaizen");
+        let dir: string = path === "/task" && body.op === "create" && body.dir === null ? join(home, ".kaizen") : body.dir ?? state ?? join(home, ".kaizen");
         // Choosing a folder from the projects folder is what sets it up: an empty
         // .kaizen, which the first run fills in. Only folders the board offered.
         if (path === "/cd" && dir === join(dirname(dir), ".kaizen") && (await fresh()).includes(dirname(dir))) {
@@ -2159,6 +2193,28 @@ export async function web(repoDir: string, opts: Opts = {}) {
           dir = canonState(dir);
         }
         if (!dir || !states(true).includes(dir)) return bad("unknown state dir", 404);
+
+        if (path === "/task") {
+          try {
+            if (body.op === "project") {
+              const found = tasks.resolveTask(dir, String(body.id ?? ""));
+              if (!found || !states(true).includes(found.state)) return bad("unknown task", 404);
+              if (found.task.revision !== Number(body.revision)) return bad("This task changed. Refresh before choosing a project.", 409);
+              let destination = typeof body.projectDir === "string" ? canonState(body.projectDir) : "";
+              if (body.name) { const made = await makeProject(String(body.name)); if ("error" in made) return bad(made.error, made.status ?? 400); if (!("dir" in made)) return bad("project not created"); destination = join(made.dir, ".kaizen"); }
+              if (!destination || !states(true).includes(destination) || destination === join(home, ".kaizen")) return bad("Choose a named project", 400);
+              const task = tasks.transferDraft(found.state, found.task.id, destination, dirname(destination));
+              const result = taskService.taskAction(destination, { op: "start", id: task.id, revision: task.revision, operationId: String(body.operationId) + ":start" }, taskHooks);
+              changed(); return json({ ok: true, task: taskService.taskView(result.state, result.task) });
+            }
+            if (!["create", "adopt"].includes(body.op)) {
+              const found = tasks.resolveTask(dir, String(body.id ?? ""));
+              if (!found || !states(true).includes(found.state)) return bad("unknown task", 404);
+            }
+            const result = taskService.taskAction(dir, body, taskHooks);
+            changed(); return json({ ok: true, task: taskService.taskView(result.state, result.task) });
+          } catch (e) { return bad((e as Error).message, e instanceof tasks.TaskError ? e.status : 400); }
+        }
 
         // Only checks the project: the page that picked it sends it back in x-kz-dir.
         if (path === "/cd") {
@@ -2599,6 +2655,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
             changed();
             return json({ ok: true });
           }
+          if (run.task_id && run.awaiting === "approvals.plan") return bad("Confirm the current proposal on the task page so its version is checked.", 409);
           if (!canApproveAwaiting(run.awaiting) || run.awaiting !== body.awaiting) return bad("this run is not waiting on that approval", 409);
           if (run.awaiting === "findings" && body.why !== undefined) return bad("open findings can only be approved as-is or fixed individually", 409);
           if (body.why !== undefined && !String(body.why).trim()) return bad("a revise needs a comment");

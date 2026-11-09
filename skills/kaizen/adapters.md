@@ -85,3 +85,7 @@ is ignored — the workflow is shared, the run data is not:
 !.kaizen/spec*.md
 !.kaizen/config.yml
 ```
+
+## Task-linked runs
+
+All supported adapters/runners receive task identity and frozen task policy in run state plus the launch prompt. They must use the supplied current CLI Task protocol (spec.md), acknowledge delivery, report structured questions/proposals/results/receipts and wait for explicit proposal confirmation. Do not infer acknowledgements from terminal output or swap to Home chat/Codex when the configured agent fails.

@@ -2,7 +2,7 @@
 // the Tasks entry's source icons and the Projects list; and the board's flat footer
 // (agent usage, terminal count, phone). Stands alone, so the notebook and video
 // bundles can carry it without the board.
-import { onBoardCards } from "./badge.ts";
+import { onBoardCards, attentionTasks, setTaskAttention, taskForCard } from "./badge.ts";
 import { store } from "./store.ts";
 import { $, html, modal, raw } from "./dom.ts";
 import { initResources } from "./resources.ts";
@@ -15,6 +15,8 @@ const DAY = 864e5;
 const STAGE = ["idea", "planning", "building", "reviewing", "done"];
 // A card's state icon (.si) and the word under its title.
 export function stateOf(c) {
+  const task = taskForCard(c);
+  if (task) return task.attention.category === "needs-you" ? "wait" : task.attention.category === "completed" ? "done" : ["interrupted", "failed"].includes(task.status ?? "") ? "stalled" : "build";
   // A task whose agent is working is a run being born: show it as planning.
   if (c.kind === "idea") return !c.pty?.alive ? "idle" : c.pty.asking ? "wait" : c.pty.busy ? "plan" : "idle";
   if (c.status === "waiting" || (c.pty?.alive && c.pty.asking)) return "wait";
@@ -24,6 +26,8 @@ export function stateOf(c) {
   return c.column >= 3 ? "review" : c.column === 2 ? "build" : "plan";
 }
 export function subline(c, now) {
+  const task = taskForCard(c);
+  if (task) return task.attention.reason + " · " + task.attention.action;
   // An idle agent and no run yet: it answered, or waits for the user.
   if (c.kind === "idea") return !c.pty?.alive ? "idea" : c.pty.asking ? "waiting on you" : c.pty.busy ? "planning · starting" : "agent · open";
   const t = c.moved ?? now;
@@ -199,6 +203,15 @@ const PIN = html`<svg viewBox="0 0 24 24" aria-label="Pinned" style="width:12px;
 const WT = html`<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="8" r="2"/><path d="M6 8v8M18 10c0 4-6 3-12 6"/></g></svg>`;
 let settleT: ReturnType<typeof setTimeout> | undefined;
 let drawn = "";
+let tasksReadAt = 0, tasksReading = false;
+async function readTaskAttention() {
+  if (tasksReading || Date.now() - tasksReadAt < 2000) return;
+  tasksReading = true; tasksReadAt = Date.now();
+  try { const r = await fetch("/tasks?all=1"); if (r.ok) { const body = await r.json(); setTaskAttention(body.tasks ?? []); } } catch { /* retain the latest persisted projection */ }
+  finally { tasksReading = false; }
+}
+const taskLinks = (dir: string, w: any, cards: any[]) => (attentionTasks ?? []).filter((t) => t.dir === dir && !t.legacy && (cards.some((c) => taskForCard(c)?.id === t.id) || (w.main && !(t.runs ?? t.runIds ?? []).length))).map((t) => html`<a class="rtask" href="/?view=task&task=${encodeURIComponent(t.id)}&dir=${encodeURIComponent(t.dir)}" data-task-id="${t.id}" data-task-dir="${t.dir}" title="${t.attention.reason} · ${t.attention.action}"><span class="si ${t.attention.category === "needs-you" ? "wait" : t.attention.category === "completed" ? "done" : "build"}"></span><span><b>${t.title}</b><small>${t.attention.reason}</small></span></a>`);
+
 export const wsLabel = (w) => w.branch || (w.main ? "workspace" : w.path.split(/[\\/]/).pop());
 function drawList() {
   const box = $("plist");
@@ -253,7 +266,7 @@ function drawList() {
           const st0 = cs.length ? stateOf([...cs].sort((a, b) => RANK[stateOf(a)] - RANK[stateOf(b)])[0]) : "";
           const st = st0 === "wait" || rows[0]?.st === "asking" ? "wait" : rows.some((r) => r.st === "working") ? "build" : st0 || (rows.length ? "done" : "");
           // The agent buttons are siblings of the link (a button inside a link is invalid).
-          return html`<div class="wsr wsc"><a class="row ws" href="${wsHref(dir, w.path)}" data-dir="${dir}" data-ws="${w.path}" title="${w.path}"><span class="si ${st || "none"}"></span><div class="wl"><span class="l1"><b>${wsLabel(w)}</b>${pins.has(dir + "\0" + w.path) ? PIN : ""}</span><span class="l2"><span>${folderOf(w)}</span>${w.main ? "" : WT}</span></div></a>${agentsHtml(rows, now, !!wsOpen[dir + "\0" + w.path], dir, w.path)}</div>`;
+          return html`<div class="wsr wsc"><a class="row ws" href="${wsHref(dir, w.path)}" data-dir="${dir}" data-ws="${w.path}" title="${w.path}"><span class="si ${st || "none"}"></span><div class="wl"><span class="l1"><b>${wsLabel(w)}</b>${pins.has(dir + "\0" + w.path) ? PIN : ""}</span><span class="l2"><span>${folderOf(w)}</span>${w.main ? "" : WT}</span></div></a>${agentsHtml(rows, now, !!wsOpen[dir + "\0" + w.path], dir, w.path)}</div>${taskLinks(dir, w, cs)}`;
         })}${shut ? "" : raw("</div>")}`;
       })
       .join("") || `<div class="none">No projects</div>`;
@@ -266,6 +279,12 @@ function drawList() {
   };
   box.onclick = (e) => {
     const t = e.target as HTMLElement;
+    const task = t.closest<HTMLElement>("[data-task-id]");
+    if (task) {
+      if (e.ctrlKey || e.metaKey || e.shiftKey) return;
+      if (ask("kz-open-task", { id: task.dataset.taskId, dir: task.dataset.taskDir })) e.preventDefault();
+      return;
+    }
     const term = t.closest<HTMLElement>("[data-term]");
     if (term) return void (e.preventDefault(), openTerm(term.dataset.dir!, term.dataset.ws!, term.dataset.term!));
     const tog = t.closest<HTMLElement>("[data-wopen]");
@@ -389,10 +408,13 @@ export function initRail() {
     });
   }).observe(document.body, { childList: true, subtree: true });
   if (!$("plist")) return;
+  addEventListener("kz-task-attention", drawList);
+  void readTaskAttention();
   onBoardCards((cards, projects, agents) => {
     last = { cards, projects: projects ?? last.projects, agents: agents ?? [] };
     drawList();
     void drawSources();
+    void readTaskAttention();
     onCount?.(cards);
     dispatchEvent(new Event("kz-cards"));
     told();

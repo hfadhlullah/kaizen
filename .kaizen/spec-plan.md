@@ -386,3 +386,7 @@ Either way, do not proceed to implementation on a rejected plan under any mode. 
 revised plan returns through this same approval; a killed run's `stage` never advances
 past `"abandoned"`.
 
+
+## Task-linked runs
+
+For a task-linked run, publish a concise structured proposal with outcome, constraints and checks plus expandable full-plan details using the Persistent Task protocol in spec.md. Questions and planning do not authorize production; wait for confirmation of this proposal even under saved auto mode.

@@ -25,3 +25,7 @@ The settings screen in the terminal and the settings file behind it: how each ch
 ## Explore integration (2026-11-08)
 
 `explore.enabled` is a project/global boolean defaulting false. Scalar reads and the comment-preserving writer share `cli/config-values.ts`; the run form gets the resolved default from `agentChoices`.
+
+## Persistent Tasks (2026-11-08)
+
+Persistent Tasks inherits agent, account, model and tool permission defaults without rewriting config. Initial proposal confirmation is frozen per run and takes precedence over global auto/plan-approval settings. A configured unavailable task agent produces a saved recoverable error instead of silently selecting a different agent.

@@ -131,7 +131,7 @@ function device() {
   const group = (title: string, cs: any[], shut = false) =>
     cs.length ? html`<details class="pgrp"${raw(shut ? "" : " open")}><summary>${title}<span>${cs.length}</span></summary><div class="plist2">${cs.map((c) => row(c, now))}</div></details>` : "";
   const idle = tasks().sort((a, b) => (b.moved ?? b.added ?? 0) - (a.moved ?? a.added ?? 0));
-  return html`${group("Waiting on you", wait)}${group("Active", active)}${group("Tasks", idle)}${group("Done", done, true)}${all.length || idle.length ? "" : html`<p class="pnote">No runs yet.</p>`}`;
+  return html`<a class="btn" href="?view=tasks" data-tasks="1">All tasks and results</a>${group("Waiting on you", wait)}${group("Active", active)}${group("Tasks", idle)}${group("Done", done, true)}${all.length || idle.length ? "" : html`<p class="pnote">No runs yet.</p>`}`;
 }
 
 function draw() {
@@ -201,6 +201,7 @@ export function initPhone(go: (v: string, push?: boolean) => void, openRun: (c) 
     }
     const a = t.closest<HTMLAnchorElement>("a");
     if (!a) return;
+    if (a.dataset.tasks) return (e.preventDefault(), go("tasks", true));
     if (a.dataset.dev) return (e.preventDefault(), go("device", true));
     if (a.getAttribute("aria-disabled")) return e.preventDefault();
     if (a.classList.contains("prow")) {
