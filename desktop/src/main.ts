@@ -4,7 +4,7 @@ import { appendFileSync, existsSync, openSync, readFileSync, writeFileSync, mkdi
 import { spawn } from "node:child_process";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { boardPort, forgetBoard, needsUpgrade, pickKaizen, reapStale, rememberBoard, startBoard, stopBoard, upgradeCmd, versionOf, waitReady, type Board } from "./server";
+import { boardPort, forgetBoard, needsUpgrade, windowButtons, pickKaizen, reapStale, rememberBoard, startBoard, stopBoard, upgradeCmd, versionOf, waitReady, type Board } from "./server";
 import { checkNow, installNow, startUpdates } from "./updater";
 import { desktopEntry } from "./appimage";
 import { autoUpdater } from "electron-updater";
@@ -153,7 +153,7 @@ function createWindow() {
     // No system title bar: the board's own top bar is it (web/*.html, html.desk). macOS keeps
     // its traffic lights inset; Windows and Linux draw their buttons over the page's top right.
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "hidden",
-    ...(process.platform === "darwin" ? {} : { titleBarOverlay: TITLE_BAR.dark }),
+    ...(windowButtons(process.platform, process.env) ? { titleBarOverlay: TITLE_BAR.dark } : {}),
     webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, preload: join(app.getAppPath(), "dist", "preload.js") },
   });
   const wc = win.webContents;
@@ -205,7 +205,7 @@ async function restart() {
 const fromBoard = (e: Electron.IpcMainInvokeEvent) => !!board && (e.senderFrame?.url ?? "").startsWith(board.url);
 // The page says when its theme is dark or light; the window buttons follow (not on macOS).
 ipcMain.handle("kz-titlebar", (e, dark) => {
-  if (!fromBoard(e) || !win || process.platform === "darwin") return;
+  if (!fromBoard(e) || !win || !windowButtons(process.platform, process.env)) return;
   try { win.setTitleBarOverlay(dark ? TITLE_BAR.dark : TITLE_BAR.light); } catch { /* no overlay on this window */ }
 });
 ipcMain.handle("kz-update-check", (e) => (fromBoard(e) ? checkNow() : null));
