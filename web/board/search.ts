@@ -161,7 +161,7 @@ function items(): Item[] {
   const click = (id: string) => () => $(id)?.click();
   const acts: [string, string, () => void, string?][] = [
     ["Home", "page", page("home", "/"), "chat"],
-    ["Icebox", "page", page("sources", "/?view=icebox"), "requests sources gathered"],
+    ["Icebox", "page", page("sources", "/?view=icebox"), "requests sources gathered capture inbox later add note"],
     ["Tasks", "page", page("tasks", "/?view=tasks"), "backlog"],
     ["Board", "page", page("board", "/?view=board"), "kanban runs"],
     ["Notes", "page", () => (location.href = "/notebook"), "notebook docs"],

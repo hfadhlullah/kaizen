@@ -40,4 +40,4 @@ Plain markdown files under `<state>/notes/`, folders allowed, so Obsidian can op
 ## Notes
 <!-- yours: /kaizen docs never rewrites this section -->
 
-- Phone navigation shares the board menu order: Runs, Search, Home, Icebox (with its waiting count), Chat, Terminal. Terminal links to the all-project terminal page. See [[Web board/Layout and look]].
+- Phone navigation shares the board menu order: Runs, Search, Home, Chat, Terminal. Terminal links to the all-project terminal page. See [[Web board/Layout and look]].
