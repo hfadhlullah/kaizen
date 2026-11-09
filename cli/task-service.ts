@@ -23,8 +23,8 @@ export function taskView(state:string,task:T.Task) {
   const run=runState(state,task), finished=run&&(['done','abandoned'].includes(run.stage)||run.healed);
   return {...task,activeRun:finished&&['ready','accepted'].includes(task.status)?null:task.activeRun,projectName:task.project?.split(/[\\/]/).pop()??'Choose a project',dir:state,updatedAt:task.updated,attention:{category:p.filter,reason:p.reason,action:p.action},statusLabel:p.label,decision:!task.project?{id:'project',kind:'project',text:'Choose a named project for your saved goal.'}:task.pendingDecision,messages:task.events,runs:task.runIds,currentResultId:task.currentResult,acceptedResultId:task.acceptedResult};
 }
-export function taskList(states:string[]) {
-  const tasks=states.flatMap(state=>T.listTasks(state).map(t=>taskView(state,reconcile(state,t))));
+export function taskList(states:string[],hooks?:Hooks) {
+  const tasks=states.flatMap(state=>T.listTasks(state).map(t=>taskView(state,reconcile(state,t,hooks))));
   // Legacy rows become durable only when opened. Stable keys include stamps/index,
   // never a title-based merge; existing inbox and run files are left intact.
   for(const state of states) {
