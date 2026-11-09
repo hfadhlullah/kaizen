@@ -11,7 +11,7 @@ import {
   reviewFindings, pickFindings, backlogItem, startedBacklog, closeBacklog, markBacklogDone, fixPrompt, approvalPrompt, canApproveAwaiting, gateOf, recordAcceptance, healRuns, finishRun, nativePath, closeSessions, sweepSessions, issueUrl,
   launchMode, pruneRuns, pruneSessions, readSessions, ownerOf, runIndex, resumePrompt, runAgent, firstSession, webHosts,
 } from "./state.ts";
-import { ACCOUNT_VAR, accountDir, addAccount, readAccounts, renameAccount, signedIn, removeAccount, resolveAccount, setDefaultAccount } from "./accounts.ts";
+import { ACCOUNT_VAR, accountDir, addAccount, loginStatus, readAccounts, renameAccount, removeAccount, resolveAccount, setDefaultAccount, type Login } from "./accounts.ts";
 import { readReport, signalOf } from "./report.ts";
 import { MAX_IMAGE, saveImage } from "./term-image.ts";
 import { shellHistory } from "./term-history.ts";
@@ -350,6 +350,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
   let usageCache: Usage[] = [];
   let usageAt = 0;
   const acctUsage = new Map<string, { at: number; usage: Usage | null }>();
+  const acctLogin = new Map<string, { at: number; login: Login }>();
   let pending: ReturnType<typeof setTimeout> | null = null;
   const prBusy = new Set<string>();
   // /state costs ~250 ms of this one thread on a big board (git status per project), and
@@ -1021,8 +1022,9 @@ export async function web(repoDir: string, opts: Opts = {}) {
           const a = KNOWN_AGENTS.find((k) => k.cmd === body.agent);
           if (!a || !agentUsable(a.cmd)) return bad("unknown agent", 400);
           agent = a.cmd;
-          // A sign-in names its account and runs plain: no bypass, no arguments.
-          const signIn = typeof body.account === "string" && body.account !== "";
+          // A sign-in names its account and runs plain: no bypass, no arguments. `account: ""`
+          // with `login: true` signs in the normal login (~/.claude, ~/.codex), never a default account.
+          const signIn = typeof body.account === "string" && (body.account !== "" || body.login === true);
           const acct = resolveAccount(a.cmd, signIn ? body.account : undefined);
           if (acct.error) return bad(acct.error, 400);
           bypass = !signIn && bypassForLaunch(a.cmd, body.yolo, !!YOLO_FLAGS[a.cmd]);
@@ -1586,9 +1588,18 @@ export async function web(repoDir: string, opts: Opts = {}) {
           if (why) return bad(why);
           added = r?.id;
           acctUsage.clear();
+          acctLogin.clear();
           changed();
         }
         const a = readAccounts();
+        // Who is signed in, asked of the tool itself (cli/accounts.ts loginStatus), a minute at a time.
+        const who = async (key: string, tool: "claude" | "codex", dir?: string): Promise<Login> => {
+          const hit = acctLogin.get(key);
+          if (hit && Date.now() - hit.at < 60_000) return hit.login;
+          const login = await loginStatus(tool, dir);
+          acctLogin.set(key, { at: Date.now(), login });
+          return login;
+        };
         const rows = await Promise.all(a.accounts.map(async (x) => {
           const dir = accountDir(x.id);
           let hit = acctUsage.get(x.id);
@@ -1596,9 +1607,22 @@ export async function web(repoDir: string, opts: Opts = {}) {
             hit = { at: Date.now(), usage: x.tool === "claude" ? await claudeUsageAt(dir) : codexUsageAt(dir) };
             acctUsage.set(x.id, hit);
           }
-          return { ...x, isDefault: a.default[x.tool] === x.id, signedIn: signedIn(dir, x.tool), usage: hit.usage, signIn: `${ACCOUNT_VAR[x.tool]}=${dir} ${x.tool}${x.tool === "codex" ? " login" : ""}` };
+          const l = await who(x.id, x.tool, dir);
+          return { ...x, isDefault: a.default[x.tool] === x.id, signedIn: l.signedIn, who: l.who, plan: l.plan, via: l.via, usage: hit.usage, signIn: `${ACCOUNT_VAR[x.tool]}=${dir} ${x.tool}${x.tool === "codex" ? " login" : ""}` };
         }));
-        return json({ accounts: rows, windows: process.platform === "win32", ...(added ? { added } : {}) });
+        // The normal login of each installed tool (~/.claude, ~/.codex): the one runs use unless an
+        // account above is the default.
+        const normal = await Promise.all((["claude", "codex"] as const).filter((t) => onPath(t)).map(async (t) => {
+          const key = "normal:" + t;
+          let hit = acctUsage.get(key);
+          if (!hit || Date.now() - hit.at > 60_000) {
+            hit = { at: Date.now(), usage: t === "claude" ? await claudeUsage(home) : codexUsage(home) };
+            acctUsage.set(key, hit);
+          }
+          const l = await who(key, t);
+          return { tool: t, isDefault: !a.default[t], signedIn: l.signedIn, who: l.who, plan: l.plan, via: l.via, usage: hit.usage, signIn: t === "claude" ? "claude auth login" : "codex login" };
+        }));
+        return json({ accounts: rows, normal, windows: process.platform === "win32", ...(added ? { added } : {}) });
       }
 
       // Settings → General → Cleanup: what `kaizen prune` would remove from this page's project,
