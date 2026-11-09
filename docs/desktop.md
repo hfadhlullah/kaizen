@@ -23,6 +23,12 @@ The macOS build is not signed yet. The first time, right-click the app and choos
 
 The app carries its own copy of kaizen and of Bun, so it works with nothing else installed. If `~/kaizen` (or `KAIZEN_HOME`) holds a newer kaizen, the app runs that one instead. When the app runs its own copy, the board hides its Update kaizen button: that copy is read-only and updates with the app. It reads the same `~/.kaizen` as the CLI, so the board shows the same projects and runs.
 
+**After an update.** Your agents read kaizen's skills, subagents and commands from `~/kaizen`
+(the copy `npx kaizen-agent` installed). When the app starts on a newer version than that copy,
+it runs `kaizen upgrade` on it in the background, once per app version, and says when it is done
+(or where the log is: `~/.kaizen/upgrade.log`). It leaves `~/kaizen` alone when there is none
+(desktop only), when it is a git checkout, or when it is already as new.
+
 ## How it works
 
 - `desktop/src/server.ts` takes port 7420 (what `kaizen web` and the phone's `tailscale serve` use) when it is free, else any free port, starts `bun cli/install.ts web --port N --no-open --foreground`, waits for it to answer, and stops the process and everything it started when you quit (SIGTERM on Linux and macOS, `taskkill /T` on Windows).

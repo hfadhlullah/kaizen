@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { boardPort, freePort, newer, pickKaizen, reapStale, rememberBoard, startBoard, stopBoard, waitReady } from "./server.ts";
+import { boardPort, freePort, needsUpgrade, newer, pickKaizen, reapStale, rememberBoard, startBoard, stopBoard, upgradeCmd, waitReady } from "./server.ts";
 
 // A stand-in for cli/install.ts: answers on --port like the board does.
 function fakeKaizen(version: string, body = `Bun.serve({ hostname: "127.0.0.1", port: Number(Bun.argv[Bun.argv.indexOf("--port") + 1]), fetch: () => new Response("board") });`) {
@@ -84,4 +84,30 @@ test("the board does not inherit the AppImage runtime's ARGV0 (zsh would hand it
   await waitReady(b, 10000);
   expect(await (await fetch(b.url)).text()).toBe("none");
   await stopBoard(b.child);
+});
+
+// After the app updates, ~/kaizen (what agents' skills link into) is upgraded only when it is an
+// npm install behind the app; never a git checkout, never created for a desktop-only user.
+test("needsUpgrade: only an older installed copy that is not a git checkout", () => {
+  const root = join(tmpdir(), `kz-up-${Date.now()}`);
+  const kz = (name: string, version: string, git = false) => {
+    const d = join(root, name);
+    mkdirSync(join(d, "cli"), { recursive: true });
+    writeFileSync(join(d, "cli", "install.ts"), "");
+    writeFileSync(join(d, "package.json"), JSON.stringify({ version }));
+    if (git) mkdirSync(join(d, ".git"));
+    return d;
+  };
+  const app = kz("app", "1.78.1");
+  expect(needsUpgrade(app, kz("old", "1.77.0"))).toBeNull();
+  expect(needsUpgrade(app, kz("same", "1.78.1"))).toBe("up to date");
+  expect(needsUpgrade(app, kz("newer", "1.79.0"))).toBe("up to date");
+  expect(needsUpgrade(app, kz("dev", "1.70.0", true))).toBe("a git checkout");
+  expect(needsUpgrade(app, join(root, "nothing"))).toBe("not installed");
+});
+
+test("upgradeCmd runs the installed copy's own upgrade, aimed at it, without the bundle's variables", () => {
+  const { argv, env } = upgradeCmd("/app/bun", "/home/u/kaizen", { PATH: "/usr/bin", KAIZEN_HOME: "/app/resources/kaizen", KAIZEN_DESKTOP_BUNDLED: "1", ELECTRON_RUN_AS_NODE: "1", ARGV0: "x.AppImage", APPDIR: "/tmp/.mount", OWD: "/home/u" });
+  expect(argv).toEqual(["/app/bun", join("/home/u/kaizen", "cli", "install.ts"), "upgrade"]);
+  expect(env).toEqual({ PATH: "/usr/bin", KAIZEN_HOME: "/home/u/kaizen" });
 });
