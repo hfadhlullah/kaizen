@@ -34,9 +34,9 @@ export function go(v, push) {
   // A workspace address shows in the run view, which resolves it to a card.
   if (v === "ws") v = "run";
   if (!["settings", "sources", "terminal", "board", "tasks", "run", "chat", "device"].includes(v)) v = "home";
-  // A phone has Home, Chat, Runs and Settings: the board, Tasks and the Icebox are set up on a computer,
-  // whose Home is the chat.
-  if (isPhone() ? ["board", "tasks", "sources"].includes(v) : v === "chat" || v === "device") v = "home";
+  // A phone has Home, Chat, Runs, the Icebox and Settings: the board and Tasks are set up on a
+  // computer, whose Home is the chat.
+  if (isPhone() ? ["board", "tasks"].includes(v) : v === "chat" || v === "device") v = "home";
   const was = view;
   view = v;
   markView(v);

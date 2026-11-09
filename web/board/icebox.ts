@@ -58,14 +58,18 @@ const PLAT = { x: "X", tiktok: "TikTok", instagram: "Instagram", threads: "Threa
 const KIND = { client: "Client", finding: "Finding", people: "People say" };
 // The capture box outlives every rebuild: its field and mic are kept nodes, so the text, the caret
 // and a dictation in progress survive a server change. Files and the picked board wait with it.
-const cap = { ta: null, mic: null, files: [], board: "", dir: null, busy: false };
+const cap = { ta: null, mic: null, files: [], board: "", boardDir: null, dir: null, busy: false };
 // Cards or Sort, per browser; the board and kind filters; the item menu that is open ("<item key> <menu>").
 let iceView = "cards";
 try {
   iceView = localStorage.getItem("kz-ice-view") === "sort" ? "sort" : "cards";
 } catch (e) {}
 let iceBoard = "",
-  iceMenu = "";
+  iceMenu = "",
+  // When the open menu was drawn: the redraw that shows it restores the scroll, and that scroll
+  // event must not shut it again.
+  iceMenuAt = 0,
+  iceMenuFor = "";
 const iceKinds = new Set();
 // Wired on the first open, not at import: tests load this module with no window.
 let narrowQ = null;
@@ -191,6 +195,8 @@ export async function openSources() {
   // And which control of which inbox row had focus, by item key: row indices shift when a row goes.
   const fRow = srcOpen() && document.activeElement?.closest?.(".ice-row,.ice-card"),
     fPick = fRow ? [fRow.dataset.k, document.activeElement.id.replace(/-\d+$/, "")] : null;
+  // And a Snooze date half picked in an open menu.
+  const sdKeep = srcOpen() && $("ice-sd")?.value ? [iceMenu, $("ice-sd").value] : null;
   const iceDraft =
     srcOpen() && $("ice-title") ? [$("ice-title").dataset.k, $("ice-title").value, $("ice-details").value] : null;
   // And a category typed on a row but not yet saved.
@@ -399,13 +405,16 @@ export async function openSources() {
   // The boards bar: All, each board with what waits on it, + Board; the kind filters on the right.
   const nOn = (b) => pv.filter((it) => isWaiting(it) && sameName(it.board, b.name)).length;
   const boardsBar = html`<div class="ice-boards"><div class="ice-chips" role="group" aria-label="Boards"><button class="ice-chip${iceBoard ? "" : " on"}" data-bd="" aria-pressed="${String(!iceBoard)}">All</button>${boards.map((b) => html`<button class="ice-chip${sameName(iceBoard, b.name) ? " on" : ""}" data-bd="${b.name}" aria-pressed="${String(sameName(iceBoard, b.name))}"${b.client ? raw(' title="A client\'s board: its items are Client"') : ""}>${b.client ? PERSON : ""}<span>${b.name}</span><i>${nOn(b)}</i></button>`)}<button class="ice-chip add" id="ice-nb" title="Make a board for a client or a topic">${ico("plus")}Board</button></div><div class="ice-chips" role="group" aria-label="Kinds">${Object.entries(KIND).map(([k, l]) => html`<button class="ice-chip k-${k}${iceKinds.has(k) ? " on" : ""}" data-kf="${k}" aria-pressed="${String(iceKinds.has(k))}">${l}</button>`)}</div></div>`;
-  const bar = html`<div class="tk-bar ice-bar">${!cardsOn && order.length ? html`<input type="checkbox" id="ice-all" aria-label="Select every request shown"${nSel && nSel === order.length ? " checked" : ""}>` : ""}${narrow ? "" : html`<div class="ice-view" role="group" aria-label="View"><button data-view="cards" aria-pressed="${String(cardsOn)}">Cards</button><button data-view="sort" aria-pressed="${String(!cardsOn)}">Sort</button></div>`}<span class="count">${iceCat === "Dismissed" || iceCat === "Done" ? `${order.length} ${iceCat.toLowerCase()}` : `${order.length < waiting ? `${order.length} of ${waiting}` : waiting} waiting`}</span><span class="ice-sub">newest first</span><span class="end"></span>${String(chips) ? html`<details class="ice-filt"><summary class="ib${iceCat || iceSrc ? " on" : ""}" aria-label="Filter requests" title="Filter by category or source">${ico("filter")}</summary><div class="ice-fpop">${chips}</div></details>` : ""}${order.some((i) => isWaiting(ice[i])) ? html`<button class="btn ghost sm" id="ice-sw" title="Sort one at a time: swipe right to promote, left to dismiss"><span aria-hidden="true">⇆</span> Swipe</button>` : ""}<button class="btn sm" id="src-tog" aria-expanded="${String(!!srcShow)}" aria-controls="src-sec" title="Sources, and Gather all">${ico("link")} Sources · ${list.length}</button></div>${cardsOn || !order.length ? "" : html`<div class="ice-keys">Sort: one pass to clear. <kbd>j</kbd> <kbd>k</kbd> move · <kbd>p</kbd> task · <kbd>h</kbd> snooze a week · <kbd>d</kbd> dismiss · <kbd>x</kbd> select</div>`}`;
+  const bar = html`<div class="tk-bar ice-bar">${!cardsOn && !narrow && order.length ? html`<input type="checkbox" id="ice-all" aria-label="Select every request shown"${nSel && nSel === order.length ? " checked" : ""}>` : ""}${narrow ? "" : html`<div class="ice-view" role="group" aria-label="View"><button data-view="cards" aria-pressed="${String(cardsOn)}">Cards</button><button data-view="sort" aria-pressed="${String(!cardsOn)}">Sort</button></div>`}<span class="count">${iceCat === "Dismissed" || iceCat === "Done" ? `${order.length} ${iceCat.toLowerCase()}` : `${order.length < waiting ? `${order.length} of ${waiting}` : waiting} waiting`}</span><span class="ice-sub">newest first</span><span class="end"></span>${String(chips) ? html`<details class="ice-filt"><summary class="ib${iceCat || iceSrc ? " on" : ""}" aria-label="Filter requests" title="Filter by category or source">${ico("filter")}</summary><div class="ice-fpop">${chips}</div></details>` : ""}${order.some((i) => isWaiting(ice[i])) ? html`<button class="btn ghost sm" id="ice-sw" title="Sort one at a time: swipe right to promote, left to dismiss"><span aria-hidden="true">⇆</span> Swipe</button>` : ""}${narrow ? "" : html`<button class="btn sm" id="src-tog" aria-expanded="${String(!!srcShow)}" aria-controls="src-sec" title="Sources, and Gather all">${ico("link")} Sources · ${list.length}</button>`}</div>${cardsOn || narrow || !order.length ? "" : html`<div class="ice-keys">Sort: one pass to clear. <kbd>j</kbd> <kbd>k</kbd> move · <kbd>p</kbd> task · <kbd>h</kbd> snooze a week · <kbd>d</kbd> dismiss · <kbd>x</kbd> select</div>`}`;
   // The capture box: what is typed, pasted, attached or dictated lands in the icebox on the picked
   // board. In All projects it names the project, as the Add pop-up did. Field and mic are slotted in.
   const capPs = dir ? [] : showable();
   if (!dir && !capPs.some((p) => p.dir === cap.dir))
     cap.dir = (store.shown.size === 1 ? [...store.shown][0] : null) || capPs[0]?.dir || null;
-  const capTo = dir || cap.dir,
+  const capTo0 = dir || cap.dir;
+  // A board picked for another project never goes along when the box's project changes.
+  if (cap.board && cap.boardDir && cap.boardDir !== capTo0) cap.board = "";
+  const capTo = capTo0,
     capP = capPs.find((p) => p.dir === cap.dir);
   const capBoards = ((d && d.boards) || []).filter((b) => b.dir === capTo);
   const capBox = html`<div class="ice-cap" id="ice-cap"><span id="ice-cap-slot"></span>${cap.files.length ? html`<div class="ice-att">${cap.files.map((f, n) => html`<span class="ice-file">${ico("clip")}<span>${f.name}</span><button type="button" class="ib sm" data-rf="${n}" aria-label="Remove ${f.name}" title="Remove">${ico("x")}</button></span>`)}</div>` : ""}<div class="ice-cap-row"><button type="button" class="ib" id="ice-pick" aria-label="Attach files" title="Attach files">${ico("clip")}</button><span id="ice-mic-slot"></span><input type="file" id="ice-file" multiple hidden>${dir ? "" : pick("ice-cp", "Project", capP ? html`${plogo(capP.dir, capP.label)}<span>${short(capP.label)}</span>` : html`<span>Choose project</span>`, html`${capPs.map((p) => opt(p.dir, p.dir === cap.dir, html`${plogo(p.dir, p.label)}<span>${p.label}</span>`, p.label))}`)}${pick("ice-cb", "Board", html`<span>Board: ${cap.board || "Inbox"}</span>`, html`${opt("", !cap.board, html`<span>Inbox</span>`, "inbox")}${capBoards.map((b) => opt(b.name, sameName(cap.board, b.name), html`${b.client ? PERSON : ""}<span>${b.name}</span>`, b.name))}${cap.board && !capBoards.some((b) => sameName(b.name, cap.board)) ? opt(cap.board, true, html`<span>${cap.board}</span><i>new</i>`, cap.board) : ""}${opt("\n", false, html`${ico("plus")}<span>New board…</span>`, "new board")}`)}<span class="hint ice-cap-hint">Enter saves · the kind is guessed; change it on the card</span><span class="end"></span><button type="button" class="btn pri sm" id="ice-save"${cap.busy ? " disabled" : ""}>${cap.busy ? "Saving…" : "Save ↵"}</button></div></div>`;
@@ -466,9 +475,36 @@ export async function openSources() {
       : "";
     return html`${head}${more}`;
   };
+  const hue = (t) => [...t].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 7);
+  // A phone row (under 640 px): kind, two lines, board and age, a thumbnail for a link (its
+  // site's hue and letter) or pictures (an icon and the count: nothing is fetched from their
+  // site), → Task. A swipe decides it: right a task, left dismissed; a long press snoozes.
+  const thumb = (it) => {
+    const lk = it.link && /^https?:\/\//i.test(it.link.url) ? it.link : null,
+      n = (it.images || []).filter((u) => /^https:\/\//.test(u)).length;
+    if (lk) {
+      const site = host(lk.url).replace(/^www\./, "");
+      return html`<span class="ice-th" style="--h:${hue(site)}" title="${lk.title || site}" aria-hidden="true">${(site[0] || "").toUpperCase()}</span>`;
+    }
+    return n ? html`<span class="ice-th pic" title="${n} pictures" aria-hidden="true">${ico("img")}<i>${n}</i></span>` : "";
+  };
+  const prow = (i) => {
+    const it = ice[i],
+      k = iceKey(it),
+      open = iceForm === k,
+      done = it.status === "promoted" || it.status === "done";
+    const head = html`<div class="ice-row ice-prow${iceCur === k ? " cur" : ""}" data-i="${i}" data-k="${k}"${live(it) ? raw(' data-swipe="1"') : ""}><div class="ice-pbg" aria-hidden="true"><span class="pro">${ico("check")}Task</span><span class="dis">Dismiss${ico("x")}</span></div><div class="ice-pf"><div class="ice-pm"><div class="ice-ph">${live(it) ? menuBtn(i, it, "kind", kindOf(it), "ice-kb", "Kind") : kindOf(it)}${it.sorted === "rules" && live(it) ? html`<span class="ice-uns">unsorted</span>` : ""}<span class="ice-meta">${badges(it)}</span></div><button class="ice-t" id="ice-o-${i}" data-o="${i}" aria-expanded="${String(open)}">${it.text}</button><span class="ice-pmeta">${proj(it)}${it.board ? html`<span>${it.board}</span>` : ""}<span>${ago(it.at)}</span></span></div>${thumb(it)}${done ? "" : it.status === "dismissed" ? html`<button class="btn ghost sm" id="ice-rs-${i}" data-rs="${i}" aria-label="Restore: ${it.text}">Restore</button>` : html`<button class="btn ghost sm ice-ptask" id="ice-pr-${i}" data-pr="${i}" aria-label="Promote to Tasks: ${it.text}">${ico("arrow")}Task</button>`}</div>${menu(i, it)}</div>`;
+    // Opened, a phone row also offers what its gestures do, for anyone who cannot swipe or hold.
+    const acts = live(it)
+      ? html`<div class="ice-form-acts ice-pacts">${menuBtn(i, it, "snooze", html`${ico("clock")}Snooze`, "btn ghost sm", "Snooze")}${menuBtn(i, it, "board", html`Board: ${it.board || "Inbox"}`, "btn ghost sm", "Board")}<span class="end"></span><button class="btn ghost sm" id="ice-ds-${i}" data-ds="${i}" aria-label="Dismiss: ${it.text}">${ico("x")}Dismiss</button></div>`
+      : "";
+    const more = open
+      ? html`<div class="ice-open">${it.notes ? html`<div class="ice-notes">${it.notes}</div>` : ""}${imgs(it)}<span class="hint" style="margin:0">From ${srcName(it)} · ${ago(it.at)}${it.post ? html` · <a href="${web(it.post)}" target="_blank" rel="noopener">open post</a>` : ""}</span>${acts}${replyBox(it)}${icePro === k ? form(it) : ""}</div>`
+      : "";
+    return html`${head}${more}`;
+  };
   // A card: what it is, the words, where it sits, how old. A link leads with its title and summary,
   // coloured from the site's name; nothing is fetched from the site to draw it.
-  const hue = (t) => [...t].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 7);
   const cardOf = (i) => {
     const it = ice[i],
       k = iceKey(it),
@@ -483,7 +519,7 @@ export async function openSources() {
       : order.length
         ? cardsOn
           ? html`<div class="ice-cards">${order.map(cardOf)}</div><div class="ice-cpg">${pagerHtml(icePg)}</div>`
-          : html`<div class="tk-list ice-list">${order.map(row)}${pagerHtml(icePg)}</div>`
+          : html`<div class="tk-list ice-list${narrow ? " ice-plist" : ""}">${order.map(narrow ? prow : row)}${pagerHtml(icePg)}</div>`
         : html`<div class="ice-zero"><h4>Nothing waiting</h4><p>Drop anything above: what a client asked for, something you found, what people say.</p>${list.length ? "" : html`<p style="margin-top:10px"><button class="btn sm pri" id="ice-addsrc">${ico("plus")} Add a source</button></p>`}</div>`;
   // Swipe: the waiting requests the filters show, least skipped first; a restored one
   // comes back on top. Nothing is written by a skip.
@@ -550,7 +586,7 @@ export async function openSources() {
         ? html`<p style="color:var(--dim)">The icebox could not be read.</p>`
         : iceSwipe
           ? html`${swipe()}${sec}`
-          : html`${capBox}${onb}${boardsBar}${bar}${bulk}${fails}${inbox}${sec}`;
+          : html`${capBox}${narrow ? "" : onb}${boardsBar}${bar}${bulk}${fails}${inbox}${sec}`;
   if (!d || d.error) return;
   const body = $("src-sec")?.querySelector(".body");
   if (body) body.scrollTop = at;
@@ -646,11 +682,16 @@ export async function openSources() {
         v = n;
       }
       cap.board = v;
+      cap.boardDir = dir || cap.dir;
       openSources().then(() => cap.ta.focus());
     });
   }
+  if (iceMenu !== iceMenuFor) {
+    iceMenuFor = iceMenu;
+    iceMenuAt = iceMenu ? Date.now() : 0;
+  }
   $("pbody").onscroll = () => {
-    if (!iceMenu) return;
+    if (!iceMenu || Date.now() - iceMenuAt < 400) return;
     iceMenu = "";
     $("pbody").querySelector(".ice-mpop")?.remove();
     $("pbody").querySelector('[data-m][aria-expanded="true"]')?.setAttribute("aria-expanded", "false");
@@ -660,7 +701,13 @@ export async function openSources() {
     .querySelectorAll("[data-bd]")
     .forEach((b) => (b.onclick = () => {
       iceBoard = b.dataset.bd;
-      if (iceBoard) cap.board = boards.find((x) => sameName(x.name, iceBoard))?.name || cap.board;
+      // The box follows the chip: its board, and in All projects that board's project.
+      const fb = iceBoard && boards.find((x) => sameName(x.name, iceBoard));
+      if (fb) {
+        cap.board = fb.name;
+        cap.boardDir = fb.dir;
+        if (!dir) cap.dir = fb.dir;
+      }
       openSources();
     }));
   $("pbody")
@@ -693,6 +740,7 @@ export async function openSources() {
       }
       if (srcOpen()) openSources();
     };
+  if (sdKeep && sdKeep[0] === iceMenu && $("ice-sd")) $("ice-sd").value = sdKeep[1];
   if (iceDraft && iceDraft[0] === iceForm && $("ice-title")) {
     $("ice-title").value = iceDraft[1];
     $("ice-details").value = iceDraft[2];
@@ -989,7 +1037,7 @@ export async function openSources() {
     .querySelectorAll(".ice-mpop")
     .forEach((pp) => {
       const it = ice[+pp.dataset.mi],
-        btn = pp.parentElement.querySelector(`[data-m="${iceMenu.slice(iceKey(it).length + 1)}"]`);
+        btn = pp.parentElement.querySelector(`[data-m="${iceMenu.slice(iceKey(it).length + 1)}"]`) || pp.parentElement.querySelector(".ice-pf");
       if (btn) {
         const r = btn.getBoundingClientRect(),
           h = pp.offsetHeight,
@@ -1285,6 +1333,127 @@ export async function openSources() {
     iceSwipe = null;
     openSources().then(focusCur);
   };
+  // Phone rows: drag right to make a task, left to dismiss (Undo on the toast), hold to snooze.
+  // The page keeps scrolling: a drag counts only once it is mostly sideways (touch-action: pan-y
+  // hands every vertical move to the browser, which cancels the pointer).
+  const undoDismiss = (it) => {
+    const t = $("toast"),
+      u = document.createElement("button");
+    u.type = "button";
+    u.className = "ice-undo";
+    u.textContent = "Undo";
+    u.onclick = async () => {
+      t.classList.remove("on");
+      if ((await post("/icebox", { op: "restore", dir: it.dir, ids: [it.id] })).ok) {
+        iceCur = iceKey(it);
+        toast("Back in the icebox");
+      }
+      load();
+      if (srcOpen()) openSources();
+    };
+    t.classList.add("rep");
+    t.append(" · ", u);
+  };
+  const rowGo = async (r, it, op) => {
+    r.classList.add("gone");
+    r.style.setProperty("--to", (op === "promote" ? 1 : -1) * r.offsetWidth + "px");
+    if (motion()) await new Promise((ok) => setTimeout(ok, 180));
+    if (soundPick() !== "off") playSound("pop");
+    stepPast(new Set([iceKey(it)]));
+    const j = await post("/icebox", { op, dir: it.dir, ids: [it.id] });
+    if (j.ok) {
+      toast(op === "promote" ? "Made a task" : "Dismissed");
+      if (op === "dismiss") undoDismiss(it);
+    }
+    load();
+    if (srcOpen()) openSources();
+  };
+  $("pbody")
+    .querySelectorAll(".ice-prow[data-swipe]")
+    .forEach((r) => {
+      const f = r.querySelector(".ice-pf"),
+        it = ice[+r.dataset.i];
+      f.onpointerdown = (e) => {
+        if (e.button || r.classList.contains("gone") || e.target.closest(".ice-ptask,.ice-kb,a,input,summary,.ice-mpop")) return;
+        const x0 = e.clientX,
+          y0 = e.clientY;
+        let dx = 0,
+          mode = "";
+        // A tap after a drag or a hold must not also open the row.
+        // A hold redraws the page under the finger, so the click that follows its release lands on
+        // the new menu: it is eaten on the whole document until just after that release.
+        const eat = () => {
+          const k = (c) => {
+            c.stopPropagation();
+            c.preventDefault();
+          };
+          document.addEventListener("click", k, { capture: true, once: true });
+          let gone = false;
+          const off = () => {
+            if (gone) return;
+            gone = true;
+            document.removeEventListener("pointerup", off, { capture: true });
+            document.removeEventListener("pointercancel", off, { capture: true });
+            setTimeout(() => document.removeEventListener("click", k, { capture: true }), 60);
+          };
+          if (mode === "hold") {
+            // Released, cancelled by the browser, or left far too long: the blocker goes either way.
+            document.addEventListener("pointerup", off, { capture: true });
+            document.addEventListener("pointercancel", off, { capture: true });
+            setTimeout(off, 5000);
+          } else off();
+        };
+        const hold = setTimeout(() => {
+          if (mode) return;
+          mode = "hold";
+          eat();
+          iceCur = iceKey(it);
+          iceMenu = iceKey(it) + " snooze";
+          navigator.vibrate?.(10);
+          openSources().then(() => $("pbody").querySelector(".ice-mpop button")?.focus());
+        }, 500);
+        const reset = () => {
+          f.style.transform = "";
+          r.style.removeProperty("--p");
+          delete r.dataset.dir;
+        };
+        const end = (cancel) => {
+          clearTimeout(hold);
+          f.onpointermove = f.onpointerup = f.onpointercancel = null;
+          if (mode !== "drag") return;
+          r.classList.remove("drag");
+          swHeld = false;
+          const late = swLate;
+          swLate = false;
+          eat();
+          if (!cancel && Math.abs(dx) > r.offsetWidth * 0.35) rowGo(r, it, dx > 0 ? "promote" : "dismiss");
+          else {
+            reset();
+            if (late) openSources();
+          }
+        };
+        f.onpointermove = (m) => {
+          const mx = m.clientX - x0,
+            my = m.clientY - y0;
+          if (!mode) {
+            if (Math.hypot(mx, my) > 8) clearTimeout(hold);
+            if (Math.abs(mx) > 10 && Math.abs(mx) > Math.abs(my)) {
+              mode = "drag";
+              f.setPointerCapture(m.pointerId);
+              r.classList.add("drag");
+              swHeld = true;
+            } else if (Math.abs(my) > 10) mode = "scroll";
+          }
+          if (mode !== "drag") return;
+          dx = mx;
+          f.style.transform = `translateX(${dx}px)`;
+          r.dataset.dir = dx > 0 ? "pro" : "dis";
+          r.style.setProperty("--p", String(Math.min(1, Math.abs(dx) / (r.offsetWidth * 0.35))));
+        };
+        f.onpointerup = () => end(false);
+        f.onpointercancel = () => end(true);
+      };
+    });
   if ($("ice-sw"))
     $("ice-sw").onclick = () => {
       iceSwipe = { n: 0, pro: 0, dis: 0, t0: Date.now(), last: null, skip: new Map(), busy: false, pop: false };

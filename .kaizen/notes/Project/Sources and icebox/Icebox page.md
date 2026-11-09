@@ -1,7 +1,7 @@
 ---
-description: The board's Icebox page on a wide screen: capture box, boards bar, Cards | Sort, item menus
+description: The board's Icebox page: capture box, boards bar, Cards | Sort, item menus, and the phone list with swipe
 tags: [project, sources, web-board]
-sources: [web/board/icebox.ts, web/board.html]
+sources: [web/board/icebox.ts, web/board.html, web/board/views.ts]
 updated: 2026-11-09
 ---
 # Icebox page
@@ -20,3 +20,13 @@ The page where you throw things into the icebox and sort them out: a box to type
 
 ## Notes
 <!-- yours: /kaizen docs never rewrites this section -->
+
+## Phone (2026-11-09-icebox-phone, run 3)
+- `go()` in `web/board/views.ts` no longer sends `sources` to Home on a phone; the bar's `.rail a.it[data-view=sources]` shows there (order Runs, Search, Home, Icebox, Chat, Terminal) with `#ice-n` as a badge. The side-menu block is copied line for line into `notes.html` and `video.html` (`cli/notes.test.ts`).
+- Under 640 px (`narrowQ`) the list uses `prow()`: kind, two clamped lines, board and age, a 44 px thumbnail (`.ice-th`: a link's hue and letter, or a picture icon and count; nothing is fetched), → Task. No select-all, keys line, Sources button or ChatGPT prompt there.
+- Gestures on `.ice-prow[data-swipe]` (waiting items): `.ice-pf` has `touch-action: pan-y`; a drag counts once it is >10 px and mostly sideways, decides past 35 % of the row (`rowGo`: right `promote`, left `dismiss` with Undo → `restore`), else springs back; a 500 ms hold opens the Snooze menu (`iceMenu`). After a drag or hold the next click is eaten (`eat`), on the document for a hold, since the redraw puts the menu under the finger. `swHeld` keeps a rebuild from dropping a drag, as in Swipe.
+
+## Watch out (phone)
+- `$("pbody").onscroll` shuts an open item menu; the redraw that opens one restores the scroll and fires it, so `iceMenuAt` ignores scrolls for 400 ms after a menu is drawn.
+- Headless Chromium does not scroll from synthetic touch anywhere on the page (`Input.synthesizeScrollGesture`, `dispatchTouchEvent`); prove gestures by item state, and real thumb scrolling on a device.
+- A half-picked Snooze date (`#ice-sd`) is carried across `openSources()`; a capture-box board picked for one project (`cap.boardDir`) is dropped when the box's project changes, and a board chip in All projects moves the box to that board's project.
