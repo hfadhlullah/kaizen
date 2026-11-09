@@ -253,3 +253,7 @@ Fix what the finding names and stop. A second defect noticed while fixing the fi
 a note in the iteration file, not a second fix: it has not been reviewed, and the
 recheck is scoped to what the iteration claims to have changed.
 
+
+## Task-linked runs
+
+For a task-linked run, acknowledge the supplied launch/input ids, obey frozen proposal confirmation, and publish real work/receipt/boundary/result events using spec.md. A safe boundary promises no active writes and all dispatched receipts acknowledged. Preserve settled deliverable files; report snapshot failures and validation limitations. A boundary lets the board deliver one queued batch to the same agent.

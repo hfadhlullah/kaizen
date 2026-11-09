@@ -29,3 +29,7 @@ The Home page with its chat, the first-run setup that walks a new user through c
 - Safari before 18.4 cannot play Ogg containers; notification audio shipped for the web board should use MP3 when older iPhones must work. (2026-10-27-richer-notification-sounds)
 
 - 2026-11-08 Chat receives the board server hostname, OS release and architecture on each turn, distinguishes its scratch working folder from the hosting machine, and must try appropriate read-only checks before claiming machine details are inaccessible. Live web search and command networking are explicitly enabled; configured MCP integrations and installed skills remain inherited from Codex. The brief tells the agent to inspect actual tool availability and use relevant installed skills. Workspace write boundaries and the development choice remain in place.
+
+## Persistent Tasks (2026-11-08)
+
+Persistent Tasks uses the configured workflow agent and structured task CLI events; it does not reuse Home chat or its fixed Codex model. A saved goal can choose/create a named project in its task page. Phone Runs exposes Tasks and both task/list views remain accessible on small screens. Technical permission controls remain reachable through task Technical details.

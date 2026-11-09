@@ -31,7 +31,7 @@ const interactive = process.stdin.isTTY && !check && !upgrade && !args.has("--ye
 // cli/install-unknown.test.ts fails if a dispatched word is missing here.
 const COMMANDS = ["automation", "help", "init", "browser", "card", "chat", "computer", "config", "docs", "done", "gather", "handoff",
   "icebox", "issue", "model", "preflight", "preview", "prune", "recall", "related", "remember", "report", "roadmap", "scrape", "search", "send", "settings", "setup", "sources",
-  "state", "stats", "uninstall", "upgrade", "version", "web", "worker", "worktree"];
+  "state", "stats", "task", "uninstall", "upgrade", "version", "web", "worker", "worktree"];
 const first = Bun.argv[2];
 const commandList = `  commands: ${COMMANDS.join(", ")}\n  plain \`kaizen\` opens the board; \`kaizen --yes\` installs; \`kaizen init\` sets up this folder\n`;
 if (first && !first.startsWith("-") && !COMMANDS.includes(first)) {
@@ -182,6 +182,25 @@ if (Bun.argv[2] === "computer") {
   const { out, code } = await computer(Bun.argv.slice(3), { home: homedir() });
   console.log(JSON.stringify(out));
   process.exit(code);
+}
+
+// Validated structured task events are the portable handshake for every agent.
+if (Bun.argv[2] === "task") {
+  const { locate } = await import("./state.ts");
+  const { stateOf } = await import("./report.ts");
+  const { taskEvent, taskView } = await import("./task-service.ts");
+  const { readTask } = await import("./tasks.ts");
+  const a = Bun.argv.slice(3), flag = (n: string) => { const i = a.indexOf(n); return i < 0 ? undefined : a.splice(i, 2)[1]; };
+  const id = flag("--task") ?? process.env.KAIZEN_TASK_ID, run = flag("--run") ?? process.env.KAIZEN_RUN_ID;
+  const payload = flag("--json"), operationId = flag("--operation") ?? crypto.randomUUID();
+  const state = stateOf(process.cwd(), locate());
+  try {
+    if (!state || !id) throw new Error("kaizen task show | event --task <uuid> --run <id> --operation <stable-id> --json '<event>'");
+    if (a[0] === "show") { const t = readTask(state, id); if (!t) throw new Error("Unknown task"); console.log(JSON.stringify(taskView(state,t))); }
+    else if (a[0] === "event" && payload && run) console.log(JSON.stringify(taskView(state,taskEvent(state,id,run,JSON.parse(payload),operationId))));
+    else throw new Error("Use task show or task event with --json and --run");
+  } catch (e) { console.error((e as Error).message); process.exit(1); }
+  process.exit(0);
 }
 
 // `kaizen report`: how an agent tells the board about its run. See cli/report.ts.

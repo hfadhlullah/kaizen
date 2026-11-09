@@ -52,11 +52,9 @@ Settings → Agents → Workflow has `explore.enabled` (false by default), a pro
 ## Research key (2026-11-09)
 
 Settings → Integrations → Research holds the Firecrawl key for `kaizen search` / `kaizen scrape`: a password field with Save, then Test (one search credit) and Remove. `GET /research-key` answers `{set, source, hint}` only, the last four characters, never the key; with `FIRECRAWL_API_KEY` in the board's environment the field is disabled and that key wins. Per user, so no scope.
-
 ## ChatGPT rows (2026-11-09-icebox-ai)
-
 `sources.model` / `sources.effort` are "ChatGPT model/effort for the icebox" (gathering social posts, sorting captures, drafting tasks) and no longer carry a `when`, so they are never shown idle.
-
 ## Normal login on AI Provider Accounts (2026-11-09-accounts-normal-login)
-
 `GET /accounts` also returns `normal` (one per installed tool: `signedIn`, `who`, `plan`, `via`, `usage`, `isDefault` when no account is the default) and `who`/`plan`/`via` on each account. They come from `loginStatus()` in `cli/accounts.ts`: `claude auth status --json` / `codex login status`, with `CLAUDE_CONFIG_DIR` / `CODEX_HOME` for an account and unset for the normal login, raced against a 5 s timeout (a killed CLI's children can hold its pipes open), cached a minute (`acctLogin`, cleared on any account change), falling back to the old file-exists check without the CLI. Codex's "an API key - sk-…" keeps only the method. The page draws a "Your login" row first per tool (`normalRow` in `web/board/settings-accounts.ts`); its Default posts `id: ""`, and its Sign in posts `/shell` with `account: ""` and `login: true`, which signs in the normal login rather than the default account.
+## Persistent Tasks (2026-11-08)
+Tasks uses configured workflow agent/account/model/permissions. The task-specific initial proposal gate is persisted on its run and does not alter saved Settings or enable bypass. Unavailable configured agents leave a recoverable saved task.

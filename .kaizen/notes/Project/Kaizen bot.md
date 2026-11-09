@@ -35,6 +35,10 @@ A separate app (`bot/`, its own `package.json`, private) that puts a chat in fro
 - Kaizen Bot's computer pilot bakes `bot/pilot/task.sh`, `probes.sh` and `cdp.py` into the `kz-pilot-sandbox` image: an edit there does nothing until `bot/pilot/setup.sh` rebuilds it. A dev server started with `bun start` keeps its old server code until restarted (use `bun --watch run src/server.ts`); the page HTML is re-read per request, so a new page on an old server looks like a broken feature. (2026-10-09-bot-computer-pilot)
 - Computer-pilot sandboxes are named `kz-<card id>-*`, and card ids are per database: `bot/pilot/run-pilot.ts` and a running Kaizen Bot can collide on a name. Check `docker ps --filter label=kaizen.sandbox=1` is empty before a pilot run. (2026-10-09-bot-computer-pilot)
 
+## Persistent Tasks (2026-11-08)
+
+The generated bot bundle banner changes when the shared frontend source hash changes. Persistent Task pages are a board feature; this run does not change the Bot interaction or approval model.
+
 ## Notes
 <!-- yours: /kaizen docs never rewrites this section -->
 

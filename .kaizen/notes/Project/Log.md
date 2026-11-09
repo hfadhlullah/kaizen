@@ -310,3 +310,6 @@ updated: 2026-10-31
 - 2026-11-09 run 2026-11-09-desktop-titlebar-room — Layout and look: the window buttons no longer cover the workspace bar or the run panel
 - 2026-11-09 run 2026-11-09-board-ui-consistency — Layout and look, Run workspace: one switch, icon button and select on every page; the run panel strip and body line up with its header; the tab bar's eye button is now Run app
 - 2026-11-10 run 2026-11-10-measured-alignment-audit — Release and testing, Layout and look, Run workspace: `bun run audit:ui` measures alignment on every screen; one top line across the side menu, headers and run view; one height for a one-line `.sel`
+
+- 2026-11-08 run 2026-11-08-task-page-usability — Tasks, Run workspace, Server and routes, Video, Layout and look, Home/chat/phone, Workflow, Release and testing, Conventions and gotchas.
+- 2026-11-08 run 2026-11-08-task-page-usability — refreshed CLI hub/run commands/settings and Web board hub/cards/git/workspaces/settings/terminals source notes; regenerated shared-hash Bot banner.

@@ -33,7 +33,7 @@ The product itself: a staged workflow (plan, approval, build, independent review
 
 ## How it connects
 - Global knowledge: the reviewer saves lessons that hold beyond the project with `kaizen remember` and lists them in `04-review.md` `## Remembered`, which the final report repeats, and only past a four-test gate in `spec-review.md` (reusable, high-signal, evidenced, new — recall before saving; zero is normal); the planner runs `kaizen recall` and ends its Framing with `Recalled:` (`spec-review.md`, `spec-plan.md`, `spec-main.md`). See [[CLI]].
-- A request for a whole app (more than one module) is planned as a roadmap (`spec-plan.md`, *A whole application is a roadmap*): `## Discovery` (up to three question rounds), `## Foundation` (frontend, backend and their contract, database and data model, auth, hosting and deploy as chosen in discovery (CI/CD, Docker, managed platform, mobile store builds), layout, and the look and feel asked in discovery) and a numbered `## Roadmap` of end-to-end feature increments, ending with a go-live increment for an app real people use. The run builds increment 1, the skeleton; at approval the main thread files increments 2..N with `kaizen card add --parent` (`spec-main.md`, *Child cards*), and the parent card lists them as children. An increment run reads its parent's Discovery and Foundation as binding.
+- One run is the default; a roadmap is proposed only when dependencies, a later external decision or independent review make one run unsafe (`spec-plan.md`). The plan states why and the user may keep one run. Roadmap plans record Discovery, Foundation and ordered phases; only increment 1 is built by that run.
 - A child card is filed as `kaizen card add "<short title>" --notes "<details>"`: the title stays a few words, the details land in the task's notes under `Parent:` (`addCard` in `cli/state.ts`).
 - Any run whose request names an existing thing without its source (app, APK, binary, file format, device, protocol) offers REA once (`spec-plan.md`, *Offer REA*); when REA is not connected it offers to install it (`rea-agents doctor`, a `setup --dry-run` shown to the user, `setup --yes` only on approval, then a restart and resume), point to the board's Settings → Skills → *Reverse engineering (REA)* switch and give the command, or skip; the main thread asks discovery rounds and that question (`spec-main.md`, *Discovery rounds*).
 - Runs are written to `.kaizen/runs/<id>/`; [[Web board]] and [[Terminal board]] read them through `cli/state.ts`.
@@ -55,6 +55,10 @@ The product itself: a staged workflow (plan, approval, build, independent review
 
 ## Landing
 A land rebases first, resolves only `git.generated` paths, runs `git.land_check` after pulled commits, and records a failure in `runs/<id>/land.json`. The board reads it as the card's `land` and each agent's `land`, showing `Conflict` or `Land failed` with a red `!`.
+
+## Persistent Tasks (2026-11-08)
+
+Task-linked runs freeze task_id and task_policy in state before spawn; initial plan confirmation overrides saved auto defaults under both full and lite. The sanctioned state/done writers reject production before the current proposal confirmation. Source spec.md documents portable task ack/question/proposal/work/receipt/boundary/result events. The launch prompt supplies the current CLI and source protocol for older installed skill copies. Task feedback explicitly authorizes a linked follow-up after done/abandoned (the task-specific exception to the general follow-up question); never reopen finished runs. Task Looks good remains separate from run completion, git housekeeping and publication.
 
 ## Notes
 <!-- yours: /kaizen docs never rewrites this section -->

@@ -881,3 +881,31 @@ Firecrawl API key under Settings → Integrations → Research (your own key fro
 firecrawl.dev, kept in `~/.kaizen/firecrawl.json`; `FIRECRAWL_API_KEY` wins when
 set). Without a key it uses the agent's own web tools, and with none it says so
 and works from local material. No research service is required.
+that brief; confirming it does not approve implementation. Research uses available
+agent tools; no additional research service is required.
+## Start and revisit a Task
+Open Tasks and choose New task. Describe the goal and optionally attach references.
+The goal is saved immediately. With no project selected, choose or create a named
+project in the conversation. Your configured workflow agent and permissions apply;
+expand Technical details to inspect them or open the existing run workspace.
+Answer necessary questions, review the short proposal and choose Confirm proposal.
+Production waits for that version of your confirmation, including under auto mode.
+Requests sent during production receive durable receipts and queue for the next
+acknowledged safe pass. A status question uses the saved context without starting
+production. Stop requests cancellation, keeps queued requests and existing edits,
+and reports Stopping until confirmed. Resume reconciles interrupted work; it does
+not promise rollback.
+Results can contain live website links, readable text/Markdown, PDFs, images,
+video/audio players and named downloads. HTML, SVG and unsupported office formats
+are download-only. Live links remain mutable; saved files are separate snapshots.
+Earlier saved results remain available after source changes. Completed files are
+retained without automatic expiry, with stored sizes shown; a copy/storage error is
+visible and keeps the previous version. A result is limited to 2GB of deliverable
+files; source trees and databases are not app backups. Video identity can be linked
+without replacing the Video editor's recipes.
+Read Checks and Limitations before accepting: a visible registration form does not
+prove registration storage works. Looks good accepts the current completed result
+once workflow decisions and queued work are resolved. It does not publish or deploy
+anything. Later feedback stays on the same task and creates a linked internal run
+when the earlier run is finished. Use Saved results to revisit files, and Technical
+details for terminals, plan/review evidence and source-control housekeeping.

@@ -34,3 +34,7 @@ A land rebases first, resolves only `git.generated` paths, runs `git.land_check`
 ## Explore integration (2026-11-08)
 
 Explore confirmation prepares Plan and never enters final acceptance or commit/push. The existing plan and final review gates still apply; see [[Workflow]].
+
+## Persistent Tasks (2026-11-08)
+
+Task acceptance (Looks good) is separate from run/git acceptance. Shared task attention ignores gitDue bookkeeping when deciding whether the product needs the user. Source-control tools remain in the linked technical run workspace; task acceptance never publishes or deploys.

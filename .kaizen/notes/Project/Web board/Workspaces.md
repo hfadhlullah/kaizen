@@ -23,3 +23,7 @@ Workspaces: each project's folders and branches listed in the side menu, the car
 ## Explore integration (2026-11-08)
 
 Run details show an optional Explore step and brief before Plan, with per-run Skip Explore. Active exploration terminals are labelled Explore. See [[Web board/Cards]].
+
+## Persistent Tasks (2026-11-08)
+
+Shared durable task projections supply the workspace task links/reasons and waiting counts. A task may own multiple linked runs while one task page remains visible; the rail uses its stable task URL. Technical workspace tools are preserved under the task page details.

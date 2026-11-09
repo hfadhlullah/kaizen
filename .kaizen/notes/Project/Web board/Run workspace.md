@@ -37,3 +37,7 @@ The page a run opens into: its plan, review and backlog tabs, the browser and pr
 ## Agent launch and phone keyboard (2026-11-08)
 
 Creating a workspace agent (including split menus) now opens the per-launch Yolo permission switch before starting it. Cancel starts no terminal; if the workspace changes while the dialog is open, the pending launch is discarded.
+
+## Persistent Tasks (2026-11-08)
+
+Persistent task pages link to the existing run workspace through Technical details. Task conversation, versioned results and Looks good belong to the task; terminals, plan/review artifacts and git operations remain in the run workspace. Structured Task events supplement existing report.json; terminal text and quiet/busy flags do not acknowledge task delivery or safe write boundaries.

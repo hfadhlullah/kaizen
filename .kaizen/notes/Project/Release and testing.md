@@ -33,6 +33,10 @@ Tests are `bun test` (all `*.test.ts`, `cli/` and `bot/`), run in CI on Ubuntu, 
 - To run `cli/install.ts` as if on Windows from Linux, use a wrapper file that does `Object.defineProperty(process, "platform", { value: "win32" })` and then `await import(<install.ts>)`. `bun --preload` with the same line does not take effect for it. Run it with `env -i HOME=<scratch> PATH=<dir with only bun>` so no real git or home is reached.
 - GitHub's release downloads answer 5xx now and then (v1.76.0's desktop and test runs all failed on one 504 window). `setup-bun` is retried once after a pause in both workflows, and `desktop/scripts/fetch-bun.ts` checks the status and retries, so an error page is never hashed as the zip (that showed as a false "checksum mismatch").
 
+## Persistent Tasks (2026-11-08)
+
+Persistent Tasks adds cli/tasks.test.ts, cli/task-results.test.ts, cli/web-tasks.test.ts and web/board/task-page.test.ts. Fixtures cover UUID/CAS/idempotence, draft transfer, safe queue boundaries, policy gates under auto/full/lite, recovery, accepted linked follow-ups, immutable bytes, copy/storage failures, artifact containment/ranges and typed viewers. Runtime verification uses a scratch HOME/project, configured stand-in agent and real browser inputs; it does not prove compliance by every external model. Human beginner observation remains separate from automated UI checks.
+
 ## Notes
 <!-- yours: /kaizen docs never rewrites this section -->
 

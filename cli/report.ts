@@ -4,7 +4,7 @@
 import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-export type Handback = { stage: string; iteration?: number; outcome: "succeeded" | "failed"; summary: string; files: string[] };
+export type Handback = { stage: string; iteration?: number; outcome: "succeeded" | "failed"; summary: string; files: string[]; task?: { id: string; result: string | null } };
 export type Report = { phase?: string; at: number; blocked?: { question: string; options: string[] }; handback?: Handback };
 export type Signal = "blocked" | "stale" | "unverified" | null;
 
@@ -38,9 +38,12 @@ export const reportBlocked = (state: string, id: string, question: string, optio
 export const reportUnblock = (state: string, id: string) => write(state, id, (r) => { delete r.blocked; });
 export function reportDone(state: string, id: string, stage: string, outcome: string, summary: string, files: string[]) {
   if (outcome !== "succeeded" && outcome !== "failed") return "outcome is succeeded or failed";
-  let iteration = 0;
-  try { iteration = Number(JSON.parse(readFileSync(join(state, "runs", id, "state.json"), "utf8")).iteration) || 0; } catch { /* write() reports it */ }
-  return write(state, id, (r) => { r.handback = { stage: clip(stage, 20), iteration, outcome, summary: clip(summary, 600), files: files.slice(0, 200).map((f) => clip(f, 300)) }; delete r.blocked; });
+  let iteration = 0, task: Handback["task"];
+  try {
+    const run = JSON.parse(readFileSync(join(state, "runs", id, "state.json"), "utf8")); iteration = Number(run.iteration) || 0;
+    if (typeof run.task_id === "string") { const t = JSON.parse(readFileSync(join(state, "tasks", run.task_id, "task.json"), "utf8")); task = { id: t.id, result: t.currentResult ?? null }; }
+  } catch { /* write() reports it */ }
+  return write(state, id, (r) => { r.handback = { stage: clip(stage, 20), iteration, outcome, summary: clip(summary, 600), files: files.slice(0, 200).map((f) => clip(f, 300)), ...(task ? { task } : {}) }; delete r.blocked; });
 }
 
 // What the card shows. `pty` is the board's terminal for the run; without one the agent

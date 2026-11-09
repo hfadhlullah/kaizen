@@ -48,3 +48,7 @@ The phone Terminal menu opens the terminal page across every project, independen
 ## Agent launch and phone keyboard (2026-11-08)
 
 The composer now has an icon-only Raw keyboard button where Send was; the phone Enter key submits composer text. Raw input focuses xterm directly. `web/board/terminal-viewport.ts` fits the phone app to `visualViewport.height` while the terminal or composer is focused and the keyboard reduces the visible area; it ignores pinch zoom and cleans up listeners when the last terminal unmounts. Actual iOS keyboard behavior still needs device verification.
+
+## Persistent Tasks (2026-11-08)
+
+The task queue dispatches into a live run terminal only after a structured acknowledged safe boundary. Busy/quiet flags never authorize a new task writer. Stop kills the supported board process and reports stopping until termination is observed; unsupported external sessions require technical reconciliation. Session records retain task identity.

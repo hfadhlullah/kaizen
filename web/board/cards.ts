@@ -697,6 +697,8 @@ function taskForm(f, shut) {
 
 // New task from the top bar, the empty board or n: the same form, in a modal.
 export function newTask(from?: { dir: string | null }) {
+  const taskDir = from && "dir" in from ? from.dir : !store.all ? store.S.dir : null;
+  if (!dispatchEvent(new CustomEvent("kz-new-task", { cancelable: true, detail: { dir: taskDir } }))) return;
   // The header button passes its click event: only an explicit { dir } is another page's call.
   formPick = from && "dir" in from ? from : null;
   if (store.mode === "new") {

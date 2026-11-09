@@ -52,7 +52,7 @@ export function initKeys() {
       return;
     }
     // The Terminal page has no cards to move between; its keys are the terminals'.
-    if (view === "terminal") return;
+    if (view === "terminal" || view === "task") return;
     if (e.key === "n" && !document.querySelector("dialog[open]")) {
       newTask();
     }

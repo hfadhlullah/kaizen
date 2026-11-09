@@ -69,3 +69,5 @@ WhatsApp MP4s over 64 MiB use Hermes' `[[as_document]]` directive, preserving th
 ## Research key route (2026-11-09)
 
 `GET`/`POST /research-key` (`cli/research.ts`): POST `{op: "save", key}`, `{op: "remove"}` or `{op: "test", key?}` goes through `strict()` and `local()`; every answer is `keyStatus()` (`set`, `source`, `hint`), never the key. A failed test answers 200 with `error`, so the page shows Firecrawl's reason.
+## Persistent Tasks (2026-11-08)
+Task routes: GET /tasks (all=1 for all registered states), GET /task?id=&dir=, GET /task-artifact?task=&result=&artifact=&dir= and strict-Origin JSON POST /task. All state dirs and aliases must remain registered. POST supports create/adopt/start/message/confirm/accept/stop/resume/project. Named project creation reuses makeProject. Artifact ids resolve immutable private snapshots, with safe MIME/download headers and byte ranges. Cross-origin task mutations fail through the existing strict guard. The 1s task pump dispatches only acknowledged safe queued batches, independently of an open page. Legacy /decide cannot bypass the task page proposal-version check.

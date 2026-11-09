@@ -6,6 +6,8 @@ import { md } from "./markdown.ts";
 // The editor is turned back into markdown on every edit; typing a markdown pattern
 // (`**b**`, `` `c` ``, `- `, `1. `, `# `) re-renders the editor with md().
 
+// Keep Markdown hard breaks exact without generated multiline trailing spaces.
+const HARD_BREAK = "  " + String.fromCharCode(10);
 const ZW = /\u200b/g;
 // Editor DOM to markdown. Paragraph blocks are separated by a blank line, list items
 // by a newline, so md() renders them back as the same blocks.
@@ -16,11 +18,11 @@ export function toMd(root) {
       return n.textContent
         .replace(ZW, "")
         .replace(/\u00a0/g, " ")
-        .replace(/\n/g, "  \n");
+        .replace(/\n/g, HARD_BREAK);
     if (n.nodeType !== 1) return "";
     const t = n.nodeName.toLowerCase(),
       kids = () => [...n.childNodes].map(inl).join("");
-    if (t === "br") return "  \n";
+    if (t === "br") return HARD_BREAK;
     if (t === "b" || t === "strong") return ((s) => (s.trim() ? `**${s}**` : s))(kids());
     if (t === "i" || t === "em") return ((s) => (s.trim() ? `*${s}*` : s))(kids());
     if (t === "code") return ((s) => (s ? "`" + s + "`" : s))(n.textContent.replace(ZW, ""));
