@@ -207,9 +207,11 @@ export async function openSources() {
     return "link";
   };
   const list = (d && d.sources) || [],
-    // Dismissed items ride along, shown only under their own category.
-    ice = [...((d && d.icebox) || []), ...((d && d.dismissed) || [])],
-    waiting = ((d && d.icebox) || []).length,
+    // Dismissed items ride along, shown only under their own category. A snoozed item is
+    // left out of the list, the count and Swipe until its date (the server says `asleep`).
+    awake = ((d && d.icebox) || []).filter((it) => !it.asleep),
+    ice = [...awake, ...((d && d.dismissed) || [])],
+    waiting = awake.length,
     G = (d && d.gatherer) || {},
     chatOn = G.use === "chatgpt" && G.connected;
   // A source belongs to one project, named on its row. Picking another only arms Move: a select

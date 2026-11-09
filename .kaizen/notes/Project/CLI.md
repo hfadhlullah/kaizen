@@ -2,7 +2,7 @@
 description: The kaizen command — a hub; its topics are the sub-notes below
 tags: [project, cli]
 sources: [cli/preflight.test.ts, cli/automations.test.ts, cli/computer.ts, cli/workers.test.ts, cli/install.ts, cli/stats.ts, cli/stats.test.ts, cli/state-set.test.ts, cli/install-unknown.test.ts, package.json]
-updated: 2026-11-08
+updated: 2026-11-09
 ---
 # CLI
 
@@ -19,7 +19,7 @@ The kaizen command you type in a terminal: it installs kaizen for your coding ag
 - [[CLI/Docs lint]] — kaizen docs lint: its checks and the cost line
 
 ## How it connects
-- `web` starts the [[Web board]]; `sources`/`gather`/`icebox` and `browser login` drive [[Sources and icebox]].
+- `web` starts the [[Web board]]; `sources`/`gather`/`icebox` (with `icebox add|edit|kind|tag|board|snooze|unsnooze|boards`, text from `--file` or stdin) and `browser login` drive [[Sources and icebox]].
 
 ## Notes
 <!-- yours: /kaizen docs never rewrites this section -->

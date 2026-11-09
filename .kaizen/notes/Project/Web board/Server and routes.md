@@ -52,6 +52,7 @@ The program behind the board: what it serves, which computers may reach it, how 
 - Since 2026-10-16-board-project-per-page, `kaizen web` keeps no current project: each page sends its pick as `x-kz-dir` (`dirHeader()` in `web/board/api.ts`, `store.dir`), and `cli/web.ts` resolves `state`/`project` per request, falling back to `boardState`. A new board fetch that depends on the project must send that header or pass `dir`, or it reads where the board started.
 
 - The generic `POST` block in `cli/web.ts` (run, fix, decide, commit, pr, icebox…) and `/popup/*` use `strict()`: same host:port Origin plus a JSON content type. Tests that POST must send `content-type: application/json`. `sameOrigin()` no longer accepts any port on a tailnet name. `/file` answers with `content-security-policy: sandbox`; `md()` links pass `safeUrl()` (2026-11-06 security pass).
+- `POST /icebox` ops: `promote`, `add` (text, details, files, kind, board, client, tags; awaits a link read), `edit`, `kind`, `tag`, `board`, `snooze` (`until`), `unsnooze`, `dismiss`, `restore`. `GET /sources` adds per item `kind` (rule's when unsorted), `sorted`, `asleep`, and a top-level `boards` list. See [[Sources and icebox]].
 
 WhatsApp MP4s over 64 MiB use Hermes' `[[as_document]]` directive, preserving the MP4 bytes and filename; smaller MP4s remain inline videos. `cli/hermes.ts` rejects files over WhatsApp's 2 GB document limit before spawning Hermes. The route's existing output-file and listed-chat checks still apply.
 

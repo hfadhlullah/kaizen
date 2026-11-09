@@ -43,13 +43,13 @@ export const NOT_SET = "Firecrawl is not set up: add your API key in Settings â†
 
 class Fail extends Error {}
 
-async function call(path: string, body: object, key = apiKey()): Promise<any> {
+async function call(path: string, body: object, key = apiKey(), timeout = 90_000): Promise<any> {
   if (!key) throw new Fail(NOT_SET);
   const r = await fetch(api() + path, {
     method: "POST",
     headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(90_000),
+    signal: AbortSignal.timeout(timeout),
   }).catch((e) => { throw new Fail(`could not reach Firecrawl: ${(e as Error).message}`); });
   const j: any = await r.json().catch(() => ({}));
   if (!r.ok || j.success === false) {
@@ -75,10 +75,11 @@ export async function search(query: string, o: { limit?: number; recent?: string
   return (j.data?.web ?? []).map((h: any) => ({ url: String(h.url ?? ""), title: String(h.title ?? ""), description: String(h.description ?? ""), markdown: h.markdown ?? undefined }));
 }
 
-export async function scrape(url: string): Promise<{ title: string; markdown: string }> {
-  const j = await call("/v2/scrape", { url, onlyMainContent: true }) // markdown is the default format;
+// `formats: ["summary"]` asks for a short summary instead of the page (the icebox's link read).
+export async function scrape(url: string, o: { formats?: string[]; timeout?: number } = {}): Promise<{ title: string; markdown: string; summary?: string }> {
+  const j = await call("/v2/scrape", { url, onlyMainContent: true, ...(o.formats ? { formats: o.formats } : {}) }, undefined, o.timeout) // markdown is the default format;
   const t = j.data?.metadata?.title;
-  return { title: String(Array.isArray(t) ? t[0] : t ?? ""), markdown: String(j.data?.markdown ?? "") };
+  return { title: String(Array.isArray(t) ? t[0] : t ?? ""), markdown: String(j.data?.markdown ?? ""), ...(typeof j.data?.summary === "string" ? { summary: j.data.summary } : {}) };
 }
 
 // Settings' Test button: one cheap search with the given key, or the saved one.

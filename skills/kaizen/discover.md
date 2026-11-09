@@ -7,9 +7,11 @@ original wording, the source it came from and that source's category. Discovery 
 reading them as a product person would: which ones are the same need said twice, what
 the need actually is, and which are worth a task. The user decides; you propose.
 
-1. Run `kaizen icebox`. It prints one item per line: an id, the category in brackets,
-   the text, the source, and the item's other cells beneath. If it says the icebox is
-   empty, say so and stop.
+1. Run `kaizen icebox`. It prints one item per line: an id; in brackets the kind
+   (Client, Finding or People say; a `?` after it means no one sorted it yet), the
+   board and `#tags`; the category in brackets; the text; the source (`manual` is the
+   user's own capture); and the item's link title and other cells beneath. Snoozed items
+   are listed apart and are not proposed. If it says the icebox is empty, say so and stop.
 2. Group items that ask for the same thing, within a category or across them. For each
    group worth a task, draft one line: the user need in plain words, the way a task
    on the board should read ("Planning list: let people show more than 5 rows per

@@ -2,7 +2,7 @@
 description: `kaizen web`: the browser board — a hub; its topics are the sub-notes below
 tags: [project, web-board]
 sources: [cli/preflight.ts, cli/rea.test.ts, cli/annotate.test.ts, cli/annotate-proxy.test.ts, cli/web-annotate.test.ts, web/board/annotate-lib.test.ts, desktop/src/preload.ts, desktop/src/updater.ts, web/term-font.test.ts, cli/resources.test.ts, cli/computer.test.ts, cli/workers.ts, cli/accounts.test.ts, web/board/settings-accounts.ts, cli/skills.test.ts, cli/report.test.ts, cli/agent-prefs.test.ts, cli/onboarding.test.ts, cli/phone-setup.test.ts, web/board/search.test.ts, web/board/ws-name.test.ts, cli/web.ts, cli/state.test.ts, cli/video.test.ts, web/board.html, design.md]
-updated: 2026-11-08
+updated: 2026-11-09
 ---
 # Web board
 
@@ -27,7 +27,7 @@ The board is kaizen in a browser: you see every project's tasks and runs as card
 
 ## How it connects
 - [[Notebook]] is served from the same server (`/notebook`, `/vault`).
-- [[Sources and icebox]] routes: `/sources`, `/icebox`, `/reply`, `/chatgpt`.
+- [[Sources and icebox]] routes: `/sources`, `/icebox`, `/reply`, `/chatgpt`. Snoozed icebox items (`asleep` in `/sources`) are left out of the Icebox list, its count, Swipe and the side-menu number.
 - Kaizen Bot calls these routes ([[Kaizen bot]], `bot/src/board.ts`).
 
 ## Notes

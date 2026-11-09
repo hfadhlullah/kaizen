@@ -24,7 +24,7 @@ import { processTable, storage, systemMemory, treeRss, type Root } from "./resou
 import { attachPty, frames, writePty, submitPty, resizePty, exitPty, killPty, panePid, ptyState, ptyKeys, adoptLoginEnv, startPty, ptySupported, detachPty, ptyTail, ptyTmux, tmuxAlive, RESUMED } from "./pty.ts";
 import { snapshot, snapWorker } from "./state-snap.ts";
 import { claudeUsage, claudeUsageAt, codexUsage, codexUsageAt, phonePeers, type Usage } from "./usage.ts";
-import { readSources, addSource, removeSource, moveSource, setCategory, setWriteback, setPaused, readIcebox, promote, dismiss, restore, addItem, markDone, markReplied, gatherSource, freshImages, gatherAll, gatherDirs, due, socialUrl, socialOf } from "./sources.ts";
+import { readSources, addSource, removeSource, moveSource, setCategory, setWriteback, setPaused, readIcebox, promote, dismiss, restore, capture, editItem, setKind, setTags, setBoard, snooze, unsnooze, readBoards, kindOf, isSnoozed, markDone, markReplied, gatherSource, freshImages, gatherAll, gatherDirs, due, socialUrl, socialOf } from "./sources.ts";
 import { projectLogo, LOGO_TYPES } from "./logo.ts";
 import * as chatgpt from "./chatgpt.ts";
 import * as google from "./google.ts";
@@ -1511,7 +1511,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         // says which project it belongs to. Nothing is assumed from where the board started.
         const dir = qdir();
         if (dir && !states(true).includes(dir)) return bad("unknown state dir", 404);
-        const sources = [], icebox = [], dismissed = [], failed = [];
+        const sources = [], icebox = [], dismissed = [], failed = [], boards = [], now = Date.now();
         for (const d of dir ? [dir] : states(true)) {
           // The seen list is bookkeeping, not something the page shows.
           try { sources.push(...readSources(d).map(({ seen, ...s }) => ({ ...s, social: socialOf(s.url), dir: d, project: label(d) }))); }
@@ -1520,13 +1520,16 @@ export async function web(repoDir: string, opts: Opts = {}) {
           // for their own categories.
           try {
             markDone(d);
-            const all = readIcebox(d).map((s) => ({ ...s, post: postLink(s.notes), dir: d, project: label(d) }));
+            // Every item says its kind (a rule's when nobody sorted it) and whether it is snoozed today.
+            const bs = readBoards(d);
+            boards.push(...bs.map((b) => ({ ...b, dir: d, project: label(d) })));
+            const all = readIcebox(d).map((s) => ({ ...s, kind: kindOf(s, bs), sorted: s.sorted ?? "rules", asleep: isSnoozed(s, now), post: postLink(s.notes), dir: d, project: label(d) }));
             icebox.push(...all.filter((s) => s.status === "new" || s.status === "promoted"));
             dismissed.push(...all.filter((s) => s.status === "dismissed" || s.status === "done"));
           }
           catch { failed.push(label(d) + " (icebox)"); }
         }
-        return json({ sources, icebox, dismissed, failed, every: await every(), gatherer: { use: await setting("sources.agent"), ...chatgpt.status() }, google: google.status() });
+        return json({ sources, icebox, dismissed, failed, boards, every: await every(), gatherer: { use: await setting("sources.agent"), ...chatgpt.status() }, google: google.status() });
       }
 
       // The Run form's choices for one project: installed tools and their models.
@@ -2237,9 +2240,19 @@ export async function web(repoDir: string, opts: Opts = {}) {
         if (path === "/icebox") {
           if (typeof body.dir !== "string" || !states(true).includes(body.dir)) return bad("say which project's icebox this is");
           const ids = Array.isArray(body.ids) ? body.ids.filter((i: unknown) => typeof i === "string") : [];
+          const str = (v: unknown) => typeof v === "string" ? v : "";
+          const tags = Array.isArray(body.tags) ? body.tags.filter((t: unknown) => typeof t === "string") : str(body.tags) ? [body.tags] : [];
           try {
+            // add reads a link in the text before it writes (Firecrawl or the page title); a failed read still adds.
+            const added = body.op === "add" ? await capture(body.dir, { text: str(body.text), notes: [str(body.details), ...iceFiles(body.dir, body.files)].filter(Boolean).join("\n"), kind: str(body.kind) || undefined, board: str(body.board) || undefined, client: body.client === true, tags }) : null;
             const why = body.op === "promote" ? promote(body.dir, ids, typeof body.text === "string" ? body.text : undefined, typeof body.details === "string" ? body.details : undefined)
-              : body.op === "add" ? addItem(body.dir, typeof body.text === "string" ? body.text : "", [typeof body.details === "string" ? body.details : "", ...iceFiles(body.dir, body.files)].filter(Boolean).join("\n"))
+              : added ? ("why" in added ? added.why : null)
+              : body.op === "edit" ? editItem(body.dir, str(body.id), str(body.text), str(body.details))
+              : body.op === "kind" ? setKind(body.dir, ids, str(body.kind))
+              : body.op === "tag" ? setTags(body.dir, ids, tags)
+              : body.op === "board" ? setBoard(body.dir, ids, str(body.board))
+              : body.op === "snooze" ? snooze(body.dir, ids, str(body.until))
+              : body.op === "unsnooze" ? unsnooze(body.dir, ids)
               : body.op === "dismiss" ? dismiss(body.dir, ids) : body.op === "restore" ? restore(body.dir, ids) : "unknown op";
             if (why) return bad(why, why === "no such item" ? 404 : why === "unknown op" ? 400 : 409);
           } catch (e) { return bad((e as Error).message, 500); }
