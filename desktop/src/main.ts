@@ -1,9 +1,10 @@
 // Kaizen desktop: one window on the kaizen board, which this process starts and stops.
-import { app, BrowserWindow, Menu, dialog, ipcMain, screen, shell, crashReporter } from "electron";
-import { appendFileSync, existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { app, BrowserWindow, Menu, Notification, dialog, ipcMain, screen, shell, crashReporter } from "electron";
+import { appendFileSync, existsSync, openSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { spawn } from "node:child_process";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { boardPort, forgetBoard, pickKaizen, reapStale, rememberBoard, startBoard, stopBoard, waitReady, type Board } from "./server";
+import { boardPort, forgetBoard, needsUpgrade, pickKaizen, reapStale, rememberBoard, startBoard, stopBoard, upgradeCmd, versionOf, waitReady, type Board } from "./server";
 import { checkNow, installNow, startUpdates } from "./updater";
 import { desktopEntry } from "./appimage";
 import { autoUpdater } from "electron-updater";
@@ -98,6 +99,37 @@ async function boot() {
   if (board !== b || !win) return;
   await win.loadURL(b.url);
   if (smoke) { report(`kaizen-desktop ready ${b.url} version=${app.getVersion()} kaizen=${pick.dir}`); app.quit(); }
+  else if (!testBuild) upgradeInstalled();
+}
+
+// After the app updates, the kaizen your agents use (~/kaizen: skills, subagents, commands) is
+// brought up to it with `kaizen upgrade`, in the background once the board is up, once per app
+// version. Left alone: no ~/kaizen (desktop only), a git checkout, or one already as new.
+const upgradedFile = () => join(app.getPath("userData"), "upgraded.json");
+function upgradeInstalled() {
+  const installed = process.env.KAIZEN_HOME ?? join(homedir(), "kaizen"), v = app.getVersion();
+  let last = "";
+  try { last = JSON.parse(readFileSync(upgradedFile(), "utf8")).version ?? ""; } catch { /* first run */ }
+  if (last === v) return;
+  const why = needsUpgrade(join(res, "kaizen"), installed);
+  try { mkdirSync(app.getPath("userData"), { recursive: true }); writeFileSync(upgradedFile(), JSON.stringify({ version: v, skipped: why })); } catch { /* retried next launch */ }
+  if (why) return;
+  const say = (body: string) => { if (Notification.isSupported()) new Notification({ title: "Kaizen", body }).show(); };
+  const log = join(homedir(), ".kaizen", "upgrade.log");
+  try {
+    mkdirSync(join(homedir(), ".kaizen"), { recursive: true });
+    const out = openSync(log, "a");
+    const { argv, env } = upgradeCmd(bunPath, installed, process.env);
+    // Detached, so closing the app does not cut an upgrade off halfway.
+    const child = spawn(argv[0]!, argv.slice(1), { cwd: homedir(), env, stdio: ["ignore", out, out], detached: process.platform !== "win32", windowsHide: true });
+    child.unref();
+    child.on("exit", (code) => {
+      const now = versionOf(installed);
+      say(code === 0 ? `Your agents' kaizen skills are updated to ${now}.` : `kaizen upgrade did not finish (kaizen ${now}); see ~/.kaizen/upgrade.log.`);
+    });
+  } catch (e) {
+    say(`kaizen upgrade could not start: ${(e as Error).message}`);
+  }
 }
 
 function fail(why: string, log = "") {

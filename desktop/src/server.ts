@@ -49,6 +49,24 @@ export function pickKaizen(bundled: string, installed: string): { dir: string; b
   return { dir: bundled, bundled: true };
 }
 
+/** Why the installed kaizen is left alone after the app updates, or null when it is behind the
+ *  app and should run `kaizen upgrade`: agents' skills, subagents and commands link into it. */
+export function needsUpgrade(bundled: string, installed: string): string | null {
+  if (!existsSync(join(installed, "cli", "install.ts"))) return "not installed";
+  if (existsSync(join(installed, ".git"))) return "a git checkout";
+  if (!newer(versionOf(bundled), versionOf(installed))) return "up to date";
+  return null;
+}
+
+/** `kaizen upgrade` for the installed copy: its own installer, aimed at it, with none of the
+ *  bundle's or Electron's variables, so it upgrades ~/kaizen and never the app's own copy. */
+export function upgradeCmd(bun: string, installed: string, env: NodeJS.ProcessEnv): { argv: string[]; env: NodeJS.ProcessEnv } {
+  const e = { ...env };
+  for (const k of ["KAIZEN_DESKTOP_BUNDLED", "ELECTRON_RUN_AS_NODE", "ARGV0", "APPDIR", "OWD"]) delete e[k];
+  e.KAIZEN_HOME = installed;
+  return { argv: [bun, join(installed, "cli", "install.ts"), "upgrade"], env: e };
+}
+
 export type Board = { child: ChildProcess; port: number; url: string; log: string[] };
 
 /** Spawn `<bun> <dir>/cli/install.ts web --port N --no-open --foreground`. */
