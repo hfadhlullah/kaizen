@@ -349,6 +349,9 @@ if (Bun.argv[2] === "sources" || Bun.argv[2] === "gather" || Bun.argv[2] === "ic
   const state = locate() ?? join(home, ".kaizen");
   // A source belongs to the project the command is run in; every answer names it.
   const where = c.dim(`project  ${label(state)}`);
+  // An icebox "collection" was first called a board: both words work, and `board` is what is stored.
+  if (Bun.argv[2] === "icebox" && (Bun.argv[3] === "collection" || Bun.argv[3] === "collections")) Bun.argv[3] = Bun.argv[3].replace("collection", "board");
+  for (let i = 4; Bun.argv[2] === "icebox" && i < Bun.argv.length; i++) if (Bun.argv[i] === "--collection") Bun.argv[i] = "--board";
   const [, , cmd, op, url = "", ...rest] = Bun.argv;
   const line = (r: { url: string; ok: boolean; note: string }) => `  ${r.ok ? c.green("ok  ") : "fail"}  ${r.url}  ${c.dim(r.note)}`;
   const waiting = c.dim("  new requests wait in the icebox — kaizen icebox");
@@ -376,10 +379,10 @@ if (Bun.argv[2] === "sources" || Bun.argv[2] === "gather" || Bun.argv[2] === "ic
       const one = (f: string) => flags.get(f)?.at(-1);
       const id = op === "edit" ? words.shift() : undefined;
       if (op === "edit" && (!id || words.length)) { console.log("\n  kaizen icebox edit <id> --file <path>   (or the new text on stdin)\n"); process.exit(1); }
-      if (one("board") && one("client")) { console.log("\n  --board or --client, not both\n"); process.exit(1); }
+      if (one("board") && one("client")) { console.log("\n  --collection or --client, not both\n"); process.exit(1); }
       const raw = words.length ? words.join(" ") : one("file") ? readFileSync(one("file")!, "utf8") : process.stdin.isTTY ? "" : await Bun.stdin.text();
       const [first = "", ...more] = raw.replace(/\r\n/g, "\n").trim().split("\n");
-      if (!first.trim()) { console.log("\n  kaizen icebox add [text] [--file <path>] [--kind client|finding|people] [--board <name> | --client <name>] [--tag <tag>]...\n  the text as words, from --file, or on stdin\n"); process.exit(1); }
+      if (!first.trim()) { console.log("\n  kaizen icebox add [text] [--file <path>] [--kind client|finding|people] [--collection <name> | --client <name>] [--tag <tag>]...\n  the text as words, from --file, or on stdin\n"); process.exit(1); }
       if (op === "edit") {
         const why = src.editItem(state, id!, first, more.join("\n"));
         if (why) { console.log(`\n  ${why}\n`); process.exit(1); }
@@ -401,21 +404,21 @@ if (Bun.argv[2] === "sources" || Bun.argv[2] === "gather" || Bun.argv[2] === "ic
         : op === "board" ? src.setBoard(state, ids, val.trim() === "-" ? "" : val)
         : op === "snooze" ? src.snooze(state, ids, val)
         : src.unsnooze(state, ids);
-      if (why) { console.log(`\n  ${why}\n  kaizen icebox kind <ids> client|finding|people · tag <ids> <tags> · board <ids> <name | -> · snooze <ids> <1d|1w|1m|YYYY-MM-DD> · unsnooze <ids>\n`); process.exit(1); }
-      console.log(`\n  ${op}: ${ids.join(", ")}\n  ${where}\n`);
+      if (why) { console.log(`\n  ${why}\n  kaizen icebox kind <ids> client|finding|people · tag <ids> <tags> · collection <ids> <name | -> · snooze <ids> <1d|1w|1m|YYYY-MM-DD> · unsnooze <ids>\n`); process.exit(1); }
+      console.log(`\n  ${op === "board" ? "collection" : op}: ${ids.join(", ")}\n  ${where}\n`);
     } else if (cmd === "icebox" && op === "boards") {
-      // kaizen icebox boards [add <name> [--client] | rm <name>]
+      // kaizen icebox collections [add <name> [--client] | rm <name>]  (also: boards)
       const [verb, ...nm] = Bun.argv.slice(4);
       if (verb === "add" || verb === "rm") {
         const client = nm.includes("--client"), name = nm.filter((w) => w !== "--client").join(" ");
         const why = verb === "add" ? src.saveBoard(state, name, client) : src.removeBoard(state, name);
         if (why) { console.log(`\n  ${why}\n`); process.exit(1); }
-      } else if (verb) { console.log("\n  kaizen icebox boards [add <name> [--client] | rm <name>]\n"); process.exit(1); }
+      } else if (verb) { console.log("\n  kaizen icebox collections [add <name> [--client] | rm <name>]\n"); process.exit(1); }
       const all = src.readIcebox(state), boards = src.readBoards(state);
       console.log(`\n  ${where}`);
       console.log(boards.length
         ? "\n" + boards.map((b) => `  ${b.name}${b.client ? c.dim("  client") : ""}  ${c.dim(`${all.filter((s) => s.status === "new" && s.board === b.name).length} waiting`)}`).join("\n") + "\n"
-        : `\n  no boards yet ${c.dim("— kaizen icebox boards add <name> [--client]")}\n`);
+        : `\n  no collections yet ${c.dim("— kaizen icebox collections add <name> [--client]")}\n`);
     } else if (cmd === "icebox") {
       const all = src.readIcebox(state), boards = src.readBoards(state), now = Date.now();
       const fresh = all.filter((s) => s.status === "new" && !src.isSnoozed(s, now));

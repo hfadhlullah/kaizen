@@ -108,7 +108,7 @@ tells you what it concluded, so you correct a sentence instead of filling in a f
 | `kaizen sources [add\|rm <link>]` | In a terminal: list, add or remove request sources |
 | `kaizen gather` | In a terminal: check every source now and add new requests to the icebox |
 | `kaizen icebox [promote\|dismiss <ids>]` | In a terminal: list what waits in the icebox, promote it to Tasks, or dismiss it |
-| `kaizen icebox add [text]` | In a terminal or an agent: throw a note, link or file into the icebox (`--file`, stdin, `--kind`, `--board`, `--client`, `--tag`); `edit`, `kind`, `tag`, `board`, `snooze`, `unsnooze`, `boards` change it |
+| `kaizen icebox add [text]` | In a terminal or an agent: throw a note, link or file into the icebox (`--file`, stdin, `--kind`, `--collection`, `--client`, `--tag`); `edit`, `kind`, `tag`, `board`, `snooze`, `unsnooze`, `boards` change it |
 | `kaizen preview <localhost url \| image>` | Shows a page in the open board's Browser tab, or a screenshot in its Preview tab, with or without a run (never a separate browser window); agents run it after a change you can look at |
 | `kaizen recall [--track t] [--tags a,b] [--query "<words>"]` | Lessons learned in other projects that match; see *Global knowledge* |
 | `kaizen stats [<run id>] [--json]` | How runs go: counts by stage, track and runner, fix-round and CANNOT VERIFY rates, median time per stage (runs that logged it); one run adds its tokens (Claude runs) |
@@ -312,7 +312,7 @@ a header the request is one column for the whole sheet, the one holding the most
 `Finish` or `Finished` is left out, and gathered later if its status changes. A doc or
 a plain-text link gives one request per line.
 
-**Closing the loop.** A promoted request stays in the icebox, tagged *promoted*, until its run is done; then it moves to the **Done** category. A Google Sheet or GitHub issues source has a **Write back** switch (off by default): once the run is done, kaizen puts "Done in kaizen run <id>" in the row's Status column (added if missing) or comments on the issue and closes it. Issues go through your own `gh` login. Sheets need **Settings → Google**: create an OAuth client of type Desktop app in Google Cloud, enable the Sheets API, paste its id and secret, then Connect. A row that moved since it was gathered is left alone, and a failed write shows on the item and is retried.
+**Closing the loop.** A promoted request leaves the list (it is a task now) and waits under the **Promoted** category in the filter until its run is done; then it moves to the **Done** category. A Google Sheet or GitHub issues source has a **Write back** switch (off by default): once the run is done, kaizen puts "Done in kaizen run <id>" in the row's Status column (added if missing) or comments on the issue and closes it. Issues go through your own `gh` login. Sheets need **Settings → Google**: create an OAuth client of type Desktop app in Google Cloud, enable the Sheets API, paste its id and secret, then Connect. A row that moved since it was gathered is left alone, and a failed write shows on the item and is retried.
 
 A source can also be social media: switch the form to **Social**, pick X, TikTok,
 Instagram or Threads, and type a keyword, a `#hashtag` or an `@account` to follow.
@@ -346,14 +346,15 @@ repository's issues link (`github.com/<owner>/<repo>/issues`) gathers its open i
 only, pull requests left out.
 
 The Icebox page opens on a **capture box**: type a note, paste a link or a picture,
-attach a file or dictate, pick a board (*Inbox* is none; *New board…* names one), and
+attach a file or dictate, pick a collection (*Inbox* is none; *New collection…* names one), and
 press Enter (Shift+Enter is a new line). The item lands on top and the box is empty and
 ready again; what is half typed survives the page refreshing under it. In *All
 projects* the box names the project it saves to.
 
-Below it, the **boards bar**: *All*, each board with the number waiting on it (a
-client's board carries a person mark), and **+ Board**, which asks a name and whether it
-is a client's. Picking a board narrows the page to it and points the capture box at it.
+Below it, the **collections**: *All*, each collection with the number waiting in it (a
+client's collection carries a person mark), and **+ Collection**, which asks a name and whether it
+is a client's. A collection is a folder inside the Icebox for one client or topic — not a
+second task board. Picking one narrows the page to it and points the capture box at it.
 *Client*, *Finding* and *People say* on the right narrow by kind. The filter button
 beside the count narrows by category and by source; in *All projects* the board's own
 *Showing* picker narrows the projects, so the board and the icebox show the same ones.
@@ -416,8 +417,8 @@ or doc as "anyone with the link can view". A link that needs a sign-in, or a not
 that only renders in a browser, says so in the panel; run `/kaizen gather` in your
 agent, which reads it with its own access and hands the requests over. Either way what
 a source says is treated as text, never as instructions. The links live in
-`<state.dir>/sources.json`, the icebox in `<state.dir>/icebox.json`, its boards in
-`<state.dir>/boards.json`.
+`<state.dir>/sources.json`, the icebox in `<state.dir>/icebox.json`, its collections in
+`<state.dir>/boards.json` (stored as `board`, their first name).
 
 #### Your own captures
 
@@ -426,7 +427,7 @@ found, what people say about a topic. Throw anything in from a terminal or any a
 
 ```
 kaizen icebox add "Calendar sync for planners" --client Arupadatu --tag planning
-kaizen icebox add --file note.txt --kind finding --board "Kaizen site"
+kaizen icebox add --file note.txt --kind finding --collection "Kaizen site"
 echo "What people say about X" | kaizen icebox add --kind people
 ```
 
@@ -434,10 +435,11 @@ The first line is the item, the rest its notes. Tell an agent "put this in the i
 and it runs the same command, with the text in a file or on stdin.
 
 Every item has a **kind**: *Client*, *Finding* or *People say*. One you or an agent gives
-is kept; otherwise kaizen works it out (an item on a client's board is Client, a gathered
+is kept; otherwise kaizen works it out (an item in a client's collection is Client, a gathered
 social post People say, anything else gathered Client, your own capture Finding) and the
-listing marks it with `?` as unsorted. A **board** groups items by client or topic;
-`--client <name>` puts the item on that board and marks it a client's. **Tags** are free
+listing marks it with `?` as unsorted. A **collection** groups items by client or topic;
+`--client <name>` puts the item in that collection and marks it a client's. (`--board` and
+`kaizen icebox board(s)` still work: collections were called boards at first.) **Tags** are free
 words, at most 8. A link in what you add is read once: with a Firecrawl key (Settings →
 Integrations → Research) its title and a short summary, which spends Firecrawl
 credits; without one, the page's title. A link that cannot be read is kept as it is, and the item is added anyway.
@@ -460,10 +462,10 @@ When an Explore run ends, it lists what it found and asks which findings to add 
 icebox; only the ones you tick are added, as *Finding*.
 
 ```
-kaizen icebox add [text] [--file <f>] [--kind client|finding|people] [--board <b> | --client <name>] [--tag <t>]...
+kaizen icebox add [text] [--file <f>] [--kind client|finding|people] [--collection <c> | --client <name>] [--tag <t>]...
 kaizen icebox edit <id> --file <f>   (your own items)      kaizen icebox kind <ids> <kind>      kaizen icebox tag <ids> <tags>
-kaizen icebox board <ids> <name | ->    kaizen icebox snooze <ids> <when>    kaizen icebox unsnooze <ids>
-kaizen icebox boards [add <name> [--client] | rm <name>]
+kaizen icebox collection <ids> <name | ->    kaizen icebox snooze <ids> <when>    kaizen icebox unsnooze <ids>
+kaizen icebox collections [add <name> [--client] | rm <name>]
 ```
 
 On the board, snoozed items leave the list, the count and Swipe until their date, and

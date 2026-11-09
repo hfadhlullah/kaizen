@@ -3,7 +3,7 @@ import { termStop } from "./agent-term.ts";
 import { load, post } from "./api.ts";
 import { via } from "./cards.ts";
 import { mic, stopDictation } from "./dictation.ts";
-import { $, dataUrls, html, ico, motion, pageOf, pager, pagerHtml, raw, SKEL, wirePager } from "./dom.ts";
+import { $, dataUrls, html, ico, modal, motion, pageOf, pager, pagerHtml, raw, SKEL, wirePager } from "./dom.ts";
 import { plogo, setShown, short, showable } from "./projects.ts";
 import { playSound, soundPick, toast } from "./toast.ts";
 import { go, view } from "./views.ts";
@@ -88,7 +88,26 @@ function wireOnce() {
     if (view === "sources" && srcOpen()) openSources();
   });
 }
-// A person mark for a client's board.
+// A new collection: its name and whether it is a client's, asked in the board's own dialog
+// (the desktop app has no window.prompt). Resolves null when cancelled.
+function askCollection(where = ""): Promise<{ name: string; client: boolean } | null> {
+  return new Promise((done) => {
+    const dl = modal(html`<label class="hint" for="ice-cn" style="margin:0">New collection${where ? ` in ${where}` : ""}: a client or a topic</label><input class="sel" id="ice-cn" maxlength="40" placeholder="e.g. Arupadatu, Pricing" autocomplete="off" spellcheck="false"><label class="ice-cn-cl"><input type="checkbox" id="ice-cn-c"> A client — its items count as Client</label><div class="row"><button type="button" class="btn ghost" value="">Cancel</button><button class="btn pri">Create</button></div>`);
+    const f = dl.querySelector("form"), inp = dl.querySelector("#ice-cn") as HTMLInputElement;
+    let answer = null;
+    dl.querySelector(".btn.ghost").onclick = () => dl.close();
+    f.onsubmit = (e) => {
+      e.preventDefault();
+      const name = inp.value.trim();
+      if (!name) return inp.focus();
+      answer = { name, client: (dl.querySelector("#ice-cn-c") as HTMLInputElement).checked };
+      dl.close();
+    };
+    dl.addEventListener("close", () => done(answer));
+    inp.focus();
+  });
+}
+// A person mark for a client's collection.
 const PERSON = raw(
   '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="5.2" r="2.6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M3 13.6c.7-2.5 2.6-3.8 5-3.8s4.3 1.3 5 3.8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
 );
@@ -264,7 +283,7 @@ export async function openSources() {
     // left out of the list, the count and Swipe until its date (the server says `asleep`).
     awake = ((d && d.icebox) || []).filter((it) => !it.asleep),
     ice = [...awake, ...((d && d.dismissed) || [])],
-    waiting = awake.length,
+    waiting = awake.filter((it) => it.status === "new").length,
     G = (d && d.gatherer) || {},
     chatOn = G.use === "chatgpt" && G.connected;
   // A source belongs to one project, named on its row. Picking another only arms Move: a select
@@ -314,7 +333,9 @@ export async function openSources() {
         ? "Dismissed"
         : it.status === "done"
           ? "Done"
-          : it.category || srcOf(it)?.category || platOf(srcOf(it) || { url: it.source }),
+          : it.status === "promoted"
+            ? "Promoted"
+            : it.category || srcOf(it)?.category || platOf(srcOf(it) || { url: it.source }),
     count = (xs, f) => {
       const m = new Map();
       xs.forEach((it) => {
@@ -352,7 +373,7 @@ export async function openSources() {
     .map((_, i) => i)
     .filter((i) => {
       const it = ice[i];
-      return inProj(it) && onBoard(it) && ofKind(it) && (iceCat ? catOf(it) === iceCat : it.status !== "dismissed" && it.status !== "done") && (!iceSrc || srcKey(it) === iceSrc);
+      return inProj(it) && onBoard(it) && ofKind(it) && (iceCat ? catOf(it) === iceCat : it.status === "new") && (!iceSrc || srcKey(it) === iceSrc);
     })
     .sort((a, b) => (Date.parse(ice[b].at) || 0) - (Date.parse(ice[a].at) || 0));
   // Only the page: j and k, select-all and bulk actions stay on what shows.
@@ -382,8 +403,8 @@ export async function openSources() {
   const srcIco = (it) => fav(it.source, "link", srcOf(it)?.social);
   const curSrc = iceSrc && [...bySrc].find(([k]) => k === iceSrc)?.[1].it;
   const chips = html`${
-    // Dismissed and Done are hidden until picked, so even a lone one is a choice.
-    byCat.size > 1 || byCat.has("Dismissed") || byCat.has("Done")
+    // Promoted, Dismissed and Done are hidden until picked, so even a lone one is a choice.
+    byCat.size > 1 || byCat.has("Dismissed") || byCat.has("Done") || byCat.has("Promoted")
       ? pick(
           "ice-fc",
           "Category",
@@ -407,8 +428,8 @@ export async function openSources() {
     cardsOn = iceView === "cards" && !narrow;
   // The boards bar: All, each board with what waits on it, + Board; the kind filters on the right.
   const nOn = (b) => pv.filter((it) => isWaiting(it) && sameName(it.board, b.name)).length;
-  const boardsBar = html`<div class="ice-boards"><div class="ice-chips" role="group" aria-label="Boards"><button class="ice-chip${iceBoard ? "" : " on"}" data-bd="" aria-pressed="${String(!iceBoard)}">All</button>${boards.map((b) => html`<button class="ice-chip${sameName(iceBoard, b.name) ? " on" : ""}" data-bd="${b.name}" aria-pressed="${String(sameName(iceBoard, b.name))}"${b.client ? raw(' title="A client\'s board: its items are Client"') : ""}>${b.client ? PERSON : ""}<span>${b.name}</span><i>${nOn(b)}</i></button>`)}<button class="ice-chip add" id="ice-nb" title="Make a board for a client or a topic">${ico("plus")}Board</button></div><div class="ice-chips" role="group" aria-label="Kinds">${Object.entries(KIND).map(([k, l]) => html`<button class="ice-chip k-${k}${iceKinds.has(k) ? " on" : ""}" data-kf="${k}" aria-pressed="${String(iceKinds.has(k))}">${l}</button>`)}</div></div>`;
-  const bar = html`<div class="tk-bar ice-bar">${!cardsOn && !narrow && order.length ? html`<input type="checkbox" id="ice-all" aria-label="Select every request shown"${nSel && nSel === order.length ? " checked" : ""}>` : ""}${narrow ? "" : html`<div class="ice-view" role="group" aria-label="View"><button data-view="cards" aria-pressed="${String(cardsOn)}">Cards</button><button data-view="sort" aria-pressed="${String(!cardsOn)}">Sort</button></div>`}<span class="count">${iceCat === "Dismissed" || iceCat === "Done" ? `${order.length} ${iceCat.toLowerCase()}` : `${order.length < waiting ? `${order.length} of ${waiting}` : waiting} waiting`}</span><span class="end"></span>${String(chips) ? html`<details class="ice-filt"><summary class="ib${iceCat || iceSrc ? " on" : ""}" aria-label="Filter requests" title="Filter by category or source">${ico("filter")}</summary><div class="ice-fpop">${chips}</div></details>` : ""}${order.some((i) => isWaiting(ice[i])) ? html`<button class="btn ghost sm" id="ice-sw" title="Sort one at a time: swipe right to promote, left to dismiss"><span aria-hidden="true">⇆</span> Swipe</button>` : ""}${narrow ? "" : html`<button class="btn sm" id="src-tog" aria-expanded="${String(!!srcShow)}" aria-controls="src-sec" title="Sources, and Gather all">${ico("link")} Sources · ${list.length}</button>`}</div>`;
+  const boardsBar = html`<div class="ice-boards"><div class="ice-chips" role="group" aria-label="Collections"><button class="ice-chip${iceBoard ? "" : " on"}" data-bd="" aria-pressed="${String(!iceBoard)}">All</button>${boards.map((b) => html`<button class="ice-chip${sameName(iceBoard, b.name) ? " on" : ""}" data-bd="${b.name}" aria-pressed="${String(sameName(iceBoard, b.name))}"${b.client ? raw(' title="A client\'s collection: its items are Client"') : ""}>${b.client ? PERSON : ""}<span>${b.name}</span><i>${nOn(b)}</i></button>`)}<button class="ice-chip add" id="ice-nb" title="Make a collection for a client or a topic">${ico("plus")}Collection</button></div><div class="ice-chips" role="group" aria-label="Kinds">${Object.entries(KIND).map(([k, l]) => html`<button class="ice-chip k-${k}${iceKinds.has(k) ? " on" : ""}" data-kf="${k}" aria-pressed="${String(iceKinds.has(k))}">${l}</button>`)}</div></div>`;
+  const bar = html`<div class="tk-bar ice-bar">${!cardsOn && !narrow && order.length ? html`<input type="checkbox" id="ice-all" aria-label="Select every request shown"${nSel && nSel === order.length ? " checked" : ""}>` : ""}${narrow ? "" : html`<div class="ice-view" role="group" aria-label="View"><button data-view="cards" aria-pressed="${String(cardsOn)}">Cards</button><button data-view="sort" aria-pressed="${String(!cardsOn)}">Sort</button></div>`}<span class="count">${iceCat === "Dismissed" || iceCat === "Done" || iceCat === "Promoted" ? `${order.length} ${iceCat.toLowerCase()}` : `${order.length < waiting ? `${order.length} of ${waiting}` : waiting} waiting`}</span><span class="end"></span>${String(chips) ? html`<details class="ice-filt"><summary class="ib${iceCat || iceSrc ? " on" : ""}" aria-label="Filter requests" title="Filter by category or source">${ico("filter")}</summary><div class="ice-fpop">${chips}</div></details>` : ""}${order.some((i) => isWaiting(ice[i])) ? html`<button class="btn ghost sm" id="ice-sw" title="Sort one at a time: swipe right to promote, left to dismiss"><span aria-hidden="true">⇆</span> Swipe</button>` : ""}${narrow ? "" : html`<button class="btn sm" id="src-tog" aria-expanded="${String(!!srcShow)}" aria-controls="src-sec" title="Sources, and Gather all">${ico("link")} Sources · ${list.length}</button>`}</div>`;
   // The capture box: what is typed, pasted, attached or dictated lands in the icebox on the picked
   // board. In All projects it names the project, as the Add pop-up did. Field and mic are slotted in.
   const capPs = dir ? [] : showable();
@@ -420,7 +441,7 @@ export async function openSources() {
   const capTo = capTo0,
     capP = capPs.find((p) => p.dir === cap.dir);
   const capBoards = ((d && d.boards) || []).filter((b) => b.dir === capTo);
-  const capBox = html`<div class="ice-cap" id="ice-cap"><span id="ice-cap-slot"></span>${cap.files.length ? html`<div class="ice-att">${cap.files.map((f, n) => html`<span class="ice-file">${ico("clip")}<span>${f.name}</span><button type="button" class="ib sm" data-rf="${n}" aria-label="Remove ${f.name}" title="Remove">${ico("x")}</button></span>`)}</div>` : ""}<div class="ice-cap-row"><button type="button" class="ib" id="ice-pick" aria-label="Attach files" title="Attach files">${ico("clip")}</button><span id="ice-mic-slot"></span><input type="file" id="ice-file" multiple hidden>${dir ? "" : pick("ice-cp", "Project", capP ? html`${plogo(capP.dir, capP.label)}<span>${short(capP.label)}</span>` : html`<span>Choose project</span>`, html`${capPs.map((p) => opt(p.dir, p.dir === cap.dir, html`${plogo(p.dir, p.label)}<span>${p.label}</span>`, p.label))}`)}${pick("ice-cb", "Board", html`<span>Board: ${cap.board || "Inbox"}</span>`, html`${opt("", !cap.board, html`<span>Inbox</span>`, "inbox")}${capBoards.map((b) => opt(b.name, sameName(cap.board, b.name), html`${b.client ? PERSON : ""}<span>${b.name}</span>`, b.name))}${cap.board && !capBoards.some((b) => sameName(b.name, cap.board)) ? opt(cap.board, true, html`<span>${cap.board}</span><i>new</i>`, cap.board) : ""}${opt("\n", false, html`${ico("plus")}<span>New board…</span>`, "new board")}`)}<span class="end"></span><button type="button" class="btn pri sm" id="ice-save" aria-label="Save to the icebox"${cap.busy ? " disabled" : ""}>${ico("send")}<span>${cap.busy ? "Saving…" : "Save ↵"}</span></button></div></div>`;
+  const capBox = html`<div class="ice-cap" id="ice-cap"><span id="ice-cap-slot"></span>${cap.files.length ? html`<div class="ice-att">${cap.files.map((f, n) => html`<span class="ice-file">${ico("clip")}<span>${f.name}</span><button type="button" class="ib sm" data-rf="${n}" aria-label="Remove ${f.name}" title="Remove">${ico("x")}</button></span>`)}</div>` : ""}<div class="ice-cap-row"><button type="button" class="ib" id="ice-pick" aria-label="Attach files" title="Attach files">${ico("clip")}</button><span id="ice-mic-slot"></span><input type="file" id="ice-file" multiple hidden>${dir ? "" : pick("ice-cp", "Project", capP ? html`${plogo(capP.dir, capP.label)}<span>${short(capP.label)}</span>` : html`<span>Choose project</span>`, html`${capPs.map((p) => opt(p.dir, p.dir === cap.dir, html`${plogo(p.dir, p.label)}<span>${p.label}</span>`, p.label))}`)}${pick("ice-cb", "Collection", html`<span>${cap.board || "Inbox"}</span>`, html`${opt("", !cap.board, html`<span>Inbox</span>`, "inbox")}${capBoards.map((b) => opt(b.name, sameName(cap.board, b.name), html`${b.client ? PERSON : ""}<span>${b.name}</span>`, b.name))}${cap.board && !capBoards.some((b) => sameName(b.name, cap.board)) ? opt(cap.board, true, html`<span>${cap.board}</span><i>new</i>`, cap.board) : ""}${opt("\n", false, html`${ico("plus")}<span>New collection…</span>`, "new collection")}`)}<span class="end"></span><button type="button" class="btn pri sm" id="ice-save" aria-label="Save to the icebox"${cap.busy ? " disabled" : ""}>${ico("send")}<span>${cap.busy ? "Saving…" : "Save ↵"}</span></button></div></div>`;
   const bulk = iceSel.size
     ? html`<div class="ice-bulk" role="toolbar" aria-label="Selected requests"><span>${iceSel.size} selected</span><span class="end"></span><button class="btn sm" id="ice-bp" title="Promote (p)">${ico("plus")} Promote</button><button class="btn ghost sm" id="ice-bz" title="Snooze a week (h)">${ico("clock")} Snooze</button><button class="btn ghost sm" id="ice-bd" title="Dismiss (d)">${ico("x")} Dismiss</button><button class="btn ghost sm" id="ice-bc" title="Clear selection (Esc)">Clear</button></div>`
     : "";
@@ -465,8 +486,8 @@ export async function openSources() {
         ? html`${b("data-sz", "1d", "Tomorrow")}${b("data-sz", "1w", "Next week")}${b("data-sz", "1m", "Next month")}<div class="ice-date"><input type="date" class="sel" id="ice-sd" min="${day(1)}" max="${day(365)}" aria-label="Snooze until"><button type="button" class="btn sm" data-sz="">Snooze</button></div>`
         : m === "kind"
           ? html`${Object.entries(KIND).map(([v, l]) => b("data-kd", v, l, it.kind === v && it.sorted !== "rules"))}`
-          : html`${b("data-bo", "", "Inbox", !it.board)}${((d && d.boards) || []).filter((x) => x.dir === it.dir).map((x) => b("data-bo", x.name, html`${x.client ? PERSON : ""}${x.name}`, sameName(it.board, x.name)))}<button type="button" role="menuitem" data-bo-new="1">${ico("plus")}New board…</button>`;
-    return html`<div class="menu-pop ice-mpop" role="menu" data-mi="${i}" aria-label="${m === "snooze" ? "Snooze until" : m === "kind" ? "Kind" : "Board"}">${inner}</div>`;
+          : html`${b("data-bo", "", "Inbox", !it.board)}${((d && d.boards) || []).filter((x) => x.dir === it.dir).map((x) => b("data-bo", x.name, html`${x.client ? PERSON : ""}${x.name}`, sameName(it.board, x.name)))}<button type="button" role="menuitem" data-bo-new="1">${ico("plus")}New collection…</button>`;
+    return html`<div class="menu-pop ice-mpop" role="menu" data-mi="${i}" aria-label="${m === "snooze" ? "Snooze until" : m === "kind" ? "Kind" : "Collection"}">${inner}</div>`;
   };
   const badges = (it) =>
     html`${it.status === "done" && it.written ? html`<span title="Written back ${ago(it.written)}">written back</span>` : ""}${it.status === "done" && it.writeError ? html`<span title="${it.writeError}">write-back failed</span>` : ""}${it.status === "promoted" ? html`<span title="Promoted to Tasks: ${it.idea || ""}">promoted</span>` : ""}${it.replied ? html`<span title="Replied ${ago(it.replied)}">replied</span>` : ""}`;
@@ -475,7 +496,7 @@ export async function openSources() {
     const it = ice[i],
       k = iceKey(it),
       open = iceForm === k;
-    const head = html`<div class="ice-row${iceCur === k ? " cur" : ""}${iceSel.has(k) ? " sel" : ""}" data-i="${i}" data-k="${k}"><input type="checkbox" id="ice-ck-${i}" data-ck="${i}"${iceSel.has(k) ? " checked" : ""} aria-label="Select: ${it.text}">${live(it) ? menuBtn(i, it, "kind", kindOf(it), "ice-kb", "Kind") : kindOf(it)}<span class="ice-src" title="${srcName(it)}">${fav(it.source, "link", srcOf(it)?.social)}</span><button class="ice-t" id="ice-o-${i}" data-o="${i}" aria-expanded="${String(open)}" title="${it.text}">${it.text}</button><span class="ice-meta">${proj(it)}${badges(it)}${live(it) ? menuBtn(i, it, "board", it.board || "Inbox", "ice-bo" + (it.board ? "" : " none"), "Board") : it.board ? html`<span>${it.board}</span>` : ""}<span class="ice-age">${ago(it.at)}</span><span class="ice-ra">${it.status === "promoted" || it.status === "done" ? "" : html`<button class="btn ghost sm" id="ice-pr-${i}" data-pr="${i}" title="Promote to Tasks (p)" aria-label="Promote to Tasks: ${it.text}">${ico("plus")}</button>`}${live(it) ? menuBtn(i, it, "snooze", ico("clock"), "btn ghost sm", "Snooze (h: a week)") : ""}${it.status === "promoted" || it.status === "done" ? "" : it.status === "dismissed" ? html`<button class="btn ghost sm" id="ice-rs-${i}" data-rs="${i}" title="Restore to waiting" aria-label="Restore: ${it.text}">Restore</button>` : html`<button class="btn ghost sm" id="ice-ds-${i}" data-ds="${i}" title="Dismiss (d)" aria-label="Dismiss: ${it.text}">${ico("x")}</button>`}</span></span>${menu(i, it)}</div>`;
+    const head = html`<div class="ice-row${iceCur === k ? " cur" : ""}${iceSel.has(k) ? " sel" : ""}" data-i="${i}" data-k="${k}"><input type="checkbox" id="ice-ck-${i}" data-ck="${i}"${iceSel.has(k) ? " checked" : ""} aria-label="Select: ${it.text}">${live(it) ? menuBtn(i, it, "kind", kindOf(it), "ice-kb", "Kind") : kindOf(it)}<span class="ice-src" title="${srcName(it)}">${fav(it.source, "link", srcOf(it)?.social)}</span><button class="ice-t" id="ice-o-${i}" data-o="${i}" aria-expanded="${String(open)}" title="${it.text}">${it.text}</button><span class="ice-meta">${proj(it)}${badges(it)}${live(it) ? menuBtn(i, it, "board", it.board || "Inbox", "ice-bo" + (it.board ? "" : " none"), "Collection") : it.board ? html`<span>${it.board}</span>` : ""}<span class="ice-age">${ago(it.at)}</span><span class="ice-ra">${it.status === "promoted" || it.status === "done" ? "" : html`<button class="btn ghost sm" id="ice-pr-${i}" data-pr="${i}" title="Promote to Tasks (p)" aria-label="Promote to Tasks: ${it.text}">${ico("plus")}</button>`}${live(it) ? menuBtn(i, it, "snooze", ico("clock"), "btn ghost sm", "Snooze (h: a week)") : ""}${it.status === "promoted" || it.status === "done" ? "" : it.status === "dismissed" ? html`<button class="btn ghost sm" id="ice-rs-${i}" data-rs="${i}" title="Restore to waiting" aria-label="Restore: ${it.text}">Restore</button>` : html`<button class="btn ghost sm" id="ice-ds-${i}" data-ds="${i}" title="Dismiss (d)" aria-label="Dismiss: ${it.text}">${ico("x")}</button>`}</span></span>${menu(i, it)}</div>`;
     const more = open
       ? html`<div class="ice-open">${it.notes ? html`<div class="ice-notes">${it.notes}</div>` : ""}${imgs(it)}<span class="hint" style="margin:0">From ${srcName(it)} · ${ago(it.at)}${it.post ? html` · <a href="${web(it.post)}" target="_blank" rel="noopener">open post</a>` : ""}</span>${replyBox(it)}${icePro === k ? form(it) : ""}</div>`
       : "";
@@ -502,7 +523,7 @@ export async function openSources() {
     const head = html`<div class="ice-row ice-prow${iceCur === k ? " cur" : ""}" data-i="${i}" data-k="${k}"${live(it) ? raw(' data-swipe="1"') : ""}><div class="ice-pbg" aria-hidden="true"><span class="pro">${ico("check")}Task</span><span class="dis">Dismiss${ico("x")}</span></div><div class="ice-pf"><div class="ice-pm"><div class="ice-ph">${live(it) ? menuBtn(i, it, "kind", kindOf(it), "ice-kb", "Kind") : kindOf(it)}${it.sorted === "rules" && live(it) ? html`<span class="ice-uns">unsorted</span>` : ""}<span class="ice-meta">${badges(it)}</span></div><button class="ice-t" id="ice-o-${i}" data-o="${i}" aria-expanded="${String(open)}">${it.text}</button><span class="ice-pmeta">${proj(it)}${it.board ? html`<span>${it.board}</span>` : ""}<span>${ago(it.at)}</span></span></div>${thumb(it)}${done ? "" : it.status === "dismissed" ? html`<button class="btn ghost sm" id="ice-rs-${i}" data-rs="${i}" aria-label="Restore: ${it.text}">Restore</button>` : html`<button class="ib ice-ptask" id="ice-pr-${i}" data-pr="${i}" aria-label="Make a task: ${it.text}" title="Make a task">${ico("arrow")}</button>`}</div>${menu(i, it)}</div>`;
     // Opened, a phone row also offers what its gestures do, for anyone who cannot swipe or hold.
     const acts = live(it)
-      ? html`<div class="ice-form-acts ice-pacts">${menuBtn(i, it, "snooze", html`${ico("clock")}Snooze`, "btn ghost sm", "Snooze")}${menuBtn(i, it, "board", html`Board: ${it.board || "Inbox"}`, "btn ghost sm", "Board")}<span class="end"></span><button class="btn ghost sm" id="ice-ds-${i}" data-ds="${i}" aria-label="Dismiss: ${it.text}">${ico("x")}Dismiss</button></div>`
+      ? html`<div class="ice-form-acts ice-pacts">${menuBtn(i, it, "snooze", html`${ico("clock")}Snooze`, "btn ghost sm", "Snooze")}${menuBtn(i, it, "board", html`${it.board || "Inbox"}`, "btn ghost sm", "Collection")}<span class="end"></span><button class="btn ghost sm" id="ice-ds-${i}" data-ds="${i}" aria-label="Dismiss: ${it.text}">${ico("x")}Dismiss</button></div>`
       : "";
     const more = open
       ? html`<div class="ice-open">${it.notes ? html`<div class="ice-notes">${it.notes}</div>` : ""}${imgs(it)}<span class="hint" style="margin:0">From ${srcName(it)} · ${ago(it.at)}${it.post ? html` · <a href="${web(it.post)}" target="_blank" rel="noopener">open post</a>` : ""}</span>${acts}${replyBox(it)}${icePro === k ? form(it) : ""}</div>`
@@ -516,7 +537,7 @@ export async function openSources() {
       k = iceKey(it),
       lk = it.link && /^https?:\/\//i.test(it.link.url) ? it.link : null,
       site = lk ? host(lk.url).replace(/^www\./, "") : "";
-    const acts = html`${it.status === "promoted" || it.status === "done" ? "" : html`<button class="btn ghost sm" id="ice-pr-${i}" data-pr="${i}" title="Promote to Tasks (p)" aria-label="Promote to Tasks: ${it.text}">${ico("arrow")}Task</button>`}${live(it) ? html`${menuBtn(i, it, "snooze", html`${ico("clock")}Snooze`, "btn ghost sm", "Snooze")}${menuBtn(i, it, "kind", "Kind", "btn ghost sm", "Kind")}${menuBtn(i, it, "board", "Board", "btn ghost sm", "Board")}` : ""}<span class="end"></span>${it.status === "promoted" || it.status === "done" ? "" : it.status === "dismissed" ? html`<button class="btn ghost sm" id="ice-rs-${i}" data-rs="${i}" title="Restore to waiting" aria-label="Restore: ${it.text}">Restore</button>` : html`<button class="btn ghost sm" id="ice-ds-${i}" data-ds="${i}" title="Dismiss (d)" aria-label="Dismiss: ${it.text}">${ico("x")}</button>`}`;
+    const acts = html`${it.status === "promoted" || it.status === "done" ? "" : html`<button class="btn ghost sm" id="ice-pr-${i}" data-pr="${i}" title="Promote to Tasks (p)" aria-label="Promote to Tasks: ${it.text}">${ico("arrow")}Task</button>`}${live(it) ? html`${menuBtn(i, it, "snooze", html`${ico("clock")}Snooze`, "btn ghost sm", "Snooze")}${menuBtn(i, it, "kind", "Kind", "btn ghost sm", "Kind")}${menuBtn(i, it, "board", "Collection", "btn ghost sm", "Collection")}` : ""}<span class="end"></span>${it.status === "promoted" || it.status === "done" ? "" : it.status === "dismissed" ? html`<button class="btn ghost sm" id="ice-rs-${i}" data-rs="${i}" title="Restore to waiting" aria-label="Restore: ${it.text}">Restore</button>` : html`<button class="btn ghost sm" id="ice-ds-${i}" data-ds="${i}" title="Dismiss (d)" aria-label="Dismiss: ${it.text}">${ico("x")}</button>`}`;
     return html`<article class="ice-card${iceCur === k ? " cur" : ""}" data-i="${i}" data-k="${k}">${lk ? html`<a class="ice-lk" href="${web(lk.url)}" target="_blank" rel="noopener noreferrer" style="--h:${hue(site)}"><b>${lk.title || site}</b>${lk.summary ? html`<span>${lk.summary}</span>` : ""}<small>${site}</small></a>` : ""}<div class="ice-cb"><div class="ice-ch">${kindOf(it)}${it.sorted === "rules" && live(it) ? html`<span class="ice-uns" title="Kind set by a rule: pick one with Kind">unsorted</span>` : ""}<span class="ice-meta">${badges(it)}</span></div><button class="ice-ct" id="ice-o-${i}" data-o="${i}" title="Open in the Sort list">${it.text}</button>${imgs(it, true)}<div class="ice-cf">${it.board ? html`<span class="ice-cbd">${it.board}</span>` : ""}${(it.tags || []).map((t) => html`<span class="ice-tag">#${t}</span>`)}${proj(it)}<span class="end"></span><span class="ice-when">${it.source !== "manual" ? `${srcName(it)} · ` : ""}${ago(it.at)}</span></div></div><div class="ice-ca">${acts}</div>${menu(i, it)}</article>`;
   };
   const inbox =
@@ -682,12 +703,12 @@ export async function openSources() {
       cap.dir = v;
       openSources().then(() => cap.ta.focus());
     });
-    wirePick("ice-cb", (v) => {
+    wirePick("ice-cb", async (v) => {
       if (v === "\n") {
-        const n = (prompt("New board: a client or a topic") || "").trim();
-        if (!n) return cap.ta.focus();
-        if (n.length > 40) return toast("A board name is 1 to 40 characters");
-        v = n;
+        const a = await askCollection();
+        if (!a) return cap.ta.focus();
+        if (a.client) await post("/icebox", { op: "boards", act: "add", dir: dir || cap.dir, name: a.name, client: true });
+        v = a.name;
       }
       cap.board = v;
       cap.boardDir = dir || cap.dir;
@@ -733,17 +754,17 @@ export async function openSources() {
       } catch (e) {}
       openSources();
     }));
-  // + Board: a name, and whether it is a client's (its items then count as Client).
+  // + Collection: a name, and whether it is a client's (its items then count as Client).
   if ($("ice-nb"))
     $("ice-nb").onclick = async () => {
       const to = dir || cap.dir;
       if (!to) return toast("Pick a project first");
-      const name = (prompt(dir ? "New board: a client or a topic" : `New board in ${capP?.label || "this project"}: a client or a topic`) || "").trim();
-      if (!name) return;
-      const client = confirm(`Is ${name} a client? Its items then count as Client.`);
+      const a = await askCollection(dir ? "" : capP?.label || "this project");
+      if (!a) return;
+      const { name, client } = a;
       const j = await post("/icebox", { op: "boards", act: "add", dir: to, name, client });
       if (j.ok) {
-        toast(`Board ${name} made`);
+        toast(`Collection ${name} made`);
         load();
       }
       if (srcOpen()) openSources();
@@ -1073,9 +1094,12 @@ export async function openSources() {
       }));
       pp.querySelectorAll("[data-kd]").forEach((b) => (b.onclick = () => setOne(it, { op: "kind", kind: b.dataset.kd }, `Kind: ${KIND[b.dataset.kd]}`)));
       pp.querySelectorAll("[data-bo]").forEach((b) => (b.onclick = () => setOne(it, { op: "board", board: b.dataset.bo }, b.dataset.bo ? `Moved to ${b.dataset.bo}` : "Moved to the Inbox")));
-      pp.querySelectorAll("[data-bo-new]").forEach((b) => (b.onclick = () => {
-        const n = (prompt("New board: a client or a topic") || "").trim();
-        if (n) setOne(it, { op: "board", board: n }, `Moved to ${n}`);
+      pp.querySelectorAll("[data-bo-new]").forEach((b) => (b.onclick = async () => {
+        iceMenu = "";
+        const a = await askCollection();
+        if (!a) return;
+        if (a.client) await post("/icebox", { op: "boards", act: "add", dir: it.dir, name: a.name, client: true });
+        setOne(it, { op: "board", board: a.name }, `Moved to ${a.name}`);
       }));
     });
   // Bulk: one dismiss per project; promote one request at a time, each its own task

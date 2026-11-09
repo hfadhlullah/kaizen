@@ -303,3 +303,4 @@ updated: 2026-10-31
 - 2026-11-09 run 2026-11-09-phone-icebox-tab-off — Icebox page, Home chat and phone, Notebook, Video, Layout and look: Icebox out of the phone bottom bar, reached via Search
 - 2026-11-09 run 2026-11-09-icebox-ai — Sources and icebox, Icebox page, Settings: ChatGPT sorts board captures, AI promote drafts, discover sorts unsorted items, Explore offers findings to the icebox
 - 2026-11-09 run 2026-11-09-icebox-minimal — Icebox page: key line, capture hint and 'newest first' removed; capture row controls one size
+- 2026-11-09 run 2026-11-09-icebox-collections — Icebox page: boards renamed Collections (UI, CLI aliases, guide, skills); new-collection dialog replaces prompt(), which the desktop app does not support

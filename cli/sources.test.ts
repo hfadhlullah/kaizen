@@ -680,8 +680,8 @@ test("the board refuses to add a source without a project, and moves one between
     // A board on its own: made, marked a client's, refused when too long or still holding items, removed when empty.
     expect(await ice({ op: "boards", dir: a, act: "add", name: "Site" })).toMatchObject({ status: 200 });
     expect(await ice({ op: "boards", dir: a, act: "client", name: "site" })).toMatchObject({ status: 200 });
-    expect(await ice({ op: "boards", dir: a, act: "add", name: "x".repeat(41) })).toMatchObject({ status: 409, error: "a board name is 1 to 40 characters" });
-    expect(await ice({ op: "boards", dir: a, act: "remove", name: "Kaizen" })).toMatchObject({ status: 409, error: "the board still has items" });
+    expect(await ice({ op: "boards", dir: a, act: "add", name: "x".repeat(41) })).toMatchObject({ status: 409, error: "a collection name is 1 to 40 characters" });
+    expect(await ice({ op: "boards", dir: a, act: "remove", name: "Kaizen" })).toMatchObject({ status: 409, error: "the collection still has items" });
     expect(await ice({ op: "boards", dir: a, act: "rename", name: "Site" })).toMatchObject({ status: 409 });
     expect(readBoards(a)).toEqual([{ name: "Arupadatu", client: true }, { name: "Kaizen" }, { name: "Site", client: true }]);
     expect(await ice({ op: "boards", dir: a, act: "remove", name: "Site" })).toMatchObject({ status: 200 });
@@ -936,14 +936,14 @@ test("capture: kind, board, tags; a client's board makes its items Client; the s
   expect(capture(state, { text: "by an agent", kind: "finding", by: "agent" }).then(() => readIcebox(state).at(-1)!.sorted)).resolves.toBe("agent");
   // Boards: an empty one goes, one with items stays.
   expect(saveBoard(state, "Kaizen site")).toBeNull();
-  expect(removeBoard(state, "Arupadatu")).toBe("the board still has items");
+  expect(removeBoard(state, "Arupadatu")).toBe("the collection still has items");
   expect(removeBoard(state, "kaizen site")).toBeNull();
-  expect(removeBoard(state, "nope")).toBe("no such board");
+  expect(removeBoard(state, "nope")).toBe("no such collection");
 });
 
 test("capture and changes refuse bad input before writing anything", async () => {
   expect(await capture(state, { text: "x thing", kind: "bug" })).toEqual({ why: "kind is one of: client, finding, people" });
-  expect(await capture(state, { text: "x thing", board: "b".repeat(41) })).toEqual({ why: "a board name is 1 to 40 characters" });
+  expect(await capture(state, { text: "x thing", board: "b".repeat(41) })).toEqual({ why: "a collection name is 1 to 40 characters" });
   expect(await capture(state, { text: "x thing", tags: ["a".repeat(25)] })).toMatchObject({ why: expect.stringContaining("tag") });
   expect(await capture(state, { text: "x thing", tags: ["../etc"] })).toMatchObject({ why: expect.stringContaining("tag") });
   expect(await capture(state, { text: "x thing", tags: ["a;b"] })).toMatchObject({ why: expect.stringContaining("tag") });
@@ -956,7 +956,7 @@ test("capture and changes refuse bad input before writing anything", async () =>
   expect(setKind(state, [id], "bug")).toMatch(/^kind is one of/);
   expect(setKind(state, ["nope0000"], "client")).toBe("no such item");
   expect(setKind(state, [], "client")).toBe("no items named");
-  expect(setBoard(state, [id], "b".repeat(41))).toBe("a board name is 1 to 40 characters");
+  expect(setBoard(state, [id], "b".repeat(41))).toBe("a collection name is 1 to 40 characters");
   expect(setBoard(state, ["nope0000"], "New board")).toBe("no such item");
   expect(existsSync(join(state, "boards.json"))).toBe(false);   // an unknown id makes no board
   expect(setTags(state, [id], ["ok", "not ok!"])).toMatch(/tag/);
