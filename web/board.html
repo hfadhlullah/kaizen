@@ -138,14 +138,14 @@ body .rail a.upd::after{left:calc(50% + 6px);top:4px}body .toast{left:16px;botto
 [data-rail=min] .rail a.it .n,[data-rail=min] .rail a.it .srcs,[data-rail=min] .rail .rib:not(.th),[data-rail=min] .plist .proj :not(.plogo),[data-rail=min] .plist .row div,[data-rail=min] .plist .wcount{display:none}
 [data-rail=min] .rail .psec{padding:0;margin:12px 0 2px;flex-direction:column}[data-rail=min] .rail .rbot{flex-direction:column}
 [data-rail=min] .plist .proj{justify-content:center;margin:10px 0 4px;padding:0}[data-rail=min] .plist .row{grid-template-columns:14px;justify-content:center;padding:0}
-@media(max-width:640px){.rail .psec,.rail .plist,.rail .rib{display:none}.rail .rbot,[data-rail=min] .rail .rbot{display:contents}.rail a.it[data-view=tasks]{order:3}.rail a.it[data-view=board]{order:4}.rail a.it .n,.rail a.it .srcs{display:none}.rail a.it[data-view=sources] .n:not(:empty){display:block;position:absolute;top:4px;left:calc(50% + 6px);margin:0;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--ink);color:var(--bg);font-size:10px;line-height:16px;text-align:center;font-weight:600}}
-/* phones: Runs, Search, Home, Icebox, Chat, Terminal (Settings is a Search result). The board and Tasks are set up on a computer (web/board/phone.ts) */
+@media(max-width:640px){.rail .psec,.rail .plist,.rail .rib{display:none}.rail .rbot,[data-rail=min] .rail .rbot{display:contents}.rail a.it[data-view=tasks]{order:3}.rail a.it[data-view=board]{order:4}.rail a.it .n,.rail a.it .srcs{display:none}}
+/* phones: Runs, Search, Home, Chat, Terminal (Settings and the Icebox are Search results). The board and Tasks are set up on a computer (web/board/phone.ts) */
 @media(min-width:641px){.rail .rbot .lbl{display:none}.rail .rbot a.it{flex:none;width:var(--btn-xs);height:var(--btn-xs);padding:0;justify-content:center;margin-right:auto}[data-rail=min] .rail .rbot a.it{width:var(--btn-s);height:var(--btn-s);margin-right:0}}
 .rail a.it.ponly,#phome{display:none}
 @media(max-width:640px){
-.rail a.it:is([data-view=board],[data-view=tasks]),#foot,#ctx-open,body .rail .rbot .rib{display:none!important}
+.rail a.it:is([data-view=board],[data-view=tasks],[data-view=sources]),#foot,#ctx-open,body .rail .rbot .rib{display:none!important}
 .rail a.it.ponly{display:flex}
-.rail a.it[data-view=device]{order:1}.rail a.it.gs-it{order:2}.rail a.it[data-view=home]{order:3}.rail a.it[data-view=sources]{order:4;position:relative}.rail a.it[data-view=chat]{order:5}.rail a.it[data-view=terminal]{order:6}.rail a.it[data-view=settings]{display:none}
+.rail a.it[data-view=device]{order:1}.rail a.it.gs-it{order:2}.rail a.it[data-view=home]{order:3}.rail a.it[data-view=chat]{order:4}.rail a.it[data-view=terminal]{order:5}.rail a.it[data-view=settings]{display:none}
 .rail,[data-rail=min] .rail{padding:8px 8px max(2px,calc(env(safe-area-inset-bottom) - 8px));border-top:1px solid color-mix(in srgb,var(--line) 70%,transparent)}
 .rail a.it,[data-rail=min] .rail a.it{min-height:46px;gap:3px;font-size:10.5px;letter-spacing:.01em}
 .rail a.it svg{width:44px;height:26px;padding:4px 12px;box-sizing:border-box;border-radius:13px;transition:background .15s}
@@ -1041,6 +1041,35 @@ body:not(.paged) .src-sec,body:not(.paged) .src-scrim{display:none}
 .ice-pacts{flex-wrap:wrap}.ice-pacts .btn{min-height:44px;display:inline-flex;align-items:center;gap:6px}.ice-pacts svg{width:14px;height:14px}
 @media(max-width:640px){.ice-cap #ice-mic-slot .ib,.ice-cap-row>.ib,#ice-save{min-width:44px;min-height:44px}.ice-plist .ice-kb{min-height:28px}}
 @media(prefers-reduced-motion:reduce){.ice-pf{transition:none}}
+/* Save's send icon shows only on a phone, where the button is a round icon. */
+#ice-save svg{display:none}
+/* The phone Icebox, tidy (2026-11-09-phone-icebox-tab-off): one capture row, one chip row, light rows. */
+@media(max-width:640px){
+body.ice #pbody{padding-top:8px}
+/* The Icebox has its own project picker in the capture box; the header keeps one picker, on the title's line. */
+body.ice .hdr #showc{display:none}
+.ice-cap{margin:0 0 10px;padding:10px 10px 8px 14px;gap:4px;border-radius:var(--r)}
+.ice-cap-t{min-height:24px;font-size:15px}
+.ice-cap-row{flex-wrap:nowrap;gap:2px}
+.ice-cap-row>.ib,.ice-cap-row>.mic{border:0;background:none;min-width:44px;min-height:44px;width:44px;height:44px;color:var(--dim)}
+.ice-cap-row .ice-combo{min-width:0;flex:0 1 auto}
+.ice-cap-row .ice-combo>.sel{height:30px;max-width:120px;padding:0 22px 0 8px;font-size:12px;border-color:transparent;background:var(--hover)}
+.ice-cap-row .ice-combo>.sel span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#ice-save{flex:none;width:44px;min-width:44px;height:44px;min-height:44px;padding:0;border-radius:50%;justify-content:center}
+#ice-save span{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+#ice-save svg{display:block;width:17px;height:17px}
+.ice-boards{flex-direction:row;flex-wrap:nowrap;overflow-x:auto;gap:6px;margin:0 -16px 6px;padding:0 16px 2px;scrollbar-width:none}
+.ice-boards::-webkit-scrollbar{display:none}
+.ice-boards .ice-chips{flex:none;overflow:visible}
+.ice-boards .ice-chips+.ice-chips{padding-left:6px;border-left:1px solid var(--line)}
+.ice-bar{margin-bottom:4px}
+.ice-plist .ice-row.cur:not(:has(+.ice-open)) .ice-pf{background:var(--bg)}
+.ice-pf{padding:12px 6px 12px 4px}
+.ice-th{width:40px;height:40px;border-radius:9px;font-size:16px}
+.ice-ptask{width:44px;height:44px;min-width:44px;min-height:44px;border-radius:50%;color:var(--dim);display:grid;place-items:center;border:1px solid var(--line)}
+.ice-ptask svg{width:16px;height:16px}
+.ice-pmeta .nm .plogo,.ice-pmeta .nm>:first-child:not(:only-child){display:none}
+}
 .src-list{display:flex;flex-direction:column;gap:10px}
 .src-card{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r);padding:12px 12px 10px;display:flex;flex-direction:column;gap:8px;transition:border-color .15s}
 .src-card:hover{border-color:color-mix(in srgb,var(--line) 70%,var(--ink))}
