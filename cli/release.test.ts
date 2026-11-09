@@ -13,7 +13,7 @@ test("release picks the bump from the commits and names it from them", () => {
 
 // release.sh against a fake gh: the release is made as a draft (desktop.yml publishes
 // it once its installers are attached), and a draft the desktop job made first is filled in.
-import { mkdtempSync, mkdirSync, copyFileSync, writeFileSync, readFileSync, chmodSync } from "node:fs";
+import { mkdtempSync, mkdirSync, copyFileSync, writeFileSync, readFileSync, chmodSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -34,9 +34,20 @@ function runRelease(view: string) {
   git("commit", "-q", "--allow-empty", "-m", "Release 9.9.9: a thing");
   const r = Bun.spawnSync(["sh", "cli/release.sh"], {
     cwd: dir,
-    env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, npm_package_version: "9.9.9" },
+    // The script's own `git tag -a` needs an identity; a CI runner has none configured.
+    env: {
+      ...process.env,
+      PATH: `${bin}:${process.env.PATH}`,
+      npm_package_version: "9.9.9",
+      GIT_AUTHOR_NAME: "t",
+      GIT_AUTHOR_EMAIL: "t@t",
+      GIT_COMMITTER_NAME: "t",
+      GIT_COMMITTER_EMAIL: "t@t",
+    },
   });
-  return { out: r.stdout.toString(), gh: readFileSync(join(dir, "gh.log"), "utf8") };
+  const out = r.stdout.toString();
+  if (!existsSync(join(dir, "gh.log"))) throw new Error(`release.sh never called gh:\n${out}${r.stderr}`);
+  return { out, gh: readFileSync(join(dir, "gh.log"), "utf8") };
 }
 
 test.skipIf(process.platform === "win32")("release.sh drafts the release, and fills in a draft already there", () => {
