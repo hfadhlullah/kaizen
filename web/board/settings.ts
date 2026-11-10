@@ -12,6 +12,7 @@ import { cleanupRows, wireCleanup } from "./settings-cleanup.ts";
 import { automationRows, wireAutomations } from "./settings-automations.ts";
 import { skillRows, wireSkills } from "./settings-skills.ts";
 import { mountPhone } from "./phone-setup.ts";
+import { mountWhatsApp } from "./whatsapp-setup.ts";
 import { fillMics, micRow } from "./settings-voice.ts";
 import { placeOf, SETTINGS_NAV } from "./settings-pages.ts";
 import { askNotify, notifyOn, playSound, soundPick, SOUNDS, toast } from "./toast.ts";
@@ -157,7 +158,10 @@ export async function openSettings() {
     }
   }
   put("voice", "Dictation", row("Microphone", micRow(), "Used by this browser. Names appear after you first allow the microphone. Ctrl+Alt+D dictates into the focused terminal.", "v-mic", "microphone input device mic dictation shortcut"));
-  put("mobile", "Phone", html`<div class="srow ph-card" data-q="phone mobile tailscale qr connect address setup"><div id="phset"></div></div>`);
+  put("mobile", "Phone", html`
+    <div class="srow ph-card" data-q="phone mobile tailscale qr connect address setup"><div id="phset"></div></div>
+    <div class="srow ph-card" style="margin-top:16px" data-q="whatsapp phone mobile qr message send"><div id="waset"></div></div>
+  `);
   put("integrations", "Google", row("OAuth client id", html`<input class="sel" id="gg-id" placeholder="${gg.hasClient ? "Saved. Paste a new one to replace it" : "Desktop app client id from Google Cloud"}" spellcheck="false" autocomplete="off">`, "", "gg-id", "google oauth client id sheets write back"));
   put("integrations", "Google", row("OAuth client secret", html`<span class="fpick"><input class="sel" id="gg-secret" type="password" placeholder="${gg.hasClient ? "Saved. Paste a new one to replace it" : ""}" spellcheck="false" autocomplete="off"><button class="btn" id="gg-save" type="button">Save</button></span>`, "", "gg-secret", "google oauth client secret"));
   // Firecrawl for `kaizen search` / `kaizen scrape`: the key goes in, only its last four come back.
@@ -278,6 +282,7 @@ export async function openSettings() {
   fillMics();
   if (ac) wireAccounts(openSettings);
   if ($("phset")) void mountPhone($("phset"));
+  if ($("waset")) void mountWhatsApp($("waset"));
   filter();
   $("smain").scrollTop = top;
   if (hadFocus) {

@@ -17,3 +17,5 @@ bot/dist/
 
 # Python bytecode.
 __pycache__/
+
+artifacts/

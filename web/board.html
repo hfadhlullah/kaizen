@@ -175,13 +175,18 @@ html.desk.mac .rail>.top{padding-top:22px}
 @media(max-width:640px){
 body .hdr{padding:10px 16px 12px;gap:8px;border-bottom:0}
 body aside.docked>header{padding-top:10px}
-body.paged:is(.phomev,.homev) .hdr{display:flex!important;flex-wrap:nowrap}
+body.paged:is(.phomev,.homev,.termv,.runv) .hdr{display:flex!important;flex-wrap:nowrap}
 body .hdr h1{flex:1 1 auto;min-width:0;font-size:20px;line-height:30px;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body:is(.runv,.termv) .hdr{padding:10px 14px 8px;gap:10px;border-bottom:0}
+body:is(.runv,.termv) .hdr #phone-menu{order:-1!important;flex:none;margin:0}
+body.runv .hdr h1{order:0!important;flex:1 1 auto;min-width:0;font-size:17px;line-height:24px;margin:0;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.termv .hdr h1{order:0!important;flex:1 1 auto;min-width:0;font-size:20px;line-height:28px;margin:0;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.termv #combo,body.termv #showc,body.termv #bq{display:none!important}
 /* one round + on every phone page; -4px keeps the header as tall as Settings' */
 body.homev #hsidetop{margin:-4px 0}body.homev #hnewtop,body.phomev #newtop{display:inline-grid;place-items:center;flex:none;width:38px;height:38px;margin:-4px 0;padding:0;border-radius:19px;box-shadow:var(--shadow-2)}
 body.homev #hnewtop svg,body.phomev #newtop svg{display:block;width:18px;height:18px}body.phomev #newtop span{display:none}
 /* the run workspace: a page header with the run's title, the Runs tab lit; a lone pane drops its own header */
-html body.runv .app{grid-template-rows:auto minmax(0,1fr)}html body.runv .hdr{display:flex!important;grid-area:1/1}html body.runv .hdr>:not(h1){display:none!important}html body.runv #runv{grid-area:2/1}
+html body.runv .app{grid-template-rows:auto minmax(0,1fr)}html body.runv .hdr{display:flex!important;grid-area:1/1}html body.runv .hdr>:not(h1):not(#phone-menu){display:none!important}html body.runv #runv{grid-area:2/1}
 html body.runv #rtabs{padding:3px 10px}html body.runv .app{margin:0!important}
 .srow{grid-template-columns:minmax(0,1fr) auto}.srow select.sel{max-width:52vw}
 body.phomev .hdr>:not(h1):not(#newtop),body.phomev #board{display:none!important}
@@ -638,8 +643,8 @@ body.runv #panel.parked,body.runv.rflip #panel.parked{display:none}
 /* the grab handle: the sheet follows a finger down and closes (run-view.ts) */
 body.runv.rflip #panel::before{content:"";position:absolute;top:7px;left:50%;width:36px;height:4px;margin-left:-18px;border-radius:2px;background:var(--line)}body.runv.rflip #panel>.body{overscroll-behavior:contain;scrollbar-width:none}body.runv.rflip #panel>.body::-webkit-scrollbar{display:none}body .prog .ph{display:flex;justify-content:space-between;gap:8px}body.runv.rflip #panel>header{padding-top:8px}body.runv.rflip .rmeta{max-width:64px}
 #rtabs .rtab span{max-width:110px;overflow:hidden;text-overflow:ellipsis}}
-/* A phone: the panel is a sheet opened from the run tab (#rside); 44px touch targets */
-@media(max-width:640px){body.runv #rtabs{height:52px;min-height:52px}body.runv #rtabs .rtab,body.runv #rbar .ib.xs{min-height:44px;height:44px;min-width:44px}body.runv #rtabs .rtab i{padding:12px 14px}body.runv #pnotes{width:44px;height:44px}body.runv #pfoot details button{min-height:44px}body .termtools button{min-width:40px;min-height:40px}body.runv #rbar{height:52px}body.runv #ptabs button{width:44px;height:44px}body.runv #pclose{width:44px;height:44px}body.runv #pfoot .btn{min-height:44px}}
+/* A phone: the panel is a sheet opened from the run tab (#rside); compact tabs */
+@media(max-width:640px){body.runv #rbar{height:40px;min-height:40px;padding:0 10px 4px 10px;border-bottom:1px solid var(--line)}body.runv #rtabs{height:36px;min-height:36px;padding:0;gap:4px}body.runv #rtabs .rtab{min-height:32px;height:32px;padding:0 10px;font-size:12px;border-radius:var(--r-s)}body.runv #rtabs .rtab i{padding:0 2px 0 6px}body.runv #rbar :is(.rbtn,.ib.xs){min-height:32px;height:32px;min-width:32px;width:32px;padding:0;border-radius:var(--r-s)}body.runv #rbar :is(.rbtn,.ib.xs) svg{width:16px;height:16px}body.runv #pnotes{width:44px;height:44px}body.runv #pfoot details button{min-height:44px}body .termtools button{min-width:40px;min-height:40px}body.runv #ptabs button{width:44px;height:44px}body.runv #pclose{width:44px;height:44px}body.runv #pfoot .btn{min-height:44px}}
 
 /* revise 5: the mockup's plain chrome for terminals, in the workspace and on the Terminal page */
 body.termv #tmodes{background:none;padding:0;gap:2px}body.termv #tmodes button{color:var(--dim);background:none;box-shadow:none;border-radius:var(--r-s);font-weight:400}body.termv #tmodes button:hover{background:var(--hover);color:var(--ink)}body.termv #tmodes button.on{color:var(--ink);background:var(--hover);box-shadow:none}
@@ -781,7 +786,7 @@ body:is(.runv:has(#rpanes .rpane:not([hidden]) .term),.termv:has(.tile:not(.off)
 }
 /* A phone has no room for a grid or a stack: one terminal fills the page, and tabs above pick which */
 .ttabs{display:none}
-@media(max-width:640px){body.termv #tmodes,.tile [data-a=max],.tsplit{display:none}.ttabs{display:flex;order:-1;flex:1 0 100%;min-width:0;gap:6px;overflow-x:auto;scrollbar-width:none}.ttabs button{flex:none;display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px;border:1px solid var(--line);border-radius:var(--r-pill);background:none;color:var(--dim);font:inherit;font-size:12px;white-space:nowrap}.ttabs button.on{color:var(--ink);background:var(--hover);border-color:var(--accent)}.tgrid{display:flex;flex-direction:column}.tile{flex:1}.tile.off{display:none}}
+@media(max-width:640px){body.termv #tmodes,.tile [data-a=max],.tsplit{display:none}body.termv .tile header{display:none!important}body.termv .tbar:not(:empty){padding:0 14px 8px;border-bottom:1px solid var(--line)}.ttabs{display:flex;order:-1;flex:1 0 100%;min-width:0;gap:6px;overflow-x:auto;scrollbar-width:none}.ttabs button{flex:none;display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px;border:1px solid var(--line);border-radius:var(--r-pill);background:none;color:var(--dim);font:inherit;font-size:12px;white-space:nowrap}.ttabs button .tx{display:inline-grid;place-items:center;width:16px;height:16px;margin-left:2px;border-radius:50%;font-style:normal;font-size:13px;line-height:1;color:var(--dim);opacity:.6}.ttabs button .tx:hover{background:var(--line);color:var(--ink);opacity:1}.ttabs button.on{color:var(--ink);background:var(--hover);border-color:var(--accent)}.tgrid{display:flex;flex-direction:column}.tile{flex:1}.tile.off{display:none}}
 aside.docked{position:static;z-index:auto;flex:1;min-height:0;width:auto;transform:none;visibility:visible;transition:none;box-shadow:none;border:0;background:none}
 aside.docked>header,aside.docked>.body{padding-inline:28px}
 aside.docked>header{border-bottom:0;padding-top:28px;padding-bottom:12px}
@@ -1188,7 +1193,7 @@ a.schip:hover{color:var(--ink);border-color:color-mix(in srgb,var(--line) 60%,va
 .src-add .acts .btn{flex-shrink:0}
 @media(max-width:480px){.src-add .two,.src-add .two.plat{grid-template-columns:1fr}}
 @media(max-width:900px){main{grid-template-columns:1fr;padding-inline:16px;gap:8px}.hdr,.ftr,aside.docked>header,aside.docked>.body{padding-inline:16px}.more{display:grid}.card:hover .age{display:inline}.toast{left:16px;max-width:calc(100% - 32px)}}
-@media(max-width:640px){.hdr{gap:8px 12px;padding-top:10px;padding-bottom:12px}.hdr h1{order:0;flex:1 0 50%;font-size:20px}#newtop{order:1}.hdr .combo{order:2;flex:1 1 calc(50% - 6px);min-width:0}.hdr .combo>.sel{width:100%;max-width:none}.hdr .sp{display:none}#bq{order:3;flex:1 0 100%;width:auto;max-width:none}body.termv .hdr h1{flex-basis:100%}.ftr{gap:6px 12px}}
+@media(max-width:640px){.hdr{gap:8px 12px;padding-top:10px;padding-bottom:12px}.hdr h1{order:0;flex:1 0 50%;font-size:20px}#newtop{order:1}.hdr .combo{order:2;flex:1 1 calc(50% - 6px);min-width:0}.hdr .combo>.sel{width:100%;max-width:none}.hdr .sp{display:none}#bq{order:3;flex:1 0 100%;width:auto;max-width:none}.ftr{gap:6px 12px}}
 @media(hover:none){#kbd{display:none}}
 .skel{display:block;border-radius:var(--r-xs);background:linear-gradient(90deg,var(--line) 25%,color-mix(in srgb,var(--line) 45%,transparent) 50%,var(--line) 75%);background-size:200% 100%;animation:skel 1.2s ease-in-out infinite}@keyframes skel{from{background-position:200% 0}to{background-position:-200% 0}}
 /* motion: data-motion (Settings) wins over the system's reduced-motion */

@@ -147,11 +147,26 @@ export function openTerms() {
   const hid = [...all.keys()].filter((k) => lay.hidden.includes(k) && all.get(k).pty.alive);
   // The layout switch sits at the right of the page header.
   $("tmodes").innerHTML = html`${MODES.map(([v, l, i]) => html`<button data-mode="${v}" class="${lay.mode === v ? "on" : ""}" aria-pressed="${String(lay.mode === v)}" title="${l}" aria-label="${l}">${ico(i)}</button>`)}`.s;
-  bar!.innerHTML = html`${hid.length ? html`<span class="dim">Hidden</span>${hid.map((k) => html`<button class="chip" data-show="${k}" title="Show this terminal">${ico("plus")}${nameOf(all.get(k))} - ${projOf(all.get(k))}</button>`)}` : ""}${phone.matches && keys.length > 1 ? html`<span class="ttabs" role="group" aria-label="Terminals">${keys.map((k) => html`<button class="${k === one ? "on" : ""}" data-pick="${k}" aria-pressed="${String(k === one)}"><span class="tdot ${tst(all.get(k))}"></span>${nameOf(all.get(k))} - ${projOf(all.get(k))}</button>`)}</span>` : ""}`.s;
+  bar!.innerHTML = html`${hid.length ? html`<span class="dim">Hidden</span>${hid.map((k) => html`<button class="chip" data-show="${k}" title="Show this terminal">${ico("plus")}${nameOf(all.get(k))} - ${projOf(all.get(k))}</button>`)}` : ""}${phone.matches && keys.length ? html`<span class="ttabs" role="group" aria-label="Terminals">${keys.map((k) => html`<button class="${k === one ? "on" : ""}" data-pick="${k}" aria-pressed="${String(k === one)}"><span class="tdot ${tst(all.get(k))}"></span><span>${nameOf(all.get(k))} - ${projOf(all.get(k))}</span><i class="tx" data-close="${k}" title="Close terminal">×</i></button>`)}</span>` : ""}`.s;
   termsBadge();
   bar!.querySelectorAll<HTMLElement>("[data-pick]").forEach(
     (b) =>
-      (b.onclick = () => {
+      (b.onclick = (e) => {
+        const close = (e.target as HTMLElement).closest<HTMLElement>("[data-close]");
+        if (close) {
+          e.stopPropagation();
+          const ck = close.dataset.close!;
+          const c = all.get(ck);
+          const off = tst(c) === "ended";
+          if (off) {
+            lay.hidden.push(ck);
+            save();
+            openTerms();
+          } else if (confirm("End this agent session? A run can be resumed from its tile or card.")) {
+            post("/pty/exit", { key: ck }).then(() => load(true));
+          }
+          return;
+        }
         pick = b.dataset.pick!;
         openTerms();
       }),

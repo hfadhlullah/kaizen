@@ -5,13 +5,16 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { randomBytes, X509Certificate, createPrivateKey } from "node:crypto";
-import { cli, identity, reach, sendFile, sendFiles, type Device } from "./localsend.ts";
+import { cli, identity, probePeer, reach, sendFile, sendFiles, type Device } from "./localsend.ts";
 
 // prepare: what prepare-upload answers (a status, or "hang" to never answer).
 function fakeDevice(prepare: number | "hang") {
   const got: { prepare?: any; upload?: { query: Record<string, string>; bytes: Buffer } } = {};
   const srv = Bun.serve({ port: 0, hostname: "127.0.0.1", async fetch(req) {
     const u = new URL(req.url);
+    if (u.pathname === "/api/localsend/v2/info") {
+      return Response.json({ alias: "Pixel 8", deviceModel: "Pixel", deviceType: "mobile", fingerprint: "fp-info" });
+    }
     if (u.pathname === "/api/localsend/v2/prepare-upload") {
       got.prepare = await req.json();
       if (prepare === "hang") { await Bun.sleep(5000); return new Response(null, { status: 500 }); }
@@ -141,4 +144,20 @@ test("kaizen send: sends to --to, saves a default, and refuses folders and missi
     expect(await cli([f, "--to", "127.0.0.1:1"], log)).toBe(1);
     expect(out.at(-1)).toContain("no LocalSend at 127.0.0.1:1");
   } finally { p.stop(); delete process.env.KAIZEN_LOCALSEND_FILE; }
+});
+
+test("probePeer finds a device by IP answering /info directly", async () => {
+  const d = fakeDevice(200);
+  try {
+    const dev = await probePeer("127.0.0.1", 1000, d.dev.port);
+    expect(dev).toMatchObject({
+      alias: "Pixel 8",
+      deviceModel: "Pixel",
+      deviceType: "mobile",
+      fingerprint: "fp-info",
+      ip: "127.0.0.1",
+      port: d.dev.port,
+      protocol: "http",
+    });
+  } finally { d.stop(); }
 });

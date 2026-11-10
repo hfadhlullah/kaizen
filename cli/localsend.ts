@@ -50,7 +50,50 @@ const device = (m: any, ip: string): Device | null => {
 // Announce on the multicast group and collect who answers for `ms`: devices reply by
 // POSTing /register to the port we announced, or by multicast. The LocalSend app on this
 // computer may hold UDP 53317 already; reuseAddr shares it on Linux and macOS, and where
-// binding still fails we announce from any port and rely on the HTTP replies.
+// binding still fails we announce from any port and rely on the HTTP replies. Also probes
+// active Tailscale peer IPs on port 53317, so devices on a tailnet are discovered without multicast.
+export async function probePeer(ip: string, timeoutMs = 2000, port = PORT): Promise<Device | null> {
+  const { cert, key } = identity();
+  for (const protocol of ["https", "http"] as const) {
+    try {
+      const tls = protocol === "https" ? { rejectUnauthorized: false, cert, key } : undefined;
+      const res = await fetch(`${protocol}://${ip.includes(":") ? `[${ip}]` : ip}:${port}/api/localsend/v2/info`, {
+        tls,
+        signal: AbortSignal.timeout(timeoutMs),
+      } as RequestInit);
+      if (res.ok) {
+        const j = await res.json().catch(() => null);
+        if (j && typeof j === "object") {
+          return device({ ...j, protocol, port }, ip);
+        }
+      }
+    } catch {
+      // not available on this protocol or not reachable
+    }
+  }
+  return null;
+}
+
+export async function tailscaleIps(): Promise<string[]> {
+  try {
+    const p = Bun.spawn(["tailscale", "status", "--json"], { stdout: "pipe", stderr: "ignore", windowsHide: true });
+    const text = await new Response(p.stdout).text();
+    if (!text.trim()) return [];
+    const s = JSON.parse(text);
+    const ips: string[] = [];
+    for (const p of Object.values<any>(s?.Peer ?? {})) {
+      if (p?.Online && Array.isArray(p?.TailscaleIPs)) {
+        for (const ip of p.TailscaleIPs) {
+          if (typeof ip === "string" && !ip.includes(":")) ips.push(ip);
+        }
+      }
+    }
+    return ips;
+  } catch {
+    return [];
+  }
+}
+
 export async function discover(ms = 3000): Promise<{ devices: Device[]; note: string | null }> {
   const found = new Map<string, Device>();
   const add = (d: Device | null) => { if (d) found.set(d.fingerprint, d); };
@@ -63,6 +106,17 @@ export async function discover(ms = 3000): Promise<{ devices: Device[]; note: st
   } });
   const sock = createSocket({ type: "udp4", reuseAddr: true });
   let note: string | null = null;
+  const probeTailnet = async () => {
+    try {
+      const ips = await tailscaleIps();
+      if (ips.length) {
+        const results = await Promise.allSettled(ips.map((ip) => probePeer(ip, Math.max(1000, ms - 500))));
+        for (const r of results) {
+          if (r.status === "fulfilled" && r.value) add(r.value);
+        }
+      }
+    } catch { /* tailscale probe best-effort */ }
+  };
   try {
     sock.on("message", (buf, r) => { try { add(device(JSON.parse(String(buf)), r.address)); } catch { /* not LocalSend */ } });
     await new Promise<void>((ok) => {
@@ -70,9 +124,12 @@ export async function discover(ms = 3000): Promise<{ devices: Device[]; note: st
       sock.bind(PORT, () => { try { sock.addMembership(GROUP); } catch { /* no multicast route; replies still come over HTTP */ } ok(); });
     });
     const hello = Buffer.from(JSON.stringify({ ...me(), port: http.port, protocol: "http", announce: true }));
-    // Twice, as the app does: one datagram on a busy Wi-Fi is easy to lose.
-    for (const wait of [0, 600]) { await Bun.sleep(wait); sock.send(hello, PORT, GROUP); }
-    await Bun.sleep(Math.max(0, ms - 600));
+    const multicasts = (async () => {
+      // Twice, as the app does: one datagram on a busy Wi-Fi is easy to lose.
+      for (const wait of [0, 600]) { await Bun.sleep(wait); sock.send(hello, PORT, GROUP); }
+      await Bun.sleep(Math.max(0, ms - 600));
+    })();
+    await Promise.all([multicasts, probeTailnet()]);
   } catch (e) { note = `discovery failed: ${e instanceof Error ? e.message : e}`; }
   finally { try { sock.close(); } catch { /* closed */ } http.stop(true); }
   return { devices: [...found.values()].sort((a, b) => a.alias.localeCompare(b.alias)), note };

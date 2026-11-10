@@ -1356,6 +1356,20 @@ export async function web(repoDir: string, opts: Opts = {}) {
         if (body?.do === "login") return json(await loginUrl());
         return bad("do: connect or login");
       }
+      // Settings → Mobile: WhatsApp bridge status and connect/disconnect.
+      if (path === "/whatsapp") {
+        if (!local(req)) return bad("cross-origin request refused", 403);
+        const wa = await import("./whatsapp.ts");
+        if (req.method === "GET") return json(await wa.whatsappStatus());
+        if (req.method !== "POST") return bad("method not allowed", 405);
+        const refused = strict(req);
+        if (refused) return refused;
+        let body: any;
+        try { body = await req.json(); } catch { return bad("json body expected"); }
+        if (body?.op === "connect") return json(await wa.whatsappConnect());
+        if (body?.op === "disconnect") return json(await wa.whatsappDisconnect());
+        return bad("op: connect or disconnect");
+      }
       if (req.method === "GET" && path === "/phone") {
         // Async: a hung tailscale must not stall every terminal socket on this event loop.
         let out = "";

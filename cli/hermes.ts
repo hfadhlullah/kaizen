@@ -32,6 +32,16 @@ function run(args: string[], ms: number): Promise<Out> {
 const lastLine = (s: string) => s.trim().split("\n").filter(Boolean).pop()?.replace(/^hermes send:\s*/, "") ?? "";
 
 export async function targets(): Promise<{ chats: Chat[] } | { error: string }> {
+  try {
+    const { whatsappChats, whatsappStatus } = await import("./whatsapp.ts");
+    const st = await whatsappStatus();
+    if (st.connected) {
+      const wa = await whatsappChats();
+      if (wa && wa.length) {
+        return { chats: wa.map((c) => ({ id: `whatsapp:${c.id}`, name: c.name, type: c.type })) };
+      }
+    }
+  } catch {}
   const r = await run(["send", "--list", "whatsapp", "--json"], 10_000);
   if (typeof r.code === "string") return { error: r.code };
   let j: any;
@@ -58,6 +68,16 @@ export function message(text: string, file: string): string | { error: string } 
 export async function sendMedia(target: string, text: string, file: string): Promise<{ ok: true } | { ok: false; error: string }> {
   const m = message(text, file);
   if (typeof m !== "string") return { ok: false, error: m.error };
+
+  try {
+    const { whatsappSend, whatsappStatus } = await import("./whatsapp.ts");
+    const st = await whatsappStatus();
+    if (st.connected) {
+      const res = await whatsappSend(target, text, file);
+      if (res) return res;
+    }
+  } catch {}
+
   // "--" so a message starting with "-" is text, not an option.
   const r = await run(["send", "-t", target, "--json", "--", m], 5 * 60_000);
   if (typeof r.code === "string") return { ok: false, error: r.code };
