@@ -15,7 +15,7 @@ test("desktopEntry writes a menu entry that runs this AppImage, and its icon", (
   if (saved !== undefined) process.env.XDG_DATA_HOME = saved;
   const text = readFileSync(file, "utf8");
   expect(file).toBe(join(home, ".local/share/applications/kaizen-desktop.desktop"));
-  expect(text).toContain('Exec="/home/a b/Apps/kaizen-desktop-1.66.0-linux-x86_64.AppImage" %U');
+  expect(text).toContain('Exec=env APPIMAGE_EXTRACT_AND_RUN=1 "/home/a b/Apps/kaizen-desktop-1.66.0-linux-x86_64.AppImage" %U');
   expect(text).toContain("Icon=kaizen-desktop");
   expect(readFileSync(join(home, ".local/share/icons/hicolor/512x512/apps/kaizen-desktop.png"), "utf8")).toBe("png");
 });

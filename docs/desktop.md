@@ -10,7 +10,7 @@ Download your system's file from the [GitHub release](https://github.com/hfadhlu
 |---|---|
 | Windows | `kaizen-desktop-<version>-win-x64.exe` |
 | macOS (Apple silicon / Intel) | `kaizen-desktop-<version>-mac-arm64.dmg` / `-mac-x64.dmg` |
-| Any Linux (recommended) | `kaizen-desktop-<version>-linux-x86_64.AppImage`: `chmod +x`, run. It adds itself to the app menu and updates itself. |
+| Any Linux (recommended) | `kaizen-desktop-<version>-linux-x86_64.AppImage`: `chmod +x`, run. It adds itself to the app menu and updates itself. It runs extracted (`APPIMAGE_EXTRACT_AND_RUN=1`, from the menu entry and from a direct run, which starts itself again that way), so a mount that goes away at quit or poweroff cannot kill it with SIGBUS. That costs about 0.3 s per launch and 414 MB of `/tmp` (RAM on tmpfs) while it runs; the folder is removed on exit. |
 | Arch, CachyOS, Manjaro | `kaizen-desktop-<version>-linux-x64.pacman`, then `sudo pacman -U <file>`. Update by hand: install the next `.pacman` the same way. |
 | Debian, Ubuntu | `kaizen-desktop-<version>-linux-amd64.deb` |
 | Fedora, openSUSE | `kaizen-desktop-<version>-linux-x86_64.rpm` |

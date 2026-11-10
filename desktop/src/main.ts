@@ -28,6 +28,15 @@ export function report(line: string) {
   console.log(line);
   if (testBuild && process.env.KAIZEN_DESKTOP_OUT) try { appendFileSync(process.env.KAIZEN_DESKTOP_OUT, line + "\n"); } catch { /* nowhere to write */ }
 }
+// An AppImage started by hand is mounted, which is what lets its children die with SIGBUS
+// when the mount goes away (src/appimage.ts, issue #77). Start it again extracted and
+// leave; the menu entry already does this, so that start does not loop.
+if (process.platform === "linux" && process.env.APPIMAGE && !process.env.APPIMAGE_EXTRACT_AND_RUN && !smoke && !testBuild) {
+  try {
+    spawn(process.env.APPIMAGE, process.argv.slice(1), { detached: true, stdio: "ignore", env: { ...process.env, APPIMAGE_EXTRACT_AND_RUN: "1" } }).unref();
+    app.exit(0);
+  } catch { /* cannot start it again: carry on mounted */ }
+}
 // Crash dumps stay on this machine (as Orca does); nothing is uploaded.
 crashReporter.start({ uploadToServer: false });
 
