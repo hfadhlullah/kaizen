@@ -280,10 +280,10 @@ export async function web(repoDir: string, opts: Opts = {}) {
   ).filter((d, i, arr) => arr.indexOf(d) === i && existsSync(d));
 
   const taskHooks = {
-    launch: (dir: string, id: string, text: string, task: tasks.Task) => {
+    launch: (dir: string, id: string, text: string, task: tasks.Task, pick?: any) => {
       const live = liveAgent(dir, id);
       if (live) { submitPty(live.key, text); return { ok: true, pty: live.key }; }
-      return launchRun({ severity: null, where: null, text, raw: text }, dir, id, { ...inCard(dir), task: { id: task.id, requirePlanConfirmation: !task.initialConfirmed } });
+      return launchRun({ severity: null, where: null, text, raw: text }, dir, id, { ...inCard(dir), ...(pick ? { agent: KNOWN_AGENTS.some((a) => a.cmd === pick.agent) ? pick.agent : undefined, account: typeof pick.account === "string" ? pick.account : undefined, explore: typeof pick.explore === "boolean" ? pick.explore : undefined, yolo: pick.yolo === true } : {}), task: { id: task.id, requirePlanConfirmation: !task.initialConfirmed } });
     },
     alive: (key: string) => ptyState(key)?.alive === true,
     stop: (key: string) => killPty(key),

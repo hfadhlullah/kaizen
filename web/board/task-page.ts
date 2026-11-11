@@ -1,10 +1,12 @@
 // One durable task page across clarification, production, saved outputs and revisions.
 // Polling patches the changing sections, leaving the composer and focused controls intact.
-import { $, html, modal, dataUrls, type Safe } from "./dom.ts";
+import { $, html, ico, modal, dataUrls, type Safe } from "./dom.ts";
 import { store } from "./store.ts";
+import { runPopup } from "./cards.ts";
 import { toast } from "./toast.ts";
+import { wireZoom } from "./zoom.ts";
 import { attentionTasks, setTaskAttention } from "./badge.ts";
-import { resultView, loadTextArtifacts, loadLiveArtifacts, type TaskResult } from "./task-results.ts";
+import { checksView, savedLine, resultView, loadTextArtifacts, loadLiveArtifacts, type TaskResult } from "./task-results.ts";
 
 export type TaskAttention = { category: "needs-you" | "in-progress" | "completed"; reason: string; action: string };
 export type TaskDecision = {
@@ -200,44 +202,42 @@ function conversationView(t: TaskView): Safe {
         : ""
     }
     <div class="tp-messages" role="log" aria-label="Task conversation" aria-live="polite" aria-relevant="additions">
-      ${(t.messages ?? []).map(
-        (m) =>
-          html`<article class="tp-message ${m.role === "user" ? "from-user" : "from-agent"}">
-            <div>
-              <strong>${m.role === "user" ? "You" : m.role === "system" ? "kaizen" : "Assistant"}</strong
-              >${m.at ? html`<time>${new Date(m.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>` : ""}
-            </div>
-            <p>${m.text}</p>
-          </article>`,
-      )}
+      ${(t.messages ?? []).map((m) => {
+        const long = m.text.length > 320;
+        const body = long
+          ? html`<details class="tp-long"><summary>${m.text.slice(0, 280).trimEnd()}… <span>Show more</span></summary>${m.text}</details>`
+          : html`${m.text}`;
+        return html`<article class="tp-message ${m.role === "user" ? "from-user" : "from-agent"}">
+          <div>
+            <strong>${m.role === "user" ? "You" : m.role === "system" ? "kaizen" : "Assistant"}</strong
+            >${m.at ? html`<time>${new Date(m.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>` : ""}
+          </div>
+          <p>${body}</p>
+        </article>`;
+      })}
     </div>
     ${
       queued(t).length
-        ? html`<section class="tp-queue" aria-label="Requests awaiting completion">
-            <h3>Requests</h3>
+        ? html`<div class="tp-queue" aria-label="Requests awaiting completion">
             ${queued(t).map(
               (i) =>
-                html`<div>
-                  <span class="tp-receipt"
-                    >${i.state === "dispatched" ? "Processing" : i.state === "received" ? "Received" : "Queued for next pass"}</span
-                  >
-                  <p>${i.text}</p>
-                  <small>Receipt ${i.id.slice(0, 8)}</small>
-                </div>`,
+                html`<span class="tp-receipt" title="Receipt ${i.id.slice(0, 8)}"
+                  >${i.state === "dispatched" ? "Processing" : i.state === "received" ? "Received" : "Queued for next pass"}</span
+                >`,
             )}
-          </section>`
+          </div>`
         : ""
     }`;
 }
-function technicalView(t: TaskView): Safe {
+function technicalView(t: TaskView, current?: TaskResult): Safe {
   const runs = [
     ...new Set([
       ...(t.runs ?? []).map((r) => (typeof r === "string" ? r : r.id)),
       ...(t.activeRun ? [t.activeRun] : []),
     ]),
   ];
-  return html`<details class="tp-technical" id="tp-technical-details">
-    <summary>Technical details</summary>
+  return html`<div class="tp-technical" id="tp-technical-details">
+    ${checksView(current)}
     <p>
       ${data?.defaults?.agent ? "Agent: " + data.defaults.agent + ". " : "Configured project agent and workflow. "}${data?.defaults?.workflow ? "Workflow: " + data.defaults.workflow + ". " : ""}${data?.defaults?.permissions || "Tool permissions follow the existing project settings."}
     </p>
@@ -248,7 +248,7 @@ function technicalView(t: TaskView): Safe {
     ${runs.length ? html`<nav aria-label="Linked runs">${runs.map((id) => html`<a class="btn" href="?view=run&id=${id}&dir=${encodeURIComponent(t.dir)}">Open workspace · ${id}</a>`)}</nav>` : html`<p>No run has started yet.</p>`}<small
       >Task ${t.id} · revision ${t.revision}</small
     >
-  </details>`;
+  </div>`;
 }
 function updateActions() {
   if (!data) return;
@@ -285,6 +285,18 @@ function preservePatch(id: string, markup: Safe | string) {
   });
   return true;
 }
+// The conversation is a drawer: open by itself only while a decision waits for you, closed otherwise.
+let drawer: boolean | null = null,
+  threadCount = -1;
+const drawerOpen = () =>
+  drawer ?? !!data?.task.pendingDecision;
+function applyDrawer() {
+  const on = drawerOpen();
+  $("tp-drawer").classList.toggle("on", on);
+  $("tp-chat").setAttribute("aria-expanded", String(on));
+  const t = data?.task;
+  $("tp-chat").querySelector<HTMLElement>(".tp-dot")!.hidden = on || !(t?.pendingDecision || t?.inputs?.some?.((i: any) => i.state === "queued"));
+}
 function draw() {
   if (!data || !document.body.classList.contains("taskpagev")) return;
   const t = data.task,
@@ -292,47 +304,37 @@ function draw() {
   if (!box.querySelector("#tp-composer")) {
     box.innerHTML = String(
       html`<header class="tp-head">
-          <a class="btn ghost" href="?view=tasks" id="tp-back">← Tasks</a>
-          <div>
-            <h1 id="tp-title"></h1>
-            <p id="tp-project-label"></p>
-          </div>
+          <a class="ib" href="?view=tasks" id="tp-back" aria-label="Back to tasks" title="Tasks">${ico("arrow")}</a>
+          <h1 id="tp-title"></h1>
+          <span id="tp-project-label" class="dim"></span>
           <button class="btn" type="button" id="tp-stop" hidden>Stop</button
           ><button class="btn" type="button" id="tp-resume" hidden>Resume</button
-          ><button class="btn pri" type="button" id="tp-start" hidden>Start planning</button>
+          ><button class="btn pri" type="button" id="tp-start" hidden>Start planning</button
+          ><button type="button" class="btn pri" id="tp-accept" title="Accepting a result does not publish it. A preview alone does not prove that a backend works." hidden>Looks good</button
+          ><button type="button" class="ib" id="tp-chat" aria-label="Conversation" aria-expanded="false" title="Conversation">${ico("note")}<i class="tp-dot" hidden></i></button
+          ><details class="ice-filt" id="tp-info"><summary class="ib" aria-label="Task details" title="Details">${ico("more")}</summary><div class="ice-fpop tp-info-pop"><div id="tp-technical"></div></div></details>
         </header>
-        <div class="tp-status" role="status"><span id="tp-status"></span><span id="tp-next"></span></div>
+        <div class="tp-status" role="status"><span id="tp-status"></span><span id="tp-next"></span><span id="tp-saved" class="dim"></span></div>
         <div class="tp-layout">
           <section class="tp-results" aria-label="Task results">
             <div id="tp-history"></div>
             <div id="tp-result"></div>
-            <button type="button" class="btn pri" id="tp-accept" hidden>Looks good</button>
             <div id="tp-accepted"></div>
-            <div id="tp-technical"></div>
           </section>
-          <section class="tp-conversation" aria-label="Conversation and requests">
-            <h2>Conversation</h2>
-            <div id="tp-thread"></div>
-            <form id="tp-composer">
-              <label for="tp-message">Your message</label
-              ><textarea
-                id="tp-message"
-                placeholder="Ask a question or describe what you would like changed"
-                rows="4"
-              ></textarea>
-              <p id="tp-composer-help" class="dim"></p>
-              <div class="tp-compose-row">
-                <label for="tp-intent">Send as</label
-                ><select id="tp-intent" class="sel">
-                  <option value="auto">Message</option>
-                  <option value="change">Change request</option>
-                  <option value="question">Question</option></select
-                ><button type="submit" class="btn pri" id="tp-submit">Send</button>
-              </div>
-              <p id="tp-receipt" role="status"></p>
-            </form>
-          </section>
-        </div>`,
+          <div class="tp-conversation" id="tp-drawer" role="complementary" aria-label="Conversation and requests">
+          <header><h2>Conversation</h2><button type="button" class="ib" id="tp-drawer-x" aria-label="Close conversation">${ico("x")}</button></header>
+          <div id="tp-thread"></div>
+        </div>
+        </div>
+        <form id="tp-composer" class="tp-bar">
+          <div class="tp-compose">
+            <textarea id="tp-message" rows="1" aria-label="Your message" placeholder="Message the agent" title="Enter to send, Shift+Enter for a new line"></textarea>
+            <button type="submit" class="btn pri" id="tp-submit">Send</button>
+          </div>
+          <p id="tp-composer-help" class="dim" hidden></p>
+          <p id="tp-receipt" role="status"></p>
+        </form>
+`,
     );
     $("tp-message").value = readDraft(t.id);
     $("tp-message").oninput = () => saveDraft(t.id, $("tp-message").value);
@@ -345,14 +347,23 @@ function draw() {
       void sendMessage();
     };
     $("tp-message").onkeydown = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && !e.isComposing) {
+      // Enter sends, Shift+Enter adds a line. A phone keyboard keeps Enter as a new line.
+      if (e.key === "Enter" && !e.shiftKey && !e.isComposing && !matchMedia("(pointer:coarse)").matches) {
         e.preventDefault();
         void sendMessage();
       }
     };
+    $("tp-chat").onclick = () => {
+      drawer = !drawerOpen();
+      applyDrawer();
+    };
+    $("tp-drawer-x").onclick = () => {
+      drawer = false;
+      applyDrawer();
+    };
     $("tp-stop").onclick = () => void action("stop");
     $("tp-resume").onclick = () => void action("resume");
-    $("tp-start").onclick = () => void action("start");
+    $("tp-start").onclick = () => runPopup({ _k: "task:" + t.id, kind: "task", state: t.dir, text: t.title }, (pick) => void action("start", { pick }));
     $("tp-accept").onclick = () => void action("accept", { resultId: data?.task.currentResultId });
   }
   $("tp-title").textContent = t.title;
@@ -372,14 +383,13 @@ function draw() {
   else selectedResult = selected?.id ?? "";
   preservePatch(
     "tp-history",
-    results.length
-      ? html`<label for="tp-version">Saved results</label
-          ><select class="sel" id="tp-version">
+    results.length > 1
+      ? html`<select class="sel" id="tp-version" aria-label="Saved results" title="Files are retained without automatic expiry. Live links remain mutable.">
             ${[...results].reverse().map((r, i) => html`<option value="${r.id}" ${r.id === selectedResult ? html` selected` : ""}>${r.title || "Version " + (results.length - i)}${r.id === t.currentResultId ? " · current" : " · earlier saved output"}</option>`)}
-          </select>
-          <p class="dim">Files are retained without automatic expiry. Live links remain mutable.</p>`
+          </select>`
       : "",
   );
+  $("tp-saved").textContent = savedLine(results.find((r) => r.id === selectedResult) ?? selected);
   const resultMarkup = String(resultView(results.find((r) => r.id === selectedResult) ?? selected, selectedArtifact));
   if (signature !== resultMarkup) {
     if (preservePatch("tp-result", resultMarkup)) {
@@ -410,8 +420,13 @@ function draw() {
             ?.focus({ preventScroll: true });
         }),
     );
-  preservePatch("tp-thread", conversationView(t));
-  preservePatch("tp-technical", technicalView(t));
+  wireZoom($("tp-result"));
+  const count = (t.messages ?? []).length;
+  const grew = preservePatch("tp-thread", conversationView(t)) && count !== threadCount;
+  threadCount = count;
+  if (grew) requestAnimationFrame(() => ($("tp-thread").scrollTop = $("tp-thread").scrollHeight));
+  applyDrawer();
+  preservePatch("tp-technical", technicalView(t, results.find((r) => r.id === selectedResult) ?? selected));
   $("tp-accepted").textContent =
     t.acceptedResultId && t.attention.category === "completed" ? "Accepted. Publishing is a separate action." : "";
   $("tp-confirm") &&
@@ -479,7 +494,7 @@ async function sendMessage() {
   if (!text || pending || !data) return;
   const original = input.value;
   const baseResultId = selectedResult || data.task.currentResultId || null;
-  const identity = JSON.stringify([text, baseResultId, data.task.decision?.id, $("tp-intent").value]);
+  const identity = JSON.stringify([text, baseResultId, data.task.decision?.id, "auto"]);
   let saved;
   try {
     saved = JSON.parse(readDraft(currentId + ":operation"));
@@ -489,7 +504,7 @@ async function sendMessage() {
   const r = await action("message", {
     operationId: messageOperation,
     text,
-    intent: $("tp-intent").value,
+    intent: "auto",
     baseResultId,
     decisionId: data.task.decision?.id,
   });
@@ -499,6 +514,8 @@ async function sendMessage() {
     saveDraft(currentId, "");
     saveDraft(currentId + ":operation", "");
     $("tp-receipt").textContent = "Message received. Follow its receipt in the conversation.";
+    drawer = true;
+    applyDrawer();
   }
   input.focus();
 }
@@ -542,6 +559,7 @@ export function openTaskPage() {
     currentDir = dir;
     data = null;
     followCurrent = true;
+    drawer = null;
     selectedResult = "";
     selectedArtifact = "";
     signature = "";
@@ -556,102 +574,6 @@ export function openTaskPage() {
   };
   timer = setTimeout(poll, 4000);
 }
-export function newTaskDialog(dir?: string | null) {
-  const dl = modal(
-    html`<h2>What would you like to make?</h2>
-      <label for="task-goal">Describe your goal</label
-      ><textarea
-        id="task-goal"
-        rows="5"
-        placeholder="Make a registration website for our community workshop"
-        required
-      ></textarea>
-      <p class="dim">
-        Start with your goal. We will ask about the project and any missing details, then show a proposal to confirm.
-      </p>
-      <input type="file" id="task-files" multiple hidden />
-      <div class="att" id="task-picked"></div>
-      <details>
-        <summary>Project and technical details</summary>
-        <p>
-          ${dir ? "Use the current project. " : "Choose or create a named project after saving your goal. "}The
-          configured agent, workflow and tool permissions apply.
-        </p>
-        <p id="task-new-defaults" class="dim">Loading defaults…</p>
-      </details>
-      <p id="task-new-error" role="status"></p>
-      <div class="row">
-        <button type="button" class="btn" id="task-attach">Attach files</button
-        ><button type="button" class="btn ghost" id="task-cancel">Cancel</button
-        ><button type="submit" class="btn pri" id="task-start">Start</button>
-      </div>`,
-  );
-  const input = dl.querySelector<HTMLTextAreaElement>("#task-goal")!,
-    fileInput = dl.querySelector<HTMLInputElement>("#task-files")!,
-    files: File[] = [];
-  const op = operationId();
-  input.value = readDraft("new");
-  input.oninput = () => saveDraft("new", input.value);
-  const shown = () => (dl.querySelector("#task-picked")!.textContent = files.map((f) => f.name).join(" · "));
-  dl.querySelector<HTMLElement>("#task-attach")!.onclick = () => fileInput.click();
-  fileInput.onchange = () => {
-    files.push(...Array.from(fileInput.files ?? []));
-    fileInput.value = "";
-    shown();
-  };
-  input.onpaste = (e) => {
-    for (const it of Array.from(e.clipboardData?.items ?? []))
-      if (it.kind === "file") {
-        const f = it.getAsFile();
-        if (f) {
-          files.push(f);
-          e.preventDefault();
-          shown();
-        }
-      }
-  };
-  dl.querySelector<HTMLElement>("#task-cancel")!.onclick = () => dl.close();
-  dl.querySelector("form")!.onsubmit = async (e) => {
-    e.preventDefault();
-    const goal = input.value.trim();
-    if (!goal) return input.focus();
-    const button = dl.querySelector<HTMLButtonElement>("#task-start")!;
-    if (button.disabled) return;
-    button.disabled = true;
-    button.textContent = "Saving…";
-    const r = await taskRequest({
-      op: "create",
-      goal,
-      dir: dir ?? null,
-      files: await dataUrls(files),
-      operationId: op,
-    });
-    button.disabled = false;
-    button.textContent = "Start";
-    if (r.ok && r.task) {
-      saveDraft("new", "");
-      dl.close();
-      navigateTask(r.task);
-    } else
-      dl.querySelector("#task-new-error")!.textContent =
-        r.why || r.error || "Your goal is still here. Try saving again.";
-  };
-  void fetch("/tasks" + (dir ? "?dir=" + encodeURIComponent(dir) : ""))
-    .then((r) => r.json())
-    .then((r) => {
-      const d = r.defaults;
-      dl.querySelector("#task-new-defaults")!.textContent = d
-        ? [d.agent && "Agent: " + d.agent, d.workflow && "Workflow: " + d.workflow, d.permissions]
-            .filter(Boolean)
-            .join(" · ")
-        : "Project settings will be shown before work starts.";
-    })
-    .catch(() => {
-      dl.querySelector("#task-new-defaults")!.textContent =
-        "Defaults unavailable. The configured settings will be retained.";
-    });
-  input.focus();
-}
 export function initTaskPage(goTo: typeof go) {
   go = goTo;
   addEventListener("kz-state", () => {
@@ -660,10 +582,6 @@ export function initTaskPage(goTo: typeof go) {
   addEventListener("kz-view", () => {
     generation++;
     clearTimeout(timer);
-  });
-  addEventListener("kz-new-task", (e: CustomEvent) => {
-    e.preventDefault();
-    newTaskDialog(e.detail?.dir ?? (!store.all ? store.S.dir : null));
   });
   addEventListener("kz-open-task", (e: CustomEvent) => {
     e.preventDefault();

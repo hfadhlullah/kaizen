@@ -8,7 +8,7 @@ import * as R from './task-results.ts';
 import { read as scalar } from './config-values.ts';
 import { detectDefaultAgent, home, readInbox, readRuns, readText, saveAttachment, acceptance, gateOf } from './state.ts';
 
-type Hooks = { launch: (state:string, run:string, text:string, task:T.Task) => {ok:boolean; pty?:string; why?:string}; alive:(pty:string)=>boolean; stop:(pty:string)=>boolean };
+type Hooks = { launch: (state:string, run:string, text:string, task:T.Task, pick?:any) => {ok:boolean; pty?:string; why?:string}; alive:(pty:string)=>boolean; stop:(pty:string)=>boolean };
 const runtimeLaunches = new Set<string>();
 const parse = (file:string) => { try { return JSON.parse(readFileSync(file,'utf8')); } catch { return null; } };
 const put = (file:string,value:unknown) => { const temp = file + `.${process.pid}.${randomUUID()}.tmp`; writeFileSync(temp,JSON.stringify(value,null,2)+'\n'); renameSync(temp,file); };
@@ -32,7 +32,7 @@ export function taskList(states:string[],hooks?:Hooks) {
     for(const run of readRuns(state)) {
       if(adopted.has(`run:${run.id}`)||tasks.some(t=>t.dir===state&&t.runIds.includes(run.id)))continue;
       const goal=readTextSafe(join(state,'runs',run.id,'00-request.md'))?.split('\n').find(l=>l.trim()&&!l.startsWith('#'))??run.id;
-      tasks.push({id:`legacy-run-${run.id}`,dir:state,title:goal.slice(0,160),goal,revision:0,updatedAt:run.moved,status:run.stage==='done'?'ready':'working',attention:{category:run.awaiting?'needs-you':'in-progress',reason:run.awaiting?'This existing task needs your decision.':`Existing work: ${run.stage}`,action:'Open task'},legacy:{kind:'run',id:run.id},runIds:[run.id]} as any);
+      tasks.push({id:`legacy-run-${run.id}`,dir:state,title:goal.slice(0,160),goal,revision:0,updatedAt:run.moved,status:run.stage==='done'?'ready':'working',attention:{category:run.awaiting?'needs-you':['done','abandoned'].includes(run.stage)?'completed':'in-progress',reason:run.awaiting?'This existing task needs your decision.':`Existing work: ${run.stage}`,action:'Open task'},legacy:{kind:'run',id:run.id},runIds:[run.id]} as any);
     }
     readInbox(state).forEach((line:any,index:number)=>{const key=`inbox:${line.added??'legacy'}:${index}`;if(line.status!=='open'||adopted.has(key))return;tasks.push({id:`legacy-inbox-${index}`,dir:state,title:line.text,goal:line.text,revision:0,updatedAt:line.added??0,status:'draft',attention:{category:'needs-you',reason:'Ready to start',action:'Open task'},legacy:{kind:'inbox',index,added:line.added},runIds:[]} as any);});
   }
@@ -49,7 +49,7 @@ export function reconcile(state:string,task:T.Task,hooks?:Hooks):T.Task {
   return task;
 }
 function runState(state:string,task:T.Task) { return task.activeRun?parse(join(state,'runs',task.activeRun,'state.json')):null; }
-export function dispatchReady(state:string,id:string,hooks:Hooks,initial=false):T.Task {
+export function dispatchReady(state:string,id:string,hooks:Hooks,initial=false,pick?:any):T.Task {
   let task=T.readTask(state,id)!;
   if(task.pendingDecision||task.queuePaused||!task.safe||task.status==='accepted')return task;
   const previous=runState(state,task);
@@ -65,7 +65,7 @@ export function dispatchReady(state:string,id:string,hooks:Hooks,initial=false):
   if(!task.launch||task.launch.phase!=='intent')return task;
   if(finished){
     const folder=join(state,'runs',run);mkdirSync(folder,{recursive:true});
-    put(join(folder,'state.json'),{id:run,mode:config(state,'mode','auto'),runner:config(state,'runner','full'),agent:detectDefaultAgent(dirname(state)).cmd,track:'code',stage:'plan',awaiting:null,iteration:0,updated:new Date().toISOString(),task_id:id,task_policy:{requirePlanConfirmation:!task.initialConfirmed},...(task.initialConfirmed?{task_confirmed:{direction:'routine revision',at:Date.now()}}:{})});
+    put(join(folder,'state.json'),{id:run,mode:config(state,'mode','auto'),runner:pick?.kind==='lite'||pick?.kind==='full'?pick.kind:config(state,'runner','full'),agent:pick?.agent||detectDefaultAgent(dirname(state)).cmd,track:'code',stage:'plan',awaiting:null,iteration:0,updated:new Date().toISOString(),task_id:id,task_policy:{requirePlanConfirmation:!task.initialConfirmed},...(task.initialConfirmed?{task_confirmed:{direction:'routine revision',at:Date.now()}}:{})});
     writeFileSync(join(folder,'00-request.md'),(ids.length?task.inputs.filter(i=>ids.includes(i.id)).map(i=>i.text).join('\n\n'):task.goal)+`\n\nTask: ${id}\n`+(previous?`Follow-up of: ${previous.id}\n`:'')+task.files.map(f=>`Reference: ${f.name} (${f.path})`).join('\n'));
   }
   const context=JSON.stringify({task:id,launch:task.launch.id,inputIds:ids,currentResult:task.currentResult,initialConfirmed:task.initialConfirmed});
@@ -75,7 +75,7 @@ export function dispatchReady(state:string,id:string,hooks:Hooks,initial=false):
   runtimeLaunches.add(task.launch.id);
   let outcome;try{
     const selected=detectDefaultAgent(dirname(state)), requested=config(state,'agent.default','auto');
-    outcome=requested!=='auto' && ![selected.cmd,selected.name].includes(requested) ? {ok:false,why:`Configured agent ${requested} is unavailable. Enable/install it or choose an available default in Settings, then retry. Your goal is saved.`} : hooks.launch(state,run,text,task);
+    outcome=!pick?.agent && requested!=='auto' && ![selected.cmd,selected.name].includes(requested) ? {ok:false,why:`Configured agent ${requested} is unavailable. Enable/install it or choose an available default in Settings, then retry. Your goal is saved.`} : hooks.launch(state,run,text,task,pick);
   }catch(e){outcome={ok:false,why:String(e)};}
   task=T.readTask(state,id)!;
   return T.mutateTask(state,id,{revision:task.revision,opId:`launched:${task.launch!.id}`},t=>{if(outcome.ok){if(t.launch!.phase==='intent')t.launch!.phase='started';if(outcome.pty)t.launch!.pty=outcome.pty;}else{t.status='failed';t.error=outcome.why||'Agent could not start. Your goal is saved.';t.launch!.phase='interrupted';t.queuePaused=true;} });
@@ -117,13 +117,12 @@ export function taskAction(state:string,body:any,hooks:Hooks):{state:string;task
   const found=T.resolveTask(state,String(body.id??''));if(!found)throw new T.TaskError('Unknown task',404);state=found.state;let task=reconcile(state,found.task,hooks);
   const mutation={revision:Number(body.revision),opId:operationId};
   if(task.operations.includes(operationId))return {state,task};
-  if(op==='start'){task=T.mutateTask(state,task.id,mutation,t=>{if(t.status!=='draft')throw new T.TaskError('Task already started');});return {state,task:dispatchReady(state,task.id,hooks,true)};}
+  if(op==='start'){task=T.mutateTask(state,task.id,mutation,t=>{if(t.status!=='draft')throw new T.TaskError('Task already started');});return {state,task:dispatchReady(state,task.id,hooks,true,body.pick&&typeof body.pick==='object'?body.pick:undefined)};}
   task=T.mutateTask(state,task.id,mutation,t=>{
     if(op==='message'){
       const text=String(body.text??'').trim();const status=body.intent==='question'||/^\s*(status\??|what(?:'s| is) (?:the )?(?:status|progress)\??|how (?:is|are) (?:it|things|the task) (?:going|doing)\??)\s*$/i.test(text);
       if(status){T.receiveInput(t,{id:operationId,text,intent:'status',baseResult:body.baseResultId??null});return;}
       const answer=t.pendingDecision?.kind==='question';
-      if(body.intent==='auto'&&!answer&&!/^(please |can you |could you |i want |change|add|remove|make|update|fix|replace|create|build|use|set|move|delete|show|hide|increase|reduce|rewrite)/i.test(text)){T.addEvent(t,'user','message',text);t.pendingDecision={id:randomUUID(),kind:'question',text:'Should I treat that as a change request? Send the change with Request change, or ask for status.',run:t.activeRun,iteration:0,result:t.currentResult,options:['Request change','Status']};t.status='waiting';return;}
       T.receiveInput(t,{id:operationId,text,intent:answer?'answer':'change',baseResult:body.baseResultId??null});
       if(answer||t.pendingDecision?.kind==='proposal'){t.pendingDecision=null;t.safe=true;t.status='draft';}
     }else if(op==='stop'){T.requestStop(t);}

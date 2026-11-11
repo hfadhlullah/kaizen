@@ -45,6 +45,7 @@ export const sizeLabel = (n?: number) =>
       : n < 1024 * 1024
         ? `${(n / 1024).toFixed(1)} KB`
         : `${(n / (1024 * 1024)).toFixed(1)} MB`;
+const isImage = (a: TaskArtifact) => /^image\//.test(a.mediaType ?? "") || a.kind === "image" || a.kind === "screenshot";
 export function artifactView(a: TaskArtifact, selected = false): Safe {
   const url = storedUrl(a.url),
     live = a.kind === "website" || a.kind === "app" || a.kind === "link" || a.kind === "live";
@@ -71,7 +72,10 @@ export function artifactView(a: TaskArtifact, selected = false): Safe {
       <p class="dim" data-live-status>Checking preview availability… You can also use Open link.</p>`;
   else if (selected && !active && a.preview !== false && a.preview !== "download" && a.preview !== "none") {
     if (/^image\//.test(a.mediaType ?? "") || a.kind === "image" || a.kind === "screenshot")
-      view = html`<img class="tp-image" src="${href}" alt="${a.name}" loading="lazy" />`;
+      view = html`<div class="tp-zoom" aria-label="${a.name}. Pinch, scroll or double-click to zoom.">
+        <img class="tp-image" src="${href}" alt="${a.name}" loading="lazy" draggable="false" />
+        <div class="tp-zoom-ctl"><button type="button" class="ib" data-zoom-out aria-label="Zoom out">−</button><button type="button" class="ib" data-zoom-reset aria-label="Reset zoom">100%</button><button type="button" class="ib" data-zoom-in aria-label="Zoom in">+</button></div>
+      </div>`;
     else if (/^video\//.test(a.mediaType ?? "") || a.kind === "video")
       view = html`<video class="tp-media" controls preload="metadata" src="${href}">
         Download this video to watch it.
@@ -109,29 +113,22 @@ export function resultView(result: TaskResult | undefined, artifactId?: string):
     </div>`;
   const artifacts = result.artifacts ?? [],
     selected = artifacts.find((a) => a.id === artifactId) ?? artifacts[0];
+  const legacy = !result.title || result.title === "Existing result";
   return html`<header class="tp-result-heading">
-      <h2>${result.title || "Result"}</h2>
-      <p>${result.summary || ""}</p>
-      ${result.createdAt ? html`<small class="dim">Saved ${new Date(result.createdAt).toLocaleString()}${(result.storedSize ?? result.size) != null ? " · " + sizeLabel(result.storedSize ?? result.size) + " preserved" : ""}</small>` : ""}
+      ${legacy ? "" : html`<h2>${result.title}</h2>`}
+      ${result.summary && !legacy ? html`<p>${result.summary}</p>` : ""}
     </header>
-    ${artifacts.length > 1 ? html`<div class="tp-output-tabs" role="group" aria-label="Outputs">${artifacts.map((a) => html`<button class="tk-chip${a.id === selected?.id ? " on" : ""}" type="button" data-artifact="${a.id}" aria-pressed="${String(a.id === selected?.id)}">${a.name}</button>`)}</div>` : ""}${selected ? artifactView(selected, true) : html`<p class="tp-limit">No saved file was published for this result.</p>`}${result.liveUrl && !artifacts.some((a) => a.url === result.liveUrl) && webUrl(result.liveUrl) ? artifactView({ id: "live", name: "Live website", kind: "website", url: result.liveUrl }, true) : ""}
-    <section class="tp-checks">
-      <h3>Checks and limits</h3>
-      ${
-        result.checks?.length
-          ? html`<ul>
-              ${result.checks.map((c) => html`<li>${typeof c === "string" ? c : [c.label, c.outcome, c.evidence].filter(Boolean).join(" — ")}</li>`)}
-            </ul>`
-          : html`<p>No verification evidence has been published.</p>`
-      }${
-        result.limitations?.length
-          ? html`<ul>
-              ${result.limitations.map((l) => html`<li>${l}</li>`)}
-            </ul>`
-          : ""
-      }
+    <div class="tp-split${artifacts.length > 1 ? " has-rail" : ""}">${artifacts.length > 1 ? html`<nav class="tp-rail" role="group" aria-label="Outputs">${artifacts.map((a) => html`<button class="tp-file" type="button" data-artifact="${a.id}" aria-pressed="${String(a.id === selected?.id)}">${isImage(a) ? html`<img src="${storedUrl(a.url)}" alt="" loading="lazy" draggable="false" />` : html`<i>${(a.name.split(".").pop() || "file").slice(0, 4)}</i>`}<span>${a.name}</span></button>`)}</nav>` : ""}<div class="tp-stage">${selected ? artifactView(selected, true) : html`<p class="tp-limit">No saved file was published for this result.</p>`}${result.liveUrl && !artifacts.some((a) => a.url === result.liveUrl) && webUrl(result.liveUrl) ? artifactView({ id: "live", name: "Live website", kind: "website", url: result.liveUrl }, true) : ""}</div></div>`;
+}
+export const savedLine = (r?: TaskResult) =>
+  r?.createdAt ? `Saved ${new Date(r.createdAt).toLocaleString()}${(r.storedSize ?? r.size) != null ? " · " + sizeLabel(r.storedSize ?? r.size) + " preserved" : ""}` : "";
+export function checksView(result: TaskResult | undefined): Safe {
+  if (!result) return html``;
+  return html`<details class="tp-checks"><summary>Checks and limits</summary>
+      ${result.checks?.length ? html`<ul>${result.checks.map((c) => html`<li>${typeof c === "string" ? c : [c.label, c.outcome, c.evidence].filter(Boolean).join(" — ")}</li>`)}</ul>` : ""}
+      ${result.limitations?.length ? html`<ul>${result.limitations.map((l) => html`<li>${l}</li>`)}</ul>` : ""}
       <p class="dim">Accepting a result does not publish it. A preview alone does not prove that a backend works.</p>
-    </section>`;
+    </details>`;
 }
 export async function loadTextArtifacts(box: HTMLElement) {
   await Promise.all(
