@@ -84,6 +84,8 @@ the whole video and spot-checking the cut edges.
 
 # From scratch
 
+**A named art style** (oil painting, watercolor, ukiyo-e, satellite briefing, exploded teardown and the rest of the Lemo-Opuscar library)? That is the optional `lemo-opuscar` skill, off until the user turns it on in Settings → Skills: when it is on, use it for that film (it downloads its own style library from GitHub on first use). When it is off, say so in one line and offer the film presets below.
+
 A film is data in `videos/<name>/`: `film.json` (storyboard, brand, `format` `"9x16"`, `"16x9"` or `"4x5"` (Instagram feed), `preset` (a film preset, or any footage preset such as `tiktok-explainer`: see *Crossing over* in `references/presets.md`), `style` (overrides of the preset's style.json), `hook` (for a footage preset), and `platforms`, which the Video page in `kaizen web` keeps), `lines.json` (narration with emotion tags), `words.json` (word timings, generated), `inputs/` (the user's material), voice files `vNN.mp3`. `S=<this skill>/scripts`, run from the project folder. Worked example: [`examples/sample-film/`](examples/sample-film/). Run `$S/check.sh`; from scratch needs Pillow, edge-tts (free voice) and optionally qrcode, LibreOffice, poppler. No WhisperX.
 
 **Camera moves (`film-explainer-canvas`):** for an explainer that pans, zooms and follows things across one canvas,
