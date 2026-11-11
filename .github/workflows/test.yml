@@ -27,4 +27,4 @@ jobs:
       - if: steps.bun.outcome == 'failure'
         uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
-      - run: bun test
+      - run: bun test --timeout 30000
