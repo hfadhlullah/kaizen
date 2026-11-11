@@ -60,3 +60,6 @@ The Run form includes Explore first, initialized from `/agents` project/global c
 ## Persistent Tasks (2026-11-08)
 
 New task on Tasks opens the goal-first form with optional references and configured defaults; the task page resolves missing project context conversationally. Existing Board cards/run controls remain available. Legacy inbox/run rows are adopted by stable stamp/index or run id when opened, never merged by equal titles.
+
+- Closing a task from its page: the `⋯` popover (`#tp-info`, `web/board/task-page.ts`) holds Archive plus Delete (no run yet) or Abandon (a run exists), sent as `/task` ops `archive` / `delete` / `abandon` (`taskAction` in `cli/task-service.ts`). Delete removes the record and its inbox line; Archive sets `archived` on the task and archives its run or inbox line; Abandon stops the agent, abandons the run and archives the task.
+- The side menu filter has Running only, on by default (`filt.running` in `web/board/workspace.ts`): only cards that are waiting, planning, building, in review or stalled, and workspaces with such a card or a working/asking agent, are listed.

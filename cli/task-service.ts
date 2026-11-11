@@ -6,7 +6,7 @@ import { join, dirname } from 'node:path';
 import * as T from './tasks.ts';
 import * as R from './task-results.ts';
 import { read as scalar } from './config-values.ts';
-import { detectDefaultAgent, home, readInbox, readRuns, readText, saveAttachment, acceptance, gateOf } from './state.ts';
+import { detectDefaultAgent, home, readInbox, writeInbox, replaceTask, abandonRun, setArchived, readRuns, readText, saveAttachment, acceptance, gateOf } from './state.ts';
 
 type Hooks = { launch: (state:string, run:string, text:string, task:T.Task, pick?:any) => {ok:boolean; pty?:string; why?:string}; alive:(pty:string)=>boolean; stop:(pty:string)=>boolean };
 const runtimeLaunches = new Set<string>();
@@ -24,7 +24,7 @@ export function taskView(state:string,task:T.Task) {
   return {...task,activeRun:finished&&['ready','accepted'].includes(task.status)?null:task.activeRun,projectName:task.project?.split(/[\\/]/).pop()??'Choose a project',dir:state,updatedAt:task.updated,attention:{category:p.filter,reason:p.reason,action:p.action},statusLabel:p.label,decision:!task.project?{id:'project',kind:'project',text:'Choose a named project for your saved goal.'}:task.pendingDecision,messages:task.events,runs:task.runIds,currentResultId:task.currentResult,acceptedResultId:task.acceptedResult};
 }
 export function taskList(states:string[],hooks?:Hooks) {
-  const tasks=states.flatMap(state=>T.listTasks(state).map(t=>taskView(state,reconcile(state,t,hooks))));
+  const tasks=states.flatMap(state=>T.listTasks(state).filter(t=>!t.archived).map(t=>taskView(state,reconcile(state,t,hooks))));
   // Legacy rows become durable only when opened. Stable keys include stamps/index,
   // never a title-based merge; existing inbox and run files are left intact.
   for(const state of states) {
@@ -118,6 +118,20 @@ export function taskAction(state:string,body:any,hooks:Hooks):{state:string;task
   const mutation={revision:Number(body.revision),opId:operationId};
   if(task.operations.includes(operationId))return {state,task};
   if(op==='start'){task=T.mutateTask(state,task.id,mutation,t=>{if(t.status!=='draft')throw new T.TaskError('Task already started');});return {state,task:dispatchReady(state,task.id,hooks,true,body.pick&&typeof body.pick==='object'?body.pick:undefined)};}
+  if(op==='delete'||op==='archive'||op==='abandon'){
+    // Closing a task: Delete only before any run exists; Archive hides it; Abandon ends its run.
+    if(op==='delete'){
+      if(task.runIds.length||task.activeRun)throw new T.TaskError('A run already started. Archive or abandon it instead.');
+      replaceTask(state,task.goal,null);T.deleteTask(state,task.id);return {state,task};
+    }
+    if(op==='abandon'){
+      if(!task.activeRun)throw new T.TaskError('No run to abandon');
+      const key=task.launch?.pty;if(key&&hooks.alive(key))hooks.stop(key);
+      const bad=abandonRun(state,task.activeRun,String(body.why??'').trim()||'abandoned from the task page');if(bad)throw new T.TaskError(bad);
+    }else if(task.activeRun)setArchived(state,task.activeRun,true);
+    else{const lines=readInbox(state),at=lines.findIndex(l=>l.status==='open'&&l.text===task.goal);if(at>=0){lines[at]={...lines[at]!,status:'archived'};writeInbox(state,lines);}}
+    return {state,task:T.mutateTask(state,task.id,mutation,t=>{t.archived=true;})};
+  }
   task=T.mutateTask(state,task.id,mutation,t=>{
     if(op==='message'){
       const text=String(body.text??'').trim();const status=body.intent==='question'||/^\s*(status\??|what(?:'s| is) (?:the )?(?:status|progress)\??|how (?:is|are) (?:it|things|the task) (?:going|doing)\??)\s*$/i.test(text);
