@@ -457,11 +457,17 @@ function inlineForm(c) {
 const runHtml = (c) =>
   html`<div class="q">Run "${c.text}"</div><div class="q dim">Opens your agent with this request in a terminal.</div><div class="q dim">Full plans, builds, and checks with a separate reviewer. Lite does it in one session.</div><div id="run-pick" style="display:grid;gap:6px"><div id="run-agent" class="agents" role="radiogroup" aria-label="Agent"></div></div><label class="yolo"><input type="checkbox" id="run-explore"> Explore first</label><div class="run-actions"><label class="yolo" id="run-yolo" title="Yolo: the agent runs every command and edit without asking" hidden>${toggleSwitch(false)}Yolo</label><div class="row"><button type="button" class="btn ghost" data-a="c">Cancel</button><button type="button" class="btn" data-a="l">Lite</button><button type="button" class="btn pri" data-a="s">Full run</button></div></div>`;
 // The run form as a popup over any page: Start in the new-task form and on Tasks.
-export function runPopup(c) {
+export function runPopup(c, onStart?: (p: { kind: string; agent?: string; account?: string; yolo: boolean; explore?: boolean }) => void) {
   const dl = modal(runHtml(c)),
     f = dl.querySelector("form");
   dl.classList.toggle("sheet", isPhone());
   const go = (kind) => {
+    if (onStart) {
+      const p = runPick && runPick.k === key(c) ? runPick : null;
+      onStart({ kind, agent: p?.agent, account: p?.account, yolo: !!(p?.yolo && !$("run-yolo")?.hidden), explore: p?.exploreOverride });
+      runPick = null;
+      return dl.close();
+    }
     // startRun reads the Yolo switch, so the dialog closes after it has.
     void startRun(c, kind);
     dl.close();
@@ -587,7 +593,7 @@ function taskForm(f, shut) {
     newFiles = [];
     shut();
   };
-  f.innerHTML = html`${picking ? html`<div class="combo" id="ndc"><button type="button" class="sel" id="newdir" aria-label="Project for this task" aria-haspopup="listbox" aria-expanded="false"></button><div class="menu-pop" hidden><input class="sel" aria-label="Search projects" placeholder="Search projects…" spellcheck="false" autocomplete="off"><div id="nds" role="listbox"></div></div></div>` : ""}<input id="newidea" placeholder="What do you want to build?"><label for="newnotes">Anything the planner should know <span class="dim">(optional)</span></label><textarea id="newnotes" placeholder="Context, constraints, examples, and what a good result looks like"></textarea><div class="att" id="newatt"></div><input type="file" id="newfile" multiple hidden><div class="row"><button type="button" class="ib" id="newpick" aria-label="Attach files" title="Attach files">${ico("clip")}</button><button type="button" class="btn ghost" id="nc">Cancel</button><div class="split"><button type="button" class="btn pri" id="ns">Add</button><button type="button" class="btn pri" id="nm" aria-label="More ways to add" aria-haspopup="menu" aria-expanded="false">${ico("chev")}</button><div class="menu-pop" role="menu" hidden><button type="button" role="menuitem" id="nr" title="Add the task and run it now">${ico("play")}Start run</button></div></div></div>`;
+  f.innerHTML = html`<div class="nt-head"><h2>New task</h2>${picking ? html`<div class="combo" id="ndc"><button type="button" class="sel" id="newdir" aria-label="Project for this task" aria-haspopup="listbox" aria-expanded="false"></button><div class="menu-pop" hidden><input class="sel" aria-label="Search projects" placeholder="Search projects…" spellcheck="false" autocomplete="off"><div id="nds" role="listbox"></div></div></div>` : ""}</div><input id="newidea" placeholder="What do you want to build?"><label for="newnotes">Anything the planner should know <span class="dim">(optional)</span></label><textarea id="newnotes" placeholder="Context, constraints, examples, and what a good result looks like"></textarea><div class="att" id="newatt"></div><input type="file" id="newfile" multiple hidden><div class="row"><button type="button" class="ib" id="newpick" aria-label="Attach files" title="Attach files">${ico("clip")}</button><button type="button" class="btn ghost" id="nc">Cancel</button><div class="split"><button type="button" class="btn pri" id="ns">Add</button><button type="button" class="btn pri" id="nm" aria-label="More ways to add" aria-haspopup="menu" aria-expanded="false">${ico("chev")}</button><div class="menu-pop" role="menu" hidden><button type="button" role="menuitem" id="nr" title="Add the task and run it now">${ico("play")}Start run</button></div></div></div>`;
   const inp = f.querySelector("#newidea"),
     files = newFiles;
   draft(inp, "f:new:0");

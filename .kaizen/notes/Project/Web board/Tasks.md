@@ -9,6 +9,10 @@ updated: 2026-11-08
 
 Part of [[Web board]].
 
+## Task page layout (2026-11-11)
+
+Result first: a file strip with thumbnails (`.tp-rail`) beside one large stage, the conversation in a docked right column (`#tp-drawer`, inside `.tp-layout`; on a phone it replaces the result while open, opened by the header chat button; it opens itself only while a decision waits; it starts below the header so Start planning and Accept stay reachable), and one message bar at the bottom. Accept ("Looks good") and the ⋯ details menu (checks, agent, runs, task id) live in the header. Result images sit in `.tp-zoom`, wired by `web/board/zoom.ts`: pinch, ctrl/plain wheel, drag, double-click, and −/100%/+ buttons. It is a `div`, not an `aside`: the board's global `aside` rules hide it.
+
 ## In plain words
 
 One task keeps its goal, conversation, decisions and saved results through changes.

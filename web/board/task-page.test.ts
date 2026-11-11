@@ -1,5 +1,5 @@
 import { expect, test, beforeAll } from "bun:test";
-import { artifactView, resultView, storedUrl, webUrl, type TaskResult } from "./task-results.ts";
+import { artifactView, checksView, resultView, storedUrl, webUrl, type TaskResult } from "./task-results.ts";
 import { waitingCount, taskForCard } from "./badge.ts";
 import type { TaskView } from "./task-page.ts";
 
@@ -94,7 +94,7 @@ test("acceptance requires current result and no writer, pending decision or queu
   expect(canAcceptTask(ready)).toBe(false);
 });
 test("result shows saved output, evidence, unverified backend and separate publication", () => {
-  const view = String(resultView(result));
+  const view = String(resultView(result)) + String(checksView(result));
   expect(view).toContain("Registration screen.png");
   expect(view).toContain("Saved file");
   expect(view).toContain("2.0 KB");

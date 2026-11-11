@@ -4,6 +4,7 @@ import { store } from "./store.ts";
 import { $, html, ico, pageOf, pager, pagerHtml, wirePager } from "./dom.ts";
 import { age } from "./labels.ts";
 import { setTaskAttention } from "./badge.ts";
+import { newTask } from "./cards.ts";
 import { openTaskRecord, taskStatus, type TaskView } from "./task-page.ts";
 
 export const TASK_FILTERS = [
@@ -50,7 +51,6 @@ function dock() {
   if (!$("tk-bar"))
     $("tasksv").innerHTML = String(
       html`<div class="tk-bar" id="tk-bar">
-          <div class="tk-row" id="tk-chips" role="group" aria-label="Task filters"></div>
           <div class="tk-row"><label class="tk-q" id="tk-q">${ico("search")}</label><span id="tk-tools"></span></div>
         </div>
         <div class="tk-list" id="tk-list"></div>`,
@@ -71,7 +71,7 @@ function dock() {
   $("hx").innerHTML = String(
     html`<button class="ib" id="tasks-refresh" title="Refresh tasks" aria-label="Refresh tasks">
       ${ico("refresh")}
-    </button>`,
+    </button><details class="ice-filt" id="tk-filt"><summary class="ib" id="tk-filt-sum" aria-label="Filter tasks" title="Filter tasks">${ico("filter")}</summary><div class="ice-fpop"><div class="ice-chips" id="tk-chips" role="group" aria-label="Task filters"></div></div></details>`,
   );
   $("tasks-refresh").onclick = () => void refreshTasks();
 }
@@ -119,8 +119,9 @@ function draw() {
   const matched = filteredTasks(scoped, filter, q);
   const rows = pageOf(pg, matched);
   $("tk-chips").innerHTML = String(
-    html`${TASK_FILTERS.map(([id, label]) => html`<button type="button" class="tk-chip${filter === id ? " on" : ""}" data-task-filter="${id}" aria-pressed="${String(filter === id)}">${label}<span class="tp-filter-count">${id === "all" ? scoped.length : scoped.filter((t) => t.attention.category === id).length}</span></button>`)}`,
+    html`${TASK_FILTERS.map(([id, label]) => html`<button type="button" class="ice-chip${filter === id ? " on" : ""}" data-task-filter="${id}" aria-pressed="${String(filter === id)}">${label}<i>${id === "all" ? scoped.length : scoped.filter((t) => t.attention.category === id).length}</i></button>`)}`,
   );
+  $("tk-filt-sum").classList.toggle("on", filter !== "all");
   const empty = error
     ? html`<p>${error}</p>
         <button class="btn" type="button" id="tasks-retry">Try again</button>`
@@ -138,7 +139,7 @@ function draw() {
         ${rows.map(
           (t, i) =>
             html`<button type="button" class="tp-task-row${sel === i ? " kb" : ""}" data-task-row="${String(i)}">
-              <span class="tp-task-main"
+              <span class="si ${t.attention.category === "needs-you" ? "wait" : t.attention.category === "completed" ? "done" : "idle"}"></span><span class="tp-task-main"
                 ><strong>${t.title}</strong
                 ><small
                   >${
@@ -155,7 +156,7 @@ function draw() {
                 ><span>${taskStatus(t)}</span><small>${t.attention.action}</small></span
               ><span class="tp-task-age"
                 >${t.updatedAt ? age(Number(new Date(t.updatedAt)), Date.now()) + " ago" : ""}</span
-              >${ico("arrow")}
+              >
             </button>`,
         )}
       </div>`
@@ -173,6 +174,7 @@ function draw() {
       (b) =>
         (b.onclick = () => {
           filter = b.dataset.taskFilter!;
+          $("tk-filt").removeAttribute("open");
           sel = 0;
           pg.at = 0;
           draw();
@@ -182,7 +184,7 @@ function draw() {
     .querySelectorAll<HTMLElement>("[data-task-row]")
     .forEach((b) => (b.onclick = () => void openTaskRecord(rows[Number(b.dataset.taskRow)])));
   $("tasks-first") &&
-    ($("tasks-first").onclick = () => dispatchEvent(new CustomEvent("kz-new-task", { cancelable: true })));
+    ($("tasks-first").onclick = () => newTask());
   $("tasks-reset") &&
     ($("tasks-reset").onclick = () => {
       filter = "all";

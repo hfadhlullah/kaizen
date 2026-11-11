@@ -16,7 +16,8 @@ const STAGE = ["idea", "planning", "building", "reviewing", "done"];
 // A card's state icon (.si) and the word under its title.
 export function stateOf(c) {
   const task = taskForCard(c);
-  if (task) return task.attention.category === "needs-you" ? "wait" : task.attention.category === "completed" ? "done" : ["interrupted", "failed"].includes(task.status ?? "") ? "stalled" : "build";
+  // Only a task that is really working spins; a saved goal is idle, a finished run keeps its own state.
+  if (task && !(c.kind === "run" && (c.status === "done" || c.status === "abandoned") && task.attention.category !== "needs-you")) return task.attention.category === "needs-you" ? "wait" : task.attention.category === "completed" ? "done" : ["interrupted", "failed"].includes(task.status ?? "") ? "stalled" : task.status === "draft" ? "idle" : "build";
   // A task whose agent is working is a run being born: show it as planning.
   if (c.kind === "idea") return !c.pty?.alive ? "idle" : c.pty.asking ? "wait" : c.pty.busy ? "plan" : "idle";
   if (c.status === "waiting" || (c.pty?.alive && c.pty.asking)) return "wait";
@@ -210,7 +211,7 @@ async function readTaskAttention() {
   try { const r = await fetch("/tasks?all=1"); if (r.ok) { const body = await r.json(); setTaskAttention(body.tasks ?? []); } } catch { /* retain the latest persisted projection */ }
   finally { tasksReading = false; }
 }
-const taskLinks = (dir: string, w: any, cards: any[]) => (attentionTasks ?? []).filter((t) => t.dir === dir && !t.legacy && (cards.some((c) => taskForCard(c)?.id === t.id) || (w.main && !(t.runs ?? t.runIds ?? []).length))).map((t) => html`<a class="rtask" href="/?view=task&task=${encodeURIComponent(t.id)}&dir=${encodeURIComponent(t.dir)}" data-task-id="${t.id}" data-task-dir="${t.dir}" title="${t.attention.reason} · ${t.attention.action}"><span class="si ${t.attention.category === "needs-you" ? "wait" : t.attention.category === "completed" ? "done" : "build"}"></span><span><b>${t.title}</b><small>${t.attention.reason}</small></span></a>`);
+const taskLinks = (dir: string, w: any, cards: any[]) => (attentionTasks ?? []).filter((t) => t.dir === dir && !t.legacy && t.attention.category !== "completed" && (cards.some((c) => taskForCard(c)?.id === t.id) || (w.main && !(t.runs ?? t.runIds ?? []).length))).sort((a: any, b: any) => (a.created ?? 0) - (b.created ?? 0)).map((t) => html`<a class="rtask" href="/?view=task&task=${encodeURIComponent(t.id)}&dir=${encodeURIComponent(t.dir)}" data-task-id="${t.id}" data-task-dir="${t.dir}" title="${t.attention.reason} · ${t.attention.action}"><span class="si ${t.attention.category === "needs-you" ? "wait" : t.attention.category === "completed" ? "done" : ["interrupted", "failed"].includes(t.status ?? "") ? "stalled" : t.status === "draft" ? "idle" : "build"}"></span><span><b>${t.title}</b><small>${t.attention.reason}</small></span></a>`);
 
 export const wsLabel = (w) => w.branch || (w.main ? "workspace" : w.path.split(/[\\/]/).pop());
 function drawList() {
