@@ -107,3 +107,18 @@ test.skipIf(process.platform==='win32')('HTTP task routes enforce origin, exact 
   const current=readTask(state,id)!;expect((await post({op:'accept',id,revision:current.revision,operationId:'http-accept',resultId:current.currentResult})).status).toBe(200);
  }finally{child.kill();await child.exited;}
 },20000);
+test('a started task is archived or abandoned, never deleted',()=>{
+ const f=fixture('lite'),run=f.now().activeRun!;
+ expect(()=>f.send('delete')).toThrow();
+ f.send('abandon',{why:'test'});
+ expect(f.now().archived).toBe(true);
+ expect(readFileSync(join(f.state,'runs',run,'state.json'),'utf8')).toContain('abandoned');
+});
+test('delete removes a draft task that has no run',()=>{
+ const root=mkdtempSync(join(tmpdir(),'kz-task-del-')),state=join(root,'.kaizen');mkdirSync(state);
+ const hooks={launch:()=>({ok:true,pty:'x'}),alive:()=>false,stop:()=>true};
+ const t=taskAction(state,{op:'create',goal:'Throw away',operationId:'c'},hooks).task;
+ const d=mutateTask(state,t.id,{revision:t.revision,opId:'clear'},x=>{x.runIds=[];x.activeRun=null;});
+ taskAction(state,{op:'delete',id:t.id,revision:d.revision,operationId:'d'},hooks);
+ expect(readTask(state,t.id)).toBeNull();
+});

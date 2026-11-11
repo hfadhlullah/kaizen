@@ -245,7 +245,7 @@ function technicalView(t: TaskView, current?: TaskResult): Safe {
       Permission prompts may require the supported terminal controls in the workspace. Stop requests cancellation; it
       does not undo files.
     </p>
-    ${runs.length ? html`<nav aria-label="Linked runs">${runs.map((id) => html`<a class="btn" href="?view=run&id=${id}&dir=${encodeURIComponent(t.dir)}">Open workspace · ${id}</a>`)}</nav>` : html`<p>No run has started yet.</p>`}<small
+    ${runs.length ? html`<nav aria-label="Linked runs">${runs.map((id) => html`<a class="btn" href="?view=run&id=${id}&dir=${encodeURIComponent(t.dir)}">Open workspace · ${id}</a>`)}</nav>` : html`<p>No run has started yet.</p>`}<div class="tp-close" role="group" aria-label="Close this task"><button type="button" class="btn ghost" data-close="archive">Archive</button>${t.activeRun ? html`<button type="button" class="btn danger" data-close="abandon">Abandon</button>` : html`<button type="button" class="btn danger" data-close="delete">Delete</button>`}</div><small
       >Task ${t.id} · revision ${t.revision}</small
     >
   </div>`;
@@ -361,6 +361,17 @@ function draw() {
       drawer = false;
       applyDrawer();
     };
+    $("tp-info").addEventListener("click", async (e) => {
+      const op = (e.target as HTMLElement).closest<HTMLElement>("[data-close]")?.dataset.close;
+      if (!op) return;
+      const ask = { delete: "Delete this task? It is not recorded anywhere.", abandon: "Abandon this run? Saved files are not rolled back." }[op];
+      if (ask && !confirm(ask)) return;
+      const r = await action(op, op === "abandon" ? { why: "abandoned from the task page" } : {});
+      if (r?.ok && op !== "abandon") {
+        history.pushState(null, "", "?view=tasks");
+        go("tasks");
+      }
+    });
     $("tp-stop").onclick = () => void action("stop");
     $("tp-resume").onclick = () => void action("resume");
     $("tp-start").onclick = () => runPopup({ _k: "task:" + t.id, kind: "task", state: t.dir, text: t.title }, (pick) => void action("start", { pick }));

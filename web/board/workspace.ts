@@ -17,7 +17,9 @@ const STAGE = ["idea", "planning", "building", "reviewing", "done"];
 export function stateOf(c) {
   const task = taskForCard(c);
   // Only a task that is really working spins; a saved goal is idle, a finished run keeps its own state.
-  if (task && !(c.kind === "run" && (c.status === "done" || c.status === "abandoned") && task.attention.category !== "needs-you")) return task.attention.category === "needs-you" ? "wait" : task.attention.category === "completed" ? "done" : ["interrupted", "failed"].includes(task.status ?? "") ? "stalled" : task.status === "draft" ? "idle" : "build";
+  // An abandoned run waits on nobody, and a done one only on its own approval or commit (below), so
+  // a linked task's "needs you" never paints a finished run orange.
+  if (task && !(c.kind === "run" && (c.status === "done" || c.status === "abandoned"))) return task.attention.category === "needs-you" ? "wait" : task.attention.category === "completed" ? "done" : ["interrupted", "failed"].includes(task.status ?? "") ? "stalled" : task.status === "draft" ? "idle" : "build";
   // A task whose agent is working is a run being born: show it as planning.
   if (c.kind === "idea") return !c.pty?.alive ? "idle" : c.pty.asking ? "wait" : c.pty.busy ? "plan" : "idle";
   if (c.status === "waiting" || (c.pty?.alive && c.pty.asking)) return "wait";
@@ -61,23 +63,20 @@ export const cardHref = (c) =>
   `/?view=run&dir=${encodeURIComponent(c.state)}&` + (c.kind === "run" ? "id=" + encodeURIComponent(c.id) : "idea=" + encodeURIComponent(c.text));
 
 // The Projects filter: projects ticked (none = all) and which kinds of card show. Kept per browser.
-type Filt = { dirs: string[]; active: boolean; done: boolean };
-const ALLF: Filt = { dirs: [], active: true, done: true };
+// Running: tasks and agents that started and are not done. Done: the finished ones. Saved tasks that never started show in neither.
+type Filt = { dirs: string[]; running: boolean; done: boolean };
+const ALLF: Filt = { dirs: [], running: true, done: false };
 let filt: Filt = (() => {
   try {
-    return { ...ALLF, ...JSON.parse(localStorage.getItem("kz-rail-filter") || "{}") };
+    return { ...ALLF, ...JSON.parse(localStorage.getItem("kz-rail-filter2") || "{}") };
   } catch {
     return { ...ALLF };
   }
 })();
 const keepFilt = () => {
   try {
-    localStorage.setItem("kz-rail-filter", JSON.stringify(filt));
+    localStorage.setItem("kz-rail-filter2", JSON.stringify(filt));
   } catch {}
-};
-const kindOf = (c) => {
-  const st = stateOf(c);
-  return st === "done" || st === "aband" ? "done" : "active";
 };
 let last: { cards: any[]; projects?: any[]; agents?: Agent[] } = { cards: [] };
 // Projects that are git repositories (the main checkout has a branch): where a workspace can be made.
@@ -211,7 +210,7 @@ async function readTaskAttention() {
   try { const r = await fetch("/tasks?all=1"); if (r.ok) { const body = await r.json(); setTaskAttention(body.tasks ?? []); } } catch { /* retain the latest persisted projection */ }
   finally { tasksReading = false; }
 }
-const taskLinks = (dir: string, w: any, cards: any[]) => (attentionTasks ?? []).filter((t) => t.dir === dir && !t.legacy && t.attention.category !== "completed" && (cards.some((c) => taskForCard(c)?.id === t.id) || (w.main && !(t.runs ?? t.runIds ?? []).length))).sort((a: any, b: any) => (a.created ?? 0) - (b.created ?? 0)).map((t) => html`<a class="rtask" href="/?view=task&task=${encodeURIComponent(t.id)}&dir=${encodeURIComponent(t.dir)}" data-task-id="${t.id}" data-task-dir="${t.dir}" title="${t.attention.reason} · ${t.attention.action}"><span class="si ${t.attention.category === "needs-you" ? "wait" : t.attention.category === "completed" ? "done" : ["interrupted", "failed"].includes(t.status ?? "") ? "stalled" : t.status === "draft" ? "idle" : "build"}"></span><span><b>${t.title}</b><small>${t.attention.reason}</small></span></a>`);
+const taskLinks = (dir: string, w: any, cards: any[]) => (attentionTasks ?? []).filter((t) => t.dir === dir && !t.legacy && t.attention.category !== "completed" && filt.running && t.status !== "draft" && (cards.some((c) => taskForCard(c)?.id === t.id) || (w.main && !(t.runs ?? t.runIds ?? []).length))).sort((a: any, b: any) => (a.created ?? 0) - (b.created ?? 0)).map((t) => html`<a class="rtask" href="/?view=task&task=${encodeURIComponent(t.id)}&dir=${encodeURIComponent(t.dir)}" data-task-id="${t.id}" data-task-dir="${t.dir}" title="${t.attention.reason} · ${t.attention.action}"><span class="si ${t.attention.category === "needs-you" ? "wait" : t.attention.category === "completed" ? "done" : ["interrupted", "failed"].includes(t.status ?? "") ? "stalled" : t.status === "draft" ? "idle" : "build"}"></span><span><b>${t.title}</b><small>${t.attention.reason}</small></span></a>`);
 
 export const wsLabel = (w) => w.branch || (w.main ? "workspace" : w.path.split(/[\\/]/).pop());
 function drawList() {
@@ -222,7 +221,12 @@ function drawList() {
   const all = new Set(projects.map((p) => p.dir));
   // Cards by project and workspace: each lands on a row, the main checkout when its own is not listed.
   const by = new Map<string, any[]>();
-  for (const c of last.cards.filter((c) => listed(c, now))) {
+  const shownAgents = (rs) => rs.filter((r) => (r.st === "done" ? filt.done : filt.running));
+  const shown = (c) => {
+    const st = stateOf(c);
+    return (filt.running && ["wait", "plan", "build", "review", "stalled"].includes(st)) || (filt.done && (st === "done" || st === "aband"));
+  };
+  for (const c of last.cards.filter((c) => listed(c, now) && shown(c))) {
     const k = c.state + "\0" + wsOfCard(c);
     if (!by.has(k)) by.set(k, []);
     by.get(k)!.push(c);
@@ -234,17 +238,18 @@ function drawList() {
       const rows = p.workspaces
         .map((w) => ({ w, cs: by.get(p.dir + "\0" + w.path) ?? [] }))
         // An empty workspace or one with a run going is active; one holding only finished runs is done.
-        .filter(({ cs }) => filt[cs.length && cs.every((c) => kindOf(c) === "done") ? "done" : "active"])
+        .filter(({ w, cs }) => cs.length || shownAgents(wsAgents(last.agents ?? [], p.dir, w.path, wsOfCard, now)).length)
         // Pinned worktrees first (a stable sort keeps the rest in git's order).
         .sort((a, b) => +pins.has(p.dir + "\0" + b.w.path) - +pins.has(p.dir + "\0" + a.w.path));
       return { p, rows, top: Math.min(9, ...rows.map((r) => top(r.cs))) };
     })
-    .filter((g) => g.rows.length)
+    // Running only keeps every project listed, so an idle one reads "Nothing running" rather than vanishing.
+    .filter((g) => g.rows.length || filt.running)
     // Projects by their most urgent card; the picker's order otherwise.
     .sort((a, b) => a.top - b.top);
 
   const f = $("pfilter");
-  const on = filt.dirs.some((d) => all.has(d)) || !filt.active || !filt.done;
+  const on = filt.dirs.some((d) => all.has(d)) || !filt.running || filt.done;
   f.setAttribute("aria-pressed", String(on));
   f.title = on ? "Filter on: choose projects and kinds" : "Filter projects and kinds";
   if ($("pfpop")) drawPop(all);
@@ -258,12 +263,13 @@ function drawList() {
       .map(({ p, rows }) => {
         const dir = p.dir,
           name = projName(dir, last.projects),
-          shut = folded.has(dir);
+          // A project with nothing to list stays as a collapsed header.
+          shut = folded.has(dir) || !rows.length;
         // A + for a new worktree on git projects (the main checkout has a branch).
         const git = p.workspaces.some((w) => w.branch);
         return html`<div class="pgrp"><button type="button" class="proj${shut ? " shut" : ""}" data-fold="${dir}" title="${dir}" aria-expanded="${String(!shut)}">${logo(dir, name, last.projects)}<span class="pname">${name}</span><svg class="fchev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>${git ? html`<button type="button" class="wadd" data-wadd="${dir}" title="New workspace in ${name}" aria-label="New workspace in ${name}"><svg aria-hidden="true"><use href="#i-plus"/></svg></button>` : ""}</div>${shut ? "" : raw('<div class="pws">')}${shut ? "" : rows.map(({ w, cs }) => {
           // The dot: the most urgent run there, or an agent asking (amber) or working (spinner).
-          const rows = wsAgents(last.agents ?? [], dir, w.path, wsOfCard, now);
+          const rows = shownAgents(wsAgents(last.agents ?? [], dir, w.path, wsOfCard, now));
           const st0 = cs.length ? stateOf([...cs].sort((a, b) => RANK[stateOf(a)] - RANK[stateOf(b)])[0]) : "";
           const st = st0 === "wait" || rows[0]?.st === "asking" ? "wait" : rows.some((r) => r.st === "working") ? "build" : st0 || (rows.length ? "done" : "");
           // The agent buttons are siblings of the link (a button inside a link is invalid).
@@ -360,9 +366,12 @@ function drawPop(all: Set<string>) {
   const box = (on: boolean, attrs: string, label) => html`<label class="pfrow"><input type="checkbox" ${raw(attrs)}${on ? raw(" checked") : ""}>${label}</label>`;
   const allShut = dirs.length > 0 && dirs.every((d) => folded.has(d));
   const had = document.activeElement?.id;
+  const top = p.querySelector(".pfl")?.scrollTop ?? 0;
   p.innerHTML = String(
-    html`${dirs.length > 6 ? html`<input class="sel" id="pfq" placeholder="Search projects…" aria-label="Search projects" value="${pq}" autocomplete="off" spellcheck="false">` : ""}<div class="pfall">${box(!filt.dirs.length, 'data-all="1"', "All projects")}<button type="button" class="pfb" data-fa="${allShut ? "0" : "1"}" title="${allShut ? "Expand all" : "Collapse all"}" aria-label="${allShut ? "Expand all projects" : "Collapse all projects"}">${raw(allShut ? FA_OPEN : FA_SHUT)}</button></div>${shown.map((d) => box(filt.dirs.includes(d), `data-dir="${encodeURIComponent(d)}"`, html`${logo(d, projName(d, last.projects), last.projects)}<span>${projName(d, last.projects)}</span>`))}<div class="pfh">Show</div>${(["active", "done"] as const).map((k) => box(filt[k], `data-k="${k}"`, { active: "Active runs", done: "Done (last day)" }[k]))}`,
+    html`<input class="sel" id="pfq" placeholder="Search projects…" aria-label="Search projects" value="${pq}" autocomplete="off" spellcheck="false"><div class="pfall">${box(!filt.dirs.length, 'data-all="1"', "All projects")}<button type="button" class="pfb" data-fa="${allShut ? "0" : "1"}" title="${allShut ? "Expand all" : "Collapse all"}" aria-label="${allShut ? "Expand all projects" : "Collapse all projects"}">${raw(allShut ? FA_OPEN : FA_SHUT)}</button></div><div class="pfl">${shown.map((d) => box(filt.dirs.includes(d), `data-dir="${encodeURIComponent(d)}"`, html`${logo(d, projName(d, last.projects), last.projects)}<span>${projName(d, last.projects)}</span>`))}</div><div class="pff"><div class="pfh">Show</div>${(["running", "done"] as const).map((k) => box(filt[k], `data-k="${k}"`, { running: "Running", done: "Done" }[k]))}</div>`,
   );
+  const pl = p.querySelector(".pfl");
+  if (pl) pl.scrollTop = top;
   if (had === "pfq") {
     const q = $("pfq") as HTMLInputElement;
     q.focus();

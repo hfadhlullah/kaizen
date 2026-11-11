@@ -15,7 +15,7 @@ export type Task = {
   runIds: string[]; activeRun: string | null; currentResult: string | null; acceptedResult: string | null;
   pendingDecision: TaskDecision | null; inputs: TaskInput[]; events: TaskEvent[]; operations: string[];
   files: { name: string; path: string }[]; launch: TaskLaunch | null; safe: boolean; queuePaused: boolean;
-  initialConfirmed: boolean; writePhase: boolean; error?: string; legacyKey?: string; alias?: { state: string; id: string };
+  initialConfirmed: boolean; writePhase: boolean; error?: string; legacyKey?: string; archived?: boolean; alias?: { state: string; id: string };
 };
 export type Mutation = { revision: number; opId: string };
 export class TaskError extends Error { constructor(message: string, public status = 409) { super(message); } }
@@ -77,6 +77,7 @@ export function resolveTask(state: string, id: string): { state: string; task: T
 export function listTasks(state: string): Task[] {
   try { return readdirSync(join(state, "tasks")).filter(taskId).map((id) => readTask(state, id)).filter((t): t is Task => !!t && !t.alias).sort((a, b) => taskProjection(a).rank - taskProjection(b).rank || b.updated - a.updated); } catch { return []; }
 }
+export function deleteTask(state: string, id: string) { rmSync(taskDir(state, id), { recursive: true, force: true }); }
 export type NewTask = { goal: string; title?: string; project?: string | null; files?: Task["files"] };
 export function createTask(state: string, input: NewTask, opId?: string): Task {
   if (!input.goal?.trim()) throw new TaskError("Describe what you want to make", 400);
