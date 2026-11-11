@@ -27,6 +27,7 @@ test.skipIf(!findBrowser())("ui-audit flags the row off by 2px, not the aligned 
     b.page.close();
     b.proc.kill();
     await b.proc.exited;
-    rmSync(root, { recursive: true, force: true });
+    // Chrome releases its profile folder a moment after it exits; Windows answers EBUSY until then.
+    rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   }
 }, 30_000);
