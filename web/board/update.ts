@@ -14,6 +14,8 @@ let upd = null,
 const desk = globalThis.kaizenDesktop;
 const name = desk ? "Kaizen" : "kaizen";
 const getVer = (fresh) => (desk ? desk.check() : fetch(fresh ? "/version?fresh=1" : "/version").then((r) => r.json()));
+// A board that is the desktop app's own copy cannot update itself; say where to update it.
+const behindMsg = (v) => `${name} ${v.latest} is available. You are running ${v.version}. Update it from the desktop app on your computer.`;
 export function gotVer(v) {
   ver = v;
   upd = v.update ? v : null;
@@ -26,7 +28,7 @@ export function updBar() {
   const d = document.createElement("div");
   d.className = `updbar${upd ? "" : " quiet"}`;
   if (!upd) {
-    d.innerHTML = html`<span id="upd-msg" aria-live="polite">${ver ? `${name} ${ver.version}` : name}</span
+    d.innerHTML = html`<span id="upd-msg" aria-live="polite">${ver ? (ver.behind ? behindMsg(ver) : `${name} ${ver.version}`) : name}</span
       ><button class="btn" id="upd-chk">Check for updates</button>`;
   } else {
     // What's new: each newer release's one-line title, shown on hover, focus or click.
@@ -77,7 +79,7 @@ export function updBar() {
     updBar();
     if (upd) $("upd-go").focus();
     else {
-      $("upd-msg").textContent = `${name} ${v.version} is up to date.`;
+      $("upd-msg").textContent = v.behind ? behindMsg(v) : `${name} ${v.version} is up to date.`;
       $("upd-chk").focus();
     }
   };

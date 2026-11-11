@@ -1865,7 +1865,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
         // Update button there (DESKTOP_BUNDLED, above).
         const update = !!v && newer(v, VERSION) && !DESKTOP_BUNDLED;
         const notes = update ? await releaseNotes(VERSION, url.searchParams.has("fresh")) : [];
-        return json({ version: VERSION, latest: v, update, notes, failed: upgradeFailed });
+        // behind: npm has a newer one but this board cannot update itself (the desktop app's copy), so a phone or browser can say so instead of "up to date".
+        return json({ version: VERSION, latest: v, update, behind: DESKTOP_BUNDLED && !!v && newer(v, VERSION), notes, failed: upgradeFailed });
       }
 
       // `kaizen upgrade`, run here with no window, then a new board on this port: it
