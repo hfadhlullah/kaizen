@@ -10,7 +10,7 @@ export function inhibitArgv(platform = process.platform as string, pid = process
 
 export const wantAwake = (mode: string, agentsRunning: boolean) => mode === "on" || (mode === "auto" && agentsRunning);
 
-export function awakeHolder(start: (argv: string[]) => { kill: () => void; exited?: Promise<unknown> } = (a) => Bun.spawn(a, { stdin: "ignore", stdout: "ignore", stderr: "ignore" }), argv = inhibitArgv()) {
+export function awakeHolder(start: (argv: string[]) => { kill: () => void; exited?: Promise<unknown> } = (a) => Bun.spawn(a, { stdin: "ignore", stdout: "ignore", stderr: "ignore", windowsHide: true }), argv = inhibitArgv()) {
   let held: { kill: () => void } | null = null;
   const stop = () => { held?.kill(); held = null; };
   return {

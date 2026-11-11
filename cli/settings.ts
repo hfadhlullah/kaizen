@@ -452,8 +452,8 @@ export async function settings(repoRoot: string, standalone = true) {
 // project that has not written one of its own is edited globally, so one setting
 // changed in ~/.kaizen/config.yml reaches every project.
 function locate() {
-  let dir = process.cwd();
-  for (;;) {
+  const h = homedir();
+  for (let dir = process.cwd(); dir !== h; ) {
     const conf = join(dir, ".kaizen", "config.yml");
     if (existsSync(conf)) return conf;
     if (existsSync(join(dir, ".git"))) break;

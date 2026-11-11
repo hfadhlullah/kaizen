@@ -122,10 +122,10 @@ test("destDir: symlinks, case, the ~/.kaizen prefix and places outside home", ()
   const home = tmp(), out = tmp();
   mkdirSync(join(home, "p", ".kaizen"), { recursive: true });
   mkdirSync(join(home, "empty"));
-  symlinkSync(join(home, "empty"), join(home, "ln"));
+  symlinkSync(join(home, "empty"), join(home, "ln"), process.platform === "win32" ? "junction" : undefined);
   expect(destDir(join(home, "ln"), home)).toMatchObject({ error: expect.stringContaining("symbolic link") });
   // An existing folder is canonicalised, so a dir reached through a link into a project is still below it.
-  symlinkSync(join(home, "p"), join(home, "via"));
+  symlinkSync(join(home, "p"), join(home, "via"), process.platform === "win32" ? "junction" : undefined);
   expect(destDir(join(home, "via", "sub"), home, [join(home, "p")])).toMatchObject({ error: expect.stringContaining("inside the project") });
   for (const bad of ["~/X/.GIT/y", "~/x/.Kaizen", "~/.KAIZEN/x", "~/.kaizen/x"]) expect(destDir(bad, home), bad).toHaveProperty("error");
   expect(destDir("~/.kaizenfoo", home)).toEqual({ dir: join(home, ".kaizenfoo") });

@@ -59,7 +59,7 @@ export async function setup(ui: Ui) {
   const project = projectStep(process.cwd(), home);
   const needsProject = !(project && "ready" in project);
   const tailnetNow = () => {
-    try { return tailnetName(Bun.spawnSync(["tailscale", "status", "--json"]).stdout.toString()); } catch { return null; /* not installed */ }
+    try { return tailnetName(Bun.spawnSync(["tailscale", "status", "--json"], { windowsHide: true }).stdout.toString()); } catch { return null; /* not installed */ }
   };
   let tailnet = tailnetNow();
   const total = 3 + (needsProject ? 1 : 0);
@@ -69,7 +69,7 @@ export async function setup(ui: Ui) {
   out(`\n  ${c.bold("kaizen setup")}  ${c.dim("Press Enter to take the first choice. Nothing changes without an answer.")}`);
 
   const initProject = (dir: string) => {
-    const r = Bun.spawnSync([process.execPath, INSTALL, "--yes", "--init-project"], { cwd: dir });
+    const r = Bun.spawnSync([process.execPath, INSTALL, "--yes", "--init-project"], { cwd: dir, windowsHide: true });
     if (r.exitCode === 0 && existsSync(join(dir, ".kaizen"))) { remember(dir); out(`  ${c.green("+")} ${dir} is ready`); }
     else out(`  ${c.dim(`Could not set up ${dir}. Run kaizen setup from inside it to try again.`)}`);
   };

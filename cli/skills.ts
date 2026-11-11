@@ -114,7 +114,7 @@ export function setSkill(repo: string, home: string, id: string, on: boolean, co
   for (const h of SKILL_HOMES) {
     if (!existsSync(join(home, h.dir))) continue;
     const dir = join(home, h.dir, "skills"), p = join(dir, id);
-    if (!on) { if (ours(p, skill.rel)) unlinkSync(p); continue; }
+    if (!on) { if (ours(p, skill.rel)) { try { unlinkSync(p); } catch { rmdirSync(p); } } continue; }
     if (existsSync(p) || isLink(p)) continue;
     mkdirSync(dir, { recursive: true });
     symlinkSync(join(clone, "skills", skill.rel), p, process.platform === "win32" ? "junction" : undefined);

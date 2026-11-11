@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, test } from "bun:test";
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { bundledSkills, repairSkill, setSkill, skillsOff, skillStatus, skillsToLink, SKILL_HOMES } from "./skills.ts";
 
 let t: string, repo: string, home: string;
@@ -18,8 +18,8 @@ beforeEach(() => {
   skill("kaizen", { group: "core" });
   skill("media/kaizen-deck", { title: "Create deck", needs: ["x"] });
   mkdirSync(join(home, ".claude", "skills"), { recursive: true });
-  symlinkSync(join(repo, "skills/media/kaizen-deck"), join(home, ".claude/skills/kaizen-deck"));
-  symlinkSync(join(repo, "skills/kaizen"), join(home, ".claude/skills/kaizen"));
+  symlinkSync(join(repo, "skills/media/kaizen-deck"), join(home, ".claude/skills/kaizen-deck"), process.platform === "win32" ? "junction" : undefined);
+  symlinkSync(join(repo, "skills/kaizen"), join(home, ".claude/skills/kaizen"), process.platform === "win32" ? "junction" : undefined);
 });
 afterEach(() => rmSync(t, { recursive: true, force: true }));
 const link = () => join(home, ".claude/skills/kaizen-deck");
@@ -51,7 +51,7 @@ test("a real folder and a foreign link under the name stay", () => {
   expect(skillStatus(bundledSkills(repo)[1]!, home)[0]!.state).toBe("other");
   rmSync(link(), { recursive: true });
   mkdirSync(join(t, "skills/media/kaizen-deck"), { recursive: true }); // not a clone: no cli/install.ts
-  symlinkSync(join(t, "skills/media/kaizen-deck"), link());
+  symlinkSync(join(t, "skills/media/kaizen-deck"), link(), process.platform === "win32" ? "junction" : undefined);
   setSkill(repo, home, "kaizen-deck", false);
   expect(lstatSync(link()).isSymbolicLink()).toBe(true);
 });
@@ -82,10 +82,10 @@ test("core holds with no manifest; a whole description is read; a restore follow
   mkdirSync(join(other, "skills/media/kaizen-deck"), { recursive: true });
   mkdirSync(join(other, "skills/kaizen"), { recursive: true });
   rmSync(join(home, ".claude/skills/kaizen"));
-  symlinkSync(join(other, "skills/kaizen"), join(home, ".claude/skills/kaizen"));
+  symlinkSync(join(other, "skills/kaizen"), join(home, ".claude/skills/kaizen"), process.platform === "win32" ? "junction" : undefined);
   rmSync(link());
   setSkill(repo, home, "kaizen-deck", true);
-  expect(readlinkSync(link())).toBe(join(other, "skills/media/kaizen-deck"));
+  expect(resolve(readlinkSync(link()))).toBe(join(other, "skills/media/kaizen-deck"));
 });
 
 test("only unproven skills carry a status label", () => {
@@ -97,7 +97,7 @@ test("repair relinks a missing core skill, asks before a real folder, and says w
   skill("kaizen-help", { group: "core" });
   const help = join(home, ".claude/skills/kaizen-help");
   expect(repairSkill(repo, home, "kaizen-help")).toBeNull();
-  expect(readlinkSync(help)).toBe(join(repo, "skills/kaizen-help"));
+  expect(resolve(readlinkSync(help))).toBe(join(repo, "skills/kaizen-help"));
   rmSync(help);
   mkdirSync(help);
   writeFileSync(join(help, "SKILL.md"), "mine");
@@ -112,7 +112,7 @@ test("repair relinks a missing core skill, asks before a real folder, and says w
   writeFileSync(join(old, "cli", "install.ts"), "");
   mkdirSync(join(old, "skills", "kaizen"), { recursive: true });
   rmSync(join(home, ".claude/skills/kaizen"));
-  symlinkSync(join(old, "skills/kaizen"), join(home, ".claude/skills/kaizen"));
+  symlinkSync(join(old, "skills/kaizen"), join(home, ".claude/skills/kaizen"), process.platform === "win32" ? "junction" : undefined);
   skill("kaizen-concept", { group: "core" });
   expect(repairSkill(repo, home, "kaizen-concept")).toMatch(/kaizen upgrade/);
   expect(existsSync(join(home, ".claude/skills/kaizen-concept"))).toBe(false);

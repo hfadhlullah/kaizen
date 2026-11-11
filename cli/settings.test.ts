@@ -154,7 +154,7 @@ test("a worker model written into a config that has no such block lands under or
 
 test("kaizen settings preset applies the whole bundle, and refuses an unknown name", () => {
   const home = mkdtempSync(join(tmpdir(), "kaizen-preset-"));
-  const run = (name: string) => Bun.spawnSync(["bun", "run", join(repo, "cli/install.ts"), "settings", "preset", name], { cwd: home, env: { ...process.env, HOME: home, USERPROFILE: home } });
+  const run = (name: string) => Bun.spawnSync([process.execPath, "run", join(repo, "cli/install.ts"), "settings", "preset", name], { cwd: home, env: { ...process.env, HOME: home, USERPROFILE: home }, windowsHide: true });
   try {
     const r = run("ultra");
     expect(r.stdout.toString() + r.stderr.toString()).toContain("preset: ultra");

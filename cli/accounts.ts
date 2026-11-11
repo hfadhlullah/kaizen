@@ -99,7 +99,7 @@ export async function loginStatus(tool: Tool, dir?: string, env: NodeJS.ProcessE
   // answer never waits on the pipes past the timeout.
   const late = new Promise<Login>((done) => { timer = setTimeout(() => { try { p?.kill(); } catch { /* gone */ } done(fallback()); }, timeoutMs); });
   const ask = (async (): Promise<Login> => {
-    p = Bun.spawn(tool === "claude" ? [bin, "auth", "status", "--json"] : [bin, "login", "status"], { env: e, stdin: "ignore", stdout: "pipe", stderr: "pipe" });
+    p = Bun.spawn(tool === "claude" ? [bin, "auth", "status", "--json"] : [bin, "login", "status"], { env: e, stdin: "ignore", stdout: "pipe", stderr: "pipe", windowsHide: true });
     const [out, err] = await Promise.all([new Response(p.stdout as ReadableStream).text(), new Response(p.stderr as ReadableStream).text()]);
     await p.exited;
     return read(out, err);

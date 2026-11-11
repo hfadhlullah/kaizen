@@ -42,7 +42,7 @@ export async function computer(argv: string[], o: Opts): Promise<{ out: Record<s
   const py = o.cmd ? null : Bun.which("python3");
   if (!o.cmd && !py) return fail("no-python", "python3 not found");
   // Argv only: the model's text reaches the helper as plain arguments, never a shell line.
-  const p = Bun.spawn([...(o.cmd ?? [py!, "-I", HELPER]), verb, ...args], { stdin: "ignore", stdout: "pipe", stderr: "ignore", timeout: TIMEOUT });
+  const p = Bun.spawn([...(o.cmd ?? [py!, "-I", HELPER]), verb, ...args], { stdin: "ignore", stdout: "pipe", stderr: "ignore", timeout: TIMEOUT, windowsHide: true });
   const text = await new Response(p.stdout).text();
   await p.exited;
   if (p.signalCode) return fail("timeout", "helper timed out");
@@ -59,7 +59,7 @@ export function computerCheck(cmd?: string[]): { needs: { name: string; found: b
   const note = (wayland ? "Wayland: keyboard shortcuts and screenshots are not available. Values, accessibility actions and typing into fields work where the app exposes them. " : "") + "Password managers are blocked by app name only: one in a browser or under another name is not.";
   const py = Bun.which("python3");
   if (!cmd && (process.platform !== "linux" || !py)) return { needs: [{ name: process.platform === "linux" ? "python3" : "Linux", found: false }], note };
-  const r = Bun.spawnSync([...(cmd ?? [py!, "-I", HELPER]), "check"], { stdout: "pipe", stderr: "ignore", timeout: 5000 });
+  const r = Bun.spawnSync([...(cmd ?? [py!, "-I", HELPER]), "check"], { stdout: "pipe", stderr: "ignore", timeout: 5000, windowsHide: true });
   let c: any = {};
   try { c = JSON.parse(r.stdout.toString()); } catch { /* an unreadable check counts as missing */ }
   return { needs: [{ name: "AT-SPI bindings", found: c.atspi === true }, { name: "accessibility on", found: c.a11y === true }], note };

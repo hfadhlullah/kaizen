@@ -66,8 +66,11 @@ test("G-05: arguments reach the helper as plain argv, output is capped, bad call
   expect(junk.out).toMatchObject({ code: "helper-failed" });
 });
 
-// The helper's own logic, on fake nodes: no desktop needed. Skipped where python3 is missing.
-const py = Bun.which("python3");
+// The helper's own logic, on fake nodes: no desktop needed. Skipped where python3 is missing (or is the Windows Store stub).
+const py = (() => {
+  const p = Bun.which("python3");
+  return p && Bun.spawnSync([p, "-V"], { stdin: "ignore", stdout: "ignore", stderr: "ignore", windowsHide: true }).exitCode === 0 ? p : null;
+})();
 const probe = (body: string) => {
   const dir = join(repo, "cli");
   const code = `import sys, json\nsys.path.insert(0, ${JSON.stringify(dir)})\nimport importlib.util as u\nspec = u.spec_from_file_location("h", ${JSON.stringify(join(dir, "computer-helper.py"))})\nh = u.module_from_spec(spec); spec.loader.exec_module(h)\n${body}`;

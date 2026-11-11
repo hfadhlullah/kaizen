@@ -44,3 +44,6 @@ bun test                  # the suite; what CI runs (Ubuntu + Windows)
 bun run cli/install.ts    # install from this checkout — the links point at it
 bun run build:web         # rebuild web/notebook.js
 ```
+
+## Task deliverables
+For persistent task results, publish only visual screenshots (`.png`) as deliverable artifacts. Do not attach `.md` summary files or raw code files as task result artifacts.

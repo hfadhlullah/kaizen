@@ -25,7 +25,7 @@ it("does not follow symlinks", async () => {
     mkdirSync(join(d, "a")); mkdirSync(join(d, "big"));
     writeFileSync(join(d, "big", "f"), Buffer.alloc(1 << 20));
     const before = await folderSize(join(d, "a"));
-    symlinkSync(join(d, "big"), join(d, "a", "link"));
+    symlinkSync(join(d, "big"), join(d, "a", "link"), process.platform === "win32" ? "junction" : undefined);
     expect(await folderSize(join(d, "a"))).toBeLessThan(before + 65536);
     expect(await folderSize(join(d, "big"))).toBeGreaterThanOrEqual(1 << 20);
   } finally { rmSync(d, { recursive: true, force: true }); }
@@ -36,7 +36,7 @@ it("counts a real folder once and a nested root only in its own row", async () =
   try {
     mkdirSync(join(d, "inst", ".kaizen"), { recursive: true });
     writeFileSync(join(d, "inst", ".kaizen", "f"), Buffer.alloc(1 << 20));
-    symlinkSync(join(d, "inst", ".kaizen"), join(d, "alias"));
+    symlinkSync(join(d, "inst", ".kaizen"), join(d, "alias"), process.platform === "win32" ? "junction" : undefined);
     const r = await measure([
       { name: "inst", dir: "", path: join(d, "inst"), kind: "install" },
       { name: "p", dir: "x", path: join(d, "inst", ".kaizen"), kind: "project" },

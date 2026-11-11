@@ -14,7 +14,7 @@ test("project tree and text preview stay inside a registered project", async () 
   writeFileSync(join(project, "binary.dat"), Buffer.from([0, 1, 2]));
   writeFileSync(join(project, "big.txt"), "x".repeat(65537));
   writeFileSync(join(project, ".secret"), "hidden");
-  symlinkSync(join(home, ".kaizen", "projects"), join(project, "link"));
+  symlinkSync(join(home, ".kaizen"), join(project, "link"), process.platform === "win32" ? "junction" : undefined);
   const port = 20000 + Math.floor(Math.random() * 20000);
   const repo = join(import.meta.dir, "..");
   mkdirSync(join(home, ".claude"), { recursive: true }); // an agent, or `kaizen web` stops at its no-agent notice

@@ -94,6 +94,8 @@ export function artifactView(a: TaskArtifact, selected = false): Safe {
     view = html`<p class="dim">
       Download this file to open it. Executable files are kept separate from this task page.
     </p>`;
+  else if (selected)
+    view = html`<p class="dim">Preview is unavailable for this format. Download to open it in your app.</p>`;
   return html`<section class="tp-artifact">
     <div class="tp-artifact-head">
       <span

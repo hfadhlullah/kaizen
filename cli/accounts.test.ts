@@ -58,10 +58,10 @@ test("kaizen's links follow into an account folder", () => {
   const from = join(t, "from"), target = join(t, "skill-src");
   mkdirSync(join(from, "skills"), { recursive: true });
   mkdirSync(target);
-  symlinkSync(target, join(from, "skills", "kaizen"));
-  symlinkSync(target, join(from, "skills", "other"));
+  symlinkSync(target, join(from, "skills", "kaizen"), process.platform === "win32" ? "junction" : undefined);
+  symlinkSync(target, join(from, "skills", "other"), process.platform === "win32" ? "junction" : undefined);
   linkKaizen(join(t, "acct"), "claude", from);
-  expect(readlinkSync(join(t, "acct/skills/kaizen"))).toBe(realpathSync(target));
+  expect(readlinkSync(join(t, "acct/skills/kaizen")).replace(/[\\/]$/, "")).toBe(realpathSync(target));
   expect(existsSync(join(t, "acct/skills/other"))).toBe(false);
 });
 test("usage reads the account folder; a 401 says sign in, with no token in the answer", async () => {

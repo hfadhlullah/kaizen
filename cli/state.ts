@@ -234,13 +234,14 @@ export function findTerminal(cwd: string, fullCmd: string[], pidFile?: string): 
   // own arguments on -- neither survives as a plain -Command string. Windows
   // Terminal hosts the shell when installed; otherwise `start` gives it a window.
   if (process.platform === "win32") {
-    const q = (a: string) => `'${a.replace(/'/g, "''")}'`;
+    const ps1 = /\.ps1$/i.test(fullCmd[0] ?? "");
+    const q = (a: string, i = 0) => `'${(i > 0 && !ps1 ? a.replace(/"/g, '\\"') : a).replace(/'/g, "''")}'`;
     const shell = powershellExe();
     // This PowerShell's PID: ending its tree closes the -NoExit tab or window.
     // The pid file gone after the agent means closeSessions ended it: exit 0, which closes
     // the tab (Windows Terminal keeps one open after a non-zero exit). An agent that ends
     // by itself leaves the window open, -NoExit, so what it printed can still be read.
-    const ps = `${pidFile ? `$PID | Set-Content -LiteralPath ${q(pidFile)}; ` : ""}Set-Location ${q(cwd)}; & ${fullCmd.map(q).join(" ")}${pidFile ? `; if (-not (Test-Path -LiteralPath ${q(pidFile)})) { exit 0 }` : ""}`;
+    const ps = `${pidFile ? `$PID | Set-Content -LiteralPath ${q(pidFile)}; ` : ""}Set-Location ${q(cwd)}; & ${fullCmd.map((a, i) => q(a, i)).join(" ")}${pidFile ? `; if (-not (Test-Path -LiteralPath ${q(pidFile)})) { exit 0 }` : ""}`;
     const enc = Buffer.from(ps, "utf16le").toString("base64");
     // herdr (beta on Windows) first, as elsewhere: a new tab, and the run typed into
     // its PowerShell. Typed text ends at a newline, so what is typed is one line, the
@@ -1870,12 +1871,19 @@ export function launchRun(it: Item, from: string, run?: string, pick: { agent?: 
   const vars = [...(pick.task ? [`KAIZEN_TASK_ID=${pick.task.id}`] : []), ...(run ? [`KAIZEN_RUN_ID=${run}`, ...stageEnv(projectDir, run)] : []), ...subagentEnv(projectDir, agent.cmd), ...accountEnv(acct)];
   const identity = vars.length && process.platform !== "win32" ? ["env", ...vars] : [];
   const started = [...identity, ...withEnv(s.fullCmd, agent.cmd, prefs)];
+  const winEnv = process.platform === "win32" ? {
+    AGY_CLI_DISABLE_AUTO_UPDATE: "1",
+    CLAUDE_CODE_DISABLE_AUTO_UPDATER: "1",
+    DISABLE_AUTO_UPDATER: "1",
+    ...(prefs.agents[agent.cmd]?.env ?? {}),
+    ...Object.fromEntries(vars.map((kv) => { const eq = kv.indexOf("="); return [kv.slice(0, eq), kv.slice(eq + 1)]; })),
+  } : undefined;
   const drop = () => { if (s.record) rmSync(s.record, { force: true }); };
 
   if (pick.card && ptySupported) {
     const key = s.key ?? `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     try {
-      startPty(key, started, projectDir, s.pidFile, pick.onChange, { seed: pick.seed, tmux: keepAlive(projectDir) === "tmux" ? tmuxName(key) : undefined });
+      startPty(key, started, projectDir, s.pidFile, pick.onChange, { seed: pick.seed, tmux: keepAlive(projectDir) === "tmux" ? tmuxName(key) : undefined, env: winEnv });
       return { ok: true, agent, prompt, projectDir, cmd: s.fullCmd, pty: key };
     } catch (err: any) {
       drop();
@@ -1900,8 +1908,9 @@ export function launchRun(it: Item, from: string, run?: string, pick: { agent?: 
       stderr: "ignore",
       detached: term.detached,
       // A detached launch is the terminal window itself; anything else (herdr's
-      // launcher) is plumbing, and must not flash a console on Windows.
-      windowsHide: !term.detached,
+      // launcher, or `cmd.exe /c start` which opens its own PowerShell window and exits)
+      // is plumbing, and must not flash a console on Windows.
+      windowsHide: !term.detached || (process.platform === "win32" && /cmd\.exe$/i.test(term.cmd[0] ?? "")),
     });
     if (term.detached) proc.unref();
     return { ok: true, agent, prompt, projectDir, cmd: term.cmd };
@@ -1915,7 +1924,9 @@ export function launchRun(it: Item, from: string, run?: string, pick: { agent?: 
 export async function pidOnPort(port: number): Promise<number | null> {
   try {
     if (process.platform === "win32") {
-      const out = await Bun.$`${sysExe("netstat.exe")} -ano -p tcp`.text();
+      const p = Bun.spawn([sysExe("netstat.exe"), "-ano", "-p", "tcp"], { stdin: "ignore", stdout: "pipe", stderr: "ignore", windowsHide: true });
+      const out = await new Response(p.stdout).text();
+      await p.exited;
       const m = new RegExp(`127\\.0\\.0\\.1:${port}\\s+\\S+\\s+LISTENING\\s+(\\d+)`).exec(out);
       return m ? Number(m[1]) : null;
     }

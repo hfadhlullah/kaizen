@@ -91,13 +91,13 @@ test("a save changes only the words on screen and keeps every other key, atomica
 test("a page can only ask for files inside the video's own folders", () => {
   const lib = library();
   const all = video.places(lib, []);
-  writeFileSync(join(lib, "secret.txt"), "no");
-  symlinkSync(join(lib, "secret.txt"), join(lib, "videos", "demo", "link.txt"));
+  mkdirSync(join(lib, "secret-dir")); writeFileSync(join(lib, "secret-dir", "secret.txt"), "no"); writeFileSync(join(lib, "secret.txt"), "no");
+  symlinkSync(join(lib, "secret-dir"), join(lib, "videos", "demo", "link-dir"), process.platform === "win32" ? "junction" : undefined);
   const get = (parts: string[]) => video.serveFile(all, parts, new Request("http://127.0.0.1/"));
   expect(get(["0", "demo", "v", "film.json"]).status).toBe(200);
   expect(get(["0", "demo", "o", "film-promo-booth", "demo-9x16.mp4"]).status).toBe(200);
   for (const bad of [
-    ["0", "demo", "v", "..", "..", "secret.txt"], ["0", "demo", "v", "%2e%2e", "%2e%2e", "secret.txt"], ["0", "demo", "v", "link.txt"],
+    ["0", "demo", "v", "..", "..", "secret.txt"], ["0", "demo", "v", "%2e%2e", "%2e%2e", "secret.txt"], ["0", "demo", "v", "link-dir", "secret.txt"],
     ["0", "..", "v", "secret.txt"], ["0", "demo", "x", "film.json"], ["1", "demo", "v", "film.json"], ["0x", "demo", "v", "film.json"],
     ["0", "demo", "v", "%2Fetc%2Fpasswd"], ["0", "demo", "v"], ["0", "demo", "v", "%E0%A4%A"],
   ]) expect([bad.join("/"), get(bad).status]).toEqual([bad.join("/"), 404]);
@@ -123,7 +123,12 @@ test("the built film page gets the preview player around its timeline", async ()
   expect(page).toContain("window.__kz=");
 });
 
-test("jobs run the skill's scripts as argv, in the background, one at a time", async () => {
+const hasPy = (() => {
+  const p = Bun.which("python3");
+  return !!p && Bun.spawnSync([p, "-V"], { stdin: "ignore", stdout: "ignore", stderr: "ignore", windowsHide: true }).exitCode === 0;
+})();
+
+test.skipIf(!hasPy)("jobs run the skill's scripts as argv, in the background, one at a time", async () => {
   const lib = library();
   const calls = join(lib, "videos", "demo", "calls.txt");
   process.env.FAKE_SLEEP = "0.6";
@@ -149,7 +154,7 @@ test("jobs run the skill's scripts as argv, in the background, one at a time", a
   delete process.env.FAKE_SLEEP;
 });
 
-test("a failed step stops the job and keeps the script's output; a cancel kills it", async () => {
+test.skipIf(!hasPy)("a failed step stops the job and keeps the script's output; a cancel kills it", async () => {
   const lib = library();
   process.env.FAKE_EXIT = "3";
   try {
@@ -209,11 +214,13 @@ test("the board serves sound assets and the Video page, and refuses unsafe paths
     const r = await post("/video/job", { p: 0, name: "demo", kind: "render", platforms: ["TikTok", "YouTube"] }, at);
     expect(r.status).toBe(200);
     expect(((await r.json()) as any).job.total).toBe(2);
-    const calls = join(homeDir, ".kaizen", "videos", "demo", "calls.txt");
-    await until(() => existsSync(calls) && readFileSync(calls, "utf8").trim().split("\n").length === 2);
-    expect(readFileSync(calls, "utf8").trim().split("\n").map((l) => JSON.parse(l))).toEqual([
-      [join("videos", "demo"), "--format", "9x16", "--render"], [join("videos", "demo"), "--format", "16x9", "--render"],
-    ]);
+    if (hasPy) {
+      const calls = join(homeDir, ".kaizen", "videos", "demo", "calls.txt");
+      await until(() => existsSync(calls) && readFileSync(calls, "utf8").trim().split("\n").length === 2);
+      expect(readFileSync(calls, "utf8").trim().split("\n").map((l) => JSON.parse(l))).toEqual([
+        [join("videos", "demo"), "--format", "9x16", "--render"], [join("videos", "demo"), "--format", "16x9", "--render"],
+      ]);
+    }
   } finally { proc.kill(); await proc.exited; }
 }, 30000);
 

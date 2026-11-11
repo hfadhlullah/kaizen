@@ -3,13 +3,17 @@
 // They live in this process: the board stopping ends them, as closing a terminal
 // window ends the agent in it. Bun has no pseudo-terminal on Windows; there the
 // agent runs under a ConPTY host (conpty.ts) spoken to over pipes.
-import { writeFileSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import { conptyHost, innerCommand, resizeSeq } from "./conpty.ts";
 
 const WIN = process.platform === "win32";
 // Windows PowerShell, which every Windows has, both hosts the console and runs the agent in it.
 const winPs = () => join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
+const killWinTree = (pid: number) => {
+  try { Bun.spawnSync([join(process.env.SystemRoot ?? "C:\\Windows", "System32", "taskkill.exe"), "/T", "/F", "/PID", String(pid)], { stdin: "ignore", stdout: "ignore", stderr: "ignore", timeout: 3000, windowsHide: true }); } catch { /* already gone */ }
+};
 
 type Pty = { lastOut?: number; proc: Bun.Subprocess; out: string[]; size: number; listeners: Set<(d: string | null) => void>; exit: number | null; asking: boolean; busy: boolean; quiet?: Timer; total: number; since: number; onChange?: () => void; tmux?: string; last: string; lastAt: number; typedAt: number; born: number; draft?: boolean };
 
@@ -23,6 +27,18 @@ const ptys = new Map<string, Pty>();
 
 // A board started from a colourless place (an agent's shell, CI) carries NO_COLOR; its terminals show colour anyway.
 export const colorEnv = (env: Record<string, string | undefined> = process.env) => { const { NO_COLOR: _, ...rest } = env; return rest; };
+
+// On Windows, background update checks spawned by CLI agents (like agy's background updater or Claude's)
+// are console executables; if detached or spawned without CREATE_NO_WINDOW by the agent runtime, Windows 11
+// delegates them to Windows Terminal, which briefly flashes an unwanted terminal window.
+export const defaultChildEnv = (env: Record<string, string | undefined> = process.env) => ({
+  ...colorEnv(env),
+  ...(WIN ? {
+    AGY_CLI_DISABLE_AUTO_UPDATE: "1",
+    CLAUDE_CODE_DISABLE_AUTO_UPDATER: "1",
+    DISABLE_AUTO_UPDATER: "1",
+  } : {}),
+});
 
 // What the sidebar shows for an agent: the latest line the agent printed. Keystrokes are never kept,
 // and nothing is read while a question is open or within ECHO_MS of a keystroke: a terminal echoes
@@ -126,7 +142,7 @@ export function startPty(key: string, cmd: string[], cwd: string, pidFile?: stri
     const ps = winPs();
     p.proc = Bun.spawn([ps, "-NoProfile", "-NonInteractive", "-EncodedCommand", conptyHost()], {
       cwd,
-      env: { ...colorEnv(), ...opts.env, KAIZEN_BOARD_PID: String(process.pid), KZ_PTY_CMD: innerCommand(ps, cmd), KZ_PTY_CWD: cwd, KZ_PTY_COLS: "120", KZ_PTY_ROWS: "32" },
+      env: { ...defaultChildEnv(), ...opts.env, KAIZEN_BOARD_PID: String(process.pid), KZ_PTY_CMD: innerCommand(ps, cmd), KZ_PTY_CWD: cwd, KZ_PTY_COLS: "120", KZ_PTY_ROWS: "32" },
       stdin: "pipe", stdout: "pipe", stderr: "pipe", windowsHide: true,
     });
     const read = async (s: ReadableStream<Uint8Array>) => {
@@ -134,11 +150,25 @@ export function startPty(key: string, cmd: string[], cwd: string, pidFile?: stri
       for await (const c of s) push(d.decode(c, { stream: true }));
     };
     read(p.proc.stdout as ReadableStream<Uint8Array>).catch(() => {});
-    // The host's own failures (Add-Type, CreateProcess) land on the screen, not nowhere.
-    read(p.proc.stderr as ReadableStream<Uint8Array>).catch(() => {});
+    // The host's own failures (Add-Type, CreateProcess) land on the screen, not nowhere;
+    // strip PowerShell's `#< CLIXML ... </Objs>` progress records when stderr is piped.
+    (async (s: ReadableStream<Uint8Array>) => {
+      const d = new TextDecoder();
+      let xml = "";
+      for await (const c of s) {
+        const t = xml + d.decode(c, { stream: true });
+        if (t.startsWith("#< CLIXML") || xml) {
+          const end = t.lastIndexOf("</Objs>");
+          if (end < 0) { xml = t; continue; }
+          xml = "";
+          const rest = t.slice(end + 7).replace(/^[\r\n]+/, "");
+          if (rest) push(rest);
+        } else push(t);
+      }
+    })(p.proc.stderr as ReadableStream<Uint8Array>).catch(() => {});
   } else p.proc = Bun.spawn(cmd, {
     cwd,
-    env: { ...colorEnv(), ...opts.env, TERM: "xterm-256color", COLORTERM: "truecolor", KAIZEN_BOARD_PID: String(process.pid) },
+    env: { ...defaultChildEnv(), ...opts.env, TERM: "xterm-256color", COLORTERM: "truecolor", KAIZEN_BOARD_PID: String(process.pid) },
     terminal: { cols: 120, rows: 32, data: (_t, d) => push(dec.decode(d, { stream: true })) },
   });
   if (opts.tmux && tmuxOk()) p.tmux = opts.tmux;
@@ -168,7 +198,8 @@ export function startPty(key: string, cmd: string[], cwd: string, pidFile?: stri
     // What the agent started and left behind (a test run, a dev server) goes with it. The
     // pty made it a session and group leader, so its group id is its PID; a tmux client's
     // group holds only the client, never the tmux server the agent runs under.
-    if (!WIN) { try { process.kill(-p.proc.pid, "SIGTERM"); } catch { /* group already empty */ } }
+    if (WIN) killWinTree(p.proc.pid);
+    else { try { process.kill(-p.proc.pid, "SIGTERM"); } catch { /* group already empty */ } }
     // Dropped: pages showing it (the Terminal page) refresh, or its tile lingers until some other change.
     setTimeout(() => { if (ptys.get(key) === p) { ptys.delete(key); onChange?.(); } }, KEEP_MS).unref();
     onChange?.();
@@ -248,7 +279,7 @@ export function exitPty(key: string, grace = 5000): boolean {
   send(p, "\x1b");
   setTimeout(() => send(p, "/exit\r"), 100);
   setTimeout(() => {
-    if (p.exit === null) { if (WIN) p.proc.kill(); else { try { process.kill(-p.proc.pid, "SIGKILL"); } catch { p.proc.kill(); } } }
+    if (p.exit === null) { if (WIN) { killWinTree(p.proc.pid); p.proc.kill(); } else { try { process.kill(-p.proc.pid, "SIGKILL"); } catch { p.proc.kill(); } } }
     if (p.tmux) killTmux(p.tmux);
   }, grace).unref();
   return true;
@@ -260,7 +291,7 @@ export function killPty(key: string): boolean {
   const p = ptys.get(key);
   if (!p || p.exit !== null) return false;
   if (p.tmux) killTmux(p.tmux);
-  if (WIN) p.proc.kill();
+  if (WIN) { killWinTree(p.proc.pid); p.proc.kill(); }
   else { try { process.kill(-p.proc.pid, "SIGKILL"); } catch { p.proc.kill(); } }
   return true;
 }
@@ -306,7 +337,7 @@ export const scopeCmd = () => {
   if (scoped) return scoped;
   const run = process.platform === "linux" ? Bun.which("systemd-run") : null;
   const cmd = run ? [run, "--user", "--scope", "--quiet", "--collect"] : [];
-  try { scoped = run && Bun.spawnSync([...cmd, "true"], { stdin: "ignore", stdout: "ignore", stderr: "ignore", timeout: 3000 }).exitCode === 0 ? cmd : []; } catch { scoped = []; }
+  try { scoped = run && Bun.spawnSync([...cmd, "true"], { stdin: "ignore", stdout: "ignore", stderr: "ignore", timeout: 3000, windowsHide: true }).exitCode === 0 ? cmd : []; } catch { scoped = []; }
   return scoped;
 };
 // tmux draws on the alternate screen, which has no scrollback, so the card could not scroll
@@ -323,12 +354,12 @@ export const tmuxCmd = (name: string, cmd: string[]) => [...scopeCmd(), tmuxBin(
 export const attachCmd = (name: string) => [tmuxBin()!, ...TMUX, "attach-session", "-t", name];
 const tmux = (...a: string[]) => {
   const bin = tmuxBin();
-  try { return !!bin && Bun.spawnSync([bin, ...TMUX, ...a], { stdin: "ignore", stdout: "ignore", stderr: "ignore", timeout: 3000 }).exitCode === 0; } catch { return false; }
+  try { return !!bin && Bun.spawnSync([bin, ...TMUX, ...a], { stdin: "ignore", stdout: "ignore", stderr: "ignore", timeout: 3000, windowsHide: true }).exitCode === 0; } catch { return false; }
 };
 export const tmuxAlive = (name: string) => tmux("has-session", "-t", `=${name}`);
 export const panePid = (name: string): number | null => {
   const bin = tmuxBin();
-  try { return bin ? Number(Bun.spawnSync([bin, ...TMUX, "display-message", "-p", "-t", `=${name}:`, "#{pane_pid}"], { stdin: "ignore", stderr: "ignore", timeout: 3000 }).stdout.toString().trim()) || null : null; } catch { return null; }
+  try { return bin ? Number(Bun.spawnSync([bin, ...TMUX, "display-message", "-p", "-t", `=${name}:`, "#{pane_pid}"], { stdin: "ignore", stderr: "ignore", timeout: 3000, windowsHide: true }).stdout.toString().trim()) || null : null; } catch { return null; }
 };
 export const killTmux = (name: string) => tmux("kill-session", "-t", `=${name}`);
 
@@ -373,7 +404,33 @@ export function loginEnv(shell = process.env.SHELL): Record<string, string> | nu
 // entries are appended after the board's own. What the board was started with wins
 // everywhere, so a variable or PATH set on the command line is never overridden.
 // SIGKILL above: a shell stopped by job control ignores the timeout's SIGTERM.
+const origWhich = Bun.which.bind(Bun);
 export function adoptLoginEnv(env = loginEnv()) {
+  if (WIN && !env) {
+    const reg = join(process.env.SystemRoot ?? "C:\\Windows", "System32", "reg.exe");
+    const regPath = (key: string) => {
+      try {
+        const out = Bun.spawnSync([reg, "query", key, "/v", "Path"], { stdin: "ignore", stdout: "pipe", stderr: "ignore", timeout: 2000, windowsHide: true }).stdout.toString();
+        const m = /^\s*Path\s+REG_(?:EXPAND_)?SZ\s+(.+)$/im.exec(out);
+        return m ? m[1]!.trim().replace(/%([^%]+)%/g, (_, k) => process.env[k] ?? _) : "";
+      } catch { return ""; }
+    };
+    const pf = process.env["ProgramFiles"] ?? "C:\\Program Files", pfx86 = process.env["ProgramFiles(x86)"] ?? "C:\\Program Files (x86)", h = homedir();
+    const local = process.env.LOCALAPPDATA ?? join(h, "AppData", "Local"), roam = process.env.APPDATA ?? join(h, "AppData", "Roaming");
+    const extra = [
+      ...regPath("HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment").split(";"),
+      ...regPath("HKCU\\Environment").split(";"),
+      join(local, "agy", "bin"), join(h, ".local", "bin"), join(roam, "npm"),
+      join(pf, "Git", "cmd"), join(pf, "Git", "bin"), join(pfx86, "Git", "cmd"), join(pfx86, "Git", "bin"),
+      join(local, "Programs", "Git", "cmd"), join(local, "Programs", "MinGit", "cmd"),
+    ].map((d) => d.trim()).filter((d) => d && existsSync(d));
+    const cur = (process.env.PATH ?? process.env.Path ?? "").split(";").map((d) => d.trim()).filter(Boolean);
+    const seen = new Set(cur.map((d) => d.toLowerCase()));
+    for (const d of extra) if (!seen.has(d.toLowerCase())) { seen.add(d.toLowerCase()); cur.push(d); }
+    process.env.PATH = process.env.Path = cur.join(";");
+    Bun.which = ((bin: string, opts?: Parameters<typeof Bun.which>[1]) => origWhich(bin, { PATH: process.env.PATH ?? process.env.Path, ...opts })) as typeof Bun.which;
+    return;
+  }
   if (!env) return;
   // The shell's own bookkeeping describes that shell, not this process.
   for (const [k, v] of Object.entries(env)) if (process.env[k] === undefined && !["PWD", "OLDPWD", "SHLVL", "_"].includes(k)) process.env[k] = v;

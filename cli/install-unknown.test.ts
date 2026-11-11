@@ -1,6 +1,6 @@
 // An unknown first word is an error, never a reinstall (cli/install.ts, COMMANDS).
 import { test, expect, afterAll } from "bun:test";
-import { mkdtempSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -59,7 +59,10 @@ test("subcommands run without an agent installed; only the install stops for one
   mkdirSync(bin);
   // A PATH with no agent on it: only bun, git and sh.
   const tools = ["git", "sh"].map((t) => [t, Bun.which(t)] as const).filter(([, p]) => p);
-  for (const [t, p] of [["bun", process.execPath] as const, ...tools]) symlinkSync(p!, join(bin, process.platform === "win32" && t === "bun" ? "bun.exe" : t));
+  for (const [t, p] of [["bun", process.execPath] as const, ...tools]) {
+    if (process.platform === "win32") writeFileSync(join(bin, `${t}.cmd`), `@"${p}" %*\r\n`);
+    else symlinkSync(p!, join(bin, t));
+  }
   const kz = (...a: string[]) => {
     const p = Bun.spawnSync([process.execPath, script, ...a], { cwd: s.cwd, env: { PATH: bin, HOME: s.home, USERPROFILE: s.home }, stdin: "ignore" });
     return { code: p.exitCode, out: p.stdout.toString() + p.stderr.toString() };

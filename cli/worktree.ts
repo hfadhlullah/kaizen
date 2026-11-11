@@ -10,7 +10,33 @@ export type Out = { ok: boolean; out: string; why: string };
 export type Run = (cmd: string[], cwd: string, ms?: number) => Out;
 
 const SLUG = /^\d{4}-\d{2}-\d{2}-[a-z0-9][a-z0-9-]*$/;
-const env = { ...process.env, GIT_TERMINAL_PROMPT: "0" };
+
+if (process.platform === "win32") {
+  const progFiles = process.env["ProgramFiles"] ?? "C:\\Program Files";
+  const progFilesX86 = process.env["ProgramFiles(x86)"] ?? "C:\\Program Files (x86)";
+  const gitDirs = [
+    join(progFiles, "Git", "cmd"),
+    join(progFiles, "Git", "bin"),
+    join(progFiles, "Git", "usr", "bin"),
+    join(progFilesX86, "Git", "cmd"),
+    join(progFilesX86, "Git", "bin"),
+    join(progFilesX86, "Git", "usr", "bin"),
+    join(homedir(), "AppData", "Local", "Programs", "Git", "cmd"),
+    join(homedir(), "AppData", "Local", "Programs", "MinGit", "cmd"),
+    dirname(process.execPath),
+  ].filter((p) => existsSync(p));
+  if (gitDirs.length > 0) {
+    const cur = process.env.PATH ?? process.env.Path ?? "";
+    const toAdd = gitDirs.filter((d) => !cur.toLowerCase().includes(d.toLowerCase())).join(";");
+    if (toAdd) {
+      const full = `${toAdd};${cur}`;
+      process.env.PATH = full;
+      process.env.Path = full;
+    }
+  }
+}
+
+const env = { ...process.env, GIT_TERMINAL_PROMPT: "0", GIT_EDITOR: "true" };
 
 export const run: Run = (cmd, cwd, ms = 120_000) => {
   try {
@@ -128,7 +154,7 @@ const readGit = (text: string, key: string) => {
 // A command run through `sh -c`: a project's config.yml that git tracks came with a clone, so it may not set one.
 const COMMAND_KEYS = new Set(["land_check", "rebuild_on_land"]);
 const tracked = (project: string, f: string) => {
-  try { return Bun.spawnSync(["git", "-C", project, "ls-files", "--error-unmatch", f], { stdout: "ignore", stderr: "ignore", windowsHide: true }).exitCode === 0; } catch { return false; }
+  try { return Bun.spawnSync(["git", "-C", project, "ls-files", "--error-unmatch", f], { env, stdout: "ignore", stderr: "ignore", windowsHide: true }).exitCode === 0; } catch { return false; }
 };
 const gitSetting = (project: string, key: string, fallback: string) => {
   for (const f of [join(project, ".kaizen", "config.yml"), join(homedir(), ".kaizen", "config.yml")]) {

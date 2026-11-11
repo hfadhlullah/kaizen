@@ -31,8 +31,9 @@ public static class KzPty {
     IntPtr sz = IntPtr.Zero;
     InitializeProcThreadAttributeList(IntPtr.Zero, 1, 0, ref sz);
     var si = new STARTUPINFOEX(); si.si.cb = Marshal.SizeOf(typeof(STARTUPINFOEX));
-    // STARTF_USESTDHANDLES with none: otherwise the child takes this host's piped stdio, not the console.
-    si.si.fl = 0x100;
+    // STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW (SW_HIDE = 0): otherwise the child takes this host's piped stdio or flashes a console window.
+    si.si.fl = 0x101;
+    si.si.sw = 0;
     si.attrs = Marshal.AllocHGlobal(sz);
     if (!InitializeProcThreadAttributeList(si.attrs, 1, 0, ref sz)
       || !UpdateProcThreadAttribute(si.attrs, 0, (IntPtr)0x20016, hpc, (IntPtr)IntPtr.Size, IntPtr.Zero, IntPtr.Zero)) return 1;
@@ -79,7 +80,8 @@ public static class KzPty {
 
 // The PowerShell that hosts it: the child's command line, size and directory come in
 // through the environment, so nothing the agent is given passes through a quoting layer.
-const SCRIPT = `Add-Type -TypeDefinition @'
+const SCRIPT = `$ProgressPreference = 'SilentlyContinue'
+Add-Type -TypeDefinition @'
 ${HOST}
 '@
 Set-Location -LiteralPath $env:KZ_PTY_CWD
@@ -92,8 +94,11 @@ export const resizeSeq = (cols: number, rows: number) => `\x1b]kzr;${cols};${row
 // The command line the pseudo console starts: PowerShell running cmd. It finds .cmd
 // shims (npm installs claude as one), which CreateProcess alone does not, and takes
 // the arguments as -EncodedCommand, as findTerminal does, so newlines survive.
+// Windows PowerShell 5.1 strips unescaped `"` when building the Win32 command line for
+// native executables, so embedded double quotes are escaped for non-.ps1 targets.
 export function innerCommand(shell: string, cmd: string[]): string {
-  const q = (a: string) => `'${a.replace(/'/g, "''")}'`;
+  const ps1 = /\.ps1$/i.test(cmd[0] ?? "");
+  const q = (a: string, i: number) => `'${(i > 0 && !ps1 ? a.replace(/"/g, '\\"') : a).replace(/'/g, "''")}'`;
   const enc = Buffer.from(`& ${cmd.map(q).join(" ")}`, "utf16le").toString("base64");
   return `"${shell}" -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${enc}`;
 }

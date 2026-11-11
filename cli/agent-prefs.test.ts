@@ -99,14 +99,16 @@ test("launch: nothing set keeps the line; bypass and overrides reach it and the 
   mkdirSync(join(dir, ".kaizen"));
   mkdirSync(join(dir, "bin"));
   writeFileSync(join(dir, "bin", "claude"), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+  if (process.platform === "win32") writeFileSync(join(dir, "bin", "claude.cmd"), "@exit /b 0\r\n");
   const script = `const { launchRun } = await import(${JSON.stringify(join(import.meta.dir, "state.ts"))});
     const r = launchRun({ severity: null, where: null, text: "x", raw: "x" }, ${JSON.stringify(dir)}, undefined, { agent: "claude", cwd: ${JSON.stringify(dir)}, card: true });
     console.log(JSON.stringify(r)); process.exit(0);`;
-  const go = () => JSON.parse(Bun.spawnSync([process.execPath, "-e", script], { env: { ...process.env, PATH: `${join(dir, "bin")}:${process.env.PATH}` } }).stdout.toString());
+  const sep = process.platform === "win32" ? ";" : ":";
+  const go = () => JSON.parse(Bun.spawnSync([process.execPath, "-e", script], { env: { ...process.env, PATH: `${join(dir, "bin")}${sep}${process.env.PATH}` }, windowsHide: true }).stdout.toString());
   const plain = go();
   if (!plain.ok) return; // no pseudo-terminal here
   expect(plain.cmd).not.toContain("--dangerously-skip-permissions");
-  expect(plain.cmd[0]).toEndWith("claude");
+  expect(plain.cmd[0]).toMatch(/claude(\.cmd|\.ps1|\.exe)?$/i);
   savePrefs({ permissions: "bypass" }, known, file);
   savePrefs({ agent: "claude", args: "--verbose", envName: "A", envValue: "secret" }, known, file);
   const r = go();

@@ -189,6 +189,20 @@ function projectView(t: TaskView): Safe | string {
     </form>
   </section>`;
 }
+function visibleMessages(messages: TaskView["messages"] = []) {
+  if (!messages?.length) return [];
+  const clean = messages.filter((m) => {
+    if (m.type === "boundary") return false;
+    if (m.role === "user" && m.text.includes("Continue production under the frozen task policy")) return false;
+    return true;
+  });
+  const lastResultIdx = clean.reduce((last, m, idx) => (m.type === "result" ? idx : last), -1);
+  return clean.filter((m, idx) => {
+    if (m.type === "result" && idx !== lastResultIdx) return false;
+    return true;
+  });
+}
+
 function conversationView(t: TaskView): Safe {
   return html`${projectView(t)}${decisionView(t)}
     ${
@@ -202,7 +216,7 @@ function conversationView(t: TaskView): Safe {
         : ""
     }
     <div class="tp-messages" role="log" aria-label="Task conversation" aria-live="polite" aria-relevant="additions">
-      ${(t.messages ?? []).map((m) => {
+      ${visibleMessages(t.messages).map((m) => {
         const long = m.text.length > 320;
         const body = long
           ? html`<details class="tp-long"><summary>${m.text.slice(0, 280).trimEnd()}… <span>Show more</span></summary>${m.text}</details>`

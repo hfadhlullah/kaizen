@@ -236,9 +236,16 @@ function drawList() {
     .filter((p) => !filt.dirs.length || filt.dirs.includes(p.dir))
     .map((p) => {
       const rows = p.workspaces
-        .map((w) => ({ w, cs: by.get(p.dir + "\0" + w.path) ?? [] }))
-        // An empty workspace or one with a run going is active; one holding only finished runs is done.
-        .filter(({ w, cs }) => cs.length || shownAgents(wsAgents(last.agents ?? [], p.dir, w.path, wsOfCard, now)).length)
+        .map((w) => {
+          const cs = by.get(p.dir + "\0" + w.path) ?? [];
+          const allCs = (last.cards ?? []).filter((c) => c.state === p.dir && wsOfCard(c) === w.path && listed(c, now));
+          const onlyDone = allCs.length > 0 && allCs.every((c) => ["done", "abandoned"].includes(stateOf(c)));
+          const ags = shownAgents(wsAgents(last.agents ?? [], p.dir, w.path, wsOfCard, now)).length;
+          // An empty workspace or one with a run going is active; one holding only finished runs is done.
+          const keep = cs.length > 0 || ags > 0 || (filt.running && (w.main || !onlyDone));
+          return { w, cs, keep };
+        })
+        .filter((r) => r.keep)
         // Pinned worktrees first (a stable sort keeps the rest in git's order).
         .sort((a, b) => +pins.has(p.dir + "\0" + b.w.path) - +pins.has(p.dir + "\0" + a.w.path));
       return { p, rows, top: Math.min(9, ...rows.map((r) => top(r.cs))) };
@@ -267,7 +274,8 @@ function drawList() {
           shut = folded.has(dir) || !rows.length;
         // A + for a new worktree on git projects (the main checkout has a branch).
         const git = p.workspaces.some((w) => w.branch);
-        return html`<div class="pgrp"><button type="button" class="proj${shut ? " shut" : ""}" data-fold="${dir}" title="${dir}" aria-expanded="${String(!shut)}">${logo(dir, name, last.projects)}<span class="pname">${name}</span><svg class="fchev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>${git ? html`<button type="button" class="wadd" data-wadd="${dir}" title="New workspace in ${name}" aria-label="New workspace in ${name}"><svg aria-hidden="true"><use href="#i-plus"/></svg></button>` : ""}</div>${shut ? "" : raw('<div class="pws">')}${shut ? "" : rows.map(({ w, cs }) => {
+        const mainWs = p.workspaces?.find((w) => w.main)?.path ?? p.workspaces?.[0]?.path ?? dir;
+        return html`<div class="pgrp"><button type="button" class="proj${shut ? " shut" : ""}" data-proj="${dir}" data-ws="${mainWs}" data-fold="${dir}" title="${dir}" aria-expanded="${String(!shut)}">${logo(dir, name, last.projects)}<span class="pname">${name}</span><svg class="fchev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>${git ? html`<button type="button" class="wadd" data-wadd="${dir}" title="New workspace in ${name}" aria-label="New workspace in ${name}"><svg aria-hidden="true"><use href="#i-plus"/></svg></button>` : ""}</div>${shut ? "" : raw('<div class="pws">')}${shut ? "" : rows.map(({ w, cs }) => {
           // The dot: the most urgent run there, or an agent asking (amber) or working (spinner).
           const rows = shownAgents(wsAgents(last.agents ?? [], dir, w.path, wsOfCard, now));
           const st0 = cs.length ? stateOf([...cs].sort((a, b) => RANK[stateOf(a)] - RANK[stateOf(b)])[0]) : "";
@@ -298,6 +306,18 @@ function drawList() {
     if (tog) return void (e.preventDefault(), toggleList(tog.dataset.dir!, tog.dataset.ws!));
     const add = t.closest<HTMLElement>("[data-wadd]")?.dataset.wadd;
     if (add) return void (e.preventDefault(), openAdd({ dir: add, start: "ws" }));
+    const chev = t.closest<HTMLElement>(".fchev");
+    if (chev) {
+      const d = t.closest<HTMLElement>("[data-fold]")?.dataset.fold;
+      if (d) return void (e.preventDefault(), fold(d));
+    }
+    const proj = t.closest<HTMLElement>("[data-proj]");
+    if (proj) {
+      e.preventDefault();
+      const dir = proj.dataset.proj!, ws = proj.dataset.ws || dir;
+      if (folded.has(dir)) fold(dir);
+      if (ask("kz-open-ws", { dir, ws })) return;
+    }
     const d = t.closest<HTMLElement>("[data-fold]")?.dataset.fold;
     if (d) (e.preventDefault(), fold(d));
   };

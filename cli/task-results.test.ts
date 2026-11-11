@@ -35,8 +35,8 @@ test("failed preservation never publishes a completed entry or removes an earlie
 
 test("path traversal, external symlinks and unsafe URL schemes are rejected", () => {
   const p = place(), outside = mkdtempSync(join(tmpdir(), "outside-result-")); writeFileSync(join(outside, "secret"), "secret");
-  symlinkSync(join(outside, "secret"), join(p.root, "escape.txt"));
-  for (const path of ["../secret", join(outside, "secret"), "escape.txt", "one\0.txt"]) expect(() => publish(p, [{ path }])).toThrow();
+  symlinkSync(outside, join(p.root, "escape-dir"), process.platform === "win32" ? "junction" : undefined);
+  for (const path of ["../secret", join(outside, "secret"), "escape-dir/secret", "one\0.txt"]) expect(() => publish(p, [{ path }])).toThrow();
   for (const url of ["javascript:alert(1)", "data:text/html,x", "file:///etc/passwd", "https://user:pass@example.com"]) expect(() => publish(p, [{ url }])).toThrow("Only HTTP");
   expect(r.resolveArtifact(p.state, p.task.id, randomUUID(), "../../secret")).toBe(null);
 });
@@ -84,7 +84,7 @@ test("disk-full and copy errors preserve old history and remove incomplete snaps
 test("snapshot and task directory symlink escapes cannot be served", () => {
   const p = place(); writeFileSync(join(p.root, "one.txt"), "one"); const result = publish(p, [{ path: "one.txt" }]);
   const external = mkdtempSync(join(tmpdir(), "external-snapshot-")), resultDir = join(p.state, "tasks", p.task.id, "results", result.id);
-  fs.renameSync(resultDir, join(external, "saved")); symlinkSync(join(external, "saved"), resultDir);
+  fs.renameSync(resultDir, join(external, "saved")); symlinkSync(join(external, "saved"), resultDir, process.platform === "win32" ? "junction" : undefined);
   expect(r.readResult(p.state, p.task.id, result.id)).toBe(null);
   expect(r.resolveArtifact(p.state, p.task.id, result.id, result.artifacts[0]!.id)).toBe(null);
 });

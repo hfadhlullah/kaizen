@@ -873,7 +873,7 @@ console.log(JSON.stringify([require("node:fs").readFileSync(REGISTRY, "utf8"), k
 test("the project registry lists one folder once: trailing slash and symlink spellings collapse, the file is not rewritten", () => {
   const home = mkdtempSync(join(tmpdir(), "kz-home-")), proj = join(home, "shop");
   mkdirSync(proj);
-  symlinkSync(proj, join(home, "link"));
+  symlinkSync(proj, join(home, "link"), process.platform === "win32" ? "junction" : undefined);
   mkdirSync(join(home, ".kaizen"));
   const dup = `${proj}\n${proj}/\n${join(home, "link")}\n`;
   writeFileSync(join(home, ".kaizen", "projects"), dup);

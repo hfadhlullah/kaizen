@@ -1077,7 +1077,13 @@ export async function web(repoDir: string, opts: Opts = {}) {
         const key = "sh-" + crypto.randomUUID().slice(0, 8);
         const title = dev ? "dev server" : agent ? KNOWN_AGENTS.find((k) => k.cmd === agent)!.name + (bypass ? " · bypass" : "") : "shell";
         // A dev server it starts lets a phone in: Vite refuses a host it does not know (the tailnet name).
-        const pid = startPty(key, cmd, cwd, undefined, changed, { env: { KAIZEN_TERM: key, ...(dev ? { __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS: ".ts.net" } : {}) } });
+        const pid = startPty(key, cmd, cwd, undefined, changed, {
+          env: {
+            KAIZEN_TERM: key,
+            ...(process.platform === "win32" ? { AGY_CLI_DISABLE_AUTO_UPDATE: "1", CLAUDE_CODE_DISABLE_AUTO_UPDATER: "1", DISABLE_AUTO_UPDATER: "1" } : {}),
+            ...(dev ? { __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS: ".ts.net" } : {}),
+          },
+        });
         // The run workspace that opened it (its card key), so each run keeps its own centre.
         shells.set(key, { key, dir, title, agent, run: runKey, ws: cwd, pid });
         shellCmd.set(key, cmd);
