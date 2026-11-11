@@ -1,0 +1,1 @@
+{"title": "Film styles (Lemo-Opuscar)", "group": "optional", "off_by_default": true, "status": "beta", "needs": ["git", "node", "python3", "ffmpeg"]}

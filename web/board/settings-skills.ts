@@ -24,6 +24,11 @@ const SKILL_ICONS: Record<string, string> = {
 const PUZZLE = '<path d="M10 4a2 2 0 1 1 4 0v2h5v5h-2a2 2 0 1 0 0 4h2v5H5v-5h2a2 2 0 1 0 0-4H5V6h5Z"/>';
 const skillIcon = (id: string) => raw(`<svg class="sk-i" viewBox="0 0 24 24" aria-hidden="true">${SKILL_ICONS[id] ?? PUZZLE}</svg>`);
 
+// What each off-by-default skill asks before it turns on.
+const WARN: Record<string, string> = {
+  "kaizen-computer": "Let agents read and operate the apps on your desktop?\n\nThey see the window text of the apps they open and can click, set values and type in them, as you. A password manager is blocked by its name only, so one inside a browser or under another name is not. Any other open app is in reach. Turn on?",
+  "lemo-opuscar": "Add film styles from Lemo-Opuscar?\n\nThe first time an agent uses it, it downloads the Lemo-Opuscar style library from github.com/lemomo-ai/lemo-opuscar (MIT) into ~/lemo-opuscar and installs its Node and Python packages there. It needs git, Node, Python and ffmpeg, and it runs that project's code on your computer. Turn on?",
+};
 const row = (s: Row) =>
   html`<div class="sk" data-q="${[s.title, s.id, s.description, s.group, "skill"].join(" ").toLowerCase()}">
     <div class="sk-h">${skillIcon(s.id)}<span class="sk-n"><b>${s.title}${s.status && s.status !== "stable" ? html` <em class="sk-st">${s.status === "beta" ? "Beta" : "Experimental"}</em>` : ""}</b><span>${s.description}</span></span>
@@ -73,7 +78,7 @@ export function wireSkills(redraw: () => Promise<unknown>, token = "") {
     if (b.dataset.skill === "rea") return reaSwitch(on, false, redraw);
     // An off-by-default skill gives agents a power the user never had to grant: say so, then ask.
     const warn = on && b.dataset.warn === "true";
-    if (warn && !confirm("Let agents read and operate the apps on your desktop?\n\nThey see the window text of the apps they open and can click, set values and type in them, as you. A password manager is blocked by its name only, so one inside a browser or under another name is not. Any other open app is in reach. Turn on?")) return;
+    if (warn && !confirm(WARN[b.dataset.skill!] ?? "Turn this skill on?")) return;
     const j = await post("/skills", { id: b.dataset.skill, on, ...(warn ? { confirm: true, token } : {}) });
     toast(j.error ? j.error : "Saved. Applies to new sessions");
     await redraw();
