@@ -312,7 +312,8 @@ if (Bun.argv[2] === "search" || Bun.argv[2] === "scrape") {
 
 // `kaizen send <file>…`: files to the person's phone through LocalSend, see cli/localsend.ts.
 if (Bun.argv[2] === "send") {
-  const { cli } = await import("./localsend.ts");
+  // --whatsapp: the same command through the linked WhatsApp, see cli/whatsapp.ts.
+  const { cli } = await import(Bun.argv.includes("--whatsapp") ? "./whatsapp.ts" : "./localsend.ts");
   process.exit(await cli(Bun.argv.slice(3)));
 }
 

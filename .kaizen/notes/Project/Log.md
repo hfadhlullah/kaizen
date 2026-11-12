@@ -314,3 +314,6 @@ updated: 2026-10-31
 - 2026-11-08 run 2026-11-08-task-page-usability — Tasks, Run workspace, Server and routes, Video, Layout and look, Home/chat/phone, Workflow, Release and testing, Conventions and gotchas.
 - 2026-11-08 run 2026-11-08-task-page-usability — refreshed CLI hub/run commands/settings and Web board hub/cards/git/workspaces/settings/terminals source notes; regenerated shared-hash Bot banner.
 - 2026-11-10 run 2026-11-10-appimage-sigbus-fuse — Release and testing: the AppImage runs extracted from its menu entry and from a direct run, so a vanishing FUSE mount no longer kills it with SIGBUS (issue #77)
+- 2026-11-12 update — Web board/Settings: WhatsApp bridge now ships in cli/whatsapp-bridge.ts, libraries installed on first link
+- 2026-11-12 update — Web board/Settings: kaizen send --whatsapp for agents; WhatsApp card keeps polling after the scan
+- 2026-11-12 update — Web board/Settings: WhatsApp bridge on loopback TCP with a token (cross-platform), hidden windows, round-trip test

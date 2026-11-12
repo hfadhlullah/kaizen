@@ -77,6 +77,12 @@ export async function mountWhatsApp(el: HTMLElement) {
       return;
     }
 
+    // Bridge up, no QR and not linked: mid-scan or reconnecting. Keep polling, say so.
+    if (s.running) {
+      el.innerHTML = String(html`<div><p class="ph-h">WhatsApp Bridge</p><p class="ph-wait">Connecting…</p>${e}</div>`);
+      return;
+    }
+
     el.innerHTML = String(html`
       <div>
         <p class="ph-h">WhatsApp Bridge</p>
@@ -105,7 +111,7 @@ export async function mountWhatsApp(el: HTMLElement) {
       clearInterval(timer);
       return;
     }
-    if (s && !s.connected && (s.qrSvg || busy)) {
+    if (s && !s.connected && (s.qrSvg || busy || s.running)) {
       const r = await callWA();
       if (!r.error) {
         s = r;

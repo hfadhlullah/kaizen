@@ -54,7 +54,7 @@ anything.
 | `kaizen preview <localhost url \| image>` | Show a change in the board (page → Browser tab, screenshot → Preview tab), not a new browser window |
 | `kaizen search "<query>" [--recent h\|d\|w\|m\|y] [--read] [--limit N]` | Web search through Firecrawl with your own key (Settings → Integrations → Research); exit 2 when no key is set |
 | `kaizen scrape <url>` | One web page as markdown, through the same Firecrawl key |
-| `kaizen send <file>... [--to <name \| address>]` | Send files to a phone or computer through LocalSend; they accept on the device. `--default <name \| address>` saves where files go (over Tailscale, the phone's address); `--devices` lists what is nearby |
+| `kaizen send <file>... [--to <name \| address>]` | Send files to a phone or computer through LocalSend; they accept on the device. `--default <name \| address>` saves where files go (over Tailscale, the phone's address); `--devices` lists what is nearby. `--whatsapp [--to <chat name \| self>] [--text "caption"]` sends through the WhatsApp linked in Settings → Phone instead (to yourself when `--to` is left out) |
 | `kaizen recall [--track t] [--tags a,b] [--query "<words>"]` | Lessons from other projects that match (global knowledge, `~/.kaizen/knowledge/`) |
 | `kaizen remember --track t --tags a,b --applies "<where>" --run <id> "<lesson>"` | Save a lesson that holds beyond this project; the reviewer calls it |
 

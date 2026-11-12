@@ -268,8 +268,10 @@ questions there and the video appears in the library as it takes shape. On any v
 **Ask Claude** takes a change in your own words ("make the hook punchier", "say the price
 in beat 4") the same way. **Send** on a finished file sends it on: to a phone or computer
 running the LocalSend app on the same Wi-Fi (pick it from the list, accept on the device), or
-to a WhatsApp chat through [Hermes](https://github.com/NousResearch/hermes-agent) with a
-message (`hermes send` must already be set up for WhatsApp). The page says whether it
+to a WhatsApp chat with a message. Link WhatsApp once in Settings → Phone → WhatsApp Bridge
+(scan the QR code from WhatsApp → Linked devices; the first link downloads the bridge's
+libraries, so it needs the network). Without a link, kaizen falls back to
+[Hermes](https://github.com/NousResearch/hermes-agent) (`hermes send` must be set up). The page says whether it
 arrived or what went wrong, and lists the video's recent sends. MP4s over 64 MiB go as
 WhatsApp documents with their original quality; smaller MP4s appear as video messages.
 WhatsApp documents over 2 GB are refused before upload.
