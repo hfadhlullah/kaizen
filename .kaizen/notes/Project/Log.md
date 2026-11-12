@@ -317,3 +317,4 @@ updated: 2026-10-31
 - 2026-11-12 update — Web board/Settings: WhatsApp bridge now ships in cli/whatsapp-bridge.ts, libraries installed on first link
 - 2026-11-12 update — Web board/Settings: kaizen send --whatsapp for agents; WhatsApp card keeps polling after the scan
 - 2026-11-12 update — Web board/Settings: WhatsApp bridge on loopback TCP with a token (cross-platform), hidden windows, round-trip test
+- 2026-11-12 update — CLI: the project Kaizen workflow block tells agents to use kaizen send --whatsapp; init adds it to older blocks
