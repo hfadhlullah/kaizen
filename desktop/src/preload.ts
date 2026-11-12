@@ -7,5 +7,7 @@ contextBridge.exposeInMainWorld("kaizenDesktop", {
   check: () => ipcRenderer.invoke("kz-update-check"),
   install: () => ipcRenderer.invoke("kz-update-install"),
   platform: process.platform,
+  // The Browser tab may use a <webview> with its own persistent session (main.ts, browser-pane.ts).
+  browserPane: true,
   titleBar: (dark: boolean) => ipcRenderer.invoke("kz-titlebar", !!dark),
 });

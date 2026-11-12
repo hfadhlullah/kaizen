@@ -9,7 +9,7 @@
   "private": true,
   "main": "dist/main.js",
   "scripts": {
-    "compile": "bun build src/main.ts src/preload.ts --outdir dist --target node --format cjs --external electron --external electron-updater",
+    "compile": "bun build src/main.ts src/preload.ts src/pane-preload.ts --outdir dist --target node --format cjs --external electron --external electron-updater",
     "stage": "bun run scripts/stage.ts && bun run scripts/fetch-bun.ts",
     "start": "bun run compile && electron .",
     "dist": "bun run stage && bun run compile && electron-builder --config electron-builder.config.cjs --publish never",

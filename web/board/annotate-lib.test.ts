@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { accept, mapUrl, safeCrop } from "./annotate-lib.ts";
+import { accept, acceptHost, mapUrl, safeCrop } from "./annotate-lib.ts";
 
 const win = {};
 const good = { source: win, origin: "http://127.0.0.1:5000", data: { kz: 1, t: "tok", type: "note" } };
@@ -27,4 +27,12 @@ test("a crop from the page is only ever a PNG data URL, never markup", () => {
   expect(safeCrop("javascript:alert(1)")).toBeUndefined();
   expect(safeCrop("data:image/svg+xml;base64,AAAA")).toBeUndefined();
   expect(safeCrop(42)).toBeUndefined();
+});
+
+test("acceptHost: a webview's page message counts only with this open's token", () => {
+  expect(acceptHost({ kz: 1, t: "tok", type: "ready" }, "tok")).toBe(true);
+  expect(acceptHost({ kz: 1, t: "other" }, "tok")).toBe(false);
+  expect(acceptHost({ kz: 1, t: "" }, "")).toBe(false);
+  expect(acceptHost({ t: "tok" }, "tok")).toBe(false);
+  expect(acceptHost(null, "tok")).toBe(false);
 });

@@ -6,7 +6,8 @@
 import { html, raw } from "./dom.ts";
 import { post } from "./api.ts";
 import { toast } from "./toast.ts";
-import { accept, mapUrl, safeCrop, MAX_BOARD_NOTES } from "./annotate-lib.ts";
+import { ico } from "./dom.ts";
+import { accept, acceptHost, mapUrl, safeCrop, MAX_BOARD_NOTES } from "./annotate-lib.ts";
 
 type Note = Record<string, any> & { id: string; n: number };
 type Settings = { mode: string; level: string; components: boolean; color: string; clear: boolean; block: boolean };
@@ -26,11 +27,11 @@ export type Annotator = {
 };
 
 export function annotator(o: {
-  host: HTMLElement; frame: HTMLIFrameElement; wsKey: string; run: () => { dir: string; id: string } | null; onLocation: (u: string) => void; reload: () => void; button: HTMLElement;
+  host: HTMLElement; frame: HTMLIFrameElement | HTMLElement; wsKey: string; run: () => { dir: string; id: string } | null; onLocation: (u: string) => void; reload: () => void; button: HTMLElement;
 }): Annotator {
   const sk = "kz-annotate", nk = "kz-ann:" + o.wsKey;
   const S: Settings = read(sk, DEFAULTS);
-  let on = false, hide = false, pause = false, hiddenForNow = false, want = false;
+  let on = false, hide = false, pause = false, want = false, listOpen = false;
   let px: { origin: string; token: string; target: string } | null = null;
   let notes: Note[] = [];
   try { notes = JSON.parse(localStorage.getItem(nk) || "[]"); } catch { /* none */ }
@@ -42,11 +43,18 @@ export function annotator(o: {
   const side = document.createElement("div");
   side.className = "annlist";
   side.hidden = true;
-  o.frame.after(side);
-  o.frame.parentElement!.before(bar);
+  // Both float over the page (board.html .annrow): a dark pill bottom-right, a notes panel on the right.
+  const rowEl = o.frame.parentElement!;
+  rowEl.append(side, bar);
 
-  const frameWin = () => o.frame.contentWindow;
-  const say = (m: Record<string, unknown>) => { if (px) frameWin()?.postMessage({ kz: 1, t: px.token, ...m }, px.origin); };
+  // The Browser tab is an iframe, or in the desktop app a <webview> (talks over IPC, not postMessage).
+  const web = o.frame.tagName === "WEBVIEW" ? (o.frame as any) : null;
+  const frameWin = () => (o.frame as HTMLIFrameElement).contentWindow;
+  const say = (m: Record<string, unknown>) => {
+    if (!px) return;
+    const msg = { kz: 1, t: px.token, ...m };
+    if (web) { try { web.send("kz-ann", msg); } catch { /* not loaded yet: the page says ready when it is */ } } else frameWin()?.postMessage(msg, px.origin);
+  };
   const cfg = () => ({ on, mode: S.mode, hide, block: S.block, color: S.color, components: S.components });
   const markers = () => notes.map((n) => ({ n: n.n, kind: n.kind, selector: n.selector, items: n.items, pb: n.pb, page: n.page, comment: n.comment, intent: n.intent, severity: n.severity }));
   const push = () => { say({ type: "config", cfg: { ...cfg(), pause } }); say({ type: "markers", list: markers() }); };
@@ -54,13 +62,18 @@ export function annotator(o: {
   const forServer = () => notes.map((n) => ({ ...n }));
 
   function draw() {
-    bar.hidden = !px || hiddenForNow;
-    side.hidden = !px || hiddenForNow;
+    const show = !!px;
+    bar.hidden = !show;
+    side.hidden = !show || !listOpen;
+    rowEl.classList.toggle("lst", show && listOpen);
     o.button.classList.toggle("on", want);
     if (!px) return;
-    const b = (id: string, label: string, title: string, active = false, disabled = false) => html`<button type="button" class="rwin${active ? " on" : ""}" data-a="${id}" title="${title}"${raw(disabled ? " disabled" : "")}>${label}</button>`;
+    // Icon buttons in one dark pill, as in Agentation: modes, then pause, markers, copy, send, clear, notes, settings, close.
+    const b = (id: string, icon: string, title: string, active = false, disabled = false, badge = 0) =>
+      html`<button type="button" data-a="${id}" title="${title}" aria-label="${title}" class="${active ? "on" : ""}"${raw(disabled ? " disabled" : "")}>${ico(icon)}${badge ? html`<i class="cnt">${badge}</i>` : ""}</button>`;
+    const mode = (id: string, icon: string, t: string) => b("mode:" + id, icon, t, on && S.mode === id);
     bar.textContent = "";
-    bar.insertAdjacentHTML("beforeend", String(html`${raw(MODES.map(([id, l, t]) => String(b("mode:" + id, l, t, on && S.mode === id))).join(""))}<span class="sep"></span>${b("pick", on ? "Picking" : "Pick", "Turn picking on or off (Ctrl+Shift+F)", on)}${b("pause", "Pause", "Freeze animations (P)", pause)}${b("hide", "Markers", "Show or hide markers (H)", !hide)}<span class="sep"></span>${b("copy", "Copy", "Copy as markdown (C)", false, !notes.length)}${b("send", "Send to agent", "Type the notes into this run's agent (S)", false, !notes.length)}${b("clear", "Clear", "Remove all notes (X)", false, !notes.length)}<span class="sep"></span>${b("set", "Settings", "Output detail, colour, behaviour")}${b("off", "Hide", "Hide the annotator until the board reloads")}`));
+    bar.insertAdjacentHTML("beforeend", String(html`${mode("element", "a-pick", "Pick an element")}${mode("text", "a-text", "Select text")}${mode("multi", "a-multi", "Pick several elements")}${mode("area", "a-area", "Drag an area")}<span class="sep"></span>${b("pause", "a-pause", "Freeze animations (P)", pause)}${b("hide", "eye", "Show or hide markers (H)", !hide)}${b("copy", "a-copy", "Copy notes as markdown (C)", false, !notes.length)}${b("send", "send", "Type the notes into this run's agent (S)", false, !notes.length)}${b("clear", "trash", "Remove all notes (X)", false, !notes.length)}<span class="sep"></span>${b("list", "note", "Notes list", listOpen, false, notes.length)}${b("set", "gear", "Output detail, colour, behaviour", !!settings)}${b("off", "x", "Close the annotator (the Annotate button brings it back)")}`));
     side.textContent = "";
     if (!notes.length) side.insertAdjacentHTML("beforeend", String(html`<p class="annempty">No notes yet. Pick something on the page and write what should change.</p>`));
     for (const n of notes) {
@@ -97,15 +110,16 @@ export function annotator(o: {
   function setMode(m: string) { S.mode = m; on = true; write(sk, S); push(); draw(); }
 
   const act = (a: string) => {
-    if (a.startsWith("mode:")) return setMode(a.slice(5));
+    if (a.startsWith("mode:")) return on && S.mode === a.slice(5) ? (on = false, push(), draw()) : setMode(a.slice(5));
     if (a === "pick") { on = !on; push(); draw(); }
     else if (a === "pause") { pause = !pause; push(); draw(); }
     else if (a === "hide") { hide = !hide; push(); draw(); }
     else if (a === "copy") void copy();
     else if (a === "send") void sendNotes();
     else if (a === "clear") clear();
-    else if (a === "set") { settings = settings ? null : document.createElement("div"); if (settings) settings.className = "annset"; drawSettings(); draw(); }
-    else if (a === "off") { hiddenForNow = true; want = false; on = false; pause = false; px = null; o.button.hidden = true; draw(); o.reload(); }
+    else if (a === "list") { listOpen = !listOpen; draw(); }
+    else if (a === "set") { settings = settings ? null : document.createElement("div"); if (settings) { settings.className = "annset"; listOpen = true; } drawSettings(); draw(); }
+    else if (a === "off") { want = false; on = false; pause = false; listOpen = false; px = null; draw(); o.reload(); }
   };
   bar.onclick = (e) => { const a = (e.target as Element).closest<HTMLElement>("[data-a]")?.dataset.a; if (a) act(a); };
   side.onclick = (e) => {
@@ -147,7 +161,10 @@ export function annotator(o: {
   const onMsg = (e: MessageEvent) => {
     if (!px || !o.host.isConnected) return;
     if (!accept(e, frameWin(), px.origin, px.token)) return;
-    const d = e.data;
+    handle(e.data);
+  };
+  const handle = (d: any) => {
+    if (!px) return;
     if (d.type === "ready") { on = true; push(); draw(); }
     else if (d.type === "loc") { const u = mapUrl(String(d.href), px.origin, px.target); if (u) o.onLocation(u); }
     else if (d.type === "key") keyAct(String(d.key));
@@ -163,12 +180,13 @@ export function annotator(o: {
     }
   };
   addEventListener("message", onMsg);
+  web?.addEventListener("ipc-message", (e: any) => { if (px && o.host.isConnected && e.channel === "kz-ann" && acceptHost(e.args?.[0], px.token)) handle(e.args[0]); });
 
   return {
     proxied: () => !!px,
     active: () => on,
     async open(u) {
-      if (!want || hiddenForNow || !/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/.test(u)) { px = null; on = false; pause = false; draw(); return null; }
+      if (!want || !/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/.test(u)) { px = null; on = false; pause = false; draw(); return null; }
       const r = await post("/annotate/open", { url: u });
       if (!r?.ok) { want = false; px = null; draw(); return null; }
       px = { origin: r.origin, token: r.token, target: new URL(u).origin };

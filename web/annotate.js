@@ -4,13 +4,17 @@
 // its own overlay (and Pause). It talks to the board only by postMessage, signed with the per-open
 // token in its own URL; the board keeps the notes and decides what to do with them.
 (() => {
-  if (window.__kzAnnotate || window.parent === window) return;
+  // Framed by the board, or the desktop app's Browser tab (a <webview>, where the page has no parent
+  // and the app's preload sets __kzHost and relays the messages).
+  const hosted = window.parent !== window || window.__kzHost === true;
+  if (window.__kzAnnotate || !hosted) return;
   window.__kzAnnotate = true;
   const script = document.currentScript;
   let token = "";
   try { token = new URL(script.src).searchParams.get("t") || ""; } catch {}
   const parent = window.parent;
-  const send = (m) => parent.postMessage({ kz: 1, t: token, ...m }, "*");
+  // `out` marks what the page says, so the webview's relay forwards it and not what the board sends.
+  const send = (m) => parent.postMessage({ kz: 1, t: token, out: 1, ...m }, "*");
 
   const cfg = { on: false, mode: "element", hide: false, block: true, color: "#3c82f7", components: true };
   let marks = [];      // notes the board has: { n, kind, selector, items, pb, page }
@@ -111,18 +115,22 @@
     .b{position:fixed;pointer-events:none;border:2px solid var(--c);background:color-mix(in srgb,var(--c) 14%,transparent);border-radius:2px}
     .b.g{--c:#34c759}.b.sel{border-style:dashed}
     .l{position:fixed;pointer-events:none;background:var(--c);color:#fff;padding:1px 6px;border-radius:3px;white-space:nowrap;max-width:60vw;overflow:hidden;text-overflow:ellipsis}
-    .m{position:fixed;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;background:var(--c);color:#fff;font-weight:600;display:grid;place-items:center;pointer-events:auto;cursor:pointer;box-shadow:0 1px 4px #0006}
+    .m{position:fixed;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;background:var(--c);color:#fff;font-weight:600;border:2px solid #fff;display:grid;place-items:center;pointer-events:auto;cursor:pointer;box-shadow:0 1px 4px #0006}
     .m.g{background:#34c759}
-    .c{position:fixed;width:300px;background:#1c1c1e;color:#f2f2f7;border:1px solid #3a3a3c;border-radius:10px;padding:10px;pointer-events:auto;box-shadow:0 8px 28px #0008}
-    .c code{display:block;color:#98989f;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .c textarea{width:100%;height:64px;resize:vertical;background:#2c2c2e;color:inherit;border:1px solid #48484a;border-radius:6px;padding:6px}
-    .c .r{display:flex;gap:6px;margin-top:6px;align-items:center}
-    .c select{background:#2c2c2e;color:inherit;border:1px solid #48484a;border-radius:6px;padding:3px}
-    .c button,.p button{background:#2c2c2e;color:inherit;border:1px solid #48484a;border-radius:6px;padding:3px 10px;cursor:pointer}
-    .c button.go,.p button{background:var(--c);border-color:var(--c);color:#fff}
-    .t{position:fixed;width:260px;background:#1c1c1e;color:#f2f2f7;border:1px solid #3a3a3c;border-radius:10px;padding:8px 10px;pointer-events:none;box-shadow:0 8px 28px #0008;white-space:pre-wrap;word-break:break-word}
+    .c{position:fixed;width:320px;background:#1c1c1e;color:#f2f2f7;border:1px solid #2c2c2e;border-radius:14px;padding:12px;pointer-events:auto;box-shadow:0 12px 36px #000a}
+    .c code{display:block;font:12px/1.4 system-ui,sans-serif;color:#98989f;margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .c textarea{display:block;width:100%;height:68px;resize:none;background:#262628;color:inherit;border:1px solid #3a3a3c;border-radius:9px;padding:8px 10px;outline:0}
+    .c textarea:focus{border-color:#5a5a5e}
+    .c .r{display:flex;gap:6px;margin-top:10px;align-items:center;min-width:0}
+    .c select{flex:none;width:76px;background:none;color:#98989f;border:1px solid #3a3a3c;border-radius:999px;padding:3px 4px;font-size:11px;text-overflow:ellipsis}
+    .c button{flex:none;background:none;color:#98989f;border:0;border-radius:999px;padding:6px 8px;cursor:pointer}
+    .c button:hover{color:#f2f2f7}
+    .c button.go,.p button{background:#f59e0b;color:#1c1c1e;font-weight:600;padding:6px 14px}
+    .c button.go:hover,.p button:hover{background:#fbb02d;color:#1c1c1e}
+    .p button{border:0;border-radius:999px;cursor:pointer;padding:5px 14px}
+    .t{position:fixed;width:260px;background:#1c1c1e;color:#f2f2f7;border:1px solid #2c2c2e;border-radius:12px;padding:8px 12px;pointer-events:none;box-shadow:0 8px 28px #0008;white-space:pre-wrap;word-break:break-word}
     .t small{display:block;color:#98989f;margin-top:4px}
-    .p{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#1c1c1e;color:#f2f2f7;border:1px solid #3a3a3c;border-radius:20px;padding:5px 8px 5px 14px;pointer-events:auto;display:flex;gap:8px;align-items:center}
+    .p{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#1c1c1e;color:#f2f2f7;border:1px solid #2c2c2e;border-radius:999px;padding:6px 8px 6px 16px;pointer-events:auto;display:flex;gap:8px;align-items:center}
   </style><div id="o"></div>`;
   const layer = root.getElementById("o");
   layer.style.setProperty("--c", cfg.color);
@@ -288,7 +296,8 @@
   const inHost = (e) => e.composedPath && e.composedPath().includes(host);
   const target = (x, y) => { const e = document.elementFromPoint(x, y); return e && e !== host && e !== document.documentElement ? e : null; };
   const rectFor = (els) => union(els.map((e) => e.getBoundingClientRect()));
-  const pickElement = (e) => openComposer({ kind: "element", els: [e], rect: rectFor([e]), label: describe(e) });
+  const quoted = (e) => { const t = textOf(e).replace(/\s+/g, " ").trim(); return t ? `"${t.slice(0, 60)}${t.length > 60 ? "…" : ""}"` : describe(e); };
+  const pickElement = (e) => openComposer({ kind: "element", els: [e], rect: rectFor([e]), label: quoted(e) });
   function commitMulti() { if (!multi.length) return; const els = multi.slice(); openComposer({ kind: "multi", els, rect: rectFor(els), label: `${els.length} elements` }); }
   function areaItems(r) {
     const out = [];

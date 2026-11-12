@@ -464,11 +464,21 @@ function browser(el: HTMLElement) {
   (el as any).browseTo = (u: string) => go(u);
   // On a phone over the tailnet, localhost is the phone itself: framing it shows nothing useful.
   const local = (u) => /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/.test(u);
-  const frame = document.createElement("iframe");
+  // In the desktop app the page is a <webview> in its own persistent session (desktop/src/browser-pane.ts):
+  // a first-party page with its own cookies, as in Orca. An iframe on the board's 127.0.0.1 origin made
+  // localhost:8000 third-party, so its Lax session cookie never came back (a login answered 419), and the
+  // framing blocks screen capture. Browsers, and an older app without the flag, keep the iframe.
+  const web = !!(window as any).kaizenDesktop?.browserPane;
+  const frame = document.createElement(web ? "webview" : "iframe") as HTMLIFrameElement;
   frame.className = "rframe";
   frame.title = "Browser";
-  // Dev apps run; a framed page cannot navigate the board itself (no allow-top-navigation).
-  frame.setAttribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads");
+  if (web) frame.setAttribute("allowpopups", "");
+  else {
+    // Dev apps run; a framed page cannot navigate the board itself (no allow-top-navigation).
+    frame.setAttribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads");
+    // Without these the browser blocks microphone, camera and screen capture for the framed page.
+    frame.setAttribute("allow", "display-capture; microphone; camera; clipboard-read; clipboard-write; fullscreen");
+  }
   const note = document.createElement("p");
   note.className = "rnote";
   const far = "This page is on the computer running kaizen; from this device localhost is the device itself. Use Open in browser on that computer.";
@@ -511,7 +521,7 @@ function browser(el: HTMLElement) {
     void ann.open(u).then((via) => {
       if (seq !== nav) return;
       frame.src = via ?? u;
-      if (via) return;
+      if (via || web) return; // a webview is a top-level page: nothing refuses to be framed
       frameCheck(u);
     });
   };
@@ -562,6 +572,20 @@ function browser(el: HTMLElement) {
     else if (b === "back" && back.length) fwd.push(url), go(back.pop()!, false);
     else if (b === "fwd" && fwd.length) back.push(url), go(fwd.pop()!, false);
   };
+  if (web) {
+    // The page navigated on its own (a link, a form, a redirect after login): show its address.
+    // Through the annotator's proxy the page reports its address itself (onLocation).
+    const nav2 = (e: any) => {
+      if (e.isMainFrame === false || ann.proxied() || !/^https?:\/\//.test(e.url) || e.url === url) return;
+      back.push(url), (fwd.length = 0);
+      url = e.url;
+      inp.value = url;
+      if (ext) ext.href = url;
+      try { localStorage.setItem(k, url); } catch {}
+    };
+    frame.addEventListener("did-navigate", nav2);
+    frame.addEventListener("did-navigate-in-page", nav2);
+  }
   go(url, false);
 }
 

@@ -318,3 +318,5 @@ updated: 2026-10-31
 - 2026-11-12 update — Web board/Settings: kaizen send --whatsapp for agents; WhatsApp card keeps polling after the scan
 - 2026-11-12 update — Web board/Settings: WhatsApp bridge on loopback TCP with a token (cross-platform), hidden windows, round-trip test
 - 2026-11-12 update — CLI: the project Kaizen workflow block tells agents to use kaizen send --whatsapp; init adds it to older blocks
+- 2026-11-12 update — Run workspace: desktop app's Browser tab is a persistent-session webview (Orca-style); iframe gets allow for capture
+- 2026-11-12 update — Run workspace: annotator redesigned as a floating icon pill, overlay notes list, quoted composer; Close no longer hides the Annotate button for good

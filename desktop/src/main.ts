@@ -1,5 +1,5 @@
 // Kaizen desktop: one window on the kaizen board, which this process starts and stops.
-import { app, BrowserWindow, Menu, Notification, dialog, ipcMain, screen, shell, crashReporter } from "electron";
+import { app, BrowserWindow, Menu, Notification, desktopCapturer, dialog, ipcMain, screen, session, shell, crashReporter } from "electron";
 import { appendFileSync, existsSync, openSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { homedir } from "node:os";
@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { boardPort, forgetBoard, needsUpgrade, windowButtons, pickKaizen, reapStale, rememberBoard, startBoard, stopBoard, upgradeCmd, versionOf, waitReady, type Board } from "./server";
 import { checkNow, installNow, startUpdates } from "./updater";
 import { desktopEntry } from "./appimage";
+import { PANE_PARTITION, paneAllows, paneAttach, paneNavigable } from "./browser-pane";
 import { autoUpdater } from "electron-updater";
 
 const smoke = process.env.KAIZEN_DESKTOP_SMOKE === "1";
@@ -152,6 +153,24 @@ function fail(why: string, log = "") {
     `<a href="kaizen-desktop://restart">Restart</a><a href="kaizen-desktop://log">Open log</a>`));
 }
 
+// The Browser tab's session: cookies persist (persist: partition), a page on this computer may use the
+// microphone, camera and screen capture, and nothing on the web may. Called once at ready.
+function setupPane() {
+  const ses = session.fromPartition(PANE_PARTITION);
+  ses.setPermissionRequestHandler((w, perm, cb) => cb(paneAllows(perm, w.getURL())));
+  ses.setPermissionCheckHandler((_w, perm, origin) => paneAllows(perm, origin));
+  // getDisplayMedia: the system picker where there is one, else the first screen.
+  ses.setDisplayMediaRequestHandler((_req, cb) => {
+    desktopCapturer.getSources({ types: ["screen", "window"] }).then((src) => cb(src[0] ? { video: src[0] } : {}), () => cb({}));
+  }, { useSystemPicker: true });
+  app.on("web-contents-created", (_e, c) => {
+    if (c.getType() !== "webview") return;
+    c.on("will-navigate", (e, url) => { if (!paneNavigable(url)) e.preventDefault(); });
+    // A login popup (OAuth) opens in the app and shares the session; other schemes stay out.
+    c.setWindowOpenHandler(({ url }) => (/^https?:\/\//i.test(url) ? { action: "allow" } : { action: "deny" }));
+  });
+}
+
 function createWindow() {
   win = new BrowserWindow({
     ...savedBounds(),
@@ -163,7 +182,7 @@ function createWindow() {
     // its traffic lights inset; Windows and Linux draw their buttons over the page's top right.
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "hidden",
     ...(windowButtons(process.platform, process.env) ? { titleBarOverlay: TITLE_BAR.dark } : {}),
-    webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, preload: join(app.getAppPath(), "dist", "preload.js") },
+    webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, webviewTag: true, preload: join(app.getAppPath(), "dist", "preload.js") },
   });
   const wc = win.webContents;
   // A desktop app does not pinch-zoom its own window.
@@ -195,6 +214,10 @@ function createWindow() {
   // The board can ask for the clipboard; it is a loopback page we started.
   wc.session.setPermissionRequestHandler((w, perm, cb) => cb(ours(w.getURL()) && ["clipboard-read", "clipboard-sanitized-write", "notifications"].includes(perm)));
   wc.session.setPermissionCheckHandler((_w, perm, origin) => ours(`${origin}/`) && ["clipboard-read", "clipboard-sanitized-write", "notifications"].includes(perm));
+  // The Browser tab's <webview>: only the board may attach one, always into the pane's own persistent session.
+  wc.on("will-attach-webview", (e, prefs, params) => {
+    if (!ours(wc.getURL()) || paneAttach(params, prefs as any, join(app.getAppPath(), "dist", "pane-preload.js")) === null) e.preventDefault();
+  });
   wc.on("render-process-gone", (_e, d) => { if (d.reason !== "clean-exit" && board) win?.loadURL(board.url); });
   win.on("close", () => {
     try { mkdirSync(app.getPath("userData"), { recursive: true }); writeFileSync(stateFile(), JSON.stringify(win!.getNormalBounds())); } catch { /* not worth failing a close */ }
@@ -252,6 +275,7 @@ if (process.platform === "linux" && process.env.APPIMAGE && !smoke) {
 app.whenReady().then(async () => {
   // A board a crashed or killed launch left behind (review finding 3).
   await reapStale(boardFile());
+  setupPane();
   createWindow();
   void boot();
   if (!smoke) startUpdates((msg) => dialog.showMessageBox({ message: msg, buttons: ["OK"] }), testFeed, report);
