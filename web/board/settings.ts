@@ -42,7 +42,8 @@ export async function openSettings() {
   if (!$("panel").classList.contains("open") || $("ptitle").textContent !== "Settings") {
     $("pbody").innerHTML = SET_SKEL;
     $("psub").textContent = "";
-    store.setScope = store.all ? "all" : store.dir || store.S.dir || "all";
+    // Always All projects on opening: a project's own settings are picked on purpose, never by where you came from.
+    store.setScope = "all";
   }
   termStop();
   store.openKey = null;

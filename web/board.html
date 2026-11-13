@@ -231,6 +231,8 @@ body.phomev #phome{display:block;flex:1;min-height:0;overflow:auto;padding:4px 1
 pre.mark{margin:0;font:700 5px/1 var(--mono)}
 pre.mark span:nth-child(1){color:var(--ink-hi)}pre.mark span:nth-child(2){color:color-mix(in srgb,var(--ink-hi),var(--accent))}pre.mark span:nth-child(3){color:var(--accent)}
 .sel{border:1px solid var(--line);border-radius:var(--r-s);padding:4px 10px;background-color:var(--bg-2);color:var(--ink);font-size:13px}
+/* A select's own list follows the theme: options inherit a select's text colour (white in dark on the scope card), so they get the theme's surface and ink, or the native list showed white on white. */
+select.sel{color-scheme:inherit}select.sel option{background-color:var(--bg-2);color:var(--ink)}
 /* One line, one height: a select, a field and a picker button stand as tall as .ib and .btn. */
 :is(input,select,button,summary).sel{height:var(--btn-s)}
 select.sel,button.sel{cursor:pointer;appearance:none;padding-right:30px;max-width:100%;background-image:linear-gradient(45deg,transparent 50%,var(--dim) 50%),linear-gradient(135deg,var(--dim) 50%,transparent 50%);background-position:calc(100% - 16px) 50%,calc(100% - 11px) 50%;background-size:5px 5px;background-repeat:no-repeat}

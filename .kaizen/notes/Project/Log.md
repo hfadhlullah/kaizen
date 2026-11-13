@@ -328,3 +328,4 @@ updated: 2026-10-31
 - 2026-11-13 run 2026-11-13-run-app-right — Web board/Run workspace
 - 2026-11-13 run 2026-11-13-project-dnd-order — Web board/Workspaces, Web board/Server and routes
 - 2026-11-13 run 2026-11-13-phone-home-terminal — Web board/Home workspace, Web board/Home, chat and phone
+- 2026-11-13 run 2026-11-13-select-dark-options — Web board/Settings
