@@ -8,6 +8,14 @@ update that note, or run `/kaizen docs`.
 @.kaizen/notes/Project/Index.md
 <!-- /kaizen:docs -->
 
+## Kaizen skills first
+
+When a request is what one of the kaizen skills does, invoke that skill first instead
+of doing the work inline: `kaizen-concept` for concepts, mockups or design options
+before a build; `kaizen-explore` to question an idea before planning; `kaizen-deck`,
+`kaizen-video`, `kaizen-book` and `kaizen-game` for a pitch deck, a video, a book or
+a game. The skill holds the steps and the quality bar the work needs.
+
 ## Project structure
 
 kaizen is TypeScript on Bun with zero runtime dependencies. The CLI has no build step —

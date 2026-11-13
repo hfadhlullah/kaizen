@@ -1369,31 +1369,24 @@ function initProject() {
 // ("add a discount cap") does not reach kaizen unless the project says it should.
 // One line in the agent instructions is what makes it the default here.
 function writePointer() {
-  const block = `\n## Kaizen workflow\n\nNon-trivial work in this repository follows the staged workflow in\n\`.kaizen/spec.md\`: plan, human approval, build, independent review, bounded fix\nloop. Invoke the \`kaizen\` skill for it — do not carry the stages out inline.\n\nA run costs several times what the same change costs in one session, so spend it\nwhere being wrong is expensive: money, data loss, a migration or anything else hard\nto undo, work a customer sees, or a part of the system nobody has read in a year.\n\nWork where being wrong is cheap and obvious does not start a run. Answering a\nquestion, reading code, a one-line fix, a rename the compiler checks — do those\ndirectly. When it is genuinely unclear, ask rather than assuming the expensive path.\n\nBefore non-trivial work, run \`kaizen recall --track <track> --query "<topic>"\` and\ntreat what it returns as past experience from other projects to verify, not as rules.\n\nAfter you change something a person can look at (a page, an app screen, a UI), show it\nbefore saying done: start the app\'s dev server if it is not running, then run\n\`kaizen preview <localhost url>\` (or \`kaizen preview <screenshot.png>\` for a static result).\nA page opens in the kaizen board\'s Browser tab and a screenshot in its Preview tab, never a new browser window.\n\nWhen the person asks for a file on their phone (or another device), send it with\n\`kaizen send <file>...\` (\`--to <device name | address>\` for a device other than their\ndefault). It goes through LocalSend; they tap Accept on the device.\n\nWhen the person asks for a file on their WhatsApp, send it with\n\`kaizen send --whatsapp <file>...\` (\`--to <chat name>\`, \`--text \"<caption>\"\`); with no\n\`--to\` it goes to their own message-yourself chat. Use it instead of LocalSend or any\nother route. If it says WhatsApp is not linked, tell them to link it in the board:\nSettings → Phone → WhatsApp Bridge.\n\nRun state lives in \`.kaizen/runs/<id>/\`. Read \`state.json\` first and continue from\nthe stage it names; never advance a run whose \`awaiting\` field is non-null without a\nrecorded human decision.\n`;
+  const block = `\n## Kaizen workflow\n\nNon-trivial work in this repository follows the staged workflow in\n\`.kaizen/spec.md\`: plan, human approval, build, independent review, bounded fix\nloop. Invoke the \`kaizen\` skill for it — do not carry the stages out inline.\n\nWhen a request is what one of the kaizen skills does, invoke that skill first instead\nof doing the work inline: \`kaizen-concept\` for concepts, mockups or design options\nbefore a build; \`kaizen-explore\` to question an idea before planning; \`kaizen-deck\`,\n\`kaizen-video\`, \`kaizen-book\` and \`kaizen-game\` for a pitch deck, a video, a book or\na game. The skill holds the steps and the quality bar the work needs.\n\nA run costs several times what the same change costs in one session, so spend it\nwhere being wrong is expensive: money, data loss, a migration or anything else hard\nto undo, work a customer sees, or a part of the system nobody has read in a year.\n\nWork where being wrong is cheap and obvious does not start a run. Answering a\nquestion, reading code, a one-line fix, a rename the compiler checks — do those\ndirectly. When it is genuinely unclear, ask rather than assuming the expensive path.\n\nBefore non-trivial work, run \`kaizen recall --track <track> --query "<topic>"\` and\ntreat what it returns as past experience from other projects to verify, not as rules.\n\nAfter you change something a person can look at (a page, an app screen, a UI), show it\nbefore saying done: start the app\'s dev server if it is not running, then run\n\`kaizen preview <localhost url>\` (or \`kaizen preview <screenshot.png>\` for a static result).\nA page opens in the kaizen board\'s Browser tab and a screenshot in its Preview tab, never a new browser window.\n\nWhen the person asks for a file on their phone (or another device), send it with\n\`kaizen send <file>...\` (\`--to <device name | address>\` for a device other than their\ndefault). It goes through LocalSend; they tap Accept on the device.\n\nWhen the person asks for a file on their WhatsApp, send it with\n\`kaizen send --whatsapp <file>...\` (\`--to <chat name>\`, \`--text \"<caption>\"\`); with no\n\`--to\` it goes to their own message-yourself chat. Use it instead of LocalSend or any\nother route. If it says WhatsApp is not linked, tell them to link it in the board:\nSettings → Phone → WhatsApp Bridge.\n\nRun state lives in \`.kaizen/runs/<id>/\`. Read \`state.json\` first and continue from\nthe stage it names; never advance a run whose \`awaiting\` field is non-null without a\nrecorded human decision.\n`;
 
   for (const name of ["CLAUDE.md", "AGENTS.md"]) {
     const f = join(process.cwd(), name);
     const current = existsSync(f) ? readFileSync(f, "utf8") : "";
     if (current.includes("## Kaizen workflow")) {
-      // Projects set up before `kaizen preview` get its paragraph on the next init.
-      if (!current.includes("kaizen preview")) {
-        const para = block.slice(block.indexOf("After you change something"), block.indexOf("Run state lives"));
-        writeFileSync(f, current.replace("\nRun state lives in", "\n" + para + "Run state lives in"));
-        step(`added the preview line to ${name}`);
-      }
-      // …and before `kaizen send`, its paragraph.
-      const now = readFileSync(f, "utf8");
-      if (!now.includes("kaizen send") && now.includes("\nRun state lives in")) {
-        const para = block.slice(block.indexOf("When the person asks for a file"), block.indexOf("Run state lives"));
+      // Projects set up before a paragraph existed get it on the next init.
+      for (const [label, marker, from, to] of [
+        ["preview", "kaizen preview", "After you change something", "Run state lives"],
+        ["send", "kaizen send", "When the person asks for a file", "Run state lives"],
+        ["WhatsApp send", "kaizen send --whatsapp", "When the person asks for a file on their WhatsApp", "Run state lives"],
+        ["skills-first", "one of the kaizen skills does", "When a request is what one", "A run costs several"],
+      ]) {
+        const now = readFileSync(f, "utf8");
+        if (now.includes(marker) || !now.includes("\nRun state lives in")) continue;
+        const para = block.slice(block.indexOf(from), block.indexOf(to));
         writeFileSync(f, now.replace("\nRun state lives in", "\n" + para + "Run state lives in"));
-        step(`added the send line to ${name}`);
-      }
-      // …and before `kaizen send --whatsapp`, its paragraph.
-      const wa = readFileSync(f, "utf8");
-      if (!wa.includes("kaizen send --whatsapp") && wa.includes("\nRun state lives in")) {
-        const para = block.slice(block.indexOf("When the person asks for a file on their WhatsApp"), block.indexOf("Run state lives"));
-        writeFileSync(f, wa.replace("\nRun state lives in", "\n" + para + "Run state lives in"));
-        step(`added the WhatsApp send line to ${name}`);
+        step(`added the ${label} line to ${name}`);
       }
       continue;
     }
