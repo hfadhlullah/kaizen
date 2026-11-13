@@ -1349,7 +1349,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         }
         return json(usageCache);
       }
-      // Settings → Mobile and the onboarding phone step: where Tailscale stands, connect, log in.
+      // Settings → Phone and the onboarding phone step: where Tailscale stands, connect, log in.
       if (path === "/phone/setup") {
         if (!local(req)) return bad("cross-origin request refused", 403);
         if (req.method === "GET") return json(await readPhone());
@@ -1362,7 +1362,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         if (body?.do === "login") return json(await loginUrl());
         return bad("do: connect or login");
       }
-      // Settings → Mobile: WhatsApp bridge status and connect/disconnect.
+      // Settings → Phone: WhatsApp bridge status and connect/disconnect.
       if (path === "/whatsapp") {
         if (!local(req)) return bad("cross-origin request refused", 403);
         const wa = await import("./whatsapp.ts");
@@ -1679,7 +1679,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         return json({ accounts: rows, normal, windows: process.platform === "win32", ...(added ? { added } : {}) });
       }
 
-      // Settings → General → Cleanup: what `kaizen prune` would remove from this page's project,
+      // Settings → General → Storage: what `kaizen prune` would remove from this page's project,
       // one kind at a time. Deletion is decided here, on the current files, not on the page's counts.
       if (path === "/cleanup" && (req.method === "GET" || req.method === "POST")) {
         if (!state) return bad("no project", 404);

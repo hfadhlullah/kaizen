@@ -4,7 +4,7 @@ import { $, html } from "./dom.ts";
 import { store } from "./store.ts";
 import { toast } from "./toast.ts";
 
-// Settings → AI Provider Accounts. /accounts never carries a token.
+// Settings → AI Accounts. /accounts never carries a token.
 type Row = { id: string; tool: string; name: string; isDefault: boolean; signedIn: boolean; signIn: string; usage: any; who?: string; plan?: string; via?: string };
 type Normal = { tool: string; isDefault: boolean; signedIn: boolean; signIn: string; usage: any; who?: string; plan?: string; via?: string };
 // Who the tool says is signed in: an email (Claude), else how (Codex: "ChatGPT"), and the plan.

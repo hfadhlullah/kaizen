@@ -90,7 +90,7 @@ const COPY = [
   { title: "Pick your default agent", sub: "kaizen works with every CLI agent. Choose the one you will reach for most. You can change it any time in Settings.", body: agents },
   { title: "Choose your look", sub: "Follow your system, or pick light or dark. You can change it any time.", body: looks },
   { title: "Set up notifications", sub: "kaizen can tell you when a run needs you or an agent is done.", body: alerts },
-  { title: "Use kaizen on your phone", sub: "Optional. Check runs and answer agents from your phone. Continue to skip; it is also in Settings → Mobile.", body: () => html`<div class="onb-panel" id="onb-phone"></div>` },
+  { title: "Use kaizen on your phone", sub: "Optional. Check runs and answer agents from your phone. Continue to skip; it is also in Settings → Phone.", body: () => html`<div class="onb-panel" id="onb-phone"></div>` },
 ];
 
 function draw() {

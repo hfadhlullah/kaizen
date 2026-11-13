@@ -14,7 +14,7 @@ import { skillRows, wireSkills } from "./settings-skills.ts";
 import { mountPhone } from "./phone-setup.ts";
 import { mountWhatsApp } from "./whatsapp-setup.ts";
 import { fillMics, micRow } from "./settings-voice.ts";
-import { placeOf, SETTINGS_NAV } from "./settings-pages.ts";
+import { pageId, placeOf, SETTINGS_NAV, SUB_ORDER } from "./settings-pages.ts";
 import { askNotify, notifyOn, playSound, soundPick, SOUNDS, toast } from "./toast.ts";
 import { updBar } from "./update.ts";
 import { go, view } from "./views.ts";
@@ -55,35 +55,28 @@ export async function openSettings() {
   $("pfoot").innerHTML = "";
   const cur = document.documentElement.dataset.theme || "system";
   const colour = document.documentElement.dataset.color || "monochrome";
-  let cfg = await fetch("/settings?scope=" + encodeURIComponent(store.setScope))
-    .then((r) => (r.ok ? r.json() : null))
-    .catch(() => null);
+  // Everything the page shows, asked for at once.
+  const get = (url: string, init?: RequestInit) =>
+    fetch(url, init)
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null);
+  let [cfg, gg, rk, ap, ac, sk, au, cl] = await Promise.all([
+    get("/settings?scope=" + encodeURIComponent(store.setScope)),
+    get("/google"),
+    get("/research-key"),
+    get("/agent-prefs"),
+    get("/accounts"),
+    get("/skills"),
+    get("/automations", { headers: dirHeader() }),
+    get("/cleanup", { headers: dirHeader() }),
+  ]);
+  gg ??= {};
   // A project the board no longer knows: fall back to All projects.
   if (!cfg && store.setScope !== "all") {
+    if (gen !== store.pageGen) return;
     store.setScope = "all";
     return openSettings();
   }
-  const gg = await fetch("/google")
-    .then((r) => r.json())
-    .catch(() => ({}));
-  const rk = await fetch("/research-key")
-    .then((r) => (r.ok ? r.json() : null))
-    .catch(() => null);
-  const ap = await fetch("/agent-prefs")
-    .then((r) => (r.ok ? r.json() : null))
-    .catch(() => null);
-  const ac = await fetch("/accounts")
-    .then((r) => (r.ok ? r.json() : null))
-    .catch(() => null);
-  const sk = await fetch("/skills")
-    .then((r) => (r.ok ? r.json() : null))
-    .catch(() => null);
-  const au = await fetch("/automations", { headers: dirHeader() })
-    .then((r) => (r.ok ? r.json() : null))
-    .catch(() => null);
-  const cl = await fetch("/cleanup", { headers: dirHeader() })
-    .then((r) => (r.ok ? r.json() : null))
-    .catch(() => null);
   if (gen !== store.pageGen) return;
   $("psub").textContent = "";
   $("psub").title = "";
@@ -117,22 +110,14 @@ export async function openSettings() {
   const nton = notifyOn();
   const ntHelp = !nton ? "Off in this browser" : np === "granted" ? "" : np === "denied" ? "Pop-ups blocked by this browser; the sound still plays" : np ? "Pop-ups wait for the browser to ask; the sound still plays" : "Pop-ups not supported here; the sound still plays";
   // Each page's subsections, in the order they first appear.
-  const pageRows = new Map<string, Map<string, unknown[]>>(PAGES.map((p) => [p.id, new Map()]));
+  const pageRows = new Map<string, Map<string, unknown[]>>(PAGES.map((p) => [p.id, new Map((SUB_ORDER[p.id] ?? []).map((sub) => [sub, []]))]));
   const put = (page, sub, r) => {
     const m = pageRows.get(page);
     if (!m.has(sub)) m.set(sub, []);
     m.get(sub).push(r);
   };
   const defaultAgent = cfg?.rows.find((r) => r.key === "agent.default")?.value ?? "auto";
-  if (cl) for (const r of cleanupRows(cl)) put("general", "Cleanup", row(r.label, r.control, r.hint, r.id, r.q));
   if (cfg) {
-    put("general", "Scope", row(
-      "Settings for",
-      html`<select class="sel" id="s-scope">${[{ dir: "all", label: "All projects" }, ...cfg.projects].map((p) => html`<option value="${p.dir}"${p.dir === cfg.scope ? " selected" : ""}>${p.label}</option>`)}</select>`,
-      scoped ? "This project's own .kaizen/config.yml; anything it does not set comes from All projects." : "~/.kaizen/config.yml; a project's own config wins where it sets a value.",
-      "s-scope",
-      "settings for scope project all projects",
-    ));
     // Drawn as chips with the agent list, above the rest of the page.
     cfg.rows = cfg.rows.filter((r) => !(r.key === "agent.default" && ap));
     // A model row only for a tool on this machine.
@@ -157,10 +142,12 @@ export async function openSettings() {
       ));
     }
   }
-  put("voice", "Dictation", row("Microphone", micRow(), "Used by this browser. Names appear after you first allow the microphone. Ctrl+Alt+D dictates into the focused terminal.", "v-mic", "microphone input device mic dictation shortcut"));
+  // Under Runs to keep, which they act on.
+  if (cl) for (const r of cleanupRows(cl)) put("general", "Storage", row(r.label, r.control, r.hint, r.id, r.q));
+  put("keyboard", "Dictation", row("Microphone", micRow(), "Used by this browser. Names appear after you first allow the microphone. Ctrl+Alt+D dictates into the focused terminal.", "v-mic", "microphone input device mic dictation shortcut"));
   put("mobile", "Phone", html`
     <div class="srow ph-card" data-q="phone mobile tailscale qr connect address setup"><div id="phset"></div></div>
-    <div class="srow ph-card" style="margin-top:16px" data-q="whatsapp phone mobile qr message send"><div id="waset"></div></div>
+    <div class="srow ph-card" data-q="whatsapp phone mobile qr message send"><div id="waset"></div></div>
   `);
   put("integrations", "Google", row("OAuth client id", html`<input class="sel" id="gg-id" placeholder="${gg.hasClient ? "Saved. Paste a new one to replace it" : "Desktop app client id from Google Cloud"}" spellcheck="false" autocomplete="off">`, "", "gg-id", "google oauth client id sheets write back"));
   put("integrations", "Google", row("OAuth client secret", html`<span class="fpick"><input class="sel" id="gg-secret" type="password" placeholder="${gg.hasClient ? "Saved. Paste a new one to replace it" : ""}" spellcheck="false" autocomplete="off"><button class="btn" id="gg-save" type="button">Save</button></span>`, "", "gg-secret", "google oauth client secret"));
@@ -197,7 +184,7 @@ export async function openSettings() {
   put("notifications", "Browser", row("Haptic feedback", toggleSwitch(hapton, { sm: true, attrs: { id: "hp" } }), "A light tick when you tap something on a phone.", "hp", "haptic feedback vibrate vibration touch tap phone browser"));
   put("notifications", "Browser", row("Notification sound", ctl("ns", SOUNDS, soundPick()), "Plays with each notice. Changing it plays it.", "ns", "notification sound audio browser " + SOUNDS.join(" "), !nton));
   // A narrow screen starts on the list of pages, a wide one on the first page.
-  store.setPage ??= new URLSearchParams(location.search).get("page") || "";
+  store.setPage = pageId(store.setPage ?? new URLSearchParams(location.search).get("page") ?? "");
   const scopeName = scoped ? cfg.projects.find((p) => p.dir === cfg.scope)?.label : "";
   // A save redraws the page: the rows stay where they were scrolled to.
   const top = $("smain")?.scrollTop || 0;
@@ -205,14 +192,18 @@ export async function openSettings() {
     <nav class="snav" aria-label="Settings">
       <button class="sback" id="sback" type="button">${ico("chev")}Back to app</button>
       <div class="sq"><input class="sel" id="sq" type="search" placeholder="Search settings" aria-label="Search settings" spellcheck="false" autocomplete="off" value="${store.setQ}"></div>
-      <div class="snavs">${SETTINGS_NAV.map(([g, ps]) => html`<div class="snavg"><p>${g}</p>${ps.map((p) => html`<button type="button" data-page="${p.id}">${ico(p.ico)}<span>${p.title}</span></button>`)}</div>`)}</div>
+      ${cfg ? html`<div class="sacct" title="${scoped ? "This project's own .kaizen/config.yml; anything it does not set comes from All projects." : "~/.kaizen/config.yml; a project's own config wins where it sets a value."}">
+        <span class="stile">${ico(scoped ? "board" : "home")}</span>
+        <span class="sacct-t"><small id="s-scope-l">Settings for</small><select class="sel" id="s-scope" aria-labelledby="s-scope-l">${[{ dir: "all", label: "All projects" }, ...cfg.projects].map((p) => html`<option value="${p.dir}"${p.dir === cfg.scope ? " selected" : ""}>${p.label}</option>`)}</select><small>${scoped ? "Overrides All projects" : "Every project"}</small></span>
+      </div>` : ""}
+      <div class="snavs">${SETTINGS_NAV.map(([g, ps]) => html`<div class="snavg" role="group" aria-label="${g}">${ps.map((p) => html`<button type="button" data-page="${p.id}"><span class="stile">${ico(p.ico)}</span><span>${p.title}</span></button>`)}</div>`)}</div>
     </nav>
     <div class="smain" id="smain">
       ${PAGES.map((p) => html`<div class="spage" data-page="${p.id}">
         <button class="sup" type="button">${ico("chev")}Settings</button>
-        <header><h2>${p.title}</h2><p>${p.desc}${scopeName ? ` Editing ${scopeName}.` : ""}</p></header>
+        <header><span class="stile">${ico(p.ico)}</span><div><h2>${p.title}</h2><p>${p.desc}${scopeName ? ` Editing ${scopeName}.` : ""}</p></div></header>
         ${p.id === "general" ? html`<div id="supd"></div>` : ""}
-        <div class="scard">${p.id === "agents" && ap ? agentRows(ap, defaultAgent, scopeName) : ""}${p.id === "accounts" && ac ? accountRows(ac) : ""}${p.id === "orchestration" && cfg ? orchestrationRows({ windows: !!cfg.windows, bypass: cfg.rows.some((r) => r.key === "orchestration.permissions" && r.value === "bypass") }) : ""}${p.id === "skills" && sk ? skillRows(sk.skills) : ""}${p.id === "automations" ? (au ? automationRows(au) : html`<h3 class="sg">Automations</h3><div class="sgrp"><div class="sk" data-q="automation">Open a project to add automations. They belong to one project each.</div></div>`) : ""}${[...pageRows.get(p.id)].map(([sub, rows]) => html`<h3 class="sg">${sub}</h3><div class="sgrp">${rows}</div>`)}</div>
+        <div class="scard">${p.id === "agents" && ap ? agentRows(ap, defaultAgent, scopeName) : ""}${p.id === "accounts" && ac ? accountRows(ac) : ""}${p.id === "orchestration" && cfg ? orchestrationRows({ windows: !!cfg.windows, bypass: cfg.rows.some((r) => r.key === "orchestration.permissions" && r.value === "bypass") }) : ""}${p.id === "skills" && sk ? skillRows(sk.skills) : ""}${p.id === "automations" ? (au ? automationRows(au) : html`<h3 class="sg">Automations</h3><div class="sgrp"><div class="sk" data-q="automation">Open a project to add automations. They belong to one project each.</div></div>`) : ""}${[...pageRows.get(p.id)].filter(([, rows]) => rows.length).map(([sub, rows]) => html`<h3 class="sg">${sub}</h3><div class="sgrp">${rows}</div>`)}</div>
       </div>`)}
       ${cfg ? "" : html`<p class="snone">Settings could not be read. Run <code>kaizen settings</code>.</p>`}
       <p class="snone" id="snone" hidden></p>

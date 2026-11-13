@@ -30,7 +30,7 @@ The program behind the board: what it serves, which computers may reach it, how 
 
 - `web/term.css` — terminal styles. `docs/mockups/` — design mockups.
 
-- Automations: a 60 s tick in `cli/web.ts` (own busy flag, `automate`, cleared at shutdown) calls `tickAutomations`; `/automations` (GET, POST ops create|update|pause|resume|delete|run, same-origin + JSON checks, project from `x-kz-dir`, never the home state) feeds Settings → Workflows → Automations (`web/board/settings-automations.ts`; the form draft is kept across redraws). The create form carries a warning that runs are unattended.
+- Automations: a 60 s tick in `cli/web.ts` (own busy flag, `automate`, cleared at shutdown) calls `tickAutomations`; `/automations` (GET, POST ops create|update|pause|resume|delete|run, same-origin + JSON checks, project from `x-kz-dir`, never the home state) feeds Settings → Automations (`web/board/settings-automations.ts`; the form draft is kept across redraws). The create form carries a warning that runs are unattended.
 
 - Update: `GET /version` reports `update` when npm has a newer kaizen and `POST /upgrade` runs `kaizen upgrade`; both stand down when `KAIZEN_DESKTOP_BUNDLED=1` (set by the desktop app when it runs its own read-only copy, see `docs/desktop.md`): no Update button, and `/upgrade` answers 409. Inside the desktop app, `web/board/update.ts` uses `window.kaizenDesktop` (the app's preload) instead: Check for updates and Update ask the app's electron-updater for a newer desktop release.
 

@@ -1,4 +1,4 @@
-// The WhatsApp card: Settings → Mobile. Walks the user through linking WhatsApp Web,
+// The WhatsApp card: Settings → Phone. Walks the user through linking WhatsApp Web,
 // displaying a QR code that connects to the background Baileys bridge.
 import { html, raw } from "./dom.ts";
 

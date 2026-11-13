@@ -254,7 +254,7 @@ bundled into the package, so the notebook works offline.
 kaizen-video skill has made, as a wall of tiles drawn at each video's real shape (9:16, 16:9,
 4:5), one tile per shape it was rendered in. Search finds a video by its title, the words
 said in it, its preset, platform or folder; the chips filter Draft, Rendering and Ready.
-Videos live in a library folder, `~/.kaizen` unless Settings → General → App → Video library folder
+Videos live in a library folder, `~/.kaizen` unless Settings → General → Folders → Video library folder
 says otherwise (`videos/<name>/` for the work, `output/<name>/` for the finished files), and
 in any known project that has a `videos/` folder; each tile says which. Open a film to see
 its built preview play in the page, jump to a beat from the coloured strip, and change the
@@ -693,7 +693,7 @@ the project and run it came from. Each line reads:
 
 ## Settings
 
-**Models.** Settings → Agents → Models has a row per installed agent. Claude Code's row sets its stage subagents. Other tools run every stage in one session, so their row sets the model they launch with, using the tool's own model name.
+**Models.** Settings → Models has a row per installed agent. Claude Code's row sets its stage subagents. Other tools run every stage in one session, so their row sets the model they launch with, using the tool's own model name.
 
 **Terminal keys.** In a workspace, Ctrl+Space puts focus in the current pane. Within 2 seconds, one more key moves it, as in tmux: arrows or h j k l between panes, 1-9 for a tab by number, n and p for the next and previous tab. c opens the new-tab menu: arrows or j k choose, Enter opens, Escape closes. r splits right and d splits down with a new terminal like the focused one (the same agent, or a shell) straight away; on a Browser, Preview or note pane they open the split menu to pick from, as do the split buttons at the top right. x closes the current pane, like its × button. ? lists these keys.
 
@@ -701,9 +701,9 @@ Ctrl+= makes the text of every terminal bigger, Ctrl+- smaller, and Ctrl+0 puts 
 
 Ctrl+Shift+Space opens Search anywhere in kaizen, also from a terminal.
 
-**Voice.** Settings → Voice picks the microphone for this browser. Ctrl+Alt+D starts and stops dictation into the terminal you're in, while kaizen has focus.
+**Dictation.** Settings → Keyboard & Dictation picks the microphone for this browser. Ctrl+Alt+D starts and stops dictation into the terminal you're in, while kaizen has focus.
 
-**AI Provider Accounts.** Each section starts with **Your login** (`~/.claude`, `~/.codex`): who is signed in, as `claude auth status` / `codex login status` say (kaizen never opens the login files), the plan, and usage; it is the **Default** unless you pick an account below. Optional: your normal Claude and Codex logins keep working. Add an account in Settings to keep a second login in its own folder, press Sign in, and pick it as the default or on the Run form. A run stays on its account when resumed, and a run whose account has gone refuses to start rather than using another. Not on Windows yet.
+**AI Accounts.** Settings → AI Accounts: each section starts with **Your login** (`~/.claude`, `~/.codex`): who is signed in, as `claude auth status` / `codex login status` say (kaizen never opens the login files), the plan, and usage; it is the **Default** unless you pick an account below. Optional: your normal Claude and Codex logins keep working. Add an account in Settings to keep a second login in its own folder, press Sign in, and pick it as the default or on the Run form. A run stays on its account when resumed, and a run whose account has gone refuses to start rather than using another. Not on Windows yet.
 
 **Skills.** Settings → Skills lists kaizen's skills and which agents have each one. Switching a media skill off removes kaizen's links only, for your user, so agents stop seeing it, and it stays off through upgrades; its files stay; real folders of the same name are left alone. Open sessions keep a skill until they restart. Core skills can't be removed; when one is missing for an agent (or your own folder is in its place) its row shows **Repair**, which links it again and asks before replacing a folder. If it says the kaizen install is older than the skill, run `kaizen upgrade` first. A new folder under `skills/` with a `SKILL.md` appears by itself; a `skill.json` beside it sets its title, group and requirements.
 
@@ -834,7 +834,7 @@ for f in ~/kaizen/commands/kaizen-*.md; do ln -s "$f" ~/.claude/commands/"$(base
 
 ## Automations
 
-Settings → Workflows → Automations (or `kaizen automation add "<name>" --text "<request>" --every weekly --time 09:00 --day mon`) schedules a run in one project: hourly, daily, weekdays, weekly, or a 5-field cron. A fire starts a real run in auto mode: it plans, builds and reviews with nobody watching, so it changes code and spends tokens (`approvals.review` still holds unless `auto_accept` is on). An optional precheck, a shell command you write, runs on this computer before each scheduled fire; non-zero skips it. Fires happen only while a board is running; a missed fire starts once if within the grace time (720 minutes by default), else is recorded as skipped. One open run per automation, at most 24 starts a day, each with a history line. `kaizen automation list | run <id> | pause <id> | resume <id> | rm <id> | runs <id>`.
+Settings → Automations (or `kaizen automation add "<name>" --text "<request>" --every weekly --time 09:00 --day mon`) schedules a run in one project: hourly, daily, weekdays, weekly, or a 5-field cron. A fire starts a real run in auto mode: it plans, builds and reviews with nobody watching, so it changes code and spends tokens (`approvals.review` still holds unless `auto_accept` is on). An optional precheck, a shell command you write, runs on this computer before each scheduled fire; non-zero skips it. Fires happen only while a board is running; a missed fire starts once if within the grace time (720 minutes by default), else is recorded as skipped. One open run per automation, at most 24 starts a day, each with a history line. `kaizen automation list | run <id> | pause <id> | resume <id> | rm <id> | runs <id>`.
 
 ## Reporting a bug
 
@@ -864,7 +864,7 @@ This repo's own values live in `.kaizen/config.yml`, which is not committed.
 ## Explore before planning
 
 Explore is optional and off by default. Turn on **Explore before planning** under
-Settings → Agents → Workflow, globally or for one project. The normal flow remains
+Settings → Runs → Workflow, globally or for one project. The normal flow remains
 Plan → Build → Review → Done. With Explore included it becomes Explore → Plan →
 Build → Review → Done. Clear fixes and already agreed changes go straight to Plan.
 

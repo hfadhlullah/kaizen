@@ -279,7 +279,7 @@ export async function settle(page: Page, ms = 6000) {
 // ---- screens and states. `open` runs in the page after load: click() waits for a shown element, then clicks it.
 type Screen = { name: string; url: string; widths?: number[]; open?: string };
 const BARS = [[".rail .top", ".hdr", "#rbar", "#panel>header", ".pstrip"], ["#sback", "#smain h2"]];
-const SETTINGS = ["agents", "accounts", "orchestration", "skills", "voice", "general", "integrations", "mobile", "approvals", "autofix", "automations", "git", "terminal", "appearance", "notifications", "shortcuts"];
+const SETTINGS = ["general", "appearance", "notifications", "keyboard", "terminal", "agents", "models", "accounts", "skills", "runs", "approvals", "autofix", "orchestration", "automations", "git", "integrations", "mobile"];
 
 function screens(dir: string, run: string, emptyWs: { dir: string; ws: string }): Screen[] {
   const D = encodeURIComponent(dir);

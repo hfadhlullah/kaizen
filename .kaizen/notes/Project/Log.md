@@ -320,3 +320,4 @@ updated: 2026-10-31
 - 2026-11-12 update — CLI: the project Kaizen workflow block tells agents to use kaizen send --whatsapp; init adds it to older blocks
 - 2026-11-12 update — Run workspace: desktop app's Browser tab is a persistent-session webview (Orca-style); iframe gets allow for capture
 - 2026-11-12 update — Run workspace: annotator redesigned as a floating icon pill, overlay notes list, quoted composer; Close no longer hides the Annotate button for good
+- 2026-11-13 update — Web board/Settings: macOS System Settings layout — four groups with icon tiles, scope card atop the sidebar, Models/Runs pages split from Agents, Keyboard & Dictation, Phone; sections in rounded boxes; parallel load
