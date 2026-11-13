@@ -26,3 +26,5 @@ A floating panel on the board where you talk to Claude, Codex or a shell without
 - `Ctrl+Alt+A` ignores AltGr (Windows reports it as Ctrl+Alt).
 
 - Home terminals run in the user's home folder `~` (run 2026-11-13-home-tilde-light-term): `/shell {home:true}` spawns in `home` while the record keeps `dir`/`ws` = `~/.kaizen/home`, which the Home window, `isHomeDir`, the phone and restart resume match on; restart resume also spawns them in `~`, where Claude keeps their conversation for `--resume`. Claude asks once to trust `~` (it holds `~/.claude/settings.json`, so `trustFolder` will not pre-trust it).
+
+- The resource monitor's Storage header has Cleanup beside Rescan: it dispatches `kz-home-start {agent: "claude", prompt: "/disk-cleanup"}`; `/shell` takes an optional `prompt` (≤ 2000 chars, not for sign-ins) passed to the agent as its argument via `promptArgs` (run 2026-11-13-storage-cleanup-button).

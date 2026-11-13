@@ -46,8 +46,8 @@ async function refresh() {
 }
 
 // No `yolo`: the server applies that agent's saved bypass setting, as a run workspace's + does by default.
-async function start(agent?: string, yolo?: boolean) {
-  const r = await fetch("/shell", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ home: true, ...(agent ? { agent, ...(yolo ? { yolo } : {}) } : {}) }) }).catch(() => null);
+async function start(agent?: string, yolo?: boolean, prompt?: string) {
+  const r = await fetch("/shell", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ home: true, ...(agent ? { agent, ...(yolo ? { yolo } : {}), ...(prompt ? { prompt } : {}) } : {}) }) }).catch(() => null);
   if (!r?.ok) {
     let why = "";
     try { why = (await r!.json()).error; } catch {}
@@ -215,12 +215,13 @@ export function initHomeWs() {
   $("hwsrx").onclick = () => void closeAll();
   // On a phone × goes back and leaves the agents running (a tab's × ends one); on a computer it ends them all.
   $("hwsx").onclick = () => (isPhone() ? ((st = "closed"), draw()) : void closeAll());
-  // The phone's New sheet starts an agent or a shell here ("Home — no project").
+  // The phone's New sheet starts an agent or a shell here ("Home — no project"); the Storage panel's
+  // Cleanup starts Claude Code on /disk-cleanup (detail.prompt).
   addEventListener("kz-home-start", (e: any) => {
     st = "open";
     if (!isPhone()) save();
     draw();
-    void start(e.detail?.agent || undefined, !!e.detail?.yolo);
+    void start(e.detail?.agent || undefined, !!e.detail?.yolo, typeof e.detail?.prompt === "string" ? e.detail.prompt : undefined);
   });
   $("hwsmin").onclick = () => set("min");
   $("hwsmax").onclick = () => ((max = !max), draw());

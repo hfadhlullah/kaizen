@@ -58,7 +58,7 @@ function draw() {
     ${spark()}
     ${split([["Kaizen and its terminals", res.kaizen], ["Other apps", other], ["Free", free]])}`;
   const rest = html`
-    <h3><button type="button" class="rfold" data-fold aria-expanded="${diskOpen}"><span>${diskOpen ? "▾" : "▸"}</span> Storage</button><button type="button" data-rescan>${disk?.scanning ? "Scanning…" : "Rescan"}</button></h3>
+    <h3><button type="button" class="rfold" data-fold aria-expanded="${diskOpen}"><span>${diskOpen ? "▾" : "▸"}</span> Storage</button><span class="rbtns"><button type="button" data-cleanup title="Open a Claude Code in Home that runs /disk-cleanup">Cleanup</button><button type="button" data-rescan>${disk?.scanning ? "Scanning…" : "Rescan"}</button></span></h3>
     ${disk?.at ? html`<div class="rhero"><b>${size(disk.total)}</b><span>used by kaizen</span></div>${split(top(disk.rows), diskOpen)}` : html`<div class="rnote">Scanning…</div>`}
     <h3>Terminals (${res.terminals.length})</h3>
     ${failed ? html`<div class="rnote" role="alert">${failed}</div>` : ""}
@@ -124,6 +124,8 @@ async function click(e: MouseEvent) {
     return draw();
   }
   if ("rescan" in d) return void loadDisk(true);
+  // Cleanup: a new Claude Code in the Home window, starting on the disk-cleanup skill.
+  if ("cleanup" in d) return void dispatchEvent(new CustomEvent("kz-home-start", { detail: { agent: "claude", prompt: "/disk-cleanup" } }));
   if ("keep" in d) { confirm = ""; return draw(); }
   if (d.ask) { confirm = d.ask; failed = ""; return draw(); }
   if (d.open) {
