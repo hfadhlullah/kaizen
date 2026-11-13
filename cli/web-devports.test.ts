@@ -12,6 +12,14 @@ test("devPorts keeps only ports whose process works inside the workspace", () =>
   expect(devPorts(ss, (pid) => cwd[pid], "/p/app")).toEqual([5173, 8123]);
 });
 
+test("devPorts never offers an agent's own port as the workspace's app", () => {
+  const ss = [
+    'LISTEN 0 512 127.0.0.1:33017 0.0.0.0:* users:(("claude",pid=5,fd=24))',
+    'LISTEN 0 511 [::1]:5173 [::]:* users:(("node",pid=6,fd=22))',
+  ].join("\n");
+  expect(devPorts(ss, () => "/p/app", "/p/app", ["claude", "codex"])).toEqual([5173]);
+});
+
 test("devCommand runs the folder's dev script, else start, with the lockfile's package manager", async () => {
   const { devCommand } = await import("./web.ts");
   const { mkdtempSync, writeFileSync } = await import("node:fs");

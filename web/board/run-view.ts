@@ -1018,7 +1018,11 @@ async function autoBrowse() {
     let u: string | undefined;
     try {
       const doc = await (await fetch(`/run/${encodeURIComponent(c.id)}?dir=${encodeURIComponent(c.state)}`)).json();
-      u = devUrl(preview(doc.impl), await (await fetch("/devports?ws=" + encodeURIComponent(ctx.ws))).json());
+      // Only an address the report names: with none, the lowest port in the workspace was a guess
+      // (it once opened Claude Code's own local port, "not found").
+      const pv = preview(doc.impl);
+      if (!loopbackUrl(pv)) continue;
+      u = devUrl(pv, await (await fetch("/devports?ws=" + encodeURIComponent(ctx.ws))).json());
     } catch {}
     if (!u || ctx?.k !== k || saved().seen?.includes(key(c))) continue;
     (saved().seen ||= []).push(key(c));

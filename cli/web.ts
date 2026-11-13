@@ -108,10 +108,12 @@ export function devCommand(dir: string): string[] | null {
   return [pm, "run", name];
 }
 
-// From `ss -ltnpH`: the ports listened on by a process whose working folder is inside ws.
-export function devPorts(ss: string, cwdOf: (pid: string) => string, ws: string): number[] {
+// From `ss -ltnpH`: the ports listened on by a process whose working folder is inside ws. A process
+// named in `skip` (the agents: Claude Code listens on a local port of its own) is never the app.
+export function devPorts(ss: string, cwdOf: (pid: string) => string, ws: string, skip: string[] = []): number[] {
   const ports = new Set<number>();
   for (const line of ss.split("\n")) {
+    if (skip.includes(/users:\(\("([^"]+)"/.exec(line)?.[1] ?? "")) continue;
     const port = /:(\d+)\s+\S+:\*/.exec(line)?.[1];
     for (const [, pid] of line.matchAll(/pid=(\d+)/g)) {
       const cwd = cwdOf(pid);
@@ -1263,7 +1265,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           out = await new Response(p.stdout).text();
         } catch { return json([]); }
         // Never the board itself: `kaizen web` started inside the workspace listens there too.
-        return json(devPorts(out, (pid) => { try { return readlinkSync(`/proc/${pid}/cwd`); } catch { return ""; } }, ws).filter((p) => p !== port));
+        return json(devPorts(out, (pid) => { try { return readlinkSync(`/proc/${pid}/cwd`); } catch { return ""; } }, ws, [...KNOWN_AGENTS.map((a) => a.cmd), "cursor-agent"]).filter((p) => p !== port));
       }
       // A phone on the tailnet cannot reach this computer's localhost. Serves that loopback port
       // to the tailnet (`tailscale serve --https=<port>`, never funnel) and answers the address
