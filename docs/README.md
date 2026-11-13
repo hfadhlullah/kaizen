@@ -9,7 +9,7 @@ when you need the next thing.
 - [guide](guide.md) — the depth: the board (terminal and browser), the notebook, request sources, settings, installer flags, updating and uninstalling.
 - [Desktop app](desktop.md) — the board in its own window on Linux (incl. Arch), macOS and Windows: install, updates, how it is built.
 - [Kaizen Bot](../bot/README.md) — the chat front end for your board: its agents, the desktop app, providers, privacy.
-- Bundled skills — `kaizen-deck`, `kaizen-video` (footage editing and films from scratch) and `kaizen-book` live under [`skills/media/`](../skills/media/), each with its own card in its folder.
+- Bundled skills — `kaizen-deck`, `kaizen-video` (footage editing and films from scratch) and `kaizen-book` live under [`skills/media/`](../skills/media/), each with its own card in its folder. Optional skills live under [`skills/optional/`](../skills/optional/): `disk-cleanup` (the board's Storage Cleanup button runs it), plus `kaizen-computer` and `lemo-opuscar`, which are off until turned on in Settings → Skills.
 
 ## Under the hood
 

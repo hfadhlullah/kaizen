@@ -8,6 +8,7 @@
   {"prompt": "I recorded a talking-head clip, cut the dead air and caption it for TikTok", "expect": "kaizen-video"},
   {"prompt": "Make a promo video for my app launch", "expect": "kaizen-video"},
   {"prompt": "Click the Save button in the LibreOffice window for me", "expect": "kaizen-computer"},
+  {"prompt": "My disk is almost full, what can I safely delete?", "expect": "disk-cleanup"},
   {"prompt": "What does a JavaScript closure mean? One sentence.", "expect": null},
   {"prompt": "Fix the typo in README.md: teh should be the", "expect": null},
   {"prompt": "Add one slide with last quarter's revenue table to report.pptx", "expect": "not:kaizen-deck"},

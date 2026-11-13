@@ -29,7 +29,7 @@ test("a new folder appears by itself, with its description; real skills all pars
   const s = bundledSkills(repo).find((x) => x.id === "new-one")!;
   expect([s.group, s.description]).toEqual(["media", "Does a thing."]);
   const real = bundledSkills(join(import.meta.dir, ".."));
-  expect(real.map((x) => x.id).sort()).toEqual(["kaizen", "kaizen-book", "kaizen-computer", "kaizen-concept", "kaizen-deck", "kaizen-explore", "kaizen-game", "kaizen-help", "kaizen-video", "lemo-opuscar"]);
+  expect(real.map((x) => x.id).sort()).toEqual(["disk-cleanup", "kaizen", "kaizen-book", "kaizen-computer", "kaizen-concept", "kaizen-deck", "kaizen-explore", "kaizen-game", "kaizen-help", "kaizen-video", "lemo-opuscar"]);
   expect(real.filter((x) => x.group === "core").length).toBe(4);
   for (const x of real) expect(x.description.length).toBeGreaterThan(10);
 });
@@ -91,7 +91,7 @@ test("core holds with no manifest; a whole description is read; a restore follow
 test("only unproven skills carry a status label", () => {
   const real = bundledSkills(join(import.meta.dir, ".."));
   const status = Object.fromEntries(real.map((s) => [s.id, s.status]));
-  expect(status).toEqual({ kaizen: "stable", "kaizen-explore": "stable", "kaizen-concept": "stable", "kaizen-help": "stable", "kaizen-book": "stable", "kaizen-deck": "stable", "kaizen-game": "beta", "kaizen-video": "stable", "kaizen-computer": "experimental", "lemo-opuscar": "beta" });
+  expect(status).toEqual({ kaizen: "stable", "kaizen-explore": "stable", "kaizen-concept": "stable", "kaizen-help": "stable", "kaizen-book": "stable", "kaizen-deck": "stable", "kaizen-game": "beta", "kaizen-video": "stable", "kaizen-computer": "experimental", "lemo-opuscar": "beta", "disk-cleanup": "beta" });
 });
 test("repair relinks a missing core skill, asks before a real folder, and says when the clone is too old", () => {
   skill("kaizen-help", { group: "core" });
