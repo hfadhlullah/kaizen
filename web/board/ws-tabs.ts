@@ -147,6 +147,14 @@ export function devUrl(pv: string | null | undefined, ports: number[]): string |
 // yet opened the Browser: once per run id (`seen`).
 export const toOpen = (cards: any[], was: Set<string>, seen: string[], keyOf: (c) => string) => cards.filter((c) => reviewing(c) && !was.has(keyOf(c)) && !seen.includes(keyOf(c)));
 
+// The list with the item at `from` moved into slot `to` (0 = top, list.length = the end), counted
+// before the move: the sidebar's project drag lands it where its drop line was drawn.
+export const moveTo = <T>(list: T[], from: number, to: number): T[] => {
+  const out = list.filter((_, i) => i !== from);
+  out.splice(to > from ? to - 1 : to, 0, list[from]);
+  return out;
+};
+
 // `kaizen preview` written from folder `pws` belongs to workspace `ws`: the same folder or one inside
 // it, but never a worktree under it (`.kaizen/wt/`), which is a workspace of its own.
 export const previewIn = (pws: string, ws: string) => pws === ws || (pws.startsWith(ws + "/") && !pws.startsWith(ws + "/.kaizen/wt/"));

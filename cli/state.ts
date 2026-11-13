@@ -423,6 +423,28 @@ export function remember(projectDir: string) {
   } catch { /* nothing here is worth an error */ }
 }
 
+// The sidebar's drag-and-drop rank: `first` (project folders, in the new order) go to the top of
+// the registry, every other line keeps its place after them. Only folders already registered move,
+// nothing is added or dropped, comment lines stay on top; written to a temp file and renamed so a
+// reader never sees half a list. Returns the new order (knownProjects()).
+export function reorderProjects(first: string[]): string[] {
+  if (!existsSync(REGISTRY)) return [];
+  const lines = readText(REGISTRY).split("\n").map((l) => l.trim()).filter(Boolean);
+  const notes = lines.filter((l) => l.startsWith("#")), rows = lines.filter((l) => !l.startsWith("#")).map((l) => ({ l, c: canonPath(l) }));
+  const want = first.map(canonPath).filter((d, i, all) => all.indexOf(d) === i);
+  const moved = want.flatMap((d) => rows.filter((r) => r.c === d));
+  const rest = rows.filter((r) => !moved.includes(r));
+  const tmp = `${REGISTRY}.${process.pid}.tmp`;
+  writeFileSync(tmp, [...notes, ...[...moved, ...rest].map((r) => r.l)].join("\n") + "\n");
+  // A project remember()ed since the read above would be lost by the rename: read again right
+  // before it and carry any new line over.
+  const seen = new Set(rows.map((r) => r.c));
+  const late = readText(REGISTRY).split("\n").map((l) => l.trim()).filter((l) => l && !l.startsWith("#") && !seen.has(canonPath(l)));
+  if (late.length) appendFileSync(tmp, late.join("\n") + "\n");
+  renameSync(tmp, REGISTRY);
+  return knownProjects();
+}
+
 export const SKIP = new Set([
   "windows", "program files", "program files (x86)", "programdata", "$recycle.bin",
   "system volume information", "appdata", "node_modules", "recovery", "perflogs",

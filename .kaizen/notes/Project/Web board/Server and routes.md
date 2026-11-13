@@ -76,3 +76,5 @@ Task routes: GET /tasks (all=1 for all registered states), GET /task?id=&dir=, G
 - `POST /shell` with `home: true` opens a shell or agent in `~/.kaizen/home` (made on first use), with `run: "home"`, under the same `strict()` guards. The folder is the server's constant `HOME_WS`, never taken from the page; `ws`, `dev` and `resume` with `home` are 400. Any other folder still needs a registered project (404 "choose a project"), `~/.kaizen/home` included when sent as `dir`. A project tab sending `run: "home"` gets `run: ""`. Home has its own cap of 8.
 - `GET /agents?home=1` answers `agentChoices(~/.kaizen/home)` (the global config decides the default agent).
 - The restart loop resumes a saved shell whose `dir` is `HOME_WS` as well as a known state dir. Test: `cli/usage.test.ts` (`/shell` test).
+
+- `POST /projects/order {dirs}` (2026-11-13-project-dnd-order): the sidebar rank. `strict()`; at most 500 entries; only known project state dirs (not the global one) are used; `reorderProjects()` rewrites `~/.kaizen/projects` with them first.

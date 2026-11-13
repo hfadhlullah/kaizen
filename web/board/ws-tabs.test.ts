@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { nearestPane, agentStatus, agentsHtml, forgetAgents, lineOf, settleIn, toggleOpen, wsAgents, SETTLE_MS, awaiting, dueWord, chosen, newRun, loopbackUrl, devUrl, toOpen, previewIn, previewOpens, stageKeys, stageTabs, finished, historyOf, liveIn, migrate, pickable, prune, wsKey } from "./ws-tabs.ts";
+import { nearestPane, agentStatus, agentsHtml, forgetAgents, lineOf, settleIn, toggleOpen, wsAgents, SETTLE_MS, awaiting, dueWord, chosen, newRun, loopbackUrl, devUrl, toOpen, previewIn, previewOpens, moveTo, stageKeys, stageTabs, finished, historyOf, liveIn, migrate, pickable, prune, wsKey } from "./ws-tabs.ts";
 
 const run = (id: string, status: string, o: any = {}) => ({ kind: "run", state: "/p/.kaizen", id, status, moved: 1, ws: "/p", ...o });
 const wsOf = (c) => c.ws;
@@ -244,4 +244,13 @@ test("previewOpens: the first look at a workspace only records; a newer preview 
   expect(previewOpens(100, 100)).toBe(false); // already recorded (a tab you closed stays closed)
   expect(previewOpens(200, 100)).toBe(true);
   expect(previewOpens(200, 0)).toBe(true); // none on arrival, then one is written
+});
+
+test("moveTo: a dragged project lands in the slot its drop line marked", () => {
+  const l = ["a", "b", "c", "d"];
+  expect(moveTo(l, 2, 0)).toEqual(["c", "a", "b", "d"]); // c above a
+  expect(moveTo(l, 0, 4)).toEqual(["b", "c", "d", "a"]); // a to the end
+  expect(moveTo(l, 0, 2)).toEqual(["b", "a", "c", "d"]); // a below b (slot counted before the move)
+  expect(moveTo(l, 3, 1)).toEqual(["a", "d", "b", "c"]);
+  expect(moveTo(l, 1, 1)).toEqual(l); // dropped where it was
 });

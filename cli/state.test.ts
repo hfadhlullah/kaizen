@@ -889,6 +889,23 @@ console.log(JSON.stringify([knownProjects(), require("node:fs").readFileSync(REG
   } finally { rmSync(home, { recursive: true, force: true }); }
 });
 
+test("reorderProjects moves registered folders to the top in the given order and keeps every other line", () => {
+  const home = mkdtempSync(join(tmpdir(), "kz-home-"));
+  const [a, b, c] = ["a", "b", "c"].map((n) => { const d = join(home, n); mkdirSync(d); return realpathSync(d); });
+  mkdirSync(join(home, ".kaizen"));
+  writeFileSync(join(home, ".kaizen", "projects"), `# mine\n${a}\n${b}/\n${c}\n`);
+  const script = `const { reorderProjects, REGISTRY } = await import(${JSON.stringify(join(dirname(import.meta.path), "state.ts"))});
+const list = reorderProjects([${JSON.stringify(c)}, ${JSON.stringify(join(home, "nope"))}, ${JSON.stringify(b)}]);
+console.log(JSON.stringify([list, require("node:fs").readFileSync(REGISTRY, "utf8")]));`;
+  try {
+    const p = Bun.spawnSync(["bun", "-e", script], { cwd: home, env: { ...process.env, HOME: home, USERPROFILE: home } });
+    if (p.exitCode !== 0) throw new Error(p.stderr.toString());
+    const [list, file] = JSON.parse(p.stdout.toString());
+    expect(list).toEqual([c, b, a]); // an unknown folder is ignored, not added
+    expect(file).toBe(`# mine\n${c}\n${b}/\n${a}\n`); // comments on top, each line kept as written
+  } finally { rmSync(home, { recursive: true, force: true }); }
+});
+
 test("files saved with CRLF (PowerShell, autocrlf clones) read the same as LF", () => {
   const lf = join(mkdtempSync(join(tmpdir(), "kz-")), ".kaizen"), crlf = join(mkdtempSync(join(tmpdir(), "kz-")), ".kaizen");
   const files = {

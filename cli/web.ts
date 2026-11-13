@@ -5,7 +5,7 @@ import { awakeHolder, wantAwake } from "./keep-awake.ts";
 import { existsSync, readdirSync, readlinkSync, statSync, lstatSync, realpathSync, readFileSync, watch, appendFileSync, mkdirSync, cpSync, rmSync, writeFileSync, type FSWatcher } from "node:fs";
 import { join, dirname, resolve, sep, basename } from "node:path";
 import {
-  home, type Item, type Card, knownProjects, remember, canonPath, locate, label, tilde, searchRoots, findProjects,
+  home, type Item, type Card, knownProjects, remember, reorderProjects, canonPath, locate, label, tilde, searchRoots, findProjects,
   readInbox, writeInbox, replaceTask, moveTask, abandonRun, runToTask, launchRun, parseItem, agentChoices, onPath, projectOf, KNOWN_AGENTS, plainModel, short, setArchived, writeNotes,
   appendNote, saveAttachment, pidOnPort, readText, cmdExe, sysExe, powershellExe, runGit, readCommit, commitPush, commitStaged, stageFiles, suggestMessage, notice, notifier, LOGO,
   reviewFindings, pickFindings, backlogItem, startedBacklog, closeBacklog, markBacklogDone, fixPrompt, approvalPrompt, canApproveAwaiting, gateOf, recordAcceptance, healRuns, finishRun, nativePath, closeSessions, sweepSessions, issueUrl,
@@ -1099,6 +1099,20 @@ export async function web(repoDir: string, opts: Opts = {}) {
       // The rail's + on a project: a new worktree and branch under <project>/.kaizen/wt/.
       // Runs git, so /shell's guards; the branch name is checked by git check-ref-format
       // and every call is an argv array.
+      // The sidebar's drag-and-drop rank: {dirs: state dirs, top first}. Only projects the board
+      // already knows move (the registry is never added to here); same guards as /worktree.
+      if (req.method === "POST" && path === "/projects/order") {
+        const refused = strict(req);
+        if (refused) return refused;
+        let body: any;
+        try { body = await req.json(); } catch { return bad("json body expected"); }
+        if (!Array.isArray(body.dirs) || body.dirs.length > 500) return bad("dirs: a list of projects expected");
+        const known = states(true);
+        const dirs = body.dirs.map((d: unknown) => canonState(String(d))).filter((d: string) => known.includes(d) && d !== join(home, ".kaizen"));
+        reorderProjects(dirs.map((d: string) => dirname(d)));
+        changed();
+        return json({ ok: true });
+      }
       if (req.method === "POST" && path === "/worktree") {
         const refused = strict(req);
         if (refused) return refused;

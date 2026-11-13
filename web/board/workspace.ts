@@ -9,7 +9,8 @@ import { initResources } from "./resources.ts";
 import { age, need } from "./labels.ts";
 import { openAdd } from "./add-project.ts";
 import { initSearch } from "./search.ts";
-import { agentsHtml, dueWord, forgetAgents, gitDue, settleIn, toggleOpen, wsAgents, type Agent } from "./ws-tabs.ts";
+import { agentsHtml, dueWord, forgetAgents, gitDue, moveTo, settleIn, toggleOpen, wsAgents, type Agent } from "./ws-tabs.ts";
+import { toast } from "./toast.ts";
 
 const DAY = 864e5;
 const STAGE = ["idea", "planning", "building", "reviewing", "done"];
@@ -215,10 +216,85 @@ async function readTaskAttention() {
 }
 const taskLinks = (dir: string, w: any, cards: any[]) => (attentionTasks ?? []).filter((t) => t.dir === dir && !t.legacy && t.attention.category !== "completed" && filt.running && t.status !== "draft" && (cards.some((c) => taskForCard(c)?.id === t.id) || (w.main && !(t.runs ?? t.runIds ?? []).length))).sort((a: any, b: any) => (a.created ?? 0) - (b.created ?? 0)).map((t) => html`<a class="rtask" href="/?view=task&task=${encodeURIComponent(t.id)}&dir=${encodeURIComponent(t.dir)}" data-task-id="${t.id}" data-task-dir="${t.dir}" title="${t.attention.reason} · ${t.attention.action}"><span class="si ${t.attention.category === "needs-you" ? "wait" : t.attention.category === "completed" ? "done" : ["interrupted", "failed"].includes(t.status ?? "") ? "stalled" : t.status === "draft" ? "idle" : "build"}"></span><span><b>${t.title}</b><small>${t.attention.reason}</small></span></a>`);
 
+// ---- ranking projects: press a project's bar and drag it up or down (pointer events, so a mouse
+// and a finger work alike). A mouse starts after 5 px of movement; a finger after a 300 ms hold
+// without moving, so a quick swipe still scrolls the sidebar. A line shows where it will land;
+// letting go saves the order for every device (POST /projects/order rewrites ~/.kaizen/projects).
+// Escape or a cancelled pointer puts it back. The click that ends a drag does not fold.
+let ranking = false, rankDirty = false, rankClick = false;
+function rankDrag(box: HTMLElement) {
+  let d: { dir: string; bar: HTMLElement; id: number; x: number; y: number; hold?: ReturnType<typeof setTimeout>; to: number } | null = null;
+  const groups = () => [...box.querySelectorAll<HTMLElement>(":scope > .pgrp")];
+  const clear = () => {
+    groups().forEach((g) => g.classList.remove("rank-before"));
+    box.classList.remove("rank-end");
+    d?.bar.classList.remove("rank-lift");
+  };
+  const end = (save: boolean) => {
+    if (!d) return;
+    clearTimeout(d.hold);
+    const was = ranking, { dir, to } = d;
+    clear();
+    d = null;
+    ranking = false;
+    if (was) rankClick = true; // the click that follows this pointerup
+    if (was && save) {
+      const dirs = groups().map((g) => g.querySelector<HTMLElement>(".proj")!.dataset.proj!);
+      const from = dirs.indexOf(dir);
+      if (from >= 0 && to !== from && to !== from + 1) {
+        const next = moveTo(dirs, from, to);
+        const rank = new Map(next.map((x, i) => [x, i]));
+        last.projects = [...(last.projects ?? [])].sort((a, b) => (rank.get(a.dir) ?? 1e9) - (rank.get(b.dir) ?? 1e9));
+        void fetch("/projects/order", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ dirs: next }) })
+          .then((r) => { if (!r.ok) toast("Could not save the project order"); })
+          .catch(() => toast("Could not save the project order"));
+      }
+    }
+    if (was || rankDirty) (rankDirty = false), drawList();
+    if (was) setTimeout(() => (rankClick = false), 0);
+  };
+  const start = () => {
+    if (!d) return;
+    ranking = true;
+    d.bar.classList.add("rank-lift");
+    try { d.bar.setPointerCapture(d.id); } catch {}
+    navigator.vibrate?.(8);
+  };
+  box.addEventListener("pointerdown", (e) => {
+    const bar = (e.target as HTMLElement).closest<HTMLElement>(".pgrp > .proj");
+    if (!bar || e.button !== 0 || bar.parentElement?.parentElement !== box) return;
+    d = { dir: bar.dataset.proj!, bar, id: e.pointerId, x: e.clientX, y: e.clientY, to: -1 };
+    if (e.pointerType !== "mouse") d.hold = setTimeout(start, 300);
+  });
+  box.addEventListener("pointermove", (e) => {
+    if (!d || e.pointerId !== d.id) return;
+    const far = Math.hypot(e.clientX - d.x, e.clientY - d.y);
+    if (!ranking) {
+      if (e.pointerType === "mouse" ? far > 5 : far > 8) e.pointerType === "mouse" ? start() : end(false);
+      if (!ranking) return;
+    }
+    e.preventDefault();
+    // The landing slot: before the first project whose bar's middle is below the pointer, else the end.
+    const gs = groups();
+    const i = gs.findIndex((g) => { const r = g.getBoundingClientRect(); return e.clientY < r.top + r.height / 2; });
+    d.to = i < 0 ? gs.length : i;
+    gs.forEach((g, k) => g.classList.toggle("rank-before", k === d!.to));
+    box.classList.toggle("rank-end", d.to === gs.length);
+  });
+  box.addEventListener("pointerup", (e) => d && e.pointerId === d.id && end(true));
+  box.addEventListener("pointercancel", () => end(false));
+  // A held finger: no page scroll and no long-press menu while it drags.
+  box.addEventListener("touchmove", (e) => { if (ranking) e.preventDefault(); }, { passive: false });
+  box.addEventListener("contextmenu", (e) => { if (d) e.preventDefault(); }, true);
+  addEventListener("keydown", (e) => { if (ranking && e.key === "Escape") (e.preventDefault(), end(false)); });
+}
+
 export const wsLabel = (w) => w.branch || (w.main ? "workspace" : w.path.split(/[\\/]/).pop());
 function drawList() {
   const box = $("plist");
   if (!box) return;
+  // A drag in progress owns the list: a redraw would pull the bar out from under the pointer.
+  if (ranking) return void (rankDirty = true);
   const now = Date.now();
   const projects = (last.projects ?? []).filter((p) => p.workspaces?.length);
   const all = new Set(projects.map((p) => p.dir));
@@ -254,9 +330,8 @@ function drawList() {
       return { p, rows, top: Math.min(9, ...rows.map((r) => top(r.cs))) };
     })
     // Running only keeps every project listed, so an idle one reads "Nothing running" rather than vanishing.
-    .filter((g) => g.rows.length || filt.running)
-    // Projects by their most urgent card; the picker's order otherwise.
-    .sort((a, b) => a.top - b.top);
+    // In the registry's order, which the user ranks by dragging a project's bar (rankDrag below).
+    .filter((g) => g.rows.length || filt.running);
 
   const f = $("pfilter");
   const on = filt.dirs.some((d) => all.has(d)) || !filt.running || filt.done;
@@ -296,6 +371,7 @@ function drawList() {
     if (a) wsMenu(e, a);
   };
   box.onclick = (e) => {
+    if (rankClick) return void ((rankClick = false), e.preventDefault(), e.stopPropagation());
     const t = e.target as HTMLElement;
     const task = t.closest<HTMLElement>("[data-task-id]");
     if (task) {
@@ -442,6 +518,7 @@ export function initRail() {
     });
   }).observe(document.body, { childList: true, subtree: true });
   if (!$("plist")) return;
+  rankDrag($("plist"));
   addEventListener("kz-task-attention", drawList);
   void readTaskAttention();
   onBoardCards((cards, projects, agents) => {
