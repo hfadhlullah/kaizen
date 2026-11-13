@@ -1,6 +1,6 @@
 // One durable task page across clarification, production, saved outputs and revisions.
 // Polling patches the changing sections, leaving the composer and focused controls intact.
-import { $, html, ico, modal, dataUrls, type Safe } from "./dom.ts";
+import { $, html, ico, modal, dataUrls, whenIdle, type Safe } from "./dom.ts";
 import { store } from "./store.ts";
 import { runPopup } from "./cards.ts";
 import { toast } from "./toast.ts";
@@ -587,7 +587,8 @@ export async function refreshTask() {
     data = next;
     if (attentionTasks)
       setTaskAttention([...attentionTasks.filter((t) => t.id !== next.task.id || t.dir !== next.task.dir), next.task]);
-    draw();
+    // Held while the details menu is open or a press is under way.
+    whenIdle($("taskpagev"), draw);
   } catch {
     if (!data)
       $("taskpagev").innerHTML =

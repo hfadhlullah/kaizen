@@ -1,7 +1,7 @@
 // An attention-first list of durable tasks. Legacy entries are adapted by the server
 // and acquire their stable identity on open, so identical titles stay separate.
 import { store } from "./store.ts";
-import { $, html, ico, pageOf, pager, pagerHtml, wirePager } from "./dom.ts";
+import { $, html, ico, pageOf, pager, pagerHtml, whenIdle, wirePager } from "./dom.ts";
 import { age } from "./labels.ts";
 import { setTaskAttention } from "./badge.ts";
 import { newTask } from "./cards.ts";
@@ -99,7 +99,8 @@ export async function refreshTasks() {
       error = "";
       setTaskAttention(items);
       dispatchEvent(new CustomEvent("kz-task-list", { detail: items }));
-      draw();
+      // Held while the filter is open or a press is under way: a redraw would undo either.
+      whenIdle($("tasksv"), draw);
     } catch (e) {
       if (active) {
         error = e instanceof Error ? e.message : "Tasks could not be loaded";

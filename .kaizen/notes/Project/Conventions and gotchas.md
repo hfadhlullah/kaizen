@@ -26,6 +26,7 @@ The rules that are not visible in any one file. Cross-area lessons are in `.kaiz
 - Tests are plain `bun:test` files in `cli/*.test.ts` and `bot/test/`; not every module has its own (`cli/dashboard.ts` and `cli/web.ts` do not).
 - Optional tools (git) are shelled out to with a catch: `Bun.spawnSync` throws when the binary is missing (`.kaizen/memory.md`).
 - Every `Bun.spawn`/`spawnSync` of a console program from the board passes `windowsHide: true`: a board started from the Windows shortcut has no console, so each child otherwise flashes a new console window (#16, the 60 s `/phone` poll).
+- Board pages redraw with `innerHTML`, which drops an open `<details>`/combo and swallows a click whose element is replaced mid-press. Background redraws (server `changed`, `kz-state` polls) go through `whenIdle(root, fn)` in `web/board/dom.ts`, which holds them while a popup is open or the pointer is down (Icebox, Tasks, task page).
 - `design.md` now has monochrome as the default palette, with blue as the alternative (`data-color=blue`, `kz-color`). Green, amber and red stay for state.
 - Root docs and repo metadata (`README.md`, `CONTRIBUTING.md`, `AGENTS.md`, `CLAUDE.md`, `.github/`, ignore and format files) and the vendored `.claude/skills` are listed here for coverage.
 

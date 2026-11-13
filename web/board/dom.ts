@@ -130,3 +130,31 @@ export function wirePager(p: Pager, redraw: () => void) {
       }),
   );
 }
+
+// A background redraw (a server tick, a state poll) waits while the user is mid-gesture:
+// a press in progress, or a popup open in that area. Replacing the DOM then would close
+// the popup (a <details> or combo keeps its open state only in the DOM) or move the
+// element under the pointer so the click never lands. The held redraw runs once the
+// press ends or the popup closes.
+let pressed = false;
+const held = new Map<HTMLElement, () => void>();
+const busy = (root: HTMLElement) =>
+  pressed || !!root.querySelector("details[open], .menu-pop:not([hidden]), .combo [aria-expanded=true]");
+const flush = () => {
+  for (const [root, fn] of [...held]) if (!busy(root)) held.delete(root), fn();
+};
+if (typeof document !== "undefined") {
+  document.addEventListener("pointerdown", () => (pressed = true), true);
+  // After the click has run: its handler may draw for itself, and the held one follows.
+  const up = () => setTimeout(() => ((pressed = false), flush()), 0);
+  document.addEventListener("pointerup", up, true);
+  document.addEventListener("pointercancel", up, true);
+  document.addEventListener("toggle", () => setTimeout(flush, 0), true);
+  document.addEventListener("keyup", () => setTimeout(flush, 0), true);
+  // A popup closed by code (no toggle, no key) is caught by the next tick.
+  setInterval(flush, 1000);
+}
+export function whenIdle(root: HTMLElement | null, fn: () => void) {
+  if (root && busy(root)) held.set(root, fn);
+  else fn();
+}

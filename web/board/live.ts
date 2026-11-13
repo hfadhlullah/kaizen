@@ -1,6 +1,6 @@
 import { store } from "./store.ts";
 import { flushLoad, load } from "./api.ts";
-import { $ } from "./dom.ts";
+import { $, whenIdle } from "./dom.ts";
 import { iceBusy, openSources, srcOpen } from "./icebox.ts";
 import { deep } from "./panel.ts";
 import { keep, urlAll } from "./projects.ts";
@@ -18,7 +18,11 @@ function listen() {
   es.onmessage = (ev) => {
     if (ev.data === "changed") {
       load(true);
-      if (srcOpen() && !iceBusy && !$("src-go")?.disabled && !$("src-add")?.disabled) openSources();
+      // Held while a popup is open or a press is under way, so neither is undone by the rebuild.
+      if (srcOpen())
+        whenIdle($("pbody"), () => {
+          if (srcOpen() && !iceBusy && !$("src-go")?.disabled && !$("src-add")?.disabled) openSources();
+        });
     } else if (ev.data.startsWith("hello ")) {
       const b = ev.data.slice(6);
       if (boot && b !== boot) reloadWhenAway();
