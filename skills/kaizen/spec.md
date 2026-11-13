@@ -213,9 +213,12 @@ switch agents. Both full and lite runners honor the persisted task policy before
 reading global auto/approval defaults.
 
 Task intake/planning may ask questions and propose an outcome, but must not produce
-until the current proposal is explicitly confirmed. Use the sanctioned state command;
-it rejects build/review/done before that confirmation. Do not overwrite task_policy,
-task_id or task_confirmed by hand. The task page owns the versioned decision.
+until the current plan is explicitly approved. Use the sanctioned state command;
+it rejects build/review/done before that approval. Do not overwrite task_policy,
+task_id or task_confirmed by hand. The user may decide in any of three places: the task
+page, the run panel, or by typing to you. The board records the first two; record a
+decision typed to you with the `approved` or `answered` event below. The final yes on
+the result is `kaizen done <run> --user-approved`; it also accepts the task.
 
 Read context with `kaizen task show --task <uuid>`. Publish structured events with
 `kaizen task event --task <uuid> --run <run-id> --operation <stable-event-id> --json '<event>'`.
@@ -227,6 +230,10 @@ input ids; acknowledge the launch before doing anything else:
 - `{"type":"question","text":"...","options":["..."]}` requests material input.
 - `{"type":"proposal","text":"outcome, constraints and checks","details":"full plan"}`
   requests explicit confirmation of this run/iteration/result. Stop production here.
+- `{"type":"approved"}` records that the user approved the current plan by typing to
+  you in the agent terminal. Send it only on a clear yes, then continue the build.
+- `{"type":"answered","text":"..."}` records the user's answer to your open question (or
+  their plan changes) given in the agent terminal, so the task and run pages stop asking.
 - `{"type":"work","text":"..."}` reports genuine production after confirmation.
 - `{"type":"receipt","inputIds":["..."],"outcome":"applied"}` acknowledges only
   dispatched input ids. Use `failed` and `error` for requests not applied.

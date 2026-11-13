@@ -22,8 +22,8 @@ function fixture(runner='full') {
 }
 for(const runner of ['full','lite'])test(`task production gate survives auto/${runner}, questions do not start production, proposal is versioned`,()=>{
  const f=fixture(runner),run=f.now().activeRun!;f.ack();
- expect(setRunState(f.state,run,['stage=build'])).toContain('confirmation');
- expect(finishRun(f.state,run)).toContain('not been confirmed');
+ expect(setRunState(f.state,run,['stage=build'])).toContain('plan approved');
+ expect(finishRun(f.state,run)).toContain('not been approved');
  f.event({type:'question',text:'What date and location should the event use?'});
  const count=f.count();f.send('message',{text:'What is the status?',intent:'question',baseResultId:null});expect(f.count()).toBe(count);
  f.send('message',{text:'November 21, city hall',intent:'change',baseResultId:null});expect(f.count()).toBe(count+1);
@@ -92,9 +92,10 @@ test.skipIf(process.platform==='win32')('HTTP task routes enforce origin, exact 
   const response=await post({op:'create',goal:'Build the workshop page',operationId:'http-create'});expect(response.status).toBe(200);const created:any=await response.json(),id=created.task.id;
   let t=readTask(state,id)!;taskEvent(state,id,t.activeRun!,{type:'ack',launchId:t.launch!.id},'http-ack');
   taskEvent(state,id,t.activeRun!,{type:'proposal',text:'Build the page; backend remains unverified'},'http-proposal');t=readTask(state,id)!;
-  const legacy=await fetch(base+'/decide',{method:'POST',headers:{origin:base,'content-type':'application/json'},body:JSON.stringify({dir:state,id:t.activeRun,awaiting:'approvals.plan'})});expect(legacy.status).toBe(409);
   expect((await post({op:'confirm',id,revision:t.revision,operationId:'wrong-confirm',decisionId:'wrong'})).status).toBe(409);
-  expect((await post({op:'confirm',id,revision:t.revision,operationId:'right-confirm',decisionId:t.pendingDecision!.id})).status).toBe(200);
+  // Approve plan in the run panel is the task's plan approval.
+  const decide=await fetch(base+'/decide',{method:'POST',headers:{origin:base,'content-type':'application/json'},body:JSON.stringify({dir:state,id:t.activeRun,awaiting:'approvals.plan'})});expect(decide.status).toBe(200);
+  expect(readTask(state,id)!.pendingDecision).toBeNull();expect(readTask(state,id)!.initialConfirmed).toBe(true);
   t=readTask(state,id)!;taskEvent(state,id,t.activeRun!,{type:'ack',launchId:t.launch!.id},'http-ack-build');taskEvent(state,id,t.activeRun!,{type:'receipt',inputIds:t.launch!.inputIds},'http-receipt');
   setRunState(state,t.activeRun!,['stage=build']);setRunState(state,t.activeRun!,['stage=review']);expect(finishRun(state,t.activeRun!)).toBeNull();
   writeFileSync(join(project,'result.md'),'# Saved workshop result');writeFileSync(join(project,'unsafe.html'),'<script>fetch("/task",{method:"POST"})</script>');
@@ -310,4 +311,35 @@ test('Stop on a dead agent is a success even when the pump confirmed the stop fi
  f.hooks.alive=(k:string)=>{if(!fired&&f.get(t).status==='stopping'){fired++;f.live.delete(key);reconcile(f.state,f.get(t),f.hooks);}return real(k);};
  const r=f.act(t,'stop');expect(fired).toBe(1);expect(r.status).toBe('interrupted');
  expect(f.act(f.get(t),'stop').status).toBe('interrupted');
+});
+// Every decision can be given on the task page, in the run panel, or typed to the agent.
+test('plan approval and answers typed in the agent terminal settle the task without a second ask',()=>{
+ const f=fixture(),run=f.now().activeRun!;f.ack();
+ f.event({type:'question',text:'Which date?'});expect(f.now().pendingDecision?.kind).toBe('question');
+ f.event({type:'answered',text:'November 21'});expect(f.now().pendingDecision).toBeNull();
+ expect(f.now().events.at(-1)!.text).toContain('November 21');
+ expect(()=>f.event({type:'answered',text:'again'})).toThrow('Nothing is waiting');
+ f.event({type:'proposal',text:'Build the page'});
+ f.event({type:'approved'});
+ expect(f.now().pendingDecision).toBeNull();expect(f.now().initialConfirmed).toBe(true);
+ expect(f.now().inputs.some(i=>i.state==='queued')).toBe(false);
+ expect(setRunState(f.state,run,['stage=build'])).toBeNull();
+});
+test('the run approval accepts the task, and Looks good approves a run waiting on its review',()=>{
+ const f=fixture(),run=f.now().activeRun!;f.ack();
+ f.event({type:'proposal',text:'Build the page'});f.send('confirm',{decisionId:f.now().pendingDecision!.id});f.ack();
+ f.event({type:'receipt',inputIds:f.now().launch!.inputIds});
+ writeFileSync(join(f.root,'out.md'),'# Out');f.event({type:'result',title:'Page',summary:'Ready',artifacts:[{path:'out.md'}],settleMs:0});
+ setRunState(f.state,run,['stage=review','awaiting=approvals.review']);
+ // Looks good on the task page sends the run its Approve.
+ const approved:string[]=[];const hooks={...f.hooks,approve:(_s:string,r:string,a:string)=>{approved.push(r+':'+a);return null;}};
+ const t=taskAction(f.state,{op:'accept',id:f.created.id,revision:f.now().revision,resultId:f.now().currentResult,operationId:'lg'},hooks).task;
+ expect(approved).toEqual([run+':approvals.review']);expect(t.status).toBe('accepted');
+ // The other way: a run accepted elsewhere (run panel or kaizen done --user-approved) accepts the task.
+ const g=fixture(),run2=g.now().activeRun!;g.ack();
+ g.event({type:'proposal',text:'Build'});g.send('confirm',{decisionId:g.now().pendingDecision!.id});g.ack();
+ g.event({type:'receipt',inputIds:g.now().launch!.inputIds});
+ writeFileSync(join(g.root,'out.md'),'# Out');g.event({type:'result',title:'Page',summary:'Ready',artifacts:[{path:'out.md'}],settleMs:0});
+ writeFileSync(join(g.state,'runs',run2,'02-approval.md'),`\naccepted: ${new Date(Date.now()+1000).toISOString()} by user via chat\n`);
+ expect(reconcile(g.state,g.now(),g.hooks).status).toBe('accepted');
 });

@@ -101,7 +101,7 @@ test("attention projection consistently identifies questions, results, recovery,
   expect(t.taskProjection(task).action).toBe("Choose project");
   task.project = "/project"; task.status = "working"; expect(t.taskProjection(task).filter).toBe("in-progress");
   task.pendingDecision = { id: "p", kind: "proposal", text: "Build form", run: "r", iteration: 0, result: null };
-  expect(t.taskProjection(task).label).toBe("Confirm proposal");
+  expect(t.taskProjection(task).label).toBe("Approve plan");
   task.pendingDecision = null; task.status = "interrupted"; expect(t.taskProjection(task).action).toBe("Review and resume");
   task.status = "ready"; task.currentResult = "v1"; expect(t.taskProjection(task).label).toBe("Your feedback needed");
 });

@@ -1864,7 +1864,7 @@ export function launchRun(it: Item, from: string, run?: string, pick: { agent?: 
   const exploreChoice = !run && !pick.skill && typeof pick.explore === "boolean" ? `\n\n[Kaizen launch option: explore=${pick.explore ? "on" : "off"}. Freeze this per-run override at intake; it does not change the saved setting.]` : "";
   const prompt = !it.text ? "" : requestOf(it.where ? `${lead} ${it.text} (${it.where})` : `${lead} ${it.text}`, it.notes, from) + exploreChoice + (pick.task ? `
 
-[Task context: task=${pick.task.id}; run=${run ?? "new"}; initial proposal confirmation=${pick.task.requirePlanConfirmation ? "required" : "already confirmed"}. Read task.json in .kaizen/tasks/${pick.task.id}/. Preserve task identity and frozen task_policy. Use kaizen task events for replies/questions/proposals/work receipts/results; questions do not authorize production. Do not produce until the current proposal is explicitly confirmed. Keep real tool permissions unchanged.]` : "");
+[Task context: task=${pick.task.id}; run=${run ?? "new"}; initial proposal confirmation=${pick.task.requirePlanConfirmation ? "required" : "already confirmed"}. Read task.json in .kaizen/tasks/${pick.task.id}/. Preserve task identity and frozen task_policy. Use kaizen task events for replies/questions/proposals/work receipts/results; questions do not authorize production. Do not produce until the current plan is approved. The user may approve or answer on the task page, the run panel, or in this terminal; record a decision typed here with task event {type:'approved'} or {type:'answered',text}. Keep real tool permissions unchanged.]` : "");
   const wanted = pick.model ?? (own?.cmd === agent.cmd ? own.model : null) ?? undefined;
   const model = wanted && plainModel(wanted) ? wanted : undefined;
   // Yolo was picked for one tool; a fallback to another opens in its normal mode.
@@ -2072,6 +2072,13 @@ export function acceptance(state: string, id: string): "user" | "auto" | null {
     return m ? (m[1].startsWith("auto") ? "auto" : "user") : null;
   } catch { return null; }
 }
+// When the user's acceptance was written, in ms; null when there is none.
+export function acceptedAt(state: string, id: string): number | null {
+  try {
+    const m = /^accepted: (\S+) by user via /m.exec(readText(join(state, "runs", id, "02-approval.md")));
+    return m ? Date.parse(m[1]) || null : null;
+  } catch { return null; }
+}
 export function recordAcceptance(state: string, id: string, via: "board" | "chat" | "auto"): string | null {
   if (acceptance(state, id)) return "That run is already approved.";
   const who = via === "auto" ? "auto (auto_accept)" : `by user via ${via}`;
@@ -2145,9 +2152,9 @@ export function setRunState(state: string, id: string, pairs: string[]): string 
   let existing: any;
   try { existing = JSON.parse(readText(file)); } catch { return "invalid state.json"; }
   if (existing.task_policy) {
-    if (["task_policy", "task_id", "task_confirmed"].some((k) => k in set)) return "task policy is frozen; confirm the current proposal in Tasks";
+    if (["task_policy", "task_id", "task_confirmed"].some((k) => k in set)) return "task policy is frozen; approve the current plan";
     if ((set.stage === "build" || set.stage === "review") && existing.task_policy.requirePlanConfirmation && !existing.task_confirmed)
-      return "task production needs explicit confirmation of the current proposal in Tasks";
+      return `the build needs the current plan approved first. Approve it on the task or run page, or ask the user; on a clear yes run: kaizen task event --task ${existing.task_id} --run ${id} --json '{"type":"approved"}'`;
   }
   let now: any = null;
   if (!setStage(file, (s) => { Object.assign(s, set); now = s; return true; })) return `state.json for ${id} changed while writing or is not valid JSON; read it and retry`;
@@ -2189,7 +2196,7 @@ export function finishRun(state: string, id: string, userApproved = false): stri
   if (!existsSync(file)) return `No run ${id}.`;
   let taskRun: any = {};
   try { taskRun = JSON.parse(readText(file)); } catch {}
-  if (taskRun.task_policy?.requirePlanConfirmation && !taskRun.task_confirmed) return "task proposal has not been confirmed";
+  if (taskRun.task_policy?.requirePlanConfirmation && !taskRun.task_confirmed) return "the task plan has not been approved";
   if (gateOf(state, id) === "needs") {
     if (!userApproved) return `Run ${id} changed files and the user has not approved it. Ask the user; on a clear yes run: kaizen done ${id} --user-approved`;
     const why = recordAcceptance(state, id, "chat");

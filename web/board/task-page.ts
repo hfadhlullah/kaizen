@@ -134,7 +134,7 @@ function decisionView(t: TaskView): Safe | string {
   if (!d || d.kind === "project") return "";
   return html`<section class="tp-decision" aria-labelledby="tp-decision-title">
     <h3 id="tp-decision-title">
-      ${d.kind === "proposal" ? "Confirm the proposal" : d.kind === "project" ? "Choose a project" : "Your answer is needed"}
+      ${d.kind === "proposal" ? "Approve the plan" : d.kind === "project" ? "Choose a project" : "Your answer is needed"}
     </h3>
     <p>${d.summary || d.text}</p>
     ${d.summary && d.text !== d.summary ? html`<p>${d.text}</p>` : ""}${
@@ -153,9 +153,9 @@ function decisionView(t: TaskView): Safe | string {
               data-decision-id="${d.id}"
               ${pending ? html` disabled` : ""}
             >
-              Confirm proposal
+              Approve plan
             </button>
-            <p class="dim">Production starts after you confirm this version. Ask for changes below if needed.</p>`
+            <p class="dim">The build starts after you approve this plan. Ask for changes below if needed.</p>`
         : d.options?.length
           ? html`<div class="tp-options">
               ${d.options.map((o) => html`<button class="btn" type="button" data-answer="${o}">${o}</button>`)}
@@ -232,19 +232,25 @@ function conversationView(t: TaskView): Safe {
             <strong>${m.role === "user" ? "You" : m.role === "system" ? "kaizen" : "Assistant"}</strong
             >${m.at ? html`<time>${new Date(m.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>` : ""}
           </div>
-          <p>${body}</p>
+          <div class="tp-bubble">${body}</div>
         </article>`;
       })}
     </div>
     ${
-      queued(t).length
+      t.status === "working"
+        ? html`<div class="tp-typing" role="status" aria-label="The agent is working"><i></i><i></i><i></i></div>`
+        : ""
+    }${
+      queued(t).some((i) => i.state !== "dispatched")
         ? html`<div class="tp-queue" aria-label="Requests awaiting completion">
-            ${queued(t).map(
-              (i) =>
-                html`<span class="tp-receipt" title="Receipt ${i.id.slice(0, 8)}"
-                  >${i.state === "dispatched" ? "Processing" : i.state === "received" ? "Received" : "Queued for next pass"}</span
-                >`,
-            )}
+            ${queued(t)
+              .filter((i) => i.state !== "dispatched")
+              .map(
+                (i) =>
+                  html`<span class="tp-receipt" title="Receipt ${i.id.slice(0, 8)}"
+                    >${i.state === "received" ? "Received" : "Queued for next pass"}</span
+                  >`,
+              )}
           </div>`
         : ""
     }`;
@@ -428,7 +434,7 @@ function draw() {
       : "",
   );
   $("tp-saved").textContent = savedLine(results.find((r) => r.id === selectedResult) ?? selected);
-  const resultMarkup = String(resultView(results.find((r) => r.id === selectedResult) ?? selected, selectedArtifact));
+  const resultMarkup = String(resultView(results.find((r) => r.id === selectedResult) ?? selected, selectedArtifact, t.status === "working" ? taskStatus(t) : undefined));
   if (signature !== resultMarkup) {
     if (preservePatch("tp-result", resultMarkup)) {
       signature = resultMarkup;
@@ -517,7 +523,7 @@ async function action(op: string, extra: Record<string, unknown> = {}) {
         : op === "accept"
           ? "Result accepted. It has not been published by this action."
           : op === "confirm"
-            ? "Proposal confirmed."
+            ? "Plan approved."
             : "Saved.";
   await refreshTask();
   if (r.conflict)

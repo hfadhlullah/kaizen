@@ -48,6 +48,21 @@ undoing edits. Finished runs stay finished; later changes create linked internal
 
 Initial production requires confirmation of the current proposal/run/iteration/result
 under full/lite and auto, without changing account/tool permissions or global config.
+Users see it as the plan; stored data keeps `proposal`. Every decision can be given in
+three places, and each one settles the other two:
+- Plan: task page "Approve plan", run panel Approve (`/decide` on `approvals.plan` routes to
+  the task's `confirm` op; plan question answers follow as one message; a revise is a
+  `message`), or a yes typed to the agent, which sends task event `approved`.
+- Question: task page reply, run panel footer (options + Reply, posting `/task` `message`;
+  cards carry `task.question` from `/state`), or an answer typed to the agent, which sends
+  task event `answered {text}`.
+- Result: task page Looks good (on a run awaiting `approvals.review`/`findings` it sends the
+  run's Approve through the `approve` hook; on a done run it records the run's acceptance),
+  run panel Approve or Looks good, or `kaizen done --user-approved`. `reconcile` accepts a
+  ready task whose run has a user acceptance written after the current result; the pump
+  reconciles ready tasks every second for the terminal path.
+While the task is `working` and has no result, the result area shows a spinner and the
+conversation a typing indicator.
 Task acceptance is separate from technical completion and publishing. Current completed
 results cannot be accepted with queued work or unresolved decisions.
 

@@ -282,7 +282,30 @@ export async function web(repoDir: string, opts: Opts = {}) {
     : [cur]
   ).filter((d, i, arr) => arr.indexOf(d) === i && existsSync(d));
 
+  // A run's decision sent to its agent: the agent already open in this run's card takes it
+  // there, as it takes a fix: no second tab of the same conversation. With none, the run's
+  // conversation continues in one new window, and then the idle one ends. A failed launch
+  // leaves it open, since the decision went nowhere.
+  const sendDecision = (dir: string, id: string, awaiting: string, why?: string, answers?: string[]) => {
+    const text = approvalPrompt(id, awaiting, why, answers);
+    const live = liveAgent(dir, id);
+    const before = Date.now();
+    const r = live ? { ok: true as const, pty: live.key, agent: live.cmd, reused: true } : launchRun({ severity: null, where: null, text, raw: text }, dir, id, inCard(dir));
+    if (live) submitPty(live.key, text);
+    else if (r.ok) closeSessions(dir, id, { before });
+    // The plan's approval starts the build; fixing open findings is the review stage again.
+    if (r.ok) markStage(dir, id, awaiting === "approvals.plan" ? "impl" : awaiting === "findings" ? "review" : "", r.pty);
+    // Approving the review as-is is the user's acceptance, on record before the
+    // agent marks the run done; a revise is not.
+    if (r.ok && why === undefined && (awaiting === "approvals.review" || awaiting === "findings")) recordAcceptance(dir, id, "board");
+    return { r, live };
+  };
+  // A task whose run was just approved picks the approval up as its Looks good.
+  const syncTask = (dir: string, taskId: string) => {
+    try { const found = tasks.resolveTask(dir, taskId); if (found) taskService.reconcile(found.state, found.task, taskHooks); } catch { /* the next read reconciles */ }
+  };
   const taskHooks = {
+    approve: (dir: string, id: string, awaiting: string) => { const { r } = sendDecision(dir, id, awaiting); return r.ok ? null : (r.why || "The run's agent could not be reached"); },
     launch: (dir: string, id: string, text: string, task: tasks.Task, pick?: any) => {
       const live = liveAgent(dir, id);
       if (live) { submitPty(live.key, text); return { ok: true, pty: live.key }; }
@@ -295,7 +318,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
   const taskPump = setInterval(() => {
     for (const dir of states(true)) for (const task of tasks.listTasks(dir)) {
       // A stopping task is asked to stop again until its terminal is gone, not only when someone opens it.
-      if (task.status === "stopping" && !task.archived) { try { if (taskService.reconcile(dir, task, taskHooks).revision !== task.revision) changed(); } catch { /* next pass */ } continue; }
+      // A ready task also picks up its run's acceptance given in the agent terminal (kaizen done --user-approved).
+      if ((task.status === "stopping" || task.status === "ready") && !task.archived) { try { if (taskService.reconcile(dir, task, taskHooks).revision !== task.revision) changed(); } catch { /* next pass */ } if (task.status === "stopping") continue; }
       if (!task.safe || task.queuePaused || task.pendingDecision || !task.inputs.some(i => i.state === "queued")) continue;
       try { taskService.dispatchReady(dir, task.id, taskHooks); changed(); } catch { /* CAS conflict: next pass reads the new state */ }
     }
@@ -1548,6 +1572,17 @@ export async function web(repoDir: string, opts: Opts = {}) {
         // Off this thread: it also relays every terminal, and a rebuild here froze their typing.
         const { cards, extra, backlog } = await buildSnap(dirs, gitGen).catch(() => snapshot(dirs, gitGen));
         const pty = ptyOf(cards), beat = heartbeatMinutes();
+        // A task's decisions shown on its run too: the open question, and Looks good when it may be given.
+        const taskByRun = new Map<string, { id: string; dir: string; revision: number; result: string | null; question?: { id: string; text: string; options: string[] }; accept: boolean }>();
+        for (const d of new Set(cards.filter((c) => c.kind === "run").map((c) => c.state))) {
+          try {
+            for (const t of tasks.listTasks(d)) {
+              if (t.archived || !t.activeRun) continue;
+              const q = t.pendingDecision?.kind === "question" && t.pendingDecision.run === t.activeRun ? t.pendingDecision : null;
+              taskByRun.set(d + "\0" + t.activeRun, { id: t.id, dir: d, revision: t.revision, result: t.currentResult, ...(q ? { question: { id: q.id, text: q.text, options: q.options ?? [] } } : {}), accept: t.status !== "accepted" && taskService.allowedActions(d, t, taskHooks).accept });
+            }
+          } catch { /* a task file mid-write: the next refresh has it */ }
+        }
         // The agents open now, for the sidebar cards: one list per tick, from the cards' sessions and the board's agent
         // shells. ws is as the card or shell has it; the page resolves it to a listed workspace. Ended agents are left out.
         const agents: any[] = [], seenKey = new Set<string>(), ptys = cards.map(pty);
@@ -1577,6 +1612,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           fresh: unset.map((d) => ({ dir: join(d, ".kaizen"), label: tilde(d) })),
           agents,
           cards: cards.map((c, i) => {
+            const task = c.kind === "run" && c.id ? taskByRun.get(c.state + "\0" + c.id) : undefined;
             const rep = c.kind === "run" && c.id && c.status !== "done" && c.status !== "abandoned" ? readReport(c.state, c.id) : null;
             const signal = signalOf(c, rep, ptys[i] as any, Date.now(), beat);
             // Only a run that has workers.json carries `workers`: any other card is as it was.
@@ -1584,7 +1620,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
             // No terminal left to wake: the card says so, and approval works here as for any run.
             const hand = c.kind === "run" && c.id ? readHandoff(c.state, c.id) : null, parentPty = hand ? ptyState(hand.parent_terminal) : null;
             const unwoken = wakeAction(hand, parentPty ? { ...parentPty, typedAt: parentPty.typedAt ?? 0 } : null, Date.now()), orphan = unwoken === "gone" || unwoken === "held";
-            return { ...c, notice: notice(orphan ? { ...c, handoff: hand!.status } : c), ...extra[i], pty: ptys[i], signal, ...(ws ? { workers: ws.workers.map((x) => ({ id: x.id, title: x.title, status: workerStale(x, x.key ? ptyState(x.key) : null, Date.now(), beat) ? "stale" : x.status, bypass: x.bypass })), ...(ws.merge && ws.merge.status !== "merged" ? { workersMerge: ws.merge.status } : {}) } : {}), ...(rep?.phase ? { phase: rep.phase } : {}), ...(signal === "blocked" ? { blocked: rep!.blocked } : {}) };
+            return { ...c, notice: notice(orphan ? { ...c, handoff: hand!.status } : c), ...extra[i], pty: ptys[i], signal, ...(ws ? { workers: ws.workers.map((x) => ({ id: x.id, title: x.title, status: workerStale(x, x.key ? ptyState(x.key) : null, Date.now(), beat) ? "stale" : x.status, bypass: x.bypass })), ...(ws.merge && ws.merge.status !== "merged" ? { workersMerge: ws.merge.status } : {}) } : {}), ...(rep?.phase ? { phase: rep.phase } : {}), ...(signal === "blocked" ? { blocked: rep!.blocked } : {}), ...(task ? { task } : {}) };
           }),
           backlog: backlog.map((b) => ({ ...b, starting: backlogLaunched.has(`${b.state}\0${b.source}#${b.n}`) || undefined })),
           now: Date.now(),
@@ -2731,31 +2767,37 @@ export async function web(repoDir: string, opts: Opts = {}) {
             const why = recordAcceptance(dir, id, "board");
             if (why) return bad(why, 409);
             finishRun(dir, id);
+            if (run.task_id) syncTask(dir, String(run.task_id));
             changed();
             return json({ ok: true });
           }
-          if (run.task_id && run.awaiting === "approvals.plan") return bad("Confirm the current proposal on the task page so its version is checked.", 409);
+          // A task's plan approval is the task's proposal confirmation: route it through the
+          // task so the same version check and receipts apply. A revise is a change message.
+          if (run.task_id && run.awaiting === "approvals.plan" && body.awaiting === "approvals.plan") {
+            const found = tasks.resolveTask(dir, String(run.task_id));
+            const d = found?.task.pendingDecision;
+            if (!found || !d || d.kind !== "proposal" || d.run !== id) return bad("This task has no plan waiting. Refresh and try again.", 409);
+            const why = body.why === undefined ? "" : String(body.why).trim();
+            if (body.why !== undefined && !why) return bad("a revise needs a comment");
+            const answers = Array.isArray(body.answers) ? body.answers.filter((a: unknown) => typeof a === "string" && a.trim()).slice(0, 20) : [];
+            try {
+              const op = why ? { op: "message", text: why } : { op: "confirm", decisionId: d.id };
+              const done = taskService.taskAction(found.state, { ...op, id: found.task.id, revision: found.task.revision, operationId: `decide:${id}:${d.id}:${why ? "revise" : "confirm"}` }, taskHooks);
+              // The plan's questions answered with the approval reach the agent as one message.
+              if (!why && answers.length) taskService.taskAction(found.state, { op: "message", text: "Answers to the plan's questions:\n" + answers.join("\n"), id: found.task.id, revision: done.task.revision, operationId: `decide:${id}:${d.id}:answers` }, taskHooks);
+            } catch (e) { return bad((e as Error).message, e instanceof tasks.TaskError ? e.status : 400); }
+            changed();
+            return json({ ok: true, task: true });
+          }
           if (!canApproveAwaiting(run.awaiting) || run.awaiting !== body.awaiting) return bad("this run is not waiting on that approval", 409);
           if (run.awaiting === "findings" && body.why !== undefined) return bad("open findings can only be approved as-is or fixed individually", 409);
           if (body.why !== undefined && !String(body.why).trim()) return bad("a revise needs a comment");
           const answers = body.answers;
           if (answers !== undefined && (run.awaiting !== "approvals.plan" || body.why !== undefined || !Array.isArray(answers)
             || !answers.length || answers.length > 20 || answers.some((a: unknown) => typeof a !== "string" || !a.trim()))) return bad("bad answers");
-          const text = approvalPrompt(id, run.awaiting, body.why === undefined ? undefined : String(body.why), answers);
-          // The agent already open in this run's card takes the decision there, as it takes
-          // a fix: no second tab of the same conversation. With none, the run's conversation
-          // continues in one new window, and then the idle one ends. A failed launch leaves
-          // it open, since the decision went nowhere.
-          const live = liveAgent(dir, id);
-          const before = Date.now();
-          const r = live ? { ok: true as const, pty: live.key, agent: live.cmd, reused: true } : launchRun({ severity: null, where: null, text, raw: text }, dir, id, inCard(dir));
-          if (live) submitPty(live.key, text);
-          else if (r.ok) closeSessions(dir, id, { before });
-          // The plan's approval starts the build; fixing open findings is the review stage again.
-          if (r.ok) markStage(dir, id, run.awaiting === "approvals.plan" ? "impl" : run.awaiting === "findings" ? "review" : "", r.pty);
-          // Approving the review as-is is the user's acceptance, on record before the
-          // agent marks the run done; a revise is not.
-          if (r.ok && body.why === undefined && (run.awaiting === "approvals.review" || run.awaiting === "findings")) recordAcceptance(dir, id, "board");
+          const { r, live } = sendDecision(dir, id, run.awaiting, body.why === undefined ? undefined : String(body.why), answers);
+          // A task's run approved here is the task's Looks good too.
+          if (r.ok && run.task_id) syncTask(dir, String(run.task_id));
           changed();
           return json(r.ok
             ? { ok: true, agent: r.agent, pty: r.pty, ...(live ? { reused: true } : {}) }
@@ -2775,6 +2817,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           const why = recordAcceptance(dir, id, "board");
           if (why) return bad(why, 409);
           finishRun(dir, id);
+          if (st.task_id) syncTask(dir, String(st.task_id));
           changed();
           return json({ ok: true });
         }

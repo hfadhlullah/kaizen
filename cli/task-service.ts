@@ -6,9 +6,11 @@ import { join, dirname } from 'node:path';
 import * as T from './tasks.ts';
 import * as R from './task-results.ts';
 import { read as scalar } from './config-values.ts';
-import { detectDefaultAgent, home, readInbox, writeInbox, replaceTask, abandonRun, setArchived, readRuns, readText, saveAttachment, acceptance, gateOf } from './state.ts';
+import { detectDefaultAgent, home, readInbox, writeInbox, replaceTask, abandonRun, setArchived, readRuns, readText, saveAttachment, acceptance, acceptedAt, gateOf, recordAcceptance, finishRun } from './state.ts';
 
-type Hooks = { launch: (state:string, run:string, text:string, task:T.Task, pick?:any) => {ok:boolean; pty?:string; why?:string}; alive:(pty:string)=>boolean; stop:(pty:string)=>boolean; find?:(state:string,run:string)=>string|undefined };
+type Hooks = { launch: (state:string, run:string, text:string, task:T.Task, pick?:any) => {ok:boolean; pty?:string; why?:string}; alive:(pty:string)=>boolean; stop:(pty:string)=>boolean; find?:(state:string,run:string)=>string|undefined;
+  // Sends the run's own Approve (review or open findings) to its agent, as the run panel does.
+  approve?:(state:string,run:string,awaiting:string)=>string|null };
 const runtimeLaunches = new Set<string>();
 const parse = (file:string) => { try { return JSON.parse(readFileSync(file,'utf8')); } catch { return null; } };
 const put = (file:string,value:unknown) => { const temp = file + `.${process.pid}.${randomUUID()}.tmp`; writeFileSync(temp,JSON.stringify(value,null,2)+'\n'); renameSync(temp,file); };
@@ -25,8 +27,9 @@ export function allowedActions(state:string,task:T.Task,hooks?:Hooks) {
   const key=agentKey(state,task,hooks),alive=!!(key&&hooks?.alive(key));
   let accept=false,acceptWhy:string|undefined;
   try{T.acceptTask(structuredClone(task),task.currentResult??'');accept=true;}catch{/* not acceptable now */}
-  if(accept&&run&&!finished){accept=false;acceptWhy='The workflow is still reviewing this result';}
-  else if(accept&&run?.awaiting&&!run.healed){accept=false;acceptWhy='Resolve the blocking workflow decision first.';}
+  // Looks good on a run that waits for its review approval (or open findings) is that approval: it is sent to the run.
+  const approvable=!!run&&!run.healed&&['approvals.review','findings'].includes(run.awaiting)&&!!hooks?.approve;
+  if(accept&&run&&!finished&&!approvable){accept=false;acceptWhy=run.awaiting?'Resolve the blocking workflow decision first.':'The workflow is still reviewing this result';}
   return {accept,...(acceptWhy?{acceptWhy}:{}),
     stop:(live&&['draft','waiting','working','ready'].includes(task.status))||(['failed','interrupted','working'].includes(task.status)&&alive),
     // A ready task whose run is still in review but whose agent is gone can only finish by relaunching it.
@@ -64,6 +67,12 @@ export function reconcile(state:string,task:T.Task,hooks?:Hooks):T.Task {
   if(['working','interrupted'].includes(task.status)&&task.currentResult&&!task.pendingDecision&&task.inputs.every(i=>['applied','failed'].includes(i.state))&&!(hooks&&task.launch?.pty&&hooks.alive(task.launch.pty))){
     const run=runState(state,task);
     if(run&&(run.stage==='done'||run.healed))return T.mutateTask(state,task.id,{revision:task.revision,opId:`finished:${task.revision}`},t=>{t.status='ready';t.safe=true;t.writePhase=false;t.queuePaused=false;t.error=undefined;t.launch=null;T.addEvent(t,'system','finished','The run finished and the saved result is ready to review.');});
+  }
+  // The run's acceptance (its Approve in the run panel, or kaizen done --user-approved after a yes in the terminal)
+  // is the task's Looks good, when it came after the current result.
+  if(task.status==='ready'&&task.currentResult&&task.activeRun&&acceptance(state,task.activeRun)==='user'){
+    const at=acceptedAt(state,task.activeRun)??0,made=Date.parse(String(resultViews(state,task.id).find((r:any)=>r.id===task.currentResult)?.createdAt??''))||0;
+    if(at>=made){try{const probe=structuredClone(task);T.acceptTask(probe,task.currentResult);return T.mutateTask(state,task.id,{revision:task.revision,opId:`run-accepted:${task.currentResult}`},t=>{T.acceptTask(t,t.currentResult!);});}catch{/* not acceptable yet */}}
   }
   if(task.status==='stopping'&&hooks){
     // Stop is finished when the terminal is gone, or when there is none to wait for. A live one is asked again.
@@ -103,7 +112,7 @@ export function dispatchReady(state:string,id:string,hooks:Hooks,initial=false,p
   const context=JSON.stringify({task:id,launch:task.launch.id,inputIds:ids,currentResult:task.currentResult,initialConfirmed:task.initialConfirmed});
   const command=`${JSON.stringify(process.execPath)} ${JSON.stringify(join(import.meta.dir,'install.ts'))}`;
   const protocol=join(dirname(import.meta.dir),'skills','kaizen','spec.md');
-  const text=`Resume run ${run} for the persistent task. Read its state and request. Task context: ${context}. ${task.initialConfirmed?'Routine revision is authorized; preserve the accepted direction. Material scope changes require a new proposal.':'Perform intake/clarification and planning only. Publish a concise proposal and wait for explicit confirmation before any production, even in auto mode.'} Task protocol source: ${protocol}. Use the current implementation command ${command} task (the globally installed kaizen may be older). First acknowledge this launch with ${command} task event --task ${id} --run ${run} --json '${JSON.stringify({type:'ack',launchId:task.launch.id})}'. Structured event types: ack {launchId}, reply/question/proposal {text,details?,options?}, work {text}, receipt {inputIds,outcome:'applied'|'failed'}, boundary {text}, result {title,summary,artifacts:[{path|url,name?}],checks:[],limitations:[]}. Pass --operation a stable id for replay. A receipt acknowledges only dispatched ids; boundary means no active writes. Publish only settled completed files; never claim registration backend checks from a rendered form. Read the source workflow Task protocol. Inputs: ${task.inputs.filter(i=>ids.includes(i.id)).map(i=>`[${i.id}] ${i.text}`).join('\n')}`;
+  const text=`Resume run ${run} for the persistent task. Read its state and request. Task context: ${context}. ${task.initialConfirmed?'Routine revision is authorized; preserve the accepted direction. Material scope changes require a new proposal.':'Perform intake/clarification and planning only. Publish a concise proposal and wait for explicit confirmation before any production, even in auto mode.'} Task protocol source: ${protocol}. Use the current implementation command ${command} task (the globally installed kaizen may be older). First acknowledge this launch with ${command} task event --task ${id} --run ${run} --json '${JSON.stringify({type:'ack',launchId:task.launch.id})}'. Structured event types: ack {launchId}, reply/question/proposal {text,details?,options?}, approved {} and answered {text} when the user approves the plan or answers in this terminal, work {text}, receipt {inputIds,outcome:'applied'|'failed'}, boundary {text}, result {title,summary,artifacts:[{path|url,name?}],checks:[],limitations:[]}. Pass --operation a stable id for replay. A receipt acknowledges only dispatched ids; boundary means no active writes. Publish only settled completed files; never claim registration backend checks from a rendered form. Read the source workflow Task protocol. Inputs: ${task.inputs.filter(i=>ids.includes(i.id)).map(i=>`[${i.id}] ${i.text}`).join('\n')}`;
   runtimeLaunches.add(task.launch.id);
   let outcome;try{
     const selected=detectDefaultAgent(dirname(state)), requested=config(state,'agent.default','auto');
@@ -182,15 +191,19 @@ export function taskAction(state:string,body:any,hooks:Hooks):{state:string;task
     else if(op==='resume'){const key=agentKey(state,t,hooks);if(key&&hooks.alive(key))throw new T.TaskError('The existing agent is still alive. Stop it or reconcile it in Technical details before resuming.');if(!allowed.resume)throw new T.TaskError('This task does not need recovery');T.resumeTask(t);}
     else if(op==='accept'){
       if(!allowed.accept)throw new T.TaskError(allowed.acceptWhy??'Finish the active work and pending decisions before accepting this result');
+      T.acceptTask(structuredClone(t),String(body.resultId??''));
+      // Looks good is also the run's approval, so neither page is left waiting on the other.
+      const run=runState(state,t);
+      if(run&&t.activeRun){
+        if(run.healed||run.stage==='done'){if(gateOf(state,t.activeRun)==='needs'){const why=recordAcceptance(state,t.activeRun,'board');if(why)throw new T.TaskError(why,409);}if(run.healed){const why=finishRun(state,t.activeRun);if(why)throw new T.TaskError(why,409);}}
+        else if(['approvals.review','findings'].includes(run.awaiting)){const why=hooks.approve?hooks.approve(state,t.activeRun,run.awaiting):'This board cannot approve the run';if(why)throw new T.TaskError(why,409);}
+      }
       T.acceptTask(t,String(body.resultId??''));
     }else if(op==='confirm'){
-      const d=t.pendingDecision;if(!d||d.kind!=='proposal'||d.id!==body.decisionId||d.run!==t.activeRun||d.result!==t.currentResult)throw new T.TaskError('This proposal changed. Refresh and review it again.');
-      const file=join(state,'runs',t.activeRun!,'state.json'),run=parse(file);if(!run||Number(run.iteration??0)!==d.iteration||(run.awaiting!=='approvals.plan'&&run.task_confirmed?.proposal!==d.id))throw new T.TaskError('This run is no longer waiting for this proposal.');
-      put(file,{...run,task_confirmed:{proposal:d.id,iteration:d.iteration,at:Date.now()},awaiting:null});
-      const approval=join(state,'runs',t.activeRun!,'02-approval.md');writeFileSync(approval,(readTextSafe(approval)??'')+`\nTask proposal ${d.id} explicitly confirmed by user via board at ${new Date().toISOString()}.\n`);
-      t.initialConfirmed=true;t.pendingDecision=null;t.safe=true;t.status='draft';T.addEvent(t,'user','confirm','Proposal confirmed.');
+      const d=t.pendingDecision;if(!d||d.kind!=='proposal'||d.id!==body.decisionId||d.run!==t.activeRun||d.result!==t.currentResult)throw new T.TaskError('This plan changed. Refresh and review it again.');
+      approvePlan(state,t,d,'board');t.status='draft';
       // The same run continues with a durable input receipt.
-      T.receiveInput(t,{id:operationId+':continue',text:'The current proposal is confirmed. Continue production under the frozen task policy.',intent:'answer',baseResult:t.currentResult});
+      T.receiveInput(t,{id:operationId+':continue',text:'The current plan is approved. Continue production under the frozen task policy.',intent:'answer',baseResult:t.currentResult});
     }else throw new T.TaskError('Unknown task action',400);
   });
   if(op==='stop'){
@@ -203,6 +216,13 @@ export function taskAction(state:string,body:any,hooks:Hooks):{state:string;task
 }
 
 // CLI-only structured events. Raw terminal text is never an acknowledgement.
+// The plan's approval, wherever the user gave it: the task page, the run panel, or a yes typed to the agent.
+function approvePlan(state:string,t:T.Task,d:T.TaskDecision,via:'board'|'terminal'){
+  const file=join(state,'runs',d.run!,'state.json'),run=parse(file);if(!run||Number(run.iteration??0)!==d.iteration||(run.awaiting!=='approvals.plan'&&run.task_confirmed?.proposal!==d.id))throw new T.TaskError('This run is no longer waiting for this plan.');
+  put(file,{...run,task_confirmed:{proposal:d.id,iteration:d.iteration,at:Date.now(),via},awaiting:null});
+  const approval=join(state,'runs',d.run!,'02-approval.md');writeFileSync(approval,(readTextSafe(approval)??'')+`\nTask proposal ${d.id} explicitly confirmed by user via ${via} at ${new Date().toISOString()}.\n`);
+  t.initialConfirmed=true;t.pendingDecision=null;t.safe=true;T.addEvent(t,'user','confirm',via==='terminal'?'Plan approved in the agent terminal.':'Plan approved.');
+}
 export function taskEvent(state:string,id:string,runId:string,event:any,operationId:string):T.Task {
   const task=T.readTask(state,id);if(!task||task.activeRun!==runId)throw new T.TaskError('This run does not own the task');
   let preserving=false;
@@ -215,13 +235,23 @@ export function taskEvent(state:string,id:string,runId:string,event:any,operatio
       t.pendingDecision={id:randomUUID(),kind:event.type,text:String(event.text),run:runId,iteration:run.iteration??0,result:t.currentResult,...(event.details?{details:String(event.details)}:{}),...(Array.isArray(event.options)?{options:event.options.map(String)}:{})};t.status='waiting';t.safe=true;T.addEvent(t,'assistant',event.type,event.text);
       if(t.launch)t.launch.phase='acknowledged';
       if(event.type==='proposal')put(join(state,'runs',runId,'state.json'),{...run,awaiting:'approvals.plan',task_policy:{requirePlanConfirmation:true},task_confirmed:null});
+    }else if(event.type==='approved'){
+      // The user approved the plan by typing to the agent: the agent records it and goes on, nothing is queued.
+      const d=t.pendingDecision;
+      if(d?.kind==='proposal'&&d.run===runId){approvePlan(state,t,d,'terminal');t.status='working';}
+      else if(!run.task_confirmed)throw new T.TaskError('No plan is waiting for approval on this run',409);
+    }else if(event.type==='answered'){
+      // The user answered (or asked for plan changes) in the agent terminal: the decision is settled there.
+      const text=String(event.text??'').trim();if(!text)throw new T.TaskError('The answer text is required',400);
+      if(!t.pendingDecision||t.pendingDecision.run!==runId)throw new T.TaskError('Nothing is waiting for an answer on this run',409);
+      t.pendingDecision=null;t.safe=true;t.status='working';T.addEvent(t,'user','message',text+' (in the agent terminal)');
     }else if(event.type==='work'){
-      if(run.task_policy?.requirePlanConfirmation&&!run.task_confirmed)throw new T.TaskError('Proposal confirmation is required before production');
+      if(run.task_policy?.requirePlanConfirmation&&!run.task_confirmed)throw new T.TaskError('Plan approval is required before the build');
       t.safe=false;t.status='working';T.addEvent(t,'assistant','work',String(event.text??'Working on the task'));
     }else if(event.type==='receipt'){T.acknowledgeInputs(t,event.inputIds??[],event.outcome==='failed'?'failed':'applied',event.error);}
     else if(event.type==='boundary'){T.safeBoundary(t,runId,String(event.text??'Work reached a safe boundary'));}
     else if(event.type==='result'){
-      if(run.task_policy?.requirePlanConfirmation&&!run.task_confirmed)throw new T.TaskError('Proposal confirmation is required');
+      if(run.task_policy?.requirePlanConfirmation&&!run.task_confirmed)throw new T.TaskError('Plan approval is required');
       if(t.inputs.some(i=>i.state==='dispatched'))throw new T.TaskError('Acknowledge the dispatched requests before publishing a result');
       preserving=true;const result=R.publishResult(state,id,{...event,runId,iteration:run.iteration??0,roots:[dirname(state),...(typeof run.worktree==='string'?[run.worktree]:[])],id:stableUuid(`${id}:${runId}:${operationId}`)});
       preserving=false;

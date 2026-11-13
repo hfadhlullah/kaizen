@@ -198,7 +198,7 @@ export function acceptTask(task: Task, result: string) {
   task.acceptedResult = result; task.status = "accepted"; addEvent(task, "user", "accept", "Looks good. Result accepted; publishing is separate.");
 }
 export function taskProjection(task: Task): { filter: "needs-you" | "in-progress" | "completed"; label: string; reason: string; action: string; rank: number } {
-  if (task.pendingDecision) return { filter: "needs-you", label: task.pendingDecision.kind === "proposal" ? "Confirm proposal" : "Your answer needed", reason: task.pendingDecision.text, action: task.pendingDecision.kind === "proposal" ? "Review proposal" : "Reply", rank: 0 };
+  if (task.pendingDecision) return { filter: "needs-you", label: task.pendingDecision.kind === "proposal" ? "Approve plan" : "Your answer needed", reason: task.pendingDecision.text, action: task.pendingDecision.kind === "proposal" ? "Review plan" : "Reply", rank: 0 };
   if (["failed", "interrupted"].includes(task.status)) return { filter: "needs-you", label: task.status === "failed" ? "Needs recovery" : "Work interrupted", reason: task.error || "The update stopped before finishing. Saved results and requests remain available.", action: "Review and resume", rank: 1 };
   if (task.status === "accepted" && task.acceptedResult === task.currentResult) return { filter: "completed", label: "Completed", reason: "You accepted this result. Publishing is separate.", action: "View result", rank: 4 };
   if (task.status === "ready" && !task.inputs.some((i) => ["queued", "received", "dispatched"].includes(i.state))) return { filter: "needs-you", label: "Your feedback needed", reason: "The latest result is ready to review.", action: "Review result", rank: 2 };

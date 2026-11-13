@@ -107,11 +107,17 @@ export function artifactView(a: TaskArtifact, selected = false): Safe {
     ${view}
   </section>`;
 }
-export function resultView(result: TaskResult | undefined, artifactId?: string): Safe {
+export function resultView(result: TaskResult | undefined, artifactId?: string, working?: string): Safe {
+  if (!result && working)
+    return html`<div class="tp-result-empty tp-building" role="status">
+      <span class="tp-spinner" aria-hidden="true"></span>
+      <h3>The agent is building</h3>
+      <p>${working}</p>
+    </div>`;
   if (!result)
     return html`<div class="tp-result-empty">
       <h3>Your result will appear here</h3>
-      <p>Answer any questions in the conversation. You will confirm a short proposal before production starts.</p>
+      <p>Answer any questions in the conversation. You approve a short plan before the build starts.</p>
     </div>`;
   const artifacts = result.artifacts ?? [],
     selected = artifacts.find((a) => a.id === artifactId) ?? artifacts[0];

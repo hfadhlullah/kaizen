@@ -270,6 +270,12 @@ export async function openRun(c, refresh, again) {
   // Its in-card agent ended on a waiting or done run: reopen that conversation, nothing sent.
   const rs = c.pty && !c.pty.alive ? `<button class="btn" data-a="resume">Resume session</button>` : "";
   if (c.archived) foot.innerHTML = raw(arch);
+  // A task's question, answered here as on the task page or in the agent's terminal.
+  else if (c.task?.question)
+    foot.innerHTML = html`<span class="note"><b>Question:</b> ${c.task.question.text}</span>${raw(rs)}<span class="dec">${c.task.question.options.map((o) => html`<button class="btn" data-a="tq-opt" data-v="${o}">${o}</button>`)}<button class="btn pri" data-a="tq-reply">Reply</button></span>`;
+  // The task's Looks good on its finished run, for a run that had no review approval to give.
+  else if (c.task?.accept && c.status === "done" && c.accept !== "needs")
+    foot.innerHTML = html`<span class="note">Result ready.</span>${raw(arch + rs)}<button class="btn pri" data-a="looks-good">Looks good</button>`;
   else if (c.healed && c.awaiting === "approvals.review")
     foot.innerHTML = html`<span class="note">Finished by its agent without your approval. Nothing is committed until you approve.</span>${raw(arch + rs)}<button class="btn pri" data-a="accept">Approve</button>`;
   else if ((c.status === "waiting" || c.awaiting === "findings") && APPROVAL[c.awaiting]) {
@@ -295,6 +301,18 @@ export async function openRun(c, refresh, again) {
     (b) =>
       (b.onclick = () => {
         const a = b.dataset.a;
+        if (a === "tq-opt" || a === "looks-good") {
+          b.disabled = true;
+          taskPost(c, a === "looks-good" ? { op: "accept", resultId: c.task.result } : { op: "message", text: b.dataset.v }).then((r) => {
+            if (r.ok) toast(a === "looks-good" ? "Accepted" : "Answer sent");
+            else b.disabled = false;
+          });
+          return;
+        }
+        if (a === "tq-reply") {
+          taskReply(c);
+          return;
+        }
         if (a === "skip-explore") {
           b.disabled = true;
           post("/explore/skip", { dir: c.state, id: c.id }).then((r) => {
@@ -343,6 +361,37 @@ export async function openRun(c, refresh, again) {
         formPopup(c, "reject");
       }),
   );
+}
+// A task's own action, sent from its run's panel.
+const taskPost = (c, body) =>
+  post("/task", { dir: c.task.dir, id: c.task.id, revision: c.task.revision, operationId: crypto.randomUUID(), ...body });
+function taskReply(c) {
+  const foot = $("pfoot");
+  foot.innerHTML = html`<div class="inl" style="flex:1"><div class="q">${c.task.question.text}</div><div class="q dim">Your answer goes to the agent, as from the task page.</div><textarea aria-label="Your answer"></textarea><div class="row"><button class="btn ghost" data-a="c">Cancel</button><button class="btn pri" data-a="s">Send</button></div></div>`;
+  const inp = foot.querySelector("textarea");
+  inp.focus();
+  foot.querySelector("[data-a=c]").onclick = () => {
+    foot.innerHTML = "";
+    openRun(c, true);
+  };
+  foot.querySelector("[data-a=s]").onclick = (e) => {
+    const text = inp.value.trim();
+    if (!text) {
+      toast("Write your answer");
+      inp.focus();
+      return;
+    }
+    e.target.disabled = true;
+    taskPost(c, { op: "message", text }).then((r) => {
+      if (!r.ok) {
+        e.target.disabled = false;
+        return;
+      }
+      toast("Answer sent");
+      foot.innerHTML = "";
+      openRun(c, true);
+    });
+  };
 }
 // A link from a note (?run= or ?idea=, with dir, tab, item) opens that card's panel;
 // a finding or backlog item named is scrolled to and marked. Found by its text, since

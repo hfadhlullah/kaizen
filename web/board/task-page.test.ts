@@ -166,7 +166,7 @@ test("unsafe URLs never become embedded outputs and mutable live preview is labe
 });
 test("missing files and no results explain their limits instead of claiming availability", () => {
   expect(String(artifactView({ ...result.artifacts[0], missing: true }, true))).toContain("saved file is unavailable");
-  expect(String(resultView(undefined))).toContain("confirm a short proposal");
+  expect(String(resultView(undefined))).toContain("approve a short plan");
 });
 
 test("task attention counts acceptance separately from source-control housekeeping", () => {
