@@ -147,6 +147,13 @@ export function devUrl(pv: string | null | undefined, ports: number[]): string |
 // yet opened the Browser: once per run id (`seen`).
 export const toOpen = (cards: any[], was: Set<string>, seen: string[], keyOf: (c) => string) => cards.filter((c) => reviewing(c) && !was.has(keyOf(c)) && !seen.includes(keyOf(c)));
 
+// `kaizen preview` written from folder `pws` belongs to workspace `ws`: the same folder or one inside
+// it, but never a worktree under it (`.kaizen/wt/`), which is a workspace of its own.
+export const previewIn = (pws: string, ws: string) => pws === ws || (pws.startsWith(ws + "/") && !pws.startsWith(ws + "/.kaizen/wt/"));
+// A preview opens a tab only when written after the last one this visit recorded; the first look at
+// a workspace (`last` undefined: a click, a switch, a reload) only records.
+export const previewOpens = (at: number, last: number | undefined) => last !== undefined && at > last;
+
 // ---- the sidebar card's agents (/state `agents`, one entry per open agent terminal)
 export type Agent = { key: string; dir: string; ws?: string; agent?: string; name: string; run?: string; asking: boolean; busy: boolean; last?: string; at?: number; born?: number; land?: string };
 export type Status = "conflict" | "failed" | "asking" | "working" | "done";

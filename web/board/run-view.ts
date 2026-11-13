@@ -19,7 +19,7 @@ import { load, post } from "./api.ts";
 import { attach, md, preview } from "./markdown.ts";
 import { layout } from "./terms.ts";
 import { cardHref, markCurrent, railData, stateOf, titleOf, wsHref, wsOfCard } from "./workspace.ts";
-import { type Node, type Box, awaiting, chosen, devUrl, finished, historyOf, leaves, liveIn, loopbackUrl, migrate, nearestPane, newRun, pickable, prune, reviewing, stageTabs, toOpen, wsKey } from "./ws-tabs.ts";
+import { type Node, type Box, awaiting, chosen, devUrl, finished, historyOf, leaves, liveIn, loopbackUrl, migrate, nearestPane, newRun, pickable, previewIn, previewOpens, prune, reviewing, stageTabs, toOpen, wsKey } from "./ws-tabs.ts";
 import { drawPick, hidePick, initPick, setOpen } from "./run-pick.ts";
 import { age } from "./labels.ts";
 import { go } from "./views.ts";
@@ -183,6 +183,7 @@ export async function showRunView(nav = false) {
   if (fresh) (stopPanes(), (card = null), (ctx = { dir, ws, k }));
   if (fresh && !was.has(k)) was.set(k, new Set(mineNow().filter(reviewing).map(key))); // what is already in review does not open the Browser
   if (fresh) seenRuns.set(k, new Set(mineNow().map(key))); // what is here on arrival is not new
+  if (fresh) previewAt.delete(k); // nor is a preview: arriving only records it
   // The header titles a phone's workspace: the run, else the branch.
   const w = railData().projects?.find((x) => x.dir === dir)?.workspaces?.find((x) => x.path === ws);
   document.querySelector(".hdr h1")!.textContent = want ? titleOf(want) : w?.branch || ws.split(/[\\/]/).pop() || "Workspace";
@@ -1030,8 +1031,9 @@ async function autoBrowse() {
 }
 
 // `kaizen preview <url|image>` (cli/preview.ts) wrote what an agent changed: the Browser tab opens
-// on it, inside the board. Never an outside window. The newest one per workspace opens once; one
-// older than two minutes at first sight is stale and is only recorded.
+// on it, inside the board. Never an outside window. Only in the workspace it was written from, and
+// only while you watch it: each visit's first look records the newest (`previewAt`, per visit), so a
+// click, a switch or a reload never opens a tab, or reopens one you closed.
 const previewAt = new Map<string, number>();
 const fileUrl = (dir: string, image: string) => `${location.origin}/file?dir=${encodeURIComponent(dir)}&p=${encodeURIComponent(image)}`;
 // The latest preview written for this workspace, or null.
@@ -1040,17 +1042,17 @@ async function fetchPreview(dir: string, ws: string) {
   try {
     p = await (await fetch("/preview?dir=" + encodeURIComponent(dir))).json();
   } catch {}
-  const same = p.ws && (p.ws === ws || p.ws.startsWith(ws + "/") || ws.startsWith(p.ws + "/"));
-  return p.at && same && (p.url || p.image) ? p : null;
+  return p.at && p.ws && previewIn(p.ws, ws) && (p.url || p.image) ? p : null;
 }
 async function pollPreview() {
   if (!ctx) return;
   const k = ctx.k, dir = ctx.dir;
   const p = await fetchPreview(dir, ctx.ws);
-  if (!p || ctx?.k !== k || (previewAt.get(k) ?? 0) >= p.at!) return;
-  const first = !previewAt.has(k);
-  previewAt.set(k, p.at!);
-  if (first && Date.now() - p.at! > 120_000) return;
+  if (ctx?.k !== k) return;
+  const at = p?.at ?? 0, last = previewAt.get(k);
+  if (last !== undefined && at <= last) return;
+  previewAt.set(k, at);
+  if (!p || !previewOpens(at, last)) return;
   if (p.image) {
     // A screenshot belongs in Preview; a live page in the Browser.
     autoTab({ id: "preview", kind: "preview", title: "Preview" });

@@ -2,7 +2,7 @@
 description: The run workspace: tabs, Browser and Preview, annotator, split panes, restart resume, agent reports
 tags: [project, web-board]
 sources: [desktop/src/browser-pane.ts, desktop/src/pane-preload.ts, cli/annotate.ts, cli/annotate-proxy.ts, web/annotate.js, web/board/annotate.ts, web/board/annotate-lib.ts, cli/report.ts, web/board/run-view.ts, web/board/badge.ts, web/board/ws-tabs.ts, cli/pty.ts, web/board]
-updated: 2026-11-12
+updated: 2026-11-13
 ---
 # Run workspace
 
@@ -43,3 +43,6 @@ Creating a workspace agent (including split menus) now opens the per-launch Yolo
 ## Persistent Tasks (2026-11-08)
 
 Persistent task pages link to the existing run workspace through Technical details. Task conversation, versioned results and Looks good belong to the task; terminals, plan/review artifacts and git operations remain in the run workspace. Structured Task events supplement existing report.json; terminal text and quiet/busy flags do not acknowledge task delivery or safe write boundaries.
+
+## When Browser and Preview open by themselves (2026-11-13-preview-own-workspace)
+`kaizen preview` writes one `<state>/preview.json` shared by the project and its worktrees. `pollPreview` in `run-view.ts` opens a tab for it only when `previewIn` (`ws-tabs.ts`) says it was written from this workspace or a folder inside it, never from a `.kaizen/wt/` worktree under it (main and its worktrees used to catch each other's previews). It opens only while you watch: every visit's first poll only records the newest (`previewOpens`, `previewAt` cleared when a visit starts), so a click, a workspace switch or a reload never opens a tab or reopens one you closed. A preview written while you were elsewhere stays reachable through + → Preview. A run's own `## Preview` address (`autoBrowse`) is unchanged: once per run, exact workspace.

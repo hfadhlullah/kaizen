@@ -322,3 +322,4 @@ updated: 2026-10-31
 - 2026-11-12 update — Run workspace: annotator redesigned as a floating icon pill, overlay notes list, quoted composer; Close no longer hides the Annotate button for good
 - 2026-11-13 update — Web board/Settings: macOS System Settings layout — four groups with icon tiles, scope card atop the sidebar, Models/Runs pages split from Agents, Keyboard & Dictation, Phone; sections in rounded boxes; parallel load
 - 2026-11-13 run 2026-11-13-floating-home-workspace — Home workspace (new), Terminals, Web board, Server and routes (/shell home, /agents?home=1), Home chat and phone (Chat label on computers), Notebook, Video
+- 2026-11-13 run 2026-11-13-preview-own-workspace — Web board/Run workspace

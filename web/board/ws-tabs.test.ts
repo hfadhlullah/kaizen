@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { nearestPane, agentStatus, agentsHtml, forgetAgents, lineOf, settleIn, toggleOpen, wsAgents, SETTLE_MS, awaiting, dueWord, chosen, newRun, loopbackUrl, devUrl, toOpen, stageKeys, stageTabs, finished, historyOf, liveIn, migrate, pickable, prune, wsKey } from "./ws-tabs.ts";
+import { nearestPane, agentStatus, agentsHtml, forgetAgents, lineOf, settleIn, toggleOpen, wsAgents, SETTLE_MS, awaiting, dueWord, chosen, newRun, loopbackUrl, devUrl, toOpen, previewIn, previewOpens, stageKeys, stageTabs, finished, historyOf, liveIn, migrate, pickable, prune, wsKey } from "./ws-tabs.ts";
 
 const run = (id: string, status: string, o: any = {}) => ({ kind: "run", state: "/p/.kaizen", id, status, moved: 1, ws: "/p", ...o });
 const wsOf = (c) => c.ws;
@@ -227,4 +227,21 @@ test("Explore terminals use their phase name, including an existing plan termina
   expect(
     stageTabs({ kind: "run", stage: "explore", column: 1, pty: { all: ["a"], stages: { plan: "a" } } }, "Codex"),
   ).toEqual([{ key: "a", title: "Explore · Codex" }]);
+});
+
+test("previewIn: a preview belongs to its own workspace and folders inside it, never to a worktree's parent or child", () => {
+  const main = "/p/kaizen", wt = "/p/kaizen/.kaizen/wt/2026-11-13-x";
+  expect(previewIn(main, main)).toBe(true);
+  expect(previewIn(main + "/web", main)).toBe(true); // an agent in a subfolder of main
+  expect(previewIn(wt, main)).toBe(false); // a worktree's preview does not open in main
+  expect(previewIn(main, wt)).toBe(false); // nor main's in the worktree
+  expect(previewIn(wt, wt)).toBe(true);
+  expect(previewIn("/p/kaizen-other", main)).toBe(false);
+});
+
+test("previewOpens: the first look at a workspace only records; a newer preview while watching opens", () => {
+  expect(previewOpens(100, undefined)).toBe(false); // click, switch or reload: never opens, even a fresh one
+  expect(previewOpens(100, 100)).toBe(false); // already recorded (a tab you closed stays closed)
+  expect(previewOpens(200, 100)).toBe(true);
+  expect(previewOpens(200, 0)).toBe(true); // none on arrival, then one is written
 });
