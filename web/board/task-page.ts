@@ -37,6 +37,10 @@ export type TaskView = {
   legacy?: { kind: string; id?: string; text?: string; state?: string };
   error?: string;
   projectName?: string;
+  queuePaused?: boolean;
+  agentAlive?: boolean;
+  // What the server allows now; the page draws this list and decides nothing itself.
+  actions?: { accept: boolean; acceptWhy?: string; stop: boolean; resume: boolean; abandon: boolean; archive: boolean; delete: boolean; start: boolean };
 };
 export type TaskPageData = {
   task: TaskView;
@@ -48,6 +52,8 @@ const queued = (t: TaskView) => (t.inputs ?? []).filter((i) => ["received", "que
 export function canAcceptTask(t: TaskView, result?: TaskResult) {
   return (
     !!result &&
+    t.actions?.accept !== false &&
+    !t.queuePaused &&
     result.id === t.currentResultId &&
     !t.decision &&
     !t.activeRun &&
@@ -259,22 +265,29 @@ function technicalView(t: TaskView, current?: TaskResult): Safe {
       Permission prompts may require the supported terminal controls in the workspace. Stop requests cancellation; it
       does not undo files.
     </p>
-    ${runs.length ? html`<nav aria-label="Linked runs">${runs.map((id) => html`<a class="btn" href="?view=run&id=${id}&dir=${encodeURIComponent(t.dir)}">Open workspace · ${id}</a>`)}</nav>` : html`<p>No run has started yet.</p>`}<div class="tp-close" role="group" aria-label="Close this task"><button type="button" class="btn ghost" data-close="archive">Archive</button>${t.activeRun ? html`<button type="button" class="btn danger" data-close="abandon">Abandon</button>` : html`<button type="button" class="btn danger" data-close="delete">Delete</button>`}</div><small
+    ${runs.length ? html`<nav aria-label="Linked runs">${runs.map((id) => html`<a class="btn" href="?view=run&id=${id}&dir=${encodeURIComponent(t.dir)}">Open workspace · ${id}</a>`)}</nav>` : html`<p>No run has started yet.</p>`}<div class="tp-close" role="group" aria-label="Close this task"><button type="button" class="btn ghost" data-close="archive">Archive</button>${closeButtons(t)}</div><small
       >Task ${t.id} · revision ${t.revision}</small
     >
   </div>`;
+}
+// Archive is always there; Abandon only for a live run; Delete only before any run exists.
+function closeButtons(t: TaskView) {
+  const a = t.actions ?? { abandon: !!t.activeRun, delete: !t.activeRun && !(t.runs ?? []).length };
+  return html`${a.abandon ? html`<button type="button" class="btn danger" data-close="abandon">Abandon</button>` : ""}${a.delete ? html`<button type="button" class="btn danger" data-close="delete">Delete</button>` : ""}`;
 }
 function updateActions() {
   if (!data) return;
   const t = data.task,
     current = (data.results ?? []).find((r) => r.id === t.currentResultId);
   $("tp-accept").hidden = selectedResult !== t.currentResultId || !canAcceptTask(t, current);
-  $("tp-stop").hidden = !t.activeRun || ["interrupted", "failed", "stopped"].includes(t.status ?? "");
+  $("tp-why").textContent = selectedResult === t.currentResultId && !t.decision ? (t.actions?.acceptWhy ?? "") : "";
+  $("tp-stop").hidden = !(t.actions?.stop ?? (!!t.activeRun && !["interrupted", "failed"].includes(t.status ?? "")));
   $("tp-stop").textContent = t.status === "stopping" ? "Stopping…" : "Stop";
   $("tp-stop").disabled = pending || t.status === "stopping";
-  $("tp-resume").hidden = !["interrupted", "failed", "stopped"].includes(t.status ?? "");
+  $("tp-resume").hidden = !(t.actions?.resume ?? ["interrupted", "failed"].includes(t.status ?? ""));
   $("tp-resume").textContent = t.status === "failed" ? "Retry" : "Resume";
   $("tp-start").hidden =
+    t.actions?.start === false ||
     !t.dir || !!t.activeRun || !!t.currentResultId || t.status !== "draft" || t.decision?.kind === "project";
   $("tp-submit").disabled = pending;
   $("tp-submit").textContent = pending ? "Sending…" : t.decision?.kind === "question" ? "Send answer" : "Send";
@@ -328,7 +341,7 @@ function draw() {
           ><button type="button" class="ib" id="tp-chat" aria-label="Conversation" aria-expanded="false" title="Conversation">${ico("note")}<i class="tp-dot" hidden></i></button
           ><details class="ice-filt" id="tp-info"><summary class="ib" aria-label="Task details" title="Details">${ico("more")}</summary><div class="ice-fpop tp-info-pop"><div id="tp-technical"></div></div></details>
         </header>
-        <div class="tp-status" role="status"><span id="tp-status"></span><span id="tp-next"></span><span id="tp-saved" class="dim"></span></div>
+        <div class="tp-status" role="status"><span id="tp-status"></span><span id="tp-next"></span><span id="tp-why" class="dim"></span><span id="tp-saved" class="dim"></span></div>
         <div class="tp-layout">
           <section class="tp-results" aria-label="Task results">
             <div id="tp-history"></div>
@@ -381,7 +394,7 @@ function draw() {
       const ask = { delete: "Delete this task? It is not recorded anywhere.", abandon: "Abandon this run? Saved files are not rolled back." }[op];
       if (ask && !confirm(ask)) return;
       const r = await action(op, op === "abandon" ? { why: "abandoned from the task page" } : {});
-      if (r?.ok && op !== "abandon") {
+      if (r?.ok) {
         history.pushState(null, "", "?view=tasks");
         go("tasks");
       }

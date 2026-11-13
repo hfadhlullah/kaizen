@@ -290,9 +290,12 @@ export async function web(repoDir: string, opts: Opts = {}) {
     },
     alive: (key: string) => ptyState(key)?.alive === true,
     stop: (key: string) => killPty(key),
+    find: (dir: string, run: string) => liveAgent(dir, run)?.key,
   };
   const taskPump = setInterval(() => {
     for (const dir of states(true)) for (const task of tasks.listTasks(dir)) {
+      // A stopping task is asked to stop again until its terminal is gone, not only when someone opens it.
+      if (task.status === "stopping" && !task.archived) { try { if (taskService.reconcile(dir, task, taskHooks).revision !== task.revision) changed(); } catch { /* next pass */ } continue; }
       if (!task.safe || task.queuePaused || task.pendingDecision || !task.inputs.some(i => i.state === "queued")) continue;
       try { taskService.dispatchReady(dir, task.id, taskHooks); changed(); } catch { /* CAS conflict: next pass reads the new state */ }
     }
@@ -1509,7 +1512,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           if (path === "/task-artifact") return taskArtifactResponse(found.state, found.task.id, url.searchParams.get("result") ?? "", url.searchParams.get("artifact") ?? "", req, url.searchParams.get("download") === "1");
           let task = taskService.reconcile(found.state, found.task, taskHooks);
           if (task.safe && !task.queuePaused && !task.pendingDecision && task.inputs.some(i => i.state === "queued")) task = taskService.dispatchReady(found.state, task.id, taskHooks);
-          return json({ task: taskService.taskView(found.state, task), results: taskService.resultViews(found.state, task.id), projects: taskProjects(), defaults: taskService.taskDefaults(found.state) });
+          return json({ task: taskService.taskView(found.state, task, taskHooks), results: taskService.resultViews(found.state, task.id), projects: taskProjects(), defaults: taskService.taskDefaults(found.state) });
         } catch (e) { return bad((e as Error).message, e instanceof tasks.TaskError ? e.status : 400); }
       }
 
@@ -2279,14 +2282,14 @@ export async function web(repoDir: string, opts: Opts = {}) {
               if (!destination || !states(true).includes(destination) || destination === join(home, ".kaizen")) return bad("Choose a named project", 400);
               const task = tasks.transferDraft(found.state, found.task.id, destination, dirname(destination));
               const result = taskService.taskAction(destination, { op: "start", id: task.id, revision: task.revision, operationId: String(body.operationId) + ":start" }, taskHooks);
-              changed(); return json({ ok: true, task: taskService.taskView(result.state, result.task) });
+              changed(); return json({ ok: true, task: taskService.taskView(result.state, result.task, taskHooks) });
             }
             if (!["create", "adopt"].includes(body.op)) {
               const found = tasks.resolveTask(dir, String(body.id ?? ""));
               if (!found || !states(true).includes(found.state)) return bad("unknown task", 404);
             }
             const result = taskService.taskAction(dir, body, taskHooks);
-            changed(); return json({ ok: true, task: taskService.taskView(result.state, result.task) });
+            changed(); return json({ ok: true, task: taskService.taskView(result.state, result.task, taskHooks) });
           } catch (e) { return bad((e as Error).message, e instanceof tasks.TaskError ? e.status : 400); }
         }
 

@@ -8,7 +8,7 @@ import * as R from './task-results.ts';
 import { read as scalar } from './config-values.ts';
 import { detectDefaultAgent, home, readInbox, writeInbox, replaceTask, abandonRun, setArchived, readRuns, readText, saveAttachment, acceptance, gateOf } from './state.ts';
 
-type Hooks = { launch: (state:string, run:string, text:string, task:T.Task, pick?:any) => {ok:boolean; pty?:string; why?:string}; alive:(pty:string)=>boolean; stop:(pty:string)=>boolean };
+type Hooks = { launch: (state:string, run:string, text:string, task:T.Task, pick?:any) => {ok:boolean; pty?:string; why?:string}; alive:(pty:string)=>boolean; stop:(pty:string)=>boolean; find?:(state:string,run:string)=>string|undefined };
 const runtimeLaunches = new Set<string>();
 const parse = (file:string) => { try { return JSON.parse(readFileSync(file,'utf8')); } catch { return null; } };
 const put = (file:string,value:unknown) => { const temp = file + `.${process.pid}.${randomUUID()}.tmp`; writeFileSync(temp,JSON.stringify(value,null,2)+'\n'); renameSync(temp,file); };
@@ -18,13 +18,29 @@ export const taskDefaults = (state:string) => ({ agent: detectDefaultAgent(dirna
 export function resultViews(state:string,id:string) {
   return R.listResults(state,id).map((r:any)=>({...r,createdAt:r.createdAt??r.created,summary:r.summary??'',checks:r.checks??r.validation??[],artifacts:r.artifacts.map((a:any)=>({...a,url:a.url??`/task-artifact?dir=${encodeURIComponent(state)}&task=${id}&result=${r.id}&artifact=${a.id}`,preview:a.preview??'download'}))}));
 }
-export function taskView(state:string,task:T.Task) {
+// The one place that says which buttons a task may use; the page only draws this list and taskAction refuses the rest.
+const agentKey=(state:string,t:T.Task,hooks?:Hooks)=>t.launch?.pty??(t.activeRun?hooks?.find?.(state,t.activeRun):undefined);
+export function allowedActions(state:string,task:T.Task,hooks?:Hooks) {
+  const run=runState(state,task),finished=!!run&&(['done','abandoned'].includes(run.stage)||!!run.healed),live=!!task.activeRun&&!!run&&!finished;
+  const key=agentKey(state,task,hooks),alive=!!(key&&hooks?.alive(key));
+  let accept=false,acceptWhy:string|undefined;
+  try{T.acceptTask(structuredClone(task),task.currentResult??'');accept=true;}catch{/* not acceptable now */}
+  if(accept&&run&&!finished){accept=false;acceptWhy='The workflow is still reviewing this result';}
+  else if(accept&&run?.awaiting&&!run.healed){accept=false;acceptWhy='Resolve the blocking workflow decision first.';}
+  return {accept,...(acceptWhy?{acceptWhy}:{}),
+    stop:(live&&['draft','waiting','working','ready'].includes(task.status))||(['failed','interrupted','working'].includes(task.status)&&alive),
+    // A ready task whose run is still in review but whose agent is gone can only finish by relaunching it.
+    resume:(['interrupted','failed','stopping'].includes(task.status)||(task.status==='ready'&&live))&&!alive,
+    abandon:live||task.status==='stopping',archive:true,delete:!task.runIds.length&&!task.activeRun,
+    start:task.status==='draft'&&!task.activeRun&&!task.currentResult&&!!task.project};
+}
+export function taskView(state:string,task:T.Task,hooks?:Hooks) {
   const p=T.taskProjection(task);
   const run=runState(state,task), finished=run&&(['done','abandoned'].includes(run.stage)||run.healed);
-  return {...task,activeRun:finished&&['ready','accepted'].includes(task.status)?null:task.activeRun,projectName:task.project?.split(/[\\/]/).pop()??'Choose a project',dir:state,updatedAt:task.updated,attention:{category:p.filter,reason:p.reason,action:p.action},statusLabel:p.label,decision:!task.project?{id:'project',kind:'project',text:'Choose a named project for your saved goal.'}:task.pendingDecision,messages:task.events,runs:task.runIds,currentResultId:task.currentResult,acceptedResultId:task.acceptedResult};
+  return {...task,actions:allowedActions(state,task,hooks),...(hooks?{agentAlive:!!(agentKey(state,task,hooks)&&hooks.alive(agentKey(state,task,hooks)!))}:{}),activeRun:finished&&['ready','accepted'].includes(task.status)?null:task.activeRun,projectName:task.project?.split(/[\\/]/).pop()??'Choose a project',dir:state,updatedAt:task.updated,attention:{category:p.filter,reason:p.reason,action:p.action},statusLabel:p.label,decision:!task.project?{id:'project',kind:'project',text:'Choose a named project for your saved goal.'}:task.pendingDecision,messages:task.events,runs:task.runIds,currentResultId:task.currentResult,acceptedResultId:task.acceptedResult};
 }
 export function taskList(states:string[],hooks?:Hooks) {
-  const tasks=states.flatMap(state=>T.listTasks(state).filter(t=>!t.archived).map(t=>taskView(state,reconcile(state,t,hooks))));
+  const tasks=states.flatMap(state=>T.listTasks(state).filter(t=>!t.archived).map(t=>taskView(state,reconcile(state,t,hooks),hooks)));
   // Legacy rows become durable only when opened. Stable keys include stamps/index,
   // never a title-based merge; existing inbox and run files are left intact.
   for(const state of states) {
@@ -42,11 +58,27 @@ export function taskList(states:string[],hooks?:Hooks) {
 const readTextSafe=(f:string)=>{try{return readText(f);}catch{return null;}};
 export function reconcile(state:string,task:T.Task,hooks?:Hooks):T.Task {
   let reason='';
-  if(task.status==='stopping'&&task.launch?.pty&&hooks&&!hooks.alive(task.launch.pty))return T.mutateTask(state,task.id,{revision:task.revision,opId:`stopped:${task.launch.id}`},T.confirmStopped);
+  if(T.normalizePause(structuredClone(task)))task=T.mutateTask(state,task.id,{revision:task.revision,opId:`heal:${task.revision}`},t=>{T.normalizePause(t);});
+  // The run finished with a saved result and nothing left to apply: the task is ready, whatever became of the agent.
+  // Not while its agent is still alive: clearing launch would stop tracking it; the heal runs once it ends.
+  if(['working','interrupted'].includes(task.status)&&task.currentResult&&!task.pendingDecision&&task.inputs.every(i=>['applied','failed'].includes(i.state))&&!(hooks&&task.launch?.pty&&hooks.alive(task.launch.pty))){
+    const run=runState(state,task);
+    if(run&&(run.stage==='done'||run.healed))return T.mutateTask(state,task.id,{revision:task.revision,opId:`finished:${task.revision}`},t=>{t.status='ready';t.safe=true;t.writePhase=false;t.queuePaused=false;t.error=undefined;t.launch=null;T.addEvent(t,'system','finished','The run finished and the saved result is ready to review.');});
+  }
+  if(task.status==='stopping'&&hooks){
+    // Stop is finished when the terminal is gone, or when there is none to wait for. A live one is asked again.
+    const key=agentKey(state,task,hooks);
+    if(key&&hooks.alive(key)){hooks.stop(key);return task;}
+    return T.mutateTask(state,task.id,{revision:task.revision,opId:`stopped:${task.revision}`},t=>stopped(t,key));
+  }
   if(task.launch && ['intent','started'].includes(task.launch.phase) && !runtimeLaunches.has(task.launch.id) && hooks && !(task.launch.pty&&hooks.alive(task.launch.pty))) reason='The launch was interrupted before the agent acknowledged it. Review the existing session before resuming.';
   else if(task.status==='working'&&task.launch?.pty&&hooks&&!hooks.alive(task.launch.pty)&&!task.safe)reason='The agent ended before reporting a safe handback. Your requests and previous results are saved.';
   if(reason) return T.mutateTask(state,task.id,{revision:task.revision,opId:`interrupted:${task.launch?.id}`},t=>{T.recoverLaunch(t);t.status='interrupted';t.error=reason;t.queuePaused=true;});
   return task;
+}
+function stopped(t:T.Task,key?:string) {
+  T.confirmStopped(t);
+  if(!key)T.addEvent(t,'system','stop-unverified','No agent terminal was found on this board. If the agent runs somewhere else it may still be working. Resume starts a new session.');
 }
 function runState(state:string,task:T.Task) { return task.activeRun?parse(join(state,'runs',task.activeRun,'state.json')):null; }
 export function dispatchReady(state:string,id:string,hooks:Hooks,initial=false,pick?:any):T.Task {
@@ -115,23 +147,30 @@ export function taskAction(state:string,body:any,hooks:Hooks):{state:string;task
     return {state,task};
   }
   const found=T.resolveTask(state,String(body.id??''));if(!found)throw new T.TaskError('Unknown task',404);state=found.state;let task=reconcile(state,found.task,hooks);
-  const mutation={revision:Number(body.revision),opId:operationId};
+  // Reconcile may bump the revision between the page's read and this call; a page that held the revision read just before it is not stale.
+  const mutation={revision:Number(body.revision)===found.task.revision&&['stop','abandon','archive'].includes(op)?task.revision:Number(body.revision),opId:operationId};
   if(task.operations.includes(operationId))return {state,task};
+  const allowed=allowedActions(state,task,hooks);
   if(op==='start'){task=T.mutateTask(state,task.id,mutation,t=>{if(t.status!=='draft')throw new T.TaskError('Task already started');});return {state,task:dispatchReady(state,task.id,hooks,true,body.pick&&typeof body.pick==='object'?body.pick:undefined)};}
   if(op==='delete'||op==='archive'||op==='abandon'){
     // Closing a task: Delete only before any run exists; Archive hides it; Abandon ends its run.
     if(op==='delete'){
-      if(task.runIds.length||task.activeRun)throw new T.TaskError('A run already started. Archive or abandon it instead.');
+      if(!allowed.delete)throw new T.TaskError('A run already started. Archive or abandon it instead.');
       replaceTask(state,task.goal,null);T.deleteTask(state,task.id);return {state,task};
     }
-    if(op==='abandon'){
-      if(!task.activeRun)throw new T.TaskError('No run to abandon');
-      const key=task.launch?.pty;if(key&&hooks.alive(key))hooks.stop(key);
-      const bad=abandonRun(state,task.activeRun,String(body.why??'').trim()||'abandoned from the task page');if(bad)throw new T.TaskError(bad);
-    }else if(task.activeRun)setArchived(state,task.activeRun,true);
-    else{const lines=readInbox(state),at=lines.findIndex(l=>l.status==='open'&&l.text===task.goal);if(at>=0){lines[at]={...lines[at]!,status:'archived'};writeInbox(state,lines);}}
-    return {state,task:T.mutateTask(state,task.id,mutation,t=>{t.archived=true;})};
+    if(op==='abandon'&&!task.activeRun)throw new T.TaskError('No run to abandon');
+    // Side effects run inside the mutation, after the revision check and under the task lock, so a stale page changes nothing.
+    // A run that is already done, already abandoned or gone counts as success: the task is archived either way.
+    return {state,task:T.mutateTask(state,task.id,mutation,t=>{
+      if(op==='abandon'){
+        const run=runState(state,t);
+        if(run&&!['done','abandoned'].includes(run.stage)){const key=agentKey(state,t,hooks);if(key&&hooks.alive(key))hooks.stop(key);const bad=abandonRun(state,t.activeRun!,String(body.why??'').trim()||'abandoned from the task page');if(bad)throw new T.TaskError(bad);}
+      }else if(t.activeRun)setArchived(state,t.activeRun,true);
+      else{const lines=readInbox(state),at=lines.findIndex(l=>l.status==='open'&&l.text===t.goal);if(at>=0){lines[at]={...lines[at]!,status:'archived'};writeInbox(state,lines);}}
+      t.archived=true;
+    })};
   }
+  if(op==='stop'&&!allowed.stop)return {state,task};
   task=T.mutateTask(state,task.id,mutation,t=>{
     if(op==='message'){
       const text=String(body.text??'').trim();const status=body.intent==='question'||/^\s*(status\??|what(?:'s| is) (?:the )?(?:status|progress)\??|how (?:is|are) (?:it|things|the task) (?:going|doing)\??)\s*$/i.test(text);
@@ -140,10 +179,9 @@ export function taskAction(state:string,body:any,hooks:Hooks):{state:string;task
       T.receiveInput(t,{id:operationId,text,intent:answer?'answer':'change',baseResult:body.baseResultId??null});
       if(answer||t.pendingDecision?.kind==='proposal'){t.pendingDecision=null;t.safe=true;t.status='draft';}
     }else if(op==='stop'){T.requestStop(t);}
-    else if(op==='resume'){if(t.launch?.pty&&hooks.alive(t.launch.pty))throw new T.TaskError('The existing agent is still alive. Stop it or reconcile it in Technical details before resuming.');T.resumeTask(t);}
+    else if(op==='resume'){const key=agentKey(state,t,hooks);if(key&&hooks.alive(key))throw new T.TaskError('The existing agent is still alive. Stop it or reconcile it in Technical details before resuming.');if(!allowed.resume)throw new T.TaskError('This task does not need recovery');T.resumeTask(t);}
     else if(op==='accept'){
-      const run=runState(state,t);if(run&&!['done','abandoned'].includes(run.stage)&&!run.healed)throw new T.TaskError('Workflow checks are still running. Wait for completed work before accepting.');
-      if(run?.awaiting&&!run.healed)throw new T.TaskError('Resolve the blocking workflow decision first.');
+      if(!allowed.accept)throw new T.TaskError(allowed.acceptWhy??'Finish the active work and pending decisions before accepting this result');
       T.acceptTask(t,String(body.resultId??''));
     }else if(op==='confirm'){
       const d=t.pendingDecision;if(!d||d.kind!=='proposal'||d.id!==body.decisionId||d.run!==t.activeRun||d.result!==t.currentResult)throw new T.TaskError('This proposal changed. Refresh and review it again.');
@@ -156,9 +194,10 @@ export function taskAction(state:string,body:any,hooks:Hooks):{state:string;task
     }else throw new T.TaskError('Unknown task action',400);
   });
   if(op==='stop'){
-    const key=task.launch?.pty;if(key&&hooks.alive(key))hooks.stop(key);
-    else if(key)task=T.mutateTask(state,task.id,{revision:task.revision,opId:operationId+':stopped'},T.confirmStopped);
-    else task=T.mutateTask(state,task.id,{revision:task.revision,opId:operationId+':unsupported'},t=>{t.error='This agent is outside the board. Stop it in Technical details and confirm its session has ended before resuming.';});
+    const key=agentKey(state,task,hooks);
+    if(key&&hooks.alive(key))hooks.stop(key);
+    else try{task=T.mutateTask(state,task.id,{revision:task.revision,opId:operationId+':stopped'},t=>stopped(t,key));}
+    catch{task=T.readTask(state,task.id)!;/* the pump confirmed the stop first: same outcome */}
   }else if(['message','confirm','resume'].includes(op))task=dispatchReady(state,task.id,hooks,op==='resume'&&!task.inputs.some(i=>['queued','received'].includes(i.state)));
   return {state,task};
 }
@@ -166,6 +205,7 @@ export function taskAction(state:string,body:any,hooks:Hooks):{state:string;task
 // CLI-only structured events. Raw terminal text is never an acknowledgement.
 export function taskEvent(state:string,id:string,runId:string,event:any,operationId:string):T.Task {
   const task=T.readTask(state,id);if(!task||task.activeRun!==runId)throw new T.TaskError('This run does not own the task');
+  let preserving=false;
   try { return T.mutateTask(state,id,{revision:task.revision,opId:operationId},t=>{
     const run=runState(state,t);if(!run||run.task_id!==id)throw new T.TaskError('Run task identity does not match');
     if(event.type==='ack'){T.acknowledgeLaunch(t,String(event.launchId),runId,t.launch?.pty);}
@@ -183,11 +223,21 @@ export function taskEvent(state:string,id:string,runId:string,event:any,operatio
     else if(event.type==='result'){
       if(run.task_policy?.requirePlanConfirmation&&!run.task_confirmed)throw new T.TaskError('Proposal confirmation is required');
       if(t.inputs.some(i=>i.state==='dispatched'))throw new T.TaskError('Acknowledge the dispatched requests before publishing a result');
-      const result=R.publishResult(state,id,{...event,runId,iteration:run.iteration??0,roots:[dirname(state),...(typeof run.worktree==='string'?[run.worktree]:[])],id:stableUuid(`${id}:${runId}:${operationId}`)});
-      t.currentResult=result.id;t.acceptedResult=null;t.status='ready';t.safe=true;t.pendingDecision=null;if(t.launch)t.launch.phase='acknowledged';T.addEvent(t,'assistant','result',String(event.summary??event.title??'Result ready'));
+      preserving=true;const result=R.publishResult(state,id,{...event,runId,iteration:run.iteration??0,roots:[dirname(state),...(typeof run.worktree==='string'?[run.worktree]:[])],id:stableUuid(`${id}:${runId}:${operationId}`)});
+      preserving=false;
+      // A result that lands while the task is stopping is saved, but the stop stands.
+      if(['stopping','interrupted'].includes(t.status)){t.currentResult=result.id;t.acceptedResult=null;T.addEvent(t,'assistant','result',String(event.summary??event.title??'Result ready'));return;}
+      t.currentResult=result.id;t.acceptedResult=null;t.status='ready';t.safe=true;t.pendingDecision=null;t.queuePaused=false;t.error=undefined;if(t.launch)t.launch.phase='acknowledged';T.addEvent(t,'assistant','result',String(event.summary??event.title??'Result ready'));
     }else throw new T.TaskError('Unknown task event',400);
   }); } catch (error) {
-    if(event.type==='result'){const current=T.readTask(state,id)!;T.mutateTask(state,id,{revision:current.revision,opId:operationId+':preservation-failed'},t=>{t.error=(error as Error).message;t.status='failed';t.queuePaused=true;T.addEvent(t,'system','preservation-failed',`This result could not be preserved. ${t.error} Earlier saved results remain available.`);});}
+    if(event.type==='result'){
+      const current=T.readTask(state,id)!,disk=preserving&&((error as T.TaskError).status===507||!(error instanceof T.TaskError));
+      // Only a failed copy to disk pauses the task. A refused result (unreceipted input, unconfirmed proposal, bad output) is fixed and published again.
+      T.mutateTask(state,id,{revision:current.revision,opId:operationId+':preservation-failed'},t=>{
+        if(disk){t.error=(error as Error).message;t.status='failed';t.queuePaused=true;T.addEvent(t,'system','preservation-failed',`This result could not be preserved. ${t.error} Earlier saved results remain available.`);}
+        else T.addEvent(t,'system','result-refused',`The result was not accepted yet: ${(error as Error).message}. The agent can fix this and publish again.`);
+      });
+    }
     throw error;
   }
 }

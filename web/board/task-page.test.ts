@@ -180,3 +180,18 @@ test("task attention counts acceptance separately from source-control housekeepi
   expect(taskForCard(cards[0], [accepted, ready])?.attention.category).toBe("completed");
   expect(taskForCard(cards[1], [accepted, ready])?.attention.action).toBe("Inspect the current result");
 });
+
+const allowed = { accept: false, stop: false, resume: false, abandon: false, archive: true, delete: false, start: false };
+test("Looks good follows the server's allowed list and a leftover pause", () => {
+  expect(canAcceptTask(task("a", "needs-you", { currentResultId: "r2", actions: { ...allowed, accept: true } }), result)).toBe(true);
+  expect(canAcceptTask(task("a", "needs-you", { currentResultId: "r2", actions: { ...allowed, accept: false, acceptWhy: "The workflow is still reviewing this result" } }), result)).toBe(false);
+  expect(canAcceptTask(task("a", "needs-you", { currentResultId: "r2", queuePaused: true }), result)).toBe(false);
+});
+test("the task page offers Delete only before any run, never says stopped, and draws the actions list", async () => {
+  const src = await Bun.file(new URL("./task-page.ts", import.meta.url)).text();
+  expect(src).not.toContain('"stopped"');
+  expect(src).toContain("t.actions?.stop");
+  expect(src).toContain("t.actions?.resume");
+  expect(src).toMatch(/a\.delete \? html`<button[^`]*data-close="delete"/);
+  expect(src).toMatch(/a\.abandon \? html`<button[^`]*data-close="abandon"/);
+});

@@ -239,7 +239,8 @@ input ids; acknowledge the launch before doing anything else:
   publishes a typed version. Paths must be regular files inside the project/worktree.
   Do not snapshot source trees or databases. HTML/SVG files download only. Include
   specialized Video identity as `video:{name,letter,revision}` when relevant, without
-  changing its recipes. A copy/disk failure retains earlier versions and needs recovery.
+  changing its recipes. A refused result does not pause the task; fix the cause and publish again.
+  Only a failed copy to disk pauses it, retains earlier versions and needs recovery.
 
 A question/status reply never authorizes production. Queued change requests are not
 already applied: keep their ids and report receipts. Stop requests cancellation and

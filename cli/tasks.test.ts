@@ -105,3 +105,14 @@ test("attention projection consistently identifies questions, results, recovery,
   task.pendingDecision = null; task.status = "interrupted"; expect(t.taskProjection(task).action).toBe("Review and resume");
   task.status = "ready"; task.currentResult = "v1"; expect(t.taskProjection(task).label).toBe("Your feedback needed");
 });
+
+test("a pause only lives in stopping, interrupted or failed; Resume also leaves stopping", () => {
+  const s = place(), made = t.createTask(s, { goal: "x" });
+  const task = change(s, made, "p", (x) => { x.status = "ready"; x.queuePaused = true; x.error = "old"; });
+  expect(t.normalizePause(task)).toBe(true);
+  expect(task.queuePaused).toBe(false); expect(task.error).toBeUndefined();
+  expect(t.normalizePause(task)).toBe(false);
+  const stopping = { ...task, status: "stopping" as const, queuePaused: true };
+  expect(t.normalizePause(stopping)).toBe(false);
+  t.resumeTask(stopping); expect(stopping.queuePaused).toBe(false); expect(stopping.status).toBe("draft");
+});

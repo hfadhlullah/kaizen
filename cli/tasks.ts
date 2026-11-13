@@ -179,12 +179,18 @@ export function recoverLaunch(task: Task) {
 export function requestStop(task: Task) { task.queuePaused = true; task.status = "stopping"; task.safe = false; addEvent(task, "system", "stop", "Stop requested. Waiting for the agent to stop; existing edits are retained."); }
 export function confirmStopped(task: Task) { if (task.status !== "stopping") throw new TaskError("Stop was not requested"); task.status = "interrupted"; if (task.launch) task.launch.phase = "interrupted"; addEvent(task, "system", "stopped", "The agent stopped. Queued requests are saved. This does not undo edits."); }
 export function resumeTask(task: Task) {
-  if (!["interrupted", "failed"].includes(task.status)) throw new TaskError("This task does not need recovery");
+  if (!["interrupted", "failed", "stopping", "ready"].includes(task.status)) throw new TaskError("This task does not need recovery");
   task.queuePaused = false; task.safe = true; task.launch = null; task.error = undefined;
   // Explicit recovery preserves ids and makes ambiguous work visible for reconciliation.
   for (const i of task.inputs) if (i.state === "dispatched" || i.state === "failed") i.state = "queued";
   task.status = task.currentResult ? "ready" : "draft";
   addEvent(task, "system", "resume", "Resume requested. Reconcile existing edits before applying the saved requests.");
+}
+// A pause only means something while the task is stopping, interrupted or failed. Anywhere else it
+// is a leftover that blocks Looks good, so it is cleared. Returns whether anything changed.
+export function normalizePause(task: Task): boolean {
+  if (["stopping", "interrupted", "failed"].includes(task.status) || !(task.queuePaused || task.error)) return false;
+  task.queuePaused = false; task.error = undefined; return true;
 }
 export function acceptTask(task: Task, result: string) {
   if (!result || result !== task.currentResult) throw new TaskError("This result is no longer current");

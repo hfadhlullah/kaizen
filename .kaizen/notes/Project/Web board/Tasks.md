@@ -2,9 +2,9 @@
 description: The Tasks page, the task forms, inbox stamps and when a task retires
 tags: [project, web-board]
 sources: [cli/state.ts, web/board]
-updated: 2026-11-09
+updated: 2026-11-13
 sources: [cli/tasks.ts, cli/task-results.ts, cli/task-service.ts, cli/state.ts, cli/web-tasks.test.ts, cli/tasks.test.ts, cli/task-results.test.ts, web/board]
-updated: 2026-11-08
+updated: 2026-11-13
 # Tasks
 
 Part of [[Web board]].
@@ -12,6 +12,17 @@ Part of [[Web board]].
 ## Task page layout (2026-11-11)
 
 Result first: a file strip with thumbnails (`.tp-rail`) beside one large stage, the conversation in a docked right column (`#tp-drawer`, inside `.tp-layout`; on a phone it replaces the result while open, opened by the header chat button; it opens itself only while a decision waits; it starts below the header so Start planning and Accept stay reachable), and one message bar at the bottom. Accept ("Looks good") and the ⋯ details menu (checks, agent, runs, task id) live in the header. Result images sit in `.tp-zoom`, wired by `web/board/zoom.ts`: pinch, ctrl/plain wheel, drag, double-click, and −/100%/+ buttons. It is a `div`, not an `aside`: the board's global `aside` rules hide it.
+
+## Actions and stuck states (2026-11-13)
+
+- `allowedActions()` in `cli/task-service.ts` is the one place that says which buttons a task may use (`accept` with an `acceptWhy`, `stop`, `resume`, `abandon`, `archive`, `delete`, `start`). `taskView()` adds it as `actions` (and `agentAlive` when given the hooks); `web/board/task-page.ts` only draws it, and `taskAction` refuses the rest, so page and server cannot disagree. Looks good is not offered while the run is live (still reviewing) or awaiting a decision.
+- `reconcile()` runs on every task read and repairs states that have no exit: `normalizePause` clears a pause or error on any status except stopping, interrupted and failed (the old "ready but paused" task); a `stopping` task with no live terminal becomes `interrupted`; one with a live terminal gets the kill sent again. `taskHooks.find` (`cli/web.ts`) finds the terminal of a run with no `launch.pty`; with none, Stop says the agent may still run outside the board.
+- Stop is a no-op unless a live run exists (or the agent is alive on a failed/interrupted task). Resume works from stopping. Abandon checks the revision first and does the kill and `abandonRun` inside the locked mutation; a done, abandoned or missing run counts as success and archives the task. Delete only before any run exists.
+- A refused result (unreceipted input, unconfirmed proposal, bad output) only adds a `result-refused` event; only a failed copy to disk (507) pauses and fails the task. A result that arrives while stopping or interrupted is saved and the stop stands.
+- Stop, Abandon and Archive whose page revision equals the one read just before `reconcile` bumped it use the post-reconcile revision; an older page still fails, and every other action stays strict.
+- A ready task whose run is still in review and whose agent is gone offers Resume (relaunches the agent to finish the review). A stopping task can always be abandoned, and the 1-second task pump in `cli/web.ts` runs `reconcile` for stopping tasks so a live terminal is asked to stop again.
+- `reconcile` also puts a working or interrupted task back to `ready` when it has a current result, every input applied or failed, and its run reached `done` (or healed): Looks good is offered and no second run starts. A Stop whose confirm write loses the race with the pump re-reads the task and counts as success.
+- Known residual: a tmux-kept agent missing from the resume list reads as dead after a board restart.
 
 ## In plain words
 
