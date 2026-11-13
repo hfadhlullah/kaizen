@@ -334,3 +334,4 @@ updated: 2026-10-31
 - 2026-11-13 run 2026-11-13-browser-wrong-port — Web board/Run workspace
 - 2026-11-13 run 2026-11-13-annotate-public-sites — Web board/Run workspace
 - 2026-11-13 run 2026-11-13-whatsapp-reconnect — Web board/Settings
+- 2026-11-13 run 2026-11-13-phone-settings-search — Web board/Settings

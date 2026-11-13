@@ -236,7 +236,10 @@ export async function openSettings() {
     const secs = [...$("pbody").querySelectorAll<HTMLElement>(".spage")];
     const hits = secs.filter(has);
     const picked = store.setPage && secs.find((s) => s.dataset.page === store.setPage);
-    const cur = (picked && has(picked) ? picked : null) || (q || !narrow() ? hits[0] : null);
+    // A phone shows a page or the list, and the search box lives in the list: while it is being typed in,
+    // stay on the list (narrowed to matching pages), or the first letter opens a page and hides the box.
+    const typing = narrow() && !!q && document.activeElement?.id === "sq";
+    const cur = typing ? null : (picked && has(picked) ? picked : null) || (q || !narrow() ? hits[0] : null);
     secs.forEach((s) => (s.hidden = s !== cur));
     $("sset").classList.toggle("pick", !cur);
     $("pbody").querySelectorAll<HTMLElement>(".snavg button").forEach((b) => {
@@ -248,6 +251,8 @@ export async function openSettings() {
   };
   // The page goes in the address, without a history step per page: Back to app leaves in one.
   const pick = (id) => {
+    // Picking a page ends typing in the search box (a tapped button takes no focus on iOS).
+    if (document.activeElement?.id === "sq") (document.activeElement as HTMLElement).blur();
     store.setPage = id;
     history.replaceState(null, "", "?view=settings" + (id ? "&page=" + id : ""));
     filter();
