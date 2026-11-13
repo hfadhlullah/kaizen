@@ -24,3 +24,5 @@ A floating panel on the board where you talk to Claude, Codex or a shell without
 ## Watch out
 - Rewriting the address at import does not work: other modules read `location.search` earlier in the bundle. Route through `wsHref()` instead.
 - `Ctrl+Alt+A` ignores AltGr (Windows reports it as Ctrl+Alt).
+
+- Home terminals run in the user's home folder `~` (run 2026-11-13-home-tilde-light-term): `/shell {home:true}` spawns in `home` while the record keeps `dir`/`ws` = `~/.kaizen/home`, which the Home window, `isHomeDir`, the phone and restart resume match on; restart resume also spawns them in `~`, where Claude keeps their conversation for `--resume`. Claude asks once to trust `~` (it holds `~/.claude/settings.json`, so `trustFolder` will not pre-trust it).

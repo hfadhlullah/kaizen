@@ -1083,7 +1083,9 @@ export async function web(repoDir: string, opts: Opts = {}) {
         const key = "sh-" + crypto.randomUUID().slice(0, 8);
         const title = dev ? "dev server" : agent ? KNOWN_AGENTS.find((k) => k.cmd === agent)!.name + (bypass ? " · bypass" : "") : "shell";
         // A dev server it starts lets a phone in: Vite refuses a host it does not know (the tailnet name).
-        const pid = startPty(key, cmd, cwd, undefined, changed, {
+        // Home terminals run in the user's home folder (~); HOME_WS stays their record (dir and ws), which the
+        // Home window, restart resume and the phone match on.
+        const pid = startPty(key, cmd, homeWs ? home : cwd, undefined, changed, {
           env: {
             KAIZEN_TERM: key,
             ...(process.platform === "win32" ? { AGY_CLI_DISABLE_AUTO_UPDATE: "1", CLAUDE_CODE_DISABLE_AUTO_UPDATER: "1", DISABLE_AUTO_UPDATER: "1" } : {}),
@@ -2814,7 +2816,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
         if (viaRun.has(x.key) || !(states(true).includes(x.dir) || x.dir === HOME_WS) || !existsSync(x.ws) || !Array.isArray(x.cmd) || !x.cmd.every((a) => typeof a === "string")) continue;
         const key = "sh-" + crypto.randomUUID().slice(0, 8);
         const cmd = x.sid && /^[\w-]{8,80}$/.test(x.sid) && !x.cmd.includes("--resume") ? [...x.cmd, "--resume", x.sid] : x.cmd;
-        const pid = startPty(key, cmd, x.ws, undefined, changed, { env: { KAIZEN_TERM: key } });
+        // A Home terminal ran in ~ (its record says ~/.kaizen/home): resume there, where Claude keeps that conversation.
+        const pid = startPty(key, cmd, x.dir === HOME_WS ? home : x.ws, undefined, changed, { env: { KAIZEN_TERM: key } });
         shells.set(key, { key, dir: x.dir, title: x.title, agent: x.agent, run: x.run, ws: x.ws, pid });
         shellCmd.set(key, x.cmd);
         console.log(`  resumed ${x.title}${x.sid ? " (conversation)" : ""}`);

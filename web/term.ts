@@ -94,11 +94,25 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
   };
   // Only to a program that asked: a plain shell would print the reply as text.
   let schemeNotify = false;
+  // Output replayed on attach (the session so far) repeats old questions; answering them again
+  // would type the reply into whatever runs now. Output in the first 150 ms after the socket
+  // opens is taken as that replay. ponytail: a timing guess; a server-side replay marker if a
+  // real query ever lands in that window (agents start slower than 150 ms).
+  let replaying = false, attachedAt = 0;
+  const scheme = () => `\x1b[?997;${dark() ? 1 : 2}n`;
   const reportScheme = () => {
     if (!schemeNotify) return;
-    const t = document.documentElement.dataset.theme;
-    send({ t: "i", d: `\x1b[?997;${(t ? t === "dark" : os.matches) ? 1 : 2}n` });
+    send({ t: "i", d: scheme() });
   };
+  // OSC 10/11 "what are your colours?": an agent on an auto theme (Claude Code's default) picks
+  // light or dark from the background it is told. xterm.js does not answer these itself.
+  const rgb = (hex: string) => "rgb:" + [1, 3, 5].map((i) => hex.slice(i, i + 2).repeat(2)).join("/");
+  for (const [n, k] of [[10, "foreground"], [11, "background"]] as const)
+    term.parser.registerOscHandler(n, (data) => {
+      if (data !== "?") return false;
+      if (!replaying) send({ t: "i", d: `\x1b]${n};${rgb((dark() ? ORCA_DARK : ORCA_LIGHT)[k])}\x1b\\` });
+      return true;
+    });
   // Returning false lets xterm.js handle the sequence as usual. A replayed session repeats
   // the request on attach, which also corrects a theme changed while this view was closed.
   const schemeMode = (on: boolean) => (params: (number | number[])[]) => {
@@ -111,7 +125,8 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
   term.parser.registerCsiHandler({ prefix: "?", final: "h" }, schemeMode(true));
   term.parser.registerCsiHandler({ prefix: "?", final: "l" }, schemeMode(false));
   term.parser.registerCsiHandler({ prefix: "?", final: "n" }, (params) => {
-    if (params[0] === 996) reportScheme();
+    // A one-off "dark or light?" is answered whether or not the program subscribed (2031).
+    if (params[0] === 996 && !replaying) send({ t: "i", d: scheme() });
     return false;
   });
   // Each message makes the agent repaint its whole screen, so a size already sent on this
@@ -157,13 +172,18 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
       `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/pty?key=${encodeURIComponent(key)}`,
     );
     ws.onopen = () => {
+      attachedAt = performance.now();
       if (lost) { term.reset(); schemeNotify = false; }
       lost = false;
       tries = 0;
       reBtn.hidden = true;
       size(true);
     };
-    ws.onmessage = (e) => term.write(String(e.data));
+    ws.onmessage = (e) => {
+      if (performance.now() - attachedAt > 150) return void term.write(String(e.data));
+      replaying = true;
+      term.write(String(e.data), () => (replaying = false));
+    };
     // The board closes with "ended" when the agent exits; anything else is the board gone.
     ws.onclose = (e) => {
       if (e.reason === "ended") {

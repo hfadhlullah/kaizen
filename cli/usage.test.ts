@@ -287,7 +287,7 @@ test.skipIf(process.platform === "win32")("/shell: foreign origin, unknown proje
     hws.onmessage = (e) => { hseen += String(e.data); };
     await new Promise((ok, no) => { hws.onopen = ok; hws.onerror = no; });
     for (let i = 0; i < 100 && !hseen.includes("pwd:"); i++) await Bun.sleep(30);
-    expect(hseen).toContain(`pwd:${homeWs}`);
+    expect(hseen).toContain(`pwd:${homeDir}`); // Home terminals run in ~; their record stays ~/.kaizen/home
     hws.close();
     // A project tab cannot pose as Home.
     const fake = (await (await post({ dir: st, run: "home" }, at)).json()) as any;

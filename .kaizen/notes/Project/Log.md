@@ -330,3 +330,4 @@ updated: 2026-10-31
 - 2026-11-13 run 2026-11-13-phone-home-terminal — Web board/Home workspace, Web board/Home, chat and phone
 - 2026-11-13 run 2026-11-13-select-dark-options — Web board/Settings
 - 2026-11-13 run 2026-11-13-scope-picker-menu — Web board/Settings
+- 2026-11-13 run 2026-11-13-home-tilde-light-term — Web board/Home workspace, Web board/Terminals
