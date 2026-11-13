@@ -2,7 +2,7 @@
 description: The Notes tab: an Obsidian-compatible markdown folder under .kaizen/notes/
 tags: [project, notebook]
 sources: [cli/notes.ts, web/notebook.ts, web/notes-lib.ts, web/notes.html, cli/build-web.ts]
-updated: 2026-11-13
+updated: 2026-11-14
 ---
 # Notebook
 
@@ -17,7 +17,8 @@ Plain markdown files under `<state>/notes/`, folders allowed, so Obsidian can op
 - `web/notes-lib.ts` — text rules (wikilinks, tags, code spans) shared by page and tests.
 - `web/notebook.ts` → bundled to `web/notebook.js` by `cli/build-web.ts` (`bun run build:web`); `web/notes.html` is the page.
 
-- The project picker lists folder names, as the board does; the full path is the select's tooltip.
+- The project picker lists folder names, as the board does; the full path is the select's tooltip. It lists every known project (`known` from `/state`), not only the board picker's: a project outside the Projects folder shows too.
+- `?dir=` wins: `pickProject()` in `web/notes-lib.ts` opens the project the address names even when the picker (`/state` projects, filtered by the Projects folder) leaves it out, and adds it to the select; `/vault` checks it. Before, a run's note tab for a project outside the Projects folder opened another project and showed nothing (issue #86, common on Windows).
 - The shared side menu shows a Board waiting count on Notes too. `notebook.ts` refreshes it from `/state?all=1` at load and on `changed` events.
 - The board's right-side Notes tree uses `/vault` to list names and opens a selected note in this existing editor; it does not create a second editor. The shared menu now shows Chat (Home on a phone; 2026-11-13), Icebox, Board and Settings.
 - `web/notebook.ts` reads `kz-color` from localStorage and sets `data-color=blue`, so the Notes page keeps the board's palette.

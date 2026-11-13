@@ -217,6 +217,8 @@ test.skipIf(process.platform === "win32")("/shell: foreign origin, unknown proje
     expect(G.cards.find((c: any) => c.id === "g1")?.ws).toBe(g);
     expect(G.projects.some((p: any) => p.dir === g)).toBe(false);
     expect(G.rail.find((p: any) => p.dir === g)?.workspaces).toEqual([{ path: g, branch: "", main: true }]);
+    // The Notes tab lists every known project, the ones the picker leaves out too (#86).
+    expect(G.known.some((p: any) => p.dir === g) && G.known.some((p: any) => p.dir === st)).toBe(true);
     rmSync(join(g, "runs"), { recursive: true });
     rmSync(join(g, "config.yml"));
 

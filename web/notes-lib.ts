@@ -169,3 +169,12 @@ export function parseTable(src: string): Table {
   });
   return { head, align, rows };
 }
+
+// The project the notebook opens: the one its address names (a run's note tab, a board link)
+// even when the picker leaves it out, as it does a project outside the Projects folder;
+// /vault checks it. Then the one open last, the board's, the first listed.
+export function pickProject<P extends { dir: string; label: string }>(want: string | null, kept: string | null, cur: string | null, projects: P[]) {
+  if (want && !projects.some((p) => p.dir === want)) projects = [...projects, { dir: want, label: want.replace(/[\\/]\.kaizen$/, "") } as P];
+  const dir = [want, kept, cur].find((d) => !!d && projects.some((p) => p.dir === d)) ?? projects[0]?.dir ?? "";
+  return { dir, projects };
+}

@@ -1572,6 +1572,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
           // Dirs with a card the picker leaves out (the global queue, a project outside the
           // Projects folder): the rail still needs their workspaces so a waiting run shows.
           rail: [...new Set(cards.map((c) => c.state))].filter((d) => !picker.includes(d)).map(entry),
+          // Every known project, the Projects folder ignored: the Notes tab lists these (#86).
+          known: states(true).map((d) => ({ dir: d, label: label(d) })),
           fresh: unset.map((d) => ({ dir: join(d, ".kaizen"), label: tilde(d) })),
           agents,
           cards: cards.map((c, i) => {

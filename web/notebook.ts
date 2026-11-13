@@ -30,6 +30,7 @@ import {
   boardLink,
   resolveRun,
   anchorWords,
+  pickProject,
   TABS,
   type Tree,
   type BoardLink,
@@ -1190,7 +1191,7 @@ addEventListener("pagehide", () => {
   } catch {
     /* no storage */
   }
-  let S: { dir: string | null; projects: { dir: string; label: string }[] };
+  let S: { dir: string | null; projects: { dir: string; label: string }[]; known?: { dir: string; label: string }[] };
   try {
     S = await (await fetch("/state")).json();
   } catch {
@@ -1203,9 +1204,8 @@ addEventListener("pagehide", () => {
   } catch {
     /* no storage */
   }
-  const want = new URLSearchParams(location.search).get("dir");
-  const known = (d: string | null) => !!d && S.projects.some((p) => p.dir === d);
-  dir = [want, kept, S.dir].find(known) ?? S.projects[0]?.dir ?? "";
+  // The Notes tab lists every known project, not only the board picker's (a project outside the Projects folder too).
+  ({ dir, projects: S.projects } = pickProject(new URLSearchParams(location.search).get("dir"), kept, S.dir, S.known ?? S.projects));
   const sel = $<HTMLSelectElement>("proj");
   sel.innerHTML = S.projects
     .map((p) => `<option value="${esc(p.dir)}" title="${esc(p.label)}"${p.dir === dir ? " selected" : ""}>${esc(p.label.split(/[\\/]/).filter(Boolean).pop() || p.label)}</option>`)

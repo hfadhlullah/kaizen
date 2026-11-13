@@ -5,7 +5,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, readdi
 import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
 import { safeName, listNotes, saveNote, renameNote, deleteNote, boardIndex, linksTo } from "./notes.ts";
-import { wikilinks, tags, resolve, safeUrl, tree, uncode, freshName, parseTable, boardLink, resolveRun, anchorWords } from "../web/notes-lib.ts";
+import { wikilinks, tags, resolve, safeUrl, tree, uncode, freshName, parseTable, boardLink, resolveRun, anchorWords, pickProject } from "../web/notes-lib.ts";
 import { sourceHash, OUT, TERM_OUT, BOARD_OUT, BOT_OUT, VIDEO_OUT } from "./build-web.ts";
 
 let state = "";
@@ -189,6 +189,18 @@ test("boardIndex and linksTo: runs with findings and every backlog line numbered
   saveNote(state, "C", "`[[run:notes]]` in code", 0);
   expect(linksTo(state, "2026-10-01-notes")).toEqual(["A"]);
   expect(linksTo(state, "2026-10-02-other")).toEqual(["B"]);
+});
+
+test("pickProject: the project the address names opens, even one the picker leaves out (#86)", () => {
+  const listed = [{ dir: "/p/a/.kaizen", label: "/p/a" }];
+  // A run's note tab names a project outside the Projects folder: it opens, and joins the select.
+  const out = pickProject("C:\\Users\\me\\Desktop\\app\\.kaizen", "/p/a/.kaizen", null, listed);
+  expect(out.dir).toBe("C:\\Users\\me\\Desktop\\app\\.kaizen");
+  expect(out.projects.at(-1)).toEqual({ dir: "C:\\Users\\me\\Desktop\\app\\.kaizen", label: "C:\\Users\\me\\Desktop\\app" });
+  // No address: the one open last, then the board's, then the first listed; the list as it was.
+  expect(pickProject(null, "/p/a/.kaizen", null, listed)).toEqual({ dir: "/p/a/.kaizen", projects: listed });
+  expect(pickProject(null, "/gone/.kaizen", null, listed).dir).toBe("/p/a/.kaizen");
+  expect(pickProject(null, null, null, []).dir).toBe("");
 });
 
 test("tree and freshName", () => {

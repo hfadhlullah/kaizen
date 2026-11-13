@@ -2,7 +2,7 @@
 description: The board server: routes, host guard, updates, automations and other server-side behaviour
 tags: [project, web-board]
 sources: [cli/research.ts, cli/desktop-env.test.ts, cli/automations.ts, web/board/settings-automations.ts, web/board/settings-orchestration.ts, cli/project-tree.test.ts, cli/logo.ts, cli/state.ts, cli/restart.test.ts, cli/hermes.ts, web/board, cli/install.ts, cli/settings.ts, web/term.css, docs/mockups]
-updated: 2026-11-13
+updated: 2026-11-14
 ---
 # Server and routes
 
@@ -42,6 +42,7 @@ The program behind the board: what it serves, which computers may reach it, how 
 - `web/board.js` is committed and hash-checked: after editing `web/board/`, run `bun run build:web` or `cli/notes.test.ts` fails. A module that assigns another module's variable must go through `store`: an imported binding cannot be assigned.
 
 - Project logos: `cli/logo.ts` `projectLogo()` (fixed names only); `/state` projects carry `logo`, `GET /project-logo?dir=` serves it sandboxed; `plogo()` in `web/board/projects.ts` draws it or the folder initial.
+- `/state` sends three project lists: `projects` (the picker, filtered by the Projects folder), `rail` (dirs with a card the picker leaves out) and `known` (every known project; the Notes tab lists these, #86).
 
 - The server keeps no current project: each page sends its pick as `x-kz-dir` (`dirHeader()` in `web/board/api.ts`) and `cli/web.ts` resolves the project per request, so a phone picking another project never moves a desktop tab. `/cd` only checks the folder (and sets up a fresh one).
 
