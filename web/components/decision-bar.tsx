@@ -80,7 +80,7 @@ function QuestionOptions({
     </Button>
   ));
 }
-function TaskSections({ needsProject, projects = [], pending, onApprove, onAnswer, onProject }: SectionProps) {
+function TaskSections({ decision, needsProject, projects = [], pending, onApprove, onAnswer, onProject }: SectionProps) {
   const [dir, setDir] = useState("");
   const d = decision && decision.kind !== "project" ? decision : null;
   return (
