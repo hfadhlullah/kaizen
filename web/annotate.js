@@ -115,6 +115,7 @@
   root.innerHTML = `<style>
     *{box-sizing:border-box;font:12px/1.4 system-ui,sans-serif}
     .b{position:fixed;pointer-events:none;border:2px solid var(--c);background:color-mix(in srgb,var(--c) 14%,transparent);border-radius:2px}
+    .b.mk{border-width:1.5px;border-style:dashed;background:color-mix(in srgb,var(--c) 6%,transparent)}.b.mk.on{border-style:solid;background:color-mix(in srgb,var(--c) 14%,transparent)}
     .b.g{--c:#34c759}.b.sel{border-style:dashed}
     .l{position:fixed;pointer-events:none;background:var(--c);color:#fff;padding:1px 6px;border-radius:3px;white-space:nowrap;max-width:60vw;overflow:hidden;text-overflow:ellipsis}
     .m{position:fixed;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;background:var(--c);color:#fff;font-weight:600;border:2px solid #fff;display:grid;place-items:center;pointer-events:auto;cursor:pointer;box-shadow:0 1px 4px #0006}
@@ -169,6 +170,8 @@
         try { const e = m.kind === "area" ? null : document.querySelector(m.items && m.items[0] ? m.items[0] : m.selector); if (e) r = e.getBoundingClientRect(); } catch {}
         if (!r && m.pb) r = { left: m.pb.x - scrollX, top: m.pb.y - scrollY, width: m.pb.w, height: m.pb.h };
         if (!r) return;
+        // What the note marks stays outlined (dashed; solid while its number is hovered), not only its number.
+        add(box(r, "b mk" + (m.kind === "multi" || m.kind === "area" ? " g" : "") + (tip === m ? " on" : "")));
         const d = el("m dyn" + (m.kind === "multi" || m.kind === "area" ? " g" : ""), `left:${Math.min(innerWidth - 12, r.left + r.width)}px;top:${Math.max(12, r.top)}px`, String(m.n));
         d.onclick = (e) => { e.stopPropagation(); send({ type: "marker", n: m.n }); };
         d.onmouseenter = () => { tip = m; paint(); };

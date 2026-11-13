@@ -337,3 +337,4 @@ updated: 2026-10-31
 - 2026-11-13 run 2026-11-13-phone-settings-search — Web board/Settings
 - 2026-11-13 run 2026-11-13-gemini-accounts — Web board/Settings
 - 2026-11-13 run 2026-11-13-gemini-keychain-agy — Web board/Settings
+- 2026-11-13 run 2026-11-13-annotate-area-outline — Web board/Run workspace
