@@ -2,7 +2,7 @@
 description: The board server: routes, host guard, updates, automations and other server-side behaviour
 tags: [project, web-board]
 sources: [cli/research.ts, cli/desktop-env.test.ts, cli/automations.ts, web/board/settings-automations.ts, web/board/settings-orchestration.ts, cli/project-tree.test.ts, cli/logo.ts, cli/state.ts, cli/restart.test.ts, cli/hermes.ts, web/board, cli/install.ts, cli/settings.ts, web/term.css, docs/mockups]
-updated: 2026-11-09
+updated: 2026-11-13
 ---
 # Server and routes
 
@@ -71,3 +71,8 @@ WhatsApp MP4s over 64 MiB use Hermes' `[[as_document]]` directive, preserving th
 `GET`/`POST /research-key` (`cli/research.ts`): POST `{op: "save", key}`, `{op: "remove"}` or `{op: "test", key?}` goes through `strict()` and `local()`; every answer is `keyStatus()` (`set`, `source`, `hint`), never the key. A failed test answers 200 with `error`, so the page shows Firecrawl's reason.
 ## Persistent Tasks (2026-11-08)
 Task routes: GET /tasks (all=1 for all registered states), GET /task?id=&dir=, GET /task-artifact?task=&result=&artifact=&dir= and strict-Origin JSON POST /task. All state dirs and aliases must remain registered. POST supports create/adopt/start/message/confirm/accept/stop/resume/project. Named project creation reuses makeProject. Artifact ids resolve immutable private snapshots, with safe MIME/download headers and byte ranges. Cross-origin task mutations fail through the existing strict guard. The 1s task pump dispatches only acknowledged safe queued batches, independently of an open page. Legacy /decide cannot bypass the task page proposal-version check.
+
+## Home workspace terminals (2026-11-13)
+- `POST /shell` with `home: true` opens a shell or agent in `~/.kaizen/home` (made on first use), with `run: "home"`, under the same `strict()` guards. The folder is the server's constant `HOME_WS`, never taken from the page; `ws`, `dev` and `resume` with `home` are 400. Any other folder still needs a registered project (404 "choose a project"), `~/.kaizen/home` included when sent as `dir`. A project tab sending `run: "home"` gets `run: ""`. Home has its own cap of 8.
+- `GET /agents?home=1` answers `agentChoices(~/.kaizen/home)` (the global config decides the default agent).
+- The restart loop resumes a saved shell whose `dir` is `HOME_WS` as well as a known state dir. Test: `cli/usage.test.ts` (`/shell` test).

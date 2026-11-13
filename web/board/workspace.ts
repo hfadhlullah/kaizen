@@ -195,7 +195,10 @@ export function wsOfCard(c, projects = last.projects) {
   const ws = projects?.find((p) => p.dir === c.state)?.workspaces ?? [];
   return ws.find((w) => w.path === c.ws)?.path ?? ws.find((w) => w.main)?.path ?? c.ws ?? "";
 }
-export const wsHref = (dir, ws) => `/?view=ws&dir=${encodeURIComponent(dir)}&ws=${encodeURIComponent(ws)}`;
+// The floating Home workspace's folder (~/.kaizen/home): never a project's `.kaizen` state dir, and it has no workspace view.
+export const isHomeDir = (d: unknown) => typeof d === "string" && /[\\/]\.kaizen[\\/]home$/.test(d);
+// A Home terminal's address opens the board with its panel (web/board/home-ws.ts), from any page.
+export const wsHref = (dir, ws) => (isHomeDir(dir) ? "/?view=board&homews=1" : `/?view=ws&dir=${encodeURIComponent(dir)}&ws=${encodeURIComponent(ws)}`);
 export const RANK = { wait: 0, plan: 1, build: 2, review: 3, stalled: 4, idle: 5, done: 6, aband: 7 };
 export const folderOf = (w) => w.path.split(/[\\/]/).pop() || w.path;
 // A worktree's mark on line 2 of its card.
