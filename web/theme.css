@@ -1,0 +1,95 @@
+/* The board's Tailwind theme. Names map to the board's own variables (board.html :root: --bg, --ink,
+   --line, --dim, --accent, radii, sizes), so light, dark, blue and the motion setting work with no extra
+   code. Components use these names only (bg-background, text-muted-foreground, border-border), never raw
+   colours. Compiled by `bun run build:web` into web/ui.css, scanning only the folders named below. */
+@layer legacy, theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities) source(none);
+@import "tw-animate-css";
+@source "./ui";
+@source "./components";
+@source "./pages";
+@source "./lib";
+
+@theme inline {
+  --color-background: var(--bg);
+  --color-card: var(--bg-2);
+  --color-canvas: var(--canvas);
+  --color-foreground: var(--ink);
+  --color-strong: var(--ink-hi);
+  --color-border: var(--line);
+  --color-muted: var(--hover);
+  --color-muted-foreground: var(--dim);
+  --color-primary: var(--accent);
+  --color-primary-foreground: var(--on-accent);
+  --color-running: var(--run);
+  --color-success: var(--ok);
+  --color-warning: var(--warn);
+  --color-danger: var(--danger);
+  --radius-xs: var(--r-xs);
+  --radius-sm: var(--r-s);
+  --radius-md: var(--r);
+  --radius-lg: var(--r-l);
+  --radius-full: var(--r-pill);
+  --font-sans: var(--font);
+  --font-mono: var(--mono);
+  --shadow-sm: var(--shadow-1);
+  --shadow-md: var(--shadow-2);
+  --text-xs: var(--fs-xs);
+  --text-xs--line-height: 1.4;
+  --text-sm: var(--fs-s);
+  --text-sm--line-height: 1.4;
+  --text-base: var(--fs);
+  --text-base--line-height: 1.5;
+  --text-lg: var(--fs-l);
+  --text-lg--line-height: 1.5;
+  --animate-fade-in: kz-fade 0.12s;
+  --animate-dot: kz-dot 1.2s ease-in-out infinite;
+}
+@keyframes kz-fade { from { opacity: 0; } }
+@keyframes kz-dot { 0%, 60%, 100% { opacity: 0.3; transform: none; } 30% { opacity: 1; transform: translateY(-3px); } }
+
+/* Tailwind's preflight, scoped: it applies inside .kz-ui (the React roots and the shared popup container) and
+   nowhere else, so the board's old pages keep their own base styles. .kz-keep marks a legacy element docked
+   into a React page (the board's search box and New task button): the reset leaves it and what is inside it
+   alone, so its old styles still win. Every rule below carries the same :not(.kz-keep, .kz-keep *). */
+@layer base {
+  .kz-ui :not(.kz-keep, .kz-keep *),
+  .kz-ui :not(.kz-keep, .kz-keep *)::before,
+  .kz-ui :not(.kz-keep, .kz-keep *)::after { box-sizing: border-box; margin: 0; padding: 0; border: 0 solid; }
+  .kz-ui :where(h1):not(.kz-keep, .kz-keep *),
+  .kz-ui :where(h2):not(.kz-keep, .kz-keep *),
+  .kz-ui :where(h3):not(.kz-keep, .kz-keep *),
+  .kz-ui :where(h4):not(.kz-keep, .kz-keep *),
+  .kz-ui :where(h5):not(.kz-keep, .kz-keep *),
+  .kz-ui :where(h6):not(.kz-keep, .kz-keep *) { font-size: inherit; font-weight: inherit; }
+  .kz-ui :where(a):not(.kz-keep, .kz-keep *) { color: inherit; text-decoration: inherit; }
+  .kz-ui :where(ol):not(.kz-keep, .kz-keep *),
+  .kz-ui :where(ul):not(.kz-keep, .kz-keep *),
+  .kz-ui :where(menu):not(.kz-keep, .kz-keep *) { list-style: none; }
+  .kz-ui :where(img):not(.kz-keep, .kz-keep *),
+  .kz-ui :where(svg):not(.kz-keep, .kz-keep *),
+  .kz-ui :where(video):not(.kz-keep, .kz-keep *),
+  .kz-ui :where(canvas):not(.kz-keep, .kz-keep *),
+  .kz-ui :where(audio):not(.kz-keep, .kz-keep *),
+  .kz-ui :where(iframe):not(.kz-keep, .kz-keep *),
+  .kz-ui :where(embed):not(.kz-keep, .kz-keep *),
+  .kz-ui :where(object):not(.kz-keep, .kz-keep *) { display: block; vertical-align: middle; }
+  .kz-ui :where(img):not(.kz-keep, .kz-keep *),
+  .kz-ui :where(video):not(.kz-keep, .kz-keep *) { max-width: 100%; height: auto; }
+  .kz-ui :where(button):not(.kz-keep, .kz-keep *),
+  .kz-ui :where(input):not(.kz-keep, .kz-keep *),
+  .kz-ui :where(select):not(.kz-keep, .kz-keep *),
+  .kz-ui :where(optgroup):not(.kz-keep, .kz-keep *),
+  .kz-ui :where(textarea):not(.kz-keep, .kz-keep *) { font: inherit; color: inherit; letter-spacing: inherit; background: transparent; border-radius: 0; opacity: 1; }
+  .kz-ui :where(button):not(.kz-keep, .kz-keep *),
+  .kz-ui :where([role="button"]):not(.kz-keep, .kz-keep *),
+  .kz-ui :where(summary):not(.kz-keep, .kz-keep *) { cursor: pointer; }
+  .kz-ui :where(button:disabled):not(.kz-keep, .kz-keep *),
+  .kz-ui :where([aria-disabled="true"]):not(.kz-keep, .kz-keep *) { cursor: default; }
+  .kz-ui :where(textarea):not(.kz-keep, .kz-keep *) { resize: none; }
+  .kz-ui :where(pre):not(.kz-keep, .kz-keep *),
+  .kz-ui :where(code):not(.kz-keep, .kz-keep *) { font-family: var(--mono); }
+  .kz-ui :where([hidden]:not([hidden="until-found"])):not(.kz-keep, .kz-keep *) { display: none; }
+  .kz-ui :not(.kz-keep, .kz-keep *):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+}

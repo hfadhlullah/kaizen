@@ -53,6 +53,7 @@ const SOUNDS_DIR = join(dirname(import.meta.dir), "web", "sounds");
 // The notebook: its page, and the CodeMirror bundle `bun run build:web` commits beside it.
 const NOTES_PAGE = join(dirname(import.meta.dir), "web", "notes.html");
 const ICO = join(dirname(import.meta.dir), "assets", "kaizen.ico");
+const UI_CSS = join(dirname(import.meta.dir), "web", "ui.css");
 const NOTES_JS = join(dirname(import.meta.dir), "web", "notebook.js");
 // The in-card terminal (agent.launch: card): xterm.js, bundled the same way.
 const TERM_JS = join(dirname(import.meta.dir), "web", "term.js");
@@ -836,6 +837,13 @@ export async function web(repoDir: string, opts: Opts = {}) {
         const body = served(BOARD_JS);
         if (body === null) return new Response(`${path} missing; run bun run build:web`, { status: 500 });
         return new Response(body, { headers: { "content-type": "application/javascript; charset=utf-8", "cache-control": "no-store" } });
+      }
+
+      // The React pages' Tailwind (web/theme.css compiled by bun run build:web).
+      if (req.method === "GET" && path === "/ui.css") {
+        const body = served(UI_CSS);
+        if (body === null) return new Response(`${path} missing; run bun run build:web`, { status: 500 });
+        return new Response(body, { headers: { "content-type": "text/css; charset=utf-8", "cache-control": "no-store" } });
       }
 
       if (req.method === "GET" && path.startsWith("/sounds/")) {

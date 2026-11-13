@@ -1,0 +1,83 @@
+// Keeps the React layers in order (see .kaizen/notes/Project/Conventions and gotchas.md):
+//   pages -> components -> ui -> lib/utils.ts, and lib imports only lib.
+// A page or component never imports a Radix package (or cmdk) itself: popups come from web/ui.
+import { expect, test } from "bun:test";
+import { readdirSync, readFileSync } from "node:fs";
+import { dirname, join, relative, resolve } from "node:path";
+
+const web = import.meta.dir;
+type Layer = "ui" | "components" | "pages" | "lib";
+const LAYERS: Layer[] = ["ui", "components", "pages", "lib"];
+// What each layer may import from this repo, by layer; ui may take lib/utils.ts only.
+const MAY: Record<Layer, Layer[]> = {
+  ui: ["ui", "lib"],
+  components: ["ui", "components", "lib"],
+  pages: ["ui", "components", "pages", "lib"],
+  lib: ["lib"],
+};
+const PRIMITIVES = /^(radix-ui|@radix-ui\/.+|cmdk)$/;
+
+const walk = (dir: string): string[] =>
+  readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+    e.isDirectory()
+      ? walk(join(dir, e.name))
+      : /\.tsx?$/.test(e.name) && !/\.test\.tsx?$/.test(e.name)
+        ? [join(dir, e.name)]
+        : [],
+  );
+const specifiers = (src: string) =>
+  [...src.matchAll(/(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)["']([^"']+)["']/g)].map((m) => m[1]!);
+const layerOf = (abs: string): string => relative(web, abs).split(/[\\/]/)[0]!;
+
+// Every rule broken by `files` (absolute path -> source), as readable lines.
+function violations(files: Record<string, string>): string[] {
+  const out: string[] = [];
+  for (const [file, src] of Object.entries(files)) {
+    const from = layerOf(file) as Layer;
+    for (const spec of specifiers(src)) {
+      const where = `${relative(web, file)} imports "${spec}"`;
+      if (!spec.startsWith(".")) {
+        if (from !== "ui" && PRIMITIVES.test(spec))
+          out.push(`${where}: use the piece in web/ui instead of the package`);
+        continue;
+      }
+      const target = resolve(dirname(file), spec),
+        to = layerOf(target);
+      if (!LAYERS.includes(to as Layer))
+        out.push(`${where}: ${from}/ may not import ${to === ".." ? "outside web/" : "web/" + to}`);
+      else if (!MAY[from].includes(to as Layer))
+        out.push(`${where}: ${from}/ may not import ${to}/ (imports only go downward)`);
+      else if (from === "ui" && to === "lib" && !/^lib[\\/]utils\.ts$/.test(relative(web, target)))
+        out.push(`${where}: ui/ takes only lib/utils.ts`);
+    }
+  }
+  return out;
+}
+
+test("web/ui, components, pages and lib only import downward, and only ui wraps the primitive packages", () => {
+  const files = Object.fromEntries(LAYERS.flatMap((l) => walk(join(web, l))).map((f) => [f, readFileSync(f, "utf8")]));
+  expect(Object.keys(files).length).toBeGreaterThan(20);
+  expect(violations(files)).toEqual([]);
+});
+
+test("the check itself fails on an upward import, a lib import of ui, a ui import beyond utils, and a Radix import in a page", () => {
+  const f = (layer: string, name: string) => join(web, layer, name);
+  const bad = violations({
+    [f("ui", "a.tsx")]: 'import { X } from "../components/x.tsx";',
+    [f("ui", "b.tsx")]: 'import { y } from "../lib/store.ts";',
+    [f("components", "c.tsx")]: 'import { P } from "../pages/p.tsx";',
+    [f("lib", "d.ts")]: 'import { Button } from "../ui/button.tsx";',
+    [f("pages", "e.tsx")]: 'import { Popover } from "radix-ui";',
+    [f("components", "g.tsx")]: 'import * as P from "@radix-ui/react-popover";',
+    [f("pages", "h.tsx")]: 'import { go } from "../board/views.ts";',
+  });
+  expect(bad.length).toBe(7);
+  expect(
+    violations({
+      [f("ui", "ok.tsx")]:
+        'import { cn } from "../lib/utils.ts"; import { Icon } from "./icon.tsx"; import { Popover } from "radix-ui";',
+      [f("pages", "ok.tsx")]:
+        'import { Chip } from "../components/chip.tsx"; import { Button } from "../ui/button.tsx"; import { x } from "../lib/store.ts";',
+    }),
+  ).toEqual([]);
+});
