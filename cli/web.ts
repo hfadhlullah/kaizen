@@ -56,6 +56,7 @@ const ICO = join(dirname(import.meta.dir), "assets", "kaizen.ico");
 const NOTES_JS = join(dirname(import.meta.dir), "web", "notebook.js");
 // The in-card terminal (agent.launch: card): xterm.js, bundled the same way.
 const TERM_JS = join(dirname(import.meta.dir), "web", "term.js");
+const ANNOTATE_JS = join(dirname(import.meta.dir), "web", "annotate.js");
 const TERM_CSS = join(dirname(import.meta.dir), "web", "term.css");
 // The Video page (kaizen-video's library, editor and renders) and its bundle.
 const VIDEO_PAGE = join(dirname(import.meta.dir), "web", "video.html");
@@ -86,7 +87,7 @@ delete process.env.KAIZEN_DESKTOP_BUNDLED;
 // page newer than its server sends ops the server does not know ("unknown op").
 // So the pages are kept as they were at start, and read live (dev edits) only while
 // the installed version is still the one this board runs.
-const AT_START = new Map([PAGE, BOARD_JS, NOTES_PAGE, NOTES_JS, TERM_JS, TERM_CSS, VIDEO_PAGE, VIDEO_JS].map((f) => [f, existsSync(f) ? readText(f) : null]));
+const AT_START = new Map([PAGE, BOARD_JS, NOTES_PAGE, NOTES_JS, TERM_JS, TERM_CSS, VIDEO_PAGE, VIDEO_JS, ANNOTATE_JS].map((f) => [f, existsSync(f) ? readText(f) : null]));
 const served = (f: string) => installed() === VERSION && existsSync(f) ? readText(f) : AT_START.get(f) ?? null;
 
 // A board answers at url and runs the installed version. A board from before the
@@ -930,6 +931,13 @@ export async function web(repoDir: string, opts: Opts = {}) {
           return json({ chats });
         }
         return bad("not found", 404);
+      }
+
+      // The annotator, for the desktop app to run inside a public site's page (the proxy serves its own copy).
+      if (req.method === "GET" && path === "/annotate.js") {
+        const body = served(ANNOTATE_JS);
+        if (body === null) return new Response(`${path} missing`, { status: 500 });
+        return new Response(body, { headers: { "content-type": "application/javascript; charset=utf-8", "cache-control": "no-store" } });
       }
 
       if (req.method === "GET" && (path === "/term.js" || path === "/term.css")) {

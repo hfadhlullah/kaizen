@@ -10,8 +10,10 @@
   if (window.__kzAnnotate || !hosted) return;
   window.__kzAnnotate = true;
   const script = document.currentScript;
-  let token = "";
-  try { token = new URL(script.src).searchParams.get("t") || ""; } catch {}
+  // The proxy's <script src="…?t=token">, or (desktop app, public site) the token the board set
+  // before running this script in the page.
+  let token = typeof window.__kzAnnToken === "string" ? window.__kzAnnToken : "";
+  if (!token) try { token = new URL(script.src).searchParams.get("t") || ""; } catch {}
   const parent = window.parent;
   // `out` marks what the page says, so the webview's relay forwards it and not what the board sends.
   const send = (m) => parent.postMessage({ kz: 1, t: token, out: 1, ...m }, "*");

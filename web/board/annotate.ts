@@ -180,12 +180,34 @@ export function annotator(o: {
     }
   };
   addEventListener("message", onMsg);
+  // A public site in the desktop app's webview: no proxy can add the script, so the board puts it in
+  // after each load, with this open's token (annotate.js reads __kzAnnToken). The webview's preload
+  // relays its messages; only ones carrying the token are taken (acceptHost).
+  let inject = false, src: string | null = null;
+  const injectNow = async () => {
+    if (!web || !inject || !px) return;
+    try { px.origin = px.target = new URL(web.getURL()).origin; } catch { /* about:blank */ }
+    src ??= await fetch("/annotate.js").then((r) => (r.ok ? r.text() : null), () => null);
+    if (!src || !inject || !px) return;
+    web.executeJavaScript(`window.__kzAnnToken=${JSON.stringify(px.token)};\n${src}`).catch(() => {});
+  };
+  web?.addEventListener("dom-ready", () => void injectNow());
   web?.addEventListener("ipc-message", (e: any) => { if (px && o.host.isConnected && e.channel === "kz-ann" && acceptHost(e.args?.[0], px.token)) handle(e.args[0]); });
 
   return {
     proxied: () => !!px,
     active: () => on,
     async open(u) {
+      inject = false;
+      if (want && web && /^https?:\/\//.test(u) && !/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/.test(u)) {
+        const token = [...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, "0")).join("");
+        const origin = new URL(u).origin;
+        px = { origin, token, target: origin };
+        inject = true;
+        on = false;
+        draw();
+        return null; // loaded directly; dom-ready puts the annotator in
+      }
       if (!want || !/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/.test(u)) { px = null; on = false; pause = false; draw(); return null; }
       const r = await post("/annotate/open", { url: u });
       if (!r?.ok) { want = false; px = null; draw(); return null; }
@@ -193,7 +215,7 @@ export function annotator(o: {
       draw();
       return r.url;
     },
-    closeProxy() { px = null; on = false; pause = false; draw(); },
+    closeProxy() { px = null; inject = false; on = false; pause = false; draw(); },
     toggle() { want = !want; o.reload(); },
   };
 }

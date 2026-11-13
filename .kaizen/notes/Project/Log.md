@@ -332,3 +332,4 @@ updated: 2026-10-31
 - 2026-11-13 run 2026-11-13-scope-picker-menu — Web board/Settings
 - 2026-11-13 run 2026-11-13-home-tilde-light-term — Web board/Home workspace, Web board/Terminals
 - 2026-11-13 run 2026-11-13-browser-wrong-port — Web board/Run workspace
+- 2026-11-13 run 2026-11-13-annotate-public-sites — Web board/Run workspace
