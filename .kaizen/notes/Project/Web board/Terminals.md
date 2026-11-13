@@ -65,3 +65,5 @@ The task queue dispatches into a live run terminal only after a structured ackno
 
 ## Theme queries (2026-11-13-home-tilde-light-term)
 `web/term.ts` answers `CSI ?996n` ("dark or light?") with `?997;1|2n` whether or not the program subscribed with 2031, and OSC 10/11 `?` with the Orca palette's foreground/background as `rgb:RRRR/GGGG/BBBB` (xterm.js answers neither by itself). Claude Code on theme `auto` reads these, so it draws light on the light terminal. Output arriving in the first 150 ms after the socket opens is the attach replay (`replaying`): its old queries are not answered again, or the reply would be typed into whatever runs now.
+
+- The resource monitor panel is laid out like macOS Control Center (run 2026-11-13-resource-monitor-control-center, approved kaizen-concept prototype in `.preview/resource-monitor/`): Memory and Storage tiles open in place (`kz-res-mem`, `kz-res-disk`), Storage has icon buttons (Clean up, Rescan), terminals are sorted heaviest first and scroll after about 5 rows.
