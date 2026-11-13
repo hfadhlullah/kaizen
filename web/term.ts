@@ -9,6 +9,7 @@ import { WebLinksAddon } from "@xterm/addon-web-links";
 import { SearchAddon } from "@xterm/addon-search";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { fontRead, fontSet, fontStep } from "./term-font.ts";
+import { imageFiles, pathsText } from "./term-paste.ts";
 
 // Orca's defaults (its "Ghostty Default Style Dark" and "Builtin Tango Light"): a terminal's ANSI
 // palette is content, not board chrome, so these hex values are the one exception to design.md's
@@ -199,6 +200,57 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
       onEnd?.();
     };
   };
+  // A terminal carries no pictures: an image is saved on the board's computer and its path
+  // typed in, which is how Claude Code and Codex take one. Used by desktop paste and drop, and
+  // by the phone's Paste and Pick image keys. A refused image says why instead of doing nothing.
+  const note = (text: string) => {
+    const n = document.createElement("div");
+    n.className = "termnote";
+    n.setAttribute("role", "status");
+    n.textContent = text;
+    n.style.cssText = "position:absolute;right:12px;bottom:12px;z-index:5;padding:6px 10px;border-radius:6px;font:12px system-ui,sans-serif;background:#000c;color:#fff;pointer-events:none";
+    (el.querySelector(".xterm") ?? el).append(n); // .xterm is position:relative
+    setTimeout(() => n.remove(), 4000);
+  };
+  const upload = async (b: Blob) => {
+    const r = await fetch("/term-image", { method: "POST", headers: { "content-type": b.type || "image/png" }, body: b }).catch(() => null);
+    if (r?.ok) return String((await r.json()).path ?? "");
+    const why = r ? String((await r.json().catch(() => ({}))).error ?? r.status) : "the board did not answer";
+    note(`Image not pasted: ${why}`);
+    return "";
+  };
+  const sendImages = async (files: Blob[]) => {
+    const text = pathsText(await Promise.all(files.map(upload)));
+    if (text) term.paste(text);
+  };
+  const sendImage = (b: Blob) => sendImages([b]);
+  // Ctrl+V / Cmd+V on a desktop: xterm reads only text from the clipboard, so a screenshot
+  // (Windows Snipping Tool, Print Screen, macOS Cmd+Ctrl+Shift+4) pasted nothing. Capture runs
+  // before xterm's own handler on its textarea. Text wins whenever there is any: Excel and Word
+  // put a picture of the selection beside its text, and the text is what was meant.
+  const pasteOff = new AbortController();
+  el.addEventListener("paste", (e) => {
+    if (e.clipboardData?.getData("text/plain")) return;
+    const files = imageFiles(e.clipboardData?.files);
+    if (!files.length) return;
+    e.preventDefault();
+    e.stopPropagation();
+    void sendImages(files);
+  }, { capture: true, signal: pasteOff.signal });
+  // Dropping image files onto the terminal does the same.
+  el.addEventListener("dragover", (e) => {
+    if (![...(e.dataTransfer?.items ?? [])].some((i) => i.kind === "file")) return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+  }, { signal: pasteOff.signal });
+  el.addEventListener("drop", (e) => {
+    const all = [...(e.dataTransfer?.files ?? [])];
+    if (!all.length) return;
+    e.preventDefault();
+    const files = imageFiles(e.dataTransfer?.files);
+    if (files.length) void sendImages(files);
+    else note("Only images can be dropped here");
+  }, { signal: pasteOff.signal });
   // Phone/tablet: a row of chips for the keys a soft keyboard lacks, and a message box
   // that types into the agent and presses Enter. Alt is sticky for the next key. Ctrl
   // opens its own a-z pad instead of waiting on the native keyboard, whose IME can
@@ -214,13 +266,6 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
   let stopViewport = () => {};
   if (matchMedia("(pointer: coarse)").matches) {
     const arrow = (c: string) => () => `\x1b${term.modes.applicationCursorKeysMode ? "O" : "["}${c}`;
-    // A terminal carries no pictures: an image is saved on the board's computer and its path
-    // typed in, which is how Claude Code and Codex take one.
-    const sendImage = async (b: Blob) => {
-      const r = await fetch("/term-image", { method: "POST", headers: { "content-type": b.type || "image/png" }, body: b }).catch(() => null);
-      const path = r?.ok ? (await r.json()).path : "";
-      if (path) term.paste(/\s/.test(path) ? `"${path}" ` : `${path} `);
-    };
     const paste = async () => {
       const items = await navigator.clipboard?.read?.().catch(() => []) ?? [];
       for (const it of items) {
@@ -596,6 +641,7 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
   term.focus();
 
   return () => {
+    pasteOff.abort();
     ro.disconnect();
     clearTimeout(resizing);
     cancelAnimationFrame(frame);

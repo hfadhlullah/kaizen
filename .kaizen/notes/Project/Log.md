@@ -342,3 +342,4 @@ updated: 2026-10-31
 - 2026-11-13 run 2026-11-13-resource-monitor-control-center — Web board/Terminals
 - 2026-11-13 run 2026-11-13-task-09f782c6-1 — Web board/Settings
 - 2026-11-13 run 2026-11-13-rea-node-install — Web board/Settings
+- 2026-11-13 run 2026-11-13-term-image-paste — Web board/Terminals
