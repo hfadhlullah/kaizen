@@ -15,6 +15,8 @@ import { decided } from "../lib/run-actions.ts";
 import { setStore } from "../lib/store.ts";
 import { BoardPopups } from "../components/board-popups.tsx";
 import { FixHost } from "../components/fix-host.tsx";
+import { GitHost } from "../components/git-tab.tsx";
+import { setGit } from "../lib/git-store.ts";
 import { RunFooter } from "../components/run-footer.tsx";
 import { BoardPage } from "../pages/board-page.tsx";
 import { TaskPage } from "../pages/task-page.tsx";
@@ -83,6 +85,7 @@ export function drawFooter(footer: Panel["footer"]) {
   flushSync(() => setPanel({ footer }));
 }
 export const drawFix = (fix: any) => setPanel({ fix });
+export const drawGit = (snap: any) => setGit({ snap });
 export const fixReset = () => setPanel({ off: [] });
 export const answered = () => [...decided];
 export const resumeCard = resumeRun;
@@ -101,7 +104,7 @@ export function initReact(go: (view: string, push?: boolean) => void) {
   createRoot(toaster).render(createElement(Toaster));
   const popups = document.createElement("div");
   portal.append(popups);
-  createRoot(popups).render(createElement(TooltipProvider, null, createElement(BoardPopups), createElement(FixHost)));
+  createRoot(popups).render(createElement(TooltipProvider, null, createElement(BoardPopups), createElement(FixHost), createElement(GitHost)));
   setToaster(toast);
   setHost({
     go,
@@ -135,6 +138,7 @@ export function initReact(go: (view: string, push?: boolean) => void) {
     },
     closePanel,
     reopenPanel: (c) => void openRun(c, true),
+    refetchRun: (c) => openRun(c, false),
     gitTab: (c) => {
       store.tab = "git";
       void openRun(c, true);

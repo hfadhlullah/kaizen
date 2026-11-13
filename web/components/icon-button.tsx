@@ -1,4 +1,4 @@
-import type { ComponentProps } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import { cn } from "../lib/utils.ts";
 import { Icon } from "../ui/icon.tsx";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip.tsx";
@@ -13,7 +13,10 @@ export function IconButton({
   className,
   children,
   ...props
-}: { icon: string; label: string; active?: boolean; href?: string } & Omit<ComponentProps<"button">, "href">) {
+}: { icon: string | ReactNode; label: string; active?: boolean; href?: string } & Omit<
+  ComponentProps<"button">,
+  "href"
+>) {
   const Tag = (href ? "a" : "button") as "button";
   return (
     <Tooltip>
@@ -28,7 +31,7 @@ export function IconButton({
           )}
           {...props}
         >
-          <Icon name={icon} />
+          {typeof icon === "string" ? <Icon name={icon} /> : icon}
           {active && (
             <span
               aria-hidden="true"

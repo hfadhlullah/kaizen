@@ -24,6 +24,8 @@ export const react = {
   drawFooter: (_f: any) => {},
   drawFix: (_f: any) => {},
   fixReset: () => {},
+  // The run panel's Source control tab (git.ts hands it the run's git state; null when another tab shows).
+  drawGit: (_g: any) => {},
   answered: (): string[] => [],
   resume: async (_c: any): Promise<boolean> => false,
 };

@@ -5,7 +5,7 @@ import { cardEl, key, render } from "./cards.ts";
 import { chat } from "./chat.ts";
 import { stopDictation } from "./dictation.ts";
 import { $, html, raw } from "./dom.ts";
-import { gitPending, gitShown, gitTab } from "./git.ts";
+import { gitLeave, gitPending, gitShown, gitTab } from "./git.ts";
 import { ICON, WORD, need } from "./labels.ts";
 import { attach, brief, md, preview, progress } from "./markdown.ts";
 import { toast } from "./toast.ts";
@@ -53,6 +53,7 @@ export function open(c, keepTab) {
   keepNext = false;
   stopDictation(true); // the panel body is about to be replaced
   react.fixReset();
+  gitLeave();
   store.openKey = key(c);
   $("panel").classList.add("open");
   $("scrim").classList.add("on");
@@ -221,11 +222,12 @@ export async function openRun(c, refresh, again) {
   const k = store.tab,
     doc = k === "preview" ? preview(store.runDoc.impl) && attach(preview(store.runDoc.impl), c) : store.runDoc[k];
   if (k !== "term") termStop();
+  if (k !== "git") gitLeave();
   if (k === "term") showTerm(c);
   else if (k === "notes") {
     const ro = c.archived || c.status === "done" || c.status === "abandoned";
     chat(c, doc, ro);
-  } else if (k === "git") gitTab(c, refresh);
+  } else if (k === "git") gitTab(c);
   else
     $("pbody").innerHTML = doc
       ? raw(md(doc, k === "backlog"))
@@ -309,6 +311,7 @@ export function close() {
   const k = store.openKey;
   stopDictation(true);
   termStop();
+  gitLeave();
   store.openKey = null;
   store.runDoc = null;
   $("panel").classList.remove("open");

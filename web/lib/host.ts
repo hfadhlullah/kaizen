@@ -45,6 +45,8 @@ export type Host = {
   notify(): void;
   // The run panel's Source control tab (the footer points at it when git work is left).
   gitTab(card: any): void;
+  // Draw the open run again from the server (after a commit, a stage, a merge).
+  refetchRun(card: any): Promise<void>;
 };
 const none = (): never => {
   throw new Error("The board has not mounted this page yet");
@@ -78,5 +80,6 @@ export const host: Host = {
   panelOpenFor: () => false,
   notify: () => {},
   gitTab: () => {},
+  refetchRun: async () => {},
 };
 export const setHost = (h: Partial<Host>) => Object.assign(host, h);
