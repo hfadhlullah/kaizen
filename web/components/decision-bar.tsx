@@ -6,7 +6,7 @@ import { Field } from "./field.tsx";
 import { InlineForm } from "./inline-form.tsx";
 import { Picker } from "./picker.tsx";
 
-const box = "mb-3 rounded-sm border border-[color-mix(in_srgb,var(--warn)_50%,var(--line))] p-3";
+const box = "mb-3 rounded-sm border border-[color:color-mix(in_srgb,var(--warn)_50%,var(--line))] p-3";
 type Choice = { projectDir: string } | { name: string };
 // What the agent is waiting on, with its one way forward: say which project the task belongs to, approve a plan,
 // or pick an answer. Knows nothing about the page around it (the task page now, the run panel later): it takes

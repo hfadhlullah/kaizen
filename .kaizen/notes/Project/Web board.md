@@ -1,8 +1,8 @@
 ---
 description: `kaizen web`: the browser board — a hub; its topics are the sub-notes below
 tags: [project, web-board]
-sources: [cli/preflight.ts, cli/rea.test.ts, cli/annotate.test.ts, cli/annotate-proxy.test.ts, cli/web-annotate.test.ts, web/board/annotate-lib.test.ts, desktop/src/preload.ts, desktop/src/updater.ts, web/term-font.test.ts, cli/resources.test.ts, cli/computer.test.ts, cli/workers.ts, cli/accounts.test.ts, web/board/settings-accounts.ts, cli/skills.test.ts, cli/report.test.ts, cli/agent-prefs.test.ts, cli/onboarding.test.ts, cli/phone-setup.test.ts, web/board/search.test.ts, web/board/ws-name.test.ts, cli/web.ts, cli/state.test.ts, cli/video.test.ts, web/board.html, design.md]
-updated: 2026-11-13
+sources: [web/pages, web/components, web/ui, web/lib, web/theme.css, web/board/react-mount.ts, cli/preflight.ts, cli/rea.test.ts, cli/annotate.test.ts, cli/annotate-proxy.test.ts, cli/web-annotate.test.ts, web/board/annotate-lib.test.ts, desktop/src/preload.ts, desktop/src/updater.ts, web/term-font.test.ts, cli/resources.test.ts, cli/computer.test.ts, cli/workers.ts, cli/accounts.test.ts, web/board/settings-accounts.ts, cli/skills.test.ts, cli/report.test.ts, cli/agent-prefs.test.ts, cli/onboarding.test.ts, cli/phone-setup.test.ts, web/board/search.test.ts, web/board/ws-name.test.ts, cli/web.ts, cli/state.test.ts, cli/video.test.ts, web/board.html, design.md]
+updated: 2026-11-14
 ---
 # Web board
 
@@ -10,6 +10,7 @@ updated: 2026-11-13
 The board is kaizen in a browser: you see every project's tasks and runs as cards, start an agent on one, approve its plan, watch it work, and commit the result. It runs on your own computer and can be opened on your phone. This note is split by topic; open the one for the part you are touching.
 
 ## What it does
+- Pages move to React one at a time (web/ui, components, pages, lib; Tailwind in `web/ui.css`): Tasks and the task page first. Structure and rules: [[Conventions and gotchas]]; the Tasks pages: [[Web board/Tasks]].
 `kaizen web` runs a loopback HTTP server over `cli/state.ts` and serves one HTML page that only ever sees JSON (header of `cli/web.ts`). From it you start runs, approve or revise plans, pick findings to fix, commit, push and open or merge a run's pull request (the Source control tab), and open Notes, the icebox and settings. User-facing tour: `docs/guide.md` ("In a browser"). Look and feel: `design.md`.
 
 ## Topics

@@ -41,10 +41,10 @@ export function ResultView({
   const live = result.liveUrl && !artifacts.some((a) => a.url === result.liveUrl) && webUrl(result.liveUrl);
   return (
     <>
-      <header className="mb-3.5">
+      <div className="mb-3.5">
         {!legacy && <h2 className="mb-1 text-[16px] font-semibold">{result.title}</h2>}
         {result.summary && !legacy && <p className="mb-1 text-muted-foreground">{result.summary}</p>}
-      </header>
+      </div>
       <div
         className={cn(
           "grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] gap-4",

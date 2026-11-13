@@ -1,8 +1,8 @@
 ---
 description: How work is done in this repo, and the traps that have bitten before
 tags: [project, conventions]
-sources: [.kaizen/memory.md, design.md, .claude/skills, .github, .gitattributes, .gitignore, .prettierrc, AGENTS.md, CLAUDE.md, CONTRIBUTING.md, LICENSE, README.md, docs/README.md]
-updated: 2026-11-09
+sources: [.kaizen/memory.md, design.md, .claude/skills, .github, .gitattributes, .gitignore, .prettierrc, AGENTS.md, CLAUDE.md, CONTRIBUTING.md, LICENSE, README.md, docs/README.md, web/theme.css, web/ui, web/components, web/pages, web/lib, web/structure.test.ts, web/board/react-mount.ts]
+updated: 2026-11-14
 updated: 2026-11-08
 # Conventions and gotchas
 
@@ -37,6 +37,20 @@ The rules that are not visible in any one file. Cross-area lessons are in `.kaiz
 ## Persistent Tasks (2026-11-08)
 
 design.md now explicitly allows the unified Tasks list/shared task page while Board retains workflow columns. Task data keeps durable UUID identity and legacy storage compatibility; do not identify tasks by title or treat saved live links as immutable applications.
+
+## React front end (2026-11-14, run 2026-11-14-frontend-rewrite-phase1)
+
+New UI is React 19 + shadcn/ui (Radix) + Tailwind v4 + Zustand, bundled by `bun run build:web` into the committed `web/board.js` and `web/ui.css`; users install nothing and `dependencies` stays empty (every package is an exact-pinned devDependency). Pages move over one at a time; Tasks list and task page are first. Old `web/board/` code shrinks each phase.
+
+**Three levels, imports only downward** (`web/structure.test.ts` fails otherwise): `web/ui/` generic shadcn pieces (may import only `web/lib/utils.ts`, kebab-case, one per file, the only place a Radix package or cmdk is imported) -> `web/components/` kaizen pieces built from `ui/` (one component per file, file name is the export) -> `web/pages/` one per view, layout plus data. `web/lib/` holds `api.ts`, `store.ts` (Zustand), `tasks.ts` (pure rules and types), `host.ts`, `toast.ts`, `hooks/`; it imports only lib. Lib never imports `web/board`: the bridge `web/board/react-mount.ts` hands the old code's functions over once through `setHost()` (go, newTask, runPopup, attention, scope).
+
+**Rules.** Popovers, menus, selects, pickers, dialogs and tooltips come from `ui/` and render into `#kz-portal` (`portalRoot()`); a page never builds one. Styling uses theme names only (`bg-background`, `text-muted-foreground`, `border-border`, never hex or `rgb(`); `web/theme.css` maps the board's CSS variables, so light, dark, blue and motion work unchanged. Button `variant` is `primary` (the one main action of an area), `default`, `ghost`, `danger`; `size` `md` or `sm`; an icon-only control is `IconButton`, never a `Button`. Every input goes through `Field` (label, control, help, error with `aria-describedby`). Data loading and actions live in `lib/hooks` (`useTasks`, `useTask`, `runAction`, `sendMessage`), not in components, so two places showing the same decision share one code path. A `border-<side>` plus an arbitrary colour needs `border-[color:...]`, or tailwind-merge drops one of them.
+
+**Component map** (today's pattern -> piece): `.btn` -> `ui/button`; `.ib` -> `icon-button`; `ico()` -> `ui/icon` (the board's sprite); filter popup -> `filter-menu`; "..." menu -> `action-menu`; `combo` picker -> `picker`; `.sel` -> `ui/select`; `.ice-chip` -> `chip`; status dot/word -> `status-badge`; approve/answer/project strip -> `decision-bar`; labelled input with button -> `inline-form`; label+control+help+error -> `field`; chat -> `chat-bubble`, `typing-dots`; empty list -> `empty-state`; row -> `task-row`; outputs -> `result-view`, `result-checks`, `artifact-view`; confirm -> `confirm-dialog`; `toast()` -> `lib/toast.ts` (old `board/toast.ts` forwards once the board mounts it; the notebook and Video pages keep their own so React stays out of their bundles); pager -> `pager`. Built in later phases: `ui/tabs`, `ui/switch`, `ui/dialog`/`sheet` consumers, `action-menu` for card menus.
+
+**Add a shadcn piece:** copy its source into `web/ui/`, change the imports to `../lib/utils.ts`, restyle with theme names to the board's sizes (`--btn-*`, `--r-*`, `--fs-*`), make its portal use `portalRoot()`, import the Radix part from `radix-ui`.
+
+**Legacy layer.** `board.html` wraps all its CSS in `@layer legacy`, declared before `theme, base, components, utilities`, so Tailwind utilities always win over old rules and old rules never restyle new ones. Tailwind's reset is scoped to `.kz-ui` (each React root and `#kz-portal`), not global; `.kz-keep` marks a legacy element docked into a React page (search box `#bq`, `#newtop`) that the reset must skip. Unlayered CSS (`term.css`) outranks the layer, and layered `!important` reverses priority: check both when touching either. Do not put an old element's id on a `.kz-ui` root: the reset zeroes its padding.
 
 ## Notes
 <!-- yours: /kaizen docs never rewrites this section -->

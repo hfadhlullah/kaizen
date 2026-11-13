@@ -345,3 +345,4 @@ updated: 2026-10-31
 - 2026-11-13 run 2026-11-13-term-image-paste — Web board/Terminals
 - 2026-11-13 run 2026-11-13-task-flow-fixes — Web board/Tasks
 - 2026-11-14 run 2026-11-13-task-fcaa78f4-1 — Notebook, Web board/Server and routes
+- 2026-11-14 run 2026-11-14-frontend-rewrite-phase1 — Conventions and gotchas, Release and testing, Web board, Web board/Tasks

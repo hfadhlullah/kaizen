@@ -14,6 +14,7 @@ kaizen is a staged workflow for AI agents (plan, approval, build, independent re
 - "Task" is the word users see; stored data keeps `idea` (`inbox.md`, `kind: "idea"`, icebox `idea`, bot DB), and `view=ideas` and `/to-idea` stay as aliases. → [[Web board]]
 - Run stages are exactly `explore` (optional), `plan`, `build`, `review`, `done`, `abandoned`. → [[Workflow]]
 - Global skill links point at `~/kaizen`, not this checkout. → [[Workflow]]
+- New board UI is React in `web/ui` -> `web/components` -> `web/pages` (imports only downward, tested); page by page, Tasks first. → [[Conventions and gotchas]]
 - Lessons from past runs: `.kaizen/memory.md`.
 
 ## Ask

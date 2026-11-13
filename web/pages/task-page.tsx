@@ -255,7 +255,7 @@ function Task() {
           className={cn(
             "flex min-h-0 w-0 flex-none flex-col gap-1.5 overflow-hidden opacity-0 invisible transition-[width,margin,opacity] duration-300 motion-reduce:transition-none",
             showDrawer &&
-              "visible ml-6 w-[380px] border-l border-[color-mix(in_srgb,var(--line)_50%,transparent)] pl-5 opacity-100 max-md:ml-0 max-md:w-full max-md:border-l-0 max-md:pl-0",
+              "visible ml-6 w-[380px] border-l border-[color:color-mix(in_srgb,var(--line)_50%,transparent)] pl-5 opacity-100 max-md:ml-0 max-md:w-full max-md:border-l-0 max-md:pl-0",
           )}
         >
           <header className="flex min-w-[340px] items-center max-md:min-w-0">

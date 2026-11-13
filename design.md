@@ -512,3 +512,7 @@ composer. Confirmation and Looks good belong to their current proposal/result.
 Technical workspace tools remain available in expandable details; there is no mode
 switch. Status always includes words and a next action. Live previews and preserved
 files have distinct labels; limits and validation never imply user acceptance.
+
+## Components
+
+New pages are React; `web/theme.css` maps this document's tokens (sections 2-4) into Tailwind names, and every control comes from `web/ui` and `web/components`. The component map, variant rules and the three-level structure are in `.kaizen/notes/Project/Conventions and gotchas.md`.

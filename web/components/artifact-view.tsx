@@ -6,7 +6,7 @@ import { wireZoom } from "../lib/zoom.ts";
 import { cn } from "../lib/utils.ts";
 import { Button } from "../ui/button.tsx";
 
-const soft = "rounded-md border border-[color-mix(in_srgb,var(--line)_40%,transparent)]";
+const soft = "rounded-md border border-[color:color-mix(in_srgb,var(--line)_40%,transparent)]";
 const dim = "px-0 text-muted-foreground";
 function LiveView({ href, name }: { href: string; name: string }) {
   const f = useLiveFrame(href);

@@ -142,7 +142,7 @@ function Tasks() {
           </>,
           slot,
         )}
-      <div className="min-h-0 flex-1 overflow-auto rounded-md border border-[color-mix(in_srgb,var(--line)_50%,transparent)]">
+      <div className="min-h-0 flex-1 overflow-auto rounded-md border border-[color:color-mix(in_srgb,var(--line)_50%,transparent)]">
         {rows.length ? (
           <div aria-label="Tasks" className="flex flex-col">
             {rows.map((t, i) => (
