@@ -65,3 +65,5 @@ Tasks uses configured workflow agent/account/model/permissions. The task-specifi
 
 - Dropdowns (2026-11-13-select-dark-options): `select.sel` takes the page `color-scheme`, and its `option`s get `--bg-2` and `--ink`; options inherit the select's text colour, so the scope card's white `--ink-hi` showed white on a white native list in dark.
 - "Settings for" is a button + popover (`#s-scope`, `#s-scope-list` role=listbox in `web/board/settings.ts`; `.sacct-w`, `.spop` CSS), not a native select, so it follows the theme and shows in screenshots; options show the folder name with the path below (run 2026-11-13-scope-picker-menu).
+
+- WhatsApp reconnect (run 2026-11-13-whatsapp-reconnect): `whatsappStatus()` reports `saved` (`auth/creds.json`) and, with the bridge down, starts it once in the background (`reviving`); the bridge reconnects from the saved login itself. The Phone card shows "Linked · reconnecting…" (+ Unlink) while `saved` and not connected; Unlink starts the bridge first so it logs out properly.

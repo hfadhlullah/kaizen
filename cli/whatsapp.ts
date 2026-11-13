@@ -18,6 +18,8 @@ const bunBin = () => Bun.which("bun") ?? process.execPath;
 
 export type WAStatus = {
   installed: boolean;
+  // A login is saved on disk (auth/creds.json): the bridge reconnects with it, no QR needed.
+  saved: boolean;
   running: boolean;
   connected: boolean;
   user: string | null;
@@ -85,20 +87,29 @@ export async function ensureDaemon(ms = 3000): Promise<boolean> {
   return false;
 }
 
+export const savedLogin = () => existsSync(join(WA_DIR, "auth", "creds.json"));
+// One background start at a time: the Phone page polls every few seconds.
+let reviving: Promise<boolean> | null = null;
+
 export async function whatsappStatus(): Promise<WAStatus> {
   // "installed" = the libraries are there; the bridge script itself ships with kaizen.
   const installed = existsSync(BRIDGE_SCRIPT) && depsReady();
+  const saved = savedLogin();
   if (!installed) {
-    return { installed: false, running: false, connected: false, user: null, qrSvg: null, error: null };
+    return { installed: false, saved, running: false, connected: false, user: null, qrSvg: null, error: null };
   }
 
   const res = await callBridge("/status", {}, 1500);
   if (!res) {
-    return { installed: true, running: false, connected: false, user: null, qrSvg: null, error: null };
+    // A saved login and no bridge (the app or the computer restarted): bring it back. The bridge
+    // reconnects from the saved login by itself (whatsapp-bridge.ts), so no QR is shown.
+    if (saved && !reviving) reviving = ensureDaemon(8000).finally(() => (reviving = null));
+    return { installed: true, saved, running: false, connected: false, user: null, qrSvg: null, error: null };
   }
 
   return {
     installed: true,
+    saved,
     running: true,
     connected: !!res.connected,
     user: res.user ?? null,
@@ -122,6 +133,8 @@ export async function whatsappConnect(): Promise<WAStatus> {
 }
 
 export async function whatsappDisconnect(): Promise<{ ok: boolean }> {
+  // Unlink with the bridge down (a saved login after a restart): start it, so it logs out properly.
+  if (savedLogin()) await ensureDaemon(8000);
   const res = await callBridge("/disconnect", { method: "POST" });
   return { ok: !!res?.ok };
 }

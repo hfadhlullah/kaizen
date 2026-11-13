@@ -4,6 +4,7 @@ import { html, raw } from "./dom.ts";
 
 type WAStatus = {
   installed: boolean;
+  saved?: boolean;
   running: boolean;
   connected: boolean;
   user: string | null;
@@ -77,6 +78,11 @@ export async function mountWhatsApp(el: HTMLElement) {
       return;
     }
 
+    // A saved login with the bridge down or coming back: the board restarts it and it reconnects by itself.
+    if (s.saved) {
+      el.innerHTML = String(html`<div><p class="ph-h">WhatsApp Bridge</p><p class="ph-st"><i class="ph-dot"></i> Linked · reconnecting…</p><p class="ph-note">Your saved login is used; no new QR code.</p><div class="ph-row" style="margin-top:12px"><button type="button" class="btn" data-wa="disconnect">${busy ? "Unlinking…" : "Unlink WhatsApp"}</button></div>${e}</div>`);
+      return;
+    }
     // Bridge up, no QR and not linked: mid-scan or reconnecting. Keep polling, say so.
     if (s.running) {
       el.innerHTML = String(html`<div><p class="ph-h">WhatsApp Bridge</p><p class="ph-wait">Connecting…</p>${e}</div>`);
@@ -111,7 +117,7 @@ export async function mountWhatsApp(el: HTMLElement) {
       clearInterval(timer);
       return;
     }
-    if (s && !s.connected && (s.qrSvg || busy || s.running)) {
+    if (s && !s.connected && (s.qrSvg || busy || s.running || s.saved)) {
       const r = await callWA();
       if (!r.error) {
         s = r;
