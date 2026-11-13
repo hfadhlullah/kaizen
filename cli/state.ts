@@ -1606,7 +1606,7 @@ export function keepAlive(projectDir: string): "off" | "tmux" {
   return "off";
 }
 
-export const accountEnv = (r: Resolved) => (r.dir ? [`${r.envVar}=${r.dir}`] : []);
+export const accountEnv = (r: Resolved) => (r.dir ? [`${r.envVar}=${r.dir}`, ...(r.extra ?? [])] : []);
 const stageEnv = (projectDir: string, run: string) => {
   try { const s = JSON.parse(readText(join(projectDir, ".kaizen", "runs", run, "state.json"))).stage; return /^\w+$/.test(s) ? [`KAIZEN_STAGE=${s}`] : []; } catch { return []; }
 };
@@ -1887,7 +1887,7 @@ export function launchRun(it: Item, from: string, run?: string, pick: { agent?: 
     try { const rec = JSON.parse(readText(s.record)); rec.task_id = pick.task.id; rec.task_policy = { requirePlanConfirmation: pick.task.requirePlanConfirmation }; writeFileSync(s.record, JSON.stringify(rec)); }
     catch { return { ok: false, agent, prompt, projectDir, manual: "", why: "Could not preserve task launch identity. The goal remains saved." }; }
   }
-  const manual = manualCommand(projectDir, commandOf(agent.cmd, prefs), prompt, flags, acct.dir ? `${acct.envVar}=${shq(acct.dir)}` : "");
+  const manual = manualCommand(projectDir, commandOf(agent.cmd, prefs), prompt, flags, acct.dir ? [`${acct.envVar}=${shq(acct.dir)}`, ...(acct.extra ?? [])].join(" ") : "");
   // Only what is started carries env: the returned `cmd` reaches the page.
   // A run the board knows hears which one it is; a new run has no id yet and passes --run.
   const vars = [...(pick.task ? [`KAIZEN_TASK_ID=${pick.task.id}`] : []), ...(run ? [`KAIZEN_RUN_ID=${run}`, ...stageEnv(projectDir, run)] : []), ...subagentEnv(projectDir, agent.cmd), ...accountEnv(acct)];

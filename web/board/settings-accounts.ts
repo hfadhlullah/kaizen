@@ -6,12 +6,12 @@ import { toast } from "./toast.ts";
 
 // Settings → AI Accounts. /accounts never carries a token.
 type Row = { id: string; tool: string; name: string; isDefault: boolean; signedIn: boolean; signIn: string; usage: any; usageKnown?: boolean; who?: string; plan?: string; via?: string };
-type Normal = { tool: string; isDefault: boolean; signedIn: boolean; signIn: string; usage: any; usageKnown?: boolean; who?: string; plan?: string; via?: string };
+type Normal = { tool: string; isDefault: boolean; signedIn: boolean; signIn: string; usage: any; usageKnown?: boolean; noAccounts?: boolean; who?: string; plan?: string; via?: string };
 // Who the tool says is signed in: an email (Claude), else how (Codex: "ChatGPT"), and the plan.
 const whoLine = (a: { signedIn: boolean; who?: string; plan?: string; via?: string }) =>
   a.signedIn && (a.who || a.via || a.plan) ? html`<span class="ac-who">${[a.who ?? (a.via ? `via ${a.via}` : ""), a.plan].filter(Boolean).join(" · ")}</span>` : "";
-const TOOL: Record<string, string> = { claude: "Claude", codex: "Codex", gemini: "Gemini CLI" };
-const TOOLS = ["claude", "codex", "gemini"];
+const TOOL: Record<string, string> = { claude: "Claude", codex: "Codex", gemini: "Gemini CLI", agy: "Antigravity" };
+const TOOLS = ["claude", "codex", "gemini", "agy"];
 
 // `known`: the tool keeps plan usage kaizen can read (Gemini CLI does not).
 function usageLine(u: any, signed: boolean, known = true) {
@@ -36,14 +36,14 @@ const normalRow = (n: Normal) =>
   html`<div class="sk ac-normal" data-q="account login normal default ${n.tool} ${(n.who ?? "").toLowerCase()}">
     <div class="sk-h"><img class="ag-i" src="${AGENT_FAVICONS[n.tool] ?? ""}" alt="" width="28" height="28"><span class="sk-n"><span class="ac-nm">Your login <i>~/.${n.tool}</i></span>${whoLine(n)}${usageLine(n.usage, n.signedIn, n.usageKnown !== false)}</span>
       ${n.signedIn && !n.usage?.expired ? "" : html`<button type="button" class="btn" data-ac-sign="" data-tool="${n.tool}">Sign in</button>`}
-      <button type="button" class="btn" data-ac-def="" data-tool="${n.tool}" aria-pressed="${String(n.isDefault)}"${n.isDefault ? " disabled" : ""} title="${n.isDefault ? "Runs use this login" : "Use this login for runs again"}">${n.isDefault ? "✓ Default" : "Default"}</button></div>
+      ${n.noAccounts ? "" : html`<button type="button" class="btn" data-ac-def="" data-tool="${n.tool}" aria-pressed="${String(n.isDefault)}"${n.isDefault ? " disabled" : ""} title="${n.isDefault ? "Runs use this login" : "Use this login for runs again"}">${n.isDefault ? "✓ Default" : "Default"}</button>`}</div>
     ${n.signedIn && !n.usage?.expired ? "" : html`<div class="sk-a"><code>${n.signIn}</code></div>`}
   </div>`;
 
 export const accountRows = (d: { accounts: Row[]; normal?: Normal[]; windows: boolean }) =>
   html`${TOOLS.filter((t) => d.accounts.some((a) => a.tool === t) || (d.normal ?? []).some((n) => n.tool === t)).map((t) => html`<h3 class="sg">${TOOL[t]}</h3><div class="sgrp">${(d.normal ?? []).filter((n) => n.tool === t).map(normalRow)}${d.accounts.filter((a) => a.tool === t).map(row)}</div>`)}
   <h3 class="sg">Add an account</h3><div class="sgrp"><div class="ac-add" data-q="add account sign in claude codex gemini provider">
-    <div class="achips">${TOOLS.filter((t) => t !== "gemini" || (d.normal ?? []).some((n) => n.tool === t) || d.accounts.some((a) => a.tool === t)).map((t) => html`<button type="button" data-ac-new="${t}"${d.windows ? " disabled" : ""}><img src="${AGENT_FAVICONS[t]}" alt="" width="16" height="16">Add ${TOOL[t]} account</button>`)}</div></div></div>`;
+    <div class="achips">${TOOLS.filter((t) => t !== "agy").filter((t) => t !== "gemini" || (d.normal ?? []).some((n) => n.tool === t) || d.accounts.some((a) => a.tool === t)).map((t) => html`<button type="button" data-ac-new="${t}"${d.windows ? " disabled" : ""}><img src="${AGENT_FAVICONS[t]}" alt="" width="16" height="16">Add ${TOOL[t]} account</button>`)}</div></div></div>`;
 
 export function wireAccounts(redraw: () => Promise<unknown>) {
   const send = async (body: object) => {

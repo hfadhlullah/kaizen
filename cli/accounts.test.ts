@@ -167,7 +167,8 @@ test("Gemini CLI accounts: home-style folder, kaizen's links under .gemini, file
   const a = readAccounts().accounts.find((x) => x.id === id)!;
   expect(a).toMatchObject({ tool: "gemini", name: "Gemini" });
   setDefaultAccount("gemini", id);
-  expect(resolveAccount("gemini", undefined, false)).toMatchObject({ dir: accountDir(id), envVar: "GEMINI_CLI_HOME" });
+  // File storage forced, or the account's sign-in would replace the normal login in the keychain.
+  expect(resolveAccount("gemini", undefined, false)).toMatchObject({ dir: accountDir(id), envVar: "GEMINI_CLI_HOME", extra: ["GEMINI_FORCE_FILE_STORAGE=true"] });
   const from = join(t, "gfrom"), target = join(t, "gskill");
   mkdirSync(join(from, "skills"), { recursive: true });
   mkdirSync(target);
@@ -176,6 +177,9 @@ test("Gemini CLI accounts: home-style folder, kaizen's links under .gemini, file
   expect(existsSync(join(t, "gacct", ".gemini", "skills", "kaizen"))).toBe(true);
   expect(signedIn(accountDir(id), "gemini")).toBe(false);
   mkdirSync(join(accountDir(id), ".gemini"), { recursive: true });
+  writeFileSync(join(accountDir(id), ".gemini", "gemini-credentials.json"), "x"); // Gemini's own file storage
+  expect(signedIn(accountDir(id), "gemini")).toBe(true);
+  rmSync(join(accountDir(id), ".gemini", "gemini-credentials.json"));
   writeFileSync(join(accountDir(id), ".gemini", "oauth_creds.json"), "{}");
   writeFileSync(join(accountDir(id), ".gemini", "google_accounts.json"), JSON.stringify({ active: "me@example.com", old: [] }));
   expect(signedIn(accountDir(id), "gemini")).toBe(true);

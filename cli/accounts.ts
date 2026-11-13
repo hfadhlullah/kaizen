@@ -13,6 +13,10 @@ export type Accounts = { accounts: Account[]; default: Partial<Record<Tool, stri
 // Gemini CLI's GEMINI_CLI_HOME stands in for the home folder: it keeps its login in <that>/.gemini.
 export const ACCOUNT_VAR: Record<Tool, string> = { claude: "CLAUDE_CONFIG_DIR", codex: "CODEX_HOME", gemini: "GEMINI_CLI_HOME" };
 export const TOOL_NAME: Record<Tool, string> = { claude: "Claude", codex: "Codex", gemini: "Gemini" };
+// Gemini CLI keeps its login in the system keychain under one fixed name ("gemini-cli-oauth" /
+// "main-account"), whatever GEMINI_CLI_HOME says: an account signing in there would replace the
+// normal login. Forced to file storage, it keeps each account's login in <folder>/.gemini instead.
+export const ACCOUNT_EXTRA: Partial<Record<Tool, string[]>> = { gemini: ["GEMINI_FORCE_FILE_STORAGE=true"] };
 // The tool's own folder for an account folder, or for the normal login (dir undefined).
 const toolDir = (tool: Tool, dir?: string, home = homedir()) =>
   tool === "gemini" ? join(dir ?? home, ".gemini") : dir ?? join(home, tool === "claude" ? ".claude" : ".codex");
@@ -86,8 +90,28 @@ export function addAccount(tool: unknown, name: unknown): { id: string } | { err
 
 // The folder holds the login and that account's conversations, so it goes only when asked.
 // Whether the tool has saved a login here. The file is only looked at, never read.
+// Gemini: its file storage (gemini-credentials.json, encrypted) or the older oauth_creds.json.
 export const signedIn = (dir: string, tool: Tool) =>
-  existsSync(tool === "gemini" ? join(dir, ".gemini", "oauth_creds.json") : join(dir, tool === "claude" ? ".credentials.json" : "auth.json"));
+  tool === "gemini"
+    ? ["gemini-credentials.json", "oauth_creds.json"].some((f) => existsSync(join(dir, ".gemini", f)))
+    : existsSync(join(dir, tool === "claude" ? ".credentials.json" : "auth.json"));
+// Whether the system keychain holds an entry, by its existence only: the lookup's output (the
+// secret) goes to /dev/null and never reaches kaizen.
+async function keychainHas(service: string, account: string, attr = "account"): Promise<boolean> {
+  const argv = process.platform === "darwin"
+    ? ["security", "find-generic-password", "-s", service, "-a", account]
+    : process.platform === "linux" ? ["secret-tool", "lookup", "service", service, attr, account] : null;
+  if (!argv || !Bun.which(argv[0]!)) return false;
+  try {
+    const p = Bun.spawn(argv, { stdin: "ignore", stdout: "ignore", stderr: "ignore", windowsHide: true, timeout: 3000 });
+    return (await p.exited) === 0;
+  } catch { return false; }
+}
+// Antigravity (agy) has no accounts here: only whether its own login is saved, which it keeps in the
+// keychain through go-keyring (service "gemini", user "antigravity").
+export const agyLogin = async (): Promise<Login> => ({ signedIn: await keychainHas("gemini", "antigravity", "username"), checked: "file" });
+// Whether the system keychain holds Gemini CLI's normal login.
+const geminiKeychain = () => keychainHas("gemini-cli-oauth", "main-account");
 
 // Who is signed in, as the tool itself says: `claude auth status --json` / `codex login status`,
 // pointed at an account folder (`dir`) or at the normal login. kaizen never opens the login
@@ -101,7 +125,9 @@ export async function loginStatus(tool: Tool, dir?: string, env: NodeJS.ProcessE
   if (tool === "gemini") {
     let who: string | undefined;
     try { const a = JSON.parse(readFileSync(join(toolDir(tool, dir, home), "google_accounts.json"), "utf8"))?.active; if (typeof a === "string" && a.trim()) who = a.trim().slice(0, 120); } catch { /* none */ }
-    return { ...fallback(), who };
+    const f = fallback();
+    // The normal login lives in the keychain (Gemini CLI 0.68); an account's, in its folder (forced file storage).
+    return { ...f, signedIn: f.signedIn || (!dir && (await geminiKeychain())), who };
   }
   const bin = Bun.which(tool, { PATH: env.PATH ?? "" });
   if (!bin) return fallback();
@@ -154,7 +180,7 @@ export function setDefaultAccount(tool: unknown, id: string): string | null {
 }
 
 // `wanted`: an id, "" for the normal login, undefined for the tool's default.
-export type Resolved = { account?: Account; dir?: string; envVar?: string; error?: string };
+export type Resolved = { account?: Account; dir?: string; envVar?: string; extra?: string[]; error?: string };
 export function resolveAccount(cmd: string, wanted?: string, win = process.platform === "win32"): Resolved {
   if (!isTool(cmd) || wanted === "") return {};
   const a = readAccounts(), id = wanted ?? a.default[cmd];
@@ -164,5 +190,5 @@ export function resolveAccount(cmd: string, wanted?: string, win = process.platf
   if (win) return { error: "Accounts aren't supported on Windows yet." };
   const dir = accountDir(id);
   if (!existsSync(dir)) return { error: `The folder for ${account.name} is missing.` };
-  return { account, dir, envVar: ACCOUNT_VAR[cmd] };
+  return { account, dir, envVar: ACCOUNT_VAR[cmd], extra: ACCOUNT_EXTRA[cmd] };
 }

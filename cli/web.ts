@@ -11,7 +11,7 @@ import {
   reviewFindings, pickFindings, backlogItem, startedBacklog, closeBacklog, markBacklogDone, fixPrompt, approvalPrompt, canApproveAwaiting, gateOf, recordAcceptance, healRuns, finishRun, nativePath, closeSessions, sweepSessions, issueUrl,
   launchMode, pruneRuns, pruneSessions, readSessions, ownerOf, runIndex, resumePrompt, runAgent, firstSession, webHosts,
 } from "./state.ts";
-import { ACCOUNT_VAR, accountDir, addAccount, loginStatus, readAccounts, renameAccount, removeAccount, resolveAccount, setDefaultAccount, type Login, type Tool } from "./accounts.ts";
+import { ACCOUNT_EXTRA, ACCOUNT_VAR, accountDir, agyLogin, addAccount, loginStatus, readAccounts, renameAccount, removeAccount, resolveAccount, setDefaultAccount, type Login, type Tool } from "./accounts.ts";
 import { readReport, signalOf } from "./report.ts";
 import { MAX_IMAGE, saveImage } from "./term-image.ts";
 import { shellHistory } from "./term-history.ts";
@@ -1695,7 +1695,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
             acctUsage.set(x.id, hit);
           }
           const l = await who(x.id, x.tool, dir);
-          return { ...x, isDefault: a.default[x.tool] === x.id, signedIn: l.signedIn, who: l.who, plan: l.plan, via: l.via, usage: hit.usage, signIn: `${ACCOUNT_VAR[x.tool]}=${dir} ${x.tool}${x.tool === "codex" ? " login" : ""}`, usageKnown: x.tool !== "gemini" };
+          return { ...x, isDefault: a.default[x.tool] === x.id, signedIn: l.signedIn, who: l.who, plan: l.plan, via: l.via, usage: hit.usage, signIn: `${[...(ACCOUNT_EXTRA[x.tool] ?? []), `${ACCOUNT_VAR[x.tool]}=${dir}`].join(" ")} ${x.tool}${x.tool === "codex" ? " login" : ""}`, usageKnown: x.tool !== "gemini" };
         }));
         // The normal login of each installed tool (~/.claude, ~/.codex): the one runs use unless an
         // account above is the default.
@@ -1709,6 +1709,13 @@ export async function web(repoDir: string, opts: Opts = {}) {
           const l = await who(key, t);
           return { tool: t, isDefault: !a.default[t], signedIn: l.signedIn, who: l.who, plan: l.plan, via: l.via, usage: hit.usage, signIn: t === "claude" ? "claude auth login" : t === "codex" ? "codex login" : "gemini", usageKnown: t !== "gemini" };
         }));
+        // Antigravity: no accounts, only whether its own login is saved (keychain, existence only).
+        if (onPath("agy")) {
+          const hit = acctLogin.get("normal:agy");
+          const l = hit && Date.now() - hit.at < 60_000 ? hit.login : await agyLogin();
+          acctLogin.set("normal:agy", { at: Date.now(), login: l });
+          normal.push({ tool: "agy", isDefault: true, signedIn: l.signedIn, usage: null, signIn: "agy", usageKnown: false, noAccounts: true } as any);
+        }
         return json({ accounts: rows, normal, windows: process.platform === "win32", ...(added ? { added } : {}) });
       }
 
