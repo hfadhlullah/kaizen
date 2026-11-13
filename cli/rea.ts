@@ -3,7 +3,7 @@
 // `setup`, `uninstall` and `doctor` do, through `npx` pinned to an exact version. Kaizen keeps
 // only its switch in ~/.kaizen/rea.json and reads agent configs to see what is registered.
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
-import { delimiter, join, win32 } from "node:path";
+import { delimiter, join, posix, win32 } from "node:path";
 import { SKILL_HOMES } from "./skills.ts";
 
 export type Run = (argv: string[], ms?: number) => Promise<{ ok: boolean; out: string; err?: string }>;
@@ -139,7 +139,7 @@ export function nodeFix(platform = process.platform, which: (b: string) => strin
   if (platform === "darwin") {
     const brew = which("brew") ?? BREWS.find((b) => exists(b)) ?? null;
     // `brew install` of an outdated formula upgrades it.
-    if (brew) return { how: "brew", argv: [brew, "install", "node"], command: "brew install node", bin: join(brew, "..") };
+    if (brew) return { how: "brew", argv: [brew, "install", "node"], command: "brew install node", bin: posix.dirname(brew) }; // Homebrew paths are POSIX
   }
   return { how: "link", url: NODE_URL };
 }

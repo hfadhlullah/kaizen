@@ -28,6 +28,8 @@ test.skipIf(!findBrowser())("ui-audit flags the row off by 2px, not the aligned 
     b.proc.kill();
     await b.proc.exited;
     // Chrome releases its profile folder a moment after it exits; Windows answers EBUSY until then.
-    rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+    // Still busy after the retries: leave it. It sits in the run's kz-test-* folder, which the
+    // preload removes, so a slow Chrome exit is never a test failure.
+    try { rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); } catch { /* removed with the run's temp folder */ }
   }
 }, 30_000);

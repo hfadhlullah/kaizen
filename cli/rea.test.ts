@@ -160,8 +160,9 @@ test("G-02 G-07 the board applies only the plan it showed, with its token, and r
     expect((await post({ step: "node", token: tok })).status).toBe(400);
     expect(await (await post({ step: "node", confirm: true, token: tok })).json()).toMatchObject({ error: "confirm required" }); // spent above
     const tok2 = ((await (await fetch(base + "/skills")).json()) as { token: string }).token;
-    // Linux has no installer to run: the answer is the download page, and nothing ran.
-    expect(((await (await post({ step: "node", confirm: true, token: tok2 })).json()) as { error: string }).error).toContain("nodejs.org");
+    // Only on Linux, which has no installer to run: the answer is the download page. On macOS and
+    // Windows a valid request would run the real Homebrew or winget, which a test must never do.
+    if (process.platform === "linux") expect(((await (await post({ step: "node", confirm: true, token: tok2 })).json()) as { error: string }).error).toContain("nodejs.org");
   } finally { p.kill(); }
 }, 30000);
 

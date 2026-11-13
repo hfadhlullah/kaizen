@@ -141,7 +141,7 @@ function flow(){
  const result=(t:any)=>ev(t,{type:'result',title:'r',summary:'s',artifacts:art()});
  const stage=(t:any,s:string)=>{const f=join(state,'runs',t.activeRun,'state.json');writeFileSync(f,JSON.stringify({...JSON.parse(readFileSync(f,'utf8')),stage:s}));};
  const edit=(t:any,fn:(x:any)=>void)=>mutateTask(state,t.id,{revision:get(t).revision,opId:op()},fn);
- return {state,hooks,live,seen,act,ev,get,confirmed,receipt,result,stage,edit};
+ return {state,hooks,live,seen,act,ev,get,confirmed,receipt,result,stage,edit,art};
 }
 test('a refused result does not pause the task; the next good result is acceptable',()=>{
  const f=flow();let t=f.confirmed();
@@ -160,8 +160,10 @@ test('reconcile heals a ready task that is still paused with an error',()=>{
 });
 test('a real copy failure still pauses and fails the task, and Retry clears it',()=>{
  const f=flow();let t=f.confirmed();t=f.receipt(t);
- const file=join(f.state,'..','locked.md');writeFileSync(file,'x');const old=new Date(Date.now()-60_000);utimesSync(file,old,old);require('node:fs').chmodSync(file,0o000);
- try{expect(()=>f.ev(t,{type:'result',title:'r',summary:'s',artifacts:[{path:file}]})).toThrow('Could not preserve');}finally{require('node:fs').chmodSync(file,0o600);}
+ // A file where the results folder goes: the disk write fails the same way on Linux, macOS and
+ // Windows (chmod 000 does not stop a copy on Windows, nor macOS's clonefile).
+ const blocker=join(f.state,'tasks',t.id,'results');writeFileSync(blocker,'not a folder');
+ try{expect(()=>f.ev(t,{type:'result',title:'r',summary:'s',artifacts:f.art()})).toThrow();}finally{require('node:fs').rmSync(blocker,{force:true});}
  t=f.get(t);expect(t.status).toBe('failed');expect(t.queuePaused).toBe(true);expect(t.events.some(e=>e.type==='preservation-failed')).toBe(true);
  expect(allowedActions(f.state,t,f.hooks).resume).toBe(false);expect(allowedActions(f.state,t,f.hooks).stop).toBe(true);
  t=f.act(t,'stop');t=f.act(reconcile(f.state,f.get(t),f.hooks),'resume');expect(t.queuePaused).toBe(false);expect(t.error).toBeUndefined();
