@@ -1,4 +1,4 @@
-// Named logins for Claude and Codex. Each has its own folder, which the tool itself fills:
+// Named logins for Claude, Codex and Gemini CLI. Each has its own folder, which the tool itself fills:
 // kaizen stores no token. ~/.kaizen/accounts.json lists them. No accounts means every launch
 // stays on the normal login. A chosen account that can't be used refuses the launch: falling
 // back would run the work, and bill it, under another account.
@@ -6,16 +6,21 @@ import { chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync,
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-export type Tool = "claude" | "codex";
+export type Tool = "claude" | "codex" | "gemini";
 export type Account = { id: string; tool: Tool; name: string };
 export type Accounts = { accounts: Account[]; default: Partial<Record<Tool, string>> };
 
-export const ACCOUNT_VAR: Record<Tool, string> = { claude: "CLAUDE_CONFIG_DIR", codex: "CODEX_HOME" };
+// Gemini CLI's GEMINI_CLI_HOME stands in for the home folder: it keeps its login in <that>/.gemini.
+export const ACCOUNT_VAR: Record<Tool, string> = { claude: "CLAUDE_CONFIG_DIR", codex: "CODEX_HOME", gemini: "GEMINI_CLI_HOME" };
+export const TOOL_NAME: Record<Tool, string> = { claude: "Claude", codex: "Codex", gemini: "Gemini" };
+// The tool's own folder for an account folder, or for the normal login (dir undefined).
+const toolDir = (tool: Tool, dir?: string, home = homedir()) =>
+  tool === "gemini" ? join(dir ?? home, ".gemini") : dir ?? join(home, tool === "claude" ? ".claude" : ".codex");
 const root = () => process.env.KAIZEN_ACCOUNTS_HOME ?? join(homedir(), ".kaizen");
 const file = () => join(root(), "accounts.json");
 const validId = (id: string) => /^[a-z0-9]{8,32}$/.test(id);
 export const accountDir = (id: string) => join(root(), "accounts", id);
-const isTool = (t: unknown): t is Tool => t === "claude" || t === "codex";
+const isTool = (t: unknown): t is Tool => t === "claude" || t === "codex" || t === "gemini";
 
 export function readAccounts(): Accounts {
   try {
@@ -34,7 +39,8 @@ function save(a: Accounts) {
 }
 
 // Kaizen's own links, copied from the normal login's folder, so a run works under the account.
-export function linkKaizen(dir: string, tool: Tool, from = join(homedir(), tool === "claude" ? ".claude" : ".codex")) {
+export function linkKaizen(dir: string, tool: Tool, from = toolDir(tool)) {
+  if (tool === "gemini") dir = join(dir, ".gemini");
   for (const sub of tool === "claude" ? ["skills", "agents", "commands"] : ["skills"]) {
     let names: string[] = [];
     try { names = readdirSync(join(from, sub)).filter((n) => n.startsWith("kaizen")); } catch { continue; }
@@ -63,7 +69,7 @@ export function addAccount(tool: unknown, name: unknown): { id: string } | { err
   if (!isTool(tool)) return { error: "unknown tool" };
   const a = readAccounts();
   // No name: the tool's, numbered. It can be renamed after sign-in.
-  const base = tool === "claude" ? "Claude" : "Codex";
+  const base = TOOL_NAME[tool];
   let auto = base;
   for (let i = 2; a.accounts.some((x) => x.tool === tool && x.name === auto); i++) auto = `${base} ${i}`;
   const n = cleanName(name) || auto;
@@ -80,7 +86,8 @@ export function addAccount(tool: unknown, name: unknown): { id: string } | { err
 
 // The folder holds the login and that account's conversations, so it goes only when asked.
 // Whether the tool has saved a login here. The file is only looked at, never read.
-export const signedIn = (dir: string, tool: Tool) => existsSync(join(dir, tool === "claude" ? ".credentials.json" : "auth.json"));
+export const signedIn = (dir: string, tool: Tool) =>
+  existsSync(tool === "gemini" ? join(dir, ".gemini", "oauth_creds.json") : join(dir, tool === "claude" ? ".credentials.json" : "auth.json"));
 
 // Who is signed in, as the tool itself says: `claude auth status --json` / `codex login status`,
 // pointed at an account folder (`dir`) or at the normal login. kaizen never opens the login
@@ -88,7 +95,14 @@ export const signedIn = (dir: string, tool: Tool) => existsSync(join(dir, tool =
 export type Login = { signedIn: boolean; who?: string; plan?: string; via?: string; checked: "cli" | "file" };
 export async function loginStatus(tool: Tool, dir?: string, env: NodeJS.ProcessEnv = process.env, timeoutMs = 5000): Promise<Login> {
   const home = env.HOME || homedir();
-  const fallback = (): Login => ({ signedIn: signedIn(dir ?? join(home, tool === "claude" ? ".claude" : ".codex"), tool), checked: "file" });
+  const fallback = (): Login => ({ signedIn: tool === "gemini" ? signedIn(dir ?? home, tool) : signedIn(dir ?? join(home, tool === "claude" ? ".claude" : ".codex"), tool), checked: "file" });
+  // Gemini CLI has no status command: the login file's presence, and the address it lists in
+  // google_accounts.json (no token there).
+  if (tool === "gemini") {
+    let who: string | undefined;
+    try { const a = JSON.parse(readFileSync(join(toolDir(tool, dir, home), "google_accounts.json"), "utf8"))?.active; if (typeof a === "string" && a.trim()) who = a.trim().slice(0, 120); } catch { /* none */ }
+    return { ...fallback(), who };
+  }
   const bin = Bun.which(tool, { PATH: env.PATH ?? "" });
   if (!bin) return fallback();
   const e: Record<string, string> = {};

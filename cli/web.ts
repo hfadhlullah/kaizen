@@ -11,7 +11,7 @@ import {
   reviewFindings, pickFindings, backlogItem, startedBacklog, closeBacklog, markBacklogDone, fixPrompt, approvalPrompt, canApproveAwaiting, gateOf, recordAcceptance, healRuns, finishRun, nativePath, closeSessions, sweepSessions, issueUrl,
   launchMode, pruneRuns, pruneSessions, readSessions, ownerOf, runIndex, resumePrompt, runAgent, firstSession, webHosts,
 } from "./state.ts";
-import { ACCOUNT_VAR, accountDir, addAccount, loginStatus, readAccounts, renameAccount, removeAccount, resolveAccount, setDefaultAccount, type Login } from "./accounts.ts";
+import { ACCOUNT_VAR, accountDir, addAccount, loginStatus, readAccounts, renameAccount, removeAccount, resolveAccount, setDefaultAccount, type Login, type Tool } from "./accounts.ts";
 import { readReport, signalOf } from "./report.ts";
 import { MAX_IMAGE, saveImage } from "./term-image.ts";
 import { shellHistory } from "./term-history.ts";
@@ -1679,7 +1679,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         }
         const a = readAccounts();
         // Who is signed in, asked of the tool itself (cli/accounts.ts loginStatus), a minute at a time.
-        const who = async (key: string, tool: "claude" | "codex", dir?: string): Promise<Login> => {
+        const who = async (key: string, tool: Tool, dir?: string): Promise<Login> => {
           const hit = acctLogin.get(key);
           if (hit && Date.now() - hit.at < 60_000) return hit.login;
           const login = await loginStatus(tool, dir);
@@ -1690,23 +1690,24 @@ export async function web(repoDir: string, opts: Opts = {}) {
           const dir = accountDir(x.id);
           let hit = acctUsage.get(x.id);
           if (!hit || Date.now() - hit.at > 60_000) {
-            hit = { at: Date.now(), usage: x.tool === "claude" ? await claudeUsageAt(dir) : codexUsageAt(dir) };
+            // Gemini CLI keeps no plan usage kaizen can read: none shown.
+            hit = { at: Date.now(), usage: x.tool === "claude" ? await claudeUsageAt(dir) : x.tool === "codex" ? codexUsageAt(dir) : null };
             acctUsage.set(x.id, hit);
           }
           const l = await who(x.id, x.tool, dir);
-          return { ...x, isDefault: a.default[x.tool] === x.id, signedIn: l.signedIn, who: l.who, plan: l.plan, via: l.via, usage: hit.usage, signIn: `${ACCOUNT_VAR[x.tool]}=${dir} ${x.tool}${x.tool === "codex" ? " login" : ""}` };
+          return { ...x, isDefault: a.default[x.tool] === x.id, signedIn: l.signedIn, who: l.who, plan: l.plan, via: l.via, usage: hit.usage, signIn: `${ACCOUNT_VAR[x.tool]}=${dir} ${x.tool}${x.tool === "codex" ? " login" : ""}`, usageKnown: x.tool !== "gemini" };
         }));
         // The normal login of each installed tool (~/.claude, ~/.codex): the one runs use unless an
         // account above is the default.
-        const normal = await Promise.all((["claude", "codex"] as const).filter((t) => onPath(t)).map(async (t) => {
+        const normal = await Promise.all((["claude", "codex", "gemini"] as const).filter((t) => onPath(t)).map(async (t) => {
           const key = "normal:" + t;
           let hit = acctUsage.get(key);
           if (!hit || Date.now() - hit.at > 60_000) {
-            hit = { at: Date.now(), usage: t === "claude" ? await claudeUsage(home) : codexUsage(home) };
+            hit = { at: Date.now(), usage: t === "claude" ? await claudeUsage(home) : t === "codex" ? codexUsage(home) : null };
             acctUsage.set(key, hit);
           }
           const l = await who(key, t);
-          return { tool: t, isDefault: !a.default[t], signedIn: l.signedIn, who: l.who, plan: l.plan, via: l.via, usage: hit.usage, signIn: t === "claude" ? "claude auth login" : "codex login" };
+          return { tool: t, isDefault: !a.default[t], signedIn: l.signedIn, who: l.who, plan: l.plan, via: l.via, usage: hit.usage, signIn: t === "claude" ? "claude auth login" : t === "codex" ? "codex login" : "gemini", usageKnown: t !== "gemini" };
         }));
         return json({ accounts: rows, normal, windows: process.platform === "win32", ...(added ? { added } : {}) });
       }

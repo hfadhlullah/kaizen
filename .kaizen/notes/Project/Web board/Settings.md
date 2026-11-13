@@ -68,3 +68,5 @@ Tasks uses configured workflow agent/account/model/permissions. The task-specifi
 
 - WhatsApp reconnect (run 2026-11-13-whatsapp-reconnect): `whatsappStatus()` reports `saved` (`auth/creds.json`) and, with the bridge down, starts it once in the background (`reviving`); the bridge reconnects from the saved login itself. The Phone card shows "Linked · reconnecting…" (+ Unlink) while `saved` and not connected; Unlink starts the bridge first so it logs out properly.
 - Phone search (run 2026-11-13-phone-settings-search): while `#sq` has focus on a narrow screen, `filter()` stays on the page list (narrowed to matching pages) instead of opening the first hit, which hid the box after one letter; `pick()` blurs the box, since a tapped button takes no focus on iOS.
+
+- AI Accounts covers Gemini CLI (run 2026-11-13-gemini-accounts): `GEMINI_CLI_HOME=<account folder>` (Gemini keeps `.gemini` under it), signed in = `.gemini/oauth_creds.json`, who = `google_accounts.json` `active`; no usage (none readable). Cursor is not offered: kaizen launches `cursor`, while the CLI is `cursor-agent`.

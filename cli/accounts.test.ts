@@ -50,7 +50,7 @@ test("remove keeps the folder unless asked; ids can't leave the folder", () => {
   expect(existsSync(t)).toBe(true);
 });
 test("names are validated", () => {
-  expect("error" in addAccount("gemini", "x")).toBe(true);
+  expect("error" in addAccount("copilot", "x")).toBe(true);
   add();
   expect("error" in addAccount("claude", "Work")).toBe(true);
 });
@@ -157,4 +157,28 @@ echo "Logged in using an API key - sk-proj-abc***xyz"
   // No tool on PATH: the file check.
   writeFileSync(join(home, ".claude", ".credentials.json"), "{}");
   expect(await loginStatus("claude", undefined, { PATH: "/nonexistent", HOME: home })).toEqual({ signedIn: true, checked: "file" });
+});
+
+// Gemini CLI: GEMINI_CLI_HOME stands in for the home folder, so its login and kaizen's skills live
+// in <account>/.gemini; there is no status command, so the login file says signed in and
+// google_accounts.json (no token) says who.
+test("Gemini CLI accounts: home-style folder, kaizen's links under .gemini, file-based login", async () => {
+  const id = add("gemini", "");
+  const a = readAccounts().accounts.find((x) => x.id === id)!;
+  expect(a).toMatchObject({ tool: "gemini", name: "Gemini" });
+  setDefaultAccount("gemini", id);
+  expect(resolveAccount("gemini", undefined, false)).toMatchObject({ dir: accountDir(id), envVar: "GEMINI_CLI_HOME" });
+  const from = join(t, "gfrom"), target = join(t, "gskill");
+  mkdirSync(join(from, "skills"), { recursive: true });
+  mkdirSync(target);
+  symlinkSync(target, join(from, "skills", "kaizen"), process.platform === "win32" ? "junction" : undefined);
+  linkKaizen(join(t, "gacct"), "gemini", from);
+  expect(existsSync(join(t, "gacct", ".gemini", "skills", "kaizen"))).toBe(true);
+  expect(signedIn(accountDir(id), "gemini")).toBe(false);
+  mkdirSync(join(accountDir(id), ".gemini"), { recursive: true });
+  writeFileSync(join(accountDir(id), ".gemini", "oauth_creds.json"), "{}");
+  writeFileSync(join(accountDir(id), ".gemini", "google_accounts.json"), JSON.stringify({ active: "me@example.com", old: [] }));
+  expect(signedIn(accountDir(id), "gemini")).toBe(true);
+  const { loginStatus } = await import("./accounts.ts");
+  expect(await loginStatus("gemini", accountDir(id))).toMatchObject({ signedIn: true, who: "me@example.com", checked: "file" });
 });
