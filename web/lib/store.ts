@@ -5,7 +5,7 @@ import type { TaskPageData, TaskView } from "./tasks.ts";
 
 export type Store = {
   // Which React page is showing; set by the board's view switch (web/board/react-mount.ts).
-  view: "tasks" | "task" | "";
+  view: "tasks" | "task" | "icebox" | "";
   // The Tasks list.
   tasks: TaskView[];
   tasksLoaded: boolean;

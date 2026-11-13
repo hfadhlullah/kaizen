@@ -1,6 +1,5 @@
 import { store } from "./store.ts";
 import { $, vt } from "./dom.ts";
-import { openSources } from "./icebox.ts";
 import { close } from "./panel.ts";
 import { openSettings } from "./settings.ts";
 import { openTerms, termsStop } from "./terms.ts";
@@ -10,12 +9,18 @@ import { initPhone, isPhone, openPhone } from "./phone.ts";
 
 // The React pages (react-mount.ts) register here from main.ts, so the notebook and Video bundles, which share
 // this module, carry no React.
-export const react = { init: (_go: (v: string, push?: boolean) => void) => {}, openTasks: () => {}, openTaskPage: () => {} };
+export const react = {
+  init: (_go: (v: string, push?: boolean) => void) => {},
+  openTasks: () => {},
+  openTaskPage: () => {},
+  openIcebox: () => {},
+  iceKeys: (_e: KeyboardEvent) => false,
+};
 // ---- views: Home (the chat, at /), the board, Settings and the Icebox as pages in the docked panel, or the Terminal page; each with its own address
 export let view = "board";
 let boardBack = false;
 // The board's own area, not the docked panel.
-const AREA = ["board", "terminal", "home", "tasks", "task", "run", "chat", "device"];
+const AREA = ["board", "terminal", "home", "tasks", "task", "run", "chat", "device", "sources"];
 export const markView = (v) => {
   // A phone's run workspace belongs to its Runs tab.
   const lit = v === "task" ? (isPhone() ? "device" : "tasks") : v === "run" && isPhone() ? "device" : v;
@@ -93,12 +98,13 @@ export function go(v, push) {
   openPhone(ph ? "home" : v === "device" ? "device" : null);
   if (v === "tasks") react.openTasks();
   if (v === "task") react.openTaskPage();
+  if (v === "sources") react.openIcebox();
   // After the panel handling below, which closes the board's panel on the way in.
   if (v === "run") queueMicrotask(() => void showRunView(true));
   // The Terminal page is the board's own area, not the docked panel: the panel closes as on the board.
   if (AREA.includes(v)) {
     if (AREA.includes(was)) {
-      if (v !== "board" && (was === "board" || was === "tasks")) {
+      if (v !== "board" && (was === "board" || was === "tasks" || was === "sources")) {
         view = "board";
         close();
         view = v;
@@ -116,8 +122,7 @@ export function go(v, push) {
     return;
   }
   p.classList.add("docked");
-  if (v === "settings") openSettings();
-  else openSources();
+  openSettings();
 }
 
 export function initViews() {

@@ -1,7 +1,5 @@
 import { store } from "./store.ts";
 import { flushLoad, load } from "./api.ts";
-import { $, whenIdle } from "./dom.ts";
-import { iceBusy, openSources, srcOpen } from "./icebox.ts";
 import { deep } from "./panel.ts";
 import { keep, urlAll } from "./projects.ts";
 import { go, markView } from "./views.ts";
@@ -18,11 +16,8 @@ function listen() {
   es.onmessage = (ev) => {
     if (ev.data === "changed") {
       load(true);
-      // Held while a popup is open or a press is under way, so neither is undone by the rebuild.
-      if (srcOpen())
-        whenIdle($("pbody"), () => {
-          if (srcOpen() && !iceBusy && !$("src-go")?.disabled && !$("src-add")?.disabled) openSources();
-        });
+      // The Icebox (a React page) refetches itself; it redraws in place, so nothing needs holding back.
+      dispatchEvent(new Event("kz-changed"));
     } else if (ev.data.startsWith("hello ")) {
       const b = ev.data.slice(6);
       if (boot && b !== boot) reloadWhenAway();

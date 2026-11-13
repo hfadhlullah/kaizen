@@ -2,10 +2,9 @@ import { store } from "./store.ts";
 import { load } from "./api.ts";
 import { focusedKey, formPopup, key, nav, newTask, render, runPopup } from "./cards.ts";
 import { $ } from "./dom.ts";
-import { iceNav, srcOpen } from "./icebox.ts";
 import { close, openRun } from "./panel.ts";
 import { keep } from "./projects.ts";
-import { view } from "./views.ts";
+import { react, view } from "./views.ts";
 
 export function initKeys() {
   $("kbd").onclick = () => $("help").classList.add("on");
@@ -20,16 +19,7 @@ export function initKeys() {
   });
   document.onkeydown = (e) => {
     // The icebox reads its own keys first; a checkbox there keeps them, for x then j.
-    if (
-      view === "sources" &&
-      iceNav &&
-      srcOpen() &&
-      !$("help").classList.contains("on") &&
-      !e.target.matches("input:not([type=checkbox]),select,textarea,[contenteditable]") &&
-      !e.target.closest("#src-sec") &&
-      iceNav(e)
-    )
-      return;
+    if (view === "sources" && !$("help").classList.contains("on") && react.iceKeys(e)) return;
     // A dialog handles its own keys; Escape there must not also close the panel.
     if (e.target.matches("input,select,textarea,[contenteditable]") || e.target.closest("dialog")) return;
     // The shortcuts overlay (?) is off for now, with its menu button; keys still work.

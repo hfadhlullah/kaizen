@@ -5,16 +5,22 @@ import { createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { setHost } from "../lib/host.ts";
 import { toast } from "../lib/toast.ts";
+import { iceKeys } from "../lib/hooks/use-ice-keys.ts";
 import { showTask } from "../lib/hooks/use-task.ts";
 import { setStore } from "../lib/store.ts";
 import { TaskPage } from "../pages/task-page.tsx";
+import { IceboxPage } from "../pages/icebox-page.tsx";
 import { TasksPage } from "../pages/tasks-page.tsx";
 import { Toaster } from "../ui/sonner.tsx";
 import { TooltipProvider } from "../ui/tooltip.tsx";
 import { attentionTasks, setTaskAttention } from "./badge.ts";
-import { newTask, runPopup } from "./cards.ts";
+import { dirHeader, load } from "./api.ts";
+import { newTask, runPopup, via } from "./cards.ts";
+import { mic, stopDictation } from "./dictation.ts";
 import { setToaster } from "./toast.ts";
-import { $ } from "./dom.ts";
+import { $, dataUrls, motion } from "./dom.ts";
+import { setShown, showable } from "./projects.ts";
+import { playSound, soundPick } from "./toast.ts";
 import { store } from "./store.ts";
 
 // A root for a page lives in a div of its own inside the old container: the container keeps its layout rules
@@ -33,6 +39,11 @@ export function openTasks() {
   mount("tasksv", TasksPage);
   setStore({ view: "tasks" });
 }
+export function openIcebox() {
+  mount("icev", IceboxPage);
+  setStore({ view: "icebox" });
+}
+export { iceKeys };
 export function openTaskPage() {
   mount("taskpagev", TaskPage);
   showTask();
@@ -52,6 +63,25 @@ export function initReact(go: (view: string, push?: boolean) => void) {
     setTaskAttention,
     attentionTasks: () => attentionTasks,
     scopeDir: () => (!store.all ? (store.S.dir ?? "") : ""),
+    dirHeader,
+    projects: () => store.S.projects,
+    showable,
+    shown: () => store.shown,
+    clearShown: () => {
+      store.shown.clear();
+      setShown();
+    },
+    reload: () => void load(),
+    mic: (field) => mic([field]),
+    stopDictation: () => stopDictation(true),
+    dataUrls,
+    pop: () => soundPick() !== "off" && playSound("pop"),
+    motion,
+    agentLine: via,
+    openSettings: (q) => {
+      store.setQ = q;
+      go("settings", true);
+    },
   });
   addEventListener("kz-view", () => setStore({ view: "" }));
   addEventListener("kz-open-task", ((e: CustomEvent) => {

@@ -14,6 +14,22 @@ export type Host = {
   attentionTasks(): unknown[] | null;
   // The board's project filter: the dir the Tasks list is scoped to ("" for all projects).
   scopeDir(): string;
+  // The Icebox: the board's project header for a request, its project list and "Showing" picker (a project
+  // with a logo is drawn with it), a reload of the board's own data after a change, and what the Icebox reuses
+  // from the old code: dictation, the file shrinker, the click sound and the Settings jump.
+  dirHeader(): Record<string, string>;
+  projects(): { dir: string; label: string; logo?: boolean }[];
+  showable(): { dir: string; label: string }[];
+  shown(): Set<string>;
+  clearShown(): void;
+  reload(): void;
+  mic(field: HTMLTextAreaElement): HTMLElement | null;
+  stopDictation(): void;
+  dataUrls(files: File[]): Promise<{ name: string; data: string }[]>;
+  pop(): void;
+  motion(): boolean;
+  agentLine(agent: { name: string; note?: string }): string;
+  openSettings(query: string): void;
 };
 const none = (): never => {
   throw new Error("The board has not mounted this page yet");
@@ -25,5 +41,18 @@ export const host: Host = {
   setTaskAttention: () => {},
   attentionTasks: () => null,
   scopeDir: () => "",
+  dirHeader: () => ({}),
+  projects: () => [],
+  showable: () => [],
+  shown: () => new Set(),
+  clearShown: none,
+  reload: () => {},
+  mic: () => null,
+  stopDictation: () => {},
+  dataUrls: none,
+  pop: () => {},
+  motion: () => true,
+  agentLine: (a) => a.name,
+  openSettings: none,
 };
 export const setHost = (h: Partial<Host>) => Object.assign(host, h);

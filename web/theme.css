@@ -26,6 +26,10 @@
   --color-success: var(--ok);
   --color-warning: var(--warn);
   --color-danger: var(--danger);
+  --color-kind-client: color-mix(in srgb, #2563eb 70%, var(--ink));
+  --color-kind-finding: color-mix(in srgb, #15803d 70%, var(--ink));
+  --color-kind-people: color-mix(in srgb, #c2410c 70%, var(--ink));
+  --color-promote: color-mix(in srgb, #15803d 82%, var(--ink));
   --radius-xs: var(--r-xs);
   --radius-sm: var(--r-s);
   --radius-md: var(--r);
@@ -45,8 +49,12 @@
   --text-lg--line-height: 1.5;
   --animate-fade-in: kz-fade 0.12s;
   --animate-dot: kz-dot 1.2s ease-in-out infinite;
+  --animate-rise: kz-rise 0.8s ease-out forwards;
+  --animate-fall: kz-fall 1.6s ease-in forwards;
 }
 @keyframes kz-fade { from { opacity: 0; } }
+@keyframes kz-rise { to { transform: translateY(-14px); opacity: 0; } }
+@keyframes kz-fall { to { transform: translateY(420px) rotate(540deg); opacity: 0; } }
 @keyframes kz-dot { 0%, 60%, 100% { opacity: 0.3; transform: none; } 30% { opacity: 1; transform: translateY(-3px); } }
 
 /* Tailwind's preflight, scoped: it applies inside .kz-ui (the React roots and the shared popup container) and

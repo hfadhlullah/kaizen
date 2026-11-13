@@ -1,12 +1,20 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { cn } from "../lib/utils.ts";
-import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "../ui/command.tsx";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "../ui/command.tsx";
 import { Icon } from "../ui/icon.tsx";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover.tsx";
 
-export type PickerOption = { value: string; label: string };
+// `group` heads a run of rows (sources under their platform); `icon` leads the row and the button; `count` trails it.
+export type PickerOption = {
+  value: string;
+  label: string;
+  group?: string;
+  icon?: ReactNode;
+  count?: number;
+  search?: string;
+};
 // A searchable choice (project, source, category, agent): a button showing the choice that opens a list with a
-// search box.
+// search box. The search matches a row's words and its group's; Enter picks the first row left.
 export function Picker({
   options,
   value,
@@ -14,6 +22,7 @@ export function Picker({
   placeholder = "Choose",
   label,
   className,
+  groupIcons,
 }: {
   options: PickerOption[];
   value: string;
@@ -21,9 +30,27 @@ export function Picker({
   placeholder?: string;
   label: string;
   className?: string;
+  groupIcons?: Record<string, ReactNode>;
 }) {
   const [open, setOpen] = useState(false);
   const chosen = options.find((o) => o.value === value);
+  const row = (o: PickerOption) => (
+    <CommandItem
+      key={o.value}
+      value={o.value}
+      keywords={[o.label, o.group ?? "", o.search ?? ""]}
+      onSelect={() => {
+        onChange(o.value);
+        setOpen(false);
+      }}
+    >
+      {o.icon}
+      <span className="min-w-0 flex-1 truncate">{o.label}</span>
+      {o.count != null && <i className="text-xs not-italic tabular-nums text-muted-foreground">{o.count}</i>}
+      {o.value === value && <Icon name="check" className="size-3.5 text-primary" />}
+    </CommandItem>
+  );
+  const groups = [...new Set(options.map((o) => o.group).filter((g): g is string => !!g))];
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -36,27 +63,35 @@ export function Picker({
             className,
           )}
         >
+          {chosen?.icon}
           <span className="min-w-0 truncate">{chosen?.label ?? placeholder}</span>
           <Icon name="chev" className="size-3 shrink-0 text-muted-foreground" />
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-[320px]">
-        <Command>
+        <Command
+          filter={(_v, search, kw) => (kw?.join(" ").toLowerCase().includes(search.trim().toLowerCase()) ? 1 : 0)}
+        >
           <CommandInput placeholder="Search…" aria-label={`Search ${label}`} />
           <CommandList>
             <CommandEmpty>Nothing matches</CommandEmpty>
-            {options.map((o) => (
-              <CommandItem
-                key={o.value}
-                value={o.label}
-                onSelect={() => {
-                  onChange(o.value);
-                  setOpen(false);
-                }}
+            {options.filter((o) => !o.group).map(row)}
+            {groups.map((g) => (
+              <CommandGroup
+                key={g}
+                heading={
+                  groupIcons?.[g] ? (
+                    <>
+                      {groupIcons[g]}
+                      {g}
+                    </>
+                  ) : (
+                    g
+                  )
+                }
               >
-                <span className="min-w-0 flex-1 truncate">{o.label}</span>
-                {o.value === value && <Icon name="check" className="size-3.5 text-primary" />}
-              </CommandItem>
+                {options.filter((o) => o.group === g).map(row)}
+              </CommandGroup>
             ))}
           </CommandList>
         </Command>

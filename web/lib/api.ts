@@ -1,5 +1,6 @@
 // Every request the Tasks pages make, in one place: the same routes and payloads the old pages sent
-// (/tasks?all=1, /task?id=&dir=, POST /task, /frameable, /expose).
+// (/tasks?all=1, /task?id=&dir=, POST /task, /frameable, /expose), and the Icebox's (/sources, POST /icebox).
+import { host } from "./host.ts";
 import { toast } from "./toast.ts";
 import type { TaskPageData, TaskView } from "./tasks.ts";
 
@@ -57,3 +58,29 @@ export const expose = async (url: string): Promise<{ ok?: boolean; url?: string;
       body: JSON.stringify({ url }),
     })
   ).json();
+// The Icebox's requests: a JSON POST carrying the board's project header, as the old pages' post() did. A
+// failure toasts the server's words (with a prefilled bug link) and answers { ok: false }.
+const GONE = "The kaizen server is not running — start it with kaizen web (or the shortcut), then reload.";
+export async function post(path: string, body: Record<string, unknown>): Promise<Record<string, any>> {
+  let r: Response;
+  try {
+    r = await fetch(path, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...host.dirHeader() },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    toast(GONE);
+    return { ok: false };
+  }
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    const m = j.error || j.why || "That did not work";
+    toast(m, { title: m.slice(0, 80), what: `POST ${path} failed (HTTP ${r.status}): ${m}` });
+  }
+  return j;
+}
+export const getSources = async (dir: string): Promise<import("./icebox.ts").IceData | null> =>
+  fetch("/sources" + (dir ? "?dir=" + encodeURIComponent(dir) : ""))
+    .then((r) => r.json())
+    .catch(() => null);

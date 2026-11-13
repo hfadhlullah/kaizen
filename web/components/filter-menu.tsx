@@ -1,7 +1,5 @@
-import { useState } from "react";
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover.tsx";
 import { Chip } from "./chip.tsx";
-import { IconButton } from "./icon-button.tsx";
+import { FilterPopover } from "./filter-popover.tsx";
 
 export type FilterOption = { id: string; label: string; count?: number };
 // The filter popup of a list: an icon button that opens one row of chips, one chosen. Choosing closes it. The
@@ -17,13 +15,9 @@ export function FilterMenu({
   value: string;
   onChange: (id: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <IconButton icon="filter" label={label} active={value !== options[0]?.id} />
-      </PopoverTrigger>
-      <PopoverContent className="flex flex-col gap-1.5 p-2">
+    <FilterPopover label={label} active={value !== options[0]?.id}>
+      {(close) => (
         <div role="group" aria-label={label} className="flex flex-wrap gap-1.5">
           {options.map((o) => (
             <Chip
@@ -32,14 +26,14 @@ export function FilterMenu({
               pressed={value === o.id}
               onPressedChange={() => {
                 onChange(o.id);
-                setOpen(false);
+                close();
               }}
             >
               {o.label}
             </Chip>
           ))}
         </div>
-      </PopoverContent>
-    </Popover>
+      )}
+    </FilterPopover>
   );
 }

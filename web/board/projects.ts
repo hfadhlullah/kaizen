@@ -3,10 +3,8 @@ import { startDir } from "./labels.ts";
 import { load, post } from "./api.ts";
 import { newTask, render } from "./cards.ts";
 import { $, html, ico } from "./dom.ts";
-import { openSources, srcOpen } from "./icebox.ts";
 import { toast } from "./toast.ts";
 import { openAdd } from "./add-project.ts";
-import { view } from "./views.ts";
 
 // The picked project outlives a reload. Saved only where the user changes it, so a
 // second tab refreshing cannot undo it; a view the URL asked for is a one-off.
@@ -72,7 +70,6 @@ export async function pick(v) {
     }
   }
   await load();
-  if (view === "sources") openSources();
 }
 // Known projects, plus any folder a card comes from that is not one (the global inbox).
 // New task in All projects: the projects being shown, else every one.
@@ -203,7 +200,7 @@ export function setShown() {
   } catch (e) {}
   render();
   // The Icebox narrows by the same picker, so it redraws too.
-  if (srcOpen()) openSources();
+  dispatchEvent(new Event("kz-shown"));
 }
 
 export function initProjects() {

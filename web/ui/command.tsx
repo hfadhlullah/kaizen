@@ -30,3 +30,12 @@ export const CommandItem = ({ className, ...props }: ComponentProps<typeof Comma
     {...props}
   />
 );
+export const CommandGroup = ({ className, ...props }: ComponentProps<typeof CommandPrimitive.Group>) => (
+  <CommandPrimitive.Group
+    className={cn(
+      "[&_[cmdk-group-heading]]:flex [&_[cmdk-group-heading]]:items-center [&_[cmdk-group-heading]]:gap-1.5 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:pt-2 [&_[cmdk-group-heading]]:text-sm [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-foreground",
+      className,
+    )}
+    {...props}
+  />
+);
