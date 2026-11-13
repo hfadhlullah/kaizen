@@ -2,7 +2,7 @@
 description: The Video page and its version store
 tags: [project, web-board]
 sources: [cli/versions.ts, cli/video.ts, cli/localsend.ts, web/video.html, web/video.ts]
-updated: 2026-11-09
+updated: 2026-11-13
 ---
 # Video
 
@@ -31,3 +31,6 @@ The Video page: a library of videos with their versions, where you play, compare
 ## Persistent Tasks (2026-11-08)
 
 Task result publication may link a specialized Video identity (name, letter, revision) while preserving deliverable media bytes in its own immutable task snapshot. Subsequent Video edits/deletion do not remove those saved bytes. Tasks does not replace Video recipes or its version operations; publication must explicitly name the completed regular output.
+
+## Menu label (2026-11-13)
+- `web/video.html` shares the side menu change: the Home chat item reads "Chat" on a computer and "Home" on a phone (see [[Web board/Home, chat and phone]]).

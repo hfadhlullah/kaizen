@@ -38,7 +38,7 @@ export const markView = (v) => {
               : v === "home"
                 ? isPhone()
                   ? "kaizen"
-                  : "Home"
+                  : "Chat"
                 : v === "chat"
                   ? "Chat"
                   : v === "device"

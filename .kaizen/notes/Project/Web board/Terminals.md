@@ -2,7 +2,7 @@
 description: In-card agent terminals: the PTY, typing into agents, terminal page, font, theme, resources
 tags: [project, web-board]
 sources: [cli/term-history.ts, cli/term-history.test.ts, web/term-font.ts, cli/resources.ts, web/board/resources.ts, cli/state-snap.ts, cli/state.ts, cli/pty.ts, cli/conpty.ts, web/board, web/term.ts]
-updated: 2026-11-11
+updated: 2026-11-13
 ---
 # Terminals
 
@@ -56,3 +56,6 @@ The task queue dispatches into a live run terminal only after a structured ackno
 ## Windows ConPTY & native launch parity (2026-11-11)
 
 `KzPty.Run` in `cli/conpty.ts` passes `STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW` (`0x101`) with `SW_HIDE` (`0`), suppresses PowerShell progress records, and `innerCommand` (along with `findTerminal` in `cli/state.ts`) escapes embedded double quotes for non-`.ps1` targets so PowerShell 5.1 does not strip quotes from native executable arguments. `startPty` in `cli/pty.ts` strips `#< CLIXML ... </Objs>` blocks from `stderr`, terminates the full Windows process tree via `taskkill.exe /T /F /PID` on exit/kill, receives task/run environment variables via `opts.env` on Windows, and `adoptLoginEnv` reads `HKLM` and `HKCU` `Path` entries from the Windows Registry plus standard Windows agent (`%LOCALAPPDATA%\agy\bin`, `%USERPROFILE%\.local\bin`, `%APPDATA%\npm`) and Git paths when missing from `PATH`.
+
+## Floating Home workspace (2026-11-13)
+- Agent and shell tabs outside any project, in a panel over the board: see [[Web board/Home workspace]].

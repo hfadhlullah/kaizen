@@ -2,7 +2,7 @@
 description: Home and its chat, first-run onboarding, phone setup and the phone Home
 tags: [project, web-board]
 sources: [cli/onboarding.ts, web/board/onboarding.ts, cli/phone-setup.ts, web/board/phone-setup.ts, web/board/phone.ts, cli/chat.ts, web/board/home.ts, cli/state.ts, web/board, web/sounds, web/popup.html, cli/chat-window.py, cli/install.ts, cli/settings.ts]
-updated: 2026-11-09
+updated: 2026-11-13
 ---
 # Home, chat and phone
 
@@ -33,3 +33,6 @@ The Home page with its chat, the first-run setup that walks a new user through c
 ## Persistent Tasks (2026-11-08)
 
 Persistent Tasks uses the configured workflow agent and structured task CLI events; it does not reuse Home chat or its fixed Codex model. A saved goal can choose/create a named project in its task page. Phone Runs exposes Tasks and both task/list views remain accessible on small screens. Technical permission controls remain reachable through task Technical details.
+
+## Chat label on computers (2026-11-13)
+- The side menu's Home item (Home chat, `data-view="home"`) reads "Chat" with a chat-bubble icon on a computer, with the title "Chat with the project's agent", and the page header says Chat; the phone bar keeps "Home" and the house icon. On a computer, Home now names the floating Home workspace — see [[Web board/Terminals]]. Search lists the page as "Chat" (also matches "home").

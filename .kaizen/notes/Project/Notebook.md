@@ -2,7 +2,7 @@
 description: The Notes tab: an Obsidian-compatible markdown folder under .kaizen/notes/
 tags: [project, notebook]
 sources: [cli/notes.ts, web/notebook.ts, web/notes-lib.ts, web/notes.html, cli/build-web.ts]
-updated: 2026-11-09
+updated: 2026-11-13
 ---
 # Notebook
 
@@ -19,7 +19,7 @@ Plain markdown files under `<state>/notes/`, folders allowed, so Obsidian can op
 
 - The project picker lists folder names, as the board does; the full path is the select's tooltip.
 - The shared side menu shows a Board waiting count on Notes too. `notebook.ts` refreshes it from `/state?all=1` at load and on `changed` events.
-- The board's right-side Notes tree uses `/vault` to list names and opens a selected note in this existing editor; it does not create a second editor. The shared menu now shows Home, Icebox, Board and Settings.
+- The board's right-side Notes tree uses `/vault` to list names and opens a selected note in this existing editor; it does not create a second editor. The shared menu now shows Chat (Home on a phone; 2026-11-13), Icebox, Board and Settings.
 - `web/notebook.ts` reads `kz-color` from localStorage and sets `data-color=blue`, so the Notes page keeps the board's palette.
 
 ## How it connects

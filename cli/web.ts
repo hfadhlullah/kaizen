@@ -358,6 +358,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
   // Shells the board started (POST /shell), by /pty key; dead ones drop on the next /shells.
   const shells = new Map<string, { key: string; dir: string; title: string; agent: string; run: string; ws?: string; pid?: number }>();
   const SHELL_CAP = 8;
+  // The floating Home workspace's folder: kaizen's own, never a project, so agents start before one is chosen.
+  const HOME_WS = join(home, ".kaizen", "home");
   // The argv each of those started with, kept off the page's copy: saveLive writes it so the next board can start them again.
   const shellCmd = new Map<string, string[]>();
   // A terminal shows where its live run builds, not where it launched: tabs follow `run`, the rail `ws`.
@@ -1003,8 +1005,12 @@ export async function web(repoDir: string, opts: Opts = {}) {
         if (!ptySupported) return bad("terminals need a newer Bun", 501);
         let body: any;
         try { body = await req.json(); } catch { return bad("json body expected"); }
-        const dir = canonState(String(body.dir ?? ""));
-        if (!states(true).includes(dir) || dir === join(home, ".kaizen")) return bad("choose a project", 404);
+        // Home: kaizen's own folder, the one place outside a project. No worktree, dev server or run to resume there.
+        const homeWs = body.home === true;
+        if (homeWs && (body.ws != null || body.dev === true || body.resume === true)) return bad("not in the Home workspace", 400);
+        const dir = homeWs ? HOME_WS : canonState(String(body.dir ?? ""));
+        if (!homeWs && (!states(true).includes(dir) || dir === join(home, ".kaizen"))) return bad("choose a project", 404);
+        if (homeWs) mkdirSync(HOME_WS, { recursive: true });
         let cmd: string[];
         let agent = "";
         let bypass = false;
@@ -1012,7 +1018,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         // id is read from that run's state.json, never taken from the page). Claude only: it is
         // the agent whose session id runs record. Refused while that session is still running
         // elsewhere, since two copies of one conversation overwrite each other's history.
-        const runKey = typeof body.run === "string" && body.run.length <= 2000 ? body.run : "";
+        const runKey = homeWs ? "home" : typeof body.run === "string" && body.run.length <= 2000 && body.run !== "home" ? body.run : "";
         if (body.resume === true) {
           const id = runKey.startsWith("run:" + dir + ":") ? runKey.slice(dir.length + 5) : "";
           let st: any = {};
@@ -1052,7 +1058,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           cmd = acct.dir ? ["env", ...accountEnv(acct), ...line] : line;
         } else cmd = process.platform === "win32" ? [powershellExe()] : [process.env.SHELL || "sh", "-l"];
         // A workspace folder: only an exact path from this project's own `git worktree list`.
-        let cwd = projectOf(dir);
+        let cwd = homeWs ? HOME_WS : projectOf(dir);
         if (body.ws != null) {
           // A miss rechecks past a cache older than 1 s: a worktree made since is real, and a
           // burst of bad paths runs git at most once a second.
@@ -1073,7 +1079,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           dev = true;
         }
         for (const k of shells.keys()) if (!ptyState(k)?.alive) shells.delete(k);
-        if ([...shells.values()].filter((x) => x.dir === dir).length >= SHELL_CAP) return bad(`at most ${SHELL_CAP} terminals per project: close one first`, 429);
+        if ([...shells.values()].filter((x) => x.dir === dir).length >= SHELL_CAP) return bad(`at most ${SHELL_CAP} terminals per ${homeWs ? "workspace" : "project"}: close one first`, 429);
         const key = "sh-" + crypto.randomUUID().slice(0, 8);
         const title = dev ? "dev server" : agent ? KNOWN_AGENTS.find((k) => k.cmd === agent)!.name + (bypass ? " · bypass" : "") : "shell";
         // A dev server it starts lets a phone in: Vite refuses a host it does not know (the tailnet name).
@@ -1814,6 +1820,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
       }
 
       if (req.method === "GET" && path === "/agents") {
+        if (url.searchParams.get("home") === "1") return json(agentChoices(HOME_WS));
         const dir = qdir();
         if (!dir || !states(true).includes(dir)) return bad("unknown state dir", 404);
         return json(agentChoices(projectOf(dir)));
@@ -2790,7 +2797,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
     // The + menu's terminals and agents, unless a run's own resume above already brought that agent back.
     for (const x of fresh ? saved.shells ?? [] : []) {
       try {
-        if (viaRun.has(x.key) || !states(true).includes(x.dir) || !existsSync(x.ws) || !Array.isArray(x.cmd) || !x.cmd.every((a) => typeof a === "string")) continue;
+        if (viaRun.has(x.key) || !(states(true).includes(x.dir) || x.dir === HOME_WS) || !existsSync(x.ws) || !Array.isArray(x.cmd) || !x.cmd.every((a) => typeof a === "string")) continue;
         const key = "sh-" + crypto.randomUUID().slice(0, 8);
         const cmd = x.sid && /^[\w-]{8,80}$/.test(x.sid) && !x.cmd.includes("--resume") ? [...x.cmd, "--resume", x.sid] : x.cmd;
         const pid = startPty(key, cmd, x.ws, undefined, changed, { env: { KAIZEN_TERM: key } });

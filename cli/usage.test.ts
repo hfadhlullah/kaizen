@@ -264,6 +264,39 @@ test.skipIf(process.platform === "win32")("/shell: foreign origin, unknown proje
     for (let i = 0; i < 100; i++) { if (!((await (await fetch(`${at}/shells`)).json()) as any[]).length) break; await Bun.sleep(50); }
     expect(await (await fetch(`${at}/shells`)).json()).toEqual([]);
 
+    // The floating Home workspace: kaizen's own folder, never a page-chosen one; no worktree, dev server or resume there.
+    const homeWs = join(homeDir, ".kaizen", "home");
+    expect((await post({ home: true }, "https://evil.example")).status).toBe(403);
+    expect((await post({ home: true }, `http://127.0.0.1:${port + 1}`)).status).toBe(403);
+    expect((await post({ home: true, ws: "/tmp" }, at)).status).toBe(400);
+    expect((await post({ home: true, dev: true }, at)).status).toBe(400);
+    expect((await post({ home: true, resume: true, run: `run:${st}:r1` }, at)).status).toBe(400);
+    expect((await post({ dir: "/tmp" }, at)).status).toBe(404);
+    expect((await post({ dir: homeWs }, at)).status).toBe(404); // only through home: true
+    expect(existsSync(homeWs)).toBe(false);
+    const agentsHome = await fetch(`${at}/agents?home=1`);
+    expect(agentsHome.status).toBe(200);
+    expect(((await agentsHome.json()) as any).agents.map((a: any) => a.cmd)).toContain("gemini");
+    const hr = await post({ home: true, dir: st, run: `run:${st}:r1` }, at);
+    expect(hr.status).toBe(200);
+    const hsh = (await hr.json()) as any;
+    expect(hsh).toMatchObject({ dir: homeWs, ws: homeWs, run: "home", title: "shell" });
+    expect(existsSync(homeWs)).toBe(true);
+    let hseen = "";
+    const hws = new WebSocket(`${at}/pty?key=${hsh.key}`.replace("http", "ws"), { headers: { origin: at } } as any);
+    hws.onmessage = (e) => { hseen += String(e.data); };
+    await new Promise((ok, no) => { hws.onopen = ok; hws.onerror = no; });
+    for (let i = 0; i < 100 && !hseen.includes("pwd:"); i++) await Bun.sleep(30);
+    expect(hseen).toContain(`pwd:${homeWs}`);
+    hws.close();
+    // A project tab cannot pose as Home.
+    const fake = (await (await post({ dir: st, run: "home" }, at)).json()) as any;
+    expect(fake.run).toBe("");
+    expect(((await (await fetch(`${at}/shells`)).json()) as any[]).filter((s) => s.run === "home").map((s) => s.key)).toEqual([hsh.key]);
+    for (const k of [hsh.key, fake.key]) await fetch(at + "/pty/exit", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ key: k }) });
+    for (let i = 0; i < 100; i++) { if (!((await (await fetch(`${at}/shells`)).json()) as any[]).length) break; await Bun.sleep(50); }
+    expect(await (await fetch(`${at}/shells`)).json()).toEqual([]);
+
     // /state lists the open agents once (not plain shells); an ended one drops out.
     writeFileSync(join(bin, "gemini"), '#!/bin/sh\necho "✦ Reading the parser source"\nread x\n', { mode: 0o755 });
     const ag = (await (await post({ dir: st, agent: "gemini" }, at)).json()) as any, pl = (await (await post({ dir: st }, at)).json()) as any;

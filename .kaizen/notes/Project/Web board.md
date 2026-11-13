@@ -2,7 +2,7 @@
 description: `kaizen web`: the browser board — a hub; its topics are the sub-notes below
 tags: [project, web-board]
 sources: [cli/preflight.ts, cli/rea.test.ts, cli/annotate.test.ts, cli/annotate-proxy.test.ts, cli/web-annotate.test.ts, web/board/annotate-lib.test.ts, desktop/src/preload.ts, desktop/src/updater.ts, web/term-font.test.ts, cli/resources.test.ts, cli/computer.test.ts, cli/workers.ts, cli/accounts.test.ts, web/board/settings-accounts.ts, cli/skills.test.ts, cli/report.test.ts, cli/agent-prefs.test.ts, cli/onboarding.test.ts, cli/phone-setup.test.ts, web/board/search.test.ts, web/board/ws-name.test.ts, cli/web.ts, cli/state.test.ts, cli/video.test.ts, web/board.html, design.md]
-updated: 2026-11-09
+updated: 2026-11-13
 ---
 # Web board
 
@@ -21,6 +21,7 @@ The board is kaizen in a browser: you see every project's tasks and runs as card
 - [[Web board/Run workspace]] — The run workspace: tabs, Browser and Preview, annotator, split panes, restart resume, agent reports
 - [[Web board/Workspaces]] — Projects list as workspaces, workspace cards, the workspace centre, terminals following their run
 - [[Web board/Terminals]] — In-card agent terminals: the PTY, typing into agents, terminal page, font, theme, resources
+- [[Web board/Home workspace]] — The floating Home workspace: agents and shells in ~/.kaizen/home before any project, minimized to a Home row in the sidebar
 - [[Web board/Git and landing]] — Source control tab: commit, push, PRs, which files are a run's, and landing
 - [[Web board/Server and routes]] — The board server: routes, host guard, updates, automations and other server-side behaviour
 - [[Web board/Video]] — The Video page and its version store
