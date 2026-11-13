@@ -324,3 +324,4 @@ updated: 2026-10-31
 - 2026-11-13 run 2026-11-13-floating-home-workspace — Home workspace (new), Terminals, Web board, Server and routes (/shell home, /agents?home=1), Home chat and phone (Chat label on computers), Notebook, Video
 - 2026-11-13 run 2026-11-13-preview-own-workspace — Web board/Run workspace
 - 2026-11-13 run 2026-11-13-project-row-folds — Web board/Workspaces
+- 2026-11-13 run 2026-11-13-orca-terminal — Web board/Terminals

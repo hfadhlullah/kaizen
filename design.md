@@ -63,7 +63,7 @@ Rules:
 ## 2. Colour
 
 Monochrome is the default palette; green, amber and red stay for state. Blue is the alternative, picked under Settings, Appearance, Color (`data-color=blue`, `kz-color`). Dark is the default; light follows `prefers-color-scheme` or the Theme setting
-(system / light / dark) stored in `localStorage`. Every colour is a custom property; no hex appears in component CSS.
+(system / light / dark) stored in `localStorage`. Every colour is a custom property; no hex appears in component CSS. One exception: the terminal's palette (`ORCA_DARK` / `ORCA_LIGHT` in `web/term.ts`, Orca's defaults) is hex, because a terminal's 16 ANSI colours are content programs choose from, not board chrome; it sets `--term-bg` so the pane behind a terminal matches it.
 Two helper tokens sit beside the table on the web: `--on-accent` (white, text on an
 `--accent` fill) and `--shade` (the one shadow colour: black at 8 % in light, black at
 45 % in dark).

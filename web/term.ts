@@ -10,14 +10,42 @@ import { SearchAddon } from "@xterm/addon-search";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { fontRead, fontSet, fontStep } from "./term-font.ts";
 
+// Orca's defaults (its "Ghostty Default Style Dark" and "Builtin Tango Light"): a terminal's ANSI
+// palette is content, not board chrome, so these hex values are the one exception to design.md's
+// tokens-only rule.
+const ORCA_DARK = {
+  background: "#282c34", foreground: "#ffffff", cursor: "#ffffff", cursorAccent: "#282c34",
+  selectionBackground: "#5a7898", selectionForeground: "#ffffff",
+  black: "#1d1f21", red: "#cc6666", green: "#b5bd68", yellow: "#f0c674", blue: "#81a2be", magenta: "#b294bb", cyan: "#8abeb7", white: "#c5c8c6",
+  brightBlack: "#666666", brightRed: "#d54e53", brightGreen: "#b9ca4a", brightYellow: "#e7c547", brightBlue: "#7aa6da", brightMagenta: "#c397d8", brightCyan: "#70c0b1", brightWhite: "#eaeaea",
+};
+const ORCA_LIGHT = {
+  background: "#ffffff", foreground: "#2e3434", cursor: "#2e3434", cursorAccent: "#ffffff",
+  selectionBackground: "#accef7", selectionForeground: "#2e3434",
+  black: "#2e3436", red: "#cc0000", green: "#4e9a06", yellow: "#8e7700", blue: "#3465a4", magenta: "#75507b", cyan: "#05727e", white: "#6a6a6a",
+  brightBlack: "#555753", brightRed: "#ef2929", brightGreen: "#1b7a1b", brightYellow: "#6d5a00", brightBlue: "#204a87", brightMagenta: "#ad7fa8", brightCyan: "#034b50", brightWhite: "#3d3d3d",
+};
+
 function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void {
   const css = getComputedStyle(el);
   const tok = (n: string) => css.getPropertyValue(n).trim() || undefined;
-  const theme = () => ({ background: tok("--bg"), foreground: tok("--ink-hi"), cursor: tok("--accent"), // --line on --bg was near invisible in the dark theme (#2e2e2e on #121212), so a drag
-  // looked like it selected nothing; --dim at 35% shows in both themes.
-  selectionBackground: (tok("--dim") ?? "#808080") + "59" });
+  const os = matchMedia("(prefers-color-scheme: dark)");
+  // The board's theme toggle, else the system's scheme.
+  const dark = () => { const t = document.documentElement.dataset.theme; return t ? t === "dark" : os.matches; };
+  // Orca's default palettes, so a terminal looks like a terminal app rather than a box on the board:
+  // the pane behind it takes the same background (--term-bg), edge to edge.
+  const theme = () => {
+    const t = dark() ? ORCA_DARK : ORCA_LIGHT;
+    document.documentElement.style.setProperty("--term-bg", t.background);
+    return t;
+  };
   const term = new Terminal({
     cursorBlink: true,
+    cursorStyle: "block",
+    // Orca's weights and line height: 500 reads as a native terminal's regular, 700 for bold.
+    fontWeight: "500",
+    fontWeightBold: "700",
+    lineHeight: 1,
     // Nerd Font first: shell prompts print private-use glyphs that plain monospace fonts lack.
     fontFamily: `"JetBrainsMono Nerd Font",${tok("--mono")}`,
     fontSize: fontRead(),
@@ -33,7 +61,6 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
     term.options.theme = theme();
     reportScheme();
   });
-  const os = matchMedia("(prefers-color-scheme: dark)");
   addEventListener("kz-theme", retheme);
   os.addEventListener("change", retheme);
   const fit = new FitAddon();
@@ -90,10 +117,29 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
   // Each message makes the agent repaint its whole screen, so a size already sent on this
   // socket (a few pixels of drag that move no cell) is not sent again.
   let sentOn: WebSocket | null = null, sentC = 0, sentR = 0;
+  // FitAddon's fit with two fixes Orca makes: the cell is measured in device pixels over the
+  // pixel ratio (the CSS cell is rounded, so the column count wobbled between N and N+1 on a
+  // scaled screen), and the container's own padding is taken off (box-sizing is border-box here,
+  // so its computed width includes it and the last column was cut off).
+  const fitTerm = () => {
+    const d = (term as any)._core?._renderService?.dimensions, dpr = devicePixelRatio || 1;
+    const cw = d?.device?.cell?.width / dpr, ch = d?.device?.cell?.height / dpr;
+    const p = term.element?.parentElement;
+    if (!(cw > 0 && ch > 0) || !p) return fit.fit();
+    const px = (st: CSSStyleDeclaration, k: string) => parseFloat(st.getPropertyValue(k)) || 0;
+    const ps = getComputedStyle(p), es = getComputedStyle(term.element!);
+    const bar = term.options.scrollback === 0 ? 0 : term.options.overviewRuler?.width || 14;
+    const w = px(ps, "width") - px(ps, "padding-left") - px(ps, "padding-right") - px(es, "padding-left") - px(es, "padding-right") - bar;
+    const h = px(ps, "height") - px(ps, "padding-top") - px(ps, "padding-bottom") - px(es, "padding-top") - px(es, "padding-bottom");
+    const cols = Math.max(2, Math.floor(w / cw)), rows = Math.max(1, Math.floor(h / ch));
+    if (cols === term.cols && rows === term.rows) return;
+    (term as any)._core?._renderService?.clear();
+    term.resize(cols, rows);
+  };
   const size = (nudge = false) => {
     if (!el.offsetWidth) return;
     if (!ws) return connect(); // its onopen comes back here to fit and nudge
-    fit.fit();
+    fitTerm();
     if (!nudge && sentOn === ws && sentC === term.cols && sentR === term.rows) return;
     sentOn = ws; sentC = term.cols; sentR = term.rows;
     // The replay was drawn at whatever size the agent had before; a resize to the same size
@@ -512,16 +558,19 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
     size();
   };
   addEventListener("kz-term-font", refont);
-  // Fit and tell the agent in the same tick. If xterm narrows first, the agent keeps drawing
-  // at the old width until the message lands, its long lines wrap, and the frame ends up
-  // shifted with junk rows above it. Each resize still makes the agent redraw its screen, so
-  // a drag is throttled (first one at once, then one trailing) rather than sent per frame.
-  let resizing: Timer | undefined, last = 0;
+  // Fit and tell the agent in the same tick: if xterm narrowed first, the agent kept drawing at
+  // the old width until the message landed, its long lines wrapped, and the frame ended up shifted
+  // with junk rows. As Orca does, nothing refits while a divider or the window is still moving: the
+  // pane clips or shows its background (the same colour), and one fit + one resize goes out 150 ms
+  // after the size settles, on the next frame. A pane that just appeared (no size before) fits at once.
+  let resizing: Timer | undefined, frame = 0, wasW = 0;
+  const settle = () => { frame = 0; size(); };
   const ro = new ResizeObserver(() => {
     clearTimeout(resizing);
-    const wait = 60 - (Date.now() - last);
-    if (wait <= 0) { last = Date.now(); size(); }
-    else resizing = setTimeout(() => { last = Date.now(); size(); }, wait);
+    const appeared = !wasW && el.offsetWidth > 0;
+    wasW = el.offsetWidth;
+    if (appeared) return size();
+    resizing = setTimeout(() => { cancelAnimationFrame(frame); frame = requestAnimationFrame(settle); }, 150);
   });
   ro.observe(el);
   term.focus();
@@ -529,6 +578,7 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
   return () => {
     ro.disconnect();
     clearTimeout(resizing);
+    cancelAnimationFrame(frame);
     el.removeEventListener("touchstart", touchStart);
     el.removeEventListener("touchmove", touchMove);
     typed.dispose();
