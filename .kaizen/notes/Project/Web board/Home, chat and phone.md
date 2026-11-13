@@ -36,3 +36,5 @@ Persistent Tasks uses the configured workflow agent and structured task CLI even
 
 ## Chat label on computers (2026-11-13)
 - The side menu's Home item (Home chat, `data-view="home"`) reads "Chat" with a chat-bubble icon on a computer, with the title "Chat with the project's agent", and the page header says Chat; the phone bar keeps "Home" and the house icon. On a computer, Home now names the floating Home workspace — see [[Web board/Terminals]]. Search lists the page as "Chat" (also matches "home").
+
+- Phone New sheet (`newSheet` in `web/board/phone.ts`): "Home — no project" is the first option and the default when no project workspace is in view; picking it dispatches `kz-home-start {agent, yolo}`, which the Home window answers full screen. Phone workspace tabs use the Orca style (flat, `--ink-hi` underline, finger-sized ×) (run 2026-11-13-phone-home-terminal).

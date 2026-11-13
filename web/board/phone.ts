@@ -80,19 +80,22 @@ function pickAgent(rows: { a: Agent; st: Status }[]) {
 async function newSheet(dir?: string, ws?: string) {
   const spots = (railData().projects ?? []).flatMap((p) => (p.workspaces ?? []).map((w) => ({ dir: p.dir as string, ws: w.path as string, name: w.branch || w.path.split(/[\\/]/).pop() })));
   const first = agentGroups(Date.now())[0]?.rows[0].a;
-  const on = spots.find((x) => x.dir === (dir ?? first?.dir) && x.ws === (ws ?? first?.ws)) ?? spots[0];
-  if (!on) return toast("Add a project on a computer first");
-  const list = await fetch("/agents?dir=" + encodeURIComponent(on.dir)).then((r) => r.json(), () => null);
+  // Home (no project) is listed first; it is picked when no project workspace is in view.
+  const on = spots.find((x) => x.dir === (dir ?? first?.dir) && x.ws === (ws ?? first?.ws)) ?? null;
+  const list = await fetch(on ? "/agents?dir=" + encodeURIComponent(on.dir) : "/agents?home=1").then((r) => r.json(), () => null);
   const kinds: { cmd: string; name: string; yolo?: boolean; bypassDefault?: boolean }[] = [...(list?.agents ?? []), { cmd: "", name: "Shell" }];
   const d = document.createElement("dialog");
   d.className = "pagsheet";
-  d.innerHTML = String(html`<h4>New in</h4><select class="sel" aria-label="Workspace">${spots.map((x, i) => html`<option value="${String(i)}"${raw(x === on ? " selected" : "")}>${projName(x.dir)} ${x.name}</option>`)}</select><label class="agent-yolo"><span>Yolo / bypass permissions<small>Run commands without permission prompts</small></span>${toggleSwitch(!!list?.agents?.find((a) => a.cmd === list.default)?.bypassDefault, { box: true, attrs: { "aria-label": "Yolo / bypass permissions" } })}</label>${kinds.map((k, i) => html`<button type="button" data-i="${String(i)}">${k.cmd ? agentIco({ agent: k.cmd } as Agent) : raw(`<svg class="pag-ico" aria-hidden="true"><use href="#i-term"/></svg>`)}${k.name}</button>`)}`);
+  d.innerHTML = String(html`<h4>New in</h4><select class="sel" aria-label="Workspace"><option value="home"${raw(on ? "" : " selected")}>Home — no project</option>${spots.map((x, i) => html`<option value="${String(i)}"${raw(x === on ? " selected" : "")}>${projName(x.dir)} ${x.name}</option>`)}</select><label class="agent-yolo"><span>Yolo / bypass permissions<small>Run commands without permission prompts</small></span>${toggleSwitch(!!list?.agents?.find((a) => a.cmd === list.default)?.bypassDefault, { box: true, attrs: { "aria-label": "Yolo / bypass permissions" } })}</label>${kinds.map((k, i) => html`<button type="button" data-i="${String(i)}">${k.cmd ? agentIco({ agent: k.cmd } as Agent) : raw(`<svg class="pag-ico" aria-hidden="true"><use href="#i-term"/></svg>`)}${k.name}</button>`)}`);
   d.addEventListener("click", async (e) => {
     const b = (e.target as HTMLElement).closest<HTMLButtonElement>("button");
     if (e.target === d) return d.close();
     if (!b) return;
-    const at = spots[Number(d.querySelector("select")!.value)], cmd = kinds[Number(b.dataset.i)].cmd;
+    const pick = d.querySelector("select")!.value, cmd = kinds[Number(b.dataset.i)].cmd;
     d.close();
+    // Home: the Home window starts it (POST /shell {home:true}) and opens full screen.
+    if (pick === "home") return void dispatchEvent(new CustomEvent("kz-home-start", { detail: { agent: cmd, yolo: !!kinds[Number(b.dataset.i)].yolo && !!d.querySelector<HTMLInputElement>('input[type="checkbox"]')?.checked } }));
+    const at = spots[Number(pick)];
     const r = await fetch("/shell", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ dir: at.dir, ws: at.ws, run: wsKey(at.dir, at.ws), ...(cmd ? { agent: cmd, yolo: !!kinds[Number(b.dataset.i)].yolo && d.querySelector<HTMLInputElement>('input[type="checkbox"]')!.checked } : {}) }) }).catch(() => null);
     const sh = r?.ok ? await r.json() : null;
     if (sh) openTerm({ dir: at.dir, ws: at.ws, key: sh.key } as Agent);

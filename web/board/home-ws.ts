@@ -46,8 +46,8 @@ async function refresh() {
 }
 
 // No `yolo`: the server applies that agent's saved bypass setting, as a run workspace's + does by default.
-async function start(agent?: string) {
-  const r = await fetch("/shell", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ home: true, ...(agent ? { agent } : {}) }) }).catch(() => null);
+async function start(agent?: string, yolo?: boolean) {
+  const r = await fetch("/shell", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ home: true, ...(agent ? { agent, ...(yolo ? { yolo } : {}) } : {}) }) }).catch(() => null);
   if (!r?.ok) {
     let why = "";
     try { why = (await r!.json()).error; } catch {}
@@ -172,29 +172,31 @@ function drag(el: HTMLElement, handle: HTMLElement, key: string, skip: (e: Point
 }
 
 // Search, the resource monitor and the phone's Agents list open a terminal by kz-open-term: a Home one
-// opens in this panel, or on a phone the Terminal page. Registered at import, so ahead of the run view's
+// opens in this panel (full screen on a phone). Registered at import, so ahead of the run view's
 // listener (initRunView), which would open a workspace view that does not exist for it.
 if (typeof window !== "undefined")
   addEventListener("kz-open-term", (e: any) => {
     if (!isHomeDir(e.detail?.dir)) return;
     e.preventDefault();
     e.stopImmediatePropagation();
-    if (isPhone() || !$("hws")) return void (location.href = "/?view=terminal");
+    if (!$("hws")) return void (location.href = "/?view=terminal");
     on = String(e.detail.key ?? "");
     st = "open";
-    save();
+    if (!isPhone()) save(); // a phone opens Home only when asked, never on the next page load
     void refresh();
   });
 
 export function initHomeWs() {
   if (!$("plist")) return;
-  try { const v = localStorage.getItem(KEY); if (v === "open" || v === "min") st = v; } catch {}
+  // A phone shows Home full screen, only when asked: it never opens by itself on a page load.
+  try { const v = localStorage.getItem(KEY); if (!isPhone() && (v === "open" || v === "min")) st = v; } catch {}
   // Sent here by wsHref() for a Home terminal (Search on the notebook or video page).
   const q = new URLSearchParams(location.search);
   if (q.has("homews")) {
     q.delete("homews");
     history.replaceState(history.state, "", "/?" + q);
-    if (!isPhone()) (st = "open"), save();
+    st = "open";
+    if (!isPhone()) save();
   }
   document.body.insertAdjacentHTML(
     "beforeend",
@@ -206,11 +208,20 @@ export function initHomeWs() {
     `<div class="plist hwsslot" id="hwsrow" hidden><div class="pgrp"><button type="button" class="proj" id="hwsopen" title="Home workspace: agents outside any project (Ctrl+Alt+A)"><svg class="plogo hwsico" aria-hidden="true"><use href="#i-home"/></svg><span class="pname">Home</span><span class="c"></span></button><button type="button" class="wadd hwsrx" id="hwsrx" title="Close the Home workspace" aria-label="Close the Home workspace"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div></div>`,
   );
   const p = $("hws");
-  drag(p, p.querySelector<HTMLElement>(".hwsh")!, "kz-home-ws-at", (e) => max || !!(e.target as Element).closest("button,summary,.menu-pop"));
+  drag(p, p.querySelector<HTMLElement>(".hwsh")!, "kz-home-ws-at", (e) => isPhone() || max || !!(e.target as Element).closest("button,summary,.menu-pop"));
   drag($("hwsbtn"), $("hwsbtn"), "kz-home-ws-btn", () => false);
   $("hwsbtn").onclick = () => (dragged ? (dragged = false) : toggleHome());
   $("hwsopen").onclick = () => set("open");
-  $("hwsrx").onclick = $("hwsx").onclick = () => void closeAll();
+  $("hwsrx").onclick = () => void closeAll();
+  // On a phone × goes back and leaves the agents running (a tab's × ends one); on a computer it ends them all.
+  $("hwsx").onclick = () => (isPhone() ? ((st = "closed"), draw()) : void closeAll());
+  // The phone's New sheet starts an agent or a shell here ("Home — no project").
+  addEventListener("kz-home-start", (e: any) => {
+    st = "open";
+    if (!isPhone()) save();
+    draw();
+    void start(e.detail?.agent || undefined, !!e.detail?.yolo);
+  });
   $("hwsmin").onclick = () => set("min");
   $("hwsmax").onclick = () => ((max = !max), draw());
   const add = $("hwsadd") as HTMLDetailsElement;
