@@ -5,9 +5,9 @@ import { join, dirname } from "node:path";
 import { md, progress, planQuestions, brief } from "../web/board/markdown.ts";
 import { draft, undraft } from "../web/board/drafts.ts";
 import { boardBadge, refreshBoardBadge, waitingCount } from "../web/board/badge.ts";
+import { menuItems } from "../web/lib/board.ts";
 
 const html = readFileSync(join(dirname(import.meta.dir), "web", "board.html"), "utf8");
-const cards = readFileSync(join(dirname(import.meta.dir), "web", "board", "cards.ts"), "utf8");
 
 test("Board badge counts each card needing input once and clears at zero", () => {
   const link = { dataset: {} as Record<string, string>, title: "Board", label: "", setAttribute(_key: string, value: string) { this.label = value; } };
@@ -212,77 +212,59 @@ test("card menu items: appropriate actions and distinct icons across phases", ()
   expect(html).toContain('<symbol id="i-archive"');
   expect(html).toContain('<symbol id="i-restore"');
 
-  const ico = (n: string) => `<svg><use href="#i-${n}"/></svg>`;
-  const from = cards.indexOf("if (k === store.menuKey) {");
-  const menuSnippet = (cards.slice(from, cards.indexOf('el.innerHTML += html`<div class="menu-pop"', from)) + "}").replace("const items = [];", "items = [];");
-  const a0 = cards.indexOf("const actionOf =");
-  const actionOf = cards.slice(a0, cards.indexOf("\n\n", a0));
-  const getItems = new Function("c", "archive", "S", `const ico = ${ico.toString()};\nconst decided = new Set(), answer = () => "";\n${actionOf}\nconst store = { S, menuKey: 1 };\nlet k = 1, items = [];\n${menuSnippet}\nreturn items;`);
+  // menuItems() (web/lib/board.ts) is the one declaration the Board page's card menu draws from; a separator is the
+  // `before` flag on the row under it, which these checks read as the old null entry.
+  const getItems = (c: any, archive: boolean, S: any = { projects: [] }) =>
+    menuItems(c, { archive, answered: false, otherProjects: S.projects.some((p: any) => p.dir !== c.state) }).flatMap((i) =>
+      i.before ? [null, i] : [i],
+    );
+  const names = (l: any[]) => l.map((i) => (i ? i.label : null));
+  const icon = (l: any[], n: number) => l[n].icon;
 
   // Phase 0: Tasks (task card)
   const task = { kind: "idea", status: "idea", column: 0 };
-  const taskItems = getItems(task, false, { projects: [] });
-  expect(taskItems.map((i: any) => i ? i[1] : null)).toEqual(["Run", "Edit", "Archive", null, "Reject", "Delete"]);
+  const taskItems = getItems(task, false);
+  expect(names(taskItems)).toEqual(["Run", "Edit", "Archive", null, "Reject", "Delete"]);
   // Move only when there is another project to move to.
   const moveItems = getItems({ ...task, state: "/a" }, false, { projects: [{ dir: "/a" }, { dir: "/b" }] });
-  expect(moveItems.map((i: any) => i ? i[1] : null)).toEqual(["Run", "Edit", "Move to project", "Archive", null, "Reject", "Delete"]);
-  expect(moveItems[2][2]).toBe(ico("ext"));
-  expect(taskItems[0][2]).toBe(ico("play"));
-  expect(taskItems[1][2]).toBe(ico("pen"));
-  expect(taskItems[2][2]).toBe(ico("archive"));
-  expect(taskItems[4][2]).toBe(ico("x"));
-  expect(taskItems[5][2]).toBe(ico("trash"));
+  expect(names(moveItems)).toEqual(["Run", "Edit", "Move to project", "Archive", null, "Reject", "Delete"]);
+  expect(icon(moveItems, 2)).toBe("ext");
+  expect(icon(taskItems, 0)).toBe("play");
+  expect(icon(taskItems, 1)).toBe("pen");
+  expect(icon(taskItems, 2)).toBe("archive");
+  expect(icon(taskItems, 4)).toBe("x");
+  expect(icon(taskItems, 5)).toBe("trash");
 
   // Phase 1: Planning (starting task)
-  const startingTask = { kind: "idea", status: "starting", column: 1 };
-  const startItems = getItems(startingTask, false);
-  expect(startItems.map((i: any) => i ? i[1] : null)).toEqual(["Open", "Run again", "Archive", null, "Remove"]);
+  expect(names(getItems({ kind: "idea", status: "starting", column: 1 }, false))).toEqual(["Open", "Run again", "Archive", null, "Remove"]);
 
   // Tasks column, Backlog tab: a run's leftover, run like a task, rejected with a reason.
-  expect(getItems({ kind: "backlog", status: "idea", column: 0 }, false).map((i: any) => i ? i[1] : null)).toEqual(["Run", "Open its run", null, "Reject"]);
-  expect(getItems({ kind: "backlog", status: "starting", column: 0 }, false)[0][1]).toBe("Run again");
+  expect(names(getItems({ kind: "backlog", status: "idea", column: 0 }, false))).toEqual(["Run", "Open its run", null, "Reject"]);
+  expect(getItems({ kind: "backlog", status: "starting", column: 0 }, false)[0].label).toBe("Run again");
 
   // Phase 1: Planning (run waiting for plan approval)
-  const planWaiting = { kind: "run", status: "waiting", awaiting: "approvals.plan", column: 1 };
-  const planItems = getItems(planWaiting, false);
-  expect(planItems.map((i: any) => i ? i[1] : null)).toEqual(["Review plan", "Archive", "Back to task"]);
-  expect(planItems[0][2]).toBe(ico("open"));
-  expect(planItems[1][2]).toBe(ico("archive"));
-  expect(planItems[2][2]).toBe(ico("restore"));
+  const planItems = getItems({ kind: "run", status: "waiting", awaiting: "approvals.plan", column: 1 }, false);
+  expect(names(planItems)).toEqual(["Review plan", "Archive", "Back to task"]);
+  expect(icon(planItems, 0)).toBe("open");
+  expect(icon(planItems, 1)).toBe("archive");
+  expect(icon(planItems, 2)).toBe("restore");
 
   // Phase 2: Building (running run)
-  const buildingRun = { kind: "run", status: "running", column: 2 };
-  const buildItems = getItems(buildingRun, false);
-  expect(buildItems.map((i: any) => i ? i[1] : null)).toEqual(["Open", "Archive"]);
-
-  // Phase 3: Review (run waiting for review approval)
-  const reviewWaiting = { kind: "run", status: "waiting", awaiting: "approvals.review", column: 3 };
-  const reviewItems = getItems(reviewWaiting, false);
-  expect(reviewItems.map((i: any) => i ? i[1] : null)).toEqual(["Review work", "Archive"]);
-
-  // Phase 3: Review (run waiting on findings)
-  const findingsWaiting = { kind: "run", status: "waiting", awaiting: "findings", column: 3 };
-  const findingsItems = getItems(findingsWaiting, false);
-  expect(findingsItems.map((i: any) => i ? i[1] : null)).toEqual(["See findings", "Archive"]);
-
-  // Phase 4: Done (done run - no Abandon)
+  expect(names(getItems({ kind: "run", status: "running", column: 2 }, false))).toEqual(["Open", "Archive"]);
+  // Phase 3: Review (run waiting for review approval, then on findings)
+  expect(names(getItems({ kind: "run", status: "waiting", awaiting: "approvals.review", column: 3 }, false))).toEqual(["Review work", "Archive"]);
+  expect(names(getItems({ kind: "run", status: "waiting", awaiting: "findings", column: 3 }, false))).toEqual(["See findings", "Archive"]);
+  // Phase 4: Done (done and abandoned runs - no Abandon)
   const doneRun = { kind: "run", status: "done", column: 4 };
-  const doneItems = getItems(doneRun, false);
-  expect(doneItems.map((i: any) => i ? i[1] : null)).toEqual(["Open", "Archive"]);
-
-  // Phase 4: Done (abandoned run - no Abandon)
-  const abandonedRun = { kind: "run", status: "abandoned", column: 4 };
-  const abandItems = getItems(abandonedRun, false);
-  expect(abandItems.map((i: any) => i ? i[1] : null)).toEqual(["Open", "Archive"]);
+  expect(names(getItems(doneRun, false))).toEqual(["Open", "Archive"]);
+  expect(names(getItems({ kind: "run", status: "abandoned", column: 4 }, false))).toEqual(["Open", "Archive"]);
 
   // Archive view
   const archRun = getItems(doneRun, true);
-  expect(archRun.map((i: any) => i ? i[1] : null)).toEqual(["Restore", "Open"]);
-  expect(archRun[0][2]).toBe(ico("restore"));
-  expect(archRun[1][2]).toBe(ico("open"));
-
-  const archTask = getItems(task, true);
-  expect(archTask.map((i: any) => i ? i[1] : null)).toEqual(["Restore", "Open", null, "Delete"]);
+  expect(names(archRun)).toEqual(["Restore", "Open"]);
+  expect(icon(archRun, 0)).toBe("restore");
+  expect(icon(archRun, 1)).toBe("open");
+  expect(names(getItems(task, true))).toEqual(["Restore", "Open", null, "Delete"]);
 });
 
 // brief(): a one-line structured task split for display only.

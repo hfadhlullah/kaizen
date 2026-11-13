@@ -1,6 +1,6 @@
 import { store } from "./store.ts";
 import { load } from "./api.ts";
-import { focusedKey, formPopup, key, nav, newTask, render, runPopup } from "./cards.ts";
+import { focusedKey, formPopup, key, nav, newTask, runPopup } from "./cards.ts";
 import { $ } from "./dom.ts";
 import { close, openRun } from "./panel.ts";
 import { keep } from "./projects.ts";
@@ -9,14 +9,6 @@ import { react, view } from "./views.ts";
 export function initKeys() {
   $("kbd").onclick = () => $("help").classList.add("on");
   $("help").onclick = () => $("help").classList.remove("on");
-  document.addEventListener("click", () => {
-    if (store.menuKey || store.clearMenu || store.sevMenu) {
-      store.menuKey = null;
-      store.clearMenu = false;
-      store.sevMenu = false;
-      render();
-    }
-  });
   document.onkeydown = (e) => {
     // The icebox reads its own keys first; a checkbox there keeps them, for x then j.
     if (view === "sources" && !$("help").classList.contains("on") && react.iceKeys(e)) return;
@@ -35,10 +27,9 @@ export function initKeys() {
     }
     if (e.key === "Escape") {
       $("help").classList.remove("on");
-      if (store.mode) {
-        store.mode = null;
-        render();
-      } else close();
+      // An inline form closes first (its own Escape handles a press inside it); a menu closes itself.
+      if (react.formOpen()) react.closeForm();
+      else close();
       return;
     }
     // The Terminal page has no cards to move between; its keys are the terminals'.

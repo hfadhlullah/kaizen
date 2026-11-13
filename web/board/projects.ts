@@ -1,5 +1,4 @@
 import { store } from "./store.ts";
-import { startDir } from "./labels.ts";
 import { load, post } from "./api.ts";
 import { newTask, render } from "./cards.ts";
 import { $, html, ico } from "./dom.ts";
@@ -72,68 +71,6 @@ export async function pick(v) {
   await load();
 }
 // Known projects, plus any folder a card comes from that is not one (the global inbox).
-// New task in All projects: the projects being shown, else every one.
-export let newDir = null;
-// Same combo as the header's project picker: a button, then a searchable list.
-export function taskCombo(f, choose = false) {
-  const ps = taskDirs(),
-    btn = f.querySelector("#newdir"),
-    pp = f.querySelector("#ndc .menu-pop"),
-    q = pp.querySelector("input"),
-    box = f.querySelector("#nds");
-  // Opened from a page with no project of its own: no default, the user picks one.
-  newDir = startDir(ps.map((p) => p.dir), newDir, choose);
-  const name = () => {
-    const p = ps.find((p) => p.dir === newDir);
-    btn.innerHTML = p ? prow(p.dir, p.label) : "Choose project";
-  };
-  const draw = () => {
-    const t = q.value.trim().toLowerCase();
-    box.innerHTML =
-      ps
-        .filter((p) => p.label.toLowerCase().includes(t))
-        .map(
-          (p) =>
-            html`<button type="button" role="option" data-d="${p.dir}" title="${p.label}" class="${p.dir === newDir ? "on" : ""}">${prow(p.dir, p.label)}</button>`,
-        )
-        .join("") || `<div class="grp">No match</div>`;
-    box.querySelectorAll("button").forEach(
-      (b) =>
-        (b.onclick = () => {
-          newDir = b.dataset.d;
-          name();
-          open(false);
-          f.querySelector("#newidea").focus();
-        }),
-    );
-  };
-  const open = (on) => {
-    pp.hidden = !on;
-    btn.setAttribute("aria-expanded", on);
-    if (on) {
-      q.value = "";
-      draw();
-      q.focus();
-    }
-  };
-  btn.onclick = (e) => {
-    e.preventDefault();
-    open(pp.hidden);
-  };
-  q.oninput = draw;
-  q.onkeydown = (e) => {
-    if (e.key === "Escape") {
-      e.stopPropagation();
-      open(false);
-    }
-    if (e.key === "Enter") {
-      e.preventDefault();
-      box.querySelector("button")?.click();
-    }
-  };
-  name();
-}
-export const setNewDir = (d) => (newDir = d);
 // The same searchable picker as the header's, for any page: All projects first, then each project.
 export function projectPicker(host: HTMLElement, ps: { dir: string; label: string }[], value: string, onPick: (dir: string) => void) {
   host.classList.add("combo");
@@ -170,11 +107,6 @@ export function projectPicker(host: HTMLElement, ps: { dir: string; label: strin
     if (e.key === "Escape") (pp.hidden = true), btn.focus();
     if (e.key === "Enter") box.querySelector<HTMLElement>("button")?.click();
   };
-}
-function taskDirs() {
-  const sp = showable(),
-    pick = sp.filter((p) => store.shown.has(p.dir));
-  return pick.length ? pick : sp;
 }
 export function showable() {
   const l = [...store.S.projects];

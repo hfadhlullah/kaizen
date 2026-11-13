@@ -23,6 +23,8 @@ export function Picker({
   label,
   className,
   groupIcons,
+  open: openProp,
+  onOpenChange,
 }: {
   options: PickerOption[];
   value: string;
@@ -31,8 +33,13 @@ export function Picker({
   label: string;
   className?: string;
   groupIcons?: Record<string, ReactNode>;
+  // Opened from outside (a form that needs a choice before it can send).
+  open?: boolean;
+  onOpenChange?: (o: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [own, setOwn] = useState(false),
+    open = openProp ?? own,
+    setOpen = (o: boolean) => (setOwn(o), onOpenChange?.(o));
   const chosen = options.find((o) => o.value === value);
   const row = (o: PickerOption) => (
     <CommandItem

@@ -15,6 +15,11 @@ export const react = {
   openTaskPage: () => {},
   openIcebox: () => {},
   iceKeys: (_e: KeyboardEvent) => false,
+  // The Board page (cards.ts hands it a snapshot on every redraw) and the forms other modules open over any page.
+  drawBoard: (_snap: any) => {},
+  popup: (_p: any) => {},
+  closeForm: () => {},
+  formOpen: () => false,
 };
 // ---- views: Home (the chat, at /), the board, Settings and the Icebox as pages in the docked panel, or the Terminal page; each with its own address
 export let view = "board";

@@ -1,4 +1,5 @@
 import { store } from "./store.ts";
+import { react } from "./views.ts";
 import { key, render } from "./cards.ts";
 import { $, vt } from "./dom.ts";
 import { close, taskBody, open, openRun } from "./panel.ts";
@@ -103,15 +104,13 @@ async function read(quiet: boolean) {
       const el = $("board").querySelector(`[data-k="${CSS.escape(k)}"]`);
       if (el) el.style.viewTransitionName = "kzm" + i;
     });
-  // A redraw under a form being typed in would reset its fields and its focus.
-  if (!(quiet && store.mode && $("board").querySelector(".inl input"))) {
-    name();
-    await (moved.length ? vt(() => (render(), name())) : (render(), undefined));
-    store.flash.clear();
-  } else store.flash.clear(); // no redraw now: a flash at some later one would be stale
+  // A form being typed in is React state: a redraw keeps its fields and its focus.
+  name();
+  await (moved.length ? vt(() => (render(), name())) : (render(), undefined));
+  store.flash.clear();
   if (termsShowing()) openTerms();
   // Run on a task closed the panel: open the card on its agent once the board knows the session.
-  if (store.wantTerm && !store.openKey && !store.mode) {
+  if (store.wantTerm && !store.openKey && !react.formOpen()) {
     const n = store.S.cards.find((x) => key(x) === store.wantTerm && x.pty);
     if (n) {
       store.wantTerm = null;

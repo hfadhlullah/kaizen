@@ -23,13 +23,26 @@ export type Host = {
   shown(): Set<string>;
   clearShown(): void;
   reload(): void;
-  mic(field: HTMLTextAreaElement): HTMLElement | null;
+  mic(fields: (HTMLTextAreaElement | HTMLInputElement)[]): HTMLElement | null;
   stopDictation(): void;
   dataUrls(files: File[]): Promise<{ name: string; data: string }[]>;
   pop(): void;
   motion(): boolean;
   agentLine(agent: { name: string; note?: string }): string;
   openSettings(query: string): void;
+  // The Board (phase 3): the old code that still owns the panel, the run workspace and the card list. `openCard`
+  // opens a card's run workspace or task panel (`tab` and `item` ask for a tab and a marked finding or backlog item),
+  // `loadBoard` re-reads /state, `launched` records the terminal a launch opened so the workspace selects it,
+  // `closePanel` / `reopenPanel` shut or redraw the panel of the card that is open, `notify` asks for notification
+  // permission, and `openWorkspace` is the card's run view.
+  openCard(card: any, tab?: string, item?: number): void;
+  openWorkspace(card: any): void;
+  loadBoard(): Promise<void>;
+  launched(card: any, pty: string | undefined): void;
+  closePanel(): void;
+  reopenPanel(card: any): void;
+  panelOpenFor(card: any): boolean;
+  notify(): void;
 };
 const none = (): never => {
   throw new Error("The board has not mounted this page yet");
@@ -54,5 +67,13 @@ export const host: Host = {
   motion: () => true,
   agentLine: (a) => a.name,
   openSettings: none,
+  openCard: none,
+  openWorkspace: none,
+  loadBoard: async () => {},
+  launched: () => {},
+  closePanel: () => {},
+  reopenPanel: () => {},
+  panelOpenFor: () => false,
+  notify: () => {},
 };
 export const setHost = (h: Partial<Host>) => Object.assign(host, h);

@@ -73,10 +73,6 @@ export function initLive() {
           store.dir = d;
         } else keep();
       } catch (e) {}
-    try {
-      const f = JSON.parse(sessionStorage.getItem("kz-form"));
-      if (f) [store.mode, store.modeKey] = f;
-    } catch (e) {}
     load().then(() => {
       go(v0);
       deep();

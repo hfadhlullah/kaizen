@@ -81,3 +81,26 @@ test("the check itself fails on an upward import, a lib import of ui, a ui impor
     }),
   ).toEqual([]);
 });
+
+// A popup, dialog or list box is a piece from web/ui (Radix draws it, in #kz-portal); a page, component or lib file
+// never builds one by hand or draws HTML strings.
+const HAND_BUILT =
+  /<dialog\b|createElement\(["']dialog|role=["'](?:dialog|alertdialog|listbox)["']|menu-pop|innerHTML|dangerouslySetInnerHTML/;
+const handBuilt = (files: Record<string, string>) =>
+  Object.entries(files).flatMap(([f, src]) =>
+    HAND_BUILT.test(src) ? [`${relative(web, f)} builds a popup or HTML by hand`] : [],
+  );
+test("no page, component or lib file hand-builds a dialog, menu or list box, or sets innerHTML", () => {
+  const files = Object.fromEntries(
+    ["components", "pages", "lib"].flatMap((l) => walk(join(web, l))).map((f) => [f, readFileSync(f, "utf8")]),
+  );
+  expect(handBuilt(files)).toEqual([]);
+  // ...and it does catch one.
+  expect(
+    handBuilt({
+      [join(web, "components", "x.tsx")]: '<div role="dialog">',
+      [join(web, "pages", "y.tsx")]: "el.innerHTML = a",
+      [join(web, "components", "z.tsx")]: "<Dialog>",
+    }).length,
+  ).toBe(2);
+});

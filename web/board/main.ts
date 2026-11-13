@@ -6,7 +6,7 @@
 // tick that reloads the board. See design.md for the visual rules.
 import { initPanel } from "./panel.ts";
 import { initViews, react } from "./views.ts";
-import { iceKeys, initReact, openIcebox, openTaskPage, openTasks } from "./react-mount.ts";
+import { closeForm, drawBoard, formOpen, iceKeys, initReact, openIcebox, openPopup, openTaskPage, openTasks } from "./react-mount.ts";
 import { initProjects, pick } from "./projects.ts";
 import { initUpdate } from "./update.ts";
 import { initKeys } from "./keys.ts";
@@ -22,7 +22,7 @@ import { initOnboarding } from "./onboarding.ts";
 import { initHomeWs } from "./home-ws.ts";
 
 initPanel();
-Object.assign(react, { init: initReact, openTasks, openTaskPage, openIcebox, iceKeys });
+Object.assign(react, { init: initReact, openTasks, openTaskPage, openIcebox, iceKeys, drawBoard, popup: openPopup, closeForm, formOpen });
 initViews();
 initProjects();
 initUpdate();
@@ -81,13 +81,6 @@ document.addEventListener(
       else if (own.classList.contains("combo")) {
         p.hidden = true;
         own.querySelector("[aria-expanded]")?.setAttribute("aria-expanded", "false");
-      } else {
-        // Drawn by render() from store: drop it now without a redraw, which would swallow this click.
-        p.remove();
-        own.classList.remove("menu");
-        store.menuKey = null;
-        store.clearMenu = false;
-        store.sevMenu = false;
       }
     }
   },

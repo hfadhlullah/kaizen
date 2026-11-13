@@ -7,17 +7,11 @@ export const store = {
   // The project this page picked; null is wherever the board started.
   dir: null,
   openKey: null,
-  mode: null,
-  modeKey: null,
-  menuKey: null,
   // Cards that just started needing you: card() gives them one .flash.
   flash: new Set<string>(),
   tab: "request",
   lastTab: "request",
   runDoc: null,
-  clearMenu: false,
-  // The Tasks column's severity menu, on its Backlog tab.
-  sevMenu: false,
   wantTerm: null,
   // The terminal a launch just opened (its pty key), selected in the run workspace once its tab exists.
   wantPty: null as null | { key: string; at: number },

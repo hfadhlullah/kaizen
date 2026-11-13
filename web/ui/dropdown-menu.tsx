@@ -41,3 +41,14 @@ export const DropdownMenuSeparator = ({ className, ...props }: ComponentProps<ty
 export const DropdownMenuLabel = ({ className, ...props }: ComponentProps<typeof MenuPrimitive.Label>) => (
   <MenuPrimitive.Label className={cn("px-2 py-1 text-sm text-muted-foreground", className)} {...props} />
 );
+export const DropdownMenuRadioGroup = MenuPrimitive.RadioGroup;
+// A choice among several, one marked (menuitemradio): the severity filter, sort orders.
+export const DropdownMenuRadioItem = ({ className, ...props }: ComponentProps<typeof MenuPrimitive.RadioItem>) => (
+  <MenuPrimitive.RadioItem
+    className={cn(
+      "flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-foreground outline-none data-[highlighted]:bg-muted data-[state=checked]:text-primary",
+      className,
+    )}
+    {...props}
+  />
+);
