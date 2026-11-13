@@ -1830,7 +1830,16 @@ export async function web(repoDir: string, opts: Opts = {}) {
           rea.forgetDoctor(); rea.forgetLatest();
           return r.ok ? json(r) : bad(r.why);
         }
-        return bad("step: plan, apply or off");
+        // Node.js for REA: runs only the command nodeFix builds here, after the page's confirm
+        // and with the one-time token the Skills page got; never a command from the request.
+        if (body?.step === "node") {
+          const tokenOk = !!skillToken && body?.token === skillToken;
+          skillToken = "";
+          if (body?.confirm !== true || !tokenOk) return bad("confirm required");
+          const r = await rea.installNode();
+          return r.ok ? json({ ok: true }) : bad(r.why);
+        }
+        return bad("step: plan, apply, off or node");
       }
 
       // Per user, so no scope. A saved environment value is never in either answer.

@@ -5,7 +5,9 @@ import { toast } from "./toast.ts";
 
 // Settings → Skills: one row per bundled skill, grouped. /skills scans the folders, so
 // a new skill shows here with no change to this file.
-type Row = { id: string; title: string; description: string; group: string; off: boolean; agents: { agent: string; state: string }[]; needs: { name: string; found: boolean }[]; offByDefault?: boolean; note?: string; status?: string; rea?: { installed: string | null; latest: string | null; update: boolean; outside: boolean } };
+type Row = { id: string; title: string; description: string; group: string; off: boolean; agents: { agent: string; state: string }[]; needs: { name: string; found: boolean }[]; offByDefault?: boolean; note?: string; status?: string; rea?: { installed: string | null; latest: string | null; update: boolean; outside: boolean; node?: NodeNeed | null } };
+// REA runs on the PC's Node.js: missing, or older than REA accepts. `command` is what the server will run.
+type NodeNeed = { state: "missing" | "old"; have?: string; how: "winget" | "brew" | "link"; command?: string; url?: string };
 const GROUPS: [string, string][] = [["core", "Core"], ["media", "Media"], ["optional", "Optional"]];
 const WORD: Record<string, string> = { installed: "installed", missing: "missing", other: "your own copy" };
 
@@ -32,12 +34,17 @@ const WARN: Record<string, string> = {
 const row = (s: Row) =>
   html`<div class="sk" data-q="${[s.title, s.id, s.description, s.group, "skill"].join(" ").toLowerCase()}">
     <div class="sk-h">${skillIcon(s.id)}<span class="sk-n"><b>${s.title}${s.status && s.status !== "stable" ? html` <em class="sk-st">${s.status === "beta" ? "Beta" : "Experimental"}</em>` : ""}</b><span>${s.description}</span></span>
-      ${s.group === "core" ? (s.agents.some((a) => a.state !== "installed") ? html`<button type="button" class="btn" data-repair="${s.id}" data-own="${String(s.agents.some((a) => a.state === "other"))}">Repair</button>` : html`<span class="hint">Always on</span>`) : html`${s.rea?.update ? html`<button type="button" class="btn" data-rea-update="1">Update to ${s.rea.latest}</button>` : ""}${!s.rea && !s.off && s.agents.some((a) => a.state === "missing") ? html`<button type="button" class="btn" data-skill="${s.id}" data-on="true">Install</button>` : ""}${toggleSwitch(!s.off, { sm: true, attrs: { "data-skill": s.id, "data-on": String(s.off), "data-warn": String(!!s.offByDefault), "aria-label": s.title, title: s.off ? "Off" : "On" } })}`}</div>
+      ${s.group === "core" ? (s.agents.some((a) => a.state !== "installed") ? html`<button type="button" class="btn" data-repair="${s.id}" data-own="${String(s.agents.some((a) => a.state === "other"))}">Repair</button>` : html`<span class="hint">Always on</span>`) : html`${s.rea?.node ? nodeButton(s.rea.node) : ""}${s.rea?.update ? html`<button type="button" class="btn" data-rea-update="1">Update to ${s.rea.latest}</button>` : ""}${!s.rea && !s.off && s.agents.some((a) => a.state === "missing") ? html`<button type="button" class="btn" data-skill="${s.id}" data-on="true">Install</button>` : ""}${toggleSwitch(!s.off, { sm: true, attrs: { "data-skill": s.id, "data-on": String(s.off), "data-warn": String(!!s.offByDefault), "aria-label": s.title, title: s.off ? "Off" : "On" } })}`}</div>
     <div class="sk-a">${s.agents.map((a) => html`<img class="sk-ag${a.state === "installed" ? "" : " off"}" src="${AGENT_FAVICONS[AGENT_CMD[a.agent] ?? ""] ?? ""}" width="18" height="18" alt="${a.agent}: ${WORD[a.state] ?? a.state}" title="${a.agent}: ${WORD[a.state] ?? a.state}">`)}${s.needs.map((n) => html`<span class="${n.found ? "" : "miss"}">Needs ${n.name}${n.found ? "" : " (not found)"}</span>`)}${s.note ? html`<span>${s.note}</span>` : ""}</div>
   </div>`;
 
 export const skillRows = (skills: Row[]) =>
   html`${GROUPS.filter(([g]) => skills.some((s) => s.group === g)).map(([g, label], i) => html`<h3 class="sg">${label}${i ? "" : html` <button type="button" id="sk-recheck">Re-check</button>`}</h3><div class="sgrp">${skills.filter((s) => s.group === g).map(row)}</div>`)}`;
+
+const nodeWord = (n: NodeNeed) => n.state === "missing" ? "Install Node.js" : "Update Node.js";
+const nodeButton = (n: NodeNeed) => n.how === "link"
+  ? html`<a class="btn" href="${n.url}" target="_blank" rel="noopener">Get Node.js</a>`
+  : html`<button type="button" class="btn" data-rea-node="${n.state}" data-cmd="${n.command}">${nodeWord(n)}</button>`;
 
 // REA: the board runs REA's dry run first and shows what would change; only a yes to that
 // exact plan is applied. Off runs REA's own uninstall, whoever set REA up.
@@ -65,6 +72,16 @@ export function wireSkills(redraw: () => Promise<unknown>, token = "") {
   if (again) again.onclick = () => redraw();
   const up = $("pbody").querySelector<HTMLElement>("[data-rea-update]");
   if (up) up.onclick = () => reaSwitch(true, true, redraw);
+  const nb = $("pbody").querySelector<HTMLElement>("[data-rea-node]");
+  if (nb) nb.onclick = async () => {
+    const what = nb.dataset.reaNode === "missing" ? "Install" : "Update";
+    if (!confirm(`${what} Node.js?\n\nREA needs it. kaizen will run:\n  ${nb.dataset.cmd}\n\nThis installs Node.js for the whole computer, so other apps that use Node.js get it too. Your system may ask for permission. Go ahead?`)) return;
+    nb.setAttribute("disabled", "");
+    toast(`${what === "Install" ? "Installing" : "Updating"} Node.js… this can take a few minutes`);
+    const j = await post("/rea", { step: "node", confirm: true, token });
+    if (!j.error) toast("Node.js is ready. Restart any agents that are open so REA's tools load");
+    await redraw();
+  };
   // A core skill one agent is missing: relink it; a real folder in the way is replaced only after asking.
   $("pbody").querySelectorAll<HTMLElement>("[data-repair]").forEach((b) => (b.onclick = async () => {
     const own = b.dataset.own === "true";

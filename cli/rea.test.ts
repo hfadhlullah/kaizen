@@ -5,7 +5,7 @@ import { test, expect } from "bun:test";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { doctorMissing, forgetDoctor, forgetLatest, okVersion, planFiles, reaApply, reaClients, reaPlan, reaRegistered, reaRemove, reaRow, reaSaved, type Run } from "./rea.ts";
+import { doctorMissing, forgetDoctor, forgetLatest, forgetNodeOld, installNode, nodeFix, nodeState, okVersion, planFiles, reaApply, reaClients, reaPlan, reaRegistered, reaRemove, reaRow, reaSaved, type Run } from "./rea.ts";
 
 const npx = process.platform === "win32" ? "npx.cmd" : "npx", npm = process.platform === "win32" ? "npm.cmd" : "npm";
 const homeWith = (...dirs: string[]) => {
@@ -154,6 +154,14 @@ test("G-02 G-07 the board applies only the plan it showed, with its token, and r
     expect((await post({ step: "off" })).status).toBe(200);
     expect(ran()).toContain("-y rea-agents@6.8.0 uninstall --json");
     expect(existsSync(join(home, ".kaizen", "rea.json"))).toBe(false);
+    // Node.js: refused from another origin, without confirm, or without the Skills page's one-time token.
+    expect((await post({ step: "node", confirm: true }, "https://evil.example")).status).toBe(403);
+    const tok = ((await (await fetch(base + "/skills")).json()) as { token: string }).token;
+    expect((await post({ step: "node", token: tok })).status).toBe(400);
+    expect(await (await post({ step: "node", confirm: true, token: tok })).json()).toMatchObject({ error: "confirm required" }); // spent above
+    const tok2 = ((await (await fetch(base + "/skills")).json()) as { token: string }).token;
+    // Linux has no installer to run: the answer is the download page, and nothing ran.
+    expect(((await (await post({ step: "node", confirm: true, token: tok2 })).json()) as { error: string }).error).toContain("nodejs.org");
   } finally { p.kill(); }
 }, 30000);
 
@@ -165,4 +173,90 @@ test("a REA set up through a global install (no pinned version) is still seen as
   const mine = homeWith(".claude");
   writeFileSync(join(mine, ".claude.json"), JSON.stringify({ mcpServers: { other: { command: "x" } }, note: "area" }));
   expect(reaRegistered(mine)).toEqual([]);
+});
+
+test("a Node.js too old for REA is named with what is needed, in a failed step and on the row", async () => {
+  const line = { ok: false, out: "REA requires Node.js 22.x (>=22.23.4), 24.x (>=24.22.1), 26.12.1+; this process runs Node.js 22.14.0. Install a supported release, then retry.\n" };
+  const home = homeWith(".claude"), f = fake({ plan: line, doctor: line });
+  const p = await reaPlan(home, "6.8.0", ["claude_code"], f.sh);
+  expect(!p.ok && p.why).toBe("REA needs Node.js 22.x (>=22.23.4), 24.x (>=24.22.1), 26.12.1+; this PC has Node.js 22.14.0. Use Update Node.js on the REA row in Settings → Skills, or install the current Node.js LTS from nodejs.org, then try again.");
+  await reaApply(home, "6.8.0", ["claude_code"], fake().sh);
+  forgetDoctor(); forgetLatest();
+  reaRow(home, f.sh);
+  await Bun.sleep(10);
+  expect(reaRow(home, f.sh).needs).toEqual([{ name: "Node.js 22.x (>=22.23.4), 24.x (>=24.22.1), 26.12.1+ (this PC has 22.14.0)", found: false }]);
+});
+
+test("REA 6.8's failed node check in doctor's JSON reads the same way", () => {
+  expect(doctorMissing({ scope_checks: [{ name: "node", ok: false, detail: "26.9.0", remediation: "Install Node.js 22.x (>=22.23.4), 24.x (>=24.22.1), or 26.12.1+." }] }))
+    .toEqual(["Node.js 22.x (>=22.23.4), 24.x (>=24.22.1), 26.12.1+ (this PC has 26.9.0)"]);
+});
+
+test("Node.js for REA: winget on Windows, Homebrew on macOS, else the download page; one command installs or upgrades", () => {
+  const win = nodeFix("win32", (b) => (b === "winget" ? "C:\\WindowsApps\\winget.exe" : null), () => false, { ProgramFiles: "C:\\Program Files" });
+  expect(win).toEqual({ how: "winget", argv: ["C:\\WindowsApps\\winget.exe", "install", "--id", "OpenJS.NodeJS.LTS", "--exact", "--source", "winget", "--accept-package-agreements", "--accept-source-agreements", "--disable-interactivity"],
+    command: "winget install --id OpenJS.NodeJS.LTS --exact --source winget --accept-package-agreements --accept-source-agreements --disable-interactivity", bin: "C:\\Program Files\\nodejs" });
+  expect(nodeFix("win32", () => null, () => false, {})).toEqual({ how: "link", url: "https://nodejs.org/en/download" });
+  // A macOS app started from the Dock has no Homebrew on PATH: the usual places are looked at.
+  expect(nodeFix("darwin", () => null, (p) => p === "/opt/homebrew/bin/brew")).toMatchObject({ how: "brew", argv: ["/opt/homebrew/bin/brew", "install", "node"], bin: "/opt/homebrew/bin" });
+  expect(nodeFix("darwin", () => null, () => false).how).toBe("link");
+  expect(nodeFix("linux", () => "/usr/bin/whatever").how).toBe("link");
+});
+
+test("installing Node.js runs only the built command, then puts its folder first on PATH; a failure changes nothing", async () => {
+  const fix = { how: "winget" as const, argv: ["winget", "install", "--id", "OpenJS.NodeJS.LTS"], command: "winget install --id OpenJS.NodeJS.LTS", bin: "/opt/nodejs" };
+  const env: Record<string, string> = { Path: ["/usr/bin", "/opt/nodejs", "/bin"].join(require("node:path").delimiter) };
+  const bad = fake(); const failing: Run = async (argv, ms) => { bad.log.push([...argv, String(ms)]); return { ok: false, out: "Installer failed with exit code: 1603\n" }; };
+  const r1 = await installNode(failing, fix, env);
+  expect(r1).toEqual({ ok: false, why: "Installer failed with exit code: 1603" });
+  expect(env.Path).toBe(["/usr/bin", "/opt/nodejs", "/bin"].join(require("node:path").delimiter));
+  const ok: string[][] = [];
+  const r2 = await installNode(async (argv, ms) => { ok.push([...argv, String(ms)]); return { ok: true, out: "" }; }, fix, env);
+  expect(r2.ok).toBe(true);
+  expect(ok).toEqual([["winget", "install", "--id", "OpenJS.NodeJS.LTS", String(10 * 60_000)]]);
+  expect(env.Path).toBe(["/opt/nodejs", "/usr/bin", "/bin"].join(require("node:path").delimiter)); // the existing PATH key, no duplicate
+  const both: Record<string, string> = { PATH: "/a", Path: "/a" };
+  await installNode(async () => ({ ok: true, out: "" }), fix, both);
+  expect(both).toEqual({ PATH: `/opt/nodejs${require("node:path").delimiter}/a`, Path: `/opt/nodejs${require("node:path").delimiter}/a` });
+  expect((await installNode(fake().sh, { how: "link", url: "https://nodejs.org/en/download" }, env)).ok).toBe(false);
+});
+
+test("the row asks for Node.js when it is missing, and for an update after REA called it too old", async () => {
+  forgetNodeOld();
+  expect(nodeState(() => null)).toMatchObject({ state: "missing" });
+  expect(nodeState(() => "/usr/bin/node")).toBeNull();
+  const home = homeWith(".claude");
+  await reaPlan(home, "6.8.0", ["claude_code"], fake({ plan: { ok: false, out: "REA requires Node.js 22.x (>=22.23.4), 24.x (>=24.22.1), 26.12.1+; this process runs Node.js 22.14.0. Install a supported release, then retry." } }).sh);
+  expect(nodeState(() => "/usr/bin/node")).toMatchObject({ state: "old", have: "22.14.0" });
+  forgetNodeOld();
+});
+
+test("review fixes: a passing doctor or REA off clears the old-Node mark; winget's 'already newest' and spinner lines read clearly", async () => {
+  const home = homeWith(".claude");
+  const old = { ok: false, out: "REA requires Node.js 22.x (>=22.23.4), 24.x (>=24.22.1), 26.12.1+; this process runs Node.js 22.14.0. Install a supported release, then retry." };
+  await reaPlan(home, "6.8.0", ["claude_code"], fake({ plan: old }).sh);
+  expect(nodeState(() => "/usr/bin/node")?.state).toBe("old");
+  await reaApply(home, "6.8.0", ["claude_code"], fake().sh);
+  forgetDoctor(); forgetLatest();
+  const healthy = fake({ doctor: { out: JSON.stringify({ healthy: true, scope_checks: [{ name: "node", ok: true, detail: "24.22.1" }] }) } });
+  reaRow(home, healthy.sh); await Bun.sleep(10);
+  expect(nodeState(() => "/usr/bin/node")).toBeNull(); // Node.js was updated outside kaizen
+  await reaPlan(home, "6.8.0", ["claude_code"], fake({ plan: old }).sh);
+  await reaRemove(home, fake().sh);
+  expect(nodeState(() => "/usr/bin/node")).toBeNull(); // REA off: nothing to update for
+  const fix = { how: "winget" as const, argv: ["winget"], command: "winget install", bin: "/opt/nodejs" };
+  const env: Record<string, string> = { PATH: "/a" };
+  const same = await installNode(async () => ({ ok: false, out: "Found an existing package already installed. Trying to upgrade the installed package...\nNo available upgrade found.\nNo newer package versions are available from the configured sources.\n" }), fix, env);
+  expect(!same.ok && same.why).toContain("older Node.js comes first on PATH");
+  expect(env.PATH).toBe("/a");
+  const spin = await installNode(async () => ({ ok: false, out: "Downloading\r  -\r  \\\r  |\r  /\r\nInstaller failed with exit code: 1603\r  -\r" }), fix, env);
+  expect(!spin.ok && spin.why).toBe("Installer failed with exit code: 1603");
+});
+
+test("recheck: REA's JSON still parses when a failed step also wrote to stderr; installNode reads the stderr reason", async () => {
+  const home = homeWith(".claude");
+  const p = await reaPlan(home, "6.8.0", ["claude_code"], async () => ({ ok: false, out: '{"status":"needs_human","message":"Quit Codex first"}', err: "npm warn deprecated x\n" }));
+  expect(!p.ok && p.why).toBe("Quit Codex first");
+  const r = await installNode(async () => ({ ok: false, out: "==> Downloading node\n", err: "Error: Permission denied @ dir_s_mkdir\n" }), { how: "brew", argv: ["brew"], command: "brew install node", bin: "/b" }, { PATH: "/a" });
+  expect(!r.ok && r.why).toBe("Error: Permission denied @ dir_s_mkdir");
 });

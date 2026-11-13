@@ -3,10 +3,10 @@
 // `setup`, `uninstall` and `doctor` do, through `npx` pinned to an exact version. Kaizen keeps
 // only its switch in ~/.kaizen/rea.json and reads agent configs to see what is registered.
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { delimiter, join, win32 } from "node:path";
 import { SKILL_HOMES } from "./skills.ts";
 
-export type Run = (argv: string[]) => Promise<{ ok: boolean; out: string }>;
+export type Run = (argv: string[], ms?: number) => Promise<{ ok: boolean; out: string; err?: string }>;
 export type Reg = { client: string; version: string | null };
 export type Saved = { on: boolean; version: string; clients: string[] };
 
@@ -21,14 +21,16 @@ const npx = process.platform === "win32" ? "npx.cmd" : "npx";
 const npm = process.platform === "win32" ? "npm.cmd" : "npm";
 const pkg = (version: string) => `rea-agents@${version}`;
 
-// Up to 5 minutes: a first npx run downloads REA (about 50 MB). A missing npx is a failure, not a throw.
-export const run: Run = async (argv) => {
+// Up to 5 minutes by default: a first npx run downloads REA (about 50 MB). A missing npx is a failure, not a throw.
+export const run: Run = async (argv, ms = 5 * 60_000) => {
   try {
     const p = Bun.spawn(argv, { stdout: "pipe", stderr: "pipe", stdin: "ignore", windowsHide: true });
-    const timer = setTimeout(() => p.kill(), 5 * 60_000);
+    const timer = setTimeout(() => p.kill(), ms);
     const [out, err, code] = await Promise.all([new Response(p.stdout).text(), new Response(p.stderr).text(), p.exited]);
     clearTimeout(timer);
-    return { ok: code === 0, out: out || err };
+    // `out` stays one stream, as REA's JSON parsing expects; `err` is there for callers that
+    // want the reason a package manager put on stderr after its progress on stdout.
+    return { ok: code === 0, out: out || err, err };
   } catch (e: any) { return { ok: false, out: `${argv[0]} not found: ${e?.message ?? e}` }; }
 };
 
@@ -57,7 +59,10 @@ export function doctorMissing(j: any): string[] {
     if (Array.isArray(v)) return v.forEach(walk);
     if (!v || typeof v !== "object") return;
     const bad = v.ok === false || v.passed === false || /^(fail|failed|error|missing)$/i.test(String(v.status ?? ""));
-    if (bad && (v.name || v.id || v.message)) out.add(String(v.name ?? v.id ?? v.message).slice(0, 80));
+    // A failed `node` check is the PC's Node.js being too old: name what it needs, like oldNode.
+    const need = v.name === "node" && /^Install (Node\.js .+?)\.?$/.exec(String(v.remediation ?? ""))?.[1]?.replace(/, or /, ", ");
+    if (bad && need) out.add(`${need} (this PC has ${v.detail ?? "an older one"})`);
+    else if (bad && (v.name || v.id || v.message)) out.add(String(v.name ?? v.id ?? v.message).slice(0, 80));
     for (const x of Object.values(v)) if (x && typeof x === "object") walk(x);
   };
   if (j) for (const k of ["scope_checks", "informational_checks", "providerInspections", "checks"]) walk(j[k]);
@@ -107,8 +112,82 @@ const validClients = (home: string, clients: string[]) => {
   return clients.length > 0 && clients.every((c) => known.has(c));
 };
 const clientArgs = (clients: string[]) => clients.flatMap((c) => ["--client", c]);
+// REA refuses a Node.js older than it supports with one plain line, no JSON. On Windows npx
+// runs the PC's own Node.js, which kaizen cannot update, so say what is needed and how.
+export function oldNode(out: string): { need: string; have: string } | null {
+  const m = /REA requires (Node\.js .+?); this process runs Node\.js v?(\d+(?:\.\d+)*)/.exec(out);
+  return m ? { need: m[1]!.replace(/, or /, ", "), have: m[2]! } : null;
+}
+const NODE_FIX = "Use Update Node.js on the REA row in Settings → Skills, or install the current Node.js LTS from nodejs.org, then try again.";
+
+// ---- Node.js for REA: missing (no node on PATH) or old (REA said so). Installed only on the
+// user's click and yes, through the platform's own package manager; otherwise a download link.
+let nodeOld: { need: string; have: string } | null = null;
+export const forgetNodeOld = () => { nodeOld = null; };
+export const NODE_URL = "https://nodejs.org/en/download";
+export type NodeFix = { how: "winget" | "brew"; argv: string[]; command: string; bin: string } | { how: "link"; url: string };
+
+// Where a package manager lives when a desktop app's PATH does not list it (macOS GUI apps).
+const BREWS = ["/opt/homebrew/bin/brew", "/usr/local/bin/brew"];
+export function nodeFix(platform = process.platform, which: (b: string) => string | null = (b) => Bun.which(b, { PATH: process.env.PATH }), exists = existsSync, env = process.env): NodeFix {
+  if (platform === "win32") {
+    const winget = which("winget");
+    // `install` upgrades a package winget already knows, so one command covers both cases.
+    const argv = ["winget", "install", "--id", "OpenJS.NodeJS.LTS", "--exact", "--source", "winget", "--accept-package-agreements", "--accept-source-agreements", "--disable-interactivity"];
+    if (winget) return { how: "winget", argv: [winget, ...argv.slice(1)], command: argv.join(" "), bin: win32.join(env.ProgramFiles ?? "C:\\Program Files", "nodejs") };
+  }
+  if (platform === "darwin") {
+    const brew = which("brew") ?? BREWS.find((b) => exists(b)) ?? null;
+    // `brew install` of an outdated formula upgrades it.
+    if (brew) return { how: "brew", argv: [brew, "install", "node"], command: "brew install node", bin: join(brew, "..") };
+  }
+  return { how: "link", url: NODE_URL };
+}
+
+// What the row shows: null when Node.js is there and REA has not called it too old.
+export function nodeState(which: (b: string) => string | null = (b) => Bun.which(b, { PATH: process.env.PATH })) {
+  const state = !which("node") ? "missing" as const : nodeOld ? "old" as const : null;
+  if (!state) return null;
+  const fix = nodeFix();
+  return { state, ...(state === "old" ? { need: nodeOld!.need, have: nodeOld!.have } : {}), ...(fix.how === "link" ? { how: fix.how, url: fix.url } : { how: fix.how, command: fix.command }) };
+}
+
+// Runs the fix nodeFix built here, never a command from the page. Up to 10 minutes: winget
+// downloads and runs Node's installer, and Windows shows its own admin prompt. On success the
+// new Node.js folder goes first on this process's PATH, so REA's npx finds it without a restart.
+let nodeBusy = false;
+export async function installNode(sh: Run = run, fix: NodeFix = nodeFix(), env: Record<string, string | undefined> = process.env) {
+  if (fix.how === "link") return { ok: false as const, why: `Download Node.js from ${fix.url}`, url: fix.url };
+  if (nodeBusy) return { ok: false as const, why: "Node.js is already being installed" };
+  nodeBusy = true;
+  try {
+    const r = await sh(fix.argv, 10 * 60_000);
+    // Already the newest: winget exits non-zero. The old Node.js REA sees then comes from
+    // somewhere else on PATH (nvm, Volta, another installer), which kaizen does not touch.
+    const said = [r.out, r.err ?? ""].join("\n");
+    if (!r.ok && /No (available upgrade|newer package versions) (found|are available)/i.test(said)) {
+      return { ok: false as const, why: `Node.js from ${fix.how} is already the newest, but an older Node.js comes first on PATH (nvm, Volta or another installer?). Update or remove that one, then restart kaizen.` };
+    }
+    // The last real line: winget redraws its spinner with \r, so split on both.
+    if (!r.ok) return { ok: false as const, why: (said.split(/[\r\n]+/).map((l) => l.trim()).filter((l) => l && !/^[-\\|/\s█▒░]+$/.test(l)).pop() ?? `${fix.command} failed`).slice(0, 300) };
+    // Windows keeps both PATH and Path here (adoptLoginEnv sets both): update every spelling.
+    const keys = Object.keys(env).filter((k) => k.toUpperCase() === "PATH");
+    for (const key of keys.length ? keys : ["PATH"]) {
+      const parts = (env[key] ?? "").split(delimiter).filter((d) => d && d.toLowerCase() !== fix.bin.toLowerCase());
+      env[key] = [fix.bin, ...parts].join(delimiter);
+    }
+    nodeOld = null;
+    forgetDoctor();
+    return { ok: true as const };
+  } finally { nodeBusy = false; }
+}
 // REA's own words when a step did not go through: its message, else the first line it printed.
-const reason = (j: any, out: string) => String(j?.message ?? j?.error ?? j?.reason ?? (out.trim().split("\n")[0] || "REA did not answer")).slice(0, 300);
+const reason = (j: any, out: string) => {
+  const n = oldNode(out);
+  if (n) nodeOld = n;
+  if (n) return `REA needs ${n.need}; this PC has Node.js ${n.have}. ${NODE_FIX}`;
+  return String(j?.message ?? j?.error ?? j?.reason ?? (out.trim().split("\n")[0] || "REA did not answer")).slice(0, 300);
+};
 
 export async function reaLatest(sh: Run = run): Promise<string | null> {
   const r = await sh([npm, "view", "rea-agents", "version"]);
@@ -143,6 +222,7 @@ export async function reaRemove(home: string, sh: Run = run) {
   const r = await sh([npx, "-y", pkg(version), "uninstall", "--json"]);
   if (!r.ok) return { ok: false as const, why: reason(parse(r.out), r.out) };
   save(home, null);
+  nodeOld = null;
   const left = reaRegistered(home).map((x) => x.client);
   return { ok: true as const, left, ...(left.includes("claude_code") ? { hint: "claude mcp remove --scope user rea" } : {}) };
 }
@@ -155,7 +235,14 @@ export function reaDoctor(version: string, sh: Run = run, now = Date.now()) {
   const entry: { at: number; p: Promise<any>; v?: any } = { at: now, p: Promise.resolve(null) };
   entry.p = sh([npx, "-y", pkg(version), "doctor", "--json"]).then((r) => {
     const j = parse(r.out);
-    entry.v = j ? { healthy: j.healthy === true, missing: doctorMissing(j) } : null;
+    const n = j ? null : oldNode(r.out);
+    if (n) nodeOld = n;
+    else if (j) {
+      // Doctor ran, so it settles the question either way: a failed node check is old, else fine.
+      const check = (Array.isArray(j.scope_checks) ? j.scope_checks : []).find((c: any) => c?.name === "node");
+      nodeOld = check?.ok === false ? { need: "a newer Node.js", have: String(check.detail ?? "") } : null;
+    }
+    entry.v = n ? { healthy: false, missing: [`${n.need} (this PC has ${n.have})`] } : j ? { healthy: j.healthy === true, missing: doctorMissing(j) } : null;
     return entry.v;
   });
   doctorCache.set(version, entry);
@@ -186,14 +273,15 @@ export function reaRow(home: string, sh: Run = run, now = Date.now()) {
   const latest = on ? cachedLatest(sh, now) : null;
   const doc = on && installed ? reaDoctor(installed, sh, now) : null;
   const regd = new Set(reg.map((r) => r.client));
+  const node = nodeState();
   const note = !on ? undefined
     : `REA ${installed ?? "(version unknown)"}${!saved ? " · set up outside kaizen" : ""}${latest && installed && newer(latest, installed) ? ` · ${latest} available` : ""}${doc === undefined ? " · checking what it needs…" : ""}`;
   return {
     id: "rea", title: "Reverse engineering (REA)", group: "optional", offByDefault: true, status: "beta",
     description: "Lets agents study apps, binaries, packages and file formats whose source isn't here, through REA's MCP tools.",
-    off: !on, needs: (doc?.missing ?? []).map((name) => ({ name, found: false })),
+    off: !on, needs: [...(node?.state === "missing" ? ["Node.js"] : []), ...(doc?.missing ?? [])].map((name) => ({ name, found: false })),
     agents: reaClients(home).map((c) => ({ agent: c.agent, state: regd.has(c.client) ? "installed" : "missing" })),
     ...(note ? { note } : {}),
-    rea: { installed, latest, update: !!(latest && installed && newer(latest, installed)), outside: on && !saved, clients: reaClients(home).map((c) => c.client) },
+    rea: { installed, latest, update: !!(latest && installed && newer(latest, installed)), outside: on && !saved, clients: reaClients(home).map((c) => c.client), node },
   };
 }
