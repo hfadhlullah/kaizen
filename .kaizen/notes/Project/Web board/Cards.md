@@ -41,11 +41,9 @@ The cards on the board: how they sort, what each shows, the one button that says
 
 - `render()` in `web/board.html` empties and rebuilds `#board`, so any field that lives in the board loses its text and focus on every server `changed` event. A new field there needs a `draft()` key, and event-driven loads go through `load(true)`, which leaves an open form alone.
 
-- `openSources()` in `web/board.html` rebuilds the whole panel after every action and every server `changed` event, and restores focus only to elements with an id. A native `<select>` wired to act on `change` fires on each arrow key in Chromium, so a control there must act on an explicit step and carry an id.
 
 - Board sweeps keyed on run stage + state.json mtime must exclude sessions launched after that mtime: /fix on a done run does not touch state.json.
 
-- `openSources()` in `web/board.html` once had a local `shown` (drawer state) that shadowed the board's global `shown` (project filter): any use of the global inside it threw a TDZ ReferenceError and blanked the Icebox. The local is now `drawer`; check for local shadows before reading a board global in a long render function.
 
 - A run's `moved` (the running-vs-stalled signal) is the newer of `state.json` and `progress.md`, so a builder ticking its Work list stays running. Session owner lookups read every run once per call through `runIndex` (`ownerOf`'s third argument); `openSessions` drops `.pid` files whose process is gone or whose number another process now holds (`isSession` false; `null` when the system cannot say keeps it).
 

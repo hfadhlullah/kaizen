@@ -37,7 +37,7 @@ The Settings page: choosing agents and models, turning skills on and off or repa
 
 - A settings row whose `idle` reason is set (from `when` in `cli/settings.ts`) gets `.srow.off`: dimmed, still clickable, reason appended to its hint.
 
-- Settings and the Icebox share one panel and fill it after a fetch: `openSettings()` / `openSources()` must keep the `store.pageGen` check (`go()` bumps it), or a slow answer paints one page under the other's title. Switching to one of them clears the body to a Loading line before the fetch, or the old page shows under the new title until it answers.
+- Settings fills the docked panel after a fetch: `openSettings()` must keep the `store.pageGen` check (`go()` bumps it), or a slow answer paints one page under the other's title. Switching to it clears the body to a Loading line before the fetch, or the old page shows under the new title until it answers.
 
 - Since 2026-10-14-board-sidebar, Settings and Sources are the run panel docked as a page (`go(view)` in `web/board.html`, `body.paged`, `aside.docked`, `?view=`): `close()` is a no-op while `view!=="board"` and `open()` returns to the board first. Any new way of opening a card must go through `open()`, or the run renders inside the Settings page. The side menu block (CSS, markup, inline script with the global `setTheme`) is held equal on `board.html` and `notes.html` by a test: edit both.
 

@@ -63,7 +63,12 @@ test("a request's category is its status word, else its own, else its source's, 
 
 test("filters narrow in turn: only waiting ones show until a category is chosen; newest first; an unknown filter is cleared", () => {
   const d = data({
-    icebox: [item("1"), item("2", { board: "Acme", kind: "client" }), item("3", { asleep: true }), item("4", { status: "promoted" })],
+    icebox: [
+      item("1"),
+      item("2", { board: "Acme", kind: "client" }),
+      item("3", { asleep: true }),
+      item("4", { status: "promoted" }),
+    ],
     dismissed: [item("5", { status: "dismissed" })],
     boards: [{ dir: D, name: "Acme", client: true }],
   });
@@ -82,7 +87,10 @@ test("filters narrow in turn: only waiting ones show until a category is chosen;
 });
 
 test("projects and counts: many is true with two projects; a board chip counts the waiting items on it", () => {
-  const d = data({ icebox: [item("1", { board: "Acme" }), item("2", { dir: "/q/.kaizen" })], boards: [{ dir: D, name: "Acme" }] });
+  const d = data({
+    icebox: [item("1", { board: "Acme" }), item("2", { dir: "/q/.kaizen" })],
+    boards: [{ dir: D, name: "Acme" }],
+  });
   const r = deriveIce(d, f, env);
   expect(r.many).toBe(true);
   expect(r.nOn(d.boards[0] as Board)).toBe(1);
@@ -114,9 +122,15 @@ test("words: ages, snooze days, Gather all, source names, favicons", () => {
   expect(snoozedLine(1, "1w")).toMatch(/^Snoozed until /);
   const list = [src({ social: "x" }), src({ url: "https://b.example/f" })];
   expect(gatherLine([{ url: "https://b.example/f", ok: true, added: 2 }], list)).toBe("2 new in the icebox");
-  expect(gatherLine([{ url: "https://b.example/f", ok: false, added: 0 }, { url: list[0]!.url, ok: false, added: 0 }], list)).toBe(
-    "Nothing new, 1 source could not be read; 1 social for /kaizen gather",
-  );
+  expect(
+    gatherLine(
+      [
+        { url: "https://b.example/f", ok: false, added: 0 },
+        { url: list[0]!.url, ok: false, added: 0 },
+      ],
+      list,
+    ),
+  ).toBe("Nothing new, 1 source could not be read; 1 social for /kaizen gather");
   expect(subName("Threads: ai", "Threads")).toBe("ai");
   expect(subName("Feedback", "Threads")).toBe("Feedback");
   expect(faviconUrl("https://a.example/x/y")).toBe("https://a.example/favicon.ico");
@@ -153,22 +167,33 @@ test("a row shows kind, words, source, age and its actions; a promoted one has n
   const done = html(createElement(RequestRow, { item: item("2", { status: "promoted" }), ctx: ctx(), chat: false }));
   expect(done).not.toContain("Promote to Tasks");
   expect(done).toContain("promoted");
-  const dismissed = html(createElement(RequestRow, { item: item("3", { status: "dismissed" }), ctx: ctx(), chat: false }));
+  const dismissed = html(
+    createElement(RequestRow, { item: item("3", { status: "dismissed" }), ctx: ctx(), chat: false }),
+  );
   expect(dismissed).toContain("Restore: request 3");
 });
 
 test("an open row shows notes, pictures and where it came from, with the post link only for http(s)", () => {
-  const it = item("1", { notes: "a note", post: "https://x.example/p/1", images: ["https://img.example/a.jpg", "http://no.example/b.jpg"] });
+  const it = item("1", {
+    notes: "a note",
+    post: "https://x.example/p/1",
+    images: ["https://img.example/a.jpg", "http://no.example/b.jpg"],
+  });
   const out = html(createElement(RequestRow, { item: it, ctx: ctx({ open: iceKey(it) }), chat: false }));
   expect(out).toContain("a note");
   expect(out).toContain("Show images (1)"); // only https pictures
   expect(out).toContain("open post");
   const bad = item("2", { post: "javascript:alert(1)" });
-  expect(html(createElement(RequestRow, { item: bad, ctx: ctx({ open: iceKey(bad) }), chat: false }))).toContain('href="#"');
+  expect(html(createElement(RequestRow, { item: bad, ctx: ctx({ open: iceKey(bad) }), chat: false }))).toContain(
+    'href="#"',
+  );
 });
 
 test("a card leads with a link's title and summary, and an unsafe link is not drawn as one", () => {
-  const link = item("1", { link: { url: "https://site.example/a", title: "A title", summary: "A summary" }, tags: ["ui"] });
+  const link = item("1", {
+    link: { url: "https://site.example/a", title: "A title", summary: "A summary" },
+    tags: ["ui"],
+  });
   const out = html(createElement(RequestCard, { item: link, ctx: ctx() }));
   expect(out).toContain("A title");
   expect(out).toContain("A summary");

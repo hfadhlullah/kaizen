@@ -128,7 +128,7 @@ export function SwipeDeck({ list, dir, name }: { list: Source[]; dir: string | n
   return (
     <div
       id="sw"
-      className="flex min-h-0 flex-1 flex-col gap-4 max-sm:fixed max-sm:inset-0 max-sm:z-[90] max-sm:min-h-0 max-sm:bg-background max-sm:px-4 max-sm:pt-[max(12px,env(safe-area-inset-top))] max-sm:pb-[max(16px,env(safe-area-inset-bottom))]"
+      className="mx-auto flex h-[calc(100dvh-130px)] min-h-[420px] w-full max-w-[680px] flex-col justify-center gap-4 max-sm:fixed max-sm:inset-0 max-sm:z-[90] max-sm:h-auto max-sm:min-h-0 max-sm:max-w-none max-sm:justify-start max-sm:bg-background max-sm:px-4 max-sm:pt-[max(12px,env(safe-area-inset-top))] max-sm:pb-[max(16px,env(safe-area-inset-bottom))]"
     >
       <div className="flex items-center gap-2.5">
         <Button variant="ghost" size="sm" title="Back to the list (Esc)" onClick={exitSwipe} className="shrink-0">

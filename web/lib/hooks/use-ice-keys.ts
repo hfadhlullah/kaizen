@@ -10,7 +10,8 @@ import { getStore } from "../store.ts";
 import { flyCard } from "./use-card-drag.ts";
 
 // An open popup (menu, popover, picker, select, dialog, the drawer) keeps its own keys; Radix marks them data-state=open.
-const OVERLAY = "[role=dialog][data-state=open],[role=alertdialog][data-state=open],[role=menu][data-state=open],[role=listbox][data-state=open]";
+const OVERLAY =
+  "[role=dialog][data-state=open],[role=alertdialog][data-state=open],[role=menu][data-state=open],[role=listbox][data-state=open]";
 export function iceKeys(e: KeyboardEvent): boolean {
   if (getStore().view !== "icebox" || e.altKey || e.ctrlKey || e.metaKey) return false;
   const t = e.target as Element | null,
