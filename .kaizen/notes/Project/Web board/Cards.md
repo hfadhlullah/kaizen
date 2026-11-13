@@ -1,8 +1,8 @@
 ---
 description: Board cards and columns: order, compact done cards, the action button, search and add sheets
 tags: [project, web-board]
-sources: [web/board/search.ts, web/board/search-match.ts, web/board/run-view.ts, web/board/badge.ts, web/board/ws-tabs.ts, web/board/workspace.ts, web/board/ws-board.ts, web/board/ws-board-ui.ts, cli/add-project.ts, cli/add-project.test.ts, cli/usage.test.ts, cli/chat.ts, cli/state.ts, web/board, web/video.html]
-updated: 2026-11-08
+sources: [web/pages/board-page.tsx, web/components, web/lib, web/board/cards.ts, web/board/panel.ts, web/board/react-mount.ts, web/board/search.ts, web/board/search-match.ts, web/board/run-view.ts, web/board/badge.ts, web/board/ws-tabs.ts, web/board/workspace.ts, web/board/ws-board.ts, web/board/ws-board-ui.ts, cli/add-project.ts, cli/add-project.test.ts, cli/usage.test.ts, cli/chat.ts, cli/state.ts, web/board, web/video.html]
+updated: 2026-11-14
 ---
 # Cards
 
@@ -27,9 +27,9 @@ The cards on the board: how they sort, what each shows, the one button that says
 ## Watch out
 - Done cards are one line (`.card.compact`): they show the run name (`short(id)`), with the request's first line as its tooltip.
 
-- `render()` (`web/board/cards.ts`) rebuilds `#board` on every `changed` event; fields need a `draft()` key (`.kaizen/memory.md`).
+- The cards are React (`web/pages/board-page.tsx` -> `board-column`, `board-card`, `card-form`, `run-form`, `task-form`, `card-footer`, `card-kids`, `ws-card`; run 2026-11-14-frontend-rewrite-phase1, phase 3). `render()` in `web/board/cards.ts` works out what the board shows (project filter, status strip, archive) and hands the page a snapshot (`react.drawBoard`, `BoardSnap` in `web/lib/board-store.ts`), then keeps the header and footer chrome (status strip, project button, tab title). The page's own state (tab, sort, pick mode, unfolded columns and children, the open inline form or popup) lives in `useBoard`, so a redraw never closes a card menu or empties a typed form. The pure rules (column cut and order, `actionOf`, chips and marks, `menuItems`) are in `web/lib/board.ts`, tested by `web/board.test.ts`.
 
-- A card's one ask is a button on its face (`.act`): a waiting run's `actionOf()` label ("Review plan", "See findings", "Review work") opens it, a resumable stalled run gets Resume (`approvals.ts` `resume`). The card menu's Open item uses the same `actionOf()`; `cli/board.test.ts` lifts that declaration out of the source with the menu.
+- A card's one ask is a button on its face: a waiting run's `actionOf()` (`web/lib/board.ts`) label ("Review plan", "See findings", "Review work") opens it, a resumable stalled run gets Resume (`resumeRun` in `web/lib/run-actions.ts`, shared with the panel and the Terminal page tiles). The card menu's Open item uses the same `actionOf()`; `cli/board.test.ts` tests `menuItems()` for every kind and phase.
 
 - Each column sorts waiting runs first, then by its Newest/Oldest order: runs by `moved`, tasks by `added` (the inbox stamp, on the card from `cli/state.ts`) across every project, inbox position only as tiebreak.
 
@@ -39,7 +39,7 @@ The cards on the board: how they sort, what each shows, the one button that says
 
 - Card notes (`chat()` in `web/board/chat.ts`): each plain line written as `Label: … Label: …` renders one paragraph per label with the label bold (`pretty()`, built on `brief()` in `web/board/markdown.ts`); markdown lines (lists, headings, tables, quotes) and fenced code are left as written.  The note box itself formats as you type (`rich()` in `web/board/rich.ts`): a contenteditable editor over the hidden textarea, which stays the value for drafts, dictation and send; `toMd()` turns the editor back into markdown on each edit, and typing `**b**`, `` `c` ``, `- `, `1. ` or `# ` re-renders it with `md()`. `*i*` formats as italic. Ctrl/Cmd+B bold, Ctrl/Cmd+E code; Shift+Enter is a soft line break in a paragraph (written as two trailing spaces, which `md()` renders as `<br>`) and a new item in a list; pasted text comes in plain. `brief()` labels are a capitalised word plus up to three lowercase words, or two to four ALL-CAPS words (`OPEN QUESTION`), each optionally followed by `(…)` before the colon.
 
-- `render()` in `web/board.html` empties and rebuilds `#board`, so any field that lives in the board loses its text and focus on every server `changed` event. A new field there needs a `draft()` key, and event-driven loads go through `load(true)`, which leaves an open form alone.
+- Forms (Edit, Reject, Delete, Move, Run, New task) are React state: inline in the column where the card sat (`useBoard.form`, kept in sessionStorage `kz-form` for new/edit/reject) or in a dialog when asked from a panel, the Tasks page or the header (`useBoard.popup`, drawn by `BoardPopups` in its own root). Drafts use the old `kz-d:f:` sessionStorage keys (`useDraft`). `formPopup`, `runPopup` and `newTask` in `cards.ts` stay the entry points other modules call.
 
 
 - Board sweeps keyed on run stage + state.json mtime must exclude sessions launched after that mtime: /fix on a done run does not touch state.json.

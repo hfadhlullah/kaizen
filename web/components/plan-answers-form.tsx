@@ -52,7 +52,7 @@ export function PlanAnswersForm({
                   name={`q${i}`}
                   checked={picked[i]!.includes(j)}
                   onChange={() => toggle(i, j, x.multi)}
-                  className="accent-primary"
+                  className="relative top-0.5 shrink-0 accent-primary"
                 />
                 {o.text}
               </label>

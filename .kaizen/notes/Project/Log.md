@@ -347,3 +347,4 @@ updated: 2026-10-31
 - 2026-11-14 run 2026-11-13-task-fcaa78f4-1 — Notebook, Web board/Server and routes
 - 2026-11-14 run 2026-11-14-frontend-rewrite-phase1 — Conventions and gotchas, Release and testing, Web board, Web board/Tasks
 - 2026-11-14 update — Icebox page rebuilt on React (run 2026-11-14-frontend-rewrite-phase1, phase 2): Icebox page, Sources and icebox, Conventions and gotchas, Web board, Settings, Cards, Server and routes
+- 2026-11-14 update — Board cards, card menu, forms and the run panel's footer rebuilt on React (run 2026-11-14-frontend-rewrite-phase1, phase 3): Cards, Run workspace, Conventions and gotchas

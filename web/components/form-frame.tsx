@@ -9,7 +9,7 @@ export function FormFrame({ inline, children, label }: { inline?: boolean; child
       aria-label={label}
       onSubmit={(e: FormEvent) => e.preventDefault()}
       className={cn(
-        "flex min-w-0 flex-col gap-2 text-base",
+        "flex min-w-0 flex-col gap-2 whitespace-normal text-base [overflow-wrap:anywhere]",
         inline && "rounded-sm border border-primary bg-card p-3 shadow-md",
       )}
     >
