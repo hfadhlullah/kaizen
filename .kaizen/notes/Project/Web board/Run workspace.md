@@ -46,3 +46,5 @@ Persistent task pages link to the existing run workspace through Technical detai
 
 ## When Browser and Preview open by themselves (2026-11-13-preview-own-workspace)
 `kaizen preview` writes one `<state>/preview.json` shared by the project and its worktrees. `pollPreview` in `run-view.ts` opens a tab for it only when `previewIn` (`ws-tabs.ts`) says it was written from this workspace or a folder inside it, never from a `.kaizen/wt/` worktree under it (main and its worktrees used to catch each other's previews). It opens only while you watch: every visit's first poll only records the newest (`previewOpens`, `previewAt` cleared when a visit starts), so a click, a workspace switch or a reload never opens a tab or reopens one you closed. A preview written while you were elsewhere stays reachable through + → Preview. A run's own `## Preview` address (`autoBrowse`) is unchanged: once per run, exact workspace.
+
+- Run app button (▷) sits at the right end of the workspace tab bar, after the spacer, before the split buttons (run 2026-11-13-run-app-right). The floating Home window tabs (`.hwstab`) use the same flat, underlined style as `#rtabs .rtab`.
