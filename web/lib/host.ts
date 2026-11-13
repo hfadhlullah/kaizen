@@ -43,6 +43,8 @@ export type Host = {
   reopenPanel(card: any): void;
   panelOpenFor(card: any): boolean;
   notify(): void;
+  // The run panel's Source control tab (the footer points at it when git work is left).
+  gitTab(card: any): void;
 };
 const none = (): never => {
   throw new Error("The board has not mounted this page yet");
@@ -75,5 +77,6 @@ export const host: Host = {
   reopenPanel: () => {},
   panelOpenFor: () => false,
   notify: () => {},
+  gitTab: () => {},
 };
 export const setHost = (h: Partial<Host>) => Object.assign(host, h);

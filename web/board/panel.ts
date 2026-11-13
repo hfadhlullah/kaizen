@@ -1,17 +1,15 @@
 import { store } from "./store.ts";
 import { showTerm, termStop } from "./agent-term.ts";
 import { load, post } from "./api.ts";
-import { APPROVAL, answer, confirmAnswers, confirmRevise, decide, decided, resumable, resume } from "./approvals.ts";
-import { cardEl, formPopup, key, render, runPopup } from "./cards.ts";
+import { cardEl, key, render } from "./cards.ts";
 import { chat } from "./chat.ts";
 import { stopDictation } from "./dictation.ts";
 import { $, html, raw } from "./dom.ts";
-import { fixForm, fixOff } from "./fixes.ts";
 import { gitPending, gitShown, gitTab } from "./git.ts";
 import { ICON, WORD, need } from "./labels.ts";
-import { attach, brief, md, planQuestions, preview, progress } from "./markdown.ts";
+import { attach, brief, md, preview, progress } from "./markdown.ts";
 import { toast } from "./toast.ts";
-import { view } from "./views.ts";
+import { react, view } from "./views.ts";
 import { isPhone } from "./phone.ts";
 import { openWorkspace } from "./run-view.ts";
 
@@ -54,7 +52,7 @@ export function open(c, keepTab) {
   keepTab ||= keepNext;
   keepNext = false;
   stopDictation(true); // the panel body is about to be replaced
-  fixOff.clear();
+  react.fixReset();
   store.openKey = key(c);
   $("panel").classList.add("open");
   $("scrim").classList.add("on");
@@ -68,25 +66,8 @@ export function open(c, keepTab) {
     $("psub").innerHTML = c.status === "starting" && !c.archived ? steps(c) : html`<span class="pst"><span class="st d-idea"><svg><use href="#s-idea"/></svg></span>Task</span><span class="pst dim">${c.where.split(/[\\/]/).pop() || c.where}</span>`;
     $("ptabs").innerHTML = "";
     taskBody(c);
-    const foot = $("pfoot");
-    foot.innerHTML = c.archived
-      ? `<button class="btn pri" data-a="restore">Restore</button>`
-      : c.status === "idea"
-        ? `<button class="btn ghost danger" data-a="delete">Delete</button><button class="btn ghost" data-a="archive">Archive</button><span class="dec"><button class="btn" data-a="reject">Reject</button><button class="btn" data-a="edit">Edit</button><button class="btn pri" data-a="run">Run</button></span>`
-        : `<span class="note">${c.pty ? "Starting: the agent runs below." : "Starting: a run was launched for this task. No terminal with your agent? Run it again."}</span><span class="dec"><button class="btn" data-a="run">Run again</button></span>`;
-    foot.querySelectorAll("[data-a]").forEach(
-      (b) =>
-        (b.onclick = () => {
-          const a = b.dataset.a;
-          if (a === "archive" || a === "restore") {
-            toggleArchive(c, a === "archive");
-            return;
-          }
-          // Over the page it is on, as Start does: no trip to the board.
-          if (a === "run") return runPopup(c);
-          formPopup(c, a);
-        }),
-    );
+    // The footer (Run, Edit, Reject, Archive, Delete, Restore) is the shared decision strip.
+    react.drawFooter({ card: c, plan: "", sourceControl: false });
     return;
   }
   if (!keepTab)
@@ -165,13 +146,21 @@ export function taskBody(c) {
     chat(c, c.notes, c.archived || c.status !== "idea");
   }
 }
+// The Fix findings form: a slot in the review tab (the body is rebuilt on every redraw) that the React form stands in.
+// Nothing for an archived run, one with no open finding, or one that is not waiting on or past its review.
+function drawFix(c) {
+  const fs = store.runDoc.findings || [];
+  if (c.archived || !fs.some((f) => !f.done) || !(c.status === "done" || c.awaiting === "findings" || c.awaiting === "approvals.review"))
+    return react.drawFix(null);
+  const slot = document.createElement("div");
+  $("pbody").appendChild(slot);
+  react.drawFix({ card: c, findings: fs, slot });
+}
 export async function openRun(c, refresh, again) {
   if (!refresh || !store.runDoc || store.runDoc.id !== c.id || again) {
     const d = await fetch(`/run/${encodeURIComponent(c.id)}?dir=${encodeURIComponent(c.state)}`).then((r) => r.json());
     // Another card opened while this was fetched: its doc would redraw that card as this run.
     if (store.openKey !== key(c)) return;
-    // A file list being confirmed, or a push under way, keeps the doc it was drawn from.
-    if (refresh && $("pfoot").querySelector(".inl,[data-busy],.more[open]")) return;
     store.runDoc = d;
   }
   if (store.openKey !== key(c)) return;
@@ -242,7 +231,8 @@ export async function openRun(c, refresh, again) {
       ? raw(md(doc, k === "backlog"))
       : html`<p style="color:var(--dim)">No ${{ request: "request", explore: "exploration brief", plan: "plan", impl: "work report", preview: "preview", review: "review", backlog: "backlog" }[k]} yet.</p>`;
   if (k === "backlog") showProgress(c);
-  if (k === "review" && !c.healed) fixForm(c);
+  if (k === "review" && !c.healed) drawFix(c);
+  else react.drawFix(null);
   // The notebook's notes that link here, each opening that note: above the run's own notes.
   if (k === "notes" && store.runDoc.linkedFrom && store.runDoc.linkedFrom.length)
     $("pbody").insertAdjacentHTML(
@@ -254,144 +244,8 @@ export async function openRun(c, refresh, again) {
     if (hit.k === key(c)) mark(hit);
     else hit = null;
   }
-  const foot = $("pfoot");
-  // A refresh while the commit is being confirmed would wipe the message.
-  if (refresh && foot.querySelector(".inl,[data-busy],.more[open]")) return;
-  // Git work left on a finished run: the footer points at the Source control tab, which holds it.
-  const arch =
-    (k !== "git" && gitPending(c) ? `<button class="btn" data-a="gittab">Source control</button>` : "") +
-    (c.archived
-      ? `<button class="btn pri" data-a="restore">Restore</button>`
-      : `<button class="btn ghost" data-a="archive">Archive</button>`);
-  // A plan that asks questions takes their answers with the approval.
-  // One the board cannot read is said, so it is answered in the terminal instead of skipped.
-  const pq = c.status === "waiting" && c.awaiting === "approvals.plan" ? planQuestions(store.runDoc.plan) : [],
-    qs = pq || [];
-  // Its in-card agent ended on a waiting or done run: reopen that conversation, nothing sent.
-  const rs = c.pty && !c.pty.alive ? `<button class="btn" data-a="resume">Resume session</button>` : "";
-  if (c.archived) foot.innerHTML = raw(arch);
-  // A task's question, answered here as on the task page or in the agent's terminal.
-  else if (c.task?.question)
-    foot.innerHTML = html`<span class="note"><b>Question:</b> ${c.task.question.text}</span>${raw(rs)}<span class="dec">${c.task.question.options.map((o) => html`<button class="btn" data-a="tq-opt" data-v="${o}">${o}</button>`)}<button class="btn pri" data-a="tq-reply">Reply</button></span>`;
-  // The task's Looks good on its finished run, for a run that had no review approval to give.
-  else if (c.task?.accept && c.status === "done" && c.accept !== "needs")
-    foot.innerHTML = html`<span class="note">Result ready.</span>${raw(arch + rs)}<button class="btn pri" data-a="looks-good">Looks good</button>`;
-  else if (c.healed && c.awaiting === "approvals.review")
-    foot.innerHTML = html`<span class="note">Finished by its agent without your approval. Nothing is committed until you approve.</span>${raw(arch + rs)}<button class="btn pri" data-a="accept">Approve</button>`;
-  else if ((c.status === "waiting" || c.awaiting === "findings") && APPROVAL[c.awaiting]) {
-    const sent = decided.has(answer(c)),
-      asks = !pq
-        ? " Has questions: answer in its terminal."
-        : qs.length
-          ? ` ${qs.length === 1 ? "1 question" : qs.length + " questions"}.`
-          : "";
-    const more =
-      `<button data-a="archive">Archive</button>${c.column === 1 ? `<button data-a="toidea">Back to task</button>` : ""}<hr><button data-a="ab" class="danger">Abandon</button>`;
-    foot.innerHTML = html`<span class="note">${sent ? "Sent to your agent." : APPROVAL[c.awaiting] + asks}</span><details class="more"><summary class="btn ghost">More</summary><div class="menu-pop">${raw(more)}</div></details>${raw(rs)}<span class="dec"><button class="btn" data-a="revise"${sent ? " disabled" : ""}>Revise</button><button class="btn pri" data-a="approve"${sent ? " disabled" : ""}>${c.awaiting === "explore" ? "Continue to Plan" : c.awaiting === "findings" ? "Approve as-is" : "Approve"}</button></span>`;
-  } else if (c.status === "waiting")
-    foot.innerHTML = html`<span class="note">Waiting: ${need(c.awaiting)}.</span>${raw(arch)}<button class="btn ghost" data-a="ab">Abandon</button>${raw(rs)}`;
-  else if (c.status === "done" && c.accept === "needs")
-    foot.innerHTML = html`<span class="note">Done, not approved: its agent finished without your approval. Nothing is committed until you approve.</span>${raw(arch + rs)}<button class="btn pri" data-a="accept">Approve</button>`;
-  else if (c.status === "done") foot.innerHTML = raw(arch + rs);
-  else if (c.status === "abandoned") foot.innerHTML = raw(arch);
-  else
-    foot.innerHTML = html`<span class="note">${c.pty && !c.pty.alive ? "Agent ended early." : c.status === "stalled" ? "Stalled." : ""}</span>${raw(arch)}<button class="btn ghost" data-a="ab">Abandon</button>${resumable(c) ? html`<button class="btn pri" data-a="resume">Resume</button>` : ""}`;
-  if (c.stage === "explore") foot.insertAdjacentHTML("beforeend", '<button class="btn" data-a="skip-explore">Skip Explore</button>');
-  foot.querySelectorAll("[data-a]").forEach(
-    (b) =>
-      (b.onclick = () => {
-        const a = b.dataset.a;
-        if (a === "tq-opt" || a === "looks-good") {
-          b.disabled = true;
-          taskPost(c, a === "looks-good" ? { op: "accept", resultId: c.task.result } : { op: "message", text: b.dataset.v }).then((r) => {
-            if (r.ok) toast(a === "looks-good" ? "Accepted" : "Answer sent");
-            else b.disabled = false;
-          });
-          return;
-        }
-        if (a === "tq-reply") {
-          taskReply(c);
-          return;
-        }
-        if (a === "skip-explore") {
-          b.disabled = true;
-          post("/explore/skip", { dir: c.state, id: c.id }).then((r) => {
-            if (r.ok) toast("Skip Explore sent to the agent");
-            else b.disabled = false;
-          });
-          return;
-        }
-        if (a === "archive" || a === "restore") {
-          toggleArchive(c, a === "archive");
-          return;
-        }
-        if (a === "gittab") {
-          store.tab = "git";
-          openRun(c, true);
-          return;
-        }
-        if (a === "accept") {
-          b.disabled = true;
-          post("/accept", { dir: c.state, id: c.id }).then((r) => {
-            if (r.ok) toast("Approved");
-            else b.disabled = false;
-          });
-          return;
-        }
-        if (a === "approve") {
-          if (qs.length) confirmAnswers(c, qs);
-          else decide(c, b);
-          return;
-        }
-        if (a === "revise") {
-          confirmRevise(c);
-          return;
-        }
-        if (a === "resume") {
-          resume(c, b);
-          return;
-        }
-        if (a === "toidea") {
-          post("/to-task", { dir: c.state, id: c.id }).then((r) => {
-            if (r.ok) toast("Back in Tasks");
-            load();
-          });
-          return;
-        }
-        formPopup(c, "reject");
-      }),
-  );
-}
-// A task's own action, sent from its run's panel.
-const taskPost = (c, body) =>
-  post("/task", { dir: c.task.dir, id: c.task.id, revision: c.task.revision, operationId: crypto.randomUUID(), ...body });
-function taskReply(c) {
-  const foot = $("pfoot");
-  foot.innerHTML = html`<div class="inl" style="flex:1"><div class="q">${c.task.question.text}</div><div class="q dim">Your answer goes to the agent, as from the task page.</div><textarea aria-label="Your answer"></textarea><div class="row"><button class="btn ghost" data-a="c">Cancel</button><button class="btn pri" data-a="s">Send</button></div></div>`;
-  const inp = foot.querySelector("textarea");
-  inp.focus();
-  foot.querySelector("[data-a=c]").onclick = () => {
-    foot.innerHTML = "";
-    openRun(c, true);
-  };
-  foot.querySelector("[data-a=s]").onclick = (e) => {
-    const text = inp.value.trim();
-    if (!text) {
-      toast("Write your answer");
-      inp.focus();
-      return;
-    }
-    e.target.disabled = true;
-    taskPost(c, { op: "message", text }).then((r) => {
-      if (!r.ok) {
-        e.target.disabled = false;
-        return;
-      }
-      toast("Answer sent");
-      foot.innerHTML = "";
-      openRun(c, true);
-    });
-  };
+  // The footer is the shared decision strip; a form open in it keeps its text through every refresh.
+  react.drawFooter({ card: c, plan: store.runDoc.plan, sourceControl: k !== "git" && gitPending(c) });
 }
 // A link from a note (?run= or ?idea=, with dir, tab, item) opens that card's panel;
 // a finding or backlog item named is scrolled to and marked. Found by its text, since
@@ -449,15 +303,6 @@ function mark(h) {
   el.scrollIntoView({ block: "center" });
   el.classList.add("hit");
   setTimeout(() => el.classList.remove("hit"), 2400);
-}
-export async function toggleArchive(c, archived) {
-  const r = await post(
-    "/archive",
-    c.kind === "idea" ? { dir: c.state, text: c.text, archived } : { dir: c.state, id: c.id, archived },
-  );
-  if (r.ok) toast(archived ? "Archived" : "Restored");
-  close();
-  load();
 }
 export function close() {
   if (view !== "board" && view !== "run" && view !== "tasks") return;

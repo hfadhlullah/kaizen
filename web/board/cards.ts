@@ -9,7 +9,6 @@ import { draft } from "./drafts.ts";
 import { COLS, ICON, WORD } from "./labels.ts";
 import { isPhone } from "./phone.ts";
 import { list, plogo, short, showList, showable } from "./projects.ts";
-import { decided } from "./approvals.ts";
 import { termsBadge } from "./terms.ts";
 import { boardBadge, waitingCount } from "./badge.ts";
 import { WS_COLS } from "./ws-board.ts";
@@ -131,7 +130,7 @@ export function render() {
     colNames: COLS,
     openKey: store.openKey,
     flash: [...store.flash],
-    answered: [...decided],
+    answered: react.answered(),
     phone: isPhone(),
   });
   // The tab says how many runs wait on you, or agents wait on input, so a background tab still tells you.

@@ -9,8 +9,13 @@ import { toast } from "../lib/toast.ts";
 import { iceKeys } from "../lib/hooks/use-ice-keys.ts";
 import { showTask } from "../lib/hooks/use-task.ts";
 import { closeForm as closeBoardForm, getBoard, setBoard, type BoardSnap, type Popup } from "../lib/board-store.ts";
+import { setPanel, type Panel } from "../lib/panel-store.ts";
+import { resumeRun } from "../lib/run-actions.ts";
+import { decided } from "../lib/run-actions.ts";
 import { setStore } from "../lib/store.ts";
 import { BoardPopups } from "../components/board-popups.tsx";
+import { FixHost } from "../components/fix-host.tsx";
+import { RunFooter } from "../components/run-footer.tsx";
 import { BoardPage } from "../pages/board-page.tsx";
 import { TaskPage } from "../pages/task-page.tsx";
 import { IceboxPage } from "../pages/icebox-page.tsx";
@@ -64,6 +69,23 @@ export function drawBoard(snap: BoardSnap) {
   flushSync(() => setBoard({ snap }));
 }
 export const openPopup = (p: Popup) => setBoard({ popup: p });
+// The run panel's footer: a root inside #pfoot (display: contents, so its flex row lays the strip out), drawn from what
+// panel.ts openRun() publishes. The Fix findings form is drawn into a slot in the review tab by a portal.
+export function drawFooter(footer: Panel["footer"]) {
+  if (!roots.has("pfoot")) {
+    roots.add("pfoot");
+    const host = document.createElement("div");
+    host.className = "kz-ui";
+    host.style.display = "contents";
+    $("pfoot").append(host);
+    createRoot(host).render(createElement(TooltipProvider, null, createElement(RunFooter)));
+  }
+  flushSync(() => setPanel({ footer }));
+}
+export const drawFix = (fix: any) => setPanel({ fix });
+export const fixReset = () => setPanel({ off: [] });
+export const answered = () => [...decided];
+export const resumeCard = resumeRun;
 export const formOpen = () => !!getBoard().form;
 export const closeForm = closeBoardForm;
 export function openTaskPage() {
@@ -79,7 +101,7 @@ export function initReact(go: (view: string, push?: boolean) => void) {
   createRoot(toaster).render(createElement(Toaster));
   const popups = document.createElement("div");
   portal.append(popups);
-  createRoot(popups).render(createElement(TooltipProvider, null, createElement(BoardPopups)));
+  createRoot(popups).render(createElement(TooltipProvider, null, createElement(BoardPopups), createElement(FixHost)));
   setToaster(toast);
   setHost({
     go,
@@ -112,8 +134,9 @@ export function initReact(go: (view: string, push?: boolean) => void) {
       store.wantPty = { key: pty, at: Date.now() };
     },
     closePanel,
-    reopenPanel: (c) => {
-      $("pfoot").innerHTML = "";
+    reopenPanel: (c) => void openRun(c, true),
+    gitTab: (c) => {
+      store.tab = "git";
       void openRun(c, true);
     },
     panelOpenFor: (c) => store.openKey === key(c),

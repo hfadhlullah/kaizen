@@ -6,7 +6,7 @@
 // tick that reloads the board. See design.md for the visual rules.
 import { initPanel } from "./panel.ts";
 import { initViews, react } from "./views.ts";
-import { closeForm, drawBoard, formOpen, iceKeys, initReact, openIcebox, openPopup, openTaskPage, openTasks } from "./react-mount.ts";
+import { answered, closeForm, drawBoard, drawFix, drawFooter, fixReset, formOpen, iceKeys, initReact, openIcebox, openPopup, openTaskPage, openTasks, resumeCard } from "./react-mount.ts";
 import { initProjects, pick } from "./projects.ts";
 import { initUpdate } from "./update.ts";
 import { initKeys } from "./keys.ts";
@@ -22,7 +22,7 @@ import { initOnboarding } from "./onboarding.ts";
 import { initHomeWs } from "./home-ws.ts";
 
 initPanel();
-Object.assign(react, { init: initReact, openTasks, openTaskPage, openIcebox, iceKeys, drawBoard, popup: openPopup, closeForm, formOpen });
+Object.assign(react, { init: initReact, openTasks, openTaskPage, openIcebox, iceKeys, drawBoard, popup: openPopup, closeForm, formOpen, drawFooter, drawFix, fixReset, answered, resume: resumeCard });
 initViews();
 initProjects();
 initUpdate();

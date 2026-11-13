@@ -5,7 +5,7 @@ import { $, html, ico } from "./dom.ts";
 import { load, post } from "./api.ts";
 import { termLoad } from "./agent-term.ts";
 import { open } from "./panel.ts";
-import { resume } from "./approvals.ts";
+import { react } from "./views.ts";
 
 // ---- the Terminal page: every in-card agent session the board knows, Tasks to Done, tiled.
 // A tile is one more kzTerm mount on /pty beside the card panel's (attachPty takes many
@@ -278,7 +278,14 @@ function wire(el: HTMLElement) {
     } else if (a === "resume") {
       const c = sessions().get(k);
       // resume() asks the board to open the card on its new session; here the new tile shows it.
-      if (c) resume(c, (e.target as HTMLElement).closest("button")).then(() => (store.wantTerm = null));
+      if (c) {
+        const b = (e.target as HTMLElement).closest("button")!;
+        b.disabled = true;
+        react.resume(c).then((ok) => {
+          if (!ok) b.disabled = false;
+          store.wantTerm = null;
+        });
+      }
       return;
     } else return;
     save();

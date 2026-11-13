@@ -20,6 +20,12 @@ export const react = {
   popup: (_p: any) => {},
   closeForm: () => {},
   formOpen: () => false,
+  // The run panel's footer and its Fix findings form, the cards' answered list, and Resume for the terminals' tiles.
+  drawFooter: (_f: any) => {},
+  drawFix: (_f: any) => {},
+  fixReset: () => {},
+  answered: (): string[] => [],
+  resume: async (_c: any): Promise<boolean> => false,
 };
 // ---- views: Home (the chat, at /), the board, Settings and the Icebox as pages in the docked panel, or the Terminal page; each with its own address
 export let view = "board";

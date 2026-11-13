@@ -17,7 +17,7 @@ import { fillMics, micRow } from "./settings-voice.ts";
 import { pageId, placeOf, SETTINGS_NAV, SUB_ORDER } from "./settings-pages.ts";
 import { askNotify, notifyOn, playSound, soundPick, SOUNDS, toast } from "./toast.ts";
 import { updBar } from "./update.ts";
-import { go, view } from "./views.ts";
+import { go, react, view } from "./views.ts";
 
 // ---- settings
 const PAGES = SETTINGS_NAV.flatMap(([, ps]) => ps);
@@ -53,7 +53,7 @@ export async function openSettings() {
   $("scrim").classList.add("on");
   $("ptitle").textContent = "Settings";
   $("ptabs").innerHTML = "";
-  $("pfoot").innerHTML = "";
+  react.drawFooter(null);
   const cur = document.documentElement.dataset.theme || "system";
   const colour = document.documentElement.dataset.color || "monochrome";
   // Everything the page shows, asked for at once.
