@@ -278,7 +278,7 @@ function drawList() {
         // A + for a new worktree on git projects (the main checkout has a branch).
         const git = p.workspaces.some((w) => w.branch);
         const mainWs = p.workspaces?.find((w) => w.main)?.path ?? p.workspaces?.[0]?.path ?? dir;
-        return html`<div class="pgrp"><button type="button" class="proj${shut ? " shut" : ""}" data-proj="${dir}" data-ws="${mainWs}" data-fold="${dir}" title="${dir}" aria-expanded="${String(!shut)}">${logo(dir, name, last.projects)}<span class="pname">${name}</span><svg class="fchev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>${git ? html`<button type="button" class="wadd" data-wadd="${dir}" title="New workspace in ${name}" aria-label="New workspace in ${name}"><svg aria-hidden="true"><use href="#i-plus"/></svg></button>` : ""}</div>${shut ? "" : raw('<div class="pws">')}${shut ? "" : rows.map(({ w, cs }) => {
+        return html`<div class="pgrp"><button type="button" class="proj${shut ? " shut" : ""}" data-proj="${dir}" data-ws="${mainWs}" data-fold="${dir}"${rows.length ? "" : " data-empty"} title="${dir}" aria-expanded="${String(!shut)}">${logo(dir, name, last.projects)}<span class="pname">${name}</span><svg class="fchev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>${git ? html`<button type="button" class="wadd" data-wadd="${dir}" title="New workspace in ${name}" aria-label="New workspace in ${name}"><svg aria-hidden="true"><use href="#i-plus"/></svg></button>` : ""}</div>${shut ? "" : raw('<div class="pws">')}${shut ? "" : rows.map(({ w, cs }) => {
           // The dot: the most urgent run there, or an agent asking (amber) or working (spinner).
           const rows = shownAgents(wsAgents(last.agents ?? [], dir, w.path, wsOfCard, now));
           const st0 = cs.length ? stateOf([...cs].sort((a, b) => RANK[stateOf(a)] - RANK[stateOf(b)])[0]) : "";
@@ -314,11 +314,12 @@ function drawList() {
       const d = t.closest<HTMLElement>("[data-fold]")?.dataset.fold;
       if (d) return void (e.preventDefault(), fold(d));
     }
-    const proj = t.closest<HTMLElement>("[data-proj]");
+    // A project bar folds and unfolds, like a folder. One that lists nothing has no rows to click,
+    // so it opens its main workspace instead.
+    const proj = t.closest<HTMLElement>("[data-proj][data-empty]");
     if (proj) {
       e.preventDefault();
       const dir = proj.dataset.proj!, ws = proj.dataset.ws || dir;
-      if (folded.has(dir)) fold(dir);
       if (ask("kz-open-ws", { dir, ws })) return;
     }
     const d = t.closest<HTMLElement>("[data-fold]")?.dataset.fold;

@@ -2,7 +2,7 @@
 description: Projects list as workspaces, workspace cards, the workspace centre, terminals following their run
 tags: [project, web-board]
 sources: [web/board/run-view.ts, web/board/ws-tabs.ts, web/board/run-pick.ts, web/board/workspace.ts, cli/worktree.ts, cli/pty.ts, web/board, web/video.html]
-updated: 2026-11-11
+updated: 2026-11-13
 ---
 # Workspaces
 
@@ -27,3 +27,6 @@ Run details show an optional Explore step and brief before Plan, with per-run Sk
 ## Persistent Tasks (2026-11-08)
 
 Shared durable task projections supply the workspace task links/reasons and waiting counts. A task may own multiple linked runs while one task page remains visible; the rail uses its stable task URL. Technical workspace tools are preserved under the task page details.
+
+## Project bar folds (2026-11-13-project-row-folds)
+Clicking a project bar in the sidebar only folds or unfolds it (`fold()` in `web/board/workspace.ts`); it no longer opens the main workspace. A project that lists no rows (filtered out) is drawn with `data-empty` and still opens its main workspace on click, since the bar is its only way in. Workspace rows, the chevron and the + are unchanged.
