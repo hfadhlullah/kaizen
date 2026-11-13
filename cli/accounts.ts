@@ -146,7 +146,7 @@ export function resolveAccount(cmd: string, wanted?: string, win = process.platf
   const a = readAccounts(), id = wanted ?? a.default[cmd];
   if (!id) return {};
   const account = a.accounts.find((x) => x.id === id && x.tool === cmd);
-  if (!account) return { error: "That account no longer exists. Pick another in Settings → AI Provider Accounts." };
+  if (!account) return { error: "That account no longer exists. Pick another in Settings → AI Accounts." };
   if (win) return { error: "Accounts aren't supported on Windows yet." };
   const dir = accountDir(id);
   if (!existsSync(dir)) return { error: `The folder for ${account.name} is missing.` };

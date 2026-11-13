@@ -1,4 +1,4 @@
-// The phone card: Settings → Mobile and the onboarding phone step. Walks the user from no
+// The phone card: Settings → Phone and the onboarding phone step. Walks the user from no
 // Tailscale to a QR the phone scans, through /phone/setup on the board.
 import { html, raw } from "./dom.ts";
 

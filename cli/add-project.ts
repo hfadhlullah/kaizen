@@ -60,7 +60,7 @@ export function destDir(raw: unknown, home: string, known: string[] = [], projec
   if (low === kz || low.startsWith(kz + sep) || parts.includes(".git") || parts.includes(".kaizen")) return { error: "that folder is kaizen's or git's own" };
   if (winBad(basename(dir))) return { error: `${basename(dir)} cannot be a folder name on Windows` };
   const under = (r: string) => !!r && (dir === canonPath(r) || dir.startsWith(canonPath(r) + sep));
-  if (!under(h) && !under(projects)) return { error: "choose a folder inside your home, or set Settings → Projects folder (board.projects_dir) to allow another place" };
+  if (!under(h) && !under(projects)) return { error: "choose a folder inside your home, or set Settings → General → Folders → Projects folder (board.projects_dir) to allow another place" };
   const proj = projects ? canonPath(projects) : "";
   for (let a = dirname(dir); ; a = dirname(a)) {
     if (known.includes(a)) return { error: `that folder is inside the project ${a}` };

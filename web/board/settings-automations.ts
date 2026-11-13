@@ -2,7 +2,7 @@ import { post } from "./api.ts";
 import { $, html, raw, toggleSwitch } from "./dom.ts";
 import { toast } from "./toast.ts";
 
-// Settings → Workflows → Automations: schedules that start a run in this project. /automations
+// Settings → Automations: schedules that start a run in this project. /automations
 // answers for the page's project; the server makes every decision, this only draws and posts.
 type Hist = { fire: string; at: number; kind: string; status: string; reason?: string; run?: string };
 type Rule = { id: string; name: string; text: string; cron: string; kind: string; enabled: boolean; agent?: string; precheck?: string; precheck_timeout: number; grace_minutes: number; next: number | null; history: Hist[] };

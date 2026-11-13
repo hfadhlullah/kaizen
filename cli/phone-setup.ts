@@ -1,4 +1,4 @@
-// Settings → Mobile and the onboarding phone step: what `kaizen setup` does for the phone,
+// Settings → Phone and the onboarding phone step: what `kaizen setup` does for the phone,
 // as board routes. GET says where this computer stands, POST connects or logs in.
 import { qrMatrix } from "./qr.ts";
 import { addWebHost, webHosts } from "./state.ts";

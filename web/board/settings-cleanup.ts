@@ -2,7 +2,7 @@ import { post } from "./api.ts";
 import { $, html } from "./dom.ts";
 import { toast } from "./toast.ts";
 
-// Settings → General → Cleanup: the two halves of `kaizen prune`, one button each, so
+// Settings → General → Storage: the two halves of `kaizen prune`, one button each, so
 // clearing dead launch records never takes run history with it.
 export type Cleanup = { project: string | null; keep: number; records: { abandoned: number; unowned: number; gone: number }; runs: number; rescued: number };
 
