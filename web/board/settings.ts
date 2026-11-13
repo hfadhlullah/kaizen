@@ -193,9 +193,13 @@ export async function openSettings() {
     <nav class="snav" aria-label="Settings">
       <button class="sback" id="sback" type="button">${ico("chev")}Back to app</button>
       <div class="sq"><input class="sel" id="sq" type="search" placeholder="Search settings" aria-label="Search settings" spellcheck="false" autocomplete="off" value="${store.setQ}"></div>
-      ${cfg ? html`<div class="sacct" title="${scoped ? "This project's own .kaizen/config.yml; anything it does not set comes from All projects." : "~/.kaizen/config.yml; a project's own config wins where it sets a value."}">
-        <span class="stile">${ico(scoped ? "board" : "home")}</span>
-        <span class="sacct-t"><small id="s-scope-l">Settings for</small><select class="sel" id="s-scope" aria-labelledby="s-scope-l">${[{ dir: "all", label: "All projects" }, ...cfg.projects].map((p) => html`<option value="${p.dir}"${p.dir === cfg.scope ? " selected" : ""}>${p.label}</option>`)}</select><small>${scoped ? "Overrides All projects" : "Every project"}</small></span>
+      ${cfg ? html`<div class="sacct-w">
+        <button type="button" class="sacct" id="s-scope" aria-haspopup="listbox" aria-expanded="false" aria-controls="s-scope-list" title="${scoped ? "This project's own .kaizen/config.yml; anything it does not set comes from All projects." : "~/.kaizen/config.yml; a project's own config wins where it sets a value."}">
+          <span class="stile">${ico(scoped ? "board" : "home")}</span>
+          <span class="sacct-t"><small>Settings for</small><b>${scoped ? String(scopeName).split(/[\\/]/).filter(Boolean).pop() : "All projects"}</b><small>${scoped ? "Overrides All projects" : "Every project"}</small></span>
+          <svg class="sacct-c" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="spop" id="s-scope-list" role="listbox" aria-label="Settings for" hidden>${[{ dir: "all", label: "All projects" }, ...cfg.projects].map((p) => html`<button type="button" role="option" data-v="${p.dir}" aria-selected="${String(p.dir === cfg.scope)}"><span class="stile">${ico(p.dir === "all" ? "home" : "board")}</span><span>${p.dir === "all" ? p.label : html`${p.label.split(/[\\/]/).filter(Boolean).pop()}<small>${"\u200e" + p.label + "\u200e"}</small>`}</span>${p.dir === cfg.scope ? ico("check") : ""}</button>`)}</div>
       </div>` : ""}
       <div class="snavs">${SETTINGS_NAV.map(([g, ps]) => html`<div class="snavg" role="group" aria-label="${g}">${ps.map((p) => html`<button type="button" data-page="${p.id}"><span class="stile">${ico(p.ico)}</span><span>${p.title}</span></button>`)}</div>`)}</div>
     </nav>
@@ -390,11 +394,43 @@ export async function openSettings() {
     } catch (e) {}
     playSound(v);
   });
-  if (cfg)
-    $("s-scope").onchange = (e) => {
-      store.setScope = e.target.value;
+  // "Settings for": the board's own list rather than a native select, so it is drawn like the rest of
+  // the page (and shows in a screenshot). Enter/Space/↓ open it, arrows move, Enter picks, Escape closes.
+  if (cfg) {
+    const btn = $("s-scope"), list = $("s-scope-list");
+    const opts = () => [...list.querySelectorAll<HTMLElement>("[role=option]")];
+    const shut = (focus = true) => {
+      list.hidden = true;
+      btn.setAttribute("aria-expanded", "false");
+      removeEventListener("pointerdown", outside, true);
+      if (focus) btn.focus();
+    };
+    const outside = (e: Event) => { if (!list.contains(e.target as Node) && !btn.contains(e.target as Node)) shut(false); };
+    const show = () => {
+      list.hidden = false;
+      btn.setAttribute("aria-expanded", "true");
+      addEventListener("pointerdown", outside, true);
+      (opts().find((o) => o.getAttribute("aria-selected") === "true") ?? opts()[0])?.focus();
+    };
+    btn.onclick = () => (list.hidden ? show() : shut());
+    btn.onkeydown = (e) => { if (e.key === "ArrowDown" || e.key === "ArrowUp") (e.preventDefault(), show()); };
+    list.onclick = (e) => {
+      const o = (e.target as HTMLElement).closest<HTMLElement>("[role=option]");
+      if (!o) return;
+      shut(false);
+      if (o.dataset.v === store.setScope) return btn.focus();
+      store.setScope = o.dataset.v!;
       openSettings();
     };
+    list.onkeydown = (e) => {
+      const os = opts(), i = os.indexOf(document.activeElement as HTMLElement);
+      if (e.key === "Escape" || e.key === "Tab") return void (e.key === "Escape" && e.preventDefault(), shut(e.key === "Escape"));
+      const to = e.key === "ArrowDown" ? i + 1 : e.key === "ArrowUp" ? i - 1 : e.key === "Home" ? 0 : e.key === "End" ? os.length - 1 : null;
+      if (to === null) return;
+      e.preventDefault();
+      os[Math.max(0, Math.min(os.length - 1, to))]?.focus();
+    };
+  }
   if (cfg)
     cfg.rows.forEach((r) => {
       const el = $("s-" + r.key.replace(/\./g, "-"));
