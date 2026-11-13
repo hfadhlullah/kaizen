@@ -1117,7 +1117,7 @@ function initSheet() {
   p.addEventListener("touchcancel", end);
   // composedPath, not target: a strip button redraws #ptabs in its own click, so by here
   // the target is detached and closest() would call a tap inside the sheet an outside one.
-  addEventListener("click", (e) => on() && !e.composedPath().some((n) => (n as Element).matches?.("#panel,#rside,dialog,.toast")) && shut());
+  addEventListener("click", (e) => on() && !e.composedPath().some((n) => (n as Element).matches?.("#panel,#rside,dialog,.toast,[data-sonner-toast]")) && shut());
 }
 
 // The keyboard, tmux style: Ctrl+Space puts focus in the current pane, then one more key

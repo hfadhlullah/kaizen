@@ -1,18 +1,23 @@
 // Pinch, wheel, drag and double-click zoom for a task result image. One box, one image:
 // the image fills the box (object-fit: contain) and a transform moves it.
-const MIN = 1, MAX = 8;
+const MIN = 1,
+  MAX = 8;
 
 export function wireZoom(root: ParentNode) {
   root.querySelectorAll<HTMLElement>(".tp-zoom:not([data-zoom])").forEach((box) => {
     const img = box.querySelector<HTMLElement>("img");
     if (!img) return;
     box.dataset.zoom = "1";
-    let s = 1, x = 0, y = 0;
+    let s = 1,
+      x = 0,
+      y = 0;
     const pts = new Map<number, { x: number; y: number }>();
-    let pinch = 0, moved = false;
+    let pinch = 0,
+      moved = false;
     const label = box.querySelector<HTMLElement>("[data-zoom-reset]");
     const apply = () => {
-      const w = box.clientWidth, h = box.clientHeight;
+      const w = box.clientWidth,
+        h = box.clientHeight;
       x = Math.min(0, Math.max(w - w * s, x));
       y = Math.min(0, Math.max(h - h * s, y));
       img.style.transform = `translate(${x}px,${y}px) scale(${s})`;
@@ -35,12 +40,16 @@ export function wireZoom(root: ParentNode) {
       const [a, b] = [...pts.values()];
       return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, d: Math.hypot(a.x - b.x, a.y - b.y) };
     };
-    box.addEventListener("wheel", (e) => {
-      e.preventDefault();
-      const p = local(e);
-      // A trackpad pinch arrives as a wheel with ctrlKey and small deltas.
-      zoomAt(p.x, p.y, s * Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0015)));
-    }, { passive: false });
+    box.addEventListener(
+      "wheel",
+      (e) => {
+        e.preventDefault();
+        const p = local(e);
+        // A trackpad pinch arrives as a wheel with ctrlKey and small deltas.
+        zoomAt(p.x, p.y, s * Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0015)));
+      },
+      { passive: false },
+    );
     box.addEventListener("pointerdown", (e) => {
       if ((e.target as HTMLElement).closest("button")) return;
       box.setPointerCapture(e.pointerId);
@@ -81,8 +90,12 @@ export function wireZoom(root: ParentNode) {
       if (s > 1) zoomAt(p.x, p.y, 1);
       else zoomAt(p.x, p.y, 2.5);
     });
-    box.querySelector("[data-zoom-in]")?.addEventListener("click", () => zoomAt(box.clientWidth / 2, box.clientHeight / 2, s * 1.5));
-    box.querySelector("[data-zoom-out]")?.addEventListener("click", () => zoomAt(box.clientWidth / 2, box.clientHeight / 2, s / 1.5));
+    box
+      .querySelector("[data-zoom-in]")
+      ?.addEventListener("click", () => zoomAt(box.clientWidth / 2, box.clientHeight / 2, s * 1.5));
+    box
+      .querySelector("[data-zoom-out]")
+      ?.addEventListener("click", () => zoomAt(box.clientWidth / 2, box.clientHeight / 2, s / 1.5));
     label?.addEventListener("click", () => zoomAt(box.clientWidth / 2, box.clientHeight / 2, 1));
     new ResizeObserver(apply).observe(box);
     apply();

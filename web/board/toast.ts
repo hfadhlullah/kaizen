@@ -3,8 +3,15 @@ import { $ } from "./dom.ts";
 // With `report`, the toast carries a link to a prefilled GitHub bug form (/issue) and
 // stays long enough to click it.
 let tt;
+// The board's React toaster (lib/toast.ts) takes over once it is mounted (react-mount.ts), so old and new pages
+// share one toast. The notebook and Video pages never mount it and keep drawing into their own #toast, which
+// keeps React out of their bundles.
+let sink: ((s: string, report?: Record<string, string>) => void) | null = null;
+export const setToaster = (f: typeof sink) => (sink = f);
 export function toast(s, report) {
+  if (sink) return sink(s, report);
   const t = $("toast");
+  if (!t) return;
   t.textContent = s;
   t.classList.toggle("rep", !!report);
   if (report) {

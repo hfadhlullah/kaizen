@@ -5,11 +5,12 @@ import { close } from "./panel.ts";
 import { openSettings } from "./settings.ts";
 import { openTerms, termsStop } from "./terms.ts";
 import { openHome } from "./home.ts";
-import { initTasks, openTasks } from "./tasks.ts";
-import { initTaskPage, openTaskPage } from "./task-page.ts";
 import { initRunView, openWorkspace, runStop, showRunView } from "./run-view.ts";
 import { initPhone, isPhone, openPhone } from "./phone.ts";
 
+// The React pages (react-mount.ts) register here from main.ts, so the notebook and Video bundles, which share
+// this module, carry no React.
+export const react = { init: (_go: (v: string, push?: boolean) => void) => {}, openTasks: () => {}, openTaskPage: () => {} };
 // ---- views: Home (the chat, at /), the board, Settings and the Icebox as pages in the docked panel, or the Terminal page; each with its own address
 export let view = "board";
 let boardBack = false;
@@ -90,8 +91,8 @@ export function go(v, push) {
   else termsStop();
   if ((v === "home" && !ph) || v === "chat") openHome();
   openPhone(ph ? "home" : v === "device" ? "device" : null);
-  if (v === "tasks") openTasks();
-  if (v === "task") openTaskPage();
+  if (v === "tasks") react.openTasks();
+  if (v === "task") react.openTaskPage();
   // After the panel handling below, which closes the board's panel on the way in.
   if (v === "run") queueMicrotask(() => void showRunView(true));
   // The Terminal page is the board's own area, not the docked panel: the panel closes as on the board.
@@ -125,8 +126,7 @@ export function initViews() {
     $("phone-menu").setAttribute("aria-expanded", String(on));
     $("phone-menu").setAttribute("aria-label", on ? "Hide navigation menu" : "Show navigation menu");
   };
-  initTasks(go);
-  initTaskPage(go);
+  react.init(go);
   initRunView();
   initPhone(go, openWorkspace);
   document.querySelectorAll(".rail a[data-view]").forEach((a) => {

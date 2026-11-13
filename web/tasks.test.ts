@@ -1,27 +1,20 @@
-import { expect, test, beforeAll } from "bun:test";
-import { artifactView, checksView, resultView, storedUrl, webUrl, type TaskResult } from "./task-results.ts";
-import { waitingCount, taskForCard } from "./badge.ts";
-import type { TaskView } from "./task-page.ts";
+import { expect, test } from "bun:test";
+import { createElement, type ReactElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { ArtifactView } from "./components/artifact-view.tsx";
+import { ResultChecks } from "./components/result-checks.tsx";
+import { ResultView } from "./components/result-view.tsx";
+import { storedUrl, webUrl, type TaskArtifact, type TaskResult } from "./lib/task-results.ts";
+import { canAcceptTask, closeActions, filteredTasks, taskHref, type TaskView } from "./lib/tasks.ts";
+import { waitingCount, taskForCard } from "./board/badge.ts";
 
-let canAcceptTask: typeof import("./task-page.ts").canAcceptTask;
-let filteredTasks: typeof import("./tasks.ts").filteredTasks;
-let taskHref: typeof import("./task-page.ts").taskHref;
-// Import browser state with just its environment reads available, then restore the
-// host. These tests exercise the actual presentation rules, with lifecycle fixtures.
-beforeAll(async () => {
-  const names = ["location", "addEventListener"] as const;
-  const old = names.map((name) => Object.getOwnPropertyDescriptor(globalThis, name));
-  Object.defineProperty(globalThis, "location", { configurable: true, value: { search: "" } });
-  Object.defineProperty(globalThis, "addEventListener", { configurable: true, value: () => {} });
-  try {
-    ({ canAcceptTask, taskHref } = await import("./task-page.ts"));
-    ({ filteredTasks } = await import("./tasks.ts"));
-  } finally {
-    names.forEach((name, i) =>
-      old[i] ? Object.defineProperty(globalThis, name, old[i]!) : delete (globalThis as any)[name],
-    );
-  }
-});
+// The Tasks pages' rules and viewers, rendered the way the board renders them (react-dom/server), with lifecycle fixtures.
+const html = (e: ReactElement) => renderToStaticMarkup(e);
+const resultView = (r?: TaskResult, artifactId?: string) =>
+  html(createElement(ResultView, { result: r, artifactId, onSelect: () => {} }));
+const artifactView = (artifact: TaskArtifact, selected = true) =>
+  html(createElement(ArtifactView, { artifact, selected }));
+const checksView = (r?: TaskResult) => html(createElement(ResultChecks, { result: r }));
 const task = (
   id: string,
   category: "needs-you" | "in-progress" | "completed",
@@ -94,7 +87,7 @@ test("acceptance requires current result and no writer, pending decision or queu
   expect(canAcceptTask(ready)).toBe(false);
 });
 test("result shows saved output, evidence, unverified backend and separate publication", () => {
-  const view = String(resultView(result)) + String(checksView(result));
+  const view = resultView(result) + checksView(result);
   expect(view).toContain("Registration screen.png");
   expect(view).toContain("Saved file");
   expect(view).toContain("2.0 KB");
@@ -121,31 +114,29 @@ test("mixed output selection gives appropriate image media text PDF and download
       },
     ],
   };
-  expect(String(resultView(all, "md"))).toContain("data-text-artifact");
-  expect(String(resultView(all, "v"))).toContain("<video");
-  expect(String(resultView(all, "a"))).toContain("<audio");
-  expect(String(resultView(all, "p"))).toContain("sandbox");
-  expect(String(resultView(all, "doc"))).toContain("Preview is unavailable for this format");
-  expect(String(resultView(all))).toContain('aria-label="Outputs"');
+  expect(resultView(all, "md")).toContain("Loading saved text");
+  expect(resultView(all, "v")).toContain("<video");
+  expect(resultView(all, "a")).toContain("<audio");
+  expect(resultView(all, "p")).toContain("sandbox");
+  expect(resultView(all, "doc")).toContain("Preview is unavailable for this format");
+  expect(resultView(all)).toContain('aria-label="Outputs"');
 });
 test("active HTML and SVG outputs stay downloads and user labels cannot inject markup", () => {
   for (const [name, mediaType] of [
     ["demo.html", "text/html"],
     ["graphic.svg", "image/svg+xml"],
   ]) {
-    const view = String(
-      artifactView({ id: "x", name, kind: "image", mediaType, url: "/task-artifact?artifact=x" }, true),
-    );
+    const view = artifactView({ id: "x", name, kind: "image", mediaType, url: "/task-artifact?artifact=x" });
     expect(view).not.toContain("<iframe");
     expect(view).not.toContain("<img");
     expect(view).toContain("Download this file");
   }
-  const malicious = String(
-    artifactView(
-      { id: "x", name: '<img src=x onerror="alert(1)">', kind: "file", url: "/task-artifact?artifact=x" },
-      true,
-    ),
-  );
+  const malicious = artifactView({
+    id: "x",
+    name: '<img src=x onerror="alert(1)">',
+    kind: "file",
+    url: "/task-artifact?artifact=x",
+  });
   expect(malicious).toContain("&lt;img");
   expect(malicious).not.toContain("<img");
 });
@@ -159,14 +150,14 @@ test("unsafe URLs never become embedded outputs and mutable live preview is labe
     expect(webUrl(url)).toBeNull();
   for (const url of ["https://evil.test/output", "//evil.test/output", "/file?name=x", "/task-artifact\\bad"])
     expect(storedUrl(url)).toBeNull();
-  const live = String(artifactView({ id: "web", name: "Workshop", kind: "website", url: "https://example.com" }, true));
+  const live = artifactView({ id: "web", name: "Workshop", kind: "website", url: "https://example.com" });
   expect(live).toContain("Live link · mutable");
   expect(live).toContain("Open link");
   expect(live).not.toContain("allow-same-origin");
 });
 test("missing files and no results explain their limits instead of claiming availability", () => {
-  expect(String(artifactView({ ...result.artifacts[0], missing: true }, true))).toContain("saved file is unavailable");
-  expect(String(resultView(undefined))).toContain("approve a short plan");
+  expect(artifactView({ ...result.artifacts[0], missing: true })).toContain("saved file is unavailable");
+  expect(resultView(undefined)).toContain("approve a short plan");
 });
 
 test("task attention counts acceptance separately from source-control housekeeping", () => {
@@ -181,17 +172,39 @@ test("task attention counts acceptance separately from source-control housekeepi
   expect(taskForCard(cards[1], [accepted, ready])?.attention.action).toBe("Inspect the current result");
 });
 
-const allowed = { accept: false, stop: false, resume: false, abandon: false, archive: true, delete: false, start: false };
+const allowed = {
+  accept: false,
+  stop: false,
+  resume: false,
+  abandon: false,
+  archive: true,
+  delete: false,
+  start: false,
+};
 test("Looks good follows the server's allowed list and a leftover pause", () => {
-  expect(canAcceptTask(task("a", "needs-you", { currentResultId: "r2", actions: { ...allowed, accept: true } }), result)).toBe(true);
-  expect(canAcceptTask(task("a", "needs-you", { currentResultId: "r2", actions: { ...allowed, accept: false, acceptWhy: "The workflow is still reviewing this result" } }), result)).toBe(false);
+  expect(
+    canAcceptTask(task("a", "needs-you", { currentResultId: "r2", actions: { ...allowed, accept: true } }), result),
+  ).toBe(true);
+  expect(
+    canAcceptTask(
+      task("a", "needs-you", {
+        currentResultId: "r2",
+        actions: { ...allowed, accept: false, acceptWhy: "The workflow is still reviewing this result" },
+      }),
+      result,
+    ),
+  ).toBe(false);
   expect(canAcceptTask(task("a", "needs-you", { currentResultId: "r2", queuePaused: true }), result)).toBe(false);
 });
 test("the task page offers Delete only before any run, never says stopped, and draws the actions list", async () => {
-  const src = await Bun.file(new URL("./task-page.ts", import.meta.url)).text();
+  const src = await Bun.file(new URL("./pages/task-page.tsx", import.meta.url)).text();
   expect(src).not.toContain('"stopped"');
   expect(src).toContain("t.actions?.stop");
   expect(src).toContain("t.actions?.resume");
-  expect(src).toMatch(/a\.delete \? html`<button[^`]*data-close="delete"/);
-  expect(src).toMatch(/a\.abandon \? html`<button[^`]*data-close="abandon"/);
+  // Without a server list: Archive always, Abandon only for a live run, Delete only while no run exists.
+  const base = task("a", "needs-you");
+  expect(closeActions(base)).toMatchObject({ abandon: false, delete: true });
+  expect(closeActions({ ...base, runs: ["r1"] })).toMatchObject({ abandon: false, delete: false });
+  expect(closeActions({ ...base, activeRun: "r1" })).toMatchObject({ abandon: true, delete: false });
+  expect(closeActions({ ...base, actions: allowed })).toMatchObject({ archive: true, delete: false, abandon: false });
 });

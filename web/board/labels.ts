@@ -1,10 +1,7 @@
 export const m = 60e3,
   h = 3600e3,
   d = 86400e3;
-export const age = (t, now) => {
-  const x = now - t;
-  return x < h ? Math.round(x / m) + "m" : x < d ? Math.round(x / h) + "h" : Math.round(x / d) + "d";
-};
+export { age } from "../lib/format.ts";
 export const NAMES = {
   claude: "Claude Code",
   codex: "Codex",
