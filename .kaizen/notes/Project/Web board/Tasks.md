@@ -1,10 +1,9 @@
 ---
 description: The Tasks page, the task forms, inbox stamps and when a task retires
 tags: [project, web-board]
-sources: [cli/state.ts]
-updated: 2026-11-13
 sources: [web/pages/tasks-page.tsx, web/pages/task-page.tsx, web/components, web/lib, cli/tasks.ts, cli/task-results.ts, cli/task-service.ts, cli/state.ts, cli/web-tasks.test.ts, cli/tasks.test.ts, cli/task-results.test.ts]
 updated: 2026-11-14
+---
 # Tasks
 
 Part of [[Web board]].

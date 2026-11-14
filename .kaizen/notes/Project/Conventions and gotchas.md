@@ -1,9 +1,9 @@
 ---
 description: How work is done in this repo, and the traps that have bitten before
 tags: [project, conventions]
-sources: [.kaizen/memory.md, design.md, .claude/skills, .github, .gitattributes, .gitignore, .prettierrc, AGENTS.md, CLAUDE.md, CONTRIBUTING.md, LICENSE, README.md, docs/README.md, web/ui/theme.css, web/ui, web/components, web/pages, web/lib, web/structure.test.ts, web/board/react-mount.ts]
+sources: [.kaizen/memory.md, design.md, .claude/skills, .github, .gitattributes, .gitignore, .prettierrc, AGENTS.md, CLAUDE.md, CONTRIBUTING.md, LICENSE, README.md, docs/README.md, web/ui/theme.css, web/ui, web/components, web/pages, web/lib, web/checks/structure.test.ts]
 updated: 2026-11-14
-updated: 2026-11-08
+---
 # Conventions and gotchas
 
 ## In plain words
