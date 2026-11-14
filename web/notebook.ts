@@ -1171,6 +1171,8 @@ document.addEventListener("keydown", (e) => {
 addEventListener("beforeunload", (e) => {
   if (dirty) e.preventDefault();
 });
+// Leaving for the board through Search (Ctrl+K): the note is written first.
+addEventListener("kz-leave", ((e: CustomEvent) => e.detail.wait(flush())) as EventListener);
 // Leaving with unsaved text: a keepalive request outlives the page.
 addEventListener("pagehide", () => {
   if (open && dirty && !conflict)

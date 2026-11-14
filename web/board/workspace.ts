@@ -10,7 +10,7 @@ import { age, need } from "./labels.ts";
 import { openAdd, type AddOpts } from "../lib/add-project.ts";
 import { ask as askYes } from "../lib/ask.ts";
 import { openWsMenu, type WsMenuItem } from "../lib/ws-menu.ts";
-import { initSearch } from "./search.ts";
+import { initSearch, leave } from "./search.ts";
 import { agentsHtml, dueWord, forgetAgents, gitDue, moveTo, settleIn, toggleOpen, wsAgents, type Agent } from "./ws-tabs.ts";
 import { toast } from "./toast.ts";
 
@@ -109,7 +109,7 @@ function addProject(o: AddOpts) {
   if (onBoard()) return openAdd(o);
   const q = new URLSearchParams({ view: "board", add: o.start ?? "1" });
   if (o.dir) q.set("adddir", o.dir);
-  location.href = "/?" + q;
+  leave("/?" + q);
 }
 // Arriving from the notebook or Video with the sheet asked for.
 function openAsked() {

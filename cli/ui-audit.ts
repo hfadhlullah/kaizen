@@ -288,16 +288,16 @@ function screens(dir: string, run: string, emptyWs: { dir: string; ws: string })
   const D1 = [1400], P = [400];
   return [
     { name: "board", url: "/?view=board", widths: D1 }, // a phone shows Home for the board
-    { name: "board-runs", url: "/?view=board", widths: D1, open: `await click("[data-m=runs]")` },
-    { name: "card-menu", url: "/?view=board", widths: D1, open: `await click("[data-m=runs]"); await click("[data-a=menu]", true)` },
-    { name: "card-drawer", url: "/?view=board", widths: D1, open: `await click("[data-m=runs]"); await click("main#board>section:last-of-type li .card")` },
+    { name: "board-runs", url: "/?view=board", widths: D1, open: `await click("[aria-label='Board mode'] button", false, "Runs")` },
+    { name: "card-menu", url: "/?view=board", widths: D1, open: `await click("[aria-label='Board mode'] button", false, "Runs"); await click("button[aria-label=Actions]", true)` },
+    { name: "card-drawer", url: "/?view=board", widths: D1, open: `await click("[aria-label='Board mode'] button", false, "Runs"); await click("main#board>section:last-of-type li .card")` },
     { name: "projects-filter", url: "/?view=board", widths: D1, open: `await click("#combo button")` },
     { name: "showing", url: "/?view=board", widths: D1, open: `await click("#show")` },
     { name: "new-task", url: "/?view=board", widths: D1, open: `await click("#newtop")` },
     { name: "add-project", url: "/?view=board", widths: D1, open: `await click("#padd")` },
     { name: "new-workspace", url: "/?view=board", widths: D1, open: `await click("#padd"); await click("[data-go=ws]")` },
     { name: "tasks", url: "/?view=tasks" },
-    { name: "run-form", url: "/?view=tasks", widths: D1, open: `await click(".go[data-i]", false, "Start")` },
+    { name: "run-form", url: "/?view=tasks", widths: D1, open: `await click("[data-task-row]"); await click("button", false, "Start planning")` },
     { name: "icebox", url: "/?view=icebox" },
     { name: "home", url: "/" },
     { name: "chat", url: "/?view=chat", widths: P },
@@ -307,10 +307,10 @@ function screens(dir: string, run: string, emptyWs: { dir: string; ws: string })
     ...SETTINGS.map((p) => ({ name: "settings-" + p, url: "/?view=settings&page=" + p })),
     { name: "run", url: RUN },
     { name: "run-none", url: EMPTY, widths: D1 },
-    { name: "run-plus", url: RUN, widths: D1, open: `await click("#rtabs details.radd:not(.rsplit) > summary")` },
-    { name: "run-split", url: RUN, widths: D1, open: `await click("#rtabs details.rsplit > summary")` },
-    { name: "run-picker", url: RUN, widths: D1, open: `await click("#ppick")` },
-    { name: "run-history", url: RUN, widths: D1, open: `await click("#rtabs details.radd:not(.rsplit) > summary"); await click("[data-n=history]")` },
+    { name: "run-plus", url: RUN, widths: D1, open: `await click("button[aria-label='New tab']")` },
+    { name: "run-split", url: RUN, widths: D1, open: `await click("button[aria-label='Split right']")` },
+    { name: "run-picker", url: RUN, widths: D1, open: `await click("button[title='Choose a run']")` },
+    { name: "run-history", url: RUN, widths: D1, open: `await click("button[aria-label='New tab']"); await click("[role=menuitem]", false, "History")` },
     { name: "phone-runs", url: "/?view=device", widths: P },
     { name: "phone-new", url: "/", widths: P, open: `await click("#phome .pag-new")` },
   ];
@@ -322,7 +322,7 @@ const until = async (s, ms = 6000) => { const end = Date.now() + ms; for (;;) { 
 const click = async (s, force = false, text = "") => {
   const e = force ? document.querySelector(s) : text ? [...document.querySelectorAll(s)].find((x) => x.textContent.trim().startsWith(text)) : await until(s);
   if (!e) throw new Error("not found: " + s + (text ? " " + text : ""));
-  e.scrollIntoView({ block: "nearest" }); e.click(); await sleep(400);
+  e.scrollIntoView({ block: "nearest" }); e.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0, pointerType: "mouse" })); e.click(); await sleep(400); // Radix menus open on pointerdown
 };`;
 
 type Hit = Flag & { screen: string; at: string };

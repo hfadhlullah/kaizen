@@ -44,7 +44,8 @@ export function Picker({
   const row = (o: PickerOption) => (
     <CommandItem
       key={o.value}
-      value={o.value}
+      // cmdk highlights no row with an empty value (the Inbox collection, the "All" choices): every value gets a prefix.
+      value={"v:" + o.value}
       keywords={[o.label, o.group ?? "", o.search ?? ""]}
       onSelect={() => {
         onChange(o.value);
@@ -63,7 +64,7 @@ export function Picker({
       <PopoverTrigger asChild>
         <button
           type="button"
-          aria-label={label}
+          aria-label={chosen ? `${label}: ${chosen.label}` : label}
           className={cn(
             "inline-flex h-(--btn-s) max-w-full items-center justify-between gap-2 rounded-sm border border-border bg-card px-2.5 text-base hover:border-muted-foreground",
             !chosen && "text-muted-foreground",

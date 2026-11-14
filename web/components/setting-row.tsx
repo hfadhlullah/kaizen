@@ -91,7 +91,7 @@ export function SettingRow({ row, off }: { row: Row; off?: boolean }) {
             spellCheck={false}
             autoComplete="off"
             className={wide}
-            onCommit={(v) => void saveSetting(row.key, v).then(() => host.reload())}
+            onCommit={(v) => saveSetting(row.key, v).then(() => host.reload())}
           />
         );
         if (kind === "folder")

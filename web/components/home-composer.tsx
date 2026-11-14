@@ -51,7 +51,8 @@ export function HomeComposer({
   };
   const submit = () => {
     const v = text;
-    if (!v.trim() && !files.length) return;
+    // A reply still running refuses a new message (send() ignores it): the text stays in the box until it can go.
+    if ((!v.trim() && !files.length) || working || sending) return;
     setText("");
     void send(v);
   };
@@ -61,6 +62,7 @@ export function HomeComposer({
       const s = (e as CustomEvent<string>).detail;
       box.current?.focus();
       if (s.endsWith(" ")) return change(s);
+      if (working || sending) return;
       setText("");
       void send(s);
     };

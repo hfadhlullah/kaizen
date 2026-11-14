@@ -121,7 +121,7 @@ export async function bulkDo(op: "promote" | "dismiss") {
   await settle();
 }
 // The phone row's drag: right makes a task, left dismisses (with Undo on the toast).
-export async function rowDecide(it: IceItem, op: "promote" | "dismiss") {
+export async function rowDecide(it: IceItem, op: "promote" | "dismiss"): Promise<boolean> {
   if (host.motion()) await new Promise((ok) => setTimeout(ok, 180));
   host.pop();
   step([it]);
@@ -136,8 +136,9 @@ export async function rowDecide(it: IceItem, op: "promote" | "dismiss") {
         await settle();
       });
     else toast("Made a task");
-  }
+  } else toast(`Could not ${op}: ${j.error || "kaizen did not answer"}`);
   await settle();
+  return !!j.ok;
 }
 
 // ---- the promote form: a clean title for the task's card and the person's own details; what was gathered is
@@ -245,7 +246,7 @@ export const startSwipe = () =>
   setIce({ swipe: { n: 0, pro: 0, dis: 0, t0: Date.now(), last: null, skip: new Map(), busy: false, pop: false } });
 export const exitSwipe = () => setIce({ swipe: null });
 // A decision flies the card off (`fly`, by the card's own element), clicks when the board's sound is on, then posts.
-export async function swGo(op: "promote" | "dismiss" | "skip", fly?: (dir: 1 | -1) => Promise<void>) {
+export async function swGo(op: "promote" | "dismiss" | "skip", fly?: (dir: 1 | -1) => Promise<void | (() => void)>) {
   const S = getIce().swipe,
     it = getIce().deck[0];
   if (!S || S.busy || !it) return;
@@ -257,7 +258,7 @@ export async function swGo(op: "promote" | "dismiss" | "skip", fly?: (dir: 1 | -
     return;
   }
   setIce({ swipe: { ...S, busy: true } });
-  await fly?.(op === "promote" ? 1 : -1);
+  const home = await fly?.(op === "promote" ? 1 : -1);
   host.pop();
   const j = await post("/icebox", { op, dir: it.dir, ids: [it.id] });
   const now = getIce().swipe;
@@ -277,6 +278,7 @@ export async function swGo(op: "promote" | "dismiss" | "skip", fly?: (dir: 1 | -
       });
     else {
       setIce({ swipe: { ...now, busy: false } });
+      home?.(); // the card flew off for a decision that did not happen: bring it back
       toast(`Could not ${op}: ${j.error || "kaizen did not answer"}`);
     }
   }

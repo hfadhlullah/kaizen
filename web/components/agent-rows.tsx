@@ -176,7 +176,7 @@ function AgentBody({ a, envWorks, all }: { a: Agent; envWorks: boolean; all: str
             placeholder={a.cmd}
             spellCheck={false}
             autoComplete="off"
-            onCommit={(v) => void saveAgentPrefs({ agent: a.cmd, command: v })}
+            onCommit={(v) => saveAgentPrefs({ agent: a.cmd, command: v })}
           />
         )}
       </Field>
@@ -189,7 +189,7 @@ function AgentBody({ a, envWorks, all }: { a: Agent; envWorks: boolean; all: str
             placeholder="No default arguments"
             spellCheck={false}
             autoComplete="off"
-            onCommit={(v) => void saveAgentPrefs({ agent: a.cmd, args: v })}
+            onCommit={(v) => saveAgentPrefs({ agent: a.cmd, args: v })}
           />
         )}
       </Field>

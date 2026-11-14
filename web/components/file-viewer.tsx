@@ -14,7 +14,7 @@ export function FileViewer() {
         >
           <div className="flex items-center gap-3 border-b border-border px-3 py-2">
             <DialogTitle className="min-w-0 flex-1 truncate text-base font-semibold">{file.name}</DialogTitle>
-            <a className="text-primary" href={file.href} target="_blank" rel="noopener">
+            <a className="text-primary" href={file.href} target="_blank" rel="noopener" data-viewer-tab>
               Open in new tab
             </a>
             <Button size="sm" onClick={closeFile}>

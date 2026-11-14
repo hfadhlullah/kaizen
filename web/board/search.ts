@@ -178,8 +178,15 @@ function newTaskWith(text: string) {
 // Rows are read each time the palette opens and again when the side menu's data or the chats land.
 const fill = () => useSearch.getState().open && useSearch.setState({ items: items() });
 const BOARD = typeof document !== "undefined" && !!document.getElementById("kz-portal");
+// Leaving for the board: the page first writes what it has not saved (the notebook's autosave waits 600 ms) by answering
+// the `kz-leave` event with a promise through `wait`.
+export function leave(href: string) {
+  const waits: Promise<unknown>[] = [];
+  dispatchEvent(new CustomEvent("kz-leave", { detail: { wait: (p: Promise<unknown>) => waits.push(p) } }));
+  void Promise.allSettled(waits).then(() => (location.href = href));
+}
 export function openSearch() {
-  if (!BOARD) return void (location.href = "/?view=board&search=1");
+  if (!BOARD) return void leave("/?view=board&search=1");
   useSearch.setState({ open: true, items: items(), newTask: newTaskWith });
   // Chats live behind one fetch; the list fills in when they land.
   fetch("/chats")

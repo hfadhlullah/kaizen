@@ -26,7 +26,7 @@ export function RequestPhoneRow({ item, ctx, chat }: { item: IceItem; ctx: RowCt
     [snooze, setSnooze] = useState(false),
     sw = useRowSwipe({
       enabled: live,
-      onDecide: (op) => void rowDecide(item, op),
+      onDecide: (op) => rowDecide(item, op),
       onHold: () => {
         setIce({ cur: k });
         setSnooze(true);

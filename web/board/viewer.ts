@@ -7,8 +7,8 @@ export function initViewer() {
     if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
     const a = (e.target as HTMLElement).closest?.("a[href]");
     const href = a?.getAttribute("href") ?? "";
-    // The viewer's own "Open in new tab" (target _blank) goes to its tab.
-    if (!viewable(href) || a?.getAttribute("target") === "_blank") return;
+    // The viewer's own "Open in new tab" goes to its tab; every other link to a file (target _blank or not) opens the viewer.
+    if (!viewable(href) || a?.hasAttribute("data-viewer-tab")) return;
     e.preventDefault();
     openFile(href);
   });

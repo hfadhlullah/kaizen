@@ -88,7 +88,7 @@ delete process.env.KAIZEN_DESKTOP_BUNDLED;
 // page newer than its server sends ops the server does not know ("unknown op").
 // So the pages are kept as they were at start, and read live (dev edits) only while
 // the installed version is still the one this board runs.
-const AT_START = new Map([PAGE, BOARD_JS, NOTES_PAGE, NOTES_JS, TERM_JS, TERM_CSS, VIDEO_PAGE, VIDEO_JS, ANNOTATE_JS].map((f) => [f, existsSync(f) ? readText(f) : null]));
+const AT_START = new Map([PAGE, BOARD_JS, NOTES_PAGE, NOTES_JS, TERM_JS, TERM_CSS, VIDEO_PAGE, VIDEO_JS, ANNOTATE_JS, UI_CSS].map((f) => [f, existsSync(f) ? readText(f) : null]));
 const served = (f: string) => installed() === VERSION && existsSync(f) ? readText(f) : AT_START.get(f) ?? null;
 
 // A board answers at url and runs the installed version. A board from before the

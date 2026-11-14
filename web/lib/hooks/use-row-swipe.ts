@@ -10,7 +10,7 @@ export function useRowSwipe({
   onHold,
   enabled,
 }: {
-  onDecide: (op: "promote" | "dismiss") => void;
+  onDecide: (op: "promote" | "dismiss") => Promise<boolean | void> | void; // false: it failed, the row comes back
   onHold: () => void;
   enabled: boolean;
 }) {
@@ -62,6 +62,13 @@ export function useRowSwipe({
       navigator.vibrate?.(10);
       onHold();
     }, 500);
+    const home = () => {
+      f.style.transform = "";
+      f.style.opacity = "";
+      r.style.removeProperty("--p");
+      delete r.dataset.dir;
+      delete r.dataset.gone;
+    };
     const end = (cancel: boolean) => {
       clearTimeout(hold);
       f.onpointermove = f.onpointerup = f.onpointercancel = null;
@@ -73,12 +80,8 @@ export function useRowSwipe({
         r.dataset.gone = "1";
         f.style.transform = `translateX(${(dx > 0 ? 1 : -1) * r.offsetWidth}px)`;
         f.style.opacity = "0";
-        onDecide(op);
-      } else {
-        f.style.transform = "";
-        r.style.removeProperty("--p");
-        delete r.dataset.dir;
-      }
+        void Promise.resolve(onDecide(op)).then((ok) => ok === false && home());
+      } else home();
     };
     f.onpointermove = (m) => {
       const mx = m.clientX - x0,

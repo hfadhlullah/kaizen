@@ -23,7 +23,7 @@ export function IconButton({
       <TooltipTrigger asChild>
         <Tag
           {...(href ? { href } : { type: "button" })}
-          aria-label={label}
+          aria-label={active ? `${label} (on)` : label}
           className={cn(
             "relative grid size-(--btn-s) shrink-0 place-items-center rounded-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
             active && "text-foreground",

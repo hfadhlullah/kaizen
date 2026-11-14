@@ -26,9 +26,10 @@ const drop = (c: HTMLElement) => {
     c.style.removeProperty(k);
   c.style.removeProperty("--p");
 };
-// The card leaves to the side it was decided on.
+// The card leaves to the side it was decided on. It hands back a way to bring the card home when the decision fails.
 export async function flyCard(c: HTMLElement | null, dir: 1 | -1) {
-  if (!c || !host.motion()) return;
+  if (!c) return;
+  if (!host.motion()) return () => drop(c);
   lift(c);
   await c
     .animate(
@@ -39,6 +40,10 @@ export async function flyCard(c: HTMLElement | null, dir: 1 | -1) {
       { duration: 320, easing: "cubic-bezier(.3,.6,.4,1)", fill: "forwards" },
     )
     .finished.catch(() => {});
+  return () => {
+    for (const a of c.getAnimations()) a.cancel();
+    drop(c);
+  };
 }
 export function useCardDrag(onDecide: (op: "promote" | "dismiss") => void) {
   const ref = useRef<HTMLDivElement>(null);

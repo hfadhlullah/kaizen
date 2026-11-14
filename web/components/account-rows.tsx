@@ -37,7 +37,7 @@ export function AccountCard({ id }: { id: string }) {
             title="Click to rename"
             data-ac-name={a.id}
             className="-ml-1.5 h-6 max-w-70 border-transparent bg-transparent px-1.5 font-medium"
-            onCommit={(v) => void accountSend({ op: "rename", id: a.id, name: v })}
+            onCommit={(v) => accountSend({ op: "rename", id: a.id, name: v })}
           />
           <Lines a={a} />
         </span>

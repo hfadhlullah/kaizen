@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { shownRows, useSearch } from "../lib/search.ts";
 import type { Item } from "../lib/search-match.ts";
 import { Command, CommandGroup, CommandInput, CommandItem, CommandList } from "../ui/command.tsx";
@@ -60,6 +60,7 @@ export function SearchPalette() {
   useEffect(() => {
     if (open) setQ("");
   }, [open]);
+  const picked = useRef(false);
   const close = () => useSearch.setState({ open: false });
   // Rows are numbered by position, so the selection is a number as text; a new query starts on the first row.
   useEffect(() => setSel("0"), [q]);
@@ -74,7 +75,12 @@ export function SearchPalette() {
       <DialogContent
         aria-label="Search"
         aria-describedby={undefined}
-        onCloseAutoFocus={(e) => e.preventDefault()}
+        // Closed by Escape or a click away: focus goes back to where it was. A chosen row takes the focus itself.
+        onCloseAutoFocus={(e) => {
+          if (!picked.current) return;
+          picked.current = false;
+          e.preventDefault();
+        }}
         className="top-[14vh] w-[min(560px,calc(100vw-32px))] translate-y-0 gap-0 overflow-hidden rounded-md p-0 shadow-md"
       >
         <DialogTitle className="sr-only">Search</DialogTitle>
@@ -101,6 +107,7 @@ export function SearchPalette() {
                     value={String(n)}
                     className="h-(--btn-s) gap-2 px-2 text-base text-foreground"
                     onSelect={() => {
+                      picked.current = true;
                       close();
                       // After the palette has gone: what a row opens takes the focus.
                       setTimeout(row.act, 0);
