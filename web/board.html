@@ -775,14 +775,6 @@ aside .foot .more .menu-pop{left:0;right:auto;top:auto;bottom:calc(100% + 4px)}.
 .yolo[hidden]{display:none}
 @media(min-width:641px){body.setv .rail{display:none}body.setv #panel>header{display:none}body.setv #panel>.body{padding:0!important;overflow:hidden}body.setv #panel{background:none;border-color:transparent;box-shadow:none}body.setv .app{margin:0;background:none;border:0;border-radius:0}}
 /* The phone card (Settings → Phone, onboarding): steps, then the QR beside what to do on the phone. */
-#phset,#onb-phone{display:flex;flex-direction:column;gap:12px;font-size:13px;line-height:1.5;color:var(--ink)}
-#phset p,#onb-phone p{margin:0}
-.ph-steps{margin:0;padding-left:20px;display:grid;gap:4px;color:var(--ink)}.ph-steps a,.ph-st,.ph-note{color:var(--dim)}.ph-steps a{color:var(--accent)}
-.ph-row{display:flex;flex-wrap:wrap;gap:8px}.ph-row a.btn{text-decoration:none;display:inline-flex;align-items:center}
-.ph-on{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start}.ph-on>div:last-child{flex:1 1 220px;min-width:0;display:grid;gap:8px}.ph-h{font-weight:600;color:var(--ink-hi)}
-.ph-qr{width:168px;flex:none;border-radius:var(--r);overflow:hidden}.ph-qr svg{display:block;width:100%;height:auto;stroke:none}.ph-qr svg *{stroke:none}
-.ph-st{display:flex;align-items:center;gap:6px;font-size:12px}.ph-dot{width:7px;height:7px;border-radius:50%;flex:none;background:var(--dim)}.ph-dot.on{background:var(--ok)}
-.ph-note{font-size:12px}.ph-err{color:var(--danger);font-size:12px}.ph-wait{color:var(--dim)}
 /* the one switch, everywhere (toggle() in board/dom.ts writes it): a <button role="switch"> flipped with .on, or a
    checkbox (:checked) where a form reads it; drawn as a track and a thumb. .sm is the compact size. */
 .chk{appearance:none;margin:0;border:0;cursor:pointer;width:51px;height:31px;flex:none;border-radius:var(--r-pill);background:color-mix(in srgb,var(--dim) 40%,transparent);position:relative;transition:background .12s}

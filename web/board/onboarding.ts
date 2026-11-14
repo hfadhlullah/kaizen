@@ -4,7 +4,7 @@
 // side menu's Setup row or the "Continue setup?" popup. Existing users, who have a project, never see it.
 import { html, raw } from "./dom.ts";
 import { openAdd } from "./add-project.ts";
-import { mountPhone } from "./phone-setup.ts";
+import { mountPhone } from "./react-mount.ts";
 
 type Cfg = { show: boolean; resume: boolean; step: number; total: number; default: string; installed: string[]; agents: { cmd: string; name: string }[]; install: Record<string, { command?: string; docs: string }> };
 // The tools agent.default accepts.
@@ -105,7 +105,7 @@ function draw() {
     <div class="onb-main">${step === 0 ? html`<small class="onb-eb">Welcome to kaizen</small>` : ""}<h2>${s.title}</h2><p class="onb-sub">${s.sub}</p>${s.body()}</div>
     <div class="onb-ft"><button type="button" class="onb-lnk" data-a="skip">Skip to project setup</button><span></span>${step > 0 ? html`<button type="button" class="btn" data-a="back">‹ Back</button>` : ""}<button type="button" class="btn pri" data-a="next">${last ? "Add your first project" : "Continue"}<kbd>${MOD} ↵</kbd></button></div>`);
   const ph = dlg!.querySelector<HTMLElement>("#onb-phone");
-  if (ph) void mountPhone(ph);
+  if (ph) mountPhone(ph);
   dlg!.querySelector<HTMLElement>(step === 0 ? ".onb-card[aria-checked=true]" : "[data-a=next]")?.focus();
 }
 

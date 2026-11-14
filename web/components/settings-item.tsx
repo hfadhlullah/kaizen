@@ -7,11 +7,12 @@ import { AutomationCard, AutomationForm, NoAutomations } from "./automation-rows
 import { BrowserRow } from "./browser-row.tsx";
 import { CleanupRow } from "./cleanup-row.tsx";
 import { IntegrationRow } from "./integration-row.tsx";
-import { LegacyMount } from "./legacy-mount.tsx";
 import { MicRow } from "./mic-row.tsx";
+import { PhoneCard } from "./phone-card.tsx";
 import { OrchestrationFlow } from "./orchestration-flow.tsx";
 import { SettingRow } from "./setting-row.tsx";
 import { SkillCard } from "./skill-card.tsx";
+import { WhatsAppCard } from "./whatsapp-card.tsx";
 
 // One row of a Settings page, drawn by its kind from what the store holds (lib/settings.ts decides which rows a page has).
 export function SettingsItem({ item }: { item: Item }) {
@@ -25,9 +26,17 @@ export function SettingsItem({ item }: { item: Item }) {
     case "mic":
       return <MicRow />;
     case "phone":
-      return <LegacyMount id="phset" mount={host.mountPhone} />;
+      return (
+        <div id="phset" className="px-3.5 py-2.5">
+          <PhoneCard />
+        </div>
+      );
     case "whatsapp":
-      return <LegacyMount id="waset" mount={host.mountWhatsApp} />;
+      return (
+        <div id="waset" className="px-3.5 py-2.5">
+          <WhatsAppCard />
+        </div>
+      );
     case "google-id":
     case "google-secret":
     case "google-conn":
