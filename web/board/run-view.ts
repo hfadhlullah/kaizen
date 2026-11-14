@@ -19,8 +19,7 @@ import { load, post } from "./api.ts";
 import { attach, md, preview } from "./markdown.ts";
 import { layout } from "./terms.ts";
 import { cardHref, markCurrent, railData, stateOf, titleOf, wsHref, wsOfCard } from "./workspace.ts";
-import { type Node, type Box, awaiting, chosen, devUrl, finished, historyOf, leaves, liveIn, loopbackUrl, migrate, nearestPane, newRun, pickable, previewIn, previewOpens, prune, reviewing, stageTabs, toOpen, wsKey } from "./ws-tabs.ts";
-import { drawPick, hidePick, initPick, setOpen } from "./run-pick.ts";
+import { type Node, type Box, awaiting, chosen, devUrl, dueWord, finished, gitDue, historyOf, leaves, liveIn, loopbackUrl, migrate, nearestPane, newRun, pickable, previewIn, previewOpens, prune, reviewing, stageTabs, toOpen, wsKey } from "./ws-tabs.ts";
 import { age } from "./labels.ts";
 import { go } from "./views.ts";
 import { isPhone } from "./phone.ts";
@@ -304,7 +303,6 @@ function followNew() {
   for (const m of mineNow()) seen.add(key(m));
   if (c) picked.set(ctx!.k, key(c));
 }
-let pickOpen = false;
 // Shows a run in the panel (a picker row, a History row); the centre stays as it is.
 const pickRun = (k: string) => (picked.set(ctx!.k, k), draw()); // the sidebar count asked for the picker dropped down
 function mountPanel() {
@@ -315,13 +313,15 @@ function mountPanel() {
   $("rside").hidden = !c;
   // Collapsed (a phone: sheet down) and a run waits: a dot on the panel button, no pop-open.
   $("rside").toggleAttribute("data-dot", document.body.classList.contains("rflip") !== isPhone() && live.some(awaiting));
-  if (!c) return void ((card = null), (pickOpen = false), hidePick());
+  if (!c) return void ((card = null), setRunView({ picker: null }));
   picked.set(ctx!.k, key(c));
   $("panel").classList.toggle("ro", hist.includes(c)); // a run from History: no edit buttons (the commit and push ones stay)
   card = c;
-  drawPick(live, hist, c);
+  // The picker is React (components/run-picker.tsx): the run shown, a dot when another needs you, the runs, then History.
+  const now = Date.now(),
+    row = (r) => ({ k: key(r), title: titleOf(r), state: stateOf(r), line: `${gitDue(r) ? `waiting on you · ${dueWord(r)}` : awaiting(r) ? "needs you" : r.status} · ${age(r.moved ?? now, now)}` });
+  setRunView({ picker: { cur: row(c), live: live.map(row), hist: hist.map(row), other: live.some((r) => r !== c && awaiting(r)) } });
   if (store.openKey !== key(c)) void open(c, false);
-  if (pickOpen) (setOpen(true), (pickOpen = false));
 }
 let shownSig = "";
 // Moves an item out of its tab into another one (split beside a pane there, or next to its
@@ -1088,12 +1088,10 @@ export function initRunView() {
       if (!document.body.classList.contains("runv") || !(e.target as Element).closest?.("#pclose")) return;
       e.stopPropagation();
       document.body.classList.remove("rflip");
-      setOpen(false);
     },
     true,
   );
   initSheet();
-  initPick(pickRun);
   // The sidebar's agent mark: open that workspace with the agent's terminal tab selected.
   addEventListener("kz-open-term", (e: any) => {
     e.preventDefault();

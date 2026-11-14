@@ -64,10 +64,10 @@ export function initKeys() {
       !e.ctrlKey &&
       !e.metaKey &&
       store.S.cards.find((c) => key(c) === store.openKey && c.kind === "run");
-    if (rc && $("ptabs").children.length) {
+    if (rc && store.ptabs?.length) {
       e.preventDefault();
       if (mv[0]) {
-        const ks = [...$("ptabs").children].map((b) => b.dataset.k).concat($("pterm").hidden ? [] : ["term"]),
+        const ks: string[] = store.ptabs,
           i = ks.indexOf(store.tab),
           t = ks[i < 0 ? (mv[0] > 0 ? 0 : ks.length - 1) : Math.max(0, Math.min(ks.length - 1, i + mv[0]))];
         if (t !== store.tab) {

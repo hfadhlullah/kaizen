@@ -8,6 +8,9 @@ export type RvItem = { id: string; kind: string; title: string; agent?: string }
 export type RvScreen = { id: string; title: string; first: RvItem; ids: string[]; focus: string };
 export type RvAgent = { name: string; cmd: string; yolo?: boolean; bypassDefault?: boolean };
 export type RvHistory = { k: string; title: string; state: string; line: string };
+// One row of the run picker at the top of the panel: a run, its state dot and what it waits on.
+export type RvRun = { k: string; title: string; state: string; line: string };
+export type RvPicker = { cur: RvRun; live: RvRun[]; hist: RvRun[]; other: boolean };
 export type RvMenu = "tab" | "cols" | "rows";
 export type RvNotes = { names?: string[]; loading?: boolean; failed?: boolean } | null;
 export type RunView = {
@@ -24,6 +27,7 @@ export type RunView = {
   menu: RvMenu | null; // which add menu is open
   hint: boolean; // the Ctrl+Space key hint
   notes: RvNotes;
+  picker: RvPicker | null; // the panel's run picker (null: no run to show)
 };
 export type RunActions = {
   select(sid: string): void;
@@ -53,6 +57,7 @@ export const useRunView = create<RunView>()(() => ({
   menu: null,
   hint: false,
   notes: null,
+  picker: null,
 }));
 export const setRunView = useRunView.setState;
 const noop = () => {};

@@ -7,6 +7,7 @@ export const store = {
   // The project this page picked; null is wherever the board started.
   dir: null,
   openKey: null,
+  ptabs: [], // the keys of the run panel's tabs (components/panel-tabs.tsx draws them), for the arrow keys
   // Cards that just started needing you: card() gives them one .flash.
   flash: new Set<string>(),
   tab: "request",

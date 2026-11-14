@@ -5,7 +5,19 @@ import { create } from "zustand";
 import type { Card } from "./board.ts";
 
 export type Finding = { n: number; text: string; done?: boolean };
+// What the panel's header shows under the title: the Plan > Build > Review > Done strip, a task's chips, a finished
+// run's chips, or the run workspace's project name with the stage word and progress bar.
+export type Phases = { names: string[]; at: number; status: string; tip: string };
+export type Head =
+  | { kind: "steps"; phases: Phases }
+  | { kind: "task"; where: string }
+  | { kind: "chips"; mark: string; label: string; awaiting?: string; parent?: string }
+  | { kind: "meta"; id: string; proj: string; runner: string; word: string; w: number; status: string; tip: string };
 export type Panel = {
+  head: Head | null;
+  tabs: { k: string; label: string }[]; // the run's tabs that have something in them
+  tab: string; // the one open
+  pickTab: (k: string) => void;
   footer: { card: Card; plan: string; sourceControl: boolean } | null;
   fix: { card: Card; findings: Finding[]; slot: HTMLElement } | null;
   off: string[]; // findings unticked, "run:number"
@@ -13,6 +25,10 @@ export type Panel = {
 };
 const SK = "kz-sent";
 export const usePanel = create<Panel>()(() => ({
+  head: null,
+  tabs: [],
+  tab: "",
+  pickTab: () => {},
   footer: null,
   fix: null,
   off: [],

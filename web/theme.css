@@ -53,6 +53,12 @@
   --animate-rise: kz-rise 0.8s ease-out forwards;
   --animate-fall: kz-fall 1.6s ease-in forwards;
 }
+/* The run panel's tab strip is a column of icons beside the panel in the run workspace and, on a desktop window, on
+   the board too; in a narrow window outside the run workspace it is a row of words. `col:` styles the first. */
+@custom-variant col {
+  body.runv & { @slot; }
+  @media (min-width: 641px) { body:not(.runv) & { @slot; } }
+}
 @keyframes kz-fade { from { opacity: 0; } }
 @keyframes kz-flash { 50% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 40%, transparent); } }
 @keyframes kz-rise { to { transform: translateY(-14px); opacity: 0; } }

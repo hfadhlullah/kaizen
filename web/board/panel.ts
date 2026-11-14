@@ -12,6 +12,7 @@ import { toast } from "./toast.ts";
 import { react, view } from "./views.ts";
 import { isPhone } from "./phone.ts";
 import { openWorkspace } from "./run-view.ts";
+import type { Head } from "../lib/panel-store.ts";
 
 // ---- detail panel
 // A run's tabs, its phases in board order. A card opens on its column's tab.
@@ -64,8 +65,12 @@ export function open(c, keepTab) {
   $("pterm").hidden = true;
   if (c.kind === "idea") {
     store.runDoc = null;
-    $("psub").innerHTML = c.status === "starting" && !c.archived ? steps(c) : html`<span class="pst"><span class="st d-idea"><svg><use href="#s-idea"/></svg></span>Task</span><span class="pst dim">${c.where.split(/[\\/]/).pop() || c.where}</span>`;
-    $("ptabs").innerHTML = "";
+    store.ptabs = [];
+    react.drawHead({
+      head: c.status === "starting" && !c.archived ? steps(c) : { kind: "task", where: c.where.split(/[\\/]/).pop() || c.where },
+      tabs: [],
+      tab: "",
+    });
     taskBody(c);
     // The footer (Run, Edit, Reject, Archive, Delete, Restore) is the shared decision strip.
     react.drawFooter({ card: c, plan: "", sourceControl: false });
@@ -105,38 +110,33 @@ function runSteps(c) {
   try { st = JSON.parse(store.runDoc?.state || "{}"); } catch {}
   return c.stage === "explore" || st.explore_status === "completed" || st.explore_status === "active" ? ["Explore", ...STEPS] : STEPS;
 }
-function steps(c) {
-  const phases = runSteps(c), offset = phases.length - 4;
-  const at = c.status === "done" ? phases.length : c.stage === "explore" ? 0 : Math.max(0, (c.column || 0) - 1) + offset,
-    tip = cap(WORD[c.status] || c.status) + (c.awaiting ? `: ${need(c.awaiting)}` : "");
-  return html`<span class="steps s-${c.status}" title="${tip}" aria-label="${tip}">${raw(
-    phases.map((n, i) => `<span class="${i < at ? "ok" : i === at ? "now" : ""}"><i></i>${n}</span>`).join(""),
-  )}</span>`;
+function steps(c): Head {
+  const names = runSteps(c),
+    offset = names.length - 4,
+    at = c.status === "done" ? names.length : c.stage === "explore" ? 0 : Math.max(0, (c.column || 0) - 1) + offset;
+  return { kind: "steps", phases: { names, at, status: c.status, tip: tip(c) } };
 }
-// The run workspace's header: the project beside the picker (runner, agent, mode in its
-// tooltip), then the stage the run is in as one word and a bar that slides to it.
-let lastAt = { id: "", w: 0 };
-function meta(c) {
+const tip = (c) => cap(WORD[c.status] || c.status) + (c.awaiting ? `: ${need(c.awaiting)}` : "");
+// The run workspace's header: the project beside the picker (runner, agent, mode in its tooltip), then the stage the
+// run is in as one word and a bar that slides to it (components/panel-head.tsx draws both).
+function meta(c): Head {
   let st: any = {};
   try {
     st = JSON.parse(store.runDoc?.state || "{}");
   } catch {}
-  const proj = String(c.where || "").split(/[\\/]/).filter(Boolean).pop() || "";
-  const phases = runSteps(c), offset = phases.length - 4;
-  const at = c.status === "done" ? phases.length - 1 : c.stage === "explore" ? 0 : Math.min(3, Math.max(0, (c.column || 1) - 1)) + offset,
-    word = phases[at] + (c.status === "waiting" ? ", needs you" : c.status === "stalled" ? ", stalled" : ""),
-    w = c.status === "done" ? 100 : ((at + 0.5) / phases.length) * 100;
-  const from = lastAt.id === c.id ? lastAt.w : 0;
-  lastAt = { id: c.id, w };
-  if (from !== w)
-    requestAnimationFrame(() => {
-      const i = $("psub").querySelector(".rprog i") as HTMLElement;
-      if (!i) return;
-      i.style.width = from + "%";
-      i.offsetWidth;
-      i.style.width = w + "%";
-    });
-  return html`<div class="rmeta" title="${[st.runner, st.agent, st.mode].filter(Boolean).join(", ")}">${proj}</div><div class="rprog s-${c.status}" title="${cap(WORD[c.status] || c.status) + (c.awaiting ? `: ${need(c.awaiting)}` : "")}"><span>${word}</span><b><i style="width:${w}%"></i></b></div>`;
+  const names = runSteps(c),
+    offset = names.length - 4;
+  const at = c.status === "done" ? names.length - 1 : c.stage === "explore" ? 0 : Math.min(3, Math.max(0, (c.column || 1) - 1)) + offset;
+  return {
+    kind: "meta",
+    id: c.id,
+    proj: String(c.where || "").split(/[\\/]/).filter(Boolean).pop() || "",
+    runner: [st.runner, st.agent, st.mode].filter(Boolean).join(", "),
+    word: names[at] + (c.status === "waiting" ? ", needs you" : c.status === "stalled" ? ", stalled" : ""),
+    w: c.status === "done" ? 100 : ((at + 0.5) / names.length) * 100,
+    status: c.status,
+    tip: tip(c),
+  };
 }
 // A task's panel: its terminal while the run it started is being born there, else its notes.
 export function taskBody(c) {
@@ -172,9 +172,12 @@ export async function openRun(c, refresh, again) {
   // The textarea is hidden under the rich editor: focus anywhere in the notes counts.
   if (refresh && $("pbody").querySelector(".notes")?.contains(document.activeElement)) return;
   // The board's own status mark, then what it waits on: chips, not a dotted line.
-  $("psub").innerHTML = c.status === "abandoned" ? html`<span class="pst"><span class="st d-${ICON[c.status] || "idea"}"><svg><use href="#s-${ICON[c.status] || "idea"}"/></svg></span>${cap(WORD[c.status] || c.status)}</span>` +
-    (c.awaiting ? html`<span class="pst dim">${cap(need(c.awaiting))}</span>` : "") +
-    (c.parent ? html`<span class="pst link" title="Filed by this run">${c.parent}</span>` : "") : view === "run" || innerWidth > 640 ? meta(c) : steps(c);
+  const head: Head =
+    c.status === "abandoned"
+      ? { kind: "chips", mark: ICON[c.status] || "idea", label: cap(WORD[c.status] || c.status), awaiting: c.awaiting ? cap(need(c.awaiting)) : undefined, parent: c.parent }
+      : view === "run" || innerWidth > 640
+        ? meta(c)
+        : steps(c);
   // Only tabs with something in them show. A card whose agent runs in the board gets its
   // terminal behind the header's terminal button, chosen once right after a launch from here.
   const tabs = TABS.filter(
@@ -206,19 +209,19 @@ export async function openRun(c, refresh, again) {
     store.tab = store.tab === "term" ? store.lastTab : "term";
     openRun(c, true);
   };
-  $("ptabs").innerHTML = tabs
-    .map((t) => html`<button class="${t[1] === store.tab ? "on" : ""}" data-k="${t[1]}" title="${t[0]}"><svg aria-hidden="true"><use href="#t-${t[1]}"/></svg><span>${t[0]}</span></button>`)
-    .join("");
-  [...$("ptabs").children].forEach(
-    (b) =>
-      (b.onclick = () => {
-        // In the run workspace Preview is a centre tab, not a panel tab.
-        if (view === "run" && b.dataset.k === "preview") return void dispatchEvent(new Event("kz-run-preview"));
-        $("panel").classList.remove("pn");
-        store.tab = b.dataset.k;
-        openRun(c, true);
-      }),
-  );
+  store.ptabs = tabs.map((t) => t[1]).concat(pt.hidden ? [] : ["term"]);
+  react.drawHead({
+    head,
+    tabs: tabs.map((t) => ({ k: t[1], label: t[0] })),
+    tab: store.tab,
+    pickTab: (k) => {
+      // In the run workspace Preview is a centre tab, not a panel tab.
+      if (view === "run" && k === "preview") return void dispatchEvent(new Event("kz-run-preview"));
+      $("panel").classList.remove("pn");
+      store.tab = k;
+      openRun(c, true);
+    },
+  });
   const k = store.tab,
     doc = k === "preview" ? preview(store.runDoc.impl) && attach(preview(store.runDoc.impl), c) : store.runDoc[k];
   if (k !== "term") termStop();
@@ -329,6 +332,10 @@ export function initPanel() {
   document.addEventListener("click", (e) => {
     for (const d of document.querySelectorAll(".more[open]")) if (!d.contains(e.target)) d.open = false;
   });
+  // The panel's header parts are React (components/panel-head.tsx, panel-tabs.tsx, run-picker.tsx), in elements kept here.
+  react.mountRunPart($("ptabs"), "ptabs");
+  react.mountRunPart($("psub"), "head");
+  react.mountRunPart(document.querySelector(".pwrap")!, "picker");
   $("pclose").onclick = close;
   $("scrim").onclick = close;
 }
