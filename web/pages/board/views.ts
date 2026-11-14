@@ -1,7 +1,7 @@
 import { isPhone } from "@lib/core";
 import { openPhone } from "@lib/phone";
 import { getRoute, setRouterHooks, startRouter, type View } from "@lib/router";
-import { close, initRunView, runStop, setPanel, showRunView, work } from "@lib/run";
+import { close, initRunView, runStop, setPanel, work } from "@lib/run";
 import { openSettings } from "@lib/settings";
 import { openTerms, termsStop } from "@lib/terminal";
 import { openHome } from "@lib/home";
@@ -41,8 +41,6 @@ setRouterHooks({
     else termsStop();
     if ((v === "home" && !ph) || v === "chat") openHome();
     openPhone(ph ? "home" : v === "device" ? "device" : null);
-    // After the panel handling below, which closes the board's panel on the way in.
-    if (v === "run") queueMicrotask(() => void showRunView(true));
     // The Terminal page is the board's own area, not the docked panel: the panel closes as on the board.
     if (AREA.includes(v)) {
       if (AREA.includes(was)) {

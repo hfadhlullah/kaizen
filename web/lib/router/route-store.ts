@@ -30,6 +30,7 @@ export type Route = {
   search: string; // location.search at the last change: the row it names is lit
   run: RunRoute | null; // the workspace or run the address names
   menu: boolean; // the phone's navigation menu is open
+  visit: number; // counts `navigate` calls: a view opened again (a card or workspace opened in place) is a new visit
 };
 const about = (v: View, phone: boolean) => ({
   view: v,
@@ -47,7 +48,7 @@ const first = (): Route => {
   const search = typeof location === "undefined" ? "" : location.search,
     phone = typeof matchMedia === "undefined" ? false : isPhone(),
     v = startView(search, phone, typeof document !== "undefined" && document.documentElement.hasAttribute("data-kit"));
-  return { ...about(v, phone), seen: seeing([], v, phone), search, run: runOf(search), menu: false };
+  return { ...about(v, phone), seen: seeing([], v, phone), search, run: runOf(search), menu: false, visit: 0 };
 };
 export const useRoute = create<Route>()(first);
 export const getRoute = useRoute.getState;
@@ -74,7 +75,7 @@ export function navigate(to: string | null | undefined, push = false) {
     was = getRoute().view;
   hooks.prepare?.(v);
   // At once: a view transition reads the new title and the lit menu item as the callback returns.
-  flushSync(() => useRoute.setState((r) => ({ ...about(v, phone), seen: seeing(r.seen, v, phone), menu: false })));
+  flushSync(() => useRoute.setState((r) => ({ ...about(v, phone), seen: seeing(r.seen, v, phone), menu: false, visit: r.visit + 1 })));
   hooks.leave?.(v, was);
   // The workspace's address names its card (the run view pushes it); a task pushes its own.
   if (push && v !== was && v !== "run" && v !== "task") history.pushState(null, "", urlFor(v, location.pathname));

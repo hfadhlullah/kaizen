@@ -1,5 +1,5 @@
-// The Search palette (Ctrl/Cmd+K and the side menu's Search): which rows it holds is decided by board/search.ts, which
-// knows the side menu's data; this store carries them to components/search/search-palette.tsx, with what is typed and chosen.
+// The Search palette (Ctrl/Cmd+K and the side menu's Search): whether it is open and what its New task row does; the rows are
+// built by use-search-rows.ts from the side menu's data (search-rows.ts), the typing and choosing are the palette's own.
 import { create } from "zustand";
 import { match, type Item } from "./search-match.ts";
 
@@ -7,9 +7,8 @@ export const ORDER = ["Current", "Workspaces", "Tabs", "Chats & terminals", "Run
 // With nothing typed each group shows its most recent few, as Orca's does.
 const CAP: Record<string, number> = { Workspaces: 5, Tabs: 4, "Chats & terminals": 5, Runs: 5, Tasks: 3, Projects: 5 };
 // newTask: what the New task row does with the typed text (the board knows how to open its form).
-export const useSearch = create<{ open: boolean; items: Item[]; newTask: (text: string) => void }>()(() => ({
+export const useSearch = create<{ open: boolean; newTask: (text: string) => void }>()(() => ({
   open: false,
-  items: [],
   newTask: () => {},
 }));
 

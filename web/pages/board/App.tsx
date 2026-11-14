@@ -14,6 +14,7 @@ import { KeyHelp } from "./help.tsx";
 import { Pages } from "./pages.tsx";
 import { Panel } from "./panel.tsx";
 import { useKeys } from "./keys.ts";
+import { useBoot } from "./use-boot.ts";
 import { Portal } from "./portal.tsx";
 
 // The Board app: the providers, then the shell (side menu, header, the page area, the detail panel, footer) and the
@@ -24,6 +25,7 @@ import { Portal } from "./portal.tsx";
 export function App() {
   useRouteClasses();
   useKeys();
+  useBoot();
   // The Board drawer is position:fixed; it stops above the footer, whose height varies.
   const foot = useRef<HTMLElement>(null);
   useLayoutEffect(() => {

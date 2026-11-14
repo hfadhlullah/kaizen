@@ -7,7 +7,6 @@ import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { bootShell } from "@lib/shell";
 import { initOnState, startBoard } from "@lib/board";
-import { initRail } from "@lib/rail/rail-boot.ts";
 import { startFooter } from "@lib/footer";
 import { App } from "./App.tsx";
 import { initHost } from "./host-bridge.ts";
@@ -15,7 +14,7 @@ import { initLive } from "./live.ts";
 import { initViews } from "./views.ts";
 import { initPanel } from "@lib/run";
 import { initContext } from "@lib/context";
-import { initHomeEngine, initHomeWs, initOnboarding } from "@lib/home";
+import { initHomeEngine, initHomeWs } from "@lib/home";
 import { initTerms } from "@lib/terminal";
 
 // Theme and menu state first (so nothing flashes the default), the host the pages call into, then the React tree into
@@ -32,6 +31,4 @@ initViews();
 startBoard();
 initLive();
 initContext();
-initRail({ board: true });
 startFooter();
-void initOnboarding();

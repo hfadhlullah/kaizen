@@ -95,7 +95,8 @@ const MADE = /\.createElement(?:NS)?\(\s*(?!["'](?:canvas|link|script|style)["']
 const uses = (src: string) => (src.match(HAND_BUILT)?.length ?? 0) + (src.match(MADE)?.length ?? 0);
 // What used to be web/board: the engines that react to lib/server and lib/router and the page's glue. They draw nothing.
 const ENGINES = [
-  "pages/board/main.ts", "pages/board/views.ts", "pages/board/keys.ts", "pages/board/live.ts", "pages/board/host-bridge.ts",
+  "pages/board/main.ts",
+  "pages/board/use-boot.ts", "pages/board/views.ts", "pages/board/keys.ts", "pages/board/live.ts", "pages/board/host-bridge.ts",
   "lib/run/panel.ts", "lib/run/workspace.ts", "lib/run/ws-draw.ts", "lib/run/ws-actions.ts", "lib/run/card-terminal.ts", "lib/board/snapshot.ts", "lib/board/on-state.ts", "lib/board/popups.ts",
   "lib/board/nav.ts", "lib/home/home-engine.ts", "lib/home/home-events.ts", "lib/terminal/terms-feed.ts", "lib/context/feed.ts",
   "lib/settings/panel-settings.ts", "lib/git/git-panel.ts", "lib/project/project-pick.ts", "lib/search/search-rows.ts", "lib/rail/rail-boot.ts",
@@ -494,10 +495,11 @@ test("the annotator is React plus one bundled page script, with no old board mod
 //  - web/ui takes lib/core/utils.ts directly (the layer rule above: ui never reaches into the feature folders);
 //  - a few bridge files run in the notebook and Video bundles or in tests with no DOM (rail-boot, search-rows, ws-tabs,
 //    ws-board); a barrel would pull the board's stores (zustand + localStorage at import) into them, so they import the one
-//    small file they need. The board's main.ts is the one place the engines meet and may reach any of them directly.
+//    small file they need. The board's main.ts and use-boot.ts (what it starts as effects of the App) are the places the engines meet and may reach any of them directly.
 const MAX_FILES = 25;
 const BRIDGE_DIRECT = [
   "pages/board/main.ts",
+  "pages/board/use-boot.ts",
   "lib/board/ws-board.ts",
   "lib/rail/rail-boot.ts",
   "lib/run/ws-tabs.ts",

@@ -1,5 +1,5 @@
 // What runs only while the run view is shown (a hook of the run panes, so it follows the page and is torn down with it):
-// the Preview polling every 3 s, the tmux-style keyboard (Ctrl+Space, then a key) and the workspace's reaction to a new
+// reading the address on each visit (showRunView, an effect of the route), the Preview polling every 3 s, the tmux-style keyboard (Ctrl+Space, then a key) and the workspace's reaction to a new
 // /state (a run reaching review opens the Browser, a new run takes the panel's pick, the tabs are read again). Off the run
 // view none of it runs: no timer, no key listener, no reaction.
 import { useEffect } from "react";
@@ -42,7 +42,18 @@ function paneKeys() {
   return () => (clearTimeout(armed), keyHint(false), removeEventListener("keydown", on, true));
 }
 export function useRunLifecycle() {
-  const shown = useRoute((s) => s.view === "run");
+  const shown = useRoute((s) => s.view === "run"),
+    visit = useRoute((s) => s.visit);
+  // The address names the workspace, run or task to show: read on every visit to the run view (the router counts one for each
+  // `navigate`, also when the view was already showing), in a microtask so the page's own panel handling in the router's
+  // `enter` runs first. A visit left before then does not read it. Visit 0 is the first paint, drawn from the address before the
+  // board has loaded; the first `navigate` (once it has) is the first visit.
+  useEffect(() => {
+    if (!shown || !visit) return;
+    let on = true;
+    queueMicrotask(() => on && void showRunView(true));
+    return () => void (on = false);
+  }, [shown, visit]);
   useEffect(() => {
     if (!shown) return;
     const offKeys = paneKeys(),

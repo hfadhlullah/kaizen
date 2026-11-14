@@ -1,11 +1,12 @@
 // Global search: the "Search" entry on top of the side menu, and Ctrl/Cmd+K anywhere, open one palette over
 // workspaces, runs and tasks, chats, agent terminals, projects, pages and actions (modelled on Orca's "Jump to..."
-// palette). This file gathers its rows: nothing is fetched but /chats, the rest is what the side menu already holds.
+// palette). This file builds the rows from the side menu's data and says what each does; `useSearchRows` (use-search-rows.ts)
+// reads that data and the chats while the palette is open.
 // The palette itself is React (components/search/search-palette.tsx). The board mounts it; the Notebook page loads it on
 // its own (notebook/kit.ts) and opens it in place; Video, which carries no React, sends the person to the board with the
 // palette open (?search=1).
 import { age, host, leave } from "@lib/core";
-import { onServer, railDataNow } from "@lib/server";
+import type { RailData } from "@lib/server";
 import { openAdd } from "@lib/project/add-project.ts";
 import { cardHref, cardState as stateOf, projName, titleOf, wsHref, wsLabel, wsOfCardNow as wsOfCard } from "@lib/rail";
 import { railActions } from "@lib/rail/rail-actions.ts";
@@ -54,9 +55,8 @@ const browsed = (k: string) => {
     return localStorage.getItem("kz-browse:" + k)?.replace(/^https?:\/\//, "").replace(/\/$/, "");
   } catch {}
 };
-let chats: any[] = [];
-function items(): Item[] {
-  const { cards, projects = [], agents = [] } = railDataNow();
+// The palette's rows for the side menu's data and the chats read so far.
+export function buildRows({ cards, projects = [], agents = [] }: RailData, chats: any[]): Item[] {
   const now = Date.now();
   const cur = new URLSearchParams(location.search);
   // The workspace open now: named by the address, or the one holding the run it names.
@@ -172,10 +172,9 @@ function newTaskWith(text: string) {
   newTask(undefined, text);
 }
 
-// Rows are read each time the palette opens and again when the side menu's data or the chats land.
+// The rows are the palette's own (useSearchRows); this opens it.
 // The palette's store: this bundle's own on the board; on the Notebook page the loaded kit's, which the mounted palette reads.
 let S = useSearch;
-const fill = () => S.getState().open && S.setState({ items: items() });
 export function openSearch() {
   if (onBoard()) return show();
   kitFor().then(
@@ -187,15 +186,7 @@ export function openSearch() {
   );
 }
 function show() {
-  S.setState({ open: true, items: items(), newTask: newTaskWith });
-  // Chats live behind one fetch; the list fills in when they land.
-  fetch("/chats")
-    .then((r) => r.json())
-    .then((d) => {
-      chats = d.chats ?? [];
-      fill();
-    })
-    .catch(() => {});
+  S.setState({ open: true, newTask: newTaskWith });
 }
 const toggle = () => (S.getState().open ? S.setState({ open: false }) : openSearch());
 
@@ -203,36 +194,32 @@ export function initSearch(board: boolean) {
   onBoard = () => board;
   railActions.search = openSearch;
   const mac = /Mac|iP(hone|ad)/.test(navigator.platform);
-  // Opened before the menu's data came in: fill in as it lands.
-  onServer((s) => s.every, fill);
-  onServer((s) => s.sources, fill);
+  let asked: ReturnType<typeof setTimeout> | undefined;
   // Arriving from the notebook or Video with the palette asked for.
   if (onBoard() && new URLSearchParams(location.search).get("search") === "1") {
     const q = new URLSearchParams(location.search);
     q.delete("search");
     history.replaceState(null, "", location.pathname + (q.toString() ? "?" + q : "") + location.hash);
-    setTimeout(openSearch, 400);
+    asked = setTimeout(openSearch, 400);
   }
   // Ctrl/Cmd+K anywhere, and Orca's own Cmd+J (Ctrl+Shift+J is the browser's console).
-  addEventListener(
-    "keydown",
-    (e) => {
-      // Ctrl+Shift+Space works in a terminal too: no shell or agent needs it.
-      if (e.ctrlKey && e.shiftKey && e.code === "Space") {
-        e.preventDefault();
-        e.stopPropagation();
-        return void toggle();
-      }
-      // A terminal keeps its keys: Ctrl+K there is the shell's kill-line.
-      if ((e.target as Element)?.closest?.(".xterm")) return;
-      const mod = mac ? e.metaKey : e.ctrlKey;
-      const k = e.key.toLowerCase();
-      if (mod && !e.altKey && ((k === "k" && !e.shiftKey) || (mac && k === "j" && !e.shiftKey))) {
-        e.preventDefault();
-        e.stopPropagation();
-        toggle();
-      }
-    },
-    true,
-  );
+  const onKey = (e: KeyboardEvent) => {
+    // Ctrl+Shift+Space works in a terminal too: no shell or agent needs it.
+    if (e.ctrlKey && e.shiftKey && e.code === "Space") {
+      e.preventDefault();
+      e.stopPropagation();
+      return void toggle();
+    }
+    // A terminal keeps its keys: Ctrl+K there is the shell's kill-line.
+    if ((e.target as Element)?.closest?.(".xterm")) return;
+    const mod = mac ? e.metaKey : e.ctrlKey;
+    const k = e.key.toLowerCase();
+    if (mod && !e.altKey && ((k === "k" && !e.shiftKey) || (mac && k === "j" && !e.shiftKey))) {
+      e.preventDefault();
+      e.stopPropagation();
+      toggle();
+    }
+  };
+  addEventListener("keydown", onKey, true);
+  return () => (clearTimeout(asked), removeEventListener("keydown", onKey, true));
 }

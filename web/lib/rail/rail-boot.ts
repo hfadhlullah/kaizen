@@ -48,7 +48,7 @@ function openAsked() {
   q.delete("add");
   q.delete("adddir");
   history.replaceState(null, "", location.pathname + (q.toString() ? "?" + q : "") + location.hash);
-  setTimeout(() => openAdd({ dir, ...(add === "ws" || add === "folder" || add === "clone" || add === "create" ? { start: add } : {}) }), 400);
+  return setTimeout(() => openAdd({ dir, ...(add === "ws" || add === "folder" || add === "clone" || add === "create" ? { start: add } : {}) }), 400);
 }
 // Rows are redrawn on every refresh, which restarts a CSS animation from 0deg: the state
 // icons jumped back mid-turn. Pinning each to the page clock's origin keeps them in phase
@@ -59,27 +59,29 @@ const syncSpin = () =>
   });
 export function initRail(o: { board?: boolean; video?: { add: HTMLElement | null; search: HTMLElement | null } } = {}) {
   onBoard = !!o.board;
-  initSearch(onBoard);
+  const offSearch = initSearch(onBoard);
   let queued = false;
   const hasSi = (n: any) => n.nodeType === 1 && (n.classList.contains("si") || n.querySelector(".si"));
-  new MutationObserver((rs) => {
+  const spin = new MutationObserver((rs) => {
     if (queued || !rs.some((r) => [...r.addedNodes].some(hasSi))) return;
     queued = true;
     requestAnimationFrame(() => {
       queued = false;
       syncSpin();
     });
-  }).observe(document.body, { childList: true, subtree: true });
-  startRailFeed(onBoard);
+  });
+  spin.observe(document.body, { childList: true, subtree: true });
+  const offFeed = startRailFeed(onBoard);
   // The Notebook's popups (the add-project sheet, the worktree menu) take what only this page knows through the kit.
   if (!onBoard && kitHere()) void kitFor().catch(() => {});
   // The sheet: add a folder, clone, create, or start a workspace; the current project is preselected.
-  openAsked();
+  const asked = openAsked();
   // Video's menu is static HTML, not the React Rail: its two buttons are handed over by the page.
   if (o.video) {
     if (o.video.add) o.video.add.onclick = railActions.add;
     if (o.video.search) o.video.search.onclick = (e) => (e.preventDefault(), railActions.search());
   }
+  return () => (spin.disconnect(), offFeed(), offSearch(), clearTimeout(asked));
 }
 // The + button: add a folder, clone, create, or start a workspace.
 railActions.add = () => {

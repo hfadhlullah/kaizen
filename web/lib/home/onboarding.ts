@@ -176,18 +176,24 @@ export function answerOffer(r: "go" | "later" | "never") {
   if (r === "go") openFlow(c.step);
   else if (r === "never") (void save({ outcome: "dismissed" }), row(0, "dismissed"));
 }
-export async function initOnboarding() {
-  const cfg: Cfg | null = await call("/onboarding");
-  if (!cfg) return;
-  set({ cfg });
-  setSetupRow(cfg);
-  setShell({ openSetup: () => openFlow(cfg.step) });
-  const q = new URLSearchParams(location.search);
-  if (q.has("setup")) {
-    q.delete("setup");
-    history.replaceState(null, "", location.pathname + (q.toString() ? "?" + q : "") + location.hash);
-    return openFlow(cfg.resume ? cfg.step : 0);
-  }
-  if (cfg.show) return openFlow(0);
-  if (cfg.resume) offer();
+// Reads the flow's state and opens what it asks for (the flow, or the offer to continue). Returns what a caller's cleanup runs: a
+// late answer after that does nothing.
+export function initOnboarding() {
+  let alive = true;
+  void (async () => {
+    const cfg: Cfg | null = await call("/onboarding");
+    if (!cfg || !alive) return;
+    set({ cfg });
+    setSetupRow(cfg);
+    setShell({ openSetup: () => openFlow(cfg.step) });
+    const q = new URLSearchParams(location.search);
+    if (q.has("setup")) {
+      q.delete("setup");
+      history.replaceState(null, "", location.pathname + (q.toString() ? "?" + q : "") + location.hash);
+      return openFlow(cfg.resume ? cfg.step : 0);
+    }
+    if (cfg.show) return openFlow(0);
+    if (cfg.resume) offer();
+  })();
+  return () => void (alive = false);
 }
