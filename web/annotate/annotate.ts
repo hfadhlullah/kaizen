@@ -378,7 +378,7 @@ import { AREA_MAX, CROP_BUDGET, CROP_CHARS, areaBigEnough, areaLabel, buildNote,
       if (cfg.mode !== "multi") multi = [];
       document.documentElement.style.cursor = "";
       paint();
-    } else if (d.type === "markers") { marks = Array.isArray(d.list) ? d.list : []; paint(); }
+    } else if (d.type === "markers") { marks = Array.isArray(d.list) ? d.list : []; if (tip) tip = marks.find((m) => m.n === tip.n) || null; paint(); }
     else if (d.type === "commit") commitMulti();
     else if (d.type === "copy" && typeof d.text === "string") {
       (navigator.clipboard ? navigator.clipboard.writeText(d.text) : Promise.reject()).catch(() => {

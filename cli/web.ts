@@ -1398,7 +1398,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         // Not the board itself: a proxy to it would forward /pty with an Origin rewritten to the board's own.
         if (u.port === (new URL(req.url).port || "80")) return bad("that is the board's own port", 400);
         try {
-          const px = openProxy(u);
+          const px = openProxy(u, () => served(ANNOTATE_JS));
           return json({ ok: true, origin: px.origin, token: px.token, url: px.origin + u.pathname + u.search + u.hash });
         } catch (e) { return bad((e as Error).message, 500); }
       }
