@@ -113,6 +113,7 @@ const BY_DESIGN: Record<string, [string, RegExp]> = {
   "lib/icebox/use-row-swipe.ts": ["icebox row swipe gesture", /touch|pointer/],
   "lib/rail/use-rank-drag.ts": ["rank drag gesture", /pointer/],
   "lib/home/use-float-drag.ts": ["floating Home window drag gesture", /pointer/],
+  "lib/icebox/use-card-drag.ts": ["icebox card swipe and drag gesture", /pointer/],
 };
 // Every other .ts file in lib/ and pages/ (state, requests, reactions: what used to be web/board) is a module under the rules below.
 // It reads and writes stores, draws nothing, looks nothing up in the DOM but what is named, does not poll the server or set a page class.
@@ -324,21 +325,42 @@ test("board.html, notes.html and popup.html are small shells with no inline styl
   expect(readFileSync(join(web, "pages/board/views.ts"), "utf8")).not.toMatch(/export const react\b/);
 });
 
+// A page class on <body> or <html> is the App's (useRouteClasses): the engines may read the route, never set one. Nor is the
+// class list of <body> written as a string.
+const PAGE_CLASSES = "paged|ice|setv|termv|homev|phomev|pdevv|taskv|taskpagev|runv|phone-menu-open";
+const setsPageClass = (s: string) =>
+  new RegExp(`(?:body|documentElement)\\.classList\\.(toggle|add|remove)\\(\\s*["'\`](${PAGE_CLASSES})\\b`).test(s) ||
+  /\bbody\.className\s*\+?=(?!=)/.test(s) ||
+  /classList\.contains\(\s*["'](paged|ice|setv|termv|homev|phomev|pdevv|taskv|taskpagev)["']/.test(s);
+// A templated address polls too: fetch(`/shells?x=${y}`), fetch("/state?x"). Only a read of one project's shells (/shells?dir=,
+// the run workspace's once-per-visit read) is not the poller's.
+const polls = (s: string) =>
+  /fetch\(\s*["'`]\/(state|shells(?!\?dir=)|sources|tasks\?all|events)(?![\w-])/.test(s) ||
+  /new EventSource/.test(s) ||
+  /dispatchEvent\(new Event\("kz-(state|view|rail|shells|cards|all-cards|task-attention|changed)"\)\)/.test(s);
+test("the poll and page-class rules catch the forms a gesture or an engine could use", () => {
+  for (const bad of ['fetch("/state")', "fetch(`/shells?x=${y}`)", 'fetch( "/shells" )', "new EventSource('/events')"]) expect([bad, polls(bad)]).toEqual([bad, true]);
+  for (const ok of ['fetch("/shells?dir=" + d)', 'fetch("/state-x")', 'fetch("/settings")']) expect([ok, polls(ok)]).toEqual([ok, false]);
+  for (const bad of ['document.documentElement.classList.add("paged")', 'document.body.className += " ice"', 'document.body.className = "x"', 'body.classList.toggle("runv", on)']) expect([bad, setsPageClass(bad)]).toEqual([bad, true]);
+  for (const ok of ['document.documentElement.classList.toggle("dark", on)', 'if (document.body.className === "x") {}']) expect([ok, setsPageClass(ok)]).toEqual([ok, false]);
+});
+
 // The server's data and the page that shows are not any module's to decide: lib/server is the one poller (fetch, dedupe,
 // the quiet gap, the event stream) writing one store, lib/router the one router (the view, its address, the <body> classes
 // through the App). The other modules read them and react; none fetches what the poller reads or sets a page class.
 test("no module polls the server or shows pages: lib/server and lib/router do", () => {
   const src = (n: string) => readFileSync(join(web, n), "utf8");
   const owners = (n: string) => n.startsWith("lib/server/") || n.startsWith("lib/router/") || n === "lib/core/api.ts" /* the poller's request helpers */ || n === "lib/notebook/vault-session.ts" /* the Notebook page: its one read of /state, no board poller there */;
-  const mods = modulesOf(Object.fromEntries(allSources().map((x) => [x, ""]))).filter((n) => !owners(n));
+  // The imperative-by-design files in lib/ and pages/ are held to the same two rules: a gesture must not poll or set a page class.
+  const mods = [
+    ...modulesOf(Object.fromEntries(allSources().map((x) => [x, ""]))),
+    ...Object.keys(BY_DESIGN).filter((n) => /^(?:lib|pages)\//.test(n)),
+  ].filter((n) => !owners(n));
   expect(mods.length).toBeGreaterThan(100);
   for (const n of mods) {
     const s = src(n);
-    expect([n, /fetch\(["'`]\/(state|shells["'`]|sources|tasks\?all|events)/.test(s) || /new EventSource/.test(s)]).toEqual([n, false]);
-    expect([n, /dispatchEvent\(new Event\("kz-(state|view|rail|shells|cards|all-cards|task-attention|changed)"\)\)/.test(s)]).toEqual([n, false]);
-    // A page class on <body> is the App's (useRouteClasses): the engines may read the route, never set one.
-    expect([n, /body\.classList\.(toggle|add|remove)\(\s*["'`](paged|ice|setv|termv|homev|phomev|pdevv|taskv|taskpagev|runv|phone-menu-open)\b/.test(s)]).toEqual([n, false]);
-    expect([n, /classList\.contains\(\s*["'](paged|ice|setv|termv|homev|phomev|pdevv|taskv|taskpagev)["']/.test(s)]).toEqual([n, false]);
+    expect([n, polls(s)]).toEqual([n, false]);
+    expect([n, setsPageClass(s)]).toEqual([n, false]);
     // No panel or page is written as classes: the stores draw them. (What a module may look up is the lookups test.)
   }
   // the poller is lib/server's and the router lib/router's; the Board App is the page picker
