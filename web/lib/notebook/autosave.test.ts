@@ -80,6 +80,26 @@ test("a second flush waits for the save in flight, then has nothing left to writ
   expect(r.calls.length).toBe(1);
 });
 
+test("two flushes waiting on one save write the next text once, on the new base", async () => {
+  let text = "one";
+  const r = rig(() => text);
+  r.a.open("A", 1);
+  r.a.edit();
+  const one = r.a.flush();
+  text = "one two";
+  r.a.edit();
+  const two = r.a.flush();
+  const three = r.a.flush();
+  r.settle[0]!({ ok: true, mtime: 2 });
+  await nap();
+  expect(r.calls.length).toBe(2);
+  expect(r.calls[1]!.base).toBe(2);
+  r.settle[1]!({ ok: true, mtime: 3 });
+  await Promise.all([one, two, three]);
+  expect(r.calls.length).toBe(2);
+  expect(r.a.conflict).toBeNull();
+});
+
 test("typing while a save is out saves again when it lands", async () => {
   let text = "one";
   const r = rig(() => text);

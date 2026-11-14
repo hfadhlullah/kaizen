@@ -91,7 +91,8 @@ export class Autosave {
   // Write the open note if it has unsaved text. Never called for a note only opened.
   async flush(): Promise<void> {
     this.d.timer.clear(this.timer);
-    if (this.saving) await this.saving;
+    // A `while`: two callers waiting on one save must not both start the next one on the same base (a false conflict).
+    while (this.saving) await this.saving;
     if (!this.name || !this.dirty || this.conflict) return;
     const name = this.name,
       text = this.d.read();
