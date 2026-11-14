@@ -5,7 +5,7 @@ import { cardEl, key, render } from "./cards.ts";
 import { stopDictation } from "@lib/dictation";
 import { $ } from "./dom.ts";
 import { gitLeave, gitPending, gitShown, gitTab } from "./git.ts";
-import { ICON, WORD, need } from "./labels.ts";
+import { ICON, WORD, need } from "@lib/core";
 import { attach, brief, preview } from "./markdown.ts";
 import { toast } from "./toast.ts";
 import { react, view } from "./views.ts";

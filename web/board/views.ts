@@ -30,6 +30,8 @@ export const react = {
   drawFooter: (_f: any) => {},
   drawFix: (_f: any) => {},
   fixReset: () => {},
+  // The in-card agent's terminal in the panel's body (agent-term.ts; null stops it).
+  drawTerm: (_t: { key: string; onEnd: () => void } | null) => {},
   // The run panel's Source control tab (git.ts hands it the run's git state; null when another tab shows).
   drawGit: (_g: any) => {},
   // The run panel's header under the title, its tab strip and the open tab (panel.ts).
@@ -79,11 +81,12 @@ export const markView = (v) => {
                   : v === "device"
                     ? "Runs"
                     : "Board";
-  if (v === "home" && isPhone())
-    document.querySelector(".hdr h1").innerHTML =
-      '<pre class="mark" role="img" aria-label="kaizen">' +
-      document.querySelector(".rail pre.mark").innerHTML +
-      "</pre>";
+  if (v === "home" && isPhone()) {
+    const mark = document.querySelector(".rail pre.mark")!.cloneNode(true) as HTMLElement;
+    mark.setAttribute("role", "img");
+    mark.setAttribute("aria-label", "kaizen");
+    document.querySelector(".hdr h1")!.replaceChildren(mark);
+  }
 };
 export function go(v, push) {
   store.pageGen++;

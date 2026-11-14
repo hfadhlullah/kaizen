@@ -22,7 +22,7 @@ import { load, post } from "./api.ts";
 import { preview } from "./markdown.ts";
 import { cardHref, markCurrent, railData, stateOf, titleOf, wsHref, wsOfCard } from "./workspace.ts";
 import { awaiting, chosen, devUrl, dueWord, finished, gitDue, historyOf, leaves, liveIn, loopbackUrl, migrate, newRun, pickable, previewOpens, reviewing, stageTabs, toOpen, wsKey } from "./ws-tabs.ts";
-import { age } from "./labels.ts";
+import { age } from "@lib/core";
 import { go } from "./views.ts";
 import { react } from "./views.ts";
 import { boxesOf, detach, focusItem, fetchPreview, keepUrl, layoutOf, moveInLayout, nearestPane, patch, placeItems, refreshPreview, replaceAll, requestBrowse, clearBrowse, rects, selectScreen, setDragging, setRunActions, setRunView, setTarget, showItem, useLayout, type Saved, type SavedTab } from "@lib/run";

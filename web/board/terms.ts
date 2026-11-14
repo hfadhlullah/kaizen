@@ -1,9 +1,8 @@
-import { terminalSessions } from "./term-sessions.ts";
 import { allBoardCards, refreshBoardBadge } from "./badge.ts";
 import { store } from "./store.ts";
 import { load } from "./api.ts";
 import { react } from "./views.ts";
-import { hiddenCount, setTerminalActions, setTerminals, useTerminals } from "@lib/terminal";
+import { hiddenCount, setTerminalActions, setTerminals, terminalSessions, useTerminals } from "@lib/terminal";
 
 // ---- the Terminal page: every in-card agent session the board knows, Tasks to Done, tiled. The page is React
 // (pages/terminal-page.tsx over components/terminal and lib/terminal); this module only feeds it the sessions and keeps

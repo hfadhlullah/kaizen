@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { terminalSessions } from "./term-sessions.ts";
+import { terminalSessions } from "./sessions.ts";
 
 test("global terminals include every project's stage sessions and shells once", () => {
   const a = { key: "a-review", all: ["a-build", "a-review"], alive: false, asking: true };

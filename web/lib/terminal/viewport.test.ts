@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { keyboardViewport } from "./terminal-viewport.ts";
+import { keyboardViewport } from "./viewport.ts";
 
 test("raw terminal and composer focus fit the keyboard's visible viewport", () => {
   expect(keyboardViewport(490.4, 844, 1, true)).toBe(490);

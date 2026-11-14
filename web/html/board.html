@@ -409,7 +409,7 @@ body.taskpagev #taskpagev{overflow:hidden;position:relative;gap:12px}
 @media(max-width:640px){body.taskpagev #taskpagev{padding:12px;gap:12px}}
 
 /* the mockup has no right-hand project pane: the Files/Notes/Terminal pane (#context, context.ts) is not shown on desktop widths; the run workspace has its own strip */
-@media(min-width:641px){#context,#ctx-open{display:none!important}}
+body.paged #context,body.paged #ctx-open{display:none!important}
 /* with that pane gone the Board keeps its five columns in one row (the three-column rule was for the pane) */
 @media(min-width:1201px){html body:not(.paged) #board{grid-template-columns:repeat(5,minmax(200px,1fr))}}
 /* the run workspace (?view=run): a tabbed centre, and the card's panel docked right as an icon strip */
@@ -846,7 +846,7 @@ body.termv #combo,body.homev #combo{display:none!important}
   <span class="sp"></span>
   <span class="kz-ui" id="tmodes" role="group" aria-label="Layout"></span>
   <button class="btn pri" id="newtop"><svg><use href="#i-plus"/></svg><span>New task</span></button>
-  <button class="ib" id="ctx-open" aria-label="Open side panel" title="Notes, files and terminals"><svg><use href="#i-side"/></svg></button>
+  <span id="ctx-open-host" style="display:contents"></span>
   <button class="ib" id="hpop" title="Pop out chat" aria-label="Pop out chat"><svg><use href="#i-popout"/></svg></button>
   <button class="btn pri" id="hnewtop" aria-label="New chat"><svg><use href="#i-plus"/></svg><span>New chat</span></button>
 </div>

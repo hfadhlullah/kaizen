@@ -266,7 +266,7 @@ test("md() renders italic and two-space hard breaks, and leaves globs in code al
 });
 
 test("new-idea picker never swaps a preset project for another when a choice is required", async () => {
-  const { startDir } = await import("../web/board/labels.ts");
+  const { startDir } = await import("../web/lib/core/labels.ts");
   expect(startDir(["/a", "/b"], "/b", true)).toBe("/b");
   expect(startDir(["/a", "/b"], "/gone", true)).toBeNull();
   expect(startDir(["/a", "/b"], null, true)).toBeNull();

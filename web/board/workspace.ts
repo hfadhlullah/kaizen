@@ -4,7 +4,8 @@
 // on the Notebook, to the kit's (`connectRail`). Stands alone, so the notebook and video bundles can carry it without the board.
 import { onBoardCards, attentionTasks, setTaskAttention, taskForCard } from "./badge.ts";
 import { store } from "./store.ts";
-import { $, html, raw } from "./dom.ts";
+import { $ } from "./dom.ts";
+import { setSourceMarks } from "@lib/rail/source-marks.ts";
 import { openAdd, type AddOpts } from "@lib/project/add-project.ts";
 import { cardHref as ruleCardHref, titleOf as ruleTitleOf, projName as ruleProjName, RANK as RULE_RANK, stateOf as ruleStateOf, wsLabel as ruleWsLabel, wsOfCard as ruleWsOfCard, type RailData } from "@lib/rail/rules.ts";
 import type { Agent } from "@lib/rail/agents.ts";
@@ -107,25 +108,11 @@ export async function drawSources(force = false) {
     told();
     const n = (d.icebox ?? []).filter((s) => s.status === "new" && !s.asleep).length;
     $("ice-n").textContent = n ? String(n) : "";
-    $("rail-srcs").innerHTML = (d.sources ?? [])
-      .slice(0, 3)
-      .map((s) => String(srcIcon(s)))
-      .join("");
+    setSourceMarks(d.sources ?? []);
   } catch {
     /* offline: keep what shows */
   }
 }
-// A source's mark: a social platform's sprite, a sheet's grid, else the site's favicon.
-export const srcIcon = (s) => {
-  if (s.social) return html`<svg aria-hidden="true"><use href="#i-b-${s.social}"/></svg>`;
-  if (/docs\.google\.com\/spreadsheets|\.(csv|tsv)$/.test(s.url)) return raw(`<svg aria-hidden="true"><use href="#i-sheet"/></svg>`);
-  try {
-    return html`<img src="${new URL(s.url).origin}/favicon.ico" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`;
-  } catch {
-    return raw("");
-  }
-};
-
 // Rows are redrawn on every refresh, which restarts a CSS animation from 0deg: the state
 // icons jumped back mid-turn. Pinning each to the page clock's origin keeps them in phase
 // (the si-* animations have no delay for this to cancel).

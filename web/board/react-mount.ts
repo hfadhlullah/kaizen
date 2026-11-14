@@ -30,13 +30,14 @@ import { setNotes, type NotesView } from "@lib/notes";
 import { HomeWindow, HomeWsButton, HomeWsRow, OnboardingDialog } from "@components/home";
 import { Haptic, PhonePage, PhoneSheets } from "@components/phone";
 import { AskHost } from "@components/shared";
-import { RailFilter, RailList } from "@components/rail";
+import { RailFilter, RailList, SourceMarks } from "@components/rail";
 import { FootBar } from "@components/footer";
 import { setRailData, touchRail } from "@lib/rail";
 import { startTerminalDictation } from "@lib/dictation";
 import { BoardPopups, BoardModeSwitch, StatusButton, StatusStrip } from "@components/board";
 import { TerminalModes } from "@components/terminal";
 import { ContextPanel } from "@components/context";
+import { TerminalPane } from "@components/panes";
 import { GitHost } from "@components/git";
 import { setGit } from "@lib/git";
 import { getSettings, loadSettings, setSettings, pageId } from "@lib/settings";
@@ -121,19 +122,37 @@ export function drawFooter(footer: Panel["footer"]) {
   flushSync(() => setPanel({ footer }));
 }
 export const drawFix = (fix: any) => setPanel({ fix });
-export const drawGit = (snap: any) => setGit({ snap });
+// Every root that fills the panel's body goes when another tab takes it (the git tab's slot, a terminal, the documents), so
+// nothing keeps running behind a tab that is not shown.
+type BodyRoot = { root: ReturnType<typeof createRoot>; host: HTMLElement } | null;
+const dropBody = () => {
+  for (const r of [docRoot, settingsRoot, notesRoot, termRoot]) r?.root.unmount();
+  docRoot = settingsRoot = notesRoot = termRoot = null;
+};
+// The git tab stands in an element of the panel's body; a redraw of the tab keeps it, so what is typed in it stays.
+let gitSlot: HTMLElement | null = null;
+export const drawGit = (snap: any) => {
+  if (!snap) return void ((gitSlot = null), setGit({ snap: null }));
+  const body = $("pbody");
+  if (!gitSlot || gitSlot.parentElement !== body) {
+    dropBody();
+    gitSlot = document.createElement("div");
+    gitSlot.className = "kz-ui";
+    body.replaceChildren(gitSlot);
+  }
+  setGit({ snap: { ...snap, slot: gitSlot } });
+};
 export const drawHead = (head: Partial<Panel>) => setPanel(head);
 export const drawMode = (modeSwitch: any) => setBoard({ modeSwitch });
 // Settings: one root inside the panel's body, made again when another page replaced the body. State and requests are in
 // lib/settings/settings-store.ts; coming from another page the page starts on All projects with a skeleton, and the page and search
 // the person left it on are kept.
-let settingsRoot: { root: ReturnType<typeof createRoot>; host: HTMLElement } | null = null;
+let settingsRoot: BodyRoot = null,
+  termRoot: BodyRoot = null;
 export function drawSettings(o: { fresh: boolean; q: string; back: boolean; stale: () => boolean }) {
   const body = $("pbody");
   if (!settingsRoot || settingsRoot.host.parentElement !== body) {
-    settingsRoot?.root.unmount();
-    docRoot?.root.unmount();
-    docRoot = null;
+    dropBody();
     const host = document.createElement("div");
     host.className = "kz-ui";
     host.style.cssText = "height:100%;display:contents";
@@ -154,14 +173,11 @@ export function drawSettings(o: { fresh: boolean; q: string; back: boolean; stal
 // The panel's document tabs (Request, Plan, Backlog, Review ...): one root inside the panel's body, made again when another
 // tab replaced the body. The tab's text and the Fix findings form are in lib/run/panel-store.ts; the other roots in the
 // body (Settings, Notes) are dropped when this one takes it, so nothing keeps running behind a tab that is not shown.
-let docRoot: { root: ReturnType<typeof createRoot>; host: HTMLElement } | null = null;
+let docRoot: BodyRoot = null;
 export function drawDoc(doc: PanelDoc) {
   const body = $("pbody");
   if (!docRoot || docRoot.host.parentElement !== body) {
-    docRoot?.root.unmount();
-    settingsRoot?.root.unmount();
-    notesRoot?.root.unmount();
-    settingsRoot = notesRoot = null;
+    dropBody();
     const host = document.createElement("div");
     host.className = "kz-ui";
     body.replaceChildren(host);
@@ -171,16 +187,25 @@ export function drawDoc(doc: PanelDoc) {
   flushSync(() => setPanel({ doc }));
   body.scrollTop = 0;
 }
+// The in-card agent's terminal (agent-term.ts): xterm.js in the panel's body, mounted once and kept while the same session shows.
+export function drawTerm(t: { key: string; onEnd: () => void } | null) {
+  if (!t) return void (termRoot?.root.unmount(), (termRoot = null));
+  dropBody();
+  const host = document.createElement("div");
+  host.className = "kz-ui";
+  host.style.display = "contents";
+  $("pbody").replaceChildren(host);
+  termRoot = { root: createRoot(host), host };
+  termRoot.root.render(createElement(TerminalPane, { sessionKey: t.key, onEnd: t.onEnd, label: "Agent terminal" }));
+}
 // The Notes tab: one root inside the panel's body, made again when another tab replaced the body (the old tabs write
 // their text into it). State and the send are in lib/notes; every call is a new draw, so the box takes focus back after a send.
-let notesRoot: { root: ReturnType<typeof createRoot>; host: HTMLElement } | null = null;
+let notesRoot: BodyRoot = null;
 export function drawNotes(view: NotesView) {
   const body = $("pbody");
   flushSync(() => {
     if (!notesRoot || notesRoot.host.parentElement !== body) {
-      notesRoot?.root.unmount();
-      docRoot?.root.unmount();
-      docRoot = null;
+      dropBody();
       const host = document.createElement("div");
       host.className = "kz-ui";
       body.replaceChildren(host);
@@ -296,6 +321,8 @@ export function initReact(go: (view: string, push?: boolean) => void) {
   slot.style.display = "contents";
   $("plist").before(slot);
   createRoot(slot).render(createElement(HomeWsRow));
+  // The first three sources' marks in the side menu's Icebox item.
+  createRoot($("rail-srcs")).render(createElement(SourceMarks));
   // The status strip under the board and the phone's status button in the header.
   createRoot($("ftr")).render(createElement(TooltipProvider, null, createElement(StatusStrip)));
   createRoot($("fbtn-host")).render(createElement(TooltipProvider, null, createElement(StatusButton)));

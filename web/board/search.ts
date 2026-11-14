@@ -5,7 +5,7 @@
 // its own (notebook/kit.ts) and opens it in place; Video, which carries no React, sends the person to the board with the
 // palette open (?search=1).
 import { $ } from "./dom.ts";
-import { age } from "./labels.ts";
+import { age } from "@lib/core";
 import { openAdd } from "@lib/project/add-project.ts";
 import { cardHref, kitFor, projName, railData, stateOf, titleOf, wsHref, wsLabel, wsOfCard } from "./workspace.ts";
 import { useSearch } from "@lib/search/search.ts";

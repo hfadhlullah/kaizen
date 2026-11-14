@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { host, cn } from "@lib/core";
 import {
   contextActions,
@@ -48,13 +49,16 @@ export function ContextPanel() {
     // Once the page behind is no longer inert.
     requestAnimationFrame(() => document.getElementById("ctx-open")?.focus());
   };
-  // A wide window opens the pane and a narrow one closes it; a view change closes the dialog.
-  useEffect(() => setOpen(wide), [wide]);
+  // The pane opens from the header's button only (nothing is read while it is closed); a view change closes the dialog.
   useEffect(() => {
     const on = () => !matchMedia(WIDE).matches && setOpen(false);
     addEventListener("kz-view", on);
     return () => removeEventListener("kz-view", on);
   }, []);
+  // As a dialog the focus goes in, to the tab in use.
+  useEffect(() => {
+    if (modal) requestAnimationFrame(() => box.current?.querySelector<HTMLElement>("nav button.on")?.focus());
+  }, [modal]);
   // As a dialog: nothing behind it takes focus or clicks.
   useEffect(() => {
     if (!modal) return;
@@ -93,113 +97,141 @@ export function ContextPanel() {
       removeEventListener("keydown", key, true);
     };
   }, [modal]);
+  // The header's button (a static span in board.html holds its place) opens and closes the pane.
+  const opener = document.getElementById("ctx-open-host");
   return (
-    <section
-      id="context"
-      ref={box}
-      aria-label="Project context"
-      aria-modal={modal || undefined}
-      role={wide ? "complementary" : "dialog"}
-      className={cn("kz-keep", open && "on")}
-    >
-      <header>
-        <strong id="context-title">{contextTitle(dir)}</strong>
-        <button type="button" className="ib" id="ctx-close" aria-label="Close side panel" title="Close" onClick={close}>
-          <svg>
-            <use href="#i-close" />
-          </svg>
-        </button>
-      </header>
-      <nav aria-label="Side content">
-        {TABS.map(([t, label]) => (
+    <>
+      {opener &&
+        createPortal(
           <button
-            key={t}
             type="button"
-            className={tab === t ? "on" : ""}
-            aria-pressed={tab === t}
-            onClick={() => showTab(t)}
+            className="ib"
+            id="ctx-open"
+            aria-label="Open side panel"
+            aria-expanded={open}
+            title="Notes, files and terminals"
+            onClick={() => setOpen(!open)}
           >
-            {label}
+            <svg>
+              <use href="#i-side" />
+            </svg>
+          </button>,
+          opener,
+        )}
+      <section
+        id="context"
+        ref={box}
+        aria-label="Project context"
+        aria-modal={modal || undefined}
+        role={wide ? "complementary" : "dialog"}
+        className={cn("kz-keep", open && "on")}
+      >
+        <header>
+          <strong id="context-title">{contextTitle(dir)}</strong>
+          <button
+            type="button"
+            className="ib"
+            id="ctx-close"
+            aria-label="Close side panel"
+            title="Close"
+            onClick={close}
+          >
+            <svg>
+              <use href="#i-close" />
+            </svg>
           </button>
-        ))}
-      </nav>
-      <div id="context-body">
-        {body.kind === "message" && body.text}
-        {body.kind === "notes" &&
-          body.notes.map((n) => (
-            <a
-              key={n.name}
-              className="tree-row"
-              style={{ paddingLeft: noteIndent(n.name) }}
-              href={noteHref(body.dir, n.name)}
-            >
-              {n.name}
-            </a>
-          ))}
-        {body.kind === "files" && (
-          <>
-            {body.folder && (
-              <button type="button" className="tree-row tree-back" onClick={goUp}>
-                {"← " + body.folder}
-              </button>
-            )}
-            {!body.entries.length && "This folder is empty."}
-            {body.entries.map((e) => (
-              <button
-                key={e.name}
-                type="button"
-                className={cn("tree-row", e.dir && "folder")}
-                onClick={() => (e.dir ? showFiles(entryPath(body.folder, e)) : showFile(entryPath(body.folder, e)))}
-              >
-                {entryLabel(e)}
-              </button>
-            ))}
-          </>
-        )}
-        {body.kind === "file" && (
-          <>
-            <div className="ctx-actions">
-              <button type="button" className="btn" onClick={() => showFiles()}>
-                ← Files
-              </button>
-              <a className="btn" href={textUrl(dir, body.path, true)}>
-                Download
-              </a>
-            </div>
-            <strong>{body.path}</strong>
-            <pre>{body.content}</pre>
-          </>
-        )}
-        {body.kind === "terminals" && (
-          <>
+        </header>
+        <nav aria-label="Side content">
+          {TABS.map(([t, label]) => (
             <button
+              key={t}
               type="button"
-              className="btn"
-              onClick={() => {
-                if (!matchMedia(WIDE).matches) setOpen(false);
-                showTab("files");
-                host.go("terminal", true);
-              }}
+              className={tab === t ? "on" : ""}
+              aria-pressed={tab === t}
+              onClick={() => showTab(t)}
             >
-              Open terminal workspace
+              {label}
             </button>
-            {!sessions.length && <p>No terminal sessions yet.</p>}
-            {sessions.map((c, i) => (
-              <button
-                key={i}
-                type="button"
+          ))}
+        </nav>
+        <div id="context-body">
+          {body.kind === "message" && body.text}
+          {body.kind === "notes" &&
+            body.notes.map((n) => (
+              <a
+                key={n.name}
                 className="tree-row"
+                style={{ paddingLeft: noteIndent(n.name) }}
+                href={noteHref(body.dir, n.name)}
+              >
+                {n.name}
+              </a>
+            ))}
+          {body.kind === "files" && (
+            <>
+              {body.folder && (
+                <button type="button" className="tree-row tree-back" onClick={goUp}>
+                  {"← " + body.folder}
+                </button>
+              )}
+              {!body.entries.length && "This folder is empty."}
+              {body.entries.map((e) => (
+                <button
+                  key={e.name}
+                  type="button"
+                  className={cn("tree-row", e.dir && "folder")}
+                  onClick={() => (e.dir ? showFiles(entryPath(body.folder, e)) : showFile(entryPath(body.folder, e)))}
+                >
+                  {entryLabel(e)}
+                </button>
+              ))}
+            </>
+          )}
+          {body.kind === "file" && (
+            <>
+              <div className="ctx-actions">
+                <button type="button" className="btn" onClick={() => showFiles()}>
+                  ← Files
+                </button>
+                <a className="btn" href={textUrl(dir, body.path, true)}>
+                  Download
+                </a>
+              </div>
+              <strong>{body.path}</strong>
+              <pre>{body.content}</pre>
+            </>
+          )}
+          {body.kind === "terminals" && (
+            <>
+              <button
+                type="button"
+                className="btn"
                 onClick={() => {
                   if (!matchMedia(WIDE).matches) setOpen(false);
-                  contextActions.openSession(c);
+                  showTab("files");
+                  host.go("terminal", true);
                 }}
               >
-                {sessionLabel(c)}
+                Open terminal workspace
               </button>
-            ))}
-          </>
-        )}
-      </div>
-    </section>
+              {!sessions.length && <p>No terminal sessions yet.</p>}
+              {sessions.map((c, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  className="tree-row"
+                  onClick={() => {
+                    if (!matchMedia(WIDE).matches) setOpen(false);
+                    contextActions.openSession(c);
+                  }}
+                >
+                  {sessionLabel(c)}
+                </button>
+              ))}
+            </>
+          )}
+        </div>
+      </section>
+    </>
   );
 }

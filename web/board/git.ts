@@ -1,5 +1,4 @@
 import { store } from "./store.ts";
-import { $ } from "./dom.ts";
 import { commitMsg } from "./markdown.ts";
 import { react } from "./views.ts";
 
@@ -30,16 +29,8 @@ export const gitPending = (c) => {
   );
 };
 
-// The tab stands in an element of the panel's body (the body is rebuilt for every other tab); a redraw of this tab keeps
-// the element, so what is typed in it stays.
-let slot: HTMLElement | null = null;
+// The tab's element in the panel's body is made by react-mount.ts drawGit; a tab that is not this one drops it.
 export function gitTab(c) {
-  const body = $("pbody");
-  if (!slot || slot.parentElement !== body) {
-    body.replaceChildren();
-    body.append((slot = document.createElement("div")));
-    slot.className = "kz-ui";
-  }
   const impl = store.runDoc.impl;
   react.drawGit({
     card: c,
@@ -47,8 +38,6 @@ export function gitTab(c) {
     branch: store.runDoc.branch,
     msg: commitMsg(impl) || c.title || c.text || "",
     title: (commitMsg(impl) || c.title || "").split("\n")[0],
-    slot,
   });
 }
-// A tab that is not this one: the slot goes with the body.
-export const gitLeave = () => ((slot = null), react.drawGit(null));
+export const gitLeave = () => react.drawGit(null);

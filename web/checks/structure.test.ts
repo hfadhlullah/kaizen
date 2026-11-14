@@ -83,27 +83,107 @@ test("the check itself fails on an upward import, a lib import of ui, a ui impor
   ).toEqual([]);
 });
 
-// A popup, dialog or list box is a piece from web/ui (Radix draws it, in #kz-portal); a page, component or lib file
-// never builds one by hand or draws HTML strings.
+// A popup, dialog or list box is a piece from web/ui (Radix draws it, in #kz-portal); nothing in web/ builds one by hand,
+// draws HTML strings, or makes an element with createElement (canvas, link, script and style are not drawing). video/ is the
+// one folder outside the rule (its own page, no React, no board). The files below are the whole list of exceptions, each
+// for a reason; a file that stops needing its exception fails the test until the line is removed.
 const HAND_BUILT =
-  /<dialog\b|createElement\(["']dialog|role=["'](?:dialog|alertdialog|listbox)["']|menu-pop|innerHTML|dangerouslySetInnerHTML/;
-const handBuilt = (files: Record<string, string>) =>
-  Object.entries(files).flatMap(([f, src]) =>
-    HAND_BUILT.test(src) ? [`${relative(web, f)} builds a popup or HTML by hand`] : [],
-  );
-test("no page, component or lib file hand-builds a dialog, menu or list box, or sets innerHTML", () => {
-  const files = Object.fromEntries(
-    ["components", "pages", "lib"].flatMap((l) => walk(join(web, l))).map((f) => [f, readFileSync(f, "utf8")]),
-  );
-  expect(handBuilt(files)).toEqual([]);
-  // ...and it does catch one.
+  /<dialog\b|document\.createElement\(["']dialog|(?<!\[)role=["'](?:dialog|alertdialog|listbox)["']|menu-pop|innerHTML|outerHTML|insertAdjacentHTML|document\.write|dangerouslySetInnerHTML/;
+const MADE = /document\.createElement(?:NS)?\(\s*(?!["'](?:canvas|link|script|style)["'])/;
+const EXEMPT: Record<string, string> = {
+  "term/term.ts":
+    "xterm's own bundle (term.js, no React): find box, paste button, reconnect strip, and the phone key bar, whose pointerdown + preventDefault keeps the soft keyboard open",
+  "board/rich.ts": "the note editor's contenteditable engine: sets its markdown as HTML and owns its editable div",
+  "annotate/annotate.ts": "the annotator's page script, injected into the previewed page, where no React or board CSS exists",
+  "lib/notebook/engine-widgets.ts": "CodeMirror widget DOM: the editor engine asks for elements, not React",
+  "lib/notebook/deal.ts": "the card-deal effect's shade element, added to an engine-owned node",
+  "board/react-mount.ts": "makes the div every React root renders into: the one bridge until the single App root",
+  "notebook/kit.ts": "makes the Notebook's React portal and root hosts",
+  "pages/tasks-page.tsx": "a span in the board header (#hx) that the page portals its controls into",
+  "board/toast.ts": "Video's fallback toast link: Video has no React, the board and Notebook use the React toaster",
+};
+const drawnBy = (files: Record<string, string>) =>
+  Object.entries(files).flatMap(([f, src]) => {
+    const rel = norm(relative(web, f));
+    if (rel in EXEMPT) return [];
+    return HAND_BUILT.test(src) || MADE.test(src) ? [`${rel} builds a popup, an element or HTML by hand`] : [];
+  });
+const SKIP = new Set(["video", "dist", "html", "sounds", "checks"]);
+const allSources = () =>
+  readdirSync(web, { withFileTypes: true })
+    .filter((e) => e.isDirectory() && !SKIP.has(e.name))
+    .flatMap((e) => walk(join(web, e.name)));
+test("nothing in web/ except video/ and the named exceptions hand-builds a popup, sets innerHTML or makes elements", () => {
+  const files = Object.fromEntries(allSources().map((f) => [f, readFileSync(f, "utf8")]));
+  expect(Object.keys(files).length).toBeGreaterThan(100);
+  expect(drawnBy(files)).toEqual([]);
+  // every exception is still in use, and a reason is given
+  for (const [f, why] of Object.entries(EXEMPT)) {
+    expect(why.length).toBeGreaterThan(20);
+    const src = files[join(web, f)];
+    expect(src).toBeDefined();
+    expect(HAND_BUILT.test(src!) || MADE.test(src!)).toBe(true);
+  }
+  // ...and the check does catch one.
   expect(
-    handBuilt({
+    drawnBy({
       [join(web, "components", "x.tsx")]: '<div role="dialog">',
       [join(web, "pages", "y.tsx")]: "el.innerHTML = a",
+      [join(web, "board", "w.ts")]: 'document.createElement("div")',
+      [join(web, "lib", "v.ts")]: 'el.insertAdjacentHTML("beforeend", a)',
       [join(web, "components", "z.tsx")]: "<Dialog>",
+      [join(web, "lib", "run", "ok.ts")]: 'document.createElement("script")',
+      [join(web, "board", "rich.ts")]: "ed.innerHTML = a",
     }).length,
-  ).toBe(2);
+  ).toBe(4);
+});
+
+// web/board/ is the old board's plumbing (data, polling, routing, events), not drawing. Each file has a reason to exist; a new
+// file needs a line here, and a file that only re-exports or only forwards to a React root has no reason: move it into a
+// feature folder of lib/ or components/ instead.
+const BOARD: Record<string, string> = {
+  "agent-term.ts": "which in-card terminal shows in the panel (drawn by TerminalPane)",
+  "api.ts": "the /state poll, requests and the project header",
+  "badge.ts": "attention counts and the tab badge",
+  "cards.ts": "card keys, lanes and the data the Board page is handed",
+  "context.ts": "tells the context pane which project and sessions",
+  "dom.ts": "$ lookups, image shrink, the html template the old modules still use",
+  "drafts.ts": "half-typed text kept in sessionStorage",
+  "git.ts": "when the git tab shows and the run's git state it is handed",
+  "home-ws.ts": "the shell list and the events the Home window needs from old code",
+  "home.ts": "the Home view's header buttons",
+  "keys.ts": "global keys",
+  "live.ts": "the page load, polling and events",
+  "main.ts": "entry: wires every module and registers the React drawers",
+  "markdown.ts": "markdown helpers the old modules still call",
+  "panel.ts": "which run panel tab shows, deep links and the scrim",
+  "projects.ts": "the picked project and the shown set",
+  "react-mount.ts": "the bridge that mounts React roots (until the single App root)",
+  "rich.ts": "the note editor's contenteditable engine",
+  "run-view.ts": "the run workspace's data, tabs and address",
+  "search.ts": "gathers the palette's rows from the rail, storage and events",
+  "settings.ts": "opens the panel for the Settings page and its Ctrl+F",
+  "store.ts": "the board's shared mutable state",
+  "terms.ts": "feeds sessions to the Terminal page and the side menu badge",
+  "toast.ts": "toasts for Video, notifications and sounds",
+  "update.ts": "the Settings link's update dot",
+  "viewer.ts": "opens file links in the viewer",
+  "views.ts": "view routing and the react registry",
+  "workspace.ts": "the rail's data, the workspace rules and the footer poll",
+  "ws-board-ui.ts": "the Workspaces board's data and mode",
+  "ws-board.ts": "the Workspaces board's columns (pure, tested)",
+  "ws-tabs.ts": "run workspace tab rules shared with the notebook and Video bundles",
+};
+test("every web/board file has a reason to exist, and none is left that only re-exports", () => {
+  const dir = join(web, "board");
+  const files = readdirSync(dir).filter((n) => n.endsWith(".ts") && !isTest(n));
+  expect(files.sort()).toEqual(Object.keys(BOARD).sort());
+  for (const [n, why] of Object.entries(BOARD)) expect(why.length).toBeGreaterThan(10);
+  for (const n of files) {
+    const src = readFileSync(join(dir, n), "utf8").replace(/\/\/.*$/gm, "").trim();
+    // a pure re-export file: nothing but `export ... from` lines
+    expect(src.split("\n").every((l) => /^export .* from /.test(l.trim()) || !l.trim())).toBe(false);
+  }
 });
 
 // workspace.ts is shared with the notebook and Video bundles. The Projects list, its filter, the worktree menu and the
@@ -192,7 +272,15 @@ test("the Project context pane is drawn by React, not by board/context.ts", () =
   const src = readFileSync(join(web, "board/context.ts"), "utf8");
   expect(src).not.toMatch(/createElement|innerHTML|replaceChildren|\.append\(/);
   expect(src.split("\n").length).toBeLessThan(50);
-  expect(readFileSync(join(web, "html/board.html"), "utf8")).toContain('<div id="context-host"');
+  const page = readFileSync(join(web, "html/board.html"), "utf8");
+  expect(page).toContain('<div id="context-host"');
+  // the open button is React (a portal into its host) and nothing hides it on a computer: the pane was unreachable once
+  expect(page).toContain('<span id="ctx-open-host"');
+  expect(page).not.toContain("#context,#ctx-open{display:none!important}");
+  expect(src).not.toMatch(/ctx-open/);
+  expect(readFileSync(join(web, "components/context/context-panel.tsx"), "utf8")).toContain('id="ctx-open"');
+  // and nothing is read while the pane is closed
+  expect(readFileSync(join(web, "components/context/context-panel.tsx"), "utf8")).not.toMatch(/setOpen\(wide\)/);
 });
 
 // The run panel's document tabs (Request, Plan, Backlog with its Work list, Review with the Fix form) are React
@@ -286,7 +374,6 @@ const BRIDGE_DIRECT = [
   "board/workspace.ts",
   "board/ws-tabs.ts",
   "board/badge.ts",
-  "board/labels.ts",
   "board/search.ts",
   "board/update.ts",
 ];
