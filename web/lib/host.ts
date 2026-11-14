@@ -22,6 +22,7 @@ export type Host = {
   showable(): { dir: string; label: string }[];
   shown(): Set<string>;
   clearShown(): void;
+  toggleShown(dir: string): void;
   reload(): void;
   mic(fields: (HTMLTextAreaElement | HTMLInputElement)[]): HTMLElement | null;
   stopDictation(): void;
@@ -75,6 +76,7 @@ export const host: Host = {
   showable: () => [],
   shown: () => new Set(),
   clearShown: none,
+  toggleShown: none,
   reload: () => {},
   mic: () => null,
   stopDictation: () => {},

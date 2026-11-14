@@ -8,7 +8,8 @@ import { $, html, ico } from "./dom.ts";
 import { draft } from "./drafts.ts";
 import { COLS, ICON, WORD } from "./labels.ts";
 import { isPhone } from "./phone.ts";
-import { list, plogo, short, showList, showable } from "./projects.ts";
+import { showable } from "./projects.ts";
+import { setProjectBar } from "../lib/project-bar.ts";
 import { termsBadge } from "./terms.ts";
 import { boardBadge, waitingCount } from "./badge.ts";
 import { WS_COLS } from "./ws-board.ts";
@@ -89,7 +90,7 @@ export function render() {
           render();
         }),
     );
-  // [label, folder, from the projects folder]: the button names the current one, the open list is redrawn.
+  // The header's pickers: the choices ([label, folder, from the projects folder]), the project the board is on, and what shows.
   store.PL = [
     ["All projects", "all"],
     ...store.S.projects.map((p) => [p.label, p.dir]),
@@ -98,18 +99,13 @@ export function render() {
     ["Find projects on this PC…", "__find"],
     ["Clone from GitHub…", "__clone"],
   ];
-  const cur = store.all || !store.S.dir ? "All projects" : (store.PL.find((p) => p[1] === store.S.dir) || ["All projects"])[0];
-  $("proj").innerHTML =
-    store.all || !store.S.dir
-      ? html`<span class="plogo" aria-hidden="true">${ico("board")}</span><span>${cur}</span>`
-      : html`${plogo(store.S.dir, cur)}<span>${short(cur)}</span>`;
-  $("proj").title = cur;
-  if (!$("projpop").hidden) list();
   $("showc").hidden = !store.all;
-  const sp = showable(),
-    ns = sp.filter((p) => store.shown.has(p.dir)).length;
-  $("show").textContent = ns ? `Showing ${ns} of ${sp.length}` : "Showing all";
-  if (!$("showpop").hidden) showList();
+  setProjectBar({
+    rows: store.PL.map((p) => ({ label: p[0], value: p[1], fresh: !!p[2] })),
+    dir: store.all || !store.S.dir ? "" : store.S.dir,
+    showable: showable(),
+    shown: [...store.shown],
+  });
   // The page draws the cards: Runs mode, or the workspaces of Workspaces mode.
   const wsm = boardMode() === "ws";
   react.drawBoard({

@@ -30,6 +30,7 @@ import { RunEmpty } from "../components/run-empty.tsx";
 import { RunHistory } from "../components/run-history.tsx";
 import { RunTabs } from "../components/run-tabs.tsx";
 import { RunWait } from "../components/run-wait.tsx";
+import { ProjectPicker, ShowingPicker } from "../components/project-bar.tsx";
 import { BoardModeSwitch } from "../components/board-mode-switch.tsx";
 import { PanelHead } from "../components/panel-head.tsx";
 import { PanelTabs } from "../components/panel-tabs.tsx";
@@ -154,7 +155,7 @@ export const closeForm = closeBoardForm;
 // The run workspace's chrome (run-view.ts publishes it through lib/run-view-store.ts). A root lives in an element the old
 // code keeps (the tab bar, the empty note, the notes list) and never in a pane, so no live terminal is touched.
 // `display: contents` leaves the old container's layout rules in charge of where each piece sits.
-const bits = { tabs: RunTabs, empty: RunEmpty, notes: ProjectNotes, header: PaneHeader, history: RunHistory, wait: RunWait, ptabs: PanelTabs, head: PanelHead, picker: RunPicker, mode: BoardModeSwitch };
+const bits = { projects: ProjectPicker, showing: ShowingPicker, tabs: RunTabs, empty: RunEmpty, notes: ProjectNotes, header: PaneHeader, history: RunHistory, wait: RunWait, ptabs: PanelTabs, head: PanelHead, picker: RunPicker, mode: BoardModeSwitch };
 export function mountRunPart(el: HTMLElement, part: keyof typeof bits, id = ""): () => void {
   const host = document.createElement("div");
   host.className = "kz-ui";
@@ -193,6 +194,10 @@ export function initReact(go: (view: string, push?: boolean) => void) {
     shown: () => store.shown,
     clearShown: () => {
       store.shown.clear();
+      setShown();
+    },
+    toggleShown: (d) => {
+      store.shown.has(d) ? store.shown.delete(d) : store.shown.add(d);
       setShown();
     },
     reload: () => void load(),

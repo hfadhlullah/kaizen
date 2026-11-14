@@ -1,7 +1,8 @@
+import { react } from "./views.ts";
 import { store } from "./store.ts";
 import { load, post } from "./api.ts";
 import { newTask, render } from "./cards.ts";
-import { $, html, ico } from "./dom.ts";
+import { $ } from "./dom.ts";
 import { toast } from "./toast.ts";
 import { openAdd } from "../lib/add-project.ts";
 
@@ -13,40 +14,6 @@ export function keep(d) {
   try {
     d ? localStorage.setItem("kz-proj", d) : localStorage.removeItem("kz-proj");
   } catch (e) {}
-}
-// A project shows by its folder name alone; the full path stays in the tooltip.
-export const short = (l) => l.split(/[\\/]/).pop() || l;
-// A project's mark in every picker: its own logo when /state found one, else its initial.
-// A logo the browser cannot draw falls back to the initial too.
-export const plogo = (dir, label = "") => {
-  const ini = html`<span class="plogo" aria-hidden="true">${(short(label) || "?").charAt(0).toUpperCase()}</span>`;
-  return store.S?.projects?.some((p) => p.dir === dir && p.logo)
-    ? html`<img class="plogo" src="/project-logo?dir=${encodeURIComponent(dir)}" alt="" loading="lazy" onerror="this.outerHTML=this.dataset.f" data-f="${String(ini)}">`
-    : ini;
-};
-// A picker row: the mark, then the folder name; the full path in the tooltip.
-const prow = (dir, label) => html`${plogo(dir, label)}<span>${short(label)}</span>`;
-// The project picker: a button shaped like a select that opens a search field over the list.
-export function list() {
-  const q = $("projq").value.trim().toLowerCase();
-  let g = 0;
-  $("projs").innerHTML =
-    store.PL.map((p, i) =>
-      p[0].toLowerCase().includes(q)
-        ? html`${p[2] && !g++ ? html`<div class="grp">In your projects folder</div>` : ""}<button role="option" data-i="${i}" title="${p[0]}">${p[1] === "all" ? html`<span class="plogo" aria-hidden="true">${ico("board")}</span><span>${p[0]}</span>` : p[1] === "__new" || p[1] === "__find" || p[1] === "__clone" ? html`<span class="plogo" aria-hidden="true">${ico("plus")}</span><span>${p[0]}</span>` : prow(p[1], p[0])}</button>`
-        : "",
-    ).join("") || `<div class="grp">No match</div>`;
-  const f = $("projs").querySelector("button");
-  if (f) f.classList.add("on");
-}
-function pop(on) {
-  $("projpop").hidden = !on;
-  $("proj").setAttribute("aria-expanded", on);
-  if (on) {
-    $("projq").value = "";
-    list();
-    $("projq").focus();
-  }
 }
 export async function pick(v) {
   if (v === "__find") {
@@ -70,61 +37,10 @@ export async function pick(v) {
   }
   await load();
 }
-// Known projects, plus any folder a card comes from that is not one (the global inbox).
-// The same searchable picker as the header's, for any page: All projects first, then each project.
-export function projectPicker(host: HTMLElement, ps: { dir: string; label: string }[], value: string, onPick: (dir: string) => void) {
-  host.classList.add("combo");
-  host.innerHTML = String(
-    html`<button type="button" class="sel" aria-label="Project" aria-haspopup="listbox" aria-expanded="false"></button><div class="menu-pop" hidden><input class="sel" aria-label="Search projects" placeholder="Search projects…" spellcheck="false" autocomplete="off"><div role="listbox"></div></div>`,
-  );
-  const btn = host.querySelector("button")!,
-    pp = host.querySelector<HTMLElement>(".menu-pop")!,
-    q = pp.querySelector("input")!,
-    box = pp.querySelector<HTMLElement>("[role=listbox]")!;
-  const all = { dir: "", label: "All projects" };
-  const row = (p) => (p.dir ? prow(p.dir, p.label) : html`<span class="plogo" aria-hidden="true">${ico("board")}</span><span>All projects</span>`);
-  btn.innerHTML = String(row([all, ...ps].find((p) => p.dir === value) || all));
-  const draw = () => {
-    const t = q.value.trim().toLowerCase();
-    box.innerHTML =
-      [all, ...ps]
-        .filter((p) => !t || p.label.toLowerCase().includes(t))
-        .map((p) => html`<button type="button" role="option" data-d="${p.dir}" title="${p.label}" class="${p.dir === value ? "on" : ""}">${row(p)}</button>`)
-        .join("") || `<div class="grp">No match</div>`;
-    box.querySelectorAll<HTMLElement>("button").forEach((b) => (b.onclick = () => onPick(b.dataset.d!)));
-  };
-  btn.onclick = () => {
-    pp.hidden = !pp.hidden;
-    btn.setAttribute("aria-expanded", String(!pp.hidden));
-    if (!pp.hidden) {
-      q.value = "";
-      draw();
-      q.focus();
-    }
-  };
-  q.oninput = draw;
-  q.onkeydown = (e) => {
-    if (e.key === "Escape") (pp.hidden = true), btn.focus();
-    if (e.key === "Enter") box.querySelector<HTMLElement>("button")?.click();
-  };
-}
 export function showable() {
   const l = [...store.S.projects];
   for (const c of store.S.cards) if (!l.some((p) => p.dir === c.state)) l.push({ dir: c.state, label: c.where });
   return l;
-}
-let SP = [];
-export function showList() {
-  const q = $("showq").value.trim().toLowerCase();
-  SP = showable();
-  $("shows").innerHTML =
-    SP.map((p, i) =>
-      p.label.toLowerCase().includes(q)
-        ? html`<button type="button" role="menuitemcheckbox" data-i="${i}" aria-checked="${String(store.shown.has(p.dir))}" title="${p.label}">${prow(p.dir, p.label)}<svg class="ck"><use href="#i-check"/></svg></button>`
-        : "",
-    ).join("") || `<div class="grp">No match</div>`;
-  const n = SP.filter((p) => store.shown.has(p.dir)).length;
-  $("showcount").textContent = n ? `${n} of ${SP.length} shown` : `All ${SP.length} shown`;
 }
 export function setShown() {
   try {
@@ -136,71 +52,8 @@ export function setShown() {
 }
 
 export function initProjects() {
-  $("proj").onclick = () => pop($("projpop").hidden);
-  $("projq").oninput = list;
-  $("projq").onkeydown = (e) => {
-    const bs = [...$("projs").querySelectorAll("button")],
-      i = bs.findIndex((b) => b.classList.contains("on"));
-    if (e.key === "Escape") {
-      pop(false);
-      $("proj").focus();
-    } else if (e.key === "Enter") {
-      if (bs[i]) bs[i].click();
-    } else if ((e.key === "ArrowDown" || e.key === "ArrowUp") && bs[i]) {
-      e.preventDefault();
-      const n = bs[(i + (e.key === "ArrowDown" ? 1 : bs.length - 1)) % bs.length];
-      bs[i].classList.remove("on");
-      n.classList.add("on");
-      n.scrollIntoView({ block: "nearest" });
-    }
-  };
-  $("projs").onclick = (e) => {
-    const b = e.target.closest("button");
-    if (b) {
-      pop(false);
-      pick(store.PL[b.dataset.i][1]);
-    }
-  };
-  document.addEventListener("click", (e) => {
-    if (!e.target.closest("#combo")) pop(false);
-  });
-  $("show").onclick = () => {
-    const on = $("showpop").hidden;
-    $("showpop").hidden = !on;
-    $("show").setAttribute("aria-expanded", on);
-    if (on) {
-      $("showq").value = "";
-      showList();
-      $("showq").focus();
-    }
-  };
-  $("showq").oninput = showList;
-  $("showq").onkeydown = (e) => {
-    if (e.key === "Escape") {
-      $("showpop").hidden = true;
-      $("show").setAttribute("aria-expanded", false);
-      $("show").focus();
-    }
-  };
-  // render() redraws the list; the toggled row keeps keyboard focus.
-  $("shows").onclick = (e) => {
-    const b = e.target.closest("button[data-i]"),
-      i = b?.dataset.i,
-      d = SP[i]?.dir;
-    if (!d) return;
-    store.shown.has(d) ? store.shown.delete(d) : store.shown.add(d);
-    setShown();
-    $("shows").querySelector(`[data-i="${i}"]`)?.focus();
-  };
-  $("showall").onclick = () => {
-    store.shown.clear();
-    setShown();
-  };
-  document.addEventListener("click", (e) => {
-    if (!e.target.closest("#showc")) {
-      $("showpop").hidden = true;
-      $("show").setAttribute("aria-expanded", false);
-    }
-  });
+  // The header's pickers are React (components/project-bar.tsx), drawn from what cards.ts publishes on every redraw.
+  react.mountRunPart($("combo"), "projects");
+  react.mountRunPart($("showc"), "showing");
   $("newtop").onclick = newTask;
 }
