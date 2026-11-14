@@ -101,3 +101,6 @@ export async function loadSettings(skeleton = false, stale?: () => boolean): Pro
     local: {},
   });
 }
+
+// The search box of the page, for the `/` key (the page registers it while it shows).
+export const searchBox: { el: HTMLInputElement | null } = { el: null };

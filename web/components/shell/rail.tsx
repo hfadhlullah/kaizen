@@ -3,7 +3,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { useUpdate } from "@lib/settings";
 import { useRoute } from "@lib/router";
 import { useServer, iceNewCount, needYouCount } from "@lib/server";
-import { toggleRail, toggleTheme, useShell } from "@lib/shell";
+import { setHelp, toggleRail, toggleTheme, useShell } from "@lib/shell";
 import { useHiddenTerminals } from "@lib/terminal";
 import { RailFilter, RailList } from "../rail/index.ts";
 import { Wordmark } from "./wordmark.tsx";
@@ -213,7 +213,13 @@ export function Rail(p: { srcs?: ReactNode; before?: ReactNode }) {
             <use href="#r-bug" />
           </svg>
         </a>
-        <button className="ib xs" id="kbd" title="Keyboard shortcuts" aria-label="Keyboard shortcuts">
+        <button
+          className="ib xs"
+          id="kbd"
+          title="Keyboard shortcuts"
+          aria-label="Keyboard shortcuts"
+          onClick={() => setHelp(true)}
+        >
           <svg>
             <use href="#r-kbd" />
           </svg>

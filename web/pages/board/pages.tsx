@@ -1,5 +1,5 @@
 import { StatusStrip } from "@components/board";
-import { RunPanes, RunTabs } from "@components/run";
+import { RunBar, RunPanes } from "@components/run";
 import { PhonePage } from "@components/phone";
 import { useBoard } from "@lib/board";
 import { BoardPage } from "../board-page.tsx";
@@ -71,24 +71,7 @@ export function Pages() {
         </Once>
       </div>
       <div id="runv" aria-label="Run workspace">
-        <div id="rbar">
-          <nav id="rtabs" aria-label="Workspace tabs">
-            <Part>
-              <RunTabs />
-            </Part>
-          </nav>
-          <button
-            className="ib xs"
-            id="rside"
-            title="Show or hide the run panel"
-            aria-label="Show or hide the run panel"
-            aria-pressed="false"
-          >
-            <svg>
-              <use href="#i-open" />
-            </svg>
-          </button>
-        </div>
+        <RunBar />
         <div id="rpanes">
           <Part>
             <RunPanes />

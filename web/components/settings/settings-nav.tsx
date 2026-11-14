@@ -1,5 +1,6 @@
+import { useEffect, useRef } from "react";
 import { host, cn } from "@lib/core";
-import { pickPage, setSettings, useSettings, SETTINGS_NAV } from "@lib/settings";
+import { pickPage, searchBox, setSettings, useSettings, SETTINGS_NAV } from "@lib/settings";
 import { Icon, Input } from "@web/ui";
 import { SettingsScope } from "./settings-scope.tsx";
 
@@ -22,7 +23,22 @@ export function SettingsNav({
   onSearchFocus: (on: boolean) => void;
 }) {
   const q = useSettings((s) => s.q),
-    back = useSettings((s) => s.back);
+    back = useSettings((s) => s.back),
+    search = useRef<HTMLInputElement>(null);
+  // Ctrl+F searches settings, as in Orca. Only while the page shows: elsewhere it stays the browser's.
+  useEffect(() => {
+    const on = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== "f") return;
+      e.preventDefault();
+      search.current?.focus();
+    };
+    addEventListener("keydown", on);
+    searchBox.el = search.current;
+    return () => {
+      removeEventListener("keydown", on);
+      searchBox.el = null;
+    };
+  }, []);
   return (
     <nav
       aria-label="Settings"
@@ -43,6 +59,7 @@ export function SettingsNav({
       <div className="pb-2.5 max-[640px]:pb-3">
         <Input
           id="sq"
+          ref={search}
           type="search"
           placeholder="Search settings"
           aria-label="Search settings"

@@ -37,7 +37,27 @@ export type Panel = {
   fix: { card: Card; findings: Finding[] } | null; // the Fix findings form, in the review tab under its document
   off: string[]; // findings unticked, "run:number"
   sent: string[]; // findings already sent to an agent, "run:number" (kept over a reload of this tab)
+  // The panel's own frame (pages/board/panel.tsx draws these as the classes the stylesheet keys on): shown, docked beside
+  // the run workspace, wide (the in-card terminal), parked (no run to show), the project notes list over the body (pn),
+  // read-only (ro, a run from History), and `instant`: one frame without the slide, for a panel that left as a page.
+  open: boolean;
+  docked: boolean;
+  wide: boolean;
+  parked: boolean;
+  pn: boolean;
+  ro: boolean;
+  instant: boolean;
+  title: string; // the header's text, and its tooltip (a run's id)
+  titleTip: string;
+  top: number; // the body scrolls back to its top whenever this changes
 };
+// What the panel's close button, the scrim and the project-notes button do; the engine (lib/run/panel.ts) answers them.
+export const panelActions = { close: () => {}, notes: () => {} };
+export const setPanelActions = (a: Partial<typeof panelActions>) => Object.assign(panelActions, a);
+// The panel's body element, for what only an element can say: scrolling it, and whether a note is being typed in.
+export const panelBody: { el: HTMLElement | null } = { el: null };
+export const scrollPanel = (dy: number) => panelBody.el?.scrollBy({ top: dy });
+export const editingNotes = () => !!panelBody.el?.querySelector(".notes")?.contains(document.activeElement);
 const SK = "kz-sent";
 export const usePanel = create<Panel>()(() => ({
   body: "",
@@ -50,6 +70,16 @@ export const usePanel = create<Panel>()(() => ({
   doc: null,
   fix: null,
   off: [],
+  open: false,
+  docked: false,
+  wide: false,
+  parked: false,
+  pn: false,
+  ro: false,
+  instant: false,
+  title: "",
+  titleTip: "",
+  top: 0,
   sent: (() => {
     try {
       return JSON.parse(sessionStorage.getItem(SK) ?? "[]") || [];

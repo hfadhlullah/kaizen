@@ -3,32 +3,27 @@ import { showTerm, termStop } from "./agent-term.ts";
 import { load, post } from "./api.ts";
 import { cardEl, key, render } from "./cards.ts";
 import { stopDictation } from "@lib/dictation";
-import { $ } from "./dom.ts";
 import { gitLeave, gitPending, gitShown, gitTab } from "./git.ts";
 import { ICON, WORD, need } from "@lib/core";
 import { attach, brief, preview } from "./markdown.ts";
 import { toast } from "./toast.ts";
 import { curView } from "./views.ts";
+import { getRoute } from "@lib/router";
 import { isPhone } from "@lib/core";
 import { openWorkspace } from "./run-view.ts";
-import { hitNeedle, setPanel, type Head, type Panel, type PanelDoc } from "@lib/run";
+import { editingNotes, getPanel, hitNeedle, setFlip, setPanel, setPanelActions, type Head, type Panel, type PanelDoc } from "@lib/run";
 import { setNotes, type NotesView } from "@lib/notes";
 import { flushSync } from "react-dom";
 
 // ---- detail panel
 // What the React panel draws, one call each. flushSync where a view transition or the focus restore reads the DOM at once.
 const drawFooter = (footer: Panel["footer"]) => flushSync(() => setPanel({ footer }));
-const drawDoc = (doc: PanelDoc) => {
-  flushSync(() => setPanel({ body: "doc", doc }));
-  $("pbody").scrollTop = 0;
-};
-const drawNotes = (view: NotesView) => {
+const drawDoc = (doc: PanelDoc) => flushSync(() => setPanel({ body: "doc", doc, top: getPanel().top + 1 }));
+const drawNotes = (view: NotesView) =>
   flushSync(() => {
-    setPanel({ body: "notes" });
+    setPanel({ body: "notes", top: getPanel().top + 1 });
     setNotes({ view });
   });
-  $("pbody").scrollTop = 0;
-};
 // A run's tabs, its phases in board order. A card opens on its column's tab.
 const TABS = [
   ["Request", "request"],
@@ -67,16 +62,16 @@ export function open(c, keepTab) {
   keepTab ||= keepNext;
   keepNext = false;
   stopDictation(true); // the panel body is about to be replaced
-  setPanel({ off: [] });
   gitLeave();
   store.openKey = key(c);
-  $("panel").classList.add("open");
-  $("scrim").classList.add("on");
   // A run is titled as its card is, its slug made readable; the id stays in the tooltip.
-  $("ptitle").textContent = c.kind === "idea" ? brief(c.text).head : readable(c.title || c.text);
-  $("ptitle").title = c.kind === "idea" ? "" : c.id || "";
+  setPanel({
+    off: [],
+    open: true,
+    title: c.kind === "idea" ? brief(c.text).head : readable(c.title || c.text),
+    titleTip: c.kind === "idea" ? "" : c.id || "",
+  });
   render();
-  $("pterm").hidden = true;
   if (c.kind === "idea") {
     store.runDoc = null;
     store.ptabs = [];
@@ -161,7 +156,7 @@ export async function openRun(c, refresh, again) {
   c = store.S.cards.find((x) => key(x) === store.openKey) || c;
   // A refresh while notes are being typed would wipe the textarea.
   // The textarea is hidden under the rich editor: focus anywhere in the notes counts.
-  if (refresh && $("pbody").querySelector(".notes")?.contains(document.activeElement)) return;
+  if (refresh && editingNotes()) return;
   // The board's own status mark, then what it waits on: chips, not a dotted line.
   const head: Head =
     c.status === "abandoned"
@@ -182,33 +177,22 @@ export async function openRun(c, refresh, again) {
           : store.runDoc[t[1]] || (t[1] === "backlog" && c.column === 2 && store.runDoc.progress)),
   );
   if (store.wantTerm === key(c)) store.wantTerm = null;
-  // The agent is a centre tab of the run workspace only: the panel never shows a terminal.
-  if (store.tab === "term") store.tab = store.lastTab;
   // In the run workspace Preview is a centre tab, so the panel never shows it.
   if (curView() === "run" && store.tab === "preview") store.tab = "review";
   // A tab not written yet falls back to the latest one that is.
-  if (store.tab !== "term" && !tabs.some((t) => t[1] === store.tab))
+  if (!tabs.some((t) => t[1] === store.tab))
     store.tab = [...tabs].reverse().find((t) => t[1] !== "notes" && t[1] !== "git" && !(curView() === "run" && t[1] === "preview"))[1];
-  if (store.tab !== "term") store.lastTab = store.tab;
-  $("panel").classList.toggle("wide", store.tab === "term");
-  const pt = $("pterm");
-  pt.hidden = true;
-  pt.classList.toggle("on", store.tab === "term");
-  pt.setAttribute("aria-pressed", store.tab === "term");
-  pt.title = pt.ariaLabel = store.tab === "term" ? "Close terminal" : "Terminal";
-  pt.onclick = () => {
-    store.tab = store.tab === "term" ? store.lastTab : "term";
-    openRun(c, true);
-  };
-  store.ptabs = tabs.map((t) => t[1]).concat(pt.hidden ? [] : ["term"]);
+  store.lastTab = store.tab;
+  store.ptabs = tabs.map((t) => t[1]);
   setPanel({
+    wide: false,
     head,
     tabs: tabs.map((t) => ({ k: t[1], label: t[0] })),
     tab: store.tab,
     pickTab: (k) => {
       // In the run workspace Preview is a centre tab, not a panel tab.
       if (curView() === "run" && k === "preview") return void dispatchEvent(new Event("kz-run-preview"));
-      $("panel").classList.remove("pn");
+      setPanel({ pn: false });
       store.tab = k;
       openRun(c, true);
     },
@@ -217,10 +201,9 @@ export async function openRun(c, refresh, again) {
     doc = k === "preview" ? preview(store.runDoc.impl) && attach(preview(store.runDoc.impl), c) : store.runDoc[k];
   // A link to a finding or backlog item names a line of the document, found by its text (the lines carry no numbers).
   const needle = hit && hit.k === key(c) ? hitNeedle(store.runDoc, hit) : null;
-  if (k !== "term") termStop();
+  termStop();
   if (k !== "git") gitLeave();
-  if (k === "term") showTerm(c);
-  else if (k === "notes") {
+  if (k === "notes") {
     const ro = c.archived || c.status === "done" || c.status === "abandoned";
     drawNotes({ card: c, src: doc, ro, linked: store.runDoc.linkedFrom });
   } else if (k === "git") gitTab(c);
@@ -285,22 +268,12 @@ export function close() {
   gitLeave();
   store.openKey = null;
   store.runDoc = null;
-  $("panel").classList.remove("open");
-  $("scrim").classList.remove("on");
+  setPanel({ open: false });
   render();
   if (k) cardEl(k)?.focus({ preventScroll: true });
 }
 
 export function initPanel() {
-  // Answering an approval from the panel opens your agent on the run, told the decision and,
-  // for a revise, the comment. Answered approvals are remembered outside the footer, which
-  // every refresh rebuilds, so a second press cannot open a second agent. Keyed by when the
-  // run last moved: the same approval reached again after a revise is a new question.
-  // The footer's More menu is a <details>: close it on a click anywhere else.
-  document.addEventListener("click", (e) => {
-    for (const d of document.querySelectorAll(".more[open]")) if (!d.contains(e.target)) d.open = false;
-  });
-  // The panel's header parts and body are React (pages/board/panel.tsx over lib/run/panel-store.ts).
-  $("pclose").onclick = close;
-  $("scrim").onclick = close;
+  // The close button and the scrim: a phone's run sheet only hides (the card stays), every other panel closes.
+  setPanelActions({ close: () => (getRoute().view === "run" ? setFlip(false) : close()) });
 }

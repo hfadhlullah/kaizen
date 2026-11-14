@@ -11,11 +11,9 @@
 // layout in lib/run/layout-store.ts); this module knows which items the workspace has, starts and ends sessions, and
 // answers the keyboard.
 import { ask, isPhone } from "@lib/core";
-import { bindSheetSwipe } from "@lib/phone";
 import { pick } from "./projects.ts";
 import { store } from "./store.ts";
 import { toast } from "./toast.ts";
-import { $ } from "./dom.ts";
 import { key } from "./cards.ts";
 import { open } from "./panel.ts";
 import { load, post } from "./api.ts";
@@ -23,9 +21,10 @@ import { preview } from "./markdown.ts";
 import { cardHref, stateOf, titleOf, wsHref, wsOfCard } from "./workspace.ts";
 import { getRoute, navigate, touchRoute } from "@lib/router";
 import { onState, railDataNow } from "@lib/server";
+import { setHelp } from "@lib/shell";
 import { awaiting, chosen, devUrl, dueWord, finished, gitDue, historyOf, leaves, liveIn, loopbackUrl, migrate, newRun, pickable, previewOpens, reviewing, stageTabs, toOpen, wsKey } from "./ws-tabs.ts";
 import { age } from "@lib/core";
-import { boxesOf, detach, focusItem, fetchPreview, keepUrl, layoutOf, moveInLayout, nearestPane, patch, placeItems, refreshPreview, replaceAll, requestBrowse, clearBrowse, rects, selectScreen, setDragging, setRunActions, setRunView, setTarget, showItem, useLayout, type Saved, type SavedTab } from "@lib/run";
+import { boxesOf, detach, focusItem, fetchPreview, keepUrl, layoutOf, moveInLayout, nearestPane, patch, placeItems, refreshPreview, replaceAll, requestBrowse, clearBrowse, rects, selectScreen, setDragging, setFlip, setPanel, getPanel, setPanelActions, setRunActions, setRunView, setTarget, showItem, useLayout, useRunView, focusPane, type Saved, type SavedTab } from "@lib/run";
 
 type Tab = SavedTab & { kind: "agent" | "shell" | "local" | "preview" | "note" | "wait" | "history" };
 // Per workspace the saved layout (lib/run/layout-store.ts): the extra items opened (localhost, preview, notes, History),
@@ -216,8 +215,6 @@ function draw() {
     history: historyOf(store.S.cards, ctx!.dir, ctx!.ws, wsOfCard).map((c) => ({ k: key(c), title: titleOf(c), state: stateOf(c), line: `${c.status} · ${age(c.moved ?? now, now)} ago` })),
     empty: !scs.length,
   });
-  $("rside").setAttribute("aria-pressed", String(document.body.classList.contains("rflip")));
-  requestAnimationFrame(() => $("rtabs").querySelector('[aria-selected="true"]')?.scrollIntoView({ block: "nearest", inline: "nearest" }));
   mountPanel();
 }
 
@@ -243,13 +240,12 @@ function mountPanel() {
   const live = pickable(store.S.cards, ctx!.dir, ctx!.ws, wsOfCard),
     hist = historyOf(store.S.cards, ctx!.dir, ctx!.ws, wsOfCard),
     c = chosen(live, hist, picked.get(ctx!.k), key);
-  $("panel").classList.toggle("parked", !c);
-  $("rside").hidden = !c;
+  setPanel({ parked: !c });
   // Collapsed (a phone: sheet down) and a run waits: a dot on the panel button, no pop-open.
-  $("rside").toggleAttribute("data-dot", document.body.classList.contains("rflip") !== isPhone() && live.some(awaiting));
+  setRunView({ awaiting: live.some(awaiting) });
   if (!c) return void ((card = null), setRunView({ picker: null }));
   picked.set(ctx!.k, key(c));
-  $("panel").classList.toggle("ro", hist.includes(c)); // a run from History: no edit buttons (the commit and push ones stay)
+  setPanel({ ro: hist.includes(c) }); // a run from History: no edit buttons (the commit and push ones stay)
   card = c;
   // The picker is React (components/run/run-picker.tsx): the run shown, a dot when another needs you, the runs, then History.
   const now = Date.now(),
@@ -281,7 +277,7 @@ function show(id: string) {
 export const openNoteTab = (name: string) => addTab({ id: "note:" + name, kind: "note", title: name.slice(name.lastIndexOf("/") + 1), note: name });
 const openPreview = () => {
   addTab({ id: "preview", kind: "preview", title: "Preview" });
-  if (isPhone()) $("pclose").click(); // Preview is a centre tab: the sheet would sit over it
+  if (isPhone()) setFlip(false); // Preview is a centre tab: the sheet would sit over it
 };
 
 // The run's recorded session, resumed in a board terminal tied to it. While it still runs in
@@ -428,7 +424,7 @@ function likeFocused(): string | null {
 }
 // Leaving the workspace: its terminals unmount; the shells keep running on the server.
 function stopPanes() {
-  $("panel").classList.add("parked");
+  setPanel({ parked: true });
   // No items, no workspace: every pane component unmounts (and with it its terminal).
   setRunView({ items: [], wsk: null, ws: null });
   clearBrowse();
@@ -436,12 +432,14 @@ function stopPanes() {
 export function runStop() {
   stopPanes();
   card = ctx = null;
-  $("panel").classList.remove("pn");
+  setPanel({ pn: false });
 }
 
 // The strip's Project notes: the project's notes as a tree in the panel (components/run/project-notes.tsx); a note opens as a centre tab.
 async function projectNotes() {
-  if ($("panel").classList.toggle("pn") === false) return;
+  const pn = !getPanel().pn;
+  setPanel({ pn });
+  if (!pn) return;
   setRunView({ notes: { loading: true } });
   try {
     const d = await (await fetch("/vault?dir=" + encodeURIComponent(ctx!.dir))).json();
@@ -508,26 +506,8 @@ async function pollPreview() {
 }
 setInterval(() => void pollPreview(), 3000);
 
-// A phone's run sheet: drag it down from anywhere its content is at the top, or tap outside it (lib/phone/sheet-swipe.ts).
-function initSheet() {
-  const b = document.body;
-  bindSheetSwipe({
-    panel: $("panel"),
-    active: () => isPhone() && getRoute().view === "run" && b.classList.contains("rflip"),
-    close: () => $("pclose").click(),
-    keep: "#panel,#rside,dialog,.toast,[data-sonner-toast]",
-  });
-}
-
 // The keyboard, tmux style: Ctrl+Space puts focus in the current pane, then one more key
 // moves it: arrows or hjkl between panes, 1-9, n, p between tabs.
-const focusPane = (id?: string) => {
-  // Looked up after the next frame: the pane may have just been shown.
-  requestAnimationFrame(() => {
-    const el = id ? [...$("rpanes").querySelectorAll<HTMLElement>(".rpane")].find((p) => p.dataset.t === id) : null;
-    el?.querySelector<HTMLElement>("textarea,input,iframe")?.focus();
-  });
-};
 const setPane = (id: string) => {
   focusItem(ctx!.k, id);
   draw();
@@ -537,7 +517,7 @@ const DIRS = { ArrowLeft: "l", h: "l", ArrowRight: "r", l: "r", ArrowUp: "u", k:
 function paneKey(k: string) {
   if (k === "?") {
     (document.activeElement as HTMLElement)?.blur(); // Escape closes it only from outside the terminal
-    return void $("help").classList.add("on");
+    return void setHelp(true);
   }
   if (k === "x") {
     const sc = screens().find((x) => x.id === saved().on);
@@ -597,21 +577,8 @@ function initPaneKeys() {
 
 export function initRunView() {
   initPaneKeys();
-  // A phone's sheet closes with the panel's ×, which here hides the sheet rather than closing the card.
-  document.addEventListener(
-    "click",
-    (e) => {
-      if (getRoute().view !== "run" || !(e.target as Element).closest?.("#pclose")) return;
-      e.stopPropagation();
-      document.body.classList.remove("rflip");
-    },
-    true,
-  );
-  initSheet();
-  $("rside").onclick = () => {
-    document.body.classList.toggle("rflip");
-    draw();
-  };
+  // The panel's project-notes button; its close button and the scrim are panel.ts's.
+  setPanelActions({ notes: () => void projectNotes() });
   // The sidebar's agent mark: open that workspace with the agent's terminal tab selected.
   addEventListener("kz-open-term", (e: any) => {
     e.preventDefault();
@@ -635,7 +602,6 @@ export function initRunView() {
     navigate("ws");
   });
   addEventListener("kz-run-preview", openPreview);
-  $("pnotes").onclick = () => void projectNotes();
   setRunActions({
     select: (sid) => {
       selectScreen(ctx!.k, sid);

@@ -7,6 +7,7 @@ import { $, vt } from "./dom.ts";
 import { close, taskBody, open, openRun } from "./panel.ts";
 import { notifyUser, toast } from "./toast.ts";
 import { termsChanged } from "./terms.ts";
+import { editingNotes } from "@lib/run";
 
 // The server reads are lib/server's (one poller, one store); what is left here is what the board does with a new /state:
 // the notifications, the cards' redraw and slide, and the open card's panel.
@@ -60,10 +61,9 @@ setEngine(async (next, prev) => {
     }
   }
   if (store.openKey) {
-    const c = store.S.cards.find((x) => key(x) === store.openKey),
-      nb = $("pbody").querySelector(".notes");
+    const c = store.S.cards.find((x) => key(x) === store.openKey);
     // The textarea is hidden under the rich editor: focus anywhere in the notes counts.
-    if (nb?.contains(document.activeElement)) return;
+    if (editingNotes()) return;
     if (!c) {
       if (was && was.kind === "idea") follow(was);
       return;

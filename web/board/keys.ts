@@ -2,6 +2,9 @@ import { store } from "./store.ts";
 import { load } from "./api.ts";
 import { focusedKey, formPopup, key, nav, newTask, runPopup } from "./cards.ts";
 import { $ } from "./dom.ts";
+import { getPanel, scrollPanel } from "@lib/run";
+import { searchBox } from "@lib/settings";
+import { setHelp, useHelp } from "@lib/shell";
 import { close, openRun } from "./panel.ts";
 import { keep } from "./projects.ts";
 import { curView } from "./views.ts";
@@ -13,17 +16,15 @@ import { iceKeys } from "@lib/icebox";
 let layerUp = false;
 export function initKeys() {
   addEventListener("keydown", () => (layerUp = !!document.querySelector("#kz-portal [data-state=open]")), true);
-  $("kbd").onclick = () => $("help").classList.add("on");
-  $("help").onclick = () => $("help").classList.remove("on");
   document.onkeydown = (e) => {
     // The icebox reads its own keys first; a checkbox there keeps them, for x then j.
-    if (curView() === "sources" && !$("help").classList.contains("on") && iceKeys(e)) return;
+    if (curView() === "sources" && !useHelp.getState().on && iceKeys(e)) return;
     // A dialog or an open menu (they render into #kz-portal) handles its own keys; Escape there must not also close the panel.
     if (e.target.matches("input,select,textarea,[contenteditable]") || e.target.closest("dialog,#kz-portal") || layerUp) return;
     // The shortcuts overlay (?) is off for now, with its menu button; keys still work.
-    if (e.key === "/" && $("sq") && $("panel").classList.contains("open")) {
+    if (e.key === "/" && searchBox.el && getPanel().open) {
       e.preventDefault();
-      $("sq").focus();
+      searchBox.el.focus();
       return;
     }
     if (e.key === "/" && (curView() === "board" || curView() === "tasks") && $("bq")) {
@@ -32,7 +33,7 @@ export function initKeys() {
       return;
     }
     if (e.key === "Escape") {
-      $("help").classList.remove("on");
+      setHelp(false);
       // An inline form closes first (its own Escape handles a press inside it); a menu closes itself.
       if (getBoard().form) closeForm();
       else close();
@@ -76,12 +77,12 @@ export function initKeys() {
           store.tab = t;
           openRun(rc, true);
         }
-      } else $("pbody").scrollBy({ top: mv[1] * 40 });
+      } else scrollPanel(mv[1] * 40);
       return;
     }
     if (
       mv &&
-      !$("panel").classList.contains("open") &&
+      !getPanel().open &&
       !e.altKey &&
       !e.ctrlKey &&
       !e.metaKey &&

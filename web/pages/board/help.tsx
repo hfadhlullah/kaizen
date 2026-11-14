@@ -1,6 +1,8 @@
 import { Fragment } from "react";
+import { cn } from "@lib/core";
+import { setHelp, useHelp } from "@lib/shell";
 
-// The shortcut list, shown by ? and the side menu's keyboard button (web/board/keys.ts toggles `on`); a click closes it.
+// The shortcut list, shown by ? and the side menu's keyboard button (lib/shell/help-store.ts); a click closes it.
 const GLOBAL: [string[], string][] = [
   [["←↓↑→", "hjkl"], "move between cards"],
   [["Enter"], "open"],
@@ -39,8 +41,9 @@ const Keys = ({ rows, style }: { rows: [string[], string][]; style?: React.CSSPr
   </dl>
 );
 export function KeyHelp() {
+  const on = useHelp((s) => s.on);
   return (
-    <div className="help" id="help">
+    <div className={cn("help", on && "on")} id="help" onClick={() => setHelp(false)}>
       <div>
         <p>Optional. Everything here is also a button.</p>
         <Keys rows={GLOBAL} />

@@ -1,5 +1,4 @@
 import { store } from "./store.ts";
-import { $ } from "./dom.ts";
 import { close } from "./panel.ts";
 import { openSettings } from "./settings.ts";
 import { openTerms, termsStop } from "./terms.ts";
@@ -9,6 +8,7 @@ import { isPhone } from "@lib/core";
 import { openPhone } from "@lib/phone";
 import { getRoute, setRouterHooks, startRouter, type View } from "@lib/router";
 import { navigateTask, showTask } from "@lib/task";
+import { setPanel } from "@lib/run";
 
 // ---- the engine's side of the router. Which view shows, its address and history, and the page it draws are lib/router's
 // (the store, the App and the pages read it); this is what a view change still starts in the docked panel, the run
@@ -50,7 +50,6 @@ setRouterHooks({
     const was = handled;
     handled = v;
     const ph = isPhone() && v === "home";
-    const p = $("panel");
     if (v === "terminal") openTerms();
     else termsStop();
     if ((v === "home" && !ph) || v === "chat") openHome();
@@ -64,14 +63,11 @@ setRouterHooks({
         return;
       }
       // Undocked without the slide: it was a page, not a drawer leaving.
-      p.style.transition = "none";
-      p.classList.remove("open", "docked");
-      p.offsetWidth;
-      p.style.transition = "";
+      setPanel({ open: false, docked: false, instant: true });
       asBoard(close);
       return;
     }
-    p.classList.add("docked");
+    setPanel({ docked: true });
     openSettings();
   },
 });

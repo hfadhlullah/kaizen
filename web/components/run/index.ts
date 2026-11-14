@@ -6,6 +6,7 @@ export * from "./panel-grip.tsx";
 export * from "./panel-head.tsx";
 export * from "./panel-tabs.tsx";
 export * from "./project-notes.tsx";
+export * from "./run-bar.tsx";
 export * from "./run-empty.tsx";
 export * from "./run-footer.tsx";
 export * from "./run-history.tsx";

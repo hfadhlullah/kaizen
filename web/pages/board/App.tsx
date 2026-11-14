@@ -1,6 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect } from "react";
 import { TooltipProvider } from "@web/ui";
 import { useRouteClasses } from "@lib/router";
+import { useRunView } from "@lib/run";
 import { checkUpdate } from "@lib/settings";
 import { SourceMarks } from "@components/rail";
 import { HomeWsRow } from "@components/home";
@@ -20,6 +21,9 @@ import { Portal } from "./portal.tsx";
 // terminal and the run workspace's panes still unmount with their panel or workspace (web/board/panel.ts, run-view.ts).
 export function App() {
   useRouteClasses();
+  // The run panel folded away: the stylesheet keys on this <body> class.
+  const flip = useRunView((s) => s.flip);
+  useLayoutEffect(() => void document.body.classList.toggle("rflip", flip), [flip]);
   // Hourly so a tab left open still hears of a release; the server's cache limits npm to every 6 h.
   useEffect(() => {
     void checkUpdate();

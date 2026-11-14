@@ -36,6 +36,9 @@ export type RunView = {
   hint: boolean; // the Ctrl+Space key hint
   notes: RvNotes;
   picker: RvPicker | null; // the panel's run picker (null: no run to show)
+  flip: boolean; // the run panel is folded away (a phone's sheet is down); the <body> carries `rflip` while this is set
+  awaiting: boolean; // a run of this workspace waits on you: the panel button shows a dot while the panel is folded
+  focus: { id: string | null; n: number }; // a pane the keyboard asked to focus (n changes with every ask)
 };
 export type RunActions = {
   select(sid: string): void;
@@ -72,7 +75,12 @@ export const useRunView = create<RunView>()(() => ({
   hint: false,
   notes: null,
   picker: null,
+  flip: false,
+  awaiting: false,
+  focus: { id: null, n: 0 },
 }));
+export const setFlip = (flip: boolean) => useRunView.setState({ flip });
+export const focusPane = (id?: string) => useRunView.setState((s) => ({ focus: { id: id ?? null, n: s.focus.n + 1 } }));
 export const setRunView = useRunView.setState;
 const noop = () => {};
 export const run: { act: RunActions } = {

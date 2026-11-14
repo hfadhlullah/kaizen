@@ -1,6 +1,5 @@
 // A phone's run sheet (the run panel, a bottom sheet over the run workspace): drag it down from anywhere its content is at
-// the top, or tap outside it, to close it. The decision is pure (sheet-swipe.test.ts); `bindSheetSwipe` wires it to the old
-// panel element. It stays on touch events, not pointer events: the drag has to cancel the browser's own scroll
+// the top, or tap outside it, to close it. The decision is pure (sheet-swipe.test.ts); `bindSheetSwipe` wires it to the panel element. It stays on touch events, not pointer events: the drag has to cancel the browser's own scroll
 // (preventDefault on touchmove), and a pointer stream is cancelled once the browser starts that scroll.
 const DRAG_FROM = 10; // a finger drifts a few pixels in a tap; taking those as a drag would cancel its click
 // The sheet follows the finger once it moved past a tap's drift.
@@ -49,8 +48,8 @@ export function bindSheetSwipe(o: { panel: HTMLElement; active: () => boolean; c
   p.addEventListener("touchcancel", end);
   // composedPath, not target: a strip button redraws #ptabs in its own click, so by here the target is detached and
   // closest() would call a tap inside the sheet an outside one.
-  addEventListener(
-    "click",
-    (e) => o.active() && !e.composedPath().some((n) => (n as Element).matches?.(o.keep)) && o.close(),
-  );
+  const outside = (e: Event) =>
+    o.active() && !e.composedPath().some((n) => (n as Element).matches?.(o.keep)) && o.close();
+  addEventListener("click", outside);
+  return () => removeEventListener("click", outside);
 }

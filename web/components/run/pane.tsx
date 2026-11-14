@@ -1,5 +1,5 @@
-import { useEffect, useState, type CSSProperties } from "react";
-import { edgeOf, focusItem, moveInLayout, setDragging, useLayout, type Rect, type RvPane } from "@lib/run";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { edgeOf, focusItem, moveInLayout, setDragging, useLayout, useRunView, type Rect, type RvPane } from "@lib/run";
 import { cn } from "@lib/core";
 import { BrowserPane, PreviewPane, TerminalPane } from "@components/panes";
 import { PaneHeader } from "./pane-header.tsx";
@@ -65,6 +65,15 @@ export function Pane({
   useEffect(() => {
     if (!dragging) setEdge(null);
   }, [dragging]);
+  // The keyboard asked for this pane (Ctrl+Space, then an arrow): its terminal or field takes the cursor, a frame later,
+  // once the pane has been shown.
+  const asked = useRunView((s) => (s.focus.id === item.id ? s.focus.n : 0)),
+    box = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (!asked) return;
+    const f = requestAnimationFrame(() => box.current?.querySelector<HTMLElement>("textarea,input,iframe")?.focus());
+    return () => cancelAnimationFrame(f);
+  }, [asked]);
   const style: CSSProperties | undefined = rect && {
     left: pct(rect.l),
     top: pct(rect.t),
@@ -82,6 +91,7 @@ export function Pane({
         edge && EDGE[edge],
       )}
       data-t={item.id}
+      ref={box}
       hidden={!rect}
       style={style}
       // The pane last clicked is the one a split divides.

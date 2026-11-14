@@ -6,6 +6,7 @@ import {
   UpdateBar,
   SettingsSection,
 } from "@components/settings";
+import { panelBody } from "@lib/run";
 import { useNarrow } from "@lib/shared";
 import {
   pickPage,
@@ -48,8 +49,7 @@ export function SettingsPage() {
   // A new page starts at the top.
   useEffect(() => {
     if (main.current) main.current.scrollTop = 0;
-    const body = document.getElementById("pbody");
-    if (body) body.scrollTop = 0;
+    if (panelBody.el) panelBody.el.scrollTop = 0;
   }, [current]);
   if (!data) return <SettingsLoading />;
   const p = PAGES.find((x) => x.id === current),

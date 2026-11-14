@@ -1,8 +1,13 @@
+import { useEffect, useLayoutEffect, useRef } from "react";
+import { cn } from "@lib/core";
 import { DocBody, PanelGrip, PanelHead, PanelTabs, ProjectNotes, RunFooter, RunPicker } from "@components/run";
 import { NotesChat } from "@components/notes";
 import { TerminalPane } from "@components/panes";
 import { GitHost } from "@components/git";
-import { usePanel } from "@lib/run";
+import { bindSheetSwipe } from "@lib/phone";
+import { isPhone } from "@lib/core";
+import { panelActions, panelBody, setFlip, setPanel, useRunView, usePanel } from "@lib/run";
+import { getRoute } from "@lib/router";
 import { SettingsPage } from "../settings-page.tsx";
 import { Part } from "./host.tsx";
 
@@ -16,9 +21,17 @@ const Icon = ({ id }: { id: string }) => (
 // that is left unmounts, so nothing keeps running behind a tab that is not shown.
 function PanelBody() {
   const body = usePanel((s) => s.body),
-    term = usePanel((s) => s.term);
+    term = usePanel((s) => s.term),
+    top = usePanel((s) => s.top),
+    el = useRef<HTMLDivElement>(null);
+  // The body starts at its top whenever the panel asks (a new document, a new note), and is findable for the keys.
+  useLayoutEffect(() => {
+    panelBody.el = el.current;
+    return () => void (panelBody.el = null);
+  }, []);
+  useLayoutEffect(() => void (el.current!.scrollTop = 0), [top]);
   return (
-    <div className="body md" id="pbody">
+    <div className="body md" id="pbody" ref={el}>
       {body === "doc" && (
         <div className="kz-ui">
           <DocBody />
@@ -43,13 +56,45 @@ function PanelBody() {
     </div>
   );
 }
-// The detail panel: a card's tabs, the run workspace's side panel, and the page Settings fills. Its title and buttons are
-// the panel code's (web/board/panel.ts, settings.ts); the rest is React.
+// The detail panel: a card's tabs, the run workspace's side panel, and the page Settings fills. What frames it (shown,
+// docked, wide, parked, its title) is the panel store's; the engine (lib/run/panel.ts, run-view.ts) writes it.
 export function Panel() {
+  const cls = usePanel((s) =>
+      cn(s.open && "open", s.docked && "docked", s.wide && "wide", s.parked && "parked", s.pn && "pn", s.ro && "ro"),
+    ),
+    on = usePanel((s) => s.open),
+    title = usePanel((s) => s.title),
+    tip = usePanel((s) => s.titleTip),
+    instant = usePanel((s) => s.instant),
+    aside = useRef<HTMLElement>(null);
+  // A panel that left as a page is undocked without the slide: one frame with no transition, forced into effect, then
+  // the transition is back.
+  useLayoutEffect(() => {
+    if (!instant) return;
+    void aside.current!.offsetWidth;
+    setPanel({ instant: false });
+  }, [instant]);
+  // A phone's run sheet: drag it down from anywhere its content is at the top, or tap outside it (lib/phone/sheet-swipe.ts).
+  useEffect(
+    () =>
+      bindSheetSwipe({
+        panel: aside.current!,
+        active: () => isPhone() && getRoute().view === "run" && useRunView.getState().flip,
+        close: () => setFlip(false),
+        keep: "#panel,#rside,dialog,.toast,[data-sonner-toast]",
+      }),
+    [],
+  );
   return (
     <>
-      <div className="scrim" id="scrim" />
-      <aside id="panel" aria-label="detail">
+      <div className={cn("scrim", on && "on")} id="scrim" onClick={() => panelActions.close()} />
+      <aside
+        id="panel"
+        aria-label="detail"
+        ref={aside}
+        className={cls || undefined}
+        style={instant ? { transition: "none" } : undefined}
+      >
         <header>
           <div className="t">
             <div className="pwrap">
@@ -57,17 +102,16 @@ export function Panel() {
                 <RunPicker />
               </Part>
             </div>
-            <b id="ptitle" />
+            <b id="ptitle" title={tip}>
+              {title}
+            </b>
             <div className="sub" id="psub">
               <Part>
                 <PanelHead />
               </Part>
             </div>
           </div>
-          <button className="ib" id="pterm" aria-label="Terminal" title="Terminal" hidden>
-            <Icon id="i-term" />
-          </button>
-          <button className="ib" id="pclose" aria-label="Close" title="Close">
+          <button className="ib" id="pclose" aria-label="Close" title="Close" onClick={() => panelActions.close()}>
             <Icon id="i-close" />
           </button>
         </header>
@@ -77,7 +121,13 @@ export function Panel() {
               <PanelTabs />
             </Part>
           </nav>
-          <button className="pnotes" id="pnotes" title="Project notes" aria-label="Project notes">
+          <button
+            className="pnotes"
+            id="pnotes"
+            title="Project notes"
+            aria-label="Project notes"
+            onClick={() => panelActions.notes()}
+          >
             <Icon id="t-book" />
           </button>
         </div>
