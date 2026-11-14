@@ -11,7 +11,7 @@ import { PANE_PARTITION, paneAllows, paneAttach, paneNavigable } from "./browser
 import { autoUpdater } from "electron-updater";
 
 const smoke = process.env.KAIZEN_DESKTOP_SMOKE === "1";
-// The window buttons' strip, in the board's own background and ink (web/board.html :root tokens).
+// The window buttons' strip, in the board's own background and ink (web/html/board.html :root tokens).
 const TITLE_BAR = {
   light: { color: "#f5f5f5", symbolColor: "#171717", height: 52 },
   dark: { color: "#111111", symbolColor: "#e5e5e5", height: 52 },

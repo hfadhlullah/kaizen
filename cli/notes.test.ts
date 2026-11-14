@@ -214,30 +214,30 @@ test("tree and freshName", () => {
 
 test("the notebook's design tokens are the board's, line for line", () => {
   const block = (f: string) => {
-    const s = readFileSync(join(root, "web", f), "utf8").split("\n");
+    const s = readFileSync(join(root, "web", "html", f), "utf8").split("\n");
     const at = s.findIndex((l) => l.startsWith(":root{--bg:"));
     return s.slice(at, at + 11).join("\n");
   };
   expect(block("notes.html")).toBe(block("board.html"));
   expect(block("board.html")).toContain("data-theme=dark]{--shade");
   expect(block("board.html")).toContain(":root[data-color=blue][data-theme=dark]{");
-  const syms = (f: string) => readFileSync(join(root, "web", f), "utf8").split("\n").filter((l) => l.startsWith('<symbol id="s-')).join("\n");
+  const syms = (f: string) => readFileSync(join(root, "web", "html", f), "utf8").split("\n").filter((l) => l.startsWith('<symbol id="s-')).join("\n");
   expect(syms("notes.html")).toBe(syms("board.html"));
   expect(syms("board.html").split("\n").length).toBe(7);
-  const mascot = (f: string) => readFileSync(join(root, "web", f), "utf8").split("\n").find((l) => l.startsWith(".mascot{"));
+  const mascot = (f: string) => readFileSync(join(root, "web", "html", f), "utf8").split("\n").find((l) => l.startsWith(".mascot{"));
   expect(mascot("notes.html")).toBe(mascot("board.html")!);
 });
 
 test("the side menu is the board's on the notebook, line for line", () => {
   const between = (f: string, from: string, to: string) => {
-    const s = readFileSync(join(root, "web", f), "utf8");
+    const s = readFileSync(join(root, "web", "html", f), "utf8");
     const at = s.indexOf(from);
     expect(at).toBeGreaterThan(-1);
     return s.slice(at, s.indexOf(to, at) + to.length);
   };
   for (const [from, to] of [["/* side menu:", "/* end side menu */"], ['<nav class="rail"', "</script>"]] as const)
     for (const page of ["notes.html", "video.html"]) expect(between(page, from, to)).toBe(between("board.html", from, to));
-  const syms = (f: string) => ["board", "note", "video", "link", "gear", "side", "sun", "moon", "more"].map((n) => readFileSync(join(root, "web", f), "utf8").split("\n").find((l) => l.startsWith(`<symbol id="i-${n}"`)));
+  const syms = (f: string) => ["board", "note", "video", "link", "gear", "side", "sun", "moon", "more"].map((n) => readFileSync(join(root, "web", "html", f), "utf8").split("\n").find((l) => l.startsWith(`<symbol id="i-${n}"`)));
   expect(syms("notes.html")).toEqual(syms("board.html"));
   expect(syms("video.html")).toEqual(syms("board.html"));
   expect(syms("board.html").every(Boolean)).toBe(true);
@@ -254,7 +254,7 @@ test("web/dist/notebook.js, web/dist/term.js, web/dist/board.js, web/dist/ui.css
 
 test("an installed app fits the window, not the screen", () => {
   for (const f of ["board.html", "notes.html", "video.html"]) {
-    const s = readFileSync(join(root, "web", f), "utf8");
+    const s = readFileSync(join(root, "web", "html", f), "utf8");
     expect(s).not.toMatch(/--sh\b(?!a)/);
     expect(s).toContain("inset:0 0 auto;height:100dvh");
     expect(s).toContain("body::after{content");

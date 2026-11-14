@@ -29,7 +29,7 @@ fails when the bundle is stale).
 | `skills/` | The workflow as Agent Skills folders: `kaizen/` holds `SKILL.md` plus the `spec*.md` stage contracts, `adapters.md` and `config.default.yml`; `kaizen-help/` beside it; `media/` holds the bundled media skills `kaizen-deck/`, `kaizen-video/` (footage editing and from-scratch films), `kaizen-book/`. |
 | `agents/` | Codex subagents the workflow dispatches: `kaizen-planner.md`, `kaizen-builder.md`, `kaizen-reviewer.md`. |
 | `commands/` | The `/kaizen-*` slash commands, one markdown file each. |
-| `web/` | Board and notebook front end: the page shells (`board.html`, `notes.html`, `video.html`, `popup.html`), one folder per app (`notebook/`, `term/`, `video/`, `annotate/`), the board's React layers and bridge (`ui/`, `components/`, `pages/`, `lib/`, `board/`), and `dist/`, the generated bundles. See `web/README.md`. |
+| `web/` | Board and notebook front end: the page shells (`html/`: `board.html`, `notes.html`, `video.html`, `popup.html`), one folder per app (`notebook/`, `term/`, `video/`, `annotate/`), the board's React layers and bridge (`ui/`, `components/`, `pages/`, `lib/`, `board/`), and `dist/`, the generated bundles. See `web/README.md`. |
 | `bot/` | Kaizen Bot — a separate private package (chat server, agent runtime, desktop packaging) with its own tests and `package.json`. |
 | `docs/` | User and internal docs, indexed in `docs/README.md`. |
 | `design.md` | Design notes for the repo. |

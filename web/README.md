@@ -6,12 +6,12 @@ committed bundles are stale. `structure.test.ts` enforces the rules below.
 
 ## What is in web/
 
-Only folders, the four page shells, this file and `structure.test.ts` (which checks the whole tree, so
+Only folders, this file and `structure.test.ts` (which checks the whole tree, so
 it stays here; it also fails on any other file at this level).
 
 | Path | Holds |
 |---|---|
-| `board.html`, `notes.html`, `video.html`, `popup.html` | The page shells the server sends. Inline CSS and a `<script src>` tag to a bundle. |
+| `html/` | `board.html`, `notes.html`, `video.html`, `popup.html`: the page shells the server sends. Inline CSS and a `<script src>` tag to a bundle. |
 | `notebook/` | The Notes page's entry (`notebook.ts`, CodeMirror) and its text rules (`notes-lib.ts`, also used by `cli/` and the board). |
 | `term/` | The in-card terminal's entry (`term.ts`, xterm.js) with its font and paste helpers and their tests. |
 | `video/` | The Video page's entry (`video.ts`). |

@@ -844,7 +844,7 @@ test("notifier: only a run seen before, saying something new, and not a done the
   expect(due("u", "d", true, 1)).toBe(true);             // never waited
   // web.ts writes the function into the page over this marker; without it the board throws on load.
   expect(notifier.toString()).toStartWith("function notifier(");
-  expect(readFileSync(join(import.meta.dir, "..", "web", "board.html"), "utf8")).toContain("(/*notifier*/)()");
+  expect(readFileSync(join(import.meta.dir, "..", "web", "html", "board.html"), "utf8")).toContain("(/*notifier*/)()");
 });
 
 test("files written by Windows PowerShell, with a byte order mark, still read: the run shows, the first task is a task", () => {

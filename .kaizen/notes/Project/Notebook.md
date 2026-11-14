@@ -1,7 +1,7 @@
 ---
 description: The Notes tab: an Obsidian-compatible markdown folder under .kaizen/notes/
 tags: [project, notebook]
-sources: [cli/notes.ts, web/notebook/notebook.ts, web/notebook/notes-lib.ts, web/notes.html, cli/build-web.ts]
+sources: [cli/notes.ts, web/notebook/notebook.ts, web/notebook/notes-lib.ts, web/html/notes.html, cli/build-web.ts]
 updated: 2026-11-14
 ---
 # Notebook
@@ -15,7 +15,7 @@ Plain markdown files under `<state>/notes/`, folders allowed, so Obsidian can op
 ## Where it lives
 - `cli/notes.ts` — list, save (with conflict check), rename, delete, `boardIndex()`, `linksTo()`.
 - `web/notebook/notes-lib.ts` — text rules (wikilinks, tags, code spans) shared by page and tests.
-- `web/notebook/notebook.ts` → bundled to `web/dist/notebook.js` by `cli/build-web.ts` (`bun run build:web`); `web/notes.html` is the page.
+- `web/notebook/notebook.ts` → bundled to `web/dist/notebook.js` by `cli/build-web.ts` (`bun run build:web`); `web/html/notes.html` is the page.
 
 - The project picker lists folder names, as the board does; the full path is the select's tooltip. It lists every known project (`known` from `/state`), not only the board picker's: a project outside the Projects folder shows too.
 - `?dir=` wins: `pickProject()` in `web/notebook/notes-lib.ts` opens the project the address names even when the picker (`/state` projects, filtered by the Projects folder) leaves it out, and adds it to the select; `/vault` checks it. Before, a run's note tab for a project outside the Projects folder opened another project and showed nothing (issue #86, common on Windows).

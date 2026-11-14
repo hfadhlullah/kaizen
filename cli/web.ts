@@ -46,12 +46,12 @@ import * as taskService from "./task-service.ts";
 import { artifactResponse as taskArtifactResponse } from "./task-results.ts";
 import { gitUrl, destDir, winBad, cloneInto, branchesOf, ignoreKaizen } from "./add-project.ts";
 
-const PAGE = join(dirname(import.meta.dir), "web", "board.html");
+const PAGE = join(dirname(import.meta.dir), "web", "html", "board.html");
 // The board's script: web/board/*.ts, bundled into one file by `bun run build:web`.
 const BOARD_JS = join(dirname(import.meta.dir), "web", "dist", "board.js");
 const SOUNDS_DIR = join(dirname(import.meta.dir), "web", "sounds");
 // The notebook: its page, and the CodeMirror bundle `bun run build:web` commits to web/dist.
-const NOTES_PAGE = join(dirname(import.meta.dir), "web", "notes.html");
+const NOTES_PAGE = join(dirname(import.meta.dir), "web", "html", "notes.html");
 const ICO = join(dirname(import.meta.dir), "assets", "kaizen.ico");
 const UI_CSS = join(dirname(import.meta.dir), "web", "dist", "ui.css");
 const NOTES_JS = join(dirname(import.meta.dir), "web", "dist", "notebook.js");
@@ -60,8 +60,8 @@ const TERM_JS = join(dirname(import.meta.dir), "web", "dist", "term.js");
 const ANNOTATE_JS = join(dirname(import.meta.dir), "web", "annotate", "annotate.js");
 const TERM_CSS = join(dirname(import.meta.dir), "web", "dist", "term.css");
 // The Video page (kaizen-video's library, editor and renders) and its bundle.
-const VIDEO_PAGE = join(dirname(import.meta.dir), "web", "video.html");
-const POPUP_PAGE = join(dirname(import.meta.dir), "web", "popup.html");
+const VIDEO_PAGE = join(dirname(import.meta.dir), "web", "html", "video.html");
+const POPUP_PAGE = join(dirname(import.meta.dir), "web", "html", "popup.html");
 // The chat the popup was on when its Back button was pressed, until Home takes it.
 let popupChat: string | null = null;
 const VIDEO_JS = join(dirname(import.meta.dir), "web", "dist", "video.js");
@@ -826,7 +826,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
 
       if (req.method === "GET" && path === "/") {
         const page = served(PAGE);
-        if (page === null) return new Response("web/board.html missing", { status: 500 });
+        if (page === null) return new Response("web/html/board.html missing", { status: 500 });
         // The page gets the notify rule from state.ts rather than keeping its own copy.
         return new Response(page.replace("/*notifier*/", () => notifier.toString()), {
           headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-kaizen-version": VERSION },
@@ -863,7 +863,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
       // `kaizen chat`: the small chat window over the desktop.
       if (req.method === "GET" && path === "/popup") {
         const body = served(POPUP_PAGE);
-        if (body === null) return new Response("web/popup.html missing", { status: 500 });
+        if (body === null) return new Response("web/html/popup.html missing", { status: 500 });
         return new Response(body, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
       }
 
