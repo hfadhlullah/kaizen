@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, type RefObject } from "react";
-import { hasMic, stopDictation, toggleMic, useMic, IDLE, type Field } from "@lib/dictation";
+import { hasMic, listeningFor, stopDictation, toggleMic, useMic, IDLE, type Field } from "@lib/dictation";
 import { cn } from "@lib/core";
 import { IconButton } from "./icon-button.tsx";
 
@@ -45,7 +45,8 @@ export function MicButton({
     });
     return () => {
       offs.forEach((o) => o());
-      stopDictation(true);
+      // Only a session this button started: another field's (a terminal's Ctrl+Alt+D) keeps listening.
+      if (listeningFor(id)) stopDictation(true);
     };
   }, []);
   if (!hasMic()) return null;

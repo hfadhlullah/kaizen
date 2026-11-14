@@ -25,6 +25,8 @@ function Box({ k }: { k: string }) {
     ta = useRef<HTMLTextAreaElement>(null),
     ed = useRef<HTMLElement | null>(null);
   useLayoutEffect(() => {
+    // A draft restored from the session: the caret goes after it, where dictation and typing continue.
+    ta.current!.selectionStart = ta.current!.selectionEnd = ta.current!.value.length;
     ed.current = host.rich(ta.current!);
     return () => {
       ed.current?.remove();

@@ -74,6 +74,7 @@ async function loadAsr(): Promise<void> {
   } catch {}
   const model = modelFor(want);
   if (asrReady && asrModel !== model) {
+    active?.stop(); // a session still listening would post to the worker being dropped
     dropWorker();
     sessions.clear();
     active = null;
@@ -152,7 +153,8 @@ export async function toggleMic(o: Owner) {
   }
   progressTo = null;
   markMic(o.id, { loading: false, pct: null });
-  if (o.el && !o.el.isConnected) {
+  const gone = () => !!o.el && !o.el.isConnected;
+  if (gone()) {
     idleMic(o.id);
     starting = false;
     return;
@@ -162,6 +164,13 @@ export async function toggleMic(o: Owner) {
     stream = await openMic((audio) => navigator.mediaDevices.getUserMedia({ audio }), savedMic(), toast);
   } catch (err: any) {
     return fail("Microphone not available: " + (err.name === "NotAllowedError" ? "permission denied" : err.message));
+  }
+  // The field went away while the permission prompt was up (its dialog closed): nothing to type into.
+  if (gone()) {
+    stream.getTracks().forEach((t) => t.stop());
+    idleMic(o.id);
+    starting = false;
+    return;
   }
   if (active) active.stop();
   let ctx: AudioContext, src: MediaStreamAudioSourceNode, tap: AudioWorkletNode;
@@ -195,9 +204,9 @@ export async function toggleMic(o: Owner) {
   };
   const flush = () => {
     const a = chunker.take();
-    if (!a) return;
+    if (!a || !asrWorker) return;
     order.reserve(seq);
-    asrWorker!.postMessage({ type: "run", sid, seq, audio: a }, [a.buffer]);
+    asrWorker.postMessage({ type: "run", sid, seq, audio: a }, [a.buffer]);
     seq++;
     markMic(id, { busy: true });
   };
