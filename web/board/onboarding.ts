@@ -3,7 +3,7 @@
 // ~/.kaizen/onboarding.json (/onboarding), so a skipped or half-done flow can be continued from the
 // side menu's Setup row or the "Continue setup?" popup. Existing users, who have a project, never see it.
 import { html, raw } from "./dom.ts";
-import { openAdd } from "./add-project.ts";
+import { openAdd } from "../lib/add-project.ts";
 import { mountPhone } from "./react-mount.ts";
 
 type Cfg = { show: boolean; resume: boolean; step: number; total: number; default: string; installed: string[]; agents: { cmd: string; name: string }[]; install: Record<string, { command?: string; docs: string }> };

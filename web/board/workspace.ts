@@ -4,10 +4,12 @@
 // bundles can carry it without the board.
 import { onBoardCards, attentionTasks, setTaskAttention, taskForCard } from "./badge.ts";
 import { store } from "./store.ts";
-import { $, html, modal, raw } from "./dom.ts";
+import { $, html, raw } from "./dom.ts";
 import { initResources } from "./resources.ts";
 import { age, need } from "./labels.ts";
-import { openAdd } from "./add-project.ts";
+import { openAdd } from "../lib/add-project.ts";
+import { ask as askYes } from "../lib/ask.ts";
+import { openWsMenu, type WsMenuItem } from "../lib/ws-menu.ts";
 import { initSearch } from "./search.ts";
 import { agentsHtml, dueWord, forgetAgents, gitDue, moveTo, settleIn, toggleOpen, wsAgents, type Agent } from "./ws-tabs.ts";
 import { toast } from "./toast.ts";
@@ -102,7 +104,6 @@ const pins: Set<string> = (() => {
 // The right-click menu on a worktree row: update, copy path, copy name, pin, delete.
 function wsMenu(e: MouseEvent, a: HTMLElement) {
   e.preventDefault();
-  document.getElementById("wsmenu")?.remove();
   const dir = a.dataset.dir!, ws = a.dataset.ws!, key = dir + "\0" + ws;
   const w = last.projects?.find((p) => p.dir === dir)?.workspaces?.find((x) => x.path === ws);
   if (!w) return;
@@ -115,43 +116,38 @@ function wsMenu(e: MouseEvent, a: HTMLElement) {
     const j = await r?.json().catch(() => ({}));
     say(r?.ok ? (o === "update" ? j.out || "Updated" : "Deleted") : j?.error || j?.why || "Failed");
   };
-  const items: [string, () => void][] = [
-    ...(w.main ? [] : ([["Update", () => op("update")]] as [string, () => void][])),
-    ["Copy path", () => copy(ws)],
-    ["Copy worktree name", () => copy(name)],
-    [pins.has(key) ? "Unpin" : "Pin", () => {
-      pins.has(key) ? pins.delete(key) : pins.add(key);
-      try {
-        localStorage.setItem("kz-ws-pins", JSON.stringify([...pins]));
-      } catch {}
-      drawList();
-    }],
-    ...(w.main ? [] : ([["Delete", async () => {
-      const dl = modal(html`<div class="gdis" style="display:flex;flex-direction:column;gap:12px">
-        <b>Delete worktree "${name}"?</b>
-        <p>Removes the folder. Refused while it has uncommitted changes. The branch stays.</p>
-        <div class="gpath" style="font:12px monospace;overflow-wrap:anywhere">${ws}</div>
-        <div class="row"><button class="btn" value="no">Cancel</button><button class="btn danger" value="yes">Delete</button></div>
-      </div>`);
-      dl.addEventListener("close", () => dl.returnValue === "yes" && op("delete"));
-    }]] as [string, () => void][])),
+  const items: WsMenuItem[] = [
+    ...(w.main ? [] : [{ label: "Update", run: () => op("update") }]),
+    { label: "Copy path", run: () => copy(ws) },
+    { label: "Copy worktree name", run: () => copy(name) },
+    {
+      label: pins.has(key) ? "Unpin" : "Pin",
+      run: () => {
+        pins.has(key) ? pins.delete(key) : pins.add(key);
+        try {
+          localStorage.setItem("kz-ws-pins", JSON.stringify([...pins]));
+        } catch {}
+        drawList();
+      },
+    },
+    ...(w.main
+      ? []
+      : [
+          {
+            label: "Delete",
+            run: async () => {
+              const yes = await askYes({
+                title: `Delete worktree "${name}"?`,
+                description: `Removes the folder. Refused while it has uncommitted changes. The branch stays.\n\n${ws}`,
+                confirmLabel: "Delete",
+                danger: true,
+              });
+              if (yes) void op("delete");
+            },
+          },
+        ]),
   ];
-  const m = document.createElement("div");
-  m.id = "wsmenu";
-  m.style.cssText = `position:fixed;left:${Math.min(e.clientX, innerWidth - 190)}px;top:${Math.min(e.clientY, innerHeight - items.length * 34 - 16)}px;z-index:50;min-width:170px;padding:6px;background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r);box-shadow:0 8px 24px #0004;display:flex;flex-direction:column`;
-  for (const [label, fn] of items) {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.textContent = label;
-    b.style.cssText = "text-align:left;padding:7px 10px;font-size:13px;color:var(--ink);border-radius:var(--r-s)";
-    b.onmouseenter = () => (b.style.background = "var(--hover)");
-    b.onmouseleave = () => (b.style.background = "");
-    b.onclick = () => (m.remove(), fn());
-    m.append(b);
-  }
-  document.body.append(m);
-  const off = () => (m.remove(), removeEventListener("click", off), removeEventListener("keydown", off));
-  setTimeout(() => (addEventListener("click", off), addEventListener("keydown", off)));
+  openWsMenu(Math.min(e.clientX, innerWidth - 190), Math.min(e.clientY, innerHeight - items.length * 34 - 16), items);
 }
 // Workspace cards with their agent list open (dir\0ws -> true), kept per browser.
 const wsOpen: Record<string, true> = (() => {

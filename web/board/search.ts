@@ -5,7 +5,7 @@
 // video pages carry it too: a pick the page cannot do in place navigates instead.
 import { $, html, raw } from "./dom.ts";
 import { age } from "./labels.ts";
-import { openAdd } from "./add-project.ts";
+import { openAdd } from "../lib/add-project.ts";
 import { cardHref, projName, railData, stateOf, titleOf, wsHref, wsLabel, wsOfCard } from "./workspace.ts";
 import { match, type Item } from "./search-match.ts";
 import { leaves, wsKey } from "./ws-tabs.ts";

@@ -15,6 +15,9 @@ import { decided } from "../lib/run-actions.ts";
 import { setStore } from "../lib/store.ts";
 import { PhoneCard } from "../components/phone-card.tsx";
 import { UpdateCard } from "../components/update-bar.tsx";
+import { AddProjectDialog } from "../components/add-project-dialog.tsx";
+import { WsMenu } from "../components/ws-menu.tsx";
+import { FileViewer } from "../components/file-viewer.tsx";
 import { AskHost } from "../components/ask-host.tsx";
 import { BoardPopups } from "../components/board-popups.tsx";
 import { FixHost } from "../components/fix-host.tsx";
@@ -50,7 +53,8 @@ import { openWorkspace } from "./run-view.ts";
 import { mic, stopDictation } from "./dictation.ts";
 import { askNotify, setToaster } from "./toast.ts";
 import { $, dataUrls, motion } from "./dom.ts";
-import { setShown, showable } from "./projects.ts";
+import { pick as pickProject, setShown, showable } from "./projects.ts";
+import { gitProjects, wsHref } from "./workspace.ts";
 import { notifyOn, playSound, SOUNDS, soundPick } from "./toast.ts";
 import { store } from "./store.ts";
 
@@ -162,7 +166,7 @@ export function initReact(go: (view: string, push?: boolean) => void) {
   createRoot(toaster).render(createElement(Toaster));
   const popups = document.createElement("div");
   portal.append(popups);
-  createRoot(popups).render(createElement(TooltipProvider, null, createElement(BoardPopups), createElement(AskHost), createElement(UpdateCard), createElement(FixHost), createElement(GitHost), createElement(KeyHint)));
+  createRoot(popups).render(createElement(TooltipProvider, null, createElement(BoardPopups), createElement(AskHost), createElement(FileViewer), createElement(WsMenu), createElement(AddProjectDialog), createElement(UpdateCard), createElement(FixHost), createElement(GitHost), createElement(KeyHint)));
   setToaster(toast);
   setHost({
     go,
@@ -206,6 +210,9 @@ export function initReact(go: (view: string, push?: boolean) => void) {
     font: { min: FONT_MIN, max: FONT_MAX, read: fontRead, set: fontSet },
     notices: { on: notifyOn, sounds: SOUNDS, sound: soundPick, play: (n) => playSound(n) },
     currentDir: () => store.dir || store.S?.dir || "",
+    gitProjects,
+    wsHref,
+    pickProject,
     openSettings: (q) => {
       store.setQ = q;
       go("settings", true);

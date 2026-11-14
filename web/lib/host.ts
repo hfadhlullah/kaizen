@@ -52,6 +52,11 @@ export type Host = {
   font: { min: number; max: number; read(): number; set(n: number): void };
   notices: { on(): boolean; sounds: string[]; sound(): string; play(name?: string): void };
   currentDir(): string;
+  // The Add a project sheet (phase 5): the projects that have a git workspace, a workspace's address, and switching the
+  // board to a project that was just added.
+  gitProjects(): { dir: string; name: string }[];
+  wsHref(dir: string, ws: string): string;
+  pickProject(stateDir: string): Promise<void>;
 };
 const none = (): never => {
   throw new Error("The board has not mounted this page yet");
@@ -89,5 +94,8 @@ export const host: Host = {
   font: { min: 8, max: 24, read: () => 12, set: () => {} },
   notices: { on: () => true, sounds: [], sound: () => "", play: () => {} },
   currentDir: () => "",
+  gitProjects: () => [],
+  wsHref: () => "",
+  pickProject: async () => {},
 };
 export const setHost = (h: Partial<Host>) => Object.assign(host, h);
