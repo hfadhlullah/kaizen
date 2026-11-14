@@ -12,7 +12,7 @@ it stays here; it also fails on any other file at this level).
 | Path | Holds |
 |---|---|
 | `html/` | `board.html`, `notes.html`, `video.html`, `popup.html`: the page shells the server sends. Inline CSS and a `<script src>` tag to a bundle. |
-| `notebook/` | The Notes page's entry (`notebook.ts`, CodeMirror) and its text rules (`notes-lib.ts`, also used by `cli/` and the board); `kit.ts` (entry of the on-demand React bundle the page opens Search and project sheets from) and `kit-loader.ts`. |
+| `notebook/` | The Notes page's entry (`notebook.ts`, CodeMirror) and its text rules (`notes-lib.ts`, also used by `cli/` and the board); `kit.ts` (entry of the React bundle the page loads at start: its Projects list and filter, Search and project sheets) and `kit-loader.ts`. |
 | `term/` | The in-card terminal's entry (`term.ts`, xterm.js) with its font and paste helpers and their tests. |
 | `video/` | The Video page's entry (`video.ts`). |
 | `annotate/` | `annotate.js`: the annotator script, plain JS written by hand (not generated), served as-is. |
@@ -59,6 +59,8 @@ pages/  ->  components/<feature>/  ->  ui/  ->  lib/core/utils.ts
 | `phone` | Phone setup (QR, WhatsApp card) and the phone-sized new-run sheets. |
 | `home` | Home: chat list, messages, composer, onboarding dialog; the home store. |
 | `project` | Project picker, Add project dialog, workspace menu, branch rules. |
+| `rail` | The side menu's Projects list (rows, folds, pins, project drag, agent chips, task links, worktree right-click menu) and its filter; rules, store and requests in `lib/rail`. Rows keep the board's legacy classes. |
+| `resources` | The footer resource popup: Memory, Storage, Terminals; store, requests and sizes in `lib/resources`. |
 | `search` | The search palette and its matching. |
 | `markdown`, `url` | The markdown renderer (component and parser) and `safeUrl`, kept apart so the notebook bundle takes only `safeUrl`. |
 
@@ -74,7 +76,7 @@ pages/  ->  components/<feature>/  ->  ui/  ->  lib/core/utils.ts
 - **Names.** Kebab-case files (`task-row.tsx`, `use-task.ts`); the file's main export is its
   PascalCase name; hooks start with `use-`; stores end `-store`, request functions `-actions`.
   Tests live beside the code they test as `*.test.ts` (in the feature folder, or in `term/` next to `term-font.ts`), import the file they test directly, and are not counted in the 25-file limit; an `index.ts` never exports them. `checks/structure.test.ts` stays in `web/` because it checks the whole tree.
-- **Exceptions.** `ui/` takes `lib/core/utils.ts` directly. Six `board/` bridge files import one small
+- **Exceptions.** `ui/` takes `lib/core/utils.ts` directly. Seven `board/` bridge files import one small
   lib file directly because they run in the notebook and Video bundles or in DOM-less tests, where a
   barrel would pull in the board's stores (list: `BRIDGE_DIRECT` in `checks/structure.test.ts`).
 - **Core's type imports.** `lib/core/api.ts` and `store.ts` use `import type` from `lib/task` and
