@@ -32,7 +32,7 @@ export function GitMessage({ value, onChange }: { value: string; onChange: (v: s
           disabled={spark}
           onClick={() => void gitAct("spark")}
           className={cn(
-            "absolute right-1.5 top-1.5 size-(--btn-xs) hover:text-primary",
+            "absolute right-1.5 top-1.5 size-(--btn-xs) hover:text-primary [&_svg]:size-3.5",
             spark && "[&_svg]:motion-safe:animate-spin",
           )}
         />

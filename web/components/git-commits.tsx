@@ -13,7 +13,7 @@ export function GitCommits({ log, head, shut }: { log: GitLog[]; head?: string; 
           type="button"
           aria-expanded={!shut}
           onClick={() => fold("log")}
-          className="inline-flex items-center gap-1.5 text-foreground"
+          className="inline-flex items-center gap-1.5 font-semibold uppercase tracking-wide text-foreground"
         >
           <GitIcon name="chev" className={cn("transition-transform", !shut && "rotate-90")} />
           Commits{" "}

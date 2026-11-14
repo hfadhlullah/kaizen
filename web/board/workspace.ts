@@ -107,12 +107,7 @@ function wsMenu(e: MouseEvent, a: HTMLElement) {
   const w = last.projects?.find((p) => p.dir === dir)?.workspaces?.find((x) => x.path === ws);
   if (!w) return;
   const name = wsLabel(w);
-  const say = (m: string) => {
-    const t = $("toast");
-    t.textContent = m;
-    t.classList.add("on");
-    setTimeout(() => t.classList.remove("on"), 4000);
-  };
+  const say = (m: string) => toast(m); // the shared toast: #toast is gone
   const copy = (text: string) => navigator.clipboard.writeText(text).then(() => say("Copied"), () => say("Could not copy"));
   const op = async (o: string) => {
     say(o === "update" ? "Updating…" : "Deleting…");

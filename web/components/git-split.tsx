@@ -1,3 +1,4 @@
+import { useRef, useState } from "react";
 import { BUSY, type MainStep, type Step } from "../lib/git.ts";
 import { gitAct } from "../lib/git-actions.ts";
 import { useGit } from "../lib/git-store.ts";
@@ -14,9 +15,11 @@ import { Icon } from "../ui/icon.tsx";
 // One split button: the main step (Stage all, then Commit, then the next remote step) and a menu with every step,
 // each unavailable one saying why under its name.
 export function GitSplit({ main, all, prUrl }: { main: MainStep; all: Step[]; prUrl?: string }) {
-  const busy = useGit((s) => s.busy);
+  const busy = useGit((s) => s.busy),
+    box = useRef<HTMLDivElement>(null),
+    [width, setWidth] = useState<number>();
   return (
-    <div className="flex w-full">
+    <div ref={box} className="flex w-full">
       <Button
         disabled={!main.a || !!busy}
         onClick={() => void gitAct(main.a as "commit")}
@@ -31,7 +34,7 @@ export function GitSplit({ main, all, prUrl }: { main: MainStep; all: Step[]; pr
           </>
         )}
       </Button>
-      <DropdownMenu>
+      <DropdownMenu onOpenChange={(o) => o && setWidth(box.current?.offsetWidth)}>
         <DropdownMenuTrigger asChild>
           <Button
             aria-label="More commit and remote actions"
@@ -41,13 +44,14 @@ export function GitSplit({ main, all, prUrl }: { main: MainStep; all: Step[]; pr
             <Icon name="chev" className="size-(--ico)" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-[min(340px,calc(100vw-32px))] text-sm">
+        {/* As wide as the split button, as the old menu was. */}
+        <DropdownMenuContent style={{ width }} className="text-sm">
           {all.map((x) => (
             <DropdownMenuItem
               key={x.a}
               disabled={!!x.why || !!busy}
               onSelect={() => void gitAct(x.a)}
-              className="flex-col items-start gap-0 py-1 data-[disabled]:opacity-100 data-[disabled]:text-muted-foreground"
+              className="flex-col items-start gap-0 py-1 text-foreground data-[disabled]:text-muted-foreground data-[disabled]:opacity-100"
             >
               <span>{x.label}</span>
               {x.why && <small className="text-xs">{x.why}</small>}

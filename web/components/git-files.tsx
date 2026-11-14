@@ -89,7 +89,7 @@ export function GitFiles({
           type="button"
           aria-expanded={!shut}
           onClick={() => fold(id)}
-          className="inline-flex items-center gap-1.5 text-foreground"
+          className="inline-flex items-center gap-1.5 font-semibold uppercase tracking-wide text-foreground"
         >
           <GitIcon name="chev" className={cn("transition-transform", !shut && "rotate-90")} />
           {title} <span className="font-medium text-muted-foreground">{rows.length}</span>
