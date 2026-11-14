@@ -496,9 +496,10 @@ board show a state the TUI cannot.
 - `design.md` (this file)
 - `assets/kaizen.jpg` mascot source, `assets/make-images.py` rebuilds every image
 - `assets/tanuki.svg` traced outline, rebuilt by `make-images.py`
-- `web/html/board.html` the board; tokens from sections 2 and 3 at the top of its `<style>`
+- `web/html/board.html` the board's 12-line shell (the page is `web/pages/board/App.tsx`); tokens from sections 2 and 3 at the top of
+  its stylesheet, `web/ui/legacy/board.css`, built with the kit into `web/dist/board.css`
 - `cli/web.ts` serves it; `cli/state.ts` is the logic both boards share
-- `web/html/notes.html` the notebook page, its tokens copied line for line from the board's
+- `web/html/notes.html` the notebook's shell, its tokens (`web/ui/legacy/notes.css`) copied line for line from the board's
   (a test holds them equal); `web/notebook/notebook.ts` its script, bundled with CodeMirror into
   the committed `web/dist/notebook.js` by `bun run build:web`; `cli/notes.ts` its files
 

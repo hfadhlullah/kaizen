@@ -10,7 +10,7 @@ Small tool, small rules.
 ## Changes
 
 - **Tests must pass.** CI runs `bun test` on Ubuntu and Windows. Touched
-  any TypeScript under `web/` (or `bot/web/app/`)? Rebuild with `bun run build:web` and commit `web/dist/` (and
+  any TypeScript or stylesheet (`web/ui/`) under `web/` (or `bot/web/app/`)? Rebuild with `bun run build:web` and commit `web/dist/` (and
   `bot/web/app.js`) — a test fails on a stale bundle either way.
 - **Non-trivial work, dogfood.** Start a run in this repo — `/kaizen <change>` — and
   let it plan, build and review the change. That is the tool doing its own job, and the

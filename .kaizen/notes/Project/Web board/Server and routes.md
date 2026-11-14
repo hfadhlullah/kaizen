@@ -32,12 +32,12 @@ The program behind the board: what it serves, which computers may reach it, how 
 
 - Automations: a 60 s tick in `cli/web.ts` (own busy flag, `automate`, cleared at shutdown) calls `tickAutomations`; `/automations` (GET, POST ops create|update|pause|resume|delete|run, same-origin + JSON checks, project from `x-kz-dir`, never the home state) feeds Settings → Automations (`web/components/settings/automation-rows.tsx`; the form draft is kept across redraws). The create form carries a warning that runs are unattended.
 
-- Update: `GET /version` reports `update` when npm has a newer kaizen and `POST /upgrade` runs `kaizen upgrade`; both stand down when `KAIZEN_DESKTOP_BUNDLED=1` (set by the desktop app when it runs its own read-only copy, see `docs/desktop.md`): no Update button, and `/upgrade` answers 409. Inside the desktop app, `web/board/update.ts` uses `window.kaizenDesktop` (the app's preload) instead: Check for updates and Update ask the app's electron-updater for a newer desktop release.
+- Update: `GET /version` reports `update` when npm has a newer kaizen and `POST /upgrade` runs `kaizen upgrade`; both stand down when `KAIZEN_DESKTOP_BUNDLED=1` (set by the desktop app when it runs its own read-only copy, see `docs/desktop.md`): no Update button, and `/upgrade` answers 409. Inside the desktop app, `web/lib/settings/update.ts` uses `window.kaizenDesktop` (the app's preload) instead: Check for updates and Update ask the app's electron-updater for a newer desktop release.
 
 ## Watch out
 - Desktop bundled board: `KAIZEN_DESKTOP_BUNDLED` and the app's `KAIZEN_HOME` (the read-only bundled copy, equal to `repoDir`) are removed from `process.env` in `web()` *after* `adoptLoginEnv()`. Bun runs the login-shell probe with the board's original environment, so it echoes back what was deleted at load and `adoptLoginEnv` re-adds any key the board lacks: that is how terminals kept `KAIZEN_DESKTOP_BUNDLED=1` and `KAIZEN_HOME=/tmp/.mount_…`, and `kaizen upgrade` in a board terminal failed with `EROFS`. A user's own `KAIZEN_HOME` (not bundled) is kept. Test: `cli/desktop-env.test.ts` (its fake shell answers the probe).
 
-- `web/html/board.html` is not served verbatim: `notifier()` from `state.ts` is written over a `/*notifier*/` marker (`.kaizen/memory.md`).
+- `web/html/board.html` is a 12-line shell served as it is; the notify rule `notifier()` is `web/lib/core/notifier.ts`, bundled into `board.js` and re-exported by `cli/state.ts` (roadmap 2 phase 9; it used to be written over a `/*notifier*/` marker).
 
 - `web/dist/board.js` is committed and hash-checked: after editing `web/board/`, run `bun run build:web` or `cli/notes.test.ts` fails. A module that assigns another module's variable must go through `store`: an imported binding cannot be assigned.
 
@@ -48,7 +48,7 @@ The program behind the board: what it serves, which computers may reach it, how 
 
 - `load()` in `web/html/board.html` runs in every open tab on every server change event, not only on user action. Anything persisted from inside it is overwritten by whichever tab refreshes last; persist from the handler the user triggered.
 
-- `web/html/board.html` is not served verbatim: `cli/web.ts` writes `notifier()` from `cli/state.ts` over a `/*notifier*/` marker. A function sent this way must stand alone (no imports, no outer constants), and opening the html file directly is a syntax error.
+- `notifier()` must stand alone (no imports, no outer constants): `cli/state.ts` and the web board both use `web/lib/core/notifier.ts`. Pages and bundles are served from `web/html` and `web/dist`; each page's one stylesheet is `/board.css`, `/notebook.css` or `/popup.css`, and every one is in `AT_START` (a test checks every file of both folders).
 
 - Since 2026-10-16-board-project-per-page, `kaizen web` keeps no current project: each page sends its pick as `x-kz-dir` (`dirHeader()` in `web/board/api.ts`, `store.dir`), and `cli/web.ts` resolves `state`/`project` per request, falling back to `boardState`. A new board fetch that depends on the project must send that header or pass `dir`, or it reads where the board started.
 
