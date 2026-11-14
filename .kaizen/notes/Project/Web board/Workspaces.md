@@ -1,7 +1,7 @@
 ---
 description: Projects list as workspaces, workspace cards, the workspace centre, terminals following their run
 tags: [project, web-board]
-sources: [web/board/run-view.ts, web/board/ws-tabs.ts, web/board/run-pick.ts, web/board/workspace.ts, cli/worktree.ts, cli/pty.ts, web/board, web/video.html]
+sources: [web/board/run-view.ts, web/board/ws-tabs.ts, web/board/workspace.ts, cli/worktree.ts, cli/pty.ts, web/board, web/html/video.html]
 updated: 2026-11-13
 ---
 # Workspaces

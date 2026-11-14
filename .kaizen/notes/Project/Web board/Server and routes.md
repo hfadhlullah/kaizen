@@ -37,7 +37,7 @@ The program behind the board: what it serves, which computers may reach it, how 
 ## Watch out
 - Desktop bundled board: `KAIZEN_DESKTOP_BUNDLED` and the app's `KAIZEN_HOME` (the read-only bundled copy, equal to `repoDir`) are removed from `process.env` in `web()` *after* `adoptLoginEnv()`. Bun runs the login-shell probe with the board's original environment, so it echoes back what was deleted at load and `adoptLoginEnv` re-adds any key the board lacks: that is how terminals kept `KAIZEN_DESKTOP_BUNDLED=1` and `KAIZEN_HOME=/tmp/.mount_…`, and `kaizen upgrade` in a board terminal failed with `EROFS`. A user's own `KAIZEN_HOME` (not bundled) is kept. Test: `cli/desktop-env.test.ts` (its fake shell answers the probe).
 
-- `web/board.html` is not served verbatim: `notifier()` from `state.ts` is written over a `/*notifier*/` marker (`.kaizen/memory.md`).
+- `web/html/board.html` is not served verbatim: `notifier()` from `state.ts` is written over a `/*notifier*/` marker (`.kaizen/memory.md`).
 
 - `web/dist/board.js` is committed and hash-checked: after editing `web/board/`, run `bun run build:web` or `cli/notes.test.ts` fails. A module that assigns another module's variable must go through `store`: an imported binding cannot be assigned.
 
@@ -46,9 +46,9 @@ The program behind the board: what it serves, which computers may reach it, how 
 
 - The server keeps no current project: each page sends its pick as `x-kz-dir` (`dirHeader()` in `web/board/api.ts`) and `cli/web.ts` resolves the project per request, so a phone picking another project never moves a desktop tab. `/cd` only checks the folder (and sets up a fresh one).
 
-- `load()` in `web/board.html` runs in every open tab on every server change event, not only on user action. Anything persisted from inside it is overwritten by whichever tab refreshes last; persist from the handler the user triggered.
+- `load()` in `web/html/board.html` runs in every open tab on every server change event, not only on user action. Anything persisted from inside it is overwritten by whichever tab refreshes last; persist from the handler the user triggered.
 
-- `web/board.html` is not served verbatim: `cli/web.ts` writes `notifier()` from `cli/state.ts` over a `/*notifier*/` marker. A function sent this way must stand alone (no imports, no outer constants), and opening the html file directly is a syntax error.
+- `web/html/board.html` is not served verbatim: `cli/web.ts` writes `notifier()` from `cli/state.ts` over a `/*notifier*/` marker. A function sent this way must stand alone (no imports, no outer constants), and opening the html file directly is a syntax error.
 
 - Since 2026-10-16-board-project-per-page, `kaizen web` keeps no current project: each page sends its pick as `x-kz-dir` (`dirHeader()` in `web/board/api.ts`, `store.dir`), and `cli/web.ts` resolves `state`/`project` per request, falling back to `boardState`. A new board fetch that depends on the project must send that header or pass `dir`, or it reads where the board started.
 

@@ -1,7 +1,7 @@
 ---
 description: Board cards and columns: order, compact done cards, the action button, search and add sheets
 tags: [project, web-board]
-sources: [web/pages/board-page.tsx, web/components, web/lib, web/board/cards.ts, web/board/panel.ts, web/lib/notes, web/components/notes, web/board/react-mount.ts, web/board/search.ts, web/lib/search/search-match.ts, web/board/run-view.ts, web/board/badge.ts, web/board/ws-tabs.ts, web/board/workspace.ts, web/board/ws-board.ts, web/board/ws-board-ui.ts, cli/add-project.ts, cli/add-project.test.ts, cli/usage.test.ts, cli/chat.ts, cli/state.ts, web/board, web/video.html]
+sources: [web/pages/board-page.tsx, web/components, web/lib, web/board/cards.ts, web/board/panel.ts, web/lib/notes, web/components/notes, web/board/react-mount.ts, web/board/search.ts, web/lib/search/search-match.ts, web/board/run-view.ts, web/board/badge.ts, web/board/ws-tabs.ts, web/board/workspace.ts, web/board/ws-board.ts, web/board/ws-board-ui.ts, cli/add-project.ts, cli/add-project.test.ts, cli/usage.test.ts, cli/chat.ts, cli/state.ts, web/board, web/html/video.html]
 updated: 2026-11-14
 ---
 # Cards

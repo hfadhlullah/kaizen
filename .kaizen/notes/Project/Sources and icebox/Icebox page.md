@@ -1,7 +1,7 @@
 ---
 description: The board's Icebox page: capture box, boards bar, Cards | Sort, item menus, and the phone list with swipe
 tags: [project, sources, web-board]
-sources: [web/pages/icebox-page.tsx, web/components, web/lib/icebox/icebox.ts, web/lib/icebox/icebox-actions.ts, web/lib/icebox/icebox-store.ts, web/lib/icebox/icebox-view.ts, web/lib/icebox, web/board/react-mount.ts, web/board.html, web/board/views.ts, web/icebox.test.ts]
+sources: [web/pages/icebox-page.tsx, web/components, web/lib/icebox/icebox.ts, web/lib/icebox/icebox-actions.ts, web/lib/icebox/icebox-store.ts, web/lib/icebox/icebox-view.ts, web/lib/icebox, web/board/react-mount.ts, web/html/board.html, web/board/views.ts, web/icebox.test.ts]
 updated: 2026-11-14
 ---
 # Icebox page
@@ -17,7 +17,7 @@ The page where you throw things into the icebox and sort them out: a box to type
 - Keys: `keys.ts` calls `react.iceKeys(e)` first while `view === "sources"`; it ignores keys while a text field or an open Radix popup (`data-state=open`) has them.
 - Dialogs the old page asked with `modal()` / `confirm()` are `collection-dialog` and `confirm-dialog`, asked as promises from `icebox-actions.ts` (`askCollection`, `askConfirm`) and drawn by the page from `store.ask`. "Connect Google first" is a toast, not an `alert()`.
 - Dictation is `web/lib/dictation` (the engine, a worker and the microphone) and the file shrinker stays the board's (`host.dataUrls`): `MicButton` (`components/shared`) draws the dictation button from the lib's per-button state and stops it with the page; the capture textarea is uncontrolled (dictation types into it and sends an input event).
-- Styles: Tailwind in the components; the only legacy CSS left is the `#icev` container rule and `body.ice .hdr #showc` on a phone in `web/board.html`. Kind colours are theme names (`text-kind-client|finding|people`, `bg-promote`) in `web/ui/theme.css`.
+- Styles: Tailwind in the components; the only legacy CSS left is the `#icev` container rule and `body.ice .hdr #showc` on a phone in `web/html/board.html`. Kind colours are theme names (`text-kind-client|finding|people`, `bg-promote`) in `web/ui/theme.css`.
 - Routes: `/sources`, `/icebox` (ops add, promote, dismiss, restore, snooze, unsnooze, kind, board, boards, task-draft), `/reply`, `/chatgpt`, `/google`, `/ice-image` ([[Web board/Server and routes]]); unchanged by the rewrite.
 
 ## Watch out

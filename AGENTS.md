@@ -19,9 +19,10 @@ a game. The skill holds the steps and the quality bar the work needs.
 ## Project structure
 
 kaizen is TypeScript on Bun with zero runtime dependencies. The CLI has no build step —
-`cli/*.ts` runs as-is. The web front end ships prebuilt as `web/dist/notebook.js`; rebuild it
-with `bun run build:web` after editing `web/notebook/notebook.ts` or `web/notebook/notes-lib.ts` (a test
-fails when the bundle is stale).
+`cli/*.ts` runs as-is. The web front end ships prebuilt in `web/dist/` (`board.js`, `ui.css`,
+`notebook.js`, `term.js`, `video.js`, `annotate.js`) and the bot's `bot/web/app.js`; rebuild them with
+`bun run build:web` after editing any TypeScript under `web/` (or `bot/web/app/`) (a test fails when a bundle
+is stale).
 
 | Path | What it is |
 |---|---|
