@@ -14,3 +14,5 @@ export * from "./ws-tabs.ts";
 export * from "./card-terminal.ts";
 export * from "./panel.ts";
 export * from "./workspace.ts";
+export * from "./use-run-lifecycle.ts";
+export * from "./kept.ts";

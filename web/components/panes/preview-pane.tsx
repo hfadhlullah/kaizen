@@ -62,18 +62,19 @@ function Report({ url, text }: { url?: string; text: string | null }) {
 
 // The Preview tab. It reads what it shows when it opens, and again when a screenshot is written for the workspace
 // (the layout store's `previewTick`); the old picture stays up until the new one is ready.
-export function PreviewPane() {
+export function PreviewPane({ live = true }: { live?: boolean }) {
   const tick = useLayout((s) => s.previewTick),
     [data, setData] = useState<PreviewData | null>(null);
   useEffect(() => {
-    const t = run.act.previewTarget();
+    // A kept workspace's Preview, hidden while another is shown, would read that other workspace.
+    const t = live && run.act.previewTarget();
     if (!t) return;
     let gone = false;
     void loadPreview(t).then((d) => !gone && setData(d));
     return () => {
       gone = true;
     };
-  }, [tick]);
+  }, [tick, live]);
   if (!data) return null;
   if (data.kind === "frame")
     return <iframe className="min-h-0 w-full flex-1 border-0 bg-card" title="Preview" src={data.src} />;

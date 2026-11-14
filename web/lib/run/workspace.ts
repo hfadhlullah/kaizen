@@ -1,82 +1,27 @@
-// The workspace centre (?view=ws&dir=&ws=; a run's or task's old address resolves to its
-// workspace and picks that run in the panel): a tab bar over one folder holding terminals and the
-// Browser, never runs. Agent terminals are tabs, named by stage for a run's ("Build · Claude"),
-// beside shells started with POST /shell {ws}, the project's localhost, the Preview, project
-// notes and History (finished runs, read-only in the panel). The run panel (#panel, drawn by
-// panel.ts) docks on the right and shows one run, chosen in its picker (run-pick.ts); the centre
-// never follows it. A workspace with no tab opens a shell in its folder. Terminal tabs are
-// kzTerm mounts on /pty that live as long as their tab, so a tab switch or a /state tick never
-// reconnects them. Split right or down shows a second tab beside the first, sized with the
-// Terminal page's handles. The panes, their layout and the Browser tab are React (components/run/run-panes.tsx, the
-// layout in lib/run/layout-store.ts); this module knows which items the workspace has, starts and ends sessions, and
-// answers the keyboard.
-import { age, ask, dialogOpen, isPhone, post, toast } from "@lib/core";
-import { cardHref, cardState as stateOf, titleOf, wsHref, wsOfCardNow as wsOfCard } from "@lib/rail";
+// The run workspace's lifecycle (?view=ws&dir=&ws=; a run's or task's old address resolves to its workspace and picks that run
+// in the panel): a tab bar over one folder holding terminals and the Browser, never runs. This module reads the address and
+// the server, decides what the workspace opens (a shell in an empty one, a run's resumed agent, the Browser on a run's
+// Preview), and answers the router's enter and leave. The rest is split by what it is: which tabs there are
+// (ws-derive.ts, pure), the state it keeps (ws-store.ts), the redraw and the panel's pick (ws-draw.ts), what a person does
+// (ws-actions.ts), which workspaces keep their panes mounted (kept.ts, pure), and what runs only while the run view is shown,
+// the Preview polling, the keyboard and the reaction to a new /state (use-run-lifecycle.ts, a hook of the run panes). The
+// panes, their layout and the Browser tab are React (components/run, lib/run/layout-store.ts). Panes of every workspace
+// visited stay mounted, hidden, up to a cap, so leaving a workspace and coming back keeps a Browser page, a note's scroll and
+// a terminal's screen; the run panel (#panel, drawn by panel.ts) docks on the right and shows one run, chosen in its picker.
+// A workspace with no tab opens a shell in its folder. Split right or down shows a second tab beside the first.
+import { cardHref, titleOf, wsHref, wsOfCardNow as wsOfCard } from "@lib/rail";
 import { getRoute, navigate, setTitle, touchRoute } from "@lib/router";
-import { cardKey as key, getServer, load, onServer, onState, railDataNow } from "@lib/server";
-import { setHelp } from "@lib/shell";
+import { cardKey as key, getServer, load, onServer, onState, railDataNow, readShells } from "@lib/server";
 import { preview } from "@lib/markdown";
 import { pick } from "@lib/project";
-import { open } from "./panel.ts";
-import { awaiting, chosen, devUrl, dueWord, finished, gitDue, historyOf, leaves, liveIn, loopbackUrl, migrate, newRun, pickable, previewOpens, reviewing, stageTabs, toOpen, wsKey } from "./ws-tabs.ts";
-import { boxesOf, detach, focusItem, fetchPreview, keepUrl, layoutOf, moveInLayout, nearestPane, patch, placeItems, refreshPreview, replaceAll, requestBrowse, clearBrowse, rects, selectScreen, setDragging, setFlip, setPanel, getPanel, setPanelActions, setRunActions, setRunView, setTarget, showItem, useLayout, focusPane, useRunView, work, type Saved, type SavedTab } from "./index.ts";
+import { liveKeys, pruneDead } from "./kept.ts";
+import { mineNow, picked, seenRuns, tabs, draw } from "./ws-draw.ts";
+import { byKey, autoTab, closeScreen, closeTab, moveItem, newPty, openAgent, openNew, openNoteTab, previewApp, projectNotes, show } from "./ws-actions.ts";
+import { cx, edit, getWs, saved, setWs } from "./ws-store.ts";
+import { devUrl, finished, leaves, loopbackUrl, migrate, previewOpens, reviewing, toOpen, wsKey } from "./ws-tabs.ts";
+import { clearBrowse, fetchPreview, keepUrl, layoutOf, refreshPreview, replaceAll, requestBrowse, selectScreen, setDragging, setPanel, setPanelActions, setRunActions, setRunView, useLayout, useRunView, work } from "./index.ts";
 
-type Tab = SavedTab & { kind: "agent" | "shell" | "local" | "preview" | "note" | "wait" | "history" };
-// Per workspace the saved layout (lib/run/layout-store.ts): the extra items opened (localhost, preview, notes, History),
-// tabs closed, and the screens. A screen is one tab of the bar: one or more items side by side or stacked.
-// The workspace shown, and the card whose panel is up (the picker's).
-let ctx: { dir: string; ws: string; k: string } | null = null;
-let card: any = null;
-let shells: any[] = [];
-let noPty = false;
-// Every agent installed for this project (from /agents), each offered as a bare session.
-let agents: { name: string; cmd: string; yolo?: boolean; bypassDefault?: boolean }[] = [];
-let defAgent = "";
-const byKey = (k: string) => getServer().state.cards.find((x) => key(x) === k);
-// The shown workspace's saved layout, and a change to it.
-const saved = (): Saved => layoutOf(ctx!.k);
-const edit = (fn: (s: Saved) => Saved) => patch(ctx!.k, fn);
-const screens = () => saved().screens;
-
-const AGENTS = ["claude", "codex", "gemini", "agy", "opencode", "cursor"];
-const wsCards = () => (ctx ? liveIn(getServer().state.cards, ctx.dir, ctx.ws, wsOfCard) : []);
-
-function tabs(): Tab[] {
-  const out: Tab[] = [];
-  const named = (a?: string) => agents.find((x) => x.cmd === a)?.name ?? "Agent";
-  const live = wsCards(),
-    liveKeys = new Set(live.map(key));
-  // A finished run's agent that is still open keeps its tab, as the sidebar keeps it.
-  const open = getServer().state.cards.filter((c) => c.state === ctx!.dir && wsOfCard(c) === ctx!.ws && !liveKeys.has(key(c)) && c.pty?.alive);
-  // Each live run's terminals: its stage terminals ("Build · Claude"), other sessions, shells, the waiting note.
-  for (const c of [...live, ...open]) {
-    const k = key(c),
-      runAgent = AGENTS.find((a) => a === c.pty?.agent) ?? AGENTS.find((a) => c.tags?.includes(a)) ?? undefined;
-    for (const t of stageTabs(c, named(runAgent))) out.push({ id: "agent:" + t.key, kind: "agent", agent: runAgent, title: t.title, key: t.key });
-    for (const sh of shells.filter((x) => x.run === k)) out.push({ id: "sh:" + sh.key, kind: sh.agent ? "agent" : "shell", agent: sh.agent || undefined, title: sh.title, key: sh.key });
-    // The run's own session is running in another terminal: a tab that says so.
-    if (elsewhere.has(k)) out.push({ id: "wait:" + k, kind: "wait", agent: "claude", title: named("claude") });
-  }
-  // The workspace's own shells and agents, and those of its finished runs.
-  const owned = new Set(getServer().state.cards.filter((c) => c.state === ctx!.dir && wsOfCard(c) === ctx!.ws).map(key));
-  for (const sh of shells.filter((x) => x.run === ctx!.k || (owned.has(x.run) && !liveKeys.has(x.run))))
-    out.push({ id: "sh:" + sh.key, kind: sh.agent ? "agent" : "shell", agent: sh.agent || undefined, title: sh.title, key: sh.key });
-  // Opened by hand: History, localhost, Preview, notes.
-  // A closed agent tab stays hidden only for that agent: one started again under the same key (a resume) is a new
-  // agent (born differs) and the sidebar lists it, so its tab comes back.
-  for (const a of getServer().state.agents ?? []) {
-    const id = "agent:" + a.key,
-      hb = saved().hb;
-    if (hb && id in hb && hb[id] !== (a.born ?? 0))
-      edit((s) => ({ ...s, hidden: s.hidden.filter((h) => h !== id), hb: Object.fromEntries(Object.entries(s.hb ?? {}).filter(([x]) => x !== id)) }));
-  }
-  const s = saved(),
-    mine = s.tabs.map((t) => (t.kind === "local" ? { ...t, title: "Browser" } : t)) as Tab[]; // "local" was saved before the rename
-  const all = [...out.filter((t) => !s.hidden.includes(t.id)), ...mine];
-  return all.filter((t, i) => all.findIndex((x) => x.id === t.id) === i);
-}
-const elsewhere = new Set<string>();
-
+export { openNoteTab, openPreview } from "./ws-actions.ts";
 let switched: string | null = null; // the project a deep link last switched the board to
 const none = (t: string) => setRunView({ message: t });
 // Called by navigate("run") and on every /state: draws the tab strip and keeps the panes.
@@ -100,7 +45,7 @@ export async function showRunView(nav = false) {
     const find = (cs) => cs.find((x) => x.state === dir && (id ? x.kind === "run" && x.id === id : x.kind === "idea" && x.text === task));
     const c = find(getServer().state.cards);
     // A launched task becomes a run: its agent session moves to the run's card, and the view follows.
-    const pk = task && (c ?? card)?.kind === "idea" && (c ?? card)?.pty?.key;
+    const pk = task && (c ?? getWs().card)?.kind === "idea" && (c ?? getWs().card)?.pty?.key;
     const run = pk && getServer().state.cards.find((x) => x.kind === "run" && x.state === dir && (x.pty?.key === pk || x.pty?.all?.includes(pk)));
     if (run) {
       history.replaceState(null, "", cardHref(run));
@@ -110,17 +55,17 @@ export async function showRunView(nav = false) {
     if (!c) {
       if (await away()) return showRunView(nav);
       if (!getServer().all && find(railDataNow().cards)) location.href = "/?all=1&" + p.toString();
-      else (stopPanes(), (ctx = card = null), none(`That ${id ? "run" : "idea"} was not found.`));
+      else (stopPanes(), setWs({ ctx: null, card: null }), none(`That ${id ? "run" : "idea"} was not found.`));
       return;
     }
     want = c;
     ws = wsOfCard(c);
   }
-  if (!dir || !ws) return void (stopPanes(), (ctx = card = null), none("That workspace was not found."));
+  if (!dir || !ws) return void (stopPanes(), setWs({ ctx: null, card: null }), none("That workspace was not found."));
   const k = wsKey(dir, ws);
-  const fresh = ctx?.k !== k;
+  const fresh = getWs().ctx?.k !== k;
   // Each workspace has its own centre: switching hides this one's terminals and drops its other panes (its shells keep running on the server).
-  if (fresh) (stopPanes(), (card = null), (ctx = { dir, ws, k }));
+  if (fresh) (stopPanes(), setWs({ card: null, ctx: { dir, ws, k } }));
   if (fresh && !was.has(k)) was.set(k, new Set(mineNow().filter(reviewing).map(key))); // what is already in review does not open the Browser
   if (fresh) seenRuns.set(k, new Set(mineNow().map(key))); // what is here on arrival is not new
   if (fresh) previewAt.delete(k); // nor is a preview: arriving only records it
@@ -134,28 +79,27 @@ export async function showRunView(nav = false) {
   }
   try {
     const r = await fetch("/shells?dir=" + encodeURIComponent(dir));
-    shells = r.ok ? await r.json() : [];
+    setWs({ shells: r.ok ? await r.json() : [] });
   } catch {}
   if (fresh) {
     try {
       const d = await (await fetch("/agents?dir=" + encodeURIComponent(dir))).json();
-      agents = d.agents ?? [];
-      defAgent = d.default ?? "";
+      setWs({ agents: d.agents ?? [], defAgent: d.default ?? "" });
     } catch {}
   }
-  if (ctx?.k !== k) return;
+  if (getWs().ctx?.k !== k) return;
   // Every navigation (a notification, a Board card, a link) picks the card's run in the panel, even for an address already open: a finished run opens read-only.
   // A fresh visit forgets the old pick (waiting first again); one made during the visit stays.
   if (fresh) picked.delete(k);
   if (want?.kind === "run" && (nav || fresh)) picked.set(k, key(want));
   // A workspace with nothing open starts a shell in its folder (no agent, no run). A live run whose own Claude
   // session is not open anywhere on the board is resumed here, once per visit.
-  if (!noPty) {
+  if (!getWs().noPty) {
     if (!tabs().length && !autoShell.has(k)) return void (autoShell.add(k), newPty());
     // Not while a launch from the board is coming up: its terminal is not tied to the new run card yet, and
     // resuming the run here would open a second agent on the same session beside it (the stray "Agent" tab).
     const launching = !!work.wantPty && Date.now() - work.wantPty.at < 20_000;
-    if (want && want.kind === "run" && !finished(want) && !want.pty && !launching && !shells.some((x) => x.run === key(want)) && !autoShell.has(key(want))) {
+    if (want && want.kind === "run" && !finished(want) && !want.pty && !launching && !getWs().shells.some((x) => x.run === key(want)) && !autoShell.has(key(want))) {
       autoShell.add(key(want));
       void openAgent(want, false, false);
     }
@@ -179,282 +123,27 @@ function showTerm() {
 }
 const autoShell = new Set<string>();
 
-function draw() {
-  const ts = tabs();
-  // Every item sits in exactly one screen: new ones are placed, closed ones leave.
-  placeItems(ctx!.k, ts.map((t) => t.id));
-  const s = saved(),
-    scs = s.screens,
-    cur = scs.find((sc) => sc.id === s.on);
-  const item = (id: string) => ts.find((t) => t.id === id)!;
-  // The chrome and the panes are React (components/run): they are handed what to show, never an element. A pane is
-  // made once per item and kept (hidden while its screen is not shown), so terminals never reconnect.
-  const now = Date.now();
-  setRunView({
-    message: null,
-    screens: scs.map((sc) => {
-      const ids = leaves(sc.tree),
-        { id, kind, title, agent } = item(ids[0]);
-      return { id: sc.id, ids, focus: sc.focus, title: ids.map((x) => item(x).title).join(" + "), first: { id, kind, title, agent } };
-    }),
-    on: s.on,
-    split: !!cur,
-    agents,
-    defAgent,
-    pty: !noPty,
-    titles: Object.fromEntries(ts.map((t) => [t.id, t.title])),
-    items: ts,
-    wsk: ctx!.k,
-    ws: ctx,
-    history: historyOf(getServer().state.cards, ctx!.dir, ctx!.ws, wsOfCard).map((c) => ({ k: key(c), title: titleOf(c), state: stateOf(c), line: `${c.status} · ${age(c.moved ?? now, now)} ago` })),
-    empty: !scs.length,
-  });
-  // The terminals stay mounted when the workspace is left; the rest of its panes are made again on return.
-  setRunView((s) => ({
-    kept: { ...s.kept, [ctx!.k]: { items: ts.filter((t) => t.kind === "agent" || t.kind === "shell"), ws: ctx! } },
-  }));
-  mountPanel();
-}
 
-// The run panel (#panel) stays docked on the right of the centre and shows one run: the one picked
-// in its header (run-pick.ts), first the run waiting on you, else the newest. A pick is sticky; a
-// run that starts waiting later does not replace it: the picker's trigger and, with the panel
-// collapsed, the panel button show a dot. Only a run created during the visit takes the pick
-// (followNew). With no run the panel is parked.
-const picked = new Map<string, string>();
-// Every card seen in the workspace this visit. It only grows, so a restored run or a /state tick
-// missing cards never reads as new.
-const seenRuns = new Map<string, Set<string>>();
-function followNew() {
-  const seen = ctx && seenRuns.get(ctx.k);
-  if (!seen) return;
-  const c = newRun(pickable(getServer().state.cards, ctx!.dir, ctx!.ws, wsOfCard), seen, key);
-  for (const m of mineNow()) seen.add(key(m));
-  if (c) picked.set(ctx!.k, key(c));
-}
-// Shows a run in the panel (a picker row, a History row); the centre stays as it is.
-const pickRun = (k: string) => (picked.set(ctx!.k, k), draw()); // the sidebar count asked for the picker dropped down
-function mountPanel() {
-  const live = pickable(getServer().state.cards, ctx!.dir, ctx!.ws, wsOfCard),
-    hist = historyOf(getServer().state.cards, ctx!.dir, ctx!.ws, wsOfCard),
-    c = chosen(live, hist, picked.get(ctx!.k), key);
-  setPanel({ parked: !c });
-  // Collapsed (a phone: sheet down) and a run waits: a dot on the panel button, no pop-open.
-  setRunView({ awaiting: live.some(awaiting) });
-  if (!c) return void ((card = null), setRunView({ picker: null }));
-  picked.set(ctx!.k, key(c));
-  setPanel({ ro: hist.includes(c) }); // a run from History: no edit buttons (the commit and push ones stay)
-  card = c;
-  // The picker is React (components/run/run-picker.tsx): the run shown, a dot when another needs you, the runs, then History.
-  const now = Date.now(),
-    row = (r) => ({ k: key(r), title: titleOf(r), state: stateOf(r), line: `${gitDue(r) ? `waiting on you · ${dueWord(r)}` : awaiting(r) ? "needs you" : r.status} · ${age(r.moved ?? now, now)}` });
-  setRunView({ picker: { cur: row(c), live: live.map(row), hist: hist.map(row), other: live.some((r) => r !== c && awaiting(r)) } });
-  if (getPanel().openKey !== key(c)) void open(c, false);
-}
-// Moves an item out of its tab into another one (split beside a pane there, or next to its
-// focused pane), or into a tab of its own (to = null). Terminals keep running and frames stay loaded.
-function moveItem(id: string, to: string | null, at?: { pane: string; dir: "cols" | "rows"; before: boolean }) {
-  if (moveInLayout(ctx!.k, id, to, at)) draw();
-}
-
-function addTab(t: Tab) {
-  if (!saved().tabs.some((x) => x.id === t.id)) edit((s) => ({ ...s, tabs: [...s.tabs, t] }));
-  // Already open somewhere: moving it into the target screen means taking it out of its old one.
-  else if (useLayout.getState().target) detach(ctx!.k, t.id);
-  show(t.id);
-}
-// Automatic opens (a run's Preview, `kaizen preview`) bring a tab forward only when it is not open yet;
-// an open one just navigates, so the user can leave it.
-const autoTab = (t: Tab) => { if (!saved().tabs.some((x) => x.id === t.id)) addTab(t); };
-// After an item is added: place it (which uses the split target) and show the screen holding it.
-function show(id: string) {
-  placeItems(ctx!.k, tabs().map((t) => t.id));
-  showItem(ctx!.k, id);
-  draw();
-}
-export const openNoteTab = (name: string) => addTab({ id: "note:" + name, kind: "note", title: name.slice(name.lastIndexOf("/") + 1), note: name });
-export const openPreview = () => {
-  addTab({ id: "preview", kind: "preview", title: "Preview" });
-  if (isPhone()) setFlip(false); // Preview is a centre tab: the sheet would sit over it
-};
-
-// The run's recorded session, resumed in a board terminal tied to it. While it still runs in
-// another terminal the server says so (409 live) and a tab explains; with no session, a shell.
-async function openAgent(c, again = false, focus = true) {
-  const k = key(c);
-  const r = await fetch("/shell", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ dir: c.state, ws: ctx!.ws, run: k, resume: true }) }).catch(() => null);
-  if (r?.ok) {
-    elsewhere.delete(k);
-    const sh = await r.json();
-    shells.push(sh);
-    return focus ? show("sh:" + sh.key) : draw();
-  }
-  const j: any = r ? await r.json().catch(() => ({})) : {};
-  if (r?.status === 409 && j.live) {
-    elsewhere.add(k);
-    if (again) toast("Still running in another terminal");
-    return draw();
-  }
-  elsewhere.delete(k);
-  if (again) toast(j.error || "Could not resume the session");
-  else draw();
-}
-
-// `yolo` only when the + menu's switch was flipped; otherwise the server applies that agent's saved setting.
-async function newPty(agent?: string, yolo?: boolean) {
-  const r = await fetch("/shell", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ dir: ctx!.dir, ws: ctx!.ws, run: ctx!.k, ...(agent ? { agent, yolo } : {}) }) });
-  if (r.status === 501) {
-    noPty = true;
-    return draw();
-  }
-  if (!r.ok) {
-    // 429 (too many terminals), 403, anything else: say why, and keep the tab bar drawn.
-    let why = "";
-    try {
-      why = (await r.json()).error;
-    } catch {}
-    toast(why ? "No new terminal: " + why : "No new terminal (" + r.status + ")");
-    return draw();
-  }
-  const sh = await r.json();
-  shells.push(sh);
-  show("sh:" + sh.key);
-}
-
-// The Run app button (play icon; the + menu's Preview is the run's Preview tab): the workspace's app in the Browser tab. A dev server already listening
-// opens at once; otherwise the board starts the folder's dev script in a terminal here, waits
-// for its port, then opens it. No dev script: the run's Preview (report and screenshots).
-let starting = false;
-async function previewApp() {
-  if (!ctx || starting) return;
-  const c = ctx;
-  const ports = async (): Promise<number[]> => {
-    try {
-      return await (await fetch("/devports?ws=" + encodeURIComponent(c.ws))).json();
-    } catch {
-      return [];
-    }
-  };
-  // The newest run here names the page to open (its ## Preview), when it has one.
-  const card = getServer().state.cards.filter((x) => x.state === c.dir && wsOfCard(x) === c.ws && x.id).sort((a, b) => String(b.id).localeCompare(String(a.id)))[0];
-  let pv = "";
-  try {
-    if (card) pv = preview((await (await fetch(`/run/${encodeURIComponent(card.id)}?dir=${encodeURIComponent(c.dir)}`)).json()).impl) ?? "";
-  } catch {}
-  const openAt = (u: string) => {
-    keepUrl(c.k, u);
-    addTab({ id: "local", kind: "local", title: "Browser" });
-    requestBrowse(c.k, u);
-  };
-  const now = await ports();
-  if (now.length) return openAt(devUrl(pv, now)!);
-  const u = devUrl(pv, []);
-  const r = await fetch("/shell", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ dir: c.dir, ws: c.ws, run: c.k, dev: true }) }).catch(() => null);
-  if (!r?.ok) {
-    let why = "";
-    try {
-      why = (await r!.json()).error;
-    } catch {}
-    toast(why ? `Preview: ${why}` : "Preview: the dev server did not start");
-    return openPreview();
-  }
-  const sh = await r.json();
-  if (!shells.some((x) => x.key === sh.key)) shells.push(sh);
-  draw();
-  starting = true;
-  toast("Starting the app…");
-  try {
-    // Up to a minute for the first port; Linux only reads ports, elsewhere the run's address after a pause.
-    for (let i = 0; i < 40 && ctx?.k === c.k; i++) {
-      await new Promise((ok) => setTimeout(ok, 1500));
-      const p = await ports();
-      if (p.length) return openAt(devUrl(pv, p)!);
-      if (i === 5 && u && !navigator.platform.startsWith("Linux")) return openAt(u);
-    }
-    if (ctx?.k === c.k) toast("The app did not open a port. Its terminal tab shows why.");
-  } finally {
-    starting = false;
-  }
-}
-
-async function closeTab(id: string) {
-  const wk = ctx!.k;
-  if (id.startsWith("sh:")) {
-    await post("/pty/exit", { key: id.slice(3) });
-    shells = shells.filter((x) => "sh:" + x.key !== id);
-  } else if (id.startsWith("agent:")) {
-    // Closing the tab ends the agent, so the sidebar stops listing it; one mid-turn asks first.
-    const k = id.slice(6),
-      a = getServer().state.agents?.find((x) => x.key === k);
-    if (a?.busy && !(await ask({ title: "This agent is still working. End it?", confirmLabel: "End", danger: true }))) return;
-    patch(wk, (s) => ({ ...s, hidden: [...s.hidden, id], hb: { ...s.hb, [id]: a?.born ?? 0 } }));
-    await post("/pty/exit", { key: k });
-    load(true);
-  }
-  else if (id.startsWith("wait:")) elsewhere.delete(id.slice(5));
-  else patch(wk, (s) => ({ ...s, tabs: s.tabs.filter((t) => t.id !== id) }));
-  if (ctx?.k === wk) draw();
-}
-// A tab's ×: everything in it closes (shells end, the agent is only hidden).
-async function closeScreen(sid: string) {
-  const sc = saved().screens.find((x) => x.id === sid);
-  for (const id of sc ? leaves(sc.tree) : []) await closeTab(id);
-}
-
-// + makes a new tab; split right/down adds to the tab shown. `n` is a menu item's data-n.
-function openNew(n: string, mode: string, yolo?: boolean) {
-  const s = saved();
-  setTarget(mode === "tab" || !s.on ? null : { screen: s.on, dir: mode as "cols" | "rows" });
-  if (n === "shell") void newPty();
-  else if (n.startsWith("agent:")) void newPty(n.slice(6), yolo);
-  else if (n === "local") addTab({ id: "local", kind: "local", title: "Browser" });
-  else if (n === "history") addTab({ id: "history", kind: "history", title: "History" });
-  else openPreview();
-}
-// Ctrl+Space r / d: a second terminal like the focused one (same agent, or a shell), split right or down.
-// Anything else (Browser, Preview, notes) has no copy to make, so the menu opens to pick from.
-function likeFocused(): string | null {
-  const sc = screens().find((x) => x.id === saved().on);
-  const t = sc && tabs().find((x) => x.id === sc.focus);
-  if (t?.kind === "shell") return "shell";
-  if (t?.kind === "agent") return "agent:" + (t.agent ?? (defAgent || agents[0]?.cmd || ""));
-  return null;
-}
-// Leaving the workspace: its terminals stay mounted (hidden), the rest of its panes go; the shells keep running on the server.
-function stopPanes() {
+// Leaving the workspace: its panes stay mounted (hidden), the shells keep running on the server.
+export function stopPanes() {
   setPanel({ parked: true });
-  // No items, no workspace: the panes of the workspace shown go; its terminals stay in `kept`, hidden.
+  // No items, no workspace shown: its panes stay in `kept` (run-view-store), hidden.
   setRunView({ items: [], wsk: null, ws: null });
   clearBrowse();
 }
 export function runStop() {
   stopPanes();
-  card = ctx = null;
+  setWs({ card: null, ctx: null });
   setPanel({ pn: false });
-}
-
-// The strip's Project notes: the project's notes as a tree in the panel (components/run/project-notes.tsx); a note opens as a centre tab.
-async function projectNotes() {
-  const pn = !getPanel().pn;
-  setPanel({ pn });
-  if (!pn) return;
-  setRunView({ notes: { loading: true } });
-  try {
-    const d = await (await fetch("/vault?dir=" + encodeURIComponent(ctx!.dir))).json();
-    setRunView({ notes: { names: (d.notes ?? []).map((n) => n.name).sort() } });
-  } catch {
-    setRunView({ notes: { failed: true } });
-  }
 }
 
 // The keys of the workspace's runs that were at review/done on the last tick, per workspace.
 const was = new Map<string, Set<string>>();
 // A run in the open workspace moves into review or done with a localhost address in its ## Preview:
 // the Browser opens on it, once per run. The first tick of a workspace only records.
-const mineNow = () => getServer().state.cards.filter((c) => c.state === ctx!.dir && wsOfCard(c) === ctx!.ws);
-async function autoBrowse() {
-  if (!ctx) return;
-  const k = ctx.k,
+export async function autoBrowse() {
+  if (!getWs().ctx) return;
+  const k = cx().k,
     mine = mineNow(),
     prev = was.get(k);
   was.set(k, new Set(mine.filter(reviewing).map(key)));
@@ -467,9 +156,9 @@ async function autoBrowse() {
       // (it once opened Claude Code's own local port, "not found").
       const pv = preview(doc.impl);
       if (!loopbackUrl(pv)) continue;
-      u = devUrl(pv, await (await fetch("/devports?ws=" + encodeURIComponent(ctx.ws))).json());
+      u = devUrl(pv, await (await fetch("/devports?ws=" + encodeURIComponent(cx().ws))).json());
     } catch {}
-    if (!u || ctx?.k !== k || saved().seen?.includes(key(c))) continue;
+    if (!u || getWs().ctx?.k !== k || saved().seen?.includes(key(c))) continue;
     edit((s) => ({ ...s, seen: [...(s.seen ?? []), key(c)] }));
     keepUrl(k, u);
     autoTab({ id: "local", kind: "local", title: "Browser" });
@@ -482,11 +171,11 @@ async function autoBrowse() {
 // only while you watch it: each visit's first look records the newest (`previewAt`, per visit), so a
 // click, a switch or a reload never opens a tab, or reopens one you closed.
 const previewAt = new Map<string, number>();
-async function pollPreview() {
-  if (!ctx) return;
-  const k = ctx.k, dir = ctx.dir;
-  const p = await fetchPreview(dir, ctx.ws);
-  if (ctx?.k !== k) return;
+export async function pollPreview() {
+  if (!getWs().ctx) return;
+  const k = cx().k, dir = cx().dir;
+  const p = await fetchPreview(dir, cx().ws);
+  if (getWs().ctx?.k !== k) return;
   const at = p?.at ?? 0, last = previewAt.get(k);
   if (last !== undefined && at <= last) return;
   previewAt.set(k, at);
@@ -504,89 +193,17 @@ async function pollPreview() {
 }
  
 
-// The keyboard, tmux style: Ctrl+Space puts focus in the current pane, then one more key
-// moves it: arrows or hjkl between panes, 1-9, n, p between tabs.
-const setPane = (id: string) => {
-  focusItem(ctx!.k, id);
-  draw();
-  focusPane(id);
-};
-const DIRS = { ArrowLeft: "l", h: "l", ArrowRight: "r", l: "r", ArrowUp: "u", k: "u", ArrowDown: "d", j: "d" } as const;
-function paneKey(k: string) {
-  if (k === "?") {
-    (document.activeElement as HTMLElement)?.blur(); // Escape closes it only from outside the terminal
-    return void setHelp(true);
-  }
-  if (k === "x") {
-    const sc = screens().find((x) => x.id === saved().on);
-    if (sc) void closeTab(sc.focus).then(() => focusPane(screens().find((x) => x.id === saved().on)?.focus));
-    return;
-  }
-  const mode = { c: "tab", r: "cols", d: "rows" }[k];
-  const same = mode && mode !== "tab" && !noPty ? likeFocused() : null;
-  if (same) return void openNew(same, mode!);
-  if (mode) return void setRunView({ menu: mode as "tab" | "cols" | "rows" });
-  const s = saved(),
-    scs = screens(),
-    at = scs.findIndex((x) => x.id === s.on),
-    sc = scs[at];
-  if (!sc) return;
-  if (DIRS[k]) {
-    const to = nearestPane(boxesOf(rects(sc.tree).panes), sc.focus, DIRS[k]);
-    if (to) setPane(to);
-    return;
-  }
-  const i = k === "n" ? (at + 1) % scs.length : k === "p" ? (at - 1 + scs.length) % scs.length : /^[1-9]$/.test(k) ? +k - 1 : -1;
-  const to = scs[i];
-  if (!to) return;
-  selectScreen(ctx!.k, to.id);
-  draw();
-  focusPane(to.focus);
-}
-// While the prefix waits for its key, a chip says so and lists the keys (components/run/key-hint.tsx).
-const keyHint = (on: boolean) => setRunView({ hint: on });
-function initPaneKeys() {
-  let armed: Timer | undefined;
-  // Capture: xterm must not see these. Ctrl+B would reach an agent or a tmux inside the pane.
-  addEventListener(
-    "keydown",
-    (e) => {
-      if (!ctx || getRoute().view !== "run" || dialogOpen()) return;
-      if (e.ctrlKey && !e.shiftKey && e.code === "Space") {
-        e.preventDefault();
-        e.stopPropagation();
-        focusPane(screens().find((x) => x.id === saved().on)?.focus);
-        clearTimeout(armed);
-        keyHint(true);
-        armed = setTimeout(() => ((armed = undefined), keyHint(false)), 2000);
-        return;
-      }
-      if (!armed || ["Control", "Shift", "Alt", "Meta"].includes(e.key)) return;
-      e.preventDefault();
-      e.stopPropagation();
-      clearTimeout(armed);
-      armed = undefined;
-      keyHint(false);
-      paneKey(e.key);
-    },
-    true,
-  );
-}
 
-// A kept terminal whose session is gone (ended, or its tab closed in another window) is unmounted.
-function pruneKept() {
+// A kept terminal whose session is gone (ended, or its tab closed in another window) is unmounted (kept.ts). The shells the
+// server lists can lag a session that just ended (/shells is read with each all-projects /state), so a terminal that ends
+// reads them again first (`ended`).
+export function pruneKept() {
   const s = getServer(),
-    live = new Set<string>([
-      ...s.shells.map((x) => x.key),
-      ...(s.state.agents ?? []).map((a: any) => a.key),
-      ...s.state.cards.flatMap((c: any) => (c.pty ? [c.pty.key, ...(c.pty.all ?? [])] : [])),
-    ]);
-  const cur = useRunView.getState().kept;
-  const next = Object.fromEntries(
-    Object.entries(cur).map(([k, v]) => [k, k === ctx?.k ? v : { ...v, items: v.items.filter((i) => !i.key || live.has(i.key)) }]),
-  );
-  if (Object.values(next).some((v, i) => v.items.length !== Object.values(cur)[i]!.items.length)) setRunView({ kept: next });
+    cur = useRunView.getState().kept,
+    next = pruneDead(cur, liveKeys(s.shells, s.state.agents ?? [], s.state.cards), getWs().ctx?.k ?? null);
+  if (next !== cur) setRunView({ kept: next });
 }
+export const ended = () => void (load(true), readShells().then(pruneKept));
 // The workspace address, in the history, and the run view for it.
 function goWs(dir: string, ws: string) {
   history.pushState(null, "", wsHref(dir, ws));
@@ -598,7 +215,7 @@ export const openWsIn = goWs;
 // The sidebar's agent mark: open that workspace with the agent's terminal tab selected.
 export function openTermIn({ dir, ws, key }: { dir: string; ws: string; key: string }) {
   wantTerm = key;
-  if (ctx?.k === wsKey(dir, ws) && getRoute().view === "run") return void showTerm();
+  if (getWs().ctx?.k === wsKey(dir, ws) && getRoute().view === "run") return void showTerm();
   goWs(dir, ws);
 }
 // Search's Tabs group: open the workspace on the screen holding that tab.
@@ -606,18 +223,18 @@ export function openTabIn({ dir, ws, id }: { dir: string; ws: string; id: string
   const k = wsKey(dir, ws),
     sc = layoutOf(k).screens.find((x) => leaves(x.tree).includes(id));
   if (sc) selectScreen(k, sc.id);
-  if (ctx?.k === k && getRoute().view === "run") return void draw();
+  if (getWs().ctx?.k === k && getRoute().view === "run") return void draw();
   goWs(dir, ws);
 }
 export function initRunView() {
-  initPaneKeys();
+  // A /state change, new shells or a session that ended: terminals kept hidden whose session is gone are unmounted.
   onServer((x) => x.shells, pruneKept);
-  setInterval(() => void pollPreview(), 3000);
+  onState(pruneKept);
   // The panel's project-notes button; its close button and the scrim are panel.ts's.
   setPanelActions({ notes: () => void projectNotes() });
   setRunActions({
     select: (sid) => {
-      selectScreen(ctx!.k, sid);
+      selectScreen(cx().k, sid);
       draw();
     },
     close: (sid) => void closeScreen(sid),
@@ -632,23 +249,21 @@ export function initRunView() {
       if (id) moveItem(id, to);
     },
     openHere: (k) => byKey(k) && void openAgent(byKey(k), true),
-    pick: (k) => byKey(k) && pickRun(k),
+    pick: (k) => byKey(k) && (picked.set(cx().k, k), draw()),
     openNote: openNoteTab,
-    termEnded: () => load(true),
-    currentRun: () => (card?.id ? { dir: card.state, id: card.id } : null),
-    previewTarget: () =>
-      ctx && {
-        dir: ctx.dir,
-        ws: ctx.ws,
-        card: card ? { id: card.id, kind: card.kind, state: card.state } : null,
-        impl: work.runDoc && work.runDoc.id === card?.id ? work.runDoc.impl : null,
-      },
-  });
-  // A /state change: new or ended sessions, the card's own state. Panes stay mounted.
-  onState(() => {
-    void autoBrowse();
-    followNew();
-    if (ctx && getRoute().view === "run") void showRunView();
+    termEnded: ended,
+    currentRun: () => (getWs().card?.id ? { dir: getWs().card.state, id: getWs().card.id } : null),
+    previewTarget: () => {
+      const { ctx, card } = getWs();
+      return (
+        ctx && {
+          dir: ctx.dir,
+          ws: ctx.ws,
+          card: card ? { id: card.id, kind: card.kind, state: card.state } : null,
+          impl: work.runDoc && work.runDoc.id === card?.id ? work.runDoc.impl : null,
+        }
+      );
+    },
   });
 }
 // Opens a card's workspace, its address in the history.

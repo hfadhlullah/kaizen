@@ -1,7 +1,7 @@
 ---
 description: Projects list as workspaces, workspace cards, the workspace centre, terminals following their run
 tags: [project, web-board]
-sources: [web/lib/run/workspace.ts, web/lib/run/ws-tabs.ts, web/lib/rail/rail-boot.ts, cli/worktree.ts, cli/pty.ts, web/html/video.html]
+sources: [web/lib/run/workspace.ts, web/lib/run/ws-derive.ts, web/lib/run/ws-store.ts, web/lib/run/ws-draw.ts, web/lib/run/ws-actions.ts, web/lib/run/kept.ts, web/lib/run/use-run-lifecycle.ts, web/lib/run/ws-tabs.ts, web/lib/rail/rail-boot.ts, cli/worktree.ts, cli/pty.ts, web/html/video.html]
 updated: 2026-11-13
 ---
 # Workspaces
@@ -33,3 +33,4 @@ Clicking a project bar in the sidebar only folds or unfolds it (`fold()` in `web
 
 ## Ranking projects by drag (2026-11-13-project-dnd-order)
 Projects in the sidebar are listed in the registry order (`~/.kaizen/projects`), no longer by their most urgent run. Pressing a project bar and dragging it (`rankDrag` in `web/lib/rail/rail-boot.ts`; pointer events: a mouse after 5 px, a finger after a 300 ms hold so a swipe still scrolls) draws a 2 px line where it will land; letting go reorders `last.projects` at once and posts `POST /projects/order {dirs}` (state dirs, top first), which `reorderProjects()` in `cli/state.ts` applies: listed folders move to the top in that order, every other line stays after them, comments on top, nothing added, temp file + rename. Escape or `pointercancel` puts it back; the click that ends a drag does not fold. `drawList` skips redraws while a drag is in progress (`ranking`, `rankDirty`). The order is shared by every device, since it lives in the registry.
+- 2026-11-14 roadmap 2 phase 9b-3b: `workspace.ts` is split by what it is: `ws-derive.ts` (the tabs, pure, tested), `ws-store.ts` (the workspace shown, its shells and agents), `ws-draw.ts` (the redraw and the panel's pick), `ws-actions.ts` (open, close, split, move, keys, Run app), `kept.ts` (which workspaces keep their panes mounted: 4 workspaces and 12 terminals at most, pure, tested), `use-run-lifecycle.ts` (the Preview polling, the Ctrl+Space keys and the `/state` reaction, only while the run view shows); `workspace.ts` keeps the address, autostart (a shell in an empty workspace, a run's resumed agent), the Browser on a run's Preview, and the router's enter and leave. Every pane of a visited workspace stays mounted hidden, so a Browser page, notes iframes and a terminal's screen survive leaving and Back (see Terminals).

@@ -15,7 +15,7 @@ const EDGE = {
   b: "shadow-[inset_0_-3px_0_var(--accent)]",
 };
 
-function Body({ item, wsk, ws }: { item: RvPane; wsk: string; ws: { dir: string } | null }) {
+function Body({ item, wsk, ws, live }: { item: RvPane; wsk: string; ws: { dir: string } | null; live: boolean }) {
   switch (item.kind) {
     case "agent":
     case "shell":
@@ -35,7 +35,7 @@ function Body({ item, wsk, ws }: { item: RvPane; wsk: string; ws: { dir: string 
         />
       );
     default:
-      return <PreviewPane />;
+      return <PreviewPane live={live} />;
   }
 }
 
@@ -50,6 +50,7 @@ export function Pane({
   sid,
   split,
   focus,
+  live,
 }: {
   item: RvPane;
   rect?: Rect;
@@ -58,6 +59,7 @@ export function Pane({
   sid: string | null;
   split: boolean;
   focus: boolean;
+  live: boolean; // this pane's workspace is the one shown (a kept one is hidden and reads nothing)
 }) {
   const [edge, setEdge] = useState<keyof typeof EDGE | null>(null),
     dragging = useLayout((s) => s.dragging),
@@ -132,7 +134,7 @@ export function Pane({
       >
         <PaneHeader id={item.id} />
       </header>
-      <Body item={item} wsk={wsk} ws={ws} />
+      <Body item={item} wsk={wsk} ws={ws} live={live} />
     </section>
   );
 }

@@ -96,7 +96,7 @@ const uses = (src: string) => (src.match(HAND_BUILT)?.length ?? 0) + (src.match(
 // What used to be web/board: the engines that react to lib/server and lib/router and the page's glue. They draw nothing.
 const ENGINES = [
   "pages/board/main.ts", "pages/board/views.ts", "pages/board/keys.ts", "pages/board/live.ts", "pages/board/host-bridge.ts",
-  "lib/run/panel.ts", "lib/run/workspace.ts", "lib/run/card-terminal.ts", "lib/board/snapshot.ts", "lib/board/on-state.ts", "lib/board/popups.ts",
+  "lib/run/panel.ts", "lib/run/workspace.ts", "lib/run/ws-draw.ts", "lib/run/ws-actions.ts", "lib/run/card-terminal.ts", "lib/board/snapshot.ts", "lib/board/on-state.ts", "lib/board/popups.ts",
   "lib/board/nav.ts", "lib/home/home-engine.ts", "lib/home/home-events.ts", "lib/terminal/terms-feed.ts", "lib/context/feed.ts",
   "lib/settings/panel-settings.ts", "lib/git/git-panel.ts", "lib/project/project-pick.ts", "lib/search/search-rows.ts", "lib/rail/rail-boot.ts",
 ];

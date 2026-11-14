@@ -1,14 +1,16 @@
 import { useMemo, useRef } from "react";
-import { leaves, rects, useLayout, useRunView, type RvPane } from "@lib/run";
+import { leaves, rects, useLayout, useRunLifecycle, useRunView, type RvPane } from "@lib/run";
 import { Pane } from "./pane.tsx";
 import { PaneGutter } from "./pane-gutter.tsx";
 import { RunEmpty } from "./run-empty.tsx";
 
 // The workspace centre: every open item as a pane, the shown screen's tree laid out by rectangles, and the gutters
 // between its panes. Panes are keyed by workspace and item and kept in the order they first appeared, so React never
-// moves one: a terminal stays connected and a frame stays loaded through splits, drags, tab switches and redraws. The terminals
-// of workspaces visited before stay mounted too (`kept`), hidden, so leaving a workspace or the run view never reconnects them.
+// moves one: a terminal stays connected and a frame stays loaded through splits, drags, tab switches and redraws. The panes
+// of workspaces visited before stay mounted too (`kept`: terminals, Browser frames, notes, History, Preview), hidden by CSS,
+// so leaving a workspace or the run view keeps a frame's page and a terminal's screen; the most recent few, see lib/run/kept.ts.
 export function RunPanes() {
+  useRunLifecycle();
   const wsk = useRunView((s) => s.wsk),
     items = useRunView((s) => s.items),
     kept = useRunView((s) => s.kept),
@@ -50,6 +52,7 @@ export function RunPanes() {
               sid={here ? (cur?.id ?? null) : null}
               split={here && split}
               focus={here && split && cur?.focus === id}
+              live={here}
             />
           );
         }),
