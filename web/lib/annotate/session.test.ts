@@ -175,6 +175,18 @@ test("Send types the notes into the run's agent (crops included), Copy asks for 
   off();
 });
 
+test("the marker colour is pushed to the page at once; the other settings only when the next config goes out", async () => {
+  const { a, off } = make();
+  a.toggle();
+  await a.open("http://localhost:3000/");
+  const n = said.length;
+  a.setting("block", false);
+  expect(said.length).toBe(n);
+  a.setting("color", "#ff0000");
+  expect(said.at(-2)).toMatchObject({ type: "config", cfg: { color: "#ff0000", block: false } });
+  off();
+});
+
 test("with no run open Send says so and sends nothing; with no notes nothing is asked", async () => {
   const { a, off } = make(null);
   a.toggle();
