@@ -1,5 +1,6 @@
 import { beforeEach, expect, test } from "bun:test";
 import {
+  readSaved,
   clean,
   focusItem,
   layoutOf,
@@ -27,6 +28,14 @@ test("clean drops the run tabs and hidden run keys, and a broken screen list", (
   expect(s.tabs.map((t) => t.id)).toEqual(["local"]);
   expect(s.hidden).toEqual(["agent:a"]);
   expect(s.screens).toEqual([]);
+});
+
+test("one broken entry in the saved layouts is dropped alone", () => {
+  const all = readSaved(JSON.stringify({ a: null, b: { tabs: [null, { id: "l", kind: "local", title: "B" }], hidden: [3, "x"], screens: [], on: null }, c: "junk" }));
+  expect(Object.keys(all)).toEqual(["b"]);
+  expect(all.b!.tabs.map((t) => t.id)).toEqual(["l"]);
+  expect(all.b!.hidden).toEqual(["x"]);
+  expect(readSaved("{not json")).toEqual({});
 });
 
 test("placeItems puts each item in a screen, a split target puts the next beside the focused pane, and only a change is a new record", () => {

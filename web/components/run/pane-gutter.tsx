@@ -42,7 +42,7 @@ export function PaneGutter({ g, wsk, sid, box }: { g: Gut; wsk: string; sid: str
           : { top: `calc(${pct(g.y)} - 0.5px)`, left: pct(g.x), width: pct(g.len), height: 1 }
       }
       className={cn(
-        "absolute z-2 bg-border after:absolute after:content-['']",
+        "absolute z-2 touch-none bg-border after:absolute after:content-['']",
         cols
           ? "after:inset-x-[-4px] after:inset-y-0 after:cursor-col-resize"
           : "after:inset-x-0 after:inset-y-[-4px] after:cursor-row-resize",

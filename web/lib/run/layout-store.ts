@@ -31,18 +31,31 @@ export const EMPTY: Saved = { tabs: [], hidden: [], screens: [], on: null };
 // Layouts saved while runs were tabs: those tabs are gone, the panel picks runs now. Older saves had one split.
 export function clean(s: Partial<Saved>): Saved {
   const screens = Array.isArray(s.screens) && s.screens.every((sc) => sc?.tree) ? s.screens : [];
+  const { split: _old, ...rest } = s as Partial<Saved> & { split?: unknown }; // the one-split key of older saves is not written back
   return {
-    ...s,
-    tabs: (s.tabs ?? []).filter((t) => t.kind !== "run"),
-    hidden: (s.hidden ?? []).filter((h) => !h.startsWith("rn:")),
+    ...rest,
+    tabs: (s.tabs ?? []).filter((t) => t && t.kind !== "run"),
+    hidden: (s.hidden ?? []).filter((h) => typeof h === "string" && !h.startsWith("rn:")),
     screens,
     on: s.on ?? null,
   };
 }
-const read = (): Record<string, Saved> => {
+// One workspace's entry that is not an object is dropped alone: it must not take every other workspace's layout with it.
+export function readSaved(raw: string | null): Record<string, Saved> {
   try {
-    const all = JSON.parse(localStorage.getItem(KEY) || "{}") as Record<string, Partial<Saved>>;
-    return Object.fromEntries(Object.entries(all).map(([k, s]) => [k, clean(s)]));
+    const all = JSON.parse(raw || "{}") as Record<string, Partial<Saved> | null>;
+    return Object.fromEntries(
+      Object.entries(all)
+        .filter(([, s]) => s && typeof s === "object")
+        .map(([k, s]) => [k, clean(s!)]),
+    );
+  } catch {
+    return {};
+  }
+}
+const read = () => {
+  try {
+    return readSaved(localStorage.getItem(KEY));
   } catch {
     return {};
   }
