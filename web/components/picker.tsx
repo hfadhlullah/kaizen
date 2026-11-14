@@ -44,8 +44,9 @@ export function Picker({
   const row = (o: PickerOption) => (
     <CommandItem
       key={o.value}
-      // cmdk highlights no row with an empty value (the Inbox collection, the "All" choices): every value gets a prefix.
-      value={"v:" + o.value}
+      // cmdk highlights no row with an empty value (the Inbox collection, the "All" choices) and trims whitespace, so two
+      // rows can look alike: the value is the row's place in the list, then its value.
+      value={`${options.indexOf(o)}:${o.value}`}
       keywords={[o.label, o.group ?? "", o.search ?? ""]}
       onSelect={() => {
         onChange(o.value);

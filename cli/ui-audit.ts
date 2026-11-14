@@ -297,7 +297,7 @@ function screens(dir: string, run: string, emptyWs: { dir: string; ws: string })
     { name: "add-project", url: "/?view=board", widths: D1, open: `await click("#padd")` },
     { name: "new-workspace", url: "/?view=board", widths: D1, open: `await click("#padd"); await click("[data-go=ws]")` },
     { name: "tasks", url: "/?view=tasks" },
-    { name: "run-form", url: "/?view=tasks", widths: D1, open: `await click("[data-task-row]"); await click("button", false, "Start planning")` },
+    { name: "run-form", url: "/?view=board", widths: D1, open: `await click("[data-k^=idea] button[aria-label=Actions]", true); await click("[role=menuitem]", false, "Run")` },
     { name: "icebox", url: "/?view=icebox" },
     { name: "home", url: "/" },
     { name: "chat", url: "/?view=chat", widths: P },
