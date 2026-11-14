@@ -121,7 +121,7 @@ function RunRow({ c, now }: { c: any; now: number }) {
     if (!plain(e)) return;
     e.preventDefault();
     // A task not started has nothing in a workspace yet: pick its agent and mode instead.
-    if (c.kind === "idea" && c.status === "idea") host.runPopup(c, () => {});
+    if (c.kind === "idea" && c.status === "idea") host.runPopup(c);
     else host.openWorkspace(c);
   };
   return (

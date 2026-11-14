@@ -8,7 +8,7 @@ export type Host = {
   // The board's New task dialog (the header button's own action).
   newTask(): void;
   // The run picker dialog for a card, then the choice.
-  runPopup(card: { _k: string; kind: string; state: string; text: string }, onStart: (pick: RunPick) => void): void;
+  runPopup(card: { _k: string; kind: string; state: string; text: string }, onStart?: (pick: RunPick) => void): void;
   // The task list feeds the sidebar badge and the board's other pages.
   setTaskAttention(tasks: unknown[]): void;
   attentionTasks(): unknown[] | null;
