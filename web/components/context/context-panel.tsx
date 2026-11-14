@@ -25,7 +25,8 @@ const TABS: [Tab, string][] = [
   ["notes", "Notes"],
   ["terminal", "Terminal"],
 ];
-const WIDE = "(min-width:1201px)";
+// Beside the page only where the Board still fits its five columns (200 px each) next to the menu and the pane.
+const WIDE = "(min-width:1701px)";
 const useWide = () => {
   const [wide, set] = useState(() => matchMedia(WIDE).matches);
   useEffect(() => {
@@ -71,6 +72,10 @@ export function ContextPanel() {
     // Once the page behind is no longer inert.
     requestAnimationFrame(() => ctxOpen.el?.focus());
   };
+  // A window that narrows past the docked width closes the pane: it would turn into a dialog and take the page's focus.
+  useEffect(() => {
+    if (!wide) setOpen(false);
+  }, [wide]);
   // The pane opens from the header's button only (nothing is read while it is closed); a view change closes the dialog.
   useEffect(() => {
     const on = () => !matchMedia(WIDE).matches && setOpen(false);
