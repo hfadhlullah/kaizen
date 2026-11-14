@@ -5,7 +5,7 @@ import { cn, portalRoot } from "../lib/utils.ts";
 export const Popover = PopoverPrimitive.Root;
 export const PopoverTrigger = PopoverPrimitive.Trigger;
 export const PopoverAnchor = PopoverPrimitive.Anchor;
-// Same look as the board's .menu-pop: card colour, soft border, 10px radius, the second shadow.
+// A raised card: card colour, soft border, 10px radius, the second shadow.
 export function PopoverContent({
   className,
   align = "end",

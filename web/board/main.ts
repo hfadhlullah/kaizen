@@ -67,23 +67,4 @@ addEventListener("kz-open-ws", (e: any) => {
   go("ws");
 });
 
-// One popup at a time: a press anywhere first shuts every open popup it is not inside,
-// before any handler runs (several stop propagation), so the one it opens is the only one
-// left. Combos hide theirs, a <details> menu closes, a card's or column's menu goes away.
-document.addEventListener(
-  "pointerdown",
-  (e) => {
-    const t = e.target as Node;
-    for (const p of document.querySelectorAll<HTMLElement>(".menu-pop:not([hidden])")) {
-      const own = p.closest(".combo,details") || p.parentElement;
-      if (!own || own.contains(t)) continue;
-      if (own instanceof HTMLDetailsElement) own.open = false;
-      else if (own.classList.contains("combo")) {
-        p.hidden = true;
-        own.querySelector("[aria-expanded]")?.setAttribute("aria-expanded", "false");
-      }
-    }
-  },
-  true,
-);
 void initOnboarding();

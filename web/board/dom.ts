@@ -14,16 +14,6 @@ const part = (v): string => (v instanceof Safe ? v.s : Array.isArray(v) ? v.map(
 // Escape-by-default template: html`<b>${title}</b>` cannot inject markup. Keep attributes double-quoted.
 export const html = (strs: TemplateStringsArray, ...vals) => raw(strs.reduce((a, s, i) => a + part(vals[i - 1]) + s));
 export const ico = (n) => raw(`<svg><use href="#i-${n}"/></svg>`);
-// The board's one switch (.chk in board.html). A <button role="switch"> whose owner flips `.on`
-// and aria-checked; with `box`, a checkbox whose `checked` is the state, for code that reads it.
-// `sm` is the compact size; `attrs` are further attributes, escaped.
-export const toggleSwitch = (on: boolean, o: { sm?: boolean; box?: boolean; attrs?: Record<string, string> } = {}) => {
-  const cls = "chk" + (o.sm ? " sm" : ""),
-    at = raw(Object.entries(o.attrs ?? {}).map(([k, v]) => ` ${k}="${esc(v)}"`).join(""));
-  return o.box
-    ? html`<input type="checkbox" class="${cls}" role="switch"${at}${raw(on ? " checked" : "")}>`
-    : html`<button type="button" class="${cls}${on ? " on" : ""}" role="switch" aria-checked="${String(on)}"${at}></button>`;
-};
 // Placeholder rows for a panel whose body is still being fetched.
 export const SKEL = raw(
   '<div aria-busy="true" aria-label="Loading">' +
@@ -63,22 +53,6 @@ export const dataUrls = (files: File[]) =>
       },
     ),
   );
-// A modal form: the native <dialog>, removed from the page once closed.
-export function modal(body: string | Safe) {
-  const dl = document.createElement("dialog");
-  dl.className = "kz";
-  dl.innerHTML = `<form class="inl" method="dialog">${body}</form>`;
-  dl.onclose = () => dl.remove();
-  // A tap on the backdrop. Braces matter: an on* handler that returns false cancels the click,
-  // which stopped every submit button inside the form.
-  dl.onclick = (e) => {
-    if (e.target === dl) dl.close();
-  };
-  document.body.appendChild(dl);
-  dl.showModal();
-  return dl;
-}
-
 // Motion: the Settings choice (data-motion on <html>), else the system's reduced-motion.
 export const motion = () => {
   const m = document.documentElement.dataset.motion;
@@ -87,74 +61,3 @@ export const motion = () => {
 // fn as a view transition where the browser has them and motion is on; resolves once the DOM is updated.
 export const vt = (fn: () => void): Promise<void> =>
   motion() && document.startViewTransition ? document.startViewTransition(fn).updateCallbackDone : (fn(), Promise.resolve());
-
-// Paging for a long list: one state per list, its size remembered per browser.
-const PAGE_SIZES = [5, 25, 50, 100];
-export function pager(id: string) {
-  let size = 25;
-  try {
-    const n = Number(localStorage.getItem("kz-page:" + id));
-    if (PAGE_SIZES.includes(n)) size = n;
-  } catch {}
-  return { id, size, at: 0, total: 0 };
-}
-type Pager = ReturnType<typeof pager>;
-// The page of items showing; a list that shrank pulls the page back into range.
-export function pageOf<T>(p: Pager, items: T[]): T[] {
-  p.total = items.length;
-  p.at = Math.max(0, Math.min(p.at, Math.ceil(items.length / p.size) - 1));
-  return items.slice(p.at * p.size, (p.at + 1) * p.size);
-}
-export function pagerHtml(p: Pager) {
-  if (p.total <= PAGE_SIZES[0]) return "";
-  const from = p.at * p.size + 1,
-    to = Math.min(p.total, from + p.size - 1);
-  return html`<div class="kpager" id="pg-${p.id}"><label>Rows<select class="sel" aria-label="Rows per page">${PAGE_SIZES.map((n) => html`<option${n === p.size ? raw(" selected") : ""}>${n}</option>`)}</select></label><span>${from}–${to} of ${p.total}</span><button class="btn sm" type="button" data-to="-1"${p.at ? "" : raw(" disabled")}>Prev</button><button class="btn sm" type="button" data-to="1"${to < p.total ? "" : raw(" disabled")}>Next</button></div>`;
-}
-export function wirePager(p: Pager, redraw: () => void) {
-  const box = $("pg-" + p.id);
-  if (!box) return;
-  box.querySelector("select").onchange = (e) => {
-    p.size = +(e.target as HTMLSelectElement).value;
-    p.at = 0;
-    try {
-      localStorage.setItem("kz-page:" + p.id, String(p.size));
-    } catch {}
-    redraw();
-  };
-  box.querySelectorAll<HTMLElement>("[data-to]").forEach(
-    (b) =>
-      (b.onclick = () => {
-        p.at += +b.dataset.to!;
-        redraw();
-      }),
-  );
-}
-
-// A background redraw (a server tick, a state poll) waits while the user is mid-gesture:
-// a press in progress, or a popup open in that area. Replacing the DOM then would close
-// the popup (a <details> or combo keeps its open state only in the DOM) or move the
-// element under the pointer so the click never lands. The held redraw runs once the
-// press ends or the popup closes.
-let pressed = false;
-const held = new Map<HTMLElement, () => void>();
-const busy = (root: HTMLElement) =>
-  pressed || !!root.querySelector("details[open], .menu-pop:not([hidden]), .combo [aria-expanded=true]");
-const flush = () => {
-  for (const [root, fn] of [...held]) if (!busy(root)) held.delete(root), fn();
-};
-if (typeof document !== "undefined") {
-  document.addEventListener("pointerdown", () => (pressed = true), true);
-  // After the click has run: its handler may draw for itself, and the held one follows.
-  const up = () => setTimeout(() => ((pressed = false), flush()), 0);
-  document.addEventListener("pointerup", up, true);
-  document.addEventListener("pointercancel", up, true);
-  document.addEventListener("toggle", () => setTimeout(flush, 0), true);
-  document.addEventListener("keyup", () => setTimeout(flush, 0), true);
-  // A popup closed by code (no toggle, no key) is caught by the next tick.
-  setInterval(flush, 1000);
-}
-export function whenIdle(root: HTMLElement | null, fn: () => void) {
-  if (root && busy(root)) held.set(root, fn);
-  else fn();
-}

@@ -4,6 +4,8 @@
 // running. Ctrl+Alt+A or the button at the bottom right toggles it. The server places these
 // terminals itself (POST /shell with home: true); the page never names a folder.
 import { ask } from "../lib/ask.ts";
+import { setHomeWsMenu } from "../lib/home-ws-menu.ts";
+import { react } from "./views.ts";
 import { $, html, ico, raw } from "./dom.ts";
 import { store } from "./store.ts";
 import { termLoad } from "./agent-term.ts";
@@ -122,13 +124,9 @@ function draw() {
   row.hidden = st !== "min";
   row.querySelector(".c")!.textContent = ts.length ? String(ts.length) : "";
   if (st !== "open") return unmount();
-  const mark = (a) => (MARKS.includes(a.cmd) ? raw(`<svg><use href="#i-${a.cmd}"/></svg>`) : ico("ai"));
   const tabIco = (t) => (t.agent && MARKS.includes(t.agent) ? raw(`<svg><use href="#i-${t.agent}"/></svg>`) : ico("term"));
   put("hwstabs", String(
     html`${ts.map((t) => html`<button class="hwstab${t.key === on ? " on" : ""}" data-k="${t.key}" title="${t.title}">${tabIco(t)}<span>${t.title}</span><i data-x="${t.key}" role="button" aria-label="Close ${t.title}" title="Close tab">×</i></button>`)}`,
-  ));
-  put("hwsmenu", String(
-    html`${agents.map((a) => html`<button data-n="${a.cmd}">${mark(a)}<span>${a.name}<small>${a.cmd === dflt ? "default agent, in your Home folder" : "in your Home folder"}</small></span></button>`)}${agents.length ? raw("<hr>") : ""}<button data-n="">${ico("term")}<span>Shell<small>a terminal in your Home folder</small></span></button>`,
   ));
   const mx = $("hwsmax");
   mx.title = max ? "Restore size" : "Maximize";
@@ -201,7 +199,7 @@ export function initHomeWs() {
   }
   document.body.insertAdjacentHTML(
     "beforeend",
-    `<section id="hws" class="hws" role="dialog" aria-label="Home workspace" hidden><header class="hwsh"><svg class="hwsico" aria-hidden="true"><use href="#i-home"/></svg><b>Home</b><div class="hwstabs" id="hwstabs"></div><details class="radd" id="hwsadd"><summary class="ib xs" title="New tab" aria-label="New tab"><svg><use href="#i-plus"/></svg></summary><div class="menu-pop" id="hwsmenu"></div></details><span class="sp"></span><button class="ib xs" id="hwsmin" title="Minimize to the sidebar" aria-label="Minimize to the sidebar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 18h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button><button class="ib xs" id="hwsmax" title="Maximize" aria-label="Maximize"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/></svg></button><button class="ib xs" id="hwsx" title="Close: end Home terminals" aria-label="Close the Home workspace"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></header><div class="hwsb" id="hwsb"></div></section><button id="hwsbtn" class="hwsbtn" title="Home workspace (Ctrl+Alt+A)" aria-label="Home workspace"><svg aria-hidden="true"><use href="#r-term"/></svg></button>`,
+    `<section id="hws" class="hws" role="dialog" aria-label="Home workspace" hidden><header class="hwsh"><svg class="hwsico" aria-hidden="true"><use href="#i-home"/></svg><b>Home</b><div class="hwstabs" id="hwstabs"></div><span id="hwsadd"></span><span class="sp"></span><button class="ib xs" id="hwsmin" title="Minimize to the sidebar" aria-label="Minimize to the sidebar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 18h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button><button class="ib xs" id="hwsmax" title="Maximize" aria-label="Maximize"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/></svg></button><button class="ib xs" id="hwsx" title="Close: end Home terminals" aria-label="Close the Home workspace"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></header><div class="hwsb" id="hwsb"></div></section><button id="hwsbtn" class="hwsbtn" title="Home workspace (Ctrl+Alt+A)" aria-label="Home workspace"><svg aria-hidden="true"><use href="#r-term"/></svg></button>`,
   );
   // The minimized row: first in the Projects list, beside the list rather than in it, so the list's redraws never drop it.
   $("plist").insertAdjacentHTML(
@@ -209,7 +207,7 @@ export function initHomeWs() {
     `<div class="plist hwsslot" id="hwsrow" hidden><div class="pgrp"><button type="button" class="proj" id="hwsopen" title="Home workspace: agents outside any project (Ctrl+Alt+A)"><svg class="plogo hwsico" aria-hidden="true"><use href="#i-home"/></svg><span class="pname">Home</span><span class="c"></span></button><button type="button" class="wadd hwsrx" id="hwsrx" title="Close the Home workspace" aria-label="Close the Home workspace"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div></div>`,
   );
   const p = $("hws");
-  drag(p, p.querySelector<HTMLElement>(".hwsh")!, "kz-home-ws-at", (e) => isPhone() || max || !!(e.target as Element).closest("button,summary,.menu-pop"));
+  drag(p, p.querySelector<HTMLElement>(".hwsh")!, "kz-home-ws-at", (e) => isPhone() || max || !!(e.target as Element).closest("button,summary"));
   drag($("hwsbtn"), $("hwsbtn"), "kz-home-ws-btn", () => false);
   $("hwsbtn").onclick = () => (dragged ? (dragged = false) : toggleHome());
   $("hwsopen").onclick = () => set("open");
@@ -226,23 +224,15 @@ export function initHomeWs() {
   });
   $("hwsmin").onclick = () => set("min");
   $("hwsmax").onclick = () => ((max = !max), draw());
-  const add = $("hwsadd") as HTMLDetailsElement;
-  add.ontoggle = () => {
-    if (!add.open) return;
-    void readAgents().then(() => {
-      draw();
-      const m = $("hwsmenu"), r = add.querySelector("summary")!.getBoundingClientRect();
-      m.style.top = r.bottom + 4 + "px";
-      m.style.left = Math.max(4, Math.min(r.left, innerWidth - m.offsetWidth - 4)) + "px";
-    });
-  };
-  addEventListener("click", (e) => { if (add.open && !add.contains(e.target as Node)) add.open = false; });
-  $("hwsmenu").onclick = (e) => {
-    const b = (e.target as Element).closest<HTMLElement>("[data-n]");
-    if (!b) return;
-    add.open = false;
-    void start(agents.find((x) => x.cmd === b.dataset.n)?.cmd);
-  };
+  // The "+" menu is React (components/home-ws-add.tsx); it reads the agents when it opens.
+  react.mountRunPart($("hwsadd"), "hwsadd");
+  setHomeWsMenu({
+    open: async () => {
+      await readAgents();
+      setHomeWsMenu({ agents, dflt });
+    },
+    start: (cmd) => void start(cmd),
+  });
   $("hwstabs").onclick = (e) => {
     const t = e.target as Element, x = t.closest<HTMLElement>("[data-x]")?.dataset.x;
     if (x) return void closeTab(x);
