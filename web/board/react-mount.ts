@@ -36,6 +36,9 @@ import { SearchPalette } from "@components/search";
 import { OnboardingDialog } from "@components/home";
 import { PhoneSheets } from "@components/phone";
 import { AskHost } from "@components/shared";
+import { RailFilter, RailList } from "@components/rail";
+import { ResourcesButton } from "@components/resources";
+import { setRailData, touchRail } from "@lib/rail";
 import { BoardPopups, BoardModeSwitch } from "@components/board";
 import { GitHost } from "@components/git";
 import { setGit } from "@lib/git";
@@ -57,7 +60,7 @@ import { mic, stopDictation } from "./dictation.ts";
 import { askNotify, setToaster } from "./toast.ts";
 import { $, dataUrls, motion } from "./dom.ts";
 import { pick as pickProject, setShown, showable } from "./projects.ts";
-import { gitProjects, wsHref } from "./workspace.ts";
+import { connectRail, gitProjects, wsHref } from "./workspace.ts";
 import { notifyOn, playSound, SOUNDS, soundPick } from "./toast.ts";
 import { store } from "./store.ts";
 
@@ -243,4 +246,11 @@ export function initReact(go: (view: string, push?: boolean) => void) {
     e.preventDefault();
     navigateTask(e.detail);
   }) as EventListener);
+  // The side menu's Projects list and filter, and the footer's resource button: roots inside the page's own static elements.
+  // The list lives in the legacy layer (no kz-ui host), its popups in #kz-portal.
+  connectRail({ set: setRailData, touch: touchRail });
+  for (const [id, part] of [["plist", RailList], ["pfilter-host", RailFilter], ["res-host", ResourcesButton]] as const) {
+    const el = document.getElementById(id);
+    if (el) createRoot(el).render(createElement(TooltipProvider, null, createElement(part)));
+  }
 }

@@ -1,27 +1,7 @@
-export type AttentionTask = {
-  id: string;
-  dir: string;
-  title: string;
-  status?: string;
-  activeRun?: string | null;
-  runs?: (string | { id: string })[];
-  runIds?: string[];
-  legacy?: { kind: string; id?: string; index?: number };
-  attention: { category: string; reason: string; action: string };
-};
+import { taskForCard as find, type RailTask } from "@lib/rail/rules.ts";
+export type AttentionTask = RailTask;
 export let attentionTasks: AttentionTask[] | null = null;
-export const taskForCard = (c: any, tasks = attentionTasks) =>
-  tasks?.find(
-    (t) =>
-      t.dir === c.state &&
-      (t.id === c.taskId ||
-        (c.kind === "run" &&
-          [
-            t.activeRun,
-            ...(t.runs ?? t.runIds ?? []).map((r) => (typeof r === "string" ? r : r.id)),
-            ...(t.legacy?.kind === "run" ? [t.legacy.id] : []),
-          ].includes(c.id))),
-  );
+export const taskForCard = (c: any, tasks = attentionTasks) => find(c, tasks);
 export function setTaskAttention(tasks: AttentionTask[]) {
   attentionTasks = tasks;
   if (typeof document !== "undefined") {

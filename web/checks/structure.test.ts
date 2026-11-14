@@ -106,17 +106,24 @@ test("no page, component or lib file hand-builds a dialog, menu or list box, or 
   ).toBe(2);
 });
 
-// workspace.ts is shared with the notebook and Video bundles, which mount no React: the sheet and the menu it opens
-// are asked for only through the onBoard() guard or the notebook's on-demand kit (addProject / wsMenu; Video has no kit and
-// keeps the redirect / the browser's menu), and settings.ts / tasks-page.tsx never wipe a header host another part mounted
-// (#ptabs, #psub, #hx).
+// workspace.ts is shared with the notebook and Video bundles. The Projects list, its filter, the worktree menu and the
+// resource popup are React (components/rail, components/resources): the board mounts them (react-mount.ts), the Notebook
+// page gets the list and filter from its on-demand kit (kit.ts, loaded at start), and Video lists no projects. What
+// stays here opens the Add a project sheet only through the onBoard() guard or the kit, and settings.ts / tasks-page.tsx
+// never wipe a header host another part mounted (#ptabs, #psub, #hx).
 test("shared side-menu code only opens React hosts the page has; no page wipes a mounted host", () => {
   const rd = (p: string) => readFileSync(join(web, p), "utf8");
   const ws = rd("board/workspace.ts");
   expect(ws.match(/\bopenAdd\(/g)?.length).toBe(3); // the board branch, the kit's, and the ?add= arrival
   expect(ws).toMatch(/function addProject[\s\S]*?if \(onBoard\(\)\) return openAdd[\s\S]*?kitFor\(\)\.then\(\(k\) => k\.openAdd\(o\), \(\) => leave\(/);
-  expect(ws).toMatch(/function wsMenu\([^)]*\) \{\n  if \(!onBoard\(\) && !kitHere\(\)\) return;/);
-  expect(ws).toMatch(/if \(onBoard\(\)\) openWsMenu\(x, y, items\);\n  else kitFor\(\)\.then/);
+  // The list and the popups are gone from the old code and have a mount on each page that has them.
+  expect(ws).not.toMatch(/drawList|drawPop|pfpop|wsMenu|rankDrag|innerHTML = drawn/);
+  expect(existsSync(join(web, "board/resources.ts"))).toBe(false);
+  expect(ws).toMatch(/!onBoard\(\) && kitHere\(\)\) void kitFor\(\)\.then\(\(k\) => connectRail\(k\.rail\)/);
+  expect(rd("board/react-mount.ts")).toMatch(/\["plist", RailList\], \["pfilter-host", RailFilter\], \["res-host", ResourcesButton\]/);
+  expect(rd("notebook/kit.ts")).toMatch(/\["plist",\s*RailList\],\s*\["pfilter-host",\s*RailFilter\]/);
+  for (const f of ["board", "notes", "video"]) expect(rd(`html/${f}.html`)).toContain('<span id="pfilter-host" style="display:contents"></span>');
+  expect(rd("html/board.html")).toContain('<span id="res-host" style="display:contents"></span>');
   // Search: the notebook page opens the palette from the kit and falls back to the board; every page load from the palette
   // goes through go(), which writes the notebook's open note first.
   const se = rd("board/search.ts");
@@ -139,6 +146,7 @@ const MAX_FILES = 25;
 const BRIDGE_DIRECT = [
   "board/workspace.ts",
   "board/ws-tabs.ts",
+  "board/badge.ts",
   "board/labels.ts",
   "board/search.ts",
   "board/dictation.ts",

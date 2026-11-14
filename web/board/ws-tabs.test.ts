@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { nearestPane, agentStatus, agentsHtml, forgetAgents, lineOf, settleIn, toggleOpen, wsAgents, SETTLE_MS, awaiting, dueWord, chosen, newRun, loopbackUrl, devUrl, toOpen, previewIn, previewOpens, moveTo, stageKeys, stageTabs, finished, historyOf, liveIn, migrate, pickable, prune, wsKey } from "./ws-tabs.ts";
+import { nearestPane, agentStatus, forgetAgents, lineOf, settleIn, toggleOpen, wsAgents, SETTLE_MS, awaiting, dueWord, chosen, newRun, loopbackUrl, devUrl, toOpen, previewIn, previewOpens, moveTo, stageKeys, stageTabs, finished, historyOf, liveIn, migrate, pickable, prune, wsKey } from "./ws-tabs.ts";
 
 const run = (id: string, status: string, o: any = {}) => ({ kind: "run", state: "/p/.kaizen", id, status, moved: 1, ws: "/p", ...o });
 const wsOf = (c) => c.ws;
@@ -158,23 +158,10 @@ test("expanded state toggles per workspace", () => {
   expect(toggleOpen(m, "/p/.kaizen", "/p")).toEqual({});
 });
 
-test("card html: one agent has no chevron; several group chips; expanded lists rows; the typed or agent line is escaped", () => {
+test("an agent's row text is its own output line, else its status and name", () => {
   const rows = (...a: any[]) => wsAgents(a, "/p/.kaizen", "/p", (c) => c.ws, 0, new Map());
-  const one = String(agentsHtml(rows(ag("a", { at: 1 })), 1e5, false, "/p/.kaizen", "/p"));
-  expect(one).toContain("Done - Claude");
-  expect(one).not.toContain("wchev");
-  const many = String(agentsHtml(rows(ag("a"), ag("b", { busy: true }), ag("c", { agent: "x", name: "Other" })), 0, false, "/p/.kaizen", "/p"));
-  expect(many.match(/class="chip"/g)!.length).toBe(2); // working, done
-  expect(many.indexOf("si build")).toBeLessThan(many.indexOf("si done"));
-  expect(many.match(/data-term=/g)!.length).toBe(3);
-  expect(many).toContain('aria-expanded="false"');
-  const evil = '<img src=x onerror="alert(1)"> & <b>x</b>';
-  const open = String(agentsHtml(rows(ag("a", { last: evil }), ag("b")), 0, true, "/p/.kaizen", "/p"));
-  expect(open).toContain("2 agents");
-  expect(open).toContain("&lt;img src=x onerror=&quot;alert(1)&quot;&gt; &amp; &lt;b&gt;x&lt;/b&gt;");
-  expect(open).not.toContain("<img");
-  expect(open).not.toContain("<b>");
   expect(lineOf(rows(ag("z"))[0])).toBe("Done - Claude");
+  expect(lineOf(rows(ag("z", { last: "compiling" }))[0])).toBe("compiling");
 });
 
 test("prune keeps a split node it drops nothing from, so a gutter drag writes to the live layout", () => {

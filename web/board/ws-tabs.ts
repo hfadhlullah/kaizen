@@ -1,10 +1,9 @@
 // The workspace centre's logic without the DOM, so it is tested alone (ws-tabs.test.ts):
 // which runs the panel's picker lists, which are History, how stage terminals are named, and
-// how the old per-run tab layouts move to their workspace, and the sidebar card's agent chips and rows.
+// how the old per-run tab layouts move to their workspace.
 // A screen's layout is a tmux-style tree: a leaf is an item id; a split holds two or more
 // children side by side ("cols") or stacked ("rows"), with their relative sizes.
-import { html } from "./dom.ts";
-import { age } from "./labels.ts";
+import { gitDue } from "@lib/rail/rules.ts";
 export type Node = string | { dir: "cols" | "rows"; kids: Node[]; sizes: number[] };
 export type Box = { left: number; top: number; right: number; bottom: number };
 // The pane next to `from` in a direction: it must lie past that edge and share some of the
@@ -42,9 +41,6 @@ export function prune(n: Node, keep: (id: string) => boolean): Node | null {
 
 // A workspace's key in the saved tab layouts (localStorage kz-runtabs).
 export const wsKey = (dir: string, ws: string) => `ws:${dir}:${ws}`;
-// A done, approved run whose commit or push is still to do (the card's git mark): it stays in the picker.
-export const gitDue = (c) => c.kind === "run" && c.status === "done" && c.accept !== "needs" && !c.archived && c.git === "pending";
-export const dueWord = (c) => (c.gitDue === "push" ? "push" : "commit");
 // A run that is over: abandoned, or done and neither waiting on an approval nor on its commit. It is History.
 export const finished = (c) => c.kind === "run" && (c.status === "abandoned" || (c.status === "done" && c.accept !== "needs" && !gitDue(c)));
 const here = (c, dir: string, ws: string, wsOfCard) => c.state === dir && wsOfCard(c) === ws;
@@ -147,14 +143,6 @@ export function devUrl(pv: string | null | undefined, ports: number[]): string |
 // yet opened the Browser: once per run id (`seen`).
 export const toOpen = (cards: any[], was: Set<string>, seen: string[], keyOf: (c) => string) => cards.filter((c) => reviewing(c) && !was.has(keyOf(c)) && !seen.includes(keyOf(c)));
 
-// The list with the item at `from` moved into slot `to` (0 = top, list.length = the end), counted
-// before the move: the sidebar's project drag lands it where its drop line was drawn.
-export const moveTo = <T>(list: T[], from: number, to: number): T[] => {
-  const out = list.filter((_, i) => i !== from);
-  out.splice(to > from ? to - 1 : to, 0, list[from]);
-  return out;
-};
-
 // `kaizen preview` written from folder `pws` belongs to workspace `ws`: the same folder or one inside
 // it, but never a worktree under it (`.kaizen/wt/`), which is a workspace of its own.
 export const previewIn = (pws: string, ws: string) => pws === ws || (pws.startsWith(ws + "/") && !pws.startsWith(ws + "/.kaizen/wt/"));
@@ -162,63 +150,7 @@ export const previewIn = (pws: string, ws: string) => pws === ws || (pws.startsW
 // a workspace (`last` undefined: a click, a switch, a reload) only records.
 export const previewOpens = (at: number, last: number | undefined) => last !== undefined && at > last;
 
-// ---- the sidebar card's agents (/state `agents`, one entry per open agent terminal)
-export type Agent = { key: string; dir: string; ws?: string; agent?: string; name: string; run?: string; asking: boolean; busy: boolean; last?: string; at?: number; born?: number; land?: string };
-export type Status = "conflict" | "failed" | "asking" | "working" | "done";
-// Output flickers: entering "working" is immediate, leaving it for "done" waits this long after the last busy tick.
-export const SETTLE_MS = 3000;
-const seenBusy = new Map<string, number>(); // pty key + start time -> when it was last seen busy
-const id = (a: Agent) => a.key + "@" + (a.born ?? 0); // a restarted pty under the same key is a new agent
-const ORDER: Record<Status, number> = { conflict: 0, failed: 0, asking: 0, working: 1, done: 2 };
-export const WORD: Record<Status, string> = { conflict: "Conflict", failed: "Land failed", asking: "Asking", working: "Working", done: "Done" };
-export const DOT: Record<Status, string> = { conflict: "fail", failed: "fail", asking: "wait", working: "build", done: "done" }; // the .si icons
-// asking comes first and is immediate both ways (the server already waits for the screen to settle).
-export function agentStatus(a: Agent, now: number, seen = seenBusy): Status {
-  if (a.land) return a.land === "conflict" ? "conflict" : "failed";
-  if (a.asking) return "asking";
-  if (a.busy) return (seen.set(id(a), now), "working");
-  return now - (seen.get(id(a)) ?? -Infinity) < SETTLE_MS ? "working" : "done";
-}
-// Milliseconds until an agent now held at "working" may turn "done" (to redraw then); Infinity when none is.
-export const settleIn = (as: Agent[], now: number, seen = seenBusy) =>
-  Math.min(Infinity, ...as.filter((a) => !a.asking && !a.busy && seen.has(id(a))).map((a) => SETTLE_MS - (now - seen.get(id(a))!)).filter((x) => x > 0));
-// Forgets agents that are gone, so the memory stays as small as the open agents.
-export const forgetAgents = (as: Agent[], seen = seenBusy) => { const live = new Set(as.map(id)); for (const k of seen.keys()) if (!live.has(k)) seen.delete(k); };
-export type ARow = { a: Agent; st: Status };
-// The agents of one workspace (the card's `ws` resolved as the rows resolve it), asking first, then working, then done.
-export const wsAgents = (as: Agent[], dir: string, ws: string, wsOf, now: number, seen = seenBusy): ARow[] =>
-  as.filter((a) => a.dir === dir && wsOf({ state: a.dir, ws: a.ws }) === ws)
-    .map((a) => ({ a, st: agentStatus(a, now, seen) }))
-    .sort((x, y) => ORDER[x.st] - ORDER[y.st]);
-// An expanded card's row text: the agent's latest output line, else the status and the agent.
-export const lineOf = ({ a, st }: ARow) => (a.land ? "" : a.last) || `${WORD[st]} - ${a.name}`;
-const ago = (t: number | undefined, now: number) => (!t ? "" : now - t < 60e3 ? "now" : age(t, now));
-// Expanded cards, remembered per workspace (localStorage kz-wsopen): the map of dir\0ws to true.
-export const openKey = (dir: string, ws: string) => dir + "\0" + ws;
-export function toggleOpen(m: Record<string, true>, dir: string, ws: string) {
-  const k = openKey(dir, ws);
-  if (m[k]) delete m[k];
-  else m[k] = true;
-  return m;
-}
-const SPRITE = ["claude", "codex", "gemini"];
-const mark = (a: Agent) => html`<svg aria-hidden="true"><use href="#i-${SPRITE.includes(a.agent ?? "") ? a.agent : "ai"}"/></svg>`;
-const dot = (st: Status) => html`<i class="si ${DOT[st]}"></i>`;
-const CHEV = html`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-// Line 3 of a workspace card. Every string goes through `html`, which escapes: the typed line and the agent's own
-// output are untrusted text. data-term opens that agent's terminal; data-wopen only toggles the list.
-export function agentsHtml(rows: ARow[], now: number, open: boolean, dir: string, ws: string) {
-  if (!rows.length) return "";
-  const at = html`data-dir="${dir}" data-ws="${ws}"`;
-  if (rows.length === 1) {
-    const r = rows[0];
-    return html`<div class="wag"><button type="button" class="aone" data-term="${r.a.key}" ${at} title="${r.a.name}: open its terminal">${dot(r.st)}${mark(r.a)}<span class="atx">${WORD[r.st]} - ${r.a.name}</span><small>${ago(r.a.at, now)}</small></button></div>`;
-  }
-  const chev = html`<button type="button" class="wchev${open ? " on" : ""}" data-wopen ${at} aria-expanded="${String(open)}" aria-label="${String(rows.length)} agents: ${open ? "hide" : "show"} the list">${CHEV}</button>`;
-  if (open)
-    return html`<div class="wag"><span class="aht">${String(rows.length)} agents</span>${chev}</div><div class="alist">${rows.map((r) => html`<button type="button" class="arow" data-term="${r.a.key}" ${at} title="${lineOf(r)}">${dot(r.st)}${mark(r.a)}<span class="atx">${lineOf(r)}</span><small>${ago(r.a.at, now)}</small></button>`)}</div>`;
-  const chips = (["conflict", "failed", "asking", "working", "done"] as Status[]).map((st) => ({ st, rs: rows.filter((r) => r.st === st) })).filter((g) => g.rs.length);
-  return html`<div class="wag"><span class="chips">${chips.map((g) => html`<span class="chip">${dot(g.st)}${g.rs.map((r) => html`<button type="button" class="amark" data-term="${r.a.key}" ${at} title="${r.a.name} - ${WORD[g.st]}: open its terminal" aria-label="${r.a.name} - ${WORD[g.st]}: open its terminal">${mark(r.a)}</button>`)}</span>`)}</span>${chev}</div>`;
-}
-
+// The sidebar card's agents, the project drag's moveTo and gitDue moved to lib/rail (no DOM there); re-exported so the run view and its tests keep their imports.
+export * from "@lib/rail/agents.ts";
+export { moveTo, gitDue, dueWord } from "@lib/rail/rules.ts";
 export { branchSlug } from "@lib/project/branch.ts";
