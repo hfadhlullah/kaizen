@@ -312,7 +312,7 @@ function screens(dir: string, run: string, emptyWs: { dir: string; ws: string })
     { name: "run-picker", url: RUN, widths: D1, open: `await click("button[title='Choose a run']")` },
     { name: "run-history", url: RUN, widths: D1, open: `await click("button[aria-label='New tab']"); await click("[role=menuitem]", false, "History")` },
     { name: "phone-runs", url: "/?view=device", widths: P },
-    { name: "phone-new", url: "/", widths: P, open: `await click("#phome .pag-new")` },
+    { name: "phone-new", url: "/", widths: P, open: `await click("button", false, "New")` },
   ];
 }
 

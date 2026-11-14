@@ -97,7 +97,8 @@ export function BrowserPane({ wsk, live = true, shown = true }: { wsk: string; l
     cur = useRef(nav.url),
     // What the frame should show (set by hand) and whether it is blanked while its workspace is not shown.
     want = useRef(""),
-    blank = useRef(false);
+    blank = useRef(false),
+    fresh = useRef(true);
   cur.current = nav.url;
   const setSrc = (f: HTMLElement, u: string) => {
     want.current = u;
@@ -148,10 +149,13 @@ export function BrowserPane({ wsk, live = true, shown = true }: { wsk: string; l
 
   // A request from outside (a run reached review, `kaizen preview`, Run app): go to that address.
   useEffect(() => {
+    const mount = fresh.current;
+    fresh.current = false;
     if (req?.k !== wsk) return;
     clearBrowse();
-    // A tab that just opened on this address (the request was written with it) has nothing to go to.
-    if (nav.load === 0 && req.url === nav.url) return;
+    // A tab that just opened on this address (the request was written with it) has nothing to go to. A later request for
+    // the same address (the dev server came up since) loads it again.
+    if (mount && nav.load === 0 && req.url === nav.url) return;
     dispatch({ t: "go", u: req.url });
   }, [req, wsk]);
 

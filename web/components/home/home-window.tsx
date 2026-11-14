@@ -96,7 +96,7 @@ export function HomeWindow() {
         open ? "flex" : "hidden",
         "fixed right-4 bottom-[calc(var(--foot-h,0px)+16px)] z-35 h-[min(480px,calc(100vh-96px))] max-h-[calc(100vh-16px)] min-h-[220px] w-[min(760px,calc(100vw-32px))] max-w-[calc(100vw-16px)] min-w-[360px] resize flex-col overflow-hidden rounded-lg border border-border bg-card text-foreground shadow-[var(--shadow-2),0_18px_48px_-12px_var(--shade)]",
         s.max && "inset-2! h-auto! max-h-none! w-auto! max-w-none! resize-none",
-        "max-[640px]:inset-0! max-[640px]:z-60 max-[640px]:h-auto! max-[640px]:max-h-none! max-[640px]:min-h-0 max-[640px]:w-auto! max-[640px]:max-w-none! max-[640px]:min-w-0 max-[640px]:resize-none max-[640px]:rounded-none max-[640px]:border-0 max-[640px]:pt-[env(safe-area-inset-top)] max-[640px]:pb-[env(safe-area-inset-bottom)] max-[640px]:shadow-none",
+        "max-[640px]:inset-0! max-[640px]:z-45 max-[640px]:h-auto! max-[640px]:max-h-none! max-[640px]:min-h-0 max-[640px]:w-auto! max-[640px]:max-w-none! max-[640px]:min-w-0 max-[640px]:resize-none max-[640px]:rounded-none max-[640px]:border-0 max-[640px]:pt-[env(safe-area-inset-top)] max-[640px]:pb-[env(safe-area-inset-bottom)] max-[640px]:shadow-none",
       )}
     >
       <header
@@ -113,6 +113,7 @@ export function HomeWindow() {
           {tabs.map((t) => (
             <div
               key={t.key}
+              role="presentation"
               className={cn(
                 "group flex max-w-[220px] min-w-[120px] flex-none items-center gap-2 pr-1.5 pl-3 text-base max-[640px]:max-w-40 max-[640px]:min-w-0 max-[640px]:pr-1 max-[640px]:pl-2.5",
                 t.key === cur

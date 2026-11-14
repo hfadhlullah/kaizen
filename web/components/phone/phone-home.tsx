@@ -239,8 +239,8 @@ function Home() {
       </Section>
       <Section title="Runs">
         <div className="flex flex-col">
-          {recentRuns(data.cards).map((c) => (
-            <RunRow key={c.state + rowKey(c)} c={c} now={now} />
+          {recentRuns(data.cards).map((c, i) => (
+            <RunRow key={i + c.state + rowKey(c)} c={c} now={now} />
           ))}
           {!recentRuns(data.cards).length && <Note>No runs yet.</Note>}
         </div>
@@ -269,8 +269,8 @@ function Group({ title, cards, shut }: { title: string; cards: any[]; shut?: boo
         <span>{cards.length}</span>
       </summary>
       <div className="flex flex-col">
-        {cards.map((c) => (
-          <RunRow key={c.state + rowKey(c)} c={c} now={now} />
+        {cards.map((c, i) => (
+          <RunRow key={i + c.state + rowKey(c)} c={c} now={now} />
         ))}
       </div>
     </details>
