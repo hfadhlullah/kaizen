@@ -13,6 +13,8 @@ import { setPanel, type Panel } from "../lib/panel-store.ts";
 import { resumeRun } from "../lib/run-actions.ts";
 import { decided } from "../lib/run-actions.ts";
 import { setStore } from "../lib/store.ts";
+import { UpdateCard } from "../components/update-bar.tsx";
+import { AskHost } from "../components/ask-host.tsx";
 import { BoardPopups } from "../components/board-popups.tsx";
 import { FixHost } from "../components/fix-host.tsx";
 import { GitHost } from "../components/git-tab.tsx";
@@ -34,7 +36,6 @@ import { SettingsPage } from "../pages/settings-page.tsx";
 import { FONT_MAX, FONT_MIN, fontRead, fontSet } from "../term-font.ts";
 import { mountPhone } from "./phone-setup.ts";
 import { mountWhatsApp } from "./whatsapp-setup.ts";
-import { updBar } from "./update.ts";
 import { RunFooter } from "../components/run-footer.tsx";
 import { BoardPage } from "../pages/board-page.tsx";
 import { TaskPage } from "../pages/task-page.tsx";
@@ -162,7 +163,7 @@ export function initReact(go: (view: string, push?: boolean) => void) {
   createRoot(toaster).render(createElement(Toaster));
   const popups = document.createElement("div");
   portal.append(popups);
-  createRoot(popups).render(createElement(TooltipProvider, null, createElement(BoardPopups), createElement(FixHost), createElement(GitHost), createElement(KeyHint)));
+  createRoot(popups).render(createElement(TooltipProvider, null, createElement(BoardPopups), createElement(AskHost), createElement(UpdateCard), createElement(FixHost), createElement(GitHost), createElement(KeyHint)));
   setToaster(toast);
   setHost({
     go,
@@ -205,7 +206,6 @@ export function initReact(go: (view: string, push?: boolean) => void) {
     notify: askNotify,
     font: { min: FONT_MIN, max: FONT_MAX, read: fontRead, set: fontSet },
     notices: { on: notifyOn, sounds: SOUNDS, sound: soundPick, play: (n) => playSound(n) },
-    updBar,
     mountPhone: (el) => void mountPhone(el),
     mountWhatsApp: (el) => void mountWhatsApp(el),
     currentDir: () => store.dir || store.S?.dir || "",

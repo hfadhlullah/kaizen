@@ -51,7 +51,6 @@ export type Host = {
   // the two phone cards that are still old code and fill an element of their own, and the project the board is on.
   font: { min: number; max: number; read(): number; set(n: number): void };
   notices: { on(): boolean; sounds: string[]; sound(): string; play(name?: string): void };
-  updBar(): void;
   mountPhone(el: HTMLElement): void;
   mountWhatsApp(el: HTMLElement): void;
   currentDir(): string;
@@ -91,7 +90,6 @@ export const host: Host = {
   refetchRun: async () => {},
   font: { min: 8, max: 24, read: () => 12, set: () => {} },
   notices: { on: () => true, sounds: [], sound: () => "", play: () => {} },
-  updBar: () => {},
   mountPhone: () => {},
   mountWhatsApp: () => {},
   currentDir: () => "",

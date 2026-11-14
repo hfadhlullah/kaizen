@@ -3,6 +3,7 @@
 // minimized, it waits as a "Home" row at the top of the Projects list, its terminals still
 // running. Ctrl+Alt+A or the button at the bottom right toggles it. The server places these
 // terminals itself (POST /shell with home: true); the page never names a folder.
+import { ask } from "../lib/ask.ts";
 import { $, html, ico, raw } from "./dom.ts";
 import { store } from "./store.ts";
 import { termLoad } from "./agent-term.ts";
@@ -74,7 +75,7 @@ async function closeTab(key: string) {
 // × ends the workspace: its terminals are asked to exit, after a yes when some are running.
 async function closeAll() {
   const ts = tabs();
-  if (ts.length && !confirm(`End ${ts.length} Home terminal${ts.length === 1 ? "" : "s"}?`)) return;
+  if (ts.length && !(await ask({ title: `End ${ts.length} Home terminal${ts.length === 1 ? "" : "s"}?`, confirmLabel: "End", danger: true }))) return;
   await Promise.all(ts.map((t) => exit(t.key)));
   on = "";
   set("closed");

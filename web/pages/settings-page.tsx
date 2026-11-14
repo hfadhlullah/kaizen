@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AskHost } from "../components/ask-host.tsx";
 import { SettingsLoading } from "../components/settings-loading.tsx";
 import { SettingsNav, Tile } from "../components/settings-nav.tsx";
+import { UpdateBar } from "../components/update-bar.tsx";
 import { SettingsSection } from "../components/settings-section.tsx";
-import { host } from "../lib/host.ts";
 import { useNarrow } from "../lib/hooks/use-narrow.ts";
 import { pickPage } from "../lib/settings-actions.ts";
 import { useSettings } from "../lib/settings-store.ts";
@@ -60,7 +59,6 @@ export function SettingsPage() {
       id="sset"
       className="grid h-full grid-cols-[clamp(220px,24vw,272px)_minmax(0,1fr)] max-[640px]:block max-[640px]:h-auto"
     >
-      <AskHost />
       <SettingsNav hits={hits} current={current} onSearchFocus={setTyping} />
       <div
         id="smain"
@@ -90,7 +88,7 @@ export function SettingsPage() {
                 </p>
               </div>
             </header>
-            {p.id === "general" && <About />}
+            {p.id === "general" && <UpdateBar />}
             {pages.get(p.id)!.map((s: any) => (
               <SettingsSection key={s.title} section={s} />
             ))}
@@ -109,17 +107,4 @@ export function SettingsPage() {
       </div>
     </div>
   );
-}
-
-// General opens on About: the version and the update check, drawn by the old update code into an element of its own
-// (board.html styles #supd and its heading).
-function About() {
-  const data = useSettings((s) => s.data),
-    el = useRef<HTMLDivElement>(null);
-  // The old code prepends its bar: clear the last one first.
-  useEffect(() => {
-    el.current?.replaceChildren();
-    host.updBar();
-  }, [data]);
-  return <div id="supd" ref={el} className="kz-keep" />;
 }

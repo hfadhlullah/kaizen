@@ -783,25 +783,14 @@ aside .foot .more .menu-pop{left:0;right:auto;top:auto;bottom:calc(100% + 4px)}.
 .ph-qr{width:168px;flex:none;border-radius:var(--r);overflow:hidden}.ph-qr svg{display:block;width:100%;height:auto;stroke:none}.ph-qr svg *{stroke:none}
 .ph-st{display:flex;align-items:center;gap:6px;font-size:12px}.ph-dot{width:7px;height:7px;border-radius:50%;flex:none;background:var(--dim)}.ph-dot.on{background:var(--ok)}
 .ph-note{font-size:12px}.ph-err{color:var(--danger);font-size:12px}.ph-wait{color:var(--dim)}
-/* General opens on About: the version and the update check, in a box like the rest. */
-#supd:not(:empty){margin-bottom:24px}#supd:not(:empty)::before{content:"About";display:block;margin:0 0 8px;font-size:13px;font-weight:600;color:var(--ink-hi)}#supd .updbar{margin:0;padding:10px 14px;border-radius:var(--r-l)}#supd .updbar.quiet{padding:10px 14px;border:1px solid var(--line);background:var(--bg-2);color:var(--ink-hi)}
 /* the one switch, everywhere (toggle() in board/dom.ts writes it): a <button role="switch"> flipped with .on, or a
    checkbox (:checked) where a form reads it; drawn as a track and a thumb. .sm is the compact size. */
 .chk{appearance:none;margin:0;border:0;cursor:pointer;width:51px;height:31px;flex:none;border-radius:var(--r-pill);background:color-mix(in srgb,var(--dim) 40%,transparent);position:relative;transition:background .12s}
 .chk::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:var(--on-accent);box-shadow:0 2px 4px rgb(0 0 0/.25);transition:transform .12s}
 .chk:is(.on,:checked){background:var(--accent)}.chk:is(.on,:checked)::after{transform:translateX(20px)}
 .chk.sm{width:34px;height:20px}.chk.sm::after{top:2px;left:2px;width:16px;height:16px}.chk.sm:is(.on,:checked)::after{transform:translateX(14px)}
-#updcard{position:fixed;z-index:41;right:28px;bottom:28px;width:320px;max-width:calc(100% - 32px);display:flex;flex-direction:column;gap:12px;padding:14px 16px;background:var(--bg-2);color:var(--ink);border:1px solid var(--accent);border-radius:var(--r);box-shadow:var(--shadow-2);font-size:13px}#updcard .updact{justify-content:flex-end}
-@media(max-width:640px){#updcard{right:16px;bottom:calc(68px + env(safe-area-inset-bottom))}}
 .rail a.upd svg{overflow:visible}.rail a.upd{position:relative}.rail a.upd::after{content:"";position:absolute;left:28px;top:8px;width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 2px var(--bg)}
-.updbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:space-between;margin:0 0 36px;padding:10px 14px;border:1px solid var(--accent);border-radius:var(--r);background:color-mix(in srgb,var(--accent) 10%,var(--bg-2));font-size:13px}
-.updact{display:flex;gap:8px;align-items:center}
-.updbar:not(.quiet){position:relative}.updnew{position:static}
-.updpop{display:none;position:absolute;right:0;top:calc(100% + 6px);z-index:20;width:min(360px,100%);box-sizing:border-box;padding:10px 14px;border:1px solid var(--line);border-radius:var(--r);background:var(--bg-2);box-shadow:var(--shadow-1);font-size:13px;line-height:1.5}
-.updnew:hover .updpop,.updnew:focus-within .updpop{display:block}
-.updpop ul{margin:0 0 8px;padding-left:18px}.updpop li{margin:2px 0}.updpop a{color:var(--accent)}
-.updbar.quiet{border:0;background:none;padding:0;margin-bottom:32px;color:var(--dim)}#psub:empty{display:none}
-.updfail{flex-basis:100%;color:var(--warn)}
+#psub:empty{display:none}
 
 .help{position:fixed;inset:0;z-index:12;display:none;align-items:center;justify-content:center;background:color-mix(in srgb,var(--bg) 60%,transparent);backdrop-filter:blur(3px)}
 .help.on{display:flex}.help div{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r);padding:24px 28px;box-shadow:var(--shadow-2)}

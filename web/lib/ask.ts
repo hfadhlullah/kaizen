@@ -17,3 +17,6 @@ export function answer(yes: boolean) {
   useAsk.setState({ open: null });
   o?.answer(yes);
 }
+// Ending an agent's terminal session: asked from the tile, the tab and the Terminals bar alike.
+export const askEnd = (title = "End this agent session?", description = "A run can be resumed from its tile or card.") =>
+  ask({ title, description, confirmLabel: "End session", danger: true });

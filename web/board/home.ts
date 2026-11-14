@@ -1,3 +1,4 @@
+import { ask } from "../lib/ask.ts";
 import { open } from "./panel.ts";
 import { pick, short } from "./projects.ts";
 import { $, html, ico, raw, vt } from "./dom.ts";
@@ -125,7 +126,7 @@ function bindChatItems(root) {
   root.querySelectorAll("[data-del]").forEach(
     (b) =>
       (b.onclick = async () => {
-        if (!confirm("Delete this chat?")) return;
+        if (!(await ask({ title: "Delete this chat?", confirmLabel: "Delete", danger: true }))) return;
         const r = await post("/chat/delete", { id: b.dataset.del });
         if (!r.ok) return toast((await r.json()).error);
         if (cur && cur.id === b.dataset.del) { cur = null; remoteBusy = false; remember(null); }

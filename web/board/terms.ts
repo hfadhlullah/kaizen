@@ -1,3 +1,4 @@
+import { askEnd } from "../lib/ask.ts";
 import { terminalSessions } from "./term-sessions.ts";
 import { allBoardCards, refreshBoardBadge } from "./badge.ts";
 import { store } from "./store.ts";
@@ -162,8 +163,8 @@ export function openTerms() {
             lay.hidden.push(ck);
             save();
             openTerms();
-          } else if (confirm("End this agent session? A run can be resumed from its tile or card.")) {
-            post("/pty/exit", { key: ck }).then(() => load(true));
+          } else {
+            void askEnd().then((yes) => yes && post("/pty/exit", { key: ck }).then(() => load(true)));
           }
           return;
         }
@@ -269,7 +270,7 @@ function wire(el: HTMLElement) {
       if (lay.max === k) lay.max = null;
     } else if (a === "exit") {
       // The tile stays, turning "ended" with its Resume button when the agent is gone.
-      if (confirm("End this agent session? A run can be resumed from its tile or card.")) post("/pty/exit", { key: k }).then(() => load(true));
+      void askEnd().then((yes) => yes && post("/pty/exit", { key: k }).then(() => load(true)));
       return;
     } else if (a === "card") {
       const c = sessions().get(k);

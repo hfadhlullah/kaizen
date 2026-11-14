@@ -8,6 +8,7 @@
 // kzTerm mounts on /pty that live as long as their tab, so a tab switch or a /state tick never
 // reconnects them. Split right or down shows a second tab beside the first, sized with the
 // Terminal page's handles.
+import { ask } from "../lib/ask.ts";
 import { pick } from "./projects.ts";
 import { store } from "./store.ts";
 import { toast } from "./toast.ts";
@@ -766,7 +767,7 @@ async function closeTab(id: string) {
     // Closing the tab ends the agent, so the sidebar stops listing it; one mid-turn asks first.
     const k = id.slice(6),
       a = store.S.agents?.find((x) => x.key === k);
-    if (a?.busy && !confirm("This agent is still working. End it?")) return;
+    if (a?.busy && !(await ask({ title: "This agent is still working. End it?", confirmLabel: "End", danger: true }))) return;
     s.hidden.push(id);
     (s.hb ||= {})[id] = a?.born ?? 0;
     await post("/pty/exit", { key: k });
