@@ -26,7 +26,14 @@ export function App() {
   return (
     <TooltipProvider>
       <Sprite />
-      <Rail srcs={<SourceMarks />} before={<div style={{ display: "contents" }}><HomeWsRow /></div>} />
+      <Rail
+        srcs={<SourceMarks />}
+        before={
+          <div style={{ display: "contents" }}>
+            <HomeWsRow />
+          </div>
+        }
+      />
       <div className="app">
         <Header />
         <Pages />

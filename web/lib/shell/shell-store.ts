@@ -14,7 +14,16 @@ export const useShell = create<{
   dark: boolean;
   min: boolean; // the side menu shows icons only
   setup: Setup | null;
-}>()(() => ({ view: "board", lit: "board", title: "Board", mark: false, seen: [], dark: false, min: false, setup: null }));
+}>()(() => ({
+  view: "board",
+  lit: "board",
+  title: "Board",
+  mark: false,
+  seen: [],
+  dark: false,
+  min: false,
+  setup: null,
+}));
 export const getShell = useShell.getState;
 export const setShell = useShell.setState;
 

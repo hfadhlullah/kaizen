@@ -39,7 +39,15 @@ const useWide = () => {
 export function ContextOpen() {
   const open = useContext((s) => s.open);
   return (
-    <button type="button" className="ib" id="ctx-open" aria-label="Open side panel" aria-expanded={open} title="Notes, files and terminals" onClick={() => setOpen(!open)}>
+    <button
+      type="button"
+      className="ib"
+      id="ctx-open"
+      aria-label="Open side panel"
+      aria-expanded={open}
+      title="Notes, files and terminals"
+      onClick={() => setOpen(!open)}
+    >
       <svg>
         <use href="#i-side" />
       </svg>

@@ -2,6 +2,8 @@
 // kit's icons (web/ui/icon.tsx) points at a symbol here. i- are icons, r- the side menu's, s- and c- the status and chip
 // marks, t- the run tabs'. A symbol has no drawing code of its own: it is these shapes, so a new icon is one line.
 export function Sprite({ notebook = false }: { notebook?: boolean }) {
+  // One symbol a line, so a line can be compared with Video's copy (cli/notes.test.ts): not reformatted.
+  // prettier-ignore
   return (
     <svg style={{ display: "none" }} aria-hidden="true">
       <defs>

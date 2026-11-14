@@ -20,7 +20,14 @@ function Title() {
 export function Header() {
   return (
     <div className="hdr">
-      <button type="button" className="ib" id="phone-menu" aria-label="Show navigation menu" aria-expanded="false" title="Show navigation menu">
+      <button
+        type="button"
+        className="ib"
+        id="phone-menu"
+        aria-label="Show navigation menu"
+        aria-expanded="false"
+        title="Show navigation menu"
+      >
         <Icon id="i-more" />
       </button>
       <button className="ib" id="hsidetop" aria-label="Chats" title="Chats">
@@ -36,7 +43,15 @@ export function Header() {
       <span id="fbtn-host" style={{ display: "contents" }}>
         <StatusButton />
       </span>
-      <input type="search" className="sel" id="bq" placeholder="Filter cards (press /)" aria-label="Filter cards" spellCheck={false} autoComplete="off" />
+      <input
+        type="search"
+        className="sel"
+        id="bq"
+        placeholder="Filter cards (press /)"
+        aria-label="Filter cards"
+        spellCheck={false}
+        autoComplete="off"
+      />
       <span className="hx" id="hx">
         <BoardModeSwitch />
       </span>

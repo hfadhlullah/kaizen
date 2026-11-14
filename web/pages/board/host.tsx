@@ -14,4 +14,5 @@ export const Fill = ({ children }: { children: ReactNode }) => (
   </div>
 );
 // A page is drawn the first time its view opens and kept after, so a hidden page costs nothing until it is wanted.
-export const Once = ({ page, children }: { page: string; children: ReactNode }) => (useShell((s) => s.seen.includes(page)) ? <>{children}</> : null);
+export const Once = ({ page, children }: { page: string; children: ReactNode }) =>
+  useShell((s) => s.seen.includes(page)) ? <>{children}</> : null;

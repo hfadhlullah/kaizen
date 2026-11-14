@@ -77,7 +77,13 @@ export function Pages() {
               <RunTabs />
             </Part>
           </nav>
-          <button className="ib xs" id="rside" title="Show or hide the run panel" aria-label="Show or hide the run panel" aria-pressed="false">
+          <button
+            className="ib xs"
+            id="rside"
+            title="Show or hide the run panel"
+            aria-label="Show or hide the run panel"
+            aria-pressed="false"
+          >
             <svg>
               <use href="#i-open" />
             </svg>

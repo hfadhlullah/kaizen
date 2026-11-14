@@ -13,7 +13,7 @@ const keep = (id: string | null) => {
 const startId = () => {
   // Popped out of Home (`kaizen chat --chat <id>`): continue that chat.
   const handed = new URLSearchParams(location.search).get("chat");
-  if (handed) return keep(handed), handed;
+  if (handed) return (keep(handed), handed);
   try {
     return localStorage.getItem(K);
   } catch {
@@ -23,11 +23,33 @@ const startId = () => {
 const post = (path: string, body: object) =>
   fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
 // The see-through window (cli/chat-window.py) moves itself; Chromium's has no handler.
-const host = (window as unknown as { webkit?: { messageHandlers?: { kaizen?: { postMessage(m: string): void } } } }).webkit?.messageHandlers?.kaizen;
+const host = (window as unknown as { webkit?: { messageHandlers?: { kaizen?: { postMessage(m: string): void } } } })
+  .webkit?.messageHandlers?.kaizen;
 
-const Btn = (p: { id: string; title: string; hidden?: boolean; onClick?: () => void; onPointerDown?: (e: React.PointerEvent) => void; children: ReactNode }) => (
-  <button id={p.id} hidden={p.hidden} title={p.title} aria-label={p.title} onClick={p.onClick} onPointerDown={p.onPointerDown}>
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+const Btn = (p: {
+  id: string;
+  title: string;
+  hidden?: boolean;
+  onClick?: () => void;
+  onPointerDown?: (e: React.PointerEvent) => void;
+  children: ReactNode;
+}) => (
+  <button
+    id={p.id}
+    hidden={p.hidden}
+    title={p.title}
+    aria-label={p.title}
+    onClick={p.onClick}
+    onPointerDown={p.onPointerDown}
+  >
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       {p.children}
     </svg>
   </button>
@@ -73,7 +95,7 @@ export function App() {
       const rd = r.body!.getReader(),
         dec = new TextDecoder();
       let buf = "";
-      for (let x; !(x = await rd.read()).done; ) {
+      for (let x; !(x = await rd.read()).done;) {
         buf += dec.decode(x.value, { stream: true });
         let i;
         while ((i = buf.indexOf("\n")) >= 0) {
@@ -84,7 +106,7 @@ export function App() {
             e = {};
           }
           buf = buf.slice(i + 1);
-          if (e.t === "chat") (id.current = e.id), keep(e.id);
+          if (e.t === "chat") ((id.current = e.id), keep(e.id));
           if (e.t === "text") upd({ text: (reply.text ? reply.text + "\n\n" : "") + e.text, wait: undefined });
           if (e.t === "status" && !reply.text) upd({ wait: e.text });
           if (e.t === "error") upd({ error: e.error });
@@ -117,7 +139,16 @@ export function App() {
       <main>
         <div id="log" ref={log}>
           {msgs.map((m, i) => (
-            <div key={i} className={"m " + (m.role === "user" ? "u" : "a") + (m.wait ? " wait" : "") + (m.error ? " err" : "") + (i >= fresh ? " pop" : "")}>
+            <div
+              key={i}
+              className={
+                "m " +
+                (m.role === "user" ? "u" : "a") +
+                (m.wait ? " wait" : "") +
+                (m.error ? " err" : "") +
+                (i >= fresh ? " pop" : "")
+              }
+            >
               {m.error || m.text || m.wait || ""}
             </div>
           ))}
@@ -145,7 +176,12 @@ export function App() {
         </form>
       </main>
       <nav>
-        <Btn id="drag" hidden={!host} title="Drag to move" onPointerDown={(e) => e.button === 0 && host?.postMessage("drag")}>
+        <Btn
+          id="drag"
+          hidden={!host}
+          title="Drag to move"
+          onPointerDown={(e) => e.button === 0 && host?.postMessage("drag")}
+        >
           <circle cx="9" cy="6" r=".6" />
           <circle cx="15" cy="6" r=".6" />
           <circle cx="9" cy="12" r=".6" />

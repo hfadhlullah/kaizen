@@ -6,10 +6,26 @@ import { RailFilter, RailList } from "../rail/index.ts";
 import { Wordmark } from "./wordmark.tsx";
 
 // A page-level link of the side menu. The board's router (web/board/views.ts) takes its clicks; on the Notebook it is a link.
-function Item(p: { href: string; view: string; title: string; label?: ReactNode; className?: string; icon: string; aria?: string; children?: ReactNode }) {
+function Item(p: {
+  href: string;
+  view: string;
+  title: string;
+  label?: ReactNode;
+  className?: string;
+  icon: string;
+  aria?: string;
+  children?: ReactNode;
+}) {
   const lit = useShell((s) => s.lit);
   return (
-    <a className={p.className ?? "it"} href={p.href} data-view={p.view} title={p.title} aria-label={p.aria} aria-current={lit === p.view ? "page" : undefined}>
+    <a
+      className={p.className ?? "it"}
+      href={p.href}
+      data-view={p.view}
+      title={p.title}
+      aria-label={p.aria}
+      aria-current={lit === p.view ? "page" : undefined}
+    >
       <svg>
         <use href={`#${p.icon}`} />
       </svg>
@@ -48,7 +64,13 @@ export function Rail(p: { srcs?: ReactNode; before?: ReactNode }) {
         </svg>
         <span className="lbl">Search</span>
       </a>
-      <a className="it" href="/" data-view="home" title="Chat with the project's agent" aria-current={lit === "home" ? "page" : undefined}>
+      <a
+        className="it"
+        href="/"
+        data-view="home"
+        title="Chat with the project's agent"
+        aria-current={lit === "home" ? "page" : undefined}
+      >
         <svg className="dkl">
           <use href="#r-chat" />
         </svg>
@@ -60,23 +82,67 @@ export function Rail(p: { srcs?: ReactNode; before?: ReactNode }) {
           <span className="phl">Home</span>
         </span>
       </a>
-      <Item className="it ponly" href="/?view=chat" view="chat" title="Chat with kaizen's agent" label="Chat" icon="r-chat" />
-      <Item className="it ponly" href="/?view=device" view="device" title="This computer's runs" label="Runs" icon="r-runs" />
-      <Item className="it ponly" href="/?view=terminal" view="terminal" title="Open terminals across all projects" label="Terminal" icon="r-term" />
-      <Item className="it fold" href="/?view=icebox" view="sources" title="Icebox: requests gathered from your sources" label="Icebox" icon="r-tray">
+      <Item
+        className="it ponly"
+        href="/?view=chat"
+        view="chat"
+        title="Chat with kaizen's agent"
+        label="Chat"
+        icon="r-chat"
+      />
+      <Item
+        className="it ponly"
+        href="/?view=device"
+        view="device"
+        title="This computer's runs"
+        label="Runs"
+        icon="r-runs"
+      />
+      <Item
+        className="it ponly"
+        href="/?view=terminal"
+        view="terminal"
+        title="Open terminals across all projects"
+        label="Terminal"
+        icon="r-term"
+      />
+      <Item
+        className="it fold"
+        href="/?view=icebox"
+        view="sources"
+        title="Icebox: requests gathered from your sources"
+        label="Icebox"
+        icon="r-tray"
+      >
         <span className="srcs" id="rail-srcs">
           {p.srcs}
         </span>
         <span className="n" id="ice-n" />
       </Item>
       <Item href="/?view=tasks" view="tasks" title="Tasks: every task and run, filtered" label="Tasks" icon="r-bulb" />
-      <a className="it" href="/?setup=1" id="rsetup" hidden={!setup} title={setup ? `Continue setup: step ${setup.step + 1} of ${setup.total}` : "Continue setup"}>
-        <span className="ring" style={setup ? ({ "--p": Math.round((setup.step / setup.total) * 100) + "%" } as CSSProperties) : undefined} />
+      <a
+        className="it"
+        href="/?setup=1"
+        id="rsetup"
+        hidden={!setup}
+        title={setup ? `Continue setup: step ${setup.step + 1} of ${setup.total}` : "Continue setup"}
+      >
+        <span
+          className="ring"
+          style={setup ? ({ "--p": Math.round((setup.step / setup.total) * 100) + "%" } as CSSProperties) : undefined}
+        />
         <span className="lbl">Setup</span>
       </a>
       <div className="psec">
         <span className="lbl">Projects</span>
-        <a className="pbd" href="/?view=board" data-view="board" title="Board" aria-label="Board" aria-current={lit === "board" ? "page" : undefined}>
+        <a
+          className="pbd"
+          href="/?view=board"
+          data-view="board"
+          title="Board"
+          aria-label="Board"
+          aria-current={lit === "board" ? "page" : undefined}
+        >
           <svg>
             <use href="#i-board" />
           </svg>
@@ -95,8 +161,26 @@ export function Rail(p: { srcs?: ReactNode; before?: ReactNode }) {
         <RailList />
       </div>
       <div className="rbot">
-        <Item className={cn("it fold", latest && "upd")} href="/?view=settings" view="settings" title={latest ? `Settings: ${(globalThis as { kaizenDesktop?: unknown }).kaizenDesktop ? "Kaizen" : "kaizen"} ${latest} is available` : "Settings"} aria="Settings" icon="i-gear" />
-        <a className="ib xs" href="/issue" target="_blank" rel="noopener" title="Report an issue" aria-label="Report an issue">
+        <Item
+          className={cn("it fold", latest && "upd")}
+          href="/?view=settings"
+          view="settings"
+          title={
+            latest
+              ? `Settings: ${(globalThis as { kaizenDesktop?: unknown }).kaizenDesktop ? "Kaizen" : "kaizen"} ${latest} is available`
+              : "Settings"
+          }
+          aria="Settings"
+          icon="i-gear"
+        />
+        <a
+          className="ib xs"
+          href="/issue"
+          target="_blank"
+          rel="noopener"
+          title="Report an issue"
+          aria-label="Report an issue"
+        >
           <svg>
             <use href="#r-bug" />
           </svg>
@@ -106,7 +190,14 @@ export function Rail(p: { srcs?: ReactNode; before?: ReactNode }) {
             <use href="#r-kbd" />
           </svg>
         </button>
-        <button className="ib xs th" id="themet" title={theme} aria-label={theme} data-dark={dark} onClick={toggleTheme}>
+        <button
+          className="ib xs th"
+          id="themet"
+          title={theme}
+          aria-label={theme}
+          data-dark={dark}
+          onClick={toggleTheme}
+        >
           <svg className="sun">
             <use href="#i-sun" />
           </svg>

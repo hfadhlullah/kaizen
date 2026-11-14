@@ -69,7 +69,10 @@ export function bootShell() {
   if (booted) return;
   booted = true;
   // Installed on iOS the page fits the window and does not zoom.
-  if (matchMedia("(display-mode:standalone)").matches || (navigator as unknown as { standalone?: boolean }).standalone) {
+  if (
+    matchMedia("(display-mode:standalone)").matches ||
+    (navigator as unknown as { standalone?: boolean }).standalone
+  ) {
     const vp = document.querySelector<HTMLMetaElement>("meta[name=viewport]");
     if (vp) vp.content += ",maximum-scale=1,user-scalable=no";
     addEventListener("gesturestart", (e) => e.preventDefault());
@@ -92,7 +95,9 @@ export function bootShell() {
   if (m) root().dataset.motion = m;
   // Settings changed in another window or tab apply here at once, not on the next reload.
   addEventListener("storage", (e) => {
-    const k = ({ "kz-theme": "theme", "kz-color": "color", "kz-motion": "motion" } as Record<string, string>)[e.key ?? ""];
+    const k = ({ "kz-theme": "theme", "kz-color": "color", "kz-motion": "motion" } as Record<string, string>)[
+      e.key ?? ""
+    ];
     if (!k) return;
     if (e.newValue) root().dataset[k] = e.newValue;
     else delete root().dataset[k];
