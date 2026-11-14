@@ -222,7 +222,7 @@ test("run-view.ts builds no pane, gutter, frame or terminal element and keeps no
   const src = readFileSync(join(web, "board/run-view.ts"), "utf8");
   expect(src).not.toMatch(/createElement\(["'`](?:section|header|iframe|webview)/);
   expect(src).not.toMatch(/makePane|\.rtree|\.rgut|kz-runtabs|splitAt|termLoad|new Map<string, \{ el:/);
-  const ui = readFileSync(join(web, "html/board.html"), "utf8");
+  const ui = readFileSync(join(web, "ui/legacy/board.css"), "utf8");
   expect(ui).not.toMatch(/\.rtree|\.rgut|\.rdrop|id="rgrip"/);
   // The Preview tab is React over lib/run/preview.ts: no HTML strings, no leftover classes.
   expect(src).not.toMatch(/previewPane|directPreview|insertAdjacentHTML|mountPreview/);
@@ -237,7 +237,7 @@ test("the Home window and the phone pages are drawn by React, not by board/ modu
   expect(existsSync(join(web, "board/phone.ts"))).toBe(false);
   const ws = readFileSync(join(web, "board/home-ws.ts"), "utf8");
   expect(ws).not.toMatch(/innerHTML|insertAdjacentHTML|createElement|\$\(["']hws/);
-  const css = readFileSync(join(web, "html/board.html"), "utf8");
+  const css = readFileSync(join(web, "ui/legacy/board.css"), "utf8");
   expect(css).not.toMatch(/\.hws\{|\.hwsh|\.hwstab|\.hwsb\b|\.hwsbtn|\.pag\{|\.pdev\b|\.prow\b|\.pslide|\.pmore|\.psec2|\.pusage|#phome h3/);
   // The Home window's terminal is the run view's TerminalPane, not a second way to mount xterm.
   expect(readFileSync(join(web, "components/home/home-window.tsx"), "utf8")).toMatch(/<TerminalPane/);
@@ -249,7 +249,7 @@ test("the Terminal page is drawn by React, not by board/terms.ts or board.html",
   const src = readFileSync(join(web, "board/terms.ts"), "utf8");
   expect(src).not.toMatch(/innerHTML|insertAdjacentHTML|createElement|\$\(["']terms/);
   expect(src.split("\n").length).toBeLessThan(80);
-  const css = readFileSync(join(web, "html/board.html"), "utf8");
+  const css = readFileSync(join(web, "ui/legacy/board.css"), "utf8");
   expect(css).not.toMatch(/\.tile\b|\.tgrid|\.tsplit|\.ttabs|\.tbar\b|body\.tdrag|body\.tmax/);
   expect(readFileSync(join(web, "components/terminal/terminal-tile.tsx"), "utf8")).toMatch(/<TerminalPane/);
 });
@@ -261,7 +261,7 @@ test("the footer and the status strip are drawn by React, not by workspace.ts, c
   expect(ws).not.toMatch(/usageChips|\$\("(?:usage|phone|tcount)"\)|utip|uchip/);
   const cards = readFileSync(join(web, "board/cards.ts"), "utf8");
   expect(cards).not.toMatch(/\$\("(?:strip|fbtn)"\)|statusSheet|innerHTML/);
-  const css = readFileSync(join(web, "html/board.html"), "utf8");
+  const css = readFileSync(join(web, "ui/legacy/board.css"), "utf8");
   expect(css).not.toMatch(/\.uchip|\.utip|\.urow|\.umtr|\.strip\b|\.ftr\.on/);
   expect(readFileSync(join(web, "components/footer/foot-bar.tsx"), "utf8")).not.toMatch(/innerHTML/);
 });
@@ -304,7 +304,7 @@ test("the notes chat and dictation are drawn by React, not by board/ modules or 
   expect(rd("board/panel.ts")).toMatch(/react\.drawNotes\(/);
   expect(rd("lib/core/host.ts")).not.toMatch(/\bmic\(|stopDictation/);
   expect(rd("board/react-mount.ts")).not.toMatch(/dictation\.ts/);
-  const css = rd("html/board.html");
+  const css = rd("ui/legacy/board.css");
   expect(css).not.toMatch(/\.vu\{|\.ib\.mic|\.row \.mic|\.msg\{|\.chat\{|\.desc\{|\.notes textarea|\.notes \.tools|\.notes \.att|\.notes \.row/);
   expect(css).toMatch(/\.notes \.rich\{/); // the editor engine's own element (board/rich.ts) keeps its rules
   expect(css).toMatch(/\.dictating\{/);
@@ -352,7 +352,7 @@ test("the annotator is React plus one bundled page script, with no old board mod
   expect(rd("annotate/annotate.ts")).not.toMatch(/innerHTML|insertAdjacentHTML|document\.write/);
   expect(rd("components/panes/browser-pane.tsx")).toMatch(/<AnnotatePanel ann=\{ann\} \/>/);
   expect(rd("board/run-view.ts")).not.toMatch(/annotat/i);
-  expect(rd("html/board.html")).not.toMatch(/\.annbar|\.annlist|\.annn|\.annset|\.annempty/);
+  expect(rd("ui/legacy/board.css")).not.toMatch(/\.annbar|\.annlist|\.annn|\.annset|\.annempty/);
   const root = dirname(web);
   expect(readFileSync(join(root, "cli/web.ts"), "utf8")).toMatch(/ANNOTATE_JS = join\(dirname\(import\.meta\.dir\), "web", "dist", "annotate\.js"\)/);
   expect(readFileSync(join(root, "cli/annotate-proxy.ts"), "utf8")).toMatch(/"web", "dist", "annotate\.js"/);

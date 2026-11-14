@@ -8,6 +8,7 @@
 @import "tw-animate-css";
 @source ".";
 @source not "./theme.css";
+@source not "./legacy";
 @source "../components";
 @source "../pages";
 @source "../lib";

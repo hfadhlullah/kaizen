@@ -6,7 +6,7 @@ import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
 import { safeName, listNotes, saveNote, renameNote, deleteNote, boardIndex, linksTo } from "./notes.ts";
 import { wikilinks, tags, resolve, safeUrl, tree, uncode, freshName, parseTable, boardLink, resolveRun, anchorWords, pickProject } from "../web/notebook/notes-lib.ts";
-import { sourceHash, OUT, TERM_OUT, BOARD_OUT, BOT_OUT, VIDEO_OUT, ANNOTATE_OUT, UI_CSS_OUT } from "./build-web.ts";
+import { sourceHash, OUT, TERM_OUT, BOARD_OUT, BOT_OUT, VIDEO_OUT, ANNOTATE_OUT, UI_CSS_OUT, BOARD_CSS_OUT, NOTEBOOK_CSS_OUT, POPUP_CSS_OUT } from "./build-web.ts";
 
 let state = "";
 beforeEach(() => { state = join(mkdtempSync(join(tmpdir(), "kaizen-notes-")), ".kaizen"); mkdirSync(state); });
@@ -213,37 +213,39 @@ test("tree and freshName", () => {
 });
 
 test("the notebook's design tokens are the board's, line for line", () => {
+  // The pages' own styles: web/ui/legacy/ for the board and the notebook, Video's inline <style> (it keeps its page as it was).
+  const css = (f: string) => readFileSync(join(root, "web", f === "video.html" ? "html" : "ui/legacy", f), "utf8");
   const block = (f: string) => {
-    const s = readFileSync(join(root, "web", "html", f), "utf8").split("\n");
+    const s = css(f).split("\n");
     const at = s.findIndex((l) => l.startsWith(":root{--bg:"));
     return s.slice(at, at + 11).join("\n");
   };
-  expect(block("notes.html")).toBe(block("board.html"));
-  expect(block("board.html")).toContain("data-theme=dark]{--shade");
-  expect(block("board.html")).toContain(":root[data-color=blue][data-theme=dark]{");
+  expect(block("notes.css")).toBe(block("board.css"));
+  expect(block("board.css")).toContain("data-theme=dark]{--shade");
+  expect(block("board.css")).toContain(":root[data-color=blue][data-theme=dark]{");
   const syms = (f: string) => readFileSync(join(root, "web", "html", f), "utf8").split("\n").filter((l) => l.startsWith('<symbol id="s-')).join("\n");
   expect(syms("notes.html")).toBe(syms("board.html"));
   expect(syms("board.html").split("\n").length).toBe(7);
-  const mascot = (f: string) => readFileSync(join(root, "web", "html", f), "utf8").split("\n").find((l) => l.startsWith(".mascot{"));
-  expect(mascot("notes.html")).toBe(mascot("board.html")!);
+  const mascot = (f: string) => css(f).split("\n").find((l) => l.startsWith(".mascot{"));
+  expect(mascot("notes.css")).toBe(mascot("board.css")!);
 });
 
 test("the side menu is the board's on the notebook, line for line", () => {
   const between = (f: string, from: string, to: string) => {
-    const s = readFileSync(join(root, "web", "html", f), "utf8");
+    const s = readFileSync(join(root, "web", f.endsWith(".css") ? "ui/legacy" : "html", f), "utf8");
     const at = s.indexOf(from);
     expect(at).toBeGreaterThan(-1);
     return s.slice(at, s.indexOf(to, at) + to.length);
   };
-  for (const [from, to] of [["/* side menu:", "/* end side menu */"], ['<nav class="rail"', "</script>"]] as const)
-    for (const page of ["notes.html", "video.html"]) expect(between(page, from, to)).toBe(between("board.html", from, to));
+  for (const [from, to, own, other] of [["/* side menu:", "/* end side menu */", "board.css", ["notes.css", "video.html"]], ['<nav class="rail"', "</script>", "board.html", ["notes.html", "video.html"]]] as const)
+    for (const page of other) expect(between(page, from, to)).toBe(between(own, from, to));
   const syms = (f: string) => ["board", "note", "video", "link", "gear", "side", "sun", "moon", "more"].map((n) => readFileSync(join(root, "web", "html", f), "utf8").split("\n").find((l) => l.startsWith(`<symbol id="i-${n}"`)));
   expect(syms("notes.html")).toEqual(syms("board.html"));
   expect(syms("video.html")).toEqual(syms("board.html"));
   expect(syms("board.html").every(Boolean)).toBe(true);
 });
 
-test("web/dist/notebook.js, web/dist/term.js, web/dist/board.js, web/dist/ui.css, web/dist/video.js, web/dist/annotate.js and bot/web/app.js were built from the sources as they are (bun run build:web)", () => {
+test("web/dist/notebook.js, web/dist/term.js, web/dist/board.js, web/dist/ui.css, web/dist/board.css, web/dist/notebook.css, web/dist/popup.css, web/dist/video.js, web/dist/annotate.js and bot/web/app.js were built from the sources as they are (bun run build:web)", () => {
   expect(readFileSync(OUT, "utf8").split("\n", 1)[0]!).toContain(`kaizen notebook ${sourceHash()} `);
   expect(readFileSync(TERM_OUT, "utf8").split("\n", 1)[0]!).toContain(`kaizen terminal ${sourceHash()} `);
   expect(readFileSync(BOARD_OUT, "utf8").split("\n", 1)[0]!).toContain(`kaizen board ${sourceHash()} `);
@@ -251,11 +253,13 @@ test("web/dist/notebook.js, web/dist/term.js, web/dist/board.js, web/dist/ui.css
   expect(readFileSync(VIDEO_OUT, "utf8").split("\n", 1)[0]!).toContain(`kaizen video page ${sourceHash()} `);
   expect(readFileSync(ANNOTATE_OUT, "utf8").split("\n", 1)[0]!).toContain(`kaizen annotator page script ${sourceHash()} `);
   expect(readFileSync(UI_CSS_OUT, "utf8").split("\n", 1)[0]!).toContain(`kaizen ui ${sourceHash()} `);
+  for (const [f, what] of [[BOARD_CSS_OUT, "board css"], [NOTEBOOK_CSS_OUT, "notebook css"], [POPUP_CSS_OUT, "popup css"]] as const)
+    expect(readFileSync(f, "utf8").split("\n", 1)[0]!).toContain(`kaizen ${what} ${sourceHash()} `);
 });
 
 test("an installed app fits the window, not the screen", () => {
-  for (const f of ["board.html", "notes.html", "video.html"]) {
-    const s = readFileSync(join(root, "web", "html", f), "utf8");
+  for (const f of ["board.css", "notes.css", "video.html"]) {
+    const s = readFileSync(join(root, "web", f === "video.html" ? "html" : "ui/legacy", f), "utf8");
     expect(s).not.toMatch(/--sh\b(?!a)/);
     expect(s).toContain("inset:0 0 auto;height:100dvh");
     expect(s).toContain("body::after{content");
