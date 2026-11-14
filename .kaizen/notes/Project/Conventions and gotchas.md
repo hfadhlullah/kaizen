@@ -60,8 +60,10 @@ New UI is React 19 + shadcn/ui (Radix) + Tailwind v4 + Zustand, bundled by `bun 
 
 - Popup tests in a page: an open Radix layer has `data-state=open`; old board code marks hidden popups with `hidden` but they keep `role=dialog`/`menu`, so never test for the role alone.
 
+**React hosts inside old elements (final fix round).** A React root mounted once into an old element (`#ptabs`, `#psub`, `#hx`, `#pfoot`, the pane `.ph`) is never wiped by old code: no `innerHTML`/`textContent`/`replaceChildren` on that element; publish to its store instead, or append beside the host. `web/structure.test.ts` guards `settings.ts`, `tasks-page.tsx` and the `workspace.ts` openers. `workspace.ts` is also in the notebook and Video bundles, which mount no React: anything it opens through a store (Add a project, the worktree menu, Search) goes through `onBoard()`/`leave()` and sends the person to the board (`?add=`, `?search=1`), after the open note is flushed (`kz-leave`).
+
 ## Notes
 <!-- yours: /kaizen docs never rewrites this section -->
 
 - **A legacy mark inside React** (the `.si` state dot): Tailwind's reset also zeroes borders on `::before` and `::after`, which erased the check of a done dot; give such an element `kz-keep`.
-- **Hand-built popups outside the React layers:** `web/structure.test.ts` only checks pages, components and lib; `workspace.ts` (side menu) still builds its right-click menu, project filter and Delete dialog by hand until phase 5.
+- **Hand-built popups outside the React layers:** `web/structure.test.ts` only checks pages, components and lib; `workspace.ts` (side menu) still builds the project filter popup (`#pfpop`) and `resources.ts` the resource popup (`#respop`) by hand: both are carried into the notebook and Video bundles, which have no React root, so they convert when those bundles get one.
