@@ -1,5 +1,5 @@
 // The board header's two pickers: the project the board is on (or All projects) and, in All projects, which projects show.
-// board/cards.ts publishes what they need on every redraw; the pickers (components/project-bar.tsx) read it and ask the
+// board/cards.ts publishes what they need on every redraw; the pickers (components/project/project-bar.tsx) read it and ask the
 // board to act through the host.
 import { create } from "zustand";
 

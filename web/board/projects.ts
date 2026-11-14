@@ -52,7 +52,7 @@ export function setShown() {
 }
 
 export function initProjects() {
-  // The header's pickers are React (components/project-bar.tsx), drawn from what cards.ts publishes on every redraw.
+  // The header's pickers are React (components/project/project-bar.tsx), drawn from what cards.ts publishes on every redraw.
   react.mountRunPart($("combo"), "projects");
   react.mountRunPart($("showc"), "showing");
   $("newtop").onclick = newTask;

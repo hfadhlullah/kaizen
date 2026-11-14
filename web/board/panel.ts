@@ -118,7 +118,7 @@ function steps(c): Head {
 }
 const tip = (c) => cap(WORD[c.status] || c.status) + (c.awaiting ? `: ${need(c.awaiting)}` : "");
 // The run workspace's header: the project beside the picker (runner, agent, mode in its tooltip), then the stage the
-// run is in as one word and a bar that slides to it (components/panel-head.tsx draws both).
+// run is in as one word and a bar that slides to it (components/run/panel-head.tsx draws both).
 function meta(c): Head {
   let st: any = {};
   try {
@@ -332,7 +332,7 @@ export function initPanel() {
   document.addEventListener("click", (e) => {
     for (const d of document.querySelectorAll(".more[open]")) if (!d.contains(e.target)) d.open = false;
   });
-  // The panel's header parts are React (components/panel-head.tsx, panel-tabs.tsx, run-picker.tsx), in elements kept here.
+  // The panel's header parts are React (components/run/panel-head.tsx, panel-tabs.tsx, run-picker.tsx), in elements kept here.
   react.mountRunPart($("ptabs"), "ptabs");
   react.mountRunPart($("psub"), "head");
   react.mountRunPart(document.querySelector(".pwrap")!, "picker");

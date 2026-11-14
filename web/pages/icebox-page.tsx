@@ -1,22 +1,26 @@
 import { useEffect, useReducer } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { BoardChip } from "../components/board-chip.tsx";
-import { BulkBar } from "../components/bulk-bar.tsx";
-import { CaptureBox } from "../components/capture-box.tsx";
-import { Chip } from "../components/chip.tsx";
-import { CollectionDialog } from "../components/collection-dialog.tsx";
-import { ConfirmDialog } from "../components/confirm-dialog.tsx";
-import { EmptyState } from "../components/empty-state.tsx";
-import { Favicon } from "../components/favicon.tsx";
-import { FilterPopover } from "../components/filter-popover.tsx";
-import { Pager } from "../components/pager.tsx";
-import { Picker } from "../components/picker.tsx";
-import { RequestCard } from "../components/request-card.tsx";
-import { RequestPhoneRow } from "../components/request-phone-row.tsx";
-import { RequestRow } from "../components/request-row.tsx";
-import { Segmented } from "../components/segmented.tsx";
-import { SourceDrawer } from "../components/source-drawer.tsx";
-import { SwipeDeck } from "../components/swipe-deck.tsx";
+import {
+  BoardChip,
+  BulkBar,
+  CaptureBox,
+  CollectionDialog,
+  Favicon,
+  RequestCard,
+  RequestPhoneRow,
+  RequestRow,
+  SourceDrawer,
+  SwipeDeck,
+} from "../components/icebox/index.ts";
+import {
+  Chip,
+  ConfirmDialog,
+  EmptyState,
+  FilterPopover,
+  Pager,
+  Picker,
+  Segmented,
+} from "../components/shared/index.ts";
 import {
   useIceData,
   deckOf,

@@ -1,8 +1,8 @@
 import { expect, test } from "bun:test";
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { RequestCard } from "./components/request-card.tsx";
-import { RequestRow } from "./components/request-row.tsx";
+import { RequestCard } from "./components/icebox/request-card.tsx";
+import { RequestRow } from "./components/icebox/request-row.tsx";
 import {
   ago,
   catOf,

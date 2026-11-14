@@ -224,7 +224,7 @@ export function initHomeWs() {
   });
   $("hwsmin").onclick = () => set("min");
   $("hwsmax").onclick = () => ((max = !max), draw());
-  // The "+" menu is React (components/home-ws-add.tsx); it reads the agents when it opens.
+  // The "+" menu is React (components/project/home-ws-add.tsx); it reads the agents when it opens.
   react.mountRunPart($("hwsadd"), "hwsadd");
   setHomeWsMenu({
     open: async () => {

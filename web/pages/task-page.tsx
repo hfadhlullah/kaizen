@@ -1,15 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { ActionMenu } from "../components/action-menu.tsx";
-import { ChatBubble } from "../components/chat-bubble.tsx";
-import { ConfirmDialog } from "../components/confirm-dialog.tsx";
-import { DecisionBar } from "../components/decision-bar.tsx";
-import { EmptyState } from "../components/empty-state.tsx";
-import { IconButton } from "../components/icon-button.tsx";
-import { ResultChecks } from "../components/result-checks.tsx";
-import { ResultView } from "../components/result-view.tsx";
-import { StatusBadge } from "../components/status-badge.tsx";
-import { TypingDots } from "../components/typing-dots.tsx";
+import { ActionMenu, ConfirmDialog, EmptyState, IconButton } from "../components/shared/index.ts";
+import {
+  ChatBubble,
+  ResultChecks,
+  ResultView,
+  StatusBadge,
+  TypingDots,
+} from "../components/task/index.ts";
+import { DecisionBar } from "../components/decision/index.ts";
 import {
   runAction,
   sendMessage,

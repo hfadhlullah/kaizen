@@ -22,7 +22,7 @@ export function syncMode() {
   document.body.classList.toggle("wsb", ws);
   if (!document.body.classList.contains("paged")) $("bq").placeholder = ws ? "Search workspaces (press /)" : "Filter cards (press /)";
 }
-// The switch is React (components/board-mode-switch.tsx), mounted once into the header's #hx; it is shown on the Board only.
+// The switch is React (components/board/board-mode-switch.tsx), mounted once into the header's #hx; it is shown on the Board only.
 let mounted = false;
 function drawToggle() {
   const hx = $("hx");

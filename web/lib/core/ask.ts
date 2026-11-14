@@ -1,5 +1,5 @@
 // A question the page puts to the person before something it cannot take back: the answer is a promise, so actions
-// read like `if (!(await ask({...}))) return`. The AskHost component (components/ask-host.tsx) draws the open one.
+// read like `if (!(await ask({...}))) return`. The AskHost component (components/shared/ask-host.tsx) draws the open one.
 import { create } from "zustand";
 
 export type Question = { title: string; description?: string; confirmLabel: string; danger?: boolean };

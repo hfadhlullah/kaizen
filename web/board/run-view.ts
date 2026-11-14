@@ -240,7 +240,7 @@ function draw() {
     scs = screens(),
     cur = scs.find((sc) => sc.id === s.on);
   const item = (id: string) => ts.find((t) => t.id === id)!;
-  // The chrome is React (components/run-tabs.tsx and its neighbours): it is handed what to show, never an element.
+  // The chrome is React (components/run/run-tabs.tsx and its neighbours): it is handed what to show, never an element.
   const now = Date.now();
   setRunView({
     message: null,
@@ -318,7 +318,7 @@ function mountPanel() {
   picked.set(ctx!.k, key(c));
   $("panel").classList.toggle("ro", hist.includes(c)); // a run from History: no edit buttons (the commit and push ones stay)
   card = c;
-  // The picker is React (components/run-picker.tsx): the run shown, a dot when another needs you, the runs, then History.
+  // The picker is React (components/run/run-picker.tsx): the run shown, a dot when another needs you, the runs, then History.
   const now = Date.now(),
     row = (r) => ({ k: key(r), title: titleOf(r), state: stateOf(r), line: `${gitDue(r) ? `waiting on you · ${dueWord(r)}` : awaiting(r) ? "needs you" : r.status} · ${age(r.moved ?? now, now)}` });
   setRunView({ picker: { cur: row(c), live: live.map(row), hist: hist.map(row), other: live.some((r) => r !== c && awaiting(r)) } });
@@ -407,7 +407,7 @@ function makePane(t: Tab) {
   el.className = "rpane";
   el.dataset.t = t.id;
   // The header is the handle: drag it onto a tab, onto + (a new tab) or onto a pane's edge; its title, move menu and ×
-  // are React (components/pane-header.tsx). The pane itself, and the terminal or frame in it, are never React's.
+  // are React (components/run/pane-header.tsx). The pane itself, and the terminal or frame in it, are never React's.
   const ph = document.createElement("header");
   ph.className = "ph";
   ph.draggable = true;
@@ -870,7 +870,7 @@ export function runStop() {
   $("panel").classList.remove("pn");
 }
 
-// The strip's Project notes: the project's notes as a tree in the panel (components/project-notes.tsx); a note opens as a centre tab.
+// The strip's Project notes: the project's notes as a tree in the panel (components/run/project-notes.tsx); a note opens as a centre tab.
 async function projectNotes() {
   if ($("panel").classList.toggle("pn") === false) return;
   setRunView({ notes: { loading: true } });
@@ -1050,7 +1050,7 @@ function paneKey(k: string) {
   draw();
   focusPane(to.focus);
 }
-// While the prefix waits for its key, a chip says so and lists the keys (components/key-hint.tsx).
+// While the prefix waits for its key, a chip says so and lists the keys (components/run/key-hint.tsx).
 const keyHint = (on: boolean) => setRunView({ hint: on });
 function initPaneKeys() {
   let armed: Timer | undefined;

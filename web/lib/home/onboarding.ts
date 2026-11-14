@@ -1,7 +1,7 @@
 // First-run onboarding: one panel over the board with four steps (default agent, look, notifications, phone), then "Add
 // your first project". Where a user got to is kept by the board in ~/.kaizen/onboarding.json (/onboarding), so a skipped or
 // half-done flow can be continued from the side menu's Setup row or the "Continue setup?" popup. Existing users, who have a
-// project, never see it. This file is its rules and requests; components/onboarding-dialog.tsx draws it.
+// project, never see it. This file is its rules and requests; components/home/onboarding-dialog.tsx draws it.
 import { create } from "zustand";
 import { openAdd } from "../project/index.ts";
 import { ask } from "../core/index.ts";

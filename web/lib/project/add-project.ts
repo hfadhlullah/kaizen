@@ -1,6 +1,6 @@
 // The Projects "+" sheet, modelled on Orca's "Add a project": a chooser (existing folder, clone from URL, create new
 // project, new workspace), then one form with a way back. Every call is a JSON POST to the board; the server validates
-// paths, URLs and refs again. Which sheet is open is this store; components/add-project-dialog.tsx draws it.
+// paths, URLs and refs again. Which sheet is open is this store; components/project/add-project-dialog.tsx draws it.
 import { create } from "zustand";
 import { branchSlug } from "./branch.ts";
 

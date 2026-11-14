@@ -23,7 +23,7 @@ export const fold = (k: string) => {
   const key = cardKey(getGit().snap!.card);
   patchUi(key, { shut: { ...gitUi(key).shut, [k]: !gitUi(key).shut[k] } });
 };
-// Resolves when the user answers the dialog the tab shows (components/git-confirm.tsx).
+// Resolves when the user answers the dialog the tab shows (components/git/git-confirm.tsx).
 const confirm = (c: DistributiveOmit<GitConfirm, "ok" | "run">) =>
   new Promise<boolean>((ok) => setGit((s) => ({ confirm: { ...c, run: runOf(s), ok } as GitConfirm })));
 type DistributiveOmit<T, K extends keyof any> = T extends unknown ? Omit<T, K> : never;

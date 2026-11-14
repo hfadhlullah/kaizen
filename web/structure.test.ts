@@ -77,7 +77,7 @@ test("the check itself fails on an upward import, a lib import of ui, a ui impor
       [f("ui", "ok.tsx")]:
         'import { cn } from "../lib/core/utils.ts"; import { Icon } from "./icon.tsx"; import { Popover } from "radix-ui";',
       [f("pages", "ok.tsx")]:
-        'import { Chip } from "../components/chip.tsx"; import { Button } from "../ui/button.tsx"; import { x } from "../lib/core/store.ts";',
+        'import { Chip } from "../components/shared/chip.tsx"; import { Button } from "../ui/button.tsx"; import { x } from "../lib/core/store.ts";',
     }),
   ).toEqual([]);
 });

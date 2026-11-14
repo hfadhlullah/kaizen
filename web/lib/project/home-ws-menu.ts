@@ -1,5 +1,5 @@
 // The Home workspace's "+" menu: the agents that can start in the Home folder, and what starting one does. board/home-ws.ts
-// owns the window and its terminals and fills this in; components/home-ws-add.tsx draws the menu.
+// owns the window and its terminals and fills this in; components/project/home-ws-add.tsx draws the menu.
 import { create } from "zustand";
 
 export type HomeWsMenu = {

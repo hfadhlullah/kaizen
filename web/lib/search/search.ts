@@ -1,5 +1,5 @@
 // The Search palette (Ctrl/Cmd+K and the side menu's Search): which rows it holds is decided by board/search.ts, which
-// knows the side menu's data; this store carries them to components/search-palette.tsx, with what is typed and chosen.
+// knows the side menu's data; this store carries them to components/search/search-palette.tsx, with what is typed and chosen.
 import { create } from "zustand";
 import { match, type Item } from "./search-match.ts";
 

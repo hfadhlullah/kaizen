@@ -1,5 +1,5 @@
 // The two sheets the phone's Home opens: which agent of a workspace to open, and where to start a new one. board/phone.ts
-// knows the runs and the requests; it hands over what each row shows and what it does, and components/phone-sheets.tsx draws them.
+// knows the runs and the requests; it hands over what each row shows and what it does, and components/phone/phone-sheets.tsx draws them.
 import { create } from "zustand";
 
 export type PickSheet = {

@@ -1,9 +1,9 @@
 import { expect, test } from "bun:test";
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { ArtifactView } from "./components/artifact-view.tsx";
-import { ResultChecks } from "./components/result-checks.tsx";
-import { ResultView } from "./components/result-view.tsx";
+import { ArtifactView } from "./components/task/artifact-view.tsx";
+import { ResultChecks } from "./components/task/result-checks.tsx";
+import { ResultView } from "./components/task/result-view.tsx";
 import { storedUrl, webUrl, type TaskArtifact, type TaskResult } from "./lib/task/task-results.ts";
 import { canAcceptTask, closeActions, filteredTasks, taskHref, type TaskView } from "./lib/task/tasks.ts";
 import { waitingCount, taskForCard } from "./board/badge.ts";

@@ -1,6 +1,6 @@
 import { openFile, viewable } from "../lib/run/index.ts";
 
-// Files the board links to open in a popup over the board (components/file-viewer.tsx) rather than a new tab.
+// Files the board links to open in a popup over the board (components/run/file-viewer.tsx) rather than a new tab.
 // Ctrl/Cmd/Shift or a middle click still gets the browser's own tab; external links are not files and are left alone.
 export function initViewer() {
   document.addEventListener("click", (e) => {

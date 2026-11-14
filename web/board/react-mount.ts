@@ -9,35 +9,39 @@ import { iceKeys } from "../lib/icebox/index.ts";
 import { navigateTask, showTask } from "../lib/task/index.ts";
 import { closeForm as closeBoardForm, closeNewForm, getBoard, setBoard, type BoardSnap, type Popup } from "../lib/board/index.ts";
 import { setPanel, type Panel, resumeRun, decided } from "../lib/run/index.ts";
-import { UpdateCard } from "../components/update-bar.tsx";
-import { AddProjectDialog } from "../components/add-project-dialog.tsx";
-import { WsMenu } from "../components/ws-menu.tsx";
-import { FileViewer } from "../components/file-viewer.tsx";
-import { SearchPalette } from "../components/search-palette.tsx";
-import { OnboardingDialog } from "../components/onboarding-dialog.tsx";
-import { PhoneSheets } from "../components/phone-sheets.tsx";
-import { AskHost } from "../components/ask-host.tsx";
-import { BoardPopups } from "../components/board-popups.tsx";
-import { FixHost } from "../components/fix-host.tsx";
-import { GitHost } from "../components/git-tab.tsx";
-import { KeyHint } from "../components/key-hint.tsx";
-import { PaneHeader } from "../components/pane-header.tsx";
-import { ProjectNotes } from "../components/project-notes.tsx";
-import { RunEmpty } from "../components/run-empty.tsx";
-import { RunHistory } from "../components/run-history.tsx";
-import { RunTabs } from "../components/run-tabs.tsx";
-import { RunWait } from "../components/run-wait.tsx";
-import { HomeWsAdd } from "../components/home-ws-add.tsx";
-import { ProjectPicker, ShowingPicker } from "../components/project-bar.tsx";
-import { BoardModeSwitch } from "../components/board-mode-switch.tsx";
-import { PanelHead } from "../components/panel-head.tsx";
-import { PanelTabs } from "../components/panel-tabs.tsx";
-import { RunPicker } from "../components/run-picker.tsx";
+import { UpdateCard } from "../components/settings/index.ts";
+import {
+  AddProjectDialog,
+  WsMenu,
+  HomeWsAdd,
+  ProjectPicker,
+  ShowingPicker,
+} from "../components/project/index.ts";
+import {
+  FileViewer,
+  FixHost,
+  KeyHint,
+  PaneHeader,
+  ProjectNotes,
+  RunEmpty,
+  RunHistory,
+  RunTabs,
+  RunWait,
+  PanelHead,
+  PanelTabs,
+  RunPicker,
+  RunFooter,
+} from "../components/run/index.ts";
+import { SearchPalette } from "../components/search/index.ts";
+import { OnboardingDialog } from "../components/home/index.ts";
+import { PhoneSheets } from "../components/phone/index.ts";
+import { AskHost } from "../components/shared/index.ts";
+import { BoardPopups, BoardModeSwitch } from "../components/board/index.ts";
+import { GitHost } from "../components/git/index.ts";
 import { setGit } from "../lib/git/index.ts";
 import { getSettings, loadSettings, setSettings, pageId } from "../lib/settings/index.ts";
 import { SettingsPage } from "../pages/settings-page.tsx";
 import { FONT_MAX, FONT_MIN, fontRead, fontSet } from "../term-font.ts";
-import { RunFooter } from "../components/run-footer.tsx";
 import { BoardPage } from "../pages/board-page.tsx";
 import { TaskPage } from "../pages/task-page.tsx";
 import { HomePage } from "../pages/home-page.tsx";

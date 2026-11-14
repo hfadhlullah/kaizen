@@ -1,7 +1,7 @@
 // Global search: the "Search" entry on top of the side menu, and Ctrl/Cmd+K anywhere, open one palette over
 // workspaces, runs and tasks, chats, agent terminals, projects, pages and actions (modelled on Orca's "Jump to..."
 // palette). This file gathers its rows: nothing is fetched but /chats, the rest is what the side menu already holds.
-// The palette itself is React (components/search-palette.tsx, board only): the notebook and Video pages, which carry
+// The palette itself is React (components/search/search-palette.tsx, board only): the notebook and Video pages, which carry
 // no React, send the person to the board with the palette open (?search=1).
 import { $ } from "./dom.ts";
 import { age } from "./labels.ts";

@@ -2,8 +2,7 @@ import { useEffect } from "react";
 import { backlogCards, cardKey, host } from "../lib/core/index.ts";
 import { closeForm, useBoard } from "../lib/board/index.ts";
 import { Button } from "../ui/button.tsx";
-import { BoardColumn } from "../components/board-column.tsx";
-import { WsCard } from "../components/ws-card.tsx";
+import { BoardColumn, WsCard } from "../components/board/index.ts";
 
 // The Board, drawn into #board (a grid the old page keeps). Runs mode is five columns of cards; Workspaces mode is four
 // columns of workspace cards. The old board code (web/board/cards.ts render()) feeds it a snapshot on every change;

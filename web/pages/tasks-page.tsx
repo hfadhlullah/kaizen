@@ -1,11 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useShallow } from "zustand/react/shallow";
-import { EmptyState } from "../components/empty-state.tsx";
-import { FilterMenu } from "../components/filter-menu.tsx";
-import { IconButton } from "../components/icon-button.tsx";
-import { Pager } from "../components/pager.tsx";
-import { TaskRow } from "../components/task-row.tsx";
+import { EmptyState, IconButton, Pager } from "../components/shared/index.ts";
+import { FilterMenu, TaskRow } from "../components/task/index.ts";
 import {
   useDock,
   openTaskRecord,

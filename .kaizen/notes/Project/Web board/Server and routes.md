@@ -1,7 +1,7 @@
 ---
 description: The board server: routes, host guard, updates, automations and other server-side behaviour
 tags: [project, web-board]
-sources: [cli/research.ts, cli/desktop-env.test.ts, cli/automations.ts, web/components/automation-rows.tsx, web/components/orchestration-flow.tsx, cli/project-tree.test.ts, cli/logo.ts, cli/state.ts, cli/restart.test.ts, cli/hermes.ts, web/board, cli/install.ts, cli/settings.ts, web/term.css, docs/mockups]
+sources: [cli/research.ts, cli/desktop-env.test.ts, cli/automations.ts, web/components/settings/automation-rows.tsx, web/components/settings/orchestration-flow.tsx, cli/project-tree.test.ts, cli/logo.ts, cli/state.ts, cli/restart.test.ts, cli/hermes.ts, web/board, cli/install.ts, cli/settings.ts, web/term.css, docs/mockups]
 updated: 2026-11-14
 ---
 # Server and routes
@@ -12,7 +12,7 @@ Part of [[Web board]].
 The program behind the board: what it serves, which computers may reach it, how it checks for updates, and the background jobs it runs.
 
 ## Where it lives
-- Orchestration: `spawnWorkers` in `cli/web.ts` (on the file watcher and the 2 s poll) is the only caller of `startWorker`/`startPty` for workers; a worker is a `shells` entry nested under the run's card, and a running worker with no live terminal and no hand-back is swept to `unverified`. Cards of runs with a `workers.json` carry `workers`; Settings > Orchestration is `web/components/orchestration-flow.tsx` above the generic rows.
+- Orchestration: `spawnWorkers` in `cli/web.ts` (on the file watcher and the 2 s poll) is the only caller of `startWorker`/`startPty` for workers; a worker is a `shells` entry nested under the run's card, and a running worker with no live terminal and no hand-back is swept to `unverified`. Cards of runs with a `workers.json` carry `workers`; Settings > Orchestration is `web/components/settings/orchestration-flow.tsx` above the generic rows.
 
 - `cli/web.ts` — the server: routes such as `/state`, `/run`, `/backlog`, `/decide`, `/fix`, `/commit`, `/pr`, `/events`, `/vault`, `/pty`.
 
@@ -30,7 +30,7 @@ The program behind the board: what it serves, which computers may reach it, how 
 
 - `web/term.css` — terminal styles. `docs/mockups/` — design mockups.
 
-- Automations: a 60 s tick in `cli/web.ts` (own busy flag, `automate`, cleared at shutdown) calls `tickAutomations`; `/automations` (GET, POST ops create|update|pause|resume|delete|run, same-origin + JSON checks, project from `x-kz-dir`, never the home state) feeds Settings → Automations (`web/components/automation-rows.tsx`; the form draft is kept across redraws). The create form carries a warning that runs are unattended.
+- Automations: a 60 s tick in `cli/web.ts` (own busy flag, `automate`, cleared at shutdown) calls `tickAutomations`; `/automations` (GET, POST ops create|update|pause|resume|delete|run, same-origin + JSON checks, project from `x-kz-dir`, never the home state) feeds Settings → Automations (`web/components/settings/automation-rows.tsx`; the form draft is kept across redraws). The create form carries a warning that runs are unattended.
 
 - Update: `GET /version` reports `update` when npm has a newer kaizen and `POST /upgrade` runs `kaizen upgrade`; both stand down when `KAIZEN_DESKTOP_BUNDLED=1` (set by the desktop app when it runs its own read-only copy, see `docs/desktop.md`): no Update button, and `/upgrade` answers 409. Inside the desktop app, `web/board/update.ts` uses `window.kaizenDesktop` (the app's preload) instead: Check for updates and Update ask the app's electron-updater for a newer desktop release.
 
@@ -41,7 +41,7 @@ The program behind the board: what it serves, which computers may reach it, how 
 
 - `web/board.js` is committed and hash-checked: after editing `web/board/`, run `bun run build:web` or `cli/notes.test.ts` fails. A module that assigns another module's variable must go through `store`: an imported binding cannot be assigned.
 
-- Project logos: `cli/logo.ts` `projectLogo()` (fixed names only); `/state` projects carry `logo`, `GET /project-logo?dir=` serves it sandboxed; `ProjectMark` in `web/components/project-mark.tsx` draws it or the folder initial.
+- Project logos: `cli/logo.ts` `projectLogo()` (fixed names only); `/state` projects carry `logo`, `GET /project-logo?dir=` serves it sandboxed; `ProjectMark` in `web/components/shared/project-mark.tsx` draws it or the folder initial.
 - `/state` sends three project lists: `projects` (the picker, filtered by the Projects folder), `rail` (dirs with a card the picker leaves out) and `known` (every known project; the Notes tab lists these, #86).
 
 - The server keeps no current project: each page sends its pick as `x-kz-dir` (`dirHeader()` in `web/board/api.ts`) and `cli/web.ts` resolves the project per request, so a phone picking another project never moves a desktop tab. `/cd` only checks the folder (and sets up a fresh one).

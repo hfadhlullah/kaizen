@@ -1,5 +1,5 @@
 // The Source control tab's rules without the screen: which steps exist and why one is unavailable, what the main
-// button does, and what the empty tab says. The tab draws what these return (components/git-tab.tsx).
+// button does, and what the empty tab says. The tab draws what these return (components/git/git-tab.tsx).
 export type GitRow = { path: string; staged: boolean; code: string; add: number; del: number };
 export type GitLog = { sha: string; subject: string; unpushed?: boolean };
 export type GitDoc = {

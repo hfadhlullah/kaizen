@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { SettingsLoading } from "../components/settings-loading.tsx";
-import { SettingsNav, Tile } from "../components/settings-nav.tsx";
-import { UpdateBar } from "../components/update-bar.tsx";
-import { SettingsSection } from "../components/settings-section.tsx";
+import {
+  SettingsLoading,
+  SettingsNav,
+  Tile,
+  UpdateBar,
+  SettingsSection,
+} from "../components/settings/index.ts";
 import { useNarrow } from "../lib/shared/index.ts";
 import {
   pickPage,

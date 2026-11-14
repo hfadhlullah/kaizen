@@ -23,7 +23,7 @@ const step = (gone: IceItem[]) => {
 const byDir = (its: IceItem[]) =>
   [...new Set(its.map((it) => it.dir))].map((d) => [d, its.filter((it) => it.dir === d)] as const);
 
-// ---- dialogs asked as a promise, drawn by the page (components/collection-dialog.tsx, confirm-dialog.tsx)
+// ---- dialogs asked as a promise, drawn by the page (components/icebox/collection-dialog.tsx, confirm-dialog.tsx)
 const ask = <T>(a: (done: (v: T) => void) => Ask) =>
   new Promise<T>((res) =>
     setIce({

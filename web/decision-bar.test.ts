@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { DecisionBar } from "./components/decision-bar.tsx";
+import { DecisionBar } from "./components/decision/decision-bar.tsx";
 
 // The task page's section layout of DecisionBar, rendered for each kind of decision. It once threw on every
 // render (a prop used but never read) and no test drew it.
