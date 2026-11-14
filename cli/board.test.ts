@@ -52,70 +52,27 @@ test("Board badge coalesces overlapping updates and shows the latest count", asy
   }
 });
 
-test("Settings rechecks an existing update alert and clears or refreshes it", async () => {
-  const classes = new Set<string>();
-  const link = { classList: { toggle(name: string, on: boolean) { on ? classes.add(name) : classes.delete(name); } }, title: "Settings" };
-  const previous = globalThis.document;
-  const previousLocation = globalThis.location;
-  const previousFetch = globalThis.fetch;
-  const elements = new Map<string, any>();
-  const body = { row: null as any, prepend(row: any) { this.row = row; row.isConnected = true; } };
-  let card: any = null;
-  (globalThis as any).location = { search: "" };
-  (globalThis as any).document = {
-    querySelector: () => link,
-    getElementById: (id: string) => id === "pbody" ? body : id === "updcard" ? card : elements.get(id),
-    body: { append(el: any) { card = el; } },
-    createElement: () => ({
-      isConnected: false,
-      firstElementChild: { innerHTML: "" },
-      setAttribute() {},
-      set innerHTML(v: unknown) {
-        const html = String(v);
-        this.html = html;
-        elements.clear();
-        for (const [, id] of html.matchAll(/id="([^"]+)"/g)) elements.set(id, { textContent: "", disabled: false, focus() {} });
-      },
-      remove() {
-        this.isConnected = false;
-        if (card === this) card = null;
-      },
-    }),
-  };
-  try {
-    const { gotVer, updBar } = await import("../web/board/update.ts");
-    expect(gotVer({ version: "1.38.1", latest: "1.39.0", update: true })).toBe(true);
-    updBar();
-    expect(body.row.html).toContain('id="upd-chk"');
-    expect(classes.has("upd")).toBe(true);
-    expect(link.title).toContain("1.39.0");
-    globalThis.fetch = (async () => ({ json: async () => ({ version: "1.39.0", latest: "1.39.0", update: false }) })) as any;
-    await elements.get("upd-chk").onclick();
-    expect(classes.has("upd")).toBe(false);
-    expect(link.title).toBe("Settings");
-    expect(body.row.className).toContain("quiet");
-    expect(elements.get("upd-msg").textContent).toBe("kaizen 1.39.0 is up to date.");
-    globalThis.fetch = (async () => ({ json: async () => ({ version: "1.39.0", latest: "1.40.0", update: true }) })) as any;
-    await elements.get("upd-chk").onclick();
-    expect(classes.has("upd")).toBe(true);
-    expect(body.row.html).toContain("1.40.0");
-    globalThis.fetch = (async () => { throw Error("offline"); }) as any;
-    await elements.get("upd-chk").onclick();
-    expect(classes.has("upd")).toBe(true);
-    expect(body.row.html).toContain("1.40.0");
-    // The popup follows the same checks: a newer release rewrites it, none left closes it.
-    expect(card.html).toContain("1.40.0");
-    globalThis.fetch = (async () => ({ json: async () => ({ version: "1.39.0", latest: "1.41.0", update: true }) })) as any;
-    await elements.get("upd-chk").onclick();
-    expect(String(card.firstElementChild.innerHTML)).toContain("1.41.0");
-    globalThis.fetch = (async () => ({ json: async () => ({ version: "1.41.0", latest: "1.41.0", update: false }) })) as any;
-    await elements.get("upd-chk").onclick();
-    expect(card).toBe(null);
-  } finally {
-    globalThis.document = previous;
-    globalThis.location = previousLocation;
-    globalThis.fetch = previousFetch;
-  }
+test("the update state follows each check: a newer release shows, none left clears it, words say which", async () => {
+  // The About bar and the card (components/update-bar.tsx) read this store; the rail's dot follows it (board/update.ts).
+  const { available, behindMsg, gotVer, later, upToDate, useUpdate } = await import("../web/lib/update.ts");
+  const ver = () => useUpdate.getState().ver;
+  gotVer({ version: "1.38.1", latest: "1.39.0", update: true });
+  expect(available(ver())).toBe(true);
+  gotVer({ version: "1.39.0", latest: "1.39.0", update: false });
+  expect(available(ver())).toBe(false);
+  expect(upToDate(ver()!)).toBe("kaizen 1.39.0 is up to date.");
+  // A board that is the desktop app's own copy says where to update it.
+  const behind = { version: "1.38.1", latest: "1.39.0", behind: true };
+  expect(upToDate(behind)).toBe(behindMsg(behind));
+  expect(behindMsg(behind)).toContain("Update it from the desktop app");
+  gotVer({ version: "1.39.0", latest: "1.40.0", update: true });
+  expect(available(ver())).toBe(true);
+  expect(ver()!.latest).toBe("1.40.0");
+  // Later silences that release in this browser, and only that release.
+  later("1.40.0");
+  expect(useUpdate.getState().later).toBe("1.40.0");
+  gotVer({ version: "1.39.0", latest: "1.41.0", update: true });
+  expect(useUpdate.getState().later).not.toBe(ver()!.latest);
 });
 
 test("backlog items: a checkbox each, ticked only when done", () => {
@@ -297,6 +254,7 @@ test("criteria not numbered from 1 keep their own numbers", () => {
 
 // pretty(): a one-line task note splits into one paragraph per label.
 test("pretty splits a labelled plain line in a note by its labels", async () => {
+  (globalThis as any).location ??= { search: "" }; // board/store.ts reads it when chat.ts pulls it in
   const { pretty } = await import("../web/board/chat.ts");
   const t = "Parent: run-x add a timezone. OPEN QUESTION (waiting on Johan): recalc old rows? Context: PR #452.";
   expect(pretty(t)).toBe("**Parent:** run-x add a timezone.\n\n**OPEN QUESTION (waiting on Johan):** recalc old rows?\n\n**Context:** PR #452.");

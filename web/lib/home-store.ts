@@ -32,7 +32,7 @@ export const useHome = create<Home>()(() => ({
   cur: null,
   sending: false,
   remoteBusy: false,
-  side: sideAtStart(),
+  side: false, // set when Home first opens (sideAtStart): tests load this module with no window
   files: [],
   here: null,
   tick: 0,
@@ -214,7 +214,9 @@ export async function send(text: string) {
 }
 
 // The Home view opens: every chat, and the open one kept.
+let started = false;
 export async function openHome() {
+  if (!started) ((started = true), setHome({ side: sideAtStart() }));
   syncHere();
   await refreshChats();
   const { chats } = getHome();
