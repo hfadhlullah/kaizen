@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { host, cn } from "@lib/core";
 import {
   contextActions,
@@ -35,6 +34,18 @@ const useWide = () => {
   }, []);
   return wide;
 };
+
+// The header's button: opens and closes the pane (the page's CSS hides it off the Board and on a phone).
+export function ContextOpen() {
+  const open = useContext((s) => s.open);
+  return (
+    <button type="button" className="ib" id="ctx-open" aria-label="Open side panel" aria-expanded={open} title="Notes, files and terminals" onClick={() => setOpen(!open)}>
+      <svg>
+        <use href="#i-side" />
+      </svg>
+    </button>
+  );
+}
 
 // The Project context pane: the project's files, notes and terminal sessions beside the board. On a wide window it sits
 // beside the page; on a narrow one it is a dialog over it, which makes the rest of the page inert, keeps Tab inside and
@@ -97,27 +108,8 @@ export function ContextPanel() {
       removeEventListener("keydown", key, true);
     };
   }, [modal]);
-  // The header's button (a static span in board.html holds its place) opens and closes the pane.
-  const opener = document.getElementById("ctx-open-host");
   return (
     <>
-      {opener &&
-        createPortal(
-          <button
-            type="button"
-            className="ib"
-            id="ctx-open"
-            aria-label="Open side panel"
-            aria-expanded={open}
-            title="Notes, files and terminals"
-            onClick={() => setOpen(!open)}
-          >
-            <svg>
-              <use href="#i-side" />
-            </svg>
-          </button>,
-          opener,
-        )}
       <section
         id="context"
         ref={box}

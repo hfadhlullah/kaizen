@@ -5,6 +5,7 @@ export * from "./brief.ts";
 export * from "./format.ts";
 export * from "./host.ts";
 export * from "./labels.ts";
+export * from "./notifier.ts";
 export * from "./store.ts";
 export * from "./toast.ts";
 export * from "./utils.ts";

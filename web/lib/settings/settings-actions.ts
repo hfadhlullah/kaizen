@@ -1,6 +1,7 @@
 // Every request Settings makes, with the same routes and payloads the old page sent. A save toasts the server's words
 // and reads the page again, so what shows is what the server kept.
 import { ask, post, host, toast } from "@lib/core";
+import { setColor, setMotion, setTheme } from "@lib/shell";
 import { getSettings, loadSettings, setSettings } from "./settings-store.ts";
 
 const reload = () => loadSettings();
@@ -320,10 +321,9 @@ const keep = (k: string, v: string) => {
     localStorage.setItem(k, v);
   } catch {}
 };
-const win = window as any;
 export function setBrowserPref(kind: "theme" | "color" | "motion", v: string) {
   setSettings((s) => ({ prefs: { ...s.prefs, [kind]: v } }));
-  win[{ theme: "setTheme", color: "setColor", motion: "setMotion" }[kind]]?.(v);
+  ({ theme: setTheme, color: setColor, motion: setMotion })[kind](v);
 }
 export function setFont(n: number) {
   host.font.set(n);

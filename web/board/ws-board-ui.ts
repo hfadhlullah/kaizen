@@ -2,7 +2,7 @@
 // them) drawn into #board, and the Workspaces | Runs switch in the header.
 import { store } from "./store.ts";
 import { $ } from "./dom.ts";
-import { react } from "./views.ts";
+import { setBoard } from "@lib/board";
 import { RANK, projName, railData, stateOf, titleOf, wsHref, wsLabel, wsOfCard } from "./workspace.ts";
 import { taskForCard } from "./badge.ts";
 import { subline } from "@lib/phone";
@@ -24,14 +24,10 @@ export function syncMode() {
   document.body.classList.toggle("wsb", ws);
   if (!document.body.classList.contains("paged")) $("bq").placeholder = ws ? "Search workspaces (press /)" : "Filter cards (press /)";
 }
-// The switch is React (components/board/board-mode-switch.tsx), mounted once into the header's #hx; it is shown on the Board only.
-let mounted = false;
+// The switch is React (components/board/board-mode-switch.tsx), in the header's #hx; it is shown on the Board only.
 function drawToggle() {
-  const hx = $("hx");
-  if (!hx) return;
-  if (!mounted) (mounted = true), react.mountRunPart(hx, "mode");
-  react.drawMode(
-    document.body.classList.contains("paged")
+  setBoard({
+    modeSwitch: document.body.classList.contains("paged")
       ? null
       : {
           mode: boardMode(),
@@ -44,7 +40,7 @@ function drawToggle() {
             rerender();
           },
         },
-  );
+  });
 }
 export function initWsBoard(render: () => void) {
   rerender = render;

@@ -84,29 +84,32 @@ test("the check itself fails on an upward import, a lib import of ui, a ui impor
 });
 
 // A popup, dialog or list box is a piece from web/ui (Radix draws it, in #kz-portal); nothing in web/ builds one by hand,
-// draws HTML strings, or makes an element with createElement (canvas, link, script and style are not drawing). video/ is the
-// one folder outside the rule (its own page, no React, no board). The files below are the whole list of exceptions, each
-// for a reason; a file that stops needing its exception fails the test until the line is removed.
+// draws HTML strings, or makes an element by hand (`x.createElement(...)` on any document, DOMParser, a range's
+// createContextualFragment); React's own bare createElement(...) is drawing, canvas/link/script/style are not. video/ is the
+// one folder outside the rule (its own page, no React, no board). The files below are the whole list of exceptions, each for
+// a reason and with the most uses it may keep: a new use in an exempt file fails until the count is raised on purpose, and a
+// file that stops needing its exception fails the test until the line is removed.
 const HAND_BUILT =
-  /<dialog\b|document\.createElement\(["']dialog|(?<!\[)role=["'](?:dialog|alertdialog|listbox)["']|menu-pop|innerHTML|outerHTML|insertAdjacentHTML|document\.write|dangerouslySetInnerHTML/;
-const MADE = /document\.createElement(?:NS)?\(\s*(?!["'](?:canvas|link|script|style)["'])/;
-const EXEMPT: Record<string, string> = {
-  "term/term.ts":
+  /<dialog\b|document\.createElement\(["']dialog|(?<!\[)role=["'](?:dialog|alertdialog|listbox)["']|menu-pop|innerHTML|outerHTML|insertAdjacentHTML|document\.write|dangerouslySetInnerHTML|DOMParser|createContextualFragment/g;
+const MADE = /\.createElement(?:NS)?\(\s*(?!["'](?:canvas|link|script|style)["'])/g;
+const uses = (src: string) => (src.match(HAND_BUILT)?.length ?? 0) + (src.match(MADE)?.length ?? 0);
+const EXEMPT: Record<string, [number, string]> = {
+  "term/term.ts": [
+    26,
     "xterm's own bundle (term.js, no React): find box, paste button, reconnect strip, and the phone key bar, whose pointerdown + preventDefault keeps the soft keyboard open",
-  "board/rich.ts": "the note editor's contenteditable engine: sets its markdown as HTML and owns its editable div",
-  "annotate/annotate.ts": "the annotator's page script, injected into the previewed page, where no React or board CSS exists",
-  "lib/notebook/engine-widgets.ts": "CodeMirror widget DOM: the editor engine asks for elements, not React",
-  "lib/notebook/deal.ts": "the card-deal effect's shade element, added to an engine-owned node",
-  "board/react-mount.ts": "makes the div every React root renders into: the one bridge until the single App root",
-  "notebook/kit.ts": "makes the Notebook's React portal and root hosts",
-  "pages/tasks-page.tsx": "a span in the board header (#hx) that the page portals its controls into",
-  "board/toast.ts": "Video's fallback toast link: Video has no React, the board and Notebook use the React toaster",
+  ],
+  "board/rich.ts": [2, "the note editor's contenteditable engine: sets its markdown as HTML and owns its editable div"],
+  "annotate/annotate.ts": [12, "the annotator's page script, injected into the previewed page, where no React or board CSS exists"],
+  "lib/notebook/engine-widgets.ts": [15, "CodeMirror widget DOM: the editor engine asks for elements, not React"],
+  "lib/notebook/deal.ts": [1, "the card-deal effect's shade element, added to an engine-owned node"],
+  "pages/tasks-page.tsx": [1, "a span in the board header (#hx) that the page portals its controls into"],
+  "board/toast.ts": [1, "Video's fallback toast link: Video has no React, the board and Notebook use the React toaster"],
 };
 const drawnBy = (files: Record<string, string>) =>
   Object.entries(files).flatMap(([f, src]) => {
     const rel = norm(relative(web, f));
-    if (rel in EXEMPT) return [];
-    return HAND_BUILT.test(src) || MADE.test(src) ? [`${rel} builds a popup, an element or HTML by hand`] : [];
+    if (rel in EXEMPT) return uses(src) > EXEMPT[rel]![0] ? [`${rel} has more hand-built DOM than its exception allows`] : [];
+    return uses(src) ? [`${rel} builds a popup, an element or HTML by hand`] : [];
   });
 const SKIP = new Set(["video", "dist", "html", "sounds", "checks"]);
 const allSources = () =>
@@ -117,14 +120,14 @@ test("nothing in web/ except video/ and the named exceptions hand-builds a popup
   const files = Object.fromEntries(allSources().map((f) => [f, readFileSync(f, "utf8")]));
   expect(Object.keys(files).length).toBeGreaterThan(100);
   expect(drawnBy(files)).toEqual([]);
-  // every exception is still in use, and a reason is given
-  for (const [f, why] of Object.entries(EXEMPT)) {
+  // every exception is still in use, its count is exact (so it shrinks when the file does), and a reason is given
+  for (const [f, [n, why]] of Object.entries(EXEMPT)) {
     expect(why.length).toBeGreaterThan(20);
     const src = files[join(web, f)];
     expect(src).toBeDefined();
-    expect(HAND_BUILT.test(src!) || MADE.test(src!)).toBe(true);
+    expect([f, uses(src!)]).toEqual([f, n]);
   }
-  // ...and the check does catch one.
+  // ...and the check does catch one, in every form it knows.
   expect(
     drawnBy({
       [join(web, "components", "x.tsx")]: '<div role="dialog">',
@@ -134,8 +137,13 @@ test("nothing in web/ except video/ and the named exceptions hand-builds a popup
       [join(web, "components", "z.tsx")]: "<Dialog>",
       [join(web, "lib", "run", "ok.ts")]: 'document.createElement("script")',
       [join(web, "board", "rich.ts")]: "ed.innerHTML = a",
+      [join(web, "lib", "u.ts")]: '(d: Document) => d.createElement("div")',
+      [join(web, "lib", "t.ts")]: 'new DOMParser().parseFromString("<b>", "text/html")',
+      [join(web, "lib", "r.ts")]: 'range.createContextualFragment("<b>")',
+      [join(web, "components", "s.tsx")]: 'createElement("div")', // React's own call is drawing
+      [join(web, "board", "toast.ts")]: 'a.createElement("a"); b.createElement("a")', // over its pinned count
     }).length,
-  ).toBe(4);
+  ).toBe(8);
 });
 
 // web/board/ is the old board's plumbing (data, polling, routing, events), not drawing. Each file has a reason to exist; a new
@@ -152,13 +160,13 @@ const BOARD: Record<string, string> = {
   "git.ts": "when the git tab shows and the run's git state it is handed",
   "home-ws.ts": "the shell list and the events the Home window needs from old code",
   "home.ts": "the Home view's header buttons",
+  "host.ts": "hands the React pages the board's functions (lib/core/host.ts) and the toaster, once at start",
   "keys.ts": "global keys",
   "live.ts": "the page load, polling and events",
-  "main.ts": "entry: wires every module and registers the React drawers",
+  "main.ts": "entry: boots the shell, renders the App into #root, wires every module",
   "markdown.ts": "markdown helpers the old modules still call",
   "panel.ts": "which run panel tab shows, deep links and the scrim",
   "projects.ts": "the picked project and the shown set",
-  "react-mount.ts": "the bridge that mounts React roots (until the single App root)",
   "rich.ts": "the note editor's contenteditable engine",
   "run-view.ts": "the run workspace's data, tabs and address",
   "search.ts": "gathers the palette's rows from the rail, storage and events",
@@ -168,7 +176,7 @@ const BOARD: Record<string, string> = {
   "toast.ts": "toasts for Video, notifications and sounds",
   "update.ts": "the Settings link's update dot",
   "viewer.ts": "opens file links in the viewer",
-  "views.ts": "view routing and the react registry",
+  "views.ts": "view routing: body classes, addresses and the lib/shell view",
   "workspace.ts": "the rail's data, the workspace rules and the footer poll",
   "ws-board-ui.ts": "the Workspaces board's data and mode",
   "ws-board.ts": "the Workspaces board's columns (pure, tested)",
@@ -200,12 +208,12 @@ test("shared side-menu code only opens React hosts the page has; no page wipes a
   expect(ws).not.toMatch(/drawList|drawPop|pfpop|wsMenu|rankDrag|innerHTML = drawn/);
   expect(existsSync(join(web, "board/resources.ts"))).toBe(false);
   expect(ws).toMatch(/!onBoard\(\) && kitHere\(\)\) void kitFor\(\)\.then\(\(k\) => connectRail\(k\.rail\)/);
-  expect(rd("board/react-mount.ts")).toMatch(/\["plist", RailList\], \["pfilter-host", RailFilter\]\] as const/);
+  // The side menu (components/shell/rail.tsx) draws the list and the filter on both pages.
+  expect(rd("components/shell/rail.tsx")).toMatch(/<span id="pfilter-host"[^>]*>\s*<RailFilter \/>[\s\S]*<RailList \/>/);
   // The footer's resource button is part of the footer bar now.
   expect(rd("components/footer/foot-bar.tsx")).toMatch(/<ResourcesButton \/>/);
-  expect(rd("notebook/kit.ts")).toMatch(/\["plist",\s*RailList\],\s*\["pfilter-host",\s*RailFilter\]/);
-  for (const f of ["board", "notes", "video"]) expect(rd(`html/${f}.html`)).toContain('<span id="pfilter-host" style="display:contents"></span>');
-  expect(rd("html/board.html")).toContain('<footer class="foot kz-ui" id="foot"');
+  expect(rd("html/video.html")).toContain('<span id="pfilter-host" style="display:contents"></span>');
+  expect(rd("pages/board/App.tsx")).toContain('<footer className="foot kz-ui" id="foot"');
   // Search: the notebook page opens the palette from the kit and falls back to the board; every page load from the palette
   // goes through go(), which writes the notebook's open note first.
   const se = rd("board/search.ts");
@@ -272,11 +280,10 @@ test("the Project context pane is drawn by React, not by board/context.ts", () =
   const src = readFileSync(join(web, "board/context.ts"), "utf8");
   expect(src).not.toMatch(/createElement|innerHTML|replaceChildren|\.append\(/);
   expect(src.split("\n").length).toBeLessThan(50);
-  const page = readFileSync(join(web, "html/board.html"), "utf8");
-  expect(page).toContain('<div id="context-host"');
-  // the open button is React (a portal into its host) and nothing hides it on a computer: the pane was unreachable once
-  expect(page).toContain('<span id="ctx-open-host"');
-  expect(page).not.toContain("#context,#ctx-open{display:none!important}");
+  expect(readFileSync(join(web, "pages/board/App.tsx"), "utf8")).toContain('<div id="context-host"');
+  // the open button is React (in the header) and nothing hides it on a computer: the pane was unreachable once
+  expect(readFileSync(join(web, "pages/board/header.tsx"), "utf8")).toContain("<ContextOpen />");
+  expect(readFileSync(join(web, "ui/legacy/board.css"), "utf8")).not.toContain("#context,#ctx-open{display:none!important}");
   expect(src).not.toMatch(/ctx-open/);
   expect(readFileSync(join(web, "components/context/context-panel.tsx"), "utf8")).toContain('id="ctx-open"');
   // and nothing is read while the pane is closed
@@ -301,9 +308,8 @@ test("the notes chat and dictation are drawn by React, not by board/ modules or 
   const rd = (p: string) => readFileSync(join(web, p), "utf8");
   for (const f of ["board/chat.ts", "board/dictation.ts"]) expect(existsSync(join(web, f))).toBe(false);
   expect(rd("board/panel.ts")).not.toMatch(/\bchat\(|from "\.\/(?:chat|dictation)\.ts"/);
-  expect(rd("board/panel.ts")).toMatch(/react\.drawNotes\(/);
+  expect(rd("board/panel.ts")).toMatch(/drawNotes\(/);
   expect(rd("lib/core/host.ts")).not.toMatch(/\bmic\(|stopDictation/);
-  expect(rd("board/react-mount.ts")).not.toMatch(/dictation\.ts/);
   const css = rd("ui/legacy/board.css");
   expect(css).not.toMatch(/\.vu\{|\.ib\.mic|\.row \.mic|\.msg\{|\.chat\{|\.desc\{|\.notes textarea|\.notes \.tools|\.notes \.att|\.notes \.row/);
   expect(css).toMatch(/\.notes \.rich\{/); // the editor engine's own element (board/rich.ts) keeps its rules
@@ -322,11 +328,11 @@ test("the Notes page is drawn by React, with one editor component and no lazy ki
   const rd = (p: string) => readFileSync(join(web, p), "utf8");
   const entry = rd("notebook/notebook.ts");
   expect(entry.split("\n").length).toBeLessThan(40);
-  expect(entry).not.toMatch(/innerHTML|createElement\(["'`](?!div)|getElementById\("(?!root)/);
-  expect(entry).toMatch(/createRoot\(document\.getElementById\("root"\)!\)\.render\(createElement\(NotebookPage\)\)/);
+  expect(entry).not.toMatch(/innerHTML|\.createElement\(|getElementById\("(?!root)/);
+  expect(entry).toMatch(/createRoot\(document\.getElementById\("root"\)!\)\.render\(createElement\(App, \{ embed \}\)\)/);
   expect(existsSync(join(web, "dist/notebook-kit.js"))).toBe(false);
   const html = rd("html/notes.html");
-  expect(html).toContain('<div id="root" style="display:contents"></div>');
+  expect(html).toContain('<div id="root"></div>');
   expect(html).not.toMatch(/id="(?:pane|tree|tags|editor|meta|toast|proj|q)"|class="(?:app|hdr|wrap|side)"|select\.sel\{/);
   expect(rd("notebook/kit-loader.ts")).not.toMatch(/createElement|\.src =|\.href =/);
   // the engine view is made once, by the one component that owns it (and by nothing else in components or pages)

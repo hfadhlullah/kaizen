@@ -13,7 +13,6 @@ export type GitSnap = {
   branch: BranchDoc | null;
   msg: string; // the commit message the run's report suggests
   title: string; // and the pull request title
-  slot: HTMLElement;
 };
 // A question the tab put to the user and waits on: Discard or Cancel, or the preflight's go-ahead. `ok` answers it.
 export type GitConfirm =

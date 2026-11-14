@@ -1,6 +1,7 @@
 import { store } from "./store.ts";
 import { commitMsg } from "./markdown.ts";
-import { react } from "./views.ts";
+import { setPanel } from "@lib/run";
+import { setGit } from "@lib/git";
 
 // The run's Source control tab is React (web/components/git/git-tab.tsx, rules in web/lib/git/git.ts, requests in
 // web/lib/git/git-actions.ts). This module decides when the tab shows and hands it the run's git state on every redraw of
@@ -32,12 +33,14 @@ export const gitPending = (c) => {
 // The tab's element in the panel's body is made by react-mount.ts drawGit; a tab that is not this one drops it.
 export function gitTab(c) {
   const impl = store.runDoc.impl;
-  react.drawGit({
+  // The panel body shows the tab; the tab's own store holds what is typed in it.
+  setPanel({ body: "git" });
+  setGit({ snap: {
     card: c,
     git: store.runDoc.git,
     branch: store.runDoc.branch,
     msg: commitMsg(impl) || c.title || c.text || "",
     title: (commitMsg(impl) || c.title || "").split("\n")[0],
-  });
+  } });
 }
-export const gitLeave = () => react.drawGit(null);
+export const gitLeave = () => setGit({ snap: null });

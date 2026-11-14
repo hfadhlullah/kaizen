@@ -2,7 +2,9 @@ import { store } from "./store.ts";
 import { flushLoad, load } from "./api.ts";
 import { deep } from "./panel.ts";
 import { keep, urlAll } from "./projects.ts";
-import { go, markView } from "./views.ts";
+import { go } from "./views.ts";
+import { setView } from "@lib/shell";
+import { isPhone } from "@lib/core";
 
 // ---- live
 let boot = null;
@@ -45,7 +47,7 @@ export function initLive() {
   addEventListener("visibilitychange", flushLoad);
   // No view in the address is Home.
   const first = ["settings", "sources", "terminal", "board", "tasks", "task", "run"].includes(v0) ? v0 : "home";
-  markView(first);
+  setView(first, isPhone());
   document.body.classList.toggle("paged", first !== "board");
   document.body.classList.toggle("ice", v0 === "sources");
   document.body.classList.toggle("termv", v0 === "terminal");

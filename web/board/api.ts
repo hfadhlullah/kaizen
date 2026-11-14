@@ -1,5 +1,6 @@
 import { store } from "./store.ts";
-import { react } from "./views.ts";
+import { getBoard } from "@lib/board";
+import { notifier } from "@lib/core";
 import { key, render } from "./cards.ts";
 import { $, vt } from "./dom.ts";
 import { close, taskBody, open, openRun } from "./panel.ts";
@@ -8,7 +9,8 @@ import { termsChanged } from "./terms.ts";
 import { refreshBoardBadge } from "./badge.ts";
 
 // The server writes notifier() from state.ts over a marker in board.html: one rule for both UIs.
-declare const due: (key: string, say: string | null, done: boolean, now: number) => boolean;
+// When a run's notice is worth a notification (one rule for both UIs: lib/core/notifier.ts).
+const due = notifier();
 
 // In-card agents waiting on input, by session key. null until the first /state: what is
 // already asking when the page loads is not news, only what starts asking after.
@@ -110,7 +112,7 @@ async function read(quiet: boolean) {
   store.flash.clear();
   termsChanged();
   // Run on a task closed the panel: open the card on its agent once the board knows the session.
-  if (store.wantTerm && !store.openKey && !react.formOpen()) {
+  if (store.wantTerm && !store.openKey && !getBoard().form) {
     const n = store.S.cards.find((x) => key(x) === store.wantTerm && x.pty);
     if (n) {
       store.wantTerm = null;

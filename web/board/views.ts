@@ -1,3 +1,4 @@
+import { flushSync } from "react-dom";
 import { store } from "./store.ts";
 import { $, vt } from "./dom.ts";
 import { close } from "./panel.ts";
@@ -5,89 +6,16 @@ import { openSettings } from "./settings.ts";
 import { openTerms, termsStop } from "./terms.ts";
 import { openHome } from "./home.ts";
 import { initRunView, openWorkspace, runStop, showRunView } from "./run-view.ts";
-import { isPhone } from "@lib/core";
+import { isPhone, setStore } from "@lib/core";
 import { openPhone } from "@lib/phone";
+import { see, setView } from "@lib/shell";
+import { navigateTask, showTask } from "@lib/task";
 
-// The React pages (react-mount.ts) register here from main.ts, so the notebook and Video bundles, which share
-// this module, carry no React.
-export const react = {
-  init: (_go: (v: string, push?: boolean) => void) => {},
-  openTasks: () => {},
-  openTaskPage: () => {},
-  openIcebox: () => {},
-  // The Home chat page (a React root inside #home, drawn from lib/home/home-store.ts).
-  mountHome: () => {},
-  iceKeys: (_e: KeyboardEvent) => false,
-  // The Board page (cards.ts hands it a snapshot on every redraw) and the forms other modules open over any page.
-  drawBoard: (_snap: any) => {},
-  popup: (_p: any) => {},
-  closeForm: () => {},
-  closeNewForm: () => {},
-  formOpen: () => false,
-  // The panel's document tabs (panel.ts): request, plan, backlog, review ... as markdown.
-  drawDoc: (_d: any) => {},
-  // The run panel's footer and its Fix findings form, the cards' answered list, and Resume for the terminals' tiles.
-  drawFooter: (_f: any) => {},
-  drawFix: (_f: any) => {},
-  fixReset: () => {},
-  // The in-card agent's terminal in the panel's body (agent-term.ts; null stops it).
-  drawTerm: (_t: { key: string; onEnd: () => void } | null) => {},
-  // The run panel's Source control tab (git.ts hands it the run's git state; null when another tab shows).
-  drawGit: (_g: any) => {},
-  // The run panel's header under the title, its tab strip and the open tab (panel.ts).
-  drawHead: (_h: any) => {},
-  // The Board header's Workspaces | Runs switch (ws-board-ui.ts; null off the Board).
-  drawMode: (_m: any) => {},
-  // The Notes tab of a card's panel (panel.ts): the notes as messages and the box that adds one; lib/notes holds its state.
-  drawNotes: (_v: { card: any; src: string | undefined; ro: boolean }) => {},
-  // The Settings page (settings.ts opens the panel; the page is React and loads its own data).
-  drawSettings: (_o: { fresh: boolean; q: string; back: boolean; stale: () => boolean }) => {},
-  // The run workspace's chrome: a React root in an element the run view keeps; returns the function that unmounts it.
-  mountRunPart: (_el: HTMLElement, _part: string, _id?: string): (() => void) => () => {},
-  answered: (): string[] => [],
-  resume: async (_c: any): Promise<boolean> => false,
-};
 // ---- views: Home (the chat, at /), the board, Settings and the Icebox as pages in the docked panel, or the Terminal page; each with its own address
 export let view = "board";
 let boardBack = false;
 // The board's own area, not the docked panel.
 const AREA = ["board", "terminal", "home", "tasks", "task", "run", "chat", "device", "sources"];
-export const markView = (v) => {
-  // A phone's run workspace belongs to its Runs tab.
-  const lit = v === "task" ? (isPhone() ? "device" : "tasks") : v === "run" && isPhone() ? "device" : v;
-  document
-    .querySelectorAll(".rail a[data-view]")
-    .forEach((a) =>
-      a.dataset.view === lit ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current"),
-    );
-  // The Icebox is titled in the header, top left, like the board.
-  document.querySelector(".hdr h1").textContent =
-    v === "sources"
-      ? "Icebox"
-      : v === "tasks"
-        ? "Tasks"
-        : v === "task"
-          ? "Task"
-          : v === "run"
-            ? "Run"
-            : v === "terminal"
-              ? "Terminal"
-              : v === "home"
-                ? isPhone()
-                  ? "kaizen"
-                  : "Chat"
-                : v === "chat"
-                  ? "Chat"
-                  : v === "device"
-                    ? "Runs"
-                    : "Board";
-  if (v === "home" && isPhone()) {
-    const mark = document.querySelector(".rail pre.mark")!.cloneNode(true) as HTMLElement;
-    mark.setAttribute("role", "img");
-    mark.setAttribute("aria-label", "kaizen");
-    document.querySelector(".hdr h1")!.replaceChildren(mark);
-  }
-};
 export function go(v, push) {
   store.pageGen++;
   document.body.classList.remove("phone-menu-open");
@@ -100,7 +28,8 @@ export function go(v, push) {
   if (isPhone() ? ["board", "sources"].includes(v) : v === "chat" || v === "device") v = "home";
   const was = view;
   view = v;
-  markView(v);
+  // At once: a view transition reads the new title and the lit menu item as the callback returns.
+  flushSync(() => setView(v, isPhone()));
   document.body.classList.toggle("paged", v !== "board");
   document.body.classList.toggle("ice", v === "sources");
   document.body.classList.toggle("setv", v === "settings");
@@ -128,9 +57,10 @@ export function go(v, push) {
   else termsStop();
   if ((v === "home" && !ph) || v === "chat") openHome();
   openPhone(ph ? "home" : v === "device" ? "device" : null);
-  if (v === "tasks") react.openTasks();
-  if (v === "task") react.openTaskPage();
-  if (v === "sources") react.openIcebox();
+  // The pages are drawn the first time they open (pages/board/pages.tsx) and tell the core store which one shows.
+  if (v === "tasks") (see("tasks"), setStore({ view: "tasks" }));
+  if (v === "task") (see("task"), showTask());
+  if (v === "sources") (see("icebox"), setStore({ view: "icebox" }));
   // After the panel handling below, which closes the board's panel on the way in.
   if (v === "run") queueMicrotask(() => void showRunView(true));
   // The Terminal page is the board's own area, not the docked panel: the panel closes as on the board.
@@ -163,7 +93,6 @@ export function initViews() {
     $("phone-menu").setAttribute("aria-expanded", String(on));
     $("phone-menu").setAttribute("aria-label", on ? "Hide navigation menu" : "Show navigation menu");
   };
-  react.init(go);
   initRunView();
   document.querySelectorAll(".rail a[data-view]").forEach((a) => {
     if (a.dataset.view === "notes" || a.dataset.view === "video") return;
@@ -187,6 +116,12 @@ export function initViews() {
       });
     };
   });
+  // A view change hides the pages; another page can ask to open a task.
+  addEventListener("kz-view", () => setStore({ view: "" }));
+  addEventListener("kz-open-task", ((e: CustomEvent) => {
+    e.preventDefault();
+    navigateTask(e.detail);
+  }) as EventListener);
   document.querySelector(".rail .home").onclick = (e) => {
     if (e.ctrlKey || e.metaKey || e.shiftKey || e.button) return;
     e.preventDefault();

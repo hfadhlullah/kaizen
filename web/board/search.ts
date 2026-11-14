@@ -12,15 +12,16 @@ import { useSearch } from "@lib/search/search.ts";
 import type { Item } from "@lib/search/search-match.ts";
 import { leaves, wsKey } from "./ws-tabs.ts";
 
-const BOARD = typeof document !== "undefined" && !!document.getElementById("kz-portal");
+// Read when used, not at import: the page is drawn after the modules load.
+const onBoard = () => typeof document !== "undefined" && !!document.getElementById("kz-portal");
 // The pages that can open a thing in place answer this event and cancel it.
 const ask = (name: string, detail: any) => !dispatchEvent(new CustomEvent(name, { cancelable: true, detail }));
 // A page load: the Notebook writes the note it has open first (leave), the board has nothing to write.
-const go = (href: string) => (BOARD ? void (location.href = href) : leave(href));
+const go = (href: string) => (onBoard() ? void (location.href = href) : leave(href));
 // A menu entry's own click: in place on the board, a page load elsewhere.
 const page = (v: string, href: string) => () => {
   const a = document.querySelector<HTMLElement>(`.rail a[data-view="${v}"]`);
-  a && BOARD ? a.click() : go(href);
+  a && onBoard() ? a.click() : go(href);
 };
 const openWs = (dir: string, ws: string) => {
   if (!ask("kz-open-ws", { dir, ws })) go(wsHref(dir, ws));
@@ -191,7 +192,7 @@ export function leave(href: string) {
   void Promise.allSettled(waits).then(() => (location.href = href));
 }
 export function openSearch() {
-  if (BOARD) return show();
+  if (onBoard()) return show();
   kitFor().then(
     (k) => {
       S = k.useSearch;
@@ -220,7 +221,7 @@ export function initSearch() {
   // Opened before the menu's data came in: fill in as it lands.
   addEventListener("kz-rail", fill);
   // Arriving from the notebook or Video with the palette asked for.
-  if (BOARD && new URLSearchParams(location.search).get("search") === "1") {
+  if (onBoard() && new URLSearchParams(location.search).get("search") === "1") {
     const q = new URLSearchParams(location.search);
     q.delete("search");
     history.replaceState(null, "", location.pathname + (q.toString() ? "?" + q : "") + location.hash);

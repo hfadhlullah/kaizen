@@ -34,3 +34,5 @@ form{display:flex;margin-top:6px}
 textarea{flex:1;resize:none;font:inherit;color:inherit;background:var(--bg-2);border:1px solid var(--line);border-radius:22px;padding:9px 16px;max-height:140px;outline:none;box-shadow:var(--shadow)}
 textarea:focus{border-color:var(--accent)}
 @media(prefers-reduced-motion:reduce){.m.pop{animation:none}}
+/* the page's one React root: its children lay out as body's own */
+#root{display:contents}

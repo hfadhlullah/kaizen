@@ -52,7 +52,7 @@ test("old page addresses open the page they were merged into", () => {
 });
 
 test("every page has a tile icon that exists in the board's icon set", () => {
-  const board = readFileSync(new URL("../../html/board.html", import.meta.url), "utf8");
+  const board = readFileSync(new URL("../../components/shell/sprite.tsx", import.meta.url), "utf8");
   for (const p of SETTINGS_NAV.flatMap(([, ps]) => ps))
     expect([p.id, board.includes(`id="i-${p.ico}"`)]).toEqual([p.id, true]);
 });

@@ -3,6 +3,8 @@
 /* Layers: as in board.html, this page's CSS (legacy) sits under the kit's Tailwind layers (web/dist/ui.css, linked above), so the popups the kit opens here are not restyled by it. The editor rules stay outside the layer: CodeMirror's own styles are unlayered and would beat them. */
 @layer legacy, theme, base, components, utilities;
 @layer legacy {
+/* the page's one React root: its children lay out as body's own */
+#root{display:contents}
 :root{--bg:#f7f7f7;--bg-2:#fff;--line:#dedede;--ink:#171717;--ink-hi:#171717;--dim:#666;--accent:#171717;--run:#525252;--ok:#1f9d55;--warn:#a8720a;--danger:#c8322f;--on-accent:#fff;color-scheme:light}
 @media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#121212;--bg-2:#1a1a1a;--line:#2e2e2e;--ink:#ededed;--ink-hi:#fafafa;--dim:#a0a0a0;--accent:#ededed;--run:#c4c4c4;--ok:#5fd28a;--warn:#e6b450;--danger:#e85050;--on-accent:#121212;color-scheme:dark}}
 :root[data-theme=dark]{--bg:#121212;--bg-2:#1a1a1a;--line:#2e2e2e;--ink:#ededed;--ink-hi:#fafafa;--dim:#a0a0a0;--accent:#ededed;--run:#c4c4c4;--ok:#5fd28a;--warn:#e6b450;--danger:#e85050;--on-accent:#121212;color-scheme:dark}

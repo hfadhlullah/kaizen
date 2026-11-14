@@ -212,9 +212,13 @@ test("tree and freshName", () => {
   expect(freshName(["Untitled"], "Work")).toBe("Work/Untitled");
 });
 
+// The pages' own styles: web/ui/legacy/ for the board and the notebook, Video's inline <style> (it keeps its page as it was).
+const css = (f: string) => readFileSync(join(root, "web", f === "video.html" ? "html" : "ui/legacy", f), "utf8");
+// The icon sprite: the board and the notebook draw it from one component; Video keeps its own copy in its page.
+const sprite = readFileSync(join(root, "web", "components", "shell", "sprite.tsx"), "utf8");
+const symbol = (src: string, id: string) => src.split("\n").map((l) => l.trim()).find((l) => l.startsWith(`<symbol id="${id}"`));
+
 test("the notebook's design tokens are the board's, line for line", () => {
-  // The pages' own styles: web/ui/legacy/ for the board and the notebook, Video's inline <style> (it keeps its page as it was).
-  const css = (f: string) => readFileSync(join(root, "web", f === "video.html" ? "html" : "ui/legacy", f), "utf8");
   const block = (f: string) => {
     const s = css(f).split("\n");
     const at = s.findIndex((l) => l.startsWith(":root{--bg:"));
@@ -223,26 +227,26 @@ test("the notebook's design tokens are the board's, line for line", () => {
   expect(block("notes.css")).toBe(block("board.css"));
   expect(block("board.css")).toContain("data-theme=dark]{--shade");
   expect(block("board.css")).toContain(":root[data-color=blue][data-theme=dark]{");
-  const syms = (f: string) => readFileSync(join(root, "web", "html", f), "utf8").split("\n").filter((l) => l.startsWith('<symbol id="s-')).join("\n");
-  expect(syms("notes.html")).toBe(syms("board.html"));
-  expect(syms("board.html").split("\n").length).toBe(7);
+  expect(sprite.match(/<symbol id="s-/g)?.length).toBe(7);
   const mascot = (f: string) => css(f).split("\n").find((l) => l.startsWith(".mascot{"));
   expect(mascot("notes.css")).toBe(mascot("board.css")!);
 });
 
-test("the side menu is the board's on the notebook, line for line", () => {
+test("the side menu is the board's on the notebook and Video, line for line", () => {
   const between = (f: string, from: string, to: string) => {
-    const s = readFileSync(join(root, "web", f.endsWith(".css") ? "ui/legacy" : "html", f), "utf8");
+    const s = f.endsWith(".css") ? css(f) : readFileSync(join(root, "web", "html", f), "utf8");
     const at = s.indexOf(from);
     expect(at).toBeGreaterThan(-1);
     return s.slice(at, s.indexOf(to, at) + to.length);
   };
-  for (const [from, to, own, other] of [["/* side menu:", "/* end side menu */", "board.css", ["notes.css", "video.html"]], ['<nav class="rail"', "</script>", "board.html", ["notes.html", "video.html"]]] as const)
-    for (const page of other) expect(between(page, from, to)).toBe(between(own, from, to));
-  const syms = (f: string) => ["board", "note", "video", "link", "gear", "side", "sun", "moon", "more"].map((n) => readFileSync(join(root, "web", "html", f), "utf8").split("\n").find((l) => l.startsWith(`<symbol id="i-${n}"`)));
-  expect(syms("notes.html")).toEqual(syms("board.html"));
-  expect(syms("video.html")).toEqual(syms("board.html"));
-  expect(syms("board.html").every(Boolean)).toBe(true);
+  const block = ["/* side menu:", "/* end side menu */"] as const;
+  for (const page of ["notes.css", "video.html"]) expect(between(page, ...block)).toBe(between("board.css", ...block));
+  // Video's own side menu lists the same pages as the Rail component both other pages draw.
+  const rail = readFileSync(join(root, "web", "components", "shell", "rail.tsx"), "utf8");
+  const video = between("video.html", '<nav class="rail"', "</nav>");
+  for (const href of [...video.matchAll(/href="(\/[^"]*)"/g)].map((m) => m[1]!).filter((h) => h.startsWith("/?"))) expect(rail).toContain(`"${href}"`);
+  for (const n of ["board", "note", "video", "link", "gear", "side", "sun", "moon", "more"]) expect(symbol(readFileSync(join(root, "web", "html", "video.html"), "utf8"), `i-${n}`)).toBe(symbol(sprite, `i-${n}`)!);
+  expect(symbol(sprite, "i-board")).toBeTruthy();
 });
 
 test("web/dist/notebook.js, web/dist/term.js, web/dist/board.js, web/dist/ui.css, web/dist/board.css, web/dist/notebook.css, web/dist/popup.css, web/dist/video.js, web/dist/annotate.js and bot/web/app.js were built from the sources as they are (bun run build:web)", () => {

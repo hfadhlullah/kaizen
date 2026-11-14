@@ -10,12 +10,13 @@ import { COLS, ICON, WORD } from "@lib/core";
 import { isPhone } from "@lib/core";
 import { showable } from "./projects.ts";
 import { setProjectBar } from "@lib/project";
-import { setStripActions } from "@lib/board";
 import { termsBadge } from "./terms.ts";
 import { boardBadge, waitingCount } from "./badge.ts";
 import { WS_COLS } from "./ws-board.ts";
 import { boardMode, initWsBoard, syncMode, wsBoardData } from "./ws-board-ui.ts";
-import { react } from "./views.ts";
+import { flushSync } from "react-dom";
+import { closeNewForm, setBoard, setStripActions } from "@lib/board";
+import { decided } from "@lib/run";
 
 let filter = null;
 let query = ""; // the header filter box, matched against a card's title and request
@@ -38,10 +39,10 @@ export const key = (c) =>
 export const via = (a) => a.name + (a.note ? ". " + a.note : "");
 
 // Edit, Abandon or Reject over the page it was asked from: a workspace never leaves for the Board.
-export const formPopup = (c, mode) => react.popup({ kind: "form", mode, card: c });
+export const formPopup = (c, mode) => setBoard({ popup: { kind: "form", mode, card: c } });
 // The run form as a popup over any page: Start in the new-task form and on Tasks.
 export const runPopup = (c, onStart?: (p: { kind: string; agent?: string; account?: string; yolo: boolean; explore?: boolean }) => void) =>
-  react.popup({ kind: "run", card: c, onStart });
+  setBoard({ popup: { kind: "run", card: c, onStart } });
 // New task from the top bar, the empty board or n: the form in a dialog. Opened from another page (Tasks, a
 // workspace, the side menu): always the project picker, preset to that page's project or empty so one is chosen.
 // The Board keeps its own rule.
@@ -50,19 +51,15 @@ export function newTask(from?: { dir: string | null }) {
   if (!dispatchEvent(new CustomEvent("kz-new-task", { cancelable: true, detail: { dir: taskDir } }))) return;
   // The header button passes its click event: only an explicit { dir } is another page's call.
   const pick = from && "dir" in from ? from : null;
-  react.closeNewForm();
-  react.popup({ kind: "new", dir: pick?.dir ?? null, choose: !!pick });
+  closeNewForm();
+  setBoard({ popup: { kind: "new", dir: pick?.dir ?? null, choose: !!pick } });
 }
 
 export function render() {
   // All projects: only the ones ticked in the filter, or every one when none is.
   const only = store.all && store.shown.size && showable().some((p) => store.shown.has(p.dir));
   syncMode();
-  const cs = store.S.cards.filter((c) => c.archived === archive && (!only || store.shown.has(c.state))),
-    b = $("board");
-  b.removeAttribute("aria-busy");
-  // The loading skeleton goes with the first real draw.
-  b.querySelectorAll(":scope > section[aria-hidden]").forEach((s) => s.remove());
+  const cs = store.S.cards.filter((c) => c.archived === archive && (!only || store.shown.has(c.state)));
   // The header's pickers: the choices ([label, folder, from the projects folder]), the project the board is on, and what shows.
   store.PL = [
     ["All projects", "all"],
@@ -81,7 +78,8 @@ export function render() {
   });
   // The page draws the cards: Runs mode, or the workspaces of Workspaces mode.
   const wsm = boardMode() === "ws";
-  react.drawBoard({
+  // flushSync: a view transition and the focus restore read the DOM at once.
+  flushSync(() => setBoard({ snap: {
     cards: cs,
     allCards: store.S.cards,
     backlogItems: store.S.backlog || [],
@@ -99,9 +97,9 @@ export function render() {
     colNames: COLS,
     openKey: store.openKey,
     flash: [...store.flash],
-    answered: react.answered(),
+    answered: [...decided],
     phone: isPhone(),
-  });
+  } }));
   // The tab says how many runs wait on you, or agents wait on input, so a background tab still tells you.
   const nw = waitingCount(store.S.cards);
   document.title = nw ? `(${nw}) kaizen` : "kaizen";

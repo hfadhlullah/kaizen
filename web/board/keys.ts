@@ -4,7 +4,9 @@ import { focusedKey, formPopup, key, nav, newTask, runPopup } from "./cards.ts";
 import { $ } from "./dom.ts";
 import { close, openRun } from "./panel.ts";
 import { keep } from "./projects.ts";
-import { react, view } from "./views.ts";
+import { view } from "./views.ts";
+import { closeForm, getBoard } from "@lib/board";
+import { iceKeys } from "@lib/icebox";
 
 // Radix closes a menu or dialog on Escape before this handler runs, so whether one was open is read when the key arrives
 // (capture), not after: that Escape closes the layer, not the panel behind it.
@@ -15,7 +17,7 @@ export function initKeys() {
   $("help").onclick = () => $("help").classList.remove("on");
   document.onkeydown = (e) => {
     // The icebox reads its own keys first; a checkbox there keeps them, for x then j.
-    if (view === "sources" && !$("help").classList.contains("on") && react.iceKeys(e)) return;
+    if (view === "sources" && !$("help").classList.contains("on") && iceKeys(e)) return;
     // A dialog or an open menu (they render into #kz-portal) handles its own keys; Escape there must not also close the panel.
     if (e.target.matches("input,select,textarea,[contenteditable]") || e.target.closest("dialog,#kz-portal") || layerUp) return;
     // The shortcuts overlay (?) is off for now, with its menu button; keys still work.
@@ -32,7 +34,7 @@ export function initKeys() {
     if (e.key === "Escape") {
       $("help").classList.remove("on");
       // An inline form closes first (its own Escape handles a press inside it); a menu closes itself.
-      if (react.formOpen()) react.closeForm();
+      if (getBoard().form) closeForm();
       else close();
       return;
     }

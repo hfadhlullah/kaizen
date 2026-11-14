@@ -7,7 +7,7 @@ import { join, dirname, resolve, sep, basename } from "node:path";
 import {
   home, type Item, type Card, knownProjects, remember, reorderProjects, canonPath, locate, label, tilde, searchRoots, findProjects,
   readInbox, writeInbox, replaceTask, moveTask, abandonRun, runToTask, launchRun, parseItem, agentChoices, onPath, projectOf, KNOWN_AGENTS, plainModel, short, setArchived, writeNotes,
-  appendNote, saveAttachment, pidOnPort, readText, cmdExe, sysExe, powershellExe, runGit, readCommit, commitPush, commitStaged, stageFiles, suggestMessage, notice, notifier, LOGO,
+  appendNote, saveAttachment, pidOnPort, readText, cmdExe, sysExe, powershellExe, runGit, readCommit, commitPush, commitStaged, stageFiles, suggestMessage, notice, LOGO,
   reviewFindings, pickFindings, backlogItem, startedBacklog, closeBacklog, markBacklogDone, fixPrompt, approvalPrompt, canApproveAwaiting, gateOf, recordAcceptance, healRuns, finishRun, nativePath, closeSessions, sweepSessions, issueUrl,
   launchMode, pruneRuns, pruneSessions, readSessions, ownerOf, runIndex, resumePrompt, runAgent, firstSession, webHosts,
 } from "./state.ts";
@@ -831,8 +831,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
       if (req.method === "GET" && path === "/") {
         const page = served(PAGE);
         if (page === null) return new Response("web/html/board.html missing", { status: 500 });
-        // The page gets the notify rule from state.ts rather than keeping its own copy.
-        return new Response(page.replace("/*notifier*/", () => notifier.toString()), {
+        return new Response(page, {
           headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-kaizen-version": VERSION },
         });
       }

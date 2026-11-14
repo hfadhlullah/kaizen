@@ -1,5 +1,5 @@
-// The run panel's React parts (Zustand): what the footer draws, and the Fix findings form that sits in the review tab.
-// The old panel code (web/board/panel.ts openRun()) publishes both on every redraw. The ticks of the fix form live
+// The run panel's React parts (Zustand): what the body, the footer and the header draw, and the Fix findings form that sits
+// in the review tab. The old panel code (web/board/panel.ts openRun()) publishes them on every redraw. The ticks of the fix form live
 // here and not in the form, so a redraw of the panel's body (which replaces the element the form stands in) loses nothing.
 import { create } from "zustand";
 import type { Card } from "@lib/core";
@@ -23,7 +23,11 @@ export type PanelDoc = {
   needle: string | null;
   mark: number;
 };
+// What fills the panel's body (one at a time, drawn by pages/board/panel.tsx), and the in-card agent terminal's session.
+export type PanelBody = "" | "doc" | "settings" | "notes" | "term" | "git";
 export type Panel = {
+  body: PanelBody;
+  term: { key: string; onEnd: () => void } | null;
   head: Head | null;
   tabs: { k: string; label: string }[]; // the run's tabs that have something in them
   tab: string; // the one open
@@ -36,6 +40,8 @@ export type Panel = {
 };
 const SK = "kz-sent";
 export const usePanel = create<Panel>()(() => ({
+  body: "",
+  term: null,
   head: null,
   tabs: [],
   tab: "",

@@ -9,7 +9,9 @@ import { pickTerminal } from "./terminal-store.ts";
 export function useTerminalKeys(keys: string[], phone: boolean, focus: (key: string) => void) {
   useEffect(() => {
     const on = (e: KeyboardEvent) => {
-      const { lay } = useTerminals.getState();
+      const { lay, showing } = useTerminals.getState();
+      // The tiles stay mounted behind other pages: their keys belong to the Terminal page.
+      if (!showing) return;
       if (e.ctrlKey && e.shiftKey && !e.altKey && !e.metaKey && e.code === "KeyM" && !phone) {
         const k = (e.target as HTMLElement).closest?.<HTMLElement>("[data-tile]")?.dataset.tile || lay.max;
         if (!k) return;

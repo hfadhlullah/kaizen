@@ -1,4 +1,3 @@
-import { createPortal } from "react-dom";
 import { cardKey } from "@lib/core";
 import { emptyNote, mainStep, steps, gitUi, patchUi, useGit } from "@lib/git";
 import { GitAsk } from "./git-ask.tsx";
@@ -45,8 +44,12 @@ function GitTab() {
     </div>
   );
 }
-// Stands in the panel's body, in an element the panel keeps replacing; this follows it.
+// Stands in the panel's body (pages/board/panel.tsx) while the Source control tab is open; empty until the panel hands it a run.
 export function GitHost() {
-  const slot = useGit((s) => s.snap?.slot);
-  return slot ? createPortal(<GitTab />, slot) : null;
+  const open = useGit((s) => !!s.snap);
+  return open ? (
+    <div className="kz-ui">
+      <GitTab />
+    </div>
+  ) : null;
 }

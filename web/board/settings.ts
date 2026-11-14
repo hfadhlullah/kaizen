@@ -2,7 +2,9 @@ import { store } from "./store.ts";
 import { termStop } from "./agent-term.ts";
 import { stopDictation } from "@lib/dictation";
 import { $ } from "./dom.ts";
-import { react, view } from "./views.ts";
+import { view } from "./views.ts";
+import { setPanel } from "@lib/run";
+import { getSettings, loadSettings, pageId, setSettings } from "@lib/settings";
 
 // Ctrl+F searches settings, as in Orca. Only while the page shows: elsewhere it stays the browser's.
 addEventListener("keydown", (e) => {
@@ -27,7 +29,15 @@ export async function openSettings() {
   $("ptitle").textContent = "Settings";
   // The header's tab strip and sub line are React hosts the panel keeps: emptied through the panel store, never cleared as DOM.
   $("psub").title = "";
-  react.drawHead({ head: null, tabs: [] });
-  react.drawFooter(null);
-  react.drawSettings({ fresh, q: store.setQ, back: store.setBack, stale: () => gen !== store.pageGen });
+  setPanel({ head: null, tabs: [], footer: null, body: "settings" });
+  // Coming from another page the page starts on All projects with a skeleton; the page and search the person left it on are kept.
+  if (fresh)
+    setSettings({
+      typed: {}, // a key or secret typed and not saved is not kept when the page is left
+      scope: "all",
+      q: store.setQ,
+      back: store.setBack,
+      page: getSettings().page ?? pageId(new URLSearchParams(location.search).get("page") ?? ""),
+    });
+  void loadSettings(fresh, () => gen !== store.pageGen);
 }

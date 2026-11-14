@@ -7,7 +7,7 @@ import { draft, undraft } from "../web/board/drafts.ts";
 import { boardBadge, refreshBoardBadge, waitingCount } from "../web/board/badge.ts";
 import { menuItems } from "../web/lib/core/board.ts";
 
-const html = readFileSync(join(dirname(import.meta.dir), "web", "html", "board.html"), "utf8");
+const html = readFileSync(join(dirname(import.meta.dir), "web", "components", "shell", "sprite.tsx"), "utf8");
 
 test("Board badge counts each card needing input once and clears at zero", () => {
   const link = { dataset: {} as Record<string, string>, title: "Board", label: "", setAttribute(_key: string, value: string) { this.label = value; } };

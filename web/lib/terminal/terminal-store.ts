@@ -5,6 +5,7 @@ import { LAY_KEY, readLay, swapOrder, trimLay, type Lay, type Mode, type Session
 
 export type TerminalState = {
   showing: boolean; // the Terminal page is the view
+  seen: boolean; // it has been opened: its tiles are mounted from then on and only hidden (by CSS) on other pages
   all: Map<string, Session>;
   lay: Lay;
   pick: string | null; // a phone shows one terminal at a time, picked from tabs; per visit
@@ -18,6 +19,7 @@ const read = () => {
 };
 export const useTerminals = create<TerminalState>()(() => ({
   showing: false,
+  seen: false,
   all: new Map(),
   lay: typeof localStorage === "undefined" ? readLay(null) : read(),
   pick: null,

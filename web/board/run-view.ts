@@ -24,7 +24,6 @@ import { cardHref, markCurrent, railData, stateOf, titleOf, wsHref, wsOfCard } f
 import { awaiting, chosen, devUrl, dueWord, finished, gitDue, historyOf, leaves, liveIn, loopbackUrl, migrate, newRun, pickable, previewOpens, reviewing, stageTabs, toOpen, wsKey } from "./ws-tabs.ts";
 import { age } from "@lib/core";
 import { go } from "./views.ts";
-import { react } from "./views.ts";
 import { boxesOf, detach, focusItem, fetchPreview, keepUrl, layoutOf, moveInLayout, nearestPane, patch, placeItems, refreshPreview, replaceAll, requestBrowse, clearBrowse, rects, selectScreen, setDragging, setRunActions, setRunView, setTarget, showItem, useLayout, type Saved, type SavedTab } from "@lib/run";
 
 type Tab = SavedTab & { kind: "agent" | "shell" | "local" | "preview" | "note" | "wait" | "history" };
@@ -636,11 +635,6 @@ export function initRunView() {
   });
   addEventListener("kz-run-preview", openPreview);
   $("pnotes").onclick = () => void projectNotes();
-  // The React parts of the run view: the tab bar, the panes, the panel's width grip and the project notes list.
-  react.mountRunPart($("rtabs"), "tabs");
-  react.mountRunPart($("rpanes"), "panes");
-  react.mountRunPart($("panel"), "grip");
-  react.mountRunPart($("pnlist"), "notes");
   setRunActions({
     select: (sid) => {
       selectScreen(ctx!.k, sid);

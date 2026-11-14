@@ -8,12 +8,27 @@ import { gitLeave, gitPending, gitShown, gitTab } from "./git.ts";
 import { ICON, WORD, need } from "@lib/core";
 import { attach, brief, preview } from "./markdown.ts";
 import { toast } from "./toast.ts";
-import { react, view } from "./views.ts";
+import { view } from "./views.ts";
 import { isPhone } from "@lib/core";
 import { openWorkspace } from "./run-view.ts";
-import { hitNeedle, type Head } from "@lib/run";
+import { hitNeedle, setPanel, type Head, type Panel, type PanelDoc } from "@lib/run";
+import { setNotes, type NotesView } from "@lib/notes";
+import { flushSync } from "react-dom";
 
 // ---- detail panel
+// What the React panel draws, one call each. flushSync where a view transition or the focus restore reads the DOM at once.
+const drawFooter = (footer: Panel["footer"]) => flushSync(() => setPanel({ footer }));
+const drawDoc = (doc: PanelDoc) => {
+  flushSync(() => setPanel({ body: "doc", doc }));
+  $("pbody").scrollTop = 0;
+};
+const drawNotes = (view: NotesView) => {
+  flushSync(() => {
+    setPanel({ body: "notes" });
+    setNotes({ view });
+  });
+  $("pbody").scrollTop = 0;
+};
 // A run's tabs, its phases in board order. A card opens on its column's tab.
 const TABS = [
   ["Request", "request"],
@@ -52,7 +67,7 @@ export function open(c, keepTab) {
   keepTab ||= keepNext;
   keepNext = false;
   stopDictation(true); // the panel body is about to be replaced
-  react.fixReset();
+  setPanel({ off: [] });
   gitLeave();
   store.openKey = key(c);
   $("panel").classList.add("open");
@@ -65,14 +80,14 @@ export function open(c, keepTab) {
   if (c.kind === "idea") {
     store.runDoc = null;
     store.ptabs = [];
-    react.drawHead({
+    setPanel({
       head: c.status === "starting" && !c.archived ? steps(c) : { kind: "task", where: c.where.split(/[\\/]/).pop() || c.where },
       tabs: [],
       tab: "",
     });
     taskBody(c);
     // The footer (Run, Edit, Reject, Archive, Delete, Restore) is the shared decision strip.
-    react.drawFooter({ card: c, plan: "", sourceControl: false });
+    drawFooter({ card: c, plan: "", sourceControl: false });
     return;
   }
   if (!keepTab)
@@ -122,7 +137,7 @@ export function taskBody(c) {
   if (c.pty && view !== "run" && view !== "tasks") showTerm(c);
   else {
     termStop();
-    react.drawNotes({ card: c, src: c.notes, ro: c.archived || c.status !== "idea" });
+    drawNotes({ card: c, src: c.notes, ro: c.archived || c.status !== "idea" });
   }
 }
 // The Fix findings form: under the review tab's document (components/run/doc-body.tsx draws it from this).
@@ -130,8 +145,8 @@ export function taskBody(c) {
 function drawFix(c) {
   const fs = store.runDoc.findings || [];
   if (c.archived || !fs.some((f) => !f.done) || !(c.status === "done" || c.awaiting === "findings" || c.awaiting === "approvals.review"))
-    return react.drawFix(null);
-  react.drawFix({ card: c, findings: fs });
+    return setPanel({ fix: null });
+  setPanel({ fix: { card: c, findings: fs } });
 }
 export async function openRun(c, refresh, again) {
   if (!refresh || !store.runDoc || store.runDoc.id !== c.id || again) {
@@ -186,7 +201,7 @@ export async function openRun(c, refresh, again) {
     openRun(c, true);
   };
   store.ptabs = tabs.map((t) => t[1]).concat(pt.hidden ? [] : ["term"]);
-  react.drawHead({
+  setPanel({
     head,
     tabs: tabs.map((t) => ({ k: t[1], label: t[0] })),
     tab: store.tab,
@@ -207,10 +222,10 @@ export async function openRun(c, refresh, again) {
   if (k === "term") showTerm(c);
   else if (k === "notes") {
     const ro = c.archived || c.status === "done" || c.status === "abandoned";
-    react.drawNotes({ card: c, src: doc, ro, linked: store.runDoc.linkedFrom });
+    drawNotes({ card: c, src: doc, ro, linked: store.runDoc.linkedFrom });
   } else if (k === "git") gitTab(c);
   else
-    react.drawDoc({
+    drawDoc({
       k,
       id: c.id,
       text: doc || null,
@@ -219,14 +234,14 @@ export async function openRun(c, refresh, again) {
       mark: needle && !refresh ? ++markN : 0,
     });
   if (k === "review" && !c.healed) drawFix(c);
-  else react.drawFix(null);
+  else setPanel({ fix: null });
   // Only the panel the link asked for: another card opened meanwhile drops the request.
   if (hit && !refresh) {
     if (hit.k === key(c) && !needle) toast("That item is not in this run");
     hit = null;
   }
   // The footer is the shared decision strip; a form open in it keeps its text through every refresh.
-  react.drawFooter({ card: c, plan: store.runDoc.plan, sourceControl: k !== "git" && gitPending(c) });
+  drawFooter({ card: c, plan: store.runDoc.plan, sourceControl: k !== "git" && gitPending(c) });
 }
 // A link from a note (?run= or ?idea=, with dir, tab, item) opens that card's panel;
 // a finding or backlog item named is scrolled to and marked. Found by its text, since
@@ -285,10 +300,7 @@ export function initPanel() {
   document.addEventListener("click", (e) => {
     for (const d of document.querySelectorAll(".more[open]")) if (!d.contains(e.target)) d.open = false;
   });
-  // The panel's header parts are React (components/run/panel-head.tsx, panel-tabs.tsx, run-picker.tsx), in elements kept here.
-  react.mountRunPart($("ptabs"), "ptabs");
-  react.mountRunPart($("psub"), "head");
-  react.mountRunPart(document.querySelector(".pwrap")!, "picker");
+  // The panel's header parts and body are React (pages/board/panel.tsx over lib/run/panel-store.ts).
   $("pclose").onclick = close;
   $("scrim").onclick = close;
 }

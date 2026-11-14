@@ -5,6 +5,7 @@
 import { create } from "zustand";
 import { openAdd } from "@lib/project";
 import { ask } from "@lib/core";
+import { setSetupRow, setTheme } from "@lib/shell";
 
 export type Cfg = {
   show: boolean;
@@ -97,7 +98,7 @@ const get = useOnboarding.getState,
   set = useOnboarding.setState;
 // The side menu's Setup row follows what is saved.
 const row = (s: number, outcome: string | null) =>
-  (window as unknown as { kzSetupRow?: (o: object) => void }).kzSetupRow?.({
+  setSetupRow({
     resume: outcome === "skipped" || (outcome === null && s > 0),
     step: s,
     total: get().cfg?.total ?? 4,
@@ -130,7 +131,7 @@ export const pickAgent = (agent: string) => edit({ agent });
 export const toggleMore = () => edit({ more: !get().flow?.more });
 export function pickTheme(theme: string) {
   edit({ theme });
-  (window as unknown as { setTheme?: (t: string) => void }).setTheme?.(theme);
+  setTheme(theme);
 }
 export async function next() {
   const { cfg, flow } = get();
@@ -179,7 +180,7 @@ export async function initOnboarding() {
   const cfg: Cfg | null = await call("/onboarding");
   if (!cfg) return;
   set({ cfg });
-  (window as unknown as { kzSetupRow?: (o: object) => void }).kzSetupRow?.(cfg);
+  setSetupRow(cfg);
   document.getElementById("rsetup")?.addEventListener("click", (e) => (e.preventDefault(), openFlow(cfg.step)));
   const q = new URLSearchParams(location.search);
   if (q.has("setup")) {

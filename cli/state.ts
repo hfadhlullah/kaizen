@@ -1097,21 +1097,9 @@ export function notice(c: Card): string | null {
   return what && `${c.text} — ${what}\n${c.where}`;
 }
 
-// When a notice is worth sending, for both UIs: each keeps one of these, and the
-// board page is served this very function, so it must stand on its own -- no
-// imports, no outer names. A run never seen before says nothing, which covers first
-// load and a run arriving already waiting. A `done` within a minute of the run
-// leaving a wait was finished by the person's own decision, so that one stays quiet.
-// ponytail: a fixed minute; an approval whose last writes take longer still pings.
-export function notifier() {
-  const said = new Map<string, string | null>(), left = new Map<string, number>();
-  return (key: string, say: string | null, done: boolean, now: number) => {
-    const before = said.get(key);
-    said.set(key, say);
-    if (before && say !== before) left.set(key, now);
-    return before !== undefined && !!say && say !== before && !(done && now - (left.get(key) ?? -Infinity) < 60_000);
-  };
-}
+// When a notice is worth sending, for both UIs: the terminal board and the web board each keep one of these. The rule is
+// web/lib/core/notifier.ts, so the board's bundle carries the very function this file exports.
+export { notifier } from "../web/lib/core/notifier.ts";
 
 export const LOGO = join(dirname(import.meta.dir), "assets", "kaizen-logo.png");
 

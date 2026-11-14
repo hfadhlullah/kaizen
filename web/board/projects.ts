@@ -1,4 +1,3 @@
-import { react } from "./views.ts";
 import { store } from "./store.ts";
 import { load, post } from "./api.ts";
 import { newTask, render } from "./cards.ts";
@@ -53,7 +52,5 @@ export function setShown() {
 
 export function initProjects() {
   // The header's pickers are React (components/project/project-bar.tsx), drawn from what cards.ts publishes on every redraw.
-  react.mountRunPart($("combo"), "projects");
-  react.mountRunPart($("showc"), "showing");
   $("newtop").onclick = newTask;
 }

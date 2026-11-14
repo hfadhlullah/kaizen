@@ -1,6 +1,6 @@
 import { newChat, openHome as open, popOut, setSide, syncHere, takeHandoff, useHome } from "@lib/home";
 import { $ } from "./dom.ts";
-import { react } from "./views.ts";
+import { see } from "@lib/shell";
 
 // ---- Home: a chat with kaizen's main agent (cli/chat.ts). The page is React (pages/home-page.tsx, state and requests in
 // lib/home/home-store.ts); this file wires what stays in the board's own header: the chat-list toggle on a phone, New chat and
@@ -25,7 +25,7 @@ function wire() {
 
 // The Home view opens: every chat, and the open one kept.
 export function openHome() {
-  react.mountHome();
+  see("home");
   wire();
   return open();
 }

@@ -4,9 +4,15 @@
 // The page never touches the filesystem. Everything comes from /state and the run
 // files behind /run/:id; every change goes through a POST and comes back as an SSE
 // tick that reloads the board. See design.md for the visual rules.
+import { createElement } from "react";
+import { flushSync } from "react-dom";
+import { createRoot } from "react-dom/client";
+import { bootShell } from "@lib/shell";
+import { initOnboarding } from "@lib/home";
+import { App } from "../pages/board/App.tsx";
 import { initPanel } from "./panel.ts";
-import { initViews, react } from "./views.ts";
-import { answered, closeForm, closeNewForm, drawBoard, mountHome, drawDoc, drawFix, drawFooter, drawGit, drawHead, drawMode, drawNotes, drawSettings, drawTerm, fixReset, mountRunPart, formOpen, iceKeys, initReact, openIcebox, openPopup, openTaskPage, openTasks, resumeCard } from "./react-mount.ts";
+import { initViews, go } from "./views.ts";
+import { initHost } from "./host.ts";
 import { initProjects, pick } from "./projects.ts";
 import { initUpdate } from "./update.ts";
 import { initKeys } from "./keys.ts";
@@ -16,13 +22,15 @@ import { store } from "./store.ts";
 import { initViewer } from "./viewer.ts";
 import { initContext } from "./context.ts";
 import { cardHref, initFooter, initRail, markCurrent, wsHref } from "./workspace.ts";
-import { go } from "./views.ts";
 import { openWorkspace } from "./run-view.ts";
-import { initOnboarding } from "@lib/home";
 import { initHomeWs } from "./home-ws.ts";
 
-Object.assign(react, { mountHome, init: initReact, openTasks, openTaskPage, openIcebox, iceKeys, drawBoard, popup: openPopup, closeForm, closeNewForm, formOpen, drawFooter, drawDoc, drawFix, drawGit, drawHead, drawMode, drawNotes, drawSettings, drawTerm, fixReset, mountRunPart, answered, resume: resumeCard });
-initPanel(); // after the React registry: it mounts the panel header parts
+// The page is the App: theme and menu state first (so nothing flashes the default), the host the pages call into, then the
+// React tree into <div id="root">, drawn at once because the modules below find their elements by id.
+bootShell();
+initHost();
+flushSync(() => createRoot(document.getElementById("root")!).render(createElement(App)));
+initPanel();
 initViews();
 initProjects();
 initUpdate();
