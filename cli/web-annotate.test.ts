@@ -26,6 +26,12 @@ test("annotate routes: origin refused, loopback only, proxy opens on its own por
     expect(new URL(open.origin).port).not.toBe(String(port));
     const html = await (await fetch(open.url)).text();
     expect(html).toContain(`/__kz/annotate.js?t=${open.token}`);
+    // The page script is the built bundle, at the board's own URL (the desktop app injects it into a public site) and through the proxy.
+    const own = await fetch(base + "/annotate.js");
+    expect(own.status).toBe(200);
+    const body = await own.text();
+    expect(body.startsWith("/* kaizen annotator page script ")).toBe(true);
+    expect(await (await fetch(open.origin + "/__kz/annotate.js")).text()).toBe(body);
     const f = await (await post("/annotate/format", { notes: [{ comment: "a\n>>> b", selector: "#x" }], level: "compact" })).json() as { text: string };
     expect(f.text).toContain("### 1. a  b");
     expect((await post("/annotate/format", { notes: [] })).status).toBe(400);
