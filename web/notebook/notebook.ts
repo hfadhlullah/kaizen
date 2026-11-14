@@ -5,66 +5,40 @@ import { initRail } from "../board/workspace.ts";
 // embed=1: a run workspace's note tab shows the note alone, without the side menu and header.
 if (new URLSearchParams(location.search).has("embed")) document.body.classList.add("embed");
 import {
-  EditorView,
-  Decoration,
-  ViewPlugin,
-  WidgetType,
-  keymap,
-  type DecorationSet,
-  type ViewUpdate,
-} from "@codemirror/view";
-import { EditorState, StateEffect, StateField, type Range } from "@codemirror/state";
-import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
-import { syntaxTree, syntaxHighlighting, HighlightStyle } from "@codemirror/language";
-import { markdown, markdownLanguage, markdownKeymap } from "@codemirror/lang-markdown";
-import { tags as t } from "@lezer/highlight";
-import { autocompletion, startCompletion, type CompletionContext, type Completion } from "@codemirror/autocomplete";
-import {
-  wikilinks,
-  tags,
-  resolve,
-  safeUrl,
-  tree,
+  Autosave,
+  age,
+  backlinks,
+  createEditor,
+  emptyBoard,
+  folderOf,
   freshName,
-  parseTable,
-  boardLink,
-  resolveRun,
-  anchorWords,
+  last,
+  parseQuery,
   pickProject,
-  TABS,
+  renameMessage,
+  renameTarget,
+  resolve,
+  searchNotes,
+  startNote,
+  tagCounts,
+  toggleTag,
+  tree,
+  type Board,
+  type EditorHandle,
+  type EditorHost,
+  type Note,
   type Tree,
-  type BoardLink,
-} from "./notes-lib.ts";
-
-type Note = { name: string; mtime: number; text: string };
+} from "@lib/notebook";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const esc = (s: string) =>
   String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 const ico = (n: string) => `<svg><use href="#i-${n}"/></svg>`;
-const last = (name: string) => name.split("/").pop()!;
-const folderOf = (name: string) => (name.includes("/") ? name.slice(0, name.lastIndexOf("/")) : "");
 
-type Board = {
-  runs: {
-    id: string;
-    short: string;
-    title: string;
-    status: string;
-    findings: { n: number; text: string; done: boolean }[];
-    backlog: { n: number; status: string; text: string }[];
-  }[];
-  ideas: { text: string; status: string }[];
-};
-let board: Board = { runs: [], ideas: [] }; // what [[run:…]] and [[idea:…]] can name, from /links
+let board: Board = emptyBoard(); // what [[run:…]] and [[idea:…]] can name, from /links
 let dir = ""; // the state dir whose notes/ is shown
 let notes: Note[] = [];
 let open: string | null = null; // the note in the editor
-let base = 0; // the mtime it was loaded or last saved at
-let dirty = false,
-  saving: Promise<void> | null = null,
-  timer: ReturnType<typeof setTimeout> | undefined;
-let conflict: { text: string; mtime: number } | null = null;
 let confirmDelete = false;
 const shut = new Set<string>(); // folders folded in the tree, for this page load
 
@@ -87,694 +61,44 @@ async function post(body: Record<string, unknown>) {
   }
 }
 
-// ---- live preview: markdown hidden and typeset on every line the cursor is not on
+// ---- the editor: one per open note (lib/notebook/engine.ts)
 
-class Check extends WidgetType {
-  constructor(
-    readonly on: boolean,
-    readonly at: number,
-  ) {
-    super();
-  }
-  eq(o: Check) {
-    return o.on === this.on && o.at === this.at;
-  }
-  toDOM(view: EditorView) {
-    const b = document.createElement("input");
-    b.type = "checkbox";
-    b.checked = this.on;
-    b.className = "cm-task";
-    b.setAttribute("aria-label", this.on ? "done" : "to do");
-    b.addEventListener("mousedown", (e) => {
-      e.preventDefault();
-      view.dispatch({ changes: { from: this.at, to: this.at + 3, insert: this.on ? "[ ]" : "[x]" } });
-    });
-    return b;
-  }
-  ignoreEvent() {
-    return true;
-  }
-}
-class Bullet extends WidgetType {
-  eq() {
-    return true;
-  }
-  toDOM() {
-    const s = document.createElement("span");
-    s.className = "cm-bullet";
-    s.textContent = "•";
-    return s;
-  }
-}
-class Rule extends WidgetType {
-  eq() {
-    return true;
-  }
-  toDOM() {
-    const s = document.createElement("span");
-    s.className = "cm-rule";
-    return s;
-  }
-}
-class Img extends WidgetType {
-  constructor(
-    readonly src: string,
-    readonly alt: string,
-  ) {
-    super();
-  }
-  eq(o: Img) {
-    return o.src === this.src && o.alt === this.alt;
-  }
-  toDOM() {
-    const i = document.createElement("img");
-    i.src = this.src;
-    i.alt = this.alt;
-    i.className = "cm-img";
-    return i;
-  }
-}
-
-// A table the cursor is not in is drawn as one; clicking it puts the cursor in its
-// source. Cells are text nodes: nothing in a note becomes markup.
-class TableView extends WidgetType {
-  constructor(
-    readonly src: string,
-    readonly at: number,
-  ) {
-    super();
-  }
-  eq(o: TableView) {
-    return o.src === this.src && o.at === this.at;
-  }
-  toDOM(view: EditorView) {
-    const t = parseTable(this.src),
-      wrap = document.createElement("div"),
-      table = document.createElement("table");
-    wrap.className = "cm-table";
-    const row = (cells: string[], tag: "th" | "td") => {
-      const tr = document.createElement("tr");
-      cells.forEach((c, i) => {
-        const el = document.createElement(tag);
-        el.textContent = c;
-        if (t.align[i]) el.style.textAlign = t.align[i]!;
-        tr.append(el);
-      });
-      return tr;
-    };
-    const head = document.createElement("thead"),
-      body = document.createElement("tbody");
-    head.append(row(t.head, "th"));
-    t.rows.forEach((r) => body.append(row(r, "td")));
-    table.append(head, body);
-    wrap.append(table);
-    wrap.addEventListener("mousedown", (e) => {
-      e.preventDefault();
-      view.dispatch({ selection: { anchor: this.at } });
-      view.focus();
-    });
-    return wrap;
-  }
-  ignoreEvent() {
-    return true;
-  }
-}
-// Whether the editor has focus, as state: an unfocused editor shows every table drawn.
-const focusSet = StateEffect.define<boolean>();
-const focused = StateField.define<boolean>({
-  create: () => false,
-  update: (v, tr) => tr.effects.reduce((f, e) => (e.is(focusSet) ? e.value : f), v),
-});
-// Block widgets may span lines, which a view plugin may not do: tables live in a field.
-function tables(state: EditorState) {
-  const out: Range<Decoration>[] = [],
-    sel = state.selection.main,
-    live = state.field(focused, false);
-  syntaxTree(state).iterate({
-    enter(n) {
-      if (n.name !== "Table") return;
-      const from = state.doc.lineAt(n.from).from,
-        to = state.doc.lineAt(n.to).to;
-      if (live && sel.to >= from && sel.from <= to) return false;
-      out.push(
-        Decoration.replace({ widget: new TableView(state.sliceDoc(from, to), from), block: true }).range(from, to),
-      );
-      return false;
-    },
-  });
-  return Decoration.set(out);
-}
-const tableField = StateField.define<DecorationSet>({
-  create: tables,
-  update: (v, tr) =>
-    tr.docChanged ||
-    tr.selection ||
-    tr.effects.some((e) => e.is(focusSet)) ||
-    syntaxTree(tr.startState) !== syntaxTree(tr.state)
-      ? tables(tr.state)
-      : v,
-  provide: (f) => EditorView.decorations.from(f),
-});
-
-// A link to the board: where it goes, what the chip says, and whether it is there.
-const ICON: Record<string, string> = {
-  idea: "idea",
-  starting: "idea",
-  running: "run",
-  stalled: "stall",
-  waiting: "wait",
-  done: "done",
-  abandoned: "aband",
+let ed: EditorHandle | null = null;
+const host: EditorHost = {
+  names: () => notes.map((n) => n.name),
+  board: () => board,
+  dir: () => dir,
+  edited: () => save.edit(),
+  save: () => void flush(),
+  openNote: (n) => void openNote(n),
+  openOrCreate: (n) => void openOrCreate(n),
+  search(q) {
+    $<HTMLInputElement>("q").value = q;
+    drawSide();
+  },
+  toast,
+  // Leave for the board only once the note is on disk.
+  async go(href) {
+    await flush();
+    if (save.dirty) {
+      toast("This note is not saved yet");
+      return;
+    }
+    location.href = href;
+  },
 };
-function boardTarget(l: BoardLink) {
-  const q = (o: Record<string, string>) => "/?" + new URLSearchParams({ all: "1", dir, ...o }).toString();
-  if (l.kind === "idea") {
-    const t = l.text.toLowerCase();
-    const task =
-      board.ideas.find((i) => i.text.toLowerCase() === t) ??
-      board.ideas.find((i) => i.text.toLowerCase().startsWith(t));
-    return {
-      name: task?.text ?? l.text,
-      sub: "idea",
-      status: task?.status ?? "",
-      href: task ? q({ idea: task.text }) : null,
-    };
-  }
-  const id = resolveRun(
-      l.id,
-      board.runs.map((r) => r.id),
-    ),
-    run = board.runs.find((r) => r.id === id);
-  const item = l.item && run && (l.item.type === "finding" ? run.findings : run.backlog).some((x) => x.n === l.item!.n);
-  const ok = !!run && (!l.item || item);
-  return {
-    name: run?.short ?? l.id,
-    sub: anchorWords(l),
-    status: run?.status ?? "",
-    href: ok
-      ? q({ run: run!.id, ...(l.tab ? { tab: l.tab } : {}), ...(l.item ? { item: `${l.item.type}-${l.item.n}` } : {}) })
-      : null,
-  };
-}
-// Leave for the board only once the note is on disk.
-async function go(href: string) {
-  await flush();
-  if (dirty) {
-    toast("This note is not saved yet");
-    return;
-  }
-  location.href = href;
-}
-class BoardChip extends WidgetType {
-  constructor(
-    readonly name: string,
-    readonly sub: string,
-    readonly status: string,
-    readonly href: string | null,
-  ) {
-    super();
-  }
-  eq(o: BoardChip) {
-    return o.name === this.name && o.sub === this.sub && o.status === this.status && o.href === this.href;
-  }
-  toDOM() {
-    const c = document.createElement("span");
-    c.className = "cm-board" + (this.href ? "" : " cm-board-missing");
-    c.title = this.href ? "Open on the board" : "Not on the board";
-    if (this.status) {
-      const ic = document.createElement("span");
-      ic.className = "st d-" + (ICON[this.status] ?? "idea");
-      ic.innerHTML = `<svg><use href="#s-${ICON[this.status] ?? "idea"}"/></svg>`;
-      c.append(ic);
-    }
-    c.append(this.name);
-    if (this.sub) {
-      const s = document.createElement("span");
-      s.className = "sub";
-      s.textContent = "› " + this.sub;
-      c.append(s);
-    }
-    c.addEventListener("mousedown", (e) => {
-      e.preventDefault();
-      if (this.href) void go(this.href);
-      else toast("That is not on the board");
-    });
-    return c;
-  }
-  ignoreEvent() {
-    return true;
-  }
-}
 
-const hide = Decoration.replace({});
-const refresh = StateEffect.define<null>(); // the list of notes changed: redraw missing links
+// ---- saving (lib/notebook/autosave.ts)
 
-function build(view: EditorView): DecorationSet {
-  const { state } = view,
-    doc = state.doc,
-    out: Range<Decoration>[] = [];
-  const live = new Set<number>();
-  // Only a focused editor has a cursor line: a note just opened reads fully typeset.
-  if (view.hasFocus)
-    for (const r of state.selection.ranges)
-      for (let l = doc.lineAt(r.from).number; l <= doc.lineAt(r.to).number; l++) live.add(l);
-  const on = (pos: number) => live.has(doc.lineAt(pos).number);
-  // A plugin may not replace a line break: anything that would is left as written.
-  const put = (d: Decoration, from: number, to: number) => {
-    if (doc.lineAt(from).number === doc.lineAt(to).number) out.push(d.range(from, to));
-  };
-  const lines = (from: number, to: number, cls: string) => {
-    for (let l = doc.lineAt(from).number; l <= doc.lineAt(to).number; l++)
-      out.push(Decoration.line({ class: cls }).range(doc.line(l).from));
-  };
-  for (const { from, to } of view.visibleRanges) {
-    syntaxTree(state).iterate({
-      from,
-      to,
-      enter(n) {
-        const name = n.name;
-        const h = /^ATXHeading(\d)$/.exec(name);
-        if (h) {
-          lines(n.from, n.from, `cm-h cm-h${Math.min(+h[1]!, 4)}`);
-          return;
-        }
-        if (name === "HeaderMark" && n.node.parent?.name.startsWith("ATX")) {
-          if (!on(n.from))
-            put(
-              hide,
-              n.from,
-              Math.min(n.to + (doc.sliceString(n.to, n.to + 1) === " " ? 1 : 0), doc.lineAt(n.from).to),
-            );
-          return;
-        }
-        if (
-          name === "EmphasisMark" ||
-          name === "StrikethroughMark" ||
-          (name === "CodeMark" && n.node.parent?.name === "InlineCode")
-        ) {
-          if (!on(n.from)) put(hide, n.from, n.to);
-          return;
-        }
-        if (name === "Blockquote") {
-          lines(n.from, n.to, "cm-quote");
-          return;
-        }
-        if (name === "QuoteMark") {
-          if (!on(n.from))
-            put(
-              hide,
-              n.from,
-              Math.min(n.to + (doc.sliceString(n.to, n.to + 1) === " " ? 1 : 0), doc.lineAt(n.from).to),
-            );
-          return;
-        }
-        if (name === "FencedCode") {
-          lines(n.from, n.to, "cm-fence");
-          out.push(
-            Decoration.line({ class: "cm-fence-a" }).range(doc.lineAt(n.from).from),
-            Decoration.line({ class: "cm-fence-z" }).range(doc.lineAt(n.to).from),
-          );
-          return false;
-        }
-        if (name === "HorizontalRule") {
-          if (!on(n.from)) put(Decoration.replace({ widget: new Rule() }), n.from, n.to);
-          return;
-        }
-        if (name === "ListMark" && n.node.parent?.parent?.name === "BulletList") {
-          if (on(n.from)) return;
-          const task = n.node.nextSibling?.name === "Task";
-          put(
-            task ? hide : Decoration.replace({ widget: new Bullet() }),
-            n.from,
-            task ? Math.min(n.to + 1, doc.lineAt(n.from).to) : n.to,
-          );
-          return;
-        }
-        if (name === "TaskMarker") {
-          if (!on(n.from))
-            put(
-              Decoration.replace({ widget: new Check(/x/i.test(doc.sliceString(n.from, n.to)), n.from) }),
-              n.from,
-              n.to,
-            );
-          return;
-        }
-        if (name === "Image") {
-          const url = n.node.getChild("URL"),
-            marks = n.node.getChildren("LinkMark");
-          if (on(n.from) || !url || marks.length < 2) return false;
-          const src = safeUrl(doc.sliceString(url.from, url.to));
-          if (src && /^https?:/i.test(src))
-            put(
-              Decoration.replace({ widget: new Img(src, doc.sliceString(marks[0]!.to, marks[1]!.from)) }),
-              n.from,
-              n.to,
-            );
-          return false;
-        }
-        if (name === "Link") {
-          const url = n.node.getChild("URL"),
-            marks = n.node.getChildren("LinkMark");
-          // Only the inline form `[text](url)`; a reference link stays as written.
-          if (!url || marks.length < 4) return;
-          const href = safeUrl(doc.sliceString(url.from, url.to));
-          const text = { from: marks[0]!.to, to: marks[1]!.from };
-          // A link to somewhere safeUrl refuses stays as written, so what it points at is visible.
-          if (on(n.from) || !href) {
-            out.push(Decoration.mark({ class: "cm-link-src" }).range(n.from, n.to));
-            return;
-          }
-          if (text.to > text.from)
-            out.push(
-              Decoration.mark({ class: "cm-link", attributes: { "data-href": href } }).range(text.from, text.to),
-            );
-          put(hide, marks[0]!.from, marks[0]!.to);
-          put(hide, marks[1]!.from, n.to);
-          return;
-        }
-        if (name === "URL" && n.node.parent?.name !== "Link" && n.node.parent?.name !== "Image") {
-          const href = safeUrl(doc.sliceString(n.from, n.to));
-          out.push(
-            Decoration.mark({ class: "cm-link", attributes: href && !on(n.from) ? { "data-href": href } : {} }).range(
-              n.from,
-              n.to,
-            ),
-          );
-        }
-      },
-    });
-  }
-  // Wikilinks and tags are not markdown: found by notes-lib over the text.
-  // ponytail: the whole note is scanned on each redraw; limit to visible ranges if notes reach megabytes.
-  const text = doc.toString(),
-    names = notes.map((x) => x.name);
-  for (const w of wikilinks(text)) {
-    const bl = boardLink(w);
-    if (bl) {
-      if (on(w.from)) {
-        out.push(Decoration.mark({ class: "cm-wiki" }).range(w.from, w.to));
-        continue;
-      }
-      const t = boardTarget(bl);
-      put(
-        Decoration.replace({ widget: new BoardChip(w.label !== w.target ? w.label : t.name, t.sub, t.status, t.href) }),
-        w.from,
-        w.to,
-      );
-      continue;
-    }
-    const target = resolve(w.name, names);
-    const cls = "cm-wiki" + (target ? "" : " cm-wiki-missing");
-    if (on(w.from)) {
-      out.push(Decoration.mark({ class: cls }).range(w.from, w.to));
-      continue;
-    }
-    const labelAt = text.lastIndexOf(w.label, w.to - 2);
-    const lf = labelAt > w.from ? labelAt : w.from + 2,
-      lt = lf + w.label.length;
-    put(hide, w.from, lf);
-    out.push(Decoration.mark({ class: cls, attributes: { "data-note": target ?? w.name } }).range(lf, lt));
-    put(hide, lt, w.to);
-  }
-  for (const g of tags(text))
-    out.push(
-      Decoration.mark({ class: "cm-tag", attributes: on(g.from) ? {} : { "data-tag": g.tag } }).range(g.from, g.to),
-    );
-  return Decoration.set(out, true);
-}
-
-const preview = ViewPlugin.fromClass(
-  class {
-    decorations: DecorationSet;
-    constructor(view: EditorView) {
-      this.decorations = build(view);
-    }
-    update(u: ViewUpdate) {
-      if (
-        u.docChanged ||
-        u.viewportChanged ||
-        u.selectionSet ||
-        u.focusChanged ||
-        syntaxTree(u.startState) !== syntaxTree(u.state) ||
-        u.transactions.some((tr) => tr.effects.some((e) => e.is(refresh)))
-      )
-        this.decorations = build(u.view);
-    }
-  },
-  { decorations: (v) => v.decorations },
-);
-
-const look = HighlightStyle.define([
-  { tag: t.emphasis, fontStyle: "italic" },
-  { tag: t.strong, fontWeight: "600" },
-  { tag: t.strikethrough, textDecoration: "line-through" },
-  {
-    tag: t.monospace,
-    fontFamily: "var(--mono)",
-    fontSize: "0.86em",
-    background: "var(--bg)",
-    borderRadius: "var(--r-s)",
-    padding: "1px 4px",
-  },
-  { tag: [t.processingInstruction, t.meta, t.url, t.labelName, t.contentSeparator], color: "var(--dim)" },
-  { tag: t.link, color: "var(--accent)" },
-  { tag: t.quote, color: "var(--dim)" },
-]);
-
-// Clicks on what the preview drew: a link opens, a wikilink opens its note, a tag filters.
-const clicks = EditorView.domEventHandlers({
-  mousedown(e) {
-    const el = (e.target as HTMLElement).closest?.("[data-href],[data-note],[data-tag]") as HTMLElement | null;
-    if (!el || e.button !== 0) return false;
-    e.preventDefault();
-    const href = el.dataset.href;
-    // A relative link is a note (`[x](Other%20note.md)`), as in Obsidian; the rest open in a tab.
-    if (href && !/^[a-z][a-z0-9+.-]*:/i.test(href)) {
-      let name = href;
-      try {
-        name = decodeURIComponent(href);
-      } catch {
-        /* as written */
-      }
-      const hit = resolve(
-        name.split("#")[0]!,
-        notes.map((x) => x.name),
-      );
-      hit ? void openNote(hit) : toast(`No note named ${name}`);
-    } else if (href) window.open(href, "_blank", "noopener");
-    else if (el.dataset.note) openOrCreate(el.dataset.note);
-    else if (el.dataset.tag) {
-      $<HTMLInputElement>("q").value = "#" + el.dataset.tag;
-      drawSide();
-    }
-    return true;
-  },
+const save = new Autosave({
+  read: () => ed?.text() ?? null,
+  timer: { set: (f, ms) => setTimeout(f, ms), clear: (t) => clearTimeout(t as ReturnType<typeof setTimeout>) },
+  save: (name, text, base) => post({ op: "save", name, text, base }) as never,
+  onState: (s) => drawMeta(s === "saving" ? "Saving…" : undefined),
+  onSaved: (name, text, mtime) => upsert({ name, mtime, text }),
+  onError: toast,
 });
-
-// The `/` menu: at the start of a line, `/` offers the blocks, so nobody has to
-// remember markdown. Picking one replaces the `/word` with the block's source; `|`
-// in the text marks where the cursor lands.
-const BLOCKS: [string, string, string][] = [
-  ["Checkbox", "- [ ] |", "to do"],
-  ["Divider", "---\n|", "line across"],
-  ["Heading 1", "# |", "big"],
-  ["Heading 2", "## |", "medium"],
-  ["Heading 3", "### |", "small"],
-  ["Bullet list", "- |", "•"],
-  ["Numbered list", "1. |", "1."],
-  ["Quote", "> |", "aside"],
-  ["Code block", "```\n|\n```", "monospace"],
-  ["Table", "| Column | Column |\n| --- | --- |\n| | |", "rows"],
-  ["Link to note", "[[|]]", "[[ ]]"],
-  ["Link to run", "[[run:|]]", "board"],
-  ["Tag", "#|", "#"],
-];
-function slash(cx: CompletionContext) {
-  const m = cx.matchBefore(/^[ \t]*\/[\w ]*$/);
-  if (!m) return null;
-  const at = m.from + m.text.indexOf("/");
-  return {
-    from: at,
-    filter: true,
-    validFor: /^\/[\w ]*$/,
-    // Boosted in list order, so an unfiltered menu reads as written above.
-    options: BLOCKS.map(([label, src, detail], i): Completion => ({
-      label: "/" + label.toLowerCase(),
-      displayLabel: label,
-      detail,
-      boost: 50 - i,
-      apply: (view, _c, from, to) => {
-        // Straight under a line of text, `---` would underline it into a heading and a
-        // table would join its paragraph: both need a blank line above.
-        const line = view.state.doc.lineAt(from);
-        const gap =
-          (label === "Divider" || label === "Table") &&
-          line.number > 1 &&
-          view.state.doc.line(line.number - 1).text.trim()
-            ? "\n"
-            : "";
-        const text = gap + src.replace("|", ""),
-          caret = from + gap.length + src.indexOf("|");
-        view.dispatch({
-          changes: { from, to, insert: text },
-          selection: { anchor: caret },
-          userEvent: "input.complete",
-        });
-        // A link is only begun: the next list offers what it can point at.
-        if (label.startsWith("Link to")) setTimeout(() => startCompletion(view));
-      },
-    })),
-  };
-}
-
-// `[[` offers notes, runs and tasks; `#` after a run offers its tabs, findings and
-// backlog items. Picking one closes the link unless it is a run, which leaves the
-// cursor before `]]` so a `#` can follow.
-function links(cx: CompletionContext) {
-  const m = cx.matchBefore(/\[\[[^\]\n|]*$/);
-  if (!m) return null;
-  const q = m.text.slice(2),
-    close = cx.state.sliceDoc(cx.pos, cx.pos + 2) === "]]";
-  const put = (text: string, stay: boolean) => (view: EditorView, _c: Completion, from: number, to: number) => {
-    view.dispatch({
-      changes: { from, to, insert: text + (close ? "" : "]]") },
-      selection: { anchor: from + text.length + (stay ? 0 : 2) },
-      userEvent: "input.complete",
-    });
-  };
-  const anchor = /^run:\s*([\w.-]+)#([\w-]*)$/i.exec(q);
-  if (anchor) {
-    const id = resolveRun(
-        anchor[1]!,
-        board.runs.map((r) => r.id),
-      ),
-      run = board.runs.find((r) => r.id === id);
-    if (!run) return null;
-    const cut = (t: string) => (t.length > 60 ? t.slice(0, 59) + "…" : t);
-    return {
-      from: cx.pos - anchor[2]!.length,
-      validFor: /^[\w-]*$/,
-      options: [
-        ...TABS.map((t, i): Completion => ({ label: t, detail: "tab", boost: 20 - i, apply: put(t, false) })),
-        ...run.findings.map((f): Completion => ({
-          label: `finding-${f.n}`,
-          detail: cut(f.text) + (f.done ? " (closed)" : ""),
-          apply: put(`finding-${f.n}`, false),
-        })),
-        ...run.backlog.map((b): Completion => ({
-          label: `backlog-${b.n}`,
-          detail: `${b.status}: ${cut(b.text)}`,
-          apply: put(`backlog-${b.n}`, false),
-        })),
-      ],
-    };
-  }
-  return {
-    from: m.from + 2,
-    validFor: /^[^\]\n|#]*$/,
-    options: [
-      ...notes.map((n): Completion => ({ label: n.name, detail: "note", apply: put(n.name, false) })),
-      // Newest first, by the name the board shows; the full id is what gets written.
-      ...[...board.runs]
-        .sort((a, b) => b.id.localeCompare(a.id))
-        .map((r, i): Completion => ({
-          label: "run:" + r.id,
-          displayLabel: r.short,
-          detail: r.id.slice(0, 10) + " · " + r.title,
-          boost: Math.max(-99, 60 - i),
-          apply: put("run:" + r.id, true),
-        })),
-      ...board.ideas.map((i): Completion => ({
-        label: "idea:" + i.text,
-        detail: "idea",
-        apply: put("idea:" + i.text, false),
-      })),
-    ],
-  };
-}
-
-const exts = (crlf: boolean) => [
-  autocompletion({ override: [slash, links], icons: false }),
-  history(),
-  keymap.of([
-    ...markdownKeymap,
-    ...defaultKeymap,
-    ...historyKeymap,
-    indentWithTab,
-    {
-      key: "Mod-s",
-      run: () => {
-        void flush();
-        return true;
-      },
-    },
-  ]),
-  markdown({ base: markdownLanguage }),
-  syntaxHighlighting(look),
-  EditorView.lineWrapping,
-  EditorView.contentAttributes.of({ "aria-label": "Note", spellcheck: "true" }),
-  focused,
-  EditorView.focusChangeEffect.of((_s, on) => focusSet.of(on)),
-  tableField,
-  preview,
-  clicks,
-  EditorView.updateListener.of((u) => {
-    if (u.docChanged && !loading) {
-      dirty = true;
-      conflict = null;
-      drawMeta();
-      clearTimeout(timer);
-      timer = setTimeout(() => void flush(), 600);
-    }
-  }),
-  crlf ? EditorState.lineSeparator.of("\r\n") : [],
-];
-
-let loading = false;
-const view = new EditorView({ parent: $("editor"), state: EditorState.create({ doc: "", extensions: exts(false) }) });
-// Replace the text without it counting as the user's edit.
-function setText(text: string, fresh: boolean) {
-  loading = true;
-  if (fresh) view.setState(EditorState.create({ doc: text, extensions: exts(text.includes("\r\n")) }));
-  else
-    view.dispatch({
-      changes: { from: 0, to: view.state.doc.length, insert: text },
-      selection: { anchor: Math.min(view.state.selection.main.head, text.length) },
-    });
-  loading = false;
-}
-
-// ---- saving
-
-// Write the open note if it has unsaved text. Never called for a note only opened.
-async function flush(): Promise<void> {
-  clearTimeout(timer);
-  if (saving) await saving;
-  if (!open || !dirty || conflict) return;
-  const name = open,
-    text = view.state.sliceDoc();
-  let saved = false;
-  saving = (async () => {
-    drawMeta("Saving…");
-    const r = await post({ op: "save", name, text, base });
-    if (open !== name) return;
-    if (r.ok) {
-      saved = true;
-      base = r.mtime;
-      if (view.state.sliceDoc() === text) dirty = false;
-      upsert({ name, mtime: r.mtime, text });
-    } else if (r.status === 409) conflict = { text: r.text ?? "", mtime: r.mtime ?? 0 };
-    else toast(r.error || "Not saved");
-  })();
-  await saving;
-  saving = null;
-  drawMeta();
-  // Typed on while that save was out: save again. A failed save waits for the next keystroke.
-  if (saved && dirty && !conflict && open === name) {
-    clearTimeout(timer);
-    timer = setTimeout(() => void flush(), 600);
-  }
-}
+const flush = () => save.flush();
 function upsert(n: Note) {
   notes = [n, ...notes.filter((x) => x.name !== n.name)];
   drawSide();
@@ -805,11 +129,11 @@ async function load() {
   }
   const mine = open && notes.find((n) => n.name === open);
   // Someone else changed the open note: take it only when nothing typed here is unsaved.
-  if (mine && mine.mtime !== base && !dirty && !saving) {
-    base = mine.mtime;
-    setText(mine.text, false);
+  if (mine && mine.mtime !== save.base && !save.dirty && !save.busy) {
+    save.adopt(mine.mtime);
+    ed?.replace(mine.text);
   }
-  view.dispatch({ effects: refresh.of(null) });
+  ed?.refresh();
   drawSide();
   drawLinks();
   drawPane();
@@ -877,18 +201,17 @@ function turn(sheet: HTMLElement | null) {
 async function openNote(name: string | null): Promise<boolean> {
   if (name === open) return true;
   await flush();
-  if (dirty) {
-    toast(conflict ? "Choose Keep mine or Load theirs first" : "This note is not saved yet");
+  if (save.dirty) {
+    toast(save.conflict ? "Choose Keep mine or Load theirs first" : "This note is not saved yet");
     return false;
   }
   const sheet = lift();
   open = name;
-  conflict = null;
   confirmDelete = false;
-  dirty = false;
   const n = name ? notes.find((x) => x.name === name) : null;
-  base = n?.mtime ?? 0;
-  setText(n?.text ?? "", true);
+  save.open(name, n?.mtime ?? 0);
+  ed?.destroy();
+  ed = name ? createEditor($("editor"), n?.text ?? "", host) : null;
   try {
     name ? sessionStorage.setItem("kz-note:" + dir, name) : sessionStorage.removeItem("kz-note:" + dir);
   } catch {
@@ -917,7 +240,7 @@ async function openOrCreate(name: string) {
     notes.map((n) => n.name),
   );
   if (hit) return void openNote(hit);
-  if (await create(name)) view.focus();
+  if (await create(name)) ed?.focus();
 }
 async function newNote() {
   if (
@@ -935,7 +258,8 @@ async function newNote() {
 }
 
 async function rename(to: string) {
-  if (!open || !to.trim() || to.trim() === open) {
+  const target = open ? renameTarget(open, to) : null;
+  if (!open || !target) {
     drawPane();
     return;
   }
@@ -952,27 +276,22 @@ async function rename(to: string) {
     await load();
     return;
   }
-  open = to
-    .trim()
-    .replace(/\.md$/i, "")
-    .split("/")
-    .map((p) => p.trim())
-    .join("/");
+  open = target;
+  save.renamed(target);
   await load();
-  base = notes.find((n) => n.name === open)?.mtime ?? base;
-  toast(folderOf(from) === folderOf(open) ? "Renamed" : `Moved to ${folderOf(open) || "the top"}`);
+  save.adopt(notes.find((n) => n.name === open)?.mtime ?? save.base);
+  toast(renameMessage(from, open));
 }
 
 async function remove() {
   if (!open) return;
-  clearTimeout(timer);
+  save.discard();
   const r = await post({ op: "delete", name: open });
   if (!r.ok) {
     toast(r.error || "Could not delete");
     return;
   }
   toast("Moved to notes/.trash");
-  dirty = false;
   notes = notes.filter((n) => n.name !== open);
   await openNote(null);
 }
@@ -980,29 +299,22 @@ async function remove() {
 // ---- drawing
 
 function drawSide() {
-  const q = $<HTMLInputElement>("q").value.trim().toLowerCase();
+  const raw = $<HTMLInputElement>("q").value,
+    q = parseQuery(raw);
   // Tags, most used first.
-  const count = new Map<string, number>();
-  for (const n of notes) for (const g of new Set(tags(n.text).map((x) => x.tag))) count.set(g, (count.get(g) ?? 0) + 1);
-  const tg = q.startsWith("#") ? q.slice(1) : null;
-  $("tags").innerHTML = [...count]
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+  $("tags").innerHTML = tagCounts(notes)
     .map(
       ([g, c]) =>
-        `<button class="chip${g === tg ? " on" : ""}" data-tag="${esc(g)}" aria-pressed="${g === tg}">#${esc(g)} <span>${c}</span></button>`,
+        `<button class="chip${g === q.tag ? " on" : ""}" data-tag="${esc(g)}" aria-pressed="${g === q.tag}">#${esc(g)} <span>${c}</span></button>`,
     )
     .join("");
-  $("tagsh").hidden = !count.size;
+  $("tagsh").hidden = !tagCounts(notes).length;
   const row = (n: string, withFolder = false) => {
     const note = notes.find((x) => x.name === n);
     return `<li><button class="nt${n === open ? " cur" : ""}" data-open="${esc(n)}"${n === open ? ' aria-current="true"' : ""}><span class="nm">${esc(last(n))}</span>${withFolder && folderOf(n) ? `<span class="fd">${esc(folderOf(n))}</span>` : ""}<span class="age">${note ? age(note.mtime) : ""}</span></button></li>`;
   };
-  if (q) {
-    const hits = notes.filter((n) =>
-      tg !== null
-        ? tags(n.text).some((x) => x.tag === tg || x.tag.startsWith(tg + "/"))
-        : n.name.toLowerCase().includes(q) || n.text.toLowerCase().includes(q),
-    );
+  if (q.text) {
+    const hits = searchNotes(notes, q);
     $("tree").innerHTML = hits.length
       ? `<ul>${hits.map((n) => row(n.name, true)).join("")}</ul>`
       : `<p class="none">No note matches.</p>`;
@@ -1059,20 +371,16 @@ function drawPane() {
 function drawMeta(state?: string) {
   const m = $("meta");
   if (!open) return;
-  if (conflict) {
+  if (save.conflict) {
     m.innerHTML = `<span class="warnw">This note changed somewhere else since you opened it.</span><span class="acts"><button class="btn ghost" id="theirs">Load theirs</button><button class="btn pri" id="mine">Keep mine</button></span>`;
     $("theirs").onclick = () => {
-      const c = conflict!;
-      conflict = null;
-      dirty = false;
-      base = c.mtime;
-      setText(c.text, false);
+      const c = save.takeTheirs();
+      if (c) ed?.replace(c.text);
       drawMeta();
     };
     $("mine").onclick = () => {
-      base = conflict!.mtime;
-      conflict = null;
-      void flush();
+      save.keepMine();
+      drawMeta();
     };
     return;
   }
@@ -1089,7 +397,7 @@ function drawMeta(state?: string) {
     return;
   }
   const where = folderOf(open);
-  m.innerHTML = `<span>${where ? esc(where) : "Notes"}</span><span>·</span><span id="saved">${state ?? (dirty ? "Not saved yet" : "Saved")}</span><span class="sp"></span><button class="ib" id="wide" title="${wide ? "Boxed width" : "Full width"}" aria-label="${wide ? "Boxed width" : "Full width"}" aria-pressed="${wide}">${ico(wide ? "box" : "wide")}</button><button class="ib" id="full" title="${full ? "Exit full screen (Esc)" : "Full screen"}" aria-label="${full ? "Exit full screen" : "Full screen"}">${ico(full ? "min" : "max")}</button><button class="ib" id="trash" title="Delete note" aria-label="Delete note">${ico("trash")}</button>`;
+  m.innerHTML = `<span>${where ? esc(where) : "Notes"}</span><span>·</span><span id="saved">${state ?? (save.dirty ? "Not saved yet" : "Saved")}</span><span class="sp"></span><button class="ib" id="wide" title="${wide ? "Boxed width" : "Full width"}" aria-label="${wide ? "Boxed width" : "Full width"}" aria-pressed="${wide}">${ico(wide ? "box" : "wide")}</button><button class="ib" id="full" title="${full ? "Exit full screen (Esc)" : "Full screen"}" aria-label="${full ? "Exit full screen" : "Full screen"}">${ico(full ? "min" : "max")}</button><button class="ib" id="trash" title="Delete note" aria-label="Delete note">${ico("trash")}</button>`;
   $("trash").onclick = () => {
     confirmDelete = true;
     drawMeta();
@@ -1104,21 +412,9 @@ function drawLinks() {
     box.hidden = true;
     return;
   }
-  const names = notes.map((n) => n.name);
-  const from = notes.filter((n) => n.name !== open && wikilinks(n.text).some((l) => resolve(l.name, names) === open));
+  const from = backlinks(notes, open);
   box.hidden = !from.length;
   box.innerHTML = `<h3>Linked from</h3><ul>${from.map((n) => `<li><button class="nt" data-open="${esc(n.name)}"><span class="nm">${esc(last(n.name))}</span>${folderOf(n.name) ? `<span class="fd">${esc(folderOf(n.name))}</span>` : ""}</button></li>`).join("")}</ul>`;
-}
-
-function age(ms: number) {
-  const s = (Date.now() - ms) / 1000;
-  return s < 60
-    ? "now"
-    : s < 3600
-      ? `${Math.floor(s / 60)}m`
-      : s < 86400
-        ? `${Math.floor(s / 3600)}h`
-        : `${Math.floor(s / 86400)}d`;
 }
 
 // ---- wiring
@@ -1133,7 +429,7 @@ document.addEventListener("click", (e) => {
   if (el.dataset.open) void openNote(el.dataset.open);
   else if (el.dataset.tag) {
     const q = $<HTMLInputElement>("q");
-    q.value = q.value === "#" + el.dataset.tag ? "" : "#" + el.dataset.tag;
+    q.value = toggleTag(q.value, el.dataset.tag);
     drawSide();
   }
 });
@@ -1169,18 +465,18 @@ document.addEventListener("keydown", (e) => {
 });
 // Closing with text not on disk: the browser asks first.
 addEventListener("beforeunload", (e) => {
-  if (dirty) e.preventDefault();
+  if (save.dirty) e.preventDefault();
 });
 // Leaving for the board through Search (Ctrl+K): the note is written first.
 addEventListener("kz-leave", ((e: CustomEvent) => e.detail.wait(flush())) as EventListener);
 // Leaving with unsaved text: a keepalive request outlives the page.
 addEventListener("pagehide", () => {
-  if (open && dirty && !conflict)
+  if (open && ed && save.dirty && !save.conflict)
     fetch("/vault", {
       method: "POST",
       keepalive: true,
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ dir, op: "save", name: open, text: view.state.sliceDoc(), base }),
+      body: JSON.stringify({ dir, op: "save", name: open, text: ed.text(), base: save.base }),
     });
 });
 
@@ -1229,16 +525,15 @@ addEventListener("pagehide", () => {
     await load();
   };
   await load();
-  let again: string | null = null;
+  let lastNote: string | null = null;
   try {
-    again = sessionStorage.getItem("kz-note:" + dir);
+    lastNote = sessionStorage.getItem("kz-note:" + dir);
   } catch {
     /* no storage */
   }
   // ?note= is the board's "Linked from notes"; otherwise the note open last in this tab.
-  const asked = new URLSearchParams(location.search).get("note");
-  if (asked && notes.some((n) => n.name === asked)) again = asked;
-  if (again && notes.some((n) => n.name === again)) await openNote(again);
+  const again = startNote(notes.map((n) => n.name), new URLSearchParams(location.search).get("note"), lastNote);
+  if (again) await openNote(again);
   initRail();
   void refreshBoardBadge();
   // Every write under a state dir arrives as `changed`, this page's own saves included.
