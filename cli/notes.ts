@@ -78,7 +78,11 @@ export function saveNote(state: string, name: unknown, text: string, base: numbe
   } else if (base) return { ok: false, why: "conflict", text: "", mtime: 0 };
   mkdirSync(dirname(t.file), { recursive: true });
   // The editor holds LF (readText); a note that was CRLF on disk stays CRLF.
-  const crlf = existsSync(t.file) && readFileSync(t.file, "utf8").includes("\r\n");
+  // Only when most lines are CRLF, so one stray CRLF in an LF note does not rewrite the whole file.
+  const crlf = existsSync(t.file) && (() => {
+    const old = readFileSync(t.file, "utf8"), all = (old.match(/\n/g) || []).length, cr = (old.match(/\r\n/g) || []).length;
+    return cr > 0 && cr * 2 >= all;
+  })();
   writeFileSync(t.file, crlf ? text.replace(/\r?\n/g, "\r\n") : text);
   return { ok: true, name: t.name, mtime: statSync(t.file).mtimeMs };
 }

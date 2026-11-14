@@ -291,3 +291,12 @@ test("a symlinked folder cannot carry a save out of notes/", () => {
   expect(saveNote(st, "Project/CLAUDE", "x", 0).ok).toBe(false);
   expect(ex(join(out, "CLAUDE.md"))).toBe(false);
 });
+
+test("save: one stray CRLF in an LF note does not turn the whole note CRLF", () => {
+  const state = mkdtempSync(join(tmpdir(), "kz-notes-"));
+  mkdirSync(join(state, "notes"), { recursive: true });
+  writeFileSync(join(state, "notes", "mixed.md"), "a\nb\r\nc\nd\n");
+  const m = statSync(join(state, "notes", "mixed.md")).mtimeMs;
+  saveNote(state, "mixed", "a\nb\nc\nd\ne\n", m);
+  expect(readFileSync(join(state, "notes", "mixed.md"), "utf8")).toBe("a\nb\nc\nd\ne\n");
+});
