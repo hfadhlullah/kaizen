@@ -1,6 +1,6 @@
 // The kit components the Notebook page opens in place (Search, Add a project, New workspace, the worktree menu, questions,
 // toasts), mounted once in a root of their own, and the side menu's Projects list and filter. notebook.ts calls `mountKit()`
-// once at start (not in ?embed=1, which has no side menu); it registers the stores as `window.kzKit` for the code the
+// once at start (in ?embed=1 only toasts and questions); it registers the stores as `window.kzKit` for the code the
 // board and Video bundles share (kit-loader.ts), which hands over what only the page knows through `setHost`.
 import { createElement } from "react";
 import { createRoot } from "react-dom/client";
@@ -17,7 +17,7 @@ import { useSearch } from "@lib/search";
 const kit = { useSearch, openAdd, openWsMenu, ask, toast, setHost, rail: { set: setRailData, touch: touchRail } };
 export type Kit = typeof kit;
 
-export function mountKit() {
+export function mountKit(embed = false) {
   if (window.kzKit) return;
   // Like the board's #kz-portal: a kz-ui container the popups render into, with the React root in a div of its own.
   const portal = document.createElement("div");
@@ -32,11 +32,11 @@ export function mountKit() {
       null,
       createElement(Toaster),
       createElement(AskHost),
-      createElement(SearchPalette),
-      createElement(WsMenu),
-      createElement(AddProjectDialog),
+      // An embedded note has toasts and questions only: no side menu to search from or list projects in.
+      ...(embed ? [] : [createElement(SearchPalette), createElement(WsMenu), createElement(AddProjectDialog)]),
     ),
   );
+  if (embed) return;
   // The side menu's Projects list and filter fill the page's own elements (#plist, #pfilter-host), outside the kz-ui portal.
   for (const [id, part] of [
     ["plist", RailList],

@@ -186,13 +186,11 @@ body.embed .rail,body.embed .hdr{display:none}body.embed .app{margin:0;border:0;
 pre.mark{margin:0;font:700 5px/1 var(--mono)}
 pre.mark span:nth-child(1){color:var(--ink-hi)}pre.mark span:nth-child(2){color:color-mix(in srgb,var(--ink-hi),var(--accent))}pre.mark span:nth-child(3){color:var(--accent)}
 .sel{border:1px solid var(--line);border-radius:var(--r-s);padding:4px 10px;background-color:var(--bg-2);color:var(--ink);font-size:13px}
-/* One line, one height: a select, a field and a picker button stand as tall as .ib and .btn. */
-:is(input,select,button,summary).sel{height:var(--btn-s)}
-select.sel{cursor:pointer;appearance:none;padding-right:30px;max-width:min(320px,100%);text-overflow:ellipsis;background-image:linear-gradient(45deg,transparent 50%,var(--dim) 50%),linear-gradient(135deg,var(--dim) 50%,transparent 50%);background-position:calc(100% - 16px) 50%,calc(100% - 11px) 50%;background-size:5px 5px;background-repeat:no-repeat}
+/* One line, one height: a field stands as tall as .ib and .btn. */
+input.sel{height:var(--btn-s)}
 .sel:hover{border-color:var(--dim)}
 .hdr h1{display:none;margin:0;font-weight:600}
 @media(max-width:640px){.hdr{padding-top:28px;padding-bottom:12px}.hdr h1{display:block;flex:1 0 70%;font-size:20px;order:-2}#new{order:-1}.hdr .sp{display:none}.hdr>#side{order:1}.hdr>#proj{order:2}}
-.hdr>#proj{padding:4px 30px 4px 10px}.hdr>#proj:not(:hover):not(:focus){border-color:transparent;background-color:transparent}
 .sel:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
 .sel::placeholder{color:var(--dim)}
 .sp{flex:1}
@@ -207,8 +205,6 @@ select.sel{cursor:pointer;appearance:none;padding-right:30px;max-width:min(320px
 .chip{display:inline-flex;align-items:center;gap:5px;min-height:20px;padding:1px 8px;border-radius:var(--r-pill);font-size:11px;font-weight:500;color:var(--dim);box-shadow:inset 0 0 0 1px var(--line)}
 .chip span{color:var(--dim);font-variant-numeric:tabular-nums}
 .chip:hover,.chip.on{background:var(--hover);color:var(--ink)}.chip.on{box-shadow:inset 0 0 0 1px var(--accent)}
-.toast{position:fixed;z-index:12;left:28px;bottom:28px;max-width:calc(100% - 56px);background:var(--ink);color:var(--bg);border-radius:var(--r);padding:10px 16px;font-size:13px;box-shadow:var(--shadow-2);opacity:0;transition:opacity .2s;pointer-events:none}
-.toast.on{opacity:1}
 
 /* sidebar: search, tags, the folder tree */
 .wrap{flex:1;min-height:0;display:grid;grid-template-columns:260px 1fr}
@@ -317,7 +313,6 @@ select.sel{cursor:pointer;appearance:none;padding-right:30px;max-width:min(320px
  .side{display:none;position:fixed;z-index:11;inset:0 auto 0 0;width:min(300px,85vw);border-right:1px solid var(--line);box-shadow:var(--shadow-2)}
  .side-open .side{display:flex}
  .page{padding:24px 16px 30vh}
- .toast{left:16px;max-width:calc(100% - 32px)}
 }
 @media(min-width:901px){#side{display:none}}
 .skel{display:block;border-radius:var(--r-xs);background:linear-gradient(90deg,var(--line) 25%,color-mix(in srgb,var(--line) 45%,transparent) 50%,var(--line) 75%);background-size:200% 100%;animation:skel 1.2s ease-in-out infinite}@keyframes skel{from{background-position:200% 0}to{background-position:-200% 0}}
@@ -422,38 +417,7 @@ select.sel{cursor:pointer;appearance:none;padding-right:30px;max-width:min(320px
  // Phones: More holds the tabs that do not fit; a pick or a tap elsewhere closes it.
  const more=document.querySelector(".mtab");if(more){more.querySelectorAll("a").forEach(a=>a.addEventListener("click",()=>more.open=false));addEventListener("pointerdown",e=>{if(more.open&&!more.contains(e.target))more.open=false},true)}})();
 </script>
-<div class="app">
-<div class="hdr">
-  <h1>Notes</h1>
-  <button class="ib" id="side" title="Notes list" aria-label="Notes list"><svg><use href="#i-list"/></svg></button>
-  <select class="sel" id="proj" aria-label="Project"></select>
-  <span class="sp"></span>
-  <button class="btn pri" id="new">New note</button>
-</div>
-
-<div class="wrap">
-  <nav class="side" aria-label="Notes">
-    <input class="sel" id="q" type="search" placeholder="Search notes, or #tag" aria-label="Search notes" spellcheck="false" autocomplete="off">
-    <h3 id="tagsh" hidden>Tags</h3>
-    <div class="tags" id="tags"></div>
-    <h3>Notes</h3>
-    <div class="tree" id="tree"><span class="skel" style="height:14px;margin:8px 0"></span><span class="skel" style="height:14px;margin:8px 0"></span><span class="skel" style="height:14px;margin:8px 0"></span><span class="skel" style="height:14px;margin:8px 0"></span><span class="skel" style="height:14px;margin:8px 0"></span></div>
-  </nav>
-  <main class="main">
-    <div class="page">
-      <div class="blank" id="empty" hidden><div class="mascot"></div><b>Nothing here yet</b><p>Notes are markdown files in this project's <code>.kaizen/notes</code> folder. Link them with <code>[[Note name]]</code>, tag them with <code>#tag</code>.</p><button class="btn pri" id="new2">New note</button></div>
-      <div class="blank" id="pick" hidden><p>Pick a note on the left, or start a new one.</p></div>
-      <article id="pane" hidden>
-        <input id="title" aria-label="Note name; a / puts it in a folder" spellcheck="false" autocomplete="off">
-        <div id="meta"></div>
-        <div id="editor"></div>
-        <section class="links" id="links" hidden></section>
-      </article>
-    </div>
-  </main>
-</div>
-</div>
-<div class="toast" id="toast" role="status"></div>
+<div id="root" style="display:contents"></div>
 
 <script src="/notebook.js"></script>
 </body>
