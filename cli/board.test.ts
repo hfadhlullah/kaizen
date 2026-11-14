@@ -2,7 +2,7 @@
 import { test, expect } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
-import { md, progress, planQuestions, brief } from "../web/board/markdown.ts";
+import { md, planQuestions, brief } from "../web/board/markdown.ts";
 import { draft, undraft } from "../web/board/drafts.ts";
 import { boardBadge, refreshBoardBadge, waitingCount } from "../web/board/badge.ts";
 import { menuItems } from "../web/lib/core/board.ts";
@@ -121,26 +121,7 @@ test("undraft removes by prefix and leaves the rest", () => {
   expect(Object.keys(ss).sort()).toEqual(["kz-d:n:x", "kz-form"]);
 });
 
-// A building run's progress list.
-
-test("progress: each item marked done, working on or to do, with the count", () => {
-  const out = progress("# Progress\n- done: one\n- doing: two <b>x</b>\n- todo: `three`\n- open: not an item\n");
-  expect(out).toContain("1 of 3 done");
-  expect(out).toContain("width:33%");
-  expect(out.match(/<li class="p-(\w+)/g)).toEqual(['<li class="p-done', '<li class="p-doing', '<li class="p-todo']);
-  expect(out).toContain("two &lt;b&gt;x&lt;/b&gt;");
-  expect(out).toContain("<code>three</code>");
-  expect(out).not.toContain("chg");
-});
-
-test("progress: only an item whose status moved animates", () => {
-  const out = progress("- done: one\n- doing: two\n- todo: three\n", ["done", "todo", "todo"]);
-  expect(out.match(/<li class="[^"]*"/g)).toEqual(['<li class="p-done"', '<li class="p-doing chg"', '<li class="p-todo"']);
-});
-
-test("progress: a file with no items draws nothing", () => {
-  expect(progress("# Progress\n\nnothing yet\n")).toBe("");
-});
+// A building run's progress list is React now; its rules (the items, the count, what moved) are tested in web/lib/run/doc.test.ts.
 
 // A plan's open questions.
 

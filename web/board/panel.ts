@@ -3,15 +3,15 @@ import { showTerm, termStop } from "./agent-term.ts";
 import { load, post } from "./api.ts";
 import { cardEl, key, render } from "./cards.ts";
 import { stopDictation } from "@lib/dictation";
-import { $, html, raw } from "./dom.ts";
+import { $ } from "./dom.ts";
 import { gitLeave, gitPending, gitShown, gitTab } from "./git.ts";
 import { ICON, WORD, need } from "./labels.ts";
-import { attach, brief, md, preview, progress } from "./markdown.ts";
+import { attach, brief, preview } from "./markdown.ts";
 import { toast } from "./toast.ts";
 import { react, view } from "./views.ts";
 import { isPhone } from "@lib/core";
 import { openWorkspace } from "./run-view.ts";
-import type { Head } from "@lib/run";
+import { hitNeedle, type Head } from "@lib/run";
 
 // ---- detail panel
 // A run's tabs, its phases in board order. A card opens on its column's tab.
@@ -80,27 +80,6 @@ export function open(c, keepTab) {
       c.stage === "explore" ? "explore" : c.status === "abandoned" ? "plan" : { 1: "plan", 2: "backlog", 3: "review", 4: "preview" }[c.column] || "request";
   return openRun(c, false);
 }
-// A building run's Backlog tab opens with its progress, above the deferred items. The
-// first draw of a run animates nothing; later ones animate what moved, the bar included.
-let lastProg = null;
-function showProgress(c) {
-  const src = c.column === 2 && store.runDoc.progress,
-    prev = lastProg && lastProg.id === c.id ? lastProg : null,
-    h = src ? progress(src, prev && prev.st) : "";
-  if (!h) return;
-  lastProg = {
-    id: c.id,
-    st: [...src.matchAll(/^\s*-\s*(todo|doing|done):/gm)].map((m) => m[1]),
-    w: +/width:(\d+)%/.exec(h)[1],
-  };
-  $("pbody").innerHTML = html`${raw(h)}${store.runDoc.backlog ? html`<h3>Backlog</h3>${raw(md(store.runDoc.backlog, true))}` : ""}`;
-  const bar = $("pbody").querySelector(".pbar i");
-  if (prev && prev.w !== lastProg.w) {
-    bar.style.width = prev.w + "%";
-    bar.offsetWidth;
-    bar.style.width = lastProg.w + "%";
-  }
-}
 // The header's Plan → Build → Review → Done bar: steps before the card's column are done,
 // its own is ringed in the run's status colour (waiting amber, stalled red), the rest wait.
 const STEPS = ["Plan", "Build", "Review", "Done"];
@@ -146,15 +125,13 @@ export function taskBody(c) {
     react.drawNotes({ card: c, src: c.notes, ro: c.archived || c.status !== "idea" });
   }
 }
-// The Fix findings form: a slot in the review tab (the body is rebuilt on every redraw) that the React form stands in.
+// The Fix findings form: under the review tab's document (components/run/doc-body.tsx draws it from this).
 // Nothing for an archived run, one with no open finding, or one that is not waiting on or past its review.
 function drawFix(c) {
   const fs = store.runDoc.findings || [];
   if (c.archived || !fs.some((f) => !f.done) || !(c.status === "done" || c.awaiting === "findings" || c.awaiting === "approvals.review"))
     return react.drawFix(null);
-  const slot = document.createElement("div");
-  $("pbody").appendChild(slot);
-  react.drawFix({ card: c, findings: fs, slot });
+  react.drawFix({ card: c, findings: fs });
 }
 export async function openRun(c, refresh, again) {
   if (!refresh || !store.runDoc || store.runDoc.id !== c.id || again) {
@@ -223,30 +200,30 @@ export async function openRun(c, refresh, again) {
   });
   const k = store.tab,
     doc = k === "preview" ? preview(store.runDoc.impl) && attach(preview(store.runDoc.impl), c) : store.runDoc[k];
+  // A link to a finding or backlog item names a line of the document, found by its text (the lines carry no numbers).
+  const needle = hit && hit.k === key(c) ? hitNeedle(store.runDoc, hit) : null;
   if (k !== "term") termStop();
   if (k !== "git") gitLeave();
   if (k === "term") showTerm(c);
   else if (k === "notes") {
     const ro = c.archived || c.status === "done" || c.status === "abandoned";
-    react.drawNotes({ card: c, src: doc, ro });
+    react.drawNotes({ card: c, src: doc, ro, linked: store.runDoc.linkedFrom });
   } else if (k === "git") gitTab(c);
   else
-    $("pbody").innerHTML = doc
-      ? raw(md(doc, k === "backlog"))
-      : html`<p style="color:var(--dim)">No ${{ request: "request", explore: "exploration brief", plan: "plan", impl: "work report", preview: "preview", review: "review", backlog: "backlog" }[k]} yet.</p>`;
-  if (k === "backlog") showProgress(c);
+    react.drawDoc({
+      k,
+      id: c.id,
+      text: doc || null,
+      progress: k === "backlog" && c.column === 2 ? store.runDoc.progress || null : null,
+      needle: needle && !refresh ? needle : null,
+      mark: needle && !refresh ? ++markN : 0,
+    });
   if (k === "review" && !c.healed) drawFix(c);
   else react.drawFix(null);
-  // The notebook's notes that link here, each opening that note: above the run's own notes.
-  if (k === "notes" && store.runDoc.linkedFrom && store.runDoc.linkedFrom.length)
-    $("pbody").insertAdjacentHTML(
-      "afterbegin",
-      html`<h3>Linked from notes</h3><ul class="lnk">${store.runDoc.linkedFrom.map((n) => html`<li><a href="/notebook?dir=${encodeURIComponent(c.state)}&amp;note=${encodeURIComponent(n)}">${n}</a></li>`)}</ul>`,
-    );
-  // Only the panel the link asked for: another card opened meanwhile drops the mark.
+  // Only the panel the link asked for: another card opened meanwhile drops the request.
   if (hit && !refresh) {
-    if (hit.k === key(c)) mark(hit);
-    else hit = null;
+    if (hit.k === key(c) && !needle) toast("That item is not in this run");
+    hit = null;
   }
   // The footer is the shared decision strip; a form open in it keeps its text through every refresh.
   react.drawFooter({ card: c, plan: store.runDoc.plan, sourceControl: k !== "git" && gitPending(c) });
@@ -255,6 +232,7 @@ export async function openRun(c, refresh, again) {
 // a finding or backlog item named is scrolled to and marked. Found by its text, since
 // the rendered list does not carry the numbers.
 let hit = null;
+let markN = 0; // each request to mark a line is a new number, so the document marks it once
 export function deep() {
   const p = new URLSearchParams(location.search),
     d = p.get("dir"),
@@ -283,30 +261,6 @@ export function openAt(c, type, n) {
   store.tab = type === "finding" ? "review" : "backlog";
   hit = { type, n, k: key(c) };
   open(c, true);
-}
-// What md() leaves of a line as text: no backticks or stars, a link reduced to its words.
-function mark(h) {
-  hit = null;
-  const flat = (t) =>
-    String(t)
-      .replace(/!?\[([^\]]*)\]\([^)\s]+\)/g, "$1")
-      .replace(/[`*]/g, "")
-      .replace(/\s+/g, " ")
-      .trim();
-  const b = [...(store.runDoc.backlog || "").matchAll(/^\s*-\s*(?:open|done|rejected):\s*(.*)$/gm)];
-  const text = h.type === "finding" ? (store.runDoc.findings || []).find((f) => f.n === h.n)?.text : b[h.n - 1]?.[1];
-  if (!text) {
-    toast("That item is not in this run");
-    return;
-  }
-  const want = flat(text).slice(0, 60),
-    el = [...$("pbody").querySelectorAll("li,p")].find(
-      (e) => !e.closest(".prog") && flat(e.textContent).includes(want),
-    );
-  if (!el) return;
-  el.scrollIntoView({ block: "center" });
-  el.classList.add("hit");
-  setTimeout(() => el.classList.remove("hit"), 2400);
 }
 export function close() {
   if (view !== "board" && view !== "run" && view !== "tasks") return;

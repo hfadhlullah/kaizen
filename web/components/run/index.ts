@@ -1,5 +1,5 @@
 export * from "./file-viewer.tsx";
-export * from "./fix-host.tsx";
+export * from "./doc-body.tsx";
 export * from "./key-hint.tsx";
 export * from "./pane-header.tsx";
 export * from "./panel-grip.tsx";

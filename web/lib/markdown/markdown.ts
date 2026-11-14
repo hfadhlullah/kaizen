@@ -9,12 +9,14 @@ export type Inline =
   | { k: "b" | "i"; c: Inline[] }
   | { k: "a"; href: string; c: Inline[] }
   | { k: "img"; src: string; alt: string };
+// A backlog item (`- open: …`, `- done: …`, `- rejected: …`) shows its status as a checkbox when parse() is asked for ticks.
+export type Tick = "open" | "done" | "rejected";
 export type Block =
   | { k: "pre"; t: string }
   | { k: "h"; level: 1 | 2 | 3; c: Inline[] }
   | { k: "hr" }
   | { k: "table"; head: Inline[][]; rows: Inline[][][] }
-  | { k: "list"; ordered: boolean; items: Inline[][] }
+  | { k: "list"; ordered: boolean; items: Inline[][]; ticks?: (Tick | null)[] }
   | { k: "p"; lines: Inline[][] }; // lines are separated by a hard break
 
 const INLINE =
@@ -35,7 +37,7 @@ export function inline(text: string): Inline[] {
   return out;
 }
 
-export function parse(src: string): Block[] {
+export function parse(src: string, ticks = false): Block[] {
   const lines = src.split("\n"),
     out: Block[] = [];
   let i = 0;
@@ -78,9 +80,13 @@ export function parse(src: string): Block[] {
         prev = out[out.length - 1];
       // A list goes on while the kind stays the same; a blank line ends it (and starts a new one).
       const list = prev?.k === "list" && prev.ordered === ordered && ended.get(prev) !== true ? prev : null;
-      const item = inline(li[1]!);
-      if (list) list.items.push(item);
-      else out.push({ k: "list", ordered, items: [item] });
+      const tk = ticks ? /^(open|done|rejected):\s*(.*)$/.exec(li[1]!) : null;
+      const item = inline(tk ? tk[2]! : li[1]!),
+        tick = (tk?.[1] as Tick | undefined) ?? null;
+      if (list) {
+        list.items.push(item);
+        if (ticks) (list.ticks ??= list.items.slice(0, -1).map(() => null)).push(tick);
+      } else out.push({ k: "list", ordered, items: [item], ...(ticks ? { ticks: [tick] } : {}) });
       i++;
       continue;
     }

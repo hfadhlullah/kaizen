@@ -3,7 +3,8 @@
 import { create } from "zustand";
 import type { NoteCard } from "./notes.ts";
 
-export type NotesView = { card: NoteCard; src: string | undefined; ro: boolean };
+// `linked`: the notebook notes that link to this run, listed above its notes.
+export type NotesView = { card: NoteCard; src: string | undefined; ro: boolean; linked?: string[] };
 type Notes = {
   view: NotesView | null; // a new object on every draw, even of the same notes: the box refocuses on it
   files: Record<string, File[]>;

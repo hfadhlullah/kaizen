@@ -8,12 +8,12 @@ import { setHost, toast, setStore } from "@lib/core";
 import { iceKeys } from "@lib/icebox";
 import { navigateTask, showTask } from "@lib/task";
 import { closeForm as closeBoardForm, closeNewForm, getBoard, setBoard, type BoardSnap, type Popup } from "@lib/board";
-import { setPanel, type Panel, resumeRun, decided } from "@lib/run";
+import { setPanel, type Panel, type PanelDoc, resumeRun, decided } from "@lib/run";
 import { UpdateCard } from "@components/settings";
 import { AddProjectDialog, WsMenu, ProjectPicker, ShowingPicker } from "@components/project";
 import {
   FileViewer,
-  FixHost,
+  DocBody,
   KeyHint,
   PanelGrip,
   ProjectNotes,
@@ -132,6 +132,8 @@ export function drawSettings(o: { fresh: boolean; q: string; back: boolean; stal
   const body = $("pbody");
   if (!settingsRoot || settingsRoot.host.parentElement !== body) {
     settingsRoot?.root.unmount();
+    docRoot?.root.unmount();
+    docRoot = null;
     const host = document.createElement("div");
     host.className = "kz-ui";
     host.style.cssText = "height:100%;display:contents";
@@ -149,6 +151,26 @@ export function drawSettings(o: { fresh: boolean; q: string; back: boolean; stal
     });
   void loadSettings(o.fresh, o.stale);
 }
+// The panel's document tabs (Request, Plan, Backlog, Review ...): one root inside the panel's body, made again when another
+// tab replaced the body. The tab's text and the Fix findings form are in lib/run/panel-store.ts; the other roots in the
+// body (Settings, Notes) are dropped when this one takes it, so nothing keeps running behind a tab that is not shown.
+let docRoot: { root: ReturnType<typeof createRoot>; host: HTMLElement } | null = null;
+export function drawDoc(doc: PanelDoc) {
+  const body = $("pbody");
+  if (!docRoot || docRoot.host.parentElement !== body) {
+    docRoot?.root.unmount();
+    settingsRoot?.root.unmount();
+    notesRoot?.root.unmount();
+    settingsRoot = notesRoot = null;
+    const host = document.createElement("div");
+    host.className = "kz-ui";
+    body.replaceChildren(host);
+    docRoot = { root: createRoot(host), host };
+    docRoot.root.render(createElement(TooltipProvider, null, createElement(DocBody)));
+  }
+  flushSync(() => setPanel({ doc }));
+  body.scrollTop = 0;
+}
 // The Notes tab: one root inside the panel's body, made again when another tab replaced the body (the old tabs write
 // their text into it). State and the send are in lib/notes; every call is a new draw, so the box takes focus back after a send.
 let notesRoot: { root: ReturnType<typeof createRoot>; host: HTMLElement } | null = null;
@@ -157,6 +179,8 @@ export function drawNotes(view: NotesView) {
   flushSync(() => {
     if (!notesRoot || notesRoot.host.parentElement !== body) {
       notesRoot?.root.unmount();
+      docRoot?.root.unmount();
+      docRoot = null;
       const host = document.createElement("div");
       host.className = "kz-ui";
       body.replaceChildren(host);
@@ -200,7 +224,7 @@ export function initReact(go: (view: string, push?: boolean) => void) {
   createRoot(toaster).render(createElement(Toaster));
   const popups = document.createElement("div");
   portal.append(popups);
-  createRoot(popups).render(createElement(TooltipProvider, null, createElement(BoardPopups), createElement(AskHost), createElement(PhoneSheets), createElement(OnboardingDialog), createElement(SearchPalette), createElement(FileViewer), createElement(WsMenu), createElement(AddProjectDialog), createElement(UpdateCard), createElement(FixHost), createElement(GitHost), createElement(KeyHint), createElement(HomeWindow), createElement(HomeWsButton), createElement(Haptic)));
+  createRoot(popups).render(createElement(TooltipProvider, null, createElement(BoardPopups), createElement(AskHost), createElement(PhoneSheets), createElement(OnboardingDialog), createElement(SearchPalette), createElement(FileViewer), createElement(WsMenu), createElement(AddProjectDialog), createElement(UpdateCard), createElement(GitHost), createElement(KeyHint), createElement(HomeWindow), createElement(HomeWsButton), createElement(Haptic)));
   setToaster(toast);
   startTerminalDictation();
   setHost({

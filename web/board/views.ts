@@ -24,6 +24,8 @@ export const react = {
   closeForm: () => {},
   closeNewForm: () => {},
   formOpen: () => false,
+  // The panel's document tabs (panel.ts): request, plan, backlog, review ... as markdown.
+  drawDoc: (_d: any) => {},
   // The run panel's footer and its Fix findings form, the cards' answered list, and Resume for the terminals' tiles.
   drawFooter: (_f: any) => {},
   drawFix: (_f: any) => {},

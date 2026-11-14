@@ -25,10 +25,27 @@ function Messages({ card, src }: { card: NoteCard; src: string | undefined }) {
 export function NotesChat() {
   const view = useNotes((s) => s.view);
   if (!view) return null;
-  const { card, src, ro } = view,
+  const { card, src, ro, linked } = view,
     desc = descParts(card);
   return (
     <>
+      {!!linked?.length && (
+        <section className="mb-3.5">
+          <h3 className="mb-2 text-xs tracking-[0.08em] text-muted-foreground uppercase">Linked from notes</h3>
+          <ul className="pl-[1.4em] list-disc">
+            {linked.map((n) => (
+              <li key={n} className="my-[3px]">
+                <a
+                  className="text-primary underline-offset-[3px] hover:underline"
+                  href={`/notebook?dir=${encodeURIComponent(card.state)}&note=${encodeURIComponent(n)}`}
+                >
+                  {n}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {desc && (
         <section className="mb-3.5 border-b border-border pb-1.5">
           <Markdown text={attach(desc, card)} className="[&_a]:underline" />

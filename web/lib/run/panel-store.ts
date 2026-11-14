@@ -13,13 +13,24 @@ export type Head =
   | { kind: "task"; where: string }
   | { kind: "chips"; mark: string; label: string; awaiting?: string; parent?: string }
   | { kind: "meta"; id: string; proj: string; runner: string; word: string; w: number; status: string; tip: string };
+// One document tab of the panel (Request, Explore, Plan, Backlog, Work, Review, Preview): its text, a building run's
+// progress.md above the backlog, and the line a link asked to mark (`mark` changes with each request, so each marks once).
+export type PanelDoc = {
+  k: string;
+  id: string;
+  text: string | null;
+  progress: string | null;
+  needle: string | null;
+  mark: number;
+};
 export type Panel = {
   head: Head | null;
   tabs: { k: string; label: string }[]; // the run's tabs that have something in them
   tab: string; // the one open
   pickTab: (k: string) => void;
   footer: { card: Card; plan: string; sourceControl: boolean } | null;
-  fix: { card: Card; findings: Finding[]; slot: HTMLElement } | null;
+  doc: PanelDoc | null; // the document tab open, null while another kind of tab shows
+  fix: { card: Card; findings: Finding[] } | null; // the Fix findings form, in the review tab under its document
   off: string[]; // findings unticked, "run:number"
   sent: string[]; // findings already sent to an agent, "run:number" (kept over a reload of this tab)
 };
@@ -30,6 +41,7 @@ export const usePanel = create<Panel>()(() => ({
   tab: "",
   pickTab: () => {},
   footer: null,
+  doc: null,
   fix: null,
   off: [],
   sent: (() => {

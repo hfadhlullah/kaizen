@@ -115,14 +115,3 @@ export function md(src, tick) {
   endList();
   return out.join("");
 }
-
-// A building run's progress.md, one `- todo|doing|done: text` line per Work-list item.
-// prev: the statuses last drawn for this run; an item whose status moved gets .chg.
-export function progress(src, prev) {
-  const items = [...src.matchAll(/^\s*-\s*(todo|doing|done):\s*(.*)$/gm)].map((m) => [m[1], m[2]]);
-  if (!items.length) return "";
-  const n = items.filter((t) => t[0] === "done").length,
-    pct = Math.round((n / items.length) * 100),
-    ic = { done: "✓", doing: '<span class="pulse"></span>', todo: "" };
-  return `<div class="prog"><div class="ph"><b>${n} of ${items.length} done</b><span>${pct}%</span></div><div class="pbar"><i style="width:${pct}%"></i></div><ol>${items.map(([st, t], i) => `<li class="p-${st}${prev && prev[i] && prev[i] !== st ? " chg" : ""}"><span class="pi">${ic[st]}</span><span>${esc(t).replace(/`([^`]+)`/g, "<code>$1</code>")}</span></li>`).join("")}</ol></div>`;
-}

@@ -195,6 +195,16 @@ test("the Project context pane is drawn by React, not by board/context.ts", () =
   expect(readFileSync(join(web, "html/board.html"), "utf8")).toContain('<div id="context-host"');
 });
 
+// The run panel's document tabs (Request, Plan, Backlog with its Work list, Review with the Fix form) are React
+// (components/run/doc-body.tsx over lib/run/doc.ts and the panel store); panel.ts decides which tab shows and hands it
+// the text. It builds no markup. md() stays for the note editor (rich.ts); the panel's progress renderer is gone.
+test("the panel's document tabs are drawn by React, not by panel.ts", () => {
+  const src = readFileSync(join(web, "board/panel.ts"), "utf8");
+  expect(src).not.toMatch(/innerHTML|insertAdjacentHTML|createElement|html`|raw\(|md\(|progress\(/);
+  expect(readFileSync(join(web, "board/markdown.ts"), "utf8")).not.toMatch(/export function progress\b/);
+  expect(readFileSync(join(web, "components/run/doc-body.tsx"), "utf8")).not.toMatch(/innerHTML/);
+});
+
 // The Notes tab (components/notes, lib/notes) and dictation (lib/dictation, the microphone button in components/shared) are
 // React and lib. board/chat.ts and board/dictation.ts are gone, panel.ts hands the notes to react.drawNotes, the host no longer
 // carries a mic, and the page's CSS keeps none of the old note-list or microphone rules (only the rules of the note editor's

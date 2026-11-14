@@ -54,3 +54,10 @@ test("it reads the same text as the old md(): the same words in the same order",
         : (x.t ?? flat(x.c ?? x.items ?? x.lines ?? [...(x.head ?? []), ...(x.rows ?? [])]));
   expect(parse(src).map(flat).join(" ").replace(/\s+/g, " ")).toBe(text(md(src)));
 });
+
+test("parse with ticks reads a backlog item's status and leaves other items alone", () => {
+  const [list] = parse("- open: do it\n- done: did it\n- rejected: no\n- plain", true);
+  expect(list).toMatchObject({ k: "list", ticks: ["open", "done", "rejected", null] });
+  expect((list as any).items[0]).toEqual(["do it"]);
+  expect((parse("- open: x") [0] as any).ticks).toBeUndefined();
+});

@@ -92,11 +92,38 @@ function Blk({ b }: { b: Block }) {
       const L = b.ordered ? "ol" : "ul";
       return (
         <L className={cn("mb-2.5 pl-[1.4em]", b.ordered ? "list-decimal" : "list-disc")}>
-          {b.items.map((c, n) => (
-            <li key={n} className="my-[3px]">
-              <Inl c={c} />
-            </li>
-          ))}
+          {b.items.map((c, n) => {
+            const tick = b.ticks?.[n];
+            return tick ? (
+              <li
+                key={n}
+                className={cn(
+                  "-ml-[1.4em] my-[3px] list-none",
+                  tick === "rejected" && "text-muted-foreground line-through",
+                )}
+              >
+                <label className="flex items-baseline gap-2">
+                  <input
+                    type="checkbox"
+                    checked={tick === "done"}
+                    readOnly
+                    tabIndex={-1}
+                    aria-disabled="true"
+                    aria-label={tick}
+                    onClick={(e) => e.preventDefault()}
+                    className="relative top-0.5 m-0 flex-none cursor-default accent-primary"
+                  />
+                  <span>
+                    <Inl c={c} />
+                  </span>
+                </label>
+              </li>
+            ) : (
+              <li key={n} className="my-[3px]">
+                <Inl c={c} />
+              </li>
+            );
+          })}
         </L>
       );
     }
@@ -123,6 +150,7 @@ export function MarkdownBlocks({ blocks, className }: { blocks: Block[]; classNa
     </div>
   );
 }
-export const Markdown = ({ text, className }: { text: string; className?: string }) => (
-  <MarkdownBlocks blocks={parse(text)} className={className} />
+// `ticks`: a backlog's items show their status as a checkbox.
+export const Markdown = ({ text, className, ticks }: { text: string; className?: string; ticks?: boolean }) => (
+  <MarkdownBlocks blocks={parse(text, ticks)} className={className} />
 );

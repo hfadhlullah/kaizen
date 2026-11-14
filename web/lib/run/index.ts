@@ -8,3 +8,4 @@ export * from "./run-view-store.ts";
 export * from "./viewer.ts";
 export * from "./term-loader.ts";
 export * from "./preview.ts";
+export * from "./doc.ts";
