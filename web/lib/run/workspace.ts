@@ -19,7 +19,7 @@ import { followNew, mineNow, picked, seenRuns, tabs, draw } from "./ws-draw.ts";
 import { byKey, autoTab, closeScreen, closeTab, moveItem, newPty, openAgent, openNew, openNoteTab, previewApp, projectNotes, show } from "./ws-actions.ts";
 import { cx, edit, getWs, saved, setWs } from "./ws-store.ts";
 import { devUrl, finished, leaves, loopbackUrl, migrate, previewOpens, reviewing, toOpen, wsKey } from "./ws-tabs.ts";
-import { clearBrowse, fetchPreview, keepUrl, layoutOf, refreshPreview, replaceAll, requestBrowse, selectScreen, setDragging, setPanel, setPanelActions, setRunActions, setRunView, useLayout, useRunView, work } from "./index.ts";
+import { clearBrowse, fetchPreview, keepUrl, layoutOf, refreshPreview, replaceAll, requestBrowse, selectScreen, setDragging, getPanel, setPanel, setPanelActions, setRunActions, setRunView, useLayout, useRunView, work } from "./index.ts";
 
 export { openNoteTab, openPreview } from "./ws-actions.ts";
 let switched: string | null = null; // the project a deep link last switched the board to
@@ -267,7 +267,7 @@ export function initRunView() {
           dir: ctx.dir,
           ws: ctx.ws,
           card: card ? { id: card.id, kind: card.kind, state: card.state } : null,
-          impl: work.runDoc && work.runDoc.id === card?.id ? work.runDoc.impl : null,
+          impl: getPanel().runDoc && getPanel().runDoc.id === card?.id ? getPanel().runDoc.impl : null,
         }
       );
     },

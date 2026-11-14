@@ -65,7 +65,7 @@ export const initOnState = () => setEngine(async (next, prev) => {
       if (was && was.kind === "idea") follow(was);
       return;
     }
-    if (work.runDoc && c.kind === "run") openRun(c, true, true);
+    if (getPanel().runDoc && c.kind === "run") openRun(c, true, true);
     else if (c.kind === "idea") taskBody(c);
   }
 });

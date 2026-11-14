@@ -101,6 +101,22 @@ const ENGINES = [
   "lib/board/nav.ts", "lib/home/home-engine.ts", "lib/home/home-events.ts", "lib/terminal/terms-feed.ts", "lib/context/feed.ts",
   "lib/settings/panel-settings.ts", "lib/git/git-panel.ts", "lib/project/project-pick.ts", "lib/search/search-rows.ts", "lib/rail/rail-boot.ts",
 ];
+// Imperative by design: the files that stay engines because each owns something React does not (a terminal's canvas and soft
+// keyboard, an editor's document, a page script in someone else's page, the microphone, pointer gestures that must not re-render
+// per move). They are not converted and not counted as unfinished: a new one is added here on purpose. The files in EXEMPT are
+// the ones among them that build DOM by hand. The test below keeps the list honest (every file still exists).
+const BY_DESIGN: Record<string, string> = {
+  "term/term.ts": "xterm engine: its toolbar, find box, reconnect strip and the phone key bar are hand-built (see EXEMPT); kept whole in roadmap 9b-3c: its soft-keyboard behaviour cannot be tested without a phone",
+  "annotate/annotate.ts": "script injected into the previewed page",
+  "lib/notebook/engine.ts": "CodeMirror editor engine (with engine-widgets, engine-complete, engine-preview, engine-types, deal)",
+  "lib/notes/rich.ts": "contenteditable note editor",
+  "lib/dictation/engine.ts": "microphone, Whisper worker and recording session",
+  "lib/task/zoom.ts": "pinch and wheel zoom gesture",
+  "lib/phone/sheet-swipe.ts": "phone sheet swipe gesture",
+  "lib/icebox/use-row-swipe.ts": "icebox row swipe gesture",
+  "lib/rail/use-rank-drag.ts": "rank drag gesture",
+  "lib/home/use-float-drag.ts": "floating Home window drag gesture",
+};
 const EXEMPT: Record<string, [number, string]> = {
   "term/term.ts": [
     26,
@@ -122,6 +138,13 @@ const allSources = () =>
   readdirSync(web, { withFileTypes: true })
     .filter((e) => e.isDirectory() && !SKIP.has(e.name))
     .flatMap((e) => walk(join(web, e.name)));
+test("the engines kept imperative by design are named and still there", () => {
+  for (const [f, why] of Object.entries(BY_DESIGN)) {
+    expect(why.length).toBeGreaterThan(10);
+    expect([f, existsSync(join(web, f))]).toEqual([f, true]);
+  }
+});
+
 test("nothing in web/ except video/ and the named exceptions hand-builds a popup, sets innerHTML or makes elements", () => {
   const files = Object.fromEntries(allSources().map((f) => [f, readFileSync(f, "utf8")]));
   expect(Object.keys(files).length).toBeGreaterThan(100);

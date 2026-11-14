@@ -32,6 +32,9 @@ export type Panel = {
   head: Head | null;
   tabs: { k: string; label: string }[]; // the run's tabs that have something in them
   tab: string; // the one open
+  wantTab: string; // the tab the next draw opens on (a link, a key or a pick asked for it; `tab` is what is drawn)
+  ptabs: string[]; // the keys of the tabs the run has (the arrow keys walk them)
+  runDoc: any; // the /run reply for the card whose panel is up
   pickTab: (k: string) => void;
   footer: { card: Card; plan: string; sourceControl: boolean } | null;
   doc: PanelDoc | null; // the document tab open, null while another kind of tab shows
@@ -68,6 +71,9 @@ export const usePanel = create<Panel>()(() => ({
   head: null,
   tabs: [],
   tab: "",
+  wantTab: "request",
+  ptabs: [],
+  runDoc: null,
   pickTab: () => {},
   footer: null,
   doc: null,

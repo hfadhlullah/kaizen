@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 
 // The router without a browser: names and addresses to views, what a phone does with them, the <body> classes and the
 // address each view has; then `navigate` against a fake history.
-const { bodyClasses, litItem, pageOf, pageSeen, resolveView, runOf, startView, urlFor, viewOf, viewTitle } =
+const { bodyClasses, deepOf, litItem, pageOf, pageSeen, resolveView, runOf, startView, urlFor, viewOf, viewTitle } =
   await import("./route-rules.ts");
 
 test("names and addresses resolve to a view; aliases and unknown names", () => {
@@ -121,4 +121,14 @@ test("navigate sets the store, pushes the address once, calls the engine hooks i
   useRoute.setState({ menu: true });
   navigate("tasks");
   expect(getRoute().menu).toBe(false);
+});
+
+test("a note's deep link names a card, a tab and an item; a workspace address is not one", () => {
+  expect(deepOf("?run=r1&dir=/p&tab=work")).toEqual({ dir: "/p", run: "r1", idea: null, tab: "impl", item: null });
+  expect(deepOf("?run=r1&dir=/p&item=finding-3")).toEqual({ dir: "/p", run: "r1", idea: null, tab: "review", item: { type: "finding", n: 3 } });
+  expect(deepOf("?run=r1&dir=/p&item=backlog-2&tab=plan")).toMatchObject({ tab: "plan", item: { type: "backlog", n: 2 } });
+  expect(deepOf("?idea=do+it&dir=/p")).toMatchObject({ run: null, idea: "do it", tab: "", item: null });
+  expect(deepOf("?idea=&dir=/p")).toMatchObject({ idea: "" }); // an empty task text still names a task
+  expect(deepOf("?view=run&idea=x&dir=/p")).toBeNull();
+  expect(deepOf("?view=board")).toBeNull();
 });

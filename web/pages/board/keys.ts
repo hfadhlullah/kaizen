@@ -5,7 +5,7 @@ import { closeForm, focusFilter, focusedKey, formPopup, getBoard, nav, newTask, 
 import { iceKeys } from "@lib/icebox";
 import { keep } from "@lib/project";
 import { getRoute } from "@lib/router";
-import { close, getPanel, openRun, scrollPanel, work } from "@lib/run";
+import { close, getPanel, openRun, scrollPanel, setPanel } from "@lib/run";
 import { searchBox } from "@lib/settings";
 import { setHelp, useHelp } from "@lib/shell";
 
@@ -64,14 +64,14 @@ function onKey(e: any) {
       !e.ctrlKey &&
       !e.metaKey &&
       getServer().state.cards.find((c) => key(c) === getPanel().openKey && c.kind === "run");
-    if (rc && work.ptabs?.length) {
+    if (rc && getPanel().ptabs?.length) {
       e.preventDefault();
       if (mv[0]) {
-        const ks: string[] = work.ptabs,
-          i = ks.indexOf(work.tab),
+        const ks: string[] = getPanel().ptabs,
+          i = ks.indexOf(getPanel().wantTab),
           t = ks[i < 0 ? (mv[0] > 0 ? 0 : ks.length - 1) : Math.max(0, Math.min(ks.length - 1, i + mv[0]))];
-        if (t !== work.tab) {
-          work.tab = t;
+        if (t !== getPanel().wantTab) {
+          setPanel({ wantTab: t });
           openRun(rc, true);
         }
       } else scrollPanel(mv[1] * 40);

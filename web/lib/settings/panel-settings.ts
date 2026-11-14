@@ -13,7 +13,7 @@ export async function openSettings() {
   const fresh = !getPanel().open || getPanel().title !== "Settings";
   termStop();
   setPanel({ openKey: null });
-  work.runDoc = null;
+  setPanel({ runDoc: null });
   // The header's tab strip and sub line are React hosts the panel keeps: emptied through the panel store, never cleared as DOM.
   setPanel({ open: true, title: "Settings", titleTip: "", head: null, tabs: [], footer: null, body: "settings" });
   // Coming from another page the page starts on All projects with a skeleton; the page and search the person left it on are kept.

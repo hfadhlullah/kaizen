@@ -80,3 +80,17 @@ export function runOf(search: string): RunRoute | null {
     ...(p.get("idea") !== null ? { idea: p.get("idea")! } : {}),
   };
 }
+
+// A link from a note (?run= or ?idea=, with dir, tab, item) names a card to open in the panel, on one of its tabs, a finding or
+// backlog item marked. null: the address is not one (a workspace address, ?view=run&idea=, is the run view's own). An item's
+// tab is its own when the link names none; `work` is the Work tab's old name.
+export type Deep = { dir: string | null; run: string | null; idea: string | null; tab: string; item: { type: "finding" | "backlog"; n: number } | null };
+export function deepOf(search: string): Deep | null {
+  const p = new URLSearchParams(search),
+    run = p.get("run"),
+    idea = p.get("idea");
+  if ((!run && idea === null) || p.get("view") === "run") return null;
+  const m = /^(finding|backlog)-(\d+)$/.exec(p.get("item") || ""),
+    n = p.get("tab") || (m ? (m[1] === "finding" ? "review" : "backlog") : "");
+  return { dir: p.get("dir"), run, idea, tab: n === "work" ? "impl" : n, item: m ? { type: m[1] as "finding" | "backlog", n: +m[2]! } : null };
+}

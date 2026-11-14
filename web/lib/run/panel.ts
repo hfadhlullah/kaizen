@@ -2,7 +2,7 @@ import { flushSync } from "react-dom";
 import { cardKey, getServer } from "@lib/server";
 import { ICON, WORD, brief, need, isPhone, toast } from "@lib/core";
 import { stopDictation } from "@lib/dictation";
-import { getRoute } from "@lib/router";
+import { deepOf, getRoute } from "@lib/router";
 import { cardEl } from "@lib/board";
 import { setNotes, type NotesView } from "@lib/notes";
 import { attach, preview } from "@lib/markdown";
@@ -62,6 +62,7 @@ export function open(c, keepTab) {
   keepTab ||= keepNext;
   keepNext = false;
   stopDictation(true); // the panel body is about to be replaced
+  stopReading();
   gitLeave();
   setPanel({ openKey: key(c) });
   // A run is titled as its card is, its slug made readable; the id stays in the tooltip.
@@ -72,8 +73,8 @@ export function open(c, keepTab) {
     titleTip: c.kind === "idea" ? "" : c.id || "",
   });
   if (c.kind === "idea") {
-    work.runDoc = null;
-    work.ptabs = [];
+    setPanel({ runDoc: null });
+    setPanel({ ptabs: [] });
     setPanel({
       head: c.status === "starting" && !c.archived ? steps(c) : { kind: "task", where: c.where.split(/[\\/]/).pop() || c.where },
       tabs: [],
@@ -85,8 +86,9 @@ export function open(c, keepTab) {
     return;
   }
   if (!keepTab)
-    work.tab =
-      c.stage === "explore" ? "explore" : c.status === "abandoned" ? "plan" : { 1: "plan", 2: "backlog", 3: "review", 4: "preview" }[c.column] || "request";
+    setPanel({
+      wantTab: c.stage === "explore" ? "explore" : c.status === "abandoned" ? "plan" : { 1: "plan", 2: "backlog", 3: "review", 4: "preview" }[c.column] || "request",
+    });
   return openRun(c, false);
 }
 // The header's Plan → Build → Review → Done bar: steps before the card's column are done,
@@ -94,7 +96,7 @@ export function open(c, keepTab) {
 const STEPS = ["Plan", "Build", "Review", "Done"];
 function runSteps(c) {
   let st: any = {};
-  try { st = JSON.parse(work.runDoc?.state || "{}"); } catch {}
+  try { st = JSON.parse(getPanel().runDoc?.state || "{}"); } catch {}
   return c.stage === "explore" || st.explore_status === "completed" || st.explore_status === "active" ? ["Explore", ...STEPS] : STEPS;
 }
 function steps(c): Head {
@@ -109,7 +111,7 @@ const tip = (c) => cap(WORD[c.status] || c.status) + (c.awaiting ? `: ${need(c.a
 function meta(c): Head {
   let st: any = {};
   try {
-    st = JSON.parse(work.runDoc?.state || "{}");
+    st = JSON.parse(getPanel().runDoc?.state || "{}");
   } catch {}
   const names = runSteps(c),
     offset = names.length - 4;
@@ -137,17 +139,28 @@ export function taskBody(c) {
 // The Fix findings form: under the review tab's document (components/run/doc-body.tsx draws it from this).
 // Nothing for an archived run, one with no open finding, or one that is not waiting on or past its review.
 function drawFix(c) {
-  const fs = work.runDoc.findings || [];
+  const fs = getPanel().runDoc.findings || [];
   if (c.archived || !fs.some((f) => !f.done) || !(c.status === "done" || c.awaiting === "findings" || c.awaiting === "approvals.review"))
     return setPanel({ fix: null });
   setPanel({ fix: { card: c, findings: fs } });
 }
+// The /run read in flight: a newer open, or closing the panel, aborts it, so a slow reply never redraws another card as this run.
+let reading: AbortController | null = null;
+const stopReading = () => (reading?.abort(), (reading = null));
 export async function openRun(c, refresh, again) {
-  if (!refresh || !work.runDoc || work.runDoc.id !== c.id || again) {
-    const d = await fetch(`/run/${encodeURIComponent(c.id)}?dir=${encodeURIComponent(c.state)}`).then((r) => r.json());
-    // Another card opened while this was fetched: its doc would redraw that card as this run.
+  if (!refresh || !getPanel().runDoc || getPanel().runDoc.id !== c.id || again) {
+    stopReading();
+    const ac = (reading = new AbortController());
+    let d;
+    try {
+      d = await fetch(`/run/${encodeURIComponent(c.id)}?dir=${encodeURIComponent(c.state)}`, { signal: ac.signal }).then((r) => r.json());
+    } catch (e) {
+      if (ac.signal.aborted) return;
+      throw e;
+    }
+    if (reading === ac) reading = null;
     if (getPanel().openKey !== key(c)) return;
-    work.runDoc = d;
+    setPanel({ runDoc: d });
   }
   if (getPanel().openKey !== key(c)) return;
   // The fetch above may have finished after a newer /state: draw the card as it is now
@@ -172,45 +185,45 @@ export async function openRun(c, refresh, again) {
       (t[1] === "git"
         ? gitShown(c)
         : t[1] === "preview"
-          ? preview(work.runDoc.impl)
-          : work.runDoc[t[1]] || (t[1] === "backlog" && c.column === 2 && work.runDoc.progress)),
+          ? preview(getPanel().runDoc.impl)
+          : getPanel().runDoc[t[1]] || (t[1] === "backlog" && c.column === 2 && getPanel().runDoc.progress)),
   );
   if (work.wantTerm === key(c)) work.wantTerm = null;
   // In the run workspace Preview is a centre tab, so the panel never shows it.
-  if (getRoute().view === "run" && work.tab === "preview") work.tab = "review";
+  if (getRoute().view === "run" && getPanel().wantTab === "preview") setPanel({ wantTab: "review" });
   // A tab not written yet falls back to the latest one that is.
-  if (!tabs.some((t) => t[1] === work.tab))
-    work.tab = [...tabs].reverse().find((t) => t[1] !== "notes" && t[1] !== "git" && !(getRoute().view === "run" && t[1] === "preview"))[1];
-  work.ptabs = tabs.map((t) => t[1]);
+  if (!tabs.some((t) => t[1] === getPanel().wantTab))
+    setPanel({ wantTab: [...tabs].reverse().find((t) => t[1] !== "notes" && t[1] !== "git" && !(getRoute().view === "run" && t[1] === "preview"))[1] });
+  setPanel({ ptabs: tabs.map((t) => t[1]) });
   setPanel({
     wide: false,
     head,
     tabs: tabs.map((t) => ({ k: t[1], label: t[0] })),
-    tab: work.tab,
+    tab: getPanel().wantTab,
     pickTab: (k) => {
       // In the run workspace Preview is a centre tab, not a panel tab.
       if (getRoute().view === "run" && k === "preview") return void openPreview();
       setPanel({ pn: false });
-      work.tab = k;
+      setPanel({ wantTab: k });
       openRun(c, true);
     },
   });
-  const k = work.tab,
-    doc = k === "preview" ? preview(work.runDoc.impl) && attach(preview(work.runDoc.impl), c) : work.runDoc[k];
+  const k = getPanel().wantTab,
+    doc = k === "preview" ? preview(getPanel().runDoc.impl) && attach(preview(getPanel().runDoc.impl), c) : getPanel().runDoc[k];
   // A link to a finding or backlog item names a line of the document, found by its text (the lines carry no numbers).
-  const needle = hit && hit.k === key(c) ? hitNeedle(work.runDoc, hit) : null;
+  const needle = hit && hit.k === key(c) ? hitNeedle(getPanel().runDoc, hit) : null;
   termStop();
   if (k !== "git") gitLeave();
   if (k === "notes") {
     const ro = c.archived || c.status === "done" || c.status === "abandoned";
-    drawNotes({ card: c, src: doc, ro, linked: work.runDoc.linkedFrom });
+    drawNotes({ card: c, src: doc, ro, linked: getPanel().runDoc.linkedFrom });
   } else if (k === "git") gitTab(c);
   else
     drawDoc({
       k,
       id: c.id,
       text: doc || null,
-      progress: k === "backlog" && c.column === 2 ? work.runDoc.progress || null : null,
+      progress: k === "backlog" && c.column === 2 ? getPanel().runDoc.progress || null : null,
       needle: needle && !refresh ? needle : null,
       mark: needle && !refresh ? ++markN : 0,
     });
@@ -222,7 +235,7 @@ export async function openRun(c, refresh, again) {
     hit = null;
   }
   // The footer is the shared decision strip; a form open in it keeps its text through every refresh.
-  drawFooter({ card: c, plan: work.runDoc.plan, sourceControl: k !== "git" && gitPending(c) });
+  drawFooter({ card: c, plan: getPanel().runDoc.plan, sourceControl: k !== "git" && gitPending(c) });
 }
 // A link from a note (?run= or ?idea=, with dir, tab, item) opens that card's panel;
 // a finding or backlog item named is scrolled to and marked. Found by its text, since
@@ -230,31 +243,24 @@ export async function openRun(c, refresh, again) {
 let hit = null;
 let markN = 0; // each request to mark a line is a new number, so the document marks it once
 export function deep() {
-  const p = new URLSearchParams(location.search),
-    d = p.get("dir"),
-    id = p.get("run"),
-    task = p.get("idea");
-  // A workspace address (?view=run&idea=) is the run view's own, not a note's deep link.
-  if ((!id && task === null) || p.get("view") === "run") return;
+  const d = deepOf(location.search);
+  if (!d) return;
   history.replaceState(null, "", location.pathname + "?all=1");
   const c = getServer().state.cards.find(
-    (x) => x.state === d && (id ? x.kind === "run" && x.id === id : x.kind === "idea" && x.text === task),
+    (x) => x.state === d.dir && (d.run ? x.kind === "run" && x.id === d.run : x.kind === "idea" && x.text === d.idea),
   );
   if (!c) {
-    toast(id ? "That run was not found" : "That task was not found");
+    toast(d.run ? "That run was not found" : "That task was not found");
     return;
   }
-  const m = /^(finding|backlog)-(\d+)$/.exec(p.get("item") || "");
-  // An item's tab is its own when the link does not name one.
-  const n = p.get("tab") || (m ? (m[1] === "finding" ? "review" : "backlog") : ""),
-    t = TABS.find((x) => x[1] === (n === "work" ? "impl" : n));
-  if (t) work.tab = t[1];
-  hit = m ? { type: m[1], n: +m[2], k: key(c) } : null;
+  const t = TABS.find((x) => x[1] === d.tab);
+  if (t) setPanel({ wantTab: t[1] });
+  hit = d.item ? { type: d.item.type, n: d.item.n, k: key(c) } : null;
   open(c, !!t);
 }
 // A run's panel on the tab of one of its items, that item scrolled to and marked.
 export function openAt(c, type, n) {
-  work.tab = type === "finding" ? "review" : "backlog";
+  setPanel({ wantTab: type === "finding" ? "review" : "backlog" });
   hit = { type, n, k: key(c) };
   open(c, true);
 }
@@ -262,11 +268,12 @@ export function openAt(c, type, n) {
 export function close(page = false) {
   if (!page && getRoute().view !== "board" && getRoute().view !== "run" && getRoute().view !== "tasks") return;
   const k = getPanel().openKey;
+  stopReading();
   stopDictation(true);
   termStop();
   gitLeave();
   setPanel({ openKey: null });
-  work.runDoc = null;
+  setPanel({ runDoc: null });
   setPanel({ open: false });
   if (k) cardEl(k)?.focus({ preventScroll: true });
 }

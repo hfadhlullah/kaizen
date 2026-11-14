@@ -1,5 +1,5 @@
 import { commitMsg } from "@lib/markdown";
-import { setPanel, work } from "@lib/run";
+import { getPanel, setPanel } from "@lib/run";
 import { setGit } from "./git-store.ts";
 
 // The run's Source control tab is React (web/components/git/git-tab.tsx, rules in web/lib/git/git.ts, requests in
@@ -8,7 +8,7 @@ import { setGit } from "./git-store.ts";
 
 // Commits only after the final approval, and only on a finished run.
 export const gitShown = (c) => {
-  const g = work.runDoc && work.runDoc.git;
+  const g = getPanel().runDoc && getPanel().runDoc.git;
   return (
     !!(g && g.repo) && !c.archived && c.accept !== "needs" && (c.status === "done" || c.awaiting === "approvals.review")
   );
@@ -16,8 +16,8 @@ export const gitShown = (c) => {
 // Something is left to do: the footer points at the tab.
 export const gitPending = (c) => {
   if (!gitShown(c)) return false;
-  const g = work.runDoc.git,
-    b = work.runDoc.branch;
+  const g = getPanel().runDoc.git,
+    b = getPanel().runDoc.branch;
   return (
     g.files.length > 0 ||
     (b
@@ -31,13 +31,13 @@ export const gitPending = (c) => {
 
 // The panel body (pages/board/panel.tsx) shows this tab while its `body` is git; another tab replaces it.
 export function gitTab(c) {
-  const impl = work.runDoc.impl;
+  const impl = getPanel().runDoc.impl;
   // The panel body shows the tab; the tab's own store holds what is typed in it.
   setPanel({ body: "git" });
   setGit({ snap: {
     card: c,
-    git: work.runDoc.git,
-    branch: work.runDoc.branch,
+    git: getPanel().runDoc.git,
+    branch: getPanel().runDoc.branch,
     msg: commitMsg(impl) || c.title || c.text || "",
     title: (commitMsg(impl) || c.title || "").split("\n")[0],
   } });

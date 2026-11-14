@@ -14,7 +14,7 @@ import { navigateTask } from "@lib/task";
 import { pick as pickProject } from "@lib/project";
 import { rich } from "@lib/notes";
 import { dataUrls } from "@lib/shared";
-import { close as closePanel, getPanel, open as openPanel, openAt, openRun, openTabIn, openTermIn, openWorkspace, openWsIn, work } from "@lib/run";
+import { close as closePanel, getPanel, open as openPanel, openAt, openRun, openTabIn, openTermIn, openWorkspace, openWsIn, setPanel, work } from "@lib/run";
 
 // A card's run or task, in place. A card of another project switches the board to that project first; one the board does not
 // have (not loaded, or another project) is false, and the caller changes the address.
@@ -77,7 +77,7 @@ export function initHost() {
     reopenPanel: (c) => void openRun(c, true),
     refetchRun: (c) => openRun(c, false),
     gitTab: (c) => {
-      work.tab = "git";
+      setPanel({ wantTab: "git" });
       void openRun(c, true);
     },
     panelOpenFor: (c) => getPanel().openKey === key(c),
