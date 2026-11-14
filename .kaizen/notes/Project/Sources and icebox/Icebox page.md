@@ -1,7 +1,7 @@
 ---
 description: The board's Icebox page: capture box, boards bar, Cards | Sort, item menus, and the phone list with swipe
 tags: [project, sources, web-board]
-sources: [web/pages/icebox-page.tsx, web/components, web/lib/icebox/icebox.ts, web/lib/icebox/icebox-actions.ts, web/lib/icebox/icebox-store.ts, web/lib/icebox/icebox-view.ts, web/lib/hooks, web/board/react-mount.ts, web/board.html, web/board/views.ts, web/icebox.test.ts]
+sources: [web/pages/icebox-page.tsx, web/components, web/lib/icebox/icebox.ts, web/lib/icebox/icebox-actions.ts, web/lib/icebox/icebox-store.ts, web/lib/icebox/icebox-view.ts, web/lib/icebox, web/board/react-mount.ts, web/board.html, web/board/views.ts, web/icebox.test.ts]
 updated: 2026-11-14
 ---
 # Icebox page
