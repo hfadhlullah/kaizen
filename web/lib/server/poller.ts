@@ -156,11 +156,13 @@ export async function readSources(force = false) {
     /* offline: keep what shows */
   }
 }
-export async function readShells() {
+// Whether the list was read (false: offline, what shows is kept, and a caller judging by it should not).
+export async function readShells(): Promise<boolean> {
   try {
     setServer({ shells: await (await fetch("/shells")).json() });
+    return true;
   } catch {
-    /* keep what shows */
+    return false;
   }
 }
 // The side menu's live parts (task and Icebox counts, source marks) and, on the board, the footer's terminal count follow

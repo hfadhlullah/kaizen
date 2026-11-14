@@ -14,7 +14,7 @@ import { getRoute, navigate, setTitle, touchRoute } from "@lib/router";
 import { cardKey as key, getServer, load, onServer, onState, railDataNow, readShells } from "@lib/server";
 import { preview } from "@lib/markdown";
 import { pick } from "@lib/project";
-import { liveKeys, pruneDead } from "./kept.ts";
+import { isTerm, liveKeys, pruneDead } from "./kept.ts";
 import { mineNow, picked, seenRuns, tabs, draw } from "./ws-draw.ts";
 import { byKey, autoTab, closeScreen, closeTab, moveItem, newPty, openAgent, openNew, openNoteTab, previewApp, projectNotes, show } from "./ws-actions.ts";
 import { cx, edit, getWs, saved, setWs } from "./ws-store.ts";
@@ -194,16 +194,22 @@ export async function pollPreview() {
  
 
 
-// A kept terminal whose session is gone (ended, or its tab closed in another window) is unmounted (kept.ts). The shells the
-// server lists can lag a session that just ended (/shells is read with each all-projects /state), so a terminal that ends
-// reads them again first (`ended`).
-export function pruneKept() {
+// A kept terminal whose session is gone (ended, or its tab closed in another window) is unmounted (kept.ts). `dropDead` reads
+// the lists the board already has; those lag a session started a moment ago (/shells is read with each all-projects /state),
+// so a /state tick or a terminal that ended reads /shells first (`pruneKept`, only when a hidden workspace holds a terminal).
+// Without that read a live terminal started just before leaving the workspace would count as gone.
+function dropDead() {
   const s = getServer(),
     cur = useRunView.getState().kept,
     next = pruneDead(cur, liveKeys(s.shells, s.state.agents ?? [], s.state.cards), getWs().ctx?.k ?? null);
   if (next !== cur) setRunView({ kept: next });
 }
-export const ended = () => void (load(true), readShells().then(pruneKept));
+export async function pruneKept() {
+  const shown = getWs().ctx?.k;
+  if (!Object.entries(useRunView.getState().kept).some(([k, v]) => k !== shown && v.items.some(isTerm))) return;
+  if (await readShells()) dropDead(); // offline: no list to judge by, nothing is dropped
+}
+export const ended = () => void (load(true), pruneKept());
 // The workspace address, in the history, and the run view for it.
 function goWs(dir: string, ws: string) {
   history.pushState(null, "", wsHref(dir, ws));
@@ -228,8 +234,8 @@ export function openTabIn({ dir, ws, id }: { dir: string; ws: string; id: string
 }
 export function initRunView() {
   // A /state change, new shells or a session that ended: terminals kept hidden whose session is gone are unmounted.
-  onServer((x) => x.shells, pruneKept);
-  onState(pruneKept);
+  onServer((x) => x.shells, dropDead);
+  onState(() => void pruneKept());
   // The panel's project-notes button; its close button and the scrim are panel.ts's.
   setPanelActions({ notes: () => void projectNotes() });
   setRunActions({
