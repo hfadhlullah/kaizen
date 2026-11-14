@@ -55,6 +55,11 @@ export const terminalLayout = {
     const next = swapOrder(order, from, to);
     if (next) lay((l) => ({ ...l, order: next }));
   },
+  // A tile seen for the first time takes its place at the end and keeps it: a run that sorts earlier later does not move the rest.
+  see: (order: string[]) => {
+    const seen = useTerminals.getState().lay.order;
+    if (order.slice(-100).some((k) => !seen.includes(k))) lay((l) => ({ ...l, order }));
+  },
   sizes: (shape: string, s: Sizes) => lay((l) => ({ ...l, sizes: { ...l.sizes, [shape]: s } })),
 };
 export const pickTerminal = (pick: string | null) => useTerminals.setState({ pick });

@@ -54,7 +54,7 @@ One set of controls on every page; a new control uses these instead of drawing i
 
 - Settings and the Icebox are full width: `aside.docked` header and body pad 28px each side (16px under 900px), no centred column.
 
-- The Icebox is titled in the board header (`markView()` sets the `h1`) and hides the docked panel's header; the project picker shows folder names only, full path in the tooltip. The rail lists Icebox first, in both `board.html` and `notes.html` (a test holds them line for line).
+- The Icebox is titled in the board header (`markView()` sets the `h1`) and hides the docked panel's header; the project picker shows folder names only, the full path is searchable. The rail lists Icebox first, in both `board.html` and `notes.html` (a test holds them line for line).
 
 - Popups: every popup, menu, picker and dialog is a piece from `web/ui` drawn into `#kz-portal`; Radix closes the others when one opens. The old `.menu-pop` CSS and its capture-phase closer in `main.ts` are gone.
 

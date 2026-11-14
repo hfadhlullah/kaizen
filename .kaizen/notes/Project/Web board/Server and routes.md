@@ -57,7 +57,7 @@ The program behind the board: what it serves, which computers may reach it, how 
 
 WhatsApp MP4s over 64 MiB use Hermes' `[[as_document]]` directive, preserving the MP4 bytes and filename; smaller MP4s remain inline videos. `cli/hermes.ts` prefers the native WhatsApp bridge (`cli/whatsapp.ts`, `GET`/`POST /whatsapp`), falling back to Hermes on PATH, and rejects files over WhatsApp's 2 GB document limit before spawning. The route's existing output-file and listed-chat checks still apply.
 
-- The Notes project picker shows folder names like the board, full path as the tooltip (`web/notebook/notebook.ts`).
+- The Notes project picker shows folder names like the board, the full path is searchable (`web/components/notebook/notes-head.tsx`).
 
 ## Agent launch and phone keyboard (2026-11-08)
 
