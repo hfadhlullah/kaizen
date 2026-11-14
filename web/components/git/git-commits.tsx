@@ -1,6 +1,6 @@
-import { fold } from "../../lib/git/index.ts";
-import type { GitLog } from "../../lib/git/index.ts";
-import { cn } from "../../lib/core/index.ts";
+import { fold } from "@lib/git";
+import type { GitLog } from "@lib/git";
+import { cn } from "@lib/core";
 import { GitIcon } from "./git-icon.tsx";
 
 // The branch's commits at the foot, newest first, on a line: a filled dot is pushed, a ring is not, the first has the branch's name.

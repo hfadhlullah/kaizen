@@ -14,11 +14,11 @@ import {
   saveCategory,
   setAutoGather,
   setWriteBack,
-} from "../../lib/icebox/index.ts";
-import { host, cn } from "../../lib/core/index.ts";
+} from "@lib/icebox";
+import { host, cn } from "@lib/core";
 import { Button, Icon, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Switch } from "@web/ui";
 import { Favicon } from "./favicon.tsx";
-import { Field, IconButton, ProjectMark } from "../shared/index.ts";
+import { Field, IconButton, ProjectMark } from "@components/shared";
 
 const badge = "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium [&_svg]:size-3";
 // One source: where it is, how its last gather went, its category and project, and its two switches.

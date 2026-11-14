@@ -2,7 +2,7 @@
 // the old task page (revision and operationId on every /task call, stale-answer guards, the draft's stable
 // operation id), so another page showing the same decision calls the same code.
 import { useEffect } from "react";
-import { getTask, taskRequest, host, getStore, setStore } from "../core/index.ts";
+import { getTask, taskRequest, host, getStore, setStore } from "@lib/core";
 import { taskHref, type TaskView } from "./tasks.ts";
 
 const operationId = () => crypto.randomUUID();

@@ -5,11 +5,11 @@ import {
   armPromote,
   iceAct,
   snoozeAll,
-} from "../../lib/icebox/index.ts";
-import { cn } from "../../lib/core/index.ts";
+} from "@lib/icebox";
+import { cn } from "@lib/core";
 import { Button, Icon } from "@web/ui";
 import { BoardMenu } from "./board-menu.tsx";
-import { IconButton } from "../shared/index.ts";
+import { IconButton } from "@components/shared";
 import { KindMenu } from "./kind-menu.tsx";
 import { SnoozeMenu } from "./snooze-menu.tsx";
 

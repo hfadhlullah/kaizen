@@ -1,6 +1,6 @@
 import { createPortal } from "react-dom";
-import { cardKey } from "../../lib/core/index.ts";
-import { emptyNote, mainStep, steps, gitUi, patchUi, useGit } from "../../lib/git/index.ts";
+import { cardKey } from "@lib/core";
+import { emptyNote, mainStep, steps, gitUi, patchUi, useGit } from "@lib/git";
 import { GitAsk } from "./git-ask.tsx";
 import { GitCommits } from "./git-commits.tsx";
 import { GitConfirm } from "./git-confirm.tsx";

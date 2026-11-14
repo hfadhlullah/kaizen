@@ -9,7 +9,7 @@ import { draft } from "./drafts.ts";
 import { COLS, ICON, WORD } from "./labels.ts";
 import { isPhone } from "./phone.ts";
 import { showable } from "./projects.ts";
-import { setProjectBar } from "../lib/project/index.ts";
+import { setProjectBar } from "@lib/project";
 import { termsBadge } from "./terms.ts";
 import { boardBadge, waitingCount } from "./badge.ts";
 import { WS_COLS } from "./ws-board.ts";

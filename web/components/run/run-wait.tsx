@@ -1,6 +1,6 @@
-import { run } from "../../lib/run/index.ts";
+import { run } from "@lib/run";
 import { Button, Icon } from "@web/ui";
-import { EmptyState } from "../shared/index.ts";
+import { EmptyState } from "@components/shared";
 
 // The tab of a run whose own agent session is open in another terminal: one conversation cannot run in two places.
 export function RunWait({ id }: { id: string }) {

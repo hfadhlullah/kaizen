@@ -1,16 +1,8 @@
 import { useEffect, useRef } from "react";
-import {
-  iceKey,
-  type IceItem,
-  cancelPromote,
-  submitPromote,
-  taskDraft,
-  setIce,
-  useIce,
-} from "../../lib/icebox/index.ts";
+import { iceKey, type IceItem, cancelPromote, submitPromote, taskDraft, setIce, useIce } from "@lib/icebox";
 import { Button, Icon, fieldClass, Input, Textarea } from "@web/ui";
-import { cn } from "../../lib/core/index.ts";
-import { Field } from "../shared/index.ts";
+import { cn } from "@lib/core";
+import { Field } from "@components/shared";
 
 // Promote: a clean title for the task's card and the person's own details; what was gathered is added to the task's
 // notes by the server. With ChatGPT connected it offers a draft, which never overwrites what the person typed.

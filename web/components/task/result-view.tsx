@@ -1,5 +1,5 @@
-import { isImage, isLegacyResult, storedUrl, webUrl, type TaskResult } from "../../lib/task/index.ts";
-import { cn } from "../../lib/core/index.ts";
+import { isImage, isLegacyResult, storedUrl, webUrl, type TaskResult } from "@lib/task";
+import { cn } from "@lib/core";
 import { Spinner } from "@web/ui";
 import { ArtifactView } from "./artifact-view.tsx";
 

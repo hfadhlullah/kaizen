@@ -3,7 +3,7 @@
 // disturbed by a refresh.
 import { useEffect } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { getTasks, host, getStore, setStore, useStore } from "../core/index.ts";
+import { getTasks, host, getStore, setStore, useStore } from "@lib/core";
 
 let sequence = 0,
   loading = false,

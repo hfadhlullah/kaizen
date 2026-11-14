@@ -1,7 +1,7 @@
 import { useState } from "react";
-import type { PlanQuestion } from "../../lib/decision/index.ts";
+import type { PlanQuestion } from "@lib/decision";
 import { Button, Input } from "@web/ui";
-import { FormFrame } from "../shared/index.ts";
+import { FormFrame } from "@components/shared";
 
 // The plan's questions, answered with the approval: the recommended option preselected (else the first, for a single
 // choice), a note for what the options miss. Each answer reaches the agent as one line: `question — "label"; note`.

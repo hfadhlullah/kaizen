@@ -11,16 +11,8 @@ import {
   RequestRow,
   SourceDrawer,
   SwipeDeck,
-} from "../components/icebox/index.ts";
-import {
-  Chip,
-  ConfirmDialog,
-  EmptyState,
-  FilterPopover,
-  Pager,
-  Picker,
-  Segmented,
-} from "../components/shared/index.ts";
+} from "@components/icebox";
+import { Chip, ConfirmDialog, EmptyState, FilterPopover, Pager, Picker, Segmented } from "@components/shared";
 import {
   useIceData,
   deckOf,
@@ -50,9 +42,9 @@ import {
   selectPage,
   setView,
   toggleKind,
-} from "../lib/icebox/index.ts";
-import { useNarrow, usePager } from "../lib/shared/index.ts";
-import { host, useStore } from "../lib/core/index.ts";
+} from "@lib/icebox";
+import { useNarrow, usePager } from "@lib/shared";
+import { host, useStore } from "@lib/core";
 import { Button, Checkbox, Icon, Skeleton } from "@web/ui";
 
 // The Icebox: requests gathered from request sources, read like an inbox, until someone promotes them to tasks or

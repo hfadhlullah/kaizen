@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useShallow } from "zustand/react/shallow";
-import { EmptyState, IconButton, Pager } from "../components/shared/index.ts";
-import { FilterMenu, TaskRow } from "../components/task/index.ts";
+import { EmptyState, IconButton, Pager } from "@components/shared";
+import { FilterMenu, TaskRow } from "@components/task";
 import {
   useDock,
   openTaskRecord,
@@ -10,9 +10,9 @@ import {
   useTasks,
   filteredTasks,
   TASK_FILTERS,
-} from "../lib/task/index.ts";
-import { usePager } from "../lib/shared/index.ts";
-import { host, setStore, useStore } from "../lib/core/index.ts";
+} from "@lib/task";
+import { usePager } from "@lib/shared";
+import { host, setStore, useStore } from "@lib/core";
 import { Button } from "@web/ui";
 
 // The attention-first list of durable tasks. The board's own search box, tools slot and New task button are

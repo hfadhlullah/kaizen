@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { expose, frameable } from "../core/index.ts";
+import { expose, frameable } from "@lib/core";
 import { webUrl } from "./task-results.ts";
 
 // A live preview's life: ask whether the site allows a frame, and for an address on this computer shown on

@@ -1,10 +1,10 @@
 import { useRef, useState } from "react";
-import { addTask, taskDirs } from "../../lib/board/index.ts";
-import { pastedFiles, useDraft } from "../../lib/shared/index.ts";
-import { short } from "../../lib/icebox/index.ts";
-import { startDir, toast } from "../../lib/core/index.ts";
+import { addTask, taskDirs } from "@lib/board";
+import { pastedFiles, useDraft } from "@lib/shared";
+import { short } from "@lib/icebox";
+import { startDir, toast } from "@lib/core";
 import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, Icon, Input, Label, Textarea } from "@web/ui";
-import { AttachButton, FormFrame, MicButton, Picker, ProjectMark } from "../shared/index.ts";
+import { AttachButton, FormFrame, MicButton, Picker, ProjectMark } from "@components/shared";
 
 // The last project a new task went to, offered first next time.
 let lastDir: string | null = null;

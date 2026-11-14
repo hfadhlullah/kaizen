@@ -3,7 +3,7 @@
 // /popup/handoff. The page (pages/home-page.tsx) only reads and calls these.
 import { create } from "zustand";
 import { flushSync } from "react-dom";
-import { ask, host, toast } from "../core/index.ts";
+import { ask, host, toast } from "@lib/core";
 import { applyEvent, fits, lines, readLine, type Chat, type ListedChat, type Msg } from "./home.ts";
 
 type Home = {

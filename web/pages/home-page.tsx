@@ -1,8 +1,8 @@
 import { useEffect, useRef } from "react";
-import { ChatList, HomeComposer, HomeMessage } from "../components/home/index.ts";
-import { projectName, SUGGEST, deleteChat, setSide, show, useHome } from "../lib/home/index.ts";
-import { host, cn } from "../lib/core/index.ts";
-import { IconButton } from "../components/shared/index.ts";
+import { ChatList, HomeComposer, HomeMessage } from "@components/home";
+import { projectName, SUGGEST, deleteChat, setSide, show, useHome } from "@lib/home";
+import { host, cn } from "@lib/core";
+import { IconButton } from "@components/shared";
 
 // Home: the chat list beside a conversation with kaizen's main agent. A new chat starts in the project picked above
 // (none in All projects); the board follows the open chat. Requests and state are in lib/home/home-store.ts.

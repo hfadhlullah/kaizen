@@ -1,5 +1,5 @@
-import { usePanel } from "../../lib/run/index.ts";
-import { cn } from "../../lib/core/index.ts";
+import { usePanel } from "@lib/run";
+import { cn } from "@lib/core";
 import { Icon } from "@web/ui";
 
 // The run panel's tabs: a column of icons beside the panel (the name is the tooltip and the accessible name), or, in a

@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { host, cn } from "../../lib/core/index.ts";
-import { ALL, isAction, showingCount, showingLabel, useProjectBar } from "../../lib/project/index.ts";
+import { host, cn } from "@lib/core";
+import { ALL, isAction, showingCount, showingLabel, useProjectBar } from "@lib/project";
 import { Button, Command, CommandEmpty, CommandInput, CommandItem, CommandList, Icon, Popover, PopoverContent, PopoverTrigger } from "@web/ui";
-import { Picker, type PickerOption, ProjectMark } from "../shared/index.ts";
+import { Picker, type PickerOption, ProjectMark } from "@components/shared";
 
 // The mark in front of a choice: the board for All projects, a plus for an action, else the project's own mark.
 const Mark = ({ value, label }: { value: string; label: string }) =>

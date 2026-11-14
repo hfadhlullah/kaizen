@@ -1,6 +1,6 @@
 import { Tooltip as TooltipPrimitive } from "radix-ui";
 import type { ComponentProps } from "react";
-import { cn, portalRoot } from "../lib/core/utils.ts";
+import { cn, portalRoot } from "@lib/core/utils.ts";
 
 export const TooltipProvider = (props: ComponentProps<typeof TooltipPrimitive.Provider>) => (
   <TooltipPrimitive.Provider delayDuration={400} {...props} />

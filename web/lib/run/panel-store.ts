@@ -2,7 +2,7 @@
 // The old panel code (web/board/panel.ts openRun()) publishes both on every redraw. The ticks of the fix form live
 // here and not in the form, so a redraw of the panel's body (which replaces the element the form stands in) loses nothing.
 import { create } from "zustand";
-import type { Card } from "../core/index.ts";
+import type { Card } from "@lib/core";
 
 export type Finding = { n: number; text: string; done?: boolean };
 // What the panel's header shows under the title: the Plan > Build > Review > Done strip, a task's chips, a finished

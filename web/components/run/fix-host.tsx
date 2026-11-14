@@ -1,5 +1,5 @@
 import { createPortal } from "react-dom";
-import { usePanel } from "../../lib/run/index.ts";
+import { usePanel } from "@lib/run";
 import { FixForm } from "./fix-form.tsx";
 
 // The Fix findings form stands in the review tab, in an element the panel's body keeps replacing; this follows it.

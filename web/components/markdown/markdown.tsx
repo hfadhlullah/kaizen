@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { inline, parse, type Block, type Inline } from "../../lib/markdown/index.ts";
-import { cn } from "../../lib/core/index.ts";
+import { inline, parse, type Block, type Inline } from "@lib/markdown";
+import { cn } from "@lib/core";
 
 function Inl({ c }: { c: Inline[] }): ReactNode {
   return c.map((x, n) => {

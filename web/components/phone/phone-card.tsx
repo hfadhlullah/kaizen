@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { usePhoneSetup, phoneLine, TAILSCALE_DOWNLOAD } from "../../lib/phone/index.ts";
-import { cn } from "../../lib/core/index.ts";
+import { usePhoneSetup, phoneLine, TAILSCALE_DOWNLOAD } from "@lib/phone";
+import { cn } from "@lib/core";
 import { Button } from "@web/ui";
 import { QrCode } from "./qr-code.tsx";
 

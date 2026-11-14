@@ -1,7 +1,7 @@
-import { run, useRunView, type RvRun } from "../../lib/run/index.ts";
+import { run, useRunView, type RvRun } from "@lib/run";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger, Icon } from "@web/ui";
-import { cn } from "../../lib/core/index.ts";
-import { StateDot } from "../shared/index.ts";
+import { cn } from "@lib/core";
+import { StateDot } from "@components/shared";
 
 // The picker at the top of the workspace's run panel: the run shown, a dot when another run needs you, and a menu of the
 // runs not over (waiting on you first), then History. A pick shows that run in the panel; the centre stays as it is.

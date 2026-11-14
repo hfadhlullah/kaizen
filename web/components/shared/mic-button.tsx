@@ -1,5 +1,5 @@
 import { useEffect, useRef, type RefObject } from "react";
-import { host } from "../../lib/core/index.ts";
+import { host } from "@lib/core";
 
 // Dictation into a text field. The button and the listening itself are the board's dictation module (a worker, the
 // microphone, the model): this only places its button and stops it with the page. Nothing is drawn when the browser

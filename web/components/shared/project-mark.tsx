@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { host } from "../../lib/core/index.ts";
-import { short } from "../../lib/icebox/index.ts";
+import { host } from "@lib/core";
+import { short } from "@lib/icebox";
 
 // A project's mark: its own logo when the board found one, else its initial (also when the logo cannot be drawn).
 export function ProjectMark({ dir, label = "", size = 16 }: { dir: string; label?: string; size?: number }) {

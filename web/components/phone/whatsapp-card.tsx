@@ -1,4 +1,4 @@
-import { useWhatsApp, waCard } from "../../lib/phone/index.ts";
+import { useWhatsApp, waCard } from "@lib/phone";
 import { Button } from "@web/ui";
 import { CardBody, Dot, Err, Steps } from "./phone-card.tsx";
 import { QrCode } from "./qr-code.tsx";

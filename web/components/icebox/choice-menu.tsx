@@ -1,5 +1,5 @@
 import type { ReactElement, ReactNode } from "react";
-import { cn } from "../../lib/core/index.ts";
+import { cn } from "@lib/core";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@web/ui";
 
 export type Choice = { value: string; label: ReactNode; on?: boolean };

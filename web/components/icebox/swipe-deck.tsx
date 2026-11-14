@@ -17,11 +17,11 @@ import {
   flyCard,
   useCardDrag,
   short,
-} from "../../lib/icebox/index.ts";
-import { host, cn } from "../../lib/core/index.ts";
+} from "@lib/icebox";
+import { host, cn } from "@lib/core";
 import { Button, Icon } from "@web/ui";
 import { Favicon } from "./favicon.tsx";
-import { ProjectMark } from "../shared/index.ts";
+import { ProjectMark } from "@components/shared";
 import { RequestImages } from "./request-images.tsx";
 
 const stamp =

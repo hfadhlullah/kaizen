@@ -1,4 +1,4 @@
-import { ago, type IceItem } from "../../lib/icebox/index.ts";
+import { ago, type IceItem } from "@lib/icebox";
 
 // Small words about what became of a request: written back, promoted, replied.
 export function RequestBadges({ item }: { item: IceItem }) {

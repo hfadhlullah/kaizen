@@ -1,9 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { addFiles, removeFile, send, stop } from "../../lib/home/index.ts";
-import { pastedFiles } from "../../lib/shared/index.ts";
-import { cn } from "../../lib/core/index.ts";
+import { addFiles, removeFile, send, stop } from "@lib/home";
+import { pastedFiles } from "@lib/shared";
+import { cn } from "@lib/core";
 import { Icon } from "@web/ui";
-import { AttachButton, IconButton } from "../shared/index.ts";
+import { AttachButton, IconButton } from "@components/shared";
 
 const DK = "kz-d:";
 const phone = () => matchMedia("(max-width:640px)").matches;

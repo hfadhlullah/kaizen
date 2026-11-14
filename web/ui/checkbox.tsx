@@ -1,6 +1,6 @@
 import { Checkbox as CheckboxPrimitive } from "radix-ui";
 import type { ComponentProps } from "react";
-import { cn } from "../lib/core/utils.ts";
+import { cn } from "@lib/core/utils.ts";
 import { Icon } from "./icon.tsx";
 
 export function Checkbox({ className, ...props }: ComponentProps<typeof CheckboxPrimitive.Root>) {

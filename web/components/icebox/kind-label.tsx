@@ -1,5 +1,5 @@
-import { KIND } from "../../lib/icebox/index.ts";
-import { cn } from "../../lib/core/index.ts";
+import { KIND } from "@lib/icebox";
+import { cn } from "@lib/core";
 
 export const KIND_TONE: Record<string, string> = {
   client: "text-kind-client",

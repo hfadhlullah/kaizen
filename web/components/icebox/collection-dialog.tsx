@@ -1,6 +1,6 @@
 import { useId, useRef, useState } from "react";
 import { Button, Checkbox, Dialog, DialogContent, DialogTitle, Input } from "@web/ui";
-import { Field } from "../shared/index.ts";
+import { Field } from "@components/shared";
 
 // A new collection: its name and whether it is a client's (its items then count as Client). `onDone` gets the answer,
 // or null when cancelled by Cancel, Escape or the backdrop.

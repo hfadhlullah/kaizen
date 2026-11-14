@@ -1,5 +1,5 @@
-import { setBoard } from "../../lib/board/index.ts";
-import { host } from "../../lib/core/index.ts";
+import { setBoard } from "@lib/board";
+import { host } from "@lib/core";
 import {
   usePanel,
   backToTask,
@@ -12,9 +12,9 @@ import {
   decideRun,
   resumeRun,
   skipExplore,
-} from "../../lib/run/index.ts";
-import { planQuestions } from "../../lib/decision/index.ts";
-import { DecisionBar, type RunActions } from "../decision/index.ts";
+} from "@lib/run";
+import { planQuestions } from "@lib/decision";
+import { DecisionBar, type RunActions } from "@components/decision";
 
 // The footer of a run's panel: the decision strip for the run in it. It is DecisionBar, the piece the task page uses
 // for the same decisions, wired to the run actions the card's buttons use.

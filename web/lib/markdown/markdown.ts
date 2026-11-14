@@ -1,7 +1,7 @@
 // Enough markdown for kaizen's own text, as data a component draws (components/markdown/markdown.tsx): headings, lists, fences,
 // tables, inline code, bold, italic, links, images, hard line breaks. Nothing here makes HTML: a link or image whose
 // address is not web, mail or relative stays as its own text. Same rules as the old board/markdown.ts md().
-import { safeUrl } from "../url/index.ts";
+import { safeUrl } from "@lib/url";
 
 export type Inline =
   | string

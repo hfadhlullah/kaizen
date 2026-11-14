@@ -1,4 +1,4 @@
-import { PAGE_SIZES } from "../../lib/shared/index.ts";
+import { PAGE_SIZES } from "@lib/shared";
 import { Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@web/ui";
 
 // Rows per page, the range and Prev/Next; absent while the whole list fits the smallest page.

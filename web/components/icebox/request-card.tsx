@@ -11,10 +11,10 @@ import {
   type RowCtx,
   setIce,
   openCard,
-} from "../../lib/icebox/index.ts";
-import { cn } from "../../lib/core/index.ts";
+} from "@lib/icebox";
+import { cn } from "@lib/core";
 import { KindLabel } from "./kind-label.tsx";
-import { ProjectMark } from "../shared/index.ts";
+import { ProjectMark } from "@components/shared";
 import { RequestActions } from "./request-actions.tsx";
 import { RequestBadges } from "./request-badges.tsx";
 import { RequestImages } from "./request-images.tsx";

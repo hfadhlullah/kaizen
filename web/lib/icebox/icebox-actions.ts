@@ -1,7 +1,7 @@
 // What the Icebox does: every request it posts (POST /icebox, /reply, /sources, /chatgpt, /google), the words it
 // toasts, and how the cursor, the selection and the open item move with them. Components call these; nothing here
 // draws. Routes and payloads are the old page's, unchanged.
-import { post, host, toast, toastUndo } from "../core/index.ts";
+import { post, host, toast, toastUndo } from "@lib/core";
 import { gatherLine, hostOf, iceKey, snoozedLine, stepPast, type IceItem, type Source, PLAT } from "./icebox.ts";
 import { getIce, patchCap, setIce, type Ask, type Capture } from "./icebox-store.ts";
 import { refreshIce } from "./use-icebox.ts";

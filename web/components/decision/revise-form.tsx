@@ -1,7 +1,7 @@
 import { useRef } from "react";
-import { toast } from "../../lib/core/index.ts";
+import { toast } from "@lib/core";
 import { Button, Textarea } from "@web/ui";
-import { FormFrame } from "../shared/index.ts";
+import { FormFrame } from "@components/shared";
 
 const box =
   "min-h-18 rounded-sm border border-border bg-card px-3 py-2 hover:border-muted-foreground focus-visible:border-primary";

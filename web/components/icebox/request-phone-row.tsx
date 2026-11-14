@@ -16,12 +16,12 @@ import {
   setIce,
   toggleOpen,
   useRowSwipe,
-} from "../../lib/icebox/index.ts";
-import { cn } from "../../lib/core/index.ts";
+} from "@lib/icebox";
+import { cn } from "@lib/core";
 import { Button, Icon } from "@web/ui";
 import { KindLabel } from "./kind-label.tsx";
 import { KindMenu } from "./kind-menu.tsx";
-import { ProjectMark } from "../shared/index.ts";
+import { ProjectMark } from "@components/shared";
 import { RequestBadges } from "./request-badges.tsx";
 import { RequestDetail } from "./request-detail.tsx";
 import { SnoozeMenu } from "./snooze-menu.tsx";

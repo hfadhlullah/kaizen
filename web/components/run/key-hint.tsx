@@ -1,4 +1,4 @@
-import { useRunView } from "../../lib/run/index.ts";
+import { useRunView } from "@lib/run";
 
 const KEYS = [
   ["←↓↑→", "pane"],

@@ -1,8 +1,8 @@
 import { useRef, useState } from "react";
-import { PLAT, addSource, patchDraft, setIce, useIce } from "../../lib/icebox/index.ts";
-import { toast } from "../../lib/core/index.ts";
+import { PLAT, addSource, patchDraft, setIce, useIce } from "@lib/icebox";
+import { toast } from "@lib/core";
 import { Button, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@web/ui";
-import { Field, Segmented } from "../shared/index.ts";
+import { Field, Segmented } from "@components/shared";
 
 // Add a source: a link, or a social platform and what to follow (the server builds its link; the agent reads it). What
 // is half typed stays while the drawer is shut. `dir` is the one project the board shows, "" in All projects.

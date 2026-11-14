@@ -1,6 +1,6 @@
 import { Popover as PopoverPrimitive } from "radix-ui";
 import type { ComponentProps } from "react";
-import { cn, portalRoot } from "../lib/core/utils.ts";
+import { cn, portalRoot } from "@lib/core/utils.ts";
 
 export const Popover = PopoverPrimitive.Root;
 export const PopoverTrigger = PopoverPrimitive.Trigger;

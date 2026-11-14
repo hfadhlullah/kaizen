@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { run, useRunView, type RvScreen } from "../../lib/run/index.ts";
-import { cn } from "../../lib/core/index.ts";
+import { run, useRunView, type RvScreen } from "@lib/run";
+import { cn } from "@lib/core";
 import { Icon } from "@web/ui";
-import { IconButton } from "../shared/index.ts";
+import { IconButton } from "@components/shared";
 import { RunAddMenu } from "./run-add-menu.tsx";
 
 const MARKS = ["claude", "codex", "gemini"];

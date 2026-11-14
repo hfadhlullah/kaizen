@@ -1,6 +1,6 @@
 import { useRef, useState, type ReactElement } from "react";
-import { ymd } from "../../lib/icebox/index.ts";
-import { cn } from "../../lib/core/index.ts";
+import { ymd } from "@lib/icebox";
+import { cn } from "@lib/core";
 import { Button, Input, Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@web/ui";
 
 const WHEN = [

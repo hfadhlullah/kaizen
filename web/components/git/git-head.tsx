@@ -8,11 +8,11 @@ import {
   type GitRow,
   type Step,
   gitAct,
-} from "../../lib/git/index.ts";
-import { cn } from "../../lib/core/index.ts";
+} from "@lib/git";
+import { cn } from "@lib/core";
 import { Icon } from "@web/ui";
 import { GitCounts } from "./git-counts.tsx";
-import { IconButton } from "../shared/index.ts";
+import { IconButton } from "@components/shared";
 
 const chip =
   "mb-1.5 inline-flex h-(--btn-xs) items-center gap-1.5 self-start rounded-sm border border-border bg-card px-2 text-xs font-medium";

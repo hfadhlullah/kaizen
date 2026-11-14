@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { host } from "../../lib/core/index.ts";
+import { host } from "@lib/core";
 import {
   setBrowserPref,
   setFont,
@@ -9,9 +9,9 @@ import {
   notifyHelp,
   clampFont,
   useSettings,
-} from "../../lib/settings/index.ts";
+} from "@lib/settings";
 import { Input, Switch } from "@web/ui";
-import { Field, Segmented } from "../shared/index.ts";
+import { Field, Segmented } from "@components/shared";
 import { Stepper } from "./stepper.tsx";
 
 const CHOICES = {

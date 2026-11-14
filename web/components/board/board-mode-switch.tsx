@@ -1,5 +1,5 @@
-import { useBoard } from "../../lib/board/index.ts";
-import { Segmented } from "../shared/index.ts";
+import { useBoard } from "@lib/board";
+import { Segmented } from "@components/shared";
 
 // The Board header's Workspaces | Runs switch: which of the two views of the same work the Board shows.
 export function BoardModeSwitch() {

@@ -1,5 +1,5 @@
 import type { ComponentProps, ReactNode } from "react";
-import { cn } from "../../lib/core/index.ts";
+import { cn } from "@lib/core";
 import { Icon, Tooltip, TooltipContent, TooltipTrigger } from "@web/ui";
 
 // The board's .ib: a 32px square with one icon, always named (aria-label and tooltip). `active` marks a

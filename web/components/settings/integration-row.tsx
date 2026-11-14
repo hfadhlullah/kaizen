@@ -7,9 +7,9 @@ import {
   testResearchKey,
   setTyped,
   useSettings,
-} from "../../lib/settings/index.ts";
+} from "@lib/settings";
 import { Button, Input } from "@web/ui";
-import { Field } from "../shared/index.ts";
+import { Field } from "@components/shared";
 
 const wide = "w-60 @max-[520px]:w-full";
 // A key or secret box: what is typed stays in the store until Save, and the server only ever answers with the last four.

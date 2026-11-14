@@ -4,7 +4,7 @@ import { store } from "./store.ts";
 import { $ } from "./dom.ts";
 import { react } from "./views.ts";
 import { RANK, projName, railData, stateOf, subline, titleOf, wsHref, wsLabel, wsOfCard } from "./workspace.ts";
-import type { WsCard } from "../lib/board/index.ts";
+import type { WsCard } from "@lib/board";
 import { WS_COLS, cardLine, columnOf, groupWs } from "./ws-board.ts";
 
 const KEY = "kz-board-mode";

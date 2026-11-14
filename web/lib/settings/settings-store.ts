@@ -2,7 +2,7 @@
 // choices, and the small things a redraw must not lose (open agent rows, the automation form, a value on its way to
 // the server). The board's old code only opens the page (web/board/settings.ts); everything else is here.
 import { create } from "zustand";
-import { host } from "../core/index.ts";
+import { host } from "@lib/core";
 import type { Data } from "./settings.ts";
 
 export type Prefs = {

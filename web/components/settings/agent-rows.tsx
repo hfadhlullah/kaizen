@@ -6,11 +6,11 @@ import {
   setPermissions,
   toggleAgentOpen,
   useSettings,
-} from "../../lib/settings/index.ts";
-import { cn } from "../../lib/core/index.ts";
-import type { Agent } from "../../lib/settings/index.ts";
+} from "@lib/settings";
+import { cn } from "@lib/core";
+import type { Agent } from "@lib/settings";
 import { Button, Icon, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@web/ui";
-import { Chip, Field, IconButton, Segmented } from "../shared/index.ts";
+import { Chip, Field, IconButton, Segmented } from "@components/shared";
 import { CommitInput } from "./commit-input.tsx";
 
 const MODES: [string, string][] = [

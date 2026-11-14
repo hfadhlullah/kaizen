@@ -5,10 +5,10 @@
 // no React, send the person to the board with the palette open (?search=1).
 import { $ } from "./dom.ts";
 import { age } from "./labels.ts";
-import { openAdd } from "../lib/project/add-project.ts";
+import { openAdd } from "@lib/project/add-project.ts";
 import { cardHref, projName, railData, stateOf, titleOf, wsHref, wsLabel, wsOfCard } from "./workspace.ts";
-import { useSearch } from "../lib/search/search.ts";
-import type { Item } from "../lib/search/search-match.ts";
+import { useSearch } from "@lib/search/search.ts";
+import type { Item } from "@lib/search/search-match.ts";
 import { leaves, wsKey } from "./ws-tabs.ts";
 
 // The pages that can open a thing in place answer this event and cancel it.

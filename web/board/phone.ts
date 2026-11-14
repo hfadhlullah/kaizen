@@ -3,7 +3,7 @@
 // on a computer; a phone has Home, Chat, Runs and Search (Settings is found through it).
 import { runPopup } from "./cards.ts";
 import { $, html, raw } from "./dom.ts";
-import { openSheet } from "../lib/phone/index.ts";
+import { openSheet } from "@lib/phone";
 import { cardHref, logo, railData, stateOf, subline, titleOf, usageChips, wsHref } from "./workspace.ts";
 import { toast } from "./toast.ts";
 import { agentStatus, wsKey, WORD, DOT, type Agent, type Status } from "./ws-tabs.ts";

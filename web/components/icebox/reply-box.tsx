@@ -11,10 +11,10 @@ import {
   replyText,
   setReplyStyle,
   useIce,
-} from "../../lib/icebox/index.ts";
-import { cn } from "../../lib/core/index.ts";
+} from "@lib/icebox";
+import { cn } from "@lib/core";
 import { Button, fieldClass, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Textarea } from "@web/ui";
-import { Field } from "../shared/index.ts";
+import { Field } from "@components/shared";
 
 const Style = ({ dir, disabled }: { dir: string; disabled: boolean }) => (
   <Select value={replyStyle(dir)} onValueChange={(v) => setReplyStyle(dir, v)} disabled={disabled}>

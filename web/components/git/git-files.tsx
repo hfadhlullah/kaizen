@@ -1,10 +1,10 @@
-import { gitAct, fold, busyOf, useGit } from "../../lib/git/index.ts";
-import type { GitRow as Row } from "../../lib/git/index.ts";
-import { cn } from "../../lib/core/index.ts";
+import { gitAct, fold, busyOf, useGit } from "@lib/git";
+import type { GitRow as Row } from "@lib/git";
+import { cn } from "@lib/core";
 import { GitCounts } from "./git-counts.tsx";
 import { GitIcon } from "./git-icon.tsx";
 import { Icon } from "@web/ui";
-import { IconButton } from "../shared/index.ts";
+import { IconButton } from "@components/shared";
 
 const small =
   "size-[calc(var(--row)-4px)] min-w-[calc(var(--row)-4px)] [&_svg]:size-(--ico-s) [&_svg]:fill-none [&_svg]:stroke-current [&_svg]:stroke-2";

@@ -2,7 +2,7 @@
 // of that it springs back. --p (-1..1) fades the PROMOTE and DISMISS stamps in. A thin imperative wrapper: styles are
 // set on the element; the deck is told what was decided.
 import { useRef, type PointerEvent } from "react";
-import { host } from "../core/index.ts";
+import { host } from "@lib/core";
 
 // A held or flying card is fixed to the window where it sits, so a scroll box or the page's own overflow cannot crop
 // it on the way out.

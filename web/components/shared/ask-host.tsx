@@ -1,4 +1,4 @@
-import { answer, useAsk } from "../../lib/core/index.ts";
+import { answer, useAsk } from "@lib/core";
 import { ConfirmDialog } from "./confirm-dialog.tsx";
 
 // Draws the question lib/core/ask.ts has open, if any. One per page that asks.

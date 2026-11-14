@@ -1,8 +1,8 @@
 // Opening a card from the Board: a backlog item opens its source run on the Backlog tab with the item marked, anything
 // else opens its run workspace or task panel.
-import type { Card } from "../core/index.ts";
+import type { Card } from "@lib/core";
 import { getBoard } from "./board-store.ts";
-import { host, toast } from "../core/index.ts";
+import { host, toast } from "@lib/core";
 
 export function showCard(c: Card) {
   if (c.kind !== "backlog") return host.openCard(c);

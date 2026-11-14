@@ -2,7 +2,7 @@
 // on every redraw of the tab. What the user typed and which inline confirm is open live here per run, so a redraw of
 // the panel (which replaces the element the tab stands in) loses nothing.
 import { create } from "zustand";
-import { cardKey, type Card } from "../core/index.ts";
+import { cardKey, type Card } from "@lib/core";
 import type { BranchDoc, GitDoc } from "./git.ts";
 
 export type GitAsk = "pr" | "draft" | "merge" | "remove";

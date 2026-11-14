@@ -6,7 +6,7 @@
     "jsx": "react-jsx",
     "allowImportingTsExtensions": true,
     "baseUrl": ".",
-    "paths": { "@web/*": ["web/*"] },
+    "paths": { "@web/*": ["web/*"], "@lib/*": ["web/lib/*"], "@components/*": ["web/components/*"] },
     "noEmit": true,
     "strict": false,
     "skipLibCheck": true,

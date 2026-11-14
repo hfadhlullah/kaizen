@@ -1,6 +1,6 @@
-import { host } from "../../lib/core/index.ts";
-import { useSettings } from "../../lib/settings/index.ts";
-import type { Item } from "../../lib/settings/index.ts";
+import { host } from "@lib/core";
+import { useSettings } from "@lib/settings";
+import type { Item } from "@lib/settings";
 import { AccountCard, AddAccountRow, NormalLoginCard } from "./account-rows.tsx";
 import { AgentCard, AgentDefaultRow, AgentPermissionRow } from "./agent-rows.tsx";
 import { AutomationCard, AutomationForm, NoAutomations } from "./automation-rows.tsx";
@@ -8,7 +8,7 @@ import { BrowserRow } from "./browser-row.tsx";
 import { CleanupRow } from "./cleanup-row.tsx";
 import { IntegrationRow } from "./integration-row.tsx";
 import { MicRow } from "./mic-row.tsx";
-import { PhoneCard, WhatsAppCard } from "../phone/index.ts";
+import { PhoneCard, WhatsAppCard } from "@components/phone";
 import { OrchestrationFlow } from "./orchestration-flow.tsx";
 import { SettingRow } from "./setting-row.tsx";
 import { SkillCard } from "./skill-card.tsx";

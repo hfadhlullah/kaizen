@@ -1,4 +1,4 @@
-import { Chip, FilterPopover } from "../shared/index.ts";
+import { Chip, FilterPopover } from "@components/shared";
 
 export type FilterOption = { id: string; label: string; count?: number };
 // The filter popup of a list: an icon button that opens one row of chips, one chosen. Choosing closes it. The

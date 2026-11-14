@@ -1,6 +1,6 @@
 // What a run's card, its panel and the task page ask the server to do, one function each, so two places showing the
 // same button share one code path. Routes and payloads are the old board's, unchanged.
-import { post, cardKey, type Card, host, toast } from "../core/index.ts";
+import { post, cardKey, type Card, host, toast } from "@lib/core";
 
 export const where = (r: { pty?: unknown }) => (r.pty ? "running in its workspace" : "opened in your terminal");
 const via = (r: { agent: { name: string; note?: string } }) => host.agentLine(r.agent);

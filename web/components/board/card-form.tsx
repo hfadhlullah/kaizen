@@ -1,10 +1,10 @@
 import { useRef, useState } from "react";
-import { cardKey, type Card, host, toast } from "../../lib/core/index.ts";
-import { deleteTask, moveTask, rejectCard, saveEdit } from "../../lib/board/index.ts";
-import { pastedFiles, useDraft } from "../../lib/shared/index.ts";
-import { short } from "../../lib/icebox/index.ts";
+import { cardKey, type Card, host, toast } from "@lib/core";
+import { deleteTask, moveTask, rejectCard, saveEdit } from "@lib/board";
+import { pastedFiles, useDraft } from "@lib/shared";
+import { short } from "@lib/icebox";
 import { Button, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Textarea } from "@web/ui";
-import { AttachButton, FormFrame, MicButton } from "../shared/index.ts";
+import { AttachButton, FormFrame, MicButton } from "@components/shared";
 
 const q = "text-base font-medium",
   dim = "text-sm font-normal text-muted-foreground",

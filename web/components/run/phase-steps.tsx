@@ -1,5 +1,5 @@
-import type { Phases } from "../../lib/run/index.ts";
-import { cn } from "../../lib/core/index.ts";
+import type { Phases } from "@lib/run";
+import { cn } from "@lib/core";
 
 // The colour of the stage the run is in: running, waiting on you (amber), stalled (red).
 const tone: Record<string, string> = { waiting: "[--c:var(--warn)]", stalled: "[--c:var(--danger)]" };

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { cn } from "../../lib/core/index.ts";
+import { cn } from "@lib/core";
 
 const bar: Record<string, string> = {
   running:

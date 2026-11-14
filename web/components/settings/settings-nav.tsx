@@ -1,5 +1,5 @@
-import { host, cn } from "../../lib/core/index.ts";
-import { pickPage, setSettings, useSettings, SETTINGS_NAV } from "../../lib/settings/index.ts";
+import { host, cn } from "@lib/core";
+import { pickPage, setSettings, useSettings, SETTINGS_NAV } from "@lib/settings";
 import { Icon, Input } from "@web/ui";
 import { SettingsScope } from "./settings-scope.tsx";
 

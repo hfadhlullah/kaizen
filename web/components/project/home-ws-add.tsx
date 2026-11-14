@@ -1,6 +1,6 @@
-import { markOf, useHomeWsMenu } from "../../lib/project/index.ts";
+import { markOf, useHomeWsMenu } from "@lib/project";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, Icon } from "@web/ui";
-import { IconButton } from "../shared/index.ts";
+import { IconButton } from "@components/shared";
 
 // The Home window's "+": a menu of the agents that can start in the Home folder, then Shell.
 export function HomeWsAdd() {

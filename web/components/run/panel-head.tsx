@@ -1,8 +1,8 @@
-import { usePanel } from "../../lib/run/index.ts";
-import { cn } from "../../lib/core/index.ts";
+import { usePanel } from "@lib/run";
+import { cn } from "@lib/core";
 import { PhaseSteps } from "./phase-steps.tsx";
 import { RunProgress } from "./run-progress.tsx";
-import { StatusMark } from "../shared/index.ts";
+import { StatusMark } from "@components/shared";
 
 const pill =
   "inline-flex items-center gap-1.5 rounded-full bg-muted py-0.5 pl-1.5 pr-[9px] text-sm font-medium text-foreground";

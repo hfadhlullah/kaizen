@@ -1,8 +1,8 @@
 import { useLayoutEffect, useRef } from "react";
-import { gitAct, busyOf, useGit } from "../../lib/git/index.ts";
-import { cn } from "../../lib/core/index.ts";
+import { gitAct, busyOf, useGit } from "@lib/git";
+import { cn } from "@lib/core";
 import { Textarea } from "@web/ui";
-import { IconButton } from "../shared/index.ts";
+import { IconButton } from "@components/shared";
 
 // The commit message, with the AI button that writes one from the changes. It grows with its text; the first line
 // over 72 characters says so.

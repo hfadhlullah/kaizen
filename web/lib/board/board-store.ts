@@ -3,8 +3,8 @@
 // own: the open tab, sort order, pick mode, which children and columns are unfolded, and the form or popup that is
 // open. None of it is lost by a redraw, because nothing here is redrawn by hand.
 import { create } from "zustand";
-import type { Card } from "../core/index.ts";
-import { clearDrafts } from "../shared/index.ts";
+import type { Card } from "@lib/core";
+import { clearDrafts } from "@lib/shared";
 
 export type WsCard = {
   dir: string;

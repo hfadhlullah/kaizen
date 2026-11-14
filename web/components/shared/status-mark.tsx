@@ -1,4 +1,4 @@
-import { cn } from "../../lib/core/index.ts";
+import { cn } from "@lib/core";
 import { Icon } from "@web/ui";
 
 const tone: Record<string, string> = {

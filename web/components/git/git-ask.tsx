@@ -1,7 +1,7 @@
-import { busyOf, useGit, gitUi, patchUi, ask, gitAct } from "../../lib/git/index.ts";
-import { cardKey } from "../../lib/core/index.ts";
+import { busyOf, useGit, gitUi, patchUi, ask, gitAct } from "@lib/git";
+import { cardKey } from "@lib/core";
 import { Button, Input, Textarea } from "@web/ui";
-import { Field } from "../shared/index.ts";
+import { Field } from "@components/shared";
 
 const head = "flex items-center gap-1.5 text-sm font-semibold";
 // The inline form or confirm a step that needs a second look opens, in place of the split button: the pull request's

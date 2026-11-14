@@ -1,6 +1,6 @@
-import { projectName, type ListedChat } from "../../lib/home/index.ts";
-import { host, cn } from "../../lib/core/index.ts";
-import { IconButton } from "../shared/index.ts";
+import { projectName, type ListedChat } from "@lib/home";
+import { host, cn } from "@lib/core";
+import { IconButton } from "@components/shared";
 
 // The chats beside the conversation: title and project, a dot while the agent works, a bin on hover.
 export function ChatList({

@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { BUSY, type MainStep, type Step, gitAct, busyOf, useGit } from "../../lib/git/index.ts";
+import { BUSY, type MainStep, type Step, gitAct, busyOf, useGit } from "@lib/git";
 import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, Icon } from "@web/ui";
 
 // One split button: the main step (Stage all, then Commit, then the next remote step) and a menu with every step,

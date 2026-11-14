@@ -5,8 +5,8 @@ import {
   Tile,
   UpdateBar,
   SettingsSection,
-} from "../components/settings/index.ts";
-import { useNarrow } from "../lib/shared/index.ts";
+} from "@components/settings";
+import { useNarrow } from "@lib/shared";
 import {
   pickPage,
   useSettings,
@@ -18,7 +18,7 @@ import {
   pageSections,
   shownPage,
   visibleRows,
-} from "../lib/settings/index.ts";
+} from "@lib/settings";
 import { Icon } from "@web/ui";
 
 // Settings: a sidebar of pages and the page chosen. One page shows at a time (the first with a match while searching,

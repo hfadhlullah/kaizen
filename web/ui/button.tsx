@@ -1,7 +1,7 @@
 import { Slot } from "radix-ui";
 import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentProps } from "react";
-import { cn } from "../lib/core/utils.ts";
+import { cn } from "@lib/core/utils.ts";
 
 // variant: primary is the one main action of an area, default is any other, ghost is quiet (toolbars),
 // danger is destructive. size: md (default) or sm. An icon-only button is IconButton, never a Button.

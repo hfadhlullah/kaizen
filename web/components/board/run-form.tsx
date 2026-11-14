@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import type { Card } from "../../lib/core/index.ts";
-import { loadAgents, startRun, type Agents } from "../../lib/board/index.ts";
-import type { RunPick } from "../../lib/board/index.ts";
-import { cn } from "../../lib/core/index.ts";
+import type { Card } from "@lib/core";
+import { loadAgents, startRun, type Agents } from "@lib/board";
+import type { RunPick } from "@lib/board";
+import { cn } from "@lib/core";
 import { Button, Icon, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Switch, Checkbox } from "@web/ui";
-import { FormFrame } from "../shared/index.ts";
+import { FormFrame } from "@components/shared";
 
 const NORMAL = "__normal"; // Radix Select has no empty value: the normal login
 // The Run form for a task or backlog item: which agent (with its account, when it has some), Explore first, Yolo

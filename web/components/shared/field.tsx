@@ -1,5 +1,5 @@
 import { useId, type ReactNode } from "react";
-import { cn } from "../../lib/core/index.ts";
+import { cn } from "@lib/core";
 import { Label } from "@web/ui";
 
 type ControlProps = { id: string; "aria-describedby"?: string; "aria-invalid"?: boolean };

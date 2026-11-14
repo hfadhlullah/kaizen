@@ -1,5 +1,5 @@
-import { useRunView } from "../../lib/run/index.ts";
-import { EmptyState } from "../shared/index.ts";
+import { useRunView } from "@lib/run";
+import { EmptyState } from "@components/shared";
 
 // No tab is open: say how to open one.
 export function RunEmpty() {

@@ -12,11 +12,11 @@ import {
   brief,
   age,
   cn,
-} from "../../lib/core/index.ts";
-import { showCard, openForm, useBoard, type FormMode } from "../../lib/board/index.ts";
-import { archiveCard, backToTask, resumable, resumeRun } from "../../lib/run/index.ts";
+} from "@lib/core";
+import { showCard, openForm, useBoard, type FormMode } from "@lib/board";
+import { archiveCard, backToTask, resumable, resumeRun } from "@lib/run";
 import { Button } from "@web/ui";
-import { ActionMenu, StatusMark } from "../shared/index.ts";
+import { ActionMenu, StatusMark } from "@components/shared";
 import { CardFooter } from "./card-footer.tsx";
 import { CardKids } from "./card-kids.tsx";
 

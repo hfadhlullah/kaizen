@@ -4,7 +4,7 @@ import { load, post } from "./api.ts";
 import { newTask, render } from "./cards.ts";
 import { $ } from "./dom.ts";
 import { toast } from "./toast.ts";
-import { openAdd } from "../lib/project/index.ts";
+import { openAdd } from "@lib/project";
 
 // The picked project outlives a reload. Saved only where the user changes it, so a
 // second tab refreshing cannot undo it; a view the URL asked for is a one-off.

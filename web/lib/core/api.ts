@@ -2,7 +2,7 @@
 // (/tasks?all=1, /task?id=&dir=, POST /task, /frameable, /expose), and the Icebox's (/sources, POST /icebox).
 import { host } from "./host.ts";
 import { toast } from "./toast.ts";
-import type { TaskPageData, TaskView } from "../task/index.ts";
+import type { TaskPageData, TaskView } from "@lib/task";
 
 export type TaskReply = {
   ok: boolean;
@@ -80,7 +80,7 @@ export async function post(path: string, body: Record<string, unknown>): Promise
   }
   return j;
 }
-export const getSources = async (dir: string): Promise<import("../icebox/index.ts").IceData | null> =>
+export const getSources = async (dir: string): Promise<import("@lib/icebox").IceData | null> =>
   fetch("/sources" + (dir ? "?dir=" + encodeURIComponent(dir) : ""))
     .then((r) => r.json())
     .catch(() => null);

@@ -12,11 +12,11 @@ import {
   rowHint,
   settingId,
   type Row,
-} from "../../lib/settings/index.ts";
-import { host } from "../../lib/core/index.ts";
+} from "@lib/settings";
+import { host } from "@lib/core";
 import { Button, Switch } from "@web/ui";
 import { CommitInput } from "./commit-input.tsx";
-import { Field, Segmented } from "../shared/index.ts";
+import { Field, Segmented } from "@components/shared";
 import { Stepper } from "./stepper.tsx";
 
 const wide = "w-60 @max-[520px]:w-full";

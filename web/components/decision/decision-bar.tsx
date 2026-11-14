@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import type { Card } from "../../lib/core/index.ts";
-import type { PlanQuestion } from "../../lib/decision/index.ts";
-import { need, toast } from "../../lib/core/index.ts";
-import { APPROVAL } from "../../lib/run/index.ts";
-import { dirName, type TaskDecision, type TaskPageData } from "../../lib/task/index.ts";
+import type { Card } from "@lib/core";
+import type { PlanQuestion } from "@lib/decision";
+import { need, toast } from "@lib/core";
+import { APPROVAL } from "@lib/run";
+import { dirName, type TaskDecision, type TaskPageData } from "@lib/task";
 import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@web/ui";
-import { Field, Picker } from "../shared/index.ts";
+import { Field, Picker } from "@components/shared";
 import { InlineForm } from "./inline-form.tsx";
 import { PlanAnswersForm } from "./plan-answers-form.tsx";
 import { ReviseForm } from "./revise-form.tsx";

@@ -3,8 +3,8 @@
 // minimized, it waits as a "Home" row at the top of the Projects list, its terminals still
 // running. Ctrl+Alt+A or the button at the bottom right toggles it. The server places these
 // terminals itself (POST /shell with home: true); the page never names a folder.
-import { ask } from "../lib/core/index.ts";
-import { setHomeWsMenu } from "../lib/project/index.ts";
+import { ask } from "@lib/core";
+import { setHomeWsMenu } from "@lib/project";
 import { react } from "./views.ts";
 import { $, html, ico, raw } from "./dom.ts";
 import { store } from "./store.ts";

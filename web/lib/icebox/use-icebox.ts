@@ -3,7 +3,7 @@
 // (`kz-shown`). One request at a time (a second asks for one more round), a stale answer is dropped. Every redraw
 // is React's, so an open menu or a press in progress is never disturbed by a refresh.
 import { useEffect } from "react";
-import { getSources, host, getStore } from "../core/index.ts";
+import { getSources, host, getStore } from "@lib/core";
 import { setIce } from "./icebox-store.ts";
 
 let sequence = 0,

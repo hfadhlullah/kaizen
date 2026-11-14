@@ -1,6 +1,6 @@
 import { Switch as SwitchPrimitive } from "radix-ui";
 import type { ComponentProps } from "react";
-import { cn } from "../lib/core/utils.ts";
+import { cn } from "@lib/core/utils.ts";
 
 // The board's one switch (.chk): off is a quiet track, on is the accent; `sm` is the compact size.
 export function Switch({ className, ...props }: ComponentProps<typeof SwitchPrimitive.Root>) {

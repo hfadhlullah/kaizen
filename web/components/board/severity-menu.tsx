@@ -1,6 +1,6 @@
-import { SEVS, type Card } from "../../lib/core/index.ts";
+import { SEVS, type Card } from "@lib/core";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@web/ui";
-import { IconButton } from "../shared/index.ts";
+import { IconButton } from "@components/shared";
 
 // The Backlog tab's severity filter: one severity, or all of them, each with how many items it holds.
 export function SeverityMenu({

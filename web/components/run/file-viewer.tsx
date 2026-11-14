@@ -1,4 +1,4 @@
-import { closeFile, isImage, useViewer } from "../../lib/run/index.ts";
+import { closeFile, isImage, useViewer } from "@lib/run";
 import { Button, Dialog, DialogContent, DialogTitle } from "@web/ui";
 
 // A file the board links to, over the board: an image, or any other file in a frame, with a way out to a tab of its own.

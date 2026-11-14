@@ -4,19 +4,19 @@
 import { createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
-import { setHost, toast, setStore } from "../lib/core/index.ts";
-import { iceKeys } from "../lib/icebox/index.ts";
-import { navigateTask, showTask } from "../lib/task/index.ts";
-import { closeForm as closeBoardForm, closeNewForm, getBoard, setBoard, type BoardSnap, type Popup } from "../lib/board/index.ts";
-import { setPanel, type Panel, resumeRun, decided } from "../lib/run/index.ts";
-import { UpdateCard } from "../components/settings/index.ts";
+import { setHost, toast, setStore } from "@lib/core";
+import { iceKeys } from "@lib/icebox";
+import { navigateTask, showTask } from "@lib/task";
+import { closeForm as closeBoardForm, closeNewForm, getBoard, setBoard, type BoardSnap, type Popup } from "@lib/board";
+import { setPanel, type Panel, resumeRun, decided } from "@lib/run";
+import { UpdateCard } from "@components/settings";
 import {
   AddProjectDialog,
   WsMenu,
   HomeWsAdd,
   ProjectPicker,
   ShowingPicker,
-} from "../components/project/index.ts";
+} from "@components/project";
 import {
   FileViewer,
   FixHost,
@@ -31,15 +31,15 @@ import {
   PanelTabs,
   RunPicker,
   RunFooter,
-} from "../components/run/index.ts";
-import { SearchPalette } from "../components/search/index.ts";
-import { OnboardingDialog } from "../components/home/index.ts";
-import { PhoneSheets } from "../components/phone/index.ts";
-import { AskHost } from "../components/shared/index.ts";
-import { BoardPopups, BoardModeSwitch } from "../components/board/index.ts";
-import { GitHost } from "../components/git/index.ts";
-import { setGit } from "../lib/git/index.ts";
-import { getSettings, loadSettings, setSettings, pageId } from "../lib/settings/index.ts";
+} from "@components/run";
+import { SearchPalette } from "@components/search";
+import { OnboardingDialog } from "@components/home";
+import { PhoneSheets } from "@components/phone";
+import { AskHost } from "@components/shared";
+import { BoardPopups, BoardModeSwitch } from "@components/board";
+import { GitHost } from "@components/git";
+import { setGit } from "@lib/git";
+import { getSettings, loadSettings, setSettings, pageId } from "@lib/settings";
 import { SettingsPage } from "../pages/settings-page.tsx";
 import { FONT_MAX, FONT_MIN, fontRead, fontSet } from "../term/term-font.ts";
 import { BoardPage } from "../pages/board-page.tsx";

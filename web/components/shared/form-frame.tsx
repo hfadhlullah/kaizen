@@ -1,5 +1,5 @@
 import type { FormEvent, ReactNode } from "react";
-import { cn } from "../../lib/core/index.ts";
+import { cn } from "@lib/core";
 
 // The frame every Board form sits in: inline in a column (a bordered box that stands where the card was) or plain
 // inside a dialog, which brings its own frame. Enter inside a field never submits the page.

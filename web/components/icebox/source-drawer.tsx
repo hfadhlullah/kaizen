@@ -1,16 +1,8 @@
-import { host } from "../../lib/core/index.ts";
-import {
-  type IceData,
-  connectChatGPT,
-  connectGoogle,
-  disconnect,
-  gatherAll,
-  setIce,
-  useIce,
-} from "../../lib/icebox/index.ts";
+import { host } from "@lib/core";
+import { type IceData, connectChatGPT, connectGoogle, disconnect, gatherAll, setIce, useIce } from "@lib/icebox";
 import { Button, Icon, Sheet, SheetContent, SheetClose, SheetTitle, SheetDescription } from "@web/ui";
 import { useState } from "react";
-import { IconButton } from "../shared/index.ts";
+import { IconButton } from "@components/shared";
 import { ServiceChip } from "./service-chip.tsx";
 import { SourceCard } from "./source-card.tsx";
 import { SourceForm } from "./source-form.tsx";

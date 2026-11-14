@@ -1,4 +1,4 @@
-import { cn } from "../../lib/core/index.ts";
+import { cn } from "@lib/core";
 import { Toggle } from "@web/ui";
 
 // A group of buttons of which exactly one is pressed (Cards | Sort, Link | Social): the pressed one is filled.

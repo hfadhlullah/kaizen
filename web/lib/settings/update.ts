@@ -2,7 +2,7 @@
 // and the requests behind Check for updates, Update and Install. The server upgrades and starts a board on the new
 // version, which replaces this one; the hello with its new boot id reloads the page (board/live.ts).
 import { create } from "zustand";
-import { ask, post, toast } from "../core/index.ts";
+import { ask, post, toast } from "@lib/core";
 
 export type Version = {
   version: string;

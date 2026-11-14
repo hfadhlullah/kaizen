@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { cn } from "../../lib/core/index.ts";
+import { cn } from "@lib/core";
 import { Icon } from "@web/ui";
 
 // A small pill in the Sources header: a setting to open (the check interval) or a service that is connected, with an

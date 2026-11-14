@@ -17,10 +17,10 @@ import {
   toggleMore,
   useOnboarding,
   type Cfg,
-} from "../../lib/home/index.ts";
-import { cn } from "../../lib/core/index.ts";
+} from "@lib/home";
+import { cn } from "@lib/core";
 import { Button, Dialog, DialogContent, DialogDescription, DialogTitle, Icon } from "@web/ui";
-import { PhoneCard } from "../phone/index.ts";
+import { PhoneCard } from "@components/phone";
 
 const MOD = typeof navigator !== "undefined" && /Mac|iP(hone|ad)/.test(navigator.platform) ? "⌘" : "Ctrl";
 

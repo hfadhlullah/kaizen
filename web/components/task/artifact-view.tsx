@@ -1,14 +1,6 @@
 import { useEffect, useRef } from "react";
-import {
-  useLiveFrame,
-  useSavedText,
-  artifactMode,
-  isLive,
-  sizeLabel,
-  type TaskArtifact,
-  wireZoom,
-} from "../../lib/task/index.ts";
-import { cn } from "../../lib/core/index.ts";
+import { useLiveFrame, useSavedText, artifactMode, isLive, sizeLabel, type TaskArtifact, wireZoom } from "@lib/task";
+import { cn } from "@lib/core";
 import { Button } from "@web/ui";
 
 const soft = "rounded-md border border-[color:color-mix(in_srgb,var(--line)_40%,transparent)]";

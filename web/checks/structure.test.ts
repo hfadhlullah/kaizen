@@ -138,9 +138,16 @@ const BRIDGE_DIRECT = [
   "board/update.ts",
 ];
 const isTest = (name: string) => /\.test\.tsx?$/.test(name);
-// "@web/x" is web/x (tsconfig paths); everything else relative.
-const isLocal = (spec: string) => spec.startsWith(".") || spec.startsWith("@web/");
-const resolveSpec = (file: string, spec: string) => (spec.startsWith("@web/") ? join(web, spec.slice(5)) : resolve(dirname(file), spec));
+// Aliases (tsconfig paths): "@web/x" is web/x, "@lib/x" is web/lib/x, "@components/x" is web/components/x. A path with
+// no file extension is a folder and means its index.ts. Everything else is relative.
+const ALIASES: Record<string, string> = { "@web/": "", "@lib/": "lib/", "@components/": "components/" };
+const aliasOf = (spec: string) => Object.keys(ALIASES).find((a) => spec.startsWith(a));
+const isLocal = (spec: string) => spec.startsWith(".") || aliasOf(spec) !== undefined;
+const resolveSpec = (file: string, spec: string) => {
+  const a = aliasOf(spec);
+  const path = a !== undefined ? join(web, ALIASES[a], spec.slice(a.length)) : resolve(dirname(file), spec);
+  return /\.[jt]sx?$/.test(path) ? path : join(path, "index.ts");
+};
 const norm = (p: string) => p.split(/[\\/]/).join("/");
 const featureOf = (rel: string) => rel.match(/^((?:components|lib)\/[^/]+)\/[^/]+$/)?.[1] ?? null;
 

@@ -1,6 +1,6 @@
 import { Command as CommandPrimitive } from "cmdk";
 import type { ComponentProps } from "react";
-import { cn } from "../lib/core/utils.ts";
+import { cn } from "@lib/core/utils.ts";
 
 // A searchable list: the type-to-filter part of the Picker.
 export const Command = ({ className, ...props }: ComponentProps<typeof CommandPrimitive>) => (

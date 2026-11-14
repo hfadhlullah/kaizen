@@ -7,7 +7,7 @@ import {
   olderThan,
   type Card,
   toast,
-} from "../../lib/core/index.ts";
+} from "@lib/core";
 import {
   archiveMany,
   closeForm,
@@ -16,12 +16,12 @@ import {
   setBoard,
   setTab,
   useBoard,
-} from "../../lib/board/index.ts";
+} from "@lib/board";
 import { Button, Icon, Tabs, TabsList, TabsTrigger } from "@web/ui";
 import { BoardCard } from "./board-card.tsx";
 import { CardForm } from "./card-form.tsx";
 import { ClearMenu } from "./clear-menu.tsx";
-import { IconButton } from "../shared/index.ts";
+import { IconButton } from "@components/shared";
 import { RunForm } from "./run-form.tsx";
 import { SeverityMenu } from "./severity-menu.tsx";
 import { TaskForm } from "./task-form.tsx";

@@ -9,8 +9,8 @@ import {
   TOOL_NAME,
   usageText,
   whoText,
-} from "../../lib/settings/index.ts";
-import { cn } from "../../lib/core/index.ts";
+} from "@lib/settings";
+import { cn } from "@lib/core";
 import { Button } from "@web/ui";
 import { CommitInput } from "./commit-input.tsx";
 

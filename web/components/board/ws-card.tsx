@@ -1,5 +1,5 @@
-import type { WsCard as Ws } from "../../lib/board/index.ts";
-import { ProjectMark } from "../shared/index.ts";
+import type { WsCard as Ws } from "@lib/board";
+import { ProjectMark } from "@components/shared";
 
 // A workspace on the Board's Workspaces mode: its status dot, branch or name, project and what its newest run says.
 // Pressing it opens the workspace in place (`kz-open-ws`, which the board answers); a modified click keeps the link.

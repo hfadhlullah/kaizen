@@ -3,8 +3,8 @@
 // half-done flow can be continued from the side menu's Setup row or the "Continue setup?" popup. Existing users, who have a
 // project, never see it. This file is its rules and requests; components/home/onboarding-dialog.tsx draws it.
 import { create } from "zustand";
-import { openAdd } from "../project/index.ts";
-import { ask } from "../core/index.ts";
+import { openAdd } from "@lib/project";
+import { ask } from "@lib/core";
 
 export type Cfg = {
   show: boolean;

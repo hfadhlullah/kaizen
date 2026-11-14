@@ -1,6 +1,6 @@
 // Everything the Source control tab asks the server to do, one place: the same routes and payloads the old tab sent
 // (/stage, /commit, /commit-message, /pr). A step that needs a second look opens its inline form or confirm first.
-import { post, cardKey, host, toast } from "../core/index.ts";
+import { post, cardKey, host, toast } from "@lib/core";
 import { DONE, type StepId } from "./git.ts";
 import { getGit, gitUi, patchUi, resetUi, runOf, setGit, type GitAsk, type GitConfirm } from "./git-store.ts";
 

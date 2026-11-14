@@ -1,6 +1,6 @@
-import { cleanup, useSettings } from "../../lib/settings/index.ts";
+import { cleanup, useSettings } from "@lib/settings";
 import { Button } from "@web/ui";
-import { Field } from "../shared/index.ts";
+import { Field } from "@components/shared";
 
 // Settings → General → Storage: the two halves of `kaizen prune`, one button each, so clearing dead launch records
 // never takes run history with it.

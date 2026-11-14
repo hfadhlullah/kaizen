@@ -1,7 +1,7 @@
 import { useRef } from "react";
-import { toast } from "../../lib/core/index.ts";
+import { toast } from "@lib/core";
 import { Button, Textarea } from "@web/ui";
-import { FormFrame } from "../shared/index.ts";
+import { FormFrame } from "@components/shared";
 
 // Answer a task's question in the agent's own words, as from the task page. An empty answer says so.
 export function TaskReplyForm({

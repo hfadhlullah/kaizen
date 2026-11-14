@@ -1,4 +1,4 @@
-import { run, useRunView } from "../../lib/run/index.ts";
+import { run, useRunView } from "@lib/run";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger, Icon } from "@web/ui";
 
 // What a pane's header holds (the header element, its handle for dragging, belongs to the old code): the title, a menu

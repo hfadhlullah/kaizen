@@ -1,16 +1,8 @@
 import { useEffect, useRef } from "react";
-import {
-  sameName,
-  short,
-  type Board,
-  pickCaptureBoard,
-  saveCapture,
-  patchCap,
-  useIce,
-} from "../../lib/icebox/index.ts";
-import { useNarrow } from "../../lib/shared/index.ts";
+import { sameName, short, type Board, pickCaptureBoard, saveCapture, patchCap, useIce } from "@lib/icebox";
+import { useNarrow } from "@lib/shared";
 import { Button, Icon, Textarea } from "@web/ui";
-import { ClientMark, IconButton, MicButton, Picker, ProjectMark } from "../shared/index.ts";
+import { ClientMark, IconButton, MicButton, Picker, ProjectMark } from "@components/shared";
 
 const NEW = "\n";
 // The capture box: what is typed, pasted, attached or dictated lands in the icebox on the picked collection. In All

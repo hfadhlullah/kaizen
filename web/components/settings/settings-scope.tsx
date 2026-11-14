@@ -1,4 +1,4 @@
-import { pickScope, useSettings } from "../../lib/settings/index.ts";
+import { pickScope, useSettings } from "@lib/settings";
 import { Icon, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@web/ui";
 
 const last = (p: string) => p.split(/[\\/]/).filter(Boolean).pop() ?? p;

@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { agentMark, closeSheet, useSheet, type NewSheet, type PickSheet } from "../../lib/phone/index.ts";
+import { agentMark, closeSheet, useSheet, type NewSheet, type PickSheet } from "@lib/phone";
 import { Icon, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, BottomSheetContent, Sheet, SheetDescription, SheetTitle, Switch } from "@web/ui";
-import { StateDot } from "../shared/index.ts";
+import { StateDot } from "@components/shared";
 
 const mark = (agent: string) => agentMark(agent, (id) => !!document.getElementById(id));
 const rowCls =

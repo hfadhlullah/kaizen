@@ -1,5 +1,5 @@
 import { Fragment, type ReactNode } from "react";
-import { cn } from "../../lib/core/index.ts";
+import { cn } from "@lib/core";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, Icon } from "@web/ui";
 import { IconButton } from "./icon-button.tsx";
 

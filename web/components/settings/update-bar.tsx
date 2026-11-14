@@ -10,7 +10,7 @@ import {
   upgrade,
   useUpdate,
   type Version,
-} from "../../lib/settings/index.ts";
+} from "@lib/settings";
 import { Button, Popover, PopoverContent, PopoverTrigger } from "@web/ui";
 
 // The Update button, shared by the About bar and the card: asks first, then shows what is happening.

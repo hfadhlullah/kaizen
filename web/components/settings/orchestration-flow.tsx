@@ -1,4 +1,4 @@
-import { useSettings } from "../../lib/settings/index.ts";
+import { useSettings } from "@lib/settings";
 
 // The plan reaches the conductor, which hands out tasks; workers bring work back; it goes on to review. Joined by beams of
 // light. currentColor and var(--accent), so it follows light and dark. CSS only; with reduced motion the lines stay lit.

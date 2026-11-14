@@ -1,4 +1,4 @@
-import { newChat, openHome as open, popOut, setSide, syncHere, takeHandoff, useHome } from "../lib/home/index.ts";
+import { newChat, openHome as open, popOut, setSide, syncHere, takeHandoff, useHome } from "@lib/home";
 import { $ } from "./dom.ts";
 import { react } from "./views.ts";
 

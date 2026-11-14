@@ -1,6 +1,6 @@
 // How the Icebox page moves around: what a click on a row, a card, a chip or a bulk bar changes in the page's own
 // state (open item, cursor, checked items, filters). No requests are made here (those are icebox-actions.ts).
-import { host } from "../core/index.ts";
+import { host } from "@lib/core";
 import { iceKey, sameName, type Board, type IceItem } from "./icebox.ts";
 import { patchCap, setIce } from "./icebox-store.ts";
 

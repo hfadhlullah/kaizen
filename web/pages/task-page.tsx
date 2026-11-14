@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { ActionMenu, ConfirmDialog, EmptyState, IconButton } from "../components/shared/index.ts";
+import { ActionMenu, ConfirmDialog, EmptyState, IconButton } from "@components/shared";
 import {
   ChatBubble,
   ResultChecks,
   ResultView,
   StatusBadge,
   TypingDots,
-} from "../components/task/index.ts";
-import { DecisionBar } from "../components/decision/index.ts";
+} from "@components/task";
+import { DecisionBar } from "@components/decision";
 import {
   runAction,
   sendMessage,
@@ -23,8 +23,8 @@ import {
   sortedResults,
   taskStatus,
   visibleMessages,
-} from "../lib/task/index.ts";
-import { host, useStore, cn } from "../lib/core/index.ts";
+} from "@lib/task";
+import { host, useStore, cn } from "@lib/core";
 import { Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Textarea } from "@web/ui";
 
 const ACCEPT_HINT = "Accepting a result does not publish it. A preview alone does not prove that a backend works.";

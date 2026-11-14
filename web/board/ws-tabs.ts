@@ -221,4 +221,4 @@ export function agentsHtml(rows: ARow[], now: number, open: boolean, dir: string
   return html`<div class="wag"><span class="chips">${chips.map((g) => html`<span class="chip">${dot(g.st)}${g.rs.map((r) => html`<button type="button" class="amark" data-term="${r.a.key}" ${at} title="${r.a.name} - ${WORD[g.st]}: open its terminal" aria-label="${r.a.name} - ${WORD[g.st]}: open its terminal">${mark(r.a)}</button>`)}</span>`)}</span>${chev}</div>`;
 }
 
-export { branchSlug } from "../lib/project/branch.ts";
+export { branchSlug } from "@lib/project/branch.ts";

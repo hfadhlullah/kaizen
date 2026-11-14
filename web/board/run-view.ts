@@ -8,7 +8,7 @@
 // kzTerm mounts on /pty that live as long as their tab, so a tab switch or a /state tick never
 // reconnects them. Split right or down shows a second tab beside the first, sized with the
 // Terminal page's handles.
-import { ask } from "../lib/core/index.ts";
+import { ask } from "@lib/core";
 import { pick } from "./projects.ts";
 import { store } from "./store.ts";
 import { toast } from "./toast.ts";
@@ -26,7 +26,7 @@ import { go } from "./views.ts";
 import { isPhone } from "./phone.ts";
 import { annotator } from "./annotate.ts";
 import { react } from "./views.ts";
-import { run, setRunActions, setRunView } from "../lib/run/index.ts";
+import { run, setRunActions, setRunView } from "@lib/run";
 
 type Tab = { id: string; kind: "agent" | "shell" | "local" | "preview" | "note" | "wait" | "history"; title: string; key?: string; note?: string; agent?: string };
 // Per workspace: the extra items opened (localhost, preview, notes, History),

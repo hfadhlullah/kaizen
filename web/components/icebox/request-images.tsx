@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { pictures, type IceItem } from "../../lib/icebox/index.ts";
+import { pictures, type IceItem } from "@lib/icebox";
 
 // A request's pictures. They load only when asked: fetching one tells its host the item was opened.
 export function RequestImages({ item, card }: { item: IceItem; card?: boolean }) {

@@ -1,8 +1,8 @@
 // What the Board's forms and menus ask the server to do. Routes and payloads are the old board's (cards.ts):
 // /inbox, /note, /backlog, /abort, /run, /archive and GET /agents. Components call these; nothing here draws.
-import { post, cardKey, type Card, host, toast } from "../core/index.ts";
+import { post, cardKey, type Card, host, toast } from "@lib/core";
 import { getBoard, setBoard, type RunPick } from "./board-store.ts";
-import { where } from "../run/index.ts";
+import { where } from "@lib/run";
 
 export type AgentChoice = {
   cmd: string;

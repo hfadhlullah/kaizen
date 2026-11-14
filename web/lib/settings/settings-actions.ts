@@ -1,6 +1,6 @@
 // Every request Settings makes, with the same routes and payloads the old page sent. A save toasts the server's words
 // and reads the page again, so what shows is what the server kept.
-import { ask, post, host, toast } from "../core/index.ts";
+import { ask, post, host, toast } from "@lib/core";
 import { getSettings, loadSettings, setSettings } from "./settings-store.ts";
 
 const reload = () => loadSettings();

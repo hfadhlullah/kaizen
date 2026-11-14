@@ -10,14 +10,14 @@ import {
   setIce,
   toggleOpen,
   toggleSel,
-} from "../../lib/icebox/index.ts";
-import { cn } from "../../lib/core/index.ts";
+} from "@lib/icebox";
+import { cn } from "@lib/core";
 import { Checkbox } from "@web/ui";
 import { BoardMenu } from "./board-menu.tsx";
 import { Favicon } from "./favicon.tsx";
 import { KindLabel } from "./kind-label.tsx";
 import { KindMenu } from "./kind-menu.tsx";
-import { ProjectMark } from "../shared/index.ts";
+import { ProjectMark } from "@components/shared";
 import { RequestActions } from "./request-actions.tsx";
 import { RequestBadges } from "./request-badges.tsx";
 import { RequestDetail } from "./request-detail.tsx";

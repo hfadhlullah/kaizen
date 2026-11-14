@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { host, toast, cn } from "../../lib/core/index.ts";
+import { host, toast, cn } from "@lib/core";
 import {
   call,
   childPath,
@@ -10,9 +10,9 @@ import {
   workspaceBranch,
   type Start,
   branchSlug,
-} from "../../lib/project/index.ts";
+} from "@lib/project";
 import { Button, Checkbox, Dialog, DialogContent, DialogTitle, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@web/ui";
-import { Field } from "../shared/index.ts";
+import { Field } from "@components/shared";
 
 type View = Start | "menu";
 const MOD = typeof navigator !== "undefined" && /Mac/.test(navigator.platform) ? "⌘" : "Ctrl";

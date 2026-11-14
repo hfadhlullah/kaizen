@@ -1,6 +1,6 @@
-import { statusIcon, wordOf, type Card, brief, host } from "../../lib/core/index.ts";
-import { getBoard, setBoard, useBoard } from "../../lib/board/index.ts";
-import { StatusMark } from "../shared/index.ts";
+import { statusIcon, wordOf, type Card, brief, host } from "@lib/core";
+import { getBoard, setBoard, useBoard } from "@lib/board";
+import { StatusMark } from "@components/shared";
 
 // The cards a run filed, folded into its card: "N children · M done", an orange dot when one waits on you, and a
 // row per child that opens that child's own panel.

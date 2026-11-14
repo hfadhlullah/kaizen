@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { listMics, saveMic, savedMic } from "../../lib/settings/index.ts";
+import { listMics, saveMic, savedMic } from "@lib/settings";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@web/ui";
-import { Field } from "../shared/index.ts";
+import { Field } from "@components/shared";
 
 // Dictation's microphone, per browser. No choice means the system default (Radix needs a value, so "" is "default").
 const DEFAULT = "default";

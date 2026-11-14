@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getText } from "../core/index.ts";
+import { getText } from "@lib/core";
 import { TEXT_LIMIT } from "./task-results.ts";
 
 // A saved text output, fetched when its viewer opens; over 1 MB is cut short.

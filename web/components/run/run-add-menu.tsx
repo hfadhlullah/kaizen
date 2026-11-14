@@ -1,5 +1,5 @@
 import { useEffect, useState, type KeyboardEvent, type ReactElement } from "react";
-import { run, setRunView, useRunView, type RvMenu } from "../../lib/run/index.ts";
+import { run, setRunView, useRunView, type RvMenu } from "@lib/run";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, Icon, Switch } from "@web/ui";
 
 // The agents with their own mark in the sprite; the rest show the generic one.

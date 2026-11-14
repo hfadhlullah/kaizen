@@ -1,6 +1,6 @@
-import { automationOp, setDraft, useSettings } from "../../lib/settings/index.ts";
+import { automationOp, setDraft, useSettings } from "@lib/settings";
 import { Button, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Switch, Textarea } from "@web/ui";
-import { Field } from "../shared/index.ts";
+import { Field } from "@components/shared";
 
 const when = (t: number) =>
   new Date(t).toLocaleString([], {

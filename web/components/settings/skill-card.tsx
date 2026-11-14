@@ -1,14 +1,6 @@
 import { createElement } from "react";
-import {
-  AGENT_FAVICONS,
-  reaNode,
-  reaSwitch,
-  repairSkill,
-  setSkill,
-  useSettings,
-  skillShapes,
-} from "../../lib/settings/index.ts";
-import { cn } from "../../lib/core/index.ts";
+import { AGENT_FAVICONS, reaNode, reaSwitch, repairSkill, setSkill, useSettings, skillShapes } from "@lib/settings";
+import { cn } from "@lib/core";
 import { Button, Switch } from "@web/ui";
 
 const WORD: Record<string, string> = { installed: "installed", missing: "missing", other: "your own copy" };

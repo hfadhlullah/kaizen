@@ -6,7 +6,7 @@ import { iceKey, isLive, type IceItem } from "./icebox.ts";
 import { armPromote, bulkDo, exitSwipe, iceAct, snoozeAll, swGo, swUndo } from "./icebox-actions.ts";
 import { getIce, setIce } from "./icebox-store.ts";
 import { toggleOpen, toggleSel } from "./icebox-view.ts";
-import { getStore } from "../core/index.ts";
+import { getStore } from "@lib/core";
 import { flyCard } from "./use-card-drag.ts";
 
 // An open popup (menu, popover, picker, select, dialog, the drawer) keeps its own keys; Radix marks them data-state=open.

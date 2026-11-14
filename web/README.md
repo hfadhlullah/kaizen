@@ -80,6 +80,8 @@ pages/  ->  components/<feature>/  ->  ui/  ->  lib/core/utils.ts
 - **Core's type imports.** `lib/core/api.ts` and `store.ts` use `import type` from `lib/task` and
   `lib/icebox` for data shapes; erased at build, so no runtime cycle.
 
-## Importing the kit
-Import ui pieces from the barrel through the `@web` alias (tsconfig `paths`, resolved by Bun):
-`import { Button, Icon } from "@web/ui";` — never `../../ui/button.tsx`. New ui files get one line in `web/ui/index.ts`.
+## Imports
+Across folders always use an alias (tsconfig `paths`, resolved by Bun), never `../../`:
+`import { Button } from "@web/ui"`, `import { useGit } from "@lib/git"`, `import { ActionMenu } from "@components/shared"`.
+A folder alias means its `index.ts`; a file alias keeps its extension (`@lib/core/labels.ts`, only the listed bridge files).
+Inside one folder import siblings relatively (`./card-footer.tsx`). New ui files get one line in `web/ui/index.ts`.

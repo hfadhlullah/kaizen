@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { match } from "../lib/search/search-match.ts";
+import { match } from "@lib/search/search-match.ts";
 
 const it = (title: string, at = 0, hay = "") => ({ group: "g", title, hay, at, ico: "run", act: () => {} });
 

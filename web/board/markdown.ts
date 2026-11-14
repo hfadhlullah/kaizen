@@ -20,9 +20,9 @@ export const attach = (t, c) =>
     return `${label} (\`${p}\`)`;
   });
 export const commitMsg = (impl) => (section(impl, "Commit") || "").replace(/^```\w*\n|\n```$/g, "").trim();
-import { planQuestions } from "../lib/decision/index.ts";
+import { planQuestions } from "@lib/decision";
 export { planQuestions };
-import { brief } from "../lib/core/index.ts";
+import { brief } from "@lib/core";
 export { brief };
 
 // Enough markdown for kaizen's own files: headings, lists, fences, tables,

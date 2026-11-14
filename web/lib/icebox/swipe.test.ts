@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { setHost } from "../core/host.ts";
+import { setHost } from "@lib/core/host.ts";
 import { swGo } from "./icebox-actions.ts";
 import { getIce, setIce } from "./icebox-store.ts";
 

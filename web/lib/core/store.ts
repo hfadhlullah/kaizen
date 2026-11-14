@@ -1,7 +1,7 @@
 // The Tasks pages' shared state (Zustand). Server data lives here, fed by lib/hooks; what only one
 // component cares about (an open popup, a hovered row) stays in that component.
 import { create } from "zustand";
-import type { TaskPageData, TaskView } from "../task/index.ts";
+import type { TaskPageData, TaskView } from "@lib/task";
 
 export type Store = {
   // Which React page is showing; set by the board's view switch (web/board/react-mount.ts).
