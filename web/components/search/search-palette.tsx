@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { shownRows, useSearch } from "../../lib/search/index.ts";
 import type { Item } from "../../lib/search/index.ts";
-import { Command, CommandGroup, CommandInput, CommandItem, CommandList } from "../../ui/command.tsx";
-import { Dialog, DialogContent, DialogTitle } from "../../ui/dialog.tsx";
+import { Command, CommandGroup, CommandInput, CommandItem, CommandList, Dialog, DialogContent, DialogTitle } from "@web/ui";
 import { StateDot } from "../shared/index.ts";
 
 const ICO: Record<string, ReactNode> = {

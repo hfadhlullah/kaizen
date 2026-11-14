@@ -1,11 +1,4 @@
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogTitle,
-} from "../../ui/alert-dialog.tsx";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogTitle } from "@web/ui";
 
 // "Delete this task?": one question, Cancel and one confirming button. Closing by Escape or the backdrop cancels.
 export function ConfirmDialog({

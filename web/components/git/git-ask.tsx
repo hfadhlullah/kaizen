@@ -1,8 +1,6 @@
 import { busyOf, useGit, gitUi, patchUi, ask, gitAct } from "../../lib/git/index.ts";
 import { cardKey } from "../../lib/core/index.ts";
-import { Button } from "../../ui/button.tsx";
-import { Input } from "../../ui/input.tsx";
-import { Textarea } from "../../ui/textarea.tsx";
+import { Button, Input, Textarea } from "@web/ui";
 import { Field } from "../shared/index.ts";
 
 const head = "flex items-center gap-1.5 text-sm font-semibold";

@@ -1,6 +1,6 @@
 import { closePopup, useBoard } from "../../lib/board/index.ts";
 import { host, cn } from "../../lib/core/index.ts";
-import { Dialog, DialogContent, DialogTitle } from "../../ui/dialog.tsx";
+import { Dialog, DialogContent, DialogTitle } from "@web/ui";
 import { CardForm } from "./card-form.tsx";
 import { RunForm } from "./run-form.tsx";
 import { TaskForm } from "./task-form.tsx";

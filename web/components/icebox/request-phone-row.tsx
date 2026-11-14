@@ -18,8 +18,7 @@ import {
   useRowSwipe,
 } from "../../lib/icebox/index.ts";
 import { cn } from "../../lib/core/index.ts";
-import { Button } from "../../ui/button.tsx";
-import { Icon } from "../../ui/icon.tsx";
+import { Button, Icon } from "@web/ui";
 import { KindLabel } from "./kind-label.tsx";
 import { KindMenu } from "./kind-menu.tsx";
 import { ProjectMark } from "../shared/index.ts";

@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef } from "react";
 import { gitAct, busyOf, useGit } from "../../lib/git/index.ts";
 import { cn } from "../../lib/core/index.ts";
-import { Textarea } from "../../ui/textarea.tsx";
+import { Textarea } from "@web/ui";
 import { IconButton } from "../shared/index.ts";
 
 // The commit message, with the AI button that writes one from the changes. It grows with its text; the first line

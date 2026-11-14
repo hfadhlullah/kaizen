@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { addFiles, removeFile, send, stop } from "../../lib/home/index.ts";
 import { pastedFiles } from "../../lib/shared/index.ts";
 import { cn } from "../../lib/core/index.ts";
-import { Icon } from "../../ui/icon.tsx";
+import { Icon } from "@web/ui";
 import { AttachButton, IconButton } from "../shared/index.ts";
 
 const DK = "kz-d:";

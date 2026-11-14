@@ -1,6 +1,6 @@
 import { usePanel } from "../../lib/run/index.ts";
 import { cn } from "../../lib/core/index.ts";
-import { Icon } from "../../ui/icon.tsx";
+import { Icon } from "@web/ui";
 
 // The run panel's tabs: a column of icons beside the panel (the name is the tooltip and the accessible name), or, in a
 // narrow window outside the run workspace, a row of words. Where the strip sits is the board's CSS (the `col` variant).

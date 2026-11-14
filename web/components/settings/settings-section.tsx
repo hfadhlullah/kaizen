@@ -1,6 +1,6 @@
 import { loadSettings } from "../../lib/settings/index.ts";
 import type { Section } from "../../lib/settings/index.ts";
-import { Button } from "../../ui/button.tsx";
+import { Button } from "@web/ui";
 import { SettingsItem } from "./settings-item.tsx";
 
 // A subsection: its name over a rounded box with hairline dividers between rows. A section with no name (Orchestration's

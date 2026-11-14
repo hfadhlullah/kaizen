@@ -1,7 +1,6 @@
 import { useRef } from "react";
 import { toast } from "../../lib/core/index.ts";
-import { Button } from "../../ui/button.tsx";
-import { Textarea } from "../../ui/textarea.tsx";
+import { Button, Textarea } from "@web/ui";
 import { FormFrame } from "../shared/index.ts";
 
 const box =

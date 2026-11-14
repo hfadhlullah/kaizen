@@ -1,7 +1,6 @@
 import { runsIn, type Msg } from "../../lib/home/index.ts";
 import { host, cn } from "../../lib/core/index.ts";
-import { Button } from "../../ui/button.tsx";
-import { Icon } from "../../ui/icon.tsx";
+import { Button, Icon } from "@web/ui";
 import { Markdown } from "../markdown/index.ts";
 
 const stepIcon = (k?: string) => (k === "edit" ? "note" : k === "project" ? "board" : "term");

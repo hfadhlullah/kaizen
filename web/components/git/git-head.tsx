@@ -10,7 +10,7 @@ import {
   gitAct,
 } from "../../lib/git/index.ts";
 import { cn } from "../../lib/core/index.ts";
-import { Icon } from "../../ui/icon.tsx";
+import { Icon } from "@web/ui";
 import { GitCounts } from "./git-counts.tsx";
 import { IconButton } from "../shared/index.ts";
 

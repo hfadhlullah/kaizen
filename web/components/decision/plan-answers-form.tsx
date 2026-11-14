@@ -1,7 +1,6 @@
 import { useState } from "react";
 import type { PlanQuestion } from "../../lib/decision/index.ts";
-import { Button } from "../../ui/button.tsx";
-import { Input } from "../../ui/input.tsx";
+import { Button, Input } from "@web/ui";
 import { FormFrame } from "../shared/index.ts";
 
 // The plan's questions, answered with the approval: the recommended option preselected (else the first, for a single

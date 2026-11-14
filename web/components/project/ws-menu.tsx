@@ -1,5 +1,5 @@
 import { closeWsMenu, useWsMenu } from "../../lib/project/index.ts";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../../ui/dropdown-menu.tsx";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@web/ui";
 
 // A menu where the pointer was: the trigger is a point, so the menu opens at the click like a context menu.
 export function WsMenu() {

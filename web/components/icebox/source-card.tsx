@@ -16,11 +16,7 @@ import {
   setWriteBack,
 } from "../../lib/icebox/index.ts";
 import { host, cn } from "../../lib/core/index.ts";
-import { Button } from "../../ui/button.tsx";
-import { Icon } from "../../ui/icon.tsx";
-import { Input } from "../../ui/input.tsx";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../ui/select.tsx";
-import { Switch } from "../../ui/switch.tsx";
+import { Button, Icon, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Switch } from "@web/ui";
 import { Favicon } from "./favicon.tsx";
 import { Field, IconButton, ProjectMark } from "../shared/index.ts";
 

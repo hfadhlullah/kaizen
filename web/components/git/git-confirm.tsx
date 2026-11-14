@@ -1,13 +1,6 @@
 import { useEffect } from "react";
 import { runOf, setGit, useGit } from "../../lib/git/index.ts";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogTitle,
-} from "../../ui/alert-dialog.tsx";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogTitle } from "@web/ui";
 import { GitIcon } from "./git-icon.tsx";
 
 // The two questions the tab asks in a dialog: discard changes (the file named, Cancel or Discard), and the preflight that

@@ -1,6 +1,6 @@
 import { isImage, isLegacyResult, storedUrl, webUrl, type TaskResult } from "../../lib/task/index.ts";
 import { cn } from "../../lib/core/index.ts";
-import { Spinner } from "../../ui/spinner.tsx";
+import { Spinner } from "@web/ui";
 import { ArtifactView } from "./artifact-view.tsx";
 
 // What the task made: the building state, an empty promise, or the selected result with its outputs rail and

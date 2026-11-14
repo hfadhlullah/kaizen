@@ -1,8 +1,5 @@
 import { useId, useRef, useState } from "react";
-import { Button } from "../../ui/button.tsx";
-import { Checkbox } from "../../ui/checkbox.tsx";
-import { Dialog, DialogContent, DialogTitle } from "../../ui/dialog.tsx";
-import { Input } from "../../ui/input.tsx";
+import { Button, Checkbox, Dialog, DialogContent, DialogTitle, Input } from "@web/ui";
 import { Field } from "../shared/index.ts";
 
 // A new collection: its name and whether it is a client's (its items then count as Client). `onDone` gets the answer,

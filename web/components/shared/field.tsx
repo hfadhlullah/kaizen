@@ -1,6 +1,6 @@
 import { useId, type ReactNode } from "react";
 import { cn } from "../../lib/core/index.ts";
-import { Label } from "../../ui/label.tsx";
+import { Label } from "@web/ui";
 
 type ControlProps = { id: string; "aria-describedby"?: string; "aria-invalid"?: boolean };
 // Label above, the control, then help in the dim colour, then an error in the danger colour. The control is

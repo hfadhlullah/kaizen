@@ -1,5 +1,4 @@
-import { Button } from "../../ui/button.tsx";
-import { Icon } from "../../ui/icon.tsx";
+import { Button, Icon } from "@web/ui";
 
 // What can be done to the checked requests at once: promote (one task each), snooze a week, dismiss, or clear.
 export function BulkBar({

@@ -25,9 +25,7 @@ import {
   visibleMessages,
 } from "../lib/task/index.ts";
 import { host, useStore, cn } from "../lib/core/index.ts";
-import { Button } from "../ui/button.tsx";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select.tsx";
-import { Textarea } from "../ui/textarea.tsx";
+import { Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Textarea } from "@web/ui";
 
 const ACCEPT_HINT = "Accepting a result does not publish it. A preview alone does not prove that a backend works.";
 const caps = "text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground";

@@ -13,7 +13,7 @@ import {
 } from "../lib/task/index.ts";
 import { usePager } from "../lib/shared/index.ts";
 import { host, setStore, useStore } from "../lib/core/index.ts";
-import { Button } from "../ui/button.tsx";
+import { Button } from "@web/ui";
 
 // The attention-first list of durable tasks. The board's own search box, tools slot and New task button are
 // docked into it while it shows (lib/task/use-dock.ts), so the page has no header of its own.

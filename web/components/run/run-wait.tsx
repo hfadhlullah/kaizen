@@ -1,6 +1,5 @@
 import { run } from "../../lib/run/index.ts";
-import { Button } from "../../ui/button.tsx";
-import { Icon } from "../../ui/icon.tsx";
+import { Button, Icon } from "@web/ui";
 import { EmptyState } from "../shared/index.ts";
 
 // The tab of a run whose own agent session is open in another terminal: one conversation cannot run in two places.

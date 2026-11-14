@@ -11,8 +11,7 @@ import {
   useUpdate,
   type Version,
 } from "../../lib/settings/index.ts";
-import { Button } from "../../ui/button.tsx";
-import { Popover, PopoverContent, PopoverTrigger } from "../../ui/popover.tsx";
+import { Button, Popover, PopoverContent, PopoverTrigger } from "@web/ui";
 
 // The Update button, shared by the About bar and the card: asks first, then shows what is happening.
 function UpdateButton({ v, label }: { v: Version; label: string }) {

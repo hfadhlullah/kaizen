@@ -8,8 +8,7 @@ import {
   setTyped,
   useSettings,
 } from "../../lib/settings/index.ts";
-import { Button } from "../../ui/button.tsx";
-import { Input } from "../../ui/input.tsx";
+import { Button, Input } from "@web/ui";
 import { Field } from "../shared/index.ts";
 
 const wide = "w-60 @max-[520px]:w-full";

@@ -1,6 +1,6 @@
 import type { Chip, Mark } from "../../lib/core/index.ts";
 import { cn } from "../../lib/core/index.ts";
-import { Icon } from "../../ui/icon.tsx";
+import { Icon } from "@web/ui";
 
 const chipTone = {
   "": "text-muted-foreground",

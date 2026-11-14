@@ -11,11 +11,7 @@ import {
   type Start,
   branchSlug,
 } from "../../lib/project/index.ts";
-import { Button } from "../../ui/button.tsx";
-import { Checkbox } from "../../ui/checkbox.tsx";
-import { Dialog, DialogContent, DialogTitle } from "../../ui/dialog.tsx";
-import { Input } from "../../ui/input.tsx";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../ui/select.tsx";
+import { Button, Checkbox, Dialog, DialogContent, DialogTitle, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@web/ui";
 import { Field } from "../shared/index.ts";
 
 type View = Start | "menu";

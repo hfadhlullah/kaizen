@@ -1,9 +1,5 @@
 import { automationOp, setDraft, useSettings } from "../../lib/settings/index.ts";
-import { Button } from "../../ui/button.tsx";
-import { Input } from "../../ui/input.tsx";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../ui/select.tsx";
-import { Switch } from "../../ui/switch.tsx";
-import { Textarea } from "../../ui/textarea.tsx";
+import { Button, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Switch, Textarea } from "@web/ui";
 import { Field } from "../shared/index.ts";
 
 const when = (t: number) =>

@@ -3,7 +3,7 @@ import type { GitRow as Row } from "../../lib/git/index.ts";
 import { cn } from "../../lib/core/index.ts";
 import { GitCounts } from "./git-counts.tsx";
 import { GitIcon } from "./git-icon.tsx";
-import { Icon } from "../../ui/icon.tsx";
+import { Icon } from "@web/ui";
 import { IconButton } from "../shared/index.ts";
 
 const small =

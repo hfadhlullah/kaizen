@@ -10,8 +10,7 @@ import {
   clampFont,
   useSettings,
 } from "../../lib/settings/index.ts";
-import { Input } from "../../ui/input.tsx";
-import { Switch } from "../../ui/switch.tsx";
+import { Input, Switch } from "@web/ui";
 import { Field, Segmented } from "../shared/index.ts";
 import { Stepper } from "./stepper.tsx";
 

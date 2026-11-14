@@ -11,7 +11,7 @@ import {
   whoText,
 } from "../../lib/settings/index.ts";
 import { cn } from "../../lib/core/index.ts";
-import { Button } from "../../ui/button.tsx";
+import { Button } from "@web/ui";
 import { CommitInput } from "./commit-input.tsx";
 
 type Login = { signedIn: boolean; who?: string; plan?: string; via?: string; usage: any; usageKnown?: boolean };

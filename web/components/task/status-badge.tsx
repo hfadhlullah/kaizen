@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { cn } from "../../lib/core/index.ts";
-import { Badge } from "../../ui/badge.tsx";
+import { Badge } from "@web/ui";
 
 type Category = "needs-you" | "in-progress" | "completed";
 const tone = { "needs-you": "warning", completed: "success", "in-progress": "neutral" } as const;

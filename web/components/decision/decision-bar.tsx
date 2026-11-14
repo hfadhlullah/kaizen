@@ -4,14 +4,7 @@ import type { PlanQuestion } from "../../lib/decision/index.ts";
 import { need, toast } from "../../lib/core/index.ts";
 import { APPROVAL } from "../../lib/run/index.ts";
 import { dirName, type TaskDecision, type TaskPageData } from "../../lib/task/index.ts";
-import { Button } from "../../ui/button.tsx";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "../../ui/dropdown-menu.tsx";
+import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@web/ui";
 import { Field, Picker } from "../shared/index.ts";
 import { InlineForm } from "./inline-form.tsx";
 import { PlanAnswersForm } from "./plan-answers-form.tsx";

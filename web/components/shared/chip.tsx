@@ -1,6 +1,6 @@
 import type { ComponentProps } from "react";
 import { cn } from "../../lib/core/index.ts";
-import { Toggle } from "../../ui/toggle.tsx";
+import { Toggle } from "@web/ui";
 
 // A filter or kind chip (.ice-chip): 26px pill with an optional count; pressed is the filled one.
 export function Chip({ count, className, children, ...props }: { count?: number } & ComponentProps<typeof Toggle>) {

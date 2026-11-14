@@ -13,10 +13,7 @@ import {
   useIce,
 } from "../../lib/icebox/index.ts";
 import { cn } from "../../lib/core/index.ts";
-import { Button } from "../../ui/button.tsx";
-import { fieldClass } from "../../ui/input.tsx";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../ui/select.tsx";
-import { Textarea } from "../../ui/textarea.tsx";
+import { Button, fieldClass, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Textarea } from "@web/ui";
 import { Field } from "../shared/index.ts";
 
 const Style = ({ dir, disabled }: { dir: string; disabled: boolean }) => (

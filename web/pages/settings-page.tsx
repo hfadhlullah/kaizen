@@ -19,7 +19,7 @@ import {
   shownPage,
   visibleRows,
 } from "../lib/settings/index.ts";
-import { Icon } from "../ui/icon.tsx";
+import { Icon } from "@web/ui";
 
 // Settings: a sidebar of pages and the page chosen. One page shows at a time (the first with a match while searching,
 // the list of pages on a phone). What each page holds and which control draws it is decided in lib/settings/settings.ts.

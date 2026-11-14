@@ -24,7 +24,7 @@ import {
   type RowCtx,
   type Source,
 } from "../../lib/icebox/icebox.ts";
-import { TooltipProvider } from "../../ui/tooltip.tsx";
+import { TooltipProvider } from "@web/ui";
 
 // The Icebox's rules (lib/icebox/icebox.ts) and its row and card, rendered the way the board renders them.
 const D = "/p/.kaizen";

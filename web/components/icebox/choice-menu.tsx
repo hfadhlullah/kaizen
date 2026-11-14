@@ -1,6 +1,6 @@
 import type { ReactElement, ReactNode } from "react";
 import { cn } from "../../lib/core/index.ts";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../../ui/dropdown-menu.tsx";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@web/ui";
 
 export type Choice = { value: string; label: ReactNode; on?: boolean };
 // A small menu of choices (a request's Kind, its Collection): the current one is marked, a pick closes it. The one

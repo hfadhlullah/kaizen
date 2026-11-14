@@ -9,9 +9,7 @@ import {
   useIce,
 } from "../../lib/icebox/index.ts";
 import { useNarrow } from "../../lib/shared/index.ts";
-import { Button } from "../../ui/button.tsx";
-import { Icon } from "../../ui/icon.tsx";
-import { Textarea } from "../../ui/textarea.tsx";
+import { Button, Icon, Textarea } from "@web/ui";
 import { ClientMark, IconButton, MicButton, Picker, ProjectMark } from "../shared/index.ts";
 
 const NEW = "\n";

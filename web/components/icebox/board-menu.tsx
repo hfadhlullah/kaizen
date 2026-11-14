@@ -2,7 +2,7 @@ import type { ReactElement } from "react";
 import { sameName, type Board, type IceItem, setBoard } from "../../lib/icebox/index.ts";
 import { ChoiceMenu } from "./choice-menu.tsx";
 import { ClientMark } from "../shared/index.ts";
-import { Icon } from "../../ui/icon.tsx";
+import { Icon } from "@web/ui";
 
 // A request's Collection menu: the Inbox, its project's collections, and a new one.
 export function BoardMenu({ item, boards, children }: { item: IceItem; boards: Board[]; children: ReactElement }) {

@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Popover, PopoverContent, PopoverTrigger } from "../../ui/popover.tsx";
+import { Popover, PopoverContent, PopoverTrigger } from "@web/ui";
 import { IconButton } from "./icon-button.tsx";
 
 // The funnel of a list: an icon button with a dot while a filter is on, opening a popup that holds the filters

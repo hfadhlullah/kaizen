@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { markSent, setPanel, usePanel, fixFindings } from "../../lib/run/index.ts";
-import { Button } from "../../ui/button.tsx";
-import { Checkbox } from "../../ui/checkbox.tsx";
+import { Button, Checkbox } from "@web/ui";
 import { cn } from "../../lib/core/index.ts";
 import { InlineMd } from "./inline-md.tsx";
 

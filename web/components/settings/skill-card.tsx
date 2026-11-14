@@ -9,8 +9,7 @@ import {
   skillShapes,
 } from "../../lib/settings/index.ts";
 import { cn } from "../../lib/core/index.ts";
-import { Button } from "../../ui/button.tsx";
-import { Switch } from "../../ui/switch.tsx";
+import { Button, Switch } from "@web/ui";
 
 const WORD: Record<string, string> = { installed: "installed", missing: "missing", other: "your own copy" };
 const AGENT_CMD: Record<string, string> = {

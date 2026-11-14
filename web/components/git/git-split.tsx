@@ -1,14 +1,6 @@
 import { useRef, useState } from "react";
 import { BUSY, type MainStep, type Step, gitAct, busyOf, useGit } from "../../lib/git/index.ts";
-import { Button } from "../../ui/button.tsx";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "../../ui/dropdown-menu.tsx";
-import { Icon } from "../../ui/icon.tsx";
+import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, Icon } from "@web/ui";
 
 // One split button: the main step (Stage all, then Commit, then the next remote step) and a menu with every step,
 // each unavailable one saying why under its name.

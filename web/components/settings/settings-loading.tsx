@@ -1,4 +1,4 @@
-import { Skeleton } from "../../ui/skeleton.tsx";
+import { Skeleton } from "@web/ui";
 
 // The Settings page while it loads: its sidebar and a card of rows, so nothing jumps when it arrives.
 export function SettingsLoading() {

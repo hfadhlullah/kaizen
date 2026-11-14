@@ -9,7 +9,7 @@ import {
   wireZoom,
 } from "../../lib/task/index.ts";
 import { cn } from "../../lib/core/index.ts";
-import { Button } from "../../ui/button.tsx";
+import { Button } from "@web/ui";
 
 const soft = "rounded-md border border-[color:color-mix(in_srgb,var(--line)_40%,transparent)]";
 const dim = "px-0 text-muted-foreground";

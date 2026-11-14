@@ -1,12 +1,5 @@
 import { run, useRunView } from "../../lib/run/index.ts";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "../../ui/dropdown-menu.tsx";
-import { Icon } from "../../ui/icon.tsx";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger, Icon } from "@web/ui";
 
 // What a pane's header holds (the header element, its handle for dragging, belongs to the old code): the title, a menu
 // that moves the pane into another tab or a tab of its own, and × that closes it.

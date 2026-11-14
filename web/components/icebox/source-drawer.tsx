@@ -8,9 +8,7 @@ import {
   setIce,
   useIce,
 } from "../../lib/icebox/index.ts";
-import { Button } from "../../ui/button.tsx";
-import { Icon } from "../../ui/icon.tsx";
-import { Sheet, SheetContent, SheetClose, SheetTitle, SheetDescription } from "../../ui/sheet.tsx";
+import { Button, Icon, Sheet, SheetContent, SheetClose, SheetTitle, SheetDescription } from "@web/ui";
 import { useState } from "react";
 import { IconButton } from "../shared/index.ts";
 import { ServiceChip } from "./service-chip.tsx";

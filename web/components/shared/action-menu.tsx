@@ -1,13 +1,6 @@
 import { Fragment, type ReactNode } from "react";
 import { cn } from "../../lib/core/index.ts";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "../../ui/dropdown-menu.tsx";
-import { Icon } from "../../ui/icon.tsx";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, Icon } from "@web/ui";
 import { IconButton } from "./icon-button.tsx";
 
 export type ActionItem = {

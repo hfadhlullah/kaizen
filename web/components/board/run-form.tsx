@@ -3,11 +3,7 @@ import type { Card } from "../../lib/core/index.ts";
 import { loadAgents, startRun, type Agents } from "../../lib/board/index.ts";
 import type { RunPick } from "../../lib/board/index.ts";
 import { cn } from "../../lib/core/index.ts";
-import { Button } from "../../ui/button.tsx";
-import { Icon } from "../../ui/icon.tsx";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../ui/select.tsx";
-import { Switch } from "../../ui/switch.tsx";
-import { Checkbox } from "../../ui/checkbox.tsx";
+import { Button, Icon, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Switch, Checkbox } from "@web/ui";
 import { FormFrame } from "../shared/index.ts";
 
 const NORMAL = "__normal"; // Radix Select has no empty value: the normal login

@@ -9,10 +9,7 @@ import {
 } from "../../lib/settings/index.ts";
 import { cn } from "../../lib/core/index.ts";
 import type { Agent } from "../../lib/settings/index.ts";
-import { Button } from "../../ui/button.tsx";
-import { Icon } from "../../ui/icon.tsx";
-import { Input } from "../../ui/input.tsx";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../ui/select.tsx";
+import { Button, Icon, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@web/ui";
 import { Chip, Field, IconButton, Segmented } from "../shared/index.ts";
 import { CommitInput } from "./commit-input.tsx";
 

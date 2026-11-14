@@ -15,7 +15,7 @@ import {
 } from "../../lib/core/index.ts";
 import { showCard, openForm, useBoard, type FormMode } from "../../lib/board/index.ts";
 import { archiveCard, backToTask, resumable, resumeRun } from "../../lib/run/index.ts";
-import { Button } from "../../ui/button.tsx";
+import { Button } from "@web/ui";
 import { ActionMenu, StatusMark } from "../shared/index.ts";
 import { CardFooter } from "./card-footer.tsx";
 import { CardKids } from "./card-kids.tsx";

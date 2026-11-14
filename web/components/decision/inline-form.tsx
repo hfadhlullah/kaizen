@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { Button } from "../../ui/button.tsx";
-import { Input } from "../../ui/input.tsx";
+import { Button, Input } from "@web/ui";
 import { Field } from "../shared/index.ts";
 
 // One labelled text field with its submit button beside it ("New project name" + Create project).

@@ -1,9 +1,7 @@
 import { useRef, useState } from "react";
 import { PLAT, addSource, patchDraft, setIce, useIce } from "../../lib/icebox/index.ts";
 import { toast } from "../../lib/core/index.ts";
-import { Button } from "../../ui/button.tsx";
-import { Input } from "../../ui/input.tsx";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../ui/select.tsx";
+import { Button, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@web/ui";
 import { Field, Segmented } from "../shared/index.ts";
 
 // Add a source: a link, or a social platform and what to follow (the server builds its link; the agent reads it). What

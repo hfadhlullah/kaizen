@@ -3,12 +3,7 @@ import { addTask, taskDirs } from "../../lib/board/index.ts";
 import { pastedFiles, useDraft } from "../../lib/shared/index.ts";
 import { short } from "../../lib/icebox/index.ts";
 import { startDir, toast } from "../../lib/core/index.ts";
-import { Button } from "../../ui/button.tsx";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../../ui/dropdown-menu.tsx";
-import { Icon } from "../../ui/icon.tsx";
-import { Input } from "../../ui/input.tsx";
-import { Label } from "../../ui/label.tsx";
-import { Textarea } from "../../ui/textarea.tsx";
+import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, Icon, Input, Label, Textarea } from "@web/ui";
 import { AttachButton, FormFrame, MicButton, Picker, ProjectMark } from "../shared/index.ts";
 
 // The last project a new task went to, offered first next time.

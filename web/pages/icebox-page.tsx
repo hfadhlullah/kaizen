@@ -53,10 +53,7 @@ import {
 } from "../lib/icebox/index.ts";
 import { useNarrow, usePager } from "../lib/shared/index.ts";
 import { host, useStore } from "../lib/core/index.ts";
-import { Button } from "../ui/button.tsx";
-import { Checkbox } from "../ui/checkbox.tsx";
-import { Icon } from "../ui/icon.tsx";
-import { Skeleton } from "../ui/skeleton.tsx";
+import { Button, Checkbox, Icon, Skeleton } from "@web/ui";
 
 // The Icebox: requests gathered from request sources, read like an inbox, until someone promotes them to tasks or
 // dismisses them. A capture box on top, collections and kinds, then the requests as cards or a list, one at a time in

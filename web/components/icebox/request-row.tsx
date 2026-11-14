@@ -12,7 +12,7 @@ import {
   toggleSel,
 } from "../../lib/icebox/index.ts";
 import { cn } from "../../lib/core/index.ts";
-import { Checkbox } from "../../ui/checkbox.tsx";
+import { Checkbox } from "@web/ui";
 import { BoardMenu } from "./board-menu.tsx";
 import { Favicon } from "./favicon.tsx";
 import { KindLabel } from "./kind-label.tsx";

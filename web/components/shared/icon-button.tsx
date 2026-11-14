@@ -1,7 +1,6 @@
 import type { ComponentProps, ReactNode } from "react";
 import { cn } from "../../lib/core/index.ts";
-import { Icon } from "../../ui/icon.tsx";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../../ui/tooltip.tsx";
+import { Icon, Tooltip, TooltipContent, TooltipTrigger } from "@web/ui";
 
 // The board's .ib: a 32px square with one icon, always named (aria-label and tooltip). `active` marks a
 // control that currently changes what the page shows, such as a filter that is not "all".

@@ -19,9 +19,7 @@ import {
   type Cfg,
 } from "../../lib/home/index.ts";
 import { cn } from "../../lib/core/index.ts";
-import { Button } from "../../ui/button.tsx";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "../../ui/dialog.tsx";
-import { Icon } from "../../ui/icon.tsx";
+import { Button, Dialog, DialogContent, DialogDescription, DialogTitle, Icon } from "@web/ui";
 import { PhoneCard } from "../phone/index.ts";
 
 const MOD = typeof navigator !== "undefined" && /Mac|iP(hone|ad)/.test(navigator.platform) ? "⌘" : "Ctrl";

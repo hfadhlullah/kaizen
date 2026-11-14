@@ -17,9 +17,7 @@ import {
   setTab,
   useBoard,
 } from "../../lib/board/index.ts";
-import { Button } from "../../ui/button.tsx";
-import { Icon } from "../../ui/icon.tsx";
-import { Tabs, TabsList, TabsTrigger } from "../../ui/tabs.tsx";
+import { Button, Icon, Tabs, TabsList, TabsTrigger } from "@web/ui";
 import { BoardCard } from "./board-card.tsx";
 import { CardForm } from "./card-form.tsx";
 import { ClearMenu } from "./clear-menu.tsx";

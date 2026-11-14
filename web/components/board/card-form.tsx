@@ -3,10 +3,7 @@ import { cardKey, type Card, host, toast } from "../../lib/core/index.ts";
 import { deleteTask, moveTask, rejectCard, saveEdit } from "../../lib/board/index.ts";
 import { pastedFiles, useDraft } from "../../lib/shared/index.ts";
 import { short } from "../../lib/icebox/index.ts";
-import { Button } from "../../ui/button.tsx";
-import { Input } from "../../ui/input.tsx";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../ui/select.tsx";
-import { Textarea } from "../../ui/textarea.tsx";
+import { Button, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Textarea } from "@web/ui";
 import { AttachButton, FormFrame, MicButton } from "../shared/index.ts";
 
 const q = "text-base font-medium",

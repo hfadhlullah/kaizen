@@ -14,8 +14,7 @@ import {
   type Row,
 } from "../../lib/settings/index.ts";
 import { host } from "../../lib/core/index.ts";
-import { Button } from "../../ui/button.tsx";
-import { Switch } from "../../ui/switch.tsx";
+import { Button, Switch } from "@web/ui";
 import { CommitInput } from "./commit-input.tsx";
 import { Field, Segmented } from "../shared/index.ts";
 import { Stepper } from "./stepper.tsx";

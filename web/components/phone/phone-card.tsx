@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { usePhoneSetup, phoneLine, TAILSCALE_DOWNLOAD } from "../../lib/phone/index.ts";
 import { cn } from "../../lib/core/index.ts";
-import { Button } from "../../ui/button.tsx";
+import { Button } from "@web/ui";
 import { QrCode } from "./qr-code.tsx";
 
 export const Link = ({ href, children }: { href: string; children: ReactNode }) => (

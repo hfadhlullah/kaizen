@@ -1,12 +1,5 @@
 import { run, useRunView, type RvRun } from "../../lib/run/index.ts";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "../../ui/dropdown-menu.tsx";
-import { Icon } from "../../ui/icon.tsx";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger, Icon } from "@web/ui";
 import { cn } from "../../lib/core/index.ts";
 import { StateDot } from "../shared/index.ts";
 

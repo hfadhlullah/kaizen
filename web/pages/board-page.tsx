@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { backlogCards, cardKey, host } from "../lib/core/index.ts";
 import { closeForm, useBoard } from "../lib/board/index.ts";
-import { Button } from "../ui/button.tsx";
+import { Button } from "@web/ui";
 import { BoardColumn, WsCard } from "../components/board/index.ts";
 
 // The Board, drawn into #board (a grid the old page keeps). Runs mode is five columns of cards; Workspaces mode is four

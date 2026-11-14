@@ -37,12 +37,12 @@ function violations(files: Record<string, string>): string[] {
     const from = layerOf(file) as Layer;
     for (const spec of specifiers(src)) {
       const where = `${relative(web, file)} imports "${spec}"`;
-      if (!spec.startsWith(".")) {
+      if (!isLocal(spec)) {
         if (from !== "ui" && PRIMITIVES.test(spec))
           out.push(`${where}: use the piece in web/ui instead of the package`);
         continue;
       }
-      const target = resolve(dirname(file), spec),
+      const target = resolveSpec(file, spec),
         to = layerOf(target);
       if (!LAYERS.includes(to as Layer))
         out.push(`${where}: ${from}/ may not import ${to === ".." ? "outside web/" : "web/" + to}`);
@@ -138,6 +138,9 @@ const BRIDGE_DIRECT = [
   "board/update.ts",
 ];
 const isTest = (name: string) => /\.test\.tsx?$/.test(name);
+// "@web/x" is web/x (tsconfig paths); everything else relative.
+const isLocal = (spec: string) => spec.startsWith(".") || spec.startsWith("@web/");
+const resolveSpec = (file: string, spec: string) => (spec.startsWith("@web/") ? join(web, spec.slice(5)) : resolve(dirname(file), spec));
 const norm = (p: string) => p.split(/[\\/]/).join("/");
 const featureOf = (rel: string) => rel.match(/^((?:components|lib)\/[^/]+)\/[^/]+$/)?.[1] ?? null;
 
@@ -146,8 +149,8 @@ function indexViolations(files: Record<string, string>): string[] {
   for (const [file, src] of Object.entries(files)) {
     const from = norm(relative(web, file));
     if (BRIDGE_DIRECT.includes(from)) continue;
-    for (const spec of specifiers(src).filter((s) => s.startsWith("."))) {
-      const to = norm(relative(web, resolve(dirname(file), spec)));
+    for (const spec of specifiers(src).filter(isLocal)) {
+      const to = norm(relative(web, resolveSpec(file, spec)));
       const folder = featureOf(to);
       if (!folder || folder === featureOf(from) || to.endsWith("/index.ts")) continue;
       if (from.startsWith("ui/") && to === "lib/core/utils.ts") continue;

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ComponentProps } from "react";
-import { Input } from "../../ui/input.tsx";
+import { Input } from "@web/ui";
 
 // A text field that saves when you leave it or press Enter with something changed (a native `change`), not on every
 // key. It follows `value` when the server's answer differs, and hands back the text trimmed unless `raw`. Enter and the

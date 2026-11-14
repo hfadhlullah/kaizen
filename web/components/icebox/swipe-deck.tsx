@@ -19,8 +19,7 @@ import {
   short,
 } from "../../lib/icebox/index.ts";
 import { host, cn } from "../../lib/core/index.ts";
-import { Button } from "../../ui/button.tsx";
-import { Icon } from "../../ui/icon.tsx";
+import { Button, Icon } from "@web/ui";
 import { Favicon } from "./favicon.tsx";
 import { ProjectMark } from "../shared/index.ts";
 import { RequestImages } from "./request-images.tsx";

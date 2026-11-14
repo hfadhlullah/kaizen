@@ -1,5 +1,5 @@
 import { run, useRunView } from "../../lib/run/index.ts";
-import { Icon } from "../../ui/icon.tsx";
+import { Icon } from "@web/ui";
 
 const leaf = (n: string) => n.slice(n.lastIndexOf("/") + 1);
 // The strip's Project notes: the project's notes as a tree, first-level folders as headings; a note opens as a centre tab.

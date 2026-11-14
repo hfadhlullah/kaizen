@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Icon } from "../../ui/icon.tsx";
+import { Icon } from "@web/ui";
 
 // An empty list: icon, a line that says what it is, one line of help, and the way forward.
 export function EmptyState({

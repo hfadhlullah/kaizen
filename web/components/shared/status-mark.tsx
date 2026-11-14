@@ -1,5 +1,5 @@
 import { cn } from "../../lib/core/index.ts";
-import { Icon } from "../../ui/icon.tsx";
+import { Icon } from "@web/ui";
 
 const tone: Record<string, string> = {
   idea: "text-muted-foreground",

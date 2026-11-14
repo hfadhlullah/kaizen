@@ -1,11 +1,4 @@
-import { Button } from "../../ui/button.tsx";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "../../ui/dropdown-menu.tsx";
+import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@web/ui";
 
 // Done's "Clear ▾": archive what is older than a week or three days, everything, or pick which.
 export function ClearMenu({

@@ -5,6 +5,8 @@
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
     "allowImportingTsExtensions": true,
+    "baseUrl": ".",
+    "paths": { "@web/*": ["web/*"] },
     "noEmit": true,
     "strict": false,
     "skipLibCheck": true,

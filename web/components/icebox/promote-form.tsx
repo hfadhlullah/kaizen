@@ -8,10 +8,7 @@ import {
   setIce,
   useIce,
 } from "../../lib/icebox/index.ts";
-import { Button } from "../../ui/button.tsx";
-import { Icon } from "../../ui/icon.tsx";
-import { fieldClass, Input } from "../../ui/input.tsx";
-import { Textarea } from "../../ui/textarea.tsx";
+import { Button, Icon, fieldClass, Input, Textarea } from "@web/ui";
 import { cn } from "../../lib/core/index.ts";
 import { Field } from "../shared/index.ts";
 

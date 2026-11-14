@@ -1,7 +1,6 @@
 import { host, cn } from "../../lib/core/index.ts";
 import { pickPage, setSettings, useSettings, SETTINGS_NAV } from "../../lib/settings/index.ts";
-import { Icon } from "../../ui/icon.tsx";
-import { Input } from "../../ui/input.tsx";
+import { Icon, Input } from "@web/ui";
 import { SettingsScope } from "./settings-scope.tsx";
 
 // The icon tile: a small rounded square in the theme colour, as macOS draws its sidebar.
