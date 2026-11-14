@@ -1,7 +1,7 @@
 // The notebook: file safety in cli/notes.ts, the text rules in web/notebook/notes-lib.ts, and
 // the two things that drift silently — the copied design tokens and the committed bundle.
 import { test, expect, beforeEach } from "bun:test";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, readdirSync, utimesSync, symlinkSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, readdirSync, utimesSync, symlinkSync, statSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
 import { safeName, listNotes, saveNote, renameNote, deleteNote, boardIndex, linksTo } from "./notes.ts";
@@ -30,6 +30,17 @@ test("every write route refuses a name outside notes/, and writes nothing", () =
   expect(renameNote(state, "ok", "../../escape")).toBe("bad name");
   expect(readdirSync(dirname(state)).sort()).toEqual([".kaizen"]);
   expect(readdirSync(state)).toEqual(["notes"]);
+});
+
+test("save: a note that was CRLF on disk stays CRLF, a new one is written as given", () => {
+  const f = join(state, "notes", "Win.md");
+  mkdirSync(dirname(f), { recursive: true });
+  writeFileSync(f, "a\r\nb\r\n");
+  const r = saveNote(state, "Win", "a\nb\nc\n", statSync(f).mtimeMs);
+  expect(r.ok).toBe(true);
+  expect(readFileSync(f, "utf8")).toBe("a\r\nb\r\nc\r\n");
+  saveNote(state, "Unix", "a\nb", 0);
+  expect(readFileSync(join(state, "notes", "Unix.md"), "utf8")).toBe("a\nb");
 });
 
 test("save: creates folders, then refuses a stale base and returns what is on disk", () => {

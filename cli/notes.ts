@@ -1,7 +1,7 @@
 // The notebook's files: plain markdown under <state>/notes/, folders and all, so any
 // editor (Obsidian included) can open the same folder. Every name that arrives from
 // the page goes through safeName before it becomes a path.
-import { existsSync, mkdirSync, readdirSync, realpathSync, renameSync, rmdirSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, rmdirSync, statSync, writeFileSync } from "node:fs";
 import { join, dirname, resolve, sep } from "node:path";
 import { backlogLines, boardCards, reviewFindings, readText } from "./state.ts";
 import { wikilinks, boardLink, resolveRun } from "../web/notebook/notes-lib.ts";
@@ -77,7 +77,9 @@ export function saveNote(state: string, name: unknown, text: string, base: numbe
     if (now !== base) return { ok: false, why: "conflict", text: readText(t.file), mtime: now };
   } else if (base) return { ok: false, why: "conflict", text: "", mtime: 0 };
   mkdirSync(dirname(t.file), { recursive: true });
-  writeFileSync(t.file, text);
+  // The editor holds LF (readText); a note that was CRLF on disk stays CRLF.
+  const crlf = existsSync(t.file) && readFileSync(t.file, "utf8").includes("\r\n");
+  writeFileSync(t.file, crlf ? text.replace(/\r?\n/g, "\r\n") : text);
   return { ok: true, name: t.name, mtime: statSync(t.file).mtimeMs };
 }
 
