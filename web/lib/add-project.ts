@@ -16,7 +16,9 @@ export async function call(path: string, body?: object): Promise<{ ok: boolean; 
   try {
     const r = await fetch(
       path,
-      body ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) } : undefined,
+      body
+        ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }
+        : undefined,
     );
     const d = await r.json().catch(() => ({}));
     return { ok: r.ok, d: r.ok ? d : { error: d.error || d.why || "that did not work" } };

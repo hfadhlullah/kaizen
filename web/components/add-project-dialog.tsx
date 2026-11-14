@@ -51,7 +51,8 @@ function Step({
       className="flex flex-col gap-2.5"
       onSubmit={(e: FormEvent) => (e.preventDefault(), onSubmit())}
       onKeyDown={(e) => {
-        if (keys && e.key === "Enter" && (e.ctrlKey || e.metaKey)) (e.preventDefault(), e.currentTarget.requestSubmit());
+        if (keys && e.key === "Enter" && (e.ctrlKey || e.metaKey))
+          (e.preventDefault(), e.currentTarget.requestSubmit());
       }}
     >
       <DialogTitle className="text-base font-semibold">{title}</DialogTitle>
@@ -109,7 +110,10 @@ const PickRow = ({ children, onPick }: { children: ReactNode; onPick: () => void
 
 function Option({ title, sub, to, go }: { title: string; sub: string; to: Start; go: (v: Start) => void }) {
   return (
-    <Button className="h-auto flex-col items-start gap-0.5 whitespace-normal px-3 py-2 text-left" onClick={() => go(to)}>
+    <Button
+      className="h-auto flex-col items-start gap-0.5 whitespace-normal px-3 py-2 text-left"
+      onClick={() => go(to)}
+    >
       <b className="font-semibold">{title}</b>
       <small className="text-sm font-normal text-muted-foreground">{sub}</small>
     </Button>
@@ -164,7 +168,7 @@ function CloneStep({ back }: { back?: () => void }) {
     if (!u.trim()) return false;
     asked.current = u;
     const r = await call("/clone", { url: u.trim(), check: true });
-    if (!r.ok) return setErr(r.d.error), false;
+    if (!r.ok) return (setErr(r.d.error), false);
     setErr("");
     name.current = r.d.name;
     if (!cur.trim() || cur === auto.current) {
@@ -199,9 +203,7 @@ function CloneStep({ back }: { back?: () => void }) {
         aria-label="Git URL"
         required
       />
-      <PickRow
-        onPick={async () => ((await check()) ? pick(setTo, () => name.current) : void 0)}
-      >
+      <PickRow onPick={async () => ((await check()) ? pick(setTo, () => name.current) : void 0)}>
         <Input
           {...input}
           value={to}
@@ -294,7 +296,7 @@ function WorkspaceStep({ dir, back }: { dir?: string | null; back?: () => void }
       if (!live) return;
       const { def = "", branches = [] } = r.ok ? r.d : {};
       setBases({ def, list: branches });
-      setBase(branches.length ? (def || branches[0]) : CURRENT);
+      setBase(branches.length ? def || branches[0] : CURRENT);
     });
     return () => {
       live = false;

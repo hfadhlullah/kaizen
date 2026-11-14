@@ -109,8 +109,12 @@ export function SearchPalette() {
                     <Glyph name={row.ico} className="size-3.5 flex-none text-muted-foreground" />
                     {row.dot && <StateDot state={row.dot} />}
                     <span className="min-w-0 truncate">{row.title}</span>
-                    {row.sub && <span className="min-w-0 flex-[0_1_auto] truncate text-sm text-muted-foreground">{row.sub}</span>}
-                    {row.when && <span className="ml-auto flex-none pl-2 text-xs text-muted-foreground">{row.when}</span>}
+                    {row.sub && (
+                      <span className="min-w-0 flex-[0_1_auto] truncate text-sm text-muted-foreground">{row.sub}</span>
+                    )}
+                    {row.when && (
+                      <span className="ml-auto flex-none pl-2 text-xs text-muted-foreground">{row.when}</span>
+                    )}
                   </CommandItem>
                 ))}
               </CommandGroup>

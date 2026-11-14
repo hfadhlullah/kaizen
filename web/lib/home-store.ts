@@ -87,9 +87,9 @@ export function newChat() {
   if (s.sending) return;
   clearTimeout(poll);
   remember(null);
-  void vt(() => setHome({ cur: null, files: [], remoteBusy: false, side: phone() ? false : s.side, here: hereNow() })).then(() =>
-    document.getElementById("hq")?.focus(),
-  );
+  void vt(() =>
+    setHome({ cur: null, files: [], remoteBusy: false, side: phone() ? false : s.side, here: hereNow() }),
+  ).then(() => document.getElementById("hq")?.focus());
 }
 export async function show(id: string) {
   const c: Chat & { error?: string } = await (await fetch("/chat?id=" + encodeURIComponent(id))).json();
@@ -148,7 +148,9 @@ export async function send(text: string) {
     if (fresh) sessionStorage.setItem("kz-chat-pending", at);
   } catch {}
   // The first message: the box glides from the middle to the bottom.
-  await (fresh ? vt : (f: () => void) => (f(), Promise.resolve()))(() => setHome({ cur, files: [], sending: true, tick: s0.tick + 1 }));
+  await (fresh ? vt : (f: () => void) => (f(), Promise.resolve()))(() =>
+    setHome({ cur, files: [], sending: true, tick: s0.tick + 1 }),
+  );
   let accepted = false;
   try {
     const r = files.length
@@ -173,7 +175,7 @@ export async function send(text: string) {
     const rd = r.body!.getReader(),
       dec = new TextDecoder(),
       feed = lines();
-    for (let x; !(x = await rd.read()).done; ) {
+    for (let x; !(x = await rd.read()).done;) {
       for (const line of feed(dec.decode(x.value, { stream: true }))) {
         const e = readLine(line);
         if (!e) continue;
@@ -233,7 +235,9 @@ export async function openHome() {
 }
 // Back from the popup (`kaizen chat`): the server brings this window back and hands over the chat the popup was on.
 export async function takeHandoff() {
-  const r = await fetch("/popup/handoff").then((r) => r.json()).catch(() => null);
+  const r = await fetch("/popup/handoff")
+    .then((r) => r.json())
+    .catch(() => null);
   if (!r?.id) return;
   await refreshChats();
   if (getHome().chats.some((c) => c.id === r.id)) await show(r.id);

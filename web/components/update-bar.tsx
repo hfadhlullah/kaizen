@@ -81,7 +81,10 @@ export function UpdateBar() {
     setChecking(false);
     if (!v || !v.latest) {
       if (upd) setLabel("Could not check. Try again");
-      else setMsg(`Could not reach ${(globalThis as { kaizenDesktop?: unknown }).kaizenDesktop ? "GitHub Releases" : "npm"}. Try again later.`);
+      else
+        setMsg(
+          `Could not reach ${(globalThis as { kaizenDesktop?: unknown }).kaizenDesktop ? "GitHub Releases" : "npm"}. Try again later.`,
+        );
       return;
     }
     setLabel("");

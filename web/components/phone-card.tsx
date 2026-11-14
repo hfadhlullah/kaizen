@@ -30,14 +30,10 @@ export const CardBody = ({ children }: { children: ReactNode }) => (
 // The phone card: Settings → Phone and the onboarding phone step. Walks from no Tailscale to a QR the phone scans.
 export function PhoneCard() {
   const { s, err, busy, act } = usePhoneSetup();
-  const check = (
-    <Button onClick={() => void act("check")}>Check again</Button>
-  );
+  const check = <Button onClick={() => void act("check")}>Check again</Button>;
   if (!s)
     return (
-      <CardBody>
-        {err ? <Err text={err} /> : <p className="text-muted-foreground">Checking Tailscale…</p>}
-      </CardBody>
+      <CardBody>{err ? <Err text={err} /> : <p className="text-muted-foreground">Checking Tailscale…</p>}</CardBody>
     );
   const acct = s.account ? <b>{s.account}</b> : "the same account";
   if (s.state === "missing")
@@ -75,9 +71,7 @@ export function PhoneCard() {
   if (s.state === "ready")
     return (
       <CardBody>
-        <p>
-          Tailscale is running{s.account ? <> as {acct}</> : ""}. Connect to show the code your phone scans.
-        </p>
+        <p>Tailscale is running{s.account ? <> as {acct}</> : ""}. Connect to show the code your phone scans.</p>
         <div className="flex flex-wrap gap-2">
           <Button variant="primary" disabled={!!busy} onClick={() => void act("connect")}>
             {busy === "connect" ? "Connecting…" : "Connect phone"}
@@ -98,7 +92,11 @@ export function PhoneCard() {
               Install Tailscale from the <Link href={TAILSCALE_DOWNLOAD}>App Store or Play Store</Link>.
             </li>
             <li>
-              {s.account ? <>Log in with {acct}, the account this computer uses.</> : "Log in with the same account as this computer."}
+              {s.account ? (
+                <>Log in with {acct}, the account this computer uses.</>
+              ) : (
+                "Log in with the same account as this computer."
+              )}
             </li>
             <li>
               Scan this code with the camera, or open <Link href={s.url}>{s.url}</Link>.

@@ -43,15 +43,21 @@ export function HomePage() {
           onDelete={(c) => void deleteChat(c.id, c.title)}
         />
       </div>
-      {side && <div className="absolute inset-0 z-[5] hidden bg-[var(--shade)] max-[640px]:block" onClick={() => setSide(false)} />}
-      <div
-        className={cn(
-          "flex min-h-0 min-w-0 flex-1 flex-col items-center gap-3 pb-4",
-          empty && "justify-start",
-        )}
-      >
+      {side && (
+        <div
+          className="absolute inset-0 z-[5] hidden bg-[var(--shade)] max-[640px]:block"
+          onClick={() => setSide(false)}
+        />
+      )}
+      <div className={cn("flex min-h-0 min-w-0 flex-1 flex-col items-center gap-3 pb-4", empty && "justify-start")}>
         <div className="flex items-center gap-1 self-stretch px-4 pt-2 max-[640px]:hidden">
-          <IconButton id="htog" icon="side" label={side ? "Hide chats" : "Show chats"} aria-expanded={side} onClick={() => setSide(!side)} />
+          <IconButton
+            id="htog"
+            icon="side"
+            label={side ? "Hide chats" : "Show chats"}
+            aria-expanded={side}
+            onClick={() => setSide(!side)}
+          />
         </div>
         <div
           id="hlog"
@@ -76,7 +82,9 @@ export function HomePage() {
                 {here ? `What should we do in ${name(here)}?` : "What should we work on?"}
               </h2>
               <p className="text-muted-foreground">
-                {here ? "Ask about this project or another one, or start a new one." : "Name a project, or describe a new one and the agent will set it up."}{" "}
+                {here
+                  ? "Ask about this project or another one, or start a new one."
+                  : "Name a project, or describe a new one and the agent will set it up."}{" "}
                 Bigger work becomes a kaizen run on the Board.
               </p>
             </div>

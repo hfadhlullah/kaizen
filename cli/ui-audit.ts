@@ -291,7 +291,7 @@ function screens(dir: string, run: string, emptyWs: { dir: string; ws: string })
     { name: "board-runs", url: "/?view=board", widths: D1, open: `await click("[data-m=runs]")` },
     { name: "card-menu", url: "/?view=board", widths: D1, open: `await click("[data-m=runs]"); await click("[data-a=menu]", true)` },
     { name: "card-drawer", url: "/?view=board", widths: D1, open: `await click("[data-m=runs]"); await click("main#board>section:last-of-type li .card")` },
-    { name: "projects-filter", url: "/?view=board", widths: D1, open: `await click("#proj")` },
+    { name: "projects-filter", url: "/?view=board", widths: D1, open: `await click("#combo button")` },
     { name: "showing", url: "/?view=board", widths: D1, open: `await click("#show")` },
     { name: "new-task", url: "/?view=board", widths: D1, open: `await click("#newtop")` },
     { name: "add-project", url: "/?view=board", widths: D1, open: `await click("#padd")` },

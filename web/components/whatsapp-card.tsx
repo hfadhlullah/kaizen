@@ -12,9 +12,7 @@ export function WhatsAppCard() {
   const { s, err, busy, act } = useWhatsApp();
   if (!s)
     return (
-      <CardBody>
-        {err ? <Err text={err} /> : <p className="text-muted-foreground">Checking WhatsApp…</p>}
-      </CardBody>
+      <CardBody>{err ? <Err text={err} /> : <p className="text-muted-foreground">Checking WhatsApp…</p>}</CardBody>
     );
   const unlink = (say: string) => (
     <Button disabled={busy} onClick={() => void act("disconnect")}>

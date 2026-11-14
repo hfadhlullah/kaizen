@@ -33,7 +33,8 @@ export function openHome() {
 // Back from the popup (`kaizen chat`): the server brings this window back and hands over the chat the popup was on; Home
 // opens it. A browser window coming back from a hidden Hyprland workspace fires no focus event, so Home asks every 1.5 s.
 // ponytail: polling; push it through the board's state stream if this ever costs anything.
-if (typeof document !== "undefined") setInterval(() => globalThis.document?.body?.classList.contains("homev") && void takeHandoff(), 1500);
+if (typeof document !== "undefined")
+  setInterval(() => globalThis.document?.body?.classList.contains("homev") && void takeHandoff(), 1500);
 
 // A project picked above: a new chat's greeting names it.
 addEventListener("kz-state", () => document.body.classList.contains("homev") && syncHere());

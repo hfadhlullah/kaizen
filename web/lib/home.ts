@@ -9,7 +9,14 @@ export type Msg = {
   error?: string;
   activity?: string;
 };
-export type Chat = { id: string | null; title: string; project: string | null; messages: Msg[]; busy?: boolean; updated?: string };
+export type Chat = {
+  id: string | null;
+  title: string;
+  project: string | null;
+  messages: Msg[];
+  busy?: boolean;
+  updated?: string;
+};
 export type ListedChat = { id: string; title: string; project?: string | null; busy?: boolean; updated: string };
 export type StreamEvent =
   | { t: "chat"; id: string }
@@ -19,7 +26,12 @@ export type StreamEvent =
   | { t: "error"; error: string }
   | { t: "project"; dir: string };
 
-export const SUGGEST = ["What's waiting on me?", "Summarize what changed this week", "Plan a new feature: ", "Review my last change"];
+export const SUGGEST = [
+  "What's waiting on me?",
+  "Summarize what changed this week",
+  "Plan a new feature: ",
+  "Review my last change",
+];
 export const MAX_FILES = 5,
   MAX_FILE = 10 * 1024 * 1024,
   MAX_TOTAL = 20 * 1024 * 1024;
@@ -67,7 +79,7 @@ export function lines() {
   return (chunk: string) => {
     buf += chunk;
     const out: string[] = [];
-    for (let i; (i = buf.indexOf("\n")) >= 0; ) (out.push(buf.slice(0, i)), (buf = buf.slice(i + 1)));
+    for (let i; (i = buf.indexOf("\n")) >= 0;) (out.push(buf.slice(0, i)), (buf = buf.slice(i + 1)));
     return out;
   };
 }

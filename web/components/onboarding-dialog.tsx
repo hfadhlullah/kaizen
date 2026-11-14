@@ -27,7 +27,17 @@ import { PhoneCard } from "./phone-card.tsx";
 const MOD = typeof navigator !== "undefined" && /Mac|iP(hone|ad)/.test(navigator.platform) ? "⌘" : "Ctrl";
 
 // A choice card (radio): picked is a tinted card with a check.
-function Card({ on, onPick, children, className }: { on: boolean; onPick: () => void; children: ReactNode; className?: string }) {
+function Card({
+  on,
+  onPick,
+  children,
+  className,
+}: {
+  on: boolean;
+  onPick: () => void;
+  children: ReactNode;
+  className?: string;
+}) {
   return (
     <button
       type="button"
@@ -37,7 +47,8 @@ function Card({ on, onPick, children, className }: { on: boolean; onPick: () => 
       onClick={onPick}
       className={cn(
         "relative flex min-h-12 items-center gap-2.5 rounded-md border border-border px-3 text-left text-base font-medium transition-colors hover:bg-muted",
-        on && "border-[color-mix(in_srgb,var(--accent)_55%,var(--line))] bg-[color-mix(in_srgb,var(--accent)_14%,transparent)]",
+        on &&
+          "border-[color-mix(in_srgb,var(--accent)_55%,var(--line))] bg-[color-mix(in_srgb,var(--accent)_14%,transparent)]",
         className,
       )}
     >
@@ -51,7 +62,9 @@ function Card({ on, onPick, children, className }: { on: boolean; onPick: () => 
   );
 }
 const Panel = ({ children }: { children: ReactNode }) => (
-  <div className="flex flex-col gap-3 rounded-md border border-border p-3.5 text-base text-muted-foreground">{children}</div>
+  <div className="flex flex-col gap-3 rounded-md border border-border p-3.5 text-base text-muted-foreground">
+    {children}
+  </div>
 );
 
 function AgentStep({ cfg, agent, more }: { cfg: Cfg; agent: string; more: boolean }) {
@@ -70,12 +83,15 @@ function AgentStep({ cfg, agent, more }: { cfg: Cfg; agent: string; more: boolea
   const help = miss && (
     <Panel>
       <p>
-        <b>{miss.agent.name}</b> is not installed yet.{miss.how?.command ? " Run this in a terminal, then open kaizen again." : ""} You
-        can carry on now: kaizen uses it as soon as it is on your PATH.
+        <b>{miss.agent.name}</b> is not installed yet.
+        {miss.how?.command ? " Run this in a terminal, then open kaizen again." : ""} You can carry on now: kaizen uses
+        it as soon as it is on your PATH.
       </p>
       {miss.how?.command && (
         <div className="flex items-center gap-2.5 rounded-md border border-border bg-canvas px-2.5 py-2">
-          <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap font-mono text-sm text-foreground">{miss.how.command}</code>
+          <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap font-mono text-sm text-foreground">
+            {miss.how.command}
+          </code>
           <Button
             onClick={() =>
               void navigator.clipboard?.writeText(miss.how!.command!).then(
@@ -118,7 +134,11 @@ function AgentStep({ cfg, agent, more }: { cfg: Cfg; agent: string; more: boolea
         {more && rest.map((a) => card(a, true))}
       </div>
       {!!rest.length && (
-        <button type="button" className="self-start px-0.5 py-1.5 text-base text-muted-foreground hover:text-foreground" onClick={toggleMore}>
+        <button
+          type="button"
+          className="self-start px-0.5 py-1.5 text-base text-muted-foreground hover:text-foreground"
+          onClick={toggleMore}
+        >
           {more ? "Hide agents" : `Show ${rest.length} more ${rest.length === 1 ? "agent" : "agents"} →`}
         </button>
       )}
@@ -142,7 +162,15 @@ function LookStep({ theme }: { theme: string }) {
       </span>
       <span className="flex items-baseline justify-between gap-2">
         <b className="inline-flex items-center gap-1.5 font-medium">
-          <svg viewBox="0 0 24 24" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            viewBox="0 0 24 24"
+            className="size-3.5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <path d={icon} />
           </svg>
           {name}
@@ -164,7 +192,15 @@ function LookStep({ theme }: { theme: string }) {
         )}
       </div>
       <p className="flex items-center gap-2 text-sm text-muted-foreground">
-        <svg viewBox="0 0 24 24" className="size-3.5 flex-none" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg
+          viewBox="0 0 24 24"
+          className="size-3.5 flex-none"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
           <path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 5v4M8 15v4" />
         </svg>
         <span>
@@ -184,13 +220,25 @@ function AlertStep() {
         {s === "default" && (
           <Button
             variant="primary"
-            onClick={() => void Notification.requestPermission().then(() => setS(notifState()), () => setS(notifState()))}
+            onClick={() =>
+              void Notification.requestPermission().then(
+                () => setS(notifState()),
+                () => setS(notifState()),
+              )
+            }
           >
             Allow notifications
           </Button>
         )}
         {s === "granted" && (
-          <Button onClick={() => new Notification("kaizen", { body: "This is how kaizen will tell you something needs you.", icon: "/logo.png" })}>
+          <Button
+            onClick={() =>
+              new Notification("kaizen", {
+                body: "This is how kaizen will tell you something needs you.",
+                icon: "/logo.png",
+              })
+            }
+          >
             Send test notification
           </Button>
         )}
@@ -220,17 +268,19 @@ function Flow({ cfg, flow }: { cfg: Cfg; flow: { step: number; agent: string; th
         }}
         onOpenAutoFocus={(e) => {
           e.preventDefault();
-          (e.currentTarget as HTMLElement).querySelector<HTMLElement>("[data-card][aria-checked=true],[data-next]")?.focus();
+          (e.currentTarget as HTMLElement)
+            .querySelector<HTMLElement>("[data-card][aria-checked=true],[data-next]")
+            ?.focus();
         }}
         className="h-[min(740px,calc(100dvh-32px))] w-[min(720px,calc(100vw-32px))] gap-0 px-8 pb-[18px] pt-[26px] shadow-md max-[640px]:h-dvh max-[640px]:w-screen max-[640px]:max-h-none max-[640px]:rounded-none max-[640px]:px-[18px] max-[640px]:pb-3 max-[640px]:pt-[18px]"
       >
         <div>
           <pre className="mark kz-keep" style={{ fontSize: 6 }}>
-            <span>█ █  ▄▀█  █  ▀▀█  █▀▀  █▄ █</span>
+            <span>█ █ ▄▀█ █ ▀▀█ █▀▀ █▄ █</span>
             {"\n"}
-            <span>█▀▄  █▀█  █   ▄▀  ██▄  █ ▀█</span>
+            <span>█▀▄ █▀█ █ ▄▀ ██▄ █ ▀█</span>
             {"\n"}
-            <span>█ █  █ █  █  █▄▄  █▄▄  █  █</span>
+            <span>█ █ █ █ █ █▄▄ █▄▄ █ █</span>
           </pre>
         </div>
         <div className="mt-[22px] flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -253,8 +303,12 @@ function Flow({ cfg, flow }: { cfg: Cfg; flow: { step: number; agent: string; th
           </span>
         </div>
         <div className="flex min-h-0 flex-1 flex-col gap-3.5 overflow-auto px-0.5 pb-1.5 pt-[30px]">
-          {step === 0 && <small className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Welcome to kaizen</small>}
-          <DialogTitle className="text-[30px] font-bold leading-[1.15] text-strong max-[640px]:text-2xl">{s.title}</DialogTitle>
+          {step === 0 && (
+            <small className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Welcome to kaizen</small>
+          )}
+          <DialogTitle className="text-[30px] font-bold leading-[1.15] text-strong max-[640px]:text-2xl">
+            {s.title}
+          </DialogTitle>
           <DialogDescription id="onb-sub" className="mb-3 max-w-[56ch] text-lg">
             {s.sub}
           </DialogDescription>
@@ -268,14 +322,20 @@ function Flow({ cfg, flow }: { cfg: Cfg; flow: { step: number; agent: string; th
           )}
         </div>
         <div className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-2.5 border-t border-border pt-3.5">
-          <button type="button" className="px-0.5 py-1.5 text-base text-muted-foreground hover:text-foreground" onClick={() => void skip()}>
+          <button
+            type="button"
+            className="px-0.5 py-1.5 text-base text-muted-foreground hover:text-foreground"
+            onClick={() => void skip()}
+          >
             Skip to project setup
           </button>
           <span />
           {step > 0 && <Button onClick={back}>‹ Back</Button>}
           <Button variant="primary" data-next className="gap-2.5" onClick={() => void next()}>
             {last ? "Add your first project" : "Continue"}
-            <kbd className="rounded-xs border border-current/35 px-1.5 py-px font-sans text-xs opacity-75 max-[640px]:hidden">{MOD} ↵</kbd>
+            <kbd className="rounded-xs border border-current/35 px-1.5 py-px font-sans text-xs opacity-75 max-[640px]:hidden">
+              {MOD} ↵
+            </kbd>
           </Button>
         </div>
       </DialogContent>

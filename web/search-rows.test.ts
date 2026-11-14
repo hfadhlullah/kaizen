@@ -12,7 +12,13 @@ test("with nothing typed each group shows its most recent few, in the palette's 
   ];
   const rows = shownRows(all, "", none);
   expect(rows.map((r) => r.group)).toEqual(["Workspaces", ...Array(5).fill("Runs"), "Actions"]);
-  expect(rows.filter((r) => r.group === "Runs").map((r) => r.title)).toEqual(["run 7", "run 6", "run 5", "run 4", "run 3"]);
+  expect(rows.filter((r) => r.group === "Runs").map((r) => r.title)).toEqual([
+    "run 7",
+    "run 6",
+    "run 5",
+    "run 4",
+    "run 3",
+  ]);
 });
 
 test("typed, the group holding the best match comes first and a New task row closes the list", () => {

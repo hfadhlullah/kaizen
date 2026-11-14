@@ -22,7 +22,12 @@ export function FileViewer() {
             </Button>
           </div>
           {isImage(file.href, file.name) ? (
-            <img src={file.href} alt={file.name} referrerPolicy="no-referrer" className="min-h-0 w-full flex-1 object-contain" />
+            <img
+              src={file.href}
+              alt={file.name}
+              referrerPolicy="no-referrer"
+              className="min-h-0 w-full flex-1 object-contain"
+            />
           ) : (
             <iframe src={file.href} title={file.name} className="w-full flex-1 border-0 bg-white" />
           )}

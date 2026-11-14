@@ -83,10 +83,18 @@ export function HomeComposer({
         {!!files.length && (
           <div className="flex flex-wrap gap-1.5">
             {files.map((f, n) => (
-              <span key={n} className="inline-flex max-w-full items-center gap-[5px] rounded-full border border-border px-2 py-1 text-xs [overflow-wrap:anywhere]">
+              <span
+                key={n}
+                className="inline-flex max-w-full items-center gap-[5px] rounded-full border border-border px-2 py-1 text-xs [overflow-wrap:anywhere]"
+              >
                 <Icon name="clip" className="size-3 flex-none" />
                 {f.name}
-                <button type="button" aria-label={`Remove ${f.name}`} className="px-0.5 text-muted-foreground hover:text-foreground" onClick={() => removeFile(n)}>
+                <button
+                  type="button"
+                  aria-label={`Remove ${f.name}`}
+                  className="px-0.5 text-muted-foreground hover:text-foreground"
+                  onClick={() => removeFile(n)}
+                >
                   ×
                 </button>
               </span>
@@ -107,19 +115,29 @@ export function HomeComposer({
           }}
           onKeyDown={(e) => {
             // No Shift on a phone: Enter is a new line there, the Send button sends.
-            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing && !phone()) (e.preventDefault(), submit());
+            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing && !phone())
+              (e.preventDefault(), submit());
           }}
           className="max-h-[220px] min-h-6 w-full resize-none bg-transparent pb-[5px] pt-[7px] text-lg leading-normal text-foreground outline-none max-[640px]:text-[16px]"
         />
       </div>
       {where !== undefined && (
-        <span title="Project" className="flex h-[34px] max-w-[30%] flex-none items-center gap-1.5 overflow-hidden text-ellipsis whitespace-nowrap text-sm text-muted-foreground">
+        <span
+          title="Project"
+          className="flex h-[34px] max-w-[30%] flex-none items-center gap-1.5 overflow-hidden text-ellipsis whitespace-nowrap text-sm text-muted-foreground"
+        >
           <Icon name="board" className="size-[13px]" />
           {where}
         </span>
       )}
       {working ? (
-        <IconButton id="hstop" icon="x" label="Stop" className="size-[34px] rounded-full bg-foreground text-background hover:bg-foreground hover:text-background" onClick={stop} />
+        <IconButton
+          id="hstop"
+          icon="x"
+          label="Stop"
+          className="size-[34px] rounded-full bg-foreground text-background hover:bg-foreground hover:text-background"
+          onClick={stop}
+        />
       ) : (
         <IconButton
           icon="send"

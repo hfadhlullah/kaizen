@@ -24,7 +24,9 @@ async function send(path: string, body?: object) {
   try {
     const r = await fetch(
       path,
-      body ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) } : undefined,
+      body
+        ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }
+        : undefined,
     );
     return await r.json();
   } catch {

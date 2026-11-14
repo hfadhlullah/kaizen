@@ -10,7 +10,8 @@ test("the folder a picked parent and a name make keeps the parent's separator", 
 
 test("a project name is a folder name: no slashes, colons or wildcards", () => {
   expect(folderName("my-project")).toBe(true);
-  for (const bad of ["", "a/b", "a\\b", "a:b", "a*b", 'a"b', "a<b", "a|b", "a?b"]) expect([bad, folderName(bad)]).toEqual([bad, false]);
+  for (const bad of ["", "a/b", "a\\b", "a:b", "a*b", 'a"b', "a<b", "a|b", "a?b"])
+    expect([bad, folderName(bad)]).toEqual([bad, false]);
 });
 
 test("a new workspace's branch: the typed one, else one from its name, else a random one", () => {

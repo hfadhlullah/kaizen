@@ -10,7 +10,10 @@ const stepIcon = (k?: string) => (k === "edit" ? "note" : k === "project" ? "boa
 // The agent is working on this reply: a small laptop floating, what it is doing, three dots.
 function Activity({ text }: { text: string }) {
   return (
-    <div role="status" className="flex min-h-[54px] items-center gap-2.5 text-sm text-muted-foreground [overflow-wrap:anywhere]">
+    <div
+      role="status"
+      className="flex min-h-[54px] items-center gap-2.5 text-sm text-muted-foreground [overflow-wrap:anywhere]"
+    >
       <span aria-hidden="true" className="relative block size-[52px] flex-none">
         <i className="absolute left-3.5 top-5 block h-[13px] w-6 rounded-[3px] border-[1.5px] border-primary bg-primary/70 animate-hfloat after:absolute after:-bottom-1 after:-left-1 after:-right-1 after:h-0.5 after:rounded-b-[5px] after:bg-primary" />
       </span>
@@ -43,7 +46,10 @@ export function HomeMessage({ m, last, busy }: { m: Msg; last: boolean; busy: bo
         {!!m.files?.length && (
           <div className="flex max-w-[80%] flex-wrap justify-end gap-1.5">
             {m.files.map((f, n) => (
-              <span key={n} className="inline-flex max-w-full items-center gap-[5px] rounded-full border border-border px-2 py-1 text-xs [overflow-wrap:anywhere]">
+              <span
+                key={n}
+                className="inline-flex max-w-full items-center gap-[5px] rounded-full border border-border px-2 py-1 text-xs [overflow-wrap:anywhere]"
+              >
                 <Icon name="clip" className="size-3 flex-none" />
                 {f.name}
               </span>
@@ -56,12 +62,20 @@ export function HomeMessage({ m, last, busy }: { m: Msg; last: boolean; busy: bo
   const steps = m.steps ?? [];
   // A move is news, not a detail: shown under the reply as well as in the steps.
   const moved = steps.filter((s) => s.kind === "project");
-  const runs = runsIn(m.text + " " + steps.map((s) => s.text).join(" "), host.runCards().map((c) => c.id));
+  const runs = runsIn(
+    m.text + " " + steps.map((s) => s.text).join(" "),
+    host.runCards().map((c) => c.id),
+  );
   // Nothing yet: the typing dots stand in for the reply.
   if (!steps.length && !m.text && !m.error && !active) return null;
   return (
     <div className="flex flex-col items-start gap-1.5 animate-hin">
-      {m.text && <Markdown text={m.text} className="w-full leading-[1.6] text-foreground [overflow-wrap:anywhere] [&>:first-child]:mt-0 [&>:last-child]:mb-0 [&_p]:max-w-none" />}
+      {m.text && (
+        <Markdown
+          text={m.text}
+          className="w-full leading-[1.6] text-foreground [overflow-wrap:anywhere] [&>:first-child]:mt-0 [&>:last-child]:mb-0 [&_p]:max-w-none"
+        />
+      )}
       {!!steps.length && (
         <details className="group min-w-0 max-w-full text-sm text-muted-foreground">
           <summary className="w-max cursor-pointer hover:text-foreground">
@@ -79,7 +93,10 @@ export function HomeMessage({ m, last, busy }: { m: Msg; last: boolean; busy: bo
       )}
       {m.error && <div className="whitespace-pre-wrap text-base text-danger">{m.error}</div>}
       {moved.map((s, n) => (
-        <div key={n} className={cn("flex items-center gap-1.5 text-sm", s.ok === false ? "text-danger" : "text-success")}>
+        <div
+          key={n}
+          className={cn("flex items-center gap-1.5 text-sm", s.ok === false ? "text-danger" : "text-success")}
+        >
           <Icon name="board" className="size-[13px]" />
           {s.text}
         </div>

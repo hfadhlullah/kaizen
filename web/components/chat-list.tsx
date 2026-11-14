@@ -22,7 +22,10 @@ export function ChatList({
         {chats.map((c) => (
           <div
             key={c.id}
-            className={cn("group flex items-center rounded-sm transition-colors hover:bg-muted", current === c.id && "bg-muted")}
+            className={cn(
+              "group flex items-center rounded-sm transition-colors hover:bg-muted",
+              current === c.id && "bg-muted",
+            )}
           >
             <button
               type="button"

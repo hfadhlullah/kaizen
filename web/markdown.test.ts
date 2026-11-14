@@ -24,7 +24,14 @@ test("a paragraph joins its lines with a space and breaks after two trailing spa
 });
 
 test("inline: code, bold, italic, nesting in a link, unsafe addresses stay text", () => {
-  expect(inline("a `b` **c** *d*")).toEqual(["a ", { k: "code", t: "b" }, " ", { k: "b", c: ["c"] }, " ", { k: "i", c: ["d"] }]);
+  expect(inline("a `b` **c** *d*")).toEqual([
+    "a ",
+    { k: "code", t: "b" },
+    " ",
+    { k: "b", c: ["c"] },
+    " ",
+    { k: "i", c: ["d"] },
+  ]);
   expect(inline("[**go**](https://x.test)")).toEqual([{ k: "a", href: "https://x.test", c: [{ k: "b", c: ["go"] }] }]);
   expect(inline("[x](javascript:alert(1))").join("")).toBe("[x](javascript:alert(1))");
   expect(inline("![pic](data:text/html,x)")).toEqual(["![pic](data:text/html,x)"]);
@@ -32,9 +39,18 @@ test("inline: code, bold, italic, nesting in a link, unsafe addresses stay text"
 });
 
 test("it reads the same text as the old md(): the same words in the same order", () => {
-  const src = "# T\n\nSome **bold** and `code` text.\n\n- one\n- two\n\n1. first\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n```\nraw\n```";
-  const text = (h: string) => h.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  const src =
+    "# T\n\nSome **bold** and `code` text.\n\n- one\n- two\n\n1. first\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n```\nraw\n```";
+  const text = (h: string) =>
+    h
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
   const flat = (x: any): string =>
-    typeof x === "string" ? x : Array.isArray(x) ? x.map(flat).join(" ") : x.t ?? flat(x.c ?? x.items ?? x.lines ?? [...(x.head ?? []), ...(x.rows ?? [])]);
+    typeof x === "string"
+      ? x
+      : Array.isArray(x)
+        ? x.map(flat).join(" ")
+        : (x.t ?? flat(x.c ?? x.items ?? x.lines ?? [...(x.head ?? []), ...(x.rows ?? [])]));
   expect(parse(src).map(flat).join(" ").replace(/\s+/g, " ")).toBe(text(md(src)));
 });

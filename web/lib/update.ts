@@ -50,8 +50,16 @@ export function later(v: string) {
 export async function upgrade(v: Version): Promise<"no" | "restarting" | "opened"> {
   const d = desk();
   const q = d
-    ? { title: `Install Kaizen ${v.latest}?`, description: "The app restarts, and agents it runs stop.", confirmLabel: "Install" }
-    : { title: `Update kaizen to ${v.latest}?`, description: "kaizen restarts, and agents it runs stop.", confirmLabel: "Update" };
+    ? {
+        title: `Install Kaizen ${v.latest}?`,
+        description: "The app restarts, and agents it runs stop.",
+        confirmLabel: "Install",
+      }
+    : {
+        title: `Update kaizen to ${v.latest}?`,
+        description: "kaizen restarts, and agents it runs stop.",
+        confirmLabel: "Update",
+      };
   if (!(await ask(q))) return "no";
   if (d) {
     const r = await d.install().catch((e: unknown) => ({ ok: false, opened: false, error: String(e) }));

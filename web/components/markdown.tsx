@@ -11,8 +11,18 @@ function Inl({ c }: { c: Inline[] }): ReactNode {
           {x.t}
         </code>
       );
-    if (x.k === "b") return <b key={n}><Inl c={x.c} /></b>;
-    if (x.k === "i") return <i key={n}><Inl c={x.c} /></i>;
+    if (x.k === "b")
+      return (
+        <b key={n}>
+          <Inl c={x.c} />
+        </b>
+      );
+    if (x.k === "i")
+      return (
+        <i key={n}>
+          <Inl c={x.c} />
+        </i>
+      );
     if (x.k === "img")
       return (
         <a key={n} href={x.src} target="_blank" rel="noopener noreferrer">
@@ -20,7 +30,13 @@ function Inl({ c }: { c: Inline[] }): ReactNode {
         </a>
       );
     return (
-      <a key={n} href={x.href} target="_blank" rel="noopener noreferrer" className="text-primary underline-offset-[3px]">
+      <a
+        key={n}
+        href={x.href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-primary underline-offset-[3px]"
+      >
         <Inl c={x.c} />
       </a>
     );

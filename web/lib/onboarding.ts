@@ -70,13 +70,17 @@ export function storedTheme(): "light" | "dark" | "system" {
   }
 }
 export const offerText = (c: Pick<Cfg, "step" | "total">) =>
-  c.step > 0 ? `You are on step ${c.step + 1} of ${c.total}. It only takes a minute.` : "You skipped setup. It only takes a minute.";
+  c.step > 0
+    ? `You are on step ${c.step + 1} of ${c.total}. It only takes a minute.`
+    : "You skipped setup. It only takes a minute.";
 
 async function call(path: string, body?: object) {
   try {
     const r = await fetch(
       path,
-      body ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) } : undefined,
+      body
+        ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }
+        : undefined,
     );
     return r.ok ? await r.json() : null;
   } catch {
@@ -109,7 +113,12 @@ export function openFlow(at: number) {
   const cfg = get().cfg;
   if (get().flow || !cfg) return;
   set({
-    flow: { step: Math.max(0, Math.min(cfg.total - 1, at)), agent: defaultPick(cfg), theme: storedTheme(), more: false },
+    flow: {
+      step: Math.max(0, Math.min(cfg.total - 1, at)),
+      agent: defaultPick(cfg),
+      theme: storedTheme(),
+      more: false,
+    },
   });
 }
 // The agent picked on the first step is saved when the user leaves it, by Continue or by a progress bar.

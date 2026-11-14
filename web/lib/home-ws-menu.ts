@@ -8,7 +8,12 @@ export type HomeWsMenu = {
   open: () => Promise<void>; // read the agents (once) when the menu opens
   start: (cmd?: string) => void; // an agent, or the shell when no command
 };
-export const useHomeWsMenu = create<HomeWsMenu>()(() => ({ agents: [], dflt: "", open: async () => {}, start: () => {} }));
+export const useHomeWsMenu = create<HomeWsMenu>()(() => ({
+  agents: [],
+  dflt: "",
+  open: async () => {},
+  start: () => {},
+}));
 export const setHomeWsMenu = useHomeWsMenu.setState;
 // Only these have a mark of their own in the sprite.
 export const MARKS = ["claude", "codex", "gemini"];
