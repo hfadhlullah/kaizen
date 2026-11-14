@@ -118,3 +118,13 @@ export const attach = (t: string, c: { state: string; kind: string; id?: string 
     if (/^([a-z][\w+.-]*:|\/|#)/i.test(p)) return all;
     return `${label} (\`${p}\`)`;
   });
+
+// The builder's "## Preview" section of 03-impl.md: how to run the app, or the result itself, and its "### How to test"
+// steps. "## Commit" is the message the builder wrote for the work, offered at commit and push.
+function section(impl: string | null | undefined, name: string) {
+  const m = impl && impl.match(new RegExp(`^##\\s+${name}\\s*\\n([\\s\\S]*?)(?=\\n##\\s|$(?![\\s\\S]))`, "m"));
+  return m ? m[1]!.trim() : null;
+}
+export const preview = (impl: string | null | undefined) => section(impl, "Preview");
+export const commitMsg = (impl: string | null | undefined) =>
+  (section(impl, "Commit") || "").replace(/^```\w*\n|\n```$/g, "").trim();

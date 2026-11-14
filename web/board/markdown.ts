@@ -1,20 +1,11 @@
 import { esc } from "./dom.ts";
 import { safeUrl } from "../notebook/notes-lib.ts";
 
-// The builder's "## Preview" section of 03-impl.md: how to run the app, or the result itself,
-// and its "### How to test" steps.
-// "## Commit" is the message the builder wrote for the work, offered at commit and push.
-function section(impl, name) {
-  const m = impl && impl.match(new RegExp(`^##\\s+${name}\\s*\\n([\\s\\S]*?)(?=\\n##\\s|$(?![\\s\\S]))`, "m"));
-  return m ? m[1].trim() : null;
-}
-export const preview = (impl) => section(impl, "Preview");
-export const commitMsg = (impl) => (section(impl, "Commit") || "").replace(/^```\w*\n|\n```$/g, "").trim();
 import { planQuestions } from "@lib/decision";
 export { planQuestions };
 import { brief } from "@lib/core";
-import { attach } from "@lib/markdown";
-export { attach, brief };
+import { attach, commitMsg, preview } from "@lib/markdown";
+export { attach, brief, commitMsg, preview };
 
 // Enough markdown for kaizen's own files: headings, lists, fences, tables,
 // inline code, bold, italic, hard line breaks. Everything is escaped first. With `tick`, a backlog item

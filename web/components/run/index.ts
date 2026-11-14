@@ -13,4 +13,3 @@ export * from "./run-panes.tsx";
 export * from "./run-picker.tsx";
 export * from "./run-tabs.tsx";
 export * from "./run-wait.tsx";
-export * from "./terminal-pane.tsx";

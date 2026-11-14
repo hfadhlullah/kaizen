@@ -15,17 +15,17 @@ import { bindSheetSwipe } from "@lib/phone";
 import { pick } from "./projects.ts";
 import { store } from "./store.ts";
 import { toast } from "./toast.ts";
-import { $, html, ico, raw } from "./dom.ts";
+import { $ } from "./dom.ts";
 import { key } from "./cards.ts";
 import { open } from "./panel.ts";
 import { load, post } from "./api.ts";
-import { attach, md, preview } from "./markdown.ts";
+import { preview } from "./markdown.ts";
 import { cardHref, markCurrent, railData, stateOf, titleOf, wsHref, wsOfCard } from "./workspace.ts";
-import { awaiting, chosen, devUrl, dueWord, finished, gitDue, historyOf, leaves, liveIn, loopbackUrl, migrate, newRun, pickable, previewIn, previewOpens, reviewing, stageTabs, toOpen, wsKey } from "./ws-tabs.ts";
+import { awaiting, chosen, devUrl, dueWord, finished, gitDue, historyOf, leaves, liveIn, loopbackUrl, migrate, newRun, pickable, previewOpens, reviewing, stageTabs, toOpen, wsKey } from "./ws-tabs.ts";
 import { age } from "./labels.ts";
 import { go } from "./views.ts";
 import { react } from "./views.ts";
-import { boxesOf, detach, focusItem, keepUrl, layoutOf, moveInLayout, nearestPane, openAppWindow, patch, placeItems, refreshPreview, replaceAll, requestBrowse, clearBrowse, rects, selectScreen, setDragging, setRunActions, setRunView, setTarget, showItem, useLayout, type Saved, type SavedTab } from "@lib/run";
+import { boxesOf, detach, focusItem, fetchPreview, keepUrl, layoutOf, moveInLayout, nearestPane, patch, placeItems, refreshPreview, replaceAll, requestBrowse, clearBrowse, rects, selectScreen, setDragging, setRunActions, setRunView, setTarget, showItem, useLayout, type Saved, type SavedTab } from "@lib/run";
 
 type Tab = SavedTab & { kind: "agent" | "shell" | "local" | "preview" | "note" | "wait" | "history" };
 // Per workspace the saved layout (lib/run/layout-store.ts): the extra items opened (localhost, preview, notes, History),
@@ -263,63 +263,6 @@ function moveItem(id: string, to: string | null, at?: { pane: string; dir: "cols
   if (moveInLayout(ctx!.k, id, to, at)) draw();
 }
 
-// A Chromium app window on the board's computer (POST /open-url): for dev servers that
-// refuse to be framed. Only offered when the page itself is on that computer.
-// One labelled button: a Chromium app window on the board's computer, for loopback pages only.
-const winBtn = (u: string) =>
-  loopback && loopbackUrl(u)
-    ? html`<button type="button" class="rwin" data-b="win" title="Open in an app window">${ico("popout")}<span>Open in app window</span></button>`
-    : "";
-async function openWindow(u: string) {
-  const why = await openAppWindow(u);
-  if (why) toast(why);
-}
-
-// The run's Preview: its screenshots (each opens the image viewer on click), with an Open
-// app link when it names a localhost address. The address is framed only when the Preview
-// has no images: the dev server a run used is often gone, and a dead frame hides the proof.
-// No run, no `## Preview`: what an agent last showed with `kaizen preview <image|url>` in this workspace.
-async function directPreview(el: HTMLElement) {
-  if (!ctx) return false;
-  const p = await fetchPreview(ctx.dir, ctx.ws);
-  if (!p) return false;
-  const u = p.image ? fileUrl(ctx.dir, p.image) : p.url!;
-  el.insertAdjacentHTML("beforeend", String(p.image ? html`<div class="rprev"><figure><img src="${u}" alt="Latest change" style="max-width:100%"><figcaption>${p.image.split("/").pop()}</figcaption></figure></div>` : html`<iframe class="rframe" title="Preview" src="${u}"></iframe>`));
-  return true;
-}
-async function previewPane(el: HTMLElement) {
-  let doc = store.runDoc && store.runDoc.id === card?.id ? store.runDoc : null;
-  if (!doc && card?.kind === "run")
-    try {
-      doc = await (await fetch(`/run/${encodeURIComponent(card.id)}?dir=${encodeURIComponent(card.state)}`)).json();
-    } catch {}
-  const pv = doc && preview(doc.impl);
-  if (!pv && (await directPreview(el))) return;
-  const url = loopbackUrl(pv);
-  const shots = pv && /!\[[^\]]*\]\(/.test(pv);
-  if (url && loopback && !shots) return void el.insertAdjacentHTML("beforeend", String(html`<iframe class="rframe" title="Preview" src="${/^https?:\/\//i.test(String(url)) ? url : "about:blank"}"></iframe>`));
-  const bar = url ? html`<div class="urlbar"><span class="sel">${url}</span>${winBtn(url)}</div>` : "";
-  el.insertAdjacentHTML("beforeend", String(html`${bar}<div class="rprev md">${pv ? raw(md(attach(pv, card))) : html`<p class="rnone">This run has no Preview yet.</p>`}</div>`));
-  el.querySelector<HTMLElement>(".urlbar [data-b=win]")?.addEventListener("click", () => void openWindow(url!));
-  // The screenshots as a grid, each captioned by its file name, after the Preview's text.
-  const box = el.querySelector(".rprev")!,
-    imgs = [...box.querySelectorAll("img")];
-  if (imgs.length) {
-    const grid = document.createElement("div");
-    grid.className = "shots";
-    for (const im of imgs) {
-      const p = im.parentElement!;
-      const fig = document.createElement("figure");
-      const cap = document.createElement("figcaption");
-      cap.textContent = im.alt || decodeURIComponent((im.getAttribute("src") || "").split("/").pop() || "");
-      fig.append(im.closest("a") ?? im, cap);
-      grid.append(fig);
-      if (p !== box && !p.textContent!.trim() && !p.querySelector("img")) p.remove();
-    }
-    box.append(grid);
-  }
-}
-
 function addTab(t: Tab) {
   if (!saved().tabs.some((x) => x.id === t.id)) edit((s) => ({ ...s, tabs: [...s.tabs, t] }));
   // Already open somewhere: moving it into the target screen means taking it out of its old one.
@@ -543,15 +486,6 @@ async function autoBrowse() {
 // only while you watch it: each visit's first look records the newest (`previewAt`, per visit), so a
 // click, a switch or a reload never opens a tab, or reopens one you closed.
 const previewAt = new Map<string, number>();
-const fileUrl = (dir: string, image: string) => `${location.origin}/file?dir=${encodeURIComponent(dir)}&p=${encodeURIComponent(image)}`;
-// The latest preview written for this workspace, or null.
-async function fetchPreview(dir: string, ws: string) {
-  let p: { url?: string; image?: string; ws?: string; at?: number } = {};
-  try {
-    p = await (await fetch("/preview?dir=" + encodeURIComponent(dir))).json();
-  } catch {}
-  return p.at && p.ws && previewIn(p.ws, ws) && (p.url || p.image) ? p : null;
-}
 async function pollPreview() {
   if (!ctx) return;
   const k = ctx.k, dir = ctx.dir;
@@ -728,7 +662,13 @@ export function initRunView() {
     openNote: openNoteTab,
     termEnded: () => load(true),
     currentRun: () => (card?.id ? { dir: card.state, id: card.id } : null),
-    mountPreview: (el) => void previewPane(el),
+    previewTarget: () =>
+      ctx && {
+        dir: ctx.dir,
+        ws: ctx.ws,
+        card: card ? { id: card.id, kind: card.kind, state: card.state } : null,
+        impl: store.runDoc && store.runDoc.id === card?.id ? store.runDoc.impl : null,
+      },
   });
   // A /state change: new or ended sessions, the card's own state. Panes stay mounted.
   addEventListener("kz-state", () => {

@@ -17,7 +17,7 @@ import {
   WINDOW_AT,
 } from "@lib/home";
 import { Icon, Tooltip, TooltipContent, TooltipTrigger } from "@web/ui";
-import { TerminalPane } from "@components/run";
+import { TerminalPane } from "@components/panes";
 import { HomeWsAdd } from "./home-ws-add.tsx";
 
 const barBtn =

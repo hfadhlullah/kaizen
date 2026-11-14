@@ -4,6 +4,8 @@
 // A screen's layout is a tmux-style tree (lib/run/layout.ts, no DOM there); re-exported so the board code and its
 // tests keep their imports.
 import { gitDue } from "@lib/rail/rules.ts";
+import { loopbackUrl } from "@lib/run/preview.ts";
+export { loopbackUrl, previewIn, previewOpens } from "@lib/run/preview.ts";
 import { leaves, prune, wsKey, type Node } from "@lib/run/layout.ts";
 export { leaves, nearestPane, prune, wsKey, type Box, type Node } from "@lib/run/layout.ts";
 
@@ -94,8 +96,6 @@ export function stageTabs(c, agent: string): { key: string; title: string }[] {
 
 // A run at review or done: its localhost Preview may open the Browser.
 export const reviewing = (c) => c.kind === "run" && (c.column === 3 || c.status === "done");
-// The first localhost address in a run's ## Preview.
-export const loopbackUrl = (pv?: string | null) => (pv ? /https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?[^\s)`'"<>]*/.exec(pv)?.[0] : undefined);
 // The address the Browser opens for a run: the Preview's first localhost address on a port the
 // workspace's own processes listen on (`ports`, from /devports), else the first such port, else
 // the Preview's first address. Another project on the Preview's port never wins.
@@ -109,12 +109,6 @@ export function devUrl(pv: string | null | undefined, ports: number[]): string |
 // yet opened the Browser: once per run id (`seen`).
 export const toOpen = (cards: any[], was: Set<string>, seen: string[], keyOf: (c) => string) => cards.filter((c) => reviewing(c) && !was.has(keyOf(c)) && !seen.includes(keyOf(c)));
 
-// `kaizen preview` written from folder `pws` belongs to workspace `ws`: the same folder or one inside
-// it, but never a worktree under it (`.kaizen/wt/`), which is a workspace of its own.
-export const previewIn = (pws: string, ws: string) => pws === ws || (pws.startsWith(ws + "/") && !pws.startsWith(ws + "/.kaizen/wt/"));
-// A preview opens a tab only when written after the last one this visit recorded; the first look at
-// a workspace (`last` undefined: a click, a switch, a reload) only records.
-export const previewOpens = (at: number, last: number | undefined) => last !== undefined && at > last;
 
 // The sidebar card's agents, the project drag's moveTo and gitDue moved to lib/rail (no DOM there); re-exported so the run view and its tests keep their imports.
 export * from "@lib/rail/agents.ts";

@@ -1,11 +1,10 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { edgeOf, focusItem, moveInLayout, run, setDragging, useLayout, type Rect, type RvPane } from "@lib/run";
+import { useEffect, useState, type CSSProperties } from "react";
+import { edgeOf, focusItem, moveInLayout, setDragging, useLayout, type Rect, type RvPane } from "@lib/run";
 import { cn } from "@lib/core";
-import { BrowserPane } from "./browser-pane.tsx";
+import { BrowserPane, PreviewPane, TerminalPane } from "@components/panes";
 import { PaneHeader } from "./pane-header.tsx";
 import { RunHistory } from "./run-history.tsx";
 import { RunWait } from "./run-wait.tsx";
-import { TerminalPane } from "./terminal-pane.tsx";
 
 const pct = (v: number) => `${v * 100}%`;
 // Where a dragged item lands on this pane: an inset bar on the nearest edge.
@@ -15,19 +14,6 @@ const EDGE = {
   t: "shadow-[inset_0_3px_0_var(--accent)]",
   b: "shadow-[inset_0_-3px_0_var(--accent)]",
 };
-
-// The Preview tab is still the old code's drawing (web/board/run-view.ts): it fills this element, and again when a
-// screenshot is written for the workspace.
-function PreviewBody() {
-  const el = useRef<HTMLDivElement>(null),
-    tick = useLayout((s) => s.previewTick);
-  useEffect(() => {
-    el.current!.replaceChildren();
-    run.act.mountPreview(el.current!);
-  }, [tick]);
-  // kz-keep: the old drawing's own classes (.rprev, .urlbar, .shots) are not reset by the kit's scoped preflight.
-  return <div ref={el} className="contents kz-keep" />;
-}
 
 function Body({ item, wsk, ws }: { item: RvPane; wsk: string; ws: { dir: string } | null }) {
   switch (item.kind) {
@@ -49,7 +35,7 @@ function Body({ item, wsk, ws }: { item: RvPane; wsk: string; ws: { dir: string 
         />
       );
     default:
-      return <PreviewBody />;
+      return <PreviewPane />;
   }
 }
 

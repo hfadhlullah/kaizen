@@ -114,12 +114,15 @@ function Blk({ b }: { b: Block }) {
   }
 }
 // kaizen's markdown as React nodes: an agent's reply, a note. Never HTML; links open in a tab of their own.
-export function Markdown({ text, className }: { text: string; className?: string }) {
+export function MarkdownBlocks({ blocks, className }: { blocks: Block[]; className?: string }) {
   return (
     <div className={className}>
-      {parse(text).map((b, n) => (
+      {blocks.map((b, n) => (
         <Blk key={n} b={b} />
       ))}
     </div>
   );
 }
+export const Markdown = ({ text, className }: { text: string; className?: string }) => (
+  <MarkdownBlocks blocks={parse(text)} className={className} />
+);

@@ -4,6 +4,7 @@
 // snapshot on every draw and answers the callbacks below. The layout (which item is in which pane, and how big) is the
 // layout store's; a pane is a component keyed by its item, so a redraw never moves a live terminal.
 import { create } from "zustand";
+import type { PreviewTarget } from "./preview.ts";
 
 export type RvItem = { id: string; kind: string; title: string; agent?: string };
 // One open item of the workspace: a terminal (agent, shell), the Browser (local), the Preview, a note, History, or the
@@ -51,7 +52,7 @@ export type RunActions = {
   openNote(name: string): void;
   termEnded(): void; // a terminal's session ended: the board reads /state again
   currentRun(): { dir: string; id: string } | null; // the run the panel shows (the annotator sends notes to it)
-  mountPreview(el: HTMLElement): void; // draws the Preview tab into el (still the old code)
+  previewTarget(): PreviewTarget | null; // what the Preview tab reads: the workspace, its newest run and that run's 03-impl.md
 };
 export const useRunView = create<RunView>()(() => ({
   message: null,
@@ -90,7 +91,7 @@ export const run: { act: RunActions } = {
     openNote: noop,
     termEnded: noop,
     currentRun: () => null,
-    mountPreview: noop,
+    previewTarget: () => null,
   },
 };
 export const setRunActions = (a: RunActions) => (run.act = a);

@@ -134,14 +134,18 @@ test("shared side-menu code only opens React hosts the page has; no page wipes a
 });
 
 // The run workspace centre: the panes, the layout tree, the gutters, the Browser tab and the panel grip are React
-// (components/run, lib/run). run-view.ts holds the plumbing (which items the workspace has, sessions, keys) and the
-// Preview tab's old drawing; it builds no pane, gutter, frame or terminal element.
+// (components/run, components/panes, lib/run). run-view.ts holds the plumbing (which items the workspace has, sessions,
+// keys); it builds no pane, gutter, frame or terminal element and no Preview tab (components/panes/preview-pane.tsx).
 test("run-view.ts builds no pane, gutter, frame or terminal element and keeps no layout tree of its own", () => {
   const src = readFileSync(join(web, "board/run-view.ts"), "utf8");
   expect(src).not.toMatch(/createElement\(["'`](?:section|header|iframe|webview)/);
   expect(src).not.toMatch(/makePane|\.rtree|\.rgut|kz-runtabs|splitAt|termLoad|new Map<string, \{ el:/);
   const ui = readFileSync(join(web, "html/board.html"), "utf8");
   expect(ui).not.toMatch(/\.rtree|\.rgut|\.rdrop|id="rgrip"/);
+  // The Preview tab is React over lib/run/preview.ts: no HTML strings, no leftover classes.
+  expect(src).not.toMatch(/previewPane|directPreview|insertAdjacentHTML|mountPreview/);
+  expect(ui).not.toMatch(/\.rprev|\.shots\b|\.rnone/);
+  expect(readFileSync(join(web, "components/panes/preview-pane.tsx"), "utf8")).not.toMatch(/innerHTML/);
 });
 
 // The floating Home window and the phone's Home and Runs pages are React (components/home, components/phone; state and rules
@@ -214,7 +218,7 @@ test("the annotator is React plus one bundled page script, with no old board mod
   expect(existsSync(join(web, "board/annotate-lib.ts"))).toBe(false);
   expect(readdirSync(join(web, "annotate"))).toEqual(["annotate.ts"]);
   expect(rd("annotate/annotate.ts")).not.toMatch(/innerHTML|insertAdjacentHTML|document\.write/);
-  expect(rd("components/run/browser-pane.tsx")).toMatch(/<AnnotatePanel ann=\{ann\} \/>/);
+  expect(rd("components/panes/browser-pane.tsx")).toMatch(/<AnnotatePanel ann=\{ann\} \/>/);
   expect(rd("board/run-view.ts")).not.toMatch(/annotat/i);
   expect(rd("html/board.html")).not.toMatch(/\.annbar|\.annlist|\.annn|\.annset|\.annempty/);
   const root = dirname(web);
