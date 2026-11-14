@@ -14,10 +14,13 @@ import { useSearch } from "@lib/search";
 const kit = { useSearch, openAdd, openWsMenu, ask, toast, setHost };
 export type Kit = typeof kit;
 
+// Like the board's #kz-portal: a kz-ui container the popups render into, with the React root in a div of its own.
+const portal = document.createElement("div");
+portal.id = "kz-kit";
+portal.className = "kz-ui";
 const el = document.createElement("div");
-el.id = "kz-kit";
-el.className = "kz-ui";
-document.body.append(el);
+portal.append(el);
+document.body.append(portal);
 createRoot(el).render(
   createElement(
     TooltipProvider,

@@ -5,6 +5,9 @@ import { twMerge } from "tailwind-merge";
 export const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
 
 // Every popover, menu, select, picker, dialog and tooltip renders into this one container (board.html,
-// class kz-ui), so the reset and the theme reach it and it sits above the board's own layers.
+// class kz-ui), so the reset and the theme reach it and it sits above the board's own layers. The Notebook page's
+// container is #kz-kit (notebook/kit.ts); only the board has #kz-portal, which pages test to know they are the board.
 export const portalRoot = () =>
-  typeof document === "undefined" ? undefined : (document.getElementById("kz-portal") ?? undefined);
+  typeof document === "undefined"
+    ? undefined
+    : (document.getElementById("kz-portal") ?? document.getElementById("kz-kit") ?? undefined);
