@@ -19,3 +19,6 @@ bot/dist/
 __pycache__/
 
 artifacts/
+
+# Design mockups stay local, not in the repo
+docs/mockups/
