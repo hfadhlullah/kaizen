@@ -125,7 +125,7 @@ body .rail a.upd::after{left:calc(50% + 6px);top:4px}body .toast{left:16px;botto
 [data-rail=min] .rail .psec{padding:0;margin:12px 0 2px;flex-direction:column}[data-rail=min] .rail .rbot{flex-direction:column}
 [data-rail=min] .plist .proj{justify-content:center;margin:10px 0 4px;padding:0}[data-rail=min] .plist .row{grid-template-columns:14px;justify-content:center;padding:0}
 @media(max-width:640px){.rail .psec,.rail .plist,.rail .ib.xs{display:none}.rail .rbot,[data-rail=min] .rail .rbot{display:contents}.rail a.it[data-view=tasks]{order:3}.rail a.it[data-view=board]{order:4}.rail a.it .n,.rail a.it .srcs{display:none}}
-/* phones: Runs, Search, Home, Chat, Terminal (Settings and the Icebox are Search results). The board and Tasks are set up on a computer (lib/phone/phone-setup.ts) */
+/* phones: Runs, Search, Home, Chat, Terminal (Settings and the Icebox are Search results). The board and Tasks are set up on a computer (web/board/phone.ts) */
 @media(min-width:641px){.rail .rbot .lbl{display:none}.rail .rbot a.it{flex:none;width:var(--btn-xs);height:var(--btn-xs);padding:0;justify-content:center;margin-right:auto}[data-rail=min] .rail .rbot a.it{width:var(--btn-s);height:var(--btn-s);margin-right:0}}
 .rail a.it.ponly,#phome{display:none}
 /* the Home chat item reads Chat on a computer (Home is the floating workspace there) and Home on a phone */
