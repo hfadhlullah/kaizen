@@ -6,18 +6,16 @@ import { setGit } from "./git-store.ts";
 // web/lib/git/git-actions.ts). This module decides when the tab shows and hands it the run's git state on every redraw of
 // the panel; what the user typed and which confirm is open live in the tab's own store.
 
-// Commits only after the final approval, and only on a finished run.
-export const gitShown = (c) => {
-  const g = getPanel().runDoc && getPanel().runDoc.git;
-  return (
-    !!(g && g.repo) && !c.archived && c.accept !== "needs" && (c.status === "done" || c.awaiting === "approvals.review")
-  );
+// Commits only after the final approval, and only on a finished run. `d` is the run's /run reply.
+export const gitShownIn = (c, d) => {
+  const g = d && d.git;
+  return !!(g && g.repo) && !c.archived && c.accept !== "needs" && (c.status === "done" || c.awaiting === "approvals.review");
 };
 // Something is left to do: the footer points at the tab.
-export const gitPending = (c) => {
-  if (!gitShown(c)) return false;
-  const g = getPanel().runDoc.git,
-    b = getPanel().runDoc.branch;
+export const gitPendingIn = (c, d) => {
+  if (!gitShownIn(c, d)) return false;
+  const g = d.git,
+    b = d.branch;
   return (
     g.files.length > 0 ||
     (b

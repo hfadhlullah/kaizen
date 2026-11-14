@@ -1,6 +1,7 @@
-// The run panel's React parts (Zustand): what the body, the footer and the header draw, and the Fix findings form that sits
-// in the review tab. The old panel code (web/board/panel.ts openRun()) publishes them on every redraw. The ticks of the fix form live
-// here and not in the form, so a redraw of the panel's body (which replaces the element the form stands in) loses nothing.
+// The run panel's state (Zustand): which card is up, what it asked for (the tab, a link's item, a read), and what the body,
+// the footer and the header draw, with the Fix findings form that sits in the review tab. The actions that ask (open, close, a
+// tab, a refresh) are panel-actions.ts; usePanelRun (use-panel-run.ts, mounted by the panel) reads the card and its /run reply
+// and publishes what is drawn. The ticks of the fix form live here and not in the form, so a redraw of the panel's body loses nothing.
 import { create } from "zustand";
 import type { Card } from "@lib/core";
 
@@ -35,7 +36,6 @@ export type Panel = {
   wantTab: string; // the tab the next draw opens on (a link, a key or a pick asked for it; `tab` is what is drawn)
   ptabs: string[]; // the keys of the tabs the run has (the arrow keys walk them)
   runDoc: any; // the /run reply for the card whose panel is up
-  pickTab: (k: string) => void;
   footer: { card: Card; plan: string; sourceControl: boolean } | null;
   doc: PanelDoc | null; // the document tab open, null while another kind of tab shows
   fix: { card: Card; findings: Finding[] } | null; // the Fix findings form, in the review tab under its document
@@ -55,10 +55,19 @@ export type Panel = {
   titleTip: string;
   top: number; // the body scrolls back to its top whenever this changes
   openKey: string | null; // the card whose panel is up (the board marks it)
+  card: Card | null; // that card as it was opened; the live one is in the server's cards (it can be gone from them)
+  // Asks the panel's hook answers: a new open (reads the run again and draws it fresh), a read again, a redraw of what it has.
+  openN: number;
+  fetchAsk: number;
+  drawAsk: number;
+  keepNext: boolean; // a card waits for its workspace to mount this panel: the tab it asked for survives
+  hit: { type: string; n: number; k: string } | null; // a link's finding or backlog item, to scroll to and mark once
+  // The agent terminal a card or the sidebar asked for, selected once its tab exists; and the one a launch just opened.
+  wantTerm: string | null;
+  wantPty: { key: string; at: number } | null;
 };
-// What the panel's close button, the scrim and the project-notes button do; the engine (lib/run/panel.ts) answers them.
-export const panelActions = { close: () => {}, notes: () => {} };
-export const setPanelActions = (a: Partial<typeof panelActions>) => Object.assign(panelActions, a);
+// Callers waiting for the panel to show a read they asked for (`refetchPanel`): the hook settles them after it draws.
+export const panelWaiters = new Set<() => void>();
 // The panel's body element, for what only an element can say: scrolling it, and whether a note is being typed in.
 export const panelBody: { el: HTMLElement | null } = { el: null };
 export const scrollPanel = (dy: number) => panelBody.el?.scrollBy({ top: dy });
@@ -74,7 +83,6 @@ export const usePanel = create<Panel>()(() => ({
   wantTab: "request",
   ptabs: [],
   runDoc: null,
-  pickTab: () => {},
   footer: null,
   doc: null,
   fix: null,
@@ -90,6 +98,14 @@ export const usePanel = create<Panel>()(() => ({
   titleTip: "",
   top: 0,
   openKey: null,
+  card: null,
+  openN: 0,
+  fetchAsk: 0,
+  drawAsk: 0,
+  keepNext: false,
+  hit: null,
+  wantTerm: null,
+  wantPty: null,
   sent: (() => {
     try {
       return JSON.parse(sessionStorage.getItem(SK) ?? "[]") || [];

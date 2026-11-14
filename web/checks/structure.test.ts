@@ -93,30 +93,34 @@ const HAND_BUILT =
   /<dialog\b|document\.createElement\(["']dialog|(?<!\[)role=["'](?:dialog|alertdialog|listbox)["']|menu-pop|innerHTML|outerHTML|insertAdjacentHTML|document\.write|dangerouslySetInnerHTML|DOMParser|createContextualFragment/g;
 const MADE = /\.createElement(?:NS)?\(\s*(?!["'](?:canvas|link|script|style)["'])/g;
 const uses = (src: string) => (src.match(HAND_BUILT)?.length ?? 0) + (src.match(MADE)?.length ?? 0);
-// What used to be web/board: the engines that react to lib/server and lib/router and the page's glue. They draw nothing.
-const ENGINES = [
-  "pages/board/main.ts",
-  "pages/board/use-boot.ts", "pages/board/views.ts", "pages/board/keys.ts", "pages/board/live.ts", "pages/board/host-bridge.ts",
-  "lib/run/panel.ts", "lib/run/workspace.ts", "lib/run/ws-draw.ts", "lib/run/ws-actions.ts", "lib/run/card-terminal.ts", "lib/board/snapshot.ts", "lib/board/on-state.ts", "lib/board/popups.ts",
-  "lib/board/nav.ts", "lib/home/home-engine.ts", "lib/home/home-events.ts", "lib/terminal/terms-feed.ts", "lib/context/feed.ts",
-  "lib/settings/panel-settings.ts", "lib/git/git-panel.ts", "lib/project/project-pick.ts", "lib/search/search-rows.ts", "lib/rail/rail-boot.ts",
-];
-// Imperative by design: the files that stay engines because each owns something React does not (a terminal's canvas and soft
-// keyboard, an editor's document, a page script in someone else's page, the microphone, pointer gestures that must not re-render
-// per move). They are not converted and not counted as unfinished: a new one is added here on purpose. The files in EXEMPT are
-// the ones among them that build DOM by hand. The test below keeps the list honest (every file still exists).
-const BY_DESIGN: Record<string, string> = {
-  "term/term.ts": "xterm engine: its toolbar, find box, reconnect strip and the phone key bar are hand-built (see EXEMPT); kept whole in roadmap 9b-3c: its soft-keyboard behaviour cannot be tested without a phone",
-  "annotate/annotate.ts": "script injected into the previewed page",
-  "lib/notebook/engine.ts": "CodeMirror editor engine (with engine-widgets, engine-complete, engine-preview, engine-types, deal)",
-  "lib/notes/rich.ts": "contenteditable note editor",
-  "lib/dictation/engine.ts": "microphone, Whisper worker and recording session",
-  "lib/task/zoom.ts": "pinch and wheel zoom gesture",
-  "lib/phone/sheet-swipe.ts": "phone sheet swipe gesture",
-  "lib/icebox/use-row-swipe.ts": "icebox row swipe gesture",
-  "lib/rail/use-rank-drag.ts": "rank drag gesture",
-  "lib/home/use-float-drag.ts": "floating Home window drag gesture",
+// Imperative by design: the only files that own something React does not (a terminal's canvas and soft keyboard, an editor's
+// document, a page script in someone else's page, the microphone, pointer gestures that must not re-render per move). Each is
+// named with why and a signature the file must still show: a file that stops being imperative fails until its line is removed,
+// and one outside the list that grows the signature fails until it is added on purpose. The files in EXEMPT are the ones
+// among them that build DOM by hand.
+const BY_DESIGN: Record<string, [string, RegExp]> = {
+  "term/term.ts": ["xterm engine: its toolbar, find box, reconnect strip and the phone key bar are hand-built (see EXEMPT); kept whole because its soft-keyboard behaviour (pointerdown + preventDefault) cannot be tested without a phone", /new Terminal\(|xterm/i],
+  "annotate/annotate.ts": ["script injected into the previewed page, where no React exists", /addEventListener/],
+  "lib/notebook/engine.ts": ["CodeMirror editor engine", /EditorView/],
+  "lib/notebook/engine-widgets.ts": ["CodeMirror widget DOM", /WidgetType/],
+  "lib/notebook/engine-complete.ts": ["CodeMirror autocomplete source", /autocomplete|CompletionContext/i],
+  "lib/notebook/engine-preview.ts": ["CodeMirror live-preview decorations", /Decoration|EditorView/],
+  "lib/notebook/deal.ts": ["the card-deal effect animates a node the editor engine owns", /getAnimations|animate\(|querySelector/],
+  "lib/notes/rich.ts": ["contenteditable note editor", /contenteditable|contentEditable/i],
+  "lib/dictation/engine.ts": ["microphone, Whisper worker and recording session", /getUserMedia|Worker/],
+  "lib/task/zoom.ts": ["pinch and wheel zoom gesture", /wheel|touch|pointer/],
+  "lib/phone/sheet-swipe.ts": ["phone sheet swipe gesture", /touch|pointer/],
+  "lib/icebox/use-row-swipe.ts": ["icebox row swipe gesture", /touch|pointer/],
+  "lib/rail/use-rank-drag.ts": ["rank drag gesture", /pointer/],
+  "lib/home/use-float-drag.ts": ["floating Home window drag gesture", /pointer/],
 };
+// Every other .ts file in lib/ and pages/ (state, requests, reactions: what used to be web/board) is a module under the rules below.
+// It reads and writes stores, draws nothing, looks nothing up in the DOM but what is named, does not poll the server or set a page class.
+const isTestFile = (rel: string) => /\.test\.tsx?$/.test(rel);
+const modulesOf = (files: Record<string, string>) =>
+  Object.keys(files)
+    .map((f) => norm(relative(web, f)))
+    .filter((rel) => /^(?:lib|pages)\//.test(rel) && rel.endsWith(".ts") && !rel.endsWith("/index.ts") && !isTestFile(rel) && !(rel in BY_DESIGN));
 const EXEMPT: Record<string, [number, string]> = {
   "term/term.ts": [
     26,
@@ -138,11 +142,18 @@ const allSources = () =>
   readdirSync(web, { withFileTypes: true })
     .filter((e) => e.isDirectory() && !SKIP.has(e.name))
     .flatMap((e) => walk(join(web, e.name)));
-test("the engines kept imperative by design are named and still there", () => {
-  for (const [f, why] of Object.entries(BY_DESIGN)) {
+test("the files kept imperative by design are named, still there, and still show their signature; no other file grows one", () => {
+  const files = Object.fromEntries(allSources().map((f) => [norm(relative(web, f)), readFileSync(f, "utf8")]));
+  for (const [f, [why, sig]] of Object.entries(BY_DESIGN)) {
     expect(why.length).toBeGreaterThan(10);
     expect([f, existsSync(join(web, f))]).toEqual([f, true]);
+    expect([f, sig.test(files[f] ?? "")]).toEqual([f, true]);
   }
+  // A worker, a microphone, an editor or a terminal engine outside the named files is a new imperative engine: name it on purpose.
+  const OWNS = /\bnew Worker\(|getUserMedia\(|new EditorView\(|new Terminal\(/;
+  const loose = Object.entries(files).filter(([f, src]) => !(f in BY_DESIGN) && !isTestFile(f) && OWNS.test(src.replace(/\/\/.*$/gm, "")));
+  expect(loose.map(([f]) => f)).toEqual([]);
+  expect(OWNS.test("const w = new Worker(u)")).toBe(true);
 });
 
 test("nothing in web/ except video/ and the named exceptions hand-builds a popup, sets innerHTML or makes elements", () => {
@@ -177,8 +188,8 @@ test("nothing in web/ except video/ and the named exceptions hand-builds a popup
 
 // The DOM is React's. No code looks an element up on the page by selector or id, except the few places named here, each with
 // the most lookups it may keep and a reason (a new one fails until the count is raised on purpose; a file that stops needing
-// its entry fails until the line is removed). Two rules: (1) the engines (what used to be web/board) look nothing up on any
-// node but the ones named in ENGINE_LOOKUPS, so "an engine reaches into no markup" is held, not claimed; (2) anywhere in web/
+// its entry fails until the line is removed). Two rules: (1) the modules (state, requests and reactions in lib/ and pages/: what used to be web/board) look nothing up on any
+// node but the ones named in ENGINE_LOOKUPS, so "a module reaches into no markup" is held, not claimed; (2) anywhere in web/
 // outside video/, `document.getElementById`, `document.querySelector` and `document.querySelectorAll` only where DOC_LOOKUPS
 // says. A node a component holds as a ref (`box.current?.querySelector(...)`) is the component's own and is not counted.
 const LOOKUP = /\b(?:getElementById|querySelector(?:All)?)\s*(?:<[^>()]*>)?\(|\$\(["']/g;
@@ -187,6 +198,8 @@ const ENGINE_LOOKUPS: Record<string, [number, string]> = {
   "pages/board/main.ts": [1, "the page's one mount point, #root"],
   "lib/board/nav.ts": [3, "j/k/arrows walk the cards by DOM order inside the Board's own root (a ref held in the store), the order the person sees"],
   "lib/rail/rail-boot.ts": [1, "a MutationObserver reads the node it is handed to see whether a status icon was added"],
+  "lib/core/layers.ts": [1, "whether a menu or dialog is open: asks the portal root (#kz-portal, held as the layer's one node) for an open Radix layer"],
+  "lib/run/panel-store.ts": [1, "whether a note is being typed in: asks the panel body (a ref the panel hands over) for its .notes box before a redraw would wipe it"],
 };
 const DOC_LOOKUPS: Record<string, [number, string]> = {
   "pages/board/main.ts": [1, "the mount point, #root"],
@@ -206,13 +219,14 @@ const lookups = (files: Record<string, string>, re: RegExp, table: Record<string
     const rel = norm(relative(web, f));
     if (only && !only.includes(rel)) return [];
     const n = src.match(re)?.length ?? 0,
-      allowed = table[rel]?.[0] ?? 0;
+      // the modules' rule also takes what DOC_LOOKUPS names for the same file (document-level lookups count in both)
+      allowed = Math.max(table[rel]?.[0] ?? 0, only ? (DOC_LOOKUPS[rel]?.[0] ?? 0) : 0);
     return n > allowed ? [`${rel} looks up ${n} elements by selector or id; ${allowed} allowed`] : [];
   });
-test("nothing looks an element up by id or selector except the named places; the engines look up none but theirs", () => {
+test("nothing looks an element up by id or selector except the named places; the modules look up none but theirs", () => {
   const files = Object.fromEntries(allSources().map((f) => [f, readFileSync(f, "utf8")]));
   expect(lookups(files, DOC_LOOKUP, DOC_LOOKUPS)).toEqual([]);
-  expect(lookups(files, LOOKUP, ENGINE_LOOKUPS, ENGINES)).toEqual([]);
+  expect(lookups(files, LOOKUP, ENGINE_LOOKUPS, modulesOf(files))).toEqual([]);
   // every entry is still in use, its count exact, a reason given
   for (const [table, re] of [[DOC_LOOKUPS, DOC_LOOKUP], [ENGINE_LOOKUPS, LOOKUP]] as const)
     for (const [f, [n, why]] of Object.entries(table)) {
@@ -227,14 +241,14 @@ test("nothing looks an element up by id or selector except the named places; the
     {
       [at("lib/run/workspace.ts")]: 'document.querySelector(".hdr h1")',
       [at("lib/search/search-rows.ts")]: "document.querySelector<HTMLTextAreaElement>('[role=\"dialog\"] textarea')",
-      [at("lib/run/panel.ts")]: 'box.querySelectorAll("li"); $("hq"); getElementById("x")',
+      [at("lib/run/use-panel-run.ts")]: 'box.querySelectorAll("li"); $("hq"); getElementById("x")',
       [at("lib/home/home-engine.ts")]: 'x.querySelector(".a")',
       [at("components/x.tsx")]: 'document.getElementById("a"); document.querySelectorAll(".b")',
       [at("components/ok.tsx")]: 'box.current?.querySelector("textarea"); el.querySelectorAll("li")',
     },
     LOOKUP,
     ENGINE_LOOKUPS,
-    ENGINES,
+    ["lib/run/workspace.ts", "lib/search/search-rows.ts", "lib/run/use-panel-run.ts", "lib/home/home-engine.ts"],
   ).concat(
     lookups(
       {
@@ -249,7 +263,7 @@ test("nothing looks an element up by id or selector except the named places; the
   expect(bad.map((l) => l.split(" looks")[0])).toEqual([
     "lib/run/workspace.ts",
     "lib/search/search-rows.ts",
-    "lib/run/panel.ts",
+    "lib/run/use-panel-run.ts",
     "lib/home/home-engine.ts",
     "components/x.tsx",
     "lib/y.ts",
@@ -274,7 +288,7 @@ test("web/board is gone: no folder, no import of it, and no engine file that onl
       .map((spec) => `${norm(relative(web, f))} imports ${spec}`),
   );
   expect(stray).toEqual([]);
-  for (const f of ENGINES) expect([f, onlyForwards(readFileSync(join(web, f), "utf8"))]).toEqual([f, false]);
+  for (const f of modulesOf(Object.fromEntries(allSources().map((x) => [x, ""])))) expect([f, onlyForwards(readFileSync(join(web, f), "utf8"))]).toEqual([f, false]);
   // the check sees a one-line forward, a multi-line one and one beside an import, and leaves real code alone
   expect(onlyForwards('export { a } from "./a.ts";')).toBe(true);
   expect(onlyForwards('// x\nexport {\n  a,\n  b,\n} from "./a.ts";\nexport * from "./b.ts"')).toBe(true);
@@ -310,19 +324,22 @@ test("board.html, notes.html and popup.html are small shells with no inline styl
   expect(readFileSync(join(web, "pages/board/views.ts"), "utf8")).not.toMatch(/export const react\b/);
 });
 
-// The server's data and the page that shows are not the engines' to decide any more: lib/server is the one poller (fetch, dedupe,
+// The server's data and the page that shows are not any module's to decide: lib/server is the one poller (fetch, dedupe,
 // the quiet gap, the event stream) writing one store, lib/router the one router (the view, its address, the <body> classes
-// through the App). The engines read them and react; it fetches none of what the poller reads and sets no page class.
-test("the engines do not poll the server or show pages: lib/server and lib/router do", () => {
+// through the App). The other modules read them and react; none fetches what the poller reads or sets a page class.
+test("no module polls the server or shows pages: lib/server and lib/router do", () => {
   const src = (n: string) => readFileSync(join(web, n), "utf8");
-  for (const n of ENGINES) {
+  const owners = (n: string) => n.startsWith("lib/server/") || n.startsWith("lib/router/") || n === "lib/core/api.ts" /* the poller's request helpers */ || n === "lib/notebook/vault-session.ts" /* the Notebook page: its one read of /state, no board poller there */;
+  const mods = modulesOf(Object.fromEntries(allSources().map((x) => [x, ""]))).filter((n) => !owners(n));
+  expect(mods.length).toBeGreaterThan(100);
+  for (const n of mods) {
     const s = src(n);
     expect([n, /fetch\(["'`]\/(state|shells["'`]|sources|tasks\?all|events)/.test(s) || /new EventSource/.test(s)]).toEqual([n, false]);
     expect([n, /dispatchEvent\(new Event\("kz-(state|view|rail|shells|cards|all-cards|task-attention|changed)"\)\)/.test(s)]).toEqual([n, false]);
     // A page class on <body> is the App's (useRouteClasses): the engines may read the route, never set one.
     expect([n, /body\.classList\.(toggle|add|remove)\(\s*["'`](paged|ice|setv|termv|homev|phomev|pdevv|taskv|taskpagev|runv|phone-menu-open)\b/.test(s)]).toEqual([n, false]);
     expect([n, /classList\.contains\(\s*["'](paged|ice|setv|termv|homev|phomev|pdevv|taskv|taskpagev)["']/.test(s)]).toEqual([n, false]);
-    // No panel or page is written as classes: the stores draw them. (What an engine may look up is the next test.)
+    // No panel or page is written as classes: the stores draw them. (What a module may look up is the lookups test.)
   }
   // the poller is lib/server's and the router lib/router's; the Board App is the page picker
   for (const f of ["poller.ts", "poll-rules.ts", "server-store.ts"]) expect(existsSync(join(web, "lib/server", f))).toBe(true);
@@ -433,24 +450,24 @@ test("the Project context pane is drawn by React, not by board/context.ts", () =
 });
 
 // The run panel's document tabs (Request, Plan, Backlog with its Work list, Review with the Fix form) are React
-// (components/run/doc-body.tsx over lib/run/doc.ts and the panel store); panel.ts decides which tab shows and hands it
-// the text. It builds no markup. md() stays for the note editor (rich.ts); the panel's progress renderer is gone.
-test("the panel's document tabs are drawn by React, not by panel.ts", () => {
-  const src = readFileSync(join(web, "lib/run/panel.ts"), "utf8");
-  expect(src).not.toMatch(/innerHTML|insertAdjacentHTML|createElement|html`|raw\(|md\(|progress\(/);
+// (components/run/doc-body.tsx over lib/run/doc.ts and the panel store); usePanelRun decides which tab shows (panel-derive.ts,
+// pure) and hands it the text. It builds no markup. md() stays for the note editor (rich.ts); the panel's progress renderer is gone.
+test("the panel's document tabs are drawn by React, not by the panel's hook", () => {
+  for (const f of ["lib/run/use-panel-run.ts", "lib/run/panel-derive.ts", "lib/run/panel-actions.ts"])
+    expect(readFileSync(join(web, f), "utf8")).not.toMatch(/innerHTML|insertAdjacentHTML|createElement|html`|raw\(|md\(|progress\(/);
   expect(readFileSync(join(web, "lib/notes/md-html.ts"), "utf8")).not.toMatch(/export function progress\b/);
   expect(readFileSync(join(web, "components/run/doc-body.tsx"), "utf8")).not.toMatch(/innerHTML/);
 });
 
 // The Notes tab (components/notes, lib/notes) and dictation (lib/dictation, the microphone button in components/shared) are
-// React and lib. board/chat.ts and board/dictation.ts are gone, panel.ts hands the notes to react.drawNotes, the host no longer
+// React and lib. board/chat.ts and board/dictation.ts are gone, the panel's hook hands the notes to the notes store, the host no longer
 // carries a mic, and the page's CSS keeps none of the old note-list or microphone rules (only the rules of the note editor's
 // own element and the glow on the field being dictated into).
 test("the notes chat and dictation are drawn by React, not by board/ modules or board.html", () => {
   const rd = (p: string) => readFileSync(join(web, p), "utf8");
   for (const f of ["board/chat.ts", "board/dictation.ts"]) expect(existsSync(join(web, f))).toBe(false);
-  expect(rd("lib/run/panel.ts")).not.toMatch(/\bchat\(|from "\.\/(?:chat|dictation)\.ts"/);
-  expect(rd("lib/run/panel.ts")).toMatch(/drawNotes\(/);
+  expect(rd("lib/run/use-panel-run.ts")).not.toMatch(/\bchat\(|from "\.\/(?:chat|dictation)\.ts"/);
+  expect(rd("lib/run/use-panel-run.ts")).toMatch(/setNotes\(/);
   expect(rd("lib/core/host.ts")).not.toMatch(/\bmic\(|stopDictation/);
   const css = rd("ui/legacy/board.css");
   expect(css).not.toMatch(/\.vu\{|\.ib\.mic|\.row \.mic|\.msg\{|\.chat\{|\.desc\{|\.notes textarea|\.notes \.tools|\.notes \.att|\.notes \.row/);

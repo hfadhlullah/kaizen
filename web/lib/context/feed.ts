@@ -1,4 +1,4 @@
-import { open, work } from "@lib/run";
+import { openPanel, setPanel } from "@lib/run";
 import { cardKey as key, getServer, onState } from "@lib/server";
 import { projectChanged, setContextActions, setContextData } from "./index.ts";
 
@@ -11,8 +11,8 @@ const sessions = () => getServer().state.cards.filter((c) => c.pty && !c.archive
 export function initContext() {
   setContextActions({
     openSession: (card) => {
-      work.wantTerm = key(card);
-      open(card);
+      setPanel({ wantTerm: key(card) });
+      openPanel(card);
     },
   });
   setContextData({ dir: selectedDir(), sessions: sessions() });

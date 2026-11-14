@@ -1,8 +1,8 @@
 import { isPhone } from "@lib/core";
 import { openPhone } from "@lib/phone";
 import { getRoute, setRouterHooks, startRouter, type View } from "@lib/router";
-import { close, initRunView, runStop, setPanel, work } from "@lib/run";
-import { openSettings } from "@lib/settings";
+import { closePanel, runStop, setPanel } from "@lib/run";
+import { getSettings, openSettings, setSettings } from "@lib/settings";
 import { openTerms, termsStop } from "@lib/terminal";
 import { openHome } from "@lib/home";
 import { useShell } from "@lib/shell";
@@ -19,18 +19,17 @@ setRouterHooks({
   // Settings opened from the menu starts on a clean search and goes Back to where it came from.
   before: (v) => {
     if (v !== "settings") return;
-    work.setQ = "";
-    work.setBack = getRoute().view !== "settings";
+    setSettings({ startQ: "", startBack: getRoute().view !== "settings" });
   },
   prepare: (v) => {
-    work.pageGen++;
+    setSettings({ pageGen: getSettings().pageGen + 1 });
     if (v === "task") showTask();
   },
   // Leaving a workspace: its panel closes as the board's would; its terminals stay mounted, hidden (run-view-store `kept`).
   leave: (v) => {
     if (handled === "run" && v !== "run") {
       runStop();
-      close(true);
+      closePanel(true);
     }
   },
   enter: (v: View) => {
@@ -44,12 +43,12 @@ setRouterHooks({
     // The Terminal page is the board's own area, not the docked panel: the panel closes as on the board.
     if (AREA.includes(v)) {
       if (AREA.includes(was)) {
-        if (v !== "board" && (was === "board" || was === "tasks" || was === "sources")) close(true);
+        if (v !== "board" && (was === "board" || was === "tasks" || was === "sources")) closePanel(true);
         return;
       }
       // Undocked without the slide: it was a page, not a drawer leaving.
       setPanel({ open: false, docked: false, instant: true });
-      close(true);
+      closePanel(true);
       return;
     }
     setPanel({ docked: true });
@@ -58,7 +57,6 @@ setRouterHooks({
 });
 
 export function initViews() {
-  initRunView();
   startRouter();
   // The menu's theme switch while Settings shows: its Theme row follows.
   useShell.subscribe((s, p) => s.look !== p.look && getRoute().view === "settings" && openSettings());

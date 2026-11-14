@@ -7,7 +7,7 @@
 // the Preview polling, the keyboard and the reaction to a new /state (use-run-lifecycle.ts, a hook of the run panes). The
 // panes, their layout and the Browser tab are React (components/run, lib/run/layout-store.ts). Panes of every workspace
 // visited stay mounted, hidden, up to a cap, so leaving a workspace and coming back keeps a Browser page, a note's scroll and
-// a terminal's screen; the run panel (#panel, drawn by panel.ts) docks on the right and shows one run, chosen in its picker.
+// a terminal's screen; the run panel (#panel, usePanelRun) docks on the right and shows one run, chosen in its picker.
 // A workspace with no tab opens a shell in its folder. Split right or down shows a second tab beside the first.
 import { cardHref, titleOf, wsHref, wsOfCardNow as wsOfCard } from "@lib/rail";
 import { getRoute, navigate, setTitle, touchRoute } from "@lib/router";
@@ -19,9 +19,9 @@ import { followNew, mineNow, picked, seenRuns, tabs, draw } from "./ws-draw.ts";
 import { byKey, autoTab, closeScreen, closeTab, moveItem, newPty, openAgent, openNew, openNoteTab, previewApp, projectNotes, show } from "./ws-actions.ts";
 import { cx, edit, getWs, saved, setWs } from "./ws-store.ts";
 import { devUrl, finished, leaves, loopbackUrl, migrate, previewOpens, reviewing, toOpen, wsKey } from "./ws-tabs.ts";
-import { clearBrowse, fetchPreview, keepUrl, layoutOf, refreshPreview, replaceAll, requestBrowse, selectScreen, setDragging, getPanel, setPanel, setPanelActions, setRunActions, setRunView, useLayout, useRunView, work } from "./index.ts";
+import { clearBrowse, fetchPreview, keepUrl, layoutOf, refreshPreview, replaceAll, requestBrowse, selectScreen, setDragging, getPanel, setPanel, setRunActions, setRunView, useLayout, useRunView } from "./index.ts";
 
-export { openNoteTab, openPreview } from "./ws-actions.ts";
+export { openNoteTab, openPreview, projectNotes } from "./ws-actions.ts";
 let switched: string | null = null; // the project a deep link last switched the board to
 const none = (t: string) => setRunView({ message: t });
 // Called by navigate("run") and on every /state: draws the tab strip and keeps the panes.
@@ -99,7 +99,7 @@ export async function showRunView(nav = false) {
     if (!tabs().length && !autoShell.has(k)) return void (autoShell.add(k), newPty());
     // Not while a launch from the board is coming up: its terminal is not tied to the new run card yet, and
     // resuming the run here would open a second agent on the same session beside it (the stray "Agent" tab).
-    const launching = !!work.wantPty && Date.now() - work.wantPty.at < 20_000;
+    const launching = !!getPanel().wantPty && Date.now() - getPanel().wantPty!.at < 20_000;
     if (want && want.kind === "run" && !finished(want) && !want.pty && !launching && !getWs().shells.some((x) => x.run === key(want)) && !autoShell.has(key(want))) {
       autoShell.add(key(want));
       void openAgent(want, false, false);
@@ -107,19 +107,19 @@ export async function showRunView(nav = false) {
   }
   if (!showTerm()) draw();
 }
-// The terminal the sidebar asked for, selected once the workspace's tabs are known.
-let wantTerm: string | null = null;
+// The terminal the sidebar asked for (`selectTerm`, the workspace store), selected once the workspace's tabs are known.
 function showTerm() {
-  // A launch from the board names its terminal (work.wantPty): it is selected once its tab exists,
+  // A launch from the board names its terminal (the panel store's wantPty): it is selected once its tab exists,
   // and the ask lapses after a while so a launch that never came up cannot pull focus later.
-  const w = work.wantPty && Date.now() - work.wantPty.at < 20_000 ? work.wantPty.key : null;
-  if (work.wantPty && !w) work.wantPty = null;
+  const pty = getPanel().wantPty,
+    w = pty && Date.now() - pty.at < 20_000 ? pty.key : null;
+  if (pty && !w) setPanel({ wantPty: null });
   // Asked for by name (the sidebar's mark, a launch): shown even if its tab was closed before.
-  const want = wantTerm || w;
+  const want = getWs().selectTerm || w;
   if (want) edit((s) => ({ ...s, hidden: s.hidden.filter((h) => h !== "agent:" + want && h !== "sh:" + want) }));
   const t = tabs().find((x) => x.key === want);
-  wantTerm = null;
-  if (t && work.wantPty?.key === t.key) work.wantPty = null;
+  setWs({ selectTerm: null });
+  if (t && getPanel().wantPty?.key === t.key) setPanel({ wantPty: null });
   return !!t && (show(t.id), true);
 }
 const autoShell = new Set<string>();
@@ -221,7 +221,7 @@ function goWs(dir: string, ws: string) {
 export const openWsIn = goWs;
 // The sidebar's agent mark: open that workspace with the agent's terminal tab selected.
 export function openTermIn({ dir, ws, key }: { dir: string; ws: string; key: string }) {
-  wantTerm = key;
+  setWs({ selectTerm: key });
   if (getWs().ctx?.k === wsKey(dir, ws) && getRoute().view === "run") return void showTerm();
   goWs(dir, ws);
 }
@@ -233,12 +233,10 @@ export function openTabIn({ dir, ws, id }: { dir: string; ws: string; id: string
   if (getWs().ctx?.k === k && getRoute().view === "run") return void draw();
   goWs(dir, ws);
 }
-export function initRunView() {
+// What the run panes call, and what keeps their terminals honest: started by useRunLifecycle when the panes mount, undone with them.
+export function bindRunView() {
   // A /state change, new shells or a session that ended: terminals kept hidden whose session is gone are unmounted.
-  onServer((x) => x.shells, dropDead);
-  onState(() => void pruneKept());
-  // The panel's project-notes button; its close button and the scrim are panel.ts's.
-  setPanelActions({ notes: () => void projectNotes() });
+  const offs = [onServer((x) => x.shells, dropDead), onState(() => void pruneKept())];
   setRunActions({
     select: (sid) => {
       selectScreen(cx().k, sid);
@@ -272,6 +270,7 @@ export function initRunView() {
       );
     },
   });
+  return () => offs.forEach((off) => off());
 }
 // Opens a card's workspace, its address in the history.
 export function openWorkspace(c) {

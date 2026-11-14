@@ -4,7 +4,7 @@
 import { age } from "@lib/core";
 import { cardState as stateOf, titleOf, wsOfCardNow as wsOfCard } from "@lib/rail";
 import { cardKey as key, getServer } from "@lib/server";
-import { open } from "./panel.ts";
+import { openPanel } from "./panel-actions.ts";
 import { deriveTabs, type Tab } from "./ws-derive.ts";
 import { awaiting, chosen, dueWord, gitDue, historyOf, leaves, liveIn, newRun, pickable } from "./ws-tabs.ts";
 import { evict, touch } from "./kept.ts";
@@ -98,5 +98,5 @@ export function mountPanel() {
   const now = Date.now(),
     row = (r) => ({ k: key(r), title: titleOf(r), state: stateOf(r), line: `${gitDue(r) ? `waiting on you · ${dueWord(r)}` : awaiting(r) ? "needs you" : r.status} · ${age(r.moved ?? now, now)}` });
   setRunView({ picker: { cur: row(c), live: live.map(row), hist: hist.map(row), other: live.some((r) => r !== c && awaiting(r)) } });
-  if (getPanel().openKey !== key(c)) void open(c, false);
+  if (getPanel().openKey !== key(c)) openPanel(c);
 }

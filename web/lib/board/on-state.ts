@@ -1,7 +1,7 @@
 import { flushSync } from "react-dom";
 import { notifier, notifyUser, vt } from "@lib/core";
 import { askingNow, changes, cardKey as key, getServer, newlyAsking, setEngine, type Seen } from "@lib/server";
-import { close, editingNotes, pruneTerms, getPanel, open, openRun, taskBody, work } from "@lib/run";
+import { closePanel, editingNotes, pruneTerms, getPanel, openPanel, setPanel } from "@lib/run";
 import { termsChanged } from "@lib/terminal";
 import { getBoard, setBoard } from "./board-store.ts";
 import { refreshBoard } from "./snapshot.ts";
@@ -49,24 +49,19 @@ export const initOnState = () => setEngine(async (next, prev) => {
   termsChanged();
   pruneTerms();
   // Run on a task closed the panel: open the card on its agent once the board knows the session.
-  if (work.wantTerm && !getPanel().openKey && !getBoard().form) {
-    const n = getServer().state.cards.find((x) => key(x) === work.wantTerm && x.pty);
+  if (getPanel().wantTerm && !getPanel().openKey && !getBoard().form) {
+    const n = getServer().state.cards.find((x) => key(x) === getPanel().wantTerm && x.pty);
     if (n) {
-      work.wantTerm = null;
-      open(n);
+      setPanel({ wantTerm: null });
+      openPanel(n);
       return;
     }
   }
-  if (getPanel().openKey) {
-    const c = getServer().state.cards.find((x) => key(x) === getPanel().openKey);
+  // The open card's panel reads and draws itself after a changed /state (usePanelRun); a task that became a run is followed here.
+  if (getPanel().openKey && !getServer().state.cards.some((x) => key(x) === getPanel().openKey)) {
     // The textarea is hidden under the rich editor: focus anywhere in the notes counts.
     if (editingNotes()) return;
-    if (!c) {
-      if (was && was.kind === "idea") follow(was);
-      return;
-    }
-    if (getPanel().runDoc && c.kind === "run") openRun(c, true, true);
-    else if (c.kind === "idea") taskBody(c);
+    if (was && was.kind === "idea") follow(was);
   }
 });
 // A task's card goes when its run starts. Follow it to that run rather than keep
@@ -87,9 +82,9 @@ async function follow(task) {
       .catch(() => null);
     if (getPanel().openKey !== k) return;
     if (norm(d?.request || "").includes(t)) {
-      open(r);
+      openPanel(r);
       return;
     }
   }
-  if (getPanel().openKey === k) close();
+  if (getPanel().openKey === k) closePanel();
 }

@@ -1,4 +1,4 @@
-// What runs only while the run view is shown (a hook of the run panes, so it follows the page and is torn down with it):
+// What the run panes need while mounted and what runs only while the run view is shown (a hook of the run panes, torn down with them): the panes' actions and kept-terminal pruning (bindRunView), then:
 // reading the address on each visit (showRunView, an effect of the route), the Preview polling every 3 s, the tmux-style keyboard (Ctrl+Space, then a key) and the workspace's reaction to a new
 // /state (a run reaching review opens the Browser, a new run takes the panel's pick, the tabs are read again). Off the run
 // view none of it runs: no timer, no key listener, no reaction.
@@ -6,7 +6,7 @@ import { useEffect } from "react";
 import { layerOpen } from "@lib/core";
 import { onState } from "@lib/server";
 import { useRoute } from "@lib/router";
-import { autoBrowse, pollPreview, showRunView } from "./workspace.ts";
+import { autoBrowse, bindRunView, pollPreview, showRunView } from "./workspace.ts";
 import { followNew } from "./ws-draw.ts";
 import { paneKey } from "./ws-actions.ts";
 import { getWs, screens, saved } from "./ws-store.ts";
@@ -44,6 +44,8 @@ function paneKeys() {
 export function useRunLifecycle() {
   const shown = useRoute((s) => s.view === "run"),
     visit = useRoute((s) => s.visit);
+  // The actions the panes call, and the pruning of kept terminals whose session is gone, for as long as the panes are mounted.
+  useEffect(() => bindRunView(), []);
   // The address names the workspace, run or task to show: read on every visit to the run view (the router counts one for each
   // `navigate`, also when the view was already showing), in a microtask so the page's own panel handling in the router's
   // `enter` runs first. A visit left before then does not read it. Visit 0 is the first paint, drawn from the address before the

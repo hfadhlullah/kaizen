@@ -1,5 +1,5 @@
 import { load } from "@lib/server";
-import { resumeRun, work } from "@lib/run";
+import { resumeRun, setPanel } from "@lib/run";
 import { getServer, onServer, refreshEvery } from "@lib/server";
 import { setTerminalActions, setTerminals, useTerminals } from "./terminal-store.ts";
 import { terminalSessions } from "./sessions.ts";
@@ -30,7 +30,7 @@ export function initTerms() {
     reload: () => void load(true),
     resume: async (c) => {
       const ok = await resumeRun(c);
-      work.wantTerm = null;
+      setPanel({ wantTerm: null });
       return ok;
     },
   });

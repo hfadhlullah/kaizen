@@ -27,6 +27,11 @@ export type SettingsState = {
   editing: string; // the automation being edited
   busy: string; // the id of a button whose request is on its way
   typed: Record<string, string>; // what is typed in a key or secret box and not sent yet, by field id
+  // What opening the page hands it (the menu starts empty, a link may name a search and whether Back returns), and the count of
+  // views since: a fill started under one view does not land after another began.
+  startQ: string;
+  startBack: boolean;
+  pageGen: number;
 };
 const AUTO_DRAFT = { kind: "daily", time: "09:00", day: "mon", grace_minutes: "720", precheck_timeout: "60" };
 export const readPrefs = (): Prefs => {
@@ -58,6 +63,9 @@ export const useSettings = create<SettingsState>()(() => ({
   editing: "",
   busy: "",
   typed: {},
+  startQ: "",
+  startBack: false,
+  pageGen: 0,
 }));
 export const setTyped = (k: string, v: string) => setSettings((s) => ({ typed: { ...s.typed, [k]: v } }));
 export const getSettings = useSettings.getState;

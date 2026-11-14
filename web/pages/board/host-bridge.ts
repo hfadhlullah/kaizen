@@ -12,9 +12,10 @@ import { cardHref, gitProjects, isHomeDir, wsHref } from "@lib/rail";
 import { openHomeTerm, startHomeFrom } from "@lib/home";
 import { navigateTask } from "@lib/task";
 import { pick as pickProject } from "@lib/project";
+import { setSettings } from "@lib/settings";
 import { rich } from "@lib/notes";
 import { dataUrls } from "@lib/shared";
-import { close as closePanel, getPanel, open as openPanel, openAt, openRun, openTabIn, openTermIn, openWorkspace, openWsIn, setPanel, work } from "@lib/run";
+import { closePanel, getPanel, openAt, openPanel, openTabIn, openTermIn, openWorkspace, openWsIn, redrawPanel, refetchPanel, setPanel } from "@lib/run";
 
 // A card's run or task, in place. A card of another project switches the board to that project first; one the board does not
 // have (not loaded, or another project) is false, and the caller changes the address.
@@ -70,16 +71,12 @@ export function initHost() {
     loadBoard: () => load(),
     launched: (c, pty) => {
       if (!pty) return;
-      work.wantTerm = key(c);
-      work.wantPty = { key: pty, at: Date.now() };
+      setPanel({ wantTerm: key(c), wantPty: { key: pty, at: Date.now() } });
     },
     closePanel,
-    reopenPanel: (c) => void openRun(c, true),
-    refetchRun: (c) => openRun(c, false),
-    gitTab: (c) => {
-      setPanel({ wantTab: "git" });
-      void openRun(c, true);
-    },
+    reopenPanel: () => redrawPanel(),
+    refetchRun: () => refetchPanel(),
+    gitTab: () => (setPanel({ wantTab: "git" }), redrawPanel()),
     panelOpenFor: (c) => getPanel().openKey === key(c),
     notify: askNotify,
     font: { min: FONT_MIN, max: FONT_MAX, read: fontRead, set: fontSet },
@@ -90,7 +87,7 @@ export function initHost() {
     wsHref,
     pickProject,
     openSettings: (q) => {
-      work.setQ = q;
+      setSettings({ startQ: q });
       navigate("settings", true);
     },
   });

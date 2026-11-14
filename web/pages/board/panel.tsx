@@ -6,7 +6,7 @@ import { TerminalPane } from "@components/panes";
 import { GitHost } from "@components/git";
 import { bindSheetSwipe } from "@lib/phone";
 import { isPhone } from "@lib/core";
-import { panelActions, panelBody, setFlip, setPanel, useRunView, usePanel } from "@lib/run";
+import { dismissPanel, openProjectNotes, panelBody, setFlip, setPanel, useRunView, usePanel, usePanelRun } from "@lib/run";
 import { getRoute } from "@lib/router";
 import { SettingsPage } from "../settings-page.tsx";
 import { Part } from "./host.tsx";
@@ -17,7 +17,7 @@ const Icon = ({ id }: { id: string }) => (
   </svg>
 );
 // What the panel's body shows: a document tab, Settings, the Notes chat, the in-card agent's terminal or the Source control
-// tab. One at a time; the router and the panel code (web/board/panel.ts) choose through the panel store, and the one
+// tab. One at a time; the router and the panel's hook (usePanelRun) choose through the panel store, and the one
 // that is left unmounts, except the in-card terminals: each is mounted once and hidden by CSS while another body shows.
 function PanelBody() {
   const body = usePanel((s) => s.body),
@@ -62,8 +62,9 @@ function PanelBody() {
   );
 }
 // The detail panel: a card's tabs, the run workspace's side panel, and the page Settings fills. What frames it (shown,
-// docked, wide, parked, its title) is the panel store's; the engine (lib/run/panel.ts, run-view.ts) writes it.
+// docked, wide, parked, its title) is the panel store's; usePanelRun reads the open run and writes what is drawn.
 export function Panel() {
+  usePanelRun();
   const cls = usePanel((s) =>
       cn(s.open && "open", s.docked && "docked", s.wide && "wide", s.parked && "parked", s.pn && "pn", s.ro && "ro"),
     ),
@@ -92,7 +93,7 @@ export function Panel() {
   );
   return (
     <>
-      <div className={cn("scrim", on && "on")} id="scrim" onClick={() => panelActions.close()} />
+      <div className={cn("scrim", on && "on")} id="scrim" onClick={dismissPanel} />
       <aside
         id="panel"
         aria-label="detail"
@@ -116,7 +117,7 @@ export function Panel() {
               </Part>
             </div>
           </div>
-          <button className="ib" id="pclose" aria-label="Close" title="Close" onClick={() => panelActions.close()}>
+          <button className="ib" id="pclose" aria-label="Close" title="Close" onClick={dismissPanel}>
             <Icon id="i-close" />
           </button>
         </header>
@@ -131,7 +132,7 @@ export function Panel() {
             id="pnotes"
             title="Project notes"
             aria-label="Project notes"
-            onClick={() => panelActions.notes()}
+            onClick={openProjectNotes}
           >
             <Icon id="t-book" />
           </button>

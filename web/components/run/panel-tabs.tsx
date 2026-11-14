@@ -1,4 +1,4 @@
-import { usePanel } from "@lib/run";
+import { pickPanelTab, usePanel } from "@lib/run";
 import { cn } from "@lib/core";
 import { Icon } from "@web/ui";
 
@@ -6,8 +6,7 @@ import { Icon } from "@web/ui";
 // narrow window outside the run workspace, a row of words. Where the strip sits is the board's CSS (the `col` variant).
 export function PanelTabs() {
   const tabs = usePanel((s) => s.tabs),
-    tab = usePanel((s) => s.tab),
-    pick = usePanel((s) => s.pickTab);
+    tab = usePanel((s) => s.tab);
   return (
     <>
       {tabs.map((t) => (
@@ -18,7 +17,7 @@ export function PanelTabs() {
           title={t.label}
           aria-label={t.label}
           aria-current={t.k === tab || undefined}
-          onClick={() => pick(t.k)}
+          onClick={() => pickPanelTab(t.k)}
           className={cn(
             "whitespace-nowrap p-3 text-base font-medium text-muted-foreground hover:text-foreground",
             t.k === tab && "text-foreground shadow-[inset_0_-2px_var(--accent)]",

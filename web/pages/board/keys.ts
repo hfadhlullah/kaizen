@@ -5,7 +5,7 @@ import { closeForm, focusFilter, focusedKey, formPopup, getBoard, nav, newTask, 
 import { iceKeys } from "@lib/icebox";
 import { keep } from "@lib/project";
 import { getRoute } from "@lib/router";
-import { close, getPanel, openRun, scrollPanel, setPanel } from "@lib/run";
+import { closePanel, getPanel, scrollPanel, stepPanelTab } from "@lib/run";
 import { searchBox } from "@lib/settings";
 import { setHelp, useHelp } from "@lib/shell";
 
@@ -33,7 +33,7 @@ function onKey(e: any) {
       setHelp(false);
       // An inline form closes first (its own Escape handles a press inside it); a menu closes itself.
       if (getBoard().form) closeForm();
-      else close();
+      else closePanel();
       return;
     }
     // The Terminal page has no cards to move between; its keys are the terminals'.
@@ -66,15 +66,8 @@ function onKey(e: any) {
       getServer().state.cards.find((c) => key(c) === getPanel().openKey && c.kind === "run");
     if (rc && getPanel().ptabs?.length) {
       e.preventDefault();
-      if (mv[0]) {
-        const ks: string[] = getPanel().ptabs,
-          i = ks.indexOf(getPanel().wantTab),
-          t = ks[i < 0 ? (mv[0] > 0 ? 0 : ks.length - 1) : Math.max(0, Math.min(ks.length - 1, i + mv[0]))];
-        if (t !== getPanel().wantTab) {
-          setPanel({ wantTab: t });
-          openRun(rc, true);
-        }
-      } else scrollPanel(mv[1] * 40);
+      if (mv[0]) stepPanelTab(mv[0]);
+      else scrollPanel(mv[1] * 40);
       return;
     }
     if (

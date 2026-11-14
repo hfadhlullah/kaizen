@@ -5,7 +5,7 @@
 // draws it; board/home-ws.ts wires the events only the old code can see. The rules here have no DOM (home-window.test.ts).
 import { create } from "zustand";
 import { ask, isPhone, toast } from "@lib/core";
-import { getServer, setShells } from "@lib/server";
+import { getServer, readShells, setShells } from "@lib/server";
 
 export type HomeWsState = "open" | "min" | "closed";
 export type HomeShell = { key: string; run?: string; title: string; agent?: string; dir?: string };
@@ -113,11 +113,7 @@ export async function readHomeAgents() {
   }
 }
 export async function refreshHomeWs() {
-  try {
-    setShells(await (await fetch("/shells")).json());
-  } catch {
-    /* the list stays as it was */
-  }
+  await readShells(); // the poller's read: offline, the list stays as it was
 }
 // No `yolo`: the server applies that agent's saved bypass setting, as a run workspace's + does by default.
 export async function startHomeShell(agent?: string, yolo?: boolean, prompt?: string) {
