@@ -1,7 +1,7 @@
 ---
 description: The Settings page: macOS-style layout, agents, models, skills, REA, desktop control, accounts, dictation
 tags: [project, web-board]
-sources: [cli/whatsapp.ts, cli/whatsapp-bridge.ts, cli/research.ts, cli/config-values.ts, cli/rea.ts, cli/computer.ts, cli/computer-helper.py, web/lib/settings/mic.ts, cli/accounts.ts, cli/skills.ts, web/lib/settings/settings-actions.ts, web/components/settings/skill-card.tsx, cli/agent-prefs.ts, cli/keep-awake.ts, web/components/settings/agent-rows.tsx, web/lib/settings/settings.ts, web/lib/settings/settings-store.ts, web/pages/settings-page.tsx, cli/state.ts, web/board, cli/settings.ts]
+sources: [cli/whatsapp.ts, cli/whatsapp-bridge.ts, cli/research.ts, cli/config-values.ts, cli/rea.ts, cli/computer.ts, cli/computer-helper.py, web/lib/dictation/mic.ts, cli/accounts.ts, cli/skills.ts, web/lib/settings/settings-actions.ts, web/components/settings/skill-card.tsx, cli/agent-prefs.ts, cli/keep-awake.ts, web/components/settings/agent-rows.tsx, web/lib/settings/settings.ts, web/lib/settings/settings-store.ts, web/pages/settings-page.tsx, cli/state.ts, web/board, cli/settings.ts]
 updated: 2026-11-14
 ---
 # Settings
@@ -26,7 +26,7 @@ The Settings page: choosing agents and models, turning skills on and off or repa
 
 **Settings → AI Accounts.** `cli/accounts.ts` (run `2026-10-31-provider-accounts`): `~/.kaizen/accounts.json` (0600) and a 0700 folder per account, which the tool fills; kaizen stores no token. `resolveAccount` takes a pick, "" for the normal login, or the tool's default, and returns an error rather than falling back. `launchRun` resolves pick, then the run's latest session record (`account`; a run started on the normal login stays there), then the default, and sets `CLAUDE_CONFIG_DIR` or `CODEX_HOME` on the launch and briefly in `process.env` around `sessionLaunch`, whose lookups read it. `/shell` and Claude resume follow too. Other headless calls (commit message, gather, chat) stay on the normal login. Usage per account reads `.credentials.json` server-side, so on macOS, where Claude uses the Keychain, it may show nothing; 401 means sign in again. The footer `/usage` is unchanged.
 
-**Dictation** (Settings → Keyboard & Dictation). `kz-mic` in localStorage holds the microphone (`web/lib/settings/mic.ts`, `MicRow`); an unplugged one falls back to the default with a notice. Ctrl+Alt+D (a capture listener in `dictation.ts`, run `2026-10-31-orchestration-voice`) runs `mic()` on a stand-in field that pastes each chunk into xterm's hidden textarea. It works only while the page has focus.
+**Dictation** (Settings → Keyboard & Dictation). `kz-mic` in localStorage holds the microphone (`web/lib/dictation/mic.ts`, `MicRow`); an unplugged one falls back to the default with a notice. Ctrl+Alt+D (a capture listener from `web/lib/dictation/terminal-dictation.ts`, run `2026-10-31-orchestration-voice`) dictates into a stand-in field that pastes each chunk into xterm's hidden textarea (before 2026-11-14 the stand-in lacked `classList` and `style`, so no text arrived and the session could not be stopped). It works only while the page has focus.
 
 **Models.** `agent.model.<tool>` (Settings → Models, installed tools only) feeds `agentConfig`, ahead of a hand-written `agent.<tool>` block; Claude has a row too (the main session) beside `subagents.model` and the per-stage `subagents.planner|builder|reviewer` rows. `agent.handoff_model.<tool>` rows sit in Models → Handoff session (`web/lib/settings/settings.ts`).
 

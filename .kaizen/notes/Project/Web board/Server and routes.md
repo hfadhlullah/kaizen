@@ -22,7 +22,7 @@ The program behind the board: what it serves, which computers may reach it, how 
 
 - `cli/state.ts` — everything kaizen knows about a project's `.kaizen/`, shared with the [[Terminal board]]: runs, cards, findings, backlog, git, launching agents.
 
-- `web/board/*.ts` — the page's script, one module per part (`cards.ts` columns, `panel.ts` run panel, `settings.ts`, `projects.ts`, `dictation.ts`, `markdown.ts`, `live.ts`…), wired up by `main.ts` and bundled into `web/dist/board.js` (served at `/board.js`) by `bun run build:web`. State that more than one module writes lives on the one `store` object in `store.ts`; everything else stays in the module that owns it.
+- `web/board/*.ts` — the page's script, one module per part (`cards.ts` columns, `panel.ts` run panel, `settings.ts`, `projects.ts`, `markdown.ts`, `live.ts`…), wired up by `main.ts` and bundled into `web/dist/board.js` (served at `/board.js`) by `bun run build:web`. State that more than one module writes lives on the one `store` object in `store.ts`; everything else stays in the module that owns it.
 
 - Hosts: the Host guard and `local()` (write Origin check) accept loopback plus the exact names in `KAIZEN_WEB_HOSTS` or `~/.kaizen/web-hosts` (`webHosts()` in `state.ts`, read per request; `kaizen setup` writes the file), for `tailscale serve`; `GET /manifest.webmanifest` makes the board installable on a phone (guide: "From your phone"). `GET /settings` exposes configured `.ts.net` hosts as `phoneUrls`; the gear Settings view shows them under Phone or points to `kaizen setup` when empty. These are saved addresses, not a live Serve status.
 
