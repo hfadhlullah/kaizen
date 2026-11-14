@@ -1,7 +1,8 @@
 // The Board page's Workspaces mode: four columns of workspace cards (ws-board.ts places
 // them) drawn into #board, and the Workspaces | Runs switch in the header.
 import { store } from "./store.ts";
-import { $, html } from "./dom.ts";
+import { $ } from "./dom.ts";
+import { react } from "./views.ts";
 import { RANK, projName, railData, stateOf, subline, titleOf, wsHref, wsLabel, wsOfCard } from "./workspace.ts";
 import type { WsCard } from "../lib/board-store.ts";
 import { WS_COLS, cardLine, columnOf, groupWs } from "./ws-board.ts";
@@ -21,23 +22,26 @@ export function syncMode() {
   document.body.classList.toggle("wsb", ws);
   if (!document.body.classList.contains("paged")) $("bq").placeholder = ws ? "Search workspaces (press /)" : "Filter cards (press /)";
 }
+// The switch is React (components/board-mode-switch.tsx), mounted once into the header's #hx; it is shown on the Board only.
+let mounted = false;
 function drawToggle() {
   const hx = $("hx");
-  if (document.body.classList.contains("paged") || !hx) return;
-  const m = boardMode();
-  hx.innerHTML = String(
-    html`<span class="bar" id="bmode" role="group" aria-label="Board mode"><button data-m="ws" class="${m === "ws" ? "on" : ""}" aria-pressed="${m === "ws"}">Workspaces</button><button data-m="runs" class="${m === "runs" ? "on" : ""}" aria-pressed="${m === "runs"}">Runs</button></span>`,
-  );
-  hx.querySelectorAll<HTMLElement>("[data-m]").forEach(
-    (b) =>
-      (b.onclick = () => {
-        try {
-          localStorage.setItem(KEY, b.dataset.m!);
-        } catch {}
-        syncMode();
-        drawToggle();
-        rerender();
-      }),
+  if (!hx) return;
+  if (!mounted) (mounted = true), react.mountRunPart(hx, "mode");
+  react.drawMode(
+    document.body.classList.contains("paged")
+      ? null
+      : {
+          mode: boardMode(),
+          set: (m) => {
+            try {
+              localStorage.setItem(KEY, m);
+            } catch {}
+            syncMode();
+            drawToggle();
+            rerender();
+          },
+        },
   );
 }
 export function initWsBoard(render: () => void) {

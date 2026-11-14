@@ -23,6 +23,7 @@ import { RunEmpty } from "../components/run-empty.tsx";
 import { RunHistory } from "../components/run-history.tsx";
 import { RunTabs } from "../components/run-tabs.tsx";
 import { RunWait } from "../components/run-wait.tsx";
+import { BoardModeSwitch } from "../components/board-mode-switch.tsx";
 import { PanelHead } from "../components/panel-head.tsx";
 import { PanelTabs } from "../components/panel-tabs.tsx";
 import { RunPicker } from "../components/run-picker.tsx";
@@ -97,6 +98,7 @@ export function drawFooter(footer: Panel["footer"]) {
 export const drawFix = (fix: any) => setPanel({ fix });
 export const drawGit = (snap: any) => setGit({ snap });
 export const drawHead = (head: Partial<Panel>) => setPanel(head);
+export const drawMode = (modeSwitch: any) => setBoard({ modeSwitch });
 export const fixReset = () => setPanel({ off: [] });
 export const answered = () => [...decided];
 export const resumeCard = resumeRun;
@@ -105,7 +107,7 @@ export const closeForm = closeBoardForm;
 // The run workspace's chrome (run-view.ts publishes it through lib/run-view-store.ts). A root lives in an element the old
 // code keeps (the tab bar, the empty note, the notes list) and never in a pane, so no live terminal is touched.
 // `display: contents` leaves the old container's layout rules in charge of where each piece sits.
-const bits = { tabs: RunTabs, empty: RunEmpty, notes: ProjectNotes, header: PaneHeader, history: RunHistory, wait: RunWait, ptabs: PanelTabs, head: PanelHead, picker: RunPicker };
+const bits = { tabs: RunTabs, empty: RunEmpty, notes: ProjectNotes, header: PaneHeader, history: RunHistory, wait: RunWait, ptabs: PanelTabs, head: PanelHead, picker: RunPicker, mode: BoardModeSwitch };
 export function mountRunPart(el: HTMLElement, part: keyof typeof bits, id = ""): () => void {
   const host = document.createElement("div");
   host.className = "kz-ui";

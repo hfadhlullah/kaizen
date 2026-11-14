@@ -53,6 +53,8 @@ export type Board = {
   kidsOpen: string[];
   form: { mode: FormMode; key?: string } | null;
   popup: Popup | null;
+  // The header's Workspaces | Runs switch (ws-board-ui.ts publishes it; null on pages that are not the Board).
+  modeSwitch: { mode: "ws" | "runs"; set: (m: "ws" | "runs") => void } | null;
 };
 const read = <T>(storage: Storage, k: string, fallback: T): T => {
   try {
@@ -82,6 +84,7 @@ export const useBoard = create<Board>()(() => ({
     return f ? { mode: f[0] as FormMode, key: f[1] ?? undefined } : null;
   })(),
   popup: null,
+  modeSwitch: null,
 }));
 export const getBoard = useBoard.getState;
 export const setBoard = useBoard.setState;
