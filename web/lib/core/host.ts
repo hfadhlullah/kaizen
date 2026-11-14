@@ -58,6 +58,8 @@ export type Host = {
   gitProjects(): { dir: string; name: string }[];
   wsHref(dir: string, ws: string): string;
   pickProject(stateDir: string): Promise<void>;
+  // Going to another address after something was made (a new workspace): the Notebook page writes its open note first.
+  navigate(href: string): void;
   // Home (phase 5): the run ids that are cards on this board, and the project a new chat starts in ("" for all).
   runCards(): { _k: string; id: string; kind: string; state: string; text: string }[];
 };
@@ -101,6 +103,7 @@ export const host: Host = {
   gitProjects: () => [],
   wsHref: () => "",
   pickProject: async () => {},
+  navigate: (href) => void (location.href = href),
   runCards: () => [],
 };
 export const setHost = (h: Partial<Host>) => Object.assign(host, h);

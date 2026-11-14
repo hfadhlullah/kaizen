@@ -107,14 +107,21 @@ test("no page, component or lib file hand-builds a dialog, menu or list box, or 
 });
 
 // workspace.ts is shared with the notebook and Video bundles, which mount no React: the sheet and the menu it opens
-// are asked for only through the onBoard() guard (addProject / wsMenu), and settings.ts / tasks-page.tsx never wipe a
-// header host another part mounted (#ptabs, #psub, #hx).
+// are asked for only through the onBoard() guard or the notebook's on-demand kit (addProject / wsMenu; Video has no kit and
+// keeps the redirect / the browser's menu), and settings.ts / tasks-page.tsx never wipe a header host another part mounted
+// (#ptabs, #psub, #hx).
 test("shared side-menu code only opens React hosts the page has; no page wipes a mounted host", () => {
   const rd = (p: string) => readFileSync(join(web, p), "utf8");
   const ws = rd("board/workspace.ts");
-  expect(ws.match(/\bopenAdd\(/g)?.length).toBe(2); // addProject's board branch and the ?add= arrival
-  expect(ws).toMatch(/function addProject[\s\S]*?if \(onBoard\(\)\) return openAdd/);
-  expect(ws).toMatch(/function wsMenu\([^)]*\) \{\n  if \(!onBoard\(\)\) return;/);
+  expect(ws.match(/\bopenAdd\(/g)?.length).toBe(3); // the board branch, the kit's, and the ?add= arrival
+  expect(ws).toMatch(/function addProject[\s\S]*?if \(onBoard\(\)\) return openAdd[\s\S]*?kitFor\(\)\.then\(\(k\) => k\.openAdd\(o\), \(\) => leave\(/);
+  expect(ws).toMatch(/function wsMenu\([^)]*\) \{\n  if \(!onBoard\(\) && !kitHere\(\)\) return;/);
+  expect(ws).toMatch(/if \(onBoard\(\)\) openWsMenu\(x, y, items\);\n  else kitFor\(\)\.then/);
+  // Search: the notebook page opens the palette from the kit and falls back to the board; every page load from the palette
+  // goes through go(), which writes the notebook's open note first.
+  const se = rd("board/search.ts");
+  expect(se).toMatch(/kitFor\(\)\.then\([\s\S]*?\(\) => leave\("\/\?view=board&search=1"\)/);
+  expect(se.match(/location\.href =/g)?.length).toBe(2); // go() on the board and leave()'s own
   expect(rd("board/settings.ts")).not.toMatch(/\$\("(?:ptabs|psub)"\)\.(?:innerHTML|textContent)\s*=/);
   expect(rd("pages/tasks-page.tsx")).not.toMatch(/getElementById\("hx"\)\?*\.replaceChildren/);
 });

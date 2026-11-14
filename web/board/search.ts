@@ -1,25 +1,29 @@
 // Global search: the "Search" entry on top of the side menu, and Ctrl/Cmd+K anywhere, open one palette over
 // workspaces, runs and tasks, chats, agent terminals, projects, pages and actions (modelled on Orca's "Jump to..."
 // palette). This file gathers its rows: nothing is fetched but /chats, the rest is what the side menu already holds.
-// The palette itself is React (components/search/search-palette.tsx, board only): the notebook and Video pages, which carry
-// no React, send the person to the board with the palette open (?search=1).
+// The palette itself is React (components/search/search-palette.tsx). The board mounts it; the Notebook page loads it on
+// demand (notebook/kit-loader.ts) and opens it in place; Video, which carries no React, sends the person to the board
+// with the palette open (?search=1), as does the Notebook if the load fails.
 import { $ } from "./dom.ts";
 import { age } from "./labels.ts";
 import { openAdd } from "@lib/project/add-project.ts";
-import { cardHref, projName, railData, stateOf, titleOf, wsHref, wsLabel, wsOfCard } from "./workspace.ts";
+import { cardHref, kitFor, projName, railData, stateOf, titleOf, wsHref, wsLabel, wsOfCard } from "./workspace.ts";
 import { useSearch } from "@lib/search/search.ts";
 import type { Item } from "@lib/search/search-match.ts";
 import { leaves, wsKey } from "./ws-tabs.ts";
 
+const BOARD = typeof document !== "undefined" && !!document.getElementById("kz-portal");
 // The pages that can open a thing in place answer this event and cancel it.
 const ask = (name: string, detail: any) => !dispatchEvent(new CustomEvent(name, { cancelable: true, detail }));
+// A page load: the Notebook writes the note it has open first (leave), the board has nothing to write.
+const go = (href: string) => (BOARD ? void (location.href = href) : leave(href));
 // A menu entry's own click: in place on the board, a page load elsewhere.
 const page = (v: string, href: string) => () => {
   const a = document.querySelector<HTMLElement>(`.rail a[data-view="${v}"]`);
-  a ? a.click() : (location.href = href);
+  a && BOARD ? a.click() : go(href);
 };
 const openWs = (dir: string, ws: string) => {
-  if (!ask("kz-open-ws", { dir, ws })) location.href = wsHref(dir, ws);
+  if (!ask("kz-open-ws", { dir, ws })) go(wsHref(dir, ws));
 };
 // The run view's saved layouts (run-view.ts keeps them here per workspace).
 const layouts = (): Record<string, any> => {
@@ -40,7 +44,7 @@ const openTab = (dir: string, ws: string, id: string) => {
       s.on = sc.id;
       localStorage.setItem("kz-runtabs", JSON.stringify(all));
     } catch {}
-  location.href = wsHref(dir, ws);
+  go(wsHref(dir, ws));
 };
 // The run view's own tabs worth jumping to; agent tabs are listed with the terminals.
 const TAB_KINDS = ["local", "preview", "note", "history", "shell"];
@@ -106,7 +110,7 @@ function items(): Item[] {
       dot: st,
       ico: c.kind === "run" ? "run" : "idea",
       act: () => {
-        if (!ask("kz-open-card", { dir: c.state, id: c.kind === "run" ? c.id : undefined, text: c.text })) location.href = cardHref(c);
+        if (!ask("kz-open-card", { dir: c.state, id: c.kind === "run" ? c.id : undefined, text: c.text })) go(cardHref(c));
       },
     });
   }
@@ -140,7 +144,7 @@ function items(): Item[] {
       dot: a.asking ? "wait" : a.busy ? "build" : "done",
       ico: "term",
       act: () => {
-        if (!ask("kz-open-term", { dir: a.dir, ws: a.ws, key: a.key })) location.href = wsHref(a.dir, a.ws ?? "");
+        if (!ask("kz-open-term", { dir: a.dir, ws: a.ws, key: a.key })) go(wsHref(a.dir, a.ws ?? ""));
       },
     });
   // Pages and actions. Each clicks the side menu's own control, so it behaves the same.
@@ -150,9 +154,9 @@ function items(): Item[] {
     ["Icebox", "page", page("sources", "/?view=icebox"), "requests sources gathered capture inbox later add note"],
     ["Tasks", "page", page("tasks", "/?view=tasks"), "backlog"],
     ["Board", "page", page("board", "/?view=board"), "kanban runs"],
-    ["Notes", "page", () => (location.href = "/notebook"), "notebook docs"],
+    ["Notes", "page", () => go("/notebook"), "notebook docs"],
     ["Settings", "page", page("settings", "/?view=settings"), "preferences config"],
-    ["New task", "act", () => ($("newtop") ? $("newtop").click() : (location.href = "/?view=board")), "create add run"],
+    ["New task", "act", () => ($("newtop") ? $("newtop").click() : go("/?view=board")), "create add run"],
     ["Add a project", "act", () => openAdd({ dir: null }), "clone folder create workspace"],
     ["Toggle theme", "act", click("themet"), "dark light"],
     ["Collapse or expand menu", "act", click("fold"), "sidebar rail"],
@@ -164,7 +168,7 @@ function items(): Item[] {
 }
 
 function newTaskWith(text: string) {
-  if (!$("newtop")) return void (location.href = "/?view=board");
+  if (!$("newtop")) return void go("/?view=board");
   $("newtop").click();
   // The New task form is React: its box takes the text through the native setter so the form hears it.
   setTimeout(() => {
@@ -176,8 +180,9 @@ function newTaskWith(text: string) {
 }
 
 // Rows are read each time the palette opens and again when the side menu's data or the chats land.
-const fill = () => useSearch.getState().open && useSearch.setState({ items: items() });
-const BOARD = typeof document !== "undefined" && !!document.getElementById("kz-portal");
+// The palette's store: this bundle's own on the board; on the Notebook page the loaded kit's, which the mounted palette reads.
+let S = useSearch;
+const fill = () => S.getState().open && S.setState({ items: items() });
 // Leaving for the board: the page first writes what it has not saved (the notebook's autosave waits 600 ms) by answering
 // the `kz-leave` event with a promise through `wait`.
 export function leave(href: string) {
@@ -186,8 +191,17 @@ export function leave(href: string) {
   void Promise.allSettled(waits).then(() => (location.href = href));
 }
 export function openSearch() {
-  if (!BOARD) return void leave("/?view=board&search=1");
-  useSearch.setState({ open: true, items: items(), newTask: newTaskWith });
+  if (BOARD) return show();
+  kitFor().then(
+    (k) => {
+      S = k.useSearch;
+      show();
+    },
+    () => leave("/?view=board&search=1"),
+  );
+}
+function show() {
+  S.setState({ open: true, items: items(), newTask: newTaskWith });
   // Chats live behind one fetch; the list fills in when they land.
   fetch("/chats")
     .then((r) => r.json())
@@ -197,7 +211,7 @@ export function openSearch() {
     })
     .catch(() => {});
 }
-const toggle = () => (useSearch.getState().open ? useSearch.setState({ open: false }) : openSearch());
+const toggle = () => (S.getState().open ? S.setState({ open: false }) : openSearch());
 
 export function initSearch() {
   const mac = /Mac|iP(hone|ad)/.test(navigator.platform);

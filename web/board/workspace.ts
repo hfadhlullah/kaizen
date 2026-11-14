@@ -12,7 +12,8 @@ import { ask as askYes } from "@lib/core/ask.ts";
 import { openWsMenu, type WsMenuItem } from "@lib/project/ws-menu.ts";
 import { initSearch, leave } from "./search.ts";
 import { agentsHtml, dueWord, forgetAgents, gitDue, moveTo, settleIn, toggleOpen, wsAgents, type Agent } from "./ws-tabs.ts";
-import { toast } from "./toast.ts";
+import { setToaster, toast } from "./toast.ts";
+import { kitHere, kitLive, loadKit } from "../notebook/kit-loader.ts";
 
 const DAY = 864e5;
 const STAGE = ["idea", "planning", "building", "reviewing", "done"];
@@ -101,15 +102,37 @@ const pins: Set<string> = (() => {
     return new Set();
   }
 })();
-// The sheet and the right-click menu are React: only the board mounts their hosts (react-mount.ts). On the notebook and Video
-// pages the + buttons send the person to the board with the sheet asked for (?add=), as Search does, and the right-click
-// keeps the browser's own menu.
+// The sheet and the right-click menu are React. The board mounts their hosts (react-mount.ts); the Notebook page loads the
+// same components on demand (notebook/kit-loader.ts) and opens them in place; if that fails, or on Video, the + buttons
+// send the person to the board with the sheet asked for (?add=), as Search does, and Video's right-click keeps the browser's
+// own menu.
 const onBoard = () => !!document.getElementById("kz-portal");
+// The kit for this page, with what only this page knows handed over: where a new workspace opens, the Projects list, and
+// a way to leave that writes the open note first. The toast and question of the old code then show through the kit too.
+export async function kitFor() {
+  const k = await loadKit();
+  setToaster(k.toast);
+  k.setHost({
+    gitProjects,
+    wsHref,
+    navigate: leave,
+    // The Notebook keeps its own project choice: pick it for the board too, then reload onto it.
+    pickProject: async (dir: string) => {
+      await fetch("/cd", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ dir }) }).catch(() => null);
+      try {
+        localStorage.setItem("kz-proj", dir);
+      } catch {}
+      leave("/notebook?dir=" + encodeURIComponent(dir));
+    },
+  });
+  return k;
+}
+const askQ: typeof askYes = (q) => (kitLive() ? kitLive()!.ask(q) : askYes(q));
 function addProject(o: AddOpts) {
   if (onBoard()) return openAdd(o);
   const q = new URLSearchParams({ view: "board", add: o.start ?? "1" });
   if (o.dir) q.set("adddir", o.dir);
-  leave("/?" + q);
+  kitFor().then((k) => k.openAdd(o), () => leave("/?" + q));
 }
 // Arriving from the notebook or Video with the sheet asked for.
 function openAsked() {
@@ -124,7 +147,7 @@ function openAsked() {
 }
 // The right-click menu on a worktree row: update, copy path, copy name, pin, delete.
 function wsMenu(e: MouseEvent, a: HTMLElement) {
-  if (!onBoard()) return;
+  if (!onBoard() && !kitHere()) return;
   e.preventDefault();
   const dir = a.dataset.dir!, ws = a.dataset.ws!, key = dir + "\0" + ws;
   const w = last.projects?.find((p) => p.dir === dir)?.workspaces?.find((x) => x.path === ws);
@@ -158,7 +181,7 @@ function wsMenu(e: MouseEvent, a: HTMLElement) {
           {
             label: "Delete",
             run: async () => {
-              const yes = await askYes({
+              const yes = await askQ({
                 title: `Delete worktree "${name}"?`,
                 description: `Removes the folder. Refused while it has uncommitted changes. The branch stays.\n\n${ws}`,
                 confirmLabel: "Delete",
@@ -169,7 +192,9 @@ function wsMenu(e: MouseEvent, a: HTMLElement) {
           },
         ]),
   ];
-  openWsMenu(Math.min(e.clientX, innerWidth - 190), Math.min(e.clientY, innerHeight - items.length * 34 - 16), items);
+  const x = Math.min(e.clientX, innerWidth - 190), y = Math.min(e.clientY, innerHeight - items.length * 34 - 16);
+  if (onBoard()) openWsMenu(x, y, items);
+  else kitFor().then((k) => k.openWsMenu(x, y, items), () => {});
 }
 // Workspace cards with their agent list open (dir\0ws -> true), kept per browser.
 const wsOpen: Record<string, true> = (() => {

@@ -55,6 +55,8 @@ const NOTES_PAGE = join(dirname(import.meta.dir), "web", "html", "notes.html");
 const ICO = join(dirname(import.meta.dir), "assets", "kaizen.ico");
 const UI_CSS = join(dirname(import.meta.dir), "web", "dist", "ui.css");
 const NOTES_JS = join(dirname(import.meta.dir), "web", "dist", "notebook.js");
+// The kit components the notebook opens in place (Search, Add a project, worktree menu), fetched when first asked for.
+const NOTES_KIT_JS = join(dirname(import.meta.dir), "web", "dist", "notebook-kit.js");
 // The in-card terminal (agent.launch: card): xterm.js, bundled the same way.
 const TERM_JS = join(dirname(import.meta.dir), "web", "dist", "term.js");
 const ANNOTATE_JS = join(dirname(import.meta.dir), "web", "annotate", "annotate.js");
@@ -88,7 +90,7 @@ delete process.env.KAIZEN_DESKTOP_BUNDLED;
 // page newer than its server sends ops the server does not know ("unknown op").
 // So the pages are kept as they were at start, and read live (dev edits) only while
 // the installed version is still the one this board runs.
-const AT_START = new Map([PAGE, BOARD_JS, NOTES_PAGE, NOTES_JS, TERM_JS, TERM_CSS, VIDEO_PAGE, VIDEO_JS, ANNOTATE_JS, UI_CSS].map((f) => [f, existsSync(f) ? readText(f) : null]));
+const AT_START = new Map([PAGE, BOARD_JS, NOTES_PAGE, NOTES_JS, NOTES_KIT_JS, TERM_JS, TERM_CSS, VIDEO_PAGE, VIDEO_JS, ANNOTATE_JS, UI_CSS].map((f) => [f, existsSync(f) ? readText(f) : null]));
 const served = (f: string) => installed() === VERSION && existsSync(f) ? readText(f) : AT_START.get(f) ?? null;
 
 // A board answers at url and runs the installed version. A board from before the
@@ -853,8 +855,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
         return new Response(Bun.file(file), { headers: { "content-type": "audio/mpeg", "cache-control": "public, max-age=86400" } });
       }
 
-      if (req.method === "GET" && (path === "/notebook" || path === "/notebook.js")) {
-        const [f, type] = path === "/notebook" ? [NOTES_PAGE, "text/html; charset=utf-8"] : [NOTES_JS, "application/javascript; charset=utf-8"];
+      if (req.method === "GET" && (path === "/notebook" || path === "/notebook.js" || path === "/notebook-kit.js")) {
+        const [f, type] = path === "/notebook" ? [NOTES_PAGE, "text/html; charset=utf-8"] : [path === "/notebook.js" ? NOTES_JS : NOTES_KIT_JS, "application/javascript; charset=utf-8"];
         const body = served(f);
         if (body === null) return new Response(`${path} missing; run bun run build:web`, { status: 500 });
         return new Response(body, { headers: { "content-type": type, "cache-control": "no-store" } });

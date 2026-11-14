@@ -316,7 +316,7 @@ function WorkspaceStep({ dir, back }: { dir?: string | null; back?: () => void }
         setBusy(false);
         if (!r.ok) return setErr(r.d.error);
         closeAdd();
-        location.href = host.wsHref(project, r.d.path);
+        host.navigate(host.wsHref(project, r.d.path));
       }}
     >
       <Field label="Project">
