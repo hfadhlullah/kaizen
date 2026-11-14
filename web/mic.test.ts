@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { micAudio, openMic } from "./settings-voice.ts";
+import { micAudio, openMic } from "./lib/mic.ts";
 
 test("no saved device asks for the default microphone; a saved one is exact", () => {
   expect(micAudio().deviceId).toBeUndefined();
@@ -8,11 +8,18 @@ test("no saved device asks for the default microphone; a saved one is exact", ()
 });
 
 test("an unplugged microphone falls back to the default and says so; a refusal does not", async () => {
-  const asked: any[] = [], said: string[] = [];
-  const gone = async (a: any) => { asked.push(a); if (a.deviceId) throw Object.assign(new Error(), { name: "OverconstrainedError" }); return "ok" as any; };
+  const asked: any[] = [],
+    said: string[] = [];
+  const gone = async (a: any) => {
+    asked.push(a);
+    if (a.deviceId) throw Object.assign(new Error(), { name: "OverconstrainedError" });
+    return "ok" as any;
+  };
   expect(await openMic(gone, "abc", (m) => said.push(m))).toBe("ok");
   expect(asked.length).toBe(2);
   expect(said.length).toBe(1);
-  const refused = async () => { throw Object.assign(new Error(), { name: "NotAllowedError" }); };
+  const refused = async () => {
+    throw Object.assign(new Error(), { name: "NotAllowedError" });
+  };
   await expect(openMic(refused, "abc", () => {})).rejects.toThrow();
 });

@@ -28,6 +28,13 @@ import { PanelHead } from "../components/panel-head.tsx";
 import { PanelTabs } from "../components/panel-tabs.tsx";
 import { RunPicker } from "../components/run-picker.tsx";
 import { setGit } from "../lib/git-store.ts";
+import { getSettings, loadSettings, setSettings } from "../lib/settings-store.ts";
+import { pageId } from "../lib/settings.ts";
+import { SettingsPage } from "../pages/settings-page.tsx";
+import { FONT_MAX, FONT_MIN, fontRead, fontSet } from "../term-font.ts";
+import { mountPhone } from "./phone-setup.ts";
+import { mountWhatsApp } from "./whatsapp-setup.ts";
+import { updBar } from "./update.ts";
 import { RunFooter } from "../components/run-footer.tsx";
 import { BoardPage } from "../pages/board-page.tsx";
 import { TaskPage } from "../pages/task-page.tsx";
@@ -44,7 +51,7 @@ import { mic, stopDictation } from "./dictation.ts";
 import { askNotify, setToaster } from "./toast.ts";
 import { $, dataUrls, motion } from "./dom.ts";
 import { setShown, showable } from "./projects.ts";
-import { playSound, soundPick } from "./toast.ts";
+import { notifyOn, playSound, SOUNDS, soundPick } from "./toast.ts";
 import { store } from "./store.ts";
 
 // A root for a page lives in a div of its own inside the old container: the container keeps its layout rules
@@ -99,6 +106,30 @@ export const drawFix = (fix: any) => setPanel({ fix });
 export const drawGit = (snap: any) => setGit({ snap });
 export const drawHead = (head: Partial<Panel>) => setPanel(head);
 export const drawMode = (modeSwitch: any) => setBoard({ modeSwitch });
+// Settings: one root inside the panel's body, made again when another page replaced the body. State and requests are in
+// lib/settings-store.ts; coming from another page the page starts on All projects with a skeleton, and the page and search
+// the person left it on are kept.
+let settingsRoot: { root: ReturnType<typeof createRoot>; host: HTMLElement } | null = null;
+export function drawSettings(o: { fresh: boolean; q: string; back: boolean; stale: () => boolean }) {
+  const body = $("pbody");
+  if (!settingsRoot || settingsRoot.host.parentElement !== body) {
+    settingsRoot?.root.unmount();
+    const host = document.createElement("div");
+    host.className = "kz-ui";
+    host.style.cssText = "height:100%;display:contents";
+    body.replaceChildren(host);
+    settingsRoot = { root: createRoot(host), host };
+    settingsRoot.root.render(createElement(TooltipProvider, null, createElement(SettingsPage)));
+  }
+  if (o.fresh)
+    setSettings({
+      scope: "all",
+      q: o.q,
+      back: o.back,
+      page: getSettings().page ?? pageId(new URLSearchParams(location.search).get("page") ?? ""),
+    });
+  void loadSettings(o.fresh, o.stale);
+}
 export const fixReset = () => setPanel({ off: [] });
 export const answered = () => [...decided];
 export const resumeCard = resumeRun;
@@ -172,6 +203,12 @@ export function initReact(go: (view: string, push?: boolean) => void) {
     },
     panelOpenFor: (c) => store.openKey === key(c),
     notify: askNotify,
+    font: { min: FONT_MIN, max: FONT_MAX, read: fontRead, set: fontSet },
+    notices: { on: notifyOn, sounds: SOUNDS, sound: soundPick, play: (n) => playSound(n) },
+    updBar,
+    mountPhone: (el) => void mountPhone(el),
+    mountWhatsApp: (el) => void mountWhatsApp(el),
+    currentDir: () => store.dir || store.S?.dir || "",
     openSettings: (q) => {
       store.setQ = q;
       go("settings", true);

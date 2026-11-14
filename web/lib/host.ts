@@ -47,6 +47,14 @@ export type Host = {
   gitTab(card: any): void;
   // Draw the open run again from the server (after a commit, a stage, a merge).
   refetchRun(card: any): Promise<void>;
+  // Settings (phase 4): the terminal font size, the notice and sound choices this browser keeps, the About bar and
+  // the two phone cards that are still old code and fill an element of their own, and the project the board is on.
+  font: { min: number; max: number; read(): number; set(n: number): void };
+  notices: { on(): boolean; sounds: string[]; sound(): string; play(name?: string): void };
+  updBar(): void;
+  mountPhone(el: HTMLElement): void;
+  mountWhatsApp(el: HTMLElement): void;
+  currentDir(): string;
 };
 const none = (): never => {
   throw new Error("The board has not mounted this page yet");
@@ -81,5 +89,11 @@ export const host: Host = {
   notify: () => {},
   gitTab: () => {},
   refetchRun: async () => {},
+  font: { min: 8, max: 24, read: () => 12, set: () => {} },
+  notices: { on: () => true, sounds: [], sound: () => "", play: () => {} },
+  updBar: () => {},
+  mountPhone: () => {},
+  mountWhatsApp: () => {},
+  currentDir: () => "",
 };
 export const setHost = (h: Partial<Host>) => Object.assign(host, h);

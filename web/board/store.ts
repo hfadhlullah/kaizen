@@ -20,9 +20,7 @@ export const store = {
   shells: [] as { key: string; dir: string; title: string; agent: string }[],
   // The settings search survives the re-render each save does; the gear button starts it empty.
   setQ: "",
-  // Settings' scope: "all" or a project's state dir. Set on opening; never moves the board.
-  setScope: "all",
-  setPage: null as string | null,
+  // Handed to the Settings page when it opens (lib/settings-store.ts keeps them after): Back to app goes back, not Home.
   setBack: false,
   // Settings and the Icebox fill the same panel after a fetch: a fill only lands if no other view
   // or fill started since, or a slow answer paints one page under the other's title.

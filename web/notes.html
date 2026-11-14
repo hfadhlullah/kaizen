@@ -157,11 +157,11 @@ body .rail a.upd::after{left:calc(50% + 6px);top:4px}body .toast{left:16px;botto
    the window's title bar, with room for the window buttons. */
 @media (hover:hover) and (pointer:fine){*{scrollbar-width:thin;scrollbar-color:transparent transparent}*:hover{scrollbar-color:color-mix(in srgb,var(--ink) 28%,transparent) transparent}}
 html.desk,html.desk body{overscroll-behavior:none}
-html.desk :is(button,.btn,.ib,.rail,.hdr,nav,label,summary,[role=tab],[role=tablist],[role=menu],[role=menuitem],[role=option],.chip,.ice-chip,.tk-bar,.sg,.pstrip){-webkit-user-select:none;user-select:none}
+html.desk :is(button,.btn,.ib,.rail,.hdr,nav,label,summary,[role=tab],[role=tablist],[role=menu],[role=menuitem],[role=option],.chip,.ice-chip,.tk-bar,.pstrip){-webkit-user-select:none;user-select:none}
 html.desk :is(input,textarea,select,[contenteditable],pre,code,.xterm,.md,.ice-notes,.ice-t,.ice-ct){-webkit-user-select:text;user-select:text}
 html.desk :is(button,.btn,.ib,a.it,[role=tab],[role=option],[role=menuitem],summary,.chip,.ice-chip){cursor:default}
 html.desk :is(.hdr,.rail>.top){-webkit-app-region:drag}
-html.desk :is(.hdr,.rail>.top) :is(button,a,input,select,textarea,.combo,.sel,.bar,[role=button],[role=group],[contenteditable],label,summary,details){-webkit-app-region:no-drag}
+html.desk :is(.hdr,.rail>.top) :is(button,a,input,select,textarea,.combo,.sel,[role=button],[role=group],[contenteditable],label,summary,details){-webkit-app-region:no-drag}
 html.desk{--wco:max(0px,calc(100vw - env(titlebar-area-x,0px) - env(titlebar-area-width,100vw)));--wch:env(titlebar-area-height,0px)}
 html.desk .hdr{padding-right:calc(16px + var(--wco))}
 html.desk #rbar{padding-right:calc(6px + var(--wco));-webkit-app-region:drag}

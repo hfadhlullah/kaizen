@@ -29,7 +29,7 @@ export function ConfirmDialog({
     <AlertDialog open={open} onOpenChange={(o) => !o && onCancel()}>
       <AlertDialogContent>
         <AlertDialogTitle>{title}</AlertDialogTitle>
-        {description && <AlertDialogDescription>{description}</AlertDialogDescription>}
+        {description && <AlertDialogDescription className="whitespace-pre-line">{description}</AlertDialogDescription>}
         <div className="mt-1 flex justify-end gap-1.5">
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction danger={danger} onClick={onConfirm}>

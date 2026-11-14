@@ -165,11 +165,11 @@ body .rail a.upd::after{left:calc(50% + 6px);top:4px}body .toast{left:16px;botto
    the window's title bar, with room for the window buttons. */
 @media (hover:hover) and (pointer:fine){*{scrollbar-width:thin;scrollbar-color:transparent transparent}*:hover{scrollbar-color:color-mix(in srgb,var(--ink) 28%,transparent) transparent}}
 html.desk,html.desk body{overscroll-behavior:none}
-html.desk :is(button,.btn,.ib,.rail,.hdr,nav,label,summary,[role=tab],[role=tablist],[role=menu],[role=menuitem],[role=option],.chip,.ice-chip,.tk-bar,.sg,.pstrip){-webkit-user-select:none;user-select:none}
+html.desk :is(button,.btn,.ib,.rail,.hdr,nav,label,summary,[role=tab],[role=tablist],[role=menu],[role=menuitem],[role=option],.chip,.ice-chip,.tk-bar,.pstrip){-webkit-user-select:none;user-select:none}
 html.desk :is(input,textarea,select,[contenteditable],pre,code,.xterm,.md,.ice-notes,.ice-t,.ice-ct){-webkit-user-select:text;user-select:text}
 html.desk :is(button,.btn,.ib,a.it,[role=tab],[role=option],[role=menuitem],summary,.chip,.ice-chip){cursor:default}
 html.desk :is(.hdr,.rail>.top){-webkit-app-region:drag}
-html.desk :is(.hdr,.rail>.top) :is(button,a,input,select,textarea,.combo,.sel,.bar,[role=button],[role=group],[contenteditable],label,summary,details){-webkit-app-region:no-drag}
+html.desk :is(.hdr,.rail>.top) :is(button,a,input,select,textarea,.combo,.sel,[role=button],[role=group],[contenteditable],label,summary,details){-webkit-app-region:no-drag}
 html.desk{--wco:max(0px,calc(100vw - env(titlebar-area-x,0px) - env(titlebar-area-width,100vw)));--wch:env(titlebar-area-height,0px)}
 html.desk .hdr{padding-right:calc(16px + var(--wco))}
 html.desk #rbar{padding-right:calc(6px + var(--wco));-webkit-app-region:drag}
@@ -195,7 +195,6 @@ body.homev #hnewtop svg,body.phomev #newtop svg{display:block;width:18px;height:
 /* the run workspace: a page header with the run's title, the Runs tab lit; a lone pane drops its own header */
 html body.runv .app{grid-template-rows:auto minmax(0,1fr)}html body.runv .hdr{display:flex!important;grid-area:1/1}html body.runv .hdr>:not(h1):not(#phone-menu){display:none!important}html body.runv #runv{grid-area:2/1}
 html body.runv #rtabs{padding:3px 10px}html body.runv .app{margin:0!important}
-.srow{grid-template-columns:minmax(0,1fr) auto}.srow select.sel{max-width:52vw}
 body.phomev .hdr>:not(h1):not(#newtop),body.phomev #board{display:none!important}
 body.phomev:not(.pdevv) #newtop{display:none!important}
 body.phomev #phome{display:block;flex:1;min-height:0;overflow:auto;padding:4px 16px 24px;animation:fi .2s}
@@ -479,7 +478,7 @@ body.taskv #tasksv{flex:1;min-height:0;display:flex;flex-direction:column;gap:0;
 #tasksv .iscroll{flex:1;min-height:0;overflow:auto}
 .itable{width:100%;border-collapse:collapse}.itable th{text-align:left;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);font-weight:600;padding:8px 12px;border-bottom:1px solid var(--line)}
 .itable td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:middle}.itable tr:hover td{background:var(--hover)}#tasksv tbody tr{cursor:pointer}.itable tr.kb td{background:var(--hover)}.itable td:first-child{width:28px;padding-right:0}.itable td.d{color:var(--dim);white-space:nowrap}
-.sk-st{font-size:10.5px;font-style:normal;font-weight:400;color:var(--dim);border:1px solid var(--line);border-radius:var(--r-xs);padding:0 6px;margin-left:4px}.itable .ctx{display:flex;gap:6px;align-items:center;color:var(--dim);font-size:12px;margin-top:3px}.itable .tag{font-size:10.5px;border:1px solid var(--line);border-radius:var(--r-xs);padding:0 7px}
+.itable .ctx{display:flex;gap:6px;align-items:center;color:var(--dim);font-size:12px;margin-top:3px}.itable .tag{font-size:10.5px;border:1px solid var(--line);border-radius:var(--r-xs);padding:0 7px}
 .itable .stc{display:flex;gap:8px;align-items:center;font-size:12px;white-space:nowrap}
 .itable .go{display:flex;gap:6px;align-items:center;padding:4px 10px;border:1px solid var(--line);border-radius:var(--r-s);white-space:nowrap}.itable .go:hover{background:var(--hover)}.itable .go svg{width:13px;height:13px}.itable .acts{display:flex;gap:6px;justify-content:flex-end;align-items:center}.itable .del{display:grid;place-items:center;width:28px;height:28px;border:1px solid transparent;border-radius:var(--r-s);background:none;color:var(--dim);cursor:pointer}.itable .del:hover{color:var(--danger);border-color:var(--line)}.itable .del svg{width:15px;height:15px}.itable .acts .q{color:var(--dim);font-size:12px}.itable .acts .btn{padding:4px 10px;font-size:12px}
 /* Orca's Tasks page: a tinted toolbar joined to a bordered list (TaskPage, Orca 1.4.244). */
@@ -772,79 +771,10 @@ aside .foot .more .menu-pop{left:0;right:auto;top:auto;bottom:calc(100% + 4px)}.
 .find input{margin-top:4px}
 .find .sev{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--warn)}.find .sev.hi{color:var(--danger)}
 .find .loc{color:var(--dim);font-size:12px;margin-left:8px}
-/* settings: one row per setting — name and what it does on the left, its control on the right */
-.sg{font-size:13px;text-transform:uppercase;letter-spacing:.02em;color:var(--dim);margin:28px 0 6px 16px;font-weight:400}.sg:first-child{margin-top:0}
-.sgrp{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}.srow a{color:var(--accent)}
-.srow{display:grid;grid-template-columns:1fr auto;gap:2px 16px;padding:11px 16px;min-height:44px}
-.srow:not([hidden])~.srow:not([hidden]){border-top:1px solid var(--line);margin-left:16px;padding-left:0;padding-right:16px}
-.srow label{font-weight:400;font-size:15px;align-self:center}
 .phoneurls{display:grid;justify-items:end;max-width:min(52vw,36ch);min-width:0;overflow-wrap:anywhere;text-align:right}
-.srow>:nth-child(2){grid-column:2;grid-row:1;align-self:center;justify-self:end}
-.srow .hint{grid-column:1/-1;grid-row:2;margin:0;font-size:12px;color:var(--dim);line-height:1.45;max-width:46ch}
-.srow .sreset{border:0;background:none;padding:0;font:inherit;color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
-.ac-add .achips{margin:0;align-items:center}.ac-add{padding:8px 0}.sk:has(.ac-name){padding-left:0;padding-right:0}.sk .ac-name{display:block;width:100%;max-width:280px;min-height:0;height:24px;margin:0 0 0 -6px;padding:0 6px;border-color:transparent;background:none;font-weight:500}.sk .ac-name:hover,.sk .ac-name:focus{border-color:var(--line)}.ac-u{font-size:12px;color:var(--dim)}.ac-who{display:block;font-size:12px;color:var(--ink)}.ac-nm{display:block;font-weight:500}.ac-nm i{font-style:normal;font-family:var(--mono);font-size:11px;color:var(--dim);margin-left:6px}.ac-normal .btn[disabled]{opacity:1}.sk.ac-normal{padding-left:0;padding-right:0}.ac-u.bad{color:var(--warn)}.sk code{font-size:12px;overflow-wrap:anywhere}#run-acct{margin-top:6px;max-width:100%}
-@media(max-width:640px){.ac-add{grid-template-columns:1fr}}
-.sk-i{width:24px;height:24px;flex:none;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}.sk-ag{border-radius:3px}.sk-ag.off{opacity:.3;filter:grayscale(1)}.sk-h~.sk-a{margin-left:34px;align-items:center}.sk:has(.ac-name) .sk-a{margin-left:0}
-.sk{padding:11px 16px}.sk~.sk{border-top:1px solid var(--line)}.sk-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.sk-n{flex:1 1 200px;min-width:0}.sk-n b{display:block;font-weight:500}.sk-n span{font-size:12px;color:var(--dim)}.sk-a{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:6px;font-size:12px;color:var(--dim)}.sk-a .miss{color:var(--warn)}
-.orch-flow{display:block;width:100%;margin:0 0 24px;padding:8px 0}
-.achips{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.achips button{min-height:32px;padding:0 12px;border:1px solid var(--line);border-radius:var(--r-s);background:none;color:inherit;font:inherit;cursor:pointer}.achips button.on{background:var(--bg-3,var(--line));font-weight:500}.achips button:disabled{opacity:.45;cursor:default}
-.srow:has(>.achips){display:block}.srow>.achips{justify-content:flex-start;width:100%}.achips button{display:inline-flex;align-items:center;gap:6px}.achips img{border-radius:3px}.ag-b[hidden]{display:none}#ag-refresh,#sk-recheck{float:right;margin-right:16px;border:0;background:none;padding:0;font:inherit;color:var(--accent);cursor:pointer;text-transform:none}
-.ag{padding:11px 16px}.ag~.ag{border-top:1px solid var(--line)}.ag.gone{opacity:.65}.ag-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.ag-i{width:28px;height:28px;border-radius:var(--r-s);flex:none}.ag-n{min-width:0;flex:1 1 120px}.ag-n b{display:block;font-weight:500}.ag-n code{font-size:12px;color:var(--dim);overflow-wrap:anywhere}.ag-more{transition:transform .12s}.ag-more[aria-expanded=true] svg{transform:rotate(180deg)}
-.ag-b{display:grid;gap:6px;margin:12px 0 2px 38px}.ag-b label{font-size:12px;color:var(--dim);margin-top:6px}.ag-b .sel{width:100%;max-width:none}.ag-b pre{margin:0;padding:8px;background:var(--bg);border:1px solid var(--line);border-radius:var(--r);font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere}.ag-b .hint{margin:0;font-size:12px;color:var(--dim)}.ag-env{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.ag-env code{flex:1 1 120px;overflow-wrap:anywhere}.ag-add{display:grid;grid-template-columns:1fr 1fr auto;gap:6px}
-@media(max-width:640px){.ag-b{margin-left:0}.ag-add{grid-template-columns:1fr}}
-.srow.off>label,.srow.off>:nth-child(2){opacity:.5}
-.srow input.sel,.srow select.sel{width:170px;border:0;background-color:transparent;text-align:right;color:var(--dim);box-shadow:none}
-.srow select.sel{width:auto;text-align-last:right}
-.fpick{display:inline-flex;gap:6px;align-items:center}
-.srow[hidden],.yolo[hidden],.sg[hidden],.sg[hidden]+.sgrp,.sjump button[hidden]{display:none}
-/* search and section chips: pinned to the top of the panel while the rows scroll under it */
-.sq{position:sticky;top:-24px;z-index:1;background:var(--bg);padding:24px 0 12px;margin:-24px 0 4px;border-bottom:1px solid var(--line)}.sq input{width:100%;max-width:none}.sq+.sg{margin-top:16px}
-.sjump{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.sjump button{padding:3px 10px;border:1px solid var(--line);border-radius:var(--r-pill);font-size:12px;color:var(--dim)}.sjump button:hover{background:var(--hover);color:var(--ink)}
-.snone{color:var(--dim);margin-top:20px}
-/* settings, laid out as macOS System Settings: its own sidebar of icon tiles in place of the rail, the project being edited on top, one page per item, each section its own rounded box */
-@media(min-width:641px){body.setv .rail{display:none}body.setv #panel>header{display:none}body.setv #panel>.body{padding:0!important;overflow:hidden}body.setv #panel{background:none;border-color:transparent;box-shadow:none}body.setv .app{margin:0;background:none;border:0;border-radius:0}.sset .snav{background:none;border-right:0;padding:18px 12px 14px}.sset .sback{margin:0 0 6px;padding:0 var(--padx);height:var(--row);gap:var(--gap);font-size:var(--fs);font-weight:500}.sset .snav .sq{border-block:0;padding:0 0 10px}.sset .snavs{padding:4px 0 0}.sset .smain{margin:8px 8px 0 0;background:var(--bg);border:1px solid var(--line);border-radius:var(--r-l)}}
-.sset{display:grid;grid-template-columns:clamp(220px,24vw,272px) minmax(0,1fr);height:100%}
-.snav{min-height:0;display:flex;flex-direction:column;background:var(--bg-2);border-right:1px solid var(--line)}
-.sback{flex:none;display:flex;align-items:center;gap:8px;padding:0 12px;margin:12px;height:var(--btn-s);border-radius:var(--r-s);font-size:13px;color:var(--dim);text-align:left}.sback:hover,.sup:hover{color:var(--ink)}
-.sback svg,.sup svg{width:var(--ico);height:var(--ico);transform:rotate(90deg)}
-.snav .sq{position:static;background:none;margin:0;padding:12px;border-block:1px solid var(--line)}
-/* The icon tile: a small rounded square in the theme colour, as macOS draws its sidebar. */
-.stile{flex:none;display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:var(--r-s);color:var(--dim)}.stile svg{width:var(--ico-s);height:var(--ico-s)}
-/* Settings for: the project being edited, where macOS shows your account. */
-.sacct{flex:none;display:flex;align-items:center;gap:10px;margin:0 0 10px;padding:10px 12px;background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r-l)}
-.sacct .stile,.spage>header .stile{background:var(--bg);border:1px solid var(--line);color:var(--ink)}.sacct .stile{width:34px;height:34px;border-radius:var(--r)}.sacct .stile svg{width:18px;height:18px}
-.sacct-t{display:grid;min-width:0;flex:1;line-height:1.3}.sacct-t small{font-size:var(--fs-xs);color:var(--dim)}
-.sacct-w{position:relative;flex:none;margin:0 0 10px}.sacct-w .sacct{margin:0;width:100%;font:inherit;color:inherit;text-align:left;cursor:pointer}.sacct:hover{background:color-mix(in srgb,var(--hover) 60%,var(--bg-2))}.sacct:focus-visible{outline:2px solid var(--accent);outline-offset:1px}.sacct-t b{font-size:var(--fs-l);font-weight:600;color:var(--ink-hi);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sacct-c{flex:none;width:16px;height:16px;color:var(--dim)}.sacct[aria-expanded=true] .sacct-c{transform:rotate(180deg)}
-/* "Settings for" list: the board's own popover, so it follows the theme and shows in a screenshot. */
-.spop{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:30;display:flex;flex-direction:column;gap:1px;max-height:min(360px,60vh);overflow-y:auto;padding:4px;background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r-l);box-shadow:var(--shadow-2)}.spop[hidden]{display:none}.spop button{display:flex;align-items:center;gap:10px;width:100%;min-height:36px;padding:4px 8px;border:0;border-radius:var(--r-s);background:none;color:var(--ink);font:inherit;font-size:var(--fs);text-align:left;cursor:pointer}.spop button>span:not(.stile){flex:1;min-width:0;display:grid;line-height:1.3}.spop button>span:not(.stile),.spop small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.spop small{font-size:var(--fs-xs);color:var(--dim);font-weight:400;direction:rtl;text-align:left}.spop button:is(:hover,:focus-visible){background:var(--hover);outline:none}.spop button[aria-selected=true]{color:var(--ink-hi);font-weight:500}.spop .stile{width:24px;height:24px;border-radius:var(--r-s);display:grid;place-items:center;background:var(--bg);border:1px solid var(--line);flex:none}.spop .stile svg{width:14px;height:14px}.spop button>svg{width:14px;height:14px;flex:none;color:var(--accent)}
-.snavs{flex:1;min-height:0;overflow-y:auto;padding:12px}
-.snavg{display:grid;gap:1px;margin-bottom:14px}.snavg[hidden],.snavg button[hidden],.spage[hidden]{display:none}
-.snavg button{display:flex;align-items:center;gap:8px;height:30px;padding:0 6px;border-radius:var(--r-s);font-size:13px;color:var(--ink);text-align:left;white-space:nowrap;overflow:hidden}
-.snavg button>span:last-child{overflow:hidden;text-overflow:ellipsis}
-.snavg button:hover{background:var(--hover)}.snavg button:hover .stile{color:var(--ink)}
-.snavg button[aria-current],.snavg button[aria-current]:hover{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--ink-hi);font-weight:500}.snavg button[aria-current] .stile{color:var(--accent)}
-.smain{min-width:0;overflow-y:auto;padding:36px clamp(16px,5vw,56px) 64px}
-.spage{max-width:720px;margin:0 auto}.sup{display:none}
-.spage>header{display:flex;align-items:center;gap:14px;margin-bottom:24px;padding:0;border:0}
-.spage>header .stile{width:52px;height:52px;border-radius:var(--r-l)}.spage>header .stile svg{width:26px;height:26px}
-.spage>header h2{margin:0 0 6px;padding:0;border:0;font-size:22px;font-weight:600;line-height:1.2;color:var(--ink-hi)}
-.spage>header p{margin:0;font-size:13px;line-height:1.5;color:var(--dim)}
-.sset .sg{margin:24px 0 8px;padding:0;border:0;font-size:13px;font-weight:600;text-transform:none;letter-spacing:0;color:var(--ink-hi)}
-.sset .sg:first-child,.sset .sg[hidden]:first-child+.sgrp+.sg{margin-top:0}
-.sset .sgrp{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r-l);overflow:visible}.sset .sgrp:not(:has(*)){display:none}
-.sset .sgrp>:not([hidden])~:not([hidden]){border-top:1px solid var(--line)}
-.sset .srow,.sset .srow:not([hidden])~.srow:not([hidden]){margin:0;padding:10px 14px;min-height:44px;gap:2px 24px}
-.sset .sk,.sset .ag{padding:10px 14px}
-.sset .srow label{align-self:center;font-size:13px;font-weight:400;color:var(--ink-hi)}
-.sset .srow>:nth-child(2){grid-row:1/3}@container (min-width:521px){.sset .srow:not(:has(>.hint))>:nth-child(2){grid-row:1}}
-.sset .srow .hint{grid-column:1;max-width:none;line-height:1.5}
-.sset .srow input.sel,.sset .srow select.sel{width:240px;height:var(--btn-s);padding:0 10px;border:1px solid var(--line);border-radius:var(--r-s);background-color:var(--bg);color:var(--ink);text-align:left;text-align-last:left}
-.sset .bar{gap:0;padding:0;background:none;border:1px solid var(--line);border-radius:var(--r-s);overflow:hidden}
-.sset .bar button{height:30px;padding:0 12px;border-radius:0;font-size:12px;color:var(--dim)}.sset .bar button+button{border-left:1px solid var(--line)}
-.sset .bar button.on,.sset .bar button.on:hover{background:var(--hover);box-shadow:none;color:var(--ink-hi)}
-.sset .step{background:none;border:1px solid var(--line)}
+.yolo[hidden]{display:none}
+@media(min-width:641px){body.setv .rail{display:none}body.setv #panel>header{display:none}body.setv #panel>.body{padding:0!important;overflow:hidden}body.setv #panel{background:none;border-color:transparent;box-shadow:none}body.setv .app{margin:0;background:none;border:0;border-radius:0}}
 /* The phone card (Settings → Phone, onboarding): steps, then the QR beside what to do on the phone. */
-.sset .srow.ph-card{display:block}
 #phset,#onb-phone{display:flex;flex-direction:column;gap:12px;font-size:13px;line-height:1.5;color:var(--ink)}
 #phset p,#onb-phone p{margin:0}
 .ph-steps{margin:0;padding-left:20px;display:grid;gap:4px;color:var(--ink)}.ph-steps a,.ph-st,.ph-note{color:var(--dim)}.ph-steps a{color:var(--accent)}
@@ -853,27 +783,14 @@ aside .foot .more .menu-pop{left:0;right:auto;top:auto;bottom:calc(100% + 4px)}.
 .ph-qr{width:168px;flex:none;border-radius:var(--r);overflow:hidden}.ph-qr svg{display:block;width:100%;height:auto;stroke:none}.ph-qr svg *{stroke:none}
 .ph-st{display:flex;align-items:center;gap:6px;font-size:12px}.ph-dot{width:7px;height:7px;border-radius:50%;flex:none;background:var(--dim)}.ph-dot.on{background:var(--ok)}
 .ph-note{font-size:12px}.ph-err{color:var(--danger);font-size:12px}.ph-wait{color:var(--dim)}
-/* A narrow page (small desktop window, split screen) stacks each row: label and hint on top, control below. */
-.scard{container-type:inline-size}
-@container (max-width:520px){.sset .srow{grid-template-columns:minmax(0,1fr)}.sset .srow>:nth-child(2){grid-column:1;grid-row:auto;justify-self:start;margin-top:6px;max-width:100%}.sset .srow .hint{grid-row:auto}.sset .srow input.sel,.sset .srow select.sel,.sset .fpick{width:100%}.sset .bar{flex-wrap:wrap}}
 /* General opens on About: the version and the update check, in a box like the rest. */
-#supd:not(:empty){margin-bottom:24px}#supd:not(:empty)::before{content:"About";display:block;margin:0 0 8px;font-size:13px;font-weight:600;color:var(--ink-hi)}.sset #supd .updbar{margin:0;padding:10px 14px;border-radius:var(--r-l)}.sset #supd .updbar.quiet{padding:10px 14px;border:1px solid var(--line);background:var(--bg-2);color:var(--ink-hi)}
-/* A phone opens on the list of pages, drawn as grouped boxes, and each page has a back row. */
-@media(max-width:640px){.sset{display:block;height:auto}.snav{background:none;border:0}.sback{display:none}.snav .sq{border:0;padding:0 0 12px}.sacct-w{margin:0 0 16px}.snavs{overflow:visible;padding:0}.snavg{gap:0;margin-bottom:20px;background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r-l);overflow:hidden}.snavg button{height:44px;padding:0 12px;gap:12px;border-radius:0;font-size:15px}.snavg button:not([hidden])~button:not([hidden]){border-top:1px solid var(--line)}.snavg .stile{width:28px;height:28px}.snavg .stile svg{width:var(--ico);height:var(--ico)}.sset:not(.pick) .snav{display:none}.sset.pick .smain>.spage{display:none}.smain{overflow:visible;padding:0 0 24px}.sup{display:flex;align-items:center;gap:6px;margin-bottom:12px;font-size:13px;color:var(--dim)}.spage>header{gap:12px;margin-bottom:20px}.spage>header .stile{width:40px;height:40px}.spage>header .stile svg{width:20px;height:20px}.sset .srow{grid-template-columns:minmax(0,1fr)}.sset .srow>:nth-child(2){grid-column:1;grid-row:auto;justify-self:start;margin-top:6px;max-width:100%}.sset .srow .hint{grid-row:auto}.sset .srow input.sel,.sset .fpick{width:100%}.sset .fpick input.sel{flex:1;min-width:0}.sset .bar{flex-wrap:wrap}}
+#supd:not(:empty){margin-bottom:24px}#supd:not(:empty)::before{content:"About";display:block;margin:0 0 8px;font-size:13px;font-weight:600;color:var(--ink-hi)}#supd .updbar{margin:0;padding:10px 14px;border-radius:var(--r-l)}#supd .updbar.quiet{padding:10px 14px;border:1px solid var(--line);background:var(--bg-2);color:var(--ink-hi)}
 /* the one switch, everywhere (toggle() in board/dom.ts writes it): a <button role="switch"> flipped with .on, or a
    checkbox (:checked) where a form reads it; drawn as a track and a thumb. .sm is the compact size. */
 .chk{appearance:none;margin:0;border:0;cursor:pointer;width:51px;height:31px;flex:none;border-radius:var(--r-pill);background:color-mix(in srgb,var(--dim) 40%,transparent);position:relative;transition:background .12s}
 .chk::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:var(--on-accent);box-shadow:0 2px 4px rgb(0 0 0/.25);transition:transform .12s}
 .chk:is(.on,:checked){background:var(--accent)}.chk:is(.on,:checked)::after{transform:translateX(20px)}
 .chk.sm{width:34px;height:20px}.chk.sm::after{top:2px;left:2px;width:16px;height:16px}.chk.sm:is(.on,:checked)::after{transform:translateX(14px)}
-/* a small number: one segment per value */
-.bar{display:inline-flex;padding:2px;gap:2px;background:var(--hover);border-radius:var(--r-s)}
-.bar button{min-width:32px;height:28px;border-radius:var(--r-s);font-size:13px;color:var(--ink);font-variant-numeric:tabular-nums}
-.step{display:inline-flex;align-items:center;padding:2px;gap:2px;background:var(--hover);border-radius:var(--r-s)}
-.step button{width:28px;height:28px;border-radius:var(--r-s);font-size:16px;color:var(--dim)}.step button:hover{background:var(--bg-2);color:var(--ink)}.step button:focus-visible{outline-offset:-2px;outline-color:var(--ink)}
-.step output{min-width:88px;padding:0 6px;text-align:center;font-size:13px;color:var(--ink);white-space:nowrap}
-.bar button:hover{background:var(--hover);color:var(--ink)}.bar button.on,.bar button.on:hover{background:var(--bg-2);box-shadow:var(--shadow-1);font-weight:600}.bar button:focus-visible{outline-offset:-2px;outline-color:var(--ink)}
-#s-preset button{padding:0 12px;text-transform:capitalize}
 #updcard{position:fixed;z-index:41;right:28px;bottom:28px;width:320px;max-width:calc(100% - 32px);display:flex;flex-direction:column;gap:12px;padding:14px 16px;background:var(--bg-2);color:var(--ink);border:1px solid var(--accent);border-radius:var(--r);box-shadow:var(--shadow-2);font-size:13px}#updcard .updact{justify-content:flex-end}
 @media(max-width:640px){#updcard{right:16px;bottom:calc(68px + env(safe-area-inset-bottom))}}
 .rail a.upd svg{overflow:visible}.rail a.upd{position:relative}.rail a.upd::after{content:"";position:absolute;left:28px;top:8px;width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 2px var(--bg)}

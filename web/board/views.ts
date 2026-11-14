@@ -30,6 +30,8 @@ export const react = {
   drawHead: (_h: any) => {},
   // The Board header's Workspaces | Runs switch (ws-board-ui.ts; null off the Board).
   drawMode: (_m: any) => {},
+  // The Settings page (settings.ts opens the panel; the page is React and loads its own data).
+  drawSettings: (_o: { fresh: boolean; q: string; back: boolean; stale: () => boolean }) => {},
   // The run workspace's chrome: a React root in an element the run view keeps; returns the function that unmounts it.
   mountRunPart: (_el: HTMLElement, _part: string, _id?: string): (() => void) => () => {},
   answered: (): string[] => [],

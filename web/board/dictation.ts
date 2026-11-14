@@ -1,4 +1,4 @@
-import { openMic, savedMic } from "./settings-voice.ts";
+import { openMic, savedMic } from "../lib/mic.ts";
 import { ico } from "./dom.ts";
 import { toast } from "./toast.ts";
 
