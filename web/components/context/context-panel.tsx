@@ -16,7 +16,7 @@ import {
   showFiles,
   showTab,
   textUrl,
-  useContext,
+  useCtx,
   type Tab,
 } from "@lib/context";
 
@@ -39,7 +39,7 @@ const useWide = () => {
 
 // The header's button: opens and closes the pane (the page's CSS hides it off the Board and on a phone).
 export function ContextOpen() {
-  const open = useContext((s) => s.open);
+  const open = useCtx((s) => s.open);
   return (
     <button
       type="button"
@@ -62,7 +62,7 @@ export function ContextOpen() {
 // beside the page; on a narrow one it is a dialog over it, which makes the rest of the page inert, keeps Tab inside and
 // closes on Escape. It keeps the board's own markup and CSS (kz-keep: the legacy `#context` rules), as the strip it replaced.
 export function ContextPanel() {
-  const { open, tab, dir, body, sessions } = useContext(),
+  const { open, tab, dir, body, sessions } = useCtx(),
     wide = useWide(),
     box = useRef<HTMLElement>(null),
     modal = open && !wide;

@@ -12,7 +12,7 @@ export type Body =
   | { kind: "file"; path: string; content: string }
   | { kind: "terminals" };
 export type Session = { id?: string; text?: unknown; pty?: { alive?: boolean } } & Record<string, any>;
-export const useContext = create<{
+export const useCtx = create<{
   open: boolean;
   tab: Tab;
   folder: string;
@@ -20,8 +20,8 @@ export const useContext = create<{
   sessions: Session[];
   body: Body;
 }>()(() => ({ open: false, tab: "files", folder: "", dir: "", sessions: [], body: { kind: "message", text: "" } }));
-const set = useContext.setState,
-  get = useContext.getState;
+const set = useCtx.setState,
+  get = useCtx.getState;
 // What the pane asks of the old code: open a card on its agent's terminal.
 export const contextActions: { openSession: (c: Session) => void } = { openSession: () => {} };
 export const setContextActions = (a: typeof contextActions) => Object.assign(contextActions, a);

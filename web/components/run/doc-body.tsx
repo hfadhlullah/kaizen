@@ -33,6 +33,8 @@ function Progress({ id, src }: { id: string; src: string }) {
   const p = useMemo(() => parseProgress(src), [src]),
     prev = drawn?.id === id ? drawn : null,
     [shown, setShown] = useState(prev ? prev.w : (p?.pct ?? 0));
+  // Which rows moved is worked out once per document: the redraw that slides the bar must not clear the rows' fade.
+  const moves = useMemo(() => (p ? p.steps.map((_, i) => moved(prev, p.steps, i)) : []), [p, id]);
   useEffect(() => {
     if (!p) return;
     setShown(p.pct);
@@ -60,7 +62,7 @@ function Progress({ id, src }: { id: string; src: string }) {
             className={cn(
               "flex items-baseline gap-2.5 rounded-sm px-2 py-1.5",
               s.st === "todo" && "text-muted-foreground",
-              moved(prev, p.steps, i) && "motion-safe:animate-[kz-fade_.26s]",
+              moves[i] && "motion-safe:animate-[kz-fade_.26s]",
             )}
           >
             <span
