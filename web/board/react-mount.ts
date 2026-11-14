@@ -18,6 +18,7 @@ import { UpdateCard } from "../components/update-bar.tsx";
 import { AddProjectDialog } from "../components/add-project-dialog.tsx";
 import { WsMenu } from "../components/ws-menu.tsx";
 import { FileViewer } from "../components/file-viewer.tsx";
+import { SearchPalette } from "../components/search-palette.tsx";
 import { AskHost } from "../components/ask-host.tsx";
 import { BoardPopups } from "../components/board-popups.tsx";
 import { FixHost } from "../components/fix-host.tsx";
@@ -166,7 +167,7 @@ export function initReact(go: (view: string, push?: boolean) => void) {
   createRoot(toaster).render(createElement(Toaster));
   const popups = document.createElement("div");
   portal.append(popups);
-  createRoot(popups).render(createElement(TooltipProvider, null, createElement(BoardPopups), createElement(AskHost), createElement(FileViewer), createElement(WsMenu), createElement(AddProjectDialog), createElement(UpdateCard), createElement(FixHost), createElement(GitHost), createElement(KeyHint)));
+  createRoot(popups).render(createElement(TooltipProvider, null, createElement(BoardPopups), createElement(AskHost), createElement(SearchPalette), createElement(FileViewer), createElement(WsMenu), createElement(AddProjectDialog), createElement(UpdateCard), createElement(FixHost), createElement(GitHost), createElement(KeyHint)));
   setToaster(toast);
   setHost({
     go,
