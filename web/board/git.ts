@@ -30,7 +30,7 @@ export const gitPending = (c) => {
   );
 };
 
-// The tab's element in the panel's body is made by react-mount.ts drawGit; a tab that is not this one drops it.
+// The panel body (pages/board/panel.tsx) shows this tab while its `body` is git; another tab replaces it.
 export function gitTab(c) {
   const impl = store.runDoc.impl;
   // The panel body shows the tab; the tab's own store holds what is typed in it.

@@ -2,13 +2,13 @@ import { store } from "./store.ts";
 import { termStop } from "./agent-term.ts";
 import { stopDictation } from "@lib/dictation";
 import { $ } from "./dom.ts";
-import { view } from "./views.ts";
+import { curView } from "./views.ts";
 import { setPanel } from "@lib/run";
 import { getSettings, loadSettings, pageId, setSettings } from "@lib/settings";
 
 // Ctrl+F searches settings, as in Orca. Only while the page shows: elsewhere it stays the browser's.
 addEventListener("keydown", (e) => {
-  if (view !== "settings" || !(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== "f") return;
+  if (curView() !== "settings" || !(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== "f") return;
   e.preventDefault();
   $("sq")?.focus();
 });
@@ -16,7 +16,7 @@ addEventListener("keydown", (e) => {
 // Here is only what the panel needs: the other views' tabs, terminal and footer put away, and the page asked to load.
 // Coming from another page or a card, the body goes at once (the page draws its skeleton), not when the fetch answers.
 export async function openSettings() {
-  if (view !== "settings") return;
+  if (curView() !== "settings") return;
   const gen = ++store.pageGen;
   stopDictation(true);
   const fresh = !$("panel").classList.contains("open") || $("ptitle").textContent !== "Settings";

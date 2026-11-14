@@ -8,7 +8,7 @@ import { gitLeave, gitPending, gitShown, gitTab } from "./git.ts";
 import { ICON, WORD, need } from "@lib/core";
 import { attach, brief, preview } from "./markdown.ts";
 import { toast } from "./toast.ts";
-import { view } from "./views.ts";
+import { curView } from "./views.ts";
 import { isPhone } from "@lib/core";
 import { openWorkspace } from "./run-view.ts";
 import { hitNeedle, setPanel, type Head, type Panel, type PanelDoc } from "@lib/run";
@@ -59,8 +59,8 @@ let keepNext = false;
 export function open(c, keepTab) {
   // A run is worked on in its workspace, which docks this panel; so is everything on a phone.
   // Tasks keep the panel on the Board and Tasks pages. An archived run has no workspace row: it stays here to be restored.
-  const here = view === "board" || view === "tasks";
-  if (view !== "run" && (isPhone() || !here || (c.kind === "run" && !c.archived))) {
+  const here = curView() === "board" || curView() === "tasks";
+  if (curView() !== "run" && (isPhone() || !here || (c.kind === "run" && !c.archived))) {
     keepNext = !!keepTab;
     return void openWorkspace(c);
   }
@@ -134,7 +134,7 @@ function meta(c): Head {
 // A task's panel: its terminal while the run it started is being born there, else its notes.
 export function taskBody(c) {
   // In the run workspace the agent is a centre tab; on the Tasks page a task shows its notes only.
-  if (c.pty && view !== "run" && view !== "tasks") showTerm(c);
+  if (c.pty && curView() !== "run" && curView() !== "tasks") showTerm(c);
   else {
     termStop();
     drawNotes({ card: c, src: c.notes, ro: c.archived || c.status !== "idea" });
@@ -166,7 +166,7 @@ export async function openRun(c, refresh, again) {
   const head: Head =
     c.status === "abandoned"
       ? { kind: "chips", mark: ICON[c.status] || "idea", label: cap(WORD[c.status] || c.status), awaiting: c.awaiting ? cap(need(c.awaiting)) : undefined, parent: c.parent }
-      : view === "run" || innerWidth > 640
+      : curView() === "run" || innerWidth > 640
         ? meta(c)
         : steps(c);
   // Only tabs with something in them show. A card whose agent runs in the board gets its
@@ -185,10 +185,10 @@ export async function openRun(c, refresh, again) {
   // The agent is a centre tab of the run workspace only: the panel never shows a terminal.
   if (store.tab === "term") store.tab = store.lastTab;
   // In the run workspace Preview is a centre tab, so the panel never shows it.
-  if (view === "run" && store.tab === "preview") store.tab = "review";
+  if (curView() === "run" && store.tab === "preview") store.tab = "review";
   // A tab not written yet falls back to the latest one that is.
   if (store.tab !== "term" && !tabs.some((t) => t[1] === store.tab))
-    store.tab = [...tabs].reverse().find((t) => t[1] !== "notes" && t[1] !== "git" && !(view === "run" && t[1] === "preview"))[1];
+    store.tab = [...tabs].reverse().find((t) => t[1] !== "notes" && t[1] !== "git" && !(curView() === "run" && t[1] === "preview"))[1];
   if (store.tab !== "term") store.lastTab = store.tab;
   $("panel").classList.toggle("wide", store.tab === "term");
   const pt = $("pterm");
@@ -207,7 +207,7 @@ export async function openRun(c, refresh, again) {
     tab: store.tab,
     pickTab: (k) => {
       // In the run workspace Preview is a centre tab, not a panel tab.
-      if (view === "run" && k === "preview") return void dispatchEvent(new Event("kz-run-preview"));
+      if (curView() === "run" && k === "preview") return void dispatchEvent(new Event("kz-run-preview"));
       $("panel").classList.remove("pn");
       store.tab = k;
       openRun(c, true);
@@ -278,7 +278,7 @@ export function openAt(c, type, n) {
   open(c, true);
 }
 export function close() {
-  if (view !== "board" && view !== "run" && view !== "tasks") return;
+  if (curView() !== "board" && curView() !== "run" && curView() !== "tasks") return;
   const k = store.openKey;
   stopDictation(true);
   termStop();

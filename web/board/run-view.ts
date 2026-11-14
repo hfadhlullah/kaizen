@@ -20,10 +20,11 @@ import { key } from "./cards.ts";
 import { open } from "./panel.ts";
 import { load, post } from "./api.ts";
 import { preview } from "./markdown.ts";
-import { cardHref, markCurrent, railData, stateOf, titleOf, wsHref, wsOfCard } from "./workspace.ts";
+import { cardHref, stateOf, titleOf, wsHref, wsOfCard } from "./workspace.ts";
+import { getRoute, navigate, touchRoute } from "@lib/router";
+import { onState, railDataNow } from "@lib/server";
 import { awaiting, chosen, devUrl, dueWord, finished, gitDue, historyOf, leaves, liveIn, loopbackUrl, migrate, newRun, pickable, previewOpens, reviewing, stageTabs, toOpen, wsKey } from "./ws-tabs.ts";
 import { age } from "@lib/core";
-import { go } from "./views.ts";
 import { boxesOf, detach, focusItem, fetchPreview, keepUrl, layoutOf, moveInLayout, nearestPane, patch, placeItems, refreshPreview, replaceAll, requestBrowse, clearBrowse, rects, selectScreen, setDragging, setRunActions, setRunView, setTarget, showItem, useLayout, type Saved, type SavedTab } from "@lib/run";
 
 type Tab = SavedTab & { kind: "agent" | "shell" | "local" | "preview" | "note" | "wait" | "history" };
@@ -85,7 +86,7 @@ const elsewhere = new Set<string>();
 
 let switched: string | null = null; // the project a deep link last switched the board to
 const none = (t: string) => setRunView({ message: t });
-// Called by go("run") and on every /state: draws the tab strip and keeps the panes.
+// Called by navigate("run") and on every /state: draws the tab strip and keeps the panes.
 export async function showRunView(nav = false) {
   const p = new URLSearchParams(location.search),
     dir = p.get("dir"),
@@ -110,12 +111,12 @@ export async function showRunView(nav = false) {
     const run = pk && store.S.cards.find((x) => x.kind === "run" && x.state === dir && (x.pty?.key === pk || x.pty?.all?.includes(pk)));
     if (run) {
       history.replaceState(null, "", cardHref(run));
-      markCurrent();
+      touchRoute();
       return showRunView(nav);
     }
     if (!c) {
       if (await away()) return showRunView(nav);
-      if (!store.all && find(railData().cards)) location.href = "/?all=1&" + p.toString();
+      if (!store.all && find(railDataNow().cards)) location.href = "/?all=1&" + p.toString();
       else (stopPanes(), (ctx = card = null), none(`That ${id ? "run" : "idea"} was not found.`));
       return;
     }
@@ -131,7 +132,7 @@ export async function showRunView(nav = false) {
   if (fresh) seenRuns.set(k, new Set(mineNow().map(key))); // what is here on arrival is not new
   if (fresh) previewAt.delete(k); // nor is a preview: arriving only records it
   // The header titles a phone's workspace: the run, else the branch.
-  const w = railData().projects?.find((x) => x.dir === dir)?.workspaces?.find((x) => x.path === ws);
+  const w = railDataNow().projects?.find((x) => x.dir === dir)?.workspaces?.find((x) => x.path === ws);
   document.querySelector(".hdr h1")!.textContent = want ? titleOf(want) : w?.branch || ws.split(/[\\/]/).pop() || "Workspace";
   // Layouts saved per run before workspaces move to their workspace; keys no card owns stay.
   if (store.S.cards.some((c) => key(c) in useLayout.getState().all)) {
@@ -512,7 +513,7 @@ function initSheet() {
   const b = document.body;
   bindSheetSwipe({
     panel: $("panel"),
-    active: () => isPhone() && b.classList.contains("runv") && b.classList.contains("rflip"),
+    active: () => isPhone() && getRoute().view === "run" && b.classList.contains("rflip"),
     close: () => $("pclose").click(),
     keep: "#panel,#rside,dialog,.toast,[data-sonner-toast]",
   });
@@ -572,7 +573,7 @@ function initPaneKeys() {
   addEventListener(
     "keydown",
     (e) => {
-      if (!ctx || !document.body.classList.contains("runv") || document.querySelector("dialog[open]")) return;
+      if (!ctx || getRoute().view !== "run" || document.querySelector("dialog[open]")) return;
       if (e.ctrlKey && !e.shiftKey && e.code === "Space") {
         e.preventDefault();
         e.stopPropagation();
@@ -600,7 +601,7 @@ export function initRunView() {
   document.addEventListener(
     "click",
     (e) => {
-      if (!document.body.classList.contains("runv") || !(e.target as Element).closest?.("#pclose")) return;
+      if (getRoute().view !== "run" || !(e.target as Element).closest?.("#pclose")) return;
       e.stopPropagation();
       document.body.classList.remove("rflip");
     },
@@ -616,10 +617,10 @@ export function initRunView() {
     e.preventDefault();
     const { dir, ws, key } = e.detail;
     wantTerm = key;
-    if (ctx?.k === wsKey(dir, ws) && document.body.classList.contains("runv")) return void showTerm();
+    if (ctx?.k === wsKey(dir, ws) && getRoute().view === "run") return void showTerm();
     history.pushState(null, "", wsHref(dir, ws));
-    markCurrent();
-    go("ws");
+    touchRoute();
+    navigate("ws");
   });
   // Search's Tabs group: open the workspace on the screen holding that tab.
   addEventListener("kz-open-tab", (e: any) => {
@@ -628,10 +629,10 @@ export function initRunView() {
     const k = wsKey(dir, ws),
       sc = layoutOf(k).screens.find((x) => leaves(x.tree).includes(id));
     if (sc) selectScreen(k, sc.id);
-    if (ctx?.k === k && document.body.classList.contains("runv")) return void draw();
+    if (ctx?.k === k && getRoute().view === "run") return void draw();
     history.pushState(null, "", wsHref(dir, ws));
-    markCurrent();
-    go("ws");
+    touchRoute();
+    navigate("ws");
   });
   addEventListener("kz-run-preview", openPreview);
   $("pnotes").onclick = () => void projectNotes();
@@ -665,16 +666,16 @@ export function initRunView() {
       },
   });
   // A /state change: new or ended sessions, the card's own state. Panes stay mounted.
-  addEventListener("kz-state", () => {
+  onState(() => {
     void autoBrowse();
     followNew();
-    if (ctx && document.body.classList.contains("runv")) void showRunView();
+    if (ctx && getRoute().view === "run") void showRunView();
   });
 }
 // Opens a card's workspace, its address in the history.
 export function openWorkspace(c) {
   const u = cardHref(c);
   if (location.pathname + location.search !== u) history.pushState(null, "", u);
-  markCurrent();
-  go("run");
+  touchRoute();
+  navigate("run");
 }

@@ -1,8 +1,10 @@
-// The side menu's state: what the old code feeds it on every refresh (cards, projects, agents, tasks) and what this browser
-// keeps (the filter, folded projects, pinned worktrees, expanded agent lists). Drawn by components/rail.
+// The side menu's state: what this browser keeps (the filter, folded projects, pinned worktrees, expanded agent lists). The
+// cards, projects, agents and tasks it lists come from the server store (lib/server). Drawn by components/rail.
 import { create } from "zustand";
+import { getServer, onServer, setServer } from "@lib/server";
 import { forgetAgents } from "./agents.ts";
-import { ALLF, pinKey, type RailData, type RailFilt } from "./rules.ts";
+import { taskForCard } from "./rules.ts";
+import { ALLF, pinKey, type RailFilt } from "./rules.ts";
 
 const read = <T>(k: string, d: T): T => {
   try {
@@ -16,35 +18,32 @@ const keep = (k: string, v: unknown) => {
     localStorage.setItem(k, JSON.stringify(v));
   } catch {}
 };
+// The held "working" status forgets an agent the server no longer lists.
+onServer(
+  (s) => s.every,
+  (e) => e && forgetAgents(e.agents),
+);
+// The task that carries a card, by what the server last said needs attention.
+export const attentionFor = (c: any) => taskForCard(c, getServer().tasks);
 const K = { filt: "kz-rail-filter2", folded: "kz-rail-folded", pins: "kz-ws-pins", open: "kz-wsopen" };
 
 type Rail = {
-  data: RailData;
   filt: RailFilt;
   folded: string[];
   pins: string[];
   open: Record<string, true>;
   q: string; // the filter popup's search
-  loc: string; // location.search at the last touch: the row it names is lit
   tick: number; // bumped when a held "working" agent may turn done
 };
 export const useRail = create<Rail>()(() => ({
-  data: { cards: [], projects: [], agents: [], tasks: null },
   filt: { ...ALLF, ...read<Partial<RailFilt>>(K.filt, {}) },
   folded: read<string[]>(K.folded, []),
   pins: read<string[]>(K.pins, []),
   open: read<Record<string, true>>(K.open, {}),
   q: "",
-  loc: typeof location === "undefined" ? "" : location.search,
   tick: 0,
 }));
 
-export function setRailData(data: RailData) {
-  forgetAgents(data.agents);
-  useRail.setState({ data });
-}
-// The address changed without a redraw (a card opened in place): light the row it names.
-export const touchRail = () => useRail.setState({ loc: location.search });
 export const bumpRail = () => useRail.setState((s) => ({ tick: s.tick + 1 }));
 export const setRailQuery = (q: string) => useRail.setState({ q });
 export function setRailFilter(f: Partial<RailFilt>) {
@@ -78,8 +77,9 @@ export function toggleAgents(dir: string, ws: string) {
 // A drag dropped a project: the list shows the new order at once (the server saves it for every device).
 export function orderProjects(dirs: string[]) {
   const rank = new Map(dirs.map((x, i) => [x, i]));
-  const d = useRail.getState().data;
-  useRail.setState({
-    data: { ...d, projects: [...d.projects].sort((a, b) => (rank.get(a.dir) ?? 1e9) - (rank.get(b.dir) ?? 1e9)) },
-  });
+  const e = getServer().every;
+  if (e)
+    setServer({
+      every: { ...e, projects: [...e.projects].sort((a, b) => (rank.get(a.dir) ?? 1e9) - (rank.get(b.dir) ?? 1e9)) },
+    });
 }

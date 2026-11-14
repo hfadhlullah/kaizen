@@ -1,12 +1,11 @@
 // What the React pages need from the board's old code, handed over once at start: the toaster, the host functions
-// (lib/core/host.ts: go, newTask, openCard, ...), the terminal dictation keys and the side menu's data feed. The
+// (lib/core/host.ts: go, newTask, openCard, ...) and the terminal dictation keys. The
 // pages never import web/board; this is the one place the two meet.
 import { setHost, toast } from "@lib/core";
-import { setRailData, touchRail } from "@lib/rail";
+import { navigate } from "@lib/router";
+import { dirHeader, load } from "./api.ts";
 import { startTerminalDictation } from "@lib/dictation";
 import { FONT_MAX, FONT_MIN, fontRead, fontSet } from "../term/term-font.ts";
-import { attentionTasks, setTaskAttention } from "./badge.ts";
-import { dirHeader, load } from "./api.ts";
 import { key, newTask, runPopup, via } from "./cards.ts";
 import { open as openPanel, openAt, close as closePanel, openRun } from "./panel.ts";
 import { openWorkspace } from "./run-view.ts";
@@ -14,19 +13,16 @@ import { rich } from "./rich.ts";
 import { askNotify, notifyOn, playSound, setToaster, SOUNDS, soundPick } from "./toast.ts";
 import { dataUrls, motion } from "./dom.ts";
 import { pick as pickProject, setShown, showable } from "./projects.ts";
-import { connectRail, gitProjects, wsHref } from "./workspace.ts";
-import { go } from "./views.ts";
+import { gitProjects, wsHref } from "./workspace.ts";
 import { store } from "./store.ts";
 
 export function initHost() {
   setToaster(toast);
   startTerminalDictation();
   setHost({
-    go,
+    go: navigate,
     newTask: () => newTask(),
     runPopup,
-    setTaskAttention,
-    attentionTasks: () => attentionTasks,
     scopeDir: () => (!store.all ? (store.S.dir ?? "") : ""),
     dirHeader,
     projects: () => store.S.projects,
@@ -72,9 +68,7 @@ export function initHost() {
     pickProject,
     openSettings: (q) => {
       store.setQ = q;
-      go("settings", true);
+      navigate("settings", true);
     },
   });
-  // The side menu's Projects list and filter get their data from the rail feed.
-  connectRail({ set: setRailData, touch: touchRail });
 }

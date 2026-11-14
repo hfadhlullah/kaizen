@@ -1,7 +1,8 @@
 // What a tap on the phone's Home does: open an agent's terminal, pick one of a workspace's agents, start a new one.
 // The two sheets (phone-sheet.ts) get what each row shows and does; the runs and projects are the side menu's data.
 import { host, toast } from "@lib/core";
-import { DOT, projName, useRail, WORD, type Agent } from "@lib/rail";
+import { DOT, projName, WORD, type Agent } from "@lib/rail";
+import { railDataNow } from "@lib/server";
 import { wsKey } from "@lib/run";
 import { agentGroups, wsName, type AgentRow } from "./phone-home.ts";
 import { openSheet } from "./phone-sheet.ts";
@@ -32,7 +33,7 @@ export function pickAgent(rows: AgentRow[]) {
 // New: pick a workspace, then an agent or a plain shell. It starts as a tab of that workspace, the same POST the
 // workspace's own + button makes.
 export async function newSheet(dir?: string, ws?: string) {
-  const { projects, agents } = useRail.getState().data;
+  const { projects, agents } = railDataNow();
   const spots = (projects ?? []).flatMap((p) =>
     (p.workspaces ?? []).map((w) => ({
       dir: p.dir as string,

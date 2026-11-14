@@ -6,7 +6,8 @@ import { ResultChecks } from "./result-checks.tsx";
 import { ResultView } from "./result-view.tsx";
 import { storedUrl, webUrl, type TaskArtifact, type TaskResult } from "@lib/task/task-results.ts";
 import { canAcceptTask, closeActions, filteredTasks, taskHref, type TaskView } from "@lib/task/tasks.ts";
-import { waitingCount, taskForCard } from "../../board/badge.ts";
+import { taskForCard } from "@lib/rail";
+import { waitingCount } from "@lib/server";
 
 // The Tasks pages' rules and viewers, rendered the way the board renders them (react-dom/server), with lifecycle fixtures.
 const html = (e: ReactElement) => renderToStaticMarkup(e);

@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { TooltipProvider } from "@web/ui";
+import { useRouteClasses } from "@lib/router";
 import { checkUpdate } from "@lib/settings";
 import { SourceMarks } from "@components/rail";
 import { HomeWsRow } from "@components/home";
@@ -13,10 +14,12 @@ import { Panel } from "./panel.tsx";
 import { Portal } from "./portal.tsx";
 
 // The Board app: the providers, then the shell (side menu, header, the page area, the detail panel, footer) and the
-// layers over it. It holds no state: what shows is the page stores' and the router's (web/board/views.ts sets
-// the view in lib/shell, a class on <body> shows one page area). The terminals live in the page and panel areas
-// and are never unmounted by a page switch.
+// layers over it. It holds no state: what shows is the router's (lib/router: the view the address names) and the page
+// stores'. It is the page picker: `useRouteClasses` sets the <body> classes that show one page area, and `Pages` draws a
+// page the first time it opens. The Terminal page's terminals stay mounted once opened and are hidden by CSS; the in-card
+// terminal and the run workspace's panes still unmount with their panel or workspace (web/board/panel.ts, run-view.ts).
 export function App() {
+  useRouteClasses();
   // Hourly so a tab left open still hears of a release; the server's cache limits npm to every 6 h.
   useEffect(() => {
     void checkUpdate();

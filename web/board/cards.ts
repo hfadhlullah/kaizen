@@ -10,8 +10,7 @@ import { COLS, ICON, WORD } from "@lib/core";
 import { isPhone } from "@lib/core";
 import { showable } from "./projects.ts";
 import { setProjectBar } from "@lib/project";
-import { termsBadge } from "./terms.ts";
-import { boardBadge, waitingCount } from "./badge.ts";
+import { cardKey, waitingCount } from "@lib/server";
 import { WS_COLS } from "./ws-board.ts";
 import { boardMode, initWsBoard, syncMode, wsBoardData } from "./ws-board-ui.ts";
 import { flushSync } from "react-dom";
@@ -32,9 +31,8 @@ setStripActions({
   },
 });
 
-// Two tasks may carry the same text; load() numbers the repeats so a key names one card.
-export const key = (c) =>
-  c._k || (c.kind === "idea" ? "idea:" + c.state + ":" + c.text : "run:" + c.state + ":" + c.id);
+// Two tasks may carry the same text; the poller numbers the repeats so a key names one card.
+export const key = cardKey;
 // The tool a launch opened, and why when it is not the one asked for.
 export const via = (a) => a.name + (a.note ? ". " + a.note : "");
 
@@ -103,8 +101,6 @@ export function render() {
   // The tab says how many runs wait on you, or agents wait on input, so a background tab still tells you.
   const nw = waitingCount(store.S.cards);
   document.title = nw ? `(${nw}) kaizen` : "kaizen";
-  if (store.all) boardBadge(store.S.cards, [...store.S.projects, ...(store.S.rail ?? [])], store.S.agents);
-  termsBadge();
 }
 // The header filter box lives outside #board, so a redraw keeps what is typed; draft() keeps it over a reload.
 export function filterBox() {

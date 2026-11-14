@@ -6,7 +6,7 @@ import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
 import { safeName, listNotes, saveNote, renameNote, deleteNote, boardIndex, linksTo } from "./notes.ts";
 import { wikilinks, tags, resolve, safeUrl, tree, uncode, freshName, parseTable, boardLink, resolveRun, anchorWords, pickProject } from "../web/notebook/notes-lib.ts";
-import { sourceHash, OUT, TERM_OUT, BOARD_OUT, BOT_OUT, VIDEO_OUT, ANNOTATE_OUT, UI_CSS_OUT, BOARD_CSS_OUT, NOTEBOOK_CSS_OUT, POPUP_CSS_OUT } from "./build-web.ts";
+import { sourceHash, OUT, TERM_OUT, BOARD_OUT, BOT_OUT, VIDEO_OUT, ANNOTATE_OUT, UI_CSS_OUT, BOARD_CSS_OUT, NOTEBOOK_CSS_OUT, POPUP_CSS_OUT, BOOT_OUT } from "./build-web.ts";
 
 let state = "";
 beforeEach(() => { state = join(mkdtempSync(join(tmpdir(), "kaizen-notes-")), ".kaizen"); mkdirSync(state); });
@@ -249,13 +249,14 @@ test("the side menu is the board's on the notebook and Video, line for line", ()
   expect(symbol(sprite, "i-board")).toBeTruthy();
 });
 
-test("web/dist/notebook.js, web/dist/term.js, web/dist/board.js, web/dist/ui.css, web/dist/board.css, web/dist/notebook.css, web/dist/popup.css, web/dist/video.js, web/dist/annotate.js and bot/web/app.js were built from the sources as they are (bun run build:web)", () => {
+test("web/dist/notebook.js, web/dist/term.js, web/dist/board.js, web/dist/ui.css, web/dist/board.css, web/dist/notebook.css, web/dist/popup.css, web/dist/boot.js, web/dist/video.js, web/dist/annotate.js and bot/web/app.js were built from the sources as they are (bun run build:web)", () => {
   expect(readFileSync(OUT, "utf8").split("\n", 1)[0]!).toContain(`kaizen notebook ${sourceHash()} `);
   expect(readFileSync(TERM_OUT, "utf8").split("\n", 1)[0]!).toContain(`kaizen terminal ${sourceHash()} `);
   expect(readFileSync(BOARD_OUT, "utf8").split("\n", 1)[0]!).toContain(`kaizen board ${sourceHash()} `);
   expect(readFileSync(BOT_OUT, "utf8").split("\n", 1)[0]!).toContain(`kaizen bot page ${sourceHash()} `);
   expect(readFileSync(VIDEO_OUT, "utf8").split("\n", 1)[0]!).toContain(`kaizen video page ${sourceHash()} `);
   expect(readFileSync(ANNOTATE_OUT, "utf8").split("\n", 1)[0]!).toContain(`kaizen annotator page script ${sourceHash()} `);
+  expect(readFileSync(BOOT_OUT, "utf8").split("\n", 1)[0]!).toContain(`kaizen boot script ${sourceHash()} `);
   expect(readFileSync(UI_CSS_OUT, "utf8").split("\n", 1)[0]!).toContain(`kaizen ui ${sourceHash()} `);
   for (const [f, what] of [[BOARD_CSS_OUT, "board css"], [NOTEBOOK_CSS_OUT, "notebook css"], [POPUP_CSS_OUT, "popup css"]] as const)
     expect(readFileSync(f, "utf8").split("\n", 1)[0]!).toContain(`kaizen ${what} ${sourceHash()} `);

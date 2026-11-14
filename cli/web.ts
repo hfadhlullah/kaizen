@@ -66,6 +66,8 @@ const POPUP_PAGE = join(dirname(import.meta.dir), "web", "html", "popup.html");
 const dist = (f: string) => join(dirname(import.meta.dir), "web", "dist", f);
 const STYLES: Record<string, string> = { "/board.css": dist("board.css"), "/notebook.css": dist("notebook.css"), "/popup.css": dist("popup.css") };
 const POPUP_JS = dist("popup.js");
+// The blocking head script of the board and the Notebook: the stored theme is on <html> before the first paint.
+const BOOT_JS = dist("boot.js");
 // The chat the popup was on when its Back button was pressed, until Home takes it.
 let popupChat: string | null = null;
 const VIDEO_JS = join(dirname(import.meta.dir), "web", "dist", "video.js");
@@ -92,7 +94,7 @@ delete process.env.KAIZEN_DESKTOP_BUNDLED;
 // page newer than its server sends ops the server does not know ("unknown op").
 // So the pages are kept as they were at start, and read live (dev edits) only while
 // the installed version is still the one this board runs.
-const AT_START = new Map([PAGE, BOARD_JS, NOTES_PAGE, NOTES_JS, TERM_JS, TERM_CSS, VIDEO_PAGE, VIDEO_JS, ANNOTATE_JS, UI_CSS, POPUP_PAGE, POPUP_JS, ...Object.values(STYLES)].map((f) => [f, existsSync(f) ? readText(f) : null]));
+const AT_START = new Map([PAGE, BOARD_JS, NOTES_PAGE, NOTES_JS, TERM_JS, TERM_CSS, VIDEO_PAGE, VIDEO_JS, ANNOTATE_JS, UI_CSS, POPUP_PAGE, POPUP_JS, BOOT_JS, ...Object.values(STYLES)].map((f) => [f, existsSync(f) ? readText(f) : null]));
 const served = (f: string) => installed() === VERSION && existsSync(f) ? readText(f) : AT_START.get(f) ?? null;
 
 // A board answers at url and runs the installed version. A board from before the
@@ -867,6 +869,12 @@ export async function web(repoDir: string, opts: Opts = {}) {
         const body = served(f);
         if (body === null) return new Response(`${path} missing; run bun run build:web`, { status: 500 });
         return new Response(body, { headers: { "content-type": type, "cache-control": "no-store" } });
+      }
+
+      if (req.method === "GET" && path === "/boot.js") {
+        const body = served(BOOT_JS);
+        if (body === null) return new Response(`${path} missing; run bun run build:web`, { status: 500 });
+        return new Response(body, { headers: { "content-type": "application/javascript; charset=utf-8", "cache-control": "no-store" } });
       }
 
       // `kaizen chat`: the small chat window over the desktop.

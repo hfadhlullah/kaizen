@@ -1,7 +1,6 @@
 // The floating Home workspace (web/components/home/home-window.tsx, state in lib/home/home-window.ts). What stays here is
-// what only the old code can see: the board's list of live shells, and the events other modules send.
-import { homeBridge, openHomeTerm, setHomeShells, startHomeFrom, startHomeWs, startIfEmpty } from "@lib/home";
-import { store } from "./store.ts";
+// what only the old code can see: the events other modules send (the live shells are the server store's).
+import { openHomeTerm, startHomeFrom, startHomeWs, startIfEmpty } from "@lib/home";
 import { isHomeDir } from "./workspace.ts";
 
 // Search, the resource monitor and the phone's Agents list open a terminal by kz-open-term: a Home one opens in the
@@ -16,9 +15,6 @@ if (typeof window !== "undefined")
   });
 
 export function initHomeWs() {
-  homeBridge.shells = (list) => (store.shells = list as typeof store.shells);
-  // The footer's poll fills store.shells; the window follows it.
-  addEventListener("kz-shells", () => setHomeShells(store.shells as any));
   // The phone's New sheet starts an agent or a shell here ("Home - no project"); the Storage panel's Cleanup starts
   // Claude Code on /disk-cleanup (detail.prompt).
   addEventListener("kz-home-start", (e: any) => startHomeFrom(e.detail));

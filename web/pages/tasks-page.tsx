@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useShallow } from "zustand/react/shallow";
+import { useRoute } from "@lib/router";
 import { EmptyState, IconButton, Pager } from "@components/shared";
 import { FilterMenu, TaskRow } from "@components/task";
 import {
@@ -18,7 +19,7 @@ import { Button } from "@web/ui";
 // The attention-first list of durable tasks. The board's own search box, tools slot and New task button are
 // docked into it while it shows (lib/task/use-dock.ts), so the page has no header of its own.
 export function TasksPage() {
-  return useStore((s) => s.view === "tasks") ? <Tasks /> : null;
+  return useRoute((r) => r.page === "tasks") ? <Tasks /> : null;
 }
 function Tasks() {
   const { tasks, loaded, error, scope } = useTasks();

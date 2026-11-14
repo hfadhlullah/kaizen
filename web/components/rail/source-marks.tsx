@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { useSourceMarks, type SourceMark } from "@lib/rail";
+import { useMemo, useState } from "react";
+import { marksOf, type SourceMark } from "@lib/rail";
+import { useServer } from "@lib/server";
 
 // A favicon that does not load leaves no broken image behind.
 const Mark = ({ m }: { m: SourceMark }) => {
@@ -14,4 +15,7 @@ const Mark = ({ m }: { m: SourceMark }) => {
     <img src={m.id} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setBroken(true)} />
   );
 };
-export const SourceMarks = () => useSourceMarks((s) => s.marks).map((m) => <Mark key={m.id} m={m} />);
+export function SourceMarks() {
+  const sources = useServer((s) => s.sources?.sources);
+  return useMemo(() => marksOf(sources), [sources]).map((m) => <Mark key={m.id} m={m} />);
+}

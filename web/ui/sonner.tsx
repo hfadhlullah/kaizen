@@ -1,6 +1,6 @@
 import { Toaster as Sonner } from "sonner";
 
-// The one toaster, mounted once by the board (web/board/react-mount.ts). Looks like the board's old toast: the
+// The one toaster, mounted once by the board's App (web/pages/board/portal.tsx). Looks like the board's old toast: the
 // ink colour with the page colour as text, bottom left.
 export const Toaster = () => (
   <Sonner

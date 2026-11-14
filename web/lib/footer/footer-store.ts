@@ -1,16 +1,13 @@
-// The board footer's data (Zustand): what Claude and Codex have used, whether a phone is on the tailnet, and how many
-// terminals are live. The footer (components/footer/foot-bar.tsx) draws it; the board's own code (workspace.ts) reports the
-// terminal count, since it reads the sessions.
+// The board footer's data (Zustand): what Claude and Codex have used and whether a phone is on the tailnet. The footer
+// (components/footer/foot-bar.tsx) draws it, with the live terminal count from the server store (lib/server).
 import { create } from "zustand";
 import type { Usage } from "@lib/phone";
 import { phoneStatus, type PhoneStatus } from "./footer-rules.ts";
 
-export const useFooter = create<{ usage: Usage[] | null; phone: PhoneStatus | null; terms: number }>()(() => ({
+export const useFooter = create<{ usage: Usage[] | null; phone: PhoneStatus | null }>()(() => ({
   usage: null,
   phone: null,
-  terms: 0,
 }));
-export const setFooterTerms = (terms: number) => useFooter.setState({ terms });
 
 export async function loadUsage(refresh = false) {
   try {

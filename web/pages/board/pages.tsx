@@ -30,7 +30,7 @@ function BoardMain() {
     </main>
   );
 }
-// Every view's area, side by side; the router (web/board/views.ts) sets a class on <body> and CSS shows one. The Board,
+// Every view's area, side by side; the App sets a class on <body> from the route and CSS shows one. The Board,
 // the Terminal page, the phone pages and the run workspace are always here; the others are drawn once first opened.
 export function Pages() {
   return (

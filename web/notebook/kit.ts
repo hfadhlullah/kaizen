@@ -4,10 +4,9 @@
 // start, except in ?embed=1, where there is no side menu to search from or list projects in.
 import { ask, setHost, toast } from "@lib/core";
 import { openAdd, openWsMenu } from "@lib/project";
-import { setRailData, touchRail } from "@lib/rail";
 import { useSearch } from "@lib/search";
 
-const kit = { useSearch, openAdd, openWsMenu, ask, toast, setHost, rail: { set: setRailData, touch: touchRail } };
+const kit = { useSearch, openAdd, openWsMenu, ask, toast, setHost };
 export type Kit = typeof kit;
 
 export const registerKit = () => void (window.kzKit ??= kit);

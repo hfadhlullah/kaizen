@@ -1,10 +1,12 @@
-// The page's look and the side menu's fold, kept per browser in localStorage and applied to <html> before the page draws:
+// The page's look and the side menu's fold, kept per browser in localStorage and applied to <html> before the page draws (the
+// stored values by /boot.js, stored-look.ts; the rest here):
 // theme (light, dark, or unset for the system's), colour (blue or monochrome), motion (full, reduce, or the system's), the
 // desktop app's classes, and the iPhone app's fit. The board and the Notebook call bootShell() first; Settings and
 // onboarding call setTheme / setColor / setMotion. CSS keys off data-theme, data-color, data-motion, data-rail and data-hide.
 import { setShell, setSetupRow, getShell } from "./shell-store.ts";
+import { applyFold, applyStoredLook, fitStandalone, PHONE, WIDE } from "./stored-look.ts";
 
-type Desktop = { platform?: string; titleBar?: (dark: boolean) => void };
+type Desktop = { titleBar?: (dark: boolean) => void };
 const root = () => document.documentElement;
 const stored = (k: string) => {
   try {
@@ -48,16 +50,11 @@ export function setMotion(m: string) {
 }
 export const toggleTheme = () => setTheme(getShell().dark ? "light" : "dark");
 
-// The fold: the person's choice (kz-rail) wins; with none the width decides; a phone always gets icons.
-const wide = () => matchMedia("(max-width:1100px)"),
-  phone = () => matchMedia("(max-width:640px)");
+// The fold: see stored-look.ts; here it follows the width and the toggle.
 let fold: string | null = null;
-function applyRail() {
-  const min = phone().matches || (fold ? fold === "min" : wide().matches);
-  root().dataset.rail = min ? "min" : "full";
-  root().dataset.hide = !phone().matches && fold === "min" ? "1" : "0";
-  setShell({ min });
-}
+const wide = () => matchMedia(WIDE),
+  phone = () => matchMedia(PHONE);
+const applyRail = () => setShell({ min: applyFold(root(), fold) });
 export function toggleRail() {
   fold = root().dataset.rail === "min" ? "full" : "min";
   keep("kz-rail", fold);
@@ -68,31 +65,13 @@ let booted = false;
 export function bootShell() {
   if (booted) return;
   booted = true;
-  // Installed on iOS the page fits the window and does not zoom.
-  if (
-    matchMedia("(display-mode:standalone)").matches ||
-    (navigator as unknown as { standalone?: boolean }).standalone
-  ) {
-    const vp = document.querySelector<HTMLMetaElement>("meta[name=viewport]");
-    if (vp) vp.content += ",maximum-scale=1,user-scalable=no";
-    addEventListener("gesturestart", (e) => e.preventDefault());
-    if ((navigator as unknown as { standalone?: boolean }).standalone) addEventListener("resize", () => scrollTo(0, 0));
-  }
+  // /boot.js (in the page head) has done these before the first paint; they are repeated for a page without it.
+  applyStoredLook();
+  if (!root().dataset.boot) fitStandalone();
   fold = stored("kz-rail");
   wide().addEventListener("change", applyRail);
   phone().addEventListener("change", applyRail);
   applyRail();
-  // The desktop app: its own rules (html.desk, html.mac).
-  const d = desk();
-  if (d) {
-    root().classList.add("desk");
-    if (d.platform === "darwin") root().classList.add("mac");
-  }
-  if (stored("kz-color") === "blue") root().dataset.color = "blue";
-  const t = stored("kz-theme");
-  if (t) root().dataset.theme = t;
-  const m = stored("kz-motion");
-  if (m) root().dataset.motion = m;
   // Settings changed in another window or tab apply here at once, not on the next reload.
   addEventListener("storage", (e) => {
     const k = ({ "kz-theme": "theme", "kz-color": "color", "kz-motion": "motion" } as Record<string, string>)[

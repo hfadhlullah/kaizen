@@ -6,14 +6,14 @@ import { iceKey, isLive, type IceItem } from "./icebox.ts";
 import { armPromote, bulkDo, exitSwipe, iceAct, snoozeAll, swGo, swUndo } from "./icebox-actions.ts";
 import { getIce, setIce } from "./icebox-store.ts";
 import { toggleOpen, toggleSel } from "./icebox-view.ts";
-import { getStore } from "@lib/core";
+import { getRoute } from "@lib/router";
 import { flyCard } from "./use-card-drag.ts";
 
 // An open popup (menu, popover, picker, select, dialog, the drawer) keeps its own keys; Radix marks them data-state=open.
 const OVERLAY =
   "[role=dialog][data-state=open],[role=alertdialog][data-state=open],[role=menu][data-state=open],[role=listbox][data-state=open]";
 export function iceKeys(e: KeyboardEvent): boolean {
-  if (getStore().view !== "icebox" || e.altKey || e.ctrlKey || e.metaKey) return false;
+  if (getRoute().page !== "icebox" || e.altKey || e.ctrlKey || e.metaKey) return false;
   const t = e.target as Element | null,
     k = e.key;
   // A checkbox keeps the keys, for x then j.

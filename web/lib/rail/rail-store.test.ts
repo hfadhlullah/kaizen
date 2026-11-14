@@ -7,8 +7,9 @@ const mem = new Map<string, string>();
   setItem: (k: string, v: string) => void mem.set(k, v),
   removeItem: (k: string) => void mem.delete(k),
 };
-const { foldProject, foldProjects, orderProjects, setRailData, setRailFilter, togglePin, toggleAgents, useRail } =
+const { foldProject, foldProjects, orderProjects, setRailFilter, togglePin, toggleAgents, useRail } =
   await import("./rail-store.ts");
+const { getServer, setServer } = await import("@lib/server/server-store.ts");
 
 beforeEach(() => mem.clear());
 
@@ -31,10 +32,8 @@ test("the filter, folds, pins and open agent lists are kept under the old keys",
   expect(useRail.getState().open).toEqual({});
 });
 
-test("a dropped project shows in its new place at once; data refreshes replace the cards", () => {
-  setRailData({ cards: [], projects: [{ dir: "a" }, { dir: "b" }, { dir: "c" }], agents: [], tasks: null });
+test("a dropped project shows in its new place at once", () => {
+  setServer({ every: { cards: [], projects: [{ dir: "a" }, { dir: "b" }, { dir: "c" }], agents: [] } });
   orderProjects(["c", "a", "b"]);
-  expect(useRail.getState().data.projects.map((p) => p.dir)).toEqual(["c", "a", "b"]);
-  setRailData({ cards: [{ id: 1 }], projects: [], agents: [], tasks: null });
-  expect(useRail.getState().data.cards.length).toBe(1);
+  expect(getServer().every!.projects.map((p) => p.dir)).toEqual(["c", "a", "b"]);
 });

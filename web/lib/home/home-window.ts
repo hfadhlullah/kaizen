@@ -5,6 +5,7 @@
 // draws it; board/home-ws.ts wires the events only the old code can see. The rules here have no DOM (home-window.test.ts).
 import { create } from "zustand";
 import { ask, isPhone, toast } from "@lib/core";
+import { getServer, setShells } from "@lib/server";
 
 export type HomeWsState = "open" | "min" | "closed";
 export type HomeShell = { key: string; run?: string; title: string; agent?: string; dir?: string };
@@ -61,7 +62,6 @@ type Ws = {
   st: HomeWsState;
   max: boolean;
   on: string; // the tab asked for; currentTab() falls back to the last
-  shells: HomeShell[];
   ending: string[];
   agents: { cmd: string; name: string }[];
   dflt: string;
@@ -71,7 +71,6 @@ export const useHomeWs = create<Ws>()(() => ({
   st: "closed",
   max: false,
   on: "",
-  shells: [],
   ending: [],
   agents: [],
   dflt: "",
@@ -79,10 +78,8 @@ export const useHomeWs = create<Ws>()(() => ({
 }));
 const set = useHomeWs.setState;
 const get = useHomeWs.getState;
-// The board's own list of live shells (the footer and Terminal page read it): the old code registers where it lives.
-export const homeBridge = { shells: (_list: HomeShell[]) => {} };
-export const setHomeShells = (shells: HomeShell[]) => set({ shells });
-const tabsNow = () => homeTabs(get().shells, get().ending);
+// The live shells are the server store's slice (the footer and the Terminal page read it too).
+const tabsNow = () => homeTabs(getServer().shells, get().ending);
 
 // `keepIt` is false where a phone opens Home only when asked and never on the next page load.
 export function showHomeWs(st: HomeWsState, keepIt = true) {
@@ -117,9 +114,7 @@ export async function readHomeAgents() {
 }
 export async function refreshHomeWs() {
   try {
-    const list = await (await fetch("/shells")).json();
-    set({ shells: list });
-    homeBridge.shells(list);
+    setShells(await (await fetch("/shells")).json());
   } catch {
     /* the list stays as it was */
   }
@@ -144,9 +139,8 @@ export async function startHomeShell(agent?: string, yolo?: boolean, prompt?: st
     return toast(why ? "No new terminal: " + why : "No new terminal" + (r ? ` (${r.status})` : ""));
   }
   const sh = await r.json();
-  const shells = [...get().shells.filter((x) => x.key !== sh.key), sh];
-  set({ shells, on: sh.key });
-  homeBridge.shells(shells);
+  setShells([...getServer().shells.filter((x) => x.key !== sh.key), sh]);
+  set({ on: sh.key });
 }
 // An empty workspace that opens starts the default agent, as an empty run workspace does.
 async function startDefault() {

@@ -6,8 +6,9 @@
 // palette open (?search=1).
 import { $ } from "./dom.ts";
 import { age } from "@lib/core";
+import { onServer, railDataNow } from "@lib/server";
 import { openAdd } from "@lib/project/add-project.ts";
-import { cardHref, kitFor, projName, railData, stateOf, titleOf, wsHref, wsLabel, wsOfCard } from "./workspace.ts";
+import { cardHref, kitFor, projName, stateOf, titleOf, wsHref, wsLabel, wsOfCard } from "./workspace.ts";
 import { useSearch } from "@lib/search/search.ts";
 import type { Item } from "@lib/search/search-match.ts";
 import { leaves, wsKey } from "./ws-tabs.ts";
@@ -56,7 +57,7 @@ const browsed = (k: string) => {
 };
 let chats: any[] = [];
 function items(): Item[] {
-  const { cards, projects = [], agents = [] } = railData();
+  const { cards, projects = [], agents = [] } = railDataNow();
   const now = Date.now();
   const cur = new URLSearchParams(location.search);
   // The workspace open now: named by the address, or the one holding the run it names.
@@ -219,7 +220,8 @@ export function initSearch() {
   const it = $("gsearch");
   if (it) it.onclick = (e) => (e.preventDefault(), openSearch());
   // Opened before the menu's data came in: fill in as it lands.
-  addEventListener("kz-rail", fill);
+  onServer((s) => s.every, fill);
+  onServer((s) => s.sources, fill);
   // Arriving from the notebook or Video with the palette asked for.
   if (onBoard() && new URLSearchParams(location.search).get("search") === "1") {
     const q = new URLSearchParams(location.search);

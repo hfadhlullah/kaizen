@@ -151,18 +151,17 @@ test("nothing in web/ except video/ and the named exceptions hand-builds a popup
 // feature folder of lib/ or components/ instead.
 const BOARD: Record<string, string> = {
   "agent-term.ts": "which in-card terminal shows in the panel (drawn by TerminalPane)",
-  "api.ts": "the /state poll, requests and the project header",
-  "badge.ts": "attention counts and the tab badge",
+  "api.ts": "what the board does with a new /state (notifications, the cards' redraw and slide, the open panel) and its POST",
   "cards.ts": "card keys, lanes and the data the Board page is handed",
   "context.ts": "tells the context pane which project and sessions",
   "dom.ts": "$ lookups, image shrink, the html template the old modules still use",
   "drafts.ts": "half-typed text kept in sessionStorage",
   "git.ts": "when the git tab shows and the run's git state it is handed",
-  "home-ws.ts": "the shell list and the events the Home window needs from old code",
+  "home-ws.ts": "the events the Home window needs from old code",
   "home.ts": "the Home view's header buttons",
   "host.ts": "hands the React pages the board's functions (lib/core/host.ts) and the toaster, once at start",
   "keys.ts": "global keys",
-  "live.ts": "the page load, polling and events",
+  "live.ts": "the first read: the project picked last time, then the event stream (lib/server polls)",
   "main.ts": "entry: boots the shell, renders the App into #root, wires every module",
   "markdown.ts": "markdown helpers the old modules still call",
   "panel.ts": "which run panel tab shows, deep links and the scrim",
@@ -172,10 +171,10 @@ const BOARD: Record<string, string> = {
   "search.ts": "gathers the palette's rows from the rail, storage and events",
   "settings.ts": "opens the panel for the Settings page and its Ctrl+F",
   "store.ts": "the board's shared mutable state",
-  "terms.ts": "feeds sessions to the Terminal page and the side menu badge",
+  "terms.ts": "feeds sessions to the Terminal page",
   "toast.ts": "toasts for Video, notifications and sounds",
-  "views.ts": "view routing: body classes, addresses and the lib/shell view",
-  "workspace.ts": "the rail's data, the workspace rules and the footer poll",
+  "views.ts": "what a view change still starts in the docked panel, the run workspace, Home and the Terminal page (the router is lib/router)",
+  "workspace.ts": "the side menu's start-up, the workspace rules, the add-project sheet and the footer height",
   "ws-board-ui.ts": "the Workspaces board's data and mode",
   "ws-board.ts": "the Workspaces board's columns (pure, tested)",
   "ws-tabs.ts": "run workspace tab rules shared with the notebook and Video bundles",
@@ -199,7 +198,10 @@ test("every web/board file has a reason to exist, and none is left that only re-
 });
 
 // The page shells are a handful of lines: the head, a root and one script. All the markup is React (pages/*/App.tsx), all
-// the styles are in the page's one built stylesheet, all the script is its bundle. video.html is still a whole page.
+// the styles are in the page's one built stylesheet, all the script is its bundle. video.html is still a whole page. The one
+// exception to "one script" is /boot.js in the board's and the Notebook's head: a tiny blocking file (web/boot/boot.ts, no
+// inline script) that puts the stored theme, colour and menu fold on <html> before the first paint, so a slow bundle never
+// shows the wrong theme (R55).
 test("board.html, notes.html and popup.html are small shells with no inline style, script or markup", () => {
   for (const [f, css, js] of [["board", "board.css", "board.js"], ["notes", "notebook.css", "notebook.js"], ["popup", "popup.css", "popup.js"]]) {
     const html = readFileSync(join(web, `html/${f}.html`), "utf8");
@@ -207,9 +209,11 @@ test("board.html, notes.html and popup.html are small shells with no inline styl
     expect(html.length).toBeLessThan(1500);
     expect(html).toContain('<div id="root"></div>');
     expect(html).toContain(`<link rel="stylesheet" href="/${css}">`);
-    expect(html.match(/<script\b[^>]*>/g)).toEqual([`<script src="/${js}">`]);
+    const boot = f === "popup" ? [] : ['<script src="/boot.js">'];
+    expect(html.match(/<script\b[^>]*>/g)).toEqual([...boot, `<script src="/${js}">`]);
+    if (boot.length) expect(html.indexOf("/boot.js")).toBeLessThan(html.indexOf("<link rel=\"stylesheet\""));
     expect(html).not.toMatch(/<style\b|\sstyle=|<svg\b|<nav\b|<button\b|onclick=/);
-    expect(html.match(/<script\b[^>]*>([\s\S]*?)<\/script>/)![1]).toBe("");
+    for (const m of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)) expect(m[1]).toBe("");
   }
   // every page is one App in its own folder, and the Board's holds no state of its own
   for (const f of ["board", "notebook", "popup"]) expect(existsSync(join(web, `pages/${f}/App.tsx`))).toBe(true);
@@ -221,9 +225,37 @@ test("board.html, notes.html and popup.html are small shells with no inline styl
   expect(readFileSync(join(web, "board/views.ts"), "utf8")).not.toMatch(/export const react\b/);
 });
 
+// The server's data and the page that shows are not the engines' to decide any more: lib/server is the one poller (fetch, dedupe,
+// the quiet gap, the event stream) writing one store, lib/router the one router (the view, its address, the <body> classes
+// through the App). web/board/ reads them and reacts; it fetches none of what the poller reads and sets no page class.
+test("web/board does not poll the server or show pages: lib/server and lib/router do", () => {
+  const dir = join(web, "board");
+  const src = (n: string) => readFileSync(join(dir, n), "utf8");
+  const files = readdirSync(dir).filter((n) => n.endsWith(".ts") && !isTest(n));
+  for (const n of files) {
+    const s = src(n);
+    expect([n, /fetch\(["'`]\/(state|shells["'`]|sources|tasks\?all|events)/.test(s) || /new EventSource/.test(s)]).toEqual([n, false]);
+    expect([n, /dispatchEvent\(new Event\("kz-(state|view|rail|shells|cards|all-cards|task-attention|changed)"\)\)/.test(s)]).toEqual([n, false]);
+    // A page class on <body> is the App's (useRouteClasses): the engines may read the route, never set one.
+    expect([n, /body\.classList\.(toggle|add|remove)\(\s*["'`](paged|ice|setv|termv|homev|phomev|pdevv|taskv|taskpagev|runv|phone-menu-open)\b/.test(s)]).toEqual([n, false]);
+    expect([n, /classList\.contains\(\s*["'](paged|ice|setv|termv|homev|phomev|pdevv|taskv|taskpagev)["']/.test(s)]).toEqual([n, false]);
+  }
+  // the poller is lib/server's and the router lib/router's; the Board App is the page picker
+  for (const f of ["poller.ts", "poll-rules.ts", "server-store.ts"]) expect(existsSync(join(web, "lib/server", f))).toBe(true);
+  for (const f of ["route-store.ts", "route-rules.ts", "use-route-classes.ts"]) expect(existsSync(join(web, "lib/router", f))).toBe(true);
+  expect(readFileSync(join(web, "pages/board/App.tsx"), "utf8")).toContain("useRouteClasses()");
+  expect(readFileSync(join(web, "lib/router/use-route-classes.ts"), "utf8")).toContain("bodyClasses(");
+  // no router library
+  expect(readFileSync(join(dirname(web), "package.json"), "utf8")).not.toMatch(/react-router|tanstack\/router|wouter/);
+  // the engines register with the router and the poller; they do not own the store's data
+  expect(src("views.ts")).toContain("setRouterHooks(");
+  expect(src("api.ts")).toContain("setEngine(");
+  expect(src("store.ts")).toContain("getServer()");
+});
+
 // workspace.ts is shared with the notebook and Video bundles. The Projects list, its filter, the worktree menu and the
-// resource popup are React (components/rail, components/resources): the board mounts them (react-mount.ts), the Notebook
-// page gets the list and filter from the kit it mounts itself (kit.ts, in notebook.js), and Video lists no projects. What
+// resource popup are React (components/rail, components/resources): the board's App draws them, the Notebook
+// page draws the same components in notebook.js (the kit, kit.ts, lends the popups), and Video lists no projects. What
 // stays here opens the Add a project sheet only through the onBoard() guard or the kit, and settings.ts / tasks-page.tsx
 // never wipe a header host another part mounted (#ptabs, #psub, #hx).
 test("shared side-menu code only opens React hosts the page has; no page wipes a mounted host", () => {
@@ -234,7 +266,7 @@ test("shared side-menu code only opens React hosts the page has; no page wipes a
   // The list and the popups are gone from the old code and have a mount on each page that has them.
   expect(ws).not.toMatch(/drawList|drawPop|pfpop|wsMenu|rankDrag|innerHTML = drawn/);
   expect(existsSync(join(web, "board/resources.ts"))).toBe(false);
-  expect(ws).toMatch(/!onBoard\(\) && kitHere\(\)\) void kitFor\(\)\.then\(\(k\) => connectRail\(k\.rail\)/);
+  expect(ws).toMatch(/!onBoard\(\) && kitHere\(\)\) void kitFor\(\)\.catch/);
   // The side menu (components/shell/rail.tsx) draws the list and the filter on both pages.
   expect(rd("components/shell/rail.tsx")).toMatch(/<span id="pfilter-host"[^>]*>\s*<RailFilter \/>[\s\S]*<RailList \/>/);
   // The footer's resource button is part of the footer bar now.
@@ -406,7 +438,6 @@ const MAX_FILES = 25;
 const BRIDGE_DIRECT = [
   "board/workspace.ts",
   "board/ws-tabs.ts",
-  "board/badge.ts",
   "board/search.ts",
 ];
 const isTest = (name: string) => /\.test\.tsx?$/.test(name);

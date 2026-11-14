@@ -3,8 +3,10 @@
 import { store } from "./store.ts";
 import { $ } from "./dom.ts";
 import { setBoard } from "@lib/board";
-import { RANK, projName, railData, stateOf, titleOf, wsHref, wsLabel, wsOfCard } from "./workspace.ts";
-import { taskForCard } from "./badge.ts";
+import { RANK, projName, stateOf, titleOf, wsHref, wsLabel, wsOfCard } from "./workspace.ts";
+import { getRoute, useRoute } from "@lib/router";
+import { attentionFor } from "@lib/rail";
+import { onState, railDataNow, useServer } from "@lib/server";
 import { subline } from "@lib/phone";
 import type { WsCard } from "@lib/board";
 import { WS_COLS, cardLine, columnOf, groupWs } from "./ws-board.ts";
@@ -22,12 +24,12 @@ let rerender = () => {};
 export function syncMode() {
   const ws = boardMode() === "ws";
   document.body.classList.toggle("wsb", ws);
-  if (!document.body.classList.contains("paged")) $("bq").placeholder = ws ? "Search workspaces (press /)" : "Filter cards (press /)";
+  if (getRoute().view === "board") $("bq").placeholder = ws ? "Search workspaces (press /)" : "Filter cards (press /)";
 }
 // The switch is React (components/board/board-mode-switch.tsx), in the header's #hx; it is shown on the Board only.
 function drawToggle() {
   setBoard({
-    modeSwitch: document.body.classList.contains("paged")
+    modeSwitch: getRoute().view !== "board"
       ? null
       : {
           mode: boardMode(),
@@ -44,19 +46,13 @@ function drawToggle() {
 }
 export function initWsBoard(render: () => void) {
   rerender = render;
-  addEventListener("kz-view", () => (syncMode(), drawToggle()));
-  addEventListener("kz-state", drawToggle);
-  // A render publishes the cards, which raises kz-rail at once: that one is its own echo, not
-  // news, and answering it rendered again forever. Fresh rail data (a fetch) still redraws.
-  let drawing = false;
-  addEventListener("kz-rail", () => {
-    if (drawing || boardMode() !== "ws" || document.body.classList.contains("paged")) return;
-    drawing = true;
-    try {
-      render();
-    } finally {
-      drawing = false;
-    }
+  useRoute.subscribe((r, p) => r.view !== p.view && (syncMode(), drawToggle()));
+  onState(drawToggle);
+  // Fresh rail data (an all-projects read, or the sources) redraws Workspaces mode. A /state that carries the cards
+  // draws them itself, so a snapshot that came with one is not news.
+  useServer.subscribe((s, p) => {
+    const fresh = (s.every !== p.every && s.state === p.state) || s.sources !== p.sources;
+    if (fresh && boardMode() === "ws" && getRoute().view === "board") render();
   });
   syncMode();
   drawToggle();
@@ -66,7 +62,7 @@ export function initWsBoard(render: () => void) {
 // `inScope(dir)` is the board's project scope (single project, or the Showing filter).
 export function wsBoardData(inScope: (dir: string) => boolean): { ws: WsCard[][]; wsNames: string[] } {
   const now = store.S.now || Date.now(),
-    { cards, projects } = railData(),
+    { cards, projects } = railDataNow(),
     q = ($("bq").value || "").trim().toLowerCase();
   const cols: WsCard[][] = WS_COLS.map(() => []);
   for (const { dir, w, cs } of groupWs(cards, projects, wsOfCard)) {
@@ -86,7 +82,7 @@ export function wsBoardData(inScope: (dir: string) => boolean): { ws: WsCard[][]
       label: wsLabel(w),
       main: !!w.main,
       project: name,
-      line: cardLine(lead, lead ? stateOf(lead) : "", lead ? subline(lead, now, taskForCard(lead)) : ""),
+      line: cardLine(lead, lead ? stateOf(lead) : "", lead ? subline(lead, now, attentionFor(lead)) : ""),
     });
   }
   return { ws: cols, wsNames: WS_COLS };

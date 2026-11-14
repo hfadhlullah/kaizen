@@ -19,7 +19,8 @@ import {
   wsName,
   type AgentGroup,
 } from "@lib/phone";
-import { cardHref, DOT, projName, taskForCard, useRail, WORD } from "@lib/rail";
+import { cardHref, DOT, projName, taskForCard, WORD } from "@lib/rail";
+import { useRailData } from "@lib/server";
 import { Button, Icon } from "@web/ui";
 import { ProjectMark, StateDot } from "@components/shared";
 import { UsageChips } from "./usage-chips.tsx";
@@ -51,8 +52,7 @@ const Section = ({ title, children }: { title: ReactNode; children: ReactNode })
 const plain = (e: MouseEvent) => !(e.ctrlKey || e.metaKey);
 
 function AgentCards() {
-  const agents = useRail((s) => s.data.agents),
-    agentProjects = useRail((s) => s.data.projects),
+  const { agents, projects: agentProjects } = useRailData(),
     groups = agentGroups(agents ?? [], Date.now()),
     asking = askingCount(groups);
   const open = (g: AgentGroup) => (g.rows.length > 1 ? pickAgent(g.rows) : openTerm(g.rows[0]!.a));
@@ -115,7 +115,7 @@ function AgentCards() {
 
 // A run (or a task not started) as a row: its state dot, title, project and what it waits on.
 function RunRow({ c, now }: { c: any; now: number }) {
-  const data = useRail((s) => s.data),
+  const data = useRailData(),
     name = projName(c.state, data.projects);
   const open = (e: MouseEvent) => {
     if (!plain(e)) return;
@@ -180,7 +180,7 @@ function Device({ d }: { d: { name: string; dns: string; os: string; online: boo
 }
 
 function Home() {
-  const data = useRail((s) => s.data),
+  const data = useRailData(),
     { net, usage, allDevices } = usePhone(),
     now = Date.now(),
     st = homeStats(data),
@@ -278,7 +278,7 @@ function Group({ title, cards, shut }: { title: string; cards: any[]; shut?: boo
 }
 
 function Runs() {
-  const data = useRail((s) => s.data),
+  const data = useRailData(),
     g = runGroups(data);
   return (
     <>

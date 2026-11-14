@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
+import { useRoute } from "@lib/router";
 import { ActionMenu, ConfirmDialog, EmptyState, IconButton } from "@components/shared";
 import {
   ChatBubble,
@@ -32,7 +33,8 @@ const caps = "text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreg
 // One durable task across clarification, production, saved outputs and revisions: the result first, the
 // conversation in a drawer, one message bar.
 export function TaskPage() {
-  const open = useStore((s) => (s.view === "task" ? s.taskId + "\n" + s.taskDir : ""));
+  const on = useRoute((r) => r.page === "task"),
+    open = useStore((s) => (on ? s.taskId + "\n" + s.taskDir : ""));
   // A different task starts with its own state: the key remounts everything below.
   return open ? <Task key={open} /> : null;
 }

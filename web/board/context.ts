@@ -1,6 +1,7 @@
 import { store } from "./store.ts";
 import { open } from "./panel.ts";
 import { key } from "./cards.ts";
+import { onState } from "@lib/server";
 import { projectChanged, setContextActions, setContextData } from "@lib/context";
 
 // The Project context pane (files, notes, terminal sessions beside the board) is React (components/context over
@@ -18,7 +19,7 @@ export function initContext() {
   });
   setContextData({ dir: selectedDir(), sessions: sessions() });
   let lastDir = selectedDir();
-  addEventListener("kz-state", () => {
+  onState(() => {
     setContextData({ sessions: sessions() });
     const now = selectedDir();
     if (now !== lastDir) {

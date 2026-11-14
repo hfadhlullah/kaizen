@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { host, cn } from "@lib/core";
+import { useRoute } from "@lib/router";
 import {
   contextActions,
   contextTitle,
@@ -71,8 +72,7 @@ export function ContextPanel() {
   // The pane opens from the header's button only (nothing is read while it is closed); a view change closes the dialog.
   useEffect(() => {
     const on = () => !matchMedia(WIDE).matches && setOpen(false);
-    addEventListener("kz-view", on);
-    return () => removeEventListener("kz-view", on);
+    return useRoute.subscribe((r, p) => r.view !== p.view && on());
   }, []);
   // As a dialog the focus goes in, to the tab in use.
   useEffect(() => {

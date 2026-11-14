@@ -1,41 +1,28 @@
-// The side menu's live parts on every page (board, notebook, video): the Icebox count, the Tasks entry's source icons and
-// the feed of the Projects list; and the board's flat footer (agent usage, terminal count, phone). The list itself is
-// React (components/rail, state in lib/rail): this file reads the cards and hands them over, to the board's own store or,
-// on the Notebook, to the kit's (`connectRail`). Stands alone, so the notebook and video bundles can carry it without the board.
-import { onBoardCards, attentionTasks, setTaskAttention, taskForCard } from "./badge.ts";
-import { store } from "./store.ts";
+// The side menu's start-up on every page (board, notebook, video): the live reads that feed its counts and marks (lib/server),
+// the add-project sheet, the Search link and the board's footer height. The list itself is React (components/rail, data in the
+// server store). Stands alone, so the notebook and video bundles can carry it without the board.
 import { $ } from "./dom.ts";
-import { setSourceMarks } from "@lib/rail/source-marks.ts";
 import { openAdd, type AddOpts } from "@lib/project/add-project.ts";
-import { cardHref as ruleCardHref, titleOf as ruleTitleOf, projName as ruleProjName, RANK as RULE_RANK, stateOf as ruleStateOf, wsLabel as ruleWsLabel, wsOfCard as ruleWsOfCard, type RailData } from "@lib/rail/rules.ts";
-import type { Agent } from "@lib/rail/agents.ts";
-import { setFooterTerms, startFooter } from "@lib/footer/footer-store.ts";
+import { cardHref as ruleCardHref, titleOf as ruleTitleOf, projName as ruleProjName, RANK as RULE_RANK, stateOf as ruleStateOf, wsLabel as ruleWsLabel, wsOfCard as ruleWsOfCard } from "@lib/rail/rules.ts";
+import { startFooter } from "@lib/footer/footer-store.ts";
+import { attentionFor } from "@lib/rail/rail-store.ts";
+import { railDataNow, startRailFeed } from "@lib/server";
 import { initSearch, leave } from "./search.ts";
 import { setToaster, toast } from "./toast.ts";
 import { kitHere, loadKit } from "../notebook/kit-loader.ts";
 
 // A card's state icon (.si) and the word under its title.
-export const stateOf = (c) => ruleStateOf(c, taskForCard(c));
+export const stateOf = (c) => ruleStateOf(c, attentionFor(c));
 export const titleOf = ruleTitleOf;
 export const projName = ruleProjName;
 export const cardHref = ruleCardHref;
 
-let last: { cards: any[]; projects?: any[]; agents?: Agent[] } = { cards: [] };
-// Where the Projects list lives: the board registers its own store, the Notebook page the loaded kit's.
-export type RailApi = { set(d: RailData): void; touch(): void };
-let R: RailApi | null = null;
-const feed = () => R?.set({ cards: last.cards, projects: last.projects ?? [], agents: last.agents ?? [], tasks: attentionTasks });
-export function connectRail(api: RailApi) {
-  R = api;
-  feed();
-}
 // Projects that are git repositories (the main checkout has a branch): where a workspace can be made.
 export const gitProjects = () =>
-  (last.projects ?? []).filter((p) => p.workspaces?.some((w) => w.branch)).map((p) => ({ dir: p.dir as string, name: projName(p.dir, last.projects) }));
-// The Projects list, the sheet and the right-click menu are React. The board mounts them (react-mount.ts); the Notebook page
-// mounts the same components in its own bundle (notebook/kit.ts, registered as window.kzKit) and opens them in place. On
-// Video, which has no kit, the + button sends the person to the board with the sheet asked for (?add=), as Search does, and Video lists no
-// projects.
+  railDataNow().projects.filter((p) => p.workspaces?.some((w) => w.branch)).map((p) => ({ dir: p.dir as string, name: projName(p.dir, railDataNow().projects) }));
+// The Projects list, the sheet and the right-click menu are React. The board's App draws them; the Notebook page does the
+// same in its own bundle (notebook/kit.ts, registered as window.kzKit) and opens them in place. On Video, which has no kit,
+// the + button sends the person to the board with the sheet asked for (?add=), as Search does, and Video lists no projects.
 const onBoard = () => !!document.getElementById("kz-portal");
 // The kit for this page, with what only this page knows handed over: where a new workspace opens, the Projects list, and
 // a way to leave that writes the open note first. The toast and question of the old code then show through the kit too.
@@ -75,44 +62,13 @@ function openAsked() {
   setTimeout(() => openAdd({ dir, ...(add === "ws" || add === "folder" || add === "clone" || add === "create" ? { start: add } : {}) }), 400);
 }
 // A card's workspace row (lib/rail/rules.ts), by the projects the last refresh listed.
-export const wsOfCard = (c, projects = last.projects) => ruleWsOfCard(c, projects);
+export const wsOfCard = (c, projects = railDataNow().projects) => ruleWsOfCard(c, projects);
 // The floating Home workspace's folder (~/.kaizen/home): never a project's `.kaizen` state dir, and it has no workspace view.
 export const isHomeDir = (d: unknown) => typeof d === "string" && /[\\/]\.kaizen[\\/]home$/.test(d);
 // A Home terminal's address opens the board with its panel (web/board/home-ws.ts), from any page.
 export const wsHref = (dir, ws) => (isHomeDir(dir) ? "/?view=board&homews=1" : `/?view=ws&dir=${encodeURIComponent(dir)}&ws=${encodeURIComponent(ws)}`);
 export const RANK = RULE_RANK;
 export const wsLabel = ruleWsLabel;
-let tasksReadAt = 0, tasksReading = false;
-async function readTaskAttention() {
-  if (tasksReading || Date.now() - tasksReadAt < 2000) return;
-  tasksReading = true; tasksReadAt = Date.now();
-  try { const r = await fetch("/tasks?all=1"); if (r.ok) { const body = await r.json(); setTaskAttention(body.tasks ?? []); } } catch { /* retain the latest persisted projection */ }
-  finally { tasksReading = false; }
-}
-// The rail React list lights the row the address names: opening a card in place changes the address without a refresh.
-export const markCurrent = () => R?.touch();
-addEventListener("popstate", markCurrent);
-
-// What the Tasks page reads too: the cards, and /sources (sources plus every icebox signal).
-let srcs: any = null;
-export const railData = () => ({ ...last, srcs });
-const told = () => dispatchEvent(new Event("kz-rail"));
-let srcAt = 0;
-export async function drawSources(force = false) {
-  if (!force && Date.now() - srcAt < 30_000) return;
-  srcAt = Date.now();
-  try {
-    const r = await fetch("/sources");
-    if (!r.ok) return;
-    const d = (srcs = await r.json());
-    told();
-    const n = (d.icebox ?? []).filter((s) => s.status === "new" && !s.asleep).length;
-    $("ice-n").textContent = n ? String(n) : "";
-    setSourceMarks(d.sources ?? []);
-  } catch {
-    /* offline: keep what shows */
-  }
-}
 // Rows are redrawn on every refresh, which restarts a CSS animation from 0deg: the state
 // icons jumped back mid-turn. Pinning each to the page clock's origin keeps them in phase
 // (the si-* animations have no delay for this to cancel).
@@ -133,20 +89,9 @@ export function initRail() {
     });
   }).observe(document.body, { childList: true, subtree: true });
   if (!$("plist")) return;
-  addEventListener("kz-task-attention", feed);
-  void readTaskAttention();
-  onBoardCards((cards, projects, agents) => {
-    last = { cards, projects: projects ?? last.projects, agents: agents ?? [] };
-    feed();
-    void drawSources();
-    void readTaskAttention();
-    onCount?.(cards);
-    dispatchEvent(new Event("kz-cards"));
-    told();
-  });
-  // The Notebook page has no React of its own: its list and filter come with the kit, which starts at once. Video has no kit
-  // and lists no projects.
-  if (!onBoard() && kitHere()) void kitFor().then((k) => connectRail(k.rail), () => {});
+  startRailFeed(!!$("foot"));
+  // The Notebook's popups (the add-project sheet, the worktree menu) take what only this page knows through the kit.
+  if (!onBoard() && kitHere()) void kitFor().catch(() => {});
   // The sheet: add a folder, clone, create, or start a workspace; the current project is preselected.
   openAsked();
   $("padd").onclick = () => {
@@ -164,19 +109,7 @@ function pickedDir() {
   }
 }
 
-// ---- footer (board page): components/footer draws it from lib/footer; this reports the live terminals it counts.
-// Live terminals: the board's agent sessions plus the shells /shell started.
-let agentPtys = 0;
-let onCount: ((cards: any[]) => void) | null = null;
-async function terms() {
-  let shells = 0;
-  try {
-    store.shells = await (await fetch("/shells")).json();
-    shells = store.shells.length;
-    dispatchEvent(new Event("kz-shells"));
-  } catch {}
-  setFooterTerms(agentPtys + shells);
-}
+// ---- footer (board page): components/footer draws it from lib/footer and the server store.
 export function initFooter() {
   if (!$("foot")) return;
   // The Board drawer is position:fixed; it stops above the footer, whose height varies.
@@ -184,8 +117,4 @@ export function initFooter() {
   new ResizeObserver(fh).observe($("foot"));
   fh();
   startFooter();
-  onCount = (cards) => {
-    agentPtys = cards.filter((c) => c.pty?.alive).length;
-    void terms();
-  };
 }

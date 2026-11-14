@@ -3,7 +3,7 @@ import { $ } from "./dom.ts";
 // With `report`, the toast carries a link to a prefilled GitHub bug form (/issue) and
 // stays long enough to click it.
 let tt;
-// The board's React toaster (lib/core/toast.ts) takes over once it is mounted (react-mount.ts), so old and new pages
+// The board's React toaster (lib/core/toast.ts) takes over once it is mounted (the App, pages/board/portal.tsx), so old and new pages
 // share one toast. The Notebook mounts it too (notebook/kit.ts, also in ?embed=1); only Video, which has no React,
 // keeps drawing into its own #toast.
 let sink: ((s: string, report?: Record<string, string>) => void) | null = null;

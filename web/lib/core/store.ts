@@ -4,8 +4,6 @@ import { create } from "zustand";
 import type { TaskPageData, TaskView } from "@lib/task";
 
 export type Store = {
-  // Which React page is showing; set by the board's view switch (web/board/react-mount.ts).
-  view: "tasks" | "task" | "icebox" | "";
   // The Tasks list.
   tasks: TaskView[];
   tasksLoaded: boolean;
@@ -23,7 +21,6 @@ export type Store = {
   draft: string; // the composer's text, kept per task in sessionStorage
 };
 export const useStore = create<Store>()(() => ({
-  view: "",
   tasks: [],
   tasksLoaded: false,
   tasksError: "",

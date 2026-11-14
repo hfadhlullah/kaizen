@@ -1,7 +1,10 @@
 import { cn } from "@lib/core";
 import type { CSSProperties, ReactNode } from "react";
 import { useUpdate } from "@lib/settings";
+import { useRoute } from "@lib/router";
+import { useServer, iceNewCount, needYouCount } from "@lib/server";
 import { toggleRail, toggleTheme, useShell } from "@lib/shell";
+import { useHiddenTerminals } from "@lib/terminal";
 import { RailFilter, RailList } from "../rail/index.ts";
 import { Wordmark } from "./wordmark.tsx";
 
@@ -14,14 +17,16 @@ function Item(p: {
   className?: string;
   icon: string;
   aria?: string;
+  n?: number; // a count on the item (the legacy stylesheet draws data-n)
   children?: ReactNode;
 }) {
-  const lit = useShell((s) => s.lit);
+  const lit = useRoute((r) => r.lit);
   return (
     <a
       className={p.className ?? "it"}
       href={p.href}
       data-view={p.view}
+      data-n={p.n || undefined}
       title={p.title}
       aria-label={p.aria}
       aria-current={lit === p.view ? "page" : undefined}
@@ -39,9 +44,17 @@ function Item(p: {
 // with its filter and Add button, and Settings with the theme switch. `srcs` holds the Icebox's source marks and `before`
 // the minimized Home window's row (both the board's only).
 export function Rail(p: { srcs?: ReactNode; before?: ReactNode }) {
-  const { min, dark, setup, lit } = useShell();
+  const { min, dark, setup } = useShell(),
+    lit = useRoute((r) => r.lit);
   // A dot on Settings while a newer kaizen is known (the About bar and the update card read the same store).
   const latest = useUpdate((s) => (s.ver?.update ? s.ver.latest : ""));
+  // Counts the server store gives the menu: tasks that need you, new Icebox requests, Terminal tiles hidden on its page.
+  const need = useServer((s) => needYouCount(s.tasks)),
+    known = useServer((s) => s.tasks !== null),
+    ice = useServer((s) => iceNewCount(s.sources)),
+    live = useServer((s) => s.loaded),
+    hidden = useHiddenTerminals();
+  const tasksTitle = !known ? "Tasks: every task and run, filtered" : need ? `Tasks · ${need} need you` : "Tasks";
   const fold = min ? "Expand menu" : "Collapse menu";
   const theme = dark ? "Dark theme: switch to light" : "Light theme: switch to dark";
   return (
@@ -102,7 +115,12 @@ export function Rail(p: { srcs?: ReactNode; before?: ReactNode }) {
         className="it ponly"
         href="/?view=terminal"
         view="terminal"
-        title="Open terminals across all projects"
+        n={hidden}
+        title={
+          live
+            ? "Terminal: every agent kaizen runs" + (hidden ? ` (${hidden} hidden)` : "")
+            : "Open terminals across all projects"
+        }
         label="Terminal"
         icon="r-term"
       />
@@ -117,9 +135,19 @@ export function Rail(p: { srcs?: ReactNode; before?: ReactNode }) {
         <span className="srcs" id="rail-srcs">
           {p.srcs}
         </span>
-        <span className="n" id="ice-n" />
+        <span className="n" id="ice-n">
+          {ice || ""}
+        </span>
       </Item>
-      <Item href="/?view=tasks" view="tasks" title="Tasks: every task and run, filtered" label="Tasks" icon="r-bulb" />
+      <Item
+        href="/?view=tasks"
+        view="tasks"
+        n={need}
+        title={tasksTitle}
+        aria={known ? tasksTitle : undefined}
+        label="Tasks"
+        icon="r-bulb"
+      />
       <a
         className="it"
         href="/?setup=1"

@@ -1,5 +1,7 @@
 import { useEffect, useReducer } from "react";
 import { useShallow } from "zustand/react/shallow";
+import { useRoute } from "@lib/router";
+import { onState } from "@lib/server";
 import {
   BoardChip,
   BulkBar,
@@ -44,7 +46,7 @@ import {
   toggleKind,
 } from "@lib/icebox";
 import { useNarrow, usePager } from "@lib/shared";
-import { host, useStore } from "@lib/core";
+import { host } from "@lib/core";
 import { stopDictation } from "@lib/dictation";
 import { Button, Checkbox, Icon, Skeleton } from "@web/ui";
 
@@ -52,7 +54,7 @@ import { Button, Checkbox, Icon, Skeleton } from "@web/ui";
 // dismisses them. A capture box on top, collections and kinds, then the requests as cards or a list, one at a time in
 // swipe mode; the sources sit in a drawer. The board's own project pickers (the header's and "Showing") narrow it.
 export function IceboxPage() {
-  return useStore((s) => s.view === "icebox") ? <Icebox /> : null;
+  return useRoute((r) => r.page === "icebox") ? <Icebox /> : null;
 }
 const TONE: Record<string, string> = {
   client:
@@ -67,9 +69,11 @@ function Icebox() {
   // The board's project pickers change what shows: read them on every render, redraw when they say so.
   const [, bump] = useReducer((n: number) => n + 1, 0);
   useEffect(() => {
-    for (const e of ["kz-shown", "kz-state"]) addEventListener(e, bump);
+    addEventListener("kz-shown", bump);
+    const off = onState(bump);
     return () => {
-      for (const e of ["kz-shown", "kz-state"]) removeEventListener(e, bump);
+      removeEventListener("kz-shown", bump);
+      off();
       stopDictation(true);
     };
   }, []);

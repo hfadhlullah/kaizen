@@ -1,14 +1,17 @@
 import { store } from "./store.ts";
 import { getBoard } from "@lib/board";
 import { notifier } from "@lib/core";
+import { askingNow, changes, dirHeader, newlyAsking, setEngine, type Seen } from "@lib/server";
 import { key, render } from "./cards.ts";
 import { $, vt } from "./dom.ts";
 import { close, taskBody, open, openRun } from "./panel.ts";
 import { notifyUser, toast } from "./toast.ts";
 import { termsChanged } from "./terms.ts";
-import { refreshBoardBadge } from "./badge.ts";
 
-// The server writes notifier() from state.ts over a marker in board.html: one rule for both UIs.
+// The server reads are lib/server's (one poller, one store); what is left here is what the board does with a new /state:
+// the notifications, the cards' redraw and slide, and the open card's panel.
+export { dirHeader, flushLoad, load } from "@lib/server";
+
 // When a run's notice is worth a notification (one rule for both UIs: lib/core/notifier.ts).
 const due = notifier();
 
@@ -18,88 +21,24 @@ let asked: Set<string> | null = null;
 
 // Each card's column and whether it needed you, as of the last /state: a card that changed
 // column slides to the new one, one that starts needing you flashes. null: the first load is not news.
-let before: Map<string, [number, boolean]> | null = null;
+let before: Seen | null = null;
 
-// This page's project, sent with each request: the server keeps none, so another
-// tab or a phone picking a project never moves this one.
-export const dirHeader = () => (store.dir ? { "x-kz-dir": store.dir } : {});
-let latestLoad = 0;
-// A change event can come several times a second while agents work, and a full read and
-// redraw blocks this thread (and any terminal in it). One quiet load per QUIET_GAP, the
-// last change always covered; a hidden tab only watches for agents asking.
-const QUIET_GAP = 500, HIDDEN_GAP = 5000;
-// The last reply without its clock, and when it was last drawn: an identical reply skips
-// the redraw, but ages and repeat notices still need one now and then.
-const REDRAW_MS = 30_000;
-let lastBody = "", drawnAt = 0;
-let lastQuiet = 0;
-let quietTimer: ReturnType<typeof setTimeout> | 0 = 0;
-const runQuiet = () => {
-  quietTimer = 0;
-  lastQuiet = Date.now();
-  return read(true);
-};
-// quiet: the server said something changed, nobody asked for a redraw.
-export function load(quiet?: boolean) {
-  if (!quiet) return read(false);
-  if (!quietTimer) quietTimer = setTimeout(runQuiet, Math.max(0, lastQuiet + (document.hidden ? HIDDEN_GAP : QUIET_GAP) - Date.now()));
-}
-// Back on a hidden tab: what it put off is shown now.
-export function flushLoad() {
-  if (!document.hidden && quietTimer) { clearTimeout(quietTimer); void runQuiet(); }
-}
-async function read(quiet: boolean) {
-  const current = ++latestLoad;
-  let r;
-  try {
-    r = await fetch("/state" + (store.all ? "?all=1" : ""), { headers: dirHeader() });
-  } catch {
-    toast(GONE);
-    return;
-  }
-  const text = await r.text();
-  if (current !== latestLoad) return;
-  const body = text.replace(/"now":\d+\}$/, "");
-  const same = quiet && body === lastBody && Date.now() - drawnAt < REDRAW_MS;
-  lastBody = body;
-  if (same) {
-    if (!store.all) void refreshBoardBadge();
-    return;
-  }
-  drawnAt = Date.now();
-  const next = JSON.parse(text);
-  const was = store.openKey && store.S.cards.find((x) => key(x) === store.openKey);
-  store.S = next;
-  if (!store.all) void refreshBoardBadge();
-  // Home follows a project switch without the board importing it.
-  dispatchEvent(new Event("kz-state"));
-  {
-    const seen = new Map();
-    for (const c of store.S.cards) {
-      const b = key(c),
-        n = seen.get(b) || 0;
-      seen.set(b, n + 1);
-      c._k = n ? b + "#" + n : b;
-    }
-  }
-  for (const c of store.S.cards) {
+setEngine(async (next, prev) => {
+  const was = store.openKey && prev.cards.find((x) => key(x) === store.openKey);
+  for (const c of next.cards) {
     if (c.kind !== "run" || c.archived) continue;
-    if (due(key(c), c.notice, c.status === "done", store.S.now)) notifyUser(c.notice);
+    if (due(key(c), c.notice, c.status === "done", next.now)) notifyUser(c.notice);
   }
   {
-    const now = new Map(store.S.cards.filter((c) => !c.archived && c.pty?.alive && c.pty.asking).map((c) => [c.pty.key, c]));
-    if (asked && document.hidden)
-      for (const [k, c] of now) if (!asked.has(k)) notifyUser(`${c.kind === "run" ? c.id : String(c.text).split("\n")[0].slice(0, 80)} needs you`, "ask:" + k);
+    const now = askingNow(next.cards);
+    if (document.hidden)
+      for (const c of newlyAsking(asked, now))
+        notifyUser(`${c.kind === "run" ? c.id : String(c.text).split("\n")[0].slice(0, 80)} needs you`, "ask:" + c.pty.key);
     asked = new Set(now.keys());
   }
-  const need = (c) => c.status === "waiting" || !!(c.pty?.alive && c.pty.asking),
-    moved = [];
-  for (const c of before ? store.S.cards : []) {
-    const b = before.get(key(c));
-    if (b && b[0] !== c.column) moved.push(key(c));
-    if (b && !b[1] && need(c)) store.flash.add(key(c));
-  }
-  before = new Map(store.S.cards.map((c) => [key(c), [c.column, need(c)]]));
+  const { moved, flash, next: seen } = changes(before, next.cards);
+  for (const k of flash) store.flash.add(k);
+  before = seen;
   // The old and new element of a moved card share a view-transition-name, so the browser slides one into the other.
   const name = () =>
     moved.forEach((k, i) => {
@@ -132,7 +71,7 @@ async function read(quiet: boolean) {
     if (store.runDoc && c.kind === "run") openRun(c, true, true);
     else if (c.kind === "idea") taskBody(c);
   }
-}
+});
 // A task's card goes when its run starts. Follow it to that run rather than keep
 // offering "Run again": the newest run in its project whose request holds the task's
 // text, the rule boardCards() retires it by. No such run: close the panel.

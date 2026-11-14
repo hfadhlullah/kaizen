@@ -2,6 +2,7 @@
 // through the page's own events (the board answers them and cancels the event); when nobody does, the address changes.
 import { ask, host, toast } from "@lib/core";
 import { openAdd, type WsMenuItem } from "@lib/project";
+import { getServer } from "@lib/server";
 import { togglePin, useRail } from "./rail-store.ts";
 import { wsLabel } from "./rules.ts";
 
@@ -33,9 +34,8 @@ const copy = (text: string) =>
   );
 // The right-click menu on a worktree row: update, copy path, copy name, pin, delete (the main checkout has neither Update nor Delete).
 export function wsMenuItems(dir: string, ws: string): WsMenuItem[] {
-  const w = useRail
-    .getState()
-    .data.projects.find((p) => p.dir === dir)
+  const w = getServer()
+    .every?.projects.find((p) => p.dir === dir)
     ?.workspaces?.find((x) => x.path === ws);
   if (!w) return [];
   const name = wsLabel(w),

@@ -3,6 +3,8 @@
 // operation id), so another page showing the same decision calls the same code.
 import { useEffect } from "react";
 import { getTask, taskRequest, host, getStore, setStore } from "@lib/core";
+import { getRoute } from "@lib/router";
+import { getServer, onState, setTasks } from "@lib/server";
 import { taskHref, type TaskView } from "./tasks.ts";
 
 const operationId = () => crypto.randomUUID();
@@ -45,9 +47,7 @@ export function showTask() {
       pending: false,
       receipt: "",
       draft: readDraft(id),
-      view: "task",
     });
-  else setStore({ view: "task" });
 }
 
 let generation = 0;
@@ -58,15 +58,15 @@ export async function refreshTask() {
   try {
     const { ok, body: next } = await getTask(id, dir);
     const now = getStore();
-    if (gen !== generation || id !== now.taskId || now.view !== "task") return;
+    if (gen !== generation || id !== now.taskId || getRoute().page !== "task") return;
     if (!ok || !next.task) {
       if (!now.page) setStore({ pageError: next.why || next.error || "Refresh or return to Tasks." });
       return;
     }
     if (now.page && next.task.revision < now.page.task.revision) return;
     setStore({ page: next, pageError: "" });
-    const rest = (host.attentionTasks() ?? []) as TaskView[];
-    host.setTaskAttention([...rest.filter((t) => t.id !== next.task.id || t.dir !== next.task.dir), next.task]);
+    const rest = (getServer().tasks ?? []) as TaskView[];
+    setTasks([...rest.filter((t) => t.id !== next.task.id || t.dir !== next.task.dir), next.task]);
   } catch {
     if (!getStore().page) setStore({ pageError: "offline" });
   }
@@ -82,11 +82,11 @@ export function useTask() {
     };
     timer = setTimeout(poll, 4000);
     const tick = () => void refreshTask();
-    addEventListener("kz-state", tick);
+    const off = onState(tick);
     return () => {
       generation++;
       clearTimeout(timer);
-      removeEventListener("kz-state", tick);
+      off();
     };
   }, []);
 }

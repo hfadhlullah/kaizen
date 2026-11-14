@@ -3,13 +3,15 @@
 // disturbed by a refresh.
 import { useEffect } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { getTasks, host, getStore, setStore, useStore } from "@lib/core";
+import { getTasks, host, setStore, useStore } from "@lib/core";
+import { getRoute } from "@lib/router";
+import { onState, setTasks } from "@lib/server";
 
 let sequence = 0,
   loading = false,
   again = false;
 export async function refreshTasks() {
-  if (getStore().view !== "tasks") return;
+  if (getRoute().page !== "tasks") return;
   if (loading) {
     again = true;
     return;
@@ -20,12 +22,12 @@ export async function refreshTasks() {
     const gen = ++sequence;
     try {
       const items = await getTasks();
-      if (gen !== sequence || getStore().view !== "tasks") continue;
+      if (gen !== sequence || getRoute().page !== "tasks") continue;
       setStore({ tasks: items, tasksLoaded: true, tasksError: "" });
-      host.setTaskAttention(items);
+      setTasks(items);
       dispatchEvent(new CustomEvent("kz-task-list", { detail: items }));
     } catch (e) {
-      if (getStore().view === "tasks")
+      if (getRoute().page === "tasks")
         setStore({ tasksError: e instanceof Error ? e.message : "Tasks could not be loaded" });
     }
   } while (again);
@@ -39,9 +41,9 @@ export function useTasks() {
       void refreshTasks();
     };
     tick();
-    addEventListener("kz-state", tick);
+    const off = onState(tick);
     return () => {
-      removeEventListener("kz-state", tick);
+      off();
       sequence++; // an answer still on its way is dropped
     };
   }, []);

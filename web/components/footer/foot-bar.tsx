@@ -2,6 +2,7 @@ import { ResourcesButton } from "@components/resources";
 import { UsageChips } from "@components/phone";
 import { host, cn } from "@lib/core";
 import { loadUsage, terminalsTitle, useFooter } from "@lib/footer";
+import { useLiveTerminals } from "@lib/server";
 import { Icon } from "@web/ui";
 
 const quiet =
@@ -12,7 +13,7 @@ const quiet =
 export function FootBar() {
   const usage = useFooter((s) => s.usage),
     phone = useFooter((s) => s.phone),
-    terms = useFooter((s) => s.terms);
+    terms = useLiveTerminals();
   return (
     <>
       <span className="flex min-w-0 items-center gap-3.5">{usage && <UsageChips list={usage} hover side="top" />}</span>

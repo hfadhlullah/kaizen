@@ -2,22 +2,12 @@
 // agents it is given, what each row shows, and the rules for the project drag. Pure, so a test stands alone and the
 // board's old modules can import it into the notebook bundle without React (tested in rail-rules.test.ts).
 import { wsAgents, type ARow, type Agent } from "./agents.ts";
+import type { RailTask } from "@lib/server";
 
 const DAY = 864e5;
-export type RailTask = {
-  id: string;
-  dir: string;
-  title: string;
-  status?: string;
-  created?: number;
-  activeRun?: string | null;
-  runs?: (string | { id: string })[];
-  runIds?: string[];
-  legacy?: { kind: string; id?: string; index?: number };
-  attention: { category: string; reason: string; action: string };
-};
+export type { RailTask } from "@lib/server";
 // What the old code hands the list on every refresh (/state?all=1 and /tasks?all=1).
-export type RailData = { cards: any[]; projects: any[]; agents: Agent[]; tasks: RailTask[] | null };
+export type { RailData } from "@lib/server";
 // The Projects filter: projects ticked (none = all) and which kinds of card show. Running: tasks and agents that started
 // and are not done. Done: the finished ones. Saved tasks that never started show in neither.
 export type RailFilt = { dirs: string[]; running: boolean; done: boolean };

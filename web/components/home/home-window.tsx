@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { cn, isPhone } from "@lib/core";
+import { useServer } from "@lib/server";
 import {
   BUTTON_AT,
   closeAllHome,
@@ -54,7 +55,8 @@ const glyph = "size-(--ico) fill-none stroke-current stroke-2 [stroke-linecap:ro
 export function HomeWindow() {
   const s = useHomeWs(),
     el = useRef<HTMLElement>(null),
-    tabs = homeTabs(s.shells, s.ending),
+    shells = useServer((x) => x.shells),
+    tabs = homeTabs(shells, s.ending),
     cur = currentTab(tabs, s.on),
     open = s.st === "open",
     drag = useFloatDrag(
@@ -216,7 +218,8 @@ export function HomeWsButton() {
 // it above #plist); the row's classes are the list's own.
 export function HomeWsRow() {
   const s = useHomeWs(),
-    n = homeTabs(s.shells, s.ending).length;
+    shells = useServer((x) => x.shells),
+    n = homeTabs(shells, s.ending).length;
   return (
     <div className="plist hwsslot" hidden={s.st !== "min"}>
       <div className="pgrp">

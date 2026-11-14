@@ -4,7 +4,7 @@ import { focusedKey, formPopup, key, nav, newTask, runPopup } from "./cards.ts";
 import { $ } from "./dom.ts";
 import { close, openRun } from "./panel.ts";
 import { keep } from "./projects.ts";
-import { view } from "./views.ts";
+import { curView } from "./views.ts";
 import { closeForm, getBoard } from "@lib/board";
 import { iceKeys } from "@lib/icebox";
 
@@ -17,7 +17,7 @@ export function initKeys() {
   $("help").onclick = () => $("help").classList.remove("on");
   document.onkeydown = (e) => {
     // The icebox reads its own keys first; a checkbox there keeps them, for x then j.
-    if (view === "sources" && !$("help").classList.contains("on") && iceKeys(e)) return;
+    if (curView() === "sources" && !$("help").classList.contains("on") && iceKeys(e)) return;
     // A dialog or an open menu (they render into #kz-portal) handles its own keys; Escape there must not also close the panel.
     if (e.target.matches("input,select,textarea,[contenteditable]") || e.target.closest("dialog,#kz-portal") || layerUp) return;
     // The shortcuts overlay (?) is off for now, with its menu button; keys still work.
@@ -26,7 +26,7 @@ export function initKeys() {
       $("sq").focus();
       return;
     }
-    if (e.key === "/" && (view === "board" || view === "tasks") && $("bq")) {
+    if (e.key === "/" && (curView() === "board" || curView() === "tasks") && $("bq")) {
       e.preventDefault();
       $("bq").focus();
       return;
@@ -39,7 +39,7 @@ export function initKeys() {
       return;
     }
     // The Terminal page has no cards to move between; its keys are the terminals'.
-    if (view === "terminal" || view === "task") return;
+    if (curView() === "terminal" || curView() === "task") return;
     if (e.key === "n" && !document.querySelector("dialog[open]")) {
       newTask();
     }

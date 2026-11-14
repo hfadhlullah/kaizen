@@ -11,7 +11,7 @@ import { bootShell } from "@lib/shell";
 import { initOnboarding } from "@lib/home";
 import { App } from "../pages/board/App.tsx";
 import { initPanel } from "./panel.ts";
-import { initViews, go } from "./views.ts";
+import { initViews } from "./views.ts";
 import { initHost } from "./host.ts";
 import { initProjects, pick } from "./projects.ts";
 import { initKeys } from "./keys.ts";
@@ -19,7 +19,8 @@ import { filterBox } from "./cards.ts";
 import { initLive } from "./live.ts";
 import { store } from "./store.ts";
 import { initContext } from "./context.ts";
-import { cardHref, initFooter, initRail, markCurrent, wsHref } from "./workspace.ts";
+import { cardHref, initFooter, initRail, wsHref } from "./workspace.ts";
+import { navigate, touchRoute } from "@lib/router";
 import { openWorkspace } from "./run-view.ts";
 import { initHomeWs } from "./home-ws.ts";
 
@@ -66,8 +67,8 @@ addEventListener("kz-open-card", (e: any) => {
 addEventListener("kz-open-ws", (e: any) => {
   e.preventDefault();
   history.pushState(null, "", wsHref(e.detail.dir, e.detail.ws));
-  markCurrent();
-  go("ws");
+  touchRoute();
+  navigate("ws");
 });
 
 void initOnboarding();

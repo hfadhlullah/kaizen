@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Checkbox, Input, Popover, PopoverContent, PopoverTrigger } from "@web/ui";
 import { ProjectMark } from "@components/shared";
 import { filterOn, foldProjects, matchProjects, projName, setRailFilter, setRailQuery, useRail } from "@lib/rail";
+import { useRailData } from "@lib/server";
 
 const Row = ({
   on,
@@ -24,7 +25,7 @@ const Row = ({
 // expand them all, and the kinds of card. Each tick applies at once.
 export function RailFilter() {
   const [open, setOpen] = useState(false);
-  const data = useRail((s) => s.data),
+  const data = useRailData(),
     filt = useRail((s) => s.filt),
     folded = useRail((s) => s.folded),
     q = useRail((s) => s.q);

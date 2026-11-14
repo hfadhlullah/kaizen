@@ -1,60 +1,17 @@
 import { store } from "./store.ts";
-import { flushLoad, load } from "./api.ts";
+import { load } from "./api.ts";
 import { deep } from "./panel.ts";
 import { keep, urlAll } from "./projects.ts";
-import { go } from "./views.ts";
-import { setView } from "@lib/shell";
-import { isPhone } from "@lib/core";
+import { navigate } from "@lib/router";
+import { startEvents } from "@lib/server";
 
-// ---- live
-let boot = null;
-let pendingReload = false;
-function reloadWhenAway() {
-  if (document.body.classList.contains("homev")) pendingReload = true;
-  else location.reload();
-}
-function listen() {
-  const es = new EventSource("/events");
-  es.onmessage = (ev) => {
-    if (ev.data === "changed") {
-      load(true);
-      // The Icebox (a React page) refetches itself; it redraws in place, so nothing needs holding back.
-      dispatchEvent(new Event("kz-changed"));
-    } else if (ev.data.startsWith("hello ")) {
-      const b = ev.data.slice(6);
-      if (boot && b !== boot) reloadWhenAway();
-      boot = b;
-    }
-  };
-  es.onerror = () => {
-    es.close();
-    setTimeout(listen, 3000);
-  };
-}
-// Back to the project picked last time, unless the URL says which view it wants. A
-// plain fetch: a project that is gone should fall back to all, not raise a toast.
-// A page named in the address shows from the first paint; it is filled once the board has loaded.
-const v0 = ((v) => (v === "icebox" ? "sources" : v === "ws" ? "run" : v === "ideas" ? "tasks" : v))(
-  new URLSearchParams(location.search).get("view"),
-);
+// ---- live: the first read and the event stream (lib/server/poller.ts). The page the address names already shows (the route
+// store starts from the URL); it is filled once the board has loaded.
+const v0 = new URLSearchParams(location.search).get("view");
 
 export function initLive() {
-  addEventListener("kz-view", () => {
-    if (pendingReload && !document.body.classList.contains("homev")) location.reload();
-  });
-  // Back from a terminal: what was committed or pushed there touched nothing the server watches.
-  addEventListener("focus", () => load(true));
-  addEventListener("visibilitychange", flushLoad);
-  // No view in the address is Home.
-  const first = ["settings", "sources", "terminal", "board", "tasks", "task", "run"].includes(v0) ? v0 : "home";
-  setView(first, isPhone());
-  document.body.classList.toggle("paged", first !== "board");
-  document.body.classList.toggle("ice", v0 === "sources");
-  document.body.classList.toggle("termv", v0 === "terminal");
-  document.body.classList.toggle("homev", first === "home");
-  document.body.classList.toggle("taskv", first === "tasks");
-  document.body.classList.toggle("taskpagev", first === "task");
-  document.body.classList.toggle("runv", first === "run");
+  // Back to the project picked last time, unless the URL says which view it wants. A
+  // plain fetch: a project that is gone should fall back to all, not raise a toast.
   (async () => {
     let d;
     try {
@@ -76,9 +33,9 @@ export function initLive() {
         } else keep();
       } catch (e) {}
     load().then(() => {
-      go(v0);
+      navigate(v0);
       deep();
     });
-    listen();
+    startEvents();
   })();
 }

@@ -7,7 +7,7 @@ import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { startVault } from "@lib/notebook";
 import { bootShell } from "@lib/shell";
-import { refreshBoardBadge } from "../board/badge.ts";
+import { refreshEvery } from "@lib/server";
 import { initRail } from "../board/workspace.ts";
 import { App } from "../pages/notebook/App.tsx";
 import { registerKit } from "./kit.ts";
@@ -21,7 +21,7 @@ if (!embed) registerKit();
 flushSync(() => createRoot(document.getElementById("root")!).render(createElement(App, { embed })));
 if (!embed) {
   initRail();
-  void refreshBoardBadge();
+  void refreshEvery();
 }
 // Every write under a state dir refreshes the page's notes, and the side menu's Board count.
-void startVault({ onChanged: embed ? undefined : () => void refreshBoardBadge() });
+void startVault({ onChanged: embed ? undefined : () => void refreshEvery() });

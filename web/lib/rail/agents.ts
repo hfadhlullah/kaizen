@@ -1,21 +1,8 @@
 // The agents of the side menu's workspace rows, without the DOM (tested in ws-tabs.test.ts and rail-rules.test.ts): which
 // status each open agent terminal shows (held at "working" for a moment after the output stops), and which agents a
 // workspace row lists. Pure, so the board's old modules can import it into the notebook bundle without React.
-// /state `agents`: one entry per open agent terminal.
-export type Agent = {
-  key: string;
-  dir: string;
-  ws?: string;
-  agent?: string;
-  name: string;
-  run?: string;
-  asking: boolean;
-  busy: boolean;
-  last?: string;
-  at?: number;
-  born?: number;
-  land?: string;
-};
+import type { Agent } from "@lib/server";
+export type { Agent };
 export type Status = "conflict" | "failed" | "asking" | "working" | "done";
 // Output flickers: entering "working" is immediate, leaving it for "done" waits this long after the last busy tick.
 export const SETTLE_MS = 3000;

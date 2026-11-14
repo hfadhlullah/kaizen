@@ -1,5 +1,5 @@
 // Files the board links to (attachments, Preview screenshots, icebox images) open in a popup over the board rather than
-// a new tab. board/viewer.ts catches the click; components/run/file-viewer.tsx draws the popup.
+// a new tab. components/run/file-viewer.tsx catches the click and draws the popup.
 import { create } from "zustand";
 
 const IMG = /\.(png|jpe?g|gif|webp|svg|bmp|avif|ico)$/i;

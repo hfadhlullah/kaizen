@@ -4,56 +4,45 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { md, planQuestions, brief } from "../web/board/markdown.ts";
 import { draft, undraft } from "../web/board/drafts.ts";
-import { boardBadge, refreshBoardBadge, waitingCount } from "../web/board/badge.ts";
+import { getServer, refreshEvery, waitingCount } from "../web/lib/server/index.ts";
 import { menuItems } from "../web/lib/core/board.ts";
 
 const html = readFileSync(join(dirname(import.meta.dir), "web", "components", "shell", "sprite.tsx"), "utf8");
 
 test("Board badge counts each card needing input once and clears at zero", () => {
-  const link = { dataset: {} as Record<string, string>, title: "Board", label: "", setAttribute(_key: string, value: string) { this.label = value; } };
-  const previous = globalThis.document;
-  (globalThis as any).document = { querySelector: () => link };
-  try {
-    const cards = [
-      { kind: "run", status: "waiting", pty: { alive: true, asking: true } },
-      { kind: "idea", status: "idea", pty: { alive: true, asking: true } },
-      { kind: "run", status: "waiting", archived: true },
-      { kind: "run", status: "running", pty: { alive: false, asking: true } },
-    ];
-    expect(waitingCount(cards)).toBe(2);
-    // The Tasks link carries no count.
-    boardBadge(cards);
-    expect(link.dataset.n).toBeUndefined();
-  } finally {
-    globalThis.document = previous;
-  }
+  const cards = [
+    { kind: "run", status: "waiting", pty: { alive: true, asking: true } },
+    { kind: "idea", status: "idea", pty: { alive: true, asking: true } },
+    { kind: "run", status: "waiting", archived: true },
+    { kind: "run", status: "running", pty: { alive: false, asking: true } },
+  ];
+  expect(waitingCount(cards, null)).toBe(2);
+  expect(waitingCount([], null)).toBe(0);
 });
 
-test("Board badge coalesces overlapping updates and shows the latest count", async () => {
-  const link = { dataset: {} as Record<string, string>, title: "Board", setAttribute() {} };
-  const previousDocument = globalThis.document, previousFetch = globalThis.fetch;
-  (globalThis as any).document = { querySelector: () => link };
+test("the all-projects read coalesces overlapping requests and keeps the latest snapshot", async () => {
+  const previousFetch = globalThis.fetch;
   let release!: () => void, calls = 0;
   globalThis.fetch = (async () => {
     const n = ++calls;
     if (n === 1) await new Promise<void>((resolve) => { release = resolve; });
-    return { ok: true, json: async () => ({ cards: n === 1 ? [{ kind: "run", status: "waiting" }] : [] }) } as Response;
+    const body = JSON.stringify({ cards: n === 1 ? [{ kind: "run", status: "waiting" }] : [], projects: [], now: n });
+    return { ok: true, text: async () => body } as Response;
   }) as typeof fetch;
   try {
-    const first = refreshBoardBadge(), second = refreshBoardBadge();
+    const first = refreshEvery(), second = refreshEvery();
     expect(calls).toBe(1);
     release();
     await Promise.all([first, second]);
     expect(calls).toBe(2);
-    expect(link.dataset.n).toBeUndefined();
+    expect(getServer().every!.cards).toEqual([]);
   } finally {
-    globalThis.document = previousDocument;
     globalThis.fetch = previousFetch;
   }
 });
 
 test("the update state follows each check: a newer release shows, none left clears it, words say which", async () => {
-  // The About bar and the card (components/settings/update-bar.tsx) read this store; the rail's dot follows it (board/update.ts).
+  // The About bar and the card (components/settings/update-bar.tsx) read this store; the rail's dot follows it (components/shell/rail.tsx).
   const { available, behindMsg, gotVer, later, upToDate, useUpdate } = await import("../web/lib/settings/update.ts");
   const ver = () => useUpdate.getState().ver;
   gotVer({ version: "1.38.1", latest: "1.39.0", update: true });
@@ -295,7 +284,7 @@ test("every page and bundle in web/html and web/dist is served and kept at start
   const root = dirname(import.meta.dir);
   const src = readFileSync(join(root, "cli", "web.ts"), "utf8");
   const atStart = src.match(/const AT_START = new Map\(\[(.*?)\]\.map/)![1]!;
-  for (const name of ["PAGE", "BOARD_JS", "NOTES_PAGE", "NOTES_JS", "TERM_JS", "TERM_CSS", "VIDEO_PAGE", "VIDEO_JS", "ANNOTATE_JS", "UI_CSS", "POPUP_PAGE", "POPUP_JS", "...Object.values(STYLES)"])
+  for (const name of ["PAGE", "BOARD_JS", "NOTES_PAGE", "NOTES_JS", "TERM_JS", "TERM_CSS", "VIDEO_PAGE", "VIDEO_JS", "ANNOTATE_JS", "UI_CSS", "POPUP_PAGE", "POPUP_JS", "BOOT_JS", "...Object.values(STYLES)"])
     expect(atStart).toContain(name);
   for (const dir of ["html", "dist"])
     for (const f of readdirSync(join(root, "web", dir))) expect([f, src.includes(`"${f}"`)]).toEqual([f, true]);
