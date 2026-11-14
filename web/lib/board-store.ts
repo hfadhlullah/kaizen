@@ -98,8 +98,9 @@ export const openForm = (f: Board["form"]) => {
   } catch {}
 };
 export const closeForm = () => (openForm(null), clearDrafts("f:"));
-// New task from another page closes only the inline new-task form (the dialog takes its draft); an edit form stays.
-export const closeNewForm = () => getBoard().form?.mode === "new" && (openForm(null), clearDrafts("f:new:"));
+// New task from another page closes only the inline new-task form and keeps its draft, which the dialog picks up (an
+// edit form and its draft stay too).
+export const closeNewForm = () => getBoard().form?.mode === "new" && openForm(null);
 export const closePopup = () => (setBoard({ popup: null }), clearDrafts("f:"));
 export const setTab = (tab: Board["tab"]) => {
   setBoard({ tab });

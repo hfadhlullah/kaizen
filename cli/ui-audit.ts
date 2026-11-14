@@ -290,7 +290,7 @@ function screens(dir: string, run: string, emptyWs: { dir: string; ws: string })
     { name: "board", url: "/?view=board", widths: D1 }, // a phone shows Home for the board
     { name: "board-runs", url: "/?view=board", widths: D1, open: `await click("[aria-label='Board mode'] button", false, "Runs")` },
     { name: "card-menu", url: "/?view=board", widths: D1, open: `await click("[aria-label='Board mode'] button", false, "Runs"); await click("button[aria-label=Actions]", true)` },
-    { name: "card-drawer", url: "/?view=board", widths: D1, open: `await click("[aria-label='Board mode'] button", false, "Runs"); await click("main#board>section:last-of-type li .card")` },
+    { name: "card-drawer", url: "/?view=board", widths: D1, open: `await click("[aria-label='Board mode'] button", false, "Runs"); await click("#board section:last-of-type li .card")` },
     { name: "projects-filter", url: "/?view=board", widths: D1, open: `await click("#combo button")` },
     { name: "showing", url: "/?view=board", widths: D1, open: `await click("#show")` },
     { name: "new-task", url: "/?view=board", widths: D1, open: `await click("#newtop")` },

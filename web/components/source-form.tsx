@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { PLAT } from "../lib/icebox.ts";
 import { addSource } from "../lib/icebox-actions.ts";
 import { patchDraft, setIce, useIce } from "../lib/icebox-store.ts";
+import { toast } from "../lib/toast.ts";
 import { Button } from "../ui/button.tsx";
 import { Input } from "../ui/input.tsx";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select.tsx";
@@ -18,7 +19,7 @@ export function SourceForm({ dir, projects }: { dir: string; projects: { dir: st
     to = d.to || dir,
     go = async () => {
       if (social ? !d.q.trim() : !d.url.trim()) return first.current?.focus();
-      if (!to) return;
+      if (!to) return toast("Pick a project first");
       setAdding(true);
       const ok = await addSource({
         social,

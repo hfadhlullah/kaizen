@@ -135,7 +135,9 @@ export function CaptureBox({
           options={[
             { value: "", label: "Inbox" },
             ...boards.map((b) => ({ value: b.name, label: b.name, icon: b.client ? <ClientMark /> : undefined })),
-            ...(board && !boards.some((b) => sameName(b.name, board)) ? [{ value: board, label: board }] : []),
+            ...(board && !boards.some((b) => sameName(b.name, board))
+              ? [{ value: board, label: `${board} (new)` }]
+              : []),
             { value: NEW, label: "New collection…", icon: <Icon name="plus" className="size-3.5" /> },
           ]}
           onChange={async (v) => {

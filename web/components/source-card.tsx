@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ago, hostOf, platOf, PLAT, srcType, webUrl, type Source } from "../lib/icebox.ts";
 import {
   checkNow,
@@ -24,8 +24,10 @@ import { ProjectMark } from "./project-mark.tsx";
 const badge = "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium [&_svg]:size-3";
 // One source: where it is, how its last gather went, its category and project, and its two switches.
 export function SourceCard({ s, chatOn, googleConnected }: { s: Source; chatOn: boolean; googleConnected: boolean }) {
-  const [cat, setCat] = useState(s.category || ""),
-    [to, setTo] = useState(s.dir),
+  const [cat, setCat] = useState(s.category || "");
+  // The category changed elsewhere (another tab, the server's own write): show it, so Save is never offered for it.
+  useEffect(() => setCat(s.category || ""), [s.category]);
+  const [to, setTo] = useState(s.dir),
     [busy, setBusy] = useState(""),
     title = s.label || hostOf(s.url),
     type = srcType(s),
