@@ -42,6 +42,7 @@ import { FONT_MAX, FONT_MIN, fontRead, fontSet } from "../term-font.ts";
 import { RunFooter } from "../components/run-footer.tsx";
 import { BoardPage } from "../pages/board-page.tsx";
 import { TaskPage } from "../pages/task-page.tsx";
+import { HomePage } from "../pages/home-page.tsx";
 import { IceboxPage } from "../pages/icebox-page.tsx";
 import { TasksPage } from "../pages/tasks-page.tsx";
 import { Toaster } from "../ui/sonner.tsx";
@@ -80,6 +81,16 @@ export function openIcebox() {
   setStore({ view: "icebox" });
 }
 export { iceKeys };
+// Home: a root inside #home (display: contents, so #home's own flex row lays the list and the conversation out).
+export function mountHome() {
+  if (roots.has("home")) return;
+  roots.add("home");
+  const host = document.createElement("div");
+  host.className = "kz-ui";
+  host.style.display = "contents";
+  $("home").append(host);
+  createRoot(host).render(createElement(TooltipProvider, null, createElement(HomePage)));
+}
 // The Board: one root inside #board (display: contents, so the old grid lays the page's columns out), drawn from the
 // snapshot cards.ts hands over on every redraw. flushSync: a view transition and the focus restore read the DOM at once.
 export function drawBoard(snap: BoardSnap) {
@@ -212,6 +223,7 @@ export function initReact(go: (view: string, push?: boolean) => void) {
     notices: { on: notifyOn, sounds: SOUNDS, sound: soundPick, play: (n) => playSound(n) },
     currentDir: () => store.dir || store.S?.dir || "",
     gitProjects,
+    runCards: () => store.S.cards.filter((c) => c.kind === "run"),
     wsHref,
     pickProject,
     openSettings: (q) => {

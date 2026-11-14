@@ -52,6 +52,10 @@
   --animate-dot: kz-dot 1.2s ease-in-out infinite;
   --animate-rise: kz-rise 0.8s ease-out forwards;
   --animate-fall: kz-fall 1.6s ease-in forwards;
+  --animate-hin: kz-hin 0.32s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-hfloat: kz-float 2.4s ease-in-out infinite;
+  --animate-hdot: kz-hdot 1.05s ease-in-out infinite;
+  --animate-hpulse: kz-hpulse 1.4s ease-in-out infinite;
 }
 /* The run panel's tab strip is a column of icons beside the panel in the run workspace and, on a desktop window, on
    the board too; in a narrow window outside the run workspace it is a row of words. `col:` styles the first. */
@@ -63,6 +67,12 @@
 @keyframes kz-flash { 50% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 40%, transparent); } }
 @keyframes kz-rise { to { transform: translateY(-14px); opacity: 0; } }
 @keyframes kz-fall { to { transform: translateY(420px) rotate(540deg); opacity: 0; } }
+@keyframes kz-hin { from { opacity: 0; transform: translateY(8px); } }
+@keyframes kz-float { 50% { transform: translateY(-2px); } }
+@keyframes kz-hdot { 50% { opacity: 1; transform: translateY(-1px); } }
+@keyframes kz-hpulse { 50% { opacity: 0.4; } }
+/* Home: the message box glides from the middle to the bottom with the first message (a view transition). */
+::view-transition-group(hbox) { animation-duration: 0.35s; animation-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1); }
 @keyframes kz-dot { 0%, 60%, 100% { opacity: 0.3; transform: none; } 30% { opacity: 1; transform: translateY(-3px); } }
 
 /* Tailwind's preflight, scoped: it applies inside .kz-ui (the React roots and the shared popup container) and

@@ -57,6 +57,8 @@ export type Host = {
   gitProjects(): { dir: string; name: string }[];
   wsHref(dir: string, ws: string): string;
   pickProject(stateDir: string): Promise<void>;
+  // Home (phase 5): the run ids that are cards on this board, and the project a new chat starts in ("" for all).
+  runCards(): { _k: string; id: string; kind: string; state: string; text: string }[];
 };
 const none = (): never => {
   throw new Error("The board has not mounted this page yet");
@@ -97,5 +99,6 @@ export const host: Host = {
   gitProjects: () => [],
   wsHref: () => "",
   pickProject: async () => {},
+  runCards: () => [],
 };
 export const setHost = (h: Partial<Host>) => Object.assign(host, h);
