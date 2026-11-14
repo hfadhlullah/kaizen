@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { host } from "../lib/host.ts";
+import { host, toast, cn } from "../lib/core/index.ts";
 import {
   call,
   childPath,
@@ -9,10 +9,8 @@ import {
   useAddProject,
   workspaceBranch,
   type Start,
-} from "../lib/add-project.ts";
-import { branchSlug } from "../lib/branch.ts";
-import { toast } from "../lib/toast.ts";
-import { cn } from "../lib/utils.ts";
+  branchSlug,
+} from "../lib/project/index.ts";
 import { Button } from "../ui/button.tsx";
 import { Checkbox } from "../ui/checkbox.tsx";
 import { Dialog, DialogContent, DialogTitle } from "../ui/dialog.tsx";
@@ -430,7 +428,7 @@ function Sheet({ dir, start }: { dir?: string | null; start?: Start }) {
   );
 }
 
-// The Add a project sheet, open while lib/add-project.ts says so. A new open is a new sheet (its `n` is its key).
+// The Add a project sheet, open while lib/project/add-project.ts says so. A new open is a new sheet (its `n` is its key).
 export function AddProjectDialog() {
   const open = useAddProject((s) => s.open);
   return (

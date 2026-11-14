@@ -1,6 +1,6 @@
-import { host } from "../lib/host.ts";
-import { useSettings } from "../lib/settings-store.ts";
-import type { Item } from "../lib/settings.ts";
+import { host } from "../lib/core/index.ts";
+import { useSettings } from "../lib/settings/index.ts";
+import type { Item } from "../lib/settings/index.ts";
 import { AccountCard, AddAccountRow, NormalLoginCard } from "./account-rows.tsx";
 import { AgentCard, AgentDefaultRow, AgentPermissionRow } from "./agent-rows.tsx";
 import { AutomationCard, AutomationForm, NoAutomations } from "./automation-rows.tsx";
@@ -14,7 +14,7 @@ import { SettingRow } from "./setting-row.tsx";
 import { SkillCard } from "./skill-card.tsx";
 import { WhatsAppCard } from "./whatsapp-card.tsx";
 
-// One row of a Settings page, drawn by its kind from what the store holds (lib/settings.ts decides which rows a page has).
+// One row of a Settings page, drawn by its kind from what the store holds (lib/settings/settings.ts decides which rows a page has).
 export function SettingsItem({ item }: { item: Item }) {
   const row = useSettings((s) => (item.kind === "row" ? s.data?.cfg?.rows.find((r) => r.key === item.ref) : undefined));
   const ref = item.ref ?? "";

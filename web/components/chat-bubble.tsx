@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { cn } from "../lib/utils.ts";
+import { cn } from "../lib/core/index.ts";
 
 // One message: who and when above, the text in a bubble. A long message shows its first lines and "Show more".
 export function ChatBubble({

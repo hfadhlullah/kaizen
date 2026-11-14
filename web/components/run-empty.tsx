@@ -1,4 +1,4 @@
-import { useRunView } from "../lib/run-view-store.ts";
+import { useRunView } from "../lib/run/index.ts";
 import { EmptyState } from "./empty-state.tsx";
 
 // No tab is open: say how to open one.

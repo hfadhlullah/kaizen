@@ -1,5 +1,4 @@
-import { cleanup } from "../lib/settings-actions.ts";
-import { useSettings } from "../lib/settings-store.ts";
+import { cleanup, useSettings } from "../lib/settings/index.ts";
 import { Button } from "../ui/button.tsx";
 import { Field } from "./field.tsx";
 

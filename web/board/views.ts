@@ -14,7 +14,7 @@ export const react = {
   openTasks: () => {},
   openTaskPage: () => {},
   openIcebox: () => {},
-  // The Home chat page (a React root inside #home, drawn from lib/home-store.ts).
+  // The Home chat page (a React root inside #home, drawn from lib/home/home-store.ts).
   mountHome: () => {},
   iceKeys: (_e: KeyboardEvent) => false,
   // The Board page (cards.ts hands it a snapshot on every redraw) and the forms other modules open over any page.

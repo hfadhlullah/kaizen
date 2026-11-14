@@ -12,7 +12,7 @@ import { toast } from "./toast.ts";
 import { react, view } from "./views.ts";
 import { isPhone } from "./phone.ts";
 import { openWorkspace } from "./run-view.ts";
-import type { Head } from "../lib/panel-store.ts";
+import type { Head } from "../lib/run/index.ts";
 
 // ---- detail panel
 // A run's tabs, its phases in board order. A card opens on its column's tab.

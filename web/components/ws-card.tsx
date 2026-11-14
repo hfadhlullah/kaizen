@@ -1,4 +1,4 @@
-import type { WsCard as Ws } from "../lib/board-store.ts";
+import type { WsCard as Ws } from "../lib/board/index.ts";
 import { ProjectMark } from "./project-mark.tsx";
 
 // A workspace on the Board's Workspaces mode: its status dot, branch or name, project and what its newest run says.

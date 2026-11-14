@@ -1,8 +1,14 @@
 import { useEffect, useRef } from "react";
-import { sameName, short, type Board } from "../lib/icebox.ts";
-import { pickCaptureBoard, saveCapture } from "../lib/icebox-actions.ts";
-import { patchCap, useIce } from "../lib/icebox-store.ts";
-import { useNarrow } from "../lib/hooks/use-narrow.ts";
+import {
+  sameName,
+  short,
+  type Board,
+  pickCaptureBoard,
+  saveCapture,
+  patchCap,
+  useIce,
+} from "../lib/icebox/index.ts";
+import { useNarrow } from "../lib/shared/index.ts";
 import { Button } from "../ui/button.tsx";
 import { Icon } from "../ui/icon.tsx";
 import { Textarea } from "../ui/textarea.tsx";

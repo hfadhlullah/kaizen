@@ -1,5 +1,8 @@
-import { ago, iceKey, STYLES, type IceItem } from "../lib/icebox.ts";
 import {
+  ago,
+  iceKey,
+  STYLES,
+  type IceItem,
   replyAgain,
   replyCancel,
   replyDraft,
@@ -7,9 +10,9 @@ import {
   replyStyle,
   replyText,
   setReplyStyle,
-} from "../lib/icebox-actions.ts";
-import { useIce } from "../lib/icebox-store.ts";
-import { cn } from "../lib/utils.ts";
+  useIce,
+} from "../lib/icebox/index.ts";
+import { cn } from "../lib/core/index.ts";
 import { Button } from "../ui/button.tsx";
 import { fieldClass } from "../ui/input.tsx";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select.tsx";

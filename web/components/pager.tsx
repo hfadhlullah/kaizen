@@ -1,4 +1,4 @@
-import { PAGE_SIZES } from "../lib/hooks/use-pager.ts";
+import { PAGE_SIZES } from "../lib/shared/index.ts";
 import { Button } from "../ui/button.tsx";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select.tsx";
 

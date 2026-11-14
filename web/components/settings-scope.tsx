@@ -1,5 +1,4 @@
-import { pickScope } from "../lib/settings-actions.ts";
-import { useSettings } from "../lib/settings-store.ts";
+import { pickScope, useSettings } from "../lib/settings/index.ts";
 import { Icon } from "../ui/icon.tsx";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select.tsx";
 

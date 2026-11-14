@@ -1,4 +1,4 @@
-import { cn } from "../lib/utils.ts";
+import { cn } from "../lib/core/utils.ts";
 
 // The building spinner: a ring with one dark quarter. Still when motion is off.
 export const Spinner = ({ className }: { className?: string }) => (

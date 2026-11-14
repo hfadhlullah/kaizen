@@ -1,5 +1,5 @@
 import type { ComponentProps } from "react";
-import { cn } from "../lib/utils.ts";
+import { cn } from "../lib/core/index.ts";
 import { Toggle } from "../ui/toggle.tsx";
 
 // A filter or kind chip (.ice-chip): 26px pill with an optional count; pressed is the filled one.

@@ -17,11 +17,8 @@ import { RequestRow } from "../components/request-row.tsx";
 import { Segmented } from "../components/segmented.tsx";
 import { SourceDrawer } from "../components/source-drawer.tsx";
 import { SwipeDeck } from "../components/swipe-deck.tsx";
-import { useIceData } from "../lib/hooks/use-icebox.ts";
-import { useNarrow } from "../lib/hooks/use-narrow.ts";
-import { usePager } from "../lib/hooks/use-pager.ts";
-import { host } from "../lib/host.ts";
 import {
+  useIceData,
   deckOf,
   hiddenCat,
   iceKey,
@@ -35,11 +32,23 @@ import {
   subName,
   deriveIce,
   type RowCtx,
-} from "../lib/icebox.ts";
-import { bulkDo, connectChatGPT, newCollection, skipChatGPT, snoozeAll, startSwipe } from "../lib/icebox-actions.ts";
-import { patchCap, setIce, useIce } from "../lib/icebox-store.ts";
-import { clearFilters, pickBoard, selectPage, setView, toggleKind } from "../lib/icebox-view.ts";
-import { useStore } from "../lib/store.ts";
+  bulkDo,
+  connectChatGPT,
+  newCollection,
+  skipChatGPT,
+  snoozeAll,
+  startSwipe,
+  patchCap,
+  setIce,
+  useIce,
+  clearFilters,
+  pickBoard,
+  selectPage,
+  setView,
+  toggleKind,
+} from "../lib/icebox/index.ts";
+import { useNarrow, usePager } from "../lib/shared/index.ts";
+import { host, useStore } from "../lib/core/index.ts";
 import { Button } from "../ui/button.tsx";
 import { Checkbox } from "../ui/checkbox.tsx";
 import { Icon } from "../ui/icon.tsx";

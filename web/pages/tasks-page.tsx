@@ -6,17 +6,20 @@ import { FilterMenu } from "../components/filter-menu.tsx";
 import { IconButton } from "../components/icon-button.tsx";
 import { Pager } from "../components/pager.tsx";
 import { TaskRow } from "../components/task-row.tsx";
-import { useDock } from "../lib/hooks/use-dock.ts";
-import { usePager } from "../lib/hooks/use-pager.ts";
-import { openTaskRecord } from "../lib/hooks/use-task.ts";
-import { refreshTasks, useTasks } from "../lib/hooks/use-tasks.ts";
-import { host } from "../lib/host.ts";
-import { setStore, useStore } from "../lib/store.ts";
-import { filteredTasks, TASK_FILTERS } from "../lib/tasks.ts";
+import {
+  useDock,
+  openTaskRecord,
+  refreshTasks,
+  useTasks,
+  filteredTasks,
+  TASK_FILTERS,
+} from "../lib/task/index.ts";
+import { usePager } from "../lib/shared/index.ts";
+import { host, setStore, useStore } from "../lib/core/index.ts";
 import { Button } from "../ui/button.tsx";
 
 // The attention-first list of durable tasks. The board's own search box, tools slot and New task button are
-// docked into it while it shows (lib/hooks/use-dock.ts), so the page has no header of its own.
+// docked into it while it shows (lib/task/use-dock.ts), so the page has no header of its own.
 export function TasksPage() {
   return useStore((s) => s.view === "tasks") ? <Tasks /> : null;
 }

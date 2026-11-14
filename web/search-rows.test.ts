@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { shownRows } from "./lib/search.ts";
+import { shownRows } from "./lib/search/search.ts";
 
 const it = (group: string, title: string, at = 0) => ({ group, title, hay: "", at, ico: "run", act: () => {} });
 const none = () => {};

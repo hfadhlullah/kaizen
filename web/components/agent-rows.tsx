@@ -1,9 +1,14 @@
 import { useState } from "react";
-import { AGENT_FAVICONS } from "../lib/agent-favicons.ts";
-import { cn } from "../lib/utils.ts";
-import { saveAgentPrefs, setDefaultAgent, setPermissions, toggleAgentOpen } from "../lib/settings-actions.ts";
-import { useSettings } from "../lib/settings-store.ts";
-import type { Agent } from "../lib/settings.ts";
+import {
+  AGENT_FAVICONS,
+  saveAgentPrefs,
+  setDefaultAgent,
+  setPermissions,
+  toggleAgentOpen,
+  useSettings,
+} from "../lib/settings/index.ts";
+import { cn } from "../lib/core/index.ts";
+import type { Agent } from "../lib/settings/index.ts";
 import { Button } from "../ui/button.tsx";
 import { Icon } from "../ui/icon.tsx";
 import { Input } from "../ui/input.tsx";

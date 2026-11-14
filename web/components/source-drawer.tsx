@@ -1,7 +1,13 @@
-import { host } from "../lib/host.ts";
-import { type IceData } from "../lib/icebox.ts";
-import { connectChatGPT, connectGoogle, disconnect, gatherAll } from "../lib/icebox-actions.ts";
-import { setIce, useIce } from "../lib/icebox-store.ts";
+import { host } from "../lib/core/index.ts";
+import {
+  type IceData,
+  connectChatGPT,
+  connectGoogle,
+  disconnect,
+  gatherAll,
+  setIce,
+  useIce,
+} from "../lib/icebox/index.ts";
 import { Button } from "../ui/button.tsx";
 import { Icon } from "../ui/icon.tsx";
 import { Sheet, SheetContent, SheetClose, SheetTitle, SheetDescription } from "../ui/sheet.tsx";

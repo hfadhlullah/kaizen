@@ -5,8 +5,9 @@ import {
   saveGoogleClient,
   saveResearchKey,
   testResearchKey,
-} from "../lib/settings-actions.ts";
-import { setTyped, useSettings } from "../lib/settings-store.ts";
+  setTyped,
+  useSettings,
+} from "../lib/settings/index.ts";
 import { Button } from "../ui/button.tsx";
 import { Input } from "../ui/input.tsx";
 import { Field } from "./field.tsx";

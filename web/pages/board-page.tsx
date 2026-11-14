@@ -1,7 +1,6 @@
 import { useEffect } from "react";
-import { backlogCards, cardKey } from "../lib/board.ts";
-import { closeForm, useBoard } from "../lib/board-store.ts";
-import { host } from "../lib/host.ts";
+import { backlogCards, cardKey, host } from "../lib/core/index.ts";
+import { closeForm, useBoard } from "../lib/board/index.ts";
 import { Button } from "../ui/button.tsx";
 import { BoardColumn } from "../components/board-column.tsx";
 import { WsCard } from "../components/ws-card.tsx";

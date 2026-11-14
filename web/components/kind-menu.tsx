@@ -1,6 +1,5 @@
 import type { ReactElement } from "react";
-import { KIND, type IceItem } from "../lib/icebox.ts";
-import { setOne } from "../lib/icebox-actions.ts";
+import { KIND, type IceItem, setOne } from "../lib/icebox/index.ts";
 import { ChoiceMenu } from "./choice-menu.tsx";
 
 // A request's Kind menu: Client, Finding or People say; the one set by hand is marked (not one a rule set).

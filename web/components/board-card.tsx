@@ -9,13 +9,12 @@ import {
   statusIcon,
   statusTip,
   type Card,
-} from "../lib/board.ts";
-import { showCard } from "../lib/board-open.ts";
-import { openForm, useBoard, type FormMode } from "../lib/board-store.ts";
-import { brief } from "../lib/brief.ts";
-import { age } from "../lib/labels.ts";
-import { archiveCard, backToTask, resumable, resumeRun } from "../lib/run-actions.ts";
-import { cn } from "../lib/utils.ts";
+  brief,
+  age,
+  cn,
+} from "../lib/core/index.ts";
+import { showCard, openForm, useBoard, type FormMode } from "../lib/board/index.ts";
+import { archiveCard, backToTask, resumable, resumeRun } from "../lib/run/index.ts";
 import { Button } from "../ui/button.tsx";
 import { ActionMenu } from "./action-menu.tsx";
 import { CardFooter } from "./card-footer.tsx";

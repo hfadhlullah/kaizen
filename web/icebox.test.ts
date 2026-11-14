@@ -23,10 +23,10 @@ import {
   type IceItem,
   type RowCtx,
   type Source,
-} from "./lib/icebox.ts";
+} from "./lib/icebox/icebox.ts";
 import { TooltipProvider } from "./ui/tooltip.tsx";
 
-// The Icebox's rules (lib/icebox.ts) and its row and card, rendered the way the board renders them.
+// The Icebox's rules (lib/icebox/icebox.ts) and its row and card, rendered the way the board renders them.
 const D = "/p/.kaizen";
 const item = (id: string, more: Partial<IceItem> = {}): IceItem => ({
   id,

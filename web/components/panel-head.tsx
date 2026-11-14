@@ -1,5 +1,5 @@
-import { usePanel } from "../lib/panel-store.ts";
-import { cn } from "../lib/utils.ts";
+import { usePanel } from "../lib/run/index.ts";
+import { cn } from "../lib/core/index.ts";
 import { PhaseSteps } from "./phase-steps.tsx";
 import { RunProgress } from "./run-progress.tsx";
 import { StatusMark } from "./status-mark.tsx";

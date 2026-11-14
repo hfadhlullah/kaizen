@@ -1,7 +1,18 @@
-import { ago, hostOf, hue, iceKey, isLive, short, srcName, webUrl, type IceItem, type RowCtx } from "../lib/icebox.ts";
-import { setIce } from "../lib/icebox-store.ts";
-import { openCard } from "../lib/icebox-view.ts";
-import { cn } from "../lib/utils.ts";
+import {
+  ago,
+  hostOf,
+  hue,
+  iceKey,
+  isLive,
+  short,
+  srcName,
+  webUrl,
+  type IceItem,
+  type RowCtx,
+  setIce,
+  openCard,
+} from "../lib/icebox/index.ts";
+import { cn } from "../lib/core/index.ts";
 import { KindLabel } from "./kind-label.tsx";
 import { ProjectMark } from "./project-mark.tsx";
 import { RequestActions } from "./request-actions.tsx";

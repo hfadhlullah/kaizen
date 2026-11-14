@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { PlanQuestion } from "../lib/plan-questions.ts";
+import type { PlanQuestion } from "../lib/decision/index.ts";
 import { Button } from "../ui/button.tsx";
 import { Input } from "../ui/input.tsx";
 import { FormFrame } from "./form-frame.tsx";

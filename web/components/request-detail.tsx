@@ -1,5 +1,5 @@
-import { ago, iceKey, isLive, srcName, webUrl, type IceItem, type RowCtx } from "../lib/icebox.ts";
-import { cn } from "../lib/utils.ts";
+import { ago, iceKey, isLive, srcName, webUrl, type IceItem, type RowCtx } from "../lib/icebox/index.ts";
+import { cn } from "../lib/core/index.ts";
 import { PromoteForm } from "./promote-form.tsx";
 import { ReplyBox } from "./reply-box.tsx";
 import { RequestActions } from "./request-actions.tsx";

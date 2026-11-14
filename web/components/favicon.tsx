@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { faviconUrl, PLAT } from "../lib/icebox.ts";
+import { faviconUrl, PLAT } from "../lib/icebox/index.ts";
 import { Icon } from "../ui/icon.tsx";
 
 // The mark of where a request came from: a social platform's own mark, else the favicon of the site (asked of that

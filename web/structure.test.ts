@@ -1,5 +1,5 @@
 // Keeps the React layers in order (see .kaizen/notes/Project/Conventions and gotchas.md):
-//   pages -> components -> ui -> lib/utils.ts, and lib imports only lib.
+//   pages -> components -> ui -> lib/core/utils.ts, and lib imports only lib.
 // A page or component never imports a Radix package (or cmdk) itself: popups come from web/ui.
 import { expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
@@ -8,7 +8,7 @@ import { dirname, join, relative, resolve } from "node:path";
 const web = import.meta.dir;
 type Layer = "ui" | "components" | "pages" | "lib";
 const LAYERS: Layer[] = ["ui", "components", "pages", "lib"];
-// What each layer may import from this repo, by layer; ui may take lib/utils.ts only.
+// What each layer may import from this repo, by layer; ui may take lib/core/utils.ts only.
 const MAY: Record<Layer, Layer[]> = {
   ui: ["ui", "lib"],
   components: ["ui", "components", "lib"],
@@ -47,8 +47,8 @@ function violations(files: Record<string, string>): string[] {
         out.push(`${where}: ${from}/ may not import ${to === ".." ? "outside web/" : "web/" + to}`);
       else if (!MAY[from].includes(to as Layer))
         out.push(`${where}: ${from}/ may not import ${to}/ (imports only go downward)`);
-      else if (from === "ui" && to === "lib" && !/^lib[\\/]utils\.ts$/.test(relative(web, target)))
-        out.push(`${where}: ui/ takes only lib/utils.ts`);
+      else if (from === "ui" && to === "lib" && !/^lib[\\/]core[\\/]utils\.ts$/.test(relative(web, target)))
+        out.push(`${where}: ui/ takes only lib/core/utils.ts`);
     }
   }
   return out;
@@ -64,7 +64,7 @@ test("the check itself fails on an upward import, a lib import of ui, a ui impor
   const f = (layer: string, name: string) => join(web, layer, name);
   const bad = violations({
     [f("ui", "a.tsx")]: 'import { X } from "../components/x.tsx";',
-    [f("ui", "b.tsx")]: 'import { y } from "../lib/store.ts";',
+    [f("ui", "b.tsx")]: 'import { y } from "../lib/core/store.ts";',
     [f("components", "c.tsx")]: 'import { P } from "../pages/p.tsx";',
     [f("lib", "d.ts")]: 'import { Button } from "../ui/button.tsx";',
     [f("pages", "e.tsx")]: 'import { Popover } from "radix-ui";',
@@ -75,9 +75,9 @@ test("the check itself fails on an upward import, a lib import of ui, a ui impor
   expect(
     violations({
       [f("ui", "ok.tsx")]:
-        'import { cn } from "../lib/utils.ts"; import { Icon } from "./icon.tsx"; import { Popover } from "radix-ui";',
+        'import { cn } from "../lib/core/utils.ts"; import { Icon } from "./icon.tsx"; import { Popover } from "radix-ui";',
       [f("pages", "ok.tsx")]:
-        'import { Chip } from "../components/chip.tsx"; import { Button } from "../ui/button.tsx"; import { x } from "../lib/store.ts";',
+        'import { Chip } from "../components/chip.tsx"; import { Button } from "../ui/button.tsx"; import { x } from "../lib/core/store.ts";',
     }),
   ).toEqual([]);
 });

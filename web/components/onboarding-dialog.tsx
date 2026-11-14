@@ -17,8 +17,8 @@ import {
   toggleMore,
   useOnboarding,
   type Cfg,
-} from "../lib/onboarding.ts";
-import { cn } from "../lib/utils.ts";
+} from "../lib/home/index.ts";
+import { cn } from "../lib/core/index.ts";
 import { Button } from "../ui/button.tsx";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "../ui/dialog.tsx";
 import { Icon } from "../ui/icon.tsx";

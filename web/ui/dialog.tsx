@@ -1,6 +1,6 @@
 import { Dialog as DialogPrimitive } from "radix-ui";
 import type { ComponentProps } from "react";
-import { cn, portalRoot } from "../lib/utils.ts";
+import { cn, portalRoot } from "../lib/core/utils.ts";
 
 export const Dialog = DialogPrimitive.Root;
 export const DialogTrigger = DialogPrimitive.Trigger;

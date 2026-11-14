@@ -1,9 +1,8 @@
 import { useRef, useState } from "react";
-import { addTask, taskDirs } from "../lib/board-actions.ts";
-import { pastedFiles, useDraft } from "../lib/hooks/use-draft.ts";
-import { short } from "../lib/icebox.ts";
-import { startDir } from "../lib/labels.ts";
-import { toast } from "../lib/toast.ts";
+import { addTask, taskDirs } from "../lib/board/index.ts";
+import { pastedFiles, useDraft } from "../lib/shared/index.ts";
+import { short } from "../lib/icebox/index.ts";
+import { startDir, toast } from "../lib/core/index.ts";
 import { Button } from "../ui/button.tsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu.tsx";
 import { Icon } from "../ui/icon.tsx";

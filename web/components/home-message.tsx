@@ -1,6 +1,5 @@
-import { runsIn, type Msg } from "../lib/home.ts";
-import { host } from "../lib/host.ts";
-import { cn } from "../lib/utils.ts";
+import { runsIn, type Msg } from "../lib/home/index.ts";
+import { host, cn } from "../lib/core/index.ts";
 import { Button } from "../ui/button.tsx";
 import { Icon } from "../ui/icon.tsx";
 import { Markdown } from "./markdown.tsx";

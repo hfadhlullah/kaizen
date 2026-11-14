@@ -10,11 +10,12 @@ import { ResultChecks } from "../components/result-checks.tsx";
 import { ResultView } from "../components/result-view.tsx";
 import { StatusBadge } from "../components/status-badge.tsx";
 import { TypingDots } from "../components/typing-dots.tsx";
-import { runAction, sendMessage, setDraft, useTask } from "../lib/hooks/use-task.ts";
-import { host } from "../lib/host.ts";
-import { savedLine } from "../lib/task-results.ts";
-import { useStore } from "../lib/store.ts";
 import {
+  runAction,
+  sendMessage,
+  setDraft,
+  useTask,
+  savedLine,
   canAcceptTask,
   closeActions,
   projectLabel,
@@ -23,8 +24,8 @@ import {
   sortedResults,
   taskStatus,
   visibleMessages,
-} from "../lib/tasks.ts";
-import { cn } from "../lib/utils.ts";
+} from "../lib/task/index.ts";
+import { host, useStore, cn } from "../lib/core/index.ts";
 import { Button } from "../ui/button.tsx";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select.tsx";
 import { Textarea } from "../ui/textarea.tsx";

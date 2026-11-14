@@ -1,4 +1,4 @@
-import { checkLine, type TaskResult } from "../lib/task-results.ts";
+import { checkLine, type TaskResult } from "../lib/task/index.ts";
 
 // "Checks and limits": what was checked and what was not, and that accepting is not publishing.
 export function ResultChecks({ result }: { result?: TaskResult }) {

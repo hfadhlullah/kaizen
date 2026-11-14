@@ -1,9 +1,19 @@
 import type { ReactNode } from "react";
-import { AGENT_FAVICONS } from "../lib/agent-favicons.ts";
-import { host } from "../lib/host.ts";
-import { pickFolder, resetSetting, saveSetting } from "../lib/settings-actions.ts";
-import { useSettings } from "../lib/settings-store.ts";
-import { controlOf, MODEL_SUGGEST, modelName, modelTool, rowHint, settingId, type Row } from "../lib/settings.ts";
+import {
+  AGENT_FAVICONS,
+  pickFolder,
+  resetSetting,
+  saveSetting,
+  useSettings,
+  controlOf,
+  MODEL_SUGGEST,
+  modelName,
+  modelTool,
+  rowHint,
+  settingId,
+  type Row,
+} from "../lib/settings/index.ts";
+import { host } from "../lib/core/index.ts";
 import { Button } from "../ui/button.tsx";
 import { Switch } from "../ui/switch.tsx";
 import { CommitInput } from "./commit-input.tsx";

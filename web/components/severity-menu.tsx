@@ -1,4 +1,4 @@
-import { SEVS, type Card } from "../lib/board.ts";
+import { SEVS, type Card } from "../lib/core/index.ts";
 import {
   DropdownMenu,
   DropdownMenuContent,

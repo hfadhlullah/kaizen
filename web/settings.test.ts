@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import { pageId, placeOf, SETTINGS_NAV } from "./lib/settings.ts";
+import { pageId, placeOf, SETTINGS_NAV } from "./lib/settings/settings.ts";
 
 const pages = new Set(SETTINGS_NAV.flatMap(([, ps]) => ps.map((p) => p.id)));
 const keys = [
@@ -57,7 +57,7 @@ test("every page has a tile icon that exists in the board's icon set", () => {
     expect([p.id, board.includes(`id="i-${p.ico}"`)]).toEqual([p.id, true]);
 });
 
-// ---- the page's rules (web/lib/settings.ts)
+// ---- the page's rules (web/lib/settings/settings.ts)
 import {
   accountTools,
   addableTools,
@@ -74,7 +74,7 @@ import {
   whoText,
   type Data,
   type Row,
-} from "./lib/settings.ts";
+} from "./lib/settings/settings.ts";
 
 const row = (key: string, values: string[], extra: Partial<Row> = {}): Row => ({
   key,

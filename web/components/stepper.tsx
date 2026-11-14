@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { cn } from "../lib/utils.ts";
+import { cn } from "../lib/core/index.ts";
 
 // A choice from a long list: ‹ value ›, stepping and wrapping like a game's options screen. It keeps its own position,
 // so each click moves one value even before a save is read back; `onChange` hears the value at once, or `delay` ms

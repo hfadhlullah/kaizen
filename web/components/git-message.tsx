@@ -1,7 +1,6 @@
 import { useLayoutEffect, useRef } from "react";
-import { gitAct } from "../lib/git-actions.ts";
-import { busyOf, useGit } from "../lib/git-store.ts";
-import { cn } from "../lib/utils.ts";
+import { gitAct, busyOf, useGit } from "../lib/git/index.ts";
+import { cn } from "../lib/core/index.ts";
 import { Textarea } from "../ui/textarea.tsx";
 import { IconButton } from "./icon-button.tsx";
 

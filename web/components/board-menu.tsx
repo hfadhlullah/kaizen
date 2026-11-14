@@ -1,6 +1,5 @@
 import type { ReactElement } from "react";
-import { sameName, type Board, type IceItem } from "../lib/icebox.ts";
-import { setBoard } from "../lib/icebox-actions.ts";
+import { sameName, type Board, type IceItem, setBoard } from "../lib/icebox/index.ts";
 import { ChoiceMenu } from "./choice-menu.tsx";
 import { ClientMark } from "./client-mark.tsx";
 import { Icon } from "../ui/icon.tsx";

@@ -3,10 +3,10 @@ import { SettingsLoading } from "../components/settings-loading.tsx";
 import { SettingsNav, Tile } from "../components/settings-nav.tsx";
 import { UpdateBar } from "../components/update-bar.tsx";
 import { SettingsSection } from "../components/settings-section.tsx";
-import { useNarrow } from "../lib/hooks/use-narrow.ts";
-import { pickPage } from "../lib/settings-actions.ts";
-import { useSettings } from "../lib/settings-store.ts";
+import { useNarrow } from "../lib/shared/index.ts";
 import {
+  pickPage,
+  useSettings,
   filterSections,
   genericSections,
   notifyHelp,
@@ -15,11 +15,11 @@ import {
   pageSections,
   shownPage,
   visibleRows,
-} from "../lib/settings.ts";
+} from "../lib/settings/index.ts";
 import { Icon } from "../ui/icon.tsx";
 
 // Settings: a sidebar of pages and the page chosen. One page shows at a time (the first with a match while searching,
-// the list of pages on a phone). What each page holds and which control draws it is decided in lib/settings.ts.
+// the list of pages on a phone). What each page holds and which control draws it is decided in lib/settings/settings.ts.
 export function SettingsPage() {
   const data = useSettings((s) => s.data),
     q = useSettings((s) => s.q),

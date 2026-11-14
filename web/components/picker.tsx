@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { cn } from "../lib/utils.ts";
+import { cn } from "../lib/core/index.ts";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "../ui/command.tsx";
 import { Icon } from "../ui/icon.tsx";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover.tsx";

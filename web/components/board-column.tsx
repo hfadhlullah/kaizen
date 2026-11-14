@@ -1,7 +1,22 @@
-import { FOLD, HINT, backlogCards, cardKey, columnCards, olderThan, type Card } from "../lib/board.ts";
-import { archiveMany } from "../lib/board-actions.ts";
-import { closeForm, flipOrder, openForm, setBoard, setTab, useBoard } from "../lib/board-store.ts";
-import { toast } from "../lib/toast.ts";
+import {
+  FOLD,
+  HINT,
+  backlogCards,
+  cardKey,
+  columnCards,
+  olderThan,
+  type Card,
+  toast,
+} from "../lib/core/index.ts";
+import {
+  archiveMany,
+  closeForm,
+  flipOrder,
+  openForm,
+  setBoard,
+  setTab,
+  useBoard,
+} from "../lib/board/index.ts";
 import { Button } from "../ui/button.tsx";
 import { Icon } from "../ui/icon.tsx";
 import { Tabs, TabsList, TabsTrigger } from "../ui/tabs.tsx";

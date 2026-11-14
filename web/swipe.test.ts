@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
-import { setHost } from "./lib/host.ts";
-import { swGo } from "./lib/icebox-actions.ts";
-import { getIce, setIce } from "./lib/icebox-store.ts";
+import { setHost } from "./lib/core/host.ts";
+import { swGo } from "./lib/icebox/icebox-actions.ts";
+import { getIce, setIce } from "./lib/icebox/icebox-store.ts";
 
 // A swipe whose POST fails brings the flown card home and frees the deck; one that works leaves it flown.
 const it = {

@@ -1,4 +1,4 @@
-import { closeFile, isImage, useViewer } from "../lib/viewer.ts";
+import { closeFile, isImage, useViewer } from "../lib/run/index.ts";
 import { Button } from "../ui/button.tsx";
 import { Dialog, DialogContent, DialogTitle } from "../ui/dialog.tsx";
 

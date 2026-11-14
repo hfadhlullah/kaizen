@@ -10,7 +10,7 @@ import {
   upgrade,
   useUpdate,
   type Version,
-} from "../lib/update.ts";
+} from "../lib/settings/index.ts";
 import { Button } from "../ui/button.tsx";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover.tsx";
 

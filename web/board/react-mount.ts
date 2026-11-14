@@ -4,15 +4,11 @@
 import { createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
-import { setHost } from "../lib/host.ts";
-import { toast } from "../lib/toast.ts";
-import { iceKeys } from "../lib/hooks/use-ice-keys.ts";
-import { navigateTask, showTask } from "../lib/hooks/use-task.ts";
-import { closeForm as closeBoardForm, closeNewForm, getBoard, setBoard, type BoardSnap, type Popup } from "../lib/board-store.ts";
-import { setPanel, type Panel } from "../lib/panel-store.ts";
-import { resumeRun } from "../lib/run-actions.ts";
-import { decided } from "../lib/run-actions.ts";
-import { setStore } from "../lib/store.ts";
+import { setHost, toast, setStore } from "../lib/core/index.ts";
+import { iceKeys } from "../lib/icebox/index.ts";
+import { navigateTask, showTask } from "../lib/task/index.ts";
+import { closeForm as closeBoardForm, closeNewForm, getBoard, setBoard, type BoardSnap, type Popup } from "../lib/board/index.ts";
+import { setPanel, type Panel, resumeRun, decided } from "../lib/run/index.ts";
 import { UpdateCard } from "../components/update-bar.tsx";
 import { AddProjectDialog } from "../components/add-project-dialog.tsx";
 import { WsMenu } from "../components/ws-menu.tsx";
@@ -37,9 +33,8 @@ import { BoardModeSwitch } from "../components/board-mode-switch.tsx";
 import { PanelHead } from "../components/panel-head.tsx";
 import { PanelTabs } from "../components/panel-tabs.tsx";
 import { RunPicker } from "../components/run-picker.tsx";
-import { setGit } from "../lib/git-store.ts";
-import { getSettings, loadSettings, setSettings } from "../lib/settings-store.ts";
-import { pageId } from "../lib/settings.ts";
+import { setGit } from "../lib/git/index.ts";
+import { getSettings, loadSettings, setSettings, pageId } from "../lib/settings/index.ts";
 import { SettingsPage } from "../pages/settings-page.tsx";
 import { FONT_MAX, FONT_MIN, fontRead, fontSet } from "../term-font.ts";
 import { RunFooter } from "../components/run-footer.tsx";
@@ -126,7 +121,7 @@ export const drawGit = (snap: any) => setGit({ snap });
 export const drawHead = (head: Partial<Panel>) => setPanel(head);
 export const drawMode = (modeSwitch: any) => setBoard({ modeSwitch });
 // Settings: one root inside the panel's body, made again when another page replaced the body. State and requests are in
-// lib/settings-store.ts; coming from another page the page starts on All projects with a skeleton, and the page and search
+// lib/settings/settings-store.ts; coming from another page the page starts on All projects with a skeleton, and the page and search
 // the person left it on are kept.
 let settingsRoot: { root: ReturnType<typeof createRoot>; host: HTMLElement } | null = null;
 export function drawSettings(o: { fresh: boolean; q: string; back: boolean; stale: () => boolean }) {
@@ -156,7 +151,7 @@ export const resumeCard = resumeRun;
 export const formOpen = () => !!getBoard().form;
 export const closeForm = closeBoardForm;
 export { closeNewForm };
-// The run workspace's chrome (run-view.ts publishes it through lib/run-view-store.ts). A root lives in an element the old
+// The run workspace's chrome (run-view.ts publishes it through lib/run/run-view-store.ts). A root lives in an element the old
 // code keeps (the tab bar, the empty note, the notes list) and never in a pane, so no live terminal is touched.
 // `display: contents` leaves the old container's layout rules in charge of where each piece sits.
 const bits = { hwsadd: HomeWsAdd, projects: ProjectPicker, showing: ShowingPicker, tabs: RunTabs, empty: RunEmpty, notes: ProjectNotes, header: PaneHeader, history: RunHistory, wait: RunWait, ptabs: PanelTabs, head: PanelHead, picker: RunPicker, mode: BoardModeSwitch };

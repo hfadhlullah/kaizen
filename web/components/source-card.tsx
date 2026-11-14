@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
-import { ago, hostOf, platOf, PLAT, srcType, webUrl, type Source } from "../lib/icebox.ts";
 import {
+  ago,
+  hostOf,
+  platOf,
+  PLAT,
+  srcType,
+  webUrl,
+  type Source,
   checkNow,
   gatherSocial,
   moveSource,
@@ -8,9 +14,8 @@ import {
   saveCategory,
   setAutoGather,
   setWriteBack,
-} from "../lib/icebox-actions.ts";
-import { host } from "../lib/host.ts";
-import { cn } from "../lib/utils.ts";
+} from "../lib/icebox/index.ts";
+import { host, cn } from "../lib/core/index.ts";
 import { Button } from "../ui/button.tsx";
 import { Icon } from "../ui/icon.tsx";
 import { Input } from "../ui/input.tsx";

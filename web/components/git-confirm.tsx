@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { runOf, setGit, useGit } from "../lib/git-store.ts";
+import { runOf, setGit, useGit } from "../lib/git/index.ts";
 import {
   AlertDialog,
   AlertDialogAction,

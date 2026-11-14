@@ -1,4 +1,4 @@
-import { cn } from "../lib/utils.ts";
+import { cn } from "../lib/core/index.ts";
 
 // The few small line icons the Source control tab uses that the board's sprite does not have (Orca's panel has them).
 const PATHS = {

@@ -1,10 +1,23 @@
 import { useState } from "react";
-import { ago, hostOf, hue, iceKey, isLive, pictures, short, type IceItem, type RowCtx } from "../lib/icebox.ts";
-import { armPromote, iceAct, rowDecide, snoozeAll } from "../lib/icebox-actions.ts";
-import { setIce } from "../lib/icebox-store.ts";
-import { toggleOpen } from "../lib/icebox-view.ts";
-import { useRowSwipe } from "../lib/hooks/use-row-swipe.ts";
-import { cn } from "../lib/utils.ts";
+import {
+  ago,
+  hostOf,
+  hue,
+  iceKey,
+  isLive,
+  pictures,
+  short,
+  type IceItem,
+  type RowCtx,
+  armPromote,
+  iceAct,
+  rowDecide,
+  snoozeAll,
+  setIce,
+  toggleOpen,
+  useRowSwipe,
+} from "../lib/icebox/index.ts";
+import { cn } from "../lib/core/index.ts";
 import { Button } from "../ui/button.tsx";
 import { Icon } from "../ui/icon.tsx";
 import { KindLabel } from "./kind-label.tsx";

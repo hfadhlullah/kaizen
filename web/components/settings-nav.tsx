@@ -1,8 +1,5 @@
-import { host } from "../lib/host.ts";
-import { pickPage } from "../lib/settings-actions.ts";
-import { setSettings, useSettings } from "../lib/settings-store.ts";
-import { SETTINGS_NAV } from "../lib/settings.ts";
-import { cn } from "../lib/utils.ts";
+import { host, cn } from "../lib/core/index.ts";
+import { pickPage, setSettings, useSettings, SETTINGS_NAV } from "../lib/settings/index.ts";
 import { Icon } from "../ui/icon.tsx";
 import { Input } from "../ui/input.tsx";
 import { SettingsScope } from "./settings-scope.tsx";

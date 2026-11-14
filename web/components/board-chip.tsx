@@ -1,4 +1,4 @@
-import type { Board } from "../lib/icebox.ts";
+import type { Board } from "../lib/icebox/index.ts";
 import { Chip } from "./chip.tsx";
 import { ClientMark } from "./client-mark.tsx";
 

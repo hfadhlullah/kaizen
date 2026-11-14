@@ -1,4 +1,4 @@
-import { markOf, useHomeWsMenu } from "../lib/home-ws-menu.ts";
+import { markOf, useHomeWsMenu } from "../lib/project/index.ts";
 import {
   DropdownMenu,
   DropdownMenuContent,

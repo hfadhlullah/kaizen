@@ -1,4 +1,4 @@
-import { run, useRunView } from "../lib/run-view-store.ts";
+import { run, useRunView } from "../lib/run/index.ts";
 import { Icon } from "../ui/icon.tsx";
 
 const leaf = (n: string) => n.slice(n.lastIndexOf("/") + 1);

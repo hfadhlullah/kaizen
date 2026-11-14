@@ -5,7 +5,7 @@ import { join, dirname } from "node:path";
 import { md, progress, planQuestions, brief } from "../web/board/markdown.ts";
 import { draft, undraft } from "../web/board/drafts.ts";
 import { boardBadge, refreshBoardBadge, waitingCount } from "../web/board/badge.ts";
-import { menuItems } from "../web/lib/board.ts";
+import { menuItems } from "../web/lib/core/board.ts";
 
 const html = readFileSync(join(dirname(import.meta.dir), "web", "board.html"), "utf8");
 
@@ -54,7 +54,7 @@ test("Board badge coalesces overlapping updates and shows the latest count", asy
 
 test("the update state follows each check: a newer release shows, none left clears it, words say which", async () => {
   // The About bar and the card (components/update-bar.tsx) read this store; the rail's dot follows it (board/update.ts).
-  const { available, behindMsg, gotVer, later, upToDate, useUpdate } = await import("../web/lib/update.ts");
+  const { available, behindMsg, gotVer, later, upToDate, useUpdate } = await import("../web/lib/settings/update.ts");
   const ver = () => useUpdate.getState().ver;
   gotVer({ version: "1.38.1", latest: "1.39.0", update: true });
   expect(available(ver())).toBe(true);
@@ -169,7 +169,7 @@ test("card menu items: appropriate actions and distinct icons across phases", ()
   expect(html).toContain('<symbol id="i-archive"');
   expect(html).toContain('<symbol id="i-restore"');
 
-  // menuItems() (web/lib/board.ts) is the one declaration the Board page's card menu draws from; a separator is the
+  // menuItems() (web/lib/core/board.ts) is the one declaration the Board page's card menu draws from; a separator is the
   // `before` flag on the row under it, which these checks read as the old null entry.
   const getItems = (c: any, archive: boolean, S: any = { projects: [] }) =>
     menuItems(c, { archive, answered: false, otherProjects: S.projects.some((p: any) => p.dir !== c.state) }).flatMap((i) =>

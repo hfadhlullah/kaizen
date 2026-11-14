@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import type { Card } from "../lib/board.ts";
-import { loadAgents, startRun, type Agents } from "../lib/board-actions.ts";
-import type { RunPick } from "../lib/board-store.ts";
-import { cn } from "../lib/utils.ts";
+import type { Card } from "../lib/core/index.ts";
+import { loadAgents, startRun, type Agents } from "../lib/board/index.ts";
+import type { RunPick } from "../lib/board/index.ts";
+import { cn } from "../lib/core/index.ts";
 import { Button } from "../ui/button.tsx";
 import { Icon } from "../ui/icon.tsx";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select.tsx";

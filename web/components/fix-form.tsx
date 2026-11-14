@@ -1,9 +1,8 @@
 import { useState } from "react";
-import { markSent, setPanel, usePanel } from "../lib/panel-store.ts";
-import { fixFindings } from "../lib/run-actions.ts";
+import { markSent, setPanel, usePanel, fixFindings } from "../lib/run/index.ts";
 import { Button } from "../ui/button.tsx";
 import { Checkbox } from "../ui/checkbox.tsx";
-import { cn } from "../lib/utils.ts";
+import { cn } from "../lib/core/index.ts";
 import { InlineMd } from "./inline-md.tsx";
 
 // Fix picked findings, under the review: open ones ticked, closed and sent ones ticked but locked. Opens the agent on

@@ -1,6 +1,5 @@
-import { busyOf, useGit, gitUi, patchUi } from "../lib/git-store.ts";
-import { ask, gitAct } from "../lib/git-actions.ts";
-import { cardKey } from "../lib/board.ts";
+import { busyOf, useGit, gitUi, patchUi, ask, gitAct } from "../lib/git/index.ts";
+import { cardKey } from "../lib/core/index.ts";
 import { Button } from "../ui/button.tsx";
 import { Input } from "../ui/input.tsx";
 import { Textarea } from "../ui/textarea.tsx";

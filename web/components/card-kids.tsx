@@ -1,7 +1,5 @@
-import { statusIcon, wordOf, type Card } from "../lib/board.ts";
-import { getBoard, setBoard, useBoard } from "../lib/board-store.ts";
-import { brief } from "../lib/brief.ts";
-import { host } from "../lib/host.ts";
+import { statusIcon, wordOf, type Card, brief, host } from "../lib/core/index.ts";
+import { getBoard, setBoard, useBoard } from "../lib/board/index.ts";
 import { StatusMark } from "./status-mark.tsx";
 
 // The cards a run filed, folded into its card: "N children · M done", an orange dot when one waits on you, and a

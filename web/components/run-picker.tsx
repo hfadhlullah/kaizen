@@ -1,4 +1,4 @@
-import { run, useRunView, type RvRun } from "../lib/run-view-store.ts";
+import { run, useRunView, type RvRun } from "../lib/run/index.ts";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -7,7 +7,7 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu.tsx";
 import { Icon } from "../ui/icon.tsx";
-import { cn } from "../lib/utils.ts";
+import { cn } from "../lib/core/index.ts";
 import { StateDot } from "./state-dot.tsx";
 
 // The picker at the top of the workspace's run panel: the run shown, a dot when another run needs you, and a menu of the

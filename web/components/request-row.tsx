@@ -1,7 +1,17 @@
-import { ago, iceKey, isLive, short, srcName, srcOf, type IceItem, type RowCtx } from "../lib/icebox.ts";
-import { setIce } from "../lib/icebox-store.ts";
-import { toggleOpen, toggleSel } from "../lib/icebox-view.ts";
-import { cn } from "../lib/utils.ts";
+import {
+  ago,
+  iceKey,
+  isLive,
+  short,
+  srcName,
+  srcOf,
+  type IceItem,
+  type RowCtx,
+  setIce,
+  toggleOpen,
+  toggleSel,
+} from "../lib/icebox/index.ts";
+import { cn } from "../lib/core/index.ts";
 import { Checkbox } from "../ui/checkbox.tsx";
 import { BoardMenu } from "./board-menu.tsx";
 import { Favicon } from "./favicon.tsx";

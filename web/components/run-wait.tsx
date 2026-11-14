@@ -1,4 +1,4 @@
-import { run } from "../lib/run-view-store.ts";
+import { run } from "../lib/run/index.ts";
 import { Button } from "../ui/button.tsx";
 import { Icon } from "../ui/icon.tsx";
 import { EmptyState } from "./empty-state.tsx";

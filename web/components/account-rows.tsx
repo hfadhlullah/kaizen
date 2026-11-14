@@ -1,8 +1,16 @@
-import { AGENT_FAVICONS } from "../lib/agent-favicons.ts";
-import { accountAdd, accountRemove, accountSend, accountSignIn } from "../lib/settings-actions.ts";
-import { useSettings } from "../lib/settings-store.ts";
-import { addableTools, TOOL_NAME, usageText, whoText } from "../lib/settings.ts";
-import { cn } from "../lib/utils.ts";
+import {
+  AGENT_FAVICONS,
+  accountAdd,
+  accountRemove,
+  accountSend,
+  accountSignIn,
+  useSettings,
+  addableTools,
+  TOOL_NAME,
+  usageText,
+  whoText,
+} from "../lib/settings/index.ts";
+import { cn } from "../lib/core/index.ts";
 import { Button } from "../ui/button.tsx";
 import { CommitInput } from "./commit-input.tsx";
 

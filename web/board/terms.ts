@@ -1,4 +1,4 @@
-import { askEnd } from "../lib/ask.ts";
+import { askEnd } from "../lib/core/index.ts";
 import { terminalSessions } from "./term-sessions.ts";
 import { allBoardCards, refreshBoardBadge } from "./badge.ts";
 import { store } from "./store.ts";

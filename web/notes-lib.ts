@@ -107,7 +107,7 @@ export function resolve(name: string, names: string[]): string | null {
   return [...names].sort().find((x) => x.toLowerCase().split("/").pop() === n) ?? null;
 }
 
-export { safeUrl } from "./lib/safe-url.ts";
+export { safeUrl } from "./lib/url/index.ts";
 
 // The sidebar's tree: folders first, then notes, each by name.
 export type Tree = { folders: Map<string, Tree>; notes: string[] };

@@ -1,4 +1,4 @@
-import { closeWsMenu, useWsMenu } from "../lib/ws-menu.ts";
+import { closeWsMenu, useWsMenu } from "../lib/project/index.ts";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu.tsx";
 
 // A menu where the pointer was: the trigger is a point, so the menu opens at the click like a context menu.

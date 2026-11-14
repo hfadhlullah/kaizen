@@ -1,6 +1,5 @@
-import { projectName, type ListedChat } from "../lib/home.ts";
-import { host } from "../lib/host.ts";
-import { cn } from "../lib/utils.ts";
+import { projectName, type ListedChat } from "../lib/home/index.ts";
+import { host, cn } from "../lib/core/index.ts";
 import { IconButton } from "./icon-button.tsx";
 
 // The chats beside the conversation: title and project, a dot while the agent works, a bin on hover.

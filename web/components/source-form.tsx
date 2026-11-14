@@ -1,8 +1,6 @@
 import { useRef, useState } from "react";
-import { PLAT } from "../lib/icebox.ts";
-import { addSource } from "../lib/icebox-actions.ts";
-import { patchDraft, setIce, useIce } from "../lib/icebox-store.ts";
-import { toast } from "../lib/toast.ts";
+import { PLAT, addSource, patchDraft, setIce, useIce } from "../lib/icebox/index.ts";
+import { toast } from "../lib/core/index.ts";
 import { Button } from "../ui/button.tsx";
 import { Input } from "../ui/input.tsx";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select.tsx";

@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { addFiles, removeFile, send, stop } from "../lib/home-store.ts";
-import { pastedFiles } from "../lib/hooks/use-draft.ts";
-import { cn } from "../lib/utils.ts";
+import { addFiles, removeFile, send, stop } from "../lib/home/index.ts";
+import { pastedFiles } from "../lib/shared/index.ts";
+import { cn } from "../lib/core/index.ts";
 import { Icon } from "../ui/icon.tsx";
 import { AttachButton } from "./attach-button.tsx";
 import { IconButton } from "./icon-button.tsx";

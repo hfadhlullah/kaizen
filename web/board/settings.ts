@@ -10,7 +10,7 @@ addEventListener("keydown", (e) => {
   e.preventDefault();
   $("sq")?.focus();
 });
-// Settings fills the docked panel; the page itself is React (web/pages/settings-page.tsx), fed by lib/settings-store.ts.
+// Settings fills the docked panel; the page itself is React (web/pages/settings-page.tsx), fed by lib/settings/settings-store.ts.
 // Here is only what the panel needs: the other views' tabs, terminal and footer put away, and the page asked to load.
 // Coming from another page or a card, the body goes at once (the page draws its skeleton), not when the fetch answers.
 export async function openSettings() {

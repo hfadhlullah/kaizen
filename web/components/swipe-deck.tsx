@@ -1,11 +1,24 @@
 import { useEffect, useMemo } from "react";
-import { ago, iceKey, srcName, srcOf, webUrl, type IceItem, type Source } from "../lib/icebox.ts";
-import { exitSwipe, streak, swGo, swUndo } from "../lib/icebox-actions.ts";
-import { setIce, useIce, type Swipe } from "../lib/icebox-store.ts";
-import { flyCard, useCardDrag } from "../lib/hooks/use-card-drag.ts";
-import { host } from "../lib/host.ts";
-import { short } from "../lib/icebox.ts";
-import { cn } from "../lib/utils.ts";
+import {
+  ago,
+  iceKey,
+  srcName,
+  srcOf,
+  webUrl,
+  type IceItem,
+  type Source,
+  exitSwipe,
+  streak,
+  swGo,
+  swUndo,
+  setIce,
+  useIce,
+  type Swipe,
+  flyCard,
+  useCardDrag,
+  short,
+} from "../lib/icebox/index.ts";
+import { host, cn } from "../lib/core/index.ts";
 import { Button } from "../ui/button.tsx";
 import { Icon } from "../ui/icon.tsx";
 import { Favicon } from "./favicon.tsx";

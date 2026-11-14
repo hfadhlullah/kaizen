@@ -1,6 +1,6 @@
 import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentProps } from "react";
-import { cn } from "../lib/utils.ts";
+import { cn } from "../lib/core/utils.ts";
 
 // A small word or dot-and-word: tone says what it means (waiting on you, done, trouble), not what colour it is.
 const badgeVariants = cva("inline-flex items-center gap-1.5 text-sm", {

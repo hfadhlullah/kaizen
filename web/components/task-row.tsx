@@ -1,7 +1,6 @@
 import type { ComponentProps } from "react";
-import { age } from "../lib/format.ts";
-import { dirName, taskStatus, type TaskView } from "../lib/tasks.ts";
-import { cn } from "../lib/utils.ts";
+import { age, cn } from "../lib/core/index.ts";
+import { dirName, taskStatus, type TaskView } from "../lib/task/index.ts";
 import { StatusBadge } from "./status-badge.tsx";
 
 // One row of the Tasks list: marker, title and project, state and next step, age. `kb` is the keyboard's row.

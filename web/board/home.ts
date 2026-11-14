@@ -1,9 +1,9 @@
-import { newChat, openHome as open, popOut, setSide, syncHere, takeHandoff, useHome } from "../lib/home-store.ts";
+import { newChat, openHome as open, popOut, setSide, syncHere, takeHandoff, useHome } from "../lib/home/index.ts";
 import { $ } from "./dom.ts";
 import { react } from "./views.ts";
 
 // ---- Home: a chat with kaizen's main agent (cli/chat.ts). The page is React (pages/home-page.tsx, state and requests in
-// lib/home-store.ts); this file wires what stays in the board's own header: the chat-list toggle on a phone, New chat and
+// lib/home/home-store.ts); this file wires what stays in the board's own header: the chat-list toggle on a phone, New chat and
 // Pop out, and keeps Home following the board's project.
 let wired = false;
 function wire() {

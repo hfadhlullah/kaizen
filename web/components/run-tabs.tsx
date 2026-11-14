@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { run, useRunView, type RvScreen } from "../lib/run-view-store.ts";
-import { cn } from "../lib/utils.ts";
+import { run, useRunView, type RvScreen } from "../lib/run/index.ts";
+import { cn } from "../lib/core/index.ts";
 import { Icon } from "../ui/icon.tsx";
 import { IconButton } from "./icon-button.tsx";
 import { RunAddMenu } from "./run-add-menu.tsx";

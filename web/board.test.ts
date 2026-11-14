@@ -1,4 +1,4 @@
-// The Board's card rules (web/lib/board.ts) without a browser: which cards a column lists and in what order, the
+// The Board's card rules (web/lib/core/board.ts) without a browser: which cards a column lists and in what order, the
 // button a card carries, and the chips and marks on its foot.
 import { expect, test } from "bun:test";
 import {
@@ -11,7 +11,7 @@ import {
   kidsOf,
   olderThan,
   type Card,
-} from "./lib/board.ts";
+} from "./lib/core/board.ts";
 
 const run = (id: string, o: Partial<Card> = {}): Card => ({
   kind: "run",

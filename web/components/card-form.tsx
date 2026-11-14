@@ -1,10 +1,8 @@
 import { useRef, useState } from "react";
-import { cardKey, type Card } from "../lib/board.ts";
-import { deleteTask, moveTask, rejectCard, saveEdit } from "../lib/board-actions.ts";
-import { host } from "../lib/host.ts";
-import { pastedFiles, useDraft } from "../lib/hooks/use-draft.ts";
-import { short } from "../lib/icebox.ts";
-import { toast } from "../lib/toast.ts";
+import { cardKey, type Card, host, toast } from "../lib/core/index.ts";
+import { deleteTask, moveTask, rejectCard, saveEdit } from "../lib/board/index.ts";
+import { pastedFiles, useDraft } from "../lib/shared/index.ts";
+import { short } from "../lib/icebox/index.ts";
 import { Button } from "../ui/button.tsx";
 import { Input } from "../ui/input.tsx";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select.tsx";

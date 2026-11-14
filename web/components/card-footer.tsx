@@ -1,5 +1,5 @@
-import type { Chip, Mark } from "../lib/board.ts";
-import { cn } from "../lib/utils.ts";
+import type { Chip, Mark } from "../lib/core/index.ts";
+import { cn } from "../lib/core/index.ts";
 import { Icon } from "../ui/icon.tsx";
 
 const chipTone = {

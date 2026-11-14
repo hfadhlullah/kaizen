@@ -1,5 +1,4 @@
-import { useWhatsApp } from "../lib/hooks/use-phone-setup.ts";
-import { waCard } from "../lib/phone-setup.ts";
+import { useWhatsApp, waCard } from "../lib/phone/index.ts";
 import { Button } from "../ui/button.tsx";
 import { CardBody, Dot, Err, Steps } from "./phone-card.tsx";
 import { QrCode } from "./qr-code.tsx";

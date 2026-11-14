@@ -1,7 +1,7 @@
 ---
 description: The board's Icebox page: capture box, boards bar, Cards | Sort, item menus, and the phone list with swipe
 tags: [project, sources, web-board]
-sources: [web/pages/icebox-page.tsx, web/components, web/lib/icebox.ts, web/lib/icebox-actions.ts, web/lib/icebox-store.ts, web/lib/icebox-view.ts, web/lib/hooks, web/board/react-mount.ts, web/board.html, web/board/views.ts, web/icebox.test.ts]
+sources: [web/pages/icebox-page.tsx, web/components, web/lib/icebox/icebox.ts, web/lib/icebox/icebox-actions.ts, web/lib/icebox/icebox-store.ts, web/lib/icebox/icebox-view.ts, web/lib/hooks, web/board/react-mount.ts, web/board.html, web/board/views.ts, web/icebox.test.ts]
 updated: 2026-11-14
 ---
 # Icebox page
@@ -11,7 +11,7 @@ The page where you throw things into the icebox and sort them out: a box to type
 
 ## Where it lives
 - React since 2026-11-14 (run 2026-11-14-frontend-rewrite-phase1, phase 2): `web/pages/icebox-page.tsx` is mounted into `#icev` by `openIcebox()` in `web/board/react-mount.ts` when `go("sources")` runs. It is a page of its own (the old one was drawn into the docked run panel, `#pbody`, and rebuilt by `openSources()` after every action); `sources` is in `AREA` in `views.ts`, so the panel closes as it does for Tasks. The header title, the project pickers (`#proj`, `#showc`) and the `body.ice` class are still the board's.
-- Layers: pieces in `web/components` (`capture-box`, `request-row`, `request-card`, `request-phone-row`, `request-detail`, `promote-form`, `reply-box`, `request-actions`, `kind-menu`, `board-menu`, `snooze-menu`, `choice-menu`, `collection-dialog`, `bulk-bar`, `swipe-deck`, `source-drawer`, `source-card`, `source-form`, `service-chip`, `favicon`, `project-mark`, `mic-button`, `segmented`, `filter-popover`, `picker`); the drawer is `ui/sheet`, the write-back and auto-gather switches `ui/switch`. Rules in `web/lib/icebox.ts` (types, `deriveIce`, `catOf`, `stepPast`, words), requests and toasts in `icebox-actions.ts`, page state in `icebox-store.ts` (Zustand), clicks in `icebox-view.ts`, data in `hooks/use-icebox.ts`, keys in `hooks/use-ice-keys.ts`, gestures in `hooks/use-card-drag.ts` and `use-row-swipe.ts`.
+- Layers: pieces in `web/components` (`capture-box`, `request-row`, `request-card`, `request-phone-row`, `request-detail`, `promote-form`, `reply-box`, `request-actions`, `kind-menu`, `board-menu`, `snooze-menu`, `choice-menu`, `collection-dialog`, `bulk-bar`, `swipe-deck`, `source-drawer`, `source-card`, `source-form`, `service-chip`, `favicon`, `project-mark`, `mic-button`, `segmented`, `filter-popover`, `picker`); the drawer is `ui/sheet`, the write-back and auto-gather switches `ui/switch`. Rules in `web/lib/icebox/icebox.ts` (types, `deriveIce`, `catOf`, `stepPast`, words), requests and toasts in `icebox-actions.ts`, page state in `icebox-store.ts` (Zustand), clicks in `icebox-view.ts`, data in `hooks/use-icebox.ts`, keys in `hooks/use-ice-keys.ts`, gestures in `hooks/use-card-drag.ts` and `use-row-swipe.ts`.
 - Data: `GET /sources[?dir=]` through `refreshIce()`: one request at a time, a stale answer dropped, refetched on `kz-changed` (live.ts dispatches it on every `changed` event), `kz-state` (a project switch) and `kz-shown` (the "Showing" picker, `setShown()`). Nothing is held back while a menu is open: React redraws in place.
 - What survives leaving the page lives in the store: filters, view (`kz-ice-view` per browser; a card's text switches to Sort for the visit only), checked items, open item, the capture text, files and picked collection, the add-source draft. The cursor (`cur`) is the row `j`/`k` walk and the row whose actions show; focus or a click on a row sets it, so a menu opened from it keeps its trigger visible.
 - Keys: `keys.ts` calls `react.iceKeys(e)` first while `view === "sources"`; it ignores keys while a text field or an open Radix popup (`data-state=open`) has them.
@@ -22,7 +22,7 @@ The page where you throw things into the icebox and sort them out: a box to type
 
 ## Watch out
 - A phone (<= 640 px) never reaches this page: `go()` sends `sources` to Home when `isPhone()`. The phone rows, swipe-by-drag and the full-screen swipe deck are kept (`request-phone-row`, `use-row-swipe`, `swipe-deck`) but only a test renders them; they were last proven on a device before the rewrite.
-- `lib/toast.ts` gives every toast its own id and dismisses the previous one: sonner keeps the old timer when a toast is replaced under the same id, so a message sent shortly before the old one ends vanished with it.
+- `lib/core/toast.ts` gives every toast its own id and dismisses the previous one: sonner keeps the old timer when a toast is replaced under the same id, so a message sent shortly before the old one ends vanished with it.
 - `deriveIce` returns the filters as they hold (an unknown board, category or source cleared); the page writes them back, as the old page did, so a filter that comes back later does not reapply.
 - Bulk actions, `j`/`k` and select-all act on the current page only (`store.order`); Swipe covers every filtered request (`store.deck`).
 

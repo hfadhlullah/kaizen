@@ -1,4 +1,4 @@
-import { run, useRunView } from "../lib/run-view-store.ts";
+import { run, useRunView } from "../lib/run/index.ts";
 import { StateDot } from "./state-dot.tsx";
 
 // The History tab: the workspace's finished runs, newest first; one opens read-only in the run panel.

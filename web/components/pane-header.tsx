@@ -1,4 +1,4 @@
-import { run, useRunView } from "../lib/run-view-store.ts";
+import { run, useRunView } from "../lib/run/index.ts";
 import {
   DropdownMenu,
   DropdownMenuContent,

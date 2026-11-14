@@ -1,5 +1,5 @@
 import type { SVGProps } from "react";
-import { cn } from "../lib/utils.ts";
+import { cn } from "../lib/core/utils.ts";
 
 // An icon from the board's SVG sprite (board.html), the same set the old pages draw with ico(). `sprite` is the
 // symbol prefix: "i" (default, #i-<name>), "s" (status marks), "c" (agents and tags), "t" (run tabs).

@@ -1,6 +1,6 @@
 import { Select as SelectPrimitive } from "radix-ui";
 import type { ComponentProps } from "react";
-import { cn, portalRoot } from "../lib/utils.ts";
+import { cn, portalRoot } from "../lib/core/utils.ts";
 import { Icon } from "./icon.tsx";
 
 export const Select = SelectPrimitive.Root;

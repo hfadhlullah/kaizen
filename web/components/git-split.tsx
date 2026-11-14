@@ -1,7 +1,5 @@
 import { useRef, useState } from "react";
-import { BUSY, type MainStep, type Step } from "../lib/git.ts";
-import { gitAct } from "../lib/git-actions.ts";
-import { busyOf, useGit } from "../lib/git-store.ts";
+import { BUSY, type MainStep, type Step, gitAct, busyOf, useGit } from "../lib/git/index.ts";
 import { Button } from "../ui/button.tsx";
 import {
   DropdownMenu,

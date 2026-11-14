@@ -1,9 +1,8 @@
-import { setBoard } from "../lib/board-store.ts";
-import { host } from "../lib/host.ts";
-import { usePanel } from "../lib/panel-store.ts";
-import { planQuestions } from "../lib/plan-questions.ts";
-import { backToTask } from "../lib/run-actions.ts";
+import { setBoard } from "../lib/board/index.ts";
+import { host } from "../lib/core/index.ts";
 import {
+  usePanel,
+  backToTask,
   acceptRun,
   acceptTask,
   answerKey,
@@ -13,7 +12,8 @@ import {
   decideRun,
   resumeRun,
   skipExplore,
-} from "../lib/run-actions.ts";
+} from "../lib/run/index.ts";
+import { planQuestions } from "../lib/decision/index.ts";
 import { DecisionBar, type RunActions } from "./decision-bar.tsx";
 
 // The footer of a run's panel: the decision strip for the run in it. It is DecisionBar, the piece the task page uses

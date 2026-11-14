@@ -1,5 +1,4 @@
-import { automationOp, setDraft } from "../lib/settings-actions.ts";
-import { useSettings } from "../lib/settings-store.ts";
+import { automationOp, setDraft, useSettings } from "../lib/settings/index.ts";
 import { Button } from "../ui/button.tsx";
 import { Input } from "../ui/input.tsx";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select.tsx";

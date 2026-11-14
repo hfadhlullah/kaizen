@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
-import type { Card } from "../lib/board.ts";
-import type { PlanQuestion } from "../lib/plan-questions.ts";
-import { need } from "../lib/labels.ts";
-import { APPROVAL } from "../lib/run-actions.ts";
-import { dirName, type TaskDecision, type TaskPageData } from "../lib/tasks.ts";
-import { toast } from "../lib/toast.ts";
+import type { Card } from "../lib/core/index.ts";
+import type { PlanQuestion } from "../lib/decision/index.ts";
+import { need, toast } from "../lib/core/index.ts";
+import { APPROVAL } from "../lib/run/index.ts";
+import { dirName, type TaskDecision, type TaskPageData } from "../lib/task/index.ts";
 import { Button } from "../ui/button.tsx";
 import {
   DropdownMenu,

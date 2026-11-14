@@ -1,6 +1,12 @@
-import { isLive, type Board, type IceItem } from "../lib/icebox.ts";
-import { armPromote, iceAct, snoozeAll } from "../lib/icebox-actions.ts";
-import { cn } from "../lib/utils.ts";
+import {
+  isLive,
+  type Board,
+  type IceItem,
+  armPromote,
+  iceAct,
+  snoozeAll,
+} from "../lib/icebox/index.ts";
+import { cn } from "../lib/core/index.ts";
 import { Button } from "../ui/button.tsx";
 import { Icon } from "../ui/icon.tsx";
 import { BoardMenu } from "./board-menu.tsx";

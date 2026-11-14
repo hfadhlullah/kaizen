@@ -1,8 +1,6 @@
-import { gitAct } from "../lib/git-actions.ts";
-import { fold } from "../lib/git-actions.ts";
-import { busyOf, useGit } from "../lib/git-store.ts";
-import type { GitRow as Row } from "../lib/git.ts";
-import { cn } from "../lib/utils.ts";
+import { gitAct, fold, busyOf, useGit } from "../lib/git/index.ts";
+import type { GitRow as Row } from "../lib/git/index.ts";
+import { cn } from "../lib/core/index.ts";
 import { GitCounts } from "./git-counts.tsx";
 import { GitIcon } from "./git-icon.tsx";
 import { Icon } from "../ui/icon.tsx";

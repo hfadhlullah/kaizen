@@ -3,8 +3,8 @@ import { $ } from "./dom.ts";
 import { commitMsg } from "./markdown.ts";
 import { react } from "./views.ts";
 
-// The run's Source control tab is React (web/components/git-tab.tsx, rules in web/lib/git.ts, requests in
-// web/lib/git-actions.ts). This module decides when the tab shows and hands it the run's git state on every redraw of
+// The run's Source control tab is React (web/components/git-tab.tsx, rules in web/lib/git/git.ts, requests in
+// web/lib/git/git-actions.ts). This module decides when the tab shows and hands it the run's git state on every redraw of
 // the panel; what the user typed and which confirm is open live in the tab's own store.
 
 // Commits only after the final approval, and only on a finished run.

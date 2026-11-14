@@ -1,12 +1,18 @@
 import { useEffect, useRef } from "react";
-import { iceKey, type IceItem } from "../lib/icebox.ts";
-import { cancelPromote, submitPromote, taskDraft } from "../lib/icebox-actions.ts";
-import { setIce, useIce } from "../lib/icebox-store.ts";
+import {
+  iceKey,
+  type IceItem,
+  cancelPromote,
+  submitPromote,
+  taskDraft,
+  setIce,
+  useIce,
+} from "../lib/icebox/index.ts";
 import { Button } from "../ui/button.tsx";
 import { Icon } from "../ui/icon.tsx";
 import { fieldClass, Input } from "../ui/input.tsx";
 import { Textarea } from "../ui/textarea.tsx";
-import { cn } from "../lib/utils.ts";
+import { cn } from "../lib/core/index.ts";
 import { Field } from "./field.tsx";
 
 // Promote: a clean title for the task's card and the person's own details; what was gathered is added to the task's

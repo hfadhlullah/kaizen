@@ -1,4 +1,4 @@
-import { useBoard } from "../lib/board-store.ts";
+import { useBoard } from "../lib/board/index.ts";
 import { Segmented } from "./segmented.tsx";
 
 // The Board header's Workspaces | Runs switch: which of the two views of the same work the Board shows.

@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { toast } from "../lib/toast.ts";
+import { toast } from "../lib/core/index.ts";
 import { Button } from "../ui/button.tsx";
 import { Textarea } from "../ui/textarea.tsx";
 import { FormFrame } from "./form-frame.tsx";

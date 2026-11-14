@@ -1,5 +1,5 @@
 import type { ComponentProps } from "react";
-import { cn } from "../lib/utils.ts";
+import { cn } from "../lib/core/utils.ts";
 
 // The board's text field (.sel on an input): 32px, soft border, dims to the ink on hover.
 export const fieldClass =

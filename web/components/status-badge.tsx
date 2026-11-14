@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { cn } from "../lib/utils.ts";
+import { cn } from "../lib/core/index.ts";
 import { Badge } from "../ui/badge.tsx";
 
 type Category = "needs-you" | "in-progress" | "completed";

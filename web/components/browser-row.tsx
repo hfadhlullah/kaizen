@@ -1,8 +1,15 @@
 import { useEffect, useState } from "react";
-import { host } from "../lib/host.ts";
-import { setBrowserPref, setFont, setHaptic, setNotify, setSound } from "../lib/settings-actions.ts";
-import { notifyHelp, clampFont } from "../lib/settings.ts";
-import { useSettings } from "../lib/settings-store.ts";
+import { host } from "../lib/core/index.ts";
+import {
+  setBrowserPref,
+  setFont,
+  setHaptic,
+  setNotify,
+  setSound,
+  notifyHelp,
+  clampFont,
+  useSettings,
+} from "../lib/settings/index.ts";
 import { Input } from "../ui/input.tsx";
 import { Switch } from "../ui/switch.tsx";
 import { Field } from "./field.tsx";

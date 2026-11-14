@@ -1,9 +1,14 @@
 import { useEffect, useRef } from "react";
-import { useLiveFrame } from "../lib/hooks/use-live-frame.ts";
-import { useSavedText } from "../lib/hooks/use-saved-text.ts";
-import { artifactMode, isLive, sizeLabel, type TaskArtifact } from "../lib/task-results.ts";
-import { wireZoom } from "../lib/zoom.ts";
-import { cn } from "../lib/utils.ts";
+import {
+  useLiveFrame,
+  useSavedText,
+  artifactMode,
+  isLive,
+  sizeLabel,
+  type TaskArtifact,
+  wireZoom,
+} from "../lib/task/index.ts";
+import { cn } from "../lib/core/index.ts";
 import { Button } from "../ui/button.tsx";
 
 const soft = "rounded-md border border-[color:color-mix(in_srgb,var(--line)_40%,transparent)]";
@@ -40,7 +45,7 @@ function TextView({ href, name }: { href: string; name: string }) {
     </pre>
   );
 }
-// An image with pinch, wheel, drag and double-click zoom (lib/zoom.ts drives the box and the percentage).
+// An image with pinch, wheel, drag and double-click zoom (lib/task/zoom.ts drives the box and the percentage).
 function ImageView({ href, name }: { href: string; name: string }) {
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => void (box.current && wireZoom(box.current.parentElement!)), [href]);

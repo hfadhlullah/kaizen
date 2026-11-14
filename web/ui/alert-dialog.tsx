@@ -1,6 +1,6 @@
 import { AlertDialog as AlertPrimitive } from "radix-ui";
 import type { ComponentProps } from "react";
-import { cn, portalRoot } from "../lib/utils.ts";
+import { cn, portalRoot } from "../lib/core/utils.ts";
 import { buttonVariants } from "./button.tsx";
 
 export const AlertDialog = AlertPrimitive.Root;

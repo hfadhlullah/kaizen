@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { listMics, saveMic, savedMic } from "../lib/mic.ts";
+import { listMics, saveMic, savedMic } from "../lib/settings/index.ts";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select.tsx";
 import { Field } from "./field.tsx";
 

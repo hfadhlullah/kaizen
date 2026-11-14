@@ -7,9 +7,9 @@ import {
   type GitDoc,
   type GitRow,
   type Step,
-} from "../lib/git.ts";
-import { gitAct } from "../lib/git-actions.ts";
-import { cn } from "../lib/utils.ts";
+  gitAct,
+} from "../lib/git/index.ts";
+import { cn } from "../lib/core/index.ts";
 import { Icon } from "../ui/icon.tsx";
 import { GitCounts } from "./git-counts.tsx";
 import { IconButton } from "./icon-button.tsx";

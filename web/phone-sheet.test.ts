@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { agentMark } from "./lib/phone-sheet.ts";
+import { agentMark } from "./lib/phone/phone-sheet.ts";
 
 test("an agent shows its own mark when the sprite has one, else the generic mark", () => {
   const has = (id: string) => id === "i-codex";

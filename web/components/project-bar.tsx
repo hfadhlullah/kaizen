@@ -1,7 +1,6 @@
 import { useState } from "react";
-import { host } from "../lib/host.ts";
-import { ALL, isAction, showingCount, showingLabel, useProjectBar } from "../lib/project-bar.ts";
-import { cn } from "../lib/utils.ts";
+import { host, cn } from "../lib/core/index.ts";
+import { ALL, isAction, showingCount, showingLabel, useProjectBar } from "../lib/project/index.ts";
 import { Button } from "../ui/button.tsx";
 import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "../ui/command.tsx";
 import { Icon } from "../ui/icon.tsx";

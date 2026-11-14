@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { shownRows, useSearch } from "../lib/search.ts";
-import type { Item } from "../lib/search-match.ts";
+import { shownRows, useSearch } from "../lib/search/index.ts";
+import type { Item } from "../lib/search/index.ts";
 import { Command, CommandGroup, CommandInput, CommandItem, CommandList } from "../ui/command.tsx";
 import { Dialog, DialogContent, DialogTitle } from "../ui/dialog.tsx";
 import { StateDot } from "./state-dot.tsx";
@@ -49,7 +49,7 @@ const Glyph = ({ name, className }: { name: string; className?: string }) => (
 );
 
 // Search over everything the side menu holds: workspaces, runs and tasks, chats, terminals, projects, pages and actions.
-// Rows come from board/search.ts through lib/search.ts; typing filters them, Enter or a click opens one.
+// Rows come from board/search.ts through lib/search/search.ts; typing filters them, Enter or a click opens one.
 export function SearchPalette() {
   const open = useSearch((s) => s.open),
     items = useSearch((s) => s.items),

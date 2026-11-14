@@ -1,5 +1,5 @@
-import { loadSettings } from "../lib/settings-store.ts";
-import type { Section } from "../lib/settings.ts";
+import { loadSettings } from "../lib/settings/index.ts";
+import type { Section } from "../lib/settings/index.ts";
 import { Button } from "../ui/button.tsx";
 import { SettingsItem } from "./settings-item.tsx";
 
