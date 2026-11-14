@@ -1,7 +1,7 @@
 // The notebook page. Bundled into web/notebook.js by `bun run build:web`; the page
 // never sees the filesystem, only /vault. See design.md, "Notebook", for the look.
-import { refreshBoardBadge } from "./board/badge.ts";
-import { initRail } from "./board/workspace.ts";
+import { refreshBoardBadge } from "../board/badge.ts";
+import { initRail } from "../board/workspace.ts";
 // embed=1: a run workspace's note tab shows the note alone, without the side menu and header.
 if (new URLSearchParams(location.search).has("embed")) document.body.classList.add("embed");
 import {

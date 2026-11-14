@@ -1,5 +1,5 @@
 import { esc } from "./dom.ts";
-import { safeUrl } from "../notes-lib.ts";
+import { safeUrl } from "../notebook/notes-lib.ts";
 
 // The builder's "## Preview" section of 03-impl.md: how to run the app, or the result itself,
 // and its "### How to test" steps.

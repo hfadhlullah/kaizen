@@ -41,7 +41,7 @@ import { GitHost } from "../components/git/index.ts";
 import { setGit } from "../lib/git/index.ts";
 import { getSettings, loadSettings, setSettings, pageId } from "../lib/settings/index.ts";
 import { SettingsPage } from "../pages/settings-page.tsx";
-import { FONT_MAX, FONT_MIN, fontRead, fontSet } from "../term-font.ts";
+import { FONT_MAX, FONT_MIN, fontRead, fontSet } from "../term/term-font.ts";
 import { BoardPage } from "../pages/board-page.tsx";
 import { TaskPage } from "../pages/task-page.tsx";
 import { HomePage } from "../pages/home-page.tsx";

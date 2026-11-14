@@ -57,7 +57,7 @@ const UI_CSS = join(dirname(import.meta.dir), "web", "ui.css");
 const NOTES_JS = join(dirname(import.meta.dir), "web", "notebook.js");
 // The in-card terminal (agent.launch: card): xterm.js, bundled the same way.
 const TERM_JS = join(dirname(import.meta.dir), "web", "term.js");
-const ANNOTATE_JS = join(dirname(import.meta.dir), "web", "annotate.js");
+const ANNOTATE_JS = join(dirname(import.meta.dir), "web", "annotate", "annotate.js");
 const TERM_CSS = join(dirname(import.meta.dir), "web", "term.css");
 // The Video page (kaizen-video's library, editor and renders) and its bundle.
 const VIDEO_PAGE = join(dirname(import.meta.dir), "web", "video.html");

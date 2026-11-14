@@ -5,7 +5,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, readdi
 import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
 import { safeName, listNotes, saveNote, renameNote, deleteNote, boardIndex, linksTo } from "./notes.ts";
-import { wikilinks, tags, resolve, safeUrl, tree, uncode, freshName, parseTable, boardLink, resolveRun, anchorWords, pickProject } from "../web/notes-lib.ts";
+import { wikilinks, tags, resolve, safeUrl, tree, uncode, freshName, parseTable, boardLink, resolveRun, anchorWords, pickProject } from "../web/notebook/notes-lib.ts";
 import { sourceHash, OUT, TERM_OUT, BOARD_OUT, BOT_OUT, VIDEO_OUT, UI_CSS_OUT } from "./build-web.ts";
 
 let state = "";

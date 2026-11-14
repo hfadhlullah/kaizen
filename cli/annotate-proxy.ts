@@ -12,7 +12,7 @@ export type Proxy = { origin: string; port: number; target: string; token: strin
 const LOOP = ["localhost", "127.0.0.1", "[::1]"];
 export const isLoopbackHost = (h: string) => LOOP.includes(h.toLowerCase());
 const IDLE_MS = 6 * 3600_000; // a page left open overnight keeps working; the port is freed when the board stops
-const SCRIPT = join(import.meta.dir, "..", "web", "annotate.js");
+const SCRIPT = join(import.meta.dir, "..", "web", "annotate", "annotate.js");
 
 const proxies = new Map<string, Proxy>(); // by target origin
 

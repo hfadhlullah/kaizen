@@ -4,7 +4,7 @@
 import { existsSync, mkdirSync, readdirSync, realpathSync, renameSync, rmdirSync, statSync, writeFileSync } from "node:fs";
 import { join, dirname, resolve, sep } from "node:path";
 import { backlogLines, boardCards, reviewFindings, readText } from "./state.ts";
-import { wikilinks, boardLink, resolveRun } from "../web/notes-lib.ts";
+import { wikilinks, boardLink, resolveRun } from "../web/notebook/notes-lib.ts";
 
 export type Note = { name: string; mtime: number; text: string };
 
