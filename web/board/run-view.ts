@@ -24,7 +24,6 @@ import { cardHref, markCurrent, railData, stateOf, titleOf, wsHref, wsOfCard } f
 import { awaiting, chosen, devUrl, dueWord, finished, gitDue, historyOf, leaves, liveIn, loopbackUrl, migrate, newRun, pickable, previewIn, previewOpens, reviewing, stageTabs, toOpen, wsKey } from "./ws-tabs.ts";
 import { age } from "./labels.ts";
 import { go } from "./views.ts";
-import { annotator } from "./annotate.ts";
 import { react } from "./views.ts";
 import { boxesOf, detach, focusItem, keepUrl, layoutOf, moveInLayout, nearestPane, openAppWindow, patch, placeItems, refreshPreview, replaceAll, requestBrowse, clearBrowse, rects, selectScreen, setDragging, setRunActions, setRunView, setTarget, showItem, useLayout, type Saved, type SavedTab } from "@lib/run";
 
@@ -730,7 +729,6 @@ export function initRunView() {
     termEnded: () => load(true),
     currentRun: () => (card?.id ? { dir: card.state, id: card.id } : null),
     mountPreview: (el) => void previewPane(el),
-    annotate: (o) => annotator({ ...o, run: () => (card?.id ? { dir: card.state, id: card.id } : null) }),
   });
   // A /state change: new or ended sessions, the card's own state. Panes stay mounted.
   addEventListener("kz-state", () => {

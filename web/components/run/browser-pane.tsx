@@ -17,10 +17,11 @@ import {
   startUrl,
   useLayout,
   withScheme,
-  type AnnotatorLike,
   type Nav,
 } from "@lib/run";
-import { toast } from "@lib/core";
+import { createAnnotator } from "@lib/annotate";
+import { AnnotatePanel } from "@components/annotate";
+import { cn, toast } from "@lib/core";
 import { Icon } from "@web/ui";
 
 type Act = { t: "go"; u: string } | { t: "reload" | "back" | "fwd" } | { t: "landed"; u: string };
@@ -67,28 +68,28 @@ export function BrowserPane({ wsk }: { wsk: string }) {
     [ext, setExt] = useState<string | null>(null),
     req = useLayout((s) => s.browse),
     frame = useRef<HTMLIFrameElement>(null),
-    row = useRef<HTMLDivElement>(null),
-    annBtn = useRef<HTMLButtonElement>(null),
-    ann = useRef<AnnotatorLike | null>(null),
+    // The annotator (lib/annotate): its state, keys and the page's messages; AnnotatePanel draws its toolbar and notes.
+    [ann] = useState(() =>
+      createAnnotator({
+        frame: () => frame.current,
+        wsKey: wsk,
+        run: () => run.act.currentRun(),
+        reload: () => dispatch({ t: "reload" }),
+        // The framed page navigated on its own: show its address, do not load it again.
+        onLocation: (u) => dispatch({ t: "landed", u }),
+      }),
+    ),
+    annOn = ann.use((s) => s.want),
     cur = useRef(nav.url);
   cur.current = nav.url;
 
   useEffect(() => {
-    ann.current = run.act.annotate({
-      host: row.current!,
-      frame: frame.current!,
-      wsKey: wsk,
-      button: annBtn.current!,
-      reload: () => dispatch({ t: "reload" }),
-      // The framed page navigated on its own: show its address, do not load it again.
-      onLocation: (u) => dispatch({ t: "landed", u }),
-    });
     // The page navigated on its own (a link, a form, a redirect after login): show its address. Through the
     // annotator's proxy the page reports its address itself (onLocation).
     if (!web) return;
     const f = frame.current!,
       nav2 = (e: any) => {
-        if (e.isMainFrame === false || ann.current?.proxied() || !/^https?:\/\//.test(e.url)) return;
+        if (e.isMainFrame === false || ann.proxied() || !/^https?:\/\//.test(e.url)) return;
         dispatch({ t: "landed", u: e.url });
       };
     f.addEventListener("did-navigate", nav2);
@@ -135,7 +136,7 @@ export function BrowserPane({ wsk }: { wsk: string }) {
     setNote(null);
     let live = true;
     // Annotate on: a loopback page is framed through the board's proxy (annotate-proxy.ts), which adds the picker.
-    void ann.current!.open(u).then((via) => {
+    void ann.open(u).then((via) => {
       if (!live) return;
       f.src = via ?? u;
       // Most public sites refuse to be framed (X-Frame-Options / frame-ancestors), and the browser only shows its own
@@ -179,12 +180,11 @@ export function BrowserPane({ wsk }: { wsk: string }) {
           onChange={(e) => setDraft(e.target.value)}
         />
         <button
-          ref={annBtn}
           type="button"
-          className="rwin"
+          className={cn("rwin", annOn && "on")}
           hidden={!loopback}
           title="Pick elements on this page and send notes to the agent (localhost pages)"
-          onClick={() => ann.current?.toggle()}
+          onClick={ann.toggle}
         >
           <Icon name="eye" className={small} />
           <span>Annotate</span>
@@ -194,8 +194,9 @@ export function BrowserPane({ wsk }: { wsk: string }) {
           <span>New tab</span>
         </a>
       </form>
-      <div ref={row} className="annrow kz-keep">
+      <div className="annrow kz-keep">
         {createElement(web ? "webview" : "iframe", { ref: frame, hidden: !frameOn, ...FRAME })}
+        <AnnotatePanel ann={ann} />
       </div>
       <p className="rnote kz-keep" hidden={!note}>
         {note?.refused ? <Refused u={note.refused} /> : note?.text}

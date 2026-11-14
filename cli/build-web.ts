@@ -1,7 +1,7 @@
 // `bun run build:web`: bundles the notebook's script and CodeMirror into
 // web/dist/notebook.js, the in-card terminal and xterm.js into web/dist/term.js (+ its
 // stylesheet, web/dist/term.css), the board's modules (web/board/) into web/dist/board.js and
-// Kaizen Bot's page modules (bot/web/app/) into bot/web/app.js, the Video page's script into web/dist/video.js, all committed, so an install or a checkout serves it with no
+// Kaizen Bot's page modules (bot/web/app/) into bot/web/app.js, the Video page's script into web/dist/video.js and the annotator's page script (web/annotate/) into web/dist/annotate.js, all committed, so an install or a checkout serves it with no
 // install step and no network. The first line is a hash of what it was built from;
 // cli/notes.test.ts fails when a committed file no longer matches.
 import { createHash } from "node:crypto";
@@ -15,12 +15,13 @@ const tree = (dir: string): string[] =>
   readdirSync(join(root, dir), { withFileTypes: true })
     .sort((a, b) => (a.name < b.name ? -1 : 1))
     .flatMap((e) => (e.isDirectory() ? tree(`${dir}/${e.name}`) : /\.tsx?$/.test(e.name) && !/\.test\.tsx?$/.test(e.name) ? [`${dir}/${e.name}`] : []));
-const SOURCES = ["web/notebook/notebook.ts", "web/notebook/notes-lib.ts", "web/notebook/kit.ts", "web/notebook/kit-loader.ts", "web/term/term.ts", "web/video/video.ts", ...modules("web/board"), ...modules("bot/web/app"), ...["ui", "components", "pages", "lib"].flatMap((d) => tree(`web/${d}`)), "web/ui/theme.css"];
+const SOURCES = ["web/notebook/notebook.ts", "web/notebook/notes-lib.ts", "web/notebook/kit.ts", "web/notebook/kit-loader.ts", "web/term/term.ts", "web/video/video.ts", "web/annotate/annotate.ts", ...modules("web/board"), ...modules("bot/web/app"), ...["ui", "components", "pages", "lib"].flatMap((d) => tree(`web/${d}`)), "web/ui/theme.css"];
 export const OUT = join(root, "web", "dist", "notebook.js");
 export const TERM_OUT = join(root, "web", "dist", "term.js");
 export const BOARD_OUT = join(root, "web", "dist", "board.js");
 export const BOT_OUT = join(root, "bot", "web", "app.js");
 export const VIDEO_OUT = join(root, "web", "dist", "video.js");
+export const ANNOTATE_OUT = join(root, "web", "dist", "annotate.js");
 export const UI_CSS_OUT = join(root, "web", "dist", "ui.css");
 
 // The sources and the exact dependency versions: a CodeMirror bump is a rebuild too.
@@ -39,9 +40,10 @@ if (import.meta.main) {
     ["web/board/main.ts", BOARD_OUT, "board"],
     ["bot/web/app/main.ts", BOT_OUT, "bot page"],
     ["web/video/video.ts", VIDEO_OUT, "video page"],
+    ["web/annotate/annotate.ts", ANNOTATE_OUT, "annotator page script"],
   ] as const;
   for (const [src, out, what] of bundles) {
-    // The terminal, the board and the bot page are classic scripts: wrapped, or their
+    // The terminal, the board, the bot page and the annotator's page script are classic scripts: wrapped, or their
     // top-level names collide with each other's globals and the whole file is refused.
     // React reads process.env.NODE_ENV: without this the board carries React's development build (twice the size, slower).
     const define = what === "board" || what === "notebook" ? { "process.env.NODE_ENV": '"production"' } : undefined;

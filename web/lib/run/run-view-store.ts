@@ -4,7 +4,6 @@
 // snapshot on every draw and answers the callbacks below. The layout (which item is in which pane, and how big) is the
 // layout store's; a pane is a component keyed by its item, so a redraw never moves a live terminal.
 import { create } from "zustand";
-import type { AnnotateOpts, AnnotatorLike } from "./browser.ts";
 
 export type RvItem = { id: string; kind: string; title: string; agent?: string };
 // One open item of the workspace: a terminal (agent, shell), the Browser (local), the Preview, a note, History, or the
@@ -53,7 +52,6 @@ export type RunActions = {
   termEnded(): void; // a terminal's session ended: the board reads /state again
   currentRun(): { dir: string; id: string } | null; // the run the panel shows (the annotator sends notes to it)
   mountPreview(el: HTMLElement): void; // draws the Preview tab into el (still the old code)
-  annotate(o: AnnotateOpts): AnnotatorLike; // the Browser tab's annotator (still the old code)
 };
 export const useRunView = create<RunView>()(() => ({
   message: null,
@@ -93,7 +91,6 @@ export const run: { act: RunActions } = {
     termEnded: noop,
     currentRun: () => null,
     mountPreview: noop,
-    annotate: () => ({ proxied: () => false, open: async () => null, toggle: noop }),
   },
 };
 export const setRunActions = (a: RunActions) => (run.act = a);

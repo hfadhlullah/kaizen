@@ -51,15 +51,3 @@ export async function openAppWindow(url: string): Promise<string | null> {
   if (r?.ok) return null;
   return "Could not open a browser window" + (r ? ": " + ((await r.json().catch(() => ({}))) as any).error : "");
 }
-
-// The annotator the Browser tab drives (web/board/annotate.ts, not React yet): the tab hands it its elements and asks
-// for the address to load (through the board's proxy when the annotator is on), and toggles it from its button.
-export type AnnotatorLike = { proxied(): boolean; open(u: string): Promise<string | null>; toggle(): void };
-export type AnnotateOpts = {
-  host: HTMLElement;
-  frame: HTMLElement;
-  wsKey: string;
-  button: HTMLElement;
-  reload(): void;
-  onLocation(u: string): void;
-};

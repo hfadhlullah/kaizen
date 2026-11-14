@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { accept, acceptHost, mapUrl, safeCrop } from "./annotate-lib.ts";
+import { accept, acceptHost, mapUrl, safeCrop } from "./rules.ts";
 
 const win = {};
 const good = { source: win, origin: "http://127.0.0.1:5000", data: { kz: 1, t: "tok", type: "note" } };
@@ -15,7 +15,9 @@ test("a page message counts only from the frame, the proxy origin and the token"
 });
 
 test("the proxy address is shown as the app's own", () => {
-  expect(mapUrl("http://127.0.0.1:5000/a?b=1#c", "http://127.0.0.1:5000", "http://localhost:4321")).toBe("http://localhost:4321/a?b=1#c");
+  expect(mapUrl("http://127.0.0.1:5000/a?b=1#c", "http://127.0.0.1:5000", "http://localhost:4321")).toBe(
+    "http://localhost:4321/a?b=1#c",
+  );
   expect(mapUrl("https://other.test/x", "http://127.0.0.1:5000", "http://localhost:4321")).toBeNull();
   expect(mapUrl("javascript:alert(1)", "http://127.0.0.1:5000", "http://localhost:4321")).toBeNull();
   expect(mapUrl("not a url", "http://127.0.0.1:5000", "http://localhost:4321")).toBeNull();

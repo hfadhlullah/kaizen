@@ -1,19 +1,23 @@
-// kaizen's annotator, the script the board's proxy adds to a framed page (cli/annotate-proxy.ts).
-// Plain JS, no dependencies, nothing else loaded. It lets the user pick an element, text, several
+// kaizen's annotator, the script the board's proxy adds to a framed page (cli/annotate-proxy.ts). Bundled by
+// `bun run build:web` into web/dist/annotate.js, one wrapped script with no dependencies and nothing else loaded
+// (the rules that need no page are in web/lib/annotate/page.ts). It lets the user pick an element, text, several
 // elements or an area, write a note and see numbered markers. It never changes the page except for
 // its own overlay (and Pause). It talks to the board only by postMessage, signed with the per-open
 // token in its own URL; the board keeps the notes and decides what to do with them.
+import { AREA_MAX, CROP_BUDGET, CROP_CHARS, areaBigEnough, areaLabel, buildNote, composerPos, cropScales, cropWindow, goodClass, insideArea, markerPos, quote, rectOf, tipPos, tooBig, union } from "@lib/annotate/page.ts";
+
 (() => {
   // Framed by the board, or the desktop app's Browser tab (a <webview>, where the page has no parent
   // and the app's preload sets __kzHost and relays the messages).
-  const hosted = window.parent !== window || window.__kzHost === true;
-  if (window.__kzAnnotate || !hosted) return;
-  window.__kzAnnotate = true;
-  const script = document.currentScript;
+  const W = window as any;
+  const hosted = window.parent !== window || W.__kzHost === true;
+  if (W.__kzAnnotate || !hosted) return;
+  W.__kzAnnotate = true;
+  const script = document.currentScript as HTMLScriptElement | null;
   // The proxy's <script src="…?t=token">, or (desktop app, public site) the token the board set
   // before running this script in the page.
-  let token = typeof window.__kzAnnToken === "string" ? window.__kzAnnToken : "";
-  if (!token) try { token = new URL(script.src).searchParams.get("t") || ""; } catch {}
+  let token = typeof W.__kzAnnToken === "string" ? W.__kzAnnToken : "";
+  if (!token) try { token = new URL(script!.src).searchParams.get("t") || ""; } catch {}
   const parent = window.parent;
   // `out` marks what the page says, so the webview's relay forwards it and not what the board sends.
   const send = (m) => parent.postMessage({ kz: 1, t: token, out: 1, ...m }, "*");
@@ -50,7 +54,6 @@
   // ---- naming an element: a selector that finds exactly it, a path, source and component ----
   const esc = (s) => (window.CSS && CSS.escape ? CSS.escape(s) : s.replace(/[^\w-]/g, "\\$&"));
   const uniq = (sel) => { try { return document.querySelectorAll(sel).length === 1; } catch { return false; } };
-  const goodClass = (c) => c.length < 24 && !/\d{3,}|^css-|^_|^sc-|^jsx-/.test(c);
   function selectorFor(el) {
     if (el.id && uniq("#" + esc(el.id))) return "#" + esc(el.id);
     const t = el.getAttribute("data-testid");
@@ -112,7 +115,8 @@
   const host = document.createElement("div");
   host.style.cssText = "all:initial;position:fixed;inset:0;z-index:2147483647;pointer-events:none";
   const root = host.attachShadow({ mode: "closed" });
-  root.innerHTML = `<style>
+  const sheet = document.createElement("style");
+  sheet.textContent = `
     *{box-sizing:border-box;font:12px/1.4 system-ui,sans-serif}
     .b{position:fixed;pointer-events:none;border:2px solid var(--c);background:color-mix(in srgb,var(--c) 14%,transparent);border-radius:2px}
     .b.mk{border-width:1.5px;border-style:dashed;background:color-mix(in srgb,var(--c) 6%,transparent)}.b.mk.on{border-style:solid;background:color-mix(in srgb,var(--c) 14%,transparent)}
@@ -134,15 +138,15 @@
     .t{position:fixed;width:260px;background:#1c1c1e;color:#f2f2f7;border:1px solid #2c2c2e;border-radius:12px;padding:8px 12px;pointer-events:none;box-shadow:0 8px 28px #0008;white-space:pre-wrap;word-break:break-word}
     .t small{display:block;color:#98989f;margin-top:4px}
     .p{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#1c1c1e;color:#f2f2f7;border:1px solid #2c2c2e;border-radius:999px;padding:6px 8px 6px 16px;pointer-events:auto;display:flex;gap:8px;align-items:center}
-  </style><div id="o"></div>`;
-  const layer = root.getElementById("o");
+  `;
+  const layer = document.createElement("div");
+  root.append(sheet, layer);
   layer.style.setProperty("--c", cfg.color);
   const mount = () => document.documentElement.append(host);
   mount();
 
   const el = (cls, css, text) => { const d = document.createElement("div"); d.className = cls; if (css) d.style.cssText = css; if (text) d.textContent = text; return d; };
   const box = (r, cls = "b") => el(cls, `left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px`);
-  const union = (rs) => { const l = Math.min(...rs.map((r) => r.left)), t = Math.min(...rs.map((r) => r.top)), rr = Math.max(...rs.map((r) => r.right)), b = Math.max(...rs.map((r) => r.bottom)); return { left: l, top: t, right: rr, bottom: b, width: rr - l, height: b - t }; };
 
   let hov = null, tip = null;
   function paint() {
@@ -172,14 +176,16 @@
         if (!r) return;
         // What the note marks stays outlined (dashed; solid while its number is hovered), not only its number.
         add(box(r, "b mk" + (m.kind === "multi" || m.kind === "area" ? " g" : "") + (tip === m ? " on" : "")));
-        const d = el("m dyn" + (m.kind === "multi" || m.kind === "area" ? " g" : ""), `left:${Math.min(innerWidth - 12, r.left + r.width)}px;top:${Math.max(12, r.top)}px`, String(m.n));
+        const mp = markerPos(r, innerWidth);
+        const d = el("m dyn" + (m.kind === "multi" || m.kind === "area" ? " g" : ""), `left:${mp.left}px;top:${mp.top}px`, String(m.n));
         d.onclick = (e) => { e.stopPropagation(); send({ type: "marker", n: m.n }); };
-        d.onmouseenter = () => { tip = m; paint(); };
-        d.onmouseleave = () => { tip = null; paint(); };
+        d.onmouseenter = () => { if (tip !== m) { tip = m; paint(); } };
+        d.onmouseleave = () => { if (tip === m) { tip = null; paint(); } };
         add(d);
         // the comment sits under its block, as in Agentation
         if (tip === m && m.comment && !draft) {
-          const t = el("t", `left:${Math.max(8, Math.min(innerWidth - 268, r.left))}px;top:${Math.min(r.top + r.height + 8, innerHeight - 90)}px`);
+          const tp = tipPos(r, innerWidth, innerHeight);
+          const t = el("t", `left:${tp.left}px;top:${tp.top}px`);
           t.append(String(m.comment).slice(0, 600));
           const sm = document.createElement("small"); sm.textContent = `${m.intent || ""} · ${m.severity || ""}`; t.append(sm);
           add(t);
@@ -187,7 +193,6 @@
       });
     }
   }
-  const rectOf = (d) => { const l = Math.min(d.x0, d.x1), t = Math.min(d.y0, d.y1); return { left: l, top: t, width: Math.abs(d.x1 - d.x0), height: Math.abs(d.y1 - d.y0), right: l + Math.abs(d.x1 - d.x0), bottom: t + Math.abs(d.y1 - d.y0) }; };
 
   // ---- the note box ----
   let composer = null;
@@ -196,9 +201,9 @@
     closeComposerUi();
     const r = d.rect;
     const c = el("c");
-    const below = r.bottom + 330 < innerHeight;
-    c.style.left = Math.max(8, Math.min(innerWidth - 316, r.left)) + "px";
-    c.style.top = below ? Math.min(r.bottom + 8, innerHeight - 200) + "px" : Math.max(8, r.top - 190) + "px";
+    const at = composerPos(r, innerWidth, innerHeight);
+    c.style.left = at.left + "px";
+    c.style.top = at.top + "px";
     const code = document.createElement("code"); code.textContent = d.label;
     const ta = document.createElement("textarea"); ta.placeholder = d.kind === "text" ? "What should change about this text?" : "What should change?";
     const row = el("r");
@@ -224,19 +229,18 @@
   async function finish(comment, intent, severity) {
     const d = draft, first = d.els[0];
     closeComposerUi();
-    const note = {
-      kind: d.kind, comment, intent, severity,
-      selector: selectorFor(first), items: d.els.length > 1 ? d.els.map(selectorFor) : [],
-      path: pathOf(first), text: textOf(first).slice(0, 200), tag: describe(first), url: location.href,
-      box: `${Math.round(d.rect.left + scrollX)},${Math.round(d.rect.top + scrollY)} ${Math.round(d.rect.width)}x${Math.round(d.rect.height)}`,
-      pb: { x: d.rect.left + scrollX, y: d.rect.top + scrollY, w: d.rect.width, h: d.rect.height }, page: location.pathname,
-      attrs: attrsOf(first), styles: stylesOf(first),
-      nearby: [first.previousElementSibling, first.nextElementSibling].filter(Boolean).map((e) => textOf(e).slice(0, 80)).filter(Boolean).join(" | "),
-      selected: d.selected || "",
-    };
     const s = sourceOf(first);
-    note.source = s.source;
-    note.components = cfg.components ? s.components : "";
+    const note: any = buildNote(
+      { kind: d.kind, rect: d.rect, count: d.els.length, selected: d.selected },
+      {
+        selector: selectorFor(first), items: d.els.length > 1 ? d.els.map(selectorFor) : [], path: pathOf(first), text: textOf(first), tag: describe(first), url: location.href, page: location.pathname,
+        attrs: attrsOf(first), styles: stylesOf(first),
+        nearby: [first.previousElementSibling, first.nextElementSibling].filter(Boolean).map((e) => textOf(e).slice(0, 80)).filter(Boolean).join(" | "),
+        source: s.source, components: cfg.components ? s.components : "",
+      },
+      { comment, intent, severity },
+      { x: scrollX, y: scrollY },
+    );
     draft = null; multi = []; paint();
     note.crop = await crop(d.els, d.rect);
     send({ type: "note", note });
@@ -270,19 +274,16 @@
     try {
       let base = common(els);
       let br = base.getBoundingClientRect();
-      if (br.width > 2400 || br.height > 2400) { base = els[0]; br = base.getBoundingClientRect(); }
-      if (br.width < 2 || br.height < 2 || br.width > 2400 || br.height > 2400) return undefined;
-      const c = snap(base, { n: 1500 });
-      const w = Math.ceil(br.width), h = Math.ceil(br.height);
+      if (tooBig(br)) { base = els[0]; br = base.getBoundingClientRect(); }
+      const win = cropWindow(br, want);
+      if (!win) return undefined;
+      const { w, h, sx, sy, sw, sh } = win;
+      const c = snap(base, { n: CROP_BUDGET });
       c.style.cssText += `;margin:0;transform:none;position:static;width:${w}px;height:${h}px;box-sizing:border-box`;
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><foreignObject x="0" y="0" width="100%" height="100%">${new XMLSerializer().serializeToString(c)}</foreignObject></svg>`;
       const img = new Image();
       await new Promise((ok, no) => { img.onload = ok; img.onerror = () => no(new Error("render")); setTimeout(() => no(new Error("timeout")), 2500); img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg); });
-      const sx = Math.max(0, want.left - br.left), sy = Math.max(0, want.top - br.top);
-      const sw = Math.min(w - sx, want.width), sh = Math.min(h - sy, want.height);
-      if (sw < 2 || sh < 2) return undefined;
-      for (let k = Math.min(2, window.devicePixelRatio || 1); k >= 0.5; k -= 0.5) {
-        const scale = Math.min(k, 1600 / Math.max(sw, sh));
+      for (const scale of cropScales(sw, sh, window.devicePixelRatio)) {
         const cv = document.createElement("canvas");
         cv.width = Math.round(sw * scale); cv.height = Math.round(sh * scale);
         const g = cv.getContext("2d");
@@ -291,7 +292,7 @@
         g.fillRect(0, 0, cv.width, cv.height);
         g.drawImage(img, sx, sy, sw, sh, 0, 0, cv.width, cv.height);
         const url = cv.toDataURL("image/png");
-        if (url.length < 1_300_000) return url;
+        if (url.length < CROP_CHARS) return url;
       }
     } catch {}
     return undefined;
@@ -301,7 +302,7 @@
   const inHost = (e) => e.composedPath && e.composedPath().includes(host);
   const target = (x, y) => { const e = document.elementFromPoint(x, y); return e && e !== host && e !== document.documentElement ? e : null; };
   const rectFor = (els) => union(els.map((e) => e.getBoundingClientRect()));
-  const quoted = (e) => { const t = textOf(e).replace(/\s+/g, " ").trim(); return t ? `"${t.slice(0, 60)}${t.length > 60 ? "…" : ""}"` : describe(e); };
+  const quoted = (e) => quote(textOf(e), describe(e));
   const pickElement = (e) => openComposer({ kind: "element", els: [e], rect: rectFor([e]), label: quoted(e) });
   function commitMulti() { if (!multi.length) return; const els = multi.slice(); openComposer({ kind: "multi", els, rect: rectFor(els), label: `${els.length} elements` }); }
   function areaItems(r) {
@@ -309,9 +310,8 @@
     for (const e of document.body.querySelectorAll("*")) {
       if (SKIP.has(e.tagName) || e === host) continue;
       const b = e.getBoundingClientRect();
-      if (b.width < 4 || b.height < 4) continue;
-      if (b.left >= r.left - 1 && b.top >= r.top - 1 && b.right <= r.right + 1 && b.bottom <= r.bottom + 1 && !out.some((o) => o.contains(e))) { for (let i = out.length - 1; i >= 0; i--) if (e.contains(out[i])) out.splice(i, 1); out.push(e); }
-      if (out.length >= 20) break;
+      if (insideArea(b, r) && !out.some((o) => o.contains(e))) { for (let i = out.length - 1; i >= 0; i--) if (e.contains(out[i])) out.splice(i, 1); out.push(e); }
+      if (out.length >= AREA_MAX) break;
     }
     return out;
   }
@@ -330,7 +330,7 @@
       if (ev === "mousedown" && cfg.mode === "area" && e.button === 0) { e.preventDefault(); drag = { x0: e.clientX, y0: e.clientY, x1: e.clientX, y1: e.clientY }; stop(e); }
       if (ev === "mouseup" && drag) {
         const r = rectOf(drag); drag = null;
-        if (r.width >= 8 && r.height >= 8) { const els = areaItems(r); openComposer({ kind: "area", els: els.length ? els : [document.body], rect: r, label: `area ${Math.round(r.width)}x${Math.round(r.height)} (${els.length} elements)` }); } else paint();
+        if (areaBigEnough(r)) { const els = areaItems(r); openComposer({ kind: "area", els: els.length ? els : [document.body], rect: r, label: areaLabel(r, els.length) }); } else paint();
       }
       if (ev === "mouseup" && cfg.mode === "text") {
         setTimeout(() => {
@@ -363,7 +363,8 @@
   }, true);
   addEventListener("scroll", () => marks.length && paint(), true);
   addEventListener("resize", () => paint());
-  setInterval(() => marks.length && !draft && paint(), 700);
+  // (not while a marker is hovered: paint() replaces the marker, and a click needs the same element from press to release)
+  setInterval(() => marks.length && !draft && !tip && paint(), 700);
 
   // ---- the board speaks, the page listens (only the framing window, with the token) ----
   addEventListener("message", (e) => {

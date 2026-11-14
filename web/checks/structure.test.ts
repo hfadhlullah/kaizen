@@ -205,6 +205,25 @@ test("the Notes page is drawn by React, with one editor component and no lazy ki
   for (const e of ["beforeunload", "visibilitychange", "kz-leave", "pagehide"]) expect(session).toContain(`"${e}"`);
 });
 
+// The annotator: the Browser tab's toolbar and notes list are React (components/annotate, state and rules in lib/annotate) and the
+// page-side script (web/annotate/annotate.ts, injected into the framed page) is TypeScript bundled to dist/annotate.js, which the
+// server and the proxy serve at the old URLs. board/annotate.ts, the hand-written annotate.js and the old toolbar CSS are gone.
+test("the annotator is React plus one bundled page script, with no old board module, hand-written script or toolbar CSS", () => {
+  const rd = (p: string) => readFileSync(join(web, p), "utf8");
+  expect(existsSync(join(web, "board/annotate.ts"))).toBe(false);
+  expect(existsSync(join(web, "board/annotate-lib.ts"))).toBe(false);
+  expect(readdirSync(join(web, "annotate"))).toEqual(["annotate.ts"]);
+  expect(rd("annotate/annotate.ts")).not.toMatch(/innerHTML|insertAdjacentHTML|document\.write/);
+  expect(rd("components/run/browser-pane.tsx")).toMatch(/<AnnotatePanel ann=\{ann\} \/>/);
+  expect(rd("board/run-view.ts")).not.toMatch(/annotat/i);
+  expect(rd("html/board.html")).not.toMatch(/\.annbar|\.annlist|\.annn|\.annset|\.annempty/);
+  const root = dirname(web);
+  expect(readFileSync(join(root, "cli/web.ts"), "utf8")).toMatch(/ANNOTATE_JS = join\(dirname\(import\.meta\.dir\), "web", "dist", "annotate\.js"\)/);
+  expect(readFileSync(join(root, "cli/annotate-proxy.ts"), "utf8")).toMatch(/"web", "dist", "annotate\.js"/);
+  // the page script takes only the pure rules, never the board's store or React
+  expect(specifiers(rd("annotate/annotate.ts"))).toEqual(["@lib/annotate/page.ts"]);
+});
+
 // ---- feature folders: components/<feature>/ and lib/<feature>/ ----
 // Only folders live directly under components/ and lib/; none grows past MAX_FILES source files (*.test.ts sit beside the
 // code they test and are not counted; split by feature instead); each

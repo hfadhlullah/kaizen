@@ -1,4 +1,4 @@
-// Runs inside the Browser tab's <webview>. kaizen's annotator (web/annotate/annotate.js) talks to the board
+// Runs inside the Browser tab's <webview>. kaizen's annotator (web/annotate/annotate.ts, served as web/dist/annotate.js) talks to the board
 // with postMessage to its parent window; in a webview the page has no parent, so the two
 // directions are relayed over the webview's IPC channel instead. Nothing else of Electron reaches the page.
 import { contextBridge, ipcRenderer } from "electron";
