@@ -1,7 +1,7 @@
 ---
 description: The Notes tab: an Obsidian-compatible markdown folder under .kaizen/notes/
 tags: [project, notebook]
-sources: [cli/notes.ts, web/notebook/notebook.ts, web/notebook/notes-lib.ts, web/html/notes.html, cli/build-web.ts]
+sources: [cli/notes.ts, web/notebook/notebook.ts, web/notebook/notes-lib.ts, web/notebook/kit.ts, web/notebook/kit-loader.ts, web/html/notes.html, cli/build-web.ts]
 updated: 2026-11-14
 ---
 # Notebook
@@ -29,6 +29,7 @@ Plain markdown files under `<state>/notes/`, folders allowed, so Obsidian can op
 
 ## Watch out
 - `?embed=1` (`web/notebook/notebook.ts`, `body.embed` in `notes.html`) hides the side menu and header: the board's run workspace shows a note this way as a centre tab. The side menu itself is the board's (`initRail()` from `web/board/workspace.ts`).
+- Search (Ctrl+K), Projects +, New workspace and the worktree right-click menu open on this page: `web/notebook/kit-loader.ts` loads `web/dist/notebook-kit.js` (entry `kit.ts`) and `/ui.css` on first use; if that fails they fall back to the board redirect. The page is marked `<html data-kit>`; its CSS is in `@layer legacy` (editor rules outside). Details: [[Conventions and gotchas]].
 - `web/dist/notebook.js` is committed and hash-checked: after editing `notebook.ts` run `bun run build:web`, or `cli/notes.test.ts` fails. The hash covers every bundled source and the devDependencies, so a change to the board or bot modules, or a new dev tool, also rebuilds it.
 - Inside `notebook.ts`, `history` is CodeMirror's undo; use `window.history` (`.kaizen/memory.md`).
 - Backlog links count lines by position; reordering a `06-backlog.md` repoints them (`.kaizen/memory.md`).

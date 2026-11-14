@@ -356,3 +356,4 @@ updated: 2026-10-31
 - 2026-11-14 update — web/*.test.ts moved beside the code they test (pure move, run 2026-11-14-frontend-rewrite-phase1): Conventions and gotchas, Web board
 - 2026-11-14 update — web/ top level tidied (pure move, run 2026-11-14-frontend-rewrite-phase1): entry sources into web/notebook, term, video, annotate; generated bundles into web/dist; theme.css into web/ui; served URLs unchanged: Web board, Release and testing, Conventions and gotchas
 - 2026-11-14 update — page shells web/{board,notes,popup,video}.html moved into web/html/ (pure move, run 2026-11-14-frontend-rewrite-phase1); served URLs unchanged: Notebook, Web board, Release
+- 2026-11-14 update — the Notebook page opens Search, Add a project, New workspace and the worktree menu in place from an on-demand kit bundle (run 2026-11-14-frontend-rewrite-phase1, roadmap 2 phase 1): Conventions and gotchas, Web board, Notebook, Release and testing

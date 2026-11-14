@@ -1,7 +1,7 @@
 ---
 description: `kaizen web`: the browser board — a hub; its topics are the sub-notes below
 tags: [project, web-board]
-sources: [web/README.md, web/pages, web/components, web/ui, web/lib, web/ui/theme.css, web/board/react-mount.ts, cli/preflight.ts, cli/rea.test.ts, cli/annotate.test.ts, cli/annotate-proxy.test.ts, cli/web-annotate.test.ts, web/board/annotate-lib.test.ts, desktop/src/preload.ts, desktop/src/updater.ts, web/term/term-font.test.ts, web/term/term-paste.test.ts, cli/resources.test.ts, cli/computer.test.ts, cli/workers.ts, cli/accounts.test.ts, cli/skills.test.ts, cli/report.test.ts, cli/agent-prefs.test.ts, cli/onboarding.test.ts, cli/phone-setup.test.ts, web/board/search.test.ts, web/board/ws-name.test.ts, cli/web.ts, cli/state.test.ts, cli/video.test.ts, web/board.html, design.md]
+sources: [web/README.md, web/pages, web/components, web/ui, web/lib, web/ui/theme.css, web/board/react-mount.ts, web/notebook/kit.ts, web/notebook/kit-loader.ts, cli/preflight.ts, cli/rea.test.ts, cli/annotate.test.ts, cli/annotate-proxy.test.ts, cli/web-annotate.test.ts, web/board/annotate-lib.test.ts, desktop/src/preload.ts, desktop/src/updater.ts, web/term/term-font.test.ts, web/term/term-paste.test.ts, cli/resources.test.ts, cli/computer.test.ts, cli/workers.ts, cli/accounts.test.ts, cli/skills.test.ts, cli/report.test.ts, cli/agent-prefs.test.ts, cli/onboarding.test.ts, cli/phone-setup.test.ts, web/board/search.test.ts, web/board/ws-name.test.ts, cli/web.ts, cli/state.test.ts, cli/video.test.ts, web/board.html, design.md]
 updated: 2026-11-14
 ---
 # Web board
@@ -28,7 +28,7 @@ The board is kaizen in a browser: you see every project's tasks and runs as card
 - [[Web board/Video]] — The Video page and its version store
 
 ## How it connects
-- [[Notebook]] is served from the same server (`/notebook`, `/vault`).
+- [[Notebook]] is served from the same server (`/notebook`, `/vault`). It opens Search, Add a project, New workspace and the worktree menu in place from the kit bundle `/notebook-kit.js`, loaded on first use (see [[Conventions and gotchas]]).
 - [[Sources and icebox]] routes: `/sources`, `/icebox`, `/reply`, `/chatgpt`. Snoozed icebox items (`asleep` in `/sources`) are left out of the Icebox list, its count, Swipe and the side-menu number.
 - Kaizen Bot calls these routes ([[Kaizen bot]], `bot/src/board.ts`).
 
