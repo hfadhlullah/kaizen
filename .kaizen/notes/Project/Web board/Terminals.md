@@ -2,7 +2,7 @@
 description: In-card agent terminals: the PTY, typing into agents, terminal page, font, theme, resources
 tags: [project, web-board]
 sources: [web/components/panes/terminal-pane.tsx, web/components/terminal, web/lib/terminal, web/pages/terminal-page.tsx, web/lib/terminal/terms-feed.ts, web/lib/run/term-loader.ts, web/term/term-paste.ts, cli/term-image.ts, cli/term-history.ts, cli/term-history.test.ts, web/lib/terminal/term-font.ts, cli/resources.ts, web/components/resources, web/lib/resources, cli/state-snap.ts, cli/state.ts, cli/pty.ts, cli/conpty.ts, web/term/term.ts, web/lib/run/workspace.ts, web/lib/run/kept.ts, web/lib/run/ws-draw.ts, web/lib/run/use-run-lifecycle.ts, web/lib/run/card-terminal.ts, web/lib/core/term-handle.ts]
-updated: 2026-11-13
+updated: 2026-11-15
 ---
 # Terminals
 
@@ -77,3 +77,4 @@ The task queue dispatches into a live run terminal only after a structured ackno
 - **Goes away when**: its tab is closed (that one pane), it is evicted by the cap, or its session is gone from the server's lists. `pruneKept` (workspace.ts, over `pruneDead` in kept.ts) runs on every `/state`, when `getServer().shells` changes and when a kept terminal's socket closes (`termEnded`, which reads `/shells` first, since that list is only re-read with each all-projects `/state`, R66); it drops the terminals of every workspace but the one shown whose key no list holds. `pruneTerms` (card-terminal.ts) does the same for card terminals. The shell itself always keeps running on the server.
 - **Only while the run view shows** (`useRunLifecycle`, `lib/run/use-run-lifecycle.ts`, run by `RunPanes`): the 3 s Preview polling, the Ctrl+Space keyboard and the reaction to a new `/state` (a run reaching review opens the Browser, the tabs are read again). Nothing of it runs on another page.
 - 2026-11-14 roadmap 2 phase 9b-3b: the run workspace keeps every pane of the workspaces visited (not only terminals), capped at 4 workspaces and 12 terminals (`lib/run/kept.ts`); a hidden terminal whose session ends is unmounted at once (R66); the Preview polling, the pane keys and the `/state` reaction run only while the run view shows (`useRunLifecycle`).
+- **Order (final fix round, R42):** a tile seen for the first time is saved at the end of `kz-terms.order` (`terminalLayout.see`, an effect of `useArranged`), so a run that sorts earlier later does not move the others. A `MicButton` stops only a session it started on unmount (R25); dictation also stops when the model setting changes and when the field's dialog closed during the permission prompt (R24, R26).

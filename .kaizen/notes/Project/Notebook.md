@@ -2,7 +2,7 @@
 description: The Notes tab: an Obsidian-compatible markdown folder under .kaizen/notes/
 tags: [project, notebook]
 sources: [cli/notes.ts, web/notebook/notebook.ts, web/notebook/notes-lib.ts, web/lib/notebook/kit.ts, web/lib/notebook/kit-loader.ts, web/pages/notebook-page.tsx, web/components/notebook, web/lib/notebook, web/html/notes.html, cli/build-web.ts]
-updated: 2026-11-14
+updated: 2026-11-15
 ---
 # Notebook
 
@@ -48,3 +48,4 @@ Plain markdown files under `<state>/notes/`, folders allowed, so Obsidian can op
 <!-- yours: /kaizen docs never rewrites this section -->
 
 - Phone navigation shares the board menu order: Runs, Search, Home, Chat, Terminal. Terminal links to the all-project terminal page. See [[Web board/Layout and look]].
+- **Saves (final fix round, R29/R32/R34):** `Autosave.flush` waits in a `while` for a save in flight, so two callers never save the same base twice (a false conflict); `hold()`/`release()` keep typing during a rename out of the old name's file; `saveNote` writes a note that was CRLF on disk as CRLF (the editor holds LF through `readText`). A load that returns after another project was picked is dropped; a note made from a `[[link]]` takes the editor focus as it mounts.

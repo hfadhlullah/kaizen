@@ -2,7 +2,7 @@
 description: `kaizen web`: the browser board — a hub; its topics are the sub-notes below
 tags: [project, web-board]
 sources: [web/README.md, web/pages, web/components, web/ui, web/lib, web/lib/rail/rail-boot.ts, web/ui/theme.css, web/lib/notebook/kit.ts, web/lib/notebook/kit-loader.ts, web/notebook/notebook.ts, web/pages/notebook-page.tsx, web/components/notebook, web/lib/notebook, cli/preflight.ts, cli/rea.test.ts, cli/annotate.test.ts, cli/annotate-proxy.test.ts, cli/web-annotate.test.ts, web/lib/annotate/rules.test.ts, desktop/src/preload.ts, desktop/src/updater.ts, web/lib/terminal/term-font.test.ts, web/term/term-paste.test.ts, cli/resources.test.ts, cli/computer.test.ts, cli/workers.ts, cli/accounts.test.ts, cli/skills.test.ts, cli/report.test.ts, cli/agent-prefs.test.ts, cli/onboarding.test.ts, cli/phone-setup.test.ts, web/lib/search/search-rows.test.ts, web/lib/run/ws-name.test.ts, cli/web.ts, cli/state.test.ts, cli/video.test.ts, web/html/board.html, design.md]
-updated: 2026-11-14
+updated: 2026-11-15
 ---
 # Web board
 
@@ -76,3 +76,4 @@ Optional Explore is part of Workflow settings and run details; see [[Web board/S
 
 ## Phase 5 of the front-end rewrite (2026-11-14)
 Home (chat, list, composer), the Search palette, Add a project, the first-run onboarding and Continue setup popup, the Phone and WhatsApp setup cards, the update bar and card, the file viewer, the side menu's Projects list (rows, folds, pins, the project drag, agent chips, task links, the worktree right-click menu) and its filter, the footer resource popup, the phone's agent sheets, the header's project and Showing pickers, the floating Home window and the phone's Home and Runs pages are React components (see [[Web board/Home, chat and phone]], [[Web board/Cards]], [[Web board/Settings]]). The card's Notes tab (`web/components/notes`, state and send in `web/lib/notes`; the note editor `lib/notes/rich.ts` stays the engine, reached through `host.rich`) and dictation (`web/lib/dictation`: engine, chunk rules, per-button state; the button is `MicButton` in `components/shared`) are React and lib too. Still old code: the context panel and the terminals.
+- **Context pane docking (final fix round, R47/R48):** the Project context pane sits beside the page only from 1701 px (`WIDE` in `components/context/context-panel.tsx`, `@media(max-width:1700px)` in `ui/legacy/board.css`): the Board needs five 200 px columns next to the menu. Below that it is a dialog over the page, and a window that narrows past 1700 px closes it. The store is `useCtx` (it was `useContext`, a React hook's name).
