@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { applyEvent, fits, lines, projectName, readLine, runsIn, type Chat, type Msg } from "./lib/home/home.ts";
+import { applyEvent, fits, lines, projectName, readLine, runsIn, type Chat, type Msg } from "./home.ts";
 
 test("run ids the agent names are offered only when they are cards on this board", () => {
   const text = "Started 2026-11-14-fix-login and 2026-11-14-fix-login again, not 2026-01-01-other.";

@@ -1,10 +1,10 @@
 import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import { pageId, placeOf, SETTINGS_NAV } from "./lib/settings/settings.ts";
+import { pageId, placeOf, SETTINGS_NAV } from "./settings.ts";
 
 const pages = new Set(SETTINGS_NAV.flatMap(([, ps]) => ps.map((p) => p.id)));
 const keys = [
-  ...readFileSync(new URL("../cli/settings.ts", import.meta.url), "utf8").matchAll(/\{ key: "([\w.]+)", label:/g),
+  ...readFileSync(new URL("../../../cli/settings.ts", import.meta.url), "utf8").matchAll(/\{ key: "([\w.]+)", label:/g),
 ].map((m) => m[1]);
 
 test("every setting lands on a real page, under a named subsection", () => {
@@ -52,7 +52,7 @@ test("old page addresses open the page they were merged into", () => {
 });
 
 test("every page has a tile icon that exists in the board's icon set", () => {
-  const board = readFileSync(new URL("./board.html", import.meta.url), "utf8");
+  const board = readFileSync(new URL("../../board.html", import.meta.url), "utf8");
   for (const p of SETTINGS_NAV.flatMap(([, ps]) => ps))
     expect([p.id, board.includes(`id="i-${p.ico}"`)]).toEqual([p.id, true]);
 });
@@ -74,7 +74,7 @@ import {
   whoText,
   type Data,
   type Row,
-} from "./lib/settings/settings.ts";
+} from "./settings.ts";
 
 const row = (key: string, values: string[], extra: Partial<Row> = {}): Row => ({
   key,

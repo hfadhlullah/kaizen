@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
-import { md } from "./board/markdown.ts";
-import { inline, parse } from "./lib/markdown/markdown.ts";
+import { md } from "../../board/markdown.ts";
+import { inline, parse } from "./markdown.ts";
 
 test("blocks: headings cap at 3, fences keep their text, rules, tables drop the divider row", () => {
   const b = parse("# One\n#### Four\n```\nx < y\n```\n---\n| a | b |\n|---|---|\n| 1 | 2 |");

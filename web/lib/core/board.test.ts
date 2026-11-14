@@ -11,7 +11,7 @@ import {
   kidsOf,
   olderThan,
   type Card,
-} from "./lib/core/board.ts";
+} from "./board.ts";
 
 const run = (id: string, o: Partial<Card> = {}): Card => ({
   kind: "run",

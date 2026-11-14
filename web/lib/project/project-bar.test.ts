@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { isAction, showingCount, showingLabel } from "./lib/project/project-bar.ts";
+import { isAction, showingCount, showingLabel } from "./project-bar.ts";
 
 const all = [{ dir: "a" }, { dir: "b" }, { dir: "c" }];
 

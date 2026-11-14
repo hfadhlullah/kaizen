@@ -1,12 +1,12 @@
 import { expect, test } from "bun:test";
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { ArtifactView } from "./components/task/artifact-view.tsx";
-import { ResultChecks } from "./components/task/result-checks.tsx";
-import { ResultView } from "./components/task/result-view.tsx";
-import { storedUrl, webUrl, type TaskArtifact, type TaskResult } from "./lib/task/task-results.ts";
-import { canAcceptTask, closeActions, filteredTasks, taskHref, type TaskView } from "./lib/task/tasks.ts";
-import { waitingCount, taskForCard } from "./board/badge.ts";
+import { ArtifactView } from "./artifact-view.tsx";
+import { ResultChecks } from "./result-checks.tsx";
+import { ResultView } from "./result-view.tsx";
+import { storedUrl, webUrl, type TaskArtifact, type TaskResult } from "../../lib/task/task-results.ts";
+import { canAcceptTask, closeActions, filteredTasks, taskHref, type TaskView } from "../../lib/task/tasks.ts";
+import { waitingCount, taskForCard } from "../../board/badge.ts";
 
 // The Tasks pages' rules and viewers, rendered the way the board renders them (react-dom/server), with lifecycle fixtures.
 const html = (e: ReactElement) => renderToStaticMarkup(e);
@@ -197,7 +197,7 @@ test("Looks good follows the server's allowed list and a leftover pause", () => 
   expect(canAcceptTask(task("a", "needs-you", { currentResultId: "r2", queuePaused: true }), result)).toBe(false);
 });
 test("the task page offers Delete only before any run, never says stopped, and draws the actions list", async () => {
-  const src = await Bun.file(new URL("./pages/task-page.tsx", import.meta.url)).text();
+  const src = await Bun.file(new URL("../../pages/task-page.tsx", import.meta.url)).text();
   expect(src).not.toContain('"stopped"');
   expect(src).toContain("t.actions?.stop");
   expect(src).toContain("t.actions?.resume");

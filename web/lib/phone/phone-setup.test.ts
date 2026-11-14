@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { phoneLine, qrSrc, waCard, waPolling, type WAStatus } from "./lib/phone/phone-setup.ts";
+import { phoneLine, qrSrc, waCard, waPolling, type WAStatus } from "./phone-setup.ts";
 
 const wa = (o: Partial<WAStatus> = {}): WAStatus => ({
   installed: true,

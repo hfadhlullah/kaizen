@@ -1,8 +1,8 @@
 import { expect, test } from "bun:test";
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { RequestCard } from "./components/icebox/request-card.tsx";
-import { RequestRow } from "./components/icebox/request-row.tsx";
+import { RequestCard } from "./request-card.tsx";
+import { RequestRow } from "./request-row.tsx";
 import {
   ago,
   catOf,
@@ -23,8 +23,8 @@ import {
   type IceItem,
   type RowCtx,
   type Source,
-} from "./lib/icebox/icebox.ts";
-import { TooltipProvider } from "./ui/tooltip.tsx";
+} from "../../lib/icebox/icebox.ts";
+import { TooltipProvider } from "../../ui/tooltip.tsx";
 
 // The Icebox's rules (lib/icebox/icebox.ts) and its row and card, rendered the way the board renders them.
 const D = "/p/.kaizen";

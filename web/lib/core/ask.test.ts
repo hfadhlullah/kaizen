@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { answer, ask, useAsk } from "./lib/core/ask.ts";
+import { answer, ask, useAsk } from "./ask.ts";
 
 test("a question is a promise the answer settles", async () => {
   const q = ask({ title: "Delete?", confirmLabel: "Delete" });

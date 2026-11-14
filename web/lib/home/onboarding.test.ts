@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { agentGroups, defaultPick, missingPick, offerText, type Cfg } from "./lib/home/onboarding.ts";
+import { agentGroups, defaultPick, missingPick, offerText, type Cfg } from "./onboarding.ts";
 
 const cfg = (o: Partial<Cfg> = {}): Cfg => ({
   show: true,

@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
-import { branchSlug } from "./lib/project/branch.ts";
-import { childPath, folderName, workspaceBranch } from "./lib/project/add-project.ts";
+import { branchSlug } from "./branch.ts";
+import { childPath, folderName, workspaceBranch } from "./add-project.ts";
 
 test("the folder a picked parent and a name make keeps the parent's separator", () => {
   expect(childPath("/home/me/Projects/", "app")).toBe("/home/me/Projects/app");

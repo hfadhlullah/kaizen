@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { micAudio, openMic } from "./lib/settings/mic.ts";
+import { micAudio, openMic } from "./mic.ts";
 
 test("no saved device asks for the default microphone; a saved one is exact", () => {
   expect(micAudio().deviceId).toBeUndefined();

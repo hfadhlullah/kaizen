@@ -120,7 +120,8 @@ test("shared side-menu code only opens React hosts the page has; no page wipes a
 });
 
 // ---- feature folders: components/<feature>/ and lib/<feature>/ ----
-// Only folders live directly under components/ and lib/; none grows past MAX_FILES (split it by feature instead); each
+// Only folders live directly under components/ and lib/; none grows past MAX_FILES source files (*.test.ts sit beside the
+// code they test and are not counted; split by feature instead); each
 // has an index.ts, and anything outside a folder imports it through that index (inside a folder, files import each
 // other directly, which keeps barrels out of cycles). `import type` follows the same rule: no type-only exception is
 // needed. Exceptions, each for a reason:
@@ -136,6 +137,7 @@ const BRIDGE_DIRECT = [
   "board/dictation.ts",
   "board/update.ts",
 ];
+const isTest = (name: string) => /\.test\.tsx?$/.test(name);
 const norm = (p: string) => p.split(/[\\/]/).join("/");
 const featureOf = (rel: string) => rel.match(/^((?:components|lib)\/[^/]+)\/[^/]+$/)?.[1] ?? null;
 
@@ -162,9 +164,12 @@ test("components/ and lib/ hold feature folders of at most 25 files, each with a
       if (!e.isDirectory()) bad.push(`${layer}/${e.name}: loose file, put it in a feature folder`);
       else {
         const dir = join(web, layer, e.name);
-        const files = readdirSync(dir, { withFileTypes: true });
+        const all = readdirSync(dir, { withFileTypes: true });
+        const files = all.filter((f) => !isTest(f.name)); // tests live beside the code and do not count toward the size
         if (files.some((f) => f.isDirectory())) bad.push(`${layer}/${e.name}: no folders inside a feature folder`);
         if (!existsSync(join(dir, "index.ts"))) bad.push(`${layer}/${e.name}: no index.ts`);
+        else if (/\.test\b/.test(readFileSync(join(dir, "index.ts"), "utf8")))
+          bad.push(`${layer}/${e.name}: index.ts must not export tests`);
         if (files.length > MAX_FILES) bad.push(`${layer}/${e.name}: ${files.length} files, over ${MAX_FILES}: split it`);
       }
     }

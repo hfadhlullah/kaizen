@@ -51,7 +51,7 @@ pages/  ->  components/<feature>/  ->  ui/  ->  lib/core/utils.ts
   and `lib/` with an `index.ts`, and a row in the table above.
 - **Names.** Kebab-case files (`task-row.tsx`, `use-task.ts`); the file's main export is its
   PascalCase name; hooks start with `use-`; stores end `-store`, request functions `-actions`.
-  Tests sit in `web/*.test.ts` (not in the folders) and may import the file they test directly.
+  Tests live beside the code they test as `*.test.ts` (in the feature folder, or in `web/` next to `term-font.ts`), import the file they test directly, and are not counted in the 25-file limit; an `index.ts` never exports them. `structure.test.ts` stays in `web/` because it checks the whole tree.
 - **Exceptions.** `ui/` takes `lib/core/utils.ts` directly. Six `board/` bridge files import one small
   lib file directly because they run in the notebook and Video bundles or in DOM-less tests, where a
   barrel would pull in the board's stores (list: `BRIDGE_DIRECT` in `structure.test.ts`).

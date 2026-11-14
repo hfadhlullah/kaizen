@@ -9,7 +9,7 @@ import {
   targetOf,
   type BranchDoc,
   type GitDoc,
-} from "./lib/git/git.ts";
+} from "./git.ts";
 
 const g = (o: Partial<GitDoc> = {}): GitDoc => ({
   repo: true,
@@ -119,7 +119,7 @@ test("what a finished step says", () => {
 
 // A step running for one run does not disable the buttons of another run's panel.
 test("busy belongs to the run it started on", async () => {
-  const { busyOf, getGit, setGit } = await import("./lib/git/git-store.ts");
+  const { busyOf, getGit, setGit } = await import("./git-store.ts");
   const card = (id: string) => ({ state: "/p/.kaizen", id, kind: "run" }) as any;
   setGit({ snap: { card: card("a") } as any, busy: "commit", busyRun: "run:/p/.kaizen:a" });
   const mine = busyOf(getGit());
