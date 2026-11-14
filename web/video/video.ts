@@ -1,6 +1,6 @@
 // The Video page: kaizen-video's videos as a library (one tile per rendered shape, at
 // that shape), and an editor for a film's on-screen words with its built preview.
-// Bundled into web/video.js by `bun run build:web`. The server keeps every path; the
+// Bundled into web/dist/video.js by `bun run build:web`. The server keeps every path; the
 // page names a video by its place number and folder name only.
 import { refreshBoardBadge } from "../board/badge.ts";
 import { initRail } from "../board/workspace.ts";

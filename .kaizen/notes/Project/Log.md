@@ -354,3 +354,4 @@ updated: 2026-10-31
 - 2026-11-14 update — final fix round of the React rewrite (run 2026-11-14-frontend-rewrite-phase1): Conventions and gotchas (React hosts inside old elements, shared side-menu code on pages without React), Settings
 - 2026-11-14 update — web/components and web/lib regrouped into feature folders with an index.ts each (pure move, run 2026-11-14-frontend-rewrite-phase1): Web board, Conventions and gotchas
 - 2026-11-14 update — web/*.test.ts moved beside the code they test (pure move, run 2026-11-14-frontend-rewrite-phase1): Conventions and gotchas, Web board
+- 2026-11-14 update — web/ top level tidied (pure move, run 2026-11-14-frontend-rewrite-phase1): entry sources into web/notebook, term, video, annotate; generated bundles into web/dist; theme.css into web/ui; served URLs unchanged: Web board, Release and testing, Conventions and gotchas

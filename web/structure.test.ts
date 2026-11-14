@@ -203,3 +203,12 @@ test("imports from outside a feature folder go through its index.ts", () => {
     }),
   ).toEqual([]);
 });
+
+// web/ top level: folders, the page shells, README.md and this file. Bundles live in dist/, entry sources in an app folder.
+test("web/ holds only folders, the page shells, README.md and structure.test.ts", () => {
+  const files = readdirSync(web, { withFileTypes: true })
+    .filter((e) => !e.isDirectory())
+    .map((e) => e.name)
+    .sort();
+  expect(files).toEqual(["README.md", "board.html", "notes.html", "popup.html", "structure.test.ts", "video.html"]);
+});

@@ -10,7 +10,7 @@ Small tool, small rules.
 ## Changes
 
 - **Tests must pass.** CI runs `bun test` on Ubuntu and Windows. Touched
-  `web/notebook.ts` or `web/notes-lib.ts`? Rebuild with `bun run build:web` — a test
+  `web/notebook/notebook.ts` or `web/notebook/notes-lib.ts`? Rebuild with `bun run build:web` — a test
   fails on a stale bundle either way.
 - **Non-trivial work, dogfood.** Start a run in this repo — `/kaizen <change>` — and
   let it plan, build and review the change. That is the tool doing its own job, and the

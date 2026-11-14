@@ -1,4 +1,4 @@
-// The notebook: file safety in cli/notes.ts, the text rules in web/notes-lib.ts, and
+// The notebook: file safety in cli/notes.ts, the text rules in web/notebook/notes-lib.ts, and
 // the two things that drift silently — the copied design tokens and the committed bundle.
 import { test, expect, beforeEach } from "bun:test";
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, readdirSync, utimesSync, symlinkSync } from "node:fs";
@@ -243,7 +243,7 @@ test("the side menu is the board's on the notebook, line for line", () => {
   expect(syms("board.html").every(Boolean)).toBe(true);
 });
 
-test("web/notebook.js, web/term.js, web/board.js, web/ui.css, web/video.js and bot/web/app.js were built from the sources as they are (bun run build:web)", () => {
+test("web/dist/notebook.js, web/dist/term.js, web/dist/board.js, web/dist/ui.css, web/dist/video.js and bot/web/app.js were built from the sources as they are (bun run build:web)", () => {
   expect(readFileSync(OUT, "utf8").split("\n", 1)[0]!).toContain(`kaizen notebook ${sourceHash()} `);
   expect(readFileSync(TERM_OUT, "utf8").split("\n", 1)[0]!).toContain(`kaizen terminal ${sourceHash()} `);
   expect(readFileSync(BOARD_OUT, "utf8").split("\n", 1)[0]!).toContain(`kaizen board ${sourceHash()} `);

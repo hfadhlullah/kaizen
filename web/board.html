@@ -17,7 +17,7 @@
 <link rel="apple-touch-icon" href="/logo.png">
 <link rel="stylesheet" href="/ui.css">
 <style>
-/* Layers: the board's own CSS (legacy) sits under the React pages' Tailwind layers (web/theme.css, web/ui.css), so neither restyles the other. */
+/* Layers: the board's own CSS (legacy) sits under the React pages' Tailwind layers (web/ui/theme.css, web/dist/ui.css), so neither restyles the other. */
 @layer legacy, theme, base, components, utilities;
 @layer legacy {
 /* Colour: monochrome by default; ok, warn and danger keep their hue because they carry meaning. data-color=blue is the navy palette (kz-color). */
@@ -564,7 +564,7 @@ body.runv.rflip #panel::before{content:"";position:absolute;top:7px;left:50%;wid
 @media(max-width:640px){body.runv #rbar{padding-bottom:0}body.runv #rtabs{height:40px;min-height:40px;align-items:stretch;gap:0}}
 /* Workspace tabs as Orca's: flat, the bar's full height, an underline under the active one, × at the end. */
 @media(min-width:641px){#rtabs{align-items:stretch;gap:0}html body.runv #rtabs{padding-top:0;padding-bottom:0}}
-/* A terminal fills its pane in its own colours (--term-bg, set by web/term.ts from its palette), edge to edge;
+/* A terminal fills its pane in its own colours (--term-bg, set by web/term/term.ts from its palette), edge to edge;
    while a divider moves it clips rather than refits, so the pane must not show anything else behind it. */
 .term{overflow:hidden;background:var(--term-bg,var(--bg))}.term .xterm-viewport{background:transparent!important}
 .rpane:has(>.term),.hwsb:has(>.term){background:var(--term-bg,var(--bg))}

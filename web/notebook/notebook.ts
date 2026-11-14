@@ -1,4 +1,4 @@
-// The notebook page. Bundled into web/notebook.js by `bun run build:web`; the page
+// The notebook page. Bundled into web/dist/notebook.js by `bun run build:web`; the page
 // never sees the filesystem, only /vault. See design.md, "Notebook", for the look.
 import { refreshBoardBadge } from "../board/badge.ts";
 import { initRail } from "../board/workspace.ts";

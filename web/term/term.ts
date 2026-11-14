@@ -1,5 +1,5 @@
 // The in-card terminal: xterm.js on the board's /pty WebSocket. Bundled into
-// web/term.js by `bun run build:web`; the board loads it (`termLoad` in web/board/agent-term.ts) the first time a card's
+// web/dist/term.js by `bun run build:web`; the board loads it (`termLoad` in web/board/agent-term.ts) the first time a card's
 // Terminal tab opens and calls window.kzTerm(el, key).
 import { trackTerminalViewport } from "../board/terminal-viewport.ts";
 import { Terminal } from "@xterm/xterm";

@@ -63,7 +63,7 @@ Rules:
 ## 2. Colour
 
 Monochrome is the default palette; green, amber and red stay for state. Blue is the alternative, picked under Settings, Appearance, Color (`data-color=blue`, `kz-color`). Dark is the default; light follows `prefers-color-scheme` or the Theme setting
-(system / light / dark) stored in `localStorage`. Every colour is a custom property; no hex appears in component CSS. One exception: the terminal's palette (`ORCA_DARK` / `ORCA_LIGHT` in `web/term.ts`, Orca's defaults) is hex, because a terminal's 16 ANSI colours are content programs choose from, not board chrome; it sets `--term-bg` so the pane behind a terminal matches it.
+(system / light / dark) stored in `localStorage`. Every colour is a custom property; no hex appears in component CSS. One exception: the terminal's palette (`ORCA_DARK` / `ORCA_LIGHT` in `web/term/term.ts`, Orca's defaults) is hex, because a terminal's 16 ANSI colours are content programs choose from, not board chrome; it sets `--term-bg` so the pane behind a terminal matches it.
 Two helper tokens sit beside the table on the web: `--on-accent` (white, text on an
 `--accent` fill) and `--shade` (the one shadow colour: black at 8 % in light, black at
 45 % in dark).
@@ -499,8 +499,8 @@ board show a state the TUI cannot.
 - `web/board.html` the board; tokens from sections 2 and 3 at the top of its `<style>`
 - `cli/web.ts` serves it; `cli/state.ts` is the logic both boards share
 - `web/notes.html` the notebook page, its tokens copied line for line from the board's
-  (a test holds them equal); `web/notebook.ts` its script, bundled with CodeMirror into
-  the committed `web/notebook.js` by `bun run build:web`; `cli/notes.ts` its files
+  (a test holds them equal); `web/notebook/notebook.ts` its script, bundled with CodeMirror into
+  the committed `web/dist/notebook.js` by `bun run build:web`; `cli/notes.ts` its files
 
 ## Persistent Tasks
 
@@ -515,4 +515,4 @@ files have distinct labels; limits and validation never imply user acceptance.
 
 ## Components
 
-New pages are React; `web/theme.css` maps this document's tokens (sections 2-4) into Tailwind names, and every control comes from `web/ui` and `web/components`. The component map, variant rules and the three-level structure are in `.kaizen/notes/Project/Conventions and gotchas.md`.
+New pages are React; `web/ui/theme.css` maps this document's tokens (sections 2-4) into Tailwind names, and every control comes from `web/ui` and `web/components`. The component map, variant rules and the three-level structure are in `.kaizen/notes/Project/Conventions and gotchas.md`.

@@ -1,6 +1,6 @@
 // The Browser tab's annotator, board side: the toolbar, the notes list, the settings and the
 // conversation with the page. The page is served by the board's proxy on another origin
-// (cli/annotate-proxy.ts) and runs web/annotate.js; the two talk only by postMessage, and this
+// (cli/annotate-proxy.ts) and runs web/annotate/annotate.js; the two talk only by postMessage, and this
 // side accepts a message only from the frame window, from the proxy's origin, with the token the
 // proxy handed out when it was opened. Notes live here (and in localStorage, without crops).
 import { html, raw } from "./dom.ts";

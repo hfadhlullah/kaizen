@@ -17,7 +17,7 @@ The page where you throw things into the icebox and sort them out: a box to type
 - Keys: `keys.ts` calls `react.iceKeys(e)` first while `view === "sources"`; it ignores keys while a text field or an open Radix popup (`data-state=open`) has them.
 - Dialogs the old page asked with `modal()` / `confirm()` are `collection-dialog` and `confirm-dialog`, asked as promises from `icebox-actions.ts` (`askCollection`, `askConfirm`) and drawn by the page from `store.ask`. "Connect Google first" is a toast, not an `alert()`.
 - Dictation (`web/board/dictation.ts`) and the file shrinker stay the board's: `mic-button` places the dictation button (inside a `kz-keep` span so the board's `.ib` styles stay) and stops it with the page; the capture textarea is uncontrolled (dictation types into it and sends an input event).
-- Styles: Tailwind in the components; the only legacy CSS left is the `#icev` container rule and `body.ice .hdr #showc` on a phone in `web/board.html`. Kind colours are theme names (`text-kind-client|finding|people`, `bg-promote`) in `web/theme.css`.
+- Styles: Tailwind in the components; the only legacy CSS left is the `#icev` container rule and `body.ice .hdr #showc` on a phone in `web/board.html`. Kind colours are theme names (`text-kind-client|finding|people`, `bg-promote`) in `web/ui/theme.css`.
 - Routes: `/sources`, `/icebox` (ops add, promote, dismiss, restore, snooze, unsnooze, kind, board, boards, task-draft), `/reply`, `/chatgpt`, `/google`, `/ice-image` ([[Web board/Server and routes]]); unchanged by the rewrite.
 
 ## Watch out

@@ -1,7 +1,7 @@
 ---
 description: The Video page and its version store
 tags: [project, web-board]
-sources: [cli/versions.ts, cli/video.ts, cli/localsend.ts, web/video.html, web/video.ts]
+sources: [cli/versions.ts, cli/video.ts, cli/localsend.ts, web/video.html, web/video/video.ts]
 updated: 2026-11-13
 ---
 # Video
@@ -12,7 +12,7 @@ Part of [[Web board]].
 The Video page: a library of videos with their versions, where you play, compare, keep or revert a render and ask the agent for another.
 
 ## Where it lives
-- Video page (`/video`, `web/video.html` + `web/video.ts` bundled to `web/video.js`, server side `cli/video.ts`): the kaizen-video skill's folders as a library. Places are the library folder (`board.video_dir`, default `~/.kaizen`) then every known project with a `videos/` folder; the page names one by index, a video by folder name (`okName`), and a file by `/video/f/<place>/<name>/<v|o>/<path>` (v = `videos/<name>/`, o = `output/<name>/`), each resolved through `inside()` (realpath, no `..`, no symlink out). `GET /video/list`, `GET /video/film`; `POST /video/save` (only `title`/`sub`/`kick`/`items` of existing beats plus `platforms`, atomic write, then a build), `/video/job` (`build`/`preview`/`render`; render = one `make_film.py --format <f> --render` per shape the platforms need), `/video/cancel`. Jobs are one global queue run with `Bun.spawn` argv arrays and `env: process.env`, output in `videos/<name>/.kaizen-job.log`, state pushed through `changed()`. The editor's Versions list starts with the Draft (the live build), then one group per version. Versions live in `cli/versions.ts`:
+- Video page (`/video`, `web/video.html` + `web/video/video.ts` bundled to `web/dist/video.js`, server side `cli/video.ts`): the kaizen-video skill's folders as a library. Places are the library folder (`board.video_dir`, default `~/.kaizen`) then every known project with a `videos/` folder; the page names one by index, a video by folder name (`okName`), and a file by `/video/f/<place>/<name>/<v|o>/<path>` (v = `videos/<name>/`, o = `output/<name>/`), each resolved through `inside()` (realpath, no `..`, no symlink out). `GET /video/list`, `GET /video/film`; `POST /video/save` (only `title`/`sub`/`kick`/`items` of existing beats plus `platforms`, atomic write, then a build), `/video/job` (`build`/`preview`/`render`; render = one `make_film.py --format <f> --render` per shape the platforms need), `/video/cancel`. Jobs are one global queue run with `Bun.spawn` argv arrays and `env: process.env`, output in `videos/<name>/.kaizen-job.log`, state pushed through `changed()`. The editor's Versions list starts with the Draft (the live build), then one group per version. Versions live in `cli/versions.ts`:
 
   - **Filing:** every listing of a video first files settled renders (unchanged for 15 s) from the scripts' `output/<name>/<preset>/`. Each moves by rename into `output/<name>/versions/<letter>/<n>/`, with a recipe copy of the video folder's small files in `videos/<name>/versions/<letter>/<n>/`. Letters are internal keys only: the page names a version "<video> · <preset>" (`vtitle`, "(2)" for a repeated preset) and its revisions v1, v2. The store is `videos/<name>/versions.json` (`revising`, `versions[{letter,preset,current,trying,revs}]`), written atomically under a `.versions.lock`.
 
