@@ -1,15 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import {
-  edgeOf,
-  focusItem,
-  moveInLayout,
-  refreshPreview,
-  run,
-  setDragging,
-  useLayout,
-  type Rect,
-  type RvPane,
-} from "@lib/run";
+import { edgeOf, focusItem, moveInLayout, run, setDragging, useLayout, type Rect, type RvPane } from "@lib/run";
 import { cn } from "@lib/core";
 import { BrowserPane } from "./browser-pane.tsx";
 import { PaneHeader } from "./pane-header.tsx";

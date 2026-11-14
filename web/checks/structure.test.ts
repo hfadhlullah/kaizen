@@ -133,6 +133,17 @@ test("shared side-menu code only opens React hosts the page has; no page wipes a
   expect(rd("pages/tasks-page.tsx")).not.toMatch(/getElementById\("hx"\)\?*\.replaceChildren/);
 });
 
+// The run workspace centre: the panes, the layout tree, the gutters, the Browser tab and the panel grip are React
+// (components/run, lib/run). run-view.ts holds the plumbing (which items the workspace has, sessions, keys) and the
+// Preview tab's old drawing; it builds no pane, gutter, frame or terminal element.
+test("run-view.ts builds no pane, gutter, frame or terminal element and keeps no layout tree of its own", () => {
+  const src = readFileSync(join(web, "board/run-view.ts"), "utf8");
+  expect(src).not.toMatch(/createElement\(["'`](?:section|header|iframe|webview)/);
+  expect(src).not.toMatch(/makePane|\.rtree|\.rgut|kz-runtabs|splitAt|termLoad|new Map<string, \{ el:/);
+  const ui = readFileSync(join(web, "html/board.html"), "utf8");
+  expect(ui).not.toMatch(/\.rtree|\.rgut|\.rdrop|id="rgrip"/);
+});
+
 // ---- feature folders: components/<feature>/ and lib/<feature>/ ----
 // Only folders live directly under components/ and lib/; none grows past MAX_FILES source files (*.test.ts sit beside the
 // code they test and are not counted; split by feature instead); each

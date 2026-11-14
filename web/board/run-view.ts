@@ -406,9 +406,7 @@ async function previewApp() {
     if (card) pv = preview((await (await fetch(`/run/${encodeURIComponent(card.id)}?dir=${encodeURIComponent(c.dir)}`)).json()).impl) ?? "";
   } catch {}
   const openAt = (u: string) => {
-    try {
-      localStorage.setItem("kz-browse:" + c.k, u);
-    } catch {}
+    keepUrl(c.k, u);
     addTab({ id: "local", kind: "local", title: "Browser" });
     requestBrowse(c.k, u);
   };
