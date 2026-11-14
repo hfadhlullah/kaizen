@@ -8,7 +8,7 @@ function show(message: string, options: Parameters<typeof sonner>[1]) {
   if (last !== undefined) sonner.dismiss(last);
   last = sonner(message, options);
 }
-// The board's one toast, old pages and new: web/board/toast.ts forwards here. With `report`, the toast carries
+// The board's one toast, for engines and components alike. With `report`, the toast carries
 // a link to a prefilled GitHub bug form (/issue) and stays long enough to click it.
 export function toast(message: string, report?: Record<string, string>) {
   show(message, {

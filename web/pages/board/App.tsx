@@ -21,7 +21,7 @@ import { Portal } from "./portal.tsx";
 // layers over it. It holds no state: what shows is the router's (lib/router: the view the address names) and the page
 // stores'. It is the page picker: `useRouteClasses` sets the <body> classes that show one page area, and `Pages` draws a
 // page the first time it opens. The Terminal page's terminals stay mounted once opened and are hidden by CSS; the in-card
-// terminal and the run workspace's panes are mounted by the panel and the workspace engines (lib/run/panel.ts, workspace.ts).
+// terminal and the run workspace's panes are mounted by the panel and the workspace engines (lib/run/use-panel-run.ts, workspace.ts).
 export function App() {
   useRouteClasses();
   useKeys();

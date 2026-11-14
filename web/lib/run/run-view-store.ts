@@ -1,6 +1,6 @@
 // The run workspace as React state (Zustand): the tab bar, the + and split menus, the panes (terminals, Browser, notes,
-// History, "running in another terminal"), the key hint and the project notes list. The old code
-// (web/board/run-view.ts) knows which items the workspace has (from the board's cards and /shells); it publishes this
+// History, "running in another terminal"), the key hint and the project notes list. The workspace engine
+// (lib/run/workspace.ts) knows which items the workspace has (from the board's cards and /shells); it publishes this
 // snapshot on every draw and answers the callbacks below. The layout (which item is in which pane, and how big) is the
 // layout store's; a pane is a component keyed by its item, so a redraw never moves a live terminal.
 import { create } from "zustand";

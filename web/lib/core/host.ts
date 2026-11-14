@@ -1,6 +1,5 @@
-// What the React pages need from the old board code, handed over once by web/board/host.ts.
-// Keeping it here means lib/, components/ and pages/ never import web/board (no cycles, and a test can
-// stand in a fake host). The old modules shrink each phase; this type is what is left of them.
+// What the components need from the board's engines, handed over once by pages/board/host-bridge.ts.
+// Keeping it here means lib/ and components/ never import pages/ (no cycles, and a test can stand in a fake host).
 export type RunPick = { kind: string; agent?: string; account?: string; yolo: boolean; explore?: boolean };
 // What a page opens in place. Each answers true when it did; the Notebook page and Video set none, so the caller changes the
 // address instead. (These were `kz-open-*` events on window; the board's answers are pages/board/host-bridge.ts.)

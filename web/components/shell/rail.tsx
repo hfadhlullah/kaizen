@@ -9,7 +9,7 @@ import { useHiddenTerminals } from "@lib/terminal";
 import { RailFilter, RailList } from "../rail/index.ts";
 import { Wordmark } from "./wordmark.tsx";
 
-// A page-level link of the side menu. The board's router (web/board/views.ts) takes its clicks; on the Notebook it is a link.
+// A page-level link of the side menu. The board's router (lib/router) takes its clicks; on the Notebook it is a link.
 function Item(p: {
   href: string;
   view: string;

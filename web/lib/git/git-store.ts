@@ -1,4 +1,4 @@
-// The Source control tab's React state (Zustand). The old panel code (web/board/panel.ts via git.ts) publishes `snap`
+// The Source control tab's React state (Zustand). The old panel code (lib/git/git-panel.ts via git.ts) publishes `snap`
 // on every redraw of the tab. What the user typed and which inline confirm is open live here per run, so a redraw of
 // the panel (which replaces the element the tab stands in) loses nothing.
 import { create } from "zustand";

@@ -5,7 +5,7 @@ import { Button } from "@web/ui";
 import { BoardColumn, WsCard } from "@components/board";
 
 // The Board, drawn into #board (a grid the old page keeps). Runs mode is five columns of cards; Workspaces mode is four
-// columns of workspace cards. The old board code (web/board/cards.ts render()) feeds it a snapshot on every change;
+// columns of workspace cards. lib/board/snapshot.ts feeds it a snapshot on every change;
 // nothing here is rebuilt by hand, so an open menu or a half-typed form is never lost to a refresh.
 export function BoardPage() {
   const snap = useBoard((s) => s.snap),

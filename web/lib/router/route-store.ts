@@ -1,7 +1,7 @@
 // The board's router as state (Zustand): the view the address names (?view=, no router library), what the side menu lights and the
 // header titles, the pages opened so far, the address's query and the run it names. `navigate` is the only way a view changes:
 // it sets the store (the App draws the page and sets the <body> classes from it), pushes the address, and calls the engine
-// hooks for what still lives in web/board (the docked panel, the run workspace, Settings).
+// hooks for the engines (the docked panel, the run workspace, Settings).
 import { flushSync } from "react-dom";
 import { create } from "zustand";
 import { isPhone, vt } from "@lib/core";

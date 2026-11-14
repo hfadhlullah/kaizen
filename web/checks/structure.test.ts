@@ -270,7 +270,7 @@ test("nothing looks an element up by id or selector except the named places; the
   ]);
 });
 
-// web/board/ is gone. Its engines are in feature folders of lib/ (lib/run: panel.ts, workspace.ts, card-terminal.ts; lib/board:
+// web/board/ is gone. Its engines are in feature folders of lib/ (lib/run: use-panel-run.ts, workspace.ts, card-terminal.ts; lib/board:
 // snapshot.ts, on-state.ts, popups.ts, nav.ts; lib/home, lib/terminal, lib/context, lib/git, lib/settings, lib/project,
 // lib/search, lib/rail) and the page's own glue in pages/board/ (main, views, keys, live, host-bridge). There are no
 // named exceptions: nothing imports a web/board file, and a new top-level folder for old plumbing fails this test.

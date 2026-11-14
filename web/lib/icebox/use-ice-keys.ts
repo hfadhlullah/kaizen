@@ -1,4 +1,4 @@
-// The Icebox's keys, read by the board's key handler (web/board/keys.ts) while the Icebox shows. True when the key was
+// The Icebox's keys, read by the board's key handler (pages/board/keys.ts) while the Icebox shows. True when the key was
 // used. j and k walk the cursor, o opens, x checks, p promotes, d dismisses, h snoozes a week (the checked ones when
 // any are), Escape steps back one thing; in swipe mode the arrows decide and z undoes. A text field, a menu or a
 // dialog keeps its own keys.

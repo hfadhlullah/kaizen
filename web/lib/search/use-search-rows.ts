@@ -5,16 +5,16 @@ import { useRailData } from "@lib/server";
 import { buildRows } from "./search-rows.ts";
 import type { Item } from "./search-match.ts";
 
-let last: any[] = []; // the chats the last open read: shown at once on the next open while the new read comes in
 export function useSearchRows(open: boolean): Item[] {
   const data = useRailData(),
-    [chats, setChats] = useState(last);
+    [chats, setChats] = useState<any[]>([]);
   useEffect(() => {
-    if (!open) return;
+    // Closed: forget them, so the next open never shows a chat deleted since.
+    if (!open) return setChats([]);
     const ac = new AbortController();
     fetch("/chats", { signal: ac.signal })
       .then((r) => r.json())
-      .then((d) => setChats((last = d.chats ?? [])))
+      .then((d) => setChats(d.chats ?? []))
       .catch(() => {});
     return () => ac.abort();
   }, [open]);

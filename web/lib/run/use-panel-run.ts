@@ -47,6 +47,11 @@ export function usePanelRun() {
       .then(
         (d) => {
           if (getPanel().openKey !== k) return;
+          // A run that is gone answers {error} with no id: not a document. Whoever waits on this read is let go.
+          if (!d || d.id !== c.id) {
+            toast(d?.error || "Could not read this run");
+            return settle();
+          }
           landed.current = id;
           setPanel({ runDoc: d });
         },

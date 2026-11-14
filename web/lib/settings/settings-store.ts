@@ -1,6 +1,6 @@
 // Settings' state (Zustand): what the eight routes answered, the scope, the page and the search, the browser's own
 // choices, and the small things a redraw must not lose (open agent rows, the automation form, a value on its way to
-// the server). The board's old code only opens the page (web/board/settings.ts); everything else is here.
+// the server). The board's engine only opens the page (lib/settings/panel-settings.ts); everything else is here.
 import { create } from "zustand";
 import { host } from "@lib/core";
 import type { Data } from "./settings.ts";

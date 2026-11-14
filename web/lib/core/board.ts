@@ -1,6 +1,6 @@
 // The board's card rules without any drawing: which cards a column lists and in what order, what a card's
 // button says, its chips and marks, and its menu. The Board page (pages/board-page.tsx) draws what these return;
-// web/board.test.ts tests them alone.
+// lib/core/board.test.ts tests them alone.
 import { MARKS, NAMES, ICON, WORD, need, d as DAY } from "./labels.ts";
 
 // One entry of /state's `cards`, or an open backlog item drawn as a card. Only the fields the board reads.
