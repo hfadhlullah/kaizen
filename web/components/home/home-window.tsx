@@ -45,7 +45,8 @@ function BarButton({
     </Tooltip>
   );
 }
-const Glyph = ({ name }: { name: string }) => <Icon name={name} className="size-(--ico) stroke-2" />;
+// The bar's own small glyphs (minimize, maximize, close), drawn as the old window drew them.
+const glyph = "size-(--ico) fill-none stroke-current stroke-2 [stroke-linecap:round]";
 
 // The panel over the board: a header (drag it by the empty part) with a tab per Home terminal, then the terminal of the
 // tab shown. It stays in the page when minimized or closed, so its spot and size are kept; the terminal is only
@@ -111,7 +112,7 @@ export function HomeWindow() {
             <div
               key={t.key}
               className={cn(
-                "group flex max-w-[220px] min-w-[120px] flex-none items-center pr-1.5 pl-3 text-base max-[640px]:max-w-40 max-[640px]:min-w-0 max-[640px]:pr-1 max-[640px]:pl-2.5",
+                "group flex max-w-[220px] min-w-[120px] flex-none items-center gap-2 pr-1.5 pl-3 text-base max-[640px]:max-w-40 max-[640px]:min-w-0 max-[640px]:pr-1 max-[640px]:pl-2.5",
                 t.key === cur
                   ? "text-strong shadow-[inset_0_-2px_var(--ink-hi)]"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -149,10 +150,14 @@ export function HomeWindow() {
         <HomeWsAdd />
         <span className="flex-1" />
         <BarButton label="Minimize to the sidebar" onClick={() => showHomeWs("min")} className="max-[640px]:hidden">
-          <Glyph name="min" />
+          <svg viewBox="0 0 24 24" aria-hidden="true" className={glyph}>
+            <path d="M5 18h14" />
+          </svg>
         </BarButton>
         <BarButton label={s.max ? "Restore size" : "Maximize"} onClick={toggleMax} className="max-[640px]:hidden">
-          <Glyph name="max" />
+          <svg viewBox="0 0 24 24" aria-hidden="true" className={glyph}>
+            <rect x="5" y="5" width="14" height="14" rx="2" />
+          </svg>
         </BarButton>
         <BarButton
           label="Close the Home workspace"
@@ -160,7 +165,9 @@ export function HomeWindow() {
           onClick={() => (isPhone() ? showHomeWs("closed", false) : void closeAllHome())}
           className="max-[640px]:size-10"
         >
-          <Glyph name="x" />
+          <svg viewBox="0 0 24 24" aria-hidden="true" className={glyph}>
+            <path d="M6 6l12 12M18 6 6 18" />
+          </svg>
         </BarButton>
       </header>
       <div className={cn("flex min-h-0 flex-1 flex-col", cur ? "bg-(--term-bg,var(--bg))" : "bg-background")}>

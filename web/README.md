@@ -56,8 +56,8 @@ pages/  ->  components/<feature>/  ->  ui/  ->  lib/core/utils.ts
 | `run` | The run panel and run view: head, tabs, history, picker, footer, wait/empty states, file viewer, fix form; the centre's panes (`run-panes`, `pane`, `pane-gutter`, `terminal-pane`, `browser-pane`) and panel grip; in `lib/run`: the pane layout rules (`layout`) and its saved store (`layout-store`), the Browser's history (`browser`), `run-actions`. |
 | `git` | The run's Source control tab. |
 | `settings` | Settings page rows, nav, sections, update bar; settings store and actions, update check, mic choice. |
-| `phone` | Phone setup (QR, WhatsApp card) and the phone-sized new-run sheets. |
-| `home` | Home: chat list, messages, composer, onboarding dialog; the home store. |
+| `phone` | Phone setup (QR, WhatsApp card), the phone-sized new-run sheets, and the phone's Home and Runs pages (agents, devices, runs, usage chips; `lib/phone`: their rules, the store, the taps' requests, the run sheet's swipe rules) with the tap tick. |
+| `home` | Home: chat list, messages, composer, onboarding dialog; the home store; the floating Home window (its tabs, drag, minimized sidebar row and "+" menu; `lib/home/home-window.ts` holds its rules and requests, the terminal is `run`'s `TerminalPane`). |
 | `project` | Project picker, Add project dialog, workspace menu, branch rules. |
 | `rail` | The side menu's Projects list (rows, folds, pins, project drag, agent chips, task links, worktree right-click menu) and its filter; rules, store and requests in `lib/rail`. Rows keep the board's legacy classes. |
 | `resources` | The footer resource popup: Memory, Storage, Terminals; store, requests and sizes in `lib/resources`. |
