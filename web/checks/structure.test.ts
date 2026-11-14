@@ -289,7 +289,7 @@ test("board.html, notes.html and popup.html are small shells with no inline styl
 
 // The server's data and the page that shows are not the engines' to decide any more: lib/server is the one poller (fetch, dedupe,
 // the quiet gap, the event stream) writing one store, lib/router the one router (the view, its address, the <body> classes
-// through the App). web/board/ reads them and reacts; it fetches none of what the poller reads and sets no page class.
+// through the App). The engines read them and react; it fetches none of what the poller reads and sets no page class.
 test("the engines do not poll the server or show pages: lib/server and lib/router do", () => {
   const src = (n: string) => readFileSync(join(web, n), "utf8");
   for (const n of ENGINES) {

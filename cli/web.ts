@@ -47,7 +47,7 @@ import { artifactResponse as taskArtifactResponse } from "./task-results.ts";
 import { gitUrl, destDir, winBad, cloneInto, branchesOf, ignoreKaizen } from "./add-project.ts";
 
 const PAGE = join(dirname(import.meta.dir), "web", "html", "board.html");
-// The board's script: web/board/*.ts, bundled into one file by `bun run build:web`.
+// The board's script: web/pages/board/main.ts with web/lib and web/components, bundled into one file by `bun run build:web`.
 const BOARD_JS = join(dirname(import.meta.dir), "web", "dist", "board.js");
 const SOUNDS_DIR = join(dirname(import.meta.dir), "web", "sounds");
 // The notebook: its page, and the CodeMirror bundle `bun run build:web` commits to web/dist.

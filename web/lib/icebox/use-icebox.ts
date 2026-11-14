@@ -1,5 +1,5 @@
 // The Icebox's data: GET /sources, refreshed when the board says something changed (the server's event stream, counted in
-// the server store), when its own state moved (a project switch) and when the "Showing" picker changes (`kz-shown`). One request at a time (a second asks for one more round), a stale answer is dropped. Every redraw
+// the server store), when its own state moved (a project switch) and when the "Showing" picker changes (the `useShown` store). One request at a time (a second asks for one more round), a stale answer is dropped. Every redraw
 // is React's, so an open menu or a press in progress is never disturbed by a refresh.
 import { useEffect } from "react";
 import { getSources, host } from "@lib/core";

@@ -1,7 +1,7 @@
 ---
 description: The Notes tab: an Obsidian-compatible markdown folder under .kaizen/notes/
 tags: [project, notebook]
-sources: [cli/notes.ts, web/notebook/notebook.ts, web/notebook/notes-lib.ts, web/notebook/kit.ts, web/notebook/kit-loader.ts, web/pages/notebook-page.tsx, web/components/notebook, web/lib/notebook, web/html/notes.html, cli/build-web.ts]
+sources: [cli/notes.ts, web/notebook/notebook.ts, web/notebook/notes-lib.ts, web/lib/notebook/kit.ts, web/lib/notebook/kit-loader.ts, web/pages/notebook-page.tsx, web/components/notebook, web/lib/notebook, web/html/notes.html, cli/build-web.ts]
 updated: 2026-11-14
 ---
 # Notebook
