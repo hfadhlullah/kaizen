@@ -31,10 +31,10 @@ import { HomeWindow, HomeWsButton, HomeWsRow, OnboardingDialog } from "@componen
 import { Haptic, PhonePage, PhoneSheets } from "@components/phone";
 import { AskHost } from "@components/shared";
 import { RailFilter, RailList } from "@components/rail";
-import { ResourcesButton } from "@components/resources";
+import { FootBar } from "@components/footer";
 import { setRailData, touchRail } from "@lib/rail";
 import { startTerminalDictation } from "@lib/dictation";
-import { BoardPopups, BoardModeSwitch } from "@components/board";
+import { BoardPopups, BoardModeSwitch, StatusButton, StatusStrip } from "@components/board";
 import { TerminalModes } from "@components/terminal";
 import { GitHost } from "@components/git";
 import { setGit } from "@lib/git";
@@ -271,10 +271,16 @@ export function initReact(go: (view: string, push?: boolean) => void) {
   slot.style.display = "contents";
   $("plist").before(slot);
   createRoot(slot).render(createElement(HomeWsRow));
+  // The status strip under the board and the phone's status button in the header.
+  createRoot($("ftr")).render(createElement(TooltipProvider, null, createElement(StatusStrip)));
+  createRoot($("fbtn-host")).render(createElement(TooltipProvider, null, createElement(StatusButton)));
+  // The board's footer: usage, resources, the terminal count and the phone (the other pages have none).
+  const foot = document.getElementById("foot");
+  if (foot) createRoot(foot).render(createElement(TooltipProvider, null, createElement(FootBar)));
   // The Terminal page and its layout switch in the page header: both draw nothing while another view shows.
   createRoot($("terms")).render(createElement(TooltipProvider, null, createElement(TerminalPage)));
   createRoot($("tmodes")).render(createElement(TooltipProvider, null, createElement(TerminalModes)));
-  for (const [id, part] of [["plist", RailList], ["pfilter-host", RailFilter], ["res-host", ResourcesButton]] as const) {
+  for (const [id, part] of [["plist", RailList], ["pfilter-host", RailFilter]] as const) {
     const el = document.getElementById(id);
     if (el) createRoot(el).render(createElement(TooltipProvider, null, createElement(part)));
   }

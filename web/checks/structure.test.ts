@@ -120,10 +120,12 @@ test("shared side-menu code only opens React hosts the page has; no page wipes a
   expect(ws).not.toMatch(/drawList|drawPop|pfpop|wsMenu|rankDrag|innerHTML = drawn/);
   expect(existsSync(join(web, "board/resources.ts"))).toBe(false);
   expect(ws).toMatch(/!onBoard\(\) && kitHere\(\)\) void kitFor\(\)\.then\(\(k\) => connectRail\(k\.rail\)/);
-  expect(rd("board/react-mount.ts")).toMatch(/\["plist", RailList\], \["pfilter-host", RailFilter\], \["res-host", ResourcesButton\]/);
+  expect(rd("board/react-mount.ts")).toMatch(/\["plist", RailList\], \["pfilter-host", RailFilter\]\] as const/);
+  // The footer's resource button is part of the footer bar now.
+  expect(rd("components/footer/foot-bar.tsx")).toMatch(/<ResourcesButton \/>/);
   expect(rd("notebook/kit.ts")).toMatch(/\["plist",\s*RailList\],\s*\["pfilter-host",\s*RailFilter\]/);
   for (const f of ["board", "notes", "video"]) expect(rd(`html/${f}.html`)).toContain('<span id="pfilter-host" style="display:contents"></span>');
-  expect(rd("html/board.html")).toContain('<span id="res-host" style="display:contents"></span>');
+  expect(rd("html/board.html")).toContain('<footer class="foot kz-ui" id="foot"');
   // Search: the notebook page opens the palette from the kit and falls back to the board; every page load from the palette
   // goes through go(), which writes the notebook's open note first.
   const se = rd("board/search.ts");
@@ -170,6 +172,18 @@ test("the Terminal page is drawn by React, not by board/terms.ts or board.html",
   const css = readFileSync(join(web, "html/board.html"), "utf8");
   expect(css).not.toMatch(/\.tile\b|\.tgrid|\.tsplit|\.ttabs|\.tbar\b|body\.tdrag|body\.tmax/);
   expect(readFileSync(join(web, "components/terminal/terminal-tile.tsx"), "utf8")).toMatch(/<TerminalPane/);
+});
+
+// The board's footer (usage chips with their popovers, resources, terminal count, phone) and the status strip with the
+// phone's status button are React (components/footer and components/board over lib/footer and lib/board/strip.ts).
+test("the footer and the status strip are drawn by React, not by workspace.ts, cards.ts or board.html", () => {
+  const ws = readFileSync(join(web, "board/workspace.ts"), "utf8");
+  expect(ws).not.toMatch(/usageChips|\$\("(?:usage|phone|tcount)"\)|utip|uchip/);
+  const cards = readFileSync(join(web, "board/cards.ts"), "utf8");
+  expect(cards).not.toMatch(/\$\("(?:strip|fbtn)"\)|statusSheet|innerHTML/);
+  const css = readFileSync(join(web, "html/board.html"), "utf8");
+  expect(css).not.toMatch(/\.uchip|\.utip|\.urow|\.umtr|\.strip\b|\.ftr\.on/);
+  expect(readFileSync(join(web, "components/footer/foot-bar.tsx"), "utf8")).not.toMatch(/innerHTML/);
 });
 
 // The Notes tab (components/notes, lib/notes) and dictation (lib/dictation, the microphone button in components/shared) are

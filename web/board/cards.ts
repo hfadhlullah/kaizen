@@ -10,6 +10,7 @@ import { COLS, ICON, WORD } from "./labels.ts";
 import { isPhone } from "@lib/core";
 import { showable } from "./projects.ts";
 import { setProjectBar } from "@lib/project";
+import { setStripActions } from "@lib/board";
 import { termsBadge } from "./terms.ts";
 import { boardBadge, waitingCount } from "./badge.ts";
 import { WS_COLS } from "./ws-board.ts";
@@ -19,6 +20,16 @@ import { react } from "./views.ts";
 let filter = null;
 let query = ""; // the header filter box, matched against a card's title and request
 let archive = false; // showing the archive instead of the board
+// A click on a status chip (components/board/status-strip.tsx) filters to that status, or back to all; the archive chip toggles the archive.
+setStripActions({
+  pick: (id) => {
+    if (id === "__archive") {
+      archive = !archive;
+      filter = null;
+    } else filter = filter === id ? null : id;
+    render();
+  },
+});
 
 // Two tasks may carry the same text; load() numbers the repeats so a key names one card.
 export const key = (c) =>
@@ -52,44 +63,6 @@ export function render() {
   b.removeAttribute("aria-busy");
   // The loading skeleton goes with the first real draw.
   b.querySelectorAll(":scope > section[aria-hidden]").forEach((s) => s.remove());
-  const nArch = store.S.cards.filter((c) => c.archived).length;
-  const n = (s) => cs.filter((c) => c.status === s).length;
-  const strip = [];
-  // One chip per status on the board: its mark, its count, and a click filters to it. Running always shows.
-  for (const st of ["waiting", "running", "stalled", "starting", "idea", "done", "abandoned"]) {
-    const k = n(st);
-    if (!k && st !== "running") continue;
-    const mark =
-      st === "running"
-        ? `<span class="d-run"><span class="pulse"></span></span>`
-        : `<span class="st d-${ICON[st]}"><svg><use href="#s-${ICON[st]}"/></svg></span>`;
-    strip.push(
-      `<button class="${st === "waiting" ? "attn " : ""}${filter === st ? "on" : ""}" data-f="${st}" title="Show only ${WORD[st]}">${mark}${k} ${WORD[st]}${st === "idea" && k !== 1 ? "s" : ""}</button>`,
-    );
-  }
-  strip.push(
-    `<button class="${archive ? "on" : ""}" data-f="__archive" title="${cs.filter((c) => c.kind === "idea").length} tasks · ${cs.filter((c) => c.kind === "run").length} runs on the board">${archive ? "Back to board" : "Archive " + nArch}</button>`,
-  );
-  $("strip").innerHTML = strip.join("");
-  // The phone's status button: amber dot while a run waits, accent while a filter or the archive is on.
-  $("fbtn").hidden = false;
-  $("fbtn").classList.toggle("on", !!filter || archive);
-  $("fbtn").classList.toggle("wait", !filter && !archive && n("waiting") > 0);
-  $("strip")
-    .querySelectorAll("button")
-    .forEach(
-      (c) =>
-        (c.onclick = () => {
-          if (c.dataset.f === "__archive") {
-            archive = !archive;
-            filter = null;
-            render();
-            return;
-          }
-          filter = filter === c.dataset.f ? null : c.dataset.f;
-          render();
-        }),
-    );
   // The header's pickers: the choices ([label, folder, from the projects folder]), the project the board is on, and what shows.
   store.PL = [
     ["All projects", "all"],
@@ -153,21 +126,6 @@ export function filterBox() {
       el.blur();
     }
   });
-}
-// Phones: the footer's status strip opens as a sheet under the filter button; a press outside closes it.
-export function statusSheet() {
-  const b = $("fbtn"),
-    f = document.querySelector(".ftr");
-  const set = (on) => {
-    f.classList.toggle("on", on);
-    b.setAttribute("aria-expanded", on);
-    if (on) f.style.top = b.getBoundingClientRect().bottom + 6 + "px";
-  };
-  b.onclick = () => set(!f.classList.contains("on"));
-  document.addEventListener("pointerdown", (e) => {
-    if (f.classList.contains("on") && !f.contains(e.target) && !b.contains(e.target)) set(false);
-  });
-  document.addEventListener("keydown", (e) => e.key === "Escape" && f.classList.contains("on") && set(false));
 }
 export const focusedKey = () => document.activeElement?.closest?.("#board .card")?.dataset.k;
 export const cardEl = (k) => k && $("board").querySelector('.card[data-k="' + CSS.escape(k) + '"]');

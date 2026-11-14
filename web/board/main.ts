@@ -10,7 +10,7 @@ import { answered, closeForm, closeNewForm, drawBoard, mountHome, drawFix, drawF
 import { initProjects, pick } from "./projects.ts";
 import { initUpdate } from "./update.ts";
 import { initKeys } from "./keys.ts";
-import { filterBox, statusSheet } from "./cards.ts";
+import { filterBox } from "./cards.ts";
 import { initLive } from "./live.ts";
 import { store } from "./store.ts";
 import { initViewer } from "./viewer.ts";
@@ -31,9 +31,8 @@ initLive();
 initViewer();
 initContext();
 filterBox();
-statusSheet();
 initRail();
-initFooter(() => go("terminal", true));
+initFooter();
 initHomeWs();
 // The rail's rows and + open a card or the new-task form here, on the board, when it has them.
 // A row of another project than the one picked switches the board to that project first.

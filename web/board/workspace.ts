@@ -8,6 +8,7 @@ import { $, html, raw } from "./dom.ts";
 import { openAdd, type AddOpts } from "@lib/project/add-project.ts";
 import { cardHref as ruleCardHref, titleOf as ruleTitleOf, projName as ruleProjName, RANK as RULE_RANK, stateOf as ruleStateOf, wsLabel as ruleWsLabel, wsOfCard as ruleWsOfCard, type RailData } from "@lib/rail/rules.ts";
 import type { Agent } from "@lib/rail/agents.ts";
+import { setFooterTerms, startFooter } from "@lib/footer/footer-store.ts";
 import { initSearch, leave } from "./search.ts";
 import { setToaster, toast } from "./toast.ts";
 import { kitHere, loadKit } from "../notebook/kit-loader.ts";
@@ -176,48 +177,7 @@ function pickedDir() {
   }
 }
 
-// ---- footer (board page)
-const meter = (p) => html`<span class="umtr"><i class="${p >= 85 ? "hi" : p >= 50 ? "mid" : ""}" style="width:${Math.min(100, p)}%"></i></span>`;
-const when = (t) => (t ? new Date(t).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" }) : "unknown");
-const NAME = { claude: "Claude", codex: "Codex" };
-export function usageChips(list) {
-  // The agent's mark and its 5-hour %, coloured as it fills; the full figures on hover/focus.
-  const lvl = (p) => (p >= 95 ? " hi" : p >= 80 ? " mid" : "");
-  return list
-    .filter((u) => NAME[u.agent])
-    .map((u) => {
-      const mark = html`<svg aria-hidden="true"><use href="#i-${u.agent}"/></svg>`;
-      if (u.error) return html`<span class="uchip na" tabindex="0">${mark}<b>–</b><span class="utip" role="tooltip"><b>${NAME[u.agent]}</b>Usage unavailable: ${u.error}</span></span>`;
-      const head = u.five ?? u.week;
-      const row = (label, w) => (w ? html`<span class="urow"><span>${label}</span><b class="${lvl(w.pct).trim()}">${w.pct}%</b><i><i style="width:${Math.min(100, w.pct)}%" class="${lvl(w.pct).trim()}"></i></i><small>resets ${when(w.resetsAt)}</small></span>` : "");
-      return html`<span class="uchip" tabindex="0" aria-label="${NAME[u.agent]} usage">${mark}<b class="${lvl(head?.pct ?? 0).trim()}">${head ? head.pct + "%" : ""}</b><span class="utip" role="tooltip"><b>${NAME[u.agent]}</b>${row("5-hour window", u.five)}${row("Week", u.week)}</span></span>`;
-    })
-    .join("");
-}
-async function usage(refresh = false) {
-  try {
-    const r = await fetch("/usage" + (refresh ? "?refresh=1" : ""));
-    if (!r.ok) return;
-    const list = await r.json();
-    $("usage").innerHTML = usageChips(list);
-    // Nothing to refresh: only Claude and Codex report usage.
-    $("usage-r").style.display = list.length ? "" : "none";
-  } catch {}
-}
-async function phone() {
-  try {
-    const d = await (await fetch("/phone")).json();
-    const el = $("phone");
-    el.hidden = false;
-    const [txt, on, tip] = !d.tailscale
-      ? ["Tailscale off", false, "Tailscale is not running on this computer"]
-      : d.online
-        ? ["Phone connected", true, "A phone is online on your tailnet"]
-        : ["Phone offline", false, d.phones ? "Your phone is not online on the tailnet" : "No phone on your tailnet"];
-    el.title = tip;
-    el.innerHTML = String(html`<svg aria-hidden="true"><use href="#i-phone"/></svg><span class="ptxt">${txt}</span><span class="dot${on ? "" : " off"}"></span>`);
-  } catch {}
-}
+// ---- footer (board page): components/footer draws it from lib/footer; this reports the live terminals it counts.
 // Live terminals: the board's agent sessions plus the shells /shell started.
 let agentPtys = 0;
 let onCount: ((cards: any[]) => void) | null = null;
@@ -228,28 +188,15 @@ async function terms() {
     shells = store.shells.length;
     dispatchEvent(new Event("kz-shells"));
   } catch {}
-  const n = agentPtys + shells,
-    a = $("tcount");
-  a.hidden = !n;
-  a.querySelector("span").textContent = String(n);
-  a.title = `${n} live terminal${n === 1 ? "" : "s"}: show them all`;
+  setFooterTerms(agentPtys + shells);
 }
-export function initFooter(goTerminal: () => void) {
+export function initFooter() {
   if (!$("foot")) return;
   // The Board drawer is position:fixed; it stops above the footer, whose height varies.
   const fh = () => document.documentElement.style.setProperty("--foot-h", $("foot").offsetHeight + "px");
   new ResizeObserver(fh).observe($("foot"));
   fh();
-  void usage();
-  void phone();
-  setInterval(() => void usage(), 5 * 60_000);
-  setInterval(() => void phone(), 60_000);
-  $("usage-r").onclick = () => void usage(true);
-  $("tcount").onclick = (e) => {
-    if (e.ctrlKey || e.metaKey || e.shiftKey || e.button) return;
-    e.preventDefault();
-    goTerminal();
-  };
+  startFooter();
   onCount = (cards) => {
     agentPtys = cards.filter((c) => c.pty?.alive).length;
     void terms();
