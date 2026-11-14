@@ -53,7 +53,7 @@ test("Board badge coalesces overlapping updates and shows the latest count", asy
 });
 
 test("the update state follows each check: a newer release shows, none left clears it, words say which", async () => {
-  // The About bar and the card (components/update-bar.tsx) read this store; the rail's dot follows it (board/update.ts).
+  // The About bar and the card (components/settings/update-bar.tsx) read this store; the rail's dot follows it (board/update.ts).
   const { available, behindMsg, gotVer, later, upToDate, useUpdate } = await import("../web/lib/settings/update.ts");
   const ver = () => useUpdate.getState().ver;
   gotVer({ version: "1.38.1", latest: "1.39.0", update: true });
