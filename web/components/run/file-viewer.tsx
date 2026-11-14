@@ -1,9 +1,25 @@
-import { closeFile, isImage, useViewer } from "@lib/run";
+import { useEffect } from "react";
+import { closeFile, isImage, openFile, useViewer, viewable } from "@lib/run";
 import { Button, Dialog, DialogContent, DialogTitle } from "@web/ui";
 
 // A file the board links to, over the board: an image, or any other file in a frame, with a way out to a tab of its own.
+// Links to files open here rather than in a new tab; Ctrl/Cmd/Shift or a middle click still gets the browser's own tab,
+// and external links are not files and are left alone.
 export function FileViewer() {
   const file = useViewer((s) => s.file);
+  useEffect(() => {
+    const click = (e: MouseEvent) => {
+      if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+      const a = (e.target as HTMLElement).closest?.("a[href]");
+      const href = a?.getAttribute("href") ?? "";
+      // The viewer's own "Open in new tab" goes to its tab; every other link to a file (target _blank or not) opens the viewer.
+      if (!viewable(href) || a?.hasAttribute("data-viewer-tab")) return;
+      e.preventDefault();
+      openFile(href);
+    };
+    document.addEventListener("click", click);
+    return () => document.removeEventListener("click", click);
+  }, []);
   return (
     <Dialog open={!!file} onOpenChange={(o) => !o && closeFile()}>
       {file && (

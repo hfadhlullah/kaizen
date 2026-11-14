@@ -1,4 +1,6 @@
+import { cn } from "@lib/core";
 import type { CSSProperties, ReactNode } from "react";
+import { useUpdate } from "@lib/settings";
 import { toggleRail, toggleTheme, useShell } from "@lib/shell";
 import { RailFilter, RailList } from "../rail/index.ts";
 import { Wordmark } from "./wordmark.tsx";
@@ -22,6 +24,8 @@ function Item(p: { href: string; view: string; title: string; label?: ReactNode;
 // the minimized Home window's row (both the board's only).
 export function Rail(p: { srcs?: ReactNode; before?: ReactNode }) {
   const { min, dark, setup, lit } = useShell();
+  // A dot on Settings while a newer kaizen is known (the About bar and the update card read the same store).
+  const latest = useUpdate((s) => (s.ver?.update ? s.ver.latest : ""));
   const fold = min ? "Expand menu" : "Collapse menu";
   const theme = dark ? "Dark theme: switch to light" : "Light theme: switch to dark";
   return (
@@ -91,7 +95,7 @@ export function Rail(p: { srcs?: ReactNode; before?: ReactNode }) {
         <RailList />
       </div>
       <div className="rbot">
-        <Item className="it fold" href="/?view=settings" view="settings" title="Settings" aria="Settings" icon="i-gear" />
+        <Item className={cn("it fold", latest && "upd")} href="/?view=settings" view="settings" title={latest ? `Settings: ${(globalThis as { kaizenDesktop?: unknown }).kaizenDesktop ? "Kaizen" : "kaizen"} ${latest} is available` : "Settings"} aria="Settings" icon="i-gear" />
         <a className="ib xs" href="/issue" target="_blank" rel="noopener" title="Report an issue" aria-label="Report an issue">
           <svg>
             <use href="#r-bug" />

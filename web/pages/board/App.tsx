@@ -1,4 +1,6 @@
+import { useEffect } from "react";
 import { TooltipProvider } from "@web/ui";
+import { checkUpdate } from "@lib/settings";
 import { SourceMarks } from "@components/rail";
 import { HomeWsRow } from "@components/home";
 import { Rail, Sprite } from "@components/shell";
@@ -15,6 +17,12 @@ import { Portal } from "./portal.tsx";
 // the view in lib/shell, a class on <body> shows one page area). The terminals live in the page and panel areas
 // and are never unmounted by a page switch.
 export function App() {
+  // Hourly so a tab left open still hears of a release; the server's cache limits npm to every 6 h.
+  useEffect(() => {
+    void checkUpdate();
+    const t = setInterval(checkUpdate, 3600_000);
+    return () => clearInterval(t);
+  }, []);
   return (
     <TooltipProvider>
       <Sprite />

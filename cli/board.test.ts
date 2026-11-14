@@ -1,6 +1,6 @@
 // The board's markdown renderer and helpers, imported from the board's modules as they ship.
 import { test, expect } from "bun:test";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { md, planQuestions, brief } from "../web/board/markdown.ts";
 import { draft, undraft } from "../web/board/drafts.ts";
@@ -287,4 +287,16 @@ test("markStage records a stage terminal only inside an existing runs/<id>", asy
   expect(existsSync(join(dir, "terminals.json"))).toBe(false);
   expect(existsSync(join(dir, "runs", "terminals.json"))).toBe(false);
   expect(existsSync(join(dir, "runs", "nope"))).toBe(false);
+});
+
+// An upgrade replaces the page files under a running board but not its code: a page file the board reads per request, and not
+// at start, answers 500 until it restarts (kaizen upgrade). So every file the board serves from web/ is in AT_START.
+test("every page and bundle in web/html and web/dist is served and kept at start", () => {
+  const root = dirname(import.meta.dir);
+  const src = readFileSync(join(root, "cli", "web.ts"), "utf8");
+  const atStart = src.match(/const AT_START = new Map\(\[(.*?)\]\.map/)![1]!;
+  for (const name of ["PAGE", "BOARD_JS", "NOTES_PAGE", "NOTES_JS", "TERM_JS", "TERM_CSS", "VIDEO_PAGE", "VIDEO_JS", "ANNOTATE_JS", "UI_CSS", "POPUP_PAGE", "POPUP_JS", "...Object.values(STYLES)"])
+    expect(atStart).toContain(name);
+  for (const dir of ["html", "dist"])
+    for (const f of readdirSync(join(root, "web", dir))) expect([f, src.includes(`"${f}"`)]).toEqual([f, true]);
 });

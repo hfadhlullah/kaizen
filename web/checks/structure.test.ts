@@ -174,24 +174,51 @@ const BOARD: Record<string, string> = {
   "store.ts": "the board's shared mutable state",
   "terms.ts": "feeds sessions to the Terminal page and the side menu badge",
   "toast.ts": "toasts for Video, notifications and sounds",
-  "update.ts": "the Settings link's update dot",
-  "viewer.ts": "opens file links in the viewer",
   "views.ts": "view routing: body classes, addresses and the lib/shell view",
   "workspace.ts": "the rail's data, the workspace rules and the footer poll",
   "ws-board-ui.ts": "the Workspaces board's data and mode",
   "ws-board.ts": "the Workspaces board's columns (pure, tested)",
   "ws-tabs.ts": "run workspace tab rules shared with the notebook and Video bundles",
 };
+// A file that holds nothing but imports and `export ... from` lines, on one line or many, only forwards.
+const onlyForwards = (src: string) => {
+  const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "").trim();
+  return code.length > 0 && /^(?:(?:import|export)\s[^;]*?\bfrom\s+["'][^"']+["'];?\s*)+$/.test(code);
+};
 test("every web/board file has a reason to exist, and none is left that only re-exports", () => {
   const dir = join(web, "board");
   const files = readdirSync(dir).filter((n) => n.endsWith(".ts") && !isTest(n));
   expect(files.sort()).toEqual(Object.keys(BOARD).sort());
   for (const [n, why] of Object.entries(BOARD)) expect(why.length).toBeGreaterThan(10);
-  for (const n of files) {
-    const src = readFileSync(join(dir, n), "utf8").replace(/\/\/.*$/gm, "").trim();
-    // a pure re-export file: nothing but `export ... from` lines
-    expect(src.split("\n").every((l) => /^export .* from /.test(l.trim()) || !l.trim())).toBe(false);
+  for (const n of files) expect([n, onlyForwards(readFileSync(join(dir, n), "utf8"))]).toEqual([n, false]);
+  // the check sees a one-line forward, a multi-line one and one beside an import, and leaves real code alone
+  expect(onlyForwards('export { a } from "./a.ts";')).toBe(true);
+  expect(onlyForwards('// x\nexport {\n  a,\n  b,\n} from "./a.ts";\nexport * from "./b.ts"')).toBe(true);
+  expect(onlyForwards('import { a } from "./a.ts";\nexport { b } from "./b.ts";')).toBe(true);
+  expect(onlyForwards('import { a } from "./a.ts";\nexport const b = a + 1;')).toBe(false);
+});
+
+// The page shells are a handful of lines: the head, a root and one script. All the markup is React (pages/*/App.tsx), all
+// the styles are in the page's one built stylesheet, all the script is its bundle. video.html is still a whole page.
+test("board.html, notes.html and popup.html are small shells with no inline style, script or markup", () => {
+  for (const [f, css, js] of [["board", "board.css", "board.js"], ["notes", "notebook.css", "notebook.js"], ["popup", "popup.css", "popup.js"]]) {
+    const html = readFileSync(join(web, `html/${f}.html`), "utf8");
+    expect(html.split("\n").length).toBeLessThan(25);
+    expect(html.length).toBeLessThan(1500);
+    expect(html).toContain('<div id="root"></div>');
+    expect(html).toContain(`<link rel="stylesheet" href="/${css}">`);
+    expect(html.match(/<script\b[^>]*>/g)).toEqual([`<script src="/${js}">`]);
+    expect(html).not.toMatch(/<style\b|\sstyle=|<svg\b|<nav\b|<button\b|onclick=/);
+    expect(html.match(/<script\b[^>]*>([\s\S]*?)<\/script>/)![1]).toBe("");
   }
+  // every page is one App in its own folder, and the Board's holds no state of its own
+  for (const f of ["board", "notebook", "popup"]) expect(existsSync(join(web, `pages/${f}/App.tsx`))).toBe(true);
+  const app = readFileSync(join(web, "pages/board/App.tsx"), "utf8");
+  expect(app.split("\n").length).toBeLessThan(80);
+  expect(app).not.toMatch(/useState|useReducer|create\(/);
+  // react-mount.ts and the react registry are gone: stores and lib calls are made directly
+  expect(existsSync(join(web, "board/react-mount.ts"))).toBe(false);
+  expect(readFileSync(join(web, "board/views.ts"), "utf8")).not.toMatch(/export const react\b/);
 });
 
 // workspace.ts is shared with the notebook and Video bundles. The Projects list, its filter, the worktree menu and the
@@ -381,7 +408,6 @@ const BRIDGE_DIRECT = [
   "board/ws-tabs.ts",
   "board/badge.ts",
   "board/search.ts",
-  "board/update.ts",
 ];
 const isTest = (name: string) => /\.test\.tsx?$/.test(name);
 // Aliases (tsconfig paths): "@web/x" is web/x, "@lib/x" is web/lib/x, "@components/x" is web/components/x. A path with
