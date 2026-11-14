@@ -85,6 +85,8 @@ export async function loadVault() {
   } catch {
     /* keep */
   }
+  // A project picked while this was out: its own load is the one that counts.
+  if (getVault().dir !== dir) return;
   setVault({ notes, board, ready: true });
   const mine = getVault().open && notes.find((n) => n.name === getVault().open);
   // Someone else changed the open note: take it only when nothing typed here is unsaved.
@@ -116,19 +118,24 @@ export async function openNote(name: string | null): Promise<boolean> {
   return true;
 }
 
-async function create(name: string) {
+// `focus` is set before the note opens: the editor is made by that open and takes it as it mounts.
+async function create(name: string, focus: "editor" | null = null) {
   const r = await post({ op: "save", name, text: "", base: 0 });
   if (!r.ok) {
     toast(r.status === 409 ? "A note with that name exists" : r.error || "Could not create the note");
     return false;
   }
   upsert({ name: r.name, mtime: r.mtime, text: "" });
-  return openNote(r.name);
+  if (focus) setVault({ focus });
+  const ok = await openNote(r.name);
+  // Not opened (the open note holds unsaved text): nothing should take the focus later.
+  if (focus && !ok) setVault({ focus: null });
+  return ok;
 }
 export async function openOrCreate(name: string) {
   const hit = resolve(name, noteNames());
   if (hit) return void openNote(hit);
-  if (await create(name)) setVault({ focus: "editor" });
+  await create(name, "editor");
 }
 export async function newNote() {
   const open = getVault().open;
@@ -143,18 +150,22 @@ export async function renameNote(to: string) {
   const reset = () => setVault((s) => ({ titleRev: s.titleRev + 1 }));
   if (!from || !target) return reset();
   await flush();
+  // Typing while the rename is out waits for it: saved under the old name it would be a false conflict.
+  save.hold();
   const r = await post({ op: "rename", name: from, to });
   if (!r.ok) {
+    save.release();
     toast(r.error || "Could not rename");
     return reset();
   }
   // Another note was opened meanwhile: the rename stands, the editor stays where it is.
-  if (getVault().open !== from) return loadVault();
+  if (getVault().open !== from) return (save.release(), loadVault());
   // The same editor stays: only the name changes.
   save.renamed(target);
   setVault({ open: target });
   await loadVault();
   save.adopt(getVault().notes.find((n) => n.name === target)?.mtime ?? save.base);
+  save.release();
   reset();
   toast(renameMessage(from, target));
 }

@@ -100,6 +100,21 @@ test("two flushes waiting on one save write the next text once, on the new base"
   expect(r.a.conflict).toBeNull();
 });
 
+test("typing while a rename is out is written after it, under the new name", async () => {
+  const r = rig();
+  r.a.open("A", 1);
+  r.a.hold();
+  r.a.edit();
+  r.tick(600);
+  await nap();
+  expect(r.calls.length).toBe(0);
+  r.a.renamed("B");
+  r.a.release();
+  r.tick(600);
+  await nap();
+  expect(r.calls.map((c) => c.name)).toEqual(["B"]);
+});
+
 test("typing while a save is out saves again when it lands", async () => {
   let text = "one";
   const r = rig(() => text);

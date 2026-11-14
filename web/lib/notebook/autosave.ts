@@ -23,6 +23,7 @@ export class Autosave {
   dirty = false;
   conflict: Conflict | null = null;
   private saving: Promise<void> | null = null;
+  private held = false;
   private timer: unknown;
   constructor(private d: AutosaveDeps) {}
 
@@ -65,6 +66,16 @@ export class Autosave {
     this.name = name;
     this.base = mtime;
   }
+  // A rename is out: the file is about to have another name, so nothing is written (it would be a false conflict) until
+  // `release()`, which saves what was typed meanwhile under the new name.
+  hold() {
+    this.held = true;
+    this.d.timer.clear(this.timer);
+  }
+  release() {
+    this.held = false;
+    if (this.dirty && !this.conflict) this.wait();
+  }
   // The note was deleted: nothing to save.
   discard() {
     this.d.timer.clear(this.timer);
@@ -93,6 +104,7 @@ export class Autosave {
     this.d.timer.clear(this.timer);
     // A `while`: two callers waiting on one save must not both start the next one on the same base (a false conflict).
     while (this.saving) await this.saving;
+    if (this.held) return;
     if (!this.name || !this.dirty || this.conflict) return;
     const name = this.name,
       text = this.d.read();
