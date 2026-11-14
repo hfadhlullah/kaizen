@@ -6,7 +6,7 @@ import { expect, test } from "bun:test";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 
-const web = import.meta.dir;
+const web = dirname(import.meta.dir);
 type Layer = "ui" | "components" | "pages" | "lib";
 const LAYERS: Layer[] = ["ui", "components", "pages", "lib"];
 // What each layer may import from this repo, by layer; ui may take lib/core/utils.ts only.
@@ -204,11 +204,11 @@ test("imports from outside a feature folder go through its index.ts", () => {
   ).toEqual([]);
 });
 
-// web/ top level: folders, README.md and this file. Page shells live in html/, bundles in dist/, entry sources in an app folder.
-test("web/ holds only folders, README.md and structure.test.ts", () => {
+// web/ top level: folders and README.md; this file lives in checks/. Page shells live in html/, bundles in dist/, entry sources in an app folder.
+test("web/ holds only folders and README.md", () => {
   const files = readdirSync(web, { withFileTypes: true })
     .filter((e) => !e.isDirectory())
     .map((e) => e.name)
     .sort();
-  expect(files).toEqual(["README.md", "structure.test.ts"]);
+  expect(files).toEqual(["README.md"]);
 });

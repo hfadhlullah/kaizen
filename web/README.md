@@ -2,11 +2,11 @@
 
 The board is React (Tailwind + Radix through `ui/`) built into `dist/board.js`; `board/` is the older
 bridge layer that mounts it. `bun run build:web` bundles everything into `dist/` and a test fails when the
-committed bundles are stale. `structure.test.ts` enforces the rules below.
+committed bundles are stale. `checks/structure.test.ts` enforces the rules below.
 
 ## What is in web/
 
-Only folders, this file and `structure.test.ts` (which checks the whole tree, so
+Only folders and this file; `checks/structure.test.ts` (which checks the whole tree, so
 it stays here; it also fails on any other file at this level).
 
 | Path | Holds |
@@ -73,9 +73,9 @@ pages/  ->  components/<feature>/  ->  ui/  ->  lib/core/utils.ts
   and `lib/` with an `index.ts`, and a row in the table above.
 - **Names.** Kebab-case files (`task-row.tsx`, `use-task.ts`); the file's main export is its
   PascalCase name; hooks start with `use-`; stores end `-store`, request functions `-actions`.
-  Tests live beside the code they test as `*.test.ts` (in the feature folder, or in `term/` next to `term-font.ts`), import the file they test directly, and are not counted in the 25-file limit; an `index.ts` never exports them. `structure.test.ts` stays in `web/` because it checks the whole tree.
+  Tests live beside the code they test as `*.test.ts` (in the feature folder, or in `term/` next to `term-font.ts`), import the file they test directly, and are not counted in the 25-file limit; an `index.ts` never exports them. `checks/structure.test.ts` stays in `web/` because it checks the whole tree.
 - **Exceptions.** `ui/` takes `lib/core/utils.ts` directly. Six `board/` bridge files import one small
   lib file directly because they run in the notebook and Video bundles or in DOM-less tests, where a
-  barrel would pull in the board's stores (list: `BRIDGE_DIRECT` in `structure.test.ts`).
+  barrel would pull in the board's stores (list: `BRIDGE_DIRECT` in `checks/structure.test.ts`).
 - **Core's type imports.** `lib/core/api.ts` and `store.ts` use `import type` from `lib/task` and
   `lib/icebox` for data shapes; erased at build, so no runtime cycle.
