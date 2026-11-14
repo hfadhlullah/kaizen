@@ -21,7 +21,7 @@ import {
   type RailTask,
 } from "@lib/rail";
 import { useRoute } from "@lib/router";
-import { useRailData } from "@lib/server";
+import { useRailData, useServer } from "@lib/server";
 import { AgentChips } from "./agent-chips.tsx";
 
 // The Projects list of the side menu. Rows keep the board's own markup and classes (.pgrp, .proj, .wsc, .row.ws ...):
@@ -211,6 +211,7 @@ function Group({
 
 export function RailList() {
   const data = useRailData(),
+    read = useServer((s) => s.every !== null), // the first answer has come: before it the list is not "empty", just not here yet
     filt = useRail((s) => s.filt),
     folded = useRail((s) => s.folded),
     pins = useRail((s) => s.pins),
@@ -252,7 +253,7 @@ export function RailList() {
           before={rank.view.to === i}
         />
       ))}
-      {!groups.length && <div className="none">No projects</div>}
+      {read && !groups.length && <div className="none">No projects</div>}
     </div>
   );
 }
