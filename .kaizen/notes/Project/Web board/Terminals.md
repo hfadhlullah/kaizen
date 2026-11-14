@@ -1,7 +1,7 @@
 ---
 description: In-card agent terminals: the PTY, typing into agents, terminal page, font, theme, resources
 tags: [project, web-board]
-sources: [web/term/term-paste.ts, cli/term-image.ts, cli/term-history.ts, cli/term-history.test.ts, web/term/term-font.ts, cli/resources.ts, web/components/resources, web/lib/resources, cli/state-snap.ts, cli/state.ts, cli/pty.ts, cli/conpty.ts, web/board, web/term/term.ts]
+sources: [web/components/run/terminal-pane.tsx, web/lib/run/term-loader.ts, web/term/term-paste.ts, cli/term-image.ts, cli/term-history.ts, cli/term-history.test.ts, web/term/term-font.ts, cli/resources.ts, web/components/resources, web/lib/resources, cli/state-snap.ts, cli/state.ts, cli/pty.ts, cli/conpty.ts, web/board, web/term/term.ts]
 updated: 2026-11-13
 ---
 # Terminals
@@ -68,3 +68,6 @@ The task queue dispatches into a live run terminal only after a structured ackno
 `web/term/term.ts` answers `CSI ?996n` ("dark or light?") with `?997;1|2n` whether or not the program subscribed with 2031, and OSC 10/11 `?` with the Orca palette's foreground/background as `rgb:RRRR/GGGG/BBBB` (xterm.js answers neither by itself). Claude Code on theme `auto` reads these, so it draws light on the light terminal. Output arriving in the first 150 ms after the socket opens is the attach replay (`replaying`): its old queries are not answered again, or the reply would be typed into whatever runs now.
 
 - The resource monitor panel is laid out like macOS Control Center (run 2026-11-13-resource-monitor-control-center, approved kaizen-concept prototype in `.preview/resource-monitor/`): Memory and Storage tiles open in place (`kz-res-mem`, `kz-res-disk`), Storage has icon buttons (Clean up, Rescan), terminals are sorted heaviest first and scroll after about 5 rows.
+
+## Where a run workspace terminal mounts (roadmap 2 phase 3)
+`TerminalPane` (`web/components/run/terminal-pane.tsx`) renders one `<div class="term kz-keep">` and, in an effect keyed by the session key, calls `window.kzTerm` (loaded by `termLoad()` in `web/lib/run/term-loader.ts`, re-exported by `web/board/agent-term.ts` for the Home window and the Terminal page) and runs its unmount on cleanup. React never draws inside the div, so xterm's toolbar, search and paste button are not touched by a render. Panes are keyed by workspace and tab and placed by rectangle, so a split, resize, drag, tab switch or `/state` tick keeps the same mount and the same `/pty` socket (checked by counting WebSockets and comparing the pane's pixels before and after a redraw). Unmounting happens when the tab closes or the workspace changes; the shell keeps running on the server.

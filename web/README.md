@@ -53,7 +53,7 @@ pages/  ->  components/<feature>/  ->  ui/  ->  lib/core/utils.ts
 | `decision` | The decision bar a task or run waits on, and its forms (revise, reply, plan answers). |
 | `icebox` | Icebox requests (row, card, phone row, swipe deck), capture box, sources (card, form, drawer), collections, board/kind/snooze menus. |
 | `board` | The Kanban board: card, column, popups, the New task / run / card forms, the mode switch. |
-| `run` | The run panel and run view: head, tabs, history, picker, footer, wait/empty states, file viewer, fix form; `run-actions`. |
+| `run` | The run panel and run view: head, tabs, history, picker, footer, wait/empty states, file viewer, fix form; the centre's panes (`run-panes`, `pane`, `pane-gutter`, `terminal-pane`, `browser-pane`) and panel grip; in `lib/run`: the pane layout rules (`layout`) and its saved store (`layout-store`), the Browser's history (`browser`), `run-actions`. |
 | `git` | The run's Source control tab. |
 | `settings` | Settings page rows, nav, sections, update bar; settings store and actions, update check, mic choice. |
 | `phone` | Phone setup (QR, WhatsApp card) and the phone-sized new-run sheets. |
