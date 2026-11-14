@@ -3,10 +3,11 @@ import { load, setServer } from "@lib/server";
 import { openAdd } from "./add-project.ts";
 
 // The picked project outlives a reload. Saved only where the user changes it, so a
-// second tab refreshing cannot undo it; a view the URL asked for is a one-off.
-export const urlAll = () => new URLSearchParams(location.search).has("all");
+// second tab refreshing cannot undo it; a view the URL asked for is a one-off. Read once, as the page opened: a deep link
+// that later rewrites the address to ?all=1 (a note's ?run=) does not make the person's own pick a one-off.
+export const urlAll = typeof location !== "undefined" && new URLSearchParams(location.search).has("all");
 export function keep(d) {
-  if (urlAll()) return;
+  if (urlAll) return;
   try {
     d ? localStorage.setItem("kz-proj", d) : localStorage.removeItem("kz-proj");
   } catch (e) {}

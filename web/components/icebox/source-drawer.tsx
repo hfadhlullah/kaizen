@@ -1,5 +1,5 @@
 import { host } from "@lib/core";
-import { type IceData, connectChatGPT, connectGoogle, disconnect, gatherAll, setIce, useIce } from "@lib/icebox";
+import { type IceData, connectChatGPT, connectGoogle, disconnect, gatherAll, iceEls, setIce, useIce } from "@lib/icebox";
 import { Button, Icon, Sheet, SheetContent, SheetClose, SheetTitle, SheetDescription } from "@web/ui";
 import { useState } from "react";
 import { IconButton } from "@components/shared";
@@ -28,7 +28,7 @@ export function SourceDrawer({ data, dir }: { data: IceData; dir: string }) {
         // Shut, focus goes back to the Sources button (it opened the drawer without being its trigger).
         onCloseAutoFocus={(e) => {
           e.preventDefault();
-          document.getElementById("src-tog")?.focus();
+          iceEls.srcTog?.focus();
         }}
       >
         <header className="flex flex-wrap items-start justify-between gap-2.5 border-b border-border px-6 py-5">

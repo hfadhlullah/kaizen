@@ -4,7 +4,7 @@
 // dialog keeps its own keys.
 import { iceKey, isLive, type IceItem } from "./icebox.ts";
 import { armPromote, bulkDo, exitSwipe, iceAct, snoozeAll, swGo, swUndo } from "./icebox-actions.ts";
-import { getIce, setIce } from "./icebox-store.ts";
+import { getIce, iceEls, setIce } from "./icebox-store.ts";
 import { toggleOpen, toggleSel } from "./icebox-view.ts";
 import { getRoute } from "@lib/router";
 import { flyCard } from "./use-card-drag.ts";
@@ -22,8 +22,8 @@ export function iceKeys(e: KeyboardEvent): boolean {
   const s = getIce();
   if (s.swipe) {
     const f = {
-      ArrowLeft: () => swGo("dismiss", (d) => flyCard(document.getElementById("sw-card"), d)),
-      ArrowRight: () => swGo("promote", (d) => flyCard(document.getElementById("sw-card"), d)),
+      ArrowLeft: () => swGo("dismiss", (d) => flyCard(iceEls.swCard, d)),
+      ArrowRight: () => swGo("promote", (d) => flyCard(iceEls.swCard, d)),
       ArrowDown: () => swGo("skip"),
       z: swUndo,
       Escape: exitSwipe,

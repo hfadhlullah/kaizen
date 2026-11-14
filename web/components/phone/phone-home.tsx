@@ -94,7 +94,7 @@ function AgentCards() {
                     {g.rows.map((r, i) => (
                       <Icon
                         key={i}
-                        name={agentMark(r.a.agent || "", (id) => !!document.getElementById(id))}
+                        name={agentMark(r.a.agent || "")}
                         className="size-4 flex-none"
                       />
                     ))}

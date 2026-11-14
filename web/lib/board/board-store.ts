@@ -41,7 +41,7 @@ export type FormMode = "new" | "edit" | "reject" | "delete" | "move" | "run";
 export type Popup =
   | { kind: "form"; mode: Exclude<FormMode, "new" | "run">; card: Card }
   | { kind: "run"; card: Card; onStart?: (p: RunPick) => void }
-  | { kind: "new"; dir?: string | null; choose: boolean };
+  | { kind: "new"; dir?: string | null; choose: boolean; text?: string }; // text: what the form opens with (Search's New task row)
 export type RunPick = { kind: string; agent?: string; account?: string; yolo: boolean; explore?: boolean };
 export type Board = {
   snap: BoardSnap | null;

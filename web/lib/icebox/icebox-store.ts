@@ -104,6 +104,9 @@ export const useIce = create<IceState>()(() => ({
   tick: 0,
 }));
 export const getIce = useIce.getState;
+// Two elements the page reaches from outside their component, set as refs by the component that draws them: the swipe card the
+// arrows and buttons fly away, and the Sources button the drawer gives focus back to.
+export const iceEls: { swCard: HTMLElement | null; srcTog: HTMLElement | null } = { swCard: null, srcTog: null };
 export const setIce = useIce.setState;
 export const patchCap = (p: Partial<Capture>) => setIce((s) => ({ cap: { ...s.cap, ...p } }));
 export const patchDraft = (p: Partial<SourceDraft>) => setIce((s) => ({ draft: { ...s.draft, ...p } }));

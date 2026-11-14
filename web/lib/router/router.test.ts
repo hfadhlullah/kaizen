@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 
 // The router without a browser: names and addresses to views, what a phone does with them, the <body> classes and the
 // address each view has; then `navigate` against a fake history.
-const { bodyClasses, litItem, pageOf, pageSeen, resolveView, runOf, urlFor, viewOf, viewTitle } =
+const { bodyClasses, litItem, pageOf, pageSeen, resolveView, runOf, startView, urlFor, viewOf, viewTitle } =
   await import("./route-rules.ts");
 
 test("names and addresses resolve to a view; aliases and unknown names", () => {
@@ -69,6 +69,13 @@ test("addresses, lit item, title, drawn-once pages, the run an address names", (
   expect(runOf("?view=run&dir=%2Fp&idea=do%20it")).toEqual({ dir: "/p", idea: "do it" });
   expect(runOf("?view=tasks&dir=%2Fp")).toBeNull();
   expect(runOf("?view=run")).toBeNull();
+});
+
+test("a page opens on the view its address names, on any path; the Notebook page lights the Board icon", () => {
+  expect(startView("?view=tasks", false, false)).toBe("tasks");
+  expect(startView("?view=settings", false, false)).toBe("settings");
+  expect(startView("", true, false)).toBe("home");
+  expect(startView("?view=tasks", false, true)).toBe("board");
 });
 
 test("navigate sets the store, pushes the address once, calls the engine hooks in order", async () => {

@@ -15,7 +15,7 @@ export function initLive() {
     try {
       d = localStorage.getItem("kz-proj");
     } catch (e) {}
-    if (d && !urlAll())
+    if (d && !urlAll)
       try {
         if (
           (

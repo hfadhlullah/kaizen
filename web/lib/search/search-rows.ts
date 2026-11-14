@@ -169,14 +169,7 @@ function items(): Item[] {
 
 function newTaskWith(text: string) {
   if (!onBoard()) return void go("/?view=board");
-  newTask();
-  // The New task form is React: its box takes the text through the native setter so the form hears it.
-  setTimeout(() => {
-    const t = document.querySelector<HTMLTextAreaElement>('[role="dialog"] textarea');
-    if (!t) return;
-    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(t, text);
-    t.dispatchEvent(new Event("input", { bubbles: true }));
-  }, 80);
+  newTask(undefined, text);
 }
 
 // Rows are read each time the palette opens and again when the side menu's data or the chats land.

@@ -82,6 +82,8 @@ export function showTab(tab: Tab) {
 export const goUp = () => showFiles(parentOf(get().folder));
 export { noteHref };
 
+// The header's open button, set as a ref by the component that draws it: the dialog form of the pane returns focus to it.
+export const ctxOpen: { el: HTMLElement | null } = { el: null };
 export const setOpen = (open: boolean) => {
   set({ open });
   if (open) showTab(get().tab);

@@ -40,6 +40,7 @@ import {
   setIce,
   useIce,
   clearFilters,
+  iceEls,
   pickBoard,
   selectPage,
   setView,
@@ -393,6 +394,7 @@ function Icebox() {
         {!narrow && (
           <Button
             id="src-tog"
+            ref={(el) => void (iceEls.srcTog = el)}
             size="sm"
             aria-expanded={s.srcShow}
             aria-controls="src-sec"

@@ -6,11 +6,13 @@ export const useShell = create<{
   dark: boolean;
   min: boolean; // the side menu shows icons only
   setup: Setup | null;
+  openSetup: (() => void) | null; // the Setup row's click, once onboarding is loaded (the board's); the link goes to the board before
   look: number; // bumped when the theme or colour changes (what shows the choice redraws)
 }>()(() => ({
   dark: false,
   min: false,
   setup: null,
+  openSetup: null,
   look: 0,
 }));
 export const getShell = useShell.getState;

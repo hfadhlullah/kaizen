@@ -3,7 +3,7 @@ import { agentMark, closeSheet, useSheet, type NewSheet, type PickSheet } from "
 import { Icon, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, BottomSheetContent, Sheet, SheetDescription, SheetTitle, Switch } from "@web/ui";
 import { StateDot } from "@components/shared";
 
-const mark = (agent: string) => agentMark(agent, (id) => !!document.getElementById(id));
+const mark = agentMark;
 const rowCls =
   "flex min-h-12 w-full items-center gap-2 border-t border-border text-left text-lg [&_small]:ml-auto [&_small]:text-sm [&_small]:text-muted-foreground";
 const Ico = ({ name }: { name: string }) => <Icon name={name} className="size-[18px] flex-none" />;

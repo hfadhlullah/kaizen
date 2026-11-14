@@ -5,7 +5,7 @@
 import { create } from "zustand";
 import { openAdd } from "@lib/project";
 import { ask } from "@lib/core";
-import { setSetupRow, setTheme } from "@lib/shell";
+import { setSetupRow, setShell, setTheme } from "@lib/shell";
 
 export type Cfg = {
   show: boolean;
@@ -181,7 +181,7 @@ export async function initOnboarding() {
   if (!cfg) return;
   set({ cfg });
   setSetupRow(cfg);
-  document.getElementById("rsetup")?.addEventListener("click", (e) => (e.preventDefault(), openFlow(cfg.step)));
+  setShell({ openSetup: () => openFlow(cfg.step) });
   const q = new URLSearchParams(location.search);
   if (q.has("setup")) {
     q.delete("setup");

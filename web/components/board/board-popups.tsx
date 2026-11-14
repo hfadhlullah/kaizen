@@ -34,6 +34,7 @@ export function BoardPopups() {
           <TaskForm
             picking={!!snap && (snap.all || popup.choose || snap.phone)}
             preset={popup.dir ?? null}
+            text={popup.text}
             choose={popup.choose}
             onDone={close}
           />

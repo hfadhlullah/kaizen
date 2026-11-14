@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { addTask, taskDirs } from "@lib/board";
 import { pastedFiles, useDraft } from "@lib/shared";
 import { short } from "@lib/icebox";
@@ -16,12 +16,14 @@ export function TaskForm({
   picking,
   preset,
   choose,
+  text,
   onDone,
 }: {
   inline?: boolean;
   picking: boolean;
   preset: string | null;
   choose: boolean;
+  text?: string; // the task line the form opens with
   onDone: () => void;
 }) {
   const dirs = taskDirs(),
@@ -38,6 +40,9 @@ export function TaskForm({
       ),
     ),
     [pickOpen, setPickOpen] = useState(false);
+  useEffect(() => {
+    if (text) saveT(text);
+  }, []);
   const save = (run: boolean) => {
     const text = title.current!.value.trim();
     if (!text) return;
@@ -79,7 +84,7 @@ export function TaskForm({
         id="newidea"
         aria-label="Task"
         placeholder="What do you want to build?"
-        defaultValue={t0}
+        defaultValue={text ?? t0}
         autoFocus
         onInput={(e) => saveT(e.currentTarget.value)}
         onPaste={paste}

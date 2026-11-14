@@ -14,9 +14,9 @@ export const runPopup = (
 // New task from the top bar, the empty board or n: the form in a dialog. Opened from another page (Tasks, a
 // workspace, the side menu): always the project picker, preset to that page's project or empty so one is chosen.
 // The Board keeps its own rule.
-export function newTask(from?: { dir: string | null }) {
+export function newTask(from?: { dir: string | null }, text?: string) {
   // The header button passes its click event: only an explicit { dir } is another page's call.
   const pick = from && "dir" in from ? from : null;
   closeNewForm();
-  setBoard({ popup: { kind: "new", dir: pick?.dir ?? null, choose: !!pick } });
+  setBoard({ popup: { kind: "new", dir: pick?.dir ?? null, choose: !!pick, text } });
 }

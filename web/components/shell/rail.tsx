@@ -45,7 +45,7 @@ function Item(p: {
 // with its filter and Add button, and Settings with the theme switch. `srcs` holds the Icebox's source marks and `before`
 // the minimized Home window's row (both the board's only).
 export function Rail(p: { srcs?: ReactNode; before?: ReactNode }) {
-  const { min, dark, setup } = useShell(),
+  const { min, dark, setup, openSetup } = useShell(),
     lit = useRoute((r) => r.lit);
   // A dot on Settings while a newer kaizen is known (the About bar and the update card read the same store).
   const latest = useUpdate((s) => (s.ver?.update ? s.ver.latest : ""));
@@ -159,6 +159,11 @@ export function Rail(p: { srcs?: ReactNode; before?: ReactNode }) {
         className="it"
         href="/?setup=1"
         id="rsetup"
+        onClick={(e) => {
+          if (!openSetup) return;
+          e.preventDefault();
+          openSetup();
+        }}
         hidden={!setup}
         title={setup ? `Continue setup: step ${setup.step + 1} of ${setup.total}` : "Continue setup"}
       >

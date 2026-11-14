@@ -14,6 +14,9 @@ export function resolveView(name: string | null | undefined, phone: boolean): Vi
   return v as View;
 }
 export const viewOf = (search: string, phone: boolean) => resolveView(new URLSearchParams(search).get("view"), phone);
+// The view a page opens on. Only the board's own address names a view, wherever the board is served (at "/" or under a
+// prefix): the Notebook page (<html data-kit>) lights the Board icon, as it always did.
+export const startView = (search: string, phone: boolean, notebook: boolean): View => (notebook ? "board" : viewOf(search, phone));
 
 // The classes on <body> that show one page area and its header buttons (web/ui/legacy/board.css keys on them).
 export function bodyClasses(v: View, phone: boolean) {

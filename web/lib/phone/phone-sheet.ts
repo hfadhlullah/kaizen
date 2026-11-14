@@ -19,6 +19,7 @@ export type NewSheet = {
 export const useSheet = create<{ sheet: PickSheet | NewSheet | null }>()(() => ({ sheet: null }));
 export const openSheet = (sheet: PickSheet | NewSheet) => useSheet.setState({ sheet });
 export const closeSheet = () => useSheet.setState({ sheet: null });
-// The sprite has a mark for the agents kaizen knows; any other gets the generic one.
-export const agentMark = (agent: string, has: (id: string) => boolean) =>
-  agent && has("i-" + agent.toLowerCase()) ? agent.toLowerCase() : "ai";
+// The sprite (components/shell/sprite.tsx: i-claude, i-gemini, i-codex; a test holds the two lists together) has a mark for the
+// agents kaizen knows; any other gets the generic one.
+export const AGENT_MARKS = ["claude", "gemini", "codex"];
+export const agentMark = (agent: string) => (AGENT_MARKS.includes(agent.toLowerCase()) ? agent.toLowerCase() : "ai");

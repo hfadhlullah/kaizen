@@ -15,6 +15,7 @@ import {
   useIce,
   type Swipe,
   flyCard,
+  iceEls,
   useCardDrag,
   short,
 } from "@lib/icebox";
@@ -31,7 +32,10 @@ function TopCard({ item, list, projectName }: { item: IceItem; list: Source[]; p
   const drag = useCardDrag((op) => void swGo(op, (d) => flyCard(drag.ref.current, d)));
   return (
     <div
-      ref={drag.ref}
+      ref={(el) => {
+        drag.ref.current = el;
+        iceEls.swCard = el;
+      }}
       id="sw-card"
       tabIndex={-1}
       aria-label="Request: swipe or press → to promote, ← to dismiss"
@@ -188,7 +192,7 @@ export function SwipeDeck({ list, dir, name }: { list: Source[]; dir: string | n
               aria-label="Dismiss (←)"
               title="Dismiss (←)"
               className={cn(act, "text-danger max-sm:order-1")}
-              onClick={() => void swGo("dismiss", (d) => flyCard(document.getElementById("sw-card"), d))}
+              onClick={() => void swGo("dismiss", (d) => flyCard(iceEls.swCard, d))}
             >
               <Icon name="x" className="size-4" />
               <small>Dismiss</small>
@@ -224,7 +228,7 @@ export function SwipeDeck({ list, dir, name }: { list: Source[]; dir: string | n
               aria-label="Promote (→)"
               title="Promote (→)"
               className={cn(act, "border-strong bg-strong text-background max-sm:order-2")}
-              onClick={() => void swGo("promote", (d) => flyCard(document.getElementById("sw-card"), d))}
+              onClick={() => void swGo("promote", (d) => flyCard(iceEls.swCard, d))}
             >
               <Icon name="check" className="size-4" />
               <small>Promote</small>

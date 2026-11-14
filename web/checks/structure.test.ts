@@ -151,9 +151,91 @@ test("nothing in web/ except video/ and the named exceptions hand-builds a popup
   ).toBe(8);
 });
 
+// The DOM is React's. No code looks an element up on the page by selector or id, except the few places named here, each with
+// the most lookups it may keep and a reason (a new one fails until the count is raised on purpose; a file that stops needing
+// its entry fails until the line is removed). Two rules: (1) the engines (what used to be web/board) look nothing up on any
+// node but the ones named in ENGINE_LOOKUPS, so "an engine reaches into no markup" is held, not claimed; (2) anywhere in web/
+// outside video/, `document.getElementById`, `document.querySelector` and `document.querySelectorAll` only where DOC_LOOKUPS
+// says. A node a component holds as a ref (`box.current?.querySelector(...)`) is the component's own and is not counted.
+const LOOKUP = /\b(?:getElementById|querySelector(?:All)?)\s*(?:<[^>()]*>)?\(|\$\(["']/g;
+const DOC_LOOKUP = /\bdocument\.(?:getElementById|querySelector(?:All)?)\s*(?:<[^>()]*>)?\(/g;
+const ENGINE_LOOKUPS: Record<string, [number, string]> = {
+  "pages/board/main.ts": [1, "the page's one mount point, #root"],
+  "lib/board/nav.ts": [3, "j/k/arrows walk the cards by DOM order inside the Board's own root (a ref held in the store), the order the person sees"],
+  "lib/rail/rail-boot.ts": [1, "a MutationObserver reads the node it is handed to see whether a status icon was added"],
+};
+const DOC_LOOKUPS: Record<string, [number, string]> = {
+  "pages/board/main.ts": [1, "the mount point, #root"],
+  "notebook/notebook.ts": [1, "the mount point, #root"],
+  "popup/popup.ts": [1, "the mount point, #root"],
+  "annotate/annotate.ts": [3, "the annotator's page script, injected into the previewed page: no React there"],
+  "lib/core/layers.ts": [1, "does the browser's own dialog element show (the kit draws none; R73)"],
+  "lib/shell/stored-look.ts": [1, "the viewport meta in <head>, set before React draws (boot.js and the standalone fit)"],
+  "lib/notebook/deal.ts": [2, "the card-deal effect animates the Notes page's .main, a node the engine owns"],
+  "components/context/context-panel.tsx": [2, "the dialog form of the pane makes the rest of the app inert: the side menu and the page's other children"],
+  "pages/tasks-page.tsx": [1, "scroll the row the keyboard moved to into view, by its data attribute"],
+  "lib/icebox/use-ice-keys.ts": [2, "an open popup keeps the keys; scroll the row under the cursor into view, by its data attribute"],
+  "lib/icebox/icebox-view.ts": [1, "focus a row's title after it opens, by its data attribute"],
+  "lib/icebox/icebox-actions.ts": [1, "focus the current row's title after an action, by its data attribute"],
+};
+const lookups = (files: Record<string, string>, re: RegExp, table: Record<string, [number, string]>, only?: string[]) =>
+  Object.entries(files).flatMap(([f, src]) => {
+    const rel = norm(relative(web, f));
+    if (only && !only.includes(rel)) return [];
+    const n = src.match(re)?.length ?? 0,
+      allowed = table[rel]?.[0] ?? 0;
+    return n > allowed ? [`${rel} looks up ${n} elements by selector or id; ${allowed} allowed`] : [];
+  });
+test("nothing looks an element up by id or selector except the named places; the engines look up none but theirs", () => {
+  const files = Object.fromEntries(allSources().map((f) => [f, readFileSync(f, "utf8")]));
+  expect(lookups(files, DOC_LOOKUP, DOC_LOOKUPS)).toEqual([]);
+  expect(lookups(files, LOOKUP, ENGINE_LOOKUPS, ENGINES)).toEqual([]);
+  // every entry is still in use, its count exact, a reason given
+  for (const [table, re] of [[DOC_LOOKUPS, DOC_LOOKUP], [ENGINE_LOOKUPS, LOOKUP]] as const)
+    for (const [f, [n, why]] of Object.entries(table)) {
+      expect(why.length).toBeGreaterThan(20);
+      const src = files[join(web, f)];
+      expect(src).toBeDefined();
+      expect([f, src!.match(re)?.length ?? 0]).toEqual([f, n]);
+    }
+  // ...and the check sees each form, and leaves a ref's own query alone
+  const at = (p: string) => join(web, p);
+  const bad = lookups(
+    {
+      [at("lib/run/workspace.ts")]: 'document.querySelector(".hdr h1")',
+      [at("lib/search/search-rows.ts")]: "document.querySelector<HTMLTextAreaElement>('[role=\"dialog\"] textarea')",
+      [at("lib/run/panel.ts")]: 'box.querySelectorAll("li"); $("hq"); getElementById("x")',
+      [at("lib/home/home-engine.ts")]: 'x.querySelector(".a")',
+      [at("components/x.tsx")]: 'document.getElementById("a"); document.querySelectorAll(".b")',
+      [at("components/ok.tsx")]: 'box.current?.querySelector("textarea"); el.querySelectorAll("li")',
+    },
+    LOOKUP,
+    ENGINE_LOOKUPS,
+    ENGINES,
+  ).concat(
+    lookups(
+      {
+        [at("components/x.tsx")]: 'document.getElementById("a"); document.querySelectorAll(".b")',
+        [at("components/ok.tsx")]: 'box.current?.querySelector("textarea"); el.querySelectorAll("li")',
+        [at("lib/y.ts")]: 'document.querySelector<HTMLElement>("[a]")',
+      },
+      DOC_LOOKUP,
+      DOC_LOOKUPS,
+    ),
+  );
+  expect(bad.map((l) => l.split(" looks")[0])).toEqual([
+    "lib/run/workspace.ts",
+    "lib/search/search-rows.ts",
+    "lib/run/panel.ts",
+    "lib/home/home-engine.ts",
+    "components/x.tsx",
+    "lib/y.ts",
+  ]);
+});
+
 // web/board/ is gone. Its engines are in feature folders of lib/ (lib/run: panel.ts, workspace.ts, card-terminal.ts; lib/board:
 // snapshot.ts, on-state.ts, popups.ts, nav.ts; lib/home, lib/terminal, lib/context, lib/git, lib/settings, lib/project,
-// lib/search, lib/rail) and the page's own glue in pages/board/ (main, views, keys, live, host-bridge, open-events). There are no
+// lib/search, lib/rail) and the page's own glue in pages/board/ (main, views, keys, live, host-bridge). There are no
 // named exceptions: nothing imports a web/board file, and a new top-level folder for old plumbing fails this test.
 const onlyForwards = (src: string) => {
   const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "").trim();
@@ -217,8 +299,7 @@ test("the engines do not poll the server or show pages: lib/server and lib/route
     // A page class on <body> is the App's (useRouteClasses): the engines may read the route, never set one.
     expect([n, /body\.classList\.(toggle|add|remove)\(\s*["'`](paged|ice|setv|termv|homev|phomev|pdevv|taskv|taskpagev|runv|phone-menu-open)\b/.test(s)]).toEqual([n, false]);
     expect([n, /classList\.contains\(\s*["'](paged|ice|setv|termv|homev|phomev|pdevv|taskv|taskpagev)["']/.test(s)]).toEqual([n, false]);
-    // No element is looked up by id, and no panel or page is written as classes: the stores draw them.
-    expect([n, /getElementById|\$\(["']/.test(s) && n !== "pages/board/main.ts"]).toEqual([n, false]);
+    // No panel or page is written as classes: the stores draw them. (What an engine may look up is the next test.)
   }
   // the poller is lib/server's and the router lib/router's; the Board App is the page picker
   for (const f of ["poller.ts", "poll-rules.ts", "server-store.ts"]) expect(existsSync(join(web, "lib/server", f))).toBe(true);

@@ -13,7 +13,7 @@ import {
   resolveView,
   runOf,
   urlFor,
-  viewOf,
+  startView,
   viewTitle,
   type Page,
   type RunRoute,
@@ -46,8 +46,7 @@ const seeing = (seen: string[], v: View, phone: boolean) => {
 const first = (): Route => {
   const search = typeof location === "undefined" ? "" : location.search,
     phone = typeof matchMedia === "undefined" ? false : isPhone(),
-    // Only the board's own address names a view; on /notebook the menu lights the Board icon, as it always did.
-    v = typeof location !== "undefined" && location.pathname !== "/" ? "board" : viewOf(search, phone);
+    v = startView(search, phone, typeof document !== "undefined" && document.documentElement.hasAttribute("data-kit"));
   return { ...about(v, phone), seen: seeing([], v, phone), search, run: runOf(search), menu: false };
 };
 export const useRoute = create<Route>()(first);

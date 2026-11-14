@@ -4,6 +4,7 @@ import { useRoute } from "@lib/router";
 import {
   contextActions,
   contextTitle,
+  ctxOpen,
   entryLabel,
   entryPath,
   goUp,
@@ -44,6 +45,7 @@ export function ContextOpen() {
       type="button"
       className="ib"
       id="ctx-open"
+      ref={(el) => void (ctxOpen.el = el)}
       aria-label="Open side panel"
       aria-expanded={open}
       title="Notes, files and terminals"
@@ -67,7 +69,7 @@ export function ContextPanel() {
   const close = () => {
     setOpen(false);
     // Once the page behind is no longer inert.
-    requestAnimationFrame(() => document.getElementById("ctx-open")?.focus());
+    requestAnimationFrame(() => ctxOpen.el?.focus());
   };
   // The pane opens from the header's button only (nothing is read while it is closed); a view change closes the dialog.
   useEffect(() => {
