@@ -391,7 +391,7 @@ body.taskpagev #taskpagev{padding:28px;gap:16px;box-sizing:border-box}
 body.taskpagev #taskpagev{overflow:hidden;position:relative;gap:12px}
 @media(max-width:640px){body.taskpagev #taskpagev{padding:12px;gap:12px}}
 
-/* the mockup has no right-hand project pane: the Files/Notes/Terminal pane (#context, context.ts) is not shown on desktop widths; the run workspace has its own strip */
+/* the Files/Notes/Terminal pane (#context, components/context) belongs to the Board only: off every other page (body.paged) the run workspace has its own strip */
 body.paged #context,body.paged #ctx-open{display:none!important}
 /* with that pane gone the Board keeps its five columns in one row (the three-column rule was for the pane) */
 @media(min-width:1201px){html body:not(.paged) #board{grid-template-columns:repeat(5,minmax(200px,1fr))}}
