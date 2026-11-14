@@ -93,17 +93,22 @@ const HAND_BUILT =
   /<dialog\b|document\.createElement\(["']dialog|(?<!\[)role=["'](?:dialog|alertdialog|listbox)["']|menu-pop|innerHTML|outerHTML|insertAdjacentHTML|document\.write|dangerouslySetInnerHTML|DOMParser|createContextualFragment/g;
 const MADE = /\.createElement(?:NS)?\(\s*(?!["'](?:canvas|link|script|style)["'])/g;
 const uses = (src: string) => (src.match(HAND_BUILT)?.length ?? 0) + (src.match(MADE)?.length ?? 0);
+// What used to be web/board: the engines that react to lib/server and lib/router and the page's glue. They draw nothing.
+const ENGINES = [
+  "pages/board/main.ts", "pages/board/views.ts", "pages/board/keys.ts", "pages/board/live.ts", "pages/board/host-bridge.ts", "pages/board/open-events.ts",
+  "lib/run/panel.ts", "lib/run/workspace.ts", "lib/run/card-terminal.ts", "lib/board/snapshot.ts", "lib/board/on-state.ts", "lib/board/popups.ts",
+  "lib/board/nav.ts", "lib/home/home-engine.ts", "lib/home/home-events.ts", "lib/terminal/terms-feed.ts", "lib/context/feed.ts",
+  "lib/settings/panel-settings.ts", "lib/git/git-panel.ts", "lib/project/project-pick.ts", "lib/search/search-rows.ts", "lib/rail/rail-boot.ts",
+];
 const EXEMPT: Record<string, [number, string]> = {
   "term/term.ts": [
     26,
     "xterm's own bundle (term.js, no React): find box, paste button, reconnect strip, and the phone key bar, whose pointerdown + preventDefault keeps the soft keyboard open",
   ],
-  "board/rich.ts": [2, "the note editor's contenteditable engine: sets its markdown as HTML and owns its editable div"],
+  "lib/notes/rich.ts": [2, "the note editor's contenteditable engine: sets its markdown as HTML and owns its editable div"],
   "annotate/annotate.ts": [12, "the annotator's page script, injected into the previewed page, where no React or board CSS exists"],
   "lib/notebook/engine-widgets.ts": [15, "CodeMirror widget DOM: the editor engine asks for elements, not React"],
   "lib/notebook/deal.ts": [1, "the card-deal effect's shade element, added to an engine-owned node"],
-  "pages/tasks-page.tsx": [1, "a span in the board header (#hx) that the page portals its controls into"],
-  "board/toast.ts": [1, "Video's fallback toast link: Video has no React, the board and Notebook use the React toaster"],
 };
 const drawnBy = (files: Record<string, string>) =>
   Object.entries(files).flatMap(([f, src]) => {
@@ -136,7 +141,7 @@ test("nothing in web/ except video/ and the named exceptions hand-builds a popup
       [join(web, "lib", "v.ts")]: 'el.insertAdjacentHTML("beforeend", a)',
       [join(web, "components", "z.tsx")]: "<Dialog>",
       [join(web, "lib", "run", "ok.ts")]: 'document.createElement("script")',
-      [join(web, "board", "rich.ts")]: "ed.innerHTML = a",
+      [join(web, "lib", "notes", "rich.ts")]: "ed.innerHTML = a",
       [join(web, "lib", "u.ts")]: '(d: Document) => d.createElement("div")',
       [join(web, "lib", "t.ts")]: 'new DOMParser().parseFromString("<b>", "text/html")',
       [join(web, "lib", "r.ts")]: 'range.createContextualFragment("<b>")',
@@ -146,50 +151,25 @@ test("nothing in web/ except video/ and the named exceptions hand-builds a popup
   ).toBe(8);
 });
 
-// web/board/ is the old board's plumbing (data, polling, routing, events), not drawing. Each file has a reason to exist; a new
-// file needs a line here, and a file that only re-exports or only forwards to a React root has no reason: move it into a
-// feature folder of lib/ or components/ instead.
-const BOARD: Record<string, string> = {
-  "agent-term.ts": "which in-card terminal shows in the panel (drawn by TerminalPane)",
-  "api.ts": "what the board does with a new /state (notifications, the cards' redraw and slide, the open panel) and its POST",
-  "cards.ts": "card keys, lanes and the data the Board page is handed",
-  "context.ts": "tells the context pane which project and sessions",
-  "dom.ts": "$ lookups, image shrink, the html template the old modules still use",
-  "drafts.ts": "half-typed text kept in sessionStorage",
-  "git.ts": "when the git tab shows and the run's git state it is handed",
-  "home-ws.ts": "the events the Home window needs from old code",
-  "home.ts": "the Home view's header buttons",
-  "host.ts": "hands the React pages the board's functions (lib/core/host.ts) and the toaster, once at start",
-  "keys.ts": "global keys",
-  "live.ts": "the first read: the project picked last time, then the event stream (lib/server polls)",
-  "main.ts": "entry: boots the shell, renders the App into #root, wires every module",
-  "markdown.ts": "markdown helpers the old modules still call",
-  "panel.ts": "which run panel tab shows, deep links and the scrim",
-  "projects.ts": "the picked project and the shown set",
-  "rich.ts": "the note editor's contenteditable engine",
-  "run-view.ts": "the run workspace's data, tabs and address",
-  "search.ts": "gathers the palette's rows from the rail, storage and events",
-  "settings.ts": "opens the panel for the Settings page and its Ctrl+F",
-  "store.ts": "the board's shared mutable state",
-  "terms.ts": "feeds sessions to the Terminal page",
-  "toast.ts": "toasts for Video, notifications and sounds",
-  "views.ts": "what a view change still starts in the docked panel, the run workspace, Home and the Terminal page (the router is lib/router)",
-  "workspace.ts": "the side menu's start-up, the workspace rules, the add-project sheet and the footer height",
-  "ws-board-ui.ts": "the Workspaces board's data and mode",
-  "ws-board.ts": "the Workspaces board's columns (pure, tested)",
-  "ws-tabs.ts": "run workspace tab rules shared with the notebook and Video bundles",
-};
-// A file that holds nothing but imports and `export ... from` lines, on one line or many, only forwards.
+// web/board/ is gone. Its engines are in feature folders of lib/ (lib/run: panel.ts, workspace.ts, card-terminal.ts; lib/board:
+// snapshot.ts, on-state.ts, popups.ts, nav.ts; lib/home, lib/terminal, lib/context, lib/git, lib/settings, lib/project,
+// lib/search, lib/rail) and the page's own glue in pages/board/ (main, views, keys, live, host-bridge, open-events). There are no
+// named exceptions: nothing imports a web/board file, and a new top-level folder for old plumbing fails this test.
 const onlyForwards = (src: string) => {
   const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "").trim();
   return code.length > 0 && /^(?:(?:import|export)\s[^;]*?\bfrom\s+["'][^"']+["'];?\s*)+$/.test(code);
 };
-test("every web/board file has a reason to exist, and none is left that only re-exports", () => {
-  const dir = join(web, "board");
-  const files = readdirSync(dir).filter((n) => n.endsWith(".ts") && !isTest(n));
-  expect(files.sort()).toEqual(Object.keys(BOARD).sort());
-  for (const [n, why] of Object.entries(BOARD)) expect(why.length).toBeGreaterThan(10);
-  for (const n of files) expect([n, onlyForwards(readFileSync(join(dir, n), "utf8"))]).toEqual([n, false]);
+test("web/board is gone: no folder, no import of it, and no engine file that only forwards", () => {
+  expect(existsSync(join(web, "board"))).toBe(false);
+  const files = Object.fromEntries(allSources().map((f) => [f, readFileSync(f, "utf8")]));
+  const stray = Object.entries(files).flatMap(([f, src]) =>
+    specifiers(src)
+      .filter(isLocal)
+      .filter((spec) => norm(relative(web, resolveSpec(f, spec))).startsWith("board/"))
+      .map((spec) => `${norm(relative(web, f))} imports ${spec}`),
+  );
+  expect(stray).toEqual([]);
+  for (const f of ENGINES) expect([f, onlyForwards(readFileSync(join(web, f), "utf8"))]).toEqual([f, false]);
   // the check sees a one-line forward, a multi-line one and one beside an import, and leaves real code alone
   expect(onlyForwards('export { a } from "./a.ts";')).toBe(true);
   expect(onlyForwards('// x\nexport {\n  a,\n  b,\n} from "./a.ts";\nexport * from "./b.ts"')).toBe(true);
@@ -222,23 +202,23 @@ test("board.html, notes.html and popup.html are small shells with no inline styl
   expect(app).not.toMatch(/useState|useReducer|create\(/);
   // react-mount.ts and the react registry are gone: stores and lib calls are made directly
   expect(existsSync(join(web, "board/react-mount.ts"))).toBe(false);
-  expect(readFileSync(join(web, "board/views.ts"), "utf8")).not.toMatch(/export const react\b/);
+  expect(readFileSync(join(web, "pages/board/views.ts"), "utf8")).not.toMatch(/export const react\b/);
 });
 
 // The server's data and the page that shows are not the engines' to decide any more: lib/server is the one poller (fetch, dedupe,
 // the quiet gap, the event stream) writing one store, lib/router the one router (the view, its address, the <body> classes
 // through the App). web/board/ reads them and reacts; it fetches none of what the poller reads and sets no page class.
-test("web/board does not poll the server or show pages: lib/server and lib/router do", () => {
-  const dir = join(web, "board");
-  const src = (n: string) => readFileSync(join(dir, n), "utf8");
-  const files = readdirSync(dir).filter((n) => n.endsWith(".ts") && !isTest(n));
-  for (const n of files) {
+test("the engines do not poll the server or show pages: lib/server and lib/router do", () => {
+  const src = (n: string) => readFileSync(join(web, n), "utf8");
+  for (const n of ENGINES) {
     const s = src(n);
     expect([n, /fetch\(["'`]\/(state|shells["'`]|sources|tasks\?all|events)/.test(s) || /new EventSource/.test(s)]).toEqual([n, false]);
     expect([n, /dispatchEvent\(new Event\("kz-(state|view|rail|shells|cards|all-cards|task-attention|changed)"\)\)/.test(s)]).toEqual([n, false]);
     // A page class on <body> is the App's (useRouteClasses): the engines may read the route, never set one.
     expect([n, /body\.classList\.(toggle|add|remove)\(\s*["'`](paged|ice|setv|termv|homev|phomev|pdevv|taskv|taskpagev|runv|phone-menu-open)\b/.test(s)]).toEqual([n, false]);
     expect([n, /classList\.contains\(\s*["'](paged|ice|setv|termv|homev|phomev|pdevv|taskv|taskpagev)["']/.test(s)]).toEqual([n, false]);
+    // No element is looked up by id, and no panel or page is written as classes: the stores draw them.
+    expect([n, /getElementById|\$\(["']/.test(s) && n !== "pages/board/main.ts"]).toEqual([n, false]);
   }
   // the poller is lib/server's and the router lib/router's; the Board App is the page picker
   for (const f of ["poller.ts", "poll-rules.ts", "server-store.ts"]) expect(existsSync(join(web, "lib/server", f))).toBe(true);
@@ -248,25 +228,24 @@ test("web/board does not poll the server or show pages: lib/server and lib/route
   // no router library
   expect(readFileSync(join(dirname(web), "package.json"), "utf8")).not.toMatch(/react-router|tanstack\/router|wouter/);
   // the engines register with the router and the poller; they do not own the store's data
-  expect(src("views.ts")).toContain("setRouterHooks(");
-  expect(src("api.ts")).toContain("setEngine(");
-  expect(src("store.ts")).toContain("getServer()");
+  expect(src("pages/board/views.ts")).toContain("setRouterHooks(");
+  expect(src("lib/board/on-state.ts")).toContain("setEngine(");
 });
 
 // workspace.ts is shared with the notebook and Video bundles. The Projects list, its filter, the worktree menu and the
 // resource popup are React (components/rail, components/resources): the board's App draws them, the Notebook
 // page draws the same components in notebook.js (the kit, kit.ts, lends the popups), and Video lists no projects. What
-// stays here opens the Add a project sheet only through the onBoard() guard or the kit, and settings.ts / tasks-page.tsx
+// stays here opens the Add a project sheet only through the onBoard guard or the kit, and settings.ts / tasks-page.tsx
 // never wipe a header host another part mounted (#ptabs, #psub, #hx).
 test("shared side-menu code only opens React hosts the page has; no page wipes a mounted host", () => {
   const rd = (p: string) => readFileSync(join(web, p), "utf8");
-  const ws = rd("board/workspace.ts");
+  const ws = rd("lib/rail/rail-boot.ts");
   expect(ws.match(/\bopenAdd\(/g)?.length).toBe(3); // the board branch, the kit's, and the ?add= arrival
-  expect(ws).toMatch(/function addProject[\s\S]*?if \(onBoard\(\)\) return openAdd[\s\S]*?kitFor\(\)\.then\(\(k\) => k\.openAdd\(o\), \(\) => leave\(/);
+  expect(ws).toMatch(/function addProject[\s\S]*?if \(onBoard\) return openAdd[\s\S]*?kitFor\(\)\.then\(\(k\) => k\.openAdd\(o\), \(\) => leave\(/);
   // The list and the popups are gone from the old code and have a mount on each page that has them.
   expect(ws).not.toMatch(/drawList|drawPop|pfpop|wsMenu|rankDrag|innerHTML = drawn/);
   expect(existsSync(join(web, "board/resources.ts"))).toBe(false);
-  expect(ws).toMatch(/!onBoard\(\) && kitHere\(\)\) void kitFor\(\)\.catch/);
+  expect(ws).toMatch(/!onBoard && kitHere\(\)\) void kitFor\(\)\.catch/);
   // The side menu (components/shell/rail.tsx) draws the list and the filter on both pages.
   expect(rd("components/shell/rail.tsx")).toMatch(/<span id="pfilter-host"[^>]*>\s*<RailFilter \/>[\s\S]*<RailList \/>/);
   // The footer's resource button is part of the footer bar now.
@@ -275,10 +254,10 @@ test("shared side-menu code only opens React hosts the page has; no page wipes a
   expect(rd("pages/board/App.tsx")).toContain('<footer className="foot kz-ui" id="foot"');
   // Search: the notebook page opens the palette from the kit and falls back to the board; every page load from the palette
   // goes through go(), which writes the notebook's open note first.
-  const se = rd("board/search.ts");
+  const se = rd("lib/search/search-rows.ts");
   expect(se).toMatch(/kitFor\(\)\.then\([\s\S]*?\(\) => leave\("\/\?view=board&search=1"\)/);
   expect(se.match(/location\.href =/g)?.length).toBe(2); // go() on the board and leave()'s own
-  expect(rd("board/settings.ts")).not.toMatch(/\$\("(?:ptabs|psub)"\)\.(?:innerHTML|textContent)\s*=/);
+  expect(rd("lib/settings/panel-settings.ts")).not.toMatch(/\$\("(?:ptabs|psub)"\)\.(?:innerHTML|textContent)\s*=/);
   expect(rd("pages/tasks-page.tsx")).not.toMatch(/getElementById\("hx"\)\?*\.replaceChildren/);
 });
 
@@ -286,7 +265,7 @@ test("shared side-menu code only opens React hosts the page has; no page wipes a
 // (components/run, components/panes, lib/run). run-view.ts holds the plumbing (which items the workspace has, sessions,
 // keys); it builds no pane, gutter, frame or terminal element and no Preview tab (components/panes/preview-pane.tsx).
 test("run-view.ts builds no pane, gutter, frame or terminal element and keeps no layout tree of its own", () => {
-  const src = readFileSync(join(web, "board/run-view.ts"), "utf8");
+  const src = readFileSync(join(web, "lib/run/workspace.ts"), "utf8");
   expect(src).not.toMatch(/createElement\(["'`](?:section|header|iframe|webview)/);
   expect(src).not.toMatch(/makePane|\.rtree|\.rgut|kz-runtabs|splitAt|termLoad|new Map<string, \{ el:/);
   const ui = readFileSync(join(web, "ui/legacy/board.css"), "utf8");
@@ -302,7 +281,7 @@ test("run-view.ts builds no pane, gutter, frame or terminal element and keeps no
 // builds markup, and the page's own CSS keeps none of their old rules.
 test("the Home window and the phone pages are drawn by React, not by board/ modules or board.html", () => {
   expect(existsSync(join(web, "board/phone.ts"))).toBe(false);
-  const ws = readFileSync(join(web, "board/home-ws.ts"), "utf8");
+  const ws = readFileSync(join(web, "lib/home/home-events.ts"), "utf8");
   expect(ws).not.toMatch(/innerHTML|insertAdjacentHTML|createElement|\$\(["']hws/);
   const css = readFileSync(join(web, "ui/legacy/board.css"), "utf8");
   expect(css).not.toMatch(/\.hws\{|\.hwsh|\.hwstab|\.hwsb\b|\.hwsbtn|\.pag\{|\.pdev\b|\.prow\b|\.pslide|\.pmore|\.psec2|\.pusage|#phome h3/);
@@ -313,7 +292,7 @@ test("the Home window and the phone pages are drawn by React, not by board/ modu
 // The Terminal page is React (pages/terminal-page.tsx over components/terminal and lib/terminal: rules, store, keys). board/terms.ts
 // only feeds it the sessions and keeps the side menu's badge; it builds no markup and board.html keeps none of the tile CSS.
 test("the Terminal page is drawn by React, not by board/terms.ts or board.html", () => {
-  const src = readFileSync(join(web, "board/terms.ts"), "utf8");
+  const src = readFileSync(join(web, "lib/terminal/terms-feed.ts"), "utf8");
   expect(src).not.toMatch(/innerHTML|insertAdjacentHTML|createElement|\$\(["']terms/);
   expect(src.split("\n").length).toBeLessThan(80);
   const css = readFileSync(join(web, "ui/legacy/board.css"), "utf8");
@@ -324,9 +303,9 @@ test("the Terminal page is drawn by React, not by board/terms.ts or board.html",
 // The board's footer (usage chips with their popovers, resources, terminal count, phone) and the status strip with the
 // phone's status button are React (components/footer and components/board over lib/footer and lib/board/strip.ts).
 test("the footer and the status strip are drawn by React, not by workspace.ts, cards.ts or board.html", () => {
-  const ws = readFileSync(join(web, "board/workspace.ts"), "utf8");
+  const ws = readFileSync(join(web, "lib/rail/rail-boot.ts"), "utf8");
   expect(ws).not.toMatch(/usageChips|\$\("(?:usage|phone|tcount)"\)|utip|uchip/);
-  const cards = readFileSync(join(web, "board/cards.ts"), "utf8");
+  const cards = readFileSync(join(web, "lib/board/snapshot.ts"), "utf8");
   expect(cards).not.toMatch(/\$\("(?:strip|fbtn)"\)|statusSheet|innerHTML/);
   const css = readFileSync(join(web, "ui/legacy/board.css"), "utf8");
   expect(css).not.toMatch(/\.uchip|\.utip|\.urow|\.umtr|\.strip\b|\.ftr\.on/);
@@ -336,7 +315,7 @@ test("the footer and the status strip are drawn by React, not by workspace.ts, c
 // The Project context pane (files, notes, terminal sessions) is React (components/context over lib/context); board/context.ts
 // only tells it the project and the sessions and wires the header's button.
 test("the Project context pane is drawn by React, not by board/context.ts", () => {
-  const src = readFileSync(join(web, "board/context.ts"), "utf8");
+  const src = readFileSync(join(web, "lib/context/feed.ts"), "utf8");
   expect(src).not.toMatch(/createElement|innerHTML|replaceChildren|\.append\(/);
   expect(src.split("\n").length).toBeLessThan(50);
   expect(readFileSync(join(web, "pages/board/App.tsx"), "utf8")).toContain('<div id="context-host"');
@@ -353,9 +332,9 @@ test("the Project context pane is drawn by React, not by board/context.ts", () =
 // (components/run/doc-body.tsx over lib/run/doc.ts and the panel store); panel.ts decides which tab shows and hands it
 // the text. It builds no markup. md() stays for the note editor (rich.ts); the panel's progress renderer is gone.
 test("the panel's document tabs are drawn by React, not by panel.ts", () => {
-  const src = readFileSync(join(web, "board/panel.ts"), "utf8");
+  const src = readFileSync(join(web, "lib/run/panel.ts"), "utf8");
   expect(src).not.toMatch(/innerHTML|insertAdjacentHTML|createElement|html`|raw\(|md\(|progress\(/);
-  expect(readFileSync(join(web, "board/markdown.ts"), "utf8")).not.toMatch(/export function progress\b/);
+  expect(readFileSync(join(web, "lib/notes/md-html.ts"), "utf8")).not.toMatch(/export function progress\b/);
   expect(readFileSync(join(web, "components/run/doc-body.tsx"), "utf8")).not.toMatch(/innerHTML/);
 });
 
@@ -366,15 +345,15 @@ test("the panel's document tabs are drawn by React, not by panel.ts", () => {
 test("the notes chat and dictation are drawn by React, not by board/ modules or board.html", () => {
   const rd = (p: string) => readFileSync(join(web, p), "utf8");
   for (const f of ["board/chat.ts", "board/dictation.ts"]) expect(existsSync(join(web, f))).toBe(false);
-  expect(rd("board/panel.ts")).not.toMatch(/\bchat\(|from "\.\/(?:chat|dictation)\.ts"/);
-  expect(rd("board/panel.ts")).toMatch(/drawNotes\(/);
+  expect(rd("lib/run/panel.ts")).not.toMatch(/\bchat\(|from "\.\/(?:chat|dictation)\.ts"/);
+  expect(rd("lib/run/panel.ts")).toMatch(/drawNotes\(/);
   expect(rd("lib/core/host.ts")).not.toMatch(/\bmic\(|stopDictation/);
   const css = rd("ui/legacy/board.css");
   expect(css).not.toMatch(/\.vu\{|\.ib\.mic|\.row \.mic|\.msg\{|\.chat\{|\.desc\{|\.notes textarea|\.notes \.tools|\.notes \.att|\.notes \.row/);
   expect(css).toMatch(/\.notes \.rich\{/); // the editor engine's own element (board/rich.ts) keeps its rules
   expect(css).toMatch(/\.dictating\{/);
   // the engine runs only in the board's bundle: nothing the notebook or Video bundles import reaches it
-  for (const f of ["notebook/notebook.ts", "video/video.ts", "notebook/kit.ts"]) expect(rd(f)).not.toMatch(/dictation|lib\/notes|components\/notes/);
+  for (const f of ["notebook/notebook.ts", "video/video.ts", "lib/notebook/kit.ts"]) expect(rd(f)).not.toMatch(/dictation|lib\/notes|components\/notes/);
   // ...nor does the engine ride along in the kit bundle (it imports the shared barrel, which holds MicButton): its worker source is a
   // function so the bundler drops it where no microphone button is mounted.
   for (const f of ["notebook.js", "video.js"]) expect(rd(`dist/${f}`)).not.toContain("automatic-speech-recognition");
@@ -393,7 +372,7 @@ test("the Notes page is drawn by React, with one editor component and no lazy ki
   const html = rd("html/notes.html");
   expect(html).toContain('<div id="root"></div>');
   expect(html).not.toMatch(/id="(?:pane|tree|tags|editor|meta|toast|proj|q)"|class="(?:app|hdr|wrap|side)"|select\.sel\{/);
-  expect(rd("notebook/kit-loader.ts")).not.toMatch(/createElement|\.src =|\.href =/);
+  expect(rd("lib/notebook/kit-loader.ts")).not.toMatch(/createElement|\.src =|\.href =/);
   // the engine view is made once, by the one component that owns it (and by nothing else in components or pages)
   const files = Object.fromEntries(
     ["components", "pages"].flatMap((l) => walk(join(web, l))).map((f) => [relative(web, f).split(/[\\/]/).join("/"), readFileSync(f, "utf8")]),
@@ -416,7 +395,7 @@ test("the annotator is React plus one bundled page script, with no old board mod
   expect(readdirSync(join(web, "annotate"))).toEqual(["annotate.ts"]);
   expect(rd("annotate/annotate.ts")).not.toMatch(/innerHTML|insertAdjacentHTML|document\.write/);
   expect(rd("components/panes/browser-pane.tsx")).toMatch(/<AnnotatePanel ann=\{ann\} \/>/);
-  expect(rd("board/run-view.ts")).not.toMatch(/annotat/i);
+  expect(rd("lib/run/workspace.ts")).not.toMatch(/annotat/i);
   expect(rd("ui/legacy/board.css")).not.toMatch(/\.annbar|\.annlist|\.annn|\.annset|\.annempty/);
   const root = dirname(web);
   expect(readFileSync(join(root, "cli/web.ts"), "utf8")).toMatch(/ANNOTATE_JS = join\(dirname\(import\.meta\.dir\), "web", "dist", "annotate\.js"\)/);
@@ -432,13 +411,16 @@ test("the annotator is React plus one bundled page script, with no old board mod
 // other directly, which keeps barrels out of cycles). `import type` follows the same rule: no type-only exception is
 // needed. Exceptions, each for a reason:
 //  - web/ui takes lib/core/utils.ts directly (the layer rule above: ui never reaches into the feature folders);
-//  - a few web/board bridge files run in the notebook and Video bundles or in tests with no DOM; a barrel would pull the
-//    board's stores (zustand + localStorage at import) into them, so they import the one small file they need.
+//  - a few bridge files run in the notebook and Video bundles or in tests with no DOM (rail-boot, search-rows, ws-tabs,
+//    ws-board); a barrel would pull the board's stores (zustand + localStorage at import) into them, so they import the one
+//    small file they need. The board's main.ts is the one place the engines meet and may reach any of them directly.
 const MAX_FILES = 25;
 const BRIDGE_DIRECT = [
-  "board/workspace.ts",
-  "board/ws-tabs.ts",
-  "board/search.ts",
+  "pages/board/main.ts",
+  "lib/board/ws-board.ts",
+  "lib/rail/rail-boot.ts",
+  "lib/run/ws-tabs.ts",
+  "lib/search/search-rows.ts",
 ];
 const isTest = (name: string) => /\.test\.tsx?$/.test(name);
 // Aliases (tsconfig paths): "@web/x" is web/x, "@lib/x" is web/lib/x, "@components/x" is web/components/x. A path with
@@ -493,7 +475,7 @@ test("components/ and lib/ hold feature folders of at most 25 files, each with a
 
 test("imports from outside a feature folder go through its index.ts", () => {
   const files = Object.fromEntries(
-    ["components", "pages", "lib", "board"].flatMap((l) => walk(join(web, l))).map((f) => [f, readFileSync(f, "utf8")]),
+    ["components", "pages", "lib"].flatMap((l) => walk(join(web, l))).map((f) => [f, readFileSync(f, "utf8")]),
   );
   expect(indexViolations(files)).toEqual([]);
   for (const f of BRIDGE_DIRECT) expect(existsSync(join(web, f))).toBe(true);
@@ -512,7 +494,7 @@ test("imports from outside a feature folder go through its index.ts", () => {
       [at("pages/a.tsx")]: 'import { T } from "../components/task/index.ts";',
       [at("components/git/b.tsx")]: 'import { a } from "./git-tab.tsx"; import { s } from "../../lib/git/index.ts";',
       [at("ui/c.tsx")]: 'import { cn } from "../lib/core/utils.ts";',
-      [at("board/workspace.ts")]: 'import { ask } from "../lib/core/ask.ts";',
+      [at("lib/rail/rail-boot.ts")]: 'import { ask } from "../lib/core/ask.ts";',
     }),
   ).toEqual([]);
 });

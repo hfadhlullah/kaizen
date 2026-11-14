@@ -375,7 +375,7 @@ body.taskv #tasksv{flex:1;min-height:0;display:flex;flex-direction:column;gap:0;
 
 /* Orca's Tasks page: a tinted toolbar joined to a bordered list (TaskPage, Orca 1.4.244). */
 .tk-bar{flex:none;display:flex;flex-direction:column;gap:10px;padding:10px 12px;border:1px solid color-mix(in srgb,var(--line) 50%,transparent);border-radius:var(--r) var(--r) 0 0;background:color-mix(in srgb,var(--hover) 35%,transparent)}
-.tk-q{position:relative;flex:1 1 256px;min-width:0;display:block}.tk-q svg{position:absolute;left:10px;top:9px;width:14px;height:14px;color:var(--dim);pointer-events:none}.tk-q #bq{width:100%;max-width:none;height:32px;margin:0;padding-left:32px;font-size:12px}
+.tk-q{position:relative;flex:1 1 256px;min-width:0;display:block}.tk-q svg{position:absolute;left:10px;top:9px;width:14px;height:14px;color:var(--dim);pointer-events:none}.tk-q input{width:100%;max-width:none;height:32px;margin:0;padding-left:32px;font-size:12px}
 
 
 
@@ -386,7 +386,7 @@ body.taskv #tasksv{flex:1;min-height:0;display:flex;flex-direction:column;gap:0;
 .rail .rtask{display:flex;gap:8px;align-items:center;padding:6px 8px 6px 18px;border-radius:var(--r-s);color:var(--ink);text-decoration:none}.rail .rtask:hover{background:var(--hover)}.rail .rtask>span:last-child{min-width:0}.rail .rtask b,.rail .rtask small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rail .rtask b{font-size:12px;font-weight:500}.rail .rtask small{font-size:11px;color:var(--dim)}[data-rail=min] .rail .rtask{display:none}
 
 /* Tasks and the task page share the Icebox look: plain bar, pill chips, soft rows, no boxed panels. */
-#tasksv .tk-q #bq{height:30px;border-radius:var(--r-s);padding-left:32px}#tasksv .tk-q svg{top:8px}
+#tasksv .tk-q input{height:30px;border-radius:var(--r-s);padding-left:32px}#tasksv .tk-q svg{top:8px}
 body.taskpagev #taskpagev{padding:28px;gap:16px;box-sizing:border-box}
 body.taskpagev #taskpagev{overflow:hidden;position:relative;gap:12px}
 @media(max-width:640px){body.taskpagev #taskpagev{padding:12px;gap:12px}}

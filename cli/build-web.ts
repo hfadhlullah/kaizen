@@ -1,6 +1,6 @@
 // `bun run build:web`: bundles the notebook's script and CodeMirror into
 // web/dist/notebook.js, the in-card terminal and xterm.js into web/dist/term.js (+ its
-// stylesheet, web/dist/term.css), the board's modules (web/board/) into web/dist/board.js and
+// stylesheet, web/dist/term.css), the board's page (web/pages/board/main.ts) into web/dist/board.js and
 // Kaizen Bot's page modules (bot/web/app/) into bot/web/app.js, the chat popup's page into web/dist/popup.js, the tiny blocking head script that applies the stored theme into web/dist/boot.js, the Video page's script into web/dist/video.js and the annotator's page script (web/annotate/) into web/dist/annotate.js, all committed, so an install or a checkout serves it with no
 // install step and no network. The first line is a hash of what it was built from;
 // cli/notes.test.ts fails when a committed file no longer matches.
@@ -15,7 +15,7 @@ const tree = (dir: string): string[] =>
   readdirSync(join(root, dir), { withFileTypes: true })
     .sort((a, b) => (a.name < b.name ? -1 : 1))
     .flatMap((e) => (e.isDirectory() ? tree(`${dir}/${e.name}`) : /\.tsx?$/.test(e.name) && !/\.test\.tsx?$/.test(e.name) ? [`${dir}/${e.name}`] : []));
-const SOURCES = ["web/notebook/notebook.ts", "web/notebook/notes-lib.ts", "web/notebook/kit.ts", "web/notebook/kit-loader.ts", "web/term/term.ts", "web/video/video.ts", "web/annotate/annotate.ts", "web/popup/popup.ts", "web/boot/boot.ts", "web/ui/legacy/board.css", "web/ui/legacy/notes.css", "web/ui/legacy/popup.css", ...modules("web/board"), ...modules("bot/web/app"), ...["ui", "components", "pages", "lib"].flatMap((d) => tree(`web/${d}`)), "web/ui/theme.css"];
+const SOURCES = ["web/notebook/notebook.ts", "web/notebook/notes-lib.ts", "web/term/term.ts", "web/video/video.ts", "web/annotate/annotate.ts", "web/popup/popup.ts", "web/boot/boot.ts", "web/ui/legacy/board.css", "web/ui/legacy/notes.css", "web/ui/legacy/popup.css", ...modules("bot/web/app"), ...["ui", "components", "pages", "lib"].flatMap((d) => tree(`web/${d}`)), "web/ui/theme.css"];
 export const OUT = join(root, "web", "dist", "notebook.js");
 export const TERM_OUT = join(root, "web", "dist", "term.js");
 export const BOARD_OUT = join(root, "web", "dist", "board.js");
@@ -43,7 +43,7 @@ if (import.meta.main) {
   const bundles = [
     ["web/notebook/notebook.ts", OUT, "notebook"],
     ["web/term/term.ts", TERM_OUT, "terminal"],
-    ["web/board/main.ts", BOARD_OUT, "board"],
+    ["web/pages/board/main.ts", BOARD_OUT, "board"],
     ["bot/web/app/main.ts", BOT_OUT, "bot page"],
     ["web/video/video.ts", VIDEO_OUT, "video page"],
     ["web/annotate/annotate.ts", ANNOTATE_OUT, "annotator page script"],

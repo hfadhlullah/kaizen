@@ -86,6 +86,20 @@ export const toggleMenu = () => useRoute.setState((r) => ({ menu: !r.menu }));
 // The menu's links and the browser's back and forward: one place. A second click on the Board goes back to where the first
 // one came from.
 let boardBack = false;
+// A menu entry's click (the side menu's anchors, and the Search palette's pages): the page opens with a history entry; the Board
+// entry is a toggle, a second press goes back to where it came from.
+export function menuGo(name: string) {
+  hooks.before?.(resolveView(name, isPhone()));
+  if (name === "board" && getRoute().view === "board") {
+    const back = boardBack;
+    boardBack = false;
+    return void (back ? history.back() : vt(() => navigate("home", true)));
+  }
+  vt(() => {
+    navigate(name, true);
+    boardBack = name === "board";
+  });
+}
 export function startRouter() {
   addEventListener("popstate", () => vt(() => navigate(new URLSearchParams(location.search).get("view"))));
   document.addEventListener("click", (e) => {
@@ -94,15 +108,6 @@ export function startRouter() {
     const name = a.classList.contains("home") ? "home" : a.dataset.view!;
     if (name === "notes" || name === "video") return;
     e.preventDefault();
-    hooks.before?.(resolveView(name, isPhone()));
-    if (name === "board" && getRoute().view === "board") {
-      const back = boardBack;
-      boardBack = false;
-      return void (back ? history.back() : vt(() => navigate("home", true)));
-    }
-    vt(() => {
-      navigate(name, true);
-      boardBack = name === "board";
-    });
+    menuGo(name);
   });
 }

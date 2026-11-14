@@ -1,7 +1,7 @@
-// The Board page's state (Zustand). `snap` is what the old board code (web/board/cards.ts render()) knows and hands
-// over on every redraw: the cards and the filters its status strip and header set. Everything else is the page's
-// own: the open tab, sort order, pick mode, which children and columns are unfolded, and the form or popup that is
-// open. None of it is lost by a redraw, because nothing here is redrawn by hand.
+// The Board page's state (Zustand). `snap` is what lib/board/snapshot.ts works out from the server's data and the filters
+// below (project, status, search, archive, mode) and the card that is open. Everything else is the page's own: the open
+// tab, sort order, pick mode, which children and columns are unfolded, and the form or popup that is open. None of it is
+// lost by a redraw, because nothing here is redrawn by hand.
 import { create } from "zustand";
 import type { Card } from "@lib/core";
 import { clearDrafts } from "@lib/shared";
@@ -35,6 +35,7 @@ export type BoardSnap = {
   flash: string[];
   answered: string[]; // runs already answered from this page
   phone: boolean;
+  names: Record<string, string>; // view-transition names of the cards that just changed column (they slide there)
 };
 export type FormMode = "new" | "edit" | "reject" | "delete" | "move" | "run";
 export type Popup =
@@ -53,12 +54,19 @@ export type Board = {
   kidsOpen: string[];
   form: { mode: FormMode; key?: string } | null;
   popup: Popup | null;
-  // The header's Workspaces | Runs switch (ws-board-ui.ts publishes it; null on pages that are not the Board).
-  modeSwitch: { mode: "ws" | "runs"; set: (m: "ws" | "runs") => void } | null;
+  // What the header and the status strip filter by: a status ("waiting"...), the search box's text, the archive instead
+  // of the board, and Workspaces or Runs (kept per browser; the search box's text per tab).
+  filter: string | null;
+  query: string;
+  archive: boolean;
+  mode: "ws" | "runs";
+  // The cards that just started needing you (each flashes once) and the ones that moved column (each slides there).
+  flash: string[];
+  names: Record<string, string>;
 };
-const read = <T>(storage: Storage, k: string, fallback: T): T => {
+const read = <T>(storage: () => Storage, k: string, fallback: T): T => {
   try {
-    return JSON.parse(storage.getItem(k) ?? "null") ?? fallback;
+    return JSON.parse(storage().getItem(k) ?? "null") ?? fallback;
   } catch {
     return fallback;
   }
@@ -73,18 +81,35 @@ export const useBoard = create<Board>()(() => ({
     }
   })() as "ideas" | "backlog",
   sev: null,
-  order: read(localStorage, "kz-order", {}),
+  order: read(() => localStorage, "kz-order", {}),
   picking: false,
   picked: [],
   unfolded: [],
   kidsOpen: [],
   // A form that was open when the page reloaded comes back (new, edit and reject; the rest hold nothing typed).
   form: (() => {
-    const f = read<[string, string] | null>(sessionStorage, "kz-form", null);
+    const f = read<[string, string] | null>(() => sessionStorage, "kz-form", null);
     return f ? { mode: f[0] as FormMode, key: f[1] ?? undefined } : null;
   })(),
   popup: null,
-  modeSwitch: null,
+  filter: null,
+  query: (() => {
+    try {
+      return sessionStorage.getItem("kz-d:bq") ?? "";
+    } catch {
+      return "";
+    }
+  })(),
+  archive: false,
+  mode: (() => {
+    try {
+      return localStorage.getItem("kz-board-mode") === "runs" ? "runs" : "ws";
+    } catch {
+      return "ws";
+    }
+  })() as "ws" | "runs",
+  flash: [],
+  names: {},
 }));
 export const getBoard = useBoard.getState;
 export const setBoard = useBoard.setState;
@@ -95,6 +120,23 @@ export const openForm = (f: Board["form"]) => {
       "kz-form",
       JSON.stringify(f && ["new", "edit", "reject"].includes(f.mode) ? [f.mode, f.key ?? null] : null),
     );
+  } catch {}
+};
+// A click on a status chip filters to that status, or back to all; the archive chip toggles the archive.
+export const pickChip = (id: string) =>
+  id === "__archive"
+    ? setBoard((s) => ({ archive: !s.archive, filter: null }))
+    : setBoard((s) => ({ filter: s.filter === id ? null : id }));
+export const setQuery = (query: string) => {
+  setBoard({ query });
+  try {
+    sessionStorage.setItem("kz-d:bq", query);
+  } catch {}
+};
+export const setMode = (mode: "ws" | "runs") => {
+  setBoard({ mode });
+  try {
+    localStorage.setItem("kz-board-mode", mode);
   } catch {}
 };
 export const closeForm = () => (openForm(null), clearDrafts("f:"));

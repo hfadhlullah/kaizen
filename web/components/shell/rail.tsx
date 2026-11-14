@@ -1,6 +1,7 @@
 import { cn } from "@lib/core";
 import type { CSSProperties, ReactNode } from "react";
 import { useUpdate } from "@lib/settings";
+import { railActions } from "@lib/rail";
 import { useRoute } from "@lib/router";
 import { useServer, iceNewCount, needYouCount } from "@lib/server";
 import { setHelp, toggleRail, toggleTheme, useShell } from "@lib/shell";
@@ -70,7 +71,13 @@ export function Rail(p: { srcs?: ReactNode; before?: ReactNode }) {
           </svg>
         </button>
       </div>
-      <a className="it gs-it" href="#" id="gsearch" title="Search everything">
+      <a
+        className="it gs-it"
+        href="#"
+        id="gsearch"
+        title="Search everything"
+        onClick={(e) => (e.preventDefault(), railActions.search())}
+      >
         <svg viewBox="0 0 24 24">
           <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="2" />
           <path d="M20 20l-4-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -178,7 +185,12 @@ export function Rail(p: { srcs?: ReactNode; before?: ReactNode }) {
         <span id="pfilter-host" style={{ display: "contents" }}>
           <RailFilter />
         </span>
-        <button id="padd" title="Add project or workspace" aria-label="Add project or workspace">
+        <button
+          id="padd"
+          title="Add project or workspace"
+          aria-label="Add project or workspace"
+          onClick={() => railActions.add()}
+        >
           <svg>
             <use href="#r-plus" />
           </svg>

@@ -8,7 +8,7 @@ import { WebglAddon } from "@xterm/addon-webgl";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { SearchAddon } from "@xterm/addon-search";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
-import { fontRead, fontSet, fontStep } from "./term-font.ts";
+import { fontRead, fontSet, fontStep } from "../lib/terminal/term-font.ts";
 import { imageFiles, pathsText } from "./term-paste.ts";
 
 // Orca's defaults (its "Ghostty Default Style Dark" and "Builtin Tango Light"): a terminal's ANSI

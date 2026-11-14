@@ -1,5 +1,5 @@
 // The board's status strip: one chip per status on the board with its count (a click filters to it), and the archive.
-// No DOM: components/board/status-strip.tsx draws it from the snapshot, cards.ts keeps the filter and archive it changes.
+// No DOM: components/board/status-strip.tsx draws it from the snapshot; the filter and archive it changes are the board store's.
 import { ICON, WORD } from "@lib/core";
 import type { BoardSnap } from "./board-store.ts";
 
@@ -41,7 +41,3 @@ export function stripChips(s: S): Chip[] {
 // The phone's status button: amber dot while a run waits, accent while a filter or the archive is on.
 export const stripDot = (s: S): "on" | "wait" | "" =>
   s.filter || s.archive ? "on" : count(s, "waiting") > 0 ? "wait" : "";
-
-// What a chip does: cards.ts holds the filter and the archive flag, so it answers.
-export const stripActions: { pick: (id: string) => void } = { pick: () => {} };
-export const setStripActions = (a: typeof stripActions) => Object.assign(stripActions, a);

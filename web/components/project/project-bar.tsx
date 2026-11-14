@@ -1,7 +1,18 @@
 import { useState } from "react";
 import { host, cn } from "@lib/core";
-import { ALL, isAction, showingCount, showingLabel, useProjectBar } from "@lib/project";
-import { Button, Command, CommandEmpty, CommandInput, CommandItem, CommandList, Icon, Popover, PopoverContent, PopoverTrigger } from "@web/ui";
+import { ALL, clearShown, isAction, showingCount, showingLabel, toggleShown, useProjectBar } from "@lib/project";
+import {
+  Button,
+  Command,
+  CommandEmpty,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  Icon,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@web/ui";
 import { Picker, type PickerOption, ProjectMark } from "@components/shared";
 
 // The mark in front of a choice: the board for All projects, a plus for an action, else the project's own mark.
@@ -17,8 +28,7 @@ const Mark = ({ value, label }: { value: string; label: string }) =>
 // The project the board is on: a searchable list (the board's own projects, then folders found in the projects folder,
 // then New project, Find projects and Clone). Picking one switches the board in place.
 export function ProjectPicker() {
-  const rows = useProjectBar((s) => s.rows),
-    dir = useProjectBar((s) => s.dir);
+  const { rows, dir } = useProjectBar();
   const options: PickerOption[] = rows.map((r) => ({
     value: r.value,
     label: r.value === ALL || isAction(r.value) ? r.label : r.label.split(/[\\/]/).pop() || r.label,
@@ -39,8 +49,7 @@ export function ProjectPicker() {
 
 // In All projects: which projects show. A checklist that stays open while rows are toggled; Show all clears it.
 export function ShowingPicker() {
-  const all = useProjectBar((s) => s.showable),
-    shown = useProjectBar((s) => s.shown);
+  const { showable: all, shown } = useProjectBar();
   const [open, setOpen] = useState(false);
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -69,7 +78,7 @@ export function ShowingPicker() {
                   title={p.label}
                   role="menuitemcheckbox"
                   aria-checked={on}
-                  onSelect={() => host.toggleShown(p.dir)}
+                  onSelect={() => toggleShown(p.dir)}
                   className="gap-2.5 px-2.5"
                 >
                   <ProjectMark dir={p.dir} label={p.label} size={18} />
@@ -81,7 +90,7 @@ export function ShowingPicker() {
           </CommandList>
           <div className="mt-1.5 flex items-center justify-between border-t border-border px-1 pt-1.5 text-sm text-muted-foreground">
             <span>{showingCount(shown, all)}</span>
-            <Button variant="ghost" size="sm" onClick={() => host.clearShown()}>
+            <Button variant="ghost" size="sm" onClick={clearShown}>
               Show all
             </Button>
           </div>

@@ -1,6 +1,6 @@
 // How the Icebox page moves around: what a click on a row, a card, a chip or a bulk bar changes in the page's own
 // state (open item, cursor, checked items, filters). No requests are made here (those are icebox-actions.ts).
-import { host } from "@lib/core";
+import { clearShown } from "@lib/project";
 import { iceKey, sameName, type Board, type IceItem } from "./icebox.ts";
 import { patchCap, setIce } from "./icebox-store.ts";
 
@@ -44,5 +44,5 @@ export const toggleKind = (kind: string) =>
 // "Clear filters": category, source, collection, kinds, and the board's "Showing" picker in All projects.
 export function clearFilters(single: boolean) {
   setIce({ cat: "", src: "", board: "", kinds: [] });
-  if (!single) host.clearShown();
+  if (!single) clearShown();
 }

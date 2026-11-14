@@ -6,6 +6,9 @@ import { getServer } from "@lib/server";
 import { togglePin, useRail } from "./rail-store.ts";
 import { wsLabel } from "./rules.ts";
 
+// The two buttons the menu only draws: + (add a project) and Search. lib/rail/rail-boot.ts and lib/search/search-rows.ts answer.
+export const railActions = { add: () => {}, search: () => {} };
+
 // True when the page opened it in place.
 export const handled = (name: string, detail: unknown) =>
   !dispatchEvent(new CustomEvent(name, { cancelable: true, detail }));

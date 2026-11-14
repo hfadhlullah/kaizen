@@ -1,23 +1,17 @@
 import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { useShallow } from "zustand/react/shallow";
 import { useRoute } from "@lib/router";
 import { EmptyState, IconButton, Pager } from "@components/shared";
+import { FilterBox } from "@components/board";
 import { FilterMenu, TaskRow } from "@components/task";
-import {
-  useDock,
-  openTaskRecord,
-  refreshTasks,
-  useTasks,
-  filteredTasks,
-  TASK_FILTERS,
-} from "@lib/task";
+import { focusFilter, newTask, setQuery, useBoard } from "@lib/board";
+import { openTaskRecord, refreshTasks, useTasks, filteredTasks, TASK_FILTERS } from "@lib/task";
 import { usePager } from "@lib/shared";
 import { host, setStore, useStore } from "@lib/core";
 import { Button } from "@web/ui";
 
-// The attention-first list of durable tasks. The board's own search box, tools slot and New task button are
-// docked into it while it shows (lib/task/use-dock.ts), so the page has no header of its own.
+// The attention-first list of durable tasks: its own search box (the text is the Board's, shared with the header's), tools and
+// New task button, so the page has no header of its own.
 export function TasksPage() {
   return useRoute((r) => r.page === "tasks") ? <Tasks /> : null;
 }
@@ -25,13 +19,6 @@ function Tasks() {
   const { tasks, loaded, error, scope } = useTasks();
   const { filter, query } = useStore(useShallow((s) => ({ filter: s.filter, query: s.query })));
   const [sel, setSel] = useState(0);
-  const q = useRef<HTMLLabelElement>(null),
-    tools = useRef<HTMLSpanElement>(null),
-    add = useRef<HTMLSpanElement>(null);
-  useDock([q, tools, add], ["bq", "hx", "newtop"]);
-  // The board's tools slot (#hx) keeps what lives in it (the Workspaces | Runs switch host): a span of ours is
-  // added beside it and holds this page's tools.
-  const [slot, setSlot] = useState<HTMLElement | null>(null);
   const scoped = tasks.filter((t) => !scope || t.dir === scope),
     matched = filteredTasks(scoped, filter, query),
     pg = usePager("tasks", matched),
@@ -41,26 +28,12 @@ function Tasks() {
     setSel(0);
     pg.setAt(0);
   };
-  // The board's search box: read it, listen to it, and give it the placeholder of this page.
+  // The search box is the Board's text (shared with the header's): Tasks reads it and starts again at the top when it changes.
+  const board = useBoard((b) => b.query);
   useEffect(() => {
-    const bq = document.getElementById("bq") as HTMLInputElement;
-    bq.placeholder = "Search tasks (press /)";
-    setStore({ query: bq.value });
-    const input = () => {
-      setStore({ query: bq.value });
-      reset();
-    };
-    bq.addEventListener("input", input);
-    const own = document.createElement("span");
-    own.className = "flex items-center gap-2";
-    document.getElementById("hx")?.append(own);
-    setSlot(own);
-    return () => {
-      own.remove();
-      bq.removeEventListener("input", input);
-      bq.placeholder = "Filter cards (press /)";
-    };
-  }, []);
+    setStore({ query: board });
+    reset();
+  }, [board]);
   const latest = useRef({ rows, pick });
   latest.current = { rows, pick };
   useEffect(() => {
@@ -69,7 +42,7 @@ function Tasks() {
         t = e.target as HTMLElement;
       if (!rows.length || e.defaultPrevented) return;
       if (
-        t.id !== "bq" &&
+        t.id !== "tq" &&
         t.closest("input,textarea,select,[contenteditable],details,dialog,[role=dialog],[role=menu],[role=listbox]")
       )
         return;
@@ -78,7 +51,7 @@ function Tasks() {
         const next = Math.max(0, Math.min(rows.length - 1, pick + (e.key === "ArrowDown" ? 1 : -1)));
         setSel(next);
         document.querySelector(`[data-task-row="${next}"]`)?.scrollIntoView({ block: "nearest" });
-      } else if (e.key === "Enter" && t.id === "bq" && !e.isComposing) {
+      } else if (e.key === "Enter" && t.id === "tq" && !e.isComposing) {
         e.preventDefault();
         void openTaskRecord(rows[pick]);
       }
@@ -90,11 +63,9 @@ function Tasks() {
     id === "all" ? scoped.length : scoped.filter((t) => t.attention.category === id).length;
   const clear = () => {
     setStore({ filter: "all" });
-    const bq = document.getElementById("bq") as HTMLInputElement;
-    bq.value = "";
-    setStore({ query: "" });
+    setQuery("");
     reset();
-    bq.focus();
+    focusFilter();
   };
   const empty = error ? (
     <EmptyState title={error}>
@@ -120,29 +91,30 @@ function Tasks() {
   return (
     <>
       <div className="mb-2.5 flex flex-wrap items-center gap-2">
-        {/* tk-q is the old board's hook for the docked search box (its padding and icon slot); it goes with the search box in phase 5. */}
-        <label ref={q} className="tk-q kz-keep" />
+        <label className="tk-q kz-keep">
+          <FilterBox id="tq" placeholder="Search tasks (press /)" />
+        </label>
         <span className="flex items-center gap-2">
-          <span ref={tools} />
-          <span ref={add} className="kz-keep flex" />
+          <IconButton icon="refresh" label="Refresh tasks" onClick={() => void refreshTasks()} />
+          <FilterMenu
+            label="Task filters"
+            options={TASK_FILTERS.map(([id, label]) => ({ id, label, count: count(id) }))}
+            value={filter}
+            onChange={(id) => {
+              setStore({ filter: id });
+              reset();
+            }}
+          />
+          <span className="kz-keep flex">
+            <button className="btn pri" onClick={() => newTask()}>
+              <svg>
+                <use href="#i-plus" />
+              </svg>
+              <span>New task</span>
+            </button>
+          </span>
         </span>
       </div>
-      {slot &&
-        createPortal(
-          <>
-            <IconButton icon="refresh" label="Refresh tasks" onClick={() => void refreshTasks()} />
-            <FilterMenu
-              label="Task filters"
-              options={TASK_FILTERS.map(([id, label]) => ({ id, label, count: count(id) }))}
-              value={filter}
-              onChange={(id) => {
-                setStore({ filter: id });
-                reset();
-              }}
-            />
-          </>,
-          slot,
-        )}
       <div className="min-h-0 flex-1 overflow-auto rounded-md border border-[color:color-mix(in_srgb,var(--line)_50%,transparent)]">
         {rows.length ? (
           <div aria-label="Tasks" className="flex flex-col">

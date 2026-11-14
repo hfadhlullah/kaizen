@@ -16,10 +16,6 @@ export type Host = {
   // from the old code: the file shrinker, the click sound and the Settings jump.
   dirHeader(): Record<string, string>;
   projects(): { dir: string; label: string; logo?: boolean }[];
-  showable(): { dir: string; label: string }[];
-  shown(): Set<string>;
-  clearShown(): void;
-  toggleShown(dir: string): void;
   reload(): void;
   dataUrls(files: File[]): Promise<{ name: string; data: string }[]>;
   // The note editor (board/rich.ts): a contenteditable over a textarea that keeps the value; returns the editor.
@@ -70,10 +66,6 @@ export const host: Host = {
   scopeDir: () => "",
   dirHeader: () => ({}),
   projects: () => [],
-  showable: () => [],
-  shown: () => new Set(),
-  clearShown: none,
-  toggleShown: none,
   reload: () => {},
   dataUrls: none,
   rich: none,

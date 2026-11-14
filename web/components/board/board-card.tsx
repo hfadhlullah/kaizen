@@ -37,6 +37,7 @@ export function BoardCard({
   const snap = useBoard((s) => s.snap)!,
     [busy, setBusy] = useState(false),
     k = cardKey(c),
+    vtn = useBoard((s) => s.names[k]),
     answered = snap.answered.includes(k + ":" + c.awaiting + ":" + c.moved),
     kids = kidsOf(snap.allCards, c),
     { chips, marks } = chipsAndMarks(c, snap.all),
@@ -88,6 +89,7 @@ export function BoardCard({
       role="button"
       tabIndex={0}
       data-k={k}
+      style={vtn ? { viewTransitionName: vtn } : undefined}
       onClick={() => (pick ? onPick() : showCard(c))}
       onKeyDown={pick ? undefined : onKey}
       className={cn(

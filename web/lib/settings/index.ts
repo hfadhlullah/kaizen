@@ -4,3 +4,4 @@ export * from "./settings-store.ts";
 export * from "./settings.ts";
 export * from "./skill-icons.ts";
 export * from "./update.ts";
+export * from "./panel-settings.ts";

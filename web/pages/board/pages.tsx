@@ -1,7 +1,7 @@
 import { StatusStrip } from "@components/board";
 import { RunBar, RunPanes } from "@components/run";
 import { PhonePage } from "@components/phone";
-import { useBoard } from "@lib/board";
+import { boardRoot, useBoard } from "@lib/board";
 import { BoardPage } from "../board-page.tsx";
 import { HomePage } from "../home-page.tsx";
 import { IceboxPage } from "../icebox-page.tsx";
@@ -22,7 +22,7 @@ const Skeleton = () =>
 function BoardMain() {
   const loading = useBoard((s) => !s.snap);
   return (
-    <main id="board" aria-live="polite" aria-busy={loading || undefined}>
+    <main id="board" aria-live="polite" aria-busy={loading || undefined} ref={(el) => void (boardRoot.el = el)}>
       {loading && <Skeleton />}
       <Part>
         <BoardPage />

@@ -3,7 +3,7 @@
 // Bundled into web/dist/video.js by `bun run build:web`. The server keeps every path; the
 // page names a video by its place number and folder name only.
 import { refreshEvery } from "@lib/server";
-import { initRail } from "../board/workspace.ts";
+import { initRail } from "@lib/rail/rail-boot.ts";
 
 type Format = "9x16" | "16x9" | "4x5";
 type Job = { id: number; kind: string; state: string; step: number; total: number; label: string[]; error: string | null; place: number; name: string };

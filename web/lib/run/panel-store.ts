@@ -50,6 +50,7 @@ export type Panel = {
   title: string; // the header's text, and its tooltip (a run's id)
   titleTip: string;
   top: number; // the body scrolls back to its top whenever this changes
+  openKey: string | null; // the card whose panel is up (the board marks it)
 };
 // What the panel's close button, the scrim and the project-notes button do; the engine (lib/run/panel.ts) answers them.
 export const panelActions = { close: () => {}, notes: () => {} };
@@ -80,6 +81,7 @@ export const usePanel = create<Panel>()(() => ({
   title: "",
   titleTip: "",
   top: 0,
+  openKey: null,
   sent: (() => {
     try {
       return JSON.parse(sessionStorage.getItem(SK) ?? "[]") || [];

@@ -47,6 +47,7 @@ import {
 } from "@lib/icebox";
 import { useNarrow, usePager } from "@lib/shared";
 import { host } from "@lib/core";
+import { showable as showableProjects, useShown } from "@lib/project";
 import { stopDictation } from "@lib/dictation";
 import { Button, Checkbox, Icon, Skeleton } from "@web/ui";
 
@@ -66,13 +67,11 @@ const TONE: Record<string, string> = {
 };
 function Icebox() {
   useIceData();
-  // The board's project pickers change what shows: read them on every render, redraw when they say so.
+  // The board's project pickers change what shows: the "Showing" choice is a store, the board's data redraws it.
   const [, bump] = useReducer((n: number) => n + 1, 0);
   useEffect(() => {
-    addEventListener("kz-shown", bump);
     const off = onState(bump);
     return () => {
-      removeEventListener("kz-shown", bump);
       off();
       stopDictation(true);
     };
@@ -100,8 +99,8 @@ function Icebox() {
   );
   const narrow = useNarrow(),
     dir = host.scopeDir() || null,
-    shown = host.shown(),
-    showable = host.showable(),
+    shown = new Set(useShown((x) => x.shown)),
+    showable = showableProjects(),
     data = s.data,
     d = data && !data.error ? deriveIce(data, s, { dir, shown, showable }) : null,
     pg = usePager("icebox", d?.filtered ?? []),

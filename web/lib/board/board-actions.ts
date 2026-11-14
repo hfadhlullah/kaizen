@@ -1,6 +1,7 @@
 // What the Board's forms and menus ask the server to do. Routes and payloads are the old board's (cards.ts):
 // /inbox, /note, /backlog, /abort, /run, /archive and GET /agents. Components call these; nothing here draws.
 import { post, cardKey, type Card, host, toast } from "@lib/core";
+import { shownSet, showable } from "@lib/project";
 import { getBoard, setBoard, type RunPick } from "./board-store.ts";
 import { where } from "@lib/run";
 
@@ -110,8 +111,9 @@ export async function archiveMany(set: Card[]) {
 }
 // The projects a new task can go to: the ones being shown, else every one.
 export const taskDirs = () => {
-  const sp = host.showable(),
-    pick = sp.filter((p) => host.shown().has(p.dir));
+  const sp = showable(),
+    shown = shownSet(),
+    pick = sp.filter((p) => shown.has(p.dir));
   return pick.length ? pick : sp;
 };
 export { cardKey };

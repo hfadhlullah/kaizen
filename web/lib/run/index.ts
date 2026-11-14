@@ -9,3 +9,8 @@ export * from "./viewer.ts";
 export * from "./term-loader.ts";
 export * from "./preview.ts";
 export * from "./doc.ts";
+export * from "./work.ts";
+export * from "./ws-tabs.ts";
+export * from "./card-terminal.ts";
+export * from "./panel.ts";
+export * from "./workspace.ts";

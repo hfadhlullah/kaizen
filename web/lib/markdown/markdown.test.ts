@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { md } from "../../board/markdown.ts";
+import { md } from "../notes/md-html.ts";
 import { inline, parse } from "./markdown.ts";
 
 test("blocks: headings cap at 3, fences keep their text, rules, tables drop the divider row", () => {

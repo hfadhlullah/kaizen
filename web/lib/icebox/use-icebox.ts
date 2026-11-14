@@ -3,6 +3,7 @@
 // is React's, so an open menu or a press in progress is never disturbed by a refresh.
 import { useEffect } from "react";
 import { getSources, host } from "@lib/core";
+import { useShown } from "@lib/project";
 import { getRoute } from "@lib/router";
 import { onServer, onState } from "@lib/server";
 import { setIce } from "./icebox-store.ts";
@@ -31,10 +32,8 @@ export function useIceData() {
   useEffect(() => {
     const tick = () => void refreshIce();
     tick();
-    addEventListener("kz-shown", tick);
-    const offs = [onState(tick), onServer((s) => s.changed, tick)];
+    const offs = [onState(tick), onServer((s) => s.changed, tick), useShown.subscribe((s, p) => s.shown !== p.shown && tick())];
     return () => {
-      removeEventListener("kz-shown", tick);
       offs.forEach((f) => f());
       sequence++; // an answer still on its way is dropped
     };

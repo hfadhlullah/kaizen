@@ -2,8 +2,10 @@
 import { test, expect } from "bun:test";
 import { readFileSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
-import { md, planQuestions, brief } from "../web/board/markdown.ts";
-import { draft, undraft } from "../web/board/drafts.ts";
+import { md } from "../web/lib/notes/md-html.ts";
+import { planQuestions } from "../web/lib/decision/index.ts";
+import { brief } from "../web/lib/core/brief.ts";
+import { clearDrafts } from "../web/lib/shared/use-draft.ts";
 import { getServer, refreshEvery, waitingCount } from "../web/lib/server/index.ts";
 import { menuItems } from "../web/lib/core/board.ts";
 
@@ -79,34 +81,18 @@ test("without the flag a backlog line is an ordinary list item", () => {
   expect(md("- done: two\n")).toBe("<ul><li>done: two</li></ul>");
 });
 
-// draft()/undraft(), against a stub sessionStorage whose keys are its own properties.
+// clearDrafts(), against a stub sessionStorage whose keys are its own properties.
 const store = () => Object.defineProperties({} as Record<string, string>, {
   getItem: { value(k: string) { return k in this ? this[k] : null; } },
   setItem: { value(k: string, v: string) { this[k] = String(v); } },
   removeItem: { value(k: string) { delete this[k]; } },
 });
-const drafts = (ss: object) => {
+
+test("clearDrafts removes by prefix and leaves the rest", () => {
+  const ss = store();
   (globalThis as any).sessionStorage = ss;
-  return { draft, undraft } as { draft: (el: any, k: string) => void; undraft: (p: string) => void };
-};
-const field = (value = "") => ({ value, on: () => {}, addEventListener(_: string, f: () => void) { this.on = f; } });
-
-test("a draft is saved on input and restored into a rebuilt field", () => {
-  const ss = store(), { draft } = drafts(ss);
-  const a = field("from server");
-  draft(a, "f:new:0");
-  expect(a.value).toBe("from server");
-  a.value = "half typed"; a.on();
-  expect(ss["kz-d:f:new:0"]).toBe("half typed");
-  const b = field("from server");
-  draft(b, "f:new:0");
-  expect(b.value).toBe("half typed");
-});
-
-test("undraft removes by prefix and leaves the rest", () => {
-  const ss = store(), { undraft } = drafts(ss);
   Object.assign(ss, { "kz-d:f:new:0": "a", "kz-d:f:edit:x:1": "b", "kz-d:n:x": "note", "kz-form": "null" });
-  undraft("f:");
+  clearDrafts("f:");
   expect(Object.keys(ss).sort()).toEqual(["kz-d:n:x", "kz-form"]);
 });
 
@@ -223,7 +209,7 @@ test("criteria not numbered from 1 keep their own numbers", () => {
 });
 
 test("the note editor turns its DOM back into the markdown md() rendered it from", async () => {
-  const { toMd } = await import("../web/board/rich.ts");
+  const { toMd } = await import("../web/lib/notes/rich.ts");
   // A minimal DOM: element nodes from md()'s tag soup, enough for toMd.
   const parse = (h) => {
     const root = { nodeType: 1, nodeName: "DIV", childNodes: [], getAttribute: () => null };

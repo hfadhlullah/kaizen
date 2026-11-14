@@ -1,4 +1,4 @@
-import { useBoard, stripActions, stripChips, stripDot, type Chip } from "@lib/board";
+import { useBoard, pickChip, stripChips, stripDot, type Chip } from "@lib/board";
 import { cn } from "@lib/core";
 import { Icon, Popover, PopoverContent, PopoverTrigger } from "@web/ui";
 
@@ -22,7 +22,7 @@ function Chips({ chips }: { chips: Chip[] }) {
           type="button"
           title={c.title}
           aria-pressed={c.on}
-          onClick={() => stripActions.pick(c.id)}
+          onClick={() => pickChip(c.id)}
           className={cn(
             "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-muted-foreground shadow-[inset_0_0_0_1px_var(--line)] transition-colors hover:bg-muted hover:text-foreground",
             c.attn &&
