@@ -2,7 +2,8 @@
 // machine's runs grouped waiting / active / done). The board, Tasks and Icebox are set up
 // on a computer; a phone has Home, Chat, Runs and Search (Settings is found through it).
 import { runPopup } from "./cards.ts";
-import { $, html, raw, toggleSwitch } from "./dom.ts";
+import { $, html, raw } from "./dom.ts";
+import { openSheet } from "../lib/phone-sheet.ts";
 import { cardHref, logo, railData, stateOf, subline, titleOf, usageChips, wsHref } from "./workspace.ts";
 import { toast } from "./toast.ts";
 import { agentStatus, wsKey, WORD, DOT, type Agent, type Status } from "./ws-tabs.ts";
@@ -61,18 +62,12 @@ function openTerm(a: Agent) {
 }
 // Several agents in a workspace: a sheet picks which terminal to open.
 function pickAgent(rows: { a: Agent; st: Status }[]) {
-  const d = document.createElement("dialog");
-  d.className = "pagsheet";
-  d.innerHTML = String(html`<h4>${wsName(rows[0].a)}</h4>${rows.map(({ a, st }, i) => html`<button type="button" data-i="${String(i)}">${agentIco(a)}${a.name || a.agent || "Terminal"}<i class="si ${DOT[st]}"></i><small>${WORD[st]}</small></button>`)}<button type="button" data-new="1">${agentIco({ agent: "" } as Agent)}New agent</button>`);
-  d.addEventListener("click", (e) => {
-    const b = (e.target as HTMLElement).closest<HTMLButtonElement>("button");
-    d.close();
-    if (b?.dataset.new) void newSheet(rows[0].a.dir, rows[0].a.ws);
-    else if (b) openTerm(rows[Number(b.dataset.i)].a);
+  openSheet({
+    kind: "pick",
+    title: wsName(rows[0].a),
+    rows: rows.map(({ a, st }) => ({ agent: a.agent || "", name: a.name || a.agent || "Terminal", dot: DOT[st], word: WORD[st], open: () => openTerm(a) })),
+    onNew: () => void newSheet(rows[0].a.dir, rows[0].a.ws),
   });
-  d.addEventListener("close", () => d.remove());
-  document.body.append(d);
-  d.showModal();
 }
 
 // New: pick a workspace, then an agent or a plain shell. It starts as a tab of that
@@ -84,26 +79,23 @@ async function newSheet(dir?: string, ws?: string) {
   const on = spots.find((x) => x.dir === (dir ?? first?.dir) && x.ws === (ws ?? first?.ws)) ?? null;
   const list = await fetch(on ? "/agents?dir=" + encodeURIComponent(on.dir) : "/agents?home=1").then((r) => r.json(), () => null);
   const kinds: { cmd: string; name: string; yolo?: boolean; bypassDefault?: boolean }[] = [...(list?.agents ?? []), { cmd: "", name: "Shell" }];
-  const d = document.createElement("dialog");
-  d.className = "pagsheet";
-  d.innerHTML = String(html`<h4>New in</h4><select class="sel" aria-label="Workspace"><option value="home"${raw(on ? "" : " selected")}>Home — no project</option>${spots.map((x, i) => html`<option value="${String(i)}"${raw(x === on ? " selected" : "")}>${projName(x.dir)} ${x.name}</option>`)}</select><label class="agent-yolo"><span>Yolo / bypass permissions<small>Run commands without permission prompts</small></span>${toggleSwitch(!!list?.agents?.find((a) => a.cmd === list.default)?.bypassDefault, { box: true, attrs: { "aria-label": "Yolo / bypass permissions" } })}</label>${kinds.map((k, i) => html`<button type="button" data-i="${String(i)}">${k.cmd ? agentIco({ agent: k.cmd } as Agent) : raw(`<svg class="pag-ico" aria-hidden="true"><use href="#i-term"/></svg>`)}${k.name}</button>`)}`);
-  d.addEventListener("click", async (e) => {
-    const b = (e.target as HTMLElement).closest<HTMLButtonElement>("button");
-    if (e.target === d) return d.close();
-    if (!b) return;
-    const pick = d.querySelector("select")!.value, cmd = kinds[Number(b.dataset.i)].cmd;
-    d.close();
-    // Home: the Home window starts it (POST /shell {home:true}) and opens full screen.
-    if (pick === "home") return void dispatchEvent(new CustomEvent("kz-home-start", { detail: { agent: cmd, yolo: !!kinds[Number(b.dataset.i)].yolo && !!d.querySelector<HTMLInputElement>('input[type="checkbox"]')?.checked } }));
-    const at = spots[Number(pick)];
-    const r = await fetch("/shell", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ dir: at.dir, ws: at.ws, run: wsKey(at.dir, at.ws), ...(cmd ? { agent: cmd, yolo: !!kinds[Number(b.dataset.i)].yolo && d.querySelector<HTMLInputElement>('input[type="checkbox"]')!.checked } : {}) }) }).catch(() => null);
-    const sh = r?.ok ? await r.json() : null;
-    if (sh) openTerm({ dir: at.dir, ws: at.ws, key: sh.key } as Agent);
-    else toast("No new terminal: " + ((await r?.json().catch(() => null))?.error || "kaizen did not answer"));
+  openSheet({
+    kind: "new",
+    spots: spots.map((x) => ({ name: `${projName(x.dir)} ${x.name}` })),
+    on: on ? spots.indexOf(on) : -1,
+    kinds: kinds.map((k) => ({ agent: k.cmd, name: k.name })),
+    yolo: !!list?.agents?.find((a) => a.cmd === list.default)?.bypassDefault,
+    start: async (pick, i, yolo) => {
+      const kind = kinds[i], cmd = kind.cmd;
+      // Home: the Home window starts it (POST /shell {home:true}) and opens full screen.
+      if (pick < 0) return void dispatchEvent(new CustomEvent("kz-home-start", { detail: { agent: cmd, yolo: !!kind.yolo && yolo } }));
+      const at = spots[pick];
+      const r = await fetch("/shell", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ dir: at.dir, ws: at.ws, run: wsKey(at.dir, at.ws), ...(cmd ? { agent: cmd, yolo: !!kind.yolo && yolo } : {}) }) }).catch(() => null);
+      const sh = r?.ok ? await r.json() : null;
+      if (sh) openTerm({ dir: at.dir, ws: at.ws, key: sh.key } as Agent);
+      else toast("No new terminal: " + ((await r?.json().catch(() => null))?.error || "kaizen did not answer"));
+    },
   });
-  d.addEventListener("close", () => d.remove());
-  document.body.append(d);
-  d.showModal();
 }
 
 function home() {

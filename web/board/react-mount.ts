@@ -19,6 +19,7 @@ import { WsMenu } from "../components/ws-menu.tsx";
 import { FileViewer } from "../components/file-viewer.tsx";
 import { SearchPalette } from "../components/search-palette.tsx";
 import { OnboardingDialog } from "../components/onboarding-dialog.tsx";
+import { PhoneSheets } from "../components/phone-sheets.tsx";
 import { AskHost } from "../components/ask-host.tsx";
 import { BoardPopups } from "../components/board-popups.tsx";
 import { FixHost } from "../components/fix-host.tsx";
@@ -179,7 +180,7 @@ export function initReact(go: (view: string, push?: boolean) => void) {
   createRoot(toaster).render(createElement(Toaster));
   const popups = document.createElement("div");
   portal.append(popups);
-  createRoot(popups).render(createElement(TooltipProvider, null, createElement(BoardPopups), createElement(AskHost), createElement(OnboardingDialog), createElement(SearchPalette), createElement(FileViewer), createElement(WsMenu), createElement(AddProjectDialog), createElement(UpdateCard), createElement(FixHost), createElement(GitHost), createElement(KeyHint)));
+  createRoot(popups).render(createElement(TooltipProvider, null, createElement(BoardPopups), createElement(AskHost), createElement(PhoneSheets), createElement(OnboardingDialog), createElement(SearchPalette), createElement(FileViewer), createElement(WsMenu), createElement(AddProjectDialog), createElement(UpdateCard), createElement(FixHost), createElement(GitHost), createElement(KeyHint)));
   setToaster(toast);
   setHost({
     go,
