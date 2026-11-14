@@ -104,3 +104,16 @@ test("no page, component or lib file hand-builds a dialog, menu or list box, or 
     }).length,
   ).toBe(2);
 });
+
+// workspace.ts is shared with the notebook and Video bundles, which mount no React: the sheet and the menu it opens
+// are asked for only through the onBoard() guard (addProject / wsMenu), and settings.ts / tasks-page.tsx never wipe a
+// header host another part mounted (#ptabs, #psub, #hx).
+test("shared side-menu code only opens React hosts the page has; no page wipes a mounted host", () => {
+  const rd = (p: string) => readFileSync(join(web, p), "utf8");
+  const ws = rd("board/workspace.ts");
+  expect(ws.match(/\bopenAdd\(/g)?.length).toBe(2); // addProject's board branch and the ?add= arrival
+  expect(ws).toMatch(/function addProject[\s\S]*?if \(onBoard\(\)\) return openAdd/);
+  expect(ws).toMatch(/function wsMenu\([^)]*\) \{\n  if \(!onBoard\(\)\) return;/);
+  expect(rd("board/settings.ts")).not.toMatch(/\$\("(?:ptabs|psub)"\)\.(?:innerHTML|textContent)\s*=/);
+  expect(rd("pages/tasks-page.tsx")).not.toMatch(/getElementById\("hx"\)\?*\.replaceChildren/);
+});

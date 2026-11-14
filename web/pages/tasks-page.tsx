@@ -28,8 +28,8 @@ function Tasks() {
     tools = useRef<HTMLSpanElement>(null),
     add = useRef<HTMLSpanElement>(null);
   useDock([q, tools, add], ["bq", "hx", "newtop"]);
-  // The board's tools slot (#hx) keeps nothing another page left in it: a span of ours takes its place and
-  // holds this page's tools.
+  // The board's tools slot (#hx) keeps what lives in it (the Workspaces | Runs switch host): a span of ours is
+  // added beside it and holds this page's tools.
   const [slot, setSlot] = useState<HTMLElement | null>(null);
   const scoped = tasks.filter((t) => !scope || t.dir === scope),
     matched = filteredTasks(scoped, filter, query),
@@ -52,7 +52,7 @@ function Tasks() {
     bq.addEventListener("input", input);
     const own = document.createElement("span");
     own.className = "flex items-center gap-2";
-    document.getElementById("hx")?.replaceChildren(own);
+    document.getElementById("hx")?.append(own);
     setSlot(own);
     return () => {
       own.remove();

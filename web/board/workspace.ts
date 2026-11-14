@@ -7,7 +7,7 @@ import { store } from "./store.ts";
 import { $, html, raw } from "./dom.ts";
 import { initResources } from "./resources.ts";
 import { age, need } from "./labels.ts";
-import { openAdd } from "../lib/add-project.ts";
+import { openAdd, type AddOpts } from "../lib/add-project.ts";
 import { ask as askYes } from "../lib/ask.ts";
 import { openWsMenu, type WsMenuItem } from "../lib/ws-menu.ts";
 import { initSearch } from "./search.ts";
@@ -101,8 +101,30 @@ const pins: Set<string> = (() => {
     return new Set();
   }
 })();
+// The sheet and the right-click menu are React: only the board mounts their hosts (react-mount.ts). On the notebook and Video
+// pages the + buttons send the person to the board with the sheet asked for (?add=), as Search does, and the right-click
+// keeps the browser's own menu.
+const onBoard = () => !!document.getElementById("kz-portal");
+function addProject(o: AddOpts) {
+  if (onBoard()) return openAdd(o);
+  const q = new URLSearchParams({ view: "board", add: o.start ?? "1" });
+  if (o.dir) q.set("adddir", o.dir);
+  location.href = "/?" + q;
+}
+// Arriving from the notebook or Video with the sheet asked for.
+function openAsked() {
+  const q = new URLSearchParams(location.search),
+    add = q.get("add");
+  if (!add || !onBoard()) return;
+  const dir = q.get("adddir");
+  q.delete("add");
+  q.delete("adddir");
+  history.replaceState(null, "", location.pathname + (q.toString() ? "?" + q : "") + location.hash);
+  setTimeout(() => openAdd({ dir, ...(add === "ws" || add === "folder" || add === "clone" || add === "create" ? { start: add } : {}) }), 400);
+}
 // The right-click menu on a worktree row: update, copy path, copy name, pin, delete.
 function wsMenu(e: MouseEvent, a: HTMLElement) {
+  if (!onBoard()) return;
   e.preventDefault();
   const dir = a.dataset.dir!, ws = a.dataset.ws!, key = dir + "\0" + ws;
   const w = last.projects?.find((p) => p.dir === dir)?.workspaces?.find((x) => x.path === ws);
@@ -375,7 +397,7 @@ function drawList() {
     const tog = t.closest<HTMLElement>("[data-wopen]");
     if (tog) return void (e.preventDefault(), toggleList(tog.dataset.dir!, tog.dataset.ws!));
     const add = t.closest<HTMLElement>("[data-wadd]")?.dataset.wadd;
-    if (add) return void (e.preventDefault(), openAdd({ dir: add, start: "ws" }));
+    if (add) return void (e.preventDefault(), addProject({ dir: add, start: "ws" }));
     const chev = t.closest<HTMLElement>(".fchev");
     if (chev) {
       const d = t.closest<HTMLElement>("[data-fold]")?.dataset.fold;
@@ -548,9 +570,10 @@ export function initRail() {
     }
   });
   // The sheet: add a folder, clone, create, or start a workspace; the current project is preselected.
+  openAsked();
   $("padd").onclick = () => {
     const p = new URLSearchParams(location.search);
-    openAdd({ dir: ["run", "ws"].includes(p.get("view")) ? p.get("dir") : filt.dirs.length === 1 ? filt.dirs[0] : null });
+    addProject({ dir: ["run", "ws"].includes(p.get("view")) ? p.get("dir") : filt.dirs.length === 1 ? filt.dirs[0] : null });
   };
   $("plist").addEventListener("click", (e) => {
     const a = (e.target as Element).closest?.("a.row") as HTMLAnchorElement;

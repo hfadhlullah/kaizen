@@ -768,7 +768,7 @@ aside .foot .more{position:relative}.more>summary{list-style:none;cursor:pointer
 
 
 .rail a.upd svg{overflow:visible}.rail a.upd{position:relative}.rail a.upd::after{content:"";position:absolute;left:28px;top:8px;width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 2px var(--bg)}
-#psub:empty{display:none}
+#psub:not(:has(.kz-ui>*)){display:none}
 
 .help{position:fixed;inset:0;z-index:12;display:none;align-items:center;justify-content:center;background:color-mix(in srgb,var(--bg) 60%,transparent);backdrop-filter:blur(3px)}
 .help.on{display:flex}.help div{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r);padding:24px 28px;box-shadow:var(--shadow-2)}

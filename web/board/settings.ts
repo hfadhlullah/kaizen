@@ -25,9 +25,9 @@ export async function openSettings() {
   $("panel").classList.add("open");
   $("scrim").classList.add("on");
   $("ptitle").textContent = "Settings";
-  $("psub").textContent = "";
+  // The header's tab strip and sub line are React hosts the panel keeps: emptied through the panel store, never cleared as DOM.
   $("psub").title = "";
-  $("ptabs").innerHTML = "";
+  react.drawHead({ head: null, tabs: [] });
   react.drawFooter(null);
   react.drawSettings({ fresh, q: store.setQ, back: store.setBack, stale: () => gen !== store.pageGen });
 }
