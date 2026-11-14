@@ -16,7 +16,7 @@ The program behind the board: what it serves, which computers may reach it, how 
 
 - `cli/web.ts` — the server: routes such as `/state`, `/run`, `/backlog`, `/decide`, `/fix`, `/commit`, `/pr`, `/events`, `/vault`, `/pty`.
 
-- `cli/web.ts` also serves `/project-tree` and `/project-text` for registered projects. The tree is one level at a time and skips hidden/generated entries and symlinks; text preview is capped at 64 KiB and downloads are plain-text attachments. `cli/project-tree.test.ts` checks path and content boundaries. `web/board/context.ts` draws the right-side Notes, Files and Terminal session list; Notes open in the existing notebook editor.
+- `cli/web.ts` also serves `/project-tree` and `/project-text` for registered projects. The tree is one level at a time and skips hidden/generated entries and symlinks; text preview is capped at 64 KiB and downloads are plain-text attachments. `cli/project-tree.test.ts` checks path and content boundaries. `components/context` (over `lib/context`) draws the right-side Notes, Files and Terminal session list; Notes open in the existing notebook editor.
 
 - `cli/install.ts` dispatches `docs lint` before the default terminal board starts; it adds no web route.
 
