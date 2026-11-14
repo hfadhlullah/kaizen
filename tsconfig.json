@@ -5,12 +5,12 @@
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
     "allowImportingTsExtensions": true,
-    "baseUrl": ".",
-    "paths": { "@web/*": ["web/*"], "@lib/*": ["web/lib/*"], "@components/*": ["web/components/*"] },
+    "paths": { "@web/*": ["./web/*"], "@lib/*": ["./web/lib/*"], "@components/*": ["./web/components/*"] },
+    "types": ["bun"],
     "noEmit": true,
     "strict": false,
     "skipLibCheck": true,
     "lib": ["ESNext", "DOM", "DOM.Iterable"]
   },
-  "include": ["web"]
+  "include": ["web", "test"]
 }
