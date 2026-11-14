@@ -11,6 +11,7 @@
 // layout in lib/run/layout-store.ts); this module knows which items the workspace has, starts and ends sessions, and
 // answers the keyboard.
 import { ask, isPhone } from "@lib/core";
+import { bindSheetSwipe } from "@lib/phone";
 import { pick } from "./projects.ts";
 import { store } from "./store.ts";
 import { toast } from "./toast.ts";
@@ -574,53 +575,15 @@ async function pollPreview() {
 }
 setInterval(() => void pollPreview(), 3000);
 
-// A phone's run sheet: drag it down from anywhere its content is at the top, or tap outside it.
+// A phone's run sheet: drag it down from anywhere its content is at the top, or tap outside it (lib/phone/sheet-swipe.ts).
 function initSheet() {
-  const p = $("panel"),
-    b = document.body;
-  const on = () => isPhone() && b.classList.contains("runv") && b.classList.contains("rflip");
-  const shut = () => $("pclose").click();
-  let y0: number | null = null,
-    t0 = 0,
-    dy = 0;
-  const scrolled = (t: EventTarget | null) => ((t as Element).closest?.(".body")?.scrollTop ?? 0) > 0;
-  p.addEventListener(
-    "touchstart",
-    (e) => {
-      y0 = on() && e.touches.length === 1 && !scrolled(e.target) ? e.touches[0].clientY : null;
-      t0 = Date.now();
-      dy = 0;
-    },
-    { passive: true },
-  );
-  p.addEventListener(
-    "touchmove",
-    (e) => {
-      if (y0 === null) return;
-      if (scrolled(e.target)) return void (y0 = null);
-      dy = e.touches[0].clientY - y0;
-      // A finger drifts a few pixels in a tap; taking those as a drag would cancel its click.
-      if (dy <= 10) return void (p.style.translate = "");
-      e.preventDefault();
-      p.style.transition = "none";
-      p.style.translate = `0 ${dy}px`;
-    },
-    { passive: false },
-  );
-  const end = () => {
-    if (y0 === null) return;
-    y0 = null;
-    p.style.transition = "";
-    if (dy > 100 || (dy > 30 && Date.now() - t0 < 250)) {
-      p.style.translate = "0 100%";
-      setTimeout(() => (shut(), (p.style.translate = "")), 180);
-    } else p.style.translate = "";
-  };
-  p.addEventListener("touchend", end);
-  p.addEventListener("touchcancel", end);
-  // composedPath, not target: a strip button redraws #ptabs in its own click, so by here
-  // the target is detached and closest() would call a tap inside the sheet an outside one.
-  addEventListener("click", (e) => on() && !e.composedPath().some((n) => (n as Element).matches?.("#panel,#rside,dialog,.toast,[data-sonner-toast]")) && shut());
+  const b = document.body;
+  bindSheetSwipe({
+    panel: $("panel"),
+    active: () => isPhone() && b.classList.contains("runv") && b.classList.contains("rflip"),
+    close: () => $("pclose").click(),
+    keep: "#panel,#rside,dialog,.toast,[data-sonner-toast]",
+  });
 }
 
 // The keyboard, tmux style: Ctrl+Space puts focus in the current pane, then one more key
