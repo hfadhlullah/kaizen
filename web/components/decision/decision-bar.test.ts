@@ -7,7 +7,9 @@ import { DecisionBar } from "./decision-bar.tsx";
 // render (a prop used but never read) and no test drew it.
 const noop = () => {};
 const draw = (decision: any, extra: any = {}) =>
-  renderToStaticMarkup(createElement(DecisionBar, { decision, onApprove: noop, onAnswer: noop, onProject: noop, ...extra }));
+  renderToStaticMarkup(
+    createElement(DecisionBar, { decision, onApprove: noop, onAnswer: noop, onProject: noop, ...extra }),
+  );
 
 test("a plan waiting for approval shows its text and the Approve plan button", () => {
   const out = draw({ id: "d1", kind: "proposal", text: "Build the page", details: "## Plan\n1. one" });
@@ -22,5 +24,7 @@ test("a question shows its text and one button per option", () => {
 });
 test("no decision draws nothing but the project choice when one is needed", () => {
   expect(draw(null)).toBe("");
-  expect(draw(null, { needsProject: true, projects: [{ dir: "/p/a", name: "a", label: "a" }] })).toContain("Where should this task belong?");
+  expect(draw(null, { needsProject: true, projects: [{ dir: "/p/a", name: "a", label: "a" }] })).toContain(
+    "Where should this task belong?",
+  );
 });

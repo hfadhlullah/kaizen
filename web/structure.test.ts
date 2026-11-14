@@ -170,7 +170,8 @@ test("components/ and lib/ hold feature folders of at most 25 files, each with a
         if (!existsSync(join(dir, "index.ts"))) bad.push(`${layer}/${e.name}: no index.ts`);
         else if (/\.test\b/.test(readFileSync(join(dir, "index.ts"), "utf8")))
           bad.push(`${layer}/${e.name}: index.ts must not export tests`);
-        if (files.length > MAX_FILES) bad.push(`${layer}/${e.name}: ${files.length} files, over ${MAX_FILES}: split it`);
+        if (files.length > MAX_FILES)
+          bad.push(`${layer}/${e.name}: ${files.length} files, over ${MAX_FILES}: split it`);
       }
     }
   }
@@ -188,7 +189,8 @@ test("imports from outside a feature folder go through its index.ts", () => {
   expect(
     indexViolations({
       [at("pages/a.tsx")]: 'import { T } from "../components/task/task-row.tsx";',
-      [at("components/git/b.tsx")]: 'import { s } from "../../lib/board/board-store.ts"; import type { C } from "../../lib/core/board.ts";',
+      [at("components/git/b.tsx")]:
+        'import { s } from "../../lib/board/board-store.ts"; import type { C } from "../../lib/core/board.ts";',
       [at("lib/task/c.ts")]: 'import { x } from "../core/api.ts";',
     }).length,
   ).toBe(4);

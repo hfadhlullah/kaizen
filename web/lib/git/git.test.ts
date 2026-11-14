@@ -1,15 +1,5 @@
 import { expect, test } from "bun:test";
-import {
-  DONE,
-  asideOf,
-  emptyNote,
-  mainStep,
-  steps,
-  sumRows,
-  targetOf,
-  type BranchDoc,
-  type GitDoc,
-} from "./git.ts";
+import { DONE, asideOf, emptyNote, mainStep, steps, sumRows, targetOf, type BranchDoc, type GitDoc } from "./git.ts";
 
 const g = (o: Partial<GitDoc> = {}): GitDoc => ({
   repo: true,
