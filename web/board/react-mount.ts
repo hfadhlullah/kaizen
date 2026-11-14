@@ -13,12 +13,12 @@ import { setPanel, type Panel } from "../lib/panel-store.ts";
 import { resumeRun } from "../lib/run-actions.ts";
 import { decided } from "../lib/run-actions.ts";
 import { setStore } from "../lib/store.ts";
-import { PhoneCard } from "../components/phone-card.tsx";
 import { UpdateCard } from "../components/update-bar.tsx";
 import { AddProjectDialog } from "../components/add-project-dialog.tsx";
 import { WsMenu } from "../components/ws-menu.tsx";
 import { FileViewer } from "../components/file-viewer.tsx";
 import { SearchPalette } from "../components/search-palette.tsx";
+import { OnboardingDialog } from "../components/onboarding-dialog.tsx";
 import { AskHost } from "../components/ask-host.tsx";
 import { BoardPopups } from "../components/board-popups.tsx";
 import { FixHost } from "../components/fix-host.tsx";
@@ -178,7 +178,7 @@ export function initReact(go: (view: string, push?: boolean) => void) {
   createRoot(toaster).render(createElement(Toaster));
   const popups = document.createElement("div");
   portal.append(popups);
-  createRoot(popups).render(createElement(TooltipProvider, null, createElement(BoardPopups), createElement(AskHost), createElement(SearchPalette), createElement(FileViewer), createElement(WsMenu), createElement(AddProjectDialog), createElement(UpdateCard), createElement(FixHost), createElement(GitHost), createElement(KeyHint)));
+  createRoot(popups).render(createElement(TooltipProvider, null, createElement(BoardPopups), createElement(AskHost), createElement(OnboardingDialog), createElement(SearchPalette), createElement(FileViewer), createElement(WsMenu), createElement(AddProjectDialog), createElement(UpdateCard), createElement(FixHost), createElement(GitHost), createElement(KeyHint)));
   setToaster(toast);
   setHost({
     go,
@@ -236,9 +236,4 @@ export function initReact(go: (view: string, push?: boolean) => void) {
     e.preventDefault();
     import("../lib/hooks/use-task.ts").then((m) => m.navigateTask(e.detail));
   }) as EventListener);
-}
-// The onboarding phone step: the phone card in an element of the old dialog (until onboarding is React too).
-export function mountPhone(el: HTMLElement) {
-  el.classList.add("kz-ui");
-  createRoot(el).render(createElement(PhoneCard));
 }

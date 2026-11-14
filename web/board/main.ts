@@ -18,7 +18,7 @@ import { initContext } from "./context.ts";
 import { cardHref, initFooter, initRail, markCurrent, wsHref } from "./workspace.ts";
 import { go } from "./views.ts";
 import { openWorkspace } from "./run-view.ts";
-import { initOnboarding } from "./onboarding.ts";
+import { initOnboarding } from "../lib/onboarding.ts";
 import { initHomeWs } from "./home-ws.ts";
 
 Object.assign(react, { mountHome, init: initReact, openTasks, openTaskPage, openIcebox, iceKeys, drawBoard, popup: openPopup, closeForm, formOpen, drawFooter, drawFix, drawGit, drawHead, drawMode, drawSettings, fixReset, mountRunPart, answered, resume: resumeCard });
