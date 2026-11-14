@@ -1,4 +1,4 @@
-import { useGit, gitUi, patchUi } from "../lib/git-store.ts";
+import { busyOf, useGit, gitUi, patchUi } from "../lib/git-store.ts";
 import { ask, gitAct } from "../lib/git-actions.ts";
 import { cardKey } from "../lib/board.ts";
 import { Button } from "../ui/button.tsx";
@@ -11,7 +11,7 @@ const head = "flex items-center gap-1.5 text-sm font-semibold";
 // title and description, the merge question, or the remove question.
 export function GitAsk() {
   const snap = useGit((s) => s.snap)!,
-    busy = useGit((s) => s.busy),
+    busy = useGit(busyOf),
     k = cardKey(snap.card),
     ui = useGit((s) => s.ui[k] ?? gitUi(k)),
     b = snap.branch!,

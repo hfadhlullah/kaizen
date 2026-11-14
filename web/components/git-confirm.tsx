@@ -1,4 +1,5 @@
-import { setGit, useGit } from "../lib/git-store.ts";
+import { useEffect } from "react";
+import { runOf, setGit, useGit } from "../lib/git-store.ts";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,9 +13,14 @@ import { GitIcon } from "./git-icon.tsx";
 // The two questions the tab asks in a dialog: discard changes (the file named, Cancel or Discard), and the preflight that
 // stopped a land (what it found, Cancel or Go ahead anyway). Closing any other way is Cancel.
 export function GitConfirm() {
-  const c = useGit((s) => s.confirm);
-  if (!c) return null;
-  const answer = (yes: boolean) => (setGit({ confirm: null }), c.ok(yes));
+  const c = useGit((s) => s.confirm),
+    here = useGit(runOf);
+  const answer = (yes: boolean) => c && (setGit({ confirm: null }), c.ok(yes));
+  // Another run's panel opened while this question stood: it was about that run's files, so the answer is no.
+  useEffect(() => {
+    if (c && c.run !== here) answer(false);
+  });
+  if (!c || c.run !== here) return null;
   const box =
     "max-h-[180px] overflow-auto whitespace-pre-wrap break-words rounded-xs border border-border px-2 py-1.5 font-mono text-sm";
   return (

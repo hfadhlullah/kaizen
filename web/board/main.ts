@@ -6,7 +6,7 @@
 // tick that reloads the board. See design.md for the visual rules.
 import { initPanel } from "./panel.ts";
 import { initViews, react } from "./views.ts";
-import { answered, closeForm, drawBoard, mountHome, drawFix, drawFooter, drawGit, drawHead, drawMode, drawSettings, fixReset, mountRunPart, formOpen, iceKeys, initReact, openIcebox, openPopup, openTaskPage, openTasks, resumeCard } from "./react-mount.ts";
+import { answered, closeForm, closeNewForm, drawBoard, mountHome, drawFix, drawFooter, drawGit, drawHead, drawMode, drawSettings, fixReset, mountRunPart, formOpen, iceKeys, initReact, openIcebox, openPopup, openTaskPage, openTasks, resumeCard } from "./react-mount.ts";
 import { initProjects, pick } from "./projects.ts";
 import { initUpdate } from "./update.ts";
 import { initKeys } from "./keys.ts";
@@ -21,7 +21,7 @@ import { openWorkspace } from "./run-view.ts";
 import { initOnboarding } from "../lib/onboarding.ts";
 import { initHomeWs } from "./home-ws.ts";
 
-Object.assign(react, { mountHome, init: initReact, openTasks, openTaskPage, openIcebox, iceKeys, drawBoard, popup: openPopup, closeForm, formOpen, drawFooter, drawFix, drawGit, drawHead, drawMode, drawSettings, fixReset, mountRunPart, answered, resume: resumeCard });
+Object.assign(react, { mountHome, init: initReact, openTasks, openTaskPage, openIcebox, iceKeys, drawBoard, popup: openPopup, closeForm, closeNewForm, formOpen, drawFooter, drawFix, drawGit, drawHead, drawMode, drawSettings, fixReset, mountRunPart, answered, resume: resumeCard });
 initPanel(); // after the React registry: it mounts the panel header parts
 initViews();
 initProjects();

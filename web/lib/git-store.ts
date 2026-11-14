@@ -2,7 +2,7 @@
 // on every redraw of the tab. What the user typed and which inline confirm is open live here per run, so a redraw of
 // the panel (which replaces the element the tab stands in) loses nothing.
 import { create } from "zustand";
-import type { Card } from "./board.ts";
+import { cardKey, type Card } from "./board.ts";
 import type { BranchDoc, GitDoc } from "./git.ts";
 
 export type GitAsk = "pr" | "draft" | "merge" | "remove";
@@ -17,19 +17,23 @@ export type GitSnap = {
 };
 // A question the tab put to the user and waits on: Discard or Cancel, or the preflight's go-ahead. `ok` answers it.
 export type GitConfirm =
-  | { kind: "discard"; path: string; untracked: boolean; many: number; ok: (yes: boolean) => void }
+  | { kind: "discard"; run: string | null; path: string; untracked: boolean; many: number; ok: (yes: boolean) => void }
   | {
       kind: "preflight";
+      run: string | null;
       pf: { branch?: string; base: string; issues: { what: string; files?: string[] }[]; notes: string[] };
       ok: (yes: boolean) => void;
     };
 export type GitState = {
   snap: GitSnap | null;
   ui: Record<string, GitUi>;
-  busy: string | null; // the step or file action running ("commit", "spark", "stage:src/a.ts") for this run
+  busy: string | null; // the step or file action running ("commit", "spark", "stage:src/a.ts")...
+  busyRun: string | null; // ...for this run (read it through `busyOf`: another run's panel is not busy)
   confirm: GitConfirm | null;
 };
-export const useGit = create<GitState>()(() => ({ snap: null, ui: {}, busy: null, confirm: null }));
+export const useGit = create<GitState>()(() => ({ snap: null, ui: {}, busy: null, busyRun: null, confirm: null }));
+export const runOf = (s: GitState) => (s.snap ? cardKey(s.snap.card) : null);
+export const busyOf = (s: GitState) => (s.busy && s.busyRun === runOf(s) ? s.busy : null);
 export const getGit = useGit.getState;
 export const setGit = useGit.setState;
 // One shared empty value: a selector that returned a new object each time would never settle.

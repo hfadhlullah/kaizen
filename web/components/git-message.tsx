@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef } from "react";
 import { gitAct } from "../lib/git-actions.ts";
-import { useGit } from "../lib/git-store.ts";
+import { busyOf, useGit } from "../lib/git-store.ts";
 import { cn } from "../lib/utils.ts";
 import { Textarea } from "../ui/textarea.tsx";
 import { IconButton } from "./icon-button.tsx";
@@ -9,7 +9,7 @@ import { IconButton } from "./icon-button.tsx";
 // over 72 characters says so.
 export function GitMessage({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const ta = useRef<HTMLTextAreaElement>(null),
-    spark = useGit((s) => s.busy === "spark");
+    spark = useGit((s) => busyOf(s) === "spark");
   useLayoutEffect(() => {
     const t = ta.current!;
     t.style.height = "auto";

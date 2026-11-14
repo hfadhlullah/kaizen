@@ -21,6 +21,7 @@ export const react = {
   drawBoard: (_snap: any) => {},
   popup: (_p: any) => {},
   closeForm: () => {},
+  closeNewForm: () => {},
   formOpen: () => false,
   // The run panel's footer and its Fix findings form, the cards' answered list, and Resume for the terminals' tiles.
   drawFooter: (_f: any) => {},

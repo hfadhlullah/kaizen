@@ -7,8 +7,8 @@ import { flushSync } from "react-dom";
 import { setHost } from "../lib/host.ts";
 import { toast } from "../lib/toast.ts";
 import { iceKeys } from "../lib/hooks/use-ice-keys.ts";
-import { showTask } from "../lib/hooks/use-task.ts";
-import { closeForm as closeBoardForm, getBoard, setBoard, type BoardSnap, type Popup } from "../lib/board-store.ts";
+import { navigateTask, showTask } from "../lib/hooks/use-task.ts";
+import { closeForm as closeBoardForm, closeNewForm, getBoard, setBoard, type BoardSnap, type Popup } from "../lib/board-store.ts";
 import { setPanel, type Panel } from "../lib/panel-store.ts";
 import { resumeRun } from "../lib/run-actions.ts";
 import { decided } from "../lib/run-actions.ts";
@@ -142,6 +142,7 @@ export function drawSettings(o: { fresh: boolean; q: string; back: boolean; stal
   }
   if (o.fresh)
     setSettings({
+      typed: {}, // a key or secret typed and not saved is not kept when the page is left
       scope: "all",
       q: o.q,
       back: o.back,
@@ -154,6 +155,7 @@ export const answered = () => [...decided];
 export const resumeCard = resumeRun;
 export const formOpen = () => !!getBoard().form;
 export const closeForm = closeBoardForm;
+export { closeNewForm };
 // The run workspace's chrome (run-view.ts publishes it through lib/run-view-store.ts). A root lives in an element the old
 // code keeps (the tab bar, the empty note, the notes list) and never in a pane, so no live terminal is touched.
 // `display: contents` leaves the old container's layout rules in charge of where each piece sits.
@@ -241,6 +243,6 @@ export function initReact(go: (view: string, push?: boolean) => void) {
   addEventListener("kz-view", () => setStore({ view: "" }));
   addEventListener("kz-open-task", ((e: CustomEvent) => {
     e.preventDefault();
-    import("../lib/hooks/use-task.ts").then((m) => m.navigateTask(e.detail));
+    navigateTask(e.detail);
   }) as EventListener);
 }

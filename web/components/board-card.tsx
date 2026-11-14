@@ -136,7 +136,7 @@ export function BoardCard({
               label="Actions"
               size="sm"
               triggerClassName={cn(
-                "-my-1 -mr-1.5 hidden group-focus-within:grid group-hover:grid data-[state=open]:grid max-[900px]:grid",
+                "-my-1 -mr-1.5 hidden group-focus-within:grid group-hover:grid data-[state=open]:grid max-[900px]:grid [@media(hover:none)]:grid",
                 compact && "order-3",
               )}
               className="w-auto min-w-40 text-base"

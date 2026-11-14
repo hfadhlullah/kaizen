@@ -34,8 +34,19 @@ export function HomeComposer({
   const key = "home:" + (chatId ?? "new");
   const [text, setText] = useState(() => saved(key));
   const box = useRef<HTMLTextAreaElement>(null);
-  // Another chat opened: its draft. (A first message gaining its id mid-reply has no draft left, and no change to show.)
-  useEffect(() => setText(saved(key)), [key]);
+  // Another chat opened: its draft. A first message gaining its id while its reply runs is the same chat: what is typed
+  // for the next message stays, and becomes that chat's draft.
+  const was = useRef(key);
+  useEffect(() => {
+    const before = was.current;
+    was.current = key;
+    if (before === "home:new" && working) {
+      change(text);
+      try {
+        sessionStorage.removeItem(DK + before);
+      } catch {}
+    } else setText(saved(key));
+  }, [key]);
   // Grows with what is typed, up to 220 px.
   useLayoutEffect(() => {
     const t = box.current;

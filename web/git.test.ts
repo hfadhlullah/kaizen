@@ -116,3 +116,13 @@ test("what a finished step says", () => {
   expect(DONE("go-pr", { pr: { number: 9 } })).toBe("Pull request #9 opened");
   expect(DONE("go-merge", {})).toBe("Merged");
 });
+
+// A step running for one run does not disable the buttons of another run's panel.
+test("busy belongs to the run it started on", async () => {
+  const { busyOf, getGit, setGit } = await import("./lib/git-store.ts");
+  const card = (id: string) => ({ state: "/p/.kaizen", id, kind: "run" }) as any;
+  setGit({ snap: { card: card("a") } as any, busy: "commit", busyRun: "run:/p/.kaizen:a" });
+  const mine = busyOf(getGit());
+  setGit({ snap: { card: card("b") } as any });
+  expect([mine, busyOf(getGit())]).toEqual(["commit", null]);
+});

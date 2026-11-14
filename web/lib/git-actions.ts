@@ -3,7 +3,7 @@
 import { post } from "./api.ts";
 import { cardKey } from "./board.ts";
 import { DONE, type StepId } from "./git.ts";
-import { getGit, gitUi, patchUi, resetUi, setGit, type GitAsk, type GitConfirm } from "./git-store.ts";
+import { getGit, gitUi, patchUi, resetUi, runOf, setGit, type GitAsk, type GitConfirm } from "./git-store.ts";
 import { host } from "./host.ts";
 import { toast } from "./toast.ts";
 
@@ -27,8 +27,8 @@ export const fold = (k: string) => {
   patchUi(key, { shut: { ...gitUi(key).shut, [k]: !gitUi(key).shut[k] } });
 };
 // Resolves when the user answers the dialog the tab shows (components/git-confirm.tsx).
-const confirm = (c: DistributiveOmit<GitConfirm, "ok">) =>
-  new Promise<boolean>((ok) => setGit({ confirm: { ...c, ok } as GitConfirm }));
+const confirm = (c: DistributiveOmit<GitConfirm, "ok" | "run">) =>
+  new Promise<boolean>((ok) => setGit((s) => ({ confirm: { ...c, run: runOf(s), ok } as GitConfirm })));
 type DistributiveOmit<T, K extends keyof any> = T extends unknown ? Omit<T, K> : never;
 
 // Draws the run again from the server, unless another card has opened in the panel meanwhile.
@@ -37,11 +37,11 @@ const refetch = async (key: string) => {
   if (s && cardKey(s.card) === key) await host.refetchRun(s.card);
 };
 const withBusy = async (id: string, fn: () => Promise<void>) => {
-  setGit({ busy: id });
+  setGit((s) => ({ busy: id, busyRun: runOf(s) }));
   try {
     await fn();
   } finally {
-    setGit({ busy: null });
+    setGit({ busy: null, busyRun: null });
   }
 };
 

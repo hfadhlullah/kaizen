@@ -39,7 +39,7 @@ export function newTask(from?: { dir: string | null }) {
   if (!dispatchEvent(new CustomEvent("kz-new-task", { cancelable: true, detail: { dir: taskDir } }))) return;
   // The header button passes its click event: only an explicit { dir } is another page's call.
   const pick = from && "dir" in from ? from : null;
-  react.closeForm();
+  react.closeNewForm();
   react.popup({ kind: "new", dir: pick?.dir ?? null, choose: !!pick });
 }
 

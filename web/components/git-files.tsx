@@ -1,6 +1,6 @@
 import { gitAct } from "../lib/git-actions.ts";
 import { fold } from "../lib/git-actions.ts";
-import { useGit } from "../lib/git-store.ts";
+import { busyOf, useGit } from "../lib/git-store.ts";
 import type { GitRow as Row } from "../lib/git.ts";
 import { cn } from "../lib/utils.ts";
 import { GitCounts } from "./git-counts.tsx";
@@ -29,7 +29,7 @@ const act = (
 );
 
 function FileRow({ r }: { r: Row }) {
-  const busy = useGit((s) => !!s.busy),
+  const busy = useGit((s) => !!busyOf(s)),
     i = r.path.lastIndexOf("/"),
     name = r.path.slice(i + 1),
     dir = i > 0 ? r.path.slice(0, i) : "";
@@ -80,7 +80,7 @@ export function GitFiles({
   rows: Row[];
   shut?: boolean;
 }) {
-  const busy = useGit((s) => !!s.busy);
+  const busy = useGit((s) => !!busyOf(s));
   if (!rows.length) return null;
   return (
     <section>

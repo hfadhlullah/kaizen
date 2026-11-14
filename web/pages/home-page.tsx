@@ -19,6 +19,10 @@ export function HomePage() {
   const working = sending || remoteBusy;
   const name = (d: string) => projectName(d, host.projects());
   const id = cur?.id ?? null;
+  // The messages keep one key for the chat object they belong to: a first chat gaining its id mid-reply is not a new
+  // thread, so nothing remounts and nothing replays its entrance.
+  const thread = useRef({ cur, k: String(id) });
+  if (thread.current.cur !== cur) thread.current = { cur, k: String(id) };
   // Scrolling up pauses auto-follow until the reader reaches the bottom again; another chat starts at the bottom.
   useEffect(() => void (following.current = true), [id]);
   useEffect(() => {
@@ -90,7 +94,12 @@ export function HomePage() {
             </div>
           ) : (
             cur!.messages.map((m, i) => (
-              <HomeMessage key={`${id}:${i}`} m={m} last={i === cur!.messages.length - 1} busy={working} />
+              <HomeMessage
+                key={`${thread.current.k}:${i}`}
+                m={m}
+                last={i === cur!.messages.length - 1}
+                busy={working}
+              />
             ))
           )}
         </div>

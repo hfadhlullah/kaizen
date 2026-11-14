@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { BUSY, type MainStep, type Step } from "../lib/git.ts";
 import { gitAct } from "../lib/git-actions.ts";
-import { useGit } from "../lib/git-store.ts";
+import { busyOf, useGit } from "../lib/git-store.ts";
 import { Button } from "../ui/button.tsx";
 import {
   DropdownMenu,
@@ -15,7 +15,7 @@ import { Icon } from "../ui/icon.tsx";
 // One split button: the main step (Stage all, then Commit, then the next remote step) and a menu with every step,
 // each unavailable one saying why under its name.
 export function GitSplit({ main, all, prUrl }: { main: MainStep; all: Step[]; prUrl?: string }) {
-  const busy = useGit((s) => s.busy),
+  const busy = useGit(busyOf),
     box = useRef<HTMLDivElement>(null),
     [width, setWidth] = useState<number>();
   return (
