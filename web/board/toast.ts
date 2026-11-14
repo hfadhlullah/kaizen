@@ -4,8 +4,8 @@ import { $ } from "./dom.ts";
 // stays long enough to click it.
 let tt;
 // The board's React toaster (lib/core/toast.ts) takes over once it is mounted (react-mount.ts), so old and new pages
-// share one toast. The notebook and Video pages never mount it and keep drawing into their own #toast, which
-// keeps React out of their bundles.
+// share one toast. The Notebook mounts it too (notebook/kit.ts, also in ?embed=1); only Video, which has no React,
+// keeps drawing into its own #toast.
 let sink: ((s: string, report?: Record<string, string>) => void) | null = null;
 export const setToaster = (f: typeof sink) => (sink = f);
 export function toast(s, report) {

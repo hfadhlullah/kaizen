@@ -179,6 +179,32 @@ test("the notes chat and dictation are drawn by React, not by board/ modules or 
   for (const f of ["notebook.js", "video.js"]) expect(rd(`dist/${f}`)).not.toContain("automatic-speech-recognition");
 });
 
+// The Notes page is React (pages/notebook-page.tsx, components/notebook, lib/notebook) in one bundle that carries React itself:
+// notebook.ts only starts things, notes.html is a shell (no drawn markup, no toast, no select), the lazy kit bundle and its
+// script loader are gone, and the editor engine is made in exactly one place (EditorPane, once per note opening).
+test("the Notes page is drawn by React, with one editor component and no lazy kit bundle", () => {
+  const rd = (p: string) => readFileSync(join(web, p), "utf8");
+  const entry = rd("notebook/notebook.ts");
+  expect(entry.split("\n").length).toBeLessThan(40);
+  expect(entry).not.toMatch(/innerHTML|createElement\(["'`](?!div)|getElementById\("(?!root)/);
+  expect(entry).toMatch(/createRoot\(document\.getElementById\("root"\)!\)\.render\(createElement\(NotebookPage\)\)/);
+  expect(existsSync(join(web, "dist/notebook-kit.js"))).toBe(false);
+  const html = rd("html/notes.html");
+  expect(html).toContain('<div id="root" style="display:contents"></div>');
+  expect(html).not.toMatch(/id="(?:pane|tree|tags|editor|meta|toast|proj|q)"|class="(?:app|hdr|wrap|side)"|select\.sel\{/);
+  expect(rd("notebook/kit-loader.ts")).not.toMatch(/createElement|\.src =|\.href =/);
+  // the engine view is made once, by the one component that owns it (and by nothing else in components or pages)
+  const files = Object.fromEntries(
+    ["components", "pages"].flatMap((l) => walk(join(web, l))).map((f) => [relative(web, f).split(/[\\/]/).join("/"), readFileSync(f, "utf8")]),
+  );
+  expect(Object.keys(files).filter((f) => /\bcreateEditor\(/.test(files[f]!))).toEqual(["components/notebook/editor-pane.tsx"]);
+  expect(files["components/notebook/editor-pane.tsx"]).toMatch(/useLayoutEffect\([\s\S]*?\}, \[\]\)/);
+  expect(files["components/notebook/note-body.tsx"]).toMatch(/<EditorPane key=\{doc\} \/>/);
+  // every way out of the page writes the open note first
+  const session = rd("lib/notebook/vault-session.ts");
+  for (const e of ["beforeunload", "visibilitychange", "kz-leave", "pagehide"]) expect(session).toContain(`"${e}"`);
+});
+
 // ---- feature folders: components/<feature>/ and lib/<feature>/ ----
 // Only folders live directly under components/ and lib/; none grows past MAX_FILES source files (*.test.ts sit beside the
 // code they test and are not counted; split by feature instead); each

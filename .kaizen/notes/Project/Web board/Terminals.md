@@ -34,7 +34,7 @@ The phone terminal message box uses the placeholder “Paste text here...”.
 
 - `/decide` and `/fix` type into the run's live agent tab; a new agent starts only when none is open (run 2026-10-30-board-approve-reaches-chat).
 
-- The run panel's tab names live twice: `TABS` in `web/board.html` (label + doc key, order = button order) and `TABS` in `web/notebook/notes-lib.ts` (link names for `[[run:x#tab]]`, `work` meaning the `impl` doc). Change both together.
+- The run panel's tab names live twice: `TABS` in `web/board.html` (label + doc key, order = button order) and `TABS` in `web/lib/notebook/text.ts` (re-exported by `web/notebook/notes-lib.ts`; link names for `[[run:x#tab]]`, `work` meaning the `impl` doc). Change both together.
 
 - A card terminal's tty also receives what the page's xterm sends by itself (focus `ESC[I`/`ESC[O` — Claude Code enables `ESC[?1004h` — mouse reports, query answers). Anything judging "the user typed" for a board-owned session uses `ptyState().typed` (`REPORT` filter in `cli/pty.ts`), never tty atime. (2026-10-24-done-run-terminal-close)
 
