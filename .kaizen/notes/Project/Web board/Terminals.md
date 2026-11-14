@@ -44,7 +44,7 @@ The coarse-pointer controls in `web/term/term.ts` use a compact composer with an
 
 ## Phone navigation (2026-11-08)
 
-The phone Terminal menu opens the terminal page across every project, independent of the project picker. `badge.ts` exposes the shared all-project cards and dispatches `kz-all-cards`; `terms.ts` uses that snapshot, including each `pty.all` session, plus the existing global shell list. Existing mounts survive refreshes.
+The phone Terminal menu opens the terminal page across every project, independent of the project picker. the server store (`lib/server`) holds the shared all-project cards (`every`) and `terms.ts` subscribes to it; `terms.ts` uses that snapshot, including each `pty.all` session, plus the existing global shell list. Existing mounts survive refreshes.
 
 ## Agent launch and phone keyboard (2026-11-08)
 

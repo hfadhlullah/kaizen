@@ -1,7 +1,7 @@
 ---
 description: Board cards and columns: order, compact done cards, the action button, search and add sheets
 tags: [project, web-board]
-sources: [web/pages/board-page.tsx, web/components, web/lib, web/board/cards.ts, web/board/panel.ts, web/lib/notes, web/components/notes, web/board/search.ts, web/lib/search/search-match.ts, web/board/run-view.ts, web/board/badge.ts, web/board/ws-tabs.ts, web/board/workspace.ts, web/board/ws-board.ts, web/board/ws-board-ui.ts, cli/add-project.ts, cli/add-project.test.ts, cli/usage.test.ts, cli/chat.ts, cli/state.ts, web/board, web/html/video.html]
+sources: [web/pages/board-page.tsx, web/components, web/lib, web/board/cards.ts, web/board/panel.ts, web/lib/notes, web/components/notes, web/board/search.ts, web/lib/search/search-match.ts, web/board/run-view.ts, web/lib/server, web/board/ws-tabs.ts, web/board/workspace.ts, web/board/ws-board.ts, web/board/ws-board-ui.ts, cli/add-project.ts, cli/add-project.test.ts, cli/usage.test.ts, cli/chat.ts, cli/state.ts, web/board, web/html/video.html]
 updated: 2026-11-14
 ---
 # Cards
@@ -12,7 +12,7 @@ Part of [[Web board]].
 The cards on the board: how they sort, what each shows, the one button that says what a run needs from you, and the search and add sheets.
 
 ## Where it lives
-- `web/board/badge.ts` reads `/state?all=1` at most once per 2 s (overlapping calls still coalesce). The run view's right panel (`#panel`) is resized by dragging `#rgrip` on its left edge (`initGrip` in `web/board/run-view.ts`, width in `--rpanel-w`, kept in localStorage `kz-rpanel-w`, double-click resets, clamped 260 px to 60% of the window); the desktop window follows the refresh rate of the monitor it is on (the app measured 60 fps on a 60 Hz screen and 144 fps on a 144 Hz one).
+- `lib/server/poller.ts` (`refreshEvery`) reads `/state?all=1` at most once per 2 s (overlapping calls still coalesce). The run view's right panel (`#panel`) is resized by dragging `#rgrip` on its left edge (`initGrip` in `web/board/run-view.ts`, width in `--rpanel-w`, kept in localStorage `kz-rpanel-w`, double-click resets, clamped 260 px to 60% of the window); the desktop window follows the refresh rate of the monitor it is on (the app measured 60 fps on a 60 Hz screen and 144 fps on a 144 Hz one).
 
 - Child cards: a card whose `parent` (from a `Parent:` / `Follow-up of:` line, `parentOf` in `cli/state.ts`) names a run on the board that is not archived and not done is drawn only as a row inside that run's card (`kidsOf`/`nested` in `web/board/cards.ts`): a collapsed `N children · M done` toggle, an orange dot when a child waits on you, and rows that open the child's own panel; a run row is labelled with its run name (like the card header), wrapped, title in the tooltip. Once the parent is done, archived or gone, children are back in their own columns.
 
@@ -33,7 +33,7 @@ The cards on the board: how they sort, what each shows, the one button that says
 
 - Each column sorts waiting runs first, then by its Newest/Oldest order: runs by `moved`, tasks by `added` (the inbox stamp, on the card from `cli/state.ts`) across every project, inbox position only as tiebreak.
 
-- `render()` sets `document.title` to `(n) kaizen` while n cards need you: runs waiting on you plus cards whose live agent is asking (`pty.asking`). `badge.ts` uses that same count for the Board rail badge, once per unarchived card; Board uses its `/state` cards when showing all projects, while a selected project, Notes and Video fetch `/state?all=1` on change so the badge covers every project. Zero hides the badge, and its title and accessible label name the count.
+- `render()` sets `document.title` to `(n) kaizen` while n cards need you: runs waiting on you plus cards whose live agent is asking (`pty.asking`). `lib/server/attention.ts` (`waitingCount`) uses that same count for the Board rail badge, once per unarchived card; Board uses its `/state` cards when showing all projects, while a selected project, Notes and Video fetch `/state?all=1` on change so the badge covers every project. Zero hides the badge, and its title and accessible label name the count.
 
 - The header filter box `#bq` sits outside `#board`, so redraws keep its text; `draft()` keeps it over a reload. `/` focuses it when no panel is open (in an open panel `/` still goes to `#sq`); Escape clears it. It matches title, request text and run id.
 
