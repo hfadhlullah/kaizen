@@ -111,6 +111,12 @@ export function BrowserPane({ wsk, live = true, shown = true }: { wsk: string; l
       const t = setTimeout(() => {
         const f = frame.current;
         if (!f || !want.current) return;
+        // Where the page is now, when this pane may read it (same origin); any other page comes back to the address the pane
+        // last set, so a cross-origin page that moved on its own restarts from there (docs: Terminals.md).
+        try {
+          const href = (f as HTMLIFrameElement).contentWindow?.location.href;
+          if (href && /^https?:/.test(href)) want.current = href;
+        } catch {}
         blank.current = true;
         swap(f, "about:blank");
       }, UNLOAD_MS);
@@ -118,7 +124,7 @@ export function BrowserPane({ wsk, live = true, shown = true }: { wsk: string; l
     }
     if (blank.current) {
       blank.current = false;
-      swap(frame.current!, want.current);
+      if (want.current) swap(frame.current!, want.current); // "": a page that refused framing while blanked has no address
     }
   }, [live]);
 

@@ -263,6 +263,10 @@ test("a hidden pane takes no keys and no page messages (x on Tasks must not wipe
   expect(a.use.getState().notes.length).toBe(1);
   expect(calls.some((c) => c.path === "/annotate/send")).toBe(false);
   expect(a.active()).toBe(true);
+  // a page that reloads while its pane is hidden still says ready, and is handed its picker config and markers again
+  said.length = 0;
+  page({ type: "ready" });
+  expect(said.map((m) => m.type)).toEqual(["config", "markers"]);
   a.live(true);
   key("x"); // shown again: the key works
   expect(a.use.getState().notes.length).toBe(0);

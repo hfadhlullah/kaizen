@@ -287,7 +287,10 @@ export function createAnnotator(o: AnnotatorOpts) {
   };
   const onMsg = (e: MessageEvent) => {
     const { px } = get();
-    if (shown && px && accept(e, frameWin(), px.origin, px.token)) handle(e.data);
+    // A hidden pane still takes `ready` (a page that reloaded while away must get its picker config and markers again) and
+    // `loc` (its address); keys, notes and markers are for a pane on screen.
+    const t = e.data?.type;
+    if ((shown || t === "ready" || t === "loc") && px && accept(e, frameWin(), px.origin, px.token)) handle(e.data);
   };
   // The desktop app's webview: put the script in after each load, with this open's token (annotate.js reads __kzAnnToken).
   // The webview's preload relays its messages; only ones carrying the token are taken (acceptHost).
