@@ -1,22 +1,22 @@
 import { run, useRunView } from "@lib/run";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger, Icon } from "@web/ui";
 
-// What a pane's header holds (the header element, its handle for dragging, belongs to the old code): the title, a menu
-// that moves the pane into another tab or a tab of its own, and × that closes it.
+// What a pane's header holds (the header element, its handle for dragging, is pane.tsx's): the title, a menu that moves
+// the pane into another tab or a tab of its own, and × that closes it.
 export function PaneHeader({ id }: { id: string }) {
   const title = useRunView((s) => s.titles[id] ?? ""),
     // Filtered here, not in the selector: a selector that returned a new array each time would never settle.
     others = useRunView((s) => s.screens).filter((sc) => !sc.ids.includes(id));
   return (
     <>
-      <span>{title}</span>
+      <span className="min-w-0 flex-1 truncate">{title}</span>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
             type="button"
             title="Move to another tab"
             aria-label={`Move ${title}`}
-            className="px-1 text-muted-foreground"
+            className="cursor-pointer px-1 text-muted-foreground"
           >
             ⋯
           </button>
@@ -40,7 +40,7 @@ export function PaneHeader({ id }: { id: string }) {
         title="Close"
         aria-label={`Close ${title}`}
         onClick={() => run.act.closeItem(id)}
-        className="px-1 text-muted-foreground"
+        className="cursor-pointer px-1 text-muted-foreground"
       >
         ×
       </button>

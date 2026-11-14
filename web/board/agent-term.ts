@@ -1,3 +1,4 @@
+import { termLoad } from "@lib/run";
 import { load } from "./api.ts";
 import { $ } from "./dom.ts";
 
@@ -8,24 +9,10 @@ import { $ } from "./dom.ts";
 // terminal is shown. One terminal is mounted at a time, in #pbody; a refresh that
 // finds it already showing this session leaves it alone, so it never reconnects.
 let termKey = null,
-  termOff = null,
-  termLib = null;
+  termOff = null;
 export const where = (r) => (r.pty ? "running in its workspace" : "opened in your terminal");
-export const termLoad = () =>
-  (termLib ||= new Promise((ok, no) => {
-    const l = document.createElement("link");
-    l.rel = "stylesheet";
-    l.href = "/term.css";
-    document.head.append(l);
-    const sc = document.createElement("script");
-    sc.src = "/term.js";
-    sc.onload = () => ok(window.kzTerm);
-    sc.onerror = () => {
-      termLib = null;
-      no();
-    };
-    document.head.append(sc);
-  }));
+// The script loader moved to lib/run/term-loader.ts; the Home window and the Terminal page still import it from here.
+export { termLoad };
 export function termStop() {
   if (termOff) termOff();
   termOff = null;

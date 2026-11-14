@@ -7,7 +7,9 @@
 // never follows it. A workspace with no tab opens a shell in its folder. Terminal tabs are
 // kzTerm mounts on /pty that live as long as their tab, so a tab switch or a /state tick never
 // reconnects them. Split right or down shows a second tab beside the first, sized with the
-// Terminal page's handles.
+// Terminal page's handles. The panes, their layout and the Browser tab are React (components/run/run-panes.tsx, the
+// layout in lib/run/layout-store.ts); this module knows which items the workspace has, starts and ends sessions, and
+// answers the keyboard.
 import { ask } from "@lib/core";
 import { pick } from "./projects.ts";
 import { store } from "./store.ts";
@@ -15,43 +17,20 @@ import { toast } from "./toast.ts";
 import { $, html, ico, raw } from "./dom.ts";
 import { key } from "./cards.ts";
 import { open } from "./panel.ts";
-import { termLoad } from "./agent-term.ts";
 import { load, post } from "./api.ts";
 import { attach, md, preview } from "./markdown.ts";
-import { layout } from "./terms.ts";
 import { cardHref, markCurrent, railData, stateOf, titleOf, wsHref, wsOfCard } from "./workspace.ts";
-import { type Node, type Box, awaiting, chosen, devUrl, dueWord, finished, gitDue, historyOf, leaves, liveIn, loopbackUrl, migrate, nearestPane, newRun, pickable, previewIn, previewOpens, prune, reviewing, stageTabs, toOpen, wsKey } from "./ws-tabs.ts";
+import { awaiting, chosen, devUrl, dueWord, finished, gitDue, historyOf, leaves, liveIn, loopbackUrl, migrate, newRun, pickable, previewIn, previewOpens, reviewing, stageTabs, toOpen, wsKey } from "./ws-tabs.ts";
 import { age } from "./labels.ts";
 import { go } from "./views.ts";
 import { isPhone } from "./phone.ts";
 import { annotator } from "./annotate.ts";
 import { react } from "./views.ts";
-import { run, setRunActions, setRunView } from "@lib/run";
+import { boxesOf, detach, focusItem, keepUrl, layoutOf, moveInLayout, nearestPane, openAppWindow, patch, placeItems, refreshPreview, replaceAll, requestBrowse, clearBrowse, rects, selectScreen, setDragging, setRunActions, setRunView, setTarget, showItem, useLayout, type Saved, type SavedTab } from "@lib/run";
 
-type Tab = { id: string; kind: "agent" | "shell" | "local" | "preview" | "note" | "wait" | "history"; title: string; key?: string; note?: string; agent?: string };
-// Per workspace: the extra items opened (localhost, preview, notes, History),
-// tabs closed, and the screens. A screen is one tab of the bar: one or more items side by
-// side or stacked.
-type Screen = { id: string; tree: Node; focus: string };
-// tmux: the focused pane splits in two, the new item right of or under it.
-function splitAt(n: Node, at: string, add: string, dir: "cols" | "rows", before = false): Node {
-  if (typeof n === "string") return n === at ? { dir, kids: before ? [add, n] : [n, add], sizes: [1, 1] } : n;
-  return { ...n, kids: n.kids.map((k) => splitAt(k, at, add, dir, before)) };
-}
-// seen: the runs that already opened the Browser on their Preview, so a run does it once.
-type Saved = { tabs: Tab[]; hidden: string[]; hb?: Record<string, number>; screens: Screen[]; on: string | null; seen?: string[] };
-const ALL: Record<string, Saved> = (() => {
-  try {
-    return JSON.parse(localStorage.getItem("kz-runtabs") || "{}");
-  } catch {
-    return {};
-  }
-})();
-const save = () => {
-  try {
-    localStorage.setItem("kz-runtabs", JSON.stringify(ALL));
-  } catch {}
-};
+type Tab = SavedTab & { kind: "agent" | "shell" | "local" | "preview" | "note" | "wait" | "history" };
+// Per workspace the saved layout (lib/run/layout-store.ts): the extra items opened (localhost, preview, notes, History),
+// tabs closed, and the screens. A screen is one tab of the bar: one or more items side by side or stacked.
 // The workspace shown, and the card whose panel is up (the picker's).
 let ctx: { dir: string; ws: string; k: string } | null = null;
 let card: any = null;
@@ -60,50 +39,18 @@ let noPty = false;
 // Every agent installed for this project (from /agents), each offered as a bare session.
 let agents: { name: string; cmd: string; yolo?: boolean; bypassDefault?: boolean }[] = [];
 let defAgent = "";
-// Tab id -> its pane, and for a terminal the function that unmounts it.
-// `un` unmounts the React parts inside the pane (its header, its History or wait body); the pane element itself is never React's.
-const panes = new Map<string, { el: HTMLElement; off: (() => void) | null; un: (() => void)[] }>();
 const byKey = (k: string) => store.S.cards.find((x) => key(x) === k);
-const saved = (): Saved => {
-  const s = (ALL[ctx!.k] ||= { tabs: [], hidden: [], screens: [], on: null });
-  // Layouts saved while runs were tabs: those tabs are gone, the panel picks runs now.
-  s.tabs = s.tabs.filter((t: any) => t.kind !== "run");
-  s.hidden = s.hidden.filter((h) => !h.startsWith("rn:"));
-  if (!Array.isArray(s.screens) || s.screens.some((sc: any) => !sc.tree)) (s.screens = []), delete (s as any).split; // older saves
-  return s;
-};
-// Where the next item goes: a new screen (null), or beside/below the items of a screen.
-let target: { screen: string; dir: "cols" | "rows" } | null = null;
-// Every item sits in exactly one screen; a new one goes to `target` or its own screen.
-function screens(): Screen[] {
-  const s = saved(),
-    ids = tabs().map((t) => t.id);
-  // In place: the panes on screen hold these objects, and a gutter drag writes its sizes into them.
-  s.screens = s.screens.filter((sc) => {
-    const tree = prune(sc.tree, (id) => ids.includes(id));
-    if (!tree) return false;
-    sc.tree = tree;
-    if (!leaves(tree).includes(sc.focus)) sc.focus = leaves(tree)[0];
-    return true;
-  });
-  for (const id of ids)
-    if (!s.screens.some((sc) => leaves(sc.tree).includes(id))) {
-      const into = target && s.screens.find((sc) => sc.id === target!.screen);
-      if (into) (into.tree = splitAt(into.tree, into.focus, id, target!.dir)), (into.focus = id), (s.on = into.id);
-      else s.screens.push({ id: "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), tree: id, focus: id });
-      target = null;
-    }
-  if (!s.screens.some((sc) => sc.id === s.on)) s.on = s.screens[0]?.id ?? null;
-  return s.screens;
-}
+// The shown workspace's saved layout, and a change to it.
+const saved = (): Saved => layoutOf(ctx!.k);
+const edit = (fn: (s: Saved) => Saved) => patch(ctx!.k, fn);
+const screens = () => saved().screens;
 const loopback = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
 
 const AGENTS = ["claude", "codex", "gemini", "agy", "opencode", "cursor"];
 const wsCards = () => (ctx ? liveIn(store.S.cards, ctx.dir, ctx.ws, wsOfCard) : []);
 
 function tabs(): Tab[] {
-  const s = saved(),
-    out: Tab[] = [];
+  const out: Tab[] = [];
   const named = (a?: string) => agents.find((x) => x.cmd === a)?.name ?? "Agent";
   const live = wsCards(),
     liveKeys = new Set(live.map(key));
@@ -123,13 +70,16 @@ function tabs(): Tab[] {
   for (const sh of shells.filter((x) => x.run === ctx!.k || (owned.has(x.run) && !liveKeys.has(x.run))))
     out.push({ id: "sh:" + sh.key, kind: sh.agent ? "agent" : "shell", agent: sh.agent || undefined, title: sh.title, key: sh.key });
   // Opened by hand: History, localhost, Preview, notes.
-  const mine = s.tabs.map((t) => (t.kind === "local" ? { ...t, title: "Browser" } : t)); // "local" was saved before the rename
   // A closed agent tab stays hidden only for that agent: one started again under the same key (a resume) is a new
   // agent (born differs) and the sidebar lists it, so its tab comes back.
   for (const a of store.S.agents ?? []) {
-    const id = "agent:" + a.key;
-    if (s.hb && id in s.hb && s.hb[id] !== (a.born ?? 0)) (s.hidden = s.hidden.filter((h) => h !== id)), delete s.hb[id], save();
+    const id = "agent:" + a.key,
+      hb = saved().hb;
+    if (hb && id in hb && hb[id] !== (a.born ?? 0))
+      edit((s) => ({ ...s, hidden: s.hidden.filter((h) => h !== id), hb: Object.fromEntries(Object.entries(s.hb ?? {}).filter(([x]) => x !== id)) }));
   }
+  const s = saved(),
+    mine = s.tabs.map((t) => (t.kind === "local" ? { ...t, title: "Browser" } : t)) as Tab[]; // "local" was saved before the rename
   const all = [...out.filter((t) => !s.hidden.includes(t.id)), ...mine];
   return all.filter((t, i) => all.findIndex((x) => x.id === t.id) === i);
 }
@@ -186,7 +136,10 @@ export async function showRunView(nav = false) {
   const w = railData().projects?.find((x) => x.dir === dir)?.workspaces?.find((x) => x.path === ws);
   document.querySelector(".hdr h1")!.textContent = want ? titleOf(want) : w?.branch || ws.split(/[\\/]/).pop() || "Workspace";
   // Layouts saved per run before workspaces move to their workspace; keys no card owns stay.
-  if (migrate(ALL, store.S.cards, key, wsOfCard)) save();
+  if (store.S.cards.some((c) => key(c) in useLayout.getState().all)) {
+    const all = structuredClone(useLayout.getState().all);
+    if (migrate(all as any, store.S.cards, key, wsOfCard)) replaceAll(all);
+  }
   try {
     const r = await fetch("/shells?dir=" + encodeURIComponent(dir));
     shells = r.ok ? await r.json() : [];
@@ -225,8 +178,8 @@ function showTerm() {
   const w = store.wantPty && Date.now() - store.wantPty.at < 20_000 ? store.wantPty.key : null;
   if (store.wantPty && !w) store.wantPty = null;
   // Asked for by name (the sidebar's mark, a launch): shown even if its tab was closed before.
-  const want = wantTerm || w, s = saved();
-  if (want) s.hidden = s.hidden.filter((h) => h !== "agent:" + want && h !== "sh:" + want);
+  const want = wantTerm || w;
+  if (want) edit((s) => ({ ...s, hidden: s.hidden.filter((h) => h !== "agent:" + want && h !== "sh:" + want) }));
   const t = tabs().find((x) => x.key === want);
   wantTerm = null;
   if (t && store.wantPty?.key === t.key) store.wantPty = null;
@@ -235,12 +188,15 @@ function showTerm() {
 const autoShell = new Set<string>();
 
 function draw() {
+  const ts = tabs();
+  // Every item sits in exactly one screen: new ones are placed, closed ones leave.
+  placeItems(ctx!.k, ts.map((t) => t.id));
   const s = saved(),
-    ts = tabs(),
-    scs = screens(),
+    scs = s.screens,
     cur = scs.find((sc) => sc.id === s.on);
   const item = (id: string) => ts.find((t) => t.id === id)!;
-  // The chrome is React (components/run/run-tabs.tsx and its neighbours): it is handed what to show, never an element.
+  // The chrome and the panes are React (components/run): they are handed what to show, never an element. A pane is
+  // made once per item and kept (hidden while its screen is not shown), so terminals never reconnect.
   const now = Date.now();
   setRunView({
     message: null,
@@ -255,37 +211,15 @@ function draw() {
     defAgent,
     pty: !noPty,
     titles: Object.fromEntries(ts.map((t) => [t.id, t.title])),
+    items: ts,
+    wsk: ctx!.k,
+    ws: ctx,
     history: historyOf(store.S.cards, ctx!.dir, ctx!.ws, wsOfCard).map((c) => ({ k: key(c), title: titleOf(c), state: stateOf(c), line: `${c.status} · ${age(c.moved ?? now, now)} ago` })),
     empty: !scs.length,
   });
   $("rside").setAttribute("aria-pressed", String(document.body.classList.contains("rflip")));
   requestAnimationFrame(() => $("rtabs").querySelector('[aria-selected="true"]')?.scrollIntoView({ block: "nearest", inline: "nearest" }));
-  // Panes: made once per item, kept (hidden) while it is open, so terminals never reconnect.
-  const box = $("rpanes");
-  for (const [id, p] of panes)
-    if (!ts.some((t) => t.id === id)) {
-      p.off?.();
-      p.un.forEach((u) => u());
-      p.el.remove();
-      panes.delete(id);
-    }
-  for (const t of ts) if (!panes.has(t.id)) makePane(t);
-  const shown = cur ? leaves(cur.tree) : [];
-  for (const [id, p] of panes) {
-    p.el.hidden = !shown.includes(id);
-    p.el.classList.toggle("split", shown.length > 1);
-    p.el.classList.toggle("focus", shown.length > 1 && id === cur?.focus);
-  }
-  // The tree is rebuilt only when it changes: moving a pane in the DOM reloads its frame.
-  const sig = cur ? cur.id + JSON.stringify(cur.tree) : "";
-  if (sig !== shownSig) {
-    shownSig = sig;
-    for (const [, p] of panes) if (p.el.parentElement !== box) box.append(p.el);
-    box.querySelector(".rtree")?.remove();
-    if (cur) box.prepend(build(cur.tree, cur));
-  }
   mountPanel();
-  wire();
 }
 
 // The run panel (#panel) stays docked on the right of the centre and shows one run: the one picked
@@ -324,256 +258,10 @@ function mountPanel() {
   setRunView({ picker: { cur: row(c), live: live.map(row), hist: hist.map(row), other: live.some((r) => r !== c && awaiting(r)) } });
   if (store.openKey !== key(c)) void open(c, false);
 }
-let shownSig = "";
 // Moves an item out of its tab into another one (split beside a pane there, or next to its
-// focused pane), or into a tab of its own (to = null). Terminals keep running; frames reload.
+// focused pane), or into a tab of its own (to = null). Terminals keep running and frames stay loaded.
 function moveItem(id: string, to: string | null, at?: { pane: string; dir: "cols" | "rows"; before: boolean }) {
-  const s = saved();
-  if (at?.pane === id) return;
-  // Dropped on the tab it is already in, with no pane edge to split at: nothing to do.
-  if (!at && to && s.screens.find((sc) => sc.id === to && leaves(sc.tree).includes(id))) return;
-  for (const sc of s.screens) {
-    sc.tree = prune(sc.tree, (x) => x !== id) ?? "";
-    if (sc.tree !== "" && !leaves(sc.tree).includes(sc.focus)) sc.focus = leaves(sc.tree)[0];
-  }
-  s.screens = s.screens.filter((sc) => sc.tree !== "");
-  const dest = to && s.screens.find((sc) => sc.id === to);
-  if (dest) {
-    dest.tree = splitAt(dest.tree, at?.pane ?? dest.focus, id, at?.dir ?? "cols", at?.before ?? false);
-    dest.focus = id;
-    s.on = dest.id;
-  } else {
-    const sid = "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
-    s.screens.push({ id: sid, tree: id, focus: id });
-    s.on = sid;
-  }
-  save();
-  draw();
-}
-let dragging: string | null = null;
-const endDrag = () => {
-  dragging = null;
-  document.querySelectorAll(".rdrop,.rdrop-l,.rdrop-r,.rdrop-t,.rdrop-b").forEach((x) => x.classList.remove("rdrop", "rdrop-l", "rdrop-r", "rdrop-t", "rdrop-b"));
-};
-// One node of the layout tree as DOM: a pane, or a flex row/column of its children with a
-// draggable gutter between each pair (sizes saved on the node).
-function build(n: Node, sc: Screen): HTMLElement {
-  if (typeof n === "string") return panes.get(n)!.el;
-  const el = document.createElement("div");
-  el.className = "rtree " + n.dir;
-  n.kids.forEach((k, i) => {
-    if (i) {
-      const g = document.createElement("div");
-      g.className = "rgut";
-      g.onpointerdown = (e) => {
-        e.preventDefault();
-        const a = el.children[2 * i - 2] as HTMLElement,
-          b = el.children[2 * i] as HTMLElement,
-          horiz = n.dir === "cols",
-          ra = a.getBoundingClientRect(),
-          rb = b.getBoundingClientRect(),
-          total = horiz ? ra.width + rb.width : ra.height + rb.height,
-          sum = n.sizes[i - 1] + n.sizes[i],
-          start = horiz ? ra.left : ra.top;
-        g.setPointerCapture(e.pointerId);
-        // A frame under the pointer (the Browser, Preview) takes the moves for itself: frames ignore it while dragging.
-        document.body.classList.add("rdrag");
-        g.onpointermove = (m) => {
-          const f = Math.min(0.9, Math.max(0.1, ((horiz ? m.clientX : m.clientY) - start) / total));
-          n.sizes[i - 1] = sum * f;
-          n.sizes[i] = sum * (1 - f);
-          a.style.flexGrow = String(n.sizes[i - 1]);
-          b.style.flexGrow = String(n.sizes[i]);
-        };
-        g.onpointerup = g.onlostpointercapture = () => {
-          if (!g.onpointermove) return;
-          document.body.classList.remove("rdrag");
-          g.onpointermove = g.onpointerup = g.onlostpointercapture = null;
-          shownSig = sc.id + JSON.stringify(sc.tree);
-          save();
-        };
-      };
-      el.append(g);
-    }
-    const c = build(k, sc);
-    c.style.flex = `${n.sizes[i] ?? 1} 1 0`;
-    el.append(c);
-  });
-  return el;
-}
-
-function makePane(t: Tab) {
-  const el = document.createElement("section");
-  el.className = "rpane";
-  el.dataset.t = t.id;
-  // The header is the handle: drag it onto a tab, onto + (a new tab) or onto a pane's edge; its title, move menu and ×
-  // are React (components/run/pane-header.tsx). The pane itself, and the terminal or frame in it, are never React's.
-  const ph = document.createElement("header");
-  ph.className = "ph";
-  ph.draggable = true;
-  el.append(ph);
-  const p = { el, off: null as null | (() => void), un: [react.mountRunPart(ph, "header", t.id)] };
-  panes.set(t.id, p);
-  $("rpanes").append(el);
-  if (t.kind === "history") p.un.push(react.mountRunPart(el, "history"));
-  else if (t.kind === "agent" || t.kind === "shell") {
-    const term = document.createElement("div");
-    term.className = "term";
-    el.append(term);
-    termLoad()
-      .then((m) => {
-        if (panes.get(t.id) === p) p.off = m(term, t.key, () => load(true));
-      })
-      .catch(() => (term.textContent = "The terminal could not load."));
-  } else if (t.kind === "wait") p.un.push(react.mountRunPart(el, "wait", t.id));
-  else if (t.kind === "local") browser(el);
-  else if (t.kind === "note") el.insertAdjacentHTML("beforeend", String(html`<iframe class="rframe" title="${t.title}" src="/notebook?dir=${encodeURIComponent(ctx!.dir)}&note=${encodeURIComponent(t.note!)}&embed=1"></iframe>`));
-  else void previewPane(el);
-}
-
-// The Browser tab: a URL bar over an iframe. The address is kept per workspace; a run's
-// Preview sets it when the run reaches review (autoBrowse).
-function browser(el: HTMLElement) {
-  const k = "kz-browse:" + ctx!.k;
-  let url = "http://localhost:3000";
-  try {
-    url = localStorage.getItem(k) || url;
-  } catch {}
-  const back: string[] = [],
-    fwd: string[] = [];
-  el.insertAdjacentHTML(
-    "beforeend",
-    String(html`<form class="urlbar"><button type="button" data-b="back" title="Back" aria-label="Back">‹</button><button type="button" data-b="fwd" title="Forward" aria-label="Forward">›</button><button type="button" data-b="reload" title="Reload" aria-label="Reload">${ico("refresh")}</button><input class="sel" aria-label="Address" spellcheck="false" value="${url}"><button type="button" class="rwin" data-b="ann" title="Pick elements on this page and send notes to the agent (localhost pages)">${ico("eye")}<span>Annotate</span></button><a class="rwin" data-b="tab" target="_blank" rel="noopener" href="${url}" title="Open in a new browser tab">${ico("popout")}<span>New tab</span></a></form>`),
-  );
-  const f = el.querySelector("form")!,
-    inp = f.querySelector("input")!,
-    ext = f.querySelector<HTMLAnchorElement>("a.rwin");
-  (el as any).browseTo = (u: string) => go(u);
-  // On a phone over the tailnet, localhost is the phone itself: framing it shows nothing useful.
-  const local = (u) => /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/.test(u);
-  // In the desktop app the page is a <webview> in its own persistent session (desktop/src/browser-pane.ts):
-  // a first-party page with its own cookies, as in Orca. An iframe on the board's 127.0.0.1 origin made
-  // localhost:8000 third-party, so its Lax session cookie never came back (a login answered 419), and the
-  // framing blocks screen capture. Browsers, and an older app without the flag, keep the iframe.
-  const web = !!(window as any).kaizenDesktop?.browserPane;
-  const frame = document.createElement(web ? "webview" : "iframe") as HTMLIFrameElement;
-  frame.className = "rframe";
-  frame.title = "Browser";
-  if (web) frame.setAttribute("allowpopups", "");
-  else {
-    // Dev apps run; a framed page cannot navigate the board itself (no allow-top-navigation).
-    frame.setAttribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads");
-    // Without these the browser blocks microphone, camera and screen capture for the framed page.
-    frame.setAttribute("allow", "display-capture; microphone; camera; clipboard-read; clipboard-write; fullscreen");
-  }
-  const note = document.createElement("p");
-  note.className = "rnote";
-  const far = "This page is on the computer running kaizen; from this device localhost is the device itself. Use Open in browser on that computer.";
-  // The annotator (annotate.ts): its toolbar sits above this row, its notes list beside the frame.
-  const row = document.createElement("div");
-  row.className = "annrow";
-  row.append(frame);
-  el.append(row, note);
-  const annBtn = f.querySelector<HTMLButtonElement>("[data-b=ann]")!;
-  annBtn.hidden = !loopback; // from a phone, localhost is the phone itself
-  const ann = annotator({
-    host: el, frame, wsKey: ctx!.k, button: annBtn,
-    run: () => (card?.id ? { dir: card.state, id: card.id } : null),
-    reload: () => go(url, false),
-    // The framed page navigated on its own: show its address, do not load it again.
-    onLocation: (u) => {
-      if (u === url) return;
-      back.push(url), (fwd.length = 0);
-      url = u;
-      inp.value = u;
-      if (ext) ext.href = u;
-      try { localStorage.setItem(k, u); } catch {}
-    },
-  });
-  const go = (u, push = true) => {
-    if (push && url !== u) back.push(url), (fwd.length = 0);
-    url = u;
-    inp.value = u;
-    if (ext) ext.href = u;
-    try {
-      localStorage.setItem(k, u);
-    } catch {}
-    const hide = !loopback && local(u);
-    frame.hidden = hide;
-    note.hidden = !hide;
-    note.textContent = far;
-    if (hide) return void expose(u);
-    // Annotate on: a loopback page is framed through the board's proxy (annotate-proxy.ts), which adds the picker.
-    const seq = ++nav;
-    void ann.open(u).then((via) => {
-      if (seq !== nav) return;
-      frame.src = via ?? u;
-      if (via || web) return; // a webview is a top-level page: nothing refuses to be framed
-      frameCheck(u);
-    });
-  };
-  let nav = 0;
-  const frameCheck = (u: string) => {
-    // Most public sites refuse to be framed (X-Frame-Options / frame-ancestors), and the
-    // browser only shows its own error page. The board asks the site first and says so.
-    void fetch("/frameable?url=" + encodeURIComponent(u))
-      .then((r) => r.json())
-      .then((j) => {
-        if (url !== u || j.frameable !== false) return;
-        frame.hidden = true;
-        frame.removeAttribute("src");
-        note.hidden = false;
-        // The fallback card: the page refuses to be framed, so offer it outside the board.
-        note.textContent = "";
-        note.insertAdjacentHTML("beforeend", String(html`<b>This page refuses to be shown inside kaizen</b>${new URL(u).host} sends a header that forbids framing. <a class="rwin" target="_blank" rel="noopener" href="${u}">${ico("popout")}<span>Open in new tab</span></a>${winBtn(u)}`));
-      })
-      .catch(() => {});
-  };
-  // On a phone: the board serves that port to the tailnet and the frame opens its tailnet address.
-  const expose = (u: string) => {
-    note.textContent = "Opening this page for this device…";
-    void fetch("/expose", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ url: u }) })
-      .then((r) => r.json())
-      .then((j) => {
-        if (url !== u) return;
-        if (!j.ok) return void (note.textContent = `${far} (${j.error})`);
-        note.hidden = !j.hint;
-        note.textContent = j.hint || "";
-        frame.hidden = false;
-        frame.src = j.url;
-        if (ext) ext.href = j.url;
-      })
-      .catch(() => url === u && (note.textContent = far));
-  };
-  f.onsubmit = (e) => {
-    e.preventDefault();
-    let u = inp.value.trim();
-    if (!/^https?:\/\//.test(u)) u = "http://" + u;
-    go(u);
-  };
-  el.onclick = (e) => {
-    const b = (e.target as Element).closest<HTMLElement>("[data-b]")?.dataset.b;
-    if (b === "win") void openWindow(url);
-    else if (b === "ann") ann.toggle();
-    else if (b === "reload") go(url, false);
-    else if (b === "back" && back.length) fwd.push(url), go(back.pop()!, false);
-    else if (b === "fwd" && fwd.length) back.push(url), go(fwd.pop()!, false);
-  };
-  if (web) {
-    // The page navigated on its own (a link, a form, a redirect after login): show its address.
-    // Through the annotator's proxy the page reports its address itself (onLocation).
-    const nav2 = (e: any) => {
-      if (e.isMainFrame === false || ann.proxied() || !/^https?:\/\//.test(e.url) || e.url === url) return;
-      back.push(url), (fwd.length = 0);
-      url = e.url;
-      inp.value = url;
-      if (ext) ext.href = url;
-      try { localStorage.setItem(k, url); } catch {}
-    };
-    frame.addEventListener("did-navigate", nav2);
-    frame.addEventListener("did-navigate-in-page", nav2);
-  }
-  go(url, false);
+  if (moveInLayout(ctx!.k, id, to, at)) draw();
 }
 
 // A Chromium app window on the board's computer (POST /open-url): for dev servers that
@@ -584,8 +272,8 @@ const winBtn = (u: string) =>
     ? html`<button type="button" class="rwin" data-b="win" title="Open in an app window">${ico("popout")}<span>Open in app window</span></button>`
     : "";
 async function openWindow(u: string) {
-  const r = await fetch("/open-url", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ url: u }) }).catch(() => null);
-  if (!r?.ok) toast("Could not open a browser window" + (r ? ": " + ((await r.json().catch(() => ({}))) as any).error : ""));
+  const why = await openAppWindow(u);
+  if (why) toast(why);
 }
 
 // The run's Preview: its screenshots (each opens the image viewer on click), with an Open
@@ -607,7 +295,6 @@ async function previewPane(el: HTMLElement) {
       doc = await (await fetch(`/run/${encodeURIComponent(card.id)}?dir=${encodeURIComponent(card.state)}`)).json();
     } catch {}
   const pv = doc && preview(doc.impl);
-  (el as any).refresh = () => (el.replaceChildren(), void previewPane(el));
   if (!pv && (await directPreview(el))) return;
   const url = loopbackUrl(pv);
   const shots = pv && /!\[[^\]]*\]\(/.test(pv);
@@ -635,20 +322,18 @@ async function previewPane(el: HTMLElement) {
 }
 
 function addTab(t: Tab) {
-  const s = saved();
-  if (!s.tabs.some((x) => x.id === t.id)) s.tabs.push(t);
+  if (!saved().tabs.some((x) => x.id === t.id)) edit((s) => ({ ...s, tabs: [...s.tabs, t] }));
   // Already open somewhere: moving it into the target screen means taking it out of its old one.
-  else if (target) for (const sc of s.screens) sc.tree = prune(sc.tree, (id) => id !== t.id) ?? sc.tree;
+  else if (useLayout.getState().target) detach(ctx!.k, t.id);
   show(t.id);
 }
 // Automatic opens (a run's Preview, `kaizen preview`) bring a tab forward only when it is not open yet;
 // an open one just navigates, so the user can leave it.
 const autoTab = (t: Tab) => { if (!saved().tabs.some((x) => x.id === t.id)) addTab(t); };
-// After an item is added: run screens() (which places it) and show the screen holding it.
+// After an item is added: place it (which uses the split target) and show the screen holding it.
 function show(id: string) {
-  const s = saved();
-  s.on = screens().find((sc) => leaves(sc.tree).includes(id))?.id ?? s.on;
-  save();
+  placeItems(ctx!.k, tabs().map((t) => t.id));
+  showItem(ctx!.k, id);
   draw();
 }
 export const openNoteTab = (name: string) => addTab({ id: "note:" + name, kind: "note", title: name.slice(name.lastIndexOf("/") + 1), note: name });
@@ -725,7 +410,7 @@ async function previewApp() {
       localStorage.setItem("kz-browse:" + c.k, u);
     } catch {}
     addTab({ id: "local", kind: "local", title: "Browser" });
-    (panes.get("local")?.el as any)?.browseTo?.(u);
+    requestBrowse(c.k, u);
   };
   const now = await ports();
   if (now.length) return openAt(devUrl(pv, now)!);
@@ -759,7 +444,7 @@ async function previewApp() {
 }
 
 async function closeTab(id: string) {
-  const s = saved();
+  const wk = ctx!.k;
   if (id.startsWith("sh:")) {
     await post("/pty/exit", { key: id.slice(3) });
     shells = shells.filter((x) => "sh:" + x.key !== id);
@@ -768,15 +453,13 @@ async function closeTab(id: string) {
     const k = id.slice(6),
       a = store.S.agents?.find((x) => x.key === k);
     if (a?.busy && !(await ask({ title: "This agent is still working. End it?", confirmLabel: "End", danger: true }))) return;
-    s.hidden.push(id);
-    (s.hb ||= {})[id] = a?.born ?? 0;
+    patch(wk, (s) => ({ ...s, hidden: [...s.hidden, id], hb: { ...s.hb, [id]: a?.born ?? 0 } }));
     await post("/pty/exit", { key: k });
     load(true);
   }
   else if (id.startsWith("wait:")) elsewhere.delete(id.slice(5));
-  else s.tabs = s.tabs.filter((t) => t.id !== id);
-  save();
-  draw();
+  else patch(wk, (s) => ({ ...s, tabs: s.tabs.filter((t) => t.id !== id) }));
+  if (ctx?.k === wk) draw();
 }
 // A tab's ×: everything in it closes (shells end, the agent is only hidden).
 async function closeScreen(sid: string) {
@@ -787,7 +470,7 @@ async function closeScreen(sid: string) {
 // + makes a new tab; split right/down adds to the tab shown. `n` is a menu item's data-n.
 function openNew(n: string, mode: string, yolo?: boolean) {
   const s = saved();
-  target = mode === "tab" || !s.on ? null : { screen: s.on, dir: mode as "cols" | "rows" };
+  setTarget(mode === "tab" || !s.on ? null : { screen: s.on, dir: mode as "cols" | "rows" });
   if (n === "shell") void newPty();
   else if (n.startsWith("agent:")) void newPty(n.slice(6), yolo);
   else if (n === "local") addTab({ id: "local", kind: "local", title: "Browser" });
@@ -803,66 +486,12 @@ function likeFocused(): string | null {
   if (t?.kind === "agent") return "agent:" + (t.agent ?? (defAgent || agents[0]?.cmd || ""));
   return null;
 }
-function wire() {
-  const s = saved();
-  $("rside").onclick = () => {
-    document.body.classList.toggle("rflip");
-    draw();
-  };
-  // Moving panes: the header's ⋯ menu lists the other tabs; dragging the header drops it on a tab (React: run-tabs.tsx),
-  // on + (a tab of its own) or on a pane's edge (split there on that side, here).
-  const box = $("rpanes");
-  box.ondragstart = (e) => {
-    const id = (e.target as HTMLElement).closest<HTMLElement>(".ph")?.closest<HTMLElement>(".rpane")?.dataset.t;
-    if (!id) return;
-    dragging = id;
-    e.dataTransfer!.setData("text/plain", id);
-    e.dataTransfer!.effectAllowed = "move";
-  };
-  box.ondragend = endDrag;
-  const edge = (el: HTMLElement, e: DragEvent) => {
-    const r = el.getBoundingClientRect(),
-      x = (e.clientX - r.left) / r.width,
-      y = (e.clientY - r.top) / r.height;
-    const d = [["l", x], ["r", 1 - x], ["t", y], ["b", 1 - y]].sort((a, b) => (a[1] as number) - (b[1] as number))[0][0] as string;
-    return d;
-  };
-  box.ondragover = (e) => {
-    const pane = (e.target as HTMLElement).closest<HTMLElement>(".rpane");
-    if (!dragging || !pane || pane.dataset.t === dragging) return;
-    e.preventDefault();
-    const d = edge(pane, e);
-    pane.classList.remove("rdrop-l", "rdrop-r", "rdrop-t", "rdrop-b");
-    pane.classList.add("rdrop-" + d);
-  };
-  box.ondragleave = (e) => (e.target as HTMLElement).closest(".rpane")?.classList.remove("rdrop-l", "rdrop-r", "rdrop-t", "rdrop-b");
-  box.ondrop = (e) => {
-    const pane = (e.target as HTMLElement).closest<HTMLElement>(".rpane"),
-      id = dragging;
-    if (!id || !pane || pane.dataset.t === id) return;
-    e.preventDefault();
-    const d = edge(pane, e);
-    moveItem(id, s.on, { pane: pane.dataset.t!, dir: d === "l" || d === "r" ? "cols" : "rows", before: d === "l" || d === "t" });
-  };
-  // The pane last clicked is the one a split divides.
-  $("rpanes").onpointerdown = (e) => {
-    const id = (e.target as HTMLElement).closest<HTMLElement>(".rpane")?.dataset.t,
-      sc = saved().screens.find((x) => x.id === saved().on);
-    if (id && sc && sc.focus !== id) {
-      sc.focus = id;
-      save();
-      for (const [k, p] of panes) p.el.classList.toggle("focus", p.el.classList.contains("split") && k === id);
-    }
-  };
-}
-
 // Leaving the workspace: its terminals unmount; the shells keep running on the server.
 function stopPanes() {
   $("panel").classList.add("parked");
-  for (const p of panes.values()) (p.off?.(), p.un.forEach((u) => u()));
-  panes.clear();
-  // The panes and the layout tree go; the React note for an empty workspace stays.
-  $("rpanes").querySelectorAll(":scope > .rpane, :scope > .rtree").forEach((e) => e.remove());
+  // No items, no workspace: every pane component unmounts (and with it its terminal).
+  setRunView({ items: [], wsk: null, ws: null });
+  clearBrowse();
 }
 export function runStop() {
   stopPanes();
@@ -905,12 +534,10 @@ async function autoBrowse() {
       u = devUrl(pv, await (await fetch("/devports?ws=" + encodeURIComponent(ctx.ws))).json());
     } catch {}
     if (!u || ctx?.k !== k || saved().seen?.includes(key(c))) continue;
-    (saved().seen ||= []).push(key(c));
-    try {
-      localStorage.setItem("kz-browse:" + k, u);
-    } catch {}
+    edit((s) => ({ ...s, seen: [...(s.seen ?? []), key(c)] }));
+    keepUrl(k, u);
     autoTab({ id: "local", kind: "local", title: "Browser" });
-    (panes.get("local")?.el as any)?.browseTo?.(u);
+    requestBrowse(k, u);
   }
 }
 
@@ -938,16 +565,15 @@ async function pollPreview() {
   previewAt.set(k, at);
   if (!p || !previewOpens(at, last)) return;
   if (p.image) {
-    // A screenshot belongs in Preview; a live page in the Browser.
+    // A screenshot belongs in Preview; a live page in the Browser. An open Preview reads the new one.
+    const open = saved().tabs.some((x) => x.id === "preview");
     autoTab({ id: "preview", kind: "preview", title: "Preview" });
-    (panes.get("preview")?.el as any)?.refresh?.();
+    if (open) refreshPreview();
     return;
   }
-  try {
-    localStorage.setItem("kz-browse:" + k, p.url!);
-  } catch {}
+  keepUrl(k, p.url!);
   autoTab({ id: "local", kind: "local", title: "Browser" });
-  (panes.get("local")?.el as any)?.browseTo?.(p.url!);
+  requestBrowse(k, p.url!);
 }
 setInterval(() => void pollPreview(), 3000);
 
@@ -1003,12 +629,14 @@ function initSheet() {
 // The keyboard, tmux style: Ctrl+Space puts focus in the current pane, then one more key
 // moves it: arrows or hjkl between panes, 1-9, n, p between tabs.
 const focusPane = (id?: string) => {
-  const el = id ? panes.get(id)?.el : null;
-  requestAnimationFrame(() => el?.querySelector<HTMLElement>("textarea,input,iframe")?.focus());
+  // Looked up after the next frame: the pane may have just been shown.
+  requestAnimationFrame(() => {
+    const el = id ? [...$("rpanes").querySelectorAll<HTMLElement>(".rpane")].find((p) => p.dataset.t === id) : null;
+    el?.querySelector<HTMLElement>("textarea,input,iframe")?.focus();
+  });
 };
-const setPane = (sc: Screen, id: string) => {
-  sc.focus = id;
-  save();
+const setPane = (id: string) => {
+  focusItem(ctx!.k, id);
   draw();
   focusPane(id);
 };
@@ -1033,20 +661,14 @@ function paneKey(k: string) {
     sc = scs[at];
   if (!sc) return;
   if (DIRS[k]) {
-    const boxes: Record<string, Box> = {};
-    for (const id of leaves(sc.tree)) {
-      const el = panes.get(id)?.el;
-      if (el) boxes[id] = el.getBoundingClientRect();
-    }
-    const to = nearestPane(boxes, sc.focus, DIRS[k]);
-    if (to) setPane(sc, to);
+    const to = nearestPane(boxesOf(rects(sc.tree).panes), sc.focus, DIRS[k]);
+    if (to) setPane(to);
     return;
   }
   const i = k === "n" ? (at + 1) % scs.length : k === "p" ? (at - 1 + scs.length) % scs.length : /^[1-9]$/.test(k) ? +k - 1 : -1;
   const to = scs[i];
   if (!to) return;
-  s.on = to.id;
-  save();
+  selectScreen(ctx!.k, to.id);
   draw();
   focusPane(to.focus);
 }
@@ -1093,6 +715,10 @@ export function initRunView() {
     true,
   );
   initSheet();
+  $("rside").onclick = () => {
+    document.body.classList.toggle("rflip");
+    draw();
+  };
   // The sidebar's agent mark: open that workspace with the agent's terminal tab selected.
   addEventListener("kz-open-term", (e: any) => {
     e.preventDefault();
@@ -1108,9 +734,8 @@ export function initRunView() {
     e.preventDefault();
     const { dir, ws, id } = e.detail;
     const k = wsKey(dir, ws),
-      s = ALL[k],
-      sc = s?.screens?.find((x) => leaves(x.tree).includes(id));
-    if (sc) (s.on = sc.id), save();
+      sc = layoutOf(k).screens.find((x) => leaves(x.tree).includes(id));
+    if (sc) selectScreen(k, sc.id);
     if (ctx?.k === k && document.body.classList.contains("runv")) return void draw();
     history.pushState(null, "", wsHref(dir, ws));
     markCurrent();
@@ -1118,20 +743,14 @@ export function initRunView() {
   });
   addEventListener("kz-run-preview", openPreview);
   $("pnotes").onclick = () => void projectNotes();
-  // The React parts the run view keeps: the tab bar, the empty-workspace note, the project notes list.
-  const bar = document.createElement("div");
-  bar.style.display = "contents";
-  $("rtabs").append(bar);
-  react.mountRunPart(bar, "tabs");
-  const empty = document.createElement("div");
-  empty.style.display = "contents";
-  $("rpanes").append(empty);
-  react.mountRunPart(empty, "empty");
+  // The React parts of the run view: the tab bar, the panes, the panel's width grip and the project notes list.
+  react.mountRunPart($("rtabs"), "tabs");
+  react.mountRunPart($("rpanes"), "panes");
+  react.mountRunPart($("panel"), "grip");
   react.mountRunPart($("pnlist"), "notes");
   setRunActions({
     select: (sid) => {
-      saved().on = sid;
-      save();
+      selectScreen(ctx!.k, sid);
       draw();
     },
     close: (sid) => void closeScreen(sid),
@@ -1139,12 +758,19 @@ export function initRunView() {
     openNew,
     runApp: () => void previewApp(),
     move: moveItem,
-    drag: (id) => (id ? (dragging = id) : endDrag()),
-    dragging: () => dragging,
-    drop: (to) => dragging && moveItem(dragging, to),
+    drag: setDragging,
+    dragging: () => useLayout.getState().dragging,
+    drop: (to) => {
+      const id = useLayout.getState().dragging;
+      if (id) moveItem(id, to);
+    },
     openHere: (k) => byKey(k) && void openAgent(byKey(k), true),
     pick: (k) => byKey(k) && pickRun(k),
     openNote: openNoteTab,
+    termEnded: () => load(true),
+    currentRun: () => (card?.id ? { dir: card.state, id: card.id } : null),
+    mountPreview: (el) => void previewPane(el),
+    annotate: (o) => annotator({ ...o, run: () => (card?.id ? { dir: card.state, id: card.id } : null) }),
   });
   // A /state change: new or ended sessions, the card's own state. Panes stay mounted.
   addEventListener("kz-state", () => {
@@ -1160,32 +786,3 @@ export function openWorkspace(c) {
   markCurrent();
   go("run");
 }
-
-// The run view's right panel: drag its left edge to resize it; the width is kept for next
-// time and a double-click puts it back to the default.
-const GRIP_KEY = "kz-rpanel-w", GRIP_MIN = 260;
-function initGrip() {
-  const grip = document.getElementById("rgrip"), panel = document.getElementById("panel"), root = document.documentElement;
-  if (!grip || !panel) return;
-  const set = (w: number) => root.style.setProperty("--rpanel-w", `${Math.round(Math.min(Math.max(GRIP_MIN, innerWidth * 0.6), Math.max(GRIP_MIN, w)))}px`);
-  try { const w = Number(localStorage.getItem(GRIP_KEY)); if (w) set(w); } catch { /* private window: default width */ }
-  grip.onpointerdown = (e) => {
-    e.preventDefault();
-    grip.setPointerCapture(e.pointerId);
-    document.body.classList.add("rdrag");
-    const move = (m: PointerEvent) => set(panel.getBoundingClientRect().right - m.clientX);
-    const up = () => {
-      grip.removeEventListener("pointermove", move);
-      document.body.classList.remove("rdrag");
-      try { localStorage.setItem(GRIP_KEY, String(Math.round(panel.getBoundingClientRect().width))); } catch { /* not kept */ }
-    };
-    grip.addEventListener("pointermove", move);
-    grip.addEventListener("pointerup", up, { once: true });
-    grip.addEventListener("pointercancel", up, { once: true });
-  };
-  grip.ondblclick = () => {
-    root.style.removeProperty("--rpanel-w");
-    try { localStorage.removeItem(GRIP_KEY); } catch { /* nothing kept */ }
-  };
-}
-if (typeof document !== "undefined") initGrip();

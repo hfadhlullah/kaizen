@@ -21,12 +21,10 @@ import {
   FileViewer,
   FixHost,
   KeyHint,
-  PaneHeader,
+  PanelGrip,
   ProjectNotes,
-  RunEmpty,
-  RunHistory,
+  RunPanes,
   RunTabs,
-  RunWait,
   PanelHead,
   PanelTabs,
   RunPicker,
@@ -160,7 +158,7 @@ export { closeNewForm };
 // The run workspace's chrome (run-view.ts publishes it through lib/run/run-view-store.ts). A root lives in an element the old
 // code keeps (the tab bar, the empty note, the notes list) and never in a pane, so no live terminal is touched.
 // `display: contents` leaves the old container's layout rules in charge of where each piece sits.
-const bits = { hwsadd: HomeWsAdd, projects: ProjectPicker, showing: ShowingPicker, tabs: RunTabs, empty: RunEmpty, notes: ProjectNotes, header: PaneHeader, history: RunHistory, wait: RunWait, ptabs: PanelTabs, head: PanelHead, picker: RunPicker, mode: BoardModeSwitch };
+const bits = { hwsadd: HomeWsAdd, projects: ProjectPicker, showing: ShowingPicker, tabs: RunTabs, panes: RunPanes, grip: PanelGrip, notes: ProjectNotes, ptabs: PanelTabs, head: PanelHead, picker: RunPicker, mode: BoardModeSwitch };
 export function mountRunPart(el: HTMLElement, part: keyof typeof bits, id = ""): () => void {
   const host = document.createElement("div");
   host.className = "kz-ui";

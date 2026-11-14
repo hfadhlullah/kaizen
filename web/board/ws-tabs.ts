@@ -1,43 +1,11 @@
 // The workspace centre's logic without the DOM, so it is tested alone (ws-tabs.test.ts):
 // which runs the panel's picker lists, which are History, how stage terminals are named, and
 // how the old per-run tab layouts move to their workspace.
-// A screen's layout is a tmux-style tree: a leaf is an item id; a split holds two or more
-// children side by side ("cols") or stacked ("rows"), with their relative sizes.
+// A screen's layout is a tmux-style tree (lib/run/layout.ts, no DOM there); re-exported so the board code and its
+// tests keep their imports.
 import { gitDue } from "@lib/rail/rules.ts";
-export type Node = string | { dir: "cols" | "rows"; kids: Node[]; sizes: number[] };
-export type Box = { left: number; top: number; right: number; bottom: number };
-// The pane next to `from` in a direction: it must lie past that edge and share some of the
-// other axis; the closest wins, then the one lined up best.
-export function nearestPane(boxes: Record<string, Box>, from: string, dir: "l" | "r" | "u" | "d"): string | null {
-  const a = boxes[from];
-  if (!a) return null;
-  const across = dir === "l" || dir === "r";
-  const gap = (b: Box) => (dir === "l" ? a.left - b.right : dir === "r" ? b.left - a.right : dir === "u" ? a.top - b.bottom : b.top - a.bottom);
-  const lap = (b: Box) => (across ? Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) : Math.min(a.right, b.right) - Math.max(a.left, b.left));
-  let best: string | null = null;
-  for (const [id, b] of Object.entries(boxes)) {
-    if (id === from || gap(b) < -1 || lap(b) <= 0) continue;
-    const cur = best && boxes[best];
-    if (!cur || gap(b) < gap(cur) - 1 || (Math.abs(gap(b) - gap(cur)) <= 1 && lap(b) > lap(cur))) best = id;
-  }
-  return best;
-}
-
-export const leaves = (n: Node): string[] => (typeof n === "string" ? [n] : n.kids.flatMap(leaves));
-// Drops ids no longer open; a split left with one child becomes that child.
-export function prune(n: Node, keep: (id: string) => boolean): Node | null {
-  if (typeof n === "string") return keep(n) ? n : null;
-  const kids: Node[] = [],
-    sizes: number[] = [];
-  n.kids.forEach((k, i) => {
-    const p = prune(k, keep);
-    if (p) (kids.push(p), sizes.push(n.sizes[i] ?? 1));
-  });
-  if (!kids.length) return null;
-  if (kids.length === 1) return kids[0];
-  // Nothing dropped: the same node, so a drag holding it keeps writing to the live layout.
-  return kids.length === n.kids.length && kids.every((k, i) => k === n.kids[i]) ? n : { dir: n.dir, kids, sizes };
-}
+import { leaves, prune, type Node } from "@lib/run/layout.ts";
+export { leaves, nearestPane, prune, type Box, type Node } from "@lib/run/layout.ts";
 
 // A workspace's key in the saved tab layouts (localStorage kz-runtabs).
 export const wsKey = (dir: string, ws: string) => `ws:${dir}:${ws}`;

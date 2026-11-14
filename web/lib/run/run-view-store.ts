@@ -1,10 +1,15 @@
-// The run workspace's chrome as React state (Zustand): the tab bar, the + and split menus, pane headers, the empty,
-// History and "running in another terminal" bodies, the key hint and the project notes list. The old code
-// (web/board/run-view.ts) owns the terminals, frames and layout tree; it publishes this snapshot on every draw and
-// answers the callbacks below. Nothing here touches a pane element, so a redraw never moves a live terminal.
+// The run workspace as React state (Zustand): the tab bar, the + and split menus, the panes (terminals, Browser, notes,
+// History, "running in another terminal"), the key hint and the project notes list. The old code
+// (web/board/run-view.ts) knows which items the workspace has (from the board's cards and /shells); it publishes this
+// snapshot on every draw and answers the callbacks below. The layout (which item is in which pane, and how big) is the
+// layout store's; a pane is a component keyed by its item, so a redraw never moves a live terminal.
 import { create } from "zustand";
+import type { AnnotateOpts, AnnotatorLike } from "./browser.ts";
 
 export type RvItem = { id: string; kind: string; title: string; agent?: string };
+// One open item of the workspace: a terminal (agent, shell), the Browser (local), the Preview, a note, History, or the
+// tab that says a run's agent is open elsewhere (wait). `key` is a terminal's session key, `note` a note's name.
+export type RvPane = { id: string; kind: string; title: string; key?: string; note?: string; agent?: string };
 export type RvScreen = { id: string; title: string; first: RvItem; ids: string[]; focus: string };
 export type RvAgent = { name: string; cmd: string; yolo?: boolean; bypassDefault?: boolean };
 export type RvHistory = { k: string; title: string; state: string; line: string };
@@ -22,6 +27,9 @@ export type RunView = {
   defAgent: string;
   pty: boolean; // the server can start terminals
   titles: Record<string, string>; // pane id -> its title
+  items: RvPane[]; // every item the workspace has open
+  wsk: string | null; // the workspace shown (its layout's key); null: none, every pane is unmounted
+  ws: { dir: string; ws: string } | null;
   history: RvHistory[];
   empty: boolean;
   menu: RvMenu | null; // which add menu is open
@@ -42,6 +50,10 @@ export type RunActions = {
   openHere(runKey: string): void;
   pick(runKey: string): void;
   openNote(name: string): void;
+  termEnded(): void; // a terminal's session ended: the board reads /state again
+  currentRun(): { dir: string; id: string } | null; // the run the panel shows (the annotator sends notes to it)
+  mountPreview(el: HTMLElement): void; // draws the Preview tab into el (still the old code)
+  annotate(o: AnnotateOpts): AnnotatorLike; // the Browser tab's annotator (still the old code)
 };
 export const useRunView = create<RunView>()(() => ({
   message: null,
@@ -52,6 +64,9 @@ export const useRunView = create<RunView>()(() => ({
   defAgent: "",
   pty: true,
   titles: {},
+  items: [],
+  wsk: null,
+  ws: null,
   history: [],
   empty: false,
   menu: null,
@@ -75,6 +90,10 @@ export const run: { act: RunActions } = {
     openHere: noop,
     pick: noop,
     openNote: noop,
+    termEnded: noop,
+    currentRun: () => null,
+    mountPreview: noop,
+    annotate: () => ({ proxied: () => false, open: async () => null, toggle: noop }),
   },
 };
 export const setRunActions = (a: RunActions) => (run.act = a);

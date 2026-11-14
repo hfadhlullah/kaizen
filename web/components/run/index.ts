@@ -2,6 +2,8 @@ export * from "./file-viewer.tsx";
 export * from "./fix-host.tsx";
 export * from "./key-hint.tsx";
 export * from "./pane-header.tsx";
+export * from "./panel-grip.tsx";
+export * from "./run-panes.tsx";
 export * from "./panel-head.tsx";
 export * from "./panel-tabs.tsx";
 export * from "./project-notes.tsx";
