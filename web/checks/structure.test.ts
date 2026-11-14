@@ -186,6 +186,15 @@ test("the footer and the status strip are drawn by React, not by workspace.ts, c
   expect(readFileSync(join(web, "components/footer/foot-bar.tsx"), "utf8")).not.toMatch(/innerHTML/);
 });
 
+// The Project context pane (files, notes, terminal sessions) is React (components/context over lib/context); board/context.ts
+// only tells it the project and the sessions and wires the header's button.
+test("the Project context pane is drawn by React, not by board/context.ts", () => {
+  const src = readFileSync(join(web, "board/context.ts"), "utf8");
+  expect(src).not.toMatch(/createElement|innerHTML|replaceChildren|\.append\(/);
+  expect(src.split("\n").length).toBeLessThan(50);
+  expect(readFileSync(join(web, "html/board.html"), "utf8")).toContain('<div id="context-host"');
+});
+
 // The Notes tab (components/notes, lib/notes) and dictation (lib/dictation, the microphone button in components/shared) are
 // React and lib. board/chat.ts and board/dictation.ts are gone, panel.ts hands the notes to react.drawNotes, the host no longer
 // carries a mic, and the page's CSS keeps none of the old note-list or microphone rules (only the rules of the note editor's

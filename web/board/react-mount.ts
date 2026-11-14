@@ -36,6 +36,7 @@ import { setRailData, touchRail } from "@lib/rail";
 import { startTerminalDictation } from "@lib/dictation";
 import { BoardPopups, BoardModeSwitch, StatusButton, StatusStrip } from "@components/board";
 import { TerminalModes } from "@components/terminal";
+import { ContextPanel } from "@components/context";
 import { GitHost } from "@components/git";
 import { setGit } from "@lib/git";
 import { getSettings, loadSettings, setSettings, pageId } from "@lib/settings";
@@ -277,6 +278,8 @@ export function initReact(go: (view: string, push?: boolean) => void) {
   // The board's footer: usage, resources, the terminal count and the phone (the other pages have none).
   const foot = document.getElementById("foot");
   if (foot) createRoot(foot).render(createElement(TooltipProvider, null, createElement(FootBar)));
+  // The Project context pane, beside the board.
+  createRoot($("context-host")).render(createElement(TooltipProvider, null, createElement(ContextPanel)));
   // The Terminal page and its layout switch in the page header: both draw nothing while another view shows.
   createRoot($("terms")).render(createElement(TooltipProvider, null, createElement(TerminalPage)));
   createRoot($("tmodes")).render(createElement(TooltipProvider, null, createElement(TerminalModes)));
