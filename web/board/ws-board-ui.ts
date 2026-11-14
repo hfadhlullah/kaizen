@@ -3,7 +3,9 @@
 import { store } from "./store.ts";
 import { $ } from "./dom.ts";
 import { react } from "./views.ts";
-import { RANK, projName, railData, stateOf, subline, titleOf, wsHref, wsLabel, wsOfCard } from "./workspace.ts";
+import { RANK, projName, railData, stateOf, titleOf, wsHref, wsLabel, wsOfCard } from "./workspace.ts";
+import { taskForCard } from "./badge.ts";
+import { subline } from "@lib/phone";
 import type { WsCard } from "@lib/board";
 import { WS_COLS, cardLine, columnOf, groupWs } from "./ws-board.ts";
 
@@ -88,7 +90,7 @@ export function wsBoardData(inScope: (dir: string) => boolean): { ws: WsCard[][]
       label: wsLabel(w),
       main: !!w.main,
       project: name,
-      line: cardLine(lead, lead ? stateOf(lead) : "", lead ? subline(lead, now) : ""),
+      line: cardLine(lead, lead ? stateOf(lead) : "", lead ? subline(lead, now, taskForCard(lead)) : ""),
     });
   }
   return { ws: cols, wsNames: WS_COLS };

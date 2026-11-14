@@ -5,44 +5,18 @@
 import { onBoardCards, attentionTasks, setTaskAttention, taskForCard } from "./badge.ts";
 import { store } from "./store.ts";
 import { $, html, raw } from "./dom.ts";
-import { age, need } from "./labels.ts";
 import { openAdd, type AddOpts } from "@lib/project/add-project.ts";
-import { projName as ruleProjName, RANK as RULE_RANK, stateOf as ruleStateOf, wsLabel as ruleWsLabel, wsOfCard as ruleWsOfCard, type RailData } from "@lib/rail/rules.ts";
+import { cardHref as ruleCardHref, titleOf as ruleTitleOf, projName as ruleProjName, RANK as RULE_RANK, stateOf as ruleStateOf, wsLabel as ruleWsLabel, wsOfCard as ruleWsOfCard, type RailData } from "@lib/rail/rules.ts";
 import type { Agent } from "@lib/rail/agents.ts";
 import { initSearch, leave } from "./search.ts";
-import { dueWord, gitDue } from "./ws-tabs.ts";
 import { setToaster, toast } from "./toast.ts";
 import { kitHere, loadKit } from "../notebook/kit-loader.ts";
 
-const STAGE = ["idea", "planning", "building", "reviewing", "done"];
 // A card's state icon (.si) and the word under its title.
 export const stateOf = (c) => ruleStateOf(c, taskForCard(c));
-export function subline(c, now) {
-  const task = taskForCard(c);
-  if (task) return task.attention.reason + " · " + task.attention.action;
-  // An idle agent and no run yet: it answered, or waits for the user.
-  if (c.kind === "idea") return !c.pty?.alive ? "idea" : c.pty.asking ? "waiting on you" : c.pty.busy ? "planning · starting" : "agent · open";
-  const t = c.moved ?? now;
-  if (c.stage === "explore") return c.awaiting ? `exploring · ${need(c.awaiting)}` : `exploring · ${age(c.moved ?? now, now)}`;
-  if (c.status === "waiting") return c.awaiting ? `${STAGE[c.column] ?? "waiting"} · ${need(c.awaiting)}` : "waiting on you";
-  if (c.accept === "needs") return "done, not approved";
-  if (gitDue(c)) return `waiting on you · ${dueWord(c)}`;
-  if (c.accept === "auto") return `auto-accepted · ${age(t, now)} ago`;
-  if (c.status === "done" || c.status === "abandoned") return `${c.status} · ${age(t, now)} ago`;
-  if (c.status === "stalled") return `stalled · ${age(t, now)}`;
-  return `${STAGE[c.column] ?? c.status} · ${age(t, now)}`;
-}
-export const titleOf = (c) => (c.title || c.text || "").split("\n")[0];
+export const titleOf = ruleTitleOf;
 export const projName = ruleProjName;
-export const logo = (dir, name, projects) => {
-  const ini = html`<span class="plogo" aria-hidden="true">${(name || "?").charAt(0).toUpperCase()}</span>`;
-  return projects?.some((p) => p.dir === dir && p.logo)
-    ? html`<img class="plogo" src="/project-logo?dir=${encodeURIComponent(dir)}" alt="" loading="lazy" onerror="this.outerHTML=this.dataset.f" data-f="${String(ini)}">`
-    : ini;
-};
-// A card's address: its run workspace (?view=run&dir=&id=, or &idea= for a task).
-export const cardHref = (c) =>
-  `/?view=run&dir=${encodeURIComponent(c.state)}&` + (c.kind === "run" ? "id=" + encodeURIComponent(c.id) : "idea=" + encodeURIComponent(c.text));
+export const cardHref = ruleCardHref;
 
 let last: { cards: any[]; projects?: any[]; agents?: Agent[] } = { cards: [] };
 // Where the Projects list lives: the board registers its own store, the Notebook page the loaded kit's.

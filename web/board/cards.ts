@@ -7,7 +7,7 @@ import { store } from "./store.ts";
 import { $, html, ico } from "./dom.ts";
 import { draft } from "./drafts.ts";
 import { COLS, ICON, WORD } from "./labels.ts";
-import { isPhone } from "./phone.ts";
+import { isPhone } from "@lib/core";
 import { showable } from "./projects.ts";
 import { setProjectBar } from "@lib/project";
 import { termsBadge } from "./terms.ts";

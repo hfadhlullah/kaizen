@@ -1,10 +1,22 @@
 import { useEffect, useRef, useState } from "react";
+import { cn } from "@lib/core";
 import { run, termLoad } from "@lib/run";
 
 // A terminal tab: xterm.js (dist/term.js) mounted once in a div React never draws into. It lives as long as its tab:
 // a redraw, a tab switch or a /state tick never reconnects it, and its own ResizeObserver refits it when the pane
-// resizes or appears.
-export function TerminalPane({ sessionKey }: { sessionKey: string }) {
+// resizes or appears. `onEnd` says when the session ends (the run workspace reloads its tab list by default) and `focus`
+// puts the cursor in the terminal once it is up.
+export function TerminalPane({
+  sessionKey,
+  onEnd = () => run.act.termEnded(),
+  focus,
+  className,
+}: {
+  sessionKey: string;
+  onEnd?: () => void;
+  focus?: boolean;
+  className?: string;
+}) {
   const el = useRef<HTMLDivElement>(null),
     [failed, setFailed] = useState(false);
   useEffect(() => {
@@ -12,7 +24,12 @@ export function TerminalPane({ sessionKey }: { sessionKey: string }) {
       gone = false;
     termLoad().then(
       (mount) => {
-        if (!gone) off = mount(el.current!, sessionKey, () => run.act.termEnded());
+        if (gone) return;
+        off = mount(el.current!, sessionKey, onEnd);
+        if (focus)
+          requestAnimationFrame(() =>
+            el.current?.querySelector<HTMLElement>(".xterm-helper-textarea")?.focus({ preventScroll: true }),
+          );
       },
       () => setFailed(true),
     );
@@ -23,7 +40,7 @@ export function TerminalPane({ sessionKey }: { sessionKey: string }) {
   }, [sessionKey]);
   return (
     // kz-keep: the terminal's own bar and search (term.js) are styled by the board's CSS, which the kit's preflight would reset.
-    <div ref={el} className="term kz-keep min-h-0 flex-1">
+    <div ref={el} className={cn("term kz-keep min-h-0 flex-1", className)}>
       {failed && "The terminal could not load."}
     </div>
   );

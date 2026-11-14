@@ -11,3 +11,6 @@ export const portalRoot = () =>
   typeof document === "undefined"
     ? undefined
     : (document.getElementById("kz-portal") ?? document.getElementById("kz-kit") ?? undefined);
+
+// Phone width: under it the board shows Home and Runs pages, and the Home window opens full screen.
+export const isPhone = () => matchMedia("(max-width:640px)").matches;

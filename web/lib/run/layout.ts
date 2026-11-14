@@ -2,6 +2,8 @@
 // tmux-style tree: a leaf is an item id, a split holds two or more children side by side ("cols") or stacked ("rows")
 // with their relative sizes. Every function returns a new value (or the same one when nothing changed), so the layout
 // store can compare by identity and React can draw each pane from its rectangle without moving any pane element.
+// A workspace's key in the saved layouts (localStorage kz-runtabs).
+export const wsKey = (dir: string, ws: string) => `ws:${dir}:${ws}`;
 export type Dir = "cols" | "rows";
 export type Node = string | { dir: Dir; kids: Node[]; sizes: number[] };
 export type Screen = { id: string; tree: Node; focus: string };

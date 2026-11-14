@@ -1,14 +1,21 @@
-import { markOf, useHomeWsMenu } from "@lib/project";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, Icon } from "@web/ui";
+import { markOf, readHomeAgents, startHomeShell, useHomeWs } from "@lib/home";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  Icon,
+} from "@web/ui";
 import { IconButton } from "@components/shared";
 
-// The Home window's "+": a menu of the agents that can start in the Home folder, then Shell.
+// The Home window's "+": a menu of the agents that can start in the Home folder, then Shell. It reads the agents when it opens.
 export function HomeWsAdd() {
-  const { agents, dflt, open, start } = useHomeWsMenu();
+  const { agents, dflt } = useHomeWs();
   const row = (cmd: string, name: string, note: string, icon: string) => (
     <DropdownMenuItem
       key={cmd || "shell"}
-      onSelect={() => start(cmd || undefined)}
+      onSelect={() => void startHomeShell(cmd || undefined)}
       className="items-start gap-2.5 px-2.5 py-1.5 text-foreground"
     >
       <Icon name={icon} className="mt-0.5 size-4" />
@@ -19,7 +26,7 @@ export function HomeWsAdd() {
     </DropdownMenuItem>
   );
   return (
-    <DropdownMenu onOpenChange={(o) => o && void open()}>
+    <DropdownMenu onOpenChange={(o) => o && void readHomeAgents()}>
       <DropdownMenuTrigger asChild>
         <IconButton icon="plus" label="New tab" className="size-(--btn-xs) max-[640px]:size-10" />
       </DropdownMenuTrigger>

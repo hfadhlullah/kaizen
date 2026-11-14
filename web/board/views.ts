@@ -5,7 +5,8 @@ import { openSettings } from "./settings.ts";
 import { openTerms, termsStop } from "./terms.ts";
 import { openHome } from "./home.ts";
 import { initRunView, openWorkspace, runStop, showRunView } from "./run-view.ts";
-import { initPhone, isPhone, openPhone } from "./phone.ts";
+import { isPhone } from "@lib/core";
+import { openPhone } from "@lib/phone";
 
 // The React pages (react-mount.ts) register here from main.ts, so the notebook and Video bundles, which share
 // this module, carry no React.
@@ -157,7 +158,6 @@ export function initViews() {
   };
   react.init(go);
   initRunView();
-  initPhone(go, openWorkspace);
   document.querySelectorAll(".rail a[data-view]").forEach((a) => {
     if (a.dataset.view === "notes" || a.dataset.view === "video") return;
     a.onclick = (e) => {

@@ -10,13 +10,7 @@ import { navigateTask, showTask } from "@lib/task";
 import { closeForm as closeBoardForm, closeNewForm, getBoard, setBoard, type BoardSnap, type Popup } from "@lib/board";
 import { setPanel, type Panel, resumeRun, decided } from "@lib/run";
 import { UpdateCard } from "@components/settings";
-import {
-  AddProjectDialog,
-  WsMenu,
-  HomeWsAdd,
-  ProjectPicker,
-  ShowingPicker,
-} from "@components/project";
+import { AddProjectDialog, WsMenu, ProjectPicker, ShowingPicker } from "@components/project";
 import {
   FileViewer,
   FixHost,
@@ -31,8 +25,8 @@ import {
   RunFooter,
 } from "@components/run";
 import { SearchPalette } from "@components/search";
-import { OnboardingDialog } from "@components/home";
-import { PhoneSheets } from "@components/phone";
+import { HomeWindow, HomeWsButton, HomeWsRow, OnboardingDialog } from "@components/home";
+import { Haptic, PhonePage, PhoneSheets } from "@components/phone";
 import { AskHost } from "@components/shared";
 import { RailFilter, RailList } from "@components/rail";
 import { ResourcesButton } from "@components/resources";
@@ -158,7 +152,7 @@ export { closeNewForm };
 // The run workspace's chrome (run-view.ts publishes it through lib/run/run-view-store.ts). A root lives in an element the old
 // code keeps (the tab bar, the empty note, the notes list) and never in a pane, so no live terminal is touched.
 // `display: contents` leaves the old container's layout rules in charge of where each piece sits.
-const bits = { hwsadd: HomeWsAdd, projects: ProjectPicker, showing: ShowingPicker, tabs: RunTabs, panes: RunPanes, grip: PanelGrip, notes: ProjectNotes, ptabs: PanelTabs, head: PanelHead, picker: RunPicker, mode: BoardModeSwitch };
+const bits = { projects: ProjectPicker, showing: ShowingPicker, tabs: RunTabs, panes: RunPanes, grip: PanelGrip, notes: ProjectNotes, ptabs: PanelTabs, head: PanelHead, picker: RunPicker, mode: BoardModeSwitch };
 export function mountRunPart(el: HTMLElement, part: keyof typeof bits, id = ""): () => void {
   const host = document.createElement("div");
   host.className = "kz-ui";
@@ -182,7 +176,7 @@ export function initReact(go: (view: string, push?: boolean) => void) {
   createRoot(toaster).render(createElement(Toaster));
   const popups = document.createElement("div");
   portal.append(popups);
-  createRoot(popups).render(createElement(TooltipProvider, null, createElement(BoardPopups), createElement(AskHost), createElement(PhoneSheets), createElement(OnboardingDialog), createElement(SearchPalette), createElement(FileViewer), createElement(WsMenu), createElement(AddProjectDialog), createElement(UpdateCard), createElement(FixHost), createElement(GitHost), createElement(KeyHint)));
+  createRoot(popups).render(createElement(TooltipProvider, null, createElement(BoardPopups), createElement(AskHost), createElement(PhoneSheets), createElement(OnboardingDialog), createElement(SearchPalette), createElement(FileViewer), createElement(WsMenu), createElement(AddProjectDialog), createElement(UpdateCard), createElement(FixHost), createElement(GitHost), createElement(KeyHint), createElement(HomeWindow), createElement(HomeWsButton), createElement(Haptic)));
   setToaster(toast);
   setHost({
     go,
@@ -247,6 +241,13 @@ export function initReact(go: (view: string, push?: boolean) => void) {
   // The side menu's Projects list and filter, and the footer's resource button: roots inside the page's own static elements.
   // The list lives in the legacy layer (no kz-ui host), its popups in #kz-portal.
   connectRail({ set: setRailData, touch: touchRail });
+  // A phone's Home and Runs pages fill #phome, which stays in the page for the body class that shows it.
+  createRoot($("phome")).render(createElement(TooltipProvider, null, createElement(PhonePage)));
+  // The minimized Home window: the first row of the Projects list, in a host above the list so the list's redraws never drop it.
+  const slot = document.createElement("div");
+  slot.style.display = "contents";
+  $("plist").before(slot);
+  createRoot(slot).render(createElement(HomeWsRow));
   for (const [id, part] of [["plist", RailList], ["pfilter-host", RailFilter], ["res-host", ResourcesButton]] as const) {
     const el = document.getElementById(id);
     if (el) createRoot(el).render(createElement(TooltipProvider, null, createElement(part)));

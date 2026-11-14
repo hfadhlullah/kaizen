@@ -10,7 +10,7 @@
 // Terminal page's handles. The panes, their layout and the Browser tab are React (components/run/run-panes.tsx, the
 // layout in lib/run/layout-store.ts); this module knows which items the workspace has, starts and ends sessions, and
 // answers the keyboard.
-import { ask } from "@lib/core";
+import { ask, isPhone } from "@lib/core";
 import { pick } from "./projects.ts";
 import { store } from "./store.ts";
 import { toast } from "./toast.ts";
@@ -23,7 +23,6 @@ import { cardHref, markCurrent, railData, stateOf, titleOf, wsHref, wsOfCard } f
 import { awaiting, chosen, devUrl, dueWord, finished, gitDue, historyOf, leaves, liveIn, loopbackUrl, migrate, newRun, pickable, previewIn, previewOpens, reviewing, stageTabs, toOpen, wsKey } from "./ws-tabs.ts";
 import { age } from "./labels.ts";
 import { go } from "./views.ts";
-import { isPhone } from "./phone.ts";
 import { annotator } from "./annotate.ts";
 import { react } from "./views.ts";
 import { boxesOf, detach, focusItem, keepUrl, layoutOf, moveInLayout, nearestPane, openAppWindow, patch, placeItems, refreshPreview, replaceAll, requestBrowse, clearBrowse, rects, selectScreen, setDragging, setRunActions, setRunView, setTarget, showItem, useLayout, type Saved, type SavedTab } from "@lib/run";

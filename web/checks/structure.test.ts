@@ -144,6 +144,19 @@ test("run-view.ts builds no pane, gutter, frame or terminal element and keeps no
   expect(ui).not.toMatch(/\.rtree|\.rgut|\.rdrop|id="rgrip"/);
 });
 
+// The floating Home window and the phone's Home and Runs pages are React (components/home, components/phone; state and rules
+// in lib/home, lib/phone). board/home-ws.ts only wires the events the old code sees and board/phone.ts is gone; neither
+// builds markup, and the page's own CSS keeps none of their old rules.
+test("the Home window and the phone pages are drawn by React, not by board/ modules or board.html", () => {
+  expect(existsSync(join(web, "board/phone.ts"))).toBe(false);
+  const ws = readFileSync(join(web, "board/home-ws.ts"), "utf8");
+  expect(ws).not.toMatch(/innerHTML|insertAdjacentHTML|createElement|\$\(["']hws/);
+  const css = readFileSync(join(web, "html/board.html"), "utf8");
+  expect(css).not.toMatch(/\.hws\{|\.hwsh|\.hwstab|\.hwsb\b|\.hwsbtn|\.pag\{|\.pdev\b|\.prow\b|\.pslide|\.pmore|\.psec2|\.pusage|#phome h3/);
+  // The Home window's terminal is the run view's TerminalPane, not a second way to mount xterm.
+  expect(readFileSync(join(web, "components/home/home-window.tsx"), "utf8")).toMatch(/<TerminalPane/);
+});
+
 // ---- feature folders: components/<feature>/ and lib/<feature>/ ----
 // Only folders live directly under components/ and lib/; none grows past MAX_FILES source files (*.test.ts sit beside the
 // code they test and are not counted; split by feature instead); each

@@ -3,7 +3,7 @@
 // /popup/handoff. The page (pages/home-page.tsx) only reads and calls these.
 import { create } from "zustand";
 import { flushSync } from "react-dom";
-import { ask, host, toast } from "@lib/core";
+import { ask, host, isPhone, toast } from "@lib/core";
 import { applyEvent, fits, lines, readLine, type Chat, type ListedChat, type Msg } from "./home.ts";
 
 type Home = {
@@ -16,13 +16,12 @@ type Home = {
   here: string | null; // the project a new chat starts in: the board's, unless it shows every project or none
   tick: number; // bumped to draw the open chat again after a change made in place
 };
-const phone = () => matchMedia("(max-width:640px)").matches;
 // The chat list: open or closed, kept per browser. A phone opens it as a drawer, closed at first.
 const sideAtStart = () => {
   try {
-    return !phone() && localStorage.getItem("kz-hist") !== "0";
+    return !isPhone() && localStorage.getItem("kz-hist") !== "0";
   } catch {
-    return !phone();
+    return !isPhone();
   }
 };
 export const useHome = create<Home>()(() => ({
@@ -62,7 +61,7 @@ const follow = (d: string | null | undefined) => d && d !== host.currentDir() &&
 
 export function setSide(on: boolean) {
   setHome({ side: on });
-  if (!phone())
+  if (!isPhone())
     try {
       localStorage.setItem("kz-hist", on ? "1" : "0");
     } catch {}
@@ -86,7 +85,7 @@ export function newChat() {
   clearTimeout(poll);
   remember(null);
   void vt(() =>
-    setHome({ cur: null, files: [], remoteBusy: false, side: phone() ? false : s.side, here: hereNow() }),
+    setHome({ cur: null, files: [], remoteBusy: false, side: isPhone() ? false : s.side, here: hereNow() }),
   ).then(() => document.getElementById("hq")?.focus());
 }
 export async function show(id: string) {

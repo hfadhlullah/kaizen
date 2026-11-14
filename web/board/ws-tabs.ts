@@ -4,11 +4,9 @@
 // A screen's layout is a tmux-style tree (lib/run/layout.ts, no DOM there); re-exported so the board code and its
 // tests keep their imports.
 import { gitDue } from "@lib/rail/rules.ts";
-import { leaves, prune, type Node } from "@lib/run/layout.ts";
-export { leaves, nearestPane, prune, type Box, type Node } from "@lib/run/layout.ts";
+import { leaves, prune, wsKey, type Node } from "@lib/run/layout.ts";
+export { leaves, nearestPane, prune, wsKey, type Box, type Node } from "@lib/run/layout.ts";
 
-// A workspace's key in the saved tab layouts (localStorage kz-runtabs).
-export const wsKey = (dir: string, ws: string) => `ws:${dir}:${ws}`;
 // A run that is over: abandoned, or done and neither waiting on an approval nor on its commit. It is History.
 export const finished = (c) => c.kind === "run" && (c.status === "abandoned" || (c.status === "done" && c.accept !== "needs" && !gitDue(c)));
 const here = (c, dir: string, ws: string, wsOfCard) => c.state === dir && wsOfCard(c) === ws;

@@ -68,6 +68,12 @@ export function stateOf(c, task?: RailTask | null) {
 export const listed = (c, now: number) =>
   !c.archived &&
   (c.kind === "idea" ? !!c.pty : !["done", "abandoned"].includes(c.status) || now - (c.moved ?? 0) < DAY);
+// A card's title: its first line.
+export const titleOf = (c) => (c.title || c.text || "").split("\n")[0];
+// A card's address: its run workspace (?view=run&dir=&id=, or &idea= for a task).
+export const cardHref = (c) =>
+  `/?view=run&dir=${encodeURIComponent(c.state)}&` +
+  (c.kind === "run" ? "id=" + encodeURIComponent(c.id) : "idea=" + encodeURIComponent(c.text));
 export const projName = (dir: string, projects?: any[]) => {
   const l = projects?.find((p) => p.dir === dir)?.label || dir.replace(/[\\/]\.kaizen$/, "");
   return l.split(/[\\/]/).pop() || l;

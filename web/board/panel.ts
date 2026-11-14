@@ -10,7 +10,7 @@ import { ICON, WORD, need } from "./labels.ts";
 import { attach, brief, md, preview, progress } from "./markdown.ts";
 import { toast } from "./toast.ts";
 import { react, view } from "./views.ts";
-import { isPhone } from "./phone.ts";
+import { isPhone } from "@lib/core";
 import { openWorkspace } from "./run-view.ts";
 import type { Head } from "@lib/run";
 
