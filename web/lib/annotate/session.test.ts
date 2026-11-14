@@ -175,13 +175,17 @@ test("Send types the notes into the run's agent (crops included), Copy asks for 
   off();
 });
 
-test("the marker colour is pushed to the page at once; the other settings only when the next config goes out", async () => {
+test("the colour, blocking and component names reach the page at once; the other settings when the next config goes out", async () => {
   const { a, off } = make();
   a.toggle();
   await a.open("http://localhost:3000/");
   const n = said.length;
-  a.setting("block", false);
+  a.setting("clear", false);
   expect(said.length).toBe(n);
+  a.setting("block", false);
+  expect(said.at(-2)).toMatchObject({ type: "config", cfg: { block: false } });
+  a.setting("components", false);
+  expect(said.at(-2)).toMatchObject({ type: "config", cfg: { components: false } });
   a.setting("color", "#ff0000");
   expect(said.at(-2)).toMatchObject({ type: "config", cfg: { color: "#ff0000", block: false } });
   off();

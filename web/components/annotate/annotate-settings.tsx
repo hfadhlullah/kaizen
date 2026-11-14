@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { LEVELS, type Annotator } from "@lib/annotate";
 import { Checkbox, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@web/ui";
 
@@ -13,6 +13,19 @@ function Flag({ ann, k, label }: { ann: Annotator; k: "components" | "clear" | "
       </span>
     </Label>
   );
+}
+
+// The colour is taken when the picker closes (the input's own `change`), not on every step of a drag: each one would be
+// saved and would repaint the framed page.
+function Color({ ann, value }: { ann: Annotator; value: string }) {
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const el = ref.current!,
+      done = () => ann.setting("color", el.value);
+    el.addEventListener("change", done);
+    return () => el.removeEventListener("change", done);
+  }, []);
+  return <input ref={ref} type="color" defaultValue={value} key={value} />;
 }
 
 // Output detail, marker colour and behaviour, at the top of the notes list; each change is saved at once.
@@ -38,7 +51,7 @@ export function AnnotateSettings({ ann }: { ann: Annotator }): ReactNode {
       <Flag ann={ann} k="components" label="Component names" />
       <Label className={row}>
         Marker colour
-        <input type="color" value={s.color} onChange={(e) => ann.setting("color", e.target.value)} />
+        <Color ann={ann} value={s.color} />
       </Label>
       <Flag ann={ann} k="clear" label="Clear after copy or send" />
       <Flag ann={ann} k="block" label="Block page clicks while picking" />

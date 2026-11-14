@@ -172,12 +172,12 @@ export function createAnnotator(o: AnnotatorOpts) {
     clear,
     copy,
     send,
-    // A setting changed: saved at once; the colour is the only one the page draws with right away.
+    // A setting changed: saved at once; the page is told the ones it acts on (colour, blocking, component names).
     setting(k: keyof Settings, v: string | boolean) {
       const settings = { ...get().settings, [k]: v };
       set({ settings });
       saveSettings(settings);
-      if (k === "color") push();
+      if (k === "color" || k === "block" || k === "components") push();
     },
     removeNote(n: number) {
       setNotes(without(get().notes, n));
