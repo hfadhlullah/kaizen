@@ -16,6 +16,13 @@ import { setStore } from "../lib/store.ts";
 import { BoardPopups } from "../components/board-popups.tsx";
 import { FixHost } from "../components/fix-host.tsx";
 import { GitHost } from "../components/git-tab.tsx";
+import { KeyHint } from "../components/key-hint.tsx";
+import { PaneHeader } from "../components/pane-header.tsx";
+import { ProjectNotes } from "../components/project-notes.tsx";
+import { RunEmpty } from "../components/run-empty.tsx";
+import { RunHistory } from "../components/run-history.tsx";
+import { RunTabs } from "../components/run-tabs.tsx";
+import { RunWait } from "../components/run-wait.tsx";
 import { setGit } from "../lib/git-store.ts";
 import { RunFooter } from "../components/run-footer.tsx";
 import { BoardPage } from "../pages/board-page.tsx";
@@ -91,6 +98,20 @@ export const answered = () => [...decided];
 export const resumeCard = resumeRun;
 export const formOpen = () => !!getBoard().form;
 export const closeForm = closeBoardForm;
+// The run workspace's chrome (run-view.ts publishes it through lib/run-view-store.ts). A root lives in an element the old
+// code keeps (the tab bar, the empty note, the notes list) and never in a pane, so no live terminal is touched.
+// `display: contents` leaves the old container's layout rules in charge of where each piece sits.
+const bits = { tabs: RunTabs, empty: RunEmpty, notes: ProjectNotes, header: PaneHeader, history: RunHistory, wait: RunWait };
+export function mountRunPart(el: HTMLElement, part: keyof typeof bits, id = ""): () => void {
+  const host = document.createElement("div");
+  host.className = "kz-ui";
+  host.style.display = "contents";
+  el.append(host);
+  const root = createRoot(host);
+  root.render(createElement(TooltipProvider, null, createElement(bits[part] as any, { id })));
+  // Unmounted on the next tick: a pane's × runs inside React's own event handler.
+  return () => void queueMicrotask(() => (root.unmount(), host.remove()));
+}
 export function openTaskPage() {
   mount("taskpagev", TaskPage);
   showTask();
@@ -104,7 +125,7 @@ export function initReact(go: (view: string, push?: boolean) => void) {
   createRoot(toaster).render(createElement(Toaster));
   const popups = document.createElement("div");
   portal.append(popups);
-  createRoot(popups).render(createElement(TooltipProvider, null, createElement(BoardPopups), createElement(FixHost), createElement(GitHost)));
+  createRoot(popups).render(createElement(TooltipProvider, null, createElement(BoardPopups), createElement(FixHost), createElement(GitHost), createElement(KeyHint)));
   setToaster(toast);
   setHost({
     go,

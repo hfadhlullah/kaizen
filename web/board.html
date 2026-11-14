@@ -173,7 +173,7 @@ html.desk :is(.hdr,.rail>.top) :is(button,a,input,select,textarea,.combo,.sel,.b
 html.desk{--wco:max(0px,calc(100vw - env(titlebar-area-x,0px) - env(titlebar-area-width,100vw)));--wch:env(titlebar-area-height,0px)}
 html.desk .hdr{padding-right:calc(16px + var(--wco))}
 html.desk #rbar{padding-right:calc(6px + var(--wco));-webkit-app-region:drag}
-html.desk #rbar :is(button,summary,details,a,input,select,.rtab,[role=button]){-webkit-app-region:no-drag}
+html.desk #rbar :is(button,summary,details,a,input,select,[role=button],[role=tab]){-webkit-app-region:no-drag}
 html.desk body.runv #panel>header{padding-right:calc(12px + var(--wco))}
 html.desk body.runv .pstrip{padding-top:calc(10px + var(--wch))}
 html.desk.mac .rail>.top{padding-top:22px}
@@ -423,11 +423,6 @@ aside.wide{width:100%;border-left:0}@media(min-width:901px){aside.wide{width:62%
 .ftr .strip .attn{color:var(--ink);background:color-mix(in srgb,var(--warn) 18%,transparent);box-shadow:inset 0 0 0 1px var(--warn)}.ftr .strip .attn:hover,.ftr .strip .attn.on{background:color-mix(in srgb,var(--warn) 30%,transparent)}.ftr .strip .attn svg{color:var(--warn)}.ftr .st svg{width:12px;height:12px}
 .ftr a{color:var(--dim);cursor:pointer;white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center;gap:5px}.ftr a>svg{width:13px;height:13px}.ftr a:hover{color:var(--ink)}
 
-#keyhint{position:fixed;left:50%;bottom:44px;transform:translateX(-50%);z-index:60;display:flex;flex-wrap:wrap;justify-content:center;gap:6px 16px;width:max-content;max-width:calc(100vw - 32px);padding:9px 14px;font-size:12px;color:var(--ink);background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r-l);box-shadow:0 8px 24px rgba(0,0,0,.35);animation:keyhint .12s ease-out}
-#keyhint span{display:flex;align-items:center;gap:6px;white-space:nowrap}
-#keyhint kbd{padding:2px 6px;font:11px var(--mono);color:var(--ink-hi);border:1px solid var(--line);border-radius:var(--r-xs)}
-@keyframes keyhint{from{opacity:0;transform:translate(-50%,4px)}}
-@media (prefers-reduced-motion:reduce){#keyhint{animation:none}}
 /* the flat footer under everything: agent usage, refresh; terminal count and phone on the right */
 @media(min-width:641px){body{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:minmax(0,1fr) auto}.rail{grid-area:1/1}.app{grid-area:1/2}#context{grid-area:1/3}.foot{grid-area:2/1/3/-1}.app{margin-bottom:0}#context{margin-bottom:0}}
 .foot{display:flex;align-items:center;gap:14px;padding:5px 12px;font-size:12px;color:var(--dim);min-width:0;white-space:nowrap}
@@ -515,9 +510,6 @@ body.runv .hdr,body.runv #board,body.runv .ftr,body.runv #terms,body.runv #home,
 body.runv .app{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:minmax(0,1fr);margin-right:8px!important}body.runv #pfoot{min-width:0;flex-wrap:wrap}body.runv #pfoot .note{flex:1 1 100%;white-space:normal;min-width:0}
 body.runv #runv{grid-area:1/1;display:flex;flex-direction:column;min-width:0;min-height:0}
 #rtabs{display:flex;align-items:center;gap:2px;height:var(--tabbar);min-height:var(--tabbar);padding:0 6px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0}#rtabs .sp{flex:1}#rbar{display:flex;align-items:center;flex:none;border-bottom:1px solid var(--line);padding-right:6px}
-.rtab{display:flex;gap:var(--gap);align-items:center;height:var(--row);padding:0 12px;border-radius:var(--r-s);color:var(--dim);white-space:nowrap}.rtab:hover{color:var(--ink)}.rtab svg{width:var(--ico);height:var(--ico)}.rtab.on{color:var(--ink);background:var(--hover)}.rtab.sec{color:var(--ink);box-shadow:inset 0 -2px var(--line)}
-#rtabs .rtab span:not(.si){max-width:180px;overflow:hidden;text-overflow:ellipsis}
-.rtab i{font-style:normal;opacity:.5;padding:0 3px;margin-left:2px}.rtab i:hover{opacity:1}
 /* the floating Home workspace (web/board/home-ws.ts): agents in kaizen's own folder, over every view; minimized to a row above the projects */
 .hws{position:fixed;z-index:35;right:16px;bottom:calc(var(--foot-h,0px) + 16px);width:min(760px,calc(100vw - 32px));height:min(480px,calc(100vh - 96px));min-width:360px;min-height:220px;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);display:flex;flex-direction:column;overflow:hidden;resize:both;background:var(--bg-2);color:var(--ink);border:1px solid var(--line);border-radius:var(--r-l);box-shadow:var(--shadow-2),0 18px 48px -12px var(--shade)}.hws[hidden]{display:none}
 .hws.max{inset:8px!important;width:auto!important;height:auto!important;max-width:none;max-height:none;resize:none}
@@ -566,7 +558,6 @@ body.runv #panel.pn #pbody,body.runv #panel.pn #pfoot{display:none}body.runv #pa
 #panel.ro #pfoot :is([data-a=archive],[data-a=restore],[data-a=resume],[data-a=ab],[data-a=accept]){display:none}
 .rstage{flex:1;min-height:0;min-width:0;display:flex;flex-direction:column}.rstage .term{flex:1;min-width:0;min-height:0;padding:6px 0 0 8px}.rdoc{flex:1;overflow:auto;padding:16px 24px}
 .rhist{padding:12px 18px;overflow:auto;flex:1}.rrow{display:grid;grid-template-columns:18px 1fr auto;gap:10px;align-items:center;width:100%;text-align:left;padding:7px 9px;border-radius:var(--r-s)}.rrow:hover{background:var(--hover)}.rrow small{color:var(--dim);font-size:11.5px}.rrow b{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.rtab .si{flex:none}
 body.runv #panel.parked,body.runv.rflip #panel.parked{display:none}
 #rside[hidden]{display:none}
 #rside{position:relative}#rside[data-dot]::after{content:"";position:absolute;top:4px;right:4px;width:8px;height:8px;border-radius:50%;background:var(--warn);box-shadow:0 0 0 2px var(--canvas)}
@@ -583,16 +574,16 @@ body.runv #panel.parked,body.runv.rflip #panel.parked{display:none}
 /* hidden by width, not display, so it slides like the rail */
 @media(min-width:641px){body.runv.rflip #panel{width:0!important}body.runv #panel{grid-template-columns:calc(var(--rpanel-w,340px) - 44px) 44px}body.runv:not(.rflip) #rgrip{display:block;position:absolute;z-index:3;top:0;bottom:0;left:0;width:8px;cursor:col-resize;touch-action:none}body.runv #rgrip:hover,body.rdrag #rgrip{background:linear-gradient(90deg,var(--line),transparent)}body.rdrag{user-select:none}body.rdrag #panel{transition:none}}
 #rgrip{display:none}
-@media(max-width:640px){body.runv .app{grid-template-columns:minmax(0,1fr)}.rsplit{display:none}body.runv #panel{display:none}body.runv.rflip #pclose{display:grid}body.runv.rflip #panel{display:grid;position:fixed!important;inset:auto 0 0 0!important;height:80%;width:auto!important;z-index:15!important;padding:18px 0 env(safe-area-inset-bottom);background:var(--bg-2);box-shadow:0 0 0 100vmax rgb(0 0 0/.4);border-radius:14px 14px 0 0;transition:translate .18s;animation:sheet .2s}
+@media(max-width:640px){body.runv .app{grid-template-columns:minmax(0,1fr)}body.runv #panel{display:none}body.runv.rflip #pclose{display:grid}body.runv.rflip #panel{display:grid;position:fixed!important;inset:auto 0 0 0!important;height:80%;width:auto!important;z-index:15!important;padding:18px 0 env(safe-area-inset-bottom);background:var(--bg-2);box-shadow:0 0 0 100vmax rgb(0 0 0/.4);border-radius:14px 14px 0 0;transition:translate .18s;animation:sheet .2s}
 /* the grab handle: the sheet follows a finger down and closes (run-view.ts) */
 body.runv.rflip #panel::before{content:"";position:absolute;top:7px;left:50%;width:36px;height:4px;margin-left:-18px;border-radius:2px;background:var(--line)}body.runv.rflip #panel>.body{overscroll-behavior:contain;scrollbar-width:none}body.runv.rflip #panel>.body::-webkit-scrollbar{display:none}body .prog .ph{display:flex;justify-content:space-between;gap:8px}body.runv.rflip #panel>header{padding-top:8px}body.runv.rflip .rmeta{max-width:64px}
-#rtabs .rtab span{max-width:110px;overflow:hidden;text-overflow:ellipsis}}
+}
 /* A phone: the panel is a sheet opened from the run tab (#rside); compact tabs */
-@media(max-width:640px){body.runv #rbar{height:40px;min-height:40px;padding:0 10px 4px 10px;border-bottom:1px solid var(--line)}body.runv #rtabs{height:36px;min-height:36px;padding:0;gap:4px}body.runv #rtabs .rtab{min-height:32px;height:32px;padding:0 10px;font-size:12px;border-radius:var(--r-s)}body.runv #rtabs .rtab i{padding:0 2px 0 6px}body.runv #rbar :is(.rbtn,.ib.xs){min-height:32px;height:32px;min-width:32px;width:32px;padding:0;border-radius:var(--r-s)}body.runv #rbar :is(.rbtn,.ib.xs) svg{width:16px;height:16px}body.runv #pnotes{width:44px;height:44px}body.runv #pfoot details button{min-height:44px}body .termtools button{min-width:40px;min-height:40px}body.runv #ptabs button{width:44px;height:44px}body.runv #pclose{width:44px;height:44px}body.runv #pfoot .btn{min-height:44px}}
+@media(max-width:640px){body.runv #rbar{height:40px;min-height:40px;padding:0 10px 4px 10px;border-bottom:1px solid var(--line)}body.runv #rtabs{height:36px;min-height:36px;padding:0;gap:4px}body.runv #rbar :is(.rbtn,.ib.xs){min-height:32px;height:32px;min-width:32px;width:32px;padding:0;border-radius:var(--r-s)}body.runv #rbar :is(.rbtn,.ib.xs) svg{width:16px;height:16px}body.runv #pnotes{width:44px;height:44px}body.runv #pfoot details button{min-height:44px}body .termtools button{min-width:40px;min-height:40px}body.runv #ptabs button{width:44px;height:44px}body.runv #pclose{width:44px;height:44px}body.runv #pfoot .btn{min-height:44px}}
 /* Phone workspace tabs in the Orca style too: flat, an underline under the active one, × at the end, finger-sized. */
-@media(max-width:640px){body.runv #rbar{padding-bottom:0}body.runv #rtabs{height:40px;min-height:40px;align-items:stretch;gap:0}body.runv #rtabs>:not(.rtab){align-self:center}body.runv #rtabs .rtab{height:auto;min-height:0;border-radius:0;background:none;color:var(--dim);gap:6px;padding:0 2px 0 10px}body.runv #rtabs .rtab i{display:grid;place-items:center;width:28px;height:28px;padding:0;margin-left:auto;opacity:.6}body.runv #rtabs .rtab.on{color:var(--ink-hi);background:none;box-shadow:inset 0 -2px var(--ink-hi)}}
+@media(max-width:640px){body.runv #rbar{padding-bottom:0}body.runv #rtabs{height:40px;min-height:40px;align-items:stretch;gap:0}}
 /* Workspace tabs as Orca's: flat, the bar's full height, an underline under the active one, × at the end. */
-@media(min-width:641px){#rtabs{align-items:stretch;gap:0}html body.runv #rtabs{padding-top:0;padding-bottom:0}#rtabs>:not(.rtab){align-self:center}#rtabs>.rtab+:not(.rtab){margin-left:4px}#rtabs .rtab{height:auto;min-width:140px;max-width:240px;padding:0 8px 0 12px;gap:8px;border-radius:0;background:none;color:var(--dim)}#rtabs .rtab span:not(.si){flex:1;min-width:0;max-width:none;text-align:left}#rtabs .rtab i{margin-left:auto;padding:0 4px;opacity:0}#rtabs .rtab:hover i,#rtabs .rtab.on i,#rtabs .rtab i:focus-visible{opacity:.6}#rtabs .rtab i:hover{opacity:1}#rtabs .rtab:hover{color:var(--ink);background:var(--hover)}#rtabs .rtab.on{color:var(--ink-hi);background:none;box-shadow:inset 0 -2px var(--ink-hi)}}
+@media(min-width:641px){#rtabs{align-items:stretch;gap:0}html body.runv #rtabs{padding-top:0;padding-bottom:0}}
 /* A terminal fills its pane in its own colours (--term-bg, set by web/term.ts from its palette), edge to edge;
    while a divider moves it clips rather than refits, so the pane must not show anything else behind it. */
 .term{overflow:hidden;background:var(--term-bg,var(--bg))}.term .xterm-viewport{background:transparent!important}

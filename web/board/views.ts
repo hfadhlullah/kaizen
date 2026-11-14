@@ -26,6 +26,8 @@ export const react = {
   fixReset: () => {},
   // The run panel's Source control tab (git.ts hands it the run's git state; null when another tab shows).
   drawGit: (_g: any) => {},
+  // The run workspace's chrome: a React root in an element the run view keeps; returns the function that unmounts it.
+  mountRunPart: (_el: HTMLElement, _part: string, _id?: string): (() => void) => () => {},
   answered: (): string[] => [],
   resume: async (_c: any): Promise<boolean> => false,
 };

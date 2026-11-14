@@ -11,7 +11,7 @@
 import { pick } from "./projects.ts";
 import { store } from "./store.ts";
 import { toast } from "./toast.ts";
-import { $, html, ico, raw, toggleSwitch } from "./dom.ts";
+import { $, html, ico, raw } from "./dom.ts";
 import { key } from "./cards.ts";
 import { open } from "./panel.ts";
 import { termLoad } from "./agent-term.ts";
@@ -25,6 +25,8 @@ import { age } from "./labels.ts";
 import { go } from "./views.ts";
 import { isPhone } from "./phone.ts";
 import { annotator } from "./annotate.ts";
+import { react } from "./views.ts";
+import { run, setRunActions, setRunView } from "../lib/run-view-store.ts";
 
 type Tab = { id: string; kind: "agent" | "shell" | "local" | "preview" | "note" | "wait" | "history"; title: string; key?: string; note?: string; agent?: string };
 // Per workspace: the extra items opened (localhost, preview, notes, History),
@@ -58,10 +60,9 @@ let noPty = false;
 // Every agent installed for this project (from /agents), each offered as a bare session.
 let agents: { name: string; cmd: string; yolo?: boolean; bypassDefault?: boolean }[] = [];
 let defAgent = "";
-// The agents with their own mark in the sprite; the rest show the generic one.
-const MARKS = ["claude", "codex", "gemini"];
 // Tab id -> its pane, and for a terminal the function that unmounts it.
-const panes = new Map<string, { el: HTMLElement; off: (() => void) | null }>();
+// `un` unmounts the React parts inside the pane (its header, its History or wait body); the pane element itself is never React's.
+const panes = new Map<string, { el: HTMLElement; off: (() => void) | null; un: (() => void)[] }>();
 const byKey = (k: string) => store.S.cards.find((x) => key(x) === k);
 const saved = (): Saved => {
   const s = (ALL[ctx!.k] ||= { tabs: [], hidden: [], screens: [], on: null });
@@ -132,13 +133,10 @@ function tabs(): Tab[] {
   const all = [...out.filter((t) => !s.hidden.includes(t.id)), ...mine];
   return all.filter((t, i) => all.findIndex((x) => x.id === t.id) === i);
 }
-// An agent's tab shows the agent's own mark when the sprite has one.
-const icon = (t: Tab) =>
-  t.agent && MARKS.includes(t.agent) ? raw(`<svg><use href="#i-${t.agent}"/></svg>`) : ico({ agent: "ai", shell: "term", local: "link", preview: "eye", note: "note", wait: "ai", history: "note" }[t.kind]);
 const elsewhere = new Set<string>();
 
 let switched: string | null = null; // the project a deep link last switched the board to
-const none = (t: string) => void ($("rtabs").innerHTML = String(html`<span class="rnone">${t}</span>`));
+const none = (t: string) => setRunView({ message: t });
 // Called by go("run") and on every /state: draws the tab strip and keeps the panes.
 export async function showRunView(nav = false) {
   const p = new URLSearchParams(location.search),
@@ -242,29 +240,32 @@ function draw() {
     scs = screens(),
     cur = scs.find((sc) => sc.id === s.on);
   const item = (id: string) => ts.find((t) => t.id === id)!;
-  const PTY = !noPty;
-  const mark = (a) => (MARKS.includes(a.cmd) ? raw(`<svg><use href="#i-${a.cmd}"/></svg>`) : ico("ai"));
-  const dflt = agents.find((a) => a.cmd === defAgent);
-  // Agents first, the default on top, then the tools.
-  const agentRow = (a) => html`<button data-n="agent:${a.cmd}">${mark(a)}<span>${a.name}<small>${a === dflt ? "default agent, in this folder" : "the agent alone, no run"}</small></span></button>`;
-  // Bypass for this launch, on top of the agents. It starts from Settings → Agents → Permissions (the default agent's) and resets each time the menu opens.
-  const yolo = agents.some((a) => a.yolo) ? html`<label class="agent-yolo"><span>Bypass permissions<small>run commands without asking</small></span>${toggleSwitch(!!(dflt ?? agents[0]).bypassDefault, { sm: true, box: true, attrs: { "aria-label": "Bypass permissions" } })}</label>` : "";
-  const menu = html`<div class="menu-pop">${PTY && agents.length ? html`${yolo}${agentRow(dflt ?? agents[0])}${agents.filter((a) => a !== (dflt ?? agents[0])).map(agentRow)}<hr>` : ""}${PTY ? html`<button data-n="shell">${ico("term")}<span>Shell<small>a terminal in this folder</small></span></button>` : ""}<button data-n="local">${ico("link")}<span>Browser<small>localhost pages, e.g. the dev server</small></span></button><button data-n="preview">${ico("eye")}<span>Preview<small>the run's Preview</small></span></button><button data-n="history">${ico("note")}<span>History<small>finished runs in this workspace</small></span></button></div>`;
-  $("rtabs").innerHTML = String(
-    html`${scs.map((sc) => {
+  // The chrome is React (components/run-tabs.tsx and its neighbours): it is handed what to show, never an element.
+  const now = Date.now();
+  setRunView({
+    message: null,
+    screens: scs.map((sc) => {
       const ids = leaves(sc.tree),
-        first = item(ids[0]),
-        title = ids.map((id) => item(id).title).join(" + ");
-      return html`<button class="rtab${sc.id === s.on ? " on" : ""}" data-t="${sc.id}" draggable="true" title="${title}">${icon(first)}<span>${title}</span><i data-xs="${sc.id}" role="button" aria-label="Close ${title}" title="Close tab">×</i></button>`;
-    })}<details class="radd" data-mode="tab"><summary class="ib xs" title="New tab" aria-label="New tab">${ico("plus")}</summary>${menu}</details><span class="sp"></span><button type="button" class="ib xs" data-pv title="Run app: start the dev server if it is off and open the app" aria-label="Run app">${ico("play")}</button>${cur ? html`<details class="radd rsplit" data-mode="cols"><summary class="ib xs" title="Split right: add to this tab" aria-label="Split right">${ico("lcols")}</summary>${menu}</details><details class="radd rsplit" data-mode="rows"><summary class="ib xs" title="Split down: add to this tab" aria-label="Split down">${ico("lrows")}</summary>${menu}</details>` : ""}`,
-  );
+        { id, kind, title, agent } = item(ids[0]);
+      return { id: sc.id, ids, focus: sc.focus, title: ids.map((x) => item(x).title).join(" + "), first: { id, kind, title, agent } };
+    }),
+    on: s.on,
+    split: !!cur,
+    agents,
+    defAgent,
+    pty: !noPty,
+    titles: Object.fromEntries(ts.map((t) => [t.id, t.title])),
+    history: historyOf(store.S.cards, ctx!.dir, ctx!.ws, wsOfCard).map((c) => ({ k: key(c), title: titleOf(c), state: stateOf(c), line: `${c.status} · ${age(c.moved ?? now, now)} ago` })),
+    empty: !scs.length,
+  });
   $("rside").setAttribute("aria-pressed", String(document.body.classList.contains("rflip")));
-  $("rtabs").querySelector(".rtab.on")?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  requestAnimationFrame(() => $("rtabs").querySelector('[aria-selected="true"]')?.scrollIntoView({ block: "nearest", inline: "nearest" }));
   // Panes: made once per item, kept (hidden) while it is open, so terminals never reconnect.
   const box = $("rpanes");
   for (const [id, p] of panes)
     if (!ts.some((t) => t.id === id)) {
       p.off?.();
+      p.un.forEach((u) => u());
       p.el.remove();
       panes.delete(id);
     }
@@ -274,8 +275,6 @@ function draw() {
     p.el.hidden = !shown.includes(id);
     p.el.classList.toggle("split", shown.length > 1);
     p.el.classList.toggle("focus", shown.length > 1 && id === cur?.focus);
-    p.el.querySelector(".ph span")!.textContent = item(id)?.title ?? "";
-    if (item(id)?.kind === "history") fillHistory(p.el);
   }
   // The tree is rebuilt only when it changes: moving a pane in the DOM reloads its frame.
   const sig = cur ? cur.id + JSON.stringify(cur.tree) : "";
@@ -285,9 +284,6 @@ function draw() {
     box.querySelector(".rtree")?.remove();
     if (cur) box.prepend(build(cur.tree, cur));
   }
-  // One empty note at most: every draw used to append another.
-  box.querySelector(".rempty")?.remove();
-  if (!scs.length) box.insertAdjacentHTML("beforeend", String(html`<div class="empty rempty"><b>No tabs open</b><p>Open an agent, a shell, the project's localhost or the Preview with +.</p></div>`));
   mountPanel();
   wire();
 }
@@ -327,18 +323,6 @@ function mountPanel() {
   if (store.openKey !== key(c)) void open(c, false);
   if (pickOpen) (setOpen(true), (pickOpen = false));
 }
-// History: the workspace's finished runs, newest first; one opens read-only.
-function fillHistory(el: HTMLElement) {
-  const list = historyOf(store.S.cards, ctx!.dir, ctx!.ws, wsOfCard),
-    now = Date.now();
-  const box = el.querySelector(".rhist")!;
-  box.innerHTML = String(
-    list.length
-      ? html`${list.map((c) => html`<button class="rrow" data-hist="${key(c)}"><span class="si ${stateOf(c)}"></span><b>${titleOf(c)}</b><small>${c.status} · ${age(c.moved ?? now, now)} ago</small></button>`)}`
-      : html`<p class="rnone">No finished runs in this workspace yet.</p>`,
-  );
-}
-
 let shownSig = "";
 // Moves an item out of its tab into another one (split beside a pane there, or next to its
 // focused pane), or into a tab of its own (to = null). Terminals keep running; frames reload.
@@ -366,6 +350,10 @@ function moveItem(id: string, to: string | null, at?: { pane: string; dir: "cols
   draw();
 }
 let dragging: string | null = null;
+const endDrag = () => {
+  dragging = null;
+  document.querySelectorAll(".rdrop,.rdrop-l,.rdrop-r,.rdrop-t,.rdrop-b").forEach((x) => x.classList.remove("rdrop", "rdrop-l", "rdrop-r", "rdrop-t", "rdrop-b"));
+};
 // One node of the layout tree as DOM: a pane, or a flex row/column of its children with a
 // draggable gutter between each pair (sizes saved on the node).
 function build(n: Node, sc: Screen): HTMLElement {
@@ -417,16 +405,17 @@ function makePane(t: Tab) {
   const el = document.createElement("section");
   el.className = "rpane";
   el.dataset.t = t.id;
-  // The header is the handle: drag it onto a tab, onto + (a new tab) or onto a pane's edge;
-  // ⋯ does the same from a menu. × closes the item.
-  el.innerHTML = String(html`<header class="ph" draggable="true"><span>${t.title}</span><details class="pmove"><summary title="Move to another tab" aria-label="Move ${t.title}">⋯</summary><div class="menu-pop"></div></details><button data-x="${t.id}" title="Close" aria-label="Close ${t.title}">×</button></header>`);
-  const p = { el, off: null as null | (() => void) };
+  // The header is the handle: drag it onto a tab, onto + (a new tab) or onto a pane's edge; its title, move menu and ×
+  // are React (components/pane-header.tsx). The pane itself, and the terminal or frame in it, are never React's.
+  const ph = document.createElement("header");
+  ph.className = "ph";
+  ph.draggable = true;
+  el.append(ph);
+  const p = { el, off: null as null | (() => void), un: [react.mountRunPart(ph, "header", t.id)] };
   panes.set(t.id, p);
   $("rpanes").append(el);
-  if (t.kind === "history") {
-    el.insertAdjacentHTML("beforeend", String(html`<div class="rhist md"></div>`));
-    fillHistory(el);
-  } else if (t.kind === "agent" || t.kind === "shell") {
+  if (t.kind === "history") p.un.push(react.mountRunPart(el, "history"));
+  else if (t.kind === "agent" || t.kind === "shell") {
     const term = document.createElement("div");
     term.className = "term";
     el.append(term);
@@ -435,11 +424,7 @@ function makePane(t: Tab) {
         if (panes.get(t.id) === p) p.off = m(term, t.key, () => load(true));
       })
       .catch(() => (term.textContent = "The terminal could not load."));
-  } else if (t.kind === "wait")
-    el.insertAdjacentHTML(
-      "beforeend",
-      String(html`<div class="empty rwait"><b>This run's agent is running in another terminal</b><p>One conversation cannot run in two places. Close it there, then open it here.</p><button type="button" class="rwin" data-b="recheck" data-k="${t.id.slice(5)}">${ico("refresh")}<span>Open here</span></button></div>`),
-    );
+  } else if (t.kind === "wait") p.un.push(react.mountRunPart(el, "wait", t.id));
   else if (t.kind === "local") browser(el);
   else if (t.kind === "note") el.insertAdjacentHTML("beforeend", String(html`<iframe class="rframe" title="${t.title}" src="/notebook?dir=${encodeURIComponent(ctx!.dir)}&note=${encodeURIComponent(t.note!)}&embed=1"></iframe>`));
   else void previewPane(el);
@@ -798,23 +783,6 @@ async function closeScreen(sid: string) {
   for (const id of sc ? leaves(sc.tree) : []) await closeTab(id);
 }
 
-// A pane's ⋯ menu, filled when it opens: every other tab, and a tab of its own.
-function onMoveMenu(e: Event) {
-  const d = e.target as HTMLDetailsElement;
-  if (!d.classList?.contains("pmove") || !d.open) return;
-  const s = saved(),
-    id = d.closest<HTMLElement>(".rpane")!.dataset.t!,
-    ts = tabs(),
-    name = (sc: Screen) => leaves(sc.tree).map((x) => ts.find((t) => t.id === x)?.title ?? "").join(" + ");
-  const m = d.querySelector<HTMLElement>(".menu-pop")!;
-  m.innerHTML = String(
-    html`<b class="mh">Move to</b>${s.screens.filter((sc) => !leaves(sc.tree).includes(id)).map((sc) => html`<button data-mv="${sc.id}">${ico("arrow")}<span>${name(sc)}</span></button>`)}<button data-mv="">${ico("plus")}<span>New tab</span></button>`,
-  );
-  const r = d.querySelector("summary")!.getBoundingClientRect();
-  m.style.top = r.bottom + 4 + "px";
-  m.style.left = Math.max(8, r.right - m.offsetWidth) + "px";
-}
-
 // + makes a new tab; split right/down adds to the tab shown. `n` is a menu item's data-n.
 function openNew(n: string, mode: string, yolo?: boolean) {
   const s = saved();
@@ -835,66 +803,14 @@ function likeFocused(): string | null {
   return null;
 }
 function wire() {
-  const bar = $("rtabs"),
-    s = saved();
-  bar.onclick = (e) => {
-    const t = e.target as HTMLElement;
-    const xs = t.closest<HTMLElement>("[data-xs]")?.dataset.xs;
-    if (xs) return void closeScreen(xs);
-    const tab = t.closest<HTMLElement>("[data-t]")?.dataset.t;
-    if (tab) {
-      s.on = tab;
-      save();
-      return draw();
-    }
-    if (t.closest("[data-pv]")) return void previewApp();
-    const n = t.closest<HTMLElement>("[data-n]")?.dataset.n;
-    if (n) {
-      const d = t.closest<HTMLDetailsElement>(".radd")!,
-        sw = d.querySelector<HTMLInputElement>(".agent-yolo input");
-      d.open = false;
-      openNew(n, d.dataset.mode as string, sw && sw.checked !== sw.defaultChecked ? sw.checked : undefined);
-      return;
-    }
-  };
+  const s = saved();
   $("rside").onclick = () => {
     document.body.classList.toggle("rflip");
     draw();
   };
-  // The +, split right and split down menus open under their button, kept inside the
-  // centre panel; one open at a time. A pane's own × closes just that item.
-  const adds = [...bar.querySelectorAll<HTMLDetailsElement>(".radd")];
-  for (const add of adds)
-    add.ontoggle = () => {
-      if (!add.open) return;
-      for (const o of adds) if (o !== add) o.open = false;
-      const sw = add.querySelector<HTMLInputElement>(".agent-yolo input");
-      if (sw) sw.checked = sw.defaultChecked;
-      const m = add.querySelector<HTMLElement>(".menu-pop")!,
-        r = add.querySelector("summary")!.getBoundingClientRect(),
-        box = $("runv").getBoundingClientRect();
-      m.style.top = r.bottom + 4 + "px";
-      m.style.left = Math.max(box.left + 4, Math.min(r.left, box.right - m.offsetWidth - 4)) + "px";
-    };
-  $("rpanes").onclick = (e) => {
-    const x = (e.target as HTMLElement).closest<HTMLElement>(".ph [data-x]")?.dataset.x;
-    if (x) return void closeTab(x);
-    const rk = (e.target as HTMLElement).closest<HTMLElement>("[data-b=recheck]")?.dataset.k;
-    if (rk && byKey(rk)) return void openAgent(byKey(rk), true);
-    const hist = (e.target as HTMLElement).closest<HTMLElement>("[data-hist]")?.dataset.hist;
-    if (hist && byKey(hist)) return pickRun(hist);
-    const mv = (e.target as HTMLElement).closest<HTMLElement>("[data-mv]");
-    if (mv) {
-      const id = mv.closest<HTMLElement>(".rpane")!.dataset.t!;
-      mv.closest("details")!.open = false;
-      return moveItem(id, mv.dataset.mv || null);
-    }
-  };
-  // Moving panes: the header's ⋯ menu lists the other tabs; dragging the header drops it on a
-  // tab, on + (a tab of its own) or on a pane's edge (split there on that side).
+  // Moving panes: the header's ⋯ menu lists the other tabs; dragging the header drops it on a tab (React: run-tabs.tsx),
+  // on + (a tab of its own) or on a pane's edge (split there on that side, here).
   const box = $("rpanes");
-  box.ontoggle = null;
-  box.addEventListener("toggle", onMoveMenu, true);
   box.ondragstart = (e) => {
     const id = (e.target as HTMLElement).closest<HTMLElement>(".ph")?.closest<HTMLElement>(".rpane")?.dataset.t;
     if (!id) return;
@@ -902,18 +818,7 @@ function wire() {
     e.dataTransfer!.setData("text/plain", id);
     e.dataTransfer!.effectAllowed = "move";
   };
-  // A tab is the handle too: dragging it moves its focused pane (the only one, unsplit).
-  bar.ondragstart = (e) => {
-    const sc = saved().screens.find((x) => x.id === (e.target as HTMLElement).closest<HTMLElement>(".rtab")?.dataset.t);
-    if (!sc) return;
-    dragging = leaves(sc.tree).includes(sc.focus) ? sc.focus : leaves(sc.tree)[0];
-    e.dataTransfer!.setData("text/plain", dragging);
-    e.dataTransfer!.effectAllowed = "move";
-  };
-  box.ondragend = bar.ondragend = () => {
-    dragging = null;
-    document.querySelectorAll(".rdrop,.rdrop-l,.rdrop-r,.rdrop-t,.rdrop-b").forEach((x) => x.classList.remove("rdrop", "rdrop-l", "rdrop-r", "rdrop-t", "rdrop-b"));
-  };
+  box.ondragend = endDrag;
   const edge = (el: HTMLElement, e: DragEvent) => {
     const r = el.getBoundingClientRect(),
       x = (e.clientX - r.left) / r.width,
@@ -938,20 +843,6 @@ function wire() {
     const d = edge(pane, e);
     moveItem(id, s.on, { pane: pane.dataset.t!, dir: d === "l" || d === "r" ? "cols" : "rows", before: d === "l" || d === "t" });
   };
-  bar.ondragover = (e) => {
-    const t = (e.target as HTMLElement).closest<HTMLElement>(".rtab,.radd[data-mode=tab]");
-    if (!dragging || !t) return;
-    e.preventDefault();
-    bar.querySelectorAll(".rdrop").forEach((x) => x.classList.remove("rdrop"));
-    t.classList.add("rdrop");
-  };
-  bar.ondrop = (e) => {
-    const t = (e.target as HTMLElement).closest<HTMLElement>(".rtab,.radd[data-mode=tab]"),
-      id = dragging;
-    if (!id || !t) return;
-    e.preventDefault();
-    moveItem(id, t.classList.contains("rtab") ? t.dataset.t! : null);
-  };
   // The pane last clicked is the one a split divides.
   $("rpanes").onpointerdown = (e) => {
     const id = (e.target as HTMLElement).closest<HTMLElement>(".rpane")?.dataset.t,
@@ -967,9 +858,10 @@ function wire() {
 // Leaving the workspace: its terminals unmount; the shells keep running on the server.
 function stopPanes() {
   $("panel").classList.add("parked");
-  for (const p of panes.values()) p.off?.();
+  for (const p of panes.values()) (p.off?.(), p.un.forEach((u) => u()));
   panes.clear();
-  $("rpanes").innerHTML = "";
+  // The panes and the layout tree go; the React note for an empty workspace stays.
+  $("rpanes").querySelectorAll(":scope > .rpane, :scope > .rtree").forEach((e) => e.remove());
 }
 export function runStop() {
   stopPanes();
@@ -977,28 +869,15 @@ export function runStop() {
   $("panel").classList.remove("pn");
 }
 
-// The strip's Project notes: the project's notes as a tree in the panel; a note opens as a centre tab.
+// The strip's Project notes: the project's notes as a tree in the panel (components/project-notes.tsx); a note opens as a centre tab.
 async function projectNotes() {
-  const pn = $("panel");
-  if (pn.classList.toggle("pn") === false) return;
-  const box = $("pnlist");
-  box.innerHTML = "";
+  if ($("panel").classList.toggle("pn") === false) return;
+  setRunView({ notes: { loading: true } });
   try {
     const d = await (await fetch("/vault?dir=" + encodeURIComponent(ctx!.dir))).json();
-    const names: string[] = (d.notes ?? []).map((n) => n.name).sort();
-    // Folders first-level as headings, notes under them: "Project/Web board" shows under Project.
-    const groups = new Map<string, string[]>();
-    for (const n of names) {
-      const i = n.lastIndexOf("/"),
-        g = i < 0 ? "" : n.slice(0, i);
-      if (!groups.has(g)) groups.set(g, []);
-      groups.get(g)!.push(n);
-    }
-    box.innerHTML = String(
-      html`<h3>Project notes</h3>${names.length ? [...groups].map(([g, ns]) => html`${g ? html`<div class="tf dir">${ico("side")}${g}</div>` : ""}<div class="${g ? "tree" : ""}">${ns.map((n) => html`<button class="tf" data-note="${n}">${ico("note")}${n.slice(n.lastIndexOf("/") + 1)}</button>`)}</div>`) : html`<p class="rnone">No notes in this project yet.</p>`}`,
-    );
+    setRunView({ notes: { names: (d.notes ?? []).map((n) => n.name).sort() } });
   } catch {
-    box.textContent = "The notes could not load.";
+    setRunView({ notes: { failed: true } });
   }
 }
 
@@ -1146,12 +1025,7 @@ function paneKey(k: string) {
   const mode = { c: "tab", r: "cols", d: "rows" }[k];
   const same = mode && mode !== "tab" && !noPty ? likeFocused() : null;
   if (same) return void openNew(same, mode!);
-  if (mode) {
-    const add = $("rtabs").querySelector<HTMLDetailsElement>(`.radd[data-mode=${mode}]`);
-    if (add) add.open = true;
-    requestAnimationFrame(() => add?.querySelector<HTMLElement>(".menu-pop button")?.focus());
-    return;
-  }
+  if (mode) return void setRunView({ menu: mode as "tab" | "cols" | "rows" });
   const s = saved(),
     scs = screens(),
     at = scs.findIndex((x) => x.id === s.on),
@@ -1175,17 +1049,8 @@ function paneKey(k: string) {
   draw();
   focusPane(to.focus);
 }
-// While the prefix waits for its key, a chip says so and lists the keys.
-function keyHint(on: boolean) {
-  document.getElementById("keyhint")?.remove();
-  if (!on) return;
-  const h = document.createElement("div");
-  h.id = "keyhint";
-  h.setAttribute("role", "status");
-  const keys = [["←↓↑→", "pane"], ["1-9", "tab"], ["n p", "next, prev"], ["c", "new tab"], ["r", "split right, same as this pane"], ["d", "split down, same as this pane"], ["x", "close pane"], ["?", "all keys"]];
-  h.innerHTML = String(html`${keys.map(([k, t]) => html`<span><kbd>${k}</kbd>${t}</span>`)}`);
-  document.body.append(h);
-}
+// While the prefix waits for its key, a chip says so and lists the keys (components/key-hint.tsx).
+const keyHint = (on: boolean) => setRunView({ hint: on });
 function initPaneKeys() {
   let armed: Timer | undefined;
   // Capture: xterm must not see these. Ctrl+B would reach an agent or a tmux inside the pane.
@@ -1201,19 +1066,6 @@ function initPaneKeys() {
         keyHint(true);
         armed = setTimeout(() => ((armed = undefined), keyHint(false)), 2000);
         return;
-      }
-      // The open +, split right or split down menu: arrows or j k walk it, Enter picks, Escape closes.
-      const add = $("rtabs").querySelector<HTMLDetailsElement>(".radd[open]");
-      if (add) {
-        const step = { ArrowDown: 1, j: 1, ArrowUp: -1, k: -1 }[e.key];
-        if (step || e.key === "Escape") {
-          e.preventDefault();
-          e.stopPropagation();
-          if (!step) return void ((add.open = false), focusPane(screens().find((x) => x.id === saved().on)?.focus));
-          const items = [...add.querySelectorAll<HTMLElement>(".menu-pop button")];
-          items[(items.indexOf(document.activeElement as HTMLElement) + step + items.length) % items.length]?.focus();
-          return;
-        }
       }
       if (!armed || ["Control", "Shift", "Alt", "Meta"].includes(e.key)) return;
       e.preventDefault();
@@ -1267,10 +1119,34 @@ export function initRunView() {
   });
   addEventListener("kz-run-preview", openPreview);
   $("pnotes").onclick = () => void projectNotes();
-  $("pnlist").onclick = (e) => {
-    const n = (e.target as HTMLElement).closest<HTMLElement>("[data-note]")?.dataset.note;
-    if (n) openNoteTab(n);
-  };
+  // The React parts the run view keeps: the tab bar, the empty-workspace note, the project notes list.
+  const bar = document.createElement("div");
+  bar.style.display = "contents";
+  $("rtabs").append(bar);
+  react.mountRunPart(bar, "tabs");
+  const empty = document.createElement("div");
+  empty.style.display = "contents";
+  $("rpanes").append(empty);
+  react.mountRunPart(empty, "empty");
+  react.mountRunPart($("pnlist"), "notes");
+  setRunActions({
+    select: (sid) => {
+      saved().on = sid;
+      save();
+      draw();
+    },
+    close: (sid) => void closeScreen(sid),
+    closeItem: (id) => void closeTab(id),
+    openNew,
+    runApp: () => void previewApp(),
+    move: moveItem,
+    drag: (id) => (id ? (dragging = id) : endDrag()),
+    dragging: () => dragging,
+    drop: (to) => dragging && moveItem(dragging, to),
+    openHere: (k) => byKey(k) && void openAgent(byKey(k), true),
+    pick: (k) => byKey(k) && pickRun(k),
+    openNote: openNoteTab,
+  });
   // A /state change: new or ended sessions, the card's own state. Panes stay mounted.
   addEventListener("kz-state", () => {
     void autoBrowse();
