@@ -1,7 +1,7 @@
 ---
 description: `kaizen web`: the browser board — a hub; its topics are the sub-notes below
 tags: [project, web-board]
-sources: [web/pages, web/components, web/ui, web/lib, web/theme.css, web/board/react-mount.ts, cli/preflight.ts, cli/rea.test.ts, cli/annotate.test.ts, cli/annotate-proxy.test.ts, cli/web-annotate.test.ts, web/board/annotate-lib.test.ts, desktop/src/preload.ts, desktop/src/updater.ts, web/term-font.test.ts, cli/resources.test.ts, cli/computer.test.ts, cli/workers.ts, cli/accounts.test.ts, web/board/settings-accounts.ts, cli/skills.test.ts, cli/report.test.ts, cli/agent-prefs.test.ts, cli/onboarding.test.ts, cli/phone-setup.test.ts, web/board/search.test.ts, web/board/ws-name.test.ts, cli/web.ts, cli/state.test.ts, cli/video.test.ts, web/board.html, design.md]
+sources: [web/pages, web/components, web/ui, web/lib, web/theme.css, web/board/react-mount.ts, cli/preflight.ts, cli/rea.test.ts, cli/annotate.test.ts, cli/annotate-proxy.test.ts, cli/web-annotate.test.ts, web/board/annotate-lib.test.ts, desktop/src/preload.ts, desktop/src/updater.ts, web/term-font.test.ts, cli/resources.test.ts, cli/computer.test.ts, cli/workers.ts, cli/accounts.test.ts, cli/skills.test.ts, cli/report.test.ts, cli/agent-prefs.test.ts, cli/onboarding.test.ts, cli/phone-setup.test.ts, web/board/search.test.ts, web/board/ws-name.test.ts, cli/web.ts, cli/state.test.ts, cli/video.test.ts, web/board.html, design.md]
 updated: 2026-11-14
 ---
 # Web board
@@ -73,3 +73,6 @@ The Projects rail keeps the last valid run state during a transient `state.json`
 ## Explore integration (2026-11-08)
 
 Optional Explore is part of Workflow settings and run details; see [[Web board/Settings]] and [[Web board/Cards]].
+
+## Phase 5 of the front-end rewrite (2026-11-14)
+Home (chat, list, composer), the Search palette, Add a project, the first-run onboarding and Continue setup popup, the Phone and WhatsApp setup cards, the update bar and card, the file viewer, the worktree right-click menu, the phone's agent sheets, the header's project and Showing pickers and the Home window's "+" menu are React components (see [[Web board/Home, chat and phone]], [[Web board/Cards]], [[Web board/Settings]]). Still old code, listed with reasons in the run report: the Home window itself (`web/board/home-ws.ts`, drag and terminals), the phone Home and Runs pages (`web/board/phone.ts`, they use the side menu's HTML helpers), the notes chat in the panel (`web/board/chat.ts`, wraps the rich editor), the footer resource popup (`web/board/resources.ts`, shared with the notebook and Video bundles), dictation (a recorder controller), the context panel and the terminals.
