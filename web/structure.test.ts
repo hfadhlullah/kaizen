@@ -1,8 +1,9 @@
-// Keeps the React layers in order (see .kaizen/notes/Project/Conventions and gotchas.md):
+// Keeps the React layers in order (see web/README.md and .kaizen/notes/Project/Conventions and gotchas.md):
 //   pages -> components -> ui -> lib/core/utils.ts, and lib imports only lib.
 // A page or component never imports a Radix package (or cmdk) itself: popups come from web/ui.
+// components/ and lib/ hold feature folders only; each has an index.ts, stays small, and is imported through it.
 import { expect, test } from "bun:test";
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 
 const web = import.meta.dir;
@@ -116,4 +117,82 @@ test("shared side-menu code only opens React hosts the page has; no page wipes a
   expect(ws).toMatch(/function wsMenu\([^)]*\) \{\n  if \(!onBoard\(\)\) return;/);
   expect(rd("board/settings.ts")).not.toMatch(/\$\("(?:ptabs|psub)"\)\.(?:innerHTML|textContent)\s*=/);
   expect(rd("pages/tasks-page.tsx")).not.toMatch(/getElementById\("hx"\)\?*\.replaceChildren/);
+});
+
+// ---- feature folders: components/<feature>/ and lib/<feature>/ ----
+// Only folders live directly under components/ and lib/; none grows past MAX_FILES (split it by feature instead); each
+// has an index.ts, and anything outside a folder imports it through that index (inside a folder, files import each
+// other directly, which keeps barrels out of cycles). `import type` follows the same rule: no type-only exception is
+// needed. Exceptions, each for a reason:
+//  - web/ui takes lib/core/utils.ts directly (the layer rule above: ui never reaches into the feature folders);
+//  - a few web/board bridge files run in the notebook and Video bundles or in tests with no DOM; a barrel would pull the
+//    board's stores (zustand + localStorage at import) into them, so they import the one small file they need.
+const MAX_FILES = 25;
+const BRIDGE_DIRECT = [
+  "board/workspace.ts",
+  "board/ws-tabs.ts",
+  "board/labels.ts",
+  "board/search.ts",
+  "board/dictation.ts",
+  "board/update.ts",
+];
+const norm = (p: string) => p.split(/[\\/]/).join("/");
+const featureOf = (rel: string) => rel.match(/^((?:components|lib)\/[^/]+)\/[^/]+$/)?.[1] ?? null;
+
+function indexViolations(files: Record<string, string>): string[] {
+  const out: string[] = [];
+  for (const [file, src] of Object.entries(files)) {
+    const from = norm(relative(web, file));
+    if (BRIDGE_DIRECT.includes(from)) continue;
+    for (const spec of specifiers(src).filter((s) => s.startsWith("."))) {
+      const to = norm(relative(web, resolve(dirname(file), spec)));
+      const folder = featureOf(to);
+      if (!folder || folder === featureOf(from) || to.endsWith("/index.ts")) continue;
+      if (from.startsWith("ui/") && to === "lib/core/utils.ts") continue;
+      out.push(`${from} imports "${spec}": import ${folder}/index.ts instead`);
+    }
+  }
+  return out;
+}
+
+test("components/ and lib/ hold feature folders of at most 25 files, each with an index.ts", () => {
+  const bad: string[] = [];
+  for (const layer of ["components", "lib"]) {
+    for (const e of readdirSync(join(web, layer), { withFileTypes: true })) {
+      if (!e.isDirectory()) bad.push(`${layer}/${e.name}: loose file, put it in a feature folder`);
+      else {
+        const dir = join(web, layer, e.name);
+        const files = readdirSync(dir, { withFileTypes: true });
+        if (files.some((f) => f.isDirectory())) bad.push(`${layer}/${e.name}: no folders inside a feature folder`);
+        if (!existsSync(join(dir, "index.ts"))) bad.push(`${layer}/${e.name}: no index.ts`);
+        if (files.length > MAX_FILES) bad.push(`${layer}/${e.name}: ${files.length} files, over ${MAX_FILES}: split it`);
+      }
+    }
+  }
+  expect(bad).toEqual([]);
+});
+
+test("imports from outside a feature folder go through its index.ts", () => {
+  const files = Object.fromEntries(
+    ["components", "pages", "lib", "board"].flatMap((l) => walk(join(web, l))).map((f) => [f, readFileSync(f, "utf8")]),
+  );
+  expect(indexViolations(files)).toEqual([]);
+  for (const f of BRIDGE_DIRECT) expect(existsSync(join(web, f))).toBe(true);
+  // ...and the check catches a deep import, from a page, a component and a lib file, while allowing the rest.
+  const at = (p: string) => join(web, p);
+  expect(
+    indexViolations({
+      [at("pages/a.tsx")]: 'import { T } from "../components/task/task-row.tsx";',
+      [at("components/git/b.tsx")]: 'import { s } from "../../lib/board/board-store.ts"; import type { C } from "../../lib/core/board.ts";',
+      [at("lib/task/c.ts")]: 'import { x } from "../core/api.ts";',
+    }).length,
+  ).toBe(4);
+  expect(
+    indexViolations({
+      [at("pages/a.tsx")]: 'import { T } from "../components/task/index.ts";',
+      [at("components/git/b.tsx")]: 'import { a } from "./git-tab.tsx"; import { s } from "../../lib/git/index.ts";',
+      [at("ui/c.tsx")]: 'import { cn } from "../lib/core/utils.ts";',
+      [at("board/workspace.ts")]: 'import { ask } from "../lib/core/ask.ts";',
+    }),
+  ).toEqual([]);
 });
