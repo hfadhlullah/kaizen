@@ -20,7 +20,6 @@ export const OUT = join(root, "web", "dist", "notebook.js");
 export const TERM_OUT = join(root, "web", "dist", "term.js");
 export const BOARD_OUT = join(root, "web", "dist", "board.js");
 export const BOT_OUT = join(root, "bot", "web", "app.js");
-export const KIT_OUT = join(root, "web", "dist", "notebook-kit.js");
 export const VIDEO_OUT = join(root, "web", "dist", "video.js");
 export const UI_CSS_OUT = join(root, "web", "dist", "ui.css");
 
@@ -36,7 +35,6 @@ export const banner = (what = "notebook", from = "web/notebook/notebook.ts") => 
 if (import.meta.main) {
   const bundles = [
     ["web/notebook/notebook.ts", OUT, "notebook"],
-    ["web/notebook/kit.ts", KIT_OUT, "notebook kit"],
     ["web/term/term.ts", TERM_OUT, "terminal"],
     ["web/board/main.ts", BOARD_OUT, "board"],
     ["bot/web/app/main.ts", BOT_OUT, "bot page"],
@@ -46,7 +44,7 @@ if (import.meta.main) {
     // The terminal, the board and the bot page are classic scripts: wrapped, or their
     // top-level names collide with each other's globals and the whole file is refused.
     // React reads process.env.NODE_ENV: without this the board carries React's development build (twice the size, slower).
-    const define = what === "board" || what === "notebook kit" ? { "process.env.NODE_ENV": '"production"' } : undefined;
+    const define = what === "board" || what === "notebook" ? { "process.env.NODE_ENV": '"production"' } : undefined;
     const r = await Bun.build({ entrypoints: [join(root, src)], target: "browser", minify: true, format: what === "notebook" ? "esm" : "iife", define });
     if (!r.success) { for (const l of r.logs) console.error(l); process.exit(1); }
     writeFileSync(out, banner(what, src) + "\n" + await r.outputs[0]!.text());

@@ -31,8 +31,8 @@ export function connectRail(api: RailApi) {
 export const gitProjects = () =>
   (last.projects ?? []).filter((p) => p.workspaces?.some((w) => w.branch)).map((p) => ({ dir: p.dir as string, name: projName(p.dir, last.projects) }));
 // The Projects list, the sheet and the right-click menu are React. The board mounts them (react-mount.ts); the Notebook page
-// loads the same components as a bundle (notebook/kit-loader.ts) when it starts and opens them in place. If that fails, or on
-// Video, the + button sends the person to the board with the sheet asked for (?add=), as Search does, and Video lists no
+// mounts the same components in its own bundle (notebook/kit.ts, registered as window.kzKit) and opens them in place. On
+// Video, which has no kit, the + button sends the person to the board with the sheet asked for (?add=), as Search does, and Video lists no
 // projects.
 const onBoard = () => !!document.getElementById("kz-portal");
 // The kit for this page, with what only this page knows handed over: where a new workspace opens, the Projects list, and

@@ -8,10 +8,11 @@
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="icon" type="image/png" href="/logo.png">
 <link rel="apple-touch-icon" href="/logo.png">
+<link rel="stylesheet" href="/ui.css">
 <style>
 /* Tokens: copied from web/html/board.html, line for line; cli/notes.test.ts holds them equal. */
 /* Colour: monochrome by default; ok, warn and danger keep their hue because they carry meaning. data-color=blue is the navy palette (kz-color). */
-/* Layers: as in board.html, this page's CSS (legacy) sits under the kit's Tailwind layers (web/dist/ui.css, loaded on demand by notebook/kit-loader.ts), so the popups the kit opens here are not restyled by it. The editor rules stay outside the layer: CodeMirror's own styles are unlayered and would beat them. */
+/* Layers: as in board.html, this page's CSS (legacy) sits under the kit's Tailwind layers (web/dist/ui.css, linked above), so the popups the kit opens here are not restyled by it. The editor rules stay outside the layer: CodeMirror's own styles are unlayered and would beat them. */
 @layer legacy, theme, base, components, utilities;
 @layer legacy {
 :root{--bg:#f7f7f7;--bg-2:#fff;--line:#dedede;--ink:#171717;--ink-hi:#171717;--dim:#666;--accent:#171717;--run:#525252;--ok:#1f9d55;--warn:#a8720a;--danger:#c8322f;--on-accent:#fff;color-scheme:light}

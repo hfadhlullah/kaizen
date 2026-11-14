@@ -2,8 +2,8 @@
 // workspaces, runs and tasks, chats, agent terminals, projects, pages and actions (modelled on Orca's "Jump to..."
 // palette). This file gathers its rows: nothing is fetched but /chats, the rest is what the side menu already holds.
 // The palette itself is React (components/search/search-palette.tsx). The board mounts it; the Notebook page loads it on
-// demand (notebook/kit-loader.ts) and opens it in place; Video, which carries no React, sends the person to the board
-// with the palette open (?search=1), as does the Notebook if the load fails.
+// its own (notebook/kit.ts) and opens it in place; Video, which carries no React, sends the person to the board with the
+// palette open (?search=1).
 import { $ } from "./dom.ts";
 import { age } from "./labels.ts";
 import { openAdd } from "@lib/project/add-project.ts";

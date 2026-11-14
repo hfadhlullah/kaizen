@@ -2,8 +2,12 @@
 // never sees the filesystem, only /vault. See design.md, "Notebook", for the look.
 import { refreshBoardBadge } from "../board/badge.ts";
 import { initRail } from "../board/workspace.ts";
-// embed=1: a run workspace's note tab shows the note alone, without the side menu and header.
-if (new URLSearchParams(location.search).has("embed")) document.body.classList.add("embed");
+import { mountKit } from "./kit.ts";
+// embed=1: a run workspace's note tab shows the note alone, without the side menu and header, so it mounts no kit and
+// starts no side menu (nothing to search with, nothing to list).
+const embed = new URLSearchParams(location.search).has("embed");
+if (embed) document.body.classList.add("embed");
+else mountKit();
 import {
   Autosave,
   age,
@@ -534,13 +538,18 @@ addEventListener("pagehide", () => {
   // ?note= is the board's "Linked from notes"; otherwise the note open last in this tab.
   const again = startNote(notes.map((n) => n.name), new URLSearchParams(location.search).get("note"), lastNote);
   if (again) await openNote(again);
-  initRail();
-  void refreshBoardBadge();
+  if (!embed) {
+    initRail();
+    void refreshBoardBadge();
+  }
   // Every write under a state dir arrives as `changed`, this page's own saves included.
   const listen = () => {
     const es = new EventSource("/events");
     es.onmessage = (ev) => {
-      if (ev.data === "changed") { void load(); void refreshBoardBadge(); }
+      if (ev.data === "changed") {
+        void load();
+        if (!embed) void refreshBoardBadge();
+      }
     };
     es.onerror = () => {
       es.close();

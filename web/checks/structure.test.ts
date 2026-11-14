@@ -108,7 +108,7 @@ test("no page, component or lib file hand-builds a dialog, menu or list box, or 
 
 // workspace.ts is shared with the notebook and Video bundles. The Projects list, its filter, the worktree menu and the
 // resource popup are React (components/rail, components/resources): the board mounts them (react-mount.ts), the Notebook
-// page gets the list and filter from its on-demand kit (kit.ts, loaded at start), and Video lists no projects. What
+// page gets the list and filter from the kit it mounts itself (kit.ts, in notebook.js), and Video lists no projects. What
 // stays here opens the Add a project sheet only through the onBoard() guard or the kit, and settings.ts / tasks-page.tsx
 // never wipe a header host another part mounted (#ptabs, #psub, #hx).
 test("shared side-menu code only opens React hosts the page has; no page wipes a mounted host", () => {
@@ -176,7 +176,7 @@ test("the notes chat and dictation are drawn by React, not by board/ modules or 
   for (const f of ["notebook/notebook.ts", "video/video.ts", "notebook/kit.ts"]) expect(rd(f)).not.toMatch(/dictation|lib\/notes|components\/notes/);
   // ...nor does the engine ride along in the kit bundle (it imports the shared barrel, which holds MicButton): its worker source is a
   // function so the bundler drops it where no microphone button is mounted.
-  for (const f of ["notebook.js", "notebook-kit.js", "video.js"]) expect(rd(`dist/${f}`)).not.toContain("automatic-speech-recognition");
+  for (const f of ["notebook.js", "video.js"]) expect(rd(`dist/${f}`)).not.toContain("automatic-speech-recognition");
 });
 
 // ---- feature folders: components/<feature>/ and lib/<feature>/ ----
