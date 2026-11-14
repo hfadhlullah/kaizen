@@ -1,4 +1,5 @@
 // The popup's requests: both reads, killing a terminal, opening one, and the disk cleanup.
+import { host } from "@lib/core";
 import { setResources, useResources } from "./resources-store.ts";
 
 export async function loadResources() {
@@ -29,12 +30,10 @@ export async function killTerminal(key: string) {
 }
 // Cleanup: a new Claude Code in the Home window, starting on the disk-cleanup skill.
 export const startCleanup = () =>
-  void dispatchEvent(new CustomEvent("kz-home-start", { detail: { agent: "claude", prompt: "/disk-cleanup" } }));
+  void host.open.homeStart({ agent: "claude", prompt: "/disk-cleanup" });
 // Open: the board shows that terminal in its workspace; with no board to answer, the page goes there.
 export function openTerminal(t: { key: string; dir?: string; ws: string }) {
   setResources({ open: false, confirm: "", failed: "" });
-  if (
-    dispatchEvent(new CustomEvent("kz-open-term", { cancelable: true, detail: { dir: t.dir, ws: t.ws, key: t.key } }))
-  )
+  if (!host.open.term({ dir: t.dir, ws: t.ws, key: t.key }))
     location.href = `/?view=ws&dir=${encodeURIComponent(t.dir ?? "")}&ws=${encodeURIComponent(t.ws)}`;
 }

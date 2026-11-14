@@ -1,3 +1,4 @@
+import type { KzTerm } from "@lib/core";
 // The board terminals' font size, one per browser. Its own module so the bounds are testable
 // without xterm and Settings can share them without loading the terminal bundle.
 export const FONT_MIN = 8;
@@ -12,12 +13,12 @@ export function fontRead(): number {
   return FONT_BASE;
 }
 
-// Every mounted terminal listens for the event, so the size holds across tiles and panes.
+// Every mounted terminal takes the new size (term.js holds them: window.kzTerm.font), so it holds across tiles and panes.
 export function fontSet(n: number) {
   try {
     localStorage.setItem("kz-term-font", String(n));
   } catch {}
-  dispatchEvent(new CustomEvent("kz-term-font", { detail: n }));
+  (globalThis as { kzTerm?: KzTerm }).kzTerm?.font(n);
 }
 
 // The size a key leads to, or null when the key is not a font key.

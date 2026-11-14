@@ -95,7 +95,7 @@ const MADE = /\.createElement(?:NS)?\(\s*(?!["'](?:canvas|link|script|style)["']
 const uses = (src: string) => (src.match(HAND_BUILT)?.length ?? 0) + (src.match(MADE)?.length ?? 0);
 // What used to be web/board: the engines that react to lib/server and lib/router and the page's glue. They draw nothing.
 const ENGINES = [
-  "pages/board/main.ts", "pages/board/views.ts", "pages/board/keys.ts", "pages/board/live.ts", "pages/board/host-bridge.ts", "pages/board/open-events.ts",
+  "pages/board/main.ts", "pages/board/views.ts", "pages/board/keys.ts", "pages/board/live.ts", "pages/board/host-bridge.ts",
   "lib/run/panel.ts", "lib/run/workspace.ts", "lib/run/card-terminal.ts", "lib/board/snapshot.ts", "lib/board/on-state.ts", "lib/board/popups.ts",
   "lib/board/nav.ts", "lib/home/home-engine.ts", "lib/home/home-events.ts", "lib/terminal/terms-feed.ts", "lib/context/feed.ts",
   "lib/settings/panel-settings.ts", "lib/git/git-panel.ts", "lib/project/project-pick.ts", "lib/search/search-rows.ts", "lib/rail/rail-boot.ts",
@@ -256,7 +256,7 @@ test("shared side-menu code only opens React hosts the page has; no page wipes a
   // goes through go(), which writes the notebook's open note first.
   const se = rd("lib/search/search-rows.ts");
   expect(se).toMatch(/kitFor\(\)\.then\([\s\S]*?\(\) => leave\("\/\?view=board&search=1"\)/);
-  expect(se.match(/location\.href =/g)?.length).toBe(2); // go() on the board and leave()'s own
+  expect(se.match(/location\.href =/g)?.length).toBe(1); // go() on the board; leave() (lib/core/leave.ts) is the other way out
   expect(rd("lib/settings/panel-settings.ts")).not.toMatch(/\$\("(?:ptabs|psub)"\)\.(?:innerHTML|textContent)\s*=/);
   expect(rd("pages/tasks-page.tsx")).not.toMatch(/getElementById\("hx"\)\?*\.replaceChildren/);
 });
@@ -382,7 +382,8 @@ test("the Notes page is drawn by React, with one editor component and no lazy ki
   expect(files["components/notebook/note-body.tsx"]).toMatch(/<EditorPane key=\{doc\} \/>/);
   // every way out of the page writes the open note first
   const session = rd("lib/notebook/vault-session.ts");
-  for (const e of ["beforeunload", "visibilitychange", "kz-leave", "pagehide"]) expect(session).toContain(`"${e}"`);
+  for (const e of ["beforeunload", "visibilitychange", "pagehide"]) expect(session).toContain(`"${e}"`);
+  expect(session).toContain("onLeave(flush)"); // leaving through Search or Add a project (lib/core/leave.ts) writes it first
 });
 
 // The annotator: the Browser tab's toolbar and notes list are React (components/annotate, state and rules in lib/annotate) and the

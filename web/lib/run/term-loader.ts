@@ -1,6 +1,6 @@
 // xterm.js ships as its own script (dist/term.js) and style (term.css), loaded the first time a terminal is shown. It
-// sets window.kzTerm(el, key, onEnd): mounts a terminal on /pty in `el` and returns the function that unmounts it.
-export type KzTerm = (el: HTMLElement, key: string, onEnd?: () => void) => () => void;
+// sets window.kzTerm (lib/core/term-handle.ts): mounts a terminal on /pty in `el` and returns the function that unmounts it.
+import type { KzTerm } from "@lib/core";
 let lib: Promise<KzTerm> | null = null;
 export const termLoad = () =>
   (lib ||= new Promise<KzTerm>((ok, no) => {

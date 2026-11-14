@@ -1,5 +1,5 @@
 // What the side menu's rows do: ask the page to open something, and the worktree menu's requests. Open-in-place goes
-// through the page's own events (the board answers them and cancels the event); when nobody does, the address changes.
+// through host.open (the board answers it); when nobody does, the address changes.
 import { ask, host, toast } from "@lib/core";
 import { openAdd, type WsMenuItem } from "@lib/project";
 import { getServer } from "@lib/server";
@@ -9,14 +9,12 @@ import { wsLabel } from "./rules.ts";
 // The two buttons the menu only draws: + (add a project) and Search. lib/rail/rail-boot.ts and lib/search/search-rows.ts answer.
 export const railActions = { add: () => {}, search: () => {} };
 
-// True when the page opened it in place.
-export const handled = (name: string, detail: unknown) =>
-  !dispatchEvent(new CustomEvent(name, { cancelable: true, detail }));
-export const openTask = (id: string, dir: string) => handled("kz-open-task", { id, dir });
-export const openWs = (dir: string, ws: string) => handled("kz-open-ws", { dir, ws });
+// True when the page opened it in place (host.open: the board does, the Notebook page does not).
+export const openTask = (id: string, dir: string) => host.open.task({ id, dir });
+export const openWs = (dir: string, ws: string) => host.open.ws({ dir, ws });
 // An agent's mark: the board opens that terminal tab in its workspace; the notebook page opens the workspace.
 export const openTerm = (dir: string, ws: string, key: string) => {
-  if (!handled("kz-open-term", { dir, ws, key })) host.navigate(host.wsHref(dir, ws));
+  if (!host.open.term({ dir, ws, key })) host.navigate(host.wsHref(dir, ws));
 };
 export const addWorkspace = (dir: string) => openAdd({ dir, start: "ws" });
 

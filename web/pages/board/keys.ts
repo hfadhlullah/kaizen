@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { dialogOpen, inLayer, layerOpen } from "@lib/core";
 import { cardKey as key, getServer, load, setServer } from "@lib/server";
 import { closeForm, focusFilter, focusedKey, formPopup, getBoard, nav, newTask, runPopup } from "@lib/board";
 import { iceKeys } from "@lib/icebox";
@@ -16,7 +17,7 @@ function onKey(e: any) {
     // The icebox reads its own keys first; a checkbox there keeps them, for x then j.
     if (getRoute().view === "sources" && !useHelp.getState().on && iceKeys(e)) return;
     // A dialog or an open menu (they render into #kz-portal) handles its own keys; Escape there must not also close the panel.
-    if (e.target.matches("input,select,textarea,[contenteditable]") || e.target.closest("dialog,#kz-portal") || layerUp) return;
+    if (e.target.matches("input,select,textarea,[contenteditable]") || inLayer(e.target) || layerUp) return;
     // The shortcuts overlay (?) is off for now, with its menu button; keys still work.
     if (e.key === "/" && searchBox.el && getPanel().open) {
       e.preventDefault();
@@ -37,7 +38,7 @@ function onKey(e: any) {
     }
     // The Terminal page has no cards to move between; its keys are the terminals'.
     if (getRoute().view === "terminal" || getRoute().view === "task") return;
-    if (e.key === "n" && !document.querySelector("dialog[open]")) {
+    if (e.key === "n" && !dialogOpen()) {
       newTask();
     }
     if (e.key === "a") {
@@ -107,7 +108,7 @@ function onKey(e: any) {
 // before this handler runs, so whether one was open is read when the key arrives (capture), not after.
 export function useKeys() {
   useEffect(() => {
-    const layer = () => (layerUp = !!document.querySelector("#kz-portal [data-state=open]"));
+    const layer = () => (layerUp = layerOpen());
     addEventListener("keydown", layer, true);
     document.addEventListener("keydown", onKey);
     return () => {

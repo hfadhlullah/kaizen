@@ -8,7 +8,7 @@ import { setNotes, type NotesView } from "@lib/notes";
 import { attach, preview } from "@lib/markdown";
 import { showTerm, termStop } from "./card-terminal.ts";
 import { gitLeave, gitPending, gitShown, gitTab } from "@lib/git";
-import { openWorkspace } from "./workspace.ts";
+import { openPreview, openWorkspace } from "./workspace.ts";
 import { hitNeedle } from "./doc.ts";
 import { editingNotes, getPanel, setPanel, setPanelActions, type Head, type Panel, type PanelDoc } from "./panel-store.ts";
 import { setFlip } from "./run-view-store.ts";
@@ -189,7 +189,7 @@ export async function openRun(c, refresh, again) {
     tab: work.tab,
     pickTab: (k) => {
       // In the run workspace Preview is a centre tab, not a panel tab.
-      if (getRoute().view === "run" && k === "preview") return void dispatchEvent(new Event("kz-run-preview"));
+      if (getRoute().view === "run" && k === "preview") return void openPreview();
       setPanel({ pn: false });
       work.tab = k;
       openRun(c, true);

@@ -3,6 +3,7 @@
 // theme (light, dark, or unset for the system's), colour (blue or monochrome), motion (full, reduce, or the system's), the
 // desktop app's classes, and the iPhone app's fit. The board and the Notebook call bootShell() first; Settings and
 // onboarding call setTheme / setColor / setMotion. CSS keys off data-theme, data-color, data-motion, data-rail and data-hide.
+import { termNow } from "@lib/core";
 import { setShell, setSetupRow, getShell } from "./shell-store.ts";
 import { applyFold, applyStoredLook, fitStandalone, PHONE, WIDE } from "./stored-look.ts";
 
@@ -28,7 +29,11 @@ const paint = () => {
   setShell({ dark: dark() });
   desk()?.titleBar?.(dark());
 };
-const changed = () => dispatchEvent(new Event("kz-theme"));
+// A look changed: Settings redraws its Theme row (`look`) and every terminal repaints (term.js).
+const changed = () => {
+  setShell((s) => ({ look: s.look + 1 }));
+  termNow()?.retheme();
+};
 
 export function setTheme(t: string) {
   if (t === "system") delete root().dataset.theme;

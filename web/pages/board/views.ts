@@ -5,7 +5,8 @@ import { close, initRunView, runStop, setPanel, showRunView, work } from "@lib/r
 import { openSettings } from "@lib/settings";
 import { openTerms, termsStop } from "@lib/terminal";
 import { openHome } from "@lib/home";
-import { navigateTask, showTask } from "@lib/task";
+import { useShell } from "@lib/shell";
+import { showTask } from "@lib/task";
 
 // ---- the engine's side of the router. Which view shows, its address and history, and the page it draws are lib/router's
 // (the store, the App and the pages read it); this is what a view change still starts in the docked panel, the run
@@ -61,12 +62,6 @@ setRouterHooks({
 export function initViews() {
   initRunView();
   startRouter();
-  addEventListener("kz-open-task", ((e: CustomEvent) => {
-    e.preventDefault();
-    navigateTask(e.detail);
-  }) as EventListener);
   // The menu's theme switch while Settings shows: its Theme row follows.
-  addEventListener("kz-theme", () => {
-    if (getRoute().view === "settings") openSettings();
-  });
+  useShell.subscribe((s, p) => s.look !== p.look && getRoute().view === "settings" && openSettings());
 }

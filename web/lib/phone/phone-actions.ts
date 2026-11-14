@@ -9,10 +9,7 @@ import { openSheet } from "./phone-sheet.ts";
 
 // A Home terminal opens in the Home window; any other goes to its workspace.
 export function openTerm(a: Agent) {
-  if (
-    dispatchEvent(new CustomEvent("kz-open-term", { cancelable: true, detail: { dir: a.dir, ws: a.ws, key: a.key } }))
-  )
-    location.href = host.wsHref(a.dir, a.ws ?? "");
+  if (!host.open.term({ dir: a.dir, ws: a.ws, key: a.key })) location.href = host.wsHref(a.dir, a.ws ?? "");
 }
 // Several agents in a workspace: a sheet picks which terminal to open.
 export function pickAgent(rows: AgentRow[]) {
@@ -60,9 +57,7 @@ export async function newSheet(dir?: string, ws?: string) {
         cmd = kind.cmd;
       // Home: the Home window starts it (POST /shell {home:true}) and opens full screen.
       if (pick < 0)
-        return void dispatchEvent(
-          new CustomEvent("kz-home-start", { detail: { agent: cmd, yolo: !!kind.yolo && yolo } }),
-        );
+        return void host.open.homeStart({ agent: cmd, yolo: !!kind.yolo && yolo });
       const at = spots[pick]!;
       const r = await fetch("/shell", {
         method: "POST",

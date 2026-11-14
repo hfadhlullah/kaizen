@@ -25,7 +25,6 @@ export async function refreshTasks() {
       if (gen !== sequence || getRoute().page !== "tasks") continue;
       setStore({ tasks: items, tasksLoaded: true, tasksError: "" });
       setTasks(items);
-      dispatchEvent(new CustomEvent("kz-task-list", { detail: items }));
     } catch (e) {
       if (getRoute().page === "tasks")
         setStore({ tasksError: e instanceof Error ? e.message : "Tasks could not be loaded" });

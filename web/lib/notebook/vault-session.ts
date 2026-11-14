@@ -1,6 +1,6 @@
 // The page's life: which project to show, the first load, the note open last, live refresh from the board's events, and
 // every way a page can end (leaving for the board, closing, hiding) writing the open note first.
-import { toast } from "@lib/core";
+import { onLeave, toast } from "@lib/core";
 import { flush, loadVault, openNote, saveOnExit, save } from "./vault-actions.ts";
 import { pickProject } from "./text.ts";
 import { startNote } from "./vault-rules.ts";
@@ -67,7 +67,7 @@ function guards() {
     if (document.visibilityState === "hidden") void flush();
   });
   // Leaving for the board through Search (Ctrl+K): the note is written first.
-  addEventListener("kz-leave", ((e: CustomEvent) => e.detail.wait(flush())) as EventListener);
+  onLeave(flush);
   // Leaving with unsaved text: a keepalive request outlives the page.
   addEventListener("pagehide", saveOnExit);
 }

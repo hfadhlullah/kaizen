@@ -15,6 +15,8 @@ type Home = {
   files: File[];
   here: string | null; // the project a new chat starts in: the board's, unless it shows every project or none
   tick: number; // bumped to draw the open chat again after a change made in place
+  focusAsk: number; // bumped to ask the message box for focus (a new chat)
+  suggest: { text: string } | null; // a suggestion pressed: the box takes it (composer clears it)
 };
 // The chat list: open or closed, kept per browser. A phone opens it as a drawer, closed at first.
 const sideAtStart = () => {
@@ -33,6 +35,8 @@ export const useHome = create<Home>()(() => ({
   files: [],
   here: null,
   tick: 0,
+  focusAsk: 0,
+  suggest: null,
 }));
 export const getHome = useHome.getState;
 export const setHome = useHome.setState;
@@ -86,7 +90,7 @@ export function newChat() {
   remember(null);
   void vt(() =>
     setHome({ cur: null, files: [], remoteBusy: false, side: isPhone() ? false : s.side, here: hereNow() }),
-  ).then(() => document.getElementById("hq")?.focus());
+  ).then(() => setHome((s) => ({ focusAsk: s.focusAsk + 1 })));
 }
 export async function show(id: string) {
   const c: Chat & { error?: string } = await (await fetch("/chat?id=" + encodeURIComponent(id))).json();

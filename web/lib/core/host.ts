@@ -2,7 +2,18 @@
 // Keeping it here means lib/, components/ and pages/ never import web/board (no cycles, and a test can
 // stand in a fake host). The old modules shrink each phase; this type is what is left of them.
 export type RunPick = { kind: string; agent?: string; account?: string; yolo: boolean; explore?: boolean };
+// What a page opens in place. Each answers true when it did; the Notebook page and Video set none, so the caller changes the
+// address instead. (These were `kz-open-*` events on window; the board's answers are pages/board/host-bridge.ts.)
+export type Open = {
+  card(a: { dir: string; id?: string; text?: string }): boolean; // a run or task card, in its workspace or panel
+  ws(a: { dir: string; ws: string }): boolean;
+  term(a: { dir?: string; ws?: string; key: string }): boolean; // an agent's terminal tab; a Home one opens in the Home window
+  tab(a: { dir: string; ws: string; id: string }): boolean; // a workspace's tab, on the screen that holds it
+  task(a: { id: string; dir: string }): boolean;
+  homeStart(a: { agent?: string; yolo?: boolean; prompt?: string }): boolean; // a new agent or shell in the Home window
+};
 export type Host = {
+  open: Open;
   // Show another board view (no reload); push adds a history entry.
   go(view: string, push?: boolean): void;
   // The board's New task dialog (the header button's own action).
@@ -59,7 +70,9 @@ export type Host = {
 const none = (): never => {
   throw new Error("The board has not mounted this page yet");
 };
+const no = () => false;
 export const host: Host = {
+  open: { card: no, ws: no, term: no, tab: no, task: no, homeStart: no },
   go: none,
   newTask: none,
   runPopup: none,

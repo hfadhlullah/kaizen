@@ -10,9 +10,9 @@
 // Terminal page's handles. The panes, their layout and the Browser tab are React (components/run/run-panes.tsx, the
 // layout in lib/run/layout-store.ts); this module knows which items the workspace has, starts and ends sessions, and
 // answers the keyboard.
-import { age, ask, isPhone, post, toast } from "@lib/core";
+import { age, ask, dialogOpen, isPhone, post, toast } from "@lib/core";
 import { cardHref, cardState as stateOf, titleOf, wsHref, wsOfCardNow as wsOfCard } from "@lib/rail";
-import { getRoute, navigate, touchRoute } from "@lib/router";
+import { getRoute, navigate, setTitle, touchRoute } from "@lib/router";
 import { cardKey as key, getServer, load, onServer, onState, railDataNow } from "@lib/server";
 import { setHelp } from "@lib/shell";
 import { preview } from "@lib/markdown";
@@ -126,7 +126,7 @@ export async function showRunView(nav = false) {
   if (fresh) previewAt.delete(k); // nor is a preview: arriving only records it
   // The header titles a phone's workspace: the run, else the branch.
   const w = railDataNow().projects?.find((x) => x.dir === dir)?.workspaces?.find((x) => x.path === ws);
-  document.querySelector(".hdr h1")!.textContent = want ? titleOf(want) : w?.branch || ws.split(/[\\/]/).pop() || "Workspace";
+  setTitle(want ? titleOf(want) : w?.branch || ws.split(/[\\/]/).pop() || "Workspace");
   // Layouts saved per run before workspaces move to their workspace; keys no card owns stay.
   if (getServer().state.cards.some((c) => key(c) in useLayout.getState().all)) {
     const all = structuredClone(useLayout.getState().all);
@@ -273,7 +273,7 @@ function show(id: string) {
   draw();
 }
 export const openNoteTab = (name: string) => addTab({ id: "note:" + name, kind: "note", title: name.slice(name.lastIndexOf("/") + 1), note: name });
-const openPreview = () => {
+export const openPreview = () => {
   addTab({ id: "preview", kind: "preview", title: "Preview" });
   if (isPhone()) setFlip(false); // Preview is a centre tab: the sheet would sit over it
 };
@@ -551,7 +551,7 @@ function initPaneKeys() {
   addEventListener(
     "keydown",
     (e) => {
-      if (!ctx || getRoute().view !== "run" || document.querySelector("dialog[open]")) return;
+      if (!ctx || getRoute().view !== "run" || dialogOpen()) return;
       if (e.ctrlKey && !e.shiftKey && e.code === "Space") {
         e.preventDefault();
         e.stopPropagation();
@@ -587,35 +587,34 @@ function pruneKept() {
   );
   if (Object.values(next).some((v, i) => v.items.length !== Object.values(cur)[i]!.items.length)) setRunView({ kept: next });
 }
+// The workspace address, in the history, and the run view for it.
+function goWs(dir: string, ws: string) {
+  history.pushState(null, "", wsHref(dir, ws));
+  touchRoute();
+  navigate("ws");
+}
+// A workspace row opens in place: the run view resolves it (showRunView).
+export const openWsIn = goWs;
+// The sidebar's agent mark: open that workspace with the agent's terminal tab selected.
+export function openTermIn({ dir, ws, key }: { dir: string; ws: string; key: string }) {
+  wantTerm = key;
+  if (ctx?.k === wsKey(dir, ws) && getRoute().view === "run") return void showTerm();
+  goWs(dir, ws);
+}
+// Search's Tabs group: open the workspace on the screen holding that tab.
+export function openTabIn({ dir, ws, id }: { dir: string; ws: string; id: string }) {
+  const k = wsKey(dir, ws),
+    sc = layoutOf(k).screens.find((x) => leaves(x.tree).includes(id));
+  if (sc) selectScreen(k, sc.id);
+  if (ctx?.k === k && getRoute().view === "run") return void draw();
+  goWs(dir, ws);
+}
 export function initRunView() {
   initPaneKeys();
   onServer((x) => x.shells, pruneKept);
   setInterval(() => void pollPreview(), 3000);
   // The panel's project-notes button; its close button and the scrim are panel.ts's.
   setPanelActions({ notes: () => void projectNotes() });
-  // The sidebar's agent mark: open that workspace with the agent's terminal tab selected.
-  addEventListener("kz-open-term", (e: any) => {
-    e.preventDefault();
-    const { dir, ws, key } = e.detail;
-    wantTerm = key;
-    if (ctx?.k === wsKey(dir, ws) && getRoute().view === "run") return void showTerm();
-    history.pushState(null, "", wsHref(dir, ws));
-    touchRoute();
-    navigate("ws");
-  });
-  // Search's Tabs group: open the workspace on the screen holding that tab.
-  addEventListener("kz-open-tab", (e: any) => {
-    e.preventDefault();
-    const { dir, ws, id } = e.detail;
-    const k = wsKey(dir, ws),
-      sc = layoutOf(k).screens.find((x) => leaves(x.tree).includes(id));
-    if (sc) selectScreen(k, sc.id);
-    if (ctx?.k === k && getRoute().view === "run") return void draw();
-    history.pushState(null, "", wsHref(dir, ws));
-    touchRoute();
-    navigate("ws");
-  });
-  addEventListener("kz-run-preview", openPreview);
   setRunActions({
     select: (sid) => {
       selectScreen(ctx!.k, sid);

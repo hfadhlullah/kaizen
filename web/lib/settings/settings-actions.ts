@@ -74,9 +74,7 @@ export async function accountSignIn(id: string, tool: string) {
   if (!dir) return toast("Open a project first, or run the line shown here in a terminal");
   const j = await post("/shell", { dir, agent: tool, account: id, login: true });
   if (j.error || !j.key) return toast(j.error || "Could not open a terminal. Run the line shown here");
-  const opened = !dispatchEvent(
-    new CustomEvent("kz-open-term", { cancelable: true, detail: { dir, ws: j.ws, key: j.key } }),
-  );
+  const opened = host.open.term({ dir, ws: j.ws, key: j.key });
   toast(opened ? "Sign in, then close the terminal" : "Terminal started. Open it from the side menu");
 }
 export async function accountAdd(tool: string) {

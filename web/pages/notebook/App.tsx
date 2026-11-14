@@ -3,6 +3,7 @@ import { AddProjectDialog, WsMenu } from "@components/project";
 import { SearchPalette } from "@components/search";
 import { AskHost } from "@components/shared";
 import { Rail, Sprite } from "@components/shell";
+import { setPortalRoot } from "@lib/core";
 import { NotebookPage } from "../notebook-page.tsx";
 
 // The Notebook app: the providers, the side menu (the board's, with its Projects list), the Notes page and the kit's popups
@@ -14,7 +15,7 @@ export function App({ embed }: { embed: boolean }) {
       <Sprite notebook />
       {!embed && <Rail />}
       <NotebookPage />
-      <div id="kz-kit" className="kz-ui">
+      <div id="kz-kit" className="kz-ui" ref={setPortalRoot}>
         <div>
           <Toaster />
           <AskHost />

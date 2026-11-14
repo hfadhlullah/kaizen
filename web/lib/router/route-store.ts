@@ -66,6 +66,8 @@ let hooks: Hooks = {};
 export const setRouterHooks = (h: Hooks) => (hooks = h);
 
 // The address changed without a view change (a card or a workspace opened in place): the row it names lights.
+// The header's title for a view whose name is not the view's own (a workspace is titled by its run or branch).
+export const setTitle = (title: string) => useRoute.setState({ title });
 export const touchRoute = () => useRoute.setState({ search: location.search, run: runOf(location.search) });
 export function navigate(to: string | null | undefined, push = false) {
   const phone = isPhone(),

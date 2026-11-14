@@ -4,7 +4,7 @@
 // The palette itself is React (components/search/search-palette.tsx). The board mounts it; the Notebook page loads it on
 // its own (notebook/kit.ts) and opens it in place; Video, which carries no React, sends the person to the board with the
 // palette open (?search=1).
-import { age } from "@lib/core";
+import { age, host, leave } from "@lib/core";
 import { onServer, railDataNow } from "@lib/server";
 import { openAdd } from "@lib/project/add-project.ts";
 import { cardHref, cardState as stateOf, projName, titleOf, wsHref, wsLabel, wsOfCardNow as wsOfCard } from "@lib/rail";
@@ -19,14 +19,12 @@ import type { Item } from "./search-match.ts";
 
 // Set when the board starts (initSearch): the Notebook and Video are not the board.
 let onBoard = () => false;
-// The pages that can open a thing in place answer this event and cancel it.
-const ask = (name: string, detail: any) => !dispatchEvent(new CustomEvent(name, { cancelable: true, detail }));
 // A page load: the Notebook writes the note it has open first (leave), the board has nothing to write.
 const go = (href: string) => (onBoard() ? void (location.href = href) : leave(href));
 // A menu entry's own click: in place on the board, a page load elsewhere.
 const page = (v: string, href: string) => () => (onBoard() ? menuGo(v) : go(href));
 const openWs = (dir: string, ws: string) => {
-  if (!ask("kz-open-ws", { dir, ws })) go(wsHref(dir, ws));
+  if (!host.open.ws({ dir, ws })) go(wsHref(dir, ws));
 };
 // The run view's saved layouts (run-view.ts keeps them here per workspace).
 const layouts = (): Record<string, any> => {
@@ -38,7 +36,7 @@ const layouts = (): Record<string, any> => {
 };
 // A tab: the board opens it in place; elsewhere its screen is chosen in storage, then the workspace loads.
 const openTab = (dir: string, ws: string, id: string) => {
-  if (ask("kz-open-tab", { dir, ws, id })) return;
+  if (host.open.tab({ dir, ws, id })) return;
   const all = layouts(),
     s = all[wsKey(dir, ws)],
     sc = s?.screens?.find((x) => leaves(x.tree).includes(id));
@@ -113,7 +111,7 @@ function items(): Item[] {
       dot: st,
       ico: c.kind === "run" ? "run" : "idea",
       act: () => {
-        if (!ask("kz-open-card", { dir: c.state, id: c.kind === "run" ? c.id : undefined, text: c.text })) go(cardHref(c));
+        if (!host.open.card({ dir: c.state, id: c.kind === "run" ? c.id : undefined, text: c.text })) go(cardHref(c));
       },
     });
   }
@@ -147,7 +145,7 @@ function items(): Item[] {
       dot: a.asking ? "wait" : a.busy ? "build" : "done",
       ico: "term",
       act: () => {
-        if (!ask("kz-open-term", { dir: a.dir, ws: a.ws, key: a.key })) go(wsHref(a.dir, a.ws ?? ""));
+        if (!host.open.term({ dir: a.dir, ws: a.ws, key: a.key })) go(wsHref(a.dir, a.ws ?? ""));
       },
     });
   // Pages and actions. Each clicks the side menu's own control, so it behaves the same.
@@ -185,13 +183,6 @@ function newTaskWith(text: string) {
 // The palette's store: this bundle's own on the board; on the Notebook page the loaded kit's, which the mounted palette reads.
 let S = useSearch;
 const fill = () => S.getState().open && S.setState({ items: items() });
-// Leaving for the board: the page first writes what it has not saved (the notebook's autosave waits 600 ms) by answering
-// the `kz-leave` event with a promise through `wait`.
-export function leave(href: string) {
-  const waits: Promise<unknown>[] = [];
-  dispatchEvent(new CustomEvent("kz-leave", { detail: { wait: (p: Promise<unknown>) => waits.push(p) } }));
-  void Promise.allSettled(waits).then(() => (location.href = href));
-}
 export function openSearch() {
   if (onBoard()) return show();
   kitFor().then(

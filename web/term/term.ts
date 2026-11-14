@@ -27,6 +27,8 @@ const ORCA_LIGHT = {
   brightBlack: "#555753", brightRed: "#ef2929", brightGreen: "#1b7a1b", brightYellow: "#6d5a00", brightBlue: "#204a87", brightMagenta: "#ad7fa8", brightCyan: "#034b50", brightWhite: "#3d3d3d",
 };
 
+// The terminals mounted now, for the board's theme and font-size changes.
+const live = new Set<{ retheme(): void; refont(n: number): void }>();
 function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void {
   const css = getComputedStyle(el);
   const tok = (n: string) => css.getPropertyValue(n).trim() || undefined;
@@ -62,7 +64,6 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
     term.options.theme = theme();
     reportScheme();
   });
-  addEventListener("kz-theme", retheme);
   os.addEventListener("change", retheme);
   const fit = new FitAddon();
   term.loadAddon(fit);
@@ -618,11 +619,12 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
     if (e.type === "keydown") fontSet(next);
     return false;
   });
-  const refont = (e: Event) => {
-    term.options.fontSize = (e as CustomEvent<number>).detail;
+  const refont = (n: number) => {
+    term.options.fontSize = n;
     size();
   };
-  addEventListener("kz-term-font", refont);
+  const mine = { retheme, refont };
+  live.add(mine);
   // Fit and tell the agent in the same tick: if xterm narrowed first, the agent kept drawing at
   // the old width until the message landed, its long lines wrapped, and the frame ended up shifted
   // with junk rows. As Orca does, nothing refits while a divider or the window is still moving: the
@@ -653,11 +655,14 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
     tools.remove();
     clearTimeout(retry);
     if (ws) { ws.onclose = null; ws.close(); }
-    removeEventListener("kz-theme", retheme);
-    removeEventListener("kz-term-font", refont);
+    live.delete(mine);
     os.removeEventListener("change", retheme);
     term.dispose();
   };
 }
 
-(window as any).kzTerm = mountTerm;
+// The board's look or font size changed (lib/core/term-handle.ts): every terminal mounted takes it.
+(window as any).kzTerm = Object.assign(mountTerm, {
+  retheme: () => live.forEach((t) => t.retheme()),
+  font: (n: number) => live.forEach((t) => t.refont(n)),
+});

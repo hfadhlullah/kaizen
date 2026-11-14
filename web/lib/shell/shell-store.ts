@@ -6,10 +6,12 @@ export const useShell = create<{
   dark: boolean;
   min: boolean; // the side menu shows icons only
   setup: Setup | null;
+  look: number; // bumped when the theme or colour changes (what shows the choice redraws)
 }>()(() => ({
   dark: false,
   min: false,
   setup: null,
+  look: 0,
 }));
 export const getShell = useShell.getState;
 export const setShell = useShell.setState;

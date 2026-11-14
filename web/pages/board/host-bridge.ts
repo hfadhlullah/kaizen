@@ -8,15 +8,51 @@ import { cardKey as key, dirHeader, getServer, load } from "@lib/server";
 import { startTerminalDictation } from "@lib/dictation";
 import { FONT_MAX, FONT_MIN, fontRead, fontSet } from "@lib/terminal";
 import { newTask, runPopup, via } from "@lib/board";
-import { gitProjects, wsHref } from "@lib/rail";
+import { cardHref, gitProjects, isHomeDir, wsHref } from "@lib/rail";
+import { openHomeTerm, startHomeFrom } from "@lib/home";
+import { navigateTask } from "@lib/task";
 import { pick as pickProject } from "@lib/project";
 import { rich } from "@lib/notes";
 import { dataUrls } from "@lib/shared";
-import { close as closePanel, getPanel, open as openPanel, openAt, openRun, openWorkspace, work } from "@lib/run";
+import { close as closePanel, getPanel, open as openPanel, openAt, openRun, openTabIn, openTermIn, openWorkspace, openWsIn, work } from "@lib/run";
+
+// A card's run or task, in place. A card of another project switches the board to that project first; one the board does not
+// have (not loaded, or another project) is false, and the caller changes the address.
+function openCardIn({ dir, id, text }: { dir: string; id?: string; text?: string }) {
+  const find = () =>
+    getServer().state.cards.find(
+      (x: any) => x.state === dir && (id ? x.kind === "run" && x.id === id : x.kind === "idea" && x.text === text),
+    );
+  const c = find();
+  if (c) return openWorkspace(c), true;
+  if (!dir || dir === getServer().dir) return false;
+  const href = cardHref({ state: dir, kind: id ? "run" : "idea", id, text });
+  pickProject(dir)
+    .then(() => {
+      const c = find();
+      if (c) openWorkspace(c);
+      else location.href = href;
+    })
+    .catch(() => (location.href = href));
+  return true;
+}
 
 export function initHost() {
   startTerminalDictation();
   setHost({
+    open: {
+      card: openCardIn,
+      ws: ({ dir, ws }) => (openWsIn(dir, ws), true),
+      // A Home terminal opens in the Home window (full screen on a phone); any other in its workspace.
+      term: (a) => {
+        if (isHomeDir(a.dir)) openHomeTerm(String(a.key ?? ""));
+        else openTermIn({ dir: a.dir ?? "", ws: a.ws ?? "", key: a.key });
+        return true;
+      },
+      tab: (a) => (openTabIn(a), true),
+      task: (a) => (navigateTask(a), true),
+      homeStart: (a) => (startHomeFrom(a), true),
+    },
     go: navigate,
     newTask: () => newTask(),
     runPopup,

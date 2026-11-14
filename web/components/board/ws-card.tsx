@@ -1,8 +1,9 @@
+import { host } from "@lib/core";
 import type { WsCard as Ws } from "@lib/board";
 import { ProjectMark } from "@components/shared";
 
 // A workspace on the Board's Workspaces mode: its status dot, branch or name, project and what its newest run says.
-// Pressing it opens the workspace in place (`kz-open-ws`, which the board answers); a modified click keeps the link.
+// Pressing it opens the workspace in place (`host.open.ws`, which the board answers); a modified click keeps the link.
 // The dot is the sidebar's `.si` (conic rings and spin keyframes) until the rail moves over.
 export function WsCard({ w }: { w: Ws }) {
   return (
@@ -12,8 +13,7 @@ export function WsCard({ w }: { w: Ws }) {
       data-ws={w.path}
       onClick={(e) => {
         if (e.ctrlKey || e.metaKey || e.shiftKey || e.button) return;
-        if (!dispatchEvent(new CustomEvent("kz-open-ws", { cancelable: true, detail: { dir: w.dir, ws: w.path } })))
-          e.preventDefault();
+        if (host.open.ws({ dir: w.dir, ws: w.path })) e.preventDefault();
       }}
       className="flex min-h-(--row-h) items-start gap-2 rounded-md border border-border bg-background px-2.5 py-2 text-foreground hover:bg-muted focus-visible:-outline-offset-2"
     >

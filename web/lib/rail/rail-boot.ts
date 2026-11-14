@@ -4,7 +4,8 @@
 import { openAdd, type AddOpts } from "@lib/project/add-project.ts";
 import { startRailFeed } from "@lib/server";
 import { gitProjects, wsHref } from "./card-links.ts";
-import { initSearch, leave } from "@lib/search/search-rows.ts";
+import { leave } from "@lib/core";
+import { initSearch } from "@lib/search/search-rows.ts";
 import { kitHere, loadKit } from "@lib/notebook/kit-loader.ts";
 import { railActions } from "./rail-actions.ts";
 

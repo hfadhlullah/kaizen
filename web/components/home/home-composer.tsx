@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { addFiles, removeFile, send, stop } from "@lib/home";
+import { addFiles, removeFile, send, setHome, stop, useHome } from "@lib/home";
 import { pastedFiles } from "@lib/shared";
 import { cn } from "@lib/core";
 import { Icon } from "@web/ui";
@@ -67,18 +67,24 @@ export function HomeComposer({
     void send(v);
   };
   // A suggestion fills the box; one that ends in a space waits for the rest.
+  const suggest = useHome((s) => s.suggest);
   useEffect(() => {
-    const on = (e: Event) => {
-      const s = (e as CustomEvent<string>).detail;
-      box.current?.focus();
-      if (s.endsWith(" ")) return change(s);
-      if (working || sending) return;
-      setText("");
-      void send(s);
-    };
-    addEventListener("kz-home-suggest", on);
-    return () => removeEventListener("kz-home-suggest", on);
-  });
+    if (!suggest) return;
+    setHome({ suggest: null });
+    const s = suggest.text;
+    box.current?.focus();
+    if (s.endsWith(" ")) return change(s);
+    if (working || sending) return;
+    setText("");
+    void send(s);
+  }, [suggest]);
+  // A new chat asks for the box (newChat in the store); the focus asked before this mounted is not repeated.
+  const ask = useHome((s) => s.focusAsk),
+    asked = useRef(ask);
+  useEffect(() => {
+    if (ask !== asked.current) box.current?.focus();
+    asked.current = ask;
+  }, [ask]);
   return (
     <form
       id="hbox"

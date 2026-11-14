@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { ChatList, HomeComposer, HomeMessage } from "@components/home";
-import { projectName, SUGGEST, deleteChat, setSide, show, useHome } from "@lib/home";
+import { projectName, SUGGEST, deleteChat, setHome, setSide, show, useHome } from "@lib/home";
 import { host, cn } from "@lib/core";
 import { IconButton } from "@components/shared";
 
@@ -112,7 +112,7 @@ export function HomePage() {
               <button
                 key={t}
                 type="button"
-                onClick={() => dispatchEvent(new CustomEvent("kz-home-suggest", { detail: t }))}
+                onClick={() => setHome({ suggest: { text: t } })}
                 className="flex-none whitespace-nowrap rounded-full px-3 py-1.5 text-base text-muted-foreground transition hover:-translate-y-px hover:bg-muted hover:text-foreground"
               >
                 {t}
