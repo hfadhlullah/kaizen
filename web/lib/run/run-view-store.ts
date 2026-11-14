@@ -28,7 +28,7 @@ export type RunView = {
   pty: boolean; // the server can start terminals
   titles: Record<string, string>; // pane id -> its title
   items: RvPane[]; // every item the workspace has open
-  wsk: string | null; // the workspace shown (its layout's key); null: none, every pane is unmounted
+  wsk: string | null; // the workspace shown (its layout's key); null: none shown (the terminals of workspaces visited stay mounted in `kept`)
   ws: { dir: string; ws: string } | null;
   history: RvHistory[];
   empty: boolean;
@@ -36,6 +36,9 @@ export type RunView = {
   hint: boolean; // the Ctrl+Space key hint
   notes: RvNotes;
   picker: RvPicker | null; // the panel's run picker (null: no run to show)
+  // The terminals of every workspace visited, by workspace key: mounted once and kept, hidden while that workspace is not
+  // shown, so leaving a workspace or the run view never reconnects them. A workspace's other panes are made again on return.
+  kept: Record<string, { items: RvPane[]; ws: { dir: string; ws: string } }>;
   flip: boolean; // the run panel is folded away (a phone's sheet is down); the <body> carries `rflip` while this is set
   awaiting: boolean; // a run of this workspace waits on you: the panel button shows a dot while the panel is folded
   focus: { id: string | null; n: number }; // a pane the keyboard asked to focus (n changes with every ask)
@@ -75,6 +78,7 @@ export const useRunView = create<RunView>()(() => ({
   hint: false,
   notes: null,
   picker: null,
+  kept: {},
   flip: false,
   awaiting: false,
   focus: { id: null, n: 0 },

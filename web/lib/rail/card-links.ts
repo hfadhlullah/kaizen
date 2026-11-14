@@ -2,7 +2,7 @@
 // workspace, the Home workspace's folder, and the projects a workspace can be made in.
 import { railDataNow } from "@lib/server";
 import { attentionFor } from "./rail-store.ts";
-import { projName, stateOf } from "./rules.ts";
+import { projName, stateOf, wsOfCard as ruleWsOfCard } from "./rules.ts";
 
 // A card's state icon (.si) and the word under its title, with the attention the Tasks read says it has.
 export const cardState = (c: any) => stateOf(c, attentionFor(c));
@@ -16,3 +16,5 @@ export const gitProjects = () =>
   railDataNow()
     .projects.filter((p) => p.workspaces?.some((w) => w.branch))
     .map((p) => ({ dir: p.dir as string, name: projName(p.dir, railDataNow().projects) }));
+// A card's workspace row, by the projects the last refresh listed (lib/rail/rules.ts takes them as an argument).
+export const wsOfCardNow = (c: any, projects = railDataNow().projects) => ruleWsOfCard(c, projects);

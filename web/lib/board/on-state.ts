@@ -1,7 +1,7 @@
 import { flushSync } from "react-dom";
 import { notifier, notifyUser, vt } from "@lib/core";
 import { askingNow, changes, cardKey as key, getServer, newlyAsking, setEngine, type Seen } from "@lib/server";
-import { close, editingNotes, getPanel, open, openRun, taskBody, work } from "@lib/run";
+import { close, editingNotes, pruneTerms, getPanel, open, openRun, taskBody, work } from "@lib/run";
 import { termsChanged } from "@lib/terminal";
 import { getBoard, setBoard } from "./board-store.ts";
 import { refreshBoard } from "./snapshot.ts";
@@ -47,6 +47,7 @@ export const initOnState = () => setEngine(async (next, prev) => {
     setBoard({ flash: [] });
   }
   termsChanged();
+  pruneTerms();
   // Run on a task closed the panel: open the card on its agent once the board knows the session.
   if (work.wantTerm && !getPanel().openKey && !getBoard().form) {
     const n = getServer().state.cards.find((x) => key(x) === work.wantTerm && x.pty);

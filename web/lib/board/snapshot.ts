@@ -5,7 +5,7 @@ import { flushSync } from "react-dom";
 import { COLS, isPhone } from "@lib/core";
 import { attentionFor } from "@lib/rail";
 import { cardKey, railDataNow, useServer, waitingCount, getServer } from "@lib/server";
-import { cardState, RANK, projName, titleOf, wsHref, wsLabel, wsOfCard } from "@lib/rail";
+import { cardState, RANK, projName, titleOf, wsHref, wsLabel, wsOfCardNow as wsOfCard } from "@lib/rail";
 import { shownSet, showable, useShown } from "@lib/project";
 import { getRoute } from "@lib/router";
 import { subline } from "@lib/phone";

@@ -107,10 +107,7 @@ function Tasks() {
           />
           <span className="kz-keep flex">
             <button className="btn pri" onClick={() => newTask()}>
-              <svg>
-                <use href="#i-plus" />
-              </svg>
-              <span>New task</span>
+              New task
             </button>
           </span>
         </span>

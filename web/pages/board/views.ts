@@ -25,7 +25,7 @@ setRouterHooks({
     work.pageGen++;
     if (v === "task") showTask();
   },
-  // Leaving a workspace: its panel closes as the board's would, its terminals unmount.
+  // Leaving a workspace: its panel closes as the board's would; its terminals stay mounted, hidden (run-view-store `kept`).
   leave: (v) => {
     if (handled === "run" && v !== "run") {
       runStop();

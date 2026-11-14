@@ -18,10 +18,11 @@ const Icon = ({ id }: { id: string }) => (
 );
 // What the panel's body shows: a document tab, Settings, the Notes chat, the in-card agent's terminal or the Source control
 // tab. One at a time; the router and the panel code (web/board/panel.ts) choose through the panel store, and the one
-// that is left unmounts, so nothing keeps running behind a tab that is not shown.
+// that is left unmounts, except the in-card terminals: each is mounted once and hidden by CSS while another body shows.
 function PanelBody() {
   const body = usePanel((s) => s.body),
     term = usePanel((s) => s.term),
+    terms = usePanel((s) => s.terms),
     top = usePanel((s) => s.top),
     el = useRef<HTMLDivElement>(null);
   // The body starts at its top whenever the panel asks (a new document, a new note), and is findable for the keys.
@@ -47,10 +48,14 @@ function PanelBody() {
           <NotesChat />
         </div>
       )}
-      {body === "term" && term && (
-        <Part>
-          <TerminalPane key={term.key} sessionKey={term.key} onEnd={term.onEnd} label="Agent terminal" />
-        </Part>
+      {terms.length > 0 && (
+        <div className="pterms" hidden={body !== "term"}>
+          {terms.map((t) => (
+            <Part key={t.key} off={body !== "term" || term?.key !== t.key}>
+              <TerminalPane sessionKey={t.key} onEnd={t.onEnd} label="Agent terminal" />
+            </Part>
+          ))}
+        </div>
       )}
       {body === "git" && <GitHost />}
     </div>

@@ -27,7 +27,8 @@ export type PanelDoc = {
 export type PanelBody = "" | "doc" | "settings" | "notes" | "term" | "git";
 export type Panel = {
   body: PanelBody;
-  term: { key: string; onEnd: () => void } | null;
+  term: { key: string; onEnd: () => void } | null; // the in-card terminal on show
+  terms: { key: string; onEnd: () => void }[]; // every one opened this visit: mounted once, hidden while another body shows
   head: Head | null;
   tabs: { k: string; label: string }[]; // the run's tabs that have something in them
   tab: string; // the one open
@@ -63,6 +64,7 @@ const SK = "kz-sent";
 export const usePanel = create<Panel>()(() => ({
   body: "",
   term: null,
+  terms: [],
   head: null,
   tabs: [],
   tab: "",

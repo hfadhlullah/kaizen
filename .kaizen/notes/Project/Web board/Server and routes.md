@@ -1,7 +1,7 @@
 ---
 description: The board server: routes, host guard, updates, automations and other server-side behaviour
 tags: [project, web-board]
-sources: [cli/research.ts, cli/desktop-env.test.ts, cli/automations.ts, web/components/settings/automation-rows.tsx, web/components/settings/orchestration-flow.tsx, cli/project-tree.test.ts, cli/logo.ts, cli/state.ts, cli/restart.test.ts, cli/hermes.ts, web/board, cli/install.ts, cli/settings.ts, web/dist/term.css]
+sources: [cli/research.ts, cli/desktop-env.test.ts, cli/automations.ts, web/components/settings/automation-rows.tsx, web/components/settings/orchestration-flow.tsx, cli/project-tree.test.ts, cli/logo.ts, cli/state.ts, cli/restart.test.ts, cli/hermes.ts, cli/install.ts, cli/settings.ts, web/dist/term.css]
 updated: 2026-11-14
 ---
 # Server and routes
@@ -22,7 +22,7 @@ The program behind the board: what it serves, which computers may reach it, how 
 
 - `cli/state.ts` — everything kaizen knows about a project's `.kaizen/`, shared with the [[Terminal board]]: runs, cards, findings, backlog, git, launching agents.
 
-- `web/board/*.ts` — the page's script, one module per part (`cards.ts` columns, `panel.ts` run panel, `settings.ts`, `projects.ts`, `markdown.ts`, `live.ts`…), wired up by `main.ts` and bundled into `web/dist/board.js` (served at `/board.js`) by `bun run build:web`. State that more than one module writes lives on the one `store` object in `store.ts`; everything else stays in the module that owns it.
+- `web/pages/board/main.ts` — the page's entry: it boots the shell, renders the App and starts the engines (the folder `web/board/` no longer exists; its code is in the feature folders of `web/lib/`: `lib/board` snapshot and on-state, `lib/run` panel, workspace and card terminal, `lib/project`, `lib/search`, `lib/rail/rail-boot.ts`, `lib/home`, `lib/terminal`, `lib/context`, `lib/git`, `lib/settings`, and the page's glue in `web/pages/board/`: `views`, `keys`, `live`, `host-bridge`, `open-events`), bundled into `web/dist/board.js` (served at `/board.js`) by `bun run build:web`. What the open card's panel remembers between redraws is `lib/run/work.ts`; the panel's own frame is `lib/run/panel-store.ts`.
 
 - Hosts: the Host guard and `local()` (write Origin check) accept loopback plus the exact names in `KAIZEN_WEB_HOSTS` or `~/.kaizen/web-hosts` (`webHosts()` in `state.ts`, read per request; `kaizen setup` writes the file), for `tailscale serve`; `GET /manifest.webmanifest` makes the board installable on a phone (guide: "From your phone"). `GET /settings` exposes configured `.ts.net` hosts as `phoneUrls`; the gear Settings view shows them under Phone or points to `kaizen setup` when empty. These are saved addresses, not a live Serve status.
 
@@ -39,18 +39,18 @@ The program behind the board: what it serves, which computers may reach it, how 
 
 - `web/html/board.html` is a 12-line shell served as it is; the notify rule `notifier()` is `web/lib/core/notifier.ts`, bundled into `board.js` and re-exported by `cli/state.ts` (roadmap 2 phase 9; it used to be written over a `/*notifier*/` marker).
 
-- `web/dist/board.js` is committed and hash-checked: after editing `web/board/`, run `bun run build:web` or `cli/notes.test.ts` fails. A module that assigns another module's variable must go through `store`: an imported binding cannot be assigned.
+- `web/dist/board.js` is committed and hash-checked: after editing anything under `web/`, run `bun run build:web` or `cli/notes.test.ts` fails. A module that assigns another module's variable must go through `store`: an imported binding cannot be assigned.
 
 - Project logos: `cli/logo.ts` `projectLogo()` (fixed names only); `/state` projects carry `logo`, `GET /project-logo?dir=` serves it sandboxed; `ProjectMark` in `web/components/shared/project-mark.tsx` draws it or the folder initial.
 - `/state` sends three project lists: `projects` (the picker, filtered by the Projects folder), `rail` (dirs with a card the picker leaves out) and `known` (every known project; the Notes tab lists these, #86).
 
-- The server keeps no current project: each page sends its pick as `x-kz-dir` (`dirHeader()` in `web/board/api.ts`) and `cli/web.ts` resolves the project per request, so a phone picking another project never moves a desktop tab. `/cd` only checks the folder (and sets up a fresh one).
+- The server keeps no current project: each page sends its pick as `x-kz-dir` (`dirHeader()` in `web/lib/board/on-state.ts`) and `cli/web.ts` resolves the project per request, so a phone picking another project never moves a desktop tab. `/cd` only checks the folder (and sets up a fresh one).
 
 - `load()` in `web/html/board.html` runs in every open tab on every server change event, not only on user action. Anything persisted from inside it is overwritten by whichever tab refreshes last; persist from the handler the user triggered.
 
 - `notifier()` must stand alone (no imports, no outer constants): `cli/state.ts` and the web board both use `web/lib/core/notifier.ts`. Pages and bundles are served from `web/html` and `web/dist`; each page's one stylesheet is `/board.css`, `/notebook.css` or `/popup.css`, and every one is in `AT_START` (a test checks every file of both folders).
 
-- Since 2026-10-16-board-project-per-page, `kaizen web` keeps no current project: each page sends its pick as `x-kz-dir` (`dirHeader()` in `web/board/api.ts`, `store.dir`), and `cli/web.ts` resolves `state`/`project` per request, falling back to `boardState`. A new board fetch that depends on the project must send that header or pass `dir`, or it reads where the board started.
+- Since 2026-10-16-board-project-per-page, `kaizen web` keeps no current project: each page sends its pick as `x-kz-dir` (`dirHeader()` in `web/lib/board/on-state.ts`, `store.dir`), and `cli/web.ts` resolves `state`/`project` per request, falling back to `boardState`. A new board fetch that depends on the project must send that header or pass `dir`, or it reads where the board started.
 
 - The generic `POST` block in `cli/web.ts` (run, fix, decide, commit, pr, icebox…) and `/popup/*` use `strict()`: same host:port Origin plus a JSON content type. Tests that POST must send `content-type: application/json`. `sameOrigin()` no longer accepts any port on a tailnet name. `/file` answers with `content-security-policy: sandbox`; `md()` links pass `safeUrl()` (2026-11-06 security pass).
 - `POST /icebox` ops: `promote`, `add` (text, details, files, kind, board, client, tags; awaits a link read), `edit`, `kind`, `tag`, `board`, `snooze` (`until`), `unsnooze`, `boards` (`act`: `add` with `name` and `client`, `client` marks one a client's, `remove` an empty one; `saveBoard`/`removeBoard`), `dismiss`, `restore`. `GET /sources` adds per item `kind` (rule's when unsorted), `sorted`, `asleep`, and a top-level `boards` list. See [[Sources and icebox]].

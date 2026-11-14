@@ -7,7 +7,7 @@
 import { age } from "@lib/core";
 import { onServer, railDataNow } from "@lib/server";
 import { openAdd } from "@lib/project/add-project.ts";
-import { cardHref, cardState as stateOf, projName, titleOf, wsHref, wsLabel, wsOfCard } from "@lib/rail";
+import { cardHref, cardState as stateOf, projName, titleOf, wsHref, wsLabel, wsOfCardNow as wsOfCard } from "@lib/rail";
 import { railActions } from "@lib/rail/rail-actions.ts";
 import { kitFor } from "@lib/rail/rail-boot.ts";
 import { menuGo } from "@lib/router";

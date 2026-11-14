@@ -11,15 +11,15 @@
 // layout in lib/run/layout-store.ts); this module knows which items the workspace has, starts and ends sessions, and
 // answers the keyboard.
 import { age, ask, isPhone, post, toast } from "@lib/core";
-import { cardHref, cardState as stateOf, titleOf, wsHref, wsOfCard } from "@lib/rail";
+import { cardHref, cardState as stateOf, titleOf, wsHref, wsOfCardNow as wsOfCard } from "@lib/rail";
 import { getRoute, navigate, touchRoute } from "@lib/router";
-import { cardKey as key, getServer, load, onState, railDataNow } from "@lib/server";
+import { cardKey as key, getServer, load, onServer, onState, railDataNow } from "@lib/server";
 import { setHelp } from "@lib/shell";
 import { preview } from "@lib/markdown";
 import { pick } from "@lib/project";
 import { open } from "./panel.ts";
 import { awaiting, chosen, devUrl, dueWord, finished, gitDue, historyOf, leaves, liveIn, loopbackUrl, migrate, newRun, pickable, previewOpens, reviewing, stageTabs, toOpen, wsKey } from "./ws-tabs.ts";
-import { boxesOf, detach, focusItem, fetchPreview, keepUrl, layoutOf, moveInLayout, nearestPane, patch, placeItems, refreshPreview, replaceAll, requestBrowse, clearBrowse, rects, selectScreen, setDragging, setFlip, setPanel, getPanel, setPanelActions, setRunActions, setRunView, setTarget, showItem, useLayout, focusPane, work, type Saved, type SavedTab } from "./index.ts";
+import { boxesOf, detach, focusItem, fetchPreview, keepUrl, layoutOf, moveInLayout, nearestPane, patch, placeItems, refreshPreview, replaceAll, requestBrowse, clearBrowse, rects, selectScreen, setDragging, setFlip, setPanel, getPanel, setPanelActions, setRunActions, setRunView, setTarget, showItem, useLayout, focusPane, useRunView, work, type Saved, type SavedTab } from "./index.ts";
 
 type Tab = SavedTab & { kind: "agent" | "shell" | "local" | "preview" | "note" | "wait" | "history" };
 // Per workspace the saved layout (lib/run/layout-store.ts): the extra items opened (localhost, preview, notes, History),
@@ -119,7 +119,7 @@ export async function showRunView(nav = false) {
   if (!dir || !ws) return void (stopPanes(), (ctx = card = null), none("That workspace was not found."));
   const k = wsKey(dir, ws);
   const fresh = ctx?.k !== k;
-  // Each workspace has its own centre: switching unmounts this one's panes (its shells keep running on the server).
+  // Each workspace has its own centre: switching hides this one's terminals and drops its other panes (its shells keep running on the server).
   if (fresh) (stopPanes(), (card = null), (ctx = { dir, ws, k }));
   if (fresh && !was.has(k)) was.set(k, new Set(mineNow().filter(reviewing).map(key))); // what is already in review does not open the Browser
   if (fresh) seenRuns.set(k, new Set(mineNow().map(key))); // what is here on arrival is not new
@@ -209,6 +209,10 @@ function draw() {
     history: historyOf(getServer().state.cards, ctx!.dir, ctx!.ws, wsOfCard).map((c) => ({ k: key(c), title: titleOf(c), state: stateOf(c), line: `${c.status} · ${age(c.moved ?? now, now)} ago` })),
     empty: !scs.length,
   });
+  // The terminals stay mounted when the workspace is left; the rest of its panes are made again on return.
+  setRunView((s) => ({
+    kept: { ...s.kept, [ctx!.k]: { items: ts.filter((t) => t.kind === "agent" || t.kind === "shell"), ws: ctx! } },
+  }));
   mountPanel();
 }
 
@@ -416,10 +420,10 @@ function likeFocused(): string | null {
   if (t?.kind === "agent") return "agent:" + (t.agent ?? (defAgent || agents[0]?.cmd || ""));
   return null;
 }
-// Leaving the workspace: its terminals unmount; the shells keep running on the server.
+// Leaving the workspace: its terminals stay mounted (hidden), the rest of its panes go; the shells keep running on the server.
 function stopPanes() {
   setPanel({ parked: true });
-  // No items, no workspace: every pane component unmounts (and with it its terminal).
+  // No items, no workspace: the panes of the workspace shown go; its terminals stay in `kept`, hidden.
   setRunView({ items: [], wsk: null, ws: null });
   clearBrowse();
 }
@@ -569,8 +573,23 @@ function initPaneKeys() {
   );
 }
 
+// A kept terminal whose session is gone (ended, or its tab closed in another window) is unmounted.
+function pruneKept() {
+  const s = getServer(),
+    live = new Set<string>([
+      ...s.shells.map((x) => x.key),
+      ...(s.state.agents ?? []).map((a: any) => a.key),
+      ...s.state.cards.flatMap((c: any) => (c.pty ? [c.pty.key, ...(c.pty.all ?? [])] : [])),
+    ]);
+  const cur = useRunView.getState().kept;
+  const next = Object.fromEntries(
+    Object.entries(cur).map(([k, v]) => [k, k === ctx?.k ? v : { ...v, items: v.items.filter((i) => !i.key || live.has(i.key)) }]),
+  );
+  if (Object.values(next).some((v, i) => v.items.length !== Object.values(cur)[i]!.items.length)) setRunView({ kept: next });
+}
 export function initRunView() {
   initPaneKeys();
+  onServer((x) => x.shells, pruneKept);
   setInterval(() => void pollPreview(), 3000);
   // The panel's project-notes button; its close button and the scrim are panel.ts's.
   setPanelActions({ notes: () => void projectNotes() });

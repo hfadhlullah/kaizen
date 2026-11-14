@@ -3,8 +3,9 @@ import { useRoute } from "@lib/router";
 
 // Roots in the page's own elements: the element keeps its layout rules (the board's CSS lays it out and shows or hides it by
 // <body> class set from the route); this div is where Tailwind's reset applies (`kz-ui`).
-export const Part = ({ children }: { children: ReactNode }) => (
-  <div className="kz-ui" style={{ display: "contents" }}>
+// `off`: kept mounted but not shown (a terminal of a card that is not on show).
+export const Part = ({ children, off }: { children: ReactNode; off?: boolean }) => (
+  <div className="kz-ui" style={{ display: off ? "none" : "contents" }}>
     {children}
   </div>
 );
