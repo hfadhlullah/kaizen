@@ -1,5 +1,6 @@
 import { closePopup, useBoard } from "@lib/board";
-import { host, cn } from "@lib/core";
+import { cn } from "@lib/core";
+import { stopDictation } from "@lib/dictation";
 import { Dialog, DialogContent, DialogTitle } from "@web/ui";
 import { CardForm } from "./card-form.tsx";
 import { RunForm } from "./run-form.tsx";
@@ -12,7 +13,7 @@ export function BoardPopups() {
     snap = useBoard((s) => s.snap);
   if (!popup) return null;
   const close = () => {
-    host.stopDictation();
+    stopDictation(true);
     closePopup();
   };
   const name =

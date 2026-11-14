@@ -107,3 +107,14 @@ export function parse(src: string): Block[] {
   return out;
 }
 const ended = new WeakMap<Block, boolean>();
+
+// Links to a card's attachments/ (notes, or screenshots the builder put in Preview) via /file. Any other relative link
+// (../video.mp4, out/x.srt) would resolve against the board's URL and open "not found": the board serves attachments
+// only, so it shows as its path instead.
+export const attach = (t: string, c: { state: string; kind: string; id?: string }) =>
+  t.replace(/(!?)\[([^\]]*)\]\(([^)\s]+)\)/g, (all, img, label, p) => {
+    if (/^attachments\/[^)]+$/.test(p))
+      return `${img}[${label}](/file?dir=${encodeURIComponent(c.state)}&p=${encodeURIComponent((c.kind === "run" ? `runs/${c.id}/` : "") + p)})`;
+    if (/^([a-z][\w+.-]*:|\/|#)/i.test(p)) return all;
+    return `${label} (\`${p}\`)`;
+  });

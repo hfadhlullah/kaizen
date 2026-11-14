@@ -16,7 +16,7 @@ export type Host = {
   scopeDir(): string;
   // The Icebox: the board's project header for a request, its project list and "Showing" picker (a project
   // with a logo is drawn with it), a reload of the board's own data after a change, and what the Icebox reuses
-  // from the old code: dictation, the file shrinker, the click sound and the Settings jump.
+  // from the old code: the file shrinker, the click sound and the Settings jump.
   dirHeader(): Record<string, string>;
   projects(): { dir: string; label: string; logo?: boolean }[];
   showable(): { dir: string; label: string }[];
@@ -24,9 +24,9 @@ export type Host = {
   clearShown(): void;
   toggleShown(dir: string): void;
   reload(): void;
-  mic(fields: (HTMLTextAreaElement | HTMLInputElement)[]): HTMLElement | null;
-  stopDictation(): void;
   dataUrls(files: File[]): Promise<{ name: string; data: string }[]>;
+  // The note editor (board/rich.ts): a contenteditable over a textarea that keeps the value; returns the editor.
+  rich(ta: HTMLTextAreaElement): HTMLElement;
   pop(): void;
   motion(): boolean;
   agentLine(agent: { name: string; note?: string }): string;
@@ -80,9 +80,8 @@ export const host: Host = {
   clearShown: none,
   toggleShown: none,
   reload: () => {},
-  mic: () => null,
-  stopDictation: () => {},
   dataUrls: none,
+  rich: none,
   pop: () => {},
   motion: () => true,
   agentLine: (a) => a.name,

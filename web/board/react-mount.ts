@@ -25,12 +25,15 @@ import {
   RunFooter,
 } from "@components/run";
 import { SearchPalette } from "@components/search";
+import { NotesChat } from "@components/notes";
+import { setNotes, type NotesView } from "@lib/notes";
 import { HomeWindow, HomeWsButton, HomeWsRow, OnboardingDialog } from "@components/home";
 import { Haptic, PhonePage, PhoneSheets } from "@components/phone";
 import { AskHost } from "@components/shared";
 import { RailFilter, RailList } from "@components/rail";
 import { ResourcesButton } from "@components/resources";
 import { setRailData, touchRail } from "@lib/rail";
+import { startTerminalDictation } from "@lib/dictation";
 import { BoardPopups, BoardModeSwitch } from "@components/board";
 import { GitHost } from "@components/git";
 import { setGit } from "@lib/git";
@@ -48,7 +51,7 @@ import { dirHeader, load } from "./api.ts";
 import { key, newTask, runPopup, via } from "./cards.ts";
 import { open as openPanel, openAt, close as closePanel, openRun } from "./panel.ts";
 import { openWorkspace } from "./run-view.ts";
-import { mic, stopDictation } from "./dictation.ts";
+import { rich } from "./rich.ts";
 import { askNotify, setToaster } from "./toast.ts";
 import { $, dataUrls, motion } from "./dom.ts";
 import { pick as pickProject, setShown, showable } from "./projects.ts";
@@ -143,6 +146,24 @@ export function drawSettings(o: { fresh: boolean; q: string; back: boolean; stal
     });
   void loadSettings(o.fresh, o.stale);
 }
+// The Notes tab: one root inside the panel's body, made again when another tab replaced the body (the old tabs write
+// their text into it). State and the send are in lib/notes; every call is a new draw, so the box takes focus back after a send.
+let notesRoot: { root: ReturnType<typeof createRoot>; host: HTMLElement } | null = null;
+export function drawNotes(view: NotesView) {
+  const body = $("pbody");
+  flushSync(() => {
+    if (!notesRoot || notesRoot.host.parentElement !== body) {
+      notesRoot?.root.unmount();
+      const host = document.createElement("div");
+      host.className = "kz-ui";
+      body.replaceChildren(host);
+      notesRoot = { root: createRoot(host), host };
+      notesRoot.root.render(createElement(TooltipProvider, null, createElement(NotesChat)));
+    }
+    setNotes({ view });
+  });
+  body.scrollTop = 0;
+}
 export const fixReset = () => setPanel({ off: [] });
 export const answered = () => [...decided];
 export const resumeCard = resumeRun;
@@ -178,6 +199,7 @@ export function initReact(go: (view: string, push?: boolean) => void) {
   portal.append(popups);
   createRoot(popups).render(createElement(TooltipProvider, null, createElement(BoardPopups), createElement(AskHost), createElement(PhoneSheets), createElement(OnboardingDialog), createElement(SearchPalette), createElement(FileViewer), createElement(WsMenu), createElement(AddProjectDialog), createElement(UpdateCard), createElement(FixHost), createElement(GitHost), createElement(KeyHint), createElement(HomeWindow), createElement(HomeWsButton), createElement(Haptic)));
   setToaster(toast);
+  startTerminalDictation();
   setHost({
     go,
     newTask: () => newTask(),
@@ -198,9 +220,8 @@ export function initReact(go: (view: string, push?: boolean) => void) {
       setShown();
     },
     reload: () => void load(),
-    mic: (fields) => mic(fields),
-    stopDictation: () => stopDictation(true),
     dataUrls,
+    rich,
     pop: () => soundPick() !== "off" && playSound("pop"),
     motion,
     agentLine: via,

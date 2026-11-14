@@ -157,6 +157,28 @@ test("the Home window and the phone pages are drawn by React, not by board/ modu
   expect(readFileSync(join(web, "components/home/home-window.tsx"), "utf8")).toMatch(/<TerminalPane/);
 });
 
+// The Notes tab (components/notes, lib/notes) and dictation (lib/dictation, the microphone button in components/shared) are
+// React and lib. board/chat.ts and board/dictation.ts are gone, panel.ts hands the notes to react.drawNotes, the host no longer
+// carries a mic, and the page's CSS keeps none of the old note-list or microphone rules (only the rules of the note editor's
+// own element and the glow on the field being dictated into).
+test("the notes chat and dictation are drawn by React, not by board/ modules or board.html", () => {
+  const rd = (p: string) => readFileSync(join(web, p), "utf8");
+  for (const f of ["board/chat.ts", "board/dictation.ts"]) expect(existsSync(join(web, f))).toBe(false);
+  expect(rd("board/panel.ts")).not.toMatch(/\bchat\(|from "\.\/(?:chat|dictation)\.ts"/);
+  expect(rd("board/panel.ts")).toMatch(/react\.drawNotes\(/);
+  expect(rd("lib/core/host.ts")).not.toMatch(/\bmic\(|stopDictation/);
+  expect(rd("board/react-mount.ts")).not.toMatch(/dictation\.ts/);
+  const css = rd("html/board.html");
+  expect(css).not.toMatch(/\.vu\{|\.ib\.mic|\.row \.mic|\.msg\{|\.chat\{|\.desc\{|\.notes textarea|\.notes \.tools|\.notes \.att|\.notes \.row/);
+  expect(css).toMatch(/\.notes \.rich\{/); // the editor engine's own element (board/rich.ts) keeps its rules
+  expect(css).toMatch(/\.dictating\{/);
+  // the engine runs only in the board's bundle: nothing the notebook or Video bundles import reaches it
+  for (const f of ["notebook/notebook.ts", "video/video.ts", "notebook/kit.ts"]) expect(rd(f)).not.toMatch(/dictation|lib\/notes|components\/notes/);
+  // ...nor does the engine ride along in the kit bundle (it imports the shared barrel, which holds MicButton): its worker source is a
+  // function so the bundler drops it where no microphone button is mounted.
+  for (const f of ["notebook.js", "notebook-kit.js", "video.js"]) expect(rd(`dist/${f}`)).not.toContain("automatic-speech-recognition");
+});
+
 // ---- feature folders: components/<feature>/ and lib/<feature>/ ----
 // Only folders live directly under components/ and lib/; none grows past MAX_FILES source files (*.test.ts sit beside the
 // code they test and are not counted; split by feature instead); each
@@ -173,7 +195,6 @@ const BRIDGE_DIRECT = [
   "board/badge.ts",
   "board/labels.ts",
   "board/search.ts",
-  "board/dictation.ts",
   "board/update.ts",
 ];
 const isTest = (name: string) => /\.test\.tsx?$/.test(name);

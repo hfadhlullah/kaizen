@@ -2,8 +2,7 @@ import { store } from "./store.ts";
 import { showTerm, termStop } from "./agent-term.ts";
 import { load, post } from "./api.ts";
 import { cardEl, key, render } from "./cards.ts";
-import { chat } from "./chat.ts";
-import { stopDictation } from "./dictation.ts";
+import { stopDictation } from "@lib/dictation";
 import { $, html, raw } from "./dom.ts";
 import { gitLeave, gitPending, gitShown, gitTab } from "./git.ts";
 import { ICON, WORD, need } from "./labels.ts";
@@ -144,7 +143,7 @@ export function taskBody(c) {
   if (c.pty && view !== "run" && view !== "tasks") showTerm(c);
   else {
     termStop();
-    chat(c, c.notes, c.archived || c.status !== "idea");
+    react.drawNotes({ card: c, src: c.notes, ro: c.archived || c.status !== "idea" });
   }
 }
 // The Fix findings form: a slot in the review tab (the body is rebuilt on every redraw) that the React form stands in.
@@ -229,7 +228,7 @@ export async function openRun(c, refresh, again) {
   if (k === "term") showTerm(c);
   else if (k === "notes") {
     const ro = c.archived || c.status === "done" || c.status === "abandoned";
-    chat(c, doc, ro);
+    react.drawNotes({ card: c, src: doc, ro });
   } else if (k === "git") gitTab(c);
   else
     $("pbody").innerHTML = doc

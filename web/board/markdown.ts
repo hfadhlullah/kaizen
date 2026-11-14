@@ -9,21 +9,12 @@ function section(impl, name) {
   return m ? m[1].trim() : null;
 }
 export const preview = (impl) => section(impl, "Preview");
-// Links to a card's attachments/ (notes, or screenshots the builder put in Preview) via /file.
-// Any other relative link (../video.mp4, out/x.srt) would resolve against the board's URL
-// and open "not found": the board serves attachments only, so it shows as its path instead.
-export const attach = (t, c) =>
-  t.replace(/(!?)\[([^\]]*)\]\(([^)\s]+)\)/g, (all, img, label, p) => {
-    if (/^attachments\/[^)]+$/.test(p))
-      return `${img}[${label}](/file?dir=${encodeURIComponent(c.state)}&p=${encodeURIComponent((c.kind === "run" ? `runs/${c.id}/` : "") + p)})`;
-    if (/^([a-z][\w+.-]*:|\/|#)/i.test(p)) return all;
-    return `${label} (\`${p}\`)`;
-  });
 export const commitMsg = (impl) => (section(impl, "Commit") || "").replace(/^```\w*\n|\n```$/g, "").trim();
 import { planQuestions } from "@lib/decision";
 export { planQuestions };
 import { brief } from "@lib/core";
-export { brief };
+import { attach } from "@lib/markdown";
+export { attach, brief };
 
 // Enough markdown for kaizen's own files: headings, lists, fences, tables,
 // inline code, bold, italic, hard line breaks. Everything is escaped first. With `tick`, a backlog item

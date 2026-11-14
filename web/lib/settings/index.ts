@@ -1,5 +1,4 @@
 export * from "./agent-favicons.ts";
-export * from "./mic.ts";
 export * from "./settings-actions.ts";
 export * from "./settings-store.ts";
 export * from "./settings.ts";

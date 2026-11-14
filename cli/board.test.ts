@@ -252,18 +252,6 @@ test("criteria not numbered from 1 keep their own numbers", () => {
   expect(brief("X Goal: g. Criteria: (2) two. (3) three.").parts[1].body).toBe("- (2) two.\n- (3) three.");
 });
 
-// pretty(): a one-line task note splits into one paragraph per label.
-test("pretty splits a labelled plain line in a note by its labels", async () => {
-  (globalThis as any).location ??= { search: "" }; // board/store.ts reads it when chat.ts pulls it in
-  const { pretty } = await import("../web/board/chat.ts");
-  const t = "Parent: run-x add a timezone. OPEN QUESTION (waiting on Johan): recalc old rows? Context: PR #452.";
-  expect(pretty(t)).toBe("**Parent:** run-x add a timezone.\n\n**OPEN QUESTION (waiting on Johan):** recalc old rows?\n\n**Context:** PR #452.");
-  expect(pretty("just a note")).toBe("just a note");
-  expect(pretty("Goal: a\nScope: b")).toBe("Goal: a\nScope: b");
-  expect(pretty("Parent: x\ndo y. NOTE: a. Context: b.")).toBe("Parent: x\n\ndo y.\n\n**NOTE:** a.\n\n**Context:** b.");
-  expect(pretty("- Goal: a. Scope: b.")).toBe("- Goal: a. Scope: b.");
-});
-
 test("the note editor turns its DOM back into the markdown md() rendered it from", async () => {
   const { toMd } = await import("../web/board/rich.ts");
   // A minimal DOM: element nodes from md()'s tag soup, enough for toMd.

@@ -55,7 +55,9 @@ pages/  ->  components/<feature>/  ->  ui/  ->  lib/core/utils.ts
 | `board` | The Kanban board: card, column, popups, the New task / run / card forms, the mode switch. |
 | `run` | The run panel and run view: head, tabs, history, picker, footer, wait/empty states, file viewer, fix form; the centre's panes (`run-panes`, `pane`, `pane-gutter`, `terminal-pane`, `browser-pane`) and panel grip; in `lib/run`: the pane layout rules (`layout`) and its saved store (`layout-store`), the Browser's history (`browser`), `run-actions`. |
 | `git` | The run's Source control tab. |
-| `settings` | Settings page rows, nav, sections, update bar; settings store and actions, update check, mic choice. |
+| `settings` | Settings page rows, nav, sections, update bar; settings store and actions, update check (the microphone choice row is here, its rules are `dictation`). |
+| `notes` | A card's Notes tab in the panel: the notes as messages, the box that adds one (over the note editor `board/rich.ts`, reached through `host.rich`), files picked and pasted; `lib/notes` holds the notes-file rules, the per-card files store and the send. |
+| `dictation` (lib only) | Speech to text in the page: the Whisper worker and recording session (`engine`), the chunk, order and caret rules (`chunks`), each button's state (`dictation-store`), Ctrl+Alt+D into a terminal, and the microphone choice (`mic`). The button is `MicButton` in `shared`. |
 | `phone` | Phone setup (QR, WhatsApp card), the phone-sized new-run sheets, and the phone's Home and Runs pages (agents, devices, runs, usage chips; `lib/phone`: their rules, the store, the taps' requests, the run sheet's swipe rules) with the tap tick. |
 | `home` | Home: chat list, messages, composer, onboarding dialog; the home store; the floating Home window (its tabs, drag, minimized sidebar row and "+" menu; `lib/home/home-window.ts` holds its rules and requests, the terminal is `run`'s `TerminalPane`). |
 | `project` | Project picker, Add project dialog, workspace menu, branch rules. |
@@ -76,7 +78,7 @@ pages/  ->  components/<feature>/  ->  ui/  ->  lib/core/utils.ts
 - **Names.** Kebab-case files (`task-row.tsx`, `use-task.ts`); the file's main export is its
   PascalCase name; hooks start with `use-`; stores end `-store`, request functions `-actions`.
   Tests live beside the code they test as `*.test.ts` (in the feature folder, or in `term/` next to `term-font.ts`), import the file they test directly, and are not counted in the 25-file limit; an `index.ts` never exports them. `checks/structure.test.ts` stays in `web/` because it checks the whole tree.
-- **Exceptions.** `ui/` takes `lib/core/utils.ts` directly. Seven `board/` bridge files import one small
+- **Exceptions.** `ui/` takes `lib/core/utils.ts` directly. Six `board/` bridge files import one small
   lib file directly because they run in the notebook and Video bundles or in DOM-less tests, where a
   barrel would pull in the board's stores (list: `BRIDGE_DIRECT` in `checks/structure.test.ts`).
 - **Core's type imports.** `lib/core/api.ts` and `store.ts` use `import type` from `lib/task` and

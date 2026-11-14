@@ -1,4 +1,4 @@
-// The microphone dictation uses, per browser. No choice means the system default.
+// The microphone dictation uses, per browser (Settings → Keyboard & Dictation picks it). No choice means the system default.
 const KEY = "kz-mic";
 export const savedMic = () => {
   try {

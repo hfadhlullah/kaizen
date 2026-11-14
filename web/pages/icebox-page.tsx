@@ -45,6 +45,7 @@ import {
 } from "@lib/icebox";
 import { useNarrow, usePager } from "@lib/shared";
 import { host, useStore } from "@lib/core";
+import { stopDictation } from "@lib/dictation";
 import { Button, Checkbox, Icon, Skeleton } from "@web/ui";
 
 // The Icebox: requests gathered from request sources, read like an inbox, until someone promotes them to tasks or
@@ -69,7 +70,7 @@ function Icebox() {
     for (const e of ["kz-shown", "kz-state"]) addEventListener(e, bump);
     return () => {
       for (const e of ["kz-shown", "kz-state"]) removeEventListener(e, bump);
-      host.stopDictation();
+      stopDictation(true);
     };
   }, []);
   const s = useIce(

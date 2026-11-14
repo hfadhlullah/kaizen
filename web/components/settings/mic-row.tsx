@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { listMics, saveMic, savedMic } from "@lib/settings";
+import { listMics, saveMic, savedMic } from "@lib/dictation";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@web/ui";
 import { Field } from "@components/shared";
 

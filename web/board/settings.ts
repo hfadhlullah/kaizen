@@ -1,6 +1,6 @@
 import { store } from "./store.ts";
 import { termStop } from "./agent-term.ts";
-import { stopDictation } from "./dictation.ts";
+import { stopDictation } from "@lib/dictation";
 import { $ } from "./dom.ts";
 import { react, view } from "./views.ts";
 
