@@ -61,6 +61,10 @@ export function createAnnotator(o: AnnotatorOpts) {
   const get = use.getState,
     set = use.setState;
   let counter = notes.reduce((m, n) => Math.max(m, n.n), 0);
+  // The Browser pane is on screen (its workspace is shown, on the run view, and this tab is the one in front). A kept, hidden
+  // pane keeps its window listeners, so keys and the page's messages are ignored while it is not: `x` on Tasks must not wipe
+  // the notes, and `s` must not send them to the run of another workspace.
+  let shown = true;
   let flashTimer: ReturnType<typeof setTimeout> | undefined;
 
   const webview = () => {
@@ -131,6 +135,9 @@ export function createAnnotator(o: AnnotatorOpts) {
 
   const api = {
     use,
+    live(on: boolean) {
+      shown = on;
+    },
     // Picking mode and the tools.
     setMode(m: string) {
       const settings = { ...get().settings, mode: m };
@@ -261,7 +268,7 @@ export function createAnnotator(o: AnnotatorOpts) {
   };
   // Typed keys: Ctrl/Cmd+Shift+F toggles; P H C S X and Escape work when nothing is being typed into.
   const onKey = (e: KeyboardEvent) => {
-    if (!get().px) return;
+    if (!shown || !get().px) return;
     const t = e.target as HTMLElement;
     if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "f") {
       e.preventDefault();
@@ -280,7 +287,7 @@ export function createAnnotator(o: AnnotatorOpts) {
   };
   const onMsg = (e: MessageEvent) => {
     const { px } = get();
-    if (px && accept(e, frameWin(), px.origin, px.token)) handle(e.data);
+    if (shown && px && accept(e, frameWin(), px.origin, px.token)) handle(e.data);
   };
   // The desktop app's webview: put the script in after each load, with this open's token (annotate.js reads __kzAnnToken).
   // The webview's preload relays its messages; only ones carrying the token are taken (acceptHost).

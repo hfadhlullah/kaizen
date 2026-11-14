@@ -15,7 +15,7 @@ const EDGE = {
   b: "shadow-[inset_0_-3px_0_var(--accent)]",
 };
 
-function Body({ item, wsk, ws, live }: { item: RvPane; wsk: string; ws: { dir: string } | null; live: boolean }) {
+function Body({ item, wsk, ws, live, shown }: { item: RvPane; wsk: string; ws: { dir: string } | null; live: boolean; shown: boolean }) {
   switch (item.kind) {
     case "agent":
     case "shell":
@@ -25,7 +25,7 @@ function Body({ item, wsk, ws, live }: { item: RvPane; wsk: string; ws: { dir: s
     case "wait":
       return <RunWait id={item.id} />;
     case "local":
-      return <BrowserPane wsk={wsk} />;
+      return <BrowserPane wsk={wsk} live={live} shown={shown} />;
     case "note":
       return (
         <iframe
@@ -134,7 +134,7 @@ export function Pane({
       >
         <PaneHeader id={item.id} />
       </header>
-      <Body item={item} wsk={wsk} ws={ws} live={live} />
+      <Body item={item} wsk={wsk} ws={ws} live={live} shown={live && !!rect} />
     </section>
   );
 }

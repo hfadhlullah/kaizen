@@ -15,7 +15,7 @@ import { cardKey as key, getServer, load, onServer, onState, railDataNow, readSh
 import { preview } from "@lib/markdown";
 import { pick } from "@lib/project";
 import { isTerm, liveKeys, pruneDead } from "./kept.ts";
-import { mineNow, picked, seenRuns, tabs, draw } from "./ws-draw.ts";
+import { followNew, mineNow, picked, seenRuns, tabs, draw } from "./ws-draw.ts";
 import { byKey, autoTab, closeScreen, closeTab, moveItem, newPty, openAgent, openNew, openNoteTab, previewApp, projectNotes, show } from "./ws-actions.ts";
 import { cx, edit, getWs, saved, setWs } from "./ws-store.ts";
 import { devUrl, finished, leaves, loopbackUrl, migrate, previewOpens, reviewing, toOpen, wsKey } from "./ws-tabs.ts";
@@ -92,6 +92,7 @@ export async function showRunView(nav = false) {
   // A fresh visit forgets the old pick (waiting first again); one made during the visit stays.
   if (fresh) picked.delete(k);
   if (want?.kind === "run" && (nav || fresh)) picked.set(k, key(want));
+  followNew(); // a run created while the view was away (the lifecycle hook only reacts while shown) takes the pick before the first draw
   // A workspace with nothing open starts a shell in its folder (no agent, no run). A live run whose own Claude
   // session is not open anywhere on the board is resumed here, once per visit.
   if (!getWs().noPty) {

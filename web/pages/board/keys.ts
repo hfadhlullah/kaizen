@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { dialogOpen, inLayer, layerOpen } from "@lib/core";
+import { inLayer, layerOpen } from "@lib/core";
 import { cardKey as key, getServer, load, setServer } from "@lib/server";
 import { closeForm, focusFilter, focusedKey, formPopup, getBoard, nav, newTask, runPopup } from "@lib/board";
 import { iceKeys } from "@lib/icebox";
@@ -38,7 +38,7 @@ function onKey(e: any) {
     }
     // The Terminal page has no cards to move between; its keys are the terminals'.
     if (getRoute().view === "terminal" || getRoute().view === "task") return;
-    if (e.key === "n" && !dialogOpen()) {
+    if (e.key === "n") {
       newTask();
     }
     if (e.key === "a") {

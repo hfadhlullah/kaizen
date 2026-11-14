@@ -3,7 +3,7 @@
 // /state (a run reaching review opens the Browser, a new run takes the panel's pick, the tabs are read again). Off the run
 // view none of it runs: no timer, no key listener, no reaction.
 import { useEffect } from "react";
-import { dialogOpen } from "@lib/core";
+import { layerOpen } from "@lib/core";
 import { onState } from "@lib/server";
 import { useRoute } from "@lib/router";
 import { autoBrowse, pollPreview, showRunView } from "./workspace.ts";
@@ -19,7 +19,8 @@ const keyHint = (on: boolean) => setRunView({ hint: on });
 function paneKeys() {
   let armed: ReturnType<typeof setTimeout> | undefined;
   const on = (e: KeyboardEvent) => {
-    if (!getWs().ctx || dialogOpen()) return;
+    // A dialog or an open menu has the keyboard (Ctrl+Space may be an input-method switch there): the pane behind takes none.
+    if (!getWs().ctx || layerOpen()) return;
     if (e.ctrlKey && !e.shiftKey && e.code === "Space") {
       e.preventDefault();
       e.stopPropagation();

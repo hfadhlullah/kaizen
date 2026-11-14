@@ -59,7 +59,21 @@ const small = "size-[15px]";
 // would reset their padding and borders, and the annotator draws its toolbar and notes list inside the frame's row). The address is kept per workspace; a run's Preview sets it when the
 // run reaches review (a request in the layout store). The frame is an iframe (a <webview> in the desktop app) that
 // React renders but never writes the address of: it is loaded by hand so a re-render does not reload the page.
-export function BrowserPane({ wsk }: { wsk: string }) {
+// `live`: the pane's workspace is the one shown; `shown`: and this tab is in front. While the workspace is not shown a
+// frame is only hidden by CSS and its page would run on (timers, audio, sockets, a camera stream): after UNLOAD_MS it is
+// blanked and its address loaded again on return (scroll and typed text are lost then; a quick visit keeps both). The
+// annotator takes no keys while the pane is not in front.
+export const UNLOAD_MS = 30_000;
+// Blank or restore the frame without a new joint-history entry: setting an iframe's `src` adds one, and the browser's Back
+// would then undo the unload instead of leaving the page. `location.replace` is allowed on a cross-origin frame.
+const swap = (f: HTMLElement, u: string) => {
+  try {
+    (f as HTMLIFrameElement).contentWindow!.location.replace(u);
+  } catch {
+    (f as HTMLIFrameElement).src = u; // a <webview> (desktop app)
+  }
+};
+export function BrowserPane({ wsk, live = true, shown = true }: { wsk: string; live?: boolean; shown?: boolean }) {
   const [nav, dispatch] = useReducer(step, wsk, (k) => start(startUrl(k))),
     [draft, setDraft] = useState(nav.url),
     [frameOn, setFrameOn] = useState(true),
@@ -80,8 +94,33 @@ export function BrowserPane({ wsk }: { wsk: string }) {
       }),
     ),
     annOn = ann.use((s) => s.want),
-    cur = useRef(nav.url);
+    cur = useRef(nav.url),
+    // What the frame should show (set by hand) and whether it is blanked while its workspace is not shown.
+    want = useRef(""),
+    blank = useRef(false);
   cur.current = nav.url;
+  const setSrc = (f: HTMLElement, u: string) => {
+    want.current = u;
+    if (!blank.current) (f as HTMLIFrameElement).src = u;
+  };
+  useEffect(() => {
+    ann.live(shown);
+  }, [ann, shown]);
+  useEffect(() => {
+    if (!live) {
+      const t = setTimeout(() => {
+        const f = frame.current;
+        if (!f || !want.current) return;
+        blank.current = true;
+        swap(f, "about:blank");
+      }, UNLOAD_MS);
+      return () => clearTimeout(t);
+    }
+    if (blank.current) {
+      blank.current = false;
+      swap(frame.current!, want.current);
+    }
+  }, [live]);
 
   useEffect(() => {
     // The page navigated on its own (a link, a form, a redirect after login): show its address. Through the
@@ -126,7 +165,7 @@ export function BrowserPane({ wsk }: { wsk: string }) {
           if (!j.ok) return void setNote({ text: `${FAR} (${j.error})` });
           setNote(j.hint ? { text: j.hint } : null);
           setFrameOn(true);
-          f.src = j.url!;
+          setSrc(f, j.url!);
           setExt(j.url!);
         })
         .catch(() => here() && setNote({ text: FAR }));
@@ -138,7 +177,7 @@ export function BrowserPane({ wsk }: { wsk: string }) {
     // Annotate on: a loopback page is framed through the board's proxy (annotate-proxy.ts), which adds the picker.
     void ann.open(u).then((via) => {
       if (!live) return;
-      f.src = via ?? u;
+      setSrc(f, via ?? u);
       // Most public sites refuse to be framed (X-Frame-Options / frame-ancestors), and the browser only shows its own
       // error page. The board asks the site first and says so. A webview is a top-level page: nothing refuses.
       if (via || web) return;
@@ -146,6 +185,7 @@ export function BrowserPane({ wsk }: { wsk: string }) {
         .then((j) => {
           if (!here() || j.frameable !== false) return;
           setFrameOn(false);
+          want.current = "";
           f.removeAttribute("src");
           setNote({ refused: u });
         })

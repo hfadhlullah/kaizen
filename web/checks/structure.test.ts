@@ -169,7 +169,6 @@ const DOC_LOOKUPS: Record<string, [number, string]> = {
   "notebook/notebook.ts": [1, "the mount point, #root"],
   "popup/popup.ts": [1, "the mount point, #root"],
   "annotate/annotate.ts": [3, "the annotator's page script, injected into the previewed page: no React there"],
-  "lib/core/layers.ts": [1, "does the browser's own dialog element show (the kit draws none; R73)"],
   "lib/shell/stored-look.ts": [1, "the viewport meta in <head>, set before React draws (boot.js and the standalone fit)"],
   "lib/notebook/deal.ts": [2, "the card-deal effect animates the Notes page's .main, a node the engine owns"],
   "components/context/context-panel.tsx": [2, "the dialog form of the pane makes the rest of the app inert: the side menu and the page's other children"],

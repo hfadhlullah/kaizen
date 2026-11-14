@@ -247,3 +247,24 @@ test("keys: P pauses, H hides, Escape and the toggle chord turn picking off and 
   expect(a.active()).toBe(false);
   off();
 });
+
+test("a hidden pane takes no keys and no page messages (x on Tasks must not wipe notes, s must not send them)", async () => {
+  const { a, off } = make();
+  a.toggle();
+  await a.open("http://localhost:3000/");
+  page({ type: "ready" });
+  page({ type: "note", note: { comment: "keep me", selector: "#a" } });
+  const key = (k: string) => handlers.keydown!({ key: k, target: { tagName: "BODY" }, preventDefault() {} });
+  a.live(false); // the workspace was left, or this tab is not in front
+  key("x");
+  key("s");
+  key("Escape");
+  page({ type: "note", note: { comment: "from a hidden page", selector: "#b" } });
+  expect(a.use.getState().notes.length).toBe(1);
+  expect(calls.some((c) => c.path === "/annotate/send")).toBe(false);
+  expect(a.active()).toBe(true);
+  a.live(true);
+  key("x"); // shown again: the key works
+  expect(a.use.getState().notes.length).toBe(0);
+  off();
+});
