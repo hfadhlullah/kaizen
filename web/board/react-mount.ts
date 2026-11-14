@@ -35,6 +35,7 @@ import { ResourcesButton } from "@components/resources";
 import { setRailData, touchRail } from "@lib/rail";
 import { startTerminalDictation } from "@lib/dictation";
 import { BoardPopups, BoardModeSwitch } from "@components/board";
+import { TerminalModes } from "@components/terminal";
 import { GitHost } from "@components/git";
 import { setGit } from "@lib/git";
 import { getSettings, loadSettings, setSettings, pageId } from "@lib/settings";
@@ -45,6 +46,7 @@ import { TaskPage } from "../pages/task-page.tsx";
 import { HomePage } from "../pages/home-page.tsx";
 import { IceboxPage } from "../pages/icebox-page.tsx";
 import { TasksPage } from "../pages/tasks-page.tsx";
+import { TerminalPage } from "../pages/terminal-page.tsx";
 import { Toaster, TooltipProvider } from "@web/ui";
 import { attentionTasks, setTaskAttention } from "./badge.ts";
 import { dirHeader, load } from "./api.ts";
@@ -269,6 +271,9 @@ export function initReact(go: (view: string, push?: boolean) => void) {
   slot.style.display = "contents";
   $("plist").before(slot);
   createRoot(slot).render(createElement(HomeWsRow));
+  // The Terminal page and its layout switch in the page header: both draw nothing while another view shows.
+  createRoot($("terms")).render(createElement(TooltipProvider, null, createElement(TerminalPage)));
+  createRoot($("tmodes")).render(createElement(TooltipProvider, null, createElement(TerminalModes)));
   for (const [id, part] of [["plist", RailList], ["pfilter-host", RailFilter], ["res-host", ResourcesButton]] as const) {
     const el = document.getElementById(id);
     if (el) createRoot(el).render(createElement(TooltipProvider, null, createElement(part)));

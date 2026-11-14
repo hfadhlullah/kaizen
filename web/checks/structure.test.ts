@@ -161,6 +161,17 @@ test("the Home window and the phone pages are drawn by React, not by board/ modu
   expect(readFileSync(join(web, "components/home/home-window.tsx"), "utf8")).toMatch(/<TerminalPane/);
 });
 
+// The Terminal page is React (pages/terminal-page.tsx over components/terminal and lib/terminal: rules, store, keys). board/terms.ts
+// only feeds it the sessions and keeps the side menu's badge; it builds no markup and board.html keeps none of the tile CSS.
+test("the Terminal page is drawn by React, not by board/terms.ts or board.html", () => {
+  const src = readFileSync(join(web, "board/terms.ts"), "utf8");
+  expect(src).not.toMatch(/innerHTML|insertAdjacentHTML|createElement|\$\(["']terms/);
+  expect(src.split("\n").length).toBeLessThan(80);
+  const css = readFileSync(join(web, "html/board.html"), "utf8");
+  expect(css).not.toMatch(/\.tile\b|\.tgrid|\.tsplit|\.ttabs|\.tbar\b|body\.tdrag|body\.tmax/);
+  expect(readFileSync(join(web, "components/terminal/terminal-tile.tsx"), "utf8")).toMatch(/<TerminalPane/);
+});
+
 // The Notes tab (components/notes, lib/notes) and dictation (lib/dictation, the microphone button in components/shared) are
 // React and lib. board/chat.ts and board/dictation.ts are gone, panel.ts hands the notes to react.drawNotes, the host no longer
 // carries a mic, and the page's CSS keeps none of the old note-list or microphone rules (only the rules of the note editor's

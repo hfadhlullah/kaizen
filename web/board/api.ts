@@ -4,7 +4,7 @@ import { key, render } from "./cards.ts";
 import { $, vt } from "./dom.ts";
 import { close, taskBody, open, openRun } from "./panel.ts";
 import { notifyUser, toast } from "./toast.ts";
-import { openTerms, termsShowing } from "./terms.ts";
+import { termsChanged } from "./terms.ts";
 import { refreshBoardBadge } from "./badge.ts";
 
 // The server writes notifier() from state.ts over a marker in board.html: one rule for both UIs.
@@ -108,7 +108,7 @@ async function read(quiet: boolean) {
   name();
   await (moved.length ? vt(() => (render(), name())) : (render(), undefined));
   store.flash.clear();
-  if (termsShowing()) openTerms();
+  termsChanged();
   // Run on a task closed the panel: open the card on its agent once the board knows the session.
   if (store.wantTerm && !store.openKey && !react.formOpen()) {
     const n = store.S.cards.find((x) => key(x) === store.wantTerm && x.pty);

@@ -11,11 +11,13 @@ export function TerminalPane({
   onEnd = () => run.act.termEnded(),
   focus,
   className,
+  label,
 }: {
   sessionKey: string;
   onEnd?: () => void;
   focus?: boolean;
   className?: string;
+  label?: string;
 }) {
   const el = useRef<HTMLDivElement>(null),
     [failed, setFailed] = useState(false);
@@ -39,9 +41,12 @@ export function TerminalPane({
     };
   }, [sessionKey]);
   return (
-    // kz-keep: the terminal's own bar and search (term.js) are styled by the board's CSS, which the kit's preflight would reset.
-    <div ref={el} className={cn("term kz-keep min-h-0 flex-1", className)}>
-      {failed && "The terminal could not load."}
+    // kz-keep: the terminal's own bar and search (term.js) and the phone's key bar, which it puts right after the terminal,
+    // are styled by the board's CSS, which the kit's preflight would reset. `contents` leaves the layout to the parent.
+    <div className="kz-keep contents">
+      <div ref={el} aria-label={label} className={cn("term min-h-0 flex-1", className)}>
+        {failed && "The terminal could not load."}
+      </div>
     </div>
   );
 }

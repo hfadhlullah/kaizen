@@ -483,12 +483,9 @@ body.runv.rflip #panel::before{content:"";position:absolute;top:7px;left:50%;wid
 /* A terminal fills its pane in its own colours (--term-bg, set by web/term/term.ts from its palette), edge to edge;
    while a divider moves it clips rather than refits, so the pane must not show anything else behind it. */
 .term{overflow:hidden;background:var(--term-bg,var(--bg))}.term .xterm-viewport{background:transparent!important}
-.rpane>.term{padding:8px 4px 4px 10px}
+.rpane .term{padding:8px 4px 4px 10px}
 
 /* revise 5: the mockup's plain chrome for terminals, in the workspace and on the Terminal page */
-body.termv #tmodes{background:none;padding:0;gap:2px}body.termv #tmodes button{color:var(--dim);background:none;box-shadow:none;border-radius:var(--r-s);font-weight:400}body.termv #tmodes button:hover{background:var(--hover);color:var(--ink)}body.termv #tmodes button.on{color:var(--ink);background:var(--hover);box-shadow:none}
-body .tile header{min-height:26px;background:none;border-bottom:0;padding:0 4px 0 10px}body .tile header b{font-size:11px;font-weight:400;color:var(--dim)}body .tile header .ib.sm{width:22px;height:22px;color:var(--dim)}.tile header .ib.sm svg{width:13px;height:13px}
-.tile{position:relative}.tile:focus-within::after{content:"";position:absolute;inset:0;box-shadow:inset 0 0 0 1px var(--accent);pointer-events:none;z-index:3}
 body .termtools button,body .termtools input{border:0;background:transparent;color:var(--dim);border-radius:var(--r-s)}body .termtools button:hover{background:var(--hover);color:var(--ink)}body .termtools input{border:1px solid var(--line)}
 body.runv .btn:not(.pri):not(.ghost){background:transparent;box-shadow:none}
 
@@ -572,19 +569,9 @@ body.homev #hsidetop{display:inline-grid;order:-1;flex:none}body.homev .hdr h1{f
 
 }
 #terms{display:none}body.termv.paged .hdr{display:flex}body.termv #newtop,body.termv #fbtn{display:none!important}
-body.termv #terms{flex:1;min-height:0;display:flex;flex-direction:column;gap:0;padding:0;animation:fi .2s}body.termv .tbar:not(:empty){padding:8px 16px}
-.tbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:12px}#tmodes{display:none}body.termv #tmodes{display:inline-flex}#tmodes button{display:inline-grid;place-items:center;padding:0 8px}#tmodes svg{width:16px;height:16px}.tbar .chip{cursor:pointer;background:none;border:0;font:inherit;font-size:11px}.tbar .chip:hover{color:var(--ink)}.tbar svg{width:12px;height:12px}
-.tgrid{position:relative;flex:1;min-height:0;display:grid;gap:1px;background:var(--line)}.tgrid:not(:has(.tile)){background:none}
-.tile{display:flex;flex-direction:column;min-width:0;min-height:0;border:0;border-radius:0;background:var(--bg);overflow:hidden}.tile.off{display:none}.tile.drop{outline:2px solid var(--accent);outline-offset:-2px}
-.tile header{display:flex;align-items:center;gap:8px;min-height:30px;padding:0 4px 0 10px;border-bottom:1px solid var(--line);background:var(--bg-2);cursor:grab;user-select:none}
-.tile header b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:600}.tile header .sp{flex:1}
-.tile.ended .term{opacity:.6}.tend{flex:none;padding:0 6px;border-radius:var(--r-pill);font-size:11px;color:var(--dim);box-shadow:inset 0 0 0 1px var(--line)}.tile header .btn.sm{height:22px;padding:0 8px;font-size:11px}
-.tile.asking{box-shadow:inset 0 0 0 2px var(--warn);animation:task 1.6s ease-in-out infinite}@keyframes task{50%{box-shadow:inset 0 0 0 3px color-mix(in srgb,var(--warn) 45%,transparent)}}@media (prefers-reduced-motion:reduce){:root:not([data-motion=full]) .tile.asking{box-shadow:inset 0 0 0 2px var(--warn)}}:root[data-motion=reduce] .tile.asking{box-shadow:inset 0 0 0 2px var(--warn)}
-.tdot{flex:none;width:8px;height:8px;border-radius:50%;background:var(--run)}.tdot.asking{background:var(--warn)}.tdot.ended{background:var(--dim);opacity:.6}
-.term{position:relative}.termtools{position:absolute;top:6px;right:14px;z-index:5;display:flex;gap:4px;opacity:.35;transition:opacity .15s}.term:hover .termtools,.termtools:focus-within{opacity:1}.termtools button,.termtools input{height:24px;padding:0 8px;border:1px solid var(--line);border-radius:var(--r-s);background:var(--bg-2);color:var(--ink-hi);font:12px var(--mono)}.termtools button:hover{background:var(--hover)}.termtools:has(.recon:not([hidden])){opacity:1}.termtools .recon{border-color:var(--accent);color:var(--accent)}.tsearch{display:flex;gap:4px}.tsearch[hidden]{display:none}.termtools input{width:160px;padding:0 6px}.tile .term{flex:1;min-height:0}.tile .term .xterm{height:100%;padding:4px}.tile .term .xterm-viewport{background:transparent!important}
-.tsplit{position:absolute;z-index:2;touch-action:none}.tsplit.c{top:0;width:10px;margin-left:-5px;cursor:col-resize}.tsplit.r{left:0;right:0;height:10px;margin-top:-5px;cursor:row-resize}.tsplit:hover,.tdrag .tsplit:active{background:color-mix(in srgb,var(--accent) 35%,transparent)}
-.tile.max{position:fixed;inset:8px;z-index:10;box-shadow:var(--shadow-1)}body.tmax .tsplit{display:none}
-body.tdrag{user-select:none}body.tdrag .tile{pointer-events:none}
+body.termv #terms{flex:1;min-height:0;display:flex;flex-direction:column;gap:0;padding:0;animation:fi .2s}
+#tmodes{display:none}body.termv #tmodes{display:inline-flex;gap:2px}
+.term{position:relative}.termtools{position:absolute;top:6px;right:14px;z-index:5;display:flex;gap:4px;opacity:.35;transition:opacity .15s}.term:hover .termtools,.termtools:focus-within{opacity:1}.termtools button,.termtools input{height:24px;padding:0 8px;border:1px solid var(--line);border-radius:var(--r-s);background:var(--bg-2);color:var(--ink-hi);font:12px var(--mono)}.termtools button:hover{background:var(--hover)}.termtools:has(.recon:not([hidden])){opacity:1}.termtools .recon{border-color:var(--accent);color:var(--accent)}.tsearch{display:flex;gap:4px}.tsearch[hidden]{display:none}.termtools input{width:160px;padding:0 6px}
 @media(max-width:900px){body.termv #terms{padding-inline:0}}
 
 @media(min-width:641px){}
@@ -619,12 +606,11 @@ body.tdrag{user-select:none}body.tdrag .tile{pointer-events:none}
 /* A visible terminal owns the phone screen; the header keeps navigation reachable. */
 #phone-menu{display:none}
 @media(max-width:640px){
-html body:is(.runv:has(#rpanes .rpane:not([hidden]) .term),.termv:has(.tile:not(.off) .term)) .hdr>#phone-menu{display:flex!important}
-body:is(.runv:has(#rpanes .rpane:not([hidden]) .term),.termv:has(.tile:not(.off) .term)):not(.phone-menu-open) .rail{display:none}
+html body:is(.runv:has(#rpanes .rpane:not([hidden]) .term),.termv:has([data-tile]:not(.hidden) .term)) .hdr>#phone-menu{display:flex!important}
+body:is(.runv:has(#rpanes .rpane:not([hidden]) .term),.termv:has([data-tile]:not(.hidden) .term)):not(.phone-menu-open) .rail{display:none}
 }
 /* A phone has no room for a grid or a stack: one terminal fills the page, and tabs above pick which */
-.ttabs{display:none}
-@media(max-width:640px){body.termv #tmodes,.tile [data-a=max],.tsplit{display:none}body.termv .tile header{display:none!important}body.termv .tbar:not(:empty){padding:0 14px 8px;border-bottom:1px solid var(--line)}.ttabs{display:flex;order:-1;flex:1 0 100%;min-width:0;gap:6px;overflow-x:auto;scrollbar-width:none}.ttabs button{flex:none;display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px;border:1px solid var(--line);border-radius:var(--r-pill);background:none;color:var(--dim);font:inherit;font-size:12px;white-space:nowrap}.ttabs button .tx{display:inline-grid;place-items:center;width:16px;height:16px;margin-left:2px;border-radius:50%;font-style:normal;font-size:13px;line-height:1;color:var(--dim);opacity:.6}.ttabs button .tx:hover{background:var(--line);color:var(--ink);opacity:1}.ttabs button.on{color:var(--ink);background:var(--hover);border-color:var(--accent)}.tgrid{display:flex;flex-direction:column}.tile{flex:1}.tile.off{display:none}}
+@media(max-width:640px){body.termv #tmodes{display:none}}
 aside.docked{position:static;z-index:auto;flex:1;min-height:0;width:auto;transform:none;visibility:visible;transition:none;box-shadow:none;border:0;background:none}
 aside.docked>header,aside.docked>.body{padding-inline:28px}
 aside.docked>header{border-bottom:0;padding-top:28px;padding-bottom:12px}
@@ -872,7 +858,7 @@ body.termv #combo,body.homev #combo{display:none!important}
   <input type="search" class="sel" id="bq" placeholder="Filter cards (press /)" aria-label="Filter cards" spellcheck="false" autocomplete="off">
   <span class="hx" id="hx"></span>
   <span class="sp"></span>
-  <span class="bar" id="tmodes" role="group" aria-label="Layout"></span>
+  <span class="kz-ui" id="tmodes" role="group" aria-label="Layout"></span>
   <button class="btn pri" id="newtop"><svg><use href="#i-plus"/></svg><span>New task</span></button>
   <button class="ib" id="ctx-open" aria-label="Open side panel" title="Notes, files and terminals"><svg><use href="#i-side"/></svg></button>
   <button class="ib" id="hpop" title="Pop out chat" aria-label="Pop out chat"><svg><use href="#i-popout"/></svg></button>
@@ -880,7 +866,7 @@ body.termv #combo,body.homev #combo{display:none!important}
 </div>
 <main id="board" aria-live="polite" aria-busy="true"><section aria-hidden="true"><span class="skel" style="height:14px;width:40%;margin:4px 0 12px"></span><span class="skel" style="height:72px;margin-bottom:8px"></span><span class="skel" style="height:72px"></span></section><section aria-hidden="true"><span class="skel" style="height:14px;width:40%;margin:4px 0 12px"></span><span class="skel" style="height:72px;margin-bottom:8px"></span><span class="skel" style="height:72px"></span></section><section aria-hidden="true"><span class="skel" style="height:14px;width:40%;margin:4px 0 12px"></span><span class="skel" style="height:72px;margin-bottom:8px"></span><span class="skel" style="height:72px"></span></section><section aria-hidden="true"><span class="skel" style="height:14px;width:40%;margin:4px 0 12px"></span><span class="skel" style="height:72px;margin-bottom:8px"></span><span class="skel" style="height:72px"></span></section><section aria-hidden="true"><span class="skel" style="height:14px;width:40%;margin:4px 0 12px"></span><span class="skel" style="height:72px;margin-bottom:8px"></span><span class="skel" style="height:72px"></span></section></main>
 
-<div id="terms" aria-label="Terminals"></div>
+<div id="terms" class="kz-ui" aria-label="Terminals"></div>
 <div id="home" aria-label="Chat"></div>
 <div id="phome" class="kz-ui" aria-label="Devices and runs"></div>
 <div id="tasksv" aria-label="Tasks"></div>
