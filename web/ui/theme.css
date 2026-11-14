@@ -1,15 +1,16 @@
 /* The board's Tailwind theme. Names map to the board's own variables (board.html :root: --bg, --ink,
    --line, --dim, --accent, radii, sizes), so light, dark, blue and the motion setting work with no extra
    code. Components use these names only (bg-background, text-muted-foreground, border-border), never raw
-   colours. Compiled by `bun run build:web` into web/ui.css, scanning only the folders named below. */
+   colours. Compiled by `bun run build:web` into web/dist/ui.css, scanning only the folders named below. */
 @layer legacy, theme, base, components, utilities;
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities) source(none);
 @import "tw-animate-css";
-@source "./ui";
-@source "./components";
-@source "./pages";
-@source "./lib";
+@source ".";
+@source not "./theme.css";
+@source "../components";
+@source "../pages";
+@source "../lib";
 
 @theme inline {
   --color-background: var(--bg);

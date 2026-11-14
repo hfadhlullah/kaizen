@@ -48,23 +48,23 @@ import { gitUrl, destDir, winBad, cloneInto, branchesOf, ignoreKaizen } from "./
 
 const PAGE = join(dirname(import.meta.dir), "web", "board.html");
 // The board's script: web/board/*.ts, bundled into one file by `bun run build:web`.
-const BOARD_JS = join(dirname(import.meta.dir), "web", "board.js");
+const BOARD_JS = join(dirname(import.meta.dir), "web", "dist", "board.js");
 const SOUNDS_DIR = join(dirname(import.meta.dir), "web", "sounds");
-// The notebook: its page, and the CodeMirror bundle `bun run build:web` commits beside it.
+// The notebook: its page, and the CodeMirror bundle `bun run build:web` commits to web/dist.
 const NOTES_PAGE = join(dirname(import.meta.dir), "web", "notes.html");
 const ICO = join(dirname(import.meta.dir), "assets", "kaizen.ico");
-const UI_CSS = join(dirname(import.meta.dir), "web", "ui.css");
-const NOTES_JS = join(dirname(import.meta.dir), "web", "notebook.js");
+const UI_CSS = join(dirname(import.meta.dir), "web", "dist", "ui.css");
+const NOTES_JS = join(dirname(import.meta.dir), "web", "dist", "notebook.js");
 // The in-card terminal (agent.launch: card): xterm.js, bundled the same way.
-const TERM_JS = join(dirname(import.meta.dir), "web", "term.js");
+const TERM_JS = join(dirname(import.meta.dir), "web", "dist", "term.js");
 const ANNOTATE_JS = join(dirname(import.meta.dir), "web", "annotate", "annotate.js");
-const TERM_CSS = join(dirname(import.meta.dir), "web", "term.css");
+const TERM_CSS = join(dirname(import.meta.dir), "web", "dist", "term.css");
 // The Video page (kaizen-video's library, editor and renders) and its bundle.
 const VIDEO_PAGE = join(dirname(import.meta.dir), "web", "video.html");
 const POPUP_PAGE = join(dirname(import.meta.dir), "web", "popup.html");
 // The chat the popup was on when its Back button was pressed, until Home takes it.
 let popupChat: string | null = null;
-const VIDEO_JS = join(dirname(import.meta.dir), "web", "video.js");
+const VIDEO_JS = join(dirname(import.meta.dir), "web", "dist", "video.js");
 const DEFAULT_PORT = 7420;
 // Gathered posts a reply is going out to right now: one send per item at a time.
 const replying = new Set<string>();
@@ -839,7 +839,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         return new Response(body, { headers: { "content-type": "application/javascript; charset=utf-8", "cache-control": "no-store" } });
       }
 
-      // The React pages' Tailwind (web/theme.css compiled by bun run build:web).
+      // The React pages' Tailwind (web/ui/theme.css compiled by bun run build:web).
       if (req.method === "GET" && path === "/ui.css") {
         const body = served(UI_CSS);
         if (body === null) return new Response(`${path} missing; run bun run build:web`, { status: 500 });
