@@ -124,8 +124,8 @@ const modulesOf = (files: Record<string, string>) =>
     .filter((rel) => /^(?:lib|pages)\//.test(rel) && rel.endsWith(".ts") && !rel.endsWith("/index.ts") && !isTestFile(rel) && !(rel in BY_DESIGN));
 const EXEMPT: Record<string, [number, string]> = {
   "term/term.ts": [
-    26,
-    "xterm's own bundle (term.js, no React): find box, paste button, reconnect strip, and the phone key bar, whose pointerdown + preventDefault keeps the soft keyboard open",
+    29,
+    "xterm's own bundle (term.js, no React): find box, icon buttons (search, paste), reconnect strip, and the phone key bar with its Attach key, whose pointerdown + preventDefault keeps the soft keyboard open",
   ],
   "lib/notes/rich.ts": [2, "the note editor's contenteditable engine: sets its markdown as HTML and owns its editable div"],
   "annotate/annotate.ts": [12, "the annotator's page script, injected into the previewed page, where no React or board CSS exists"],
