@@ -9,7 +9,7 @@ import {
   readInbox, writeInbox, replaceTask, moveTask, abandonRun, runToTask, launchRun, parseItem, agentChoices, onPath, projectOf, KNOWN_AGENTS, plainModel, short, setArchived, writeNotes,
   appendNote, saveAttachment, pidOnPort, readText, cmdExe, sysExe, powershellExe, runGit, readCommit, commitPush, commitStaged, stageFiles, suggestMessage, notice, LOGO,
   reviewFindings, pickFindings, backlogItem, startedBacklog, closeBacklog, markBacklogDone, fixPrompt, approvalPrompt, canApproveAwaiting, gateOf, recordAcceptance, healRuns, finishRun, nativePath, closeSessions, sweepSessions, issueUrl,
-  launchMode, pruneRuns, pruneSessions, readSessions, ownerOf, runIndex, resumePrompt, runAgent, firstSession, webHosts,
+  pruneRuns, pruneSessions, readSessions, ownerOf, runIndex, resumePrompt, runAgent, firstSession, webHosts,
 } from "./state.ts";
 import { ACCOUNT_EXTRA, ACCOUNT_VAR, accountDir, agyLogin, addAccount, loginStatus, readAccounts, renameAccount, removeAccount, resolveAccount, setDefaultAccount, type Login, type Tool } from "./accounts.ts";
 import { readReport, signalOf } from "./report.ts";
@@ -305,7 +305,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
     const text = approvalPrompt(id, awaiting, why, answers);
     const live = liveAgent(dir, id);
     const before = Date.now();
-    const r = live ? { ok: true as const, pty: live.key, agent: live.cmd, reused: true } : launchRun({ severity: null, where: null, text, raw: text }, dir, id, inCard(dir));
+    const r = live ? { ok: true as const, pty: live.key, agent: live.cmd, reused: true } : launchRun({ severity: null, where: null, text, raw: text }, dir, id, inCard);
     if (live) submitPty(live.key, text);
     else if (r.ok) closeSessions(dir, id, { before });
     // The plan's approval starts the build; fixing open findings is the review stage again.
@@ -324,7 +324,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
     launch: (dir: string, id: string, text: string, task: tasks.Task, pick?: any) => {
       const live = liveAgent(dir, id);
       if (live) { submitPty(live.key, text); return { ok: true, pty: live.key }; }
-      return launchRun({ severity: null, where: null, text, raw: text }, dir, id, { ...inCard(dir), ...(pick ? { agent: KNOWN_AGENTS.some((a) => a.cmd === pick.agent) ? pick.agent : undefined, account: typeof pick.account === "string" ? pick.account : undefined, explore: typeof pick.explore === "boolean" ? pick.explore : undefined, yolo: pick.yolo === true } : {}), task: { id: task.id, requirePlanConfirmation: !task.initialConfirmed } });
+      return launchRun({ severity: null, where: null, text, raw: text }, dir, id, { ...inCard, ...(pick ? { agent: KNOWN_AGENTS.some((a) => a.cmd === pick.agent) ? pick.agent : undefined, account: typeof pick.account === "string" ? pick.account : undefined, explore: typeof pick.explore === "boolean" ? pick.explore : undefined, yolo: pick.yolo === true } : {}), task: { id: task.id, requirePlanConfirmation: !task.initialConfirmed } });
     },
     alive: (key: string) => ptyState(key)?.alive === true,
     stop: (key: string) => killPty(key),
@@ -438,8 +438,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
       for (const c of clients) { try { c.enqueue("data: changed\n\n"); } catch { clients.delete(c); } }
     }, 200);
   };
-  // agent.launch: card runs what this board launches inside the board, shown on the card.
-  const inCard = (dir: string) => ({ card: launchMode(projectOf(dir)) === "card", onChange: changed });
+  // What this board launches runs inside the board, shown on the card.
+  const inCard = { card: true, onChange: changed };
 
   // The agent open in a run's card, the newest when there are several: what the user sees
   // working. Everything sent to a run goes here before any new agent is started.
@@ -474,7 +474,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
     const prev = readSessions(dir).filter((s) => ownerOf(dir, s, idx) === id && existsSync(tailOf(s.key))).pop();
     let seed: string | undefined;
     try { if (prev) seed = readText(tailOf(prev.key)) + RESUMED; } catch { /* shown without it */ }
-    const r = launchRun({ severity: null, where: null, text, raw: text }, dir, id, { ...inCard(dir), seed });
+    const r = launchRun({ severity: null, where: null, text, raw: text }, dir, id, { ...inCard, seed });
     if (r.ok) closeSessions(dir, id, { before });
     if (r.ok && prev) rmSync(tailOf(prev.key), { force: true });
     changed();
@@ -2240,7 +2240,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           agents: KNOWN_AGENTS.filter((a) => agentUsable(a.cmd)).map((a) => a.cmd),
           // As POST /run starts a task, without one on the inbox.
           run: async (d: string, runner: "lite" | "full", agent: string, text: string) => {
-            const r = launchRun(parseItem(`${runner} ${text}`), d, undefined, { agent, ...inCard(d) });
+            const r = launchRun(parseItem(`${runner} ${text}`), d, undefined, { agent, ...inCard });
             changed();
             return r.ok ? { agent: r.agent.cmd } : { error: r.why };
           },
@@ -2598,7 +2598,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
             const p = parseItem(line.text);
             const it: Item = { ...p, text: kind ? `${kind} ${p.text}` : p.text };
             it.notes = [source !== "orphan" ? `Parent: ${source}` : "", `Backlog: ${source}#${n}`, p.text !== line.text ? `Backlog item: ${line.text}` : ""].filter(Boolean).join("\n");
-            const r = launchRun(it, dir, undefined, { agent, account: typeof body.account === "string" ? body.account : undefined, model: model || undefined, explore: typeof body.explore === "boolean" ? body.explore : undefined, yolo: body.yolo === true, ...inCard(dir) });
+            const r = launchRun(it, dir, undefined, { agent, account: typeof body.account === "string" ? body.account : undefined, model: model || undefined, explore: typeof body.explore === "boolean" ? body.explore : undefined, yolo: body.yolo === true, ...inCard });
             if (r.ok) backlogLaunched.add(`${dir}\0${source}#${n}`);
             changed();
             return json(r.ok
@@ -2609,7 +2609,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           // A `started` task may be run again: the terminal the first launch opened
           // can come up empty, and nothing else tells the board a run never began.
           it.notes = readInbox(dir).find((l) => (l.status === "open" || l.status === "started") && l.text === text)?.notes;
-          const r = launchRun(it, dir, undefined, { agent, account: typeof body.account === "string" ? body.account : undefined, model: model || undefined, explore: typeof body.explore === "boolean" ? body.explore : undefined, yolo: body.yolo === true, ...inCard(dir) });
+          const r = launchRun(it, dir, undefined, { agent, account: typeof body.account === "string" ? body.account : undefined, model: model || undefined, explore: typeof body.explore === "boolean" ? body.explore : undefined, yolo: body.yolo === true, ...inCard });
           if (r.ok) replaceTask(dir, text, { status: "started", text });
           if (r.ok && r.pty) {
             for (const [k, v] of taskPty) if (!ptyState(v)) taskPty.delete(k);   // sessions already dropped
@@ -2788,7 +2788,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           // The run's conversation picks the fix up, and once that window is open the
           // waiting one ends. A failed launch leaves it: the decision has nowhere else.
           const before = Date.now();
-          const r = launchRun({ severity: null, where: null, text, raw: text }, dir, id, inCard(dir));
+          const r = launchRun({ severity: null, where: null, text, raw: text }, dir, id, inCard);
           if (r.ok) (closeSessions(dir, id, { before }), markStage(dir, id, "review", r.pty));
           changed();
           return json(r.ok
@@ -2808,7 +2808,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           const text = `run ${id}: the user chose Skip Explore for this run only. Stop exploration, preserve partial findings and unanswered questions in 00-explore.md, record that the user skipped it, run kaizen report unblock --run ${id}, set explore_status=skipped stage=plan awaiting=null with kaizen state, and prepare the plan. Do not change explore.enabled or skip the plan approval.`;
           const live = liveAgent(dir, id), before = Date.now();
           const r = live ? { ok: true as const, agent: live.agent, pty: live.key }
-            : launchRun({ severity: null, where: null, text, raw: text }, dir, id, inCard(dir));
+            : launchRun({ severity: null, where: null, text, raw: text }, dir, id, inCard);
           if (live) submitPty(live.key, text);
           else if (r.ok) closeSessions(dir, id, { before });
           changed();
@@ -2947,7 +2947,6 @@ export async function web(repoDir: string, opts: Opts = {}) {
       done.add(`${dir}\0${id}`);
       viaRun.add(key);
       if (saved.crash && resumed && Date.now() - resumed < CRASH_AGAIN_MS) { console.log(`  not resuming ${id}: the board died again right after resuming it`); continue; }
-      if (launchMode(projectOf(dir)) !== "card") continue;
       const r = resumeRun(dir, id);
       if (saved.crash && "pty" in r && r.pty) autoResumed.set(r.pty, Date.now());
       console.log(`  ${"error" in r || !r.ok ? "could not resume" : "resumed"} ${id}${"error" in r ? ` (${r.error})` : !r.ok ? ` (${r.why})` : ""}`);
@@ -3104,11 +3103,8 @@ export function shellHosts(root: number, id: string): boolean {
 }
 
 export async function openApp(url: string, profile?: string) {
-  // Kaizen Bot's window (a profile) is always an app; the board asks the setting.
-  if (!profile) {
-    const { listSettings } = await import("./settings.ts");
-    if (listSettings(join(import.meta.dir, "..")).rows.find((r) => r.key === "board.open")?.value !== "app") return openDefault(url);
-  }
+  // Kaizen Bot's window (a profile) is an app window; the board opens in a browser tab.
+  if (!profile) return openDefault(url);
   const args = [`--app=${url}`, ...(profile ? [`--user-data-dir=${profile}`] : [])];
   const chromes = process.platform === "darwin"
     ? ["Google Chrome", "Chromium", "Microsoft Edge", "Brave Browser"]

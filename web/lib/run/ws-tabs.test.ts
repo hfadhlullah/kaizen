@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { nearestPane, agentStatus, forgetAgents, lineOf, settleIn, toggleOpen, wsAgents, SETTLE_MS, awaiting, dueWord, chosen, newRun, loopbackUrl, devUrl, toOpen, previewIn, previewOpens, moveTo, stageKeys, stageTabs, finished, historyOf, liveIn, migrate, pickable, prune, wsKey } from "./ws-tabs.ts";
+import { nearestPane, agentStatus, forgetAgents, lineOf, settleIn, toggleOpen, wsAgents, SETTLE_MS, awaiting, dueWord, chosen, newRun, loopbackUrl, devUrl, toOpen, previewIn, previewOpens, moveTo, stageKeys, stageTabs, finished, historyOf, liveIn, migrate, pickable, prune, wsKey, localPort } from "./ws-tabs.ts";
 
 const run = (id: string, status: string, o: any = {}) => ({ kind: "run", state: "/p/.kaizen", id, status, moved: 1, ws: "/p", ...o });
 const wsOf = (c) => c.ws;
@@ -240,4 +240,13 @@ test("moveTo: a dragged project lands in the slot its drop line marked", () => {
   expect(moveTo(l, 0, 2)).toEqual(["b", "a", "c", "d"]); // a below b (slot counted before the move)
   expect(moveTo(l, 3, 1)).toEqual(["a", "d", "b", "c"]);
   expect(moveTo(l, 1, 1)).toEqual(l); // dropped where it was
+});
+
+test("the port of a local address, for the Opened localhost toast", () => {
+  expect(localPort("http://localhost:5173/")).toBe(5173);
+  expect(localPort("http://127.0.0.1:3000/app")).toBe(3000);
+  expect(localPort("http://[::1]:8080")).toBe(8080);
+  expect(localPort("http://localhost/")).toBeNull();
+  expect(localPort("https://example.com:3000")).toBeNull();
+  expect(localPort("not a url")).toBeNull();
 });

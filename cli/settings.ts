@@ -114,7 +114,6 @@ const SETTINGS: Setting[] = [
   { key: "build.executor", label: "Who builds", group: "Agents", values: ["subagent", "inline", "ask"], help: "subagent: its own agent · inline: this session · ask: pick at plan approval", when: ["runner", "full"] },
   { key: "review.executor", label: "Reviewer", group: "Agents", values: ["inline", "subagent", "ask"], help: "subagent: its own cold agent · inline: this session · ask: pick before review", when: ["runner", "lite"] },
   { key: "agent.default", label: "Default agent", group: "Agents", values: ["auto", "claude", "codex", "agy", "opencode", "gemini"], help: "" },
-  { key: "agent.launch", label: "Where agents run", group: "Agents", values: ["card", "terminal"], help: "" },
   { key: "agent.keep_alive", label: "Keep agents through a kaizen restart", group: "Agents", values: ["off", "tmux"], help: "tmux: Linux and macOS with tmux installed. The wheel scrolls tmux history; Shift+drag copies", when: ["agent.launch", "card"] },
   { key: "agent.keep_awake", label: "Keep computer awake", group: "Board", values: ["off", "auto", "on"], help: "auto: while kaizen runs agents · on: while kaizen is open. Linux and macOS" },
   { key: "agent.heartbeat_minutes", label: "Agent heartbeat", group: "Board", values: ["2", "5", "10", "30"], help: "Minutes. A card says stale after two quiet intervals" },
@@ -150,9 +149,7 @@ const SETTINGS: Setting[] = [
   { key: "sources.effort", label: "ChatGPT effort for the icebox", group: "Board", values: ["low", "medium", "high"], help: "Gathering, sorting and task drafts" },
   { key: "board.projects_dir", label: "Projects folder", group: "Board", values: [], text: true, folder: true, help: "Empty: known projects only" },
   { key: "board.video_dir", label: "Video library folder", group: "Board", values: [], text: true, folder: true, help: "Empty: ~/.kaizen" },
-  { key: "board.open", label: "Open kaizen in", group: "Board", values: ["browser", "app"], help: "" },
   { key: "board.chat_hotkey", label: "Popup chat hotkey", group: "Board", values: [], text: true, help: "Hyprland, e.g. SUPER + ALT + SPACE. Empty: none" },
-  { key: "ui.mouse", label: "Enable mouse", group: "Terminal", values: ["false", "true"], help: "" },
 ];
 
 // The same rows and the same write the TUI uses, for `kaizen web`'s settings panel:

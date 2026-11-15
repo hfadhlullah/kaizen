@@ -1,12 +1,12 @@
 // What a person does in the run workspace, as store actions: open or close a tab, start a terminal or an agent, split, move
 // and drag items between panes, the Run app button, the pane keys. Each changes the layout store (lib/run/layout-store.ts) or
 // asks the server, then redraws (ws-draw.ts); the panes themselves are React (components/run).
-import { ask, isPhone, post, toast } from "@lib/core";
+import { ask, isPhone, post, toast, toastAction } from "@lib/core";
 import { cardKey as key, getServer, load } from "@lib/server";
 import { wsOfCardNow as wsOfCard } from "@lib/rail";
 import { setHelp } from "@lib/shell";
 import { preview } from "@lib/markdown";
-import { devUrl, leaves } from "./ws-tabs.ts";
+import { devUrl, leaves, localPort } from "./ws-tabs.ts";
 import { tabs, draw } from "./ws-draw.ts";
 import type { Tab } from "./ws-derive.ts";
 import { addShell, cx, edit, getWs, saved, screens, setElsewhere, setWs } from "./ws-store.ts";
@@ -107,6 +107,9 @@ export async function previewApp() {
     keepUrl(c.k, u);
     addTab({ id: "local", kind: "local", title: "Browser" });
     requestBrowse(c.k, u);
+    // Which port it is, and a way to close it.
+    const at = localPort(u);
+    if (at) toastAction(`Opened localhost:${at}`, "Stop server", () => void stopServer(at));
   };
   const now = await ports();
   if (now.length) return openAt(devUrl(pv, now)!);
@@ -147,6 +150,17 @@ export async function previewApp() {
     starting = false;
   }
   if (retry) return previewApp();
+}
+
+// "Stop server" on the toast: the board stops what listens on that port (a process of this user, never the board itself).
+async function stopServer(port: number) {
+  try {
+    const r = await fetch("/port/stop", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ port }) });
+    if (r.ok) return toast(`Stopped localhost:${port}`);
+    toast(`Could not stop localhost:${port}: ${((await r.json()) as { error?: string }).error ?? "unknown error"}`);
+  } catch {
+    toast(`Could not stop localhost:${port}: the board did not answer`);
+  }
 }
 
 type Conflict = { port: number; board?: boolean; holders: { pid: number; name: string; cmd: string; cwd: string }[] };

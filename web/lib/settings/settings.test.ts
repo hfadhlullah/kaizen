@@ -41,7 +41,6 @@ test("models, the run's workflow and dictation each have their own page", () => 
   expect(placeOf("board.chat_hotkey")).toEqual(["keyboard", "Shortcuts"]);
   expect(placeOf("state.keep_runs")).toEqual(["general", "Storage"]);
   expect(placeOf("board.projects_dir")).toEqual(["general", "Folders"]);
-  expect(placeOf("board.open")).toEqual(["general", "App"]);
 });
 
 test("old page addresses open the page they were merged into", () => {

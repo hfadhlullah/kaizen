@@ -1584,7 +1584,6 @@ export function closeEnabled(projectDir: string) {
   return true;
 }
 
-// agent.launch in the config chain: where the web board runs what it launches.
 // agent.keep_alive: tmux keeps a card's agent in a tmux session that outlives the board.
 export function keepAlive(projectDir: string): "off" | "tmux" {
   for (const t of configTexts(projectDir)) {
@@ -1608,14 +1607,6 @@ export function heartbeatMinutes(text = existsSync(join(home, ".kaizen", "config
 // agent.keep_awake: machine-wide, so only the global config. Same forms as keepAlive.
 export function keepAwake(text = existsSync(join(home, ".kaizen", "config.yml")) ? readText(join(home, ".kaizen", "config.yml")) : "") {
   return (/^agent:\n(?:[ \t][^\n]*\n)*?[ \t]+keep_awake:[ \t]*["']?([^"'\s]+)/m.exec(text) || /^agent\.keep_awake:[ \t]*["']?([^"'\s]+)/m.exec(text))?.[1] ?? "off";
-}
-
-export function launchMode(projectDir: string): "card" | "terminal" {
-  for (const t of configTexts(projectDir)) {
-    const m = /^agent:\n(?:[ \t][^\n]*\n)*?[ \t]+launch:[ \t]*["']?([^"'\s]+)/m.exec(t) || /^agent\.launch:[ \t]*["']?([^"'\s]+)/m.exec(t);
-    if (m) return m[1] === "terminal" ? "terminal" : "card";
-  }
-  return "card";
 }
 
 // Whether a live PID is still the agent a record launched, not a stranger that reused

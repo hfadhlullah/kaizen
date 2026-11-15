@@ -114,3 +114,12 @@ export const toOpen = (cards: any[], was: Set<string>, seen: string[], keyOf: (c
 export * from "@lib/rail/agents.ts";
 export { moveTo, gitDue, dueWord } from "@lib/rail/rules.ts";
 export { branchSlug } from "@lib/project/branch.ts";
+// The port of a loopback address (localhost, 127.0.0.1, [::1]), or null for anything else.
+export function localPort(u: string): number | null {
+  try {
+    const x = new URL(u);
+    return /^(localhost|127\.0\.0\.1|\[::1\])$/.test(x.hostname) && x.port ? Number(x.port) : null;
+  } catch {
+    return null;
+  }
+}

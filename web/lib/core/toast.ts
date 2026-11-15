@@ -22,6 +22,8 @@ export function toast(message: string, report?: Record<string, string>) {
   });
 }
 // A toast with one more thing to do ("Snoozed until Sat · Undo"): pressing it runs `onUndo` and closes the toast.
-export function toastUndo(message: string, onUndo: () => void) {
-  show(message, { duration: 8000, action: { label: "Undo", onClick: onUndo } });
+export const toastUndo = (message: string, onUndo: () => void) => toastAction(message, "Undo", onUndo);
+// The same with any label ("Opened localhost:5173 · Stop server").
+export function toastAction(message: string, label: string, onClick: () => void) {
+  show(message, { duration: 8000, action: { label, onClick } });
 }
