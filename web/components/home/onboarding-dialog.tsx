@@ -320,13 +320,17 @@ function Flow({ cfg, flow }: { cfg: Cfg; flow: { step: number; agent: string; th
           )}
         </div>
         <div className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-2.5 border-t border-border pt-3.5">
-          <button
-            type="button"
-            className="px-0.5 py-1.5 text-base text-muted-foreground hover:text-foreground"
-            onClick={() => void skip()}
-          >
-            Skip to project setup
-          </button>
+          {last ? (
+            <span />
+          ) : (
+            <button
+              type="button"
+              className="px-0.5 py-1.5 text-base text-muted-foreground hover:text-foreground"
+              onClick={() => void skip()}
+            >
+              Skip to project setup
+            </button>
+          )}
           <span />
           {step > 0 && <Button onClick={back}>‹ Back</Button>}
           <Button variant="primary" data-next className="gap-2.5" onClick={() => void next()}>

@@ -30,7 +30,7 @@ export const COPY = [
   { title: "Set up notifications", sub: "kaizen can tell you when a run needs you or an agent is done." },
   {
     title: "Use kaizen on your phone",
-    sub: "Optional. Check runs and answer agents from your phone. Continue to skip; it is also in Settings → Phone.",
+    sub: "Optional. Check runs and answer agents from your phone. You can skip this now; it is also in Settings → Phone.",
   },
 ];
 export const NOTIF_TEXT: Record<Notif, string> = {

@@ -107,7 +107,7 @@ function AgentCards() {
           })}
         </div>
       ) : (
-        <Note>No agents running.</Note>
+        <Note>No agents running. Tap New to start one.</Note>
       )}
     </section>
   );
