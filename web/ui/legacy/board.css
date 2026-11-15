@@ -678,8 +678,11 @@ body.taskv .hdr #bq,body.taskv .hdr #newtop{display:none!important}
 /* Rail icons read as one size and one weight: 16px at stroke 1.8 draws a ~1.2px line, as clear as the Settings page's. The gear
    fills its 24px box (22px of ink) where the bug and the moon fill 16px, so it is drawn at 14px with a thicker stroke (2.05)
    to keep the same line weight and about the same weight on screen. */
+/* Computer widths only: the phone's bottom bar draws each icon in a 44x26 pill (the padding is the pill), so a width of 16px would leave it no room. */
+@media(min-width:641px){
 .rail a.it svg,.rail .psec a svg,.rail .psec button svg,.rail .rbot .ib.xs svg{width:16px;height:16px;stroke-width:1.8}
 .rail .rbot a.it svg{width:14px;height:14px;stroke-width:2.05}
+}
 /* A shorter bottom edge: the status bar and the side menu's gear row take less height (the bar was 34px, the gear row sat 14px
    above the window's edge). */
 @media(min-width:641px){#foot{padding:2px 12px}#foot .fb{padding:2px 7px}.rail{padding-bottom:8px}.rail .rbot{margin-top:2px}}
