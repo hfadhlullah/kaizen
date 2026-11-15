@@ -675,3 +675,8 @@ body.termv #combo,body.homev #combo{display:none!important}
 body.taskv .hdr #bq,body.taskv .hdr #newtop{display:none!important}
 /* The run panel's footer keeps clear of the floating terminal button at the window's bottom right. */
 @media(min-width:641px){body:not(.runv) #panel:not(.docked) #pfoot{padding-right:64px}}
+/* Rail icon buttons read as one size: the Board icon was 18px beside 14px siblings, and the gear fills its 24px box (22px of
+   ink) where the bug and the moon fill 16px, so each gets the size that makes the drawn icon about 11px. */
+.rail .psec a.pbd svg{width:var(--ico);height:var(--ico)}
+.rail .rbot a.it svg{width:12px;height:12px}
+.rail .rbot .ib.xs svg{width:16px;height:16px}
