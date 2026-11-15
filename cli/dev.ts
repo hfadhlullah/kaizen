@@ -22,9 +22,20 @@ const build = async () => {
 const reload = async () => { try { await fetch(`http://127.0.0.1:${port}/__dev/reload`, { method: "POST" }); } catch {} };
 
 if (!(await build())) process.exit(1);
+// The board's own output is passed on and read: "already at <url>" means a board already serves this project, so this run
+// only watches and rebuilds (the script stays up, a Run app terminal does not end) and says where that board is.
+let existing = "";
 const board = Bun.spawn([process.execPath, join(root, "cli", "install.ts"), "web", "--port", port, "--no-open"], {
-  cwd: project, env: { ...process.env, KAIZEN_DEV: "1" }, stdout: "inherit", stderr: "inherit", stdin: "inherit",
+  cwd: project, env: { ...process.env, KAIZEN_DEV: "1" }, stdout: "pipe", stderr: "inherit", stdin: "inherit",
 });
+(async () => {
+  const dec = new TextDecoder();
+  for await (const chunk of board.stdout) {
+    const t = dec.decode(chunk);
+    process.stdout.write(t);
+    existing ||= /already at\s+(\S+)/.exec(t)?.[1] ?? "";
+  }
+})();
 console.log(`  dev: watching web/ — pages reload after each rebuild`);
 
 // One build at a time; a change during a build runs one more after it.
@@ -48,4 +59,9 @@ const stop = () => { board.kill(); process.exit(0); };
 process.on("SIGINT", stop);
 process.on("SIGTERM", stop);
 await board.exited;
-process.exit(0);
+await Bun.sleep(100); // the last output is read
+if (!existing) process.exit(0);
+console.log(`\n  dev: a board already serves this project at ${existing}`);
+console.log(`  dev: still watching and rebuilding web/dist. That board reloads pages on its own only if it was started with KAIZEN_DEV=1;`);
+console.log(`  dev: otherwise reload the page yourself, or run this with --project <folder> and its own HOME for a second board.`);
+await new Promise(() => {}); // stay up until Ctrl+C

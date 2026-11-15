@@ -22,7 +22,7 @@ import { agentLine, failStart, handoffModel, markRunning, readWorkers, requested
 import { childDied, childQuiet, markWoken, move, requestOpen, readHandoff, refused, started, wakeAction, wakeLine, type Handoff } from "./handoff.ts";
 import { processTable, storage, systemMemory, treeRss, type Root } from "./resources.ts";
 import { attachPty, frames, writePty, submitPty, resizePty, exitPty, killPty, panePid, ptyState, ptyKeys, adoptLoginEnv, startPty, ptySupported, detachPty, ptyTail, ptyTmux, tmuxAlive, RESUMED } from "./pty.ts";
-import { conflictPort, holders, inProjects, listeners, stopPort } from "./ports.ts";
+import { conflictPort, holders, inProjects, isKaizenProcess, listeners, stopPort } from "./ports.ts";
 import { snapshot, snapWorker } from "./state-snap.ts";
 import { claudeUsage, claudeUsageAt, codexUsage, codexUsageAt, phonePeers, type Usage } from "./usage.ts";
 import { readSources, addSource, removeSource, moveSource, setCategory, setWriteback, setPaused, readIcebox, applySort, promote, dismiss, restore, capture, editItem, setKind, setTags, setBoard, saveBoard, removeBoard, snooze, unsnooze, readBoards, kindOf, isSnoozed, markDone, markReplied, gatherSource, freshImages, gatherAll, gatherDirs, due, socialUrl, socialOf } from "./sources.ts";
@@ -1364,7 +1364,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         if (!local(req)) return bad("cross-origin request refused", 403);
         const dirs = states(true).filter((d) => d !== join(home, ".kaizen")).map((d) => dirname(d));
         const agents = [...KNOWN_AGENTS.map((a) => a.cmd), "cursor-agent"];
-        const list = inProjects(await listeners(), dirs).filter((l) => l.pid !== process.pid && l.port !== port && !agents.includes(l.name));
+        const list = inProjects(await listeners(), dirs).filter((l) => l.pid !== process.pid && l.port !== port && !agents.includes(l.name) && !isKaizenProcess(l.cmd));
         return json(list.map((l) => ({ port: l.port, pid: l.pid, name: l.name, cmd: l.cmd, cwd: l.cwd, project: label(join(l.project, ".kaizen")) })));
       }
       // Stops what listens on a port (the question above, answered yes): a process of this user, never the board itself.

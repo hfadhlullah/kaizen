@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { conflictPort, holdersFromSs, inProjects, parseListeners } from "./ports.ts";
+import { conflictPort, holdersFromSs, inProjects, isKaizenProcess, parseListeners } from "./ports.ts";
 
 test("the port a dev server says is taken", () => {
   expect(conflictPort("error: Failed to start server. Is port 3000 in use?\nEADDRINUSE: address already in use 0.0.0.0:3000")).toBe(3000);
@@ -30,4 +30,12 @@ test("a user's listeners, and the ones inside a project", () => {
   expect(all.map((l) => [l.port, l.pid])).toEqual([[5173, 20], [7431, 10]]);
   expect(inProjects(all, ["/home/u/app", "/home/u/other"]).map((l) => [l.port, l.project])).toEqual([[5173, "/home/u/app"], [7431, "/home/u/app"]]);
   expect(inProjects(all, ["/home/u/zzz"])).toEqual([]);
+});
+
+test("kaizen's own processes are not listed as apps", () => {
+  expect(isKaizenProcess("bun /home/u/kaizen/cli/install.ts web --port 7431 --no-open")).toBe(true);
+  expect(isKaizenProcess("bun cli/dev.ts --port 7777")).toBe(true);
+  expect(isKaizenProcess("bun test cli/backlog.test.ts")).toBe(true);
+  expect(isKaizenProcess("node /home/u/app/node_modules/.bin/vite --port 5173")).toBe(false);
+  expect(isKaizenProcess("bun run dev")).toBe(false);
 });

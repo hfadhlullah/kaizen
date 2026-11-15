@@ -4,6 +4,7 @@ import {
   memParts,
   ringDash,
   shareOf,
+  shortCmd,
   size,
   sparkPoints,
   topParts,
@@ -52,4 +53,11 @@ test("the sparkline needs two points and stays inside its box", () => {
   expect(s.line).toBe("0.0,36.0 100.0,2.0");
   expect(s.area.startsWith("0,36 ")).toBe(true);
   expect(s.area.endsWith(" 100,36")).toBe(true);
+});
+
+test("a port's command reads short", () => {
+  expect(shortCmd("/usr/bin/node /app/node_modules/.bin/vite --port 5173")).toBe("node /app/node_modules/.bin/vite --port 5173");
+  expect(shortCmd("/home/u/.local/bin/bun run dev")).toBe("bun run dev");
+  expect(shortCmd("python3 -m http.server 8000")).toBe("python3 -m http.server 8000");
+  expect(shortCmd("node " + "x".repeat(100), 20)).toHaveLength(20);
 });

@@ -15,6 +15,7 @@ import {
   ringDash,
   setOpen,
   setResources,
+  shortCmd,
   shareOf,
   size,
   sparkPoints,
@@ -348,7 +349,7 @@ function PortRow({ p }: { p: Port }) {
       <b className="min-w-12 font-mono text-sm font-medium text-strong tabular-nums">:{p.port}</b>
       <span className="min-w-0">
         <b className="block truncate font-medium text-strong" title={p.cmd}>
-          {p.name || "process"}
+          {shortCmd(p.cmd) || p.name || "process"}
         </b>
         <small className="block truncate text-xs text-muted-foreground" title={p.cwd}>
           {p.project}

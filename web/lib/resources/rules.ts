@@ -49,3 +49,8 @@ export function sparkPoints(history: number[]): { line: string; area: string } |
 }
 // Folder name of a terminal's workspace for its second line.
 export const wsName = (t: Terminal) => `${t.project || "Home"} / ${t.ws.split(/[\\/]/).pop() || "main"}`;
+// A process's command for a row: the program by its name, then the rest, cut to fit ("/usr/bin/node /app/vite.js --port 5173" -> "node /app/vite.js --port 5173").
+export const shortCmd = (cmd: string, max = 56) => {
+  const t = cmd.trim().replace(/\s+/g, " ").replace(/^(\S*[\\/])?([^\\/\s]+)/, "$2");
+  return t.length > max ? t.slice(0, max - 1) + "…" : t;
+};

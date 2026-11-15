@@ -116,3 +116,6 @@ export async function listeners(): Promise<Listener[]> {
     return { cmd, cwd, mine: mine === null || uid === mine };
   });
 }
+
+// Kaizen's own processes (a board, the dev script, a test run) are not the user's apps: the Ports list leaves them out.
+export const isKaizenProcess = (cmd: string) => /install\.ts\s+web\b|\bkaizen(?:-agent)?\s+web\b|cli\/(?:dev|web)\.ts|\bbun\s+test\b/.test(cmd);
