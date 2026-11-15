@@ -683,3 +683,6 @@ body.taskv .hdr #bq,body.taskv .hdr #newtop{display:none!important}
 /* A shorter bottom edge: the status bar and the side menu's gear row take less height (the bar was 34px, the gear row sat 14px
    above the window's edge). */
 @media(min-width:641px){#foot{padding:2px 12px}#foot .fb{padding:2px 7px}.rail{padding-bottom:8px}.rail .rbot{margin-top:2px}}
+/* A shorter tab bar in the run workspace (it was 52px, level with the Board header): 40px. */
+@media(min-width:641px){body.runv #rbar{height:40px;min-height:40px}body.runv #rtabs{height:40px;min-height:40px}}
+@media(min-width:641px){body.runv #panel>header{padding-top:6px;padding-bottom:8px}}
