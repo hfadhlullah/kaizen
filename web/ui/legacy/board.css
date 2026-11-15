@@ -628,7 +628,7 @@ aside .foot .more{position:relative}.more>summary{list-style:none;cursor:pointer
 .find .loc{color:var(--dim);font-size:12px;margin-left:8px}
 
 .yolo[hidden]{display:none}
-@media(min-width:641px){body.setv .rail{display:none}body.setv #panel>header{display:none}body.setv #panel>.body{padding:0!important;overflow:hidden}body.setv #panel{background:none;border-color:transparent;box-shadow:none}body.setv .app{margin:0;background:none;border:0;border-radius:0}}
+@media(min-width:641px){body.setv .rail{display:none}body.setv #panel>header,body.setv #pfoot{display:none}body.setv #panel>.body{padding:0!important;overflow:hidden}body.setv #panel{background:none;border-color:transparent;box-shadow:none}body.setv .app{margin:0;background:none;border:0;border-radius:0}}
 /* The phone card (Settings → Phone, onboarding): steps, then the QR beside what to do on the phone. */
 /* the one switch, everywhere (toggle() in board/dom.ts writes it): a <button role="switch"> flipped with .on, or a
    checkbox (:checked) where a form reads it; drawn as a track and a thumb. .sm is the compact size. */

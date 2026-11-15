@@ -42,10 +42,7 @@ export function SettingsNav({
   return (
     <nav
       aria-label="Settings"
-      className={cn(
-        "flex min-h-0 flex-col px-3 pb-3.5 pt-[18px] max-[640px]:block max-[640px]:p-0",
-        current !== null && "max-[640px]:hidden",
-      )}
+      className="flex h-full min-h-0 flex-col px-3 pb-3.5 pt-[18px] max-[640px]:block max-[640px]:p-0"
     >
       <button
         id="sback"

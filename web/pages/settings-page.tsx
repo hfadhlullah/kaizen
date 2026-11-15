@@ -6,6 +6,7 @@ import {
   UpdateBar,
   SettingsSection,
 } from "@components/settings";
+import { PageFrame } from "@components/layout";
 import { panelBody } from "@lib/run";
 import { useNarrow } from "@lib/shared";
 import {
@@ -58,16 +59,13 @@ export function SettingsPage() {
         ? (data.cfg.projects.find((x) => x.dir === data.cfg!.scope)?.label ?? "")
         : "";
   return (
-    <div
-      id="sset"
-      className="grid h-full grid-cols-[clamp(220px,24vw,272px)_minmax(0,1fr)] max-[640px]:block max-[640px]:h-auto"
+    <PageFrame
+      sidebar={<SettingsNav hits={hits} current={current} onSearchFocus={setTyping} />}
+      title="Settings"
+      phone={current === null ? "sidebar" : "content"}
+      bodyRef={main}
     >
-      <SettingsNav hits={hits} current={current} onSearchFocus={setTyping} />
-      <div
-        id="smain"
-        ref={main}
-        className={`m-2 mb-0 ml-0 min-w-0 overflow-y-auto rounded-lg border border-border bg-background px-[clamp(16px,5vw,56px)] pb-16 pt-9 max-[640px]:m-0 max-[640px]:overflow-visible max-[640px]:rounded-none max-[640px]:border-0 max-[640px]:bg-transparent max-[640px]:p-0 max-[640px]:pb-6 ${current === null ? "max-[640px]:hidden" : ""}`}
-      >
+      <div className="px-[clamp(16px,5vw,56px)] pb-16 pt-9 max-[640px]:p-0 max-[640px]:pb-6">
         {p && (
           <div data-page={p.id} className="mx-auto max-w-[720px]">
             <button
@@ -108,6 +106,6 @@ export function SettingsPage() {
           </p>
         )}
       </div>
-    </div>
+    </PageFrame>
   );
 }
