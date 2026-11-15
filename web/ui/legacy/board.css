@@ -692,3 +692,5 @@ body.taskv .hdr #bq,body.taskv .hdr #newtop{display:none!important}
 @media(min-width:641px){.rail .top{margin-top:-2px}}
 /* A floating window held by its bar: the grabbing hand everywhere until it is let go (the bar itself shows the plain pointer). */
 html.grabbing,html.grabbing *{cursor:grabbing!important}
+/* The Home row's count of open agents is a badge: a small pill in the same place as before. */
+.hwsslot .proj .c:not(:empty){display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 6px;border-radius:var(--r-pill,999px);background:var(--hover);color:var(--ink);font-size:var(--fs-xs);line-height:1}
