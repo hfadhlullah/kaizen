@@ -35,6 +35,7 @@ export type TaskView = {
   projectName?: string;
   queuePaused?: boolean;
   agentAlive?: boolean;
+  runStage?: string;
   // What the server allows now; the page draws this list and decides nothing itself.
   actions?: {
     accept: boolean;

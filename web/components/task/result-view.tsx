@@ -5,15 +5,23 @@ import { ArtifactView } from "./artifact-view.tsx";
 
 // What the task made: the building state, an empty promise, or the selected result with its outputs rail and
 // the viewer for the selected output. `working` is the status line shown while the agent builds.
+const VERB: Record<string, string> = { explore: "exploring", plan: "planning", build: "building", review: "reviewing" };
+
 export function ResultView({
   result,
   artifactId,
   working,
+  stage,
+  alive,
+  waiting,
   onSelect,
 }: {
   result?: TaskResult;
   artifactId?: string;
   working?: string;
+  stage?: string;
+  alive?: boolean;
+  waiting?: boolean;
   onSelect: (id: string) => void;
 }) {
   if (!result && working)
@@ -23,14 +31,16 @@ export function ResultView({
         className="grid min-h-60 place-content-center justify-items-center gap-1.5 p-5 text-center text-muted-foreground"
       >
         <Spinner className="mb-1.5" />
-        <h3 className="font-semibold text-foreground">The agent is building</h3>
+        <h3 className="font-semibold text-foreground">{alive === false ? "The agent is not running" : `The agent is ${VERB[stage ?? ""] ?? "working"}`}</h3>
         <p className="line-clamp-3 max-w-[52ch]">{working}</p>
       </div>
     );
   if (!result)
     return (
       <div className="grid min-h-60 place-content-center p-5 text-center text-muted-foreground">
-        <h3 className="mb-2 font-semibold text-foreground">Your result will appear here</h3>
+        <h3 className="mb-2 font-semibold text-foreground">
+          {waiting ? "Waiting for you" : "Your result will appear here"}
+        </h3>
         <p>Answer any questions in the conversation. You approve a short plan before the build starts.</p>
       </div>
     );

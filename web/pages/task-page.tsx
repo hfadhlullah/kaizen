@@ -242,6 +242,9 @@ function Task() {
               result={selected}
               artifactId={artifactId}
               working={t.status === "working" ? taskStatus(t) : undefined}
+              stage={t.runStage}
+              alive={t.agentAlive}
+              waiting={t.status === "waiting"}
               onSelect={setArtifactId}
             />
           </div>

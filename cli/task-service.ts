@@ -40,7 +40,7 @@ export function allowedActions(state:string,task:T.Task,hooks?:Hooks) {
 export function taskView(state:string,task:T.Task,hooks?:Hooks) {
   const p=T.taskProjection(task);
   const run=runState(state,task), finished=run&&(['done','abandoned'].includes(run.stage)||run.healed);
-  return {...task,actions:allowedActions(state,task,hooks),...(hooks?{agentAlive:!!(agentKey(state,task,hooks)&&hooks.alive(agentKey(state,task,hooks)!))}:{}),activeRun:finished&&['ready','accepted'].includes(task.status)?null:task.activeRun,projectName:task.project?.split(/[\\/]/).pop()??'Choose a project',dir:state,updatedAt:task.updated,attention:{category:p.filter,reason:p.reason,action:p.action},statusLabel:p.label,decision:!task.project?{id:'project',kind:'project',text:'Choose a named project for your saved goal.'}:task.pendingDecision,messages:task.events,runs:task.runIds,currentResultId:task.currentResult,acceptedResultId:task.acceptedResult};
+  return {...task,actions:allowedActions(state,task,hooks),runStage:run&&!finished?String(run.stage??''):undefined,...(hooks?{agentAlive:!!(agentKey(state,task,hooks)&&hooks.alive(agentKey(state,task,hooks)!))}:{}),activeRun:finished&&['ready','accepted'].includes(task.status)?null:task.activeRun,projectName:task.project?.split(/[\\/]/).pop()??'Choose a project',dir:state,updatedAt:task.updated,attention:{category:p.filter,reason:p.reason,action:p.action},statusLabel:p.label,decision:!task.project?{id:'project',kind:'project',text:'Choose a named project for your saved goal.'}:task.pendingDecision,messages:task.events,runs:task.runIds,currentResultId:task.currentResult,acceptedResultId:task.acceptedResult};
 }
 export function taskList(states:string[],hooks?:Hooks) {
   const tasks=states.flatMap(state=>T.listTasks(state).filter(t=>!t.archived).map(t=>taskView(state,reconcile(state,t,hooks),hooks)));
@@ -211,7 +211,10 @@ export function taskAction(state:string,body:any,hooks:Hooks):{state:string;task
     if(key&&hooks.alive(key))hooks.stop(key);
     else try{task=T.mutateTask(state,task.id,{revision:task.revision,opId:operationId+':stopped'},t=>stopped(t,key));}
     catch{task=T.readTask(state,task.id)!;/* the pump confirmed the stop first: same outcome */}
-  }else if(['message','confirm','resume'].includes(op))task=dispatchReady(state,task.id,hooks,op==='resume'&&!task.inputs.some(i=>['queued','received'].includes(i.state)));
+  }else if(['message','confirm','resume'].includes(op)){
+    // The agent is gone (interrupted/failed, queue paused): a message is the user asking to go on, so recover instead of leaving it queued.
+    if(op==='message'&&['interrupted','failed'].includes(task.status)&&allowedActions(state,task,hooks).resume)task=T.mutateTask(state,task.id,{revision:task.revision,opId:operationId+':recover'},t=>{T.resumeTask(t);});
+    task=dispatchReady(state,task.id,hooks,op==='resume'&&!task.inputs.some(i=>['queued','received'].includes(i.state)));}
   return {state,task};
 }
 
