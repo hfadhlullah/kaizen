@@ -76,7 +76,7 @@ export function BoardColumn({ ci }: { ci: number }) {
             <TabsList aria-label="To do column">
               <TabsTrigger value="ideas" title="To do" aria-label="To do">
                 <Icon sprite="s" name="idea" className="size-3.5 stroke-[1.7]" />
-                {tab === "ideas" && <b className="font-[inherit]">To do</b>}
+                {tab === "ideas" && <b className="whitespace-nowrap font-[inherit]">To do</b>}
               </TabsTrigger>
               <TabsTrigger
                 value="backlog"
@@ -84,7 +84,7 @@ export function BoardColumn({ ci }: { ci: number }) {
                 aria-label="Backlog: what finished runs left undone"
               >
                 <Icon name="clock" className="size-3.5 stroke-[1.7]" />
-                {tab === "backlog" && <b className="font-[inherit]">Backlog</b>}
+                {tab === "backlog" && <b className="whitespace-nowrap font-[inherit]">Backlog</b>}
               </TabsTrigger>
             </TabsList>
           </Tabs>

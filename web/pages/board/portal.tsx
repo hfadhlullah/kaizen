@@ -1,5 +1,6 @@
 import { Toaster } from "@web/ui";
 import { setPortalRoot } from "@lib/core";
+import { useShell } from "@lib/shell";
 import { UpdateCard } from "@components/settings";
 import { AddProjectDialog, WsMenu } from "@components/project";
 import { BoardPopups } from "@components/board";
@@ -12,10 +13,11 @@ import { AskHost } from "@components/shared";
 // #kz-portal: where every popup, menu, dialog and toast the kit opens is drawn (ui/*'s portalRoot() is the element this hands over
 // as its ref). The toaster is the one every page and the old modules share.
 export function Portal() {
+  const dark = useShell((s) => s.dark);
   return (
     <div id="kz-portal" className="kz-ui" ref={setPortalRoot}>
       <div>
-        <Toaster />
+        <Toaster theme={dark ? "dark" : "light"} />
       </div>
       <div>
         <BoardPopups />

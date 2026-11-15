@@ -57,7 +57,7 @@ export function ShowingPicker() {
         <button
           type="button"
           aria-label="Projects shown"
-          className="inline-flex h-(--btn-s) max-w-full items-center gap-2 rounded-sm border border-transparent bg-transparent px-2.5 text-base hover:border-border"
+          className="inline-flex h-(--btn-s) max-w-full items-center gap-2 whitespace-nowrap rounded-sm border border-transparent bg-transparent px-2.5 text-base hover:border-border"
         >
           {showingLabel(shown, all)}
           <Icon name="chev" className="size-3 shrink-0 text-muted-foreground" />

@@ -2,7 +2,6 @@ import { Wordmark } from "@components/shell";
 import { ProjectPicker, ShowingPicker } from "@components/project";
 import { BoardModeSwitch, FilterBox, StatusButton } from "@components/board";
 import { TerminalModes } from "@components/terminal";
-import { ContextOpen } from "@components/context";
 import { newTask } from "@lib/board";
 import { newChat, popOut, setSide, useHome } from "@lib/home";
 import { toggleMenu, useRoute } from "@lib/router";
@@ -72,7 +71,6 @@ export function Header() {
         <Icon id="i-plus" />
         <span>New task</span>
       </button>
-      <ContextOpen />
       <button className="ib" id="hpop" title="Pop out chat" aria-label="Pop out chat" onClick={() => void popOut()}>
         <Icon id="i-popout" />
       </button>

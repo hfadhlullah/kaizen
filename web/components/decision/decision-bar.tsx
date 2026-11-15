@@ -190,7 +190,7 @@ function RunStrip({ card: c, answered, questions, sourceControl, actions: a }: O
       />
     );
   const note = (t: React.ReactNode) => (
-      <span className="basis-full text-sm leading-normal text-muted-foreground">{t}</span>
+      <span className="min-w-0 basis-full whitespace-normal text-sm leading-normal text-muted-foreground">{t}</span>
     ),
     dec = (...k: React.ReactNode[]) => <span className="ml-auto flex gap-2">{k}</span>,
     resumeSession =

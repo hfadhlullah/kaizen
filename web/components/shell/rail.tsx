@@ -7,6 +7,7 @@ import { useServer, iceNewCount, needYouCount } from "@lib/server";
 import { setHelp, toggleRail, toggleTheme, useShell } from "@lib/shell";
 import { useHiddenTerminals } from "@lib/terminal";
 import { RailFilter, RailList } from "../rail/index.ts";
+import { IconButton } from "@components/shared";
 import { Wordmark } from "./wordmark.tsx";
 
 // A page-level link of the side menu. The board's router (lib/router) takes its clicks; on the Notebook it is a link.
@@ -65,11 +66,7 @@ export function Rail(p: { srcs?: ReactNode; before?: ReactNode }) {
           <Wordmark />
           <span className="mascot" />
         </a>
-        <button className="ib" id="fold" aria-label={fold} title={fold} aria-expanded={!min} onClick={toggleRail}>
-          <svg>
-            <use href="#i-side" />
-          </svg>
-        </button>
+        <IconButton size="sm" icon="side" label={fold} id="fold" aria-expanded={!min} onClick={toggleRail} />
       </div>
       <a
         className="it gs-it"

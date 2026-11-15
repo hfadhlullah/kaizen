@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { isPhone } from "@lib/core";
 import { setFlip, useRunView } from "@lib/run";
+import { IconButton } from "@components/shared";
 import { RunTabs } from "./run-tabs.tsx";
 
 // The run workspace's top bar: the tab strip (the shown tab scrolls into view) and the button that folds the run panel
@@ -24,20 +25,16 @@ export function RunBar() {
           <RunTabs />
         </div>
       </nav>
-      <button
-        className="ib xs"
+      <IconButton
+        size="sm"
+        icon="open"
+        label="Show or hide the run panel"
         id="rside"
-        title="Show or hide the run panel"
-        aria-label="Show or hide the run panel"
         aria-pressed={flip}
         hidden={hidden}
         data-dot={dot ? "" : undefined}
         onClick={() => setFlip(!flip)}
-      >
-        <svg>
-          <use href="#i-open" />
-        </svg>
-      </button>
+      />
     </div>
   );
 }

@@ -38,7 +38,7 @@ const useWide = () => {
   return wide;
 };
 
-// The header's button: opens and closes the pane (the page's CSS hides it off the Board and on a phone).
+// The button that opens and closes the pane (the page's CSS hides it off the Board and on a phone). The Board header does not mount it now (removed at the user's request); mount it where it should live.
 export function ContextOpen() {
   const open = useCtx((s) => s.open);
   return (

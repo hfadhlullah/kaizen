@@ -15,7 +15,6 @@ const KIND = {
   wait: "ai",
   history: "note",
 } as Record<string, string>;
-const small = "size-(--btn-xs) max-[640px]:size-8";
 
 function Tab({ sc, on }: { sc: RvScreen; on: boolean }) {
   const [over, setOver] = useState(false),
@@ -91,10 +90,10 @@ export function RunTabs() {
       ))}
       <RunAddMenu mode="tab">
         <IconButton
+          size="sm"
           icon="plus"
           label="New tab"
           className={cn(
-            small,
             "self-center",
             screens.length && "ml-1",
             plus && "bg-muted shadow-[inset_0_-2px_0_var(--accent)]",
@@ -114,28 +113,31 @@ export function RunTabs() {
       </RunAddMenu>
       <span className="flex-1" />
       <IconButton
+        size="sm"
         icon="play"
         label="Run app: start the dev server if it is off and open the app"
         aria-label="Run app"
         onClick={() => run.act.runApp()}
-        className={cn(small, "self-center")}
+        className={"self-center"}
       />
       {split && (
         <>
           <RunAddMenu mode="cols">
             <IconButton
+              size="sm"
               icon="lcols"
               label="Split right: add to this tab"
               aria-label="Split right"
-              className={cn(small, "self-center max-[640px]:hidden")}
+              className={"self-center max-[640px]:hidden"}
             />
           </RunAddMenu>
           <RunAddMenu mode="rows">
             <IconButton
+              size="sm"
               icon="lrows"
               label="Split down: add to this tab"
               aria-label="Split down"
-              className={cn(small, "self-center max-[640px]:hidden")}
+              className={"self-center max-[640px]:hidden"}
             />
           </RunAddMenu>
         </>

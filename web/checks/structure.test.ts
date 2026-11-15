@@ -462,8 +462,9 @@ test("the Project context pane is drawn by React, not by board/context.ts", () =
   expect(src).not.toMatch(/createElement|innerHTML|replaceChildren|\.append\(/);
   expect(src.split("\n").length).toBeLessThan(50);
   expect(readFileSync(join(web, "pages/board/App.tsx"), "utf8")).toContain('<div id="context-host"');
-  // the open button is React (in the header) and nothing hides it on a computer: the pane was unreachable once
-  expect(readFileSync(join(web, "pages/board/header.tsx"), "utf8")).toContain("<ContextOpen />");
+  // the open button (ContextOpen) is React, but the Board header does not mount it: the user removed it, so the pane has no
+  // way in until a new place for the button is chosen
+  expect(readFileSync(join(web, "pages/board/header.tsx"), "utf8")).not.toContain("ContextOpen");
   expect(readFileSync(join(web, "ui/legacy/board.css"), "utf8")).not.toContain("#context,#ctx-open{display:none!important}");
   expect(src).not.toMatch(/ctx-open/);
   expect(readFileSync(join(web, "components/context/context-panel.tsx"), "utf8")).toContain('id="ctx-open"');
