@@ -136,7 +136,7 @@ export function HomeComposer({
             if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing && !phone())
               (e.preventDefault(), submit());
           }}
-          className="max-h-[220px] min-h-6 w-full resize-none bg-transparent pb-[5px] pt-[7px] text-lg leading-normal text-foreground outline-none max-[640px]:text-[16px]"
+          className="max-h-[220px] min-h-[34px] w-full resize-none bg-transparent py-[5px] text-lg leading-6 text-foreground outline-none max-[640px]:text-[16px]"
         />
       </div>
       {where !== undefined && (

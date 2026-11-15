@@ -113,7 +113,7 @@ export function HomePage() {
                 key={t}
                 type="button"
                 onClick={() => setHome({ suggest: { text: t } })}
-                className="flex-none whitespace-nowrap rounded-full px-3 py-1.5 text-base text-muted-foreground transition hover:-translate-y-px hover:bg-muted hover:text-foreground"
+                className="flex-none whitespace-nowrap rounded-full border border-border px-3 py-1 text-base text-muted-foreground transition hover:-translate-y-px hover:bg-muted hover:text-foreground"
               >
                 {t}
               </button>
