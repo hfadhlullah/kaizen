@@ -9,6 +9,14 @@ import { startPty, exitPty, killPty, ptyState, tmuxOk, tmuxName, tmuxAlive, kill
 import { keepAlive } from "./state.ts";
 import { processTable, treeRss } from "./resources.ts";
 
+// A port the system hands out and nothing holds now. A random one in 20000-40000 can be an outgoing connection's port.
+function freePort(): number {
+  const s = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: () => new Response("") });
+  const p = s.port as number;
+  s.stop(true);
+  return p;
+}
+
 const root = realpathSync(mkdtempSync(join(tmpdir(), "kaizen-restart-")));
 const posix = process.platform !== "win32";
 const gone = async (pid: number) => { for (let i = 0; i < 100; i++) { try { process.kill(pid, 0); await Bun.sleep(30); } catch { return true; } } return false; };
@@ -84,7 +92,7 @@ test.skipIf(!posix)("a stopped or crashed board resumes its card agents, once af
   writeFileSync(join(st, "config.yml"), "agent:\n  default: claude\n  launch: card\n");
   writeFileSync(join(bin, "claude"), '#!/bin/sh\necho "args:$*"\nwhile read x; do echo "got:$x"; done\n', { mode: 0o755 });
   const repo = join(import.meta.dir, "..");
-  const port = 20000 + Math.floor(Math.random() * 20000), at = `http://127.0.0.1:${port}`;
+  const port = freePort(), at = `http://127.0.0.1:${port}`;
   let out = "";
   const board = () => {
     const p = Bun.spawn([process.execPath, join(repo, "cli", "install.ts"), "web", "--port", String(port), "--no-open", "--foreground"], {
@@ -172,7 +180,7 @@ test.skipIf(!posix)("a stopped or crashed board resumes its card agents, once af
 // A phone reaches the board through a proxy pinned to its port, so the board an update
 // starts has to outwait the old one instead of walking to the next port.
 test.skipIf(!posix || !Bun.which("lsof"))("a new board takes over the port of a board slow to stop", async () => {
-  const port = 20000 + Math.floor(Math.random() * 20000);
+  const port = freePort();
   const home = join(root, "takeover");
   mkdirSync(home, { recursive: true });
   const script = join(home, "old.ts");

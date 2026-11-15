@@ -12,7 +12,7 @@ export type Proxy = { origin: string; port: number; target: string; token: strin
 const LOOP = ["localhost", "127.0.0.1", "[::1]"];
 export const isLoopbackHost = (h: string) => LOOP.includes(h.toLowerCase());
 const IDLE_MS = 6 * 3600_000; // a page left open overnight keeps working; the port is freed when the board stops
-const SCRIPT = join(import.meta.dir, "..", "web", "annotate.js");
+const SCRIPT = join(import.meta.dir, "..", "web", "dist", "annotate.js");
 
 const proxies = new Map<string, Proxy>(); // by target origin
 
@@ -32,7 +32,7 @@ export function inject(html: string, token: string): string {
 // localhost can mean 127.0.0.1 or ::1 (Vite listens on one of them); try the others when the first refuses.
 const hostsFor = (t: URL) => (t.hostname === "localhost" ? ["localhost", "127.0.0.1", "[::1]"] : [t.hostname]);
 
-export function openProxy(target: URL): Proxy {
+export function openProxy(target: URL, script: () => string | Buffer | null = () => readFileSync(SCRIPT)): Proxy {
   if (!/^https?:$/.test(target.protocol) || !isLoopbackHost(target.hostname)) throw new Error("only a localhost address");
   const old = proxies.get(target.origin);
   if (old) return (old.touched = Date.now()), old;
@@ -55,7 +55,10 @@ export function openProxy(target: URL): Proxy {
       px.touched = Date.now();
       const url = new URL(req.url);
       if (url.pathname === "/__kz/annotate.js") {
-        return new Response(readFileSync(SCRIPT), { headers: { "content-type": "text/javascript; charset=utf-8", "cache-control": "no-store" } });
+        // The board hands in its own copy (the one it started with): an upgrade replacing the file under it is not a 500.
+        const js = script();
+        if (js === null) return new Response("not found", { status: 404 });
+        return new Response(js, { headers: { "content-type": "text/javascript; charset=utf-8", "cache-control": "no-store" } });
       }
       const path = url.pathname + url.search;
 

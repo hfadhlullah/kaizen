@@ -55,6 +55,11 @@ test("the script is served by the proxy itself and the same target reuses its pr
   expect(openProxy(new URL(`http://127.0.0.1:${target.port}/other`))).toBe(px);
 });
 
+test("a script handed in is what is served, so a file replaced on disk is not read", async () => {
+  const other = openProxy(new URL(`http://localhost:${target.port}`), () => "handed in");
+  expect(await (await fetch(other.origin + "/__kz/annotate.js")).text()).toBe("handed in");
+});
+
 test("websockets are relayed", async () => {
   const ws = new WebSocket(`ws://127.0.0.1:${px.port}/ws`);
   const got = await new Promise<string>((res, rej) => { ws.onopen = () => ws.send("ping"); ws.onmessage = (e) => res(String(e.data)); ws.onerror = () => rej(new Error("ws error")); });

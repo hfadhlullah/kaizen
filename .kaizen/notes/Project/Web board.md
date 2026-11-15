@@ -1,8 +1,8 @@
 ---
 description: `kaizen web`: the browser board — a hub; its topics are the sub-notes below
 tags: [project, web-board]
-sources: [cli/preflight.ts, cli/rea.test.ts, cli/annotate.test.ts, cli/annotate-proxy.test.ts, cli/web-annotate.test.ts, web/board/annotate-lib.test.ts, desktop/src/preload.ts, desktop/src/updater.ts, web/term-font.test.ts, cli/resources.test.ts, cli/computer.test.ts, cli/workers.ts, cli/accounts.test.ts, web/board/settings-accounts.ts, cli/skills.test.ts, cli/report.test.ts, cli/agent-prefs.test.ts, cli/onboarding.test.ts, cli/phone-setup.test.ts, web/board/search.test.ts, web/board/ws-name.test.ts, cli/web.ts, cli/state.test.ts, cli/video.test.ts, web/board.html, design.md]
-updated: 2026-11-13
+sources: [web/README.md, web/pages, web/components, web/ui, web/lib, web/lib/rail/rail-boot.ts, web/ui/theme.css, web/lib/notebook/kit.ts, web/lib/notebook/kit-loader.ts, web/notebook/notebook.ts, web/pages/notebook-page.tsx, web/components/notebook, web/lib/notebook, cli/preflight.ts, cli/rea.test.ts, cli/annotate.test.ts, cli/annotate-proxy.test.ts, cli/web-annotate.test.ts, web/lib/annotate/rules.test.ts, desktop/src/preload.ts, desktop/src/updater.ts, web/lib/terminal/term-font.test.ts, web/term/term-paste.test.ts, cli/resources.test.ts, cli/computer.test.ts, cli/workers.ts, cli/accounts.test.ts, cli/skills.test.ts, cli/report.test.ts, cli/agent-prefs.test.ts, cli/onboarding.test.ts, cli/phone-setup.test.ts, web/lib/search/search-rows.test.ts, web/lib/run/ws-name.test.ts, cli/web.ts, cli/state.test.ts, cli/video.test.ts, web/html/board.html, design.md]
+updated: 2026-11-15
 ---
 # Web board
 
@@ -10,6 +10,7 @@ updated: 2026-11-13
 The board is kaizen in a browser: you see every project's tasks and runs as cards, start an agent on one, approve its plan, watch it work, and commit the result. It runs on your own computer and can be opened on your phone. This note is split by topic; open the one for the part you are touching.
 
 ## What it does
+- Pages move to React one at a time (web/ui, components, pages, lib; Tailwind in `web/dist/ui.css`): Tasks and the task page first. The folder map (pages, components and lib in feature folders, each with an `index.ts`) is `web/README.md`, which also says what the top of `web/` holds: the four page shells, one folder per app (`notebook/`, `term/`, `video/`, `annotate/`), the React layers and `dist/` (generated bundles, served at their old flat URLs). Structure and rules: [[Conventions and gotchas]]; the Tasks pages: [[Web board/Tasks]].
 `kaizen web` runs a loopback HTTP server over `cli/state.ts` and serves one HTML page that only ever sees JSON (header of `cli/web.ts`). From it you start runs, approve or revise plans, pick findings to fix, commit, push and open or merge a run's pull request (the Source control tab), and open Notes, the icebox and settings. User-facing tour: `docs/guide.md` ("In a browser"). Look and feel: `design.md`.
 
 ## Topics
@@ -27,7 +28,7 @@ The board is kaizen in a browser: you see every project's tasks and runs as card
 - [[Web board/Video]] — The Video page and its version store
 
 ## How it connects
-- [[Notebook]] is served from the same server (`/notebook`, `/vault`).
+- [[Notebook]] is served from the same server (`/notebook`, `/vault`). It is React in its own bundle (`pages/notebook-page.tsx`; see [[Notebook]]) and opens Search, Add a project, New workspace and the worktree menu in place from the kit it mounts itself (see [[Conventions and gotchas]]); Video has no React and lists no projects.
 - [[Sources and icebox]] routes: `/sources`, `/icebox`, `/reply`, `/chatgpt`. Snoozed icebox items (`asleep` in `/sources`) are left out of the Icebox list, its count, Swipe and the side-menu number.
 - Kaizen Bot calls these routes ([[Kaizen bot]], `bot/src/board.ts`).
 
@@ -42,7 +43,7 @@ The Projects rail keeps the last valid run state during a transient `state.json`
 - 2026-10-17 run 2026-10-17-onboarding-setup — Web board (web-hosts file read per request)
 - 2026-10-19 board, settings, icebox and notes tree show shimmer skeletons (`.skel`, `SKEL` in dom.ts) while loading (run 2026-10-19-loading-skeletons)
 - 2026-10-19 in-card agent asking mark; Yolo kept on decisions (run 2026-10-19-pty-asking-badge)
-- 2026-10-23 board templates written to `innerHTML` use the escape-by-default `html` tag in `web/board/dom.ts`: every `${}` is escaped unless it is `raw()`, `ico()`, `SKEL`, another `html` value, or an array of them; do not wrap values in `esc()` inside it (double escaping), keep attributes double-quoted, and join pieces with `html`, never `+` or `.join("")`, which yield a plain string that the next `html` escapes (run 2026-10-23-html-escape-tag)
+- 2026-10-23 board templates written to `innerHTML` use the escape-by-default `html` tag in `web/lib/shared/data-urls.ts`: every `${}` is escaped unless it is `raw()`, `ico()`, `SKEL`, another `html` value, or an array of them; do not wrap values in `esc()` inside it (double escaping), keep attributes double-quoted, and join pieces with `html`, never `+` or `.join("")`, which yield a plain string that the next `html` escapes (run 2026-10-23-html-escape-tag)
 - 2026-10-23 `/state` resolves in-card terminal owners once per reply, not per card (`ptyOf` in `cli/web.ts`, session ids indexed once by `runSessions` in `cli/state.ts`): ~1 s off every reload while agents run in cards (run 2026-10-23-snappy-select)
 - 2026-10-27 notification on/off + sound, Windows terminal-board toast, empty-Ideas + form no longer wiped by the column hint, new-idea files kept across redraws, big photos shrunk before upload (run 2026-10-27-notify-sound-idea-fixes)
 - 2026-10-24 Terminal page "needs you": asking tile pulses amber, tab title counts asking agents, background notification (run 2026-10-24-terminal-needs-you)
@@ -64,11 +65,15 @@ The Projects rail keeps the last valid run state during a transient `state.json`
 
 `liveAgent` also finds a run started in a plain Claude tab, which has no session record: `sessionPty` looks up the run's `session` in `~/.claude/sessions/<pid>.json` (Claude Code's internal file, checked against `procStart`) and walks `/proc` parents to a live pty. `/decide`, `/fix` and `resumeRun` all route through it; no match opens a new tab as before. Linux only; a tmux-kept card is not matched. Tested in `cli/web-decide.test.ts`.
 - Phone Runs/Home rows: a task not started opens the run form as a bottom sheet (`dialog.kz.sheet`, `runPopup()`), not an empty workspace; other rows open the workspace.
-- Tasks and Icebox lists page through `pager()` in `dom.ts`, size saved per browser (`kz-page:<id>`). Icebox keyboard and bulk actions cover the current page only; Swipe covers every filtered request.
+- Tasks and Icebox lists page through `usePager()` and the `Pager` piece, size saved per browser (`kz-page:<id>`; `pager()` in `dom.ts` still serves old pages). Icebox keyboard and bulk actions cover the current page only; Swipe covers every filtered request.
 
-- Workspace pane keys live in `initPaneKeys` (`web/board/run-view.ts`): Ctrl+Space focuses the current pane, then one key within 2 seconds moves between panes (arrows, hjkl) or tabs (1-9, n, p); c, r and d open the new-tab, split-right and split-down menus; x closes the pane. They run in the capture phase so xterm never sees them.
+- Workspace pane keys live in `initPaneKeys` (`web/lib/run/workspace.ts`): Ctrl+Space focuses the current pane, then one key within 2 seconds moves between panes (arrows, hjkl) or tabs (1-9, n, p); c, r and d open the new-tab, split-right and split-down menus; x closes the pane. They run in the capture phase so xterm never sees them.
 
 
 ## Explore integration (2026-11-08)
 
 Optional Explore is part of Workflow settings and run details; see [[Web board/Settings]] and [[Web board/Cards]].
+
+## Phase 5 of the front-end rewrite (2026-11-14)
+Home (chat, list, composer), the Search palette, Add a project, the first-run onboarding and Continue setup popup, the Phone and WhatsApp setup cards, the update bar and card, the file viewer, the side menu's Projects list (rows, folds, pins, the project drag, agent chips, task links, the worktree right-click menu) and its filter, the footer resource popup, the phone's agent sheets, the header's project and Showing pickers, the floating Home window and the phone's Home and Runs pages are React components (see [[Web board/Home, chat and phone]], [[Web board/Cards]], [[Web board/Settings]]). The card's Notes tab (`web/components/notes`, state and send in `web/lib/notes`; the note editor `lib/notes/rich.ts` stays the engine, reached through `host.rich`) and dictation (`web/lib/dictation`: engine, chunk rules, per-button state; the button is `MicButton` in `components/shared`) are React and lib too. Still old code: the context panel and the terminals.
+- **Context pane docking (final fix round, R47/R48):** the Project context pane sits beside the page only from 1701 px (`WIDE` in `components/context/context-panel.tsx`, `@media(max-width:1700px)` in `ui/legacy/board.css`): the Board needs five 200 px columns next to the menu. Below that it is a dialog over the page, and a window that narrows past 1700 px closes it. The store is `useCtx` (it was `useContext`, a React hook's name).

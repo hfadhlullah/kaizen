@@ -7,13 +7,13 @@ import { join, dirname, resolve, sep, basename } from "node:path";
 import {
   home, type Item, type Card, knownProjects, remember, reorderProjects, canonPath, locate, label, tilde, searchRoots, findProjects,
   readInbox, writeInbox, replaceTask, moveTask, abandonRun, runToTask, launchRun, parseItem, agentChoices, onPath, projectOf, KNOWN_AGENTS, plainModel, short, setArchived, writeNotes,
-  appendNote, saveAttachment, pidOnPort, readText, cmdExe, sysExe, powershellExe, runGit, readCommit, commitPush, commitStaged, stageFiles, suggestMessage, notice, notifier, LOGO,
+  appendNote, saveAttachment, pidOnPort, readText, cmdExe, sysExe, powershellExe, runGit, readCommit, commitPush, commitStaged, stageFiles, suggestMessage, notice, LOGO,
   reviewFindings, pickFindings, backlogItem, startedBacklog, closeBacklog, markBacklogDone, fixPrompt, approvalPrompt, canApproveAwaiting, gateOf, recordAcceptance, healRuns, finishRun, nativePath, closeSessions, sweepSessions, issueUrl,
-  launchMode, pruneRuns, pruneSessions, readSessions, ownerOf, runIndex, resumePrompt, runAgent, firstSession, webHosts,
+  pruneRuns, pruneSessions, readSessions, ownerOf, runIndex, resumePrompt, runAgent, firstSession, webHosts,
 } from "./state.ts";
 import { ACCOUNT_EXTRA, ACCOUNT_VAR, accountDir, agyLogin, addAccount, loginStatus, readAccounts, renameAccount, removeAccount, resolveAccount, setDefaultAccount, type Login, type Tool } from "./accounts.ts";
 import { readReport, signalOf } from "./report.ts";
-import { MAX_IMAGE, saveImage } from "./term-image.ts";
+import { MAX_FILE, MAX_IMAGE, saveFile, saveImage } from "./term-image.ts";
 import { shellHistory } from "./term-history.ts";
 import { bundledSkills, repairSkill, setSkill, skillsHeld, skillsOff, skillStatus } from "./skills.ts";
 import * as rea from "./rea.ts";
@@ -22,6 +22,7 @@ import { agentLine, failStart, handoffModel, markRunning, readWorkers, requested
 import { childDied, childQuiet, markWoken, move, requestOpen, readHandoff, refused, started, wakeAction, wakeLine, type Handoff } from "./handoff.ts";
 import { processTable, storage, systemMemory, treeRss, type Root } from "./resources.ts";
 import { attachPty, frames, writePty, submitPty, resizePty, exitPty, killPty, panePid, ptyState, ptyKeys, adoptLoginEnv, startPty, ptySupported, detachPty, ptyTail, ptyTmux, tmuxAlive, RESUMED } from "./pty.ts";
+import { conflictPort, holders, inProjects, isKaizenProcess, listeners, stopPort } from "./ports.ts";
 import { snapshot, snapWorker } from "./state-snap.ts";
 import { claudeUsage, claudeUsageAt, codexUsage, codexUsageAt, phonePeers, type Usage } from "./usage.ts";
 import { readSources, addSource, removeSource, moveSource, setCategory, setWriteback, setPaused, readIcebox, applySort, promote, dismiss, restore, capture, editItem, setKind, setTags, setBoard, saveBoard, removeBoard, snooze, unsnooze, readBoards, kindOf, isSnoozed, markDone, markReplied, gatherSource, freshImages, gatherAll, gatherDirs, due, socialUrl, socialOf } from "./sources.ts";
@@ -46,24 +47,31 @@ import * as taskService from "./task-service.ts";
 import { artifactResponse as taskArtifactResponse } from "./task-results.ts";
 import { gitUrl, destDir, winBad, cloneInto, branchesOf, ignoreKaizen } from "./add-project.ts";
 
-const PAGE = join(dirname(import.meta.dir), "web", "board.html");
-// The board's script: web/board/*.ts, bundled into one file by `bun run build:web`.
-const BOARD_JS = join(dirname(import.meta.dir), "web", "board.js");
+const PAGE = join(dirname(import.meta.dir), "web", "html", "board.html");
+// The board's script: web/pages/board/main.ts with web/lib and web/components, bundled into one file by `bun run build:web`.
+const BOARD_JS = join(dirname(import.meta.dir), "web", "dist", "board.js");
 const SOUNDS_DIR = join(dirname(import.meta.dir), "web", "sounds");
-// The notebook: its page, and the CodeMirror bundle `bun run build:web` commits beside it.
-const NOTES_PAGE = join(dirname(import.meta.dir), "web", "notes.html");
+// The notebook: its page, and the CodeMirror bundle `bun run build:web` commits to web/dist.
+const NOTES_PAGE = join(dirname(import.meta.dir), "web", "html", "notes.html");
 const ICO = join(dirname(import.meta.dir), "assets", "kaizen.ico");
-const NOTES_JS = join(dirname(import.meta.dir), "web", "notebook.js");
+const UI_CSS = join(dirname(import.meta.dir), "web", "dist", "ui.css");
+const NOTES_JS = join(dirname(import.meta.dir), "web", "dist", "notebook.js");
 // The in-card terminal (agent.launch: card): xterm.js, bundled the same way.
-const TERM_JS = join(dirname(import.meta.dir), "web", "term.js");
-const ANNOTATE_JS = join(dirname(import.meta.dir), "web", "annotate.js");
-const TERM_CSS = join(dirname(import.meta.dir), "web", "term.css");
+const TERM_JS = join(dirname(import.meta.dir), "web", "dist", "term.js");
+const ANNOTATE_JS = join(dirname(import.meta.dir), "web", "dist", "annotate.js");
+const TERM_CSS = join(dirname(import.meta.dir), "web", "dist", "term.css");
 // The Video page (kaizen-video's library, editor and renders) and its bundle.
-const VIDEO_PAGE = join(dirname(import.meta.dir), "web", "video.html");
-const POPUP_PAGE = join(dirname(import.meta.dir), "web", "popup.html");
+const VIDEO_PAGE = join(dirname(import.meta.dir), "web", "html", "video.html");
+const POPUP_PAGE = join(dirname(import.meta.dir), "web", "html", "popup.html");
+// Each page's one stylesheet (the kit's Tailwind and the page's own styles) and the chat popup's script.
+const dist = (f: string) => join(dirname(import.meta.dir), "web", "dist", f);
+const STYLES: Record<string, string> = { "/board.css": dist("board.css"), "/notebook.css": dist("notebook.css"), "/popup.css": dist("popup.css") };
+const POPUP_JS = dist("popup.js");
+// The blocking head script of the board and the Notebook: the stored theme is on <html> before the first paint.
+const BOOT_JS = dist("boot.js");
 // The chat the popup was on when its Back button was pressed, until Home takes it.
 let popupChat: string | null = null;
-const VIDEO_JS = join(dirname(import.meta.dir), "web", "video.js");
+const VIDEO_JS = join(dirname(import.meta.dir), "web", "dist", "video.js");
 const DEFAULT_PORT = 7420;
 // Gathered posts a reply is going out to right now: one send per item at a time.
 const replying = new Set<string>();
@@ -87,8 +95,15 @@ delete process.env.KAIZEN_DESKTOP_BUNDLED;
 // page newer than its server sends ops the server does not know ("unknown op").
 // So the pages are kept as they were at start, and read live (dev edits) only while
 // the installed version is still the one this board runs.
-const AT_START = new Map([PAGE, BOARD_JS, NOTES_PAGE, NOTES_JS, TERM_JS, TERM_CSS, VIDEO_PAGE, VIDEO_JS, ANNOTATE_JS].map((f) => [f, existsSync(f) ? readText(f) : null]));
-const served = (f: string) => installed() === VERSION && existsSync(f) ? readText(f) : AT_START.get(f) ?? null;
+const AT_START = new Map([PAGE, BOARD_JS, NOTES_PAGE, NOTES_JS, TERM_JS, TERM_CSS, VIDEO_PAGE, VIDEO_JS, ANNOTATE_JS, UI_CSS, POPUP_PAGE, POPUP_JS, BOOT_JS, ...Object.values(STYLES)].map((f) => [f, existsSync(f) ? readText(f) : null]));
+// `bun run dev` (cli/dev.ts) sets KAIZEN_DEV: every page file is read from disk on each request, and pages get a small
+// script that reloads them when the dev script has rebuilt the bundles (GET /__dev/stream, POST /__dev/reload).
+const DEV = process.env.KAIZEN_DEV === "1";
+const DEV_TAG = `<script>new EventSource("/__dev/stream").onmessage=(e)=>{if(e.data==="reload")location.reload()}</script>`;
+const served = (f: string) => {
+  const body = DEV ? (existsSync(f) ? readText(f) : null) : installed() === VERSION && existsSync(f) ? readText(f) : AT_START.get(f) ?? null;
+  return DEV && body !== null && f.endsWith(".html") ? body.replace("</head>", DEV_TAG + "</head>") : body;
+};
 
 // A board answers at url and runs the installed version. A board from before the
 // version header sends none, so it counts as stale too.
@@ -290,7 +305,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
     const text = approvalPrompt(id, awaiting, why, answers);
     const live = liveAgent(dir, id);
     const before = Date.now();
-    const r = live ? { ok: true as const, pty: live.key, agent: live.cmd, reused: true } : launchRun({ severity: null, where: null, text, raw: text }, dir, id, inCard(dir));
+    const r = live ? { ok: true as const, pty: live.key, agent: live.cmd, reused: true } : launchRun({ severity: null, where: null, text, raw: text }, dir, id, inCard);
     if (live) submitPty(live.key, text);
     else if (r.ok) closeSessions(dir, id, { before });
     // The plan's approval starts the build; fixing open findings is the review stage again.
@@ -309,7 +324,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
     launch: (dir: string, id: string, text: string, task: tasks.Task, pick?: any) => {
       const live = liveAgent(dir, id);
       if (live) { submitPty(live.key, text); return { ok: true, pty: live.key }; }
-      return launchRun({ severity: null, where: null, text, raw: text }, dir, id, { ...inCard(dir), ...(pick ? { agent: KNOWN_AGENTS.some((a) => a.cmd === pick.agent) ? pick.agent : undefined, account: typeof pick.account === "string" ? pick.account : undefined, explore: typeof pick.explore === "boolean" ? pick.explore : undefined, yolo: pick.yolo === true } : {}), task: { id: task.id, requirePlanConfirmation: !task.initialConfirmed } });
+      return launchRun({ severity: null, where: null, text, raw: text }, dir, id, { ...inCard, ...(pick ? { agent: KNOWN_AGENTS.some((a) => a.cmd === pick.agent) ? pick.agent : undefined, account: typeof pick.account === "string" ? pick.account : undefined, explore: typeof pick.explore === "boolean" ? pick.explore : undefined, yolo: pick.yolo === true } : {}), task: { id: task.id, requirePlanConfirmation: !task.initialConfirmed } });
     },
     alive: (key: string) => ptyState(key)?.alive === true,
     stop: (key: string) => killPty(key),
@@ -385,6 +400,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
   // Change notification: one SSE stream per open board, fed by fs.watch where it
   // works and a slow poll where it does not.
   const clients = new Set<ReadableStreamDefaultController>();
+  const devClients = new Set<ReadableStreamDefaultController>();
   // Shells the board started (POST /shell), by /pty key; dead ones drop on the next /shells.
   const shells = new Map<string, { key: string; dir: string; title: string; agent: string; run: string; ws?: string; pid?: number }>();
   const SHELL_CAP = 8;
@@ -422,8 +438,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
       for (const c of clients) { try { c.enqueue("data: changed\n\n"); } catch { clients.delete(c); } }
     }, 200);
   };
-  // agent.launch: card runs what this board launches inside the board, shown on the card.
-  const inCard = (dir: string) => ({ card: launchMode(projectOf(dir)) === "card", onChange: changed });
+  // What this board launches runs inside the board, shown on the card.
+  const inCard = { card: true, onChange: changed };
 
   // The agent open in a run's card, the newest when there are several: what the user sees
   // working. Everything sent to a run goes here before any new agent is started.
@@ -458,7 +474,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
     const prev = readSessions(dir).filter((s) => ownerOf(dir, s, idx) === id && existsSync(tailOf(s.key))).pop();
     let seed: string | undefined;
     try { if (prev) seed = readText(tailOf(prev.key)) + RESUMED; } catch { /* shown without it */ }
-    const r = launchRun({ severity: null, where: null, text, raw: text }, dir, id, { ...inCard(dir), seed });
+    const r = launchRun({ severity: null, where: null, text, raw: text }, dir, id, { ...inCard, seed });
     if (r.ok) closeSessions(dir, id, { before });
     if (r.ok && prev) rmSync(tailOf(prev.key), { force: true });
     changed();
@@ -825,9 +841,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
 
       if (req.method === "GET" && path === "/") {
         const page = served(PAGE);
-        if (page === null) return new Response("web/board.html missing", { status: 500 });
-        // The page gets the notify rule from state.ts rather than keeping its own copy.
-        return new Response(page.replace("/*notifier*/", () => notifier.toString()), {
+        if (page === null) return new Response("web/html/board.html missing", { status: 500 });
+        return new Response(page, {
           headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-kaizen-version": VERSION },
         });
       }
@@ -836,6 +851,19 @@ export async function web(repoDir: string, opts: Opts = {}) {
         const body = served(BOARD_JS);
         if (body === null) return new Response(`${path} missing; run bun run build:web`, { status: 500 });
         return new Response(body, { headers: { "content-type": "application/javascript; charset=utf-8", "cache-control": "no-store" } });
+      }
+
+      // The React pages' Tailwind (web/ui/theme.css compiled by bun run build:web).
+      if (req.method === "GET" && path === "/ui.css") {
+        const body = served(UI_CSS);
+        if (body === null) return new Response(`${path} missing; run bun run build:web`, { status: 500 });
+        return new Response(body, { headers: { "content-type": "text/css; charset=utf-8", "cache-control": "no-store" } });
+      }
+
+      if (req.method === "GET" && STYLES[path]) {
+        const body = served(STYLES[path]);
+        if (body === null) return new Response(`${path} missing; run bun run build:web`, { status: 500 });
+        return new Response(body, { headers: { "content-type": "text/css; charset=utf-8", "cache-control": "no-store" } });
       }
 
       if (req.method === "GET" && path.startsWith("/sounds/")) {
@@ -852,11 +880,17 @@ export async function web(repoDir: string, opts: Opts = {}) {
         return new Response(body, { headers: { "content-type": type, "cache-control": "no-store" } });
       }
 
+      if (req.method === "GET" && path === "/boot.js") {
+        const body = served(BOOT_JS);
+        if (body === null) return new Response(`${path} missing; run bun run build:web`, { status: 500 });
+        return new Response(body, { headers: { "content-type": "application/javascript; charset=utf-8", "cache-control": "no-store" } });
+      }
+
       // `kaizen chat`: the small chat window over the desktop.
-      if (req.method === "GET" && path === "/popup") {
-        const body = served(POPUP_PAGE);
-        if (body === null) return new Response("web/popup.html missing", { status: 500 });
-        return new Response(body, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
+      if (req.method === "GET" && (path === "/popup" || path === "/popup.js")) {
+        const body = served(path === "/popup" ? POPUP_PAGE : POPUP_JS);
+        if (body === null) return new Response(`${path} missing; run bun run build:web`, { status: 500 });
+        return new Response(body, { headers: { "content-type": path === "/popup" ? "text/html; charset=utf-8" : "application/javascript; charset=utf-8", "cache-control": "no-store" } });
       }
 
       // Handing the chat between Home and the popup (`kaizen chat`). /popup/open:
@@ -1035,6 +1069,16 @@ export async function web(repoDir: string, opts: Opts = {}) {
         if (bytes.length > MAX_IMAGE) return bad("image too large", 413);   // a chunked body has no content-length
         const saved = saveImage(bytes);
         return saved ? json({ path: saved }) : bad("not an image", 415);
+      }
+      // The phone's Attach key: any file, saved on this computer under its own name, and its path typed into the terminal.
+      if (req.method === "POST" && path === "/term-file") {
+        if (!sameOrigin(req)) return bad("cross-origin request refused", 403);
+        if (Number(req.headers.get("content-length") ?? 0) > MAX_FILE) return bad("file too large (25 MB at most)", 413);
+        let name = "file";
+        try { name = decodeURIComponent(req.headers.get("x-file-name") ?? "file"); } catch {}
+        const bytes = new Uint8Array(await req.arrayBuffer());
+        const saved = saveFile(bytes, name);
+        return saved ? json({ path: saved }) : bad(bytes.length ? "file too large (25 MB at most)" : "empty file", bytes.length ? 413 : 400);
       }
       if (req.method === "POST" && path === "/shell") {
         const refused = strict(req);
@@ -1305,6 +1349,35 @@ export async function web(repoDir: string, opts: Opts = {}) {
         // Never the board itself: `kaizen web` started inside the workspace listens there too.
         return json(devPorts(out, (pid) => { try { return readlinkSync(`/proc/${pid}/cwd`); } catch { return ""; } }, ws, [...KNOWN_AGENTS.map((a) => a.cmd), "cursor-agent"]).filter((p) => p !== port));
       }
+      // A dev server (POST /shell with dev) whose terminal says its port is taken: that port and who holds it, for the Run app
+      // button's "Stop it and run the app" question. Read from the terminal's own output, so nothing is guessed.
+      if (req.method === "GET" && path === "/shell/conflict") {
+        if (!local(req)) return bad("cross-origin request refused", 403);
+        const key = url.searchParams.get("key") ?? "";
+        // The shell may already have left /shells (dead ones drop there); its output is kept a little longer.
+        const p = /^sh-[\w-]+$/.test(key) ? conflictPort(ptyTail(key) ?? "") : null;
+        return json(p ? { port: p, holders: await holders(p), board: p === port } : { port: null });
+      }
+      // The ports this user's processes listen on, inside the board's projects (the Resources popup's Ports). Not the board's own,
+      // not the agents (Claude Code listens on a local port of its own). Linux only; elsewhere the list is empty.
+      if (req.method === "GET" && path === "/ports") {
+        if (!local(req)) return bad("cross-origin request refused", 403);
+        const dirs = states(true).filter((d) => d !== join(home, ".kaizen")).map((d) => dirname(d));
+        const agents = [...KNOWN_AGENTS.map((a) => a.cmd), "cursor-agent"];
+        const list = inProjects(await listeners(), dirs).filter((l) => l.pid !== process.pid && l.port !== port && !agents.includes(l.name) && !isKaizenProcess(l.cmd));
+        return json(list.map((l) => ({ port: l.port, pid: l.pid, name: l.name, cmd: l.cmd, cwd: l.cwd, project: label(join(l.project, ".kaizen")) })));
+      }
+      // Stops what listens on a port (the question above, answered yes): a process of this user, never the board itself.
+      if (req.method === "POST" && path === "/port/stop") {
+        const refused = strict(req);
+        if (refused) return refused;
+        let body: any;
+        try { body = await req.json(); } catch { return bad("json body expected"); }
+        const n = Number(body?.port);
+        if (n === port) return bad("that is the board itself");
+        const r = await stopPort(n, [process.pid]);
+        return r.ok ? json(r) : bad(r.error ?? "could not stop it");
+      }
       // A phone on the tailnet cannot reach this computer's localhost. Serves that loopback port
       // to the tailnet (`tailscale serve --https=<port>`, never funnel) and answers the address
       // the phone opens instead. Loopback http only, one argv, never a shell string.
@@ -1373,7 +1446,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         // Not the board itself: a proxy to it would forward /pty with an Origin rewritten to the board's own.
         if (u.port === (new URL(req.url).port || "80")) return bad("that is the board's own port", 400);
         try {
-          const px = openProxy(u);
+          const px = openProxy(u, () => served(ANNOTATE_JS));
           return json({ ok: true, origin: px.origin, token: px.token, url: px.origin + u.pathname + u.search + u.hash });
         } catch (e) { return bad((e as Error).message, 500); }
       }
@@ -2123,6 +2196,16 @@ export async function web(repoDir: string, opts: Opts = {}) {
         return new Response(null, { status: 302, headers: { location: u, "cache-control": "no-store", "referrer-policy": "no-referrer" } });
       }
 
+      if (DEV && path === "/__dev/stream" && req.method === "GET") {
+        let c: ReadableStreamDefaultController;
+        return new Response(new ReadableStream({ start(x) { c = x; devClients.add(x); x.enqueue("data: hello\n\n"); }, cancel() { devClients.delete(c); } }),
+          { headers: { "content-type": "text/event-stream", "cache-control": "no-store", "connection": "keep-alive" } });
+      }
+      if (DEV && path === "/__dev/reload" && req.method === "POST" && local(req)) {
+        for (const c of devClients) { try { c.enqueue("data: reload\n\n"); } catch { devClients.delete(c); } }
+        return json({ ok: true, clients: devClients.size });
+      }
+
       if (req.method === "GET" && path === "/events") {
         let ctrl: ReadableStreamDefaultController;
         const stream = new ReadableStream({
@@ -2176,7 +2259,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           agents: KNOWN_AGENTS.filter((a) => agentUsable(a.cmd)).map((a) => a.cmd),
           // As POST /run starts a task, without one on the inbox.
           run: async (d: string, runner: "lite" | "full", agent: string, text: string) => {
-            const r = launchRun(parseItem(`${runner} ${text}`), d, undefined, { agent, ...inCard(d) });
+            const r = launchRun(parseItem(`${runner} ${text}`), d, undefined, { agent, ...inCard });
             changed();
             return r.ok ? { agent: r.agent.cmd } : { error: r.why };
           },
@@ -2534,7 +2617,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
             const p = parseItem(line.text);
             const it: Item = { ...p, text: kind ? `${kind} ${p.text}` : p.text };
             it.notes = [source !== "orphan" ? `Parent: ${source}` : "", `Backlog: ${source}#${n}`, p.text !== line.text ? `Backlog item: ${line.text}` : ""].filter(Boolean).join("\n");
-            const r = launchRun(it, dir, undefined, { agent, account: typeof body.account === "string" ? body.account : undefined, model: model || undefined, explore: typeof body.explore === "boolean" ? body.explore : undefined, yolo: body.yolo === true, ...inCard(dir) });
+            const r = launchRun(it, dir, undefined, { agent, account: typeof body.account === "string" ? body.account : undefined, model: model || undefined, explore: typeof body.explore === "boolean" ? body.explore : undefined, yolo: body.yolo === true, ...inCard });
             if (r.ok) backlogLaunched.add(`${dir}\0${source}#${n}`);
             changed();
             return json(r.ok
@@ -2545,7 +2628,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           // A `started` task may be run again: the terminal the first launch opened
           // can come up empty, and nothing else tells the board a run never began.
           it.notes = readInbox(dir).find((l) => (l.status === "open" || l.status === "started") && l.text === text)?.notes;
-          const r = launchRun(it, dir, undefined, { agent, account: typeof body.account === "string" ? body.account : undefined, model: model || undefined, explore: typeof body.explore === "boolean" ? body.explore : undefined, yolo: body.yolo === true, ...inCard(dir) });
+          const r = launchRun(it, dir, undefined, { agent, account: typeof body.account === "string" ? body.account : undefined, model: model || undefined, explore: typeof body.explore === "boolean" ? body.explore : undefined, yolo: body.yolo === true, ...inCard });
           if (r.ok) replaceTask(dir, text, { status: "started", text });
           if (r.ok && r.pty) {
             for (const [k, v] of taskPty) if (!ptyState(v)) taskPty.delete(k);   // sessions already dropped
@@ -2724,7 +2807,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           // The run's conversation picks the fix up, and once that window is open the
           // waiting one ends. A failed launch leaves it: the decision has nowhere else.
           const before = Date.now();
-          const r = launchRun({ severity: null, where: null, text, raw: text }, dir, id, inCard(dir));
+          const r = launchRun({ severity: null, where: null, text, raw: text }, dir, id, inCard);
           if (r.ok) (closeSessions(dir, id, { before }), markStage(dir, id, "review", r.pty));
           changed();
           return json(r.ok
@@ -2744,7 +2827,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           const text = `run ${id}: the user chose Skip Explore for this run only. Stop exploration, preserve partial findings and unanswered questions in 00-explore.md, record that the user skipped it, run kaizen report unblock --run ${id}, set explore_status=skipped stage=plan awaiting=null with kaizen state, and prepare the plan. Do not change explore.enabled or skip the plan approval.`;
           const live = liveAgent(dir, id), before = Date.now();
           const r = live ? { ok: true as const, agent: live.agent, pty: live.key }
-            : launchRun({ severity: null, where: null, text, raw: text }, dir, id, inCard(dir));
+            : launchRun({ severity: null, where: null, text, raw: text }, dir, id, inCard);
           if (live) submitPty(live.key, text);
           else if (r.ok) closeSessions(dir, id, { before });
           changed();
@@ -2883,7 +2966,6 @@ export async function web(repoDir: string, opts: Opts = {}) {
       done.add(`${dir}\0${id}`);
       viaRun.add(key);
       if (saved.crash && resumed && Date.now() - resumed < CRASH_AGAIN_MS) { console.log(`  not resuming ${id}: the board died again right after resuming it`); continue; }
-      if (launchMode(projectOf(dir)) !== "card") continue;
       const r = resumeRun(dir, id);
       if (saved.crash && "pty" in r && r.pty) autoResumed.set(r.pty, Date.now());
       console.log(`  ${"error" in r || !r.ok ? "could not resume" : "resumed"} ${id}${"error" in r ? ` (${r.error})` : !r.ok ? ` (${r.why})` : ""}`);
@@ -3040,11 +3122,8 @@ export function shellHosts(root: number, id: string): boolean {
 }
 
 export async function openApp(url: string, profile?: string) {
-  // Kaizen Bot's window (a profile) is always an app; the board asks the setting.
-  if (!profile) {
-    const { listSettings } = await import("./settings.ts");
-    if (listSettings(join(import.meta.dir, "..")).rows.find((r) => r.key === "board.open")?.value !== "app") return openDefault(url);
-  }
+  // Kaizen Bot's window (a profile) is an app window; the board opens in a browser tab.
+  if (!profile) return openDefault(url);
   const args = [`--app=${url}`, ...(profile ? [`--user-data-dir=${profile}`] : [])];
   const chromes = process.platform === "darwin"
     ? ["Google Chrome", "Chromium", "Microsoft Edge", "Brave Browser"]

@@ -19,9 +19,10 @@ a game. The skill holds the steps and the quality bar the work needs.
 ## Project structure
 
 kaizen is TypeScript on Bun with zero runtime dependencies. The CLI has no build step —
-`cli/*.ts` runs as-is. The web front end ships prebuilt as `web/notebook.js`; rebuild it
-with `bun run build:web` after editing `web/notebook.ts` or `web/notes-lib.ts` (a test
-fails when the bundle is stale).
+`cli/*.ts` runs as-is. The web front end ships prebuilt in `web/dist/` (`board.js`, `notebook.js`, `popup.js`, `term.js`, `video.js`, `annotate.js`, and the stylesheets `ui.css`, `board.css`,
+`notebook.css`, `popup.css`) and the bot's `bot/web/app.js`; rebuild them with
+`bun run build:web` after editing any TypeScript or stylesheet (`web/ui/`) under `web/` (or `bot/web/app/`) (a test fails when a bundle
+is stale).
 
 | Path | What it is |
 |---|---|
@@ -29,7 +30,7 @@ fails when the bundle is stale).
 | `skills/` | The workflow as Agent Skills folders: `kaizen/` holds `SKILL.md` plus the `spec*.md` stage contracts, `adapters.md` and `config.default.yml`; `kaizen-help/` beside it; `media/` holds the bundled media skills `kaizen-deck/`, `kaizen-video/` (footage editing and from-scratch films), `kaizen-book/`. |
 | `agents/` | Codex subagents the workflow dispatches: `kaizen-planner.md`, `kaizen-builder.md`, `kaizen-reviewer.md`. |
 | `commands/` | The `/kaizen-*` slash commands, one markdown file each. |
-| `web/` | Board and notebook front end: `board.html`, `notes.html`, `notebook.ts`, `notes-lib.ts`. |
+| `web/` | Board and notebook front end: the page shells (`html/`: `board.html`, `notes.html`, `popup.html` are 12-line shells for one React `App` each in `pages/board`, `pages/notebook`, `pages/popup`; `video.html` is a whole page), one entry folder per app (`notebook/`, `popup/`, `term/`, `video/`, `annotate/`: the annotator's page script), the board's React layers and bridge (`ui/`, `components/`, `pages/`, `lib/`, `board/`), and `dist/`, the generated bundles. See `web/README.md`. |
 | `bot/` | Kaizen Bot — a separate private package (chat server, agent runtime, desktop packaging) with its own tests and `package.json`. |
 | `docs/` | User and internal docs, indexed in `docs/README.md`. |
 | `design.md` | Design notes for the repo. |
@@ -50,7 +51,8 @@ fails when the bundle is stale).
 bun install               # dev dependencies only
 bun test                  # the suite; what CI runs (Ubuntu + Windows)
 bun run cli/install.ts    # install from this checkout — the links point at it
-bun run build:web         # rebuild web/notebook.js
+bun run build:web         # rebuild the bundles in web/dist
+bun run dev               # the board with live reload: rebuilds on every change under web/ and reloads the page
 ```
 
 ## Task deliverables

@@ -1,0 +1,45 @@
+export const m = 60e3,
+  h = 3600e3,
+  d = 86400e3;
+export { age } from "./format.ts";
+export const NAMES = {
+  claude: "Claude Code",
+  codex: "Codex",
+  agy: "Antigravity",
+  opencode: "OpenCode",
+  gemini: "Gemini",
+  cursor: "Cursor",
+  yolo: "yolo",
+  unrechecked: "fix not rechecked",
+};
+export const MARKS = { claude: 1, codex: 1, agy: 1, opencode: 1, gemini: 1, cursor: 1, full: 1, lite: 1 };
+// The new-task picker's starting project: the one asked for if it is offered, else none
+// when a choice is required, else the first offered.
+export const startDir = (offered: string[], want: string | null, choose: boolean) =>
+  want && offered.includes(want) ? want : choose ? null : (offered[0] ?? null);
+export const COLS = ["Tasks", "Planning", "Building", "Review", "Done"];
+// state.ts statuses onto the icon set in the <defs> above.
+export const ICON = {
+  idea: "idea",
+  starting: "start",
+  running: "run",
+  stalled: "stall",
+  waiting: "wait",
+  done: "done",
+  abandoned: "aband",
+};
+export const NEED = {
+    explore: "exploration needs your decision",
+    "approvals.plan": "plan needs your approval",
+    "approvals.review": "review needs your approval",
+  },
+  need = (a) => NEED[a] || a;
+export const WORD = {
+  idea: "idea",
+  starting: "starting",
+  running: "running",
+  stalled: "stalled",
+  waiting: "waiting on you",
+  done: "done",
+  abandoned: "abandoned",
+};

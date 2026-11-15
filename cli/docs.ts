@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, readdirSync, realpathSync, statSync } from "node:fs";
 import { join, relative, resolve, sep } from "node:path";
-import { wikilinks, boardLink, resolve as resolveNote } from "../web/notes-lib.ts";
+import { wikilinks, boardLink, resolve as resolveNote } from "../web/notebook/notes-lib.ts";
 
 const git = (root: string, args: string[]) => {
   const p = Bun.spawnSync(["git", ...args], { cwd: root, windowsHide: true });

@@ -6,7 +6,7 @@ import { join, dirname } from 'node:path';
 import * as T from './tasks.ts';
 import * as R from './task-results.ts';
 import { read as scalar } from './config-values.ts';
-import { detectDefaultAgent, home, readInbox, writeInbox, replaceTask, abandonRun, setArchived, readRuns, readText, saveAttachment, acceptance, acceptedAt, gateOf, recordAcceptance, finishRun } from './state.ts';
+import { detectDefaultAgent, home, readInbox, writeInbox, replaceTask, abandonRun, setArchived, readRuns, readText, requestTitle, saveAttachment, acceptance, acceptedAt, gateOf, recordAcceptance, finishRun } from './state.ts';
 
 type Hooks = { launch: (state:string, run:string, text:string, task:T.Task, pick?:any) => {ok:boolean; pty?:string; why?:string}; alive:(pty:string)=>boolean; stop:(pty:string)=>boolean; find?:(state:string,run:string)=>string|undefined;
   // Sends the run's own Approve (review or open findings) to its agent, as the run panel does.
@@ -133,7 +133,7 @@ export function taskAction(state:string,body:any,hooks:Hooks):{state:string;task
   if(op==='adopt'){
     const l=body.legacy??{};let goal='',key='';
     if(l.kind==='run'){const run=readRuns(state).find(r=>r.id===l.id);if(!run)throw new T.TaskError('Existing run unavailable',404);key=`run:${run.id}`;goal=readTextSafe(join(state,'runs',run.id,'00-request.md'))??run.id;}else{const line=readInbox(state)[Number(l.index)];if(!line||line.added!==l.added)throw new T.TaskError('Task changed; refresh');key=`inbox:${line.added??'legacy'}:${l.index}`;goal=line.text;}
-    let task=T.adoptTask(state,key,{goal,project:dirname(state)});
+    let task=T.adoptTask(state,key,{goal,project:dirname(state),title:l.kind==='run'?requestTitle(goal)||undefined:undefined});
     if(l.kind==='run'&&!task.activeRun)task=T.mutateTask(state,task.id,{revision:task.revision,opId:`link:${l.id}`},t=>{
       const file=join(state,'runs',l.id,'state.json'),run=parse(file);t.activeRun=l.id;t.runIds=[l.id];
       const finished=run&&['done','abandoned'].includes(run.stage);

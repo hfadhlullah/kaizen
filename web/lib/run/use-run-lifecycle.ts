@@ -1,0 +1,70 @@
+// What the run panes need while mounted and what runs only while the run view is shown (a hook of the run panes, torn down with them): the panes' actions and kept-terminal pruning (bindRunView), then:
+// reading the address on each visit (showRunView, an effect of the route), the Preview polling every 3 s, the tmux-style keyboard (Ctrl+Space, then a key) and the workspace's reaction to a new
+// /state (a run reaching review opens the Browser, a new run takes the panel's pick, the tabs are read again). Off the run
+// view none of it runs: no timer, no key listener, no reaction.
+import { useEffect } from "react";
+import { layerOpen } from "@lib/core";
+import { onState } from "@lib/server";
+import { useRoute } from "@lib/router";
+import { autoBrowse, bindRunView, pollPreview, showRunView } from "./workspace.ts";
+import { followNew } from "./ws-draw.ts";
+import { paneKey } from "./ws-actions.ts";
+import { getWs, screens, saved } from "./ws-store.ts";
+import { focusPane, setRunView } from "./index.ts";
+
+const POLL = 3000;
+const keyHint = (on: boolean) => setRunView({ hint: on });
+// Capture: xterm must not see these. Ctrl+B would reach an agent or a tmux inside the pane. While the prefix waits for its
+// key, a chip says so and lists the keys (components/run/key-hint.tsx).
+function paneKeys() {
+  let armed: ReturnType<typeof setTimeout> | undefined;
+  const on = (e: KeyboardEvent) => {
+    // A dialog or an open menu has the keyboard (Ctrl+Space may be an input-method switch there): the pane behind takes none.
+    if (!getWs().ctx || layerOpen()) return;
+    if (e.ctrlKey && !e.shiftKey && e.code === "Space") {
+      e.preventDefault();
+      e.stopPropagation();
+      focusPane(screens().find((x) => x.id === saved().on)?.focus);
+      clearTimeout(armed);
+      keyHint(true);
+      armed = setTimeout(() => ((armed = undefined), keyHint(false)), 2000);
+      return;
+    }
+    if (!armed || ["Control", "Shift", "Alt", "Meta"].includes(e.key)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    clearTimeout(armed);
+    armed = undefined;
+    keyHint(false);
+    paneKey(e.key);
+  };
+  addEventListener("keydown", on, true);
+  return () => (clearTimeout(armed), keyHint(false), removeEventListener("keydown", on, true));
+}
+export function useRunLifecycle() {
+  const shown = useRoute((s) => s.view === "run"),
+    visit = useRoute((s) => s.visit);
+  // The actions the panes call, and the pruning of kept terminals whose session is gone, for as long as the panes are mounted.
+  useEffect(() => bindRunView(), []);
+  // The address names the workspace, run or task to show: read on every visit to the run view (the router counts one for each
+  // `navigate`, also when the view was already showing), in a microtask so the page's own panel handling in the router's
+  // `enter` runs first. A visit left before then does not read it. Visit 0 is the first paint, drawn from the address before the
+  // board has loaded; the first `navigate` (once it has) is the first visit.
+  useEffect(() => {
+    if (!shown || !visit) return;
+    let on = true;
+    queueMicrotask(() => on && void showRunView(true));
+    return () => void (on = false);
+  }, [shown, visit]);
+  useEffect(() => {
+    if (!shown) return;
+    const offKeys = paneKeys(),
+      timer = setInterval(() => void pollPreview(), POLL),
+      offState = onState(() => {
+        void autoBrowse();
+        followNew();
+        if (getWs().ctx) void showRunView();
+      });
+    return () => (offKeys(), clearInterval(timer), offState());
+  }, [shown]);
+}

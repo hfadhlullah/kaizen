@@ -6,6 +6,7 @@ import { existsSync, writeFileSync, copyFileSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { homedir } from "node:os";
 import { readText, KNOWN_AGENTS, MODEL_FLAGS } from "./state.ts";
+import { status as chatgptStatus } from "./chatgpt.ts";
 
 // `text` is a value typed rather than chosen: a path. It has no values to cycle.
 // `when`: the row only has an effect while that other key holds that value; both
@@ -110,29 +111,28 @@ const SETTINGS: Setting[] = [
   { key: "auto_accept", label: "Auto runs skip final approval", group: "Approvals", values: ["false", "true"], help: "true: an auto run that changed files finishes without waiting, marked auto-accepted", when: ["mode", "auto"] },
   { key: "approvals.each_file", label: "Confirm every file edit", group: "Approvals", values: ["true", "false"], help: "", when: ["mode", "approve"] },
   { key: "explore.enabled", label: "Explore before planning", group: "Agents", values: ["false", "true"], help: "Question the idea and research uncertainties before Plan. Clear fixes skip it; each run can skip Explore." },
-  { key: "runner", label: "Stage isolation", group: "Agents", values: ["full", "lite"], help: "full: separate agent per stage. lite: one session" },
+  { key: "runner", label: "Agents per run", group: "Agents", values: ["full", "lite"], help: "full: a separate agent for each stage (plan, build, review). lite: one session does every stage, cheaper" },
   { key: "build.executor", label: "Who builds", group: "Agents", values: ["subagent", "inline", "ask"], help: "subagent: its own agent · inline: this session · ask: pick at plan approval", when: ["runner", "full"] },
   { key: "review.executor", label: "Reviewer", group: "Agents", values: ["inline", "subagent", "ask"], help: "subagent: its own cold agent · inline: this session · ask: pick before review", when: ["runner", "lite"] },
   { key: "agent.default", label: "Default agent", group: "Agents", values: ["auto", "claude", "codex", "agy", "opencode", "gemini"], help: "" },
-  { key: "agent.launch", label: "Where agents run", group: "Agents", values: ["card", "terminal"], help: "" },
-  { key: "agent.keep_alive", label: "Keep agents through a kaizen restart", group: "Agents", values: ["off", "tmux"], help: "tmux: Linux and macOS with tmux installed. The wheel scrolls tmux history; Shift+drag copies", when: ["agent.launch", "card"] },
+  { key: "agent.keep_alive", label: "Keep agents through a kaizen restart", group: "Agents", values: ["off", "tmux"], help: "tmux: Linux and macOS with tmux installed. The wheel scrolls tmux history; Shift+drag copies" },
   { key: "agent.keep_awake", label: "Keep computer awake", group: "Board", values: ["off", "auto", "on"], help: "auto: while kaizen runs agents · on: while kaizen is open. Linux and macOS" },
   { key: "agent.heartbeat_minutes", label: "Agent heartbeat", group: "Board", values: ["2", "5", "10", "30"], help: "Minutes. A card says stale after two quiet intervals" },
-  { key: "subagents.model", label: "Claude Code", group: "Agents", values: ["inherit", "opus", "sonnet", "haiku"], help: "Its stage subagents: planner, builder, reviewer", when: ["runner", "full"] },
-  { key: "subagents.effort", label: "Claude Code effort", group: "Agents", values: ["inherit", "low", "medium", "high"], help: "Planner, builder, reviewer", when: ["runner", "full"] },
-  { key: "subagents.planner", label: "Claude Code planner", group: "Agents", values: ["default", "opus", "sonnet", "haiku"], help: "default: the model above", when: ["runner", "full"] },
-  { key: "subagents.builder", label: "Claude Code builder", group: "Agents", values: ["default", "opus", "sonnet", "haiku"], help: "Also runs the fix rounds. default: the model above", when: ["runner", "full"] },
-  { key: "subagents.reviewer", label: "Claude Code reviewer", group: "Agents", values: ["default", "opus", "sonnet", "haiku"], help: "Also runs the rechecks. default: the model above", when: ["runner", "full"] },
+  { key: "subagents.model", label: "Stage model", group: "Agents", values: ["inherit", "opus", "sonnet", "haiku"], help: "The model for Claude Code's stage subagents: planner, builder, reviewer", when: ["runner", "full"] },
+  { key: "subagents.effort", label: "Stage effort", group: "Agents", values: ["inherit", "low", "medium", "high"], help: "Planner, builder, reviewer", when: ["runner", "full"] },
+  { key: "subagents.planner", label: "Planner model", group: "Agents", values: ["default", "opus", "sonnet", "haiku"], help: "default: the model above", when: ["runner", "full"] },
+  { key: "subagents.builder", label: "Builder model", group: "Agents", values: ["default", "opus", "sonnet", "haiku"], help: "Also runs the fix rounds. default: the model above", when: ["runner", "full"] },
+  { key: "subagents.reviewer", label: "Reviewer model", group: "Agents", values: ["default", "opus", "sonnet", "haiku"], help: "Also runs the rechecks. default: the model above", when: ["runner", "full"] },
   { key: "auto_fix.enabled", label: "Fix findings automatically", group: "Auto-fix", values: ["true", "false"], help: "" },
   { key: "auto_fix.min_severity", label: "Lowest severity to fix", group: "Auto-fix", values: ["critical", "high", "medium", "low"], help: "", when: ["auto_fix.enabled", "true"] },
   { key: "auto_fix.max_iterations", label: "Max fix rounds", group: "Auto-fix", values: ["1", "2", "3", "4", "5"], help: "", when: ["auto_fix.enabled", "true"] },
-  { key: "auto_guard.max_files", label: "Auto mode: stop above this many changed files", group: "Auto-fix", values: ["10", "25", "50", "0"], help: "0 turns the check off" },
-  { key: "auto_guard.stop_on", label: "Auto mode: stop on an open finding at", group: "Auto-fix", values: ["critical", "high", "medium", "low", "off"], help: "" },
+  { key: "auto_guard.max_files", label: "Hold an auto run above this many files", group: "Auto-fix", values: ["10", "25", "50", "0"], help: "An auto run that changes more files waits for your approval. 0: never hold" },
+  { key: "auto_guard.stop_on", label: "Hold an auto run on a finding of", group: "Auto-fix", values: ["critical", "high", "medium", "low", "off"], help: "This severity or higher, still open after the fix rounds, makes an auto run wait for your approval. off: never hold" },
   { key: "git.auto_commit", label: "Commit when done", group: "Git", values: ["false", "true"], help: "Never pushes" },
-  { key: "git.worktree_per_run", label: "Branch and folder per run", group: "Git", values: ["ask", "true", "false"], help: "" },
-  { key: "git.generated", label: "Generated files", group: "Git", values: [], text: true, help: "Path patterns, space-separated. A land takes the base's side on conflict. Empty: none" },
-  { key: "git.rebuild_on_land", label: "Rebuild after resolving", group: "Git", values: [], text: true, help: "Command that remakes the generated files. Empty: none" },
-  { key: "git.land_check", label: "Check before landing", group: "Git", values: [], text: true, help: "After a rebase that pulled commits. auto: the test script in package.json · off · or a command" },
+  { key: "git.worktree_per_run", label: "Own branch and folder per run", group: "Git", values: ["ask", "true", "false"], help: "true: each run works in its own branch and folder. false: in the project folder. ask: choose each time" },
+  { key: "git.generated", label: "Generated files", group: "Git", values: [], text: true, help: "Files a build writes, as path patterns separated by spaces. If landing a run conflicts on one, the base branch's version wins. Empty: none" },
+  { key: "git.rebuild_on_land", label: "Regenerate after a conflict", group: "Git", values: [], text: true, help: "A command that rebuilds the generated files once a conflict is settled. Empty: none" },
+  { key: "git.land_check", label: "Check before landing", group: "Git", values: [], text: true, help: "Runs before a run lands, when the rebase pulled in new commits. auto: your package.json test script · off · or any command" },
   { key: "orchestration.enabled", label: "Build with workers", group: "Orchestration", values: ["false", "true"], help: "Off by default. A plan may split into workers, each in its own terminal and folder. Linux and macOS only" },
   { key: "orchestration.max_workers", label: "Max workers per run", group: "Orchestration", values: ["1", "2", "3", "4", "5", "6"], help: "Total per run", when: ["orchestration.enabled", "true"] },
   { key: "orchestration.permissions", label: "Worker permissions", group: "Orchestration", values: ["own", "bypass"], help: "own: each agent's own prompts. Bypass skips every prompt in every worker", when: ["orchestration.enabled", "true"] },
@@ -150,9 +150,7 @@ const SETTINGS: Setting[] = [
   { key: "sources.effort", label: "ChatGPT effort for the icebox", group: "Board", values: ["low", "medium", "high"], help: "Gathering, sorting and task drafts" },
   { key: "board.projects_dir", label: "Projects folder", group: "Board", values: [], text: true, folder: true, help: "Empty: known projects only" },
   { key: "board.video_dir", label: "Video library folder", group: "Board", values: [], text: true, folder: true, help: "Empty: ~/.kaizen" },
-  { key: "board.open", label: "Open kaizen in", group: "Board", values: ["browser", "app"], help: "" },
   { key: "board.chat_hotkey", label: "Popup chat hotkey", group: "Board", values: [], text: true, help: "Hyprland, e.g. SUPER + ALT + SPACE. Empty: none" },
-  { key: "ui.mouse", label: "Enable mouse", group: "Terminal", values: ["false", "true"], help: "" },
 ];
 
 // The same rows and the same write the TUI uses, for `kaizen web`'s settings panel:
@@ -177,7 +175,8 @@ export function listSettings(repoRoot: string, project?: string | null) {
     };
   });
   const valueOf = (k: string) => rows.find((r) => r.key === k)?.value ?? null;
-  return { file: tilde(file), rows: rows.map((r) => ({ ...r, idle: idle(r, valueOf) })) };
+  const gpt = /^sources\.(model|effort)$/;
+  return { file: tilde(file), rows: rows.map((r) => ({ ...r, idle: idle(r, valueOf) || (gpt.test(r.key) && !chatgptStatus().connected ? "No effect until ChatGPT is connected in the Icebox" : "") })) };
 }
 
 // Why a row has no effect right now, or "" while it has one: its `when` is not met.

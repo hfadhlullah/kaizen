@@ -110,7 +110,7 @@ test("a project scope reads over All projects, starts its own file empty, and re
     const file = (await Bun.file(other + "/.kaizen/config.yml").text());
     const own = at(other, "git.auto_commit");
     const global = at(null, "git.auto_commit");
-    const board = setSetting(repo, "board.open", "app", other) && at(null, "board.open").value;
+    const board = setSetting(repo, "dictation.model", "small", other) && at(null, "dictation.model").value;
     const { resetSetting } = await import(${JSON.stringify(join(repo, "cli/settings.ts"))});
     resetSetting(repo, "git.auto_commit", other);
     const after = at(other, "git.auto_commit"), left = await Bun.file(other + "/.kaizen/config.yml").text();
@@ -126,7 +126,7 @@ test("a project scope reads over All projects, starts its own file empty, and re
   expect(r.own).toMatchObject({ value: "false", own: true });
   expect(r.global.value).toBe("true");
   expect(r.global.overrides).toBeUndefined();
-  expect(r.board).toBe("app");
+  expect(r.board).toBe("small");
   expect(r.after).toMatchObject({ value: "true" });
   expect(r.left).not.toContain("auto_commit");
   expect(r.kept).toBe("# my team's git rules\ngit:\n  # mine\n");

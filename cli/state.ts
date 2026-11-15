@@ -1097,21 +1097,9 @@ export function notice(c: Card): string | null {
   return what && `${c.text} — ${what}\n${c.where}`;
 }
 
-// When a notice is worth sending, for both UIs: each keeps one of these, and the
-// board page is served this very function, so it must stand on its own -- no
-// imports, no outer names. A run never seen before says nothing, which covers first
-// load and a run arriving already waiting. A `done` within a minute of the run
-// leaving a wait was finished by the person's own decision, so that one stays quiet.
-// ponytail: a fixed minute; an approval whose last writes take longer still pings.
-export function notifier() {
-  const said = new Map<string, string | null>(), left = new Map<string, number>();
-  return (key: string, say: string | null, done: boolean, now: number) => {
-    const before = said.get(key);
-    said.set(key, say);
-    if (before && say !== before) left.set(key, now);
-    return before !== undefined && !!say && say !== before && !(done && now - (left.get(key) ?? -Infinity) < 60_000);
-  };
-}
+// When a notice is worth sending, for both UIs: the terminal board and the web board each keep one of these. The rule is
+// web/lib/core/notifier.ts, so the board's bundle carries the very function this file exports.
+export { notifier } from "../web/lib/core/notifier.ts";
 
 export const LOGO = join(dirname(import.meta.dir), "assets", "kaizen-logo.png");
 
@@ -1596,7 +1584,6 @@ export function closeEnabled(projectDir: string) {
   return true;
 }
 
-// agent.launch in the config chain: where the web board runs what it launches.
 // agent.keep_alive: tmux keeps a card's agent in a tmux session that outlives the board.
 export function keepAlive(projectDir: string): "off" | "tmux" {
   for (const t of configTexts(projectDir)) {
@@ -1620,14 +1607,6 @@ export function heartbeatMinutes(text = existsSync(join(home, ".kaizen", "config
 // agent.keep_awake: machine-wide, so only the global config. Same forms as keepAlive.
 export function keepAwake(text = existsSync(join(home, ".kaizen", "config.yml")) ? readText(join(home, ".kaizen", "config.yml")) : "") {
   return (/^agent:\n(?:[ \t][^\n]*\n)*?[ \t]+keep_awake:[ \t]*["']?([^"'\s]+)/m.exec(text) || /^agent\.keep_awake:[ \t]*["']?([^"'\s]+)/m.exec(text))?.[1] ?? "off";
-}
-
-export function launchMode(projectDir: string): "card" | "terminal" {
-  for (const t of configTexts(projectDir)) {
-    const m = /^agent:\n(?:[ \t][^\n]*\n)*?[ \t]+launch:[ \t]*["']?([^"'\s]+)/m.exec(t) || /^agent\.launch:[ \t]*["']?([^"'\s]+)/m.exec(t);
-    if (m) return m[1] === "terminal" ? "terminal" : "card";
-  }
-  return "card";
 }
 
 // Whether a live PID is still the agent a record launched, not a stranger that reused
@@ -2423,7 +2402,7 @@ export function readCommit(state: string, id: string): { sha: string; pushed: bo
 }
 
 // The card's git mark for each run asked about, by the rules of the panel's button
-// (`gitBtn` in web/board/git.ts): one project status and one read of the reports for
+// (`gitShown` in web/lib/git/git-panel.ts): one project status and one read of the reports for
 // the lot. A run with nothing to say either way gets no entry.
 // `due`, when given, is filled with what a pending run still needs: "commit" (changed files) or "push" (committed, ahead).
 export function cardsGit(state: string, ids: string[], due: Record<string, "commit" | "push"> = {}): Record<string, "pending" | "pushed"> {

@@ -1,0 +1,125 @@
+/* The board's Tailwind theme. Names map to the board's own variables (board.html :root: --bg, --ink,
+   --line, --dim, --accent, radii, sizes), so light, dark, blue and the motion setting work with no extra
+   code. Components use these names only (bg-background, text-muted-foreground, border-border), never raw
+   colours. Compiled by `bun run build:web` into web/dist/ui.css, scanning only the folders named below. */
+@layer legacy, theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities) source(none);
+@import "tw-animate-css";
+@source ".";
+@source not "./theme.css";
+@source not "./legacy";
+@source "../components";
+@source "../pages";
+@source "../lib";
+
+@theme inline {
+  --color-background: var(--bg);
+  --color-card: var(--bg-2);
+  --color-canvas: var(--canvas);
+  --color-foreground: var(--ink);
+  --color-strong: var(--ink-hi);
+  --color-border: var(--line);
+  --color-muted: var(--hover);
+  --color-muted-foreground: var(--dim);
+  --color-primary: var(--accent);
+  --color-primary-foreground: var(--on-accent);
+  --color-running: var(--run);
+  --color-success: var(--ok);
+  --color-warning: var(--warn);
+  --color-danger: var(--danger);
+  --color-kind-client: color-mix(in srgb, #2563eb 70%, var(--ink));
+  --color-kind-finding: color-mix(in srgb, #15803d 70%, var(--ink));
+  --color-kind-people: color-mix(in srgb, #c2410c 70%, var(--ink));
+  --color-promote: color-mix(in srgb, #15803d 82%, var(--ink));
+  --radius-xs: var(--r-xs);
+  --radius-sm: var(--r-s);
+  --radius-md: var(--r);
+  --radius-lg: var(--r-l);
+  --radius-full: var(--r-pill);
+  --font-sans: var(--font);
+  --font-mono: var(--mono);
+  --shadow-sm: var(--shadow-1);
+  --shadow-md: var(--shadow-2);
+  --text-xs: var(--fs-xs);
+  --text-xs--line-height: 1.4;
+  --text-sm: var(--fs-s);
+  --text-sm--line-height: 1.4;
+  --text-base: var(--fs);
+  --text-base--line-height: 1.5;
+  --text-lg: var(--fs-l);
+  --text-lg--line-height: 1.5;
+  --animate-fade-in: kz-fade 0.12s;
+  --animate-flash: kz-flash 0.9s 2;
+  --animate-dot: kz-dot 1.2s ease-in-out infinite;
+  --animate-rise: kz-rise 0.8s ease-out forwards;
+  --animate-fall: kz-fall 1.6s ease-in forwards;
+  --animate-hin: kz-hin 0.32s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-hfloat: kz-float 2.4s ease-in-out infinite;
+  --animate-hdot: kz-hdot 1.05s ease-in-out infinite;
+  --animate-hpulse: kz-hpulse 1.4s ease-in-out infinite;
+  --animate-ask: kz-ask 1.6s ease-in-out infinite;
+}
+/* The run panel's tab strip is a column of icons beside the panel in the run workspace and, on a desktop window, on
+   the board too; in a narrow window outside the run workspace it is a row of words. `col:` styles the first. */
+@custom-variant col {
+  body.runv & { @slot; }
+  @media (min-width: 641px) { body:not(.runv) & { @slot; } }
+}
+@keyframes kz-fade { from { opacity: 0; } }
+@keyframes kz-flash { 50% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 40%, transparent); } }
+@keyframes kz-rise { to { transform: translateY(-14px); opacity: 0; } }
+@keyframes kz-fall { to { transform: translateY(420px) rotate(540deg); opacity: 0; } }
+@keyframes kz-hin { from { opacity: 0; transform: translateY(8px); } }
+@keyframes kz-float { 50% { transform: translateY(-2px); } }
+@keyframes kz-hdot { 50% { opacity: 1; transform: translateY(-1px); } }
+@keyframes kz-hpulse { 50% { opacity: 0.4; } }
+@keyframes kz-ask { 50% { box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--warn) 45%, transparent); } }
+/* Home: the message box glides from the middle to the bottom with the first message (a view transition). */
+::view-transition-group(hbox) { animation-duration: 0.35s; animation-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1); }
+@keyframes kz-dot { 0%, 60%, 100% { opacity: 0.3; transform: none; } 30% { opacity: 1; transform: translateY(-3px); } }
+
+/* Tailwind's preflight, scoped: it applies inside .kz-ui (the React roots and the shared popup container) and
+   nowhere else, so the board's old pages keep their own base styles. .kz-keep marks a legacy element docked
+   into a React page (the board's search box and New task button): the reset leaves it and what is inside it
+   alone, so its old styles still win. Every rule below carries the same :not(.kz-keep, .kz-keep *). */
+@layer base {
+  .kz-ui :not(.kz-keep, .kz-keep *),
+  .kz-ui :not(.kz-keep, .kz-keep *)::before,
+  .kz-ui :not(.kz-keep, .kz-keep *)::after { box-sizing: border-box; margin: 0; padding: 0; border: 0 solid; }
+  .kz-ui :where(h1):not(.kz-keep, .kz-keep *),
+  .kz-ui :where(h2):not(.kz-keep, .kz-keep *),
+  .kz-ui :where(h3):not(.kz-keep, .kz-keep *),
+  .kz-ui :where(h4):not(.kz-keep, .kz-keep *),
+  .kz-ui :where(h5):not(.kz-keep, .kz-keep *),
+  .kz-ui :where(h6):not(.kz-keep, .kz-keep *) { font-size: inherit; font-weight: inherit; }
+  .kz-ui :where(a):not(.kz-keep, .kz-keep *) { color: inherit; text-decoration: inherit; }
+  .kz-ui :where(ol):not(.kz-keep, .kz-keep *),
+  .kz-ui :where(ul):not(.kz-keep, .kz-keep *),
+  .kz-ui :where(menu):not(.kz-keep, .kz-keep *) { list-style: none; }
+  .kz-ui :where(img):not(.kz-keep, .kz-keep *),
+  .kz-ui :where(svg):not(.kz-keep, .kz-keep *),
+  .kz-ui :where(video):not(.kz-keep, .kz-keep *),
+  .kz-ui :where(canvas):not(.kz-keep, .kz-keep *),
+  .kz-ui :where(audio):not(.kz-keep, .kz-keep *),
+  .kz-ui :where(iframe):not(.kz-keep, .kz-keep *),
+  .kz-ui :where(embed):not(.kz-keep, .kz-keep *),
+  .kz-ui :where(object):not(.kz-keep, .kz-keep *) { display: block; vertical-align: middle; }
+  .kz-ui :where(img):not(.kz-keep, .kz-keep *),
+  .kz-ui :where(video):not(.kz-keep, .kz-keep *) { max-width: 100%; height: auto; }
+  .kz-ui :where(button):not(.kz-keep, .kz-keep *),
+  .kz-ui :where(input):not(.kz-keep, .kz-keep *),
+  .kz-ui :where(select):not(.kz-keep, .kz-keep *),
+  .kz-ui :where(optgroup):not(.kz-keep, .kz-keep *),
+  .kz-ui :where(textarea):not(.kz-keep, .kz-keep *) { font: inherit; color: inherit; letter-spacing: inherit; background: transparent; border-radius: 0; opacity: 1; }
+  .kz-ui :where(button):not(.kz-keep, .kz-keep *),
+  .kz-ui :where([role="button"]):not(.kz-keep, .kz-keep *),
+  .kz-ui :where(summary):not(.kz-keep, .kz-keep *) { cursor: pointer; }
+  .kz-ui :where(button:disabled):not(.kz-keep, .kz-keep *),
+  .kz-ui :where([aria-disabled="true"]):not(.kz-keep, .kz-keep *) { cursor: default; }
+  .kz-ui :where(textarea):not(.kz-keep, .kz-keep *) { resize: none; }
+  .kz-ui :where(pre):not(.kz-keep, .kz-keep *),
+  .kz-ui :where(code):not(.kz-keep, .kz-keep *) { font-family: var(--mono); }
+  .kz-ui :where([hidden]:not([hidden="until-found"])):not(.kz-keep, .kz-keep *) { display: none; }
+  .kz-ui :not(.kz-keep, .kz-keep *):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+}

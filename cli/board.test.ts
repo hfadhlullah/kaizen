@@ -1,121 +1,69 @@
 // The board's markdown renderer and helpers, imported from the board's modules as they ship.
 import { test, expect } from "bun:test";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
-import { md, progress, planQuestions, brief } from "../web/board/markdown.ts";
-import { draft, undraft } from "../web/board/drafts.ts";
-import { boardBadge, refreshBoardBadge, waitingCount } from "../web/board/badge.ts";
+import { md } from "../web/lib/notes/md-html.ts";
+import { planQuestions } from "../web/lib/decision/index.ts";
+import { brief } from "../web/lib/core/brief.ts";
+import { clearDrafts } from "../web/lib/shared/use-draft.ts";
+import { getServer, refreshEvery, waitingCount } from "../web/lib/server/index.ts";
+import { menuItems } from "../web/lib/core/board.ts";
 
-const html = readFileSync(join(dirname(import.meta.dir), "web", "board.html"), "utf8");
-const cards = readFileSync(join(dirname(import.meta.dir), "web", "board", "cards.ts"), "utf8");
+const html = readFileSync(join(dirname(import.meta.dir), "web", "components", "shell", "sprite.tsx"), "utf8");
 
 test("Board badge counts each card needing input once and clears at zero", () => {
-  const link = { dataset: {} as Record<string, string>, title: "Board", label: "", setAttribute(_key: string, value: string) { this.label = value; } };
-  const previous = globalThis.document;
-  (globalThis as any).document = { querySelector: () => link };
-  try {
-    const cards = [
-      { kind: "run", status: "waiting", pty: { alive: true, asking: true } },
-      { kind: "idea", status: "idea", pty: { alive: true, asking: true } },
-      { kind: "run", status: "waiting", archived: true },
-      { kind: "run", status: "running", pty: { alive: false, asking: true } },
-    ];
-    expect(waitingCount(cards)).toBe(2);
-    // The Tasks link carries no count.
-    boardBadge(cards);
-    expect(link.dataset.n).toBeUndefined();
-  } finally {
-    globalThis.document = previous;
-  }
+  const cards = [
+    { kind: "run", status: "waiting", pty: { alive: true, asking: true } },
+    { kind: "idea", status: "idea", pty: { alive: true, asking: true } },
+    { kind: "run", status: "waiting", archived: true },
+    { kind: "run", status: "running", pty: { alive: false, asking: true } },
+  ];
+  expect(waitingCount(cards, null)).toBe(2);
+  expect(waitingCount([], null)).toBe(0);
 });
 
-test("Board badge coalesces overlapping updates and shows the latest count", async () => {
-  const link = { dataset: {} as Record<string, string>, title: "Board", setAttribute() {} };
-  const previousDocument = globalThis.document, previousFetch = globalThis.fetch;
-  (globalThis as any).document = { querySelector: () => link };
+test("the all-projects read coalesces overlapping requests and keeps the latest snapshot", async () => {
+  const previousFetch = globalThis.fetch;
   let release!: () => void, calls = 0;
   globalThis.fetch = (async () => {
     const n = ++calls;
     if (n === 1) await new Promise<void>((resolve) => { release = resolve; });
-    return { ok: true, json: async () => ({ cards: n === 1 ? [{ kind: "run", status: "waiting" }] : [] }) } as Response;
+    const body = JSON.stringify({ cards: n === 1 ? [{ kind: "run", status: "waiting" }] : [], projects: [], now: n });
+    return { ok: true, text: async () => body } as Response;
   }) as typeof fetch;
   try {
-    const first = refreshBoardBadge(), second = refreshBoardBadge();
+    const first = refreshEvery(), second = refreshEvery();
     expect(calls).toBe(1);
     release();
     await Promise.all([first, second]);
     expect(calls).toBe(2);
-    expect(link.dataset.n).toBeUndefined();
+    expect(getServer().every!.cards).toEqual([]);
   } finally {
-    globalThis.document = previousDocument;
     globalThis.fetch = previousFetch;
   }
 });
 
-test("Settings rechecks an existing update alert and clears or refreshes it", async () => {
-  const classes = new Set<string>();
-  const link = { classList: { toggle(name: string, on: boolean) { on ? classes.add(name) : classes.delete(name); } }, title: "Settings" };
-  const previous = globalThis.document;
-  const previousLocation = globalThis.location;
-  const previousFetch = globalThis.fetch;
-  const elements = new Map<string, any>();
-  const body = { row: null as any, prepend(row: any) { this.row = row; row.isConnected = true; } };
-  let card: any = null;
-  (globalThis as any).location = { search: "" };
-  (globalThis as any).document = {
-    querySelector: () => link,
-    getElementById: (id: string) => id === "pbody" ? body : id === "updcard" ? card : elements.get(id),
-    body: { append(el: any) { card = el; } },
-    createElement: () => ({
-      isConnected: false,
-      firstElementChild: { innerHTML: "" },
-      setAttribute() {},
-      set innerHTML(v: unknown) {
-        const html = String(v);
-        this.html = html;
-        elements.clear();
-        for (const [, id] of html.matchAll(/id="([^"]+)"/g)) elements.set(id, { textContent: "", disabled: false, focus() {} });
-      },
-      remove() {
-        this.isConnected = false;
-        if (card === this) card = null;
-      },
-    }),
-  };
-  try {
-    const { gotVer, updBar } = await import("../web/board/update.ts");
-    expect(gotVer({ version: "1.38.1", latest: "1.39.0", update: true })).toBe(true);
-    updBar();
-    expect(body.row.html).toContain('id="upd-chk"');
-    expect(classes.has("upd")).toBe(true);
-    expect(link.title).toContain("1.39.0");
-    globalThis.fetch = (async () => ({ json: async () => ({ version: "1.39.0", latest: "1.39.0", update: false }) })) as any;
-    await elements.get("upd-chk").onclick();
-    expect(classes.has("upd")).toBe(false);
-    expect(link.title).toBe("Settings");
-    expect(body.row.className).toContain("quiet");
-    expect(elements.get("upd-msg").textContent).toBe("kaizen 1.39.0 is up to date.");
-    globalThis.fetch = (async () => ({ json: async () => ({ version: "1.39.0", latest: "1.40.0", update: true }) })) as any;
-    await elements.get("upd-chk").onclick();
-    expect(classes.has("upd")).toBe(true);
-    expect(body.row.html).toContain("1.40.0");
-    globalThis.fetch = (async () => { throw Error("offline"); }) as any;
-    await elements.get("upd-chk").onclick();
-    expect(classes.has("upd")).toBe(true);
-    expect(body.row.html).toContain("1.40.0");
-    // The popup follows the same checks: a newer release rewrites it, none left closes it.
-    expect(card.html).toContain("1.40.0");
-    globalThis.fetch = (async () => ({ json: async () => ({ version: "1.39.0", latest: "1.41.0", update: true }) })) as any;
-    await elements.get("upd-chk").onclick();
-    expect(String(card.firstElementChild.innerHTML)).toContain("1.41.0");
-    globalThis.fetch = (async () => ({ json: async () => ({ version: "1.41.0", latest: "1.41.0", update: false }) })) as any;
-    await elements.get("upd-chk").onclick();
-    expect(card).toBe(null);
-  } finally {
-    globalThis.document = previous;
-    globalThis.location = previousLocation;
-    globalThis.fetch = previousFetch;
-  }
+test("the update state follows each check: a newer release shows, none left clears it, words say which", async () => {
+  // The About bar and the card (components/settings/update-bar.tsx) read this store; the rail's dot follows it (components/shell/rail.tsx).
+  const { available, behindMsg, gotVer, later, upToDate, useUpdate } = await import("../web/lib/settings/update.ts");
+  const ver = () => useUpdate.getState().ver;
+  gotVer({ version: "1.38.1", latest: "1.39.0", update: true });
+  expect(available(ver())).toBe(true);
+  gotVer({ version: "1.39.0", latest: "1.39.0", update: false });
+  expect(available(ver())).toBe(false);
+  expect(upToDate(ver()!)).toBe("kaizen 1.39.0 is up to date.");
+  // A board that is the desktop app's own copy says where to update it.
+  const behind = { version: "1.38.1", latest: "1.39.0", behind: true };
+  expect(upToDate(behind)).toBe(behindMsg(behind));
+  expect(behindMsg(behind)).toContain("Update it from the desktop app");
+  gotVer({ version: "1.39.0", latest: "1.40.0", update: true });
+  expect(available(ver())).toBe(true);
+  expect(ver()!.latest).toBe("1.40.0");
+  // Later silences that release in this browser, and only that release.
+  later("1.40.0");
+  expect(useUpdate.getState().later).toBe("1.40.0");
+  gotVer({ version: "1.39.0", latest: "1.41.0", update: true });
+  expect(useUpdate.getState().later).not.toBe(ver()!.latest);
 });
 
 test("backlog items: a checkbox each, ticked only when done", () => {
@@ -133,57 +81,22 @@ test("without the flag a backlog line is an ordinary list item", () => {
   expect(md("- done: two\n")).toBe("<ul><li>done: two</li></ul>");
 });
 
-// draft()/undraft(), against a stub sessionStorage whose keys are its own properties.
+// clearDrafts(), against a stub sessionStorage whose keys are its own properties.
 const store = () => Object.defineProperties({} as Record<string, string>, {
   getItem: { value(k: string) { return k in this ? this[k] : null; } },
   setItem: { value(k: string, v: string) { this[k] = String(v); } },
   removeItem: { value(k: string) { delete this[k]; } },
 });
-const drafts = (ss: object) => {
+
+test("clearDrafts removes by prefix and leaves the rest", () => {
+  const ss = store();
   (globalThis as any).sessionStorage = ss;
-  return { draft, undraft } as { draft: (el: any, k: string) => void; undraft: (p: string) => void };
-};
-const field = (value = "") => ({ value, on: () => {}, addEventListener(_: string, f: () => void) { this.on = f; } });
-
-test("a draft is saved on input and restored into a rebuilt field", () => {
-  const ss = store(), { draft } = drafts(ss);
-  const a = field("from server");
-  draft(a, "f:new:0");
-  expect(a.value).toBe("from server");
-  a.value = "half typed"; a.on();
-  expect(ss["kz-d:f:new:0"]).toBe("half typed");
-  const b = field("from server");
-  draft(b, "f:new:0");
-  expect(b.value).toBe("half typed");
-});
-
-test("undraft removes by prefix and leaves the rest", () => {
-  const ss = store(), { undraft } = drafts(ss);
   Object.assign(ss, { "kz-d:f:new:0": "a", "kz-d:f:edit:x:1": "b", "kz-d:n:x": "note", "kz-form": "null" });
-  undraft("f:");
+  clearDrafts("f:");
   expect(Object.keys(ss).sort()).toEqual(["kz-d:n:x", "kz-form"]);
 });
 
-// A building run's progress list.
-
-test("progress: each item marked done, working on or to do, with the count", () => {
-  const out = progress("# Progress\n- done: one\n- doing: two <b>x</b>\n- todo: `three`\n- open: not an item\n");
-  expect(out).toContain("1 of 3 done");
-  expect(out).toContain("width:33%");
-  expect(out.match(/<li class="p-(\w+)/g)).toEqual(['<li class="p-done', '<li class="p-doing', '<li class="p-todo']);
-  expect(out).toContain("two &lt;b&gt;x&lt;/b&gt;");
-  expect(out).toContain("<code>three</code>");
-  expect(out).not.toContain("chg");
-});
-
-test("progress: only an item whose status moved animates", () => {
-  const out = progress("- done: one\n- doing: two\n- todo: three\n", ["done", "todo", "todo"]);
-  expect(out.match(/<li class="[^"]*"/g)).toEqual(['<li class="p-done"', '<li class="p-doing chg"', '<li class="p-todo"']);
-});
-
-test("progress: a file with no items draws nothing", () => {
-  expect(progress("# Progress\n\nnothing yet\n")).toBe("");
-});
+// A building run's progress list is React now; its rules (the items, the count, what moved) are tested in web/lib/run/doc.test.ts.
 
 // A plan's open questions.
 
@@ -212,77 +125,59 @@ test("card menu items: appropriate actions and distinct icons across phases", ()
   expect(html).toContain('<symbol id="i-archive"');
   expect(html).toContain('<symbol id="i-restore"');
 
-  const ico = (n: string) => `<svg><use href="#i-${n}"/></svg>`;
-  const from = cards.indexOf("if (k === store.menuKey) {");
-  const menuSnippet = (cards.slice(from, cards.indexOf('el.innerHTML += html`<div class="menu-pop"', from)) + "}").replace("const items = [];", "items = [];");
-  const a0 = cards.indexOf("const actionOf =");
-  const actionOf = cards.slice(a0, cards.indexOf("\n\n", a0));
-  const getItems = new Function("c", "archive", "S", `const ico = ${ico.toString()};\nconst decided = new Set(), answer = () => "";\n${actionOf}\nconst store = { S, menuKey: 1 };\nlet k = 1, items = [];\n${menuSnippet}\nreturn items;`);
+  // menuItems() (web/lib/core/board.ts) is the one declaration the Board page's card menu draws from; a separator is the
+  // `before` flag on the row under it, which these checks read as the old null entry.
+  const getItems = (c: any, archive: boolean, S: any = { projects: [] }) =>
+    menuItems(c, { archive, answered: false, otherProjects: S.projects.some((p: any) => p.dir !== c.state) }).flatMap((i) =>
+      i.before ? [null, i] : [i],
+    );
+  const names = (l: any[]) => l.map((i) => (i ? i.label : null));
+  const icon = (l: any[], n: number) => l[n].icon;
 
   // Phase 0: Tasks (task card)
   const task = { kind: "idea", status: "idea", column: 0 };
-  const taskItems = getItems(task, false, { projects: [] });
-  expect(taskItems.map((i: any) => i ? i[1] : null)).toEqual(["Run", "Edit", "Archive", null, "Reject", "Delete"]);
+  const taskItems = getItems(task, false);
+  expect(names(taskItems)).toEqual(["Run", "Edit", "Archive", null, "Reject", "Delete"]);
   // Move only when there is another project to move to.
   const moveItems = getItems({ ...task, state: "/a" }, false, { projects: [{ dir: "/a" }, { dir: "/b" }] });
-  expect(moveItems.map((i: any) => i ? i[1] : null)).toEqual(["Run", "Edit", "Move to project", "Archive", null, "Reject", "Delete"]);
-  expect(moveItems[2][2]).toBe(ico("ext"));
-  expect(taskItems[0][2]).toBe(ico("play"));
-  expect(taskItems[1][2]).toBe(ico("pen"));
-  expect(taskItems[2][2]).toBe(ico("archive"));
-  expect(taskItems[4][2]).toBe(ico("x"));
-  expect(taskItems[5][2]).toBe(ico("trash"));
+  expect(names(moveItems)).toEqual(["Run", "Edit", "Move to project", "Archive", null, "Reject", "Delete"]);
+  expect(icon(moveItems, 2)).toBe("ext");
+  expect(icon(taskItems, 0)).toBe("play");
+  expect(icon(taskItems, 1)).toBe("pen");
+  expect(icon(taskItems, 2)).toBe("archive");
+  expect(icon(taskItems, 4)).toBe("x");
+  expect(icon(taskItems, 5)).toBe("trash");
 
   // Phase 1: Planning (starting task)
-  const startingTask = { kind: "idea", status: "starting", column: 1 };
-  const startItems = getItems(startingTask, false);
-  expect(startItems.map((i: any) => i ? i[1] : null)).toEqual(["Open", "Run again", "Archive", null, "Remove"]);
+  expect(names(getItems({ kind: "idea", status: "starting", column: 1 }, false))).toEqual(["Open", "Run again", "Archive", null, "Remove"]);
 
   // Tasks column, Backlog tab: a run's leftover, run like a task, rejected with a reason.
-  expect(getItems({ kind: "backlog", status: "idea", column: 0 }, false).map((i: any) => i ? i[1] : null)).toEqual(["Run", "Open its run", null, "Reject"]);
-  expect(getItems({ kind: "backlog", status: "starting", column: 0 }, false)[0][1]).toBe("Run again");
+  expect(names(getItems({ kind: "backlog", status: "idea", column: 0 }, false))).toEqual(["Run", "Open its run", null, "Reject"]);
+  expect(getItems({ kind: "backlog", status: "starting", column: 0 }, false)[0].label).toBe("Run again");
 
   // Phase 1: Planning (run waiting for plan approval)
-  const planWaiting = { kind: "run", status: "waiting", awaiting: "approvals.plan", column: 1 };
-  const planItems = getItems(planWaiting, false);
-  expect(planItems.map((i: any) => i ? i[1] : null)).toEqual(["Review plan", "Archive", "Back to task"]);
-  expect(planItems[0][2]).toBe(ico("open"));
-  expect(planItems[1][2]).toBe(ico("archive"));
-  expect(planItems[2][2]).toBe(ico("restore"));
+  const planItems = getItems({ kind: "run", status: "waiting", awaiting: "approvals.plan", column: 1 }, false);
+  expect(names(planItems)).toEqual(["Review plan", "Archive", "Back to task"]);
+  expect(icon(planItems, 0)).toBe("open");
+  expect(icon(planItems, 1)).toBe("archive");
+  expect(icon(planItems, 2)).toBe("restore");
 
   // Phase 2: Building (running run)
-  const buildingRun = { kind: "run", status: "running", column: 2 };
-  const buildItems = getItems(buildingRun, false);
-  expect(buildItems.map((i: any) => i ? i[1] : null)).toEqual(["Open", "Archive"]);
-
-  // Phase 3: Review (run waiting for review approval)
-  const reviewWaiting = { kind: "run", status: "waiting", awaiting: "approvals.review", column: 3 };
-  const reviewItems = getItems(reviewWaiting, false);
-  expect(reviewItems.map((i: any) => i ? i[1] : null)).toEqual(["Review work", "Archive"]);
-
-  // Phase 3: Review (run waiting on findings)
-  const findingsWaiting = { kind: "run", status: "waiting", awaiting: "findings", column: 3 };
-  const findingsItems = getItems(findingsWaiting, false);
-  expect(findingsItems.map((i: any) => i ? i[1] : null)).toEqual(["See findings", "Archive"]);
-
-  // Phase 4: Done (done run - no Abandon)
+  expect(names(getItems({ kind: "run", status: "running", column: 2 }, false))).toEqual(["Open", "Archive"]);
+  // Phase 3: Review (run waiting for review approval, then on findings)
+  expect(names(getItems({ kind: "run", status: "waiting", awaiting: "approvals.review", column: 3 }, false))).toEqual(["Review work", "Archive"]);
+  expect(names(getItems({ kind: "run", status: "waiting", awaiting: "findings", column: 3 }, false))).toEqual(["See findings", "Archive"]);
+  // Phase 4: Done (done and abandoned runs - no Abandon)
   const doneRun = { kind: "run", status: "done", column: 4 };
-  const doneItems = getItems(doneRun, false);
-  expect(doneItems.map((i: any) => i ? i[1] : null)).toEqual(["Open", "Archive"]);
-
-  // Phase 4: Done (abandoned run - no Abandon)
-  const abandonedRun = { kind: "run", status: "abandoned", column: 4 };
-  const abandItems = getItems(abandonedRun, false);
-  expect(abandItems.map((i: any) => i ? i[1] : null)).toEqual(["Open", "Archive"]);
+  expect(names(getItems(doneRun, false))).toEqual(["Open", "Archive"]);
+  expect(names(getItems({ kind: "run", status: "abandoned", column: 4 }, false))).toEqual(["Open", "Archive"]);
 
   // Archive view
   const archRun = getItems(doneRun, true);
-  expect(archRun.map((i: any) => i ? i[1] : null)).toEqual(["Restore", "Open"]);
-  expect(archRun[0][2]).toBe(ico("restore"));
-  expect(archRun[1][2]).toBe(ico("open"));
-
-  const archTask = getItems(task, true);
-  expect(archTask.map((i: any) => i ? i[1] : null)).toEqual(["Restore", "Open", null, "Delete"]);
+  expect(names(archRun)).toEqual(["Restore", "Open"]);
+  expect(icon(archRun, 0)).toBe("restore");
+  expect(icon(archRun, 1)).toBe("open");
+  expect(names(getItems(task, true))).toEqual(["Restore", "Open", null, "Delete"]);
 });
 
 // brief(): a one-line structured task split for display only.
@@ -313,19 +208,8 @@ test("criteria not numbered from 1 keep their own numbers", () => {
   expect(brief("X Goal: g. Criteria: (2) two. (3) three.").parts[1].body).toBe("- (2) two.\n- (3) three.");
 });
 
-// pretty(): a one-line task note splits into one paragraph per label.
-test("pretty splits a labelled plain line in a note by its labels", async () => {
-  const { pretty } = await import("../web/board/chat.ts");
-  const t = "Parent: run-x add a timezone. OPEN QUESTION (waiting on Johan): recalc old rows? Context: PR #452.";
-  expect(pretty(t)).toBe("**Parent:** run-x add a timezone.\n\n**OPEN QUESTION (waiting on Johan):** recalc old rows?\n\n**Context:** PR #452.");
-  expect(pretty("just a note")).toBe("just a note");
-  expect(pretty("Goal: a\nScope: b")).toBe("Goal: a\nScope: b");
-  expect(pretty("Parent: x\ndo y. NOTE: a. Context: b.")).toBe("Parent: x\n\ndo y.\n\n**NOTE:** a.\n\n**Context:** b.");
-  expect(pretty("- Goal: a. Scope: b.")).toBe("- Goal: a. Scope: b.");
-});
-
 test("the note editor turns its DOM back into the markdown md() rendered it from", async () => {
-  const { toMd } = await import("../web/board/rich.ts");
+  const { toMd } = await import("../web/lib/notes/rich.ts");
   // A minimal DOM: element nodes from md()'s tag soup, enough for toMd.
   const parse = (h) => {
     const root = { nodeType: 1, nodeName: "DIV", childNodes: [], getAttribute: () => null };
@@ -357,7 +241,7 @@ test("md() renders italic and two-space hard breaks, and leaves globs in code al
 });
 
 test("new-idea picker never swaps a preset project for another when a choice is required", async () => {
-  const { startDir } = await import("../web/board/labels.ts");
+  const { startDir } = await import("../web/lib/core/labels.ts");
   expect(startDir(["/a", "/b"], "/b", true)).toBe("/b");
   expect(startDir(["/a", "/b"], "/gone", true)).toBeNull();
   expect(startDir(["/a", "/b"], null, true)).toBeNull();
@@ -378,4 +262,16 @@ test("markStage records a stage terminal only inside an existing runs/<id>", asy
   expect(existsSync(join(dir, "terminals.json"))).toBe(false);
   expect(existsSync(join(dir, "runs", "terminals.json"))).toBe(false);
   expect(existsSync(join(dir, "runs", "nope"))).toBe(false);
+});
+
+// An upgrade replaces the page files under a running board but not its code: a page file the board reads per request, and not
+// at start, answers 500 until it restarts (kaizen upgrade). So every file the board serves from web/ is in AT_START.
+test("every page and bundle in web/html and web/dist is served and kept at start", () => {
+  const root = dirname(import.meta.dir);
+  const src = readFileSync(join(root, "cli", "web.ts"), "utf8");
+  const atStart = src.match(/const AT_START = new Map\(\[(.*?)\]\.map/)![1]!;
+  for (const name of ["PAGE", "BOARD_JS", "NOTES_PAGE", "NOTES_JS", "TERM_JS", "TERM_CSS", "VIDEO_PAGE", "VIDEO_JS", "ANNOTATE_JS", "UI_CSS", "POPUP_PAGE", "POPUP_JS", "BOOT_JS", "...Object.values(STYLES)"])
+    expect(atStart).toContain(name);
+  for (const dir of ["html", "dist"])
+    for (const f of readdirSync(join(root, "web", dir))) expect([f, src.includes(`"${f}"`)]).toEqual([f, true]);
 });

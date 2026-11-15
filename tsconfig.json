@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "allowImportingTsExtensions": true,
+    "paths": { "@web/*": ["./web/*"], "@lib/*": ["./web/lib/*"], "@components/*": ["./web/components/*"] },
+    "types": ["bun"],
+    "noEmit": true,
+    "strict": false,
+    "skipLibCheck": true,
+    "lib": ["ESNext", "DOM", "DOM.Iterable"]
+  },
+  "include": ["web", "test"]
+}

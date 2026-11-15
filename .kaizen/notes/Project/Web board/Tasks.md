@@ -1,21 +1,24 @@
 ---
 description: The Tasks page, the task forms, inbox stamps and when a task retires
 tags: [project, web-board]
-sources: [cli/state.ts, web/board]
-updated: 2026-11-13
-sources: [cli/tasks.ts, cli/task-results.ts, cli/task-service.ts, cli/state.ts, cli/web-tasks.test.ts, cli/tasks.test.ts, cli/task-results.test.ts, web/board]
-updated: 2026-11-13
+sources: [web/pages/tasks-page.tsx, web/pages/task-page.tsx, web/components, web/lib, cli/tasks.ts, cli/task-results.ts, cli/task-service.ts, cli/state.ts, cli/web-tasks.test.ts, cli/tasks.test.ts, cli/task-results.test.ts]
+updated: 2026-11-14
+---
 # Tasks
 
 Part of [[Web board]].
 
+## React pages (2026-11-14)
+
+The Tasks list and the task page are React pages: `web/pages/tasks-page.tsx` and `task-page.tsx`, built from `web/components` and `web/ui`, with data and actions in `web/lib` (`hooks/use-tasks.ts`, `hooks/use-task.ts`, `store.ts`, `api.ts`, pure rules in `tasks.ts` and `task-results.ts`). The Board App (`web/pages/board/pages.tsx`) draws each into its container (`#tasksv`, `#taskpagev`) the first time its view opens (`Once`, from `lib/shell`'s `seen`, set by `go()` in `views.ts`). The old `tasks.ts`, `task-page.ts` and `task-results.ts` are gone. The same routes and payloads as before: `GET /tasks?all=1`, `GET /task?id=&dir=` (polled every 4 s and when the project changes), `POST /task` with `op, id, dir, operationId, revision`. A redraw is React's, so an open filter or "..." menu is never closed by a refresh and a click lands first time. The Tasks page docks the board's `#bq`, `#hx` and `#newtop` with `useDock` and puts them back on leaving; `#bq`/`#newtop` sit in `.kz-keep` slots so the reset leaves them alone. The "..." menu is `ActionMenu`; Delete and Abandon ask through `ConfirmDialog`. Details below that name `.tp-*` classes or `dock()` describe the same behaviour in its old files.
+
 ## Task page layout (2026-11-11)
 
-Result first: a file strip with thumbnails (`.tp-rail`) beside one large stage, the conversation in a docked right column (`#tp-drawer`, inside `.tp-layout`; on a phone it replaces the result while open, opened by the header chat button; it opens itself only while a decision waits; it starts below the header so Start planning and Accept stay reachable), and one message bar at the bottom. Accept ("Looks good") and the ⋯ details menu (checks, agent, runs, task id) live in the header. Result images sit in `.tp-zoom`, wired by `web/board/zoom.ts`: pinch, ctrl/plain wheel, drag, double-click, and −/100%/+ buttons. It is a `div`, not an `aside`: the board's global `aside` rules hide it.
+Result first: a file strip with thumbnails (`.tp-rail`) beside one large stage, the conversation in a docked right column (`#tp-drawer`, inside `.tp-layout`; on a phone it replaces the result while open, opened by the header chat button; it opens itself only while a decision waits; it starts below the header so Start planning and Accept stay reachable), and one message bar at the bottom. Accept ("Looks good") and the ⋯ details menu (checks, agent, runs, task id) live in the header. Result images sit in `.tp-zoom`, wired by `web/lib/task/zoom.ts`: pinch, ctrl/plain wheel, drag, double-click, and −/100%/+ buttons. It is a `div`, not an `aside`: the board's global `aside` rules hide it.
 
 ## Actions and stuck states (2026-11-13)
 
-- `allowedActions()` in `cli/task-service.ts` is the one place that says which buttons a task may use (`accept` with an `acceptWhy`, `stop`, `resume`, `abandon`, `archive`, `delete`, `start`). `taskView()` adds it as `actions` (and `agentAlive` when given the hooks); `web/board/task-page.ts` only draws it, and `taskAction` refuses the rest, so page and server cannot disagree. Looks good is not offered while the run is live (still reviewing) or awaiting a decision.
+- `allowedActions()` in `cli/task-service.ts` is the one place that says which buttons a task may use (`accept` with an `acceptWhy`, `stop`, `resume`, `abandon`, `archive`, `delete`, `start`). `taskView()` adds it as `actions` (and `agentAlive` when given the hooks); `web/pages/task-page.tsx` only draws it, and `taskAction` refuses the rest, so page and server cannot disagree. Looks good is not offered while the run is live (still reviewing) or awaiting a decision.
 - `reconcile()` runs on every task read and repairs states that have no exit: `normalizePause` clears a pause or error on any status except stopping, interrupted and failed (the old "ready but paused" task); a `stopping` task with no live terminal becomes `interrupted`; one with a live terminal gets the kill sent again. `taskHooks.find` (`cli/web.ts`) finds the terminal of a run with no `launch.pty`; with none, Stop says the agent may still run outside the board.
 - Stop is a no-op unless a live run exists (or the agent is alive on a failed/interrupted task). Resume works from stopping. Abandon checks the revision first and does the kill and `abandonRun` inside the locked mutation; a done, abandoned or missing run counts as success and archives the task. Delete only before any run exists.
 - A refused result (unreceipted input, unconfirmed proposal, bad output) only adds a `result-refused` event; only a failed copy to disk (507) pauses and fails the task. A result that arrives while stopping or interrupted is saved and the stop stands.

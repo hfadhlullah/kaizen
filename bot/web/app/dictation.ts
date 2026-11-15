@@ -1,6 +1,6 @@
 import { $, el, icon, toast } from "./dom.ts";
 
-// ---- dictation: Whisper in the page, adapted from the kaizen board (web/board/dictation.ts).
+// ---- dictation: Whisper in the page, adapted from the kaizen board (web/lib/dictation/engine.ts).
 // Audio never leaves the browser. Library and model download only on the first press, from
 // cdn.jsdelivr.net and huggingface.co, after a one-time note; nothing is fetched at page load.
 const TFJS = "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.0",

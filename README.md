@@ -146,7 +146,7 @@ bun run cli/install.ts    # install from this checkout
 | `skills/` | The workflow as Agent Skills folders: `kaizen/` (`SKILL.md`, the `spec-*.md` stage contracts, `adapters.md`, `config.default.yml`), `kaizen-help/`, and `media/` with `kaizen-deck/`, `kaizen-video/`, `kaizen-book/`, `kaizen-game/`. |
 | `agents/` | The Claude Code subagents: `kaizen-planner`, `kaizen-builder`, `kaizen-reviewer`. |
 | `commands/` | The `/kaizen-*` slash commands, one file each. |
-| `web/` | The board and notebook front end: `board.html`, `notes.html`, `notebook.ts`. |
+| `web/` | The board and notebook front end: page shells in `html/`, one folder per app, the React layers, and `dist/` (the generated bundles). See [`web/README.md`](web/README.md). |
 | `bot/` | Kaizen Bot — a separate private package with its own tests and build. See [its README](bot/README.md). |
 | `docs/` | The guide and internal notes, indexed in [`docs/README.md`](docs/README.md). |
 | `design.md` | Design notes for the repo. |

@@ -4,23 +4,11 @@ import { test, expect } from "bun:test";
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, realpathSync, rmSync, utimesSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { launchMode, closeSessions, readSessions, sweepSessions } from "./state.ts";
+import { closeSessions, readSessions, sweepSessions } from "./state.ts";
 import { loginEnv, startPty, writePty, submitPty, attachPty, ptyState, exitPty, lastLine, frames } from "./pty.ts";
 import { conptyHost, innerCommand, resizeSeq } from "./conpty.ts";
 
 const root = realpathSync(mkdtempSync(join(tmpdir(), "kaizen-pty-")));
-
-test("agent.launch: card unless the config chain says terminal, comments between keys allowed", () => {
-  const p = join(root, "mode");
-  mkdirSync(join(p, ".kaizen"), { recursive: true });
-  // The global file is the real one, so only the project file is varied here.
-  writeFileSync(join(p, ".kaizen", "config.yml"), "agent:\n  # where\n  default: auto\n  # the board\n  launch: terminal\n");
-  expect(launchMode(p)).toBe("terminal");
-  writeFileSync(join(p, ".kaizen", "config.yml"), "agent:\n  launch: card\n");
-  expect(launchMode(p)).toBe("card");
-  writeFileSync(join(p, ".kaizen", "config.yml"), "agent.launch: terminal\n");
-  expect(launchMode(p)).toBe("terminal");
-});
 
 test.skipIf(process.platform === "win32")("the board runs the agent in the card: output, input, origin check, and closing", async () => {
   const homeDir = join(root, "home"), proj = join(homeDir, "a"), st = join(proj, ".kaizen"), bin = join(root, "bin");
