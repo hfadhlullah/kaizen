@@ -95,7 +95,14 @@ delete process.env.KAIZEN_DESKTOP_BUNDLED;
 // So the pages are kept as they were at start, and read live (dev edits) only while
 // the installed version is still the one this board runs.
 const AT_START = new Map([PAGE, BOARD_JS, NOTES_PAGE, NOTES_JS, TERM_JS, TERM_CSS, VIDEO_PAGE, VIDEO_JS, ANNOTATE_JS, UI_CSS, POPUP_PAGE, POPUP_JS, BOOT_JS, ...Object.values(STYLES)].map((f) => [f, existsSync(f) ? readText(f) : null]));
-const served = (f: string) => installed() === VERSION && existsSync(f) ? readText(f) : AT_START.get(f) ?? null;
+// `bun run dev` (cli/dev.ts) sets KAIZEN_DEV: every page file is read from disk on each request, and pages get a small
+// script that reloads them when the dev script has rebuilt the bundles (GET /__dev/stream, POST /__dev/reload).
+const DEV = process.env.KAIZEN_DEV === "1";
+const DEV_TAG = `<script>new EventSource("/__dev/stream").onmessage=(e)=>{if(e.data==="reload")location.reload()}</script>`;
+const served = (f: string) => {
+  const body = DEV ? (existsSync(f) ? readText(f) : null) : installed() === VERSION && existsSync(f) ? readText(f) : AT_START.get(f) ?? null;
+  return DEV && body !== null && f.endsWith(".html") ? body.replace("</head>", DEV_TAG + "</head>") : body;
+};
 
 // A board answers at url and runs the installed version. A board from before the
 // version header sends none, so it counts as stale too.
@@ -392,6 +399,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
   // Change notification: one SSE stream per open board, fed by fs.watch where it
   // works and a slow poll where it does not.
   const clients = new Set<ReadableStreamDefaultController>();
+  const devClients = new Set<ReadableStreamDefaultController>();
   // Shells the board started (POST /shell), by /pty key; dead ones drop on the next /shells.
   const shells = new Map<string, { key: string; dir: string; title: string; agent: string; run: string; ws?: string; pid?: number }>();
   const SHELL_CAP = 8;
@@ -2146,6 +2154,16 @@ export async function web(repoDir: string, opts: Opts = {}) {
         const u = (await freshImages(dir, url.searchParams.get("id") ?? ""))[Number(url.searchParams.get("i"))];
         if (!u || !/^https:\/\//.test(u)) return bad("no such image", 404);
         return new Response(null, { status: 302, headers: { location: u, "cache-control": "no-store", "referrer-policy": "no-referrer" } });
+      }
+
+      if (DEV && path === "/__dev/stream" && req.method === "GET") {
+        let c: ReadableStreamDefaultController;
+        return new Response(new ReadableStream({ start(x) { c = x; devClients.add(x); x.enqueue("data: hello\n\n"); }, cancel() { devClients.delete(c); } }),
+          { headers: { "content-type": "text/event-stream", "cache-control": "no-store", "connection": "keep-alive" } });
+      }
+      if (DEV && path === "/__dev/reload" && req.method === "POST" && local(req)) {
+        for (const c of devClients) { try { c.enqueue("data: reload\n\n"); } catch { devClients.delete(c); } }
+        return json({ ok: true, clients: devClients.size });
       }
 
       if (req.method === "GET" && path === "/events") {

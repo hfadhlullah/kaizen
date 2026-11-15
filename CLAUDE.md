@@ -58,4 +58,5 @@ bun install               # dev dependencies only
 bun test                  # the suite; what CI runs (Ubuntu, macOS, Windows)
 bun run cli/install.ts    # install from this checkout — the links point at it
 bun run build:web         # rebuild the bundles in web/dist
+bun run dev               # the board with live reload: rebuilds on every change under web/ and reloads the page
 ```
