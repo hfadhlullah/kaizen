@@ -4,6 +4,7 @@
 // snapshot on every draw and answers the callbacks below. The layout (which item is in which pane, and how big) is the
 // layout store's; a pane is a component keyed by its item, so a redraw never moves a live terminal.
 import { create } from "zustand";
+import { isPhone } from "@lib/core";
 import type { Kept } from "./kept.ts";
 import type { PreviewTarget } from "./preview.ts";
 
@@ -64,6 +65,22 @@ export type RunActions = {
   currentRun(): { dir: string; id: string } | null; // the run the panel shows (the annotator sends notes to it)
   previewTarget(): PreviewTarget | null; // what the Preview tab reads: the workspace, its newest run and that run's 03-impl.md
 };
+// Whether the run panel is folded away is kept per browser (a computer's choice; a phone's sheet always starts down), so a
+// reload shows it the way it was left.
+const FLIP = "kz-rflip";
+function storedFlip() {
+  try {
+    return !isPhone() && localStorage.getItem(FLIP) === "1";
+  } catch {
+    return false;
+  }
+}
+function keepFlip(flip: boolean) {
+  if (isPhone()) return;
+  try {
+    flip ? localStorage.setItem(FLIP, "1") : localStorage.removeItem(FLIP);
+  } catch {}
+}
 export const useRunView = create<RunView>()(() => ({
   message: null,
   screens: [],
@@ -84,11 +101,14 @@ export const useRunView = create<RunView>()(() => ({
   picker: null,
   kept: {},
   recent: [],
-  flip: false,
+  flip: storedFlip(),
   awaiting: false,
   focus: { id: null, n: 0 },
 }));
-export const setFlip = (flip: boolean) => useRunView.setState({ flip });
+export const setFlip = (flip: boolean) => {
+  useRunView.setState({ flip });
+  keepFlip(flip);
+};
 export const focusPane = (id?: string) => useRunView.setState((s) => ({ focus: { id: id ?? null, n: s.focus.n + 1 } }));
 export const setRunView = useRunView.setState;
 const noop = () => {};
