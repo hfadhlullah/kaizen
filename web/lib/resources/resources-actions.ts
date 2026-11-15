@@ -40,9 +40,10 @@ export function openTerminal(t: { key: string; dir?: string; ws: string }) {
 export async function loadPorts() {
   try {
     const r = await fetch("/ports");
-    if (r.ok) setResources({ ports: await r.json() });
+    // Not ok: a board started before the Ports list existed has no such route; say so instead of reading forever.
+    setResources(r.ok ? { ports: await r.json(), portsError: "" } : { portsError: "The board is older than this list: restart it to see ports." });
   } catch {
-    /* board restarting */
+    setResources({ portsError: "The board did not answer." });
   }
 }
 // Stop: the board stops what listens on that port (a process of this user, never the board itself), then the list is read again.

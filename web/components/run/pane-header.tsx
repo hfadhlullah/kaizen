@@ -1,4 +1,5 @@
 import { run, useRunView } from "@lib/run";
+import { IconButton } from "@components/shared";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger, Icon } from "@web/ui";
 
 // What a pane's header holds (the header element, its handle for dragging, is pane.tsx's): the title, a menu that moves
@@ -12,14 +13,7 @@ export function PaneHeader({ id }: { id: string }) {
       <span className="min-w-0 flex-1 truncate">{title}</span>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            title="Move to another tab"
-            aria-label={`Move ${title}`}
-            className="cursor-pointer px-1 text-muted-foreground"
-          >
-            ⋯
-          </button>
+          <IconButton size="sm" icon="more" label="Move to another tab" aria-label={`Move ${title}`} />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-50 text-sm">
           <DropdownMenuLabel>Move to</DropdownMenuLabel>
@@ -35,15 +29,7 @@ export function PaneHeader({ id }: { id: string }) {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <button
-        type="button"
-        title="Close"
-        aria-label={`Close ${title}`}
-        onClick={() => run.act.closeItem(id)}
-        className="cursor-pointer px-1 text-muted-foreground"
-      >
-        ×
-      </button>
+      <IconButton size="sm" icon="x" label="Close" aria-label={`Close ${title}`} onClick={() => run.act.closeItem(id)} />
     </>
   );
 }

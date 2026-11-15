@@ -390,7 +390,8 @@ function PortRow({ p }: { p: Port }) {
 
 // What listens on a port inside the board's projects (dev servers, mostly), with Open and Stop.
 function Ports() {
-  const ports = useResources((s) => s.ports);
+  const ports = useResources((s) => s.ports),
+    error = useResources((s) => s.portsError);
   return (
     <div className={cn(tile, "col-span-full")}>
       <div className="mb-1.5 flex items-center justify-between gap-1.5 text-sm font-semibold text-strong">
@@ -407,7 +408,11 @@ function Ports() {
         </div>
       ) : (
         <div className="text-xs text-muted-foreground">
-          {ports ? "Nothing is listening in your projects. Run app in a workspace starts a dev server." : "Reading…"}
+          {error && !ports?.length
+            ? error
+            : ports
+              ? "Nothing is listening in your projects. Run app in a workspace starts a dev server."
+              : "Reading…"}
         </div>
       )}
     </div>

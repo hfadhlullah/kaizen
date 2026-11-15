@@ -15,6 +15,7 @@ export const useResources = create<{
   disk: Disk | null;
   history: number[];
   ports: Port[] | null;
+  portsError: string;
   confirmPort: number; // the port whose Stop awaits Keep or Stop
   open: boolean; // the popup
   memOpen: boolean;
@@ -26,6 +27,7 @@ export const useResources = create<{
   disk: null,
   history: [],
   ports: null,
+  portsError: "",
   confirmPort: 0,
   open: false,
   memOpen: flag("kz-res-mem"),

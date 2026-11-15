@@ -76,10 +76,10 @@ export function TerminalBar() {
                   type="button"
                   title="Close terminal"
                   aria-label="Close terminal"
-                  className="grid size-4 place-items-center rounded-full text-[13px] leading-none opacity-60 hover:bg-border hover:text-foreground hover:opacity-100"
+                  className="grid size-5 place-items-center rounded-sm opacity-60 hover:bg-border hover:text-foreground hover:opacity-100"
                   onClick={() => close(k)}
                 >
-                  ×
+                  <Icon name="x" className="size-(--ico)" />
                 </button>
               </div>
             );
