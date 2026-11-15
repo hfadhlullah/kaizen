@@ -703,3 +703,5 @@ html.grabbing,html.grabbing *{cursor:grabbing!important}
 [data-rail=min] .hwsslot .proj{width:32px;height:32px;padding:0;margin:0;display:grid;place-items:center}
 /* The Terminal page's header bar: 40px like the run workspace's tab bar. */
 @media(min-width:641px){body.termv .hdr{height:40px;min-height:40px}}
+/* The run workspace's first tab starts at the card's edge (the tab's own 12px is the margin), not 6px further in. */
+@media(min-width:641px){body.runv #rtabs{padding-left:0}}

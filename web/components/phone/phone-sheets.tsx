@@ -49,7 +49,7 @@ function Fresh({ s }: { s: NewSheet }) {
     [yolo, setYolo] = useState(s.yolo);
   return (
     <>
-      <SheetTitle className="mb-2 font-mono text-base font-normal text-foreground">New in</SheetTitle>
+      <SheetTitle className="mb-2 font-mono text-base font-normal text-foreground">New agent in</SheetTitle>
       <Select value={spot} onValueChange={setSpot}>
         <SelectTrigger aria-label="Workspace" className="mb-2 min-h-11 w-full">
           <SelectValue />
