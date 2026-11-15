@@ -698,3 +698,5 @@ html.grabbing,html.grabbing *{cursor:grabbing!important}
 /* Collapsed side menu: the Home pill is a round icon button, centred (not a tall oval). */
 [data-rail=min] .hwsslot .pgrp{width:32px;height:32px;margin:4px auto 6px;padding:0;border-radius:50%;display:grid;place-items:center}
 [data-rail=min] .hwsslot .proj{width:32px;height:32px;padding:0;margin:0;display:grid;place-items:center}
+/* The Terminal page's header bar: 40px like the run workspace's tab bar. */
+@media(min-width:641px){body.termv .hdr{height:40px;min-height:40px}}

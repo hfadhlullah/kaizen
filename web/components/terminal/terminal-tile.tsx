@@ -6,7 +6,6 @@ import { labelOf, stateOf, terminalActions, terminalLayout, type Session } from 
 import { Button } from "@web/ui";
 
 const DOT = { running: "bg-running", asking: "bg-warning", ended: "bg-muted-foreground opacity-60" };
-const btn = "size-[22px] text-muted-foreground [&_svg]:size-[13px]";
 
 // A header button took focus off the terminal; give it back so typing carries on.
 export const focusTerminal = (key: string) =>
@@ -79,7 +78,7 @@ export function TerminalTile({
       <header
         draggable
         title={`${c.kind === "run" ? c.id : c.text} · ${c.where}${index < 9 ? ` · Alt+${index + 1}` : ""}`}
-        className={cn("flex min-h-[26px] cursor-grab select-none items-center gap-2 pr-1 pl-2.5", phone && "hidden")}
+        className={cn("flex min-h-[26px] cursor-default select-none active:cursor-grabbing items-center gap-2 pr-1 pl-2.5", phone && "hidden")}
         onDragStart={(e) => {
           e.dataTransfer.setData("text/kz-term", k);
           e.dataTransfer.effectAllowed = "move";
@@ -113,19 +112,19 @@ export function TerminalTile({
           </Button>
         )}
         {c.kind !== "shell" && (
-          <IconButton icon="open" label="Open card" className={btn} onClick={() => host.openCard(c)} />
+          <IconButton icon="open" label="Open card" size="sm" onClick={() => host.openCard(c)} />
         )}
         <IconButton
           icon={max ? "min" : "max"}
           label={`${maxLabel} (Ctrl+Shift+M)`}
-          className={btn}
+          size="sm"
           onClick={() => (terminalLayout.toggleMax(k), focusTerminal(k))}
         />
-        {!ended && <IconButton icon="dash" label="Hide" className={btn} onClick={hide} />}
+        {!ended && <IconButton icon="dash" label="Hide" size="sm" onClick={hide} />}
         <IconButton
           icon="close"
           label={ended ? "Close" : "Exit session"}
-          className={btn}
+          size="sm"
           onClick={ended ? hide : exit}
         />
       </header>

@@ -121,7 +121,7 @@ export function Pane({
     >
       <header
         className={cn(
-          "ph flex h-(--pane-h) cursor-grab items-center justify-between gap-1.5 px-2.5 pt-1 text-[11px] text-muted-foreground",
+          "ph flex h-(--pane-h) cursor-default active:cursor-grabbing items-center justify-between gap-1.5 px-2.5 pt-1 text-[11px] text-muted-foreground",
           !split && "hidden",
         )}
         draggable

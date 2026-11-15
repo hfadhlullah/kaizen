@@ -13,9 +13,9 @@ export function TerminalModes() {
           onPressedChange={() => terminalLayout.mode(v)}
           title={label}
           aria-label={label}
-          className="grid size-8 place-items-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground data-[state=on]:bg-muted data-[state=on]:text-foreground"
+          className="grid size-6 place-items-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground data-[state=on]:bg-muted data-[state=on]:text-foreground"
         >
-          <Icon name={icon} className="size-4" />
+          <Icon name={icon} className="size-(--ico)" />
         </Toggle>
       ))}
     </>
