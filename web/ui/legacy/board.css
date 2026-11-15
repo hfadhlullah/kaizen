@@ -675,11 +675,11 @@ body.termv #combo,body.homev #combo{display:none!important}
 body.taskv .hdr #bq,body.taskv .hdr #newtop{display:none!important}
 /* The run panel's footer keeps clear of the floating terminal button at the window's bottom right. */
 @media(min-width:641px){body:not(.runv) #panel:not(.docked) #pfoot{padding-right:64px}}
-/* Rail icon buttons read as one size: the Board icon was 18px beside 14px siblings, and the gear fills its 24px box (22px of
-   ink) where the bug and the moon fill 16px, so each gets the size that makes the drawn icon about 11px. */
-.rail .psec a.pbd svg{width:var(--ico);height:var(--ico)}
-.rail .rbot a.it svg{width:12px;height:12px}
-.rail .rbot .ib.xs svg{width:16px;height:16px}
+/* Rail icons read as one size and one weight: 16px at stroke 1.8 draws a ~1.2px line, as clear as the Settings page's. The gear
+   fills its 24px box (22px of ink) where the bug and the moon fill 16px, so it is drawn at 14px with a thicker stroke (2.05)
+   to keep the same line weight and about the same weight on screen. */
+.rail a.it svg,.rail .psec a svg,.rail .psec button svg,.rail .rbot .ib.xs svg{width:16px;height:16px;stroke-width:1.8}
+.rail .rbot a.it svg{width:14px;height:14px;stroke-width:2.05}
 /* A shorter bottom edge: the status bar and the side menu's gear row take less height (the bar was 34px, the gear row sat 14px
    above the window's edge). */
 @media(min-width:641px){#foot{padding:2px 12px}#foot .fb{padding:2px 7px}.rail{padding-bottom:8px}.rail .rbot{margin-top:2px}}
