@@ -5,6 +5,9 @@ import {
   foldTile,
   heaviest,
   killTerminal,
+  loadPorts,
+  stopPortOf,
+  type Port,
   loadDisk,
   loadResources,
   memParts,
@@ -337,6 +340,80 @@ function Terminals() {
   );
 }
 
+function PortRow({ p }: { p: Port }) {
+  const ask = useResources((s) => s.confirmPort === p.port);
+  const btn = "h-[26px] rounded-sm border border-border bg-card px-2 text-xs text-foreground hover:bg-muted";
+  return (
+    <div className="group grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2.5 border-t border-border/70 py-[7px] first:border-t-0">
+      <b className="min-w-12 font-mono text-sm font-medium text-strong tabular-nums">:{p.port}</b>
+      <span className="min-w-0">
+        <b className="block truncate font-medium text-strong" title={p.cmd}>
+          {p.name || "process"}
+        </b>
+        <small className="block truncate text-xs text-muted-foreground" title={p.cwd}>
+          {p.project}
+        </small>
+      </span>
+      <span className="flex gap-1">
+        {ask ? (
+          <>
+            <button type="button" className={btn} onClick={() => setResources({ confirmPort: 0 })}>
+              Keep
+            </button>
+            <button type="button" className={cn(btn, "border-danger/40 text-danger")} onClick={() => void stopPortOf(p.port)}>
+              Stop
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              className={btn}
+              onClick={() => window.open(`http://localhost:${p.port}`, "_blank", "noopener")}
+            >
+              Open
+            </button>
+            <button
+              type="button"
+              className={cn(btn, "[@media(hover:hover)]:opacity-0 group-focus-within:opacity-100 group-hover:opacity-100")}
+              aria-label={`Stop localhost:${p.port}`}
+              onClick={() => setResources({ confirmPort: p.port })}
+            >
+              Stop
+            </button>
+          </>
+        )}
+      </span>
+    </div>
+  );
+}
+
+// What listens on a port inside the board's projects (dev servers, mostly), with Open and Stop.
+function Ports() {
+  const ports = useResources((s) => s.ports);
+  return (
+    <div className={cn(tile, "col-span-full")}>
+      <div className="mb-1.5 flex items-center justify-between gap-1.5 text-sm font-semibold text-strong">
+        <span>Ports</span>
+        <small className="text-xs font-normal text-muted-foreground tabular-nums">
+          {ports?.length ? `${ports.length} listening` : ""}
+        </small>
+      </div>
+      {ports?.length ? (
+        <div className="-mr-1.5 max-h-[170px] overflow-y-auto overscroll-contain pr-1.5">
+          {ports.map((p) => (
+            <PortRow key={`${p.port}:${p.pid}`} p={p} />
+          ))}
+        </div>
+      ) : (
+        <div className="text-xs text-muted-foreground">
+          {ports ? "Nothing is listening in your projects. Run app in a workspace starts a dev server." : "Reading…"}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ResourcesButton() {
   const open = useResources((s) => s.open),
     res = useResources((s) => s.res),
@@ -345,10 +422,11 @@ export function ResourcesButton() {
   // Every 15 s while closed (the footer shows Kaizen's share); every 3 s while open, and the disk until it has been read.
   useEffect(() => {
     void loadResources();
-    if (open) void loadDisk();
+    if (open) (void loadDisk(), void loadPorts());
     const t = setInterval(
       () => {
         void loadResources();
+        if (open) void loadPorts();
         const d = useResources.getState().disk;
         if (open && (d?.scanning || !d?.at)) void loadDisk();
       },
@@ -401,6 +479,7 @@ export function ResourcesButton() {
               <Storage slim={one && !diskOpen} />
             </div>
             <Terminals />
+            <Ports />
           </>
         ) : null}
       </PopoverContent>

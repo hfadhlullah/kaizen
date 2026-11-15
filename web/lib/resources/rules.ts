@@ -9,6 +9,8 @@ export type Terminal = {
   dir?: string;
   rss?: number | null;
 };
+// A port a process of one of the board's projects listens on (GET /ports).
+export type Port = { port: number; pid: number; name: string; cmd: string; cwd: string; project: string };
 export type Resources = { system: { used: number; total: number }; kaizen: number; terminals: Terminal[] };
 export type Disk = { at?: number; total: number; rows: { name: string; bytes: number }[]; scanning?: boolean };
 

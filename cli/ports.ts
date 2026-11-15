@@ -79,3 +79,40 @@ export async function stopPort(port: number, spare: number[] = []): Promise<{ ok
   for (const h of await holders(port)) { try { process.kill(h.pid, "SIGKILL"); } catch {} }
   return { ok: true, stopped };
 }
+
+// The TCP ports this user's processes listen on, with where each runs (Linux: `ss` and /proc). `where` is the project folder
+// the process works in, so the board lists the apps of its own projects and not every service on the computer.
+export type Listener = { port: number; pid: number; name: string; cmd: string; cwd: string };
+export function parseListeners(ss: string, info: (pid: number) => { cmd: string; cwd: string; mine: boolean }): Listener[] {
+  const seen = new Set<string>(), out: Listener[] = [];
+  for (const line of ss.split("\n")) {
+    const port = Number(/[:\]](\d+)\s+\S+:\*|[:\]](\d+)\s+\S+\s*$/.exec(line)?.[1] ?? /:(\d+)\s/.exec(line)?.[1]);
+    if (!port) continue;
+    const name = /users:\(\("([^"]+)"/.exec(line)?.[1] ?? "";
+    for (const [, p] of line.matchAll(/pid=(\d+)/g)) {
+      const pid = Number(p), k = `${port}:${pid}`;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      const i = info(pid);
+      if (i.mine) out.push({ port, pid, name, cmd: i.cmd || name, cwd: i.cwd });
+    }
+  }
+  return out.sort((a, b) => a.port - b.port);
+}
+// The listeners whose working folder is inside one of `dirs`; each with the folder it matched.
+export const inProjects = (list: Listener[], dirs: string[]) =>
+  list.flatMap((l) => {
+    const d = dirs.filter((x) => l.cwd === x || l.cwd.startsWith(x + "/")).sort((a, b) => b.length - a.length)[0];
+    return d ? [{ ...l, project: d }] : [];
+  });
+export async function listeners(): Promise<Listener[]> {
+  if (process.platform !== "linux") return [];
+  const mine = typeof process.getuid === "function" ? process.getuid() : null;
+  return parseListeners(await run(["ss", "-ltnpH"]), (pid) => {
+    let cmd = "", cwd = "", uid = mine;
+    try { cmd = readFileSync(`/proc/${pid}/cmdline`, "utf8").split("\0").join(" ").trim(); } catch {}
+    try { cwd = readlinkSync(`/proc/${pid}/cwd`); } catch {}
+    try { uid = Number(/^Uid:\s+(\d+)/m.exec(readFileSync(`/proc/${pid}/status`, "utf8"))?.[1]); } catch {}
+    return { cmd, cwd, mine: mine === null || uid === mine };
+  });
+}

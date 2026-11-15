@@ -22,7 +22,7 @@ import { agentLine, failStart, handoffModel, markRunning, readWorkers, requested
 import { childDied, childQuiet, markWoken, move, requestOpen, readHandoff, refused, started, wakeAction, wakeLine, type Handoff } from "./handoff.ts";
 import { processTable, storage, systemMemory, treeRss, type Root } from "./resources.ts";
 import { attachPty, frames, writePty, submitPty, resizePty, exitPty, killPty, panePid, ptyState, ptyKeys, adoptLoginEnv, startPty, ptySupported, detachPty, ptyTail, ptyTmux, tmuxAlive, RESUMED } from "./pty.ts";
-import { conflictPort, holders, stopPort } from "./ports.ts";
+import { conflictPort, holders, inProjects, listeners, stopPort } from "./ports.ts";
 import { snapshot, snapWorker } from "./state-snap.ts";
 import { claudeUsage, claudeUsageAt, codexUsage, codexUsageAt, phonePeers, type Usage } from "./usage.ts";
 import { readSources, addSource, removeSource, moveSource, setCategory, setWriteback, setPaused, readIcebox, applySort, promote, dismiss, restore, capture, editItem, setKind, setTags, setBoard, saveBoard, removeBoard, snooze, unsnooze, readBoards, kindOf, isSnoozed, markDone, markReplied, gatherSource, freshImages, gatherAll, gatherDirs, due, socialUrl, socialOf } from "./sources.ts";
@@ -1347,6 +1347,15 @@ export async function web(repoDir: string, opts: Opts = {}) {
         // The shell may already have left /shells (dead ones drop there); its output is kept a little longer.
         const p = /^sh-[\w-]+$/.test(key) ? conflictPort(ptyTail(key) ?? "") : null;
         return json(p ? { port: p, holders: await holders(p), board: p === port } : { port: null });
+      }
+      // The ports this user's processes listen on, inside the board's projects (the Resources popup's Ports). Not the board's own,
+      // not the agents (Claude Code listens on a local port of its own). Linux only; elsewhere the list is empty.
+      if (req.method === "GET" && path === "/ports") {
+        if (!local(req)) return bad("cross-origin request refused", 403);
+        const dirs = states(true).filter((d) => d !== join(home, ".kaizen")).map((d) => dirname(d));
+        const agents = [...KNOWN_AGENTS.map((a) => a.cmd), "cursor-agent"];
+        const list = inProjects(await listeners(), dirs).filter((l) => l.pid !== process.pid && l.port !== port && !agents.includes(l.name));
+        return json(list.map((l) => ({ port: l.port, pid: l.pid, name: l.name, cmd: l.cmd, cwd: l.cwd, project: label(join(l.project, ".kaizen")) })));
       }
       // Stops what listens on a port (the question above, answered yes): a process of this user, never the board itself.
       if (req.method === "POST" && path === "/port/stop") {

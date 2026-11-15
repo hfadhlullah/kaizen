@@ -1,5 +1,5 @@
 // The popup's requests: both reads, killing a terminal, opening one, and the disk cleanup.
-import { host } from "@lib/core";
+import { host, toast } from "@lib/core";
 import { setResources, useResources } from "./resources-store.ts";
 
 export async function loadResources() {
@@ -36,4 +36,23 @@ export function openTerminal(t: { key: string; dir?: string; ws: string }) {
   setResources({ open: false, confirm: "", failed: "" });
   if (!host.open.term({ dir: t.dir, ws: t.ws, key: t.key }))
     location.href = `/?view=ws&dir=${encodeURIComponent(t.dir ?? "")}&ws=${encodeURIComponent(t.ws)}`;
+}
+export async function loadPorts() {
+  try {
+    const r = await fetch("/ports");
+    if (r.ok) setResources({ ports: await r.json() });
+  } catch {
+    /* board restarting */
+  }
+}
+// Stop: the board stops what listens on that port (a process of this user, never the board itself), then the list is read again.
+export async function stopPortOf(port: number) {
+  setResources({ confirmPort: 0 });
+  try {
+    const r = await fetch("/port/stop", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ port }) });
+    if (!r.ok) toast(`Could not stop localhost:${port}: ${((await r.json()) as { error?: string }).error ?? "unknown error"}`);
+  } catch {
+    toast(`Could not stop localhost:${port}: the board did not answer`);
+  }
+  await loadPorts();
 }
