@@ -23,7 +23,7 @@ public static class KzPty {
   [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr h);
   static COORD Size(int c, int r) { COORD s; s.X = (short)c; s.Y = (short)r; return s; }
   static FileStream Of(IntPtr h, FileAccess a) { return new FileStream(new Microsoft.Win32.SafeHandles.SafeFileHandle(h, true), a); }
-  public static int Run(string cmd, int cols, int rows) {
+  public static int Run(string cmd, int cols, int rows, string cwd = null) {
     IntPtr inR, inW, outR, outW, hpc;
     if (!CreatePipe(out inR, out inW, IntPtr.Zero, 0) || !CreatePipe(out outR, out outW, IntPtr.Zero, 0)) return 1;
     int hr = CreatePseudoConsole(Size(cols, rows), inR, outW, 0, out hpc);
@@ -38,7 +38,7 @@ public static class KzPty {
     if (!InitializeProcThreadAttributeList(si.attrs, 1, 0, ref sz)
       || !UpdateProcThreadAttribute(si.attrs, 0, (IntPtr)0x20016, hpc, (IntPtr)IntPtr.Size, IntPtr.Zero, IntPtr.Zero)) return 1;
     PI pi;
-    if (!CreateProcessW(null, cmd, IntPtr.Zero, IntPtr.Zero, false, 0x80000, IntPtr.Zero, null, ref si, out pi)) {
+    if (!CreateProcessW(null, cmd, IntPtr.Zero, IntPtr.Zero, false, 0x80000, IntPtr.Zero, string.IsNullOrEmpty(cwd) ? null : cwd, ref si, out pi)) {
       Console.Error.WriteLine("CreateProcess failed: " + Marshal.GetLastWin32Error()); return 1; }
     // The console holds its own copies; ours would keep the pipes open past its end.
     CloseHandle(inR); CloseHandle(outW);
@@ -84,8 +84,11 @@ const SCRIPT = `$ProgressPreference = 'SilentlyContinue'
 Add-Type -TypeDefinition @'
 ${HOST}
 '@
-Set-Location -LiteralPath $env:KZ_PTY_CWD
-exit [KzPty]::Run($env:KZ_PTY_CMD, [int]$env:KZ_PTY_COLS, [int]$env:KZ_PTY_ROWS)`;
+if ($env:KZ_PTY_CWD) {
+  try { [System.IO.Directory]::SetCurrentDirectory($env:KZ_PTY_CWD) } catch {}
+  try { Set-Location -LiteralPath $env:KZ_PTY_CWD } catch {}
+}
+exit [KzPty]::Run($env:KZ_PTY_CMD, [int]$env:KZ_PTY_COLS, [int]$env:KZ_PTY_ROWS, $env:KZ_PTY_CWD)`;
 
 export const conptyHost = () => Buffer.from(SCRIPT, "utf16le").toString("base64");
 

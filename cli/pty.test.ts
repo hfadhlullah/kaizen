@@ -222,6 +222,21 @@ test.skipIf(process.platform !== "win32")("on Windows a card agent runs in a pse
   expect(ptyState(key)?.alive).toBe(false);
 }, 60_000);
 
+test.skipIf(process.platform !== "win32")("on Windows an interactive shell starts in its cwd even if profile navigates home", async () => {
+  const { powershellExe } = await import("./state.ts");
+  const key = `win-cwd-${Date.now()}`;
+  const out: string[] = [];
+  const testDir = join(root, "test-proj");
+  mkdirSync(testDir, { recursive: true });
+  startPty(key, [powershellExe()], testDir);
+  attachPty(key, (d) => { if (d) out.push(d); });
+  const until = async (re: RegExp) => { for (let i = 0; i < 300 && !re.test(out.join("")); i++) await Bun.sleep(100); return out.join(""); };
+  expect(await until(new RegExp(testDir.replace(/[\\/]/g, "[\\\\/]"), "i"))).toContain("test-proj");
+  writePty(key, "exit\r");
+  for (let i = 0; i < 100 && ptyState(key)?.alive; i++) await Bun.sleep(100);
+  expect(ptyState(key)?.alive).toBe(false);
+}, 60_000);
+
 test.skipIf(process.platform === "win32")("submit: Enter reaches the agent on its own, not in the text's burst", async () => {
   const key = "submit-" + Date.now(), log = join(root, "chunks-" + key), script = join(root, "chunks.js");
   writeFileSync(script, `process.stdin.setRawMode(true); process.stdin.on("data", (d) => require("fs").appendFileSync(${JSON.stringify(log)}, JSON.stringify(d.toString()) + "\\n")); console.log("ready");`);

@@ -1098,7 +1098,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         const dir = homeWs ? HOME_WS : canonState(String(body.dir ?? ""));
         if (!homeWs && (!states(true).includes(dir) || dir === join(home, ".kaizen"))) return bad("choose a project", 404);
         if (homeWs) mkdirSync(HOME_WS, { recursive: true });
-        let cmd: string[];
+        let cmd: string[] | undefined;
         let agent = "";
         let bypass = false;
         // The run's own agent session, resumed here ("run:<dir>:<id>" names the run; the session
@@ -1146,7 +1146,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           const first = !signIn && typeof body.prompt === "string" && body.prompt.trim() && body.prompt.length <= 2000 ? body.prompt.trim() : "";
           const line = signIn ? [commandOf(a.cmd), ...(a.cmd === "codex" ? ["login"] : [])] : withEnv([commandOf(a.cmd), ...(bypass ? YOLO_FLAGS[a.cmd]! : []), ...argsOf(a.cmd), ...promptArgs(a.cmd, first)], a.cmd);
           cmd = acct.dir ? ["env", ...accountEnv(acct), ...line] : line;
-        } else cmd = process.platform === "win32" ? [powershellExe()] : [process.env.SHELL || "sh", "-l"];
+        }
         // A workspace folder: only an exact path from this project's own `git worktree list`.
         let cwd = homeWs ? HOME_WS : projectOf(dir);
         if (body.ws != null) {
@@ -1168,6 +1168,12 @@ export async function web(repoDir: string, opts: Opts = {}) {
           cmd = process.platform === "win32" ? ["cmd.exe", "/c", ...d] : [process.env.SHELL || "sh", "-lc", d.join(" ")];
           dev = true;
         }
+        const targetDir = homeWs ? home : cwd;
+        if (!cmd) {
+          cmd = process.platform === "win32"
+            ? [powershellExe(), "-NoExit", "-Command", `Set-Location -LiteralPath '${targetDir.replace(/'/g, "''")}'`]
+            : [process.env.SHELL || "sh", "-l"];
+        }
         for (const k of shells.keys()) if (!ptyState(k)?.alive) shells.delete(k);
         if ([...shells.values()].filter((x) => x.dir === dir).length >= SHELL_CAP) return bad(`at most ${SHELL_CAP} terminals per ${homeWs ? "workspace" : "project"}: close one first`, 429);
         const key = "sh-" + crypto.randomUUID().slice(0, 8);
@@ -1175,7 +1181,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         // A dev server it starts lets a phone in: Vite refuses a host it does not know (the tailnet name).
         // Home terminals run in the user's home folder (~); HOME_WS stays their record (dir and ws), which the
         // Home window, restart resume and the phone match on.
-        const pid = startPty(key, cmd, homeWs ? home : cwd, undefined, changed, {
+        const pid = startPty(key, cmd, targetDir, undefined, changed, {
           env: {
             KAIZEN_TERM: key,
             ...(process.platform === "win32" ? { AGY_CLI_DISABLE_AUTO_UPDATE: "1", CLAUDE_CODE_DISABLE_AUTO_UPDATER: "1", DISABLE_AUTO_UPDATER: "1" } : {}),

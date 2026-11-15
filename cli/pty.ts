@@ -140,9 +140,13 @@ export function startPty(key: string, cmd: string[], cwd: string, pidFile?: stri
   };
   if (WIN) {
     const ps = winPs();
+    let winCmd = cmd;
+    if (winCmd.length === 1 && /^(powershell|pwsh)(\.exe)?$/i.test(winCmd[0].split(/[/\\]/).pop() ?? "")) {
+      winCmd = [winCmd[0], "-NoExit", "-Command", `Set-Location -LiteralPath '${cwd.replace(/'/g, "''")}'`];
+    }
     p.proc = Bun.spawn([ps, "-NoProfile", "-NonInteractive", "-EncodedCommand", conptyHost()], {
       cwd,
-      env: { ...defaultChildEnv(), ...opts.env, KAIZEN_BOARD_PID: String(process.pid), KZ_PTY_CMD: innerCommand(ps, cmd), KZ_PTY_CWD: cwd, KZ_PTY_COLS: "120", KZ_PTY_ROWS: "32" },
+      env: { ...defaultChildEnv(), ...opts.env, KAIZEN_BOARD_PID: String(process.pid), KZ_PTY_CMD: innerCommand(ps, winCmd), KZ_PTY_CWD: cwd, KZ_PTY_COLS: "120", KZ_PTY_ROWS: "32" },
       stdin: "pipe", stdout: "pipe", stderr: "pipe", windowsHide: true,
     });
     const read = async (s: ReadableStream<Uint8Array>) => {
