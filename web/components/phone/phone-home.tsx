@@ -72,7 +72,7 @@ function AgentCards() {
         </button>
       </div>
       {groups.length ? (
-        <div className={cn(groups.length > 1 ? "grid-rows-2" : "grid-rows-1", "-mx-4 grid snap-x snap-proximity auto-cols-[min(44vw,164px)] grid-flow-col gap-2 overflow-x-auto overscroll-x-contain scroll-px-4 px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden")}>
+        <div className={cn(groups.length > 2 ? "grid-rows-2" : "grid-rows-1", "-mx-4 grid snap-x snap-proximity auto-cols-[min(44vw,164px)] grid-flow-col gap-2 overflow-x-auto overscroll-x-contain scroll-px-4 px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden")}>
           {groups.map((g) => {
             const { a, st } = g.rows[0]!;
             return (
