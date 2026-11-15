@@ -42,7 +42,7 @@ const ICO: Record<string, ReactNode> = {
 const Glyph = ({ name, className }: { name: string; className?: string }) => (
   <svg viewBox="0 0 24 24" aria-hidden="true" className={className}>
     <g fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      {ICO[name]}
+      {ICO[name] ?? <use href={`#i-${name}`} />}
     </g>
   </svg>
 );

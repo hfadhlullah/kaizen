@@ -151,21 +151,22 @@ export function buildRows({ cards, projects = [], agents = [] }: RailData, chats
       },
     });
   // Pages and actions. Each clicks the side menu's own control, so it behaves the same.
-  const acts: [string, string, () => void, string?][] = [
-    ["Chat", "page", page("home", "/"), "home"],
-    ["Icebox", "page", page("sources", "/?view=icebox"), "requests sources gathered capture inbox later add note"],
-    ["Tasks", "page", page("tasks", "/?view=tasks"), "backlog"],
-    ["Board", "page", page("board", "/?view=board"), "kanban runs"],
-    ["Notes", "page", () => go("/notebook"), "notebook docs"],
-    ["Settings", "page", page("settings", "/?view=settings"), "preferences config"],
-    ["New task", "act", () => (onBoard() ? newTask() : go("/?view=board")), "create add run"],
-    ["Add a project", "act", () => openAdd({ dir: null }), "clone folder create workspace"],
-    ["Toggle theme", "act", toggleTheme, "dark light"],
-    ["Collapse or expand menu", "act", toggleRail, "sidebar rail"],
-    ["Keyboard shortcuts", "act", () => setHelp(true), "keys help"],
-    ["Report an issue", "act", () => open("/issue", "_blank", "noopener"), "bug feedback"],
+  // [title, icon, what it does, keywords, a page]: each has its own icon (the sprite's name, or one the palette draws).
+  const acts: [string, string, () => void, string?, true?][] = [
+    ["Chat", "chat", page("home", "/"), "home", true],
+    ["Icebox", "inbox", page("sources", "/?view=icebox"), "requests sources gathered capture inbox later add note", true],
+    ["Tasks", "idea", page("tasks", "/?view=tasks"), "backlog", true],
+    ["Board", "board", page("board", "/?view=board"), "kanban runs", true],
+    ["Notes", "doc", () => go("/notebook"), "notebook docs", true],
+    ["Settings", "gear", page("settings", "/?view=settings"), "preferences config", true],
+    ["New task", "plus", () => (onBoard() ? newTask() : go("/?view=board")), "create add run"],
+    ["Add a project", "proj", () => openAdd({ dir: null }), "clone folder create workspace"],
+    ["Toggle theme", "moon", toggleTheme, "dark light"],
+    ["Collapse or expand menu", "side", toggleRail, "sidebar rail"],
+    ["Keyboard shortcuts", "kbd", () => setHelp(true), "keys help"],
+    ["Report an issue", "bug", () => open("/issue", "_blank", "noopener"), "bug feedback"],
   ];
-  for (const [title, ico, act, kw] of acts) out.push({ group: "Actions", title, hay: `${title} ${kw ?? ""}`, ico, act });
+  for (const [title, ico, act, kw, pg] of acts) out.push({ group: "Actions", title, hay: `${title} ${kw ?? ""}`, ico, act, page: pg });
   return out;
 }
 

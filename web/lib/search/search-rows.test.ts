@@ -19,7 +19,7 @@ test("with nothing typed: what waits on you, then the last few things touched", 
 });
 
 test("a board with little in it also lists the pages", () => {
-  const page = (t: string) => ({ ...it("Actions", t), ico: "page" });
+  const page = (t: string) => ({ ...it("Actions", t), page: true });
   const rows = shownRows([it("Runs", "one", 1), page("Tasks"), page("Board"), it("Actions", "Toggle theme")], "", none);
   expect(rows.map((r) => r.group)).toEqual(["Recent", "Go to", "Go to"]);
 });

@@ -309,7 +309,7 @@ test("board.html, notes.html and popup.html are small shells with no inline styl
     expect(html.length).toBeLessThan(1500);
     expect(html).toContain('<div id="root"></div>');
     expect(html).toContain(`<link rel="stylesheet" href="/${css}">`);
-    const boot = f === "popup" ? [] : ['<script src="/boot.js">'];
+    const boot = ['<script src="/boot.js">'];
     expect(html.match(/<script\b[^>]*>/g)).toEqual([...boot, `<script src="/${js}">`]);
     if (boot.length) expect(html.indexOf("/boot.js")).toBeLessThan(html.indexOf("<link rel=\"stylesheet\""));
     expect(html).not.toMatch(/<style\b|\sstyle=|<svg\b|<nav\b|<button\b|onclick=/);

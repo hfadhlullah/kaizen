@@ -8,7 +8,7 @@ import { focusFilter, newTask, setQuery, useBoard } from "@lib/board";
 import { openTaskRecord, refreshTasks, useTasks, filteredTasks, TASK_FILTERS } from "@lib/task";
 import { usePager } from "@lib/shared";
 import { host, setStore, useStore } from "@lib/core";
-import { Button } from "@web/ui";
+import { Button, Icon } from "@web/ui";
 
 // The attention-first list of durable tasks: its own search box (the text is the Board's, shared with the header's), tools and
 // New task button, so the page has no header of its own.
@@ -92,6 +92,7 @@ function Tasks() {
     <>
       <div className="mb-2.5 flex flex-wrap items-center gap-2">
         <label className="tk-q kz-keep">
+          <Icon name="search" className="size-3.5" />
           <FilterBox id="tq" placeholder="Search tasks (press /)" />
         </label>
         <span className="flex items-center gap-2">

@@ -8,6 +8,7 @@ export type Item = {
   at?: number;
   dot?: string;
   ico: string;
+  page?: boolean; // a page of the app (the empty box lists these when it has little else)
   act: () => void;
 };
 

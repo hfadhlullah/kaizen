@@ -20,7 +20,7 @@ export function shownRows(all: Item[], q: string, newTask: (text: string) => voi
     const need = all.filter((i) => i.dot === "wait" && (i.group === "Runs" || i.group === "Tasks")).sort(recent).slice(0, 3);
     const last = all.filter((i) => WORK.includes(i.group) && !need.includes(i)).sort(recent).slice(0, 5);
     const rows = [...need.map((i) => ({ ...i, group: "Needs you" })), ...last.map((i) => ({ ...i, group: i.group === "Current" ? "Current" : "Recent" }))];
-    if (rows.length < 4) rows.push(...all.filter((i) => i.group === "Actions" && i.ico === "page").map((i) => ({ ...i, group: "Go to" })));
+    if (rows.length < 4) rows.push(...all.filter((i) => i.group === "Actions" && i.page).map((i) => ({ ...i, group: "Go to" })));
     return rows;
   }
   const hit = match(all, q);
