@@ -653,3 +653,12 @@ test("web/ holds only folders and README.md", () => {
     .sort();
   expect(files).toEqual(["README.md"]);
 });
+
+// The CLI runs as-is and imports web code (cli/notes.ts -> web/notebook/notes-lib.ts) that uses the @lib/@web/@components aliases,
+// which Bun resolves from tsconfig.json: the npm package and the desktop app's staged copy (the package's "files") must ship it.
+test("package.json ships tsconfig.json, where the path aliases are", () => {
+  const root = join(web, "..");
+  const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+  expect(pkg.files).toContain("tsconfig.json");
+  expect(readFileSync(join(root, "tsconfig.json"), "utf8")).toContain('"@lib/*"');
+});
