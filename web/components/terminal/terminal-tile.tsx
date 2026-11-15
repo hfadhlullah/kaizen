@@ -58,12 +58,12 @@ export function TerminalTile({
       data-tile={k}
       className={cn(
         "relative flex min-h-0 min-w-0 flex-col overflow-hidden bg-background pt-2",
-        "focus-within:after:pointer-events-none focus-within:after:absolute focus-within:after:inset-0 focus-within:after:z-3 focus-within:after:shadow-[inset_0_0_0_1px_var(--accent)] focus-within:after:content-['']",
+        "focus-within:after:pointer-events-none focus-within:after:absolute focus-within:after:inset-0 focus-within:after:z-3 focus-within:after:shadow-[inset_0_0_0_1px_var(--ring-soft)] focus-within:after:content-['']",
         phone && "flex-1",
         off && "hidden",
         max && "fixed inset-2 z-10 shadow-(--shadow-1)",
         st === "asking" && "shadow-[inset_0_0_0_2px_var(--warn)] motion-safe:animate-ask",
-        drop && "outline-2 -outline-offset-2 outline-(--accent)",
+        drop && "outline-2 -outline-offset-2 outline-(--ring-soft)",
         noPointer && "pointer-events-none",
       )}
       style={span > 1 ? { gridColumn: `span ${span}` } : undefined}

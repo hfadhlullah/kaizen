@@ -225,6 +225,17 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
     if (text) term.paste(text);
   };
   const sendImage = (b: Blob) => sendImages([b]);
+  // Any other file (the phone's Attach key): saved on the board's computer under its own name, its path typed in.
+  const uploadFile = async (f: File) => {
+    const r = await fetch("/term-file", { method: "POST", headers: { "content-type": f.type || "application/octet-stream", "x-file-name": encodeURIComponent(f.name) }, body: f }).catch(() => null);
+    if (r?.ok) return String((await r.json()).path ?? "");
+    note(`${f.name} not attached: ${r ? String((await r.json().catch(() => ({}))).error ?? r.status) : "the board did not answer"}`);
+    return "";
+  };
+  const sendFiles = async (files: File[]) => {
+    const text = pathsText(await Promise.all(files.map((f) => (f.type.startsWith("image/") ? upload(f) : uploadFile(f)))));
+    if (text) term.paste(text);
+  };
   // Ctrl+V / Cmd+V on a desktop: xterm reads only text from the clipboard, so a screenshot
   // (Windows Snipping Tool, Print Screen, macOS Cmd+Ctrl+Shift+4) pasted nothing. Capture runs
   // before xterm's own handler on its textarea. Text wins whenever there is any: Excel and Word
@@ -277,10 +288,10 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
     };
     const picker = document.createElement("input");
     picker.type = "file";
-    picker.accept = "image/*";
+    picker.multiple = true;
     picker.hidden = true;
     picker.onchange = () => {
-      if (picker.files?.[0]) void sendImage(picker.files[0]);
+      if (picker.files?.length) void sendFiles([...picker.files]);
       picker.value = "";
     };
     // 1-3 answer the agent's numbered prompts; the rest are the keys it asks for most.
@@ -323,7 +334,7 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
     const more = document.createElement("div");
     more.className = "tmore";
     more.hidden = true;
-    more.append(key("Search", () => { more.hidden = true; openSearch(); }), key("Paste", () => { more.hidden = true; void paste(); }), key("Pick image", () => { more.hidden = true; picker.click(); }));
+    more.append(key("Search", () => { more.hidden = true; openSearch(); }), key("Paste", () => { more.hidden = true; void paste(); }), key("Attach file", () => { more.hidden = true; picker.click(); }));
     for (const [label, v] of keys) {
       const b = key(label, () => {
         if (v === "alt") b.classList.toggle("on", (mods.alt = !mods.alt));
@@ -359,7 +370,16 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
       if (on) term.focus();
     };
     rawKeyboard.addEventListener("pointerdown", (e) => e.preventDefault()); // keep the keyboard up
-    form.append(msg, rawKeyboard);
+    // Attach: a paperclip beside the message box, so a file goes to the agent without opening the key panels.
+    const attach = document.createElement("button");
+    attach.type = "button";
+    attach.className = "rawkeyboard";
+    attach.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5l-8.6 8.6a5.5 5.5 0 0 1-7.8-7.8l8.6-8.6a3.7 3.7 0 0 1 5.2 5.2l-8.6 8.6a1.8 1.8 0 0 1-2.6-2.6l7.9-7.9"/></svg>';
+    attach.setAttribute("aria-label", "Attach a file");
+    attach.title = "Attach a file";
+    attach.addEventListener("pointerdown", (e) => e.preventDefault()); // keep the keyboard up
+    attach.onclick = () => picker.click();
+    form.append(msg, attach, rawKeyboard);
     msg.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); form.requestSubmit(); }
     });
@@ -419,7 +439,7 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
     enter.className = "enter";
     const navigation = group("navigation");
     for (const [label, value] of [["Home", "\x1b[H"], ["End", "\x1b[F"], ["PgUp", "\x1b[5~"], ["PgDn", "\x1b[6~"], ["Ins", "\x1b[2~"], ["Del", "\x1b[3~"]]) add(navigation, label, value);
-    navigation.append(key("Paste", () => { void paste(); }), key("Image", () => picker.click()));
+    navigation.append(key("Paste", () => { void paste(); }), key("File", () => picker.click()));
     const symbols = group("symbols");
     for (const c of "? / = : ; ! * $ % ^ < > ( ) { } [ ] | ~ - @".split(" ")) add(symbols, c, c);
     const functions = group("functions");
@@ -551,10 +571,13 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
   // and, with a mouse, Paste — phones already have Paste in the key bar.
   const tools = document.createElement("div");
   tools.className = "termtools";
-  const tool = (label: string, title: string, fn: () => void) => {
+  const svgOf = (d: string) => `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+  // `icon`: a 24px icon button like every other bar button (the label is its name); without it a text button.
+  const tool = (label: string, title: string, fn: () => void, icon = "") => {
     const b = document.createElement("button");
     b.type = "button";
-    b.textContent = label;
+    if (icon) { b.innerHTML = svgOf(icon); b.className = "ti"; b.setAttribute("aria-label", title); }
+    else b.textContent = label;
     b.title = title;
     b.addEventListener("mousedown", (e) => e.preventDefault());
     b.addEventListener("click", fn);
@@ -580,14 +603,14 @@ function mountTerm(el: HTMLElement, key: string, onEnd?: () => void): () => void
     else if (e.key === "Escape") { e.preventDefault(); closeSearch(); }
   });
   box.append(q, tool("↑", "Previous (Shift+Enter)", () => find(true)), tool("↓", "Next (Enter)", () => find()), tool("✕", "Close (Esc)", closeSearch));
-  tools.append(box, tool("⌕", "Search (Ctrl+Shift+F)", () => (box.hidden ? openSearch() : closeSearch())));
+  tools.append(box, tool("⌕", "Search (Ctrl+Shift+F)", () => (box.hidden ? openSearch() : closeSearch()), '<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>'));
   // A refused read (permission, or a plain-http origin) says so on the button for a moment.
   const pasteBtn = tool("Paste", "Paste from clipboard", () => {
-    const no = () => { pasteBtn.textContent = "Blocked"; setTimeout(() => (pasteBtn.textContent = "Paste"), 1500); };
+    const no = () => { pasteBtn.classList.add("bad"); pasteBtn.title = "Blocked: the browser did not allow reading the clipboard"; setTimeout(() => { pasteBtn.classList.remove("bad"); pasteBtn.title = "Paste from clipboard"; }, 2500); };
     if (!navigator.clipboard?.readText) no();
     else navigator.clipboard.readText().then((t) => t && term.paste(t), no);
     term.focus();
-  });
+  }, '<rect x="8" y="3" width="8" height="4" rx="1"/><path d="M16 5h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2"/>');
   if (!bar) tools.append(pasteBtn);
   const reBtn = tool("Reconnect", "Reconnect to the board", () => { tries = 0; connect(); term.focus(); });
   reBtn.className = "recon";

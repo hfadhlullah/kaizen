@@ -13,7 +13,7 @@ import {
 } from "./state.ts";
 import { ACCOUNT_EXTRA, ACCOUNT_VAR, accountDir, agyLogin, addAccount, loginStatus, readAccounts, renameAccount, removeAccount, resolveAccount, setDefaultAccount, type Login, type Tool } from "./accounts.ts";
 import { readReport, signalOf } from "./report.ts";
-import { MAX_IMAGE, saveImage } from "./term-image.ts";
+import { MAX_FILE, MAX_IMAGE, saveFile, saveImage } from "./term-image.ts";
 import { shellHistory } from "./term-history.ts";
 import { bundledSkills, repairSkill, setSkill, skillsHeld, skillsOff, skillStatus } from "./skills.ts";
 import * as rea from "./rea.ts";
@@ -1069,6 +1069,16 @@ export async function web(repoDir: string, opts: Opts = {}) {
         if (bytes.length > MAX_IMAGE) return bad("image too large", 413);   // a chunked body has no content-length
         const saved = saveImage(bytes);
         return saved ? json({ path: saved }) : bad("not an image", 415);
+      }
+      // The phone's Attach key: any file, saved on this computer under its own name, and its path typed into the terminal.
+      if (req.method === "POST" && path === "/term-file") {
+        if (!sameOrigin(req)) return bad("cross-origin request refused", 403);
+        if (Number(req.headers.get("content-length") ?? 0) > MAX_FILE) return bad("file too large (25 MB at most)", 413);
+        let name = "file";
+        try { name = decodeURIComponent(req.headers.get("x-file-name") ?? "file"); } catch {}
+        const bytes = new Uint8Array(await req.arrayBuffer());
+        const saved = saveFile(bytes, name);
+        return saved ? json({ path: saved }) : bad(bytes.length ? "file too large (25 MB at most)" : "empty file", bytes.length ? 413 : 400);
       }
       if (req.method === "POST" && path === "/shell") {
         const refused = strict(req);

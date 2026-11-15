@@ -705,3 +705,11 @@ html.grabbing,html.grabbing *{cursor:grabbing!important}
 @media(min-width:641px){body.termv .hdr{height:40px;min-height:40px}}
 /* The run workspace's first tab starts at the card's edge (the tab's own 12px is the margin), not 6px further in. */
 @media(min-width:641px){body.runv #rtabs{padding-left:0}}
+/* The terminal's Search and Paste are 24px icon buttons like the other bar buttons, tucked into the corner. */
+.termtools{top:8px;right:10px;gap:2px;align-items:center}
+.termtools button.ti{display:grid;place-items:center;width:24px;height:24px;padding:0;border:0;background:transparent;color:var(--dim);border-radius:var(--r-s)}
+.termtools button.ti:hover{background:var(--hover);color:var(--ink)}
+.termtools button.ti.bad{color:var(--danger)}
+.termtools .tsearch button{width:24px;height:24px;padding:0;display:inline-grid;place-items:center}
+/* The ring round the terminal you are in: a soft line of the text colour, not the accent's full white. */
+:root{--ring-soft:color-mix(in srgb,var(--ink) 30%,transparent)}

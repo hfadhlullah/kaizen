@@ -88,8 +88,8 @@ export function Pane({
         "rpane absolute flex min-h-0 min-w-0 flex-col bg-background pt-2 has-[.term]:bg-[var(--term-bg,var(--bg))]",
         !rect && "hidden",
         split &&
-          "focus-within:after:absolute focus-within:after:inset-0 focus-within:after:z-3 focus-within:after:pointer-events-none focus-within:after:shadow-[inset_0_0_0_1px_var(--accent)] focus-within:after:content-['']",
-        focus && "focus outline outline-1 -outline-offset-1 outline-(--accent)",
+          "focus-within:after:absolute focus-within:after:inset-0 focus-within:after:z-3 focus-within:after:pointer-events-none focus-within:after:shadow-[inset_0_0_0_1px_var(--ring-soft)] focus-within:after:content-['']",
+        focus && "focus outline outline-1 -outline-offset-1 outline-(--ring-soft)",
         edge && EDGE[edge],
       )}
       data-t={item.id}
