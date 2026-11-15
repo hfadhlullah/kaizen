@@ -13,6 +13,7 @@ const quiet =
 export function FootBar() {
   const usage = useFooter((s) => s.usage),
     phone = useFooter((s) => s.phone),
+    refreshing = useFooter((s) => s.refreshing),
     terms = useLiveTerminals();
   return (
     <>
@@ -23,9 +24,11 @@ export function FootBar() {
           className={quiet}
           title="Refresh usage"
           aria-label="Refresh usage"
+          aria-busy={refreshing}
+          disabled={refreshing}
           onClick={() => void loadUsage(true)}
         >
-          <Icon name="refresh" className="size-[15px]" />
+          <Icon name="refresh" className={cn("size-[15px]", refreshing && "motion-safe:animate-spin")} />
         </button>
       )}
       <span className="flex-1" />

@@ -4,17 +4,27 @@ import { create } from "zustand";
 import type { Usage } from "@lib/phone";
 import { phoneStatus, type PhoneStatus } from "./footer-rules.ts";
 
-export const useFooter = create<{ usage: Usage[] | null; phone: PhoneStatus | null }>()(() => ({
+export const useFooter = create<{ usage: Usage[] | null; phone: PhoneStatus | null; refreshing: boolean }>()(() => ({
   usage: null,
   phone: null,
+  refreshing: false,
 }));
 
+// A refresh asked for (the button) spins its icon until the answer is in, and for at least SPIN_MS so a fast answer still shows.
+const SPIN_MS = 700;
 export async function loadUsage(refresh = false) {
+  const t = Date.now();
+  if (refresh) useFooter.setState({ refreshing: true });
   try {
     const r = await fetch("/usage" + (refresh ? "?refresh=1" : ""));
     if (r.ok) useFooter.setState({ usage: await r.json() });
   } catch {
     /* the footer keeps what it had */
+  } finally {
+    if (refresh) {
+      await new Promise((done) => setTimeout(done, Math.max(0, SPIN_MS - (Date.now() - t))));
+      useFooter.setState({ refreshing: false });
+    }
   }
 }
 export async function loadPhone() {
