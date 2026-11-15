@@ -7,6 +7,7 @@ export const TooltipProvider = (props: ComponentProps<typeof TooltipPrimitive.Pr
 );
 export const Tooltip = TooltipPrimitive.Root;
 export const TooltipTrigger = TooltipPrimitive.Trigger;
+// Themed like the toast and the popovers (the card colour, a soft border), not inverted to the opposite theme.
 export const TooltipContent = ({
   className,
   sideOffset = 6,
@@ -16,7 +17,7 @@ export const TooltipContent = ({
     <TooltipPrimitive.Content
       sideOffset={sideOffset}
       className={cn(
-        "z-50 max-w-72 rounded-sm bg-foreground px-2 py-1 text-sm text-background animate-fade-in",
+        "z-50 max-w-72 rounded-sm border border-border bg-card px-2 py-1 text-sm text-foreground shadow-md animate-fade-in",
         className,
       )}
       {...props}

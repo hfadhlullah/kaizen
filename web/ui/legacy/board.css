@@ -695,3 +695,6 @@ html.grabbing,html.grabbing *{cursor:grabbing!important}
 /* The Home row is one rounded badge (a pill with a soft border), the count inside it. */
 .hwsslot .pgrp{margin:2px 0 6px;padding:0 4px 0 2px;border:1px solid var(--line);border-radius:var(--r-pill,999px);background:var(--bg-2)}
 .hwsslot .pgrp:hover{background:var(--hover)}
+/* Collapsed side menu: the Home pill is a round icon button, centred (not a tall oval). */
+[data-rail=min] .hwsslot .pgrp{width:32px;height:32px;margin:4px auto 6px;padding:0;border-radius:50%;display:grid;place-items:center}
+[data-rail=min] .hwsslot .proj{width:32px;height:32px;padding:0;margin:0;display:grid;place-items:center}
