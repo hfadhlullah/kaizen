@@ -7,7 +7,7 @@ import { FilterMenu, TaskRow } from "@components/task";
 import { focusFilter, newTask, setQuery, useBoard } from "@lib/board";
 import { openTaskRecord, refreshTasks, useTasks, filteredTasks, TASK_FILTERS } from "@lib/task";
 import { usePager } from "@lib/shared";
-import { host, setStore, useStore } from "@lib/core";
+import { cn, host, setStore, useStore } from "@lib/core";
 import { Button, Icon } from "@web/ui";
 
 // The attention-first list of durable tasks: its own search box (the text is the Board's, shared with the header's), tools and
@@ -18,7 +18,16 @@ export function TasksPage() {
 function Tasks() {
   const { tasks, loaded, error, scope } = useTasks();
   const { filter, query } = useStore(useShallow((s) => ({ filter: s.filter, query: s.query })));
-  const [sel, setSel] = useState(0);
+  const [sel, setSel] = useState(0),
+    [spin, setSpin] = useState(false);
+  // The refresh button spins until the list is read, and for at least 0.7 s so a quick answer still shows it.
+  const refreshNow = async () => {
+    const t = Date.now();
+    setSpin(true);
+    await refreshTasks();
+    await new Promise((done) => setTimeout(done, Math.max(0, 700 - (Date.now() - t))));
+    setSpin(false);
+  };
   const scoped = tasks.filter((t) => !scope || t.dir === scope),
     matched = filteredTasks(scoped, filter, query),
     pg = usePager("tasks", matched),
@@ -96,7 +105,13 @@ function Tasks() {
           <FilterBox id="tq" placeholder="Search tasks (press /)" />
         </label>
         <span className="flex items-center gap-2">
-          <IconButton icon="refresh" label="Refresh tasks" onClick={() => void refreshTasks()} />
+          <IconButton
+            icon={<Icon name="refresh" className={cn(spin && "motion-safe:animate-spin")} />}
+            label="Refresh tasks"
+            aria-busy={spin}
+            disabled={spin}
+            onClick={() => void refreshNow()}
+          />
           <FilterMenu
             label="Task filters"
             options={TASK_FILTERS.map(([id, label]) => ({ id, label, count: count(id) }))}

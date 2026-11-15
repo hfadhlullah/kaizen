@@ -22,6 +22,7 @@ import { agentLine, failStart, handoffModel, markRunning, readWorkers, requested
 import { childDied, childQuiet, markWoken, move, requestOpen, readHandoff, refused, started, wakeAction, wakeLine, type Handoff } from "./handoff.ts";
 import { processTable, storage, systemMemory, treeRss, type Root } from "./resources.ts";
 import { attachPty, frames, writePty, submitPty, resizePty, exitPty, killPty, panePid, ptyState, ptyKeys, adoptLoginEnv, startPty, ptySupported, detachPty, ptyTail, ptyTmux, tmuxAlive, RESUMED } from "./pty.ts";
+import { conflictPort, holders, stopPort } from "./ports.ts";
 import { snapshot, snapWorker } from "./state-snap.ts";
 import { claudeUsage, claudeUsageAt, codexUsage, codexUsageAt, phonePeers, type Usage } from "./usage.ts";
 import { readSources, addSource, removeSource, moveSource, setCategory, setWriteback, setPaused, readIcebox, applySort, promote, dismiss, restore, capture, editItem, setKind, setTags, setBoard, saveBoard, removeBoard, snooze, unsnooze, readBoards, kindOf, isSnoozed, markDone, markReplied, gatherSource, freshImages, gatherAll, gatherDirs, due, socialUrl, socialOf } from "./sources.ts";
@@ -1337,6 +1338,26 @@ export async function web(repoDir: string, opts: Opts = {}) {
         } catch { return json([]); }
         // Never the board itself: `kaizen web` started inside the workspace listens there too.
         return json(devPorts(out, (pid) => { try { return readlinkSync(`/proc/${pid}/cwd`); } catch { return ""; } }, ws, [...KNOWN_AGENTS.map((a) => a.cmd), "cursor-agent"]).filter((p) => p !== port));
+      }
+      // A dev server (POST /shell with dev) whose terminal says its port is taken: that port and who holds it, for the Run app
+      // button's "Stop it and run the app" question. Read from the terminal's own output, so nothing is guessed.
+      if (req.method === "GET" && path === "/shell/conflict") {
+        if (!local(req)) return bad("cross-origin request refused", 403);
+        const key = url.searchParams.get("key") ?? "";
+        // The shell may already have left /shells (dead ones drop there); its output is kept a little longer.
+        const p = /^sh-[\w-]+$/.test(key) ? conflictPort(ptyTail(key) ?? "") : null;
+        return json(p ? { port: p, holders: await holders(p), board: p === port } : { port: null });
+      }
+      // Stops what listens on a port (the question above, answered yes): a process of this user, never the board itself.
+      if (req.method === "POST" && path === "/port/stop") {
+        const refused = strict(req);
+        if (refused) return refused;
+        let body: any;
+        try { body = await req.json(); } catch { return bad("json body expected"); }
+        const n = Number(body?.port);
+        if (n === port) return bad("that is the board itself");
+        const r = await stopPort(n, [process.pid]);
+        return r.ok ? json(r) : bad(r.error ?? "could not stop it");
       }
       // A phone on the tailnet cannot reach this computer's localhost. Serves that loopback port
       // to the tailnet (`tailscale serve --https=<port>`, never funnel) and answers the address

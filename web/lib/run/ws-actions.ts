@@ -120,22 +120,63 @@ export async function previewApp() {
     toast(why ? `Preview: ${why}` : "Preview: the dev server did not start");
     return openPreview();
   }
-  addShell(await r.json());
+  const sh = await r.json();
+  addShell(sh);
   draw();
   starting = true;
   toast("Starting the app…");
+  let handled = false,
+    retry = false;
   try {
     // Up to a minute for the first port; Linux only reads ports, elsewhere the run's address after a pause.
     for (let i = 0; i < 40 && getWs().ctx?.k === c.k; i++) {
       await new Promise((ok) => setTimeout(ok, 1500));
       const p = await ports();
       if (p.length) return openAt(devUrl(pv, p)!);
+      // The dev server's terminal says its port is taken: ask whether to stop what holds it, then start again.
+      const cf = await portConflict(sh.key);
+      if (cf) {
+        handled = true;
+        retry = await askStopPort(cf);
+        break;
+      }
       if (i === 5 && u && !navigator.platform.startsWith("Linux")) return openAt(u);
     }
-    if (getWs().ctx?.k === c.k) toast("The app did not open a port. Its terminal tab shows why.");
+    if (!handled && getWs().ctx?.k === c.k) toast("The app did not open a port. Its terminal tab shows why.");
   } finally {
     starting = false;
   }
+  if (retry) return previewApp();
+}
+
+type Conflict = { port: number; board?: boolean; holders: { pid: number; name: string; cmd: string; cwd: string }[] };
+async function portConflict(key: string): Promise<Conflict | null> {
+  try {
+    const r = (await (await fetch("/shell/conflict?key=" + encodeURIComponent(key))).json()) as Partial<Conflict>;
+    return r.port ? (r as Conflict) : null;
+  } catch {
+    return null;
+  }
+}
+// "Port 3000 is already in use": who holds it, and the choice to stop it. True when it was stopped (the caller starts again).
+async function askStopPort(cf: Conflict): Promise<boolean> {
+  const who = cf.holders.map((h) => `${h.name || "a process"} (pid ${h.pid})${h.cwd ? ` in ${h.cwd}` : ""}`).join(", ");
+  if (cf.board) return toast(`Port ${cf.port} is this board's own: the app needs another port.`), false;
+  const yes = await ask({
+    title: `Port ${cf.port} is already in use`,
+    description: who ? `${who} is using it. Stop it so the app can start on this port?` : "Something is using it. Stop it so the app can start on this port?",
+    confirmLabel: "Stop it and run the app",
+    danger: true,
+  });
+  if (!yes) return false;
+  try {
+    const r = await fetch("/port/stop", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ port: cf.port }) });
+    if (r.ok) return true;
+    toast(`Could not stop it: ${((await r.json()) as { error?: string }).error ?? "unknown error"}`);
+  } catch {
+    toast("Could not stop it: the board did not answer");
+  }
+  return false;
 }
 
 export async function closeTab(id: string) {
