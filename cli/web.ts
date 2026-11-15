@@ -327,6 +327,10 @@ export async function web(repoDir: string, opts: Opts = {}) {
       return launchRun({ severity: null, where: null, text, raw: text }, dir, id, { ...inCard, ...(pick ? { agent: KNOWN_AGENTS.some((a) => a.cmd === pick.agent) ? pick.agent : undefined, account: typeof pick.account === "string" ? pick.account : undefined, explore: typeof pick.explore === "boolean" ? pick.explore : undefined, yolo: pick.yolo === true } : {}), task: { id: task.id, requirePlanConfirmation: !task.initialConfirmed } });
     },
     alive: (key: string) => ptyState(key)?.alive === true,
+    idle: (key: string) => { const s = ptyState(key); return s ? Date.now() - (s.lastOut ?? s.born) : 0; },
+    asking: (key: string) => ptyState(key)?.asking === true,
+    // Claude Code and Codex menus take a digit, Esc backs out. ponytail: per-agent keys, a prompt worded otherwise still needs the terminal.
+    answer: (key: string, yes: boolean) => writePty(key, yes ? "1" : "\x1b"),
     stop: (key: string) => killPty(key),
     find: (dir: string, run: string) => liveAgent(dir, run)?.key,
   };
@@ -335,6 +339,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
       // A stopping task is asked to stop again until its terminal is gone, not only when someone opens it.
       // A ready task also picks up its run's acceptance given in the agent terminal (kaizen done --user-approved).
       if ((task.status === "stopping" || task.status === "ready") && !task.archived) { try { if (taskService.reconcile(dir, task, taskHooks).revision !== task.revision) changed(); } catch { /* next pass */ } if (task.status === "stopping") continue; }
+      // A working task whose agent died is noticed and started again here, not only when someone opens it.
+      if (["working", "interrupted", "failed"].includes(task.status) && !task.archived) { try { const r = taskService.autoRecover(dir, taskService.reconcile(dir, task, taskHooks), taskHooks); if (r.revision !== task.revision) changed(); } catch { /* next pass */ } continue; }
       if (!task.safe || task.queuePaused || task.pendingDecision || !task.inputs.some(i => i.state === "queued")) continue;
       try { taskService.dispatchReady(dir, task.id, taskHooks); changed(); } catch { /* CAS conflict: next pass reads the new state */ }
     }

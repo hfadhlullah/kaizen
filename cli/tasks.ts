@@ -14,7 +14,7 @@ export type Task = {
   status: "draft" | "waiting" | "working" | "ready" | "accepted" | "stopping" | "interrupted" | "failed";
   runIds: string[]; activeRun: string | null; currentResult: string | null; acceptedResult: string | null;
   pendingDecision: TaskDecision | null; inputs: TaskInput[]; events: TaskEvent[]; operations: string[];
-  files: { name: string; path: string }[]; launch: TaskLaunch | null; safe: boolean; queuePaused: boolean;
+  files: { name: string; path: string }[]; launch: TaskLaunch | null; safe: boolean; queuePaused: boolean; recoveries?: number; recoveredAt?: number;
   initialConfirmed: boolean; writePhase: boolean; error?: string; legacyKey?: string; archived?: boolean; alias?: { state: string; id: string };
 };
 export type Mutation = { revision: number; opId: string };

@@ -4,7 +4,7 @@ import { test, expect } from 'bun:test';
 import { mkdtempSync,mkdirSync,writeFileSync,readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { taskAction,taskEvent,dispatchReady,taskView,reconcile } from './task-service.ts';
+import { taskAction,taskEvent,dispatchReady,taskView,reconcile,autoRecover } from './task-service.ts';
 import { readTask,mutateTask,addEvent } from './tasks.ts';
 import { listResults } from './task-results.ts';
 import { setRunState,finishRun } from './state.ts';
@@ -342,4 +342,25 @@ test('the run approval accepts the task, and Looks good approves a run waiting o
  writeFileSync(join(g.root,'out.md'),'# Out');g.event({type:'result',title:'Page',summary:'Ready',artifacts:[{path:'out.md'}],settleMs:0});
  writeFileSync(join(g.state,'runs',run2,'02-approval.md'),`\naccepted: ${new Date(Date.now()+1000).toISOString()} by user via chat\n`);
  expect(reconcile(g.state,g.now(),g.hooks).status).toBe('accepted');
+});
+test('an agent that ended mid-work is started again by itself, three times, then left for the user',()=>{
+ const f=fixture();f.ack();f.event({type:'proposal',text:'Build the site'});f.send('confirm',{decisionId:f.now().pendingDecision!.id});f.ack();
+ let alive=false;const hooks={...f.hooks,alive:()=>alive};
+ for(let n=1;n<=3;n++){
+  const down=reconcile(f.state,f.now(),hooks);expect(down.status).toBe('interrupted');
+  const before=f.count(),up=autoRecover(f.state,down,hooks);
+  expect(f.count()).toBe(before+1);expect(up.recoveries).toBe(n);expect(up.status).toBe('working');
+  f.ack();
+ }
+ const down=reconcile(f.state,f.now(),hooks);expect(autoRecover(f.state,down,hooks).status).toBe('interrupted');
+});
+test('a message to a working agent that has been silent for minutes ends it and starts it again with the message',()=>{
+ const f=fixture();f.ack();f.event({type:'proposal',text:'Build the site'});f.send('confirm',{decisionId:f.now().pendingDecision!.id});f.ack();
+ let alive=true,idle=10_000;const killed:string[]=[];
+ const hooks={...f.hooks,alive:()=>alive,idle:()=>idle,stop:(k:string)=>{killed.push(k);return true;}};
+ const send=()=>taskAction(f.state,{op:'message',id:f.created.id,revision:f.now().revision,operationId:crypto.randomUUID(),text:'Add a map',intent:'change',baseResultId:null},hooks).task;
+ expect(send().status).toBe('working');expect(killed).toEqual([]);
+ idle=6*60_000;const t=send();expect(killed).toHaveLength(1);expect(t.status).toBe('interrupted');
+ alive=false;const before=f.count(),up=autoRecover(f.state,reconcile(f.state,f.now(),hooks),hooks);
+ expect(f.count()).toBe(before+1);expect(up.inputs.some(i=>i.text==='Add a map'&&i.state==='dispatched')).toBe(true);
 });

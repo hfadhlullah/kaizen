@@ -10,7 +10,10 @@ import { detectDefaultAgent, home, readInbox, writeInbox, replaceTask, abandonRu
 
 type Hooks = { launch: (state:string, run:string, text:string, task:T.Task, pick?:any) => {ok:boolean; pty?:string; why?:string}; alive:(pty:string)=>boolean; stop:(pty:string)=>boolean; find?:(state:string,run:string)=>string|undefined;
   // Sends the run's own Approve (review or open findings) to its agent, as the run panel does.
-  approve?:(state:string,run:string,awaiting:string)=>string|null };
+  approve?:(state:string,run:string,awaiting:string)=>string|null;
+  // The agent stopped on a permission/choice prompt, and the user's yes or no typed into it.
+  asking?:(pty:string)=>boolean; idle?:(pty:string)=>number; answer?:(pty:string,yes:boolean)=>void };
+export const HUNG_MS=5*60_000;
 const runtimeLaunches = new Set<string>();
 const parse = (file:string) => { try { return JSON.parse(readFileSync(file,'utf8')); } catch { return null; } };
 const put = (file:string,value:unknown) => { const temp = file + `.${process.pid}.${randomUUID()}.tmp`; writeFileSync(temp,JSON.stringify(value,null,2)+'\n'); renameSync(temp,file); };
@@ -40,7 +43,7 @@ export function allowedActions(state:string,task:T.Task,hooks?:Hooks) {
 export function taskView(state:string,task:T.Task,hooks?:Hooks) {
   const p=T.taskProjection(task);
   const run=runState(state,task), finished=run&&(['done','abandoned'].includes(run.stage)||run.healed);
-  return {...task,actions:allowedActions(state,task,hooks),runStage:run&&!finished?String(run.stage??''):undefined,...(hooks?{agentAlive:!!(agentKey(state,task,hooks)&&hooks.alive(agentKey(state,task,hooks)!))}:{}),activeRun:finished&&['ready','accepted'].includes(task.status)?null:task.activeRun,projectName:task.project?.split(/[\\/]/).pop()??'Choose a project',dir:state,updatedAt:task.updated,attention:{category:p.filter,reason:p.reason,action:p.action},statusLabel:p.label,decision:!task.project?{id:'project',kind:'project',text:'Choose a named project for your saved goal.'}:task.pendingDecision,messages:task.events,runs:task.runIds,currentResultId:task.currentResult,acceptedResultId:task.acceptedResult};
+  return {...task,actions:allowedActions(state,task,hooks),runStage:run&&!finished?String(run.stage??''):undefined,...(hooks?.asking?{agentAsking:!!(agentKey(state,task,hooks)&&hooks.asking(agentKey(state,task,hooks)!))}:{}),...(hooks?{agentAlive:!!(agentKey(state,task,hooks)&&hooks.alive(agentKey(state,task,hooks)!))}:{}),activeRun:finished&&['ready','accepted'].includes(task.status)?null:task.activeRun,projectName:task.project?.split(/[\\/]/).pop()??'Choose a project',dir:state,updatedAt:task.updated,attention:{category:p.filter,reason:p.reason,action:p.action},statusLabel:p.label,decision:!task.project?{id:'project',kind:'project',text:'Choose a named project for your saved goal.'}:task.pendingDecision,messages:task.events,runs:task.runIds,currentResultId:task.currentResult,acceptedResultId:task.acceptedResult};
 }
 export function taskList(states:string[],hooks?:Hooks) {
   const tasks=states.flatMap(state=>T.listTasks(state).filter(t=>!t.archived).map(t=>taskView(state,reconcile(state,t,hooks),hooks)));
@@ -81,7 +84,8 @@ export function reconcile(state:string,task:T.Task,hooks?:Hooks):T.Task {
     return T.mutateTask(state,task.id,{revision:task.revision,opId:`stopped:${task.revision}`},t=>stopped(t,key));
   }
   if(task.launch && ['intent','started'].includes(task.launch.phase) && !runtimeLaunches.has(task.launch.id) && hooks && !(task.launch.pty&&hooks.alive(task.launch.pty))) reason='The launch was interrupted before the agent acknowledged it. Review the existing session before resuming.';
-  else if(task.status==='working'&&task.launch?.pty&&hooks&&!hooks.alive(task.launch.pty)&&!task.safe)reason='The agent ended before reporting a safe handback. Your requests and previous results are saved.';
+  // No terminal id on record (or none left): the agent is gone when none is found for the run and the launch is old enough not to be starting.
+  else if(task.status==='working'&&task.launch&&hooks&&!task.safe&&!(agentKey(state,task,hooks)&&hooks.alive(agentKey(state,task,hooks)!))&&(task.launch.pty||Date.now()-task.launch.at>60_000))reason='The agent ended before reporting a safe handback. Your requests and previous results are saved.';
   if(reason) return T.mutateTask(state,task.id,{revision:task.revision,opId:`interrupted:${task.launch?.id}`},t=>{T.recoverLaunch(t);t.status='interrupted';t.error=reason;t.queuePaused=true;});
   return task;
 }
@@ -161,6 +165,12 @@ export function taskAction(state:string,body:any,hooks:Hooks):{state:string;task
   if(task.operations.includes(operationId))return {state,task};
   const allowed=allowedActions(state,task,hooks);
   if(op==='start'){task=T.mutateTask(state,task.id,mutation,t=>{if(t.status!=='draft')throw new T.TaskError('Task already started');});return {state,task:dispatchReady(state,task.id,hooks,true,body.pick&&typeof body.pick==='object'?body.pick:undefined)};}
+  if(op==='prompt'){
+    // The agent waits on a permission prompt: the user's answer goes into its terminal, so nobody has to open it.
+    const key=agentKey(state,task,hooks);
+    if(!key||!hooks.asking?.(key)||!hooks.answer)throw new T.TaskError('The agent is not waiting for an answer',409);
+    hooks.answer(key,body.answer==='yes');return {state,task};
+  }
   if(op==='delete'||op==='archive'||op==='abandon'){
     // Closing a task: Delete only before any run exists; Archive hides it; Abandon ends its run.
     if(op==='delete'){
@@ -212,6 +222,13 @@ export function taskAction(state:string,body:any,hooks:Hooks):{state:string;task
     else try{task=T.mutateTask(state,task.id,{revision:task.revision,opId:operationId+':stopped'},t=>stopped(t,key));}
     catch{task=T.readTask(state,task.id)!;/* the pump confirmed the stop first: same outcome */}
   }else if(['message','confirm','resume'].includes(op)){
+    // A working agent that has printed nothing for HUNG_MS is hung (a live one redraws its spinner every second): a message ends it,
+    // and the recovery below, or the pump once the process is gone, starts it again with the message.
+    const hung=agentKey(state,task,hooks);
+    if(op==='message'&&task.status==='working'&&hung&&hooks.alive(hung)&&!hooks.asking?.(hung)&&(hooks.idle?.(hung)??0)>HUNG_MS){
+      hooks.stop(hung);
+      task=T.mutateTask(state,task.id,{revision:task.revision,opId:operationId+':hung'},t=>{t.status='interrupted';t.queuePaused=true;t.safe=false;t.error='The agent ended because it stopped responding.';});
+    }
     // The agent is gone (interrupted/failed, queue paused): a message is the user asking to go on, so recover instead of leaving it queued.
     if(op==='message'&&['interrupted','failed'].includes(task.status)&&allowedActions(state,task,hooks).resume)task=T.mutateTask(state,task.id,{revision:task.revision,opId:operationId+':recover'},t=>{T.resumeTask(t);});
     task=dispatchReady(state,task.id,hooks,op==='resume'&&!task.inputs.some(i=>['queued','received'].includes(i.state)));}
@@ -273,4 +290,16 @@ export function taskEvent(state:string,id:string,runId:string,event:any,operatio
     }
     throw error;
   }
+}
+
+// A run's agent that ended mid-work (crash, closed terminal, the board restarting) is started again by itself, so the user never
+// has to open the terminal to Resume. Three tries, then one more every half hour; a launch that cannot start stays failed.
+const ENDED=/^(The agent ended|The launch was interrupted)/;
+export function autoRecover(state:string,task:T.Task,hooks:Hooks):T.Task {
+  if(!['interrupted','failed'].includes(task.status)||!task.queuePaused||task.archived||!ENDED.test(task.error??''))return task;
+  const run=runState(state,task);if(!run||['done','abandoned'].includes(run.stage)||run.healed)return task;
+  const n=task.recoveries??0;if(n>=3&&Date.now()-(task.recoveredAt??0)<30*60_000)return task;
+  if(!allowedActions(state,task,hooks).resume)return task;
+  task=T.mutateTask(state,task.id,{revision:task.revision,opId:`auto-recover:${task.revision}`},t=>{T.resumeTask(t);t.recoveries=n>=3?1:n+1;t.recoveredAt=Date.now();t.events.push({id:randomUUID(),at:Date.now(),role:'system',type:'auto-resume',text:'The agent ended, so kaizen started it again and it continues from the saved run.'} as any);});
+  return dispatchReady(state,task.id,hooks,!task.inputs.some(i=>['queued','received'].includes(i.state)));
 }

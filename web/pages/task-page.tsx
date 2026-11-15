@@ -188,7 +188,7 @@ function Task() {
             {page.defaults?.permissions || "Tool permissions follow the existing project settings."}
           </p>
           <p className="mb-2 text-sm text-muted-foreground">
-            Permission prompts may require the supported terminal controls in the workspace. Stop requests cancellation;
+            Permission prompts show here with Allow and Deny. Stop requests cancellation;
             it does not undo files.
           </p>
           {!runIdsOf(t).length && <p className="mb-2 text-sm">No run has started yet.</p>}
@@ -201,6 +201,17 @@ function Task() {
         <StatusBadge category={t.attention?.category ?? "in-progress"}>{taskStatus(t)}</StatusBadge>
         <span className="text-muted-foreground">{t.attention?.action || ""}</span>
         <span className="text-muted-foreground">{isCurrent && !t.decision ? (t.actions?.acceptWhy ?? "") : ""}</span>
+        {t.agentAsking && t.agentAlive && (
+          <span className="flex items-baseline gap-2 text-warning">
+            Waiting for permission
+            <Button disabled={pending} onClick={() => void runAction("prompt", { answer: "yes" })}>
+              Allow
+            </Button>
+            <Button disabled={pending} onClick={() => void runAction("prompt", { answer: "no" })}>
+              Deny
+            </Button>
+          </span>
+        )}
         <span className="ml-auto text-xs text-muted-foreground">{savedLine(selected)}</span>
       </div>
       <div className="flex min-h-0 flex-1 items-stretch">
