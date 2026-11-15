@@ -47,6 +47,25 @@ const Glyph = ({ name, className }: { name: string; className?: string }) => (
   </svg>
 );
 
+// The title with the typed words in bold, so it is clear why a row matched.
+function Marked({ text, words }: { text: string; words: string[] }) {
+  if (!words.length) return <>{text}</>;
+  const re = new RegExp(`(${words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`, "gi");
+  return (
+    <>
+      {text.split(re).map((part, i) =>
+        i % 2 ? (
+          <b key={i} className="font-semibold text-strong">
+            {part}
+          </b>
+        ) : (
+          part
+        ),
+      )}
+    </>
+  );
+}
+
 // Search over everything the side menu holds: workspaces, runs and tasks, chats, terminals, projects, pages and actions.
 // Rows come from `useSearchRows` (lib/search); typing filters them, Enter or a click opens one.
 export function SearchPalette() {
@@ -69,6 +88,7 @@ export function SearchPalette() {
     g ? g[1].push({ row, n }) : groups.push([row.group, [{ row, n }]]);
   });
   const none = !!q.trim() && rows.length === 1;
+  const words = useMemo(() => q.toLowerCase().split(/\s+/).filter(Boolean), [q]);
   return (
     <Dialog open={open} onOpenChange={(o) => !o && close()}>
       <DialogContent
@@ -114,7 +134,9 @@ export function SearchPalette() {
                   >
                     <Glyph name={row.ico} className="size-3.5 flex-none text-muted-foreground" />
                     {row.dot && <StateDot state={row.dot} />}
-                    <span className="min-w-0 truncate">{row.title}</span>
+                    <span className="min-w-0 truncate">
+                      <Marked text={row.title} words={words} />
+                    </span>
                     {row.sub && (
                       <span className="min-w-0 flex-[0_1_auto] truncate text-sm text-muted-foreground">{row.sub}</span>
                     )}

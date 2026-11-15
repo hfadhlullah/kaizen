@@ -4,21 +4,24 @@ import { shownRows } from "./search.ts";
 const it = (group: string, title: string, at = 0) => ({ group, title, hay: "", at, ico: "run", act: () => {} });
 const none = () => {};
 
-test("with nothing typed each group shows its most recent few, in the palette's group order", () => {
+test("with nothing typed: what waits on you, then the last few things touched", () => {
+  const wait = (title: string, at: number) => ({ ...it("Runs", title, at), dot: "wait" });
   const all = [
     ...Array.from({ length: 8 }, (_, i) => it("Runs", "run " + i, i)),
-    it("Actions", "Toggle theme"),
+    wait("needs an answer", 1),
     it("Workspaces", "main", 5),
+    it("Actions", "Toggle theme"),
   ];
   const rows = shownRows(all, "", none);
-  expect(rows.map((r) => r.group)).toEqual(["Workspaces", ...Array(5).fill("Runs"), "Actions"]);
-  expect(rows.filter((r) => r.group === "Runs").map((r) => r.title)).toEqual([
-    "run 7",
-    "run 6",
-    "run 5",
-    "run 4",
-    "run 3",
-  ]);
+  expect(rows.map((r) => r.group)).toEqual(["Needs you", ...Array(5).fill("Recent")]);
+  expect(rows[0]!.title).toBe("needs an answer");
+  expect(rows.slice(1).map((r) => r.title)).toEqual(["run 7", "run 6", "run 5", "main", "run 4"]);
+});
+
+test("a board with little in it also lists the pages", () => {
+  const page = (t: string) => ({ ...it("Actions", t), ico: "page" });
+  const rows = shownRows([it("Runs", "one", 1), page("Tasks"), page("Board"), it("Actions", "Toggle theme")], "", none);
+  expect(rows.map((r) => r.group)).toEqual(["Recent", "Go to", "Go to"]);
 });
 
 test("typed, the group holding the best match comes first and a New task row closes the list", () => {

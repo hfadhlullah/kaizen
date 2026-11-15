@@ -56,6 +56,8 @@ const browsed = (k: string) => {
   } catch {}
 };
 // The palette's rows for the side menu's data and the chats read so far.
+// What a run or task is doing, in words beside its project (the dot alone has to be decoded).
+const STATUS: Record<string, string> = { wait: "needs you", plan: "planning", build: "building", review: "in review", stalled: "stalled", done: "done", aband: "abandoned" };
 export function buildRows({ cards, projects = [], agents = [] }: RailData, chats: any[]): Item[] {
   const now = Date.now();
   const cur = new URLSearchParams(location.search);
@@ -104,7 +106,7 @@ export function buildRows({ cards, projects = [], agents = [] }: RailData, chats
     out.push({
       group: c.kind === "run" ? "Runs" : "Tasks",
       title: titleOf(c) || c.id,
-      sub: projName(c.state, projects),
+      sub: [projName(c.state, projects), STATUS[st]].filter(Boolean).join(" · "),
       when: c.moved ? age(c.moved, now) : undefined,
       hay: `${titleOf(c)} ${c.id ?? ""} ${c.text ?? ""} ${projName(c.state, projects)} ${st}`,
       at: c.moved ?? 0,
