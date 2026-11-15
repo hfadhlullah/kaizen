@@ -393,6 +393,8 @@ function PortRow({ p }: { p: Port }) {
 function Ports() {
   const ports = useResources((s) => s.ports),
     error = useResources((s) => s.portsError);
+  // Nothing listening (or not read yet): no tile at all. A failed read still says so, so a board that is too old is not silent.
+  if (!ports?.length && !error) return null;
   return (
     <div className={cn(tile, "col-span-full")}>
       <div className="mb-1.5 flex items-center justify-between gap-1.5 text-sm font-semibold text-strong">
@@ -408,13 +410,7 @@ function Ports() {
           ))}
         </div>
       ) : (
-        <div className="text-xs text-muted-foreground">
-          {error && !ports?.length
-            ? error
-            : ports
-              ? "Nothing is listening in your projects. Run app in a workspace starts a dev server."
-              : "Reading…"}
-        </div>
+        <div className="text-xs text-muted-foreground">{error}</div>
       )}
     </div>
   );
