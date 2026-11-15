@@ -65,11 +65,11 @@ function Tab({ sc, on }: { sc: RvScreen; on: boolean }) {
         title="Close tab"
         onClick={() => run.act.close(sc.id)}
         className={cn(
-          "px-1 opacity-0 hover:opacity-100 focus-visible:opacity-60 group-hover/tab:opacity-60 max-[640px]:grid max-[640px]:size-7 max-[640px]:place-items-center max-[640px]:p-0 max-[640px]:opacity-60",
+          "grid size-5 shrink-0 place-items-center rounded-sm opacity-0 hover:bg-muted hover:opacity-100 focus-visible:opacity-60 group-hover/tab:opacity-60 max-[640px]:grid max-[640px]:size-7 max-[640px]:place-items-center max-[640px]:p-0 max-[640px]:opacity-60",
           on && "opacity-60",
         )}
       >
-        ×
+        <Icon name="x" className="size-(--ico)" />
       </button>
     </div>
   );
