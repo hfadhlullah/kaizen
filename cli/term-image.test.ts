@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { existsSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { imageExt, MAX_IMAGE, MAX_FILE, saveImage, saveFile, safeFileName } from "./term-image.ts";
 
 const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a]);
@@ -30,7 +30,7 @@ test("an attached file keeps a clean name in a folder of its own", () => {
   expect(safeFileName("")).toBe("file");
   const dir = mkdtempSync(join(tmpdir(), "kz-files-"));
   const a = saveFile(new Uint8Array([1, 2, 3]), "notes.md", dir)!, b = saveFile(new Uint8Array([1]), "notes.md", dir)!;
-  expect(a.endsWith("/notes.md") && b.endsWith("/notes.md") && a !== b).toBe(true);
+  expect(basename(a) === "notes.md" && basename(b) === "notes.md" && a !== b).toBe(true);
   expect(a.startsWith(dir)).toBe(true);
   expect(saveFile(new Uint8Array(), "empty.txt", dir)).toBeNull();
   expect(saveFile(new Uint8Array(MAX_FILE + 1), "big.bin", dir)).toBeNull();
