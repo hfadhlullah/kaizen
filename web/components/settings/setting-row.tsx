@@ -75,8 +75,8 @@ export function SettingRow({ row, off }: { row: Row; off?: boolean }) {
             />
           );
         if (kind === "preset" || kind === "segments") {
-          const vals = kind === "preset" ? row.values.filter((v) => v !== "custom") : row.values;
-          // The preset is a control over the tiers; custom, which only an edit to another row makes, lights none.
+          const vals = row.values;
+          // The preset is a control over the tiers; custom is what any edit to another row makes, so it lights up but cannot be picked.
           return (
             <Segmented
               label={row.label}
@@ -84,7 +84,7 @@ export function SettingRow({ row, off }: { row: Row; off?: boolean }) {
               idPrefix={id}
               options={vals.map((v) => ({ id: v, label: kind === "preset" ? caps(v) : v }))}
               value={shown}
-              onChange={save}
+              onChange={(v) => v !== "custom" && save(v)}
             />
           );
         }

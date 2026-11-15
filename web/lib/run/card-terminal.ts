@@ -1,7 +1,7 @@
 import { getServer, load } from "@lib/server";
 import { getPanel, setPanel } from "./panel-store.ts";
 
-// ---- the in-card agent (agent.launch: card). The terminal is React (components/panes/terminal-pane.tsx, drawn by
+// ---- the in-card agent (agents run in the card). The terminal is React (components/panes/terminal-pane.tsx, drawn by
 // pages/board/panel.tsx into #pbody). A terminal is mounted once per session and kept (`terms`), hidden while another body
 // shows, so a tab or card switch never reconnects it and its screen and focus are as they were; it goes when its session does.
 let termKey: string | null = null;

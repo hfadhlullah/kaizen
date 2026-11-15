@@ -31,8 +31,10 @@ test("the Automations page sits under Workflow", () => {
 });
 
 test("models, the run's workflow and dictation each have their own page", () => {
-  for (const k of ["subagents.model", "subagents.reviewer", "agent.model.codex"])
-    expect(placeOf(k)).toEqual(["models", "Models"]);
+  for (const k of ["subagents.model", "subagents.reviewer", "agent.model.claude"])
+    expect(placeOf(k)).toEqual(["models", "Claude Code"]);
+  expect(placeOf("agent.model.codex")).toEqual(["models", "Models"]);
+  expect(placeOf("sources.model")).toEqual(["integrations", "Icebox"]);
   expect(placeOf("agent.handoff_model.claude")).toEqual(["models", "Handoff session"]);
   for (const k of ["preset", "runner", "explore.enabled", "build.executor", "review.executor"])
     expect(placeOf(k)).toEqual(["runs", "Workflow"]);
