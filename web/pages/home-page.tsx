@@ -53,6 +53,7 @@ export function HomePage() {
         <div className="flex items-center gap-1 self-stretch px-4 pt-2 max-[640px]:hidden">
           <IconButton
             id="htog"
+            size="sm"
             icon="side"
             label={side ? "Hide chats" : "Show chats"}
             aria-expanded={side}
