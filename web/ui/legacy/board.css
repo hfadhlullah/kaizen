@@ -690,3 +690,5 @@ body.taskv .hdr #bq,body.taskv .hdr #newtop{display:none!important}
 @media(min-width:641px){#foot{padding:0 12px}#foot .fb{padding:1px 6px}#foot svg{width:14px;height:14px}}
 /* The side menu's top row (wordmark, collapse button) is level with the tab bar's centre (29px) instead of 2px below it. */
 @media(min-width:641px){.rail .top{margin-top:-2px}}
+/* A floating window held by its bar: the grabbing hand everywhere until it is let go (the bar itself shows the plain pointer). */
+html.grabbing,html.grabbing *{cursor:grabbing!important}

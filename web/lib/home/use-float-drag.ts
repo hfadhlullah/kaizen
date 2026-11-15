@@ -22,6 +22,8 @@ export function useFloatDrag(
       dy = e.clientY - r.top;
     let last: Place | null = null;
     dragged.current = false;
+    // Held down: the whole page shows the grabbing hand (html.grabbing, board.css), wherever the pointer strays.
+    document.documentElement.classList.add("grabbing");
     const move = (m: PointerEvent) => {
       if (!dragged.current && !isDrag(m.clientX - e.clientX, m.clientY - e.clientY)) return;
       dragged.current = true;
@@ -29,6 +31,7 @@ export function useFloatDrag(
       setAt(last);
     };
     const up = () => {
+      document.documentElement.classList.remove("grabbing");
       removeEventListener("pointermove", move);
       removeEventListener("pointerup", up);
       removeEventListener("pointercancel", up);

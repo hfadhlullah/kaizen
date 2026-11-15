@@ -101,10 +101,10 @@ export function HomeWindow() {
     >
       <header
         onPointerDown={drag.onPointerDown}
-        className="flex h-(--tabbar) flex-none cursor-move touch-none items-center gap-1.5 border-b border-border pr-1.5 pl-3 select-none max-[640px]:h-12 max-[640px]:cursor-default max-[640px]:pr-1 max-[640px]:pl-3"
+        className="flex h-(--tabbar) flex-none cursor-default touch-none items-center gap-1.5 border-b border-border pr-1.5 pl-3 select-none max-[640px]:h-12 max-[640px]:cursor-default max-[640px]:pr-1 max-[640px]:pl-3"
       >
         <Icon name="home" className="size-(--ico) flex-none stroke-[1.8] text-muted-foreground" />
-        <b className="text-base font-semibold">Home</b>
+        <span className="sr-only">Home</span>
         <div
           role="tablist"
           aria-label="Home terminals"
@@ -141,11 +141,11 @@ export function HomeWindow() {
                 title="Close tab"
                 onClick={() => void closeHomeTab(t.key)}
                 className={cn(
-                  "grid size-4 flex-none place-items-center rounded-xs opacity-0 group-hover:opacity-60 hover:bg-muted hover:opacity-100 max-[640px]:size-7 max-[640px]:opacity-60",
+                  "grid size-5 flex-none place-items-center rounded-sm opacity-0 group-hover:opacity-60 hover:bg-muted hover:opacity-100 max-[640px]:size-7 max-[640px]:opacity-60",
                   t.key === cur && "opacity-60",
                 )}
               >
-                ×
+                <Icon name="x" className="size-(--ico)" />
               </button>
             </div>
           ))}
