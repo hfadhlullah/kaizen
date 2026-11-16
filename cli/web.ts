@@ -2269,6 +2269,19 @@ export async function web(repoDir: string, opts: Opts = {}) {
             return "error" in r ? { error: r.error } : { dir: (r as { dir: string }).dir };
           },
           agents: KNOWN_AGENTS.filter((a) => agentUsable(a.cmd)).map((a) => a.cmd),
+          // A draft task: saved on the Tasks list, no agent started (the task page starts it).
+          task: (d: string, goal: string) => {
+            try { tasks.createTask(d, { goal, project: dirname(d) }, `chat:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`); changed(); return { ok: true as const }; }
+            catch (e) { return { error: (e as Error).message }; }
+          },
+          taskAdd: (d: string, taskId: string, text: string) => {
+            try {
+              const found = tasks.resolveTask(d, taskId);
+              if (!found || !states(true).includes(found.state)) return { error: "unknown task" };
+              taskService.taskAction(found.state, { op: "message", id: found.task.id, text, revision: found.task.revision, operationId: `chat:${Date.now()}:${Math.random().toString(36).slice(2, 8)}` }, taskHooks);
+              changed(); return { ok: true as const };
+            } catch (e) { return { error: (e as Error).message }; }
+          },
           // As POST /run starts a task, without one on the inbox.
           run: async (d: string, runner: "lite" | "full", agent: string, text: string) => {
             const r = launchRun(parseItem(`${runner} ${text}`), d, undefined, { agent, ...inCard });

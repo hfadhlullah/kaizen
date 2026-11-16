@@ -50,6 +50,8 @@ beforeEach(() => {
   runs = [];
   board = {
     agents: ["claude", "codex"],
+    task: () => ({ ok: true }),
+    taskAdd: () => ({ ok: true }),
     run: async (dir, runner, agent, text) => { runs.push([dir, runner, agent, text]); return { agent }; },
     projects: [{ dir: projA, label: "A" }, { dir: projD, label: "D" }],
     create: async (name) => {
@@ -248,7 +250,9 @@ test("parseLine and takeMoves", () => {
     .toEqual({ t: "step", step: { kind: "cmd", text: "cat a.md", ok: false } });
   expect(parseLine(`{"type":"item.completed","item":{"type":"file_change","changes":[{"path":"a.ts"}],"status":"completed"}}`))
     .toEqual({ t: "step", step: { kind: "edit", text: "a.ts", ok: true } });
-  expect(takeMoves("ok\n\n[[kaizen:project A]]\n")).toEqual({ text: "ok", move: { op: "project", arg: "A" }, run: null });
+  expect(takeMoves("ok\n\n[[kaizen:project A]]\n")).toEqual({ text: "ok", move: { op: "project", arg: "A" }, run: null, task: null, taskAdd: null });
+  expect(takeMoves("ok\n[[kaizen:task BeWise | Phase 5: Bank Jago first | hold the rest]]").task).toEqual({ project: "BeWise", goal: "Phase 5: Bank Jago first | hold the rest" });
+  expect(takeMoves("[[kaizen:task-add BeWise | abc | also hold BNI]]").taskAdd).toEqual({ project: "BeWise", id: "abc", text: "also hold BNI" });
   // Only a line of its own counts: a move quoted inside a sentence is text.
   expect(takeMoves("write `[[kaizen:project A]]` to move").move).toBeNull();
 });

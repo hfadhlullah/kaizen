@@ -7,6 +7,7 @@ import { randomUUID } from "node:crypto";
 import { basename, dirname, join } from "node:path";
 import { hostname, platform, release, arch } from "node:os";
 import { CHILD_ENV, readRuns, readText } from "./state.ts";
+import { listTasks } from "./tasks.ts";
 
 export type Step = { kind: "cmd" | "edit" | "tool" | "project"; text: string; ok?: boolean };
 export type Attachment = { name: string; path: string; image: boolean };
@@ -29,6 +30,10 @@ export type Board = {
   projects: { dir: string; label: string }[];
   create: (name: string) => Promise<{ dir: string } | { error: string }>;
   agents: string[];
+  // Saves a goal as a task in the project's Tasks list, without starting an agent.
+  task: (dir: string, goal: string) => { error: string } | { ok: true };
+  // Sends a message to an existing task, as the task page's box does (an agent may pick it up).
+  taskAdd: (dir: string, id: string, text: string) => { error: string } | { ok: true };
   run: (dir: string, runner: "lite" | "full", agent: string, text: string) => Promise<{ agent: string } | { error: string }>;
 };
 // The project folders the agent may write in: every listed one, capped like the brief's list.
@@ -69,6 +74,8 @@ export function brief(c: Chat, board: Board) {
   const waiting = board.projects.slice(0, 80).flatMap((p) => readRuns(p.dir)
     .filter((r) => r.awaiting && r.stage !== "done" && r.stage !== "abandoned")
     .map((r) => `- ${p.label}: ${r.id} (${r.stage}, waiting on ${r.awaiting})`)).join("\n");
+  const tasksList = board.projects.slice(0, 80).flatMap((p) => { try { return listTasks(p.dir).filter((t) => !t.archived && t.status !== "accepted").slice(0, 30)
+    .map((t) => `- ${p.label}: ${t.id} (${t.status}) ${short(t.title || t.goal, 80)}`); } catch { return []; } }).join("\n");
   return `[kaizen board context, not written by the user]
 You are kaizen's main agent, talking with the user from the kaizen board's Home page.
 Board server machine: hostname ${hostname()}, OS ${platform()} ${release()}, architecture ${arch()}. This is the machine hosting the board, not necessarily the user's phone or browser. A scratch folder is only your working directory, not a separate machine.
@@ -80,9 +87,12 @@ Projects on the board:
 ${list || "(none)"}
 Runs waiting on the user:
 ${waiting || "(none)"}
+Open tasks (project: id (status) title):
+${tasksList || "(none)"}
 Each project's kaizen runs live in <project>/.kaizen/runs/<id>/ (state.json has stage and awaiting; 01-plan.md, 04-review.md, 06-backlog.md beside it); read them to answer questions about the board.
 You can read, analyse and edit files in any project folder listed above directly by its path; you do not need to switch to it. Do not write outside those folders and your working folder.
 Switching only changes this chat's home project (where you run and which project the board shows). On a line of its own write [[kaizen:project <folder>]] to switch to a listed project, or [[kaizen:new-project <name>]] to create one (a plain folder name). Switch only when the user asks; when what they want fits no listed project, ask whether to create a new one. After a successful move, the board starts one follow-up turn in the new project to finish the pending request; do not ask the user to repeat it.
+When the user asks to add, create or save a task (or put something on the task list), write on a line of its own [[kaizen:task <project folder> | <the goal, one line>]]; the board saves it in that project's Tasks list without starting anything. Do not ask the lite/full question for this, and do not edit files to fake a task. To add something to a task that already exists (a note, an extra requirement, a change), write [[kaizen:task-add <project folder> | <task id from the list> | <what to add, one line>]]; the board sends it to that task like the task page's message box.
 When the user asks you to develop, fix, change or enhance something (not a question, analysis or reading), first ask which way, as numbered options, and do nothing until they pick:
 1. Start a kaizen run for it: lite (cheap, one session) or full (independent review), with which agent (installed: ${board.agents.join(", ") || "none"}), in which project.
 2. Let you handle it here in the chat.
@@ -165,20 +175,30 @@ export function parseLine(line: string): Event | { t: "thread"; id: string } | n
 }
 
 // The agent's move and run lines: taken out of what the user reads; the last of each counts.
-const MOVE = /^[ \t]*\[\[kaizen:(project|new-project|run)[ \t]+([^\]\n]+?)\]\][ \t]*$/gm;
+const MOVE = /^[ \t]*\[\[kaizen:(project|new-project|run|task-add|task)[ \t]+([^\]\n]+?)\]\][ \t]*$/gm;
+export type TaskAddAsk = { project: string; id: string; text: string };
+export type TaskAsk = { project: string; goal: string };
 export type RunAsk = { project: string; runner: string; agent: string; text: string };
 export function takeMoves(text: string) {
   let move: { op: "project" | "new-project"; arg: string } | null = null;
   let run: RunAsk | null = null;
+  let task: TaskAsk | null = null;
+  let taskAdd: TaskAddAsk | null = null;
   const rest = text.replace(MOVE, (_, op, arg) => {
-    if (op !== "run") move = { op, arg: arg.trim() };
+    if (op === "task-add") {
+      const [project = "", id = "", ...t] = arg.split("|").map((x: string) => x.trim());
+      taskAdd = { project, id, text: t.join(" | ").trim() };
+    } else if (op === "task") {
+      const [project = "", ...g] = arg.split("|").map((x: string) => x.trim());
+      task = { project, goal: g.join(" | ").trim() };
+    } else if (op !== "run") move = { op, arg: arg.trim() };
     else {
       const [project = "", runner = "", agent = "", ...t] = arg.split("|").map((x: string) => x.trim());
       run = { project, runner, agent, text: t.join(" | ").trim() };
     }
     return "";
   }).replace(/\n{3,}/g, "\n\n").trim();
-  return { text: rest, move: move as { op: "project" | "new-project"; arg: string } | null, run: run as RunAsk | null };
+  return { text: rest, move: move as { op: "project" | "new-project"; arg: string } | null, run: run as RunAsk | null, task: task as TaskAsk | null, taskAdd: taskAdd as TaskAddAsk | null };
 }
 
 // Not winShim: the message goes in on stdin, so the .cmd shim's newline limit never applies.
@@ -254,6 +274,8 @@ export function sendChat(base: string, id: string | null, text: string, project:
     let buf = "";
     let move: ReturnType<typeof takeMoves>["move"] = null;
     let run: RunAsk | null = null;
+    let task: TaskAsk | null = null;
+    let taskAdd: TaskAddAsk | null = null;
     const take = (line: string) => {
       const e = parseLine(line);
       if (!e) return;
@@ -262,6 +284,8 @@ export function sendChat(base: string, id: string | null, text: string, project:
         const m = takeMoves(e.text);
         if (m.move) move = m.move;
         if (m.run) run = m.run;
+        if (m.task) task = m.task;
+        if (m.taskAdd) taskAdd = m.taskAdd;
         if (!m.text) return;
         e.text = m.text;
         reply.text += (reply.text ? "\n\n" : "") + e.text;
@@ -291,6 +315,8 @@ export function sendChat(base: string, id: string | null, text: string, project:
         if (offered) await startRun(reply, run, board, emit);
         else { const s: Step = { kind: "project", text: "Not started: ask me to pick lite or full first", ok: false }; reply.steps!.push(s); emit({ t: "step", step: s }); }
       }
+      if (task && !stopped) addTask(reply, task, board, emit);
+      if (taskAdd && !stopped) addToTask(reply, taskAdd, board, emit);
       if (move && !stopped) await moveChat(chat, reply, move, board, emit);
     } finally {
       delete reply.activity;
@@ -320,6 +346,30 @@ async function startRun(reply: Msg, ask: RunAsk, board: Board, emit: (e: Event) 
   const r = await board.run(p.dir, ask.runner, ask.agent, ask.text);
   if ("error" in r) return step(`Could not start the run: ${r.error}`, false);
   step(`Started a ${ask.runner} run in ${p.label} with ${r.agent}`, true);
+  emit({ t: "run", dir: p.dir });
+}
+
+// Save the goal the user asked for as a task: only in a listed project.
+function addTask(reply: Msg, ask: TaskAsk, board: Board, emit: (e: Event) => void) {
+  const step = (text: string, ok: boolean) => { const s: Step = { kind: "project", text, ok }; reply.steps!.push(s); emit({ t: "step", step: s }); };
+  const p = findProject(board, ask.project);
+  if (!p) return step(`No project ${ask.project} on the board`, false);
+  if (!ask.goal) return step("No goal for the task", false);
+  const r = board.task(p.dir, ask.goal);
+  if ("error" in r) return step(`Could not add the task: ${r.error}`, false);
+  step(`Added a task in ${p.label}`, true);
+  emit({ t: "run", dir: p.dir });
+}
+
+// Send text to a task the board lists, by id, in a listed project.
+function addToTask(reply: Msg, ask: TaskAddAsk, board: Board, emit: (e: Event) => void) {
+  const step = (text: string, ok: boolean) => { const s: Step = { kind: "project", text, ok }; reply.steps!.push(s); emit({ t: "step", step: s }); };
+  const p = findProject(board, ask.project);
+  if (!p) return step(`No project ${ask.project} on the board`, false);
+  if (!ask.id || !ask.text) return step("Need a task id and the text to add", false);
+  const r = board.taskAdd(p.dir, ask.id, ask.text);
+  if ("error" in r) return step(`Could not add to the task: ${r.error}`, false);
+  step(`Added to a task in ${p.label}`, true);
   emit({ t: "run", dir: p.dir });
 }
 
