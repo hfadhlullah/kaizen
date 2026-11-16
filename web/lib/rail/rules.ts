@@ -95,6 +95,7 @@ export type RailGroup = {
   mainWs: string;
   shut: boolean;
   empty: boolean;
+  home: boolean; // Home: your own space outside any project (the global queue and the Home terminals)
   rows: RailRow[];
 };
 export const pinKey = (dir: string, ws: string) => dir + "\0" + ws;
@@ -153,6 +154,7 @@ export function railGroups(
           // A project with nothing to list stays as a collapsed header.
           shut: folded.has(dir) || !rows.length,
           empty: !rows.length,
+          home: !!p.home,
           rows: rows.map(({ w, cs, ags }): RailRow => {
             const st0 = cs.length ? st([...cs].sort((a, b) => RANK[st(a)] - RANK[st(b)])[0]) : "";
             return {

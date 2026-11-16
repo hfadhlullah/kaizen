@@ -5,7 +5,6 @@ import { useBoard } from "@lib/board";
 import { useRunView } from "@lib/run";
 import { checkUpdate } from "@lib/settings";
 import { SourceMarks } from "@components/rail";
-import { HomeWsRow } from "@components/home";
 import { Rail, Sprite } from "@components/shell";
 import { FootBar } from "@components/footer";
 import { ContextPanel } from "@components/context";
@@ -50,14 +49,7 @@ export function App() {
   return (
     <TooltipProvider>
       <Sprite />
-      <Rail
-        srcs={<SourceMarks />}
-        before={
-          <div style={{ display: "contents" }}>
-            <HomeWsRow />
-          </div>
-        }
-      />
+      <Rail srcs={<SourceMarks />} />
       <div className="app">
         <Header />
         <Pages />

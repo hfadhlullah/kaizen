@@ -402,8 +402,9 @@ body.runv .app{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-templa
 body.runv #runv{grid-area:1/1;display:flex;flex-direction:column;min-width:0;min-height:0}
 #rtabs{display:flex;align-items:center;gap:2px;height:var(--tabbar);min-height:var(--tabbar);padding:0 6px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0}#rtabs .sp{flex:1}#rbar{display:flex;align-items:center;flex:none;border-bottom:1px solid var(--line);padding-right:6px}
 /* the floating Home workspace (components/home/home-window.tsx): agents in kaizen's own folder, over every view; minimized to a row above the projects */
-.rail .plist.hwsslot{flex:none;min-height:0;overflow:visible}.rail .plist.hwsslot[hidden]{display:none}.hwsslot .proj .c{margin-left:auto}.hwsslot .wadd{opacity:.6}.hwsslot .plogo.hwsico{background:none;color:var(--ink);fill:none;stroke:currentColor;stroke-width:1.8;stroke-linejoin:round}[data-rail=min] .hwsslot .proj .hwsico use{display:inline}
-@media(max-width:640px){.hwsslot{display:none!important}}
+/* Home's group: a house for its mark, and its open terminals as a small count button. */
+.proj .plogo.hwsico{background:none;color:var(--ink);fill:none;stroke:currentColor;stroke-width:1.8;stroke-linejoin:round}[data-rail=min] .proj .hwsico use{display:inline}
+.pgrp .hterm{display:inline-flex;align-items:center;gap:3px;flex:none;height:22px;padding:0 6px;border-radius:var(--r-pill,999px);color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}.pgrp .hterm:hover{background:var(--hover);color:var(--ink)}.pgrp .hterm svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.8}[data-rail=min] .pgrp .hterm{display:none}
 
 #rpanes{flex:1;min-height:0;position:relative}
 .rframe{flex:1;min-height:0;width:100%;border:0;background:var(--bg-2)}webview.rframe{display:flex}.rframe[hidden]{display:none}
@@ -695,12 +696,6 @@ body.taskv .hdr #bq,body.taskv .hdr #newtop{display:none!important}
 @media(min-width:641px){.rail .top{margin-top:-2px}}
 /* A floating window held by its bar: the grabbing hand everywhere until it is let go (the bar itself shows the plain pointer). */
 html.grabbing,html.grabbing *{cursor:grabbing!important}
-/* The Home row is one rounded badge (a pill with a soft border), the count inside it. */
-.hwsslot .pgrp{margin:2px 0 6px;padding:0 4px 0 2px;border:1px solid var(--line);border-radius:var(--r-pill,999px);background:var(--bg-2)}
-.hwsslot .pgrp:hover{background:var(--hover)}
-/* Collapsed side menu: the Home pill is a round icon button, centred (not a tall oval). */
-[data-rail=min] .hwsslot .pgrp{width:32px;height:32px;margin:4px auto 6px;padding:0;border-radius:50%;display:grid;place-items:center}
-[data-rail=min] .hwsslot .proj{width:32px;height:32px;padding:0;margin:0;display:grid;place-items:center}
 /* The Terminal page's header bar: 40px like the run workspace's tab bar. */
 @media(min-width:641px){body.termv .hdr{height:40px;min-height:40px}}
 /* The run workspace's first tab starts at the card's edge (the tab's own 12px is the margin), not 6px further in. */

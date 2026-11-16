@@ -21,6 +21,7 @@ import {
   type RailTask,
 } from "@lib/rail";
 import { useRoute } from "@lib/router";
+import { closeAllHome, homeTabs, showHomeWs, useHomeWs } from "@lib/home";
 import { useRailData, useServer } from "@lib/server";
 import { AgentChips } from "./agent-chips.tsx";
 
@@ -137,6 +138,41 @@ function WsRow({ dir, r, now, current }: { dir: string; r: RailRow; now: number;
   );
 }
 
+// Home's own terminals (the Home window) while it is minimized: how many are open, a click brings the window back,
+// × closes them all. Open or closed, the window speaks for itself; it opens with Ctrl+Alt+A or a Home row's +.
+function HomeTerms() {
+  const h = useHomeWs(),
+    n = homeTabs(useServer((x) => x.shells), h.ending).length;
+  if (!n || h.st !== "min") return null;
+  return (
+    <>
+      <button
+        type="button"
+        className="hterm"
+        title={`Home terminals: ${n} open (Ctrl+Alt+A)`}
+        aria-label={`Open the Home window, ${n} terminals`}
+        onClick={() => showHomeWs("open")}
+      >
+        <svg aria-hidden="true">
+          <use href="#i-term" />
+        </svg>
+        {n}
+      </button>
+      <button
+        type="button"
+        className="wadd"
+        title="Close the Home terminals"
+        aria-label="Close the Home terminals"
+        onClick={() => void closeAllHome()}
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M7 7l10 10M17 7 7 17" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+      </button>
+    </>
+  );
+}
+
 function Group({
   g,
   logo,
@@ -171,7 +207,13 @@ function Group({
           aria-expanded={!g.shut}
           onClick={fold}
         >
-          <RailLogo dir={g.dir} name={g.name} logo={logo} />
+          {g.home ? (
+            <svg className="plogo hwsico" aria-hidden="true">
+              <use href="#i-home" />
+            </svg>
+          ) : (
+            <RailLogo dir={g.dir} name={g.name} logo={logo} />
+          )}
           <span className="pname">{g.name}</span>
           <svg className="fchev" viewBox="0 0 24 24" aria-hidden="true">
             <path
@@ -184,6 +226,7 @@ function Group({
             />
           </svg>
         </button>
+        {g.home && <HomeTerms />}
         {g.git && (
           <button
             type="button"

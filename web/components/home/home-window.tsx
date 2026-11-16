@@ -215,39 +215,3 @@ export function HomeWsButton() {
   );
 }
 
-// The minimized window: the first row of the Projects list. It sits beside the list, not in it (board/home-ws.ts mounts
-// it above #plist); the row's classes are the list's own.
-export function HomeWsRow() {
-  const s = useHomeWs(),
-    shells = useServer((x) => x.shells),
-    n = homeTabs(shells, s.ending).length;
-  return (
-    <div className="plist hwsslot" hidden={s.st !== "min"}>
-      <div className="pgrp">
-        <button
-          type="button"
-          className="proj"
-          title="Home workspace: agents outside any project (Ctrl+Alt+A)"
-          onClick={() => showHomeWs("open")}
-        >
-          <svg className="plogo hwsico" aria-hidden="true">
-            <use href="#i-home" />
-          </svg>
-          <span className="pname">Home</span>
-          <span className="c">{n || ""}</span>
-        </button>
-        <button
-          type="button"
-          className="wadd hwsrx"
-          title="Close the Home workspace"
-          aria-label="Close the Home workspace"
-          onClick={() => void closeAllHome()}
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M7 7l10 10M17 7 7 17" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-          </svg>
-        </button>
-      </div>
-    </div>
-  );
-}
