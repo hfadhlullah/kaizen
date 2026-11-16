@@ -38,6 +38,16 @@ if (process.platform === "linux" && process.env.APPIMAGE && !process.env.APPIMAG
     app.exit(0);
   } catch { /* cannot start it again: carry on mounted */ }
 }
+// Steam Deck: Chromium's GPU process faults the AMD driver (GCVM_L2_PROTECTION_FAULT), the
+// GPU resets and the app dies. Software rendering there; KAIZEN_DESKTOP_GPU=1 forces it on,
+// =0 forces it off elsewhere. The menu entry is rewritten each launch, so a flag in it would not stick.
+const noGpu = (() => {
+  const v = process.env.KAIZEN_DESKTOP_GPU;
+  if (v === "0") return true;
+  if (v === "1" || process.platform !== "linux") return false;
+  try { return /^ID=("?)steamos\1$/m.test(readFileSync("/etc/os-release", "utf8")); } catch { return false; }
+})();
+if (noGpu) app.disableHardwareAcceleration();
 // Crash dumps stay on this machine (as Orca does); nothing is uploaded.
 crashReporter.start({ uploadToServer: false });
 
