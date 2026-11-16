@@ -58,14 +58,27 @@ export async function claudeUsageAt(dir: string, get: typeof fetch = fetch): Pro
   }
 }
 
+// A phone's name: iOS reports its hostname as "localhost", so it comes from the DNS name ("iphone-11-1" -> "iPhone 11").
+// ponytail: a lone trailing "-<digit>" is taken as Tailscale's duplicate suffix, so "iphone-8" reads "iPhone"; use the
+// admin API's device name if that matters.
+export function phoneName(p: any): string {
+  const host = String(p?.HostName ?? "");
+  if (host && host !== "localhost") return host;
+  const label = String(p?.DNSName ?? "").split(".")[0].replace(/-\d$/, "");
+  return label.split("-").filter(Boolean).map((w) => (w === "iphone" ? "iPhone" : w[0].toUpperCase() + w.slice(1))).join(" ") || host;
+}
+
 // Phones on the tailnet from `tailscale status --json`: iOS and Android peers.
 export type Computer = { name: string; dns: string; os: string; online: boolean };
-export function phonePeers(json: string): { running: boolean; phones: { name: string; online: boolean }[]; computers: Computer[]; self: Computer | null } {
+export function phonePeers(json: string): { running: boolean; phones: { name: string; os: string; online: boolean }[]; computers: Computer[]; self: Computer | null } {
   try {
     const s = JSON.parse(json);
     const peers = Object.values<any>(s?.Peer ?? {});
     const isPhone = (p) => /^(ios|android)$/i.test(p?.OS ?? "");
-    const phones = peers.filter(isPhone).map((p) => ({ name: String(p.HostName ?? p.DNSName ?? ""), online: !!p.Online }));
+    // Your own phones when you have one: a phone another account shared onto the tailnet is not yours.
+    const all = peers.filter(isPhone);
+    const own = all.filter((p) => s?.Self?.UserID != null && p.UserID === s.Self.UserID);
+    const phones = (own.length ? own : all).map((p) => ({ name: phoneName(p), os: String(p.OS), online: !!p.Online }));
     // The other computers on the tailnet: the phone's Home lists them, a tap opens their board.
     const comp = (p, online = !!p.Online): Computer => ({ name: String(p.HostName ?? ""), dns: String(p.DNSName ?? "").replace(/\.$/, ""), os: String(p.OS ?? ""), online });
     const computers = peers.filter((p) => p?.OS && !isPhone(p)).map((p) => comp(p));

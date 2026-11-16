@@ -42,13 +42,21 @@ test("claudeUsage: maps the windows; a failure is an error that never carries th
   expect(await claudeUsage(h, (async () => new Response("", { status: 401 })) as any)).toEqual({ agent: "claude", error: "HTTP 401", expired: true });
 });
 
+test("phonePeers: your own phones, named from the DNS name when iOS says localhost", () => {
+  const s = JSON.stringify({ BackendState: "Running", Self: { UserID: 1, OS: "linux" }, Peer: {
+    a: { OS: "iOS", HostName: "localhost", DNSName: "iphone-11-1.tail.ts.net.", UserID: 1, Online: true },
+    b: { OS: "android", HostName: "Galaxy Z Flip7", UserID: 2, Online: true },
+  } });
+  expect(phonePeers(s).phones).toEqual([{ name: "iPhone 11", os: "iOS", online: true }]);
+});
+
 test("phonePeers: online, offline, no phone, not running", () => {
   const st = (peers: object, state = "Running") => JSON.stringify({ BackendState: state, Peer: peers });
-  expect(phonePeers(st({ a: { OS: "iOS", HostName: "iphone", Online: true }, b: { OS: "linux", HostName: "pc", DNSName: "pc.tail1.ts.net.", Online: true } }))).toEqual({ running: true, phones: [{ name: "iphone", online: true }], computers: [{ name: "pc", dns: "pc.tail1.ts.net", os: "linux", online: true }], self: null });
+  expect(phonePeers(st({ a: { OS: "iOS", HostName: "iphone", Online: true }, b: { OS: "linux", HostName: "pc", DNSName: "pc.tail1.ts.net.", Online: true } }))).toEqual({ running: true, phones: [{ name: "iphone", os: "iOS", online: true }], computers: [{ name: "pc", dns: "pc.tail1.ts.net", os: "linux", online: true }], self: null });
   const me = JSON.stringify({ BackendState: "Running", Self: { OS: "linux", HostName: "me", DNSName: "me.ts.net." }, Peer: { m: { OS: "macOS", HostName: "mac", Online: false } } });
   expect(phonePeers(me).self).toEqual({ name: "me", dns: "me.ts.net", os: "linux", online: true });
   expect(phonePeers(me).computers).toEqual([{ name: "mac", dns: "", os: "macOS", online: false }]);
-  expect(phonePeers(st({ a: { OS: "android", HostName: "pixel", Online: false } })).phones).toEqual([{ name: "pixel", online: false }]);
+  expect(phonePeers(st({ a: { OS: "android", HostName: "pixel", Online: false } })).phones).toEqual([{ name: "pixel", os: "android", online: false }]);
   expect(phonePeers(st({ b: { OS: "windows", Online: true } })).phones).toEqual([]);
   expect(phonePeers(st({}, "Stopped")).running).toBe(false);
   expect(phonePeers("").running).toBe(false);

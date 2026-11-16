@@ -8,6 +8,11 @@ test("the phone chip says why it is off", () => {
     on: true,
     tip: "A phone is online on your tailnet",
   });
+  expect(phoneStatus({ tailscale: true, online: true, devices: [{ name: "iPhone 11", os: "iOS" }] })).toEqual({
+    text: "iPhone 11 connected",
+    on: true,
+    tip: "iPhone 11 is online on your tailnet",
+  });
   expect(phoneStatus({ tailscale: true, phones: 1 })).toMatchObject({
     text: "Phone offline",
     on: false,
