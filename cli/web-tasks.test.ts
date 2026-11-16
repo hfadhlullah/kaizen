@@ -398,3 +398,15 @@ test('a run left at review with nothing awaited gets Looks good back once its ag
  const t=taskAction(f.state,{op:'accept',id:f.created.id,revision:f.now().revision,resultId:f.now().currentResult,operationId:'lg'},hooks).task;
  expect(approved).toEqual([run+':approvals.review']);expect(t.status).toBe('accepted');
 });
+// Allow / Deny on the task page type the agent's first option or Esc into its terminal, and only while it is really asking.
+test('the page answers an agent waiting on a permission prompt, and refuses when it is not waiting',()=>{
+ const f=flow();let t=f.confirmed();const key=f.get(t).launch!.pty!;
+ const typed:[string,boolean][]=[];f.hooks.answer=(k:string,yes:boolean)=>typed.push([k,yes]);
+ f.hooks.asking=()=>false;
+ expect(()=>f.act(t,'prompt',{answer:'yes'})).toThrow('not waiting');expect(typed).toEqual([]);
+ f.hooks.asking=()=>true;
+ f.act(f.get(t),'prompt',{answer:'yes'});f.act(f.get(t),'prompt',{answer:'no'});
+ expect(typed).toEqual([[key,true],[key,false]]);
+ // anything but yes is a Deny
+ f.act(f.get(t),'prompt',{answer:'maybe'});expect(typed.at(-1)).toEqual([key,false]);
+});

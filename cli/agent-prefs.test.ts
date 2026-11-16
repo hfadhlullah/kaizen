@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { bypassForLaunch, agentEnabled, argsOf, commandOf, prefersBypass, publicPref, readPrefs, savePrefs, withEnv } from "./agent-prefs.ts";
 import { awakeHolder, inhibitArgv, wantAwake } from "./keep-awake.ts";
-import { agentChoices, detectDefaultAgent, launchPreview, launchRun, keepAwake } from "./state.ts";
+import { agentChoices, detectDefaultAgent, launchPreview, launchRun, keepAwake, skillsReadDir, bypassAcceptedFile } from "./state.ts";
 
 let dir: string, file: string;
 const known = ["claude", "codex", "cursor"];
@@ -137,4 +137,62 @@ test("per-launch bypass overrides saved defaults, and unsupported agents stay no
   expect(bypassForLaunch("codex", "true", true, own)).toBe(false);
   expect(bypassForLaunch("cursor", true, false, bypass)).toBe(false);
   expect(own.permissions).toBe("own");
+});
+
+// Claude reads kaizen's skill files outside every project; the launch adds that folder so a run does not stop on a read prompt
+// (2026-11-16-permission-prompt). `--` follows because --add-dir takes a list and would swallow the prompt.
+test("skillsReadDir: the folder above the real path of the global kaizen skill, or null", () => {
+  expect(skillsReadDir(join(dir, "nobody"))).toBeNull();
+  const clone = join(dir, "clone", "skills");
+  mkdirSync(join(clone, "kaizen"), { recursive: true });
+  mkdirSync(join(dir, "home", ".claude", "skills"), { recursive: true });
+  symlinkSync(join(clone, "kaizen"), join(dir, "home", ".claude", "skills", "kaizen"));
+  expect(skillsReadDir(join(dir, "home"))).toBe(require("node:fs").realpathSync(clone));
+});
+
+test("a Claude launch with a prompt adds the skills folder and ends the flags; Codex and a promptless launch do not", () => {
+  const clone = join(dir, "clone", "skills"), home = join(dir, "home");
+  mkdirSync(join(clone, "kaizen"), { recursive: true });
+  mkdirSync(join(home, ".claude", "skills"), { recursive: true });
+  symlinkSync(join(clone, "kaizen"), join(home, ".claude", "skills", "kaizen"));
+  mkdirSync(join(dir, ".kaizen")); mkdirSync(join(dir, "bin"));
+  for (const c of ["claude", "codex"]) { writeFileSync(join(dir, "bin", c), "#!/bin/sh\nexit 0\n", { mode: 0o755 }); }
+  if (process.platform === "win32") return;
+  const script = `const { launchRun } = await import(${JSON.stringify(join(import.meta.dir, "state.ts"))});
+    const one = (agent, text) => launchRun({ severity: null, where: null, text, raw: text }, ${JSON.stringify(dir)}, undefined, { agent, cwd: ${JSON.stringify(dir)}, card: true });
+    console.log(JSON.stringify({ claude: one("claude", "x"), codex: one("codex", "x"), bare: one("claude", "") })); process.exit(0);`;
+  const out = JSON.parse(Bun.spawnSync([process.execPath, "-e", script], { env: { ...process.env, HOME: home, USERPROFILE: home, PATH: `${join(dir, "bin")}:${process.env.PATH}` } }).stdout.toString());
+  if (!out.claude.ok) return; // no pseudo-terminal here
+  const real = require("node:fs").realpathSync(clone);
+  const c = out.claude.cmd as string[];
+  expect(c.slice(-3, -1)).toEqual([`--add-dir=${real}`, "--"]);          // the prompt is the last word, after `--`
+  expect(c.at(-1)).toContain("/kaizen");
+  expect(c.filter((x) => x.startsWith("--add-dir"))).toEqual([`--add-dir=${real}`]); // only the skills folder, never the home folder
+  expect((out.codex.cmd as string[]).some((x) => x.startsWith("--add-dir") || x === "--")).toBe(false);
+  expect((out.bare.cmd as string[]).some((x) => x.startsWith("--add-dir"))).toBe(false);
+});
+
+// Yolo must bypass everything, including Claude Code's own first-run "Bypass Permissions mode" warning (No, exit is its default),
+// which a board user would never see. The launch accepts it from kaizen's own settings file, not by editing the user's settings.
+test("a Claude Yolo launch carries the bypass warning's acceptance; a normal one and Codex do not", () => {
+  const home = join(dir, "home");
+  mkdirSync(join(home, ".claude"), { recursive: true });
+  writeFileSync(join(home, ".claude", "settings.json"), "{}\n");
+  mkdirSync(join(dir, ".kaizen")); mkdirSync(join(dir, "bin"));
+  for (const c of ["claude", "codex"]) writeFileSync(join(dir, "bin", c), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+  if (process.platform === "win32") return;
+  const script = `const { launchRun } = await import(${JSON.stringify(join(import.meta.dir, "state.ts"))});
+    const one = (agent, yolo) => launchRun({ severity: null, where: null, text: "x", raw: "x" }, ${JSON.stringify(dir)}, undefined, { agent, cwd: ${JSON.stringify(dir)}, card: true, yolo });
+    console.log(JSON.stringify({ y: one("claude", true), n: one("claude", false), cx: one("codex", true) })); process.exit(0);`;
+  const out = JSON.parse(Bun.spawnSync([process.execPath, "-e", script], { env: { ...process.env, HOME: home, USERPROFILE: home, PATH: `${join(dir, "bin")}:${process.env.PATH}` } }).stdout.toString());
+  if (!out.y.ok) return; // no pseudo-terminal here
+  const file = join(home, ".kaizen", "claude-bypass.json"), y = out.y.cmd as string[];
+  expect(y).toContain("--dangerously-skip-permissions");
+  expect(y[y.indexOf("--settings") + 1]).toBe(file);
+  expect(JSON.parse(readFileSync(file, "utf8"))).toEqual({ skipDangerousModePermissionPrompt: true });
+  expect(readFileSync(join(home, ".claude", "settings.json"), "utf8").trim()).toBe("{}");        // the user's own settings are untouched
+  expect(y.at(-1)).toContain("/kaizen");                                                          // the prompt is still the last word
+  expect((out.n.cmd as string[]).includes("--settings")).toBe(false);
+  expect((out.cx.cmd as string[]).includes("--settings")).toBe(false);
+  expect(bypassAcceptedFile(join(dir, "elsewhere"))).toBe(join(dir, "elsewhere", ".kaizen", "claude-bypass.json"));
 });

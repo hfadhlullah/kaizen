@@ -17,7 +17,7 @@ import { MAX_FILE, MAX_IMAGE, saveFile, saveImage } from "./term-image.ts";
 import { shellHistory } from "./term-history.ts";
 import { bundledSkills, repairSkill, setSkill, skillsHeld, skillsOff, skillStatus } from "./skills.ts";
 import * as rea from "./rea.ts";
-import { accountEnv, accountForRun, agentUsable, CHILD_ENV, detectDefaultAgent, promptArgs, heartbeatMinutes, keepAwake, launchPreview, trustFolder, YOLO_FLAGS } from "./state.ts";
+import { accountEnv, accountForRun, agentUsable, CHILD_ENV, detectDefaultAgent, promptArgs, heartbeatMinutes, keepAwake, launchPreview, trustFolder, YOLO_FLAGS, bypassFlags } from "./state.ts";
 import { agentLine, failStart, handoffModel, markRunning, readWorkers, requested, startWorker, sweep, workerStale } from "./workers.ts";
 import { childDied, childQuiet, markWoken, move, requestOpen, readHandoff, refused, started, wakeAction, wakeLine, type Handoff } from "./handoff.ts";
 import { processTable, storage, systemMemory, treeRss, type Root } from "./resources.ts";
@@ -1162,7 +1162,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           // A first message for the agent (the Storage panel's Cleanup: "/disk-cleanup"), passed as its
           // argument the way a run's prompt is (promptArgs), never through a shell.
           const first = !signIn && typeof body.prompt === "string" && body.prompt.trim() && body.prompt.length <= 2000 ? body.prompt.trim() : "";
-          const line = signIn ? [commandOf(a.cmd), ...(a.cmd === "codex" ? ["login"] : [])] : withEnv([commandOf(a.cmd), ...(bypass ? YOLO_FLAGS[a.cmd]! : []), ...argsOf(a.cmd), ...promptArgs(a.cmd, first)], a.cmd);
+          const line = signIn ? [commandOf(a.cmd), ...(a.cmd === "codex" ? ["login"] : [])] : withEnv([commandOf(a.cmd), ...(bypass ? bypassFlags(a.cmd) : []), ...argsOf(a.cmd), ...promptArgs(a.cmd, first)], a.cmd);
           cmd = acct.dir ? ["env", ...accountEnv(acct), ...line] : line;
         }
         // A workspace folder: only an exact path from this project's own `git worktree list`.

@@ -96,6 +96,31 @@ export const YOLO_FLAGS: Record<string, string[]> = {
   codex: ["--dangerously-bypass-approvals-and-sandbox"], gemini: ["--yolo"], opencode: ["--auto"],
 };
 
+// The folder that holds kaizen's skills as Claude Code reads them: the real path of the global `kaizen` skill link, one level up
+// (the clone's `skills/`). null when kaizen is not linked there. Only this folder is added to a launch, not the home folder.
+export function skillsReadDir(home = homedir()): string | null {
+  try { return dirname(realpathSync(join(home, ".claude", "skills", "kaizen"))); } catch { return null; }
+}
+
+// What a bypass (Yolo) launch of `cmd` passes: its skip-everything flag, and for Claude Code also the acceptance of its own first-run
+// "Bypass Permissions mode" warning (No, exit is its default), which a board user would never see. The user chose Yolo here, so the launch
+// accepts it from a settings file for this launch only, not by editing the user's own Claude settings. Every place that starts an agent in
+// bypass (a run, a worker, a board terminal) uses this.
+export function bypassFlags(cmd: string): string[] {
+  const accepted = cmd === "claude" ? bypassAcceptedFile() : null;
+  return [...(YOLO_FLAGS[cmd] ?? []), ...(accepted ? ["--settings", accepted] : [])];
+}
+
+// A settings file that only says the bypass-mode warning is accepted, for `claude --settings` on a Yolo launch. Lives in kaizen's own
+// folder; null if it cannot be written (Claude then asks, as before).
+export function bypassAcceptedFile(home = homedir()): string | null {
+  try {
+    const f = join(home, ".kaizen", "claude-bypass.json");
+    if (!existsSync(f)) { mkdirSync(dirname(f), { recursive: true }); writeFileSync(f, JSON.stringify({ skipDangerousModePermissionPrompt: true }) + "\n"); }
+    return f;
+  } catch { return null; }
+}
+
 // How each tool takes the opening prompt and stays interactive. agy refuses a bare
 // argument and exits; opencode reads one as the project folder to open.
 const PROMPT_FLAGS: Record<string, string[]> = { agy: ["-i"], opencode: ["--prompt"] };
@@ -1854,7 +1879,11 @@ export function launchRun(it: Item, from: string, run?: string, pick: { agent?: 
   const wasYolo = yoloRecs.some((s) => ownerOf(st, s, idx) === run);
   // Settings' bypass takes the same road, so the session record and the card's mark follow.
   const yolo = (wasYolo || (!!pick.yolo && agent.cmd === pick.agent) || prefersBypass(agent.cmd, prefs)) && !!YOLO_FLAGS[agent.cmd];
-  const flags = [...agentFlags(projectDir, agent.cmd, undefined, model), ...(yolo ? YOLO_FLAGS[agent.cmd] : []), ...argsOf(agent.cmd, prefs)];
+  // Claude reads kaizen's skill files (spec.md and the others) from the folder its global link points at, outside every project, and
+  // would stop on a read prompt for each run; with that folder added it does not. `--` ends the flags, because --add-dir takes a list
+  // and would otherwise swallow the prompt that follows as one more folder.
+  const skills = agent.cmd === "claude" && prompt ? skillsReadDir() : null;
+  const flags = [...agentFlags(projectDir, agent.cmd, undefined, model), ...(yolo ? bypassFlags(agent.cmd) : []), ...argsOf(agent.cmd, prefs), ...(skills ? [`--add-dir=${skills}`, "--"] : [])];
   // The task as its run's request will hold it: without the runner word in front.
   // Session lookups read the tool's folder from the environment; for this launch it's the account's.
   const prior = acct.envVar ? process.env[acct.envVar] : undefined;

@@ -9,7 +9,7 @@ import { join } from "node:path";
 import { argsOf, commandOf, readPrefs, withEnv, type Prefs } from "./agent-prefs.ts";
 import { clip, reportBlocked, reportUnblock, validId } from "./report.ts";
 import { read } from "./settings.ts";
-import { accountEnv, accountForRun, agentFlags, agentUsable, detectDefaultAgent, MODEL_FLAGS, plainModel, promptArgs, readText, runAgent, subagentEnv, YOLO_FLAGS } from "./state.ts";
+import { accountEnv, accountForRun, agentFlags, agentUsable, detectDefaultAgent, MODEL_FLAGS, plainModel, promptArgs, readText, runAgent, subagentEnv, YOLO_FLAGS, bypassFlags } from "./state.ts";
 import { branchFor, branchOf, run as sh } from "./worktree.ts";
 
 export type Status = "planned" | "requested" | "running" | "blocked" | "succeeded" | "failed" | "unverified" | "conflict" | "merged" | "stopped";
@@ -222,7 +222,7 @@ export function agentLine(project: string, id: string, prompt: string, permissio
   const acct = accountForRun(project, id, agent.cmd);
   if (acct.error) return acct.error;
   const bypass = permissions === "bypass" && !!YOLO_FLAGS[agent.cmd];
-  const flags = [...agentFlags(project, agent.cmd, undefined, model), ...(bypass ? YOLO_FLAGS[agent.cmd]! : []), ...argsOf(agent.cmd, prefs)];
+  const flags = [...agentFlags(project, agent.cmd, undefined, model), ...(bypass ? bypassFlags(agent.cmd) : []), ...argsOf(agent.cmd, prefs)];
   const line = withEnv([commandOf(agent.cmd, prefs), ...flags, ...promptArgs(agent.cmd, prompt)], agent.cmd, prefs);
   // Windows has no env command: there only an account, as before, gets one.
   const vars = [...(process.platform !== "win32" ? subagentEnv(project, agent.cmd) : []), ...accountEnv(acct)];

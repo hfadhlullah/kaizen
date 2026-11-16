@@ -53,7 +53,8 @@ function Task() {
     [follow, setFollow] = useState(true),
     [artifactId, setArtifactId] = useState(""),
     [drawer, setDrawer] = useState<boolean | null>(null),
-    [confirm, setConfirm] = useState<"" | "abandon" | "delete">("");
+    [confirm, setConfirm] = useState<"" | "abandon" | "delete">(""),
+    [denied, setDenied] = useState(false);
   const thread = useRef<HTMLDivElement>(null),
     input = useRef<HTMLTextAreaElement>(null);
   const t = page?.task;
@@ -109,6 +110,7 @@ function Task() {
   };
   const send = async () => {
     if (!(await sendMessage(selectedId))) return void input.current?.focus();
+    setDenied(false);
     setFollow(true);
     setDrawer(true);
     input.current?.focus();
@@ -199,15 +201,19 @@ function Task() {
       </header>
       <div role="status" className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5 text-base">
         <StatusBadge category={t.attention?.category ?? "in-progress"}>{taskStatus(t)}</StatusBadge>
-        <span className="text-muted-foreground">{t.attention?.action || ""}</span>
+        {/* While the agent waits on a permission the status must not say it is planning; after Deny it waits for an instruction. */}
+        {!(t.agentAsking && t.agentAlive) && <span className="text-muted-foreground">{t.attention?.action || ""}</span>}
+        {denied && !t.agentAsking && (
+          <span className="text-muted-foreground">Denied. The agent is waiting for your instruction: tell it what to do instead in the message box.</span>
+        )}
         <span className="text-muted-foreground">{isCurrent && !t.decision ? (t.actions?.acceptWhy ?? "") : ""}</span>
         {t.agentAsking && t.agentAlive && (
           <span className="flex items-baseline gap-2 text-warning">
             Waiting for permission
-            <Button disabled={pending} onClick={() => void runAction("prompt", { answer: "yes" })}>
+            <Button disabled={pending} onClick={() => (setDenied(false), void runAction("prompt", { answer: "yes" }))}>
               Allow
             </Button>
-            <Button disabled={pending} onClick={() => void runAction("prompt", { answer: "no" })}>
+            <Button disabled={pending} onClick={() => void runAction("prompt", { answer: "no" }).then((r) => r?.ok && setDenied(true))}>
               Deny
             </Button>
           </span>

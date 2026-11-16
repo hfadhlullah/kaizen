@@ -185,6 +185,12 @@ test("asking: Claude Code and Codex prompts count as a question, ordinary output
   const { asking } = await import("./pty.ts");
   expect(asking("\x1b[1mWould you like to run the following command?\x1b[0m")).toBe(true);
   expect(asking("What behavior do you want?\r\n\x1b[36m❯ 1. Retry with backoff\x1b[0m\r\n  2. Fail\r\n  4. Type something.")).toBe(true);
+  // Claude Code's read-outside-the-folder prompt as the terminal sends it: colour codes between the arrow and "1." leave three spaces
+  // once stripped, and none of the older phrases are in it (2026-11-16: the task page never showed Allow / Deny for it).
+  const outside = "\x1b[1mRead outside the working directories\x1b[0m\r\nRead(/h/kaizen/skills/kaizen/spec.md)\r\nAllow this read outside the working directories?\r\n\x1b[38;2;177;185;249m❯ \x1b[39m\x1b[38;2;153;153;153m1. \x1b[39mYes, and keep allowing any reads outside the working directories\r\n  2. No, and block reads outside the working directories from now on\r\n  3. No, and ask again next time\r\n  4. Yes, but ask again next time\r\nEsc to cancel";
+  expect(asking(outside)).toBe(true);
+  expect(asking("\x1b[34m❯\x1b[39m\x1b[2m1.\x1b[22m Yes\r\n  2. No")).toBe(true);              // only the option list, no words
+  expect(asking(outside + "\r\n\x1b[2K✻ Reading… (3s · ↓ 120 tokens)")).toBe(false);           // answered: the working line comes after
   expect(asking("Do you want to make this edit to cli/pty.ts?")).toBe(true);
   expect(asking("Reading cli/pty.ts\r\n\x1b[2K✻ Thinking… 1. step one done")).toBe(false);
   // Answered: the working line drawn after the question clears it.
@@ -352,4 +358,20 @@ test("frames: first chunk at once, a burst in one message, order kept, flush and
   f.stop(); // socket gone: nothing is sent after
   await Bun.sleep(60);
   expect(sent.join("")).toBe("abcdefg"); // g went out at once; h was dropped
+});
+
+// Claude Code repaints its status line every ~600 ms under a question, so output is never quiet: the question must still be seen,
+// stay seen while the repaints push it out of the tail, and end when a key is typed (2026-11-16-permission-prompt, case B).
+test.skipIf(process.platform === "win32")("a question under a repainting status line is seen, stays open, and ends when a key is typed", async () => {
+  const prompt = "Allow this read outside the working directories?\\n\\033[34m❯ \\033[39m\\033[2m1. \\033[22mYes, and keep allowing\\n  2. No\\n  3. No, and ask again next time\\n";
+  // the question once, then a 48-byte repaint every 100 ms (about 30 KB in 6 s: far more than the window), until a line is read
+  startPty("askrepaint", ["sh", "-c", `printf '${prompt}'; i=0; while [ $i -lt 600 ]; do printf 'Reading /etc/hostname ...................... .\\r'; i=$((i+1)); sleep 0.01; done; read l; echo got:$l`], root);
+  const wait = async (f: () => boolean, ms = 4000) => { for (let i = 0; i < ms / 50 && !f(); i++) await Bun.sleep(50); return f(); };
+  expect(await wait(() => ptyState("askrepaint")!.asking)).toBe(true);          // seen while the output never goes quiet
+  const total = ptyState("askrepaint")!.total;
+  await wait(() => ptyState("askrepaint")!.total > total + 20_000, 8000);        // the repaints bury the question
+  expect(ptyState("askrepaint")!.asking).toBe(true);                             // and it stays open
+  writePty("askrepaint", "1\r");
+  expect(ptyState("askrepaint")!.asking).toBe(false);                            // a key ends it
+  exitPty("askrepaint", 1000);
 });

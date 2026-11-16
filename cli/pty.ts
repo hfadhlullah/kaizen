@@ -15,7 +15,7 @@ const killWinTree = (pid: number) => {
   try { Bun.spawnSync([join(process.env.SystemRoot ?? "C:\\Windows", "System32", "taskkill.exe"), "/T", "/F", "/PID", String(pid)], { stdin: "ignore", stdout: "ignore", stderr: "ignore", timeout: 3000, windowsHide: true }); } catch { /* already gone */ }
 };
 
-type Pty = { lastOut?: number; proc: Bun.Subprocess; out: string[]; size: number; listeners: Set<(d: string | null) => void>; exit: number | null; asking: boolean; busy: boolean; quiet?: Timer; total: number; since: number; onChange?: () => void; tmux?: string; last: string; lastAt: number; typedAt: number; born: number; draft?: boolean };
+type Pty = { lastOut?: number; proc: Bun.Subprocess; out: string[]; size: number; listeners: Set<(d: string | null) => void>; exit: number | null; asking: boolean; busy: boolean; quiet?: Timer; total: number; since: number; askedSince: number; askedAt: number; askCheck: number; onChange?: () => void; tmux?: string; last: string; lastAt: number; typedAt: number; born: number; draft?: boolean };
 
 // What a page attaching late gets replayed. A full-screen tool redraws often, so the
 // tail of its output is enough to rebuild the screen.
@@ -53,7 +53,8 @@ const grab = (p: Pty, text: string, every: number) => {
 
 // A question the agent stopped on: Claude Code's and Codex's approval and choice prompts.
 // ponytail: screen-text heuristic, misses a prompt worded otherwise; read agent hooks if that bites.
-const ASK = /Would you like to|Do you want to|[❯›>] ?1\. |Type something|\(y\/n\)|\[y\/N\]|Press enter to/i;
+// `[❯›>]\s*1\.`: a menu's first option, with any number of spaces where colour codes were (Claude Code draws "❯ \x1b[..m1. Yes"). "Allow this" is Claude's read-outside-the-folder question.
+const ASK = /Would you like to|Do you want to|Allow this|[❯›>]\s*1\. |Type something|\(y\/n\)|\[y\/N\]|Press enter to/i;
 // Escape sequences out; a cursor move becomes a space so words drawn apart stay apart.
 // The agent's working line (Claude Code's "✻ Thinking… (12s · ↓ 1.2k tokens)", Codex's
 // "Working (12s • esc to interrupt)", Gemini's "(esc to cancel, 12s)", opencode's "esc interrupt")
@@ -70,6 +71,8 @@ export const asking = (screen: string) => {
 };
 // How long output stays still before the screen is read for a question.
 export const QUIET_MS = 700;
+// How often the screen is read for a question while output keeps arriving.
+export const ASK_EVERY = 400;
 // The latest meaningful line of some terminal output, for the sidebar card: escape sequences, box
 // drawing, spinners and the TUI's own footer lines out. "" when nothing readable is left.
 // ponytail: screen-text heuristic over raw chunks; a TUI that repaints oddly shows an older line.
@@ -112,13 +115,25 @@ export const ptySupported = WIN || typeof (Bun as any).Terminal === "function";
 // outlives the board; null where tmux cannot be used, and the agent runs plainly.
 export function startPty(key: string, cmd: string[], cwd: string, pidFile?: string, onChange?: () => void, opts: { seed?: string; tmux?: string; attach?: boolean; env?: Record<string, string> } = {}): number {
   const dec = new TextDecoder();
-  const p: Pty = { proc: null as unknown as Bun.Subprocess, out: opts.seed ? [opts.seed] : [], size: opts.seed?.length ?? 0, listeners: new Set(), exit: null, asking: false, busy: false, total: 0, since: 0, onChange, last: "", lastAt: 0, typedAt: 0, born: Date.now() };
+  const p: Pty = { proc: null as unknown as Bun.Subprocess, out: opts.seed ? [opts.seed] : [], size: opts.seed?.length ?? 0, listeners: new Set(), exit: null, asking: false, busy: false, askedSince: -1, askedAt: 0, askCheck: 0, total: 0, since: 0, onChange, last: "", lastAt: 0, typedAt: 0, born: Date.now() };
   // attach: the session already runs (kept from a board before this one); only a client is started.
   if (opts.tmux && tmuxOk()) cmd = opts.attach ? attachCmd(opts.tmux) : tmuxCmd(opts.tmux, cmd);
   const flag = (v: boolean) => { if (p.asking !== v) { p.asking = v; onChange?.(); } };
   // busy: the agent's working line (WORK) drawn in the last QUIET_MS. A working agent redraws it many
   // times a second; other output (a status-line refresh, a repaint on resize or focus) is not work.
   const work = (v: boolean) => { if (p.busy !== v) { p.busy = v; onChange?.(); } };
+  // Is the agent waiting on the user? Read the screen's tail for a question. A question stays open while its screen keeps repainting
+  // under it (Claude Code's status line animates every ~600 ms, so output is never quiet) and nothing was typed: it ends when a key is
+  // typed (writePty clears it), the agent works again (WORK, in push) or exits.
+  const check = () => {
+    const tail = p.out.slice(-64).join("").slice(-8192);
+    grab(p, tail.slice(-4096), 0);
+    // Only what came after the user's last keystroke: a question already answered may still be in the tail.
+    const n = Math.min(8192, p.total - p.since);
+    const q = p.exit === null && n > 0 && asking(tail.slice(-n));
+    if (q && !p.asking) { p.askedSince = p.since; p.askedAt = Date.now(); }
+    flag(q || (p.asking && p.exit === null && p.since === p.askedSince));
+  };
   const push = (d: string) => {
     p.out.push(d);
     p.lastOut = Date.now();
@@ -126,17 +141,17 @@ export function startPty(key: string, cmd: string[], cwd: string, pidFile?: stri
     p.total += d.length;
     while (p.size > CAP && p.out.length > 1) p.size -= p.out.shift()!.length;
     for (const f of p.listeners) f(d);
-    if (WORKING.test(d)) work(p.exit === null);
+    if (WORKING.test(d)) {
+      work(p.exit === null);
+      // A working line drawn well after the question was raised: the question was answered some other way.
+      if (p.asking && Date.now() - p.askedAt > 400) flag(false);
+    }
     grab(p, d, 1000);
+    // Not only when output goes quiet: look every ASK_EVERY while it flows.
+    const now = Date.now();
+    if (now - p.askCheck >= ASK_EVERY) { p.askCheck = now; check(); }
     clearTimeout(p.quiet);
-    p.quiet = setTimeout(() => {
-      work(false);
-      const tail = p.out.slice(-8).join("").slice(-4096);
-      grab(p, tail, 0);
-      // Only what came after the user's last keystroke: a question already answered may still be in the tail.
-      const n = Math.min(4096, p.total - p.since);
-      flag(p.exit === null && n > 0 && asking(tail.slice(-n)));
-    }, QUIET_MS);
+    p.quiet = setTimeout(() => { work(false); check(); }, QUIET_MS);
   };
   if (WIN) {
     const ps = winPs();
