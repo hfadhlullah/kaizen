@@ -71,7 +71,16 @@ async function start() {
   try {
     const { state, saveCreds } = await useMultiFileAuthState(AUTH);
     let version: any;
-    try { version = (await fetchLatestBaileysVersion()).version; } catch {}
+    // Baileys' own lookup swallows its errors and returns a stale built-in version (isLatest: false), which WhatsApp
+    // refuses; so try its raw version file too before giving up on a fresh one.
+    try { const r = await fetchLatestBaileysVersion(); if (r.isLatest !== false) version = r.version; } catch {}
+    if (!version) {
+      try {
+        const r = await fetch("https://raw.githubusercontent.com/WhiskeySockets/Baileys/master/src/Defaults/baileys-version.json", { signal: AbortSignal.timeout(8000) });
+        const v = (await r.json() as any)?.version;
+        if (Array.isArray(v) && v.length === 3) version = v;
+      } catch {}
+    }
     const s = makeWASocket({ auth: state, version, logger: quiet, browser: Browsers.macOS("Kaizen"), syncFullHistory: false, markOnlineOnConnect: false });
     sock = s;
     s.ev.on("creds.update", saveCreds);
@@ -104,7 +113,10 @@ async function start() {
           wantLink = false; sock = null;
           return;
         }
-        // Any other close (network, restart-required after the QR scan): reconnect.
+        // Any other close (network, restart-required after the QR scan): reconnect. Say why, so the card is not
+        // stuck on "Connecting" with no hint; the next open or QR clears it.
+        if (code !== DisconnectReason.restartRequired)
+          error = `WhatsApp refused the connection (${code ?? u.lastDisconnect?.error?.message ?? "no answer"}). Check the network and that the computer's clock is right; retrying`;
         starting = false;
         if (wantLink || existsSync(join(AUTH, "creds.json"))) setTimeout(() => void start(), 1500);
         else { error = "WhatsApp closed the link; try again"; sock = null; }

@@ -25,7 +25,7 @@ pkg("@whiskeysockets/baileys", `
 export default function makeWASocket() { return { ev: { on() {} }, end() {}, logout: async () => {} }; }
 export const useMultiFileAuthState = async () => ({ state: {}, saveCreds() {} });
 export const fetchLatestBaileysVersion = async () => ({ version: [2, 3000, 1] });
-export const DisconnectReason = { loggedOut: 401 };
+export const DisconnectReason = { loggedOut: 401, restartRequired: 515 };
 export const Browsers = { macOS: () => ["Kaizen", "Chrome", "1"] };`);
 pkg("qrcode", `export default { create: () => ({ modules: { size: 1, get: () => 1 } }) };`);
 const proc = Bun.spawn([process.execPath, BRIDGE_SCRIPT], { cwd: dir, stdout: "ignore", stderr: "ignore", windowsHide: true });
