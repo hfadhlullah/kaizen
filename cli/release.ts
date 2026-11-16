@@ -42,7 +42,9 @@ if (import.meta.main) {
     console.error("release: commit or drop your changes first");
     process.exit(1);
   }
-  if (head.startsWith(`Release ${pkg.version}:`) && !tagged(pkg.version) && !forced) {
+  // An interrupted release leaves its bump commit untagged; later commits on top of it do not make it a new release.
+  const bumped = () => { try { return sh(["git", "log", "--format=%s", `${sh(["git", "describe", "--tags", "--abbrev=0"])}..HEAD`]).split("\n").some((m) => m.startsWith(`Release ${pkg.version}:`)); } catch { return head.startsWith(`Release ${pkg.version}:`); } };
+  if (bumped() && !tagged(pkg.version) && !forced) {
     console.log(`release: reusing the unpublished bump commit for ${pkg.version}`);
   } else {
     const last = sh(["git", "describe", "--tags", "--abbrev=0"]);
