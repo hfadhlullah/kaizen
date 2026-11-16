@@ -121,7 +121,7 @@ function FolderStep({ back }: { back?: () => void }) {
   return (
     <Step
       title="Existing folder"
-      hint="Pick a folder, or type its path. A .kaizen folder is added to it."
+      hint="Pick a folder, or type its path. A .kaizen folder and a short kaizen note in CLAUDE.md are added to it."
       err={err}
       go="Add project"
       busy={busy ? "Adding..." : ""}

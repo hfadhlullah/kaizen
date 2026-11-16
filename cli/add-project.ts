@@ -1,7 +1,7 @@
 // What the board's "Add a project" sheet lets a web page ask for: clone a repository,
 // create a folder, branch off a base. Everything here is a pure check or an argv call,
 // so each refusal can be tested without a board. No shell string anywhere.
-import { appendFileSync, existsSync, lstatSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { appendFileSync, existsSync, lstatSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { isAbsolute, basename, dirname, join, parse, resolve, sep } from "node:path";
 import { canonPath, nativePath } from "./state.ts";
 import { run, type Run } from "./worktree.ts";
@@ -134,4 +134,67 @@ export function branchesOf(project: string, sh: Run = run): Branches {
   const head = g("symbolic-ref", "--short", "refs/remotes/origin/HEAD").out;
   const def = [head, "main", "master", current].find((b) => b && branches.includes(b)) ?? current;
   return { current, def, branches };
+}
+
+/** The rule agents follow when a plain message fits a kaizen skill: offer it, start it on a yes. One copy, used by the project note and Home Chat. */
+export const OFFER = `When what the person asks is what one of the kaizen skills does, and they did not name the skill, offer it before doing anything: say in one line which skill fits and what it does, then ask. Start it only on a yes; on a no, do the work directly. Never offer for a question about how something works, an explanation, reading code or a one-line fix. When they name a skill (\`/kaizen-explore\`, "use kaizen video"), start it.
+
+- build, add or change something that is not small: \`kaizen\` (plan, you approve, build, independent review)
+- research, or a decision between options ("should we use X or Y", "which is better", "is it worth it", "before we build"), or an idea they are unsure about: \`kaizen-explore\`
+- design options, mockups or variations before a build: \`kaizen-concept\`
+- a video, promo or explainer, or editing footage: \`kaizen-video\`
+- a pitch deck: \`kaizen-deck\`; a book, ebook or manuscript: \`kaizen-book\`; a browser game: \`kaizen-game\`
+- keep something for later (a link, an idea, a client request): the icebox, \`kaizen icebox add --file <path>\``;
+
+/** Every earlier wording of the skills paragraph that kaizen shipped, trimmed. When `OFFER` changes, add its old text here so projects get the new one. */
+const PREVIOUS = [
+  "When a request is what one of the kaizen skills does, invoke that skill first instead\nof doing the work inline: `kaizen-concept` for concepts, mockups or design options\nbefore a build; `kaizen-explore` to question an idea before planning; `kaizen-deck`,\n`kaizen-video`, `kaizen-book` and `kaizen-game` for a pitch deck, a video, a book or\na game. The skill holds the steps and the quality bar the work needs.",
+];
+
+// The "Kaizen workflow" section of CLAUDE.md and AGENTS.md. Claude Code loads a skill by matching its description, so an
+// ordinary request ("add a discount cap") does not reach kaizen unless the project says what to offer.
+const block = () => `\n## Kaizen workflow\n\nNon-trivial work in this repository follows the staged workflow in\n\`.kaizen/spec.md\`: plan, human approval, build, independent review, bounded fix\nloop. When the person agrees to a run, invoke the \`kaizen\` skill for it — do not\ncarry the stages out inline.\n\n${OFFER}\n\nA run costs several times what the same change costs in one session, so spend it\nwhere being wrong is expensive: money, data loss, a migration or anything else hard\nto undo, work a customer sees, or a part of the system nobody has read in a year.\n\nWork where being wrong is cheap and obvious does not start a run. Answering a\nquestion, reading code, a one-line fix, a rename the compiler checks — do those\ndirectly. When it is genuinely unclear, ask rather than assuming the expensive path.\n\nBefore non-trivial work, run \`kaizen recall --track <track> --query "<topic>"\` and\ntreat what it returns as past experience from other projects to verify, not as rules.\n\nAfter you change something a person can look at (a page, an app screen, a UI), show it\nbefore saying done: start the app\'s dev server if it is not running, then run\n\`kaizen preview <localhost url>\` (or \`kaizen preview <screenshot.png>\` for a static result).\nA page opens in the kaizen board\'s Browser tab and a screenshot in its Preview tab, never a new browser window.\n\nWhen the person asks for a file on their phone (or another device), send it with\n\`kaizen send <file>...\` (\`--to <device name | address>\` for a device other than their\ndefault). It goes through LocalSend; they tap Accept on the device.\n\nWhen the person asks for a file on their WhatsApp, send it with\n\`kaizen send --whatsapp <file>...\` (\`--to <chat name>\`, \`--text \"<caption>\"\`); with no\n\`--to\` it goes to their own message-yourself chat. Use it instead of LocalSend or any\nother route. If it says WhatsApp is not linked, tell them to link it in the board:\nSettings → Phone → WhatsApp Bridge.\n\nRun state lives in \`.kaizen/runs/<id>/\`. Read \`state.json\` first and continue from\nthe stage it names; never advance a run whose \`awaiting\` field is non-null without a\nrecorded human decision.\n`;
+
+/**
+ * Writes the note into `dir`'s CLAUDE.md, and AGENTS.md where an agent that reads it (Codex and the others) is installed
+ * or the file exists. Only the "## Kaizen workflow" section is added or brought up to date; the rest of a file is never touched.
+ * `create: false` only brings an existing section up to date (a folder that was set up before), never adds one.
+ * Returns what it did, one line each.
+ */
+export function writePointer(dir: string, agents: string[] = [], create = true): string[] {
+  const done: string[] = [];
+  const b = block();
+  for (const name of ["CLAUDE.md", "AGENTS.md"]) {
+    const f = join(dir, name);
+    const current = existsSync(f) ? readFileSync(f, "utf8") : "";
+    if (current.includes("## Kaizen workflow")) {
+      // Projects set up before a paragraph existed get it on the next init; the old skills-first line is replaced by the offer rule.
+      for (const [label, marker, from, to] of [
+        ["preview", "kaizen preview", "After you change something", "Run state lives"],
+        ["send", "kaizen send", "When the person asks for a file", "Run state lives"],
+        ["WhatsApp send", "kaizen send --whatsapp", "When the person asks for a file on their WhatsApp", "Run state lives"],
+      ]) {
+        const now = readFileSync(f, "utf8");
+        if (now.includes(marker) || !now.includes("\nRun state lives in")) continue;
+        writeFileSync(f, now.replace("\nRun state lives in", "\n" + b.slice(b.indexOf(from), b.indexOf(to)) + "Run state lives in"));
+        done.push(`added the ${label} line to ${name}`);
+      }
+      // The skills paragraph sits between the workflow line and "A run costs": the old skills line (or an earlier wording of the
+      // rule, PREVIOUS) becomes the current rule; a paragraph the person wrote or edited is theirs and stays; none at all is added.
+      const now = readFileSync(f, "utf8");
+      const end = now.indexOf("A run costs several"), anchor = now.indexOf("the stages out inline.\n\n");
+      const from = anchor >= 0 ? anchor + "the stages out inline.\n\n".length : -1;
+      const region = from >= 0 && end > from ? now.slice(from, end).trim() : null;
+      if (region === null) { if (end >= 0) { writeFileSync(f, now.slice(0, end) + OFFER + "\n\n" + now.slice(end)); done.push(`added the offer rule to ${name}`); } }
+      else if (!region) { writeFileSync(f, now.slice(0, from) + OFFER + "\n\n" + now.slice(end)); done.push(`added the offer rule to ${name}`); }
+      else if (PREVIOUS.includes(region)) { writeFileSync(f, now.slice(0, from) + OFFER + "\n\n" + now.slice(end)); done.push(`updated the skills rule in ${name}`); }
+      continue;
+    }
+    if (!create) continue;
+    // AGENTS.md is for agents other than Claude Code: not made for a Claude-only user, never emptied or rewritten.
+    if (!current && name === "AGENTS.md" && !agents.some((a) => a !== "claude")) continue;
+    appendFileSync(f, current ? (current.endsWith("\n") ? "" : "\n") + b : b.slice(1));
+    done.push(`${current ? "added to" : "wrote"} ${name} — kaizen now offers its skills when you ask for something`);
+  }
+  return done;
 }

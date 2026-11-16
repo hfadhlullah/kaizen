@@ -1,10 +1,10 @@
 // The checks behind the board's "Add a project" sheet: every URL, path, branch and base
 // a web page can send is tested here, and each refusal has a case.
 import { test, expect } from "bun:test";
-import { mkdtempSync, mkdirSync, writeFileSync, existsSync, realpathSync, readFileSync, symlinkSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, existsSync, realpathSync, readFileSync, symlinkSync, chmodSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { gitUrl, destDir, cloneInto, branchesOf, winBad, dirSize, ignoreKaizen } from "./add-project.ts";
+import { gitUrl, destDir, cloneInto, branchesOf, winBad, dirSize, ignoreKaizen, writePointer, OFFER } from "./add-project.ts";
 import { run, addWorktree, type Run } from "./worktree.ts";
 
 const tmp = () => realpathSync(mkdtempSync(join(tmpdir(), "addp-")));
@@ -166,4 +166,61 @@ test("ignoreKaizen writes the .kaizen rules once", () => {
   expect(readFileSync(join(d, ".gitignore"), "utf8")).toContain(".kaizen/*");
   expect(ignoreKaizen(d)).toBe(false);
   expect(readFileSync(join(d, ".gitignore"), "utf8").match(/\.kaizen\/\*\n/g)!.length).toBe(1);
+});
+
+// The kaizen note in CLAUDE.md / AGENTS.md: what plain chat offers (2026-11-16-offer-skills).
+const OLD_LINE = "When a request is what one of the kaizen skills does, invoke that skill first instead\nof doing the work inline: `kaizen-concept` for concepts, mockups or design options\nbefore a build; `kaizen-explore` to question an idea before planning; `kaizen-deck`,\n`kaizen-video`, `kaizen-book` and `kaizen-game` for a pitch deck, a video, a book or\na game. The skill holds the steps and the quality bar the work needs.\n\n";
+test("writePointer: CLAUDE.md always, AGENTS.md only where a non-Claude agent is installed, and nothing twice", () => {
+  const a = tmp();
+  expect(writePointer(a, ["claude"]).join("|")).toMatch(/wrote CLAUDE\.md/);
+  expect(existsSync(join(a, "AGENTS.md"))).toBe(false);
+  const md = readFileSync(join(a, "CLAUDE.md"), "utf8");
+  expect(md).toContain("## Kaizen workflow"); expect(md).toContain(OFFER);
+  expect(md).toContain("kaizen-explore"); expect(md).toContain("Start it only on a yes");
+  expect(writePointer(a, ["claude"])).toEqual([]);                      // a second run changes nothing
+  expect(readFileSync(join(a, "CLAUDE.md"), "utf8")).toBe(md);
+  const b = tmp();
+  writePointer(b, ["claude", "codex"]);
+  expect(readFileSync(join(b, "AGENTS.md"), "utf8")).toContain(OFFER);   // Codex reads AGENTS.md
+});
+test("writePointer: a file of the user's keeps every other byte, and an old skills line is replaced in place", () => {
+  const a = tmp(), mine = "# My project\n\nBe terse.\n";
+  writeFileSync(join(a, "CLAUDE.md"), mine);
+  writePointer(a, []);
+  const once = readFileSync(join(a, "CLAUDE.md"), "utf8");
+  expect(once.startsWith(mine)).toBe(true);                              // appended, never rewritten
+  // a project set up before: the block with the old line
+  const old = once.replace(OFFER + "\n\n", OLD_LINE);
+  expect(old).not.toBe(once); writeFileSync(join(a, "CLAUDE.md"), old);
+  expect(writePointer(a, []).join("|")).toMatch(/updated the skills rule/);
+  expect(readFileSync(join(a, "CLAUDE.md"), "utf8")).toBe(once);         // back to the new block, the rest unchanged
+  // an AGENTS.md that exists is updated even for a Claude-only user, and one the user wrote without the section gets it appended
+  writeFileSync(join(a, "AGENTS.md"), "# Agents\n"); writePointer(a, []);
+  expect(readFileSync(join(a, "AGENTS.md"), "utf8").startsWith("# Agents\n")).toBe(true);
+  expect(readFileSync(join(a, "AGENTS.md"), "utf8")).toContain(OFFER);
+});
+test.if(process.platform !== "win32" && process.getuid?.() !== 0)("writePointer throws on a folder it cannot write, so the board's add can still go on", () => {
+  const a = tmp(); chmodSync(a, 0o500);
+  try { expect(() => writePointer(a, [])).toThrow(); } finally { chmodSync(a, 0o700); }
+});
+test("writePointer without create only updates a note that is there", () => {
+  const a = tmp();
+  expect(writePointer(a, ["claude", "codex"], false)).toEqual([]);
+  expect(existsSync(join(a, "CLAUDE.md"))).toBe(false);
+  writeFileSync(join(a, "CLAUDE.md"), "# Mine\n");                       // a file with no kaizen section stays as it is
+  expect(writePointer(a, [], false)).toEqual([]);
+  expect(readFileSync(join(a, "CLAUDE.md"), "utf8")).toBe("# Mine\n");
+});
+test("writePointer keeps a skills paragraph the person edited, and re-adds one that is missing", () => {
+  const a = tmp();
+  writePointer(a, []);
+  const now = readFileSync(join(a, "CLAUDE.md"), "utf8");
+  const mine = now.replace(OFFER, "Offer kaizen skills only for builds. (my wording)");
+  writeFileSync(join(a, "CLAUDE.md"), mine);
+  expect(writePointer(a, [])).toEqual([]);                               // not one of kaizen's own wordings: theirs, left alone
+  expect(readFileSync(join(a, "CLAUDE.md"), "utf8")).toBe(mine);
+  writeFileSync(join(a, "CLAUDE.md"), now.replace(OFFER + "\n\n", ""));  // removed altogether: added back
+  expect(writePointer(a, []).join("|")).toMatch(/added the offer rule/);
+  expect(readFileSync(join(a, "CLAUDE.md"), "utf8")).toBe(now);
+  expect(writePointer(a, [])).toEqual([]);
 });

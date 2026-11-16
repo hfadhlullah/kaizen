@@ -424,3 +424,12 @@ test("scopeRule: an absolute path is // on Linux and macOS, //c/… for a Window
   expect(scopeRule("Write", "C:\\Users\\a\\p", true)).toBe("Write(//c/Users/a/p/**)");
 });
 
+test.if(posix)("the brief carries the offer rule for every kaizen skill, and still asks lite or full before a run", async () => {
+  fake(say("ok"));
+  await turn(null, "hi", projA);
+  const stdin = readFileSync(join(bin, "stdin"), "utf8");
+  expect(stdin).toContain("offer it before doing anything");
+  for (const skill of ["`kaizen`", "kaizen-explore", "kaizen-concept", "kaizen-video", "kaizen-deck", "kaizen-book", "kaizen-game", "icebox"]) expect(stdin).toContain(skill);
+  expect(stdin).toContain("Start it only on a yes");
+  expect(stdin).toContain("first ask which way, as numbered options");   // the run offer is unchanged
+});

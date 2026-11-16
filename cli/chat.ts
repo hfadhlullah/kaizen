@@ -9,6 +9,7 @@ import { basename, dirname, join } from "node:path";
 import { hostname, platform, release, arch } from "node:os";
 import { agentFlags, CHILD_ENV, readRuns, readText } from "./state.ts";
 import { listTasks } from "./tasks.ts";
+import { OFFER } from "./add-project.ts";
 
 export type Step = { kind: "cmd" | "edit" | "tool" | "project"; text: string; ok?: boolean };
 export type Attachment = { name: string; path: string; image: boolean };
@@ -97,6 +98,8 @@ Each project's kaizen runs live in <project>/.kaizen/runs/<id>/ (state.json has 
 You can read, analyse and edit files in any project folder listed above directly by its path; you do not need to switch to it. Do not write outside those folders and your working folder.
 Switching only changes this chat's home project (where you run and which project the board shows). On a line of its own write [[kaizen:project <folder>]] to switch to a listed project, or [[kaizen:new-project <name>]] to create one (a plain folder name). Switch only when the user asks; when what they want fits no listed project, ask whether to create a new one. After a successful move, the board starts one follow-up turn in the new project to finish the pending request; do not ask the user to repeat it.
 When the user asks to add, create or save a task (or put something on the task list), write on a line of its own [[kaizen:task <project folder> | <the goal, one line>]]; the board saves it in that project's Tasks list without starting anything. Do not ask the lite/full question for this, and do not edit files to fake a task. To add something to a task that already exists (a note, an extra requirement, a change), write [[kaizen:task-add <project folder> | <task id from the list> | <what to add, one line>]]; the board sends it to that task like the task page's message box.
+${OFFER}
+For a skill other than a run, once they say yes, read that skill's SKILL.md and follow it here in the chat.
 When the user asks you to develop, fix, change or enhance something (not a question, analysis or reading), first ask which way, as numbered options, and do nothing until they pick:
 1. Start a kaizen run for it: lite (cheap, one session) or full (independent review), with which agent (installed: ${board.agents.join(", ") || "none"}), in which project.
 2. Let you handle it here in the chat.

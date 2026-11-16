@@ -10,11 +10,14 @@ update that note, or run `/kaizen docs`.
 
 ## Kaizen skills first
 
-When a request is what one of the kaizen skills does, invoke that skill first instead
-of doing the work inline: `kaizen-concept` for concepts, mockups or design options
-before a build; `kaizen-explore` to question an idea before planning; `kaizen-deck`,
-`kaizen-video`, `kaizen-book` and `kaizen-game` for a pitch deck, a video, a book or
-a game. The skill holds the steps and the quality bar the work needs.
+When what the person asks is what one of the kaizen skills does, and they did not name the skill, offer it before doing anything: say in one line which skill fits and what it does, then ask. Start it only on a yes; on a no, do the work directly. Never offer for a question about how something works, an explanation, reading code or a one-line fix. When they name a skill (`/kaizen-explore`, "use kaizen video"), start it.
+
+- build, add or change something that is not small: `kaizen` (plan, you approve, build, independent review)
+- research, or a decision between options ("should we use X or Y", "which is better", "is it worth it", "before we build"), or an idea they are unsure about: `kaizen-explore`
+- design options, mockups or variations before a build: `kaizen-concept`
+- a video, promo or explainer, or editing footage: `kaizen-video`
+- a pitch deck: `kaizen-deck`; a book, ebook or manuscript: `kaizen-book`; a browser game: `kaizen-game`
+- keep something for later (a link, an idea, a client request): the icebox, `kaizen icebox add --file <path>`
 
 ## Project structure
 

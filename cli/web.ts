@@ -45,7 +45,7 @@ import { workspaces, workspacesNow, forgetWorkspaces, workspacesAge, addWorktree
 import * as tasks from "./tasks.ts";
 import * as taskService from "./task-service.ts";
 import { artifactResponse as taskArtifactResponse } from "./task-results.ts";
-import { gitUrl, destDir, winBad, cloneInto, branchesOf, ignoreKaizen } from "./add-project.ts";
+import { gitUrl, destDir, winBad, cloneInto, branchesOf, ignoreKaizen, writePointer } from "./add-project.ts";
 
 const PAGE = join(dirname(import.meta.dir), "web", "html", "board.html");
 // The board's script: web/pages/board/main.ts with web/lib and web/components, bundled into one file by `bun run build:web`.
@@ -60,6 +60,8 @@ const NOTES_JS = join(dirname(import.meta.dir), "web", "dist", "notebook.js");
 const TERM_JS = join(dirname(import.meta.dir), "web", "dist", "term.js");
 const ANNOTATE_JS = join(dirname(import.meta.dir), "web", "dist", "annotate.js");
 const TERM_CSS = join(dirname(import.meta.dir), "web", "dist", "term.css");
+// A project added from the board gets the kaizen note (what plain chat offers), as `kaizen init` writes it; a folder that cannot be written still adds.
+const notePointer = (dir: string) => { try { writePointer(dir, KNOWN_AGENTS.filter((a) => agentUsable(a.cmd)).map((a) => a.cmd)); } catch { /* the project still works */ } };
 // The Video page (kaizen-video's library, editor and renders) and its bundle.
 const VIDEO_PAGE = join(dirname(import.meta.dir), "web", "html", "video.html");
 const POPUP_PAGE = join(dirname(import.meta.dir), "web", "html", "popup.html");
@@ -279,6 +281,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
     // A failed git init leaves a project without a repository: said, not rolled back.
     const inited = git ? run(["git", "init", "-q", "--", to], to).ok : undefined;
     if (inited) try { ignoreKaizen(to); } catch { /* the project still works */ }
+    notePointer(to);
     remember(to);
     changed();
     return { dir: join(to, ".kaizen"), ...(git ? { git: inited } : {}) };
@@ -1282,6 +1285,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           const already = knownProjects().includes(d.dir);
           try { mkdirSync(join(d.dir, ".kaizen"), { recursive: true }); }
           catch (e) { return bad(`could not set up ${d.dir}: ${(e as Error).message}`); }
+          notePointer(d.dir);
           remember(d.dir);
           changed();
           return json({ ok: true, dir: join(d.dir, ".kaizen"), already });
@@ -1300,6 +1304,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         const c = await cloneInto(g.url, to);
         if (!c.ok) return bad(c.why, 500);
         mkdirSync(join(to, ".kaizen"), { recursive: true });
+        notePointer(to);
         remember(to);
         changed();
         return json({ ok: true, dir: join(to, ".kaizen") });
