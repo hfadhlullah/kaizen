@@ -36,7 +36,7 @@ test("real commands and flags still work", () => {
   expect(s.kz("version").out.trim()).toMatch(/^\d+\.\d+\.\d+/);
   expect(s.kz("--version").out.trim()).toMatch(/^\d+\.\d+\.\d+/);
   expect(s.kz("help").code).toBe(0);
-  expect(s.kz("help").out).toContain("commands:");
+  expect(s.kz("help").out).toContain("Get started");
   // `kaizen init` (README) reaches the installer as it always did, not the error.
   expect(s.kz("init").out).not.toContain("unknown command");
   const r = s.kz("stats");
@@ -76,4 +76,22 @@ test("subcommands run without an agent installed; only the install stops for one
   }
   expect(kz("prune").out).not.toContain(noAgent);
   expect(kz("--yes").out).toContain(noAgent);
+});
+
+// `kaizen --help` is help (cli/install.ts, HELP): one line for every command, and nothing is installed.
+test("--help, -h and help print the grouped list and exit 0 without writing anything", () => {
+  const s = scratch();
+  const src = readFileSync(script, "utf8");
+  const list = JSON.parse("[" + /const COMMANDS = \[([^\]]+)\]/.exec(src)![1]!.replace(/\s+/g, " ") + "]") as string[];
+  for (const w of ["--help", "-h", "help"]) {
+    const r = s.kz(w);
+    expect(r.code).toBe(0);
+    expect(r.out).toContain("a staged workflow for AI agents");
+    for (const g of ["Get started", "Runs", "Notes and ideas", "Tools for you and your agents"]) expect(r.out).toContain(g);
+    for (const c of list) expect(r.out).toMatch(new RegExp(`^    kaizen ${c} +\\S`, "m")); // every command has its line
+    expect(r.out).not.toContain("linked");
+  }
+  expect(readdirSync(s.home).filter((f) => [".kaizen", ".claude", ".codex", ".gemini", "kaizen"].includes(f))).toEqual([]);
+  // the unknown-word error shows the same list
+  expect(s.kz("stauts").out).toContain("Get started");
 });

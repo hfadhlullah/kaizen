@@ -86,6 +86,8 @@ tells you what it concluded, so you correct a sentence instead of filling in a f
 
 ## Commands
 
+`kaizen --help` (also `-h` and `kaizen help`) lists every `kaizen` command with a line on what it is for, grouped; it never installs anything.
+
 | Command | What it does |
 |---|---|
 | `/kaizen <request>` | Start a run |
@@ -760,7 +762,7 @@ change written as you make it, esc to close:
     auto_fix.max_iterations        2
     ...
 
-  Quick preset — low: inline & manual, medium: balanced, ultra: autonomous subagents
+  Quick preset — low: you approve every step, medium: balanced, ultra: hands-off
 
   ↑↓ move · ←→ change · esc close     saved preset = medium
 ```

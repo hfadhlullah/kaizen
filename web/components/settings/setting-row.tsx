@@ -9,6 +9,7 @@ import {
   useModelChoices,
   modelName,
   modelTool,
+  optionText,
   rowHint,
   settingId,
   type Row,
@@ -83,7 +84,7 @@ export function SettingRow({ row, off }: { row: Row; off?: boolean }) {
               label={row.label}
               labelledBy={labelId}
               idPrefix={id}
-              options={vals.map((v) => ({ id: v, label: kind === "preset" ? caps(v) : v }))}
+              options={vals.map((v) => ({ id: v, label: kind === "preset" ? caps(v) : optionText(row, v) }))}
               value={shown}
               onChange={(v) => v !== "custom" && save(v)}
             />

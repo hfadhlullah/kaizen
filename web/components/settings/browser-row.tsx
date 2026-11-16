@@ -45,7 +45,7 @@ export function BrowserRow({
             label={c.label}
             labelledBy={labelId}
             idPrefix={c.id}
-            options={c.values.map((v) => ({ id: v, label: v }))}
+            options={c.values.map((v) => ({ id: v, label: v[0]!.toUpperCase() + v.slice(1) }))}
             value={prefs[kind]}
             onChange={(v) => setBrowserPref(kind, v)}
           />

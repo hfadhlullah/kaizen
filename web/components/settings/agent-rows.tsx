@@ -102,21 +102,25 @@ export function AgentCard({ cmd }: { cmd: string }) {
           <b className="block font-medium">{a.name}</b>
           <code className="break-words text-xs text-muted-foreground">{a.command || a.cmd}</code>
         </span>
-        {!a.installed && <span className="text-xs text-muted-foreground">Not installed</span>}
-        <Segmented
-          label={`${a.name} enabled`}
-          idPrefix={`${id}-on`}
-          options={[
-            { id: "true", label: "Enabled" },
-            { id: "false", label: "Disabled" },
-          ]}
-          value={String(a.enabled)}
-          onChange={(v) => void saveAgentPrefs({ agent: cmd, enabled: v === "true" })}
-        />
+        {a.installed ? (
+          <Segmented
+            label={`${a.name} enabled`}
+            idPrefix={`${id}-on`}
+            options={[
+              { id: "true", label: "Enabled" },
+              { id: "false", label: "Disabled" },
+            ]}
+            value={String(a.enabled)}
+            onChange={(v) => void saveAgentPrefs({ agent: cmd, enabled: v === "true" })}
+          />
+        ) : (
+          <span className="text-xs text-muted-foreground">Not installed. Install it to use it.</span>
+        )}
         <Button
           id={`${id}-def`}
           aria-pressed={def === cmd}
           disabled={!a.enabled || !a.installed}
+          className="min-w-[92px]"
           onClick={() => void setDefaultAgent(cmd)}
         >
           {def === cmd ? "✓ Default" : "Default"}

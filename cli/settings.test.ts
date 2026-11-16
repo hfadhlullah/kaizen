@@ -6,7 +6,7 @@ import { test, expect, beforeAll, afterAll } from "bun:test";
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, copyFileSync, rmSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
-import { applyPreset, detectPreset, read } from "./settings.ts";
+import { applyPreset, detectPreset, PRESETS, read } from "./settings.ts";
 
 const repo = join(dirname(import.meta.path), "..");
 const defaults = join(repo, "skills/kaizen/config.default.yml");
@@ -178,4 +178,31 @@ test("kaizen settings preset applies the whole bundle, and refuses an unknown na
   `);
   expect(value).toEqual([true, true, "false"]);
   expect(read(readFileSync(join(home, ".kaizen", "config.yml"), "utf8"), "explore.enabled")).toBe("true");
+});
+
+// Plain option names and hints (cli/settings.ts, PLAIN): shown instead of the stored words, which never change.
+test("every plain label names a real value of its row, and the preset hint is written", () => {
+  const rows = inProject(`return listSettings(repo).rows.map((r) => ({ key: r.key, values: r.values, labels: r.labels ?? null, help: r.help ?? "" }))`) as { key: string; values: string[]; labels: Record<string, string> | null; help: string }[];
+  const labelled = rows.filter((r) => r.labels);
+  expect(labelled.map((r) => r.key)).toContain("runner");
+  for (const r of labelled) for (const k of Object.keys(r.labels!)) expect(r.values).toContain(k);   // a label never names a value that does not exist
+  expect(rows.find((r) => r.key === "runner")!.labels).toEqual({ full: "Separate agents", lite: "One session" });
+  expect(rows.find((r) => r.key === "mode")!.labels!["approve"]).toBe("Ask me");
+  expect(rows.find((r) => r.key === "preset")!.help).toMatch(/Low: .*Medium: .*Ultra: /);
+});
+
+test("no row's label, hint or option reads like the config file", () => {
+  const text = inProject(`return listSettings(repo).rows.map((r) => [r.key, [r.label, r.help ?? "", r.idle ?? "", ...Object.values(r.labels ?? {})].join(" | ")])`) as [string, string][];
+  for (const [key, t] of text) expect([key, /auto_accept|subagent|inline|\blite\b|\btrue\b|\bfalse\b/i.test(t)]).toEqual([key, false]);
+});
+
+test("choosing a plain option still writes the stored value, and an idle row names the option as shown", () => {
+  expect(inProject(`return [setSetting(repo, "runner", "lite"), value("runner")]`)).toEqual([{ ok: true }, "lite"]);
+  expect(inProject(`return listSettings(repo).rows.find((r) => r.key === "review.executor").idle`)).toBe("");            // lite: the reviewer row applies
+  expect(inProject(`setSetting(repo, "runner", "full"); return listSettings(repo).rows.find((r) => r.key === "review.executor").idle`)).toBe("No effect unless Agents per run is One session");
+  expect(inProject(`return [setSetting(repo, "git.worktree_per_run", "true"), value("git.worktree_per_run")]`)).toEqual([{ ok: true }, "true"]);
+});
+
+test("the preset hints shown in the terminal picker use plain words too", () => {
+  for (const p of Object.values(PRESETS)) expect(/inline|lite|subagent|runner/i.test(p.hint)).toBe(false);
 });

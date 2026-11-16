@@ -33,12 +33,71 @@ const COMMANDS = ["automation", "help", "init", "browser", "card", "chat", "comp
   "icebox", "issue", "model", "preflight", "preview", "prune", "recall", "related", "remember", "report", "roadmap", "scrape", "search", "send", "settings", "setup", "sources",
   "state", "stats", "task", "uninstall", "upgrade", "version", "web", "worker", "worktree"];
 const first = Bun.argv[2];
-const commandList = `  commands: ${COMMANDS.join(", ")}\n  plain \`kaizen\` opens the board; \`kaizen --yes\` installs; \`kaizen init\` sets up this folder\n`;
+// What each command is for, one line each, under the heading the help prints. Every word in COMMANDS needs a line here
+// (cli/install-unknown.test.ts checks), so a new command cannot ship without saying what it does.
+const HELP: [string, [string, string][]][] = [
+  ["Get started", [
+    ["web", "open the board in your browser (plain `kaizen` does the same)"],
+    ["init", "set up kaizen in this folder"],
+    ["setup", "walk through your project, settings and the phone app"],
+    ["settings", "view and change settings in the terminal"],
+    ["config", "the same as settings"],
+    ["upgrade", "update kaizen to the latest version"],
+    ["version", "print the version"],
+    ["uninstall", "remove kaizen from this machine"],
+    ["help", "this list"],
+  ]],
+  ["Runs", [
+    ["done", "finish a run"],
+    ["state", "set a run's stage (agents use it)"],
+    ["report", "tell the board what a run is doing (agents use it)"],
+    ["worktree", "give a run its own branch and folder, and land it"],
+    ["handoff", "pass a worktree run to a second agent"],
+    ["worker", "split a run into workers (off by default)"],
+    ["preflight", "check a run before you push or merge it"],
+    ["model", "the model a stage should use"],
+    ["stats", "time, fix rounds and tokens of a run"],
+    ["roadmap", "list or step through a project too big for one run"],
+    ["task", "read or update a board task (agents use it)"],
+  ]],
+  ["Notes and ideas", [
+    ["icebox", "save an idea, link or request for later"],
+    ["gather", "read your request sources into the icebox"],
+    ["sources", "add or remove request sources"],
+    ["docs", "write or check the project's notes"],
+    ["recall", "lessons from other projects"],
+    ["remember", "save a lesson for other projects"],
+    ["related", "earlier runs that changed these files"],
+    ["card", "file new work from a run"],
+    ["automation", "schedule unattended runs"],
+  ]],
+  ["Tools for you and your agents", [
+    ["search", "search the web (needs your Firecrawl key)"],
+    ["scrape", "read one web page as text"],
+    ["preview", "show a page or screenshot in the board"],
+    ["send", "send files to your phone"],
+    ["computer", "read and click desktop apps (off by default)"],
+    ["browser", "sign kaizen's browser in to social sites"],
+    ["chat", "open the board's popup chat"],
+    ["issue", "report a kaizen bug with this machine's details"],
+    ["prune", "delete old runs and sessions"],
+  ]],
+];
+const commandList = [
+  "  kaizen: a staged workflow for AI agents",
+  "  you ask, it plans, you approve, an agent builds, a second agent reviews",
+  "",
+  ...HELP.flatMap(([title, rows]) => [`  ${title}`, ...rows.map(([c, d]) => `    kaizen ${c.padEnd(11)} ${d}`), ""]),
+  "  kaizen --yes installs kaizen into your agents without asking; kaizen <command> prints that command's own usage.",
+  "  Slash commands for your agent: /kaizen-help",
+  "",
+].join("\n");
 if (first && !first.startsWith("-") && !COMMANDS.includes(first)) {
   console.log(`\n  unknown command "${first}"\n\n${commandList}`);
   process.exit(1);
 }
-if (first === "help") { console.log(`\n${commandList}`); process.exit(0); }
+// `kaizen --help` is help, not an install: it used to fall through to the installer.
+if (first === "help" || first === "--help" || first === "-h") { console.log(`\n${commandList}`); process.exit(0); }
 // `kaizen init` (README) has always run the installer, which sets up the project folder;
 // keep that, and set up this folder even when it is not a git root.
 if (first === "init") args.add("--init-project");

@@ -121,6 +121,8 @@ export type Row = {
   help?: string;
   group?: string;
   values: string[];
+  // What an option is called on screen, by its stored value (cli/settings.ts); a value with no entry shows as it is.
+  labels?: Record<string, string>;
   value: string;
   own?: boolean;
   idle?: string;
@@ -168,6 +170,8 @@ export function controlOf(r: Pick<Row, "key" | "values" | "text" | "folder">): C
     return "segments";
   return "stepper";
 }
+// An option as the page shows it.
+export const optionText = (r: Pick<Row, "labels">, v: string) => r.labels?.[v] ?? v;
 export const settingId = (key: string) => "s-" + key.replace(/\./g, "-");
 export const modelTool = (key: string) => key.split(".").pop()!;
 export const modelName = (label: string) => label.replace(/^(Worker|Handoff) model: /, "");

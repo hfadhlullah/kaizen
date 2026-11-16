@@ -27,6 +27,7 @@ export function nextSteps() {
   ${c.bold("You're ready")}
     1  Restart Claude Code ${c.dim("so it picks up the new commands")}
     2  Ask for something: ${c.accent("/kaizen <what you want done>")}
+    3  Or open the board: ${c.accent("kaizen web")}
 
   ${c.dim("Change anything later:")} ${c.accent("kaizen setup")}${c.dim(".  Every command:")} ${c.accent("/kaizen-help")}
 `;

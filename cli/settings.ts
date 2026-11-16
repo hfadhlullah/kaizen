@@ -12,7 +12,8 @@ import { status as chatgptStatus } from "./chatgpt.ts";
 // `when`: the row only has an effect while that other key holds that value; both
 // settings screens dim it otherwise, and it stays editable (`/kaizen full` overrides
 // the runner for one run, so a subagent model still matters under `runner: lite`).
-type Setting = { key: string; label: string; group: string; values: string[]; help: string; text?: boolean; folder?: boolean; when?: [string, string] };
+// labels: what an option is called on screen; the value stored in config.yml is the key (see PLAIN below).
+type Setting = { key: string; label: string; group: string; values: string[]; help: string; text?: boolean; folder?: boolean; when?: [string, string]; labels?: Record<string, string> };
 
 export type PresetName = "low" | "medium" | "ultra";
 
@@ -23,7 +24,7 @@ export const PRESETS: Record<PresetName, {
 }> = {
   low: {
     label: "Low",
-    hint: "inline & manual — lite runner, inline builder, manual approvals, no auto-fix",
+    hint: "you approve every step — one session, cheapest, you approve the plan and the result",
     settings: {
       mode: "approve",
       runner: "lite",
@@ -41,7 +42,7 @@ export const PRESETS: Record<PresetName, {
   },
   medium: {
     label: "Medium",
-    hint: "balanced (recommended) — full runner, subagents, plan approval, auto-fix all findings",
+    hint: "balanced (recommended) — separate agents, you approve the plan, problems found are fixed for you",
     settings: {
       mode: "approve",
       runner: "full",
@@ -58,7 +59,7 @@ export const PRESETS: Record<PresetName, {
   },
   ultra: {
     label: "Ultra",
-    hint: "autonomous — full runner, subagents, auto mode, auto-fix all findings (up to 4 rounds)",
+    hint: "hands-off — runs by itself, fixes problems itself (up to 4 rounds) and saves the work in git",
     settings: {
       mode: "auto",
       runner: "full",
@@ -137,7 +138,7 @@ const SETTINGS: Setting[] = [
   { key: "orchestration.max_workers", label: "Max workers per run", group: "Orchestration", values: ["1", "2", "3", "4", "5", "6"], help: "Total per run", when: ["orchestration.enabled", "true"] },
   { key: "orchestration.permissions", label: "Worker permissions", group: "Orchestration", values: ["own", "bypass"], help: "own: each agent's own prompts. Bypass skips every prompt in every worker", when: ["orchestration.enabled", "true"] },
   // One per tool that takes a model flag; a run freezes its own agent's. Empty: the run's own model.
-  ...KNOWN_AGENTS.filter((a) => MODEL_FLAGS[a.cmd]).map((a): Setting => ({ key: `agent.model.${a.cmd}`, label: `Model: ${a.name}`, group: "Agents", values: [], text: true, help: a.cmd === "claude" ? "The session kaizen launches, and every stage subagent left on inherit. Empty: its own default" : "The tool's own model name, for every stage: it runs them in one session. Empty: its own default" })),
+  ...KNOWN_AGENTS.filter((a) => MODEL_FLAGS[a.cmd]).map((a): Setting => ({ key: `agent.model.${a.cmd}`, label: `Model: ${a.name}`, group: "Agents", values: [], text: true, help: a.cmd === "claude" ? "The session kaizen launches, and every stage agent left on Same as main. Empty: its own default" : "The tool's own model name, for every stage: it runs them in one session. Empty: its own default" })),
   ...KNOWN_AGENTS.filter((a) => MODEL_FLAGS[a.cmd]).map((a): Setting => ({ key: `agent.handoff_model.${a.cmd}`, label: `Handoff model: ${a.name}`, group: "Agents", values: [], text: true, help: "The second agent a worktree run hands off to. Empty: the run's own model" })),
   ...KNOWN_AGENTS.filter((a) => MODEL_FLAGS[a.cmd]).map((a): Setting => ({ key: `orchestration.worker_model.${a.cmd}`, label: `Worker model: ${a.name}`, group: "Orchestration", values: [], text: true, help: "The tool's own model name. Empty: the run's own model", when: ["orchestration.enabled", "true"] })),
   { key: "review.write_memory", label: "Remember lessons", group: "Project", values: ["true", "false"], help: "" },
@@ -152,6 +153,35 @@ const SETTINGS: Setting[] = [
   { key: "board.video_dir", label: "Video library folder", group: "Board", values: [], text: true, folder: true, help: "Empty: ~/.kaizen" },
   { key: "board.chat_hotkey", label: "Popup chat hotkey", group: "Board", values: [], text: true, help: "Hyprland, e.g. SUPER + ALT + SPACE. Empty: none" },
 ];
+
+// Plain option names and hints, applied to the rows above: they change what is shown, never what config.yml holds, which every
+// older install, the skills and the terminal screen read. A hint names the option as the screen shows it, not the stored word.
+const cap = (vs: string[]) => Object.fromEntries(vs.map((v) => [v, v[0]!.toUpperCase() + v.slice(1)]));
+const SAME_MAIN = { inherit: "Same as main" }, SAME_ABOVE = { default: "Same as above" }, MODELS = cap(["opus", "sonnet", "haiku"]);
+const PLAIN: Record<string, { labels?: Record<string, string>; help?: string }> = {
+  preset: { help: "Low: you approve every step, one session, cheapest. Medium: separate agents, you approve the plan. Ultra: runs by itself and saves the work in git. Custom: you changed a setting." },
+  mode: { labels: { approve: "Ask me", auto: "Automatic", "plan-only": "Plan only", "review-only": "Review only" }, help: "Ask me: it stops where you approve. Automatic: runs start to finish. Plan only: writes the plan and stops. Review only: checks work that already exists." },
+  "approvals.review": { help: "Also for automatic runs: a run that changed files waits for your approval, unless \"Auto runs skip final approval\" is on" },
+  auto_accept: { help: "On: an automatic run that changed files finishes without waiting for your approval, and is marked auto-accepted" },
+  runner: { labels: { full: "Separate agents", lite: "One session" }, help: "Separate agents: a different agent plans, builds and reviews, so the reviewer starts fresh. One session: the same session does every stage, cheaper." },
+  "build.executor": { labels: { subagent: "Own agent", inline: "This session", ask: "Ask me" }, help: "The code is written by its own agent, by this session, or you choose when you approve the plan." },
+  "review.executor": { labels: { inline: "This session", subagent: "Fresh agent", ask: "Ask me" }, help: "Who checks the work when everything runs in one session: this session, a fresh agent that did not see the work, or you choose before the review." },
+  "git.worktree_per_run": { labels: { ask: "Ask me", true: "Yes", false: "No" }, help: "Yes: each run works in its own branch and folder. No: in the project folder. Ask me: choose each time." },
+  "subagents.model": { labels: { ...SAME_MAIN, ...MODELS }, help: "The model for Claude Code's stage agents: planner, builder, reviewer" },
+  "subagents.effort": { labels: { ...SAME_MAIN, ...cap(["low", "medium", "high"]) } },
+  "subagents.planner": { labels: { ...SAME_ABOVE, ...MODELS }, help: "Same as above uses the Stage model" },
+  "subagents.builder": { labels: { ...SAME_ABOVE, ...MODELS }, help: "Also runs the fix rounds. Same as above uses the Stage model" },
+  "subagents.reviewer": { labels: { ...SAME_ABOVE, ...MODELS }, help: "Also runs the rechecks. Same as above uses the Stage model" },
+  "auto_fix.min_severity": { labels: cap(["critical", "high", "medium", "low"]) },
+  "auto_guard.stop_on": { labels: cap(["critical", "high", "medium", "low", "off"]) },
+  "orchestration.permissions": { labels: { own: "Normal prompts", bypass: "Skip all prompts" }, help: "Normal prompts: each agent asks as it usually does. Skip all prompts: no worker ever asks, so be sure." },
+  "agent.keep_awake": { labels: cap(["off", "auto", "on"]), help: "Auto: while kaizen runs agents. On: while kaizen is open. Linux and macOS" },
+  "sources.every": { labels: { off: "Off", "1h": "1h", "6h": "6h", "24h": "24h" } },
+  "sources.effort": { labels: cap(["low", "medium", "high"]) },
+};
+for (const s of SETTINGS) Object.assign(s, PLAIN[s.key] ?? {});
+// An option as the screen shows it.
+export const optionLabel = (s: Pick<Setting, "labels">, v: string) => s.labels?.[v] ?? v;
 
 // The same rows and the same write the TUI uses, for `kaizen web`'s settings panel:
 // one place decides what a setting is called, what it may be, and how it is saved.
@@ -182,7 +212,8 @@ export function listSettings(repoRoot: string, project?: string | null) {
 // Why a row has no effect right now, or "" while it has one: its `when` is not met.
 function idle(s: Setting, valueOf: (key: string) => string | null) {
   if (!s.when || valueOf(s.when[0]) === s.when[1]) return "";
-  return `No effect unless ${SETTINGS.find((x) => x.key === s.when![0])!.label} is ${s.when[1] === "true" ? "on" : s.when[1]}`;
+  const w = SETTINGS.find((x) => x.key === s.when![0])!;
+  return `No effect unless ${w.label} is ${s.when[1] === "true" ? "on" : optionLabel(w, s.when[1])}`;
 }
 
 export function setSetting(repoRoot: string, key: string, value: string, project?: string | null) {
@@ -284,7 +315,7 @@ export async function settings(repoRoot: string, standalone = true) {
         const at = s.values.indexOf(v);
         return at < 0 ? v : "▮".repeat(at + 1) + "▯".repeat(s.values.length - at - 1) + " " + v;
       }
-      return v;
+      return optionLabel(s, v);
     };
     const valueOf = (k: string) => {
       const d = SETTINGS.find((x) => x.key === k)!;
