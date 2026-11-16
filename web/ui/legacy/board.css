@@ -404,7 +404,7 @@ body.runv #runv{grid-area:1/1;display:flex;flex-direction:column;min-width:0;min
 /* the floating Home workspace (components/home/home-window.tsx): agents in kaizen's own folder, over every view; minimized to a row above the projects */
 /* Home's group: a house for its mark, and its open terminals as a small count button. */
 .proj .plogo.hwsico{background:none;color:var(--ink);fill:none;stroke:currentColor;stroke-width:1.8;stroke-linejoin:round}[data-rail=min] .proj .hwsico use{display:inline}
-.pgrp .hterm{display:inline-flex;align-items:center;gap:3px;flex:none;height:22px;padding:0 6px;border-radius:var(--r-pill,999px);color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}.pgrp .hterm:hover{background:var(--hover);color:var(--ink)}.pgrp .hterm svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.8}[data-rail=min] .pgrp .hterm{display:none}
+.pgrp .hterm{display:inline-flex;align-items:center;flex:none;height:22px;margin-right:4px;border:1px solid var(--line);border-radius:var(--r-pill,999px);background:var(--bg-2);color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums;overflow:hidden}.pgrp .hterm button{display:inline-flex;align-items:center;gap:3px;height:100%;padding:0 4px 0 7px;color:inherit}.pgrp .hterm button.hx{padding:0 6px 0 3px}.pgrp .hterm button:hover{background:var(--hover);color:var(--ink)}.pgrp .hterm svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.8}.pgrp .hterm .hx svg{width:11px;height:11px;stroke-width:2.2}[data-rail=min] .pgrp .hterm{display:none}
 
 #rpanes{flex:1;min-height:0;position:relative}
 .rframe{flex:1;min-height:0;width:100%;border:0;background:var(--bg-2)}webview.rframe{display:flex}.rframe[hidden]{display:none}

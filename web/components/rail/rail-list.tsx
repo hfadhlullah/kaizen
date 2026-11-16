@@ -145,10 +145,9 @@ function HomeTerms() {
     n = homeTabs(useServer((x) => x.shells), h.ending).length;
   if (!n || h.st !== "min") return null;
   return (
-    <>
+    <span className="hterm">
       <button
         type="button"
-        className="hterm"
         title={`Home terminals: ${n} open (Ctrl+Alt+A)`}
         aria-label={`Open the Home window, ${n} terminals`}
         onClick={() => showHomeWs("open")}
@@ -160,7 +159,7 @@ function HomeTerms() {
       </button>
       <button
         type="button"
-        className="wadd"
+        className="hx"
         title="Close the Home terminals"
         aria-label="Close the Home terminals"
         onClick={() => void closeAllHome()}
@@ -169,7 +168,7 @@ function HomeTerms() {
           <path d="M7 7l10 10M17 7 7 17" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
         </svg>
       </button>
-    </>
+    </span>
   );
 }
 
