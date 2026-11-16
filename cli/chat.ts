@@ -1,19 +1,21 @@
 // Home's chat: conversations with kaizen's main agent, kept under ~/.kaizen/chats/<id>.json.
 // A chat may be in a project (its .kaizen dir) or in none; the agent can move it to another
-// project or make a new one. The agent is Codex, run headless per message (`codex exec
-// --json`), and a follow-up continues its thread with `exec resume`.
+// project or make a new one. The agent is Codex (`codex exec --json`) or Claude Code (`claude -p
+// --output-format stream-json`), run headless per message; a follow-up continues the chat's own thread
+// or session, and a chat never changes agent.
 import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { basename, dirname, join } from "node:path";
 import { hostname, platform, release, arch } from "node:os";
-import { CHILD_ENV, readRuns, readText } from "./state.ts";
+import { agentFlags, CHILD_ENV, readRuns, readText } from "./state.ts";
 import { listTasks } from "./tasks.ts";
 
 export type Step = { kind: "cmd" | "edit" | "tool" | "project"; text: string; ok?: boolean };
 export type Attachment = { name: string; path: string; image: boolean };
 export type Upload = { name: string; bytes: Uint8Array };
 export type Msg = { role: "user" | "agent"; text: string; files?: Attachment[]; steps?: Step[]; error?: string; activity?: string; at: string };
-export type Chat = { id: string; title: string; project?: string; thread?: string; created: string; updated: string; messages: Msg[] };
+export type ChatAgent = "codex" | "claude";
+export type Chat = { id: string; title: string; project?: string; agent?: ChatAgent; thread?: string; created: string; updated: string; messages: Msg[] };
 // What the page is streamed while a turn runs, one JSON object per line.
 export type Event =
   | { t: "chat"; id: string }
@@ -30,6 +32,8 @@ export type Board = {
   projects: { dir: string; label: string }[];
   create: (name: string) => Promise<{ dir: string } | { error: string }>;
   agents: string[];
+  // The user's default agent (its command), when it is one Chat can run.
+  defaultAgent?: string;
   // Saves a goal as a task in the project's Tasks list, without starting an agent.
   task: (dir: string, goal: string) => { error: string } | { ok: true };
   // Sends a message to an existing task, as the task page's box does (an agent may pick it up).
@@ -202,18 +206,73 @@ export function takeMoves(text: string) {
 }
 
 // Not winShim: the message goes in on stdin, so the .cmd shim's newline limit never applies.
-const codexBin = () => Bun.which("codex", { PATH: process.env.PATH });
+const binOf = (a: ChatAgent) => Bun.which(a, { PATH: process.env.PATH });
+// The agent a new chat runs on: the user's default when Chat can run it, else Codex, else Claude Code.
+export function chatAgent(board: Board): ChatAgent | null {
+  const have = (["codex", "claude"] as const).filter((a) => binOf(a));
+  const want = board.defaultAgent as ChatAgent | undefined;
+  return (want && have.includes(want) ? want : have[0]) ?? null;
+}
+export const NO_AGENT = "Chat needs Codex or Claude Code: install one (npm i -g @openai/codex, or curl -fsSL https://claude.ai/install.sh | bash) and sign in.";
+
+// What Claude Code may do here. It runs headless, so it cannot ask: read and search, the web, read-only commands plus a few
+// kaizen ones, and edits only inside the folders it is given (a bare Edit or Write rule allows every path, checked 2026-11-16,
+// so each is scoped: `//` is an absolute path). Anything else is refused, never prompted.
+const CLAUDE_ALLOW = ["Read", "Glob", "Grep", "WebSearch", "WebFetch",
+  ...["ls", "cat", "head", "tail", "pwd", "hostname", "uname", "which", "whoami", "date", "uptime", "df", "free", "wc", "grep", "rg", "ps", "id", "stat", "du", "tree",
+    "git status", "git log", "git diff", "git show", "git branch", "kaizen task", "kaizen icebox", "kaizen status", "kaizen recall", "kaizen related", "kaizen roadmap", "kaizen search", "kaizen scrape", "kaizen send", "kaizen version"].map((c) => `Bash(${c}:*)`)];
+// `//` is an absolute path in a rule; on Windows Claude Code matches `C:\Users\a` as `/c/Users/a` (its permissions docs).
+export const scopeRule = (tool: "Edit" | "Write", dir: string, win = process.platform === "win32") =>
+  `${tool}(/${win ? dir.replace(/^([A-Za-z]):/, (_, l) => "/" + l.toLowerCase()).replace(/\\/g, "/") : dir}/**)`;
+// The chat's project instructions, which Claude would load itself if it ran there (it runs in the scratch folder).
+const projectRules = (project: string | undefined) => {
+  for (const f of project ? ["CLAUDE.md", "AGENTS.md"] : []) {
+    try { const t = readText(join(dirname(project!), f)).trim(); if (t) return `Instructions of the chat's project (${join(dirname(project!), f)}), follow them when you work in it:\n\n${t.slice(0, 16000)}`; } catch { /* none */ }
+  }
+  return "";
+};
+const CLAUDE_DENY = ["Bash(kaizen uninstall:*)", "Bash(kaizen upgrade:*)", "Bash(kaizen prune:*)"];
+
+// One `claude -p --output-format stream-json` line as page events. `tools` remembers each tool call until its result arrives.
+export function parseClaudeLine(line: string, tools: Map<string, Step>): (Event | { t: "thread"; id: string })[] {
+  let e: any;
+  try { e = JSON.parse(line); } catch { return []; }
+  if (e?.type === "system" && e.subtype === "init" && typeof e.session_id === "string") return [{ t: "thread", id: e.session_id }, { t: "status", text: "Thinking…" }];
+  if (e?.type === "result") return e.is_error ? [{ t: "error", error: String(e.result || "the agent failed") }] : [];
+  const blocks = e?.type === "assistant" || e?.type === "user" ? e.message?.content : null;
+  if (!Array.isArray(blocks)) return [];
+  const out: (Event | { t: "thread"; id: string })[] = [];
+  for (const b of blocks) {
+    if (e.type === "assistant" && b?.type === "text" && b.text) out.push({ t: "text", text: String(b.text) });
+    else if (e.type === "assistant" && b?.type === "tool_use") {
+      const i = b.input ?? {}, name = String(b.name ?? "");
+      const step: Step = name === "Bash" ? { kind: "cmd", text: command(i.command) }
+        : /^(Edit|Write|MultiEdit|NotebookEdit)$/.test(name) ? { kind: "edit", text: short(String(i.file_path ?? i.notebook_path ?? "")) }
+        : /^Web(Search|Fetch)$/.test(name) ? { kind: "tool", text: "Web search" }
+        : { kind: "tool", text: short(`${name} ${i.file_path ?? i.pattern ?? ""}`.trim()) };
+      tools.set(String(b.id), step);
+      out.push({ t: "status", text: step.kind === "cmd" ? `Running ${step.text || "a command"}` : step.kind === "edit" ? "Editing files…" : step.text === "Web search" ? "Searching the web…" : `Using ${step.text}` });
+    } else if (e.type === "user" && b?.type === "tool_result") {
+      const step = tools.get(String(b.tool_use_id));
+      if (step) { tools.delete(String(b.tool_use_id)); out.push({ t: "step", step: { ...step, ok: !b.is_error } }); }
+    }
+  }
+  return out;
+}
 
 // project: where a new chat starts (a state dir the board knows), ignored for an existing chat.
 export function sendChat(base: string, id: string | null, text: string, project: string | null, board: Board, emit: (e: Event) => void, reuseReply = false, uploads: Upload[] = []): string | null {
-  const bin = codexBin();
-  if (!bin) return "Chat needs Codex: install it (npm i -g @openai/codex) and sign in.";
   const now = new Date().toISOString();
   let c = id ? readChat(base, id) : null;
   if (id && !c) return "no such chat";
+  // A chat keeps the agent it began on (its thread or session would not resume on the other); a chat from before had Codex.
+  const agent = c ? c.agent ?? "codex" : chatAgent(board);
+  if (!agent) return NO_AGENT;
+  const bin = binOf(agent);
+  if (!bin) return agent === "codex" ? "This chat runs on Codex, which is no longer installed: npm i -g @openai/codex, or start a new chat." : "This chat runs on Claude Code, which is no longer installed: curl -fsSL https://claude.ai/install.sh | bash, or start a new chat.";
   if (!c) c = {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, title: short(text.split("\n")[0] || uploads[0]?.name || "Chat", 60),
-    project: board.projects.some((p) => p.dir === project) ? project! : undefined, created: now, updated: now, messages: [],
+    project: board.projects.some((p) => p.dir === project) ? project! : undefined, agent, created: now, updated: now, messages: [],
   };
   const key = base + "|" + c.id;
   if (live.has(key)) return "this chat is still working";
@@ -240,21 +299,31 @@ export function sendChat(base: string, id: string | null, text: string, project:
   // No project: a scratch folder outside every project.
   const scratch = join(base, "chats", "scratch");
   if (!chat.project) mkdirSync(scratch, { recursive: true });
-  const cwd = chat.project ? dirname(chat.project) : scratch;
+  // Claude Code's sessions belong to the folder they began in, so its chats always run in the scratch folder (the projects
+  // come in through --add-dir) and a switch of project never loses the thread. Codex resumes from anywhere.
+  if (agent === "claude") mkdirSync(scratch, { recursive: true });
+  const cwd = chat.project && agent === "codex" ? dirname(chat.project) : scratch;
   // Same scrub as launchRun: a board started inside an agent session must not hand that identity on.
   const env: Record<string, string> = {};
   for (const [k, v] of Object.entries(process.env)) if (v !== undefined && !CHILD_ENV.test(k)) env[k] = v;
   const images = files.filter((f) => f.image).flatMap((f) => ["-i", f.path]);
   // Every listed project is writable, so the agent works on any of them without a switch.
   const dirs = roots(board).filter((d) => d !== cwd).flatMap((d) => ["--add-dir", d]);
-  const argv = [bin, "exec", "--json", "--skip-git-repo-check", "-s", "workspace-write", ...dirs,
+  const claudeArgv = [bin, "-p", "--output-format", "stream-json", "--verbose", "--permission-mode", "default",
+    "--allowedTools", ...CLAUDE_ALLOW, ...[...roots(board), scratch].flatMap((d) => [scopeRule("Edit", d), scopeRule("Write", d)]), "--disallowedTools", ...CLAUDE_DENY, ...roots(board).flatMap((d) => ["--add-dir", d]),
+    // The model and effort of Settings → Models → Claude Code (Claude's own default when none).
+    ...agentFlags(chat.project ? dirname(chat.project) : dirname(base), "claude"),
+    ...(projectRules(chat.project) ? ["--append-system-prompt", projectRules(chat.project)] : []),
+    ...(chat.thread ? ["--resume", chat.thread] : [])];
+  const argv = agent === "claude" ? claudeArgv : [bin, "exec", "--json", "--skip-git-repo-check", "-s", "workspace-write", ...dirs,
     "-m", "gpt-6-luna", "-c", "model_reasoning_effort=medium",
     "-c", 'web_search="live"', "-c", "sandbox_workspace_write.network_access=true",
     ...(chat.thread ? ["resume", chat.thread] : []), ...images, "-"];
+  const tools = new Map<string, Step>();
   let p;
   try { p = Bun.spawn(argv, { cwd, env, stdin: "pipe", stdout: "pipe", stderr: "pipe", windowsHide: true }); }
   catch (err: any) {
-    reply.error = `Could not start codex: ${err?.message ?? err}`;
+    reply.error = `Could not start ${agent === "claude" ? "claude" : "codex"}: ${err?.message ?? err}`;
     delete reply.activity;
     save(base, chat);
     return reply.error;
@@ -277,8 +346,11 @@ export function sendChat(base: string, id: string | null, text: string, project:
     let task: TaskAsk | null = null;
     let taskAdd: TaskAddAsk | null = null;
     const take = (line: string) => {
+      if (agent === "claude") return void parseClaudeLine(line, tools).forEach(handle);
       const e = parseLine(line);
-      if (!e) return;
+      if (e) handle(e);
+    };
+    const handle = (e: Event | { t: "thread"; id: string }) => {
       if (e.t === "thread") { chat.thread = e.id; save(base, chat); return; }
       if (e.t === "text") {
         const m = takeMoves(e.text);
@@ -308,7 +380,7 @@ export function sendChat(base: string, id: string | null, text: string, project:
       if (stopped) { reply.error = "Stopped."; emit({ t: "error", error: reply.error }); }
       else if (code !== 0 && !reply.error && !reply.text) {
         const err = (await errText).trim().split("\n").filter((l) => !/^\S+Z\s+(WARN|ERROR) /.test(l)).slice(-3).join("\n");
-        reply.error = err || `codex exited with code ${code}`;
+        reply.error = err || `${agent === "claude" ? "claude" : "codex"} exited with code ${code}`;
         emit({ t: "error", error: reply.error });
       }
       if (run && !stopped) {

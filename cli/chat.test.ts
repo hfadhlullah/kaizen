@@ -1,11 +1,11 @@
 // Home's chat: a fake `codex` on PATH stands in for the agent, prints the JSONL that
 // `codex exec --json` prints, and records the argv, working folder and stdin it was given.
 import { test, expect, beforeEach, afterEach } from "bun:test";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, chmodSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, chmodSync, rmSync } from "node:fs";
 import { join, delimiter } from "node:path";
 import { tmpdir } from "node:os";
 import { hostname, platform } from "node:os";
-import { sendChat, readChat, listChats, deleteChat, stopChat, parseLine, takeMoves, type Event, type Board, type Upload } from "./chat.ts";
+import { sendChat, readChat, listChats, deleteChat, stopChat, parseLine, parseClaudeLine, chatAgent, scopeRule, takeMoves, type Event, type Board, type Upload } from "./chat.ts";
 
 let root = "", base = "", bin = "", projA = "", projD = "", board: Board, created: string[] = [], runs: string[][] = [];
 const PATH = process.env.PATH;
@@ -230,10 +230,10 @@ test.if(posix)("a failed turn reports the agent's error", async () => {
   expect(events.find((e) => e.t === "error")).toEqual({ t: "error", error: "model not supported" });
 });
 
-test("no codex on PATH: a message says how to get it", async () => {
+test("no codex and no claude on PATH: a message says how to get either", async () => {
   process.env.PATH = bin;
   const { why } = await turn(null, "hi");
-  expect(why).toMatch(/needs Codex/);
+  expect(why).toMatch(/needs Codex or Claude Code/);
 });
 
 test("parseLine and takeMoves", () => {
@@ -298,3 +298,129 @@ test.if(posix)("a run line in a chat where no lite/full choice was offered and a
   expect(runs.length).toBe(before);
   expect(readChat(base, id)!.messages[1].steps!.at(-1)).toMatchObject({ ok: false, text: expect.stringContaining("Not started") });
 });
+
+// Claude Code as the chat agent: a fake `claude` prints the stream-json that `claude -p --output-format stream-json` prints.
+function fakeClaude(body: string) {
+  writeFileSync(join(bin, "claude"), `#!/bin/sh\nprintf '%s\\n' "$@" > "${bin}/cargv"\npwd > "${bin}/ccwd"\ncat > "${bin}/cstdin"\n${body}\n`);
+  chmodSync(join(bin, "claude"), 0o755);
+}
+const claudeSay = (text: string) => `cat <<'J'
+{"type":"system","subtype":"hook_started","session_id":"S1"}
+{"type":"system","subtype":"init","session_id":"S1"}
+{"type":"assistant","message":{"content":[{"type":"tool_use","id":"t1","name":"Bash","input":{"command":"ls"}}]}}
+{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"t1","is_error":false}]}}
+{"type":"assistant","message":{"content":[{"type":"text","text":${JSON.stringify(text)}}]}}
+{"type":"result","subtype":"success","is_error":false,"result":${JSON.stringify(text)},"session_id":"S1"}
+J`;
+const cargv = () => readFileSync(join(bin, "cargv"), "utf8").trim().split("\n");
+const only = (name: "claude" | "codex") => { for (const n of ["claude", "codex"]) if (n !== name) try { rmSync(join(bin, n)); } catch {} };
+const pathBin = () => { process.env.PATH = bin + delimiter + "/usr/bin" + delimiter + "/bin"; }; // the fake needs sh, cat and pwd, and no real claude or codex
+
+test.if(posix)("chatAgent: the default when Chat can run it, else codex, else claude, else none", () => {
+  fake("true"); fakeClaude("true");
+  expect(chatAgent(board)).toBe("codex");
+  expect(chatAgent({ ...board, defaultAgent: "claude" })).toBe("claude");
+  expect(chatAgent({ ...board, defaultAgent: "gemini" })).toBe("codex");
+  only("claude"); pathBin();
+  expect(chatAgent({ ...board, defaultAgent: "codex" })).toBe("claude");
+  rmSync(join(bin, "claude"));
+  expect(chatAgent(board)).toBeNull();
+});
+
+test.if(posix)("with only claude installed a message gets a reply and steps, and the next one resumes the session", async () => {
+  fakeClaude(claudeSay("Hi from Claude."));
+  pathBin();
+  const { events, why, id } = await turn(null, "say hi", projA);
+  expect(why).toBeNull();
+  expect(events.map((e) => e.t)).toEqual(["chat", "status", "status", "step", "text", "done"]);
+  expect((events[2] as any).text).toBe("Running ls");
+  expect((events[3] as any).step).toEqual({ kind: "cmd", text: "ls", ok: true });
+  const c = readChat(base, id)!;
+  expect(c.agent).toBe("claude"); expect(c.thread).toBe("S1");
+  expect(c.messages[1].text).toBe("Hi from Claude.");
+  const a = cargv();
+  expect(a.slice(0, 5)).toEqual(["-p", "--output-format", "stream-json", "--verbose", "--permission-mode"]);
+  expect(a).toContain("Bash(kaizen task:*)"); expect(a).toContain("Bash(kaizen uninstall:*)");
+  expect(a.indexOf("--disallowedTools")).toBeGreaterThan(a.indexOf("--allowedTools"));
+  expect(a).not.toContain("Bash"); expect(a).not.toContain("bypassPermissions"); expect(a).not.toContain("--resume");
+  // edits are scoped to the project folders and the scratch folder: a bare Edit or Write would allow every path
+  expect(a).not.toContain("Edit"); expect(a).not.toContain("Write");
+  expect(a).toContain(`Write(/${join(root, "A")}/**)`); expect(a).toContain(`Edit(/${join(base, "chats", "scratch")}/**)`);
+  expect(a.filter((x) => /^(Edit|Write)\(/.test(x)).every((x) => /^(Edit|Write)\(\/\//.test(x))).toBe(true);
+  expect(a).toContain("--add-dir"); expect(a).toContain(join(root, "A")); // the project comes in as an added folder
+  expect(readFileSync(join(bin, "cstdin"), "utf8")).toContain("say hi");
+  expect(readFileSync(join(bin, "ccwd"), "utf8").trim()).toBe(join(base, "chats", "scratch")); // not the project, so a session survives a switch
+  await turn(id, "and again");
+  expect(cargv().slice(-2)).toEqual(["--resume", "S1"]);
+});
+
+test.if(posix)("Codex stays Codex when it is the default, and a chat never changes agent", async () => {
+  fake(say("From Codex.")); fakeClaude(claudeSay("From Claude."));
+  const a = await turn(null, "hi", projA);
+  expect(readChat(base, a.id)!.agent).toBe("codex");
+  expect(readFileSync(join(bin, "argv"), "utf8")).toContain("exec");
+  // later the default becomes claude: the old chat goes on with codex, a new one starts on claude
+  board.defaultAgent = "claude";
+  await turn(a.id, "more");
+  expect(readFileSync(join(bin, "argv"), "utf8")).toContain("resume");
+  const b = await turn(null, "new");
+  expect(readChat(base, b.id)!.agent).toBe("claude");
+  // a chat from before had no agent: it was codex
+  const old = readChat(base, a.id)!; delete old.agent; writeFileSync(join(base, "chats", a.id + ".json"), JSON.stringify(old));
+  await turn(a.id, "again");
+  expect(readFileSync(join(bin, "argv"), "utf8")).toContain("resume");
+});
+
+test.if(posix)("a chat whose agent was removed says so instead of switching", async () => {
+  fake(say("x")); fakeClaude(claudeSay("y"));
+  const a = await turn(null, "hi", projA);
+  expect(readChat(base, a.id)!.agent).toBe("codex");
+  only("claude"); pathBin();
+  const r = await turn(a.id, "more");
+  expect(r.why).toMatch(/runs on Codex, which is no longer installed/);
+});
+
+test.if(posix)("a task directive in a Claude reply is acted on like one from Codex", async () => {
+  const tasks: string[] = [];
+  board.task = (dir, goal) => { tasks.push(dir + "|" + goal); return { ok: true }; };
+  fakeClaude(claudeSay(`Saved.\n[[kaizen:task ${projA} | Fix the footer]]`));
+  pathBin();
+  const { id } = await turn(null, "add a task", projA);
+  expect(tasks).toEqual([projA + "|Fix the footer"]);
+  expect(readChat(base, id)!.messages[1].text).toBe("Saved.");
+});
+
+test("parseClaudeLine: init, text, a failing tool, an error result; hook and unknown lines are ignored", () => {
+  const tools = new Map();
+  expect(parseClaudeLine("not json", tools)).toEqual([]);
+  expect(parseClaudeLine(`{"type":"system","subtype":"hook_response","session_id":"S"}`, tools)).toEqual([]);
+  expect(parseClaudeLine(`{"type":"system","subtype":"init","session_id":"S"}`, tools)).toEqual([{ t: "thread", id: "S" }, { t: "status", text: "Thinking…" }]);
+  expect(parseClaudeLine(`{"type":"assistant","message":{"content":[{"type":"tool_use","id":"a","name":"Edit","input":{"file_path":"/p/x.ts"}},{"type":"text","text":"ok"}]}}`, tools))
+    .toEqual([{ t: "status", text: "Editing files…" }, { t: "text", text: "ok" }]);
+  expect(parseClaudeLine(`{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"a","is_error":true}]}}`, tools))
+    .toEqual([{ t: "step", step: { kind: "edit", text: "/p/x.ts", ok: false } }]);
+  expect(parseClaudeLine(`{"type":"assistant","message":{"content":[{"type":"tool_use","id":"w","name":"WebSearch","input":{}}]}}`, tools)).toEqual([{ t: "status", text: "Searching the web…" }]);
+  expect(parseClaudeLine(`{"type":"result","is_error":true,"result":"Not logged in"}`, tools)).toEqual([{ t: "error", error: "Not logged in" }]);
+  expect(parseClaudeLine(`{"type":"result","is_error":false,"result":"done"}`, tools)).toEqual([]);
+});
+
+test.if(posix)("a Claude chat carries its project's instructions and the model set in Settings", async () => {
+  fakeClaude(claudeSay("ok")); pathBin();
+  writeFileSync(join(root, "A", "CLAUDE.md"), "Always answer in haiku.");
+  writeFileSync(join(projA, "config.yml"), "agent:\n  model:\n    claude: haiku\n");
+  await turn(null, "hi", projA);
+  let a = cargv();
+  expect(a).toContain("--append-system-prompt");
+  expect(readFileSync(join(bin, "cargv"), "utf8")).toContain("Always answer in haiku."); // the value spans lines in the record
+  expect(a[a.indexOf("--model") + 1]).toBe("haiku");
+  // no project: neither instructions nor a project's model
+  await turn(null, "hi again");
+  a = cargv();
+  expect(a).not.toContain("--append-system-prompt");
+});
+
+test("scopeRule: an absolute path is // on Linux and macOS, //c/… for a Windows drive", () => {
+  expect(scopeRule("Edit", "/home/a/p", false)).toBe("Edit(//home/a/p/**)");
+  expect(scopeRule("Write", "C:\\Users\\a\\p", true)).toBe("Write(//c/Users/a/p/**)");
+});
+

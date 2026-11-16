@@ -17,7 +17,7 @@ import { MAX_FILE, MAX_IMAGE, saveFile, saveImage } from "./term-image.ts";
 import { shellHistory } from "./term-history.ts";
 import { bundledSkills, repairSkill, setSkill, skillsHeld, skillsOff, skillStatus } from "./skills.ts";
 import * as rea from "./rea.ts";
-import { accountEnv, accountForRun, agentUsable, CHILD_ENV, promptArgs, heartbeatMinutes, keepAwake, launchPreview, trustFolder, YOLO_FLAGS } from "./state.ts";
+import { accountEnv, accountForRun, agentUsable, CHILD_ENV, detectDefaultAgent, promptArgs, heartbeatMinutes, keepAwake, launchPreview, trustFolder, YOLO_FLAGS } from "./state.ts";
 import { agentLine, failStart, handoffModel, markRunning, readWorkers, requested, startWorker, sweep, workerStale } from "./workers.ts";
 import { childDied, childQuiet, markWoken, move, requestOpen, readHandoff, refused, started, wakeAction, wakeLine, type Handoff } from "./handoff.ts";
 import { processTable, storage, systemMemory, treeRss, type Root } from "./resources.ts";
@@ -2294,6 +2294,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
             return "error" in r ? { error: r.error } : { dir: (r as { dir: string }).dir };
           },
           agents: KNOWN_AGENTS.filter((a) => agentUsable(a.cmd)).map((a) => a.cmd),
+          defaultAgent: detectDefaultAgent(repoDir).cmd,
           // A draft task: saved on the Tasks list, no agent started (the task page starts it).
           task: (d: string, goal: string) => {
             try { tasks.createTask(d, { goal, project: dirname(d) }, `chat:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`); changed(); return { ok: true as const }; }
