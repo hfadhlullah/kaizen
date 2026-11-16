@@ -32,11 +32,11 @@ export async function loadPhone() {
     useFooter.setState({ phone: phoneStatus(await (await fetch("/phone")).json()) });
   } catch {}
 }
-// Read once, then usage every 5 minutes and the phone every minute. Returns the function that stops them.
+// Read once, then usage every 5 minutes and the phone every 15 s (Tailscale turned off on the phone shows within that). Returns the function that stops them.
 export function startFooter() {
   void loadUsage();
   void loadPhone();
   const a = setInterval(() => void loadUsage(), 5 * 60_000),
-    b = setInterval(() => void loadPhone(), 60_000);
+    b = setInterval(() => void loadPhone(), 15_000);
   return () => (clearInterval(a), clearInterval(b));
 }
