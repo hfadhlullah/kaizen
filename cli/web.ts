@@ -1506,7 +1506,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
           const out: Usage[] = [];
           if (onPath("claude")) { const u = await claudeUsage(home); if (u) out.push(u); }
           if (onPath("codex")) { const u = codexUsage(home); if (u) out.push(u); }
-          usageCache = out;
+          // A rate-limit or network error keeps the last good reading instead of blanking the chip.
+          usageCache = out.map((u) => (u.error ? usageCache.find((o) => o.agent === u.agent && !o.error) ?? u : u));
           usageAt = Date.now();
         }
         return json(usageCache);
