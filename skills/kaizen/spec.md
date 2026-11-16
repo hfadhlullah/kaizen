@@ -261,4 +261,10 @@ Task-specific exception to the general follow-up confirmation rule.
 Task acceptance (Looks good) is distinct from workflow completion, technical git
 housekeeping and publication. Finish genuine checks and workflow decisions, publish
 checks/limitations honestly, then leave the completed result for user acceptance.
+End the run explicitly once the result is published and the review is over: with
+`approvals.review` off run `kaizen done <run>` (the task then waits on Looks good);
+with it on run `kaizen state <run> stage=review awaiting=approvals.review` and stop,
+so the task page offers the approval. Never stop at `review` with `awaiting` empty:
+the board cannot tell that from a review still running, and offers Looks good only
+after two quiet minutes.
 A rendered event form is not evidence of registration storage or delivery.

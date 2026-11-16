@@ -4,7 +4,7 @@ import { test, expect } from 'bun:test';
 import { mkdtempSync,mkdirSync,writeFileSync,readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { taskAction,taskEvent,dispatchReady,taskView,reconcile,autoRecover } from './task-service.ts';
+import { taskAction,taskEvent,dispatchReady,taskView,reconcile,autoRecover,QUIET_MS } from './task-service.ts';
 import { readTask,mutateTask,addEvent } from './tasks.ts';
 import { listResults } from './task-results.ts';
 import { setRunState,finishRun } from './state.ts';
@@ -373,4 +373,28 @@ test('adopting a run waiting on Explore shows its brief as a question, not an in
  const hooks={launch:()=>({ok:true,pty:'p'}),alive:()=>false,stop:()=>true};
  const t=taskAction(state,{op:'adopt',legacy:{kind:'run',id},operationId:'a1'},hooks).task;
  expect(t.status).toBe('waiting');expect(t.pendingDecision?.kind).toBe('question');expect(t.pendingDecision?.details).toContain('findings');
+});
+// A run left at review with nothing awaited: Looks good stays hidden while the agent prints, and comes back once it is
+// quiet two minutes or gone, as the run's review approval (2026-11-16-ux-walkthrough).
+test('a run left at review with nothing awaited gets Looks good back once its agent is quiet or gone',()=>{
+ const f=fixture(),run=f.now().activeRun!;f.ack();
+ f.event({type:'proposal',text:'Build the page'});f.send('confirm',{decisionId:f.now().pendingDecision!.id});f.ack();
+ f.event({type:'receipt',inputIds:f.now().launch!.inputIds});
+ writeFileSync(join(f.root,'out.md'),'# Out');f.event({type:'result',title:'Page',summary:'Ready',artifacts:[{path:'out.md'}],settleMs:0});
+ setRunState(f.state,run,['stage=review','awaiting=null']);
+ let idle=5_000,alive=true;const approved:string[]=[];
+ const hooks:any={...f.hooks,alive:()=>alive,idle:()=>idle,approve:(_s:string,r:string,a:string)=>{approved.push(r+':'+a);return null;}};
+ // (a) the agent is still printing: the review is running
+ let a=allowedActions(f.state,f.now(),hooks);
+ expect(a.accept).toBe(false);expect(a.acceptWhy).toBe('The workflow is still reviewing this result. Looks good appears once the agent has been quiet for two minutes.');
+ expect(()=>taskAction(f.state,{op:'accept',id:f.created.id,revision:f.now().revision,resultId:f.now().currentResult,operationId:'early'},hooks)).toThrow('still reviewing');
+ // (b) quiet for two minutes: Looks good is back and sends the run its review approval
+ idle=QUIET_MS;a=allowedActions(f.state,f.now(),hooks);
+ expect(a.accept).toBe(true);expect(a.acceptWhy).toBeUndefined();
+ // without a way to reach the agent it stays hidden
+ expect(allowedActions(f.state,f.now(),{...hooks,approve:undefined}).accept).toBe(false);
+ // (c) the agent is gone: Looks good too, however short the quiet
+ idle=0;alive=false;expect(allowedActions(f.state,f.now(),hooks).accept).toBe(true);
+ const t=taskAction(f.state,{op:'accept',id:f.created.id,revision:f.now().revision,resultId:f.now().currentResult,operationId:'lg'},hooks).task;
+ expect(approved).toEqual([run+':approvals.review']);expect(t.status).toBe('accepted');
 });

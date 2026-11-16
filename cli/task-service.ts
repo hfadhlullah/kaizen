@@ -14,6 +14,11 @@ type Hooks = { launch: (state:string, run:string, text:string, task:T.Task, pick
   // The agent stopped on a permission/choice prompt, and the user's yes or no typed into it.
   asking?:(pty:string)=>boolean; idle?:(pty:string)=>number; answer?:(pty:string,yes:boolean)=>void };
 export const HUNG_MS=5*60_000;
+// A run left at review with nothing awaited, its result published and its agent quiet this long (or gone), is over:
+// Looks good comes back and finishes it as the review approval. While the agent prints, the review is still running.
+export const QUIET_MS=2*60_000;
+const leftInReview=(run:any,task:T.Task,key:string|undefined,hooks?:Hooks)=>run.stage==='review'&&!run.awaiting&&!!task.currentResult
+  &&(!key||!hooks?.alive(key)||(hooks.idle?.(key)??0)>=QUIET_MS);
 const runtimeLaunches = new Set<string>();
 const parse = (file:string) => { try { return JSON.parse(readFileSync(file,'utf8')); } catch { return null; } };
 const put = (file:string,value:unknown) => { const temp = file + `.${process.pid}.${randomUUID()}.tmp`; writeFileSync(temp,JSON.stringify(value,null,2)+'\n'); renameSync(temp,file); };
@@ -31,8 +36,8 @@ export function allowedActions(state:string,task:T.Task,hooks?:Hooks) {
   let accept=false,acceptWhy:string|undefined;
   try{T.acceptTask(structuredClone(task),task.currentResult??'');accept=true;}catch{/* not acceptable now */}
   // Looks good on a run that waits for its review approval (or open findings) is that approval: it is sent to the run.
-  const approvable=!!run&&!run.healed&&['approvals.review','findings'].includes(run.awaiting)&&!!hooks?.approve;
-  if(accept&&run&&!finished&&!approvable){accept=false;acceptWhy=run.awaiting?'Resolve the blocking workflow decision first.':'The workflow is still reviewing this result';}
+  const approvable=!!run&&!run.healed&&(['approvals.review','findings'].includes(run.awaiting)||leftInReview(run,task,key,hooks))&&!!hooks?.approve;
+  if(accept&&run&&!finished&&!approvable){accept=false;acceptWhy=run.awaiting?'Resolve the blocking workflow decision first.':run.stage==='review'&&task.currentResult?'The workflow is still reviewing this result. Looks good appears once the agent has been quiet for two minutes.':'The workflow is still reviewing this result';}
   return {accept,...(acceptWhy?{acceptWhy}:{}),
     stop:(live&&['draft','waiting','working','ready'].includes(task.status))||(['failed','interrupted','working'].includes(task.status)&&alive),
     // A ready task whose run is still in review but whose agent is gone can only finish by relaunching it.
@@ -208,7 +213,7 @@ export function taskAction(state:string,body:any,hooks:Hooks):{state:string;task
       const run=runState(state,t);
       if(run&&t.activeRun){
         if(run.healed||run.stage==='done'){if(gateOf(state,t.activeRun)==='needs'){const why=recordAcceptance(state,t.activeRun,'board');if(why)throw new T.TaskError(why,409);}if(run.healed){const why=finishRun(state,t.activeRun);if(why)throw new T.TaskError(why,409);}}
-        else if(['approvals.review','findings'].includes(run.awaiting)){const why=hooks.approve?hooks.approve(state,t.activeRun,run.awaiting):'This board cannot approve the run';if(why)throw new T.TaskError(why,409);}
+        else if(['approvals.review','findings'].includes(run.awaiting)||run.stage==='review'){const why=hooks.approve?hooks.approve(state,t.activeRun,run.awaiting||'approvals.review'):'This board cannot approve the run';if(why)throw new T.TaskError(why,409);}
       }
       T.acceptTask(t,String(body.resultId??''));
     }else if(op==='confirm'){
