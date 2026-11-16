@@ -17,7 +17,7 @@ export type IceItem = {
   board?: string;
   tags?: string[];
   images?: string[];
-  link?: { url: string; title?: string; summary?: string };
+  link?: { url: string; title?: string; summary?: string; image?: string };
   post?: string | null;
   replied?: string;
   written?: string;
@@ -137,7 +137,22 @@ export function faviconUrl(u: string): string {
         : origin + "/favicon.ico";
 }
 
-export type Filters = { board: string; kinds: string[]; cat: string; src: string };
+// A link's preview picture: the one read when it was saved, else Reddit's own for a post (links saved before pictures
+// were read have none). Https only. Same address as redditPost() in cli/sources.ts.
+export function linkImage(l: { url: string; image?: string }): string {
+  if (l.image && /^https:\/\//i.test(l.image)) return l.image;
+  const m = /^https:\/\/(?:(?:www|old|new|m)\.)?reddit\.com\/r\/[\w-]+\/comments\/([a-z0-9]+)/i.exec(l.url);
+  return m ? `https://share.redd.it/preview/post/${m[1]!.toLowerCase()}` : "";
+}
+// What the search box looks in: the words, notes, link, tags, collection and project, lowercased.
+export const searchText = (it: IceItem) =>
+  [it.text, it.notes, it.link?.url, it.link?.title, it.link?.summary, ...(it.tags ?? []).map((t) => "#" + t), it.board, it.project]
+    .filter(Boolean)
+    .join("\n")
+    .toLowerCase();
+// The Inbox chip's filter: items in no collection. A newline, so no collection name (one line) can equal it.
+export const INBOX = "\ninbox";
+export type Filters = { board: string; kinds: string[]; cat: string; src: string; q?: string };
 export type Env = {
   dir: string | null; // the one project the board shows, or null in All projects
   shown: ReadonlySet<string>; // the "Showing" picker's projects; empty shows every one
@@ -157,6 +172,7 @@ export type Derived = {
   src: string;
   inProj: (it: IceItem) => boolean;
   nOn: (b: Board) => number;
+  nInbox: number; // waiting items in no collection
 };
 const count = (xs: IceItem[], f: (it: IceItem) => string) => {
   const m = new Map<string, { it: IceItem; n: number }>();
@@ -180,8 +196,8 @@ export function deriveIce(d: IceData, f: Filters, env: Env): Derived {
     pv = ice.filter(inProj);
   // A board is its name: two projects' boards of one name are one chip in All projects.
   const boards = [...new Map((d.boards || []).filter(inProj).map((b) => [b.name.toLowerCase(), b])).values()];
-  const board = f.board && boards.some((b) => sameName(b.name, f.board)) ? f.board : "";
-  const onBoard = (it: IceItem) => !board || sameName(it.board, board),
+  const board = f.board === INBOX || (f.board && boards.some((b) => sameName(b.name, f.board))) ? f.board : "";
+  const onBoard = (it: IceItem) => !board || (board === INBOX ? !it.board : sameName(it.board, board)),
     ofKind = (it: IceItem) => !f.kinds.length || f.kinds.includes(it.kind || ""),
     base = pv.filter((it) => onBoard(it) && ofKind(it));
   const byCat = count(base, (it) => catOf(list, it)),
@@ -189,10 +205,13 @@ export function deriveIce(d: IceData, f: Filters, env: Env): Derived {
   const cv = base.filter((it) => !cat || catOf(list, it) === cat),
     bySrc = count(cv, srcKey),
     src = f.src && bySrc.has(f.src) ? f.src : "";
+  const words = (f.q ?? "").toLowerCase().split(/\s+/).filter(Boolean),
+    found = (it: IceItem) => !words.length || words.every((w) => searchText(it).includes(w));
   const filtered = ice
     .filter(
       (it) =>
         inProj(it) &&
+        found(it) &&
         onBoard(it) &&
         ofKind(it) &&
         (cat ? catOf(list, it) === cat : it.status === "new") &&
@@ -213,6 +232,7 @@ export function deriveIce(d: IceData, f: Filters, env: Env): Derived {
     src,
     inProj,
     nOn: (b) => pv.filter((it) => isWaiting(it) && sameName(it.board, b.name)).length,
+    nInbox: pv.filter((it) => isWaiting(it) && !it.board).length,
   };
 }
 // Sources group by platform: two Threads searches sit under one Threads.

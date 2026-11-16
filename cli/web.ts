@@ -25,7 +25,7 @@ import { attachPty, frames, writePty, submitPty, resizePty, exitPty, killPty, pa
 import { conflictPort, holders, inProjects, isKaizenProcess, listeners, stopPort } from "./ports.ts";
 import { snapshot, snapWorker } from "./state-snap.ts";
 import { claudeUsage, claudeUsageAt, codexUsage, codexUsageAt, phonePeers, type Usage } from "./usage.ts";
-import { readSources, addSource, removeSource, moveSource, setCategory, setWriteback, setPaused, readIcebox, applySort, promote, dismiss, restore, capture, editItem, setKind, setTags, setBoard, saveBoard, removeBoard, snooze, unsnooze, readBoards, kindOf, isSnoozed, markDone, markReplied, gatherSource, freshImages, gatherAll, gatherDirs, due, socialUrl, socialOf } from "./sources.ts";
+import { readSources, addSource, removeSource, moveSource, setCategory, setWriteback, setPaused, readIcebox, applySort, setLinkMedia, redditPost, iceDir, promote, dismiss, restore, capture, editItem, setKind, setTags, setBoard, saveBoard, removeBoard, snooze, unsnooze, readBoards, kindOf, isSnoozed, markDone, markReplied, gatherSource, freshImages, gatherAll, gatherDirs, due, socialUrl, socialOf } from "./sources.ts";
 import { projectLogo, LOGO_TYPES } from "./logo.ts";
 import * as chatgpt from "./chatgpt.ts";
 import * as google from "./google.ts";
@@ -677,7 +677,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
   const fingerprint = () => {
     let sum = 0;
     for (const dir of states(true)) {
-      for (const f of ["inbox.md", "backlog.md", "archive.md", "sources.json", "icebox.json"]) { try { sum += statSync(join(dir, f)).mtimeMs; } catch { /* absent */ } }
+      for (const f of ["inbox.md", "backlog.md", "archive.md", "sources.json", "icebox.json", "boards.json"]) { try { sum += statSync(join(f.endsWith(".json") ? iceDir(dir) : dir, f)).mtimeMs; } catch { /* absent */ } }
       const runs = join(dir, "runs");
       if (!existsSync(runs)) continue;
       for (const id of readdirSync(runs)) { try { sum += statSync(join(runs, id, "state.json")).mtimeMs; } catch { /* absent */ } }
@@ -714,6 +714,19 @@ export async function web(repoDir: string, opts: Opts = {}) {
     };
     const next = (sorting.get(dir) ?? Promise.resolve()).then(run, run).catch((e) => console.error("[icebox] sort", e));
     sorting.set(dir, next);
+  };
+  // A Reddit link's own pictures, read by the kaizen browser after the capture is saved (it takes seconds and may
+  // be busy gathering). One browser at a time; a failure leaves the card on Reddit's preview picture.
+  let reading: Promise<unknown> = Promise.resolve();
+  const mediaLater = (dir: string, id: string) => {
+    const run = async () => {
+      const it = readIcebox(dir).find((x) => x.id === id);
+      if (!it?.link || !redditPost(it.link.url)) return;
+      const r = await (await import("./browser.ts")).redditMedia(it.link.url);
+      if (r.ok && setLinkMedia(dir, id, r)) changed();
+      else if (!r.ok) console.error(`[icebox] pictures ${id}: ${r.note}`);
+    };
+    reading = reading.then(run, run).catch((e) => console.error("[icebox] pictures", e));
   };
   const setting = async (key: string) => {
     const { listSettings } = await import("./settings.ts");
@@ -1093,6 +1106,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
         let body: any;
         try { body = await req.json(); } catch { return bad("json body expected"); }
         // Home: kaizen's own folder, the one place outside a project. No worktree, dev server or run to resume there.
+        // The side menu's Home row is the global queue (~/.kaizen) as a workspace: a shell from it is a Home shell.
+        if (body.home !== true && typeof body.dir === "string" && canonState(body.dir) === join(home, ".kaizen") && body.dev !== true && body.resume !== true) { body.home = true; delete body.ws; }
         const homeWs = body.home === true;
         if (homeWs && (body.ws != null || body.dev === true || body.resume === true)) return bad("not in the Home workspace", 400);
         const dir = homeWs ? HOME_WS : canonState(String(body.dir ?? ""));
@@ -1643,7 +1658,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
         const inside = fold(root.endsWith(sep) ? root : root + sep);
         const picker = states(true).filter((d) => {
           const p = dirname(d);
-          return !root || d === state || (fold(p).startsWith(inside)
+          // Home (the global queue) is always listed: it is your own icebox and tasks, in no project.
+          return !root || d === state || d === join(home, ".kaizen") || (fold(p).startsWith(inside)
             && (!isGroup(p) || filled(d) || fold(dirname(p)) !== fold(root)));
         });
         // What an agent printed goes only to a viewer on this machine, not to a tailnet host or a phone.
@@ -1683,12 +1699,13 @@ export async function web(repoDir: string, opts: Opts = {}) {
         cards.forEach((c, i) => { for (const k of ptys[i]?.all ?? []) addAgent(k, c.state, c.ws, pty.cmd(k) ?? KNOWN_AGENTS.find((a) => c.tags?.includes(a.cmd))?.cmd, c.kind === "run" ? c.id : undefined); });
         // A failed land marks the run's agents, and the terminal that ran it (often the first agent, in another workspace).
         for (const c of cards) if (c.land) for (const a of agents) if ((a.dir === c.state && a.run === c.id) || a.key === c.land.term) a.land = c.land.kind;
-        const entry = (d: string) => ({ dir: d, label: label(d), logo: !!projectLogo(d),
+        const entry = (d: string) => ({ dir: d, label: label(d), logo: !!projectLogo(d), ...(d === join(home, ".kaizen") ? { home: true } : {}),
           workspaces: d === join(home, ".kaizen") ? [{ path: d, branch: "", main: true }] : workspacesNow(projectOf(d)) });
         const body = JSON.stringify({
           project, all, dir: state,
           // Each project's workspaces (git worktrees, or the one folder); the global queue is its own one.
-          projects: picker.map(entry),
+          // Home first: every picker on the page lists it above the projects.
+          projects: picker.map(entry).sort((a, b) => +!!b.home - +!!a.home),
           // Dirs with a card the picker leaves out (the global queue, a project outside the
           // Projects folder): the rail still needs their workspaces so a waiting run shows.
           rail: [...new Set(cards.map((c) => c.state))].filter((d) => !picker.includes(d)).map(entry),
@@ -1989,6 +2006,13 @@ export async function web(repoDir: string, opts: Opts = {}) {
           permissions: prefs.permissions, envWorks: process.platform !== "win32",
           agents: KNOWN_AGENTS.map((a) => ({ cmd: a.cmd, name: a.name, installed: !!onPath(commandOf(a.cmd, prefs)), bypass: !!YOLO_FLAGS[a.cmd], ...publicPref(a.cmd, prefs), preview: launchPreview(repoDir, a.cmd, prefs) })),
         });
+      }
+
+      // The models one agent tool offers, read from the tool itself (cli/models.ts). Only a KNOWN_AGENTS command is taken.
+      if (req.method === "GET" && path === "/models") {
+        const cmd = url.searchParams.get("agent") ?? "";
+        if (!KNOWN_AGENTS.some((a) => a.cmd === cmd)) return bad("unknown agent", 404);
+        return json({ models: await (await import("./models.ts")).modelsOf(cmd) });
       }
 
       if (req.method === "GET" && path === "/agents") {
@@ -2579,13 +2603,14 @@ export async function web(repoDir: string, opts: Opts = {}) {
               : body.op === "board" ? setBoard(body.dir, ids, str(body.board))
               : body.op === "snooze" ? snooze(body.dir, ids, str(body.until))
               : body.op === "unsnooze" ? unsnooze(body.dir, ids)
-              // A board on its own, for the page's "+ Board": make it (a client's or not), mark it a client's, or remove an empty one.
+              // A board on its own, for the page's "+ Board": make it (a client's or not), mark it a client's, or remove it (its items go to the Inbox).
               : body.op === "boards" ? (body.act === "add" ? saveBoard(body.dir, str(body.name), body.client === true) : body.act === "client" ? saveBoard(body.dir, str(body.name), true) : body.act === "remove" ? removeBoard(body.dir, str(body.name)) : "act is one of: add, client, remove")
               : body.op === "dismiss" ? dismiss(body.dir, ids) : body.op === "restore" ? restore(body.dir, ids) : "unknown op";
             if (why) return bad(why, why === "no such item" ? 404 : why === "unknown op" ? 400 : 409);
             // A capture with no kind of its own is sorted by ChatGPT after this answer, never before it.
             if (added && "id" in added) addedId = added.id;
             if (addedId && !str(body.kind) && chatgpt.status().connected) sortLater(body.dir, addedId);
+            if (addedId) mediaLater(body.dir, addedId);
           } catch (e) { return bad((e as Error).message, 500); }
           changed();
           return json({ ok: true, ...(addedId ? { id: addedId } : {}) });

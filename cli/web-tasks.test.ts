@@ -364,3 +364,13 @@ test('a message to a working agent that has been silent for minutes ends it and 
  alive=false;const before=f.count(),up=autoRecover(f.state,reconcile(f.state,f.now(),hooks),hooks);
  expect(f.count()).toBe(before+1);expect(up.inputs.some(i=>i.text==='Add a map'&&i.state==='dispatched')).toBe(true);
 });
+
+test('adopting a run waiting on Explore shows its brief as a question, not an interrupted task',()=>{
+ const root=mkdtempSync(join(tmpdir(),'kz-adopt-explore-')),state=join(root,'.kaizen'),id='2026-x-explore';mkdirSync(join(state,'runs',id),{recursive:true});
+ writeFileSync(join(state,'config.yml'),'mode: auto\n');
+ writeFileSync(join(state,'runs',id,'00-request.md'),'Look at my app');writeFileSync(join(state,'runs',id,'00-explore.md'),'# Brief\nfindings');
+ writeFileSync(join(state,'runs',id,'state.json'),JSON.stringify({id,stage:'explore',awaiting:'explore',iteration:0,track:'code',updated:new Date().toISOString()}));
+ const hooks={launch:()=>({ok:true,pty:'p'}),alive:()=>false,stop:()=>true};
+ const t=taskAction(state,{op:'adopt',legacy:{kind:'run',id},operationId:'a1'},hooks).task;
+ expect(t.status).toBe('waiting');expect(t.pendingDecision?.kind).toBe('question');expect(t.pendingDecision?.details).toContain('findings');
+});

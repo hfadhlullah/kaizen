@@ -1,4 +1,4 @@
-import { loadSettings } from "@lib/settings";
+import { recheck, useSettings } from "@lib/settings";
 import type { Section } from "@lib/settings";
 import { Button } from "@web/ui";
 import { SettingsItem } from "./settings-item.tsx";
@@ -6,6 +6,7 @@ import { SettingsItem } from "./settings-item.tsx";
 // A subsection: its name over a rounded box with hairline dividers between rows. A section with no name (Orchestration's
 // picture) draws its rows with no box. Refresh and Re-check read the page again.
 export function SettingsSection({ section }: { section: Section }) {
+  const busy = useSettings((s) => s.busy);
   if (!section.title) return section.items.map((i) => <SettingsItem key={i.id} item={i} />);
   return (
     <section className="mt-6 first:mt-0">
@@ -17,9 +18,10 @@ export function SettingsSection({ section }: { section: Section }) {
             variant="ghost"
             size="sm"
             className="text-primary"
-            onClick={() => void loadSettings()}
+            disabled={busy === section.extra}
+            onClick={() => void recheck(section.extra!, section.extra === "refresh" ? "Refreshed" : "Checked again")}
           >
-            {section.extra === "refresh" ? "Refresh" : "Re-check"}
+            {busy === section.extra ? "Checking…" : section.extra === "refresh" ? "Refresh" : "Re-check"}
           </Button>
         )}
       </h3>

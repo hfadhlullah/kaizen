@@ -6,7 +6,7 @@ import {
   saveSetting,
   useSettings,
   controlOf,
-  MODEL_SUGGEST,
+  useModelChoices,
   modelName,
   modelTool,
   rowHint,
@@ -29,7 +29,8 @@ export function SettingRow({ row, off }: { row: Row; off?: boolean }) {
     shown = useSettings((s) => s.local[row.key] ?? row.value),
     id = settingId(row.key),
     kind = controlOf(row),
-    model = kind === "model";
+    model = kind === "model",
+    choices = useModelChoices(modelTool(row.key), model);
   const text = rowHint(row);
   const help: ReactNode =
     row.own && scoped ? (
@@ -115,10 +116,12 @@ export function SettingRow({ row, off }: { row: Row; off?: boolean }) {
           return (
             <span>
               {field}
-              {MODEL_SUGGEST[modelTool(row.key)] && (
+              {choices.length > 0 && (
                 <datalist id={`${id}-dl`}>
-                  {MODEL_SUGGEST[modelTool(row.key)]!.map((m) => (
-                    <option key={m} value={m} />
+                  {choices.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                    </option>
                   ))}
                 </datalist>
               )}

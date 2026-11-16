@@ -4,16 +4,20 @@
 // Nothing in this file launches anything.
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { homedir } from "node:os";
 import { isIP } from "node:net";
 import { createHash } from "node:crypto";
 import { lookup as dnsLookup } from "node:dns/promises";
-import { readInbox, writeInbox, normalise, formatNote, parseItem, readRuns, readText } from "./state.ts";
+import { home, readInbox, writeInbox, normalise, formatNote, parseItem, readRuns, readText } from "./state.ts";
 
 export type Last = { at: string; ok: boolean; added: number; note: string };
 export type Source = { url: string; label?: string; category?: string; added: string; last?: Last; seen: string[]; writeback?: boolean; paused?: boolean };
 export type Result = { url: string } & Last;
 
-const file = (state: string) => join(state, "sources.json");
+// Home's icebox (the global ~/.kaizen) lives in its own folder inside the Home workspace, ~/.kaizen/home/icebox;
+// a project's sits in its .kaizen. Its sources, items and collections all go there.
+export const iceDir = (state: string) => state === join(homedir(), ".kaizen") || state === join(home, ".kaizen") ? join(state, "home", "icebox") : state;
+const file = (state: string) => join(iceDir(state), "sources.json");
 
 // Absent is an empty list. A file that is there and does not parse throws, so no
 // caller ever writes a fresh list over one a person may want to repair.
@@ -26,7 +30,7 @@ export function readSources(state: string): Source[] {
 }
 
 export function writeSources(state: string, list: Source[]) {
-  mkdirSync(state, { recursive: true });
+  mkdirSync(iceDir(state), { recursive: true });
   writeFileSync(file(state), JSON.stringify(list, null, 2) + "\n");
 }
 
@@ -161,10 +165,10 @@ function clean(raw: string, extra = ""): { text: string; lines: string[] } | nul
 export type IceKind = "client" | "finding" | "people";
 export const KINDS: Record<IceKind, string> = { client: "Client", finding: "Finding", people: "People say" };
 export type Sorted = "me" | "agent" | "ai" | "rules";
-export type Link = { url: string; title?: string; summary?: string };
+export type Link = { url: string; title?: string; summary?: string; image?: string };
 export type Signal = { id: string; text: string; notes?: string; source: string; category?: string; at: string; status: "new" | "promoted" | "dismissed" | "done"; idea?: string; replied?: string; images?: string[]; row?: number; run?: string; written?: string; writeError?: string; kind?: IceKind; sorted?: Sorted; board?: string; tags?: string[]; snoozed?: string; link?: Link };
 
-const iceFile = (state: string) => join(state, "icebox.json");
+const iceFile = (state: string) => join(iceDir(state), "icebox.json");
 
 export function readIcebox(state: string): Signal[] {
   if (!existsSync(iceFile(state))) return [];
@@ -175,7 +179,7 @@ export function readIcebox(state: string): Signal[] {
 }
 
 export function writeIcebox(state: string, list: Signal[]) {
-  mkdirSync(state, { recursive: true });
+  mkdirSync(iceDir(state), { recursive: true });
   writeFileSync(iceFile(state), JSON.stringify(list, null, 2) + "\n");
 }
 
@@ -283,9 +287,14 @@ function addRow(state: string, text: string, notes: string, extra: Partial<Signa
 function ruleKind(source: string, onClientBoard: boolean): IceKind {
   return onClientBoard ? "client" : socialOf(source) ? "people" : source !== "manual" ? "client" : "finding";
 }
+// Your own capture that is a link and nothing else.
+const bareLink = (s: Pick<Signal, "source" | "text">) => s.source === "manual" && s.text.trim() === linkIn(s.text);
 // The kind to show. A stored kind someone chose wins; a rule's kind is worked out again,
 // so moving an item onto a client's board changes it.
 export function kindOf(s: Signal, boards: Board[]): IceKind {
+  // A link the owner dropped in alone is a Finding even when an AI sorted it before that rule existed; only a person
+  // or an agent picking another kind changes it.
+  if (s.sorted === "ai" && bareLink(s)) return "finding";
   if (s.kind && s.kind in KINDS && s.sorted !== "rules") return s.kind;
   return ruleKind(s.source, !!s.board && boards.some((b) => b.client && same(b.name, s.board!)));
 }
@@ -293,7 +302,7 @@ export function kindOf(s: Signal, boards: Board[]): IceKind {
 // Boards: where items belong (a client, a topic). A client's board makes its items Client.
 // boards.json is a list of { name, client? }; absent is none.
 export type Board = { name: string; client?: true };
-const boardsFile = (state: string) => join(state, "boards.json");
+const boardsFile = (state: string) => join(iceDir(state), "boards.json");
 const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
 export function readBoards(state: string): Board[] {
   if (!existsSync(boardsFile(state))) return [];
@@ -302,7 +311,7 @@ export function readBoards(state: string): Board[] {
   if (!Array.isArray(list)) throw new Error("boards.json is unreadable");
   return list.filter((b) => b && typeof b.name === "string").map((b) => ({ name: b.name, ...(b.client === true ? { client: true as const } : {}) }));
 }
-const writeBoards = (state: string, list: Board[]) => { mkdirSync(state, { recursive: true }); writeFileSync(boardsFile(state), JSON.stringify(list, null, 2) + "\n"); };
+const writeBoards = (state: string, list: Board[]) => { mkdirSync(iceDir(state), { recursive: true }); writeFileSync(boardsFile(state), JSON.stringify(list, null, 2) + "\n"); };
 // A board name as stored, or why not.
 function boardName(raw: string): { name: string } | { why: string } {
   const name = oneLine(raw);
@@ -329,7 +338,11 @@ export function removeBoard(state: string, raw: string): string | null {
   const list = readBoards(state);
   const b = list.find((x) => same(x.name, oneLine(raw)));
   if (!b) return "no such collection";
-  if (readIcebox(state).some((s) => s.board && same(s.board, b.name))) return "the collection still has items";
+  // Its items go back to the Inbox: a removed collection never takes requests with it.
+  const ice = readIcebox(state);
+  let moved = false;
+  for (const s of ice) if (s.board && same(s.board, b.name)) { delete s.board; moved = true; }
+  if (moved) writeIcebox(state, ice);
   writeBoards(state, list.filter((x) => x !== b));
   return null;
 }
@@ -351,7 +364,8 @@ export function applySort(state: string, id: string, kind: string, tags: string[
   const s = ice.find((x) => x.id === id);
   if (!s || (s.sorted ?? "rules") !== "rules") return false;
   const t = cleanTags([...(s.tags ?? []), ...tags]);
-  s.kind = kind as IceKind;
+  // A link the owner dropped in alone is something they found: the AI still tags it, but never calls it People say.
+  s.kind = bareLink(s) ? "finding" : kind as IceKind;
   s.sorted = "ai";
   if (!("why" in t) && t.tags.length) s.tags = t.tags.slice(0, 8);
   writeIcebox(state, ice);
@@ -863,23 +877,73 @@ export const due = (s: Source, everyMs: number, now: number) => !s.last || now -
 // The first http(s) link in a capture, if any.
 export const linkIn = (text: string) => /https?:\/\/[^\s<>"'`)\]]+/i.exec(text)?.[0]?.replace(/[.,;:!?]+$/, "") ?? null;
 const entities = (s: string) => s.replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n))).replace(/&#x([\da-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16))).replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&");
+// A page's own <meta> tags, by name or property: the preview a site writes for sharing.
+const meta = (html: string, key: string) => {
+  for (const tag of html.match(/<meta\b[^>]*>/gi) ?? []) {
+    if (new RegExp(`(?:property|name)\\s*=\\s*["']${key}["']`, "i").test(tag)) {
+      const c = /content\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(tag);
+      if (c) return oneLine(entities(c[1] ?? c[2] ?? ""));
+    }
+  }
+  return "";
+};
+// A block page says so in its title; keep nothing from it.
+const BLOCKED = /^(blocked|access denied|just a moment|attention required|are you a robot|403 forbidden)/i;
+// The preview picture a page names, https only, as an absolute address.
+const imageOf = (html: string, base: string) => {
+  const raw = meta(html, "og:image:secure_url") || meta(html, "og:image") || meta(html, "twitter:image");
+  if (!raw) return "";
+  try { const u = new URL(raw, base); return u.protocol === "https:" && u.href.length <= 2000 ? u.href : ""; } catch { return ""; }
+};
+
+// Reddit answers a server's fetch with a block page, but every post has a public preview picture at an address built
+// from its id, and its title is in the link's own slug. Null for any other link.
+export function redditPost(url: string): { title: string; image: string } | null {
+  const m = /^https:\/\/(?:(?:www|old|new|m)\.)?reddit\.com\/r\/([\w-]+)\/comments\/([a-z0-9]+)(?:\/([^/?#]+))?/i.exec(url);
+  if (!m) return null;
+  const slug = (m[3] ?? "").replace(/_/g, " ").trim();
+  return { title: slug ? `${slug} · r/${m[1]}` : `r/${m[1]}`, image: `https://share.redd.it/preview/post/${m[2]!.toLowerCase()}` };
+}
+
+// What the kaizen browser read from a link's page afterwards: its first own picture becomes the card's picture,
+// and a better title than a generic one. An item someone removed meanwhile is left alone. Returns whether it wrote.
+export function setLinkMedia(state: string, id: string, m: { title?: string; images: string[] }): boolean {
+  const ice = readIcebox(state), s = ice.find((x) => x.id === id);
+  const images = pics(m.images);
+  if (!s?.link || (!images.length && !m.title)) return false;
+  if (images.length) s.link.image = images[0];
+  const generic = !s.link.title || /^reddit$/i.test(s.link.title) || s.link.title === redditPost(s.link.url)?.title;
+  if (m.title && generic) s.link.title = oneLine(m.title).slice(0, 200);
+  writeIcebox(state, ice);
+  return true;
+}
+
 // What a link is: Firecrawl's title and summary with the user's key, else the page's own
-// <title> through fetchText's guard (public https only, no credentials). Never throws:
-// a link that cannot be read is kept bare.
+// <title> through fetchText's guard (public https only, no credentials). The page's preview
+// picture (og:image) comes from that same read. Never throws: a link that cannot be read is kept bare.
 export async function readLink(url: string, doFetch?: Fetch, lookup?: Lookup): Promise<Link> {
+  let title = "", summary = "", image = "";
+  try {
+    const r = await fetchText(url, doFetch, lookup, "html");
+    if (r.ok) {
+      const t = oneLine(entities(/<title\b[^>]*>([\s\S]*?)<\/title>/i.exec(r.body)?.[1] ?? "")).slice(0, 200);
+      if (!BLOCKED.test(t)) {
+        title = (meta(r.body, "og:title") || t).slice(0, 200);
+        summary = meta(r.body, "og:description").slice(0, 1000);
+        image = imageOf(r.body, url);
+      }
+    }
+  } catch { /* kept bare */ }
   const { apiKey, scrape } = await import("./research.ts");
   if (apiKey()) {
     try {
       const p = await scrape(url, { formats: ["summary"], timeout: 30_000 });
-      const title = oneLine(p.title).slice(0, 200), summary = oneLine(p.summary ?? "").slice(0, 1000);
-      if (title || summary) return { url, ...(title ? { title } : {}), ...(summary ? { summary } : {}) };
-    } catch { /* fall through to the page title */ }
+      title = oneLine(p.title).slice(0, 200) || title; summary = oneLine(p.summary ?? "").slice(0, 1000) || summary;
+    } catch { /* keep the page's own */ }
   }
-  try {
-    const r = await fetchText(url, doFetch, lookup, "html");
-    const t = r.ok ? oneLine(entities(/<title\b[^>]*>([\s\S]*?)<\/title>/i.exec(r.body)?.[1] ?? "")).slice(0, 200) : "";
-    return t ? { url, title: t } : { url };
-  } catch { return { url }; }
+  const rd = redditPost(url);
+  if (rd) { image ||= rd.image; if (!title || /^reddit$/i.test(title)) title = rd.title; }
+  return { url, ...(title ? { title } : {}), ...(summary ? { summary } : {}), ...(image ? { image } : {}) };
 }
 
 // Your own capture, from the board, the terminal or an agent: text, notes, and what you

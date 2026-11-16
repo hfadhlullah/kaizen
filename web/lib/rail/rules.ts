@@ -109,7 +109,8 @@ export function railGroups(
     folded = new Set(o.folded),
     tasks = d.tasks,
     wsOf = (c) => wsOfCard(c, d.projects);
-  const projects = d.projects.filter((p) => p.workspaces?.length);
+  // Home (the global queue, `home`) heads the list; the rest keep the registry's order (stable sort).
+  const projects = d.projects.filter((p) => p.workspaces?.length).sort((a, b) => +!!b.home - +!!a.home);
   // Cards by project and workspace: each lands on a row, the main checkout when its own is not listed.
   const by = new Map<string, any[]>();
   const shownAgents = (rs: ARow[]) => rs.filter((r) => (r.st === "done" ? filt.done : filt.running));

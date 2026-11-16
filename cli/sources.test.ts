@@ -9,7 +9,7 @@ import {
   readSources, addSource, removeSource, ingest, checkUrl, resolvesPublic, exportUrl, fetchText, split, sift,
   gatherSource, freshImages, gatherAll, due, takeImages, sheetImages, docImages, imagesUrl, SIGN_IN, UNREADABLE, CAP, moveSource, gatherDirs, writeSources,
   readIcebox, writeIcebox, promote, markDone, addItem, githubRepo, dismiss, markReplied, setCategory, setPaused, socialUrl, socialOf, AGENT_ONLY, PLATFORMS,
-  capture, kindOf, readBoards, saveBoard, removeBoard, setKind, setBoard, setTags, editItem, snooze, unsnooze, snoozeUntil, isSnoozed,
+  capture, readLink, applySort, setLinkMedia, iceDir, kindOf, readBoards, saveBoard, removeBoard, setKind, setBoard, setTags, editItem, snooze, unsnooze, snoozeUntil, isSnoozed,
 } from "./sources.ts";
 
 const root = realpathSync(mkdtempSync(join(tmpdir(), "kaizen-src-")));   // macOS: tmpdir is a symlink into /private
@@ -677,11 +677,11 @@ test("the board refuses to add a source without a project, and moves one between
     expect(await ice({ op: "unsnooze", dir: a, ids: [mine.id] })).toMatchObject({ status: 200 });
     got = ((await (await fetch(at + "/sources")).json()) as any);
     expect(got.icebox.find((s: any) => s.id === mine.id).asleep).toBe(false);
-    // A board on its own: made, marked a client's, refused when too long or still holding items, removed when empty.
+    // A board on its own: made, marked a client's, refused when too long or unknown, removed (its items go to the Inbox).
     expect(await ice({ op: "boards", dir: a, act: "add", name: "Site" })).toMatchObject({ status: 200 });
     expect(await ice({ op: "boards", dir: a, act: "client", name: "site" })).toMatchObject({ status: 200 });
     expect(await ice({ op: "boards", dir: a, act: "add", name: "x".repeat(41) })).toMatchObject({ status: 409, error: "a collection name is 1 to 40 characters" });
-    expect(await ice({ op: "boards", dir: a, act: "remove", name: "Kaizen" })).toMatchObject({ status: 409, error: "the collection still has items" });
+    expect(await ice({ op: "boards", dir: a, act: "remove", name: "Nope" })).toMatchObject({ status: 409, error: "no such collection" });
     expect(await ice({ op: "boards", dir: a, act: "rename", name: "Site" })).toMatchObject({ status: 409 });
     expect(readBoards(a)).toEqual([{ name: "Arupadatu", client: true }, { name: "Kaizen" }, { name: "Site", client: true }]);
     expect(await ice({ op: "boards", dir: a, act: "remove", name: "Site" })).toMatchObject({ status: 200 });
@@ -934,9 +934,10 @@ test("capture: kind, board, tags; a client's board makes its items Client; the s
   expect(m).toMatchObject({ kind: "people", sorted: "me", board: "Arupadatu" });
   expect(kindOf(m, readBoards(state))).toBe("people");
   expect(capture(state, { text: "by an agent", kind: "finding", by: "agent" }).then(() => readIcebox(state).at(-1)!.sorted)).resolves.toBe("agent");
-  // Boards: an empty one goes, one with items stays.
+  // Boards: removing one moves its items to the Inbox.
   expect(saveBoard(state, "Kaizen site")).toBeNull();
-  expect(removeBoard(state, "Arupadatu")).toBe("the collection still has items");
+  expect(removeBoard(state, "Arupadatu")).toBeNull(); // its items go to the Inbox
+  expect(readIcebox(state).some((s) => s.board === "Arupadatu")).toBe(false);
   expect(removeBoard(state, "kaizen site")).toBeNull();
   expect(removeBoard(state, "nope")).toBe("no such collection");
 });
@@ -1113,4 +1114,58 @@ test("edit: a new item with an edited item's old text gets its own id; a gathere
   const g = readIcebox(state).at(-1)!;
   expect(editItem(state, g.id, "PDF export, reworded")).toBe("only your own items can be edited; promote it with your own wording instead");
   expect(readIcebox(state).at(-1)!.text).toBe("Export to PDF");
+});
+
+test("a link read keeps the page's og:image (https, absolute) and drops a block page", async () => {
+  const pub = async () => [{ address: "93.184.216.34", family: 4 }] as any;
+  const page = (html: string) => (async () => new Response(html, { headers: { "content-type": "text/html" } })) as any;
+  const ok = await readLink("https://site.example/a/b", page('<title>T</title><meta property="og:title" content="Real &amp; title"><meta property="og:description" content="About it"><meta content="/img/x.png" property="og:image">'), pub);
+  expect(ok).toEqual({ url: "https://site.example/a/b", title: "Real & title", summary: "About it", image: "https://site.example/img/x.png" });
+  expect((await readLink("https://site.example/", page('<meta property="og:image" content="http://insecure/x.png"><title>Hi</title>'), pub)).image).toBeUndefined();
+  expect(await readLink("https://site.example/", page("<title>Blocked</title><meta property=\"og:image\" content=\"https://x/y.png\">"), pub)).toEqual({ url: "https://site.example/" });
+});
+
+test("an AI sort never calls a link the owner dropped alone People say, but still keeps its tags", () => {
+  const st = join(mkdtempSync(join(tmpdir(), "kz-sort-")), ".kaizen"); mkdirSync(st);
+  const a = addItem(st, "https://www.reddit.com/r/x/comments/1/y/"), b = addItem(st, "see https://example.com for what people say");
+  expect(a).toBeNull(); expect(b).toBeNull();
+  const [one, two] = readIcebox(st);
+  expect(applySort(st, one!.id, "people", ["fashion"])).toBe(true);
+  expect(applySort(st, two!.id, "people")).toBe(true);
+  const [x, y] = readIcebox(st);
+  expect(x).toMatchObject({ kind: "finding", tags: ["fashion"] });
+  expect(y!.kind).toBe("people");
+});
+
+test("a Reddit post link gets its preview picture and a title from its slug; an AI-sorted bare link reads as Finding", async () => {
+  const pub = async () => [{ address: "93.184.216.34", family: 4 }] as any;
+  const blocked = (async () => new Response("<title>Blocked</title>", { headers: { "content-type": "text/html" } })) as any;
+  expect(await readLink("https://www.reddit.com/r/malefashionadvice/comments/1xsh150/where_do_i_find_this/", blocked, pub)).toEqual({
+    url: "https://www.reddit.com/r/malefashionadvice/comments/1xsh150/where_do_i_find_this/",
+    title: "where do i find this · r/malefashionadvice",
+    image: "https://share.redd.it/preview/post/1xsh150",
+  });
+  const old = { id: "x", text: "https://www.reddit.com/r/a/comments/1/b/", source: "manual", at: "", status: "new", kind: "people", sorted: "ai" } as any;
+  expect(kindOf(old, [])).toBe("finding");
+  expect(kindOf({ ...old, sorted: "me" }, [])).toBe("people");
+});
+
+test("pictures read later from a link's page become the card's picture and replace a generic title only", async () => {
+  const st = join(mkdtempSync(join(tmpdir(), "kz-media-")), ".kaizen"); mkdirSync(st);
+  const pub = async () => [{ address: "93.184.216.34", family: 4 }] as any;
+  const blocked = (async () => new Response("<title>Blocked</title>", { headers: { "content-type": "text/html" } })) as any;
+  const r = await capture(st, { text: "https://www.reddit.com/r/mfa/comments/abc123/where_is_this/" }, blocked, pub) as { id: string };
+  expect(setLinkMedia(st, r.id, { title: "Where is this", images: ["https://preview.redd.it/a.jpeg?w=640", "http://insecure/b.jpg"] })).toBe(true);
+  const it = readIcebox(st)[0]!;
+  expect(it.link).toMatchObject({ title: "Where is this", image: "https://preview.redd.it/a.jpeg?w=640" });
+  expect(it.images).toBeUndefined(); // the card shows the picture; no second list
+  expect(setLinkMedia(st, r.id, { title: "Another", images: [] })).toBe(true);
+  expect(readIcebox(st)[0]!.link!.title).toBe("Where is this"); // a real title stays
+  expect(setLinkMedia(st, "nope", { images: ["https://x/y.png"] })).toBe(false);
+});
+
+test("Home's icebox (the global .kaizen) lives in home/icebox; a project's stays in its .kaizen", () => {
+  const { home } = require("./state.ts");
+  expect(iceDir(join(home, ".kaizen"))).toBe(join(home, ".kaizen", "home", "icebox"));
+  expect(iceDir("/p/x/.kaizen")).toBe("/p/x/.kaizen");
 });

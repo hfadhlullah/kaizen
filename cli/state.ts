@@ -565,9 +565,9 @@ export function backlog(state: string) {
 export function version(repo: string) {
   try { return JSON.parse(readText(join(repo, "package.json"))).version; } catch { return ""; }
 }
-// The global state directory is not a project and has no parent worth naming.
+// The global state directory is not a project: it is Home, your own space.
 export function label(stateDir: string) {
-  return stateDir === join(home, ".kaizen") ? "no project" : tilde(dirname(stateDir));
+  return stateDir === join(home, ".kaizen") ? "Home" : tilde(dirname(stateDir));
 }
 
 export function tilde(p: string) { return p.startsWith(home) ? "~" + p.slice(home.length) : p; }

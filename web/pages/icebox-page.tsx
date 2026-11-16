@@ -14,7 +14,7 @@ import {
   SourceDrawer,
   SwipeDeck,
 } from "@components/icebox";
-import { Chip, ConfirmDialog, EmptyState, FilterPopover, Pager, Picker, Segmented } from "@components/shared";
+import { ActionMenu, Chip, ConfirmDialog, EmptyState, IconButton, Pager, Picker, Segmented } from "@components/shared";
 import {
   useIceData,
   deckOf,
@@ -42,6 +42,7 @@ import {
   clearFilters,
   iceEls,
   pickBoard,
+  INBOX,
   selectPage,
   setView,
   toggleKind,
@@ -50,7 +51,7 @@ import { useNarrow, usePager } from "@lib/shared";
 import { host } from "@lib/core";
 import { showable as showableProjects, useShown } from "@lib/project";
 import { stopDictation } from "@lib/dictation";
-import { Button, Checkbox, Icon, Skeleton } from "@web/ui";
+import { Button, Checkbox, Icon, Input, Popover, PopoverContent, PopoverTrigger, Skeleton } from "@web/ui";
 
 // The Icebox: requests gathered from request sources, read like an inbox, until someone promotes them to tasks or
 // dismisses them. A capture box on top, collections and kinds, then the requests as cards or a list, one at a time in
@@ -58,14 +59,7 @@ import { Button, Checkbox, Icon, Skeleton } from "@web/ui";
 export function IceboxPage() {
   return useRoute((r) => r.page === "icebox") ? <Icebox /> : null;
 }
-const TONE: Record<string, string> = {
-  client:
-    "text-kind-client data-[state=on]:border-kind-client data-[state=on]:bg-kind-client data-[state=on]:text-card",
-  finding:
-    "text-kind-finding data-[state=on]:border-kind-finding data-[state=on]:bg-kind-finding data-[state=on]:text-card",
-  people:
-    "text-kind-people data-[state=on]:border-kind-people data-[state=on]:bg-kind-people data-[state=on]:text-card",
-};
+const KIND_TEXT: Record<string, string> = { client: "text-kind-client", finding: "text-kind-finding", people: "text-kind-people" };
 function Icebox() {
   useIceData();
   // The board's project pickers change what shows: the "Showing" choice is a store, the board's data redraws it.
@@ -84,6 +78,7 @@ function Icebox() {
       view: s.view,
       board: s.board,
       kinds: s.kinds,
+      q: s.q,
       cat: s.cat,
       src: s.src,
       sel: s.sel,
@@ -174,7 +169,7 @@ function Icebox() {
     capBoards = (data.boards || []).filter((b) => b.dir === to),
     groups = srcGroups(d.list, d.bySrc),
     hidden = hiddenCat(d.cat),
-    filtering = !!(d.cat || d.src),
+    nFilt = s.kinds.length + (d.cat ? 1 : 0) + (d.src ? 1 : 0),
     single = !!dir;
   const dialogs = (
     <>
@@ -253,6 +248,42 @@ function Icebox() {
     );
   return (
     <Shell>
+      <div className="mb-3 flex items-center gap-3 max-sm:flex-wrap">
+        <span className="text-base font-semibold text-foreground">{countText}</span>
+        <span className="flex-1" />
+        <label className="relative flex w-72 items-center max-sm:order-last max-sm:w-full">
+          <Icon name="search" className="pointer-events-none absolute left-2.5 size-3.5 text-muted-foreground" />
+          <Input
+            ref={(el) => void (iceEls.search = el)}
+            type="search"
+            value={s.q}
+            onChange={(e) => setIce({ q: e.target.value })}
+            onKeyDown={(e) => e.key === "Escape" && (setIce({ q: "" }), e.currentTarget.blur())}
+            placeholder="Search icebox…"
+            aria-label="Search the icebox"
+            spellCheck={false}
+            className="h-8 pl-8 pr-8 text-sm"
+          />
+          {!s.q && (
+            <kbd className="pointer-events-none absolute right-2 rounded-xs border border-border px-1 text-[11px] text-muted-foreground max-sm:hidden">
+              /
+            </kbd>
+          )}
+        </label>
+        {!narrow && (
+          <Button
+            id="src-tog"
+            ref={(el) => void (iceEls.srcTog = el)}
+            size="sm"
+            aria-expanded={s.srcShow}
+            aria-controls="src-sec"
+            title="Sources, and Gather all"
+            onClick={() => setIce({ srcShow: true })}
+          >
+            <Icon name="link" className="size-3.5" /> Sources · {d.list.length}
+          </Button>
+        )}
+      </div>
       <CaptureBox
         to={to}
         projects={single ? [] : showable}
@@ -271,14 +302,30 @@ function Icebox() {
           </Button>
         </div>
       )}
-      <div className="mb-2.5 flex items-start justify-between gap-4 max-sm:-mx-4 max-sm:mb-1.5 max-sm:flex-nowrap max-sm:gap-1.5 max-sm:overflow-x-auto max-sm:px-4 max-sm:pb-0.5 max-sm:[scrollbar-width:none]">
+      <div className="mb-2.5 flex items-center justify-between gap-3 max-sm:-mx-4 max-sm:mb-1.5 max-sm:gap-1.5 max-sm:overflow-x-auto max-sm:px-4 max-sm:pb-0.5 max-sm:[scrollbar-width:none]">
         <div
           role="group"
           aria-label="Collections"
-          className="flex min-w-0 flex-wrap gap-1.5 max-sm:flex-none max-sm:flex-nowrap"
+          className="flex min-w-0 flex-wrap items-center gap-1.5 max-sm:flex-none max-sm:flex-nowrap"
         >
+          {!cardsOn && !narrow && order.length > 0 && (
+            <Checkbox
+              className="mr-1"
+              aria-label="Select every request shown"
+              checked={nSel > 0 && nSel === order.length ? true : nSel > 0 ? "indeterminate" : false}
+              onCheckedChange={() => selectPage(order, nSel !== order.length)}
+            />
+          )}
           <Chip pressed={!d.board} onPressedChange={() => pickBoard("", d.boards, single)}>
             All
+          </Chip>
+          <Chip
+            count={d.nInbox}
+            pressed={d.board === INBOX}
+            title="Items in no collection"
+            onPressedChange={() => pickBoard(INBOX, d.boards, single)}
+          >
+            Inbox
           </Chip>
           {d.boards.map((b) => (
             <BoardChip
@@ -289,121 +336,118 @@ function Icebox() {
               onPress={() => pickBoard(b.name, d.boards, single)}
             />
           ))}
-          <Button
-            size="sm"
+          <IconButton
             id="ice-nb"
-            title="Make a collection for a client or a topic"
-            className="h-[26px] border-dashed text-muted-foreground"
+            icon="plus"
+            label="New collection, for a client or a topic"
+            className="size-[26px] [&_svg]:size-[13px]"
             onClick={() => void newCollection(to, single ? "" : capP?.label || "this project")}
-          >
-            <Icon name="plus" className="size-[13px]" />
-            Collection
-          </Button>
-        </div>
-        <div
-          role="group"
-          aria-label="Kinds"
-          className="flex min-w-0 flex-wrap gap-1.5 max-sm:flex-none max-sm:flex-nowrap max-sm:border-l max-sm:border-border max-sm:pl-1.5"
-        >
-          {Object.entries(KIND).map(([k, l]) => (
-            <Chip key={k} className={TONE[k]} pressed={s.kinds.includes(k)} onPressedChange={() => toggleKind(k)}>
-              {l}
-            </Chip>
-          ))}
-        </div>
-      </div>
-      <div className="mb-2.5 flex items-center gap-2 max-sm:flex-wrap">
-        {!cardsOn && !narrow && order.length > 0 && (
-          <Checkbox
-            aria-label="Select every request shown"
-            checked={nSel > 0 && nSel === order.length ? true : nSel > 0 ? "indeterminate" : false}
-            onCheckedChange={() => selectPage(order, nSel !== order.length)}
           />
-        )}
-        {!narrow && (
-          <Segmented
-            label="View"
-            value={cardsOn ? "cards" : "sort"}
-            options={[
-              { id: "cards", label: "Cards" },
-              { id: "sort", label: "Sort" },
+        </div>
+        <div className="flex flex-none items-center gap-1.5">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label="Filter requests"
+                className={nFilt ? "text-foreground" : "text-muted-foreground"}
+              >
+                <Icon name="filter" className="size-3.5" />
+                {nFilt ? `Filter · ${nFilt}` : "Filter"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="flex w-64 flex-col gap-1 p-2">
+              <b className="px-1.5 pt-1 text-xs font-medium text-muted-foreground">Kind</b>
+              {Object.entries(KIND).map(([k, l]) => (
+                <label
+                  key={k}
+                  className="flex cursor-pointer items-center gap-2 rounded-sm px-1.5 py-1 text-sm hover:bg-muted"
+                >
+                  <Checkbox checked={s.kinds.includes(k)} onCheckedChange={() => toggleKind(k)} />
+                  <span className={KIND_TEXT[k]}>{l}</span>
+                </label>
+              ))}
+              {(d.byCat.size > 1 || d.byCat.has("Dismissed") || d.byCat.has("Done") || d.byCat.has("Promoted")) && (
+                <>
+                  <b className="mt-1.5 px-1.5 text-xs font-medium text-muted-foreground">Category</b>
+                  <Picker
+                    label="Category"
+                    value={d.cat}
+                    placeholder="All categories"
+                    options={[
+                      { value: "", label: "All categories" },
+                      ...[...d.byCat].map(([k, { n }]) => ({ value: k, label: k, count: n })),
+                    ]}
+                    onChange={(v) => setIce({ cat: v })}
+                  />
+                </>
+              )}
+              {d.bySrc.size > 1 && (
+                <>
+                  <b className="mt-1.5 px-1.5 text-xs font-medium text-muted-foreground">Source</b>
+                  <Picker
+                    label="Source"
+                    value={d.src}
+                    placeholder="All sources"
+                    options={[
+                      { value: "", label: "All sources" },
+                      ...[...groups].flatMap(([g, xs]) =>
+                        xs.map(([k, it]) => ({
+                          value: k,
+                          group: g,
+                          label: subName(srcName(d.list, it), g),
+                          search: srcName(d.list, it),
+                          count: d.bySrc.get(k)!.n,
+                          icon: <Favicon url={it.source} social={srcOf(d.list, it)?.social} size={15} />,
+                        })),
+                      ),
+                    ]}
+                    groupIcons={Object.fromEntries(
+                      [...groups].map(([g, xs]) => [
+                        g,
+                        <Favicon key={g} url={xs[0]![1].source} social={srcOf(d.list, xs[0]![1])?.social} size={15} />,
+                      ]),
+                    )}
+                    onChange={(v) => setIce({ src: v })}
+                  />
+                </>
+              )}
+              {nFilt > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="mt-1 justify-start"
+                  onClick={() => setIce({ kinds: [], cat: "", src: "" })}
+                >
+                  Clear filters
+                </Button>
+              )}
+            </PopoverContent>
+          </Popover>
+          {!narrow && (
+            <Segmented
+              label="View"
+              value={cardsOn ? "cards" : "sort"}
+              options={[
+                { id: "cards", label: "Cards" },
+                { id: "sort", label: "List" },
+              ]}
+              onChange={setView}
+            />
+          )}
+          <ActionMenu
+            label="More"
+            className="w-56"
+            items={[
+              ...(order.some(isWaiting)
+                ? [{ id: "ice-sw", label: "Swipe through them", onSelect: startSwipe }]
+                : []),
+              ...(narrow ? [{ id: "src-tog", label: `Sources · ${d.list.length}`, onSelect: () => setIce({ srcShow: true }) }] : []),
+              { id: "ice-nb2", label: "New collection…", onSelect: () => void newCollection(to, single ? "" : capP?.label || "this project") },
             ]}
-            onChange={setView}
           />
-        )}
-        <span className="text-base font-semibold text-foreground">{countText}</span>
-        <span className="flex-1" />
-        {(d.byCat.size > 1 ||
-          d.byCat.has("Dismissed") ||
-          d.byCat.has("Done") ||
-          d.byCat.has("Promoted") ||
-          d.bySrc.size > 1) && (
-          <FilterPopover label="Filter requests" active={filtering} className="flex flex-col gap-1.5 p-2">
-            {(d.byCat.size > 1 || d.byCat.has("Dismissed") || d.byCat.has("Done") || d.byCat.has("Promoted")) && (
-              <Picker
-                label="Category"
-                value={d.cat}
-                placeholder="All categories"
-                options={[
-                  { value: "", label: "All categories" },
-                  ...[...d.byCat].map(([k, { n }]) => ({ value: k, label: k, count: n })),
-                ]}
-                onChange={(v) => setIce({ cat: v })}
-              />
-            )}
-            {d.bySrc.size > 1 && (
-              <Picker
-                label="Source"
-                value={d.src}
-                placeholder="All sources"
-                options={[
-                  { value: "", label: "All sources" },
-                  ...[...groups].flatMap(([g, xs]) =>
-                    xs.map(([k, it]) => ({
-                      value: k,
-                      group: g,
-                      label: subName(srcName(d.list, it), g),
-                      search: srcName(d.list, it),
-                      count: d.bySrc.get(k)!.n,
-                      icon: <Favicon url={it.source} social={srcOf(d.list, it)?.social} size={15} />,
-                    })),
-                  ),
-                ]}
-                groupIcons={Object.fromEntries(
-                  [...groups].map(([g, xs]) => [
-                    g,
-                    <Favicon key={g} url={xs[0]![1].source} social={srcOf(d.list, xs[0]![1])?.social} size={15} />,
-                  ]),
-                )}
-                onChange={(v) => setIce({ src: v })}
-              />
-            )}
-          </FilterPopover>
-        )}
-        {order.some(isWaiting) && (
-          <Button
-            variant="ghost"
-            size="sm"
-            id="ice-sw"
-            title="Sort one at a time: swipe right to promote, left to dismiss"
-            onClick={startSwipe}
-          >
-            <span aria-hidden="true">⇆</span> Swipe
-          </Button>
-        )}
-        {!narrow && (
-          <Button
-            id="src-tog"
-            ref={(el) => void (iceEls.srcTog = el)}
-            size="sm"
-            aria-expanded={s.srcShow}
-            aria-controls="src-sec"
-            title="Sources, and Gather all"
-            onClick={() => setIce({ srcShow: true })}
-          >
-            <Icon name="link" className="size-3.5" /> Sources · {d.list.length}
-          </Button>
-        )}
+        </div>
       </div>
       {s.sel.length > 0 && (
         <BulkBar
@@ -431,9 +475,13 @@ function Icebox() {
     </Shell>
   );
 }
-// The page's one scroll area: it takes the board's page padding (28 px, 16 on a phone).
+// The page's one scroll area: it takes the board's page padding (28 px, 16 on a phone). The bottom space is a spacer,
+// not padding: a sticky pager stops at a scroll area's padding, and the cards would show through the gap under it.
 const Shell = ({ children }: { children: React.ReactNode }) => (
-  <div className="flex min-h-0 flex-1 flex-col overflow-auto px-7 pt-6 pb-6 max-[900px]:px-4">{children}</div>
+  <div className="flex min-h-0 flex-1 flex-col overflow-auto px-7 pt-6 max-[900px]:px-4">
+    {children}
+    <div aria-hidden className="h-6 shrink-0" />
+  </div>
 );
 const Zero = ({ children }: { children: React.ReactNode }) => (
   <div className="rounded-md border border-[color:color-mix(in_srgb,var(--line)_50%,transparent)]">{children}</div>

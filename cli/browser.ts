@@ -210,6 +210,27 @@ export async function browse<T>(use: (page: Page) => Promise<T>): Promise<T | { 
   }
 }
 
+// A Reddit post's own pictures and title, read by the kaizen browser: Reddit answers a plain fetch with a block page.
+// Only pictures inside the post itself (not avatars, ads or the comments), 200 px across or more, https only.
+export async function redditMedia(url: string): Promise<{ ok: true; title: string; images: string[] } | { ok: false; note: string }> {
+  const r = await browse(async (page) => {
+    await page.go(url);
+    return page.js<{ title: string; images: string[] }>(`(() => {
+      const post = document.querySelector("shreddit-post") || document.querySelector("article") || document.body;
+      const seen = new Set(), images = [];
+      for (const i of post.querySelectorAll("img")) {
+        const u = i.currentSrc || i.src;
+        if (!u.startsWith("https://") || /redditstatic\\.com|\\/avatars?\\//.test(u) || Math.max(i.naturalWidth, i.width) < 200) continue;
+        const k = u.split("?")[0];
+        if (!seen.has(k)) { seen.add(k); images.push(u); }
+      }
+      return { title: (post.getAttribute && post.getAttribute("post-title")) || document.title.replace(/ : r\\/[\\w-]+$/, ""), images: images.slice(0, 4) };
+    })()`);
+  });
+  if (!r || "note" in r) return r ?? { ok: false, note: "The page gave nothing." };
+  return { ok: true, title: String(r.title ?? "").trim().slice(0, 200), images: (r.images ?? []).filter((u) => typeof u === "string") };
+}
+
 // Up to `max` posts from a social source. Never throws; the browser is always closed.
 export async function readPosts(url: string, max = 40): Promise<Read> {
   const platform = socialOf(url);

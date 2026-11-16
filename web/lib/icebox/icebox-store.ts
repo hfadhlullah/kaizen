@@ -46,6 +46,7 @@ export type IceState = {
   view: "cards" | "sort";
   board: string;
   kinds: string[];
+  q: string; // the search box: every word must be in an item's words, link, tags or collection
   cat: string;
   src: string;
   sel: string[]; // checked items, "<dir> <id>"
@@ -81,6 +82,7 @@ export const useIce = create<IceState>()(() => ({
   view: saved("kz-ice-view") === "sort" ? "sort" : "cards",
   board: "",
   kinds: [],
+  q: "",
   cat: "",
   src: "",
   sel: [],
@@ -106,7 +108,11 @@ export const useIce = create<IceState>()(() => ({
 export const getIce = useIce.getState;
 // Two elements the page reaches from outside their component, set as refs by the component that draws them: the swipe card the
 // arrows and buttons fly away, and the Sources button the drawer gives focus back to.
-export const iceEls: { swCard: HTMLElement | null; srcTog: HTMLElement | null } = { swCard: null, srcTog: null };
+export const iceEls: { swCard: HTMLElement | null; srcTog: HTMLElement | null; search: HTMLInputElement | null } = {
+  swCard: null,
+  srcTog: null,
+  search: null, // the search box, which `/` focuses
+};
 export const setIce = useIce.setState;
 export const patchCap = (p: Partial<Capture>) => setIce((s) => ({ cap: { ...s.cap, ...p } }));
 export const patchDraft = (p: Partial<SourceDraft>) => setIce((s) => ({ draft: { ...s.draft, ...p } }));

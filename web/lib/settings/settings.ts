@@ -169,9 +169,6 @@ export function controlOf(r: Pick<Row, "key" | "values" | "text" | "folder">): C
   return "stepper";
 }
 export const settingId = (key: string) => "s-" + key.replace(/\./g, "-");
-// Names worth suggesting, per tool, from the tool's own docs; typing any other name stays allowed.
-// ponytail: claude only, add another tool's names when its own CLI help lists them.
-export const MODEL_SUGGEST: Record<string, string[]> = { claude: ["haiku", "sonnet", "opus"] };
 export const modelTool = (key: string) => key.split(".").pop()!;
 export const modelName = (label: string) => label.replace(/^(Worker|Handoff) model: /, "");
 // A row's help line: its own help, then why it is idle.

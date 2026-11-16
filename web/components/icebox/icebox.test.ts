@@ -8,6 +8,8 @@ import {
   catOf,
   deckOf,
   deriveIce,
+  INBOX,
+  linkImage,
   faviconUrl,
   gatherLine,
   iceKey,
@@ -201,4 +203,36 @@ test("a card leads with a link's title and summary, and an unsafe link is not dr
   expect(out).toContain('rel="noopener noreferrer"');
   const bad = item("2", { link: { url: "javascript:alert(1)", title: "Evil" } });
   expect(html(createElement(RequestCard, { item: bad, ctx: ctx() }))).not.toContain("Evil");
+});
+
+test("the Inbox chip shows only the items in no collection, and counts them", () => {
+  const d = data({ icebox: [item("1", { board: "Acme" }), item("2"), item("3")], boards: [{ dir: D, name: "Acme" }] });
+  const r = deriveIce(d, { ...f, board: INBOX }, env);
+  expect(r.board).toBe(INBOX);
+  expect(r.filtered.map((i) => i.id).sort()).toEqual(["2", "3"]);
+  expect(r.nInbox).toBe(2);
+});
+
+test("a link's picture: the saved one, else Reddit's own preview for a post, else none", () => {
+  expect(linkImage({ url: "https://a.example/", image: "https://a.example/x.png" })).toBe("https://a.example/x.png");
+  expect(linkImage({ url: "https://www.reddit.com/r/x/comments/1XSH150/y/" })).toBe("https://share.redd.it/preview/post/1xsh150");
+  expect(linkImage({ url: "https://www.reddit.com/r/x/" })).toBe("");
+  expect(linkImage({ url: "https://a.example/", image: "http://a.example/x.png" })).toBe("");
+});
+
+test("search: every word must be in an item's words, link, tags, collection or project", () => {
+  const d = data({
+    icebox: [
+      item("1", { text: "Find these trousers", link: { url: "https://reddit.com/r/mfa/x", title: "Where do i find this" } }),
+      item("2", { text: "build an office bot", tags: ["automation"] }),
+      item("3", { text: "house design", board: "Temuan" }),
+    ],
+    boards: [{ dir: D, name: "Temuan" }],
+  });
+  const ids = (q: string) => deriveIce(d, { ...f, q }, env).filtered.map((i) => i.id);
+  expect(ids("reddit trousers")).toEqual(["1"]);
+  expect(ids("#automation")).toEqual(["2"]);
+  expect(ids("TEMUAN")).toEqual(["3"]);
+  expect(ids("nothing here")).toEqual([]);
+  expect(ids("").length).toBe(3);
 });

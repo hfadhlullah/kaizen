@@ -100,6 +100,14 @@ export async function accountRemove(id: string, name: string) {
   return accountSend({ op: "remove", id, deleteFolder });
 }
 
+// Re-check and Refresh: read the page again and say so, because when nothing changed the page looks the same.
+export async function recheck(id: string, done: string) {
+  if (getSettings().busy === id) return;
+  setSettings({ busy: id });
+  await loadSettings();
+  setSettings({ busy: "" });
+  toast(done);
+}
 // ---- Skills (/skills, /rea)
 const WARN: Record<string, string> = {
   "kaizen-computer":

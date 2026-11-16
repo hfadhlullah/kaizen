@@ -41,7 +41,7 @@ versioned decisions, queued receipts, latest/earlier results and acceptance toge
 Technical details opens existing run workspaces. Board keeps its columns.
 cli/tasks.ts owns schema-1 records in .kaizen/tasks/<uuid>/task.json, cross-process
 mutation locks, revision CAS and operation-id replay. Legacy inbox/run rows are adopted
-on opening using stamp/index or run id, never title matching. Draft transfer commits
+on opening using stamp/index or run id, never title matching. An adopted run waiting on Explore (`awaiting: explore` with `00-explore.md`) becomes a `question` decision carrying the brief (Continue to Plan / Explore further), not `interrupted`. Draft transfer commits
 the destination before an alias; original files stay readable. cli/task-service.ts
 coordinates launches only after persisting intent, task policy, run identity and
 receipts. No busy timeout dispatches work. A structured acknowledgement plus no active

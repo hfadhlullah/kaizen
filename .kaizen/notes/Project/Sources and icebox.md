@@ -66,3 +66,6 @@ Shared links (sheets, docs, social searches) kaizen reads for requests; each req
 
 ## AI sorting and drafts
 ChatGPT sorting of captures, promote drafts, discover sorting and Explore's hand-off: see [[Sources and icebox/AI sorting]].
+
+- Link previews (`readLink` in `cli/sources.ts`): a captured link keeps the page's `og:title`, `og:description` and an https `og:image` as `link.image`; the card (`request-card.tsx`) draws that picture behind the title, loaded by the browser from the site without a referrer. A block page (title "Blocked", "Just a moment"…) is dropped. Reddit answers a plain fetch with a block page: `redditPost` gives a post its share-preview picture and a slug title at once, and after the save `mediaLater` (`cli/web.ts`, one at a time) has the kaizen browser read the post's own pictures (`redditMedia` in `cli/browser.ts`) and stores them with `setLinkMedia`. An AI sort (`applySort`) never turns a link the owner dropped alone into People say: it stays Finding, tags still apply.
+- Collections: the capture picker's *New collection…* posts `boards add` at once (`pickCaptureBoard`); its × calls `removeCollection` after a confirm, and `removeBoard` moves the collection's items to the Inbox (deletes `board`) before dropping it. The filter bar's *Inbox* chip is `INBOX` (`"\ninbox"`, never a one-line name) in `deriveIce`, counted by `nInbox`.

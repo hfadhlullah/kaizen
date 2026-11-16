@@ -206,3 +206,9 @@ test("dragging a project: the slot is before the first bar whose middle is below
   expect(rankedOrder(["a", "b", "c"], "a", 3)).toEqual(["b", "c", "a"]);
   expect(rankedOrder(["a", "b"], "gone", 0)).toBeNull();
 });
+
+test("Home (the global queue) heads the side menu; the projects keep their order", () => {
+  const home = { dir: "/h/.kaizen", label: "Home", home: true, workspaces: [{ path: "/h/.kaizen", branch: "", main: true }] };
+  const g = railGroups(data({ projects: [proj("/a/.kaizen"), proj("/b/.kaizen"), home] }), o());
+  expect(g.map((x) => x.dir)).toEqual(["/h/.kaizen", "/a/.kaizen", "/b/.kaizen"]);
+});

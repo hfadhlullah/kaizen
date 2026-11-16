@@ -152,8 +152,10 @@ export function taskAction(state:string,body:any,hooks:Hooks):{state:string;task
         }else{t.status='interrupted';t.error='This earlier run has no typed result or Preview output. Its files and evidence remain in Technical details. Resume to publish a result.';}
       }else{
         const plan=readTextSafe(join(state,'runs',l.id,'01-plan.md'));
+        const exploreBrief=readTextSafe(join(state,'runs',l.id,'00-explore.md'));
         put(file,{...run,task_id:t.id,task_policy:{requirePlanConfirmation:run.awaiting==='approvals.plan'}});
         if(run.awaiting==='approvals.plan'&&plan){t.pendingDecision={id:randomUUID(),kind:'proposal',text:'Review the existing plan before production continues.',details:plan,run:l.id,iteration:run.iteration??0,result:null};t.status='waiting';t.safe=true;}
+        else if(run.awaiting==='explore'&&exploreBrief){t.pendingDecision={id:randomUUID(),kind:'question',text:'Explore finished. Continue to Plan, or explore further?',details:exploreBrief,options:['Continue to Plan','Explore further'],run:l.id,iteration:run.iteration??0,result:null};t.status='waiting';t.safe=true;}
         else{t.status='interrupted';t.error='Existing work is preserved. Review its current session in Technical details before resuming.';}
       }
     });

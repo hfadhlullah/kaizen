@@ -94,7 +94,7 @@ test.skipIf(process.platform === "win32")("/shell: foreign origin, unknown proje
     expect(disk.status).toBe(200);
     expect(typeof (await disk.json()).scanning).toBe("boolean");
     expect((await post({ dir: join(root, "elsewhere", ".kaizen") })).status).toBe(404);
-    expect((await post({ dir: join(homeDir, ".kaizen") })).status).toBe(404);
+    expect((await post({ dir: join(homeDir, ".kaizen"), dev: true })).status).toBe(404);
     expect((await post({ dir: st, agent: "rm -rf /" })).status).toBe(400);
     expect((await post({ dir: st, agent: "codex" })).status).toBe(400); // known, not installed
 
@@ -202,7 +202,7 @@ test.skipIf(process.platform === "win32")("/shell: foreign origin, unknown proje
     expect(S.cards.find((c: any) => c.id === "r2")?.ws).toBe(proj);
     expect(S.projects.find((p: any) => p.dir === st)?.workspaces).toEqual([{ path: proj, branch: "", main: true }]);
     rmSync(join(st, "runs", "r2"), { recursive: true });
-    // Projects folder set: the global queue is not in the picker, yet its waiting run still gets a rail row.
+    // Projects folder set: Home (the global queue) is still in the picker, marked home, with its one workspace.
     const g = join(homeDir, ".kaizen");
     writeFileSync(join(g, "config.yml"), readFileSync(join(repo, "skills", "kaizen", "config.default.yml"), "utf8").replace('projects_dir: ""', "projects_dir: ~/Projects"));
     mkdirSync(join(g, "runs", "g1"), { recursive: true });
@@ -215,8 +215,7 @@ test.skipIf(process.platform === "win32")("/shell: foreign origin, unknown proje
       await Bun.sleep(100);
     }
     expect(G.cards.find((c: any) => c.id === "g1")?.ws).toBe(g);
-    expect(G.projects.some((p: any) => p.dir === g)).toBe(false);
-    expect(G.rail.find((p: any) => p.dir === g)?.workspaces).toEqual([{ path: g, branch: "", main: true }]);
+    expect(G.projects.find((p: any) => p.dir === g)).toMatchObject({ label: "Home", home: true, workspaces: [{ path: g, branch: "", main: true }] });
     // The Notes tab lists every known project, the ones the picker leaves out too (#86).
     expect(G.known.some((p: any) => p.dir === g) && G.known.some((p: any) => p.dir === st)).toBe(true);
     rmSync(join(g, "runs"), { recursive: true });
@@ -284,6 +283,10 @@ test.skipIf(process.platform === "win32")("/shell: foreign origin, unknown proje
     const hsh = (await hr.json()) as any;
     expect(hsh).toMatchObject({ dir: homeWs, ws: homeWs, run: "home", title: "shell" });
     expect(existsSync(homeWs)).toBe(true);
+    // The side menu's Home row sends the global queue (~/.kaizen) as its dir: that is taken as Home, not refused as
+    // "choose a project" (an unknown agent shows it got past the project check without starting a shell).
+    const viaRow = await post({ dir: join(homeDir, ".kaizen"), ws: join(homeDir, ".kaizen"), agent: "nope" }, at);
+    expect([viaRow.status, ((await viaRow.json()) as any).error]).toEqual([400, "unknown agent"]);
     let hseen = "";
     const hws = new WebSocket(`${at}/pty?key=${hsh.key}`.replace("http", "ws"), { headers: { origin: at } } as any);
     hws.onmessage = (e) => { hseen += String(e.data); };

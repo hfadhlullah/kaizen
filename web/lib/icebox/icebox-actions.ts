@@ -2,7 +2,7 @@
 // toasts, and how the cursor, the selection and the open item move with them. Components call these; nothing here
 // draws. Routes and payloads are the old page's, unchanged.
 import { post, host, toast, toastUndo } from "@lib/core";
-import { gatherLine, hostOf, iceKey, snoozedLine, stepPast, type IceItem, type Source, PLAT } from "./icebox.ts";
+import { gatherLine, hostOf, iceKey, sameName, snoozedLine, stepPast, type IceItem, type Source, PLAT } from "./icebox.ts";
 import { getIce, patchCap, setIce, type Ask, type Capture } from "./icebox-store.ts";
 import { refreshIce } from "./use-icebox.ts";
 
@@ -369,13 +369,35 @@ export async function newCollection(to: string | null, where: string) {
 // The capture picker's "New collection…": a client's one is made first, then it is the box's board.
 export async function pickCaptureBoard(v: string, to: string | null) {
   if (v === "\n") {
+    if (!to) return (toast("Pick a project first"), false);
     const a = await askCollection();
     if (!a) return false;
-    if (a.client) await post("/icebox", { op: "boards", act: "add", dir: to, name: a.name, client: true });
+    const j = await post("/icebox", { op: "boards", act: "add", dir: to, name: a.name, client: a.client });
+    if (!j.ok) return (toast(j.error || "Could not make the collection"), false);
+    toast(`Collection ${a.name} made`);
+    await refreshIce();
     v = a.name;
   }
   patchCap({ board: v, boardDir: to });
   return true;
+}
+// Remove a collection after asking; its items go back to the Inbox. A box or a filter on it falls back to the Inbox.
+export async function removeCollection(dir: string, name: string, items: number) {
+  const ok = await askConfirm(
+    `Remove ${name}?`,
+    items ? `Its ${items} ${items === 1 ? "item goes" : "items go"} to the Inbox.` : "It has no items.",
+    "Remove",
+    true,
+  );
+  if (!ok) return;
+  const j = await post("/icebox", { op: "boards", act: "remove", dir, name });
+  if (!j.ok) return toast(j.error || "Could not remove the collection");
+  const s = getIce();
+  if (sameName(s.cap.board, name)) patchCap({ board: "", boardDir: null });
+  if (sameName(s.board, name)) setIce({ board: "" });
+  toast(`Collection ${name} removed`);
+  host.reload();
+  await refreshIce();
 }
 
 // ---- sources

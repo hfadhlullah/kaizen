@@ -5,3 +5,4 @@ export * from "./settings.ts";
 export * from "./skill-icons.ts";
 export * from "./update.ts";
 export * from "./panel-settings.ts";
+export * from "./use-model-choices.ts";

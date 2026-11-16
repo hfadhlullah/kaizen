@@ -3,6 +3,7 @@ import {
   hostOf,
   hue,
   iceKey,
+  linkImage,
   isLive,
   short,
   srcName,
@@ -20,12 +21,14 @@ import { RequestBadges } from "./request-badges.tsx";
 import { RequestImages } from "./request-images.tsx";
 
 // A card: what it is, the words, where it sits, how old. A link leads with its title and summary, coloured from the
-// site's name; nothing is fetched from the site to draw it. Opening it shows it in the Sort list.
+// site's name, over the page's own preview picture when it named one (the browser loads that from the site's server,
+// without a referrer). Opening it shows it in the Sort list.
 export function RequestCard({ item, ctx }: { item: IceItem; ctx: RowCtx }) {
   const k = iceKey(item),
     cur = ctx.cur === k,
     lk = item.link && /^https?:\/\//i.test(item.link.url) ? item.link : null,
-    site = lk ? hostOf(lk.url).replace(/^www\./, "") : "";
+    site = lk ? hostOf(lk.url).replace(/^www\./, "") : "",
+    img = lk ? linkImage(lk) : "";
   return (
     <article
       data-cur={cur || undefined}
@@ -38,12 +41,26 @@ export function RequestCard({ item, ctx }: { item: IceItem; ctx: RowCtx }) {
           href={webUrl(lk.url)}
           target="_blank"
           rel="noopener noreferrer"
+          data-img={img || undefined}
           style={{ "--h": hue(site) } as React.CSSProperties}
-          className="group/lk flex min-h-[88px] flex-col justify-end gap-[3px] rounded-t-lg bg-[hsl(var(--h)_42%_40%)] px-3 pb-2.5 pt-3.5 text-white"
+          className="group/lk relative flex min-h-[88px] data-[img]:min-h-[160px] flex-col justify-end gap-[3px] overflow-hidden rounded-t-lg bg-[hsl(var(--h)_42%_40%)] px-3 pb-2.5 pt-3.5 text-white"
         >
-          <b className="break-words text-base leading-[1.35] group-hover/lk:underline">{lk.title || site}</b>
-          {lk.summary && <span className="line-clamp-2 text-sm leading-[1.4] opacity-90">{lk.summary}</span>}
-          <small className="text-xs opacity-85">{site}</small>
+          {img && (
+            <>
+              <img
+                src={img}
+                alt=""
+                loading="lazy"
+                referrerPolicy="no-referrer"
+                onError={(e) => (e.currentTarget.hidden = true)}
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+              <span aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
+            </>
+          )}
+          <b className="relative break-words text-base leading-[1.35] group-hover/lk:underline">{lk.title || site}</b>
+          {lk.summary && <span className="relative line-clamp-2 text-sm leading-[1.4] opacity-90">{lk.summary}</span>}
+          <small className="relative text-xs opacity-85">{site}</small>
         </a>
       )}
       <div className="flex flex-col gap-2 px-3 pb-2.5 pt-3">
@@ -67,7 +84,7 @@ export function RequestCard({ item, ctx }: { item: IceItem; ctx: RowCtx }) {
         >
           {item.text}
         </button>
-        <RequestImages item={item} card />
+        {!img && <RequestImages item={item} card />}
         <div className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
           {item.board && <span className="text-foreground">{item.board}</span>}
           {(item.tags || []).map((t) => (
@@ -82,9 +99,14 @@ export function RequestCard({ item, ctx }: { item: IceItem; ctx: RowCtx }) {
             </span>
           )}
           <span className="flex-1" />
-          <span className="whitespace-nowrap tabular-nums">
-            {item.source !== "manual" ? `${srcName(ctx.list, item)} · ` : ""}
-            {ago(item.at)}
+          {/* A long source name (a search's words) is cut to the card; its age always shows. */}
+          <span className="flex min-w-0 max-w-full items-center gap-1 tabular-nums">
+            {item.source !== "manual" && (
+              <span className="min-w-0 truncate" title={srcName(ctx.list, item)}>
+                {srcName(ctx.list, item)} ·
+              </span>
+            )}
+            <span className="shrink-0 whitespace-nowrap">{ago(item.at)}</span>
           </span>
         </div>
       </div>
@@ -92,7 +114,7 @@ export function RequestCard({ item, ctx }: { item: IceItem; ctx: RowCtx }) {
         item={item}
         boards={ctx.boards}
         variant="card"
-        className="hidden border-t border-[color:color-mix(in_srgb,var(--line)_50%,transparent)] px-1.5 pb-1.5 pt-1 group-focus-within/card:flex group-hover/card:flex group-data-[cur]/card:flex [@media(hover:none)]:flex"
+        className="hidden border-t border-[color:color-mix(in_srgb,var(--line)_50%,transparent)] px-1.5 pb-1.5 pt-1 group-focus-within/card:flex group-hover/card:flex [@media(hover:none)]:flex"
       />
     </article>
   );

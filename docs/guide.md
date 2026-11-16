@@ -348,12 +348,13 @@ repository's issues link (`github.com/<owner>/<repo>/issues`) gathers its open i
 only, pull requests left out.
 
 The Icebox page opens on a **capture box**: type a note, paste a link or a picture,
-attach a file or dictate, pick a collection (*Inbox* is none; *New collection…* names one), and
+attach a file or dictate, pick a collection (*Inbox* is none; *New collection…* makes one at once; the × on a
+collection's row removes it and sends its items to the Inbox), and
 press Enter (Shift+Enter is a new line). The item lands on top and the box is empty and
 ready again; what is half typed survives the page refreshing under it. In *All
 projects* the box names the project it saves to.
 
-Below it, the **collections**: *All*, each collection with the number waiting in it (a
+Below it, the **collections**: *All*, *Inbox* (items in no collection), each collection with the number waiting in it (a
 client's collection carries a person mark), and **+ Collection**, which asks a name and whether it
 is a client's. A collection is a folder inside the Icebox for one client or topic — not a
 second task board. Picking one narrows the page to it and points the capture box at it.

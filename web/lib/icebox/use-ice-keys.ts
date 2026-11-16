@@ -33,6 +33,11 @@ export function iceKeys(e: KeyboardEvent): boolean {
     void f();
     return true;
   }
+  if (k === "/" && iceEls.search) {
+    e.preventDefault();
+    iceEls.search.focus();
+    return true;
+  }
   if (k === "Escape") {
     if (s.open) setIce(s.armed ? { armed: null } : { open: null });
     else if (s.sel.length) setIce({ sel: [] });

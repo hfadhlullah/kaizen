@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { sameName, short, type Board, pickCaptureBoard, saveCapture, patchCap, useIce } from "@lib/icebox";
+import { sameName, short, type Board, pickCaptureBoard, removeCollection, saveCapture, patchCap, useIce } from "@lib/icebox";
 import { useNarrow } from "@lib/shared";
 import { Button, Icon, Textarea } from "@web/ui";
 import { ClientMark, IconButton, MicButton, Picker, ProjectMark } from "@components/shared";
@@ -126,12 +126,21 @@ export function CaptureBox({
           value={board}
           options={[
             { value: "", label: "Inbox" },
-            ...boards.map((b) => ({ value: b.name, label: b.name, icon: b.client ? <ClientMark /> : undefined })),
+            ...boards.map((b) => ({
+              value: b.name,
+              label: b.name,
+              icon: b.client ? <ClientMark /> : undefined,
+              removable: true,
+            })),
             ...(board && !boards.some((b) => sameName(b.name, board))
               ? [{ value: board, label: `${board} (new)` }]
               : []),
             { value: NEW, label: "New collection…", icon: <Icon name="plus" className="size-3.5" /> },
           ]}
+          onRemove={(name) => {
+            const b = boards.find((x) => sameName(x.name, name));
+            if (b) void removeCollection(b.dir, b.name, (useIce.getState().data?.icebox ?? []).filter((it) => it.dir === b.dir && sameName(it.board, b.name)).length);
+          }}
           onChange={async (v) => {
             await pickCaptureBoard(v, to);
             focus();
