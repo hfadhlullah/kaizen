@@ -4,17 +4,21 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-export const STEPS = 4; // default agent, appearance, notifications, phone; adding a project is the last button, not a step
+export const STEPS = 5; // how it works, default agent, how much to ask, look and notifications, phone; adding a project is the last button, not a step
 export type Outcome = "done" | "skipped" | "dismissed" | null;
 export type Saved = { step: number; outcome: Outcome };
 
+// The new screen an old step lands on: the first one that person has not seen (agent done → how much to ask, and so on).
+const OLD_STEPS = [0, 2, 3, 4];
 const file = (home: string) => join(home, ".kaizen", "onboarding.json");
 const OUTCOMES = ["done", "skipped", "dismissed", null];
 
 export function readOnboarding(home: string): Saved | null {
   try {
     const d = JSON.parse(readFileSync(file(home), "utf8"));
-    const step = Number.isInteger(d?.step) ? Math.max(0, Math.min(STEPS - 1, d.step)) : 0;
+    // A file from before the five steps (no `v`) held an index into four: agent, look, notifications, phone.
+    const at = Number.isInteger(d?.step) ? (d.v === 2 ? d.step : (OLD_STEPS[d.step] ?? 0)) : 0;
+    const step = Math.max(0, Math.min(STEPS - 1, at));
     return { step, outcome: OUTCOMES.includes(d?.outcome) ? d.outcome : null };
   } catch {
     return null;
@@ -39,11 +43,12 @@ export function writeOnboarding(home: string, body: unknown): Saved | { error: s
   const cur = readOnboarding(home) ?? { step: 0, outcome: null };
   if ("step" in b && !(Number.isInteger(b.step) && (b.step as number) >= 0 && (b.step as number) < STEPS)) return { error: "bad step" };
   if ("outcome" in b && !OUTCOMES.includes(b.outcome as Outcome)) return { error: "bad outcome" };
-  const next: Saved = { step: "step" in b ? (b.step as number) : cur.step, outcome: "outcome" in b ? (b.outcome as Outcome) : cur.outcome };
+  // The furthest step reached is kept: going back a screen, or opening the flow again, does not make setup look not started.
+  const next: Saved = { step: "step" in b ? Math.max(cur.step, b.step as number) : cur.step, outcome: "outcome" in b ? (b.outcome as Outcome) : cur.outcome };
   const dir = join(home, ".kaizen");
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
   const tmp = file(home) + ".tmp";
-  writeFileSync(tmp, JSON.stringify(next) + "\n");
+  writeFileSync(tmp, JSON.stringify({ ...next, v: 2 }) + "\n");
   renameSync(tmp, file(home));
   return next;
 }

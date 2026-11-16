@@ -1,7 +1,9 @@
-import { createElement } from "react";
+import { createElement, useState } from "react";
 import { AGENT_FAVICONS, reaNode, reaSwitch, repairSkill, setSkill, useSettings, skillShapes } from "@lib/settings";
 import { cn } from "@lib/core";
-import { Button, Switch } from "@web/ui";
+import { COPY, STEP } from "@lib/home";
+import { Button, Dialog, DialogContent, DialogDescription, DialogTitle, Switch } from "@web/ui";
+import { WorksFlow } from "@components/home";
 
 const WORD: Record<string, string> = { installed: "installed", missing: "missing", other: "your own copy" };
 const AGENT_CMD: Record<string, string> = {
@@ -38,6 +40,33 @@ function NodeButton({ n }: { n: Need }) {
   );
 }
 
+// The "?" beside Kaizen workflow: the welcome's picture of how a run goes (ask, plan, approve, build, review), to look at again.
+function HowItWorks() {
+  const [open, setOpen] = useState(false);
+  const c = COPY[STEP.works]!;
+  return (
+    <>
+      <button
+        type="button"
+        aria-label="How kaizen works"
+        title="How kaizen works"
+        data-how-it-works
+        onClick={() => setOpen(true)}
+        className="ml-1.5 inline-grid size-4 place-items-center rounded-full border border-border align-middle text-[10px] leading-none text-muted-foreground hover:text-foreground"
+      >
+        ?
+      </button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="w-[min(720px,calc(100vw-32px))] gap-3 p-6">
+          <DialogTitle className="text-xl font-bold text-strong">{c.title}</DialogTitle>
+          <DialogDescription className="text-base">{c.sub}</DialogDescription>
+          <WorksFlow />
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 // One skill: its mark, name and what it does, a switch (or Repair / Always on for a core one), and which agents have it.
 export function SkillCard({ id }: { id: string }) {
   const s = useSettings((st) => st.data?.skills?.skills.find((x: any) => x.id === id));
@@ -56,6 +85,7 @@ export function SkillCard({ id }: { id: string }) {
         <span className="min-w-0 flex-[1_1_200px]">
           <b className="block font-medium">
             {s.title}
+            {s.id === "kaizen" && <HowItWorks />}
             {s.status && s.status !== "stable" && (
               <em className="ml-1.5 rounded-xs border border-border px-1.5 text-[10.5px] font-normal not-italic text-muted-foreground">
                 {s.status === "beta" ? "Beta" : "Experimental"}

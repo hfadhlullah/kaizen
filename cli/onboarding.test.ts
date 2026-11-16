@@ -41,7 +41,7 @@ test("writes merge, persist in the board's own file, and refuse anything else", 
   const h = home();
   expect(writeOnboarding(h, { step: 1 })).toEqual({ step: 1, outcome: null });
   expect(writeOnboarding(h, { outcome: "skipped" })).toEqual({ step: 1, outcome: "skipped" });
-  expect(JSON.parse(readFileSync(join(h, ".kaizen", "onboarding.json"), "utf8"))).toEqual({ step: 1, outcome: "skipped" });
+  expect(JSON.parse(readFileSync(join(h, ".kaizen", "onboarding.json"), "utf8"))).toEqual({ step: 1, outcome: "skipped", v: 2 });
   for (const bad of [{ step: -1 }, { step: STEPS }, { step: 1.5 }, { step: "1" }, { outcome: "finished" }, { outcome: 1 }])
     expect(writeOnboarding(h, bad)).toEqual({ error: expect.any(String) });
   expect(readOnboarding(h)).toEqual({ step: 1, outcome: "skipped" });
@@ -67,4 +67,19 @@ test("installHelp covers every agent the step offers, with the same commands and
       else expect(cmd).toBe("agy"); // only Antigravity has no command
     }
   }
+});
+
+test("the furthest step reached is kept, so going back does not restart setup", () => {
+  const h = home();
+  writeOnboarding(h, { step: 3 });
+  expect(writeOnboarding(h, { step: 1 })).toEqual({ step: 3, outcome: null });
+  expect(onboardingView(h, 0)).toMatchObject({ show: false, resume: true, step: 3 });
+});
+
+test("a file saved before the five steps lands on the first screen that person has not seen", () => {
+  const h = home();
+  const old = (step: number) => { mkdirSync(join(h, ".kaizen"), { recursive: true }); writeFileSync(join(h, ".kaizen", "onboarding.json"), JSON.stringify({ step, outcome: null }) + "\n"); return readOnboarding(h)!.step; };
+  expect([0, 1, 2, 3].map(old)).toEqual([0, 2, 3, 4]); // agent done → how much to ask; look → alerts; phone → phone
+  writeOnboarding(h, { step: 4 });                       // rewritten in the new form, read as it is
+  expect(readOnboarding(h)!.step).toBe(4);
 });

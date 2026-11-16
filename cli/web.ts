@@ -1806,7 +1806,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         }
         const projects = states(true).filter((d) => d !== join(home, ".kaizen")).length;
         const ch = agentChoices(repoDir);
-        return json({ ...onboardingView(home, projects), default: ch.default, installed: ch.agents.map((a) => a.cmd), agents: KNOWN_AGENTS.map((a) => ({ cmd: a.cmd, name: a.name })), install: installHelp(process.platform === "win32") });
+        return json({ ...onboardingView(home, projects), preset: (await setting("preset")) || "medium", default: ch.default, installed: ch.agents.map((a) => a.cmd), agents: KNOWN_AGENTS.map((a) => ({ cmd: a.cmd, name: a.name })), install: installHelp(process.platform === "win32") });
       }
 
       // Names, folders' sign-in lines and usage only: tokens stay in the tools' own files.

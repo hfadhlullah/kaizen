@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import {
   agentGroups,
   answerOffer,
+  ASK,
   back,
   COPY,
   goto,
@@ -12,15 +13,19 @@ import {
   notifState,
   offerText,
   pickAgent,
+  pickPreset,
   pickTheme,
   skip,
+  STEP,
   toggleMore,
   useOnboarding,
   type Cfg,
+  type Flow as FlowState,
 } from "@lib/home";
 import { cn } from "@lib/core";
 import { Button, Dialog, DialogContent, DialogDescription, DialogTitle, Icon } from "@web/ui";
 import { PhoneCard } from "@components/phone";
+import { WorksFlow } from "./works-flow.tsx";
 
 const MOD = typeof navigator !== "undefined" && /Mac|iP(hone|ad)/.test(navigator.platform) ? "⌘" : "Ctrl";
 
@@ -245,10 +250,36 @@ function AlertStep() {
   );
 }
 
-// The setup flow: four steps in one panel, a progress bar that jumps between them, then Add your first project.
+// How much kaizen asks: the three presets in plain words, starting on the one the board has. Picking saves it when the step is left.
+function AskStep({ preset }: { preset: string }) {
+  return (
+    <>
+      <div role="radiogroup" aria-label="How much kaizen asks you" className="flex flex-col gap-2.5">
+        {ASK.map((a) => (
+          <Card key={a.id} on={preset === a.id} onPick={() => pickPreset(a.id)} className="items-start py-3">
+            <span>
+              <b className="font-medium">{a.name}</b>
+              <small className="ml-2 rounded-full border border-border px-2 py-px text-xs font-normal text-muted-foreground">
+                {a.tag}
+              </small>
+              <small className="mt-0.5 block text-sm font-normal text-muted-foreground">{a.text}</small>
+            </span>
+          </Card>
+        ))}
+      </div>
+      <p className="text-sm text-muted-foreground">
+        {preset
+          ? "It starts on your current setting and changes only if you pick another card."
+          : "You have custom settings. They stay as they are unless you pick a card."}
+      </p>
+    </>
+  );
+}
+
+// The setup flow: five steps in one panel, a progress bar that jumps between them, then Add your first project.
 // Escape and Skip ask first; clicking outside does nothing. Ctrl/Cmd+Enter always continues, a bare Enter does unless a
 // button (other than a choice card) or a field holds focus.
-function Flow({ cfg, flow }: { cfg: Cfg; flow: { step: number; agent: string; theme: string; more: boolean } }) {
+function Flow({ cfg, flow }: { cfg: Cfg; flow: FlowState }) {
   const { step } = flow,
     last = step === cfg.total - 1,
     s = COPY[step]!;
@@ -301,7 +332,7 @@ function Flow({ cfg, flow }: { cfg: Cfg; flow: { step: number; agent: string; th
           </span>
         </div>
         <div className="flex min-h-0 flex-1 flex-col gap-3.5 overflow-auto px-0.5 pb-1.5 pt-[30px]">
-          {step === 0 && (
+          {step === STEP.works && (
             <small className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Welcome to kaizen</small>
           )}
           <DialogTitle className="text-[30px] font-bold leading-[1.15] text-strong max-[640px]:text-2xl">
@@ -310,10 +341,16 @@ function Flow({ cfg, flow }: { cfg: Cfg; flow: { step: number; agent: string; th
           <DialogDescription id="onb-sub" className="mb-3 max-w-[56ch] text-lg">
             {s.sub}
           </DialogDescription>
-          {step === 0 && <AgentStep cfg={cfg} agent={flow.agent} more={flow.more} />}
-          {step === 1 && <LookStep theme={flow.theme} />}
-          {step === 2 && <AlertStep />}
-          {step === 3 && (
+          {step === STEP.works && <WorksFlow />}
+          {step === STEP.agent && <AgentStep cfg={cfg} agent={flow.agent} more={flow.more} />}
+          {step === STEP.ask && <AskStep preset={flow.preset} />}
+          {step === STEP.look && (
+            <>
+              <LookStep theme={flow.theme} />
+              <AlertStep />
+            </>
+          )}
+          {step === STEP.phone && (
             <Panel>
               <PhoneCard />
             </Panel>

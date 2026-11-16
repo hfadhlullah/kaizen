@@ -94,7 +94,9 @@ function TaskLink({ t }: { t: RailTask }) {
   );
 }
 
-function WsRow({ dir, r, now, current }: { dir: string; r: RailRow; now: number; current: boolean }) {
+// Home is your own space outside any project, so its one row says that instead of the folder's name.
+export const HOME_TIP = "Your own space: chats and agent terminals that are not in a project. Add a project with +.";
+function WsRow({ dir, r, now, current, home }: { dir: string; r: RailRow; now: number; current: boolean; home?: boolean }) {
   return (
     <>
       <div className="wsr wsc">
@@ -103,7 +105,7 @@ function WsRow({ dir, r, now, current }: { dir: string; r: RailRow; now: number;
           href={host.wsHref(dir, r.path)}
           data-dir={dir}
           data-ws={r.path}
-          title={r.path}
+          title={home ? HOME_TIP : r.path}
           aria-current={current ? "true" : undefined}
           onClick={(e) => inPlace(e, () => openWs(dir, r.path))}
           onContextMenu={(e) => {
@@ -120,11 +122,11 @@ function WsRow({ dir, r, now, current }: { dir: string; r: RailRow; now: number;
           <span className={`si ${r.st || "none"}`} />
           <div className="wl">
             <span className="l1">
-              <b>{r.label}</b>
+              <b>{home ? "No project" : r.label}</b>
               {r.pinned && <Pin />}
             </span>
             <span className="l2">
-              <span>{r.folder}</span>
+              <span>{home ? "chats and terminals" : r.folder}</span>
               {!r.w.main && <Worktree />}
             </span>
           </div>
@@ -202,7 +204,7 @@ function Group({
           data-proj={g.dir}
           data-ws={g.mainWs}
           data-empty={g.empty ? "" : undefined}
-          title={g.dir}
+          title={g.home ? HOME_TIP : g.dir}
           aria-expanded={!g.shut}
           onClick={fold}
         >
@@ -243,7 +245,7 @@ function Group({
       {!g.shut && (
         <div className="pws">
           {g.rows.map((r) => (
-            <WsRow key={r.path} dir={g.dir} r={r} now={now} current={cur.dir === g.dir && cur.ws === r.path} />
+            <WsRow key={r.path} dir={g.dir} r={r} now={now} current={cur.dir === g.dir && cur.ws === r.path} home={g.home && r.w.main} />
           ))}
         </div>
       )}

@@ -12,6 +12,11 @@ let opened = 0;
 export const openAdd = (o: AddOpts = {}) => useAddProject.setState({ open: { ...o, n: ++opened } });
 export const closeAdd = () => useAddProject.setState({ open: null });
 
+// Told when a project was added (an existing folder, a clone, a new one): first-run setup is finished by it, not by a click.
+const added = new Set<() => void>();
+export const onProjectAdded = (f: () => void) => (added.add(f), () => void added.delete(f));
+const ADDS = ["/add-project", "/new-project", "/clone"];
+
 export async function call(path: string, body?: object): Promise<{ ok: boolean; d: any }> {
   try {
     const r = await fetch(
@@ -21,6 +26,7 @@ export async function call(path: string, body?: object): Promise<{ ok: boolean; 
         : undefined,
     );
     const d = await r.json().catch(() => ({}));
+    if (r.ok && body && ADDS.includes(path)) added.forEach((f) => f());
     return { ok: r.ok, d: r.ok ? d : { error: d.error || d.why || "that did not work" } };
   } catch {
     return { ok: false, d: { error: "kaizen is offline" } };
