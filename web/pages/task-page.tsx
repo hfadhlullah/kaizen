@@ -324,6 +324,13 @@ function Task() {
                 />
               ))}
             </div>
+            {resume && (
+              <div className="mb-2 flex justify-start px-1">
+                <Button variant="primary" disabled={pending} onClick={() => void runAction("resume")}>
+                  {t.status === "failed" ? "Retry" : "Resume"}
+                </Button>
+              </div>
+            )}
             {t.status === "working" && <TypingDots />}
             {queue.length > 0 && (
               <div aria-label="Requests awaiting completion" className="mb-1.5 flex justify-end gap-1.5 px-1">
