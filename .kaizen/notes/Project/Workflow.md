@@ -74,6 +74,10 @@ Every stage reports with `kaizen report`; see *Reporting to the board* in `spec.
 
 `skills/kaizen-explore/SKILL.md` has Explore run 2–3 web searches on what is new, what exists and hard limits after reading local material and before its first question, recording links and dates in `00-explore.md`. Web tools in order: `kaizen search` / `kaizen scrape` (Firecrawl, the user's key; exit 2 means none), then the host's own web tools, then local material only, said in the brief.
 
+## Explore asks before it investigates (2026-11-16)
+
+After the 2–3 searches, Explore asks its first round (at least who it is for and how deep) before any hands-on work: driving the app, walking screens, or a wide study. A request that is itself research (an audit, a walkthrough) is not delivered inside Explore before its scope is set. `00-explore.md` is saved step by step. Came from run `2026-11-16-ux-walkthrough`, which audited for 5 minutes before asking anything.
+
 ## Explore offers its findings (2026-11-09)
 
 Before its exit choice, Explore lists the brief's sourced findings as a multi-select and adds only the ticked ones to the icebox (`kaizen icebox add --file … --kind finding`). See [[Sources and icebox/AI sorting]].

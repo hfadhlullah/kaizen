@@ -35,6 +35,13 @@ them in your questions and recommendations. Stop at three searches unless the
 topic is still unclear; deep research comes after the decisions. Skip this only
 for work internal to the project (its own bugs, refactors).
 
+Then ask before you investigate. Hands-on work (driving the app, installing it,
+walking every screen, a study across many files or sources) waits until the user
+has answered the first round, at least who it is for and how deep to go. This
+holds most for a request that is itself research, such as an audit or a
+walkthrough: do not deliver the research inside Explore before its scope is set.
+Save each step to `00-explore.md` as it happens, not only at the end.
+
 Web tools, in this order:
 
 1. `kaizen search "<query>" --recent m` (add `--read` for page text, `--limit N`)
