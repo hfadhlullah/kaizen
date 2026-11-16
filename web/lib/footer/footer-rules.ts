@@ -6,8 +6,9 @@ export function phoneStatus(d: PhoneNet): PhoneStatus {
   if (!d.tailscale) return { text: "Tailscale off", on: false, tip: "Tailscale is not running on this computer" };
   if (d.online) {
     const names = (d.devices ?? []).map((x) => x.name).filter(Boolean);
+    // The green dot says connected; the words stay in the tip for whoever cannot tell the colour.
     const who = names.length ? names.join(" + ") : "Phone";
-    return { text: `${who} connected`, on: true, tip: `${names.length ? who : "A phone"} is online on your tailnet` };
+    return { text: who, on: true, tip: `${names.length ? who : "A phone"} is connected to your tailnet` };
   }
   return {
     text: "Phone offline",

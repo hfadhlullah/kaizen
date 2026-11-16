@@ -348,7 +348,7 @@ aside.wide{width:100%;border-left:0}@media(min-width:901px){aside.wide{width:62%
 /* the flat footer under everything: agent usage, refresh; terminal count and phone on the right */
 @media(min-width:641px){body{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:minmax(0,1fr) auto}.rail{grid-area:1/1}.app{grid-area:1/2}#context{grid-area:1/3}.foot{grid-area:2/1/3/-1}.app{margin-bottom:0}#context{margin-bottom:0}}
 .foot{display:flex;align-items:center;gap:14px;padding:5px 12px;font-size:12px;color:var(--dim);min-width:0;white-space:nowrap}
-.foot svg{width:15px;height:15px}
+.foot svg{width:15px;height:15px}.foot :is(span,b){text-box:trim-both cap alphabetic}
 .foot .fb{display:flex;align-items:center;gap:6px;padding:3px 7px;border-radius:var(--r-s);color:var(--dim);text-decoration:none}.foot .fb:hover{background:var(--hover);color:var(--ink)}.foot .fb[hidden]{display:none}
 .foot button.fb{border:0;background:none;font:inherit;cursor:pointer}.foot .fb[aria-expanded=true]{background:var(--hover);color:var(--ink)}
 /* Resource monitor, laid out like macOS Control Center: two half tiles (Memory, Storage) that open in place, then the terminals */
