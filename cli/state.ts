@@ -10,6 +10,7 @@ import { join, dirname, sep, win32, posix } from "node:path";
 import { homedir, arch, cpus, release, totalmem, version as osVersion } from "node:os";
 import { startPty, ptySupported, killTmux, tmuxName } from "./pty.ts";
 import { codeDir, projectFromWorktree, wsOf } from "./worktree.ts";
+import { activityMtime } from "./activity.ts";
 
 // The real path: process.cwd() is always physical, so a raw $HOME that crosses a
 // symlink (/home -> var/home) would never compare equal to it.
@@ -119,6 +120,27 @@ export function bypassAcceptedFile(home = homedir()): string | null {
     if (!existsSync(f)) { mkdirSync(dirname(f), { recursive: true }); writeFileSync(f, JSON.stringify({ skipDangerousModePermissionPrompt: true }) + "\n"); }
     return f;
   } catch { return null; }
+}
+
+// The settings file for a run launch of Claude Code: the hooks that report every tool call to cli/activity.ts (live build activity on the
+// board), and for a Yolo launch also the acceptance of the bypass-mode warning. Claude takes one --settings, so both ride in one file.
+// Written when missing or when its text changed (a moved checkout, another bun). null if it cannot be written: the run then starts
+// without the feed, as before. ponytail: the command is a POSIX-quoted line; Windows hook shells may need another form.
+export function runHooksFile(yolo: boolean, home = homedir()): string | null {
+  try {
+    const cmd = `${shq(process.execPath)} ${shq(join(import.meta.dir, "activity.ts"))}`;
+    const hook = (matcher: string) => [{ matcher, hooks: [{ type: "command", command: cmd, timeout: 5 }] }];
+    const text = JSON.stringify({ hooks: { PreToolUse: hook("*"), PostToolUse: hook("Bash") }, ...(yolo ? { skipDangerousModePermissionPrompt: true } : {}) }) + "\n";
+    const f = join(home, ".kaizen", yolo ? "claude-run-hooks-bypass.json" : "claude-run-hooks.json");
+    if (!existsSync(f) || readFileSync(f, "utf8") !== text) { mkdirSync(dirname(f), { recursive: true }); writeFileSync(f, text); }
+    return f;
+  } catch { return null; }
+}
+// What a run launch passes for its settings: Claude gets the hooks file (bypass flags without their own --settings when Yolo).
+export function runSettingsFlags(cmd: string, yolo: boolean, home = homedir()): string[] {
+  if (cmd !== "claude") return yolo ? bypassFlags(cmd) : [];
+  const f = runHooksFile(yolo, home);
+  return f ? [...(yolo ? YOLO_FLAGS[cmd] ?? [] : []), "--settings", f] : yolo ? bypassFlags(cmd) : [];
 }
 
 // How each tool takes the opening prompt and stays interactive. agy refuses a bare
@@ -536,6 +558,8 @@ export function readRuns(state: string): Run[] {
       let moved = 0;
       try { moved = statSync(file).mtimeMs; } catch { /* vanished mid-read */ }
       try { moved = Math.max(moved, statSync(join(dir, id, "progress.md")).mtimeMs); } catch { /* no progress kept */ }
+      // And the agent's own tool calls (cli/activity.ts): the surest sign that it is working.
+      moved = Math.max(moved, activityMtime(state, s.session));
       // Done without the user's acceptance is not done: every reader sees it waiting on approval.
       const unapproved = s.stage === "done" && accepted(state, id).accept === "needs";
       const run = { id, iteration: Number(s.iteration) || 0, stage: unapproved ? "review" : s.stage ?? "?", awaiting: unapproved ? "approvals.review" : s.awaiting ?? null, moved, runner: s.runner, agent: s.agent, branch: typeof s.branch === "string" ? s.branch : undefined, worktree: typeof s.worktree === "string" ? s.worktree : undefined, workspace: typeof s.workspace === "string" ? s.workspace : undefined, healed: unapproved || (s.healed === true && s.awaiting === "approvals.review") || undefined };
@@ -1883,7 +1907,7 @@ export function launchRun(it: Item, from: string, run?: string, pick: { agent?: 
   // would stop on a read prompt for each run; with that folder added it does not. `--` ends the flags, because --add-dir takes a list
   // and would otherwise swallow the prompt that follows as one more folder.
   const skills = agent.cmd === "claude" && prompt ? skillsReadDir() : null;
-  const flags = [...agentFlags(projectDir, agent.cmd, undefined, model), ...(yolo ? bypassFlags(agent.cmd) : []), ...argsOf(agent.cmd, prefs), ...(skills ? [`--add-dir=${skills}`, "--"] : [])];
+  const flags = [...agentFlags(projectDir, agent.cmd, undefined, model), ...runSettingsFlags(agent.cmd, yolo), ...argsOf(agent.cmd, prefs), ...(skills ? [`--add-dir=${skills}`, "--"] : [])];
   // The task as its run's request will hold it: without the runner word in front.
   // Session lookups read the tool's folder from the environment; for this launch it's the account's.
   const prior = acct.envVar ? process.env[acct.envVar] : undefined;

@@ -186,13 +186,17 @@ test("a Claude Yolo launch carries the bypass warning's acceptance; a normal one
     console.log(JSON.stringify({ y: one("claude", true), n: one("claude", false), cx: one("codex", true) })); process.exit(0);`;
   const out = JSON.parse(Bun.spawnSync([process.execPath, "-e", script], { env: { ...process.env, HOME: home, USERPROFILE: home, PATH: `${join(dir, "bin")}:${process.env.PATH}` } }).stdout.toString());
   if (!out.y.ok) return; // no pseudo-terminal here
-  const file = join(home, ".kaizen", "claude-bypass.json"), y = out.y.cmd as string[];
+  // A run launch passes one --settings: the live-activity hooks (cli/activity.ts), and for Yolo also the warning's acceptance.
+  const file = join(home, ".kaizen", "claude-run-hooks-bypass.json"), y = out.y.cmd as string[];
   expect(y).toContain("--dangerously-skip-permissions");
+  expect(y.filter((x) => x === "--settings").length).toBe(1);
   expect(y[y.indexOf("--settings") + 1]).toBe(file);
-  expect(JSON.parse(readFileSync(file, "utf8"))).toEqual({ skipDangerousModePermissionPrompt: true });
+  expect(JSON.parse(readFileSync(file, "utf8")).skipDangerousModePermissionPrompt).toBe(true);
   expect(readFileSync(join(home, ".claude", "settings.json"), "utf8").trim()).toBe("{}");        // the user's own settings are untouched
   expect(y.at(-1)).toContain("/kaizen");                                                          // the prompt is still the last word
-  expect((out.n.cmd as string[]).includes("--settings")).toBe(false);
+  const n = out.n.cmd as string[], nf = join(home, ".kaizen", "claude-run-hooks.json");
+  expect(n[n.indexOf("--settings") + 1]).toBe(nf);                                                // a normal run: hooks, no acceptance
+  expect(JSON.parse(readFileSync(nf, "utf8")).skipDangerousModePermissionPrompt).toBeUndefined();
   expect((out.cx.cmd as string[]).includes("--settings")).toBe(false);
   expect(bypassAcceptedFile(join(dir, "elsewhere"))).toBe(join(dir, "elsewhere", ".kaizen", "claude-bypass.json"));
 });

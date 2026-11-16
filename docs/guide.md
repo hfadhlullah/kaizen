@@ -776,6 +776,7 @@ does the same thing from inside your agent if you would rather not leave it. Eve
 in [`config.default.yml`](https://github.com/hfadhlullah/kaizen/blob/main/skills/kaizen/config.default.yml),
 with a comment on each key, if you would rather edit the file.
 
+**Live activity.** While a Claude Code agent builds a run, the run's panel (Backlog tab) shows what it is doing right now, such as "Reading cli/web.ts" or "Running: bun test", with the last few actions below. It comes from Claude's own hooks, not from what the agent says, so it stays true. Other agents show only their checklist.
 
 ## Under the hood
 

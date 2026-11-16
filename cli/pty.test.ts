@@ -119,7 +119,7 @@ test.skipIf(process.platform === "win32")("the board runs the agent in the card:
     ws3.onmessage = (e) => { seen += String(e.data); };
     await new Promise((ok, no) => { ws3.onopen = ok; ws3.onerror = no; });
     await until(new RegExp(`args:.*--resume ${s!.sessionId}`));
-    expect(seen).not.toContain("/kaizen");
+    expect(seen).not.toMatch(/\/kaizen\s/);   // no opening prompt (the settings path may hold "kaizen")
     const ended3 = new Promise((ok) => { ws3.onclose = ok; });
     expect(closeSessions(st, "r1")).toBe(1);
     await ended3;

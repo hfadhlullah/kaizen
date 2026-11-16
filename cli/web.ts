@@ -30,6 +30,7 @@ import { projectLogo, LOGO_TYPES } from "./logo.ts";
 import * as chatgpt from "./chatgpt.ts";
 import { whatsNew, markSeen } from "./whats-new.ts";
 import { autoUpdateTick } from "./auto-update.ts";
+import { readActivity } from "./activity.ts";
 import * as google from "./google.ts";
 import { writeBacks } from "./writeback.ts";
 import { postLink, sendReply } from "./browser.ts";
@@ -1804,6 +1805,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
           request: read("00-request.md"), explore: read("00-explore.md"), plan: read("01-plan.md"), approval: read("02-approval.md"),
           impl: read("03-impl.md"), review: read("04-review.md"), backlog: read("06-backlog.md"),
           notes: read("notes.md"), progress: read("progress.md"),
+          // What the agent is doing right now, from its own hooks (cli/activity.ts); empty for any other agent.
+          activity: readActivity(dir, (() => { try { return JSON.parse(readText(join(base, "state.json"))).session; } catch { return null; } })()),
           // Notebook notes whose [[run:…]] links name this run.
           linkedFrom: linksTo(dir, id),
           // Nothing to pick in the global state dir: /fix refuses it.

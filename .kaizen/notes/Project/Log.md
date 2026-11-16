@@ -381,3 +381,4 @@ updated: 2026-11-16
 - 2026-11-16 run 2026-11-16-quick-wins — CLI, Web board/Settings: kaizen --help lists every command; Settings uses plain option names and hints (stored values unchanged); the Agents row no longer says Enabled for an agent that is not installed
 - 2026-11-16 run 2026-11-16-permission-prompt — Web board/Terminals, Tasks: the board recognises Claude's read-outside-the-folder prompt so Allow / Deny shows; Claude launches add kaizen's skills folder; Yolo launches accept Claude's bypass warning
 - 2026-11-16 run 2026-11-16-whats-new — Web board/Settings, Release and testing: an inline What's New card under About (once per machine, a dot on the Settings gear) and an Update automatically switch
+- 2026-11-16 run 2026-11-16-live-progress — Web board/Run workspace: a building run's panel shows what the agent really does, from Claude Code hooks

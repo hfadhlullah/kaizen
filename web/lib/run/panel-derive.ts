@@ -139,7 +139,7 @@ export function deriveRun(i: RunIn): RunDraw {
     doc:
       k === "notes" || k === "git"
         ? null
-        : { k, id: c.id, text: doc || null, progress: k === "backlog" && c.column === 2 ? d.progress || null : null, needle: needle && !i.refresh ? needle : null, mark: 0 },
+        : { k, id: c.id, text: doc || null, progress: k === "backlog" && c.column === 2 ? d.progress || null : null, activity: k === "backlog" && c.column === 2 && Array.isArray(d.activity) ? d.activity : [], needle: needle && !i.refresh ? needle : null, mark: 0 },
     notes: k === "notes" ? { card: c, src: doc, ro: !!c.archived || c.status === "done" || c.status === "abandoned", linked: d.linkedFrom } : null,
     fix,
     footer: { card: c, plan: d.plan, sourceControl: k !== "git" && i.git.pending },

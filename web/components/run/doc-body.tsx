@@ -29,6 +29,48 @@ const MARK: Record<Step["st"], string> = { done: "text-success", doing: "text-ru
 
 // A building run's Work list: how many are done, a bar, and one row per item (✓ done, a pulse for the one being worked
 // on). A redraw marks the rows whose status moved and slides the bar from where it was.
+// What the agent is doing, from its own hooks: the newest line (a pulse while it is fresh), then the few before it. The checklist
+// above is the agent's own words; this is what it really did.
+function Activity({ list }: { list: { t: number; text: string }[] }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const i = setInterval(() => setNow(Date.now()), 5000);
+    return () => clearInterval(i);
+  }, []);
+  if (!list.length) return null;
+  const last = list[list.length - 1]!,
+    live = now - last.t < 45_000,
+    ago = Math.max(0, Math.round((now - last.t) / 1000));
+  return (
+    <div data-activity className="mb-[18px] rounded-md border border-border px-3 py-2.5 text-base">
+      <div className="flex items-center gap-2">
+        <span
+          className={cn(
+            "size-[7px] flex-none rounded-full",
+            live ? "bg-running motion-safe:animate-pulse" : "bg-muted-foreground",
+          )}
+        />
+        <b className="min-w-0 flex-1 truncate font-medium text-foreground">{last.text}</b>
+        <span className="flex-none text-sm text-muted-foreground">
+          {live ? "now" : ago < 90 ? `${ago}s ago` : `${Math.round(ago / 60)} min ago`}
+        </span>
+      </div>
+      {list.length > 1 && (
+        <ul className="mt-1.5 flex flex-col gap-0.5 border-t border-border pt-1.5 text-sm text-muted-foreground">
+          {list
+            .slice(-6, -1)
+            .reverse()
+            .map((a, i) => (
+              <li key={i} className="truncate">
+                {a.text}
+              </li>
+            ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function Progress({ id, src }: { id: string; src: string }) {
   const p = useMemo(() => parseProgress(src), [src]),
     prev = drawn?.id === id ? drawn : null,
@@ -112,6 +154,7 @@ export function DocBody() {
   return (
     <div ref={root}>
       {backlog && doc.progress && <Progress id={doc.id} src={doc.progress} />}
+      {backlog && <Activity list={doc.activity} />}
       {doc.text ? (
         <Markdown text={backlog && doc.progress ? "### Backlog\n\n" + doc.text : doc.text} ticks={backlog} />
       ) : (

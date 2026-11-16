@@ -21,6 +21,7 @@ export type PanelDoc = {
   id: string;
   text: string | null;
   progress: string | null;
+  activity: { t: number; text: string }[]; // what the agent's hooks reported, oldest first (a building run's panel only)
   needle: string | null;
   mark: number;
 };
