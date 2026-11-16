@@ -28,6 +28,8 @@ import { claudeUsage, claudeUsageAt, codexUsage, codexUsageAt, phonePeers, type 
 import { readSources, addSource, removeSource, moveSource, setCategory, setWriteback, setPaused, readIcebox, applySort, setLinkMedia, redditPost, iceDir, promote, dismiss, restore, capture, editItem, setKind, setTags, setBoard, saveBoard, removeBoard, snooze, unsnooze, readBoards, kindOf, isSnoozed, markDone, markReplied, gatherSource, freshImages, gatherAll, gatherDirs, due, socialUrl, socialOf } from "./sources.ts";
 import { projectLogo, LOGO_TYPES } from "./logo.ts";
 import * as chatgpt from "./chatgpt.ts";
+import { whatsNew, markSeen } from "./whats-new.ts";
+import { autoUpdateTick } from "./auto-update.ts";
 import * as google from "./google.ts";
 import { writeBacks } from "./writeback.ts";
 import { postLink, sendReply } from "./browser.ts";
@@ -771,6 +773,59 @@ export async function web(repoDir: string, opts: Opts = {}) {
 
   // Automations: a due rule starts a run in its own project. Own busy flag; a fire may wait on a precheck.
   let autoBusy = false;
+  // `kaizen upgrade`, then a new board on this port. The Update button and the automatic update (below) both run it.
+  const runUpgrade = async (): Promise<{ ok: true; version?: string } | { error: string; status: number }> => {
+    if (upgrading) return { error: "an upgrade is already running", status: 409 };
+    if (DESKTOP_BUNDLED) return { error: "this board is the desktop app's copy; the app updates itself", status: 409 };
+    // Windows will not rename ~/kaizen while this board holds files in it, so the
+    // upgrade waits in its own process for this one to exit, then starts the board
+    // again; ~/.kaizen/upgrade.log keeps what it said. It runs from a copy of cli/,
+    // so nothing runs out of ~/kaizen while it is renamed.
+    if (process.platform === "win32") {
+      const helper = join(home, ".kaizen", "upgrader");
+      rmSync(helper, { recursive: true, force: true });
+      cpSync(join(repoDir, "cli"), join(helper, "cli"), { recursive: true });
+      const log = Bun.file(UPGRADE_LOG);
+      Bun.spawn([process.execPath, join(helper, "cli", "install.ts"), "upgrade", "--wait", String(process.pid), "--restart", String(srv.port)], {
+        cwd: home, detached: true, stdio: ["ignore", log, log], windowsHide: true,
+      }).unref();
+      saveLive();
+      setTimeout(() => process.exit(0), 300);
+      return { ok: true as const };
+    }
+    upgrading = true;
+    try {
+      const p = Bun.spawn([process.execPath, join(repoDir, "cli", "install.ts"), "upgrade"], { stdin: "ignore", stdout: "pipe", stderr: "pipe", windowsHide: true });
+      const [out, err, code] = await Promise.all([new Response(p.stdout).text(), new Response(p.stderr).text(), p.exited]);
+      const why = (out + err).replace(/\x1b\[[0-9;]*m/g, "").split("\n").map((l) => l.trim()).filter((l) => l && !l.startsWith("+")).slice(-2).join(" — ");
+      if (code !== 0) return { error: why || `kaizen upgrade exited ${code}`, status: 500 };
+      if (installed() === VERSION) return { error: why || "Already up to date", status: 400 };
+      const port = srv.port;
+      saveLive();
+      setTimeout(() => {
+        Bun.spawn([process.execPath, join(repoDir, "cli", "install.ts"), "web", "--port", String(port), "--no-open", "--foreground"], {
+          detached: true, stdio: ["ignore", "ignore", "ignore"], windowsHide: true,
+        }).unref();
+      }, 300);
+      return { ok: true as const, version: installed() };
+    } finally { upgrading = false; }
+
+  };
+  // Update automatically (Settings → General → Updates): every 30 minutes, and once shortly after the board starts, when the switch is
+  // on, npm has a newer version, no terminal is alive and no board page is open (an update restarts the board).
+  const autoUpd = () => autoUpdateTick({
+    on: async () => (await setting("board.auto_update")) === "true",
+    latest: () => npmLatest(),
+    newer: (v) => newer(v, VERSION),
+    desktop: DESKTOP_BUNDLED,
+    upgrading: () => upgrading,
+    terminalsAlive: () => ptyKeys().some((k) => ptyState(k)?.alive),
+    pagesOpen: () => clients.size > 0,
+    upgrade: runUpgrade,
+  }).catch(() => "off" as const);   // the next tick tries again
+  const autoUpdate = setInterval(autoUpd, 30 * 60_000);
+  const autoFirst = setTimeout(autoUpd, 90_000);
+
   const automate = setInterval(async () => {
     if (autoBusy) return;
     autoBusy = true;
@@ -2074,6 +2129,20 @@ export async function web(repoDir: string, opts: Opts = {}) {
       }
 
       // What this board runs and what npm has: the page shows an Update button on a newer one.
+      // What's New under Settings → General → About: the installed version's highlights and fixes, and whether this machine has seen them
+      // (cli/whats-new.ts). A brand-new install (no project yet) gets none: it has the welcome. POST records it as seen.
+      if (path === "/whats-new" && (req.method === "GET" || req.method === "POST")) {
+        const fresh = states(true).filter((d) => d !== join(home, ".kaizen")).length === 0;
+        if (req.method === "POST") {
+          const refused = strict(req);
+          if (refused) return refused;
+          if (!local(req)) return bad("cross-origin write refused", 403);
+          const w = whatsNew(home, VERSION, fresh);
+          if (w.entry) markSeen(home, w.entry.version);
+        }
+        return json(whatsNew(home, VERSION, fresh));
+      }
+
       if (req.method === "GET" && path === "/version") {
         const v = await npmLatest(url.searchParams.has("fresh"));
         // The desktop app's own copy is read-only and updates with the app, so no
@@ -2090,40 +2159,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
       // this board running and says why.
       if (req.method === "POST" && path === "/upgrade") {
         if (!local(req)) return bad("cross-origin write refused", 403);
-        if (upgrading) return bad("an upgrade is already running", 409);
-        if (DESKTOP_BUNDLED) return bad("this board is the desktop app's copy; the app updates itself", 409);
-        // Windows will not rename ~/kaizen while this board holds files in it, so the
-        // upgrade waits in its own process for this one to exit, then starts the board
-        // again; ~/.kaizen/upgrade.log keeps what it said. It runs from a copy of cli/,
-        // so nothing runs out of ~/kaizen while it is renamed.
-        if (process.platform === "win32") {
-          const helper = join(home, ".kaizen", "upgrader");
-          rmSync(helper, { recursive: true, force: true });
-          cpSync(join(repoDir, "cli"), join(helper, "cli"), { recursive: true });
-          const log = Bun.file(UPGRADE_LOG);
-          Bun.spawn([process.execPath, join(helper, "cli", "install.ts"), "upgrade", "--wait", String(process.pid), "--restart", String(srv.port)], {
-            cwd: home, detached: true, stdio: ["ignore", log, log], windowsHide: true,
-          }).unref();
-          saveLive();
-          setTimeout(() => process.exit(0), 300);
-          return json({ ok: true });
-        }
-        upgrading = true;
-        try {
-          const p = Bun.spawn([process.execPath, join(repoDir, "cli", "install.ts"), "upgrade"], { stdin: "ignore", stdout: "pipe", stderr: "pipe", windowsHide: true });
-          const [out, err, code] = await Promise.all([new Response(p.stdout).text(), new Response(p.stderr).text(), p.exited]);
-          const why = (out + err).replace(/\x1b\[[0-9;]*m/g, "").split("\n").map((l) => l.trim()).filter((l) => l && !l.startsWith("+")).slice(-2).join(" — ");
-          if (code !== 0) return bad(why || `kaizen upgrade exited ${code}`, 500);
-          if (installed() === VERSION) return bad(why || "Already up to date");
-          const port = srv.port;
-          saveLive();
-          setTimeout(() => {
-            Bun.spawn([process.execPath, join(repoDir, "cli", "install.ts"), "web", "--port", String(port), "--no-open", "--foreground"], {
-              detached: true, stdio: ["ignore", "ignore", "ignore"], windowsHide: true,
-            }).unref();
-          }, 300);
-          return json({ ok: true, version: installed() });
-        } finally { upgrading = false; }
+        const r = await runUpgrade();
+        return "error" in r ? bad(r.error, r.status) : json(r);
       }
 
       // The user's Firecrawl key for `kaizen search` / `kaizen scrape` (cli/research.ts).
@@ -3063,7 +3100,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
       saveLive();
       awake.stop();
       closeAllProxies();
-      clearInterval(poll); clearInterval(ping); clearInterval(gather); clearInterval(automate); clearInterval(loop); clearInterval(keepList);
+      clearInterval(autoUpdate); clearTimeout(autoFirst); clearInterval(poll); clearInterval(ping); clearInterval(gather); clearInterval(automate); clearInterval(loop); clearInterval(keepList);
       for (const w of watchers) { try { w.close(); } catch { /* gone */ } }
       setTimeout(() => { server.stop(true); resolve(); }, live ? 400 : 0);
     };

@@ -1,6 +1,6 @@
 import { cn } from "@lib/core";
 import type { CSSProperties, ReactNode } from "react";
-import { useUpdate } from "@lib/settings";
+import { useUpdate, useWhatsNew } from "@lib/settings";
 import { railActions } from "@lib/rail";
 import { useRoute } from "@lib/router";
 import { useServer, iceNewCount, needYouCount } from "@lib/server";
@@ -50,6 +50,8 @@ export function Rail(p: { srcs?: ReactNode; before?: ReactNode }) {
     lit = useRoute((r) => r.lit);
   // A dot on Settings while a newer kaizen is known (the About bar and the update card read the same store).
   const latest = useUpdate((s) => (s.ver?.update ? s.ver.latest : ""));
+  // The Settings gear carries the same dot while What's New has not been seen on this machine.
+  const unseen = useWhatsNew((s) => (s.data?.entry && s.data.unseen ? s.data.entry.version : ""));
   // Counts the server store gives the menu: tasks that need you, new Icebox requests, Terminal tiles hidden on its page.
   const need = useServer((s) => needYouCount(s.tasks)),
     known = useServer((s) => s.tasks !== null),
@@ -204,13 +206,15 @@ export function Rail(p: { srcs?: ReactNode; before?: ReactNode }) {
       </div>
       <div className="rbot">
         <Item
-          className={cn("it fold", latest && "upd")}
+          className={cn("it fold", (latest || unseen) && "upd")}
           href="/?view=settings"
           view="settings"
           title={
             latest
-              ? `Settings: ${(globalThis as { kaizenDesktop?: unknown }).kaizenDesktop ? "Kaizen" : "kaizen"} ${latest} is available`
-              : "Settings"
+              ? `Settings: ${(globalThis as { kaizenDesktop?: unknown }).kaizenDesktop ? "Kaizen" : "kaizen"} ${latest} is available${unseen ? `, and see what's new in ${unseen}` : ""}`
+              : unseen
+                ? `Settings: see what's new in kaizen ${unseen}`
+                : "Settings"
           }
           aria="Settings"
           icon="i-gear"

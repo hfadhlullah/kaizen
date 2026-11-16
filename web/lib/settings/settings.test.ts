@@ -140,7 +140,7 @@ test("rows sit on their page in the order the page asks for, with the project-on
     { ...env, scoped: true },
   );
   // the pre-seeded subsections come first; a Board row, when a project is being edited, goes under its own note
-  expect([...g.get("general")!.keys()]).toEqual(["Storage", "Folders", "App", "App · all projects"]);
+  expect([...g.get("general")!.keys()]).toEqual(["Updates", "Storage", "Folders", "App", "App · all projects"]);
   expect(g.get("general")!.get("Storage")![0]!.id).toBe("s-state-keep_runs");
   // this browser's own choices live on their pages whatever the config holds
   expect(

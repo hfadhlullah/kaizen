@@ -3,7 +3,7 @@ import { TooltipProvider } from "@web/ui";
 import { useRouteClasses } from "@lib/router";
 import { useBoard } from "@lib/board";
 import { useRunView } from "@lib/run";
-import { checkUpdate } from "@lib/settings";
+import { checkUpdate, loadWhatsNew } from "@lib/settings";
 import { SourceMarks } from "@components/rail";
 import { Rail, Sprite } from "@components/shell";
 import { FootBar } from "@components/footer";
@@ -43,6 +43,7 @@ export function App() {
   // Hourly so a tab left open still hears of a release; the server's cache limits npm to every 6 h.
   useEffect(() => {
     void checkUpdate();
+    void loadWhatsNew();
     const t = setInterval(checkUpdate, 3600_000);
     return () => clearInterval(t);
   }, []);

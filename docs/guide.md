@@ -696,6 +696,8 @@ the project and run it came from. Each line reads:
 
 ## Settings
 
+**Updates.** Settings → General → About shows the version, **What's new** (what changed in this release: the big improvements, then the fixes; it opens by itself the first time after an update, with a dot on the Settings gear) and **Check for updates**. Under **Updates**, **Update automatically** lets kaizen update itself when a newer version is out and nothing is running and no board page is open; it is off by default.
+
 **Models.** Settings → Models has a row per installed agent. Claude Code's row sets its stage subagents. Other tools run every stage in one session, so their row sets the model they launch with, using the tool's own model name.
 
 **Terminal keys.** In a workspace, Ctrl+Space puts focus in the current pane. Within 2 seconds, one more key moves it, as in tmux: arrows or h j k l between panes, 1-9 for a tab by number, n and p for the next and previous tab. c opens the new-tab menu: arrows or j k choose, Enter opens, Escape closes. r splits right and d splits down with a new terminal like the focused one (the same agent, or a shell) straight away; on a Browser, Preview or note pane they open the split menu to pick from, as do the split buttons at the top right. x closes the current pane, like its × button. ? lists these keys.
@@ -773,6 +775,7 @@ It edits each line in place, so the comment above every key survives. `/kaizen-c
 does the same thing from inside your agent if you would rather not leave it. Everything is also
 in [`config.default.yml`](https://github.com/hfadhlullah/kaizen/blob/main/skills/kaizen/config.default.yml),
 with a comment on each key, if you would rather edit the file.
+
 
 ## Under the hood
 

@@ -83,7 +83,7 @@ const PAGE_ALIAS: Record<string, string> = { voice: "keyboard", shortcuts: "keyb
 export const pageId = (id: string) => PAGE_ALIAS[id] ?? id;
 // Subsections that should come first on their page, whatever order their rows arrive in.
 export const SUB_ORDER: Record<string, string[]> = {
-  general: ["Storage", "Folders", "App"],
+  general: ["Updates", "Storage", "Folders", "App"],
   keyboard: ["Shortcuts", "Dictation"],
 };
 // First match wins: [key pattern, page, subsection].
@@ -104,6 +104,7 @@ const PLACES: [RegExp, string, string][] = [
   [/^git\./, "git", "Git"],
   [/^ui\./, "terminal", "Terminal"],
   [/^board\.chat_hotkey$/, "keyboard", "Shortcuts"],
+  [/^board\.auto_update$/, "general", "Updates"],
   [/^board\.(projects_dir|video_dir)$/, "general", "Folders"],
   [/^board\./, "general", "App"],
   [/^state\./, "general", "Storage"],

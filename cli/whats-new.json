@@ -1,0 +1,19 @@
+[
+  {
+    "version": "1.87.4",
+    "highlights": [
+      { "title": "A welcome that explains how kaizen works", "text": "New users see how a run goes, from ask to review, and the setup no longer ends until a project is added." },
+      { "title": "Chat works with Claude Code", "text": "Home Chat runs on Claude Code when it is your default agent or Codex is missing." },
+      { "title": "Agents offer kaizen's skills", "text": "Ask for a video, a deck or a plan in plain chat and the matching skill is offered first." },
+      { "title": "Permission prompts on the task page", "text": "When an agent waits for permission, Allow and Deny are on the task. Kaizen's own file reads no longer ask." },
+      { "title": "Plain words in Settings, and a real --help", "text": "Clear option names and hints, and kaizen --help lists every command." }
+    ],
+    "fixes": [
+      "A task no longer gets stuck after its review; \"Looks good\" comes back and finishes it.",
+      "Explore asks its questions before it starts investigating.",
+      "Steam Deck: the app uses software rendering, which stops the GPU crash.",
+      "The footer checks your connected phone every 15 seconds.",
+      "The last Claude usage reading is kept when its endpoint errors."
+    ]
+  }
+]

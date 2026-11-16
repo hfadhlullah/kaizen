@@ -8,10 +8,14 @@ import {
   later,
   upToDate,
   upgrade,
+  cardOpen,
+  toggleWhatsNew,
   useUpdate,
+  useWhatsNew,
   type Version,
 } from "@lib/settings";
 import { Button, Popover, PopoverContent, PopoverTrigger } from "@web/ui";
+import { WhatsNewCard } from "./whats-new-card.tsx";
 
 // The Update button, shared by the About bar and the card: asks first, then shows what is happening.
 function UpdateButton({ v, label }: { v: Version; label: string }) {
@@ -35,13 +39,13 @@ function UpdateButton({ v, label }: { v: Version; label: string }) {
   );
 }
 
-// What's new: each newer release's one-line title, in a popover.
+// What's in the update: each newer release's one-line title, in a popover, while an update is waiting.
 function News({ v }: { v: Version }) {
   if (!v.notes?.length) return null;
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button>What's new</Button>
+        <Button>What's in the update</Button>
       </PopoverTrigger>
       <PopoverContent className="w-[min(360px,calc(100vw-32px))] px-3.5 py-2.5 leading-normal">
         <ul className="mb-2 list-disc pl-[18px]">
@@ -92,47 +96,61 @@ export function UpdateBar() {
     if (v.update) queueMicrotask(() => go.current?.querySelector<HTMLElement>("#upd-go")?.focus());
   };
   const shown = msg || (ver ? (ver.behind ? behindMsg(ver) : `${name} ${ver.version}`) : name);
+  const hasNews = useWhatsNew((st) => !!st.data?.entry),
+    newsOpen = useWhatsNew((st) => cardOpen(st));
+  const newsBtn = hasNews && (
+    <Button id="wn-btn" aria-expanded={newsOpen} onClick={toggleWhatsNew}>
+      What's new
+    </Button>
+  );
   const checkBtn = (
     <Button id="upd-chk" disabled={checking} onClick={check}>
       {checking ? "Checking…" : label || "Check for updates"}
     </Button>
   );
   return (
-    <div className="mb-6">
-      <div className="mb-2 text-sm font-semibold text-strong">About</div>
-      <div
-        className={
-          upd
-            ? "relative flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary bg-[color-mix(in_srgb,var(--accent)_10%,var(--bg-2))] px-3.5 py-2.5 text-base"
-            : "flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card px-3.5 py-2.5 text-base text-strong"
-        }
-      >
-        {ver?.failed && (
-          <span role="alert" className="basis-full text-warning">
-            Last update failed: {ver.failed}
-          </span>
-        )}
-        {upd ? (
-          <>
-            <span>
-              {name} <b>{upd.latest}</b> is available. You are running {upd.version}.
+    <>
+      <div className="mb-6">
+        <div className="mb-2 text-sm font-semibold text-strong">About</div>
+        <div
+          className={
+            upd
+              ? "relative flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary bg-[color-mix(in_srgb,var(--accent)_10%,var(--bg-2))] px-3.5 py-2.5 text-base"
+              : "flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card px-3.5 py-2.5 text-base text-strong"
+          }
+        >
+          {ver?.failed && (
+            <span role="alert" className="basis-full text-warning">
+              Last update failed: {ver.failed}
             </span>
-            <span ref={go} className="flex items-center gap-2">
-              <News v={upd} />
-              {checkBtn}
-              <UpdateButton v={upd} label={`Update ${name}`} />
-            </span>
-          </>
-        ) : (
-          <>
-            <span id="upd-msg" aria-live="polite">
-              {shown}
-            </span>
-            {checkBtn}
-          </>
-        )}
+          )}
+          {upd ? (
+            <>
+              <span>
+                {name} <b>{upd.latest}</b> is available. You are running {upd.version}.
+              </span>
+              <span ref={go} className="flex items-center gap-2">
+                <News v={upd} />
+                {newsBtn}
+                {checkBtn}
+                <UpdateButton v={upd} label={`Update ${name}`} />
+              </span>
+            </>
+          ) : (
+            <>
+              <span id="upd-msg" aria-live="polite">
+                {shown}
+              </span>
+              <span className="flex items-center gap-2">
+                {newsBtn}
+                {checkBtn}
+              </span>
+            </>
+          )}
+        </div>
       </div>
-    </div>
+      <WhatsNewCard />
+    </>
   );
 }
 

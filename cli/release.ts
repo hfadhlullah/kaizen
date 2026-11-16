@@ -32,6 +32,9 @@ export function summaryOf(subjects: string[]) {
 if (import.meta.main) {
   const args = process.argv.slice(2);
   const forced = ["patch", "minor", "major"].includes(args[0]) ? args.shift() : null;
+  // `--no-notes`: publish without a What's New entry for this version (the card then shows nothing for it).
+  const noNotes = args.includes("--no-notes");
+  if (noNotes) args.splice(args.indexOf("--no-notes"), 1);
   const pkg = JSON.parse(readFileSync("package.json", "utf8"));
   const tagged = (v: string) => sh(["git", "tag", "-l", `v${v}`]) !== "";
   const head = sh(["git", "log", "-1", "--format=%s"]);
@@ -50,6 +53,13 @@ if (import.meta.main) {
     }
     const level = forced ?? levelOf(log);
     const v = nextVersion(pkg.version, level);
+    // What's New (cli/whats-new.json) is written by hand: a version with no entry shows people nothing after they update, so the release
+    // stops here, before anything is changed, unless it is told it is fine.
+    const { hasEntry } = await import("./whats-new.ts");
+    if (!hasEntry(v) && !noNotes) {
+      console.error(`release: cli/whats-new.json has no entry for ${v}. Add one (highlights and fixes, newest first) and commit it, or run again with --no-notes.`);
+      process.exit(1);
+    }
     const summary = args.join(" ") || summaryOf(sh(["git", "log", "--reverse", "--format=%s", `${last}..HEAD`]).split("\n")) || "maintenance";
     writeFileSync("package.json", readFileSync("package.json", "utf8").replace(`"version": "${pkg.version}"`, `"version": "${v}"`));
     const note = ".kaizen/notes/Project/Release and testing.md";
