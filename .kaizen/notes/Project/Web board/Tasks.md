@@ -2,7 +2,7 @@
 description: The Tasks page, the task forms, inbox stamps and when a task retires
 tags: [project, web-board]
 sources: [web/pages/tasks-page.tsx, web/pages/task-page.tsx, web/components, web/lib, cli/tasks.ts, cli/task-results.ts, cli/task-service.ts, cli/state.ts, cli/web-tasks.test.ts, cli/tasks.test.ts, cli/task-results.test.ts]
-updated: 2026-11-14
+updated: 2026-11-16
 ---
 # Tasks
 
@@ -18,7 +18,7 @@ Result first: a file strip with thumbnails (`.tp-rail`) beside one large stage, 
 
 ## Actions and stuck states (2026-11-13)
 
-- `allowedActions()` in `cli/task-service.ts` is the one place that says which buttons a task may use (`accept` with an `acceptWhy`, `stop`, `resume`, `abandon`, `archive`, `delete`, `start`). `taskView()` adds it as `actions` (and `agentAlive` when given the hooks); `web/pages/task-page.tsx` only draws it, and `taskAction` refuses the rest, so page and server cannot disagree. Looks good is not offered while the run is live (still reviewing) or awaiting a decision.
+- `allowedActions()` in `cli/task-service.ts` is the one place that says which buttons a task may use (`accept` with an `acceptWhy`, `stop`, `resume`, `abandon`, `archive`, `delete`, `start`). `taskView()` adds it as `actions` (and `agentAlive` when given the hooks); `web/pages/task-page.tsx` only draws it, and `taskAction` refuses the rest, so page and server cannot disagree. The status line shows "Waiting for permission [Allow] [Deny]" while `agentAsking` (the board's reading of the agent's terminal, see Terminals → Waiting for permission and bypass) and the agent is alive; Allow types the first option (`1`), Deny presses Esc, through `POST /task` op `prompt`; the status line hides "the agent is planning" while it waits, and after a Deny says the agent is waiting for an instruction (type it in the message box). Looks good is not offered while the run is live (still reviewing) or awaiting a decision, with one exception: a run left at `review` with `awaiting` empty, the task holding a result, and its agent quiet for `QUIET_MS` (2 min, `hooks.idle`) or gone, counts as approvable (`leftInReview`), so Looks good comes back and sends the run's `approvals.review` approval through the `approve` hook (run 2026-11-16-ux-walkthrough: a Haiku agent stopped there and the task had no button).
 - `reconcile()` runs on every task read and repairs states that have no exit: `normalizePause` clears a pause or error on any status except stopping, interrupted and failed (the old "ready but paused" task); a `stopping` task with no live terminal becomes `interrupted`; one with a live terminal gets the kill sent again. `taskHooks.find` (`cli/web.ts`) finds the terminal of a run with no `launch.pty`; with none, Stop says the agent may still run outside the board.
 - Stop is a no-op unless a live run exists (or the agent is alive on a failed/interrupted task). Resume works from stopping. Abandon checks the revision first and does the kill and `abandonRun` inside the locked mutation; a done, abandoned or missing run counts as success and archives the task. Delete only before any run exists.
 - A refused result (unreceipted input, unconfirmed proposal, bad output) only adds a `result-refused` event; only a failed copy to disk (507) pauses and fails the task. A result that arrives while stopping or interrupted is saved and the stop stands.
@@ -59,7 +59,7 @@ three places, and each one settles the other two:
 - Question: task page reply, run panel footer (options + Reply, posting `/task` `message`;
   cards carry `task.question` from `/state`), or an answer typed to the agent, which sends
   task event `answered {text}`.
-- Result: task page Looks good (on a run awaiting `approvals.review`/`findings` it sends the
+- Result: task page Looks good (on a run awaiting `approvals.review`/`findings`, or left at `review` with nothing awaited and a quiet or gone agent, it sends the
   run's Approve through the `approve` hook; on a done run it records the run's acceptance),
   run panel Approve or Looks good, or `kaizen done --user-approved`. `reconcile` accepts a
   ready task whose run has a user acceptance written after the current result; the pump

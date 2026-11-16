@@ -1,8 +1,8 @@
 ---
 description: The kaizen command — a hub; its topics are the sub-notes below
 tags: [project, cli]
-sources: [cli/localsend.ts, cli/localsend.test.ts, cli/preflight.test.ts, cli/automations.test.ts, cli/computer.ts, cli/workers.test.ts, cli/install.ts, cli/stats.ts, cli/stats.test.ts, cli/state-set.test.ts, cli/install-unknown.test.ts, package.json]
-updated: 2026-11-09
+sources: [cli/look.ts, cli/settings.ts, cli/add-project.ts, cli/localsend.ts, cli/localsend.test.ts, cli/preflight.test.ts, cli/automations.test.ts, cli/computer.ts, cli/workers.test.ts, cli/install.ts, cli/stats.ts, cli/stats.test.ts, cli/state-set.test.ts, cli/install-unknown.test.ts, package.json]
+updated: 2026-11-16
 ---
 # CLI
 
@@ -31,3 +31,9 @@ The task subcommand exposes task show and validated structured task event public
 ## Explore state (2026-11-08)
 
 `kaizen state` accepts `stage=explore`, `awaiting=explore` and validates `explore_status=active|completed|skipped`. `kaizen stats` reports Explore time separately from Plan. The installed core `kaizen-explore` skill is discovered by the existing bundle scanner. `/kaizen explore` and `/kaizen skip-explore` are agent skill commands, not standalone shell subcommands.
+
+## The kaizen note in a project (2026-11-16)
+`writePointer(dir, agents, create)` in `cli/add-project.ts` writes the `## Kaizen workflow` section into a project's `CLAUDE.md`, and into `AGENTS.md` when a non-Claude agent is on PATH (`kaizen init`) or the file exists. Its skills paragraph is `OFFER`: when a plain message is what a kaizen skill does and the person did not name it, the agent offers the skill in one line and starts it only on a yes (`kaizen`, `kaizen-explore` for research and "should we X or Y", `kaizen-concept`, `kaizen-video`, `kaizen-deck`, `kaizen-book`, `kaizen-game`, the icebox); never for a question about how something works, an explanation, reading code or a one-line fix. `OFFER` has one copy; Home Chat's brief imports it. Re-running `kaizen init` replaces the old skills line, or an earlier wording of the rule that kaizen shipped (`PREVIOUS`; when `OFFER` changes, add its old text there so it reaches every project), with the current one, adds the paragraph when it is missing, and leaves a paragraph the person edited alone; in a folder already set up it only updates an existing section (`create: false`), never adds one. Only that section is touched: the rest of a user's file is kept byte for byte. The board's add-project paths (existing folder, new, clone, `notePointer` in `cli/web.ts`) call it too, and a folder that cannot be written still adds. Measured 2026-11-16 (`claude -p`, Haiku and Sonnet, run 2026-11-16-offer-skills): with the note 7 of 7 skill messages were offered and none started, a README question and a typo fix were not offered; without it 0 of 6. Before this, the upgrade in `kaizen init` never ran for a folder that already had `.kaizen/`.
+
+## Help and plain settings words (2026-11-16)
+`kaizen --help`, `-h` and `help` print the grouped list in `HELP` (`cli/install.ts`: Get started, Runs, Notes and ideas, Tools for you and your agents), one line for every word in `COMMANDS`; `cli/install-unknown.test.ts` fails when a command has no line, and an unknown first word still exits 1 with the same list. Before, `--help` fell through to the installer. The installer's last screen adds "Or open the board: kaizen web" (`nextSteps`, `cli/look.ts`). Settings rows carry `labels` (`PLAIN` in `cli/settings.ts`): the option names the board and the terminal screen show (Ask me, Automatic, Plan only, Review only; Separate agents, One session; Own agent, This session, Fresh agent; Yes, No; Same as main, Same as above; capitalised severities), while `config.yml` keeps the stored words (`approve`, `auto`, `full`, `lite`, `subagent`, `inline`, `ask`, `true`, `false`, `inherit`, `default`); a test fails when a label names a value the row does not have, or a hint reads like the config file (`auto_accept`, `subagent`, `inline`, `lite`, `true`, `false`). Hints name the option as shown, and an idle row says "No effect unless Agents per run is One session" (`optionLabel`).

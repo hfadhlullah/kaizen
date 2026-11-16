@@ -2,7 +2,7 @@
 description: What a kaizen run is, which files define it, and where its state lives
 tags: [project, workflow]
 sources: [skills/kaizen-explore, cli/roadmap.ts, cli/workers.ts, skills/kaizen, skills/kaizen-help, skills/kaizen-concept, skills/media, agents, commands, cli/worktree.ts, docs/guide.md]
-updated: 2026-11-09
+updated: 2026-11-16
 ---
 # Workflow
 
@@ -58,7 +58,7 @@ A land rebases first, resolves only `git.generated` paths, runs `git.land_check`
 
 ## Persistent Tasks (2026-11-08)
 
-Task-linked runs freeze task_id and task_policy in state before spawn; initial plan confirmation overrides saved auto defaults under both full and lite. The sanctioned state/done writers reject production before the current proposal confirmation. Source spec.md documents portable task ack/question/proposal/work/receipt/boundary/result events. The launch prompt supplies the current CLI and source protocol for older installed skill copies. Task feedback explicitly authorizes a linked follow-up after done/abandoned (the task-specific exception to the general follow-up question); never reopen finished runs. Task Looks good remains separate from run completion, git housekeeping and publication.
+Task-linked runs freeze task_id and task_policy in state before spawn; initial plan confirmation overrides saved auto defaults under both full and lite. The sanctioned state/done writers reject production before the current proposal confirmation. Source spec.md documents portable task ack/question/proposal/work/receipt/boundary/result events. The launch prompt supplies the current CLI and source protocol for older installed skill copies. Task feedback explicitly authorizes a linked follow-up after done/abandoned (the task-specific exception to the general follow-up question); never reopen finished runs. Task Looks good remains separate from run completion, git housekeeping and publication. Since 2026-11-16 the protocol tells the agent how a task-linked run ends after its result: `kaizen done <run>` with `approvals.review` off, `awaiting=approvals.review` with it on, never `review` with `awaiting` empty (the board offers Looks good there only after two quiet minutes).
 
 ## Notes
 <!-- yours: /kaizen docs never rewrites this section -->

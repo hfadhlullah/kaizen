@@ -16,6 +16,7 @@ The board is kaizen in a browser: you see every project's tasks and runs as card
 ## Topics
 - [[Web board/Layout and look]] — Side menu, sizes, the shared controls (button, icon button, switch, select), colour, theme, motion and the phone layout of the board
 - [[Web board/Home, chat and phone]] — Home and its chat, first-run onboarding, phone setup and the phone Home
+- [[Web board/Home chat agent]] — which agent Home Chat runs on, Claude's permissions in Chat, the skill offers
 - [[Web board/Settings]] — The Settings page: agents, models, skills, REA, desktop control, accounts, voice
 - [[Web board/Cards]] — Board cards and columns: order, compact done cards, the action button, search and add sheets
 - [[Web board/Tasks]] — The Tasks page, the task forms, inbox stamps and when a task retires
