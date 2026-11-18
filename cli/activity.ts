@@ -12,7 +12,8 @@ const one = (s: unknown, n = 90) => String(s ?? "").replace(/\s+/g, " ").trim().
 const redact = (s: string) => s.replace(/\b[\w-]*(?:KEY|TOKEN|SECRET|PASSWORD|PASSWD)[\w-]*=\S+/gi, "[hidden]").replace(/\b(Bearer|Basic)\s+\S+/gi, "$1 [hidden]");
 const rel = (p: unknown, cwd: string) => {
   const f = String(p ?? "");
-  const r = isAbsolute(f) && cwd ? relative(cwd, f) : f;
+  // A path inside the project reads the same on every system: forward slashes (Windows gives backslashes).
+  const r = isAbsolute(f) && cwd ? relative(cwd, f).replace(/\\/g, "/") : f;
   return one(r && !r.startsWith("..") ? r : f, 80);
 };
 
