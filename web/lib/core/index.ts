@@ -11,6 +11,7 @@ export * from "./notifier.ts";
 export * from "./store.ts";
 export * from "./term-handle.ts";
 export * from "./toast.ts";
+export * from "./use-phone.ts";
 export * from "./utils.ts";
 export * from "./motion.ts";
 export * from "./notices.ts";

@@ -11,7 +11,16 @@ export type TaskDecision = {
   details?: string;
   options?: string[];
 };
-export type TaskMessage = { id: string; role: string; text: string; type?: string; at?: number | string };
+export type TaskMessage = {
+  id: string;
+  role: string;
+  text: string;
+  type?: string;
+  at?: number | string;
+  agent?: string;
+};
+// One tool that worked on the task (the server reads it from the task's runs): working now, stopped, or finished.
+export type TaskAgent = { agent: string; name: string; state: "working" | "stopped" | "done"; current: boolean };
 export type TaskView = {
   id: string;
   dir: string;
@@ -37,6 +46,7 @@ export type TaskView = {
   agentAlive?: boolean;
   agentAsking?: boolean;
   runStage?: string;
+  agents?: TaskAgent[];
   // What the server allows now; the page draws this list and decides nothing itself.
   actions?: {
     accept: boolean;
@@ -132,3 +142,32 @@ export const closeActions = (t: TaskView) =>
 export const runIdsOf = (t: TaskView) => [
   ...new Set([...(t.runs ?? []).map((r) => (typeof r === "string" ? r : r.id)), ...(t.activeRun ? [t.activeRun] : [])]),
 ];
+
+// The words a person gave, without the board's own scaffolding: `#` marks, HTML comments, and a bare Request or Inbox heading.
+// A request as the board stored it, without the scaffolding the inbox added around the person's words.
+export function cleanRequest(raw = "") {
+  return raw
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/^\s*#+\s*Request\s*$/gim, "")
+    .replace(/^\s*#+\s*Inbox\b[\s\S]*$/im, "")
+    .trim();
+}
+export function cleanTitle(raw = "") {
+  const line = raw
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .split("\n")
+    .map((l) => l.replace(/^\s*#+\s*/, "").trim())
+    .find((l) => l && !/^(request|inbox)$/i.test(l));
+  return line ? line[0].toUpperCase() + line.slice(1, 160) : "";
+}
+export const taskTitle = (t: { title: string; goal?: string }) => cleanTitle(t.title) || cleanTitle(t.goal) || t.title;
+// How a tool is named on screen: its own name, else the word the run recorded.
+export const AGENT_NAMES: Record<string, string> = {
+  claude: "Claude",
+  codex: "Codex",
+  gemini: "Gemini",
+  agy: "Antigravity",
+  opencode: "OpenCode",
+  cursor: "Cursor",
+};
+export const agentName = (agent: string) => AGENT_NAMES[agent] ?? agent;

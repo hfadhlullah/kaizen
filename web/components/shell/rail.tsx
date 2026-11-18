@@ -113,9 +113,11 @@ export function Rail(p: { srcs?: ReactNode; before?: ReactNode }) {
         className="it ponly"
         href="/?view=device"
         view="device"
-        title="This computer's runs"
-        label="Runs"
-        icon="r-runs"
+        n={need}
+        title={tasksTitle}
+        aria={known ? tasksTitle : undefined}
+        label="Tasks"
+        icon="r-bulb"
       />
       <Item
         className="it ponly"

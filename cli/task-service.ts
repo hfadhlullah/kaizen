@@ -45,10 +45,26 @@ export function allowedActions(state:string,task:T.Task,hooks?:Hooks) {
     abandon:live||task.status==='stopping',archive:true,delete:!task.runIds.length&&!task.activeRun,
     start:task.status==='draft'&&!task.activeRun&&!task.currentResult&&!!task.project};
 }
+// The agents that worked on a task: one per tool across its runs, in the order first used. The run that is live says whether
+// its agent is working or stopped, the rest are done. A task whose runs name no agent shows none.
+const AGENT_NAMES:Record<string,string>={claude:'Claude',codex:'Codex',gemini:'Gemini',agy:'Antigravity',opencode:'OpenCode',cursor:'Cursor'};
+// A run's agent is written once at its start, so it is read once per run, not on every poll of the task list.
+const runAgents=new Map<string,string>();
+const agentOf=(state:string,id:string)=>{const k=state+'\0'+id,c=runAgents.get(k);if(c)return c;const a=parse(join(state,'runs',id,'state.json'))?.agent;if(typeof a==='string'&&a){runAgents.set(k,a);return a;}return '';};
+export function taskAgents(state:string,task:T.Task,live:boolean,alive:boolean) {
+  const out=new Map<string,{agent:string;name:string;state:'working'|'stopped'|'done';current:boolean}>();
+  for(const id of task.runIds){
+    const agent=agentOf(state,id);if(!agent)continue;
+    const current=live&&id===task.activeRun,was=out.get(agent);
+    out.set(agent,{agent,name:AGENT_NAMES[agent]??agent,state:current?(alive?'working':'stopped'):was&&was.state!=='done'?was.state:'done',current:current||!!was?.current});
+  }
+  return [...out.values()];
+}
 export function taskView(state:string,task:T.Task,hooks?:Hooks) {
   const p=T.taskProjection(task);
   const run=runState(state,task), finished=run&&(['done','abandoned'].includes(run.stage)||run.healed);
-  return {...task,actions:allowedActions(state,task,hooks),runStage:run&&!finished?String(run.stage??''):undefined,...(hooks?.asking?{agentAsking:!!(agentKey(state,task,hooks)&&hooks.asking(agentKey(state,task,hooks)!))}:{}),...(hooks?{agentAlive:!!(agentKey(state,task,hooks)&&hooks.alive(agentKey(state,task,hooks)!))}:{}),activeRun:finished&&['ready','accepted'].includes(task.status)?null:task.activeRun,projectName:task.project?.split(/[\\/]/).pop()??'Choose a project',dir:state,updatedAt:task.updated,attention:{category:p.filter,reason:p.reason,action:p.action},statusLabel:p.label,decision:!task.project?{id:'project',kind:'project',text:'Choose a named project for your saved goal.'}:task.pendingDecision,messages:task.events,runs:task.runIds,currentResultId:task.currentResult,acceptedResultId:task.acceptedResult};
+  const key=agentKey(state,task,hooks);
+  return {...task,agents:taskAgents(state,task,!!run&&!finished,!!(key&&hooks?.alive(key))),actions:allowedActions(state,task,hooks),runStage:run&&!finished?String(run.stage??''):undefined,...(hooks?.asking?{agentAsking:!!(agentKey(state,task,hooks)&&hooks.asking(agentKey(state,task,hooks)!))}:{}),...(hooks?{agentAlive:!!(agentKey(state,task,hooks)&&hooks.alive(agentKey(state,task,hooks)!))}:{}),activeRun:finished&&['ready','accepted'].includes(task.status)?null:task.activeRun,projectName:task.project?.split(/[\\/]/).pop()??'Choose a project',dir:state,updatedAt:task.updated,attention:{category:p.filter,reason:p.reason,action:p.action},statusLabel:p.label,decision:!task.project?{id:'project',kind:'project',text:'Choose a named project for your saved goal.'}:task.pendingDecision,messages:task.events,runs:task.runIds,currentResultId:task.currentResult,acceptedResultId:task.acceptedResult};
 }
 export function taskList(states:string[],hooks?:Hooks) {
   const tasks=states.flatMap(state=>T.listTasks(state).filter(t=>!t.archived).map(t=>taskView(state,reconcile(state,t,hooks),hooks)));
@@ -255,11 +271,12 @@ export function taskEvent(state:string,id:string,runId:string,event:any,operatio
   let preserving=false;
   try { return T.mutateTask(state,id,{revision:task.revision,opId:operationId},t=>{
     const run=runState(state,t);if(!run||run.task_id!==id)throw new T.TaskError('Run task identity does not match');
+    const agent=typeof run.agent==='string'?run.agent:undefined;
     if(event.type==='ack'){T.acknowledgeLaunch(t,String(event.launchId),runId,t.launch?.pty);}
-    else if(event.type==='reply'){T.addEvent(t,'assistant','reply',String(event.text??''));}
+    else if(event.type==='reply'){T.addEvent(t,'assistant','reply',String(event.text??''),undefined,agent);}
     else if(event.type==='question'||event.type==='proposal'){
       if(!event.text?.trim())throw new T.TaskError('Question/proposal text is required',400);
-      t.pendingDecision={id:randomUUID(),kind:event.type,text:String(event.text),run:runId,iteration:run.iteration??0,result:t.currentResult,...(event.details?{details:String(event.details)}:{}),...(Array.isArray(event.options)?{options:event.options.map(String)}:{})};t.status='waiting';t.safe=true;T.addEvent(t,'assistant',event.type,event.text);
+      t.pendingDecision={id:randomUUID(),kind:event.type,text:String(event.text),run:runId,iteration:run.iteration??0,result:t.currentResult,...(event.details?{details:String(event.details)}:{}),...(Array.isArray(event.options)?{options:event.options.map(String)}:{})};t.status='waiting';t.safe=true;T.addEvent(t,'assistant',event.type,event.text,undefined,agent);
       if(t.launch)t.launch.phase='acknowledged';
       if(event.type==='proposal')put(join(state,'runs',runId,'state.json'),{...run,awaiting:'approvals.plan',task_policy:{requirePlanConfirmation:true},task_confirmed:null});
     }else if(event.type==='approved'){
@@ -274,7 +291,7 @@ export function taskEvent(state:string,id:string,runId:string,event:any,operatio
       t.pendingDecision=null;t.safe=true;t.status='working';T.addEvent(t,'user','message',text+' (in the agent terminal)');
     }else if(event.type==='work'){
       if(run.task_policy?.requirePlanConfirmation&&!run.task_confirmed)throw new T.TaskError('Plan approval is required before the build');
-      t.safe=false;t.status='working';T.addEvent(t,'assistant','work',String(event.text??'Working on the task'));
+      t.safe=false;t.status='working';T.addEvent(t,'assistant','work',String(event.text??'Working on the task'),undefined,agent);
     }else if(event.type==='receipt'){T.acknowledgeInputs(t,event.inputIds??[],event.outcome==='failed'?'failed':'applied',event.error);}
     else if(event.type==='boundary'){T.safeBoundary(t,runId,String(event.text??'Work reached a safe boundary'));}
     else if(event.type==='result'){
@@ -283,8 +300,8 @@ export function taskEvent(state:string,id:string,runId:string,event:any,operatio
       preserving=true;const result=R.publishResult(state,id,{...event,runId,iteration:run.iteration??0,roots:[dirname(state),...(typeof run.worktree==='string'?[run.worktree]:[])],id:stableUuid(`${id}:${runId}:${operationId}`)});
       preserving=false;
       // A result that lands while the task is stopping is saved, but the stop stands.
-      if(['stopping','interrupted'].includes(t.status)){t.currentResult=result.id;t.acceptedResult=null;T.addEvent(t,'assistant','result',String(event.summary??event.title??'Result ready'));return;}
-      t.currentResult=result.id;t.acceptedResult=null;t.status='ready';t.safe=true;t.pendingDecision=null;t.queuePaused=false;t.error=undefined;if(t.launch)t.launch.phase='acknowledged';T.addEvent(t,'assistant','result',String(event.summary??event.title??'Result ready'));
+      if(['stopping','interrupted'].includes(t.status)){t.currentResult=result.id;t.acceptedResult=null;T.addEvent(t,'assistant','result',String(event.summary??event.title??'Result ready'),undefined,agent);return;}
+      t.currentResult=result.id;t.acceptedResult=null;t.status='ready';t.safe=true;t.pendingDecision=null;t.queuePaused=false;t.error=undefined;if(t.launch)t.launch.phase='acknowledged';T.addEvent(t,'assistant','result',String(event.summary??event.title??'Result ready'),undefined,agent);
     }else throw new T.TaskError('Unknown task event',400);
   }); } catch (error) {
     if(event.type==='result'){

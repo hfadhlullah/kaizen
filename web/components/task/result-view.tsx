@@ -31,7 +31,9 @@ export function ResultView({
         className="grid min-h-60 place-content-center justify-items-center gap-1.5 p-5 text-center text-muted-foreground"
       >
         <Spinner className="mb-1.5" />
-        <h3 className="font-semibold text-foreground">{alive === false ? "The agent is not running" : `The agent is ${VERB[stage ?? ""] ?? "working"}`}</h3>
+        <h3 className="font-semibold text-foreground">
+          {alive === false ? "The agent is not running" : `The agent is ${VERB[stage ?? ""] ?? "working"}`}
+        </h3>
         <p className="line-clamp-3 max-w-[52ch]">{working}</p>
       </div>
     );

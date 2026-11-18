@@ -2,7 +2,7 @@
 description: The Tasks page, the task forms, inbox stamps and when a task retires
 tags: [project, web-board]
 sources: [web/pages/tasks-page.tsx, web/pages/task-page.tsx, web/components, web/lib, cli/tasks.ts, cli/task-results.ts, cli/task-service.ts, cli/state.ts, cli/web-tasks.test.ts, cli/tasks.test.ts, cli/task-results.test.ts]
-updated: 2026-11-16
+updated: 2026-11-18
 ---
 # Tasks
 
@@ -11,6 +11,16 @@ Part of [[Web board]].
 ## React pages (2026-11-14)
 
 The Tasks list and the task page are React pages: `web/pages/tasks-page.tsx` and `task-page.tsx`, built from `web/components` and `web/ui`, with data and actions in `web/lib` (`hooks/use-tasks.ts`, `hooks/use-task.ts`, `store.ts`, `api.ts`, pure rules in `tasks.ts` and `task-results.ts`). The Board App (`web/pages/board/pages.tsx`) draws each into its container (`#tasksv`, `#taskpagev`) the first time its view opens (`Once`, from `lib/shell`'s `seen`, set by `go()` in `views.ts`). The old `tasks.ts`, `task-page.ts` and `task-results.ts` are gone. The same routes and payloads as before: `GET /tasks?all=1`, `GET /task?id=&dir=` (polled every 4 s and when the project changes), `POST /task` with `op, id, dir, operationId, revision`. A redraw is React's, so an open filter or "..." menu is never closed by a refresh and a click lands first time. The Tasks page docks the board's `#bq`, `#hx` and `#newtop` with `useDock` and puts them back on leaving; `#bq`/`#newtop` sit in `.kz-keep` slots so the reset leaves them alone. The "..." menu is `ActionMenu`; Delete and Abandon ask through `ConfirmDialog`. Details below that name `.tp-*` classes or `dock()` describe the same behaviour in its old files.
+
+## Task page redesign (2026-11-18)
+
+- The page (`web/pages/task-page.tsx`) is a title and four tabs on the left and the conversation on the right; a phone gets `web/components/task/task-phone.tsx` instead (`usePhone()` from `web/lib/core/use-phone.ts` picks). Both draw `useTaskPage` (`web/lib/task/use-task-page.ts`): the selected result, what the server allows (`t.actions?.stop`, `resume`), the ⋯ menu, the one send.
+- Title: `taskTitle()` (`web/lib/task/tasks.ts`) is the person's words without `# Request`, `# Inbox` and `<!-- added -->`; the page, the browser tab, the Tasks row and the side menu use it. `cleanRequest()` does the same to the first user message.
+- Tabs Plan, Result, Changes, Review (`web/lib/task/task-tabs.ts`): `tabFor` opens the one that needs the person (Plan while a decision waits or the agent plans, else Result) and moves there when that changes; `tabMarks` puts amber (waits on you), a ring (an agent works) or green (accepted) on it. Changes and Review read the latest run through `useTaskRun` (`GET /run/<id>?dir=`: plan, findings, git rows), read-only; fixing and committing stay in the run workspace.
+- The decision card (`DecisionBar` sections) sits in the Plan tab: neutral card, amber edge and "Waiting for your approval". "Detailed plan" is the agent's own `details` markdown through `PlanText`; the board's old `section h2` rule (a sticky bar) would catch a heading inside a card, so `plan-text.tsx` resets it.
+- Conversation: `conversationItems()` (`web/lib/task/conversation.ts`) turns events into messages, quiet lines (the plan waiting, a stop, an approval) and handoff dividers. The "Plan ready" line shows only while the newest proposal waits. The header holds the agent chip (`agent-chip.tsx`) with Resume or Stop; collapsing leaves a rail (`ConversationRail`, a div: the old CSS pins any `aside`).
+- Agents: `taskView().agents` (`cli/task-service.ts`) is one entry per tool across the task's runs (`state.json` `agent`), `working` or `stopped` for the live run, `done` for the rest. `addEvent` takes an optional `agent`, which `taskEvent` fills from the run for `reply`, `question`, `proposal`, `work` and `result`. A handoff divider appears between two assistant messages from different agents; nothing is written for it.
+- Phone: Tasks replaces Runs in the bottom bar (the route id stays `device`); `Runs()` in `phone-home.tsx` groups Needs you, Working, Not started, Done with each row's agent mark. The task screen has no tabs: the decision docks above the message box, "Detailed plan" and the result open in sheets.
 
 ## Task page layout (2026-11-11)
 

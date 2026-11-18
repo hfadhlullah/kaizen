@@ -1,6 +1,6 @@
 import type { ComponentProps } from "react";
 import { age, cn } from "@lib/core";
-import { dirName, taskStatus, type TaskView } from "@lib/task";
+import { dirName, taskStatus, taskTitle, type TaskView } from "@lib/task";
 import { StatusBadge } from "./status-badge.tsx";
 
 // One row of the Tasks list: marker, title and project, state and next step, age. `kb` is the keyboard's row.
@@ -17,7 +17,7 @@ export function TaskRow({ task, kb, ...props }: { task: TaskView; kb?: boolean }
     >
       <StatusBadge dot category={t.attention.category} />
       <span className="min-w-0">
-        <strong className="block break-words font-normal">{t.title}</strong>
+        <strong className="block break-words font-normal">{taskTitle(t)}</strong>
         <small className="mt-0.5 block break-words text-xs text-muted-foreground">
           {t.projectName || (t.dir ? dirName(t.dir) : "Project needed")}
           {t.currentResultId ? " · Result available" : ""}

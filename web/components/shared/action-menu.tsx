@@ -1,6 +1,13 @@
 import { Fragment, type ReactNode } from "react";
 import { cn } from "@lib/core";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, Icon } from "@web/ui";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  Icon,
+} from "@web/ui";
 import { IconButton } from "./icon-button.tsx";
 
 export type ActionItem = {
@@ -11,6 +18,7 @@ export type ActionItem = {
   icon?: string; // leads the row (the board's sprite)
   before?: boolean; // a separator above this row
   count?: number; // trails the row
+  hint?: string; // a second, quiet line under the label
   onSelect?: () => void;
 };
 // A "…" menu: an icon button, optional information above, then actions. Selecting an action closes it; a
@@ -20,6 +28,7 @@ export function ActionMenu({
   icon = "more",
   items,
   children,
+  footer,
   className,
   triggerClassName,
   size,
@@ -28,6 +37,7 @@ export function ActionMenu({
   icon?: string;
   items: ActionItem[];
   children?: ReactNode;
+  footer?: ReactNode; // quiet details under the actions
   className?: string;
   triggerClassName?: string;
   size?: "sm"; // the compact trigger a card carries
@@ -54,7 +64,12 @@ export function ActionMenu({
         {items.map((it) =>
           it.href ? (
             <DropdownMenuItem key={it.id} asChild>
-              <a href={it.href}>{it.label}</a>
+              <a href={it.href}>
+                <span className="flex min-w-0 flex-col">
+                  {it.label}
+                  {it.hint && <small className="truncate font-mono text-xs text-muted-foreground">{it.hint}</small>}
+                </span>
+              </a>
             </DropdownMenuItem>
           ) : (
             <Fragment key={it.id}>
@@ -70,6 +85,8 @@ export function ActionMenu({
             </Fragment>
           ),
         )}
+        {footer && (items.length > 0 || children) && <DropdownMenuSeparator />}
+        {footer}
       </DropdownMenuContent>
     </DropdownMenu>
   );

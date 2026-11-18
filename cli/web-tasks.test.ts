@@ -410,3 +410,20 @@ test('the page answers an agent waiting on a permission prompt, and refuses when
  // anything but yes is a Deny
  f.act(f.get(t),'prompt',{answer:'maybe'});expect(typed.at(-1)).toEqual([key,false]);
 });
+test('a task names its agents: one per tool across its runs, and a message carries its run\'s agent',()=>{
+ const f=flow();let t=f.confirmed();
+ const sf=join(f.state,'runs',t.activeRun!,'state.json');
+ writeFileSync(sf,JSON.stringify({...JSON.parse(readFileSync(sf,'utf8')),agent:'codex'}));
+ t=f.ev(t,{type:'reply',text:'hello'});
+ expect(f.get(t).events.at(-1)).toMatchObject({role:'assistant',type:'reply',agent:'codex'});
+ expect(f.get(t).events.find(e=>e.role==='user')?.agent).toBeUndefined();
+ expect(taskView(f.state,f.get(t),f.hooks).agents).toEqual([{agent:'codex',name:'Codex',state:'working',current:true}]);
+ // An earlier run by another tool comes first and is done; a stopped live agent says so.
+ mkdirSync(join(f.state,'runs','older'),{recursive:true});writeFileSync(join(f.state,'runs','older','state.json'),JSON.stringify({id:'older',agent:'claude',stage:'done'}));
+ f.edit(t,x=>{x.runIds.unshift('older');});f.live.clear();
+ expect(taskView(f.state,f.get(t),f.hooks).agents).toEqual([
+  {agent:'claude',name:'Claude',state:'done',current:false},{agent:'codex',name:'Codex',state:'stopped',current:true}]);
+ // No run, no agents.
+ f.edit(t,x=>{x.runIds=[];x.activeRun=null;});
+ expect(taskView(f.state,f.get(t),f.hooks).agents).toEqual([]);
+});

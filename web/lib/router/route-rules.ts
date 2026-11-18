@@ -16,7 +16,8 @@ export function resolveView(name: string | null | undefined, phone: boolean): Vi
 export const viewOf = (search: string, phone: boolean) => resolveView(new URLSearchParams(search).get("view"), phone);
 // The view a page opens on. Only the board's own address names a view, wherever the board is served (at "/" or under a
 // prefix): the Notebook page (<html data-kit>) lights the Board icon, as it always did.
-export const startView = (search: string, phone: boolean, notebook: boolean): View => (notebook ? "board" : viewOf(search, phone));
+export const startView = (search: string, phone: boolean, notebook: boolean): View =>
+  notebook ? "board" : viewOf(search, phone);
 
 // The classes on <body> that show one page area and its header buttons (web/ui/legacy/board.css keys on them).
 export function bodyClasses(v: View, phone: boolean) {
@@ -47,7 +48,7 @@ const TITLES: Record<string, string> = {
   run: "Run",
   terminal: "Terminal",
   chat: "Chat",
-  device: "Runs",
+  device: "Tasks",
 };
 // Home reads Chat on a computer and shows the wordmark on a phone (the header's title is the logo there).
 export const viewTitle = (v: View, phone: boolean) =>
@@ -84,7 +85,13 @@ export function runOf(search: string): RunRoute | null {
 // A link from a note (?run= or ?idea=, with dir, tab, item) names a card to open in the panel, on one of its tabs, a finding or
 // backlog item marked. null: the address is not one (a workspace address, ?view=run&idea=, is the run view's own). An item's
 // tab is its own when the link names none; `work` is the Work tab's old name.
-export type Deep = { dir: string | null; run: string | null; idea: string | null; tab: string; item: { type: "finding" | "backlog"; n: number } | null };
+export type Deep = {
+  dir: string | null;
+  run: string | null;
+  idea: string | null;
+  tab: string;
+  item: { type: "finding" | "backlog"; n: number } | null;
+};
 export function deepOf(search: string): Deep | null {
   const p = new URLSearchParams(search),
     run = p.get("run"),
@@ -92,5 +99,11 @@ export function deepOf(search: string): Deep | null {
   if ((!run && idea === null) || p.get("view") === "run") return null;
   const m = /^(finding|backlog)-(\d+)$/.exec(p.get("item") || ""),
     n = p.get("tab") || (m ? (m[1] === "finding" ? "review" : "backlog") : "");
-  return { dir: p.get("dir"), run, idea, tab: n === "work" ? "impl" : n, item: m ? { type: m[1] as "finding" | "backlog", n: +m[2]! } : null };
+  return {
+    dir: p.get("dir"),
+    run,
+    idea,
+    tab: n === "work" ? "impl" : n,
+    item: m ? { type: m[1] as "finding" | "backlog", n: +m[2]! } : null,
+  };
 }

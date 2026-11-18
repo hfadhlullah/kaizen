@@ -6,7 +6,7 @@ import { randomUUID, createHash } from "node:crypto";
 
 export type InputState = "received" | "queued" | "dispatched" | "applied" | "failed";
 export type TaskInput = { id: string; text: string; intent: "change" | "answer" | "status"; at: number; state: InputState; baseResult: string | null; baseRun: string | null; error?: string };
-export type TaskEvent = { id: string; at: number; role: "user" | "assistant" | "system"; type: string; text: string; inputIds?: string[] };
+export type TaskEvent = { id: string; at: number; role: "user" | "assistant" | "system"; type: string; text: string; inputIds?: string[]; agent?: string };
 export type TaskDecision = { id: string; kind: "question" | "proposal" | "rebase"; text: string; run: string | null; iteration: number; result: string | null; options?: string[]; summary?: string; details?: string; runRevision?: number };
 export type TaskLaunch = { id: string; run: string | null; inputIds: string[]; phase: "intent" | "started" | "acknowledged" | "interrupted"; at: number; pty?: string };
 export type Task = {
@@ -128,8 +128,9 @@ export function transferDraft(state: string, id: string, destination: string, pr
     return target;
   });
 }
-export function addEvent(task: Task, role: TaskEvent["role"], type: string, text: string, inputIds?: string[]) {
-  task.events.push({ id: randomUUID(), at: Date.now(), role, type, text, ...(inputIds ? { inputIds } : {}) });
+// `agent` names the tool that wrote an assistant message (the run's own agent), so the page can show who said what.
+export function addEvent(task: Task, role: TaskEvent["role"], type: string, text: string, inputIds?: string[], agent?: string) {
+  task.events.push({ id: randomUUID(), at: Date.now(), role, type, text, ...(inputIds ? { inputIds } : {}), ...(agent ? { agent } : {}) });
 }
 export function receiveInput(task: Task, input: { id: string; text: string; intent?: TaskInput["intent"]; baseResult: string | null; baseRun?: string | null }): TaskInput {
   const existing = task.inputs.find((i) => i.id === input.id); if (existing) return existing;

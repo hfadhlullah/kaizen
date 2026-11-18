@@ -72,7 +72,12 @@ function AgentCards() {
         </button>
       </div>
       {groups.length ? (
-        <div className={cn(groups.length > 2 ? "grid-rows-2" : "grid-rows-1", "-mx-4 grid snap-x snap-proximity auto-cols-[min(44vw,164px)] grid-flow-col gap-2 overflow-x-auto overscroll-x-contain scroll-px-4 px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden")}>
+        <div
+          className={cn(
+            groups.length > 2 ? "grid-rows-2" : "grid-rows-1",
+            "-mx-4 grid snap-x snap-proximity auto-cols-[min(44vw,164px)] grid-flow-col gap-2 overflow-x-auto overscroll-x-contain scroll-px-4 px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+          )}
+        >
           {groups.map((g) => {
             const { a, st } = g.rows[0]!;
             return (
@@ -92,11 +97,7 @@ function AgentCards() {
                   {g.rows.length > 1 ? g.rows.length + " agents" : WORD[st]}
                   <span className="ml-auto flex gap-1">
                     {g.rows.map((r, i) => (
-                      <Icon
-                        key={i}
-                        name={agentMark(r.a.agent || "")}
-                        className="size-4 flex-none"
-                      />
+                      <Icon key={i} name={agentMark(r.a.agent || "")} className="size-4 flex-none" />
                     ))}
                   </span>
                 </span>
@@ -117,6 +118,9 @@ function AgentCards() {
 function RunRow({ c, now }: { c: any; now: number }) {
   const data = useRailData(),
     name = projName(c.state, data.projects);
+  // The agent on this row: the one working a task now, else the card's own.
+  const task = taskForCard(c, data.tasks),
+    mark = task?.agents?.find((a) => a.current)?.agent ?? task?.agents?.at(-1)?.agent ?? c.agent;
   const open = (e: MouseEvent) => {
     if (!plain(e)) return;
     e.preventDefault();
@@ -149,6 +153,7 @@ function RunRow({ c, now }: { c: any; now: number }) {
           {subline(c, now, taskForCard(c, data.tasks))}
         </code>
       </span>
+      {mark && <Icon name={agentMark(mark)} className="mt-1 size-4 flex-none" />}
     </a>
   );
 }
@@ -237,12 +242,12 @@ function Home() {
         )}
         {!net.tailscale && <Note>Tailscale is off on this computer: other devices do not show.</Note>}
       </Section>
-      <Section title="Runs">
+      <Section title="Tasks">
         <div className="flex flex-col">
           {recentRuns(data.cards).map((c, i) => (
             <RunRow key={i + c.state + rowKey(c)} c={c} now={now} />
           ))}
-          {!recentRuns(data.cards).length && <Note>No runs yet.</Note>}
+          {!recentRuns(data.cards).length && <Note>No tasks yet.</Note>}
         </div>
       </Section>
       {usage.length > 0 && (
@@ -263,7 +268,7 @@ function Group({ title, cards, shut }: { title: string; cards: any[]; shut?: boo
   if (!cards.length) return null;
   return (
     <details open={!shut} className="group mt-1.5">
-      <summary className="flex cursor-pointer list-none items-center gap-2 px-1 pt-3 pb-1.5 text-[11px] font-semibold tracking-[.06em] text-muted-foreground uppercase [&::-webkit-details-marker]:hidden">
+      <summary className="flex cursor-pointer list-none items-center gap-2 px-1 pt-3 pb-1.5 text-[13px] font-medium text-muted-foreground [&::-webkit-details-marker]:hidden">
         <span className="size-1.5 -rotate-45 border-r-[1.5px] border-b-[1.5px] border-current motion-safe:transition-transform group-open:rotate-45" />
         {title}
         <span>{cards.length}</span>
@@ -284,14 +289,14 @@ function Runs() {
     <>
       <Button asChild>
         <a href="?view=tasks" onClick={(e) => plain(e) && (e.preventDefault(), host.go("tasks", true))}>
-          All tasks and results
+          Search and filter tasks
         </a>
       </Button>
-      <Group title="Waiting on you" cards={g.wait} />
-      <Group title="Active" cards={g.active} />
-      <Group title="Tasks" cards={g.tasks} />
+      <Group title="Needs you" cards={g.wait} />
+      <Group title="Working" cards={g.active} />
+      <Group title="Not started" cards={g.tasks} />
       <Group title="Done" cards={g.done} shut />
-      {g.none && <Note>No runs yet.</Note>}
+      {g.none && <Note>No tasks yet.</Note>}
     </>
   );
 }

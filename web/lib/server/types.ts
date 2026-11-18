@@ -26,6 +26,7 @@ export type RailTask = {
   runIds?: string[];
   legacy?: { kind: string; id?: string; index?: number };
   attention: { category: string; reason: string; action: string };
+  agents?: { agent: string; state: string; current: boolean }[]; // the tools that worked on it, from its runs
 };
 // What the side menu and the phone's pages draw (/state?all=1 and /tasks?all=1).
 export type RailData = { cards: any[]; projects: any[]; agents: Agent[]; tasks: RailTask[] | null };

@@ -23,6 +23,7 @@ import {
 import { useRoute } from "@lib/router";
 import { closeAllHome, homeTabs, showHomeWs, useHomeWs } from "@lib/home";
 import { useRailData, useServer } from "@lib/server";
+import { taskTitle } from "@lib/task";
 import { AgentChips } from "./agent-chips.tsx";
 
 // The Projects list of the side menu. Rows keep the board's own markup and classes (.pgrp, .proj, .wsc, .row.ws ...):
@@ -87,7 +88,7 @@ function TaskLink({ t }: { t: RailTask }) {
     >
       <span className={`si ${taskDot(t)}`} />
       <span>
-        <b>{t.title}</b>
+        <b>{taskTitle(t)}</b>
         <small>{t.attention.reason}</small>
       </span>
     </a>
@@ -96,7 +97,19 @@ function TaskLink({ t }: { t: RailTask }) {
 
 // Home is your own space outside any project, so its one row says that instead of the folder's name.
 export const HOME_TIP = "Your own space: chats and agent terminals that are not in a project. Add a project with +.";
-function WsRow({ dir, r, now, current, home }: { dir: string; r: RailRow; now: number; current: boolean; home?: boolean }) {
+function WsRow({
+  dir,
+  r,
+  now,
+  current,
+  home,
+}: {
+  dir: string;
+  r: RailRow;
+  now: number;
+  current: boolean;
+  home?: boolean;
+}) {
   return (
     <>
       <div className="wsr wsc">
@@ -144,7 +157,10 @@ function WsRow({ dir, r, now, current, home }: { dir: string; r: RailRow; now: n
 // × closes them all. Open or closed, the window speaks for itself; it opens with Ctrl+Alt+A or a Home row's +.
 function HomeTerms() {
   const h = useHomeWs(),
-    n = homeTabs(useServer((x) => x.shells), h.ending).length;
+    n = homeTabs(
+      useServer((x) => x.shells),
+      h.ending,
+    ).length;
   if (!n || h.st !== "min") return null;
   return (
     <span className="hterm">
@@ -245,7 +261,14 @@ function Group({
       {!g.shut && (
         <div className="pws">
           {g.rows.map((r) => (
-            <WsRow key={r.path} dir={g.dir} r={r} now={now} current={cur.dir === g.dir && cur.ws === r.path} home={g.home && r.w.main} />
+            <WsRow
+              key={r.path}
+              dir={g.dir}
+              r={r}
+              now={now}
+              current={cur.dir === g.dir && cur.ws === r.path}
+              home={g.home && r.w.main}
+            />
           ))}
         </div>
       )}

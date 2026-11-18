@@ -4,14 +4,23 @@ import type { PlanQuestion } from "@lib/decision";
 import { need, toast } from "@lib/core";
 import { APPROVAL } from "@lib/run";
 import { dirName, type TaskDecision, type TaskPageData } from "@lib/task";
-import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@web/ui";
+import {
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@web/ui";
 import { Field, Picker } from "@components/shared";
+import { PlanText } from "./plan-text.tsx";
 import { InlineForm } from "./inline-form.tsx";
 import { PlanAnswersForm } from "./plan-answers-form.tsx";
 import { ReviseForm } from "./revise-form.tsx";
 import { TaskReplyForm } from "./task-reply-form.tsx";
 
-const box = "mb-3 rounded-sm border border-[color:color-mix(in_srgb,var(--warn)_50%,var(--line))] p-3";
+// What waits on the person: a neutral card with an amber edge, the same amber as the Plan tab's dot.
+const box = "mb-3 rounded-lg border border-warning/55 bg-card p-4";
 type Choice = { projectDir: string } | { name: string };
 // What the agent is waiting on, with its one way forward. One component for both places that ask: the task page
 // draws it as sections (say which project the task belongs to, approve a plan, pick an answer), and the run panel's
@@ -44,6 +53,7 @@ type StripProps = {
   questions: PlanQuestion[] | null; // the plan's questions; null when the plan has some the board cannot read
   sourceControl: boolean; // git work is left on a finished run: point at the Source control tab
   actions: RunActions;
+  framed?: boolean; // in the run workspace: what waits on the person is the amber card, as on the task page
 };
 type SectionProps = {
   layout?: "section";
@@ -54,6 +64,8 @@ type SectionProps = {
   onApprove: (decisionId: string) => void;
   onAnswer: (text: string) => void;
   onProject: (choice: Choice) => void;
+  onAsk?: () => void; // Ask for changes: the page takes the person to its message box
+  onDetails?: (text: string) => void; // a phone opens the detailed plan in a sheet; without it the plan opens in place
 };
 // A question's options as buttons: one press is the answer.
 function QuestionOptions({
@@ -71,7 +83,17 @@ function QuestionOptions({
     </Button>
   ));
 }
-function TaskSections({ decision, needsProject, projects = [], pending, onApprove, onAnswer, onProject }: SectionProps) {
+function TaskSections({
+  decision,
+  needsProject,
+  projects = [],
+  pending,
+  onApprove,
+  onAnswer,
+  onProject,
+  onAsk,
+  onDetails,
+}: SectionProps) {
   const [dir, setDir] = useState("");
   const d = decision && decision.kind !== "project" ? decision : null;
   return (
@@ -109,33 +131,44 @@ function TaskSections({ decision, needsProject, projects = [], pending, onApprov
       )}
       {d && (
         <section className={box} aria-labelledby="decision-title">
-          <h3 id="decision-title" className="mb-2 text-base font-semibold">
+          <p className="flex items-center gap-1.5 text-sm text-warning">
+            <i className="size-2 rounded-full bg-warning" />
+            {d.kind === "proposal" ? "Waiting for your approval" : "Waiting for your answer"}
+          </p>
+          <h3 id="decision-title" className="mb-1 mt-1.5 text-[17px] font-semibold leading-snug">
             {d.kind === "proposal" ? "Approve the plan" : "Your answer is needed"}
           </h3>
-          <p className="my-2 whitespace-pre-wrap break-words">{d.summary || d.text}</p>
-          {d.summary && d.text !== d.summary && <p className="my-2 whitespace-pre-wrap break-words">{d.text}</p>}
-          {d.details && (
-            <details>
-              <summary className="cursor-pointer">Detailed plan</summary>
-              <pre className="max-h-[520px] overflow-auto whitespace-pre-wrap break-words bg-background p-3 font-mono text-sm">
-                {d.details}
-              </pre>
-            </details>
-          )}
-          {d.kind === "proposal" ? (
-            <>
-              <Button variant="primary" className="mt-2" disabled={pending} onClick={() => onApprove(d.id)}>
+          <p className="my-1.5 whitespace-pre-wrap break-words">{d.summary || d.text}</p>
+          {d.summary && d.text !== d.summary && <p className="my-1.5 whitespace-pre-wrap break-words">{d.text}</p>}
+          {d.kind === "proposal" && (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Button variant="primary" disabled={pending} onClick={() => onApprove(d.id)}>
                 Approve plan
               </Button>
-              <p className="my-2 text-muted-foreground">
-                The build starts after you approve this plan. Ask for changes below if needed.
-              </p>
-            </>
-          ) : d.options?.length ? (
-            <div className="flex flex-wrap gap-1.5">
+              {onAsk && <Button onClick={onAsk}>Ask for changes</Button>}
+              {!onDetails && <span className="text-sm text-muted-foreground">The build starts after you approve.</span>}
+            </div>
+          )}
+          {d.kind !== "proposal" && !!d.options?.length && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
               <QuestionOptions options={d.options} onPick={onAnswer} />
             </div>
-          ) : null}
+          )}
+          {d.details &&
+            (onDetails ? (
+              <button
+                type="button"
+                className="mt-2 py-1 text-sm text-muted-foreground"
+                onClick={() => onDetails(d.details!)}
+              >
+                Detailed plan ›
+              </button>
+            ) : (
+              <details className="mt-3 text-muted-foreground">
+                <summary className="cursor-pointer text-sm">Detailed plan</summary>
+                <PlanText text={d.details} className="mt-3 text-foreground" />
+              </details>
+            ))}
         </section>
       )}
     </>
@@ -143,7 +176,7 @@ function TaskSections({ decision, needsProject, projects = [], pending, onApprov
 }
 
 // The run panel's footer: its note, the buttons that fit the run's state, and the forms they open in its place.
-function RunStrip({ card: c, answered, questions, sourceControl, actions: a }: Omit<StripProps, "layout">) {
+function RunStrip({ card: c, answered, questions, sourceControl, actions: a, framed }: Omit<StripProps, "layout">) {
   const [mode, setMode] = useState<"idle" | "revise" | "answers" | "reply">("idle"),
     [busy, setBusy] = useState("");
   // A pressed button waits for the run to move on; a new state or question starts afresh.
@@ -409,9 +442,27 @@ function RunStrip({ card: c, answered, questions, sourceControl, actions: a }: O
         ) : null}
       </>
     );
+  // What waits on the person is the same neutral card with an amber edge as on the task page.
+  const waits =
+    !!framed &&
+    c.kind !== "idea" &&
+    !c.archived &&
+    !q &&
+    (c.status === "waiting" || c.awaiting === "findings") &&
+    !!APPROVAL[c.awaiting ?? ""];
   return (
     <>
-      {body}
+      {waits ? (
+        <div className="flex basis-full flex-wrap items-center gap-2 rounded-lg border border-warning/55 bg-card p-3">
+          <span className="flex basis-full items-center gap-1.5 text-sm text-warning">
+            <i className="size-2 rounded-full bg-warning" />
+            Waiting for your approval
+          </span>
+          {body}
+        </div>
+      ) : (
+        body
+      )}
       {c.stage === "explore" && (
         <Button data-a="skip-explore" disabled={busy === "skip"} onClick={() => void go("skip", a.skipExplore)}>
           Skip Explore
