@@ -2024,6 +2024,20 @@ type Unpushed = { sha: string; at: number; subject: string; files: string[] };
 
 const noRemote = (s: { failed?: boolean }) => (s.failed ? "git did not answer. Try again." : "This project has no git remote.");
 
+// "Ahead" counts against the local copy of the remote branch, which only a fetch moves: a push made
+// another way (a URL, another clone, GitHub's web UI) would read "Not pushed yet" until then. So each
+// status starts a quiet fetch in the background, at most once a minute per folder; the next read sees it.
+const FETCH_MS = 60_000;
+const fetched = new Map<string, number>();
+function fetchSoon(dir: string, remote: string) {
+  const now = Date.now();
+  if (now - (fetched.get(dir) ?? 0) < FETCH_MS) return;
+  fetched.set(dir, now);
+  // BatchMode: a key with a passphrase fails quietly instead of popping an askpass window every minute.
+  const env = { ...gitOpts().env, GIT_SSH_COMMAND: process.env.GIT_SSH_COMMAND || "ssh -o BatchMode=yes" };
+  try { Bun.spawn(["git", "-C", dir, "fetch", "-q", "--no-tags", remote], { ...gitOpts(), env, stdout: "ignore", stderr: "ignore" }); } catch {}
+}
+
 // A project the board can commit for: a git work tree with somewhere to push.
 export function gitStatus(projectDir: string): GitStatus {
   // Only git's own answer (exit 128) means no repo: a killed or missing git says nothing about the folder.
@@ -2031,6 +2045,7 @@ export function gitStatus(projectDir: string): GitStatus {
   if (!inside.ok) return (inside as { code?: number | null }).code === 128 ? { repo: false } : { repo: false, failed: true };
   const remote = git(projectDir, "remote").out.split("\n")[0] ?? "";
   if (!remote) return { repo: false };
+  fetchSoon(projectDir, remote);
   // Every untracked file on its own line: a new directory is never committed whole.
   const st = git(projectDir, "status", "--porcelain", "--untracked-files=all").out;
   // No upstream yet means nothing of this branch is on the remote: any commit is ahead.

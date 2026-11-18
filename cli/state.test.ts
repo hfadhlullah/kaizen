@@ -503,6 +503,28 @@ test("boardCards: the done column is newest-moved first, the rest keep their pla
   expect(ids).toEqual(["2026-09-05-e", "2026-09-04-d", "2026-09-01-a", "2026-09-03-c", "2026-09-02-b"]);
 });
 
+test("gitStatus: a push made outside the tracking ref is seen after the background fetch", async () => {
+  const root = mkdtempSync(join(tmpdir(), "kz-fetch-"));
+  const sh = (cwd: string, ...a: string[]) => Bun.spawnSync(["git", "-C", cwd, ...a]).stdout.toString().trim();
+  const bare = join(root, "remote.git"), proj = join(root, "proj");
+  Bun.spawnSync(["git", "init", "-q", "--bare", "-b", "main", bare]);
+  Bun.spawnSync(["git", "init", "-q", "-b", "main", proj]);
+  for (const kv of [["user.name", "t"], ["user.email", "t@t"], ["commit.gpgsign", "false"], ["core.hooksPath", "/dev/null"]]) sh(proj, "config", ...kv);
+  sh(proj, "remote", "add", "origin", bare);
+  writeFileSync(join(proj, "a.txt"), "a");
+  sh(proj, "add", "a.txt"); sh(proj, "commit", "-qm", "a");
+  sh(proj, "push", "-q", "-u", "origin", "main");
+  writeFileSync(join(proj, "b.txt"), "b");
+  sh(proj, "add", "b.txt"); sh(proj, "commit", "-qm", "b");
+  sh(proj, "push", "-q", "file://" + bare, "main");     // by another URL: origin/main stays behind
+  expect((gitStatus(proj) as any).ahead).toBe(1);        // the stale read, and the fetch it starts
+  let ahead = 1;
+  for (let i = 0; i < 50 && ahead; i++) { await Bun.sleep(100); ahead = Number(sh(proj, "rev-list", "--count", "@{u}..HEAD")); }
+  expect(ahead).toBe(0);
+  expect((gitStatus(proj) as any).ahead).toBe(0);
+  rmSync(root, { recursive: true, force: true });
+});
+
 test("commitPush: commits the run's files only, pushes, and records it; the message never meets a shell", async () => {
   const root = mkdtempSync(join(tmpdir(), "kz-git-"));
   const sh = (cwd: string, ...a: string[]) => Bun.spawnSync(["git", "-C", cwd, ...a]).stdout.toString().trim();

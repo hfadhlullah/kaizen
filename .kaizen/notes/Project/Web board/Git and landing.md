@@ -24,6 +24,7 @@ How the board commits, pushes and opens pull requests for a run, which files cou
 - A run with a recorded commit no longer claims a file edited after that commit (`runFiles`), and `cardsGit` judges a worktree run in its worktree, not the project folder.
 
 - What counts as a run's for Commit & push and the card's git mark is judged per run (`runGit` / `cardsGit`): a changed file is its only when its report is newer than the file's last commit (so a run committed by its agent is not offered edits other sessions made since), and it is ahead only by its own unpushed commits (`aheadBy`): each commit goes to one run — first by a unique SHA prefix recorded in `07-commit.md`, then by the report's commit subject as a line, else by the report naming most of its files, then by the last report — not by the branch being ahead.
+- `ahead` counts `@{u}..HEAD` against the local remote-tracking ref, so `gitStatus` (`cli/state.ts` `fetchSoon`) starts a quiet background `git fetch --no-tags` at most once a minute per folder (SSH in BatchMode, never an askpass window). A push made outside that ref (by URL, from another clone, on GitHub) stops reading *Not pushed yet* on the next snapshot instead of waiting for some other fetch.
 
 - A card field that needs git is added in the `/state` route (`cardsGit` in `cli/state.ts`), not in `boardCards()`: the terminal board calls `boardCards()` on every tick and its card order is pinned by a test. `cardsGit` and `gitBtn` in `web/html/board.html` hold the same rules twice; change both.
 
