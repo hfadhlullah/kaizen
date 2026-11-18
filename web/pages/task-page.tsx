@@ -4,17 +4,14 @@ import { ActionMenu, ConfirmDialog, EmptyState, IconButton } from "@components/s
 import {
   ChangesView,
   Composer,
-  Conversation,
-  ConversationRail,
   PlanView,
   ResultChecks,
   ResultView,
-  ReferenceFiles,
   ReviewView,
   SavedResults,
   TaskPhone,
+  TaskPanel,
   TaskTabs,
-  Thread,
   type TabItem,
 } from "@components/task";
 import { DecisionBar } from "@components/decision";
@@ -35,7 +32,7 @@ import {
   type TaskPageData,
   type TaskView,
 } from "@lib/task";
-import { host, useStore, cn, usePhone } from "@lib/core";
+import { host, useStore, usePhone } from "@lib/core";
 import { Button } from "@web/ui";
 
 const ACCEPT_HINT = "Accepting a result does not publish it. A preview alone does not prove that a backend works.";
@@ -127,15 +124,16 @@ function Permission({ t, m }: { t: TaskView; m: TaskModel }) {
   );
 }
 function DesktopLoaded({ page, t }: { page: TaskPageData; t: TaskView }) {
-  const [drawer, setDrawer] = useState<boolean | null>(null);
-  const m = useTaskPage(page, t, () => setDrawer(true));
+  const [drawer, setDrawer] = useState<boolean | null>(null),
+    [chatTick, setChatTick] = useState(0);
+  const m = useTaskPage(page, t, () => (setDrawer(true), setChatTick((n) => n + 1)));
   const { run, loaded } = useTaskRun(t);
   const thread = useRef<HTMLDivElement>(null),
     items = conversationItems(t),
     showDrawer = drawer ?? true;
   useDocTitle(m.title);
   useEffect(() => {
-    const el = thread.current;
+    const el = thread.current?.parentElement;
     if (el) requestAnimationFrame(() => (el.scrollTop = el.scrollHeight));
   }, [items.length, showDrawer]);
   // The tab that needs the person opens by itself, and again when what needs them changes.
@@ -161,6 +159,7 @@ function DesktopLoaded({ page, t }: { page: TaskPageData; t: TaskView }) {
   ];
   const ask = () => {
     setDrawer(true);
+    setChatTick((n) => n + 1);
     requestAnimationFrame(() => m.input.current?.focus());
   };
   const dot = !showDrawer && !!(t.pendingDecision || t.inputs?.some((i) => i.state === "queued"));
@@ -192,7 +191,7 @@ function DesktopLoaded({ page, t }: { page: TaskPageData; t: TaskView }) {
     <div className="relative flex min-h-0 flex-1">
       <section
         aria-label="Task"
-        className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 max-md:data-[drawer=true]:hidden"
+        className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 pr-6 max-md:pr-0 max-md:data-[drawer=true]:hidden"
         data-drawer={showDrawer}
       >
         <header className="flex flex-none items-center gap-2.5 max-sm:flex-wrap">
@@ -312,51 +311,58 @@ function DesktopLoaded({ page, t }: { page: TaskPageData; t: TaskView }) {
           {tab === "review" && <ReviewView run={run} workspace={m.workspace} />}
         </div>
       </section>
-      <div
-        role="complementary"
-        aria-label="Conversation and requests"
-        className={cn(
-          "flex min-h-0 w-0 flex-none flex-col gap-1.5 overflow-hidden opacity-0 invisible transition-[width,margin,opacity] duration-300 motion-reduce:transition-none",
-          showDrawer &&
-            "visible ml-6 w-[380px] border-l border-border pl-5 opacity-100 max-md:ml-0 max-md:w-full max-md:border-l-0 max-md:pl-0",
-        )}
-      >
-        <Conversation
-          agents={t.agents ?? []}
-          stage={t.runStage}
-          controls={controls}
-          onCollapse={() => setDrawer(false)}
-          threadRef={thread}
-          body={
-            <>
-              <ReferenceFiles files={t.files} />
-              <Thread items={items} working={t.status === "working"} />
-              {m.queue.length > 0 && (
-                <div aria-label="Requests awaiting completion" className="mb-1.5 flex justify-end gap-1.5 px-1">
-                  {m.queue.map((i) => (
-                    <span key={i.id} title={`Receipt ${i.id.slice(0, 8)}`} className="text-xs text-warning">
-                      {i.state === "received" ? "Received" : "Queued for next pass"}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </>
-          }
-          footer={
-            <Composer
-              inputRef={m.input}
-              value={m.draft}
-              onChange={setDraft}
-              onSend={() => void m.send()}
-              pending={m.pending}
-              answering={t.decision?.kind === "question"}
-              help={m.help}
-              receipt={m.receipt}
-            />
-          }
-        />
-      </div>
-      {!showDrawer && <ConversationRail agents={t.agents ?? []} dot={dot} onOpen={() => setDrawer(true)} />}
+      <TaskPanel
+        t={t}
+        folded={!showDrawer}
+        onFold={(folded) => setDrawer(!folded)}
+        projectName={projectLabel(t, page.projects)}
+        controls={controls}
+        threadRef={thread}
+        dot={dot}
+        focusChat={chatTick}
+        after={
+          m.queue.length > 0 && (
+            <div aria-label="Requests awaiting completion" className="mb-1.5 flex justify-end gap-1.5 px-1">
+              {m.queue.map((i) => (
+                <span key={i.id} title={`Receipt ${i.id.slice(0, 8)}`} className="text-xs text-warning">
+                  {i.state === "received" ? "Received" : "Queued for next pass"}
+                </span>
+              ))}
+            </div>
+          )
+        }
+        footer={
+          <Composer
+            inputRef={m.input}
+            value={m.draft}
+            onChange={setDraft}
+            onSend={() => void m.send()}
+            pending={m.pending}
+            answering={t.decision?.kind === "question"}
+            help={m.help}
+            receipt={m.receipt}
+          />
+        }
+        actions={
+          <>
+            {m.menu.find((x) => x.id === "archive") && (
+              <Button size="sm" variant="ghost" onClick={() => m.menu.find((x) => x.id === "archive")?.onSelect?.()}>
+                Archive
+              </Button>
+            )}
+            {m.menu.find((x) => x.id === "abandon") && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-danger"
+                onClick={() => m.menu.find((x) => x.id === "abandon")?.onSelect?.()}
+              >
+                Abandon
+              </Button>
+            )}
+          </>
+        }
+      />
       <Confirm m={m} t={t} />
     </div>
   );

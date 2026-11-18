@@ -16,3 +16,4 @@ export * from "./project-mark.tsx";
 export * from "./segmented.tsx";
 export * from "./state-dot.tsx";
 export * from "./status-mark.tsx";
+export * from "./panel-frame.tsx";

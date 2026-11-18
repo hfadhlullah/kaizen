@@ -9,3 +9,4 @@ export * from "./use-saved-text.ts";
 export * from "./use-task.ts";
 export * from "./use-tasks.ts";
 export * from "./zoom.ts";
+export * from "./task-progress.ts";

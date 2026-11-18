@@ -16,3 +16,4 @@ export * from "./task-tabs.tsx";
 export * from "./task-phone.tsx";
 export * from "./reference-files.tsx";
 export * from "./saved-results.tsx";
+export * from "./task-panel.tsx";

@@ -444,3 +444,95 @@ test("the phone task renders for a waiting plan, a working agent and a finished 
   expect(richOut).toContain("Accepted. Publishing is a separate action.");
   expect(fin).toContain("Looks good");
 });
+
+import { taskProgress } from "@lib/task";
+import { PanelFrame, PanelProgress, PanelStrip } from "@components/shared";
+import { TaskPanel } from "./task-panel.tsx";
+test("the progress bar says what the task waits on, in steps", () => {
+  expect(
+    taskProgress(
+      task("g", "in-progress", {
+        status: "queued",
+        attention: { category: "in-progress", reason: "Queued", action: "" },
+      }),
+    ).word,
+  ).toBe("Queued");
+  expect(
+    taskProgress(task("a", "needs-you", { status: "waiting", decision: { id: "d", kind: "proposal", text: "p" } })),
+  ).toEqual({ word: "Plan, needs you", pct: 30, tone: "wait" });
+  expect(
+    taskProgress(task("a", "needs-you", { status: "waiting", decision: { id: "d", kind: "question", text: "q" } }))
+      .word,
+  ).toBe("Question, needs you");
+  expect(taskProgress(task("b", "in-progress", { status: "working", runStage: "build" }))).toEqual({
+    word: "Build",
+    pct: 62,
+    tone: "run",
+  });
+  expect(taskProgress(task("b", "in-progress", { status: "working", runStage: "review" })).pct).toBe(85);
+  expect(taskProgress(task("c", "completed", { status: "accepted" }))).toEqual({ word: "Done", pct: 100, tone: "ok" });
+  expect(taskProgress(task("d", "in-progress", { status: "draft" }))).toEqual({
+    word: "Not started",
+    pct: 0,
+    tone: "idle",
+  });
+  expect(taskProgress(task("e", "needs-you", { status: "ready", currentResultId: "r1" })).word).toBe("Ready for you");
+  expect(taskProgress(task("f", "in-progress", { status: "interrupted", runStage: "build" })).word).toBe(
+    "Build, stopped",
+  );
+});
+test("the panel frame draws header, body, foot and strip, and only the strip when folded", () => {
+  const open = html(
+    createElement(PanelFrame, {
+      label: "x",
+      header: createElement("i", null, "HEAD"),
+      body: createElement("i", null, "BODY"),
+      foot: createElement("i", null, "FOOT"),
+      strip: createElement("i", null, "STRIP"),
+    }),
+  );
+  for (const w of ["HEAD", "BODY", "FOOT", "STRIP"]) expect(open).toContain(w);
+  const shut = html(
+    createElement(PanelFrame, {
+      label: "x",
+      folded: true,
+      header: createElement("i", null, "HEAD"),
+      body: createElement("i", null, "BODY"),
+      strip: createElement("i", null, "STRIP"),
+    }),
+  );
+  expect(shut).toContain("STRIP");
+  expect(shut).not.toContain("HEAD");
+  const strip = html(
+    createElement(PanelStrip, {
+      items: [{ id: "chat", icon: "request", label: "Conversation", dot: true }],
+      active: "chat",
+      onPick: () => {},
+    }),
+  );
+  expect(strip).toContain("Hide the panel");
+  expect(html(createElement(PanelProgress, { word: "Build", pct: 62, tone: "run" }))).toContain("width:62%");
+});
+test("the task panel shows the task, its progress, the agent and the foot, and folds to the strip", () => {
+  const t = task("p", "needs-you", {
+    status: "waiting",
+    decision: { id: "d", kind: "proposal", text: "p" },
+    agents: [{ agent: "claude", name: "Claude", state: "stopped", current: true }],
+  });
+  const props = {
+    t,
+    folded: false,
+    onFold: () => {},
+    threadRef: { current: null },
+    footer: createElement("i", null, "BOX"),
+    actions: createElement("i", null, "ACTIONS"),
+    projectName: "proj",
+  };
+  const out = html(withTips(createElement(TaskPanel, props)));
+  for (const w of ["Plan, needs you", "proj", "Claude", "BOX", "ACTIONS", "Conversation"]) expect(out).toContain(w);
+  // A task missing from the list (a legacy task, the list not loaded) is still its own picker entry.
+  expect(out).toContain(t.title);
+  const folded = html(withTips(createElement(TaskPanel, { ...props, folded: true })));
+  expect(folded).toContain("Conversation, collapsed");
+  expect(folded).not.toContain("BOX");
+});

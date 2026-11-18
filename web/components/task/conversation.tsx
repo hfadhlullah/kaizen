@@ -1,8 +1,5 @@
-import type { ReactNode, RefObject } from "react";
 import { cn } from "@lib/core";
-import { agentName, type ConversationItem, type TaskAgent, type TaskView } from "@lib/task";
-import { IconButton } from "@components/shared";
-import { AgentChip } from "./agent-chip.tsx";
+import { agentName, type ConversationItem } from "@lib/task";
 import { AgentMark } from "./agent-mark.tsx";
 import { ChatBubble } from "./chat-bubble.tsx";
 import { TypingDots } from "./typing-dots.tsx";
@@ -63,68 +60,6 @@ export function Thread({ items, working }: { items: ConversationItem[]; working?
         ),
       )}
       {working && <TypingDots />}
-    </div>
-  );
-}
-// The desktop conversation: the agent chip with Resume or Stop beside it and the collapse button, the thread, and the
-// message box at the foot. `controls` are those buttons, drawn by the page that owns the actions.
-export function Conversation({
-  agents,
-  stage,
-  controls,
-  onCollapse,
-  threadRef,
-  body,
-  footer,
-}: {
-  agents: TaskAgent[];
-  stage?: string;
-  controls?: ReactNode;
-  onCollapse: () => void;
-  threadRef: RefObject<HTMLDivElement | null>;
-  body: ReactNode;
-  footer: ReactNode;
-}) {
-  return (
-    <>
-      <header className="flex min-h-10 min-w-[340px] flex-none items-center gap-2 max-md:min-w-0">
-        <h2 className="mr-auto text-base font-semibold text-strong">
-          {agents.length ? <AgentChip agents={agents} stage={stage} /> : "Conversation"}
-        </h2>
-        {controls}
-        <IconButton icon="side" label="Collapse the conversation" onClick={onCollapse} />
-      </header>
-      <div
-        ref={threadRef}
-        className="min-h-0 min-w-[340px] flex-1 overflow-auto max-md:min-w-0 [scrollbar-gutter:stable]"
-      >
-        {body}
-      </div>
-      <div className="min-w-[340px] flex-none pb-1 max-md:min-w-0">{footer}</div>
-    </>
-  );
-}
-// What is left of the conversation when it is collapsed: the same button, and the agents on the task under it. Pressing
-// either opens it again. An amber dot says something waits there. A div, not an aside: the board's old CSS pins every aside.
-export function ConversationRail({ agents, dot, onOpen }: { agents: TaskAgent[]; dot?: boolean; onOpen: () => void }) {
-  return (
-    <div
-      role="complementary"
-      aria-label="Conversation, collapsed"
-      className="flex w-12 flex-none flex-col items-center gap-3.5 border-l border-border py-2.5"
-    >
-      <IconButton icon="side" label="Expand the conversation" aria-expanded={false} onClick={onOpen}>
-        {dot && (
-          <i className="absolute right-[5px] top-[5px] size-2 rounded-full bg-warning shadow-[0_0_0_2px_var(--bg)]" />
-        )}
-      </IconButton>
-      {!!agents.length && (
-        <button type="button" aria-label="Open the conversation" onClick={onOpen} className="flex flex-col gap-2">
-          {agents.slice(0, 3).map((a) => (
-            <AgentMark key={a.agent} agent={a.agent} live={a.state === "working"} />
-          ))}
-        </button>
-      )}
     </div>
   );
 }
