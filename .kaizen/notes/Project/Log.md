@@ -382,5 +382,3 @@ updated: 2026-11-16
 - 2026-11-16 run 2026-11-16-permission-prompt — Web board/Terminals, Tasks: the board recognises Claude's read-outside-the-folder prompt so Allow / Deny shows; Claude launches add kaizen's skills folder; Yolo launches accept Claude's bypass warning
 - 2026-11-16 run 2026-11-16-whats-new — Web board/Settings, Release and testing: an inline What's New card under About (once per machine, a dot on the Settings gear) and an Update automatically switch
 - 2026-11-16 run 2026-11-16-live-progress — Web board/Run workspace: a building run's panel shows what the agent really does, from Claude Code hooks
-- 2026-11-18 run 2026-11-18-task-page-redesign — Web board/Tasks, Home, chat and phone: the task page has status tabs, the decision in the Plan tab, agents and handoffs in the conversation, a collapsible conversation, and a chat-first phone screen with Tasks in the bottom bar
-- 2026-11-18 run 2026-11-18-run-panel-frame — Web board/Run workspace: the run panel is framed like the task conversation: agent chip with Stop or Resume, a collapse icon with a thin rail, an amber card for what waits

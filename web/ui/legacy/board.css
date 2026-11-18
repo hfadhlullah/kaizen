@@ -708,17 +708,3 @@ html.grabbing,html.grabbing *{cursor:grabbing!important}
 .termtools .tsearch button{width:24px;height:24px;padding:0;display:inline-grid;place-items:center}
 /* The ring round the terminal you are in: a soft line of the text colour, not the accent's full white. */
 :root{--ring-soft:color-mix(in srgb,var(--ink) 30%,transparent)}
-/* The run workspace's panel, framed like the task conversation: an agent row on top (components/run/run-agent.tsx), and
-   folded away on a desktop it leaves its tab strip as a thin rail. Not in the board's own card panel, not on a phone. */
-/* (inside the legacy layer on purpose: a layered !important rule beats an unlayered one, and the fold rules above are layered) */
-@layer legacy {
-.pagent,.pexpand{display:none}
-body.runv .pagent{display:block;grid-column:1/-1}
-@media(max-width:640px){body.runv .pagent{display:none}}
-@media(min-width:641px){
-body.runv.rflip #panel{width:44px!important;grid-template-columns:0 44px}
-body.runv.rflip #panel>header,body.runv.rflip #pbody,body.runv.rflip #pfoot,body.runv.rflip #pnlist{display:none}
-body.runv.rflip .pexpand{display:grid;place-items:center;width:32px;height:32px;margin-bottom:6px;border-radius:var(--r-s);color:var(--dim)}
-body.runv.rflip .pexpand:hover{background:var(--hover);color:var(--ink)}.pexpand svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8}
-}
-}
