@@ -1,5 +1,31 @@
 [
   {
+    "version": "1.88.0",
+    "highlights": [
+      {
+        "title": "A cleaner task page",
+        "text": "A task now opens on the tab that needs you: Plan while it waits for your approval, Result once the agent has built something. The tab shows why with a mark, and the approval card has its own colour only while it waits."
+      },
+      {
+        "title": "See which agent is on a task",
+        "text": "The conversation shows the agent working now, with Resume or Stop beside it. Each message carries its agent's name and mark, and a line marks the moment one agent hands over to another."
+      },
+      {
+        "title": "A panel that looks like the run workspace",
+        "text": "The task's right panel has the run panel's layout: the task as a picker, a thin progress bar, an icon strip down the edge, a collapse button, and quiet Archive and Abandon under the message box."
+      },
+      {
+        "title": "Tasks on your phone",
+        "text": "The bottom bar says Tasks instead of Runs. A task opens as a chat, with the approval card above the message box and the result as a card you open full screen."
+      }
+    ],
+    "fixes": [
+      "A push made outside the board (by another clone or on GitHub) no longer keeps saying \"Not pushed yet\"; the board checks quietly in the background.",
+      "A task shows your own words as its title instead of \"# Request\", and the detailed plan is easier to read.",
+      "The Plan ready line leaves the conversation once you have answered it."
+    ]
+  },
+  {
     "version": "1.87.4",
     "highlights": [
       {
