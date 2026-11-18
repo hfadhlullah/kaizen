@@ -13,13 +13,15 @@ import {
   resumeRun,
   skipExplore,
 } from "@lib/run";
+import { useRoute } from "@lib/router";
 import { planQuestions } from "@lib/decision";
 import { DecisionBar, type RunActions } from "@components/decision";
 
 // The footer of a run's panel: the decision strip for the run in it. It is DecisionBar, the piece the task page uses
 // for the same decisions, wired to the run actions the card's buttons use.
 export function RunFooter() {
-  const input = usePanel((s) => s.footer);
+  const input = usePanel((s) => s.footer),
+    framed = useRoute((r) => r.view === "run");
   if (!input) return null;
   const { card: c, plan, sourceControl } = input,
     // A plan that asks questions takes their answers with the approval; one the board cannot read is null.
@@ -48,6 +50,7 @@ export function RunFooter() {
       questions={questions}
       sourceControl={sourceControl}
       actions={actions}
+      framed={framed}
     />
   );
 }

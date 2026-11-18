@@ -1,13 +1,31 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { cn } from "@lib/core";
-import { DocBody, PanelGrip, PanelHead, PanelTabs, ProjectNotes, RunFooter, RunPicker } from "@components/run";
+import {
+  DocBody,
+  PanelGrip,
+  PanelHead,
+  PanelTabs,
+  ProjectNotes,
+  RunAgent,
+  RunFooter,
+  RunPicker,
+} from "@components/run";
 import { NotesChat } from "@components/notes";
 import { TerminalPane } from "@components/panes";
 import { GitHost } from "@components/git";
 import { bindSheetSwipe } from "@lib/phone";
 import { isPhone } from "@lib/core";
-import { dismissPanel, openProjectNotes, panelBody, setFlip, setPanel, useRunView, usePanel, usePanelRun } from "@lib/run";
-import { getRoute } from "@lib/router";
+import {
+  dismissPanel,
+  openProjectNotes,
+  panelBody,
+  setFlip,
+  setPanel,
+  useRunView,
+  usePanel,
+  usePanelRun,
+} from "@lib/run";
+import { getRoute, useRoute } from "@lib/router";
 import { SettingsPage } from "../settings-page.tsx";
 import { Part } from "./host.tsx";
 
@@ -72,6 +90,7 @@ export function Panel() {
     title = usePanel((s) => s.title),
     tip = usePanel((s) => s.titleTip),
     instant = usePanel((s) => s.instant),
+    inRun = useRoute((r) => r.view === "run"),
     aside = useRef<HTMLElement>(null);
   // A panel that left as a page is undocked without the slide: one frame with no transition, forced into effect, then
   // the transition is back.
@@ -103,6 +122,13 @@ export function Panel() {
       >
         <header>
           <div className="t">
+            {inRun && (
+              <div className="pagent">
+                <Part>
+                  <RunAgent />
+                </Part>
+              </div>
+            )}
             <div className="pwrap">
               <Part>
                 <RunPicker />
@@ -121,7 +147,20 @@ export function Panel() {
             <Icon id="i-close" />
           </button>
         </header>
-        <div className="pstrip">
+        <div
+          className="pstrip"
+          // Folded away, the strip is what is left of the panel: pressing it brings the panel back.
+          onClickCapture={() => inRun && useRunView.getState().flip && !isPhone() && setFlip(false)}
+        >
+          <button
+            className="pexpand"
+            type="button"
+            aria-label="Expand the panel"
+            title="Expand the panel"
+            onClick={() => setFlip(false)}
+          >
+            <Icon id="i-side" />
+          </button>
           <nav id="ptabs">
             <Part>
               <PanelTabs />
