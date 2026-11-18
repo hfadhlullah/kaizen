@@ -529,7 +529,8 @@ test("the task panel shows the task, its progress, the agent and the foot, and f
     projectName: "proj",
   };
   const out = html(withTips(createElement(TaskPanel, props)));
-  for (const w of ["Plan, needs you", "proj", "Claude", "BOX", "ACTIONS", "Conversation"]) expect(out).toContain(w);
+  for (const w of ["Plan, needs you", "proj", "Claude", "BOX", "ACTIONS", "Conversation", "Collapse the panel"])
+    expect(out).toContain(w);
   // A task missing from the list (a legacy task, the list not loaded) is still its own picker entry.
   expect(out).toContain(t.title);
   const folded = html(withTips(createElement(TaskPanel, { ...props, folded: true })));

@@ -1,5 +1,13 @@
 import { useEffect, useState, type ReactNode, type RefObject } from "react";
-import { PanelFrame, PanelPicker, PanelProgress, PanelStrip, StateDot, type PanelStripItem } from "@components/shared";
+import {
+  IconButton,
+  PanelFrame,
+  PanelPicker,
+  PanelProgress,
+  PanelStrip,
+  StateDot,
+  type PanelStripItem,
+} from "@components/shared";
 import { openTask, taskDot } from "@lib/rail";
 import { useServer } from "@lib/server";
 import { cleanRequest, conversationItems, taskProgress, taskTitle, type TaskView } from "@lib/task";
@@ -63,17 +71,22 @@ export function TaskPanel({
   }, [view, folded, items.length, threadRef]);
   const header = (
     <div className="flex flex-col gap-1.5">
-      <PanelPicker
-        current={taskTitle(t)}
-        mark={<StateDot state={taskDot(t as never)} />}
-        items={mineAll.map((x) => ({
-          id: x.id,
-          label: taskTitle(x),
-          mark: <StateDot state={taskDot(x)} />,
-          hint: x.attention.reason,
-        }))}
-        onPick={(id) => id !== t.id && openTask(id, t.dir)}
-      />
+      <div className="flex items-center gap-1">
+        <div className="min-w-0 flex-1">
+          <PanelPicker
+            current={taskTitle(t)}
+            mark={<StateDot state={taskDot(t as never)} />}
+            items={mineAll.map((x) => ({
+              id: x.id,
+              label: taskTitle(x),
+              mark: <StateDot state={taskDot(x)} />,
+              hint: x.attention.reason,
+            }))}
+            onPick={(id) => id !== t.id && openTask(id, t.dir)}
+          />
+        </div>
+        <IconButton icon="side" label="Collapse the panel" onClick={() => onFold(true)} />
+      </div>
       <div className="flex items-center gap-2.5">
         <span className="max-w-[120px] shrink-0 truncate text-xs text-muted-foreground">{projectName}</span>
         <PanelProgress {...progress} />
