@@ -117,6 +117,9 @@ export function TaskPanel({
     );
   return (
     <PanelFrame
+      // The task page pads its content by 28px; the run workspace's panel touches the edge of the card, so this one is pulled
+      // out by the same 28px (top, right and bottom).
+      className="-my-7 -mr-7"
       label={folded ? "Conversation, collapsed" : "Conversation and requests"}
       folded={folded}
       header={header}
