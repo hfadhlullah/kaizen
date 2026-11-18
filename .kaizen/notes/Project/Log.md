@@ -383,3 +383,4 @@ updated: 2026-11-16
 - 2026-11-16 run 2026-11-16-whats-new — Web board/Settings, Release and testing: an inline What's New card under About (once per machine, a dot on the Settings gear) and an Update automatically switch
 - 2026-11-16 run 2026-11-16-live-progress — Web board/Run workspace: a building run's panel shows what the agent really does, from Claude Code hooks
 - 2026-11-18 run 2026-11-18-task-panel-layout — Web board/Tasks: the task page's right panel uses the run panel's layout from a shared panel frame (picker, progress bar, icon strip, quiet foot)
+- 2026-11-18 run 2026-11-18-run-panel-shared-frame — Web board/Run workspace, Tasks: the run workspace panel on a computer is drawn by the shared PanelFrame; one set of panel metrics as tokens

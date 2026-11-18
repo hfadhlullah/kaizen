@@ -1,13 +1,23 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
-import { cn } from "@lib/core";
+import { cn, usePhone } from "@lib/core";
+import { PanelFrame } from "@components/shared";
 import { DocBody, PanelGrip, PanelHead, PanelTabs, ProjectNotes, RunFooter, RunPicker } from "@components/run";
 import { NotesChat } from "@components/notes";
 import { TerminalPane } from "@components/panes";
 import { GitHost } from "@components/git";
 import { bindSheetSwipe } from "@lib/phone";
 import { isPhone } from "@lib/core";
-import { dismissPanel, openProjectNotes, panelBody, setFlip, setPanel, useRunView, usePanel, usePanelRun } from "@lib/run";
-import { getRoute } from "@lib/router";
+import {
+  dismissPanel,
+  openProjectNotes,
+  panelBody,
+  setFlip,
+  setPanel,
+  useRunView,
+  usePanel,
+  usePanelRun,
+} from "@lib/run";
+import { getRoute, useRoute } from "@lib/router";
 import { SettingsPage } from "../settings-page.tsx";
 import { Part } from "./host.tsx";
 
@@ -65,10 +75,14 @@ function PanelBody() {
 // docked, wide, parked, its title) is the panel store's; usePanelRun reads the open run and writes what is drawn.
 export function Panel() {
   usePanelRun();
+  const inRun = useRoute((r) => r.view === "run"),
+    phone = usePhone(),
+    framed = inRun && !phone;
   const cls = usePanel((s) =>
       cn(s.open && "open", s.docked && "docked", s.wide && "wide", s.parked && "parked", s.pn && "pn", s.ro && "ro"),
     ),
     on = usePanel((s) => s.open),
+    parked = usePanel((s) => s.parked),
     title = usePanel((s) => s.title),
     tip = usePanel((s) => s.titleTip),
     instant = usePanel((s) => s.instant),
@@ -89,8 +103,89 @@ export function Panel() {
         close: () => setFlip(false),
         keep: "#panel,#rside,dialog,.toast,[data-sonner-toast]",
       }),
-    [],
+    // The panel element is another one when the frame is drawn (a window resized across 640px): bind again.
+    [framed],
   );
+  // The run workspace on a computer: the panel is the shared PanelFrame (the layout the task page's panel uses too), with
+  // the panel's own pieces in its slots. A phone's sheet and the Board's drawer keep the markup below.
+  if (framed)
+    return (
+      <>
+        <div className={cn("scrim", on && "on")} id="scrim" onClick={dismissPanel} />
+        <PanelFrame
+          as="aside"
+          id="panel"
+          label="detail"
+          rootRef={aside as never}
+          className={cls || undefined}
+          hidden={parked}
+          flush
+          folded={false}
+          header={
+            <div className="t">
+              <div className="pwrap">
+                <Part>
+                  <RunPicker />
+                </Part>
+              </div>
+              <b id="ptitle" title={tip}>
+                {title}
+              </b>
+              <div className="sub" id="psub">
+                <Part>
+                  <PanelHead />
+                </Part>
+              </div>
+            </div>
+          }
+          strip={
+            <>
+              <nav id="ptabs">
+                <Part>
+                  <PanelTabs />
+                </Part>
+              </nav>
+              <button
+                className="pnotes"
+                id="pnotes"
+                title="Project notes"
+                aria-label="Project notes"
+                onClick={openProjectNotes}
+              >
+                <Icon id="t-book" />
+              </button>
+            </>
+          }
+          body={
+            <>
+              <div className="body md" id="pnlist">
+                <Part>
+                  <ProjectNotes />
+                </Part>
+              </div>
+              <PanelBody />
+            </>
+          }
+          foot={
+            <div
+              className="foot"
+              id="pfoot"
+              // The frame's footer metrics (the old rule gave them only to a footer that is a direct child of the panel).
+              style={{ padding: "var(--panel-foot-y) var(--panel-pad-x)", gap: "var(--panel-foot-gap)" }}
+            >
+              <Part>
+                <RunFooter />
+              </Part>
+            </div>
+          }
+          extra={
+            <Part>
+              <PanelGrip />
+            </Part>
+          }
+        />
+      </>
+    );
   return (
     <>
       <div className={cn("scrim", on && "on")} id="scrim" onClick={dismissPanel} />

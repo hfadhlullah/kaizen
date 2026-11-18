@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 import { cn } from "@lib/core";
 import { Icon } from "@web/ui";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@web/ui";
@@ -13,6 +13,12 @@ export function PanelFrame({
   folded,
   label,
   className,
+  id,
+  rootRef,
+  flush,
+  extra,
+  as: Root = "div",
+  hidden,
 }: {
   header: ReactNode;
   body: ReactNode;
@@ -21,32 +27,78 @@ export function PanelFrame({
   folded?: boolean;
   label: string;
   className?: string;
+  id?: string;
+  rootRef?: Ref<HTMLDivElement>;
+  // The body and the foot bring their own padding and scrolling (the run workspace's own elements do); the frame only places them.
+  flush?: boolean;
+  // Drawn inside the frame, on top of it: the run workspace's resize grip.
+  extra?: ReactNode;
+  // The run workspace keeps an <aside>: the board's old rules for a panel's inside (its body, footer, tabs) hang off it.
+  as?: "div" | "aside";
+  // No panel to show (the run workspace with no run): not drawn. `!hidden` because the frame's own display utility would otherwise win.
+  hidden?: boolean;
 }) {
   return (
-    <div
+    <Root
+      id={id}
+      ref={rootRef as never}
       role="complementary"
       aria-label={label}
-      // The run workspace panel's own metrics: its width is the one the board remembers (`--rpanel-w`, 340px), a 44px
-      // strip, the canvas colour and no border.
-      style={folded ? undefined : { width: "var(--rpanel-w, 340px)" }}
+      // The run workspace panel's metrics, from the tokens in board.css (--panel-*): its width is the one the board
+      // remembers (--rpanel-w), the strip, the canvas colour and no border.
+      style={folded ? undefined : { width: "var(--rpanel-w, var(--panel-w))" }}
       className={cn(
-        "grid min-h-0 flex-none grid-rows-[auto_minmax(0,1fr)_auto] bg-canvas transition-[width] duration-300 motion-reduce:transition-none",
-        folded ? "w-11 grid-cols-[44px]" : "grid-cols-[minmax(0,1fr)_44px] max-md:!w-full",
+        "relative grid min-h-0 flex-none grid-rows-[auto_minmax(0,1fr)_auto] bg-canvas transition-[width] duration-300 motion-reduce:transition-none",
+        folded
+          ? "w-[var(--panel-strip)] grid-cols-[var(--panel-strip)]"
+          : "grid-cols-[minmax(0,1fr)_var(--panel-strip)] max-md:!w-full",
+        hidden && "!hidden",
         className,
       )}
     >
-      {!folded && <div className="col-start-1 row-start-1 min-w-0 px-3 pb-2 pt-1.5">{header}</div>}
-      {!folded && <div className="col-start-1 row-start-2 min-h-0 min-w-0 overflow-auto px-3 pb-3 pt-2">{body}</div>}
-      {!folded && foot && <div className="col-start-1 row-start-3 min-w-0 px-3 py-2">{foot}</div>}
+      {!folded && (
+        <div
+          className="col-start-1 row-start-1 min-w-0 px-[var(--panel-pad-x)] pb-[var(--panel-head-bot)] pt-[var(--panel-head-top)]"
+          // The desktop app's window controls overlay the top right of the run workspace: keep clear of them (--wco, --wch are set there).
+          style={flush ? { paddingRight: "calc(var(--panel-pad-x) + var(--wco, 0px))" } : undefined}
+        >
+          {header}
+        </div>
+      )}
       <div
         className={cn(
-          "row-span-3 row-start-1 flex flex-col items-center gap-0.5 pt-2.5",
+          "row-span-3 row-start-1 flex flex-col items-center pt-2.5",
           folded ? "col-start-1" : "col-start-2",
         )}
+        // Window controls overlay the top right of the desktop app (--wch is their height there).
+        style={flush ? { paddingTop: "calc(10px + var(--wch, 0px))" } : undefined}
       >
         {strip}
       </div>
-    </div>
+      {!folded && (
+        <div
+          className={cn(
+            "col-start-1 row-start-2 min-h-0 min-w-0",
+            flush
+              ? "flex flex-col overflow-hidden"
+              : "overflow-auto px-[var(--panel-pad-x)] pb-[var(--panel-body-bot)] pt-[var(--panel-body-top)]",
+          )}
+        >
+          {body}
+        </div>
+      )}
+      {!folded && foot && (
+        <div
+          className={cn(
+            "col-start-1 row-start-3 min-w-0",
+            !flush && "px-[var(--panel-pad-x)] py-[var(--panel-foot-y)]",
+          )}
+        >
+          {foot}
+        </div>
+      )}
+      {extra}
+    </Root>
   );
 }
 export type PanelStripItem = { id: string; icon: string; label: string; sprite?: "i" | "t" | "r"; dot?: boolean };
@@ -63,7 +115,7 @@ export function PanelStrip({
   onPick: (id: string) => void;
 }) {
   return (
-    <>
+    <div className="flex flex-col items-center gap-0.5">
       {items.map((it) => (
         <button
           key={it.id}
@@ -83,7 +135,7 @@ export function PanelStrip({
           )}
         </button>
       ))}
-    </>
+    </div>
   );
 }
 // The thin bar under the title: how far along, with the stage word in the colour of what it means.
