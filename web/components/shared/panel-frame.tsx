@@ -26,15 +26,18 @@ export function PanelFrame({
     <div
       role="complementary"
       aria-label={label}
+      // The run workspace panel's own metrics: its width is the one the board remembers (`--rpanel-w`, 340px), a 44px
+      // strip, the canvas colour and no border.
+      style={folded ? undefined : { width: "var(--rpanel-w, 340px)" }}
       className={cn(
-        "grid min-h-0 flex-none grid-rows-[auto_minmax(0,1fr)_auto] border-l border-border bg-background transition-[width] duration-300 motion-reduce:transition-none",
-        folded ? "w-12 grid-cols-[48px]" : "w-[440px] grid-cols-[minmax(0,1fr)_48px] max-md:w-full max-md:border-l-0",
+        "grid min-h-0 flex-none grid-rows-[auto_minmax(0,1fr)_auto] bg-canvas transition-[width] duration-300 motion-reduce:transition-none",
+        folded ? "w-11 grid-cols-[44px]" : "grid-cols-[minmax(0,1fr)_44px] max-md:!w-full",
         className,
       )}
     >
-      {!folded && <div className="col-start-1 row-start-1 min-w-0 pl-5 pr-2 pt-3 pb-2">{header}</div>}
-      {!folded && <div className="col-start-1 row-start-2 min-h-0 min-w-0 overflow-auto pl-5 pr-3.5 pt-2">{body}</div>}
-      {!folded && foot && <div className="col-start-1 row-start-3 min-w-0 pl-5 pr-3 pb-3.5 pt-2">{foot}</div>}
+      {!folded && <div className="col-start-1 row-start-1 min-w-0 px-3 pb-2 pt-1.5">{header}</div>}
+      {!folded && <div className="col-start-1 row-start-2 min-h-0 min-w-0 overflow-auto px-3 pb-3 pt-2">{body}</div>}
+      {!folded && foot && <div className="col-start-1 row-start-3 min-w-0 px-3 py-2">{foot}</div>}
       <div
         className={cn(
           "row-span-3 row-start-1 flex flex-col items-center gap-0.5 pt-2.5",
