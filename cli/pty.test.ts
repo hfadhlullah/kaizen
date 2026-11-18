@@ -42,6 +42,8 @@ test.skipIf(process.platform === "win32")("the board runs the agent in the card:
 
     // The agent's output line goes to a viewer on this machine only, never a tailnet host; nothing typed is in it.
     const agentsOf = async (h?: string) => ((await (await fetch(at + "/state", { headers: h ? { host: h, "tailscale-user-login": "me@example.com" } : {} })).json()) as any).agents;
+    // The stand-in prints it a moment after the launch: a slow runner (macOS CI) can ask first, so wait for it (up to 5 s).
+    for (let i = 0; i < 100 && (await agentsOf())[0]?.last !== "reply ready"; i++) await Bun.sleep(50);
     expect((await agentsOf())[0].last).toBe("reply ready");
     const far = (await agentsOf("remote.ts.net"))[0];
     expect(far.key).toBe(r.pty);
