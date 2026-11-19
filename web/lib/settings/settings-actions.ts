@@ -70,11 +70,11 @@ export async function accountSend(body: Record<string, unknown>) {
   await reload();
 }
 export async function accountSignIn(id: string, tool: string) {
-  const dir = host.currentDir();
-  if (!dir) return toast("Open a project first, or run the line shown here in a terminal");
-  const j = await post("/shell", { dir, agent: tool, account: id, login: true });
+  // A Home terminal: it needs no project, and the Home window shows it. A project shell with no run key belongs to no
+  // workspace tab, so a sign-in started there ran hidden.
+  const j = await post("/shell", { home: true, agent: tool, account: id, login: true });
   if (j.error || !j.key) return toast(j.error || "Could not open a terminal. Run the line shown here");
-  const opened = host.open.term({ dir, ws: j.ws, key: j.key });
+  const opened = host.open.term({ dir: j.dir, ws: j.ws, key: j.key });
   toast(opened ? "Sign in, then close the terminal" : "Terminal started. Open it from the side menu");
 }
 export async function accountAdd(tool: string) {

@@ -407,7 +407,7 @@ export const whoText = (a: { signedIn: boolean; who?: string; plan?: string; via
 export function usageText(u: any, signed: boolean, known = true): { text: string; bad: boolean } {
   if (!u) return { text: signed ? (known ? "Signed in · no usage yet" : "Signed in") : "Not signed in", bad: !signed };
   if (u.expired) return { text: "Sign-in expired. Sign in again", bad: true };
-  if (u.error) return { text: "Usage unavailable", bad: true };
+  if (u.error) return { text: `Usage unavailable (${u.error})`, bad: true };
   return {
     text: `${u.five ? `${u.five.pct}% of 5 hours` : ""}${u.five && u.week ? " · " : ""}${u.week ? `${u.week.pct}% of the week` : ""}`,
     bad: false,

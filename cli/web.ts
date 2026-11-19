@@ -1896,12 +1896,15 @@ export async function web(repoDir: string, opts: Opts = {}) {
           acctLogin.set(key, { at: Date.now(), login });
           return login;
         };
+        // A rate limit or network error keeps the last good reading, as the footer does; an expired login shows at once.
+        const keepGood = (u: Usage | null, prev?: Usage | null) => (u && "error" in u && !u.expired && prev && !("error" in prev) ? prev : u);
         const rows = await Promise.all(a.accounts.map(async (x) => {
           const dir = accountDir(x.id);
           let hit = acctUsage.get(x.id);
           if (!hit || Date.now() - hit.at > 60_000) {
             // Gemini CLI keeps no plan usage kaizen can read: none shown.
-            hit = { at: Date.now(), usage: x.tool === "claude" ? await claudeUsageAt(dir) : x.tool === "codex" ? codexUsageAt(dir) : null };
+            const u = x.tool === "claude" ? await claudeUsageAt(dir) : x.tool === "codex" ? codexUsageAt(dir) : null;
+            hit = { at: Date.now(), usage: keepGood(u, hit?.usage) };
             acctUsage.set(x.id, hit);
           }
           const l = await who(x.id, x.tool, dir);
@@ -1913,7 +1916,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
           const key = "normal:" + t;
           let hit = acctUsage.get(key);
           if (!hit || Date.now() - hit.at > 60_000) {
-            hit = { at: Date.now(), usage: t === "claude" ? await claudeUsage(home) : t === "codex" ? codexUsage(home) : null };
+            const u = t === "claude" ? await claudeUsage(home) : t === "codex" ? codexUsage(home) : null;
+            hit = { at: Date.now(), usage: keepGood(u, hit?.usage) };
             acctUsage.set(key, hit);
           }
           const l = await who(key, t);

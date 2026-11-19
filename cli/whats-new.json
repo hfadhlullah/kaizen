@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.88.2",
+    "highlights": [],
+    "fixes": [
+      "Sign in on Settings → AI Accounts now opens the login in the Home window, where you can see it. Before, its terminal ran hidden and nothing showed.",
+      "Sign in works with no project open.",
+      "An account's usage keeps its last reading when a check fails, and says why when it has none (for example \"Usage unavailable (HTTP 429)\")."
+    ]
+  },
+  {
     "version": "1.88.0",
     "highlights": [
       {
