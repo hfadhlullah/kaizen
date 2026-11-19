@@ -4,6 +4,10 @@ import { test, expect, beforeEach, afterAll } from "bun:test";
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync, chmodSync, realpathSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+
+// A Firecrawl key saved on this machine would send readLink to the real API: the tests read pages from stubs only.
+delete process.env.FIRECRAWL_API_KEY;
+process.env.KAIZEN_FIRECRAWL_FILE = join(tmpdir(), "no-firecrawl.json");
 import { readInbox, writeInbox, replaceTask, parseItem } from "./state.ts";
 import {
   readSources, addSource, removeSource, ingest, checkUrl, resolvesPublic, exportUrl, fetchText, split, sift,

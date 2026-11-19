@@ -1,10 +1,13 @@
 [
   {
     "version": "1.88.2",
-    "highlights": [],
+    "highlights": [
+      {
+        "title": "Signing in to a second Claude account",
+        "text": "Add Claude account in Settings → AI Accounts now opens its sign-in in the Home window, from any page, with or without a project open. Log in there, close the terminal, and the account shows its email and usage."
+      }
+    ],
     "fixes": [
-      "Sign in on Settings → AI Accounts now opens the login in the Home window, where you can see it. Before, its terminal ran hidden and nothing showed.",
-      "Sign in works with no project open.",
       "An account's usage keeps its last reading when a check fails, and says why when it has none (for example \"Usage unavailable (HTTP 429)\")."
     ]
   },
