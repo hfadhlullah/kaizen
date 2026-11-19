@@ -384,3 +384,4 @@ updated: 2026-11-16
 - 2026-11-16 run 2026-11-16-live-progress — Web board/Run workspace: a building run's panel shows what the agent really does, from Claude Code hooks
 - 2026-11-18 run 2026-11-18-task-panel-layout — Web board/Tasks: the task page's right panel uses the run panel's layout from a shared panel frame (picker, progress bar, icon strip, quiet foot)
 - 2026-11-18 run 2026-11-18-run-panel-shared-frame — Web board/Run workspace, Tasks: the run workspace panel on a computer is drawn by the shared PanelFrame; one set of panel metrics as tokens
+- 2026-11-19 run 2026-11-19-concept-references — Workflow: kaizen-concept gains a References step (real references, user picks), 24 built-in themes, 30 palettes, per-step rules (page anatomy, copy, craft, motion, critique), motion rules and a slop check by a fresh reviewer; ideas from Hallmark, Taste, Impeccable and Emil credited

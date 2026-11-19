@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Theme preview</title>
+<!-- Renders one built-in theme from its own tokens: preview.html?theme=<file name without .md>.
+     Serve this folder over http; with no ?theme it lists every theme. Only Google Fonts is loaded from outside. -->
+<style id="tokens"></style>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper, #fff); color: var(--ink, #111); font: 16px/1.55 var(--font-body, system-ui, sans-serif); }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 48px max(16px, 4vw); }
+  .bar { display: flex; justify-content: space-between; align-items: center; padding-bottom: 20px; border-bottom: var(--hairline) solid var(--rule); }
+  .mark { font: var(--display-weight) 20px/1 var(--font-display); letter-spacing: var(--display-tracking); }
+  .bar nav { display: flex; gap: 20px; color: var(--ink-2); font-size: 15px; }
+  h1 { font: var(--display-weight) clamp(40px, 6vw, 72px)/1.04 var(--font-display); letter-spacing: var(--display-tracking); margin: 56px 0 16px; max-width: 14ch; text-wrap: balance; }
+  .lead { color: var(--ink-2); font-size: 19px; max-width: 52ch; margin: 0 0 28px; }
+  .actions { display: flex; gap: 12px; flex-wrap: wrap; }
+  button, .btn { font: 500 15px/1 var(--font-body); padding: 0 20px; min-height: 44px; border-radius: var(--radius-control); cursor: pointer; transition: transform 140ms cubic-bezier(0.23, 1, 0.32, 1); }
+  button:active { transform: scale(0.97); }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .primary { background: var(--accent); color: var(--accent-ink); border: var(--hairline) solid var(--accent); }
+  .secondary { background: transparent; color: var(--ink); border: var(--hairline) solid var(--rule); }
+  .lower { display: grid; grid-template-columns: 1.3fr 1fr; gap: 24px; margin-top: 72px; }
+  @media (max-width: 760px) { .lower { grid-template-columns: 1fr; } .bar nav { display: none; } }
+  .card { background: var(--paper-2); border: var(--hairline) solid var(--rule); border-radius: var(--radius-card); box-shadow: var(--shadow); padding: 24px; min-width: 0; }
+  h2 { font: var(--display-weight) 26px/1.15 var(--font-display); letter-spacing: var(--display-tracking); margin: 0 0 16px; }
+  .row { display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-top: 1px solid var(--rule); }
+  .row:first-of-type { border-top: 0; }
+  .num { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+  .muted { color: var(--muted); }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: var(--radius-control); background: var(--paper-3); color: var(--ink-2); font-size: 13px; }
+  .done { background: var(--accent); color: var(--accent-ink); }
+  label { display: block; font-size: 14px; color: var(--ink-2); margin: 0 0 6px; }
+  input { width: 100%; min-height: 44px; padding: 0 12px; font: 16px var(--font-body); color: var(--ink); background: var(--paper); border: var(--hairline) solid var(--rule); border-radius: var(--radius-control); }
+  .field { margin-bottom: 16px; }
+  .meta { margin-top: 48px; font: 13px/1.5 var(--font-data); color: var(--muted); }
+  .list a { display: block; padding: 10px 0; color: var(--ink); }
+  @media (prefers-reduced-motion: reduce) { button { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap" id="app"><p class="muted">Loading theme…</p></div>
+<script>
+  // Every theme file in this folder. Add a new theme's file name here too.
+  const THEMES = ["harbor", "graphite", "ledger", "signal", "orchid", "morning", "broadsheet", "atelier", "pasar", "confetti", "nocturne", "phosphor", "gridline", "bolt", "newsprint", "arcade", "civic", "schoolyard", "vault", "trail", "hearth", "blush", "freight", "commons"];
+  const app = document.getElementById("app");
+  const name = new URLSearchParams(location.search).get("theme");
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+  if (!name || !THEMES.includes(name)) {
+    app.innerHTML = "<h2>Themes</h2><div class='list'>" + THEMES.map((t) => `<a href="?theme=${t}">${t}</a>`).join("") + "</div>";
+  } else {
+    fetch(name + ".md").then((r) => r.text()).then((md) => {
+      const front = Object.fromEntries((md.match(/^---\n([\s\S]*?)\n---/) || ["", ""])[1].split("\n").map((l) => [l.split(":")[0].trim(), l.slice(l.indexOf(":") + 1).trim()]));
+      const css = (md.match(/```css\n([\s\S]*?)```/) || ["", ""])[1];
+      document.getElementById("tokens").textContent = css;
+      if (front.fonts && /^[\w+:;,@.\-&=]+$/.test(front.fonts)) {
+        const l = document.createElement("link");
+        l.rel = "stylesheet";
+        l.href = "https://fonts.googleapis.com/css2?family=" + front.fonts + "&display=swap";
+        document.head.appendChild(l);
+      }
+      document.title = (front.name || name) + " theme";
+      // The product's own words, so a theme on a pick page reads as this product: brand, title, lead, action, action2,
+      // nav ("a,b,c"), list (heading), rows ("name|value|status;..."), form (heading), field1, value1, field2, value2, button. Any left out keep the sample.
+      const q = new URLSearchParams(location.search), w = (k, d) => esc(q.get(k) || d);
+      const rows = (q.get("rows") || "Sari Wulandari|Rp 1.250.000|Paid;Budi Santoso|Rp 980.000|Due Fri;Kopi Senja, Bandung|Rp 4.400.000|Draft")
+        .split(";").slice(0, 4).map((r, i) => r.split("|")).map(([n, v, t], i) =>
+          `<div class="row"><span>${esc(n || "")}</span><span class="num">${esc(v || "")}</span><span class="tag${i === 0 ? " done" : ""}">${esc(t || "")}</span></div>`).join("");
+      app.innerHTML = `
+        <header class="bar"><span class="mark">${w("brand", front.name || name)}</span><nav>${(q.get("nav") || "Overview,Reports,Settings").split(",").slice(0, 4).map((x) => `<span>${esc(x)}</span>`).join("")}</nav></header>
+        <h1>${w("title", "Send every invoice in one go")}</h1>
+        <p class="lead">${w("lead", "A sample first screen in the " + (front.name || name) + " material: display type, body text, and the two button weights.")}</p>
+        <div class="actions"><button class="primary">${w("action", "Send 28 invoices")}</button><button class="secondary">${w("action2", "Preview first")}</button></div>
+        <section class="lower">
+          <div class="card">
+            <h2>${w("list", "This week")}</h2>
+            ${rows}
+          </div>
+          <div class="card">
+            <h2>${w("form", "New client")}</h2>
+            <div class="field"><label for="n">${w("field1", "Name")}</label><input id="n" value="${w("value1", "Dewi Lestari")}"></div>
+            <div class="field"><label for="e">${w("field2", "Email")}</label><input id="e" value="${w("value2", "dewi@example.com")}"></div>
+            <button class="primary">${w("button", "Add client")}</button>
+          </div>
+        </section>
+        <p class="meta">Genre ${esc(front.genre || "")}, paper ${esc(front.paper || "")}, display ${esc(front.display || "")}, posture ${esc(front.posture || "")}, motion ${esc(front.motion || "")}</p>`;
+    }).catch(() => { app.innerHTML = "<p>Could not read " + esc(name) + ".md. Serve this folder over http.</p>"; });
+  }
+</script>
+</body>
+</html>

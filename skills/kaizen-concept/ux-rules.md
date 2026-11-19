@@ -167,6 +167,8 @@ Fetch notes: Apple HIG pages are client-rendered; text was read from Apple's own
 ---
 ## 6. Anti-patterns / AI slop (with why)
 
+The full slop list, with tiers and the review procedure, is `slop-check.md`; this table keeps the sources it cites.
+
 | # | Anti-pattern | Why | Source |
 |---|---|---|---|
 | A1 | Inter/Roboto/Arial/system font everywhere; "Space Grotesk" as the new default. | Model converges on on-distribution fonts; no character. | Anthropic cookbook [V] |
@@ -248,7 +250,7 @@ Each item is checkable by inspecting the HTML or a screenshot.
 16. **Safe areas and frame**: mobile mock shows status bar and home indicator, fixed bars inset; desktop mock has title bar 32px with caption controls. (M8, D1)
 17. **Forms**: visible labels (placeholder not the label), inline error beside field, correct input types, submit shows busy state, no double submit. (U18, W4, F12, C10)
 18. **Interactive feedback**: every control has hover (hover-capable only), pressed (scale ~0.96-0.97 or colour, <= 150 ms), focus-visible and disabled states; pressed states do not shift layout. (U4, F8, K11, K17)
-19. **Motion discipline**: transform/opacity only, durations <= 200-300 ms, ease-out for enter/exit, no `transition: all`, no animation on frequent actions, `prefers-reduced-motion` handled; at most one orchestrated entrance. (K2, K10-K13, U6)
+19. **Motion discipline**: as `motion.md` says: transform/opacity only, interactions within 300 ms (page entrances 0.35-0.5 s), `--ease-out` for enter/exit and `--ease-move` for on-screen moves, no `transition: all`, no animation on frequent actions, `prefers-reduced-motion` handled; one entrance per container. (K2, K10-K13, U6)
 20. **Modality**: one level of modal/sheet, obvious close, sheets have grabber + Cancel/Done on mobile, no alert for plain information, no modal on launch. (M9, M13, A15)
 21. **Onboarding**: none, or <= 3 skippable steps that teach by doing; permissions asked at the moment of use with the reason. (F7, M15, A20)
 22. **Progressive disclosure**: <= 2 levels; advanced options behind one obvious entry. (U16)

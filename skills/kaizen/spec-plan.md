@@ -159,8 +159,9 @@ with `yes` (recommended) and `no`. On a yes, the main thread runs the `kaizen-co
 skill during the `plan` stage, for a roadmap after Discovery and before the Foundation
 is final. It reports `kaizen report blocked` while waiting on the user's concept choice.
 A subagent cannot run it, because it needs the user. The plan then gains `## Concept`
-right after the Goal: the chosen concept, what was merged, the prototype path, and what
-is sample or simulated. That concept replaces the *Design direction* question and binds
+right after the Goal: the chosen concept, what was merged, the prototype path, what
+is sample or simulated, and the references the user picked
+(`.preview/references/picks.md`). That concept replaces the *Design direction* question and binds
 the plan's flows. For a roadmap, the Foundation follows it, its choice is recorded under
 decisions in `.kaizen/roadmaps/<name>.md`, and each phase builds inside it. An
 `auto` run skips the concept stage unless the request asks for one. A concept makes no
