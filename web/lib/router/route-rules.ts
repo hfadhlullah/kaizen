@@ -38,9 +38,8 @@ export function bodyClasses(v: View, phone: boolean) {
 // The address a view has when it is opened from the menu (a run and a task push their own).
 export const urlFor = (v: View, pathname: string) =>
   v === "home" ? pathname : "?view=" + (v === "sources" ? "icebox" : v);
-// The side menu item that is lit and the header's title for a view (a phone's run workspace belongs to its Runs tab).
-export const litItem = (v: View, phone: boolean) =>
-  v === "task" ? (phone ? "device" : "tasks") : v === "run" && phone ? "device" : v;
+// The side menu item that is lit and the header's title for a view (a task, and a phone's run workspace, belong to Tasks).
+export const litItem = (v: View, phone: boolean) => (v === "task" || (v === "run" && phone) ? "tasks" : v);
 const TITLES: Record<string, string> = {
   sources: "Icebox",
   tasks: "Tasks",

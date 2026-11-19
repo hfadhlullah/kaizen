@@ -111,8 +111,8 @@ export function Rail(p: { srcs?: ReactNode; before?: ReactNode }) {
       />
       <Item
         className="it ponly"
-        href="/?view=device"
-        view="device"
+        href="/?view=tasks"
+        view="tasks"
         n={need}
         title={tasksTitle}
         aria={known ? tasksTitle : undefined}

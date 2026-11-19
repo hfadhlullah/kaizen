@@ -225,7 +225,15 @@ function RunStrip({ card: c, answered, questions, sourceControl, actions: a, fra
   const note = (t: React.ReactNode) => (
       <span className="min-w-0 basis-full whitespace-normal text-sm leading-normal text-muted-foreground">{t}</span>
     ),
-    dec = (...k: React.ReactNode[]) => <span className="ml-auto flex gap-2">{k}</span>,
+    // Wraps inside the panel instead of running past its edge (a long option pushed Reply out of sight).
+    dec = (...k: React.ReactNode[]) => <span className="ml-auto flex min-w-0 flex-wrap justify-end gap-2">{k}</span>,
+    // Skip Explore sits with a question's answers, so it does not wrap onto a line of its own.
+    skipBtn =
+      c.stage === "explore" ? (
+        <Button data-a="skip-explore" disabled={busy === "skip"} onClick={() => void go("skip", a.skipExplore)}>
+          Skip Explore
+        </Button>
+      ) : null,
     resumeSession =
       c.pty && !c.pty.alive ? (
         <Button data-a="resume" disabled={busy === "resume"} onClick={() => void go("resume", a.resume)}>
@@ -327,6 +335,7 @@ function RunStrip({ card: c, answered, questions, sourceControl, actions: a, fra
         {resumeSession}
         {dec(
           <QuestionOptions options={q.options} disabled={!!busy} onPick={(o) => void go("tq", () => a.answer(o))} />,
+          skipBtn,
           <Button variant="primary" data-a="tq-reply" onClick={() => setMode("reply")}>
             Reply
           </Button>,
@@ -463,11 +472,7 @@ function RunStrip({ card: c, answered, questions, sourceControl, actions: a, fra
       ) : (
         body
       )}
-      {c.stage === "explore" && (
-        <Button data-a="skip-explore" disabled={busy === "skip"} onClick={() => void go("skip", a.skipExplore)}>
-          Skip Explore
-        </Button>
-      )}
+      {q ? null : skipBtn}
     </>
   );
 }

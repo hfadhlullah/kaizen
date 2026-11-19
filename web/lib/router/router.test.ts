@@ -48,8 +48,8 @@ test("addresses, lit item, title, drawn-once pages, the run an address names", (
   expect(urlFor("sources", "/")).toBe("?view=icebox");
   expect(urlFor("terminal", "/")).toBe("?view=terminal");
   expect(litItem("task", false)).toBe("tasks");
-  expect(litItem("task", true)).toBe("device");
-  expect(litItem("run", true)).toBe("device");
+  expect(litItem("task", true)).toBe("tasks");
+  expect(litItem("run", true)).toBe("tasks");
   expect(litItem("run", false)).toBe("run");
   expect(viewTitle("home", false)).toBe("Chat");
   expect(viewTitle("home", true)).toBe("kaizen");
