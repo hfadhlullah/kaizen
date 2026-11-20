@@ -1,5 +1,19 @@
 [
   {
+    "version": "1.89.1",
+    "highlights": [
+      {
+        "title": "See what an update brings before you install it",
+        "text": "While a newer version waits, What's new in Settings → General shows that version's highlights and fixes, marked ready to install."
+      },
+      {
+        "title": "Automatic updates when kaizen starts",
+        "text": "With Update automatically on, kaizen checks for a newer version as soon as it starts and updates itself before you open anything. While it runs, it still waits until no terminal is running and no board page is open."
+      }
+    ],
+    "fixes": []
+  },
+  {
     "version": "1.89.0",
     "highlights": [
       {

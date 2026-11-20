@@ -4,11 +4,15 @@
 import { create } from "zustand";
 import { post } from "@lib/core";
 
+type Entry = { version: string; highlights: { title: string; text: string }[]; fixes: string[] };
 export type WhatsNew = {
   version: string;
-  entry: { version: string; highlights: { title: string; text: string }[]; fixes: string[] } | null;
+  entry: Entry | null;
+  next?: Entry | null; // the newest release's notes while it waits to be installed
   unseen: boolean;
 };
+// What the card shows: the newest release's notes while an update waits, else the installed version's.
+export const shownEntry = (d: WhatsNew | null | undefined) => d?.next ?? d?.entry ?? null;
 // open: null means "follow unseen", true / false is what the user chose.
 export const useWhatsNew = create<{ data: WhatsNew | null; open: boolean | null }>()(() => ({
   data: null,
@@ -21,7 +25,7 @@ export const loadWhatsNew = () =>
     .catch(() => {});
 // Whether the card is showing: what the user chose, else whether this machine has not seen it yet. Nothing without an entry.
 export const cardOpen = (s: { data: WhatsNew | null; open: boolean | null }) =>
-  !!s.data?.entry && (s.open ?? s.data.unseen);
+  !!shownEntry(s.data) && (s.open ?? s.data!.unseen);
 export const toggleWhatsNew = () => {
   const s = useWhatsNew.getState();
   if (cardOpen(s)) return void closeWhatsNew();

@@ -1,11 +1,12 @@
-import { cardOpen, closeWhatsNew, useWhatsNew } from "@lib/settings";
+import { cardOpen, closeWhatsNew, shownEntry, useWhatsNew } from "@lib/settings";
 import { Button } from "@web/ui";
 
 // What's New, inline under About (not a dialog): the big improvements first, the fixes below, then Got it. Modelled on iOS's What's New:
 // a short title and a version, each highlight a bold name over one grey line, one full-width button.
 export function WhatsNewCard() {
   const s = useWhatsNew();
-  const e = s.data?.entry;
+  const e = shownEntry(s.data),
+    waiting = !!s.data?.next;
   if (!e || !cardOpen(s)) return null;
   return (
     <section
@@ -22,7 +23,10 @@ export function WhatsNewCard() {
           >
             What's New in kaizen
           </div>
-          <div className="mt-0.5 text-sm text-muted-foreground">Version {e.version}</div>
+          <div className="mt-0.5 text-sm text-muted-foreground">
+            Version {e.version}
+            {waiting ? ` · ready to install, you have ${s.data!.version}` : ""}
+          </div>
         </div>
         <button
           type="button"

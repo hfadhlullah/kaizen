@@ -9,6 +9,7 @@ import {
   upToDate,
   upgrade,
   cardOpen,
+  shownEntry,
   toggleWhatsNew,
   useUpdate,
   useWhatsNew,
@@ -96,7 +97,7 @@ export function UpdateBar() {
     if (v.update) queueMicrotask(() => go.current?.querySelector<HTMLElement>("#upd-go")?.focus());
   };
   const shown = msg || (ver ? (ver.behind ? behindMsg(ver) : `${name} ${ver.version}`) : name);
-  const hasNews = useWhatsNew((st) => !!st.data?.entry),
+  const hasNews = useWhatsNew((st) => !!shownEntry(st.data)),
     newsOpen = useWhatsNew((st) => cardOpen(st));
   const newsBtn = hasNews && (
     <Button id="wn-btn" aria-expanded={newsOpen} onClick={toggleWhatsNew}>

@@ -57,3 +57,18 @@ test("the shipped file is valid: newest first, every entry has highlights and a 
   expect(hasEntry(all[0]!.version)).toBe(true);
   expect(JSON.parse(readFileSync(join(import.meta.dir, "..", "package.json"), "utf8")).version).toBeTruthy();
 });
+
+test("an update waiting shows the newest release's own entry, read from its tag once", async () => {
+  const { upcoming } = await import("./whats-new.ts");
+  const urls: string[] = [];
+  const list = [{ version: "9.1.0", highlights: [{ title: "New", text: "Thing." }], fixes: ["A fix."] }, { version: "9.0.0", highlights: [], fixes: [] }];
+  const get = (async (u: string) => { urls.push(u); return new Response(JSON.stringify(list)); }) as unknown as typeof fetch;
+  expect((await upcoming("9.1.0", get))?.highlights[0]?.title).toBe("New");
+  expect(await upcoming("9.1.0", get)).not.toBeNull();
+  expect(urls).toEqual(["https://raw.githubusercontent.com/hfadhlullah/kaizen/v9.1.0/cli/whats-new.json"]); // read once
+  expect(await upcoming("9.2.0", get)).toBeNull(); // no entry of its own
+  expect(await upcoming("../x", get)).toBeNull();
+  const bad = (async () => new Response(JSON.stringify([{ version: "9.3.0", highlights: [{ title: 1 }], fixes: [] }]))) as unknown as typeof fetch;
+  expect(await upcoming("9.3.0", bad)).toBeNull();
+  expect(await upcoming("9.4.0", (async () => new Response("", { status: 404 })) as unknown as typeof fetch)).toBeNull();
+});

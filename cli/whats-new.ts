@@ -41,3 +41,21 @@ export function whatsNew(home: string, installed: string, fresh: boolean, list: 
   return { version: installed, entry, unseen: seen === null || cmp(entry.version, seen) > 0 };
 }
 export const hasEntry = (version: string, list: Entry[] = entries()) => list.some((e) => e.version === version);
+
+// The newest release's own entry, while it waits to be installed (as a phone shows an update's notes before you install it): its
+// whats-new.json at the release tag on GitHub, read once per version. Nothing when it can't be read or isn't a well-formed entry.
+const upcomingCache = new Map<string, Entry | null>();
+export async function upcoming(latest: string, get: typeof fetch = fetch): Promise<Entry | null> {
+  if (!/^\d+\.\d+\.\d+$/.test(latest)) return null;
+  if (upcomingCache.has(latest)) return upcomingCache.get(latest)!;
+  let entry: Entry | null = null;
+  try {
+    const r = await get(`https://raw.githubusercontent.com/hfadhlullah/kaizen/v${latest}/cli/whats-new.json`, { signal: AbortSignal.timeout(10000) });
+    if (!r.ok) return null; // not cached: a release whose tag is not up yet is read again next time
+    const e = entryFor(await r.json(), latest);
+    const ok = e && Array.isArray(e.highlights) && Array.isArray(e.fixes) && e.highlights.every((h) => typeof h?.title === "string" && typeof h?.text === "string") && e.fixes.every((f) => typeof f === "string");
+    entry = ok ? { version: e.version, highlights: e.highlights.slice(0, 12), fixes: e.fixes.slice(0, 30) } : null;
+  } catch { return null; }
+  upcomingCache.set(latest, entry);
+  return entry;
+}

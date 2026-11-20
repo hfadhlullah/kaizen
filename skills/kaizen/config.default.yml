@@ -249,8 +249,9 @@ agent:
   # gemini: { model: gemini-2.5-pro }
 
 board:
-  # Update kaizen by itself when a newer version is out and no terminal is running
-  # (an update restarts the board). The desktop app updates itself either way.
+  # Update kaizen by itself when a newer version is out: as the board starts, and
+  # later when no terminal is running and no board page is open (an update
+  # restarts the board). The desktop app updates itself either way.
   auto_update: false
   # A folder your projects live in, e.g. ~/Projects, or C:\Users\you\Projects on
   # Windows. Every folder inside it is offered in kaizen's project list;

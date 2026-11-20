@@ -32,7 +32,7 @@ import { claudeUsage, claudeUsageAt, codexUsage, codexUsageAt, phonePeers, type 
 import { readSources, addSource, removeSource, moveSource, setCategory, setWriteback, setPaused, readIcebox, applySort, setLinkMedia, redditPost, iceDir, promote, dismiss, restore, capture, editItem, setKind, setTags, setBoard, saveBoard, removeBoard, snooze, unsnooze, readBoards, kindOf, isSnoozed, markDone, markReplied, gatherSource, freshImages, gatherAll, gatherDirs, due, socialUrl, socialOf } from "./sources.ts";
 import { projectLogo, LOGO_TYPES } from "./logo.ts";
 import * as chatgpt from "./chatgpt.ts";
-import { whatsNew, markSeen } from "./whats-new.ts";
+import { whatsNew, markSeen, upcoming } from "./whats-new.ts";
 import { autoUpdateTick } from "./auto-update.ts";
 import { readActivity } from "./activity.ts";
 import * as google from "./google.ts";
@@ -818,20 +818,23 @@ export async function web(repoDir: string, opts: Opts = {}) {
     } finally { upgrading = false; }
 
   };
-  // Update automatically (Settings → General → Updates): every 30 minutes, and once shortly after the board starts, when the switch is
-  // on, npm has a newer version, no terminal is alive and no board page is open (an update restarts the board).
-  const autoUpd = () => autoUpdateTick({
+  // Update automatically (Settings → General → Updates): when the board starts, and then every 30 minutes, when the switch is on and
+  // npm has a newer version. An update restarts the board, so a later check waits while a terminal is alive or a board page is open.
+  // At start nothing can be lost yet (no terminal has opened, and a page that has just loaded is reloaded by the restart), so that
+  // check asks npm fresh and does not wait for pages. `runUpgrade` refuses to restart when npm's copy installs no newer version, so a
+  // start never loops.
+  const autoUpd = (starting = false) => autoUpdateTick({
     on: async () => (await setting("board.auto_update")) === "true",
-    latest: () => npmLatest(),
+    latest: () => npmLatest(starting),
     newer: (v) => newer(v, VERSION),
     desktop: DESKTOP_BUNDLED,
     upgrading: () => upgrading,
     terminalsAlive: () => ptyKeys().some((k) => ptyState(k)?.alive),
-    pagesOpen: () => clients.size > 0,
+    pagesOpen: () => !starting && clients.size > 0,
     upgrade: runUpgrade,
   }).catch(() => "off" as const);   // the next tick tries again
   const autoUpdate = setInterval(autoUpd, 30 * 60_000);
-  const autoFirst = setTimeout(autoUpd, 90_000);
+  const autoFirst = setTimeout(() => autoUpd(true), 2_000);
 
   const automate = setInterval(async () => {
     if (autoBusy) return;
@@ -2216,7 +2219,10 @@ export async function web(repoDir: string, opts: Opts = {}) {
           const w = whatsNew(home, VERSION, fresh);
           if (w.entry) markSeen(home, w.entry.version);
         }
-        return json(whatsNew(home, VERSION, fresh));
+        // An update waiting: the newest release's own notes too, so the card can show what installing it brings.
+        const v = await npmLatest(false).catch(() => null);
+        const next = v && newer(v, VERSION) ? await upcoming(v) : null;
+        return json({ ...whatsNew(home, VERSION, fresh), next });
       }
 
       if (req.method === "GET" && path === "/version") {
