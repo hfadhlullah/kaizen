@@ -22,3 +22,10 @@ artifacts/
 
 # Design mockups stay local, not in the repo
 docs/mockups/
+
+# Local leftovers in this checkout
+/.claude/
+/.codex/
+/output/
+/videos/
+/skills-lock.json

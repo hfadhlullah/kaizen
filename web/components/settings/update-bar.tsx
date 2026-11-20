@@ -129,7 +129,7 @@ export function UpdateBar() {
               <span>
                 {name} <b>{upd.latest}</b> is available. You are running {upd.version}.
               </span>
-              <span ref={go} className="flex items-center gap-2">
+              <span ref={go} className="flex min-w-0 flex-wrap items-center gap-2">
                 <News v={upd} />
                 {newsBtn}
                 {checkBtn}
@@ -141,7 +141,7 @@ export function UpdateBar() {
               <span id="upd-msg" aria-live="polite">
                 {shown}
               </span>
-              <span className="flex items-center gap-2">
+              <span className="flex min-w-0 flex-wrap items-center gap-2">
                 {newsBtn}
                 {checkBtn}
               </span>
