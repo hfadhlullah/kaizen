@@ -116,6 +116,15 @@ export const routeError = (e: Error) => {
 const DESKTOP_BUNDLED = process.env.KAIZEN_DESKTOP_BUNDLED === "1";
 // Where the installer puts kaizen for the agents: the user's own KAIZEN_HOME (web() drops the desktop app's), else ~/kaizen.
 const kaizenDir = () => process.env.KAIZEN_HOME || join(home, "kaizen");
+// The desktop app runs on its own bun, so a user can have none. Agents then lack the `kaizen` command (the launcher in
+// ~/.local/bin runs `bun`), which kaizen runs call (`kaizen state`, `kaizen model`). The page says how to install bun,
+// on the board's own system. Read per request from the board's PATH, which a reopened app takes from the login shell.
+// The app's own bun does not count (on Windows the board puts its folder on PATH): it moves, and the user cannot run it.
+const userBun = () => { const b = Bun.which("bun"); return !!b && resolve(b) !== resolve(process.execPath); };
+const bunMissing = () =>
+  DESKTOP_BUNDLED && !userBun()
+    ? { command: process.platform === "win32" ? 'powershell -c "irm bun.sh/install.ps1 | iex"' : "curl -fsSL https://bun.sh/install | bash", version: VERSION }
+    : null;
 delete process.env.KAIZEN_DESKTOP_BUNDLED;
 // An upgrade replaces the page files under a running board but not its code, and a
 // page newer than its server sends ops the server does not know ("unknown op").
@@ -1915,7 +1924,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         }
         const projects = states(true).filter((d) => d !== join(home, ".kaizen")).length;
         const ch = agentChoices(repoDir);
-        return json({ ...onboardingView(home, projects), preset: (await setting("preset")) || "medium", default: ch.default, installed: ch.agents.map((a) => a.cmd), agents: KNOWN_AGENTS.map((a) => ({ cmd: a.cmd, name: a.name })), install: installHelp(process.platform === "win32") });
+        return json({ ...onboardingView(home, projects), preset: (await setting("preset")) || "medium", default: ch.default, installed: ch.agents.map((a) => a.cmd), agents: KNOWN_AGENTS.map((a) => ({ cmd: a.cmd, name: a.name })), install: installHelp(process.platform === "win32"), bun: bunMissing() });
       }
 
       // Names, folders' sign-in lines and usage only: tokens stay in the tools' own files.
@@ -2075,7 +2084,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         // The desktop-control skill shows what this machine lacks, from the helper's own check.
         const check = bundledSkills(repoDir).some((s) => s.id === "kaizen-computer") ? (await import("./computer.ts")).computerCheck() : null;
         const shipped = bundledSkills(repoDir).map((s) => s.id);
-        return json({ token: skillToken, setup: agentSetupNeeded(DESKTOP_BUNDLED, kaizenDir()), outside: outsideSkills(home, shipped), plugins: claudeSkills(home), skills: [...bundledSkills(repoDir).map((s) => ({ ...s, off: off.includes(s.id), agents: skillStatus(s, home), needs: [...s.needs.map((n) => ({ name: n, found: !!onPath(n) })), ...(s.id === "kaizen-computer" && check ? check.needs : [])], ...(s.id === "kaizen-computer" && check ? { note: check.note } : {}) })), rea.reaRow(home)] });
+        return json({ token: skillToken, setup: agentSetupNeeded(DESKTOP_BUNDLED, kaizenDir()), bun: bunMissing(), outside: outsideSkills(home, shipped), plugins: claudeSkills(home), skills: [...bundledSkills(repoDir).map((s) => ({ ...s, off: off.includes(s.id), agents: skillStatus(s, home), needs: [...s.needs.map((n) => ({ name: n, found: !!onPath(n) })), ...(s.id === "kaizen-computer" && check ? check.needs : [])], ...(s.id === "kaizen-computer" && check ? { note: check.note } : {}) })), rea.reaRow(home)] });
       }
 
       // The skill store. Search: skills.sh (with each result's audits) or Anthropic's official plugin marketplace.

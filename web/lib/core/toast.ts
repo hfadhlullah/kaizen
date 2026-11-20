@@ -27,3 +27,13 @@ export const toastUndo = (message: string, onUndo: () => void) => toastAction(me
 export function toastAction(message: string, label: string, onClick: () => void) {
   show(message, { duration: 8000, action: { label, onClick } });
 }
+// A notice that stays until acted on or dismissed, beside the board's one toast rather than in its place (its own id).
+export function toastNotice(
+  id: string,
+  message: string,
+  description: string,
+  action: { label: string; onClick: () => void },
+  onDismiss: () => void,
+) {
+  sonner(message, { id, description, duration: Infinity, action, cancel: { label: "Dismiss", onClick: onDismiss } });
+}

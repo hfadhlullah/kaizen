@@ -358,6 +358,8 @@ export function pageSections(page: string, d: Data, env: Env, generic = genericS
     const tab = env.skillTab ?? "kaizen";
     const top: Section = { title: "", items: [item("sk-tabs", "skill-tabs", "")] };
     // The desktop app before its one-time setup: offered above everything else on the page.
+    if (d.skills.bun && !env.searching)
+      out.push({ title: "", items: [item("sk-bun", "skill-bun", "install bun kaizen command")] });
     if (d.skills.setup && !env.searching)
       out.push({ title: "", items: [item("sk-setup", "skill-setup", "set up kaizen agents skills install")] });
     out.push(top);

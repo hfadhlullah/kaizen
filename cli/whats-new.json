@@ -1,5 +1,19 @@
 [
   {
+    "version": "1.89.5",
+    "highlights": [
+      {
+        "title": "The desktop app sets up kaizen for your agents",
+        "text": "With only the desktop app installed, your agents now get kaizen's skills, subagents and commands by themselves: the app copies its kaizen to your home folder when it starts and keeps it up to date. On Linux this also fixes media skills that turned grey after an app update."
+      }
+    ],
+    "fixes": [
+      "A skill whose link is broken now has a Repair button in Settings → Skills, for every skill, not only the core ones.",
+      "Without Bun on the computer, the board says how to install it, since your agents need it for the kaizen command.",
+      "A fresh bunx kaizen-agent install copies the release you asked for instead of cloning the repository, so the desktop app keeps it up to date."
+    ]
+  },
+  {
     "version": "1.89.4",
     "highlights": [
       {

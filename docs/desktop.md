@@ -26,6 +26,8 @@ The app carries its own copy of kaizen and of Bun, so it works with nothing else
 **Setting up your agents.** With the app only, your agents (Claude Code, Codex, …) have no kaizen yet. The app sets it
 up by itself when it starts: it copies its kaizen to `~/kaizen` and links its skills, subagents and commands into every
 agent, in the background, once. If that fails, Settings → Skills shows a Set up card to try again.
+Without Bun on the computer, the board asks you to install it (the `kaizen` command your agents run needs it), then
+to reopen the app; everything else works without it.
 
 **After an update.** Your agents read kaizen's skills, subagents and commands from `~/kaizen`
 (the copy `npx kaizen-agent` installed). When the app starts on a newer version than that copy,

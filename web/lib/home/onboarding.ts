@@ -4,7 +4,7 @@
 // project, never see it. This file is its rules and requests; components/home/onboarding-dialog.tsx draws it.
 import { create } from "zustand";
 import { onProjectAdded, openAdd } from "@lib/project";
-import { ask } from "@lib/core";
+import { ask, toast, toastNotice } from "@lib/core";
 import { setSetupRow, setShell, setTheme } from "@lib/shell";
 
 export type Cfg = {
@@ -17,6 +17,8 @@ export type Cfg = {
   installed: string[];
   agents: { cmd: string; name: string }[];
   install: Record<string, { command?: string; docs: string }>;
+  // The desktop app on a computer without bun: how to install it there (the board's system, not the viewer's).
+  bun?: { command: string; version: string } | null;
 };
 export type Notif = "na" | "default" | "granted" | "denied";
 // The tools agent.default accepts.
@@ -220,6 +222,34 @@ export function answerOffer(r: "go" | "later" | "never") {
 }
 // Reads the flow's state and opens what it asks for (the flow, or the offer to continue). Returns what a caller's cleanup runs: a
 // late answer after that does nothing.
+// Agents need bun for the `kaizen` command. Shown each time the board opens until bun is installed and the app reopened;
+// Dismiss hides it until the next app version. Settings → Skills keeps the same card.
+export const copyBunCommand = (command: string) =>
+  void navigator.clipboard
+    ?.writeText(command)
+    .then(() => toast("Copied. Paste it in a terminal, then reopen the app"))
+    .catch(() => toast(command));
+function offerBun(b: { command: string; version: string }) {
+  try {
+    if (localStorage.getItem("kz-bun-later") === b.version) return;
+  } catch {
+    /* no storage: show */
+  }
+  toastNotice(
+    "kz-bun",
+    "Install Bun to finish setting up kaizen",
+    "Your agents need it for the kaizen command. Copy the command, run it in a terminal, then reopen the app.",
+    { label: "Copy command", onClick: () => copyBunCommand(b.command) },
+    () => {
+      try {
+        localStorage.setItem("kz-bun-later", b.version);
+      } catch {
+        /* shown again next time */
+      }
+    },
+  );
+}
+
 export function initOnboarding() {
   let alive = true;
   // A project was added: the board stops offering setup, so the Setup row goes now, not on the next reload.
@@ -232,6 +262,7 @@ export function initOnboarding() {
     set({ cfg });
     setSetupRow(cfg);
     setShell({ openSetup: () => openFlow(cfg.step) });
+    if (cfg.bun) offerBun(cfg.bun);
     const q = new URLSearchParams(location.search);
     if (q.has("setup")) {
       q.delete("setup");

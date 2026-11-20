@@ -16,7 +16,7 @@ import {
   useSettings,
 } from "@lib/settings";
 import { cn } from "@lib/core";
-import { COPY, STEP } from "@lib/home";
+import { COPY, STEP, copyBunCommand } from "@lib/home";
 import { Button, Dialog, DialogContent, DialogDescription, DialogTitle, Input, Switch } from "@web/ui";
 import { WorksFlow } from "@components/home";
 import { Segmented } from "@components/shared";
@@ -281,6 +281,26 @@ export function AgentSetupCard() {
       </span>
       <Button data-a="agent-setup" onClick={() => void setupAgents()}>
         Set up
+      </Button>
+    </div>
+  );
+}
+
+// The desktop app on a computer without bun: the agents' `kaizen` command needs it. Gone once bun is there.
+export function BunCard() {
+  const b = useSettings((st) => st.data?.skills?.bun) as { command: string } | null | undefined;
+  if (!b) return null;
+  return (
+    <div data-bun-missing="1" className="mb-2 flex items-center gap-3 rounded-lg border border-border px-3.5 py-3">
+      <span className="flex min-w-0 flex-1 flex-col gap-1">
+        <b className="text-sm font-medium">Install Bun to finish setting up kaizen</b>
+        <span className="text-xs text-muted-foreground">
+          Your agents need it for the kaizen command. Run this in a terminal on this computer, then reopen the app.
+        </span>
+        <code className="w-fit rounded-sm bg-muted px-1.5 py-0.5 font-mono text-xs">{b.command}</code>
+      </span>
+      <Button data-a="bun-copy" onClick={() => copyBunCommand(b.command)}>
+        Copy
       </Button>
     </div>
   );
