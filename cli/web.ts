@@ -2243,6 +2243,9 @@ export async function web(repoDir: string, opts: Opts = {}) {
         // A worker model row per installed tool that takes a model flag; the others have nothing to set.
         const prefs = readPrefs();
         cfg.rows = cfg.rows.filter((r) => { const t = /^orchestration\.worker_model\.(\w+)$/.exec(r.key)?.[1]; return !t || !!onPath(commandOf(t, prefs)); });
+        // The desktop app's board: the app updates itself (and, from another computer, through Update), so the switch
+        // for `kaizen web`'s own automatic update would do nothing here.
+        if (DESKTOP_BUNDLED) cfg.rows = cfg.rows.filter((r) => r.key !== "board.auto_update");
         Object.assign(cfg, { phoneUrls: [...webHosts()].filter((h) => /^[a-z0-9-]+(?:\.[a-z0-9-]+)*\.ts\.net$/.test(h)).map((h) => `https://${h}`) });
         // Connected, the model is chosen from what the plan offers rather than typed.
         const m = cfg.rows.find((r) => r.key === "sources.model");

@@ -1,5 +1,17 @@
 [
   {
+    "version": "1.89.7",
+    "highlights": [
+      {
+        "title": "Try updating the desktop app from another computer",
+        "text": "With 1.89.6 or newer on the computer that runs the Kaizen app, this is the first update you can install from your phone or another computer: open that board's Settings → General and press Update now."
+      }
+    ],
+    "fixes": [
+      "The desktop app's Settings no longer shows the Update automatically switch, which only applies to kaizen web: the app updates itself."
+    ]
+  },
+  {
     "version": "1.89.6",
     "highlights": [
       {
