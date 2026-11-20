@@ -104,7 +104,9 @@ for (let i = 0; i < 24; i++) {
 }
 
 // The board's Update button (installNow), on Linux run as the menu entry runs it (extracted, APPIMAGE_EXTRACT_AND_RUN).
+// Its own file: the 0.0.2 smoke run above can still hold Kaizen.AppImage open (ETXTBSY on copy in CI).
 if (!win) {
+  exe = join(work, "Kaizen-button.AppImage");
   copyFileSync(join(n, readdirSync(n).find((f) => f.endsWith(".AppImage"))!), exe);
   rmSync(out, { force: true });
   await run(exe, { KAIZEN_DESKTOP_TEST_FEED: feed, KAIZEN_DESKTOP_TEST_BUTTON: "1", APPIMAGE_EXTRACT_AND_RUN: "1" });
