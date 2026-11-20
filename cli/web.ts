@@ -861,6 +861,15 @@ export async function web(repoDir: string, opts: Opts = {}) {
     upgrade: runUpgrade,
   }).catch(() => "off" as const);   // the next tick tries again
   const autoUpdate = setInterval(autoUpd, 30 * 60_000);
+  // The desktop app: kaizen for the agents in ~/kaizen (setupAgents), set up by itself in the background at start, no
+  // question asked. One at a time: the Set up card, Repair and Install share the same run. A failure leaves the Set up
+  // card on Settings → Skills to try again, and the reason in the log.
+  let agentSetupRun: ReturnType<typeof setupAgents> | null = null;
+  const setupOnce = () => (agentSetupRun ??= setupAgents(repoDir, kaizenDir(), home, process.execPath, process.env).finally(() => (agentSetupRun = null)));
+  const agentSetupFirst = setTimeout(() => {
+    if (!agentSetupNeeded(DESKTOP_BUNDLED, kaizenDir())) return;
+    void setupOnce().then((r) => { if ("error" in r) console.error(`  agent setup: ${r.error}`); changed(); });
+  }, 1_000);
   // Waits for the bind: a stale board can hold the port for up to 8 s, and runUpgrade refuses until this one listens.
   let autoFirst: ReturnType<typeof setTimeout>;
   // At most 15 s: a board that never binds (another one already answers there) must not keep retrying.
@@ -1906,7 +1915,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         }
         const projects = states(true).filter((d) => d !== join(home, ".kaizen")).length;
         const ch = agentChoices(repoDir);
-        return json({ ...onboardingView(home, projects), preset: (await setting("preset")) || "medium", default: ch.default, installed: ch.agents.map((a) => a.cmd), agents: KNOWN_AGENTS.map((a) => ({ cmd: a.cmd, name: a.name })), install: installHelp(process.platform === "win32"), agentSetup: agentSetupNeeded(DESKTOP_BUNDLED, kaizenDir()) });
+        return json({ ...onboardingView(home, projects), preset: (await setting("preset")) || "medium", default: ch.default, installed: ch.agents.map((a) => a.cmd), agents: KNOWN_AGENTS.map((a) => ({ cmd: a.cmd, name: a.name })), install: installHelp(process.platform === "win32") });
       }
 
       // Names, folders' sign-in lines and usage only: tokens stay in the tools' own files.
@@ -2043,7 +2052,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
           // The desktop app's one-time setup: kaizen in ~/kaizen for the agents (see setupAgents).
           if (body?.setup === true) {
             if (!DESKTOP_BUNDLED) return bad("only the desktop app's board sets up kaizen this way; run bunx kaizen-agent@latest", 409);
-            const r = await setupAgents(repoDir, kaizenDir(), home, process.execPath, process.env);
+            if (!agentSetupNeeded(DESKTOP_BUNDLED, kaizenDir()) && !agentSetupRun) return json({ ok: true });
+            const r = await setupOnce();
             if ("error" in r) return bad(r.error, 500);
             changed();
             return json({ ok: true, note: r.note });
@@ -2051,7 +2061,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
           // Repair, Install or a switch turned on in the desktop app before its setup: set up first, so the links go to
           // ~/kaizen and not into the app's own copy, which moves (the AppImage's /tmp folder changes every version).
           if ((body?.repair === true || body?.on === true) && agentSetupNeeded(DESKTOP_BUNDLED, kaizenDir())) {
-            const r = await setupAgents(repoDir, kaizenDir(), home, process.execPath, process.env);
+            const r = await setupOnce();
             if ("error" in r) return bad(r.error, 500);
           }
           const why = body?.repair === true
@@ -3230,7 +3240,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
       saveLive();
       awake.stop();
       closeAllProxies();
-      clearInterval(autoUpdate); clearTimeout(autoFirst); clearInterval(poll); clearInterval(ping); clearInterval(gather); clearInterval(automate); clearInterval(loop); clearInterval(keepList);
+      clearInterval(autoUpdate); clearTimeout(autoFirst); clearTimeout(agentSetupFirst); clearInterval(poll); clearInterval(ping); clearInterval(gather); clearInterval(automate); clearInterval(loop); clearInterval(keepList);
       for (const w of watchers) { try { w.close(); } catch { /* gone */ } }
       setTimeout(() => { server.stop(true); resolve(); }, live ? 400 : 0);
     };

@@ -268,15 +268,15 @@ export function MySkillsSearch() {
     </div>
   );
 }
-// The desktop app with no kaizen of the agents' own (~/kaizen): its skills would link into the app's copy, which moves.
+// The desktop app whose automatic setup (~/kaizen for the agents) has not finished or failed: try again by hand.
 export function AgentSetupCard() {
   return (
     <div data-agent-setup="1" className="mb-2 flex items-center gap-3 rounded-lg border border-border px-3.5 py-3">
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <b className="text-sm font-medium">Set up kaizen for your agents</b>
+        <b className="text-sm font-medium">Kaizen is not set up for your agents yet</b>
         <span className="text-xs text-muted-foreground">
-          Copies kaizen to your home folder and links its skills, subagents and commands into Claude Code, Codex and your
-          other agents. The app keeps it up to date.
+          The app copies kaizen to your home folder and links its skills, subagents and commands into Claude Code, Codex and
+          your other agents when it starts. If that did not finish, set it up here.
         </span>
       </span>
       <Button data-a="agent-setup" onClick={() => void setupAgents()}>

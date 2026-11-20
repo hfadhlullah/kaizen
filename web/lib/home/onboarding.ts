@@ -17,8 +17,6 @@ export type Cfg = {
   installed: string[];
   agents: { cmd: string; name: string }[];
   install: Record<string, { command?: string; docs: string }>;
-  // The desktop app with no kaizen for the agents yet (no ~/kaizen): its skills would link into the app's copy, which moves.
-  agentSetup?: boolean;
 };
 export type Notif = "na" | "default" | "granted" | "denied";
 // The tools agent.default accepts.
@@ -222,29 +220,6 @@ export function answerOffer(r: "go" | "later" | "never") {
 }
 // Reads the flow's state and opens what it asks for (the flow, or the offer to continue). Returns what a caller's cleanup runs: a
 // late answer after that does nothing.
-// Asked once per browser; "Not now" leaves the Set up card at the top of Settings → Skills. Shown in the page, not as an app
-// dialog, so it reaches whoever opens the board (a desktop app on a Steam Deck is often used from another computer).
-async function offerAgentSetup() {
-  try {
-    if (localStorage.getItem("kz-agent-setup-later")) return;
-  } catch {
-    /* no storage: ask */
-  }
-  const yes = await ask({
-    title: "Set up kaizen for your agents?",
-    description:
-      "Copies kaizen to your home folder and links its skills, subagents and commands into Claude Code, Codex and your other agents, so they can run kaizen and its media skills. The app keeps it up to date.",
-    confirmLabel: "Set up",
-  });
-  // Loaded here: @lib/settings' store reads the page at load, which onboarding's tests (and its first paint) do without.
-  if (yes) return (await import("@lib/settings")).setupAgents();
-  try {
-    localStorage.setItem("kz-agent-setup-later", "1");
-  } catch {
-    /* asked again next time */
-  }
-}
-
 export function initOnboarding() {
   let alive = true;
   // A project was added: the board stops offering setup, so the Setup row goes now, not on the next reload.
@@ -265,7 +240,6 @@ export function initOnboarding() {
     }
     if (cfg.show) return openFlow(0);
     if (cfg.resume) offer();
-    else if (cfg.agentSetup) void offerAgentSetup();
   })();
   return () => (off(), void (alive = false));
 }
