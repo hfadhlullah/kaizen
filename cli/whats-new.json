@@ -1,5 +1,15 @@
 [
   {
+    "version": "1.89.4",
+    "highlights": [
+      {
+        "title": "Update fix reaches the desktop app",
+        "text": "The desktop app now gets the 1.89.3 fix that makes Update restart kaizen on the new version; that release's desktop build had stopped on a test problem, which is fixed."
+      }
+    ],
+    "fixes": []
+  },
+  {
     "version": "1.89.3",
     "highlights": [
       {
