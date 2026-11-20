@@ -5,7 +5,8 @@ import { spawn } from "node:child_process";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { boardPort, forgetBoard, needsUpgrade, windowButtons, pickKaizen, reapStale, rememberBoard, startBoard, stopBoard, upgradeCmd, versionOf, waitReady, type Board } from "./server";
-import { checkNow, installNow, startUpdates } from "./updater";
+import { checkNow, installFromRemote, installNow, startUpdates } from "./updater";
+import { watchRequests } from "./remote-update";
 import { desktopEntry } from "./appimage";
 import { PANE_PARTITION, paneAllows, paneAttach, paneNavigable } from "./browser-pane";
 import { autoUpdater } from "electron-updater";
@@ -124,6 +125,7 @@ async function boot() {
   if (board !== b || !win) return;
   await win.loadURL(b.url);
   if (smoke) { report(`kaizen-desktop ready ${b.url} version=${app.getVersion()} kaizen=${pick.dir}`); app.quit(); }
+  else if (testBuild) report(`kaizen-desktop board ${b.url}`);
   else if (!testBuild) upgradeInstalled();
 }
 
@@ -289,4 +291,6 @@ app.whenReady().then(async () => {
   createWindow();
   void boot();
   if (!smoke) startUpdates((msg) => dialog.showMessageBox({ message: msg, buttons: ["OK"] }), testFeed, report);
+  // Update pressed in a page on another computer (the board writes the request; see remote-update.ts).
+  if (!smoke && app.isPackaged) watchRequests(homedir(), installFromRemote);
 });

@@ -83,7 +83,7 @@ export function UpdateBar() {
     [label, setLabel] = useState(""),
     [checking, setChecking] = useState(false);
   const upd = available(ver) ? ver : null;
-  const name = appName();
+  const name = appName(ver);
   const go = useRef<HTMLDivElement>(null);
   const check = async () => {
     setChecking(true);
@@ -174,7 +174,7 @@ export function UpdateCard() {
       className="fixed bottom-7 right-7 z-40 flex w-80 max-w-[calc(100%-32px)] flex-col gap-3 rounded-md border border-primary bg-card px-4 py-3.5 text-base text-foreground shadow-md max-[640px]:bottom-[calc(68px+env(safe-area-inset-bottom))] max-[640px]:right-4"
     >
       <span>
-        {appName()} <b>{ver.latest}</b> is available. You are running {ver.version}.
+        {appName(ver)} <b>{ver.latest}</b> is available. You are running {ver.version}.
       </span>
       <span className="flex items-center justify-end gap-2">
         <Button

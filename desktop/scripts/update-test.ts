@@ -115,9 +115,37 @@ if (!win) {
     await Bun.sleep(5000);
     rmSync(out, { force: true });
     await run(exe, { KAIZEN_DESKTOP_SMOKE: "1" }, 120000);
-    if (/version=0\.0\.2/.test(lines())) { console.log("update test passed: the Update button updated 0.0.1 to 0.0.2"); server.stop(); process.exit(0); }
+    if (/version=0\.0\.2/.test(lines())) { console.log("update test passed: the Update button updated 0.0.1 to 0.0.2"); break; }
+    if (i === 23) fail("after the Update button the installed app still is not 0.0.2");
   }
-  fail("after the Update button the installed app still is not 0.0.2");
+
+  // Update pressed in a page on another computer (a Steam Deck's app used from a Mac over Tailscale): this script is
+  // that page. It waits for the app's board to offer the downloaded update, presses Update (POST /desktop-update), and
+  // the app installs it and restarts.
+  exe = join(work, "Kaizen-remote.AppImage");
+  copyFileSync(join(n, readdirSync(n).find((f) => f.endsWith(".AppImage"))!), exe);
+  rmSync(out, { force: true });
+  const running = run(exe, { KAIZEN_DESKTOP_TEST_FEED: feed, KAIZEN_DESKTOP_TEST_REMOTE: "1", APPIMAGE_EXTRACT_AND_RUN: "1" });
+  let url = "", asked = false;
+  for (let i = 0; i < 150 && !asked; i++) {
+    await Bun.sleep(1000);
+    url ||= lines().match(/kaizen-desktop board (\S+)/)?.[1] ?? "";
+    if (!url || !/update downloaded 0\.0\.2/.test(lines())) continue;
+    const v = (await fetch(url + "version").then((r) => r.json()).catch(() => null)) as { desktop?: boolean; latest?: string } | null;
+    if (!v?.desktop || v.latest !== "0.0.2") continue;
+    const r = await fetch(url + "desktop-update", { method: "POST", headers: { "content-type": "application/json", origin: url.replace(/\/$/, "") }, body: "{}" });
+    if (!r.ok) fail(`POST /desktop-update answered ${r.status}: ${await r.text()}`);
+    asked = true;
+  }
+  if (!asked) fail(`the app's board never offered its downloaded update to another computer (board ${url || "not reported"})`);
+  await running;
+  for (let i = 0; i < 24; i++) {
+    await Bun.sleep(5000);
+    rmSync(out, { force: true });
+    await run(exe, { KAIZEN_DESKTOP_SMOKE: "1" }, 120000);
+    if (/version=0\.0\.2/.test(lines())) { console.log("update test passed: another computer updated 0.0.1 to 0.0.2"); server.stop(); process.exit(0); }
+  }
+  fail("after Update from another computer the installed app still is not 0.0.2");
 }
 server.stop();
 process.exit(0);

@@ -11,12 +11,15 @@ export type Version = {
   behind?: boolean;
   failed?: string;
   notes?: { v: string; text: string }[];
+  // The desktop app this board runs in has downloaded `latest` and can install it when asked (POST /desktop-update),
+  // which a page on another computer uses: the app's own window updates through window.kaizenDesktop instead.
+  desktop?: boolean;
 };
 type Desk = { check(): Promise<Version>; install(): Promise<{ ok: boolean; opened?: boolean; error?: string }> };
 // Inside the desktop app (desktop/src/preload.ts) the version and the update are the app's own; anywhere else,
 // kaizen's npm package.
 const desk = (): Desk | undefined => (globalThis as { kaizenDesktop?: Desk }).kaizenDesktop;
-export const appName = () => (desk() ? "Kaizen" : "kaizen");
+export const appName = (v?: Version | null) => (desk() || v?.desktop ? "Kaizen" : "kaizen");
 export const useUpdate = create<{ ver: Version | null; later: string | null }>()(() => ({
   ver: null,
   later: (() => {
@@ -53,16 +56,28 @@ export async function upgrade(v: Version): Promise<"no" | "restarting" | "opened
         description: "The app restarts, and agents it runs stop.",
         confirmLabel: "Install",
       }
-    : {
-        title: `Update kaizen to ${v.latest}?`,
-        description: "kaizen restarts, and agents it runs stop.",
-        confirmLabel: "Update",
-      };
+    : v.desktop
+      ? {
+          title: `Update the Kaizen app to ${v.latest}?`,
+          description: "The Kaizen app on that computer restarts, and agents it runs stop. This page reloads when it is back.",
+          confirmLabel: "Update",
+        }
+      : {
+          title: `Update kaizen to ${v.latest}?`,
+          description: "kaizen restarts, and agents it runs stop.",
+          confirmLabel: "Update",
+        };
   if (!(await ask(q))) return "no";
   if (d) {
     const r = await d.install().catch((e: unknown) => ({ ok: false, opened: false, error: String(e) }));
     if (r && !r.ok) toast(`Could not install the update: ${r.error}`);
     return r && r.opened ? "opened" : r && r.ok ? "restarting" : "no";
+  }
+  if (v.desktop) {
+    // The app restarts its board on the same port; the page reloads on the new boot id (board/live.ts), or here.
+    if (!(await post("/desktop-update", {})).ok) return "no";
+    setTimeout(() => location.reload(), 90000);
+    return "restarting";
   }
   if (!(await post("/upgrade", {})).ok) return "no";
   setTimeout(() => location.reload(), 20000);

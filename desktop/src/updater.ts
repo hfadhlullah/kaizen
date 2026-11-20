@@ -1,11 +1,15 @@
 // Updates from GitHub Releases (the feed electron-builder writes as latest*.yml).
 import { app, shell } from "electron";
 import { autoUpdater } from "electron-updater";
+import { homedir } from "node:os";
+import { writeStatus } from "./remote-update";
 
 export function startUpdates(tell: (msg: string) => void, testFeed?: string, report: (line: string) => void = console.log) {
   // A dev run has no feed. An unsigned macOS build cannot apply an update (Squirrel.Mac
   // checks the signature), so it is told where to download instead of failing quietly.
   if (!app.isPackaged) return;
+  // Nothing downloaded yet this launch: a page on another computer offers no Update until there is.
+  writeStatus(homedir(), { app: app.getVersion(), downloaded: null, platform: process.platform });
   autoUpdater.autoInstallOnAppQuit = true;
   if (process.platform === "darwin") autoUpdater.autoDownload = false;
   autoUpdater.on("update-available", (i) => {
@@ -20,7 +24,9 @@ export function startUpdates(tell: (msg: string) => void, testFeed?: string, rep
     autoUpdater.on("update-not-available", () => { report("kaizen-desktop update none"); app.exit(2); });
     // KAIZEN_DESKTOP_TEST_BUTTON: the board's Update button instead (installNow), as the user presses it.
     const button = !!process.env.KAIZEN_DESKTOP_TEST_BUTTON;
-    autoUpdater.on("update-downloaded", (i) => { report(`kaizen-desktop update downloaded ${i.version}`); if (!button) autoUpdater.quitAndInstall(true, false); });
+    // KAIZEN_DESKTOP_TEST_REMOTE: a page on another computer asks instead (POST /desktop-update, then installFromRemote).
+    const remote = !!process.env.KAIZEN_DESKTOP_TEST_REMOTE;
+    autoUpdater.on("update-downloaded", (i) => { report(`kaizen-desktop update downloaded ${i.version}`); if (!button && !remote) autoUpdater.quitAndInstall(true, false); });
     if (button) {
       installNow().then((r) => { report(`kaizen-desktop install ${JSON.stringify(r)}`); if (!r.ok) app.exit(3); });
       return;
@@ -34,7 +40,10 @@ export function startUpdates(tell: (msg: string) => void, testFeed?: string, rep
 // What the board's Check for updates and Update buttons ask for in the app, in the
 // shape of the board's own /version answer.
 let downloaded: string | null = null;
-autoUpdater.on("update-downloaded", (i) => { downloaded = i.version; });
+autoUpdater.on("update-downloaded", (i) => {
+  downloaded = i.version;
+  writeStatus(homedir(), { app: app.getVersion(), downloaded, platform: process.platform });
+});
 
 export async function checkNow() {
   const version = app.getVersion();
@@ -71,4 +80,13 @@ export async function installNow(): Promise<{ ok: boolean; opened?: string; erro
   } catch (e) {
     return { ok: false, error: String((e as Error)?.message ?? e) };
   }
+}
+
+// Pressed in a page on another computer (remote-update.ts): the same install as the app's own Update button. What went
+// wrong goes back to update.json, which that page shows.
+export async function installFromRemote() {
+  const status = { app: app.getVersion(), downloaded, platform: process.platform };
+  if (process.platform === "darwin") return writeStatus(homedir(), { ...status, error: "A Mac cannot update the Kaizen app by itself. Update it on that Mac." });
+  const r = await installNow();
+  if (!r.ok) writeStatus(homedir(), { ...status, error: r.error ?? "the update could not be installed" });
 }

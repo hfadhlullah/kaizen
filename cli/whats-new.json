@@ -1,5 +1,15 @@
 [
   {
+    "version": "1.89.6",
+    "highlights": [
+      {
+        "title": "Update the desktop app from another computer",
+        "text": "Open the board of a computer that runs the Kaizen app from somewhere else, like a Steam Deck from your Mac over Tailscale, and Update now installs the app's downloaded update there. The app restarts on the same port and your page reloads when it is back."
+      }
+    ],
+    "fixes": []
+  },
+  {
     "version": "1.89.5",
     "highlights": [
       {

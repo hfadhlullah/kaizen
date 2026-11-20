@@ -29,6 +29,12 @@ agent, in the background, once. If that fails, Settings → Skills shows a Set u
 Without Bun on the computer, the board asks you to install it (the `kaizen` command your agents run needs it), then
 to reopen the app; everything else works without it.
 
+**Updating from another computer.** When you open the board of a computer that runs the app from somewhere else (a
+Steam Deck from your Mac over Tailscale, say), the update the app has downloaded shows there too. Update asks the app on
+that computer to install it: the app restarts, comes back on the same port, and your page reloads. Until it has
+downloaded the update, the page says to try again in a few minutes. A Mac running the app cannot update it by itself (the
+app is unsigned), so for a Mac the page says to update it on that Mac.
+
 **After an update.** Your agents read kaizen's skills, subagents and commands from `~/kaizen`
 (the copy `npx kaizen-agent` installed). When the app starts on a newer version than that copy,
 it runs `kaizen upgrade` on it in the background, once per app version, and says when it is done

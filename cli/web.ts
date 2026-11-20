@@ -15,6 +15,7 @@ import { ACCOUNT_EXTRA, ACCOUNT_VAR, accountDir, agyLogin, addAccount, loginStat
 import { readReport, signalOf } from "./report.ts";
 import { MAX_FILE, MAX_IMAGE, saveFile, saveImage } from "./term-image.ts";
 import { shellHistory } from "./term-history.ts";
+import { desktopStatus, installable, requestInstall } from "./desktop-update.ts";
 import { agentSetupNeeded, bundledSkills, repairSkill, setSkill, setupAgents, skillsHeld, skillsOff, skillStatus } from "./skills.ts";
 import { claudeSkills, outsideSkills, removeOutside } from "./skills-outside.ts";
 import * as store from "./skills-store.ts";
@@ -2297,15 +2298,31 @@ export async function web(repoDir: string, opts: Opts = {}) {
         // The desktop app's own copy is read-only and updates with the app, so no
         // Update button there (DESKTOP_BUNDLED, above).
         const update = !!v && newer(v, VERSION) && !DESKTOP_BUNDLED;
-        const notes = update ? await releaseNotes(VERSION, url.searchParams.has("fresh")) : [];
+        // The desktop app's board, seen from another computer: the app has downloaded an update it can install by
+        // itself (cli/desktop-update.ts), so the page offers Update, which asks the app over POST /desktop-update.
+        const ds = DESKTOP_BUNDLED ? desktopStatus(home) : null;
+        const remote = installable(ds);
+        const notes = update || remote ? await releaseNotes(VERSION, url.searchParams.has("fresh")) : [];
         // behind: npm has a newer one but this board cannot update itself (the desktop app's copy), so a phone or browser can say so instead of "up to date".
-        return json({ version: VERSION, latest: v, update, behind: DESKTOP_BUNDLED && !!v && newer(v, VERSION), notes, failed: upgradeFailed });
+        return json({
+          version: VERSION, latest: remote ? ds.downloaded : v, update: update || remote, ...(remote ? { desktop: true } : {}),
+          behind: !remote && DESKTOP_BUNDLED && !!v && newer(v, VERSION), notes, failed: upgradeFailed ?? ds?.error ?? null,
+        });
       }
 
       // `kaizen upgrade`, run here with no window, then a new board on this port: it
       // finds this one serving the old version and stops it (the stale-board path in
       // web()), and open pages reload on its new boot id. A failed upgrade leaves
       // this board running and says why.
+      // Update the desktop app this board runs in, from a page on any computer (a Steam Deck's app from a Mac over
+      // Tailscale): the app installs the update it downloaded and restarts on the same port (desktop/src/remote-update.ts).
+      if (req.method === "POST" && path === "/desktop-update") {
+        if (!local(req)) return bad("cross-origin write refused", 403);
+        if (!DESKTOP_BUNDLED) return bad("this board is not the desktop app's; use Update kaizen", 409);
+        const r = requestInstall(home);
+        return "error" in r ? bad(r.error, r.status) : json(r);
+      }
+
       if (req.method === "POST" && path === "/upgrade") {
         if (!local(req)) return bad("cross-origin write refused", 403);
         const r = await runUpgrade();
