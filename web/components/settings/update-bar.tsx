@@ -33,6 +33,12 @@ function UpdateButton({ v, label }: { v: Version; label: string }) {
         if (r === "no") setSay("");
         else setSay(r === "opened" ? "Opened the download page" : "Restarting…");
         setBusy(r === "restarting");
+        // Still here a minute later: the restart never came, so say so and let it be tried again instead of waiting forever.
+        if (r === "restarting")
+          setTimeout(() => {
+            setSay("Update did not finish. Try again");
+            setBusy(false);
+          }, 60_000);
       }}
     >
       {say || label}

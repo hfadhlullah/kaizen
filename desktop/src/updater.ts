@@ -50,7 +50,14 @@ export async function installNow(): Promise<{ ok: boolean; opened?: string; erro
     return { ok: true, opened: url };
   }
   try {
-    if (!downloaded) await autoUpdater.downloadUpdate();
+    // Ask again and wait for this exact version's download: a download of an older release does not count, and quitAndInstall
+    // with nothing downloaded deletes the running AppImage before it finds no new file (electron-updater's order), leaving the
+    // app half-updated. downloadUpdate returns at once when the newest one is already on disk.
+    const r = await autoUpdater.checkForUpdates();
+    const want = r?.updateInfo?.version;
+    if (!want || want === app.getVersion()) return { ok: false, error: "no newer version to install" };
+    if (downloaded !== want) await autoUpdater.downloadUpdate();
+    if (downloaded !== want) return { ok: false, error: `the download of ${want} has not finished; try again in a minute` };
     // Quit runs the board's own clean stop (before-quit), then the installer.
     // isForceRunAfter: the new build opens by itself once installed.
     setImmediate(() => autoUpdater.quitAndInstall(false, true));

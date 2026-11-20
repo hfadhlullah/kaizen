@@ -1,5 +1,17 @@
 [
   {
+    "version": "1.89.2",
+    "highlights": [
+      {
+        "title": "Safer desktop app updates",
+        "text": "Update in the desktop app now waits until the newest version has fully downloaded before it restarts, so a release that comes out while an older one is downloading can no longer leave the app half-updated."
+      }
+    ],
+    "fixes": [
+      "If an update has not restarted kaizen a minute after you click it, the button says so and can be clicked again, instead of showing Restarting… forever."
+    ]
+  },
+  {
     "version": "1.89.1",
     "highlights": [
       {
