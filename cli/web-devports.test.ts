@@ -37,3 +37,38 @@ test("devCommand runs the folder's dev script, else start, with the lockfile's p
   writeFileSync(join(d, "package.json"), JSON.stringify({ scripts: { start: "node s" } }));
   expect(devCommand(d)).toEqual(["bun", "run", "start"]);
 });
+
+// Issue #90: a route that threw reached the page as Bun's HTML 500, shown only as "That did not work".
+test("routeError answers a thrown route as JSON with its message", async () => {
+  const { routeError } = await import("./web.ts");
+  const log = console.error;
+  console.error = () => {};
+  try {
+    const r = routeError(new Error("ENOENT: no such file or directory, posix_spawn 'bun'"));
+    expect(r.status).toBe(500);
+    expect(await r.json()).toEqual({ error: "ENOENT: no such file or directory, posix_spawn 'bun'" });
+  } finally { console.error = log; }
+});
+
+// Issue #90 follow-up: a board that is a systemd service's own process exits for its unit to restart it after an Update;
+// any other board (a terminal's, or one an Update spawned and systemd adopted later) spawns the next board itself.
+test("serviceBoard: only a Linux board whose parent at start is systemd, inside a service", async () => {
+  const { serviceBoard } = await import("./web.ts");
+  const unit = { INVOCATION_ID: "abc" };
+  expect(serviceBoard("linux", unit, () => "systemd\n")).toBe(true);
+  expect(serviceBoard("linux", unit, () => "zsh\n")).toBe(false);
+  expect(serviceBoard("linux", {}, () => "systemd\n")).toBe(false);
+  expect(serviceBoard("darwin", unit, () => "systemd\n")).toBe(false);
+  expect(serviceBoard("linux", unit, () => { throw new Error("no /proc"); })).toBe(false);
+});
+
+// Issue #90: runUpgrade lives outside the request handler (the automatic update calls it too), where the handler's `srv`
+// does not exist; it threw a ReferenceError after every install, so the board never restarted.
+test("runUpgrade uses no name that only the request handler has", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const src = readFileSync(join(import.meta.dir, "web.ts"), "utf8");
+  const body = src.slice(src.indexOf("const runUpgrade = async"), src.indexOf("const autoUpd = "));
+  expect(body.length).toBeGreaterThan(500);
+  expect(body.replace(/\/\/.*$/gm, "")).not.toMatch(/\b(srv|req)\b/);
+});

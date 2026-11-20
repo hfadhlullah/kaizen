@@ -1,5 +1,18 @@
 [
   {
+    "version": "1.89.3",
+    "highlights": [
+      {
+        "title": "Update works again",
+        "text": "Clicking Update in the board installed the new version but then failed with \"That did not work\" and kept running the old one; automatic updates failed the same way without saying so. Update now installs and restarts the board on the new version. If you are on 1.89.0 to 1.89.2, run kaizen upgrade once and restart the board to get this fix."
+      }
+    ],
+    "fixes": [
+      "A board run as a systemd service restarts on the new version after Update instead of staying down.",
+      "When something goes wrong on the board, the message now says what happened instead of \"That did not work\"."
+    ]
+  },
+  {
     "version": "1.89.2",
     "highlights": [
       {

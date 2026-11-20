@@ -99,6 +99,23 @@ for (let i = 0; i < 24; i++) {
   await Bun.sleep(5000);
   rmSync(out, { force: true });
   await run(exe, { KAIZEN_DESKTOP_SMOKE: "1" }, 120000);
-  if (/version=0\.0\.2/.test(lines())) { console.log("update test passed: 0.0.1 updated itself to 0.0.2"); server.stop(); process.exit(0); }
+  if (/version=0\.0\.2/.test(lines())) { console.log("update test passed: 0.0.1 updated itself to 0.0.2"); break; }
+  if (i === 23) fail("the installed app still is not 0.0.2");
 }
-fail("the installed app still is not 0.0.2");
+
+// The board's Update button (installNow), on Linux run as the menu entry runs it (extracted, APPIMAGE_EXTRACT_AND_RUN).
+if (!win) {
+  copyFileSync(join(n, readdirSync(n).find((f) => f.endsWith(".AppImage"))!), exe);
+  rmSync(out, { force: true });
+  await run(exe, { KAIZEN_DESKTOP_TEST_FEED: feed, KAIZEN_DESKTOP_TEST_BUTTON: "1", APPIMAGE_EXTRACT_AND_RUN: "1" });
+  if (!/install \{"ok":true\}/.test(lines())) fail("the Update button did not install 0.0.2");
+  for (let i = 0; i < 24; i++) {
+    await Bun.sleep(5000);
+    rmSync(out, { force: true });
+    await run(exe, { KAIZEN_DESKTOP_SMOKE: "1" }, 120000);
+    if (/version=0\.0\.2/.test(lines())) { console.log("update test passed: the Update button updated 0.0.1 to 0.0.2"); server.stop(); process.exit(0); }
+  }
+  fail("after the Update button the installed app still is not 0.0.2");
+}
+server.stop();
+process.exit(0);

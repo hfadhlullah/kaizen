@@ -18,7 +18,13 @@ export function startUpdates(tell: (msg: string) => void, testFeed?: string, rep
     // The updater's own log goes to the test's report, so a fallback is seen.
     autoUpdater.logger = { info: (m) => report(`updater ${m}`), warn: (m) => report(`updater warn ${m}`), error: (m) => report(`updater error ${m}`), debug: () => {} };
     autoUpdater.on("update-not-available", () => { report("kaizen-desktop update none"); app.exit(2); });
-    autoUpdater.on("update-downloaded", (i) => { report(`kaizen-desktop update downloaded ${i.version}`); autoUpdater.quitAndInstall(true, false); });
+    // KAIZEN_DESKTOP_TEST_BUTTON: the board's Update button instead (installNow), as the user presses it.
+    const button = !!process.env.KAIZEN_DESKTOP_TEST_BUTTON;
+    autoUpdater.on("update-downloaded", (i) => { report(`kaizen-desktop update downloaded ${i.version}`); if (!button) autoUpdater.quitAndInstall(true, false); });
+    if (button) {
+      installNow().then((r) => { report(`kaizen-desktop install ${JSON.stringify(r)}`); if (!r.ok) app.exit(3); });
+      return;
+    }
   }
   const check = () => autoUpdater.checkForUpdates().catch((e) => console.error("[updater]", e?.message ?? e));
   check();

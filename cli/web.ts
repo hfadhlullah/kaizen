@@ -92,6 +92,21 @@ const installed = () => {
   catch { return "unknown"; }
 };
 const VERSION = installed();
+// A board that is a systemd service's own process (kaizen-web.service; the launcher execs bun). Its Update must not spawn the
+// next board: that one is in the unit's cgroup, and systemd kills it when this one exits, which left the board down under
+// Restart=on-failure. It exits non-zero instead, and the unit's Restart= starts the new version. Read at start: a board an
+// Update spawned is reparented to systemd later, and must not count as the service.
+export const serviceBoard = (platform: string, env: Record<string, string | undefined>, parentComm: () => string) => {
+  if (platform !== "linux" || !env.INVOCATION_ID) return false;
+  try { return parentComm().trim() === "systemd"; } catch { return false; }
+};
+const SERVICE = serviceBoard(process.platform, process.env, () => readText(`/proc/${process.ppid}/comm`));
+// A route that throws answers its message as JSON, which the page's toast shows. Bun's default is an HTML
+// page, which the page could only show as "That did not work" (issue #90: POST /upgrade). The log keeps the stack.
+export const routeError = (e: Error) => {
+  console.error(e);
+  return Response.json({ error: e.message || String(e) }, { status: 500 });
+};
 // Set by the desktop app when this board is its own read-only copy, which updates
 // with the app. Read once and removed, so terminals and agents this board starts
 // (and any board started from them) do not inherit it. The app's KAIZEN_HOME (that
@@ -784,6 +799,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
   const runUpgrade = async (): Promise<{ ok: true; version?: string } | { error: string; status: number }> => {
     if (upgrading) return { error: "an upgrade is already running", status: 409 };
     if (DESKTOP_BUNDLED) return { error: "this board is the desktop app's copy; the app updates itself", status: 409 };
+    // The automatic update at start can come while this board still waits for its port (a stale board holding it).
+    if (!server) return { error: "the board is still starting; try again in a moment", status: 409 };
     // Windows will not rename ~/kaizen while this board holds files in it, so the
     // upgrade waits in its own process for this one to exit, then starts the board
     // again; ~/.kaizen/upgrade.log keeps what it said. It runs from a copy of cli/,
@@ -793,7 +810,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
       rmSync(helper, { recursive: true, force: true });
       cpSync(join(repoDir, "cli"), join(helper, "cli"), { recursive: true });
       const log = Bun.file(UPGRADE_LOG);
-      Bun.spawn([process.execPath, join(helper, "cli", "install.ts"), "upgrade", "--wait", String(process.pid), "--restart", String(srv.port)], {
+      Bun.spawn([process.execPath, join(helper, "cli", "install.ts"), "upgrade", "--wait", String(process.pid), "--restart", String(server!.port)], {
         cwd: home, detached: true, stdio: ["ignore", log, log], windowsHide: true,
       }).unref();
       saveLive();
@@ -806,9 +823,17 @@ export async function web(repoDir: string, opts: Opts = {}) {
       const [out, err, code] = await Promise.all([new Response(p.stdout).text(), new Response(p.stderr).text(), p.exited]);
       const why = (out + err).replace(/\x1b\[[0-9;]*m/g, "").split("\n").map((l) => l.trim()).filter((l) => l && !l.startsWith("+")).slice(-2).join(" — ");
       if (code !== 0) return { error: why || `kaizen upgrade exited ${code}`, status: 500 };
-      if (installed() === VERSION) return { error: why || "Already up to date", status: 400 };
-      const port = srv.port;
+      // Same version on disk as running: npm had nothing newer, or the upgrade went to ~/kaizen while this board runs
+      // from another folder (a git checkout), which it left as it was. Its output said "Upgraded" then.
+      if (installed() === VERSION) {
+        if (/Up to date/.test(why)) return { error: why, status: 400 };
+        return { error: `${why ? why + " — " : ""}this board runs from ${repoDir}, which kaizen upgrade does not change; update that folder and restart the board`, status: 409 };
+      }
+      // `server`, not the request's `srv`: this runs outside a request too (the automatic update), where `srv` threw
+      // a ReferenceError after the install, so the board never restarted (issue #90).
+      const port = server!.port;
       saveLive();
+      if (SERVICE) { setTimeout(() => process.exit(75), 300); return { ok: true as const, version: installed() }; }
       setTimeout(() => {
         Bun.spawn([process.execPath, join(repoDir, "cli", "install.ts"), "web", "--port", String(port), "--no-open", "--foreground"], {
           detached: true, stdio: ["ignore", "ignore", "ignore"], windowsHide: true,
@@ -834,7 +859,12 @@ export async function web(repoDir: string, opts: Opts = {}) {
     upgrade: runUpgrade,
   }).catch(() => "off" as const);   // the next tick tries again
   const autoUpdate = setInterval(autoUpd, 30 * 60_000);
-  const autoFirst = setTimeout(() => autoUpd(true), 2_000);
+  // Waits for the bind: a stale board can hold the port for up to 8 s, and runUpgrade refuses until this one listens.
+  let autoFirst: ReturnType<typeof setTimeout>;
+  // At most 15 s: a board that never binds (another one already answers there) must not keep retrying.
+  let waits = 0;
+  const first = () => { if (server) autoUpd(true); else if (waits++ < 15) autoFirst = setTimeout(first, 1_000); };
+  autoFirst = setTimeout(first, 2_000);
 
   const automate = setInterval(async () => {
     if (autoBusy) return;
@@ -894,6 +924,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
     // big repo, on Windows) then comes back as nothing, and the page shows an empty
     // board. Loopback only, so nothing waits on us but our own page.
     idleTimeout: 0,
+    error: routeError,
     // The in-card terminal: output out as text frames, the page's keys and size in as
     // {t:"i",d} and {t:"r",c,r}. A null from the session means the agent ended.
     websocket: {
