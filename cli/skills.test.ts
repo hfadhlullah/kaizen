@@ -117,3 +117,25 @@ test("repair relinks a missing core skill, asks before a real folder, and says w
   expect(repairSkill(repo, home, "kaizen-concept")).toMatch(/kaizen upgrade/);
   expect(existsSync(join(home, ".claude/skills/kaizen-concept"))).toBe(false);
 });
+
+// The desktop app's board on a Steam Deck: its skills were linked into the AppImage's /tmp folder, gone after an update.
+// Setting up copies the app's kaizen to ~/kaizen (never a clone) and runs its installer, which replaces the dead links.
+test("setupAgents copies the bundle to ~/kaizen, links every skill that is on there, and replaces dead links", async () => {
+  const { cpSync } = await import("node:fs");
+  const { setupAgents, agentSetupNeeded } = await import("./skills.ts");
+  const root = dirname(import.meta.dir), home = join(t, "home"), bundle = join(t, "bundle");
+  for (const d of ["cli", "skills", "agents", "commands", "assets", "web", "package.json"]) cpSync(join(root, d), join(bundle, d), { recursive: true, filter: (s) => !s.includes("node_modules") });
+  mkdirSync(join(home, ".claude", "skills"), { recursive: true });
+  symlinkSync(join(t, "gone", "skills", "media", "kaizen-video"), join(home, ".claude", "skills", "kaizen-video"));
+  const dest = join(home, "kaizen");
+  expect(agentSetupNeeded(true, dest)).toBe(true);
+  expect(agentSetupNeeded(false, dest)).toBe(false);
+  const env = { ...process.env, HOME: home, USERPROFILE: home, KAIZEN_DESKTOP_BUNDLED: "1", KAIZEN_HOME: bundle };
+  expect(await setupAgents(bundle, dest, home, process.execPath, env)).toMatchObject({ ok: true });
+  expect(existsSync(join(dest, ".git"))).toBe(false);
+  expect(agentSetupNeeded(true, dest)).toBe(false);
+  const video = bundledSkills(dest).find((s) => s.id === "kaizen-video")!;
+  expect(skillStatus(video, home).find((a) => a.agent === "Claude Code")!.state).toBe("installed");
+  expect(resolve(readlinkSync(join(home, ".claude", "skills", "kaizen"))).startsWith(dest)).toBe(true);
+  expect(await setupAgents(bundle, dest, home, process.execPath, env)).toMatchObject({ error: expect.stringContaining("already set up") });
+}, 60_000);

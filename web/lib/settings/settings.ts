@@ -357,6 +357,9 @@ export function pageSections(page: string, d: Data, env: Env, generic = genericS
     // Three tabs: kaizen's own skills, the user's skills from elsewhere (searchable), and the skill store.
     const tab = env.skillTab ?? "kaizen";
     const top: Section = { title: "", items: [item("sk-tabs", "skill-tabs", "")] };
+    // The desktop app before its one-time setup: offered above everything else on the page.
+    if (d.skills.setup && !env.searching)
+      out.push({ title: "", items: [item("sk-setup", "skill-setup", "set up kaizen agents skills install")] });
     out.push(top);
     if (tab === "store" && !env.searching)
       // Titled, so the page counts as a match and stays shown (an untitled section never does).

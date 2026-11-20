@@ -2,7 +2,7 @@
 // skill.json ({ title, group, needs, off_by_default }), so a new folder needs no change elsewhere.
 // Turning one off removes kaizen's own links for this user; a real folder, or a link to
 // anything else, under the same name stays. ~/.kaizen/skills-off.json keeps the choice.
-import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, readlinkSync, renameSync, rmSync, rmdirSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, readlinkSync, renameSync, rmSync, rmdirSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path";
 
 export type Skill = { id: string; rel: string; title: string; description: string; group: "core" | "media" | "optional"; needs: string[]; offByDefault: boolean; status: string };
@@ -129,4 +129,33 @@ export function setSkill(repo: string, home: string, id: string, on: boolean, co
   save(offFile(home), off);
   if (skill.offByDefault) { const list = new Set(skillsOn(home)); on ? list.add(id) : list.delete(id); save(onFile(home), list); }
   return null;
+}
+
+// The desktop app's board runs from the app's own copy, which moves: on Linux the AppImage runs from a /tmp folder named per
+// version and deleted on quit, so skills linked into it break (grey in Settings, unusable by agents). Setting up copies that
+// copy to the folder the installer uses (~/kaizen) and runs its installer, which links skills, subagents and commands there
+// and replaces dead links. A copy, never a git clone, so the app's `kaizen upgrade` after each app update keeps it current.
+export const agentSetupNeeded = (bundled: boolean, dest: string) => bundled && !existsSync(join(dest, "cli", "install.ts"));
+export async function setupAgents(repo: string, dest: string, home: string, bun: string, env: Record<string, string | undefined>): Promise<{ ok: true; note?: string } | { error: string }> {
+  if (existsSync(join(dest, "cli", "install.ts"))) return { error: `${dest} is already set up` };
+  if (existsSync(dest)) return { error: `${dest} exists but holds no kaizen; move it away, then try again` };
+  const fresh = `${dest}.new`;
+  try {
+    rmSync(fresh, { recursive: true, force: true });
+    cpSync(repo, fresh, { recursive: true, dereference: true, filter: (src) => !["node_modules", ".git"].includes(basename(src)) });
+    renameSync(fresh, dest);
+  } catch (e) {
+    rmSync(fresh, { recursive: true, force: true });
+    return { error: `could not copy kaizen to ${dest}: ${(e as Error).message}` };
+  }
+  // The app's own variables would aim the installer back at the bundle.
+  const clean: Record<string, string> = {};
+  for (const [k, v] of Object.entries(env)) if (v !== undefined && !["KAIZEN_DESKTOP_BUNDLED", "KAIZEN_HOME", "ELECTRON_RUN_AS_NODE", "ARGV0", "APPDIR", "OWD"].includes(k)) clean[k] = v;
+  if (resolve(dest) !== join(home, "kaizen")) clean.KAIZEN_HOME = dest;
+  const p = Bun.spawn([bun, join(dest, "cli", "install.ts"), "--yes"], { cwd: home, env: clean, stdin: "ignore", stdout: "pipe", stderr: "pipe", windowsHide: true });
+  const [out, err, code] = await Promise.all([new Response(p.stdout).text(), new Response(p.stderr).text(), p.exited]);
+  // The installer exits 1 when it left a link alone because a real folder of the user's is there: set up all the same.
+  if (code === 0) return { ok: true };
+  const last = (out + err).replace(/\x1b\[[0-9;]*m/g, "").split("\n").map((l) => l.trim()).filter(Boolean).slice(-2).join(" — ");
+  return code === 1 ? { ok: true, note: last } : { error: last || `the installer exited ${code}` };
 }

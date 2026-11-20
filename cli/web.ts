@@ -15,7 +15,7 @@ import { ACCOUNT_EXTRA, ACCOUNT_VAR, accountDir, agyLogin, addAccount, loginStat
 import { readReport, signalOf } from "./report.ts";
 import { MAX_FILE, MAX_IMAGE, saveFile, saveImage } from "./term-image.ts";
 import { shellHistory } from "./term-history.ts";
-import { bundledSkills, repairSkill, setSkill, skillsHeld, skillsOff, skillStatus } from "./skills.ts";
+import { agentSetupNeeded, bundledSkills, repairSkill, setSkill, setupAgents, skillsHeld, skillsOff, skillStatus } from "./skills.ts";
 import { claudeSkills, outsideSkills, removeOutside } from "./skills-outside.ts";
 import * as store from "./skills-store.ts";
 import * as plugins from "./plugin-store.ts";
@@ -114,6 +114,8 @@ export const routeError = (e: Error) => {
 // put them back: inherited, it sent `kaizen upgrade` in a board terminal at the
 // read-only AppImage (EROFS).
 const DESKTOP_BUNDLED = process.env.KAIZEN_DESKTOP_BUNDLED === "1";
+// Where the installer puts kaizen for the agents: the user's own KAIZEN_HOME (web() drops the desktop app's), else ~/kaizen.
+const kaizenDir = () => process.env.KAIZEN_HOME || join(home, "kaizen");
 delete process.env.KAIZEN_DESKTOP_BUNDLED;
 // An upgrade replaces the page files under a running board but not its code, and a
 // page newer than its server sends ops the server does not know ("unknown op").
@@ -1904,7 +1906,7 @@ export async function web(repoDir: string, opts: Opts = {}) {
         }
         const projects = states(true).filter((d) => d !== join(home, ".kaizen")).length;
         const ch = agentChoices(repoDir);
-        return json({ ...onboardingView(home, projects), preset: (await setting("preset")) || "medium", default: ch.default, installed: ch.agents.map((a) => a.cmd), agents: KNOWN_AGENTS.map((a) => ({ cmd: a.cmd, name: a.name })), install: installHelp(process.platform === "win32") });
+        return json({ ...onboardingView(home, projects), preset: (await setting("preset")) || "medium", default: ch.default, installed: ch.agents.map((a) => a.cmd), agents: KNOWN_AGENTS.map((a) => ({ cmd: a.cmd, name: a.name })), install: installHelp(process.platform === "win32"), agentSetup: agentSetupNeeded(DESKTOP_BUNDLED, kaizenDir()) });
       }
 
       // Names, folders' sign-in lines and usage only: tokens stay in the tools' own files.
@@ -2038,17 +2040,32 @@ export async function web(repoDir: string, opts: Opts = {}) {
           // GET: the warning is a step a person takes, not a flag a caller can send.
           const tokenOk = !!skillToken && body?.token === skillToken;
           skillToken = "";
+          // The desktop app's one-time setup: kaizen in ~/kaizen for the agents (see setupAgents).
+          if (body?.setup === true) {
+            if (!DESKTOP_BUNDLED) return bad("only the desktop app's board sets up kaizen this way; run bunx kaizen-agent@latest", 409);
+            const r = await setupAgents(repoDir, kaizenDir(), home, process.execPath, process.env);
+            if ("error" in r) return bad(r.error, 500);
+            changed();
+            return json({ ok: true, note: r.note });
+          }
+          // Repair, Install or a switch turned on in the desktop app before its setup: set up first, so the links go to
+          // ~/kaizen and not into the app's own copy, which moves (the AppImage's /tmp folder changes every version).
+          if ((body?.repair === true || body?.on === true) && agentSetupNeeded(DESKTOP_BUNDLED, kaizenDir())) {
+            const r = await setupAgents(repoDir, kaizenDir(), home, process.execPath, process.env);
+            if ("error" in r) return bad(r.error, 500);
+          }
           const why = body?.repair === true
             ? repairSkill(repoDir, home, String(body?.id ?? ""), body?.replace === true && tokenOk)
             : setSkill(repoDir, home, String(body?.id ?? ""), body?.on === true, body?.confirm === true && tokenOk);
-          if (why) return bad(why);
+          // A fresh token with the error: "replace required" is answered by a confirmed retry.
+          if (why) { skillToken = crypto.randomUUID(); return json({ error: why, token: skillToken }, 400); }
         }
         const off = [...skillsOff(home), ...skillsHeld(repoDir, home)];
         skillToken = crypto.randomUUID();
         // The desktop-control skill shows what this machine lacks, from the helper's own check.
         const check = bundledSkills(repoDir).some((s) => s.id === "kaizen-computer") ? (await import("./computer.ts")).computerCheck() : null;
         const shipped = bundledSkills(repoDir).map((s) => s.id);
-        return json({ token: skillToken, outside: outsideSkills(home, shipped), plugins: claudeSkills(home), skills: [...bundledSkills(repoDir).map((s) => ({ ...s, off: off.includes(s.id), agents: skillStatus(s, home), needs: [...s.needs.map((n) => ({ name: n, found: !!onPath(n) })), ...(s.id === "kaizen-computer" && check ? check.needs : [])], ...(s.id === "kaizen-computer" && check ? { note: check.note } : {}) })), rea.reaRow(home)] });
+        return json({ token: skillToken, setup: agentSetupNeeded(DESKTOP_BUNDLED, kaizenDir()), outside: outsideSkills(home, shipped), plugins: claudeSkills(home), skills: [...bundledSkills(repoDir).map((s) => ({ ...s, off: off.includes(s.id), agents: skillStatus(s, home), needs: [...s.needs.map((n) => ({ name: n, found: !!onPath(n) })), ...(s.id === "kaizen-computer" && check ? check.needs : [])], ...(s.id === "kaizen-computer" && check ? { note: check.note } : {}) })), rea.reaRow(home)] });
       }
 
       // The skill store. Search: skills.sh (with each result's audits) or Anthropic's official plugin marketplace.

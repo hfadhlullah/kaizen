@@ -23,6 +23,11 @@ The macOS build is not signed yet. The first time, right-click the app and choos
 
 The app carries its own copy of kaizen and of Bun, so it works with nothing else installed. If `~/kaizen` (or `KAIZEN_HOME`) holds a newer kaizen, the app runs that one instead. When the app runs its own copy, the board hides its Update kaizen button: that copy is read-only and updates with the app. It reads the same `~/.kaizen` as the CLI, so the board shows the same projects and runs.
 
+**Setting up your agents.** With the app only, your agents (Claude Code, Codex, …) have no kaizen yet. The board asks once,
+when you open it: **Set up** copies the app's kaizen to `~/kaizen` and links its skills, subagents and commands into every
+agent. Said no? Settings → Skills keeps a Set up card at the top. The question is in the page, so it also reaches a board you
+open from another computer.
+
 **After an update.** Your agents read kaizen's skills, subagents and commands from `~/kaizen`
 (the copy `npx kaizen-agent` installed). When the app starts on a newer version than that copy,
 it runs `kaizen upgrade` on it in the background, once per app version, and says when it is done

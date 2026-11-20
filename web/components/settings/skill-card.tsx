@@ -11,6 +11,7 @@ import {
   repairSkill,
   setSettings,
   setSkill,
+  setupAgents,
   skillShapes,
   useSettings,
 } from "@lib/settings";
@@ -106,15 +107,7 @@ export function SkillCard({ id }: { id: string }) {
         </span>
         {core ? (
           s.agents.some((a: any) => a.state !== "installed") ? (
-            <Button
-              data-repair={s.id}
-              onClick={() =>
-                void repairSkill(
-                  s.id,
-                  s.agents.some((a: any) => a.state === "other"),
-                )
-              }
-            >
+            <Button data-repair={s.id} onClick={() => void repairSkill(s.id)}>
               Repair
             </Button>
           ) : (
@@ -128,7 +121,13 @@ export function SkillCard({ id }: { id: string }) {
                 Update to {s.rea.latest}
               </Button>
             )}
-            {!s.rea && !s.off && s.agents.some((a: any) => a.state === "missing") && (
+            {/* A dead or foreign link (e.g. into a desktop app copy that moved): agents cannot use it, so offer to relink. */}
+            {!s.rea && !s.off && s.agents.some((a: any) => a.state === "other") && (
+              <Button data-repair={s.id} onClick={() => void repairSkill(s.id)}>
+                Repair
+              </Button>
+            )}
+            {!s.rea && !s.off && !s.agents.some((a: any) => a.state === "other") && s.agents.some((a: any) => a.state === "missing") && (
               <Button data-skill={s.id} data-on="true" onClick={() => void setSkill(s.id, true, false)}>
                 Install
               </Button>
@@ -269,6 +268,24 @@ export function MySkillsSearch() {
     </div>
   );
 }
+// The desktop app with no kaizen of the agents' own (~/kaizen): its skills would link into the app's copy, which moves.
+export function AgentSetupCard() {
+  return (
+    <div data-agent-setup="1" className="mb-2 flex items-center gap-3 rounded-lg border border-border px-3.5 py-3">
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <b className="text-sm font-medium">Set up kaizen for your agents</b>
+        <span className="text-xs text-muted-foreground">
+          Copies kaizen to your home folder and links its skills, subagents and commands into Claude Code, Codex and your
+          other agents. The app keeps it up to date.
+        </span>
+      </span>
+      <Button data-a="agent-setup" onClick={() => void setupAgents()}>
+        Set up
+      </Button>
+    </div>
+  );
+}
+
 export function NoSkills() {
   const q = useSettings((s) => s.skillQ);
   return (

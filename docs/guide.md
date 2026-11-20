@@ -824,7 +824,7 @@ Re-running is safe: correct links are left alone.
 `bunx` extracts a package once and reuses it without re-resolving, so a plain
 `bunx kaizen-agent` can keep running an old installer even after a new one is
 published. `upgrade` clears that copy, so the next run resolves fresh. The workflow
-itself — skills, agents, commands — comes from the clone and updates on any run.
+itself — skills, agents, commands — comes from the copy in `~/kaizen` and updates on any run.
 
 To work on kaizen itself, install from your own checkout so the links point at it:
 

@@ -137,21 +137,45 @@ export async function setSkill(id: string, on: boolean, offByDefault: boolean) {
   toast(j.error ? j.error : "Saved. Applies to new sessions");
   await reload();
 }
-// A core skill one agent is missing: relink it; a real folder in the way is replaced only after asking.
-export async function repairSkill(id: string, own: boolean) {
-  if (
-    own &&
-    !(await ask({
-      title: "Replace your own copy?",
-      description:
-        "For at least one agent, a folder or link of the same name is in the way. It is deleted and kaizen's skill is linked in its place. Go ahead?",
-      confirmLabel: "Replace",
-      danger: true,
-    }))
-  )
-    return;
-  const j = await post("/skills", { id, repair: true, ...(own ? { replace: true, token: token() } : {}) });
-  toast(j.error ? j.error : "Repaired. Applies to new sessions");
+// A skill an agent lacks, or has as a dead or foreign link: relink it. Links just go; a real folder in the way (the server
+// answers "replace required") is replaced only after asking.
+export async function repairSkill(id: string) {
+  // Quiet first try: post() would toast "replace required" before the question below.
+  let j: Record<string, any> = await fetch("/skills", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ id, repair: true }),
+  })
+    .then((r) => r.json())
+    .catch(() => ({ error: "The kaizen server is not running" }));
+  if (j.error === "replace required") {
+    if (
+      !(await ask({
+        title: "Replace your own copy?",
+        description:
+          "For at least one agent, a folder of the same name is in the way. It is deleted and kaizen's skill is linked in its place. Go ahead?",
+        confirmLabel: "Replace",
+        danger: true,
+      }))
+    )
+      return reload();
+    j = await post("/skills", { id, repair: true, replace: true, token: j.token ?? "" });
+    if (!j.error) toast("Repaired. Applies to new sessions");
+  } else toast(j.error ? j.error : "Repaired. Applies to new sessions");
+  await reload();
+}
+// The desktop app's one-time setup: kaizen copied to ~/kaizen and linked into every agent (POST /skills {setup}).
+let settingUp = false;
+export async function setupAgents() {
+  if (settingUp) return;
+  settingUp = true;
+  toast("Setting up kaizen for your agents…");
+  try {
+    const j = await post("/skills", { setup: true });
+    if (!j.error) toast(j.note ? `Set up. ${j.note}` : "Set up. Your agents have kaizen's skills, subagents and commands");
+  } finally {
+    settingUp = false;
+  }
   await reload();
 }
 // ---- The skill store: skills.sh and Anthropic's official plugin marketplace, through /skills/search, /skills/inspect,
