@@ -137,9 +137,9 @@ body .rail a.upd::after{left:calc(50% + 6px);top:4px}body .toast{left:16px;botto
 /* the Home chat item reads Chat on a computer (Home is the floating workspace there) and Home on a phone */
 .rail .phl{display:none}@media(max-width:640px){.rail .dkl{display:none}.rail .phl{display:inline}.rail svg.phl{display:block}}
 @media(max-width:640px){
-.rail a.it:is([data-view=board],[data-view=tasks],[data-view=sources]),#foot,#ctx-open,body .rail .rbot .ib.xs{display:none!important}
+.rail a.it:is([data-view=board],[data-view=tasks],[data-view=sources]):not(.ponly),#foot,#ctx-open,body .rail .rbot .ib.xs{display:none!important}
 .rail a.it.ponly{display:flex}
-.rail a.it[data-view=device]{order:1}.rail a.it.gs-it{order:4}.rail a.it[data-view=home]{order:3}.rail a.it[data-view=chat]{order:4}.rail a.it[data-view=terminal]{order:5}.rail a.it[data-view=settings]{display:none}
+.rail a.it.ponly[data-view=tasks]{order:1}.rail a.it.gs-it{order:4}.rail a.it[data-view=home]{order:3}.rail a.it[data-view=chat]{order:4}.rail a.it[data-view=terminal]{order:5}.rail a.it[data-view=settings]{display:none}
 .rail,[data-rail=min] .rail{padding:8px 8px max(2px,calc(env(safe-area-inset-bottom) - 8px));border-top:1px solid color-mix(in srgb,var(--line) 70%,transparent)}
 .rail a.it,[data-rail=min] .rail a.it{min-height:46px;gap:3px;font-size:10.5px;letter-spacing:.01em}
 .rail a.it svg{width:44px;height:26px;padding:4px 12px;box-sizing:border-box;border-radius:13px;transition:background .15s}
@@ -414,7 +414,7 @@ select.sel,button.sel{cursor:pointer;appearance:none;padding-right:30px;max-widt
   <a class="it gs-it" href="#" id="gsearch" title="Search everything"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span class="lbl">Search</span></a>
   <a class="it" href="/" data-view="home" title="Chat with the project's agent"><svg class="dkl"><use href="#r-chat"/></svg><svg class="phl"><use href="#i-home"/></svg><span class="lbl"><span class="dkl">Chat</span><span class="phl">Home</span></span></a>
   <a class="it ponly" href="/?view=chat" data-view="chat" title="Chat with kaizen's agent"><svg><use href="#r-chat"/></svg><span class="lbl">Chat</span></a>
-  <a class="it ponly" href="/?view=device" data-view="device" title="This computer's runs"><svg><use href="#r-runs"/></svg><span class="lbl">Runs</span></a>
+  <a class="it ponly" href="/?view=tasks" data-view="tasks" title="Tasks: every task and run, filtered"><svg><use href="#r-bulb"/></svg><span class="lbl">Tasks</span></a>
   <a class="it ponly" href="/?view=terminal" data-view="terminal" title="Open terminals across all projects"><svg><use href="#r-term"/></svg><span class="lbl">Terminal</span></a>
   <a class="it fold" href="/?view=icebox" data-view="sources" title="Icebox: requests gathered from your sources"><svg><use href="#r-tray"/></svg><span class="lbl">Icebox</span><span class="srcs" id="rail-srcs"></span><span class="n" id="ice-n"></span></a>
   <a class="it" href="/?view=tasks" data-view="tasks" title="Tasks: every task and run, filtered"><svg><use href="#r-bulb"/></svg><span class="lbl">Tasks</span></a>

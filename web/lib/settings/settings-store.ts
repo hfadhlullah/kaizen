@@ -26,6 +26,9 @@ export type SettingsState = {
   draft: Record<string, string>; // the new-automation form
   editing: string; // the automation being edited
   busy: string; // the id of a button whose request is on its way
+  skillTab: "kaizen" | "mine" | "store"; // Settings → Skills: kaizen's own skills, the user's other skills, or the store
+  skillQ: string; // the My Skills search, set once typing pauses
+  skillAll: boolean; // "On this computer" shows every skill, not the first few
   typed: Record<string, string>; // what is typed in a key or secret box and not sent yet, by field id
   // What opening the page hands it (the menu starts empty, a link may name a search and whether Back returns), and the count of
   // views since: a fill started under one view does not land after another began.
@@ -62,6 +65,9 @@ export const useSettings = create<SettingsState>()(() => ({
   draft: { ...AUTO_DRAFT },
   editing: "",
   busy: "",
+  skillTab: "kaizen",
+  skillQ: "",
+  skillAll: false,
   typed: {},
   startQ: "",
   startBack: false,

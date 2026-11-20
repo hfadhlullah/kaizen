@@ -16,6 +16,10 @@ import { readReport, signalOf } from "./report.ts";
 import { MAX_FILE, MAX_IMAGE, saveFile, saveImage } from "./term-image.ts";
 import { shellHistory } from "./term-history.ts";
 import { bundledSkills, repairSkill, setSkill, skillsHeld, skillsOff, skillStatus } from "./skills.ts";
+import { claudeSkills, outsideSkills, removeOutside } from "./skills-outside.ts";
+import * as store from "./skills-store.ts";
+import * as plugins from "./plugin-store.ts";
+import { gate } from "./store-gate.ts";
 import * as rea from "./rea.ts";
 import { accountEnv, accountForRun, agentUsable, CHILD_ENV, detectDefaultAgent, promptArgs, heartbeatMinutes, keepAwake, launchPreview, trustFolder, YOLO_FLAGS, bypassFlags } from "./state.ts";
 import { agentLine, failStart, handoffModel, markRunning, readWorkers, requested, startWorker, sweep, workerStale } from "./workers.ts";
@@ -382,6 +386,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
   // One-time token for turning an off-by-default skill on; each GET /skills mints a new one. It stops
   // an agent switching itself on by accident, not a local process that reads the board's own page.
   let skillToken = "";
+  // What POST /skills/inspect looked at, by its one-time token: an install must name the same thing (cli/store-gate.ts).
+  const inspected = gate();
   // A preflight that stopped a land: its one-time go-ahead, per run and step, and what it found.
   const preflights = new Map<string, { token: string; p: import("./preflight.ts").Preflight }>();
   // Runs the preflight before a push or merge. null: go on. Otherwise the 409 to send back.
@@ -2007,7 +2013,70 @@ export async function web(repoDir: string, opts: Opts = {}) {
         skillToken = crypto.randomUUID();
         // The desktop-control skill shows what this machine lacks, from the helper's own check.
         const check = bundledSkills(repoDir).some((s) => s.id === "kaizen-computer") ? (await import("./computer.ts")).computerCheck() : null;
-        return json({ token: skillToken, skills: [...bundledSkills(repoDir).map((s) => ({ ...s, off: off.includes(s.id), agents: skillStatus(s, home), needs: [...s.needs.map((n) => ({ name: n, found: !!onPath(n) })), ...(s.id === "kaizen-computer" && check ? check.needs : [])], ...(s.id === "kaizen-computer" && check ? { note: check.note } : {}) })), rea.reaRow(home)] });
+        const shipped = bundledSkills(repoDir).map((s) => s.id);
+        return json({ token: skillToken, outside: outsideSkills(home, shipped), plugins: claudeSkills(home), skills: [...bundledSkills(repoDir).map((s) => ({ ...s, off: off.includes(s.id), agents: skillStatus(s, home), needs: [...s.needs.map((n) => ({ name: n, found: !!onPath(n) })), ...(s.id === "kaizen-computer" && check ? check.needs : [])], ...(s.id === "kaizen-computer" && check ? { note: check.note } : {}) })), rea.reaRow(home)] });
+      }
+
+      // The skill store. Search: skills.sh (with each result's audits) or Anthropic's official plugin marketplace.
+      // Install is two steps: POST /skills/inspect looks first (the audits; a temp copy scanned by Cisco's skill-scanner;
+      // for a plugin, what it brings) and hands back a one-time token bound to that kind, source and name, plus whether it
+      // is "careful"; the install routes take only that token, and `risky: true` when it was careful, which the page
+      // sends only after its second, ticked confirm. Remove takes the page's one-time token and only touches what kaizen
+      // recorded installing.
+      if (path === "/skills/search" && req.method === "GET") {
+        const q = url.searchParams.get("q") ?? "";
+        return json(url.searchParams.get("source") === "plugins" ? await plugins.searchPlugins(q, home) : await store.search(q, home));
+      }
+      if (path === "/skills/inspect" && req.method === "POST") {
+        const refused = strict(req);
+        if (refused) return refused;
+        let body: any;
+        try { body = await req.json(); } catch { return bad("json body expected"); }
+        const kind = body?.kind === "plugin" ? "plugin" : "skill", name = String(body?.name ?? ""), source = String(body?.source ?? "");
+        let out: any;
+        if (kind === "plugin") {
+          if (!Bun.which("claude")) return bad("Claude Code is not installed on this computer");
+          const r = await plugins.inspectPlugin(name);
+          if ("error" in r) return bad(r.error);
+          out = { ...r, careful: true }; // a plugin always asks twice: no audit, and hooks or MCP servers run code
+        } else {
+          if (!store.SOURCE.test(source) || !store.NAME.test(name)) return bad("not a skills.sh skill name");
+          const node = rea.nodeState();
+          if (node?.state === "missing") return json({ ok: false, error: "Node.js is needed to install skills", node }, 400);
+          const audit = (await store.audits(source, [name]))[name]!;
+          const scan = await store.inspectSkill(source, name);
+          out = { audit, clean: store.isClean(audit), scan, careful: !store.isClean(audit) || scan.careful };
+        }
+        const token = inspected.issue({ kind, source, name, careful: out.careful });
+        return json({ ...out, kind, name, source, token });
+      }
+      if ((path === "/skills/install" || path === "/skills/plugin-install") && req.method === "POST") {
+        const refused = strict(req);
+        if (refused) return refused;
+        let body: any;
+        try { body = await req.json(); } catch { return bad("json body expected"); }
+        const kind = path === "/skills/install" ? "skill" : "plugin", name = String(body?.name ?? ""), source = String(body?.source ?? "");
+        const why = inspected.take(body?.token, { kind, source, name, risky: body?.risky === true });
+        if (why) return bad(why);
+        const r = kind === "skill" ? await store.install(home, source, name) : await plugins.installPlugin(home, name, await plugins.market());
+        return r.ok ? json(r) : bad(r.why);
+      }
+      if ((path === "/skills/remove" || path === "/skills/plugin-remove") && req.method === "POST") {
+        const refused = strict(req);
+        if (refused) return refused;
+        let body: any;
+        try { body = await req.json(); } catch { return bad("json body expected"); }
+        const tokenOk = !!skillToken && body?.token === skillToken;
+        skillToken = "";
+        if (!tokenOk) return bad("confirm required");
+        const name = String(body?.name ?? "");
+        let r: { ok: boolean; why?: string };
+        try {
+          r = path === "/skills/plugin-remove"
+            ? await plugins.uninstallPlugin(home, name, String(body?.marketplace ?? ""))
+            : store.recorded(store.storeRecord(home), name) ? await store.remove(home, name) : removeOutside(home, name, bundledSkills(repoDir).map((s) => s.id));
+        } catch (e: any) { r = { ok: false, why: String(e?.message ?? e).slice(0, 300) }; }
+        return r.ok ? json(r) : bad(r.why!);
       }
 
       // REA's switch. `plan` runs REA's dry run and hands back a token; `apply` sets up exactly

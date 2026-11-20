@@ -11,7 +11,8 @@ import { MicRow } from "./mic-row.tsx";
 import { PhoneCard, WhatsAppCard } from "@components/phone";
 import { OrchestrationFlow } from "./orchestration-flow.tsx";
 import { SettingRow } from "./setting-row.tsx";
-import { SkillCard } from "./skill-card.tsx";
+import { MoreSkills, MySkillsSearch, NoSkills, OutsideSkillCard, PluginSkillCard, SkillCard, SkillTabs } from "./skill-card.tsx";
+import { SkillStore } from "./skill-store.tsx";
 
 // One row of a Settings page, drawn by its kind from what the store holds (lib/settings/settings.ts decides which rows a page has).
 export function SettingsItem({ item }: { item: Item }) {
@@ -64,6 +65,20 @@ export function SettingsItem({ item }: { item: Item }) {
       return <AddAccountRow />;
     case "skill":
       return <SkillCard id={ref} />;
+    case "skill-tabs":
+      return <SkillTabs />;
+    case "skill-store":
+      return <SkillStore />;
+    case "skill-outside":
+      return <OutsideSkillCard id={ref} />;
+    case "skill-more":
+      return <MoreSkills />;
+    case "skill-mine-search":
+      return <MySkillsSearch />;
+    case "skill-none":
+      return <NoSkills />;
+    case "skill-plugin":
+      return <PluginSkillCard plugin={ref} />;
     case "automation":
       return <AutomationCard id={ref} />;
     case "automation-form":

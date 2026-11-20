@@ -11,6 +11,7 @@ export function AskHost() {
       description={open?.description}
       confirmLabel={open?.confirmLabel ?? "OK"}
       danger={open?.danger}
+      ack={open?.ack}
       onConfirm={() => answer(true)}
       onCancel={() => answer(false)}
     />

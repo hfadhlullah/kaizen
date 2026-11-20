@@ -2,7 +2,8 @@
 // read like `if (!(await ask({...}))) return`. The AskHost component (components/shared/ask-host.tsx) draws the open one.
 import { create } from "zustand";
 
-export type Question = { title: string; description?: string; confirmLabel: string; danger?: boolean };
+// `ack`: a tick box the person must tick before the confirming button works (a second, deliberate yes).
+export type Question = { title: string; description?: string; confirmLabel: string; danger?: boolean; ack?: string };
 type Open = Question & { answer: (yes: boolean) => void };
 export const useAsk = create<{ open: Open | null }>()(() => ({ open: null }));
 export function ask(q: Question): Promise<boolean> {

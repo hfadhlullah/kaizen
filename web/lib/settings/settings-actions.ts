@@ -154,6 +154,134 @@ export async function repairSkill(id: string, own: boolean) {
   toast(j.error ? j.error : "Repaired. Applies to new sessions");
   await reload();
 }
+// ---- The skill store: skills.sh and Anthropic's official plugin marketplace, through /skills/search, /skills/inspect,
+// the install routes (which take only the inspect's one-time token) and the remove routes.
+export type StoreHit = {
+  source: string;
+  name: string;
+  installs: number;
+  audit: { gen: string; socket: string; snyk: string; socketScore?: number };
+  clean: boolean;
+  installed: boolean;
+};
+export type PluginHit = { name: string; description: string; author: string; category: string; homepage: string; installed: boolean };
+export async function searchSkills(q: string, source: "skills" | "plugins" = "skills"): Promise<{ hits: any[]; error?: string }> {
+  try {
+    const r = await fetch("/skills/search?q=" + encodeURIComponent(q) + (source === "plugins" ? "&source=plugins" : ""));
+    return r.ok ? await r.json() : { hits: [], error: "The search did not work" };
+  } catch {
+    return { hits: [], error: "kaizen is not answering" };
+  }
+}
+const auditLine = (a: StoreHit["audit"]) =>
+  `Gen Agent Trust Hub: ${a.gen}\nSocket: ${a.socket}${a.socketScore != null ? ` (score ${a.socketScore})` : ""}\nSnyk: ${a.snyk}`;
+// What kaizen's own scan said, in a few lines.
+const scanLines = (s: any) =>
+  !s
+    ? ""
+    : !s.ran
+      ? `Cisco skill-scanner: did not run (${s.why}).`
+      : s.count === 0
+        ? "Cisco skill-scanner: no findings (its rules alone catch only part of what a bad skill can do)."
+        : `Cisco skill-scanner: ${s.count} finding${s.count === 1 ? "" : "s"}, worst ${s.worst.toLowerCase()}:\n` +
+          s.findings
+            .slice(0, 6)
+            .map((f: any) => `  ${f.severity.toLowerCase()}: ${f.title}${f.file ? ` (${f.file})` : ""}`)
+            .join("\n");
+const list = (label: string, xs: string[]) => (xs.length ? `${label}: ${xs.join(", ")}` : "");
+async function inspect(body: Record<string, unknown>, key: string) {
+  setSettings({ busy: "look-" + key });
+  toast("Looking at it first: downloading a copy and scanning it…");
+  const j = await post("/skills/inspect", body);
+  setSettings({ busy: "" });
+  if (j.node) toast("Node.js is needed to install skills. Set it up from the REA row under Optional, or from nodejs.org");
+  return j.token ? j : null;
+}
+// A skills.sh skill: kaizen looks first. Clean audits and no scan finding ask once; anything else asks again, with a
+// tick box, and only then is `risky` sent.
+export async function installStoreSkill(h: StoreHit): Promise<boolean> {
+  const look = await inspect({ kind: "skill", source: h.source, name: h.name }, h.name);
+  if (!look) return false;
+  const agents = (getSettings().data?.skills?.skills?.[0]?.agents ?? []).map((a: any) => a.agent).join(", ");
+  const where = `From ${h.source} on GitHub, through skills.sh. It goes in ~/.agents/skills/${h.name} and is linked to the agents found on this computer${agents ? ` (${agents})` : ""}.`;
+  const facts = `${auditLine(look.audit)}\n\n${scanLines(look.scan)}`;
+  const yes = look.careful
+    ? await ask({
+        title: "This skill needs a closer look",
+        description: `${h.name} from ${h.source}\n\n${facts}\n\nA skill is instructions your agents follow, and it can include scripts they run. Read its audits at skills.sh/${h.source}/${h.name} before you install it.\n\n${where}`,
+        confirmLabel: "Install anyway",
+        danger: true,
+        ack: "I've checked it and want to install it anyway",
+      })
+    : await ask({ title: `Install ${h.name}?`, description: `${where}\n\n${facts}`, confirmLabel: "Install" });
+  if (!yes) return false;
+  setSettings({ busy: "store-" + h.name });
+  toast(`Installing ${h.name}…`);
+  const j = await post("/skills/install", { source: h.source, name: h.name, token: look.token, ...(look.careful ? { risky: true } : {}) });
+  setSettings({ busy: "" });
+  if (j.ok) toast(`${h.name} is installed. Applies to new sessions`);
+  await reload();
+  return !!j.ok;
+}
+// A Claude Code plugin: no audit exists, and hooks and MCP servers run code, so it always asks twice and lists what it
+// brings.
+export async function installStorePlugin(p: PluginHit): Promise<boolean> {
+  const look = await inspect({ kind: "plugin", name: p.name }, p.name);
+  if (!look) return false;
+  const b = look.brings ?? {};
+  const what = b.read
+    ? [
+        list("Hooks (run on Claude Code events, in every session)", b.hooks),
+        list("MCP servers (programs Claude Code starts)", b.mcp),
+        list("Commands", b.commands),
+        list("Agents", b.agents),
+        list("Skills", b.skills),
+      ]
+        .filter(Boolean)
+        .join("\n") || "Nothing kaizen could list (no hooks, MCP servers, commands, agents or skills found)."
+    : "kaizen could not read what it brings, so it may run hooks or MCP servers.";
+  const yes = await ask({
+    title: `Install the ${p.name} plugin?`,
+    description: `By ${p.author || "an unnamed author"}${p.category ? `, ${p.category}` : ""}. From Anthropic's official marketplace; plugins have no security audit.\n\n${what}\n\n${scanLines(look.scan)}\n\nIt is installed for Claude Code only (claude plugin install ${p.name}@claude-plugins-official). Restart Claude Code to load it.`,
+    confirmLabel: "Install plugin",
+    danger: true,
+    ack: "I've checked what it brings and want to install it",
+  });
+  if (!yes) return false;
+  setSettings({ busy: "store-" + p.name });
+  toast(`Installing ${p.name}…`);
+  const j = await post("/skills/plugin-install", { name: p.name, token: look.token, risky: true });
+  setSettings({ busy: "" });
+  if (j.ok) toast(`${p.name} is installed. Restart Claude Code to load it`);
+  await reload();
+  return !!j.ok;
+}
+async function removeFrom(route: string, body: Record<string, string>, what: string, done: string) {
+  const name = body.name!;
+  if (!(await ask({ title: `Remove ${name}?`, description: what, confirmLabel: "Remove", danger: true }))) return;
+  setSettings({ busy: "store-" + name });
+  const j = await post(route, { ...body, token: token() });
+  setSettings({ busy: "" });
+  if (j.ok) toast(done);
+  await reload();
+}
+// A skill in the agents' folders. One kaizen installed goes through skills.sh's own remove; a link is unlinked and what
+// it points at stays; a folder moves to ~/.kaizen/removed-skills, so a skill nobody can install again is not lost.
+export function removeMySkill(s: { id: string; origin: string; path: string }) {
+  const what =
+    s.origin === "store"
+      ? "It is removed from every agent it was linked to. You can install it again from Find skills."
+      : s.origin === "link"
+        ? `Its links in your agents' skills folders are removed. What they point at stays: ${s.path}`
+        : "It is removed from every agent's skills folder. Its folders move to ~/.kaizen/removed-skills, so you can put it back by hand if it is not on Find skills.";
+  return removeFrom("/skills/remove", { name: s.id }, what, `${s.id} removed`);
+}
+// An installed Claude Code plugin, for the user, whoever installed it.
+export function removePlugin(p: { plugin: string; marketplace: string; skills: unknown[] }) {
+  const n = p.skills.length;
+  const what = `This runs claude plugin uninstall ${p.plugin}@${p.marketplace}${n ? `, and its ${n} skill${n === 1 ? "" : "s"} go with it` : ""}. You can install it again with claude plugin install${p.marketplace === "claude-plugins-official" ? " or from Find skills" : ""}. Restart Claude Code for it to leave open sessions.`;
+  return removeFrom("/skills/plugin-remove", { name: p.plugin, marketplace: p.marketplace }, what, `${p.plugin} uninstalled`);
+}
 // REA: the board runs REA's dry run first and shows what would change; only a yes to that exact plan is applied. Off
 // runs REA's own uninstall, whoever set REA up.
 export async function reaSwitch(on: boolean, update: boolean) {

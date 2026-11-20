@@ -30,6 +30,9 @@ export function SettingsPage() {
     q = useSettings((s) => s.q),
     page = useSettings((s) => s.page),
     notifyOn = useSettings((s) => s.prefs.notify),
+    skillTab = useSettings((s) => s.skillTab),
+    skillAll = useSettings((s) => s.skillAll),
+    skillQ = useSettings((s) => s.skillQ),
     narrow = useNarrow(),
     [typing, setTyping] = useState(false),
     main = useRef<HTMLDivElement>(null);
@@ -41,12 +44,16 @@ export function SettingsPage() {
       notifyOn,
       scoped: !!data.cfg && data.cfg.scope !== "all",
       agentCount: data.agents?.agents.filter((a) => a.installed).length ?? 0,
+      skillTab,
+      skillQ,
+      searching: !!q.trim(),
+      skillAll: skillAll || !!q.trim(),
     };
     const generic = genericSections(data, env);
     const pages = new Map(PAGES.map((p) => [p.id, filterSections(pageSections(p.id, data, env, generic), q)]));
     const hits = PAGES.filter((p) => pageHasMatch(pages.get(p.id)!)).map((p) => p.id);
     return { pages, hits, current: shownPage({ picked: page, hits, query: q, narrow, typing: typing && narrow }) };
-  }, [data, q, page, narrow, typing, notifyOn]);
+  }, [data, q, page, narrow, typing, notifyOn, skillTab, skillAll, skillQ]);
   // A new page starts at the top.
   useEffect(() => {
     if (main.current) main.current.scrollTop = 0;
@@ -90,8 +97,8 @@ export function SettingsPage() {
               </div>
             </header>
             {p.id === "general" && <UpdateBar />}
-            {pages.get(p.id)!.map((s: any) => (
-              <SettingsSection key={s.title} section={s} />
+            {pages.get(p.id)!.map((s: any, i: number) => (
+              <SettingsSection key={s.title || "untitled-" + i} section={s} />
             ))}
           </div>
         )}

@@ -14,7 +14,7 @@ export const SKILL_HOMES = [
 // Core by name, so a lost manifest or an edited off-list can never remove the workflow.
 const CORE = ["kaizen", "kaizen-concept", "kaizen-explore", "kaizen-help"];
 
-function frontMatter(text: string) {
+export function frontMatter(text: string) {
   const fm = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text)?.[1] ?? "";
   const d = /^description:[ \t]*(?:[>|][-+]?[ \t]*\r?\n)?([\s\S]*?)(?=\r?\n[A-Za-z_-]+:|(?![\s\S]))/m.exec(fm)?.[1] ?? "";
   const line = d.replace(/\s+/g, " ").replace(/^["']|["']$/g, "").trim();

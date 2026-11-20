@@ -254,9 +254,33 @@ test("pages with their own rows: agents, accounts, skills and automations", () =
   };
   const s = pageSections("skills", data([], { skills: sk }), env);
   expect(s.map((x) => [x.title, x.extra])).toEqual([
+    ["", undefined],
     ["Core", "recheck"],
     ["Media", undefined],
   ]);
+  // My Skills: tabs and a search box, then one list by name of skills from outside kaizen and Claude Code plugins (the
+  // first few, then Show all), with Re-check to scan again. The store is its own tab.
+  const outside = ["a", "b", "d", "e", "f"].map((id) => ({ id, description: "x", origin: "folder", agents: [] }));
+  const plugins = [{ plugin: "caveman", marketplace: "m", skills: [{ id: "caveman:caveman", description: "Terse." }] }];
+  const mineEnv = { ...env, skillTab: "mine" as const };
+  const both = data([], { skills: { ...sk, outside, plugins } });
+  const more = pageSections("skills", both, mineEnv);
+  expect(more.map((x) => [x.title, x.extra])).toEqual([["", undefined], ["On this computer", "recheck"]]);
+  expect(more[0]!.items.map((i) => i.kind)).toEqual(["skill-tabs", "skill-mine-search"]);
+  expect(more[1]!.items.map((i) => i.ref ?? i.kind)).toEqual(["a", "b", "caveman", "d", "e", "skill-more"]);
+  const all = pageSections("skills", both, { ...mineEnv, skillAll: true });
+  expect(all[1]!.items.map((i) => i.ref)).toEqual(["a", "b", "caveman", "d", "e", "f"]);
+  // The My Skills search narrows the list and shows every match; nothing left says so.
+  const found = pageSections("skills", both, { ...mineEnv, skillQ: "terse" });
+  expect(found[1]!.items.map((i) => i.ref)).toEqual(["caveman"]);
+  const none = pageSections("skills", both, { ...mineEnv, skillQ: "zzz" });
+  expect(none.map((x) => x.items.map((i) => i.kind))).toEqual([["skill-tabs", "skill-mine-search", "skill-none"]]);
+  // The Settings search finds kaizen's skills and the user's whichever tab is open.
+  const searching = pageSections("skills", both, { ...env, searching: true, skillAll: true });
+  expect(searching.map((x) => x.title)).toEqual(["", "Core", "Media", "On this computer"]);
+  const store = pageSections("skills", data([], { skills: sk }), { ...env, skillTab: "store" });
+  expect(store.map((x) => x.items.map((i) => i.kind))).toEqual([["skill-tabs"], ["skill-store"]]);
+  expect(pageHasMatch(store)).toBe(true); // the store tab keeps the Skills page shown
   const au = pageSections(
     "automations",
     data([], { automations: { rules: [{ id: "r1", name: "Nightly", text: "t", cron: "0 9 * * *" }] } }),

@@ -196,7 +196,18 @@ export const clampFont = (typed: string, now: number, lo: number, hi: number) =>
 // search matches. A section with no title is never filtered and does not count as a match (Orchestration's picture).
 export type Item = { id: string; kind: string; q: string; ref?: string; off?: boolean };
 export type Section = { title: string; extra?: "refresh" | "recheck"; items: Item[] };
-export type Env = { notifyHelp: string; notifyOn: boolean; scoped: boolean; agentCount: number };
+export type Env = {
+  notifyHelp: string;
+  notifyOn: boolean;
+  scoped: boolean;
+  agentCount: number;
+  skillTab?: "kaizen" | "mine" | "store";
+  skillQ?: string; // what the My Skills search box holds, once typing pauses
+  searching?: boolean; // the Settings search has words: Kaizen and My Skills both show, so a match is never hidden
+  skillAll?: boolean; // every outside skill, not the first few (also while searching, so a match is never hidden)
+};
+// How many rows My Skills shows before Show all.
+export const MINE_SHOWN = 5;
 
 const lower = (s: string) => s.toLowerCase();
 const item = (id: string, kind: string, q: string, ref?: string, off?: boolean): Item => ({
@@ -342,18 +353,51 @@ export function pageSections(page: string, d: Data, env: Env, generic = genericS
   }
   if (page === "orchestration" && d.cfg)
     out.push({ title: "", items: [item("orch", "orchestration", "orchestration workers flow plan merge review")] });
-  if (page === "skills" && d.skills)
-    SKILL_GROUPS.filter(([g]) => d.skills.skills.some((s: any) => s.group === g)).forEach(([g, label], i) =>
-      out.push({
-        title: label,
-        extra: i ? undefined : "recheck",
-        items: d.skills.skills
-          .filter((s: any) => s.group === g)
-          .map((s: any) =>
-            item("sk-" + s.id, "skill", [s.title, s.id, s.description, s.group, "skill"].join(" "), s.id),
+  if (page === "skills" && d.skills) {
+    // Three tabs: kaizen's own skills, the user's skills from elsewhere (searchable), and the skill store.
+    const tab = env.skillTab ?? "kaizen";
+    const top: Section = { title: "", items: [item("sk-tabs", "skill-tabs", "")] };
+    out.push(top);
+    if (tab === "store" && !env.searching)
+      // Titled, so the page counts as a match and stays shown (an untitled section never does).
+      out.push({ title: "Find skills", items: [item("sk-store", "skill-store", "find skills store search install skills.sh")] });
+    if (tab === "kaizen" || env.searching)
+      SKILL_GROUPS.filter(([g]) => d.skills.skills.some((s: any) => s.group === g)).forEach(([g, label], i) =>
+        out.push({
+          title: label,
+          extra: i ? undefined : "recheck",
+          items: d.skills.skills
+            .filter((s: any) => s.group === g)
+            .map((s: any) =>
+              item("sk-" + s.id, "skill", [s.title, s.id, s.description, s.group, "skill"].join(" "), s.id),
+            ),
+        }),
+      );
+    if (tab === "mine" || env.searching) {
+      // One list, by name: skills in the agents' folders and the installed Claude Code plugins.
+      const sq = env.searching ? "" : (env.skillQ ?? "");
+      if (!env.searching) top.items.push(item("sk-find", "skill-mine-search", ""));
+      const rows = [
+        ...(d.skills.outside ?? []).map((s: any) =>
+          item("so-" + s.id, "skill-outside", [s.id, s.description, s.source ?? "", "skill"].join(" "), s.id),
+        ),
+        ...(d.skills.plugins ?? []).map((p: any) =>
+          item(
+            "sp-" + p.plugin,
+            "skill-plugin",
+            [p.plugin, "plugin claude", ...p.skills.map((s: any) => s.id + " " + s.description)].join(" "),
+            p.plugin,
           ),
-      }),
-    );
+        ),
+      ].sort((x, y) => x.ref!.localeCompare(y.ref!));
+      // Re-check scans the agents' folders again (it also happens each time the page loads and after any install or remove).
+      const [mine] = filterSections([{ title: "On this computer", extra: env.searching ? undefined : "recheck", items: rows }], sq).filter((x) => x.items.length);
+      if (mine && !env.skillAll && !sq && mine.items.length > MINE_SHOWN)
+        mine.items = [...mine.items.slice(0, MINE_SHOWN), item("so-more", "skill-more", "show all skills")];
+      if (mine) out.push(mine);
+      else if (!env.searching) top.items.push(item("sk-none", "skill-none", ""));
+    }
+  }
   if (page === "automations") {
     const au = d.automations;
     out.push({

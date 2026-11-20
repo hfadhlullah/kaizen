@@ -19,6 +19,13 @@ const SKILL_ICONS: Record<string, Shape[]> = {
     ["circle", { cx: 18, cy: 13.5, r: 0.6 }],
   ],
   "kaizen-video": [["rect", { x: 3, y: 6, width: 13, height: 12, rx: 2 }], p("m16 10 5-3v10l-5-3")],
+  "kaizen-concept": [["rect", { x: 3, y: 4, width: 18, height: 16, rx: 2 }], p("M3 9h18M9 9v11")],
+  "kaizen-explore": [["circle", { cx: 12, cy: 12, r: 9 }], p("m15.5 8.5-2 5-5 2 2-5Z")],
+  "lemo-opuscar": [["rect", { x: 3, y: 4, width: 18, height: 16, rx: 2 }], p("M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4")],
+  "disk-cleanup": [["rect", { x: 3, y: 13, width: 18, height: 7, rx: 2 }], p("m5 13 2-8h10l2 8M17 16.5h.01")],
   rea: [["circle", { cx: 10.5, cy: 10.5, r: 6 }], p("m15 15 6 6"), p("M8.5 9 7 10.5 8.5 12M12.5 9l1.5 1.5-1.5 1.5")],
 };
 export const skillShapes = (id: string) => SKILL_ICONS[id] ?? PUZZLE;
+// A skill from outside kaizen has no drawn mark: it shows its first letter in a square instead of the puzzle piece.
+export const hasSkillIcon = (id: string) => id in SKILL_ICONS;
+export const letterOf = (id: string) => (/[a-z0-9]/i.exec(id)?.[0] ?? "?").toUpperCase();
