@@ -696,7 +696,7 @@ the project and run it came from. Each line reads:
 
 ## Settings
 
-**Updates.** Settings → General → About shows the version, **What's new** (what changed in this release: the big improvements, then the fixes; it opens by itself the first time after an update, with a dot on the Settings gear) and **Check for updates**. Under **Updates**, **Update automatically** lets kaizen update itself when a newer version is out: right as the board starts, and later whenever nothing is running and no board page is open; it is off by default. While an update waits, **What's new** shows what the new version brings.
+**Updates.** Settings → General → About shows the version, **What's new** (what changed in this release: the big improvements, then the fixes; it opens by itself the first time after an update, with a dot on the Settings gear) and **Check for updates**. Under **Updates**, **Update automatically** lets kaizen update itself when a newer version is out: right as the board starts, and later whenever nothing is running and no board page is open; it is off by default. In the Kaizen desktop app (Linux and Windows) the same switch installs the update the app has downloaded and restarts the app, within 30 minutes and only once no terminal is running; on macOS the switch is not shown, since the app cannot update itself there. While an update waits, **What's new** shows what the new version brings.
 
 **Models.** Settings → Models has a row per installed agent. Claude Code's row sets its stage subagents. Other tools run every stage in one session, so their row sets the model they launch with, using the tool's own model name.
 

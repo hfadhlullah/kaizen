@@ -860,15 +860,18 @@ export async function web(repoDir: string, opts: Opts = {}) {
   // At start nothing can be lost yet (no terminal has opened, and a page that has just loaded is reloaded by the restart), so that
   // check asks npm fresh and does not wait for pages. `runUpgrade` refuses to restart when npm's copy installs no newer version, so a
   // start never loops.
+  // In the desktop app the update is the app's own: the version it has downloaded (cli/desktop-update.ts; `installable`
+  // already checks it is newer, and is never true on macOS), installed by asking the app as Update on another computer does.
+  const desktopDownloaded = async () => { const s = desktopStatus(home); return installable(s) ? s.downloaded : null; };
   const autoUpd = (starting = false) => autoUpdateTick({
     on: async () => (await setting("board.auto_update")) === "true",
-    latest: () => npmLatest(starting),
-    newer: (v) => newer(v, VERSION),
+    latest: DESKTOP_BUNDLED ? desktopDownloaded : () => npmLatest(starting),
+    newer: DESKTOP_BUNDLED ? () => true : (v) => newer(v, VERSION),
     desktop: DESKTOP_BUNDLED,
     upgrading: () => upgrading,
     terminalsAlive: () => ptyKeys().some((k) => ptyState(k)?.alive),
     pagesOpen: () => !starting && clients.size > 0,
-    upgrade: runUpgrade,
+    upgrade: DESKTOP_BUNDLED ? async () => requestInstall(home) : runUpgrade,
   }).catch(() => "off" as const);   // the next tick tries again
   const autoUpdate = setInterval(autoUpd, 30 * 60_000);
   // The desktop app: kaizen for the agents in ~/kaizen (setupAgents), set up by itself in the background at start, no
@@ -2243,9 +2246,8 @@ export async function web(repoDir: string, opts: Opts = {}) {
         // A worker model row per installed tool that takes a model flag; the others have nothing to set.
         const prefs = readPrefs();
         cfg.rows = cfg.rows.filter((r) => { const t = /^orchestration\.worker_model\.(\w+)$/.exec(r.key)?.[1]; return !t || !!onPath(commandOf(t, prefs)); });
-        // The desktop app's board: the app updates itself (and, from another computer, through Update), so the switch
-        // for `kaizen web`'s own automatic update would do nothing here.
-        if (DESKTOP_BUNDLED) cfg.rows = cfg.rows.filter((r) => r.key !== "board.auto_update");
+        // The desktop app on macOS cannot install an update by itself (unsigned), so the switch would do nothing there.
+        if (DESKTOP_BUNDLED && process.platform === "darwin") cfg.rows = cfg.rows.filter((r) => r.key !== "board.auto_update");
         Object.assign(cfg, { phoneUrls: [...webHosts()].filter((h) => /^[a-z0-9-]+(?:\.[a-z0-9-]+)*\.ts\.net$/.test(h)).map((h) => `https://${h}`) });
         // Connected, the model is chosen from what the plan offers rather than typed.
         const m = cfg.rows.find((r) => r.key === "sources.model");

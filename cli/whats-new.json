@@ -3,12 +3,16 @@
     "version": "1.89.7",
     "highlights": [
       {
+        "title": "The desktop app updates itself",
+        "text": "Turn on Settings → General → Update automatically in the Kaizen app (Linux and Windows) and it installs each new version it downloads and restarts, once no agent or terminal is running. Before, the switch did nothing in the app and a downloaded update waited until you quit."
+      },
+      {
         "title": "Try updating the desktop app from another computer",
         "text": "With 1.89.6 or newer on the computer that runs the Kaizen app, this is the first update you can install from your phone or another computer: open that board's Settings → General and press Update now."
       }
     ],
     "fixes": [
-      "The desktop app's Settings no longer shows the Update automatically switch, which only applies to kaizen web: the app updates itself."
+      "On macOS the desktop app's Settings no longer shows the Update automatically switch, which cannot work there: the app is unsigned and cannot install an update by itself."
     ]
   },
   {

@@ -2,13 +2,15 @@ import { test, expect } from "bun:test";
 import { autoUpdateDue, autoUpdateTick, type Deps } from "./auto-update.ts";
 
 const base = { on: true, desktop: false, upgrading: false, newer: true, terminalsAlive: false, pagesOpen: false };
-test("it goes only when on, newer, nothing running, no page open and not the desktop app", () => {
+test("it goes only when on, newer, nothing running and no page open (the desktop app's own window does not count)", () => {
   expect(autoUpdateDue(base)).toBe("go");
   expect(autoUpdateDue({ ...base, on: false })).toBe("off");
   expect(autoUpdateDue({ ...base, newer: false })).toBe("current");
   expect(autoUpdateDue({ ...base, terminalsAlive: true })).toBe("agents");
   expect(autoUpdateDue({ ...base, pagesOpen: true })).toBe("page");
-  expect(autoUpdateDue({ ...base, desktop: true })).toBe("desktop");
+  expect(autoUpdateDue({ ...base, desktop: true })).toBe("go");
+  expect(autoUpdateDue({ ...base, desktop: true, pagesOpen: true })).toBe("go");
+  expect(autoUpdateDue({ ...base, desktop: true, terminalsAlive: true })).toBe("agents");
   expect(autoUpdateDue({ ...base, upgrading: true })).toBe("busy");
   // the switch is asked first
   expect(autoUpdateDue({ ...base, on: false, terminalsAlive: true, desktop: true, pagesOpen: true })).toBe("off");
@@ -36,6 +38,6 @@ test("the tick upgrades exactly when due, and asks npm only when the switch is o
   f = fake({ latest: "1.87.0" }); expect(await autoUpdateTick(f.d)).toBe("current");
   f = fake({ terminals: true }); expect(await autoUpdateTick(f.d)).toBe("agents"); expect(f.calls).not.toContain("UPGRADE");
   f = fake({ pages: true }); expect(await autoUpdateTick(f.d)).toBe("page"); expect(f.calls).not.toContain("UPGRADE");
-  f = fake({ desktop: true }); expect(await autoUpdateTick(f.d)).toBe("desktop"); expect(f.calls).not.toContain("UPGRADE");
+  f = fake({ desktop: true, pages: true }); expect(await autoUpdateTick(f.d)).toBe("go"); expect(f.calls).toContain("UPGRADE");
   f = fake({ upgrading: true }); expect(await autoUpdateTick(f.d)).toBe("busy"); expect(f.calls).not.toContain("UPGRADE");
 });

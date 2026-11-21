@@ -32,7 +32,7 @@ The program behind the board: what it serves, which computers may reach it, how 
 
 - Automations: a 60 s tick in `cli/web.ts` (own busy flag, `automate`, cleared at shutdown) calls `tickAutomations`; `/automations` (GET, POST ops create|update|pause|resume|delete|run, same-origin + JSON checks, project from `x-kz-dir`, never the home state) feeds Settings → Automations (`web/components/settings/automation-rows.tsx`; the form draft is kept across redraws). The create form carries a warning that runs are unattended.
 
-- The desktop app's board leaves `board.auto_update` out of `GET /settings` (the app updates itself; that switch drives `kaizen web`'s own automatic update).
+- Update automatically (`board.auto_update`, `cli/auto-update.ts`) in the desktop app: the 30-minute tick takes the version the app has downloaded (`desktopStatus` + `installable` in `cli/desktop-update.ts`) and, when no terminal is alive, writes `install-request` (`requestInstall`), the same path as Update from another computer. The app's own window counts as a page for as long as it runs, so open pages do not hold it back there. On macOS (unsigned, cannot self-install) the row is left out of `GET /settings`.
 - Update: `GET /version` reports `update` when npm has a newer kaizen and `POST /upgrade` runs `kaizen upgrade`; both stand down when `KAIZEN_DESKTOP_BUNDLED=1` (set by the desktop app when it runs its own read-only copy, see `docs/desktop.md`): no Update button, and `/upgrade` answers 409. Inside the desktop app, `web/lib/settings/update.ts` uses `window.kaizenDesktop` (the app's preload) instead: Check for updates and Update ask the app's electron-updater for a newer desktop release.
 
 ## Watch out

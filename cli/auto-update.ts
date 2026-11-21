@@ -1,13 +1,13 @@
 // When the board may update itself (Settings → General → Updates → Update automatically). An update restarts the board, so it waits
 // while anything could be lost: a live terminal (an agent or a shell), or an open board page (a reload under someone typing).
-export type Due = "go" | "off" | "desktop" | "busy" | "current" | "agents" | "page";
+// In the desktop app the app's own window is a board page for as long as the app runs, so there only terminals hold it back.
+export type Due = "go" | "off" | "busy" | "current" | "agents" | "page";
 export function autoUpdateDue(o: { on: boolean; desktop: boolean; upgrading: boolean; newer: boolean; terminalsAlive: boolean; pagesOpen: boolean }): Due {
   if (!o.on) return "off";
-  if (o.desktop) return "desktop";   // the desktop app updates itself
   if (o.upgrading) return "busy";
   if (!o.newer) return "current";
   if (o.terminalsAlive) return "agents";
-  if (o.pagesOpen) return "page";
+  if (o.pagesOpen && !o.desktop) return "page";
   return "go";
 }
 

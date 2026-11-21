@@ -149,7 +149,7 @@ const SETTINGS: Setting[] = [
   { key: "sources.agent", label: "Who picks social posts", group: "Board", values: ["ask", "chatgpt", "agent"], help: "X, TikTok, Instagram, Threads" },
   { key: "sources.model", label: "ChatGPT model for the icebox", group: "Board", values: [], text: true, help: "Gathering social posts, sorting captures, drafting tasks. Empty: plan default" },
   { key: "sources.effort", label: "ChatGPT effort for the icebox", group: "Board", values: ["low", "medium", "high"], help: "Gathering, sorting and task drafts" },
-  { key: "board.auto_update", label: "Update automatically", group: "Board", values: ["false", "true"], help: "When kaizen starts and a newer version is out, it updates itself first. While it runs, it updates when no terminal is running and no board page is open. Off by default." },
+  { key: "board.auto_update", label: "Update automatically", group: "Board", values: ["false", "true"], help: "When kaizen starts and a newer version is out, it updates itself first. While it runs, it updates when no terminal is running and no board page is open. In the Kaizen desktop app it installs the update the app has downloaded and restarts the app, once no terminal is running (not on macOS). Off by default." },
   { key: "board.projects_dir", label: "Projects folder", group: "Board", values: [], text: true, folder: true, help: "Empty: known projects only" },
   { key: "board.video_dir", label: "Video library folder", group: "Board", values: [], text: true, folder: true, help: "Empty: ~/.kaizen" },
   { key: "board.chat_hotkey", label: "Popup chat hotkey", group: "Board", values: [], text: true, help: "Hyprland, e.g. SUPER + ALT + SPACE. Empty: none" },
