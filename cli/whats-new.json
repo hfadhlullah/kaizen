@@ -1,5 +1,17 @@
 [
   {
+    "version": "1.89.7",
+    "highlights": [
+      {
+        "title": "The Browser tab stays closed",
+        "text": "Closing the Browser tab in a workspace no longer brings it back a moment later. It opens by itself only when a run you could see moves into review, not when older finished runs load late."
+      }
+    ],
+    "fixes": [
+      "On Linux desktops such as KDE Plasma, the split buttons in a workspace with no run are no longer hidden under the window's minimize, maximize and close buttons."
+    ]
+  },
+  {
     "version": "1.89.6",
     "highlights": [
       {
