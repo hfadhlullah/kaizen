@@ -18,7 +18,7 @@ import { isTerm, liveKeys, pruneDead } from "./kept.ts";
 import { followNew, mineNow, picked, seenRuns, tabs, draw } from "./ws-draw.ts";
 import { byKey, autoTab, closeScreen, closeTab, moveItem, newPty, openAgent, openNew, openNoteTab, previewApp, projectNotes, show } from "./ws-actions.ts";
 import { cx, edit, getWs, saved, setWs } from "./ws-store.ts";
-import { devUrl, finished, leaves, loopbackUrl, migrate, previewOpens, reviewing, toOpen, wsKey } from "./ws-tabs.ts";
+import { devUrl, finished, leaves, loopbackUrl, migrate, notYetReviewing, previewOpens, toOpen, wsKey } from "./ws-tabs.ts";
 import { clearBrowse, fetchPreview, keepUrl, layoutOf, refreshPreview, replaceAll, requestBrowse, selectScreen, setDragging, getPanel, setPanel, setRunActions, setRunView, useLayout, useRunView } from "./index.ts";
 
 export { openNoteTab, openPreview, projectNotes } from "./ws-actions.ts";
@@ -66,7 +66,7 @@ export async function showRunView(nav = false) {
   const fresh = getWs().ctx?.k !== k;
   // Each workspace has its own centre: switching hides this one's terminals and drops its other panes (its shells keep running on the server).
   if (fresh) (stopPanes(), setWs({ card: null, ctx: { dir, ws, k } }));
-  if (fresh && !was.has(k)) was.set(k, new Set(mineNow().filter(reviewing).map(key))); // what is already in review does not open the Browser
+  if (fresh && !was.has(k)) was.set(k, notYetReviewing(mineNow(), key)); // what is already in review does not open the Browser
   if (fresh) seenRuns.set(k, new Set(mineNow().map(key))); // what is here on arrival is not new
   if (fresh) previewAt.delete(k); // nor is a preview: arriving only records it
   // The header titles a phone's workspace: the run, else the branch.
@@ -138,7 +138,7 @@ export function runStop() {
   setPanel({ pn: false });
 }
 
-// The keys of the workspace's runs that were at review/done on the last tick, per workspace.
+// The keys of the workspace's runs that were present and short of review/done on the last tick, per workspace.
 const was = new Map<string, Set<string>>();
 // A run in the open workspace moves into review or done with a localhost address in its ## Preview:
 // the Browser opens on it, once per run. The first tick of a workspace only records.
@@ -147,7 +147,7 @@ export async function autoBrowse() {
   const k = cx().k,
     mine = mineNow(),
     prev = was.get(k);
-  was.set(k, new Set(mine.filter(reviewing).map(key)));
+  was.set(k, notYetReviewing(mine, key));
   if (!prev) return;
   for (const c of toOpen(mine, prev, saved().seen ?? [], key)) {
     let u: string | undefined;

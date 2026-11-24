@@ -159,7 +159,9 @@ html.desk.mac .rail>.top{padding-top:22px}
 /* Ranking projects by drag (use-rank-drag in lib/rail): the lifted bar dims, a 2px line marks where it lands. */
 .rlist>.pgrp{position:relative}.rlist>.pgrp.rank-before::before,.rlist.rank-end::after{content:"";display:block;height:2px;margin:0 var(--padx);border-radius:1px;background:var(--accent)}.rlist>.pgrp.rank-before::before{position:absolute;left:0;right:0;top:-2px}#plist .proj.rank-lift{opacity:.45;cursor:grabbing}body:has(#plist .proj.rank-lift){cursor:grabbing;user-select:none}
 /* end side menu */
-html.desk body.runv:not(.rflip) #rbar{padding-right:6px}
+/* The run panel sits to the right of the tab bar and keeps clear of the window buttons itself; with no run to show it is
+   parked (a workspace like main), and on a phone width it is a sheet, so the tab bar keeps their room then. */
+@media(min-width:641px){html.desk body.runv:not(.rflip):not(:has(#panel.parked)) #rbar{padding-right:6px}}
 @media(max-width:640px){
 body .hdr{padding:10px 16px 12px;gap:8px;border-bottom:0}
 body aside.docked>header{padding-top:10px}

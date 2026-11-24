@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { nearestPane, agentStatus, forgetAgents, lineOf, settleIn, toggleOpen, wsAgents, SETTLE_MS, awaiting, dueWord, chosen, newRun, loopbackUrl, devUrl, toOpen, previewIn, previewOpens, moveTo, stageKeys, stageTabs, finished, historyOf, liveIn, migrate, pickable, prune, wsKey, localPort } from "./ws-tabs.ts";
+import { nearestPane, agentStatus, forgetAgents, lineOf, settleIn, toggleOpen, wsAgents, SETTLE_MS, awaiting, dueWord, chosen, newRun, loopbackUrl, devUrl, toOpen, notYetReviewing, previewIn, previewOpens, moveTo, stageKeys, stageTabs, finished, historyOf, liveIn, migrate, pickable, prune, wsKey, localPort } from "./ws-tabs.ts";
 
 const run = (id: string, status: string, o: any = {}) => ({ kind: "run", state: "/p/.kaizen", id, status, moved: 1, ws: "/p", ...o });
 const wsOf = (c) => c.ws;
@@ -79,9 +79,13 @@ test("loopbackUrl: the first localhost address in a Preview; other hosts and non
 test("toOpen: a run that moves into review or done opens the Browser once; others do not", () => {
   const cs = [run("a", "running", { column: 2 }), run("b", "waiting", { column: 3 }), run("c", "done", { column: 4 }), run("e", "abandoned", { column: 4 })];
   const key = (c) => c.id;
-  expect(toOpen(cs, new Set(), [], key).map(key)).toEqual(["b", "c"]);
-  expect(toOpen(cs, new Set(["b"]), [], key).map(key)).toEqual(["c"]); // b was already reviewing
-  expect(toOpen(cs, new Set(), ["c"], key).map(key)).toEqual(["b"]); // c already opened once
+  const before = new Set(["a", "b", "c"]); // all three were short of review on the last tick
+  expect(toOpen(cs, before, [], key).map(key)).toEqual(["b", "c"]);
+  expect(toOpen(cs, new Set(["a", "c"]), [], key).map(key)).toEqual(["c"]); // b was already reviewing
+  expect(toOpen(cs, before, ["c"], key).map(key)).toEqual(["b"]); // c already opened once
+  // A finished run that only shows up now (the card lists fill in over a few ticks) has not moved: nothing opens.
+  expect(toOpen(cs, new Set(["a"]), [], key)).toEqual([]);
+  expect([...notYetReviewing(cs, key)]).toEqual(["a", "e"]);
 });
 
 test("pickable: waiting first, then newest; done+approved, abandoned, archived and tasks are not listed", () => {

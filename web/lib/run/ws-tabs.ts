@@ -105,9 +105,13 @@ export function devUrl(pv: string | null | undefined, ports: number[]): string |
   const portOf = (u: string) => Number(new URL(u).port || 80);
   return all.find((u) => ports.includes(portOf(u))) ?? (ports.length ? `http://localhost:${ports[0]}` : all[0]);
 }
-// Runs that moved into review or done since the last tick (`was` = the keys reviewing then) and have not
-// yet opened the Browser: once per run id (`seen`).
-export const toOpen = (cards: any[], was: Set<string>, seen: string[], keyOf: (c) => string) => cards.filter((c) => reviewing(c) && !was.has(keyOf(c)) && !seen.includes(keyOf(c)));
+// Runs that moved into review or done since the last tick and have not opened the Browser yet (`seen`). `before` is the
+// keys present and not yet reviewing on the last tick: a run must have been seen short of review to have moved there. A
+// finished run that only shows up later (the board's card lists fill in over a few ticks) has not moved, and opened
+// the Browser again and again as each old run arrived.
+export const toOpen = (cards: any[], before: Set<string>, seen: string[], keyOf: (c) => string) => cards.filter((c) => reviewing(c) && before.has(keyOf(c)) && !seen.includes(keyOf(c)));
+// The `before` set for the next tick.
+export const notYetReviewing = (cards: any[], keyOf: (c) => string) => new Set(cards.filter((c) => !reviewing(c)).map(keyOf));
 
 
 // The sidebar card's agents, the project drag's moveTo and gitDue moved to lib/rail (no DOM there); re-exported so the run view and its tests keep their imports.
