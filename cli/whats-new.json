@@ -1,5 +1,15 @@
 [
   {
+    "version": "1.89.8",
+    "highlights": [
+      {
+        "title": "A normal title bar in the desktop app",
+        "text": "The desktop app now has your system's own title bar on Windows, macOS and Linux, with the window buttons where your system puts them. On desktops that put the buttons on the left, they no longer cover the kaizen logo. Hyprland still has no title bar."
+      }
+    ],
+    "fixes": []
+  },
+  {
     "version": "1.89.7",
     "highlights": [
       {
