@@ -41,9 +41,9 @@ it runs `kaizen upgrade` on it in the background, once per app version, and says
 (or where the log is: `~/.kaizen/upgrade.log`). It leaves `~/kaizen` alone when there is none
 (desktop only), when it is a git checkout, or when it is already as new.
 
-**Looks like an app.** There is no system title bar: you move the window by the board's top bar
-(and the side menu's top row), and the window buttons sit in it (on macOS the traffic lights
-are inset; on Hyprland, which has no title bars, there are none: close the window with your keybind). Labels and buttons are not text you can select, buttons use the arrow pointer, and
+**Looks like an app.** The window has your system's normal title bar on Windows, macOS and Linux,
+with the window buttons where your system puts them. Hyprland has no title bars: there is none, and
+you close the window with your keybind. Labels and buttons are not text you can select, buttons use the arrow pointer, and
 the window does not bounce or pinch-zoom. Text you might copy — tasks, notes, run documents,
 terminals, fields — still selects as before. With a mouse, scrollbars stay hidden until the
 pointer is over the area that scrolls (in the browser board too).

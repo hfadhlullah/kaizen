@@ -4,7 +4,7 @@ import { appendFileSync, existsSync, openSync, readFileSync, writeFileSync, mkdi
 import { spawn } from "node:child_process";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { boardPort, forgetBoard, needsUpgrade, windowButtons, pickKaizen, reapStale, rememberBoard, startBoard, stopBoard, upgradeCmd, versionOf, waitReady, type Board } from "./server";
+import { boardPort, forgetBoard, needsUpgrade, nativeTitleBar, pickKaizen, reapStale, rememberBoard, startBoard, stopBoard, upgradeCmd, versionOf, waitReady, type Board } from "./server";
 import { checkNow, installFromRemote, installNow, startUpdates } from "./updater";
 import { watchRequests } from "./remote-update";
 import { desktopEntry } from "./appimage";
@@ -12,11 +12,6 @@ import { PANE_PARTITION, paneAllows, paneAttach, paneNavigable } from "./browser
 import { autoUpdater } from "electron-updater";
 
 const smoke = process.env.KAIZEN_DESKTOP_SMOKE === "1";
-// The window buttons' strip, in the board's own background and ink (web/html/board.html :root tokens).
-const TITLE_BAR = {
-  light: { color: "#f5f5f5", symbolColor: "#171717", height: 52 },
-  dark: { color: "#111111", symbolColor: "#e5e5e5", height: 52 },
-} as const;
 // CI's update test (scripts/update-test.ts): a hidden window, updates from this feed.
 // Only a build made by that script honours it (its package.json carries
 // kaizenUpdateTest), so a release build can never be pointed at another feed.
@@ -190,10 +185,8 @@ function createWindow() {
     backgroundColor: "#111111",
     show: !smoke && !testFeed,
     autoHideMenuBar: true,
-    // No system title bar: the board's own top bar is it (web/*.html, html.desk). macOS keeps
-    // its traffic lights inset; Windows and Linux draw their buttons over the page's top right.
-    titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "hidden",
-    ...(windowButtons(process.platform, process.env) ? { titleBarOverlay: TITLE_BAR.dark } : {}),
+    // The system's own title bar (nativeTitleBar); on Hyprland, which has none, no title bar at all.
+    ...(nativeTitleBar(process.platform, process.env) ? {} : { titleBarStyle: "hidden" as const }),
     webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, webviewTag: true, preload: join(app.getAppPath(), "dist", "preload.js") },
   });
   const wc = win.webContents;
@@ -247,11 +240,9 @@ async function restart() {
 
 // The board page's update buttons (preload.ts). Only the board itself may ask.
 const fromBoard = (e: Electron.IpcMainInvokeEvent) => !!board && (e.senderFrame?.url ?? "").startsWith(board.url);
-// The page says when its theme is dark or light; the window buttons follow (not on macOS).
-ipcMain.handle("kz-titlebar", (e, dark) => {
-  if (!fromBoard(e) || !win || !windowButtons(process.platform, process.env)) return;
-  try { win.setTitleBarOverlay(dark ? TITLE_BAR.dark : TITLE_BAR.light); } catch { /* no overlay on this window */ }
-});
+// The page still says when its theme turns dark or light (preload.ts titleBar). The system title bar
+// keeps the system's colours, so there is nothing to recolour; answer so the page's call resolves.
+ipcMain.handle("kz-titlebar", () => undefined);
 ipcMain.handle("kz-update-check", (e) => (fromBoard(e) ? checkNow() : null));
 ipcMain.handle("kz-update-install", (e) => (fromBoard(e) ? installNow() : { ok: false, error: "not the board" }));
 

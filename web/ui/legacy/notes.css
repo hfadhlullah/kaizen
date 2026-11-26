@@ -158,7 +158,6 @@ html.desk #rbar{padding-right:calc(6px + var(--wco));-webkit-app-region:drag}
 html.desk #rbar :is(button,summary,details,a,input,select,[role=button],[role=tab]){-webkit-app-region:no-drag}
 html.desk body.runv #panel>header{padding-right:calc(12px + var(--wco))}
 html.desk body.runv .pstrip{padding-top:calc(10px + var(--wch))}
-html.desk.mac .rail>.top{padding-top:22px}
 /* Ranking projects by drag (use-rank-drag in lib/rail): the lifted bar dims, a 2px line marks where it lands. */
 .rlist>.pgrp{position:relative}.rlist>.pgrp.rank-before::before,.rlist.rank-end::after{content:"";display:block;height:2px;margin:0 var(--padx);border-radius:1px;background:var(--accent)}.rlist>.pgrp.rank-before::before{position:absolute;left:0;right:0;top:-2px}#plist .proj.rank-lift{opacity:.45;cursor:grabbing}body:has(#plist .proj.rank-lift){cursor:grabbing;user-select:none}
 /* end side menu */

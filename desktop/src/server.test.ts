@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { boardPort, freePort, needsUpgrade, windowButtons, newer, pickKaizen, reapStale, rememberBoard, startBoard, stopBoard, upgradeCmd, waitReady } from "./server.ts";
+import { boardPort, freePort, needsUpgrade, nativeTitleBar, newer, pickKaizen, reapStale, rememberBoard, startBoard, stopBoard, upgradeCmd, waitReady } from "./server.ts";
 
 // A stand-in for cli/install.ts: answers on --port like the board does.
 function fakeKaizen(version: string, body = `Bun.serve({ hostname: "127.0.0.1", port: Number(Bun.argv[Bun.argv.indexOf("--port") + 1]), fetch: () => new Response("board") });`) {
@@ -112,11 +112,11 @@ test("upgradeCmd runs the installed copy's own upgrade, aimed at it, without the
   expect(env).toEqual({ PATH: "/usr/bin", KAIZEN_HOME: "/home/u/kaizen" });
 });
 
-test("windowButtons: Windows and other Linux desktops draw them; macOS and Hyprland do not", () => {
-  expect(windowButtons("win32", {})).toBe(true);
-  expect(windowButtons("linux", { XDG_CURRENT_DESKTOP: "GNOME" })).toBe(true);
-  expect(windowButtons("linux", { XDG_CURRENT_DESKTOP: "KDE" })).toBe(true);
-  expect(windowButtons("darwin", {})).toBe(false);
-  expect(windowButtons("linux", { XDG_CURRENT_DESKTOP: "Hyprland" })).toBe(false);
-  expect(windowButtons("linux", { HYPRLAND_INSTANCE_SIGNATURE: "abc" })).toBe(false);
+test("nativeTitleBar: Windows, macOS and Linux keep the system title bar; Hyprland has none", () => {
+  expect(nativeTitleBar("win32", {})).toBe(true);
+  expect(nativeTitleBar("darwin", {})).toBe(true);
+  expect(nativeTitleBar("linux", { XDG_CURRENT_DESKTOP: "GNOME" })).toBe(true);
+  expect(nativeTitleBar("linux", { XDG_CURRENT_DESKTOP: "KDE" })).toBe(true);
+  expect(nativeTitleBar("linux", { XDG_CURRENT_DESKTOP: "Hyprland" })).toBe(false);
+  expect(nativeTitleBar("linux", { HYPRLAND_INSTANCE_SIGNATURE: "abc" })).toBe(false);
 });
