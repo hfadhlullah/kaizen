@@ -1,5 +1,15 @@
 [
   {
+    "version": "1.89.9",
+    "highlights": [
+      {
+        "title": "Home window clicks work at the top",
+        "text": "In the desktop app, dragging the Home window up over the top bar no longer makes its tabs and buttons ignore clicks."
+      }
+    ],
+    "fixes": []
+  },
+  {
     "version": "1.89.8",
     "highlights": [
       {
