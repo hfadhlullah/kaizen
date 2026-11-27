@@ -2,7 +2,7 @@
 description: The floating Home workspace: agents and shells in ~/.kaizen/home before any project, minimized to a Home row in the sidebar
 tags: [project, web-board]
 sources: [web/lib/home/home-events.ts, web/lib/home/home-window.ts, web/lib/home/use-float-drag.ts, web/components/home/home-window.tsx, web/components/home/home-ws-add.tsx, web/lib/rail/rail-boot.ts, web/html/board.html, web/pages/board/main.ts, cli/web.ts, cli/usage.test.ts]
-updated: 2026-11-14
+updated: 2026-11-27
 ---
 # Home workspace
 
@@ -24,6 +24,7 @@ A floating panel on the board where you talk to Claude, Codex or a shell without
 ## Watch out
 - Rewriting the address at import does not work: other modules read `location.search` earlier in the bundle. Route through `wsHref()` instead.
 - `Ctrl+Alt+A` ignores AltGr (Windows reports it as Ctrl+Alt).
+- In the desktop app the page headers and tab bar are a window drag region (`-webkit-app-region:drag`), which eats clicks on anything over it. The panel carries `[-webkit-app-region:no-drag]` so it stays clickable when dragged up there; any other floating panel needs the same.
 
 - Home terminals run in the user's home folder `~` (run 2026-11-13-home-tilde-light-term): `/shell {home:true}` spawns in `home` while the record keeps `dir`/`ws` = `~/.kaizen/home`, which the Home window, `isHomeDir`, the phone and restart resume match on; restart resume also spawns them in `~`, where Claude keeps their conversation for `--resume`. Claude asks once to trust `~` (it holds `~/.claude/settings.json`, so `trustFolder` will not pre-trust it).
 
